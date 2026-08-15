@@ -1,0 +1,26 @@
+# Dependencies
+node_modules/
+node_modules/*
+.pnp
+.pnp.js
+
+# Build output
+dist/
+build/
+.vite/
+
+# System / Temp
+.gemini/
+*.log
+.DS_Store
+
+# IDE
+.idea/
+.vscode/
+
+# Local Confidential Sources (Do not commit to remote)
+Sources/
+Sources/*
+~$*
+
+
