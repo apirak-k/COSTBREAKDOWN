@@ -9,10 +9,10 @@ export const seedProductMaster: ProductMaster = {
 }
 
 export const seedWorkCenterRates: WorkCenterRate[] = [
-  { wc: 'BZP01', description: 'Cleanroom Printing Line', laborRate: 102.90, burdenRate: 79.66, effectiveDate: '2026-07-01', sourceRef: 'Cost declare Rate Sheet' },
-  { wc: 'BFK01', description: 'Fabrication & Die-Cutting Line', laborRate: 102.90, burdenRate: 79.66, effectiveDate: '2026-07-01', sourceRef: 'Cost declare Rate Sheet' },
-  { wc: 'BFP01', description: 'Final Assembly & Lamination Line', laborRate: 102.90, burdenRate: 79.66, effectiveDate: '2026-07-01', sourceRef: 'Cost declare Rate Sheet' },
-  { wc: 'BPP01', description: 'Cleanroom Inspection & Packing', laborRate: 102.90, burdenRate: 79.66, effectiveDate: '2026-07-01', sourceRef: 'Cost declare Rate Sheet' }
+  { wc: 'Cutting', description: 'Cutting', laborRate: 105.29, burdenRate: 138.48, effectiveDate: '2025-03-31', sourceRef: 'Cost declare 250331' },
+  { wc: 'Printing-Digital RGOM', description: 'Printing-Digital RGOM', laborRate: 105.29, burdenRate: 97.69, effectiveDate: '2025-03-31', sourceRef: 'Cost declare 250331' },
+  { wc: 'Assembly Digital RGOM', description: 'Assembly Digital RGOM', laborRate: 105.29, burdenRate: 90.93, effectiveDate: '2025-03-31', sourceRef: 'Cost declare 250331' },
+  { wc: 'OQA-Digital', description: 'OQA-Digital', laborRate: 105.29, burdenRate: 82.74, effectiveDate: '2025-03-31', sourceRef: 'Cost declare 250331' }
 ]
 
 export const seedBOM: BOMItem[] = [
@@ -29,18 +29,18 @@ export const seedBOM: BOMItem[] = [
 ]
 
 export const seedRouting: RoutingStep[] = [
-  { id: '1', opSeq: 10, description: 'PET Film Precision Sheet Cutting', wc: 'BZP01', manning: 1, baseCap: 1200, activeCap: 1200, baseYield: 0.98, activeYield: 0.98, sourceRef: 'Cost declare 250331' },
-  { id: '2', opSeq: 20, description: 'Optical Surface Cleaning & De-ion', wc: 'BZP01', manning: 1, baseCap: 1200, activeCap: 1200, baseYield: 0.98, activeYield: 0.98, sourceRef: 'Cost declare 250331' },
-  { id: '3', opSeq: 30, description: 'Alignment Guide Punching', wc: 'BZP01', manning: 1, baseCap: 1000, activeCap: 1000, baseYield: 0.98, activeYield: 0.98, sourceRef: 'Cost declare 250331' },
-  { id: '4', opSeq: 40, description: 'Silver Conductor Circuit Screen Print', wc: 'BZP01', manning: 2, baseCap: 600, activeCap: 600, baseYield: 0.95, activeYield: 0.90, sourceRef: 'QCF-LPN-MB-MRGOM-0024-1' },
-  { id: '5', opSeq: 50, description: 'Continuous Hot Air Curing', wc: 'BZP01', manning: 1, baseCap: 800, activeCap: 800, baseYield: 0.98, activeYield: 0.98, sourceRef: 'Cost declare 250331' },
-  { id: '6', opSeq: 60, description: 'Carbon Overcoat Screen Print', wc: 'BZP01', manning: 2, baseCap: 600, activeCap: 600, baseYield: 0.95, activeYield: 0.90, sourceRef: 'QCF-LPN-MB-MRGOM-0024-1' },
-  { id: '7', opSeq: 70, description: 'Electrical Function Test & AOI', wc: 'BZP01', manning: 1, baseCap: 900, activeCap: 900, baseYield: 0.98, activeYield: 0.98, sourceRef: 'Cost declare 250331' },
-  { id: '8', opSeq: 80, description: 'Graphic Overlay Silk Screen Print', wc: 'BFK01', manning: 2, baseCap: 550, activeCap: 550, baseYield: 0.96, activeYield: 0.96, sourceRef: 'Cost declare 250331' },
-  { id: '9', opSeq: 90, description: 'Spacer Tape Die-Cutting & Punch', wc: 'BFK01', manning: 1, baseCap: 800, activeCap: 800, baseYield: 0.97, activeYield: 0.97, sourceRef: 'Cost declare 250331' },
-  { id: '10', opSeq: 100, description: 'Automated Sheet Lamination', wc: 'BFP01', manning: 2, baseCap: 450, activeCap: 450, baseYield: 0.97, activeYield: 0.97, sourceRef: 'Cost declare 250331' },
-  { id: '11', opSeq: 110, description: 'Actuation Force & Function QA', wc: 'BFP01', manning: 1, baseCap: 600, activeCap: 600, baseYield: 0.98, activeYield: 0.98, sourceRef: 'Cost declare 250331' },
-  { id: '12', opSeq: 120, description: 'Poly-bagging & Carton Packing', wc: 'BPP01', manning: 1, baseCap: 750, activeCap: 750, baseYield: 0.99, activeYield: 0.99, sourceRef: 'Cost declare 250331' }
+  { id: '1', opSeq: 10, description: 'PET Film Precision Sheet Cutting', wc: 'Cutting', manning: 1, baseCap: 1200, activeCap: 1200, baseYield: 0.98, activeYield: 0.98, sourceRef: 'Cost declare 250331' },
+  { id: '2', opSeq: 20, description: 'Optical Surface Cleaning & De-ion', wc: 'Printing-Digital RGOM', manning: 1, baseCap: 1200, activeCap: 1200, baseYield: 0.98, activeYield: 0.98, sourceRef: 'Cost declare 250331' },
+  { id: '3', opSeq: 30, description: 'Alignment Guide Punching', wc: 'Printing-Digital RGOM', manning: 1, baseCap: 1000, activeCap: 1000, baseYield: 0.98, activeYield: 0.98, sourceRef: 'Cost declare 250331' },
+  { id: '4', opSeq: 40, description: 'Silver Conductor Circuit Screen Print', wc: 'Printing-Digital RGOM', manning: 2, baseCap: 600, activeCap: 600, baseYield: 0.95, activeYield: 0.90, sourceRef: 'QCF-LPN-MB-MRGOM-0024-1' },
+  { id: '5', opSeq: 50, description: 'Continuous Hot Air Curing', wc: 'Printing-Digital RGOM', manning: 1, baseCap: 800, activeCap: 800, baseYield: 0.98, activeYield: 0.98, sourceRef: 'Cost declare 250331' },
+  { id: '6', opSeq: 60, description: 'Carbon Overcoat Screen Print', wc: 'Printing-Digital RGOM', manning: 2, baseCap: 600, activeCap: 600, baseYield: 0.95, activeYield: 0.90, sourceRef: 'QCF-LPN-MB-MRGOM-0024-1' },
+  { id: '7', opSeq: 70, description: 'Electrical Function Test & AOI', wc: 'Printing-Digital RGOM', manning: 1, baseCap: 900, activeCap: 900, baseYield: 0.98, activeYield: 0.98, sourceRef: 'Cost declare 250331' },
+  { id: '8', opSeq: 80, description: 'Graphic Overlay Silk Screen Print', wc: 'Assembly Digital RGOM', manning: 2, baseCap: 550, activeCap: 550, baseYield: 0.96, activeYield: 0.96, sourceRef: 'Cost declare 250331' },
+  { id: '9', opSeq: 90, description: 'Spacer Tape Die-Cutting & Punch', wc: 'Cutting', manning: 1, baseCap: 800, activeCap: 800, baseYield: 0.97, activeYield: 0.97, sourceRef: 'Cost declare 250331' },
+  { id: '10', opSeq: 100, description: 'Automated Sheet Lamination', wc: 'Assembly Digital RGOM', manning: 2, baseCap: 450, activeCap: 450, baseYield: 0.97, activeYield: 0.97, sourceRef: 'Cost declare 250331' },
+  { id: '11', opSeq: 110, description: 'Actuation Force & Function QA', wc: 'Assembly Digital RGOM', manning: 1, baseCap: 600, activeCap: 600, baseYield: 0.98, activeYield: 0.98, sourceRef: 'Cost declare 250331' },
+  { id: '12', opSeq: 120, description: 'Poly-bagging & Carton Packing', wc: 'OQA-Digital', manning: 1, baseCap: 750, activeCap: 750, baseYield: 0.99, activeYield: 0.99, sourceRef: 'Cost declare 250331' }
 ]
 
 export const seedKaizenOptions: KaizenOption[] = [

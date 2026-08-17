@@ -1,115 +1,192 @@
 import React from 'react'
 import { useAppStore } from '../lib/store'
-import { CheckCircle2, ArrowRight } from 'lucide-react'
+import { CostDriver } from '../lib/types'
+
+// ── Helpers ────────────────────────────────────────────────────────────────
+
+function fmtParam(param: number | null, isYield: boolean): string {
+  if (param === null) return '—'
+  if (isYield) return `${(param * 100).toFixed(1)}%`
+  return param.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+}
+
+function isYieldDriver(rca: string): boolean {
+  return rca.includes('Yield')
+}
+
+// ── Component ──────────────────────────────────────────────────────────────
 
 export const CandidateSelectionPage: React.FC = () => {
-  const { setActiveTab } = useAppStore()
+  const { topDrivers, updateDriverHumanInput, costBreakdown } = useAppStore()
 
-  const candidates = [
-    {
-      rank: 1,
-      name: 'Conductive Silver Ink XA-3645 Market Price (P)',
-      category: 'Direct Material (BOM)',
-      baseline: '150.00 ฿/g',
-      active: '545.60 ฿/g',
-      gap: 1.8000,
-      controllable: false,
-      owner: 'Purchasing',
-      reason: 'Global silver market commodity price escalation. Plant cannot control price directly without customer drawing revision.'
-    },
-    {
-      rank: 2,
-      name: 'Op 40-60 Screen Printing Yield Rate (Y)',
-      category: 'Process Routing',
-      baseline: '95.0%',
-      active: '90.0%',
-      gap: 0.9294,
-      controllable: true,
-      owner: 'IE / Cleanroom Production',
-      reason: 'Squeegee pressure drift between shift changeovers causes ink bleeding. 100% Controllable via jig standardized procedure.',
-      selected: true
-    },
-    {
-      rank: 3,
-      name: 'Cleanroom Machine Clean Air Burden Rate (BRV)',
-      category: 'Machine Burden',
-      baseline: '79.66 ฿/hr',
-      active: '79.66 ฿/hr',
-      gap: -0.2980,
-      controllable: false,
-      owner: 'Finance / Costing',
-      reason: 'Fixed plant-wide overhead rate indexation.'
-    }
-  ]
+  const totalVariance = costBreakdown.totalVariance
+
+  if (topDrivers.length === 0) {
+    return (
+      <div className="space-y-4">
+        <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm">
+          <h1 className="text-lg font-bold text-slate-900">3. Top Cost Drivers & Candidate Selection</h1>
+          <p className="text-xs text-slate-500 mt-1">Systematic ranking of all cost gap sources — mirrors the <span className="font-mono bg-slate-100 px-1 rounded">_CALC_ENGINE</span> and <span className="font-mono bg-slate-100 px-1 rounded">4_SUMMARY_&_COMPARISON</span> sheets</p>
+        </div>
+        <div className="bg-white p-10 rounded-xl border border-slate-200 shadow-sm text-center text-slate-400 text-sm italic">
+          No cost variance detected. Enter Base vs Active data in the Master Data tab to see ranked drivers.
+        </div>
+      </div>
+    )
+  }
 
   return (
-    <div className="space-y-6">
-      <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm">
-        <h1 className="text-lg font-bold text-slate-900">3. Cost Gap Ranking & Kaizen Candidate Selection</h1>
-        <p className="text-xs text-slate-500">Systematic screening to filter controllable operational parameters from market external inflations</p>
+    <div className="space-y-4">
+      {/* Header */}
+      <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+        <div>
+          <h1 className="text-lg font-bold text-slate-900">3. Top Cost Drivers & Candidate Selection</h1>
+          <p className="text-xs text-slate-500 mt-1">
+            Systematic ranking of all cost gap sources — mirrors the{' '}
+            <span className="font-mono bg-slate-100 px-1 rounded">_CALC_ENGINE</span> and{' '}
+            <span className="font-mono bg-slate-100 px-1 rounded">4_SUMMARY_&_COMPARISON</span> sheets
+          </p>
+        </div>
+        <div className="text-right shrink-0">
+          <p className="text-[11px] text-slate-400 font-mono">Net Std Cost Variance (Δ)</p>
+          <p className={`text-xl font-bold font-mono ${totalVariance >= 0 ? 'text-rose-600' : 'text-emerald-600'}`}>
+            {totalVariance >= 0 ? '+' : ''}{totalVariance.toFixed(4)} ฿/pc
+          </p>
+        </div>
       </div>
 
-      <div className="space-y-4">
-        {candidates.map((c, i) => (
-          <div
-            key={i}
-            className={`p-5 rounded-xl border transition-all ${
-              c.selected
-                ? 'bg-emerald-50/60 border-emerald-300 ring-1 ring-emerald-400/50'
-                : 'bg-white border-slate-200'
-            }`}
-          >
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-              <div className="flex items-center gap-3">
-                <span className={`w-8 h-8 rounded-lg flex items-center justify-center font-bold text-sm ${
-                  c.selected ? 'bg-emerald-600 text-white' : 'bg-slate-100 text-slate-700'
-                }`}>
-                  #{c.rank}
-                </span>
-                <div>
-                  <h3 className="text-sm font-bold text-slate-900">{c.name}</h3>
-                  <span className="text-xs text-slate-500">{c.category} • Owner: <span className="font-semibold text-slate-700">{c.owner}</span></span>
-                </div>
-              </div>
+      {/* Column Header */}
+      <div className="hidden lg:grid grid-cols-12 gap-2 px-4 text-[11px] font-bold text-slate-400 uppercase tracking-wider">
+        <div className="col-span-1">Rank</div>
+        <div className="col-span-2">Category</div>
+        <div className="col-span-2">Driver (Item / Station)</div>
+        <div className="col-span-2">RCA Parameter</div>
+        <div className="col-span-1 text-right">Base</div>
+        <div className="col-span-1 text-right">Active</div>
+        <div className="col-span-1 text-right">Gap (฿)</div>
+        <div className="col-span-1 text-right">% Contrib</div>
+        <div className="col-span-1 text-center">Control</div>
+      </div>
 
-              <div className="flex items-center gap-4">
-                <div className="text-right font-mono">
-                  <span className="text-[11px] text-slate-400 block">Unit Cost Gap</span>
-                  <span className={`text-sm font-bold ${c.gap > 0 ? 'text-rose-600' : 'text-emerald-600'}`}>
-                    {c.gap > 0 ? `+${c.gap.toFixed(4)}` : c.gap.toFixed(4)} ฿/pc
+      {/* Driver Rows */}
+      <div className="space-y-2">
+        {topDrivers.map((d: CostDriver) => {
+          const yieldDriver = isYieldDriver(d.rcaParameter)
+          const isControllable   = d.controllability === 'Controllable'
+          const isUncontrollable = d.controllability === 'Uncontrollable'
+
+          return (
+            <div
+              key={d.rank}
+              className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden"
+            >
+              {/* Main Row */}
+              <div className="grid grid-cols-1 lg:grid-cols-12 gap-x-2 gap-y-1 p-4 items-start lg:items-center">
+                {/* Rank Badge */}
+                <div className="col-span-1 flex items-center gap-2 lg:block">
+                  <span className="w-8 h-8 rounded-lg bg-slate-900 text-white flex items-center justify-center font-bold text-sm shrink-0">
+                    {d.rank}
                   </span>
                 </div>
-                <span className={`px-2.5 py-1 text-xs font-bold rounded-full border ${
-                  c.controllable
-                    ? 'bg-emerald-100 text-emerald-800 border-emerald-300'
-                    : 'bg-slate-100 text-slate-600 border-slate-200'
-                }`}>
-                  {c.controllable ? 'Controllable (Kaizen Target)' : 'Uncontrollable'}
-                </span>
+
+                {/* Category */}
+                <div className="col-span-2">
+                  <span className="text-[11px] font-mono text-slate-400 lg:hidden">Category: </span>
+                  <span className="text-xs font-semibold text-slate-600 bg-slate-100 px-2 py-0.5 rounded">{d.category}</span>
+                </div>
+
+                {/* Driver Name */}
+                <div className="col-span-2">
+                  <span className="text-xs font-bold text-slate-900">{d.driverName}</span>
+                </div>
+
+                {/* RCA Parameter */}
+                <div className="col-span-2">
+                  {d.rcaParameter ? (
+                    <span className="text-xs text-slate-600 italic">{d.rcaParameter}</span>
+                  ) : (
+                    <span className="text-xs text-slate-300 italic">No parameter change</span>
+                  )}
+                </div>
+
+                {/* Base Parameter */}
+                <div className="col-span-1 text-right font-mono text-xs text-slate-400">
+                  {fmtParam(d.baseParameter, yieldDriver)}
+                </div>
+
+                {/* Active Parameter */}
+                <div className="col-span-1 text-right font-mono text-xs font-bold text-slate-900">
+                  {fmtParam(d.activeParameter, yieldDriver)}
+                </div>
+
+                {/* Cost Gap */}
+                <div className="col-span-1 text-right font-mono text-sm font-bold text-rose-600">
+                  +{d.costGap.toFixed(4)}
+                </div>
+
+                {/* % Contribution */}
+                <div className="col-span-1 text-right font-mono text-xs text-slate-600">
+                  {d.pctContribution.toFixed(2)}%
+                </div>
+
+                {/* Controllability Dropdown */}
+                <div className="col-span-1 flex items-center justify-center">
+                  <select
+                    id={`ctrl-${d.rank}`}
+                    value={d.controllability}
+                    onChange={e =>
+                      updateDriverHumanInput(d.rank, e.target.value as CostDriver['controllability'], d.actionPlan)
+                    }
+                    className={`text-[11px] font-bold px-2 py-1 rounded-lg border focus:outline-none focus:ring-1 focus:ring-slate-400 cursor-pointer transition-colors w-full max-w-[140px] ${
+                      isControllable
+                        ? 'bg-emerald-50 text-emerald-800 border-emerald-300'
+                        : isUncontrollable
+                        ? 'bg-amber-50 text-amber-800 border-amber-300'
+                        : 'bg-amber-50 text-slate-600 border-slate-200'
+                    }`}
+                  >
+                    <option value="">— Select —</option>
+                    <option value="Controllable">Controllable</option>
+                    <option value="Uncontrollable">Uncontrollable</option>
+                  </select>
+                </div>
+              </div>
+
+              {/* Action Plan Row — mirrors Col J in Excel Sheet 4 */}
+              <div className="px-4 pb-3 border-t border-slate-100 pt-2 flex items-center gap-2">
+                <label
+                  htmlFor={`plan-${d.rank}`}
+                  className="text-[11px] font-semibold text-slate-400 whitespace-nowrap shrink-0"
+                >
+                  Action Plan:
+                </label>
+                <input
+                  id={`plan-${d.rank}`}
+                  type="text"
+                  value={d.actionPlan}
+                  onChange={e =>
+                    updateDriverHumanInput(d.rank, d.controllability, e.target.value)
+                  }
+                  placeholder="Enter corrective action plan..."
+                  className="flex-1 text-xs px-2.5 py-1.5 border border-slate-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-slate-900 bg-amber-50 placeholder:text-slate-300 font-sans"
+                />
               </div>
             </div>
+          )
+        })}
+      </div>
 
-            <p className="mt-3 text-xs text-slate-600 border-t border-slate-200/60 pt-2.5">
-              {c.reason}
-            </p>
-
-            {c.selected && (
-              <div className="mt-4 flex items-center justify-between pt-3 border-t border-emerald-200">
-                <span className="text-xs font-bold text-emerald-900 flex items-center gap-1.5">
-                  <CheckCircle2 className="w-4 h-4 text-emerald-600" />
-                  Selected Target: Proceed to Root Cause Analysis & Multi-Option What-If Simulator
-                </span>
-                <button
-                  onClick={() => setActiveTab('rca')}
-                  className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-all"
-                >
-                  Go to RCA & What-If
-                  <ArrowRight className="w-3.5 h-3.5" />
-                </button>
-              </div>
-            )}
-          </div>
-        ))}
+      {/* Summary Footer */}
+      <div className="bg-slate-900 rounded-xl p-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 text-white">
+        <div className="text-xs font-semibold text-slate-300">
+          Showing Top {topDrivers.length} positive cost gap drivers out of all BOM & Routing candidates
+        </div>
+        <div className="font-mono text-right">
+          <p className="text-[11px] text-slate-400">Total Ranked Gap</p>
+          <p className="text-lg font-bold text-rose-400">
+            +{topDrivers.reduce((a, d) => a + d.costGap, 0).toFixed(4)} ฿/pc
+          </p>
+        </div>
       </div>
     </div>
   )

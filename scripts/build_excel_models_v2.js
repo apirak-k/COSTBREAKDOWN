@@ -1,20 +1,3 @@
-/**
- * build_excel_models_v2.js
- * Generates 100% Pure, Source-Accurate V2 Modular Excel Models
- *
- * Professional Clean Architecture:
- * - Direct Material (Sheet 2): Flat 10-item BOM Table, pristine zero-hiding total row
- * - Process Conversion (Sheet 3): Flat 39-step Continuous Routing Table (Subtotals removed!),
- *     Calculation rows at Rows 47 to 85, Grand Total row at Row 86
- * - Summary & Top Cost Drivers (Sheet 4): Clean 10 columns only (Columns A to J),
- *     100% dynamic automated ranking, pristine zero-hiding summary
- * - Hidden Calculation Engine (Sheet 5: '_CALC_ENGINE'):
- *     Dedicated hidden worksheet evaluating all 49 atomic nodes across Material & Process
- *     Supplies dynamic LARGE() & INDEX/MATCH formulas to Sheet 4
- * - Standard Unit: 'Unit' across all headers and tooltips
- * - 100% Format Parity between Populated Model and Blank Master Template
- */
-
 import ExcelJS from 'exceljs'
 import path from 'path'
 import { fileURLToPath } from 'url'
@@ -22,23 +5,33 @@ import { fileURLToPath } from 'url'
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
 
-// Colors & Styling
-const COLOR_DARK_NAVY = '0F172A' // Slate 900
-const COLOR_HEADER_FILL = '1E293B' // Slate 800
-const COLOR_HEADER_TEXT = 'FFFFFF'
-const COLOR_INPUT_YELLOW = 'FEF9C3' // Pale Yellow for editable inputs
-const COLOR_TOTAL_BG = 'F8FAFC' // Slate 50
-const COLOR_BORDER = 'CBD5E1' // Slate 300
+// --- PALETTE TOKENS ---
+const COLOR_DARK_NAVY = 'FF1E293B' // #1E293B Primary Accent & Active Headers
+const COLOR_MUTED_GRAY = 'FF64748B' // #64748B Secondary Text
+const COLOR_BORDER = 'FFE2E8F0' // #E2E8F0 Soft Table Gridlines
+const COLOR_CARD_BG = 'FFF8FAFC' // #F8FAFC Card Surface
+const COLOR_WHITE = 'FFFFFFFF' // Pure White
+const COLOR_SOFT_YELLOW = 'FFFEF9C3' // #FEF9C3 Soft Pastel Input Fill (Yellow/Cream)
+const COLOR_TOTAL_ROW = 'FFF1F5F9' // #F1F5F9 Grand Total Row Highlight
+const COLOR_TOTAL_BORDER = 'FF334155' // #334155 Dark Double Underline
+const COLOR_TOP1_HIGHLIGHT = 'FFFEE2E2' // Soft Red for Rank #1
 
-const fontTitle = { name: 'Calibri', size: 12, bold: true, color: { argb: COLOR_DARK_NAVY } }
-const fontSection = { name: 'Calibri', size: 10, bold: true, color: { argb: COLOR_DARK_NAVY } }
-const fontHeader = { name: 'Calibri', size: 9.5, bold: true, color: { argb: COLOR_HEADER_TEXT } }
-const fontData = { name: 'Calibri', size: 9.5 }
-const fontDataBold = { name: 'Calibri', size: 9.5, bold: true }
+// --- TYPOGRAPHY & STYLES ---
+const fontTitle = { name: 'Calibri', size: 16, bold: true, color: { argb: COLOR_DARK_NAVY } }
+const fontSection = { name: 'Calibri', size: 13, bold: true, color: { argb: COLOR_DARK_NAVY } }
+const fontHeader = { name: 'Calibri', size: 11, bold: true, color: { argb: COLOR_WHITE } }
+const fontData = { name: 'Calibri', size: 11, bold: false, color: { argb: 'FF0F172A' } }
+const fontDataBold = { name: 'Calibri', size: 11, bold: true, color: { argb: 'FF0F172A' } }
+const fontMuted = { name: 'Calibri', size: 10, italic: true, color: { argb: COLOR_MUTED_GRAY } }
+const fontUncontrollable = { name: 'Calibri', size: 11, bold: true, color: { argb: 'FF991B1B' } }
+const fontControllable = { name: 'Calibri', size: 11, bold: true, color: { argb: 'FF166534' } }
 
-const fillHeader = { type: 'pattern', pattern: 'solid', fgColor: { argb: COLOR_HEADER_FILL } }
-const fillYellow = { type: 'pattern', pattern: 'solid', fgColor: { argb: COLOR_INPUT_YELLOW } }
-const fillTotal = { type: 'pattern', pattern: 'solid', fgColor: { argb: COLOR_TOTAL_BG } }
+const fillHeader = { type: 'pattern', pattern: 'solid', fgColor: { argb: COLOR_DARK_NAVY } }
+const fillYellow = { type: 'pattern', pattern: 'solid', fgColor: { argb: COLOR_SOFT_YELLOW } }
+const fillTotal = { type: 'pattern', pattern: 'solid', fgColor: { argb: COLOR_TOTAL_ROW } }
+const fillTop1 = { type: 'pattern', pattern: 'solid', fgColor: { argb: COLOR_TOP1_HIGHLIGHT } }
+const fillUncontrollable = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFEE2E2' } }
+const fillControllable = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFDCFCE7' } }
 
 const borderThin = {
   top: { style: 'thin', color: { argb: COLOR_BORDER } },
@@ -54,78 +47,84 @@ const borderTotal = {
   right: { style: 'thin', color: { argb: COLOR_BORDER } }
 }
 
-// 1. RATES DATA (Source XXXX-024,025,026-01 Rows 17-20)
+// 1. RATES DATA (Source XXXX-024,025,026-01 Rows 17-20 - 100% Pure Factory Department Names)
 const RATES_DATA = [
-  { wc: 'WC-CUT', desc: 'Cutting Line', labor: 105.29, burden: 138.48, eff: '2025-03-31', ref: 'Cost declare 250331 row 17' },
-  { wc: 'WC-PRT', desc: 'Printing Line', labor: 105.29, burden: 97.69, eff: '2025-03-31', ref: 'Cost declare 250331 row 18' },
-  { wc: 'WC-ASY', desc: 'Assembly Line', labor: 105.29, burden: 90.93, eff: '2025-03-31', ref: 'Cost declare 250331 row 19' },
-  { wc: 'WC-QAP', desc: 'QA & Packing Line', labor: 105.29, burden: 82.74, eff: '2025-03-31', ref: 'Cost declare 250331 row 20' }
+  { dept: 'Cutting', labor: 105.29, burden: 138.48, eff: '2025-03-31', ref: 'Cost declare 250331 row 17' },
+  { dept: 'Printing-Digital RGOM', labor: 105.29, burden: 97.69, eff: '2025-03-31', ref: 'Cost declare 250331 row 18' },
+  { dept: 'Assembly Digital RGOM', labor: 105.29, burden: 90.93, eff: '2025-03-31', ref: 'Cost declare 250331 row 19' },
+  { dept: 'OQA-Digital', labor: 105.29, burden: 82.74, eff: '2025-03-31', ref: 'Cost declare 250331 row 20' }
 ]
 
-// 2. BOM DATA (Price List 07-26 & BOM_XX-024)
+// 2. BOM DATA: 16 Consolidated Net Material Items from Tab 1 Section '2.Material declare' (Rows 111-126)
 const BOM_DATA = [
-  { itemNo: 1, code: 'RMMBA1020', desc: 'DOTITE XA-3645 Conductive Silver Paste Ink', q: 0.0035, uom: 'GM', p0: 150.00, p1: 545.60, loss0: 0.30, loss1: 0.30, ref: 'Cost declare 250331' },
-  { itemNo: 2, code: 'RMMBA1030', desc: 'FEC-4023 Carbon Resistive Paste Ink', q: 0.0020, uom: 'GM', p0: 85.00, p1: 85.00, loss0: 0.30, loss1: 0.30, ref: 'Cost declare 250331' },
-  { itemNo: 3, code: 'RMMBA1040', desc: 'PTF-3201N UV Dielectric Insulating Paste', q: 0.0050, uom: 'GM', p0: 45.00, p1: 45.00, loss0: 0.30, loss1: 0.30, ref: 'Cost declare 250331' },
-  { itemNo: 4, code: 'RMPET1010', desc: 'PET Film FPE-1100 (25um Base Film)', q: 0.0125, uom: 'SM', p0: 380.00, p1: 380.00, loss0: 0.15, loss1: 0.15, ref: 'Cost declare 250331' },
-  { itemNo: 5, code: 'RMCVR2010', desc: 'Front Graphic Overlay Hardcoat Film', q: 0.0125, uom: 'SM', p0: 420.00, p1: 420.00, loss0: 0.15, loss1: 0.15, ref: 'Cost declare 250331' },
-  { itemNo: 6, code: 'RMADH3010', desc: 'High-Tack Acrylic Spacer Tape 3M', q: 0.0125, uom: 'SM', p0: 280.00, p1: 280.00, loss0: 0.15, loss1: 0.15, ref: 'Cost declare 250331' },
-  { itemNo: 7, code: 'RMPCK4010', desc: 'Conductive Anti-Static Shield Bag', q: 1.0000, uom: 'PC', p0: 0.85, p1: 0.85, loss0: 0.05, loss1: 0.05, ref: 'Cost declare 250331' },
-  { itemNo: 8, code: 'RMPCK4020', desc: 'Silica Gel Desiccant 5g Pack', q: 1.0000, uom: 'PC', p0: 0.35, p1: 0.35, loss0: 0.02, loss1: 0.02, ref: 'Cost declare 250331' },
-  { itemNo: 9, code: 'RMPCK4030', desc: 'Export Corrugated Shipping Carton', q: 0.0100, uom: 'PC', p0: 42.00, p1: 42.00, loss0: 0.00, loss1: 0.00, ref: 'Cost declare 250331' },
-  { itemNo: 10, code: 'RMMBA1050', desc: 'Terminal Pin Connector Clip (Ag Plated)', q: 4.0000, uom: 'PC', p0: 0.12, p1: 0.12, loss0: 0.01, loss1: 0.01, ref: 'Cost declare 250331' }
+  { itemNo: 1, code: 'RMMAA2590', desc: 'CT75B/LUMIRROR 25T60 (0.525M x 500M/RL)', q: 0.027125, uom: 'SM', p0: 70.13217342857142, p1: 70.13217342857142, loss0: 0.30, loss1: 0.30, ref: 'Cost declare row 111' },
+  { itemNo: 2, code: 'RMMBA1020', desc: 'DOTITE XA-3645', q: 0.212500, uom: 'GM', p0: 31.6956068, p1: 60.1000000, loss0: 0.30, loss1: 0.30, ref: 'Cost declare row 112 & Price List row 122' },
+  { itemNo: 3, code: 'RMMBA760', desc: 'XC-3018 (1KG/CN)', q: 0.069400, uom: 'GM', p0: 1.7292561, p1: 1.7292561, loss0: 0.30, loss1: 0.30, ref: 'Cost declare row 113' },
+  { itemNo: 4, code: 'RMMBA920', desc: 'PAF-27F', q: 0.074700, uom: 'GM', p0: 29.8917150, p1: 29.8917150, loss0: 0.30, loss1: 0.30, ref: 'Cost declare row 114' },
+  { itemNo: 5, code: 'RMMCD01B', desc: 'P-THINNER', q: 0.002000, uom: 'GM', p0: 0.3092375, p1: 0.3092375, loss0: 0.30, loss1: 0.30, ref: 'Cost declare row 115' },
+  { itemNo: 6, code: 'RMMCD140', desc: 'SOLVENT PAF-100', q: 0.003100, uom: 'GM', p0: 0.8395770, p1: 0.8395770, loss0: 0.30, loss1: 0.30, ref: 'Cost declare row 116' },
+  { itemNo: 7, code: 'RMMCD200', desc: 'PTF-300 DILUENT', q: 0.055500, uom: 'GM', p0: 1.2136380, p1: 1.2136380, loss0: 0.30, loss1: 0.30, ref: 'Cost declare row 117 (Op 110+170)' },
+  { itemNo: 8, code: 'RMMCD260', desc: 'DOTITE SC-0030', q: 0.003400, uom: 'GM', p0: 0.3141853, p1: 0.3141853, loss0: 0.30, loss1: 0.30, ref: 'Cost declare row 118' },
+  { itemNo: 9, code: 'RMMBB630', desc: 'PTF-3201N', q: 1.152500, uom: 'GM', p0: 1.1949450, p1: 1.1949450, loss0: 0.30, loss1: 0.30, ref: 'Cost declare row 119 (Op 90+110+170)' },
+  { itemNo: 10, code: 'RMMBB480', desc: 'PTF-3101N', q: 0.025000, uom: 'GM', p0: 1.0793700, p1: 1.0793700, loss0: 0.30, loss1: 0.30, ref: 'Cost declare row 120' },
+  { itemNo: 11, code: 'RMMLAA2650', desc: 'TF100 100um', q: 0.001422, uom: 'SM', p0: 14.8357143, p1: 14.8357143, loss0: 0.30, loss1: 0.30, ref: 'Cost declare row 121' },
+  { itemNo: 12, code: 'RMMLAA2630', desc: 'PET75-Y210(10)K (0.5Mx500M)', q: 0.025416666666666664, uom: 'SM', p0: 44.2200000, p1: 44.2200000, loss0: 0.30, loss1: 0.30, ref: 'Cost declare row 122' },
+  { itemNo: 13, code: 'RMMLEE225', desc: 'BLANK LABEL B423 (9x8 mm)', q: 1.000000, uom: 'PC', p0: 0.1200000, p1: 0.1200000, loss0: 0.10, loss1: 0.10, ref: 'Cost declare row 123' },
+  { itemNo: 14, code: 'RMMLAA2640', desc: 'PET White 75 Uncoated', q: 0.020625, uom: 'SM', p0: 43.2150000, p1: 43.2150000, loss0: 0.10, loss1: 0.10, ref: 'Cost declare row 124' },
+  { itemNo: 15, code: 'RMMLRA340', desc: 'MAKE UP-A188-4X0.8L  (STAMPING INK)', q: 0.014035, uom: 'GM', p0: 2.437171875, p1: 2.437171875, loss0: 0.10, loss1: 0.10, ref: 'Cost declare row 125' },
+  { itemNo: 16, code: 'RMMLRA360', desc: 'INK-MB175-4X0.8L INKJET 2D BARCODE  (NON-BOI)', q: 0.001780, uom: 'GM', p0: 9.80653125, p1: 9.80653125, loss0: 0.10, loss1: 0.10, ref: 'Cost declare row 126' }
 ]
 
-// 3. EXACT 39-STEP ROUTING DATA (Source XXXX-024,025,026-01 Rows 28-81 & Before&After)
+// 3. EXACT 39-STEP ROUTING DATA (Source XXXX-024,025,026-01 Rows 28-81 - Department Names 100% Factory Match)
 const ROUTING_STEPS = [
-  // 1. PRINTING Line (22 steps)
-  { seq: 1, cat: '1. PRINTING Line', name: 'Cutting', wc: 'WC-CUT', m: 1.0, cap0: 6180, cap1: 6180, y0: 1.00, y1: 1.00, ref: 'Cost declare Row 28' },
-  { seq: 2, cat: '1. PRINTING Line', name: 'Annealing', wc: 'WC-CUT', m: 1.0, cap0: 2520, cap1: 2520, y0: 1.00, y1: 1.00, ref: 'Cost declare Row 29' },
-  { seq: 3, cat: '1. PRINTING Line', name: 'Re-anneal#1', wc: 'WC-PRT', m: 1.0, cap0: 2340, cap1: 2340, y0: 1.00, y1: 1.00, ref: 'Cost declare Row 30' },
-  { seq: 4, cat: '1. PRINTING Line', name: 'Cleaning M/C(Back side)', wc: 'WC-PRT', m: 1.0, cap0: 6900, cap1: 6900, y0: 1.00, y1: 1.00, ref: 'Cost declare Row 31' },
-  { seq: 5, cat: '1. PRINTING Line', name: 'Printing-BAg', wc: 'WC-PRT', m: 4.0, cap0: 1884, cap1: 1884, y0: 1.00, y1: 1.00, ref: 'Cost declare Row 32' },
-  { seq: 6, cat: '1. PRINTING Line', name: 'Cleaning M/C(Back side)', wc: 'WC-PRT', m: 1.0, cap0: 6900, cap1: 6900, y0: 1.00, y1: 1.00, ref: 'Cost declare Row 33' },
-  { seq: 7, cat: '1. PRINTING Line', name: 'Printing-BC', wc: 'WC-PRT', m: 4.0, cap0: 1944, cap1: 1944, y0: 1.00, y1: 1.00, ref: 'Cost declare Row 34' },
-  { seq: 8, cat: '1. PRINTING Line', name: 'Cleaning M/C(Back side)', wc: 'WC-PRT', m: 1.0, cap0: 6900, cap1: 6900, y0: 1.00, y1: 1.00, ref: 'Cost declare Row 35' },
-  { seq: 9, cat: '1. PRINTING Line', name: 'Printing-BUR1', wc: 'WC-PRT', m: 3.0, cap0: 1836, cap1: 1836, y0: 1.00, y1: 1.00, ref: 'Cost declare Row 36' },
-  { seq: 10, cat: '1. PRINTING Line', name: 'Cleaning M/C(Back side)', wc: 'WC-PRT', m: 1.0, cap0: 6900, cap1: 6900, y0: 1.00, y1: 1.00, ref: 'Cost declare Row 37' },
-  { seq: 11, cat: '1. PRINTING Line', name: 'Printing-BUR2', wc: 'WC-PRT', m: 3.0, cap0: 2004, cap1: 2004, y0: 1.00, y1: 1.00, ref: 'Cost declare Row 38' },
-  { seq: 12, cat: '1. PRINTING Line', name: 'Cleaning M/C(Back side)', wc: 'WC-PRT', m: 1.0, cap0: 6900, cap1: 6900, y0: 1.00, y1: 1.00, ref: 'Cost declare Row 39' },
-  { seq: 13, cat: '1. PRINTING Line', name: 'Re-anneal#2', wc: 'WC-PRT', m: 1.0, cap0: 3420, cap1: 3420, y0: 1.00, y1: 1.00, ref: 'Cost declare Row 40' },
-  { seq: 14, cat: '1. PRINTING Line', name: 'Cleaning M/C(Back side)', wc: 'WC-PRT', m: 1.0, cap0: 6900, cap1: 6900, y0: 1.00, y1: 1.00, ref: 'Cost declare Row 41' },
-  { seq: 15, cat: '1. PRINTING Line', name: 'Printing-BAg.J', wc: 'WC-PRT', m: 8.0, cap0: 1572, cap1: 1572, y0: 1.00, y1: 1.00, ref: 'Cost declare Row 42' },
-  { seq: 16, cat: '1. PRINTING Line', name: 'Cleaning M/C(Back side)', wc: 'WC-PRT', m: 1.0, cap0: 6900, cap1: 6900, y0: 1.00, y1: 1.00, ref: 'Cost declare Row 43' },
-  { seq: 17, cat: '1. PRINTING Line', name: 'Printing-BOR', wc: 'WC-PRT', m: 2.0, cap0: 2040, cap1: 2040, y0: 1.00, y1: 1.00, ref: 'Cost declare Row 44' },
-  { seq: 18, cat: '1. PRINTING Line', name: 'Cleaning M/C(Back side)', wc: 'WC-PRT', m: 1.0, cap0: 6900, cap1: 6900, y0: 1.00, y1: 1.00, ref: 'Cost declare Row 45' },
-  { seq: 19, cat: '1. PRINTING Line', name: 'Re-anneal#3', wc: 'WC-PRT', m: 1.0, cap0: 3420, cap1: 3420, y0: 1.00, y1: 1.00, ref: 'Cost declare Row 46' },
-  { seq: 20, cat: '1. PRINTING Line', name: 'Cleaning M/C(Back side)', wc: 'WC-PRT', m: 1.0, cap0: 6900, cap1: 6900, y0: 1.00, y1: 1.00, ref: 'Cost declare Row 47' },
-  { seq: 21, cat: '1. PRINTING Line', name: 'Laminate Carrier film', wc: 'WC-PRT', m: 8.0, cap0: 2640, cap1: 2640, y0: 1.00, y1: 1.00, ref: 'Cost declare Row 48' },
-  { seq: 22, cat: '1. PRINTING Line', name: 'Re-anneal#4', wc: 'WC-PRT', m: 1.0, cap0: 5040, cap1: 5040, y0: 1.00, y1: 1.00, ref: 'Cost declare Row 49' },
+  // PRINTING Line (22 steps)
+  { seq: 1, cat: 'PRINTING Line', name: 'Cutting', dept: 'Cutting', m: 1.0, cap0: 6180, cap1: 6180, y0: 1.00, y1: 1.00, ref: 'Cost declare Row 28' },
+  { seq: 2, cat: 'PRINTING Line', name: 'Annealing', dept: 'Cutting', m: 1.0, cap0: 2520, cap1: 2520, y0: 1.00, y1: 1.00, ref: 'Cost declare Row 29' },
+  { seq: 3, cat: 'PRINTING Line', name: 'Re-anneal#1', dept: 'Printing-Digital RGOM', m: 1.0, cap0: 2340, cap1: 2340, y0: 1.00, y1: 1.00, ref: 'Cost declare Row 30' },
+  { seq: 4, cat: 'PRINTING Line', name: 'Cleaning M/C(Back side)', dept: 'Printing-Digital RGOM', m: 1.0, cap0: 6900, cap1: 6900, y0: 1.00, y1: 1.00, ref: 'Cost declare Row 31' },
+  { seq: 5, cat: 'PRINTING Line', name: 'Printing-BAg', dept: 'Printing-Digital RGOM', m: 4.0, cap0: 1884, cap1: 1884, y0: 1.00, y1: 1.00, ref: 'Cost declare Row 32' },
+  { seq: 6, cat: 'PRINTING Line', name: 'Cleaning M/C(Back side)', dept: 'Printing-Digital RGOM', m: 1.0, cap0: 6900, cap1: 6900, y0: 1.00, y1: 1.00, ref: 'Cost declare Row 33' },
+  { seq: 7, cat: 'PRINTING Line', name: 'Printing-BC', dept: 'Printing-Digital RGOM', m: 4.0, cap0: 1944, cap1: 1944, y0: 1.00, y1: 1.00, ref: 'Cost declare Row 34' },
+  { seq: 8, cat: 'PRINTING Line', name: 'Cleaning M/C(Back side)', dept: 'Printing-Digital RGOM', m: 1.0, cap0: 6900, cap1: 6900, y0: 1.00, y1: 1.00, ref: 'Cost declare Row 35' },
+  { seq: 9, cat: 'PRINTING Line', name: 'Printing-BUR1', dept: 'Printing-Digital RGOM', m: 3.0, cap0: 1836, cap1: 1836, y0: 1.00, y1: 1.00, ref: 'Cost declare Row 36' },
+  { seq: 10, cat: 'PRINTING Line', name: 'Cleaning M/C(Back side)', dept: 'Printing-Digital RGOM', m: 1.0, cap0: 6900, cap1: 6900, y0: 1.00, y1: 1.00, ref: 'Cost declare Row 37' },
+  { seq: 11, cat: 'PRINTING Line', name: 'Printing-BUR2', dept: 'Printing-Digital RGOM', m: 3.0, cap0: 2004, cap1: 2004, y0: 1.00, y1: 1.00, ref: 'Cost declare Row 38' },
+  { seq: 12, cat: 'PRINTING Line', name: 'Cleaning M/C(Back side)', dept: 'Printing-Digital RGOM', m: 1.0, cap0: 6900, cap1: 6900, y0: 1.00, y1: 1.00, ref: 'Cost declare Row 39' },
+  { seq: 13, cat: 'PRINTING Line', name: 'Re-anneal#2', dept: 'Printing-Digital RGOM', m: 1.0, cap0: 3420, cap1: 3420, y0: 1.00, y1: 1.00, ref: 'Cost declare Row 40' },
+  { seq: 14, cat: 'PRINTING Line', name: 'Cleaning M/C(Back side)', dept: 'Printing-Digital RGOM', m: 1.0, cap0: 6900, cap1: 6900, y0: 1.00, y1: 1.00, ref: 'Cost declare Row 41' },
+  { seq: 15, cat: 'PRINTING Line', name: 'Printing-BAg.J', dept: 'Printing-Digital RGOM', m: 8.0, cap0: 1572, cap1: 1572, y0: 1.00, y1: 1.00, ref: 'Cost declare Row 42' },
+  { seq: 16, cat: 'PRINTING Line', name: 'Cleaning M/C(Back side)', dept: 'Printing-Digital RGOM', m: 1.0, cap0: 6900, cap1: 6900, y0: 1.00, y1: 1.00, ref: 'Cost declare Row 43' },
+  { seq: 17, cat: 'PRINTING Line', name: 'Printing-BOR', dept: 'Printing-Digital RGOM', m: 2.0, cap0: 2040, cap1: 2040, y0: 1.00, y1: 1.00, ref: 'Cost declare Row 44' },
+  { seq: 18, cat: 'PRINTING Line', name: 'Cleaning M/C(Back side)', dept: 'Printing-Digital RGOM', m: 1.0, cap0: 6900, cap1: 6900, y0: 1.00, y1: 1.00, ref: 'Cost declare Row 45' },
+  { seq: 19, cat: 'PRINTING Line', name: 'Re-anneal#3', dept: 'Printing-Digital RGOM', m: 1.0, cap0: 3420, cap1: 3420, y0: 1.00, y1: 1.00, ref: 'Cost declare Row 46' },
+  { seq: 20, cat: 'PRINTING Line', name: 'Cleaning M/C(Back side)', dept: 'Printing-Digital RGOM', m: 1.0, cap0: 6900, cap1: 6900, y0: 1.00, y1: 1.00, ref: 'Cost declare Row 47' },
+  { seq: 21, cat: 'PRINTING Line', name: 'Laminate Carrier film', dept: 'Printing-Digital RGOM', m: 8.0, cap0: 2640, cap1: 2640, y0: 1.00, y1: 1.00, ref: 'Cost declare Row 48' },
+  { seq: 22, cat: 'PRINTING Line', name: 'Re-anneal#4', dept: 'Printing-Digital RGOM', m: 1.0, cap0: 5040, cap1: 5040, y0: 1.00, y1: 1.00, ref: 'Cost declare Row 49' },
 
-  // 2. Material Prep & Cutting (5 steps)
-  { seq: 23, cat: '2. Material Prep & Cutting', name: 'PET support: Cutting', wc: 'WC-CUT', m: 1.0, cap0: 14400, cap1: 14400, y0: 1.00, y1: 1.00, ref: 'Cost declare Row 52' },
-  { seq: 24, cat: '2. Material Prep & Cutting', name: 'Packing sheet: Cutting', wc: 'WC-CUT', m: 1.0, cap0: 11200, cap1: 11200, y0: 1.00, y1: 1.00, ref: 'Cost declare Row 54' },
-  { seq: 25, cat: '2. Material Prep & Cutting', name: 'Packing sheet: Half cut', wc: 'WC-ASY', m: 0.5, cap0: 4800, cap1: 4800, y0: 1.00, y1: 1.00, ref: 'Cost declare Row 55' },
-  { seq: 26, cat: '2. Material Prep & Cutting', name: 'Packing sheet: Blanking', wc: 'WC-ASY', m: 1.0, cap0: 1894, cap1: 1894, y0: 1.00, y1: 1.00, ref: 'Cost declare Row 56' },
-  { seq: 27, cat: '2. Material Prep & Cutting', name: 'Carrier Film: Cutting', wc: 'WC-CUT', m: 1.0, cap0: 8400, cap1: 8400, y0: 0.064506, y1: 0.064506, ref: 'Cost declare Row 58' },
+  // Material Prep & Cutting (5 steps)
+  { seq: 23, cat: 'Material Prep & Cutting', name: 'PET support: Cutting', dept: 'Cutting', m: 1.0, cap0: 14400, cap1: 14400, y0: 1.00, y1: 1.00, ref: 'Cost declare Row 52' },
+  { seq: 24, cat: 'Material Prep & Cutting', name: 'Packing sheet: Cutting', dept: 'Cutting', m: 1.0, cap0: 11200, cap1: 11200, y0: 1.00, y1: 1.00, ref: 'Cost declare Row 54' },
+  { seq: 25, cat: 'Material Prep & Cutting', name: 'Packing sheet: Half cut', dept: 'Assembly Digital RGOM', m: 0.5, cap0: 4800, cap1: 4800, y0: 1.00, y1: 1.00, ref: 'Cost declare Row 55' },
+  { seq: 26, cat: 'Material Prep & Cutting', name: 'Packing sheet: Blanking', dept: 'Assembly Digital RGOM', m: 1.0, cap0: 1894, cap1: 1894, y0: 1.00, y1: 1.00, ref: 'Cost declare Row 56' },
+  { seq: 27, cat: 'Material Prep & Cutting', name: 'Carrier Film: Cutting', dept: 'Cutting', m: 1.0, cap0: 8400, cap1: 8400, y0: 0.064506, y1: 0.064506, ref: 'Cost declare Row 58' },
 
-  // 3. Digital Assembly Line (9 steps)
-  { seq: 28, cat: '3. Digital Assembly Line', name: 'AI-Ins', wc: 'WC-ASY', m: 4.0, cap0: 600, cap1: 600, y0: 1.00, y1: 0.74, ref: 'Cost declare Row 60' },
-  { seq: 29, cat: '3. Digital Assembly Line', name: 'P-ins', wc: 'WC-ASY', m: 2.0, cap0: 600, cap1: 600, y0: 1.00, y1: 0.84, ref: 'Cost declare Row 61' },
-  { seq: 30, cat: '3. Digital Assembly Line', name: 'VDO-ins I', wc: 'WC-ASY', m: 4.0, cap0: 600, cap1: 600, y0: 1.00, y1: 0.84, ref: 'Cost declare Row 62' },
-  { seq: 31, cat: '3. Digital Assembly Line', name: 'Outline Blanking', wc: 'WC-ASY', m: 1.0, cap0: 600, cap1: 600, y0: 1.00, y1: 0.84, ref: 'Cost declare Row 63' },
-  { seq: 32, cat: '3. Digital Assembly Line', name: 'Blanking-ins', wc: 'WC-ASY', m: 1.0, cap0: 600, cap1: 600, y0: 1.00, y1: 0.90, ref: 'Cost declare Row 64' },
-  { seq: 33, cat: '3. Digital Assembly Line', name: 'E-ins I (Insulation)', wc: 'WC-ASY', m: 2.0, cap0: 600, cap1: 600, y0: 1.00, y1: 0.90, ref: 'Cost declare Row 65' },
-  { seq: 34, cat: '3. Digital Assembly Line', name: 'E-ins II (Capacitive)', wc: 'WC-ASY', m: 4.0, cap0: 600, cap1: 600, y0: 1.00, y1: 0.90, ref: 'Cost declare Row 66' },
-  { seq: 35, cat: '3. Digital Assembly Line', name: 'VDO-ins II (SN code & C peel off)', wc: 'WC-ASY', m: 1.0, cap0: 600, cap1: 600, y0: 1.00, y1: 0.90, ref: 'Cost declare Row 67' },
-  { seq: 36, cat: '3. Digital Assembly Line', name: 'V-Ins', wc: 'WC-ASY', m: 2.0, cap0: 600, cap1: 600, y0: 1.00, y1: 0.90, ref: 'Cost declare Row 68' },
+  // Digital Assembly Line (9 steps)
+  { seq: 28, cat: 'Digital Assembly Line', name: 'AI-Ins', dept: 'Assembly Digital RGOM', m: 4.0, cap0: 600, cap1: 600, y0: 0.74, y1: 0.60, ref: 'Cost declare Row 60 [Simulated Demo: Yield 60%]' },
+  { seq: 29, cat: 'Digital Assembly Line', name: 'P-ins', dept: 'Assembly Digital RGOM', m: 2.0, cap0: 600, cap1: 600, y0: 0.84, y1: 0.84, ref: 'Cost declare Row 61' },
+  { seq: 30, cat: 'Digital Assembly Line', name: 'VDO-ins I', dept: 'Assembly Digital RGOM', m: 4.0, cap0: 600, cap1: 600, y0: 0.84, y1: 0.84, ref: 'Cost declare Row 62' },
+  { seq: 31, cat: 'Digital Assembly Line', name: 'Outline Blanking', dept: 'Assembly Digital RGOM', m: 1.0, cap0: 600, cap1: 600, y0: 0.84, y1: 0.84, ref: 'Cost declare Row 63' },
+  { seq: 32, cat: 'Digital Assembly Line', name: 'Blanking-ins', dept: 'Assembly Digital RGOM', m: 1.0, cap0: 600, cap1: 600, y0: 0.90, y1: 0.90, ref: 'Cost declare Row 64' },
+  { seq: 33, cat: 'Digital Assembly Line', name: 'E-ins I (Insulation)', dept: 'Assembly Digital RGOM', m: 2.0, cap0: 600, cap1: 600, y0: 0.90, y1: 0.90, ref: 'Cost declare Row 65' },
+  { seq: 34, cat: 'Digital Assembly Line', name: 'E-ins II (Capacitive)', dept: 'Assembly Digital RGOM', m: 4.0, cap0: 600, cap1: 600, y0: 0.90, y1: 0.90, ref: 'Cost declare Row 66' },
+  { seq: 35, cat: 'Digital Assembly Line', name: 'VDO-ins II (SN code & C peel off)', dept: 'Assembly Digital RGOM', m: 1.0, cap0: 600, cap1: 600, y0: 0.90, y1: 0.90, ref: 'Cost declare Row 67' },
+  { seq: 36, cat: 'Digital Assembly Line', name: 'V-Ins', dept: 'Assembly Digital RGOM', m: 2.0, cap0: 600, cap1: 600, y0: 0.90, y1: 0.90, ref: 'Cost declare Row 68' },
 
-  // 4. Supporting Line (2 steps)
-  { seq: 37, cat: '4. Supporting Line', name: 'Support (Film puncher)', wc: 'WC-ASY', m: 1.0, cap0: 480, cap1: 480, y0: 1.00, y1: 1.00, ref: 'Cost declare Row 72' },
-  { seq: 38, cat: '4. Supporting Line', name: 'Support (Half cut)', wc: 'WC-ASY', m: 0.5, cap0: 4800, cap1: 4800, y0: 1.00, y1: 1.00, ref: 'Cost declare Row 73' },
+  // Supporting Line (2 steps)
+  { seq: 37, cat: 'Supporting Line', name: 'Support (Film puncher)', dept: 'Assembly Digital RGOM', m: 1.0, cap0: 480, cap1: 480, y0: 1.00, y1: 1.00, ref: 'Cost declare Row 72' },
+  { seq: 38, cat: 'Supporting Line', name: 'Support (Half cut)', dept: 'Assembly Digital RGOM', m: 0.5, cap0: 4800, cap1: 4800, y0: 1.00, y1: 1.00, ref: 'Cost declare Row 73' },
 
-  // 5. QA & Packing Line (1 step)
-  { seq: 39, cat: '5. QA & Packing Line', name: 'QA & Packing (VDO-Ins 1/2, QA Ins, Packing carton, Leader)', wc: 'WC-QAP', m: 5.0, cap0: 560, cap1: 560, y0: 0.9975, y1: 0.9975, ref: 'Cost declare Rows 74-79' }
+  // QA & Packing Line (1 step)
+  { seq: 39, cat: 'QA & Packing Line', name: 'QA & Packing (VDO-Ins 1/2, QA Ins, Packing carton, Leader)', dept: 'OQA-Digital', m: 5.0, cap0: 560, cap1: 560, y0: 0.9975, y1: 0.9975, ref: 'Cost declare Rows 74-79' }
 ]
 
 function styleHeaderRow(row, colsCount) {
@@ -148,28 +147,28 @@ async function buildWorkbook(isTemplate = false) {
   // =========================================================================
   const ws1 = wb.addWorksheet('1_MASTER_RATES', { views: [{ showGridLines: true }] })
   
-  ws1.mergeCells('A1:F1')
+  ws1.mergeCells('A1:E1')
   const r1Title = ws1.getCell('A1')
   r1Title.value = 'PRODUCT INFO & WORK CENTER RATES'
   r1Title.font = fontTitle
   r1Title.alignment = { vertical: 'middle', horizontal: 'left' }
 
-  ws1.mergeCells('A3:D3')
+  ws1.mergeCells('A3:E3')
   const r3SecA = ws1.getCell('A3')
   r3SecA.value = 'PRODUCT INFO'
   r3SecA.font = fontSection
   r3SecA.alignment = { vertical: 'middle', horizontal: 'left' }
 
-  const rProdH = ws1.addRow(['Product Code', 'Product Name / Description', 'UOM', 'Source Reference'])
-  styleHeaderRow(rProdH, 4)
-  rProdH.getCell(3).note = 'Unit of Measure'
+  const rProdH = ws1.addRow(['Product Name', 'Product Code', 'Description', 'UOM', 'Source Reference'])
+  styleHeaderRow(rProdH, 5)
+  rProdH.getCell(4).note = 'Unit of Measure'
 
   const prodRow = ws1.addRow(
     isTemplate
-      ? [null, null, null, null]
-      : ['RGOM-024', 'RGOM-024 Membrane Switch Panel', 'PC', 'Cost declare 250331']
+      ? [null, null, null, null, null]
+      : ['RGOM-024-01', 'FMAO5RG024#1', 'MEMBRANE SWITCH', 'PC', 'Cost declare 250331']
   )
-  for (let c = 1; c <= 4; c++) {
+  for (let c = 1; c <= 5; c++) {
     const cell = prodRow.getCell(c)
     cell.fill = fillYellow
     cell.font = fontData
@@ -179,49 +178,48 @@ async function buildWorkbook(isTemplate = false) {
 
   ws1.addRow([]) // Row 6 blank
 
-  ws1.mergeCells('A7:F7')
+  ws1.mergeCells('A7:E7')
   const r7SecB = ws1.getCell('A7')
-  r7SecB.value = 'WORK CENTER RATES (THB / MHr)'
+  r7SecB.value = 'WORK CENTER RATES'
   r7SecB.font = fontSection
   r7SecB.alignment = { vertical: 'middle', horizontal: 'left' }
 
   const rRatesH = ws1.addRow([
-    'Work Center (WC)',
-    'Department Description',
+    'Department',
     'Labor Rate (THB/MHr)',
     'Burden Rate (THB/MHr)',
     'Effective Date',
     'Source Reference'
   ])
-  styleHeaderRow(rRatesH, 6)
+  styleHeaderRow(rRatesH, 5)
+  rRatesH.getCell(4).note = 'Effective start date of standard labor and burden rates (YYYY-MM-DD)'
 
   RATES_DATA.forEach((item) => {
     const row = ws1.addRow(
       isTemplate
-        ? [null, null, null, null, null, null]
-        : [item.wc, item.desc, item.labor, item.burden, item.eff, item.ref]
+        ? [null, null, null, null, null]
+        : [item.dept, item.labor, item.burden, item.eff, item.ref]
     )
-    for (let c = 1; c <= 6; c++) {
+    for (let c = 1; c <= 5; c++) {
       const cell = row.getCell(c)
       cell.fill = fillYellow
       cell.font = fontData
       cell.border = borderThin
       cell.alignment = { vertical: 'middle', horizontal: 'center' }
-      if (c === 3 || c === 4) cell.numFmt = '#,##0.00'
+      if (c === 2 || c === 3) cell.numFmt = '#,##0.00'
     }
   })
 
   ws1.columns = [
-    { width: 20 },
-    { width: 34 },
-    { width: 24 },
-    { width: 24 },
-    { width: 18 },
-    { width: 30 }
+    { width: 32 }, // Department
+    { width: 24 }, // Labor Rate
+    { width: 24 }, // Burden Rate
+    { width: 20 }, // Effective Date
+    { width: 32 }  // Source Reference
   ]
 
   // =========================================================================
-  // SHEET 2: 2_BOM_BREAKDOWN
+  // SHEET 2: 2_BOM_BREAKDOWN (16 NET MATERIAL ITEMS)
   // =========================================================================
   const ws2 = wb.addWorksheet('2_BOM_BREAKDOWN', { views: [{ showGridLines: true }] })
   
@@ -233,7 +231,7 @@ async function buildWorkbook(isTemplate = false) {
 
   ws2.mergeCells('A3:J3')
   const r3BomSec1 = ws2.getCell('A3')
-  r3BomSec1.value = 'BOM MATERIAL INPUT'
+  r3BomSec1.value = 'BOM INPUT DATA'
   r3BomSec1.font = fontSection
   r3BomSec1.alignment = { vertical: 'middle', horizontal: 'left' }
 
@@ -245,11 +243,12 @@ async function buildWorkbook(isTemplate = false) {
     'UOM',
     'Base Price (THB)',
     'Active Price (THB)',
-    'Base Loss %',
-    'Active Loss %',
+    'Base Loss (%)',
+    'Active Loss (%)',
     'Source Reference'
   ])
   styleHeaderRow(rBomInputH, 10)
+
   rBomInputH.getCell(5).note = 'Unit of Measure'
 
   let sumBaseMat = 0
@@ -258,7 +257,7 @@ async function buildWorkbook(isTemplate = false) {
   let sumMLV = 0
   let sumTotalMatVar = 0
 
-  for (let i = 0; i < 10; i++) {
+  for (let i = 0; i < BOM_DATA.length; i++) {
     const item = BOM_DATA[i]
     const row = ws2.addRow([
       isTemplate ? null : item.itemNo,
@@ -280,19 +279,19 @@ async function buildWorkbook(isTemplate = false) {
       cell.border = borderThin
       cell.alignment = { vertical: 'middle', horizontal: 'center' }
 
-      if (c === 4) cell.numFmt = '0.0000'
-      else if (c === 6 || c === 7) cell.numFmt = '#,##0.00'
+      if (c === 4) cell.numFmt = '0.000000'
+      else if (c === 6 || c === 7) cell.numFmt = '#,##0.0000'
       else if (c === 8 || c === 9) cell.numFmt = '0.00%'
     }
   }
 
-  ws2.addRow([]) // Row 15 blank
+  ws2.addRow([]) // Row 21 blank
 
-  ws2.mergeCells('A16:H16')
-  const r16BomSec2 = ws2.getCell('A16')
-  r16BomSec2.value = 'BOM COST CALCULATION & VARIANCE (THB / Unit)'
-  r16BomSec2.font = fontSection
-  r16BomSec2.alignment = { vertical: 'middle', horizontal: 'left' }
+  ws2.mergeCells('A22:H22')
+  const r22BomSec2 = ws2.getCell('A22')
+  r22BomSec2.value = 'BOM COST CALCULATION & VARIANCE'
+  r22BomSec2.font = fontSection
+  r22BomSec2.alignment = { vertical: 'middle', horizontal: 'left' }
 
   const rBomCalcH = ws2.addRow([
     'Item No',
@@ -312,38 +311,38 @@ async function buildWorkbook(isTemplate = false) {
   rBomCalcH.getCell(7).note = '(Active Loss% - Base Loss%) * Consumption * Base Price'
   rBomCalcH.getCell(8).note = 'Active Cost - Base Cost = Price Var + Loss Var'
 
-  for (let i = 0; i < 10; i++) {
-    const rIn = 5 + i
-    const rOut = 18 + i
+  for (let i = 0; i < BOM_DATA.length; i++) {
+    const inRow = 5 + i
+    const outRow = 24 + i
     const item = BOM_DATA[i]
 
-    const bCost = item.q * item.p0 * (1 + item.loss0)
-    const aCost = item.q * item.p1 * (1 + item.loss1)
-    const mpv = (item.p1 - item.p0) * item.q * (1 + item.loss1)
-    const mlv = (item.loss1 - item.loss0) * item.q * item.p0
-    const tVar = aCost - bCost
+    const bCost = (item.q * item.p0) / (1 - item.loss0)
+    const aCost = (item.q * item.p1) / (1 - item.loss1)
+    const mpv = ((item.q * item.p1) / (1 - item.loss0)) - bCost
+    const mlv = aCost - ((item.q * item.p1) / (1 - item.loss0))
+    const totalVar = aCost - bCost
 
     sumBaseMat += bCost
     sumActiveMat += aCost
     sumMPV += mpv
     sumMLV += mlv
-    sumTotalMatVar += tVar
+    sumTotalMatVar += totalVar
 
-    const baseCostFormula = `IFERROR(IF(OR(C${rIn}="", D${rIn}="", F${rIn}=""), "", D${rIn}*F${rIn}*(1+IF(H${rIn}="",0,H${rIn}))), "")`
-    const activeCostFormula = `IFERROR(IF(OR(C${rIn}="", D${rIn}="", G${rIn}=""), "", D${rIn}*G${rIn}*(1+IF(I${rIn}="",0,I${rIn}))), "")`
-    const mpvFormula = `IFERROR(IF(OR(C${rIn}="", D${rIn}="", F${rIn}="", G${rIn}=""), "", (G${rIn}-F${rIn})*D${rIn}*(1+IF(I${rIn}="",0,I${rIn}))), "")`
-    const mlvFormula = `IFERROR(IF(OR(C${rIn}="", D${rIn}="", F${rIn}=""), "", (IF(I${rIn}="",0,I${rIn})-IF(H${rIn}="",0,H${rIn}))*D${rIn}*F${rIn}), "")`
-    const totalMatVarFormula = `IFERROR(IF(OR(C${rIn}="", D${rOut}="", E${rOut}=""), "", E${rOut}-D${rOut}), "")`
+    const baseCostFormula = `IFERROR(IF(OR(D${inRow}="", F${inRow}="", H${inRow}="", H${inRow}>=1), "", (D${inRow}*F${inRow})/(1-H${inRow})), "")`
+    const activeCostFormula = `IFERROR(IF(OR(D${inRow}="", G${inRow}="", I${inRow}="", I${inRow}>=1), "", (D${inRow}*G${inRow})/(1-I${inRow})), "")`
+    const mpvFormula = `IFERROR(IF(OR(D${inRow}="", F${inRow}="", G${inRow}="", H${inRow}="", H${inRow}>=1, D${outRow}=""), "", ((D${inRow}*G${inRow})/(1-H${inRow}))-D${outRow}), "")`
+    const mlvFormula = `IFERROR(IF(OR(D${inRow}="", G${inRow}="", H${inRow}="", I${inRow}="", H${inRow}>=1, I${inRow}>=1, E${outRow}=""), "", E${outRow}-((D${inRow}*G${inRow})/(1-H${inRow}))), "")`
+    const totalVarFormula = `IFERROR(IF(OR(D${outRow}="", E${outRow}=""), "", E${outRow}-D${outRow}), "")`
 
     const row = ws2.addRow([
-      { formula: `IFERROR(IF(A${rIn}="","",A${rIn}),"")`, result: isTemplate ? null : item.itemNo },
-      { formula: `IFERROR(IF(B${rIn}="","",B${rIn}),"")`, result: isTemplate ? null : item.code },
-      { formula: `IFERROR(IF(C${rIn}="","",C${rIn}),"")`, result: isTemplate ? null : item.desc },
+      { formula: `IFERROR(IF(A${inRow}="","",A${inRow}),"")`, result: isTemplate ? null : item.itemNo },
+      { formula: `IFERROR(IF(B${inRow}="","",B${inRow}),"")`, result: isTemplate ? null : item.code },
+      { formula: `IFERROR(IF(C${inRow}="","",C${inRow}),"")`, result: isTemplate ? null : item.desc },
       isTemplate ? { formula: baseCostFormula } : { formula: baseCostFormula, result: bCost },
       isTemplate ? { formula: activeCostFormula } : { formula: activeCostFormula, result: aCost },
       isTemplate ? { formula: mpvFormula } : { formula: mpvFormula, result: mpv },
       isTemplate ? { formula: mlvFormula } : { formula: mlvFormula, result: mlv },
-      isTemplate ? { formula: totalMatVarFormula } : { formula: totalMatVarFormula, result: tVar }
+      isTemplate ? { formula: totalVarFormula } : { formula: totalVarFormula, result: totalVar }
     ])
 
     for (let c = 1; c <= 8; c++) {
@@ -355,20 +354,20 @@ async function buildWorkbook(isTemplate = false) {
     }
   }
 
-  // Pristine zero-hiding total row
-  const fSumD = `IFERROR(IF(SUM(D18:D27)=0, "", SUM(D18:D27)), "")`
-  const fSumE = `IFERROR(IF(SUM(E18:E27)=0, "", SUM(E18:E27)), "")`
-  const fSumF = `IFERROR(IF(SUM(F18:F27)=0, "", SUM(F18:F27)), "")`
-  const fSumG = `IFERROR(IF(SUM(G18:G27)=0, "", SUM(G18:G27)), "")`
-  const fSumH = `IFERROR(IF(SUM(H18:H27)=0, "", SUM(H18:H27)), "")`
+  // Row 40: Grand Total Row
+  const fSumBaseMat = `IFERROR(IF(SUM(D24:D39)=0, "", SUM(D24:D39)), "")`
+  const fSumActiveMat = `IFERROR(IF(SUM(E24:E39)=0, "", SUM(E24:E39)), "")`
+  const fSumMPV = `IFERROR(IF(SUM(F24:F39)=0, "", SUM(F24:F39)), "")`
+  const fSumMLV = `IFERROR(IF(SUM(G24:G39)=0, "", SUM(G24:G39)), "")`
+  const fSumTotalMatVar = `IFERROR(IF(SUM(H24:H39)=0, "", SUM(H24:H39)), "")`
 
   const bomTotalRow = ws2.addRow([
     'Total', '', '',
-    isTemplate ? { formula: fSumD } : { formula: fSumD, result: sumBaseMat },
-    isTemplate ? { formula: fSumE } : { formula: fSumE, result: sumActiveMat },
-    isTemplate ? { formula: fSumF } : { formula: fSumF, result: sumMPV },
-    isTemplate ? { formula: fSumG } : { formula: fSumG, result: sumMLV },
-    isTemplate ? { formula: fSumH } : { formula: fSumH, result: sumTotalMatVar }
+    isTemplate ? { formula: fSumBaseMat } : { formula: fSumBaseMat, result: sumBaseMat },
+    isTemplate ? { formula: fSumActiveMat } : { formula: fSumActiveMat, result: sumActiveMat },
+    isTemplate ? { formula: fSumMPV } : { formula: fSumMPV, result: sumMPV },
+    isTemplate ? { formula: fSumMLV } : { formula: fSumMLV, result: sumMLV },
+    isTemplate ? { formula: fSumTotalMatVar } : { formula: fSumTotalMatVar, result: sumTotalMatVar }
   ])
 
   for (let c = 1; c <= 8; c++) {
@@ -381,13 +380,18 @@ async function buildWorkbook(isTemplate = false) {
   }
 
   ws2.columns = [
-    { width: 10 }, { width: 18 }, { width: 42 }, { width: 18 },
-    { width: 18 }, { width: 24 }, { width: 24 }, { width: 24 },
-    { width: 16 }, { width: 26 }
+    { width: 12 }, // Item No
+    { width: 20 }, // Material Code
+    { width: 44 }, // Material Description
+    { width: 22 }, // Base Cost
+    { width: 22 }, // Active Cost
+    { width: 20 }, // Price Var
+    { width: 20 }, // Loss Var
+    { width: 22 }  // Total Mat Var
   ]
 
   // =========================================================================
-  // SHEET 3: 3_ROUTING_BREAKDOWN (FLAT CONTINUOUS 39-STEP TABLE - ROWS 47 TO 85, TOTAL AT 86)
+  // SHEET 3: 3_ROUTING_BREAKDOWN (39 STEPS - PURE FACTORY DEPARTMENT MATCH)
   // =========================================================================
   const ws3 = wb.addWorksheet('3_ROUTING_BREAKDOWN', { views: [{ showGridLines: true }] })
   
@@ -405,9 +409,9 @@ async function buildWorkbook(isTemplate = false) {
 
   const rRtInputH = ws3.addRow([
     'Sequence',
-    'Section / Department',
+    'Section',
     'Process Name',
-    'Work Center',
+    'Department',
     'MHr',
     'Base Cap (Unit/hr)',
     'Active Cap (Unit/hr)',
@@ -424,7 +428,7 @@ async function buildWorkbook(isTemplate = false) {
       isTemplate ? null : step.seq,
       isTemplate ? null : step.cat,
       isTemplate ? null : step.name,
-      isTemplate ? null : step.wc,
+      isTemplate ? null : step.dept,
       isTemplate ? null : step.m,
       isTemplate ? null : step.cap0,
       isTemplate ? null : step.cap1,
@@ -446,21 +450,28 @@ async function buildWorkbook(isTemplate = false) {
     }
   }
 
+  // Data Validation Dropdown for Department in Routing Input (D5:D43) - Dynamic link to Master Rates
+  ws3.dataValidations.add('D5:D43', {
+    type: 'list',
+    allowBlank: true,
+    formulae: ["'1_MASTER_RATES'!$A$9:$A$12"]
+  })
+
   ws3.addRow([]) // Row 44 Blank row
 
   const calcSectionRow = ws3.addRow([]) // Row 45 Section Row
   const rCalcSecNum = calcSectionRow.number
   ws3.mergeCells(`A${rCalcSecNum}:P${rCalcSecNum}`)
   const rCalcSecCell = ws3.getCell(`A${rCalcSecNum}`)
-  rCalcSecCell.value = 'CONVERSION COST CALCULATION & VARIANCE (THB / Unit)'
+  rCalcSecCell.value = 'CONVERSION COST CALCULATION & VARIANCE'
   rCalcSecCell.font = fontSection
   rCalcSecCell.alignment = { vertical: 'middle', horizontal: 'left' }
 
   const rRtCalcH = ws3.addRow([ // Row 46 Table Header
     'Sequence',
-    'Section / Department',
+    'Section',
     'Process Name',
-    'Work Center',
+    'Department',
     'Base Runtime (MHr)',
     'Active Runtime (MHr)',
     'Δ Runtime (MHr)',
@@ -489,11 +500,11 @@ async function buildWorkbook(isTemplate = false) {
   rRtCalcH.getCell(15).note = 'Active Labor + Active Burden'
   rRtCalcH.getCell(16).note = 'Active Process Cost - Base Process Cost = Δ Labor + Δ Burden'
 
-  const ratesMap = {
-    'WC-CUT': { labor: 105.29, burden: 138.48 },
-    'WC-PRT': { labor: 105.29, burden: 97.69 },
-    'WC-ASY': { labor: 105.29, burden: 90.93 },
-    'WC-QAP': { labor: 105.29, burden: 82.74 }
+  const deptRatesMap = {
+    'Cutting': { labor: 105.29, burden: 138.48 },
+    'Printing-Digital RGOM': { labor: 105.29, burden: 97.69 },
+    'Assembly Digital RGOM': { labor: 105.29, burden: 90.93 },
+    'OQA-Digital': { labor: 105.29, burden: 82.74 }
   }
 
   let sumBaseLaborAll = 0
@@ -504,12 +515,12 @@ async function buildWorkbook(isTemplate = false) {
   for (let i = 0; i < ROUTING_STEPS.length; i++) {
     const step = ROUTING_STEPS[i]
     const rIn = 5 + i
-    const rOut = 47 + i // Exact row number in calculation table!
+    const rOut = 47 + i
 
     const bRt = step.m / (step.cap0 * step.y0)
     const aRt = step.m / (step.cap1 * step.y1)
     const dRt = aRt - bRt
-    const rate = ratesMap[step.wc] || { labor: 105.29, burden: 90.93 }
+    const rate = deptRatesMap[step.dept] || { labor: 105.29, burden: 90.93 }
     const bLab = bRt * rate.labor
     const aLab = aRt * rate.labor
     const dLab = aLab - bLab
@@ -529,12 +540,12 @@ async function buildWorkbook(isTemplate = false) {
     const activeRuntimeFormula = `IFERROR(IF(OR(C${rIn}="", G${rIn}="", I${rIn}="", G${rIn}=0, I${rIn}=0), "", E${rIn}/(G${rIn}*I${rIn})), "")`
     const deltaRuntimeFormula = `IFERROR(IF(OR(C${rIn}="", E${rOut}="", F${rOut}=""), "", F${rOut}-E${rOut}), "")`
 
-    const baseLaborFormula = `IFERROR(IF(OR(C${rIn}="", E${rOut}=""), "", E${rOut}*IFERROR(VLOOKUP(D${rIn},'1_MASTER_RATES'!A$9:F$12,3,FALSE),0)), "")`
-    const activeLaborFormula = `IFERROR(IF(OR(C${rIn}="", F${rOut}=""), "", F${rOut}*IFERROR(VLOOKUP(D${rIn},'1_MASTER_RATES'!A$9:F$12,3,FALSE),0)), "")`
+    const baseLaborFormula = `IFERROR(IF(OR(C${rIn}="", E${rOut}=""), "", E${rOut}*IFERROR(VLOOKUP(D${rIn},'1_MASTER_RATES'!A$9:E$12,2,FALSE),0)), "")`
+    const activeLaborFormula = `IFERROR(IF(OR(C${rIn}="", F${rOut}=""), "", F${rOut}*IFERROR(VLOOKUP(D${rIn},'1_MASTER_RATES'!A$9:E$12,2,FALSE),0)), "")`
     const deltaLaborFormula = `IFERROR(IF(OR(C${rIn}="", H${rOut}="", I${rOut}=""), "", I${rOut}-H${rOut}), "")`
 
-    const baseBurdenFormula = `IFERROR(IF(OR(C${rIn}="", E${rOut}=""), "", E${rOut}*IFERROR(VLOOKUP(D${rIn},'1_MASTER_RATES'!A$9:F$12,4,FALSE),0)), "")`
-    const activeBurdenFormula = `IFERROR(IF(OR(C${rIn}="", F${rOut}=""), "", F${rOut}*IFERROR(VLOOKUP(D${rIn},'1_MASTER_RATES'!A$9:F$12,4,FALSE),0)), "")`
+    const baseBurdenFormula = `IFERROR(IF(OR(C${rIn}="", E${rOut}=""), "", E${rOut}*IFERROR(VLOOKUP(D${rIn},'1_MASTER_RATES'!A$9:E$12,3,FALSE),0)), "")`
+    const activeBurdenFormula = `IFERROR(IF(OR(C${rIn}="", F${rOut}=""), "", F${rOut}*IFERROR(VLOOKUP(D${rIn},'1_MASTER_RATES'!A$9:E$12,3,FALSE),0)), "")`
     const deltaBurdenFormula = `IFERROR(IF(OR(C${rIn}="", K${rOut}="", L${rOut}=""), "", L${rOut}-K${rOut}), "")`
 
     const baseProcessCostFormula = `IFERROR(IF(C${rIn}="","", H${rOut}+K${rOut}), "")`
@@ -545,7 +556,7 @@ async function buildWorkbook(isTemplate = false) {
       { formula: `IFERROR(IF(A${rIn}="","",A${rIn}),"")`, result: isTemplate ? null : step.seq },
       { formula: `IFERROR(IF(B${rIn}="","",B${rIn}),"")`, result: isTemplate ? null : step.cat },
       { formula: `IFERROR(IF(C${rIn}="","",C${rIn}),"")`, result: isTemplate ? null : step.name },
-      { formula: `IFERROR(IF(D${rIn}="","",D${rIn}),"")`, result: isTemplate ? null : step.wc },
+      { formula: `IFERROR(IF(D${rIn}="","",D${rIn}),"")`, result: isTemplate ? null : step.dept },
       isTemplate ? { formula: baseRuntimeFormula } : { formula: baseRuntimeFormula, result: bRt },
       isTemplate ? { formula: activeRuntimeFormula } : { formula: activeRuntimeFormula, result: aRt },
       isTemplate ? { formula: deltaRuntimeFormula } : { formula: deltaRuntimeFormula, result: dRt },
@@ -570,7 +581,7 @@ async function buildWorkbook(isTemplate = false) {
     }
   }
 
-  // Pristine Flat Grand Total Row at Row 86
+  // Row 86: Flat Grand Total Row
   const fSumHLab = `IFERROR(IF(SUM(H47:H85)=0, "", SUM(H47:H85)), "")`
   const fSumILab = `IFERROR(IF(SUM(I47:I85)=0, "", SUM(I47:I85)), "")`
   const fSumJLab = `IFERROR(IF(SUM(J47:J85)=0, "", SUM(J47:J85)), "")`
@@ -582,7 +593,7 @@ async function buildWorkbook(isTemplate = false) {
   const fSumPDelta = `IFERROR(IF(SUM(P47:P85)=0, "", SUM(P47:P85)), "")`
 
   const grandTotalRow = ws3.addRow([
-    'Total', 'Total Processing Cost', '', '', '', '', '',
+    'Total', '', '', '', '', '', '',
     isTemplate ? { formula: fSumHLab } : { formula: fSumHLab, result: sumBaseLaborAll },
     isTemplate ? { formula: fSumILab } : { formula: fSumILab, result: sumActiveLaborAll },
     isTemplate ? { formula: fSumJLab } : { formula: fSumJLab, result: sumActiveLaborAll - sumBaseLaborAll },
@@ -604,40 +615,63 @@ async function buildWorkbook(isTemplate = false) {
   }
 
   ws3.columns = [
-    { width: 10 }, { width: 26 }, { width: 44 }, { width: 16 },
-    { width: 20 }, { width: 20 }, { width: 18 },
-    { width: 18 }, { width: 18 }, { width: 16 },
-    { width: 18 }, { width: 18 }, { width: 16 },
-    { width: 22 }, { width: 22 }, { width: 20 }
+    { width: 14 }, // Sequence
+    { width: 32 }, // Section / Category
+    { width: 64 }, // Process Name
+    { width: 28 }, // Department
+    { width: 24 }, // Base Runtime (MHr)
+    { width: 24 }, // Active Runtime (MHr)
+    { width: 22 }, // Δ Runtime (MHr)
+    { width: 22 }, // Base Labor (THB)
+    { width: 22 }, // Active Labor (THB)
+    { width: 20 }, // Δ Labor (THB)
+    { width: 22 }, // Base Burden (THB)
+    { width: 22 }, // Active Burden (THB)
+    { width: 20 }, // Δ Burden (THB)
+    { width: 26 }, // Base Process Cost (THB)
+    { width: 28 }, // Active Process Cost (THB)
+    { width: 24 }  // Total Process Δ (THB)
   ]
 
   // =========================================================================
-  // SHEET 5: _CALC_ENGINE (HIDDEN DEDICATED CALCULATION ENGINE)
-  // =========================================================================
-  const wsEngine = wb.addWorksheet('_CALC_ENGINE', { state: 'hidden' })
-  
-  const rEngH = wsEngine.addRow([
-    'ID', 'Stream', 'Category', 'Driver Name', 'RCA Parameter',
-    'Base Parameter', 'Active Parameter', 'Cost Gap (THB)', 'Score'
+  // SHEET 5: _CALC_ENGINE (55 DYNAMIC CANDIDATES: 16 MAT + 39 ROUTING)
+  const wsEngine = wb.addWorksheet('_CALC_ENGINE', { views: [{ showGridLines: true }] })
+  wsEngine.mergeCells('A1:H1')
+  const r1EngTitle = wsEngine.getCell('A1')
+  r1EngTitle.value = 'DYNAMIC COST DRIVER RANKING & EVALUATION ENGINE'
+  r1EngTitle.font = fontTitle
+  r1EngTitle.alignment = { vertical: 'middle', horizontal: 'left' }
+
+  wsEngine.addRow([]) // Row 2 Blank
+
+  const rEngH = wsEngine.addRow([ // Row 3 Table Header
+    'ID',
+    'Level 2 Category',
+    'Level 3 Driver Name',
+    'Level 4 RCA Parameter',
+    'Base Parameter',
+    'Active Parameter',
+    'Cost Gap (THB / Unit)',
+    'Tie-Breaker Score'
   ])
-  styleHeaderRow(rEngH, 9)
+  styleHeaderRow(rEngH, 8)
 
-  // 10 Material Candidates
-  for (let i = 0; i < 10; i++) {
+  // 16 Material Candidates (Rows 4 to 19 in _CALC_ENGINE)
+  for (let i = 0; i < BOM_DATA.length; i++) {
     const inR = 5 + i
-    const calcR = 18 + i
-    const rEng = 2 + i
+    const calcR = 24 + i
+    const rEng = 4 + i
 
-    const catF = `"Direct Material"`
-    const driverF = `IFERROR('2_BOM_BREAKDOWN'!C${inR},"")`
-    const rcaF = `IFERROR(IF('2_BOM_BREAKDOWN'!G${inR}>'2_BOM_BREAKDOWN'!F${inR},"Unit Price Inflation ($"&TEXT('2_BOM_BREAKDOWN'!F${inR},"#,##0.00")&" ➔ $"&TEXT('2_BOM_BREAKDOWN'!G${inR},"#,##0.00")&")",IF('2_BOM_BREAKDOWN'!I${inR}>'2_BOM_BREAKDOWN'!H${inR},"Loss % Increase","Material Variance")),"")`
-    const baseF = `IFERROR('2_BOM_BREAKDOWN'!F${inR},"")`
-    const activeF = `IFERROR('2_BOM_BREAKDOWN'!G${inR},"")`
-    const gapF = `IFERROR('2_BOM_BREAKDOWN'!H${calcR},0)`
-    const scoreF = `IFERROR(H${rEng}+(49-A${rEng})*0.00000001, 0)`
+    const catF = `IFERROR(IF('2_BOM_BREAKDOWN'!C${inR}="","","Direct Material"),"")`
+    const driverF = `IFERROR(IF('2_BOM_BREAKDOWN'!C${inR}="","",'2_BOM_BREAKDOWN'!C${inR}),"")`
+    const rcaF = `IFERROR(IF(OR('2_BOM_BREAKDOWN'!C${inR}="",""),"",IF('2_BOM_BREAKDOWN'!G${inR}>'2_BOM_BREAKDOWN'!F${inR},"Unit Price Inflation ("&TEXT('2_BOM_BREAKDOWN'!F${inR},"#,##0.00")&" ➔ "&TEXT('2_BOM_BREAKDOWN'!G${inR},"#,##0.00")&" THB)",IF('2_BOM_BREAKDOWN'!G${inR}<'2_BOM_BREAKDOWN'!F${inR},"Unit Price Reduction ("&TEXT('2_BOM_BREAKDOWN'!F${inR},"#,##0.00")&" ➔ "&TEXT('2_BOM_BREAKDOWN'!G${inR},"#,##0.00")&" THB)",IF('2_BOM_BREAKDOWN'!I${inR}>'2_BOM_BREAKDOWN'!H${inR},"Loss % Increase ("&TEXT('2_BOM_BREAKDOWN'!H${inR},"0.0%")&" ➔ "&TEXT('2_BOM_BREAKDOWN'!I${inR},"0.0%")&")",IF('2_BOM_BREAKDOWN'!I${inR}<'2_BOM_BREAKDOWN'!H${inR},"Loss % Reduction ("&TEXT('2_BOM_BREAKDOWN'!H${inR},"0.0%")&" ➔ "&TEXT('2_BOM_BREAKDOWN'!I${inR},"0.0%")&")",""))))),"")`
+    const baseF = `IFERROR(IF(OR('2_BOM_BREAKDOWN'!C${inR}="",""),"",IF('2_BOM_BREAKDOWN'!G${inR}<>'2_BOM_BREAKDOWN'!F${inR},'2_BOM_BREAKDOWN'!F${inR},IF('2_BOM_BREAKDOWN'!I${inR}<>'2_BOM_BREAKDOWN'!H${inR},'2_BOM_BREAKDOWN'!H${inR},""))),"")`
+    const activeF = `IFERROR(IF(OR('2_BOM_BREAKDOWN'!C${inR}="",""),"",IF('2_BOM_BREAKDOWN'!G${inR}<>'2_BOM_BREAKDOWN'!F${inR},'2_BOM_BREAKDOWN'!G${inR},IF('2_BOM_BREAKDOWN'!I${inR}<>'2_BOM_BREAKDOWN'!H${inR},'2_BOM_BREAKDOWN'!I${inR},""))),"")`
+    const gapF = `IFERROR(IF(OR('2_BOM_BREAKDOWN'!C${inR}="",'2_BOM_BREAKDOWN'!H${calcR}=""),"",'2_BOM_BREAKDOWN'!H${calcR}),"")`
+    const scoreF = `IFERROR(IF(OR(G${rEng}="",G${rEng}<=0), "", G${rEng}+(55-A${rEng})*0.00000001), "")`
 
-    wsEngine.addRow([
-      i + 1, 'Material',
+    const row = wsEngine.addRow([
+      i + 1,
       { formula: catF },
       { formula: driverF },
       { formula: rcaF },
@@ -646,24 +680,36 @@ async function buildWorkbook(isTemplate = false) {
       { formula: gapF },
       { formula: scoreF }
     ])
+
+    for (let c = 1; c <= 8; c++) {
+      const cell = row.getCell(c)
+      cell.font = fontData
+      cell.border = borderThin
+      cell.alignment = { vertical: 'middle', horizontal: 'center' }
+      if (c === 5 || c === 6) cell.numFmt = '#,##0.00'
+      else if (c === 7) {
+        cell.numFmt = '#,##0.0000'
+        cell.font = fontDataBold
+      } else if (c === 8) cell.numFmt = '0.00000000'
+    }
   }
 
-  // 39 Routing Candidates
+  // 39 Routing Candidates (Rows 20 to 58 in _CALC_ENGINE)
   for (let k = 0; k < ROUTING_STEPS.length; k++) {
     const inR = 5 + k
     const calcR = 47 + k
-    const rEng = 12 + k
+    const rEng = 20 + k // Starts at Row 20!
 
-    const catF = `IFERROR('3_ROUTING_BREAKDOWN'!B${inR},"")`
-    const driverF = `IFERROR('3_ROUTING_BREAKDOWN'!C${inR},"")`
-    const rcaF = `IFERROR(IF('3_ROUTING_BREAKDOWN'!I${inR}<'3_ROUTING_BREAKDOWN'!H${inR},"Yield Drop ("&TEXT('3_ROUTING_BREAKDOWN'!H${inR},"0.0%")&" ➔ "&TEXT('3_ROUTING_BREAKDOWN'!I${inR},"0.0%")&")",IF('3_ROUTING_BREAKDOWN'!G${inR}<'3_ROUTING_BREAKDOWN'!F${inR},"Capacity Drop","Process Variance")),"")`
-    const baseF = `IFERROR(IF('3_ROUTING_BREAKDOWN'!I${inR}<'3_ROUTING_BREAKDOWN'!H${inR},'3_ROUTING_BREAKDOWN'!H${inR},'3_ROUTING_BREAKDOWN'!F${inR}),"")`
-    const activeF = `IFERROR(IF('3_ROUTING_BREAKDOWN'!I${inR}<'3_ROUTING_BREAKDOWN'!H${inR},'3_ROUTING_BREAKDOWN'!I${inR},'3_ROUTING_BREAKDOWN'!G${inR}),"")`
-    const gapF = `IFERROR('3_ROUTING_BREAKDOWN'!P${calcR},0)`
-    const scoreF = `IFERROR(H${rEng}+(49-A${rEng})*0.00000001, 0)`
+    const catF = `IFERROR(IF('3_ROUTING_BREAKDOWN'!B${inR}="","",'3_ROUTING_BREAKDOWN'!B${inR}),"")`
+    const driverF = `IFERROR(IF('3_ROUTING_BREAKDOWN'!C${inR}="","",'3_ROUTING_BREAKDOWN'!C${inR}),"")`
+    const rcaF = `IFERROR(IF(OR('3_ROUTING_BREAKDOWN'!C${inR}="",""),"",IF('3_ROUTING_BREAKDOWN'!I${inR}<'3_ROUTING_BREAKDOWN'!H${inR},"Yield Drop ("&TEXT('3_ROUTING_BREAKDOWN'!H${inR},"0.0%")&" ➔ "&TEXT('3_ROUTING_BREAKDOWN'!I${inR},"0.0%")&")",IF('3_ROUTING_BREAKDOWN'!I${inR}>'3_ROUTING_BREAKDOWN'!H${inR},"Yield Improvement ("&TEXT('3_ROUTING_BREAKDOWN'!H${inR},"0.0%")&" ➔ "&TEXT('3_ROUTING_BREAKDOWN'!I${inR},"0.0%")&")",IF('3_ROUTING_BREAKDOWN'!G${inR}<'3_ROUTING_BREAKDOWN'!F${inR},"Capacity Drop ("&TEXT('3_ROUTING_BREAKDOWN'!F${inR},"#,##0")&" ➔ "&TEXT('3_ROUTING_BREAKDOWN'!G${inR},"#,##0")&" Unit/hr)",IF('3_ROUTING_BREAKDOWN'!G${inR}>'3_ROUTING_BREAKDOWN'!F${inR},"Capacity Improvement ("&TEXT('3_ROUTING_BREAKDOWN'!F${inR},"#,##0")&" ➔ "&TEXT('3_ROUTING_BREAKDOWN'!G${inR},"#,##0")&" Unit/hr)",""))))),"")`
+    const baseF = `IFERROR(IF(OR('3_ROUTING_BREAKDOWN'!C${inR}="",""),"",IF('3_ROUTING_BREAKDOWN'!I${inR}<>'3_ROUTING_BREAKDOWN'!H${inR},'3_ROUTING_BREAKDOWN'!H${inR},IF('3_ROUTING_BREAKDOWN'!G${inR}<>'3_ROUTING_BREAKDOWN'!F${inR},'3_ROUTING_BREAKDOWN'!F${inR},""))),"")`
+    const activeF = `IFERROR(IF(OR('3_ROUTING_BREAKDOWN'!C${inR}="",""),"",IF('3_ROUTING_BREAKDOWN'!I${inR}<>'3_ROUTING_BREAKDOWN'!H${inR},'3_ROUTING_BREAKDOWN'!I${inR},IF('3_ROUTING_BREAKDOWN'!G${inR}<>'3_ROUTING_BREAKDOWN'!F${inR},'3_ROUTING_BREAKDOWN'!G${inR},""))),"")`
+    const gapF = `IFERROR(IF(OR('3_ROUTING_BREAKDOWN'!C${inR}="",'3_ROUTING_BREAKDOWN'!P${calcR}=""),"",'3_ROUTING_BREAKDOWN'!P${calcR}),"")`
+    const scoreF = `IFERROR(IF(OR(G${rEng}="",G${rEng}<=0), "", G${rEng}+(55-A${rEng})*0.00000001), "")`
 
-    wsEngine.addRow([
-      11 + k, 'Process',
+    const row = wsEngine.addRow([
+      17 + k,
       { formula: catF },
       { formula: driverF },
       { formula: rcaF },
@@ -672,10 +718,33 @@ async function buildWorkbook(isTemplate = false) {
       { formula: gapF },
       { formula: scoreF }
     ])
+
+    for (let c = 1; c <= 8; c++) {
+      const cell = row.getCell(c)
+      cell.font = fontData
+      cell.border = borderThin
+      cell.alignment = { vertical: 'middle', horizontal: 'center' }
+      if (c === 5 || c === 6) cell.numFmt = '#,##0.00'
+      else if (c === 7) {
+        cell.numFmt = '#,##0.0000'
+        cell.font = fontDataBold
+      } else if (c === 8) cell.numFmt = '0.00000000'
+    }
   }
 
+  wsEngine.columns = [
+    { width: 10 }, // ID
+    { width: 28 }, // Level 2 Category
+    { width: 56 }, // Level 3 Driver Name
+    { width: 52 }, // Level 4 RCA Parameter
+    { width: 20 }, // Base Parameter
+    { width: 20 }, // Active Parameter
+    { width: 26 }, // Cost Gap (THB / Unit)
+    { width: 24 }  // Tie-Breaker Score
+  ]
+
   // =========================================================================
-  // SHEET 4: 4_SUMMARY_&_COMPARISON (CLEAN 10 COLUMNS A TO J ONLY!)
+  // SHEET 4: 4_SUMMARY_&_COMPARISON (STREAMLINED 10-COLUMN EXECUTIVE DASHBOARD)
   // =========================================================================
   const ws4 = wb.addWorksheet('4_SUMMARY_&_COMPARISON', { views: [{ showGridLines: true }] })
   
@@ -687,7 +756,7 @@ async function buildWorkbook(isTemplate = false) {
 
   ws4.mergeCells('A3:F3')
   const r3SumSec1 = ws4.getCell('A3')
-  r3SumSec1.value = 'REFERENCE STANDARD VS CURRENT STANDARD (THB / Unit)'
+  r3SumSec1.value = 'REFERENCE STANDARD VS CURRENT STANDARD'
   r3SumSec1.font = fontSection
   r3SumSec1.alignment = { vertical: 'middle', horizontal: 'left' }
 
@@ -709,7 +778,7 @@ async function buildWorkbook(isTemplate = false) {
   const sumTotalVar = sumTotalActive - sumTotalBase
 
   const elements = [
-    { name: 'Material', bFormula: "'2_BOM_BREAKDOWN'!D28", aFormula: "'2_BOM_BREAKDOWN'!E28", bVal: sumBaseMat, aVal: sumActiveMat, lvl: 'Level 1' },
+    { name: 'Material', bFormula: "'2_BOM_BREAKDOWN'!D40", aFormula: "'2_BOM_BREAKDOWN'!E40", bVal: sumBaseMat, aVal: sumActiveMat, lvl: 'Level 1' },
     { name: 'Labor', bFormula: `'3_ROUTING_BREAKDOWN'!H86`, aFormula: `'3_ROUTING_BREAKDOWN'!I86`, bVal: sumBaseLaborAll, aVal: sumActiveLaborAll, lvl: 'Level 1' },
     { name: 'Burden', bFormula: `'3_ROUTING_BREAKDOWN'!K86`, aFormula: `'3_ROUTING_BREAKDOWN'!L86`, bVal: sumBaseBurdenAll, aVal: sumActiveBurdenAll, lvl: 'Level 1' }
   ]
@@ -764,7 +833,7 @@ async function buildWorkbook(isTemplate = false) {
 
   ws4.mergeCells('A11:J11')
   const r11SumSec2 = ws4.getCell('A11')
-  r11SumSec2.value = 'TOP COST DRIVERS (LEVEL 2 ➔ LEVEL 3 ➔ LEVEL 4 RCA)'
+  r11SumSec2.value = 'TOP COST DRIVERS'
   r11SumSec2.font = fontSection
   r11SumSec2.alignment = { vertical: 'middle', horizontal: 'left' }
 
@@ -778,43 +847,53 @@ async function buildWorkbook(isTemplate = false) {
     'Cost Gap (THB/Unit)',
     '% Contribution',
     'Controllability',
-    'Remark'
+    'Action Plan'
   ])
   styleHeaderRow(rRankH, 10)
 
-  rRankH.getCell(8).note = '(Cost Gap of Driver / Total Std Variance) * 100%'
-  rRankH.getCell(9).note = 'Default: Controllable (Internal Action). Automatically becomes Uncontrollable when Remark is specified.'
-  rRankH.getCell(10).note = 'Leave blank for normal internal action, or specify reason if uncontrollable (external constraint).'
+  rRankH.getCell(7).note = 'Cost variance generated by this driver'
+  rRankH.getCell(8).note = 'Contribution to overall cost variance'
+  rRankH.getCell(9).note = 'Controllable (Manufacturing) vs Uncontrollable (Purchasing Market)'
 
-  // Table 2: 10 Dynamic Ranking Rows linked to _CALC_ENGINE
-  for (let r = 0; r < 10; r++) {
-    const rIdx = 13 + r
-    const rankNum = r + 1
-    const rankLabel = `#${rankNum}`
+  for (let r = 1; r <= 10; r++) {
+    const rIdx = 12 + r
+    const rankNum = r
 
-    // 100% Dynamic Formulas linking to _CALC_ENGINE!
-    const fRankGap = `IFERROR(IF(LARGE(_CALC_ENGINE!$I$2:$I$50, ${rankNum})>0.000001, INDEX(_CALC_ENGINE!$H$2:$H$50, MATCH(LARGE(_CALC_ENGINE!$I$2:$I$50, ${rankNum}), _CALC_ENGINE!$I$2:$I$50, 0)), ""), "")`
-    const fRankCat = `IFERROR(IF(G${rIdx}="","", INDEX(_CALC_ENGINE!$C$2:$C$50, MATCH(LARGE(_CALC_ENGINE!$I$2:$I$50, ${rankNum}), _CALC_ENGINE!$I$2:$I$50, 0))), "")`
-    const fRankDriver = `IFERROR(IF(G${rIdx}="","", INDEX(_CALC_ENGINE!$D$2:$D$50, MATCH(LARGE(_CALC_ENGINE!$I$2:$I$50, ${rankNum}), _CALC_ENGINE!$I$2:$I$50, 0))), "")`
-    const fRankRca = `IFERROR(IF(G${rIdx}="","", INDEX(_CALC_ENGINE!$E$2:$E$50, MATCH(LARGE(_CALC_ENGINE!$I$2:$I$50, ${rankNum}), _CALC_ENGINE!$I$2:$I$50, 0))), "")`
-    const fRankBase = `IFERROR(IF(G${rIdx}="","", INDEX(_CALC_ENGINE!$F$2:$F$50, MATCH(LARGE(_CALC_ENGINE!$I$2:$I$50, ${rankNum}), _CALC_ENGINE!$I$2:$I$50, 0))), "")`
-    const fRankActive = `IFERROR(IF(G${rIdx}="","", INDEX(_CALC_ENGINE!$G$2:$G$50, MATCH(LARGE(_CALC_ENGINE!$I$2:$I$50, ${rankNum}), _CALC_ENGINE!$I$2:$I$50, 0))), "")`
-    const fRankContrib = `IFERROR(IF(OR(G${rIdx}="", $D$8<=0), "", G${rIdx}/$D$8), "")`
-    const fRankCtrl = `IFERROR(IF(G${rIdx}="","", IF(J${rIdx}="","Controllable","Uncontrollable")), "")`
+    const fScore = `LARGE(_CALC_ENGINE!H$4:H$58, ${rankNum})`
+    const fMatchRow = `MATCH(${fScore}, _CALC_ENGINE!H$4:H$58, 0)`
 
-    const populatedRemark = (!isTemplate && r === 0) ? 'Customer Approved Drawing Spec' : null
+    const fRank = `IFERROR(IF(${fScore}<=0, "", ${rankNum}), "")`
+    const fCategory = `IFERROR(IF(${fScore}<=0, "", INDEX(_CALC_ENGINE!B$4:B$58, ${fMatchRow})), "")`
+    const fDriver = `IFERROR(IF(${fScore}<=0, "", INDEX(_CALC_ENGINE!C$4:C$58, ${fMatchRow})), "")`
+    const fRCA = `IFERROR(IF(${fScore}<=0, "", INDEX(_CALC_ENGINE!D$4:D$58, ${fMatchRow})), "")`
+    const fBaseP = `IFERROR(IF(${fScore}<=0, "", INDEX(_CALC_ENGINE!E$4:E$58, ${fMatchRow})), "")`
+    const fActP = `IFERROR(IF(${fScore}<=0, "", INDEX(_CALC_ENGINE!F$4:F$58, ${fMatchRow})), "")`
+    const fGap = `IFERROR(IF(${fScore}<=0, "", INDEX(_CALC_ENGINE!G$4:G$58, ${fMatchRow})), "")`
+    const fPct = `IFERROR(IF(OR(${fScore}<=0, $D$8<=0, G${rIdx}=""), "", G${rIdx}/$D$8), "")`
+
+    let ctrlVal = null
+    let actionVal = null
+    if (!isTemplate) {
+      if (rankNum === 1) {
+        ctrlVal = 'Uncontrollable'
+        actionVal = 'Purchasing: Negotiate 6-Month Blanket Order volume rebate'
+      } else if (rankNum === 2) {
+        ctrlVal = 'Controllable'
+        actionVal = 'IE / Production: Install Auto-Dispensing Alignment Jig'
+      }
+    }
 
     const row = ws4.addRow([
-      rankLabel,
-      { formula: fRankCat },
-      { formula: fRankDriver },
-      { formula: fRankRca },
-      { formula: fRankBase },
-      { formula: fRankActive },
-      { formula: fRankGap },
-      { formula: fRankContrib },
-      { formula: fRankCtrl },
-      populatedRemark
+      { formula: fRank, result: (rankNum <= 2 && !isTemplate) ? rankNum : null },
+      { formula: fCategory },
+      { formula: fDriver },
+      { formula: fRCA },
+      { formula: fBaseP },
+      { formula: fActP },
+      { formula: fGap },
+      { formula: fPct },
+      ctrlVal,
+      actionVal
     ])
 
     for (let c = 1; c <= 10; c++) {
@@ -822,55 +901,58 @@ async function buildWorkbook(isTemplate = false) {
       cell.font = fontData
       cell.border = borderThin
       cell.alignment = { vertical: 'middle', horizontal: 'center' }
+
       if (c === 1) cell.font = fontDataBold
       else if (c === 5 || c === 6) cell.numFmt = '#,##0.00'
       else if (c === 7) {
         cell.numFmt = '#,##0.0000'
         cell.font = fontDataBold
       } else if (c === 8) cell.numFmt = '0.00%'
-      else if (c === 9) cell.font = fontDataBold
-      else if (c === 10) cell.fill = fillYellow
+      else if (c === 9) {
+        cell.fill = fillYellow
+      } else if (c === 10) {
+        cell.fill = fillYellow
+        cell.alignment = { vertical: 'middle', horizontal: 'left' }
+      }
     }
   }
 
-  // Generous column widths to prevent truncation 100%
+  // Data Validation Dropdown for Controllability Column (I13:I22)
+  ws4.dataValidations.add('I13:I22', {
+    type: 'list',
+    allowBlank: true,
+    formulae: ['"Controllable,Uncontrollable"']
+  })
+
   ws4.columns = [
-    { width: 12 },  // Rank
-    { width: 32 },  // Level 2 Category
-    { width: 52 },  // Level 3 Driver
-    { width: 44 },  // Level 4 RCA
-    { width: 18 },  // Base Parameter
-    { width: 18 },  // Active Parameter
-    { width: 22 },  // Cost Gap
-    { width: 16 },  // % Contribution
-    { width: 18 },  // Controllability
-    { width: 48 }   // Remark
+    { width: 12 }, // Rank
+    { width: 28 }, // Level 2 Category
+    { width: 64 }, // Level 3 Cost Driver
+    { width: 52 }, // Level 4 RCA Parameter
+    { width: 18 }, // Base Parameter
+    { width: 18 }, // Active Parameter
+    { width: 24 }, // Cost Gap (THB/Unit)
+    { width: 18 }, // % Contribution
+    { width: 20 }, // Controllability
+    { width: 32 }  // Action Plan
   ]
 
-  return wb
+  // =========================================================================
+  // SAVE WORKBOOK
+  // =========================================================================
+  const outputDir = path.join(__dirname, '..', 'excel_models', 'v2_modular')
+  const fileName = isTemplate ? 'CostModel_BLANK_TEMPLATE_v2.xlsx' : 'CostModel_RGOM-024_v2.xlsx'
+  const filePath = path.join(outputDir, fileName)
+
+  await wb.xlsx.writeFile(filePath)
+  console.log(`[SUCCESS] Built ${isTemplate ? 'BLANK TEMPLATE' : 'POPULATED MODEL'} at: ${filePath}`)
 }
 
 async function main() {
-  console.log('--- GENERATING 100% PURE SOURCE-ACCURATE V2 MODULAR EXCEL MODELS ---')
-
-  const outDir = path.join(__dirname, '..', 'excel_models', 'v2_modular')
-  const populatedPath = path.join(outDir, 'CostModel_RGOM-024_v2.xlsx')
-  const templatePath = path.join(outDir, 'CostModel_BLANK_TEMPLATE_v2.xlsx')
-
-  // 1. Populated Model (RGOM-024)
-  const wbPopulated = await buildWorkbook(false)
-  await wbPopulated.xlsx.writeFile(populatedPath)
-  console.log(`[SUCCESS] Saved V2 Populated Model: ${populatedPath}`)
-
-  // 2. Blank Master Template
-  const wbTemplate = await buildWorkbook(true)
-  await wbTemplate.xlsx.writeFile(templatePath)
-  console.log(`[SUCCESS] Saved V2 Blank Template: ${templatePath}`)
-
-  console.log('--- V2 MODULAR MODELS GENERATED SUCCESSFULLY ---')
+  console.log('Building Excel Models V2 (Pure Literal Factory Source)...')
+  await buildWorkbook(false) // Populated Reference Model
+  await buildWorkbook(true)  // Pure Blank Template
+  console.log('Build completed successfully!')
 }
 
-main().catch(err => {
-  console.error('Error generating V2 models:', err)
-  process.exit(1)
-})
+main().catch(console.error)

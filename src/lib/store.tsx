@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react'
-import { ProductMaster, WorkCenterRate, BOMItem, RoutingStep, KaizenOption, CostElementBreakdown, ExcelImportResult } from './types'
+import { ProductMaster, WorkCenterRate, BOMItem, RoutingStep, KaizenOption, CostElementBreakdown, CostDriver, ExcelImportResult } from './types'
 import { seedProductMaster, seedWorkCenterRates, seedBOM, seedRouting, seedKaizenOptions } from './seed-data'
-import { calculateCostBreakdown } from './cost-engine'
+import { calculateCostBreakdown, calculateTopDrivers } from './cost-engine'
 
 const STORAGE_KEYS = {
   PRODUCT: 'costbreakdown_product',
@@ -9,6 +9,7 @@ const STORAGE_KEYS = {
   BOM: 'costbreakdown_bom',
   ROUTING: 'costbreakdown_routing',
   KAIZEN: 'costbreakdown_kaizen',
+  DRIVERS: 'costbreakdown_drivers',
   ACTIVE_TAB: 'costbreakdown_active_tab'
 }
 
@@ -19,6 +20,7 @@ interface AppContextType {
   routing: RoutingStep[]
   kaizenOptions: KaizenOption[]
   costBreakdown: CostElementBreakdown
+  topDrivers: CostDriver[]
   activeTab: 'master' | 'breakdown' | 'candidate' | 'rca'
   setActiveTab: (tab: 'master' | 'breakdown' | 'candidate' | 'rca') => void
   updateProduct: (p: ProductMaster) => void
@@ -33,6 +35,7 @@ interface AppContextType {
   deleteWorkCenterRate: (wc: string) => void
   addKaizenOption: (opt: Omit<KaizenOption, 'id'>) => void
   promoteOptionToActive: (optionId: string) => void
+  updateDriverHumanInput: (rank: number, controllability: CostDriver['controllability'], actionPlan: string) => void
   importFromExcel: (result: ExcelImportResult) => void
   resetToDefault: () => void
   clearAllData: () => void
@@ -58,49 +61,29 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const [bom, setBOM] = useState<BOMItem[]>(() => loadFromSession(STORAGE_KEYS.BOM, seedBOM))
   const [routing, setRouting] = useState<RoutingStep[]>(() => loadFromSession(STORAGE_KEYS.ROUTING, seedRouting))
   const [kaizenOptions, setKaizenOptions] = useState<KaizenOption[]>(() => loadFromSession(STORAGE_KEYS.KAIZEN, seedKaizenOptions))
+
+  // savedDrivers keeps track of human-input Controllability & Action Plan fields across recalcs
+  const [savedDrivers, setSavedDrivers] = useState<CostDriver[]>(() => loadFromSession(STORAGE_KEYS.DRIVERS, []))
+
   const [activeTab, setActiveTabState] = useState<'master' | 'breakdown' | 'candidate' | 'rca'>(() =>
     loadFromSession(STORAGE_KEYS.ACTIVE_TAB, 'master')
   )
 
   // Sync to sessionStorage automatically on changes
-  useEffect(() => {
-    try {
-      sessionStorage.setItem(STORAGE_KEYS.PRODUCT, JSON.stringify(product))
-    } catch (e) {}
-  }, [product])
-
-  useEffect(() => {
-    try {
-      sessionStorage.setItem(STORAGE_KEYS.RATES, JSON.stringify(rates))
-    } catch (e) {}
-  }, [rates])
-
-  useEffect(() => {
-    try {
-      sessionStorage.setItem(STORAGE_KEYS.BOM, JSON.stringify(bom))
-    } catch (e) {}
-  }, [bom])
-
-  useEffect(() => {
-    try {
-      sessionStorage.setItem(STORAGE_KEYS.ROUTING, JSON.stringify(routing))
-    } catch (e) {}
-  }, [routing])
-
-  useEffect(() => {
-    try {
-      sessionStorage.setItem(STORAGE_KEYS.KAIZEN, JSON.stringify(kaizenOptions))
-    } catch (e) {}
-  }, [kaizenOptions])
+  useEffect(() => { try { sessionStorage.setItem(STORAGE_KEYS.PRODUCT, JSON.stringify(product)) } catch (e) {} }, [product])
+  useEffect(() => { try { sessionStorage.setItem(STORAGE_KEYS.RATES, JSON.stringify(rates)) } catch (e) {} }, [rates])
+  useEffect(() => { try { sessionStorage.setItem(STORAGE_KEYS.BOM, JSON.stringify(bom)) } catch (e) {} }, [bom])
+  useEffect(() => { try { sessionStorage.setItem(STORAGE_KEYS.ROUTING, JSON.stringify(routing)) } catch (e) {} }, [routing])
+  useEffect(() => { try { sessionStorage.setItem(STORAGE_KEYS.KAIZEN, JSON.stringify(kaizenOptions)) } catch (e) {} }, [kaizenOptions])
+  useEffect(() => { try { sessionStorage.setItem(STORAGE_KEYS.DRIVERS, JSON.stringify(savedDrivers)) } catch (e) {} }, [savedDrivers])
 
   const setActiveTab = (tab: 'master' | 'breakdown' | 'candidate' | 'rca') => {
     setActiveTabState(tab)
-    try {
-      sessionStorage.setItem(STORAGE_KEYS.ACTIVE_TAB, JSON.stringify(tab))
-    } catch (e) {}
+    try { sessionStorage.setItem(STORAGE_KEYS.ACTIVE_TAB, JSON.stringify(tab)) } catch (e) {}
   }
 
   const costBreakdown = calculateCostBreakdown(bom, routing, rates)
+  const topDrivers    = calculateTopDrivers(bom, routing, rates, savedDrivers)
 
   const updateProduct = (p: ProductMaster) => setProduct(p)
 
@@ -162,21 +145,26 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     )
   }
 
+  // Update human-input fields (Controllability & Action Plan) for a ranked driver
+  // Persists via savedDrivers so it survives BOM/Routing data changes
+  const updateDriverHumanInput = (rank: number, controllability: CostDriver['controllability'], actionPlan: string) => {
+    const driver = topDrivers.find(d => d.rank === rank)
+    if (!driver) return
+
+    setSavedDrivers(prev => {
+      const existing = prev.filter(d => d.driverName !== driver.driverName)
+      return [...existing, { ...driver, controllability, actionPlan }]
+    })
+  }
+
   const importFromExcel = (result: ExcelImportResult) => {
     if (!result.success) return
-
-    if (result.product) {
-      setProduct(result.product)
-    }
-    if (result.rates && result.rates.length > 0) {
-      setRates(result.rates)
-    }
-    if (result.bom && result.bom.length > 0) {
-      setBOM(result.bom)
-    }
-    if (result.routing && result.routing.length > 0) {
-      setRouting(result.routing)
-    }
+    if (result.product) setProduct(result.product)
+    if (result.rates && result.rates.length > 0) setRates(result.rates)
+    if (result.bom && result.bom.length > 0) setBOM(result.bom)
+    if (result.routing && result.routing.length > 0) setRouting(result.routing)
+    // Clear saved driver annotations on full import (data changed)
+    setSavedDrivers([])
   }
 
   const resetToDefault = () => {
@@ -185,6 +173,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     setBOM(seedBOM)
     setRouting(seedRouting)
     setKaizenOptions(seedKaizenOptions)
+    setSavedDrivers([])
   }
 
   const clearAllData = () => {
@@ -198,6 +187,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     setRates([])
     setBOM([])
     setRouting([])
+    setSavedDrivers([])
   }
 
   return (
@@ -209,6 +199,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         routing,
         kaizenOptions,
         costBreakdown,
+        topDrivers,
         activeTab,
         setActiveTab,
         updateProduct,
@@ -223,6 +214,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         deleteWorkCenterRate,
         addKaizenOption,
         promoteOptionToActive,
+        updateDriverHumanInput,
         importFromExcel,
         resetToDefault,
         clearAllData

@@ -178,19 +178,19 @@ export const DataMasterPage: React.FC = () => {
             <div>
               <h2 className="text-sm font-bold text-slate-900">Method B: Import Data from Excel Workbook</h2>
               <p className="text-xs text-slate-500">
-                Upload a populated <code className="font-mono bg-slate-100 px-1 py-0.5 rounded">CostModel_BLANK_TEMPLATE.xlsx</code> or custom input workbook.
+                Upload a populated <code className="font-mono bg-slate-100 px-1 py-0.5 rounded">CostModel_BLANK_TEMPLATE_v2.xlsx</code>. Workbook must contain sheets: <code className="font-mono bg-slate-100 px-1 py-0.5 rounded">1_MASTER_RATES</code>, <code className="font-mono bg-slate-100 px-1 py-0.5 rounded">2_BOM_BREAKDOWN</code>, <code className="font-mono bg-slate-100 px-1 py-0.5 rounded">3_ROUTING_BREAKDOWN</code>.
               </p>
             </div>
             <div className="flex items-center gap-2">
               <button
-                onClick={() => downloadFile('/CostModel_BLANK_TEMPLATE.xlsx', 'CostModel_BLANK_TEMPLATE.xlsx')}
+                onClick={() => downloadFile('/CostModel_BLANK_TEMPLATE_v2.xlsx', 'CostModel_BLANK_TEMPLATE_v2.xlsx')}
                 className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-lg border border-slate-200 transition-all"
               >
                 <Download className="w-3.5 h-3.5" />
                 Download Blank Template
               </button>
               <button
-                onClick={() => downloadFile('/CostModel_RGOM-024.xlsx', 'CostModel_RGOM-024.xlsx')}
+                onClick={() => downloadFile('/CostModel_RGOM-024_v2.xlsx', 'CostModel_RGOM-024_v2.xlsx')}
                 className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-700 rounded-lg shadow-sm transition-all"
               >
                 <FileSpreadsheet className="w-3.5 h-3.5" />
