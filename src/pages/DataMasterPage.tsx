@@ -7,17 +7,18 @@ import {
   Trash2,
   Edit2,
   RotateCcw,
-  Upload,
-  Database,
   Search,
-  CheckCircle
+  SlidersHorizontal,
+  Check
 } from 'lucide-react'
 import { downloadFile } from '../lib/export'
+import { generateDynamicExcelTemplate } from '../lib/dynamic-excel-generator'
 import { ExcelUploadDropzone } from '../components/ExcelUploadDropzone'
 import { AddBOMModal } from '../components/AddBOMModal'
 import { AddRoutingModal } from '../components/AddRoutingModal'
 import { AddRateModal } from '../components/AddRateModal'
 import { ConfirmModal } from '../components/ConfirmModal'
+import { ProductSetupModal } from '../components/ProductSetupModal'
 import { BOMItem, RoutingStep, WorkCenterRate } from '../lib/types'
 
 export const DataMasterPage: React.FC = () => {
@@ -38,7 +39,9 @@ export const DataMasterPage: React.FC = () => {
     deleteRoutingStep,
     costBreakdown,
     resetToDefault,
-    clearAllData
+    clearAllData,
+    uomList,
+    promoteActiveToBaseline
   } = useAppStore()
 
   // Tab mode: 'grid' (Method A) vs 'import' (Method B)
@@ -57,6 +60,34 @@ export const DataMasterPage: React.FC = () => {
 
   const [isRateModalOpen, setIsRateModalOpen] = useState(false)
   const [editingRate, setEditingRate] = useState<WorkCenterRate | undefined>(undefined)
+
+  const [isSetupModalOpen, setIsSetupModalOpen] = useState(false)
+  const [isGeneratingExcel, setIsGeneratingExcel] = useState(false)
+
+  const handleDownloadDynamicTemplate = async () => {
+    try {
+      setIsGeneratingExcel(true)
+      const blob = await generateDynamicExcelTemplate({
+        product,
+        wcCount: rates.length,
+        bomCount: bom.length,
+        routingCount: routing.length,
+        existingRates: rates
+      })
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `CostModel_${product.productCode || 'PRODUCT'}_TEMPLATE.xlsx`
+      document.body.appendChild(a)
+      a.click()
+      document.body.removeChild(a)
+      URL.revokeObjectURL(url)
+    } catch (err) {
+      console.error('Failed to generate template', err)
+    } finally {
+      setIsGeneratingExcel(false)
+    }
+  }
 
   const [confirmConfig, setConfirmConfig] = useState<{
     isOpen: boolean
@@ -85,51 +116,61 @@ export const DataMasterPage: React.FC = () => {
   )
 
   return (
-    <div className="space-y-6">
-      {/* Top Header Card */}
-      <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+    <div className="space-y-5">
+      {/* ── Page Header ── */}
+      <div className="bg-white px-5 py-4 rounded-xl border border-slate-200 shadow-sm flex items-center justify-between">
         <div>
-          <div className="flex items-center gap-2.5">
-            <h1 className="text-lg font-bold text-slate-900">1. Master Data & Operational Parameters</h1>
-            <span className="px-2 py-0.5 text-[11px] font-bold bg-emerald-100 text-emerald-800 rounded-full border border-emerald-200 flex items-center gap-1 font-mono">
-              <CheckCircle className="w-3 h-3 text-emerald-600" />
-              sessionStorage Active
-            </span>
-          </div>
-          <p className="text-xs text-slate-500 mt-1">
-            Data persists across browser refreshes and clears automatically upon closing the session.
-          </p>
+          <h1 className="text-sm font-bold text-slate-900">1. Master Data &amp; Operational Parameters</h1>
+          <p className="text-xs text-slate-400 mt-0.5">Data persists within the current browser session.</p>
         </div>
-
-        {/* Global Action Controls */}
-        <div className="flex flex-wrap items-center gap-2">
-          {/* Method Switcher Buttons */}
-          <div className="flex items-center bg-slate-100 p-1 rounded-lg border border-slate-200 text-xs font-semibold">
+        <div className="flex items-center gap-2">
+          {/* Method Switcher */}
+          <div className="flex items-center bg-slate-100 p-0.5 rounded-lg border border-slate-200 text-xs font-semibold">
             <button
               onClick={() => setInputMethod('grid')}
-              className={`px-3 py-1.5 rounded-md flex items-center gap-1.5 transition-all ${
+              className={`px-3 py-1.5 rounded-md transition-all ${
                 inputMethod === 'grid'
                   ? 'bg-white text-slate-900 shadow-sm font-bold'
-                  : 'text-slate-600 hover:text-slate-900'
+                  : 'text-slate-500 hover:text-slate-800'
               }`}
             >
-              <Database className="w-3.5 h-3.5" />
-              Method A: Interactive Data Grid
+              Manual Input
             </button>
             <button
               onClick={() => setInputMethod('import')}
-              className={`px-3 py-1.5 rounded-md flex items-center gap-1.5 transition-all ${
+              className={`px-3 py-1.5 rounded-md transition-all ${
                 inputMethod === 'import'
                   ? 'bg-white text-slate-900 shadow-sm font-bold'
-                  : 'text-slate-600 hover:text-slate-900'
+                  : 'text-slate-500 hover:text-slate-800'
               }`}
             >
-              <Upload className="w-3.5 h-3.5 text-emerald-600" />
-              Method B: Excel Import (.xlsx)
+              Import Excel
             </button>
           </div>
 
-          {/* Reset to RGOM-024 */}
+          <div className="w-px h-5 bg-slate-200" />
+
+          {/* Promote to Baseline */}
+          <button
+            onClick={() =>
+              setConfirmConfig({
+                isOpen: true,
+                title: 'Promote Current Active to Baseline?',
+                message: 'This will copy all active prices (P1), active losses (L1), active capacities (C1), and active yields (Y1) to become the new Baseline (P0, L0, C0, Y0) for the next improvement cycle.',
+                onConfirm: () => {
+                  promoteActiveToBaseline()
+                  setConfirmConfig(prev => ({ ...prev, isOpen: false }))
+                }
+              })
+            }
+            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-lg transition-all cursor-pointer"
+            title="Promote active parameters to new baseline"
+          >
+            <Check className="w-3.5 h-3.5 text-emerald-600" />
+            Promote to Baseline
+          </button>
+
+          {/* Reset */}
           <button
             onClick={() =>
               setConfirmConfig({
@@ -142,19 +183,19 @@ export const DataMasterPage: React.FC = () => {
                 }
               })
             }
-            className="flex items-center gap-1.5 px-3 py-2 text-xs font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-lg transition-all border border-slate-200"
+            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded-lg transition-all cursor-pointer"
             title="Restore default RGOM-024 data"
           >
             <RotateCcw className="w-3.5 h-3.5" />
-            Reset Default
+            Reset
           </button>
 
-          {/* Clear All Data */}
+          {/* Clear */}
           <button
             onClick={() =>
               setConfirmConfig({
                 isOpen: true,
-                title: 'Clear All Data (Blank Slate)?',
+                title: 'Clear All Data?',
                 message: 'This will empty all BOM, Routing, and Work Center Rates from in-memory session storage.',
                 onConfirm: () => {
                   clearAllData()
@@ -162,140 +203,159 @@ export const DataMasterPage: React.FC = () => {
                 }
               })
             }
-            className="flex items-center gap-1.5 px-3 py-2 text-xs font-semibold text-rose-700 bg-rose-50 hover:bg-rose-100 rounded-lg transition-all border border-rose-200"
+            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-rose-600 hover:bg-rose-50 rounded-lg transition-all"
             title="Wipe data to start fresh blank model"
           >
             <Trash2 className="w-3.5 h-3.5" />
-            Clear All
+            Clear
           </button>
         </div>
       </div>
 
-      {/* Method B: Excel File Import Area */}
+      {/* Import Panel */}
       {inputMethod === 'import' && (
-        <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm space-y-4">
-          <div className="flex items-center justify-between">
+        <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+          <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100">
             <div>
-              <h2 className="text-sm font-bold text-slate-900">Method B: Import Data from Excel Workbook</h2>
-              <p className="text-xs text-slate-500">
-                Upload a populated <code className="font-mono bg-slate-100 px-1 py-0.5 rounded">CostModel_BLANK_TEMPLATE_v2.xlsx</code>. Workbook must contain sheets: <code className="font-mono bg-slate-100 px-1 py-0.5 rounded">1_MASTER_RATES</code>, <code className="font-mono bg-slate-100 px-1 py-0.5 rounded">2_BOM_BREAKDOWN</code>, <code className="font-mono bg-slate-100 px-1 py-0.5 rounded">3_ROUTING_BREAKDOWN</code>.
+              <h2 className="text-xs font-bold text-slate-900">Import from Excel Workbook</h2>
+              <p className="text-[11px] text-slate-400 mt-0.5">
+                Requires sheets: <span className="font-mono">1_MASTER_RATES</span>, <span className="font-mono">2_BOM_BREAKDOWN</span>, <span className="font-mono">3_ROUTING_BREAKDOWN</span>
               </p>
             </div>
             <div className="flex items-center gap-2">
               <button
-                onClick={() => downloadFile('/CostModel_BLANK_TEMPLATE_v2.xlsx', 'CostModel_BLANK_TEMPLATE_v2.xlsx')}
-                className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-lg border border-slate-200 transition-all"
+                onClick={handleDownloadDynamicTemplate}
+                disabled={isGeneratingExcel}
+                className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-lg border border-slate-200 transition-all cursor-pointer"
               >
                 <Download className="w-3.5 h-3.5" />
-                Download Blank Template
+                {isGeneratingExcel ? 'Generating...' : 'Download Custom Template'}
               </button>
               <button
                 onClick={() => downloadFile('/CostModel_RGOM-024_v2.xlsx', 'CostModel_RGOM-024_v2.xlsx')}
-                className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-700 rounded-lg shadow-sm transition-all"
+                className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-slate-900 bg-slate-900 hover:bg-slate-800 text-white rounded-lg shadow-xs transition-all cursor-pointer"
               >
                 <FileSpreadsheet className="w-3.5 h-3.5" />
-                Download RGOM-024 Reference
+                RGOM-024 Reference
               </button>
             </div>
           </div>
-
-          <ExcelUploadDropzone />
+          <div className="p-5">
+            <ExcelUploadDropzone />
+          </div>
         </div>
       )}
 
       {/* Section A: Product Master Header */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Product Master Info Card */}
-        <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm">
-          <div className="flex items-center justify-between mb-3">
-            <h2 className="text-xs font-bold text-slate-900 uppercase tracking-wider">Product Master Info</h2>
-            <span className="text-[11px] font-mono text-slate-400">Pure Input</span>
-          </div>
-
-          <div className="space-y-2.5 text-xs">
-            <div>
-              <label className="block text-slate-500 text-[11px] font-medium mb-0.5">Product Code</label>
-              <input
-                type="text"
-                value={product.productCode}
-                onChange={e => updateProduct({ ...product, productCode: e.target.value })}
-                placeholder="e.g. RGOM-024"
-                className="w-full px-2.5 py-1.5 font-mono font-bold text-slate-900 border border-slate-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-slate-900"
-              />
-            </div>
-            <div>
-              <label className="block text-slate-500 text-[11px] font-medium mb-0.5">Product Description</label>
-              <input
-                type="text"
-                value={product.productDescription}
-                onChange={e => updateProduct({ ...product, productDescription: e.target.value })}
-                placeholder="e.g. RGOM-024"
-                className="w-full px-2.5 py-1.5 text-slate-900 border border-slate-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-slate-900"
-              />
-            </div>
-            <div className="grid grid-cols-2 gap-2">
+        <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm flex flex-col justify-between">
+          <div>
+            <div className="flex items-center justify-between mb-3">
               <div>
-                <label className="block text-slate-500 text-[11px] font-medium mb-0.5">UOM</label>
+                <h2 className="text-xs font-bold text-slate-700">Product Info</h2>
+                <p className="text-[10px] text-slate-400 font-mono">
+                  {rates.length} WC · {bom.length} BOM · {routing.length} Routing
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsSetupModalOpen(true)}
+                className="flex items-center gap-1 px-2 py-1 text-[11px] font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-lg border border-slate-200 transition-colors cursor-pointer"
+                title="Edit table dimensions (K, N, M)"
+              >
+                <SlidersHorizontal className="w-3 h-3 text-slate-500" />
+                Edit Sizing
+              </button>
+            </div>
+
+            <div className="space-y-2.5 text-xs">
+              <div>
+                <label className="block text-slate-500 text-[11px] font-medium mb-0.5">Product Code</label>
                 <input
                   type="text"
-                  value={product.uom}
-                  onChange={e => updateProduct({ ...product, uom: e.target.value })}
-                  className="w-full px-2.5 py-1.5 font-mono font-bold text-slate-900 border border-slate-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-slate-900"
+                  value={product.productCode}
+                  onChange={e => updateProduct({ ...product, productCode: e.target.value })}
+                  placeholder="e.g. RGOM-024"
+                  className="w-full px-2.5 py-1.5 font-mono font-bold text-slate-900 bg-amber-50 border border-amber-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-amber-400"
                 />
               </div>
               <div>
-                <label className="block text-slate-500 text-[11px] font-medium mb-0.5">Effective Date</label>
+                <label className="block text-slate-500 text-[11px] font-medium mb-0.5">Product Description</label>
                 <input
-                  type="date"
-                  value={product.effectiveDate}
-                  onChange={e => updateProduct({ ...product, effectiveDate: e.target.value })}
-                  className="w-full px-2.5 py-1.5 font-mono text-slate-900 border border-slate-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-slate-900"
+                  type="text"
+                  value={product.productDescription}
+                  onChange={e => updateProduct({ ...product, productDescription: e.target.value })}
+                  placeholder="e.g. RGOM-024"
+                  className="w-full px-2.5 py-1.5 text-slate-900 bg-amber-50 border border-amber-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-amber-400"
                 />
               </div>
-            </div>
-            <div>
-              <label className="block text-slate-500 text-[11px] font-medium mb-0.5">Application / Customer</label>
-              <input
-                type="text"
-                value={product.customer}
-                onChange={e => updateProduct({ ...product, customer: e.target.value })}
-                placeholder="e.g. Automotive Display Panel"
-                className="w-full px-2.5 py-1.5 text-slate-900 border border-slate-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-slate-900"
-              />
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="block text-slate-500 text-[11px] font-medium mb-0.5">UOM</label>
+                  <select
+                    value={product.uom}
+                    onChange={e => updateProduct({ ...product, uom: e.target.value })}
+                    className="w-full px-2.5 py-1.5 font-mono font-bold text-slate-900 bg-amber-50 border border-amber-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-amber-400 cursor-pointer"
+                  >
+                    {uomList.map(u => (
+                      <option key={u} value={u}>{u}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-slate-500 text-[11px] font-medium mb-0.5">Effective Date</label>
+                  <input
+                    type="date"
+                    value={product.effectiveDate}
+                    onChange={e => updateProduct({ ...product, effectiveDate: e.target.value })}
+                    className="w-full px-2.5 py-1.5 font-mono text-slate-900 bg-amber-50 border border-amber-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-amber-400"
+                  />
+                </div>
+              </div>
+              <div>
+                <label className="block text-slate-500 text-[11px] font-medium mb-0.5">Application / Customer</label>
+                <input
+                  type="text"
+                  value={product.customer}
+                  onChange={e => updateProduct({ ...product, customer: e.target.value })}
+                  placeholder="e.g. Automotive Display Panel"
+                  className="w-full px-2.5 py-1.5 text-slate-900 bg-amber-50 border border-amber-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-amber-400"
+                />
+              </div>
             </div>
           </div>
         </div>
 
         {/* Section B: Work Center Rates Table */}
         <div className="lg:col-span-2 bg-white p-5 rounded-xl border border-slate-200 shadow-sm flex flex-col justify-between">
-          <div>
-            <div className="flex items-center justify-between mb-3">
-              <div>
-                <h2 className="text-xs font-bold text-slate-900 uppercase tracking-wider">
-                  Section B: Work Center Rates ({rates.length} Work Centers)
-                </h2>
-                <p className="text-[11px] text-slate-500">Departmental Labor & Burden rates in THB/MHr</p>
-              </div>
-              <button
-                onClick={() => {
-                  setEditingRate(undefined)
-                  setIsRateModalOpen(true)
-                }}
-                className="flex items-center gap-1 px-2.5 py-1 text-xs font-bold text-slate-900 bg-slate-100 hover:bg-slate-200 rounded-lg transition-all border border-slate-200"
-              >
-                <Plus className="w-3.5 h-3.5" />
-                Add WC Rate
-              </button>
+          <div className="flex items-center justify-between mb-4">
+            <div>
+              <h2 className="text-xs font-bold text-slate-700">Work Center Rates
+                <span className="ml-1.5 text-slate-400 font-normal">({rates.length})</span>
+              </h2>
+              <p className="text-[11px] text-slate-400 mt-0.5">Labor &amp; Burden rates — THB/MHr</p>
             </div>
+            <button
+              onClick={() => {
+                setEditingRate(undefined)
+                setIsRateModalOpen(true)
+              }}
+              className="flex items-center gap-1 px-2.5 py-1.5 text-xs font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-lg transition-all border border-slate-200"
+            >
+              <Plus className="w-3.5 h-3.5" />
+              Add
+            </button>
+          </div>
 
-            <div className="overflow-x-auto">
+          <div className="overflow-x-auto">
               <table className="w-full text-xs text-left">
                 <thead>
                   <tr className="border-b border-slate-200 text-slate-500 font-semibold">
                     <th className="pb-2">WC</th>
                     <th className="pb-2">Line / Department Description</th>
-                    <th className="pb-2 text-right">Labor Rate (฿/MHr)</th>
-                    <th className="pb-2 text-right">Burden Rate (฿/MHr)</th>
+                    <th className="pb-2 text-right">Labor Rate (THB/MHr)</th>
+                    <th className="pb-2 text-right">Burden Rate (THB/MHr)</th>
                     <th className="pb-2">Source Reference</th>
                     <th className="pb-2 text-center">Actions</th>
                   </tr>
@@ -304,7 +364,7 @@ export const DataMasterPage: React.FC = () => {
                   {rates.length === 0 ? (
                     <tr>
                       <td colSpan={6} className="py-4 text-center text-slate-400 font-sans italic">
-                        No Work Center rates configured. Click "Add WC Rate" or import an Excel file.
+                        No Work Center rates. Click Add or import an Excel file.
                       </td>
                     </tr>
                   ) : (
@@ -352,12 +412,6 @@ export const DataMasterPage: React.FC = () => {
                 </tbody>
               </table>
             </div>
-          </div>
-
-          {/* Quick Info Bar */}
-          <div className="mt-3 pt-2 border-t border-slate-100 flex items-center justify-between text-[11px] text-slate-500 font-sans">
-            <span>Audit Traceability: All rates mapped to operations via VLOOKUP in calculation engine.</span>
-          </div>
         </div>
       </div>
 
@@ -412,8 +466,8 @@ export const DataMasterPage: React.FC = () => {
                 <th className="p-2.5">Material Description</th>
                 <th className="p-2.5 text-right">Usage (Q)</th>
                 <th className="p-2.5">Unit</th>
-                <th className="p-2.5 text-right">Base P0 (฿)</th>
-                <th className="p-2.5 text-right">Active P1 (฿)</th>
+                <th className="p-2.5 text-right">Base P0 (THB)</th>
+                <th className="p-2.5 text-right">Active P1 (THB)</th>
                 <th className="p-2.5 text-right">Base Loss %</th>
                 <th className="p-2.5 text-right">Active Loss %</th>
                 <th className="p-2.5">Source Reference</th>
@@ -485,7 +539,7 @@ export const DataMasterPage: React.FC = () => {
             Active Material Standard Total ($C_M$):
           </span>
           <span className="font-bold text-slate-900 text-sm">
-            {costBreakdown.materialActive.toFixed(4)} ฿/pc
+            {costBreakdown.materialActive.toFixed(4)} THB/pc
           </span>
         </div>
       </div>
@@ -620,7 +674,7 @@ export const DataMasterPage: React.FC = () => {
             Active Conversion Standard Total ($C_L + C_B$):
           </span>
           <span className="font-bold text-slate-900 text-sm">
-            {(costBreakdown.laborActive + costBreakdown.burdenActive).toFixed(4)} ฿/pc
+            {(costBreakdown.laborActive + costBreakdown.burdenActive).toFixed(4)} THB/pc
           </span>
         </div>
       </div>
@@ -672,6 +726,12 @@ export const DataMasterPage: React.FC = () => {
         message={confirmConfig.message}
         onConfirm={confirmConfig.onConfirm}
         onCancel={() => setConfirmConfig(prev => ({ ...prev, isOpen: false }))}
+      />
+
+      <ProductSetupModal
+        isOpen={isSetupModalOpen}
+        mode="edit"
+        onClose={() => setIsSetupModalOpen(false)}
       />
     </div>
   )

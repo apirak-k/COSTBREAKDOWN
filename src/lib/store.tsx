@@ -1,44 +1,152 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react'
-import { ProductMaster, WorkCenterRate, BOMItem, RoutingStep, KaizenOption, CostElementBreakdown, CostDriver, ExcelImportResult } from './types'
+import { ProductMaster, WorkCenterRate, BOMItem, RoutingStep, KaizenOption, CostElementBreakdown, CostDriver, ExcelImportResult, ProductSession, ProductSizingConfig } from './types'
 import { seedProductMaster, seedWorkCenterRates, seedBOM, seedRouting, seedKaizenOptions } from './seed-data'
 import { calculateCostBreakdown, calculateTopDrivers } from './cost-engine'
 
+// ── Storage Keys ────────────────────────────────────────────────────────────
 const STORAGE_KEYS = {
-  PRODUCT: 'costbreakdown_product',
-  RATES: 'costbreakdown_rates',
-  BOM: 'costbreakdown_bom',
-  ROUTING: 'costbreakdown_routing',
-  KAIZEN: 'costbreakdown_kaizen',
-  DRIVERS: 'costbreakdown_drivers',
-  ACTIVE_TAB: 'costbreakdown_active_tab'
+  SESSIONS:    'costbreakdown_sessions',
+  ACTIVE_ID:   'costbreakdown_active_id',
+  KAIZEN:      'costbreakdown_kaizen',
+  ACTIVE_TAB:  'costbreakdown_active_tab',
+  UOM_LIST:    'costbreakdown_uom_list'
 }
 
+export const DEFAULT_UOMS = ['PC', 'SET', 'PANEL', 'GM', 'KG', 'SM', 'M', 'RL', 'L', 'BOX', 'TRAY']
+
+// ── Helper: create a brand-new session with sizing ─────────────────────────
+function makeSizedSession(id: string, config: ProductSizingConfig, now: string): ProductSession {
+  const defaultWcNames = ['Cutting', 'Printing-Digital RGOM', 'Assembly Digital RGOM', 'OQA-Digital']
+  
+  // Work Centers
+  const rates: WorkCenterRate[] = []
+  for (let i = 0; i < Math.max(1, config.wcCount); i++) {
+    const wc = defaultWcNames[i] || `WorkCenter_${i + 1}`
+    rates.push({
+      id: `rate-${Date.now()}-${i + 1}`,
+      wc,
+      description: wc,
+      laborRate: 105.29,
+      burdenRate: 95.00,
+      effectiveDate: config.effectiveDate || now.split('T')[0],
+      sourceRef: 'Standard Rate'
+    })
+  }
+
+  // BOM
+  const bom: BOMItem[] = []
+  for (let i = 0; i < Math.max(1, config.bomCount); i++) {
+    bom.push({
+      id: `bom-${Date.now()}-${i + 1}`,
+      itemCode: `RM-${String(i + 1).padStart(4, '0')}`,
+      description: `Material Item ${i + 1}`,
+      consumption: 0.01,
+      unit: 'PC',
+      basePrice: 10.0,
+      activePrice: 10.0,
+      baseLoss: 0.1,
+      activeLoss: 0.1,
+      sourceRef: 'Initial Setup'
+    })
+  }
+
+  // Routing
+  const routing: RoutingStep[] = []
+  for (let i = 0; i < Math.max(1, config.routingCount); i++) {
+    routing.push({
+      id: `rt-${Date.now()}-${i + 1}`,
+      opSeq: (i + 1) * 10,
+      description: `Process Operation ${i + 1}`,
+      wc: rates[0]?.wc || 'Cutting',
+      manning: 1,
+      baseCap: 1000,
+      activeCap: 1000,
+      baseYield: 0.98,
+      activeYield: 0.98,
+      sourceRef: 'Initial Setup'
+    })
+  }
+
+  return {
+    id,
+    product: {
+      productCode: config.productCode,
+      productDescription: config.productDescription,
+      uom: config.uom,
+      customer: config.customer || '',
+      effectiveDate: config.effectiveDate || now.split('T')[0]
+    },
+    rates,
+    bom,
+    routing,
+    savedDrivers: [],
+    createdAt: now,
+    updatedAt: now
+  }
+}
+
+// ── Helper: create default RGOM-024 seed session ────────────────────────────
+function makeSeedSession(): ProductSession {
+  const now = new Date().toISOString()
+  return {
+    id:        'ps-seed-rgom024',
+    product:   seedProductMaster,
+    rates:     seedWorkCenterRates,
+    bom:       seedBOM,
+    routing:   seedRouting,
+    savedDrivers: [],
+    createdAt: now,
+    updatedAt: now
+  }
+}
+
+// ── Context Type ─────────────────────────────────────────────────────────────
 interface AppContextType {
-  product: ProductMaster
-  rates: WorkCenterRate[]
-  bom: BOMItem[]
-  routing: RoutingStep[]
-  kaizenOptions: KaizenOption[]
-  costBreakdown: CostElementBreakdown
-  topDrivers: CostDriver[]
-  activeTab: 'master' | 'breakdown' | 'candidate' | 'rca'
-  setActiveTab: (tab: 'master' | 'breakdown' | 'candidate' | 'rca') => void
-  updateProduct: (p: ProductMaster) => void
-  addBOMItem: (item: Omit<BOMItem, 'id'>) => void
-  updateBOMItem: (id: string, item: Partial<BOMItem>) => void
-  deleteBOMItem: (id: string) => void
-  addRoutingStep: (step: Omit<RoutingStep, 'id'>) => void
-  updateRoutingStep: (id: string, step: Partial<RoutingStep>) => void
-  deleteRoutingStep: (id: string) => void
-  addWorkCenterRate: (rate: Omit<WorkCenterRate, 'id'>) => void
-  updateWorkCenterRate: (wc: string, rate: Partial<WorkCenterRate>) => void
-  deleteWorkCenterRate: (wc: string) => void
-  addKaizenOption: (opt: Omit<KaizenOption, 'id'>) => void
-  promoteOptionToActive: (optionId: string) => void
-  updateDriverHumanInput: (rank: number, controllability: CostDriver['controllability'], actionPlan: string) => void
-  importFromExcel: (result: ExcelImportResult) => void
-  resetToDefault: () => void
-  clearAllData: () => void
+  // Multi-product session list
+  productSessions:     ProductSession[]
+  activeProductId:     string
+  activeSession:       ProductSession
+
+  // Derived (from active session)
+  product:             ProductMaster
+  rates:               WorkCenterRate[]
+  bom:                 BOMItem[]
+  routing:             RoutingStep[]
+  kaizenOptions:       KaizenOption[]
+  costBreakdown:       CostElementBreakdown
+  topDrivers:          CostDriver[]
+  activeTab:           'master' | 'breakdown' | 'candidate' | 'rca'
+  uomList:             string[]
+
+  // Navigation
+  setActiveTab:        (tab: 'master' | 'breakdown' | 'candidate' | 'rca') => void
+
+  // Product session management
+  createProductWithSizing: (config: ProductSizingConfig) => void
+  updateProductSizing:     (config: ProductSizingConfig) => void
+  switchProduct:           (id: string) => void
+  duplicateProduct:        (id: string) => void
+  deleteProduct:           (id: string) => void
+  addUOM:                  (uom: string) => void
+
+  // Active-product CRUD
+  updateProduct:           (p: ProductMaster) => void
+  addBOMItem:              (item: Omit<BOMItem, 'id'>) => void
+  updateBOMItem:           (id: string, item: Partial<BOMItem>) => void
+  deleteBOMItem:           (id: string) => void
+  addRoutingStep:          (step: Omit<RoutingStep, 'id'>) => void
+  updateRoutingStep:       (id: string, step: Partial<RoutingStep>) => void
+  deleteRoutingStep:       (id: string) => void
+  addWorkCenterRate:       (rate: Omit<WorkCenterRate, 'id'>) => void
+  updateWorkCenterRate:    (wc: string, rate: Partial<WorkCenterRate>) => void
+  deleteWorkCenterRate:    (wc: string) => void
+  addKaizenOption:         (opt: Omit<KaizenOption, 'id'>) => void
+  promoteOptionToActive:   (optionId: string) => void
+  promoteActiveToBaseline: () => void
+  updateDriverHumanInput:  (rank: number, controllability: CostDriver['controllability'], actionPlan: string) => void
+  importFromExcel:         (result: ExcelImportResult) => void
+  resetToDefault:          () => void
+  clearAllData:            () => void
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined)
@@ -46,84 +154,246 @@ const AppContext = createContext<AppContextType | undefined>(undefined)
 function loadFromSession<T>(key: string, fallback: T): T {
   try {
     const raw = sessionStorage.getItem(key)
-    if (raw) {
-      return JSON.parse(raw) as T
-    }
+    if (raw) return JSON.parse(raw) as T
   } catch (e) {
     console.warn(`[sessionStorage] Error reading ${key}`, e)
   }
   return fallback
 }
 
-export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-  const [product, setProduct] = useState<ProductMaster>(() => loadFromSession(STORAGE_KEYS.PRODUCT, seedProductMaster))
-  const [rates, setRates] = useState<WorkCenterRate[]>(() => loadFromSession(STORAGE_KEYS.RATES, seedWorkCenterRates))
-  const [bom, setBOM] = useState<BOMItem[]>(() => loadFromSession(STORAGE_KEYS.BOM, seedBOM))
-  const [routing, setRouting] = useState<RoutingStep[]>(() => loadFromSession(STORAGE_KEYS.ROUTING, seedRouting))
-  const [kaizenOptions, setKaizenOptions] = useState<KaizenOption[]>(() => loadFromSession(STORAGE_KEYS.KAIZEN, seedKaizenOptions))
+function saveToSession(key: string, value: unknown) {
+  try { sessionStorage.setItem(key, JSON.stringify(value)) } catch (_) {}
+}
 
-  // savedDrivers keeps track of human-input Controllability & Action Plan fields across recalcs
-  const [savedDrivers, setSavedDrivers] = useState<CostDriver[]>(() => loadFromSession(STORAGE_KEYS.DRIVERS, []))
+export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
+  const [productSessions, setProductSessions] = useState<ProductSession[]>(() =>
+    loadFromSession(STORAGE_KEYS.SESSIONS, [makeSeedSession()])
+  )
+
+  const [activeProductId, setActiveProductId] = useState<string>(() =>
+    loadFromSession(STORAGE_KEYS.ACTIVE_ID, 'ps-seed-rgom024')
+  )
+
+  const [kaizenOptions, setKaizenOptions] = useState<KaizenOption[]>(() =>
+    loadFromSession(STORAGE_KEYS.KAIZEN, seedKaizenOptions)
+  )
 
   const [activeTab, setActiveTabState] = useState<'master' | 'breakdown' | 'candidate' | 'rca'>(() =>
     loadFromSession(STORAGE_KEYS.ACTIVE_TAB, 'master')
   )
 
-  // Sync to sessionStorage automatically on changes
-  useEffect(() => { try { sessionStorage.setItem(STORAGE_KEYS.PRODUCT, JSON.stringify(product)) } catch (e) {} }, [product])
-  useEffect(() => { try { sessionStorage.setItem(STORAGE_KEYS.RATES, JSON.stringify(rates)) } catch (e) {} }, [rates])
-  useEffect(() => { try { sessionStorage.setItem(STORAGE_KEYS.BOM, JSON.stringify(bom)) } catch (e) {} }, [bom])
-  useEffect(() => { try { sessionStorage.setItem(STORAGE_KEYS.ROUTING, JSON.stringify(routing)) } catch (e) {} }, [routing])
-  useEffect(() => { try { sessionStorage.setItem(STORAGE_KEYS.KAIZEN, JSON.stringify(kaizenOptions)) } catch (e) {} }, [kaizenOptions])
-  useEffect(() => { try { sessionStorage.setItem(STORAGE_KEYS.DRIVERS, JSON.stringify(savedDrivers)) } catch (e) {} }, [savedDrivers])
+  const [uomList, setUomList] = useState<string[]>(() =>
+    loadFromSession(STORAGE_KEYS.UOM_LIST, DEFAULT_UOMS)
+  )
+
+  // Sync to sessionStorage
+  useEffect(() => saveToSession(STORAGE_KEYS.SESSIONS, productSessions),   [productSessions])
+  useEffect(() => saveToSession(STORAGE_KEYS.ACTIVE_ID, activeProductId),  [activeProductId])
+  useEffect(() => saveToSession(STORAGE_KEYS.KAIZEN, kaizenOptions),       [kaizenOptions])
+  useEffect(() => saveToSession(STORAGE_KEYS.UOM_LIST, uomList),           [uomList])
 
   const setActiveTab = (tab: 'master' | 'breakdown' | 'candidate' | 'rca') => {
     setActiveTabState(tab)
-    try { sessionStorage.setItem(STORAGE_KEYS.ACTIVE_TAB, JSON.stringify(tab)) } catch (e) {}
+    saveToSession(STORAGE_KEYS.ACTIVE_TAB, tab)
+  }
+
+  const addUOM = (newUOM: string) => {
+    const trimmed = newUOM.trim().toUpperCase()
+    if (trimmed && !uomList.includes(trimmed)) {
+      setUomList(prev => [...prev, trimmed])
+    }
+  }
+
+  // Active session
+  const activeSession: ProductSession =
+    productSessions.find(s => s.id === activeProductId) ?? productSessions[0]
+
+  const { product, rates, bom, routing, savedDrivers } = activeSession
+
+  const patchActive = (patch: Partial<ProductSession>) => {
+    const now = new Date().toISOString()
+    setProductSessions(prev =>
+      prev.map(s => s.id === activeSession.id ? { ...s, ...patch, updatedAt: now } : s)
+    )
   }
 
   const costBreakdown = calculateCostBreakdown(bom, routing, rates)
   const topDrivers    = calculateTopDrivers(bom, routing, rates, savedDrivers)
 
-  const updateProduct = (p: ProductMaster) => setProduct(p)
+  // ── Product Session Actions ────────────────────────────────────────────────
+  const createProductWithSizing = (config: ProductSizingConfig) => {
+    const id  = `ps-${Date.now()}`
+    const now = new Date().toISOString()
+    const newSession = makeSizedSession(id, config, now)
+    setProductSessions(prev => [...prev, newSession])
+    setActiveProductId(id)
+    setActiveTab('master')
+  }
+
+  const updateProductSizing = (config: ProductSizingConfig) => {
+    const now = new Date().toISOString()
+    const targetWcCount = Math.max(1, config.wcCount)
+    const targetBomCount = Math.max(1, config.bomCount)
+    const targetRoutingCount = Math.max(1, config.routingCount)
+
+    // Adjust Rates
+    let newRates = [...rates]
+    if (newRates.length < targetWcCount) {
+      const defaultWcNames = ['Cutting', 'Printing-Digital RGOM', 'Assembly Digital RGOM', 'OQA-Digital']
+      for (let i = newRates.length; i < targetWcCount; i++) {
+        const wc = defaultWcNames[i] || `WorkCenter_${i + 1}`
+        newRates.push({
+          id: `rate-${Date.now()}-${i + 1}`,
+          wc,
+          description: wc,
+          laborRate: 105.29,
+          burdenRate: 95.00,
+          effectiveDate: config.effectiveDate || now.split('T')[0],
+          sourceRef: 'Standard Rate'
+        })
+      }
+    } else if (newRates.length > targetWcCount) {
+      newRates = newRates.slice(0, targetWcCount)
+    }
+
+    // Adjust BOM
+    let newBOM = [...bom]
+    if (newBOM.length < targetBomCount) {
+      for (let i = newBOM.length; i < targetBomCount; i++) {
+        newBOM.push({
+          id: `bom-${Date.now()}-${i + 1}`,
+          itemCode: `RM-${String(i + 1).padStart(4, '0')}`,
+          description: `Material Item ${i + 1}`,
+          consumption: 0.01,
+          unit: 'PC',
+          basePrice: 10.0,
+          activePrice: 10.0,
+          baseLoss: 0.1,
+          activeLoss: 0.1,
+          sourceRef: 'Standard Addon'
+        })
+      }
+    } else if (newBOM.length > targetBomCount) {
+      newBOM = newBOM.slice(0, targetBomCount)
+    }
+
+    // Adjust Routing
+    let newRouting = [...routing]
+    if (newRouting.length < targetRoutingCount) {
+      for (let i = newRouting.length; i < targetRoutingCount; i++) {
+        newRouting.push({
+          id: `rt-${Date.now()}-${i + 1}`,
+          opSeq: (i + 1) * 10,
+          description: `Process Operation ${i + 1}`,
+          wc: newRates[0]?.wc || 'Cutting',
+          manning: 1,
+          baseCap: 1000,
+          activeCap: 1000,
+          baseYield: 0.98,
+          activeYield: 0.98,
+          sourceRef: 'Standard Addon'
+        })
+      }
+    } else if (newRouting.length > targetRoutingCount) {
+      newRouting = newRouting.slice(0, targetRoutingCount)
+    }
+
+    patchActive({
+      product: {
+        productCode: config.productCode,
+        productDescription: config.productDescription,
+        uom: config.uom,
+        customer: config.customer || product.customer,
+        effectiveDate: config.effectiveDate || product.effectiveDate
+      },
+      rates: newRates,
+      bom: newBOM,
+      routing: newRouting
+    })
+  }
+
+  const switchProduct = (id: string) => {
+    if (productSessions.some(s => s.id === id)) {
+      setActiveProductId(id)
+      setActiveTab('master')
+    }
+  }
+
+  const duplicateProduct = (id: string) => {
+    const source = productSessions.find(s => s.id === id)
+    if (!source) return
+    const newId  = `ps-${Date.now()}`
+    const now    = new Date().toISOString()
+    const copy: ProductSession = {
+      ...source,
+      id:      newId,
+      product: { ...source.product, productCode: `${source.product.productCode}-COPY` },
+      bom:     source.bom.map(b  => ({ ...b, id: `bom-${Date.now()}-${b.id}` })),
+      routing: source.routing.map(r => ({ ...r, id: `rt-${Date.now()}-${r.id}` })),
+      savedDrivers: [],
+      createdAt: now,
+      updatedAt: now
+    }
+    setProductSessions(prev => [...prev, copy])
+    setActiveProductId(newId)
+    setActiveTab('master')
+  }
+
+  const deleteProduct = (id: string) => {
+    setProductSessions(prev => {
+      const remaining = prev.filter(s => s.id !== id)
+      if (remaining.length === 0) {
+        const seed = makeSeedSession()
+        setActiveProductId(seed.id)
+        return [seed]
+      }
+      if (activeProductId === id) {
+        setActiveProductId(remaining[0].id)
+      }
+      return remaining
+    })
+  }
+
+  // ── Active-product CRUD ────────────────────────────────────────────────────
+  const updateProduct = (p: ProductMaster) => patchActive({ product: p })
 
   const addBOMItem = (item: Omit<BOMItem, 'id'>) => {
     const newItem: BOMItem = { ...item, id: `bom-${Date.now()}` }
-    setBOM(prev => [...prev, newItem])
+    patchActive({ bom: [...bom, newItem] })
   }
 
   const updateBOMItem = (id: string, item: Partial<BOMItem>) => {
-    setBOM(prev => prev.map(b => (b.id === id ? { ...b, ...item } : b)))
+    patchActive({ bom: bom.map(b => b.id === id ? { ...b, ...item } : b) })
   }
 
   const deleteBOMItem = (id: string) => {
-    setBOM(prev => prev.filter(b => b.id !== id))
+    patchActive({ bom: bom.filter(b => b.id !== id) })
   }
 
   const addRoutingStep = (step: Omit<RoutingStep, 'id'>) => {
     const newStep: RoutingStep = { ...step, id: `rt-${Date.now()}` }
-    setRouting(prev => [...prev, newStep])
+    patchActive({ routing: [...routing, newStep] })
   }
 
   const updateRoutingStep = (id: string, step: Partial<RoutingStep>) => {
-    setRouting(prev => prev.map(s => (s.id === id ? { ...s, ...step } : s)))
+    patchActive({ routing: routing.map(s => s.id === id ? { ...s, ...step } : s) })
   }
 
   const deleteRoutingStep = (id: string) => {
-    setRouting(prev => prev.filter(s => s.id !== id))
+    patchActive({ routing: routing.filter(s => s.id !== id) })
   }
 
   const addWorkCenterRate = (rate: Omit<WorkCenterRate, 'id'>) => {
     const newRate: WorkCenterRate = { ...rate, id: `rate-${Date.now()}` }
-    setRates(prev => [...prev.filter(r => r.wc !== rate.wc), newRate])
+    patchActive({ rates: [...rates.filter(r => r.wc !== rate.wc), newRate] })
   }
 
   const updateWorkCenterRate = (wc: string, rate: Partial<WorkCenterRate>) => {
-    setRates(prev => prev.map(r => (r.wc === wc ? { ...r, ...rate } : r)))
+    patchActive({ rates: rates.map(r => r.wc === wc ? { ...r, ...rate } : r) })
   }
 
   const deleteWorkCenterRate = (wc: string) => {
-    setRates(prev => prev.filter(r => r.wc !== wc))
+    patchActive({ rates: rates.filter(r => r.wc !== wc) })
   }
 
   const addKaizenOption = (opt: Omit<KaizenOption, 'id'>) => {
@@ -134,92 +404,111 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const promoteOptionToActive = (optionId: string) => {
     const opt = kaizenOptions.find(o => o.id === optionId)
     if (!opt) return
-
-    setRouting(prev =>
-      prev.map(s => {
-        if (s.opSeq === 40 || s.opSeq === 60) {
-          return { ...s, activeYield: opt.targetYield }
-        }
-        return s
-      })
-    )
+    patchActive({
+      routing: routing.map(s =>
+        (s.opSeq === 40 || s.opSeq === 60) ? { ...s, activeYield: opt.targetYield } : s
+      )
+    })
   }
 
-  // Update human-input fields (Controllability & Action Plan) for a ranked driver
-  // Persists via savedDrivers so it survives BOM/Routing data changes
+  // Promote Active to Baseline — copies active parameters to base (closing the PDCA loop)
+  const promoteActiveToBaseline = () => {
+    patchActive({
+      bom: bom.map(b => ({
+        ...b,
+        basePrice: b.activePrice,
+        baseLoss: b.activeLoss
+      })),
+      routing: routing.map(r => ({
+        ...r,
+        baseCap: r.activeCap,
+        baseYield: r.activeYield
+      })),
+      savedDrivers: []
+    })
+  }
+
   const updateDriverHumanInput = (rank: number, controllability: CostDriver['controllability'], actionPlan: string) => {
     const driver = topDrivers.find(d => d.rank === rank)
     if (!driver) return
-
-    setSavedDrivers(prev => {
-      const existing = prev.filter(d => d.driverName !== driver.driverName)
-      return [...existing, { ...driver, controllability, actionPlan }]
-    })
+    const updated = savedDrivers.filter(d => d.driverName !== driver.driverName)
+    patchActive({ savedDrivers: [...updated, { ...driver, controllability, actionPlan }] })
   }
 
   const importFromExcel = (result: ExcelImportResult) => {
     if (!result.success) return
-    if (result.product) setProduct(result.product)
-    if (result.rates && result.rates.length > 0) setRates(result.rates)
-    if (result.bom && result.bom.length > 0) setBOM(result.bom)
-    if (result.routing && result.routing.length > 0) setRouting(result.routing)
-    // Clear saved driver annotations on full import (data changed)
-    setSavedDrivers([])
+    patchActive({
+      product:      result.product      ?? product,
+      rates:        result.rates        ?? rates,
+      bom:          result.bom          ?? bom,
+      routing:      result.routing      ?? routing,
+      savedDrivers: []
+    })
   }
 
   const resetToDefault = () => {
-    setProduct(seedProductMaster)
-    setRates(seedWorkCenterRates)
-    setBOM(seedBOM)
-    setRouting(seedRouting)
+    patchActive({
+      product:      seedProductMaster,
+      rates:        seedWorkCenterRates,
+      bom:          seedBOM,
+      routing:      seedRouting,
+      savedDrivers: []
+    })
     setKaizenOptions(seedKaizenOptions)
-    setSavedDrivers([])
   }
 
   const clearAllData = () => {
-    setProduct({
-      productCode: '',
-      productDescription: '',
-      uom: 'PC',
-      customer: '',
-      effectiveDate: new Date().toISOString().split('T')[0]
+    patchActive({
+      product: {
+        productCode: '', productDescription: '', uom: 'PC', customer: '',
+        effectiveDate: new Date().toISOString().split('T')[0]
+      },
+      rates:        [],
+      bom:          [],
+      routing:      [],
+      savedDrivers: []
     })
-    setRates([])
-    setBOM([])
-    setRouting([])
-    setSavedDrivers([])
   }
 
   return (
-    <AppContext.Provider
-      value={{
-        product,
-        rates,
-        bom,
-        routing,
-        kaizenOptions,
-        costBreakdown,
-        topDrivers,
-        activeTab,
-        setActiveTab,
-        updateProduct,
-        addBOMItem,
-        updateBOMItem,
-        deleteBOMItem,
-        addRoutingStep,
-        updateRoutingStep,
-        deleteRoutingStep,
-        addWorkCenterRate,
-        updateWorkCenterRate,
-        deleteWorkCenterRate,
-        addKaizenOption,
-        promoteOptionToActive,
-        updateDriverHumanInput,
-        importFromExcel,
-        resetToDefault,
-        clearAllData
-      }}
-    >
+    <AppContext.Provider value={{
+      productSessions,
+      activeProductId,
+      activeSession,
+      product,
+      rates,
+      bom,
+      routing,
+      kaizenOptions,
+      costBreakdown,
+      topDrivers,
+      activeTab,
+      uomList,
+      setActiveTab,
+      createProductWithSizing,
+      updateProductSizing,
+      switchProduct,
+      duplicateProduct,
+      deleteProduct,
+      addUOM,
+      updateProduct,
+      addBOMItem,
+      updateBOMItem,
+      deleteBOMItem,
+      addRoutingStep,
+      updateRoutingStep,
+      deleteRoutingStep,
+      addWorkCenterRate,
+      updateWorkCenterRate,
+      deleteWorkCenterRate,
+      addKaizenOption,
+      promoteOptionToActive,
+      promoteActiveToBaseline,
+      updateDriverHumanInput,
+      importFromExcel,
+      resetToDefault,
+      clearAllData
+    }}>
       {children}
     </AppContext.Provider>
   )

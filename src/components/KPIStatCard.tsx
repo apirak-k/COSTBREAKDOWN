@@ -1,51 +1,87 @@
 import React from 'react'
-import { LucideIcon } from 'lucide-react'
 
 interface KPIStatCardProps {
   title: string
   value: string
-  subtitle?: string
-  icon: LucideIcon
-  variant?: 'default' | 'emerald' | 'amber' | 'blue' | 'rose'
+  unit?: string
+  delta?: {
+    value: number
+    formatted: string
+    percent?: string
+  }
+  description?: string
+  badgeText?: string
 }
 
 export const KPIStatCard: React.FC<KPIStatCardProps> = ({
   title,
   value,
-  subtitle,
-  icon: Icon,
-  variant = 'default'
+  unit = 'THB/pc',
+  delta,
+  description,
+  badgeText
 }) => {
-  const variantStyles = {
-    default: 'bg-white border-slate-200 text-slate-900',
-    emerald: 'bg-emerald-50/50 border-emerald-200 text-emerald-950',
-    amber: 'bg-amber-50/50 border-amber-200 text-amber-950',
-    blue: 'bg-blue-50/50 border-blue-200 text-blue-950',
-    rose: 'bg-rose-50/50 border-rose-200 text-rose-950'
-  }
-
-  const iconStyles = {
-    default: 'text-slate-500 bg-slate-100',
-    emerald: 'text-emerald-700 bg-emerald-100',
-    amber: 'text-amber-700 bg-amber-100',
-    blue: 'text-blue-700 bg-blue-100',
-    rose: 'text-rose-700 bg-rose-100'
-  }
+  const hasDelta = delta !== undefined
+  const isIncrease = hasDelta && delta.value > 0
+  const isDecrease = hasDelta && delta.value < 0
 
   return (
-    <div className={`p-4 rounded-xl border ${variantStyles[variant]} shadow-sm transition-all hover:shadow-md`}>
-      <div className="flex items-center justify-between">
-        <span className="text-xs font-semibold text-slate-500 tracking-wide uppercase">{title}</span>
-        <div className={`p-2 rounded-lg ${iconStyles[variant]}`}>
-          <Icon className="w-4 h-4" />
-        </div>
+    <div className="bg-white rounded-xl border border-slate-200 shadow-2xs p-4 flex flex-col justify-between hover:border-slate-300 transition-all">
+      {/* Card Header */}
+      <div className="flex items-center justify-between gap-2 mb-2">
+        <span className="text-[11px] font-semibold text-slate-500 tracking-wide uppercase">
+          {title}
+        </span>
+        {badgeText && (
+          <span className="text-[10px] font-medium text-slate-400 bg-slate-100 px-1.5 py-0.5 rounded">
+            {badgeText}
+          </span>
+        )}
       </div>
-      <div className="mt-2 flex items-baseline gap-2">
-        <span className="text-2xl font-bold tracking-tight font-mono">{value}</span>
+
+      {/* Primary Value */}
+      <div className="flex items-baseline gap-1.5 mb-2">
+        <span className="text-2xl font-bold tracking-tight text-slate-900 font-mono">
+          {value}
+        </span>
+        <span className="text-xs font-medium text-slate-400 font-sans">
+          {unit}
+        </span>
       </div>
-      {subtitle && (
-        <p className="mt-1 text-xs text-slate-500 truncate">{subtitle}</p>
-      )}
+
+      {/* Secondary Information / Delta Badge */}
+      <div className="pt-2 border-t border-slate-100 flex items-center justify-between text-[11px]">
+        {hasDelta ? (
+          <div className="flex items-center gap-1.5">
+            <span
+              className={`font-mono font-semibold px-1.5 py-0.5 rounded text-[10px] ${
+                isIncrease
+                  ? 'bg-rose-50 text-rose-700 border border-rose-200/80'
+                  : isDecrease
+                  ? 'bg-emerald-50 text-emerald-700 border border-emerald-200/80'
+                  : 'bg-slate-100 text-slate-600'
+              }`}
+            >
+              Δ {delta.formatted}
+            </span>
+            {delta.percent && (
+              <span className="text-slate-400 font-mono text-[10px]">
+                ({delta.percent})
+              </span>
+            )}
+          </div>
+        ) : (
+          <span className="text-slate-400 text-[11px]">
+            {description || 'Baseline reference'}
+          </span>
+        )}
+
+        {description && hasDelta && (
+          <span className="text-slate-400 text-[10px] truncate max-w-[110px]">
+            {description}
+          </span>
+        )}
+      </div>
     </div>
   )
 }

@@ -84,6 +84,29 @@ export interface ExcelImportResult {
   warnings?: string[]
 }
 
+// A self-contained product session — one "workbook" per product
+export interface ProductSession {
+  id: string                   // unique session ID e.g. "ps-1723945200000"
+  product: ProductMaster
+  rates: WorkCenterRate[]
+  bom: BOMItem[]
+  routing: RoutingStep[]
+  savedDrivers: CostDriver[]   // persisted controllability + action plan annotations
+  createdAt: string
+  updatedAt: string
+}
+
+export interface ProductSizingConfig {
+  productCode: string
+  productDescription: string
+  uom: string
+  customer?: string
+  effectiveDate?: string
+  wcCount: number
+  bomCount: number
+  routingCount: number
+}
+
 // Mirrors one row of the _CALC_ENGINE sheet — a single ranked cost driver
 export interface CostDriver {
   id: number                  // 1-based row ID in calc engine (1–16 BOM, 17–55 Routing)

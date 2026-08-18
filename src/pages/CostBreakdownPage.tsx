@@ -2,42 +2,72 @@ import React from 'react'
 import { useAppStore } from '../lib/store'
 import { KPIStatCard } from '../components/KPIStatCard'
 import { VarianceTree } from '../components/VarianceTree'
-import { DollarSign, Layers, Cog, TrendingUp } from 'lucide-react'
 
 export const CostBreakdownPage: React.FC = () => {
   const { costBreakdown } = useAppStore()
 
+  const matVar  = costBreakdown.materialActive - costBreakdown.materialBase
+  const convVar = (costBreakdown.laborActive + costBreakdown.burdenActive)
+                - (costBreakdown.laborBase   + costBreakdown.burdenBase)
+  const totalVar = costBreakdown.totalVariance
+
+  const matPct = costBreakdown.totalActive > 0 
+    ? ((costBreakdown.materialActive / costBreakdown.totalActive) * 100).toFixed(1)
+    : '0.0'
+
+  const convPct = costBreakdown.totalActive > 0
+    ? (((costBreakdown.laborActive + costBreakdown.burdenActive) / costBreakdown.totalActive) * 100).toFixed(1)
+    : '0.0'
+
+  const totalPct = costBreakdown.totalBase > 0
+    ? ((totalVar / costBreakdown.totalBase) * 100).toFixed(2)
+    : '0.00'
+
+  const fmtSign = (v: number) => `${v >= 0 ? '+' : ''}${v.toFixed(4)}`
+
   return (
     <div className="space-y-6">
-      {/* Top 4 KPI Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      {/* Executive Metric Cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5">
         <KPIStatCard
-          title="Baseline Std Cost"
-          value={`${costBreakdown.totalBase.toFixed(4)} ฿`}
-          subtitle="Reference Standard Cost (C_Ref)"
-          icon={DollarSign}
-          variant="default"
+          title="Baseline Standard"
+          value={costBreakdown.totalBase.toFixed(4)}
+          badgeText="C_Ref"
+          description="Target baseline cost"
         />
+
         <KPIStatCard
-          title="Active Std Cost"
-          value={`${costBreakdown.totalActive.toFixed(4)} ฿`}
-          subtitle="Current Month Standard Cost (C_Cur)"
-          icon={TrendingUp}
-          variant={costBreakdown.totalVariance > 0 ? 'rose' : 'emerald'}
+          title="Current Standard"
+          value={costBreakdown.totalActive.toFixed(4)}
+          badgeText="C_Cur"
+          delta={{
+            value: totalVar,
+            formatted: fmtSign(totalVar),
+            percent: `${totalVar >= 0 ? '+' : ''}${totalPct}%`
+          }}
+          description="Active month std"
         />
+
         <KPIStatCard
-          title="Direct Material (C_M)"
-          value={`${costBreakdown.materialActive.toFixed(4)} ฿`}
-          subtitle={`Δ +${(costBreakdown.materialActive - costBreakdown.materialBase).toFixed(4)} ฿ (Market Price)`}
-          icon={Layers}
-          variant="amber"
+          title="Direct Material"
+          value={costBreakdown.materialActive.toFixed(4)}
+          badgeText={`C_M (${matPct}%)`}
+          delta={{
+            value: matVar,
+            formatted: fmtSign(matVar)
+          }}
+          description="Material variance"
         />
+
         <KPIStatCard
-          title="Conversion (C_L + C_B)"
-          value={`${(costBreakdown.laborActive + costBreakdown.burdenActive).toFixed(4)} ฿`}
-          subtitle={`Δ +${(costBreakdown.laborActive + costBreakdown.burdenActive - (costBreakdown.laborBase + costBreakdown.burdenBase)).toFixed(4)} ฿ (Yield Drop)`}
-          icon={Cog}
-          variant="blue"
+          title="Conversion (L + B)"
+          value={(costBreakdown.laborActive + costBreakdown.burdenActive).toFixed(4)}
+          badgeText={`C_L+B (${convPct}%)`}
+          delta={{
+            value: convVar,
+            formatted: fmtSign(convVar)
+          }}
+          description="Process variance"
         />
       </div>
 
