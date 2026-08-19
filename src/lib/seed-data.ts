@@ -1,4 +1,4 @@
-import { ProductMaster, WorkCenterRate, BOMItem, RoutingStep, KaizenOption } from './types'
+import { ProductMaster, WorkCenterRate, BOMItem, RoutingStep, SimulationOption } from './types'
 
 export const seedProductMaster: ProductMaster = {
   productCode: 'RGOM-024',
@@ -43,7 +43,7 @@ export const seedRouting: RoutingStep[] = [
   { id: '12', opSeq: 120, description: 'Poly-bagging & Carton Packing', wc: 'OQA-Digital', manning: 1, baseCap: 750, activeCap: 750, baseYield: 0.99, activeYield: 0.99, sourceRef: 'Cost declare 250331' }
 ]
 
-export const seedKaizenOptions: KaizenOption[] = [
+export const seedSimulationOptions: SimulationOption[] = [
   {
     id: 'opt-a',
     optionLetter: 'A',

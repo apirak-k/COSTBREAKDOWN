@@ -1,13 +1,13 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react'
-import { ProductMaster, WorkCenterRate, BOMItem, RoutingStep, KaizenOption, CostElementBreakdown, CostDriver, ExcelImportResult, ProductSession, ProductSizingConfig } from './types'
-import { seedProductMaster, seedWorkCenterRates, seedBOM, seedRouting, seedKaizenOptions } from './seed-data'
+import { ProductMaster, WorkCenterRate, BOMItem, RoutingStep, SimulationOption, CostElementBreakdown, CostDriver, ExcelImportResult, ProductSession, ProductSizingConfig } from './types'
+import { seedProductMaster, seedWorkCenterRates, seedBOM, seedRouting, seedSimulationOptions } from './seed-data'
 import { calculateCostBreakdown, calculateTopDrivers } from './cost-engine'
 
 // ── Storage Keys ────────────────────────────────────────────────────────────
 const STORAGE_KEYS = {
   SESSIONS:    'costbreakdown_sessions',
   ACTIVE_ID:   'costbreakdown_active_id',
-  KAIZEN:      'costbreakdown_kaizen',
+  SIMULATION:  'costbreakdown_simulation',
   ACTIVE_TAB:  'costbreakdown_active_tab',
   UOM_LIST:    'costbreakdown_uom_list'
 }
@@ -112,7 +112,7 @@ interface AppContextType {
   rates:               WorkCenterRate[]
   bom:                 BOMItem[]
   routing:             RoutingStep[]
-  kaizenOptions:       KaizenOption[]
+  simulationOptions:   SimulationOption[]
   costBreakdown:       CostElementBreakdown
   topDrivers:          CostDriver[]
   activeTab:           'master' | 'breakdown' | 'candidate' | 'rca'
@@ -140,7 +140,7 @@ interface AppContextType {
   addWorkCenterRate:       (rate: Omit<WorkCenterRate, 'id'>) => void
   updateWorkCenterRate:    (wc: string, rate: Partial<WorkCenterRate>) => void
   deleteWorkCenterRate:    (wc: string) => void
-  addKaizenOption:         (opt: Omit<KaizenOption, 'id'>) => void
+  addSimulationOption:     (opt: Omit<SimulationOption, 'id'>) => void
   promoteOptionToActive:   (optionId: string) => void
   promoteActiveToBaseline: () => void
   updateDriverHumanInput:  (rank: number, controllability: CostDriver['controllability'], actionPlan: string) => void
@@ -174,8 +174,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     loadFromSession(STORAGE_KEYS.ACTIVE_ID, 'ps-seed-rgom024')
   )
 
-  const [kaizenOptions, setKaizenOptions] = useState<KaizenOption[]>(() =>
-    loadFromSession(STORAGE_KEYS.KAIZEN, seedKaizenOptions)
+  const [simulationOptions, setSimulationOptions] = useState<SimulationOption[]>(() =>
+    loadFromSession(STORAGE_KEYS.SIMULATION, seedSimulationOptions)
   )
 
   const [activeTab, setActiveTabState] = useState<'master' | 'breakdown' | 'candidate' | 'rca'>(() =>
@@ -187,10 +187,10 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   )
 
   // Sync to sessionStorage
-  useEffect(() => saveToSession(STORAGE_KEYS.SESSIONS, productSessions),   [productSessions])
-  useEffect(() => saveToSession(STORAGE_KEYS.ACTIVE_ID, activeProductId),  [activeProductId])
-  useEffect(() => saveToSession(STORAGE_KEYS.KAIZEN, kaizenOptions),       [kaizenOptions])
-  useEffect(() => saveToSession(STORAGE_KEYS.UOM_LIST, uomList),           [uomList])
+  useEffect(() => saveToSession(STORAGE_KEYS.SESSIONS, productSessions),       [productSessions])
+  useEffect(() => saveToSession(STORAGE_KEYS.ACTIVE_ID, activeProductId),      [activeProductId])
+  useEffect(() => saveToSession(STORAGE_KEYS.SIMULATION, simulationOptions),   [simulationOptions])
+  useEffect(() => saveToSession(STORAGE_KEYS.UOM_LIST, uomList),               [uomList])
 
   const setActiveTab = (tab: 'master' | 'breakdown' | 'candidate' | 'rca') => {
     setActiveTabState(tab)
@@ -396,13 +396,13 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     patchActive({ rates: rates.filter(r => r.wc !== wc) })
   }
 
-  const addKaizenOption = (opt: Omit<KaizenOption, 'id'>) => {
-    const newOpt: KaizenOption = { ...opt, id: `opt-${Date.now()}` }
-    setKaizenOptions(prev => [...prev, newOpt])
+  const addSimulationOption = (opt: Omit<SimulationOption, 'id'>) => {
+    const newOpt: SimulationOption = { ...opt, id: `opt-${Date.now()}` }
+    setSimulationOptions(prev => [...prev, newOpt])
   }
 
   const promoteOptionToActive = (optionId: string) => {
-    const opt = kaizenOptions.find(o => o.id === optionId)
+    const opt = simulationOptions.find(o => o.id === optionId)
     if (!opt) return
     patchActive({
       routing: routing.map(s =>
@@ -454,7 +454,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       routing:      seedRouting,
       savedDrivers: []
     })
-    setKaizenOptions(seedKaizenOptions)
+    setSimulationOptions(seedSimulationOptions)
   }
 
   const clearAllData = () => {
@@ -479,7 +479,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       rates,
       bom,
       routing,
-      kaizenOptions,
+      simulationOptions,
       costBreakdown,
       topDrivers,
       activeTab,
@@ -501,7 +501,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       addWorkCenterRate,
       updateWorkCenterRate,
       deleteWorkCenterRate,
-      addKaizenOption,
+      addSimulationOption,
       promoteOptionToActive,
       promoteActiveToBaseline,
       updateDriverHumanInput,

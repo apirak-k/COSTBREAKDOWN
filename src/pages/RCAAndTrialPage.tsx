@@ -2,7 +2,7 @@ import React from 'react'
 import { useAppStore } from '../lib/store'
 
 export const RCAAndTrialPage: React.FC = () => {
-  const { kaizenOptions, promoteOptionToActive } = useAppStore()
+  const { simulationOptions, promoteOptionToActive } = useAppStore()
 
   return (
     <div className="space-y-6">
@@ -35,7 +35,7 @@ export const RCAAndTrialPage: React.FC = () => {
 
       {/* What-If Option Cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        {kaizenOptions.map(opt => (
+        {simulationOptions.map(opt => (
           <div
             key={opt.id}
             className={`p-5 rounded-xl border transition-all flex flex-col justify-between ${

@@ -60,9 +60,9 @@ export interface CostElementBreakdown {
   bev: number // Burden Yield Variance
 }
 
-export interface KaizenOption {
+export interface SimulationOption {
   id: string
-  optionLetter: string
+  optionLetter: 'A' | 'B' | 'C'
   actionName: string
   targetYield: number
   investmentCost: number
