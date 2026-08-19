@@ -1,6 +1,6 @@
-# Project Specific Rules: Cost Breakdown Analysis Platform
-**Date Updated**: 2026-08-13  
-**Purpose**: Defines the stable constraints, security rules, and design systems specific to this project. All AI agents MUST strictly adhere to these rules.
+# Project Specific Rules: Cost Breakdown
+**Date Updated**: 2026-08-19  
+**Purpose**: Defines the stable constraints, security rules, and design systems specific to the Cost Breakdown project. All AI agents MUST strictly adhere to these rules.
 
 ---
 
