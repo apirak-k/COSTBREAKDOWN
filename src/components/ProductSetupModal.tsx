@@ -112,16 +112,9 @@ export const ProductSetupModal: React.FC<ProductSetupModalProps> = ({
         
         {/* Modal Header */}
         <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100">
-          <div>
-            <h3 className="text-sm font-bold text-slate-900">
-              {mode === 'create' ? 'Setup New Product' : 'Edit Product Structure & Sizing'}
-            </h3>
-            <p className="text-xs text-slate-400 mt-0.5">
-              {mode === 'create'
-                ? 'Specify product metadata and initial table dimensions'
-                : 'Update dimensions and table row counts dynamically'}
-            </p>
-          </div>
+          <h3 className="text-sm font-bold text-slate-900">
+            {mode === 'create' ? 'Setup New Product' : 'Edit Product Structure'}
+          </h3>
           <button
             onClick={onClose}
             className="text-slate-400 hover:text-slate-600 p-1 rounded-md hover:bg-slate-100 transition-colors"
@@ -232,7 +225,7 @@ export const ProductSetupModal: React.FC<ProductSetupModalProps> = ({
             <div className="grid grid-cols-3 gap-3">
               <div>
                 <label className="block text-xs font-semibold text-slate-700 mb-1">
-                  Work Centers (K)
+                  Work Centers
                 </label>
                 <input
                   type="number"
@@ -248,7 +241,7 @@ export const ProductSetupModal: React.FC<ProductSetupModalProps> = ({
 
               <div>
                 <label className="block text-xs font-semibold text-slate-700 mb-1">
-                  BOM Items (N)
+                  BOM Items
                 </label>
                 <input
                   type="number"
@@ -259,12 +252,12 @@ export const ProductSetupModal: React.FC<ProductSetupModalProps> = ({
                   className="w-full px-3 py-1.5 text-xs font-mono font-bold text-slate-900 bg-amber-50 border border-amber-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-amber-400"
                   required
                 />
-                <span className="text-[10px] text-slate-400 mt-0.5 block">Material items</span>
+                <span className="text-[10px] text-slate-400 mt-0.5 block">Materials</span>
               </div>
 
               <div>
                 <label className="block text-xs font-semibold text-slate-700 mb-1">
-                  Routing Steps (M)
+                  Routing Steps
                 </label>
                 <input
                   type="number"

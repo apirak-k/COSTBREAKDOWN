@@ -60,20 +60,6 @@ export interface CostElementBreakdown {
   bev: number // Burden Yield Variance
 }
 
-export interface SimulationOption {
-  id: string
-  optionLetter: 'A' | 'B' | 'C'
-  actionName: string
-  targetYield: number
-  investmentCost: number
-  lotSize: number
-  addedCostPerUnit: number
-  grossSavingPerUnit: number
-  netSavingPerUnit: number
-  predictedTotalStdCost: number
-  isProfitable: boolean
-}
-
 export interface ExcelImportResult {
   success: boolean
   message: string

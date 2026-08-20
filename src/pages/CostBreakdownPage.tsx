@@ -2,6 +2,7 @@ import React from 'react'
 import { useAppStore } from '../lib/store'
 import { KPIStatCard } from '../components/KPIStatCard'
 import { VarianceTree } from '../components/VarianceTree'
+import { DetailedBreakdownTables } from '../components/DetailedBreakdownTables'
 
 export const CostBreakdownPage: React.FC = () => {
   const { costBreakdown } = useAppStore()
@@ -33,7 +34,6 @@ export const CostBreakdownPage: React.FC = () => {
           title="Baseline Standard"
           value={costBreakdown.totalBase.toFixed(4)}
           badgeText="C_Ref"
-          description="Target baseline cost"
         />
 
         <KPIStatCard
@@ -45,7 +45,6 @@ export const CostBreakdownPage: React.FC = () => {
             formatted: fmtSign(totalVar),
             percent: `${totalVar >= 0 ? '+' : ''}${totalPct}%`
           }}
-          description="Active month std"
         />
 
         <KPIStatCard
@@ -56,7 +55,6 @@ export const CostBreakdownPage: React.FC = () => {
             value: matVar,
             formatted: fmtSign(matVar)
           }}
-          description="Material variance"
         />
 
         <KPIStatCard
@@ -67,12 +65,14 @@ export const CostBreakdownPage: React.FC = () => {
             value: convVar,
             formatted: fmtSign(convVar)
           }}
-          description="Process variance"
         />
       </div>
 
       {/* Variance Tree */}
       <VarianceTree />
+
+      {/* Detailed Item-by-Item & Op-by-Op Breakdown */}
+      <DetailedBreakdownTables />
     </div>
   )
 }

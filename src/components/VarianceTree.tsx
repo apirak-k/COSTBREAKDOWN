@@ -44,16 +44,13 @@ export const VarianceTree: React.FC = () => {
   return (
     <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
       {/* Header */}
-      <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100">
-        <div>
-          <h3 className="text-sm font-bold text-slate-900">Variance Decomposition</h3>
-          <p className="text-xs text-slate-400 mt-0.5">Level 3 — Price, Rate, and Yield/Capacity breakdown</p>
-        </div>
-        <div className="text-right">
-          <p className="text-[11px] text-slate-400 font-mono">Net Δ C_Total</p>
-          <p className={`text-base font-bold font-mono ${costBreakdown.totalVariance >= 0 ? 'text-rose-600' : 'text-emerald-600'}`}>
+      <div className="flex items-center justify-between px-5 py-3.5 border-b border-slate-100">
+        <h3 className="text-sm font-bold text-slate-900">Variance Decomposition</h3>
+        <div className="text-right flex items-center gap-3">
+          <span className="text-xs text-slate-400 font-mono">Net Δ C_Total:</span>
+          <span className={`text-sm font-bold font-mono ${costBreakdown.totalVariance >= 0 ? 'text-rose-600' : 'text-emerald-600'}`}>
             {fmt(costBreakdown.totalVariance)} THB/pc
-          </p>
+          </span>
         </div>
       </div>
 
@@ -62,9 +59,9 @@ export const VarianceTree: React.FC = () => {
         {categories.map(cat => {
           const catVar = cat.active - cat.base
           return (
-            <div key={cat.name} className="px-5 py-4">
+            <div key={cat.name} className="px-5 py-3">
               {/* Category Row */}
-              <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center justify-between mb-2">
                 <span className="text-xs font-bold text-slate-700">{cat.name}</span>
                 <div className="flex items-center gap-6 font-mono text-xs">
                   <span className="text-slate-400">Base: {cat.base.toFixed(4)}</span>
@@ -78,11 +75,8 @@ export const VarianceTree: React.FC = () => {
               {/* Sub-items */}
               <div className="space-y-1 pl-4 border-l border-slate-100">
                 {cat.items.map(item => (
-                  <div key={item.name} className="flex items-center justify-between py-1">
-                    <div className="flex items-baseline gap-2">
-                      <span className="text-xs text-slate-600 font-medium">{item.name}</span>
-                      <span className="text-[11px] text-slate-400">{item.desc}</span>
-                    </div>
+                  <div key={item.name} className="flex items-center justify-between py-0.5">
+                    <span className="text-xs text-slate-600 font-medium">{item.name}</span>
                     <span className={`font-mono text-xs font-semibold w-24 text-right ${
                       item.val > 0 ? 'text-rose-600' : item.val < 0 ? 'text-emerald-600' : 'text-slate-400'
                     }`}>

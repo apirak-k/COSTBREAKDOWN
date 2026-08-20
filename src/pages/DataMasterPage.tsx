@@ -118,11 +118,8 @@ export const DataMasterPage: React.FC = () => {
   return (
     <div className="space-y-5">
       {/* ── Page Header ── */}
-      <div className="bg-white px-5 py-4 rounded-xl border border-slate-200 shadow-sm flex items-center justify-between">
-        <div>
-          <h1 className="text-sm font-bold text-slate-900">1. Master Data &amp; Operational Parameters</h1>
-          <p className="text-xs text-slate-400 mt-0.5">Data persists within the current browser session.</p>
-        </div>
+      <div className="bg-white px-5 py-3.5 rounded-xl border border-slate-200 shadow-sm flex items-center justify-between">
+        <h1 className="text-sm font-bold text-slate-900">1. Master Data &amp; Operational Parameters</h1>
         <div className="flex items-center gap-2">
           {/* Method Switcher */}
           <div className="flex items-center bg-slate-100 p-0.5 rounded-lg border border-slate-200 text-xs font-semibold">
@@ -236,7 +233,7 @@ export const DataMasterPage: React.FC = () => {
                 className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-slate-900 bg-slate-900 hover:bg-slate-800 text-white rounded-lg shadow-xs transition-all cursor-pointer"
               >
                 <FileSpreadsheet className="w-3.5 h-3.5" />
-                RGOM-024 Reference
+                RGOM-024 Full Model
               </button>
             </div>
           </div>
@@ -247,187 +244,179 @@ export const DataMasterPage: React.FC = () => {
       )}
 
       {/* Section A: Product Master Header */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Product Master Info Card */}
-        <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm flex flex-col justify-between">
-          <div>
-            <div className="flex items-center justify-between mb-3">
-              <div>
-                <h2 className="text-xs font-bold text-slate-700">Product Info</h2>
-                <p className="text-[10px] text-slate-400 font-mono">
-                  {rates.length} WC · {bom.length} BOM · {routing.length} Routing
-                </p>
-              </div>
-              <button
-                type="button"
-                onClick={() => setIsSetupModalOpen(true)}
-                className="flex items-center gap-1 px-2 py-1 text-[11px] font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-lg border border-slate-200 transition-colors cursor-pointer"
-                title="Edit table dimensions (K, N, M)"
-              >
-                <SlidersHorizontal className="w-3 h-3 text-slate-500" />
-                Edit Sizing
-              </button>
-            </div>
-
-            <div className="space-y-2.5 text-xs">
-              <div>
-                <label className="block text-slate-500 text-[11px] font-medium mb-0.5">Product Code</label>
-                <input
-                  type="text"
-                  value={product.productCode}
-                  onChange={e => updateProduct({ ...product, productCode: e.target.value })}
-                  placeholder="e.g. RGOM-024"
-                  className="w-full px-2.5 py-1.5 font-mono font-bold text-slate-900 bg-amber-50 border border-amber-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-amber-400"
-                />
-              </div>
-              <div>
-                <label className="block text-slate-500 text-[11px] font-medium mb-0.5">Product Description</label>
-                <input
-                  type="text"
-                  value={product.productDescription}
-                  onChange={e => updateProduct({ ...product, productDescription: e.target.value })}
-                  placeholder="e.g. RGOM-024"
-                  className="w-full px-2.5 py-1.5 text-slate-900 bg-amber-50 border border-amber-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-amber-400"
-                />
-              </div>
-              <div className="grid grid-cols-2 gap-2">
-                <div>
-                  <label className="block text-slate-500 text-[11px] font-medium mb-0.5">UOM</label>
-                  <select
-                    value={product.uom}
-                    onChange={e => updateProduct({ ...product, uom: e.target.value })}
-                    className="w-full px-2.5 py-1.5 font-mono font-bold text-slate-900 bg-amber-50 border border-amber-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-amber-400 cursor-pointer"
-                  >
-                    {uomList.map(u => (
-                      <option key={u} value={u}>{u}</option>
-                    ))}
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-slate-500 text-[11px] font-medium mb-0.5">Effective Date</label>
-                  <input
-                    type="date"
-                    value={product.effectiveDate}
-                    onChange={e => updateProduct({ ...product, effectiveDate: e.target.value })}
-                    className="w-full px-2.5 py-1.5 font-mono text-slate-900 bg-amber-50 border border-amber-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-amber-400"
-                  />
-                </div>
-              </div>
-              <div>
-                <label className="block text-slate-500 text-[11px] font-medium mb-0.5">Application / Customer</label>
-                <input
-                  type="text"
-                  value={product.customer}
-                  onChange={e => updateProduct({ ...product, customer: e.target.value })}
-                  placeholder="e.g. Automotive Display Panel"
-                  className="w-full px-2.5 py-1.5 text-slate-900 bg-amber-50 border border-amber-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-amber-400"
-                />
-              </div>
-            </div>
+      <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm space-y-4">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <h2 className="text-sm font-bold text-slate-900">Section A: Product Master &amp; Sizing</h2>
+            <span className="px-2 py-0.5 text-xs font-mono font-bold bg-slate-100 text-slate-700 rounded-md border border-slate-200">
+              {rates.length} WC · {bom.length} BOM · {routing.length} Routing
+            </span>
           </div>
+          <button
+            type="button"
+            onClick={() => setIsSetupModalOpen(true)}
+            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-lg border border-slate-200 transition-colors cursor-pointer"
+            title="Edit table row structure"
+          >
+            <SlidersHorizontal className="w-3.5 h-3.5 text-slate-500" />
+            Edit Structure
+          </button>
         </div>
 
-        {/* Section B: Work Center Rates Table */}
-        <div className="lg:col-span-2 bg-white p-5 rounded-xl border border-slate-200 shadow-sm flex flex-col justify-between">
-          <div className="flex items-center justify-between mb-4">
-            <div>
-              <h2 className="text-xs font-bold text-slate-700">Work Center Rates
-                <span className="ml-1.5 text-slate-400 font-normal">({rates.length})</span>
-              </h2>
-              <p className="text-[11px] text-slate-400 mt-0.5">Labor &amp; Burden rates — THB/MHr</p>
-            </div>
-            <button
-              onClick={() => {
-                setEditingRate(undefined)
-                setIsRateModalOpen(true)
-              }}
-              className="flex items-center gap-1 px-2.5 py-1.5 text-xs font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-lg transition-all border border-slate-200"
-            >
-              <Plus className="w-3.5 h-3.5" />
-              Add
-            </button>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 text-xs">
+          <div>
+            <label className="block text-slate-500 text-[11px] font-medium mb-1">Product Code *</label>
+            <input
+              type="text"
+              value={product.productCode}
+              onChange={e => updateProduct({ ...product, productCode: e.target.value })}
+              placeholder="e.g. RGOM-024"
+              className="w-full px-2.5 py-1.5 font-mono font-bold text-slate-900 bg-amber-50 border border-amber-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-amber-400"
+            />
           </div>
-
-          <div className="overflow-x-auto">
-              <table className="w-full text-xs text-left">
-                <thead>
-                  <tr className="border-b border-slate-200 text-slate-500 font-semibold">
-                    <th className="pb-2">WC</th>
-                    <th className="pb-2">Line / Department Description</th>
-                    <th className="pb-2 text-right">Labor Rate (THB/MHr)</th>
-                    <th className="pb-2 text-right">Burden Rate (THB/MHr)</th>
-                    <th className="pb-2">Source Reference</th>
-                    <th className="pb-2 text-center">Actions</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100 font-mono">
-                  {rates.length === 0 ? (
-                    <tr>
-                      <td colSpan={6} className="py-4 text-center text-slate-400 font-sans italic">
-                        No Work Center rates. Click Add or import an Excel file.
-                      </td>
-                    </tr>
-                  ) : (
-                    rates.map(r => (
-                      <tr key={r.wc} className="hover:bg-slate-50">
-                        <td className="py-2 font-bold text-slate-900">{r.wc}</td>
-                        <td className="py-2 font-sans text-slate-700">{r.description}</td>
-                        <td className="py-2 text-right font-bold text-slate-900">{r.laborRate.toFixed(2)}</td>
-                        <td className="py-2 text-right font-bold text-slate-900">{r.burdenRate.toFixed(2)}</td>
-                        <td className="py-2 font-sans text-slate-500">{r.sourceRef}</td>
-                        <td className="py-2 text-center">
-                          <div className="flex items-center justify-center gap-1">
-                            <button
-                              onClick={() => {
-                                setEditingRate(r)
-                                setIsRateModalOpen(true)
-                              }}
-                              className="p-1 text-slate-400 hover:text-slate-700 rounded hover:bg-slate-100"
-                              title="Edit Rate"
-                            >
-                              <Edit2 className="w-3.5 h-3.5" />
-                            </button>
-                            <button
-                              onClick={() =>
-                                setConfirmConfig({
-                                  isOpen: true,
-                                  title: `Delete Work Center Rate ${r.wc}?`,
-                                  message: `This will remove rate definitions for ${r.description}.`,
-                                  onConfirm: () => {
-                                    deleteWorkCenterRate(r.wc)
-                                    setConfirmConfig(prev => ({ ...prev, isOpen: false }))
-                                  }
-                                })
-                              }
-                              className="p-1 text-slate-400 hover:text-rose-600 rounded hover:bg-rose-50"
-                              title="Delete Rate"
-                            >
-                              <Trash2 className="w-3.5 h-3.5" />
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
-            </div>
+          <div>
+            <label className="block text-slate-500 text-[11px] font-medium mb-1">UOM Unit</label>
+            <select
+              value={product.uom}
+              onChange={e => updateProduct({ ...product, uom: e.target.value })}
+              className="w-full px-2.5 py-1.5 font-mono font-bold text-slate-900 bg-amber-50 border border-amber-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-amber-400 cursor-pointer"
+            >
+              {uomList.map(u => (
+                <option key={u} value={u}>{u}</option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className="block text-slate-500 text-[11px] font-medium mb-1">Product Description</label>
+            <input
+              type="text"
+              value={product.productDescription}
+              onChange={e => updateProduct({ ...product, productDescription: e.target.value })}
+              placeholder="e.g. RGOM-024"
+              className="w-full px-2.5 py-1.5 text-slate-900 bg-amber-50 border border-amber-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-amber-400"
+            />
+          </div>
+          <div>
+            <label className="block text-slate-500 text-[11px] font-medium mb-1">Effective Date</label>
+            <input
+              type="date"
+              value={product.effectiveDate}
+              onChange={e => updateProduct({ ...product, effectiveDate: e.target.value })}
+              className="w-full px-2.5 py-1.5 font-mono text-slate-900 bg-amber-50 border border-amber-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-amber-400"
+            />
+          </div>
+          <div>
+            <label className="block text-slate-500 text-[11px] font-medium mb-1">Customer / Application</label>
+            <input
+              type="text"
+              value={product.customer}
+              onChange={e => updateProduct({ ...product, customer: e.target.value })}
+              placeholder="e.g. Automotive Display Panel"
+              className="w-full px-2.5 py-1.5 text-slate-900 bg-amber-50 border border-amber-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-amber-400"
+            />
+          </div>
         </div>
       </div>
+
+      {/* Section B: Work Center Rates Table */}
+      <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm space-y-3">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <h2 className="text-sm font-bold text-slate-900">
+              Section B: Work Center Rates (Standard Rate Card)
+            </h2>
+            <span className="px-2 py-0.5 text-xs font-mono font-bold bg-slate-100 text-slate-700 rounded-md border border-slate-200">
+              {rates.length} Departments
+            </span>
+          </div>
+          <button
+            onClick={() => {
+              setEditingRate(undefined)
+              setIsRateModalOpen(true)
+            }}
+            className="flex items-center gap-1 px-3 py-1.5 text-xs font-bold text-white bg-slate-900 hover:bg-slate-800 rounded-lg transition-all shadow-sm cursor-pointer"
+          >
+            <Plus className="w-3.5 h-3.5" />
+            Add Work Center Rate
+          </button>
+        </div>
+
+        <div>
+          <table className="w-full text-xs text-left">
+            <thead>
+              <tr className="bg-slate-50 text-slate-700 font-bold border-b border-slate-200">
+                <th className="p-2.5">WC</th>
+                <th className="p-2.5">Department Description</th>
+                <th className="p-2.5 text-right">Labor Rate (THB/MHr)</th>
+                <th className="p-2.5 text-right">Burden Rate (THB/MHr)</th>
+                <th className="p-2.5">Source Reference</th>
+                <th className="p-2.5 text-center">Actions</th>
+              </tr>
+            </thead>
+              <tbody className="divide-y divide-slate-100 font-mono">
+                {rates.length === 0 ? (
+                  <tr>
+                    <td colSpan={6} className="px-3 py-4 text-center text-slate-400 font-sans italic">
+                      No Work Center rates. Click Add or import an Excel file.
+                    </td>
+                  </tr>
+                ) : (
+                  rates.map(r => (
+                    <tr key={r.wc} className="hover:bg-slate-50">
+                      <td className="px-3 py-2 font-bold text-slate-900 whitespace-nowrap">{r.wc}</td>
+                      <td className="px-3 py-2 font-sans text-slate-700">{r.description}</td>
+                      <td className="px-3 py-2 text-right font-bold text-slate-900 whitespace-nowrap">{r.laborRate.toFixed(2)}</td>
+                      <td className="px-3 py-2 text-right font-bold text-slate-900 whitespace-nowrap">{r.burdenRate.toFixed(2)}</td>
+                      <td className="px-3 py-2 font-sans text-slate-500 text-[11px] whitespace-nowrap">{r.sourceRef}</td>
+                      <td className="px-3 py-2 text-center whitespace-nowrap">
+                        <div className="flex items-center justify-center gap-1">
+                          <button
+                            onClick={() => {
+                              setEditingRate(r)
+                              setIsRateModalOpen(true)
+                            }}
+                            className="p-1 text-slate-400 hover:text-slate-700 rounded hover:bg-slate-100 cursor-pointer"
+                            title="Edit Rate"
+                          >
+                            <Edit2 className="w-3.5 h-3.5" />
+                          </button>
+                          <button
+                            onClick={() =>
+                              setConfirmConfig({
+                                isOpen: true,
+                                title: `Delete Work Center Rate ${r.wc}?`,
+                                message: `This will remove rate definitions for ${r.description}.`,
+                                onConfirm: () => {
+                                  deleteWorkCenterRate(r.wc)
+                                  setConfirmConfig(prev => ({ ...prev, isOpen: false }))
+                                }
+                              })
+                            }
+                            className="p-1 text-slate-400 hover:text-rose-600 rounded hover:bg-rose-50 cursor-pointer"
+                            title="Delete Rate"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
 
       {/* Section C: BOM Material Input Table */}
       <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm space-y-3">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-          <div>
-            <div className="flex items-center gap-2">
-              <h2 className="text-sm font-bold text-slate-900">
-                Section C: Bill of Materials (BOM Input)
-              </h2>
-              <span className="px-2 py-0.5 text-xs font-mono font-bold bg-slate-100 text-slate-700 rounded-md border border-slate-200">
-                {bom.length} Items
-              </span>
-            </div>
-            <p className="text-xs text-slate-500">Pure operational consumption, purchase prices, and scrap loss rates</p>
+          <div className="flex items-center gap-2">
+            <h2 className="text-sm font-bold text-slate-900">
+              Section C: Bill of Materials (BOM Input)
+            </h2>
+            <span className="px-2 py-0.5 text-xs font-mono font-bold bg-slate-100 text-slate-700 rounded-md border border-slate-200">
+              {bom.length} Items
+            </span>
           </div>
 
           <div className="flex items-center gap-3">
@@ -462,16 +451,16 @@ export const DataMasterPage: React.FC = () => {
           <table className="w-full text-xs text-left">
             <thead>
               <tr className="bg-slate-50 text-slate-700 font-bold border-b border-slate-200">
-                <th className="p-2.5">Item Code</th>
+                <th className="p-2.5 whitespace-nowrap">Item Code</th>
                 <th className="p-2.5">Material Description</th>
-                <th className="p-2.5 text-right">Usage (Q)</th>
-                <th className="p-2.5">Unit</th>
-                <th className="p-2.5 text-right">Base P0 (THB)</th>
-                <th className="p-2.5 text-right">Active P1 (THB)</th>
-                <th className="p-2.5 text-right">Base Loss %</th>
-                <th className="p-2.5 text-right">Active Loss %</th>
-                <th className="p-2.5">Source Reference</th>
-                <th className="p-2.5 text-center">Actions</th>
+                <th className="p-2.5 text-right whitespace-nowrap">Usage (Q)</th>
+                <th className="p-2.5 whitespace-nowrap">Unit</th>
+                <th className="p-2.5 text-right whitespace-nowrap">Base P0 (THB)</th>
+                <th className="p-2.5 text-right whitespace-nowrap">Active P1 (THB)</th>
+                <th className="p-2.5 text-right whitespace-nowrap">Base Loss %</th>
+                <th className="p-2.5 text-right whitespace-nowrap">Active Loss %</th>
+                <th className="p-2.5 whitespace-nowrap">Source Reference</th>
+                <th className="p-2.5 text-center whitespace-nowrap">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 font-mono">
@@ -486,23 +475,23 @@ export const DataMasterPage: React.FC = () => {
               ) : (
                 filteredBOM.map(b => (
                   <tr key={b.id} className="hover:bg-slate-50/80">
-                    <td className="p-2.5 font-bold text-slate-900">{b.itemCode}</td>
+                    <td className="p-2.5 font-bold text-slate-900 whitespace-nowrap">{b.itemCode}</td>
                     <td className="p-2.5 font-sans text-slate-700">{b.description}</td>
-                    <td className="p-2.5 text-right">{b.consumption.toFixed(4)}</td>
-                    <td className="p-2.5 font-sans text-slate-500">{b.unit}</td>
-                    <td className="p-2.5 text-right text-slate-500">{b.basePrice.toFixed(2)}</td>
-                    <td className="p-2.5 text-right font-bold text-slate-900">{b.activePrice.toFixed(2)}</td>
-                    <td className="p-2.5 text-right text-slate-500">{(b.baseLoss * 100).toFixed(0)}%</td>
-                    <td className="p-2.5 text-right font-bold text-slate-900">{(b.activeLoss * 100).toFixed(0)}%</td>
-                    <td className="p-2.5 font-sans text-slate-500">{b.sourceRef}</td>
-                    <td className="p-2.5 text-center">
+                    <td className="p-2.5 text-right whitespace-nowrap">{b.consumption.toFixed(4)}</td>
+                    <td className="p-2.5 font-sans text-slate-500 whitespace-nowrap">{b.unit}</td>
+                    <td className="p-2.5 text-right text-slate-500 whitespace-nowrap">{b.basePrice.toFixed(2)}</td>
+                    <td className="p-2.5 text-right font-bold text-slate-900 whitespace-nowrap">{b.activePrice.toFixed(2)}</td>
+                    <td className="p-2.5 text-right text-slate-500 whitespace-nowrap">{(b.baseLoss * 100).toFixed(0)}%</td>
+                    <td className="p-2.5 text-right font-bold text-slate-900 whitespace-nowrap">{(b.activeLoss * 100).toFixed(0)}%</td>
+                    <td className="p-2.5 font-sans text-slate-500 text-[11px] whitespace-nowrap">{b.sourceRef}</td>
+                    <td className="p-2.5 text-center whitespace-nowrap">
                       <div className="flex items-center justify-center gap-1">
                         <button
                           onClick={() => {
                             setEditingBOM(b)
                             setIsBOMModalOpen(true)
                           }}
-                          className="p-1 text-slate-400 hover:text-slate-700 rounded hover:bg-slate-100"
+                          className="p-1 text-slate-400 hover:text-slate-700 rounded hover:bg-slate-100 cursor-pointer"
                           title="Edit Item"
                         >
                           <Edit2 className="w-3.5 h-3.5" />
@@ -519,7 +508,7 @@ export const DataMasterPage: React.FC = () => {
                               }
                             })
                           }
-                          className="p-1 text-slate-400 hover:text-rose-600 rounded hover:bg-rose-50"
+                          className="p-1 text-slate-400 hover:text-rose-600 rounded hover:bg-rose-50 cursor-pointer"
                           title="Delete Item"
                         >
                           <Trash2 className="w-3.5 h-3.5" />
@@ -547,16 +536,13 @@ export const DataMasterPage: React.FC = () => {
       {/* Section D: Routing Process Input Table */}
       <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm space-y-3">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-          <div>
-            <div className="flex items-center gap-2">
-              <h2 className="text-sm font-bold text-slate-900">
-                Section D: Process Routing Sequence (Routing Input)
-              </h2>
-              <span className="px-2 py-0.5 text-xs font-mono font-bold bg-slate-100 text-slate-700 rounded-md border border-slate-200">
-                {routing.length} Operations
-              </span>
-            </div>
-            <p className="text-xs text-slate-500">Manning, line capacity (pc/hr), and first-pass yield rates</p>
+          <div className="flex items-center gap-2">
+            <h2 className="text-sm font-bold text-slate-900">
+              Section D: Process Routing Sequence (Routing Input)
+            </h2>
+            <span className="px-2 py-0.5 text-xs font-mono font-bold bg-slate-100 text-slate-700 rounded-md border border-slate-200">
+              {routing.length} Operations
+            </span>
           </div>
 
           <div className="flex items-center gap-3">
@@ -578,7 +564,7 @@ export const DataMasterPage: React.FC = () => {
                 setEditingRouting(undefined)
                 setIsRoutingModalOpen(true)
               }}
-              className="flex items-center gap-1 px-3 py-1.5 text-xs font-bold text-white bg-slate-900 hover:bg-slate-800 rounded-lg transition-all shadow-sm shrink-0"
+              className="flex items-center gap-1 px-3 py-1.5 text-xs font-bold text-white bg-slate-900 hover:bg-slate-800 rounded-lg transition-all shadow-sm shrink-0 cursor-pointer"
             >
               <Plus className="w-3.5 h-3.5" />
               Add Routing Step
@@ -591,16 +577,16 @@ export const DataMasterPage: React.FC = () => {
           <table className="w-full text-xs text-left">
             <thead>
               <tr className="bg-slate-50 text-slate-700 font-bold border-b border-slate-200">
-                <th className="p-2.5">Op #</th>
+                <th className="p-2.5 whitespace-nowrap">Op #</th>
                 <th className="p-2.5">Operation Description</th>
-                <th className="p-2.5">WC</th>
-                <th className="p-2.5 text-center">Man (M)</th>
-                <th className="p-2.5 text-right">Base Cap (pc/hr)</th>
-                <th className="p-2.5 text-right">Active Cap (pc/hr)</th>
-                <th className="p-2.5 text-right">Base Yield %</th>
-                <th className="p-2.5 text-right">Active Yield %</th>
-                <th className="p-2.5">Source Reference</th>
-                <th className="p-2.5 text-center">Actions</th>
+                <th className="p-2.5 whitespace-nowrap">WC</th>
+                <th className="p-2.5 text-center whitespace-nowrap">Manning</th>
+                <th className="p-2.5 text-right whitespace-nowrap">Base Cap (pc/hr)</th>
+                <th className="p-2.5 text-right whitespace-nowrap">Active Cap (pc/hr)</th>
+                <th className="p-2.5 text-right whitespace-nowrap">Base Yield %</th>
+                <th className="p-2.5 text-right whitespace-nowrap">Active Yield %</th>
+                <th className="p-2.5 whitespace-nowrap">Source Reference</th>
+                <th className="p-2.5 text-center whitespace-nowrap">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 font-mono">
@@ -615,29 +601,29 @@ export const DataMasterPage: React.FC = () => {
               ) : (
                 filteredRouting.map(r => (
                   <tr key={r.id} className="hover:bg-slate-50/80">
-                    <td className="p-2.5 font-bold text-slate-900">Op {r.opSeq}</td>
+                    <td className="p-2.5 font-bold text-slate-900 whitespace-nowrap">Op {r.opSeq}</td>
                     <td className="p-2.5 font-sans text-slate-700">{r.description}</td>
-                    <td className="p-2.5 font-bold text-slate-800">{r.wc}</td>
-                    <td className="p-2.5 text-center">{r.manning}</td>
-                    <td className="p-2.5 text-right text-slate-500">{r.baseCap}</td>
-                    <td className="p-2.5 text-right font-bold text-slate-900">{r.activeCap}</td>
-                    <td className="p-2.5 text-right text-slate-500">{(r.baseYield * 100).toFixed(0)}%</td>
+                    <td className="p-2.5 font-bold text-slate-800 whitespace-nowrap">{r.wc}</td>
+                    <td className="p-2.5 text-center whitespace-nowrap">{r.manning}</td>
+                    <td className="p-2.5 text-right text-slate-500 whitespace-nowrap">{r.baseCap}</td>
+                    <td className="p-2.5 text-right font-bold text-slate-900 whitespace-nowrap">{r.activeCap}</td>
+                    <td className="p-2.5 text-right text-slate-500 whitespace-nowrap">{(r.baseYield * 100).toFixed(0)}%</td>
                     <td
-                      className={`p-2.5 text-right font-bold ${
+                      className={`p-2.5 text-right font-bold whitespace-nowrap ${
                         r.activeYield < r.baseYield ? 'text-rose-600' : 'text-slate-900'
                       }`}
                     >
                       {(r.activeYield * 100).toFixed(0)}%
                     </td>
-                    <td className="p-2.5 font-sans text-slate-500">{r.sourceRef}</td>
-                    <td className="p-2.5 text-center">
+                    <td className="p-2.5 font-sans text-slate-500 text-[11px] whitespace-nowrap">{r.sourceRef}</td>
+                    <td className="p-2.5 text-center whitespace-nowrap">
                       <div className="flex items-center justify-center gap-1">
                         <button
                           onClick={() => {
                             setEditingRouting(r)
                             setIsRoutingModalOpen(true)
                           }}
-                          className="p-1 text-slate-400 hover:text-slate-700 rounded hover:bg-slate-100"
+                          className="p-1 text-slate-400 hover:text-slate-700 rounded hover:bg-slate-100 cursor-pointer"
                           title="Edit Step"
                         >
                           <Edit2 className="w-3.5 h-3.5" />
@@ -646,15 +632,15 @@ export const DataMasterPage: React.FC = () => {
                           onClick={() =>
                             setConfirmConfig({
                               isOpen: true,
-                              title: `Delete Operation ${r.opSeq}?`,
-                              message: `Are you sure you want to delete Op ${r.opSeq} (${r.description})?`,
+                              title: `Delete Operation Op ${r.opSeq}?`,
+                              message: `Are you sure you want to remove ${r.description}?`,
                               onConfirm: () => {
                                 deleteRoutingStep(r.id)
                                 setConfirmConfig(prev => ({ ...prev, isOpen: false }))
                               }
                             })
                           }
-                          className="p-1 text-slate-400 hover:text-rose-600 rounded hover:bg-rose-50"
+                          className="p-1 text-slate-400 hover:text-rose-600 rounded hover:bg-rose-50 cursor-pointer"
                           title="Delete Step"
                         >
                           <Trash2 className="w-3.5 h-3.5" />

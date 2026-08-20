@@ -23,11 +23,8 @@ export const CandidateSelectionPage: React.FC = () => {
   if (topDrivers.length === 0) {
     return (
       <div className="space-y-4">
-        <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm">
+        <div className="bg-white px-5 py-3.5 rounded-xl border border-slate-200 shadow-sm">
           <h1 className="text-sm font-bold text-slate-900">3. Top Cost Drivers &amp; Candidate Selection</h1>
-          <p className="text-xs text-slate-400 mt-1">
-            Ranked by cost gap — mirrors <span className="font-mono">_CALC_ENGINE</span> and <span className="font-mono">4_SUMMARY_&amp;_COMPARISON</span>
-          </p>
         </div>
         <div className="bg-white py-16 rounded-xl border border-slate-200 shadow-sm text-center text-slate-400 text-sm">
           No cost variance detected. Enter Base vs Active data in Tab 1 to see ranked drivers.
@@ -42,16 +39,11 @@ export const CandidateSelectionPage: React.FC = () => {
     <div className="space-y-4">
 
       {/* ── Header ── */}
-      <div className="bg-white px-5 py-4 rounded-xl border border-slate-200 shadow-sm flex items-center justify-between">
-        <div>
-          <h1 className="text-sm font-bold text-slate-900">3. Top Cost Drivers &amp; Candidate Selection</h1>
-          <p className="text-xs text-slate-400 mt-0.5">
-            Ranked by cost gap — mirrors <span className="font-mono">_CALC_ENGINE</span> and <span className="font-mono">4_SUMMARY_&amp;_COMPARISON</span>
-          </p>
-        </div>
+      <div className="bg-white px-5 py-3.5 rounded-xl border border-slate-200 shadow-sm flex items-center justify-between">
+        <h1 className="text-sm font-bold text-slate-900">3. Top Cost Drivers &amp; Candidate Selection</h1>
         <div className="text-right">
           <p className="text-[11px] text-slate-400 font-mono">Net Std Cost Variance (Δ)</p>
-          <p className={`text-xl font-bold font-mono ${totalVariance >= 0 ? 'text-rose-600' : 'text-emerald-600'}`}>
+          <p className={`text-base font-bold font-mono ${totalVariance >= 0 ? 'text-rose-600' : 'text-emerald-600'}`}>
             {totalVariance >= 0 ? '+' : ''}{totalVariance.toFixed(4)} THB/pc
           </p>
         </div>

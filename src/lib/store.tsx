@@ -1,13 +1,12 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react'
-import { ProductMaster, WorkCenterRate, BOMItem, RoutingStep, SimulationOption, CostElementBreakdown, CostDriver, ExcelImportResult, ProductSession, ProductSizingConfig } from './types'
-import { seedProductMaster, seedWorkCenterRates, seedBOM, seedRouting, seedSimulationOptions } from './seed-data'
+import { ProductMaster, WorkCenterRate, BOMItem, RoutingStep, CostElementBreakdown, CostDriver, ExcelImportResult, ProductSession, ProductSizingConfig } from './types'
+import { seedProductMaster, seedWorkCenterRates, seedBOM, seedRouting } from './seed-data'
 import { calculateCostBreakdown, calculateTopDrivers } from './cost-engine'
 
 // ── Storage Keys ────────────────────────────────────────────────────────────
 const STORAGE_KEYS = {
   SESSIONS:    'costbreakdown_sessions',
   ACTIVE_ID:   'costbreakdown_active_id',
-  SIMULATION:  'costbreakdown_simulation',
   ACTIVE_TAB:  'costbreakdown_active_tab',
   UOM_LIST:    'costbreakdown_uom_list'
 }
@@ -112,7 +111,6 @@ interface AppContextType {
   rates:               WorkCenterRate[]
   bom:                 BOMItem[]
   routing:             RoutingStep[]
-  simulationOptions:   SimulationOption[]
   costBreakdown:       CostElementBreakdown
   topDrivers:          CostDriver[]
   activeTab:           'master' | 'breakdown' | 'candidate' | 'rca'
@@ -140,8 +138,6 @@ interface AppContextType {
   addWorkCenterRate:       (rate: Omit<WorkCenterRate, 'id'>) => void
   updateWorkCenterRate:    (wc: string, rate: Partial<WorkCenterRate>) => void
   deleteWorkCenterRate:    (wc: string) => void
-  addSimulationOption:     (opt: Omit<SimulationOption, 'id'>) => void
-  promoteOptionToActive:   (optionId: string) => void
   promoteActiveToBaseline: () => void
   updateDriverHumanInput:  (rank: number, controllability: CostDriver['controllability'], actionPlan: string) => void
   importFromExcel:         (result: ExcelImportResult) => void
@@ -174,10 +170,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     loadFromSession(STORAGE_KEYS.ACTIVE_ID, 'ps-seed-rgom024')
   )
 
-  const [simulationOptions, setSimulationOptions] = useState<SimulationOption[]>(() =>
-    loadFromSession(STORAGE_KEYS.SIMULATION, seedSimulationOptions)
-  )
-
   const [activeTab, setActiveTabState] = useState<'master' | 'breakdown' | 'candidate' | 'rca'>(() =>
     loadFromSession(STORAGE_KEYS.ACTIVE_TAB, 'master')
   )
@@ -189,7 +181,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   // Sync to sessionStorage
   useEffect(() => saveToSession(STORAGE_KEYS.SESSIONS, productSessions),       [productSessions])
   useEffect(() => saveToSession(STORAGE_KEYS.ACTIVE_ID, activeProductId),      [activeProductId])
-  useEffect(() => saveToSession(STORAGE_KEYS.SIMULATION, simulationOptions),   [simulationOptions])
   useEffect(() => saveToSession(STORAGE_KEYS.UOM_LIST, uomList),               [uomList])
 
   const setActiveTab = (tab: 'master' | 'breakdown' | 'candidate' | 'rca') => {
@@ -396,21 +387,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     patchActive({ rates: rates.filter(r => r.wc !== wc) })
   }
 
-  const addSimulationOption = (opt: Omit<SimulationOption, 'id'>) => {
-    const newOpt: SimulationOption = { ...opt, id: `opt-${Date.now()}` }
-    setSimulationOptions(prev => [...prev, newOpt])
-  }
-
-  const promoteOptionToActive = (optionId: string) => {
-    const opt = simulationOptions.find(o => o.id === optionId)
-    if (!opt) return
-    patchActive({
-      routing: routing.map(s =>
-        (s.opSeq === 40 || s.opSeq === 60) ? { ...s, activeYield: opt.targetYield } : s
-      )
-    })
-  }
-
   // Promote Active to Baseline — copies active parameters to base (closing the PDCA loop)
   const promoteActiveToBaseline = () => {
     patchActive({
@@ -454,7 +430,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       routing:      seedRouting,
       savedDrivers: []
     })
-    setSimulationOptions(seedSimulationOptions)
   }
 
   const clearAllData = () => {
@@ -479,7 +454,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       rates,
       bom,
       routing,
-      simulationOptions,
       costBreakdown,
       topDrivers,
       activeTab,
@@ -501,8 +475,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       addWorkCenterRate,
       updateWorkCenterRate,
       deleteWorkCenterRate,
-      addSimulationOption,
-      promoteOptionToActive,
       promoteActiveToBaseline,
       updateDriverHumanInput,
       importFromExcel,

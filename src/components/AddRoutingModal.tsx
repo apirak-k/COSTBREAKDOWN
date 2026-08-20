@@ -137,7 +137,7 @@ export const AddRoutingModal: React.FC<AddRoutingModalProps> = ({
 
           <div className="grid grid-cols-3 gap-3">
             <div>
-              <label className="block font-semibold text-slate-700 mb-1">Man (M) *</label>
+              <label className="block font-semibold text-slate-700 mb-1">Manning (Heads) *</label>
               <input
                 type="number"
                 step="0.5"

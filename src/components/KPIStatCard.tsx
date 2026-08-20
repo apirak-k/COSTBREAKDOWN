@@ -9,7 +9,6 @@ interface KPIStatCardProps {
     formatted: string
     percent?: string
   }
-  description?: string
   badgeText?: string
 }
 
@@ -18,7 +17,6 @@ export const KPIStatCard: React.FC<KPIStatCardProps> = ({
   value,
   unit = 'THB/pc',
   delta,
-  description,
   badgeText
 }) => {
   const hasDelta = delta !== undefined
@@ -71,14 +69,8 @@ export const KPIStatCard: React.FC<KPIStatCardProps> = ({
             )}
           </div>
         ) : (
-          <span className="text-slate-400 text-[11px]">
-            {description || 'Baseline reference'}
-          </span>
-        )}
-
-        {description && hasDelta && (
-          <span className="text-slate-400 text-[10px] truncate max-w-[110px]">
-            {description}
+          <span className="text-slate-400 text-[11px] font-medium">
+            Benchmark
           </span>
         )}
       </div>

@@ -1,31 +1,30 @@
 import React from 'react'
-import { AppProvider, useAppStore } from './lib/store'
-import { Navbar } from './components/Navbar'
-import { DataMasterPage } from './pages/DataMasterPage'
-import { CostBreakdownPage } from './pages/CostBreakdownPage'
-import { CandidateSelectionPage } from './pages/CandidateSelectionPage'
-import { RCAAndTrialPage } from './pages/RCAAndTrialPage'
+import { AppProvider, useAppStore } from './state'
+import { AppLayout } from './shared'
+import {
+  MasterDataPage,
+  CostBreakdownPage,
+  CandidateSelectionPage,
+  RCASimulationPage
+} from './features'
 
-const AppContent: React.FC = () => {
+const AppRouter: React.FC = () => {
   const { activeTab } = useAppStore()
 
   return (
-    <div className="min-h-screen bg-slate-50 text-slate-900 flex flex-col font-sans">
-      <Navbar />
-      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6">
-        {activeTab === 'master' && <DataMasterPage />}
-        {activeTab === 'breakdown' && <CostBreakdownPage />}
-        {activeTab === 'candidate' && <CandidateSelectionPage />}
-        {activeTab === 'rca' && <RCAAndTrialPage />}
-      </main>
-    </div>
+    <AppLayout>
+      {activeTab === 'master' && <MasterDataPage />}
+      {activeTab === 'breakdown' && <CostBreakdownPage />}
+      {activeTab === 'candidate' && <CandidateSelectionPage />}
+      {activeTab === 'rca' && <RCASimulationPage />}
+    </AppLayout>
   )
 }
 
 export default function App() {
   return (
     <AppProvider>
-      <AppContent />
+      <AppRouter />
     </AppProvider>
   )
 }
