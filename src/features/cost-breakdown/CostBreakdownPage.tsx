@@ -16,64 +16,56 @@ export const CostBreakdownPage: React.FC = () => {
   const [isDetailedExpanded, setIsDetailedExpanded] = useState(true)
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       {/* 1. Top Executive KPIs */}
       <ExecutiveKPICards costBreakdown={costBreakdown} />
 
       {/* 2. Variance Tree Decomposition */}
       <VarianceTreeCard costBreakdown={costBreakdown} />
 
-      {/* 3. Detailed Breakdown Tables Card */}
-      <div className="bg-white rounded-xl border border-slate-200 shadow-xs overflow-hidden">
+      {/* 3. Detailed Breakdown Tables Panel */}
+      <div className="bg-white rounded border border-slate-300/80 shadow-2xs overflow-hidden">
         {/* Section Accordion Header */}
-        <button
-          onClick={() => setIsDetailedExpanded(!isDetailedExpanded)}
-          className="w-full flex items-center justify-between p-4 hover:bg-slate-50 transition-colors cursor-pointer"
-        >
-          <div className="flex items-center gap-2">
+        <div className="flex items-center justify-between px-3.5 py-2.5 bg-slate-50/70 border-b border-slate-200">
+          <button
+            onClick={() => setIsDetailedExpanded(!isDetailedExpanded)}
+            className="flex items-center gap-2 text-xs font-bold font-mono text-slate-800 uppercase tracking-tight hover:text-slate-950 cursor-pointer"
+          >
             {isDetailedExpanded ? (
-              <ChevronDown className="w-4 h-4 text-slate-500" />
+              <ChevronDown className="w-3.5 h-3.5 text-slate-500" />
             ) : (
-              <ChevronRight className="w-4 h-4 text-slate-500" />
+              <ChevronRight className="w-3.5 h-3.5 text-slate-500" />
             )}
-            <h3 className="text-xs font-bold text-slate-900 uppercase tracking-wider">
-              Detailed Cost Breakdown Tables
-            </h3>
+            <span>Level 3: Granular Itemized Cost Breakdown</span>
+          </button>
+
+          {/* Sub-Tab Switcher */}
+          <div className="flex items-center gap-1 font-mono text-[11px]">
+            <button
+              onClick={() => setSubTab('bom')}
+              className={`px-2.5 py-1 rounded transition-colors cursor-pointer ${
+                subTab === 'bom'
+                  ? 'bg-slate-900 text-white font-bold'
+                  : 'bg-slate-200 text-slate-700 hover:bg-slate-300'
+              }`}
+            >
+              BOM Material ({bom.length})
+            </button>
+            <button
+              onClick={() => setSubTab('routing')}
+              className={`px-2.5 py-1 rounded transition-colors cursor-pointer ${
+                subTab === 'routing'
+                  ? 'bg-slate-900 text-white font-bold'
+                  : 'bg-slate-200 text-slate-700 hover:bg-slate-300'
+              }`}
+            >
+              Routing Ops ({routing.length})
+            </button>
           </div>
-          <span className="text-[11px] text-slate-400 font-mono">
-            {bom.length} BOM Items · {routing.length} Routing Steps
-          </span>
-        </button>
+        </div>
 
         {isDetailedExpanded && (
-          <div className="border-t border-slate-100">
-            {/* Sub-Tab Switcher */}
-            <div className="flex items-center bg-slate-50 px-4 py-2.5 border-b border-slate-100">
-              <div className="flex items-center bg-white p-0.5 rounded-lg border border-slate-200 text-xs font-semibold">
-                <button
-                  onClick={() => setSubTab('bom')}
-                  className={`px-3 py-1 rounded-md transition-all cursor-pointer ${
-                    subTab === 'bom'
-                      ? 'bg-slate-900 text-white shadow-xs'
-                      : 'text-slate-500 hover:text-slate-900'
-                  }`}
-                >
-                  BOM Material ({bom.length})
-                </button>
-                <button
-                  onClick={() => setSubTab('routing')}
-                  className={`px-3 py-1 rounded-md transition-all cursor-pointer ${
-                    subTab === 'routing'
-                      ? 'bg-slate-900 text-white shadow-xs'
-                      : 'text-slate-500 hover:text-slate-900'
-                  }`}
-                >
-                  Routing Conversion ({routing.length})
-                </button>
-              </div>
-            </div>
-
-            {/* Sub-Tab Content */}
+          <div className="p-0">
             {subTab === 'bom' ? (
               <BOMDetailedTable bom={bom} />
             ) : (

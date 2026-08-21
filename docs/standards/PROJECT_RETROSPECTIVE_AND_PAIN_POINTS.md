@@ -13,12 +13,12 @@ This document consolidates all real-world friction points, operational misunders
 
 ## 🔴 Theme 1: Human–AI Communication & Protocol Alignment
 
-### 1.1 Premature & Unprompted Action (ด่วนลงมือทำเองโดยยังไม่ได้รับคำสั่ง)
-* **Root Issue**: When the user asked for an explanation, asked a question, or pointed out an observation ("แค่อยากรู้คำตอบ", "ไฟล์หายไปไหน"), the AI immediately ran commands, modified files, or performed Git pushes in the background instead of pausing to explain first.
+### 1.1 Premature & Unprompted Action (Executing Modifications Without Explicit Command)
+* **Root Issue**: When the user asked for an explanation, asked a question, or pointed out an observation ("just asking for clarification", "where did the file go?"), the AI immediately ran commands, modified files, or performed Git pushes in the background instead of pausing to explain first.
 * **Impact**: User felt loss of control, surprised by unapproved changes, and frustrated by premature execution.
 * **Required Standard**: AI must strictly differentiate between *Inquiry/Question* and *Action Command*. Stop, explain clearly, and wait for explicit confirmation before executing modifications.
 
-### 1.2 Blind Guessing vs. Proactive Inquiries (การสุ่มเดาแทนการถามพร้อมคำแนะนำ)
+### 1.2 Blind Guessing vs. Proactive Inquiries (Unverified Assumptions vs Structured Clarification)
 * **Root Issue**: When requirements, formulas, or UI details were underspecified or ambiguous, the AI sometimes made unverified assumptions instead of consulting the user.
 * **Impact**: Rework needed, divergence from user intent, and erosion of trust.
 * **Required Standard**: **Zero Blind Guessing**. If ambiguity exists, AI must immediately pause and present a concise inquiry with:
@@ -34,7 +34,7 @@ This document consolidates all real-world friction points, operational misunders
 
 ## 🟡 Theme 2: Data Confidentiality, Security & Git Lifecycle
 
-### 2.1 Risk of Leaking Proprietary / Confidential Sources (ความลับโรงงานและลูกค้า)
+### 2.1 Risk of Leaking Proprietary / Confidential Sources (Factory & Client Confidentiality)
 * **Root Issue**:
   * During Git cache cleanups, the local `Sources/` directory was accidentally wiped.
   * In the subsequent recovery attempt, sensitive raw factory files (quotations, QC flows, price lists) were almost published to GitHub.
@@ -43,7 +43,7 @@ This document consolidates all real-world friction points, operational misunders
   * Strict separation: Local machine holds 100% of raw sources; Remote repository ignores them via `.gitignore`.
   * Multi-layer Poka-Yoke to ensure confidential folders cannot be committed without explicit authorization.
 
-### 2.2 Historical Commit Residuals (ร่องรอยใน Commit History)
+### 2.2 Historical Commit Residuals (Residual Traces in Git Commit History)
 * **Root Issue**: Simply using `git rm` removes files from the current working tree but leaves them accessible in historical commits on GitHub.
 * **Impact**: False sense of security while confidential data remains viewable in history.
 * **Required Standard**: Understand and enforce clean history squashing/resetting (`git push --force`) when scrubbing confidential assets.
@@ -56,7 +56,7 @@ This document consolidates all real-world friction points, operational misunders
 
 ## 🟢 Theme 3: Excel Mathematical Modeling & Template Integrity
 
-### 3.1 Dummy / Leftover Data in Blank Templates (ข้อมูลขยะตกค้างใน Template)
+### 3.1 Dummy / Leftover Data in Blank Templates (Residual Sample Data in Blank Templates)
 * **Root Issue**: In `CostModel_BLANK_TEMPLATE.xlsx`, dummy item codes (e.g., `RM-001`), test numbers, and sample descriptions remained in the editable yellow cells.
 * **Impact**: End-users had to manually clean cells before use, violating the "Pure Blank Template" requirement.
 * **Required Standard**: Template generator scripts must programmatically verify that 100% of editable input cells are empty.
@@ -66,7 +66,7 @@ This document consolidates all real-world friction points, operational misunders
 * **Impact**: User confusion regarding which cells were editable vs. automated.
 * **Required Standard**: **Pure Input Sheet Rule**. Sheet 1 contains *ONLY* raw yellow input cells. All formulas and roll-ups reside strictly in Sheet 2 (`2_COST_BREAKDOWN`).
 
-### 3.3 Lack of Heavy-Lifting Calculation in What-If Simulations (ระบบไม่ยอมคิดเลขยากๆ ให้)
+### 3.3 Lack of Heavy-Lifting Calculation in What-If Simulations (Manual Pre-Calculations Required)
 * **Root Issue**: The initial simulator required users to pre-calculate per-unit cost additions and savings manually.
 * **Impact**: Defeated the purpose of an automated decision-support system.
 * **Required Standard**: Users input only raw shop-floor parameters (**Target Yield %**, **Lump-sum Investment THB**, **Lot Size pcs**). Excel formulas automatically compute unit added cost, gross savings, net savings, predicted standard cost, and feasibility tags.
@@ -79,9 +79,10 @@ This document consolidates all real-world friction points, operational misunders
 
 ## 🔵 Theme 4: Web Prototype Architecture, Anti-AI Aesthetics & Fluid Responsiveness
 
-### 4.1 "AI Slop" Design Antipatterns (ดีไซน์ที่ดูเหมือน AI ทำ)
+### 4.1 "AI Slop" Design Antipatterns (Generic AI Aesthetic Clichés)
 * **Root Issue**: Cliché generative UI tropes (dark-purple neon gradients, textureless flat surfaces, nested cards 3-4 levels deep, icon-stuffed bento boxes) that lack professional industrial utility.
 * **Required Standard**: **Human-Crafted Engineering UI**: Symmetrical balance, clean whitespace, curated neutral palettes (slate/emerald/amber), clear typographic hierarchy, and authentic industrial data density.
+
 
 ### 4.2 Ambiguity in Screen Resolution & Responsive Behavior
 * **Root Issue**: Specifying fixed pixel numbers in prompt requirements caused confusion over whether screens were hard-locked rather than fluidly responsive.

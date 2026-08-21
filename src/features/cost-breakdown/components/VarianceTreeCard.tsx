@@ -44,49 +44,55 @@ export const VarianceTreeCard: React.FC<VarianceTreeCardProps> = ({ costBreakdow
   const isBalanced = Math.abs(costBreakdown.totalVariance - sumVariances) < 0.0001
 
   return (
-    <div className="bg-white rounded-xl border border-slate-200 shadow-xs overflow-hidden">
+    <div className="bg-white rounded border border-slate-300/80 shadow-2xs overflow-hidden">
       {/* Header */}
-      <div className="flex items-center justify-between px-5 py-3.5 border-b border-slate-100">
+      <div className="flex items-center justify-between px-3.5 py-2.5 bg-slate-50/70 border-b border-slate-200">
         <div>
-          <h3 className="text-sm font-bold text-slate-900">Variance Decomposition Tree</h3>
-          <p className="text-[11px] text-slate-500">Atomic Level 3 decomposition into price, loss, and efficiency variances</p>
+          <h3 className="text-xs font-bold font-mono text-slate-800 uppercase tracking-tight">
+            Level 2: Variance Decomposition Tree
+          </h3>
+          <p className="text-[10px] text-slate-500 font-sans">
+            Atomic Level 3 decomposition into price, loss, and conversion efficiency variances
+          </p>
         </div>
-        <div className="text-right flex items-center gap-3">
-          <span className="text-xs text-slate-400 font-mono">Net Δ C_Total:</span>
-          <span className={`text-sm font-bold font-mono ${costBreakdown.totalVariance >= 0 ? 'text-rose-600' : 'text-emerald-600'}`}>
+        <div className="text-right flex items-center gap-2 font-mono">
+          <span className="text-[11px] text-slate-500">Net Δ C_Total:</span>
+          <span className={`text-xs font-bold px-1.5 py-0.5 rounded ${
+            costBreakdown.totalVariance >= 0 ? 'bg-rose-100 text-rose-800' : 'bg-emerald-100 text-emerald-800'
+          }`}>
             {formatVariance(costBreakdown.totalVariance, 4)} THB/pc
           </span>
         </div>
       </div>
 
       {/* Category Blocks */}
-      <div className="divide-y divide-slate-100">
+      <div className="divide-y divide-slate-200">
         {categories.map(cat => {
           const catVar = cat.active - cat.base
           return (
-            <div key={cat.name} className="px-5 py-3.5">
+            <div key={cat.name} className="px-3.5 py-2.5">
               {/* Category Row */}
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-xs font-bold text-slate-800">{cat.name}</span>
-                <div className="flex items-center gap-6 font-mono text-xs">
-                  <span className="text-slate-400">Base: {formatNumber(cat.base, 4)}</span>
-                  <span className="text-slate-700 font-semibold">Active: {formatNumber(cat.active, 4)}</span>
-                  <span className={`font-bold w-24 text-right ${catVar >= 0 ? 'text-rose-600' : 'text-emerald-600'}`}>
+              <div className="flex items-center justify-between mb-1.5">
+                <span className="text-xs font-bold font-mono text-slate-900">{cat.name}</span>
+                <div className="flex items-center gap-4 font-mono text-[11px]">
+                  <span className="text-slate-500">Base: {formatNumber(cat.base, 4)}</span>
+                  <span className="text-slate-800 font-semibold">Active: {formatNumber(cat.active, 4)}</span>
+                  <span className={`font-bold w-24 text-right ${catVar >= 0 ? 'text-rose-600' : 'text-emerald-700'}`}>
                     {formatVariance(catVar, 4)} THB
                   </span>
                 </div>
               </div>
 
               {/* Sub-items */}
-              <div className="space-y-1.5 pl-4 border-l-2 border-slate-100">
+              <div className="space-y-1 pl-3 border-l-2 border-slate-200">
                 {cat.items.map(item => (
-                  <div key={item.name} className="flex items-center justify-between py-0.5">
+                  <div key={item.name} className="flex items-center justify-between py-0.5 text-xs">
                     <div>
-                      <span className="text-xs text-slate-700 font-medium">{item.name}</span>
+                      <span className="font-mono text-slate-800 font-medium">{item.name}</span>
                       <span className="text-[10px] text-slate-400 ml-2 font-sans">({item.desc})</span>
                     </div>
-                    <span className={`font-mono text-xs font-semibold w-24 text-right ${
-                      item.val > 0 ? 'text-rose-600 font-bold' : item.val < 0 ? 'text-emerald-600 font-bold' : 'text-slate-400'
+                    <span className={`font-mono text-[11px] font-semibold w-24 text-right ${
+                      item.val > 0 ? 'text-rose-600 font-bold' : item.val < 0 ? 'text-emerald-700 font-bold' : 'text-slate-400'
                     }`}>
                       {formatVariance(item.val, 4)} THB
                     </span>
@@ -99,9 +105,9 @@ export const VarianceTreeCard: React.FC<VarianceTreeCardProps> = ({ costBreakdow
       </div>
 
       {/* Footer — Balance Check */}
-      <div className="px-5 py-3 border-t border-slate-100 flex items-center justify-between bg-slate-50">
-        <span className="text-xs text-slate-600 font-medium">Balance Check — Net Δ C_Total vs Σ Variances</span>
-        <span className={`font-mono text-xs font-bold ${isBalanced ? 'text-emerald-600' : 'text-rose-600'}`}>
+      <div className="px-3.5 py-2 border-t border-slate-200 flex items-center justify-between bg-slate-50 text-[11px] font-mono">
+        <span className="text-slate-600">Mathematical Balance Check: Net Δ C_Total vs Σ Variances</span>
+        <span className={`font-bold ${isBalanced ? 'text-emerald-700' : 'text-rose-600'}`}>
           {isBalanced ? '0.0000 THB — Balanced ✓' : `${formatVariance(costBreakdown.totalVariance - sumVariances, 4)} THB — Imbalanced`}
         </span>
       </div>

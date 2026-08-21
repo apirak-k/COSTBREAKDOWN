@@ -94,16 +94,33 @@ export interface WhatIfScenario {
   letter: 'A' | 'B' | 'C'
   label: string
   targetValue: string
-  investment: string
-  lotSize: string
+  secondaryTargetValue?: string // e.g. Target Manning or Secondary Parameter
+  investment: string // Lump-sum Fixed Investment (THB)
+  variableAddedCost?: string // Variable Added Cost per Piece (THB/Unit)
+  lotSize: string // Production volume / Lot size (Units)
 }
 
 export interface WhatIfResult extends WhatIfScenario {
   valid: boolean
   grossSaving: number
-  addedCost: number
+  fixedAddedCostPerUnit: number
+  variableAddedCostPerUnit: number
+  addedCost: number // Total added cost = fixed + variable per unit
   netSaving: number
   predictedTotal: number
   isProfitable: boolean
   totalNetBenefit: number
 }
+
+// Actual Shop-floor Trial Validation Matrix (Before vs Predicted vs Actual)
+export interface TrialValidationRecord {
+  driverName: string
+  actionDescription: string
+  baselineCost: number
+  predictedCost: number
+  actualCost: number
+  costDeviation: number // (actualCost - predictedCost)
+  pctDeviation: number // ((actualCost - predictedCost) / predictedCost) * 100
+  notes: string
+}
+

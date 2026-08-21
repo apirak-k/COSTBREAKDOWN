@@ -85,6 +85,7 @@ export const MasterDataPage: React.FC = () => {
         rates={rates}
         onAddRate={() => setRateModal({ isOpen: true })}
         onEditRate={r => setRateModal({ isOpen: true, data: r })}
+        onUpdateRate={updateWorkCenterRate}
         onDeleteRate={deleteWorkCenterRate}
       />
 
@@ -94,6 +95,7 @@ export const MasterDataPage: React.FC = () => {
         activeMaterialCost={costBreakdown.materialActive}
         onAddBOMItem={() => setBomModal({ isOpen: true })}
         onEditBOMItem={b => setBomModal({ isOpen: true, data: b })}
+        onUpdateBOMItem={updateBOMItem}
         onDeleteBOMItem={deleteBOMItem}
       />
 
@@ -104,6 +106,7 @@ export const MasterDataPage: React.FC = () => {
         activeConvCost={costBreakdown.laborActive + costBreakdown.burdenActive}
         onAddRoutingStep={() => setRoutingModal({ isOpen: true })}
         onEditRoutingStep={rt => setRoutingModal({ isOpen: true, data: rt })}
+        onUpdateRoutingStep={updateRoutingStep}
         onDeleteRoutingStep={deleteRoutingStep}
       />
 

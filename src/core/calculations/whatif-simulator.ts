@@ -22,6 +22,8 @@ export function simulateWhatIfScenarios(params: SimulateOptionsParams): WhatIfRe
       ...s,
       valid: false,
       grossSaving: 0,
+      fixedAddedCostPerUnit: 0,
+      variableAddedCostPerUnit: 0,
       addedCost: 0,
       netSaving: 0,
       predictedTotal: totalActiveCost,
@@ -38,6 +40,7 @@ export function simulateWhatIfScenarios(params: SimulateOptionsParams): WhatIfRe
   return scenarios.map(opt => {
     const targetVal = parseFloat(opt.targetValue)
     const investment = parseFloat(opt.investment) || 0
+    const variableAddedCostPerUnit = Math.max(0, parseFloat(opt.variableAddedCost || '0') || 0)
     const lotSize = Math.max(1, parseFloat(opt.lotSize) || 1)
 
     if (isNaN(targetVal) || targetVal <= 0) {
@@ -45,6 +48,8 @@ export function simulateWhatIfScenarios(params: SimulateOptionsParams): WhatIfRe
         ...opt,
         valid: false,
         grossSaving: 0,
+        fixedAddedCostPerUnit: 0,
+        variableAddedCostPerUnit: 0,
         addedCost: 0,
         netSaving: 0,
         predictedTotal: totalActiveCost,
@@ -64,18 +69,22 @@ export function simulateWhatIfScenarios(params: SimulateOptionsParams): WhatIfRe
         : 0
       const activeConvCost = activeRuntime * totalRate
 
+      const targetManning = opt.secondaryTargetValue && parseFloat(opt.secondaryTargetValue) > 0
+        ? parseFloat(opt.secondaryTargetValue)
+        : routingStep.manning
+
       const isYield = isYieldDriver(driver.rcaParameter)
       let newRuntime = 0
 
       if (isYield) {
         const targetYield = parsePercentage(targetVal)
         newRuntime = targetYield > 0 && routingStep.activeCap > 0
-          ? safeDivide(routingStep.manning, routingStep.activeCap * targetYield)
+          ? safeDivide(targetManning, routingStep.activeCap * targetYield)
           : 0
       } else {
         const targetCap = targetVal
         newRuntime = targetCap > 0 && routingStep.activeYield > 0
-          ? safeDivide(routingStep.manning, targetCap * routingStep.activeYield)
+          ? safeDivide(targetManning, targetCap * routingStep.activeYield)
           : 0
       }
 
@@ -87,16 +96,23 @@ export function simulateWhatIfScenarios(params: SimulateOptionsParams): WhatIfRe
       const isPrice = isPriceDriver(driver.rcaParameter)
 
       if (isPrice) {
-        const newMatCost = bomItem.consumption * targetVal * (1 + bomItem.activeLoss)
+        const targetLoss = opt.secondaryTargetValue && !isNaN(parseFloat(opt.secondaryTargetValue))
+          ? parsePercentage(parseFloat(opt.secondaryTargetValue))
+          : bomItem.activeLoss
+        const newMatCost = bomItem.consumption * targetVal * (1 + targetLoss)
         grossSaving = activeMatCost - newMatCost
       } else {
+        const targetPrice = opt.secondaryTargetValue && parseFloat(opt.secondaryTargetValue) > 0
+          ? parseFloat(opt.secondaryTargetValue)
+          : bomItem.activePrice
         const targetLoss = parsePercentage(targetVal)
-        const newMatCost = bomItem.consumption * bomItem.activePrice * (1 + targetLoss)
+        const newMatCost = bomItem.consumption * targetPrice * (1 + targetLoss)
         grossSaving = activeMatCost - newMatCost
       }
     }
 
-    const addedCost = safeDivide(investment, lotSize)
+    const fixedAddedCostPerUnit = safeDivide(investment, lotSize)
+    const addedCost = fixedAddedCostPerUnit + variableAddedCostPerUnit
     const netSaving = grossSaving - addedCost
     const predictedTotal = totalActiveCost - netSaving
     const isProfitable = netSaving > 0
@@ -106,6 +122,8 @@ export function simulateWhatIfScenarios(params: SimulateOptionsParams): WhatIfRe
       ...opt,
       valid: true,
       grossSaving,
+      fixedAddedCostPerUnit,
+      variableAddedCostPerUnit,
       addedCost,
       netSaving,
       predictedTotal,

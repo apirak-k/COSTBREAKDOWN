@@ -6,6 +6,7 @@ interface SimulationGridProps {
   scenarios: WhatIfResult[]
   targetLabel: string
   targetPlaceholder: string
+  isRouting?: boolean
   onUpdateScenario: (idx: number, field: string, val: string) => void
   onApplyTarget: (targetValue: string) => void
 }
@@ -14,6 +15,7 @@ export const SimulationGrid: React.FC<SimulationGridProps> = ({
   scenarios,
   targetLabel,
   targetPlaceholder,
+  isRouting,
   onUpdateScenario,
   onApplyTarget
 }) => {
@@ -25,6 +27,7 @@ export const SimulationGrid: React.FC<SimulationGridProps> = ({
           scenario={sim}
           targetLabel={targetLabel}
           targetPlaceholder={targetPlaceholder}
+          isRouting={isRouting}
           onUpdate={(field, val) => onUpdateScenario(idx, field, val)}
           onApplyTarget={onApplyTarget}
         />

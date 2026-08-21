@@ -106,27 +106,25 @@ export const AddRateModal: React.FC<AddRateModalProps> = ({
 
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="block font-semibold text-slate-700 mb-1">Labor Rate (฿/MHr) *</label>
+              <label className="block font-semibold text-slate-700 mb-1">Labor Rate (THB/MHr) *</label>
               <input
                 type="number"
-                step="0.01"
-                min="0"
+                step="any"
                 value={laborRate}
                 onChange={e => setLaborRate(e.target.value)}
-                placeholder="102.90"
+                placeholder="105.29"
                 className="w-full px-3 py-2 border border-slate-200 rounded-lg font-mono focus:outline-none focus:ring-1 focus:ring-slate-900"
                 required
               />
             </div>
             <div>
-              <label className="block font-semibold text-slate-700 mb-1">Burden Rate (฿/MHr) *</label>
+              <label className="block font-semibold text-slate-700 mb-1">Burden Rate (THB/MHr) *</label>
               <input
                 type="number"
-                step="0.01"
-                min="0"
+                step="any"
                 value={burdenRate}
                 onChange={e => setBurdenRate(e.target.value)}
-                placeholder="79.66"
+                placeholder="138.48"
                 className="w-full px-3 py-2 border border-slate-200 rounded-lg font-mono focus:outline-none focus:ring-1 focus:ring-slate-900"
                 required
               />

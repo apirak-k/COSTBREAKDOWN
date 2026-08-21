@@ -13,9 +13,19 @@ import {
 import { DriverSelector } from './components/DriverSelector'
 import { ProblemStatementCard } from './components/ProblemStatementCard'
 import { SimulationGrid } from './components/SimulationGrid'
+import { TrialValidationCard } from './components/TrialValidationCard'
 
 export const RCASimulationPage: React.FC = () => {
-  const { topDrivers, costBreakdown, bom, routing, rates, updateBOMItem, updateRoutingStep } = useAppStore()
+  const {
+    topDrivers,
+    costBreakdown,
+    bom,
+    routing,
+    rates,
+    updateBOMItem,
+    updateRoutingStep,
+    promoteActiveToBaseline
+  } = useAppStore()
 
   // Default to first controllable driver, or first driver overall
   const defaultDriver = useMemo(() => {
@@ -118,7 +128,7 @@ export const RCASimulationPage: React.FC = () => {
         <div>
           <h1 className="text-sm font-bold text-slate-900">4. Root Cause Analysis &amp; What-If Simulator</h1>
           <p className="text-[11px] text-slate-500 mt-0.5">
-            Evaluate ROI and Net Benefit across 3 improvement scenarios
+            Evaluate ROI and Net Benefit across 3 improvement scenarios with 2-Step economic feasibility
           </p>
         </div>
       </div>
@@ -141,6 +151,7 @@ export const RCASimulationPage: React.FC = () => {
           scenarios={simulationResults}
           targetLabel={targetLabel}
           targetPlaceholder={targetPlaceholder}
+          isRouting={isRoutingDriver}
           onUpdateScenario={updateScenario}
           onApplyTarget={handleApplyTarget}
         />
@@ -155,6 +166,14 @@ export const RCASimulationPage: React.FC = () => {
           {formatCurrency(costBreakdown.totalActive, 4, 'THB/pc')}
         </span>
       </div>
+
+      {/* Section 5: Actual vs Predicted Validation Matrix */}
+      <TrialValidationCard
+        baselineTotalCost={costBreakdown.totalBase}
+        activeTotalCost={costBreakdown.totalActive}
+        scenarios={simulationResults}
+        onPromoteToBaseline={promoteActiveToBaseline}
+      />
     </div>
   )
 }

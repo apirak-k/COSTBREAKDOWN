@@ -26,6 +26,8 @@ export function calculateTopDrivers(
   const candidates: CostDriver[] = []
   let id = 0
 
+  const totalCandidates = Math.max(55, bom.length + routing.length)
+
   // 1. BOM Candidates
   bom.forEach(b => {
     id++
@@ -57,7 +59,7 @@ export function calculateTopDrivers(
       activeParam = b.activeLoss
     }
 
-    const tieBreaker = gap > 0 ? gap + (55 - id) * 0.00000001 : 0
+    const tieBreaker = gap > 0 ? gap + (totalCandidates - id) * 0.00000001 : 0
     const saved = savedMap.get(b.description) ?? { controllability: '' as const, actionPlan: '' }
 
     candidates.push({
@@ -77,10 +79,8 @@ export function calculateTopDrivers(
   })
 
   // 2. Routing Candidates
-  const MAX_ID = 55
   routing.forEach(rt => {
     id++
-    if (id > MAX_ID) return
 
     const r = rateMap.get(rt.wc) ?? { labor: 105.29, burden: 95.00 }
     const baseRuntime = rt.baseCap > 0 && rt.baseYield > 0
@@ -120,7 +120,7 @@ export function calculateTopDrivers(
     }
 
     const category = rt.wc
-    const tieBreaker = gap > 0 ? gap + (MAX_ID - id) * 0.00000001 : 0
+    const tieBreaker = gap > 0 ? gap + (totalCandidates - id) * 0.00000001 : 0
     const saved = savedMap.get(rt.description) ?? { controllability: '' as const, actionPlan: '' }
 
     candidates.push({

@@ -27,8 +27,10 @@
 
 ## 4. Anti-AI Design System (Human-Crafted Engineering UI)
 * **Minimalist & Functional**: UI must reflect a professional industrial utility. STRICTLY FORBIDDEN: Generative AI design clichés (e.g., dark-purple neon gradients, deep nested cards, excessive shadows like `shadow-lg` or `shadow-xl`).
+* **Pure Sharp Industrial Aesthetics (Zero Border Radius)**: All UI elements, buttons, cards, panels, inputs, modals, tags, and badges MUST use strictly 0px border radius (sharp 90-degree corners, `rounded-none`). No rounded or curved corners are permitted.
 * **Color Palette**: Stick to neutral and industrial palettes (Slate, Emerald, Amber, White, Gray). 
 * **Fluid Responsiveness**: Layouts must dynamically adjust to any screen size (Mobile to Ultrawide). STRICTLY FORBIDDEN: Hardcoded fixed widths (e.g., `w-[500px]`). Use fluid utility classes (`w-full`, `max-w-7xl`, `grid`, `flex-wrap`) to prevent horizontal overflow.
+
 
 ---
 
@@ -36,5 +38,12 @@
 * **Excel-First Validation (Source of Truth)**: Focus on making the Excel models (`CostModel_RGOM-024.xlsx` & `CostModel_BLANK_TEMPLATE.xlsx`) 100% mathematically solid, error-free, and audit-proof before building complex secondary features.
 * **Real-World Factory Usability & Add-On Flexibility**:
   * The system must allow users to take existing master data and seamlessly **Add-On** new items, processes, or import external files.
-  * The core utility is **Standard Comparison (Reference vs. Active Gap)** and **Detailed Breakdown (BOM item-by-item & Routing op-by-op)**. Once this core is working and robust, other advanced features (What-If, Kaizen simulation) will naturally follow with ease.
+  * The core utility is **Standard Comparison (Reference vs. Active Gap)** and **Detailed Breakdown (BOM item-by-item & Routing op-by-op)**. Once this core is working and robust, other advanced features (What-If, Simulation) will naturally follow with ease.
   * The web interface must simply mirror the verified Excel logic while adding convenient interactive aids (search, modals, Poka-Yoke guards, live recalculation).
+
+---
+
+## 6. System Language Standard (100% Pure English UI)
+* **English-Only System Interface**: All system labels, table headers, navigation items, buttons, modal titles, KPI cards, tooltips, and system-generated summaries MUST be strictly in English.
+* **User Input Exception**: Thai language is permitted ONLY when entered by human end-users in dynamic input fields (e.g. custom product descriptions, manual action plan text, or operator notes).
+

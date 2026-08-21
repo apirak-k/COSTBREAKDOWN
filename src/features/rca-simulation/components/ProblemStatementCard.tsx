@@ -8,9 +8,9 @@ interface ProblemStatementCardProps {
 export const ProblemStatementCard: React.FC<ProblemStatementCardProps> = ({ driver }) => {
   if (!driver) {
     return (
-      <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-xs">
-        <div className="p-4 bg-emerald-50 rounded-lg border border-emerald-200 text-xs text-emerald-800 font-medium">
-          All parameters are at or below baseline — no cost drivers detected to investigate.
+      <div className="bg-white p-3.5 rounded border border-slate-300/80 shadow-2xs">
+        <div className="p-3 bg-emerald-50 rounded border border-emerald-200 text-xs text-emerald-800 font-mono">
+          All operational parameters are at or below baseline — no unfavorable cost drivers detected.
         </div>
       </div>
     )
@@ -20,42 +20,42 @@ export const ProblemStatementCard: React.FC<ProblemStatementCardProps> = ({ driv
   const isUncontrollable = driver.controllability === 'Uncontrollable'
 
   return (
-    <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-xs space-y-3">
-      <div className="flex items-center justify-between">
+    <div className="bg-white p-3.5 rounded border border-slate-300/80 shadow-2xs space-y-2.5">
+      <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="flex items-center gap-2">
-          <span className="w-6 h-6 rounded-md bg-slate-900 text-white font-mono font-bold text-xs flex items-center justify-center">
+          <span className="w-5 h-5 rounded bg-slate-900 text-white font-mono font-bold text-[10px] flex items-center justify-center">
             #{driver.rank}
           </span>
-          <h2 className="text-sm font-bold text-slate-900">
+          <h2 className="text-xs font-bold font-mono text-slate-900">
             {driver.driverName}
           </h2>
-          <span className="px-2 py-0.5 text-xs font-mono font-bold bg-slate-100 text-slate-700 rounded-md border border-slate-200">
+          <span className="px-1.5 py-0.5 text-[10px] font-mono font-semibold bg-slate-100 text-slate-700 rounded border border-slate-200">
             {driver.category}
           </span>
           {isUncontrollable && (
-            <span className="px-2 py-0.5 text-xs font-bold bg-amber-100 text-amber-900 rounded-md border border-amber-300">
-              Uncontrollable
+            <span className="px-1.5 py-0.5 text-[10px] font-mono font-bold bg-amber-100 text-amber-900 rounded border border-amber-300">
+              UNCONTROLLABLE
             </span>
           )}
         </div>
 
-        <div className="text-right font-mono">
-          <span className="text-[11px] text-slate-400 font-sans">Cost Gap: </span>
-          <span className="text-sm font-bold text-rose-600">
+        <div className="text-right font-mono flex items-center gap-1.5">
+          <span className="text-[11px] text-slate-500">Cost Gap:</span>
+          <span className="text-xs font-bold text-rose-600 bg-rose-50 px-1.5 py-0.5 rounded border border-rose-200">
             {formatVariance(driver.costGap, 4)} THB/pc
           </span>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs">
-        <div className="p-3 bg-slate-50 rounded-lg border border-slate-100 space-y-1">
-          <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">RCA Parameter &amp; Symptom</p>
-          <p className="font-semibold text-slate-800">{driver.rcaParameter || 'Parameter variance'}</p>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-xs">
+        <div className="p-2 bg-slate-50 rounded border border-slate-200 space-y-0.5">
+          <p className="text-[9px] font-mono font-bold uppercase tracking-wider text-slate-400">RCA Parameter &amp; Symptom</p>
+          <p className="font-mono text-xs text-slate-800 font-semibold">{driver.rcaParameter || 'Parameter variance'}</p>
         </div>
 
-        <div className="p-3 bg-amber-50/70 rounded-lg border border-amber-200 space-y-1">
-          <p className="text-[10px] font-bold uppercase tracking-wider text-amber-700">Baseline vs Active Shift</p>
-          <p className="font-mono font-bold text-amber-900">
+        <div className="p-2 bg-amber-50/70 rounded border border-amber-200 space-y-0.5">
+          <p className="text-[9px] font-mono font-bold uppercase tracking-wider text-amber-700">Baseline vs Active Shift</p>
+          <p className="font-mono text-xs font-bold text-amber-950">
             Base: {formatParam(driver.baseParameter, yieldDriver)} ➔ Active: {formatParam(driver.activeParameter, yieldDriver)}
           </p>
         </div>
