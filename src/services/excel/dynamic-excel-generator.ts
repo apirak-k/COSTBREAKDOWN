@@ -165,16 +165,16 @@ export async function generateDynamicExcelTemplate(options: DynamicTemplateOptio
     const inRow = inputStart + i
     const row = ws2.getRow(calcRow)
 
-    row.getCell(1).value = { formula: `A${inRow}` }
-    row.getCell(2).value = { formula: `B${inRow}` }
-    row.getCell(3).value = { formula: `C${inRow}` }
-    row.getCell(4).value = { formula: `D${inRow}*F${inRow}*(1+H${inRow})` } // Base = Q * P0 * (1 + L0)
-    row.getCell(5).value = { formula: `D${inRow}*G${inRow}*(1+I${inRow})` } // Active = Q * P1 * (1 + L1)
-    row.getCell(6).value = { formula: `E${calcRow}-D${calcRow}` } // Variance = Active - Base
-    row.getCell(7).value = { formula: `(G${inRow}-F${inRow})*D${inRow}*(1+I${inRow})` } // MPV = (P1 - P0) * Q * (1 + L1)
-    row.getCell(8).value = { formula: `(I${inRow}-H${inRow})*D${inRow}*F${inRow}` } // MLV = (L1 - L0) * Q * P0
-    row.getCell(9).value = { formula: `IF(F$${calcEnd + 1}<>0, F${calcRow}/F$${calcEnd + 1}, 0)` }
-    row.getCell(10).value = { formula: `J${inRow}` }
+    row.getCell(1).value = { formula: `IFERROR(IF(A${inRow}="","",A${inRow}),"")` }
+    row.getCell(2).value = { formula: `IFERROR(IF(B${inRow}="","",B${inRow}),"")` }
+    row.getCell(3).value = { formula: `IFERROR(IF(C${inRow}="","",C${inRow}),"")` }
+    row.getCell(4).value = { formula: `IFERROR(IF(OR(D${inRow}="",F${inRow}=""),"",D${inRow}*F${inRow}*(1+H${inRow})),0)` } // Base = Q * P0 * (1 + L0)
+    row.getCell(5).value = { formula: `IFERROR(IF(OR(D${inRow}="",G${inRow}=""),"",D${inRow}*G${inRow}*(1+I${inRow})),0)` } // Active = Q * P1 * (1 + L1)
+    row.getCell(6).value = { formula: `IFERROR(IF(OR(D${calcRow}="",E${calcRow}=""),"",E${calcRow}-D${calcRow}),0)` } // Variance = Active - Base
+    row.getCell(7).value = { formula: `IFERROR(IF(OR(D${inRow}="",F${inRow}="",G${inRow}=""),"",(G${inRow}-F${inRow})*D${inRow}*(1+I${inRow})),0)` } // MPV = (P1 - P0) * Q * (1 + L1)
+    row.getCell(8).value = { formula: `IFERROR(IF(OR(D${inRow}="",F${inRow}="",H${inRow}="",I${inRow}=""),"",(I${inRow}-H${inRow})*D${inRow}*F${inRow}),0)` } // MLV = (L1 - L0) * Q * P0
+    row.getCell(9).value = { formula: `IFERROR(IF(F$${calcEnd + 1}<>0, F${calcRow}/F$${calcEnd + 1}, 0),0)` }
+    row.getCell(10).value = { formula: `IFERROR(IF(J${inRow}="","",J${inRow}),"")` }
 
     for (let c = 1; c <= 10; c++) {
       const cell = row.getCell(c)
@@ -188,11 +188,11 @@ export async function generateDynamicExcelTemplate(options: DynamicTemplateOptio
   // BOM Total Row
   const bomTotalRow = ws2.getRow(calcEnd + 1)
   bomTotalRow.getCell(3).value = 'TOTAL DIRECT MATERIAL COST (C_M)'
-  bomTotalRow.getCell(4).value = { formula: `SUM(D${calcStart}:D${calcEnd})` }
-  bomTotalRow.getCell(5).value = { formula: `SUM(E${calcStart}:E${calcEnd})` }
-  bomTotalRow.getCell(6).value = { formula: `SUM(F${calcStart}:F${calcEnd})` }
-  bomTotalRow.getCell(7).value = { formula: `SUM(G${calcStart}:G${calcEnd})` }
-  bomTotalRow.getCell(8).value = { formula: `SUM(H${calcStart}:H${calcEnd})` }
+  bomTotalRow.getCell(4).value = { formula: `IFERROR(SUM(D${calcStart}:D${calcEnd}),0)` }
+  bomTotalRow.getCell(5).value = { formula: `IFERROR(SUM(E${calcStart}:E${calcEnd}),0)` }
+  bomTotalRow.getCell(6).value = { formula: `IFERROR(SUM(F${calcStart}:F${calcEnd}),0)` }
+  bomTotalRow.getCell(7).value = { formula: `IFERROR(SUM(G${calcStart}:G${calcEnd}),0)` }
+  bomTotalRow.getCell(8).value = { formula: `IFERROR(SUM(H${calcStart}:H${calcEnd}),0)` }
   for (let c = 1; c <= 10; c++) {
     const cell = bomTotalRow.getCell(c)
     cell.fill = fillTotal
@@ -265,16 +265,16 @@ export async function generateDynamicExcelTemplate(options: DynamicTemplateOptio
     const inRow = rtInStart + i
     const row = ws3.getRow(calcRow)
 
-    row.getCell(1).value = { formula: `A${inRow}` }
-    row.getCell(2).value = { formula: `B${inRow}` }
-    row.getCell(3).value = { formula: `C${inRow}` }
-    row.getCell(4).value = { formula: `(D${inRow}/(E${inRow}*G${inRow}))*VLOOKUP(C${inRow},${ratesRange},3,FALSE)` }
-    row.getCell(5).value = { formula: `(D${inRow}/(F${inRow}*H${inRow}))*VLOOKUP(C${inRow},${ratesRange},3,FALSE)` }
-    row.getCell(6).value = { formula: `(D${inRow}/(E${inRow}*G${inRow}))*VLOOKUP(C${inRow},${ratesRange},4,FALSE)` }
-    row.getCell(7).value = { formula: `(D${inRow}/(F${inRow}*H${inRow}))*VLOOKUP(C${inRow},${ratesRange},4,FALSE)` }
-    row.getCell(8).value = { formula: `D${calcRow}+F${calcRow}` }
-    row.getCell(9).value = { formula: `E${calcRow}+G${calcRow}` }
-    row.getCell(10).value = { formula: `I${calcRow}-H${calcRow}` }
+    row.getCell(1).value = { formula: `IFERROR(IF(A${inRow}="","",A${inRow}),"")` }
+    row.getCell(2).value = { formula: `IFERROR(IF(B${inRow}="","",B${inRow}),"")` }
+    row.getCell(3).value = { formula: `IFERROR(IF(C${inRow}="","",C${inRow}),"")` }
+    row.getCell(4).value = { formula: `IFERROR(IF(OR(D${inRow}="",E${inRow}<=0,G${inRow}<=0),0,(D${inRow}/(E${inRow}*G${inRow}))*VLOOKUP(C${inRow},${ratesRange},3,FALSE)),0)` }
+    row.getCell(5).value = { formula: `IFERROR(IF(OR(D${inRow}="",F${inRow}<=0,H${inRow}<=0),0,(D${inRow}/(F${inRow}*H${inRow}))*VLOOKUP(C${inRow},${ratesRange},3,FALSE)),0)` }
+    row.getCell(6).value = { formula: `IFERROR(IF(OR(D${inRow}="",E${inRow}<=0,G${inRow}<=0),0,(D${inRow}/(E${inRow}*G${inRow}))*VLOOKUP(C${inRow},${ratesRange},4,FALSE)),0)` }
+    row.getCell(7).value = { formula: `IFERROR(IF(OR(D${inRow}="",F${inRow}<=0,H${inRow}<=0),0,(D${inRow}/(F${inRow}*H${inRow}))*VLOOKUP(C${inRow},${ratesRange},4,FALSE)),0)` }
+    row.getCell(8).value = { formula: `IFERROR(D${calcRow}+F${calcRow},0)` }
+    row.getCell(9).value = { formula: `IFERROR(E${calcRow}+G${calcRow},0)` }
+    row.getCell(10).value = { formula: `IFERROR(I${calcRow}-H${calcRow},0)` }
 
     for (let c = 1; c <= 10; c++) {
       const cell = row.getCell(c)
@@ -287,13 +287,13 @@ export async function generateDynamicExcelTemplate(options: DynamicTemplateOptio
   // Routing Total Row
   const rtTotalRow = ws3.getRow(rtCalcEnd + 1)
   rtTotalRow.getCell(2).value = 'TOTAL CONVERSION COST (C_L + C_B)'
-  rtTotalRow.getCell(4).value = { formula: `SUM(D${rtCalcStart}:D${rtCalcEnd})` }
-  rtTotalRow.getCell(5).value = { formula: `SUM(E${rtCalcStart}:E${rtCalcEnd})` }
-  rtTotalRow.getCell(6).value = { formula: `SUM(F${rtCalcStart}:F${rtCalcEnd})` }
-  rtTotalRow.getCell(7).value = { formula: `SUM(G${rtCalcStart}:G${rtCalcEnd})` }
-  rtTotalRow.getCell(8).value = { formula: `SUM(H${rtCalcStart}:H${rtCalcEnd})` }
-  rtTotalRow.getCell(9).value = { formula: `SUM(I${rtCalcStart}:I${rtCalcEnd})` }
-  rtTotalRow.getCell(10).value = { formula: `SUM(J${rtCalcStart}:J${rtCalcEnd})` }
+  rtTotalRow.getCell(4).value = { formula: `IFERROR(SUM(D${rtCalcStart}:D${rtCalcEnd}),0)` }
+  rtTotalRow.getCell(5).value = { formula: `IFERROR(SUM(E${rtCalcStart}:E${rtCalcEnd}),0)` }
+  rtTotalRow.getCell(6).value = { formula: `IFERROR(SUM(F${rtCalcStart}:F${rtCalcEnd}),0)` }
+  rtTotalRow.getCell(7).value = { formula: `IFERROR(SUM(G${rtCalcStart}:G${rtCalcEnd}),0)` }
+  rtTotalRow.getCell(8).value = { formula: `IFERROR(SUM(H${rtCalcStart}:H${rtCalcEnd}),0)` }
+  rtTotalRow.getCell(9).value = { formula: `IFERROR(SUM(I${rtCalcStart}:I${rtCalcEnd}),0)` }
+  rtTotalRow.getCell(10).value = { formula: `IFERROR(SUM(J${rtCalcStart}:J${rtCalcEnd}),0)` }
   for (let c = 1; c <= 10; c++) {
     const cell = rtTotalRow.getCell(c)
     cell.fill = fillTotal
@@ -321,34 +321,34 @@ export async function generateDynamicExcelTemplate(options: DynamicTemplateOptio
   // Direct Material Row
   const rSumMat = ws4.getRow(5)
   rSumMat.getCell(1).value = 'Direct Material (C_M)'
-  rSumMat.getCell(2).value = { formula: `'2_BOM_BREAKDOWN'!D${calcEnd + 1}` }
-  rSumMat.getCell(3).value = { formula: `'2_BOM_BREAKDOWN'!E${calcEnd + 1}` }
-  rSumMat.getCell(4).value = { formula: `C5-B5` }
-  rSumMat.getCell(5).value = { formula: `IF(B5<>0, D5/B5, 0)` }
+  rSumMat.getCell(2).value = { formula: `IFERROR('2_BOM_BREAKDOWN'!D${calcEnd + 1},0)` }
+  rSumMat.getCell(3).value = { formula: `IFERROR('2_BOM_BREAKDOWN'!E${calcEnd + 1},0)` }
+  rSumMat.getCell(4).value = { formula: `IFERROR(C5-B5,0)` }
+  rSumMat.getCell(5).value = { formula: `IFERROR(IF(B5<>0, D5/B5, 0),0)` }
 
   // Direct Labor Row
   const rSumLab = ws4.getRow(6)
   rSumLab.getCell(1).value = 'Direct Labor (C_L)'
-  rSumLab.getCell(2).value = { formula: `'3_ROUTING_BREAKDOWN'!D${rtCalcEnd + 1}` }
-  rSumLab.getCell(3).value = { formula: `'3_ROUTING_BREAKDOWN'!E${rtCalcEnd + 1}` }
-  rSumLab.getCell(4).value = { formula: `C6-B6` }
-  rSumLab.getCell(5).value = { formula: `IF(B6<>0, D6/B6, 0)` }
+  rSumLab.getCell(2).value = { formula: `IFERROR('3_ROUTING_BREAKDOWN'!D${rtCalcEnd + 1},0)` }
+  rSumLab.getCell(3).value = { formula: `IFERROR('3_ROUTING_BREAKDOWN'!E${rtCalcEnd + 1},0)` }
+  rSumLab.getCell(4).value = { formula: `IFERROR(C6-B6,0)` }
+  rSumLab.getCell(5).value = { formula: `IFERROR(IF(B6<>0, D6/B6, 0),0)` }
 
   // Burden Row
   const rSumBurd = ws4.getRow(7)
   rSumBurd.getCell(1).value = 'Manufacturing Burden (C_B)'
-  rSumBurd.getCell(2).value = { formula: `'3_ROUTING_BREAKDOWN'!F${rtCalcEnd + 1}` }
-  rSumBurd.getCell(3).value = { formula: `'3_ROUTING_BREAKDOWN'!G${rtCalcEnd + 1}` }
-  rSumBurd.getCell(4).value = { formula: `C7-B7` }
-  rSumBurd.getCell(5).value = { formula: `IF(B7<>0, D7/B7, 0)` }
+  rSumBurd.getCell(2).value = { formula: `IFERROR('3_ROUTING_BREAKDOWN'!F${rtCalcEnd + 1},0)` }
+  rSumBurd.getCell(3).value = { formula: `IFERROR('3_ROUTING_BREAKDOWN'!G${rtCalcEnd + 1},0)` }
+  rSumBurd.getCell(4).value = { formula: `IFERROR(C7-B7,0)` }
+  rSumBurd.getCell(5).value = { formula: `IFERROR(IF(B7<>0, D7/B7, 0),0)` }
 
   // Total Row
   const rSumTot = ws4.getRow(8)
   rSumTot.getCell(1).value = 'TOTAL STANDARD COST'
-  rSumTot.getCell(2).value = { formula: `SUM(B5:B7)` }
-  rSumTot.getCell(3).value = { formula: `SUM(C5:C7)` }
-  rSumTot.getCell(4).value = { formula: `C8-B8` }
-  rSumTot.getCell(5).value = { formula: `IF(B8<>0, D8/B8, 0)` }
+  rSumTot.getCell(2).value = { formula: `IFERROR(SUM(B5:B7),0)` }
+  rSumTot.getCell(3).value = { formula: `IFERROR(SUM(C5:C7),0)` }
+  rSumTot.getCell(4).value = { formula: `IFERROR(C8-B8,0)` }
+  rSumTot.getCell(5).value = { formula: `IFERROR(IF(B8<>0, D8/B8, 0),0)` }
 
   for (let r = 5; r <= 8; r++) {
     const row = ws4.getRow(r)
