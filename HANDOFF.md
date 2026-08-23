@@ -1,95 +1,61 @@
-# Engineering Handoff & Project Checkpoint — Checkpoint 11
+# Engineering Handoff & Project Checkpoint — Checkpoint 12
 
-**Date Updated**: 2026-08-21  
-**Status**: **Pure Sharp Industrial Grid UI, Live Spreadsheet Editing & Multi-Phase Testing Suite Complete ✅**  
+**Date Updated**: 2026-08-23  
+**Status**: **Core Production Enhancements Complete (Excel Formula Shielding, Data Confidence Tagging, 3-State Versioning, 2-Stage Driver Ranking) ✅**  
 **Governing Documents**:
-- [`PROJECT_SPECIFIC.md`](file:///c:/Users/ai-project/Documents/Cost%20Breakdown%20Project/PROJECT_SPECIFIC.md)
-- [`docs/USER_MANUAL_AND_TESTING_GUIDE.md`](file:///c:/Users/ai-project/Documents/Cost%20Breakdown%20Project/docs/USER_MANUAL_AND_TESTING_GUIDE.md)
-- [`Human-AI-Working-Standard/HAWS.md`](file:///c:/Users/ai-project/Documents/Cost%20Breakdown%20Project/Human-AI-Working-Standard/HAWS.md)
-- [`Human-AI-Working-Standard/WORK_INSTRUCTIONS.md`](file:///c:/Users/ai-project/Documents/Cost%20Breakdown%20Project/Human-AI-Working-Standard/WORK_INSTRUCTIONS.md)
+- [`PROJECT_SPECIFIC.md`](file:///e:/COSTBREAKDOWN/PROJECT_SPECIFIC.md)
+- [`docs/WORK_INSTRUCTIONS.md`](file:///e:/COSTBREAKDOWN/docs/WORK_INSTRUCTIONS.md)
+- [`docs/USER_MANUAL_AND_TESTING_GUIDE.md`](file:///e:/COSTBREAKDOWN/docs/USER_MANUAL_AND_TESTING_GUIDE.md)
 
 ---
 
-## 1. Accomplishments in Checkpoint 11 (What Is Completed)
+## 1. Accomplishments in Checkpoint 12 (Prompts 1 – 4)
 
-### 1.1 Pure Sharp Industrial UI (Zero Border Radius — 100% Sharp Corners)
-- Enforced `border-radius: 0px !important;` globally across `src/index.css` and applied crisp `rounded-none` utility classes across all components.
-- Completely removed modern generic SaaS/AI design artifacts (zero blurry drop-shadows, zero purple neon gradients, zero rounded-pill badges).
-- Added persistent, high-density **Bottom Industrial Console Status Bar** displaying real-time model telemetry (`Base`, `Active`, `Net Gap`, `Excel v2 Parity: 100%`).
+### 1.1 Prompt 1 — IFERROR Formula Shielding in Excel Export
+- **Fix**: Wrapped all calculated formulas across generated Excel sheets (`1_MASTER_RATES`, `2_BOM_BREAKDOWN`, `3_ROUTING_BREAKDOWN`, `4_SUMMARY_&_COMPARISON`, `_CALC_ENGINE`) in `IFERROR(..., 0)` or conditional zero-guards `IF(condition, calc, 0)`.
+- **Files Modified**: `src/services/excel/dynamic-excel-generator.ts`, `src/lib/dynamic-excel-generator.ts`.
+- **Validation**: Zero `#DIV/0!`, `#VALUE!`, or `#REF!` errors appear when blank rows or zero values exist. 100% mathematical parity with verified Excel v2 model.
 
-### 1.2 Direct Live Inline Spreadsheet Grid & Bulk Action Tools (Tab 1: Master Data)
-- **BOM Table, Routing Table & Work Center Rates Table**: All operational cells ($Q, P_0, P_1, L_0, L_1, M, C_0, C_1, Y_0, Y_1$) are directly editable inline inside the spreadsheet grid, eliminating the need to open modals row by row.
-- **Real-Time Recalculation**: Keystrokes instantly trigger `_CALC_ENGINE` recalculation across all 4 tabs with zero lag.
-- **Bulk Action Tools**:
-  - `Copy Base ➔ Active`: 1-click batch reset for all 16 BOM items and 39 Routing operations.
-  - `Set Manning = 1`: 1-click batch assignment for headcount.
-  - `+5% Price Shift` / `+5% Cap Shift`: 1-click batch inflation/throughput simulations.
+### 1.2 Prompt 2 — Data Confidence Tagging (Verified / Estimated / Missing)
+- **Data Model**: Implemented `DataConfidence` type (`'verified' | 'estimated' | 'missing'`) and evaluation rules in `src/core/utils/confidence.ts`.
+- **Component**: Built `ConfidenceBadge` with Sharp Industrial styling (Emerald/Amber/Rose, 0px border-radius).
+- **Roll-up KPI**: Added executive Data Confidence roll-up KPI card to `ExecutiveKPICards.tsx` showing % verified and itemized counts (Ver/Est/Mis).
+- **Table Integration**: Connected `ConfidenceBadge` directly adjacent to `Source Reference` inputs across BOM, Routing, and Rates tables.
 
-### 1.3 Shop-Floor Trial Validation Matrix & PDCA Promotion (Tab 4: RCA & Simulation)
-- Implemented shop-floor physical trial measurement logging (`Actual Measurement`).
-- Tri-Factor Evaluation: `Baseline Standard` vs `Model Predicted` vs `Actual Measured`.
-- Automated model accuracy validation check ($\le \pm 3\%$) and 1-click `Promote Trial to Baseline` to lock validated parameters as the new official baseline standard (closing the PDCA cycle).
+### 1.3 Prompt 3 — Data Versioning (Archived / Active / Draft)
+- **State Machine**: Added 3 dataset lifecycle statuses (`'archived' | 'active' | 'draft'`) per Section 7 of `PROJECT_SPECIFIC.md`.
+- **Single Active Constraint**: Promoting a Draft to Active automatically archives the existing Active dataset for that product.
+- **Draft-First Import**: Excel imports now generate isolated working Draft datasets (`status: 'draft'`) requiring explicit user activation before affecting live calculations.
+- **UI**: Added version status indicators, clone-to-draft actions, activation controls, and working draft / read-only banners in `ProductMasterCard.tsx` and `Navbar.tsx`.
 
-### 1.4 Comprehensive User Manual & 5-Phase Mock Datasets
-- Published complete system guide and testing protocol at [`docs/USER_MANUAL_AND_TESTING_GUIDE.md`](file:///c:/Users/ai-project/Documents/Cost%20Breakdown%20Project/docs/USER_MANUAL_AND_TESTING_GUIDE.md).
-- Documented 5-Phase verified test dataset:
-  1. Baseline Standard ($C_{Total} = 12.0312$ THB/pc)
-  2. Shop-Floor Surge ($C_{Active} = 17.5098$ THB/pc, $+45.54\%$ Gap)
-  3. Pareto Candidate Ranking & Classification (Silver Paste vs AOI Yield)
-  4. 2-Step What-If Simulation (Options A, B, C with Payback Period & Monthly Savings)
-  5. Trial Validation & Baseline Promotion
-
-### 1.5 System Architecture Flow Diagram & 100% Pure English Standard
-- Complete DrawIO architecture and data flow diagram: [`Cost_Breakdown_Complete_System_Flow.drawio`](file:///c:/Users/ai-project/Documents/Cost%20Breakdown%20Project/Cost_Breakdown_Complete_System_Flow.drawio).
-- Enforced 100% Pure English System Standard under Section 6 of `PROJECT_SPECIFIC.md`.
+### 1.4 Prompt 4 — 2-Stage Driver Ranking Logic & Confidence Warnings
+- **Stage 1 (System Auto-Calculation)**: Automatically filters positive cost gap drivers ($Cost Gap > 0$), sorts descending by cost impact, and tags drivers with `✓ Measurable`.
+- **Stage 2 (Human RCA Checklist)**: Provides persistent checkboxes for `Can Influence` (Controllability) and `Requirement Fit`, alongside action plan inputs.
+- **Data Confidence Warning Banner**: Drivers derived from estimated parameters (e.g. unverified placeholders) display a prominent industrial warning box:
+  `⚠️ ESTIMATED DATA WARNING: Confirm with actual measurement before committing resources or capital.`
 
 ---
 
-## 2. Git Commit & Push Instructions (Office Terminal)
+## 2. Automated Test & Verification Results
 
-Run the following commands in the project directory:
-
-```powershell
-# 1. Review status of modified and new files
-git status
-
-# 2. Stage all changes
-git add .
-
-# 3. Commit Checkpoint 11
-git commit -m "feat: complete sharp industrial UI overhaul, inline spreadsheet grid, bulk tools, and 5-phase testing manual"
-
-# 4. Push to remote repository
-git push origin main
-```
-
----
-
-## 3. Remote Setup Instructions (At Home)
-
-When opening the project on your home machine, execute:
-
-```powershell
-# 1. Fetch latest changes from GitHub
-git pull origin main
-
-# 2. Install dependencies (if not already installed)
-npm install
-
-# 3. Start local development server
-npm run dev
-
-# 4. Verify TypeScript types and production build
+All test suites and TypeScript builds pass cleanly:
+```bash
 npm run build
+# Result: 1656 modules transformed, 0 errors, built in 14.21s
+
+node scripts/test_comprehensive_audit.js
+# Result: 31/31 checks passed (Cost engine parity, Pareto ranking, What-If simulation, Poka-Yoke guards, Excel sheet parity)
 ```
 
 ---
 
-## 4. Next Steps Roadmap (Home Session)
+## 3. Git Branches & Commit History
 
-1. **Executive PDF / Excel Summary Report**: Implement 1-click executive summary generator for senior project documentation.
-2. **Cost Sensitivity & Tornado Analysis**: Build IE analytical sensitivity chart for price, yield, and labor rate shocks.
-3. **Multi-Model Benchmark Matrix**: Enable side-by-side comparison across multiple product sessions.
+1. `1cdc5d4`: `fix(excel): shield all exported Excel formulas with IFERROR wrappers` (`fix/excel-formula-shielding`)
+2. `f044940`: `feat: implement per-field data confidence tagging and roll-up KPI` (`feature/data-confidence-tagging`)
+3. `cb5a915`: `feat: implement 3-state data versioning (Archived / Active / Draft)` (`feature/data-versioning`)
+4. `0fb0f2b`: `feat: implement 2-stage driver ranking with measurable auto-rank and confidence alerts` (`feature/driver-ranking`)
+5. All features merged into `main`.
 
 ---
 *Verified Production Build: 100% Clean Pass with Vite & TypeScript 5*
