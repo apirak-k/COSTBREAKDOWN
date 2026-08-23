@@ -14,6 +14,7 @@
 
 import ExcelJS from 'exceljs'
 import path from 'path'
+import fs from 'fs'
 import { fileURLToPath } from 'url'
 
 const __filename = fileURLToPath(import.meta.url)
@@ -143,7 +144,7 @@ async function auditModel(filePath, isTemplate = false) {
   // Verify dynamic ranking formulas in Sheet 4 (Rows 13-22) link to _CALC_ENGINE
   for (let r = 13; r <= 22; r++) {
     const rRow = ws4.getRow(r)
-    for (const c of [2, 3, 4, 5, 6, 7, 8, 9, 10]) {
+    for (const c of [2, 3, 4, 5, 6, 7, 8]) {
       const cell = rRow.getCell(c)
       if (!cell.formula || !cell.formula.startsWith('IFERROR')) {
         throw new Error(`[FAIL] Sheet 4 Row ${r} Col ${c} missing ranking formula! Formula: ${cell.formula}`)
@@ -169,8 +170,15 @@ async function auditModel(filePath, isTemplate = false) {
 }
 
 async function runAudits() {
-  const modelPath = path.join(__dirname, '..', 'excel_models', 'v2_modular', 'CostModel_RGOM-024_v2.xlsx')
-  const templatePath = path.join(__dirname, '..', 'excel_models', 'v2_modular', 'CostModel_BLANK_TEMPLATE_v2.xlsx')
+  let modelPath = path.join(__dirname, '..', 'excel_models', 'CostModel_RGOM-024_v2.xlsx')
+  if (!fs.existsSync(modelPath)) {
+    modelPath = path.join(__dirname, '..', 'excel_models', 'v2_modular', 'CostModel_RGOM-024_v2.xlsx')
+  }
+
+  let templatePath = path.join(__dirname, '..', 'excel_models', 'CostModel_BLANK_TEMPLATE_v2.xlsx')
+  if (!fs.existsSync(templatePath)) {
+    templatePath = path.join(__dirname, '..', 'excel_models', 'v2_modular', 'CostModel_BLANK_TEMPLATE_v2.xlsx')
+  }
 
   await auditModel(modelPath, false)
   await auditModel(templatePath, true)

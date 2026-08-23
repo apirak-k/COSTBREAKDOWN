@@ -47,3 +47,16 @@
 * **English-Only System Interface**: All system labels, table headers, navigation items, buttons, modal titles, KPI cards, tooltips, and system-generated summaries MUST be strictly in English.
 * **User Input Exception**: Thai language is permitted ONLY when entered by human end-users in dynamic input fields (e.g. custom product descriptions, manual action plan text, or operator notes).
 
+---
+
+## 7. Data Versioning Standard
+* **Three-State Model**: Every dataset instance (per product) MUST be in exactly one of three states: **Archived** (retained history, read-only), **Active** (the single source used for live calculation), or **Draft** (being edited, not yet used for calculation).
+* **Single Active Constraint**: Only ONE Active version may exist per product at any time. Promoting a Draft to Active must archive the previously Active version rather than deleting it.
+* **One-Way Data Flow**: Data flows Excel → Import → Web. The web application must never auto-write changes back to the source Excel file. To update the source of truth, the user edits the Excel file directly and re-imports it.
+
+## 8. Data Confidence Standard
+* **Per-Field Confidence Tag**: Every input field MUST carry one of three confidence statuses: **Verified** (backed by a real source reference), **Estimated** (a placeholder or assumption, with a stated basis), or **Missing** (not yet provided).
+* **Non-Blocking**: Estimated or Missing values must never block calculation or navigation. The system must always compute and display a result using the best available data.
+* **Visible Roll-Up**: Confidence status must be visually distinguished per field (e.g. badge/color) and rolled up into a summary confidence metric (e.g. "Data Confidence: 82% Verified") at the KPI/summary level.
+* **Candidate Selection Warning**: When ranking cost drivers for candidate selection, the system must flag any candidate whose cost gap is materially derived from Estimated or Missing fields, so it is not mistaken for a verified finding.
+
