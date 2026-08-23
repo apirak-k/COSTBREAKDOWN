@@ -17,7 +17,9 @@ export interface ProductSizingConfig {
   routingCount: number
 }
 
-// A self-contained product session — one "workbook" per product
+export type DatasetStatus = 'archived' | 'active' | 'draft'
+
+// A self-contained product session — one "workbook" per product version
 export interface ProductSession {
   id: string
   product: ProductMaster
@@ -25,6 +27,8 @@ export interface ProductSession {
   bom: BOMItem[]
   routing: RoutingStep[]
   savedDrivers: CostDriver[]
+  status: DatasetStatus
+  versionLabel?: string
   createdAt: string
   updatedAt: string
 }

@@ -79,6 +79,8 @@ function makeSizedSession(id: string, config: ProductSizingConfig, now: string):
     bom,
     routing,
     savedDrivers: [],
+    status: 'draft',
+    versionLabel: 'Draft',
     createdAt: now,
     updatedAt: now
   }
@@ -94,6 +96,8 @@ function makeSeedSession(): ProductSession {
     bom:       seedBOM,
     routing:   seedRouting,
     savedDrivers: [],
+    status:    'active',
+    versionLabel: 'Active Baseline (RGOM-024)',
     createdAt: now,
     updatedAt: now
   }
@@ -126,6 +130,10 @@ interface AppContextType {
   duplicateProduct:        (id: string) => void
   deleteProduct:           (id: string) => void
   addUOM:                  (uom: string) => void
+
+  // 3-State Versioning controls
+  cloneActiveToDraft:      (sourceId?: string) => void
+  activateDraft:           (draftId: string) => void
 
   // Active-product CRUD
   updateProduct:           (p: ProductMaster) => void
@@ -310,6 +318,55 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     }
   }
 
+  // 3-State Versioning actions
+  const cloneActiveToDraft = (sourceId?: string) => {
+    const source = productSessions.find(s => s.id === (sourceId || activeProductId)) || activeSession
+    const newId = `ps-draft-${Date.now()}`
+    const now = new Date().toISOString()
+    const copy: ProductSession = {
+      ...JSON.parse(JSON.stringify(source)),
+      id: newId,
+      status: 'draft',
+      versionLabel: `Draft (${source.product.productCode || 'Working Copy'})`,
+      createdAt: now,
+      updatedAt: now
+    }
+    setProductSessions(prev => [...prev, copy])
+    setActiveProductId(newId)
+    setActiveTab('master')
+  }
+
+  const activateDraft = (draftId: string) => {
+    const target = productSessions.find(s => s.id === draftId)
+    if (!target) return
+    const now = new Date().toISOString()
+    const targetCode = target.product.productCode
+
+    setProductSessions(prev =>
+      prev.map(s => {
+        if (s.id === draftId) {
+          return {
+            ...s,
+            status: 'active',
+            versionLabel: 'Active Version',
+            updatedAt: now
+          }
+        }
+        // Archive previous active dataset
+        if (s.status === 'active' && (!targetCode || s.product.productCode === targetCode || s.id === activeProductId)) {
+          return {
+            ...s,
+            status: 'archived',
+            versionLabel: `Archived (${new Date(s.updatedAt || now).toLocaleDateString()})`,
+            updatedAt: now
+          }
+        }
+        return s
+      })
+    )
+    setActiveProductId(draftId)
+  }
+
   const duplicateProduct = (id: string) => {
     const source = productSessions.find(s => s.id === id)
     if (!source) return
@@ -322,6 +379,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       bom:     source.bom.map(b  => ({ ...b, id: `bom-${Date.now()}-${b.id}` })),
       routing: source.routing.map(r => ({ ...r, id: `rt-${Date.now()}-${r.id}` })),
       savedDrivers: [],
+      status:  'draft',
+      versionLabel: `Draft (${source.product.productCode || 'Copy'})`,
       createdAt: now,
       updatedAt: now
     }
@@ -339,7 +398,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         return [seed]
       }
       if (activeProductId === id) {
-        setActiveProductId(remaining[0].id)
+        const nextActive = remaining.find(s => s.status === 'active') || remaining[0]
+        setActiveProductId(nextActive.id)
       }
       return remaining
     })
@@ -411,15 +471,26 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     patchActive({ savedDrivers: [...updated, { ...driver, controllability, actionPlan }] })
   }
 
+  // Import creates a new DRAFT session per Section 7
   const importFromExcel = (result: ExcelImportResult) => {
     if (!result.success) return
-    patchActive({
+    const id = `ps-draft-import-${Date.now()}`
+    const now = new Date().toISOString()
+    const importedDraft: ProductSession = {
+      id,
       product:      result.product      ?? product,
       rates:        result.rates        ?? rates,
       bom:          result.bom          ?? bom,
       routing:      result.routing      ?? routing,
-      savedDrivers: []
-    })
+      savedDrivers: [],
+      status:       'draft',
+      versionLabel: `Draft (Imported: ${result.product?.productCode || product.productCode || 'Excel'})`,
+      createdAt:    now,
+      updatedAt:    now
+    }
+    setProductSessions(prev => [...prev, importedDraft])
+    setActiveProductId(id)
+    setActiveTab('master')
   }
 
   const resetToDefault = () => {
@@ -428,7 +499,9 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       rates:        seedWorkCenterRates,
       bom:          seedBOM,
       routing:      seedRouting,
-      savedDrivers: []
+      savedDrivers: [],
+      status:       'active',
+      versionLabel: 'Active Baseline'
     })
   }
 
@@ -465,6 +538,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       duplicateProduct,
       deleteProduct,
       addUOM,
+      cloneActiveToDraft,
+      activateDraft,
       updateProduct,
       addBOMItem,
       updateBOMItem,

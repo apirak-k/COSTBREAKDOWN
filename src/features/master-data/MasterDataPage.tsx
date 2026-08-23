@@ -23,6 +23,9 @@ export const MasterDataPage: React.FC = () => {
     routing,
     uomList,
     costBreakdown,
+    activeSession,
+    cloneActiveToDraft,
+    activateDraft,
     updateProduct,
     addBOMItem,
     updateBOMItem,
@@ -65,6 +68,10 @@ export const MasterDataPage: React.FC = () => {
         bomCount={bom.length}
         routingCount={routing.length}
         uomList={uomList}
+        status={activeSession.status}
+        versionLabel={activeSession.versionLabel}
+        onCloneToDraft={() => cloneActiveToDraft(activeSession.id)}
+        onActivateDraft={() => activateDraft(activeSession.id)}
         onUpdateProduct={updateProduct}
         onOpenSetupModal={() => setSetupModalOpen(true)}
       />

@@ -53,61 +53,84 @@ export const Navbar: React.FC = () => {
 
             <div className="h-4 w-px bg-slate-700" />
 
-            {/* Product Dropdown Selector */}
+              {/* Product Dropdown Selector */}
             <div className="relative" ref={dropdownRef}>
               <button
                 onClick={() => setDropdownOpen(prev => !prev)}
-                className="flex items-center justify-between gap-2 px-2.5 py-1 bg-slate-800 hover:bg-slate-700/80 border border-slate-700 rounded text-left transition-colors cursor-pointer text-xs"
+                className="flex items-center justify-between gap-2 px-2.5 py-1 bg-slate-800 hover:bg-slate-700/80 border border-slate-700 rounded-none text-left transition-colors cursor-pointer text-xs"
               >
                 <div className="flex items-center gap-1.5">
                   <span className="text-[10px] uppercase font-bold text-slate-400 font-mono">PRODUCT:</span>
                   <span className="font-mono font-bold text-white text-xs">{displayCode}</span>
+                  <span
+                    className={`px-1 py-0.2 text-[8px] font-mono font-bold uppercase rounded-none border ${
+                      activeSession.status === 'active'
+                        ? 'bg-emerald-950 text-emerald-300 border-emerald-700'
+                        : activeSession.status === 'draft'
+                        ? 'bg-amber-950 text-amber-300 border-amber-700'
+                        : 'bg-slate-800 text-slate-400 border-slate-700'
+                    }`}
+                  >
+                    {activeSession.status || 'ACTIVE'}
+                  </span>
                 </div>
                 <ChevronDown className={`w-3 h-3 text-slate-400 transition-transform ${dropdownOpen ? 'rotate-180' : ''}`} />
               </button>
 
               {/* Dropdown Panel */}
               {dropdownOpen && (
-                <div className="absolute left-0 top-full mt-1 w-80 bg-slate-900 border border-slate-700 rounded-md shadow-2xl z-50 overflow-hidden text-xs">
+                <div className="absolute left-0 top-full mt-1 w-84 bg-slate-900 border border-slate-700 rounded-none shadow-2xl z-50 overflow-hidden text-xs">
                   <div className="p-2">
                     <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider px-2 py-1 font-mono">
-                      Sessions ({productSessions.length})
+                      Dataset Versions &amp; Products ({productSessions.length})
                     </p>
-                    <div className="space-y-0.5">
+                    <div className="space-y-0.5 max-h-72 overflow-y-auto">
                       {productSessions.map(s => {
                         const isActive = s.id === activeProductId
                         const code = s.product.productCode || '(Unnamed Product)'
                         const desc = s.product.productDescription || ''
+                        const stat = s.status || 'active'
                         return (
                           <div
                             key={s.id}
-                            className={`flex items-center justify-between group rounded px-2.5 py-1.5 cursor-pointer transition-colors ${
+                            className={`flex items-center justify-between group rounded-none px-2.5 py-1.5 cursor-pointer transition-colors ${
                               isActive ? 'bg-slate-800 text-white border-l-2 border-emerald-500' : 'hover:bg-slate-800/60 text-slate-300'
                             }`}
                             onClick={() => { switchProduct(s.id); setDropdownOpen(false) }}
                           >
                             <div className="min-w-0 flex-1">
-                              <p className="text-xs font-bold font-mono truncate text-slate-100">
-                                {code}
-                              </p>
-                              {desc && (
-                                <p className="text-[10px] text-slate-400 truncate">
-                                  {desc}
+                              <div className="flex items-center gap-1.5">
+                                <p className="text-xs font-bold font-mono truncate text-slate-100">
+                                  {code}
                                 </p>
-                              )}
+                                <span
+                                  className={`px-1 py-0.2 text-[8px] font-mono font-bold uppercase rounded-none border ${
+                                    stat === 'active'
+                                      ? 'bg-emerald-950 text-emerald-300 border-emerald-700'
+                                      : stat === 'draft'
+                                      ? 'bg-amber-950 text-amber-300 border-amber-700'
+                                      : 'bg-slate-800 text-slate-400 border-slate-700'
+                                  }`}
+                                >
+                                  {stat}
+                                </span>
+                              </div>
+                              <p className="text-[10px] text-slate-400 truncate">
+                                {s.versionLabel ? s.versionLabel : desc || 'No description'}
+                              </p>
                             </div>
                             {!isActive && (
                               <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity shrink-0 ml-2">
                                 <button
                                   onClick={e => { e.stopPropagation(); duplicateProduct(s.id); setDropdownOpen(false) }}
-                                  className="p-1 text-slate-400 hover:text-white hover:bg-slate-700 rounded"
-                                  title="Duplicate"
+                                  className="p-1 text-slate-400 hover:text-white hover:bg-slate-700 rounded-none"
+                                  title="Duplicate as Draft"
                                 >
                                   <Copy className="w-3 h-3" />
                                 </button>
                                 <button
                                   onClick={e => { e.stopPropagation(); deleteProduct(s.id) }}
-                                  className="p-1 text-slate-400 hover:text-rose-400 hover:bg-rose-950/60 rounded"
+                                  className="p-1 text-slate-400 hover:text-rose-400 hover:bg-rose-950/60 rounded-none"
                                   title="Delete"
                                 >
                                   <Trash2 className="w-3 h-3" />

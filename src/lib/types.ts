@@ -75,7 +75,9 @@ export interface ExcelImportResult {
   warnings?: string[]
 }
 
-// A self-contained product session — one "workbook" per product
+export type DatasetStatus = 'archived' | 'active' | 'draft'
+
+// A self-contained product session — one "workbook" per product version
 export interface ProductSession {
   id: string                   // unique session ID e.g. "ps-1723945200000"
   product: ProductMaster
@@ -83,6 +85,8 @@ export interface ProductSession {
   bom: BOMItem[]
   routing: RoutingStep[]
   savedDrivers: CostDriver[]   // persisted controllability + action plan annotations
+  status: DatasetStatus
+  versionLabel?: string
   createdAt: string
   updatedAt: string
 }
