@@ -1,6 +1,7 @@
 import React, { useState } from 'react'
 import { Plus, Trash2, Search } from 'lucide-react'
-import { RoutingStep, WorkCenterRate, formatCurrency } from '../../../core'
+import { RoutingStep, WorkCenterRate, formatCurrency, getFieldConfidence } from '../../../core'
+import { ConfidenceBadge } from '../../../shared'
 
 interface RoutingTableProps {
   routing: RoutingStep[]
@@ -253,12 +254,16 @@ export const RoutingTable: React.FC<RoutingTableProps> = ({
 
                   {/* Source Reference */}
                   <td className="py-1 px-1">
-                    <input
-                      type="text"
-                      value={rt.sourceRef}
-                      onChange={e => onUpdateRoutingStep(rt.id, { sourceRef: e.target.value })}
-                      className="w-full px-1 py-0.5 font-sans text-[10px] text-slate-500 bg-transparent hover:bg-slate-100 focus:bg-white focus:ring-1 focus:ring-slate-700 border border-transparent focus:border-slate-300"
-                    />
+                    <div className="flex items-center gap-1">
+                      <input
+                        type="text"
+                        value={rt.sourceRef}
+                        onChange={e => onUpdateRoutingStep(rt.id, { sourceRef: e.target.value })}
+                        placeholder="e.g. Cost declare"
+                        className="w-full px-1 py-0.5 font-sans text-[10px] text-slate-500 bg-transparent hover:bg-slate-100 focus:bg-white focus:ring-1 focus:ring-slate-700 border border-transparent focus:border-slate-300"
+                      />
+                      <ConfidenceBadge status={getFieldConfidence(rt.activeYield, rt.sourceRef)} showLabel={false} />
+                    </div>
                   </td>
 
                   {/* Actions */}

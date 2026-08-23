@@ -1,6 +1,7 @@
 import React from 'react'
 import { Plus, Trash2 } from 'lucide-react'
-import { WorkCenterRate } from '../../../core'
+import { WorkCenterRate, getFieldConfidence } from '../../../core'
+import { ConfidenceBadge } from '../../../shared'
 
 interface WorkCenterRatesTableProps {
   rates: WorkCenterRate[]
@@ -101,12 +102,16 @@ export const WorkCenterRatesTable: React.FC<WorkCenterRatesTableProps> = ({
 
                   {/* Source Reference */}
                   <td className="py-1 px-1">
-                    <input
-                      type="text"
-                      value={r.sourceRef}
-                      onChange={e => onUpdateRate(r.wc, { sourceRef: e.target.value })}
-                      className="w-full px-1 py-0.5 font-sans text-[10px] text-slate-500 bg-transparent hover:bg-slate-100 focus:bg-white focus:ring-1 focus:ring-slate-700 border border-transparent focus:border-slate-300"
-                    />
+                    <div className="flex items-center gap-1">
+                      <input
+                        type="text"
+                        value={r.sourceRef}
+                        onChange={e => onUpdateRate(r.wc, { sourceRef: e.target.value })}
+                        placeholder="e.g. Cost Declare"
+                        className="w-full px-1 py-0.5 font-sans text-[10px] text-slate-500 bg-transparent hover:bg-slate-100 focus:bg-white focus:ring-1 focus:ring-slate-700 border border-transparent focus:border-slate-300"
+                      />
+                      <ConfidenceBadge status={getFieldConfidence(r.laborRate, r.sourceRef)} showLabel={false} />
+                    </div>
                   </td>
 
                   {/* Actions */}

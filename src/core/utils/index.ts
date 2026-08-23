@@ -1,2 +1,3 @@
 export * from './formatters'
 export * from './guards'
+export * from './confidence'

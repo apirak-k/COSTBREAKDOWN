@@ -1,3 +1,5 @@
+export type DataConfidence = 'verified' | 'estimated' | 'missing'
+
 export interface ProductMaster {
   productCode: string
   productDescription: string
@@ -14,6 +16,7 @@ export interface WorkCenterRate {
   burdenRate: number // THB/MHr
   effectiveDate: string
   sourceRef: string
+  confidence?: DataConfidence
 }
 
 export interface BOMItem {
@@ -27,6 +30,7 @@ export interface BOMItem {
   baseLoss: number // L0 (e.g. 0.30 = 30%)
   activeLoss: number // L1 (e.g. 0.30 = 30%)
   sourceRef: string
+  confidence?: DataConfidence
 }
 
 export interface RoutingStep {
@@ -40,6 +44,7 @@ export interface RoutingStep {
   baseYield: number // Y0 (e.g. 0.95 = 95%)
   activeYield: number // Y1 (e.g. 0.90 = 90%)
   sourceRef: string
+  confidence?: DataConfidence
 }
 
 export interface CostElementBreakdown {

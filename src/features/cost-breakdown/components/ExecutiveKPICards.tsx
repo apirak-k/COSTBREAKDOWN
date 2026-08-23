@@ -1,12 +1,29 @@
 import React from 'react'
-import { CostElementBreakdown, formatNumber, formatVariance, formatPercent } from '../../../core'
+import {
+  CostElementBreakdown,
+  WorkCenterRate,
+  BOMItem,
+  RoutingStep,
+  formatNumber,
+  formatVariance,
+  formatPercent,
+  calculateDataConfidenceSummary
+} from '../../../core'
 import { KPIStatCard } from '../../../shared'
 
 interface ExecutiveKPICardsProps {
   costBreakdown: CostElementBreakdown
+  rates?: WorkCenterRate[]
+  bom?: BOMItem[]
+  routing?: RoutingStep[]
 }
 
-export const ExecutiveKPICards: React.FC<ExecutiveKPICardsProps> = ({ costBreakdown }) => {
+export const ExecutiveKPICards: React.FC<ExecutiveKPICardsProps> = ({
+  costBreakdown,
+  rates = [],
+  bom = [],
+  routing = []
+}) => {
   const {
     totalBase, totalActive, totalVariance,
     materialBase, materialActive,
@@ -18,8 +35,10 @@ export const ExecutiveKPICards: React.FC<ExecutiveKPICardsProps> = ({ costBreakd
   const labVar = laborActive - laborBase
   const burVar = burdenActive - burdenBase
 
+  const confidenceSummary = calculateDataConfidenceSummary(rates, bom, routing)
+
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3.5">
       {/* 1. Total Standard Cost */}
       <KPIStatCard
         title="Total Standard Cost"
@@ -67,6 +86,36 @@ export const ExecutiveKPICards: React.FC<ExecutiveKPICardsProps> = ({ costBreakd
           percent: burdenBase > 0 ? formatPercent(burVar / burdenBase, 1) : undefined
         }}
       />
+
+      {/* 5. Data Confidence Roll-up */}
+      <div className="bg-white rounded-none border border-slate-300/80 p-3 shadow-2xs flex flex-col justify-between">
+        <div className="flex items-center justify-between">
+          <span className="text-[11px] font-bold font-mono text-slate-500 uppercase tracking-tight">
+            Data Confidence
+          </span>
+          <span
+            className={`px-1.5 py-0.2 text-[9px] font-mono font-bold rounded-none ${
+              confidenceSummary.verifiedPercentage >= 80
+                ? 'bg-emerald-100 text-emerald-800 border border-emerald-300'
+                : confidenceSummary.verifiedPercentage >= 50
+                ? 'bg-amber-100 text-amber-900 border border-amber-300'
+                : 'bg-rose-100 text-rose-900 border border-rose-300'
+            }`}
+          >
+            {confidenceSummary.verifiedCount}/{confidenceSummary.totalFields} VER
+          </span>
+        </div>
+        <div className="mt-2">
+          <div className="text-xl font-bold font-mono text-slate-900 tracking-tight">
+            {confidenceSummary.verifiedPercentage.toFixed(1)}%
+          </div>
+          <div className="text-[10px] font-mono text-slate-500 mt-1 flex items-center justify-between">
+            <span className="text-emerald-700">✓ {confidenceSummary.verifiedCount} Ver</span>
+            <span className="text-amber-700">! {confidenceSummary.estimatedCount} Est</span>
+            <span className="text-rose-700">✕ {confidenceSummary.missingCount} Mis</span>
+          </div>
+        </div>
+      </div>
     </div>
   )
 }

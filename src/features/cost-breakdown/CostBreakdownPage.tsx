@@ -18,7 +18,7 @@ export const CostBreakdownPage: React.FC = () => {
   return (
     <div className="space-y-4">
       {/* 1. Top Executive KPIs */}
-      <ExecutiveKPICards costBreakdown={costBreakdown} />
+      <ExecutiveKPICards costBreakdown={costBreakdown} rates={rates} bom={bom} routing={routing} />
 
       {/* 2. Variance Tree Decomposition */}
       <VarianceTreeCard costBreakdown={costBreakdown} />
