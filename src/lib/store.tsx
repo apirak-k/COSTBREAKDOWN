@@ -147,7 +147,13 @@ interface AppContextType {
   updateWorkCenterRate:    (wc: string, rate: Partial<WorkCenterRate>) => void
   deleteWorkCenterRate:    (wc: string) => void
   promoteActiveToBaseline: () => void
-  updateDriverHumanInput:  (rank: number, controllability: CostDriver['controllability'], actionPlan: string) => void
+  updateDriverHumanInput:  (
+    rank: number,
+    controllability: CostDriver['controllability'],
+    actionPlan: string,
+    canInfluence?: boolean,
+    requirementFit?: boolean
+  ) => void
   importFromExcel:         (result: ExcelImportResult) => void
   resetToDefault:          () => void
   clearAllData:            () => void
@@ -464,11 +470,28 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     })
   }
 
-  const updateDriverHumanInput = (rank: number, controllability: CostDriver['controllability'], actionPlan: string) => {
+  const updateDriverHumanInput = (
+    rank: number,
+    controllability: CostDriver['controllability'],
+    actionPlan: string,
+    canInfluence?: boolean,
+    requirementFit?: boolean
+  ) => {
     const driver = topDrivers.find(d => d.rank === rank)
     if (!driver) return
     const updated = savedDrivers.filter(d => d.driverName !== driver.driverName)
-    patchActive({ savedDrivers: [...updated, { ...driver, controllability, actionPlan }] })
+    patchActive({
+      savedDrivers: [
+        ...updated,
+        {
+          ...driver,
+          controllability,
+          actionPlan,
+          canInfluence: canInfluence !== undefined ? canInfluence : driver.canInfluence,
+          requirementFit: requirementFit !== undefined ? requirementFit : driver.requirementFit
+        }
+      ]
+    })
   }
 
   // Import creates a new DRAFT session per Section 7

@@ -1,4 +1,18 @@
-import { WorkCenterRate, BOMItem, RoutingStep, CostElementBreakdown, CostDriver } from './types'
+import { WorkCenterRate, BOMItem, RoutingStep, CostElementBreakdown, CostDriver, DataConfidence } from './types'
+
+function getFieldConfidence(value: any, sourceRef?: string): DataConfidence {
+  if (value === null || value === undefined || value === '' || (typeof value === 'number' && (isNaN(value) || !isFinite(value)))) {
+    return 'missing'
+  }
+  if (sourceRef && typeof sourceRef === 'string' && sourceRef.trim().length > 0) {
+    const s = sourceRef.toLowerCase()
+    if (s.includes('est') || s.includes('placeholder') || s.includes('assumption') || s.includes('unverified')) {
+      return 'estimated'
+    }
+    return 'verified'
+  }
+  return 'estimated'
+}
 
 export function calculateCostBreakdown(
   bom: BOMItem[],
@@ -74,10 +88,10 @@ export function calculateCostBreakdown(
 }
 
 /**
- * Mirrors the _CALC_ENGINE sheet logic exactly.
- * IDs 1–(bom.length) = BOM candidates, IDs (bom.length+1)–55 = Routing candidates.
- * Tie-breaker: score = costGap + (55 - id) * 0.00000001
- * Only positive-gap drivers appear in Top 10.
+ * Evaluates all BOM and Routing candidates and ranks the Top 10 positive cost drivers.
+ * Stage 1 (System Auto-Calculation): Cost Impact + Measurable (auto-calculated from concrete math).
+ * Stage 2 (Human RCA Checklist): Can Influence + Requirement Fit + Action Plan.
+ * Includes Data Confidence warning tag if underlying inputs are estimated.
  */
 export function calculateTopDrivers(
   bom: BOMItem[],
@@ -91,15 +105,20 @@ export function calculateTopDrivers(
   })
 
   // Build saved map keyed by driverName for preserving human-input fields
-  const savedMap = new Map<string, Pick<CostDriver, 'controllability' | 'actionPlan'>>()
+  const savedMap = new Map<string, Pick<CostDriver, 'controllability' | 'actionPlan' | 'canInfluence' | 'requirementFit'>>()
   savedDrivers.forEach(d => {
-    savedMap.set(d.driverName, { controllability: d.controllability, actionPlan: d.actionPlan })
+    savedMap.set(d.driverName, { 
+      controllability: d.controllability, 
+      actionPlan: d.actionPlan,
+      canInfluence: d.canInfluence,
+      requirementFit: d.requirementFit 
+    })
   })
 
   const candidates: CostDriver[] = []
   let id = 0
 
-  // ── BOM candidates (IDs 1 to bom.length) ──────────────────────────────────
+  // ── BOM candidates ────────────────────────────────────────────────────────
   bom.forEach(b => {
     id++
     const baseMatCost  = b.consumption * b.basePrice   * (1 + b.baseLoss)
@@ -114,7 +133,6 @@ export function calculateTopDrivers(
     const lossChanged   = b.activeLoss  !== b.baseLoss
 
     if (priceChanged && lossChanged) {
-      // Double variance — report dominant one (price)
       const direction = b.activePrice > b.basePrice ? 'Inflation' : 'Reduction'
       rcaParameter = `Unit Price ${direction} (${b.basePrice.toFixed(2)} → ${b.activePrice.toFixed(2)} THB)`
       baseParam  = b.basePrice
@@ -131,8 +149,16 @@ export function calculateTopDrivers(
       activeParam = b.activeLoss
     }
 
-    const tieBreaker = gap > 0 ? gap + (55 - id) * 0.00000001 : 0
-    const saved = savedMap.get(b.description) ?? { controllability: '' as const, actionPlan: '' }
+    const totalCandidates = Math.max(55, bom.length + routing.length)
+    const tieBreaker = gap > 0 ? gap + (totalCandidates - id) * 0.00000001 : 0
+    const saved = savedMap.get(b.description) ?? { 
+      controllability: '' as const, 
+      actionPlan: '',
+      canInfluence: true,
+      requirementFit: true
+    }
+
+    const driverConfidence = getFieldConfidence(b.activePrice, b.sourceRef)
 
     candidates.push({
       id,
@@ -146,15 +172,20 @@ export function calculateTopDrivers(
       rank: 0,
       pctContribution: 0,
       controllability: saved.controllability,
-      actionPlan: saved.actionPlan
+      actionPlan: saved.actionPlan,
+      isMeasurable: true,
+      canInfluence: saved.canInfluence ?? (saved.controllability === 'Controllable'),
+      requirementFit: saved.requirementFit ?? true,
+      confidence: driverConfidence,
+      sourceRef: b.sourceRef
     })
   })
 
-  // ── Routing candidates (IDs bom.length+1 to 55) ────────────────────────────
+  // ── Routing candidates ────────────────────────────────────────────────────
   const MAX_ID = 55
   routing.forEach(rt => {
     id++
-    if (id > MAX_ID) return // stay within engine bounds
+    if (id > MAX_ID) return
 
     const r = rateMap.get(rt.wc) ?? { labor: 102.90, burden: 79.66 }
     const baseRuntime   = rt.baseCap   > 0 && rt.baseYield   > 0 ? rt.manning / (rt.baseCap   * rt.baseYield)   : 0
@@ -171,7 +202,6 @@ export function calculateTopDrivers(
     const yieldChanged = rt.activeYield !== rt.baseYield
 
     if (capChanged && yieldChanged) {
-      // Double variance — report both
       const capDir   = rt.activeCap   < rt.baseCap   ? 'Drop' : 'Improvement'
       const yieldDir = rt.activeYield < rt.baseYield ? 'Drop' : 'Improvement'
       rcaParameter = `Capacity ${capDir} (${rt.baseCap.toLocaleString()} → ${rt.activeCap.toLocaleString()} Unit/hr) + Yield ${yieldDir}`
@@ -189,16 +219,20 @@ export function calculateTopDrivers(
       activeParam = rt.activeYield
     }
 
-    // Section label: use routing section from description prefix if available (split by ' - ')
-    // Fall back to WC name
-    const category = rt.wc
+    const totalCandidates = Math.max(55, bom.length + routing.length)
+    const tieBreaker = gap > 0 ? gap + (totalCandidates - id) * 0.00000001 : 0
+    const saved = savedMap.get(rt.description) ?? { 
+      controllability: '' as const, 
+      actionPlan: '',
+      canInfluence: true,
+      requirementFit: true
+    }
 
-    const tieBreaker = gap > 0 ? gap + (MAX_ID - id) * 0.00000001 : 0
-    const saved = savedMap.get(rt.description) ?? { controllability: '' as const, actionPlan: '' }
+    const driverConfidence = getFieldConfidence(rt.activeYield, rt.sourceRef)
 
     candidates.push({
       id,
-      category,
+      category: rt.wc,
       driverName: rt.description,
       rcaParameter,
       baseParameter: baseParam,
@@ -208,7 +242,12 @@ export function calculateTopDrivers(
       rank: 0,
       pctContribution: 0,
       controllability: saved.controllability,
-      actionPlan: saved.actionPlan
+      actionPlan: saved.actionPlan,
+      isMeasurable: true,
+      canInfluence: saved.canInfluence ?? (saved.controllability === 'Controllable'),
+      requirementFit: saved.requirementFit ?? true,
+      confidence: driverConfidence,
+      sourceRef: rt.sourceRef
     })
   })
 

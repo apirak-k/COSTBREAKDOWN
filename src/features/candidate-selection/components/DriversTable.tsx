@@ -4,7 +4,13 @@ import { DriverRow } from './DriverRow'
 
 interface DriversTableProps {
   topDrivers: CostDriver[]
-  onUpdateInput: (rank: number, controllability: CostDriver['controllability'], actionPlan: string) => void
+  onUpdateInput: (
+    rank: number,
+    controllability: CostDriver['controllability'],
+    actionPlan: string,
+    canInfluence?: boolean,
+    requirementFit?: boolean
+  ) => void
 }
 
 export const DriversTable: React.FC<DriversTableProps> = ({ topDrivers, onUpdateInput }) => {
@@ -22,7 +28,7 @@ export const DriversTable: React.FC<DriversTableProps> = ({ topDrivers, onUpdate
         <div className="col-span-1 text-right">Active</div>
         <div className="col-span-1 text-right">Gap (THB)</div>
         <div className="col-span-1 text-right">% Contrib</div>
-        <div className="col-span-1 text-center">Uncontrollable</div>
+        <div className="col-span-1 text-center">Confidence</div>
       </div>
 
       {/* Driver Rows */}
@@ -35,7 +41,7 @@ export const DriversTable: React.FC<DriversTableProps> = ({ topDrivers, onUpdate
       {/* Footer */}
       <div className="flex items-center justify-between px-3.5 py-2 border-t border-slate-300 bg-slate-50 text-xs font-mono">
         <span className="text-slate-500 text-[11px]">
-          Top {topDrivers.length} positive gap drivers evaluated
+          Stage 1: System Auto-Ranked Top {topDrivers.length} Measurable Cost Drivers
         </span>
         <div className="text-right flex items-center gap-2">
           <span className="text-[11px] text-slate-500 font-sans">Total Ranked Gap:</span>

@@ -117,5 +117,10 @@ export interface CostDriver {
   // Human-input fields (mirrors Col I & J in Sheet 4)
   controllability: 'Controllable' | 'Uncontrollable' | ''
   actionPlan: string
+  isMeasurable?: boolean
+  canInfluence?: boolean
+  requirementFit?: boolean
+  confidence?: DataConfidence
+  sourceRef?: string
 }
 

@@ -1,10 +1,12 @@
 import { BOMItem, RoutingStep, WorkCenterRate, CostDriver } from '../types'
 import { safeDivide } from '../utils/guards'
+import { getFieldConfidence } from '../utils/confidence'
 
 /**
  * Evaluates all BOM and Routing candidates and ranks the Top 10 positive cost drivers.
- * Mirrors the _CALC_ENGINE sheet logic exactly:
- * Tie-breaker: score = costGap + (55 - id) * 0.00000001
+ * Stage 1 (System Auto-Calculation): Cost Impact + Measurable (auto-calculated from concrete math).
+ * Stage 2 (Human RCA Checklist): Can Influence + Requirement Fit + Action Plan.
+ * Includes Data Confidence warning tag if underlying inputs are estimated.
  */
 export function calculateTopDrivers(
   bom: BOMItem[],
@@ -17,10 +19,15 @@ export function calculateTopDrivers(
     rateMap.set(r.wc, { labor: r.laborRate, burden: r.burdenRate })
   })
 
-  // Build map of saved user annotations (controllability & action plan)
-  const savedMap = new Map<string, Pick<CostDriver, 'controllability' | 'actionPlan'>>()
+  // Build map of saved user annotations (controllability, actionPlan, canInfluence, requirementFit)
+  const savedMap = new Map<string, Pick<CostDriver, 'controllability' | 'actionPlan' | 'canInfluence' | 'requirementFit'>>()
   savedDrivers.forEach(d => {
-    savedMap.set(d.driverName, { controllability: d.controllability, actionPlan: d.actionPlan })
+    savedMap.set(d.driverName, {
+      controllability: d.controllability,
+      actionPlan: d.actionPlan,
+      canInfluence: d.canInfluence,
+      requirementFit: d.requirementFit
+    })
   })
 
   const candidates: CostDriver[] = []
@@ -60,7 +67,14 @@ export function calculateTopDrivers(
     }
 
     const tieBreaker = gap > 0 ? gap + (totalCandidates - id) * 0.00000001 : 0
-    const saved = savedMap.get(b.description) ?? { controllability: '' as const, actionPlan: '' }
+    const saved = savedMap.get(b.description) ?? {
+      controllability: '' as const,
+      actionPlan: '',
+      canInfluence: true,
+      requirementFit: true
+    }
+
+    const driverConfidence = getFieldConfidence(b.activePrice, b.sourceRef)
 
     candidates.push({
       id,
@@ -74,7 +88,12 @@ export function calculateTopDrivers(
       rank: 0,
       pctContribution: 0,
       controllability: saved.controllability,
-      actionPlan: saved.actionPlan
+      actionPlan: saved.actionPlan,
+      isMeasurable: true,
+      canInfluence: saved.canInfluence ?? (saved.controllability === 'Controllable'),
+      requirementFit: saved.requirementFit ?? true,
+      confidence: driverConfidence,
+      sourceRef: b.sourceRef
     })
   })
 
@@ -121,7 +140,14 @@ export function calculateTopDrivers(
 
     const category = rt.wc
     const tieBreaker = gap > 0 ? gap + (totalCandidates - id) * 0.00000001 : 0
-    const saved = savedMap.get(rt.description) ?? { controllability: '' as const, actionPlan: '' }
+    const saved = savedMap.get(rt.description) ?? {
+      controllability: '' as const,
+      actionPlan: '',
+      canInfluence: true,
+      requirementFit: true
+    }
+
+    const driverConfidence = getFieldConfidence(rt.activeYield, rt.sourceRef)
 
     candidates.push({
       id,
@@ -135,7 +161,12 @@ export function calculateTopDrivers(
       rank: 0,
       pctContribution: 0,
       controllability: saved.controllability,
-      actionPlan: saved.actionPlan
+      actionPlan: saved.actionPlan,
+      isMeasurable: true,
+      canInfluence: saved.canInfluence ?? (saved.controllability === 'Controllable'),
+      requirementFit: saved.requirementFit ?? true,
+      confidence: driverConfidence,
+      sourceRef: rt.sourceRef
     })
   })
 
