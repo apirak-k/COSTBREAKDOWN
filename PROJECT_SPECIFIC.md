@@ -30,11 +30,14 @@ All AI agents MUST strictly comply with:
 
 ---
 
-## 4. Anti-AI Design System (Human-Crafted Engineering UI)
-* **Minimalist & Functional**: UI must reflect a professional industrial utility. STRICTLY FORBIDDEN: Generative AI design clichés (e.g., dark-purple neon gradients, deep nested cards, excessive shadows like `shadow-lg` or `shadow-xl`).
-* **Pure Sharp Industrial Aesthetics (Zero Border Radius)**: All UI elements, buttons, cards, panels, inputs, modals, tags, and badges MUST use strictly 0px border radius (sharp 90-degree corners, `rounded-none`). No rounded or curved corners are permitted.
-* **Color Palette**: Stick to neutral and industrial palettes (Slate, Emerald, Amber, White, Gray). 
-* **Fluid Responsiveness**: Layouts must dynamically adjust to any screen size (Mobile to Ultrawide). STRICTLY FORBIDDEN: Hardcoded fixed widths (e.g., `w-[500px]`). Use fluid utility classes (`w-full`, `max-w-7xl`, `grid`, `flex-wrap`) to prevent horizontal overflow.
+## 4. Anti-AI & High-Taste Design System (Visual Clarity & Comfort)
+* **Visual Clarity Over Dogma**: The primary UI goal is to be **easy to scan, easy to understand, and comfortable on the eyes without visual noise or fatigue**.
+* **Anti-Slop Standard**: STRICTLY FORBIDDEN: Generative AI design clichés (e.g., dark-purple neon gradients, textureless flat surfaces, nested cards 3+ levels deep, excessive blurry drop-shadows).
+* **Balanced & Refined Geometry**: Use natural, modern rounded corners (`rounded-lg` for cards/panels, `rounded-md` for inputs/buttons, `rounded-full` or `rounded-sm` for badges). Avoid awkward bubbly shapes or suffocating rigid boxes.
+* **Restrained Industrial Palette**: Clean neutral base (Slate, Zinc, White, Off-white), with semantic accents used strictly for financial/status meaning (Emerald for savings/verified, Rose for cost overruns, Amber for editable active inputs).
+* **Tabular Numbers & Legibility**: All financial amounts, variances, and cycle times MUST use `font-mono tabular-nums` to ensure exact decimal alignment.
+* **Fluid Responsiveness**: Layouts must dynamically adjust to any screen size (Mobile to Ultrawide) using fluid utility classes (`w-full`, `max-w-7xl`, `grid`, `flex-wrap`).
+
 
 
 ---

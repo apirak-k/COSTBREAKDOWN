@@ -88,34 +88,35 @@ export const ExecutiveKPICards: React.FC<ExecutiveKPICardsProps> = ({
       />
 
       {/* 5. Data Confidence Roll-up */}
-      <div className="bg-white rounded-none border border-slate-300/80 p-3 shadow-2xs flex flex-col justify-between">
-        <div className="flex items-center justify-between">
-          <span className="text-[11px] font-bold font-mono text-slate-500 uppercase tracking-tight">
+      <div className="bg-white rounded-lg border border-slate-200/90 p-4 shadow-xs flex flex-col justify-between hover:border-slate-300 hover:shadow-sm transition-all duration-150">
+        <div className="flex items-center justify-between gap-1">
+          <span className="text-[10px] font-bold font-mono text-slate-500 uppercase tracking-wider">
             Data Confidence
           </span>
           <span
-            className={`px-1.5 py-0.2 text-[9px] font-mono font-bold rounded-none ${
+            className={`px-2 py-0.5 text-[10px] font-mono font-semibold rounded border ${
               confidenceSummary.verifiedPercentage >= 80
-                ? 'bg-emerald-100 text-emerald-800 border border-emerald-300'
+                ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
                 : confidenceSummary.verifiedPercentage >= 50
-                ? 'bg-amber-100 text-amber-900 border border-amber-300'
-                : 'bg-rose-100 text-rose-900 border border-rose-300'
+                ? 'bg-amber-50 text-amber-800 border-amber-200'
+                : 'bg-rose-50 text-rose-800 border-rose-200'
             }`}
           >
             {confidenceSummary.verifiedCount}/{confidenceSummary.totalFields} VER
           </span>
         </div>
-        <div className="mt-2">
-          <div className="text-xl font-bold font-mono text-slate-900 tracking-tight">
-            {confidenceSummary.verifiedPercentage.toFixed(1)}%
+        <div className="mt-3">
+          <div className="text-xl font-bold font-mono text-slate-900 tracking-tight tabular-nums">
+            {confidenceSummary.verifiedPercentage.toFixed(1)}% <span className="text-[11px] font-normal text-slate-400 font-sans">Verified</span>
           </div>
-          <div className="text-[10px] font-mono text-slate-500 mt-1 flex items-center justify-between">
-            <span className="text-emerald-700">✓ {confidenceSummary.verifiedCount} Ver</span>
-            <span className="text-amber-700">! {confidenceSummary.estimatedCount} Est</span>
-            <span className="text-rose-700">✕ {confidenceSummary.missingCount} Mis</span>
+          <div className="text-[10px] font-mono text-slate-500 mt-1 flex items-center justify-between pt-1 border-t border-slate-100">
+            <span className="text-emerald-700 font-medium">✓ {confidenceSummary.verifiedCount} Ver</span>
+            <span className="text-amber-700 font-medium">! {confidenceSummary.estimatedCount} Est</span>
+            <span className="text-rose-700 font-medium">✕ {confidenceSummary.missingCount} Mis</span>
           </div>
         </div>
       </div>
+
     </div>
   )
 }

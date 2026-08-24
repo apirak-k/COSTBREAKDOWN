@@ -25,24 +25,25 @@ export const CandidateSelectionPage: React.FC = () => {
   return (
     <div className="space-y-4">
       {/* Header Panel */}
-      <div className="bg-white px-3.5 py-2.5 rounded border border-slate-300/80 shadow-2xs flex flex-wrap items-center justify-between gap-3">
+      <div className="bg-white px-4 py-3 rounded-lg border border-slate-200/90 shadow-xs flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="text-xs font-bold font-mono text-slate-800 uppercase tracking-tight">
             Section 3: Cost Driver Prioritization &amp; Candidate Selection
           </h1>
-          <p className="text-[10px] text-slate-500 font-sans">
+          <p className="text-[11px] text-slate-500 font-sans mt-0.5">
             Ranked by atomic Cost Gap with Human-in-the-Loop Controllability Governance
           </p>
         </div>
         <div className="text-right font-mono flex items-center gap-2">
           <span className="text-[11px] text-slate-500">Net Std Cost Variance (Δ):</span>
-          <span className={`text-xs font-bold px-1.5 py-0.5 rounded ${
-            totalVariance >= 0 ? 'bg-rose-100 text-rose-800' : 'bg-emerald-100 text-emerald-800'
+          <span className={`text-xs font-bold px-2 py-0.5 rounded font-mono tabular-nums ${
+            totalVariance >= 0 ? 'bg-rose-50 text-rose-700 border border-rose-200' : 'bg-emerald-50 text-emerald-700 border border-emerald-200'
           }`}>
             {formatVariance(totalVariance, 4)} THB/pc
           </span>
         </div>
       </div>
+
 
       {/* Drivers Table */}
       <DriversTable topDrivers={topDrivers} onUpdateInput={updateDriverHumanInput} />
