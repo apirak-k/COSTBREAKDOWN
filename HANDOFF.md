@@ -3,9 +3,11 @@
 **Date Updated**: 2026-08-23  
 **Status**: **Core Production Enhancements Complete (Excel Formula Shielding, Data Confidence Tagging, 3-State Versioning, 2-Stage Driver Ranking) ✅**  
 **Governing Documents**:
-- [`PROJECT_SPECIFIC.md`](file:///e:/COSTBREAKDOWN/PROJECT_SPECIFIC.md)
-- [`docs/WORK_INSTRUCTIONS.md`](file:///e:/COSTBREAKDOWN/docs/WORK_INSTRUCTIONS.md)
-- [`docs/USER_MANUAL_AND_TESTING_GUIDE.md`](file:///e:/COSTBREAKDOWN/docs/USER_MANUAL_AND_TESTING_GUIDE.md)
+- [`PROJECT_SPECIFIC.md`](PROJECT_SPECIFIC.md)
+- [`Human-AI-Working-Standard/HAWS.md`](Human-AI-Working-Standard/HAWS.md)
+- [`Human-AI-Working-Standard/WORK_INSTRUCTIONS.md`](Human-AI-Working-Standard/WORK_INSTRUCTIONS.md)
+- [`docs/USER_MANUAL_AND_TESTING_GUIDE.md`](docs/USER_MANUAL_AND_TESTING_GUIDE.md)
+
 
 ---
 
