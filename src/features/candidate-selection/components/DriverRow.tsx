@@ -89,16 +89,11 @@ export const DriverRow: React.FC<DriverRowProps> = ({ driver, onUpdateInput }) =
         </div>
       )}
 
-      {/* Stage 1 & Stage 2 Governance row */}
+      {/* Governance & Countermeasure row */}
       <div className="grid grid-cols-12 gap-x-2 px-3 pb-2 items-center text-xs">
         <div className="col-span-1" />
         <div className="col-span-11 flex flex-wrap items-center gap-3">
-          {/* Stage 1 Auto Tag */}
-          <div className="flex items-center gap-1 text-[10px] font-mono font-bold text-emerald-800 bg-emerald-50 px-1.5 py-0.5 border border-emerald-300 rounded-none select-none">
-            <span>Stage 1: ✓ Measurable ({formatVariance(driver.costGap, 4)} THB)</span>
-          </div>
-
-          {/* Stage 2 Checklist Checkboxes */}
+          {/* Controllability & Requirement Checkboxes */}
           <div className="flex items-center gap-3 text-[11px] font-mono">
             <label className="flex items-center gap-1.5 cursor-pointer select-none">
               <input
@@ -115,7 +110,7 @@ export const DriverRow: React.FC<DriverRowProps> = ({ driver, onUpdateInput }) =
                 }
                 className="w-3.5 h-3.5 rounded-none border-slate-300 accent-slate-900 cursor-pointer"
               />
-              <span className="font-bold text-slate-700">Stage 2: Can Influence</span>
+              <span className="font-bold text-slate-700">Can Influence</span>
             </label>
 
             <label className="flex items-center gap-1.5 cursor-pointer select-none">
@@ -136,6 +131,7 @@ export const DriverRow: React.FC<DriverRowProps> = ({ driver, onUpdateInput }) =
               <span className="font-bold text-slate-700">Requirement Fit</span>
             </label>
           </div>
+
 
           {/* Action Plan input */}
           <div className="flex-1 min-w-[240px] flex items-center gap-1.5">

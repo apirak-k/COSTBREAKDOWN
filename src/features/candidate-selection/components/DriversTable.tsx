@@ -41,8 +41,9 @@ export const DriversTable: React.FC<DriversTableProps> = ({ topDrivers, onUpdate
       {/* Footer */}
       <div className="flex items-center justify-between px-3.5 py-2 border-t border-slate-300 bg-slate-50 text-xs font-mono">
         <span className="text-slate-500 text-[11px]">
-          Stage 1: System Auto-Ranked Top {topDrivers.length} Measurable Cost Drivers
+          Top {topDrivers.length} Positive Cost Gap Drivers (Auto-Ranked)
         </span>
+
         <div className="text-right flex items-center gap-2">
           <span className="text-[11px] text-slate-500 font-sans">Total Ranked Gap:</span>
           <span className="text-xs font-bold text-rose-600">

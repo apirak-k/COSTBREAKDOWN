@@ -88,14 +88,15 @@ The system incorporates **3-State Data Lifecycle Versioning** (`Draft` / `Active
 
 ---
 
-### Tab 3: `03. Candidate Selection` (2-Stage Pareto RCA & Confidence Alert)
-1. **Stage 1 — System Auto-Calculation & Ranking**:
+### Tab 3: `03. Candidate Selection` (Pareto Driver Ranking & Controllability)
+1. **Automated System Prioritization & Ranking**:
    - Automatically filters all BOM items and Routing operations with positive cost gap ($\Delta \text{Cost} > 0$).
-   - Sorts descending by financial impact (THB/pc) and auto-tags candidates with `✓ Measurable`.
-2. **Stage 2 — Human Engineering RCA Checklist**:
+   - Sorts descending by financial impact (THB/pc) with atomic tie-breaker score.
+2. **Engineering Classification Checklist**:
    - **Can Influence (Controllability)**: Checkbox to distinguish controllable plant scrap from uncontrollable external commodity price spikes.
    - **Requirement Fit**: Checkbox to confirm whether technical specification allows modification.
    - **Action Plan Input**: Type specific engineering countermeasures (e.g. *“Redesign AOI high-contrast lighting fixture to eliminate false rejects”*).
+
 3. **Estimated Data Warning Banner**:
    - When a top candidate is derived from unverified or placeholder inputs, a warning box alerts the engineering team:
      > ⚠️ **ESTIMATED DATA WARNING**: *Confirm with actual measurement before committing resources or capital.*
@@ -215,13 +216,12 @@ Users can test the system across **5 Sequential Operational Phases** to verify m
 1. **Rank #1 Driver**: `RMMBA1020 - DOTITE XA-3645`
    - Cost Gap: **+6.0350 THB/pc** (90.3% variance contribution)
    - Parameter: Price $31.70 \rightarrow 60.10$ THB/GM
-   - Stage 1 Tag: `✓ Measurable`
-   - Stage 2 Classification: Check `Uncontrollable` (market commodity price). Type: *"Negotiate 5% volume rebate with chemical supplier."*
+   - Engineering Classification: Check `Uncontrollable` (market commodity price). Type: *"Negotiate 5% volume rebate with chemical supplier."*
 2. **Rank #2 Driver**: `AI-Ins - AI-Ins` (Operation Seq 28)
    - Cost Gap: **+0.5512 THB/pc** (8.2% variance contribution)
    - Parameter: Yield $74\% \rightarrow 60\%$
-   - Stage 1 Tag: `✓ Measurable`
-   - Stage 2 Classification: Leave Controllable (internal plant engineering). Type: *"Redesign AOI high-contrast lighting fixture & recalibrate camera."*
+   - Engineering Classification: Leave Controllable (internal plant engineering). Type: *"Redesign AOI high-contrast lighting fixture & recalibrate camera."*
+
 
 ---
 
