@@ -6,26 +6,38 @@
 ### Executive Overview & Purpose
 This system is an **Industrial-Grade Cost Engineering & Variance Analysis Platform** designed for manufacturing engineers, cost accountants, and plant managers. It replaces cumbersome manual spreadsheets with an interactive, audit-proof, and real-time analytical workspace adhering strictly to mathematical parity with Microsoft Excel models.
 
+The system incorporates **3-State Data Lifecycle Versioning** (`Draft` / `Active` / `Archived`), **Per-Field Data Confidence Tagging** (`Verified` / `Estimated` / `Missing`), **2-Stage Driver Ranking Logic**, and **PDCA Shop-Floor Trial Validation**.
+
 ---
 
 ## 🗺️ System Architecture & Workflow Summary
 
 ```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                          3-STATE DATA LIFECYCLE                             │
+│  [DRAFT: Sandbox / Import] ──(Activate)──> [ACTIVE: Live Single Source]     │
+│                                                    │ (Auto-Archive)         │
+│                                                    ▼                        │
+│                                            [ARCHIVED: History]              │
+└─────────────────────────────────────────────────────────────────────────────┘
+                                       │
+                                       ▼
 ┌─────────────────────────┐     ┌─────────────────────────┐
 │   01. MASTER DATA       │ ──> │   02. COST BREAKDOWN    │
-│  - Product Master Card  │     │  - High-Level KPI Strip │
-│  - WC Hourly Rate Card  │     │  - 3-Way Variance Tree  │
-│  - BOM Inline Grid (16) │     │  - DM, DL, FO Breakdown │
-│  - Routing Grid (39 Ops)│     │  - Mathematical Parity  │
+│  - Product Master & Ver │     │  - High-Level KPI Strip │
+│  - WC Hourly Rate Card  │     │  - Data Confidence KPI  │
+│  - BOM Inline Grid (16) │     │  - 3-Way Variance Tree  │
+│  - Routing Grid (39 Ops)│     │  - Granular DM, DL, FO  │
+│  - Confidence Badges    │     │  - Excel Formula Shield │
 └─────────────────────────┘     └─────────────────────────┘
              │                               │
              ▼                               ▼
 ┌─────────────────────────┐     ┌─────────────────────────┐
 │   04. RCA & SIMULATION  │ <── │ 03. CANDIDATE SELECTION │
-│  - 2-Step What-If Engine│     │  - Top Positive Drivers │
-│  - Scenario A / B / C   │     │  - Controllability Tag  │
-│  - Shop-Floor Trial Mat │     │  - Countermeasure Plan  │
-│  - PDCA Baseline Lock   │     │  - Pareto Impact Split  │
+│  - 2-Step What-If Engine│     │  - Stage 1: Auto Rank   │
+│  - Scenario A / B / C   │     │  - Stage 2: Human RCA   │
+│  - Shop-Floor Trial Mat │     │  - Estimated Data Alert │
+│  - PDCA Baseline Lock   │     │  - Action Countermeasure│
 └─────────────────────────┘     └─────────────────────────┘
 ```
 
@@ -33,47 +45,60 @@ This system is an **Industrial-Grade Cost Engineering & Variance Analysis Platfo
 
 ## 📖 Part 1: Step-by-Step Module User Manual
 
-### Tab 1: `01. Master Data` (Engineering Ground Truth)
-1. **Section A — Product Master & Sizing**:
-   - Displays active product code (`RGOM-024-01`), unit of measure (`PC`), description, customer, and effective date.
-   - Click **`Edit Sizing Structure`** if you need to adjust matrix dimensions (e.g. expanding to 60 routing steps or 30 BOM items).
+### Tab 1: `01. Master Data` (Engineering Ground Truth & Lifecycle)
+1. **Section A — Product Master & Data Versioning**:
+   - **Product Info**: Displays active product code (`RGOM-024-01`), unit of measure (`PC`), description, customer, and effective date.
+   - **3-State Versioning Controls**:
+     - `Active (Production)`: Currently active dataset driving all calculation tabs.
+     - `Draft (Working Sandbox)`: Isolated sandbox for live editing or imports without altering production metrics.
+     - `Archived`: Historical snapshots preserved for audit trail.
+     - **Actions**: Click **`Clone to Draft`** to experiment safely, or **`Activate Draft`** to promote working data into production (automatically archiving previous active).
+   - **Matrix Sizing**: Click **`Edit Sizing Structure`** to adjust dimensions ($K$ Work Centers, $N$ BOM items, $M$ Routing operations).
 2. **Section B — Work Center Rate Card**:
    - Configure hourly Labor Rate ($R_{L,k}$) and Factory Overhead / Burden Rate ($R_{B,k}$) in THB/MHr.
-   - *Inline Editing*: Directly edit any rate or description in the table cells.
+   - *Inline Editing*: Edit any rate directly in the grid.
+   - *Confidence Badges*: Green `Verified` indicates explicit source ref; Amber `Estimated` indicates placeholder.
 3. **Section C — Bill of Materials (BOM Table)**:
    - Lists all raw materials with standard usage ($Q_i$), Base Price ($P_{0,i}$), Active Price ($P_{1,i}$), Base Loss ($L_{0,i}$), and Active Loss ($L_{1,i}$).
-   - *Excel Yellow Cells*: Active price and loss inputs are highlighted in yellow.
+   - *Excel Yellow Cells*: Active price and loss inputs are highlighted in yellow (`bg-amber-50`).
    - *Bulk Tools*: Use `Copy Base ➔ Active` to reset all items in 1 click, or `+5% Price Shift` for quick inflation testing.
 4. **Section D — Process Routing (Conversion Operations)**:
    - Lists 39 standard operations with sequence (`Seq`), Work Center (`WC`), Manning ($M_j$), Base Capacity ($C_{0,j}$ pc/hr), Active Capacity ($C_{1,j}$ pc/hr), Base Yield ($Y_{0,j}$), and Active Yield ($Y_{1,j}$).
    - *Bulk Tools*: Use `Copy Base ➔ Active`, `Set Manning = 1`, or `+5% Cap Shift`.
+5. **Section E — Excel Import & Model Sync Panel**:
+   - **Download Template (`.xlsx`)**: Generates custom-sized Excel blank template with `IFERROR` formula shielding.
+   - **Drag & Drop Import**: Ingests external `.xlsx` files into an isolated `Draft` dataset for validation.
 
 ---
 
 ### Tab 2: `02. Cost Breakdown` (Variance & Mathematical Tree)
-1. **Top KPI Summary Strip**:
-   - `Baseline Standard Cost`: Original cost baseline prior to changes.
-   - `Active Standard Cost`: Current live cost recalculated from active cells.
+1. **Top KPI Summary Strip & Data Confidence Card**:
+   - `Baseline Standard Cost`: Original cost baseline prior to changes ($C_0$).
+   - `Active Standard Cost`: Current live cost recalculated from active cells ($C_1$).
    - `Net Cost Gap (Variance)`: Net financial difference ($\Delta C = C_1 - C_0$).
-   - `Material Variance Ratio`: Percentage of total gap driven by raw materials.
-2. **Variance Tree Card**:
-   - Breaks down the total gap into 3 core accounting pillars:
+   - `Data Confidence KPI`: Roll-up card displaying **% Verified Fields** (e.g. `82% Verified (102/124)`) and itemized breakdown of `Verified`, `Estimated`, and `Missing` parameters.
+2. **Level 1–3 Variance Tree Card**:
+   - Breaks down the total cost gap into 3 accounting pillars:
      $$\Delta C_{Total} = \Delta C_M (\text{Direct Material}) + \Delta C_L (\text{Direct Labor}) + \Delta C_B (\text{Overhead Burden})$$
-   - Includes real-time mathematical validation check.
-3. **Detailed Breakdown Sub-Tabs**:
-   - **BOM Detailed Breakdown**: Item-by-item material cost and variance.
-   - **Labor Detailed Breakdown**: Op-by-op cycle time ($1/C_j$), man-hours, and labor cost.
-   - **Burden Detailed Breakdown**: Op-by-op machine overhead cost.
+   - Real-Time Balance Reconciliation Check confirms $\Delta C_{Total} - \sum \text{Variances} = 0.0000$ THB.
+3. **Granular Detailed Breakdown Sub-Tabs**:
+   - **BOM Detailed Breakdown**: Item-by-item material cost, Material Price Variance (MPV), and Material Loss Variance (MLV).
+   - **Labor Detailed Breakdown**: Op-by-op cycle time ($1/C_j$), man-hours, and Labor Efficiency Variance (LEV).
+   - **Burden Detailed Breakdown**: Op-by-op machine overhead cost and Burden Efficiency Variance (BEV).
 
 ---
 
-### Tab 3: `03. Candidate Selection` (Pareto RCA & Controllability)
-1. **Top Positive Gap Drivers Table**:
-   - Evaluates all BOM items and Routing operations to filter and rank drivers where $\Delta \text{Cost} > 0$.
-   - Displays parameter gap, monetary cost gap (THB/pc), and % contribution to total variance.
-2. **Engineering Classification**:
-   - **Controllability Checkbox**: Mark external commodity spikes as `Uncontrollable` vs plant scrap as `Controllable`.
-   - **Action Plan Input**: Type specific engineering countermeasures (e.g. *“Redesign AOI lighting fixture to eliminate false reject”*).
+### Tab 3: `03. Candidate Selection` (2-Stage Pareto RCA & Confidence Alert)
+1. **Stage 1 — System Auto-Calculation & Ranking**:
+   - Automatically filters all BOM items and Routing operations with positive cost gap ($\Delta \text{Cost} > 0$).
+   - Sorts descending by financial impact (THB/pc) and auto-tags candidates with `✓ Measurable`.
+2. **Stage 2 — Human Engineering RCA Checklist**:
+   - **Can Influence (Controllability)**: Checkbox to distinguish controllable plant scrap from uncontrollable external commodity price spikes.
+   - **Requirement Fit**: Checkbox to confirm whether technical specification allows modification.
+   - **Action Plan Input**: Type specific engineering countermeasures (e.g. *“Redesign AOI high-contrast lighting fixture to eliminate false rejects”*).
+3. **Estimated Data Warning Banner**:
+   - When a top candidate is derived from unverified or placeholder inputs, a warning box alerts the engineering team:
+     > ⚠️ **ESTIMATED DATA WARNING**: *Confirm with actual measurement before committing resources or capital.*
 
 ---
 
@@ -114,42 +139,42 @@ Users can test the system across **5 Sequential Operational Phases** to verify m
 *Objective: Reset system to pristine baseline where Active = Base ($Gap = 0.0000$ THB).*
 
 #### 1. Work Center Rates Setup:
-| Work Center (WC) | Labor Rate ($R_L$) | Burden Rate ($R_B$) | Source Ref |
-| :--- | :---: | :---: | :--- |
-| `Cutting` | 105.29 | 138.48 | Cost declare 250331 row 17 |
-| `Printing-Digital RGOM` | 105.29 | 97.69 | Cost declare 250331 row 18 |
-| `Assembly Digital RGOM` | 105.29 | 90.93 | Cost declare 250331 row 19 |
-| `OQA-Digital` | 105.29 | 82.74 | Cost declare 250331 row 20 |
+| Work Center (WC) | Labor Rate ($R_L$) | Burden Rate ($R_B$) | Source Ref | Confidence |
+| :--- | :---: | :---: | :--- | :---: |
+| `Cutting` | 105.29 | 138.48 | Cost declare 250331 row 17 | `Verified` |
+| `Printing-Digital RGOM` | 105.29 | 97.69 | Cost declare 250331 row 18 | `Verified` |
+| `Assembly Digital RGOM` | 105.29 | 90.93 | Cost declare 250331 row 19 | `Verified` |
+| `OQA-Digital` | 105.29 | 82.74 | Cost declare 250331 row 20 | `Verified` |
 
 #### 2. BOM Items Baseline ($P_1 = P_0$, $L_1 = L_0$):
-| # | Item Code | Description | Usage ($Q$) | Unit | Base $P_0$ | Active $P_1$ | Base Loss $L_0$ | Active Loss $L_1$ |
-| :-: | :--- | :--- | :---: | :-: | :---: | :---: | :---: | :---: |
-| 1 | `RMMAA2590` | CT75B/LUMIRROR 25T60 | 0.027125 | SM | 70.1322 | 70.1322 | 30% | 30% |
-| 2 | `RMMBA1020` | DOTITE XA-3645 (Silver Paste) | 0.212500 | GM | 31.6956 | 31.6956 | 30% | 30% |
-| 3 | `RMMBA760` | XC-3018 (1KG/CN) | 0.069400 | GM | 1.7293 | 1.7293 | 30% | 30% |
-| 4 | `RMMBA920` | PAF-27F | 0.074700 | GM | 29.8917 | 29.8917 | 30% | 30% |
-| 5 | `RMMCD01B` | P-THINNER | 0.002000 | GM | 0.3092 | 0.3092 | 30% | 30% |
-| 6 | `RMMCD140` | SOLVENT PAF-100 | 0.003100 | GM | 0.8396 | 0.8396 | 30% | 30% |
-| 7 | `RMMCD200` | PTF-300 DILUENT | 0.055500 | GM | 1.2136 | 1.2136 | 30% | 30% |
-| 8 | `RMMCD260` | DOTITE SC-0030 | 0.003400 | GM | 0.3142 | 0.3142 | 30% | 30% |
-| 9 | `RMMBB630` | PTF-3201N | 1.152500 | GM | 1.1949 | 1.1949 | 30% | 30% |
-| 10 | `RMMBB480` | PTF-3101N | 0.025000 | GM | 1.0794 | 1.0794 | 30% | 30% |
-| 11 | `RMMLAA2650` | TF100 100um | 0.001422 | SM | 14.8357 | 14.8357 | 30% | 30% |
-| 12 | `RMMLAA2630` | PET75-Y210(10)K | 0.025417 | SM | 44.2200 | 44.2200 | 30% | 30% |
-| 13 | `RMMLEE225` | BLANK LABEL B423 | 1.000000 | PC | 0.1200 | 0.1200 | 10% | 10% |
-| 14 | `RMMLAA2640` | PET White 75 Uncoated | 0.020625 | SM | 43.2150 | 43.2150 | 10% | 10% |
-| 15 | `RMMLRA340` | MAKE UP-A188-4X0.8L | 0.014035 | GM | 2.4372 | 2.4372 | 10% | 10% |
-| 16 | `RMMLRA360` | INK-MB175-4X0.8L INKJET | 0.001780 | GM | 9.8065 | 9.8065 | 10% | 10% |
+| # | Item Code | Description | Usage ($Q$) | Unit | Base $P_0$ | Active $P_1$ | Base Loss $L_0$ | Active Loss $L_1$ | Source Ref |
+| :-: | :--- | :--- | :---: | :-: | :---: | :---: | :---: | :---: | :--- |
+| 1 | `RMMAA2590` | CT75B/LUMIRROR 25T60 | 0.027125 | SM | 70.1322 | 70.1322 | 30% | 30% | Cost declare 250331 |
+| 2 | `RMMBA1020` | DOTITE XA-3645 (Silver Paste) | 0.212500 | GM | 31.6956 | 31.6956 | 30% | 30% | Cost declare 250331 |
+| 3 | `RMMBA760` | XC-3018 (1KG/CN) | 0.069400 | GM | 1.7293 | 1.7293 | 30% | 30% | Cost declare 250331 |
+| 4 | `RMMBA920` | PAF-27F | 0.074700 | GM | 29.8917 | 29.8917 | 30% | 30% | Cost declare 250331 |
+| 5 | `RMMCD01B` | P-THINNER | 0.002000 | GM | 0.3092 | 0.3092 | 30% | 30% | Cost declare 250331 |
+| 6 | `RMMCD140` | SOLVENT PAF-100 | 0.003100 | GM | 0.8396 | 0.8396 | 30% | 30% | Cost declare 250331 |
+| 7 | `RMMCD200` | PTF-300 DILUENT | 0.055500 | GM | 1.2136 | 1.2136 | 30% | 30% | Cost declare 250331 |
+| 8 | `RMMCD260` | DOTITE SC-0030 | 0.003400 | GM | 0.3142 | 0.3142 | 30% | 30% | Cost declare 250331 |
+| 9 | `RMMBB630` | PTF-3201N | 1.152500 | GM | 1.1949 | 1.1949 | 30% | 30% | Cost declare 250331 |
+| 10 | `RMMBB480` | PTF-3101N | 0.025000 | GM | 1.0794 | 1.0794 | 30% | 30% | Cost declare 250331 |
+| 11 | `RMMLAA2650` | TF100 100um | 0.001422 | SM | 14.8357 | 14.8357 | 30% | 30% | Cost declare 250331 |
+| 12 | `RMMLAA2630` | PET75-Y210(10)K | 0.025417 | SM | 44.2200 | 44.2200 | 30% | 30% | Cost declare 250331 |
+| 13 | `RMMLEE225` | BLANK LABEL B423 | 1.000000 | PC | 0.1200 | 0.1200 | 10% | 10% | Cost declare 250331 |
+| 14 | `RMMLAA2640` | PET White 75 Uncoated | 0.020625 | SM | 43.2150 | 43.2150 | 10% | 10% | Cost declare 250331 |
+| 15 | `RMMLRA340` | MAKE UP-A188-4X0.8L | 0.014035 | GM | 2.4372 | 2.4372 | 10% | 10% | Cost declare 250331 |
+| 16 | `RMMLRA360` | INK-MB175-4X0.8L INKJET | 0.001780 | GM | 9.8065 | 9.8065 | 10% | 10% | Cost declare 250331 |
 
 #### 3. Key Process Routing Steps Baseline ($C_1 = C_0$, $Y_1 = Y_0$):
-| Seq | Description | Work Center | Manning ($M$) | Base Cap ($C_0$) | Active Cap ($C_1$) | Base Yield ($Y_0$) | Active Yield ($Y_1$) |
-| :-: | :--- | :--- | :-: | :-: | :-: | :-: | :-: |
-| 0001 | Cutting | `Cutting` | 1.0 | 6,180 | 6,180 | 100% | 100% |
-| 0005 | Printing-BAg | `Printing-Digital` | 4.0 | 1,884 | 1,884 | 100% | 100% |
-| 0015 | Printing-BAg.J | `Printing-Digital` | 8.0 | 1,572 | 1,572 | 100% | 100% |
-| 0021 | Laminate Carrier film | `Printing-Digital` | 8.0 | 2,640 | 2,640 | 100% | 100% |
-| 0028 | AI-Ins (Auto Inspection) | `Assembly Digital` | 4.0 | 600 | 600 | 74% | 74% |
-| 0039 | QA & Packing | `OQA-Digital` | 5.0 | 560 | 560 | 99.75% | 99.75% |
+| Seq | Description | Work Center | Manning ($M$) | Base Cap ($C_0$) | Active Cap ($C_1$) | Base Yield ($Y_0$) | Active Yield ($Y_1$) | Source Ref |
+| :-: | :--- | :--- | :-: | :-: | :-: | :-: | :-: | :--- |
+| 0001 | Cutting | `Cutting` | 1.0 | 6,180 | 6,180 | 100% | 100% | Cost declare 250331 |
+| 0005 | Printing-BAg | `Printing-Digital` | 4.0 | 1,884 | 1,884 | 100% | 100% | Cost declare 250331 |
+| 0015 | Printing-BAg.J | `Printing-Digital` | 8.0 | 1,572 | 1,572 | 100% | 100% | Cost declare 250331 |
+| 0021 | Laminate Carrier film | `Printing-Digital` | 8.0 | 2,640 | 2,640 | 100% | 100% | Cost declare 250331 |
+| 0028 | AI-Ins (Auto Inspection) | `Assembly Digital` | 4.0 | 600 | 600 | 74% | 74% | Cost declare 250331 |
+| 0039 | QA & Packing | `OQA-Digital` | 5.0 | 560 | 560 | 99.75% | 99.75% | Cost declare 250331 |
 
 #### 🎯 Expected Phase 1 Mathematical Verification:
 * Direct Material ($C_M$): **6.6833 THB/pc**
@@ -157,6 +182,7 @@ Users can test the system across **5 Sequential Operational Phases** to verify m
 * Overhead Burden ($C_B$): **2.5816 THB/pc**
 * **Total Standard Cost ($C_{Total}$)**: **12.0312 THB/pc**
 * **Total Cost Gap ($\Delta C$)**: **0.0000 THB (0.00%)**
+* **Data Confidence KPI**: **100% Verified** (All 124 parameters backed by `Cost declare 250331`)
 
 ---
 
@@ -166,8 +192,10 @@ Users can test the system across **5 Sequential Operational Phases** to verify m
 #### Data Changes to Enter:
 1. **Material Spike (BOM Item #2 `RMMBA1020` DOTITE Silver Paste)**:
    - Change `Active P1`: $31.6956 \rightarrow$ **`60.1000` THB/GM** (Market price increase +89.6%)
+   - Update `Source Ref`: `"Supplier Quotation Q3-2026"`
 2. **Process Scrap Surge (Routing Seq `0028` AI-Ins)**:
    - Change `Active Yield`: $74\% \rightarrow$ **`60.0%`** (Fixture misalignment causing false rejects)
+   - Update `Source Ref`: `"Shopfloor Daily Yield 2026-08"`
 3. **Bottleneck Capacity Drop (Routing Seq `0005` Printing-BAg)**:
    - Change `Active Cap`: $1,884 \rightarrow$ **`1,500` pc/hr**
 
@@ -181,17 +209,19 @@ Users can test the system across **5 Sequential Operational Phases** to verify m
 ---
 
 ### 🔍 Phase 3: Pareto Candidate Ranking & Classification
-*Objective: Inspect Tab 3 to verify tie-breaker sorting and root cause documentation.*
+*Objective: Inspect Tab 3 to verify 2-stage ranking, tie-breaker sorting, and root cause documentation.*
 
 #### Verification Checklist:
 1. **Rank #1 Driver**: `RMMBA1020 - DOTITE XA-3645`
    - Cost Gap: **+6.0350 THB/pc** (90.3% variance contribution)
    - Parameter: Price $31.70 \rightarrow 60.10$ THB/GM
-   - Action Plan: Check `Uncontrollable` checkbox. Type: *"Negotiate 5% volume rebate with chemical supplier."*
+   - Stage 1 Tag: `✓ Measurable`
+   - Stage 2 Classification: Check `Uncontrollable` (market commodity price). Type: *"Negotiate 5% volume rebate with chemical supplier."*
 2. **Rank #2 Driver**: `AI-Ins - AI-Ins` (Operation Seq 28)
    - Cost Gap: **+0.5512 THB/pc** (8.2% variance contribution)
    - Parameter: Yield $74\% \rightarrow 60\%$
-   - Action Plan: Leave Controllable. Type: *"Redesign AOI high-contrast lighting fixture & recalibrate camera."*
+   - Stage 1 Tag: `✓ Measurable`
+   - Stage 2 Classification: Leave Controllable (internal plant engineering). Type: *"Redesign AOI high-contrast lighting fixture & recalibrate camera."*
 
 ---
 
@@ -240,16 +270,16 @@ Select **Driver #2 (AI-Ins Yield)** and input the following 3 engineering propos
 
 ## 🛡️ Edge Cases & Poka-Yoke Test Matrix
 
-To test system resilience against human entry errors, try the following test cases:
-
 | Test Case | User Action | Expected System Behavior / Guard |
 | :--- | :--- | :--- |
 | **TC-01: Negative Price** | Enter `-25.0` in Active Price $P_1$ | System clamps to `0.0000` automatically. |
 | **TC-02: Zero Capacity** | Enter `0` in Active Capacity $C_1$ | System clamps to `1 pc/hr` to avoid division-by-zero ($1/C_j$). |
 | **TC-03: Yield > 100%** | Enter `150%` in Yield | System bounds yield calculation gracefully. |
-| **TC-04: Extreme Payback** | Set Investment to `10,000,000 THB` | System flags `UNPROFITABLE` (> 36 months payback threshold). |
-| **TC-05: Excel File Import** | Drag & drop invalid `.pdf` file | System shows clear error alert without crashing. |
+| **TC-04: Blank Excel Template** | Download dynamic blank template and open in Excel | 100% yellow input cells empty, zero `#DIV/0!` or `#VALUE!` errors due to `IFERROR` shielding. |
+| **TC-05: Missing Source Ref** | Leave Source Reference blank for an active price | System tags field as `Estimated` and adjusts Data Confidence KPI roll-up. |
+| **TC-06: Extreme Payback** | Set Investment to `10,000,000 THB` | System flags `UNPROFITABLE` (> 36 months payback threshold). |
+| **TC-07: Invalid File Import** | Drag & drop invalid `.pdf` file | System shows clear error alert without crashing. |
 
 ---
-*Document Version: 2.0 (Pure Sharp Industrial Engineering Standard)*  
+*Document Version: 2.2 (Pure Sharp Industrial Standard & Checkpoint 12 Enhancements)*  
 *Certified for: Senior Project Defense & Production Factory Deployment*
