@@ -31,9 +31,7 @@ export const RoutingDetailedTable: React.FC<RoutingDetailedTableProps> = ({ rout
           {rows.map(row => (
             <tr
               key={row.id}
-              className={`hover:bg-slate-50/70 transition-colors ${
-                Math.abs(row.variance) > 0.00005 && row.variance > 0 ? 'bg-rose-50/20' : ''
-              }`}
+              className="hover:bg-slate-50/70 transition-colors"
             >
               <td className="p-2.5 text-slate-500 tabular-nums">Op {row.opSeq}</td>
               <td className="p-2.5 font-sans font-medium text-slate-800 truncate max-w-[220px]" title={row.description}>

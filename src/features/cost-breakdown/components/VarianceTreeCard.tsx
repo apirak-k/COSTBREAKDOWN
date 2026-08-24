@@ -8,30 +8,30 @@ interface VarianceTreeCardProps {
 export const VarianceTreeCard: React.FC<VarianceTreeCardProps> = ({ costBreakdown }) => {
   const categories = [
     {
-      name: 'Direct Material (C_M)',
+      name: 'Direct Material',
       base: costBreakdown.materialBase,
       active: costBreakdown.materialActive,
       items: [
-        { name: 'Material Price Variance (MPV)', desc: 'Purchase price change (P0 → P1)', val: costBreakdown.mpv },
-        { name: 'Material Loss Variance (MLV)', desc: 'Scrap / loss rate change (L0 → L1)', val: costBreakdown.mlv }
+        { name: 'Material Price Variance', desc: 'Purchase price change (P0 → P1)', val: costBreakdown.mpv },
+        { name: 'Material Loss Variance', desc: 'Scrap / loss rate change (L0 → L1)', val: costBreakdown.mlv }
       ]
     },
     {
-      name: 'Direct Labor (C_L)',
+      name: 'Direct Labor',
       base: costBreakdown.laborBase,
       active: costBreakdown.laborActive,
       items: [
-        { name: 'Labor Rate Variance (LRV)', desc: 'Labor rate change across work centers', val: costBreakdown.lrv },
-        { name: 'Labor Efficiency Variance (LEV)', desc: 'Yield / capacity change impact on labor runtime', val: costBreakdown.lev }
+        { name: 'Labor Rate Variance', desc: 'Labor rate change across work centers', val: costBreakdown.lrv },
+        { name: 'Labor Efficiency Variance', desc: 'Yield / capacity change impact on labor runtime', val: costBreakdown.lev }
       ]
     },
     {
-      name: 'Manufacturing Burden (C_B)',
+      name: 'Manufacturing Burden',
       base: costBreakdown.burdenBase,
       active: costBreakdown.burdenActive,
       items: [
-        { name: 'Burden Rate Variance (BRV)', desc: 'Overhead rate change across work centers', val: costBreakdown.brv },
-        { name: 'Burden Efficiency Variance (BEV)', desc: 'Yield / capacity change impact on burden absorption', val: costBreakdown.bev }
+        { name: 'Burden Rate Variance', desc: 'Overhead rate change across work centers', val: costBreakdown.brv },
+        { name: 'Burden Efficiency Variance', desc: 'Yield / capacity change impact on burden absorption', val: costBreakdown.bev }
       ]
     }
   ]
@@ -44,21 +44,21 @@ export const VarianceTreeCard: React.FC<VarianceTreeCardProps> = ({ costBreakdow
   const isBalanced = Math.abs(costBreakdown.totalVariance - sumVariances) < 0.0001
 
   return (
-    <div className="bg-white rounded-lg border border-slate-200/90 shadow-xs overflow-hidden">
+    <div className="bg-white rounded-lg border border-slate-200 shadow-xs overflow-hidden">
       {/* Header */}
-      <div className="flex items-center justify-between px-4 py-3 bg-slate-50/70 border-b border-slate-200/80">
+      <div className="flex items-center justify-between px-4 py-3 bg-slate-50 border-b border-slate-200">
         <div>
           <h3 className="text-xs font-bold font-mono text-slate-800 uppercase tracking-tight">
-            Level 2: Variance Decomposition Tree
+            Variance Decomposition Tree
           </h3>
           <p className="text-[11px] text-slate-500 font-sans mt-0.5">
-            Atomic Level 3 decomposition into price, loss, and conversion efficiency variances
+            Decomposition into price, loss, and conversion efficiency variances
           </p>
         </div>
         <div className="text-right flex items-center gap-2 font-mono">
-          <span className="text-[11px] text-slate-500">Net Δ C_Total:</span>
-          <span className={`text-xs font-bold px-2 py-0.5 rounded font-mono tabular-nums ${
-            costBreakdown.totalVariance >= 0 ? 'bg-rose-50 text-rose-700 border border-rose-200' : 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+          <span className="text-[11px] text-slate-500">Net Variance (Δ):</span>
+          <span className={`text-xs font-bold px-2 py-0.5 rounded font-mono tabular-nums bg-slate-100 border border-slate-200 ${
+            costBreakdown.totalVariance >= 0 ? 'text-rose-700' : 'text-emerald-700'
           }`}>
             {formatVariance(costBreakdown.totalVariance, 4)} THB/pc
           </span>

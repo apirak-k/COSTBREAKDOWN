@@ -1,28 +1,18 @@
 import React from 'react'
 import {
   CostElementBreakdown,
-  WorkCenterRate,
-  BOMItem,
-  RoutingStep,
   formatNumber,
   formatVariance,
-  formatPercent,
-  calculateDataConfidenceSummary
+  formatPercent
 } from '../../../core'
 import { KPIStatCard } from '../../../shared'
 
 interface ExecutiveKPICardsProps {
   costBreakdown: CostElementBreakdown
-  rates?: WorkCenterRate[]
-  bom?: BOMItem[]
-  routing?: RoutingStep[]
 }
 
 export const ExecutiveKPICards: React.FC<ExecutiveKPICardsProps> = ({
-  costBreakdown,
-  rates = [],
-  bom = [],
-  routing = []
+  costBreakdown
 }) => {
   const {
     totalBase, totalActive, totalVariance,
@@ -35,10 +25,8 @@ export const ExecutiveKPICards: React.FC<ExecutiveKPICardsProps> = ({
   const labVar = laborActive - laborBase
   const burVar = burdenActive - burdenBase
 
-  const confidenceSummary = calculateDataConfidenceSummary(rates, bom, routing)
-
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3.5">
+    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5">
       {/* 1. Total Standard Cost */}
       <KPIStatCard
         title="Total Standard Cost"
@@ -53,7 +41,7 @@ export const ExecutiveKPICards: React.FC<ExecutiveKPICardsProps> = ({
 
       {/* 2. Direct Material */}
       <KPIStatCard
-        title="Direct Material (C_M)"
+        title="Direct Material"
         value={formatNumber(materialActive, 4)}
         badgeText={`Base: ${formatNumber(materialBase, 4)}`}
         delta={{
@@ -65,7 +53,7 @@ export const ExecutiveKPICards: React.FC<ExecutiveKPICardsProps> = ({
 
       {/* 3. Direct Labor */}
       <KPIStatCard
-        title="Direct Labor (C_L)"
+        title="Direct Labor"
         value={formatNumber(laborActive, 4)}
         badgeText={`Base: ${formatNumber(laborBase, 4)}`}
         delta={{
@@ -77,7 +65,7 @@ export const ExecutiveKPICards: React.FC<ExecutiveKPICardsProps> = ({
 
       {/* 4. Manufacturing Burden */}
       <KPIStatCard
-        title="Mfg Burden (C_B)"
+        title="Mfg Burden"
         value={formatNumber(burdenActive, 4)}
         badgeText={`Base: ${formatNumber(burdenBase, 4)}`}
         delta={{
@@ -86,37 +74,6 @@ export const ExecutiveKPICards: React.FC<ExecutiveKPICardsProps> = ({
           percent: burdenBase > 0 ? formatPercent(burVar / burdenBase, 1) : undefined
         }}
       />
-
-      {/* 5. Data Confidence Roll-up */}
-      <div className="bg-white rounded-lg border border-slate-200/90 p-4 shadow-xs flex flex-col justify-between hover:border-slate-300 hover:shadow-sm transition-all duration-150">
-        <div className="flex items-center justify-between gap-1">
-          <span className="text-[10px] font-bold font-mono text-slate-500 uppercase tracking-wider">
-            Data Confidence
-          </span>
-          <span
-            className={`px-2 py-0.5 text-[10px] font-mono font-semibold rounded border ${
-              confidenceSummary.verifiedPercentage >= 80
-                ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
-                : confidenceSummary.verifiedPercentage >= 50
-                ? 'bg-amber-50 text-amber-800 border-amber-200'
-                : 'bg-rose-50 text-rose-800 border-rose-200'
-            }`}
-          >
-            {confidenceSummary.verifiedCount}/{confidenceSummary.totalFields} VER
-          </span>
-        </div>
-        <div className="mt-3">
-          <div className="text-xl font-bold font-mono text-slate-900 tracking-tight tabular-nums">
-            {confidenceSummary.verifiedPercentage.toFixed(1)}% <span className="text-[11px] font-normal text-slate-400 font-sans">Verified</span>
-          </div>
-          <div className="text-[10px] font-mono text-slate-500 mt-1 flex items-center justify-between pt-1 border-t border-slate-100">
-            <span className="text-emerald-700 font-medium">✓ {confidenceSummary.verifiedCount} Ver</span>
-            <span className="text-amber-700 font-medium">! {confidenceSummary.estimatedCount} Est</span>
-            <span className="text-rose-700 font-medium">✕ {confidenceSummary.missingCount} Mis</span>
-          </div>
-        </div>
-      </div>
-
     </div>
   )
 }

@@ -25,19 +25,19 @@ export const CandidateSelectionPage: React.FC = () => {
   return (
     <div className="space-y-4">
       {/* Header Panel */}
-      <div className="bg-white px-4 py-3 rounded-lg border border-slate-200/90 shadow-xs flex flex-wrap items-center justify-between gap-3">
+      <div className="bg-white px-4 py-3 rounded-lg border border-slate-200 shadow-xs flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="text-xs font-bold font-mono text-slate-800 uppercase tracking-tight">
-            Section 3: Cost Driver Prioritization &amp; Candidate Selection
+            Cost Driver Prioritization
           </h1>
           <p className="text-[11px] text-slate-500 font-sans mt-0.5">
-            Ranked by atomic Cost Gap with Human-in-the-Loop Controllability Governance
+            Ranked by Cost Gap with Controllability Assessment
           </p>
         </div>
         <div className="text-right font-mono flex items-center gap-2">
-          <span className="text-[11px] text-slate-500">Net Std Cost Variance (Δ):</span>
-          <span className={`text-xs font-bold px-2 py-0.5 rounded font-mono tabular-nums ${
-            totalVariance >= 0 ? 'bg-rose-50 text-rose-700 border border-rose-200' : 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+          <span className="text-[11px] text-slate-500">Net Variance (Δ):</span>
+          <span className={`text-xs font-bold px-2 py-0.5 rounded font-mono tabular-nums bg-slate-100 border border-slate-200 ${
+            totalVariance >= 0 ? 'text-rose-700' : 'text-emerald-700'
           }`}>
             {formatVariance(totalVariance, 4)} THB/pc
           </span>

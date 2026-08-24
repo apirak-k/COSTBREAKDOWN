@@ -97,7 +97,7 @@ export const AddBOMModal: React.FC<AddBOMModalProps> = ({
                 value={itemCode}
                 onChange={e => { setItemCode(e.target.value); setError('') }}
                 placeholder="e.g. RMMBA1020"
-                className="w-full px-3 py-1.5 bg-amber-50 border border-amber-200 rounded-lg font-mono font-bold focus:outline-none focus:ring-1 focus:ring-amber-400"
+                className="w-full px-3 py-1.5 bg-white border border-slate-300 rounded-md font-mono font-bold text-slate-900 focus:outline-none focus:ring-1 focus:ring-slate-800 focus:border-slate-800 shadow-2xs"
                 required
               />
             </div>
@@ -106,7 +106,7 @@ export const AddBOMModal: React.FC<AddBOMModalProps> = ({
               <select
                 value={unit}
                 onChange={e => setUnit(e.target.value)}
-                className="w-full px-3 py-1.5 bg-amber-50 border border-amber-200 rounded-lg font-mono font-bold focus:outline-none focus:ring-1 focus:ring-amber-400 cursor-pointer"
+                className="w-full px-3 py-1.5 bg-white border border-slate-300 rounded-md font-mono font-bold text-slate-900 focus:outline-none focus:ring-1 focus:ring-slate-800 focus:border-slate-800 cursor-pointer shadow-2xs"
               >
                 {uomList.map(u => (
                   <option key={u} value={u}>{u}</option>
@@ -122,7 +122,7 @@ export const AddBOMModal: React.FC<AddBOMModalProps> = ({
               value={description}
               onChange={e => setDescription(e.target.value)}
               placeholder="e.g. DOTITE Conductive Silver Paste"
-              className="w-full px-3 py-1.5 bg-amber-50 border border-amber-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-amber-400"
+              className="w-full px-3 py-1.5 bg-white border border-slate-300 rounded-md text-slate-900 focus:outline-none focus:ring-1 focus:ring-slate-800 focus:border-slate-800 shadow-2xs"
             />
           </div>
 
@@ -136,7 +136,7 @@ export const AddBOMModal: React.FC<AddBOMModalProps> = ({
                 value={consumption}
                 onChange={e => setConsumption(e.target.value)}
                 placeholder="0.0035"
-                className="w-full px-3 py-1.5 bg-amber-50 border border-amber-200 rounded-lg font-mono font-bold focus:outline-none focus:ring-1 focus:ring-amber-400"
+                className="w-full px-3 py-1.5 bg-white border border-slate-300 rounded-md font-mono font-bold text-slate-900 focus:outline-none focus:ring-1 focus:ring-slate-800 focus:border-slate-800 shadow-2xs"
                 required
               />
             </div>
@@ -149,7 +149,7 @@ export const AddBOMModal: React.FC<AddBOMModalProps> = ({
                 value={basePrice}
                 onChange={e => setBasePrice(e.target.value)}
                 placeholder="150.00"
-                className="w-full px-3 py-1.5 bg-amber-50 border border-amber-200 rounded-lg font-mono focus:outline-none focus:ring-1 focus:ring-amber-400"
+                className="w-full px-3 py-1.5 bg-white border border-slate-300 rounded-md font-mono text-slate-900 focus:outline-none focus:ring-1 focus:ring-slate-800 focus:border-slate-800 shadow-2xs"
               />
             </div>
             <div>
@@ -161,7 +161,7 @@ export const AddBOMModal: React.FC<AddBOMModalProps> = ({
                 value={activePrice}
                 onChange={e => setActivePrice(e.target.value)}
                 placeholder="545.60"
-                className="w-full px-3 py-1.5 bg-amber-50 border border-amber-200 rounded-lg font-mono font-bold focus:outline-none focus:ring-1 focus:ring-amber-400"
+                className="w-full px-3 py-1.5 bg-white border border-slate-300 rounded-md font-mono font-bold text-slate-900 focus:outline-none focus:ring-1 focus:ring-slate-800 focus:border-slate-800 shadow-2xs"
               />
             </div>
           </div>
@@ -177,7 +177,7 @@ export const AddBOMModal: React.FC<AddBOMModalProps> = ({
                 value={baseLoss}
                 onChange={e => setBaseLoss(e.target.value)}
                 placeholder="30"
-                className="w-full px-3 py-1.5 bg-amber-50 border border-amber-200 rounded-lg font-mono focus:outline-none focus:ring-1 focus:ring-amber-400"
+                className="w-full px-3 py-1.5 bg-white border border-slate-300 rounded-md font-mono text-slate-900 focus:outline-none focus:ring-1 focus:ring-slate-800 focus:border-slate-800 shadow-2xs"
               />
             </div>
             <div>
@@ -190,7 +190,7 @@ export const AddBOMModal: React.FC<AddBOMModalProps> = ({
                 value={activeLoss}
                 onChange={e => setActiveLoss(e.target.value)}
                 placeholder="30"
-                className="w-full px-3 py-1.5 bg-amber-50 border border-amber-200 rounded-lg font-mono font-bold focus:outline-none focus:ring-1 focus:ring-amber-400"
+                className="w-full px-3 py-1.5 bg-white border border-slate-300 rounded-md font-mono font-bold text-slate-900 focus:outline-none focus:ring-1 focus:ring-slate-800 focus:border-slate-800 shadow-2xs"
               />
             </div>
           </div>
@@ -202,7 +202,7 @@ export const AddBOMModal: React.FC<AddBOMModalProps> = ({
               value={sourceRef}
               onChange={e => setSourceRef(e.target.value)}
               placeholder="e.g. Price List 07-26 row 112"
-              className="w-full px-3 py-1.5 bg-amber-50 border border-amber-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-amber-400"
+              className="w-full px-3 py-1.5 bg-white border border-slate-300 rounded-md text-slate-900 focus:outline-none focus:ring-1 focus:ring-slate-800 focus:border-slate-800 shadow-2xs"
             />
           </div>
 

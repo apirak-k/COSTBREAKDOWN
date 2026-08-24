@@ -126,9 +126,9 @@ export const RCASimulationPage: React.FC = () => {
       {/* Header */}
       <div className="bg-white px-5 py-4 rounded-xl border border-slate-200 shadow-xs flex items-center justify-between">
         <div>
-          <h1 className="text-sm font-bold text-slate-900">4. Root Cause Analysis &amp; What-If Simulator</h1>
+          <h1 className="text-sm font-bold text-slate-900">Root Cause Analysis &amp; What-If Simulator</h1>
           <p className="text-[11px] text-slate-500 mt-0.5">
-            Evaluate ROI and Net Benefit across 3 improvement scenarios with 2-Step economic feasibility
+            Evaluate ROI and Net Benefit across 3 Scenarios
           </p>
         </div>
       </div>
@@ -158,9 +158,9 @@ export const RCASimulationPage: React.FC = () => {
       )}
 
       {/* Current Total Reference */}
-      <div className="flex items-center justify-between text-xs bg-slate-50 p-3.5 rounded-lg border border-slate-200/60 font-mono">
+      <div className="flex items-center justify-between text-xs bg-slate-50 p-3 rounded-lg border border-slate-200 font-mono">
         <span className="font-sans text-slate-600 font-medium">
-          Current Active Total Standard Cost:
+          Active Total Cost:
         </span>
         <span className="font-bold text-slate-900 text-sm">
           {formatCurrency(costBreakdown.totalActive, 4, 'THB/pc')}

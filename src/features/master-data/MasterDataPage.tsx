@@ -41,6 +41,9 @@ export const MasterDataPage: React.FC = () => {
     clearAllData
   } = useAppStore()
 
+  // Mode State (Default = View Mode / Read-Only for high cleanliness and error prevention)
+  const [isEditMode, setIsEditMode] = useState(false)
+
   // Modal States
   const [setupModalOpen, setSetupModalOpen] = useState(false)
 
@@ -70,6 +73,8 @@ export const MasterDataPage: React.FC = () => {
         uomList={uomList}
         status={activeSession.status}
         versionLabel={activeSession.versionLabel}
+        isEditMode={isEditMode}
+        onToggleEditMode={setIsEditMode}
         onCloneToDraft={() => cloneActiveToDraft(activeSession.id)}
         onActivateDraft={() => activateDraft(activeSession.id)}
         onUpdateProduct={updateProduct}
@@ -90,6 +95,7 @@ export const MasterDataPage: React.FC = () => {
       {/* 3. Section B: Work Center Rates */}
       <WorkCenterRatesTable
         rates={rates}
+        isEditMode={isEditMode}
         onAddRate={() => setRateModal({ isOpen: true })}
         onEditRate={r => setRateModal({ isOpen: true, data: r })}
         onUpdateRate={updateWorkCenterRate}
@@ -100,6 +106,7 @@ export const MasterDataPage: React.FC = () => {
       <BOMTable
         bom={bom}
         activeMaterialCost={costBreakdown.materialActive}
+        isEditMode={isEditMode}
         onAddBOMItem={() => setBomModal({ isOpen: true })}
         onEditBOMItem={b => setBomModal({ isOpen: true, data: b })}
         onUpdateBOMItem={updateBOMItem}
@@ -111,6 +118,7 @@ export const MasterDataPage: React.FC = () => {
         routing={routing}
         rates={rates}
         activeConvCost={costBreakdown.laborActive + costBreakdown.burdenActive}
+        isEditMode={isEditMode}
         onAddRoutingStep={() => setRoutingModal({ isOpen: true })}
         onEditRoutingStep={rt => setRoutingModal({ isOpen: true, data: rt })}
         onUpdateRoutingStep={updateRoutingStep}

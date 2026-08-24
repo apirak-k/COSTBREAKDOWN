@@ -13,16 +13,17 @@ interface ConfidenceBadgeProps {
  */
 export const ConfidenceBadge: React.FC<ConfidenceBadgeProps> = ({
   status,
-  showLabel = true,
+  showLabel = false,
   className = ''
 }) => {
   if (status === 'verified') {
     return (
       <span
-        className={`inline-flex items-center px-1.5 py-0.2 text-[9px] font-mono font-bold uppercase tracking-tight bg-emerald-100 text-emerald-800 border border-emerald-300 rounded-none select-none ${className}`}
-        title="Verified: Data confirmed with authoritative source reference"
+        className={`inline-flex items-center gap-1.5 select-none ${className}`}
+        title="Verified"
       >
-        {showLabel ? 'VERIFIED' : 'VER'}
+        <span className="w-2 h-2 rounded-full bg-emerald-500 inline-block shrink-0 shadow-2xs" />
+        {showLabel && <span className="text-[10px] font-mono text-slate-700">Verified</span>}
       </span>
     )
   }
@@ -30,20 +31,22 @@ export const ConfidenceBadge: React.FC<ConfidenceBadgeProps> = ({
   if (status === 'estimated') {
     return (
       <span
-        className={`inline-flex items-center px-1.5 py-0.2 text-[9px] font-mono font-bold uppercase tracking-tight bg-amber-100 text-amber-900 border border-amber-300 rounded-none select-none ${className}`}
-        title="Estimated: Placeholder or unconfirmed assumption"
+        className={`inline-flex items-center gap-1.5 select-none ${className}`}
+        title="Estimated"
       >
-        {showLabel ? 'ESTIMATED' : 'EST'}
+        <span className="w-2 h-2 rounded-full bg-amber-500 inline-block shrink-0 shadow-2xs" />
+        {showLabel && <span className="text-[10px] font-mono text-slate-700">Estimated</span>}
       </span>
     )
   }
 
   return (
     <span
-      className={`inline-flex items-center px-1.5 py-0.2 text-[9px] font-mono font-bold uppercase tracking-tight bg-rose-100 text-rose-900 border border-rose-300 rounded-none select-none ${className}`}
-      title="Missing: Data not yet provided"
+      className={`inline-flex items-center gap-1.5 select-none ${className}`}
+      title="Missing"
     >
-      {showLabel ? 'MISSING' : 'MIS'}
+      <span className="w-2 h-2 rounded-full bg-rose-500 inline-block shrink-0 shadow-2xs" />
+      {showLabel && <span className="text-[10px] font-mono text-slate-700">Missing</span>}
     </span>
   )
 }

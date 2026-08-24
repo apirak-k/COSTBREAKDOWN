@@ -103,7 +103,7 @@ export const AddRoutingModal: React.FC<AddRoutingModalProps> = ({
                 value={opSeq}
                 onChange={e => { setOpSeq(e.target.value); setError('') }}
                 placeholder="10"
-                className="w-full px-3 py-1.5 bg-amber-50 border border-amber-200 rounded-lg font-mono focus:outline-none focus:ring-1 focus:ring-amber-400"
+                className="w-full px-3 py-1.5 bg-white border border-slate-300 rounded-md font-mono text-slate-900 focus:outline-none focus:ring-1 focus:ring-slate-800 focus:border-slate-800 shadow-2xs"
                 required
               />
             </div>
@@ -112,7 +112,7 @@ export const AddRoutingModal: React.FC<AddRoutingModalProps> = ({
               <select
                 value={wc}
                 onChange={e => setWc(e.target.value)}
-                className="w-full px-3 py-1.5 bg-amber-50 border border-amber-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-amber-400 font-mono font-bold cursor-pointer"
+                className="w-full px-3 py-1.5 bg-white border border-slate-300 rounded-md focus:outline-none focus:ring-1 focus:ring-slate-800 focus:border-slate-800 font-mono font-bold text-slate-900 cursor-pointer shadow-2xs"
               >
                 {rates.map(r => (
                   <option key={r.wc} value={r.wc}>
@@ -130,7 +130,7 @@ export const AddRoutingModal: React.FC<AddRoutingModalProps> = ({
               value={description}
               onChange={e => setDescription(e.target.value)}
               placeholder="e.g. Silver Conductor Screen Printing"
-              className="w-full px-3 py-1.5 bg-amber-50 border border-amber-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-amber-400"
+              className="w-full px-3 py-1.5 bg-white border border-slate-300 rounded-md text-slate-900 focus:outline-none focus:ring-1 focus:ring-slate-800 focus:border-slate-800 shadow-2xs"
               required
             />
           </div>
@@ -145,7 +145,7 @@ export const AddRoutingModal: React.FC<AddRoutingModalProps> = ({
                 value={manning}
                 onChange={e => setManning(e.target.value)}
                 placeholder="1"
-                className="w-full px-3 py-1.5 bg-amber-50 border border-amber-200 rounded-lg font-mono focus:outline-none focus:ring-1 focus:ring-amber-400"
+                className="w-full px-3 py-1.5 bg-white border border-slate-300 rounded-md font-mono text-slate-900 focus:outline-none focus:ring-1 focus:ring-slate-800 focus:border-slate-800 shadow-2xs"
                 required
               />
             </div>
@@ -158,7 +158,7 @@ export const AddRoutingModal: React.FC<AddRoutingModalProps> = ({
                 value={baseCap}
                 onChange={e => setBaseCap(e.target.value)}
                 placeholder="1000"
-                className="w-full px-3 py-1.5 bg-amber-50 border border-amber-200 rounded-lg font-mono focus:outline-none focus:ring-1 focus:ring-amber-400"
+                className="w-full px-3 py-1.5 bg-white border border-slate-300 rounded-md font-mono text-slate-900 focus:outline-none focus:ring-1 focus:ring-slate-800 focus:border-slate-800 shadow-2xs"
                 required
               />
             </div>
@@ -171,7 +171,7 @@ export const AddRoutingModal: React.FC<AddRoutingModalProps> = ({
                 value={activeCap}
                 onChange={e => setActiveCap(e.target.value)}
                 placeholder="1000"
-                className="w-full px-3 py-1.5 bg-amber-50 border border-amber-200 rounded-lg font-mono font-bold focus:outline-none focus:ring-1 focus:ring-amber-400"
+                className="w-full px-3 py-1.5 bg-white border border-slate-300 rounded-md font-mono font-bold text-slate-900 focus:outline-none focus:ring-1 focus:ring-slate-800 focus:border-slate-800 shadow-2xs"
                 required
               />
             </div>
@@ -188,7 +188,7 @@ export const AddRoutingModal: React.FC<AddRoutingModalProps> = ({
                 value={baseYield}
                 onChange={e => setBaseYield(e.target.value)}
                 placeholder="98"
-                className="w-full px-3 py-1.5 bg-amber-50 border border-amber-200 rounded-lg font-mono focus:outline-none focus:ring-1 focus:ring-amber-400"
+                className="w-full px-3 py-1.5 bg-white border border-slate-300 rounded-md font-mono text-slate-900 focus:outline-none focus:ring-1 focus:ring-slate-800 focus:border-slate-800 shadow-2xs"
               />
             </div>
             <div>
@@ -201,7 +201,7 @@ export const AddRoutingModal: React.FC<AddRoutingModalProps> = ({
                 value={activeYield}
                 onChange={e => setActiveYield(e.target.value)}
                 placeholder="95"
-                className="w-full px-3 py-1.5 bg-amber-50 border border-amber-200 rounded-lg font-mono font-bold focus:outline-none focus:ring-1 focus:ring-amber-400"
+                className="w-full px-3 py-1.5 bg-white border border-slate-300 rounded-md font-mono font-bold text-slate-900 focus:outline-none focus:ring-1 focus:ring-slate-800 focus:border-slate-800 shadow-2xs"
               />
             </div>
           </div>
@@ -213,7 +213,7 @@ export const AddRoutingModal: React.FC<AddRoutingModalProps> = ({
               value={sourceRef}
               onChange={e => setSourceRef(e.target.value)}
               placeholder="e.g. TimeStudy-2026"
-              className="w-full px-3 py-1.5 bg-amber-50 border border-amber-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-amber-400"
+              className="w-full px-3 py-1.5 bg-white border border-slate-300 rounded-md text-slate-900 focus:outline-none focus:ring-1 focus:ring-slate-800 focus:border-slate-800 shadow-2xs"
             />
           </div>
 

@@ -18,7 +18,7 @@ export const CostBreakdownPage: React.FC = () => {
   return (
     <div className="space-y-4">
       {/* 1. Top Executive KPIs */}
-      <ExecutiveKPICards costBreakdown={costBreakdown} rates={rates} bom={bom} routing={routing} />
+      <ExecutiveKPICards costBreakdown={costBreakdown} />
 
       {/* 2. Variance Tree Decomposition */}
       <VarianceTreeCard costBreakdown={costBreakdown} />
@@ -36,7 +36,7 @@ export const CostBreakdownPage: React.FC = () => {
             ) : (
               <ChevronRight className="w-3.5 h-3.5 text-slate-500" />
             )}
-            <span>Level 3: Granular Itemized Cost Breakdown</span>
+            <span>Itemized Cost Breakdown</span>
           </button>
 
           {/* Sub-Tab Switcher */}
@@ -46,20 +46,20 @@ export const CostBreakdownPage: React.FC = () => {
               className={`px-2.5 py-1 rounded transition-colors cursor-pointer ${
                 subTab === 'bom'
                   ? 'bg-slate-900 text-white font-bold'
-                  : 'bg-slate-200 text-slate-700 hover:bg-slate-300'
+                  : 'bg-slate-100 text-slate-700 hover:bg-slate-200 border border-slate-200'
               }`}
             >
-              BOM Material ({bom.length})
+              BOM ({bom.length})
             </button>
             <button
               onClick={() => setSubTab('routing')}
               className={`px-2.5 py-1 rounded transition-colors cursor-pointer ${
                 subTab === 'routing'
                   ? 'bg-slate-900 text-white font-bold'
-                  : 'bg-slate-200 text-slate-700 hover:bg-slate-300'
+                  : 'bg-slate-100 text-slate-700 hover:bg-slate-200 border border-slate-200'
               }`}
             >
-              Routing Ops ({routing.length})
+              Routing ({routing.length})
             </button>
           </div>
         </div>

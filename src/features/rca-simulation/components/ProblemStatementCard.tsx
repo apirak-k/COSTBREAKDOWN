@@ -33,7 +33,7 @@ export const ProblemStatementCard: React.FC<ProblemStatementCardProps> = ({ driv
             {driver.category}
           </span>
           {isUncontrollable && (
-            <span className="px-2 py-0.5 text-[10px] font-mono font-bold bg-amber-50 text-amber-900 rounded border border-amber-300">
+            <span className="px-2 py-0.5 text-[10px] font-mono font-bold bg-slate-100 text-slate-700 rounded border border-slate-300">
               UNCONTROLLABLE
             </span>
           )}
@@ -41,32 +41,32 @@ export const ProblemStatementCard: React.FC<ProblemStatementCardProps> = ({ driv
 
         <div className="text-right font-mono flex items-center gap-1.5">
           <span className="text-[11px] text-slate-500">Cost Gap:</span>
-          <span className="text-xs font-bold text-rose-600 bg-rose-50 px-2 py-0.5 rounded border border-rose-200 tabular-nums">
+          <span className="text-xs font-bold text-rose-700 bg-slate-100 px-2 py-0.5 rounded border border-slate-200 tabular-nums">
             {formatVariance(driver.costGap, 4)} THB/pc
           </span>
         </div>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5 text-xs">
-        <div className="p-2.5 bg-slate-50/80 rounded-md border border-slate-200/80 space-y-1">
-          <p className="text-[10px] font-mono font-bold uppercase tracking-wider text-slate-400">RCA Parameter &amp; Symptom</p>
+        <div className="p-2.5 bg-slate-50 rounded border border-slate-200 space-y-1">
+          <p className="text-[10px] font-mono font-bold uppercase tracking-wider text-slate-400">Parameter &amp; Symptom</p>
           <p className="font-mono text-xs text-slate-800 font-semibold">{driver.rcaParameter || 'Parameter variance'}</p>
         </div>
 
-        <div className="p-2.5 bg-amber-50/80 rounded-md border border-amber-200/80 space-y-1">
-          <p className="text-[10px] font-mono font-bold uppercase tracking-wider text-amber-700">Baseline vs Active Shift</p>
-          <p className="font-mono text-xs font-bold text-amber-950 tabular-nums">
+        <div className="p-2.5 bg-slate-50 rounded border border-slate-200 space-y-1">
+          <p className="text-[10px] font-mono font-bold uppercase tracking-wider text-slate-400">Baseline vs Active</p>
+          <p className="font-mono text-xs font-bold text-slate-900 tabular-nums">
             Base: {formatParam(driver.baseParameter, yieldDriver)} ➔ Active: {formatParam(driver.activeParameter, yieldDriver)}
           </p>
         </div>
       </div>
 
       {driver.actionPlan && (
-        <div className="p-2.5 bg-blue-50/70 rounded-md border border-blue-200/80 text-xs">
-          <span className="font-mono font-bold text-blue-900 text-[10px] uppercase tracking-wider block mb-0.5">
-            Documented Action Plan:
+        <div className="p-2.5 bg-slate-50 rounded border border-slate-200 text-xs">
+          <span className="font-mono font-bold text-slate-700 text-[10px] uppercase tracking-wider block mb-0.5">
+            Action Plan:
           </span>
-          <p className="text-blue-950 font-sans">{driver.actionPlan}</p>
+          <p className="text-slate-800 font-sans">{driver.actionPlan}</p>
         </div>
       )}
     </div>

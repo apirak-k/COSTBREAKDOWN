@@ -77,7 +77,7 @@ export const AddRateModal: React.FC<AddRateModalProps> = ({
                 value={wc}
                 onChange={e => { setWc(e.target.value); setError('') }}
                 placeholder="e.g. Cutting"
-                className="w-full px-3 py-1.5 bg-amber-50 border border-amber-200 rounded-lg font-mono font-bold focus:outline-none focus:ring-1 focus:ring-amber-400"
+                className="w-full px-3 py-1.5 bg-white border border-slate-300 rounded-md font-mono font-bold text-slate-900 focus:outline-none focus:ring-1 focus:ring-slate-800 focus:border-slate-800 shadow-2xs"
                 required
                 disabled={!!initialData}
               />
@@ -88,7 +88,7 @@ export const AddRateModal: React.FC<AddRateModalProps> = ({
                 type="date"
                 value={effectiveDate}
                 onChange={e => setEffectiveDate(e.target.value)}
-                className="w-full px-3 py-1.5 bg-amber-50 border border-amber-200 rounded-lg font-mono focus:outline-none focus:ring-1 focus:ring-amber-400"
+                className="w-full px-3 py-1.5 bg-white border border-slate-300 rounded-md font-mono text-slate-900 focus:outline-none focus:ring-1 focus:ring-slate-800 focus:border-slate-800 shadow-2xs"
               />
             </div>
           </div>
@@ -100,7 +100,7 @@ export const AddRateModal: React.FC<AddRateModalProps> = ({
               value={description}
               onChange={e => setDescription(e.target.value)}
               placeholder="e.g. Digital Assembly RGOM Line"
-              className="w-full px-3 py-1.5 bg-amber-50 border border-amber-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-amber-400"
+              className="w-full px-3 py-1.5 bg-white border border-slate-300 rounded-md text-slate-900 focus:outline-none focus:ring-1 focus:ring-slate-800 focus:border-slate-800 shadow-2xs"
             />
           </div>
 
@@ -114,7 +114,7 @@ export const AddRateModal: React.FC<AddRateModalProps> = ({
                 value={laborRate}
                 onChange={e => setLaborRate(e.target.value)}
                 placeholder="105.29"
-                className="w-full px-3 py-1.5 bg-amber-50 border border-amber-200 rounded-lg font-mono font-bold focus:outline-none focus:ring-1 focus:ring-amber-400"
+                className="w-full px-3 py-1.5 bg-white border border-slate-300 rounded-md font-mono font-bold text-slate-900 focus:outline-none focus:ring-1 focus:ring-slate-800 focus:border-slate-800 shadow-2xs"
                 required
               />
             </div>
@@ -127,7 +127,7 @@ export const AddRateModal: React.FC<AddRateModalProps> = ({
                 value={burdenRate}
                 onChange={e => setBurdenRate(e.target.value)}
                 placeholder="95.00"
-                className="w-full px-3 py-1.5 bg-amber-50 border border-amber-200 rounded-lg font-mono font-bold focus:outline-none focus:ring-1 focus:ring-amber-400"
+                className="w-full px-3 py-1.5 bg-white border border-slate-300 rounded-md font-mono font-bold text-slate-900 focus:outline-none focus:ring-1 focus:ring-slate-800 focus:border-slate-800 shadow-2xs"
                 required
               />
             </div>
@@ -140,7 +140,7 @@ export const AddRateModal: React.FC<AddRateModalProps> = ({
               value={sourceRef}
               onChange={e => setSourceRef(e.target.value)}
               placeholder="e.g. Cost Declare 250331"
-              className="w-full px-3 py-1.5 bg-amber-50 border border-amber-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-amber-400"
+              className="w-full px-3 py-1.5 bg-white border border-slate-300 rounded-md text-slate-900 focus:outline-none focus:ring-1 focus:ring-slate-800 focus:border-slate-800 shadow-2xs"
             />
           </div>
 

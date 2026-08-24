@@ -31,9 +31,7 @@ export const BOMDetailedTable: React.FC<BOMDetailedTableProps> = ({ bom }) => {
           {rows.map((row, idx) => (
             <tr
               key={row.id}
-              className={`hover:bg-slate-50/70 transition-colors ${
-                Math.abs(row.variance) > 0.00005 && row.variance > 0 ? 'bg-rose-50/20' : ''
-              }`}
+              className="hover:bg-slate-50/70 transition-colors"
             >
               <td className="p-2.5 text-slate-400 tabular-nums">{idx + 1}</td>
               <td className="p-2.5 font-bold text-slate-900 whitespace-nowrap">{row.itemCode}</td>

@@ -61,7 +61,7 @@ export const ExcelImportPanel: React.FC<ExcelImportPanelProps> = ({
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
         <div>
           <h2 className="text-xs font-bold font-mono text-slate-900 uppercase tracking-tight flex items-center gap-1.5">
-            <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-600" />
+            <FileSpreadsheet className="w-3.5 h-3.5 text-slate-700" />
             Excel Data Sync &amp; Session Management
           </h2>
           <p className="text-[10px] text-slate-500 font-sans">
@@ -71,9 +71,9 @@ export const ExcelImportPanel: React.FC<ExcelImportPanelProps> = ({
 
         <button
           onClick={handleDownloadTemplate}
-          className="flex items-center gap-1 px-2.5 py-1 text-xs font-mono font-bold text-emerald-800 bg-emerald-50 hover:bg-emerald-100 border border-emerald-300 rounded-none transition-colors cursor-pointer self-start sm:self-auto"
+          className="flex items-center gap-1 px-2.5 py-1 text-xs font-mono font-bold text-slate-800 bg-slate-100 hover:bg-slate-200 border border-slate-300 rounded transition-colors cursor-pointer self-start sm:self-auto shadow-2xs"
         >
-          <Download className="w-3 h-3" />
+          <Download className="w-3 h-3 text-slate-600" />
           Download Template (.xlsx)
         </button>
       </div>
@@ -85,26 +85,26 @@ export const ExcelImportPanel: React.FC<ExcelImportPanelProps> = ({
       <div className="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-slate-200">
         <button
           onClick={() => setModalState({ isOpen: true, type: 'promote' })}
-          className="flex items-center gap-1 px-2.5 py-1 text-xs font-mono font-bold text-slate-700 bg-slate-100 hover:bg-slate-200 border border-slate-300 rounded-none transition-colors cursor-pointer"
+          className="flex items-center gap-1 px-2.5 py-1 text-xs font-mono font-bold text-slate-700 bg-white hover:bg-slate-50 border border-slate-300 rounded transition-colors cursor-pointer shadow-2xs"
           title="Promote current active prices/yields to become the new baseline standard"
         >
-          <ArrowUpCircle className="w-3 h-3 text-blue-600" />
+          <ArrowUpCircle className="w-3 h-3 text-slate-600" />
           Promote Active to Baseline
         </button>
 
         <div className="flex items-center gap-2">
           <button
             onClick={() => setModalState({ isOpen: true, type: 'reset' })}
-            className="flex items-center gap-1 px-2.5 py-1 text-xs font-mono font-medium text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded-none border border-slate-200 transition-colors cursor-pointer"
+            className="flex items-center gap-1 px-2.5 py-1 text-xs font-mono font-medium text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded border border-slate-200 transition-colors cursor-pointer"
           >
-            <RotateCcw className="w-3 h-3" />
+            <RotateCcw className="w-3 h-3 text-slate-500" />
             Reset Default
           </button>
           <button
             onClick={() => setModalState({ isOpen: true, type: 'clear' })}
-            className="flex items-center gap-1 px-2.5 py-1 text-xs font-mono font-medium text-rose-600 hover:text-rose-700 hover:bg-rose-50 rounded-none border border-rose-200 transition-colors cursor-pointer"
+            className="flex items-center gap-1 px-2.5 py-1 text-xs font-mono font-medium text-rose-700 hover:text-rose-800 hover:bg-slate-100 rounded border border-slate-200 transition-colors cursor-pointer"
           >
-            <Trash2 className="w-3 h-3" />
+            <Trash2 className="w-3 h-3 text-rose-600" />
             Clear Data
           </button>
         </div>

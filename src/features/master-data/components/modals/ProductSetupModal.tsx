@@ -134,7 +134,7 @@ export const ProductSetupModal: React.FC<ProductSetupModalProps> = ({
           {/* Section 1: Product Master Info */}
           <div className="space-y-3">
             <h4 className="text-[11px] font-bold uppercase tracking-wider text-slate-400">
-              1. Product Master Information
+              Product Master
             </h4>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
@@ -146,7 +146,7 @@ export const ProductSetupModal: React.FC<ProductSetupModalProps> = ({
                   value={productCode}
                   onChange={e => { setProductCode(e.target.value); setError('') }}
                   placeholder="e.g. RGOM-025"
-                  className="w-full px-3 py-1.5 text-xs font-mono font-bold text-slate-900 bg-amber-50 border border-amber-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-amber-400"
+                  className="w-full px-3 py-1.5 text-xs font-mono font-bold text-slate-900 bg-white border border-slate-300 rounded-md focus:outline-none focus:ring-1 focus:ring-slate-800 focus:border-slate-800 shadow-2xs"
                   required
                 />
               </div>
@@ -160,7 +160,7 @@ export const ProductSetupModal: React.FC<ProductSetupModalProps> = ({
                     <select
                       value={uom}
                       onChange={e => setUom(e.target.value)}
-                      className="flex-1 px-3 py-1.5 text-xs font-bold font-mono text-slate-900 bg-amber-50 border border-amber-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-amber-400 cursor-pointer"
+                      className="flex-1 px-3 py-1.5 text-xs font-bold font-mono text-slate-900 bg-white border border-slate-300 rounded-md focus:outline-none focus:ring-1 focus:ring-slate-800 focus:border-slate-800 cursor-pointer shadow-2xs"
                     >
                       {uomList.map(u => (
                         <option key={u} value={u}>{u}</option>
@@ -169,7 +169,7 @@ export const ProductSetupModal: React.FC<ProductSetupModalProps> = ({
                     <button
                       type="button"
                       onClick={() => setShowNewUom(true)}
-                      className="px-2.5 py-1.5 text-xs font-semibold text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-lg border border-slate-200 transition-colors"
+                      className="px-2.5 py-1.5 text-xs font-semibold text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-md border border-slate-200 transition-colors"
                       title="Add new UOM"
                     >
                       <Plus className="w-3.5 h-3.5" />
@@ -182,19 +182,19 @@ export const ProductSetupModal: React.FC<ProductSetupModalProps> = ({
                       value={newUomInput}
                       onChange={e => setNewUomInput(e.target.value)}
                       placeholder="NEW UOM"
-                      className="flex-1 px-3 py-1.5 text-xs font-mono font-bold text-slate-900 bg-amber-50 border border-amber-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-amber-400 uppercase"
+                      className="flex-1 px-3 py-1.5 text-xs font-mono font-bold text-slate-900 bg-white border border-slate-300 rounded-md focus:outline-none focus:ring-1 focus:ring-slate-800 focus:border-slate-800 uppercase shadow-2xs"
                     />
                     <button
                       type="button"
                       onClick={handleAddNewUOM}
-                      className="px-2.5 py-1.5 text-xs font-bold text-white bg-slate-900 hover:bg-slate-800 rounded-lg shadow-xs"
+                      className="px-2.5 py-1.5 text-xs font-bold text-white bg-slate-900 hover:bg-slate-800 rounded-md shadow-xs"
                     >
                       Add
                     </button>
                     <button
                       type="button"
                       onClick={() => setShowNewUom(false)}
-                      className="px-2 py-1.5 text-xs text-slate-500 hover:bg-slate-100 rounded-lg"
+                      className="px-2 py-1.5 text-xs text-slate-500 hover:bg-slate-100 rounded-md"
                     >
                       Cancel
                     </button>
@@ -212,7 +212,7 @@ export const ProductSetupModal: React.FC<ProductSetupModalProps> = ({
                 value={productDescription}
                 onChange={e => setProductDescription(e.target.value)}
                 placeholder="e.g. Automotive Display Panel"
-                className="w-full px-3 py-1.5 text-xs text-slate-900 bg-amber-50 border border-amber-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-amber-400"
+                className="w-full px-3 py-1.5 text-xs text-slate-900 bg-white border border-slate-300 rounded-md font-sans focus:outline-none focus:ring-1 focus:ring-slate-800 focus:border-slate-800 shadow-2xs"
               />
             </div>
           </div>
@@ -220,7 +220,7 @@ export const ProductSetupModal: React.FC<ProductSetupModalProps> = ({
           <div className="border-t border-slate-100 pt-3 space-y-3">
             {/* Section 2: Table Sizing Requirements */}
             <h4 className="text-[11px] font-bold uppercase tracking-wider text-slate-400">
-              2. Table Structure &amp; Sizing Setup
+              Table Sizing
             </h4>
             <div className="grid grid-cols-3 gap-3">
               <div>
@@ -233,7 +233,7 @@ export const ProductSetupModal: React.FC<ProductSetupModalProps> = ({
                   max={50}
                   value={wcCount}
                   onChange={e => setWcCount(Number(e.target.value))}
-                  className="w-full px-3 py-1.5 text-xs font-mono font-bold text-slate-900 bg-amber-50 border border-amber-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-amber-400"
+                  className="w-full px-3 py-1.5 text-xs font-mono font-bold text-slate-900 bg-white border border-slate-300 rounded-md focus:outline-none focus:ring-1 focus:ring-slate-800 focus:border-slate-800 shadow-2xs"
                   required
                 />
                 <span className="text-[10px] text-slate-400 mt-0.5 block">Departments</span>
@@ -249,7 +249,7 @@ export const ProductSetupModal: React.FC<ProductSetupModalProps> = ({
                   max={200}
                   value={bomCount}
                   onChange={e => setBomCount(Number(e.target.value))}
-                  className="w-full px-3 py-1.5 text-xs font-mono font-bold text-slate-900 bg-amber-50 border border-amber-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-amber-400"
+                  className="w-full px-3 py-1.5 text-xs font-mono font-bold text-slate-900 bg-white border border-slate-300 rounded-md focus:outline-none focus:ring-1 focus:ring-slate-800 focus:border-slate-800 shadow-2xs"
                   required
                 />
                 <span className="text-[10px] text-slate-400 mt-0.5 block">Materials</span>
@@ -265,7 +265,7 @@ export const ProductSetupModal: React.FC<ProductSetupModalProps> = ({
                   max={200}
                   value={routingCount}
                   onChange={e => setRoutingCount(Number(e.target.value))}
-                  className="w-full px-3 py-1.5 text-xs font-mono font-bold text-slate-900 bg-amber-50 border border-amber-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-amber-400"
+                  className="w-full px-3 py-1.5 text-xs font-mono font-bold text-slate-900 bg-white border border-slate-300 rounded-md focus:outline-none focus:ring-1 focus:ring-slate-800 focus:border-slate-800 shadow-2xs"
                   required
                 />
                 <span className="text-[10px] text-slate-400 mt-0.5 block">Operations</span>
@@ -286,7 +286,7 @@ export const ProductSetupModal: React.FC<ProductSetupModalProps> = ({
               type="submit"
               className="px-4 py-1.5 bg-slate-900 text-white rounded-lg hover:bg-slate-800 text-xs font-bold shadow-xs cursor-pointer transition-colors"
             >
-              {mode === 'create' ? 'Create Product & Initialize Grid' : 'Apply Sizing Changes'}
+              {mode === 'create' ? 'Create Product' : 'Save Sizing'}
             </button>
           </div>
         </form>

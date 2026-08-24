@@ -31,12 +31,15 @@ All AI agents MUST strictly comply with:
 ---
 
 ## 4. Anti-AI & High-Taste Design System (Visual Clarity & Comfort)
+* **Design Lead Standard**: Refer to [`Human-AI-Working-Standard/skills/taste-frontend.md`](Human-AI-Working-Standard/skills/taste-frontend.md) for detailed UI token planning, signature element definition, and anti-slop verification.
 * **Visual Clarity Over Dogma**: The primary UI goal is to be **easy to scan, easy to understand, and comfortable on the eyes without visual noise or fatigue**.
-* **Anti-Slop Standard**: STRICTLY FORBIDDEN: Generative AI design clichés (e.g., dark-purple neon gradients, textureless flat surfaces, nested cards 3+ levels deep, excessive blurry drop-shadows).
+* **Anti-Slop Standard**: STRICTLY FORBIDDEN: Generative AI design clichés (e.g., dark-purple neon gradients, textureless flat surfaces, nested cards 3+ levels deep, excessive blurry drop-shadows, meaningless `01/02/03` numbering).
 * **Balanced & Refined Geometry**: Use natural, modern rounded corners (`rounded-lg` for cards/panels, `rounded-md` for inputs/buttons, `rounded-full` or `rounded-sm` for badges). Avoid awkward bubbly shapes or suffocating rigid boxes.
 * **Restrained Industrial Palette**: Clean neutral base (Slate, Zinc, White, Off-white), with semantic accents used strictly for financial/status meaning (Emerald for savings/verified, Rose for cost overruns, Amber for editable active inputs).
 * **Tabular Numbers & Legibility**: All financial amounts, variances, and cycle times MUST use `font-mono tabular-nums` to ensure exact decimal alignment.
+* **Intentional Microcopy**: Use clear, user-centric action verbs for all buttons and controls (e.g., `"Export Excel"`, `"Save changes"` instead of generic `"Submit"`). Error and empty states must provide a single clear action to proceed.
 * **Fluid Responsiveness**: Layouts must dynamically adjust to any screen size (Mobile to Ultrawide) using fluid utility classes (`w-full`, `max-w-7xl`, `grid`, `flex-wrap`).
+
 
 
 

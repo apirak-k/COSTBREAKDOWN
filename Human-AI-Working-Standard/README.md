@@ -22,7 +22,9 @@ procedure.
 | [`skills/`](skills/) | Directory of on-demand working modes as standalone `.md` files |
 | ├── [`skills/grill-me.md`](skills/grill-me.md) | Requirement interview mode — extracts and clarifies scope before building |
 | ├── [`skills/caveman.md`](skills/caveman.md) | Ultra-compressed communication mode — minimizes token usage while keeping accuracy |
-| └── [`skills/qa-edgecase.md`](skills/qa-edgecase.md) | QA and edge case detection mode — spots edge cases, boundary errors, and Excel safety issues |
+| ├── [`skills/qa-edgecase.md`](skills/qa-edgecase.md) | QA and edge case detection mode — spots edge cases, boundary errors, and Excel safety issues |
+| ├── [`skills/taste-frontend.md`](skills/taste-frontend.md) | High-taste & anti-slop frontend design guide — distinctive UI, typography, microcopy, and financial tables |
+| └── [`skills/drawio.md`](skills/drawio.md) | Flowchart and diagram mode — generates and inspects Draw.io XML workflows |
 
 ### Adding new skills
 

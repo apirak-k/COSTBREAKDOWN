@@ -43,32 +43,32 @@ export const Navbar: React.FC = () => {
           {/* Brand + Product Selector */}
           <div className="flex items-center gap-3 shrink-0">
             <div className="flex items-center gap-2">
-              <span className="bg-emerald-600 text-white font-mono font-bold text-[11px] px-1.5 py-0.5 rounded">
+              <span className="bg-slate-800 text-slate-200 border border-slate-700 font-mono font-bold text-[11px] px-1.5 py-0.5 rounded">
                 CB
               </span>
-              <span className="font-bold font-mono tracking-tight text-xs text-slate-100 hidden sm:inline">
+              <span className="font-bold font-mono tracking-tight text-xs text-slate-200 hidden sm:inline">
                 COST BREAKDOWN
               </span>
             </div>
 
-            <div className="h-4 w-px bg-slate-700" />
+            <div className="h-4 w-px bg-slate-800" />
 
-              {/* Product Dropdown Selector */}
+            {/* Product Dropdown Selector */}
             <div className="relative" ref={dropdownRef}>
               <button
                 onClick={() => setDropdownOpen(prev => !prev)}
-                className="flex items-center justify-between gap-2 px-2.5 py-1 bg-slate-800 hover:bg-slate-700/80 border border-slate-700 rounded-none text-left transition-colors cursor-pointer text-xs"
+                className="flex items-center justify-between gap-2 px-2.5 py-1 bg-slate-800 hover:bg-slate-750 border border-slate-700 text-left transition-colors cursor-pointer text-xs rounded"
               >
                 <div className="flex items-center gap-1.5">
                   <span className="text-[10px] uppercase font-bold text-slate-400 font-mono">PRODUCT:</span>
-                  <span className="font-mono font-bold text-white text-xs">{displayCode}</span>
+                  <span className="font-mono font-bold text-slate-100 text-xs">{displayCode}</span>
                   <span
-                    className={`px-1 py-0.2 text-[8px] font-mono font-bold uppercase rounded-none border ${
+                    className={`px-1.5 py-0.2 text-[8px] font-mono font-bold uppercase rounded border ${
                       activeSession.status === 'active'
-                        ? 'bg-emerald-950 text-emerald-300 border-emerald-700'
+                        ? 'bg-slate-900 text-slate-300 border-slate-600'
                         : activeSession.status === 'draft'
-                        ? 'bg-amber-950 text-amber-300 border-amber-700'
-                        : 'bg-slate-800 text-slate-400 border-slate-700'
+                        ? 'bg-amber-950/40 text-amber-300 border-amber-800/60'
+                        : 'bg-slate-900 text-slate-400 border-slate-700'
                     }`}
                   >
                     {activeSession.status || 'ACTIVE'}
@@ -79,7 +79,7 @@ export const Navbar: React.FC = () => {
 
               {/* Dropdown Panel */}
               {dropdownOpen && (
-                <div className="absolute left-0 top-full mt-1 w-84 bg-slate-900 border border-slate-700 rounded-none shadow-2xl z-50 overflow-hidden text-xs">
+                <div className="absolute left-0 top-full mt-1 w-84 bg-slate-900 border border-slate-700 rounded shadow-xl z-50 overflow-hidden text-xs">
                   <div className="p-2">
                     <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider px-2 py-1 font-mono">
                       Dataset Versions &amp; Products ({productSessions.length})
@@ -93,8 +93,8 @@ export const Navbar: React.FC = () => {
                         return (
                           <div
                             key={s.id}
-                            className={`flex items-center justify-between group rounded-none px-2.5 py-1.5 cursor-pointer transition-colors ${
-                              isActive ? 'bg-slate-800 text-white border-l-2 border-emerald-500' : 'hover:bg-slate-800/60 text-slate-300'
+                            className={`flex items-center justify-between group rounded px-2.5 py-1.5 cursor-pointer transition-colors ${
+                              isActive ? 'bg-slate-800 text-white border-l-2 border-slate-400' : 'hover:bg-slate-800/60 text-slate-300'
                             }`}
                             onClick={() => { switchProduct(s.id); setDropdownOpen(false) }}
                           >
@@ -104,12 +104,12 @@ export const Navbar: React.FC = () => {
                                   {code}
                                 </p>
                                 <span
-                                  className={`px-1 py-0.2 text-[8px] font-mono font-bold uppercase rounded-none border ${
+                                  className={`px-1 py-0.2 text-[8px] font-mono font-bold uppercase rounded border ${
                                     stat === 'active'
-                                      ? 'bg-emerald-950 text-emerald-300 border-emerald-700'
+                                      ? 'bg-slate-900 text-slate-300 border-slate-600'
                                       : stat === 'draft'
-                                      ? 'bg-amber-950 text-amber-300 border-amber-700'
-                                      : 'bg-slate-800 text-slate-400 border-slate-700'
+                                      ? 'bg-amber-950/40 text-amber-300 border-amber-800/60'
+                                      : 'bg-slate-900 text-slate-400 border-slate-700'
                                   }`}
                                 >
                                   {stat}
@@ -123,14 +123,14 @@ export const Navbar: React.FC = () => {
                               <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity shrink-0 ml-2">
                                 <button
                                   onClick={e => { e.stopPropagation(); duplicateProduct(s.id); setDropdownOpen(false) }}
-                                  className="p-1 text-slate-400 hover:text-white hover:bg-slate-700 rounded-none"
+                                  className="p-1 text-slate-400 hover:text-white hover:bg-slate-700 rounded"
                                   title="Duplicate as Draft"
                                 >
                                   <Copy className="w-3 h-3" />
                                 </button>
                                 <button
                                   onClick={e => { e.stopPropagation(); deleteProduct(s.id) }}
-                                  className="p-1 text-slate-400 hover:text-rose-400 hover:bg-rose-950/60 rounded-none"
+                                  className="p-1 text-slate-400 hover:text-rose-400 hover:bg-rose-950/60 rounded"
                                   title="Delete"
                                 >
                                   <Trash2 className="w-3 h-3" />
@@ -146,7 +146,7 @@ export const Navbar: React.FC = () => {
                   <div className="border-t border-slate-800 p-2 bg-slate-950">
                     <button
                       onClick={() => { setSetupModalOpen(true); setDropdownOpen(false) }}
-                      className="w-full flex items-center justify-center gap-1.5 px-2 py-1.5 text-xs font-bold text-emerald-400 hover:bg-slate-900 rounded transition-colors cursor-pointer"
+                      className="w-full flex items-center justify-center gap-1.5 px-2 py-1.5 text-xs font-bold text-slate-200 hover:text-white hover:bg-slate-900 rounded transition-colors cursor-pointer"
                     >
                       <Plus className="w-3.5 h-3.5" />
                       Add New Product
@@ -159,7 +159,7 @@ export const Navbar: React.FC = () => {
 
           {/* Tab Navigation */}
           <nav className="flex items-center space-x-1 overflow-x-auto">
-            {navItems.map((item, idx) => {
+            {navItems.map((item) => {
               const isActive = activeTab === item.id
               return (
                 <button
@@ -167,11 +167,10 @@ export const Navbar: React.FC = () => {
                   onClick={() => setActiveTab(item.id)}
                   className={`px-3 py-1.5 text-xs font-mono font-medium rounded transition-colors whitespace-nowrap cursor-pointer flex items-center gap-1.5 ${
                     isActive
-                      ? 'bg-slate-800 text-emerald-400 border border-slate-700 font-bold'
-                      : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/50'
+                      ? 'bg-slate-800 text-white border border-slate-700 font-bold shadow-2xs'
+                      : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/40'
                   }`}
                 >
-                  <span className={`text-[10px] ${isActive ? 'text-emerald-400' : 'text-slate-500'}`}>0{idx + 1}.</span>
                   <span>{item.label}</span>
                 </button>
               )

@@ -41,8 +41,8 @@ export const KPIStatCard: React.FC<KPIStatCardProps> = ({
               {delta.formatted}
             </span>
             {delta.percent && (
-              <span className={`text-[10px] px-1.5 py-0.5 rounded font-mono font-bold ${
-                isPositiveDelta ? 'bg-rose-50 text-rose-700 border border-rose-200' : 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+              <span className={`text-[10px] px-1.5 py-0.5 rounded font-mono font-medium ${
+                isPositiveDelta ? 'text-rose-700 bg-slate-100 border border-slate-200' : 'text-emerald-700 bg-slate-100 border border-slate-200'
               }`}>
                 {delta.percent}
               </span>
