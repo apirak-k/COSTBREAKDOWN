@@ -1,6 +1,11 @@
 # Project Specific Rules: Cost Breakdown
-**Date Updated**: 2026-08-19  
+**Date Updated**: 2026-08-24  
 **Purpose**: Defines the stable constraints, security rules, and design systems specific to the Cost Breakdown project. All AI agents MUST strictly adhere to these rules.
+
+## Governing Standards (MANDATORY)
+All AI agents MUST strictly comply with:
+- [`Human-AI-Working-Standard/HAWS.md`](file:///c:/Users/ai-project/Documents/Cost%20Breakdown%20Project/Human-AI-Working-Standard/HAWS.md)
+- [`Human-AI-Working-Standard/WORK_INSTRUCTIONS.md`](file:///c:/Users/ai-project/Documents/Cost%20Breakdown%20Project/Human-AI-Working-Standard/WORK_INSTRUCTIONS.md)
 
 ---
 
