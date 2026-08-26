@@ -1,0 +1,118 @@
+<mxfile host="app.diagrams.net">
+  <diagram name="Cost Breakdown Structure" id="cb1">
+    <mxGraphModel dx="1400" dy="900" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1600" pageHeight="1100" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+
+        <!-- Title -->
+        <mxCell id="title" value="Cost Breakdown Prototype — Calculation &amp; Decision Structure" style="text;html=1;fontSize=20;fontStyle=1;align=center;" vertex="1" parent="1">
+          <mxGeometry x="480" y="20" width="640" height="30" as="geometry" />
+        </mxCell>
+
+        <!-- Total cost -->
+        <mxCell id="total" value="Total Cost per Unit&#10;= Mat + Labor + Burden" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontStyle=1;fontSize=13;" vertex="1" parent="1">
+          <mxGeometry x="680" y="70" width="240" height="60" as="geometry" />
+        </mxCell>
+
+        <!-- Mat branch -->
+        <mxCell id="matBOM" value="BOM" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;" vertex="1" parent="1">
+          <mxGeometry x="120" y="180" width="160" height="50" as="geometry" />
+        </mxCell>
+        <mxCell id="matConst" value="Constant:&#10;Consumption, UOM" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;" vertex="1" parent="1">
+          <mxGeometry x="120" y="270" width="160" height="50" as="geometry" />
+        </mxCell>
+        <mxCell id="matIndep" value="Independent:&#10;Price, Loss" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="120" y="360" width="160" height="50" as="geometry" />
+        </mxCell>
+        <mxCell id="lossFormula" value="Loss formula (Cost Declare):&#10;Cost = Qty/unit × (1+%Loss) × Unit Price" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#999999;fontSize=11;dashed=1;" vertex="1" parent="1">
+          <mxGeometry x="60" y="440" width="280" height="50" as="geometry" />
+        </mxCell>
+
+        <!-- LB branch -->
+        <mxCell id="lbProcess" value="Process&#10;(each has its own Cost Center)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;" vertex="1" parent="1">
+          <mxGeometry x="1120" y="180" width="220" height="50" as="geometry" />
+        </mxCell>
+        <mxCell id="lbConst" value="Constant:&#10;LB rate, BD rate, MHr&#10;(&quot;Machine &amp; Man&quot; working hour)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;" vertex="1" parent="1">
+          <mxGeometry x="1120" y="270" width="220" height="50" as="geometry" />
+        </mxCell>
+        <mxCell id="lbIndep" value="Independent:&#10;Cap (Unit/Hr), Yield" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="1120" y="360" width="220" height="50" as="geometry" />
+        </mxCell>
+        <mxCell id="runtimeFormula" value="Runtime = (1/Cap) × MHr / Yield&#10;Cost = Runtime × Rate (LB or BD)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#999999;fontSize=11;dashed=1;" vertex="1" parent="1">
+          <mxGeometry x="1090" y="440" width="280" height="50" as="geometry" />
+        </mxCell>
+
+        <!-- Base vs Active -->
+        <mxCell id="base" value="Base&#10;(old Standard Cost, full data)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;" vertex="1" parent="1">
+          <mxGeometry x="560" y="540" width="200" height="50" as="geometry" />
+        </mxCell>
+        <mxCell id="active" value="Active&#10;(current data; missing field → fallback to Base value + Tag Note/Source for Data Coverage)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;" vertex="1" parent="1">
+          <mxGeometry x="800" y="540" width="260" height="60" as="geometry" />
+        </mxCell>
+
+        <!-- Gap -->
+        <mxCell id="gap" value="Cost Gap = Active − Base&#10;(per Cost Driver / Independent variable)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="640" y="640" width="320" height="50" as="geometry" />
+        </mxCell>
+
+        <!-- Rank -->
+        <mxCell id="rank" value="System auto-rank&#10;by Cost Impact (Cost Gap)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;" vertex="1" parent="1">
+          <mxGeometry x="640" y="720" width="320" height="50" as="geometry" />
+        </mxCell>
+
+        <!-- Human judge -->
+        <mxCell id="judge" value="Human judges:&#10;Can Influence / Feasible / Requirement Fit" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;" vertex="1" parent="1">
+          <mxGeometry x="640" y="800" width="320" height="50" as="geometry" />
+        </mxCell>
+
+        <!-- Select >=1 -->
+        <mxCell id="select" value="Select ≥ 1 Independent variable / path&#10;to improve" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="640" y="880" width="320" height="50" as="geometry" />
+        </mxCell>
+
+        <!-- RCA endpoint -->
+        <mxCell id="rca" value="RCA on the real production floor&#10;(system's calculation ends here — not modeled)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="620" y="960" width="360" height="60" as="geometry" />
+        </mxCell>
+
+        <!-- Improve & compare -->
+        <mxCell id="compare" value="Improve → measure actual result → compare vs predicted&#10;(diff should ≈ 0)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;" vertex="1" parent="1">
+          <mxGeometry x="600" y="1040" width="400" height="50" as="geometry" />
+        </mxCell>
+
+        <!-- Out of scope note -->
+        <mxCell id="outscope" value="Explicitly OUT of scope:&#10;company's accounting cost-revaluation (twice-yearly work center rate change, Cost Revalue / Method Change variance accounts)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;dashed=1;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="1080" y="960" width="380" height="70" as="geometry" />
+        </mxCell>
+
+        <!-- Edges: Mat branch -->
+        <mxCell id="e1" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;" edge="1" parent="1" source="matBOM" target="matConst"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="e2" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;" edge="1" parent="1" source="matConst" target="matIndep"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="e2b" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;dashed=1;" edge="1" parent="1" source="matIndep" target="lossFormula"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="e3" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;" edge="1" parent="1" source="matBOM" target="total"><mxGeometry relative="1" as="geometry" /></mxCell>
+
+        <!-- Edges: LB branch -->
+        <mxCell id="e4" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;" edge="1" parent="1" source="lbProcess" target="lbConst"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="e5" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;" edge="1" parent="1" source="lbConst" target="lbIndep"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="e5b" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;dashed=1;" edge="1" parent="1" source="lbIndep" target="runtimeFormula"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="e6" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;" edge="1" parent="1" source="lbProcess" target="total"><mxGeometry relative="1" as="geometry" /></mxCell>
+
+        <!-- Edges: down to Base/Active -->
+        <mxCell id="e7" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;" edge="1" parent="1" source="matIndep" target="base"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="e8" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;" edge="1" parent="1" source="lbIndep" target="active"><mxGeometry relative="1" as="geometry" /></mxCell>
+
+        <!-- Main vertical flow -->
+        <mxCell id="e9" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;" edge="1" parent="1" source="base" target="gap"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="e10" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;" edge="1" parent="1" source="active" target="gap"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="e11" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;" edge="1" parent="1" source="gap" target="rank"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="e12" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;" edge="1" parent="1" source="rank" target="judge"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="e13" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;" edge="1" parent="1" source="judge" target="select"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="e14" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;" edge="1" parent="1" source="select" target="rca"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="e15" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;" edge="1" parent="1" source="rca" target="compare"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="e16" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;dashed=1;" edge="1" parent="1" source="rca" target="outscope"><mxGeometry relative="1" as="geometry" /></mxCell>
+
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>
