@@ -89,7 +89,7 @@ export function calculateCostBreakdown(
 
 /**
  * Evaluates all BOM and Routing candidates and ranks the Top 10 positive cost drivers.
- * Stage 1 (System Auto-Calculation): Cost Impact + Measurable (auto-calculated from concrete math).
+ * Stage 1 (System Auto-Calculation): Ranked by Cost Impact (Cost Gap).
  * Stage 2 (Human RCA Checklist): Can Influence + Requirement Fit + Action Plan.
  * Includes Data Confidence warning tag if underlying inputs are estimated.
  */
@@ -173,7 +173,6 @@ export function calculateTopDrivers(
       pctContribution: 0,
       controllability: saved.controllability,
       actionPlan: saved.actionPlan,
-      isMeasurable: true,
       canInfluence: saved.canInfluence ?? (saved.controllability === 'Controllable'),
       requirementFit: saved.requirementFit ?? true,
       confidence: driverConfidence,
@@ -243,7 +242,6 @@ export function calculateTopDrivers(
       pctContribution: 0,
       controllability: saved.controllability,
       actionPlan: saved.actionPlan,
-      isMeasurable: true,
       canInfluence: saved.canInfluence ?? (saved.controllability === 'Controllable'),
       requirementFit: saved.requirementFit ?? true,
       confidence: driverConfidence,

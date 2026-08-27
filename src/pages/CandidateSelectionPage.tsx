@@ -149,7 +149,7 @@ export const CandidateSelectionPage: React.FC = () => {
                   <div className="col-span-11 flex flex-wrap items-center gap-3">
                     {/* Stage 1 Auto Tag */}
                     <div className="flex items-center gap-1 text-[10px] font-mono font-bold text-emerald-800 bg-emerald-50 px-1.5 py-0.5 border border-emerald-300 rounded-none select-none">
-                      <span>Stage 1: ✓ Measurable ({d.costGap.toFixed(4)} THB)</span>
+                      <span>Stage 1: Cost Gap (+{d.costGap.toFixed(4)} THB)</span>
                     </div>
 
                     {/* Stage 2 Checklist Checkboxes */}
@@ -231,7 +231,7 @@ export const CandidateSelectionPage: React.FC = () => {
         {/* Footer */}
         <div className="flex items-center justify-between px-4 py-2.5 border-t border-slate-300 bg-slate-50 text-xs font-mono">
           <span className="text-slate-500 text-[11px]">
-            Stage 1: System Auto-Ranked Top {topDrivers.length} Measurable Cost Drivers
+            Stage 1: System Auto-Ranked Top {topDrivers.length} Cost Drivers
           </span>
           <div className="text-right font-mono flex items-center gap-2">
             <span className="text-[11px] text-slate-500">Total Ranked Gap:</span>

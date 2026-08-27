@@ -1,9 +1,8 @@
-# Engineering Handoff & Project Checkpoint — Checkpoint 13
+# Engineering Handoff & Project Checkpoint — Checkpoint 14
 
-**Date Updated**: 2026-08-24  
-**Status**: **UI Cleanliness, Poka-Yoke Overall Mode Switcher, Borderless Tables, Bulk WC Action & Noise Removal Complete ✅**  
+**Date Updated**: 2026-08-26  
+**Status**: **Measurable Noise Removal, MHr ("Machine & Man") Definition Alignment & Fallback Traceability Complete ✅**  
 **Active Working Branch**: `feature/taste-frontend-ui`  
-**Base HEAD Commit**: `02d2b15`  
 **Governing Documents**:
 - [`PROJECT_SPECIFIC.md`](PROJECT_SPECIFIC.md)
 - [`Human-AI-Working-Standard/HAWS.md`](Human-AI-Working-Standard/HAWS.md)
@@ -52,6 +51,15 @@
 - **Confidence Badge Status**:
   - Removed traffic-light status dots from table rows in BOM, Routing, Rates, and Candidate Selection to focus 100% on financial data.
   - Adjusted top Executive KPI cards to a clean 4-pillar financial grid (`Total Standard Cost`, `Direct Material`, `Direct Labor`, `Manufacturing Burden`).
+
+### 1.5 Checkpoint 14: Measurable Removal & MHr Architecture Alignment
+- **Diagram Alignment (`costbreakdown_summary.drawio`)**:
+  - Replaced `System auto-rank by Cost Impact + Measurable` with `System auto-rank by Cost Impact (Cost Gap)`.
+  - Clarified `MHr` in Process Constants as `"Machine & Man" working hour`.
+  - Clarified Active fallback rule with `+ Tag Note/Source for Data Coverage`.
+- **Codebase Cleanliness**:
+  - Removed `isMeasurable` property across all type definitions (`src/core/types/cost.types.ts`, `src/lib/types.ts`) and calculations (`src/core/calculations/top-drivers.ts`, `src/lib/cost-engine.ts`).
+  - Cleaned up legacy UI labels in `CandidateSelectionPage.tsx`.
 
 ---
 

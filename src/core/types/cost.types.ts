@@ -71,7 +71,6 @@ export interface CostDriver {
   pctContribution: number
   controllability: 'Controllable' | 'Uncontrollable' | ''
   actionPlan: string
-  isMeasurable?: boolean
   canInfluence?: boolean
   requirementFit?: boolean
   confidence?: DataConfidence
