@@ -1,7 +1,7 @@
 # COSTBREAKDOWN — SYSTEM LOGIC SOURCE OF TRUTH
 
 **Status:** Canonical Working Specification  
-**Version:** 0.1  
+**Version:** 0.2  
 **Date:** 2026-09-14  
 **Project:** Prototype System for Product Cost Breakdown Analysis  
 **Purpose:** เอกสารอ้างอิงหลักสำหรับวิธีคิด โครงสร้างข้อมูล ลำดับการวิเคราะห์ และกติกาการพัฒนาระบบ COSTBREAKDOWN
@@ -40,26 +40,59 @@
 
 ## CONFIRMED
 
-ระบบ COSTBREAKDOWN ไม่ใช่เพียง Dashboard แสดงต้นทุน แต่เป็นระบบช่วยวิเคราะห์เส้นทางต่อไปนี้:
+ระบบ COSTBREAKDOWN ไม่ใช่เพียง Dashboard แสดงต้นทุน แต่เป็นระบบช่วยวิเคราะห์ตั้งแต่การทำฐานต้นทุนให้สอดคล้องกับสภาพจริง ไปจนถึงการพิสูจน์ผลของการปรับปรุง
+
+Canonical flow:
 
 ```text
-Cost Data
-→ Calculate Standard Cost
-→ Compare Reference vs Current
-→ Explain Cost / Structure Gap
-→ Identify Changed Factors
-→ Human Select Improvement Candidate
-→ RCA
-→ Improvement Action
-→ What-If
-→ Real Trial
-→ Predicted vs Actual Trial Result
-→ Reviewed New Version
+COMPARISON #1 — BEFORE IMPROVEMENT
+
+Base₁ / Reference Standard
+        ↕
+Current-condition cost / standard from current data
+
+Gap₁
+        ↓
+Explain Cost / Structure Gap
+        ↓
+Identify Cost Drivers / Changed Factors
+        ↓
+Human Select a Controllable + Feasible Improvement Candidate
+        ↓
+RCA
+        ↓
+Improvement Action
+        ↓
+What-If
+        ↓
+Predicted Improved Standard / Base₂
+        ↓
+Real Trial
+
+COMPARISON #2 — AFTER IMPROVEMENT
+
+Base₂ / Predicted Improved Standard
+        ↕
+Actual₂ / Actual Trial Result
+
+Gap₂
 ```
 
 หลักสำคัญ:
 
 > **Explain the gap first. Select a suitable factor second. RCA comes after selection.**
+
+Project success ต้องดูสองแกนแยกกัน:
+
+```text
+Alignment / model success:
+Gap₂ < Gap₁
+and ideally Gap₂ → 0
+
+Improvement success:
+Cost after improvement is lower than cost before improvement
+within the selected improvement scope.
+```
 
 ระบบต้องไม่กระโดดจาก Total Cost ไป Root Cause โดยไม่มี trace ของความเปลี่ยนแปลงก่อน
 
@@ -296,6 +329,111 @@ Material Gap
 ```
 
 ภายใต้ calculation rules ที่ใช้งานอยู่
+
+---
+
+# 7A. Two Comparison Gaps and Project Success
+
+## 7A.1 Gap₁ — Before Improvement
+
+**CONFIRMED**
+
+Gap₁ ใช้ประเมินความแตกต่างของคู่ก่อนการปรับปรุง:
+
+```text
+Base₁ / Reference Standard
+        ↕
+Current-condition value
+
+Gap₁ = |Current-condition value - Base₁|
+```
+
+Gap₁ อาจมีทั้ง favorable และ unfavorable effects จาก Cost Declare comparison เดิม
+
+ระบบสนใจต่อเฉพาะ unfavorable Cost Driver ที่:
+
+```text
+Controllable?
+Feasible?
+Within project scope?
+Requirement fit?
+Can be trialed?
+```
+
+ก่อนเลือกไป RCA
+
+## 7A.2 Base₂ — Improved Standard / Predicted Improved Cost
+
+**CONFIRMED**
+
+หลังเลือก Cost Driver, ทำ RCA และกำหนด Improvement Action แล้ว ระบบใช้ What-If เพื่อคำนวณฐานที่คาดหวังหลังปรับปรุง:
+
+```text
+Base₂
+= Predicted Improved Standard / Predicted Improved Cost
+```
+
+Base₂ เป็นฐานของคู่หลังการปรับปรุง และไม่จำเป็นต้องเท่ากับ Base₁
+
+## 7A.3 Gap₂ — After Improvement
+
+**CONFIRMED**
+
+หลังทดลองจริง:
+
+```text
+Gap₂ = |Actual₂ - Base₂|
+```
+
+โดย:
+
+```text
+Actual₂ = Actual Trial Result / actual result after improvement
+```
+
+## 7A.4 Primary Alignment Success Rule
+
+**CONFIRMED**
+
+```text
+Gap₂ < Gap₁
+```
+
+และ ideal target คือ:
+
+```text
+Gap₂ → 0
+```
+
+ความหมายคือ หลังมี Source of Truth + Cost Driver Analysis + RCA + Improvement แล้ว ค่า Base/Standard ของช่วงหลังควรสอดคล้องกับสิ่งที่เกิดขึ้นจริงมากกว่าคู่ก่อนการปรับปรุง
+
+## 7A.5 Cost Reduction Is a Separate Success Dimension
+
+**CONFIRMED**
+
+Gap ที่เล็กลงอย่างเดียวไม่พอที่จะพิสูจน์ว่า “ลดต้นทุนสำเร็จ”
+
+ต้องพิจารณาอีกแกนหนึ่ง:
+
+```text
+Cost after improvement
+<
+Cost before improvement
+```
+
+อย่างน้อยภายใน selected Cost Driver / improvement scope
+
+ดังนั้น Project Success มีสองแกน:
+
+```text
+1. Alignment / Model Success
+   Gap₂ < Gap₁
+   ideally Gap₂ → 0
+
+2. Improvement Success
+   Cost after improvement < Cost before improvement
+   within the selected improvement scope
+```
 
 ---
 
@@ -891,11 +1029,21 @@ Canonical trial flow:
 Selected Factor
 → RCA
 → Selected Action
-→ Predicted Result
+→ Predicted Improved Standard / Base₂
 → Real Shop-Floor Trial
-→ Actual Trial Result
-→ Compare Prediction vs Actual
+→ Actual₂ / Actual Trial Result
+→ Calculate Gap₂
+→ Compare Gap₂ with Gap₁
+→ Review Prediction vs Actual
 ```
+
+หลัง Trial ต้องตรวจอย่างน้อย:
+
+```text
+Gap₂ < Gap₁
+```
+
+และตรวจแยกว่าการปรับปรุงทำให้ต้นทุนของ selected improvement scope ลดลงจริงหรือไม่
 
 Trial ควรเก็บข้อมูล relevant ต่อ action เช่น:
 
@@ -1151,27 +1299,30 @@ System story ที่ต้องสามารถสาธิตได้:
 
 ```text
 1. Import / select Before Cost Declare
-2. Build Reference Snapshot
+2. Build Reference Snapshot / Base₁
 3. Import / select Current Cost Declare
 4. Build Current Snapshot
 5. Calculate both independently
-6. Show Reference vs Current total gap
+6. Calculate Gap₁ and show Reference vs Current gap
 7. Drill into Material / Labor / Burden
 8. Show BOM / Routing / Rate diff
 9. Identify added / removed / modified structures
-10. Identify changed factors
+10. Identify favorable and unfavorable changes
 11. Review scope / influence / feasibility
-12. Select one factor/path to improve
+12. Select one unfavorable, controllable, feasible factor/path to improve
 13. RCA
 14. Define actions from root cause
 15. What-If A/B/C
-16. Choose action for real trial
-17. Record Actual Trial Result
-18. Compare Predicted vs Actual
-19. Review
-20. Create new Draft snapshot if validated
-21. Activate new version
-22. Archive prior Active version
+16. Calculate Predicted Improved Standard / Base₂
+17. Choose action for real trial
+18. Record Actual₂ / Actual Trial Result
+19. Calculate Gap₂ = |Actual₂ - Base₂|
+20. Verify Gap₂ < Gap₁
+21. Verify cost reduction within the selected improvement scope
+22. Compare Predicted vs Actual and review trial evidence
+23. Create new Draft snapshot if validated
+24. Activate new version
+25. Archive prior Active version
 ```
 
 ---
@@ -1318,6 +1469,8 @@ Can be trialed under company permission?
 10. สร้าง formula หรือ cost attribution ใหม่จากการเดา
 11. ใช้ silent financial fallback แล้วแสดงเหมือน verified data
 12. ซ่อน reconciliation error
+13. ใช้ Base₁ เป็นฐานของ Gap₂ โดยอัตโนมัติ ทั้งที่คู่หลังต้องอิง Base₂ ของหลังปรับปรุง
+14. สรุปว่าลดต้นทุนสำเร็จจาก Gap₂ < Gap₁ เพียงอย่างเดียว โดยไม่ตรวจ cost reduction ของ selected improvement scope
 
 ---
 
@@ -1599,6 +1752,42 @@ Expected:
 
 ---
 
+### Case G — Gap Improvement
+
+ก่อนปรับปรุง:
+
+```text
+Gap₁ = |Current₁ - Base₁|
+```
+
+หลังปรับปรุง:
+
+```text
+Gap₂ = |Actual₂ - Base₂|
+```
+
+Expected:
+
+```text
+Gap₂ < Gap₁
+```
+
+---
+
+### Case H — Improvement Cost Reduction
+
+Expected:
+
+```text
+Cost after improvement
+<
+Cost before improvement
+```
+
+ภายใน selected improvement scope
+
+---
+
 # 44. Decision Log
 
 ## D-001 — Use Before / Current Cost Declare as Two Snapshots
@@ -1690,6 +1879,59 @@ Exact process gap may be shown; per-variable THB attribution requires approved d
 
 ---
 
+## D-009 — Use Two Comparison Pairs for Project Evaluation
+
+**Date:** 2026-09-14  
+**Status:** CONFIRMED
+
+Decision:
+
+```text
+Comparison #1:
+Base₁ ↔ Current₁
+→ Gap₁
+
+Comparison #2:
+Base₂ ↔ Actual₂
+→ Gap₂
+```
+
+Base₂ is the predicted/improved standard for the post-improvement state and does not have to equal Base₁.
+
+Primary alignment criterion:
+
+```text
+Gap₂ < Gap₁
+```
+
+Ideal:
+
+```text
+Gap₂ → 0
+```
+
+---
+
+## D-010 — Gap Reduction and Cost Reduction Are Separate Success Metrics
+
+**Date:** 2026-09-14  
+**Status:** CONFIRMED
+
+Decision:
+
+```text
+Alignment / model success:
+Gap₂ < Gap₁
+
+Improvement success:
+Cost after improvement < Cost before improvement
+within the selected improvement scope
+```
+
+Both should be reported separately.
+
+---
+
 # 45. Source Documents
 
 This specification is derived from:
@@ -1722,68 +1964,83 @@ This specification is derived from:
 ระบบที่ตกลงกันปัจจุบันมีหลักคิดดังนี้:
 
 ```text
-BEFORE COST DECLARE
-= Reference Snapshot
-        │
-        │ independently calculated
-        ▼
-Reference Standard Cost
+COMPARISON #1 — BEFORE IMPROVEMENT
 
-CURRENT COST DECLARE
-= Current Snapshot
+Base₁ / Reference Standard
+        ↕
+Current-condition value
         │
-        │ independently calculated
         ▼
-Current Standard Cost
+Gap₁
+        │
+        ├─ Favorable changes → record / keep
+        └─ Unfavorable changes → evaluate
+                                  │
+                                  ▼
+                     Controllable + Feasible + In Scope?
+                                  │
+                                  ▼
+                           Selected Factor
+                                  │
+                                  ▼
+                               RCA — Why?
+                                  │
+                                  ▼
+                              Root Cause
+                                  │
+                                  ▼
+                         Improvement Actions
+                                  │
+                                  ▼
+                         What-If Prediction
+                                  │
+                                  ▼
+                 Base₂ / Predicted Improved Standard
+                                  │
+                                  ▼
+                              Real Trial
+                                  │
+                                  ▼
+                    Actual₂ / Actual Trial Result
 
-Reference ↔ Current
+COMPARISON #2 — AFTER IMPROVEMENT
+
+Base₂ / Predicted Improved Standard
+        ↕
+Actual₂ / Actual Trial Result
         │
         ▼
-Full Data + Structure + Cost Diff
-        │
-        ├─ BOM Added / Removed / Modified
-        ├─ Routing Added / Removed / Modified
-        ├─ Rate Changes
-        └─ Parameter Changes
-        │
-        ▼
-Explain Total Cost Gap
-        │
-        ▼
-Human Scope / Feasibility Selection
-        │
-        ▼
-Selected Factor / Path
-        │
-        ▼
-RCA — Why?
-        │
-        ▼
-Root Cause
-        │
-        ▼
-Improvement Actions
-        │
-        ▼
-What-If Prediction
-        │
-        ▼
-Real Trial
-        │
-        ▼
-ACTUAL TRIAL RESULT
-        │
-        ▼
-Predicted vs Actual Review
-        │
-        ▼
-Validated New Draft
-        │
-        ▼
-Activate New Version
+Gap₂
+
+SUCCESS CHECK
+
+Alignment:
+Gap₂ < Gap₁
+ideally Gap₂ → 0
+
+Improvement:
+Cost after improvement
+<
+Cost before improvement
+within the selected improvement scope
+
+If validated:
+Trial result
+→ Review
+→ New Draft
+→ Check
+→ Activate
+→ Previous Active archived
 ```
 
-**Key rule:** ระบบต้องแยกให้ชัดระหว่าง **สิ่งที่ข้อมูลบอกว่าเปลี่ยน**, **สาเหตุว่าทำไมมันเปลี่ยน**, และ **การกระทำที่จะใช้ปรับปรุง**
+**Key rules:**
+
+- สิ่งที่ข้อมูลบอกว่าเปลี่ยน = Factor / Finding
+- ทำไมมันเปลี่ยน = Root Cause
+- จะทำอะไรเพื่อแก้ = Improvement Action
+- Gap₁ และ Gap₂ เป็นคนละคู่เปรียบเทียบและอิง Base ของช่วงตัวเอง
+- Gap reduction และ cost reduction ต้องรายงานแยกกัน
+- What-If เป็น prediction และต้องไม่เขียนทับ official current data
 
 ---
 
