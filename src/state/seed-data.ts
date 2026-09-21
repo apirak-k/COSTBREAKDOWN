@@ -1,4 +1,11 @@
-import { ProductMaster, WorkCenterRate, BOMItem, RoutingStep } from '../core'
+import {
+  BOMItem,
+  migratePairedModelToSnapshots,
+  ProductMaster,
+  RoutingStep,
+  SnapshotPair,
+  WorkCenterRate
+} from '../core'
 
 export const seedProductMaster: ProductMaster = {
   productCode: 'RGOM-024-01',
@@ -75,3 +82,18 @@ export const seedRouting: RoutingStep[] = [
   { id: 'rt-38', opSeq: 38, description: 'Support (Half cut)', wc: 'Assembly Digital RGOM', manning: 0.5, baseCap: 4800, activeCap: 4800, baseYield: 1.00, activeYield: 1.00, sourceRef: 'Cost declare Row 73' },
   { id: 'rt-39', opSeq: 39, description: 'QA & Packing (VDO-Ins 1/2, QA Ins, Packing carton, Leader)', wc: 'OQA-Digital', manning: 5.0, baseCap: 560, activeCap: 560, baseYield: 0.9975, activeYield: 0.9975, sourceRef: 'Cost declare Rows 74-79' }
 ]
+
+/**
+ * Deterministic Reference/Current fixture used by Reset Default and the
+ * initial product session. The paired seed fields intentionally contain
+ * visible price and yield variance for acceptance testing.
+ */
+export const seedSnapshotPair: SnapshotPair = migratePairedModelToSnapshots({
+  id: 'ps-seed-rgom024',
+  product: seedProductMaster,
+  rates: seedWorkCenterRates,
+  bom: seedBOM,
+  routing: seedRouting,
+  status: 'active',
+  sourceRef: 'seed:rgom024'
+})

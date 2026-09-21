@@ -20,7 +20,7 @@ import {
   updateCurrentSnapshotFromLegacySession
 } from '../core'
 import { STORAGE_KEYS, loadFromSession, saveToSession } from '../services'
-import { seedProductMaster, seedWorkCenterRates, seedBOM, seedRouting } from './seed-data'
+import { seedProductMaster, seedWorkCenterRates, seedBOM, seedRouting, seedSnapshotPair } from './seed-data'
 
 export const DEFAULT_UOMS = ['PC', 'SET', 'PANEL', 'GM', 'KG', 'SM', 'M', 'RL', 'L', 'BOX', 'TRAY']
 
@@ -135,7 +135,7 @@ function makeSeedSession(): ProductSession {
     versionLabel: 'Active Baseline (RGOM-024)',
     createdAt: now,
     updatedAt: now
-  })
+  }, seedSnapshotPair)
 }
 
 interface AppContextType {
@@ -601,8 +601,9 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       routing: seedRouting,
       savedDrivers: [],
       status: 'active',
-      versionLabel: 'Active Baseline',
-      snapshotPairMode: 'derived'
+      versionLabel: 'Active Baseline (RGOM-024)',
+      snapshotPair: seedSnapshotPair,
+      snapshotPairMode: 'independent'
     })
   }
 
