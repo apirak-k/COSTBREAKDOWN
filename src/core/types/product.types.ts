@@ -31,6 +31,8 @@ export interface ProductSession {
   versionLabel?: string
   createdAt: string
   updatedAt: string
+  /** Compatibility projection for the incremental snapshot migration. */
+  snapshotPair?: import('./snapshot.types').SnapshotPair
 }
 
 import { WorkCenterRate, BOMItem, RoutingStep, CostDriver } from './cost.types'

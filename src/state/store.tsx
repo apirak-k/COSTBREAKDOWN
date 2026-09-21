@@ -9,13 +9,24 @@ import {
   ExcelImportResult,
   ProductSession,
   ProductSizingConfig,
+  SnapshotPair,
+  CostComparison,
   calculateCostBreakdown,
-  calculateTopDrivers
+  calculateTopDrivers,
+  compareSnapshots,
+  sessionToSnapshotPair
 } from '../core'
 import { STORAGE_KEYS, loadFromSession, saveToSession } from '../services'
 import { seedProductMaster, seedWorkCenterRates, seedBOM, seedRouting } from './seed-data'
 
 export const DEFAULT_UOMS = ['PC', 'SET', 'PANEL', 'GM', 'KG', 'SM', 'M', 'RL', 'L', 'BOX', 'TRAY']
+
+function withSnapshotPair(session: ProductSession): ProductSession {
+  return {
+    ...session,
+    snapshotPair: sessionToSnapshotPair(session)
+  }
+}
 
 // Helper: create a brand-new session with sizing
 function makeSizedSession(id: string, config: ProductSizingConfig, now: string): ProductSession {
@@ -67,7 +78,7 @@ function makeSizedSession(id: string, config: ProductSizingConfig, now: string):
     })
   }
 
-  return {
+  return withSnapshotPair({
     id,
     product: {
       productCode: config.productCode,
@@ -84,13 +95,13 @@ function makeSizedSession(id: string, config: ProductSizingConfig, now: string):
     versionLabel: 'Draft',
     createdAt: now,
     updatedAt: now
-  }
+  })
 }
 
 // Helper: create default RGOM-024 seed session
 function makeSeedSession(): ProductSession {
   const now = new Date().toISOString()
-  return {
+  return withSnapshotPair({
     id: 'ps-seed-rgom024',
     product: seedProductMaster,
     rates: seedWorkCenterRates,
@@ -101,7 +112,7 @@ function makeSeedSession(): ProductSession {
     versionLabel: 'Active Baseline (RGOM-024)',
     createdAt: now,
     updatedAt: now
-  }
+  })
 }
 
 interface AppContextType {
@@ -117,6 +128,8 @@ interface AppContextType {
   routing: RoutingStep[]
   costBreakdown: CostElementBreakdown
   topDrivers: CostDriver[]
+  snapshotPair: SnapshotPair
+  snapshotComparison: CostComparison
   activeTab: 'master' | 'breakdown' | 'candidate' | 'rca'
   uomList: string[]
 
@@ -164,7 +177,7 @@ const AppContext = createContext<AppContextType | undefined>(undefined)
 export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [productSessions, setProductSessions] = useState<ProductSession[]>(() => {
     const loaded = loadFromSession<ProductSession[]>(STORAGE_KEYS.SESSIONS, [makeSeedSession()])
-    return loaded.map((s, idx) => ({
+    return loaded.map((s, idx) => withSnapshotPair({
       ...s,
       status: s.status || (idx === 0 ? 'active' : 'draft'),
       versionLabel: s.versionLabel || (s.status === 'archived' ? 'Archived' : s.status === 'draft' ? 'Draft' : 'Active')
@@ -209,12 +222,16 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const patchActive = (patch: Partial<ProductSession>) => {
     const now = new Date().toISOString()
     setProductSessions(prev =>
-      prev.map(s => s.id === activeSession.id ? { ...s, ...patch, updatedAt: now } : s)
+      prev.map(s => s.id === activeSession.id
+        ? withSnapshotPair({ ...s, ...patch, updatedAt: now })
+        : s)
     )
   }
 
   const costBreakdown = calculateCostBreakdown(bom, routing, rates)
   const topDrivers = calculateTopDrivers(bom, routing, rates, savedDrivers)
+  const snapshotPair = activeSession.snapshotPair ?? sessionToSnapshotPair(activeSession)
+  const snapshotComparison = compareSnapshots(snapshotPair.reference, snapshotPair.current)
 
   // Product Session Actions
   const createProductWithSizing = (config: ProductSizingConfig) => {
@@ -320,7 +337,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     if (!source) return
     const newId = `ps-${Date.now()}`
     const now = new Date().toISOString()
-    const copy: ProductSession = {
+    const copy: ProductSession = withSnapshotPair({
       ...source,
       id: newId,
       product: { ...source.product, productCode: `${source.product.productCode}-COPY` },
@@ -331,7 +348,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       versionLabel: `Draft (${source.product.productCode || 'Copy'})`,
       createdAt: now,
       updatedAt: now
-    }
+    })
     setProductSessions(prev => [...prev, copy])
     setActiveProductId(newId)
     setActiveTab('master')
@@ -342,14 +359,14 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const source = productSessions.find(s => s.id === (sourceId || activeProductId)) || activeSession
     const newId = `ps-draft-${Date.now()}`
     const now = new Date().toISOString()
-    const copy: ProductSession = {
+    const copy: ProductSession = withSnapshotPair({
       ...JSON.parse(JSON.stringify(source)),
       id: newId,
       status: 'draft',
       versionLabel: `Draft (${source.product.productCode || 'Working Copy'})`,
       createdAt: now,
       updatedAt: now
-    }
+    })
     setProductSessions(prev => [...prev, copy])
     setActiveProductId(newId)
     setActiveTab('master')
@@ -364,21 +381,21 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     setProductSessions(prev =>
       prev.map(s => {
         if (s.id === draftId) {
-          return {
+          return withSnapshotPair({
             ...s,
             status: 'active',
             versionLabel: 'Active Version',
             updatedAt: now
-          }
+          })
         }
         // Archive previous active dataset
         if (s.status === 'active' && (!targetCode || s.product.productCode === targetCode || s.id === activeProductId)) {
-          return {
+          return withSnapshotPair({
             ...s,
             status: 'archived',
             versionLabel: `Archived (${new Date(s.updatedAt || now).toLocaleDateString()})`,
             updatedAt: now
-          }
+          })
         }
         return s
       })
@@ -491,7 +508,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     if (!result.success) return
     const id = `ps-draft-import-${Date.now()}`
     const now = new Date().toISOString()
-    const importedDraft: ProductSession = {
+    const importedDraft: ProductSession = withSnapshotPair({
       id,
       product: result.product ?? product,
       rates: result.rates ?? rates,
@@ -502,7 +519,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       versionLabel: `Draft (Imported: ${result.product?.productCode || product.productCode || 'Excel'})`,
       createdAt: now,
       updatedAt: now
-    }
+    })
     setProductSessions(prev => [...prev, importedDraft])
     setActiveProductId(id)
     setActiveTab('master')
@@ -544,6 +561,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       routing,
       costBreakdown,
       topDrivers,
+      snapshotPair,
+      snapshotComparison,
       activeTab,
       uomList,
       setActiveTab,
