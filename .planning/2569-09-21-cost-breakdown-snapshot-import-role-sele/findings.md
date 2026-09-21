@@ -81,3 +81,24 @@
 - Browser seeded comparison smoke showed the existing `Reference vs Current Snapshot` card with non-empty costs/findings and an `Export Comparison (.xlsx)` action. This verifies the rendered comparison/export surface, but it is not proof that a newly uploaded workbook reached the page.
 - The seeded browser export click produced no observable accessibility-state change or downloaded file in the available automation surface; export remains verified by the bundled workbook check and browser button availability, while native download observation is [Unverified].
 - After adding the verification script: `npx tsc -b --pretty false`, `npm run build`, and `node scripts/test_comprehensive_audit.js` all passed. The existing Vite large-bundle warning remains.
+
+## Missing-Rate Safety Extension
+
+- The user's request to continue before final acceptance extends this plan beyond the completed snapshot-import checkpoint.
+- The active application path is `src/App.tsx` → `src/state/store.tsx` → `src/core`; the parallel `src/lib` and `src/pages` implementation is not imported by the active entry point and remains outside this extension.
+- Before the fix, four active core calculation surfaces fabricated conversion costs when a routing Work Center was absent from the rate map: `cost-engine.ts`, `detailed-breakdown.ts`, `top-drivers.ts`, and `whatif-simulator.ts`.
+- The focused RED check reproduced the defect: an `UNKNOWN-WC` routing row received `105.29` labor and `95.00` burden rather than zero.
+- The implemented policy is explicit and conservative: a missing or blank Work Center resolves to zero labor/burden, the primary breakdown collects unique missing Work Center keys, and the Cost Breakdown page displays a warning telling the user which rows need rates.
+- `src/core/calculations/work-center-rate.ts` now owns the shared lookup so all active calculation surfaces use the same behavior.
+- The focused check also proves known rates remain unchanged: a configured `10` labor / `20` burden rate yields the expected routing costs and no missing key.
+
+## Fresh Missing-Rate Verification
+
+- Bundled `scripts/verify_missing_work_center_rate.ts`: PASS. It covers primary totals, detailed routing rows, top-driver filtering, What-if simulation, missing-key reporting, and known-rate preservation.
+- `npx tsc -b --pretty false`: exit 0.
+- `npm run build`: exit 0; Vite transformed 1,668 modules. Existing large-bundle warning remains; output was approximately 1,635.14 kB JS / 476.44 kB gzip.
+- `node scripts/test_comprehensive_audit.js`: PASS, 31/31 checks.
+- Full snapshot fixture flow after the change: PASS; Reference 10 BOM / 15 routing / 4 WC, Current 16 BOM / 39 routing / 4 WC, findings 26 / 35 / 8, four-sheet export 18,542 bytes.
+- `npm run excel`: PASS; generated workbook audit reported 100% formula shielding and zero errors. Generated root workbooks were removed afterward.
+- Browser runtime smoke on the updated build: Cost Breakdown rendered seeded Reference `33.6936`, Current `41.9528`, Exact Cost Gap `+8.2592`, 50 matched rows, one review row, and the export action. Browser console inspection returned zero error/warn entries.
+- Native workbook file selection and observable native download remain [Unverified] because the available manual acceptance path still requires the user's browser interaction.

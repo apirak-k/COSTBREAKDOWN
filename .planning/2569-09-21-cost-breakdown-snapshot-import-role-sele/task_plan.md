@@ -22,13 +22,17 @@ Out of scope for this task:
 - Adding a new dependency only to make tests easier
 - Pushing to a remote
 
+## Scope Extension For This Session
+
+The original role-selector/full-flow checkpoint intentionally deferred the active core hard-coded Work Center fallback. At the user's request to continue before final human acceptance, Phases 10–12 extend this plan to make that active calculation path safe. The older parallel `src/lib` implementation and workbook generator defaults remain outside this extension.
+
 ## Next Step
 
-Manual acceptance of native workbook upload/download in the user's browser; no further production change is indicated by the current fixture flow.
+Complete the active core calculation missing-rate safety slice, then perform the previously deferred manual acceptance of native workbook upload/download in the user's browser.
 
 ## Current Phase
 
-Phase 9: Delivery & Checkpoint (complete)
+Phase 12: Verification & Checkpoint (complete; manual human acceptance remains)
 
 ## Phases
 
@@ -63,9 +67,9 @@ Phase 9: Delivery & Checkpoint (complete)
 - [x] Start the dev server in an isolated local process
 - [x] Inspect the rendered Import panel after the app loaded
 - [x] Verify both role controls are visible, keyboard reachable, and selection changes the displayed import role
-- [ ] Verify browser console has no new errors/warnings [Unverified: the available browser automation surface does not expose console logs]
+- [x] Verify browser console has no new errors/warnings in the final runtime smoke (0 error/warn entries)
 - [x] Verify the existing parser/store self-check coverage as far as the current runner permits
-- **Status:** complete with one explicit unverified sub-check
+- **Status:** complete; the earlier session lacked console access, but the final smoke observed zero error/warn entries
 
 ### Phase 5: Delivery & Checkpoint
 
@@ -109,6 +113,33 @@ Phase 9: Delivery & Checkpoint (complete)
 - [x] Leave the worktree clean without pushing
 - **Status:** complete
 
+### Phase 10: Missing-Rate Safety Discovery & RED
+
+- [x] Re-open the selected plan before extending the completed checkpoint
+- [x] Trace the active `src/core` calculation consumers of Work Center rates
+- [x] Define the safe policy: an unknown or blank Work Center must not receive an invented rate; its conversion contribution is zero and the primary breakdown reports the missing key
+- [x] Add a focused no-new-dependency verification check covering the primary breakdown and supporting calculation surfaces
+- [x] Run the new check before implementation and capture the expected RED result
+- **Status:** complete
+
+### Phase 11: Active Core Calculation Hardening
+
+- [x] Centralize Work Center rate lookup with an explicit missing result and zero-cost fallback
+- [x] Remove hard-coded missing-rate values from the active core cost, driver, detail, and what-if calculations
+- [x] Expose missing Work Center keys from the primary breakdown and show a concise user-facing warning
+- [x] Preserve known-rate results and existing seeded workbook behavior
+- [x] Re-run the focused check and type/build gates
+- **Status:** complete
+
+### Phase 12: Verification & Checkpoint
+
+- [x] Run the full-flow fixture check and comprehensive audit after the calculation change
+- [x] Verify the active browser page still renders the seeded comparison and missing-rate-safe breakdown
+- [x] Record verified and unverified evidence, including the deferred native picker/download acceptance
+- [x] Commit the calculation implementation and verification evidence atomically by concern
+- [x] Leave the worktree clean without pushing
+- **Status:** complete; manual human acceptance remains
+
 ## Commit Boundaries
 
 1. docs: add snapshot import role selector plan — planning records only.
@@ -116,6 +147,9 @@ Phase 9: Delivery & Checkpoint (complete)
 3. A separate verification/test commit is allowed only if a meaningful runnable check is added without unrelated tooling expansion.
 4. docs: extend snapshot plan for full workbook flow — plan and discovery records only.
 5. test: add bundled snapshot full-flow verification — parser, comparison, and export only; no production behavior change.
+6. test: add missing Work Center rate regression check — focused calculation behavior only.
+7. feat: make active core calculations explicit about missing Work Center rates — shared lookup, zero-cost behavior, primary warning, and supporting calculator wiring.
+8. docs: record missing Work Center rate safety checkpoint — planning and verification evidence only.
 
 ## Acceptance Criteria
 
@@ -127,7 +161,10 @@ Phase 9: Delivery & Checkpoint (complete)
 - TypeScript and production build pass.
 - Browser smoke verification observes the controls and selection state.
 - Any missing full end-to-end workbook upload proof is explicitly marked [Unverified].
-- Browser console cleanliness is explicitly marked [Unverified] because the available automation surface does not expose console logs.
+- Browser console cleanliness was verified in the final runtime smoke; the earlier role-selector session could not expose console logs.
+- An unknown or blank Work Center never receives a hard-coded rate in the active core calculations.
+- Missing Work Center keys are visible in the primary cost breakdown so zero-cost treatment is not silent.
+- Known Work Center rates preserve the existing seeded cost results.
 
 ## Decisions Made
 
@@ -138,6 +175,8 @@ Phase 9: Delivery & Checkpoint (complete)
 | Do not add a test dependency yet | The repository has no test/lint/typecheck scripts and the first slice can be verified with existing tooling plus browser smoke verification. |
 | Keep planning artifacts in a named .planning/<PLAN_ID>/ directory | Prevents this task from colliding with another task's planning files. |
 | Use existing workbook fixtures or a temporary local fixture only | Full-flow proof needs real file input, but must not modify user-owned workbooks or add a speculative dependency. |
+| Treat missing Work Center rates as zero-cost and report their keys | Prevents fabricated conversion cost while keeping the active UI explicit about incomplete rate data. |
+| Share one rate resolver across active core calculators | Keeps primary totals, detail rows, drivers, and What-if behavior consistent without duplicating fallback literals. |
 
 ## Errors Encountered
 
@@ -148,6 +187,8 @@ Phase 9: Delivery & Checkpoint (complete)
 | Graphify semantic extraction stopped without a supported key | Use the documented `--code-only` AST fallback for this codebase trace; do not add or request credentials. |
 | Port 4173 was already occupied during the second runtime smoke | Use the isolated Vite server on port 4174 for this verification session. |
 | Browser hidden file input did not expose a controllable native picker | Keep browser upload assertions [Unverified]; use repository-owned fixture verification and manual acceptance. |
+| Node could not resolve a temporary bundle under `C:\Users\Boom\AppData\Local\Temp` in the restricted runner | Bundle the focused check into a temporary file inside the workspace before executing it. |
+| Bundling the full-flow check inlined CommonJS workbook packages and hit dynamic `require("crypto")` / `require("stream")` under ESM | Externalize `exceljs` and `xlsx` for the workspace-local bundle so Node loads the packages' supported runtime entries. |
 
 ## Definition of Done
 

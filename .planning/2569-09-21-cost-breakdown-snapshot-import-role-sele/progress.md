@@ -74,4 +74,77 @@
 
 ### Next Action
 
-Hand off the remaining manual browser acceptance items: native Reference/Current workbook upload and observable comparison workbook download.
+Continue Phase 11: replace hard-coded missing Work Center fallbacks in the active core calculation paths, then run the new regression check GREEN before the full verification checkpoint.
+
+## Session: 2569-09-21 - Missing-Rate Safety Extension
+
+### Current Status
+
+- **Phase:** 11 - Active Core Calculation Hardening (in progress)
+- **Plan ID:** 2569-09-21-cost-breakdown-snapshot-import-role-sele
+- **Last update:** Active calculation consumers traced; focused missing-rate regression check is RED against the current hard-coded fallback.
+
+### Actions Taken
+
+- Re-opened the completed plan before accepting the user's request to continue beyond the prior checkpoint.
+- Traced the active `src/core` consumers: primary cost breakdown, routing detail rows, top drivers, and what-if simulation.
+- Defined the safety policy: an unknown or blank Work Center must not receive an invented rate; the conversion contribution is zero and the primary breakdown reports the missing key.
+- Added `scripts/verify_missing_work_center_rate.ts` as a focused no-new-dependency regression check.
+- Bundled and ran the check inside the workspace; it failed as expected because the current primary breakdown uses `105.29` / `95.00` for an unknown Work Center.
+- First attempt to run a bundle under the Windows temp directory failed with `EPERM` while Node resolved `C:\Users\Boom`; switched to a workspace-local temporary bundle and captured the intended RED result.
+
+### Test Results
+
+| Test | Expected | Actual | Status |
+|------|----------|--------|--------|
+| Bundled missing Work Center self-check before implementation | Fail on fabricated fallback | Failed at primary base labor: actual `1.0529`, expected `0` | RED / expected |
+
+### Next Action
+
+Implement the shared active-core rate resolver and wire the four calculation surfaces, then re-run the focused check.
+
+## Session Update: Missing-Rate Safety Implementation
+
+### Current Status
+
+- **Phase:** 12 - Verification & Checkpoint (complete; manual human acceptance remains)
+- **Last update:** Implementation, focused regression, build, full-flow, Excel audit, browser smoke, and staged commits are GREEN.
+
+### Actions Taken
+
+- Added `src/core/calculations/work-center-rate.ts` with one explicit rate-resolution policy for active core calculations.
+- Replaced hard-coded missing-rate literals in the active primary cost, routing detail, top-driver, and What-if calculators.
+- Added `missingWorkCenters` to the active `CostElementBreakdown` result and a user-facing warning on Cost Breakdown.
+- Extended the focused regression check to prove both missing-rate safety and known-rate preservation.
+- Ran the focused check GREEN after implementation.
+- Ran `npx tsc -b --pretty false` GREEN.
+- Ran `npm run build` GREEN; Vite transformed 1,668 modules and retained the existing large-bundle warning.
+- Ran the full snapshot fixture parse → compare → four-sheet export check GREEN: 26 BOM / 35 routing / 8 Work Center findings, 18,542-byte workbook.
+- Ran `node scripts/test_comprehensive_audit.js` GREEN at 31/31.
+- Ran `npm run excel` GREEN with 100% formula shielding and zero errors, then removed the two generated root workbooks.
+- Started the updated app on the isolated Vite port 4175, opened Cost Breakdown, and observed seeded Reference `33.6936`, Current `41.9528`, Exact Gap `+8.2592`, comparison rows, and export action.
+- Read browser console logs through the available browser surface; no error or warning entries were returned.
+
+### Test Results
+
+| Test | Expected | Actual | Status |
+|------|----------|--------|--------|
+| Missing Work Center focused check | No fabricated costs; missing key reported; known rates preserved | PASS | GREEN |
+| `npx tsc -b --pretty false` | Exit 0 | Exit 0 | PASS |
+| `npm run build` | Production bundle succeeds | Exit 0; 1,668 modules; existing chunk warning | PASS |
+| Snapshot full-flow fixture check | Parse, compare, export readable four-sheet workbook | PASS; 18,542 bytes | PASS |
+| `node scripts/test_comprehensive_audit.js` | All checks pass | 31/31 | PASS |
+| `npm run excel` | Formula shielding and workbook audit pass | 100% shielding; zero errors | PASS |
+| Browser Cost Breakdown smoke | Seeded comparison and export action visible | Reference `33.6936`, Current `41.9528`, gap `+8.2592`, export visible | PASS |
+| Browser console | No runtime error/warn entries | Empty error/warn result | PASS |
+
+### Checkpoint Commits
+
+- `3afcc31 test: add missing Work Center rate regression check`
+- `6ec8abb feat: make active calculations explicit about missing rates`
+- Documentation checkpoint remains to be committed after this final plan update.
+
+### Remaining
+
+- Keep native Reference/Current workbook upload and observable native download explicitly [Unverified] until final human acceptance.
+- Stop the temporary local Vite process after the runtime evidence is recorded.
