@@ -56,3 +56,13 @@
 
 - AI verification is evidence about execution, not human acceptance.
 - The role selector slice should be independently reviewable and revertible.
+
+## Fresh Implementation Verification
+
+- Browser smoke: the rendered panel exposes exactly two role controls; Current is selected initially; clicking Reference changes the selected state and dropzone copy to `Importing as Reference`; Tab reaches Current and Space changes the selection back to Current.
+- `npx tsc -b --pretty false`: exit 0 after the UI change.
+- `npm run build`: exit 0; Vite transformed 1,667 modules. The existing large-bundle warning remains.
+- `node scripts/test_comprehensive_audit.js`: exit 0; 31/31 checks passed.
+- `npm run excel`: exit 0; generated workbook audit passed with 100% formula shielding and zero errors. The two generated root workbooks were removed after verification and confirmed absent.
+- Browser console log inspection is [Unverified] because the available computer-use browser surface exposes accessibility state but not console logs.
+- Full browser workbook upload and the complete Reference -> Current -> Compare data-flow are [Unverified] in this slice; parser/store wiring was already present and the UI role boundary was verified.

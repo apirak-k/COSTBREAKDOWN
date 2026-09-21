@@ -51,25 +51,25 @@ Phase 2: Focused RED verification
 
 ### Phase 3: Role Selector Implementation
 
-- [ ] Add local ComparisonRole state with the safe default current
-- [ ] Add accessible Reference and Current controls using existing visual tokens
-- [ ] Pass the selected role to ExcelUploadDropzone
-- [ ] Keep existing actions, legacy import behavior, and copy outside this slice unchanged
-- [ ] Re-run the focused check and type/build gates
-- **Status:** in_progress
+- [x] Add local ComparisonRole state with the safe default current
+- [x] Add accessible Reference and Current controls using existing visual tokens
+- [x] Pass the selected role to ExcelUploadDropzone
+- [x] Keep existing actions, legacy import behavior, and copy outside this slice unchanged
+- [x] Re-run the focused check and type/build gates
+- **Status:** complete
 
 ### Phase 4: Runtime Verification
 
-- [ ] Start the dev server in an isolated local process
-- [ ] Inspect the rendered Import panel after networkidle
-- [ ] Verify both role controls are visible, keyboard reachable, and selection changes the displayed import role
-- [ ] Verify browser console has no new errors/warnings
-- [ ] Verify the existing parser/store self-check coverage as far as the current runner permits
-- **Status:** pending
+- [x] Start the dev server in an isolated local process
+- [x] Inspect the rendered Import panel after the app loaded
+- [x] Verify both role controls are visible, keyboard reachable, and selection changes the displayed import role
+- [ ] Verify browser console has no new errors/warnings [Unverified: the available browser automation surface does not expose console logs]
+- [x] Verify the existing parser/store self-check coverage as far as the current runner permits
+- **Status:** complete with one explicit unverified sub-check
 
 ### Phase 5: Delivery & Checkpoint
 
-- [ ] Review the final diff and staged files for scope and confidentiality
+- [x] Review the final diff and staged files for scope and confidentiality
 - [ ] Commit the plan/checkpoint records separately from the UI behavior when practical
 - [ ] Commit the verified role-selector implementation as an atomic change
 - [ ] Update this plan, findings.md, and progress.md
@@ -92,6 +92,7 @@ Phase 2: Focused RED verification
 - TypeScript and production build pass.
 - Browser smoke verification observes the controls and selection state.
 - Any missing full end-to-end workbook upload proof is explicitly marked [Unverified].
+- Browser console cleanliness is explicitly marked [Unverified] because the available automation surface does not expose console logs.
 
 ## Decisions Made
 
