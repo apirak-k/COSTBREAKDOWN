@@ -77,7 +77,12 @@ export const CostBreakdownPage: React.FC = () => {
                 referenceItems={snapshotPair.reference.bom}
               />
             ) : (
-              <RoutingDetailedTable routing={routing} rates={rates} />
+              <RoutingDetailedTable
+                routing={routing}
+                rates={rates}
+                findings={snapshotComparison.routingFindings}
+                referenceItems={snapshotPair.reference.routing}
+              />
             )}
           </div>
         )}
