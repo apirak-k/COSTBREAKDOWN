@@ -3,7 +3,7 @@
 Date: 2026-09-21
 Repository: `https://github.com/apirak-k/COSTBREAKDOWN.git`
 Branch: `codex/snapshot-import-role-selector`
-Latest commit: `adaf299 docs: close reset fixture plan`
+Latest commit: `1d0bc6f docs: add cross-device handoff checkpoint`
 Working tree at handoff: clean
 
 ## Purpose
@@ -97,6 +97,7 @@ The browser harness did not provide a reliable narrow-width viewport override. R
 ## Recent commits to preserve
 
 ```text
+1d0bc6f docs: add cross-device handoff checkpoint
 adaf299 docs: close reset fixture plan
 20fb643 docs: record reset default fixture verification
 b209b8c feat: make reset default provide comparison fixture
