@@ -4,10 +4,10 @@
 
 ### Current Status
 
-- **Phase:** 6 - Swiss Industrial Print Foundation (in progress)
+- **Phase:** 9 - Initial UI Baseline Restoration & Verification (in progress)
 - **Plan ID:** `2569-09-21-factory-ui-refinement`
 - **Branch:** `codex/snapshot-import-role-selector`
-- **Code status:** Shared visual foundation and Cost Breakdown refinement committed; final evidence remains.
+- **Code status:** Original pre-refinement UI baseline restored in `3857d68`; fresh verification remains.
 
 ### Actions Taken
 
@@ -92,7 +92,7 @@
 | Live Cost Breakdown page | Rendered with comparison, warnings, variance tree, tables, and export action |
 | Product behavior change | None; shared-shell slice preserved behavior |
 
-## Session: 2569-09-21 - Swiss Industrial UI Direction
+## Session: 2569-09-21 - Swiss Industrial UI Direction (superseded)
 
 ### Decision and Scope
 
@@ -115,4 +115,69 @@
 
 ### Next Action
 
-Commit this plan update, then inspect the shared active files and implement Slice 1 without changing behavior.
+This direction was superseded by the user's preference for the original baseline; no Swiss page-level slice was retained.
+
+## Slice 3: Swiss Industrial Print Foundation
+
+### Changes
+
+- Replaced the shared dark-terminal color split with a warm light substrate, carbon ink, rigid borders, and a single hazard-red accent token.
+- Removed Inter/Roboto font references from the active Tailwind/global typography layer; sans text now uses Arial/Helvetica and engineering values use a restrained Consolas-style mono stack.
+- Refined `AppLayout`, `Navbar`, and `KPIStatCard` to use square rules, flat surfaces, light status strip, red active markers, and no decorative pulse/shadow treatment.
+- Preserved routes, product selector behavior, data values, visible control names, and existing state/cost logic.
+
+### Verification
+
+| Check | Result |
+|-------|--------|
+| `npx tsc -b --pretty false` | Passed |
+| `npm run build` | Passed; existing large-chunk warning remains |
+| `node scripts/test_comprehensive_audit.js` | Passed `31/31` |
+| Fresh browser Master Data load | Passed; Swiss shell rendered |
+| Fresh browser Cost Breakdown navigation | Passed; seeded comparison values remained visible |
+| Product selector interaction | Passed; dataset list and active product remained visible |
+| Narrow-width browser evidence | Still pending; same harness limitation as before |
+
+### Commit
+
+- `da0db47 style: establish swiss industrial workbench foundation`
+
+### Next Action
+
+Verify the restored baseline in a fresh browser and run the standard gates before handing the UI back for human review.
+
+## Session: 2569-09-21 - Initial UI Baseline Restored
+
+### Decision and Scope
+
+- The user clarified that the first UI before the recent visual refinements felt less AI-like and should be the target.
+- The industrial skill remains useful as a review guardrail for operational hierarchy, dense-table readability, and restrained decoration, but its Swiss archetype is not being applied as a replacement identity.
+- The UI-only rollback was applied to the shared shell and Cost Breakdown presentation files; no core, state, service, calculation, import/export, or route behavior files were changed.
+
+### Verification Before Browser Smoke
+
+- The restored staged UI files compare exactly with the pre-refinement baseline `63c418f` (`UI_BASELINE_MATCHES_63C418F`).
+- The rollback was committed as `3857d68 style: restore initial factory UI baseline`.
+
+### Next Action
+
+Run typecheck/build/audit and fresh browser smoke on the restored baseline. Do not add another visual redesign without a specific user-identified issue.
+
+### Baseline Verification
+
+| Check | Result |
+|-------|--------|
+| `npx tsc -b --pretty false` | Passed |
+| `npm run build` | Passed; existing large-chunk warning remains |
+| `node scripts/test_comprehensive_audit.js` | Passed `31/31` |
+| Fresh browser Master Data load | Passed; original dark workbench header/light data-panel composition rendered |
+| Fresh browser Cost Breakdown navigation | Passed; Reference `33.6936`, Current `41.9528`, and gap `+8.2592` remained visible |
+| Cost Breakdown baseline screenshot | Passed; original KPI/snapshot/variance presentation restored |
+| Product selector interaction | Passed; dataset list, `RGOM-024-01`, and `ACTIVE` remained visible |
+| Browser console log evidence | Not claimed; current IAB harness does not expose it |
+
+### Current Handoff
+
+- The industrial skill remains available as a restraint for future specific UI fixes, but no new industrial visual system is being applied.
+- The source baseline is committed as `3857d68 style: restore initial factory UI baseline`.
+- Final visual acceptance is now with the user.

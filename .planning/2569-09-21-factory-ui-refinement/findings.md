@@ -8,6 +8,8 @@
 
 ## Approved Swiss Industrial Direction
 
+> Historical experiment. This direction was superseded after browser review because the user preferred the original UI baseline.
+
 - Use Swiss Industrial Print as the single visual archetype: light bone/newsprint substrate, carbon-black typography, visible 1px/2px rules, rigid grid, crisp corners, and one primary hazard red.
 - Apply utilitarian minimalism through disciplined spacing, restrained type hierarchy, selective mono for engineering values, and no decorative effects.
 - Do not mix in Tactical CRT cues such as dark mode, scanlines, neon, glow, or terminal noise; those would preserve the AI/console impression the user wants removed.
@@ -60,6 +62,13 @@ Legacy duplicate paths under `src/pages`, `src/components`, and `src/lib` are no
 | Treat warnings as operational states, not decorative alerts | Missing rates and review rows need clear text and contrast, not more visual effects. |
 | Keep raw values and existing labels stable | Browser acceptance and existing users depend on current content and control names. |
 
+## Phase 6 Source Audit
+
+- The shared shell still hard-codes the previous dark header/footer in `AppLayout` and `Navbar`, while `index.css` still names Inter/Roboto in the global token layer; these are the first responsible layers for removing the AI/terminal impression.
+- The shared KPI card is already isolated behind `KPIStatCard`, so its surface, badge, and delta treatment can be changed without touching calculations.
+- The Cost Breakdown page and tables still contain many slate/rounded utility classes. They are intentionally deferred to the page-level slice so the shared foundation can be verified independently.
+- `ConfirmModal`, `ConfidenceBadge`, and `ExcelUploadDropzone` are shared active components with additional dark/rounded utility classes; they will be checked during cross-route consistency and changed only if the unified substrate visibly requires it.
+
 ## Verification Baseline
 
 - Live browser screenshot and DOM inspection were performed on the active Comparison page.
@@ -77,6 +86,13 @@ Legacy duplicate paths under `src/pages`, `src/components`, and `src/lib` are no
 - Fresh browser console inspection returned no `error` or `warn` entries.
 - An earlier boolean smoke check incorrectly searched for uppercase page text and reported false negatives; the later accessibility snapshot confirmed the route changed correctly. The test assumption—not the UI behavior—was corrected.
 - Narrow-width browser evidence is still pending and will be captured during final verification; no narrow-width claim is made yet.
+
+## Phase 6 Swiss Foundation Verification
+
+- Fresh browser load on the active dev server rendered the unified light Swiss substrate: warm bone page, carbon-black header/footer rules, red active/status marks, and square controls without the prior dark-terminal header.
+- Fresh Cost Breakdown navigation retained the seeded values: Reference `33.6936`, Current `41.9528`, exact gap `+8.2592`, and the existing variance/table controls.
+- The product selector still opened and exposed `DATASET VERSIONS & PRODUCTS (1)`, `RGOM-024-01`, and `ACTIVE`; no interaction or label regression was observed.
+- The shared foundation intentionally leaves page-level slate/semantic classes for the next Cost Breakdown slice so that this commit remains attributable to shell styling only.
 
 ## Cost Breakdown Readability Verification
 
@@ -99,3 +115,13 @@ Legacy duplicate paths under `src/pages`, `src/components`, and `src/lib` are no
 | Visual changes accidentally alter accessibility selectors | Preserve visible labels, button names, and semantic elements; run AX/keyboard smoke. |
 | Screenshot tuning becomes subjective | Use the user's stated preference as the constraint and keep changes narrow/reversible. |
 | Shared light tokens may affect every active route | Verify all active routes after the shared foundation and avoid touching legacy duplicate paths. |
+
+## Direction Change: Restore Initial UI Baseline
+
+- The user clarified that the first UI, before the recent refinement commits, felt less AI-like and should be restored.
+- The industrial UI skill remains useful as a restraint on hierarchy, density, status clarity, and decorative effects, but the full Swiss Industrial Print archetype is not the target.
+- The shared shell and active Cost Breakdown presentation were restored exactly to the pre-refinement versions at `63c418f`.
+- The restoration commit is `3857d68 style: restore initial factory UI baseline`.
+- `git diff --cached --exit-code 63c418f -- <restored UI files>` returned `UI_BASELINE_MATCHES_63C418F`; no calculation, state, service, import/export, or route behavior files were included.
+- Fresh browser verification rendered the original dark workbench header/light data-panel composition, preserved Cost Breakdown values `33.6936 → 41.9528` with gap `+8.2592`, and kept the product selector interaction working.
+- The current in-app browser did not expose console logs, so no new clean-console claim is made for this baseline smoke.

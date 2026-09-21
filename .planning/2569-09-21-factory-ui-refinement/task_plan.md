@@ -2,7 +2,7 @@
 
 ## Goal
 
-Establish a coherent, practical factory workbench visual system that no longer reads as an AI dashboard, while preserving all existing data, calculations, state, and operator flows.
+Restore the original factory UI baseline that the user preferred, then use industrial UI principles only as restrained guardrails for clarity—not as a wholesale visual identity replacement.
 
 ## Scope Guard
 
@@ -14,7 +14,7 @@ In scope:
 
 Out of scope:
 
-- Mixing multiple visual archetypes or adding a tactical CRT/dark-mode treatment
+- Replacing the original baseline with a new Swiss, tactical, brutalist, or AI-styled visual identity
 - Changing Reference/Current semantics, import/export behavior, calculation formulas, or store state
 - Editing legacy duplicate paths under `src/pages`, `src/components`, or `src/lib` unless an active import is proven
 - Adding dependencies, fonts, backend services, or a design system package
@@ -22,19 +22,18 @@ Out of scope:
 
 ## User-Approved Direction
 
-- Use one coherent archetype: **Swiss Industrial Print** with utilitarian minimalism.
-- Use a light bone/newsprint substrate, carbon-black ink, rigid rules/grid, crisp corners, and one primary hazard red for operational emphasis.
-- Keep the existing factory information architecture and interaction model, but replace the previous mixed dark-terminal/light-card treatment where it causes the AI/demo impression.
-- Avoid tactical CRT, scanlines, neon, gradients, glow, glass, heavy shadows, excessive rounded cards, marketing copy, and decorative animation.
+- Return the active UI files to the pre-refinement baseline at `63c418f`, which the user considers less AI-like and closer to the intended factory tool.
+- Use the industrial skill selectively: keep operational hierarchy, readable dense tables, clear status, and restrained decoration as review criteria; do not impose a new archetype.
+- Preserve the baseline's original layout, palette, navigation, labels, and information density unless a specific UI-only defect is found.
 - Preserve calculations, store state, import/export, navigation, visible labels, and accessibility behavior.
 
 ## Next Step
 
-Implement the approved Swiss Industrial Print foundation, verify it in a fresh browser, then align the Cost Breakdown data surfaces before final cross-route verification.
+Hand the restored baseline to the user for final visual acceptance; make no further visual redesign unless the user identifies a specific UI issue.
 
 ## Current Phase
 
-Phase 6: Swiss Industrial Print Foundation (in_progress)
+Phase 9: Initial UI Baseline Restoration & Verification (human review pending)
 
 ## Phases
 
@@ -96,31 +95,33 @@ Phase 6: Swiss Industrial Print Foundation (in_progress)
 - [x] Leave final human acceptance to the user
 - **Status:** complete for the previous refinement direction; narrow-width evidence remains an explicit browser-harness limitation carried into the new phase
 
-### Phase 6: Swiss Industrial Print Foundation
+### Phase 6: Swiss Industrial Print Foundation (superseded)
 
-- [ ] Replace the shared dark-terminal bias with the approved light Swiss substrate and carbon-ink tokens
-- [ ] Refine `AppLayout`, `Navbar`, footer/status, and shared KPI presentation around rigid rules and crisp corners
-- [ ] Remove active-shell gradients, heavy shadows, pill-like defaults, and decorative status motion without changing controls or labels
-- [ ] Keep focus visibility, keyboard access, responsive stacking, and semantic status treatment intact
-- [ ] Verify the foundation in a fresh browser on the active routes
-- **Status:** in_progress
+- [x] Replace the shared dark-terminal bias with the approved light Swiss substrate and carbon-ink tokens
+- [x] Refine `AppLayout`, `Navbar`, footer/status, and shared KPI presentation around rigid rules and crisp corners
+- [x] Remove active-shell gradients, heavy shadows, pill-like defaults, and decorative status motion without changing controls or labels
+- [x] Keep focus visibility, keyboard access, responsive stacking, and semantic status treatment intact
+- [x] Verify the foundation in a fresh browser on the active routes
+- **Status:** superseded and rolled back by `3857d68` after the user preferred the original baseline
 
 ### Checkpoint 3: Swiss Foundation
 
-- [ ] TypeScript check passes
-- [ ] Production build passes
-- [ ] Existing navigation and product selector still work
-- [ ] Fresh browser console has no application errors or warnings
-- [ ] Commit only the shared Swiss foundation slice
+- [x] TypeScript check passes
+- [x] Production build passes
+- [x] Existing navigation and product selector still work
+- [ ] Fresh browser console has no application errors or warnings (not exposed by current IAB harness)
+- [x] Commit only the shared Swiss foundation slice
+- **Status:** complete with the console-evidence limitation recorded
 
-### Phase 7: Swiss Cost Breakdown Presentation
+### Phase 7: Swiss Cost Breakdown Presentation (superseded)
 
 - [ ] Align KPI ledger, comparison panels, warnings, variance tree, and tables with the Swiss substrate
 - [ ] Use red only for actionable variance/review emphasis and keep neutral states legible without decorative color noise
 - [ ] Preserve all values, tab names, warning text, export behavior, and keyboard semantics
-- [ ] Verify the fresh Cost Breakdown route and commit only the page-level slice
+- [x] Verify that no Swiss page-level slice is retained after the direction change
+- **Status:** superseded; Cost Breakdown presentation returned to the pre-refinement baseline
 
-### Phase 8: Final Verification & Human Acceptance
+### Phase 8: Final Verification & Human Acceptance (superseded)
 
 - [ ] Inspect all active routes for visual consistency and unintended regressions
 - [ ] Run the full relevant verification gates after the final visual change
@@ -128,9 +129,29 @@ Phase 6: Swiss Industrial Print Foundation (in_progress)
 - [ ] Leave the worktree clean and hand final visual acceptance to the user
 - **Status:** pending
 
+### Phase 9: Initial UI Baseline Restoration & Verification
+
+- [x] Restore the active UI files to the pre-refinement baseline at `63c418f`
+- [x] Confirm the restoration diff contains only UI/layout/presentation files
+- [x] Run typecheck, production build, and the existing audit suite
+- [x] Verify fresh browser rendering and core navigation/product-selector interactions
+- [x] Record the result and leave final human visual acceptance to the user
+- **Status:** complete for implementation; final human visual acceptance remains with the user
+
+### Checkpoint 4: Restored Baseline
+
+- [x] UI files compare exactly with the pre-refinement baseline `63c418f`
+- [x] TypeScript check passes
+- [x] Production build passes; existing large-chunk warning remains
+- [x] Existing audit suite passes `31/31`
+- [x] Fresh browser shows the original shell and Cost Breakdown values
+- [x] Product selector opens with the expected dataset/product entry
+- [ ] Browser console log evidence (not exposed by the current IAB harness)
+
 ## Acceptance Criteria
 
-- Swiss Industrial Print is applied as one coherent factory workbench language rather than a mixed AI/terminal dashboard treatment.
+- The active UI files match the original pre-refinement factory baseline the user prefers.
+- Industrial UI principles are used only as a restraint on future UI changes, not as a replacement visual identity.
 - Factory operator can identify product context, active state, cost gap, review count, and missing-rate warnings within one scan.
 - Numbers remain tabular and aligned; labels and explanations remain readable at normal zoom.
 - No interactive behavior changes for navigation, product selector, import, export, tabs, or accordion sections.
@@ -145,17 +166,17 @@ Phase 6: Swiss Industrial Print Foundation (in_progress)
 3. `style: improve cost breakdown factory readability` — comparison, warnings, controls, and tables only.
 4. `style: align active route presentation` — only if cross-route inspection finds a real consistency issue.
 5. `docs: record factory UI verification` — final evidence only.
-6. `docs: plan swiss industrial UI direction` — approved direction and new implementation phases.
-7. `style: establish swiss industrial workbench foundation` — shared light substrate, rules, navigation, layout, and KPI styling.
-8. `style: align cost breakdown with swiss industrial system` — active Cost Breakdown presentation only.
-9. `docs: record swiss industrial UI verification` — final evidence only.
+6. `docs: plan swiss industrial UI direction` — superseded direction (`16935ca`).
+7. `style: establish swiss industrial workbench foundation` — superseded visual experiment (`da0db47`).
+8. `style: restore initial factory UI baseline` — UI-only rollback to `63c418f` (`3857d68`).
+9. `docs: record initial UI baseline verification` — fresh verification and final evidence.
 
 ## Decisions Made
 
 | Decision | Rationale |
 |----------|-----------|
-| Preserve behavior while revising the visual substrate | The user later confirmed the current result still looks AI-like and approved a deeper Swiss Industrial Print treatment; calculations and flows must remain stable. |
-| Use Swiss Industrial Print, not Tactical CRT | The industrial UI skill requires one archetype; the light print language fits a factory workbench while avoiding another terminal-like aesthetic. |
+| Restore the pre-refinement baseline | The user explicitly prefers the first UI and says it reads less like AI; exact file comparison confirms the restored presentation matches `63c418f`. |
+| Use industrial principles selectively | The skill is useful for hierarchy, dense operational data, and restraint, but the user does not want its full visual archetype applied. |
 | Use small shared-shell and page-level slices | Prevents repeated redesign work and keeps each visual change reversible. |
 | Keep the active frontend path only | The repository contains legacy duplicate UI paths that are not imported by `src/App.tsx`. |
 | Prefer CSS/Tailwind changes over new abstractions | The app already uses Tailwind and shared components; a new design system would add unnecessary scope. |
