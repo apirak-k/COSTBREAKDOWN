@@ -24,11 +24,11 @@ Out of scope for this task:
 
 ## Next Step
 
-Trace the existing workbook-to-comparison path, create a focused RED acceptance check for the full flow, and fix only defects required for Reference -> Current -> Compare -> Export.
+Manual acceptance of native workbook upload/download in the user's browser; no further production change is indicated by the current fixture flow.
 
 ## Current Phase
 
-Phase 6: Full Workbook Flow Discovery
+Phase 9: Delivery & Checkpoint (complete)
 
 ## Phases
 
@@ -106,8 +106,8 @@ Phase 6: Full Workbook Flow Discovery
 - [x] Review the scoped diff and generated artifacts
 - [x] Commit each meaningful increment atomically
 - [x] Update findings/progress with verified and unverified evidence
-- [ ] Leave the worktree clean without pushing
-- **Status:** in_progress
+- [x] Leave the worktree clean without pushing
+- **Status:** complete
 
 ## Commit Boundaries
 

@@ -4,10 +4,10 @@
 
 ### Current Status
 
-- **Phase:** 6 - Full Workbook Flow Discovery
+- **Phase:** 9 - Delivery & Checkpoint (complete)
 - **Plan ID:** 2569-09-21-cost-breakdown-snapshot-import-role-sele
 - **Started:** 2569-09-21
-- **Last update:** Full-flow verification, type-check, build, audit, and seeded comparison smoke are GREEN; final docs checkpoint remains.
+- **Last update:** Full-flow verification, type-check, build, audit, and seeded comparison smoke are GREEN; final worktree is clean.
 
 ### Actions Taken
 
@@ -33,6 +33,8 @@
 - Navigated the running app to Cost Breakdown; the seeded comparison card rendered non-empty Reference/Current totals, findings, and the Export Comparison action.
 - Attempted the seeded export button; no browser download artifact was observable through the available automation surface, so native download observation remains [Unverified].
 - Committed the runnable verification script as `0fe259d`.
+- Committed the full-flow evidence as `a56554b`.
+- Confirmed `git status --short --branch` is clean on `codex/snapshot-import-role-selector` with no remote push.
 
 ### Test Results
 
@@ -72,4 +74,4 @@
 
 ### Next Action
 
-Commit the final plan/progress evidence, confirm a clean worktree, and hand off the remaining manual browser acceptance items without pushing.
+Hand off the remaining manual browser acceptance items: native Reference/Current workbook upload and observable comparison workbook download.
