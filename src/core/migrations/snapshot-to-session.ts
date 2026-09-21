@@ -25,6 +25,20 @@ function key(value: string | undefined, fallback: string): string {
   return value?.trim().toLowerCase() || fallback
 }
 
+function uniqueProjectionId(preferred: string | undefined, fallback: string, usedIds: Set<string>): string {
+  const base = preferred?.trim() || fallback
+  let candidate = base
+  let suffix = 2
+
+  while (usedIds.has(candidate)) {
+    candidate = `${fallback}-${suffix}`
+    suffix += 1
+  }
+
+  usedIds.add(candidate)
+  return candidate
+}
+
 function combineConfidence(
   reference: Record<string, FieldEvidence> | undefined,
   current: Record<string, FieldEvidence> | undefined
@@ -48,9 +62,9 @@ function mergedProduct(reference: ProductMaster, current: ProductMaster): Produc
   }
 }
 
-function projectBOM(reference: SnapshotBOMItem | undefined, current: SnapshotBOMItem | undefined, sourceRef: string, index: number): BOMItem {
+function projectBOM(reference: SnapshotBOMItem | undefined, current: SnapshotBOMItem | undefined, sourceRef: string, index: number, id: string): BOMItem {
   return {
-    id: current?.id ?? reference?.id ?? `bom-projection-${index + 1}`,
+    id,
     itemCode: current?.itemCode || reference?.itemCode || `ITEM-${index + 1}`,
     description: current?.description || reference?.description || '',
     consumption: current?.consumption ?? reference?.consumption ?? 0,
@@ -64,9 +78,9 @@ function projectBOM(reference: SnapshotBOMItem | undefined, current: SnapshotBOM
   }
 }
 
-function projectRouting(reference: SnapshotRoutingStep | undefined, current: SnapshotRoutingStep | undefined, sourceRef: string, index: number): RoutingStep {
+function projectRouting(reference: SnapshotRoutingStep | undefined, current: SnapshotRoutingStep | undefined, sourceRef: string, id: string): RoutingStep {
   return {
-    id: current?.id ?? reference?.id ?? `routing-projection-${index + 1}`,
+    id,
     opSeq: current?.sequence ?? reference?.sequence ?? 0,
     description: current?.processName || reference?.processName || '',
     wc: current?.workCenterId || reference?.workCenterId || '',
@@ -102,12 +116,24 @@ export function projectSnapshotPairToLegacySession(pair: SnapshotPair): LegacySe
   const referenceRouting = new Map(pair.reference.routing.map(item => [key(item.operationCode || item.processName, item.id), item]))
   const currentRouting = new Map(pair.current.routing.map(item => [key(item.operationCode || item.processName, item.id), item]))
   const routingKeys = new Set([...referenceRouting.keys(), ...currentRouting.keys()])
+  const usedBOMIds = new Set<string>()
+  const usedRoutingIds = new Set<string>()
 
   return {
     product: mergedProduct(pair.reference.product, pair.current.product),
     rates: pair.current.rates.map(projectRate),
-    bom: [...bomKeys].map((bomKey, index) => projectBOM(referenceBOM.get(bomKey), currentBOM.get(bomKey), pair.current.sourceRef, index)),
-    routing: [...routingKeys].map((routingKey, index) => projectRouting(referenceRouting.get(routingKey), currentRouting.get(routingKey), pair.current.sourceRef, index))
+    bom: [...bomKeys].map((bomKey, index) => {
+      const reference = referenceBOM.get(bomKey)
+      const current = currentBOM.get(bomKey)
+      const id = uniqueProjectionId(current?.id ?? reference?.id, `bom-projection-${index + 1}`, usedBOMIds)
+      return projectBOM(reference, current, pair.current.sourceRef, index, id)
+    }),
+    routing: [...routingKeys].map((routingKey, index) => {
+      const reference = referenceRouting.get(routingKey)
+      const current = currentRouting.get(routingKey)
+      const id = uniqueProjectionId(current?.id ?? reference?.id, `routing-projection-${index + 1}`, usedRoutingIds)
+      return projectRouting(reference, current, pair.current.sourceRef, id)
+    })
   }
 }
 

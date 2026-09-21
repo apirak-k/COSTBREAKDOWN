@@ -81,4 +81,33 @@ const currentAfterProjection = updateCurrentSnapshotFromLegacySession(editedSess
 assert.deepEqual(currentAfterProjection.bom.map(item => item.itemCode), ['MAT-NEW'])
 assert.equal(currentAfterProjection.bom[0].price, 20)
 
+const collisionPair: SnapshotPair = {
+  reference: {
+    ...pair.reference,
+    bom: [
+      { ...pair.reference.bom[0], id: 'shared-row', itemCode: 'MAT-REF' },
+      ...pair.reference.bom.slice(1)
+    ],
+    routing: [
+      ...pair.reference.routing,
+      { ...pair.reference.routing[0], id: 'shared-route', operationCode: 'OP-REF-ONLY', sequence: 30 }
+    ]
+  },
+  current: {
+    ...pair.current,
+    bom: [
+      { ...pair.current.bom[0], id: 'shared-row', itemCode: 'MAT-CURRENT' },
+      ...pair.current.bom.slice(1)
+    ],
+    routing: [
+      ...pair.current.routing,
+      { ...pair.current.routing[0], id: 'shared-route', operationCode: 'OP-CURRENT-ONLY', sequence: 40 }
+    ]
+  }
+}
+
+const collisionProjection = projectSnapshotPairToLegacySession(collisionPair)
+assert.equal(new Set(collisionProjection.bom.map(item => item.id)).size, collisionProjection.bom.length)
+assert.equal(new Set(collisionProjection.routing.map(item => item.id)).size, collisionProjection.routing.length)
+
 console.log('Snapshot projection self-check: PASS')
