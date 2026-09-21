@@ -4,10 +4,10 @@
 
 ### Current Status
 
-- **Phase:** 5 - Delivery & Checkpoint
+- **Phase:** 5 - Delivery & Checkpoint (complete)
 - **Plan ID:** 2569-09-21-cost-breakdown-snapshot-import-role-sele
 - **Started:** 2569-09-21
-- **Last update:** UI implementation passed build, audit, Excel, and browser smoke gates; preparing atomic commit.
+- **Last update:** UI implementation and verification records committed; final worktree is clean.
 
 ### Actions Taken
 
@@ -20,6 +20,8 @@
 - Committed the named planning records as `c38bf8b` before the implementation edit.
 - Reviewed the bounded `ExcelImportPanel.tsx` edit: local `current` default, two `aria-pressed` role controls, and `importRole` prop wiring only.
 - Verified browser selection behavior with click and keyboard actions; the dropzone copy followed Reference and Current selections.
+- Committed the UI atomically as `e01b2f5` and the final verification records as `d121d40`.
+- Confirmed `git status --short --branch` is clean on `codex/snapshot-import-role-selector`.
 
 ### Test Results
 
@@ -48,4 +50,4 @@
 
 ### Next Action
 
-Stage only the UI implementation, review the staged diff, commit it atomically, then update this log with the final clean-tree evidence.
+No further implementation action remains in this bounded slice. Hand off the verified change with the explicit console and full workbook-flow gaps marked [Unverified].

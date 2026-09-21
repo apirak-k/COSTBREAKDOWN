@@ -24,7 +24,7 @@ Out of scope for this task:
 
 ## Next Step
 
-Review the bounded UI edit, then run the focused browser smoke and type/build gates before the implementation checkpoint commit.
+Human acceptance of the new import-role controls and, if accepted, the next slice for full workbook-driven Reference -> Current -> Compare verification.
 
 ## Current Phase
 
@@ -70,11 +70,11 @@ Phase 2: Focused RED verification
 ### Phase 5: Delivery & Checkpoint
 
 - [x] Review the final diff and staged files for scope and confidentiality
-- [ ] Commit the plan/checkpoint records separately from the UI behavior when practical
-- [ ] Commit the verified role-selector implementation as an atomic change
-- [ ] Update this plan, findings.md, and progress.md
-- [ ] Report verified, unverified, and next-slice items without claiming human acceptance
-- **Status:** pending
+- [x] Commit the plan/checkpoint records separately from the UI behavior when practical
+- [x] Commit the verified role-selector implementation as an atomic change
+- [x] Update this plan, findings.md, and progress.md
+- [x] Report verified, unverified, and next-slice items without claiming human acceptance
+- **Status:** complete
 
 ## Commit Boundaries
 
