@@ -102,3 +102,14 @@
 - `npm run excel`: PASS; generated workbook audit reported 100% formula shielding and zero errors. Generated root workbooks were removed afterward.
 - Browser runtime smoke on the updated build: Cost Breakdown rendered seeded Reference `33.6936`, Current `41.9528`, Exact Cost Gap `+8.2592`, 50 matched rows, one review row, and the export action. Browser console inspection returned zero error/warn entries.
 - Native workbook file selection and observable native download remain [Unverified] because the available manual acceptance path still requires the user's browser interaction.
+
+## Final Browser Acceptance Evidence
+
+- A fresh in-app browser tab exercised both real repository-owned workbook uploads through the actual file input path.
+- Reference import succeeded with `4 Work Centers, 10 BOM Items, 15 Routing Steps` from `public/CostModel_SYNTHETIC_MOCK_v2.xlsx`.
+- Current import succeeded with `4 Work Centers, 16 BOM Items, 39 Routing Steps` from `public/CostModel_RGOM-024_v2.xlsx`.
+- The uploaded Comparison page rendered Reference `18.9610`, Current `41.9528`, Exact Cost Gap `+22.9918`, `69` review rows, detailed BOM `26`, Routing `35`, and Work Center `4` sections, plus the export action.
+- The first imported run exposed duplicate React row-key warnings. The root cause was that reference/current legacy adapters could provide the same source ID for different merged BOM or Routing keys. `projectSnapshotPairToLegacySession` now allocates deterministic collision-safe IDs, and `scripts/verify_snapshot_projection.ts` asserts BOM and Routing projection IDs are unique.
+- After the fix, the fresh uploaded flow returned no browser error or warning entries. The focused projection check, TypeScript build, production build, full-flow fixture check, comprehensive audit, missing-rate check, and Excel audit were already GREEN before the code checkpoint.
+- Clicking `Export Comparison (.xlsx)` produced no user-facing export error. The available browser adapter did not expose a native download artifact and the Downloads folder remained empty, so native download observation stays [Unverified]. The bundled export check independently produced a readable four-sheet workbook of `18,543` bytes.
+- AI-run browser evidence is not human acceptance; the user still needs to inspect the final Comparison page and, if required, confirm the downloaded workbook through their normal browser.

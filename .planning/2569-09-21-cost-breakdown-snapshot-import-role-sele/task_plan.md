@@ -28,11 +28,11 @@ The original role-selector/full-flow checkpoint intentionally deferred the activ
 
 ## Next Step
 
-Complete the active core calculation missing-rate safety slice, then perform the previously deferred manual acceptance of native workbook upload/download in the user's browser.
+User reviews the final Comparison page and confirms the native export download through their normal browser; return with any acceptance findings for follow-up fixes.
 
 ## Current Phase
 
-Phase 12: Verification & Checkpoint (complete; manual human acceptance remains)
+Phase 13: Final Browser Acceptance Evidence (upload/comparison passed; native download artifact remains harness-limited; human acceptance remains)
 
 ## Phases
 
@@ -98,8 +98,8 @@ Phase 12: Verification & Checkpoint (complete; manual human acceptance remains)
 
 ### Phase 8: Runtime and Regression Verification
 
-- [ ] Exercise Reference upload in the browser and verify the Reference side is populated [Blocked by uncontrollable native picker]
-- [ ] Exercise Current upload in the browser and verify the Current side is populated [Blocked by uncontrollable native picker]
+- [x] Exercise Reference upload in the browser and verify the Reference side is populated [Executed in the in-app browser; Chrome extension picker remains unsupported]
+- [x] Exercise Current upload in the browser and verify the Current side is populated [Executed in the in-app browser; Chrome extension picker remains unsupported]
 - [x] Verify non-empty comparison output from both repository fixtures through the real comparison function
 - [x] Verify comparison export and its four-sheet generated artifact through the real export function
 - [x] Run type-check, build, and relevant regression/audit gates
@@ -150,6 +150,8 @@ Phase 12: Verification & Checkpoint (complete; manual human acceptance remains)
 6. test: add missing Work Center rate regression check — focused calculation behavior only.
 7. feat: make active core calculations explicit about missing Work Center rates — shared lookup, zero-cost behavior, primary warning, and supporting calculator wiring.
 8. docs: record missing Work Center rate safety checkpoint — planning and verification evidence only.
+9. fix: keep projected snapshot row ids unique — deterministic collision-safe IDs for merged BOM/Routing projections plus a focused regression check.
+10. docs: record final browser acceptance evidence — exact upload/comparison observations, console result, and native-download limitation.
 
 ## Acceptance Criteria
 
@@ -160,8 +162,8 @@ Phase 12: Verification & Checkpoint (complete; manual human acceptance remains)
 - Existing reset, clear, template, promote, and legacy adapter behavior is unchanged.
 - TypeScript and production build pass.
 - Browser smoke verification observes the controls and selection state.
-- Any missing full end-to-end workbook upload proof is explicitly marked [Unverified].
-- Browser console cleanliness was verified in the final runtime smoke; the earlier role-selector session could not expose console logs.
+- Native downloaded-file observation is explicitly marked [Unverified] because the available browser adapter did not expose a download artifact.
+- Browser console cleanliness was verified in the final uploaded-workbook runtime smoke.
 - An unknown or blank Work Center never receives a hard-coded rate in the active core calculations.
 - Missing Work Center keys are visible in the primary cost breakdown so zero-cost treatment is not silent.
 - Known Work Center rates preserve the existing seeded cost results.

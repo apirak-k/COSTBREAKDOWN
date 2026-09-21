@@ -148,3 +148,38 @@ Implement the shared active-core rate resolver and wire the four calculation sur
 
 - Keep native Reference/Current workbook upload and observable native download explicitly [Unverified] until final human acceptance.
 - Stop the temporary local Vite process after the runtime evidence is recorded.
+
+## Session: 2569-09-21 - Final Browser Acceptance Run
+
+### Current Status
+
+- **Phase:** 13 - Final Browser Acceptance Evidence
+- **Branch:** `codex/snapshot-import-role-selector`
+- **Latest code checkpoint:** `f649996 fix: keep projected snapshot row ids unique`
+- **Status:** Upload and comparison flow passed in the in-app browser; native downloaded-file observation remains harness-limited; human acceptance remains separate.
+
+### Actions Taken
+
+- Started the updated Vite app on isolated port 4176 and opened a fresh browser tab.
+- Uploaded the repository-owned `public/CostModel_SYNTHETIC_MOCK_v2.xlsx` as Reference.
+- Uploaded the repository-owned `public/CostModel_RGOM-024_v2.xlsx` as Current.
+- Opened Cost Breakdown and verified the uploaded Reference vs Current comparison rendered with non-empty totals, findings, detailed BOM/Routing/Work Center sections, and the export action.
+- Found duplicate React row-key warnings during the first imported run; traced them to colliding legacy source IDs across merged snapshot rows.
+- Added deterministic collision-safe projection IDs and a focused regression check, then committed the fix separately.
+
+### Test Results
+
+| Test | Expected | Actual | Status |
+|------|----------|--------|--------|
+| Reference workbook upload | Reference snapshot imported | `4 Work Centers, 10 BOM Items, 15 Routing Steps` | PASS |
+| Current workbook upload | Current snapshot imported | `4 Work Centers, 16 BOM Items, 39 Routing Steps` | PASS |
+| Uploaded comparison UI | Totals, gap, findings, details, and export visible | Reference `18.9610`, Current `41.9528`, gap `+22.9918`, `69` review rows, BOM `26`, Routing `35`, Work Center `4` | PASS |
+| Fresh browser console | No runtime errors or warnings after the fix | Empty error/warn result | PASS |
+| Export action | No user-facing export error | Export button completed without visible error | PASS |
+| Native downloaded-file observation | Download artifact visible to the browser adapter | No artifact exposed; Downloads folder remained empty | UNVERIFIED / harness limitation |
+| Bundled export verification | Readable four-sheet workbook | `18,543` bytes; Summary, BOM Comparison, Routing Comparison, Work Center Comparison | PASS |
+
+### Remaining
+
+- Human acceptance is still required for the final user-facing review.
+- Native download artifact observation remains [Unverified] in this browser adapter; the export generator itself is covered by the bundled four-sheet check.
