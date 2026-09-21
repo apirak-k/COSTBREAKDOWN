@@ -43,10 +43,10 @@ export const Navbar: React.FC = () => {
           {/* Brand + Product Selector */}
           <div className="flex items-center gap-3 shrink-0">
             <div className="flex items-center gap-2">
-              <span className="bg-slate-800 text-slate-200 border border-slate-700 font-mono font-bold text-[11px] px-1.5 py-0.5 rounded">
+              <span className="bg-slate-800 text-slate-200 border border-slate-700 font-mono font-bold text-[11px] px-1.5 py-0.5 rounded-sm">
                 CB
               </span>
-              <span className="font-bold font-mono tracking-tight text-xs text-slate-200 hidden sm:inline">
+              <span className="font-extrabold tracking-[0.04em] text-xs text-slate-200 hidden sm:inline">
                 COST BREAKDOWN
               </span>
             </div>
@@ -57,10 +57,10 @@ export const Navbar: React.FC = () => {
             <div className="relative" ref={dropdownRef}>
               <button
                 onClick={() => setDropdownOpen(prev => !prev)}
-                className="flex items-center justify-between gap-2 px-2.5 py-1 bg-slate-800 hover:bg-slate-750 border border-slate-700 text-left transition-colors cursor-pointer text-xs rounded"
+                className="flex items-center justify-between gap-2 px-2.5 py-1 bg-slate-800 hover:bg-slate-750 border border-slate-700 text-left transition-colors cursor-pointer text-xs rounded-sm"
               >
                 <div className="flex items-center gap-1.5">
-                  <span className="text-[10px] uppercase font-bold text-slate-400 font-mono">PRODUCT:</span>
+                  <span className="text-[10px] uppercase font-bold text-slate-400">PRODUCT:</span>
                   <span className="font-mono font-bold text-slate-100 text-xs">{displayCode}</span>
                   <span
                     className={`px-1.5 py-0.2 text-[8px] font-mono font-bold uppercase rounded border ${
@@ -81,7 +81,7 @@ export const Navbar: React.FC = () => {
               {dropdownOpen && (
                 <div className="absolute left-0 top-full mt-1 w-84 bg-slate-900 border border-slate-700 rounded shadow-xl z-50 overflow-hidden text-xs">
                   <div className="p-2">
-                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider px-2 py-1 font-mono">
+                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider px-2 py-1">
                       Dataset Versions &amp; Products ({productSessions.length})
                     </p>
                     <div className="space-y-0.5 max-h-72 overflow-y-auto">
@@ -93,14 +93,14 @@ export const Navbar: React.FC = () => {
                         return (
                           <div
                             key={s.id}
-                            className={`flex items-center justify-between group rounded px-2.5 py-1.5 cursor-pointer transition-colors ${
+                            className={`flex items-center justify-between group rounded-sm px-2.5 py-1.5 cursor-pointer transition-colors ${
                               isActive ? 'bg-slate-800 text-white border-l-2 border-slate-400' : 'hover:bg-slate-800/60 text-slate-300'
                             }`}
                             onClick={() => { switchProduct(s.id); setDropdownOpen(false) }}
                           >
                             <div className="min-w-0 flex-1">
                               <div className="flex items-center gap-1.5">
-                                <p className="text-xs font-bold font-mono truncate text-slate-100">
+                                <p className="text-xs font-bold truncate text-slate-100">
                                   {code}
                                 </p>
                                 <span
@@ -146,7 +146,7 @@ export const Navbar: React.FC = () => {
                   <div className="border-t border-slate-800 p-2 bg-slate-950">
                     <button
                       onClick={() => { setSetupModalOpen(true); setDropdownOpen(false) }}
-                      className="w-full flex items-center justify-center gap-1.5 px-2 py-1.5 text-xs font-bold text-slate-200 hover:text-white hover:bg-slate-900 rounded transition-colors cursor-pointer"
+                      className="w-full flex items-center justify-center gap-1.5 px-2 py-1.5 text-xs font-bold text-slate-200 hover:text-white hover:bg-slate-900 rounded-sm transition-colors cursor-pointer"
                     >
                       <Plus className="w-3.5 h-3.5" />
                       Add New Product
@@ -165,10 +165,10 @@ export const Navbar: React.FC = () => {
                 <button
                   key={item.id}
                   onClick={() => setActiveTab(item.id)}
-                  className={`px-3 py-1.5 text-xs font-mono font-medium rounded transition-colors whitespace-nowrap cursor-pointer flex items-center gap-1.5 ${
+                  className={`px-3 py-1.5 text-xs font-semibold rounded-none border-b-2 transition-colors whitespace-nowrap cursor-pointer flex items-center gap-1.5 ${
                     isActive
-                      ? 'bg-slate-800 text-white border border-slate-700 font-bold shadow-2xs'
-                      : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/40'
+                      ? 'bg-slate-800 text-white border-slate-200 font-bold'
+                      : 'border-transparent text-slate-400 hover:text-slate-200 hover:bg-slate-800/40'
                   }`}
                 >
                   <span>{item.label}</span>

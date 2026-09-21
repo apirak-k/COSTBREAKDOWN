@@ -3,12 +3,20 @@
 @tailwind utilities;
 
 :root {
+  --cb-page: #eef1f0;
+  --cb-surface: #ffffff;
+  --cb-ink: #18252e;
+  --cb-muted: #5d6a75;
+  --cb-border: #cbd5d9;
+  --cb-border-strong: #aebbc2;
+  --cb-header: #0f1b2a;
+  --cb-focus: #d97732;
   font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
   line-height: 1.5;
   font-weight: 400;
   color-scheme: light;
-  background-color: #f1f5f9;
-  color: #0f172a;
+  background-color: var(--cb-page);
+  color: var(--cb-ink);
 }
 
 /* High-Taste Clean UI Typography & Tabular Number Defaults */
@@ -16,9 +24,44 @@ body {
   margin: 0;
   min-width: 320px;
   min-height: 100vh;
+  background: var(--cb-page);
   font-feature-settings: "cv02", "cv03", "cv04", "cv11";
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+}
+
+button,
+[role="button"],
+a,
+input,
+select,
+textarea {
+  &:focus-visible {
+    outline: 2px solid var(--cb-focus);
+    outline-offset: 2px;
+  }
+}
+
+@layer components {
+  .factory-panel {
+    background: var(--cb-surface);
+    border: 1px solid var(--cb-border);
+    border-radius: 0.25rem;
+  }
+
+  .factory-label {
+    color: var(--cb-muted);
+    font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    font-size: 0.6875rem;
+    font-weight: 700;
+    letter-spacing: 0.075em;
+    line-height: 1.2;
+    text-transform: uppercase;
+  }
+
+  .factory-number {
+    font-variant-numeric: tabular-nums;
+  }
 }
 
 /* Tabular numbers for financial and engineering precision */
@@ -32,14 +75,14 @@ body {
   height: 6px;
 }
 ::-webkit-scrollbar-track {
-  background: #f1f5f9;
+  background: var(--cb-page);
 }
 ::-webkit-scrollbar-thumb {
-  background: #cbd5e1;
+  background: var(--cb-border-strong);
   border-radius: 3px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: #94a3b8;
+  background: #87959e;
 }
 
 

@@ -21,17 +21,17 @@ export const KPIStatCard: React.FC<KPIStatCardProps> = ({
   const isZeroDelta = delta && Math.abs(delta.value) < 0.00005
 
   return (
-    <div className="bg-white p-4 rounded-lg border border-slate-200/90 shadow-xs flex flex-col justify-between hover:border-slate-300 hover:shadow-sm transition-all duration-150">
+    <div className="factory-panel min-h-[108px] border-t-2 border-t-slate-700 p-4 flex flex-col justify-between transition-colors hover:border-slate-400">
       <div className="flex items-center justify-between gap-1">
-        <span className="text-[10px] font-mono font-bold text-slate-500 uppercase tracking-wider truncate">{title}</span>
-        <span className="text-[10px] font-mono font-medium bg-slate-100/80 text-slate-600 px-2 py-0.5 rounded border border-slate-200/70 shrink-0">
+        <span className="factory-label truncate">{title}</span>
+        <span className="text-[10px] font-sans font-medium bg-slate-100 text-slate-600 px-2 py-0.5 rounded-sm border border-slate-200 shrink-0">
           {badgeText}
         </span>
       </div>
 
       <div className="mt-3 flex items-baseline justify-between gap-2">
-        <div className="flex items-baseline gap-1 font-mono">
-          <span className="text-xl font-bold text-slate-900 tracking-tight tabular-nums">{value}</span>
+        <div className="flex items-baseline gap-1 font-mono factory-number">
+          <span className="text-xl font-bold text-slate-900 tracking-tight">{value}</span>
           <span className="text-[11px] text-slate-400 font-sans">THB</span>
         </div>
 
@@ -41,7 +41,7 @@ export const KPIStatCard: React.FC<KPIStatCardProps> = ({
               {delta.formatted}
             </span>
             {delta.percent && (
-              <span className={`text-[10px] px-1.5 py-0.5 rounded font-mono font-medium ${
+              <span className={`text-[10px] px-1.5 py-0.5 rounded-sm font-mono font-medium ${
                 isPositiveDelta ? 'text-rose-700 bg-slate-100 border border-slate-200' : 'text-emerald-700 bg-slate-100 border border-slate-200'
               }`}>
                 {delta.percent}
