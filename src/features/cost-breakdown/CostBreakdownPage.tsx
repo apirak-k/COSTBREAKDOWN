@@ -7,11 +7,12 @@ import { ExecutiveKPICards } from './components/ExecutiveKPICards'
 import { VarianceTreeCard } from './components/VarianceTreeCard'
 import { BOMDetailedTable } from './components/BOMDetailedTable'
 import { RoutingDetailedTable } from './components/RoutingDetailedTable'
+import { SnapshotComparisonCard } from './components/SnapshotComparisonCard'
 
 type SubTab = 'bom' | 'routing'
 
 export const CostBreakdownPage: React.FC = () => {
-  const { costBreakdown, bom, routing, rates } = useAppStore()
+  const { costBreakdown, snapshotComparison, bom, routing, rates } = useAppStore()
   const [subTab, setSubTab] = useState<SubTab>('bom')
   const [isDetailedExpanded, setIsDetailedExpanded] = useState(true)
 
@@ -20,10 +21,13 @@ export const CostBreakdownPage: React.FC = () => {
       {/* 1. Top Executive KPIs */}
       <ExecutiveKPICards costBreakdown={costBreakdown} />
 
-      {/* 2. Variance Tree Decomposition */}
+      {/* 2. Independent Reference vs Current comparison */}
+      <SnapshotComparisonCard comparison={snapshotComparison} />
+
+      {/* 3. Variance Tree Decomposition */}
       <VarianceTreeCard costBreakdown={costBreakdown} />
 
-      {/* 3. Detailed Breakdown Tables Panel */}
+      {/* 4. Detailed Breakdown Tables Panel */}
       <div className="bg-white rounded border border-slate-300/80 shadow-2xs overflow-hidden">
         {/* Section Accordion Header */}
         <div className="flex items-center justify-between px-3.5 py-2.5 bg-slate-50/70 border-b border-slate-200">
