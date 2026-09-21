@@ -53,10 +53,10 @@ export const RoutingDetailedTable: React.FC<RoutingDetailedTableProps> = ({ rout
 
   return (
     <div className="w-full overflow-x-auto">
-      <table className="w-full text-xs text-left">
+      <table className="w-full min-w-[1120px] text-xs text-left">
         <caption className="sr-only">Detailed routing cost comparison</caption>
         <thead>
-          <tr className="bg-slate-900 text-white font-semibold text-[11px]">
+          <tr className="bg-slate-900 text-white font-sans font-semibold text-[11px]">
             <th className="p-2.5 w-12">Op #</th>
             <th className="p-2.5">Operation Description</th>
             <th className="p-2.5">Department</th>
@@ -72,7 +72,7 @@ export const RoutingDetailedTable: React.FC<RoutingDetailedTableProps> = ({ rout
             <th className="p-2.5 text-right">Δ Variance</th>
           </tr>
         </thead>
-        <tbody className="divide-y divide-slate-100 font-mono">
+        <tbody className="divide-y divide-slate-100 font-sans">
           {rows.map(row => {
             const finding = findingByCurrentId.get(row.id)
             const labels = finding ? getRoutingComparisonLabels(finding) : ['Review']
@@ -102,14 +102,14 @@ export const RoutingDetailedTable: React.FC<RoutingDetailedTableProps> = ({ rout
                     <ConfidenceBadge status={finding?.confidence ?? 'missing'} showLabel />
                   </td>
                 )}
-                <td className="p-2.5 text-right tabular-nums">{formatNumber(row.manning, 1)}</td>
-                <td className="p-2.5 text-right text-slate-500 tabular-nums">{formatNumber(row.baseCap, 0)}</td>
-                <td className="p-2.5 text-right font-bold text-slate-900 tabular-nums">{formatNumber(row.activeCap, 0)}</td>
-                <td className="p-2.5 text-right text-slate-500 tabular-nums">{formatPercent(row.baseYield, 1)}</td>
-                <td className="p-2.5 text-right font-bold text-slate-900 tabular-nums">{formatPercent(row.activeYield, 1)}</td>
-                <td className="p-2.5 text-right tabular-nums">{formatNumber(row.baseTotal, 4)}</td>
-                <td className="p-2.5 text-right font-bold text-slate-900 tabular-nums">{formatNumber(row.activeTotal, 4)}</td>
-                <td className={`p-2.5 text-right tabular-nums ${getVarianceClass(row.variance)}`}>
+                <td className="p-2.5 text-right font-mono tabular-nums">{formatNumber(row.manning, 1)}</td>
+                <td className="p-2.5 text-right font-mono text-slate-500 tabular-nums">{formatNumber(row.baseCap, 0)}</td>
+                <td className="p-2.5 text-right font-mono font-bold text-slate-900 tabular-nums">{formatNumber(row.activeCap, 0)}</td>
+                <td className="p-2.5 text-right font-mono text-slate-500 tabular-nums">{formatPercent(row.baseYield, 1)}</td>
+                <td className="p-2.5 text-right font-mono font-bold text-slate-900 tabular-nums">{formatPercent(row.activeYield, 1)}</td>
+                <td className="p-2.5 text-right font-mono tabular-nums">{formatNumber(row.baseTotal, 4)}</td>
+                <td className="p-2.5 text-right font-mono font-bold text-slate-900 tabular-nums">{formatNumber(row.activeTotal, 4)}</td>
+                <td className={`p-2.5 text-right font-mono tabular-nums ${getVarianceClass(row.variance)}`}>
                   {formatVariance(row.variance, 4)}
                 </td>
               </tr>
@@ -120,7 +120,7 @@ export const RoutingDetailedTable: React.FC<RoutingDetailedTableProps> = ({ rout
             return (
               <tr key={`removed-${finding.referenceId ?? 'unknown'}`} className="bg-rose-50/60 text-xs">
                 <td colSpan={13} className="p-2.5 border-t border-rose-100">
-                  <span className="font-mono font-bold text-rose-700">Removed from Current</span>
+                  <span className="font-sans font-semibold text-rose-700">Removed from Current</span>
                   <span className="ml-2 font-mono text-rose-900">{item?.sequence ?? finding.referenceId ?? 'Unknown operation'}</span>
                   {item?.processName && <span className="ml-2 font-sans text-rose-800">{item.processName}</span>}
                 </td>
@@ -130,7 +130,7 @@ export const RoutingDetailedTable: React.FC<RoutingDetailedTableProps> = ({ rout
         </tbody>
         <tfoot>
           <tr className="bg-slate-100/90 border-t-2 border-slate-300/80 font-bold text-xs">
-            <td colSpan={showComparison ? 10 : 8} className="p-2.5 text-right text-slate-700 uppercase tracking-wider text-[10px] font-sans">
+            <td colSpan={showComparison ? 10 : 8} className="p-2.5 text-right text-slate-700 text-[10px] font-sans font-semibold">
               Total Conversion Cost (THB/pc)
             </td>
             <td className="p-2.5 text-right font-mono text-slate-800 tabular-nums">{formatNumber(totalBase, 4)}</td>

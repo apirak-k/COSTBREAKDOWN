@@ -44,20 +44,20 @@ export const VarianceTreeCard: React.FC<VarianceTreeCardProps> = ({ costBreakdow
   const isBalanced = Math.abs(costBreakdown.totalVariance - sumVariances) < 0.0001
 
   return (
-    <div className="bg-white rounded-lg border border-slate-200 shadow-xs overflow-hidden">
+    <div className="factory-panel overflow-hidden">
       {/* Header */}
-      <div className="flex items-center justify-between px-4 py-3 bg-slate-50 border-b border-slate-200">
+      <div className="flex flex-col gap-2 px-4 py-3 bg-slate-50 border-b border-slate-200 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h3 className="text-xs font-bold font-mono text-slate-800 uppercase tracking-tight">
+          <h3 className="text-sm font-semibold font-sans text-slate-800 tracking-tight">
             Variance Decomposition Tree
           </h3>
           <p className="text-[11px] text-slate-500 font-sans mt-0.5">
             Decomposition into price, loss, and conversion efficiency variances
           </p>
         </div>
-        <div className="text-right flex items-center gap-2 font-mono">
+        <div className="text-left flex items-center gap-2 font-sans sm:text-right">
           <span className="text-[11px] text-slate-500">Net Variance (Δ):</span>
-          <span className={`text-xs font-bold px-2 py-0.5 rounded font-mono tabular-nums bg-slate-100 border border-slate-200 ${
+          <span className={`text-xs font-bold px-2 py-0.5 rounded-sm font-mono factory-number bg-slate-100 border border-slate-200 ${
             costBreakdown.totalVariance >= 0 ? 'text-rose-700' : 'text-emerald-700'
           }`}>
             {formatVariance(costBreakdown.totalVariance, 4)} THB/pc
@@ -72,9 +72,9 @@ export const VarianceTreeCard: React.FC<VarianceTreeCardProps> = ({ costBreakdow
           return (
             <div key={cat.name} className="px-4 py-3 hover:bg-slate-50/40 transition-colors">
               {/* Category Row */}
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-xs font-bold font-mono text-slate-900">{cat.name}</span>
-                <div className="flex items-center gap-4 font-mono text-xs tabular-nums">
+              <div className="flex flex-col gap-2 mb-2 sm:flex-row sm:items-center sm:justify-between">
+                <span className="text-sm font-semibold font-sans text-slate-900">{cat.name}</span>
+                <div className="flex flex-wrap items-center gap-x-4 gap-y-1 font-mono text-xs factory-number sm:justify-end">
                   <span className="text-slate-500 text-[11px]">Base: {formatNumber(cat.base, 4)}</span>
                   <span className="text-slate-800 font-semibold text-[11px]">Active: {formatNumber(cat.active, 4)}</span>
                   <span className={`font-bold w-24 text-right ${catVar >= 0 ? 'text-rose-600' : 'text-emerald-700'}`}>
@@ -88,7 +88,7 @@ export const VarianceTreeCard: React.FC<VarianceTreeCardProps> = ({ costBreakdow
                 {cat.items.map(item => (
                   <div key={item.name} className="flex items-center justify-between py-0.5 text-xs">
                     <div>
-                      <span className="font-mono text-slate-800 font-medium">{item.name}</span>
+                      <span className="font-sans text-slate-800 font-medium">{item.name}</span>
                       <span className="text-[10px] text-slate-400 ml-2 font-sans">({item.desc})</span>
                     </div>
                     <span className={`font-mono text-[11px] tabular-nums font-semibold w-24 text-right ${
@@ -106,8 +106,8 @@ export const VarianceTreeCard: React.FC<VarianceTreeCardProps> = ({ costBreakdow
 
       {/* Footer — Balance Check */}
       <div className="px-4 py-2.5 border-t border-slate-200/80 flex items-center justify-between bg-slate-50 text-xs font-mono">
-        <span className="text-slate-600 text-[11px]">Mathematical Balance Check: Net Δ C_Total vs Σ Variances</span>
-        <span className={`font-bold text-[11px] tabular-nums ${isBalanced ? 'text-emerald-700' : 'text-rose-600'}`}>
+        <span className="text-slate-600 text-[11px] font-sans">Mathematical Balance Check: Net Δ C_Total vs Σ Variances</span>
+        <span className={`font-bold font-mono text-[11px] factory-number ${isBalanced ? 'text-emerald-700' : 'text-rose-600'}`}>
           {isBalanced ? '0.0000 THB — Balanced ✓' : `${formatVariance(costBreakdown.totalVariance - sumVariances, 4)} THB — Imbalanced`}
         </span>
       </div>
