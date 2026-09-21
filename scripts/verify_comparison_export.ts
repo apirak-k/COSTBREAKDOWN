@@ -1,6 +1,8 @@
 import assert from 'node:assert/strict'
+import ExcelJS from 'exceljs'
 import {
   buildComparisonExportModel,
+  generateSnapshotComparisonExcel,
   type ComparisonExportInput
 } from '../src/services/excel/comparison-export'
 import { compareSnapshots } from '../src/core'
@@ -141,4 +143,26 @@ assert.equal(model.workCenterRows.find(row => row.workCenterCode === 'WC-1')?.la
 assert.ok(model.statusCounts.changed >= 3)
 assert.ok(model.warnings.length >= 0)
 
-console.log('Comparison export model self-check: PASS')
+async function verifyWorkbook(): Promise<void> {
+  const blob = await generateSnapshotComparisonExcel(input)
+  assert.ok(blob.size > 0)
+
+  const workbook = new ExcelJS.Workbook()
+  await workbook.xlsx.load(await blob.arrayBuffer())
+  assert.deepEqual(
+    workbook.worksheets.map(sheet => sheet.name),
+    ['Summary', 'BOM Comparison', 'Routing Comparison', 'Work Center Comparison']
+  )
+  assert.equal(workbook.getWorksheet('Summary')?.getCell('A1').value, 'Cost Breakdown Comparison')
+  assert.equal(workbook.getWorksheet('Summary')?.getCell('A6').value, 'Element')
+  assert.equal(workbook.getWorksheet('Summary')?.getCell('A7').value, 'Material')
+  assert.equal(workbook.getWorksheet('BOM Comparison')?.getCell('A4').value, 'Item Code')
+  assert.equal(workbook.getWorksheet('Work Center Comparison')?.getCell('A4').value, 'Work Center')
+}
+
+verifyWorkbook()
+  .then(() => console.log('Comparison export workbook self-check: PASS'))
+  .catch(error => {
+    console.error(error)
+    process.exitCode = 1
+  })
