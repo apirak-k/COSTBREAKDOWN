@@ -33,6 +33,8 @@ export interface ProductSession {
   updatedAt: string
   /** Compatibility projection for the incremental snapshot migration. */
   snapshotPair?: import('./snapshot.types').SnapshotPair
+  /** Indicates that snapshotPair was imported independently rather than derived from paired fields. */
+  snapshotPairMode?: 'derived' | 'independent'
 }
 
 import { WorkCenterRate, BOMItem, RoutingStep, CostDriver } from './cost.types'
