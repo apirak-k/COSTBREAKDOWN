@@ -12,7 +12,7 @@ import { SnapshotComparisonCard } from './components/SnapshotComparisonCard'
 type SubTab = 'bom' | 'routing'
 
 export const CostBreakdownPage: React.FC = () => {
-  const { costBreakdown, snapshotComparison, bom, routing, rates } = useAppStore()
+  const { costBreakdown, snapshotComparison, snapshotPair, bom, routing, rates } = useAppStore()
   const [subTab, setSubTab] = useState<SubTab>('bom')
   const [isDetailedExpanded, setIsDetailedExpanded] = useState(true)
 
@@ -71,7 +71,11 @@ export const CostBreakdownPage: React.FC = () => {
         {isDetailedExpanded && (
           <div className="p-0">
             {subTab === 'bom' ? (
-              <BOMDetailedTable bom={bom} />
+              <BOMDetailedTable
+                bom={bom}
+                findings={snapshotComparison.bomFindings}
+                referenceItems={snapshotPair.reference.bom}
+              />
             ) : (
               <RoutingDetailedTable routing={routing} rates={rates} />
             )}
