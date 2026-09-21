@@ -3,7 +3,7 @@
 Date: 2026-09-21
 Repository: `https://github.com/apirak-k/COSTBREAKDOWN.git`
 Branch: `codex/snapshot-import-role-selector`
-Latest commit: `1d0bc6f docs: add cross-device handoff checkpoint`
+Implementation checkpoint: `adaf299 docs: close reset fixture plan`
 Working tree at handoff: clean
 
 ## Purpose
