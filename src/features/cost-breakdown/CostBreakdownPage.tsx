@@ -7,9 +7,10 @@ import { ExecutiveKPICards } from './components/ExecutiveKPICards'
 import { VarianceTreeCard } from './components/VarianceTreeCard'
 import { BOMDetailedTable } from './components/BOMDetailedTable'
 import { RoutingDetailedTable } from './components/RoutingDetailedTable'
+import { WorkCenterComparisonTable } from './components/WorkCenterComparisonTable'
 import { SnapshotComparisonCard } from './components/SnapshotComparisonCard'
 
-type SubTab = 'bom' | 'routing'
+type SubTab = 'bom' | 'routing' | 'work-center'
 
 export const CostBreakdownPage: React.FC = () => {
   const { costBreakdown, snapshotComparison, snapshotPair, bom, routing, rates } = useAppStore()
@@ -65,6 +66,16 @@ export const CostBreakdownPage: React.FC = () => {
             >
               Routing ({routing.length})
             </button>
+            <button
+              onClick={() => setSubTab('work-center')}
+              className={`px-2.5 py-1 rounded transition-colors cursor-pointer ${
+                subTab === 'work-center'
+                  ? 'bg-slate-900 text-white font-bold'
+                  : 'bg-slate-100 text-slate-700 hover:bg-slate-200 border border-slate-200'
+              }`}
+            >
+              Work Center ({rates.length})
+            </button>
           </div>
         </div>
 
@@ -76,12 +87,18 @@ export const CostBreakdownPage: React.FC = () => {
                 findings={snapshotComparison.bomFindings}
                 referenceItems={snapshotPair.reference.bom}
               />
-            ) : (
+            ) : subTab === 'routing' ? (
               <RoutingDetailedTable
                 routing={routing}
                 rates={rates}
                 findings={snapshotComparison.routingFindings}
                 referenceItems={snapshotPair.reference.routing}
+              />
+            ) : (
+              <WorkCenterComparisonTable
+                referenceRates={snapshotPair.reference.rates}
+                currentRates={snapshotPair.current.rates}
+                findings={snapshotComparison.workCenterFindings}
               />
             )}
           </div>
