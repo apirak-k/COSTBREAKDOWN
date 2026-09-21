@@ -24,6 +24,12 @@
 - ExcelImportPanel currently renders <ExcelUploadDropzone /> without a role selector, so the UI always imports as Current.
 - MasterDataPage is the active path that renders ExcelImportPanel.
 
+## Focused RED Evidence
+
+- Fresh browser smoke against the local Vite app rendered the active Master Data panel with `Importing as Current` and no visible Reference/Current controls.
+- The existing dropzone copy proves the current default path is active, while the absence of a selector proves the UI cannot choose the Reference side yet.
+- The first planning checkpoint is committed as `c38bf8b` on branch `codex/snapshot-import-role-selector`.
+
 ## Baseline Verification Evidence
 
 - npx tsc -b --pretty false: exit 0.

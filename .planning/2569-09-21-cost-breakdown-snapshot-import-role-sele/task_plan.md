@@ -24,7 +24,7 @@ Out of scope for this task:
 
 ## Next Step
 
-Create and run the first focused RED verification for the missing role selector, then implement only the smallest UI change needed to turn it GREEN.
+Review the bounded UI edit, then run the focused browser smoke and type/build gates before the implementation checkpoint commit.
 
 ## Current Phase
 
@@ -43,11 +43,11 @@ Phase 2: Focused RED verification
 
 ### Phase 2: Focused RED verification
 
-- [ ] Select the existing no-new-dependency verification path
-- [ ] Add a focused check for the visible Reference/Current selector and role propagation
-- [ ] Run it against the current implementation and record the expected failure
-- [ ] Define the acceptance checklist for the slice
-- **Status:** in_progress
+- [x] Select the existing no-new-dependency verification path
+- [x] Add a focused check for the visible Reference/Current selector and role propagation
+- [x] Run it against the current implementation and record the expected failure
+- [x] Define the acceptance checklist for the slice
+- **Status:** complete
 
 ### Phase 3: Role Selector Implementation
 
@@ -56,7 +56,7 @@ Phase 2: Focused RED verification
 - [ ] Pass the selected role to ExcelUploadDropzone
 - [ ] Keep existing actions, legacy import behavior, and copy outside this slice unchanged
 - [ ] Re-run the focused check and type/build gates
-- **Status:** pending
+- **Status:** in_progress
 
 ### Phase 4: Runtime Verification
 

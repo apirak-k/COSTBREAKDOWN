@@ -4,10 +4,10 @@
 
 ### Current Status
 
-- **Phase:** 2 - Focused RED verification
+- **Phase:** 3 - Role Selector Implementation
 - **Plan ID:** 2569-09-21-cost-breakdown-snapshot-import-role-sele
 - **Started:** 2569-09-21
-- **Last update:** Browser runner availability checked; Python-based Playwright path is unavailable.
+- **Last update:** Runtime RED evidence captured; bounded UI implementation started.
 
 ### Actions Taken
 
@@ -16,6 +16,8 @@
 - Recorded the current Git checkpoint and the exact role-selector gap.
 - Recorded fresh baseline build, Excel audit, and comprehensive audit evidence from the previous inspection.
 - Attempted the existing webapp-testing server helper and native Python Playwright path; this machine exposes only a non-runnable Windows Store Python stub and no py launcher.
+- Started the local Vite app and inspected the active Master Data panel in Chrome. The current UI shows `Importing as Current` but exposes no Reference/Current selector.
+- Committed the named planning records as `c38bf8b` before the implementation edit.
 
 ### Test Results
 
@@ -27,6 +29,7 @@
 | node scripts/test_comprehensive_audit.js | All checks pass | 31/31 passed | PASS |
 | Existing .ts self-checks under plain Node | Assertions execute | ERR_UNKNOWN_FILE_EXTENSION before assertions | BLOCKED |
 | Python Playwright runner discovery | Existing helper starts | No usable Python runtime / py launcher | BLOCKED |
+| Pre-change browser smoke | Two import-role controls are visible | Only Current copy is visible; no role controls | RED / EXPECTED |
 
 ### Errors
 
@@ -37,4 +40,4 @@
 
 ### Next Action
 
-Use the available browser automation surface to observe the missing Reference/Current controls as RED evidence, then implement the smallest role-selector change and re-run browser smoke plus build/type-check gates.
+Review the frontend-engineer edit, then run browser smoke plus build/type-check gates and record the GREEN evidence before the implementation checkpoint commit.
