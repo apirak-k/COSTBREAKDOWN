@@ -3,15 +3,18 @@
 @tailwind utilities;
 
 :root {
-  --cb-page: #eef1f0;
-  --cb-surface: #ffffff;
-  --cb-ink: #18252e;
-  --cb-muted: #5d6a75;
-  --cb-border: #cbd5d9;
-  --cb-border-strong: #aebbc2;
-  --cb-header: #0f1b2a;
-  --cb-focus: #d97732;
-  font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --cb-page: #f1f0eb;
+  --cb-surface: #fffefa;
+  --cb-muted-surface: #e7e5de;
+  --cb-ink: #171717;
+  --cb-muted: #62635f;
+  --cb-border: #c8c6bd;
+  --cb-border-strong: #171717;
+  --cb-header: #f1f0eb;
+  --cb-accent: #c9252d;
+  --cb-accent-soft: #f8e3e2;
+  --cb-focus: #c9252d;
+  font-family: Arial, "Helvetica Neue", sans-serif;
   line-height: 1.5;
   font-weight: 400;
   color-scheme: light;
@@ -19,13 +22,13 @@
   color: var(--cb-ink);
 }
 
-/* High-Taste Clean UI Typography & Tabular Number Defaults */
+/* Swiss Industrial Print base: warm substrate, carbon ink, tabular numbers. */
 body {
   margin: 0;
   min-width: 320px;
   min-height: 100vh;
   background: var(--cb-page);
-  font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+  font-feature-settings: "tnum";
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
@@ -46,12 +49,13 @@ textarea {
   .factory-panel {
     background: var(--cb-surface);
     border: 1px solid var(--cb-border);
-    border-radius: 0.25rem;
+    border-radius: 0;
+    box-shadow: none;
   }
 
   .factory-label {
     color: var(--cb-muted);
-    font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    font-family: Arial, "Helvetica Neue", sans-serif;
     font-size: 0.6875rem;
     font-weight: 700;
     letter-spacing: 0.075em;
@@ -61,6 +65,24 @@ textarea {
 
   .factory-number {
     font-variant-numeric: tabular-nums;
+  }
+
+  .factory-tag {
+    align-items: center;
+    border: 1px solid var(--cb-border-strong);
+    border-radius: 0;
+    display: inline-flex;
+    font-family: Arial, "Helvetica Neue", sans-serif;
+    font-size: 0.625rem;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    line-height: 1.2;
+    padding: 0.2rem 0.4rem;
+    text-transform: uppercase;
+  }
+
+  .factory-rule {
+    border-color: var(--cb-border);
   }
 }
 
@@ -79,10 +101,10 @@ textarea {
 }
 ::-webkit-scrollbar-thumb {
   background: var(--cb-border-strong);
-  border-radius: 3px;
+  border-radius: 0;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: #87959e;
+  background: var(--cb-accent);
 }
 
 
