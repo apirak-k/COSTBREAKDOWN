@@ -10,6 +10,12 @@
 - [`Human-AI-Working-Standard/skills/taste-frontend.md`](Human-AI-Working-Standard/skills/taste-frontend.md)
 - [`docs/USER_MANUAL_AND_TESTING_GUIDE.md`](docs/USER_MANUAL_AND_TESTING_GUIDE.md)
 
+# CURRENT CHECKPOINT — 2026-09-21
+
+อ่านเอกสารส่งต่องานฉบับล่าสุดที่ [HANDOFF_2026-09-21.md](HANDOFF_2026-09-21.md) ก่อน เนื้อหาด้านล่างเป็น handoff เก่าจาก checkpoint ก่อนหน้าและเก็บไว้เป็นประวัติ
+
+ล่าสุดบันทึกโค้ดไว้ที่ commit `85dba08` บน branch `main` แล้ว ไม่มี source code ค้างใน working tree; งานถัดไปคือเพิ่มตัวเลือก import `Reference` / `Current` ใน `src/features/master-data/components/ExcelImportPanel.tsx`
+
 ---
 
 ## 1. Accomplishments in Checkpoint 13
