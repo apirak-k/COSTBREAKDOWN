@@ -75,10 +75,10 @@ export const WorkCenterComparisonTable: React.FC<WorkCenterComparisonTableProps>
 
   return (
     <div className="w-full overflow-x-auto">
-      <table className="w-full min-w-[980px] text-xs text-left">
+      <table className="w-full text-xs text-left">
         <caption className="sr-only">Reference and current Work Center rate comparison</caption>
         <thead>
-          <tr className="bg-slate-900 text-white font-sans font-semibold text-[11px]">
+          <tr className="bg-slate-900 text-white font-semibold text-[11px]">
             <th scope="col" className="p-2.5">Work Center</th>
             <th scope="col" className="p-2.5">Description</th>
             <th scope="col" className="p-2.5">Comparison</th>
@@ -92,7 +92,7 @@ export const WorkCenterComparisonTable: React.FC<WorkCenterComparisonTableProps>
             <th scope="col" className="p-2.5">Source</th>
           </tr>
         </thead>
-        <tbody className="divide-y divide-slate-100 font-sans">
+        <tbody className="divide-y divide-slate-100 font-mono">
           {rows.length === 0 ? (
             <tr>
               <td colSpan={11} className="p-6 text-center text-slate-400 font-sans italic">
@@ -107,24 +107,24 @@ export const WorkCenterComparisonTable: React.FC<WorkCenterComparisonTableProps>
 
             return (
               <tr key={row.current?.id ?? `removed-${row.reference?.id ?? workCenterCode}`} className={`hover:bg-slate-50/70 transition-colors ${label === 'Removed' ? 'bg-rose-50/60' : ''}`}>
-                <th scope="row" className="p-2.5 font-mono font-bold text-slate-900 whitespace-nowrap">{workCenterCode}</th>
+                <th scope="row" className="p-2.5 font-bold text-slate-900 whitespace-nowrap">{workCenterCode}</th>
                 <td className="p-2.5 font-sans text-slate-700">{description}</td>
                 <td className="p-2.5 whitespace-nowrap">
-                  <span className={`inline-flex px-1.5 py-0.5 rounded-sm border text-[10px] font-sans font-semibold ${comparisonClass(label)}`}>
+                  <span className={`inline-flex px-1.5 py-0.5 rounded border text-[10px] font-mono font-bold ${comparisonClass(label)}`}>
                     {label}
                   </span>
                 </td>
                 <td className="p-2.5 whitespace-nowrap">
                   <ConfidenceBadge status={row.finding?.confidence ?? 'missing'} showLabel />
                 </td>
-                <td className="p-2.5 text-right font-mono text-slate-500 tabular-nums">{formatRate(row.reference?.laborRate)}</td>
-                <td className="p-2.5 text-right font-mono font-bold text-slate-900 tabular-nums">{formatRate(row.current?.laborRate)}</td>
-                <td className={`p-2.5 text-right font-mono font-bold tabular-nums ${gapClass(row.reference?.laborRate, row.current?.laborRate)}`}>
+                <td className="p-2.5 text-right text-slate-500 tabular-nums">{formatRate(row.reference?.laborRate)}</td>
+                <td className="p-2.5 text-right font-bold text-slate-900 tabular-nums">{formatRate(row.current?.laborRate)}</td>
+                <td className={`p-2.5 text-right font-bold tabular-nums ${gapClass(row.reference?.laborRate, row.current?.laborRate)}`}>
                   {formatRateGap(row.reference?.laborRate, row.current?.laborRate)}
                 </td>
-                <td className="p-2.5 text-right font-mono text-slate-500 tabular-nums">{formatRate(row.reference?.burdenRate)}</td>
-                <td className="p-2.5 text-right font-mono font-bold text-slate-900 tabular-nums">{formatRate(row.current?.burdenRate)}</td>
-                <td className={`p-2.5 text-right font-mono font-bold tabular-nums ${gapClass(row.reference?.burdenRate, row.current?.burdenRate)}`}>
+                <td className="p-2.5 text-right text-slate-500 tabular-nums">{formatRate(row.reference?.burdenRate)}</td>
+                <td className="p-2.5 text-right font-bold text-slate-900 tabular-nums">{formatRate(row.current?.burdenRate)}</td>
+                <td className={`p-2.5 text-right font-bold tabular-nums ${gapClass(row.reference?.burdenRate, row.current?.burdenRate)}`}>
                   {formatRateGap(row.reference?.burdenRate, row.current?.burdenRate)}
                 </td>
                 <td className="p-2.5 font-sans text-[10px] text-slate-500 whitespace-nowrap">{source}</td>
