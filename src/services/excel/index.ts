@@ -1,4 +1,5 @@
 export * from './excel-parser'
 export * from './dynamic-excel-generator'
 export * from './comparison-export'
+export * from './snapshot-parser'
 export * from './export'
