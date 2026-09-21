@@ -66,3 +66,10 @@
 - `npm run excel`: exit 0; generated workbook audit passed with 100% formula shielding and zero errors. The two generated root workbooks were removed after verification and confirmed absent.
 - Browser console log inspection is [Unverified] because the available computer-use browser surface exposes accessibility state but not console logs.
 - Full browser workbook upload and the complete Reference -> Current -> Compare data-flow are [Unverified] in this slice; parser/store wiring was already present and the UI role boundary was verified.
+
+## Full Flow Extension Discovery
+
+- The prior slice is clean on `codex/snapshot-import-role-selector`; no code diff was present before starting this extension.
+- Graphify full extraction initially stopped because 17 non-code files required semantic extraction and no supported LLM key was configured. Following its documented fallback, code-only AST extraction completed with 732 nodes, 1,648 edges, and 49 communities.
+- The graph query confirms the relevant surfaces: `ExcelImportPanel`, `ExcelUploadDropzone`, `snapshot-parser.ts`, `state/store.tsx`, `SnapshotComparisonCard.tsx`, `snapshot-comparison.ts`, and `comparison-export.ts`.
+- The full-flow fixture and first runtime failure are not identified yet; do not claim the upload/compare/export flow is complete until those are exercised.

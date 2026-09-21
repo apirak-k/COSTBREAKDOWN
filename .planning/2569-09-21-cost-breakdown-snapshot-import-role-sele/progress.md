@@ -1,13 +1,13 @@
 # Progress Log
 
-## Session: 2569-09-21
+## Session: 2569-09-21 - Full Flow Extension
 
 ### Current Status
 
-- **Phase:** 5 - Delivery & Checkpoint (complete)
+- **Phase:** 6 - Full Workbook Flow Discovery
 - **Plan ID:** 2569-09-21-cost-breakdown-snapshot-import-role-sele
 - **Started:** 2569-09-21
-- **Last update:** UI implementation and verification records committed; final worktree is clean.
+- **Last update:** Previous slice reopened; code-only graph trace completed; fixture discovery is in progress.
 
 ### Actions Taken
 
@@ -22,6 +22,9 @@
 - Verified browser selection behavior with click and keyboard actions; the dropzone copy followed Reference and Current selections.
 - Committed the UI atomically as `e01b2f5` and the final verification records as `d121d40`.
 - Confirmed `git status --short --branch` is clean on `codex/snapshot-import-role-selector`.
+- Re-resolved the selected planning directory before continuing, as required by planning-with-files.
+- Attempted the full graphify pipeline; it stopped on missing semantic-extraction credentials. Switched to the documented `--code-only` fallback and built the code graph.
+- Queried the graph for the workbook import-to-comparison/export path and recorded the relevant modules in `findings.md`.
 
 ### Test Results
 
@@ -40,6 +43,8 @@
 | npm run excel | Zero audit errors | 100% formula shielding; zero errors | PASS |
 | Browser role-selector smoke | Default Current, switch Reference, keyboard return Current | Observed in accessibility tree and dropzone copy | PASS |
 | Browser console logs | No new errors/warnings | Automation surface does not expose logs | UNVERIFIED |
+| Graphify full extraction | Code and docs graph | Stopped because semantic extraction key was unavailable | BLOCKED / ALTERNATIVE USED |
+| Graphify code-only extraction | Code graph exists | 732 nodes; 1,648 edges; 49 communities | PASS |
 
 ### Errors
 
@@ -50,4 +55,4 @@
 
 ### Next Action
 
-No further implementation action remains in this bounded slice. Hand off the verified change with the explicit console and full workbook-flow gaps marked [Unverified].
+Find a safe workbook fixture, document the end-to-end acceptance assertions, and run the first full-flow RED check before changing production code.

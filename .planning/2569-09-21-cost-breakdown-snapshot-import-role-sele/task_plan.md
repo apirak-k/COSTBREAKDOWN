@@ -24,11 +24,11 @@ Out of scope for this task:
 
 ## Next Step
 
-Human acceptance of the new import-role controls and, if accepted, the next slice for full workbook-driven Reference -> Current -> Compare verification.
+Trace the existing workbook-to-comparison path, create a focused RED acceptance check for the full flow, and fix only defects required for Reference -> Current -> Compare -> Export.
 
 ## Current Phase
 
-Phase 2: Focused RED verification
+Phase 6: Full Workbook Flow Discovery
 
 ## Phases
 
@@ -76,11 +76,46 @@ Phase 2: Focused RED verification
 - [x] Report verified, unverified, and next-slice items without claiming human acceptance
 - **Status:** complete
 
+### Phase 6: Full Workbook Flow Discovery
+
+- [x] Re-open the selected plan and confirm the previous slice is clean and committed
+- [x] Trace the role selector, parser, snapshot store, comparison page, and comparison export surfaces
+- [ ] Identify a safe local workbook/fixture path for browser upload without changing user data
+- [ ] Record the current end-to-end gap and acceptance assertions
+- **Status:** in_progress
+
+### Phase 7: Full Flow RED/GREEN Slice
+
+- [ ] Run the full-flow check against the current implementation and capture the first failure
+- [ ] Implement only the smallest missing integration/UI behavior exposed by the check
+- [ ] Preserve legacy import, independent snapshot mode, and existing export behavior
+- [ ] Re-run focused checks until GREEN
+- **Status:** pending
+
+### Phase 8: Runtime and Regression Verification
+
+- [ ] Exercise Reference upload and verify the Reference side is populated
+- [ ] Exercise Current upload and verify the Current side is populated
+- [ ] Navigate to comparison and verify non-empty comparison output
+- [ ] Exercise comparison export and verify a usable generated artifact
+- [ ] Run type-check, build, and relevant regression/audit gates
+- **Status:** pending
+
+### Phase 9: Delivery & Checkpoint
+
+- [ ] Review the scoped diff and generated artifacts
+- [ ] Commit each meaningful increment atomically
+- [ ] Update findings/progress with verified and unverified evidence
+- [ ] Leave the worktree clean without pushing
+- **Status:** pending
+
 ## Commit Boundaries
 
 1. docs: add snapshot import role selector plan — planning records only.
 2. feat: let users choose snapshot import role — UI role state, controls, prop wiring, and focused verification updates only.
 3. A separate verification/test commit is allowed only if a meaningful runnable check is added without unrelated tooling expansion.
+4. docs: extend snapshot plan for full workbook flow — plan and discovery records only.
+5. feat/test: complete the smallest full-flow increment — only if a production or runnable verification change is required.
 
 ## Acceptance Criteria
 
@@ -102,6 +137,7 @@ Phase 2: Focused RED verification
 | Keep current as the initial role | The existing dropzone default is current, so existing import behavior remains compatible. |
 | Do not add a test dependency yet | The repository has no test/lint/typecheck scripts and the first slice can be verified with existing tooling plus browser smoke verification. |
 | Keep planning artifacts in a named .planning/<PLAN_ID>/ directory | Prevents this task from colliding with another task's planning files. |
+| Use existing workbook fixtures or a temporary local fixture only | Full-flow proof needs real file input, but must not modify user-owned workbooks or add a speculative dependency. |
 
 ## Errors Encountered
 
