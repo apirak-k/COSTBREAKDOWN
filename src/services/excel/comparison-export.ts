@@ -596,6 +596,11 @@ function columnName(columnNumber: number): string {
   return name
 }
 
+export function getComparisonExportFilename(productCode: string): string {
+  const safeProductCode = productCode.trim().replace(/[^a-z0-9_-]+/gi, '_').replace(/^_+|_+$/g, '') || 'PRODUCT'
+  return `CostBreakdown_Comparison_${safeProductCode}.xlsx`
+}
+
 function createDetailSheet(
   workbook: ExcelJS.Workbook,
   name: string,

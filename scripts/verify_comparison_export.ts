@@ -3,6 +3,7 @@ import ExcelJS from 'exceljs'
 import {
   buildComparisonExportModel,
   generateSnapshotComparisonExcel,
+  getComparisonExportFilename,
   type ComparisonExportInput
 } from '../src/services/excel/comparison-export'
 import { compareSnapshots } from '../src/core'
@@ -142,6 +143,7 @@ assert.equal(model.workCenterRows.find(row => row.workCenterCode === 'WC-2')?.co
 assert.equal(model.workCenterRows.find(row => row.workCenterCode === 'WC-1')?.laborGap, 20)
 assert.ok(model.statusCounts.changed >= 3)
 assert.ok(model.warnings.length >= 0)
+assert.equal(getComparisonExportFilename('RGOM/024'), 'CostBreakdown_Comparison_RGOM_024.xlsx')
 
 async function verifyWorkbook(): Promise<void> {
   const blob = await generateSnapshotComparisonExcel(input)
