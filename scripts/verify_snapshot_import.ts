@@ -1,6 +1,9 @@
 import assert from 'node:assert/strict'
 import * as XLSX from 'xlsx'
-import { parseSnapshotWorkbookData } from '../src/services/excel/snapshot-parser'
+import {
+  parseSnapshotExcelInputFile,
+  parseSnapshotWorkbookData
+} from '../src/services/excel/snapshot-parser'
 
 function sheet(rows: (string | number | null)[][]): XLSX.WorkSheet {
   return XLSX.utils.aoa_to_sheet(rows)
@@ -49,4 +52,45 @@ assert.equal(result.snapshot?.bom[1].confidence.price.status, 'missing')
 assert.equal(result.snapshot?.routing[0].workCenterId, 'WC-1')
 assert.ok(result.warnings.some(warning => warning.includes('burdenRate')))
 
-console.log('Snapshot import self-check: PASS')
+const legacyWorkbook = XLSX.utils.book_new()
+XLSX.utils.book_append_sheet(legacyWorkbook, sheet([
+  ['PRODUCT MASTER'],
+  ['No', 'Product Code', 'Product Description', 'UOM', 'Customer'],
+  [1, 'LEGACY-001', 'Legacy Product', 'PC', 'Legacy Customer'],
+  [],
+  ['WORK CENTER RATES'],
+  ['Department', 'Labor Rate', 'Burden Rate', 'Effective Date', 'Source Reference'],
+  ['WC-1', 100, 50, '2026-09-21', 'legacy.xlsx']
+]), '1_MASTER_RATES')
+XLSX.utils.book_append_sheet(legacyWorkbook, sheet([
+  ['BOM'],
+  ['No', 'Material Code', 'Material Description', 'Usage', 'Unit', 'Base Price', 'Active Price', 'Base Loss', 'Active Loss', 'Source'],
+  [1, 'MAT-1', 'Material 1', 2, 'PC', 10, 11, 0.1, 0.1, 'legacy.xlsx']
+]), '2_BOM_BREAKDOWN')
+XLSX.utils.book_append_sheet(legacyWorkbook, sheet([
+  ['ROUTING'],
+  ['Seq', 'Process', 'Operation Description', 'Department', 'Manning', 'Base Cap', 'Active Cap', 'Base Yield', 'Active Yield', 'Source'],
+  [10, 'Process', 'Cut', 'WC-1', 1, 100, 100, 0.9, 0.9, 'legacy.xlsx']
+]), '3_ROUTING_BREAKDOWN')
+
+async function verifyLegacyAdapter(): Promise<void> {
+  const legacyFile = new File([
+    XLSX.write(legacyWorkbook, { type: 'array', bookType: 'xlsx' })
+  ], 'legacy.xlsx')
+  const legacyResult = await parseSnapshotExcelInputFile(legacyFile, 'reference')
+
+  assert.equal(legacyResult.success, true)
+  assert.equal(legacyResult.format, 'legacy')
+  assert.equal(legacyResult.snapshot?.comparisonRole, 'reference')
+  assert.equal(legacyResult.snapshot?.product.productCode, 'LEGACY-001')
+  assert.equal(legacyResult.snapshot?.bom[0].price, 10)
+  assert.equal(legacyResult.snapshot?.routing[0].workCenterId, 'WC-1')
+  assert.ok(legacyResult.warnings?.some(warning => warning.includes('legacy paired')))
+}
+
+verifyLegacyAdapter()
+  .then(() => console.log('Snapshot import self-check: PASS'))
+  .catch(error => {
+    console.error(error)
+    process.exitCode = 1
+  })

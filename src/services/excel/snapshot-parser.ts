@@ -8,8 +8,10 @@ import {
   SnapshotImportResult,
   SnapshotRoutingStep,
   SnapshotWorkCenterRate,
-  getFieldConfidence
+  getFieldConfidence,
+  migratePairedModelToSnapshots
 } from '../../core'
+import { parseExcelInputFile } from './excel-parser'
 
 type CellValue = string | number | boolean | Date | null
 type Row = CellValue[]
@@ -347,5 +349,46 @@ export async function parseSnapshotExcelInputFile(
   file: File,
   role: ComparisonRole
 ): Promise<SnapshotImportResult> {
-  return parseSnapshotWorkbookData(await file.arrayBuffer(), role)
+  const data = await file.arrayBuffer()
+  const canonicalResult = parseSnapshotWorkbookData(data, role)
+  if (canonicalResult.success) return canonicalResult
+
+  const legacyResult = await parseExcelInputFile(file)
+  if (!legacyResult.success) {
+    return {
+      success: false,
+      message: `${canonicalResult.message} Legacy parser: ${legacyResult.message}`,
+      warnings: [...(canonicalResult.warnings ?? []), ...(legacyResult.warnings ?? [])],
+      role
+    }
+  }
+
+  const legacyPair = migratePairedModelToSnapshots({
+    id: `legacy-import:${file.name}`,
+    product: legacyResult.product ?? {
+      productCode: '',
+      productDescription: '',
+      uom: '',
+      customer: '',
+      effectiveDate: ''
+    },
+    rates: legacyResult.rates ?? [],
+    bom: legacyResult.bom ?? [],
+    routing: legacyResult.routing ?? [],
+    status: 'draft',
+    sourceRef: file.name
+  })
+  const snapshot = role === 'reference' ? legacyPair.reference : legacyPair.current
+
+  return {
+    success: true,
+    message: `Imported ${role} snapshot through legacy paired workbook adapter: ${snapshot.rates.length} Work Centers, ${snapshot.bom.length} BOM Items, ${snapshot.routing.length} Routing Steps.`,
+    format: 'legacy',
+    snapshot,
+    warnings: [
+      ...(legacyResult.warnings ?? []),
+      'Imported through legacy paired workbook adapter; review defaulted fields and confidence before using the comparison.'
+    ],
+    role
+  }
 }
