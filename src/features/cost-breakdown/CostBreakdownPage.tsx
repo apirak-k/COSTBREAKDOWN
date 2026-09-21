@@ -47,6 +47,13 @@ export const CostBreakdownPage: React.FC = () => {
       {/* 1. Top Executive KPIs */}
       <ExecutiveKPICards costBreakdown={costBreakdown} />
 
+      {costBreakdown.missingWorkCenters.length > 0 && (
+        <div className="px-4 py-3 rounded-lg border border-amber-200 bg-amber-50/70 text-[11px] text-amber-900 font-sans" role="status">
+          <strong className="font-mono">Missing Work Center rates:</strong>{' '}
+          {costBreakdown.missingWorkCenters.join(', ')}. Conversion cost for these rows is treated as 0 until a rate is configured.
+        </div>
+      )}
+
       {/* 2. Independent Reference vs Current comparison */}
       <SnapshotComparisonCard comparison={snapshotComparison} />
 

@@ -1,5 +1,6 @@
 import { BOMItem, RoutingStep, WorkCenterRate, BOMDetailedRow, RoutingDetailedRow } from '../types'
 import { safeDivide } from '../utils/guards'
+import { createWorkCenterRateMap, resolveWorkCenterRate } from './work-center-rate'
 
 /**
  * Computes row-by-row BOM material breakdown metrics.
@@ -65,8 +66,7 @@ export function calculateRoutingDetailedRows(
   totalActive: number
   totalVariance: number
 } {
-  const rateMap = new Map<string, { labor: number; burden: number }>()
-  rates.forEach(r => rateMap.set(r.wc, { labor: r.laborRate, burden: r.burdenRate }))
+  const rateMap = createWorkCenterRateMap(rates)
 
   let totalBaseLabor = 0
   let totalActiveLabor = 0
@@ -74,7 +74,7 @@ export function calculateRoutingDetailedRows(
   let totalActiveBurden = 0
 
   const rows: RoutingDetailedRow[] = routing.map(rt => {
-    const r = rateMap.get(rt.wc) || { labor: 105.29, burden: 95.00 }
+    const r = resolveWorkCenterRate(rateMap, rt.wc).rate
     const baseRuntime = rt.baseCap > 0 && rt.baseYield > 0
       ? safeDivide(rt.manning, rt.baseCap * rt.baseYield)
       : 0

@@ -55,6 +55,7 @@ export interface CostElementBreakdown {
   lev: number // Labor Efficiency Variance
   brv: number // Burden Rate Variance
   bev: number // Burden Efficiency Variance
+  missingWorkCenters: string[]
 }
 
 // Single ranked cost driver from _CALC_ENGINE

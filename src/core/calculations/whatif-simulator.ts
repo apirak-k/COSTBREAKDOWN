@@ -1,5 +1,6 @@
 import { CostDriver, BOMItem, RoutingStep, WorkCenterRate, WhatIfScenario, WhatIfResult } from '../types'
 import { safeDivide, parsePercentage, isYieldDriver, isPriceDriver } from '../utils/guards'
+import { createWorkCenterRateMap, resolveWorkCenterRate } from './work-center-rate'
 
 export interface SimulateOptionsParams {
   driver: CostDriver | null
@@ -32,8 +33,7 @@ export function simulateWhatIfScenarios(params: SimulateOptionsParams): WhatIfRe
     }))
   }
 
-  const rateMap = new Map<string, { labor: number; burden: number }>()
-  rates.forEach(r => rateMap.set(r.wc, { labor: r.laborRate, burden: r.burdenRate }))
+  const rateMap = createWorkCenterRateMap(rates)
 
   const isRouting = driver.category !== 'Direct Material'
 
@@ -61,7 +61,7 @@ export function simulateWhatIfScenarios(params: SimulateOptionsParams): WhatIfRe
     let grossSaving = 0
 
     if (isRouting && routingStep) {
-      const r = rateMap.get(routingStep.wc) || { labor: 105.29, burden: 95.00 }
+      const r = resolveWorkCenterRate(rateMap, routingStep.wc).rate
       const totalRate = r.labor + r.burden
 
       const activeRuntime = routingStep.activeCap > 0 && routingStep.activeYield > 0

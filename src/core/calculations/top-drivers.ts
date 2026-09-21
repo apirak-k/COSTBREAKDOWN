@@ -1,6 +1,7 @@
 import { BOMItem, RoutingStep, WorkCenterRate, CostDriver } from '../types'
 import { safeDivide } from '../utils/guards'
 import { getFieldConfidence } from '../utils/confidence'
+import { createWorkCenterRateMap, resolveWorkCenterRate } from './work-center-rate'
 
 /**
  * Evaluates all BOM and Routing candidates and ranks the Top 10 positive cost drivers.
@@ -14,10 +15,7 @@ export function calculateTopDrivers(
   rates: WorkCenterRate[],
   savedDrivers: CostDriver[] = []
 ): CostDriver[] {
-  const rateMap = new Map<string, { labor: number; burden: number }>()
-  rates.forEach(r => {
-    rateMap.set(r.wc, { labor: r.laborRate, burden: r.burdenRate })
-  })
+  const rateMap = createWorkCenterRateMap(rates)
 
   // Build map of saved user annotations (controllability, actionPlan, canInfluence, requirementFit)
   const savedMap = new Map<string, Pick<CostDriver, 'controllability' | 'actionPlan' | 'canInfluence' | 'requirementFit'>>()
@@ -100,7 +98,7 @@ export function calculateTopDrivers(
   routing.forEach(rt => {
     id++
 
-    const r = rateMap.get(rt.wc) ?? { labor: 105.29, burden: 95.00 }
+    const r = resolveWorkCenterRate(rateMap, rt.wc).rate
     const baseRuntime = rt.baseCap > 0 && rt.baseYield > 0
       ? safeDivide(rt.manning, rt.baseCap * rt.baseYield)
       : 0

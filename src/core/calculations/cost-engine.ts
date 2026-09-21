@@ -1,5 +1,6 @@
 import { BOMItem, RoutingStep, WorkCenterRate, CostElementBreakdown } from '../types'
 import { safeDivide } from '../utils/guards'
+import { createWorkCenterRateMap, resolveWorkCenterRate } from './work-center-rate'
 
 /**
  * Calculates high-level cost breakdown and Level 3 atomic variances.
@@ -10,10 +11,8 @@ export function calculateCostBreakdown(
   routing: RoutingStep[],
   rates: WorkCenterRate[]
 ): CostElementBreakdown {
-  const rateMap = new Map<string, { labor: number; burden: number }>()
-  rates.forEach(r => {
-    rateMap.set(r.wc, { labor: r.laborRate, burden: r.burdenRate })
-  })
+  const rateMap = createWorkCenterRateMap(rates)
+  const missingWorkCenters = new Set<string>()
 
   // 1. Direct Material Breakdown
   let materialBase = 0
@@ -39,7 +38,9 @@ export function calculateCostBreakdown(
   let burdenActive = 0
 
   routing.forEach(rt => {
-    const r = rateMap.get(rt.wc) || { labor: 105.29, burden: 95.00 }
+    const resolvedRate = resolveWorkCenterRate(rateMap, rt.wc)
+    if (resolvedRate.missing) missingWorkCenters.add(resolvedRate.workCenterKey)
+    const r = resolvedRate.rate
     const baseRuntime = rt.baseCap > 0 && rt.baseYield > 0
       ? safeDivide(rt.manning, rt.baseCap * rt.baseYield)
       : 0
@@ -78,6 +79,7 @@ export function calculateCostBreakdown(
     lrv,
     lev,
     brv,
-    bev
+    bev,
+    missingWorkCenters: [...missingWorkCenters]
   }
 }
