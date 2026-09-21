@@ -80,34 +80,34 @@ Phase 6: Full Workbook Flow Discovery
 
 - [x] Re-open the selected plan and confirm the previous slice is clean and committed
 - [x] Trace the role selector, parser, snapshot store, comparison page, and comparison export surfaces
-- [ ] Identify a safe local workbook/fixture path for browser upload without changing user data
-- [ ] Record the current end-to-end gap and acceptance assertions
-- **Status:** in_progress
+- [x] Identify a safe local workbook/fixture path for browser upload without changing user data
+- [x] Record the current end-to-end gap and acceptance assertions
+- **Status:** complete
 
 ### Phase 7: Full Flow RED/GREEN Slice
 
-- [ ] Run the full-flow check against the current implementation and capture the first failure
-- [ ] Implement only the smallest missing integration/UI behavior exposed by the check
-- [ ] Preserve legacy import, independent snapshot mode, and existing export behavior
-- [ ] Re-run focused checks until GREEN
-- **Status:** pending
+- [x] Run the full-flow check against the current implementation and capture the browser file-picker limitation
+- [x] Confirm whether a production integration/UI fix is required; no defect was exposed by the fixture flow
+- [x] Preserve legacy import, independent snapshot mode, and existing export behavior
+- [x] Add and run a bundled no-new-dependency full-flow verification check
+- **Status:** complete; no production behavior change required
 
 ### Phase 8: Runtime and Regression Verification
 
-- [ ] Exercise Reference upload and verify the Reference side is populated
-- [ ] Exercise Current upload and verify the Current side is populated
-- [ ] Navigate to comparison and verify non-empty comparison output
-- [ ] Exercise comparison export and verify a usable generated artifact
-- [ ] Run type-check, build, and relevant regression/audit gates
-- **Status:** pending
+- [ ] Exercise Reference upload in the browser and verify the Reference side is populated [Blocked by uncontrollable native picker]
+- [ ] Exercise Current upload in the browser and verify the Current side is populated [Blocked by uncontrollable native picker]
+- [x] Verify non-empty comparison output from both repository fixtures through the real comparison function
+- [x] Verify comparison export and its four-sheet generated artifact through the real export function
+- [x] Run type-check, build, and relevant regression/audit gates
+- **Status:** complete with browser-upload/download checks explicitly marked unverified where the automation surface could not observe them
 
 ### Phase 9: Delivery & Checkpoint
 
-- [ ] Review the scoped diff and generated artifacts
-- [ ] Commit each meaningful increment atomically
-- [ ] Update findings/progress with verified and unverified evidence
+- [x] Review the scoped diff and generated artifacts
+- [x] Commit each meaningful increment atomically
+- [x] Update findings/progress with verified and unverified evidence
 - [ ] Leave the worktree clean without pushing
-- **Status:** pending
+- **Status:** in_progress
 
 ## Commit Boundaries
 
@@ -115,7 +115,7 @@ Phase 6: Full Workbook Flow Discovery
 2. feat: let users choose snapshot import role — UI role state, controls, prop wiring, and focused verification updates only.
 3. A separate verification/test commit is allowed only if a meaningful runnable check is added without unrelated tooling expansion.
 4. docs: extend snapshot plan for full workbook flow — plan and discovery records only.
-5. feat/test: complete the smallest full-flow increment — only if a production or runnable verification change is required.
+5. test: add bundled snapshot full-flow verification — parser, comparison, and export only; no production behavior change.
 
 ## Acceptance Criteria
 
@@ -145,6 +145,9 @@ Phase 6: Full Workbook Flow Discovery
 |-------|------------|
 | Existing .ts self-checks fail with ERR_UNKNOWN_FILE_EXTENSION under plain Node | Record as a verification limitation; do not claim those checks pass. Evaluate a no-new-dependency runner path during Phase 2. |
 | node --experimental-strip-types still fails on extensionless source imports | Do not repeat the same invocation; use browser/build verification or a bounded runner investigation. |
+| Graphify semantic extraction stopped without a supported key | Use the documented `--code-only` AST fallback for this codebase trace; do not add or request credentials. |
+| Port 4173 was already occupied during the second runtime smoke | Use the isolated Vite server on port 4174 for this verification session. |
+| Browser hidden file input did not expose a controllable native picker | Keep browser upload assertions [Unverified]; use repository-owned fixture verification and manual acceptance. |
 
 ## Definition of Done
 
