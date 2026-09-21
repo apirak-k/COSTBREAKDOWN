@@ -4,7 +4,7 @@
 
 ### Current Status
 
-- **Phase:** 5 - Final Verification & Human Review (in progress)
+- **Phase:** 6 - Swiss Industrial Print Foundation (in progress)
 - **Plan ID:** `2569-09-21-factory-ui-refinement`
 - **Branch:** `codex/snapshot-import-role-selector`
 - **Code status:** Shared visual foundation and Cost Breakdown refinement committed; final evidence remains.
@@ -92,6 +92,27 @@
 | Live Cost Breakdown page | Rendered with comparison, warnings, variance tree, tables, and export action |
 | Product behavior change | None; shared-shell slice preserved behavior |
 
+## Session: 2569-09-21 - Swiss Industrial UI Direction
+
+### Decision and Scope
+
+- The user reported that the previous factory refinement still looked AI-generated and explicitly approved a deeper frontend visual pass.
+- The approved direction is one archetype only: Swiss Industrial Print with utilitarian minimalism.
+- The change is intentionally limited to visual presentation and usability polish. Existing calculations, state, import/export, route navigation, visible control names, and accessibility semantics remain protected.
+- Implementation will proceed in thin, independently verifiable slices with a commit after each slice.
+
+### Skills Applied
+
+- Read and applied the user-requested UI styling, UI/UX design intelligence, minimalist UI, and industrial brutalist UI instructions.
+- Applied frontend UI engineering, brainstorming approval, incremental implementation, Git workflow, and verification-before-completion constraints.
+- The optional design-system search utility was attempted but could not run because the available Python launchers were unavailable; built-in skill guidance and the existing product evidence are the fallback.
+
+### Planned Slices
+
+1. Swiss shared foundation: tokens, layout, navigation, footer/status, and KPI surface.
+2. Swiss Cost Breakdown presentation: panels, warnings, variance, and dense tables.
+3. Active-route consistency and final verification; leave human visual acceptance to the user.
+
 ### Next Action
 
-No further code slice is planned. Hand the remaining narrow-width/manual visual acceptance to the user with the limitation stated explicitly.
+Commit this plan update, then inspect the shared active files and implement Slice 1 without changing behavior.

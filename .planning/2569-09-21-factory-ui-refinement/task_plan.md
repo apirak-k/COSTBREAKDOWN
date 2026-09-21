@@ -2,7 +2,7 @@
 
 ## Goal
 
-Improve the active frontend for practical factory use while preserving the original visual language that the user already considers attractive and non-AI-generated.
+Establish a coherent, practical factory workbench visual system that no longer reads as an AI dashboard, while preserving all existing data, calculations, state, and operator flows.
 
 ## Scope Guard
 
@@ -14,7 +14,7 @@ In scope:
 
 Out of scope:
 
-- Replacing the existing visual identity with a new industrial/brutalist theme
+- Mixing multiple visual archetypes or adding a tactical CRT/dark-mode treatment
 - Changing Reference/Current semantics, import/export behavior, calculation formulas, or store state
 - Editing legacy duplicate paths under `src/pages`, `src/components`, or `src/lib` unless an active import is proven
 - Adding dependencies, fonts, backend services, or a design system package
@@ -22,23 +22,25 @@ Out of scope:
 
 ## User-Approved Direction
 
-- Keep the initial UI's attractive structure, palette, and overall character.
-- Make only targeted factory usability improvements: fast scanning, clear operational status, readable tables, reliable controls, and keyboard/mouse use.
-- Avoid generic AI visual signals: decorative gradients, excessive rounded cards, glowing effects, marketing copy, and unnecessary animation.
+- Use one coherent archetype: **Swiss Industrial Print** with utilitarian minimalism.
+- Use a light bone/newsprint substrate, carbon-black ink, rigid rules/grid, crisp corners, and one primary hazard red for operational emphasis.
+- Keep the existing factory information architecture and interaction model, but replace the previous mixed dark-terminal/light-card treatment where it causes the AI/demo impression.
+- Avoid tactical CRT, scanlines, neon, gradients, glow, glass, heavy shadows, excessive rounded cards, marketing copy, and decorative animation.
+- Preserve calculations, store state, import/export, navigation, visible labels, and accessibility behavior.
 
 ## Next Step
 
-Implement the Cost Breakdown readability slice after recording the shared-shell verification.
+Implement the approved Swiss Industrial Print foundation, verify it in a fresh browser, then align the Cost Breakdown data surfaces before final cross-route verification.
 
 ## Current Phase
 
-Phase 3: Cost Breakdown Readability (in_progress)
+Phase 6: Swiss Industrial Print Foundation (in_progress)
 
 ## Phases
 
 ### Phase 1: Requirements & Discovery (complete)
 
-- [x] Confirm that the original UI should be preserved rather than replaced
+- [x] Record the initial UI preference and the later approval boundary for a deeper visual revision
 - [x] Trace the active frontend entry path and identify legacy duplicate paths
 - [x] Inspect the current Cost Breakdown screen at runtime
 - [x] Record visual findings, constraints, and risks in `findings.md`
@@ -85,18 +87,50 @@ Phase 3: Cost Breakdown Readability (in_progress)
 - [x] Do not introduce a second visual language or duplicate components
 - **Status:** complete
 
-### Phase 5: Final Verification & Human Review
+### Phase 5: Final Verification & Human Review (previous direction)
 
 - [x] Run the full relevant verification gates after the final UI change
 - [ ] Capture fresh browser evidence at 1366px-class desktop and a narrow fallback width (desktop captured; narrow blocked by harness)
 - [x] Record verified and unverified evidence in `progress.md` and `findings.md`
 - [x] Leave the worktree clean after commits
 - [x] Leave final human acceptance to the user
-- **Status:** in_progress; narrow-width evidence is blocked by the available browser harness
+- **Status:** complete for the previous refinement direction; narrow-width evidence remains an explicit browser-harness limitation carried into the new phase
+
+### Phase 6: Swiss Industrial Print Foundation
+
+- [ ] Replace the shared dark-terminal bias with the approved light Swiss substrate and carbon-ink tokens
+- [ ] Refine `AppLayout`, `Navbar`, footer/status, and shared KPI presentation around rigid rules and crisp corners
+- [ ] Remove active-shell gradients, heavy shadows, pill-like defaults, and decorative status motion without changing controls or labels
+- [ ] Keep focus visibility, keyboard access, responsive stacking, and semantic status treatment intact
+- [ ] Verify the foundation in a fresh browser on the active routes
+- **Status:** in_progress
+
+### Checkpoint 3: Swiss Foundation
+
+- [ ] TypeScript check passes
+- [ ] Production build passes
+- [ ] Existing navigation and product selector still work
+- [ ] Fresh browser console has no application errors or warnings
+- [ ] Commit only the shared Swiss foundation slice
+
+### Phase 7: Swiss Cost Breakdown Presentation
+
+- [ ] Align KPI ledger, comparison panels, warnings, variance tree, and tables with the Swiss substrate
+- [ ] Use red only for actionable variance/review emphasis and keep neutral states legible without decorative color noise
+- [ ] Preserve all values, tab names, warning text, export behavior, and keyboard semantics
+- [ ] Verify the fresh Cost Breakdown route and commit only the page-level slice
+
+### Phase 8: Final Verification & Human Acceptance
+
+- [ ] Inspect all active routes for visual consistency and unintended regressions
+- [ ] Run the full relevant verification gates after the final visual change
+- [ ] Capture fresh desktop evidence and document the narrow-width harness limitation if it remains
+- [ ] Leave the worktree clean and hand final visual acceptance to the user
+- **Status:** pending
 
 ## Acceptance Criteria
 
-- Original UI character remains recognizable; this is a refinement, not a redesign replacement.
+- Swiss Industrial Print is applied as one coherent factory workbench language rather than a mixed AI/terminal dashboard treatment.
 - Factory operator can identify product context, active state, cost gap, review count, and missing-rate warnings within one scan.
 - Numbers remain tabular and aligned; labels and explanations remain readable at normal zoom.
 - No interactive behavior changes for navigation, product selector, import, export, tabs, or accordion sections.
@@ -111,12 +145,17 @@ Phase 3: Cost Breakdown Readability (in_progress)
 3. `style: improve cost breakdown factory readability` — comparison, warnings, controls, and tables only.
 4. `style: align active route presentation` — only if cross-route inspection finds a real consistency issue.
 5. `docs: record factory UI verification` — final evidence only.
+6. `docs: plan swiss industrial UI direction` — approved direction and new implementation phases.
+7. `style: establish swiss industrial workbench foundation` — shared light substrate, rules, navigation, layout, and KPI styling.
+8. `style: align cost breakdown with swiss industrial system` — active Cost Breakdown presentation only.
+9. `docs: record swiss industrial UI verification` — final evidence only.
 
 ## Decisions Made
 
 | Decision | Rationale |
 |----------|-----------|
-| Preserve the original UI direction | User explicitly prefers the initial look and does not want a new AI-looking or wholesale industrial theme. |
+| Preserve behavior while revising the visual substrate | The user later confirmed the current result still looks AI-like and approved a deeper Swiss Industrial Print treatment; calculations and flows must remain stable. |
+| Use Swiss Industrial Print, not Tactical CRT | The industrial UI skill requires one archetype; the light print language fits a factory workbench while avoiding another terminal-like aesthetic. |
 | Use small shared-shell and page-level slices | Prevents repeated redesign work and keeps each visual change reversible. |
 | Keep the active frontend path only | The repository contains legacy duplicate UI paths that are not imported by `src/App.tsx`. |
 | Prefer CSS/Tailwind changes over new abstractions | The app already uses Tailwind and shared components; a new design system would add unnecessary scope. |
@@ -127,6 +166,7 @@ Phase 3: Cost Breakdown Readability (in_progress)
 |-------|------------|
 | Existing `graphify-out/graph.json` was not present | Used direct active-path tracing with `rg` and source inspection; no graph artifacts were created. |
 | Namespace aliases in the skill catalog did not match filesystem paths | Resolved the actual skill-root paths and read the required skill files before planning. |
+| UI/UX design-system search script could not run | `python3` resolved to an inaccessible WindowsApps shim and `py` was unavailable; used the read skill instructions and project evidence as the design-system fallback. |
 
 ## Definition of Done
 

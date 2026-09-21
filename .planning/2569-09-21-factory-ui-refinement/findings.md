@@ -1,10 +1,17 @@
 # Findings & Decisions
 
-## User Intent
+## User Intent (historical baseline)
 
 - The existing initial UI is considered attractive and does not look AI-generated.
 - The user wants the app to be practical for factory use, not a visually overhauled AI dashboard.
-- The safe interpretation is a targeted usability refinement that preserves the current visual identity and behavior.
+- The initial safe interpretation was a targeted usability refinement that preserved the current visual identity and behavior. The user has now explicitly approved a deeper visual revision because the result still reads as AI-like.
+
+## Approved Swiss Industrial Direction
+
+- Use Swiss Industrial Print as the single visual archetype: light bone/newsprint substrate, carbon-black typography, visible 1px/2px rules, rigid grid, crisp corners, and one primary hazard red.
+- Apply utilitarian minimalism through disciplined spacing, restrained type hierarchy, selective mono for engineering values, and no decorative effects.
+- Do not mix in Tactical CRT cues such as dark mode, scanlines, neon, glow, or terminal noise; those would preserve the AI/console impression the user wants removed.
+- The redesign boundary is visual only. Calculations, Reference/Current semantics, store state, import/export, route navigation, control names, and accessibility behavior remain protected.
 
 ## Current Active Path
 
@@ -32,7 +39,7 @@ Legacy duplicate paths under `src/pages`, `src/components`, and `src/lib` are no
 ## Runtime/UI Observations
 
 - The current screen already has a strong operational structure: sticky header, product selector, route navigation, comparison KPIs, review warnings, variance tree, dense tables, and a bottom status bar.
-- The dark header and white data panels are useful for a factory workbench and should be retained.
+- The dark header and white data panels were useful as the prior baseline, but the user has since identified the mixed dark-terminal/light-card composition as still AI-like; the new phase will test a unified light Swiss substrate instead.
 - The current visual language leans heavily on `font-mono`, uppercase labels, rounded cards, and console-style `SYSTEM ACTIVE` wording. These are the likely sources of the AI/demo/terminal feeling when used everywhere, not the overall layout itself.
 - The screen is data-dense and should not be made more spacious or decorative. The primary improvement should be hierarchy and scanability.
 - The existing comparison flow exposes real operational states such as missing Work Center rates and review counts. Those states should become easier to act on without changing their calculation or import semantics.
@@ -47,7 +54,8 @@ Legacy duplicate paths under `src/pages`, `src/components`, and `src/lib` are no
 
 | Decision | Rationale |
 |----------|-----------|
-| Preserve the current light data-surface plus dark header/footer composition | It is already useful for high-density factory review and is preferred by the user. |
+| Preserve information architecture, not the old color split | The user approved changing the mixed dark header/light-card treatment while keeping the dense factory review structure and all behavior. |
+| Use one Swiss Industrial Print archetype | A single light print system avoids the visual incoherence of combining minimalist, terminal, and tactical patterns. |
 | Limit the first pass to shared layout, navbar, and KPI presentation | These components affect all routes and can improve scanability without touching calculation behavior. |
 | Treat warnings as operational states, not decorative alerts | Missing rates and review rows need clear text and contrast, not more visual effects. |
 | Keep raw values and existing labels stable | Browser acceptance and existing users depend on current content and control names. |
@@ -90,3 +98,4 @@ Legacy duplicate paths under `src/pages`, `src/components`, and `src/lib` are no
 | Reducing mono/uppercase styling harms numerical scanning | Keep tabular numeric values and use mono selectively for IDs/measurements. |
 | Visual changes accidentally alter accessibility selectors | Preserve visible labels, button names, and semantic elements; run AX/keyboard smoke. |
 | Screenshot tuning becomes subjective | Use the user's stated preference as the constraint and keep changes narrow/reversible. |
+| Shared light tokens may affect every active route | Verify all active routes after the shared foundation and avoid touching legacy duplicate paths. |
