@@ -1,6 +1,6 @@
 import React, { useState } from 'react'
 import { FileSpreadsheet, RotateCcw, Trash2, ArrowUpCircle, Download } from 'lucide-react'
-import { ProductMaster, WorkCenterRate } from '../../../core'
+import { ComparisonRole, ProductMaster, WorkCenterRate } from '../../../core'
 import { generateDynamicExcelTemplate, downloadBlob } from '../../../services'
 import { ExcelUploadDropzone } from '../../../shared/ui/ExcelUploadDropzone'
 import { ConfirmModal } from '../../../shared/ui/ConfirmModal'
@@ -28,6 +28,7 @@ export const ExcelImportPanel: React.FC<ExcelImportPanelProps> = ({
     isOpen: boolean
     type: 'promote' | 'reset' | 'clear' | null
   }>({ isOpen: false, type: null })
+  const [importRole, setImportRole] = useState<ComparisonRole>('current')
 
   const handleDownloadTemplate = async () => {
     try {
@@ -78,8 +79,37 @@ export const ExcelImportPanel: React.FC<ExcelImportPanelProps> = ({
         </button>
       </div>
 
+      {/* Upload Role */}
+      <div className="flex flex-wrap items-center gap-2">
+        <span id="excel-import-role-label" className="text-[10px] font-mono font-bold text-slate-700 uppercase tracking-tight">
+          Import as
+        </span>
+        <div className="inline-flex overflow-hidden rounded border border-slate-300 shadow-2xs" role="group" aria-labelledby="excel-import-role-label">
+          <button
+            type="button"
+            aria-pressed={importRole === 'reference'}
+            onClick={() => setImportRole('reference')}
+            className={`px-2.5 py-1 text-xs font-mono font-bold transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-800 focus-visible:ring-offset-1 ${
+              importRole === 'reference' ? 'bg-slate-800 text-white' : 'bg-white text-slate-600 hover:bg-slate-50'
+            }`}
+          >
+            Reference
+          </button>
+          <button
+            type="button"
+            aria-pressed={importRole === 'current'}
+            onClick={() => setImportRole('current')}
+            className={`border-l border-slate-300 px-2.5 py-1 text-xs font-mono font-bold transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-800 focus-visible:ring-offset-1 ${
+              importRole === 'current' ? 'bg-slate-800 text-white' : 'bg-white text-slate-600 hover:bg-slate-50'
+            }`}
+          >
+            Current
+          </button>
+        </div>
+      </div>
+
       {/* Upload Dropzone */}
-      <ExcelUploadDropzone />
+      <ExcelUploadDropzone importRole={importRole} />
 
       {/* Action Buttons Bar */}
       <div className="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-slate-200">
