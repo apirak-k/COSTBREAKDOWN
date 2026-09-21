@@ -4,7 +4,7 @@
 
 ### Current Status
 
-- **Phase:** 9 - Initial UI Baseline Restoration & Verification (in progress)
+- **Phase:** 10 - Reset Default Snapshot Mock (verified; commit pending)
 - **Plan ID:** `2569-09-21-factory-ui-refinement`
 - **Branch:** `codex/snapshot-import-role-selector`
 - **Code status:** Original pre-refinement UI baseline restored in `3857d68`; fresh verification remains.
@@ -181,3 +181,38 @@ Run typecheck/build/audit and fresh browser smoke on the restored baseline. Do n
 - The industrial skill remains available as a restraint for future specific UI fixes, but no new industrial visual system is being applied.
 - The source baseline is committed as `3857d68 style: restore initial factory UI baseline`.
 - Final visual acceptance is now with the user.
+
+## Session: 2569-09-21 - Reset Default Comparison Fixture
+
+### New Requirement
+
+- The user reported that Reset Default did not visibly expose the intended Active difference for testing.
+- The next focused slice will make Reset Default apply a deterministic explicit Reference/Current snapshot pair based on the existing seed data, while preserving the original UI and all normal reset controls.
+
+### Next Action
+
+Inspect the snapshot types/migration helpers, implement the fixture at the state/seed boundary, then verify the real reset flow in the browser.
+
+### Implementation
+
+- Added a deterministic `seedSnapshotPair` from the existing RGOM-024 seed data using the canonical paired-model migration helper.
+- Made the initial seed session and `Reset Default` use an explicit independent Reference/Current pair while preserving the existing legacy fields and reset confirmation flow.
+- Kept the original UI baseline unchanged; this slice changes only state initialization/reset behavior for acceptance testing.
+
+### Verification
+
+| Check | Result |
+|-------|--------|
+| `npx tsc -b --pretty false` | Passed |
+| `npm run build` | Passed; existing large-chunk warning remains |
+| `node scripts/test_comprehensive_audit.js` | Passed `31/31` |
+| Fresh browser Reset Default flow | Passed; confirmation opened and reset completed |
+| Post-reset Master Data | Passed; `RGOM-024-01`, 4 WC, 16 BOM, 39 routing visible |
+| Post-reset Active fixture | Passed; BOM item `RMMBA1020` shows Base `31.70` vs Active `60.10`; routing `AI-Ins` shows Base `74.0%` vs Active `60.0%` |
+| Cost Breakdown comparison | Passed; Reference `33.6936`, Current `41.9528`, exact gap `+8.2592`, `1` row needs review |
+| Variance attribution | Passed; material price variance `+7.8467`, labor efficiency `+0.2213`, burden efficiency `+0.1911`, balance `0.0000` |
+
+### Current Handoff
+
+- The requested mock data is now visible and testable through the real Reset Default flow.
+- Remaining work is to restore generated build metadata if needed, review the diff, commit the feature and planning evidence in stages, and push the verified branch.

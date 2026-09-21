@@ -125,3 +125,17 @@ Legacy duplicate paths under `src/pages`, `src/components`, and `src/lib` are no
 - `git diff --cached --exit-code 63c418f -- <restored UI files>` returned `UI_BASELINE_MATCHES_63C418F`; no calculation, state, service, import/export, or route behavior files were included.
 - Fresh browser verification rendered the original dark workbench header/light data-panel composition, preserved Cost Breakdown values `33.6936 → 41.9528` with gap `+8.2592`, and kept the product selector interaction working.
 - The current in-app browser did not expose console logs, so no new clean-console claim is made for this baseline smoke.
+
+## Reset Default Fixture Requirement
+
+- The seed fixture already contains deliberate legacy-field variance, including changed material price and reduced routing yield.
+- `resetToDefault` currently resets legacy `product`/`rates`/`bom`/`routing` fields and sets `snapshotPairMode: 'derived'`; it does not make an explicit independent Reference/Current pair visible as a named test fixture.
+- The requested behavior is to make Reset Default visibly produce Reference baseline data and Current/Active changed data so Cost Breakdown can be tested immediately after the reset confirmation.
+
+## Reset Default Fixture Verification
+
+- `src/state/seed-data.ts` now exports one deterministic `seedSnapshotPair` built from the existing paired seed fields; the fixture intentionally retains the material-price and AI-Ins yield differences already present in the seed data.
+- `makeSeedSession()` and `resetToDefault()` now use `snapshotPairMode: 'independent'`, preserving the Reference snapshot while recalculating Current from the seeded Active/legacy fields.
+- The real browser flow was exercised on a fresh `localhost:5174` tab: Master Data → Reset Default → Reset to Seed Data → Cost Breakdown.
+- After reset, the UI visibly showed `4 WC · 16 BOM · 39 ROUTING`, Base/Active values in the master tables, and the footer totals `Base: 33.6936 THB`, `Active: 41.9528 THB`, `Net Gap: +8.2592 THB/pc`.
+- Cost Breakdown visibly showed `REFERENCE VS CURRENT SNAPSHOT`, Reference `33.6936`, Current `41.9528`, Exact Cost Gap `+8.2592`, one row needing review, and a balanced variance decomposition. This meets the request for a realistic mock suitable for end-to-end manual testing.

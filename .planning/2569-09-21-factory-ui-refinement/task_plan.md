@@ -29,11 +29,11 @@ Out of scope:
 
 ## Next Step
 
-Hand the restored baseline to the user for final visual acceptance; make no further visual redesign unless the user identifies a specific UI issue.
+Implement the requested `Reset Default` snapshot mock so Reference and Current/Active remain visibly different for real acceptance testing, then verify the reset flow end to end.
 
 ## Current Phase
 
-Phase 9: Initial UI Baseline Restoration & Verification (human review pending)
+Phase 10: Reset Default Snapshot Mock (in_progress)
 
 ## Phases
 
@@ -148,10 +148,28 @@ Phase 9: Initial UI Baseline Restoration & Verification (human review pending)
 - [x] Product selector opens with the expected dataset/product entry
 - [ ] Browser console log evidence (not exposed by the current IAB harness)
 
+### Phase 10: Reset Default Snapshot Mock
+
+- [ ] Define a deterministic default Reference/Current snapshot pair from the existing seed fixture
+- [ ] Make `Reset Default` apply both legacy active fields and the explicit snapshot pair
+- [ ] Preserve the existing reset confirmation and route/product behavior
+- [ ] Verify Cost Breakdown shows a non-zero gap/variance after reset
+- [ ] Verify the original default counts and product metadata remain intact
+- **Status:** in_progress
+
+### Checkpoint 5: Reset Default Testing Fixture
+
+- [ ] TypeScript check passes
+- [ ] Production build passes
+- [ ] Existing audit suite passes
+- [ ] Fresh browser reset flow shows Reference and Current/Active differences
+- [ ] Commit and push the focused reset-fixture slice
+
 ## Acceptance Criteria
 
 - The active UI files match the original pre-refinement factory baseline the user prefers.
 - Industrial UI principles are used only as a restraint on future UI changes, not as a replacement visual identity.
+- `Reset Default` provides an explicit two-snapshot test fixture with visible Active variance.
 - Factory operator can identify product context, active state, cost gap, review count, and missing-rate warnings within one scan.
 - Numbers remain tabular and aligned; labels and explanations remain readable at normal zoom.
 - No interactive behavior changes for navigation, product selector, import, export, tabs, or accordion sections.
@@ -170,6 +188,8 @@ Phase 9: Initial UI Baseline Restoration & Verification (human review pending)
 7. `style: establish swiss industrial workbench foundation` — superseded visual experiment (`da0db47`).
 8. `style: restore initial factory UI baseline` — UI-only rollback to `63c418f` (`3857d68`).
 9. `docs: record initial UI baseline verification` — fresh verification and final evidence.
+10. `feat: make reset default provide comparison fixture` — deterministic Reference/Current mock data for acceptance testing.
+11. `docs: record reset default fixture verification` — focused reset-flow evidence.
 
 ## Decisions Made
 
@@ -177,6 +197,7 @@ Phase 9: Initial UI Baseline Restoration & Verification (human review pending)
 |----------|-----------|
 | Restore the pre-refinement baseline | The user explicitly prefers the first UI and says it reads less like AI; exact file comparison confirms the restored presentation matches `63c418f`. |
 | Use industrial principles selectively | The skill is useful for hierarchy, dense operational data, and restraint, but the user does not want its full visual archetype applied. |
+| Make Reset Default an explicit comparison fixture | Acceptance testing needs a deterministic Reference/Current pair with visible Active variance, not only a legacy-session reset. |
 | Use small shared-shell and page-level slices | Prevents repeated redesign work and keeps each visual change reversible. |
 | Keep the active frontend path only | The repository contains legacy duplicate UI paths that are not imported by `src/App.tsx`. |
 | Prefer CSS/Tailwind changes over new abstractions | The app already uses Tailwind and shared components; a new design system would add unnecessary scope. |
