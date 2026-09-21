@@ -1,5 +1,8 @@
 import assert from 'node:assert/strict'
-import { projectSnapshotPairToLegacySession } from '../src/core/migrations/snapshot-to-session'
+import {
+  projectSnapshotPairToLegacySession,
+  updateCurrentSnapshotFromLegacySession
+} from '../src/core/migrations/snapshot-to-session'
 import type { SnapshotPair } from '../src/core'
 
 const product = {
@@ -63,5 +66,19 @@ assert.equal(projection.bom.find(item => item.itemCode === 'MAT-NEW')?.activePri
 assert.equal(projection.routing[0].baseCap, 100)
 assert.equal(projection.routing[0].activeCap, 80)
 assert.equal(projection.routing[0].opSeq, 20)
+
+const editedSession = {
+  id: 'session',
+  ...projection,
+  savedDrivers: [],
+  status: 'draft' as const,
+  createdAt: '2026-09-21T00:00:00.000Z',
+  updatedAt: '2026-09-21T00:00:00.000Z',
+  snapshotPair: pair,
+  snapshotPairMode: 'independent' as const
+}
+const currentAfterProjection = updateCurrentSnapshotFromLegacySession(editedSession, pair)
+assert.deepEqual(currentAfterProjection.bom.map(item => item.itemCode), ['MAT-NEW'])
+assert.equal(currentAfterProjection.bom[0].price, 20)
 
 console.log('Snapshot projection self-check: PASS')

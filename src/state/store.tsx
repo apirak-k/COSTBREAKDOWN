@@ -7,6 +7,7 @@ import {
   CostElementBreakdown,
   CostDriver,
   ExcelImportResult,
+  SnapshotImportResult,
   ProductSession,
   ProductSizingConfig,
   SnapshotPair,
@@ -14,17 +15,39 @@ import {
   calculateCostBreakdown,
   calculateTopDrivers,
   compareSnapshots,
-  sessionToSnapshotPair
+  sessionToSnapshotPair,
+  applySnapshotPairToSession,
+  updateCurrentSnapshotFromLegacySession
 } from '../core'
 import { STORAGE_KEYS, loadFromSession, saveToSession } from '../services'
 import { seedProductMaster, seedWorkCenterRates, seedBOM, seedRouting } from './seed-data'
 
 export const DEFAULT_UOMS = ['PC', 'SET', 'PANEL', 'GM', 'KG', 'SM', 'M', 'RL', 'L', 'BOX', 'TRAY']
 
-function withSnapshotPair(session: ProductSession): ProductSession {
+function withSnapshotPair(session: ProductSession, explicitPair?: SnapshotPair): ProductSession {
+  if (explicitPair) {
+    return {
+      ...session,
+      snapshotPair: explicitPair,
+      snapshotPairMode: 'independent'
+    }
+  }
+
+  if (session.snapshotPairMode === 'independent' && session.snapshotPair) {
+    return {
+      ...session,
+      snapshotPair: {
+        ...session.snapshotPair,
+        current: updateCurrentSnapshotFromLegacySession(session, session.snapshotPair)
+      },
+      snapshotPairMode: 'independent'
+    }
+  }
+
   return {
     ...session,
-    snapshotPair: sessionToSnapshotPair(session)
+    snapshotPair: sessionToSnapshotPair(session),
+    snapshotPairMode: 'derived'
   }
 }
 
@@ -168,6 +191,7 @@ interface AppContextType {
     requirementFit?: boolean
   ) => void
   importFromExcel: (result: ExcelImportResult) => void
+  importSnapshotFromExcel: (result: SnapshotImportResult) => void
   resetToDefault: () => void
   clearAllData: () => void
 }
@@ -525,6 +549,50 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     setActiveTab('master')
   }
 
+  // Snapshot import keeps Reference and Current as independent datasets.
+  const importSnapshotFromExcel = (result: SnapshotImportResult) => {
+    if (!result.success || !result.snapshot) return
+
+    const source = activeSession
+    const existingPair = source.snapshotPair ?? sessionToSnapshotPair(source)
+    const nextPair: SnapshotPair = result.role === 'reference'
+      ? { reference: result.snapshot, current: existingPair.current }
+      : { reference: existingPair.reference, current: result.snapshot }
+    const now = new Date().toISOString()
+    const roleLabel = result.role === 'reference' ? 'Reference' : 'Current'
+
+    if (source.snapshotPairMode === 'independent') {
+      const updated = applySnapshotPairToSession(
+        {
+          ...source,
+          status: 'draft',
+          versionLabel: `Draft (Imported ${roleLabel})`,
+          updatedAt: now
+        },
+        nextPair
+      )
+      setProductSessions(prev => prev.map(session => session.id === source.id ? updated : session))
+      setActiveTab('master')
+      return
+    }
+
+    const importedDraft = applySnapshotPairToSession(
+      {
+        ...source,
+        id: `ps-draft-snapshot-${Date.now()}`,
+        savedDrivers: [],
+        status: 'draft',
+        versionLabel: `Draft (Imported ${roleLabel}: ${result.snapshot.product.productCode || 'Excel'})`,
+        createdAt: now,
+        updatedAt: now
+      },
+      nextPair
+    )
+    setProductSessions(prev => [...prev, importedDraft])
+    setActiveProductId(importedDraft.id)
+    setActiveTab('master')
+  }
+
   const resetToDefault = () => {
     patchActive({
       product: seedProductMaster,
@@ -533,7 +601,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       routing: seedRouting,
       savedDrivers: [],
       status: 'active',
-      versionLabel: 'Active Baseline'
+      versionLabel: 'Active Baseline',
+      snapshotPairMode: 'derived'
     })
   }
 
@@ -587,6 +656,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       promoteActiveToBaseline,
       updateDriverHumanInput,
       importFromExcel,
+      importSnapshotFromExcel,
       resetToDefault,
       clearAllData
     }}>

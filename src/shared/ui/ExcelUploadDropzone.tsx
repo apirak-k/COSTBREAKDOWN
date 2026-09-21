@@ -1,10 +1,15 @@
 import React, { useState, useRef } from 'react'
 import { UploadCloud, CheckCircle, AlertCircle, Loader2 } from 'lucide-react'
-import { parseExcelInputFile } from '../../services'
+import { ComparisonRole } from '../../core'
+import { parseSnapshotExcelInputFile } from '../../services'
 import { useAppStore } from '../../state'
 
-export const ExcelUploadDropzone: React.FC = () => {
-  const { importFromExcel } = useAppStore()
+interface ExcelUploadDropzoneProps {
+  importRole?: ComparisonRole
+}
+
+export const ExcelUploadDropzone: React.FC<ExcelUploadDropzoneProps> = ({ importRole = 'current' }) => {
+  const { importSnapshotFromExcel } = useAppStore()
   const [isDragging, setIsDragging] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
   const [statusMessage, setStatusMessage] = useState<{
@@ -28,9 +33,9 @@ export const ExcelUploadDropzone: React.FC = () => {
     setStatusMessage(null)
 
     try {
-      const result = await parseExcelInputFile(file)
+      const result = await parseSnapshotExcelInputFile(file, importRole)
       if (result.success) {
-        importFromExcel(result)
+        importSnapshotFromExcel(result)
         setStatusMessage({
           type: result.warnings && result.warnings.length > 0 ? 'warning' : 'success',
           text: result.message,
@@ -111,7 +116,7 @@ export const ExcelUploadDropzone: React.FC = () => {
                 : 'Click to upload or drag & drop Excel workbook (.xlsx)'}
             </p>
             <p className="text-[10px] text-slate-500 font-sans mt-0.5">
-              Supports <code className="bg-slate-200 px-1 py-0.2 rounded-none text-[10px] font-mono">CostModel_BLANK_TEMPLATE.xlsx</code> or verified custom models
+              Importing as <span className="font-bold text-slate-700">{importRole === 'reference' ? 'Reference' : 'Current'}</span>. Supports canonical snapshot sheets or legacy paired models.
             </p>
           </div>
         </div>

@@ -1,5 +1,6 @@
 import {
   BOMItem,
+  CostSnapshot,
   DataConfidence,
   FieldEvidence,
   ProductMaster,
@@ -11,6 +12,7 @@ import {
   SnapshotWorkCenterRate,
   WorkCenterRate
 } from '../types'
+import { sessionToSnapshotPair } from './session-to-snapshots'
 
 export interface LegacySessionProjection {
   product: ProductMaster
@@ -115,5 +117,52 @@ export function applySnapshotPairToSession(session: ProductSession, pair: Snapsh
     ...projectSnapshotPairToLegacySession(pair),
     snapshotPair: pair,
     snapshotPairMode: 'independent'
+  }
+}
+
+function currentRowsAfterLegacyProjection<T>(
+  projectedRows: T[],
+  referenceRows: T[],
+  currentRows: T[],
+  rowKey: (row: T) => string
+): T[] {
+  const referenceKeys = new Set(referenceRows.map(rowKey))
+  const currentKeys = new Set(currentRows.map(rowKey))
+
+  return projectedRows.filter(row => {
+    const keyValue = rowKey(row)
+    return currentKeys.has(keyValue) || !referenceKeys.has(keyValue)
+  })
+}
+
+/**
+ * Rebuilds the Current snapshot after legacy-screen edits while preserving
+ * independent snapshot membership (including removed and newly added rows).
+ */
+export function updateCurrentSnapshotFromLegacySession(
+  session: ProductSession,
+  pair: SnapshotPair
+): CostSnapshot {
+  const derivedCurrent = sessionToSnapshotPair(session).current
+
+  return {
+    ...derivedCurrent,
+    id: pair.current.id,
+    comparisonRole: 'current',
+    status: pair.current.status,
+    effectiveDate: derivedCurrent.effectiveDate || pair.current.effectiveDate,
+    sourceRef: pair.current.sourceRef,
+    bom: currentRowsAfterLegacyProjection(
+      derivedCurrent.bom,
+      pair.reference.bom,
+      pair.current.bom,
+      item => key(item.itemCode, item.id)
+    ),
+    routing: currentRowsAfterLegacyProjection(
+      derivedCurrent.routing,
+      pair.reference.routing,
+      pair.current.routing,
+      step => key(step.operationCode || step.processName, step.id)
+    )
   }
 }
