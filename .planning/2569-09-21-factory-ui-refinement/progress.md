@@ -216,4 +216,5 @@ Inspect the snapshot types/migration helpers, implement the fixture at the state
 
 - The requested mock data is now visible and testable through the real Reset Default flow.
 - Generated build metadata was restored, the final diff was reviewed cleanly, and the two focused commits were pushed to `origin/codex/snapshot-import-role-selector`.
+- A current cross-device handoff was added at `HANDOFF_CROSS_DEVICE_2026-09-21.md`; the older same-date handoff is explicitly marked historical.
 - The work is ready for the user's manual acceptance check. Further code changes should wait for concrete acceptance findings.
