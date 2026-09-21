@@ -28,11 +28,11 @@ Out of scope:
 
 ## Next Step
 
-Implement the shared visual foundation slice, then verify the active app before touching page-specific details.
+Implement the Cost Breakdown readability slice after recording the shared-shell verification.
 
 ## Current Phase
 
-Phase 2: Shared Visual Foundation (in_progress)
+Phase 3: Cost Breakdown Readability (in_progress)
 
 ## Phases
 
@@ -46,20 +46,21 @@ Phase 2: Shared Visual Foundation (in_progress)
 
 ### Phase 2: Shared Visual Foundation
 
-- [ ] Define minimal tokens for surface, border, text, status, spacing, and focus treatment
-- [ ] Refine `AppLayout` without changing data or navigation behavior
-- [ ] Refine `Navbar` into a clear work-context header while preserving controls and labels
-- [ ] Refine the shared KPI card for fast factory scanning
+- [x] Define minimal tokens for surface, border, text, status, spacing, and focus treatment
+- [x] Refine `AppLayout` without changing data or navigation behavior
+- [x] Refine `Navbar` into a clear work-context header while preserving controls and labels
+- [x] Refine the shared KPI card for fast factory scanning
 - [ ] Verify the shared slice in the browser at desktop and narrow widths
-- **Status:** in_progress
+- **Status:** complete for implementation; narrow-width evidence remains in final verification
 
 ### Checkpoint 1: Shared Shell
 
-- [ ] TypeScript check passes
-- [ ] Production build passes
-- [ ] Existing navigation and product selector still work
-- [ ] Browser console has no fresh-load errors
-- [ ] Commit only the shared-shell slice
+- [x] TypeScript check passes
+- [x] Production build passes
+- [x] Existing navigation and product selector still work
+- [x] Browser console has no fresh-load errors
+- [x] Commit only the shared-shell slice
+- **Status:** complete (`2f6767f`)
 
 ### Phase 3: Cost Breakdown Readability
 
@@ -67,7 +68,7 @@ Phase 2: Shared Visual Foundation (in_progress)
 - [ ] Make missing-rate and review warnings actionable and visually distinct
 - [ ] Improve section headers, tab controls, export action, and dense tables
 - [ ] Preserve all existing accessibility names and interaction behavior
-- **Status:** pending
+- **Status:** in_progress
 
 ### Checkpoint 2: Cost Breakdown
 

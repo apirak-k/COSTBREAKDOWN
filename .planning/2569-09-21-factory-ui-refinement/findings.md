@@ -56,8 +56,19 @@ Legacy duplicate paths under `src/pages`, `src/components`, and `src/lib` are no
 
 - Live browser screenshot and DOM inspection were performed on the active Comparison page.
 - Worktree was clean before beginning this UI task.
-- No code or product behavior has been changed in this UI task yet.
+- The shared-shell slice is committed as `2f6767f` and changes only the active shared CSS/layout/navbar/KPI files.
 - Fresh verification will be run after each implementation slice; previous verification results will not be used as the only evidence for new UI claims.
+
+## Shared Shell Verification
+
+- `npx tsc -b --pretty false` passed after the final indentation cleanup.
+- `npm run build` passed with the existing Vite large-chunk warning; no build failure was introduced.
+- `node scripts/test_comprehensive_audit.js` passed `31/31`.
+- Fresh browser load showed the existing dark header, white data surfaces, comparison content, warnings, tables, and footer with the refined typography/border treatment.
+- Fresh browser interaction confirmed Cost Breakdown navigation, Candidate Selection navigation, and the product selector opening with `Dataset Versions & Products (1)` and `RGOM-024-01` visible.
+- Fresh browser console inspection returned no `error` or `warn` entries.
+- An earlier boolean smoke check incorrectly searched for uppercase page text and reported false negatives; the later accessibility snapshot confirmed the route changed correctly. The test assumption—not the UI behavior—was corrected.
+- Narrow-width browser evidence is still pending and will be captured during final verification; no narrow-width claim is made yet.
 
 ## Risks
 
