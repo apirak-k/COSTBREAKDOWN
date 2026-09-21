@@ -29,11 +29,11 @@ Out of scope:
 
 ## Next Step
 
-Implement the requested `Reset Default` snapshot mock so Reference and Current/Active remain visibly different for real acceptance testing, then verify the reset flow end to end.
+The focused reset-fixture slice is complete and pushed. The next action is human acceptance testing; only reported acceptance findings should trigger another implementation slice.
 
 ## Current Phase
 
-Phase 10: Reset Default Snapshot Mock (in_progress)
+Phase 10: Reset Default Snapshot Mock (complete)
 
 ## Phases
 
@@ -150,20 +150,21 @@ Phase 10: Reset Default Snapshot Mock (in_progress)
 
 ### Phase 10: Reset Default Snapshot Mock
 
-- [ ] Define a deterministic default Reference/Current snapshot pair from the existing seed fixture
-- [ ] Make `Reset Default` apply both legacy active fields and the explicit snapshot pair
-- [ ] Preserve the existing reset confirmation and route/product behavior
-- [ ] Verify Cost Breakdown shows a non-zero gap/variance after reset
-- [ ] Verify the original default counts and product metadata remain intact
-- **Status:** in_progress
+- [x] Define a deterministic default Reference/Current snapshot pair from the existing seed fixture
+- [x] Make `Reset Default` apply both legacy active fields and the explicit snapshot pair
+- [x] Preserve the existing reset confirmation and route/product behavior
+- [x] Verify Cost Breakdown shows a non-zero gap/variance after reset
+- [x] Verify the original default counts and product metadata remain intact
+- **Status:** complete (`b209b8c`)
 
 ### Checkpoint 5: Reset Default Testing Fixture
 
-- [ ] TypeScript check passes
-- [ ] Production build passes
-- [ ] Existing audit suite passes
-- [ ] Fresh browser reset flow shows Reference and Current/Active differences
-- [ ] Commit and push the focused reset-fixture slice
+- [x] TypeScript check passes
+- [x] Production build passes
+- [x] Existing audit suite passes
+- [x] Fresh browser reset flow shows Reference and Current/Active differences
+- [x] Commit and push the focused reset-fixture slice
+- **Status:** complete (`b209b8c`, `20fb643`)
 
 ## Acceptance Criteria
 

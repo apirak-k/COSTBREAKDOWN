@@ -4,10 +4,10 @@
 
 ### Current Status
 
-- **Phase:** 10 - Reset Default Snapshot Mock (verified; commit pending)
+- **Phase:** 10 - Reset Default Snapshot Mock (complete and pushed)
 - **Plan ID:** `2569-09-21-factory-ui-refinement`
 - **Branch:** `codex/snapshot-import-role-selector`
-- **Code status:** Original pre-refinement UI baseline restored in `3857d68`; fresh verification remains.
+- **Code status:** Original pre-refinement UI baseline restored in `3857d68`; Reset Default fixture shipped in `b209b8c` and pushed with verification docs in `20fb643`.
 
 ### Actions Taken
 
@@ -215,4 +215,5 @@ Inspect the snapshot types/migration helpers, implement the fixture at the state
 ### Current Handoff
 
 - The requested mock data is now visible and testable through the real Reset Default flow.
-- Remaining work is to restore generated build metadata if needed, review the diff, commit the feature and planning evidence in stages, and push the verified branch.
+- Generated build metadata was restored, the final diff was reviewed cleanly, and the two focused commits were pushed to `origin/codex/snapshot-import-role-selector`.
+- The work is ready for the user's manual acceptance check. Further code changes should wait for concrete acceptance findings.
