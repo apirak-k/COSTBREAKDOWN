@@ -70,6 +70,18 @@ Legacy duplicate paths under `src/pages`, `src/components`, and `src/lib` are no
 - An earlier boolean smoke check incorrectly searched for uppercase page text and reported false negatives; the later accessibility snapshot confirmed the route changed correctly. The test assumption—not the UI behavior—was corrected.
 - Narrow-width browser evidence is still pending and will be captured during final verification; no narrow-width claim is made yet.
 
+## Cost Breakdown Readability Verification
+
+- Slice 2 is committed as `2e500d7` and changes only the active Cost Breakdown page and its comparison/table presentation components.
+- The fresh comparison page retained the same seeded values, including the Reference/Current totals, exact cost gap, variance bridge, and balance check.
+- Missing Work Center rates and comparison warnings now use a clear left status rail and remain exposed as `status`/`alert` content; no warning text or calculation semantics changed.
+- The dense tables retain horizontal overflow containment with explicit minimum widths, while prose labels use the normal UI font and engineering values remain tabular/mono where alignment matters.
+- The fresh browser smoke confirmed BOM, Routing, and Work Center tabs, accordion collapse/expand, and keyboard Enter toggling of the expandable section.
+- The Export Comparison button remained available and returned to its idle state without a visible export error after the click. The in-app browser did not expose the programmatic Blob download event, so filesystem/download completion is not claimed from this smoke.
+- Fresh browser inspection of Master Data, Candidate Selection, and RCA & Simulation showed the shared header/navigation without route errors; no route-specific code change was necessary.
+- A reload of an already-open HMR/imported tab briefly recorded a `useAppStore` provider error while the page recovered. A new fresh tab loaded and navigated with an empty `error`/`warn` log; this is recorded as a development hot-reload observation, not treated as clean-load proof.
+- The available in-app browser control exposes DOM, screenshots, and interaction but not a viewport override. The repository has no Playwright package, and the bundled Python launcher is unavailable in this environment, so a narrow-width browser capture could not be completed here. Responsive source safeguards are present (`sm:` header stacking and `overflow-x-auto`/minimum table widths), but the narrow visual result remains for manual review.
+
 ## Risks
 
 | Risk | Mitigation |

@@ -64,34 +64,35 @@ Phase 3: Cost Breakdown Readability (in_progress)
 
 ### Phase 3: Cost Breakdown Readability
 
-- [ ] Improve comparison hierarchy without changing calculations
-- [ ] Make missing-rate and review warnings actionable and visually distinct
-- [ ] Improve section headers, tab controls, export action, and dense tables
-- [ ] Preserve all existing accessibility names and interaction behavior
-- **Status:** in_progress
+- [x] Improve comparison hierarchy without changing calculations
+- [x] Make missing-rate and review warnings actionable and visually distinct
+- [x] Improve section headers, tab controls, export action, and dense tables
+- [x] Preserve all existing accessibility names and interaction behavior
+- **Status:** complete
 
 ### Checkpoint 2: Cost Breakdown
 
-- [ ] Uploaded/seeded comparison still renders the same values
-- [ ] Export action remains available and reports errors visibly
-- [ ] Keyboard traversal reaches navigation, export, tabs, and expandable sections
-- [ ] Commit only the Cost Breakdown UI slice
+- [x] Uploaded/seeded comparison still renders the same values
+- [x] Export action remains available and no visible export error appears after the click smoke
+- [x] Keyboard traversal reaches export and tabs; keyboard Enter toggles the expandable section
+- [x] Commit only the Cost Breakdown UI slice
+- **Status:** complete (`2e500d7`); IAB did not expose the programmatic Blob download event
 
 ### Phase 4: Cross-Route Consistency
 
-- [ ] Inspect Master Data, Candidate Selection, and RCA & Simulation for regressions from shared styles
-- [ ] Apply only small consistency fixes that support factory operation
-- [ ] Do not introduce a second visual language or duplicate components
-- **Status:** pending
+- [x] Inspect Master Data, Candidate Selection, and RCA & Simulation for regressions from shared styles
+- [x] Apply only small consistency fixes that support factory operation (no route-specific code change was needed)
+- [x] Do not introduce a second visual language or duplicate components
+- **Status:** complete
 
 ### Phase 5: Final Verification & Human Review
 
-- [ ] Run the full relevant verification gates after the final UI change
-- [ ] Capture fresh browser evidence at 1366px-class desktop and a narrow fallback width
-- [ ] Record verified and unverified evidence in `progress.md` and `findings.md`
-- [ ] Leave the worktree clean after commits
-- [ ] Leave final human acceptance to the user
-- **Status:** pending
+- [x] Run the full relevant verification gates after the final UI change
+- [ ] Capture fresh browser evidence at 1366px-class desktop and a narrow fallback width (desktop captured; narrow blocked by harness)
+- [x] Record verified and unverified evidence in `progress.md` and `findings.md`
+- [x] Leave the worktree clean after commits
+- [x] Leave final human acceptance to the user
+- **Status:** in_progress; narrow-width evidence is blocked by the available browser harness
 
 ## Acceptance Criteria
 
