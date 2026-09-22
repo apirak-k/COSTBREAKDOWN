@@ -1,9 +1,10 @@
-import React, { useMemo, useState } from 'react'
+import React, { useEffect, useMemo, useState } from 'react'
 import { useAppStore } from '../../state'
 import { formatVariance } from '../../core'
 import { DriversTable } from './components/DriversTable'
 import { getRankingCategories, getVisibleDrivers, type RankingViewState } from './ranking-view'
 import { getSelectedDrivers } from './driver-selection'
+import { RcaDetailPanel } from './components/RcaDetailPanel'
 
 export const CandidateSelectionPage: React.FC = () => {
   const {
@@ -11,6 +12,8 @@ export const CandidateSelectionPage: React.FC = () => {
     selectedDriverKeys,
     toggleDriverSelection,
     clearDriverSelection,
+    rcaRecords,
+    saveDriverRca,
     updateDriverHumanInput,
     costBreakdown
   } = useAppStore()
@@ -21,6 +24,7 @@ export const CandidateSelectionPage: React.FC = () => {
     sortBy: 'costGap',
     sortDirection: 'desc'
   })
+  const [activeRcaDriverKey, setActiveRcaDriverKey] = useState<string | null>(null)
   const categories = useMemo(() => getRankingCategories(topDrivers), [topDrivers])
   const visibleDrivers = useMemo(
     () => getVisibleDrivers(topDrivers, viewState),
@@ -30,6 +34,16 @@ export const CandidateSelectionPage: React.FC = () => {
     () => getSelectedDrivers(topDrivers, selectedDriverKeys),
     [topDrivers, selectedDriverKeys]
   )
+  const activeRcaDriver = useMemo(
+    () => activeRcaDriverKey ? topDrivers.find(driver => driver.driverKey === activeRcaDriverKey) ?? null : null,
+    [activeRcaDriverKey, topDrivers]
+  )
+
+  useEffect(() => {
+    if (activeRcaDriverKey && !selectedDriverKeys.includes(activeRcaDriverKey)) {
+      setActiveRcaDriverKey(null)
+    }
+  }, [activeRcaDriverKey, selectedDriverKeys])
 
   if (topDrivers.length === 0) {
     return (
@@ -129,12 +143,20 @@ export const CandidateSelectionPage: React.FC = () => {
         </div>
         <div className="w-full flex flex-wrap items-center gap-2 pt-2 text-[11px] font-sans">
           <span className="font-semibold text-slate-700">RCA selection: {selectedDrivers.length}</span>
-          {selectedDrivers.length > 0 && (
-            <span className="text-slate-500 truncate" title={selectedDrivers.map(driver => driver.driverName).join(', ')}>
-              {selectedDrivers.slice(0, 3).map(driver => driver.driverName).join(', ')}
-              {selectedDrivers.length > 3 ? ` +${selectedDrivers.length - 3} more` : ''}
-            </span>
-          )}
+          {selectedDrivers.length > 0 && <div className="flex flex-wrap items-center gap-1.5">
+            {selectedDrivers.map(driver => (
+              <button
+                key={driver.driverKey}
+                type="button"
+                onClick={() => setActiveRcaDriverKey(driver.driverKey)}
+                aria-pressed={activeRcaDriverKey === driver.driverKey}
+                className={`px-2 py-1 rounded border text-[10px] font-sans ${activeRcaDriverKey === driver.driverKey ? 'border-amber-500 bg-amber-50 text-amber-900' : 'border-slate-300 text-slate-600 hover:bg-slate-50'}`}
+                title={`Open RCA for ${driver.driverName}`}
+              >
+                {driver.driverName}{rcaRecords[driver.driverKey] ? ' · RCA' : ''}
+              </button>
+            ))}
+          </div>}
           {selectedDrivers.length > 0 && (
             <button
               type="button"
@@ -146,6 +168,16 @@ export const CandidateSelectionPage: React.FC = () => {
           )}
         </div>
       </div>
+
+      {activeRcaDriver && (
+        <RcaDetailPanel
+          key={activeRcaDriver.driverKey}
+          driver={activeRcaDriver}
+          record={rcaRecords[activeRcaDriver.driverKey]}
+          onSave={draft => saveDriverRca(activeRcaDriver.driverKey, draft)}
+          onClose={() => setActiveRcaDriverKey(null)}
+        />
+      )}
 
       {!topDrivers.some(driver => driver.impact === 'unfavorable') && (
         <div role="status" className="px-3 py-2.5 rounded border border-amber-200 bg-amber-50 text-[11px] text-amber-800 font-sans">

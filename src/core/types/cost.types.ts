@@ -96,6 +96,25 @@ export interface CostDriver {
   sourceRef?: string
 }
 
+export interface DriverRcaDraft {
+  factor: string
+  rootCause: string
+  action: string
+}
+
+export interface DriverRcaRecord extends DriverRcaDraft {
+  driverKey: string
+  sourceType: CostDriverSource
+  sourceId: string
+  driverName: string
+  category: string
+  baseParameter: number | null
+  activeParameter: number | null
+  costGap: number
+  sourceRef?: string
+  updatedAt: string
+}
+
 // Detailed row breakdown types
 export interface BOMDetailedRow extends BOMItem {
   baseCost: number

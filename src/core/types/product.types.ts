@@ -30,6 +30,8 @@ export interface ProductSession {
   savedDrivers: CostDriver[]
   /** Session-scoped Ranking/RCA selection, keyed by CostDriver.driverKey. */
   selectedDriverKeys?: string[]
+  /** Extensible RCA records keyed by the selected CostDriver.driverKey. */
+  rcaRecords?: Record<string, DriverRcaRecord>
   status: DatasetStatus
   versionLabel?: string
   createdAt: string
@@ -40,4 +42,4 @@ export interface ProductSession {
   snapshotPairMode?: 'derived' | 'independent'
 }
 
-import { WorkCenterRate, BOMItem, RoutingStep, CostDriver } from './cost.types'
+import { WorkCenterRate, BOMItem, RoutingStep, CostDriver, DriverRcaRecord } from './cost.types'

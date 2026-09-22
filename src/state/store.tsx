@@ -12,12 +12,15 @@ import {
   ProductSizingConfig,
   SnapshotPair,
   CostComparison,
+  DriverRcaDraft,
+  DriverRcaRecord,
   calculateCostBreakdown,
   calculateTopDrivers,
   compareSnapshots,
   sessionToSnapshotPair,
   applySnapshotPairToSession,
-  updateCurrentSnapshotFromLegacySession
+  updateCurrentSnapshotFromLegacySession,
+  createDriverRcaRecord
 } from '../core'
 import { STORAGE_KEYS, loadFromSession, saveToSession } from '../services'
 import { seedProductMaster, seedWorkCenterRates, seedBOM, seedRouting, seedSnapshotPair } from './seed-data'
@@ -152,6 +155,7 @@ interface AppContextType {
   costBreakdown: CostElementBreakdown
   topDrivers: CostDriver[]
   selectedDriverKeys: string[]
+  rcaRecords: Record<string, DriverRcaRecord>
   snapshotPair: SnapshotPair
   snapshotComparison: CostComparison
   activeTab: 'master' | 'breakdown' | 'candidate' | 'rca'
@@ -193,6 +197,7 @@ interface AppContextType {
   ) => void
   toggleDriverSelection: (driverKey: string) => void
   clearDriverSelection: () => void
+  saveDriverRca: (driverKey: string, draft: DriverRcaDraft) => void
   importFromExcel: (result: ExcelImportResult) => void
   importSnapshotFromExcel: (result: SnapshotImportResult) => void
   resetToDefault: () => void
@@ -258,6 +263,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const costBreakdown = calculateCostBreakdown(bom, routing, rates)
   const topDrivers = calculateTopDrivers(bom, routing, rates, savedDrivers)
   const selectedDriverKeys = activeSession.selectedDriverKeys ?? []
+  const rcaRecords = activeSession.rcaRecords ?? {}
   const snapshotPair = activeSession.snapshotPair ?? sessionToSnapshotPair(activeSession)
   const snapshotComparison = compareSnapshots(snapshotPair.reference, snapshotPair.current)
 
@@ -373,6 +379,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       routing: source.routing.map(r => ({ ...r, id: `rt-${Date.now()}-${r.id}` })),
       savedDrivers: [],
       selectedDriverKeys: [],
+      rcaRecords: {},
       status: 'draft',
       versionLabel: `Draft (${source.product.productCode || 'Copy'})`,
       createdAt: now,
@@ -505,7 +512,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         baseYield: r.activeYield
       })),
       savedDrivers: [],
-      selectedDriverKeys: []
+      selectedDriverKeys: [],
+      rcaRecords: {}
     })
   }
 
@@ -549,6 +557,18 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     patchActive({ selectedDriverKeys: [] })
   }
 
+  const saveDriverRca = (driverKey: string, draft: DriverRcaDraft) => {
+    const driver = topDrivers.find(item => item.driverKey === driverKey)
+    if (!driver) return
+    const record = createDriverRcaRecord(driver, draft, new Date().toISOString())
+    patchActive({
+      rcaRecords: {
+        ...rcaRecords,
+        [driverKey]: record
+      }
+    })
+  }
+
   // Import creates a new DRAFT session per Section 7
   const importFromExcel = (result: ExcelImportResult) => {
     if (!result.success) return
@@ -562,6 +582,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       routing: result.routing ?? routing,
       savedDrivers: [],
       selectedDriverKeys: [],
+      rcaRecords: {},
       status: 'draft',
       versionLabel: `Draft (Imported: ${result.product?.productCode || product.productCode || 'Excel'})`,
       createdAt: now,
@@ -605,6 +626,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         id: `ps-draft-snapshot-${Date.now()}`,
         savedDrivers: [],
         selectedDriverKeys: [],
+        rcaRecords: {},
         status: 'draft',
         versionLabel: `Draft (Imported ${roleLabel}: ${result.snapshot.product.productCode || 'Excel'})`,
         createdAt: now,
@@ -625,6 +647,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       routing: seedRouting,
       savedDrivers: [],
       selectedDriverKeys: [],
+      rcaRecords: {},
       status: 'active',
       versionLabel: 'Active Baseline (RGOM-024)',
       snapshotPair: seedSnapshotPair,
@@ -642,7 +665,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       bom: [],
       routing: [],
       savedDrivers: [],
-      selectedDriverKeys: []
+      selectedDriverKeys: [],
+      rcaRecords: {}
     })
   }
 
@@ -658,6 +682,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       costBreakdown,
       topDrivers,
       selectedDriverKeys,
+      rcaRecords,
       snapshotPair,
       snapshotComparison,
       activeTab,
@@ -685,6 +710,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       updateDriverHumanInput,
       toggleDriverSelection,
       clearDriverSelection,
+      saveDriverRca,
       importFromExcel,
       importSnapshotFromExcel,
       resetToDefault,
