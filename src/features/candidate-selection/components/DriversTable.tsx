@@ -32,21 +32,21 @@ export const DriversTable: React.FC<DriversTableProps> = ({ topDrivers, onUpdate
 
       {/* Driver Rows */}
       <div className="divide-y divide-slate-100">
-        {topDrivers.map((d: CostDriver) => (
-          <DriverRow key={d.driverKey} driver={d} onUpdateInput={onUpdateInput} />
+        {topDrivers.map((d: CostDriver, index) => (
+          <DriverRow key={d.driverKey} driver={d} displayRank={index + 1} onUpdateInput={onUpdateInput} />
         ))}
       </div>
 
       {/* Footer */}
       <div className="flex items-center justify-between px-4 py-2.5 border-t border-slate-200 bg-slate-50 text-xs font-mono">
         <span className="text-slate-500 text-[11px]">
-          Top Drivers ({topDrivers.length})
+          Findings ({topDrivers.length})
         </span>
 
         <div className="text-right flex items-center gap-2">
           <span className="text-[11px] text-slate-500 font-sans">Total Gap:</span>
-          <span className="text-xs font-bold text-rose-700 tabular-nums">
-            +{formatCurrency(totalGap, 4, 'THB/pc')}
+          <span className={`text-xs font-bold tabular-nums ${totalGap >= 0 ? 'text-rose-700' : 'text-emerald-700'}`}>
+            {formatCurrency(totalGap, 4, 'THB/pc')}
           </span>
         </div>
       </div>

@@ -3,6 +3,7 @@ import { CostDriver, formatParam, formatVariance, isYieldDriver } from '../../..
 
 interface DriverRowProps {
   driver: CostDriver
+  displayRank: number
   onUpdateInput: (
     driverKey: string,
     controllability: CostDriver['controllability'],
@@ -12,7 +13,7 @@ interface DriverRowProps {
   ) => void
 }
 
-export const DriverRow: React.FC<DriverRowProps> = ({ driver, onUpdateInput }) => {
+export const DriverRow: React.FC<DriverRowProps> = ({ driver, displayRank, onUpdateInput }) => {
   const yieldDriver = isYieldDriver(driver.rcaParameter)
   const isUncontrollable = driver.controllability === 'Uncontrollable'
 
@@ -23,7 +24,7 @@ export const DriverRow: React.FC<DriverRowProps> = ({ driver, onUpdateInput }) =
         {/* Rank */}
         <div className="col-span-1 text-center">
           <span className="w-5 h-5 mx-auto rounded-full bg-slate-900 text-white flex items-center justify-center font-bold text-[10px] tabular-nums shadow-2xs">
-            {driver.rank}
+            {displayRank}
           </span>
         </div>
 
@@ -36,8 +37,19 @@ export const DriverRow: React.FC<DriverRowProps> = ({ driver, onUpdateInput }) =
 
         {/* Driver Name */}
         <div className="col-span-3">
-          <span className="text-xs font-bold text-slate-900 font-sans truncate block" title={driver.driverName}>
-            {driver.driverName}
+          <div className="flex items-center gap-1.5 min-w-0">
+            <span className="text-xs font-bold text-slate-900 font-sans truncate block" title={driver.driverName}>
+              {driver.driverName}
+            </span>
+            <span className="text-[9px] font-mono uppercase text-slate-400 shrink-0" title={`Impact: ${driver.impact}`}>
+              {driver.impact}
+            </span>
+          </div>
+          <span className="text-[10px] text-slate-500 font-sans truncate block" title={driver.sourceRef || 'Source not provided'}>
+            Source: {driver.sourceRef || 'Not provided'}
+          </span>
+          <span className={`text-[9px] font-mono uppercase ${driver.confidence === 'missing' ? 'text-amber-700' : 'text-slate-400'}`}>
+            Data quality: {driver.confidence || 'unknown'}
           </span>
         </div>
 
