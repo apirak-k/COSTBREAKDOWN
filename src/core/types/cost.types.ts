@@ -59,10 +59,17 @@ export interface CostElementBreakdown {
 }
 
 export type CostDriverSource = 'bom' | 'routing'
+export type CostDriverImpact = 'unfavorable' | 'neutral' | 'favorable'
 
 /** Stable persistence identity for a driver: source kind + source record id. */
 export function buildDriverKey(sourceType: CostDriverSource, sourceId: string): string {
   return `${sourceType}:${sourceId}`
+}
+
+export function getCostDriverImpact(costGap: number): CostDriverImpact {
+  if (costGap > 0) return 'unfavorable'
+  if (costGap < 0) return 'favorable'
+  return 'neutral'
 }
 
 // Single ranked cost driver from _CALC_ENGINE
@@ -70,6 +77,7 @@ export interface CostDriver {
   driverKey: string
   sourceType: CostDriverSource
   sourceId: string
+  impact: CostDriverImpact
   id: number
   category: string
   driverName: string

@@ -1,10 +1,10 @@
-import { BOMItem, RoutingStep, WorkCenterRate, CostDriver, buildDriverKey } from '../types'
+import { BOMItem, RoutingStep, WorkCenterRate, CostDriver, buildDriverKey, getCostDriverImpact } from '../types'
 import { safeDivide } from '../utils/guards'
 import { getFieldConfidence } from '../utils/confidence'
 import { createWorkCenterRateMap, resolveWorkCenterRate } from './work-center-rate'
 
 /**
- * Evaluates all BOM and Routing candidates and ranks the Top 10 positive cost drivers.
+ * Evaluates all valid BOM and Routing candidates and ranks them by cost impact.
  * Stage 1 (System Auto-Calculation): Ranked by Cost Impact (Cost Gap).
  * Stage 2 (Human RCA Checklist): Can Influence + Requirement Fit + Action Plan.
  * Includes Data Confidence warning tag if underlying inputs are estimated.
@@ -35,10 +35,17 @@ export function calculateTopDrivers(
   const candidates: CostDriver[] = []
   let id = 0
 
-  const totalCandidates = Math.max(55, bom.length + routing.length)
-
   // 1. BOM Candidates
   bom.forEach(b => {
+    const validInputs = [b.consumption, b.basePrice, b.activePrice, b.baseLoss, b.activeLoss]
+      .every(value => Number.isFinite(value))
+      && b.consumption >= 0
+      && b.basePrice >= 0
+      && b.activePrice >= 0
+      && b.baseLoss >= -1
+      && b.activeLoss >= -1
+    if (!validInputs) return
+
     id++
     const driverKey = buildDriverKey('bom', b.id)
     const baseMatCost = b.consumption * b.basePrice * (1 + b.baseLoss)
@@ -69,7 +76,7 @@ export function calculateTopDrivers(
       activeParam = b.activeLoss
     }
 
-    const tieBreaker = gap > 0 ? gap + (totalCandidates - id) * 0.00000001 : 0
+    const tieBreaker = gap
     const saved = savedMap.get(driverKey) ?? legacySavedMap.get(b.description) ?? {
       controllability: '' as const,
       actionPlan: '',
@@ -83,6 +90,7 @@ export function calculateTopDrivers(
       driverKey,
       sourceType: 'bom',
       sourceId: b.id,
+      impact: getCostDriverImpact(gap),
       id,
       category: 'Direct Material',
       driverName: b.description,
@@ -104,10 +112,14 @@ export function calculateTopDrivers(
 
   // 2. Routing Candidates
   routing.forEach(rt => {
+    const resolvedRate = resolveWorkCenterRate(rateMap, rt.wc)
+    const r = resolvedRate.rate
+    const validRate = Number.isFinite(r.labor) && Number.isFinite(r.burden) && r.labor >= 0 && r.burden >= 0
+    if (resolvedRate.missing || !validRate) return
+
     id++
     const driverKey = buildDriverKey('routing', rt.id)
 
-    const r = resolveWorkCenterRate(rateMap, rt.wc).rate
     const baseRuntime = rt.baseCap > 0 && rt.baseYield > 0
       ? safeDivide(rt.manning, rt.baseCap * rt.baseYield)
       : 0
@@ -145,7 +157,7 @@ export function calculateTopDrivers(
     }
 
     const category = rt.wc
-    const tieBreaker = gap > 0 ? gap + (totalCandidates - id) * 0.00000001 : 0
+    const tieBreaker = gap
     const saved = savedMap.get(driverKey) ?? legacySavedMap.get(rt.description) ?? {
       controllability: '' as const,
       actionPlan: '',
@@ -159,6 +171,7 @@ export function calculateTopDrivers(
       driverKey,
       sourceType: 'routing',
       sourceId: rt.id,
+      impact: getCostDriverImpact(gap),
       id,
       category,
       driverName: rt.description,
@@ -178,15 +191,21 @@ export function calculateTopDrivers(
     })
   })
 
-  // Rank: Filter positive gaps only, sort by tieBreakerScore DESC, take Top 10
-  const positiveDrivers = candidates.filter(d => d.costGap > 0)
-  positiveDrivers.sort((a, b) => b.tieBreakerScore - a.tieBreakerScore)
+  // Rank every valid finding. Positive gaps lead the default view, but neutral
+  // and favorable findings stay available for explicit user inspection.
+  candidates.sort((a, b) => {
+    const impactOrder = b.costGap - a.costGap
+    return impactOrder !== 0 ? impactOrder : a.driverKey.localeCompare(b.driverKey)
+  })
 
-  const totalPositiveGap = positiveDrivers.reduce((acc, d) => acc + d.costGap, 0)
+  const totalPositiveGap = candidates
+    .filter(d => d.costGap > 0)
+    .reduce((acc, d) => acc + d.costGap, 0)
 
-  return positiveDrivers.slice(0, 10).map((d, idx) => ({
+  return candidates.map((d, idx) => ({
     ...d,
+    impact: getCostDriverImpact(d.costGap),
     rank: idx + 1,
-    pctContribution: totalPositiveGap > 0 ? (d.costGap / totalPositiveGap) * 100 : 0
+    pctContribution: d.costGap > 0 && totalPositiveGap > 0 ? (d.costGap / totalPositiveGap) * 100 : 0
   }))
 }
