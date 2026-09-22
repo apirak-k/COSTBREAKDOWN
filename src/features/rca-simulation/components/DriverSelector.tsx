@@ -1,15 +1,17 @@
 import React from 'react'
-import { CostDriver, formatVariance } from '../../../core'
+import { CostDriver, DriverRcaRecord, formatVariance } from '../../../core'
 
 interface DriverSelectorProps {
   topDrivers: CostDriver[]
-  selectedRank: number
-  onSelectDriver: (rank: number) => void
+  selectedDriverKey: string | null
+  rcaRecords: Record<string, DriverRcaRecord>
+  onSelectDriver: (driverKey: string) => void
 }
 
 export const DriverSelector: React.FC<DriverSelectorProps> = ({
   topDrivers,
-  selectedRank,
+  selectedDriverKey,
+  rcaRecords,
   onSelectDriver
 }) => {
   return (
@@ -18,13 +20,13 @@ export const DriverSelector: React.FC<DriverSelectorProps> = ({
         Select Driver:
       </span>
       {topDrivers.map(d => {
-        const isSelected = d.rank === selectedRank
+        const isSelected = d.driverKey === selectedDriverKey
         const isUncontrollable = d.controllability === 'Uncontrollable'
 
         return (
           <button
-            key={d.rank}
-            onClick={() => onSelectDriver(d.rank)}
+            key={d.driverKey}
+            onClick={() => onSelectDriver(d.driverKey)}
             className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-all border cursor-pointer ${
               isSelected
                 ? 'bg-slate-900 text-white border-slate-900 shadow-xs'
@@ -44,6 +46,7 @@ export const DriverSelector: React.FC<DriverSelectorProps> = ({
             }`}>
               {formatVariance(d.costGap, 2)}
             </span>
+            {rcaRecords[d.driverKey] && <span className="text-[9px] font-mono text-emerald-700">RCA</span>}
           </button>
         )
       })}

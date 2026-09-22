@@ -1,13 +1,15 @@
-import React, { useState, useMemo } from 'react'
+import React, { useEffect, useState, useMemo } from 'react'
 import { useAppStore } from '../../state'
 import {
   WhatIfScenario,
+  DriverRcaRecord,
   simulateWhatIfScenarios,
   formatCurrency,
   isYieldDriver,
   isPriceDriver
 } from '../../core'
-import { updateScenarioDraft } from './scenario-draft'
+import { createScenarioDrafts, updateScenarioDraft } from './scenario-draft'
+import { getSelectedDrivers } from '../candidate-selection/driver-selection'
 
 // Sub-components
 import { DriverSelector } from './components/DriverSelector'
@@ -18,6 +20,8 @@ import { TrialValidationCard } from './components/TrialValidationCard'
 export const RCASimulationPage: React.FC = () => {
   const {
     topDrivers,
+    selectedDriverKeys,
+    rcaRecords,
     costBreakdown,
     bom,
     routing,
@@ -25,38 +29,49 @@ export const RCASimulationPage: React.FC = () => {
     promoteActiveToBaseline
   } = useAppStore()
 
-  // Default to first controllable driver, or first driver overall
-  const defaultDriver = useMemo(() => {
-    const controllable = topDrivers.filter(d => d.controllability !== 'Uncontrollable')
-    return controllable.length > 0 ? controllable[0] : topDrivers[0]
-  }, [topDrivers])
+  const selectedDrivers = useMemo(
+    () => getSelectedDrivers(topDrivers, selectedDriverKeys),
+    [topDrivers, selectedDriverKeys]
+  )
+  const [selectedDriverKey, setSelectedDriverKey] = useState<string | null>(() => selectedDriverKeys[0] ?? null)
 
-  const [selectedRank, setSelectedRank] = useState<number>(() => defaultDriver?.rank ?? 1)
+  useEffect(() => {
+    if (!selectedDrivers.some(driver => driver.driverKey === selectedDriverKey)) {
+      setSelectedDriverKey(selectedDrivers[0]?.driverKey ?? null)
+    }
+  }, [selectedDrivers, selectedDriverKey])
 
   // Active driver based on selection
   const activeDriver = useMemo(() => {
-    return topDrivers.find(d => d.rank === selectedRank) ?? defaultDriver ?? null
-  }, [topDrivers, selectedRank, defaultDriver])
+    return selectedDrivers.find(driver => driver.driverKey === selectedDriverKey) ?? null
+  }, [selectedDrivers, selectedDriverKey])
 
   // Driver type & matching source data row
-  const isRoutingDriver = activeDriver ? activeDriver.category !== 'Direct Material' : false
-  const bomItem = !isRoutingDriver && activeDriver
-    ? bom.find(b => b.description === activeDriver.driverName) ?? null
+  const isRoutingDriver = activeDriver?.sourceType === 'routing'
+  const bomItem = activeDriver?.sourceType === 'bom'
+    ? bom.find(b => b.id === activeDriver.sourceId) ?? null
     : null
-  const routingStep = isRoutingDriver && activeDriver
-    ? routing.find(r => r.description === activeDriver.driverName) ?? null
+  const routingStep = activeDriver?.sourceType === 'routing'
+    ? routing.find(r => r.id === activeDriver.sourceId) ?? null
     : null
 
-  // 3 What-If Scenarios
-  const [scenarios, setScenarios] = useState<WhatIfScenario[]>([
-    { letter: 'A', label: '', targetValue: '', investment: '', lotSize: '5000' },
-    { letter: 'B', label: '', targetValue: '', investment: '', lotSize: '5000' },
-    { letter: 'C', label: '', targetValue: '', investment: '', lotSize: '5000' }
-  ])
+  // Keep 3 What-If Scenario Drafts independently for each selected driver.
+  const [scenarioDraftsByDriver, setScenarioDraftsByDriver] = useState<Record<string, WhatIfScenario[]>>({})
+  const scenarios = activeDriver
+    ? scenarioDraftsByDriver[activeDriver.driverKey] ?? createScenarioDrafts()
+    : []
 
   const updateScenario = (idx: number, field: string, val: string) => {
-    if (idx < 0 || idx >= scenarios.length) return
-    setScenarios(prev => updateScenarioDraft(prev, idx, field as keyof WhatIfScenario, val))
+    if (!activeDriver || idx < 0 || idx >= scenarios.length) return
+    setScenarioDraftsByDriver(previous => ({
+      ...previous,
+      [activeDriver.driverKey]: updateScenarioDraft(
+        previous[activeDriver.driverKey] ?? createScenarioDrafts(),
+        idx,
+        field as keyof WhatIfScenario,
+        val
+      )
+    }))
   }
 
   // Simulation engine evaluation
@@ -96,6 +111,8 @@ export const RCASimulationPage: React.FC = () => {
     return ''
   }, [activeDriver, isRoutingDriver, routingStep, bomItem])
 
+  const activeRca = activeDriver ? rcaRecords[activeDriver.driverKey] as DriverRcaRecord | undefined : undefined
+
   return (
     <div className="space-y-5">
       {/* Header */}
@@ -112,46 +129,56 @@ export const RCASimulationPage: React.FC = () => {
         Scenario Draft only: changing What-If inputs recalculates this page without changing Active, Reference, Current, or Master Data.
       </div>
 
-      {/* Driver Selector Bar */}
-      {topDrivers.length > 0 && (
-        <DriverSelector
-          topDrivers={topDrivers}
-          selectedRank={activeDriver?.rank ?? 1}
-          onSelectDriver={setSelectedRank}
-        />
+      {selectedDrivers.length === 0 ? (
+        <div role="status" className="bg-white p-5 rounded-lg border border-amber-200 bg-amber-50/50 text-sm text-amber-900">
+          <h2 className="font-bold font-mono text-xs uppercase tracking-tight">No drivers selected for Simulation</h2>
+          <p className="mt-1 text-xs font-sans">
+            Go to Candidate Selection / Ranking, select one or more drivers for RCA, then return here. Simulation evaluates one selected driver at a time.
+          </p>
+        </div>
+      ) : (
+        <>
+          {/* Driver Selector Bar */}
+          <DriverSelector
+            topDrivers={selectedDrivers}
+            selectedDriverKey={activeDriver?.driverKey ?? null}
+            rcaRecords={rcaRecords}
+            onSelectDriver={setSelectedDriverKey}
+          />
+
+          {/* Problem Statement Card */}
+          <ProblemStatementCard driver={activeDriver} rca={activeRca} />
+
+          {/* 3-Scenario Simulation Grid */}
+          {activeDriver && (
+            <SimulationGrid
+              scenarios={simulationResults}
+              targetLabel={targetLabel}
+              targetPlaceholder={targetPlaceholder}
+              isRouting={isRoutingDriver}
+              onUpdateScenario={updateScenario}
+            />
+          )}
+
+          {/* Current Total Reference */}
+          <div className="flex items-center justify-between text-xs bg-slate-50 p-3 rounded-lg border border-slate-200 font-mono">
+            <span className="font-sans text-slate-600 font-medium">
+              Active Total Cost:
+            </span>
+            <span className="font-bold text-slate-900 text-sm">
+              {formatCurrency(costBreakdown.totalActive, 4, 'THB/pc')}
+            </span>
+          </div>
+
+          {/* Section 5: Actual vs Predicted Validation Matrix */}
+          <TrialValidationCard
+            baselineTotalCost={costBreakdown.totalBase}
+            activeTotalCost={costBreakdown.totalActive}
+            scenarios={simulationResults}
+            onPromoteToBaseline={promoteActiveToBaseline}
+          />
+        </>
       )}
-
-      {/* Problem Statement Card */}
-      <ProblemStatementCard driver={activeDriver} />
-
-      {/* 3-Scenario Simulation Grid */}
-      {activeDriver && (
-        <SimulationGrid
-          scenarios={simulationResults}
-          targetLabel={targetLabel}
-          targetPlaceholder={targetPlaceholder}
-          isRouting={isRoutingDriver}
-          onUpdateScenario={updateScenario}
-        />
-      )}
-
-      {/* Current Total Reference */}
-      <div className="flex items-center justify-between text-xs bg-slate-50 p-3 rounded-lg border border-slate-200 font-mono">
-        <span className="font-sans text-slate-600 font-medium">
-          Active Total Cost:
-        </span>
-        <span className="font-bold text-slate-900 text-sm">
-          {formatCurrency(costBreakdown.totalActive, 4, 'THB/pc')}
-        </span>
-      </div>
-
-      {/* Section 5: Actual vs Predicted Validation Matrix */}
-      <TrialValidationCard
-        baselineTotalCost={costBreakdown.totalBase}
-        activeTotalCost={costBreakdown.totalActive}
-        scenarios={simulationResults}
-        onPromoteToBaseline={promoteActiveToBaseline}
-      />
     </div>
   )
 }

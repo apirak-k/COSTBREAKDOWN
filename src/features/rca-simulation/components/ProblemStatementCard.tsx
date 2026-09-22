@@ -1,11 +1,12 @@
 import React from 'react'
-import { CostDriver, formatParam, formatVariance, isYieldDriver } from '../../../core'
+import { CostDriver, DriverRcaRecord, formatParam, formatVariance, isYieldDriver } from '../../../core'
 
 interface ProblemStatementCardProps {
   driver: CostDriver | null
+  rca?: DriverRcaRecord
 }
 
-export const ProblemStatementCard: React.FC<ProblemStatementCardProps> = ({ driver }) => {
+export const ProblemStatementCard: React.FC<ProblemStatementCardProps> = ({ driver, rca }) => {
   if (!driver) {
     return (
       <div className="bg-white p-3.5 rounded border border-slate-300/80 shadow-2xs">
@@ -61,12 +62,12 @@ export const ProblemStatementCard: React.FC<ProblemStatementCardProps> = ({ driv
         </div>
       </div>
 
-      {driver.actionPlan && (
+      {(rca?.action || driver.actionPlan) && (
         <div className="p-2.5 bg-slate-50 rounded border border-slate-200 text-xs">
           <span className="font-mono font-bold text-slate-700 text-[10px] uppercase tracking-wider block mb-0.5">
-            Action Plan:
+            {rca?.action ? 'RCA Action:' : 'Action Plan:'}
           </span>
-          <p className="text-slate-800 font-sans">{driver.actionPlan}</p>
+          <p className="text-slate-800 font-sans">{rca?.action || driver.actionPlan}</p>
         </div>
       )}
     </div>
