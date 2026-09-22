@@ -4,6 +4,8 @@ import { CostDriver, formatParam, formatVariance, isYieldDriver } from '../../..
 interface DriverRowProps {
   driver: CostDriver
   displayRank: number
+  isSelected: boolean
+  onToggleSelection: (driverKey: string) => void
   onUpdateInput: (
     driverKey: string,
     controllability: CostDriver['controllability'],
@@ -13,7 +15,13 @@ interface DriverRowProps {
   ) => void
 }
 
-export const DriverRow: React.FC<DriverRowProps> = ({ driver, displayRank, onUpdateInput }) => {
+export const DriverRow: React.FC<DriverRowProps> = ({
+  driver,
+  displayRank,
+  isSelected,
+  onToggleSelection,
+  onUpdateInput
+}) => {
   const yieldDriver = isYieldDriver(driver.rcaParameter)
   const isUncontrollable = driver.controllability === 'Uncontrollable'
 
@@ -87,6 +95,18 @@ export const DriverRow: React.FC<DriverRowProps> = ({ driver, displayRank, onUpd
       <div className="grid grid-cols-12 gap-x-2 px-4 pb-2.5 items-center text-xs">
         <div className="col-span-1" />
         <div className="col-span-11 flex flex-wrap items-center gap-3">
+          {/* RCA selection is independent from controllability classification. */}
+          <label className="flex items-center gap-1.5 cursor-pointer select-none">
+            <input
+              type="checkbox"
+              checked={isSelected}
+              onChange={() => onToggleSelection(driver.driverKey)}
+              aria-label={`Select ${driver.driverName} for RCA`}
+              className="w-3.5 h-3.5 rounded border-slate-300 accent-amber-700 cursor-pointer"
+            />
+            <span className="font-semibold text-amber-800 font-sans text-[11px]">Select for RCA</span>
+          </label>
+
           {/* Single Controllability Checkbox */}
           <label className="flex items-center gap-1.5 cursor-pointer select-none">
             <input

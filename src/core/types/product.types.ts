@@ -28,6 +28,8 @@ export interface ProductSession {
   routing: RoutingStep[]
   /** Persisted driver annotations are keyed by CostDriver.driverKey, not display rank. */
   savedDrivers: CostDriver[]
+  /** Session-scoped Ranking/RCA selection, keyed by CostDriver.driverKey. */
+  selectedDriverKeys?: string[]
   status: DatasetStatus
   versionLabel?: string
   createdAt: string

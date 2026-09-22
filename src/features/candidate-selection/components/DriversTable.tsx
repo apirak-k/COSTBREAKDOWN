@@ -4,6 +4,8 @@ import { DriverRow } from './DriverRow'
 
 interface DriversTableProps {
   topDrivers: CostDriver[]
+  selectedDriverKeys: string[]
+  onToggleSelection: (driverKey: string) => void
   onUpdateInput: (
     driverKey: string,
     controllability: CostDriver['controllability'],
@@ -13,7 +15,12 @@ interface DriversTableProps {
   ) => void
 }
 
-export const DriversTable: React.FC<DriversTableProps> = ({ topDrivers, onUpdateInput }) => {
+export const DriversTable: React.FC<DriversTableProps> = ({
+  topDrivers,
+  selectedDriverKeys,
+  onToggleSelection,
+  onUpdateInput
+}) => {
   const totalGap = topDrivers.reduce((a, d) => a + d.costGap, 0)
 
   return (
@@ -33,7 +40,14 @@ export const DriversTable: React.FC<DriversTableProps> = ({ topDrivers, onUpdate
       {/* Driver Rows */}
       <div className="divide-y divide-slate-100">
         {topDrivers.map((d: CostDriver, index) => (
-          <DriverRow key={d.driverKey} driver={d} displayRank={index + 1} onUpdateInput={onUpdateInput} />
+          <DriverRow
+            key={d.driverKey}
+            driver={d}
+            displayRank={index + 1}
+            isSelected={selectedDriverKeys.includes(d.driverKey)}
+            onToggleSelection={onToggleSelection}
+            onUpdateInput={onUpdateInput}
+          />
         ))}
       </div>
 

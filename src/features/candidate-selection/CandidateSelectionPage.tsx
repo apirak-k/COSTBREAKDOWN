@@ -3,9 +3,17 @@ import { useAppStore } from '../../state'
 import { formatVariance } from '../../core'
 import { DriversTable } from './components/DriversTable'
 import { getRankingCategories, getVisibleDrivers, type RankingViewState } from './ranking-view'
+import { getSelectedDrivers } from './driver-selection'
 
 export const CandidateSelectionPage: React.FC = () => {
-  const { topDrivers, updateDriverHumanInput, costBreakdown } = useAppStore()
+  const {
+    topDrivers,
+    selectedDriverKeys,
+    toggleDriverSelection,
+    clearDriverSelection,
+    updateDriverHumanInput,
+    costBreakdown
+  } = useAppStore()
   const totalVariance = costBreakdown.totalVariance
   const [viewState, setViewState] = useState<RankingViewState>({
     category: 'all',
@@ -17,6 +25,10 @@ export const CandidateSelectionPage: React.FC = () => {
   const visibleDrivers = useMemo(
     () => getVisibleDrivers(topDrivers, viewState),
     [topDrivers, viewState]
+  )
+  const selectedDrivers = useMemo(
+    () => getSelectedDrivers(topDrivers, selectedDriverKeys),
+    [topDrivers, selectedDriverKeys]
   )
 
   if (topDrivers.length === 0) {
@@ -115,6 +127,24 @@ export const CandidateSelectionPage: React.FC = () => {
             Showing {visibleDrivers.length} of {topDrivers.length} findings
           </span>
         </div>
+        <div className="w-full flex flex-wrap items-center gap-2 pt-2 text-[11px] font-sans">
+          <span className="font-semibold text-slate-700">RCA selection: {selectedDrivers.length}</span>
+          {selectedDrivers.length > 0 && (
+            <span className="text-slate-500 truncate" title={selectedDrivers.map(driver => driver.driverName).join(', ')}>
+              {selectedDrivers.slice(0, 3).map(driver => driver.driverName).join(', ')}
+              {selectedDrivers.length > 3 ? ` +${selectedDrivers.length - 3} more` : ''}
+            </span>
+          )}
+          {selectedDrivers.length > 0 && (
+            <button
+              type="button"
+              onClick={clearDriverSelection}
+              className="ml-auto px-2 py-1 text-[10px] font-mono font-bold uppercase text-slate-600 border border-slate-300 rounded hover:bg-slate-50 focus:outline-none focus:ring-1 focus:ring-slate-800"
+            >
+              Clear selection
+            </button>
+          )}
+        </div>
       </div>
 
       {!topDrivers.some(driver => driver.impact === 'unfavorable') && (
@@ -125,7 +155,12 @@ export const CandidateSelectionPage: React.FC = () => {
 
       {/* Drivers Table */}
       {visibleDrivers.length > 0 ? (
-        <DriversTable topDrivers={visibleDrivers} onUpdateInput={updateDriverHumanInput} />
+        <DriversTable
+          topDrivers={visibleDrivers}
+          selectedDriverKeys={selectedDriverKeys}
+          onToggleSelection={toggleDriverSelection}
+          onUpdateInput={updateDriverHumanInput}
+        />
       ) : (
         <div role="status" className="bg-white py-12 rounded border border-slate-300/80 shadow-2xs text-center text-slate-500 text-xs font-mono">
           No findings match the selected category and impact filters.

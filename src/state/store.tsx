@@ -151,6 +151,7 @@ interface AppContextType {
   routing: RoutingStep[]
   costBreakdown: CostElementBreakdown
   topDrivers: CostDriver[]
+  selectedDriverKeys: string[]
   snapshotPair: SnapshotPair
   snapshotComparison: CostComparison
   activeTab: 'master' | 'breakdown' | 'candidate' | 'rca'
@@ -190,6 +191,8 @@ interface AppContextType {
     canInfluence?: boolean,
     requirementFit?: boolean
   ) => void
+  toggleDriverSelection: (driverKey: string) => void
+  clearDriverSelection: () => void
   importFromExcel: (result: ExcelImportResult) => void
   importSnapshotFromExcel: (result: SnapshotImportResult) => void
   resetToDefault: () => void
@@ -254,6 +257,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
   const costBreakdown = calculateCostBreakdown(bom, routing, rates)
   const topDrivers = calculateTopDrivers(bom, routing, rates, savedDrivers)
+  const selectedDriverKeys = activeSession.selectedDriverKeys ?? []
   const snapshotPair = activeSession.snapshotPair ?? sessionToSnapshotPair(activeSession)
   const snapshotComparison = compareSnapshots(snapshotPair.reference, snapshotPair.current)
 
@@ -368,6 +372,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       bom: source.bom.map(b => ({ ...b, id: `bom-${Date.now()}-${b.id}` })),
       routing: source.routing.map(r => ({ ...r, id: `rt-${Date.now()}-${r.id}` })),
       savedDrivers: [],
+      selectedDriverKeys: [],
       status: 'draft',
       versionLabel: `Draft (${source.product.productCode || 'Copy'})`,
       createdAt: now,
@@ -499,7 +504,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         baseCap: r.activeCap,
         baseYield: r.activeYield
       })),
-      savedDrivers: []
+      savedDrivers: [],
+      selectedDriverKeys: []
     })
   }
 
@@ -530,6 +536,19 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     })
   }
 
+  const toggleDriverSelection = (driverKey: string) => {
+    if (!topDrivers.some(driver => driver.driverKey === driverKey)) return
+    const selected = new Set(selectedDriverKeys)
+    if (selected.has(driverKey)) selected.delete(driverKey)
+    else selected.add(driverKey)
+    patchActive({ selectedDriverKeys: [...selected] })
+  }
+
+  const clearDriverSelection = () => {
+    if (selectedDriverKeys.length === 0) return
+    patchActive({ selectedDriverKeys: [] })
+  }
+
   // Import creates a new DRAFT session per Section 7
   const importFromExcel = (result: ExcelImportResult) => {
     if (!result.success) return
@@ -542,6 +561,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       bom: result.bom ?? bom,
       routing: result.routing ?? routing,
       savedDrivers: [],
+      selectedDriverKeys: [],
       status: 'draft',
       versionLabel: `Draft (Imported: ${result.product?.productCode || product.productCode || 'Excel'})`,
       createdAt: now,
@@ -584,6 +604,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         ...source,
         id: `ps-draft-snapshot-${Date.now()}`,
         savedDrivers: [],
+        selectedDriverKeys: [],
         status: 'draft',
         versionLabel: `Draft (Imported ${roleLabel}: ${result.snapshot.product.productCode || 'Excel'})`,
         createdAt: now,
@@ -603,6 +624,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       bom: seedBOM,
       routing: seedRouting,
       savedDrivers: [],
+      selectedDriverKeys: [],
       status: 'active',
       versionLabel: 'Active Baseline (RGOM-024)',
       snapshotPair: seedSnapshotPair,
@@ -619,7 +641,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       rates: [],
       bom: [],
       routing: [],
-      savedDrivers: []
+      savedDrivers: [],
+      selectedDriverKeys: []
     })
   }
 
@@ -634,6 +657,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       routing,
       costBreakdown,
       topDrivers,
+      selectedDriverKeys,
       snapshotPair,
       snapshotComparison,
       activeTab,
@@ -659,6 +683,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       deleteWorkCenterRate,
       promoteActiveToBaseline,
       updateDriverHumanInput,
+      toggleDriverSelection,
+      clearDriverSelection,
       importFromExcel,
       importSnapshotFromExcel,
       resetToDefault,
