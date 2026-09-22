@@ -9,7 +9,6 @@ interface ScenarioCardProps {
   secondaryLabel?: string
   secondaryPlaceholder?: string
   onUpdate: (field: string, val: string) => void
-  onApplyTarget: (targetValue: string) => void
 }
 
 export const ScenarioCard: React.FC<ScenarioCardProps> = ({
@@ -19,8 +18,7 @@ export const ScenarioCard: React.FC<ScenarioCardProps> = ({
   isRouting,
   secondaryLabel = 'Target Manning (Heads)',
   secondaryPlaceholder = '1',
-  onUpdate,
-  onApplyTarget
+  onUpdate
 }) => {
   return (
     <div
@@ -38,17 +36,22 @@ export const ScenarioCard: React.FC<ScenarioCardProps> = ({
           <span className="px-2 py-0.5 text-xs font-bold bg-slate-900 text-white rounded font-mono shadow-2xs">
             Option {scenario.letter}
           </span>
-          {scenario.valid && (
-            <span
-              className={`text-[10px] font-mono font-bold px-2 py-0.5 rounded border ${
-                scenario.isProfitable
-                  ? 'bg-slate-100 text-emerald-700 border-slate-200'
-                  : 'bg-slate-100 text-rose-700 border-slate-200'
-              }`}
-            >
-              {scenario.isProfitable ? 'PROFITABLE' : 'UNPROFITABLE'}
+          <div className="flex items-center gap-1.5">
+            <span className="text-[9px] font-mono font-bold px-1.5 py-0.5 rounded border border-amber-200 bg-amber-50 text-amber-800">
+              SCENARIO DRAFT
             </span>
-          )}
+            {scenario.valid && (
+              <span
+                className={`text-[10px] font-mono font-bold px-2 py-0.5 rounded border ${
+                  scenario.isProfitable
+                    ? 'bg-slate-100 text-emerald-700 border-slate-200'
+                    : 'bg-slate-100 text-rose-700 border-slate-200'
+                }`}
+              >
+                {scenario.isProfitable ? 'PROFITABLE' : 'UNPROFITABLE'}
+              </span>
+            )}
+          </div>
         </div>
 
         {/* Input Fields */}
@@ -190,18 +193,13 @@ export const ScenarioCard: React.FC<ScenarioCardProps> = ({
             </span>
           </div>
 
-          <button
-            type="button"
-            onClick={() => onApplyTarget(scenario.targetValue)}
-            className="w-full mt-2 py-1.5 bg-slate-900 hover:bg-slate-800 text-white font-mono font-bold text-xs rounded transition-all shadow-xs cursor-pointer"
-            title="Apply this simulated target value directly into active master data"
-          >
-            Apply Target
-          </button>
+          <p className="pt-1 text-[10px] text-slate-500 font-sans">
+            This result is isolated to the scenario draft; official source values remain unchanged.
+          </p>
         </div>
       ) : (
         <div className="p-4 bg-slate-50 border-t border-slate-200 text-center text-slate-400 text-[11px] font-mono italic">
-          Enter target value above to simulate financial ROI.
+          Enter a valid target value above to simulate. Official source values remain unchanged.
         </div>
       )}
     </div>

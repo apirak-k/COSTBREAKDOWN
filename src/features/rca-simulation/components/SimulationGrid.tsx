@@ -8,7 +8,6 @@ interface SimulationGridProps {
   targetPlaceholder: string
   isRouting?: boolean
   onUpdateScenario: (idx: number, field: string, val: string) => void
-  onApplyTarget: (targetValue: string) => void
 }
 
 export const SimulationGrid: React.FC<SimulationGridProps> = ({
@@ -16,8 +15,7 @@ export const SimulationGrid: React.FC<SimulationGridProps> = ({
   targetLabel,
   targetPlaceholder,
   isRouting,
-  onUpdateScenario,
-  onApplyTarget
+  onUpdateScenario
 }) => {
   return (
     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -29,7 +27,6 @@ export const SimulationGrid: React.FC<SimulationGridProps> = ({
           targetPlaceholder={targetPlaceholder}
           isRouting={isRouting}
           onUpdate={(field, val) => onUpdateScenario(idx, field, val)}
-          onApplyTarget={onApplyTarget}
         />
       ))}
     </div>

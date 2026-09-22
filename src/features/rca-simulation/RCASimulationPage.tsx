@@ -4,10 +4,10 @@ import {
   WhatIfScenario,
   simulateWhatIfScenarios,
   formatCurrency,
-  parsePercentage,
   isYieldDriver,
   isPriceDriver
 } from '../../core'
+import { updateScenarioDraft } from './scenario-draft'
 
 // Sub-components
 import { DriverSelector } from './components/DriverSelector'
@@ -22,8 +22,6 @@ export const RCASimulationPage: React.FC = () => {
     bom,
     routing,
     rates,
-    updateBOMItem,
-    updateRoutingStep,
     promoteActiveToBaseline
   } = useAppStore()
 
@@ -57,7 +55,8 @@ export const RCASimulationPage: React.FC = () => {
   ])
 
   const updateScenario = (idx: number, field: string, val: string) => {
-    setScenarios(prev => prev.map((s, i) => i === idx ? { ...s, [field]: val } : s))
+    if (idx < 0 || idx >= scenarios.length) return
+    setScenarios(prev => updateScenarioDraft(prev, idx, field as keyof WhatIfScenario, val))
   }
 
   // Simulation engine evaluation
@@ -97,30 +96,6 @@ export const RCASimulationPage: React.FC = () => {
     return ''
   }, [activeDriver, isRoutingDriver, routingStep, bomItem])
 
-  // Handle "Apply Target to Active"
-  const handleApplyTarget = (targetValue: string) => {
-    const val = parseFloat(targetValue)
-    if (isNaN(val) || val <= 0) return
-
-    if (isRoutingDriver && routingStep && activeDriver) {
-      const isYield = isYieldDriver(activeDriver.rcaParameter)
-      if (isYield) {
-        const newYield = parsePercentage(val)
-        updateRoutingStep(routingStep.id, { activeYield: newYield })
-      } else {
-        updateRoutingStep(routingStep.id, { activeCap: val })
-      }
-    } else if (bomItem && activeDriver) {
-      const isPrice = isPriceDriver(activeDriver.rcaParameter)
-      if (isPrice) {
-        updateBOMItem(bomItem.id, { activePrice: val })
-      } else {
-        const newLoss = parsePercentage(val)
-        updateBOMItem(bomItem.id, { activeLoss: newLoss })
-      }
-    }
-  }
-
   return (
     <div className="space-y-5">
       {/* Header */}
@@ -131,6 +106,10 @@ export const RCASimulationPage: React.FC = () => {
             Evaluate ROI and Net Benefit across 3 Scenarios
           </p>
         </div>
+      </div>
+
+      <div role="status" className="px-3 py-2.5 rounded border border-slate-200 bg-slate-50 text-[11px] text-slate-600 font-sans">
+        Scenario Draft only: changing What-If inputs recalculates this page without changing Active, Reference, Current, or Master Data.
       </div>
 
       {/* Driver Selector Bar */}
@@ -153,7 +132,6 @@ export const RCASimulationPage: React.FC = () => {
           targetPlaceholder={targetPlaceholder}
           isRouting={isRoutingDriver}
           onUpdateScenario={updateScenario}
-          onApplyTarget={handleApplyTarget}
         />
       )}
 
