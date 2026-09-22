@@ -2,10 +2,10 @@
 
 ## Document Status
 
-- **Status:** Draft for human review
+- **Status:** Approved baseline for implementation; human acceptance pending
 - **Reviewed in discussion:** 2026-09-22
 - **Scope:** Cross-page product flow and shared contracts only
-- **Implementation authority:** This document does not authorize code changes by itself
+- **Implementation authority:** This document is the cross-page contract; implementation followed the separately approved plan and remains subject to human acceptance
 - **Detail source of truth:** Page-specific specifications remain authoritative for page-level behavior
 
 This document consolidates the agreed direction for the product-cost analysis flow. It is intentionally a thin cross-page contract: it defines responsibilities, handoffs, boundaries, and success criteria without copying every field or UI rule from the page specifications.
@@ -226,15 +226,17 @@ The cross-page design is satisfied when the implemented application can demonstr
 
 ## 10. Review and Approval State
 
-This artifact is the written version of the baseline direction discussed with the user. It is ready for human review of fidelity, not yet an implementation plan.
+This artifact is the written version of the baseline direction discussed with the user. The user approved the implementation plan on 2026-09-22. The baseline implementation and verification evidence are recorded in [`HANDOFF_2026-09-22.md`](../../../HANDOFF_2026-09-22.md) and the planning progress log. Human acceptance of the running result is still pending.
 
-After human approval of this written spec:
+The delivery sequence for this baseline was:
 
 1. create a reviewable implementation plan with ordered slices and verification gates;
 2. obtain approval of that plan;
 3. implement incrementally;
 4. run verification and report evidence;
-5. obtain human acceptance before treating the feature as complete.
+5. obtain human acceptance before treating the feature as accepted.
+
+The contract intentionally leaves detailed statuses, financial formulas, final variable authoring, and combined multi-driver Simulation behavior open for the next human-reviewed page/domain decision.
 
 ## Related Documents
 
