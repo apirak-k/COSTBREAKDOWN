@@ -1,6 +1,7 @@
 import { CostDriver, BOMItem, RoutingStep, WorkCenterRate, WhatIfScenario, WhatIfResult } from '../types'
 import { safeDivide, parsePercentage, isYieldDriver, isPriceDriver } from '../utils/guards'
 import { createWorkCenterRateMap, resolveWorkCenterRate } from './work-center-rate'
+import { buildScenarioValues } from './scenario-variables'
 
 export interface SimulateOptionsParams {
   driver: CostDriver | null
@@ -29,7 +30,16 @@ export function simulateWhatIfScenarios(params: SimulateOptionsParams): WhatIfRe
       netSaving: 0,
       predictedTotal: totalActiveCost,
       isProfitable: false,
-      totalNetBenefit: 0
+      totalNetBenefit: 0,
+      scenarioValues: buildScenarioValues(s, totalActiveCost, {
+        grossSaving: null,
+        fixedAddedCostPerUnit: null,
+        variableAddedCostPerUnit: null,
+        addedCost: null,
+        netSaving: null,
+        predictedTotal: null,
+        totalNetBenefit: null
+      })
     }))
   }
 
@@ -54,7 +64,16 @@ export function simulateWhatIfScenarios(params: SimulateOptionsParams): WhatIfRe
         netSaving: 0,
         predictedTotal: totalActiveCost,
         isProfitable: false,
-        totalNetBenefit: 0
+        totalNetBenefit: 0,
+        scenarioValues: buildScenarioValues(opt, totalActiveCost, {
+          grossSaving: null,
+          fixedAddedCostPerUnit: null,
+          variableAddedCostPerUnit: null,
+          addedCost: null,
+          netSaving: null,
+          predictedTotal: null,
+          totalNetBenefit: null
+        })
       }
     }
 
@@ -128,7 +147,16 @@ export function simulateWhatIfScenarios(params: SimulateOptionsParams): WhatIfRe
       netSaving,
       predictedTotal,
       isProfitable,
-      totalNetBenefit
+      totalNetBenefit,
+      scenarioValues: buildScenarioValues(opt, totalActiveCost, {
+        grossSaving,
+        fixedAddedCostPerUnit,
+        variableAddedCostPerUnit,
+        addedCost,
+        netSaving,
+        predictedTotal,
+        totalNetBenefit
+      })
     }
   })
 }

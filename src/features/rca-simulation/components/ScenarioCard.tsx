@@ -11,6 +11,35 @@ interface ScenarioCardProps {
   onUpdate: (field: string, val: string) => void
 }
 
+const originClass: Record<string, string> = {
+  source: 'text-slate-600 bg-slate-100 border-slate-200',
+  calculated: 'text-blue-700 bg-blue-50 border-blue-200',
+  override: 'text-amber-800 bg-amber-50 border-amber-200'
+}
+
+const ScenarioVariableProvenance: React.FC<{ scenario: WhatIfResult }> = ({ scenario }) => (
+  <details className="pt-2 border-t border-slate-200 text-[10px] font-sans">
+    <summary className="cursor-pointer text-slate-600 font-semibold">
+      Variable provenance ({scenario.scenarioValues.length})
+    </summary>
+    <div className="mt-2 grid grid-cols-1 gap-1">
+      {scenario.scenarioValues.map(variable => (
+        <div key={variable.key} className="flex items-center justify-between gap-2" title={variable.formula}>
+          <span className="truncate text-slate-600">{variable.label}</span>
+          <span className="flex items-center gap-1 shrink-0">
+            <span className="text-slate-500 tabular-nums">
+              {variable.value === null ? '—' : String(variable.value)}{variable.unit ? ` ${variable.unit}` : ''}
+            </span>
+            <span className={`px-1 py-0.5 rounded border text-[8px] font-mono font-bold uppercase ${originClass[variable.origin] || originClass.calculated}`}>
+              {variable.origin}
+            </span>
+          </span>
+        </div>
+      ))}
+    </div>
+  </details>
+)
+
 export const ScenarioCard: React.FC<ScenarioCardProps> = ({
   scenario,
   targetLabel,
@@ -196,10 +225,12 @@ export const ScenarioCard: React.FC<ScenarioCardProps> = ({
           <p className="pt-1 text-[10px] text-slate-500 font-sans">
             This result is isolated to the scenario draft; official source values remain unchanged.
           </p>
+          <ScenarioVariableProvenance scenario={scenario} />
         </div>
       ) : (
         <div className="p-4 bg-slate-50 border-t border-slate-200 text-center text-slate-400 text-[11px] font-mono italic">
           Enter a valid target value above to simulate. Official source values remain unchanged.
+          <ScenarioVariableProvenance scenario={scenario} />
         </div>
       )}
     </div>

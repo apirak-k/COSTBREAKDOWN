@@ -137,6 +137,23 @@ export interface RoutingDetailedRow extends RoutingStep {
 }
 
 // What-If Simulation Scenario types
+export type ScenarioValueOrigin = 'source' | 'calculated' | 'override'
+export type ScenarioVariableType = 'amount' | 'rate' | 'percentage' | 'quantity' | 'text' | 'driver-defined'
+
+export interface ScenarioVariableDefinition {
+  key: string
+  label: string
+  valueType: ScenarioVariableType
+  unit?: string
+  dependencies?: string[]
+  formula?: string
+}
+
+export interface ScenarioValue extends ScenarioVariableDefinition {
+  value: number | string | null
+  origin: ScenarioValueOrigin
+}
+
 export interface WhatIfScenario {
   letter: 'A' | 'B' | 'C'
   label: string
@@ -145,6 +162,8 @@ export interface WhatIfScenario {
   investment: string // Lump-sum Fixed Investment (THB)
   variableAddedCost?: string // Variable Added Cost per Piece (THB/Unit)
   lotSize: string // Production volume / Lot size (Units)
+  /** Future or imported variables remain visible instead of being discarded. */
+  additionalVariables?: ScenarioValue[]
 }
 
 export interface WhatIfResult extends WhatIfScenario {
@@ -157,6 +176,7 @@ export interface WhatIfResult extends WhatIfScenario {
   predictedTotal: number
   isProfitable: boolean
   totalNetBenefit: number
+  scenarioValues: ScenarioValue[]
 }
 
 // Actual Shop-floor Trial Validation Matrix (Before vs Predicted vs Actual)
