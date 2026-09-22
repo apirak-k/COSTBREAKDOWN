@@ -1,4 +1,4 @@
-import { BOMItem, RoutingStep, WorkCenterRate, CostDriver } from '../types'
+import { BOMItem, RoutingStep, WorkCenterRate, CostDriver, buildDriverKey } from '../types'
 import { safeDivide } from '../utils/guards'
 import { getFieldConfidence } from '../utils/confidence'
 import { createWorkCenterRateMap, resolveWorkCenterRate } from './work-center-rate'
@@ -17,15 +17,19 @@ export function calculateTopDrivers(
 ): CostDriver[] {
   const rateMap = createWorkCenterRateMap(rates)
 
-  // Build map of saved user annotations (controllability, actionPlan, canInfluence, requirementFit)
+  // Build maps of saved user annotations. New records use driverKey; the name map
+  // is retained only to migrate annotations written before stable identity existed.
   const savedMap = new Map<string, Pick<CostDriver, 'controllability' | 'actionPlan' | 'canInfluence' | 'requirementFit'>>()
+  const legacySavedMap = new Map<string, Pick<CostDriver, 'controllability' | 'actionPlan' | 'canInfluence' | 'requirementFit'>>()
   savedDrivers.forEach(d => {
-    savedMap.set(d.driverName, {
+    const annotations = {
       controllability: d.controllability,
       actionPlan: d.actionPlan,
       canInfluence: d.canInfluence,
       requirementFit: d.requirementFit
-    })
+    }
+    if (d.driverKey) savedMap.set(d.driverKey, annotations)
+    legacySavedMap.set(d.driverName, annotations)
   })
 
   const candidates: CostDriver[] = []
@@ -36,6 +40,7 @@ export function calculateTopDrivers(
   // 1. BOM Candidates
   bom.forEach(b => {
     id++
+    const driverKey = buildDriverKey('bom', b.id)
     const baseMatCost = b.consumption * b.basePrice * (1 + b.baseLoss)
     const activeMatCost = b.consumption * b.activePrice * (1 + b.activeLoss)
     const gap = activeMatCost - baseMatCost
@@ -65,7 +70,7 @@ export function calculateTopDrivers(
     }
 
     const tieBreaker = gap > 0 ? gap + (totalCandidates - id) * 0.00000001 : 0
-    const saved = savedMap.get(b.description) ?? {
+    const saved = savedMap.get(driverKey) ?? legacySavedMap.get(b.description) ?? {
       controllability: '' as const,
       actionPlan: '',
       canInfluence: true,
@@ -75,6 +80,9 @@ export function calculateTopDrivers(
     const driverConfidence = getFieldConfidence(b.activePrice, b.sourceRef)
 
     candidates.push({
+      driverKey,
+      sourceType: 'bom',
+      sourceId: b.id,
       id,
       category: 'Direct Material',
       driverName: b.description,
@@ -97,6 +105,7 @@ export function calculateTopDrivers(
   // 2. Routing Candidates
   routing.forEach(rt => {
     id++
+    const driverKey = buildDriverKey('routing', rt.id)
 
     const r = resolveWorkCenterRate(rateMap, rt.wc).rate
     const baseRuntime = rt.baseCap > 0 && rt.baseYield > 0
@@ -137,7 +146,7 @@ export function calculateTopDrivers(
 
     const category = rt.wc
     const tieBreaker = gap > 0 ? gap + (totalCandidates - id) * 0.00000001 : 0
-    const saved = savedMap.get(rt.description) ?? {
+    const saved = savedMap.get(driverKey) ?? legacySavedMap.get(rt.description) ?? {
       controllability: '' as const,
       actionPlan: '',
       canInfluence: true,
@@ -147,6 +156,9 @@ export function calculateTopDrivers(
     const driverConfidence = getFieldConfidence(rt.activeYield, rt.sourceRef)
 
     candidates.push({
+      driverKey,
+      sourceType: 'routing',
+      sourceId: rt.id,
       id,
       category,
       driverName: rt.description,

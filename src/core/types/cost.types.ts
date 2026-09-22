@@ -58,8 +58,18 @@ export interface CostElementBreakdown {
   missingWorkCenters: string[]
 }
 
+export type CostDriverSource = 'bom' | 'routing'
+
+/** Stable persistence identity for a driver: source kind + source record id. */
+export function buildDriverKey(sourceType: CostDriverSource, sourceId: string): string {
+  return `${sourceType}:${sourceId}`
+}
+
 // Single ranked cost driver from _CALC_ENGINE
 export interface CostDriver {
+  driverKey: string
+  sourceType: CostDriverSource
+  sourceId: string
   id: number
   category: string
   driverName: string

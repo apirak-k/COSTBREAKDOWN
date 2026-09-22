@@ -184,7 +184,7 @@ interface AppContextType {
   deleteWorkCenterRate: (wc: string) => void
   promoteActiveToBaseline: () => void
   updateDriverHumanInput: (
-    rank: number,
+    driverKey: string,
     controllability: CostDriver['controllability'],
     actionPlan: string,
     canInfluence?: boolean,
@@ -504,15 +504,18 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   }
 
   const updateDriverHumanInput = (
-    rank: number,
+    driverKey: string,
     controllability: CostDriver['controllability'],
     actionPlan: string,
     canInfluence?: boolean,
     requirementFit?: boolean
   ) => {
-    const driver = topDrivers.find(d => d.rank === rank)
+    const driver = topDrivers.find(d => d.driverKey === driverKey)
     if (!driver) return
-    const updated = savedDrivers.filter(d => d.driverName !== driver.driverName)
+    const updated = savedDrivers.filter(d => {
+      const savedKey = d.driverKey
+      return savedKey !== driverKey && !(savedKey === undefined && d.driverName === driver.driverName)
+    })
     patchActive({
       savedDrivers: [
         ...updated,

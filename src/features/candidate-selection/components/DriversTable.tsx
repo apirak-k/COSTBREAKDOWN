@@ -5,7 +5,7 @@ import { DriverRow } from './DriverRow'
 interface DriversTableProps {
   topDrivers: CostDriver[]
   onUpdateInput: (
-    rank: number,
+    driverKey: string,
     controllability: CostDriver['controllability'],
     actionPlan: string,
     canInfluence?: boolean,
@@ -33,7 +33,7 @@ export const DriversTable: React.FC<DriversTableProps> = ({ topDrivers, onUpdate
       {/* Driver Rows */}
       <div className="divide-y divide-slate-100">
         {topDrivers.map((d: CostDriver) => (
-          <DriverRow key={d.rank} driver={d} onUpdateInput={onUpdateInput} />
+          <DriverRow key={d.driverKey} driver={d} onUpdateInput={onUpdateInput} />
         ))}
       </div>
 

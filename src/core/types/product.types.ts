@@ -26,6 +26,7 @@ export interface ProductSession {
   rates: WorkCenterRate[]
   bom: BOMItem[]
   routing: RoutingStep[]
+  /** Persisted driver annotations are keyed by CostDriver.driverKey, not display rank. */
   savedDrivers: CostDriver[]
   status: DatasetStatus
   versionLabel?: string

@@ -4,7 +4,7 @@ import { CostDriver, formatParam, formatVariance, isYieldDriver } from '../../..
 interface DriverRowProps {
   driver: CostDriver
   onUpdateInput: (
-    rank: number,
+    driverKey: string,
     controllability: CostDriver['controllability'],
     actionPlan: string,
     canInfluence?: boolean,
@@ -82,7 +82,7 @@ export const DriverRow: React.FC<DriverRowProps> = ({ driver, onUpdateInput }) =
               checked={!isUncontrollable}
               onChange={e =>
                 onUpdateInput(
-                  driver.rank,
+                  driver.driverKey,
                   e.target.checked ? 'Controllable' : 'Uncontrollable',
                   driver.actionPlan,
                   e.target.checked,
@@ -97,18 +97,18 @@ export const DriverRow: React.FC<DriverRowProps> = ({ driver, onUpdateInput }) =
           {/* Action Plan input */}
           <div className="flex-1 min-w-[260px] flex items-center gap-2">
             <label
-              htmlFor={`plan-${driver.rank}`}
+              htmlFor={`plan-${driver.driverKey}`}
               className="text-[10px] font-mono font-bold uppercase text-slate-400 shrink-0"
             >
               Action:
             </label>
             <input
-              id={`plan-${driver.rank}`}
+              id={`plan-${driver.driverKey}`}
               type="text"
               value={driver.actionPlan}
               onChange={e =>
                 onUpdateInput(
-                  driver.rank,
+                  driver.driverKey,
                   driver.controllability,
                   e.target.value,
                   driver.canInfluence,
