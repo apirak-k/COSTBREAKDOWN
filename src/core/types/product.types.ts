@@ -19,6 +19,8 @@ export interface ProductSizingConfig {
 
 export type DatasetStatus = 'archived' | 'active' | 'draft'
 
+export type SnapshotRoleReadiness = Record<import('./snapshot.types').ComparisonRole, boolean>
+
 // A self-contained product session — one "workbook" per product version
 export interface ProductSession {
   id: string
@@ -40,6 +42,8 @@ export interface ProductSession {
   snapshotPair?: import('./snapshot.types').SnapshotPair
   /** Indicates that snapshotPair was imported independently rather than derived from paired fields. */
   snapshotPairMode?: 'derived' | 'independent'
+  /** Tracks which dataset roles have been explicitly prepared for comparison. */
+  preparedSnapshotRoles?: SnapshotRoleReadiness
   /** Dataset currently open in Master Data; Product context remains session-scoped. */
   masterDataRole?: import('./snapshot.types').ComparisonRole
 }

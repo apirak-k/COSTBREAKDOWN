@@ -27,8 +27,11 @@ import {
   applySnapshotPairToSession,
   updateCurrentSnapshotFromLegacySession,
   getFieldConfidence,
-  createDriverRcaRecord
+  createDriverRcaRecord,
+  evaluateMasterDataHandoff,
+  getSnapshotRoleReadiness
 } from '../core'
+import type { MasterDataHandoffStatus } from '../core'
 import { STORAGE_KEYS, loadFromSession, saveToSession } from '../services'
 import { seedProductMaster, seedWorkCenterRates, seedBOM, seedRouting, seedSnapshotPair } from './seed-data'
 
@@ -139,6 +142,7 @@ function makeSizedSession(id: string, config: ProductSizingConfig, now: string):
     bom,
     routing,
     savedDrivers: [],
+    preparedSnapshotRoles: { reference: false, current: false },
     status: 'draft',
     versionLabel: 'Draft',
     createdAt: now,
@@ -156,6 +160,7 @@ function makeSeedSession(): ProductSession {
     bom: seedBOM,
     routing: seedRouting,
     savedDrivers: [],
+    preparedSnapshotRoles: { reference: true, current: true },
     status: 'active',
     versionLabel: 'Active Baseline (RGOM-024)',
     createdAt: now,
@@ -180,6 +185,7 @@ interface AppContextType {
   rcaRecords: Record<string, DriverRcaRecord>
   snapshotPair: SnapshotPair
   snapshotComparison: CostComparison
+  masterDataHandoff: MasterDataHandoffStatus
   masterDataRole: ComparisonRole
   masterDataSnapshot: CostSnapshot
   activeTab: 'master' | 'breakdown' | 'candidate' | 'rca'
@@ -247,12 +253,18 @@ const AppContext = createContext<AppContextType | undefined>(undefined)
 export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [productSessions, setProductSessions] = useState<ProductSession[]>(() => {
     const loaded = loadFromSession<ProductSession[]>(STORAGE_KEYS.SESSIONS, [makeSeedSession()])
-    return loaded.map((s, idx) => withSnapshotPair({
-      ...s,
-      masterDataRole: s.masterDataRole ?? 'current',
-      status: s.status || (idx === 0 ? 'active' : 'draft'),
-      versionLabel: s.versionLabel || (s.status === 'archived' ? 'Archived' : s.status === 'draft' ? 'Draft' : 'Active')
-    }))
+    return loaded.map((s, idx) => {
+      const normalized = withSnapshotPair({
+        ...s,
+        masterDataRole: s.masterDataRole ?? 'current',
+        status: s.status || (idx === 0 ? 'active' : 'draft'),
+        versionLabel: s.versionLabel || (s.status === 'archived' ? 'Archived' : s.status === 'draft' ? 'Draft' : 'Active')
+      })
+      return {
+        ...normalized,
+        preparedSnapshotRoles: getSnapshotRoleReadiness(normalized)
+      }
+    })
   })
 
   const [activeProductId, setActiveProductId] = useState<string>(() =>
@@ -305,6 +317,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const rcaRecords = activeSession.rcaRecords ?? {}
   const snapshotPair = activeSession.snapshotPair ?? sessionToSnapshotPair(activeSession)
   const snapshotComparison = compareSnapshots(snapshotPair.reference, snapshotPair.current)
+  const masterDataHandoff = evaluateMasterDataHandoff(activeSession, snapshotPair)
   const masterDataRole = activeSession.masterDataRole ?? 'current'
   const masterDataSnapshot = masterDataRole === 'reference' ? snapshotPair.reference : snapshotPair.current
 
@@ -421,6 +434,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       savedDrivers: [],
       selectedDriverKeys: [],
       rcaRecords: {},
+      preparedSnapshotRoles: { reference: false, current: false },
       status: 'draft',
       versionLabel: `Draft (${source.product.productCode || 'Copy'})`,
       createdAt: now,
@@ -436,13 +450,15 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const source = productSessions.find(s => s.id === (sourceId || activeProductId)) || activeSession
     const newId = `ps-draft-${Date.now()}`
     const now = new Date().toISOString()
+    const preparedSnapshotRoles = getSnapshotRoleReadiness(source)
     const copy: ProductSession = withSnapshotPair({
       ...JSON.parse(JSON.stringify(source)),
       id: newId,
       status: 'draft',
       versionLabel: `Draft (${source.product.productCode || 'Working Copy'})`,
       createdAt: now,
-      updatedAt: now
+      updatedAt: now,
+      preparedSnapshotRoles
     })
     setProductSessions(prev => [...prev, copy])
     setActiveProductId(newId)
@@ -509,18 +525,23 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       if (session.id !== activeSession.id) return session
       const role = session.masterDataRole ?? 'current'
       const pair = session.snapshotPair ?? sessionToSnapshotPair(session)
+      const readiness = getSnapshotRoleReadiness(session)
       const dataset = role === 'reference' ? pair.reference : pair.current
       const nextDataset = mutate(dataset)
       const nextPair = role === 'reference'
         ? { reference: { ...nextDataset, comparisonRole: 'reference' as const }, current: pair.current }
         : { reference: pair.reference, current: { ...nextDataset, comparisonRole: 'current' as const } }
-      return applySnapshotPairToSession({
+      const updated = applySnapshotPairToSession({
         ...session,
         masterDataRole: role,
         status: 'draft',
         versionLabel: session.versionLabel || `Draft (${role === 'reference' ? 'Reference' : 'Current'})`,
         updatedAt: new Date().toISOString()
       }, nextPair)
+      return {
+        ...updated,
+        preparedSnapshotRoles: { ...readiness, [role]: true }
+      }
     }))
   }
 
@@ -540,7 +561,12 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     if (activeSession.status !== 'draft') return
     setProductSessions(prev => prev.map(session => {
       if (session.id !== activeSession.id) return session
-      return setMasterDataProduct(session, session.snapshotPair ?? sessionToSnapshotPair(session), nextProduct)
+      const role = session.masterDataRole ?? 'current'
+      const updated = setMasterDataProduct(session, session.snapshotPair ?? sessionToSnapshotPair(session), nextProduct)
+      return {
+        ...updated,
+        preparedSnapshotRoles: { ...getSnapshotRoleReadiness(session), [role]: true }
+      }
     }))
   }
 
@@ -548,6 +574,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     if (activeSession.status !== 'draft') return
     setProductSessions(prev => prev.map(session => {
       if (session.id !== activeSession.id) return session
+      const readiness = getSnapshotRoleReadiness(session)
+      if (!readiness.reference) return session
       const pair = session.snapshotPair ?? sessionToSnapshotPair(session)
       const reference = pair.reference
       const current: CostSnapshot = {
@@ -562,13 +590,17 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         routing: reference.routing.map(step => ({ ...step, confidence: { ...step.confidence } })),
         warnings: [...(reference.warnings ?? [])]
       }
-      return applySnapshotPairToSession({
+      const updated = applySnapshotPairToSession({
         ...session,
         masterDataRole: 'current',
         status: 'draft',
         versionLabel: session.versionLabel || 'Draft (Reference cloned to Current)',
         updatedAt: new Date().toISOString()
       }, { reference, current })
+      return {
+        ...updated,
+        preparedSnapshotRoles: { ...readiness, current: true }
+      }
     }))
   }
 
@@ -816,6 +848,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       savedDrivers: [],
       selectedDriverKeys: [],
       rcaRecords: {},
+      preparedSnapshotRoles: { reference: false, current: true },
       status: 'draft',
       versionLabel: `Draft (Imported: ${result.product?.productCode || product.productCode || 'Excel'})`,
       createdAt: now,
@@ -837,6 +870,10 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       : { reference: existingPair.reference, current: result.snapshot }
     const now = new Date().toISOString()
     const roleLabel = result.role === 'reference' ? 'Reference' : 'Current'
+    const preparedSnapshotRoles = {
+      ...getSnapshotRoleReadiness(source),
+      [result.role]: true
+    }
 
     // An Active/Archived session is immutable. Import into a new Draft so the
     // existing lifecycle version stays available as-is for calculations/history.
@@ -847,7 +884,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
           masterDataRole: result.role,
           status: 'draft',
           versionLabel: `Draft (Imported ${roleLabel})`,
-          updatedAt: now
+          updatedAt: now,
+          preparedSnapshotRoles
         },
         nextPair
       )
@@ -867,7 +905,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         status: 'draft',
         versionLabel: `Draft (Imported ${roleLabel}: ${result.snapshot.product.productCode || 'Excel'})`,
         createdAt: now,
-        updatedAt: now
+        updatedAt: now,
+        preparedSnapshotRoles
       },
       nextPair
     )
@@ -885,6 +924,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       savedDrivers: [],
       selectedDriverKeys: [],
       rcaRecords: {},
+      preparedSnapshotRoles: { reference: true, current: true },
       status: 'active',
       versionLabel: 'Active Baseline (RGOM-024)',
       snapshotPair: seedSnapshotPair,
@@ -903,7 +943,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       routing: [],
       savedDrivers: [],
       selectedDriverKeys: [],
-      rcaRecords: {}
+      rcaRecords: {},
+      preparedSnapshotRoles: { reference: false, current: false }
     })
   }
 
@@ -922,6 +963,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       rcaRecords,
       snapshotPair,
       snapshotComparison,
+      masterDataHandoff,
       masterDataRole,
       masterDataSnapshot,
       activeTab,

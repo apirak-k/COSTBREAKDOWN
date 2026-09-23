@@ -9,6 +9,7 @@ interface ExcelImportPanelProps {
   snapshot: CostSnapshot
   importRole: ComparisonRole
   canEdit: boolean
+  canCloneReference: boolean
   onCloneReferenceToCurrent: () => void
 }
 
@@ -17,6 +18,7 @@ export const ExcelImportPanel: React.FC<ExcelImportPanelProps> = ({
   snapshot,
   importRole,
   canEdit,
+  canCloneReference,
   onCloneReferenceToCurrent
 }) => {
   const handleDownloadTemplate = async () => {
@@ -70,9 +72,9 @@ export const ExcelImportPanel: React.FC<ExcelImportPanelProps> = ({
         <button
           type="button"
           onClick={onCloneReferenceToCurrent}
-          disabled={!canEdit}
+          disabled={!canEdit || !canCloneReference}
           className="flex items-center gap-1 px-2.5 py-1 text-xs font-mono font-bold text-slate-700 bg-white hover:bg-slate-50 border border-slate-300 rounded transition-colors cursor-pointer disabled:cursor-not-allowed disabled:opacity-40"
-          title="Copy the full Reference dataset into Current, then adjust Current values"
+          title={canCloneReference ? 'Copy the full Reference dataset into Current, then adjust Current values' : 'Prepare the Reference dataset before cloning it into Current'}
         >
           <Copy className="w-3 h-3 text-slate-600" />
           Clone Reference → Current

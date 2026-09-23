@@ -1,6 +1,6 @@
 import React, { useState } from 'react'
 import { useAppStore } from '../../state'
-import { ChevronDown, ChevronRight, Download } from 'lucide-react'
+import { AlertTriangle, ArrowLeft, ChevronDown, ChevronRight, Download } from 'lucide-react'
 import {
   generateSnapshotComparisonExcel,
   getComparisonExportFilename
@@ -18,7 +18,7 @@ import { SnapshotComparisonCard } from './components/SnapshotComparisonCard'
 type SubTab = 'bom' | 'routing' | 'work-center'
 
 export const CostBreakdownPage: React.FC = () => {
-  const { product, costBreakdown, snapshotComparison, snapshotPair, bom, routing, rates } = useAppStore()
+  const { product, costBreakdown, snapshotComparison, snapshotPair, bom, routing, rates, masterDataHandoff, setActiveTab } = useAppStore()
   const [subTab, setSubTab] = useState<SubTab>('bom')
   const [isDetailedExpanded, setIsDetailedExpanded] = useState(true)
   const [isExporting, setIsExporting] = useState(false)
@@ -40,6 +40,35 @@ export const CostBreakdownPage: React.FC = () => {
     } finally {
       setIsExporting(false)
     }
+  }
+
+  if (!masterDataHandoff.canCompare) {
+    return (
+      <div className="max-w-3xl mx-auto bg-white border border-amber-300 p-5 shadow-2xs" role="alert">
+        <div className="flex items-start gap-3">
+          <AlertTriangle className="w-5 h-5 shrink-0 text-amber-600 mt-0.5" aria-hidden="true" />
+          <div>
+            <h1 className="text-sm font-bold font-mono text-slate-900 uppercase tracking-tight">Comparison is not ready</h1>
+            <p className="mt-1 text-xs text-slate-600 font-sans">
+              Prepare both Reference and Current datasets for Header Product <strong className="font-mono text-slate-900">{masterDataHandoff.productCode || '—'}</strong> in Master Data first.
+            </p>
+          </div>
+        </div>
+
+        <ul className="mt-4 list-disc pl-5 space-y-1 text-xs text-amber-900 font-sans">
+          {masterDataHandoff.issues.map(issue => <li key={issue}>{issue}</li>)}
+        </ul>
+
+        <button
+          type="button"
+          onClick={() => setActiveTab('master')}
+          className="mt-5 inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-mono font-bold text-white bg-slate-900 hover:bg-slate-700 transition-colors"
+        >
+          <ArrowLeft className="w-3.5 h-3.5" aria-hidden="true" />
+          Return to Master Data
+        </button>
+      </div>
+    )
   }
 
   return (
