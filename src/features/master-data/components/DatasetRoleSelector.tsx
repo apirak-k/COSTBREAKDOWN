@@ -103,8 +103,8 @@ export const DatasetRoleSelector: React.FC<DatasetRoleSelectorProps> = ({
           Next: import from Excel or switch to Edit Mode below.
         </span>
         <span className="font-mono text-slate-300">
-          SOT: <strong className="text-white">{selectedRole.label} snapshot</strong>
-          <span className="text-slate-500"> · {snapshot.sourceRef || 'No source recorded'}</span>
+          Dataset: <strong className="text-white">{selectedRole.label}</strong>
+          <span className="text-slate-500"> · Source: {snapshot.sourceRef || 'No source recorded'}</span>
         </span>
       </div>
     </section>

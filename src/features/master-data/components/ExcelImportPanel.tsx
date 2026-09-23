@@ -61,11 +61,11 @@ export const ExcelImportPanel: React.FC<ExcelImportPanelProps> = ({
         <span className="text-[10px] font-mono text-slate-500">Product: <strong className="text-slate-800">{product.productCode || '—'}</strong></span>
       </div>
 
-      <ExcelUploadDropzone importRole={importRole} expectedProductCode={product.productCode} />
+      <ExcelUploadDropzone importRole={importRole} expectedProductCode={product.productCode} disabled={!canEdit} />
 
       <div className="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-slate-200">
         <p className="text-[10px] font-sans text-slate-500">
-          Import creates or updates a Draft dataset. Review Missing/Invalid/Warning fields before activation.
+          Import is available for Draft datasets. If an Active dataset is open, clone it to Draft before importing.
         </p>
         <button
           type="button"

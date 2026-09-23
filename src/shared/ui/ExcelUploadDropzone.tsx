@@ -7,11 +7,13 @@ import { useAppStore } from '../../state'
 interface ExcelUploadDropzoneProps {
   importRole?: ComparisonRole
   expectedProductCode?: string
+  disabled?: boolean
 }
 
 export const ExcelUploadDropzone: React.FC<ExcelUploadDropzoneProps> = ({
   importRole = 'current',
-  expectedProductCode = ''
+  expectedProductCode = '',
+  disabled = false
 }) => {
   const { importSnapshotFromExcel } = useAppStore()
   const [isDragging, setIsDragging] = useState(false)
@@ -25,6 +27,8 @@ export const ExcelUploadDropzone: React.FC<ExcelUploadDropzoneProps> = ({
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   const handleFileProcess = async (file: File) => {
+    if (disabled) return
+
     if (!file.name.endsWith('.xlsx') && !file.name.endsWith('.xls')) {
       setStatusMessage({
         type: 'error',
@@ -66,16 +70,19 @@ export const ExcelUploadDropzone: React.FC<ExcelUploadDropzoneProps> = ({
   }
 
   const handleDragOver = (e: React.DragEvent) => {
+    if (disabled) return
     e.preventDefault()
     setIsDragging(true)
   }
 
   const handleDragLeave = (e: React.DragEvent) => {
+    if (disabled) return
     e.preventDefault()
     setIsDragging(false)
   }
 
   const handleDrop = (e: React.DragEvent) => {
+    if (disabled) return
     e.preventDefault()
     setIsDragging(false)
     if (e.dataTransfer.files && e.dataTransfer.files[0]) {
@@ -86,20 +93,32 @@ export const ExcelUploadDropzone: React.FC<ExcelUploadDropzoneProps> = ({
   return (
     <div className="space-y-3">
       <div
+        role="button"
+        tabIndex={disabled ? -1 : 0}
+        aria-disabled={disabled}
         onDragOver={handleDragOver}
         onDragLeave={handleDragLeave}
         onDrop={handleDrop}
-        onClick={() => fileInputRef.current?.click()}
-        className={`border-2 border-dashed rounded-none p-6 text-center cursor-pointer transition-colors ${
-          isDragging
-            ? 'border-slate-900 bg-slate-200'
-            : 'border-slate-300 hover:border-slate-500 bg-slate-50/50 hover:bg-slate-100/60'
+        onClick={() => !disabled && fileInputRef.current?.click()}
+        onKeyDown={event => {
+          if (!disabled && (event.key === 'Enter' || event.key === ' ')) {
+            event.preventDefault()
+            fileInputRef.current?.click()
+          }
+        }}
+        className={`border-2 border-dashed rounded-none p-6 text-center transition-colors ${
+          disabled
+            ? 'border-slate-200 bg-slate-100/70 cursor-not-allowed opacity-70'
+            : isDragging
+            ? 'border-slate-900 bg-slate-200 cursor-pointer'
+            : 'border-slate-300 hover:border-slate-500 bg-slate-50/50 hover:bg-slate-100/60 cursor-pointer'
         }`}
       >
         <input
           ref={fileInputRef}
           type="file"
           accept=".xlsx, .xls"
+          disabled={disabled}
           className="hidden"
           onChange={e => {
             if (e.target.files && e.target.files[0]) {
@@ -118,12 +137,16 @@ export const ExcelUploadDropzone: React.FC<ExcelUploadDropzoneProps> = ({
           </div>
           <div>
             <p className="text-xs font-mono font-bold text-slate-800">
-              {isLoading
+              {disabled
+                ? 'Clone to Draft before importing a workbook'
+                : isLoading
                 ? 'Processing Excel Workbook Data...'
                 : 'Click to upload or drag & drop Excel workbook (.xlsx)'}
             </p>
             <p className="text-[10px] text-slate-500 font-sans mt-0.5">
-              Importing as <span className="font-bold text-slate-700">{importRole === 'reference' ? 'Reference' : 'Current'}</span> for Product <span className="font-bold text-slate-700">{expectedProductCode || '—'}</span>. Use the downloaded one-Product Dataset template.
+              {disabled
+                ? 'Active data is read-only. Use Clone to Draft above, then import into the Draft.'
+                : <>Importing as <span className="font-bold text-slate-700">{importRole === 'reference' ? 'Reference' : 'Current'}</span> for Product <span className="font-bold text-slate-700">{expectedProductCode || '—'}</span>. Use the downloaded one-Product Dataset template.</>}
             </p>
           </div>
         </div>

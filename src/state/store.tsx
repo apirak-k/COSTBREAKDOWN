@@ -838,7 +838,9 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const now = new Date().toISOString()
     const roleLabel = result.role === 'reference' ? 'Reference' : 'Current'
 
-    if (source.snapshotPairMode === 'independent') {
+    // An Active/Archived session is immutable. Import into a new Draft so the
+    // existing lifecycle version stays available as-is for calculations/history.
+    if (source.status === 'draft' && source.snapshotPairMode === 'independent') {
       const updated = applySnapshotPairToSession(
         {
           ...source,
