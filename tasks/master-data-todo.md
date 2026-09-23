@@ -32,7 +32,7 @@ Requirements authority: [`docs/REQUIREMENTS_INDEX.md`](../docs/REQUIREMENTS_INDE
   - Verification: build and browser walkthrough.
 - [x] Task 5: Show source/data-quality state in the page
   - Acceptance: source/working and Missing/Invalid/Warning states are visible.
-  - Verification: browser walkthrough with problematic fixture values.
+  - Verification: browser walkthrough with problematic fixture values; snapshot quality verifier covers empty cost tables and explicit zero inputs.
 
 ## Phase 4: Downstream handoff and regression
 

@@ -34,7 +34,8 @@ export function calculateSnapshotCost(snapshot: CostSnapshot): SnapshotCost {
   const rates = rateMap(snapshot.rates, warnings)
 
   let materialTotal = 0
-  let materialKnown = true
+  let materialKnown = snapshot.bom.length > 0
+  if (!materialKnown) warnings.add('Missing BOM data. No BOM rows found')
   snapshot.bom.forEach(item => {
     const consumption = finiteValue(item.consumption, `BOM ${item.id} consumption`, warnings)
     const price = finiteValue(item.price, `BOM ${item.id} price`, warnings)
@@ -48,8 +49,9 @@ export function calculateSnapshotCost(snapshot: CostSnapshot): SnapshotCost {
 
   let laborTotal = 0
   let burdenTotal = 0
-  let laborKnown = true
-  let burdenKnown = true
+  let laborKnown = snapshot.routing.length > 0
+  let burdenKnown = snapshot.routing.length > 0
+  if (snapshot.routing.length === 0) warnings.add('Missing routing data. No Routing rows found')
 
   for (const step of snapshot.routing) {
     const manning = finiteValue(step.manning, `Routing ${step.id} manning`, warnings)

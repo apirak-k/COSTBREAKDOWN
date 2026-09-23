@@ -39,12 +39,46 @@ assert.ok(missing.warnings.some(warning => warning.includes('BOM bom-1 price')))
 const zeroSnapshot = {
   ...snapshot,
   id: 'zero-fixture',
-  bom: [{ ...snapshot.bom[0], price: 0 }]
+  rates: [{
+    id: 'zero-rate',
+    workCenterCode: 'WC-0',
+    description: 'Zero rate',
+    laborRate: 0,
+    burdenRate: 0,
+    effectiveDate: product.effectiveDate,
+    confidence: {}
+  }],
+  bom: [{ ...snapshot.bom[0], price: 0 }],
+  routing: [{
+    id: 'zero-route',
+    operationCode: 'OP-10',
+    processName: 'Zero operation',
+    workCenterId: 'WC-0',
+    manning: 0,
+    capacity: 1,
+    yield: 1,
+    confidence: {}
+  }]
 }
 const explicitZero = calculateSnapshotCost(zeroSnapshot)
 assert.equal(explicitZero.material, 0)
 assert.equal(explicitZero.total, 0)
 assert.equal(explicitZero.warnings.length, 0)
+
+const emptyDataset = calculateSnapshotCost({
+  ...zeroSnapshot,
+  id: 'empty-dataset-fixture',
+  rates: [],
+  bom: [],
+  routing: []
+})
+assert.equal(emptyDataset.material, null)
+assert.equal(emptyDataset.labor, null)
+assert.equal(emptyDataset.burden, null)
+assert.equal(emptyDataset.total, null)
+assert.equal(emptyDataset.status, 'missing')
+assert.ok(emptyDataset.warnings.some(warning => warning.includes('No BOM rows found')))
+assert.ok(emptyDataset.warnings.some(warning => warning.includes('No Routing rows found')))
 
 const duplicateRate = calculateSnapshotCost({
   ...zeroSnapshot,

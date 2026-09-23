@@ -124,7 +124,7 @@ This plan is intentionally separate from `tasks/plan.md`, which tracks the earli
 - [x] Zero is shown only when sourced or explicitly entered.
 - [x] Routing-to-Work-Center errors are visible at row level or in the summary.
 
-**Verification:** browser walkthrough with missing/invalid fixture values and manual edits.
+**Verification:** browser walkthrough with missing/invalid fixture values and manual edits. `scripts/verify_snapshot_quality.ts` also verifies that empty BOM/Routing data remains Missing while explicit zero inputs remain valid.
 
 **Dependencies:** Task 4
 
