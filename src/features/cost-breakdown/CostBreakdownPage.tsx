@@ -205,9 +205,9 @@ export const CostBreakdownPage: React.FC = () => {
           <div className="p-0">
             {subTab === 'bom' ? (
               <BOMDetailedTable
-                bom={bom}
                 findings={snapshotComparison.bomFindings}
                 referenceItems={snapshotPair.reference.bom}
+                currentItems={snapshotPair.current.bom}
                 viewMode={comparisonView}
               />
             ) : subTab === 'routing' ? (
