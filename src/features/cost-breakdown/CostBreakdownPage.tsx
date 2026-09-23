@@ -212,10 +212,11 @@ export const CostBreakdownPage: React.FC = () => {
               />
             ) : subTab === 'routing' ? (
               <RoutingDetailedTable
-                routing={routing}
-                rates={rates}
                 findings={snapshotComparison.routingFindings}
                 referenceItems={snapshotPair.reference.routing}
+                currentItems={snapshotPair.current.routing}
+                referenceRates={snapshotPair.reference.rates}
+                currentRates={snapshotPair.current.rates}
                 viewMode={comparisonView}
               />
             ) : (
