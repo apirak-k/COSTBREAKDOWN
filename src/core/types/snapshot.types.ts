@@ -69,10 +69,10 @@ export type CalculationStatus = 'complete' | 'estimated' | 'missing'
 
 export interface SnapshotCost {
   snapshotId: string
-  material: number
-  labor: number
-  burden: number
-  total: number
+  material: number | null
+  labor: number | null
+  burden: number | null
+  total: number | null
   status: CalculationStatus
   warnings: string[]
 }

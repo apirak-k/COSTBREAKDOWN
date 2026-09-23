@@ -151,6 +151,11 @@ function calculationWarnings(snapshotId: string, warnings: string[]): Comparison
   }))
 }
 
+function gap(current: number | null, reference: number | null): number | null {
+  if (current === null || reference === null) return null
+  return current - reference
+}
+
 /** Calculates both snapshots independently and then returns explicit comparison findings. */
 export function compareSnapshots(reference: CostSnapshot, current: CostSnapshot): CostComparison {
   const referenceCost = calculateSnapshotCost(reference)
@@ -166,11 +171,11 @@ export function compareSnapshots(reference: CostSnapshot, current: CostSnapshot)
     currentSnapshotId: current.id,
     referenceCost,
     currentCost,
-    totalGap: currentCost.total - referenceCost.total,
+    totalGap: gap(currentCost.total, referenceCost.total),
     elementGaps: {
-      material: currentCost.material - referenceCost.material,
-      labor: currentCost.labor - referenceCost.labor,
-      burden: currentCost.burden - referenceCost.burden
+      material: gap(currentCost.material, referenceCost.material),
+      labor: gap(currentCost.labor, referenceCost.labor),
+      burden: gap(currentCost.burden, referenceCost.burden)
     },
     bomFindings: compareRows(reference.bom, current.bom, bomKey, ['itemCode', 'description', 'consumption', 'unit', 'price', 'loss'], bomFlags),
     routingFindings: compareRows(reference.routing, current.routing, routingKey, ['sequence', 'processName', 'workCenterId', 'manning', 'capacity', 'yield'], routingFlags),

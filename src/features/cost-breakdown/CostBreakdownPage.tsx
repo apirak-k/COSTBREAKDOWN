@@ -32,6 +32,8 @@ export const CostBreakdownPage: React.FC = () => {
     ...snapshotComparison.workCenterFindings
   ]
   const changedFindingsCount = allFindings.filter(findingNeedsReview).length
+  const exactSnapshotCalculation = snapshotComparison.referenceCost.status === 'complete'
+    && snapshotComparison.currentCost.status === 'complete'
 
   const handleExportComparison = async () => {
     setIsExporting(true)
@@ -83,12 +85,19 @@ export const CostBreakdownPage: React.FC = () => {
   return (
     <div className="space-y-4">
       {/* 1. Top Executive KPIs */}
-      <ExecutiveKPICards costBreakdown={costBreakdown} />
+      {exactSnapshotCalculation ? (
+        <ExecutiveKPICards costBreakdown={costBreakdown} />
+      ) : (
+        <div className="px-4 py-3 rounded border border-amber-200 bg-amber-50/70 text-[11px] text-amber-900 font-sans" role="status">
+          <strong className="font-mono">Exact legacy variance summary is on hold.</strong>{' '}
+          Snapshot calculation has missing, invalid, or reviewable inputs. The comparison card below keeps the affected values as N/A and lists the source warnings.
+        </div>
+      )}
 
       {costBreakdown.missingWorkCenters.length > 0 && (
         <div className="px-4 py-3 rounded-lg border border-amber-200 bg-amber-50/70 text-[11px] text-amber-900 font-sans" role="status">
           <strong className="font-mono">Missing Work Center rates:</strong>{' '}
-          {costBreakdown.missingWorkCenters.join(', ')}. Conversion cost for these rows is treated as 0 until a rate is configured.
+          {costBreakdown.missingWorkCenters.join(', ')}. Affected conversion values remain unavailable until a rate is configured.
         </div>
       )}
 
@@ -119,7 +128,7 @@ export const CostBreakdownPage: React.FC = () => {
       </section>
 
       {/* 3. Variance Tree Decomposition */}
-      <VarianceTreeCard costBreakdown={costBreakdown} />
+      {exactSnapshotCalculation && <VarianceTreeCard costBreakdown={costBreakdown} />}
 
       {/* 4. Detailed Breakdown Tables Panel */}
       <div className="bg-white rounded border border-slate-300/80 shadow-2xs overflow-hidden">

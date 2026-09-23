@@ -16,8 +16,8 @@ export interface ComparisonExportInput {
 
 export interface ComparisonExportSummaryRow {
   element: 'Material' | 'Labor' | 'Burden' | 'Total'
-  reference: number
-  current: number
+  reference: number | null
+  current: number | null
   gap: number | null
   referenceStatus: string
   currentStatus: string
