@@ -21,6 +21,11 @@ export interface SnapshotImportResult {
   role: ComparisonRole
 }
 
+export interface SnapshotImportOptions {
+  expectedProductCode?: string
+  allowLegacy?: boolean
+}
+
 export interface DynamicTemplateOptions {
   product: ProductMaster
   wcCount: number

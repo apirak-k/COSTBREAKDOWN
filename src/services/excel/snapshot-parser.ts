@@ -8,6 +8,8 @@ import {
   SnapshotImportResult,
   SnapshotRoutingStep,
   SnapshotWorkCenterRate,
+  SnapshotImportOptions,
+  DataQualityStatus,
   getFieldConfidence,
   migratePairedModelToSnapshots
 } from '../../core'
@@ -15,6 +17,7 @@ import { parseExcelInputFile } from './excel-parser'
 
 type CellValue = string | number | boolean | Date | null
 type Row = CellValue[]
+type NumericResult = { value: number | null; quality: DataQualityStatus }
 
 const CANONICAL_SHEETS = ['META', 'PRODUCT', 'WORK_CENTER', 'BOM', 'ROUTING'] as const
 
@@ -33,14 +36,17 @@ function numberValue(
   label: string,
   rowNumber: number,
   warnings: string[]
-): number | null {
-  if (value === null || value === undefined || textValue(value) === '') return null
+): NumericResult {
+  if (value === null || value === undefined || textValue(value) === '') {
+    warnings.push(`Missing ${label} at row ${rowNumber}`)
+    return { value: null, quality: 'missing' }
+  }
   const parsed = typeof value === 'number' ? value : Number(textValue(value).replace(/,/g, ''))
   if (!Number.isFinite(parsed)) {
     warnings.push(`Invalid ${label} at row ${rowNumber}`)
-    return null
+    return { value: null, quality: 'invalid' }
   }
-  return parsed
+  return { value: parsed, quality: 'valid' }
 }
 
 function findSheetName(workbook: XLSX.WorkBook, wanted: string): string | undefined {
@@ -119,30 +125,36 @@ function evidence(
   value: unknown,
   sourceRef: string,
   explicitConfidence: DataConfidence | undefined,
-  field: string,
-  warnings: string[],
-  rowNumber: number
+  quality: DataQualityStatus | undefined
 ): FieldEvidence {
-  if (explicitConfidence === undefined && textValue(value as CellValue) === '') {
-    warnings.push(`Missing ${field} at row ${rowNumber}`)
-  }
+  const resolvedQuality = quality ?? (textValue(value as CellValue) === '' ? 'missing' : 'valid')
   return {
     status: explicitConfidence ?? getFieldConfidence(value, sourceRef),
+    quality: resolvedQuality,
     sourceRef: sourceRef || undefined,
     basis: explicitConfidence
       ? 'Imported row confidence'
       : sourceRef
         ? 'Derived from imported value and source reference'
-        : 'No source reference provided'
+        : 'No source reference provided',
+    sourceValue: value,
+    workingValue: value
   }
 }
 
-function productFromSheet(rows: Row[], meta: Map<string, string>, warnings: string[]): CostSnapshot['product'] {
+function productFromSheet(
+  rows: Row[],
+  meta: Map<string, string>,
+  warnings: string[]
+): { product: CostSnapshot['product']; rowCount: number } {
   const headerIndex = findHeaderRow(rows, [['productcode', 'code'], ['productdescription', 'description', 'name']])
   const header = headerIndex >= 0 ? rows[headerIndex] : []
   const map = columnMap(header)
-  const row = rows.slice(headerIndex + 1).find(candidate => candidate.some(value => textValue(value) !== '')) ?? []
-  const productCode = textValue(cell(row, map, ['product code', 'productcode', 'code'])) || metaValue(meta, ['product code', 'productcode'])
+  const dataRows = headerIndex >= 0
+    ? rows.slice(headerIndex + 1).filter(candidate => candidate.some(value => textValue(value) !== ''))
+    : []
+  const row = dataRows[0] ?? []
+  const productCode = textValue(cell(row, map, ['product code', 'productcode', 'code']))
   const productDescription = textValue(cell(row, map, ['product description', 'productdescription', 'description', 'name'])) || metaValue(meta, ['product description', 'productdescription'])
   const uom = textValue(cell(row, map, ['uom', 'unit'])) || metaValue(meta, ['uom', 'unit'])
   const customer = textValue(cell(row, map, ['customer', 'customer application'])) || metaValue(meta, ['customer'])
@@ -153,7 +165,7 @@ function productFromSheet(rows: Row[], meta: Map<string, string>, warnings: stri
   if (!uom) warnings.push('Missing UOM in PRODUCT')
   if (!effectiveDate) warnings.push('Missing effective date in PRODUCT/META')
 
-  return { productCode, productDescription, uom, customer, effectiveDate }
+  return { product: { productCode, productDescription, uom, customer, effectiveDate }, rowCount: dataRows.length }
 }
 
 function parseWorkCenters(
@@ -186,13 +198,13 @@ function parseWorkCenters(
       id,
       workCenterCode: code,
       description: textValue(cell(row, map, ['description', 'work center description', 'workcenterdescription'])) || code,
-      laborRate,
-      burdenRate,
+      laborRate: laborRate.value,
+      burdenRate: burdenRate.value,
       effectiveDate,
       sourceRef,
       confidence: {
-        laborRate: evidence(laborRate, sourceRef, explicitConfidence, 'laborRate', warnings, rowNumber),
-        burdenRate: evidence(burdenRate, sourceRef, explicitConfidence, 'burdenRate', warnings, rowNumber)
+        laborRate: evidence(laborRate.value, sourceRef, explicitConfidence, laborRate.quality),
+        burdenRate: evidence(burdenRate.value, sourceRef, explicitConfidence, burdenRate.quality)
       }
     })
   })
@@ -225,19 +237,21 @@ function parseBOM(
     const price = numberValue(cell(row, map, ['price', 'material price']), 'price', rowNumber, warnings)
     const loss = numberValue(cell(row, map, ['loss', 'loss rate']), 'loss', rowNumber, warnings)
     const description = textValue(cell(row, map, ['description', 'material description']))
+    const unit = textValue(cell(row, map, ['unit', 'uom']))
+    if (!unit) warnings.push(`Missing unit at row ${rowNumber}`)
     items.push({
       id: textValue(cell(row, map, ['id', 'bom id', 'bomid'])) || itemCode,
       itemCode,
       description,
-      consumption,
-      unit: textValue(cell(row, map, ['unit', 'uom'])) || 'PC',
-      price,
-      loss,
+      consumption: consumption.value,
+      unit,
+      price: price.value,
+      loss: loss.value,
       sourceRef,
       confidence: {
-        consumption: evidence(consumption, sourceRef, explicitConfidence, 'consumption', warnings, rowNumber),
-        price: evidence(price, sourceRef, explicitConfidence, 'price', warnings, rowNumber),
-        loss: evidence(loss, sourceRef, explicitConfidence, 'loss', warnings, rowNumber)
+        consumption: evidence(consumption.value, sourceRef, explicitConfidence, consumption.quality),
+        price: evidence(price.value, sourceRef, explicitConfidence, price.quality),
+        loss: evidence(loss.value, sourceRef, explicitConfidence, loss.quality)
       }
     })
   })
@@ -250,7 +264,7 @@ function parseRouting(
   fallbackSource: string,
   warnings: string[]
 ): SnapshotRoutingStep[] {
-  const headerIndex = findHeaderRow(rows, [['operation code', 'operationcode', 'operation', 'id'], ['process name', 'process'], ['capacity']])
+  const headerIndex = findHeaderRow(rows, [['sequence', 'seq', 'op seq'], ['process name', 'process', 'description'], ['work center code', 'work center id', 'work center', 'wc']])
   if (headerIndex < 0) {
     warnings.push('ROUTING header not found')
     return []
@@ -267,23 +281,29 @@ function parseRouting(
     }
     const sourceRef = textValue(cell(row, map, ['source ref', 'sourceref', 'source'])) || fallbackSource
     const explicitConfidence = parseConfidence(cell(row, map, ['confidence', 'status']))
+    const sequence = numberValue(cell(row, map, ['sequence', 'seq', 'op seq']), 'sequence', rowNumber, warnings)
     const manning = numberValue(cell(row, map, ['manning', 'headcount']), 'manning', rowNumber, warnings)
     const capacity = numberValue(cell(row, map, ['capacity', 'cap']), 'capacity', rowNumber, warnings)
     const yieldValue = numberValue(cell(row, map, ['yield', 'yield rate']), 'yield', rowNumber, warnings)
+    const processName = textValue(cell(row, map, ['process name', 'process', 'description']))
+    const workCenterId = textValue(cell(row, map, ['work center id', 'workcenterid', 'work center code', 'work center', 'wc']))
+    if (!processName) warnings.push(`Missing processName at row ${rowNumber}`)
+    if (!workCenterId) warnings.push(`Missing workCenterId at row ${rowNumber}`)
     steps.push({
       id: id || operationCode,
       operationCode: operationCode || undefined,
-      sequence: numberValue(cell(row, map, ['sequence', 'seq', 'op seq']), 'sequence', rowNumber, warnings) ?? undefined,
-      processName: textValue(cell(row, map, ['process name', 'process', 'description'])),
-      workCenterId: textValue(cell(row, map, ['work center id', 'workcenterid', 'work center', 'wc'])) || undefined,
-      manning,
-      capacity,
-      yield: yieldValue,
+      sequence: sequence.value ?? undefined,
+      processName,
+      workCenterId: workCenterId || undefined,
+      manning: manning.value,
+      capacity: capacity.value,
+      yield: yieldValue.value,
       sourceRef,
       confidence: {
-        manning: evidence(manning, sourceRef, explicitConfidence, 'manning', warnings, rowNumber),
-        capacity: evidence(capacity, sourceRef, explicitConfidence, 'capacity', warnings, rowNumber),
-        yield: evidence(yieldValue, sourceRef, explicitConfidence, 'yield', warnings, rowNumber)
+        sequence: evidence(sequence.value, sourceRef, explicitConfidence, sequence.quality),
+        manning: evidence(manning.value, sourceRef, explicitConfidence, manning.quality),
+        capacity: evidence(capacity.value, sourceRef, explicitConfidence, capacity.quality),
+        yield: evidence(yieldValue.value, sourceRef, explicitConfidence, yieldValue.quality)
       }
     })
   })
@@ -298,7 +318,8 @@ function isCanonicalWorkbook(workbook: XLSX.WorkBook): boolean {
 /** Parses the canonical one-snapshot workbook without defaulting blank numeric cells to zero. */
 export function parseSnapshotWorkbookData(
   data: ArrayBuffer,
-  role: ComparisonRole
+  role: ComparisonRole,
+  expectedProductCode?: string
 ): SnapshotImportResult {
   const workbook = XLSX.read(data, { type: 'array', cellDates: true })
   const warnings: string[] = []
@@ -308,13 +329,41 @@ export function parseSnapshotWorkbookData(
       success: false,
       message: 'Canonical snapshot workbook not recognized. Required sheets: META, PRODUCT, WORK_CENTER, BOM, ROUTING.',
       format: undefined,
-      warnings: ['Legacy paired workbook requires the compatibility adapter.'],
+      warnings: ['Workbook is not in the canonical one-Product/one-Dataset format.'],
       role
     }
   }
 
   const meta = metaValues(rowsFor(workbook, 'META'))
-  const product = productFromSheet(rowsFor(workbook, 'PRODUCT'), meta, warnings)
+  const productResult = productFromSheet(rowsFor(workbook, 'PRODUCT'), meta, warnings)
+  const product = productResult.product
+  if (productResult.rowCount !== 1) {
+    return {
+      success: false,
+      message: `PRODUCT must contain exactly one Product row; found ${productResult.rowCount}.`,
+      format: 'canonical',
+      warnings,
+      role
+    }
+  }
+  if (!product.productCode) {
+    return {
+      success: false,
+      message: 'Product Code is required in the PRODUCT sheet.',
+      format: 'canonical',
+      warnings,
+      role
+    }
+  }
+  if (expectedProductCode && product.productCode.trim().toLowerCase() !== expectedProductCode.trim().toLowerCase()) {
+    return {
+      success: false,
+      message: `Product Code mismatch. Selected Product: ${expectedProductCode}; workbook Product: ${product.productCode}.`,
+      format: 'canonical',
+      warnings,
+      role
+    }
+  }
   const sourceRef = metaValue(meta, ['source ref', 'sourceref', 'source'])
   const effectiveDate = product.effectiveDate || metaValue(meta, ['effective date', 'effectivedate'])
   const snapshotId = metaValue(meta, ['snapshot id', 'snapshotid', 'id']) || `${product.productCode || 'snapshot'}:${role}`
@@ -332,8 +381,17 @@ export function parseSnapshotWorkbookData(
     status,
     rates: parseWorkCenters(rowsFor(workbook, 'WORK_CENTER'), sourceRef, effectiveDate, warnings),
     bom: parseBOM(rowsFor(workbook, 'BOM'), sourceRef, warnings),
-    routing: parseRouting(rowsFor(workbook, 'ROUTING'), sourceRef, warnings)
+    routing: parseRouting(rowsFor(workbook, 'ROUTING'), sourceRef, warnings),
+    warnings
   }
+
+  const workCenterCodes = new Set(snapshot.rates.map(rate => rate.workCenterCode.trim().toLowerCase()).filter(Boolean))
+  snapshot.routing.forEach(step => {
+    const workCenter = step.workCenterId?.trim().toLowerCase()
+    if (workCenter && !workCenterCodes.has(workCenter)) {
+      warnings.push(`Unknown Work Center "${step.workCenterId}" referenced by Routing ${step.id}`)
+    }
+  })
 
   return {
     success: true,
@@ -347,11 +405,14 @@ export function parseSnapshotWorkbookData(
 
 export async function parseSnapshotExcelInputFile(
   file: File,
-  role: ComparisonRole
+  role: ComparisonRole,
+  options: SnapshotImportOptions = {}
 ): Promise<SnapshotImportResult> {
   const data = await file.arrayBuffer()
-  const canonicalResult = parseSnapshotWorkbookData(data, role)
+  const canonicalResult = parseSnapshotWorkbookData(data, role, options.expectedProductCode)
   if (canonicalResult.success) return canonicalResult
+
+  if (options.allowLegacy === false) return canonicalResult
 
   const legacyResult = await parseExcelInputFile(file)
   if (!legacyResult.success) {

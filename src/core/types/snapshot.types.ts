@@ -4,10 +4,15 @@ import { BOMItem, DataConfidence, RoutingStep, WorkCenterRate } from './cost.typ
 export type ComparisonRole = 'reference' | 'current'
 export type ConfidenceStatus = DataConfidence
 
+export type DataQualityStatus = 'valid' | 'missing' | 'invalid' | 'warning' | 'needs-review'
+
 export interface FieldEvidence {
   status: ConfidenceStatus
+  quality?: DataQualityStatus
   sourceRef?: string
   basis?: string
+  sourceValue?: unknown
+  workingValue?: unknown
 }
 
 export interface SnapshotBOMItem {
@@ -57,6 +62,7 @@ export interface CostSnapshot {
   rates: SnapshotWorkCenterRate[]
   bom: SnapshotBOMItem[]
   routing: SnapshotRoutingStep[]
+  warnings?: string[]
 }
 
 export type CalculationStatus = 'complete' | 'estimated' | 'missing'

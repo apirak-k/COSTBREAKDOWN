@@ -38,6 +38,14 @@ XLSX.utils.book_append_sheet(workbook, sheet([
 
 const result = parseSnapshotWorkbookData(XLSX.write(workbook, { type: 'array', bookType: 'xlsx' }), 'current')
 
+const workbookBytes = XLSX.write(workbook, { type: 'array', bookType: 'xlsx' })
+const matchingProductResult = parseSnapshotWorkbookData(workbookBytes, 'current', 'P-001')
+assert.equal(matchingProductResult.success, true)
+
+const mismatchedProductResult = parseSnapshotWorkbookData(workbookBytes, 'current', 'P-999')
+assert.equal(mismatchedProductResult.success, false)
+assert.match(mismatchedProductResult.message, /Product Code mismatch/)
+
 assert.equal(result.success, true)
 assert.equal(result.format, 'canonical')
 assert.equal(result.snapshot?.id, 'after-2026-09-21')
@@ -46,11 +54,40 @@ assert.equal(result.snapshot?.product.productCode, 'P-001')
 assert.equal(result.snapshot?.rates.length, 2)
 assert.equal(result.snapshot?.rates[1].burdenRate, null)
 assert.equal(result.snapshot?.rates[1].confidence.burdenRate.status, 'missing')
+assert.equal(result.snapshot?.rates[1].confidence.burdenRate.quality, 'missing')
 assert.equal(result.snapshot?.rates[1].confidence.laborRate.status, 'estimated')
 assert.equal(result.snapshot?.bom[1].price, null)
 assert.equal(result.snapshot?.bom[1].confidence.price.status, 'missing')
 assert.equal(result.snapshot?.routing[0].workCenterId, 'WC-1')
 assert.ok(result.warnings.some(warning => warning.includes('burdenRate')))
+
+const invalidWorkbook = XLSX.utils.book_new()
+XLSX.utils.book_append_sheet(invalidWorkbook, sheet([
+  ['Key', 'Value'],
+  ['Source Ref', 'invalid.xlsx']
+]), 'META')
+XLSX.utils.book_append_sheet(invalidWorkbook, sheet([
+  ['Product Code', 'Product Description', 'UOM'],
+  ['P-002', 'Invalid Product', 'PC']
+]), 'PRODUCT')
+XLSX.utils.book_append_sheet(invalidWorkbook, sheet([
+  ['Work Center Code', 'Description', 'Labor Rate', 'Burden Rate'],
+  ['WC-2', 'Assembly', 'not-a-number', 50]
+]), 'WORK_CENTER')
+XLSX.utils.book_append_sheet(invalidWorkbook, sheet([
+  ['Item Code', 'Description', 'Consumption', 'Unit', 'Price', 'Loss'],
+  ['MAT-2', 'Material 2', 1, 'PC', 10, 0]
+]), 'BOM')
+XLSX.utils.book_append_sheet(invalidWorkbook, sheet([
+  ['Operation Code', 'Sequence', 'Process Name', 'Work Center Code', 'Manning', 'Capacity', 'Yield'],
+  ['OP-20', 20, 'Unknown WC', 'WC-NOPE', 1, 100, 0.9]
+]), 'ROUTING')
+
+const invalidResult = parseSnapshotWorkbookData(XLSX.write(invalidWorkbook, { type: 'array', bookType: 'xlsx' }), 'current')
+assert.equal(invalidResult.success, true)
+assert.equal(invalidResult.snapshot?.rates[0].laborRate, null)
+assert.equal(invalidResult.snapshot?.rates[0].confidence.laborRate.quality, 'invalid')
+assert.ok(invalidResult.warnings.some(warning => warning.includes('Unknown Work Center')))
 
 const legacyWorkbook = XLSX.utils.book_new()
 XLSX.utils.book_append_sheet(legacyWorkbook, sheet([

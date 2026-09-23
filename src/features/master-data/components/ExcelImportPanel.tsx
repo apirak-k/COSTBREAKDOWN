@@ -109,7 +109,7 @@ export const ExcelImportPanel: React.FC<ExcelImportPanelProps> = ({
       </div>
 
       {/* Upload Dropzone */}
-      <ExcelUploadDropzone importRole={importRole} />
+      <ExcelUploadDropzone importRole={importRole} expectedProductCode={product.productCode} />
 
       {/* Action Buttons Bar */}
       <div className="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-slate-200">

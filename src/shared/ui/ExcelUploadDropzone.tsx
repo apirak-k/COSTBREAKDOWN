@@ -6,9 +6,13 @@ import { useAppStore } from '../../state'
 
 interface ExcelUploadDropzoneProps {
   importRole?: ComparisonRole
+  expectedProductCode?: string
 }
 
-export const ExcelUploadDropzone: React.FC<ExcelUploadDropzoneProps> = ({ importRole = 'current' }) => {
+export const ExcelUploadDropzone: React.FC<ExcelUploadDropzoneProps> = ({
+  importRole = 'current',
+  expectedProductCode = ''
+}) => {
   const { importSnapshotFromExcel } = useAppStore()
   const [isDragging, setIsDragging] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
@@ -33,7 +37,10 @@ export const ExcelUploadDropzone: React.FC<ExcelUploadDropzoneProps> = ({ import
     setStatusMessage(null)
 
     try {
-      const result = await parseSnapshotExcelInputFile(file, importRole)
+      const result = await parseSnapshotExcelInputFile(file, importRole, {
+        expectedProductCode,
+        allowLegacy: false
+      })
       if (result.success) {
         importSnapshotFromExcel(result)
         setStatusMessage({
@@ -116,7 +123,7 @@ export const ExcelUploadDropzone: React.FC<ExcelUploadDropzoneProps> = ({ import
                 : 'Click to upload or drag & drop Excel workbook (.xlsx)'}
             </p>
             <p className="text-[10px] text-slate-500 font-sans mt-0.5">
-              Importing as <span className="font-bold text-slate-700">{importRole === 'reference' ? 'Reference' : 'Current'}</span>. Supports canonical snapshot sheets or legacy paired models.
+              Importing as <span className="font-bold text-slate-700">{importRole === 'reference' ? 'Reference' : 'Current'}</span> for Product <span className="font-bold text-slate-700">{expectedProductCode || '—'}</span>. Use the downloaded one-Product Dataset template.
             </p>
           </div>
         </div>
