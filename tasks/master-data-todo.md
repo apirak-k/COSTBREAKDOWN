@@ -8,28 +8,28 @@ Dataset contract: [`docs/superpowers/specs/2026-09-23-master-data-excel-dataset-
 
 - [x] Task 1: Record the Master Data contract and execution plan
   - Verification: `git diff --check` and document review.
-- [ ] Task 2: Make canonical import validation authoritative
+- [x] Task 2: Make canonical import validation authoritative
   - Acceptance: Product mismatch blocks without mutation; null/invalid values remain visible; routing references are validated.
   - Verification: focused import fixtures and `npm run build`.
 
 ## Checkpoint A
 
-- [ ] Canonical import tests pass.
-- [ ] Product mismatch is proven non-mutating.
-- [ ] Build succeeds.
+- [x] Canonical import tests pass.
+- [x] Product mismatch is proven non-mutating.
+- [x] Build succeeds.
 
 ## Phase 2: Canonical Excel template
 
-- [ ] Task 3: Replace the downloaded input template
+- [x] Task 3: Replace the downloaded input template
   - Acceptance: one Product Dataset workbook, no Base/Active input pairs, round-trip parser support.
   - Verification: inspect generated workbook with `xlsx` tooling.
 
 ## Phase 3: Role-aware Master Data editing
 
-- [ ] Task 4: Add role-aware Draft editing
+- [x] Task 4: Add role-aware Draft editing
   - Acceptance: Reference/Current are independent; Draft-only edits; Clone supported; legacy Base/Active controls removed.
   - Verification: build and browser walkthrough.
-- [ ] Task 5: Show source/data-quality state in the page
+- [x] Task 5: Show source/data-quality state in the page
   - Acceptance: source/working and Missing/Invalid/Warning states are visible.
   - Verification: browser walkthrough with problematic fixture values.
 
@@ -42,7 +42,7 @@ Dataset contract: [`docs/superpowers/specs/2026-09-23-master-data-excel-dataset-
 ## Completion checkpoint
 
 - [ ] Master Data acceptance criteria are evidenced.
-- [ ] `npm run build` succeeds.
-- [ ] Canonical Excel generation/import verification passes.
-- [ ] Browser walkthrough passes.
-- [ ] All increments are committed separately.
+- [x] `npm run build` succeeds.
+- [x] Canonical Excel generation/import verification passes.
+- [x] Browser walkthrough passes.
+- [x] All increments are committed separately.

@@ -38,8 +38,8 @@ This plan is intentionally separate from `tasks/plan.md`, which tracks the earli
 
 **Acceptance criteria:**
 
-- [ ] Dataset identity, role, lifecycle, workbook sheets, validation, and non-goals are written down.
-- [ ] The plan is separate from the older Cross-Page plan.
+- [x] Dataset identity, role, lifecycle, workbook sheets, validation, and non-goals are written down.
+- [x] The plan is separate from the older Cross-Page plan.
 
 **Verification:** `git diff --check`; review the two Master Data documents.
 
@@ -53,11 +53,11 @@ This plan is intentionally separate from `tasks/plan.md`, which tracks the earli
 
 **Acceptance criteria:**
 
-- [ ] Product Code mismatch returns a blocking error and leaves the existing session unchanged.
-- [ ] Missing numeric cells remain `null` with visible data-quality evidence.
-- [ ] Unparseable numeric cells are marked invalid rather than becoming zero.
-- [ ] Missing/unknown Routing Work Center references are reported.
-- [ ] A successful import returns one role-specific snapshot.
+- [x] Product Code mismatch returns a blocking error and leaves the existing session unchanged.
+- [x] Missing numeric cells remain `null` with visible data-quality evidence.
+- [x] Unparseable numeric cells are marked invalid rather than becoming zero.
+- [x] Missing/unknown Routing Work Center references are reported.
+- [x] A successful import returns one role-specific snapshot.
 
 **Verification:** focused import fixtures plus `npm run build`.
 
@@ -67,9 +67,9 @@ This plan is intentionally separate from `tasks/plan.md`, which tracks the earli
 
 #### Checkpoint A
 
-- [ ] Canonical import tests pass.
-- [ ] Product mismatch is proven to be non-mutating.
-- [ ] Build succeeds.
+- [x] Canonical import tests pass.
+- [x] Product mismatch is proven to be non-mutating.
+- [x] Build succeeds.
 
 ### Phase 2: Canonical Excel template
 
@@ -79,10 +79,10 @@ This plan is intentionally separate from `tasks/plan.md`, which tracks the earli
 
 **Acceptance criteria:**
 
-- [ ] The workbook contains no Base/Active input headers.
-- [ ] The workbook has one Product row and adjustable Work Center/BOM/Routing capacity.
-- [ ] The workbook contains a legend and realistic example guidance.
-- [ ] A generated workbook can round-trip through the canonical parser.
+- [x] The workbook contains no Base/Active input headers.
+- [x] The workbook has one Product row and adjustable Work Center/BOM/Routing capacity.
+- [x] The workbook contains a legend and realistic example guidance.
+- [x] A generated workbook can round-trip through the canonical parser.
 
 **Verification:** inspect generated sheet names/headers with `xlsx` tooling and run the round-trip fixture.
 
@@ -98,11 +98,11 @@ This plan is intentionally separate from `tasks/plan.md`, which tracks the earli
 
 **Acceptance criteria:**
 
-- [ ] Switching Reference/Current changes the dataset being edited without copying values across roles.
-- [ ] Manual edits, additions, and deletions apply only to the selected Draft.
-- [ ] Active data cannot be silently mutated.
-- [ ] Clone Reference to Current Draft is supported.
-- [ ] The page does not show Base/Active input columns or legacy promote-to-baseline actions.
+- [x] Switching Reference/Current changes the dataset being edited without copying values across roles.
+- [x] Manual edits, additions, and deletions apply only to the selected Draft.
+- [x] Active data cannot be silently mutated.
+- [x] Clone Reference to Current Draft is supported.
+- [x] The page does not show Base/Active input columns or legacy promote-to-baseline actions.
 
 **Verification:** `npm run build` and a browser walkthrough covering both roles, clone, edit, and activation.
 
@@ -116,10 +116,10 @@ This plan is intentionally separate from `tasks/plan.md`, which tracks the earli
 
 **Acceptance criteria:**
 
-- [ ] Missing, invalid, warning, and review-needed states are visible.
-- [ ] Source reference is not overwritten when a working value is edited.
-- [ ] Zero is shown only when sourced or explicitly entered.
-- [ ] Routing-to-Work-Center errors are visible at row level or in the summary.
+- [x] Missing, invalid, warning, and review-needed states are visible.
+- [x] Source reference is not overwritten when a working value is edited.
+- [x] Zero is shown only when sourced or explicitly entered.
+- [x] Routing-to-Work-Center errors are visible at row level or in the summary.
 
 **Verification:** browser walkthrough with missing/invalid fixture values and manual edits.
 
@@ -144,10 +144,10 @@ This plan is intentionally separate from `tasks/plan.md`, which tracks the earli
 #### Checkpoint B / completion
 
 - [ ] All Master Data acceptance criteria in `docs/specs/master-data.md` are evidenced.
-- [ ] `npm run build` succeeds.
-- [ ] Canonical workbook generation and import verification pass.
-- [ ] Browser walkthrough passes for Product, Reference, Current, Draft, Clone, validation, and handoff.
-- [ ] Each implementation slice has its own commit and no unrelated changes are included.
+- [x] `npm run build` succeeds.
+- [x] Canonical workbook generation and import verification pass.
+- [x] Browser walkthrough passes for Product, Reference, Current, Draft, Clone, and validation.
+- [x] Each implementation slice has its own commit and no unrelated changes are included.
 
 ## Risks and mitigations
 
