@@ -36,15 +36,18 @@ function combinedConfidence(reference: SnapshotRow | undefined, current: Snapsho
   return 'verified'
 }
 
-function diffFields<T extends SnapshotRow>(
-  reference: T | undefined,
-  current: T | undefined,
-  fields: string[]
+const COMPARISON_METADATA_FIELDS = new Set(['id', 'confidence', 'sourceRef'])
+
+function diffSupportedFields<T extends SnapshotRow>(
+  reference: T,
+  current: T
 ): Record<string, { reference: unknown; current: unknown }> {
   const diffs: Record<string, { reference: unknown; current: unknown }> = {}
+  const fields = new Set([...Object.keys(reference), ...Object.keys(current)])
   fields.forEach(field => {
-    const referenceValue = reference ? (reference as unknown as Record<string, unknown>)[field] : undefined
-    const currentValue = current ? (current as unknown as Record<string, unknown>)[field] : undefined
+    if (COMPARISON_METADATA_FIELDS.has(field)) return
+    const referenceValue = (reference as unknown as Record<string, unknown>)[field]
+    const currentValue = (current as unknown as Record<string, unknown>)[field]
     if (!Object.is(referenceValue, currentValue)) {
       diffs[field] = { reference: referenceValue, current: currentValue }
     }
@@ -56,7 +59,6 @@ function compareRows<T extends SnapshotRow>(
   referenceRows: T[],
   currentRows: T[],
   keyOf: (row: T) => string,
-  fields: string[],
   flagsOf: (reference: T, current: T) => ChangeFlags
 ): ComparisonFinding[] {
   const referenceMap = new Map<string, T[]>()
@@ -106,7 +108,7 @@ function compareRows<T extends SnapshotRow>(
       currentId: current.id,
       matchStatus: 'matched',
       changeFlags: flagsOf(reference, current),
-      fieldDiffs: diffFields(reference, current, fields),
+      fieldDiffs: diffSupportedFields(reference, current),
       confidence: combinedConfidence(reference, current)
     })
   })
@@ -177,9 +179,9 @@ export function compareSnapshots(reference: CostSnapshot, current: CostSnapshot)
       labor: gap(currentCost.labor, referenceCost.labor),
       burden: gap(currentCost.burden, referenceCost.burden)
     },
-    bomFindings: compareRows(reference.bom, current.bom, bomKey, ['itemCode', 'description', 'consumption', 'unit', 'price', 'loss'], bomFlags),
-    routingFindings: compareRows(reference.routing, current.routing, routingKey, ['sequence', 'processName', 'workCenterId', 'manning', 'capacity', 'yield'], routingFlags),
-    workCenterFindings: compareRows(reference.rates, current.rates, rateKey, ['workCenterCode', 'description', 'laborRate', 'burdenRate', 'effectiveDate'], rateFlags),
+    bomFindings: compareRows(reference.bom, current.bom, bomKey, bomFlags),
+    routingFindings: compareRows(reference.routing, current.routing, routingKey, routingFlags),
+    workCenterFindings: compareRows(reference.rates, current.rates, rateKey, rateFlags),
     warnings
   }
 }
