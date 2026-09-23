@@ -10,7 +10,13 @@ import {
   SnapshotImportResult,
   ProductSession,
   ProductSizingConfig,
+  ComparisonRole,
+  CostSnapshot,
   SnapshotPair,
+  SnapshotBOMItem,
+  SnapshotRoutingStep,
+  SnapshotWorkCenterRate,
+  FieldEvidence,
   CostComparison,
   DriverRcaDraft,
   DriverRcaRecord,
@@ -20,6 +26,7 @@ import {
   sessionToSnapshotPair,
   applySnapshotPairToSession,
   updateCurrentSnapshotFromLegacySession,
+  getFieldConfidence,
   createDriverRcaRecord
 } from '../core'
 import { STORAGE_KEYS, loadFromSession, saveToSession } from '../services'
@@ -51,6 +58,21 @@ function withSnapshotPair(session: ProductSession, explicitPair?: SnapshotPair):
     ...session,
     snapshotPair: sessionToSnapshotPair(session),
     snapshotPairMode: 'derived'
+  }
+}
+
+function isMissingValue(value: unknown): boolean {
+  return value === null || value === undefined || value === ''
+}
+
+function workingEvidence(value: unknown, sourceRef: string | undefined, previous?: FieldEvidence): FieldEvidence {
+  return {
+    status: getFieldConfidence(value, sourceRef),
+    quality: isMissingValue(value) ? 'missing' : 'valid',
+    sourceRef: sourceRef || undefined,
+    basis: 'Master Data working value',
+    sourceValue: previous?.sourceValue ?? value,
+    workingValue: value
   }
 }
 
@@ -158,6 +180,8 @@ interface AppContextType {
   rcaRecords: Record<string, DriverRcaRecord>
   snapshotPair: SnapshotPair
   snapshotComparison: CostComparison
+  masterDataRole: ComparisonRole
+  masterDataSnapshot: CostSnapshot
   activeTab: 'master' | 'breakdown' | 'candidate' | 'rca'
   uomList: string[]
 
@@ -175,6 +199,20 @@ interface AppContextType {
   // 3-State Versioning controls
   cloneActiveToDraft: (sourceId?: string) => void
   activateDraft: (draftId: string) => void
+
+  // Master Data dataset controls
+  setMasterDataRole: (role: ComparisonRole) => void
+  cloneReferenceToCurrent: () => void
+  updateMasterDataProduct: (product: ProductMaster) => void
+  addMasterDataBOMItem: (item: Omit<SnapshotBOMItem, 'id' | 'confidence'>) => void
+  updateMasterDataBOMItem: (id: string, item: Partial<Omit<SnapshotBOMItem, 'id' | 'confidence'>>) => void
+  deleteMasterDataBOMItem: (id: string) => void
+  addMasterDataRoutingStep: (step: Omit<SnapshotRoutingStep, 'id' | 'confidence'>) => void
+  updateMasterDataRoutingStep: (id: string, step: Partial<Omit<SnapshotRoutingStep, 'id' | 'confidence'>>) => void
+  deleteMasterDataRoutingStep: (id: string) => void
+  addMasterDataWorkCenterRate: (rate: Omit<SnapshotWorkCenterRate, 'id' | 'confidence'>) => void
+  updateMasterDataWorkCenterRate: (id: string, rate: Partial<Omit<SnapshotWorkCenterRate, 'id' | 'confidence'>>) => void
+  deleteMasterDataWorkCenterRate: (id: string) => void
 
   // Active-product CRUD
   updateProduct: (p: ProductMaster) => void
@@ -211,6 +249,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const loaded = loadFromSession<ProductSession[]>(STORAGE_KEYS.SESSIONS, [makeSeedSession()])
     return loaded.map((s, idx) => withSnapshotPair({
       ...s,
+      masterDataRole: s.masterDataRole ?? 'current',
       status: s.status || (idx === 0 ? 'active' : 'draft'),
       versionLabel: s.versionLabel || (s.status === 'archived' ? 'Archived' : s.status === 'draft' ? 'Draft' : 'Active')
     }))
@@ -266,6 +305,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const rcaRecords = activeSession.rcaRecords ?? {}
   const snapshotPair = activeSession.snapshotPair ?? sessionToSnapshotPair(activeSession)
   const snapshotComparison = compareSnapshots(snapshotPair.reference, snapshotPair.current)
+  const masterDataRole = activeSession.masterDataRole ?? 'current'
+  const masterDataSnapshot = masterDataRole === 'reference' ? snapshotPair.reference : snapshotPair.current
 
   // Product Session Actions
   const createProductWithSizing = (config: ProductSizingConfig) => {
@@ -456,6 +497,198 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     })
   }
 
+  const setMasterDataRole = (role: ComparisonRole) => {
+    setProductSessions(prev => prev.map(session => session.id === activeSession.id
+      ? { ...session, masterDataRole: role }
+      : session))
+  }
+
+  const updateMasterDataDataset = (mutate: (snapshot: CostSnapshot) => CostSnapshot) => {
+    if (activeSession.status !== 'draft') return
+    setProductSessions(prev => prev.map(session => {
+      if (session.id !== activeSession.id) return session
+      const role = session.masterDataRole ?? 'current'
+      const pair = session.snapshotPair ?? sessionToSnapshotPair(session)
+      const dataset = role === 'reference' ? pair.reference : pair.current
+      const nextDataset = mutate(dataset)
+      const nextPair = role === 'reference'
+        ? { reference: { ...nextDataset, comparisonRole: 'reference' as const }, current: pair.current }
+        : { reference: pair.reference, current: { ...nextDataset, comparisonRole: 'current' as const } }
+      return applySnapshotPairToSession({
+        ...session,
+        masterDataRole: role,
+        status: 'draft',
+        versionLabel: session.versionLabel || `Draft (${role === 'reference' ? 'Reference' : 'Current'})`,
+        updatedAt: new Date().toISOString()
+      }, nextPair)
+    }))
+  }
+
+  const setMasterDataProduct = (session: ProductSession, pair: SnapshotPair, nextProduct: ProductMaster): ProductSession =>
+    applySnapshotPairToSession({
+      ...session,
+      masterDataRole: session.masterDataRole ?? 'current',
+      status: 'draft',
+      versionLabel: session.versionLabel || 'Draft',
+      updatedAt: new Date().toISOString()
+    }, {
+      reference: { ...pair.reference, product: { ...nextProduct } },
+      current: { ...pair.current, product: { ...nextProduct } }
+    })
+
+  const updateMasterDataProduct = (nextProduct: ProductMaster) => {
+    if (activeSession.status !== 'draft') return
+    setProductSessions(prev => prev.map(session => {
+      if (session.id !== activeSession.id) return session
+      return setMasterDataProduct(session, session.snapshotPair ?? sessionToSnapshotPair(session), nextProduct)
+    }))
+  }
+
+  const cloneReferenceToCurrent = () => {
+    if (activeSession.status !== 'draft') return
+    setProductSessions(prev => prev.map(session => {
+      if (session.id !== activeSession.id) return session
+      const pair = session.snapshotPair ?? sessionToSnapshotPair(session)
+      const reference = pair.reference
+      const current: CostSnapshot = {
+        ...reference,
+        id: `${reference.id}:current`,
+        comparisonRole: 'current',
+        status: 'draft',
+        sourceRef: `Cloned from Reference: ${reference.sourceRef}`,
+        product: { ...reference.product },
+        rates: reference.rates.map(rate => ({ ...rate, confidence: { ...rate.confidence } })),
+        bom: reference.bom.map(item => ({ ...item, confidence: { ...item.confidence } })),
+        routing: reference.routing.map(step => ({ ...step, confidence: { ...step.confidence } })),
+        warnings: [...(reference.warnings ?? [])]
+      }
+      return applySnapshotPairToSession({
+        ...session,
+        masterDataRole: 'current',
+        status: 'draft',
+        versionLabel: session.versionLabel || 'Draft (Reference cloned to Current)',
+        updatedAt: new Date().toISOString()
+      }, { reference, current })
+    }))
+  }
+
+  const addMasterDataBOMItem = (item: Omit<SnapshotBOMItem, 'id' | 'confidence'>) => {
+    updateMasterDataDataset(dataset => {
+      const sourceRef = item.sourceRef || dataset.sourceRef
+      const newItem: SnapshotBOMItem = {
+        ...item,
+        id: `bom-${Date.now()}`,
+        sourceRef,
+        confidence: {
+          consumption: workingEvidence(item.consumption, sourceRef),
+          price: workingEvidence(item.price, sourceRef),
+          loss: workingEvidence(item.loss, sourceRef)
+        }
+      }
+      return { ...dataset, bom: [...dataset.bom, newItem] }
+    })
+  }
+
+  const updateMasterDataBOMItem = (id: string, changes: Partial<Omit<SnapshotBOMItem, 'id' | 'confidence'>>) => {
+    updateMasterDataDataset(dataset => ({
+      ...dataset,
+      bom: dataset.bom.map(item => {
+        if (item.id !== id) return item
+        const next = { ...item, ...changes }
+        const sourceRef = next.sourceRef || dataset.sourceRef
+        const confidence = { ...item.confidence }
+        ;(['consumption', 'price', 'loss'] as const).forEach(field => {
+          if (Object.prototype.hasOwnProperty.call(changes, field)) {
+            confidence[field] = workingEvidence(next[field], sourceRef, item.confidence[field])
+          }
+        })
+        return { ...next, sourceRef, confidence }
+      })
+    }))
+  }
+
+  const deleteMasterDataBOMItem = (id: string) => {
+    updateMasterDataDataset(dataset => ({ ...dataset, bom: dataset.bom.filter(item => item.id !== id) }))
+  }
+
+  const addMasterDataRoutingStep = (step: Omit<SnapshotRoutingStep, 'id' | 'confidence'>) => {
+    updateMasterDataDataset(dataset => {
+      const sourceRef = step.sourceRef || dataset.sourceRef
+      const newStep: SnapshotRoutingStep = {
+        ...step,
+        id: `routing-${Date.now()}`,
+        sourceRef,
+        confidence: {
+          sequence: workingEvidence(step.sequence, sourceRef),
+          manning: workingEvidence(step.manning, sourceRef),
+          capacity: workingEvidence(step.capacity, sourceRef),
+          yield: workingEvidence(step.yield, sourceRef)
+        }
+      }
+      return { ...dataset, routing: [...dataset.routing, newStep] }
+    })
+  }
+
+  const updateMasterDataRoutingStep = (id: string, changes: Partial<Omit<SnapshotRoutingStep, 'id' | 'confidence'>>) => {
+    updateMasterDataDataset(dataset => ({
+      ...dataset,
+      routing: dataset.routing.map(step => {
+        if (step.id !== id) return step
+        const next = { ...step, ...changes }
+        const sourceRef = next.sourceRef || dataset.sourceRef
+        const confidence = { ...step.confidence }
+        ;(['sequence', 'manning', 'capacity', 'yield'] as const).forEach(field => {
+          if (Object.prototype.hasOwnProperty.call(changes, field)) {
+            confidence[field] = workingEvidence(next[field], sourceRef, step.confidence[field])
+          }
+        })
+        return { ...next, sourceRef, confidence }
+      })
+    }))
+  }
+
+  const deleteMasterDataRoutingStep = (id: string) => {
+    updateMasterDataDataset(dataset => ({ ...dataset, routing: dataset.routing.filter(step => step.id !== id) }))
+  }
+
+  const addMasterDataWorkCenterRate = (rate: Omit<SnapshotWorkCenterRate, 'id' | 'confidence'>) => {
+    updateMasterDataDataset(dataset => {
+      const sourceRef = rate.sourceRef || dataset.sourceRef
+      const newRate: SnapshotWorkCenterRate = {
+        ...rate,
+        id: `rate-${Date.now()}`,
+        sourceRef,
+        confidence: {
+          laborRate: workingEvidence(rate.laborRate, sourceRef),
+          burdenRate: workingEvidence(rate.burdenRate, sourceRef)
+        }
+      }
+      return { ...dataset, rates: [...dataset.rates, newRate] }
+    })
+  }
+
+  const updateMasterDataWorkCenterRate = (id: string, changes: Partial<Omit<SnapshotWorkCenterRate, 'id' | 'confidence'>>) => {
+    updateMasterDataDataset(dataset => ({
+      ...dataset,
+      rates: dataset.rates.map(rate => {
+        if (rate.id !== id) return rate
+        const next = { ...rate, ...changes }
+        const sourceRef = next.sourceRef || dataset.sourceRef
+        const confidence = { ...rate.confidence }
+        ;(['laborRate', 'burdenRate'] as const).forEach(field => {
+          if (Object.prototype.hasOwnProperty.call(changes, field)) {
+            confidence[field] = workingEvidence(next[field], sourceRef, rate.confidence[field])
+          }
+        })
+        return { ...next, sourceRef, confidence }
+      })
+    }))
+  }
+
+  const deleteMasterDataWorkCenterRate = (id: string) => {
+    updateMasterDataDataset(dataset => ({ ...dataset, rates: dataset.rates.filter(rate => rate.id !== id) }))
+  }
+
   // Active-product CRUD
   const updateProduct = (p: ProductMaster) => patchActive({ product: p })
 
@@ -609,6 +842,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       const updated = applySnapshotPairToSession(
         {
           ...source,
+          masterDataRole: result.role,
           status: 'draft',
           versionLabel: `Draft (Imported ${roleLabel})`,
           updatedAt: now
@@ -624,6 +858,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       {
         ...source,
         id: `ps-draft-snapshot-${Date.now()}`,
+        masterDataRole: result.role,
         savedDrivers: [],
         selectedDriverKeys: [],
         rcaRecords: {},
@@ -685,6 +920,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       rcaRecords,
       snapshotPair,
       snapshotComparison,
+      masterDataRole,
+      masterDataSnapshot,
       activeTab,
       uomList,
       setActiveTab,
@@ -696,6 +933,18 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       addUOM,
       cloneActiveToDraft,
       activateDraft,
+      setMasterDataRole,
+      cloneReferenceToCurrent,
+      updateMasterDataProduct,
+      addMasterDataBOMItem,
+      updateMasterDataBOMItem,
+      deleteMasterDataBOMItem,
+      addMasterDataRoutingStep,
+      updateMasterDataRoutingStep,
+      deleteMasterDataRoutingStep,
+      addMasterDataWorkCenterRate,
+      updateMasterDataWorkCenterRate,
+      deleteMasterDataWorkCenterRate,
       updateProduct,
       addBOMItem,
       updateBOMItem,
