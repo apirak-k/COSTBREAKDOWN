@@ -4,6 +4,7 @@ import {
   parseSnapshotExcelInputFile,
   parseSnapshotWorkbookData
 } from '../src/services/excel/snapshot-parser'
+import { generateDynamicExcelTemplate } from '../src/services/excel/dynamic-excel-generator'
 
 function sheet(rows: (string | number | null)[][]): XLSX.WorkSheet {
   return XLSX.utils.aoa_to_sheet(rows)
@@ -60,6 +61,38 @@ assert.equal(result.snapshot?.bom[1].price, null)
 assert.equal(result.snapshot?.bom[1].confidence.price.status, 'missing')
 assert.equal(result.snapshot?.routing[0].workCenterId, 'WC-1')
 assert.ok(result.warnings.some(warning => warning.includes('burdenRate')))
+
+async function verifyCanonicalTemplate(): Promise<void> {
+  assert.ok(result.snapshot)
+  const template = await generateDynamicExcelTemplate({
+    product: result.snapshot.product,
+    snapshot: result.snapshot,
+    wcCount: 2,
+    bomCount: 2,
+    routingCount: 1
+  })
+  const templateBytes = await template.arrayBuffer()
+  const templateWorkbook = XLSX.read(templateBytes, { type: 'array' })
+  assert.deepEqual(
+    templateWorkbook.SheetNames.filter(name => ['META', 'PRODUCT', 'WORK_CENTER', 'BOM', 'ROUTING'].includes(name)),
+    ['META', 'PRODUCT', 'WORK_CENTER', 'BOM', 'ROUTING']
+  )
+  const templateValues = templateWorkbook.SheetNames.flatMap(name => {
+    const sheetValues = XLSX.utils.sheet_to_json(templateWorkbook.Sheets[name], { header: 1, defval: null }) as unknown[][]
+    return sheetValues.flat().map(value => String(value ?? ''))
+  })
+  assert.equal(templateValues.includes('Base Price P0'), false)
+  assert.equal(templateValues.includes('Active Price P1'), false)
+  assert.equal(templateValues.includes('Base Cap (pc/hr)'), false)
+  assert.equal(templateValues.includes('Active Cap (pc/hr)'), false)
+
+  const roundTrip = parseSnapshotWorkbookData(templateBytes, 'reference', 'P-001')
+  assert.equal(roundTrip.success, true)
+  assert.equal(roundTrip.format, 'canonical')
+  assert.equal(roundTrip.snapshot?.rates.length, 2)
+  assert.equal(roundTrip.snapshot?.bom.length, 2)
+  assert.equal(roundTrip.snapshot?.routing.length, 1)
+}
 
 const invalidWorkbook = XLSX.utils.book_new()
 XLSX.utils.book_append_sheet(invalidWorkbook, sheet([
@@ -125,7 +158,8 @@ async function verifyLegacyAdapter(): Promise<void> {
   assert.ok(legacyResult.warnings?.some(warning => warning.includes('legacy paired')))
 }
 
-verifyLegacyAdapter()
+verifyCanonicalTemplate()
+  .then(() => verifyLegacyAdapter())
   .then(() => console.log('Snapshot import self-check: PASS'))
   .catch(error => {
     console.error(error)

@@ -1,22 +1,28 @@
 import ExcelJS from 'exceljs'
-import { DynamicTemplateOptions } from '../../core'
+import {
+  CostSnapshot,
+  DynamicTemplateOptions,
+  SnapshotBOMItem,
+  SnapshotRoutingStep,
+  SnapshotWorkCenterRate,
+  WorkCenterRate
+} from '../../core'
 
-// --- PALETTE TOKENS ---
-const COLOR_DARK_NAVY = 'FF1E293B' // #1E293B Active Headers
-const COLOR_BORDER = 'FFE2E8F0' // #E2E8F0 Gridlines
-const COLOR_WHITE = 'FFFFFFFF' // Pure White
-const COLOR_SOFT_YELLOW = 'FFFEF9C3' // #FEF9C3 Input Fill
-const COLOR_TOTAL_ROW = 'FFF1F5F9' // #F1F5F9 Total Row
+const COLOR_DARK_NAVY = 'FF1E293B'
+const COLOR_BORDER = 'FFE2E8F0'
+const COLOR_WHITE = 'FFFFFFFF'
+const COLOR_SOFT_YELLOW = 'FFFEF9C3'
+const COLOR_SOFT_BLUE = 'FFE0F2FE'
 
 const fontTitle = { name: 'Calibri', size: 14, bold: true, color: { argb: COLOR_DARK_NAVY } }
 const fontSection = { name: 'Calibri', size: 11, bold: true, color: { argb: COLOR_DARK_NAVY } }
 const fontHeader = { name: 'Calibri', size: 10, bold: true, color: { argb: COLOR_WHITE } }
-const fontData = { name: 'Calibri', size: 10, bold: false, color: { argb: 'FF0F172A' } }
-const fontDataBold = { name: 'Calibri', size: 10, bold: true, color: { argb: 'FF0F172A' } }
+const fontData = { name: 'Calibri', size: 10, color: { argb: 'FF0F172A' } }
+const fontHint = { name: 'Calibri', size: 10, italic: true, color: { argb: 'FF475569' } }
 
 const fillHeader = { type: 'pattern' as const, pattern: 'solid' as const, fgColor: { argb: COLOR_DARK_NAVY } }
-const fillYellow = { type: 'pattern' as const, pattern: 'solid' as const, fgColor: { argb: COLOR_SOFT_YELLOW } }
-const fillTotal = { type: 'pattern' as const, pattern: 'solid' as const, fgColor: { argb: COLOR_TOTAL_ROW } }
+const fillInput = { type: 'pattern' as const, pattern: 'solid' as const, fgColor: { argb: COLOR_SOFT_YELLOW } }
+const fillHint = { type: 'pattern' as const, pattern: 'solid' as const, fgColor: { argb: COLOR_SOFT_BLUE } }
 
 const borderThin = {
   top: { style: 'thin' as const, color: { argb: COLOR_BORDER } },
@@ -25,344 +31,232 @@ const borderThin = {
   right: { style: 'thin' as const, color: { argb: COLOR_BORDER } }
 }
 
-function styleHeaderRow(row: ExcelJS.Row, colsCount: number) {
-  for (let c = 1; c <= colsCount; c++) {
-    const cell = row.getCell(c)
+function styleHeaderRow(row: ExcelJS.Row, columns: number): void {
+  for (let column = 1; column <= columns; column += 1) {
+    const cell = row.getCell(column)
     cell.fill = fillHeader
     cell.font = fontHeader
-    cell.alignment = { vertical: 'middle', horizontal: 'center', wrapText: false }
+    cell.alignment = { vertical: 'middle', horizontal: 'center', wrapText: true }
     cell.border = borderThin
   }
 }
 
+function styleInputRow(row: ExcelJS.Row, columns: number, numericColumns: number[] = []): void {
+  for (let column = 1; column <= columns; column += 1) {
+    const cell = row.getCell(column)
+    cell.fill = fillInput
+    cell.font = fontData
+    cell.border = borderThin
+    if (numericColumns.includes(column)) cell.numFmt = '#,##0.0000'
+  }
+}
+
+function writeKeyValueSheet(sheet: ExcelJS.Worksheet, values: Array<[string, string]>): void {
+  sheet.columns = [{ width: 24 }, { width: 56 }]
+  sheet.getCell('A1').value = 'MASTER DATA DATASET TEMPLATE'
+  sheet.getCell('A1').font = fontTitle
+  sheet.mergeCells('A1:B1')
+  sheet.getRow(3).values = ['Key', 'Value']
+  styleHeaderRow(sheet.getRow(3), 2)
+  values.forEach(([key, value], index) => {
+    const row = sheet.getRow(index + 4)
+    row.values = [key, value]
+    styleInputRow(row, 2)
+    row.getCell(1).font = { ...fontData, bold: true }
+  })
+  sheet.views = [{ state: 'frozen', ySplit: 3 }]
+}
+
+function sourceFor(snapshot: CostSnapshot | undefined, fallback: string | undefined): string {
+  return snapshot?.sourceRef || fallback || ''
+}
+
+function snapshotOrLegacyRate(
+  snapshotRate: SnapshotWorkCenterRate | undefined,
+  legacyRate: WorkCenterRate | undefined,
+  index: number
+): [string, string, number | null, number | null, string, string] {
+  return [
+    snapshotRate?.id || legacyRate?.wc || `WC-${String(index + 1).padStart(2, '0')}`,
+    snapshotRate?.workCenterCode || legacyRate?.wc || '',
+    snapshotRate?.laborRate ?? legacyRate?.laborRate ?? null,
+    snapshotRate?.burdenRate ?? legacyRate?.burdenRate ?? null,
+    snapshotRate?.effectiveDate || legacyRate?.effectiveDate || '',
+    snapshotRate?.sourceRef || legacyRate?.sourceRef || ''
+  ]
+}
+
+function writeInstructions(sheet: ExcelJS.Worksheet): void {
+  sheet.columns = [{ width: 22 }, { width: 92 }]
+  sheet.getCell('A1').value = 'HOW TO USE THIS MASTER DATA TEMPLATE'
+  sheet.getCell('A1').font = fontTitle
+  sheet.mergeCells('A1:B1')
+  const rows: Array<[string, string]> = [
+    ['Scope', 'One workbook represents one Product and one Dataset. Select Reference or Current in the web page before importing.'],
+    ['Product', 'Keep exactly one data row in PRODUCT. Product Code must match the Product selected in the page.'],
+    ['Rows', 'Add or remove data rows as needed. Blank rows are ignored; do not create Base/Active columns.'],
+    ['Missing data', 'Leave unknown values blank. Do not replace unknown values with 0; the web app records Missing/Invalid and shows a warning.'],
+    ['Source', 'Enter the source file, system, or document in Source Ref so each value remains traceable.'],
+    ['Routing link', 'Every Routing Work Center Code should match a Work Center Code in WORK_CENTER.'],
+    ['Save', 'Import creates a Draft dataset. Review warnings, edit if needed, then activate from the web page.']
+  ]
+  rows.forEach(([label, text], index) => {
+    const row = sheet.getRow(index + 3)
+    row.values = [label, text]
+    row.getCell(1).font = { ...fontData, bold: true }
+    row.getCell(2).font = fontHint
+    for (let column = 1; column <= 2; column += 1) {
+      row.getCell(column).fill = fillHint
+      row.getCell(column).border = borderThin
+      row.getCell(column).alignment = { vertical: 'top', wrapText: true }
+    }
+    row.height = 32
+  })
+  sheet.views = [{ state: 'frozen', ySplit: 2 }]
+}
+
+function writeProductSheet(sheet: ExcelJS.Worksheet, product: DynamicTemplateOptions['product']): void {
+  sheet.columns = [{ width: 22 }, { width: 34 }, { width: 12 }, { width: 28 }, { width: 18 }]
+  sheet.getCell('A1').value = 'PRODUCT'
+  sheet.getCell('A1').font = fontTitle
+  sheet.mergeCells('A1:E1')
+  sheet.getCell('A3').value = 'Exactly one Product row is allowed.'
+  sheet.getCell('A3').font = fontSection
+  const headers = ['Product Code', 'Product Description', 'UOM', 'Customer / Application', 'Effective Date']
+  sheet.getRow(4).values = headers
+  styleHeaderRow(sheet.getRow(4), headers.length)
+  sheet.getRow(5).values = [product.productCode, product.productDescription, product.uom, product.customer, product.effectiveDate]
+  styleInputRow(sheet.getRow(5), headers.length)
+  sheet.autoFilter = 'A4:E5'
+  sheet.views = [{ state: 'frozen', ySplit: 4 }]
+}
+
+function writeWorkCenterSheet(
+  sheet: ExcelJS.Worksheet,
+  snapshot: CostSnapshot | undefined,
+  legacyRates: WorkCenterRate[],
+  count: number
+): void {
+  const headers = ['ID', 'Work Center Code', 'Description', 'Labor Rate', 'Burden Rate', 'Effective Date', 'Source Ref', 'Confidence']
+  sheet.columns = [
+    { width: 18 }, { width: 22 }, { width: 34 }, { width: 16 },
+    { width: 16 }, { width: 18 }, { width: 28 }, { width: 16 }
+  ]
+  sheet.getCell('A1').value = 'WORK_CENTER'
+  sheet.getCell('A1').font = fontTitle
+  sheet.mergeCells('A1:H1')
+  sheet.getCell('A3').value = 'Work Center rates for this Dataset'
+  sheet.getCell('A3').font = fontSection
+  sheet.getRow(4).values = headers
+  styleHeaderRow(sheet.getRow(4), headers.length)
+  for (let index = 0; index < count; index += 1) {
+    const current = snapshot?.rates[index]
+    const legacy = legacyRates[index]
+    const [id, code, laborRate, burdenRate, effectiveDate, sourceRef] = snapshotOrLegacyRate(current, legacy, index)
+    const row = sheet.getRow(index + 5)
+    row.values = [current ? id : legacy ? id : '', code, current?.description || legacy?.description || '', laborRate, burdenRate, effectiveDate, sourceRef, '']
+    styleInputRow(row, headers.length, [4, 5])
+  }
+  sheet.autoFilter = `A4:H${count + 4}`
+  sheet.views = [{ state: 'frozen', ySplit: 4 }]
+}
+
+function writeBOMSheet(sheet: ExcelJS.Worksheet, snapshot: CostSnapshot | undefined, count: number): void {
+  const headers = ['ID', 'Item Code', 'Description', 'Consumption', 'Unit', 'Price', 'Loss', 'Source Ref', 'Confidence']
+  sheet.columns = [
+    { width: 18 }, { width: 18 }, { width: 36 }, { width: 16 }, { width: 12 },
+    { width: 16 }, { width: 14 }, { width: 28 }, { width: 16 }
+  ]
+  sheet.getCell('A1').value = 'BOM'
+  sheet.getCell('A1').font = fontTitle
+  sheet.mergeCells('A1:I1')
+  sheet.getCell('A3').value = 'Material inputs for this Dataset'
+  sheet.getCell('A3').font = fontSection
+  sheet.getRow(4).values = headers
+  styleHeaderRow(sheet.getRow(4), headers.length)
+  for (let index = 0; index < count; index += 1) {
+    const item: SnapshotBOMItem | undefined = snapshot?.bom[index]
+    const row = sheet.getRow(index + 5)
+    row.values = item
+      ? [item.id, item.itemCode, item.description, item.consumption, item.unit, item.price, item.loss, item.sourceRef || '', '']
+      : ['', '', '', null, '', null, null, '', '']
+    styleInputRow(row, headers.length, [4, 6, 7])
+  }
+  sheet.autoFilter = `A4:I${count + 4}`
+  sheet.views = [{ state: 'frozen', ySplit: 4 }]
+}
+
+function writeRoutingSheet(sheet: ExcelJS.Worksheet, snapshot: CostSnapshot | undefined, count: number): void {
+  const headers = ['ID', 'Operation Code', 'Sequence', 'Process Code', 'Process Name', 'Work Center Code', 'Manning', 'Capacity', 'Yield', 'Source Ref', 'Confidence']
+  sheet.columns = [
+    { width: 18 }, { width: 18 }, { width: 12 }, { width: 16 }, { width: 32 },
+    { width: 22 }, { width: 14 }, { width: 14 }, { width: 14 }, { width: 28 }, { width: 16 }
+  ]
+  sheet.getCell('A1').value = 'ROUTING'
+  sheet.getCell('A1').font = fontTitle
+  sheet.mergeCells('A1:K1')
+  sheet.getCell('A3').value = 'Routing inputs linked to WORK_CENTER in this Dataset'
+  sheet.getCell('A3').font = fontSection
+  sheet.getRow(4).values = headers
+  styleHeaderRow(sheet.getRow(4), headers.length)
+  for (let index = 0; index < count; index += 1) {
+    const step: SnapshotRoutingStep | undefined = snapshot?.routing[index]
+    const row = sheet.getRow(index + 5)
+    row.values = step
+      ? [step.id, step.operationCode || '', step.sequence ?? null, step.processCode || '', step.processName, step.workCenterId || '', step.manning, step.capacity, step.yield, step.sourceRef || '', '']
+      : ['', '', null, '', '', '', null, null, null, '', '']
+    styleInputRow(row, headers.length, [3, 7, 8, 9])
+  }
+  sheet.autoFilter = `A4:K${count + 4}`
+  sheet.views = [{ state: 'frozen', ySplit: 4 }]
+}
+
+function writeAdditionalDataSheet(sheet: ExcelJS.Worksheet): void {
+  const headers = ['Key', 'Value', 'Source Ref', 'Notes']
+  sheet.columns = [{ width: 26 }, { width: 42 }, { width: 28 }, { width: 54 }]
+  sheet.getCell('A1').value = 'ADDITIONAL_DATA'
+  sheet.getCell('A1').font = fontTitle
+  sheet.mergeCells('A1:D1')
+  sheet.getCell('A3').value = 'Optional non-calculation fields; keep extra costing logic in Simulation/Calculation pages.'
+  sheet.getCell('A3').font = fontSection
+  sheet.getRow(4).values = headers
+  styleHeaderRow(sheet.getRow(4), headers.length)
+  for (let index = 0; index < 5; index += 1) {
+    const row = sheet.getRow(index + 5)
+    row.values = ['', '', '', '']
+    styleInputRow(row, headers.length)
+  }
+  sheet.autoFilter = 'A4:D9'
+  sheet.views = [{ state: 'frozen', ySplit: 4 }]
+}
+
 export async function generateDynamicExcelTemplate(options: DynamicTemplateOptions): Promise<Blob> {
-  const { product, wcCount, bomCount, routingCount, existingRates = [] } = options
-  const wb = new ExcelJS.Workbook()
-  wb.creator = 'Cost Breakdown Analysis Platform'
-  wb.created = new Date()
+  const { product, snapshot, existingRates = [] } = options
+  const count = (requested: number | undefined, actual: number, fallback: number): number =>
+    Math.max(1, requested ?? (actual || fallback))
+  const wcCount = count(options.wcCount, snapshot?.rates.length || existingRates.length, 4)
+  const bomCount = count(options.bomCount, snapshot?.bom.length || 0, 16)
+  const routingCount = count(options.routingCount, snapshot?.routing.length || 0, 10)
 
-  const numWC = Math.max(1, wcCount)
-  const numBOM = Math.max(1, bomCount)
-  const numRT = Math.max(1, routingCount)
+  const workbook = new ExcelJS.Workbook()
+  workbook.creator = 'Cost Breakdown Analysis Platform'
+  workbook.created = new Date()
 
-  // =========================================================================
-  // SHEET 1: 1_MASTER_RATES
-  // =========================================================================
-  const ws1 = wb.addWorksheet('1_MASTER_RATES', { views: [{ showGridLines: true }] })
-  ws1.columns = [{ width: 28 }, { width: 34 }, { width: 18 }, { width: 18 }, { width: 28 }]
+  writeInstructions(workbook.addWorksheet('INSTRUCTIONS', { views: [{ showGridLines: true }] }))
+  writeKeyValueSheet(workbook.addWorksheet('META', { views: [{ showGridLines: true }] }), [
+    ['Format Version', 'master-data-v1'],
+    ['Snapshot ID', snapshot?.id || `${product.productCode || 'PRODUCT'}-dataset`],
+    ['Status', 'draft'],
+    ['Effective Date', snapshot?.effectiveDate || product.effectiveDate || ''],
+    ['Source Ref', sourceFor(snapshot, '')],
+    ['Notes', '']
+  ])
+  writeProductSheet(workbook.addWorksheet('PRODUCT', { views: [{ showGridLines: true }] }), product)
+  writeWorkCenterSheet(workbook.addWorksheet('WORK_CENTER', { views: [{ showGridLines: true }] }), snapshot, existingRates, wcCount)
+  writeBOMSheet(workbook.addWorksheet('BOM', { views: [{ showGridLines: true }] }), snapshot, bomCount)
+  writeRoutingSheet(workbook.addWorksheet('ROUTING', { views: [{ showGridLines: true }] }), snapshot, routingCount)
+  writeAdditionalDataSheet(workbook.addWorksheet('ADDITIONAL_DATA', { views: [{ showGridLines: true }] }))
 
-  ws1.getCell('A1').value = '1. PRODUCT MASTER & WORK CENTER RATES'
-  ws1.getCell('A1').font = fontTitle
-
-  ws1.getCell('A3').value = 'SECTION A: PRODUCT MASTER'
-  ws1.getCell('A3').font = fontSection
-
-  const r4 = ws1.getRow(4)
-  r4.values = ['Product Code', 'Product Description', 'UOM', 'Customer / Application', 'Effective Date']
-  styleHeaderRow(r4, 5)
-
-  const r5 = ws1.getRow(5)
-  r5.getCell(1).value = product.productCode || 'PRODUCT-001'
-  r5.getCell(2).value = product.productDescription || ''
-  r5.getCell(3).value = product.uom || 'PC'
-  r5.getCell(4).value = product.customer || ''
-  r5.getCell(5).value = product.effectiveDate || new Date().toISOString().split('T')[0]
-  for (let c = 1; c <= 5; c++) {
-    const cell = r5.getCell(c)
-    cell.fill = fillYellow
-    cell.font = fontDataBold
-    cell.border = borderThin
-  }
-
-  ws1.getCell('A7').value = `SECTION B: WORK CENTER RATES (${numWC} WORK CENTERS)`
-  ws1.getCell('A7').font = fontSection
-
-  const r8 = ws1.getRow(8)
-  r8.values = ['Department (WC Name)', 'Line / Department Description', 'Labor Rate (THB/MHr)', 'Burden Rate (THB/MHr)', 'Source Reference']
-  styleHeaderRow(r8, 5)
-
-  const defaultDepts = ['Cutting', 'Printing-Digital RGOM', 'Assembly Digital RGOM', 'OQA-Digital']
-  for (let i = 0; i < numWC; i++) {
-    const rowNum = 9 + i
-    const row = ws1.getRow(rowNum)
-    const existing = existingRates[i]
-    const deptName = existing?.wc || defaultDepts[i] || `WorkCenter_${i + 1}`
-
-    row.getCell(1).value = deptName
-    row.getCell(2).value = existing?.description || deptName
-    row.getCell(3).value = existing ? existing.laborRate : 105.29
-    row.getCell(4).value = existing ? existing.burdenRate : 95.00
-    row.getCell(5).value = existing?.sourceRef || 'Cost Declare'
-
-    for (let c = 1; c <= 5; c++) {
-      const cell = row.getCell(c)
-      cell.fill = fillYellow
-      cell.font = c === 1 ? fontDataBold : fontData
-      cell.border = borderThin
-      if (c === 3 || c === 4) cell.numFmt = '#,##0.00'
-    }
-  }
-
-  // =========================================================================
-  // SHEET 2: 2_BOM_BREAKDOWN
-  // =========================================================================
-  const ws2 = wb.addWorksheet('2_BOM_BREAKDOWN', { views: [{ showGridLines: true }] })
-  ws2.columns = [
-    { width: 8 }, { width: 16 }, { width: 34 }, { width: 14 }, { width: 8 },
-    { width: 14 }, { width: 14 }, { width: 13 }, { width: 13 }, { width: 22 }
-  ]
-
-  ws2.getCell('A1').value = '2. DIRECT MATERIAL BREAKDOWN (BOM)'
-  ws2.getCell('A1').font = fontTitle
-
-  ws2.getCell('A3').value = `TABLE 1: BOM INPUT PARAMETERS (${numBOM} ITEMS)`
-  ws2.getCell('A3').font = fontSection
-
-  const r4_2 = ws2.getRow(4)
-  r4_2.values = ['No', 'Item Code', 'Material Description', 'Usage (Q)', 'Unit', 'Base Price P0', 'Active Price P1', 'Base Loss L0', 'Active Loss L1', 'Source Reference']
-  styleHeaderRow(r4_2, 10)
-
-  const inputStart = 5
-  const inputEnd = 4 + numBOM
-
-  for (let i = 0; i < numBOM; i++) {
-    const rowNum = inputStart + i
-    const row = ws2.getRow(rowNum)
-    row.getCell(1).value = i + 1
-    row.getCell(2).value = `RM-${String(i + 1).padStart(4, '0')}`
-    row.getCell(3).value = `Material Item ${i + 1}`
-    row.getCell(4).value = 0.01
-    row.getCell(5).value = 'PC'
-    row.getCell(6).value = 10.00
-    row.getCell(7).value = 10.00
-    row.getCell(8).value = 0.10
-    row.getCell(9).value = 0.10
-    row.getCell(10).value = 'Standard Price'
-
-    for (let c = 1; c <= 10; c++) {
-      const cell = row.getCell(c)
-      cell.fill = fillYellow
-      cell.font = fontData
-      cell.border = borderThin
-      if (c === 4) cell.numFmt = '0.0000'
-      if (c === 6 || c === 7) cell.numFmt = '#,##0.0000'
-      if (c === 8 || c === 9) cell.numFmt = '0.0%'
-    }
-  }
-
-  const calcStart = inputEnd + 4
-  const calcEnd = calcStart + numBOM - 1
-
-  ws2.getCell(`A${calcStart - 2}`).value = `TABLE 2: BOM CALCULATION ENGINE & LEVEL 3 VARIANCE`
-  ws2.getCell(`A${calcStart - 2}`).font = fontSection
-
-  const rCalcHeader = ws2.getRow(calcStart - 1)
-  rCalcHeader.values = ['No', 'Item Code', 'Material Description', 'Base Cost P0', 'Active Cost P1', 'Total Variance', 'Price Var (MPV)', 'Loss Var (MLV)', '% Contrib', 'Traceability']
-  styleHeaderRow(rCalcHeader, 10)
-
-  for (let i = 0; i < numBOM; i++) {
-    const calcRow = calcStart + i
-    const inRow = inputStart + i
-    const row = ws2.getRow(calcRow)
-
-    row.getCell(1).value = { formula: `IFERROR(IF(A${inRow}="","",A${inRow}),"")` }
-    row.getCell(2).value = { formula: `IFERROR(IF(B${inRow}="","",B${inRow}),"")` }
-    row.getCell(3).value = { formula: `IFERROR(IF(C${inRow}="","",C${inRow}),"")` }
-    row.getCell(4).value = { formula: `IFERROR(IF(OR(D${inRow}="",F${inRow}=""),"",D${inRow}*F${inRow}*(1+H${inRow})),0)` } // Base = Q * P0 * (1 + L0)
-    row.getCell(5).value = { formula: `IFERROR(IF(OR(D${inRow}="",G${inRow}=""),"",D${inRow}*G${inRow}*(1+I${inRow})),0)` } // Active = Q * P1 * (1 + L1)
-    row.getCell(6).value = { formula: `IFERROR(IF(OR(D${calcRow}="",E${calcRow}=""),"",E${calcRow}-D${calcRow}),0)` } // Variance = Active - Base
-    row.getCell(7).value = { formula: `IFERROR(IF(OR(D${inRow}="",F${inRow}="",G${inRow}=""),"",(G${inRow}-F${inRow})*D${inRow}*(1+I${inRow})),0)` } // MPV = (P1 - P0) * Q * (1 + L1)
-    row.getCell(8).value = { formula: `IFERROR(IF(OR(D${inRow}="",F${inRow}="",H${inRow}="",I${inRow}=""),"",(I${inRow}-H${inRow})*D${inRow}*F${inRow}),0)` } // MLV = (L1 - L0) * Q * P0
-    row.getCell(9).value = { formula: `IFERROR(IF(F$${calcEnd + 1}<>0, F${calcRow}/F$${calcEnd + 1}, 0),0)` }
-    row.getCell(10).value = { formula: `IFERROR(IF(J${inRow}="","",J${inRow}),"")` }
-
-    for (let c = 1; c <= 10; c++) {
-      const cell = row.getCell(c)
-      cell.font = fontData
-      cell.border = borderThin
-      if (c >= 4 && c <= 8) cell.numFmt = '#,##0.0000'
-      if (c === 9) cell.numFmt = '0.00%'
-    }
-  }
-
-  // BOM Total Row
-  const bomTotalRow = ws2.getRow(calcEnd + 1)
-  bomTotalRow.getCell(3).value = 'TOTAL DIRECT MATERIAL COST (C_M)'
-  bomTotalRow.getCell(4).value = { formula: `IFERROR(SUM(D${calcStart}:D${calcEnd}),0)` }
-  bomTotalRow.getCell(5).value = { formula: `IFERROR(SUM(E${calcStart}:E${calcEnd}),0)` }
-  bomTotalRow.getCell(6).value = { formula: `IFERROR(SUM(F${calcStart}:F${calcEnd}),0)` }
-  bomTotalRow.getCell(7).value = { formula: `IFERROR(SUM(G${calcStart}:G${calcEnd}),0)` }
-  bomTotalRow.getCell(8).value = { formula: `IFERROR(SUM(H${calcStart}:H${calcEnd}),0)` }
-  for (let c = 1; c <= 10; c++) {
-    const cell = bomTotalRow.getCell(c)
-    cell.fill = fillTotal
-    cell.font = fontDataBold
-    cell.border = borderThin
-    if (c >= 4 && c <= 8) cell.numFmt = '#,##0.0000'
-  }
-
-  // =========================================================================
-  // SHEET 3: 3_ROUTING_BREAKDOWN
-  // =========================================================================
-  const ws3 = wb.addWorksheet('3_ROUTING_BREAKDOWN', { views: [{ showGridLines: true }] })
-  ws3.columns = [
-    { width: 8 }, { width: 32 }, { width: 24 }, { width: 8 },
-    { width: 14 }, { width: 14 }, { width: 12 }, { width: 12 }, { width: 22 }
-  ]
-
-  ws3.getCell('A1').value = '3. CONVERSION PROCESS ROUTING BREAKDOWN'
-  ws3.getCell('A1').font = fontTitle
-
-  ws3.getCell('A3').value = `TABLE 1: ROUTING PROCESS INPUT (${numRT} STEPS)`
-  ws3.getCell('A3').font = fontSection
-
-  const r4_3 = ws3.getRow(4)
-  r4_3.values = ['Op Seq', 'Operation Description', 'Department (WC)', 'Manning', 'Base Cap (pc/hr)', 'Active Cap (pc/hr)', 'Base Yield', 'Active Yield', 'Source Reference']
-  styleHeaderRow(r4_3, 9)
-
-  const rtInStart = 5
-  const rtInEnd = 4 + numRT
-  const defaultWc = existingRates[0]?.wc || 'Cutting'
-
-  for (let i = 0; i < numRT; i++) {
-    const rowNum = rtInStart + i
-    const row = ws3.getRow(rowNum)
-    row.getCell(1).value = (i + 1) * 10
-    row.getCell(2).value = `Process Operation ${i + 1}`
-    row.getCell(3).value = defaultWc
-    row.getCell(4).value = 1.0
-    row.getCell(5).value = 1000
-    row.getCell(6).value = 1000
-    row.getCell(7).value = 0.98
-    row.getCell(8).value = 0.98
-    row.getCell(9).value = 'Standard Route'
-
-    for (let c = 1; c <= 9; c++) {
-      const cell = row.getCell(c)
-      cell.fill = fillYellow
-      cell.font = fontData
-      cell.border = borderThin
-      if (c === 4) cell.numFmt = '0.0'
-      if (c === 5 || c === 6) cell.numFmt = '#,##0'
-      if (c === 7 || c === 8) cell.numFmt = '0.0%'
-    }
-  }
-
-  const rtCalcStart = rtInEnd + 4
-  const rtCalcEnd = rtCalcStart + numRT - 1
-
-  ws3.getCell(`A${rtCalcStart - 2}`).value = 'TABLE 2: CONVERSION COST ENGINE (LABOR & BURDEN PER UNIT)'
-  ws3.getCell(`A${rtCalcStart - 2}`).font = fontSection
-
-  const rRtCalcHeader = ws3.getRow(rtCalcStart - 1)
-  rRtCalcHeader.values = ['Op Seq', 'Operation Description', 'Department', 'Base Labor', 'Active Labor', 'Base Burden', 'Active Burden', 'Total Conv Base', 'Total Conv Active', 'Net Variance']
-  styleHeaderRow(rRtCalcHeader, 10)
-
-  const ratesRange = `'1_MASTER_RATES'!$A$9:$D$${8 + numWC}`
-
-  for (let i = 0; i < numRT; i++) {
-    const calcRow = rtCalcStart + i
-    const inRow = rtInStart + i
-    const row = ws3.getRow(calcRow)
-
-    row.getCell(1).value = { formula: `IFERROR(IF(A${inRow}="","",A${inRow}),"")` }
-    row.getCell(2).value = { formula: `IFERROR(IF(B${inRow}="","",B${inRow}),"")` }
-    row.getCell(3).value = { formula: `IFERROR(IF(C${inRow}="","",C${inRow}),"")` }
-    row.getCell(4).value = { formula: `IFERROR(IF(OR(D${inRow}="",E${inRow}<=0,G${inRow}<=0),0,(D${inRow}/(E${inRow}*G${inRow}))*VLOOKUP(C${inRow},${ratesRange},3,FALSE)),0)` }
-    row.getCell(5).value = { formula: `IFERROR(IF(OR(D${inRow}="",F${inRow}<=0,H${inRow}<=0),0,(D${inRow}/(F${inRow}*H${inRow}))*VLOOKUP(C${inRow},${ratesRange},3,FALSE)),0)` }
-    row.getCell(6).value = { formula: `IFERROR(IF(OR(D${inRow}="",E${inRow}<=0,G${inRow}<=0),0,(D${inRow}/(E${inRow}*G${inRow}))*VLOOKUP(C${inRow},${ratesRange},4,FALSE)),0)` }
-    row.getCell(7).value = { formula: `IFERROR(IF(OR(D${inRow}="",F${inRow}<=0,H${inRow}<=0),0,(D${inRow}/(F${inRow}*H${inRow}))*VLOOKUP(C${inRow},${ratesRange},4,FALSE)),0)` }
-    row.getCell(8).value = { formula: `IFERROR(D${calcRow}+F${calcRow},0)` }
-    row.getCell(9).value = { formula: `IFERROR(E${calcRow}+G${calcRow},0)` }
-    row.getCell(10).value = { formula: `IFERROR(I${calcRow}-H${calcRow},0)` }
-
-    for (let c = 1; c <= 10; c++) {
-      const cell = row.getCell(c)
-      cell.font = fontData
-      cell.border = borderThin
-      if (c >= 4 && c <= 10) cell.numFmt = '#,##0.0000'
-    }
-  }
-
-  // Routing Total Row
-  const rtTotalRow = ws3.getRow(rtCalcEnd + 1)
-  rtTotalRow.getCell(2).value = 'TOTAL CONVERSION COST (C_L + C_B)'
-  rtTotalRow.getCell(4).value = { formula: `IFERROR(SUM(D${rtCalcStart}:D${rtCalcEnd}),0)` }
-  rtTotalRow.getCell(5).value = { formula: `IFERROR(SUM(E${rtCalcStart}:E${rtCalcEnd}),0)` }
-  rtTotalRow.getCell(6).value = { formula: `IFERROR(SUM(F${rtCalcStart}:F${rtCalcEnd}),0)` }
-  rtTotalRow.getCell(7).value = { formula: `IFERROR(SUM(G${rtCalcStart}:G${rtCalcEnd}),0)` }
-  rtTotalRow.getCell(8).value = { formula: `IFERROR(SUM(H${rtCalcStart}:H${rtCalcEnd}),0)` }
-  rtTotalRow.getCell(9).value = { formula: `IFERROR(SUM(I${rtCalcStart}:I${rtCalcEnd}),0)` }
-  rtTotalRow.getCell(10).value = { formula: `IFERROR(SUM(J${rtCalcStart}:J${rtCalcEnd}),0)` }
-  for (let c = 1; c <= 10; c++) {
-    const cell = rtTotalRow.getCell(c)
-    cell.fill = fillTotal
-    cell.font = fontDataBold
-    cell.border = borderThin
-    if (c >= 4 && c <= 10) cell.numFmt = '#,##0.0000'
-  }
-
-  // =========================================================================
-  // SHEET 4: 4_SUMMARY_&_COMPARISON
-  // =========================================================================
-  const ws4 = wb.addWorksheet('4_SUMMARY_&_COMPARISON', { views: [{ showGridLines: true }] })
-  ws4.columns = [
-    { width: 8 }, { width: 22 }, { width: 34 }, { width: 14 }, { width: 14 },
-    { width: 14 }, { width: 12 }, { width: 16 }, { width: 36 }
-  ]
-
-  ws4.getCell('A1').value = '4. EXECUTIVE COST SUMMARY & TOP 10 DRIVERS'
-  ws4.getCell('A1').font = fontTitle
-
-  const rSumH = ws4.getRow(4)
-  rSumH.values = ['Cost Element', 'Baseline Std Cost', 'Active Std Cost', 'Net Variance', '% Change']
-  styleHeaderRow(rSumH, 5)
-
-  // Direct Material Row
-  const rSumMat = ws4.getRow(5)
-  rSumMat.getCell(1).value = 'Direct Material (C_M)'
-  rSumMat.getCell(2).value = { formula: `IFERROR('2_BOM_BREAKDOWN'!D${calcEnd + 1},0)` }
-  rSumMat.getCell(3).value = { formula: `IFERROR('2_BOM_BREAKDOWN'!E${calcEnd + 1},0)` }
-  rSumMat.getCell(4).value = { formula: `IFERROR(C5-B5,0)` }
-  rSumMat.getCell(5).value = { formula: `IFERROR(IF(B5<>0, D5/B5, 0),0)` }
-
-  // Direct Labor Row
-  const rSumLab = ws4.getRow(6)
-  rSumLab.getCell(1).value = 'Direct Labor (C_L)'
-  rSumLab.getCell(2).value = { formula: `IFERROR('3_ROUTING_BREAKDOWN'!D${rtCalcEnd + 1},0)` }
-  rSumLab.getCell(3).value = { formula: `IFERROR('3_ROUTING_BREAKDOWN'!E${rtCalcEnd + 1},0)` }
-  rSumLab.getCell(4).value = { formula: `IFERROR(C6-B6,0)` }
-  rSumLab.getCell(5).value = { formula: `IFERROR(IF(B6<>0, D6/B6, 0),0)` }
-
-  // Burden Row
-  const rSumBurd = ws4.getRow(7)
-  rSumBurd.getCell(1).value = 'Manufacturing Burden (C_B)'
-  rSumBurd.getCell(2).value = { formula: `IFERROR('3_ROUTING_BREAKDOWN'!F${rtCalcEnd + 1},0)` }
-  rSumBurd.getCell(3).value = { formula: `IFERROR('3_ROUTING_BREAKDOWN'!G${rtCalcEnd + 1},0)` }
-  rSumBurd.getCell(4).value = { formula: `IFERROR(C7-B7,0)` }
-  rSumBurd.getCell(5).value = { formula: `IFERROR(IF(B7<>0, D7/B7, 0),0)` }
-
-  // Total Row
-  const rSumTot = ws4.getRow(8)
-  rSumTot.getCell(1).value = 'TOTAL STANDARD COST'
-  rSumTot.getCell(2).value = { formula: `IFERROR(SUM(B5:B7),0)` }
-  rSumTot.getCell(3).value = { formula: `IFERROR(SUM(C5:C7),0)` }
-  rSumTot.getCell(4).value = { formula: `IFERROR(C8-B8,0)` }
-  rSumTot.getCell(5).value = { formula: `IFERROR(IF(B8<>0, D8/B8, 0),0)` }
-
-  for (let r = 5; r <= 8; r++) {
-    const row = ws4.getRow(r)
-    const isTot = r === 8
-    for (let c = 1; c <= 5; c++) {
-      const cell = row.getCell(c)
-      cell.fill = isTot ? fillTotal : { type: 'pattern', pattern: 'solid', fgColor: { argb: COLOR_WHITE } }
-      cell.font = isTot ? fontDataBold : fontData
-      cell.border = borderThin
-      if (c >= 2 && c <= 4) cell.numFmt = '#,##0.0000'
-      if (c === 5) cell.numFmt = '0.00%'
-    }
-  }
-
-  const buffer = await wb.xlsx.writeBuffer()
+  const buffer = await workbook.xlsx.writeBuffer()
   return new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' })
 }

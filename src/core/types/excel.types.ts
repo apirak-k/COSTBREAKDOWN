@@ -28,8 +28,9 @@ export interface SnapshotImportOptions {
 
 export interface DynamicTemplateOptions {
   product: ProductMaster
-  wcCount: number
-  bomCount: number
-  routingCount: number
+  snapshot?: CostSnapshot
+  wcCount?: number
+  bomCount?: number
+  routingCount?: number
   existingRates?: WorkCenterRate[]
 }
