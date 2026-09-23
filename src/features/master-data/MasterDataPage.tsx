@@ -4,6 +4,7 @@ import { useAppStore } from '../../state'
 
 import { ProductMasterCard } from './components/ProductMasterCard'
 import { ExcelImportPanel } from './components/ExcelImportPanel'
+import { DatasetRoleSelector } from './components/DatasetRoleSelector'
 import { WorkCenterRatesTable } from './components/WorkCenterRatesTable'
 import { BOMTable } from './components/BOMTable'
 import { RoutingTable } from './components/RoutingTable'
@@ -42,6 +43,14 @@ export const MasterDataPage: React.FC = () => {
 
   return (
     <div className="space-y-6">
+      <DatasetRoleSelector
+        product={product}
+        snapshot={masterDataSnapshot}
+        status={activeSession.status}
+        role={masterDataRole}
+        onRoleChange={setMasterDataRole}
+      />
+
       <ProductMasterCard
         product={product}
         ratesCount={masterDataSnapshot.rates.length}
@@ -70,7 +79,6 @@ export const MasterDataPage: React.FC = () => {
         snapshot={masterDataSnapshot}
         importRole={masterDataRole}
         canEdit={canEdit}
-        onImportRoleChange={setMasterDataRole}
         onCloneReferenceToCurrent={cloneReferenceToCurrent}
       />
 

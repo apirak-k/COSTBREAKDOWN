@@ -9,7 +9,6 @@ interface ExcelImportPanelProps {
   snapshot: CostSnapshot
   importRole: ComparisonRole
   canEdit: boolean
-  onImportRoleChange: (role: ComparisonRole) => void
   onCloneReferenceToCurrent: () => void
 }
 
@@ -18,7 +17,6 @@ export const ExcelImportPanel: React.FC<ExcelImportPanelProps> = ({
   snapshot,
   importRole,
   canEdit,
-  onImportRoleChange,
   onCloneReferenceToCurrent
 }) => {
   const handleDownloadTemplate = async () => {
@@ -41,7 +39,7 @@ export const ExcelImportPanel: React.FC<ExcelImportPanelProps> = ({
             Dataset Import / Template
           </h2>
           <p className="text-[10px] text-slate-500 font-sans max-w-2xl">
-            One workbook is one Product and one Dataset. Choose the dataset role here; Product Code is checked against the Header Product during import.
+            One workbook is one Product and one Dataset. The selected dataset above controls where this workbook is imported; Product Code is checked against the Header Product.
           </p>
         </div>
 
@@ -55,25 +53,11 @@ export const ExcelImportPanel: React.FC<ExcelImportPanelProps> = ({
         </button>
       </div>
 
-      <div className="flex flex-wrap items-center gap-2">
-        <span id="excel-import-role-label" className="text-[10px] font-mono font-bold text-slate-700 uppercase tracking-tight">
-          Dataset role
+      <div className="flex flex-wrap items-center gap-2 border-y border-slate-200 py-2">
+        <span className="text-[10px] font-mono font-bold text-slate-500 uppercase tracking-tight">Selected dataset</span>
+        <span className="px-2 py-1 text-xs font-mono font-bold text-slate-900 bg-slate-100 border border-slate-300 rounded">
+          {importRole === 'reference' ? 'Reference' : 'Current'}
         </span>
-        <div className="inline-flex overflow-hidden rounded border border-slate-300 shadow-2xs" role="group" aria-labelledby="excel-import-role-label">
-          {(['reference', 'current'] as const).map((role, index) => (
-            <button
-              key={role}
-              type="button"
-              aria-pressed={importRole === role}
-              onClick={() => onImportRoleChange(role)}
-              className={`${index > 0 ? 'border-l border-slate-300 ' : ''}px-2.5 py-1 text-xs font-mono font-bold transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-800 focus-visible:ring-offset-1 ${
-                importRole === role ? 'bg-slate-800 text-white' : 'bg-white text-slate-600 hover:bg-slate-50'
-              }`}
-            >
-              {role === 'reference' ? 'Reference' : 'Current'}
-            </button>
-          ))}
-        </div>
         <span className="text-[10px] font-mono text-slate-500">Product: <strong className="text-slate-800">{product.productCode || '—'}</strong></span>
       </div>
 
