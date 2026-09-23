@@ -14,15 +14,24 @@ import { BOMDetailedTable } from './components/BOMDetailedTable'
 import { RoutingDetailedTable } from './components/RoutingDetailedTable'
 import { WorkCenterComparisonTable } from './components/WorkCenterComparisonTable'
 import { SnapshotComparisonCard } from './components/SnapshotComparisonCard'
+import { findingNeedsReview } from './components/comparison-view'
+import type { ComparisonViewMode } from './components/comparison-view'
 
 type SubTab = 'bom' | 'routing' | 'work-center'
 
 export const CostBreakdownPage: React.FC = () => {
   const { product, costBreakdown, snapshotComparison, snapshotPair, bom, routing, rates, masterDataHandoff, setActiveTab } = useAppStore()
   const [subTab, setSubTab] = useState<SubTab>('bom')
+  const [comparisonView, setComparisonView] = useState<ComparisonViewMode>('all')
   const [isDetailedExpanded, setIsDetailedExpanded] = useState(true)
   const [isExporting, setIsExporting] = useState(false)
   const [exportError, setExportError] = useState<string | null>(null)
+  const allFindings = [
+    ...snapshotComparison.bomFindings,
+    ...snapshotComparison.routingFindings,
+    ...snapshotComparison.workCenterFindings
+  ]
+  const changedFindingsCount = allFindings.filter(findingNeedsReview).length
 
   const handleExportComparison = async () => {
     setIsExporting(true)
@@ -86,6 +95,29 @@ export const CostBreakdownPage: React.FC = () => {
       {/* 2. Independent Reference vs Current comparison */}
       <SnapshotComparisonCard comparison={snapshotComparison} />
 
+      <section className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 px-3.5 py-3 bg-white border border-slate-300/80 shadow-2xs" aria-labelledby="comparison-view-title">
+        <div>
+          <h2 id="comparison-view-title" className="text-xs font-bold font-mono text-slate-800 uppercase tracking-tight">Comparison view</h2>
+          <p className="mt-0.5 text-[10px] text-slate-500 font-sans">All Data is the audit view; Changed Only keeps changed and reviewable rows visible.</p>
+        </div>
+        <div className="flex items-center gap-1 font-mono text-[11px]" role="group" aria-label="Comparison view">
+          {([
+            { mode: 'all' as const, label: 'All Data', count: allFindings.length },
+            { mode: 'changed' as const, label: 'Changed Only', count: changedFindingsCount }
+          ]).map(option => (
+            <button
+              key={option.mode}
+              type="button"
+              aria-pressed={comparisonView === option.mode}
+              onClick={() => setComparisonView(option.mode)}
+              className={`px-2.5 py-1.5 border transition-colors cursor-pointer ${comparisonView === option.mode ? 'bg-slate-900 text-white border-slate-900 font-bold' : 'bg-slate-50 text-slate-700 border-slate-300 hover:bg-slate-100'}`}
+            >
+              {option.label} <span className={comparisonView === option.mode ? 'text-slate-300' : 'text-slate-400'}>({option.count})</span>
+            </button>
+          ))}
+        </div>
+      </section>
+
       {/* 3. Variance Tree Decomposition */}
       <VarianceTreeCard costBreakdown={costBreakdown} />
 
@@ -102,7 +134,7 @@ export const CostBreakdownPage: React.FC = () => {
             ) : (
               <ChevronRight className="w-3.5 h-3.5 text-slate-500" />
             )}
-            <span>Itemized Cost Breakdown</span>
+            <span>Itemized Cost Breakdown · {comparisonView === 'all' ? 'All Data' : 'Changed Only'}</span>
           </button>
 
           {/* Sub-Tab Switcher */}
@@ -164,6 +196,7 @@ export const CostBreakdownPage: React.FC = () => {
                 bom={bom}
                 findings={snapshotComparison.bomFindings}
                 referenceItems={snapshotPair.reference.bom}
+                viewMode={comparisonView}
               />
             ) : subTab === 'routing' ? (
               <RoutingDetailedTable
@@ -171,12 +204,14 @@ export const CostBreakdownPage: React.FC = () => {
                 rates={rates}
                 findings={snapshotComparison.routingFindings}
                 referenceItems={snapshotPair.reference.routing}
+                viewMode={comparisonView}
               />
             ) : (
               <WorkCenterComparisonTable
                 referenceRates={snapshotPair.reference.rates}
                 currentRates={snapshotPair.current.rates}
                 findings={snapshotComparison.workCenterFindings}
+                viewMode={comparisonView}
               />
             )}
           </div>

@@ -11,12 +11,14 @@ import {
   getVarianceClass
 } from '../../../core'
 import { ConfidenceBadge } from '../../../shared/ui/ConfidenceBadge'
+import { ComparisonViewMode, isVisibleInComparisonView } from './comparison-view'
 
 interface RoutingDetailedTableProps {
   routing: RoutingStep[]
   rates: WorkCenterRate[]
   findings?: ComparisonFinding[]
   referenceItems?: SnapshotRoutingStep[]
+  viewMode?: ComparisonViewMode
 }
 
 export function getRoutingComparisonLabels(finding: ComparisonFinding): string[] {
@@ -40,8 +42,8 @@ function comparisonClass(label: string): string {
   return 'text-slate-700 bg-slate-100 border-slate-200'
 }
 
-export const RoutingDetailedTable: React.FC<RoutingDetailedTableProps> = ({ routing, rates, findings, referenceItems = [] }) => {
-  const { rows, totalBase, totalActive, totalVariance } = calculateRoutingDetailedRows(routing, rates)
+export const RoutingDetailedTable: React.FC<RoutingDetailedTableProps> = ({ routing, rates, findings, referenceItems = [], viewMode = 'all' }) => {
+  const { rows } = calculateRoutingDetailedRows(routing, rates)
   const showComparison = findings !== undefined
   const findingByCurrentId = new Map(
     (findings ?? [])
@@ -49,6 +51,11 @@ export const RoutingDetailedTable: React.FC<RoutingDetailedTableProps> = ({ rout
       .map(finding => [finding.currentId as string, finding])
   )
   const removedFindings = (findings ?? []).filter(finding => finding.matchStatus === 'removed')
+  const visibleRows = rows.filter(row => isVisibleInComparisonView(findingByCurrentId.get(row.id), viewMode))
+  const visibleRemovedFindings = removedFindings.filter(finding => isVisibleInComparisonView(finding, viewMode))
+  const totalBase = visibleRows.reduce((sum, row) => sum + row.baseTotal, 0)
+  const totalActive = visibleRows.reduce((sum, row) => sum + row.activeTotal, 0)
+  const totalVariance = visibleRows.reduce((sum, row) => sum + row.variance, 0)
   const referenceById = new Map(referenceItems.map(item => [item.id, item]))
 
   return (
@@ -73,7 +80,7 @@ export const RoutingDetailedTable: React.FC<RoutingDetailedTableProps> = ({ rout
           </tr>
         </thead>
         <tbody className="divide-y divide-slate-100 font-mono">
-          {rows.map(row => {
+          {visibleRows.map(row => {
             const finding = findingByCurrentId.get(row.id)
             const labels = finding ? getRoutingComparisonLabels(finding) : ['Review']
 
@@ -115,7 +122,14 @@ export const RoutingDetailedTable: React.FC<RoutingDetailedTableProps> = ({ rout
               </tr>
             )
           })}
-          {showComparison && removedFindings.map(finding => {
+          {showComparison && visibleRows.length === 0 && visibleRemovedFindings.length === 0 && (
+            <tr>
+              <td colSpan={13} className="p-6 text-center text-slate-400 font-sans italic">
+                No rows match this comparison view.
+              </td>
+            </tr>
+          )}
+          {showComparison && visibleRemovedFindings.map(finding => {
             const item = finding.referenceId ? referenceById.get(finding.referenceId) : undefined
             return (
               <tr key={`removed-${finding.referenceId ?? 'unknown'}`} className="bg-rose-50/60 text-xs">
@@ -131,7 +145,7 @@ export const RoutingDetailedTable: React.FC<RoutingDetailedTableProps> = ({ rout
         <tfoot>
           <tr className="bg-slate-100/90 border-t-2 border-slate-300/80 font-bold text-xs">
             <td colSpan={showComparison ? 10 : 8} className="p-2.5 text-right text-slate-700 uppercase tracking-wider text-[10px] font-sans">
-              Total Conversion Cost (THB/pc)
+              {viewMode === 'changed' ? 'Visible Changed Conversion (THB/pc)' : 'Total Conversion Cost (THB/pc)'}
             </td>
             <td className="p-2.5 text-right font-mono text-slate-800 tabular-nums">{formatNumber(totalBase, 4)}</td>
             <td className="p-2.5 text-right font-mono text-slate-900 tabular-nums">{formatNumber(totalActive, 4)}</td>

@@ -10,11 +10,13 @@ import {
   getVarianceClass
 } from '../../../core'
 import { ConfidenceBadge } from '../../../shared/ui/ConfidenceBadge'
+import { ComparisonViewMode, isVisibleInComparisonView } from './comparison-view'
 
 interface BOMDetailedTableProps {
   bom: BOMItem[]
   findings?: ComparisonFinding[]
   referenceItems?: SnapshotBOMItem[]
+  viewMode?: ComparisonViewMode
 }
 
 export function getBOMComparisonLabel(finding: ComparisonFinding): 'Matched' | 'Changed' | 'Added' | 'Removed' | 'Review' {
@@ -32,8 +34,8 @@ function comparisonClass(label: ReturnType<typeof getBOMComparisonLabel>): strin
   return 'text-slate-700 bg-slate-100 border-slate-200'
 }
 
-export const BOMDetailedTable: React.FC<BOMDetailedTableProps> = ({ bom, findings, referenceItems = [] }) => {
-  const { rows, totalBase, totalActive, totalVariance } = calculateBOMDetailedRows(bom)
+export const BOMDetailedTable: React.FC<BOMDetailedTableProps> = ({ bom, findings, referenceItems = [], viewMode = 'all' }) => {
+  const { rows } = calculateBOMDetailedRows(bom)
   const showComparison = findings !== undefined
   const findingByCurrentId = new Map(
     (findings ?? [])
@@ -41,6 +43,11 @@ export const BOMDetailedTable: React.FC<BOMDetailedTableProps> = ({ bom, finding
       .map(finding => [finding.currentId as string, finding])
   )
   const removedFindings = (findings ?? []).filter(finding => finding.matchStatus === 'removed')
+  const visibleRows = rows.filter(row => isVisibleInComparisonView(findingByCurrentId.get(row.id), viewMode))
+  const visibleRemovedFindings = removedFindings.filter(finding => isVisibleInComparisonView(finding, viewMode))
+  const totalBase = visibleRows.reduce((sum, row) => sum + row.baseCost, 0)
+  const totalActive = visibleRows.reduce((sum, row) => sum + row.activeCost, 0)
+  const totalVariance = visibleRows.reduce((sum, row) => sum + row.variance, 0)
   const referenceById = new Map(referenceItems.map(item => [item.id, item]))
 
   return (
@@ -66,7 +73,7 @@ export const BOMDetailedTable: React.FC<BOMDetailedTableProps> = ({ bom, finding
           </tr>
         </thead>
         <tbody className="divide-y divide-slate-100 font-mono">
-          {rows.map((row, idx) => {
+          {visibleRows.map((row, idx) => {
             const finding = findingByCurrentId.get(row.id)
             const label = finding ? getBOMComparisonLabel(finding) : 'Review'
 
@@ -103,7 +110,14 @@ export const BOMDetailedTable: React.FC<BOMDetailedTableProps> = ({ bom, finding
               </tr>
             )
           })}
-          {showComparison && removedFindings.map(finding => {
+          {showComparison && visibleRows.length === 0 && visibleRemovedFindings.length === 0 && (
+            <tr>
+              <td colSpan={14} className="p-6 text-center text-slate-400 font-sans italic">
+                No rows match this comparison view.
+              </td>
+            </tr>
+          )}
+          {showComparison && visibleRemovedFindings.map(finding => {
             const item = finding.referenceId ? referenceById.get(finding.referenceId) : undefined
             return (
               <tr key={`removed-${finding.referenceId ?? 'unknown'}`} className="bg-rose-50/60 text-xs">
@@ -119,7 +133,7 @@ export const BOMDetailedTable: React.FC<BOMDetailedTableProps> = ({ bom, finding
         <tfoot>
           <tr className="bg-slate-100/90 border-t-2 border-slate-300/80 font-bold text-xs">
             <td colSpan={showComparison ? 11 : 9} className="p-2.5 text-right text-slate-700 uppercase tracking-wider text-[10px] font-sans">
-              Total Direct Material (THB/pc)
+              {viewMode === 'changed' ? 'Visible Changed Material (THB/pc)' : 'Total Direct Material (THB/pc)'}
             </td>
             <td className="p-2.5 text-right font-mono text-slate-800 tabular-nums">{formatNumber(totalBase, 4)}</td>
             <td className="p-2.5 text-right font-mono text-slate-900 tabular-nums">{formatNumber(totalActive, 4)}</td>

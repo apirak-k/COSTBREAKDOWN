@@ -6,11 +6,13 @@ import {
   formatVariance
 } from '../../../core'
 import { ConfidenceBadge } from '../../../shared/ui/ConfidenceBadge'
+import { ComparisonViewMode, isVisibleInComparisonView } from './comparison-view'
 
 interface WorkCenterComparisonTableProps {
   referenceRates: SnapshotWorkCenterRate[]
   currentRates: SnapshotWorkCenterRate[]
   findings: ComparisonFinding[]
+  viewMode?: ComparisonViewMode
 }
 
 export function getWorkCenterComparisonLabel(finding: ComparisonFinding): 'Matched' | 'Changed Rate' | 'Added' | 'Removed' | 'Review' {
@@ -46,7 +48,8 @@ function gapClass(reference: number | null | undefined, current: number | null |
 export const WorkCenterComparisonTable: React.FC<WorkCenterComparisonTableProps> = ({
   referenceRates,
   currentRates,
-  findings
+  findings,
+  viewMode = 'all'
 }) => {
   const referenceById = new Map(referenceRates.map(rate => [rate.id, rate]))
   const findingByCurrentId = new Map(
@@ -72,6 +75,7 @@ export const WorkCenterComparisonTable: React.FC<WorkCenterComparisonTableProps>
         finding
       }))
   ]
+  const visibleRows = rows.filter(row => isVisibleInComparisonView(row.finding, viewMode))
 
   return (
     <div className="w-full overflow-x-auto">
@@ -99,7 +103,13 @@ export const WorkCenterComparisonTable: React.FC<WorkCenterComparisonTableProps>
                 No Work Center rates configured.
               </td>
             </tr>
-          ) : rows.map(row => {
+          ) : visibleRows.length === 0 ? (
+            <tr>
+              <td colSpan={11} className="p-6 text-center text-slate-400 font-sans italic">
+                No rows match this comparison view.
+              </td>
+            </tr>
+          ) : visibleRows.map(row => {
             const label = row.finding ? getWorkCenterComparisonLabel(row.finding) : 'Review'
             const workCenterCode = row.current?.workCenterCode ?? row.reference?.workCenterCode ?? 'Unknown'
             const description = row.current?.description ?? row.reference?.description ?? '—'
