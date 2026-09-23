@@ -4,6 +4,8 @@
 > **Starting point:** The current implementation documented in `PROJECT.md`  
 > **Intent:** Extend the working system incrementally. This is not a rewrite plan and does not authorize source-code changes by itself.
 
+> **Requirements authority:** Use [`docs/REQUIREMENTS_INDEX.md`](docs/REQUIREMENTS_INDEX.md) and the page specifications for current product behavior. This architecture keeps an Export boundary for future extension, but Export is deferred from the current page acceptance scope.
+
 ## 1. Overview & Problem Statement
 
 ### Current problem
@@ -47,7 +49,7 @@ flowchart LR
     Store --> Calc[Independent Snapshot Calculator]
     Calc --> Compare[Reference vs Current Comparison]
     Compare --> UI[Summary, Detail, Drivers, RCA UI]
-    Compare --> Export[Comparison and Snapshot Export]
+    Compare -. future .-> Export[Comparison and Snapshot Export]
     UI --> Draft[Draft or Trial Changes]
     Draft --> Store
 ```
@@ -58,6 +60,7 @@ flowchart LR
 
 - Read the current workbook format: `1_MASTER_RATES`, `2_BOM_BREAKDOWN`, and `3_ROUTING_BREAKDOWN`.
 - Accept both the current paired Base/Active layout and the future canonical snapshot layout.
+- Use the canonical one-Product snapshot layout for the normal Master Data download/import path. Legacy paired workbooks are compatibility inputs only and must not define the new Master Data contract.
 - Preserve source references and workbook metadata.
 - Convert missing or defaulted values into explicit confidence/warning information.
 - Never silently discard rows, duplicate keys, or ambiguous matches.
@@ -89,12 +92,12 @@ flowchart LR
 - Promote Draft to Active only through an explicit action and archive the previous Active version.
 - Preserve old sessions through a versioned storage migration.
 
-#### 6. UI and Export
+#### 6. UI and future Export boundary
 
 - Show the workflow as Reference/Before → Current/After → Difference.
 - Allow drill-down from total cost to BOM, Routing, and Work Center.
 - Display confidence and matching warnings next to the affected information.
-- Export snapshots and comparison results without writing back to the source Excel file.
+- A future export boundary may export snapshots and comparison results without writing back to the source Excel file. Export is not a current page acceptance requirement.
 
 ## 3. Machine-Readable Architecture Graph
 
@@ -282,15 +285,15 @@ Migration requirements:
 2. Split paired fields into Reference and Current snapshot rows.
 3. Preserve existing IDs where they are stable; mark generated/index-based IDs as migration-derived.
 4. Preserve `sourceRef` and attach confidence/basis to any value produced by a legacy default.
-5. Keep old Excel import working through the legacy adapter.
+5. Keep old Excel parsing available only through a compatibility adapter; the normal Master Data upload path uses the canonical one-Product dataset contract.
 6. Replace `promoteActiveToBaseline` with an explicit snapshot/reference action; never overwrite historical values in place.
 7. Keep the migration reversible until the new comparison path has passed parity checks.
 
 ## 6. Error Handling & Resilience
 
 - Missing or invalid input must produce a visible status, not an unlabelled zero or hidden default.
-- Estimated and Missing values remain non-blocking for navigation and calculation, as required by the project rules.
-- The calculation result must carry warnings or an `estimated`/`missing` status when a required input is unavailable.
+- Estimated, Missing, Invalid, and Warning values remain visible and reviewable; unaffected valid rows may continue to calculate, while affected results show `N/A`, `Missing`, `Invalid`, or `Need Review` instead of an invented number.
+- Aggregate calculation results must carry a visible review status when a required input is unavailable.
 - The exact policy for a missing Work Center rate or capacity is still pending and must be agreed before implementation; the current hard-coded fallback is not acceptable as a hidden behavior.
 - Duplicate keys, ambiguous matches, and conflicting source rows must produce `Need Review` findings.
 - Divide-by-zero and invalid numeric inputs must be handled by the existing safe-guard pattern and must not stop unrelated rows from calculating.
@@ -305,7 +308,7 @@ Migration requirements:
 - Changing one snapshot does not mutate the other snapshot.
 - Active data remains read-only; edits happen in Draft or Trial.
 - Adding, removing, reordering, or moving a Routing operation produces the correct matching status/flags.
-- Missing/Estimated inputs are visible and do not silently become verified numbers.
+- Missing/Invalid/Estimated inputs are visible and do not silently become verified numbers.
 - Work Center rate changes are traceable and not double-counted in operation findings.
 - Existing Draft/Active/Archived behavior remains intact after migration.
 - The build passes and a dedicated regression check covers calculation, matching, import, and lifecycle behavior.
@@ -325,7 +328,7 @@ Migration requirements:
 3. **Calculation core:** calculate snapshots independently and add parity tests before replacing current screens.
 4. **Comparison core:** add matching, change flags, exact gaps, Work Center diagnostics, and warnings.
 5. **Lifecycle migration:** prevent active mutation, support schema migration, and preserve Draft/Active/Archived behavior.
-6. **Excel validation/export:** add canonical mapping and comparison export while keeping legacy import compatibility.
+6. **Excel validation and future export boundary:** add canonical mapping while keeping legacy compatibility outside the normal Master Data upload path. Export remains deferred from the current page acceptance scope.
 7. **UI migration:** update summary, detailed tables, candidate selection, and navigation to the Reference/Current flow.
 8. **Trial/RCA migration:** isolate trials and require review before promotion.
 9. **Hardening:** run regression, build, data-quality, and formula-parity checks; document remaining limitations.
@@ -335,9 +338,9 @@ Migration requirements:
 - Should the UI labels be `Before/After` while internal contracts use `Reference/Current`?
 - What is the authoritative stable identity for a Routing operation in the real Excel source?
 - What exactly does MHr represent in each workbook variant?
-- What should the calculation display when a required Work Center rate is Missing while calculation must remain non-blocking?
+- Which unaffected calculations may continue when a required Work Center rate is Missing, while the affected result is shown as `N/A` or `Need Review` rather than using a fallback?
 - How should rate changes across effective dates be selected and compared?
-- Which workbook layout should become the canonical new import/export format after the real schema map is approved?
+- Which legacy workbook variants should remain compatibility-only after the canonical one-Product import contract is adopted?
 
 ## 10. Next Action
 

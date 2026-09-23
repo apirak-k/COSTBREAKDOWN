@@ -3,6 +3,7 @@
 Plan: [`tasks/master-data-plan.md`](master-data-plan.md)
 Spec: [`docs/specs/master-data.md`](../docs/specs/master-data.md)
 Dataset contract: [`docs/superpowers/specs/2026-09-23-master-data-excel-dataset-contract.md`](../docs/superpowers/specs/2026-09-23-master-data-excel-dataset-contract.md)
+Requirements authority: [`docs/REQUIREMENTS_INDEX.md`](../docs/REQUIREMENTS_INDEX.md)
 
 ## Phase 1: Contract and import foundation
 

@@ -10,6 +10,8 @@
 - Findings are grouped by page and shared flow; the Excel section was reviewed first
 - Browser visual verification is `[Unverified]` because the available browser provider was unavailable in this environment
 
+> **Document status:** This is a read-only review of the implementation at commit `c633cf0`, not the target requirements specification. Use [`docs/REQUIREMENTS_INDEX.md`](docs/REQUIREMENTS_INDEX.md) and the current page specifications for intended behavior. Some findings below describe code that may have changed after the reviewed commit.
+
 ## Requirement 1 — One Excel format, choose the target role during import
 
 Expected behavior from the project requirements:

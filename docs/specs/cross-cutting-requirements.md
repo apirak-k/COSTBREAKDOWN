@@ -7,6 +7,7 @@
 - Requirement status: **Confirmed — must be supported by the web application**
 - Placement status: **Pending — likely centered in Simulation; exact page boundaries are not fixed yet**
 - Reviewed: 2026-09-22
+- Requirements alignment update: 2026-09-23
 - This document records a system capability. The later page specifications define the final UI, formulas, and implementation details.
 
 ## 1. Mandatory Financial Capability
@@ -34,6 +35,8 @@ The system must support additional variables beyond the initial financial list.
 - A variable must be able to declare its value type and unit, such as amount, rate, percentage, quantity, or text where appropriate.
 - Variables that participate in calculations must have an explicit dependency or formula definition.
 - An unknown or unmapped variable must not be silently discarded.
+
+The initial list is a supported starting set, not a permanently fixed variable list. New variables must enter through the same typed, sourced, dependency-aware model.
 
 ## 3. Simulation Requirement
 
@@ -80,8 +83,11 @@ These are design questions, not reasons to remove the requirement:
 - Whether users can author formulas directly or select from controlled formula templates.
 - The final page placement and visual layout.
 
+The placement of these capabilities must not be interpreted as permission to add financial-period or simulation-only columns to the Master Data Excel contract without a separate approved decision.
+
 ## Related Documents
 
+- `docs/REQUIREMENTS_INDEX.md` — document authority and shared terminology.
 - `docs/specs/master-data.md` — confirmed requirements for Product and dataset preparation.
 - Future `docs/specs/simulation.md` — detailed UI and behavior specification for this requirement.
 - Future `docs/specs/cost-breakdown.md` — downstream display and calculation behavior where applicable.

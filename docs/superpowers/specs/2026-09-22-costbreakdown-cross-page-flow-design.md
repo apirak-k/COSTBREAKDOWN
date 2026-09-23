@@ -7,6 +7,7 @@
 - **Scope:** Cross-page product flow and shared contracts only
 - **Implementation authority:** This document is the cross-page contract; implementation followed the separately approved plan and remains subject to human acceptance
 - **Detail source of truth:** Page-specific specifications remain authoritative for page-level behavior
+- **Requirements alignment update:** 2026-09-23
 
 This document consolidates the agreed direction for the product-cost analysis flow. It is intentionally a thin cross-page contract: it defines responsibilities, handoffs, boundaries, and success criteria without copying every field or UI rule from the page specifications.
 
@@ -49,6 +50,8 @@ The existing page shells and navigation are the baseline. The product should be 
 
 Master Data remains the source-preparation page. It prepares the Product context and separate Reference and Current datasets for downstream analysis.
 
+The initial Master Data entry methods are Import Excel, Manual Entry, and Clone. They are extensible entry points rather than a closed list; all methods must produce the same validated Product Dataset and Draft lifecycle behavior.
+
 The detailed contract remains in [`docs/specs/master-data.md`](../../specs/master-data.md).
 
 ### 3.2 Cost Breakdown
@@ -71,7 +74,8 @@ Ranking must:
 - retain a useful default ordering such as cost impact while allowing flexible inspection;
 - let the user classify a driver as controllable or uncontrollable;
 - let the user select any number of drivers for RCA;
-- preserve the existing useful comparison context, such as Reference/Base, Current/Active, gap, contribution, source, and data quality where available.
+- keep controllability optional and independent from selection; a finding may be selected without a controllability classification;
+- preserve the existing useful comparison context, using `Reference`, `Current`, gap, contribution, source, and data quality where available. Legacy `Base`/`Active` labels may remain only at compatibility boundaries during migration.
 
 The current implementation's Top 10 behavior is a legacy implementation constraint, not the final product requirement. The final Ranking contract must not permanently hide lower-ranked available drivers.
 
@@ -119,6 +123,8 @@ Product + Reference/Current context
 
 The application must preserve the selected Product and dataset context while moving between these views. A Simulation result is a scenario result, not a replacement for the source comparison.
 
+Source/provenance identifies where a value came from. It must remain distinct from the canonical working `CostSnapshot` and from scenario overrides.
+
 Conceptual target contract example (not an implementation API):
 
 ```ts
@@ -143,6 +149,7 @@ The following are intentionally not locked by this baseline specification. They 
 - the exact variable registry, units, dependencies, and controlled formula templates;
 - the formulas and input/calculated roles for Sale, COGS, Gross Profit, SG&A, OP, and Profit;
 - scenario save, compare, trial validation, and any later promotion/adoption workflow.
+- the exact activation readiness matrix for Drafts with reviewable quality findings.
 
 Deferred does not mean rejected. These decisions can change without changing the core direction, provided the shared boundaries in this document remain true.
 
@@ -155,6 +162,7 @@ Deferred does not mean rejected. These decisions can change without changing the
 - Do not auto-run RCA for every finding.
 - Do not mutate official source datasets from Simulation.
 - Do not invent defaults for missing or unmapped inputs.
+- Do not require a controllability classification before a user can select a finding.
 - Do not freeze detailed formulas, statuses, or layouts before realistic data review.
 
 ## 7. Technology and Project Context
@@ -243,4 +251,5 @@ The contract intentionally leaves detailed statuses, financial formulas, final v
 - [`docs/specs/master-data.md`](../../specs/master-data.md)
 - [`docs/specs/cost-breakdown.md`](../../specs/cost-breakdown.md)
 - [`docs/specs/cross-cutting-requirements.md`](../../specs/cross-cutting-requirements.md)
+- [`docs/REQUIREMENTS_INDEX.md`](../../REQUIREMENTS_INDEX.md)
 - [`HANDOFF_2026-09-22.md`](../../../HANDOFF_2026-09-22.md)

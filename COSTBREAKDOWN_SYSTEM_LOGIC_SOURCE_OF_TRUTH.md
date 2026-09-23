@@ -1,6 +1,6 @@
 # COSTBREAKDOWN — SYSTEM LOGIC SOURCE OF TRUTH
 
-**Status:** Canonical Working Specification  
+**Status:** Historical working specification — superseded for current product requirements
 **Version:** 0.2  
 **Date:** 2026-09-14  
 **Project:** Prototype System for Product Cost Breakdown Analysis  
@@ -10,14 +10,14 @@
 
 ## 0. How to Use This Document
 
-เอกสารนี้คือ **System Logic Source of Truth** สำหรับการพัฒนาระบบ ณ จุดที่ตกลงกันปัจจุบัน
+เอกสารนี้เก็บ **ประวัติ System Logic และเหตุผลของสูตรเดิม** สำหรับการพัฒนาระบบ ณ วันที่ระบุด้านบน ไม่ใช่ตัวตัดสิน requirement ปัจจุบัน
 
-ถ้าเอกสารอื่น โค้ดเดิม Diagram เดิม README หรือ UI ปัจจุบันขัดกับเอกสารนี้ ให้ถือว่า:
+สำหรับ requirement ปัจจุบัน ให้เริ่มจาก [`docs/REQUIREMENTS_INDEX.md`](docs/REQUIREMENTS_INDEX.md) และ page specifications ก่อน เอกสารนี้ยังมีประโยชน์สำหรับสูตรและเหตุผลเดิม แต่ถ้าขัดกันให้ถือว่า:
 
-1. **Proposal** = ขอบเขตและ commitment ของโครงงาน
-2. **Final Logic PDF** = business-flow baseline ที่ผ่านการจัดลำดับแนวคิดแล้ว
-3. **เอกสารนี้** = canonical interpretation / working specification ล่าสุดสำหรับการ implement ระบบ
-4. **Current code** = implementation ปัจจุบัน ซึ่งอาจยังไม่ตรงกับ canonical logic ทั้งหมด
+1. **Current page specifications** = requirement ปัจจุบันของแต่ละหน้า
+2. **Cross-page contracts** = flow และขอบเขตระหว่างหน้า
+3. **เอกสารนี้** = สูตร/เหตุผลเชิงประวัติที่ใช้ประกอบการตรวจสอบ
+4. **Current code** = implementation ปัจจุบัน ซึ่งอาจยังไม่ตรงกับ requirement ทั้งหมด
 
 > ห้ามแก้ logic สำคัญจากการเดาเอง หากข้อมูลจากโรงงานหรือสูตรยังไม่ยืนยัน ให้ระบุ `TO VERIFY` แทนการ invent rule ใหม่
 
@@ -161,13 +161,13 @@ Actual Trial Result
 
 ---
 
-# 4. Three Different Sources of Truth
+# 4. Three Different Reference Layers (Historical Model)
 
-เพื่อไม่ให้คำว่า Source of Truth ชนกัน ให้แยกเป็น 3 ระดับ
+เอกสารเดิมแยกคำว่า Source of Truth เป็น 3 ระดับเพื่ออธิบายบริบทในเวลานั้น ปัจจุบันให้ใช้คำศัพท์และลำดับเอกสารจาก `docs/REQUIREMENTS_INDEX.md` เป็นหลัก
 
 ## 4.1 Business Data Source of Truth
 
-**CONFIRMED**
+**HISTORICAL CONTEXT**
 
 Cost Declare และข้อมูลโรงงานที่ได้รับการยืนยัน คือแหล่งข้อมูลธุรกิจต้นทาง
 
@@ -189,7 +189,7 @@ Cost Declare และข้อมูลโรงงานที่ได้ร�
 
 ## 4.2 Mathematical Source of Truth
 
-**CONFIRMED**
+**HISTORICAL CONTEXT**
 
 Excel model ที่ผ่านการตรวจสอบสูตร ใช้เป็น mathematical reference ของ prototype จนกว่าจะมีการยืนยัน formula ใหม่
 
@@ -199,9 +199,9 @@ Web ต้องไม่สร้างสูตรใหม่ที่ขั�
 
 ## 4.3 System Logic Source of Truth
 
-**CONFIRMED**
+**SUPERSEDED — HISTORICAL CONTEXT**
 
-ไฟล์นี้เป็นหลักอ้างอิงสำหรับ:
+ไฟล์นี้เคยเป็นหลักอ้างอิงสำหรับ:
 
 - Data architecture
 - Comparison flow

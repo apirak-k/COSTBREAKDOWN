@@ -4,6 +4,8 @@
 > **Purpose:** Record the verified starting point before approving the redesign specification and implementation plan.  
 > **Important:** This document describes the current system. It is not approval of the target redesign.
 
+> **Requirements authority:** For the current target behavior, read [`docs/REQUIREMENTS_INDEX.md`](docs/REQUIREMENTS_INDEX.md) first. This file intentionally preserves the legacy implementation baseline, including paired `Base`/`Active` fields, so those details must not override the current page specifications.
+
 ## 1. Project Overview & Scope Boundaries
 
 ### Project purpose

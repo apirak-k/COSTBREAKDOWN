@@ -8,6 +8,8 @@
 >
 > เป้าหมายของเอกสารนี้ไม่ใช่เสนอให้รื้อระบบใหม่ทั้งหมด แต่เพื่อระบุว่า **อะไรถูกแล้ว, อะไรยังไม่ตรง logic, อะไรควรแก้ก่อน, และเกณฑ์ไหนใช้ตรวจว่าแก้เสร็จจริง**
 
+> **Document precedence:** This is an analysis and implementation-recommendation record, not the current target requirements. For current decisions use [`docs/REQUIREMENTS_INDEX.md`](docs/REQUIREMENTS_INDEX.md) and the page specifications. Older `Base/Active`, Excel-SOT, and implementation recommendations in this file are historical unless the current specifications repeat them.
+
 ---
 
 ## 1. Executive Summary

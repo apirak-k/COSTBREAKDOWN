@@ -2,23 +2,27 @@
 
 A standard product cost breakdown and variance analysis system for industrial manufacturing, modeling the 3 Pillars of Cost (**Direct Material**, **Direct Labor**, and **Manufacturing Burden**) with atomic Level 1-3 variance decomposition.
 
+> **Current requirements:** Read [`docs/REQUIREMENTS_INDEX.md`](docs/REQUIREMENTS_INDEX.md) before interpreting or changing the product. This README contains project history and the legacy Excel model reference; it is not the page-level target specification.
+
 ---
 
 ## 📌 Core Engineering Philosophy & Strategy
 
-1. **Excel Model as the Source of Truth First**:
-   * The underlying Excel workbooks (`CostModel_RGOM-024.xlsx` and `CostModel_BLANK_TEMPLATE.xlsx`) serve as the verified mathematical bedrock.
+1. **Verified Excel Calculation Reference First**:
+   * The underlying Excel workbooks (`CostModel_RGOM-024.xlsx` and `CostModel_BLANK_TEMPLATE.xlsx`) serve as the verified mathematical bedrock and external source evidence.
    * Every calculation, formula, and variance tree on the web platform strictly mirrors the verified Excel logic.
 2. **Real-World Factory Usability & Add-On Capability**:
    * Built for actual factory workflow: Users can start with existing master data or import Excel templates, and easily **Add-On** new BOM items or Routing operations.
-   * Focuses on the core utility: **Standard Cost Comparison (Reference vs. Active Gap)** and **Detailed Cost Breakdown (Item-by-item BOM & Op-by-op Routing)**. Once this core comparison and breakdown are solid, all downstream features (simulation, what-if, candidate ranking) become straightforward extensions.
+   * Focuses on the core utility: **Standard Cost Comparison (Reference vs. Current Gap)** and **Detailed Cost Breakdown (Item-by-item BOM & Op-by-op Routing)**. Once this core comparison and breakdown are solid, all downstream features (simulation, what-if, candidate ranking) become straightforward extensions.
 31. **Poka-Yoke & Mistake-Proofing**:
    * Input validation blocks invalid values (zero negative pricing, yield $\le 100\%$, formula shielding against `#VALUE!` and `#DIV/0!`).
    * Automated Balance Reconciliation check ensures $\Delta C_{\text{Total}} - \sum \text{Variances} = 0.0000\text{ THB/pc}$ (100% Balanced).
 
 ---
 
-## 📂 Excel Model Structure (4 Worksheets)
+## 📂 Legacy Excel Model Structure (4 Worksheets)
+
+The table below describes the checked-in legacy model used for calculation reference. The current Master Data import contract is a one-Product dataset workbook with a role selected in the web Header; it is not a Base/Active comparison workbook.
 
 | Sheet | Name | Purpose | Key Standards |
 | :--- | :--- | :--- | :--- |

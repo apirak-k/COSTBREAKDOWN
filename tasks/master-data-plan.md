@@ -10,6 +10,7 @@ This plan is intentionally separate from `tasks/plan.md`, which tracks the earli
 
 - `docs/specs/master-data.md`
 - `docs/superpowers/specs/2026-09-23-master-data-excel-dataset-contract.md`
+- `docs/REQUIREMENTS_INDEX.md`
 - Existing runtime path: `src/shared/layout/Navbar.tsx` → `src/features/master-data` → `src/services/excel` → `src/state/store.tsx`
 
 ## Non-goals
@@ -29,6 +30,8 @@ This plan is intentionally separate from `tasks/plan.md`, which tracks the earli
 5. The application-provided canonical workbook is the normal Master Data import path. Legacy paired workbooks are not used by the Master Data upload UI.
 6. Manual edits apply only to a Draft dataset. Active data must be cloned before editing.
 7. Missing/invalid/warning evidence is preserved on the snapshot and never converted silently to a plausible numeric input.
+8. Import Excel, Manual Entry, and Clone are initial entry methods, not a closed list; all methods produce the same Product Dataset contract.
+9. Source/provenance is evidence metadata and must not be confused with the canonical `CostSnapshot` working dataset.
 
 ## Task list
 
@@ -136,6 +139,7 @@ This plan is intentionally separate from `tasks/plan.md`, which tracks the earli
 - [ ] Master Data remains an input/validation page.
 - [ ] The downstream action uses the Header Product context.
 - [ ] An incomplete role pair is clearly identified instead of comparing a seed/fallback dataset silently.
+- [ ] The handoff preserves the selected Product, entry-method result, comparison role, and lifecycle state.
 
 **Verification:** browser walkthrough with zero, one, and two prepared roles.
 

@@ -5,6 +5,7 @@
 - Concept status: **Approved in discussion**
 - Document status: **Approved concept / implementation pending**
 - Reviewed: 2026-09-22
+- Requirements alignment update: 2026-09-23
 - Scope: Cost Breakdown page only.
 - This document does not define Master Data import, Simulation, or the future financial-calculation extension.
 
@@ -95,6 +96,8 @@ Current − Reference
 ## 6. Comparison Contract
 
 The comparison must cover all supported fields and records in the two datasets. It must not silently limit comparison to only the fields currently shown in the first UI version.
+
+“All supported” means every field and record represented by the current Product Dataset contract, including supported additional data. A field that is retained but not yet mapped to calculation or comparison must remain visible as `Needs Review`; it must not be silently discarded or treated as a verified zero.
 
 ### Comparison statuses
 
@@ -226,6 +229,7 @@ The current implementation is transitional and must be migrated toward this cont
 
 ## 13. Related Documents
 
+- `docs/REQUIREMENTS_INDEX.md` — document authority, shared vocabulary, and cross-page decisions.
 - `docs/specs/master-data.md` — source dataset preparation and import rules.
 - `docs/specs/cross-cutting-requirements.md` — financial and extensibility requirements outside the Core Cost Breakdown contract.
 - `COSTBREAKDOWN_SYSTEM_LOGIC_SOURCE_OF_TRUTH.md` — existing calculation, comparison, and lifecycle logic reference.

@@ -5,6 +5,7 @@
 - Concept status: **Confirmed in discussion**
 - Document status: **Approved concept / implementation pending**
 - Reviewed: 2026-09-22
+- Requirements alignment update: 2026-09-23
 - This document describes the target behavior of the Master Data page. It does not authorize source-code changes by itself.
 
 ## 1. Scope
@@ -21,6 +22,7 @@ The Master Data page is responsible for preparing, entering, validating, and mai
 - Keeping `Reference` and `Current` as separate datasets.
 - Manual entry, editing, adding, removing, and adjusting data after import.
 - Cloning one dataset as the starting point for another editable dataset.
+- Extensible entry methods that produce the same Product Dataset contract; Import Excel, Manual Entry, and Clone are the initial methods, not a closed permanent list.
 - Saving imported or edited data as a `Draft`.
 - Preserving source values, working values, and data-quality findings.
 - Maintaining and validating the relationship between Routing and Work Center data.
@@ -54,6 +56,8 @@ The user must be able to prepare a complete dataset flexibly, regardless of whet
 | Invalid | A supplied value cannot be interpreted or fails its field rule. |
 | Warning | The data is retained, but the user must review a known issue. |
 | Product mismatch | The Product Code in the workbook differs from the Product selected in the Header. |
+| Source / Provenance | Where a value came from, such as an Excel workbook, manual entry, or clone. This is evidence metadata, not the canonical working dataset. |
+| CostSnapshot | The canonical in-application dataset used for role-specific editing and downstream calculation. |
 
 Data-quality status and comparison-change status are different concepts. `Missing`, `Invalid`, and `Warning` describe the quality of one dataset. `Added`, `Removed`, `Modified`, and `Unchanged` belong to the later comparison process.
 
@@ -69,6 +73,8 @@ Data-quality status and comparison-change status are different concepts. `Missin
 8. The application-provided format may be downloaded with the required row/table sizes. The user may then adjust the data within that structure.
 9. The page must not silently change a missing or invalid value into a plausible numeric value such as `0`.
 10. Source information and the editable working information must remain distinguishable.
+11. Import Excel, Manual Entry, and Clone are supported initial entry methods, but the system must be able to add future entry methods without changing the Product Dataset contract.
+12. Every entry method must target one Product and one comparison role at a time, then produce an editable Draft dataset.
 
 ## 5. Dataset Lifecycle
 
@@ -97,6 +103,7 @@ Data-quality status and comparison-change status are different concepts. `Missin
 - Only an explicit lifecycle action may make a Draft active.
 - An Active dataset must not be silently mutated by editing another Draft.
 - Existing project rules for archiving the previous Active version remain applicable.
+- Activation readiness must be visible before the action. Structural identity failures and unresolved required relationships must not be hidden by activation; the exact blocking matrix for reviewable quality findings remains an explicit pending decision.
 
 ## 6. Data Model Requirements
 
@@ -207,6 +214,8 @@ The page should provide actions for:
 - Cloning a dataset into a Draft.
 - Reviewing and resolving warnings before activation or downstream use.
 
+The page may expose future entry methods, but every method must pass through the same Product identity, dataset, role, lifecycle, source, and data-quality rules.
+
 ## 11. Acceptance Criteria
 
 - [ ] A user selects a Product before importing data.
@@ -241,6 +250,7 @@ These gaps are recorded for future implementation work. This document does not m
 
 ## 13. Related Documents
 
+- `docs/REQUIREMENTS_INDEX.md` — document authority, shared vocabulary, and cross-page decisions.
 - `PROJECT.md` — project-level current baseline and roadmap.
 - `PROJECT_SPECIFIC.md` — confirmed project-wide lifecycle and source-of-truth rules.
 - `ARCHITECTURE.md` — target architecture and snapshot/comparison direction.

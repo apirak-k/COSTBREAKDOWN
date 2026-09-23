@@ -6,6 +6,7 @@
 - Date: 2026-09-23
 - This document defines the proposed input contract for the Master Data page.
 - It does not authorize code changes, template replacement, or migration yet.
+- Its decisions must be read together with `docs/REQUIREMENTS_INDEX.md`; this contract defines the Excel method and does not make Excel the only future entry method.
 
 ## 1. Objective
 
@@ -23,6 +24,7 @@ Define one clear Excel input contract for Master Data so that the application ca
 8. The workbook must not contain `Base`/`Active` input pairs. Those are comparison concepts, not two columns of one dataset.
 9. Missing and invalid values remain visible as data-quality findings. The application must not silently convert them to `0`.
 10. Comparison statuses such as `Added`, `Removed`, and `Modified` are calculated later and are not stored as input fields.
+11. Import Excel is one entry method. Manual Entry and Clone must produce the same one-Product dataset contract, and future entry methods may be added without introducing paired `Base`/`Active` input columns.
 
 ## 3. Proposed workbook shape
 
@@ -191,6 +193,7 @@ The inspected source workbooks contain different data families:
 
 ## Related documents
 
+- `docs/REQUIREMENTS_INDEX.md` — document authority and shared vocabulary.
 - `docs/specs/master-data.md` — approved Master Data page behavior and lifecycle rules.
 - `docs/specs/cost-breakdown.md` — comparison and Cost Breakdown behavior.
 - `docs/specs/cross-cutting-requirements.md` — cross-page financial/simulation capability requirements.

@@ -5,6 +5,8 @@
 **Basis:** Current `COSTBREAKDOWN` repository, `Proposal-กลุ่ม81.pdf`, `breakdown_cost_web_final_logic_fixed.pdf`, `COSTBREAKDOWN_SYSTEM_LOGIC_SOURCE_OF_TRUTH.md`, and the latest project discussion  
 **Status:** Proposed redesign direction — review before coding
 
+> **Document precedence:** This is a historical redesign proposal. For current requirements use [`docs/REQUIREMENTS_INDEX.md`](docs/REQUIREMENTS_INDEX.md) and the page specifications. In particular, the current scope defers Export, keeps Material/Labor/Burden stable in Cost Breakdown, and uses Reference/Current terminology.
+
 ---
 
 ## 1. Why This Redesign Is Being Considered
