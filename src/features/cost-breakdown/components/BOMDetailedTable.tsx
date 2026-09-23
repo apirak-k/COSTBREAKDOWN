@@ -11,6 +11,7 @@ import {
 import type { ComparisonStatus } from '../../../core'
 import { ConfidenceBadge } from '../../../shared/ui/ConfidenceBadge'
 import { ComparisonViewMode, isVisibleInComparisonView } from './comparison-view'
+import { DataQualityPairBadge } from './DataQualityPairBadge'
 
 interface BOMDetailedTableProps {
   referenceItems: SnapshotBOMItem[]
@@ -88,6 +89,7 @@ export const BOMDetailedTable: React.FC<BOMDetailedTableProps> = ({
             <th scope="col" className="p-2.5">Material Description</th>
             {showComparison && <th scope="col" className="p-2.5">Comparison</th>}
             {showComparison && <th scope="col" className="p-2.5">Confidence</th>}
+            {showComparison && <th scope="col" className="p-2.5">Data Quality</th>}
             <th scope="col" className="p-2.5 text-right">Ref Usage</th>
             <th scope="col" className="p-2.5 text-right">Current Usage</th>
             <th scope="col" className="p-2.5">Unit</th>
@@ -103,7 +105,7 @@ export const BOMDetailedTable: React.FC<BOMDetailedTableProps> = ({
         <tbody className="divide-y divide-slate-100 font-mono">
           {visibleRows.length === 0 ? (
             <tr>
-              <td colSpan={showComparison ? 15 : 13} className="p-6 text-center text-slate-400 font-sans italic">
+              <td colSpan={showComparison ? 16 : 13} className="p-6 text-center text-slate-400 font-sans italic">
                 No rows match this comparison view.
               </td>
             </tr>
@@ -130,6 +132,9 @@ export const BOMDetailedTable: React.FC<BOMDetailedTableProps> = ({
                 {showComparison && (
                   <td className="p-2.5 whitespace-nowrap"><ConfidenceBadge status={row.finding?.confidence ?? 'missing'} showLabel /></td>
                 )}
+                {showComparison && (
+                  <td className="p-2.5"><DataQualityPairBadge reference={reference} current={current} /></td>
+                )}
                 <td className="p-2.5 text-right text-slate-500 tabular-nums">{formatNullable(reference?.consumption ?? null, value => formatNumber(value, 4))}</td>
                 <td className="p-2.5 text-right font-bold text-slate-900 tabular-nums">{formatNullable(current?.consumption ?? null, value => formatNumber(value, 4))}</td>
                 <td className="p-2.5 font-sans text-slate-600 whitespace-nowrap">{unit}</td>
@@ -148,7 +153,7 @@ export const BOMDetailedTable: React.FC<BOMDetailedTableProps> = ({
         </tbody>
         <tfoot>
           <tr className="bg-slate-100/90 border-t-2 border-slate-300/80 font-bold text-xs">
-            <td colSpan={showComparison ? 12 : 10} className="p-2.5 text-right text-slate-700 uppercase tracking-wider text-[10px] font-sans">
+            <td colSpan={showComparison ? 13 : 10} className="p-2.5 text-right text-slate-700 uppercase tracking-wider text-[10px] font-sans">
               {viewMode === 'changed' ? 'Visible Changed Material (THB/pc)' : 'Total Direct Material (THB/pc)'}
             </td>
             <td className="p-2.5 text-right font-mono text-slate-800 tabular-nums">{formatNullable(referenceTotal, value => formatNumber(value, 4))}</td>

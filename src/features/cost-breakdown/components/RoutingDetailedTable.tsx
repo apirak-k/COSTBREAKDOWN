@@ -12,6 +12,7 @@ import {
 import type { ComparisonStatus } from '../../../core'
 import { ConfidenceBadge } from '../../../shared/ui/ConfidenceBadge'
 import { ComparisonViewMode, isVisibleInComparisonView } from './comparison-view'
+import { DataQualityPairBadge } from './DataQualityPairBadge'
 
 interface RoutingDetailedTableProps {
   referenceItems: SnapshotRoutingStep[]
@@ -94,6 +95,7 @@ export const RoutingDetailedTable: React.FC<RoutingDetailedTableProps> = ({
             <th className="p-2.5">Work Center</th>
             {showComparison && <th className="p-2.5">Comparison</th>}
             {showComparison && <th className="p-2.5">Confidence</th>}
+            {showComparison && <th className="p-2.5">Data Quality</th>}
             <th className="p-2.5 text-right">Manning</th>
             <th className="p-2.5 text-right">Ref Cap</th>
             <th className="p-2.5 text-right">Current Cap</th>
@@ -107,7 +109,7 @@ export const RoutingDetailedTable: React.FC<RoutingDetailedTableProps> = ({
         <tbody className="divide-y divide-slate-100 font-mono">
           {visibleRows.length === 0 ? (
             <tr>
-              <td colSpan={13} className="p-6 text-center text-slate-400 font-sans italic">
+              <td colSpan={showComparison ? 14 : 11} className="p-6 text-center text-slate-400 font-sans italic">
                 No rows match this comparison view.
               </td>
             </tr>
@@ -139,6 +141,9 @@ export const RoutingDetailedTable: React.FC<RoutingDetailedTableProps> = ({
                 {showComparison && (
                   <td className="p-2.5 whitespace-nowrap"><ConfidenceBadge status={row.finding?.confidence ?? 'missing'} showLabel /></td>
                 )}
+                {showComparison && (
+                  <td className="p-2.5"><DataQualityPairBadge reference={reference} current={current} /></td>
+                )}
                 <td className="p-2.5 text-right tabular-nums">{formatNullable(current?.manning ?? reference?.manning ?? null, value => formatNumber(value, 1))}</td>
                 <td className="p-2.5 text-right text-slate-500 tabular-nums">{formatNullable(reference?.capacity ?? null, value => formatNumber(value, 0))}</td>
                 <td className="p-2.5 text-right font-bold text-slate-900 tabular-nums">{formatNullable(current?.capacity ?? null, value => formatNumber(value, 0))}</td>
@@ -155,7 +160,7 @@ export const RoutingDetailedTable: React.FC<RoutingDetailedTableProps> = ({
         </tbody>
         <tfoot>
           <tr className="bg-slate-100/90 border-t-2 border-slate-300/80 font-bold text-xs">
-            <td colSpan={showComparison ? 10 : 8} className="p-2.5 text-right text-slate-700 uppercase tracking-wider text-[10px] font-sans">
+            <td colSpan={showComparison ? 11 : 8} className="p-2.5 text-right text-slate-700 uppercase tracking-wider text-[10px] font-sans">
               {viewMode === 'changed' ? 'Visible Changed Conversion (THB/pc)' : 'Total Conversion Cost (THB/pc)'}
             </td>
             <td className="p-2.5 text-right font-mono text-slate-800 tabular-nums">{formatNullable(referenceTotal, value => formatNumber(value, 4))}</td>

@@ -9,6 +9,7 @@ import {
 import type { ComparisonStatus } from '../../../core'
 import { ConfidenceBadge } from '../../../shared/ui/ConfidenceBadge'
 import { ComparisonViewMode, isVisibleInComparisonView } from './comparison-view'
+import { DataQualityPairBadge } from './DataQualityPairBadge'
 
 interface WorkCenterComparisonTableProps {
   referenceRates: SnapshotWorkCenterRate[]
@@ -86,6 +87,7 @@ export const WorkCenterComparisonTable: React.FC<WorkCenterComparisonTableProps>
             <th scope="col" className="p-2.5">Description</th>
             <th scope="col" className="p-2.5">Comparison</th>
             <th scope="col" className="p-2.5">Confidence</th>
+            <th scope="col" className="p-2.5">Data Quality</th>
             <th scope="col" className="p-2.5 text-right">Labor Ref</th>
             <th scope="col" className="p-2.5 text-right">Labor Current</th>
             <th scope="col" className="p-2.5 text-right">Labor Δ</th>
@@ -98,13 +100,13 @@ export const WorkCenterComparisonTable: React.FC<WorkCenterComparisonTableProps>
         <tbody className="divide-y divide-slate-100 font-mono">
           {rows.length === 0 ? (
             <tr>
-              <td colSpan={11} className="p-6 text-center text-slate-400 font-sans italic">
+              <td colSpan={12} className="p-6 text-center text-slate-400 font-sans italic">
                 No Work Center rates configured.
               </td>
             </tr>
           ) : visibleRows.length === 0 ? (
             <tr>
-              <td colSpan={11} className="p-6 text-center text-slate-400 font-sans italic">
+              <td colSpan={12} className="p-6 text-center text-slate-400 font-sans italic">
                 No rows match this comparison view.
               </td>
             </tr>
@@ -126,6 +128,7 @@ export const WorkCenterComparisonTable: React.FC<WorkCenterComparisonTableProps>
                 <td className="p-2.5 whitespace-nowrap">
                   <ConfidenceBadge status={row.finding?.confidence ?? 'missing'} showLabel />
                 </td>
+                <td className="p-2.5"><DataQualityPairBadge reference={row.reference} current={row.current} /></td>
                 <td className="p-2.5 text-right text-slate-500 tabular-nums">{formatRate(row.reference?.laborRate)}</td>
                 <td className="p-2.5 text-right font-bold text-slate-900 tabular-nums">{formatRate(row.current?.laborRate)}</td>
                 <td className={`p-2.5 text-right font-bold tabular-nums ${gapClass(row.reference?.laborRate, row.current?.laborRate)}`}>
