@@ -25,6 +25,10 @@ interface SideCalculation {
   total: number | null
 }
 
+function normalizeKey(value: string | undefined): string {
+  return value?.trim().toLowerCase() ?? ''
+}
+
 function calculateSide(step: SnapshotRoutingStep | undefined, rates: SnapshotWorkCenterRate[]): SideCalculation {
   if (!step || step.manning === null || step.capacity === null || step.yield === null) {
     return { runtime: null, laborCost: null, burdenCost: null, total: null }
@@ -39,9 +43,10 @@ function calculateSide(step: SnapshotRoutingStep | undefined, rates: SnapshotWor
     return { runtime: null, laborCost: null, burdenCost: null, total: null }
   }
 
-  const rate = step.workCenterId
-    ? rates.find(candidate => candidate.workCenterCode === step.workCenterId)
-    : undefined
+  const matchingRates = step.workCenterId
+    ? rates.filter(candidate => normalizeKey(candidate.workCenterCode) === normalizeKey(step.workCenterId))
+    : []
+  const rate = matchingRates.length === 1 ? matchingRates[0] : undefined
   const laborCost = rate?.laborRate === null || rate?.laborRate === undefined
     ? null
     : runtime * rate.laborRate

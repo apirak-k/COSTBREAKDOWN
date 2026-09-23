@@ -224,7 +224,8 @@ The current implementation is transitional and must be migrated toward this cont
 - The old engine hard-codes Labor Rate Variance and Burden Rate Variance to zero in `src/core/calculations/cost-engine.ts:61-65`.
 - The legacy rate resolver still returns a zero rate for missing Work Centers in `src/core/calculations/work-center-rate.ts`; this remains transitional and must not be used as the Snapshot comparison fallback.
 - Snapshot calculation now preserves missing or invalid numeric values as unavailable (`null` / `—`) while adding warnings in `src/core/calculations/snapshot-cost.ts`, `src/core/calculations/snapshot-bom-detail.ts`, and `src/core/calculations/snapshot-routing-detail.ts`.
-- Snapshot comparison currently compares fixed field lists in `src/core/calculations/snapshot-comparison.ts:175-177`; the target must preserve the comparison contract while allowing supported fields to grow without changing the meaning of the Core Cost Structure.
+- Snapshot comparison now discovers supported record fields dynamically in `src/core/calculations/snapshot-comparison.ts`; identity and provenance metadata (`id`, `confidence`, `sourceRef`) remain excluded from working-value change status. The detailed UI still renders the canonical fields explicitly, so any future field added to the dataset contract must also receive a visible detail-column or review surface.
+- Duplicate Work Center identities are kept as `Need Review`/unavailable dependencies rather than silently selecting one rate.
 - The current page includes an Export Comparison action in `src/features/cost-breakdown/CostBreakdownPage.tsx:27-43`; Export is explicitly deferred from this target scope.
 
 ## 13. Related Documents

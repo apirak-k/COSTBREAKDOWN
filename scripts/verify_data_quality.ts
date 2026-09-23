@@ -66,5 +66,9 @@ const routing = {
   }
 }
 assert.equal(getRoutingDataQuality(routing, []), 'Missing')
+assert.equal(getRoutingDataQuality(routing, [
+  { id: 'rate-1', workCenterCode: 'WC-MISSING', description: 'Duplicate 1', laborRate: 1, burdenRate: 1, effectiveDate: '2026-01-01', confidence: {} },
+  { id: 'rate-2', workCenterCode: 'WC-MISSING', description: 'Duplicate 2', laborRate: 1, burdenRate: 1, effectiveDate: '2026-01-01', confidence: {} }
+]), 'Need Review')
 
 console.log('Data quality verification passed.')

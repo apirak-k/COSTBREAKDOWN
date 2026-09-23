@@ -36,4 +36,15 @@ assert.equal(missingRate.currentRuntime, 0.1)
 assert.equal(missingRate.currentTotal, null)
 assert.equal(missingRate.totalGap, null)
 
+const duplicateRate = calculateSnapshotRoutingDetail(
+  { current: { ...base, workCenterId: 'WC-DUPLICATE' } },
+  [],
+  [
+    { id: 'dup-1', workCenterCode: 'WC-DUPLICATE', description: 'Duplicate 1', laborRate: 10, burdenRate: 20, effectiveDate: '2026-01-01', confidence: {} },
+    { id: 'dup-2', workCenterCode: 'WC-DUPLICATE', description: 'Duplicate 2', laborRate: 30, burdenRate: 40, effectiveDate: '2026-01-01', confidence: {} }
+  ]
+)
+assert.equal(duplicateRate.currentRuntime, 0.1)
+assert.equal(duplicateRate.currentTotal, null)
+
 console.log('Snapshot routing detail verification passed.')

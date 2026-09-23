@@ -9,14 +9,29 @@ function finiteValue(value: number | null, label: string, warnings: Set<string>)
   return value
 }
 
-function rateMap(rates: SnapshotWorkCenterRate[]): Map<string, SnapshotWorkCenterRate> {
-  return new Map(rates.map(rate => [rate.workCenterCode, rate]))
+function normalizeKey(value: string | undefined): string {
+  return value?.trim().toLowerCase() ?? ''
+}
+
+function rateMap(rates: SnapshotWorkCenterRate[], warnings: Set<string>): Map<string, SnapshotWorkCenterRate | null> {
+  const map = new Map<string, SnapshotWorkCenterRate | null>()
+  rates.forEach(rate => {
+    const key = normalizeKey(rate.workCenterCode)
+    if (!key) return
+    if (map.has(key)) {
+      map.set(key, null)
+      warnings.add(`Ambiguous duplicate Work Center rate for ${rate.workCenterCode}`)
+      return
+    }
+    map.set(key, rate)
+  })
+  return map
 }
 
 /** Calculates one snapshot without mutating the source data. */
 export function calculateSnapshotCost(snapshot: CostSnapshot): SnapshotCost {
   const warnings = new Set<string>()
-  const rates = rateMap(snapshot.rates)
+  const rates = rateMap(snapshot.rates, warnings)
 
   let materialTotal = 0
   let materialKnown = true
@@ -40,7 +55,7 @@ export function calculateSnapshotCost(snapshot: CostSnapshot): SnapshotCost {
     const manning = finiteValue(step.manning, `Routing ${step.id} manning`, warnings)
     const capacity = finiteValue(step.capacity, `Routing ${step.id} capacity`, warnings)
     const yieldValue = finiteValue(step.yield, `Routing ${step.id} yield`, warnings)
-    const rate = step.workCenterId ? rates.get(step.workCenterId) : undefined
+    const rate = step.workCenterId ? rates.get(normalizeKey(step.workCenterId)) : undefined
 
     if (!rate) {
       warnings.add(`Missing Work Center rate for Routing ${step.id}`)

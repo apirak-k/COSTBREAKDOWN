@@ -59,8 +59,10 @@ export function getRoutingDataQuality(
 ): DataQualityLabel | undefined {
   const rowQuality = getSnapshotDataQuality(row)
   if (!row || !rowQuality) return undefined
-  const linkedRate = rates.find(rate => rate.workCenterCode.trim().toLowerCase() === row.workCenterId?.trim().toLowerCase())
-  if (!linkedRate) return worseQuality(rowQuality, 'Missing')
+  const matchingRates = rates.filter(rate => rate.workCenterCode.trim().toLowerCase() === row.workCenterId?.trim().toLowerCase())
+  if (matchingRates.length === 0) return worseQuality(rowQuality, 'Missing')
+  if (matchingRates.length > 1) return worseQuality(rowQuality, 'Need Review')
+  const linkedRate = matchingRates[0]
   const rateQuality = getSnapshotDataQuality(linkedRate)
   return rateQuality ? worseQuality(rowQuality, rateQuality) : rowQuality
 }
