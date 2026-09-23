@@ -217,13 +217,13 @@ The page must not present Simulation controls as if they were official Reference
 
 ## 12. Current Baseline and Gaps
 
-The current implementation is transitional and must be migrated toward this contract:
+The current implementation is transitional and must be migrated toward this contract. The Snapshot comparison path now covers the main handoff, comparison-view, provenance, routing-linkage, status-vocabulary, and no-silent-zero slices; the legacy paired-model path remains during migration:
 
 - The page currently consumes both legacy paired `costBreakdown` data and newer `snapshotComparison` data in `src/features/cost-breakdown/CostBreakdownPage.tsx:20-42`.
 - The cost-element bridge is currently hard-coded to Material, Labor, and Burden in `src/features/cost-breakdown/components/SnapshotComparisonCard.tsx:72-75`. These remain the intended Core Cost Elements; the required change is to keep them clearly separated from future extension layers, not to make the core user-editable.
 - The old engine hard-codes Labor Rate Variance and Burden Rate Variance to zero in `src/core/calculations/cost-engine.ts:61-65`.
-- Missing Work Center rates are visibly reported but are currently treated as zero in `src/features/cost-breakdown/CostBreakdownPage.tsx:50-54` and `src/core/calculations/work-center-rate.ts:23-33`.
-- Snapshot calculation currently converts missing or invalid numeric values to zero while adding warnings in `src/core/calculations/snapshot-cost.ts:4-9`.
+- The legacy rate resolver still returns a zero rate for missing Work Centers in `src/core/calculations/work-center-rate.ts`; this remains transitional and must not be used as the Snapshot comparison fallback.
+- Snapshot calculation now preserves missing or invalid numeric values as unavailable (`null` / `—`) while adding warnings in `src/core/calculations/snapshot-cost.ts`, `src/core/calculations/snapshot-bom-detail.ts`, and `src/core/calculations/snapshot-routing-detail.ts`.
 - Snapshot comparison currently compares fixed field lists in `src/core/calculations/snapshot-comparison.ts:175-177`; the target must preserve the comparison contract while allowing supported fields to grow without changing the meaning of the Core Cost Structure.
 - The current page includes an Export Comparison action in `src/features/cost-breakdown/CostBreakdownPage.tsx:27-43`; Export is explicitly deferred from this target scope.
 
