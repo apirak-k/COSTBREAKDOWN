@@ -9,10 +9,11 @@ interface ProductMasterCardProps {
   uomList: string[]
   status?: DatasetStatus
   versionLabel?: string
+  canEdit?: boolean
   isEditMode?: boolean
   onToggleEditMode?: (edit: boolean) => void
   onUpdateProduct: (product: ProductMaster) => void
-  onOpenSetupModal: () => void
+  onOpenSetupModal?: () => void
   onCloneToDraft?: () => void
   onActivateDraft?: () => void
 }
@@ -25,6 +26,7 @@ export const ProductMasterCard: React.FC<ProductMasterCardProps> = ({
   uomList,
   status = 'active',
   versionLabel,
+  canEdit = status === 'draft',
   isEditMode = false,
   onToggleEditMode,
   onUpdateProduct,
@@ -75,19 +77,21 @@ export const ProductMasterCard: React.FC<ProductMasterCardProps> = ({
               </button>
               <button
                 type="button"
-                onClick={() => onToggleEditMode(true)}
+                onClick={() => canEdit && onToggleEditMode(true)}
+                disabled={!canEdit}
                 className={`px-2.5 py-0.5 text-[11px] font-mono font-bold rounded transition-all cursor-pointer ${
                   isEditMode
                     ? 'bg-slate-900 text-white shadow-2xs'
                     : 'text-slate-500 hover:text-slate-800'
-                }`}
+                } disabled:cursor-not-allowed disabled:opacity-40`}
+                title={canEdit ? 'Edit this Draft dataset' : 'Clone or import into a Draft before editing'}
               >
                 Edit Mode
               </button>
             </div>
           )}
 
-          {status === 'active' && onCloneToDraft && isEditMode && (
+          {status === 'active' && onCloneToDraft && (
             <button
               type="button"
               onClick={onCloneToDraft}
@@ -98,7 +102,7 @@ export const ProductMasterCard: React.FC<ProductMasterCardProps> = ({
             </button>
           )}
 
-          {status === 'draft' && onActivateDraft && isEditMode && (
+          {status === 'draft' && onActivateDraft && (
             <button
               type="button"
               onClick={onActivateDraft}
@@ -109,7 +113,7 @@ export const ProductMasterCard: React.FC<ProductMasterCardProps> = ({
             </button>
           )}
 
-          {status === 'archived' && onCloneToDraft && isEditMode && (
+          {status === 'archived' && onCloneToDraft && (
             <button
               type="button"
               onClick={onCloneToDraft}
@@ -120,7 +124,7 @@ export const ProductMasterCard: React.FC<ProductMasterCardProps> = ({
             </button>
           )}
 
-          {isEditMode && (
+          {isEditMode && onOpenSetupModal && (
             <button
               type="button"
               onClick={onOpenSetupModal}
@@ -149,17 +153,7 @@ export const ProductMasterCard: React.FC<ProductMasterCardProps> = ({
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-2 text-xs">
         <div>
           <label className="block text-slate-500 text-[10px] font-mono font-bold uppercase mb-0.5">Product Code *</label>
-          {isEditMode ? (
-            <input
-              type="text"
-              value={product.productCode}
-              onChange={e => onUpdateProduct({ ...product, productCode: e.target.value })}
-              placeholder="e.g. RGOM-024"
-              className="w-full px-2 py-1 font-mono font-bold text-slate-900 bg-white border border-slate-300 rounded focus:outline-none focus:ring-1 focus:ring-slate-800 focus:border-slate-800 shadow-2xs"
-            />
-          ) : (
-            <div className="py-1 font-mono font-bold text-slate-900 text-xs">{product.productCode || '—'}</div>
-          )}
+          <div className="py-1 font-mono font-bold text-slate-900 text-xs">{product.productCode || '—'}</div>
         </div>
         <div>
           <label className="block text-slate-500 text-[10px] font-mono font-bold uppercase mb-0.5">UOM Unit</label>

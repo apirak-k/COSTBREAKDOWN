@@ -1,240 +1,85 @@
-import React, { useState } from 'react'
-import { X, Check } from 'lucide-react'
-import { RoutingStep, WorkCenterRate } from '../../../../core'
+import React, { useEffect, useState } from 'react'
+import { Check, X } from 'lucide-react'
+import { SnapshotRoutingStep, SnapshotWorkCenterRate } from '../../../../core'
+
+type RoutingDraft = Omit<SnapshotRoutingStep, 'id' | 'confidence'>
 
 interface AddRoutingModalProps {
   isOpen: boolean
   onClose: () => void
-  onSave: (step: Omit<RoutingStep, 'id'>) => void
-  rates: WorkCenterRate[]
-  initialData?: RoutingStep
+  onSave: (step: RoutingDraft) => void
+  rates: SnapshotWorkCenterRate[]
+  initialData?: SnapshotRoutingStep
 }
 
-export const AddRoutingModal: React.FC<AddRoutingModalProps> = ({
-  isOpen,
-  onClose,
-  onSave,
-  rates,
-  initialData
-}) => {
-  const [opSeq, setOpSeq] = useState(initialData ? String(initialData.opSeq) : '10')
-  const [description, setDescription] = useState(initialData?.description || '')
-  const [wc, setWc] = useState(initialData?.wc || (rates[0]?.wc || 'Cutting'))
-  const [manning, setManning] = useState(initialData ? String(initialData.manning) : '1')
-  const [baseCap, setBaseCap] = useState(initialData ? String(initialData.baseCap) : '1000')
-  const [activeCap, setActiveCap] = useState(initialData ? String(initialData.activeCap) : '1000')
-  const [baseYield, setBaseYield] = useState(initialData ? String(initialData.baseYield * 100) : '98')
-  const [activeYield, setActiveYield] = useState(initialData ? String(initialData.activeYield * 100) : '98')
-  const [sourceRef, setSourceRef] = useState(initialData?.sourceRef || 'TimeStudy-2026')
+const textNumber = (value: number | null | undefined): string => value === null || value === undefined ? '' : String(value)
+const nullable = (value: string): number | null => value.trim() === '' ? null : Number(value)
+
+export const AddRoutingModal: React.FC<AddRoutingModalProps> = ({ isOpen, onClose, onSave, rates, initialData }) => {
+  const [operationCode, setOperationCode] = useState('')
+  const [sequence, setSequence] = useState('')
+  const [processCode, setProcessCode] = useState('')
+  const [processName, setProcessName] = useState('')
+  const [workCenterId, setWorkCenterId] = useState('')
+  const [manning, setManning] = useState('')
+  const [capacity, setCapacity] = useState('')
+  const [yieldPercent, setYieldPercent] = useState('')
+  const [sourceRef, setSourceRef] = useState('')
   const [error, setError] = useState('')
+
+  useEffect(() => {
+    if (!isOpen) return
+    setOperationCode(initialData?.operationCode || '')
+    setSequence(textNumber(initialData?.sequence))
+    setProcessCode(initialData?.processCode || '')
+    setProcessName(initialData?.processName || '')
+    setWorkCenterId(initialData?.workCenterId || '')
+    setManning(textNumber(initialData?.manning))
+    setCapacity(textNumber(initialData?.capacity))
+    setYieldPercent(initialData?.yield === null || initialData?.yield === undefined ? '' : String(initialData.yield * 100))
+    setSourceRef(initialData?.sourceRef || '')
+    setError('')
+  }, [initialData, isOpen])
 
   if (!isOpen) return null
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault()
-    const seq = parseInt(opSeq, 10)
-    const m = parseFloat(manning)
-    const c0 = parseFloat(baseCap)
-    const c1 = parseFloat(activeCap)
-    const y0 = parseFloat(baseYield) / 100
-    const y1 = parseFloat(activeYield) / 100
-
-    if (isNaN(seq) || seq <= 0) {
-      setError('Operation Sequence must be a positive integer (e.g. 10, 20, 30).')
-      return
-    }
-    if (!description.trim()) {
-      setError('Operation Description is required.')
-      return
-    }
-    if (isNaN(m) || m < 0.1) {
-      setError('Manning (M) must be at least 0.1 headcount.')
-      return
-    }
-    if (isNaN(c0) || c0 <= 0 || isNaN(c1) || c1 <= 0) {
-      setError('Capacity (pcs/hr) must be greater than 0.')
-      return
-    }
-    if (y0 <= 0 || y0 > 1 || y1 <= 0 || y1 > 1) {
-      setError('Yield % must be greater than 0% and up to 100%.')
-      return
-    }
-
+  const handleSubmit = (event: React.FormEvent) => {
+    event.preventDefault()
+    const seq = nullable(sequence)
+    const m = nullable(manning)
+    const cap = nullable(capacity)
+    const yieldValue = nullable(yieldPercent)
+    if (!operationCode.trim() && !processName.trim()) return setError('Operation Code or Process Name is required.')
+    if (seq !== null && (!Number.isFinite(seq) || seq < 0)) return setError('Sequence must be zero or a positive number.')
+    if (m !== null && (!Number.isFinite(m) || m < 0)) return setError('Manning must be zero or a positive number.')
+    if (cap !== null && (!Number.isFinite(cap) || cap < 0)) return setError('Capacity must be zero or a positive number.')
+    if (yieldValue !== null && (!Number.isFinite(yieldValue) || yieldValue < 0 || yieldValue > 100)) return setError('Yield must be between 0% and 100%.')
     onSave({
-      opSeq: seq,
-      description: description.trim(),
-      wc: wc.trim(),
+      operationCode: operationCode.trim() || undefined,
+      sequence: seq === null ? undefined : seq,
+      processCode: processCode.trim() || undefined,
+      processName: processName.trim(),
+      workCenterId: workCenterId.trim() || undefined,
       manning: m,
-      baseCap: c0,
-      activeCap: c1,
-      baseYield: y0,
-      activeYield: y1,
-      sourceRef: sourceRef.trim() || 'Routing Log'
+      capacity: cap,
+      yield: yieldValue === null ? null : yieldValue / 100,
+      sourceRef: sourceRef.trim() || undefined
     })
     onClose()
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-xs p-4">
-      <div className="bg-white rounded-xl border border-slate-200 shadow-xl max-w-lg w-full overflow-hidden animate-in fade-in zoom-in-95 duration-150">
-        <div className="flex items-center justify-between p-4 border-b border-slate-100">
-          <h3 className="text-sm font-bold text-slate-900">
-            {initialData ? 'Edit Process Routing Step' : 'Add New Process Routing Step'}
-          </h3>
-          <button onClick={onClose} className="text-slate-400 hover:text-slate-600 p-1 rounded-md hover:bg-slate-100 cursor-pointer">
-            <X className="w-4 h-4" />
-          </button>
-        </div>
-
-        <form onSubmit={handleSubmit} className="p-4 space-y-3 text-xs">
-          {error && (
-            <div className="p-2.5 bg-rose-50 border border-rose-200 text-rose-800 rounded-lg font-medium">
-              {error}
-            </div>
-          )}
-
-          <div className="grid grid-cols-3 gap-3">
-            <div>
-              <label className="block font-semibold text-slate-700 mb-1">Op Seq # *</label>
-              <input
-                type="number"
-                step="5"
-                min="1"
-                value={opSeq}
-                onChange={e => { setOpSeq(e.target.value); setError('') }}
-                placeholder="10"
-                className="w-full px-3 py-1.5 bg-white border border-slate-300 rounded-md font-mono text-slate-900 focus:outline-none focus:ring-1 focus:ring-slate-800 focus:border-slate-800 shadow-2xs"
-                required
-              />
-            </div>
-            <div className="col-span-2">
-              <label className="block font-semibold text-slate-700 mb-1">Work Center (WC) *</label>
-              <select
-                value={wc}
-                onChange={e => setWc(e.target.value)}
-                className="w-full px-3 py-1.5 bg-white border border-slate-300 rounded-md focus:outline-none focus:ring-1 focus:ring-slate-800 focus:border-slate-800 font-mono font-bold text-slate-900 cursor-pointer shadow-2xs"
-              >
-                {rates.map(r => (
-                  <option key={r.wc} value={r.wc}>
-                    {r.wc} — {r.description}
-                  </option>
-                ))}
-              </select>
-            </div>
-          </div>
-
-          <div>
-            <label className="block font-semibold text-slate-700 mb-1">Operation Description *</label>
-            <input
-              type="text"
-              value={description}
-              onChange={e => setDescription(e.target.value)}
-              placeholder="e.g. Silver Conductor Screen Printing"
-              className="w-full px-3 py-1.5 bg-white border border-slate-300 rounded-md text-slate-900 focus:outline-none focus:ring-1 focus:ring-slate-800 focus:border-slate-800 shadow-2xs"
-              required
-            />
-          </div>
-
-          <div className="grid grid-cols-3 gap-3">
-            <div>
-              <label className="block font-semibold text-slate-700 mb-1">Manning (Heads) *</label>
-              <input
-                type="number"
-                step="0.5"
-                min="0.1"
-                value={manning}
-                onChange={e => setManning(e.target.value)}
-                placeholder="1"
-                className="w-full px-3 py-1.5 bg-white border border-slate-300 rounded-md font-mono text-slate-900 focus:outline-none focus:ring-1 focus:ring-slate-800 focus:border-slate-800 shadow-2xs"
-                required
-              />
-            </div>
-            <div>
-              <label className="block font-semibold text-slate-700 mb-1">Base Cap (pc/hr)</label>
-              <input
-                type="number"
-                step="50"
-                min="1"
-                value={baseCap}
-                onChange={e => setBaseCap(e.target.value)}
-                placeholder="1000"
-                className="w-full px-3 py-1.5 bg-white border border-slate-300 rounded-md font-mono text-slate-900 focus:outline-none focus:ring-1 focus:ring-slate-800 focus:border-slate-800 shadow-2xs"
-                required
-              />
-            </div>
-            <div>
-              <label className="block font-semibold text-slate-700 mb-1">Active Cap (pc/hr)</label>
-              <input
-                type="number"
-                step="50"
-                min="1"
-                value={activeCap}
-                onChange={e => setActiveCap(e.target.value)}
-                placeholder="1000"
-                className="w-full px-3 py-1.5 bg-white border border-slate-300 rounded-md font-mono font-bold text-slate-900 focus:outline-none focus:ring-1 focus:ring-slate-800 focus:border-slate-800 shadow-2xs"
-                required
-              />
-            </div>
-          </div>
-
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="block font-semibold text-slate-700 mb-1">Base Yield %</label>
-              <input
-                type="number"
-                step="0.5"
-                min="1"
-                max="100"
-                value={baseYield}
-                onChange={e => setBaseYield(e.target.value)}
-                placeholder="98"
-                className="w-full px-3 py-1.5 bg-white border border-slate-300 rounded-md font-mono text-slate-900 focus:outline-none focus:ring-1 focus:ring-slate-800 focus:border-slate-800 shadow-2xs"
-              />
-            </div>
-            <div>
-              <label className="block font-semibold text-slate-700 mb-1">Active Yield %</label>
-              <input
-                type="number"
-                step="0.5"
-                min="1"
-                max="100"
-                value={activeYield}
-                onChange={e => setActiveYield(e.target.value)}
-                placeholder="95"
-                className="w-full px-3 py-1.5 bg-white border border-slate-300 rounded-md font-mono font-bold text-slate-900 focus:outline-none focus:ring-1 focus:ring-slate-800 focus:border-slate-800 shadow-2xs"
-              />
-            </div>
-          </div>
-
-          <div>
-            <label className="block font-semibold text-slate-700 mb-1">Source Reference</label>
-            <input
-              type="text"
-              value={sourceRef}
-              onChange={e => setSourceRef(e.target.value)}
-              placeholder="e.g. TimeStudy-2026"
-              className="w-full px-3 py-1.5 bg-white border border-slate-300 rounded-md text-slate-900 focus:outline-none focus:ring-1 focus:ring-slate-800 focus:border-slate-800 shadow-2xs"
-            />
-          </div>
-
-          <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-100">
-            <button
-              type="button"
-              onClick={onClose}
-              className="px-3.5 py-1.5 border border-slate-200 text-slate-600 rounded-lg hover:bg-slate-50 font-semibold cursor-pointer"
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              className="px-4 py-1.5 bg-slate-900 text-white rounded-lg hover:bg-slate-800 font-bold flex items-center gap-1.5 shadow-xs cursor-pointer"
-            >
-              <Check className="w-3.5 h-3.5" />
-              Save Routing Step
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-xs p-4"><div className="bg-white rounded-xl border border-slate-200 shadow-xl max-w-lg w-full overflow-hidden">
+      <div className="flex items-center justify-between p-4 border-b border-slate-100"><h3 className="text-sm font-bold text-slate-900">{initialData ? 'Edit Routing Step' : 'Add Routing Step'}</h3><button type="button" onClick={onClose} className="text-slate-400 hover:text-slate-600 p-1 cursor-pointer"><X className="w-4 h-4" /></button></div>
+      <form onSubmit={handleSubmit} className="p-4 space-y-3 text-xs">
+        {error && <div className="p-2.5 bg-rose-50 border border-rose-200 text-rose-800 rounded-lg font-medium">{error}</div>}
+        <div className="grid grid-cols-3 gap-3"><label className="font-semibold text-slate-700">Operation Code<input value={operationCode} onChange={event => setOperationCode(event.target.value)} className="mt-1 w-full px-2 py-1.5 border border-slate-300 rounded-md font-mono text-slate-900" /></label><label className="font-semibold text-slate-700">Sequence<input type="number" step="any" value={sequence} onChange={event => setSequence(event.target.value)} placeholder="optional" className="mt-1 w-full px-2 py-1.5 border border-slate-300 rounded-md font-mono text-slate-900" /></label><label className="font-semibold text-slate-700">Process Code<input value={processCode} onChange={event => setProcessCode(event.target.value)} className="mt-1 w-full px-2 py-1.5 border border-slate-300 rounded-md font-mono text-slate-900" /></label></div>
+        <label className="block font-semibold text-slate-700">Process Name<input value={processName} onChange={event => setProcessName(event.target.value)} className="mt-1 w-full px-2 py-1.5 border border-slate-300 rounded-md text-slate-900" /></label>
+        <div className="grid grid-cols-2 gap-3"><label className="font-semibold text-slate-700">Work Center Code<select value={workCenterId} onChange={event => setWorkCenterId(event.target.value)} className="mt-1 w-full px-2 py-1.5 border border-slate-300 rounded-md font-mono text-slate-900"><option value="">Not linked / missing</option>{rates.map(rate => <option key={rate.id} value={rate.workCenterCode}>{rate.workCenterCode} — {rate.description}</option>)}</select></label><label className="font-semibold text-slate-700">Manning<input type="number" step="any" value={manning} onChange={event => setManning(event.target.value)} placeholder="blank = missing" className="mt-1 w-full px-2 py-1.5 border border-slate-300 rounded-md font-mono text-slate-900" /></label></div>
+        <div className="grid grid-cols-2 gap-3"><label className="font-semibold text-slate-700">Capacity<input type="number" step="any" value={capacity} onChange={event => setCapacity(event.target.value)} placeholder="blank = missing" className="mt-1 w-full px-2 py-1.5 border border-slate-300 rounded-md font-mono text-slate-900" /></label><label className="font-semibold text-slate-700">Yield %<input type="number" step="any" min="0" max="100" value={yieldPercent} onChange={event => setYieldPercent(event.target.value)} placeholder="blank = missing" className="mt-1 w-full px-2 py-1.5 border border-slate-300 rounded-md font-mono text-slate-900" /></label></div>
+        <label className="block font-semibold text-slate-700">Source Reference<input value={sourceRef} onChange={event => setSourceRef(event.target.value)} placeholder="optional; keep traceability" className="mt-1 w-full px-2 py-1.5 border border-slate-300 rounded-md text-slate-900" /></label>
+        <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-100"><button type="button" onClick={onClose} className="px-3.5 py-1.5 border border-slate-200 text-slate-600 rounded-lg hover:bg-slate-50 cursor-pointer">Cancel</button><button type="submit" className="px-4 py-1.5 bg-slate-900 text-white rounded-lg hover:bg-slate-800 font-bold flex items-center gap-1.5 cursor-pointer"><Check className="w-3.5 h-3.5" /> Save</button></div>
+      </form>
+    </div></div>
   )
 }

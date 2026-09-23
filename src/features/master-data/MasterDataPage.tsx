@@ -1,176 +1,107 @@
 import React, { useState } from 'react'
+import { AlertTriangle } from 'lucide-react'
 import { useAppStore } from '../../state'
-import { BOMItem, RoutingStep, WorkCenterRate } from '../../core'
 
-// Sub-components
 import { ProductMasterCard } from './components/ProductMasterCard'
 import { ExcelImportPanel } from './components/ExcelImportPanel'
 import { WorkCenterRatesTable } from './components/WorkCenterRatesTable'
 import { BOMTable } from './components/BOMTable'
 import { RoutingTable } from './components/RoutingTable'
-
-// Modals
-import { ProductSetupModal } from './components/modals/ProductSetupModal'
 import { AddBOMModal } from './components/modals/AddBOMModal'
 import { AddRoutingModal } from './components/modals/AddRoutingModal'
 import { AddRateModal } from './components/modals/AddRateModal'
 
 export const MasterDataPage: React.FC = () => {
   const {
-    product,
-    rates,
-    bom,
-    routing,
-    uomList,
-    costBreakdown,
     activeSession,
+    uomList,
+    masterDataRole,
+    masterDataSnapshot,
+    setMasterDataRole,
+    cloneReferenceToCurrent,
     cloneActiveToDraft,
     activateDraft,
-    updateProduct,
-    addBOMItem,
-    updateBOMItem,
-    deleteBOMItem,
-    addRoutingStep,
-    updateRoutingStep,
-    deleteRoutingStep,
-    addWorkCenterRate,
-    updateWorkCenterRate,
-    deleteWorkCenterRate,
-    promoteActiveToBaseline,
-    resetToDefault,
-    clearAllData
+    updateMasterDataProduct,
+    addMasterDataBOMItem,
+    updateMasterDataBOMItem,
+    deleteMasterDataBOMItem,
+    addMasterDataRoutingStep,
+    updateMasterDataRoutingStep,
+    deleteMasterDataRoutingStep,
+    addMasterDataWorkCenterRate,
+    updateMasterDataWorkCenterRate,
+    deleteMasterDataWorkCenterRate
   } = useAppStore()
 
-  // Mode State (Default = View Mode / Read-Only for high cleanliness and error prevention)
   const [isEditMode, setIsEditMode] = useState(false)
-
-  // Modal States
-  const [setupModalOpen, setSetupModalOpen] = useState(false)
-
-  const [bomModal, setBomModal] = useState<{
-    isOpen: boolean
-    data?: BOMItem
-  }>({ isOpen: false })
-
-  const [routingModal, setRoutingModal] = useState<{
-    isOpen: boolean
-    data?: RoutingStep
-  }>({ isOpen: false })
-
-  const [rateModal, setRateModal] = useState<{
-    isOpen: boolean
-    data?: WorkCenterRate
-  }>({ isOpen: false })
+  const [bomModalOpen, setBomModalOpen] = useState(false)
+  const [routingModalOpen, setRoutingModalOpen] = useState(false)
+  const [rateModalOpen, setRateModalOpen] = useState(false)
+  const canEdit = activeSession.status === 'draft'
+  const product = masterDataSnapshot.product
 
   return (
     <div className="space-y-6">
-      {/* 1. Header & Sizing Card */}
       <ProductMasterCard
         product={product}
-        ratesCount={rates.length}
-        bomCount={bom.length}
-        routingCount={routing.length}
+        ratesCount={masterDataSnapshot.rates.length}
+        bomCount={masterDataSnapshot.bom.length}
+        routingCount={masterDataSnapshot.routing.length}
         uomList={uomList}
         status={activeSession.status}
-        versionLabel={activeSession.versionLabel}
-        isEditMode={isEditMode}
-        onToggleEditMode={setIsEditMode}
+        versionLabel={`${activeSession.versionLabel || 'Draft'} · ${masterDataRole === 'reference' ? 'Reference' : 'Current'}`}
+        isEditMode={isEditMode && canEdit}
+        canEdit={canEdit}
+        onToggleEditMode={edit => setIsEditMode(edit && canEdit)}
+        onUpdateProduct={updateMasterDataProduct}
         onCloneToDraft={() => cloneActiveToDraft(activeSession.id)}
         onActivateDraft={() => activateDraft(activeSession.id)}
-        onUpdateProduct={updateProduct}
-        onOpenSetupModal={() => setSetupModalOpen(true)}
       />
 
-      {/* 2. Excel Sync & Actions */}
+      {masterDataSnapshot.warnings && masterDataSnapshot.warnings.length > 0 && (
+        <div className="flex items-start gap-2 p-3 bg-amber-50 border border-amber-200 text-amber-900 text-xs font-sans">
+          <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" />
+          <div><strong>{masterDataSnapshot.warnings.length} data warning(s)</strong><ul className="mt-1 list-disc pl-4">{masterDataSnapshot.warnings.slice(0, 4).map(warning => <li key={warning}>{warning}</li>)}</ul>{masterDataSnapshot.warnings.length > 4 && <span className="text-[10px]">More warnings are attached to this dataset.</span>}</div>
+        </div>
+      )}
+
       <ExcelImportPanel
         product={product}
-        rates={rates}
-        bomCount={bom.length}
-        routingCount={routing.length}
-        onPromoteActive={promoteActiveToBaseline}
-        onResetDefault={resetToDefault}
-        onClearAll={clearAllData}
+        snapshot={masterDataSnapshot}
+        importRole={masterDataRole}
+        canEdit={canEdit}
+        onImportRoleChange={setMasterDataRole}
+        onCloneReferenceToCurrent={cloneReferenceToCurrent}
       />
 
-      {/* 3. Section B: Work Center Rates */}
       <WorkCenterRatesTable
-        rates={rates}
-        isEditMode={isEditMode}
-        onAddRate={() => setRateModal({ isOpen: true })}
-        onEditRate={r => setRateModal({ isOpen: true, data: r })}
-        onUpdateRate={updateWorkCenterRate}
-        onDeleteRate={deleteWorkCenterRate}
+        rates={masterDataSnapshot.rates}
+        isEditMode={isEditMode && canEdit}
+        onAddRate={() => setRateModalOpen(true)}
+        onUpdateRate={updateMasterDataWorkCenterRate}
+        onDeleteRate={deleteMasterDataWorkCenterRate}
       />
 
-      {/* 4. Section C: BOM Material Items */}
       <BOMTable
-        bom={bom}
-        activeMaterialCost={costBreakdown.materialActive}
-        isEditMode={isEditMode}
-        onAddBOMItem={() => setBomModal({ isOpen: true })}
-        onEditBOMItem={b => setBomModal({ isOpen: true, data: b })}
-        onUpdateBOMItem={updateBOMItem}
-        onDeleteBOMItem={deleteBOMItem}
+        bom={masterDataSnapshot.bom}
+        isEditMode={isEditMode && canEdit}
+        onAddBOMItem={() => setBomModalOpen(true)}
+        onUpdateBOMItem={updateMasterDataBOMItem}
+        onDeleteBOMItem={deleteMasterDataBOMItem}
       />
 
-      {/* 5. Section D: Process Routing Steps */}
       <RoutingTable
-        routing={routing}
-        rates={rates}
-        activeConvCost={costBreakdown.laborActive + costBreakdown.burdenActive}
-        isEditMode={isEditMode}
-        onAddRoutingStep={() => setRoutingModal({ isOpen: true })}
-        onEditRoutingStep={rt => setRoutingModal({ isOpen: true, data: rt })}
-        onUpdateRoutingStep={updateRoutingStep}
-        onDeleteRoutingStep={deleteRoutingStep}
+        routing={masterDataSnapshot.routing}
+        rates={masterDataSnapshot.rates}
+        isEditMode={isEditMode && canEdit}
+        onAddRoutingStep={() => setRoutingModalOpen(true)}
+        onUpdateRoutingStep={updateMasterDataRoutingStep}
+        onDeleteRoutingStep={deleteMasterDataRoutingStep}
       />
 
-      {/* Modals */}
-      <ProductSetupModal
-        isOpen={setupModalOpen}
-        mode="edit"
-        onClose={() => setSetupModalOpen(false)}
-      />
-
-      <AddBOMModal
-        isOpen={bomModal.isOpen}
-        initialData={bomModal.data}
-        onClose={() => setBomModal({ isOpen: false })}
-        onSave={item => {
-          if (bomModal.data) {
-            updateBOMItem(bomModal.data.id, item)
-          } else {
-            addBOMItem(item)
-          }
-        }}
-      />
-
-      <AddRoutingModal
-        isOpen={routingModal.isOpen}
-        initialData={routingModal.data}
-        rates={rates}
-        onClose={() => setRoutingModal({ isOpen: false })}
-        onSave={step => {
-          if (routingModal.data) {
-            updateRoutingStep(routingModal.data.id, step)
-          } else {
-            addRoutingStep(step)
-          }
-        }}
-      />
-
-      <AddRateModal
-        isOpen={rateModal.isOpen}
-        initialData={rateModal.data}
-        onClose={() => setRateModal({ isOpen: false })}
-        onSave={rate => {
-          if (rateModal.data) {
-            updateWorkCenterRate(rateModal.data.wc, rate)
-          } else {
-            addWorkCenterRate(rate)
-          }
-        }}
-      />
+      <AddBOMModal isOpen={bomModalOpen} onClose={() => setBomModalOpen(false)} onSave={addMasterDataBOMItem} />
+      <AddRoutingModal isOpen={routingModalOpen} rates={masterDataSnapshot.rates} onClose={() => setRoutingModalOpen(false)} onSave={addMasterDataRoutingStep} />
+      <AddRateModal isOpen={rateModalOpen} onClose={() => setRateModalOpen(false)} onSave={addMasterDataWorkCenterRate} />
     </div>
   )
 }
