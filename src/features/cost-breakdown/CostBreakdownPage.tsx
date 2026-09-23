@@ -14,6 +14,7 @@ import { BOMDetailedTable } from './components/BOMDetailedTable'
 import { RoutingDetailedTable } from './components/RoutingDetailedTable'
 import { WorkCenterComparisonTable } from './components/WorkCenterComparisonTable'
 import { SnapshotComparisonCard } from './components/SnapshotComparisonCard'
+import { SourceGroupsCard } from './components/SourceGroupsCard'
 import { findingNeedsReview } from './components/comparison-view'
 import type { ComparisonViewMode } from './components/comparison-view'
 
@@ -103,6 +104,8 @@ export const CostBreakdownPage: React.FC = () => {
 
       {/* 2. Independent Reference vs Current comparison */}
       <SnapshotComparisonCard comparison={snapshotComparison} />
+
+      <SourceGroupsCard snapshotPair={snapshotPair} />
 
       <section className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 px-3.5 py-3 bg-white border border-slate-300/80 shadow-2xs" aria-labelledby="comparison-view-title">
         <div>
