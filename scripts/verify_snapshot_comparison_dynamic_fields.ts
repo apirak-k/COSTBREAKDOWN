@@ -1,6 +1,11 @@
 import assert from 'node:assert/strict'
 import { compareSnapshots } from '../src/core/calculations/snapshot-comparison.ts'
-import type { CostSnapshot, SnapshotBOMItem } from '../src/core/types/snapshot.types.ts'
+import type {
+  CostSnapshot,
+  SnapshotBOMItem,
+  SnapshotRoutingStep,
+  SnapshotWorkCenterRate
+} from '../src/core/types/snapshot.types.ts'
 
 const product = {
   productCode: 'P-001',
@@ -23,33 +28,141 @@ const baseBOM: SnapshotBOMItem = {
   confidence: { consumption: evidence, price: evidence, loss: evidence }
 }
 
-const currentBOM = {
+const referenceBOM: SnapshotBOMItem = {
+  ...baseBOM,
+  additionalFields: {
+    'Supplier Grade': 'A',
+    'Optional Note': null,
+    'Retained Configuration': {
+      model: { revision: 3, verified: true },
+      tags: ['blue', 'reusable']
+    },
+    Packaging: { format: 'box', dimensions: { width: 10, height: 20 } }
+  }
+}
+
+const currentBOM: SnapshotBOMItem = {
   ...baseBOM,
   sourceRef: 'source-current',
-  customSupportedField: 'changed'
-} as SnapshotBOMItem & { customSupportedField: string }
+  confidence: {
+    consumption: { ...evidence, sourceRef: 'current-source' },
+    price: { ...evidence, sourceRef: 'current-source' },
+    loss: { ...evidence, sourceRef: 'current-source' }
+  },
+  additionalFields: {
+    'Supplier Grade': 'B',
+    'New Field': 'current-only',
+    'Retained Configuration': {
+      tags: ['blue', 'reusable'],
+      model: { verified: true, revision: 3 }
+    },
+    Packaging: { format: 'carton', dimensions: { width: 10, height: 20 } }
+  }
+}
 
-const snapshot = (id: string, role: 'reference' | 'current', bom: SnapshotBOMItem[]): CostSnapshot => ({
+const plainReferenceBOM: SnapshotBOMItem = {
+  ...baseBOM,
+  id: 'bom-2',
+  itemCode: 'MAT-2'
+}
+const plainCurrentBOM: SnapshotBOMItem = { ...plainReferenceBOM }
+
+const referenceRouting: SnapshotRoutingStep = {
+  id: 'routing-1',
+  operationCode: 'OP-10',
+  sequence: 10,
+  processName: 'Cut',
+  workCenterId: 'WC-1',
+  manning: 1,
+  capacity: 100,
+  yield: 0.9,
+  sourceRef: 'routing-reference',
+  confidence: { sequence: evidence, manning: evidence, capacity: evidence, yield: evidence },
+  additionalFields: { 'Operator Note': 'Confirm the guard is fitted' }
+}
+const currentRouting: SnapshotRoutingStep = {
+  ...referenceRouting,
+  sourceRef: 'routing-current'
+}
+delete currentRouting.additionalFields
+
+const referenceRate: SnapshotWorkCenterRate = {
+  id: 'rate-1',
+  workCenterCode: 'WC-1',
+  description: 'Cutting',
+  laborRate: 50,
+  burdenRate: 10,
+  effectiveDate: '2026-01-01',
+  sourceRef: 'rate-reference',
+  confidence: { laborRate: evidence, burdenRate: evidence }
+}
+const currentRate: SnapshotWorkCenterRate = {
+  ...referenceRate,
+  sourceRef: 'rate-current',
+  additionalFields: { 'Supplier Zone': 'zone-2' }
+}
+
+const snapshot = (
+  id: string,
+  role: 'reference' | 'current',
+  bom: SnapshotBOMItem[],
+  routing: SnapshotRoutingStep[],
+  rates: SnapshotWorkCenterRate[]
+): CostSnapshot => ({
   id,
   product,
   effectiveDate: product.effectiveDate,
   sourceRef: id,
   comparisonRole: role,
   status: 'active',
-  rates: [],
-  routing: [],
+  rates,
+  routing,
   bom
 })
 
 const comparison = compareSnapshots(
-  snapshot('ref', 'reference', [baseBOM]),
-  snapshot('current', 'current', [currentBOM])
+  snapshot('ref', 'reference', [referenceBOM, plainReferenceBOM], [referenceRouting], [referenceRate]),
+  snapshot('current', 'current', [currentBOM, plainCurrentBOM], [currentRouting], [currentRate])
 )
-const finding = comparison.bomFindings[0]
 
-assert.equal(finding.matchStatus, 'matched')
-assert.deepEqual(finding.fieldDiffs.customSupportedField, { reference: undefined, current: 'changed' })
-assert.equal(finding.fieldDiffs.sourceRef, undefined, 'source identity is provenance, not a cost change')
-assert.equal(finding.fieldDiffs.confidence, undefined, 'evidence metadata is not a working-value change')
+const bomFinding = comparison.bomFindings.find(finding => finding.referenceId === 'bom-1')
+assert.ok(bomFinding)
+assert.equal(bomFinding.matchStatus, 'matched')
+assert.deepEqual(bomFinding.fieldDiffs, {
+  'additionalFields.Supplier Grade': { reference: 'A', current: 'B' },
+  'additionalFields.Optional Note': { reference: null, current: undefined },
+  'additionalFields.New Field': { reference: undefined, current: 'current-only' },
+  'additionalFields.Packaging': {
+    reference: { format: 'box', dimensions: { width: 10, height: 20 } },
+    current: { format: 'carton', dimensions: { width: 10, height: 20 } }
+  }
+})
+assert.equal(bomFinding.fieldDiffs.sourceRef, undefined, 'source identity is provenance, not a cost change')
+assert.equal(bomFinding.fieldDiffs.confidence, undefined, 'evidence metadata is not a working-value change')
+assert.equal(bomFinding.fieldDiffs.additionalFields, undefined, 'custom values are diffed by field')
+assert.equal(bomFinding.reviewRequired, true, 'custom values must make review status visible')
+
+const plainBOMFinding = comparison.bomFindings.find(finding => finding.referenceId === 'bom-2')
+assert.ok(plainBOMFinding)
+assert.notEqual(plainBOMFinding.reviewRequired, true, 'rows without custom values do not require custom-field review')
+
+const routingFinding = comparison.routingFindings[0]
+assert.deepEqual(routingFinding.fieldDiffs, {
+  'additionalFields.Operator Note': {
+    reference: 'Confirm the guard is fitted',
+    current: undefined
+  }
+})
+assert.equal(routingFinding.reviewRequired, true)
+
+const workCenterFinding = comparison.workCenterFindings[0]
+assert.deepEqual(workCenterFinding.fieldDiffs, {
+  'additionalFields.Supplier Zone': { reference: undefined, current: 'zone-2' }
+})
+assert.equal(workCenterFinding.reviewRequired, true)
+assert.equal(workCenterFinding.changeFlags.changedRate, false, 'custom fields are not rate changes')
+
+assert.equal(comparison.totalGap, 0, 'custom and provenance changes do not change calculated cost')
+assert.equal(comparison.referenceCost.total, comparison.currentCost.total)
 
 console.log('Dynamic snapshot comparison verification passed.')

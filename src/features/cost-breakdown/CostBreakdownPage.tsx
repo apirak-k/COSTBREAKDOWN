@@ -1,11 +1,6 @@
 import React, { useState } from 'react'
 import { useAppStore } from '../../state'
-import { AlertTriangle, ArrowLeft, ChevronDown, ChevronRight, Download } from 'lucide-react'
-import {
-  generateSnapshotComparisonExcel,
-  getComparisonExportFilename
-} from '../../services/excel/comparison-export'
-import { downloadBlob } from '../../services/excel/export'
+import { AlertTriangle, ArrowLeft, ChevronDown, ChevronRight } from 'lucide-react'
 
 // Sub-components
 import { ExecutiveKPICards } from './components/ExecutiveKPICards'
@@ -21,12 +16,10 @@ import type { ComparisonViewMode } from './components/comparison-view'
 type SubTab = 'bom' | 'routing' | 'work-center'
 
 export const CostBreakdownPage: React.FC = () => {
-  const { product, costBreakdown, snapshotComparison, snapshotPair, bom, routing, rates, masterDataHandoff, setActiveTab } = useAppStore()
+  const { costBreakdown, snapshotComparison, snapshotPair, bom, routing, rates, masterDataHandoff, setActiveTab } = useAppStore()
   const [subTab, setSubTab] = useState<SubTab>('bom')
   const [comparisonView, setComparisonView] = useState<ComparisonViewMode>('all')
   const [isDetailedExpanded, setIsDetailedExpanded] = useState(true)
-  const [isExporting, setIsExporting] = useState(false)
-  const [exportError, setExportError] = useState<string | null>(null)
   const allFindings = [
     ...snapshotComparison.bomFindings,
     ...snapshotComparison.routingFindings,
@@ -35,24 +28,6 @@ export const CostBreakdownPage: React.FC = () => {
   const changedFindingsCount = allFindings.filter(findingNeedsReview).length
   const exactSnapshotCalculation = snapshotComparison.referenceCost.status === 'complete'
     && snapshotComparison.currentCost.status === 'complete'
-
-  const handleExportComparison = async () => {
-    setIsExporting(true)
-    setExportError(null)
-    try {
-      const blob = await generateSnapshotComparisonExcel({
-        product,
-        snapshotPair,
-        comparison: snapshotComparison
-      })
-      downloadBlob(blob, getComparisonExportFilename(product.productCode))
-    } catch (error) {
-      console.error('Failed to export snapshot comparison workbook', error)
-      setExportError('Export failed. Please try again.')
-    } finally {
-      setIsExporting(false)
-    }
-  }
 
   if (!masterDataHandoff.canCompare) {
     return (
@@ -151,15 +126,6 @@ export const CostBreakdownPage: React.FC = () => {
 
           {/* Sub-Tab Switcher */}
         <div className="flex flex-wrap items-center justify-end gap-2">
-          <button
-            onClick={handleExportComparison}
-            disabled={isExporting}
-            className="flex items-center gap-1 px-2.5 py-1 text-[11px] font-mono font-bold text-slate-800 bg-white hover:bg-slate-100 border border-slate-300 rounded transition-colors cursor-pointer disabled:cursor-wait disabled:opacity-60"
-          >
-            <Download className="w-3 h-3 text-slate-600" />
-            {isExporting ? 'Exporting...' : 'Export Comparison (.xlsx)'}
-          </button>
-
           <div className="flex items-center gap-1 font-mono text-[11px]">
             <button
               onClick={() => setSubTab('bom')}
@@ -194,12 +160,6 @@ export const CostBreakdownPage: React.FC = () => {
           </div>
         </div>
       </div>
-
-      {exportError && (
-        <div className="px-3.5 py-2 border-b border-rose-200 bg-rose-50 text-[10px] font-mono text-rose-700">
-          {exportError}
-        </div>
-      )}
 
       {isDetailedExpanded && (
           <div className="p-0">

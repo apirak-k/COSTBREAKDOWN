@@ -4,6 +4,7 @@ export interface ProductMaster {
   uom: string
   customer: string
   effectiveDate: string
+  additionalFields?: Record<string, unknown>
 }
 
 export interface ProductSizingConfig {

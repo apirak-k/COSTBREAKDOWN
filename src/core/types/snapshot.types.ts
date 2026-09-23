@@ -25,6 +25,8 @@ export interface SnapshotBOMItem {
   loss: number | null
   sourceRef?: string
   confidence: Record<string, FieldEvidence>
+  /** Imported dataset fields that are retained for comparison but have no core cost mapping yet. */
+  additionalFields?: Record<string, unknown>
 }
 
 export interface SnapshotRoutingStep {
@@ -39,6 +41,7 @@ export interface SnapshotRoutingStep {
   yield: number | null
   sourceRef?: string
   confidence: Record<string, FieldEvidence>
+  additionalFields?: Record<string, unknown>
 }
 
 export interface SnapshotWorkCenterRate {
@@ -50,6 +53,7 @@ export interface SnapshotWorkCenterRate {
   effectiveDate: string
   sourceRef?: string
   confidence: Record<string, FieldEvidence>
+  additionalFields?: Record<string, unknown>
 }
 
 export interface CostSnapshot {
@@ -62,6 +66,7 @@ export interface CostSnapshot {
   rates: SnapshotWorkCenterRate[]
   bom: SnapshotBOMItem[]
   routing: SnapshotRoutingStep[]
+  additionalFields?: Record<string, unknown>
   warnings?: string[]
 }
 
@@ -94,6 +99,7 @@ export interface ComparisonFinding {
   fieldDiffs: Record<string, { reference: unknown; current: unknown }>
   costGap?: number | null
   confidence: ConfidenceStatus
+  reviewRequired?: boolean
 }
 
 export interface ComparisonWarning {
@@ -114,6 +120,7 @@ export interface CostComparison {
   bomFindings: ComparisonFinding[]
   routingFindings: ComparisonFinding[]
   workCenterFindings: ComparisonFinding[]
+  productFieldDiffs: Record<string, { reference: unknown; current: unknown }>
   warnings: ComparisonWarning[]
 }
 

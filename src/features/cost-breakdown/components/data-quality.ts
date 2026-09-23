@@ -35,6 +35,7 @@ export function getSnapshotDataQuality(row: SnapshotRow | undefined): DataQualit
   if (qualities.includes('invalid')) return 'Invalid'
   if (qualities.includes('missing') || valuesOf(row).some(isBlank)) return 'Missing'
   if (qualities.includes('needs-review')) return 'Need Review'
+  if (Object.keys(row.additionalFields ?? {}).length > 0) return 'Need Review'
   if (qualities.includes('warning') || evidences.some(evidence => evidence.status === 'estimated')) return 'Warning'
   if (evidences.length === 0) return 'Need Review'
   return 'Valid'

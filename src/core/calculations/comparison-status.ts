@@ -19,6 +19,7 @@ export function getComparisonStatusLabels(finding: ComparisonFinding | undefined
   const labels: ComparisonStatus[] = []
   if (finding.changeFlags.reordered) labels.push('Reordered')
   if (finding.changeFlags.movedWorkCenter) labels.push('Moved Work Center')
+  if (finding.reviewRequired) labels.push('Need Review')
   if (Object.keys(finding.fieldDiffs).length > 0 || finding.changeFlags.changedInputs || finding.changeFlags.changedRate) {
     labels.push('Modified')
   }

@@ -15,6 +15,7 @@ import { calculateSnapshotCost } from './snapshot-cost'
 type SnapshotRow = {
   id: string
   confidence: Record<string, FieldEvidence>
+  additionalFields?: Record<string, unknown>
 }
 
 function normalizeKey(value: string | undefined): string {
@@ -36,7 +37,44 @@ function combinedConfidence(reference: SnapshotRow | undefined, current: Snapsho
   return 'verified'
 }
 
-const COMPARISON_METADATA_FIELDS = new Set(['id', 'confidence', 'sourceRef'])
+const COMPARISON_METADATA_FIELDS = new Set(['id', 'confidence', 'sourceRef', 'additionalFields'])
+
+function valuesEqual(left: unknown, right: unknown): boolean {
+  if (Object.is(left, right)) return true
+  if (left instanceof Date && right instanceof Date) return left.getTime() === right.getTime()
+  if (Array.isArray(left) || Array.isArray(right)) {
+    return Array.isArray(left) && Array.isArray(right)
+      && left.length === right.length
+      && left.every((value, index) => valuesEqual(value, right[index]))
+  }
+  if (left && right && typeof left === 'object' && typeof right === 'object') {
+    const leftKeys = Object.keys(left).sort()
+    const rightKeys = Object.keys(right).sort()
+    return leftKeys.length === rightKeys.length
+      && leftKeys.every((key, index) => key === rightKeys[index]
+        && valuesEqual((left as Record<string, unknown>)[key], (right as Record<string, unknown>)[key]))
+  }
+  return false
+}
+
+function addAdditionalFieldDiffs(
+  diffs: Record<string, { reference: unknown; current: unknown }>,
+  reference: Record<string, unknown> | undefined,
+  current: Record<string, unknown> | undefined
+): void {
+  const keys = new Set([...Object.keys(reference ?? {}), ...Object.keys(current ?? {})])
+  keys.forEach(key => {
+    const referenceValue = reference?.[key]
+    const currentValue = current?.[key]
+    if (!valuesEqual(referenceValue, currentValue)) {
+      diffs[`additionalFields.${key}`] = { reference: referenceValue, current: currentValue }
+    }
+  })
+}
+
+function hasAdditionalFields(row: SnapshotRow | undefined): boolean {
+  return Object.keys(row?.additionalFields ?? {}).length > 0
+}
 
 function diffSupportedFields<T extends SnapshotRow>(
   reference: T,
@@ -48,10 +86,25 @@ function diffSupportedFields<T extends SnapshotRow>(
     if (COMPARISON_METADATA_FIELDS.has(field)) return
     const referenceValue = (reference as unknown as Record<string, unknown>)[field]
     const currentValue = (current as unknown as Record<string, unknown>)[field]
-    if (!Object.is(referenceValue, currentValue)) {
+    if (!valuesEqual(referenceValue, currentValue)) {
       diffs[field] = { reference: referenceValue, current: currentValue }
     }
   })
+  addAdditionalFieldDiffs(diffs, reference.additionalFields, current.additionalFields)
+  return diffs
+}
+
+function diffProductFields(reference: CostSnapshot['product'], current: CostSnapshot['product']): Record<string, { reference: unknown; current: unknown }> {
+  const diffs: Record<string, { reference: unknown; current: unknown }> = {}
+  const metadata = new Set(['additionalFields'])
+  const fields = new Set([...Object.keys(reference), ...Object.keys(current)])
+  fields.forEach(field => {
+    if (metadata.has(field)) return
+    const referenceValue = (reference as unknown as Record<string, unknown>)[field]
+    const currentValue = (current as unknown as Record<string, unknown>)[field]
+    if (!valuesEqual(referenceValue, currentValue)) diffs[field] = { reference: referenceValue, current: currentValue }
+  })
+  addAdditionalFieldDiffs(diffs, reference.additionalFields, current.additionalFields)
   return diffs
 }
 
@@ -96,7 +149,8 @@ function compareRows<T extends SnapshotRow>(
         matchStatus,
         changeFlags: {},
         fieldDiffs: {},
-        confidence: combinedConfidence(references[0], currents[0])
+        confidence: combinedConfidence(references[0], currents[0]),
+        reviewRequired: hasAdditionalFields(references[0]) || hasAdditionalFields(currents[0])
       })
       return
     }
@@ -109,7 +163,8 @@ function compareRows<T extends SnapshotRow>(
       matchStatus: 'matched',
       changeFlags: flagsOf(reference, current),
       fieldDiffs: diffSupportedFields(reference, current),
-      confidence: combinedConfidence(reference, current)
+      confidence: combinedConfidence(reference, current),
+      reviewRequired: hasAdditionalFields(reference) || hasAdditionalFields(current)
     })
   })
 
@@ -182,6 +237,7 @@ export function compareSnapshots(reference: CostSnapshot, current: CostSnapshot)
     bomFindings: compareRows(reference.bom, current.bom, bomKey, bomFlags),
     routingFindings: compareRows(reference.routing, current.routing, routingKey, routingFlags),
     workCenterFindings: compareRows(reference.rates, current.rates, rateKey, rateFlags),
+    productFieldDiffs: diffProductFields(reference.product, current.product),
     warnings
   }
 }

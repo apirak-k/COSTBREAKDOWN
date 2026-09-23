@@ -76,6 +76,25 @@ function columnMap(row: Row): Map<string, number> {
   return map
 }
 
+function additionalFields(row: Row, headers: Row, knownAliases: string[]): Record<string, unknown> | undefined {
+  const known = new Set(knownAliases.map(normalizeLabel))
+  const fields: Record<string, unknown> = {}
+  const keyCounts = new Map<string, number>()
+
+  headers.forEach((header, index) => {
+    const label = textValue(header).trim()
+    const normalized = normalizeLabel(header)
+    if (!label || !normalized || known.has(normalized)) return
+
+    const occurrence = (keyCounts.get(normalized) ?? 0) + 1
+    keyCounts.set(normalized, occurrence)
+    const key = occurrence === 1 ? label : `${label} (${occurrence})`
+    fields[key] = row[index] ?? null
+  })
+
+  return Object.keys(fields).length > 0 ? fields : undefined
+}
+
 function columnIndex(map: Map<string, number>, aliases: string[]): number {
   for (const alias of aliases) {
     const index = map.get(normalizeLabel(alias))
@@ -94,7 +113,7 @@ function metaValues(rows: Row[]): Map<string, string> {
   const headerIndex = findHeaderRow(rows, [['key', 'field', 'name'], ['value']])
   const start = headerIndex >= 0 ? headerIndex + 1 : 0
   rows.slice(start).forEach(row => {
-    const key = normalizeLabel(row[0])
+    const key = textValue(row[0]).trim()
     if (key) values.set(key, textValue(row[1]))
   })
   return values
@@ -102,10 +121,26 @@ function metaValues(rows: Row[]): Map<string, string> {
 
 function metaValue(meta: Map<string, string>, aliases: string[]): string {
   for (const alias of aliases) {
-    const value = meta.get(normalizeLabel(alias))
+    const normalizedAlias = normalizeLabel(alias)
+    const value = [...meta.entries()].find(([key]) => normalizeLabel(key) === normalizedAlias)?.[1]
     if (value) return value
   }
   return ''
+}
+
+function additionalMetaFields(meta: Map<string, string>): Record<string, unknown> | undefined {
+  const known = new Set([
+    'template version', 'version',
+    'product code', 'productcode', 'code',
+    'product description', 'productdescription', 'description', 'name',
+    'uom', 'unit', 'customer', 'customer application',
+    'source ref', 'sourceref', 'source',
+    'effective date', 'effectivedate',
+    'snapshot id', 'snapshotid', 'id',
+    'status', 'dataset status'
+  ].map(normalizeLabel))
+  const fields = Object.fromEntries([...meta.entries()].filter(([key]) => !known.has(normalizeLabel(key))))
+  return Object.keys(fields).length > 0 ? fields : undefined
 }
 
 function parseStatus(value: string, warnings: string[]): CostSnapshot['status'] {
@@ -165,7 +200,21 @@ function productFromSheet(
   if (!uom) warnings.push('Missing UOM in PRODUCT')
   if (!effectiveDate) warnings.push('Missing effective date in PRODUCT/META')
 
-  return { product: { productCode, productDescription, uom, customer, effectiveDate }, rowCount: dataRows.length }
+  return {
+    product: {
+      productCode,
+      productDescription,
+      uom,
+      customer,
+      effectiveDate,
+      additionalFields: additionalFields(row, header, [
+        'product code', 'productcode', 'code',
+        'product description', 'productdescription', 'description', 'name',
+        'uom', 'unit', 'customer', 'customer application', 'effective date', 'effectivedate'
+      ])
+    },
+    rowCount: dataRows.length
+  }
 }
 
 function parseWorkCenters(
@@ -205,7 +254,14 @@ function parseWorkCenters(
       confidence: {
         laborRate: evidence(laborRate.value, sourceRef, explicitConfidence, laborRate.quality),
         burdenRate: evidence(burdenRate.value, sourceRef, explicitConfidence, burdenRate.quality)
-      }
+      },
+      additionalFields: additionalFields(row, rows[headerIndex], [
+        'work center code', 'workcentercode', 'work center', 'wc',
+        'labor rate', 'laborrate', 'burden rate', 'burdenrate',
+        'description', 'work center description', 'workcenterdescription',
+        'effective date', 'effectivedate', 'id', 'work center id', 'workcenterid',
+        'source ref', 'sourceref', 'source', 'confidence', 'status'
+      ])
     })
   })
   if (rates.length === 0) warnings.push('No Work Center rows found')
@@ -252,7 +308,13 @@ function parseBOM(
         consumption: evidence(consumption.value, sourceRef, explicitConfidence, consumption.quality),
         price: evidence(price.value, sourceRef, explicitConfidence, price.quality),
         loss: evidence(loss.value, sourceRef, explicitConfidence, loss.quality)
-      }
+      },
+      additionalFields: additionalFields(row, rows[headerIndex], [
+        'item code', 'itemcode', 'material', 'material code',
+        'consumption', 'usage', 'quantity', 'price', 'material price',
+        'loss', 'loss rate', 'description', 'material description', 'unit', 'uom',
+        'id', 'bom id', 'bomid', 'source ref', 'sourceref', 'source', 'confidence', 'status'
+      ])
     })
   })
   if (items.length === 0) warnings.push('No BOM rows found')
@@ -304,7 +366,13 @@ function parseRouting(
         manning: evidence(manning.value, sourceRef, explicitConfidence, manning.quality),
         capacity: evidence(capacity.value, sourceRef, explicitConfidence, capacity.quality),
         yield: evidence(yieldValue.value, sourceRef, explicitConfidence, yieldValue.quality)
-      }
+      },
+      additionalFields: additionalFields(row, rows[headerIndex], [
+        'operation code', 'operationcode', 'operation', 'id', 'routing id', 'routingid',
+        'sequence', 'seq', 'op seq', 'manning', 'headcount', 'capacity', 'cap', 'yield', 'yield rate',
+        'process name', 'process', 'description', 'work center id', 'workcenterid',
+        'work center code', 'work center', 'wc', 'source ref', 'sourceref', 'source', 'confidence', 'status'
+      ])
     })
   })
   if (steps.length === 0) warnings.push('No Routing rows found')
@@ -382,6 +450,7 @@ export function parseSnapshotWorkbookData(
     rates: parseWorkCenters(rowsFor(workbook, 'WORK_CENTER'), sourceRef, effectiveDate, warnings),
     bom: parseBOM(rowsFor(workbook, 'BOM'), sourceRef, warnings),
     routing: parseRouting(rowsFor(workbook, 'ROUTING'), sourceRef, warnings),
+    additionalFields: additionalMetaFields(meta),
     warnings
   }
 
