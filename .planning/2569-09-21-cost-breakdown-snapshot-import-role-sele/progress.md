@@ -183,3 +183,31 @@ Implement the shared active-core rate resolver and wire the four calculation sur
 
 - Human acceptance is still required for the final user-facing review.
 - Native download artifact observation remains [Unverified] in this browser adapter; the export generator itself is covered by the bundled four-sheet check.
+
+## Session: 2026-09-23 - Final Plan Recheck and Delivery
+
+### Current Status
+
+- **Phase:** 13 - Final Browser Acceptance Evidence (agent-executable checks complete)
+- **Branch:** `codex/snapshot-import-role-selector`
+- **Human acceptance:** pending; AI execution evidence is not acceptance.
+- **Native browser download:** [Unverified]; active Cost Breakdown has no Export/Download control, and the spec defers adding one.
+
+### Actions Taken
+
+- Re-resolved this branch's plan explicitly as `2569-09-21-cost-breakdown-snapshot-import-role-sele`; left the unrelated global active-plan pin untouched.
+- Reopened the seeded Cost Breakdown page through the active app route. Reference was `33.6936`, Current `41.9528`, Exact Cost Gap `+8.2592`, and Data quality was Verified. The rendered button list had no Export/Download action; browser console returned no errors or warnings.
+- Rechecked the empty BOM/Routing browser case with a synthetic workbook in an isolated tab: both missing-row warnings appeared, the Comparison card showed Missing with Current/Exact Cost Gap as em dashes, and the footer showed `Cost summary on hold`.
+- Reconciled the missing UI action against `docs/specs/cost-breakdown.md`, which defers an Export Comparison control; corrected its stale repository note and recorded the boundary rather than adding an out-of-scope control.
+- `npm run build`: PASS; 1,685 modules. Existing Vite large-chunk warning remains.
+- `npm run excel`: PASS; both generated models audited, 100% formula shielding, zero errors. Generated root workbooks were removed after verification.
+- `node scripts/test_comprehensive_audit.js`: PASS; 31/31.
+- 18 focused TypeScript verifiers bundled with esbuild and run with Node: PASS, including snapshot import/quality/handoff/projection/full-flow, missing Work Center rate, comparison export generator, snapshot detail/views, and source groups.
+- `npm audit --offline --audit-level=high`: PASS; found 0 vulnerabilities in the local audit cache.
+- `git diff --check`: exit 0; only line-ending normalization warnings.
+- The build changed tracked `tsconfig.tsbuildinfo`; `git restore` was blocked by the read-only Git metadata permission, so the generated file was restored byte-for-byte from `HEAD` with a Node command. Git status then contained only intended documentation changes.
+
+### Ruling
+
+- **Ruling:** Keep the browser export action outside this plan because the authoritative Cost Breakdown spec defers it and the active page does not render one. **Cost if wrong:** the user may expect a downloadable report in this phase; that requires a separate scope update.
+- The user explicitly authorized pushing this completed branch; proceed after the documentation diff is reviewed and committed.

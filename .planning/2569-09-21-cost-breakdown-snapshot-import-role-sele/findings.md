@@ -113,3 +113,12 @@
 - After the fix, the fresh uploaded flow returned no browser error or warning entries. The focused projection check, TypeScript build, production build, full-flow fixture check, comprehensive audit, missing-rate check, and Excel audit were already GREEN before the code checkpoint.
 - Clicking `Export Comparison (.xlsx)` produced no user-facing export error. The available browser adapter did not expose a native download artifact and the Downloads folder remained empty, so native download observation stays [Unverified]. The bundled export check independently produced a readable four-sheet workbook of `18,543` bytes.
 - AI-run browser evidence is not human acceptance; the user still needs to inspect the final Comparison page and, if required, confirm the downloaded workbook through their normal browser.
+
+## Final Scope Reconciliation (2026-09-23)
+
+- Reopened the app from its default seed and entered the active Comparison page. The visible action list contains no Export or Download control.
+- `src/App.tsx` mounts `src/features/cost-breakdown/CostBreakdownPage.tsx` for the active breakdown route. That component renders the KPI summary, snapshot card, source groups, comparison filters, and itemized tables; it does not import or invoke the comparison workbook generator.
+- The export generator remains available at `src/services/excel/comparison-export.ts`, with `scripts/verify_comparison_export.ts` and `scripts/verify_snapshot_full_flow.ts` providing non-UI artifact verification.
+- `docs/specs/cost-breakdown.md` explicitly defers an export control from this target scope. Its former repository note incorrectly claimed the active page already had an Export Comparison action; the source location named there contains page state and calculation setup instead.
+- Ruling: correct the repository note and keep UI export out of this plan. Adding a new export control would contradict the current spec. Cost if wrong: if the user expects a downloadable report in this phase, that action needs an explicit scope update.
+- The separate empty-BOM/Routing browser check showed visible missing-row warnings, `Data quality: Missing`, `Current` and `Exact Cost Gap` as em dashes, and `Cost summary on hold`; this did not replace human acceptance.

@@ -226,7 +226,7 @@ The current implementation is transitional and must be migrated toward this cont
 - Snapshot calculation now preserves missing or invalid numeric values as unavailable (`null` / `—`) while adding warnings in `src/core/calculations/snapshot-cost.ts`, `src/core/calculations/snapshot-bom-detail.ts`, and `src/core/calculations/snapshot-routing-detail.ts`.
 - Snapshot comparison now discovers supported record fields dynamically in `src/core/calculations/snapshot-comparison.ts`; identity and provenance metadata (`id`, `confidence`, `sourceRef`) remain excluded from working-value change status. The detailed UI still renders the canonical fields explicitly, so any future field added to the dataset contract must also receive a visible detail-column or review surface.
 - Duplicate Work Center identities are kept as `Need Review`/unavailable dependencies rather than silently selecting one rate.
-- The current page includes an Export Comparison action in `src/features/cost-breakdown/CostBreakdownPage.tsx:27-43`; Export is explicitly deferred from this target scope.
+- Comparison workbook generation is available in `src/services/excel/comparison-export.ts` and has a focused verifier in `scripts/verify_comparison_export.ts`; the active `src/features/cost-breakdown/CostBreakdownPage.tsx` currently exposes no Export Comparison action. Adding an export control is explicitly deferred from this target scope.
 
 ## 13. Related Documents
 

@@ -124,7 +124,7 @@ This plan is intentionally separate from `tasks/plan.md`, which tracks the earli
 - [x] Zero is shown only when sourced or explicitly entered.
 - [x] Routing-to-Work-Center errors are visible at row level or in the summary.
 
-**Verification:** browser walkthrough with missing/invalid fixture values and manual edits. `scripts/verify_snapshot_quality.ts` also verifies that empty BOM/Routing data remains Missing while explicit zero inputs remain valid.
+**Verification:** browser walkthrough with missing/invalid fixture values and manual edits. `scripts/verify_snapshot_quality.ts` also verifies that empty BOM/Routing data remains Missing while explicit zero inputs remain valid. The 2026-09-23 isolated browser check imported a synthetic one-Product workbook with no BOM/Routing rows; Master Data showed both missing-row warnings and Cost Breakdown showed `Data quality: Missing`, `Current` and `Exact Cost Gap` as em dashes, and `Cost summary on hold`.
 
 **Dependencies:** Task 4
 

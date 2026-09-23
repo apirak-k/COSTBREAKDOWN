@@ -28,11 +28,11 @@ The original role-selector/full-flow checkpoint intentionally deferred the activ
 
 ## Next Step
 
-User reviews the final Comparison page and confirms the native export download through their normal browser; return with any acceptance findings for follow-up fixes.
+User reviews the current Comparison behavior for human acceptance. The active page has no Export/Download control; the Cost Breakdown spec defers adding one. If a downloadable report is required, treat it as a separate scope decision. Native browser download remains [Unverified].
 
 ## Current Phase
 
-Phase 13: Final Browser Acceptance Evidence (upload/comparison passed; native download artifact remains harness-limited; human acceptance remains)
+Phase 13: Final Browser Acceptance Evidence (agent-verifiable checks complete; native download remains [Unverified] because the active page has no export control; human acceptance remains)
 
 ## Phases
 
@@ -140,6 +140,16 @@ Phase 13: Final Browser Acceptance Evidence (upload/comparison passed; native do
 - [x] Leave the worktree clean without pushing
 - **Status:** complete; manual human acceptance remains
 
+### Phase 13: Final Browser Acceptance Evidence
+
+- [x] Recheck the empty BOM/Routing case in an isolated browser using a synthetic one-Product workbook; verify visible Missing warnings and held Current/Exact Cost Gap values.
+- [x] Reopen the active seeded Comparison page and inspect its rendered actions and browser console.
+- [x] Trace the active route and confirm whether the page wires the comparison workbook generator to a download control.
+- [x] Reconcile export expectations against `docs/specs/cost-breakdown.md`, which explicitly defers an export control.
+- [x] Run the final production build, Excel audit, comprehensive audit, focused snapshot/cost verifiers, offline dependency audit, and diff check.
+- [x] Update the implementation plan, Master Data plan, handoff, and findings with current evidence and limits.
+- **Status:** agent-executable checks complete; native browser download remains [Unverified]; human acceptance remains pending.
+
 ## Commit Boundaries
 
 1. docs: add snapshot import role selector plan — planning records only.
@@ -162,7 +172,7 @@ Phase 13: Final Browser Acceptance Evidence (upload/comparison passed; native do
 - Existing reset, clear, template, promote, and legacy adapter behavior is unchanged.
 - TypeScript and production build pass.
 - Browser smoke verification observes the controls and selection state.
-- Native downloaded-file observation is explicitly marked [Unverified] because the available browser adapter did not expose a download artifact.
+- Native downloaded-file observation remains [Unverified]: the active page has no Export/Download control in this scope, while the generator is verified independently by the export scripts.
 - Browser console cleanliness was verified in the final uploaded-workbook runtime smoke.
 - An unknown or blank Work Center never receives a hard-coded rate in the active core calculations.
 - Missing Work Center keys are visible in the primary cost breakdown so zero-cost treatment is not silent.
@@ -179,6 +189,8 @@ Phase 13: Final Browser Acceptance Evidence (upload/comparison passed; native do
 | Use existing workbook fixtures or a temporary local fixture only | Full-flow proof needs real file input, but must not modify user-owned workbooks or add a speculative dependency. |
 | Treat missing Work Center rates as zero-cost and report their keys | Prevents fabricated conversion cost while keeping the active UI explicit about incomplete rate data. |
 | Share one rate resolver across active core calculators | Keeps primary totals, detail rows, drivers, and What-if behavior consistent without duplicating fallback literals. |
+| Keep comparison export UI deferred | The active page has no Export/Download control and the Cost Breakdown spec defers one; adding it here would expand scope. The workbook generator remains independently verified. |
+| Push the completed branch after the user's latest instruction | The user explicitly authorized pushing this branch after completing the plan; this overrides the earlier plan note that remote push was out of scope. |
 
 ## Errors Encountered
 
