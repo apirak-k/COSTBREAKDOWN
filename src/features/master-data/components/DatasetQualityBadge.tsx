@@ -14,7 +14,7 @@ function differs(source: unknown, working: unknown): boolean {
 
 export function DatasetQualityBadge({ evidences, sourceRef }: { evidences: FieldEvidence[]; sourceRef?: string }): React.ReactElement {
   const quality = evidences.map(qualityOf)
-  const hasEditedValue = evidences.some(evidence => differs(evidence.sourceValue, evidence.workingValue))
+  const hasEditedValue = evidences.some(evidence => evidence !== undefined && differs(evidence.sourceValue, evidence.workingValue))
   const label = quality.includes('invalid')
     ? 'Invalid'
     : quality.includes('missing')
