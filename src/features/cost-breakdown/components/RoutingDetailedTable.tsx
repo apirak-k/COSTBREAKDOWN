@@ -6,8 +6,10 @@ import {
   calculateSnapshotRoutingDetail,
   formatNumber,
   formatVariance,
-  formatPercent
+  formatPercent,
+  getComparisonStatusLabels
 } from '../../../core'
+import type { ComparisonStatus } from '../../../core'
 import { ConfidenceBadge } from '../../../shared/ui/ConfidenceBadge'
 import { ComparisonViewMode, isVisibleInComparisonView } from './comparison-view'
 
@@ -20,22 +22,14 @@ interface RoutingDetailedTableProps {
   viewMode?: ComparisonViewMode
 }
 
-export function getRoutingComparisonLabels(finding: ComparisonFinding): string[] {
-  if (finding.matchStatus === 'added') return ['Added']
-  if (finding.matchStatus === 'removed') return ['Removed']
-  if (finding.matchStatus !== 'matched') return ['Review']
-
-  const labels: string[] = []
-  if (finding.changeFlags.reordered) labels.push('Reordered')
-  if (finding.changeFlags.movedWorkCenter) labels.push('Moved WC')
-  if (finding.changeFlags.changedInputs) labels.push('Changed Input')
-  return labels.length > 0 ? labels : ['Matched']
+export function getRoutingComparisonLabels(finding: ComparisonFinding): ComparisonStatus[] {
+  return getComparisonStatusLabels(finding)
 }
 
 function comparisonClass(label: string): string {
-  if (label === 'Matched') return 'text-emerald-700 bg-emerald-50 border-emerald-200'
-  if (label === 'Changed Input') return 'text-amber-700 bg-amber-50 border-amber-200'
-  if (label === 'Reordered' || label === 'Moved WC') return 'text-sky-700 bg-sky-50 border-sky-200'
+  if (label === 'Unchanged') return 'text-emerald-700 bg-emerald-50 border-emerald-200'
+  if (label === 'Modified') return 'text-amber-700 bg-amber-50 border-amber-200'
+  if (label === 'Reordered' || label === 'Moved Work Center') return 'text-sky-700 bg-sky-50 border-sky-200'
   if (label === 'Added') return 'text-sky-700 bg-sky-50 border-sky-200'
   if (label === 'Removed') return 'text-rose-700 bg-rose-50 border-rose-200'
   return 'text-slate-700 bg-slate-100 border-slate-200'
@@ -120,7 +114,7 @@ export const RoutingDetailedTable: React.FC<RoutingDetailedTableProps> = ({
           ) : visibleRows.map(row => {
             const reference = row.detail.pair.reference
             const current = row.detail.pair.current
-            const labels = row.finding ? getRoutingComparisonLabels(row.finding) : ['Review']
+            const labels = row.finding ? getRoutingComparisonLabels(row.finding) : ['Need Review']
             const referenceWorkCenter = reference?.workCenterId
             const currentWorkCenter = current?.workCenterId
             const workCenter = referenceWorkCenter && currentWorkCenter && referenceWorkCenter !== currentWorkCenter

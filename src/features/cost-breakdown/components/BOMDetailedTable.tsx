@@ -7,8 +7,10 @@ import {
   formatNumber,
   formatVariance,
   formatPercent,
-  getVarianceClass
+  getVarianceClass,
+  getComparisonStatusLabels
 } from '../../../core'
+import type { ComparisonStatus } from '../../../core'
 import { ConfidenceBadge } from '../../../shared/ui/ConfidenceBadge'
 import { ComparisonViewMode, isVisibleInComparisonView } from './comparison-view'
 
@@ -19,16 +21,13 @@ interface BOMDetailedTableProps {
   viewMode?: ComparisonViewMode
 }
 
-export function getBOMComparisonLabel(finding: ComparisonFinding): 'Matched' | 'Changed' | 'Added' | 'Removed' | 'Review' {
-  if (finding.matchStatus === 'added') return 'Added'
-  if (finding.matchStatus === 'removed') return 'Removed'
-  if (finding.matchStatus !== 'matched') return 'Review'
-  return Object.keys(finding.fieldDiffs).length > 0 ? 'Changed' : 'Matched'
+export function getBOMComparisonLabel(finding: ComparisonFinding): ComparisonStatus {
+  return getComparisonStatusLabels(finding)[0]
 }
 
 function comparisonClass(label: ReturnType<typeof getBOMComparisonLabel>): string {
-  if (label === 'Matched') return 'text-emerald-700 bg-emerald-50 border-emerald-200'
-  if (label === 'Changed') return 'text-amber-700 bg-amber-50 border-amber-200'
+  if (label === 'Unchanged') return 'text-emerald-700 bg-emerald-50 border-emerald-200'
+  if (label === 'Modified') return 'text-amber-700 bg-amber-50 border-amber-200'
   if (label === 'Added') return 'text-sky-700 bg-sky-50 border-sky-200'
   if (label === 'Removed') return 'text-rose-700 bg-rose-50 border-rose-200'
   return 'text-slate-700 bg-slate-100 border-slate-200'
@@ -75,7 +74,7 @@ export const BOMDetailedTable: React.FC<BOMDetailedTableProps> = ({ bom, finding
         <tbody className="divide-y divide-slate-100 font-mono">
           {visibleRows.map((row, idx) => {
             const finding = findingByCurrentId.get(row.id)
-            const label = finding ? getBOMComparisonLabel(finding) : 'Review'
+            const label = finding ? getBOMComparisonLabel(finding) : 'Need Review'
 
             return (
               <tr key={row.id} className="hover:bg-slate-50/70 transition-colors">

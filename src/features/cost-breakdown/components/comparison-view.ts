@@ -1,13 +1,11 @@
+import { getComparisonStatusLabels } from '../../../core'
 import type { ComparisonFinding } from '../../../core'
 
 export type ComparisonViewMode = 'all' | 'changed'
 
 export function findingNeedsReview(finding: ComparisonFinding | undefined): boolean {
-  if (!finding) return true
-  if (finding.matchStatus !== 'matched') return true
-  if (finding.confidence !== 'verified') return true
-  if (Object.keys(finding.fieldDiffs).length > 0) return true
-  return Object.values(finding.changeFlags).some(Boolean)
+  if (finding?.confidence !== 'verified') return true
+  return getComparisonStatusLabels(finding).some(label => label !== 'Unchanged')
 }
 
 export function isVisibleInComparisonView(

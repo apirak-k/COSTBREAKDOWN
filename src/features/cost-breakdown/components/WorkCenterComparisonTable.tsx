@@ -3,8 +3,10 @@ import {
   ComparisonFinding,
   SnapshotWorkCenterRate,
   formatNumber,
-  formatVariance
+  formatVariance,
+  getComparisonStatusLabels
 } from '../../../core'
+import type { ComparisonStatus } from '../../../core'
 import { ConfidenceBadge } from '../../../shared/ui/ConfidenceBadge'
 import { ComparisonViewMode, isVisibleInComparisonView } from './comparison-view'
 
@@ -15,16 +17,13 @@ interface WorkCenterComparisonTableProps {
   viewMode?: ComparisonViewMode
 }
 
-export function getWorkCenterComparisonLabel(finding: ComparisonFinding): 'Matched' | 'Changed Rate' | 'Added' | 'Removed' | 'Review' {
-  if (finding.matchStatus === 'added') return 'Added'
-  if (finding.matchStatus === 'removed') return 'Removed'
-  if (finding.matchStatus !== 'matched') return 'Review'
-  return finding.changeFlags.changedRate ? 'Changed Rate' : 'Matched'
+export function getWorkCenterComparisonLabel(finding: ComparisonFinding): ComparisonStatus {
+  return getComparisonStatusLabels(finding)[0]
 }
 
 function comparisonClass(label: ReturnType<typeof getWorkCenterComparisonLabel>): string {
-  if (label === 'Matched') return 'text-emerald-700 bg-emerald-50 border-emerald-200'
-  if (label === 'Changed Rate') return 'text-amber-700 bg-amber-50 border-amber-200'
+  if (label === 'Unchanged') return 'text-emerald-700 bg-emerald-50 border-emerald-200'
+  if (label === 'Modified') return 'text-amber-700 bg-amber-50 border-amber-200'
   if (label === 'Added') return 'text-sky-700 bg-sky-50 border-sky-200'
   if (label === 'Removed') return 'text-rose-700 bg-rose-50 border-rose-200'
   return 'text-slate-700 bg-slate-100 border-slate-200'
@@ -110,7 +109,7 @@ export const WorkCenterComparisonTable: React.FC<WorkCenterComparisonTableProps>
               </td>
             </tr>
           ) : visibleRows.map(row => {
-            const label = row.finding ? getWorkCenterComparisonLabel(row.finding) : 'Review'
+            const label = row.finding ? getWorkCenterComparisonLabel(row.finding) : 'Need Review'
             const workCenterCode = row.current?.workCenterCode ?? row.reference?.workCenterCode ?? 'Unknown'
             const description = row.current?.description ?? row.reference?.description ?? '—'
             const source = row.current?.sourceRef ?? row.reference?.sourceRef ?? '—'

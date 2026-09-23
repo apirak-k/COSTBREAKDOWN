@@ -6,6 +6,7 @@ import {
   CostSnapshot,
   ProductMaster,
   SnapshotPair,
+  getComparisonStatusLabels,
 } from '../../core'
 
 export interface ComparisonExportInput {
@@ -145,32 +146,15 @@ function addStatusCount(
 }
 
 function bomLabel(finding: ComparisonFinding | undefined): string {
-  if (!finding) return 'Review'
-  if (finding.matchStatus === 'added') return 'Added'
-  if (finding.matchStatus === 'removed') return 'Removed'
-  if (finding.matchStatus !== 'matched') return 'Review'
-  return Object.keys(finding.fieldDiffs).length > 0 ? 'Changed' : 'Matched'
+  return getComparisonStatusLabels(finding).join(', ')
 }
 
 function routingLabels(finding: ComparisonFinding | undefined): string {
-  if (!finding) return 'Review'
-  if (finding.matchStatus === 'added') return 'Added'
-  if (finding.matchStatus === 'removed') return 'Removed'
-  if (finding.matchStatus !== 'matched') return 'Review'
-
-  const labels: string[] = []
-  if (finding.changeFlags.reordered) labels.push('Reordered')
-  if (finding.changeFlags.movedWorkCenter) labels.push('Moved WC')
-  if (finding.changeFlags.changedInputs) labels.push('Changed Input')
-  return labels.length > 0 ? labels.join(', ') : 'Matched'
+  return getComparisonStatusLabels(finding).join(', ')
 }
 
 function workCenterLabel(finding: ComparisonFinding | undefined): string {
-  if (!finding) return 'Review'
-  if (finding.matchStatus === 'added') return 'Added'
-  if (finding.matchStatus === 'removed') return 'Removed'
-  if (finding.matchStatus !== 'matched') return 'Review'
-  return finding.changeFlags.changedRate ? 'Changed Rate' : 'Matched'
+  return getComparisonStatusLabels(finding).join(', ')
 }
 
 function isBomChanged(finding: ComparisonFinding): boolean {
