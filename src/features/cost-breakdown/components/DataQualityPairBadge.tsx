@@ -5,6 +5,8 @@ import type { DataQualityLabel, SnapshotRow } from './data-quality'
 interface DataQualityPairBadgeProps {
   reference?: SnapshotRow
   current?: SnapshotRow
+  referenceQualityOverride?: DataQualityLabel
+  currentQualityOverride?: DataQualityLabel
 }
 
 function SideBadge({ role, label }: { role: 'Ref' | 'Current'; label: DataQualityLabel }): React.ReactElement {
@@ -18,9 +20,14 @@ function SideBadge({ role, label }: { role: 'Ref' | 'Current'; label: DataQualit
   )
 }
 
-export function DataQualityPairBadge({ reference, current }: DataQualityPairBadgeProps): React.ReactElement {
-  const referenceQuality = getSnapshotDataQuality(reference)
-  const currentQuality = getSnapshotDataQuality(current)
+export function DataQualityPairBadge({
+  reference,
+  current,
+  referenceQualityOverride,
+  currentQualityOverride
+}: DataQualityPairBadgeProps): React.ReactElement {
+  const referenceQuality = referenceQualityOverride ?? getSnapshotDataQuality(reference)
+  const currentQuality = currentQualityOverride ?? getSnapshotDataQuality(current)
 
   return (
     <div className="flex flex-wrap gap-1 min-w-[120px]" aria-label={`Data quality — Reference: ${referenceQuality ?? 'Not present'}; Current: ${currentQuality ?? 'Not present'}`}>

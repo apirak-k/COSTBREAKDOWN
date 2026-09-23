@@ -40,6 +40,31 @@ export function getSnapshotDataQuality(row: SnapshotRow | undefined): DataQualit
   return 'Valid'
 }
 
+function qualityRank(label: DataQualityLabel): number {
+  if (label === 'Invalid') return 4
+  if (label === 'Missing') return 3
+  if (label === 'Need Review') return 2
+  if (label === 'Warning') return 1
+  return 0
+}
+
+function worseQuality(left: DataQualityLabel, right: DataQualityLabel): DataQualityLabel {
+  return qualityRank(left) >= qualityRank(right) ? left : right
+}
+
+/** Includes the Work Center rate dependency when assessing a Routing row. */
+export function getRoutingDataQuality(
+  row: SnapshotRoutingStep | undefined,
+  rates: SnapshotWorkCenterRate[]
+): DataQualityLabel | undefined {
+  const rowQuality = getSnapshotDataQuality(row)
+  if (!row || !rowQuality) return undefined
+  const linkedRate = rates.find(rate => rate.workCenterCode.trim().toLowerCase() === row.workCenterId?.trim().toLowerCase())
+  if (!linkedRate) return worseQuality(rowQuality, 'Missing')
+  const rateQuality = getSnapshotDataQuality(linkedRate)
+  return rateQuality ? worseQuality(rowQuality, rateQuality) : rowQuality
+}
+
 export function dataQualityClass(label: DataQualityLabel): string {
   if (label === 'Valid') return 'text-emerald-700 bg-emerald-50 border-emerald-200'
   if (label === 'Warning') return 'text-amber-700 bg-amber-50 border-amber-200'

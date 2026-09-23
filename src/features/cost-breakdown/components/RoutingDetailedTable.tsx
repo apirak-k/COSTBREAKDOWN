@@ -13,6 +13,7 @@ import type { ComparisonStatus } from '../../../core'
 import { ConfidenceBadge } from '../../../shared/ui/ConfidenceBadge'
 import { ComparisonViewMode, isVisibleInComparisonView } from './comparison-view'
 import { DataQualityPairBadge } from './DataQualityPairBadge'
+import { getRoutingDataQuality } from './data-quality'
 
 interface RoutingDetailedTableProps {
   referenceItems: SnapshotRoutingStep[]
@@ -142,7 +143,12 @@ export const RoutingDetailedTable: React.FC<RoutingDetailedTableProps> = ({
                   <td className="p-2.5 whitespace-nowrap"><ConfidenceBadge status={row.finding?.confidence ?? 'missing'} showLabel /></td>
                 )}
                 {showComparison && (
-                  <td className="p-2.5"><DataQualityPairBadge reference={reference} current={current} /></td>
+                  <td className="p-2.5"><DataQualityPairBadge
+                    reference={reference}
+                    current={current}
+                    referenceQualityOverride={getRoutingDataQuality(reference, referenceRates)}
+                    currentQualityOverride={getRoutingDataQuality(current, currentRates)}
+                  /></td>
                 )}
                 <td className="p-2.5 text-right tabular-nums">{formatNullable(current?.manning ?? reference?.manning ?? null, value => formatNumber(value, 1))}</td>
                 <td className="p-2.5 text-right text-slate-500 tabular-nums">{formatNullable(reference?.capacity ?? null, value => formatNumber(value, 0))}</td>

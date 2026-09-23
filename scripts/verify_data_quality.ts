@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict'
-import { getSnapshotDataQuality } from '../src/features/cost-breakdown/components/data-quality.ts'
+import { getRoutingDataQuality, getSnapshotDataQuality } from '../src/features/cost-breakdown/components/data-quality.ts'
 
 const base = {
   id: 'bom-1',
@@ -48,5 +48,23 @@ assert.equal(getSnapshotDataQuality({
     loss: { status: 'verified', quality: 'valid' }
   }
 }), 'Warning')
+
+const routing = {
+  id: 'route-1',
+  operationCode: 'OP-10',
+  sequence: 10,
+  processName: 'Assembly',
+  workCenterId: 'WC-MISSING',
+  manning: 1,
+  capacity: 1,
+  yield: 1,
+  confidence: {
+    sequence: { status: 'verified' as const, quality: 'valid' as const },
+    manning: { status: 'verified' as const, quality: 'valid' as const },
+    capacity: { status: 'verified' as const, quality: 'valid' as const },
+    yield: { status: 'verified' as const, quality: 'valid' as const }
+  }
+}
+assert.equal(getRoutingDataQuality(routing, []), 'Missing')
 
 console.log('Data quality verification passed.')
