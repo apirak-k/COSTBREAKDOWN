@@ -107,3 +107,10 @@ export function calculateSnapshotCost(snapshot: CostSnapshot): SnapshotCost {
     warnings: warningList
   }
 }
+
+export function areSnapshotCostsComplete(
+  referenceCost: Pick<SnapshotCost, 'status'>,
+  currentCost: Pick<SnapshotCost, 'status'>
+): boolean {
+  return referenceCost.status === 'complete' && currentCost.status === 'complete'
+}

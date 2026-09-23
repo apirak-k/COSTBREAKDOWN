@@ -1,14 +1,16 @@
 import React, { ReactNode } from 'react'
 import { Navbar } from './Navbar'
 import { useAppStore } from '../../state'
-import { formatNumber, formatVariance } from '../../core'
+import { areSnapshotCostsComplete, formatNumber, formatVariance } from '../../core'
 
 interface AppLayoutProps {
   children: ReactNode
 }
 
 export const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
-  const { product, bom, routing, rates, costBreakdown } = useAppStore()
+  const { product, bom, routing, rates, costBreakdown, snapshotComparison, masterDataHandoff } = useAppStore()
+  const canShowCostTotals = masterDataHandoff.canCompare
+    && areSnapshotCostsComplete(snapshotComparison.referenceCost, snapshotComparison.currentCost)
 
   return (
     <div className="min-h-screen bg-slate-100/70 text-slate-900 flex flex-col font-sans text-xs antialiased">
@@ -37,16 +39,24 @@ export const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
           </div>
 
           <div className="flex items-center gap-3">
-            <span>Base: <strong className="text-slate-200">{formatNumber(costBreakdown.totalBase, 4)}</strong> THB</span>
-            <span className="text-slate-600">|</span>
-            <span>Active: <strong className="text-slate-200">{formatNumber(costBreakdown.totalActive, 4)}</strong> THB</span>
-            <span className="text-slate-600">|</span>
-            <span>
-              Net Gap:{' '}
-              <strong className={costBreakdown.totalVariance > 0 ? 'text-rose-400' : 'text-emerald-400'}>
-                {formatVariance(costBreakdown.totalVariance, 4)} THB/pc
-              </strong>
-            </span>
+            {canShowCostTotals ? (
+              <>
+                <span>Base: <strong className="text-slate-200">{formatNumber(costBreakdown.totalBase, 4)}</strong> THB</span>
+                <span className="text-slate-600">|</span>
+                <span>Active: <strong className="text-slate-200">{formatNumber(costBreakdown.totalActive, 4)}</strong> THB</span>
+                <span className="text-slate-600">|</span>
+                <span>
+                  Net Gap:{' '}
+                  <strong className={costBreakdown.totalVariance > 0 ? 'text-rose-400' : 'text-emerald-400'}>
+                    {formatVariance(costBreakdown.totalVariance, 4)} THB/pc
+                  </strong>
+                </span>
+              </>
+            ) : (
+              <span role="status" className="text-amber-300 font-bold">
+                {masterDataHandoff.canCompare ? 'Cost summary on hold' : 'Comparison not ready'}
+              </span>
+            )}
             <span className="text-slate-600">|</span>
             <span className="text-[10px] uppercase tracking-wider text-slate-400 bg-slate-800 px-1.5 py-0.5 rounded border border-slate-700">
               Excel v2 Parity: 100%

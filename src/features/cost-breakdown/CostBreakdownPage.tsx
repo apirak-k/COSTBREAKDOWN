@@ -12,6 +12,7 @@ import { SnapshotComparisonCard } from './components/SnapshotComparisonCard'
 import { SourceGroupsCard } from './components/SourceGroupsCard'
 import { findingNeedsReview } from './components/comparison-view'
 import type { ComparisonViewMode } from './components/comparison-view'
+import { areSnapshotCostsComplete } from '../../core'
 
 type SubTab = 'bom' | 'routing' | 'work-center'
 
@@ -26,8 +27,7 @@ export const CostBreakdownPage: React.FC = () => {
     ...snapshotComparison.workCenterFindings
   ]
   const changedFindingsCount = allFindings.filter(findingNeedsReview).length
-  const exactSnapshotCalculation = snapshotComparison.referenceCost.status === 'complete'
-    && snapshotComparison.currentCost.status === 'complete'
+  const exactSnapshotCalculation = areSnapshotCostsComplete(snapshotComparison.referenceCost, snapshotComparison.currentCost)
 
   if (!masterDataHandoff.canCompare) {
     return (

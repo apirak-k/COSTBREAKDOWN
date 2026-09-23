@@ -234,19 +234,18 @@ The page may expose future entry methods, but every method must pass through the
 - [ ] Dataset quality status is not confused with later comparison statuses such as Added or Removed.
 - [ ] No comparison, candidate, RCA, or export behavior is required to complete this page.
 
-## 12. Current Baseline and Known Gaps
+## 12. Current Repository Behavior
 
-The following describes the repository baseline only; it is not the target behavior above.
+This section records implementation and verification observed on 2026-09-23. The requirements above remain normative; these checks are execution evidence, not human acceptance.
 
-- The current page renders Product, Excel import, Work Center, BOM, and Routing sections in `src/features/master-data/MasterDataPage.tsx:18-176`.
-- The current import panel supports downloading a template and choosing `Reference` or `Current` in `src/features/master-data/components/ExcelImportPanel.tsx:31-112`.
-- The current upload flow parses a successful result and immediately calls the store import action in `src/shared/ui/ExcelUploadDropzone.tsx:23-48`; the selected Product is not passed into that validation step.
-- The current store creates or updates a Draft snapshot pair in `src/state/store.tsx:552-594`, but the Product Code mismatch rule in this specification is not yet enforced there.
-- The current legacy `ProductSession` still contains one paired `rates`/`bom`/`routing` model and lifecycle status in `src/core/types/product.types.ts:20-37`.
-- The snapshot types already distinguish `reference` and `current`, nullable values, field evidence, and data-quality-related structures in `src/core/types/snapshot.types.ts:4-60`.
-- The current project baseline records defaulting behavior as a known issue in `PROJECT.md:94-124`; the target rule is to preserve missing/invalid data visibly and never apply a silent fallback.
-
-These gaps are recorded for future implementation work. This document does not make those code changes.
+- `src/features/master-data/MasterDataPage.tsx` is the input and validation surface. It shows Reference/Current readiness and disables `Open Cost Breakdown` until both roles are prepared for the selected Header Product.
+- `src/features/master-data/components/ExcelImportPanel.tsx` passes the selected role and Header Product Code to the upload flow. `src/shared/ui/ExcelUploadDropzone.tsx` validates with the selected Product and only calls the store after a successful parse; the parser rejects a Product Code mismatch.
+- `src/state/store.tsx` keeps the active Product, snapshot pair, role readiness, selected Master Data role, and lifecycle status in the same `ProductSession`. Cost Breakdown derives its comparison from that active session and shows an explicit guard when the pair is not ready.
+- `src/core/calculations/master-data-handoff.ts` requires a non-empty Header Product Code, both prepared roles, and matching Product Codes before comparison.
+- `src/shared/layout/AppLayout.tsx` shows legacy Base/Active/Net Gap footer totals only when the handoff is ready and both snapshot costs are complete. It shows `Comparison not ready` for an unprepared/mismatched pair and `Cost summary on hold` when prepared data has missing, invalid, or estimated costs. `src/features/cost-breakdown/CostBreakdownPage.tsx` uses the same completeness check before showing the exact legacy variance summary.
+- `CostSnapshot` retains source/provenance (`sourceRef` and field evidence), comparison role, and lifecycle status. There is no separate `entryMethod` field; entry actions produce the same snapshot shape, with their result and provenance stored in the session.
+- The legacy `rates`/`bom`/`routing` fields remain as a compatibility projection while `snapshotPair` holds the role-specific datasets.
+- A synthetic-data browser walkthrough confirmed the 0-role and Reference-only guards, the ready two-role handoff, and persistence of Header Product, selected role, Draft lifecycle, and source references after navigating to Cost Breakdown and back.
 
 ## 13. Related Documents
 

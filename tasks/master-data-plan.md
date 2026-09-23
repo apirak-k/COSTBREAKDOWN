@@ -136,21 +136,21 @@ This plan is intentionally separate from `tasks/plan.md`, which tracks the earli
 
 **Acceptance criteria:**
 
-- [ ] Master Data remains an input/validation page.
-- [ ] The downstream action uses the Header Product context.
-- [ ] An incomplete role pair is clearly identified instead of comparing a seed/fallback dataset silently.
-- [ ] The handoff preserves the selected Product, entry-method result, comparison role, and lifecycle state.
+- [x] Master Data remains an input/validation page.
+- [x] The downstream action uses the Header Product context.
+- [x] An incomplete role pair is clearly identified instead of comparing a seed/fallback dataset silently.
+- [x] The handoff preserves the selected Product, entry-method result, comparison role, and lifecycle state.
 
-**Verification:** browser walkthrough with zero, one, and two prepared roles.
+**Verification:** `node --experimental-strip-types scripts/verify_master_data_handoff.ts` passed with `Master Data handoff verification passed.` It covers zero, Reference-only, Current-only, both prepared roles, blank Header Product, and Product Code mismatches. `npm run build` passed. The 2026-09-23 browser walkthrough used synthetic data: with zero roles, the action was disabled and direct navigation showed both missing roles; with Reference only, Current was identified as missing; after cloning Reference to Current, the action opened Cost Breakdown. Returning to Master Data retained the Header Product, Current role, Draft lifecycle, and manual/clone source references. With both roles prepared but a BOM price missing, Cost Breakdown held its exact summary and the footer showed `Cost summary on hold` without Base/Active/Net Gap values. Removing that synthetic row restored the totals for complete snapshots. The footer also withholds totals when the role pair is incomplete.
 
 **Dependencies:** Tasks 4-5
 
 #### Checkpoint B / completion
 
-- [ ] All Master Data acceptance criteria in `docs/specs/master-data.md` are evidenced.
+- [x] Execution evidence for the Master Data acceptance criteria in `docs/specs/master-data.md` is recorded; human acceptance remains separate.
 - [x] `npm run build` succeeds.
 - [x] Canonical workbook generation and import verification pass.
-- [x] Browser walkthrough passes for Product, Reference, Current, Draft, Clone, and validation.
+- [x] Browser walkthrough passes for Product, Reference, Current, Draft, Clone, validation, and the 0/1/2-role handoff.
 - [x] Each implementation slice has its own commit and no unrelated changes are included.
 
 ## Risks and mitigations

@@ -36,14 +36,15 @@ Requirements authority: [`docs/REQUIREMENTS_INDEX.md`](../docs/REQUIREMENTS_INDE
 
 ## Phase 4: Downstream handoff and regression
 
-- [ ] Task 6: Gate the handoff to Cost Breakdown
+- [x] Task 6: Gate the handoff to Cost Breakdown
   - Acceptance: comparison stays downstream and incomplete role pairs are not silently compared.
-  - Verification: browser walkthrough with zero, one, and two roles.
+  - Verification: focused role/header verifier and browser walkthrough with zero, one, and two prepared roles.
+  - Evidence (2026-09-23): verifier passed; synthetic-data walkthrough confirmed the disabled/enabled action, direct-navigation guard, footer status, and persistence of Product, role, Draft lifecycle, and provenance across handoff. Prepared roles with a missing BOM price now keep the exact summary and footer totals on hold; complete snapshots still show footer totals.
 
 ## Completion checkpoint
 
-- [ ] Master Data acceptance criteria are evidenced.
+- [x] Master Data acceptance criteria are evidenced.
 - [x] `npm run build` succeeds.
 - [x] Canonical Excel generation/import verification passes.
-- [x] Browser walkthrough passes.
+- [x] Browser walkthrough passes, including the 0/1/2-role handoff.
 - [x] All increments are committed separately.
