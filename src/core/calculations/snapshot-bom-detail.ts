@@ -18,10 +18,13 @@ function costOf(item: SnapshotBOMItem | undefined): number | null {
   return Number.isFinite(cost) ? cost : null
 }
 
-/** Calculates BOM costs without converting missing source values into zero. */
+/** Calculates BOM costs with absent-side zero for added/removed records without converting missing inputs to zero. */
 export function calculateSnapshotBOMDetail(pair: SnapshotBOMPair): SnapshotBOMDetail {
-  const referenceCost = costOf(pair.reference)
-  const currentCost = costOf(pair.current)
+  // If record does not exist on reference side (ADDED), referenceCost is 0
+  const referenceCost = pair.reference ? costOf(pair.reference) : 0
+  // If record does not exist on current side (REMOVED), currentCost is 0
+  const currentCost = pair.current ? costOf(pair.current) : 0
+
   return {
     pair,
     referenceCost,

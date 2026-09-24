@@ -10,7 +10,6 @@ import { RoutingDetailedTable } from './components/RoutingDetailedTable'
 import { WorkCenterComparisonTable } from './components/WorkCenterComparisonTable'
 import { SnapshotComparisonCard } from './components/SnapshotComparisonCard'
 import { SourceGroupsCard } from './components/SourceGroupsCard'
-import { findingNeedsReview } from './components/comparison-view'
 import type { ComparisonViewMode } from './components/comparison-view'
 import { areSnapshotCostsComplete } from '../../core'
 
@@ -26,7 +25,10 @@ export const CostBreakdownPage: React.FC = () => {
     ...snapshotComparison.routingFindings,
     ...snapshotComparison.workCenterFindings
   ]
-  const changedFindingsCount = allFindings.filter(findingNeedsReview).length
+  const changedFindingsCount = allFindings.filter(f => f.matchStatus === 'matched' && Object.keys(f.fieldDiffs).length > 0).length
+  const addedFindingsCount = allFindings.filter(f => f.matchStatus === 'added').length
+  const removedFindingsCount = allFindings.filter(f => f.matchStatus === 'removed').length
+  const unchangedFindingsCount = allFindings.filter(f => f.matchStatus === 'matched' && Object.keys(f.fieldDiffs).length === 0).length
   const exactSnapshotCalculation = areSnapshotCostsComplete(snapshotComparison.referenceCost, snapshotComparison.currentCost)
 
   if (!masterDataHandoff.canCompare) {
@@ -85,12 +87,15 @@ export const CostBreakdownPage: React.FC = () => {
       <section className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 px-3.5 py-3 bg-white border border-slate-300/80 shadow-2xs" aria-labelledby="comparison-view-title">
         <div>
           <h2 id="comparison-view-title" className="text-xs font-bold font-mono text-slate-800 uppercase tracking-tight">Comparison view</h2>
-          <p className="mt-0.5 text-[10px] text-slate-500 font-sans">All Data is the audit view; Changed Only keeps changed and reviewable rows visible.</p>
+          <p className="mt-0.5 text-[10px] text-slate-500 font-sans">Filter itemized comparison rows by canonical status: Unchanged, Changed, Added, or Removed.</p>
         </div>
-        <div className="flex items-center gap-1 font-mono text-[11px]" role="group" aria-label="Comparison view">
+        <div className="flex flex-wrap items-center gap-1 font-mono text-[11px]" role="group" aria-label="Comparison view">
           {([
-            { mode: 'all' as const, label: 'All Data', count: allFindings.length },
-            { mode: 'changed' as const, label: 'Changed Only', count: changedFindingsCount }
+            { mode: 'all' as const, label: 'All', count: allFindings.length },
+            { mode: 'changed' as const, label: 'Changed', count: changedFindingsCount },
+            { mode: 'added' as const, label: 'Added', count: addedFindingsCount },
+            { mode: 'removed' as const, label: 'Removed', count: removedFindingsCount },
+            { mode: 'unchanged' as const, label: 'Unchanged', count: unchangedFindingsCount }
           ]).map(option => (
             <button
               key={option.mode}
@@ -121,7 +126,7 @@ export const CostBreakdownPage: React.FC = () => {
             ) : (
               <ChevronRight className="w-3.5 h-3.5 text-slate-500" />
             )}
-            <span>Itemized Cost Breakdown · {comparisonView === 'all' ? 'All Data' : 'Changed Only'}</span>
+            <span>Itemized Cost Breakdown · {comparisonView.toUpperCase()}</span>
           </button>
 
           {/* Sub-Tab Switcher */}

@@ -58,14 +58,14 @@ function calculateSide(step: SnapshotRoutingStep | undefined, rates: SnapshotWor
   return { runtime, laborCost, burdenCost, total }
 }
 
-/** Calculates routing details with rates from the matching snapshot side. */
+/** Calculates routing details with rates from the matching snapshot side, using absent-side zero for added/removed steps. */
 export function calculateSnapshotRoutingDetail(
   pair: SnapshotRoutingPair,
   referenceRates: SnapshotWorkCenterRate[],
   currentRates: SnapshotWorkCenterRate[]
 ): SnapshotRoutingDetail {
-  const reference = calculateSide(pair.reference, referenceRates)
-  const current = calculateSide(pair.current, currentRates)
+  const reference = pair.reference ? calculateSide(pair.reference, referenceRates) : { runtime: 0, laborCost: 0, burdenCost: 0, total: 0 }
+  const current = pair.current ? calculateSide(pair.current, currentRates) : { runtime: 0, laborCost: 0, burdenCost: 0, total: 0 }
 
   return {
     pair,

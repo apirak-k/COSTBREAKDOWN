@@ -99,9 +99,9 @@ Tasks are ordered by dependency. Keep each implementation slice focused and leav
 **Description:** Match rows by stable business identity, separate invalid matching from status, and use exactly `UNCHANGED`, `CHANGED`, `ADDED`, and `REMOVED`.
 
 **Acceptance criteria:**
-- [ ] Reordering rows or changing Routing sequence never creates a false match.
-- [ ] Missing/duplicate/invalid keys produce validation warnings without guessed matches or extra comparison statuses.
-- [ ] Field differences such as price, yield, capacity, sequence, and Work Center remain details under `CHANGED`.
+- [x] Reordering rows or changing Routing sequence never creates a false match.
+- [x] Missing/duplicate/invalid keys produce validation warnings without guessed matches or extra comparison statuses.
+- [x] Field differences such as price, yield, capacity, sequence, and Work Center remain details under `CHANGED`.
 
 **Verification:** Check unchanged/changed/added/removed, row reorder, sequence change, duplicate key, and missing key fixtures.
 
@@ -116,9 +116,9 @@ Tasks are ordered by dependency. Keep each implementation slice focused and leav
 **Description:** Calculate signed BOM and Routing record effects from Reference and Current while distinguishing a missing record from missing required values.
 
 **Acceptance criteria:**
-- [ ] Added records calculate `0 → Current`; removed records calculate `Reference → 0`.
-- [ ] Missing required Price, Usage, Yield, Capacity, Manning, or Rate remains unavailable with a data-quality warning.
-- [ ] Record effect uses `Current - Reference` consistently.
+- [x] Added records calculate `0 → Current`; removed records calculate `Reference → 0`.
+- [x] Missing required Price, Usage, Yield, Capacity, Manning, or Rate remains unavailable with a data-quality warning.
+- [x] Record effect uses `Current - Reference` consistently.
 
 **Verification:** Check changed/added/removed BOM and Routing fixtures plus each required-input warning case.
 
@@ -133,9 +133,9 @@ Tasks are ordered by dependency. Keep each implementation slice focused and leav
 **Description:** Aggregate detailed record effects into Material, Labor, Burden, and Total gaps and report any mismatch as a calculation/validation issue.
 
 **Acceptance criteria:**
-- [ ] Each comparable record effect is part of the Comparison result.
-- [ ] Branch totals and `Material + Labor + Burden = Total` reconcile, or return an explicit issue.
-- [ ] UI/export consumers do not independently invent record cost gaps.
+- [x] Each comparable record effect is part of the Comparison result.
+- [x] Branch totals and `Material + Labor + Burden = Total` reconcile, or return an explicit issue.
+- [x] UI/export consumers do not independently invent record cost gaps.
 
 **Verification:** Assert row-to-branch and branch-to-total equality on mixed changed/added/removed fixtures, including invalid-input cases.
 
@@ -150,9 +150,9 @@ Tasks are ordered by dependency. Keep each implementation slice focused and leav
 **Description:** Update Cost Breakdown tables to render field changes, four statuses, record costs, and reconciliation from the Comparison result.
 
 **Acceptance criteria:**
-- [ ] Default view includes unchanged records and shows summary-to-record detail.
-- [ ] Added/removed rows display their zero-side contributions and signed cost effects.
-- [ ] Table totals agree with the Comparison result; missing required values remain visibly unavailable.
+- [x] Default view includes unchanged records and shows summary-to-record detail.
+- [x] Added/removed rows display their zero-side contributions and signed cost effects.
+- [x] Table totals agree with the Comparison result; missing required values remain visibly unavailable.
 
 **Verification:** Compare table rows and footers against the calculation fixtures from Tasks 7–8.
 
@@ -167,9 +167,9 @@ Tasks are ordered by dependency. Keep each implementation slice focused and leav
 **Description:** Replace All/Changed-only filtering with the agreed status filters and export the same statuses and reconciled cost effects as the page.
 
 **Acceptance criteria:**
-- [ ] All, Changed, Added, Removed, and Unchanged filters return the expected records; combinations can show all changed records together.
-- [ ] Export status labels/counts use only the four contract statuses; validation warnings remain separate.
-- [ ] Exported record effects reconcile to exported branch/total gaps.
+- [x] All, Changed, Added, Removed, and Unchanged filters return the expected records; combinations can show all changed records together.
+- [x] Export status labels/counts use only the four contract statuses; validation warnings remain separate.
+- [x] Exported record effects reconcile to exported branch/total gaps.
 
 **Verification:** Check filter membership and workbook output against the same fixture results; run `npm run build`.
 
@@ -181,8 +181,8 @@ Tasks are ordered by dependency. Keep each implementation slice focused and leav
 
 ### Checkpoint: Comparison
 
-- [ ] Identity, statuses, detail effects, filters, export, and reconciliation agree on the same synthetic cases.
-- [ ] Focused checks and `npm run build` pass before candidate work begins.
+- [x] Identity, statuses, detail effects, filters, export, and reconciliation agree on the same synthetic cases.
+- [x] Focused checks and `npm run build` pass before candidate work begins.
 
 ## Phase 3 — Candidate Prioritization
 

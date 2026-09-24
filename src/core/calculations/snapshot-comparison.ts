@@ -11,6 +11,8 @@ import {
   SnapshotWorkCenterRate
 } from '../types'
 import { calculateSnapshotCost } from './snapshot-cost'
+import { calculateSnapshotBOMDetail } from './snapshot-bom-detail'
+import { calculateSnapshotRoutingDetail } from './snapshot-routing-detail'
 
 type SnapshotRow = {
   id: string
@@ -112,7 +114,9 @@ function compareRows<T extends SnapshotRow>(
   referenceRows: T[],
   currentRows: T[],
   keyOf: (row: T) => string,
-  flagsOf: (reference: T, current: T) => ChangeFlags
+  flagsOf: (reference: T, current: T) => ChangeFlags,
+  calculateRecordCostGap?: (reference: T | undefined, current: T | undefined) => number | null,
+  warnings: ComparisonWarning[] = []
 ): ComparisonFinding[] {
   const referenceMap = new Map<string, T[]>()
   const currentMap = new Map<string, T[]>()
@@ -135,34 +139,66 @@ function compareRows<T extends SnapshotRow>(
     const references = referenceMap.get(key) ?? []
     const currents = currentMap.get(key) ?? []
 
-    if (references.length !== 1 || currents.length !== 1) {
-      const matchStatus = references.length > 1 || currents.length > 1
-        ? 'ambiguous'
-        : references.length === 0 && currents.length === 1
-          ? 'added'
-          : references.length === 1 && currents.length === 0
-            ? 'removed'
-            : 'unmatched'
+    if (references.length > 1 || currents.length > 1) {
+      warnings.push({
+        code: 'AMBIGUOUS_KEY',
+        message: `Duplicate key "${key}" found in ${references.length > 1 ? 'Reference' : ''} ${currents.length > 1 ? 'Current' : ''}`.trim()
+      })
       findings.push({
         referenceId: references[0]?.id,
         currentId: currents[0]?.id,
-        matchStatus,
+        matchStatus: 'ambiguous',
         changeFlags: {},
         fieldDiffs: {},
+        costGap: null,
         confidence: combinedConfidence(references[0], currents[0]),
-        reviewRequired: hasAdditionalFields(references[0]) || hasAdditionalFields(currents[0])
+        reviewRequired: true
+      })
+      return
+    }
+
+    if (references.length === 0 && currents.length === 1) {
+      const current = currents[0]
+      const costGap = calculateRecordCostGap ? calculateRecordCostGap(undefined, current) : null
+      findings.push({
+        referenceId: undefined,
+        currentId: current.id,
+        matchStatus: 'added',
+        changeFlags: {},
+        fieldDiffs: {},
+        costGap,
+        confidence: confidenceOf(current),
+        reviewRequired: hasAdditionalFields(current)
+      })
+      return
+    }
+
+    if (references.length === 1 && currents.length === 0) {
+      const reference = references[0]
+      const costGap = calculateRecordCostGap ? calculateRecordCostGap(reference, undefined) : null
+      findings.push({
+        referenceId: reference.id,
+        currentId: undefined,
+        matchStatus: 'removed',
+        changeFlags: {},
+        fieldDiffs: {},
+        costGap,
+        confidence: confidenceOf(reference),
+        reviewRequired: hasAdditionalFields(reference)
       })
       return
     }
 
     const reference = references[0]
     const current = currents[0]
+    const costGap = calculateRecordCostGap ? calculateRecordCostGap(reference, current) : null
     findings.push({
       referenceId: reference.id,
       currentId: current.id,
       matchStatus: 'matched',
       changeFlags: flagsOf(reference, current),
       fieldDiffs: diffSupportedFields(reference, current),
+      costGap,
       confidence: combinedConfidence(reference, current),
       reviewRequired: hasAdditionalFields(reference) || hasAdditionalFields(current)
     })
@@ -217,10 +253,61 @@ function gap(current: number | null, reference: number | null): number | null {
 export function compareSnapshots(reference: CostSnapshot, current: CostSnapshot): CostComparison {
   const referenceCost = calculateSnapshotCost(reference)
   const currentCost = calculateSnapshotCost(current)
-  const warnings = [
+  const warnings: ComparisonWarning[] = [
     ...calculationWarnings(reference.id, referenceCost.warnings),
     ...calculationWarnings(current.id, currentCost.warnings)
   ]
+
+  const bomFindings = compareRows(
+    reference.bom,
+    current.bom,
+    bomKey,
+    bomFlags,
+    (ref, cur) => calculateSnapshotBOMDetail({ reference: ref, current: cur }).costGap,
+    warnings
+  )
+
+  const routingFindings = compareRows(
+    reference.routing,
+    current.routing,
+    routingKey,
+    routingFlags,
+    (ref, cur) => calculateSnapshotRoutingDetail({ reference: ref, current: cur }, reference.rates, current.rates).totalGap,
+    warnings
+  )
+
+  const workCenterFindings = compareRows(
+    reference.rates,
+    current.rates,
+    rateKey,
+    rateFlags,
+    undefined,
+    warnings
+  )
+
+  const materialGap = gap(currentCost.material, referenceCost.material)
+  const laborGap = gap(currentCost.labor, referenceCost.labor)
+  const burdenGap = gap(currentCost.burden, referenceCost.burden)
+  const totalGap = gap(currentCost.total, referenceCost.total)
+
+  // Reconciliation check: material + labor + burden should equal total gap
+  const sumOfElementGaps = (materialGap !== null && laborGap !== null && burdenGap !== null)
+    ? materialGap + laborGap + burdenGap
+    : null
+  const discrepancy = (totalGap !== null && sumOfElementGaps !== null)
+    ? Math.abs(totalGap - sumOfElementGaps)
+    : null
+  const reconciled = discrepancy !== null ? discrepancy < 0.0001 : (totalGap === null && sumOfElementGaps === null)
+
+  const reconciliationIssues: string[] = []
+  if (discrepancy !== null && discrepancy >= 0.0001) {
+    const issueMsg = `Reconciliation mismatch: Total gap (${totalGap?.toFixed(4)}) != sum of element gaps (${sumOfElementGaps?.toFixed(4)}). Difference: ${discrepancy.toFixed(4)}`
+    reconciliationIssues.push(issueMsg)
+    warnings.push({
+      code: 'RECONCILIATION_MISMATCH',
+      message: issueMsg
+    })
+  }
 
   return {
     id: `${reference.id}::${current.id}`,
@@ -228,16 +315,23 @@ export function compareSnapshots(reference: CostSnapshot, current: CostSnapshot)
     currentSnapshotId: current.id,
     referenceCost,
     currentCost,
-    totalGap: gap(currentCost.total, referenceCost.total),
+    totalGap,
     elementGaps: {
-      material: gap(currentCost.material, referenceCost.material),
-      labor: gap(currentCost.labor, referenceCost.labor),
-      burden: gap(currentCost.burden, referenceCost.burden)
+      material: materialGap,
+      labor: laborGap,
+      burden: burdenGap
     },
-    bomFindings: compareRows(reference.bom, current.bom, bomKey, bomFlags),
-    routingFindings: compareRows(reference.routing, current.routing, routingKey, routingFlags),
-    workCenterFindings: compareRows(reference.rates, current.rates, rateKey, rateFlags),
+    bomFindings,
+    routingFindings,
+    workCenterFindings,
     productFieldDiffs: diffProductFields(reference.product, current.product),
-    warnings
+    warnings,
+    reconciliation: {
+      reconciled,
+      totalGap,
+      sumOfElementGaps,
+      discrepancy,
+      issues: reconciliationIssues
+    }
   }
 }

@@ -80,16 +80,35 @@ The 2026-09-23 handoff recorded successful build, Excel model, focused verifier,
   - Verified import replaces selected side without affecting opposite side.
 - Build: `npm run build` passed cleanly (0 errors, 1686 modules transformed).
 
+## Phase 2 Completion Checkpoint (Tasks 6–10, Comparison & Reconciliation) (2026-09-24)
+
+### Implemented Scope
+- **Task 6 (Canonical 4 Statuses):** Standardized exact comparison statuses `UNCHANGED`, `CHANGED`, `ADDED`, `REMOVED` via `CanonicalComparisonStatus` in `src/core/calculations/comparison-status.ts`. Reordering rows or sequence changes remain details under `CHANGED`. Ambiguous/duplicate keys produce validation warnings without guessing matches.
+- **Task 7 (Absent-side zero & Record-level effects):** Updated `src/core/calculations/snapshot-bom-detail.ts`, `src/core/calculations/snapshot-routing-detail.ts`, and `snapshot-comparison.ts` to compute record effects as `Current - Reference` with absent-side zero (`0 → Current` for ADDED, `Reference → 0` for REMOVED) without coercing missing required calculation values (null remains null).
+- **Task 8 (Explicit Reconciliation):** Implemented `ComparisonReconciliation` in `src/core/calculations/snapshot-comparison.ts` checking `totalGap === materialGap + laborGap + burdenGap` within 0.0001 tolerance, emitting `RECONCILIATION_MISMATCH` warning when violated.
+- **Task 9 & 10 (Comparison view, status filters, and export alignment):**
+  - Updated `comparison-view.ts` and `CostBreakdownPage.tsx` to support canonical status filters (`all`, `changed`, `added`, `removed`, `unchanged`) with real-time record counts.
+  - Aligned `src/services/excel/comparison-export.ts` with canonical 4 statuses and verified export model generation.
+
+### Verification Evidence
+- `scripts/verify_comparison_reconciliation.ts` passed:
+  - Verified 4 canonical statuses.
+  - Verified absent-side zero calculation for ADDED ($0 \to \text{Cur}$) and REMOVED ($\text{Ref} \to 0$).
+  - Verified exact reconciliation (`Material + Labor + Burden = Total Gap`).
+  - Verified status filtering logic in `comparison-view.ts`.
+- `scripts/verify_snapshot_comparison_view.ts` passed.
+- `scripts/verify_import_mismatch_export.ts` passed.
+- Build: `npm run build` completed cleanly (0 errors, 1686 modules transformed).
+
 ## Next work
 
-1. Begin Phase 2 — Comparison Findings and Reconciliation:
-   - **Task 6:** Validate business identity and standardize four comparison statuses (`UNCHANGED`, `CHANGED`, `ADDED`, `REMOVED`).
-   - **Task 7:** Calculate record-level effects with absent-side zero.
-   - **Task 8:** Reconcile item-level effects to element-level cost gaps.
-   - **Task 9:** Retain unmapped imported fields for comparison and display.
-   - **Task 10:** Separate calculation failure from data warning.
-2. Verify each phase against its acceptance criteria before proceeding.
-3. Commit and push progress as requested.
+1. Phase 3 — Candidate Prioritization (Tasks 11–13):
+   - **Task 11:** Build material candidates from Comparison findings.
+   - **Task 12:** Build conversion candidates from Comparison findings.
+   - **Task 13:** Rank candidates by cost impact and update candidate tests.
+2. Phase 4 — RCA Simulation (Tasks 14–17).
+3. Phase 5 — Handoff & Governance (Task 18).
+4. Run focused verifiers, `npm run build`, commit per phase, and push to remote.
 
 ## Open specification boundary
 

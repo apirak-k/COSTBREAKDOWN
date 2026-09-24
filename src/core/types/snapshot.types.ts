@@ -109,6 +109,14 @@ export interface ComparisonWarning {
   currentId?: string
 }
 
+export interface ComparisonReconciliation {
+  reconciled: boolean
+  totalGap: number | null
+  sumOfElementGaps: number | null
+  discrepancy: number | null
+  issues: string[]
+}
+
 export interface CostComparison {
   id: string
   referenceSnapshotId: string
@@ -122,6 +130,7 @@ export interface CostComparison {
   workCenterFindings: ComparisonFinding[]
   productFieldDiffs: Record<string, { reference: unknown; current: unknown }>
   warnings: ComparisonWarning[]
+  reconciliation?: ComparisonReconciliation
 }
 
 export interface LegacyPairedModel {
