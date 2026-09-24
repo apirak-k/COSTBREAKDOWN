@@ -1,0 +1,585 @@
+# COSTBREAKDOWN — Comparison Principles
+
+**Status:** Working Specification  
+**Scope:** Comparison logic only  
+**Audience:** AI coding agent / implementation team
+
+> This document defines the comparison principles and expected system behavior only.  
+> It does **not** prescribe a specific UI layout, component structure, visual style, or page design.
+
+---
+
+## 1. Purpose
+
+The comparison layer exists to answer one main question:
+
+> **How is the Current dataset different from the Reference dataset, and how do those differences explain the cost gap?**
+
+The system compares two complete working datasets:
+
+```text
+Reference Dataset
+        VS
+Current Dataset
+```
+
+Each dataset may contain:
+
+```text
+Product
+Work Center / Rates
+BOM
+Routing
+```
+
+The two datasets do **not** need to contain the same number of rows, items, or routing steps.
+
+---
+
+## 2. Snapshot-vs-Snapshot Principle
+
+Reference and Current must be treated as two independent snapshots.
+
+```text
+Reference Dataset
+→ Calculate Reference Cost independently
+
+Current Dataset
+→ Calculate Current Cost independently
+```
+
+Only after both sides have been calculated should the system compare them.
+
+```text
+Current Cost - Reference Cost
+= Cost Gap
+```
+
+The system must not require the two datasets to have identical structures before cost calculation can occur.
+
+---
+
+## 3. Never Compare by Row Position
+
+Rows must **not** be paired using spreadsheet position, table position, or sequence number alone.
+
+Wrong:
+
+```text
+Reference row 1 ↔ Current row 1
+Reference row 2 ↔ Current row 2
+```
+
+Correct:
+
+```text
+Match records by business identity
+```
+
+Examples of business identity may include:
+
+```text
+BOM
+→ Material Code / Item Code
+
+Work Center
+→ Work Center Code
+
+Routing
+→ Stable Operation ID / Process Code / other agreed business key
+```
+
+Sequence number is an attribute that may change. It must not be treated as the only identity of a routing operation.
+
+---
+
+## 4. Four Comparison Statuses
+
+Every comparable business record uses the same four statuses:
+
+```text
+UNCHANGED
+CHANGED
+ADDED
+REMOVED
+```
+
+### UNCHANGED
+
+The same business record exists in both Reference and Current, and the compared values are the same.
+
+```text
+Reference: M01
+Current:   M01
+
+No relevant field changed
+→ UNCHANGED
+```
+
+### CHANGED
+
+The same business record exists in both datasets, but one or more relevant values changed.
+
+```text
+Printing
+
+Reference Yield: 95%
+Current Yield:   90%
+
+→ CHANGED
+```
+
+### ADDED
+
+The record exists only in Current.
+
+```text
+Reference: no Inspection operation
+Current:   Inspection exists
+
+→ ADDED
+```
+
+### REMOVED
+
+The record exists only in Reference.
+
+```text
+Reference: Old Packing exists
+Current:   no Old Packing operation
+
+→ REMOVED
+```
+
+These four statuses must be used consistently across BOM, Routing, Work Center, and other comparable master-data sections.
+
+---
+
+## 5. Change Details Are Not Additional Statuses
+
+Details such as the following are **not** separate comparison statuses:
+
+```text
+Price changed
+Yield changed
+Capacity changed
+Work Center changed
+Sequence changed
+```
+
+They are details inside `CHANGED`.
+
+Example:
+
+```text
+Printing
+Status: CHANGED
+
+Changes:
+- Sequence: 20 → 30
+- Work Center: WC01 → WC02
+- Capacity: 100 → 120
+- Yield: 95% → 90%
+```
+
+This keeps the status model simple while still preserving detailed explanations.
+
+---
+
+## 6. Structural Differences
+
+Different dataset structures are valid and must still be comparable.
+
+Example:
+
+```text
+REFERENCE ROUTING
+
+10 Cutting
+20 Printing
+30 Assembly
+
+
+CURRENT ROUTING
+
+10 Cutting
+20 Inspection
+30 Printing
+40 Assembly
+```
+
+Possible result:
+
+```text
+Cutting
+→ UNCHANGED or CHANGED
+
+Inspection
+→ ADDED
+
+Printing
+→ CHANGED
+  - Sequence changed: 20 → 30
+
+Assembly
+→ CHANGED
+  - Sequence changed: 30 → 40
+```
+
+The system must not incorrectly pair `Printing` with `Inspection` merely because both appear at sequence 20.
+
+---
+
+## 7. Split / Merge Cases
+
+The first implementation should not automatically infer complex process genealogy.
+
+Example:
+
+```text
+Reference:
+Printing
+
+Current:
+Printing A
+Printing B
+```
+
+If there is no stable business identity proving that these records represent the same operation, classify them directly:
+
+```text
+Printing   → REMOVED
+Printing A → ADDED
+Printing B → ADDED
+```
+
+Do not automatically infer:
+
+```text
+Split
+Merge
+Replaced By
+```
+
+Those relationships can be added later if the business requires them.
+
+---
+
+## 8. Ambiguous or Invalid Matching
+
+`NEED REVIEW` is **not** a comparison status.
+
+If matching cannot be performed safely because of duplicated, missing, or invalid business keys, treat that as a **validation warning**, separate from the four comparison statuses.
+
+Examples:
+
+```text
+Duplicate Material Code
+Missing Operation ID where identity is required
+Multiple possible matches
+Invalid Work Center reference
+```
+
+The system should not silently guess a match.
+
+Once the data or mapping is corrected, the record should resolve to one of:
+
+```text
+UNCHANGED
+CHANGED
+ADDED
+REMOVED
+```
+
+---
+
+## 9. Cost-Gap Treatment
+
+The general rule is:
+
+```text
+Gap = Current Cost - Reference Cost
+```
+
+### CHANGED record
+
+```text
+Reference Cost = 10
+Current Cost   = 13
+
+Gap = +3
+```
+
+### ADDED record
+
+The record does not exist in Reference, therefore its contribution on the Reference side is zero.
+
+```text
+Reference contribution = 0
+Current contribution   = 5
+
+Gap = +5
+```
+
+### REMOVED record
+
+The record does not exist in Current, therefore its contribution on the Current side is zero.
+
+```text
+Reference contribution = 8
+Current contribution   = 0
+
+Gap = -8
+```
+
+Important:
+
+> A missing record is treated as zero contribution for comparison purposes.  
+> This does **not** mean a missing required input value such as Price, Yield, or Rate should be silently converted to zero.
+
+Missing required values must be handled as validation/data-quality issues.
+
+---
+
+## 10. Cost Breakdown Display Principle
+
+The Cost Breakdown page should display the normal comparison data for all records.
+
+`UNCHANGED` records remain visible in the normal data view.
+
+However, status labels should not create unnecessary visual noise.
+
+Recommended behavior:
+
+```text
+UNCHANGED
+→ data remains visible
+→ status label may be visually omitted by default
+
+CHANGED
+→ show status
+
+ADDED
+→ show status
+
+REMOVED
+→ show status
+```
+
+The exact visual treatment is a UI decision and is not defined by this document.
+
+---
+
+## 11. Status Filtering
+
+The user must be able to filter comparison records by status.
+
+Conceptually:
+
+```text
+All
+Changed
+Added
+Removed
+Unchanged
+```
+
+The filter should support viewing only the changes that matter to the user.
+
+For example:
+
+```text
+Changed + Added + Removed
+```
+
+means:
+
+> Show only records where something changed between Reference and Current.
+
+The default view may still show all records.
+
+---
+
+## 12. Drill-Down Principle
+
+The Cost Breakdown should allow the user to move from the total gap to its detailed causes.
+
+Conceptually:
+
+```text
+Total Cost Gap
+        ↓
+Cost Category
+        ↓
+BOM / Work Center / Routing
+        ↓
+Individual Item / Operation
+        ↓
+Changed Fields
+```
+
+Example:
+
+```text
+Total Gap: +12
+
+Material Gap: +7
+Labor Gap:    +3
+Burden Gap:   +2
+```
+
+Material detail:
+
+```text
+M01   CHANGED   +4
+M04   ADDED     +5
+M02   REMOVED   -2
+M03             0
+
+Material Gap    +7
+```
+
+Opening `M01` may show:
+
+```text
+M01 — CHANGED
+
+Consumption: 2.0 → 2.2
+Price:       10  → 11
+Loss:         2% → 3%
+
+Reference Cost: 20
+Current Cost:   24
+Gap:            +4
+```
+
+---
+
+## 13. Reconciliation Principle
+
+Detailed comparison results must reconcile back to the higher-level cost gap.
+
+At the top level:
+
+```text
+Material Gap
++ Labor Gap
++ Burden Gap
+= Total Gap
+```
+
+Within a branch:
+
+```text
+Changed effects
++ Added effects
++ Removed effects
+= Branch Gap
+```
+
+Example:
+
+```text
+M01 Changed   +4
+M04 Added     +5
+M02 Removed   -2
+----------------
+Material Gap  +7
+```
+
+The system should not show a detailed explanation that cannot reconcile back to the calculated total unless the mismatch is explicitly reported as a validation/calculation issue.
+
+---
+
+## 14. What the Comparison Layer Must Produce
+
+The comparison engine should conceptually produce:
+
+```text
+Comparison Result
+├── Reference calculated cost
+├── Current calculated cost
+├── Total gap
+│
+├── BOM comparison
+│   ├── UNCHANGED
+│   ├── CHANGED
+│   ├── ADDED
+│   └── REMOVED
+│
+├── Work Center comparison
+│   ├── UNCHANGED
+│   ├── CHANGED
+│   ├── ADDED
+│   └── REMOVED
+│
+├── Routing comparison
+│   ├── UNCHANGED
+│   ├── CHANGED
+│   ├── ADDED
+│   └── REMOVED
+│
+├── Field-level change details
+├── Cost effect per record
+└── Reconciliation result
+```
+
+UI components should consume this comparison result instead of independently inventing comparison logic.
+
+---
+
+## 15. Final Comparison Flow
+
+```text
+Reference Working Dataset
+        +
+Current Working Dataset
+        ↓
+Validate business identities / required data
+        ↓
+Calculate each dataset independently
+        ↓
+Match records by business identity
+        ↓
+Classify each record
+
+UNCHANGED
+CHANGED
+ADDED
+REMOVED
+        ↓
+Calculate field differences
+        ↓
+Calculate record-level cost effects
+        ↓
+Aggregate into
+
+Material Gap
+Labor Gap
+Burden Gap
+        ↓
+Reconcile to Total Gap
+        ↓
+Display full Cost Breakdown
+        ↓
+Allow status filtering and drill-down
+```
+
+---
+
+## 16. Core Rules to Preserve
+
+1. Reference and Current are complete, independent datasets.
+2. Dataset structures and row counts do not need to match.
+3. Never match records by row position alone.
+4. Use business identity to determine whether records represent the same object.
+5. Use only four comparison statuses: `UNCHANGED`, `CHANGED`, `ADDED`, `REMOVED`.
+6. Field-level differences are details of `CHANGED`, not additional statuses.
+7. Structural additions and removals remain part of cost-gap calculation.
+8. Do not automatically infer split/merge relationships.
+9. Ambiguous matching is a validation problem, not a fifth comparison status.
+10. Unchanged data remains available in Cost Breakdown.
+11. Users can filter by comparison status.
+12. Every detailed cost effect should reconcile back to the overall cost gap.
+13. The comparison layer explains the gap; later RCA/improvement logic comes after this layer.
+14. This specification defines behavior, not UI layout.
