@@ -1,11 +1,10 @@
 import React from 'react'
 import { Database, FileInput } from 'lucide-react'
-import { ComparisonRole, CostSnapshot, DatasetStatus, ProductMaster } from '../../../core'
+import { ComparisonRole, CostSnapshot, ProductMaster } from '../../../core'
 
 interface DatasetRoleSelectorProps {
   product: ProductMaster
   snapshot: CostSnapshot
-  status: DatasetStatus
   role: ComparisonRole
   onRoleChange: (role: ComparisonRole) => void
 }
@@ -24,7 +23,6 @@ const roleDetails: Record<ComparisonRole, { label: string; description: string }
 export const DatasetRoleSelector: React.FC<DatasetRoleSelectorProps> = ({
   product,
   snapshot,
-  status,
   role,
   onRoleChange
 }) => {
@@ -56,8 +54,8 @@ export const DatasetRoleSelector: React.FC<DatasetRoleSelectorProps> = ({
         <div className="grid grid-cols-2 gap-x-5 gap-y-1 text-[10px] font-mono lg:min-w-[250px]">
           <span className="text-slate-400">Header Product</span>
           <strong className="text-right text-white">{product.productCode || '—'}</strong>
-          <span className="text-slate-400">Dataset status</span>
-          <strong className="text-right uppercase text-white">{status}</strong>
+          <span className="text-slate-400">Active Side</span>
+          <strong className="text-right uppercase text-white">{role}</strong>
         </div>
       </div>
 

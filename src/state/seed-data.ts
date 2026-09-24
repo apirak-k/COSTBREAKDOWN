@@ -97,3 +97,38 @@ export const seedSnapshotPair: SnapshotPair = migratePairedModelToSnapshots({
   status: 'active',
   sourceRef: 'seed:rgom024'
 })
+
+export const emptyProductMaster: ProductMaster = {
+  productCode: '',
+  productDescription: '',
+  uom: 'PC',
+  customer: '',
+  effectiveDate: ''
+}
+
+export function createEmptySnapshotPair(sessionId: string): SnapshotPair {
+  return {
+    reference: {
+      id: `${sessionId}:reference`,
+      product: { ...emptyProductMaster },
+      effectiveDate: '',
+      sourceRef: 'empty:reference',
+      comparisonRole: 'reference',
+      status: 'draft',
+      rates: [],
+      bom: [],
+      routing: []
+    },
+    current: {
+      id: `${sessionId}:current`,
+      product: { ...emptyProductMaster },
+      effectiveDate: '',
+      sourceRef: 'empty:current',
+      comparisonRole: 'current',
+      status: 'draft',
+      rates: [],
+      bom: [],
+      routing: []
+    }
+  }
+}

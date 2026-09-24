@@ -6,6 +6,7 @@ export interface MasterDataHandoffStatus {
   currentReady: boolean
   canCompare: boolean
   issues: string[]
+  warnings?: string[]
 }
 
 const roleLabels = {
@@ -43,10 +44,7 @@ export function evaluateMasterDataHandoff(
   const productCode = session.product.productCode.trim()
   const readiness = getSnapshotRoleReadiness(session)
   const issues: string[] = []
-
-  if (!productCode) {
-    issues.push('Header Product Code is required.')
-  }
+  const warnings: string[] = []
 
   ;(['reference', 'current'] as const).forEach(role => {
     const label = roleLabels[role]
@@ -57,17 +55,25 @@ export function evaluateMasterDataHandoff(
     }
 
     if (!snapshotCode) {
-      issues.push(`${label} Product Code is missing.`)
+      warnings.push(`${label} Product Code is not specified.`)
     } else if (productCode && normalized(snapshotCode) !== normalized(productCode)) {
-      issues.push(`${label} Product Code does not match the Header Product (${productCode}).`)
+      warnings.push(`${label} Product Code (${snapshotCode}) differs from Header Product (${productCode}).`)
     }
   })
+
+  // Compare Reference and Current Product Code if both exist
+  const refCode = pair.reference.product.productCode.trim()
+  const curCode = pair.current.product.productCode.trim()
+  if (refCode && curCode && normalized(refCode) !== normalized(curCode)) {
+    warnings.push(`Product mismatch: Reference is "${refCode}" while Current is "${curCode}".`)
+  }
 
   return {
     productCode,
     referenceReady: readiness.reference,
     currentReady: readiness.current,
     canCompare: issues.length === 0,
-    issues
+    issues,
+    warnings
   }
 }

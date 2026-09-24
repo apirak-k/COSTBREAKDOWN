@@ -33,7 +33,15 @@ import {
 } from '../core'
 import type { MasterDataHandoffStatus } from '../core'
 import { STORAGE_KEYS, loadFromSession, saveToSession } from '../services'
-import { seedProductMaster, seedWorkCenterRates, seedBOM, seedRouting, seedSnapshotPair } from './seed-data'
+import {
+  seedProductMaster,
+  seedWorkCenterRates,
+  seedBOM,
+  seedRouting,
+  seedSnapshotPair,
+  emptyProductMaster,
+  createEmptySnapshotPair
+} from './seed-data'
 
 export const DEFAULT_UOMS = ['PC', 'SET', 'PANEL', 'GM', 'KG', 'SM', 'M', 'RL', 'L', 'BOX', 'TRAY']
 
@@ -150,8 +158,26 @@ function makeSizedSession(id: string, config: ProductSizingConfig, now: string):
   })
 }
 
-// Helper: create default RGOM-024 seed session
-function makeSeedSession(): ProductSession {
+// Helper: create default empty session with independent empty Reference and Current datasets
+export function makeEmptySession(id: string = 'ps-empty-default'): ProductSession {
+  const now = new Date().toISOString()
+  return withSnapshotPair({
+    id,
+    product: { ...emptyProductMaster },
+    rates: [],
+    bom: [],
+    routing: [],
+    savedDrivers: [],
+    preparedSnapshotRoles: { reference: false, current: false },
+    status: 'draft',
+    versionLabel: 'Draft',
+    createdAt: now,
+    updatedAt: now
+  }, createEmptySnapshotPair(id))
+}
+
+// Helper: create default RGOM-024 seed session (available as fixture)
+export function makeSeedSession(): ProductSession {
   const now = new Date().toISOString()
   return withSnapshotPair({
     id: 'ps-seed-rgom024',
@@ -252,13 +278,13 @@ const AppContext = createContext<AppContextType | undefined>(undefined)
 
 export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [productSessions, setProductSessions] = useState<ProductSession[]>(() => {
-    const loaded = loadFromSession<ProductSession[]>(STORAGE_KEYS.SESSIONS, [makeSeedSession()])
+    const loaded = loadFromSession<ProductSession[]>(STORAGE_KEYS.SESSIONS, [makeEmptySession()])
     return loaded.map((s, idx) => {
       const normalized = withSnapshotPair({
         ...s,
         masterDataRole: s.masterDataRole ?? 'current',
-        status: s.status || (idx === 0 ? 'active' : 'draft'),
-        versionLabel: s.versionLabel || (s.status === 'archived' ? 'Archived' : s.status === 'draft' ? 'Draft' : 'Active')
+        status: s.status || (idx === 0 ? 'draft' : 'draft'),
+        versionLabel: s.versionLabel || (s.status === 'archived' ? 'Archived' : 'Draft')
       })
       return {
         ...normalized,
@@ -268,7 +294,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   })
 
   const [activeProductId, setActiveProductId] = useState<string>(() =>
-    loadFromSession(STORAGE_KEYS.ACTIVE_ID, 'ps-seed-rgom024')
+    loadFromSession(STORAGE_KEYS.ACTIVE_ID, 'ps-empty-default')
   )
 
   const [activeTab, setActiveTabState] = useState<'master' | 'breakdown' | 'candidate' | 'rca'>(() =>
@@ -500,9 +526,9 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     setProductSessions(prev => {
       const remaining = prev.filter(s => s.id !== id)
       if (remaining.length === 0) {
-        const seed = makeSeedSession()
-        setActiveProductId(seed.id)
-        return [seed]
+        const empty = makeEmptySession()
+        setActiveProductId(empty.id)
+        return [empty]
       }
       if (activeProductId === id) {
         // Prefer switching to another active session or first remaining
@@ -520,7 +546,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   }
 
   const updateMasterDataDataset = (mutate: (snapshot: CostSnapshot) => CostSnapshot) => {
-    if (activeSession.status !== 'draft') return
     setProductSessions(prev => prev.map(session => {
       if (session.id !== activeSession.id) return session
       const role = session.masterDataRole ?? 'current'
@@ -534,8 +559,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       const updated = applySnapshotPairToSession({
         ...session,
         masterDataRole: role,
-        status: 'draft',
-        versionLabel: session.versionLabel || `Draft (${role === 'reference' ? 'Reference' : 'Current'})`,
         updatedAt: new Date().toISOString()
       }, nextPair)
       return {
@@ -545,20 +568,19 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     }))
   }
 
-  const setMasterDataProduct = (session: ProductSession, pair: SnapshotPair, nextProduct: ProductMaster): ProductSession =>
-    applySnapshotPairToSession({
+  const setMasterDataProduct = (session: ProductSession, pair: SnapshotPair, nextProduct: ProductMaster): ProductSession => {
+    const role = session.masterDataRole ?? 'current'
+    const nextPair: SnapshotPair = role === 'reference'
+      ? { reference: { ...pair.reference, product: { ...nextProduct } }, current: pair.current }
+      : { reference: pair.reference, current: { ...pair.current, product: { ...nextProduct } } }
+    return applySnapshotPairToSession({
       ...session,
-      masterDataRole: session.masterDataRole ?? 'current',
-      status: 'draft',
-      versionLabel: session.versionLabel || 'Draft',
+      masterDataRole: role,
       updatedAt: new Date().toISOString()
-    }, {
-      reference: { ...pair.reference, product: { ...nextProduct } },
-      current: { ...pair.current, product: { ...nextProduct } }
-    })
+    }, nextPair)
+  }
 
   const updateMasterDataProduct = (nextProduct: ProductMaster) => {
-    if (activeSession.status !== 'draft') return
     setProductSessions(prev => prev.map(session => {
       if (session.id !== activeSession.id) return session
       const role = session.masterDataRole ?? 'current'
@@ -571,7 +593,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   }
 
   const cloneReferenceToCurrent = () => {
-    if (activeSession.status !== 'draft') return
     setProductSessions(prev => prev.map(session => {
       if (session.id !== activeSession.id) return session
       const readiness = getSnapshotRoleReadiness(session)
@@ -593,8 +614,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       const updated = applySnapshotPairToSession({
         ...session,
         masterDataRole: 'current',
-        status: 'draft',
-        versionLabel: session.versionLabel || 'Draft (Reference cloned to Current)',
         updatedAt: new Date().toISOString()
       }, { reference, current })
       return {
@@ -869,82 +888,53 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       ? { reference: result.snapshot, current: existingPair.current }
       : { reference: existingPair.reference, current: result.snapshot }
     const now = new Date().toISOString()
-    const roleLabel = result.role === 'reference' ? 'Reference' : 'Current'
     const preparedSnapshotRoles = {
       ...getSnapshotRoleReadiness(source),
       [result.role]: true
     }
 
-    // An Active/Archived session is immutable. Import into a new Draft so the
-    // existing lifecycle version stays available as-is for calculations/history.
-    if (source.status === 'draft' && source.snapshotPairMode === 'independent') {
-      const updated = applySnapshotPairToSession(
-        {
-          ...source,
-          masterDataRole: result.role,
-          status: 'draft',
-          versionLabel: `Draft (Imported ${roleLabel})`,
-          updatedAt: now,
-          preparedSnapshotRoles
-        },
-        nextPair
-      )
-      setProductSessions(prev => prev.map(session => session.id === source.id ? updated : session))
-      setActiveTab('master')
-      return
-    }
-
-    const importedDraft = applySnapshotPairToSession(
+    const updated = applySnapshotPairToSession(
       {
         ...source,
-        id: `ps-draft-snapshot-${Date.now()}`,
         masterDataRole: result.role,
-        savedDrivers: [],
-        selectedDriverKeys: [],
-        rcaRecords: {},
-        status: 'draft',
-        versionLabel: `Draft (Imported ${roleLabel}: ${result.snapshot.product.productCode || 'Excel'})`,
-        createdAt: now,
         updatedAt: now,
         preparedSnapshotRoles
       },
       nextPair
     )
-    setProductSessions(prev => [...prev, importedDraft])
-    setActiveProductId(importedDraft.id)
+    setProductSessions(prev => prev.map(session => session.id === source.id ? updated : session))
     setActiveTab('master')
   }
 
   const resetToDefault = () => {
     patchActive({
-      product: seedProductMaster,
-      rates: seedWorkCenterRates,
-      bom: seedBOM,
-      routing: seedRouting,
-      savedDrivers: [],
-      selectedDriverKeys: [],
-      rcaRecords: {},
-      preparedSnapshotRoles: { reference: true, current: true },
-      status: 'active',
-      versionLabel: 'Active Baseline (RGOM-024)',
-      snapshotPair: seedSnapshotPair,
-      snapshotPairMode: 'independent'
-    })
-  }
-
-  const clearAllData = () => {
-    patchActive({
-      product: {
-        productCode: '', productDescription: '', uom: 'PC', customer: '',
-        effectiveDate: new Date().toISOString().split('T')[0]
-      },
+      product: { ...emptyProductMaster },
       rates: [],
       bom: [],
       routing: [],
       savedDrivers: [],
       selectedDriverKeys: [],
       rcaRecords: {},
-      preparedSnapshotRoles: { reference: false, current: false }
+      preparedSnapshotRoles: { reference: false, current: false },
+      status: 'draft',
+      versionLabel: 'Draft',
+      snapshotPair: createEmptySnapshotPair(activeSession.id),
+      snapshotPairMode: 'independent'
+    })
+  }
+
+  const clearAllData = () => {
+    patchActive({
+      product: { ...emptyProductMaster },
+      rates: [],
+      bom: [],
+      routing: [],
+      savedDrivers: [],
+      selectedDriverKeys: [],
+      rcaRecords: {},
+      preparedSnapshotRoles: { reference: false, current: false },
+      snapshotPair: createEmptySnapshotPair(activeSession.id),
+      snapshotPairMode: 'independent'
     })
   }
 

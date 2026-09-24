@@ -424,13 +424,7 @@ export function parseSnapshotWorkbookData(
     }
   }
   if (expectedProductCode && product.productCode.trim().toLowerCase() !== expectedProductCode.trim().toLowerCase()) {
-    return {
-      success: false,
-      message: `Product Code mismatch. Selected Product: ${expectedProductCode}; workbook Product: ${product.productCode}.`,
-      format: 'canonical',
-      warnings,
-      role
-    }
+    warnings.push(`Product mismatch: Selected Product is "${expectedProductCode}", but imported workbook Product is "${product.productCode}".`)
   }
   const sourceRef = metaValue(meta, ['source ref', 'sourceref', 'source'])
   const effectiveDate = product.effectiveDate || metaValue(meta, ['effective date', 'effectivedate'])

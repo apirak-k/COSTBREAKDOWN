@@ -14,7 +14,6 @@ import { AddRateModal } from './components/modals/AddRateModal'
 
 export const MasterDataPage: React.FC = () => {
   const {
-    activeSession,
     uomList,
     masterDataRole,
     masterDataSnapshot,
@@ -22,8 +21,6 @@ export const MasterDataPage: React.FC = () => {
     setMasterDataRole,
     setActiveTab,
     cloneReferenceToCurrent,
-    cloneActiveToDraft,
-    activateDraft,
     updateMasterDataProduct,
     addMasterDataBOMItem,
     updateMasterDataBOMItem,
@@ -40,7 +37,6 @@ export const MasterDataPage: React.FC = () => {
   const [bomModalOpen, setBomModalOpen] = useState(false)
   const [routingModalOpen, setRoutingModalOpen] = useState(false)
   const [rateModalOpen, setRateModalOpen] = useState(false)
-  const canEdit = activeSession.status === 'draft'
   const product = masterDataSnapshot.product
 
   return (
@@ -48,7 +44,6 @@ export const MasterDataPage: React.FC = () => {
       <DatasetRoleSelector
         product={product}
         snapshot={masterDataSnapshot}
-        status={activeSession.status}
         role={masterDataRole}
         onRoleChange={setMasterDataRole}
       />
@@ -59,14 +54,10 @@ export const MasterDataPage: React.FC = () => {
         bomCount={masterDataSnapshot.bom.length}
         routingCount={masterDataSnapshot.routing.length}
         uomList={uomList}
-        status={activeSession.status}
-        versionLabel={`${activeSession.versionLabel || 'Draft'} · ${masterDataRole === 'reference' ? 'Reference' : 'Current'}`}
-        isEditMode={isEditMode && canEdit}
-        canEdit={canEdit}
-        onToggleEditMode={edit => setIsEditMode(edit && canEdit)}
+        versionLabel={masterDataRole === 'reference' ? 'Reference' : 'Current'}
+        isEditMode={isEditMode}
+        onToggleEditMode={edit => setIsEditMode(edit)}
         onUpdateProduct={updateMasterDataProduct}
-        onCloneToDraft={() => cloneActiveToDraft(activeSession.id)}
-        onActivateDraft={() => activateDraft(activeSession.id)}
       />
 
       {masterDataSnapshot.warnings && masterDataSnapshot.warnings.length > 0 && (
@@ -80,7 +71,7 @@ export const MasterDataPage: React.FC = () => {
         product={product}
         snapshot={masterDataSnapshot}
         importRole={masterDataRole}
-        canEdit={canEdit}
+        canEdit={true}
         canCloneReference={masterDataHandoff.referenceReady}
         onCloneReferenceToCurrent={cloneReferenceToCurrent}
       />
@@ -120,8 +111,14 @@ export const MasterDataPage: React.FC = () => {
         </div>
 
         {masterDataHandoff.issues.length > 0 && (
-          <ul className="mt-3 list-disc pl-4 space-y-0.5 text-[10px] text-amber-800 font-sans" role="status">
+          <ul className="mt-3 list-disc pl-4 space-y-0.5 text-[10px] text-rose-700 font-sans" role="status">
             {masterDataHandoff.issues.map(issue => <li key={issue}>{issue}</li>)}
+          </ul>
+        )}
+
+        {masterDataHandoff.warnings && masterDataHandoff.warnings.length > 0 && (
+          <ul className="mt-2 list-disc pl-4 space-y-0.5 text-[10px] text-amber-700 font-sans" role="status">
+            {masterDataHandoff.warnings.map(warning => <li key={warning}><strong>Notice:</strong> {warning}</li>)}
           </ul>
         )}
 
@@ -139,7 +136,7 @@ export const MasterDataPage: React.FC = () => {
 
       <WorkCenterRatesTable
         rates={masterDataSnapshot.rates}
-        isEditMode={isEditMode && canEdit}
+        isEditMode={isEditMode}
         onAddRate={() => setRateModalOpen(true)}
         onUpdateRate={updateMasterDataWorkCenterRate}
         onDeleteRate={deleteMasterDataWorkCenterRate}
@@ -147,7 +144,7 @@ export const MasterDataPage: React.FC = () => {
 
       <BOMTable
         bom={masterDataSnapshot.bom}
-        isEditMode={isEditMode && canEdit}
+        isEditMode={isEditMode}
         onAddBOMItem={() => setBomModalOpen(true)}
         onUpdateBOMItem={updateMasterDataBOMItem}
         onDeleteBOMItem={deleteMasterDataBOMItem}
@@ -156,7 +153,7 @@ export const MasterDataPage: React.FC = () => {
       <RoutingTable
         routing={masterDataSnapshot.routing}
         rates={masterDataSnapshot.rates}
-        isEditMode={isEditMode && canEdit}
+        isEditMode={isEditMode}
         onAddRoutingStep={() => setRoutingModalOpen(true)}
         onUpdateRoutingStep={updateMasterDataRoutingStep}
         onDeleteRoutingStep={deleteMasterDataRoutingStep}

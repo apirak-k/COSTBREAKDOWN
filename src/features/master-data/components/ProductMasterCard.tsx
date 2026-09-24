@@ -14,8 +14,6 @@ interface ProductMasterCardProps {
   onToggleEditMode?: (edit: boolean) => void
   onUpdateProduct: (product: ProductMaster) => void
   onOpenSetupModal?: () => void
-  onCloneToDraft?: () => void
-  onActivateDraft?: () => void
 }
 
 export const ProductMasterCard: React.FC<ProductMasterCardProps> = ({
@@ -24,15 +22,11 @@ export const ProductMasterCard: React.FC<ProductMasterCardProps> = ({
   bomCount,
   routingCount,
   uomList,
-  status = 'active',
   versionLabel,
-  canEdit = status === 'draft',
   isEditMode = false,
   onToggleEditMode,
   onUpdateProduct,
-  onOpenSetupModal,
-  onCloneToDraft,
-  onActivateDraft
+  onOpenSetupModal
 }) => {
   return (
     <div className="bg-white p-3.5 rounded-none border border-slate-300/80 shadow-2xs space-y-3">
@@ -44,22 +38,14 @@ export const ProductMasterCard: React.FC<ProductMasterCardProps> = ({
           <span className="px-1.5 py-0.5 text-[10px] font-mono font-bold bg-slate-100 text-slate-700 rounded-none border border-slate-200">
             {ratesCount} WC · {bomCount} BOM · {routingCount} ROUTING
           </span>
-
-          {/* Version Status Badge */}
-          <span
-            className={`px-2 py-0.5 text-[10px] font-mono font-bold rounded uppercase tracking-wide border ${
-              status === 'active'
-                ? 'bg-slate-100 text-slate-800 border-slate-300'
-                : status === 'draft'
-                ? 'bg-slate-100 text-amber-800 border-slate-300'
-                : 'bg-slate-100 text-slate-500 border-slate-200'
-            }`}
-          >
-            ● {status.toUpperCase()} {versionLabel ? `— ${versionLabel}` : ''}
-          </span>
+          {versionLabel && (
+            <span className="px-2 py-0.5 text-[10px] font-mono font-bold bg-slate-100 text-slate-700 rounded-none border border-slate-200 uppercase tracking-wide">
+              {versionLabel}
+            </span>
+          )}
         </div>
 
-        {/* Action Buttons: Mode Switcher, Version Management & Sizing */}
+        {/* Action Buttons: Mode Switcher & Sizing */}
         <div className="flex items-center gap-2">
           {/* Overall Mode Switcher */}
           {onToggleEditMode && (
@@ -77,51 +63,17 @@ export const ProductMasterCard: React.FC<ProductMasterCardProps> = ({
               </button>
               <button
                 type="button"
-                onClick={() => canEdit && onToggleEditMode(true)}
-                disabled={!canEdit}
+                onClick={() => onToggleEditMode(true)}
                 className={`px-2.5 py-0.5 text-[11px] font-mono font-bold rounded transition-all cursor-pointer ${
                   isEditMode
                     ? 'bg-slate-900 text-white shadow-2xs'
                     : 'text-slate-500 hover:text-slate-800'
-                } disabled:cursor-not-allowed disabled:opacity-40`}
-                title={canEdit ? 'Edit this Draft dataset' : 'Clone or import into a Draft before editing'}
+                }`}
+                title="Edit this dataset directly"
               >
                 Edit Mode
               </button>
             </div>
-          )}
-
-          {status === 'active' && onCloneToDraft && (
-            <button
-              type="button"
-              onClick={onCloneToDraft}
-              className="px-2.5 py-1 text-xs font-mono font-bold text-slate-700 bg-white hover:bg-slate-50 border border-slate-300 rounded transition-colors cursor-pointer shadow-2xs"
-              title="Create a new Draft version based on this Active dataset"
-            >
-              Clone to Draft
-            </button>
-          )}
-
-          {status === 'draft' && onActivateDraft && (
-            <button
-              type="button"
-              onClick={onActivateDraft}
-              className="px-2.5 py-1 text-xs font-mono font-bold text-white bg-slate-900 hover:bg-slate-800 border border-slate-900 rounded transition-colors cursor-pointer shadow-2xs"
-              title="Activate this Draft as the live active cost calculation dataset"
-            >
-              Activate Draft
-            </button>
-          )}
-
-          {status === 'archived' && onCloneToDraft && (
-            <button
-              type="button"
-              onClick={onCloneToDraft}
-              className="px-2.5 py-1 text-xs font-mono font-bold text-slate-700 bg-slate-100 hover:bg-slate-200 border border-slate-300 rounded transition-colors cursor-pointer"
-              title="Clone this archived snapshot into a new working Draft"
-            >
-              Clone to Draft
-            </button>
           )}
 
           {isEditMode && onOpenSetupModal && (
@@ -137,23 +89,20 @@ export const ProductMasterCard: React.FC<ProductMasterCardProps> = ({
         </div>
       </div>
 
-      {/* Version Alert Banner */}
-      {status === 'draft' && (
-        <div className="p-2 bg-slate-50 border-l-3 border-amber-500 text-slate-800 text-xs font-mono rounded-r">
-          <strong>Draft Mode:</strong> Edits are saved in this isolated draft. Click "Activate Draft" to make numbers live.
-        </div>
-      )}
-
-      {status === 'archived' && (
-        <div className="p-2 bg-slate-50 border-l-3 border-slate-400 text-slate-700 text-xs font-mono rounded-r">
-          <strong>Archived Snapshot:</strong> Read-only reference. Clone to draft to modify.
-        </div>
-      )}
-
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-2 text-xs">
         <div>
           <label className="block text-slate-500 text-[10px] font-mono font-bold uppercase mb-0.5">Product Code *</label>
-          <div className="py-1 font-mono font-bold text-slate-900 text-xs">{product.productCode || '—'}</div>
+          {isEditMode ? (
+            <input
+              type="text"
+              value={product.productCode}
+              onChange={e => onUpdateProduct({ ...product, productCode: e.target.value })}
+              placeholder="e.g. RGOM-024"
+              className="w-full px-2 py-1 font-mono font-bold text-slate-900 bg-white border border-slate-300 rounded focus:outline-none focus:ring-1 focus:ring-slate-800 focus:border-slate-800 shadow-2xs"
+            />
+          ) : (
+            <div className="py-1 font-mono font-bold text-slate-900 text-xs">{product.productCode || '—'}</div>
+          )}
         </div>
         <div>
           <label className="block text-slate-500 text-[10px] font-mono font-bold uppercase mb-0.5">UOM Unit</label>

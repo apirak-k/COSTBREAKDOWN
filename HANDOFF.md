@@ -1,128 +1,96 @@
-# Engineering Handoff & Project Checkpoint — Checkpoint 14
+# Current Handoff — Adopt the New Cost Breakdown Agreement
 
-**Date Updated**: 2026-08-26  
-**Status**: **Measurable Noise Removal, MHr ("Machine & Man") Definition Alignment & Fallback Traceability Complete ✅**  
-**Active Working Branch**: `feature/taste-frontend-ui`  
-**Governing Documents**:
-- [`PROJECT_SPECIFIC.md`](PROJECT_SPECIFIC.md)
-- [`Human-AI-Working-Standard/HAWS.md`](Human-AI-Working-Standard/HAWS.md)
-- [`Human-AI-Working-Standard/WORK_INSTRUCTIONS.md`](Human-AI-Working-Standard/WORK_INSTRUCTIONS.md)
-- [`Human-AI-Working-Standard/skills/taste-frontend.md`](Human-AI-Working-Standard/skills/taste-frontend.md)
-- [`docs/USER_MANUAL_AND_TESTING_GUIDE.md`](docs/USER_MANUAL_AND_TESTING_GUIDE.md)
+**Updated:** 2026-09-24
+**Repository:** E:\COSTBREAKDOWN
+**Starting checkout:** branch codex/snapshot-import-role-selector, commit 161dc13
 
-# CURRENT CHECKPOINT — 2026-09-21
+## Current agreement
 
-อ่านเอกสารส่งต่องานฉบับล่าสุดที่ [HANDOFF_2026-09-21.md](HANDOFF_2026-09-21.md) ก่อน เนื้อหาด้านล่างเป็น handoff เก่าจาก checkpoint ก่อนหน้าและเก็บไว้เป็นประวัติ
+The user designated all four documents under agreements/ as the current product agreement. See docs/REQUIREMENTS_INDEX.md for the authority order and summary.
 
-ล่าสุดบันทึกโค้ดไว้ที่ commit `85dba08` บน branch `main` แล้ว ไม่มี source code ค้างใน working tree; งานถัดไปคือเพิ่มตัวเลือก import `Reference` / `Current` ใน `src/features/master-data/components/ExcelImportPanel.tsx`
+The Comparison document retains its own “Working Specification” label. The user's instruction makes it part of the current agreement set for project work.
 
----
+## Current implementation state
 
-## 1. Accomplishments in Checkpoint 13
+The repository contains code and documentation produced under earlier requirements. In particular, the previous Master Data plan recorded Tasks 1–6 as implemented and verified, including a Product context, role-aware Draft data, and a guarded handoff to Cost Breakdown. Those results describe the earlier behavior and are not acceptance of the new agreement.
 
-### 1.1 Overall View / Edit Mode Switcher (Poka-Yoke & Accidental Edit Prevention)
-- **Problem**: Previously, all cells across all tables were always active `<input>` boxes, causing visual clutter (lines within lines) and posing a risk of accidental overwrite/corruption of financial numbers.
-- **Implementation**:
-  - Implemented a page-level Master Mode toggle `[ View Mode ] [ Edit Mode ]` at the top right of the Product Master Card (`ProductMasterCard.tsx`).
-  - **View Mode (Default / Read-Only)**: Renders pure typography and tabular figures for all fields (Product Info, Rates, BOM, Routing) with zero input borders. Hidden add/delete/bulk buttons for maximum reading comfort and 100% data safety.
-  - **Edit Mode**: Simultaneously unlocks inline inputs, dropdowns, Add Row buttons, Delete actions, and Bulk Action bars across all tables in a single click.
-- **Files Modified**:
-  - `src/features/master-data/MasterDataPage.tsx`
-  - `src/features/master-data/components/ProductMasterCard.tsx`
-  - `src/features/master-data/components/WorkCenterRatesTable.tsx`
-  - `src/features/master-data/components/BOMTable.tsx`
-  - `src/features/master-data/components/RoutingTable.tsx`
+The user designated all four agreement files as the current product contract. A static code-to-agreement audit is complete at `.planning/2569-09-24-agreement-gap-audit/findings.md`. The largest gaps are the Product-session Master Data flow, Comparison status/identity/reconciliation behavior, legacy Candidate Prioritization input, and RCA simulation's incomplete use of the agreed cost engine. Do not infer implementation completeness from old plans or test evidence.
 
-### 1.2 Borderless Table Styling & Input Refinement (No "เส้นในเส้น")
-- **Problem**: Nested vertical borders (`border-x`) and column stripe shading made tables look crowded and heavy.
-- **Implementation**:
-  - Removed all vertical column dividers (`border-x`) from `BOMTable.tsx`, `RoutingTable.tsx`, `WorkCenterRatesTable.tsx`, `BOMDetailedTable.tsx`, and `RoutingDetailedTable.tsx`.
-  - Replaced with clean horizontal separation (`divide-y divide-slate-100`) in modern spreadsheet style.
-  - Standardized all editable inputs to transparent-on-rest cells with subtle focus borders (`bg-transparent hover:bg-slate-100 focus:bg-white focus:ring-1 focus:ring-slate-800 border border-transparent focus:border-slate-300 rounded`).
+The audit did not change application code and did not run tests or a build. The phased implementation roadmap is recorded at `.planning/2569-09-24-agreement-gap-audit/task_plan.md`; the implementation plan and 18-task checklist are in `tasks/plan.md` and `tasks/todo.md`.
 
-### 1.3 Bulk Work Center Assignment in Process Routing
-- **Problem**: Assigning the same Work Center across multiple routing operations required editing rows individually.
-- **Implementation**:
-  - Added multi-row selection checkboxes (including header "Select All") in `RoutingTable.tsx`.
-  - Added a contextual Dark Bulk Action Bar (`selectedIds.size > 0`) allowing users to select a target Work Center and click `Apply` to update all selected steps simultaneously.
+## Documentation cleanup
 
-### 1.4 Visual Noise, Jargon & Confidence Status Cleanup
-- **Candidate Selection**:
-  - Consolidated driver evaluation checkboxes from 2 checkboxes to 1 `Controllable` checkbox (`canInfluence`).
-  - Expanded Driver Name column to `col-span-3` for easier reading.
-  - Removed distracting unverified estimate warning banner from individual rows.
-- **Academic Jargon & Acronyms**:
-  - Removed accounting abbreviations `(LRV)`, `(LEV)`, `(MPV)`, `(MLV)`, `(BRV)`, `(BEV)`, `(C_M)`, `(C_L)`, `(C_B)` from `VarianceTreeCard.tsx` and tables.
-  - Removed numbering prefixes (`Section A:`, `Section B:`, `Level 2:`, `1. Product Master...`).
-- **Confidence Badge Status**:
-  - Removed traffic-light status dots from table rows in BOM, Routing, Rates, and Candidate Selection to focus 100% on financial data.
-  - Adjusted top Executive KPI cards to a clean 4-pillar financial grid (`Total Standard Cost`, `Direct Material`, `Direct Labor`, `Manufacturing Burden`).
+The agreement set and requirements index are the active behavior references. Earlier conflicting page specifications, cross-page designs, task plans, analysis/review documents, old diagrams, and dated handoffs were removed from the working tree. Concise project context, safeguards, quality constraints, and this checkpoint remain.
 
-### 1.5 Checkpoint 14: Measurable Removal & MHr Architecture Alignment
-- **Diagram Alignment (`costbreakdown_summary.drawio`)**:
-  - Replaced `System auto-rank by Cost Impact + Measurable` with `System auto-rank by Cost Impact (Cost Gap)`.
-  - Clarified `MHr` in Process Constants as `"Machine & Man" working hour`.
-  - Clarified Active fallback rule with `+ Tag Note/Source for Data Coverage`.
-- **Codebase Cleanliness**:
-  - Removed `isMeasurable` property across all type definitions (`src/core/types/cost.types.ts`, `src/lib/types.ts`) and calculations (`src/core/calculations/top-drivers.ts`, `src/lib/cost-engine.ts`).
-  - Cleaned up legacy UI labels in `CandidateSelectionPage.tsx`.
+## Prior verification evidence
 
----
+The 2026-09-23 handoff recorded successful build, Excel model, focused verifier, and synthetic browser checks for the previous implementation. Those checks were not rerun during this documentation cleanup and do not verify the new agreement.
 
-## 2. Automated Test & Verification Results
+## Task 1 Completion Checkpoint (2026-09-24)
 
-All test suites and TypeScript production builds pass cleanly:
-```bash
-npm run build
-# Result: 1656 modules transformed, 0 errors, built in 5.14s (Vite v5.4.21)
+### Implemented Scope
+- Replaced seeded first-use session data with empty initial workspace (`makeEmptySession`, `createEmptySnapshotPair`, `emptyProductMaster`).
+- Fresh browser session starts with empty Reference and Current datasets; `resetToDefault` and `clearAllData` reset the active session back to independent empty Reference and Current datasets with `preparedSnapshotRoles: { reference: false, current: false }`.
+- Session data is persisted exclusively in `sessionStorage` via `src/services/storage/session-storage.ts`, so closing the browser tab/session clears working data.
+- Isolated mutation boundaries: modifying Reference does not mutate Current; cloning Reference to Current creates a deep independent copy, ensuring edits to Current do not mutate Reference.
 
-node scripts/test_comprehensive_audit.js
-# Result: 31/31 checks passed (Cost engine parity, Pareto ranking, What-If simulation, Poka-Yoke guards, Excel sheet parity)
-```
+### Verification Evidence
+- Focused Verifier: `scripts/verify_workspace_initialization.ts` executed and passed (`npx tsx scripts/verify_workspace_initialization.ts`).
+- Regression Verifier: `scripts/verify_master_data_handoff.ts` executed and passed (`npx tsx scripts/verify_master_data_handoff.ts`).
+- Type check & Build: `npm run build` completed cleanly (0 errors, 1685 modules transformed).
 
----
+### Noted Risks & Observations
+- Master Data editing components still enforce `status === 'draft'` gating pending Task 2. Task 2 must remove version status gating (`status === 'draft'`, Draft/Active/Archived badges, clone/activate controls) from Master Data per Section 2 & 10 of `agreements/MASTER_DATA_FLOW_SPEC.md`.
+- `evaluateMasterDataHandoff` currently enforces matching Header Product Code between Reference and Current; Task 4 will address turning product mismatch into a non-blocking warning.
+- Scope boundaries were strictly observed: Task 2 was not started, and unrelated files/documentation were not modified.
 
-## 3. UI Verification & Screen Inspection Guide (For User & Reviewer)
+## Task 2 Completion Checkpoint (2026-09-24)
 
-When reviewing the web platform locally, inspect the following key screen locations:
+### Implemented Scope
+- Removed version lifecycle gating (`activeSession.status !== 'draft'`) from store mutation methods: `updateMasterDataDataset`, `updateMasterDataProduct`, and `cloneReferenceToCurrent`.
+- Enabled direct adding, editing, and deleting of Product, Work Center, BOM, and Routing data on either side (Reference and Current) at any time.
+- Removed lifecycle UI artifacts from Master Data: Draft/Active/Archived badges, "Clone to Draft" and "Activate Draft" buttons, draft warning alert banners, and dataset status displays.
+- Made Product Code directly editable in Edit Mode within `ProductMasterCard.tsx` so users can enter or modify product codes manually without wizard setup.
+- Maintained independent copy semantics in `cloneReferenceToCurrent`: cloning Reference creates an isolated deep copy on Current that can be edited, added to, or deleted from without mutating Reference.
 
-### 3.1 Tab 1: Master Data
-* **[Top-Right of Product Master Card] Overall Mode Switcher:**
-  * Toggle between `[ View Mode ]` and `[ Edit Mode ]`.
-  * **View Mode**: Verify all product fields, rates, BOM items, and routing steps are rendered as clean, high-contrast text/numbers with **zero input boxes** (100% Poka-Yoke accidental edit protection).
-  * **Edit Mode**: Verify inline input boxes, dropdowns, Add Row buttons, and Delete buttons appear across all tables simultaneously.
-* **[BOM & Work Center Rates Tables] Table Cleanliness:**
-  * Verify **no vertical column dividers** (`border-x`) exist and no alternating column stripes clutter the view.
-  * Verify **no traffic-light status dots** (Confidence Badges) appear in the table cells.
-* **[Process Routing Table] Bulk Work Center Action (in Edit Mode):**
-  * Select multiple row checkboxes.
-  * Verify the dark **Bulk Action Bar** appears with Work Center dropdown and `Apply` button.
-  * Verify clicking `Apply` updates all selected rows simultaneously and recalculates conversion cost live.
+### Verification Evidence
+- Focused Verifier: `scripts/verify_direct_dataset_editing.ts` created and executed successfully via `npx tsx`:
+  - Verified manual entry on Reference works without status gate and does not mutate Current.
+  - Verified Reference -> Current produces independent copy; editing Current preserves Reference.
+  - Verified adding and deleting rows on Current works independently of Reference.
+  - Verified lifecycle gating removed: direct dataset editing does not require draft status.
+- Regressions check: `scripts/verify_workspace_initialization.ts` executed and passed.
+- Type check & Build: `npm run build` completed cleanly (0 errors, 1685 modules transformed).
 
-### 3.2 Tab 2: Cost Breakdown
-* **[Top Executive Summary] 4-Pillar Financial KPI Grid:**
-  * Verify the top header displays 4 symmetric financial cards: `Total Standard Cost`, `Direct Material`, `Direct Labor`, `Manufacturing Burden`.
-* **[Variance Tree Card] Academic Jargon Removal:**
-  * Verify no technical acronyms (`(LRV)`, `(MPV)`, `(C_M)`, etc.) or `Level 2:` prefixes clutter the variance branches.
+## Phase 1 Completion Checkpoint (Tasks 1–5, Master Data) (2026-09-24)
 
-### 3.3 Tab 3: Candidate Selection
-* **[Cost Drivers Table] Simplified Human Checklist:**
-  * Verify driver checklist is consolidated into 1 clear checkbox: `Stage 2: Can Influence`.
-  * Verify the **Driver Name** column is expanded and easy to read without truncation.
-  * Verify distracting unverified estimate warning banners have been removed from rows.
+### Implemented Scope
+- **Task 1:** Replaced seeded demo data with clean empty initial state (`makeEmptySession`, `createEmptySnapshotPair`, `emptyProductMaster`). Browser tab session storage isolation via `sessionStorage`.
+- **Task 2:** Removed lifecycle status gating (`status === 'draft'`) from store mutations (`updateMasterDataDataset`, `updateMasterDataProduct`, `cloneReferenceToCurrent`). Removed obsolete badges/buttons/banners from UI and made Product Code editable.
+- **Task 3:** Implemented full Working Dataset replacement on Excel import. Importing into Reference replaces only Reference; importing into Current replaces only Current; manual data is not merged.
+- **Task 4:** Converted Product Code/Name mismatch during import and comparison handoff from blocking errors to non-blocking advisory warnings. Comparison can proceed even with differing product codes per agreement Section 9. Missing calculation inputs remain warnings and are not coerced to zero.
+- **Task 5:** Added full dataset export (`exportSnapshotToExcel` in `src/services/excel/snapshot-export.ts`) via "Export Dataset" button on Master Data page. Round-trip export/import verified.
 
----
+### Verification Evidence
+- `scripts/verify_workspace_initialization.ts` passed.
+- `scripts/verify_direct_dataset_editing.ts` passed.
+- `scripts/verify_import_mismatch_export.ts` passed:
+  - Verified Export -> Import round-trip preserves Product, Rates, BOM, and Routing.
+  - Verified Product mismatch is a non-blocking warning for both import and comparison handoff.
+  - Verified import replaces selected side without affecting opposite side.
+- Build: `npm run build` passed cleanly (0 errors, 1686 modules transformed).
 
-## 4. Exact Resume Point & Next Actions
+## Next work
 
-### Exact Resume Point:
-- System is verified, stable, and mathematically green on branch `feature/taste-frontend-ui`.
-- All tables support dual-mode (View vs. Edit), borderless modern styling, and clean responsive inputs.
+1. Begin Phase 2 — Comparison Findings and Reconciliation:
+   - **Task 6:** Validate business identity and standardize four comparison statuses (`UNCHANGED`, `CHANGED`, `ADDED`, `REMOVED`).
+   - **Task 7:** Calculate record-level effects with absent-side zero.
+   - **Task 8:** Reconcile item-level effects to element-level cost gaps.
+   - **Task 9:** Retain unmapped imported fields for comparison and display.
+   - **Task 10:** Separate calculation failure from data warning.
+2. Verify each phase against its acceptance criteria before proceeding.
+3. Commit and push progress as requested.
 
-### Next Steps:
-1. **User Review**: Verify the screen locations detailed in Section 3 above.
-2. **Git Commit & Push**: Execute git commit and push to remote repository.
-3. **Future Explorations (Optional)**:
-   - Cell keyboard navigation shortcuts (Tab / Arrow keys across inputs).
-   - Additional Scenario Export options if requested.
+## Open specification boundary
 
+The current agreements hand off to Trial but do not define its validation or baseline-promotion workflow. The stable Routing business key for rows without Operation Code or Process Code also needs agreement. Keep Trial behavior and future financial metrics out of scope until specified.
