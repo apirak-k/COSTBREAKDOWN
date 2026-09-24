@@ -100,15 +100,35 @@ The 2026-09-23 handoff recorded successful build, Excel model, focused verifier,
 - `scripts/verify_import_mismatch_export.ts` passed.
 - Build: `npm run build` completed cleanly (0 errors, 1686 modules transformed).
 
+## Phase 3 Completion Checkpoint (Tasks 11–13, Candidate Prioritization) (2026-09-24)
+
+### Implemented Scope
+- **Task 11 (Material Candidates):** Implemented `buildMaterialCandidates` in `src/core/calculations/material-candidates.ts`. Converts meaningful material comparison findings into candidates with `CHANGED/ADDED/REMOVED` statuses. Unchanged materials do not become candidates. Multiple changed factors (Price, Loss, Usage) are exposed as distinct factor candidates. Added items calculate Reference = 0; Removed items calculate Current = 0.
+- **Task 12 (Processing Candidates aggregated by Work Center):** Implemented `buildProcessingCandidates` in `src/core/calculations/processing-candidates.ts`. Aggregates Reference and Current processing costs by Work Center. Uses `Current - Reference` gap without requiring 1:1 Routing step matching or manual split/merge mapping. Different Routing structures still aggregate to clean Work Center candidates.
+- **Task 13 (Consolidated candidates, ranking, and controllability):**
+  - Implemented `buildPrioritizationCandidates` in `src/core/calculations/candidate-prioritization.ts` sorting candidates descending by Gap (+Gap -> -Gap) while keeping zero and negative gaps visible.
+  - All candidates start with `controllable = true` by default. Unchecking `Controllable` updates the state without removing or hiding the row.
+  - Simplified `CandidateSelectionPage.tsx` and created `CandidatesTable.tsx` & `CandidateRow.tsx` displaying only agreed fields: Rank, Candidate / Finding, Status (`CHANGED/ADDED/REMOVED`), Reference, Current, Gap (THB), and Controllable.
+  - Removed all Action, Root Cause, Requirement Fit, and Feasibility controls from Candidate Prioritization.
+
+### Verification Evidence
+- `scripts/verify_candidate_prioritization.ts` created and passed:
+  - Verified Material candidate generation, factor breakdown, and absence of unchanged items.
+  - Verified Processing candidates aggregated by Work Center without 1:1 Routing match.
+  - Verified default `controllable: true` and descending Gap sort.
+  - Verified status filtering (`all`, `CHANGED`, `ADDED`, `REMOVED`).
+- Regressions check: `scripts/verify_import_mismatch_export.ts` and `scripts/verify_comparison_reconciliation.ts` both passed.
+- Build: `npm run build` completed cleanly (0 errors, 1687 modules transformed).
+
 ## Next work
 
-1. Phase 3 — Candidate Prioritization (Tasks 11–13):
-   - **Task 11:** Build material candidates from Comparison findings.
-   - **Task 12:** Build conversion candidates from Comparison findings.
-   - **Task 13:** Rank candidates by cost impact and update candidate tests.
-2. Phase 4 — RCA Simulation (Tasks 14–17).
-3. Phase 5 — Handoff & Governance (Task 18).
-4. Run focused verifiers, `npm run build`, commit per phase, and push to remote.
+1. Phase 4 — RCA & Simulation (Tasks 14–17):
+   - **Task 14:** Move candidate selection and Root Cause/Action notes to RCA & Simulation; permit selection from the full Candidate pool.
+   - **Task 15:** Adopt the shared snapshot cost engine for baseline and simulation.
+   - **Task 16:** Remove hardcoded Routing/rate assumptions from simulation.
+   - **Task 17:** Align simulation outputs and Trial handoff.
+2. Phase 5 — Handoff & Governance (Task 18).
+3. Run focused verifiers, `npm run build`, commit per phase, and push to remote.
 
 ## Open specification boundary
 

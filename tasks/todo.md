@@ -191,9 +191,9 @@ Tasks are ordered by dependency. Keep each implementation slice focused and leav
 **Description:** Convert meaningful material findings into factor-level candidates without collapsing unrelated changes.
 
 **Acceptance criteria:**
-- [ ] Price, Loss, and supported Usage/Consumption changes can appear as separate factor candidates.
-- [ ] Added and Removed material findings retain their structural status and Reference/Current costs.
-- [ ] Unchanged material rows do not become candidates.
+- [x] Price, Loss, and supported Usage/Consumption changes can appear as separate factor candidates.
+- [x] Added and Removed material findings retain their structural status and Reference/Current costs.
+- [x] Unchanged material rows do not become candidates.
 
 **Verification:** Check separate-factor and structural material fixtures, including a structurally changed candidate with zero net gap.
 
@@ -208,9 +208,9 @@ Tasks are ordered by dependency. Keep each implementation slice focused and leav
 **Description:** Aggregate Routing cost effects by Work Center on each side and derive processing candidates without one-to-one Routing matching.
 
 **Acceptance criteria:**
-- [ ] Reference and Current processing costs aggregate by Work Center and use `Current - Reference`.
-- [ ] Different Routing structures can still produce one Work Center candidate with operation detail.
-- [ ] Candidate identity does not require new Routing IDs or split/merge mappings.
+- [x] Reference and Current processing costs aggregate by Work Center and use `Current - Reference`.
+- [x] Different Routing structures can still produce one Work Center candidate with operation detail.
+- [x] Candidate identity does not require new Routing IDs or split/merge mappings.
 
 **Verification:** Check one-to-many and many-to-one Routing fixtures whose Work Center totals reconcile.
 
@@ -225,9 +225,9 @@ Tasks are ordered by dependency. Keep each implementation slice focused and leav
 **Description:** Feed the page from Comparison-derived candidates, show agreed fields, and remove RCA/action responsibilities.
 
 **Acceptance criteria:**
-- [ ] Each row shows Candidate, `CHANGED/ADDED/REMOVED`, Reference, Current, Gap, and Controllable.
-- [ ] Controllable starts explicitly `true`; unchecking never removes/hides a candidate; zero/negative gaps remain visible and Gap sorts descending by default.
-- [ ] Only status filtering remains; no RCA selection, Action, Root Cause, Requirement Fit, or Feasibility controls appear here.
+- [x] Each row shows Candidate, `CHANGED/ADDED/REMOVED`, Reference, Current, Gap, and Controllable.
+- [x] Controllable starts explicitly `true`; unchecking never removes/hides a candidate; zero/negative gaps remain visible and Gap sorts descending by default.
+- [x] Only status filtering remains; no RCA selection, Action, Root Cause, Requirement Fit, or Feasibility controls appear here.
 
 **Verification:** Check default state, status filtering, ranking, candidate visibility, and absence of RCA controls in a browser.
 
@@ -239,8 +239,8 @@ Tasks are ordered by dependency. Keep each implementation slice focused and leav
 
 ### Checkpoint: Candidate Prioritization
 
-- [ ] Material and Work Center candidates trace back to Comparison, preserve status/gap meaning, and rank/filter as agreed.
-- [ ] Focused checks and `npm run build` pass before RCA work begins.
+- [x] Material and Work Center candidates trace back to Comparison, preserve status/gap meaning, and rank/filter as agreed.
+- [x] Focused checks and `npm run build` pass before RCA work begins.
 
 ## Phase 4 — RCA & Simulation
 

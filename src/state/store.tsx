@@ -20,6 +20,8 @@ import {
   CostComparison,
   DriverRcaDraft,
   DriverRcaRecord,
+  PrioritizationCandidate,
+  buildPrioritizationCandidates,
   calculateCostBreakdown,
   calculateTopDrivers,
   compareSnapshots,
@@ -207,6 +209,7 @@ interface AppContextType {
   routing: RoutingStep[]
   costBreakdown: CostElementBreakdown
   topDrivers: CostDriver[]
+  candidates: PrioritizationCandidate[]
   selectedDriverKeys: string[]
   rcaRecords: Record<string, DriverRcaRecord>
   snapshotPair: SnapshotPair
@@ -266,6 +269,7 @@ interface AppContextType {
     requirementFit?: boolean
   ) => void
   toggleDriverSelection: (driverKey: string) => void
+  toggleCandidateControllable: (candidateKey: string, nextValue: boolean) => void
   clearDriverSelection: () => void
   saveDriverRca: (driverKey: string, draft: DriverRcaDraft) => void
   importFromExcel: (result: ExcelImportResult) => void
@@ -343,6 +347,13 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const rcaRecords = activeSession.rcaRecords ?? {}
   const snapshotPair = activeSession.snapshotPair ?? sessionToSnapshotPair(activeSession)
   const snapshotComparison = compareSnapshots(snapshotPair.reference, snapshotPair.current)
+  const candidateControllability = activeSession.candidateControllability ?? {}
+  const candidates = buildPrioritizationCandidates(
+    snapshotComparison,
+    snapshotPair.reference,
+    snapshotPair.current,
+    candidateControllability
+  )
   const masterDataHandoff = evaluateMasterDataHandoff(activeSession, snapshotPair)
   const masterDataRole = activeSession.masterDataRole ?? 'current'
   const masterDataSnapshot = masterDataRole === 'reference' ? snapshotPair.reference : snapshotPair.current
@@ -836,6 +847,16 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     patchActive({ selectedDriverKeys: [...selected] })
   }
 
+  const toggleCandidateControllable = (candidateKey: string, nextValue: boolean) => {
+    const existing = activeSession.candidateControllability ?? {}
+    patchActive({
+      candidateControllability: {
+        ...existing,
+        [candidateKey]: nextValue
+      }
+    })
+  }
+
   const clearDriverSelection = () => {
     if (selectedDriverKeys.length === 0) return
     patchActive({ selectedDriverKeys: [] })
@@ -949,6 +970,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       routing,
       costBreakdown,
       topDrivers,
+      candidates,
       selectedDriverKeys,
       rcaRecords,
       snapshotPair,
@@ -992,6 +1014,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       promoteActiveToBaseline,
       updateDriverHumanInput,
       toggleDriverSelection,
+      toggleCandidateControllable,
       clearDriverSelection,
       saveDriverRca,
       importFromExcel,

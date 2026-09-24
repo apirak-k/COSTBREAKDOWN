@@ -35,6 +35,8 @@ export interface ProductSession {
   selectedDriverKeys?: string[]
   /** Extensible RCA records keyed by the selected CostDriver.driverKey. */
   rcaRecords?: Record<string, DriverRcaRecord>
+  /** Session-scoped candidate controllability map, keyed by candidateKey. */
+  candidateControllability?: Record<string, boolean>
   status: DatasetStatus
   versionLabel?: string
   createdAt: string
