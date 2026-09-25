@@ -41,6 +41,7 @@ import {
   SingleSheetWorkingDatasets
 } from './working-datasets'
 import { WorkingDataset } from '../core/types/dataset-standard.types'
+import { markSizingPlaceholderEdited, resizeMasterDataSnapshotForSizing } from './dataset-sizing'
 import { STORAGE_KEYS, loadFromSession, saveToSession } from '../services'
 
 import {
@@ -736,110 +737,65 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       const pair = session.snapshotPair ?? sessionToSnapshotPair(session)
       const currentDataset = pair[role]
 
-      let nextRates = [...currentDataset.rates]
-      if (nextRoleSizing.wcCount !== undefined) {
-        const target = Math.max(0, nextRoleSizing.wcCount)
-        if (nextRates.length < target) {
-          const needed = target - nextRates.length
-          const newRows: SnapshotWorkCenterRate[] = Array.from({ length: needed }, (_, i) => {
-            const idx = nextRates.length + i + 1
-            return {
-              id: `rate-size-${Date.now()}-${idx}`,
-              workCenterCode: '',
-              description: '',
-              laborRate: null,
-              burdenRate: null,
-              effectiveDate: currentDataset.product.effectiveDate || new Date().toISOString().split('T')[0],
-              sourceRef: 'Direct Input',
-              confidence: {
-                laborRate: workingEvidence(null, 'Direct Input'),
-                burdenRate: workingEvidence(null, 'Direct Input')
-              }
-            }
-          })
-          nextRates = [...nextRates, ...newRows]
-        } else if (nextRates.length > target) {
-          nextRates = nextRates.slice(0, target)
-        }
-      }
-
-      let nextBom = [...currentDataset.bom]
-      if (nextRoleSizing.bomCount !== undefined) {
-        const target = Math.max(0, nextRoleSizing.bomCount)
-        if (nextBom.length < target) {
-          const needed = target - nextBom.length
-          const newRows: SnapshotBOMItem[] = Array.from({ length: needed }, (_, i) => {
-            const idx = nextBom.length + i + 1
-            return {
-              id: `bom-size-${Date.now()}-${idx}`,
-              itemCode: '',
-              description: '',
-              consumption: null,
-              unit: 'PC',
-              price: null,
-              loss: 0,
-              sourceRef: 'Direct Input',
-              confidence: {
-                consumption: workingEvidence(null, 'Direct Input'),
-                price: workingEvidence(null, 'Direct Input'),
-                loss: workingEvidence(0, 'Direct Input')
-              }
-            }
-          })
-          nextBom = [...nextBom, ...newRows]
-        } else if (nextBom.length > target) {
-          nextBom = nextBom.slice(0, target)
-        }
-      }
-
-      let nextRouting = [...currentDataset.routing]
-      if (nextRoleSizing.routingCount !== undefined) {
-        const target = Math.max(0, nextRoleSizing.routingCount)
-        if (nextRouting.length < target) {
-          const needed = target - nextRouting.length
-          const newRows: SnapshotRoutingStep[] = Array.from({ length: needed }, (_, i) => {
-            const idx = nextRouting.length + i + 1
-            return {
-              id: `routing-size-${Date.now()}-${idx}`,
-              operationCode: '',
-              processName: '',
-              sequence: idx * 10,
-              workCenterId: nextRates[0]?.workCenterCode || undefined,
-              manning: null,
-              capacity: null,
-              yield: null,
-              sourceRef: 'Direct Input',
-              confidence: {
-                sequence: workingEvidence(idx * 10, 'Direct Input'),
-                manning: workingEvidence(null, 'Direct Input'),
-                capacity: workingEvidence(null, 'Direct Input'),
-                yield: workingEvidence(null, 'Direct Input')
-              }
-            }
-          })
-          nextRouting = [...nextRouting, ...newRows]
-        } else if (nextRouting.length > target) {
-          nextRouting = nextRouting.slice(0, target)
-        }
-      }
-
-      const updatedSnapshot: CostSnapshot = {
-        ...currentDataset,
-        rates: nextRates,
-        bom: nextBom,
-        routing: nextRouting,
-        sizing: nextRoleSizing
-      }
+      const updatedSnapshot = resizeMasterDataSnapshotForSizing(currentDataset, nextRoleSizing, {
+        rate: (idx): SnapshotWorkCenterRate => ({
+          id: `rate-size-${Date.now()}-${idx}`,
+          isGeneratedSizingPlaceholder: true,
+          workCenterCode: '',
+          description: '',
+          laborRate: null,
+          burdenRate: null,
+          effectiveDate: currentDataset.product.effectiveDate || new Date().toISOString().split('T')[0],
+          sourceRef: 'Direct Input',
+          confidence: {
+            laborRate: workingEvidence(null, 'Direct Input'),
+            burdenRate: workingEvidence(null, 'Direct Input')
+          }
+        }),
+        bom: (idx): SnapshotBOMItem => ({
+          id: `bom-size-${Date.now()}-${idx}`,
+          isGeneratedSizingPlaceholder: true,
+          itemCode: '',
+          description: '',
+          consumption: null,
+          unit: 'PC',
+          price: null,
+          loss: 0,
+          sourceRef: 'Direct Input',
+          confidence: {
+            consumption: workingEvidence(null, 'Direct Input'),
+            price: workingEvidence(null, 'Direct Input'),
+            loss: workingEvidence(0, 'Direct Input')
+          }
+        }),
+        routing: (idx, rates): SnapshotRoutingStep => ({
+          id: `routing-size-${Date.now()}-${idx}`,
+          isGeneratedSizingPlaceholder: true,
+          operationCode: '',
+          processName: '',
+          sequence: idx * 10,
+          workCenterId: rates[0]?.workCenterCode || undefined,
+          manning: null,
+          capacity: null,
+          yield: null,
+          sourceRef: 'Direct Input',
+          confidence: {
+            sequence: workingEvidence(idx * 10, 'Direct Input'),
+            manning: workingEvidence(null, 'Direct Input'),
+            capacity: workingEvidence(null, 'Direct Input'),
+            yield: workingEvidence(null, 'Direct Input')
+          }
+        })
+      })
       const nextPair = {
         ...pair,
         [role]: updatedSnapshot
       }
-      return {
+      return applySnapshotPairToSession({
         ...session,
         datasetSizing: nextDatasetSizing,
-        snapshotPair: nextPair,
         updatedAt: new Date().toISOString()
-      }
+      }, nextPair)
     }))
   }
 
@@ -912,7 +868,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
             confidence[field] = workingEvidence(next[field], sourceRef, item.confidence[field])
           }
         })
-        return { ...next, sourceRef, confidence }
+        return markSizingPlaceholderEdited({ ...next, sourceRef, confidence })
       })
     }))
   }
@@ -952,7 +908,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
             confidence[field] = workingEvidence(next[field], sourceRef, step.confidence[field])
           }
         })
-        return { ...next, sourceRef, confidence }
+        return markSizingPlaceholderEdited({ ...next, sourceRef, confidence })
       })
     }))
   }
@@ -990,7 +946,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
             confidence[field] = workingEvidence(next[field], sourceRef, rate.confidence[field])
           }
         })
-        return { ...next, sourceRef, confidence }
+        return markSizingPlaceholderEdited({ ...next, sourceRef, confidence })
       })
     }))
   }

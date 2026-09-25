@@ -28,6 +28,7 @@ function toBOMItem(item: BOMItem, role: ComparisonRole): SnapshotBOMItem {
 
   return {
     id: item.id,
+    isGeneratedSizingPlaceholder: item.isGeneratedSizingPlaceholder,
     itemCode: item.itemCode,
     description: item.description,
     consumption: item.consumption,
@@ -49,6 +50,7 @@ function toRoutingStep(step: RoutingStep, role: ComparisonRole): SnapshotRouting
 
   return {
     id: step.id,
+    isGeneratedSizingPlaceholder: step.isGeneratedSizingPlaceholder,
     sequence: step.opSeq,
     processName: step.description,
     workCenterId: step.wc,
@@ -67,6 +69,7 @@ function toRoutingStep(step: RoutingStep, role: ComparisonRole): SnapshotRouting
 function toWorkCenterRate(rate: WorkCenterRate): SnapshotWorkCenterRate {
   return {
     id: rate.id ?? rate.wc,
+    isGeneratedSizingPlaceholder: rate.isGeneratedSizingPlaceholder,
     workCenterCode: rate.wc,
     description: rate.description,
     laborRate: rate.laborRate,

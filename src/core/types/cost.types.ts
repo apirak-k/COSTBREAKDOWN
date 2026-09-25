@@ -2,6 +2,8 @@ export type DataConfidence = 'verified' | 'estimated' | 'missing'
 
 export interface WorkCenterRate {
   id?: string
+  /** Internal marker preserving untouched sizing placeholders across session projection. */
+  isGeneratedSizingPlaceholder?: boolean
   wc: string
   description: string
   laborRate: number // THB/MHr
@@ -13,6 +15,8 @@ export interface WorkCenterRate {
 
 export interface BOMItem {
   id: string
+  /** Internal marker preserving untouched sizing placeholders across session projection. */
+  isGeneratedSizingPlaceholder?: boolean
   itemCode: string
   description: string
   consumption: number // Q (Usage per 1 finished good)
@@ -27,6 +31,8 @@ export interface BOMItem {
 
 export interface RoutingStep {
   id: string
+  /** Internal marker preserving untouched sizing placeholders across session projection. */
+  isGeneratedSizingPlaceholder?: boolean
   opSeq: number
   description: string
   wc: string

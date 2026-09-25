@@ -112,19 +112,19 @@ export const MasterDataPage: React.FC = () => {
 
       {/* ─── Compact Collapsible Notices & Warnings ─── */}
       {allNotices.length > 0 && (
-        <div className="bg-amber-50/90 border border-amber-200/90 text-amber-900 rounded p-2.5 text-xs">
+        <div className="bg-amber-50/90 border border-amber-200/90 text-amber-900 rounded-lg p-3 text-xs shadow-2xs">
           <div className="flex items-center justify-between gap-2">
             <div className="flex items-center gap-2">
               <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0" />
               <span className="font-medium">
-                <strong>Data Notice ({allNotices.length}):</strong> {allNotices[0]}
+                <strong className="font-mono uppercase text-[11px] tracking-tight text-amber-950">Data Notice ({allNotices.length}):</strong> {allNotices[0]}
               </span>
             </div>
             {allNotices.length > 1 && (
               <button
                 type="button"
                 onClick={() => setWarningsExpanded(!warningsExpanded)}
-                className="flex items-center gap-1 text-[11px] font-mono font-bold text-amber-800 hover:text-amber-950 underline cursor-pointer"
+                className="flex items-center gap-1 text-[11px] font-mono font-bold text-amber-800 hover:text-amber-950 underline cursor-pointer transition-colors"
               >
                 <span>{warningsExpanded ? 'Hide' : `Show all (${allNotices.length})`}</span>
                 {warningsExpanded ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
@@ -144,7 +144,7 @@ export const MasterDataPage: React.FC = () => {
       {/* ─── Tables Workspace Navigation & Views ─── */}
       <div className="space-y-3">
         {/* Navigation Tab Bar */}
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 bg-slate-100 p-1.5 border border-slate-300">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 bg-slate-100/90 p-1.5 rounded-lg border border-slate-200/90 shadow-2xs">
           {/* Sub-Tabs */}
           <div className="inline-flex gap-1" role="tablist" aria-label="Dataset table sections">
             <button
@@ -155,15 +155,15 @@ export const MasterDataPage: React.FC = () => {
                 setActiveTableTab('bom')
                 setLayoutMode('tabs')
               }}
-              className={`flex items-center gap-2 px-3 py-1.5 text-xs font-mono font-bold rounded transition-colors cursor-pointer ${
+              className={`flex items-center gap-2 px-3.5 py-1.5 text-xs font-mono font-bold rounded-md transition-all cursor-pointer ${
                 activeTableTab === 'bom' && layoutMode === 'tabs'
-                  ? 'bg-white text-slate-900 shadow-2xs border border-slate-300'
+                  ? 'bg-white text-slate-900 shadow-sm border border-slate-200'
                   : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/70'
               }`}
             >
               <Box className="w-3.5 h-3.5 text-slate-500" />
               <span>Bill of Materials (BOM)</span>
-              <span className={`text-[10px] px-1.5 py-0.2 rounded font-mono ${
+              <span className={`text-[10px] px-1.5 py-0.5 rounded font-mono font-semibold ${
                 activeTableTab === 'bom' && layoutMode === 'tabs'
                   ? 'bg-slate-900 text-white'
                   : 'bg-slate-200 text-slate-700'
@@ -180,17 +180,17 @@ export const MasterDataPage: React.FC = () => {
                 setActiveTableTab('routing')
                 setLayoutMode('tabs')
               }}
-              className={`flex items-center gap-2 px-3 py-1.5 text-xs font-mono font-bold rounded transition-colors cursor-pointer ${
+              className={`flex items-center gap-2 px-3.5 py-1.5 text-xs font-mono font-bold rounded-md transition-all cursor-pointer ${
                 activeTableTab === 'routing' && layoutMode === 'tabs'
-                  ? 'bg-white text-slate-900 shadow-2xs border border-slate-300'
+                  ? 'bg-white text-slate-900 shadow-sm border border-slate-200'
                   : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/70'
               }`}
             >
               <GitCommit className="w-3.5 h-3.5 text-slate-500" />
               <span>Routing & Operations</span>
-              <span className={`text-[10px] px-1.5 py-0.2 rounded font-mono ${
+              <span className={`text-[10px] px-1.5 py-0.5 rounded font-mono font-semibold ${
                 activeTableTab === 'routing' && layoutMode === 'tabs'
-                  ? 'bg-white text-slate-900'
+                  ? 'bg-slate-900 text-white'
                   : 'bg-slate-200 text-slate-700'
               }`}>
                 {masterDataSnapshot.routing.length}
@@ -205,15 +205,15 @@ export const MasterDataPage: React.FC = () => {
                 setActiveTableTab('rates')
                 setLayoutMode('tabs')
               }}
-              className={`flex items-center gap-2 px-3 py-1.5 text-xs font-mono font-bold rounded transition-colors cursor-pointer ${
+              className={`flex items-center gap-2 px-3.5 py-1.5 text-xs font-mono font-bold rounded-md transition-all cursor-pointer ${
                 activeTableTab === 'rates' && layoutMode === 'tabs'
-                  ? 'bg-white text-slate-900 shadow-2xs border border-slate-300'
+                  ? 'bg-white text-slate-900 shadow-sm border border-slate-200'
                   : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/70'
               }`}
             >
               <Factory className="w-3.5 h-3.5 text-slate-500" />
               <span>Work Center Rates</span>
-              <span className={`text-[10px] px-1.5 py-0.2 rounded font-mono ${
+              <span className={`text-[10px] px-1.5 py-0.5 rounded font-mono font-semibold ${
                 activeTableTab === 'rates' && layoutMode === 'tabs'
                   ? 'bg-slate-900 text-white'
                   : 'bg-slate-200 text-slate-700'
@@ -224,31 +224,31 @@ export const MasterDataPage: React.FC = () => {
           </div>
 
           {/* Layout Mode Switcher (Tab View vs Stacked View) */}
-          <div className="flex items-center gap-1 self-end sm:self-auto">
+          <div className="flex items-center gap-1 self-end sm:self-auto bg-slate-200/60 p-0.5 rounded-md border border-slate-300/60">
             <button
               type="button"
               onClick={() => setLayoutMode('tabs')}
-              className={`flex items-center gap-1 px-2.5 py-1 text-[11px] font-mono rounded cursor-pointer transition-colors ${
+              className={`flex items-center gap-1.5 px-2.5 py-1 text-[11px] font-mono rounded cursor-pointer transition-all ${
                 layoutMode === 'tabs'
-                  ? 'bg-white text-slate-900 font-bold shadow-2xs border border-slate-300'
-                  : 'text-slate-500 hover:text-slate-800'
+                  ? 'bg-white text-slate-900 font-bold shadow-xs border border-slate-200'
+                  : 'text-slate-600 hover:text-slate-900'
               }`}
               title="Focus on one table at a time"
             >
-              <TableProperties className="w-3 h-3" />
+              <TableProperties className="w-3 h-3 text-slate-500" />
               <span>Tab View</span>
             </button>
             <button
               type="button"
               onClick={() => setLayoutMode('stacked')}
-              className={`flex items-center gap-1 px-2.5 py-1 text-[11px] font-mono rounded cursor-pointer transition-colors ${
+              className={`flex items-center gap-1.5 px-2.5 py-1 text-[11px] font-mono rounded cursor-pointer transition-all ${
                 layoutMode === 'stacked'
-                  ? 'bg-white text-slate-900 font-bold shadow-2xs border border-slate-300'
-                  : 'text-slate-500 hover:text-slate-800'
+                  ? 'bg-white text-slate-900 font-bold shadow-xs border border-slate-200'
+                  : 'text-slate-600 hover:text-slate-900'
               }`}
               title="View all tables stacked vertically"
             >
-              <Layers className="w-3 h-3" />
+              <Layers className="w-3 h-3 text-slate-500" />
               <span>View All</span>
             </button>
           </div>
@@ -315,10 +315,10 @@ export const MasterDataPage: React.FC = () => {
         ) : (
           <div className="space-y-4">
             {/* BOM Section */}
-            <div className="border border-slate-300 bg-white">
+            <div className="border border-slate-200 bg-white rounded-lg shadow-2xs overflow-hidden">
               <div
                 onClick={() => toggleSection('bom')}
-                className="flex items-center justify-between px-3.5 py-2.5 bg-slate-100 hover:bg-slate-200/80 cursor-pointer select-none border-b border-slate-200 transition-colors"
+                className="flex items-center justify-between px-4 py-2.5 bg-slate-100/90 hover:bg-slate-200/80 cursor-pointer select-none border-b border-slate-200 transition-colors"
               >
                 <div className="flex items-center gap-2">
                   <Box className="w-4 h-4 text-slate-600" />
@@ -352,10 +352,10 @@ export const MasterDataPage: React.FC = () => {
             </div>
 
             {/* Routing Section */}
-            <div className="border border-slate-300 bg-white">
+            <div className="border border-slate-200 bg-white rounded-lg shadow-2xs overflow-hidden">
               <div
                 onClick={() => toggleSection('routing')}
-                className="flex items-center justify-between px-3.5 py-2.5 bg-slate-100 hover:bg-slate-200/80 cursor-pointer select-none border-b border-slate-200 transition-colors"
+                className="flex items-center justify-between px-4 py-2.5 bg-slate-100/90 hover:bg-slate-200/80 cursor-pointer select-none border-b border-slate-200 transition-colors"
               >
                 <div className="flex items-center gap-2">
                   <GitCommit className="w-4 h-4 text-slate-600" />
@@ -391,10 +391,10 @@ export const MasterDataPage: React.FC = () => {
             </div>
 
             {/* Work Center Rates Section */}
-            <div className="border border-slate-300 bg-white">
+            <div className="border border-slate-200 bg-white rounded-lg shadow-2xs overflow-hidden">
               <div
                 onClick={() => toggleSection('rates')}
-                className="flex items-center justify-between px-3.5 py-2.5 bg-slate-100 hover:bg-slate-200/80 cursor-pointer select-none border-b border-slate-200 transition-colors"
+                className="flex items-center justify-between px-4 py-2.5 bg-slate-100/90 hover:bg-slate-200/80 cursor-pointer select-none border-b border-slate-200 transition-colors"
               >
                 <div className="flex items-center gap-2">
                   <Factory className="w-4 h-4 text-slate-600" />

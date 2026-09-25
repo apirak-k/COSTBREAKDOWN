@@ -17,6 +17,8 @@ export interface FieldEvidence {
 
 export interface SnapshotBOMItem {
   id: string
+  /** Identifies an untouched row allocated by dataset sizing. */
+  isGeneratedSizingPlaceholder?: boolean
   itemCode: string
   description: string
   consumption: number | null
@@ -31,6 +33,8 @@ export interface SnapshotBOMItem {
 
 export interface SnapshotRoutingStep {
   id: string
+  /** Identifies an untouched row allocated by dataset sizing. */
+  isGeneratedSizingPlaceholder?: boolean
   operationCode?: string
   sequence?: number
   processCode?: string
@@ -46,6 +50,8 @@ export interface SnapshotRoutingStep {
 
 export interface SnapshotWorkCenterRate {
   id: string
+  /** Identifies an untouched row allocated by dataset sizing. */
+  isGeneratedSizingPlaceholder?: boolean
   workCenterCode: string
   description: string
   laborRate: number | null

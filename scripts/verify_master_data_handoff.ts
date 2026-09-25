@@ -87,31 +87,36 @@ const mismatchedPair = {
   current: { ...pair.current, product: { ...product, productCode: 'P-999' } }
 }
 const mismatch = evaluateMasterDataHandoff(baseSession, mismatchedPair)
-assert.equal(mismatch.canCompare, false)
-assert.ok(mismatch.issues.some(issue => issue.includes('Current Product Code does not match')))
+assert.equal(mismatch.canCompare, true)
+assert.deepEqual(mismatch.issues, [])
+assert.ok(mismatch.warnings?.some(warning => warning.includes('Current Product Code (P-999) differs')))
+assert.ok(mismatch.warnings?.some(warning => warning.includes('Product mismatch: Reference is "P-001" while Current is "P-999"')))
 
 const mismatchedReferencePair = {
   ...pair,
   reference: { ...pair.reference, product: { ...product, productCode: 'P-998' } }
 }
 const referenceMismatch = evaluateMasterDataHandoff(baseSession, mismatchedReferencePair)
-assert.equal(referenceMismatch.canCompare, false)
-assert.ok(referenceMismatch.issues.some(issue => issue.includes('Reference Product Code does not match')))
+assert.equal(referenceMismatch.canCompare, true)
+assert.deepEqual(referenceMismatch.issues, [])
+assert.ok(referenceMismatch.warnings?.some(warning => warning.includes('Reference Product Code (P-998) differs')))
+assert.ok(referenceMismatch.warnings?.some(warning => warning.includes('Product mismatch: Reference is "P-998" while Current is "P-001"')))
 
 const bothProductsMismatch = evaluateMasterDataHandoff(baseSession, {
   reference: { ...pair.reference, product: { ...product, productCode: 'P-999' } },
   current: { ...pair.current, product: { ...product, productCode: 'P-999' } }
 })
-assert.equal(bothProductsMismatch.canCompare, false)
-assert.ok(bothProductsMismatch.issues.some(issue => issue.includes('Reference Product Code does not match')))
-assert.ok(bothProductsMismatch.issues.some(issue => issue.includes('Current Product Code does not match')))
+assert.equal(bothProductsMismatch.canCompare, true)
+assert.deepEqual(bothProductsMismatch.issues, [])
+assert.ok(bothProductsMismatch.warnings?.some(warning => warning.includes('Reference Product Code (P-999) differs')))
+assert.ok(bothProductsMismatch.warnings?.some(warning => warning.includes('Current Product Code (P-999) differs')))
 
 const missingHeaderProduct = evaluateMasterDataHandoff({
   ...baseSession,
   product: { ...product, productCode: '  ' }
 }, pair)
-assert.equal(missingHeaderProduct.canCompare, false)
-assert.ok(missingHeaderProduct.issues.includes('Header Product Code is required.'))
+assert.equal(missingHeaderProduct.canCompare, true)
+assert.deepEqual(missingHeaderProduct.issues, [])
 
 const legacyDerived = evaluateMasterDataHandoff({
   product,

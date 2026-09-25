@@ -63,9 +63,15 @@ function mergedProduct(reference: ProductMaster, current: ProductMaster): Produc
 }
 
 function projectBOM(reference: SnapshotBOMItem | undefined, current: SnapshotBOMItem | undefined, sourceRef: string, index: number, id: string): BOMItem {
+  const isGeneratedSizingPlaceholder = current?.isGeneratedSizingPlaceholder ?? reference?.isGeneratedSizingPlaceholder
+  const hasSizingPlaceholderMarker = current?.isGeneratedSizingPlaceholder !== undefined ||
+    reference?.isGeneratedSizingPlaceholder !== undefined
   return {
     id,
-    itemCode: current?.itemCode || reference?.itemCode || `ITEM-${index + 1}`,
+    isGeneratedSizingPlaceholder,
+    itemCode: hasSizingPlaceholderMarker
+      ? current?.itemCode ?? reference?.itemCode ?? ''
+      : current?.itemCode || reference?.itemCode || `ITEM-${index + 1}`,
     description: current?.description || reference?.description || '',
     consumption: current?.consumption ?? reference?.consumption ?? 0,
     unit: current?.unit || reference?.unit || 'PC',
@@ -81,6 +87,7 @@ function projectBOM(reference: SnapshotBOMItem | undefined, current: SnapshotBOM
 function projectRouting(reference: SnapshotRoutingStep | undefined, current: SnapshotRoutingStep | undefined, sourceRef: string, id: string): RoutingStep {
   return {
     id,
+    isGeneratedSizingPlaceholder: current?.isGeneratedSizingPlaceholder ?? reference?.isGeneratedSizingPlaceholder,
     opSeq: current?.sequence ?? reference?.sequence ?? 0,
     description: current?.processName || reference?.processName || '',
     wc: current?.workCenterId || reference?.workCenterId || '',
@@ -97,6 +104,7 @@ function projectRouting(reference: SnapshotRoutingStep | undefined, current: Sna
 function projectRate(rate: SnapshotWorkCenterRate, index: number): WorkCenterRate {
   return {
     id: rate.id || `rate-projection-${index + 1}`,
+    isGeneratedSizingPlaceholder: rate.isGeneratedSizingPlaceholder,
     wc: rate.workCenterCode,
     description: rate.description,
     laborRate: rate.laborRate ?? 0,

@@ -1,4 +1,4 @@
-# Current Handoff — Cross-Device Checkpoint (2026-09-25)
+# Current Handoff — Master Data Sizing Preservation (2026-09-25)
 
 > This is the current checkpoint and supersedes older status/verification notes below. Historical notes remain for context only; verify them against the current checkout before relying on them.
 
@@ -6,37 +6,38 @@
 
 - Repository: `COSTBREAKDOWN`; remote `origin` is configured.
 - Branch: `codex/snapshot-import-role-selector`.
-- Checkout HEAD when this checkpoint was written: `abf47171ba40c1d20cee54e32bbf7c330a6c68e8`.
-- The working tree contains substantial **uncommitted user changes** (modified agreement/spec, Master Data UI/state/Excel files, and new files including a mock workbook). They were not created by this handoff task. Preserve them; do not reset, restore, or overwrite them.
-- This checkpoint has **not been committed or pushed**. Another device will see only changes that are already on the remote; it will not automatically receive this handoff or the dirty working-tree changes. Before continuing implementation on another device, verify branch/HEAD/worktree and arrange an authorized sync of the intended changes.
+- Base HEAD at task start: `f83d8d8`; the worktree was clean and the branch matched `origin`.
+- The changes below are the current task's uncommitted work. No commit or push was made.
 
 ## Current task and scope
 
-The user asked for a code-to-spec check of the Master Data page. Review scope is the active runtime page and its state/calculation/Excel paths. No implementation changes were made during the review.
+Implement the accepted Master Data rule in `agreements/MASTER_DATA_FLOW_SPEC.md` §7.2: reducing configured counts may remove only surplus unpopulated blank slots; populated records must remain.
 
-- Runtime route: `src/App.tsx` renders `MasterDataPage` from `src/features/master-data/` for the `master` tab. `src/pages/DataMasterPage.tsx` is not the active route.
-- Requirements source: `agreements/MASTER_DATA_FLOW_SPEC.md`, indexed in `docs/REQUIREMENTS_INDEX.md`. `PROJECT_SPECIFIC.md` applies. The detailed sizing document under `docs/superpowers/specs/` labels itself **Proposed**; keep that status distinct from the agreed spec unless the user confirms it.
+## Implemented
 
-## Confirmed Master Data findings
+- Replaced the `slice(0, target)` truncation for Rates, BOM, and Routing with `src/state/dataset-sizing.ts`. It removes only untouched generated placeholders and retains populated, manual, imported, zero-valued, and explicitly edited rows even when they exceed the configured target.
+- Added a placeholder marker to snapshot and legacy row types, carried it through both session projection directions, and synchronized the projected legacy session when sizing changes. This preserves placeholder identity and blank BOM codes across reloads; generated null-to-zero defaults remain removable only while the marker is true.
+- The three Master Data row update paths clear the marker. Editing then clearing a generated row therefore preserves that row on a later shrink.
+- Updated `scripts/verify_master_data_handoff.ts` to match the current behavior: Product Code differences remain warnings, not comparison blockers; the header Product Code is not an independent gate.
+- Updated this checkpoint. The detailed sizing design under `docs/superpowers/specs/` remains **Proposed**; its additional criteria were not implemented.
 
-1. **Data loss on sizing reduction:** `src/state/store.tsx` truncates `rates`, `bom`, and `routing` with `slice(0, target)` when configured counts decrease (around lines 761–822). This conflicts with the agreed rule that only surplus blank slots may be removed and populated records must remain.
-2. **Blank sizing slots act like real records:** sizing creates snapshot rows with generated IDs and empty business fields. Cost calculation reports missing-input warnings for them, and comparison falls back to row IDs as keys, so Reference/Current blank slots can show as added/removed findings. The detailed Proposed design explicitly says blank slots must not create cost, findings, or false readiness.
-3. **Readiness can be set by Product-only edits:** `updateMasterDataProduct` marks the selected side prepared. Handoff readiness checks those flags, so entering Product information alone can make the comparison action ready even when the data sections are empty. This appears inconsistent with the agreed “enough information for the intended calculation” flow and the Proposed design's no-false-readiness criterion.
-4. **Template sizing edge cases:** the modal treats a configured count of zero as unset and falls back to existing rows or 1; the generator also enforces at least one row. The detailed Proposed design says templates use that side's configured count. The current generator pre-fills Product values, while the Proposed design says Product/template business-input values start blank.
-5. **Displayed sizing maxima are not enforced:** `max` attributes are present, but the Apply handler does not clamp/validate values before the store allocates rows. Very large values may cause a long freeze or allocation failure.
+## Verification
 
-Behavior that appears aligned with the agreed flow: fresh sessions use empty Reference/Current snapshots; imports update only the selected side; clone actions exist in both directions; Product mismatch is a warning and does not block comparison; export uses the selected snapshot; working session data uses `sessionStorage`.
+- `scripts/verify_dataset_sizing_preservation.ts`, bundled with the installed esbuild runtime and executed with Node: **passed**. Covers all three sections, sparse and zero-valued inputs, user-edited blank rows, legacy IDs, generated defaults, session-projection round-trip, and growth.
+- `node --experimental-strip-types scripts/verify_master_data_handoff.ts`: **passed**.
+- `npm run build`: **passed**, 1,689 modules transformed. Vite still reports the existing bundle-size advisory (about 1.67 MB versus the 500 KB advisory threshold).
+- Browser smoke on an isolated local session: set each count to 2, added one record per section (including a zero labor rate), reloaded, then reduced counts to 0. The generated rows disappeared; the user records remained and counts stayed synchronized after reload. A generated BOM row edited and cleared also remained blank and was retained after shrink and reload.
+- [Unverified] Excel template/import/export round-trip was not exercised.
 
-## Verification record for this review
+## Master Data status
 
-- `npm run build`: **passed** when run outside the filesystem sandbox; TypeScript and Vite completed, 1,688 modules transformed. Vite reported the JS bundle at about 1.67 MB, above its 500 KB advisory threshold.
-- `node --experimental-strip-types scripts/verify_master_data_handoff.ts`: **failed** at the old assertion expecting Product mismatch to block comparison. That expectation conflicts with the current agreement, which says the mismatch warning must not block.
-- `npx tsx scripts/verify_dataset_sizing_and_clone.ts`: could not run because `tsx` is not installed and npm registry access failed (`EHOSTUNREACH`). Native Node execution also could not resolve an extensionless import. The script's populated-record-preservation section mutates a plain fixture directly instead of exercising the store sizing function.
-- [Unverified] Browser rendering and end-to-end Excel template/import/export round-trip were not exercised in this review.
+- The confirmed data-loss defect on sizing reduction is fixed and verified through helper tests and browser interaction.
+- This does not close all Master Data work. Older review items about blank-slot comparison/readiness and template count/max behavior remain outside this accepted fix; additional requirements in the **Proposed** sizing design still need review before implementation.
+- Changes remain uncommitted and unpushed. The worktree is based on the current remote branch but only the base commit is available to another device.
 
 ## Resume point
 
-Start by verifying the actual checkout and syncing the intended dirty changes safely. Then, if the user authorizes implementation, fix the sizing/data-record semantics first and add verification that calls the production store path. Update the stale handoff verifier to assert that Product mismatch warns but remains non-blocking. Re-run focused checks and `npm run build`; report any remaining browser/Excel checks as unverified until executed.
+Review the current diff and decide whether to continue with the separate Proposed sizing criteria or another accepted Master Data gap. Do not treat this sizing fix as overall Master Data acceptance, and do not push without explicit authorization.
 
 ---
 
