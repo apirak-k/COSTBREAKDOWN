@@ -160,7 +160,7 @@ export const CandidateSelectionPage: React.FC = () => {
                           checked={d.canInfluence !== false}
                           onChange={e =>
                             updateDriverHumanInput(
-                              d.rank,
+                              String(d.rank),
                               e.target.checked ? 'Controllable' : 'Uncontrollable',
                               d.actionPlan,
                               e.target.checked,
@@ -178,7 +178,7 @@ export const CandidateSelectionPage: React.FC = () => {
                           checked={d.requirementFit !== false}
                           onChange={e =>
                             updateDriverHumanInput(
-                              d.rank,
+                              String(d.rank),
                               d.controllability,
                               d.actionPlan,
                               d.canInfluence,
@@ -205,7 +205,7 @@ export const CandidateSelectionPage: React.FC = () => {
                         value={d.actionPlan}
                         onChange={e =>
                           updateDriverHumanInput(
-                            d.rank,
+                            String(d.rank),
                             d.controllability,
                             e.target.value,
                             d.canInfluence,
@@ -213,6 +213,8 @@ export const CandidateSelectionPage: React.FC = () => {
                           )
                         }
                         placeholder={
+
+
                           isUncontrollable
                             ? 'External commodity/market price increase (uncontrollable)'
                             : 'e.g. Redesign AOI lighting, replace nozzle, negotiate volume rebate...'

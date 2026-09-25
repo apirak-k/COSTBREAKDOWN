@@ -10,6 +10,7 @@ import {
   SnapshotImportResult,
   ProductSession,
   ProductSizingConfig,
+  DatasetSizing,
   ComparisonRole,
   CostSnapshot,
   SnapshotPair,
@@ -34,7 +35,14 @@ import {
   getSnapshotRoleReadiness
 } from '../core'
 import type { MasterDataHandoffStatus } from '../core'
+import {
+  loadWorkingDatasetsFromStorage,
+  saveWorkingDatasetsToStorage,
+  SingleSheetWorkingDatasets
+} from './working-datasets'
+import { WorkingDataset } from '../core/types/dataset-standard.types'
 import { STORAGE_KEYS, loadFromSession, saveToSession } from '../services'
+
 import {
   seedProductMaster,
   seedWorkCenterRates,
@@ -217,6 +225,7 @@ interface AppContextType {
   masterDataHandoff: MasterDataHandoffStatus
   masterDataRole: ComparisonRole
   masterDataSnapshot: CostSnapshot
+  masterDataSizing: import('../core/types').DatasetSizing
   activeTab: 'master' | 'breakdown' | 'candidate' | 'rca'
   uomList: string[]
 
@@ -238,6 +247,9 @@ interface AppContextType {
   // Master Data dataset controls
   setMasterDataRole: (role: ComparisonRole) => void
   cloneReferenceToCurrent: () => void
+  cloneCurrentToReference: () => void
+  clearMasterDataDataset: (role: ComparisonRole) => void
+  updateMasterDataDatasetSizing: (role: ComparisonRole, sizing: Partial<import('../core/types').DatasetSizing>) => void
   updateMasterDataProduct: (product: ProductMaster) => void
   addMasterDataBOMItem: (item: Omit<SnapshotBOMItem, 'id' | 'confidence'>) => void
   updateMasterDataBOMItem: (id: string, item: Partial<Omit<SnapshotBOMItem, 'id' | 'confidence'>>) => void
@@ -275,8 +287,14 @@ interface AppContextType {
   importFromExcel: (result: ExcelImportResult) => void
   importSnapshotFromExcel: (result: SnapshotImportResult) => void
   resetToDefault: () => void
+
   clearAllData: () => void
+  // Single Sheet Working Datasets
+  workingDatasets: import('./working-datasets').SingleSheetWorkingDatasets
+  updateWorkingDataset: (role: ComparisonRole, dataset: import('../core/types/dataset-standard.types').WorkingDataset) => void
 }
+
+
 
 const AppContext = createContext<AppContextType | undefined>(undefined)
 
@@ -309,6 +327,25 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     loadFromSession(STORAGE_KEYS.UOM_LIST, DEFAULT_UOMS)
   )
 
+  const [workingDatasets, setWorkingDatasets] = useState<SingleSheetWorkingDatasets>(() =>
+    loadWorkingDatasetsFromStorage()
+  )
+
+  useEffect(() => {
+    saveWorkingDatasetsToStorage(workingDatasets)
+  }, [workingDatasets])
+
+  const updateWorkingDataset = (
+    role: ComparisonRole,
+    dataset: WorkingDataset
+  ) => {
+    setWorkingDatasets(prev => ({
+      ...prev,
+      [role]: dataset
+    }))
+  }
+
+
   // Sync to sessionStorage
   useEffect(() => saveToSession(STORAGE_KEYS.SESSIONS, productSessions), [productSessions])
   useEffect(() => saveToSession(STORAGE_KEYS.ACTIVE_ID, activeProductId), [activeProductId])
@@ -318,6 +355,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     setActiveTabState(tab)
     saveToSession(STORAGE_KEYS.ACTIVE_TAB, tab)
   }
+
 
   const addUOM = (newUOM: string) => {
     const trimmed = newUOM.trim().toUpperCase()
@@ -357,6 +395,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const masterDataHandoff = evaluateMasterDataHandoff(activeSession, snapshotPair)
   const masterDataRole = activeSession.masterDataRole ?? 'current'
   const masterDataSnapshot = masterDataRole === 'reference' ? snapshotPair.reference : snapshotPair.current
+  const masterDataSizing = activeSession.datasetSizing?.[masterDataRole] ?? masterDataSnapshot.sizing ?? {}
 
   // Product Session Actions
   const createProductWithSizing = (config: ProductSizingConfig) => {
@@ -610,6 +649,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       if (!readiness.reference) return session
       const pair = session.snapshotPair ?? sessionToSnapshotPair(session)
       const reference = pair.reference
+      const refSizing = session.datasetSizing?.reference ?? reference.sizing
       const current: CostSnapshot = {
         ...reference,
         id: `${reference.id}:current`,
@@ -620,16 +660,224 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         rates: reference.rates.map(rate => ({ ...rate, confidence: { ...rate.confidence } })),
         bom: reference.bom.map(item => ({ ...item, confidence: { ...item.confidence } })),
         routing: reference.routing.map(step => ({ ...step, confidence: { ...step.confidence } })),
+        sizing: refSizing ? { ...refSizing } : undefined,
         warnings: [...(reference.warnings ?? [])]
       }
+      const updatedSizing: Record<ComparisonRole, DatasetSizing> = {
+        reference: session.datasetSizing?.reference ?? {},
+        current: refSizing ? { ...refSizing } : (session.datasetSizing?.current ?? {})
+      }
+
       const updated = applySnapshotPairToSession({
         ...session,
+        datasetSizing: updatedSizing,
         masterDataRole: 'current',
         updatedAt: new Date().toISOString()
       }, { reference, current })
       return {
         ...updated,
         preparedSnapshotRoles: { ...readiness, current: true }
+      }
+    }))
+  }
+
+  const cloneCurrentToReference = () => {
+    setProductSessions(prev => prev.map(session => {
+      if (session.id !== activeSession.id) return session
+      const readiness = getSnapshotRoleReadiness(session)
+      if (!readiness.current) return session
+      const pair = session.snapshotPair ?? sessionToSnapshotPair(session)
+      const current = pair.current
+      const currentSizing = session.datasetSizing?.current ?? current.sizing
+      const reference: CostSnapshot = {
+        ...current,
+        id: `${current.id}:reference`,
+        comparisonRole: 'reference',
+        status: 'draft',
+        sourceRef: `Cloned from Current: ${current.sourceRef}`,
+        product: { ...current.product },
+        rates: current.rates.map(rate => ({ ...rate, confidence: { ...rate.confidence } })),
+        bom: current.bom.map(item => ({ ...item, confidence: { ...item.confidence } })),
+        routing: current.routing.map(step => ({ ...step, confidence: { ...step.confidence } })),
+        sizing: currentSizing ? { ...currentSizing } : undefined,
+        warnings: [...(current.warnings ?? [])]
+      }
+      const updatedSizing: Record<ComparisonRole, DatasetSizing> = {
+        reference: currentSizing ? { ...currentSizing } : (session.datasetSizing?.reference ?? {}),
+        current: session.datasetSizing?.current ?? {}
+      }
+
+      const updated = applySnapshotPairToSession({
+        ...session,
+        datasetSizing: updatedSizing,
+        masterDataRole: 'reference',
+        updatedAt: new Date().toISOString()
+      }, { reference, current })
+      return {
+        ...updated,
+        preparedSnapshotRoles: { ...readiness, reference: true }
+      }
+    }))
+  }
+
+  const updateMasterDataDatasetSizing = (role: ComparisonRole, sizing: Partial<DatasetSizing>) => {
+    setProductSessions(prev => prev.map(session => {
+      if (session.id !== activeSession.id) return session
+      const existingRoleSizing = session.datasetSizing?.[role] ?? {}
+      const nextRoleSizing: DatasetSizing = {
+        ...existingRoleSizing,
+        ...sizing
+      }
+      const nextDatasetSizing: Record<ComparisonRole, DatasetSizing> = {
+        reference: session.datasetSizing?.reference ?? {},
+        current: session.datasetSizing?.current ?? {},
+        [role]: nextRoleSizing
+      }
+      const pair = session.snapshotPair ?? sessionToSnapshotPair(session)
+      const currentDataset = pair[role]
+
+      let nextRates = [...currentDataset.rates]
+      if (nextRoleSizing.wcCount !== undefined) {
+        const target = Math.max(0, nextRoleSizing.wcCount)
+        if (nextRates.length < target) {
+          const needed = target - nextRates.length
+          const newRows: SnapshotWorkCenterRate[] = Array.from({ length: needed }, (_, i) => {
+            const idx = nextRates.length + i + 1
+            return {
+              id: `rate-size-${Date.now()}-${idx}`,
+              workCenterCode: '',
+              description: '',
+              laborRate: null,
+              burdenRate: null,
+              effectiveDate: currentDataset.product.effectiveDate || new Date().toISOString().split('T')[0],
+              sourceRef: 'Direct Input',
+              confidence: {
+                laborRate: workingEvidence(null, 'Direct Input'),
+                burdenRate: workingEvidence(null, 'Direct Input')
+              }
+            }
+          })
+          nextRates = [...nextRates, ...newRows]
+        } else if (nextRates.length > target) {
+          nextRates = nextRates.slice(0, target)
+        }
+      }
+
+      let nextBom = [...currentDataset.bom]
+      if (nextRoleSizing.bomCount !== undefined) {
+        const target = Math.max(0, nextRoleSizing.bomCount)
+        if (nextBom.length < target) {
+          const needed = target - nextBom.length
+          const newRows: SnapshotBOMItem[] = Array.from({ length: needed }, (_, i) => {
+            const idx = nextBom.length + i + 1
+            return {
+              id: `bom-size-${Date.now()}-${idx}`,
+              itemCode: '',
+              description: '',
+              consumption: null,
+              unit: 'PC',
+              price: null,
+              loss: 0,
+              sourceRef: 'Direct Input',
+              confidence: {
+                consumption: workingEvidence(null, 'Direct Input'),
+                price: workingEvidence(null, 'Direct Input'),
+                loss: workingEvidence(0, 'Direct Input')
+              }
+            }
+          })
+          nextBom = [...nextBom, ...newRows]
+        } else if (nextBom.length > target) {
+          nextBom = nextBom.slice(0, target)
+        }
+      }
+
+      let nextRouting = [...currentDataset.routing]
+      if (nextRoleSizing.routingCount !== undefined) {
+        const target = Math.max(0, nextRoleSizing.routingCount)
+        if (nextRouting.length < target) {
+          const needed = target - nextRouting.length
+          const newRows: SnapshotRoutingStep[] = Array.from({ length: needed }, (_, i) => {
+            const idx = nextRouting.length + i + 1
+            return {
+              id: `routing-size-${Date.now()}-${idx}`,
+              operationCode: '',
+              processName: '',
+              sequence: idx * 10,
+              workCenterId: nextRates[0]?.workCenterCode || undefined,
+              manning: null,
+              capacity: null,
+              yield: null,
+              sourceRef: 'Direct Input',
+              confidence: {
+                sequence: workingEvidence(idx * 10, 'Direct Input'),
+                manning: workingEvidence(null, 'Direct Input'),
+                capacity: workingEvidence(null, 'Direct Input'),
+                yield: workingEvidence(null, 'Direct Input')
+              }
+            }
+          })
+          nextRouting = [...nextRouting, ...newRows]
+        } else if (nextRouting.length > target) {
+          nextRouting = nextRouting.slice(0, target)
+        }
+      }
+
+      const updatedSnapshot: CostSnapshot = {
+        ...currentDataset,
+        rates: nextRates,
+        bom: nextBom,
+        routing: nextRouting,
+        sizing: nextRoleSizing
+      }
+      const nextPair = {
+        ...pair,
+        [role]: updatedSnapshot
+      }
+      return {
+        ...session,
+        datasetSizing: nextDatasetSizing,
+        snapshotPair: nextPair,
+        updatedAt: new Date().toISOString()
+      }
+    }))
+  }
+
+  const clearMasterDataDataset = (role: ComparisonRole) => {
+    setProductSessions(prev => prev.map(session => {
+      if (session.id !== activeSession.id) return session
+      const pair = session.snapshotPair ?? sessionToSnapshotPair(session)
+      const emptySnapshot: CostSnapshot = {
+        id: `${session.id}:${role}`,
+        product: { ...session.product },
+        effectiveDate: session.product.effectiveDate,
+        sourceRef: `Empty dataset (${role})`,
+        comparisonRole: role,
+        status: 'draft',
+        rates: [],
+        bom: [],
+        routing: [],
+        sizing: undefined
+      }
+      const nextPair = {
+        ...pair,
+        [role]: emptySnapshot
+      }
+      const readiness = getSnapshotRoleReadiness(session)
+      const nextSizing: Record<ComparisonRole, DatasetSizing> = {
+        reference: session.datasetSizing?.reference ?? {},
+        current: session.datasetSizing?.current ?? {},
+        [role]: {}
+      }
+      return {
+        ...session,
+        datasetSizing: nextSizing,
+        snapshotPair: nextPair,
+        preparedSnapshotRoles: {
+          ...readiness,
+          [role]: false
+        },
+        updatedAt: new Date().toISOString()
       }
     }))
   }
@@ -978,6 +1226,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       masterDataHandoff,
       masterDataRole,
       masterDataSnapshot,
+      masterDataSizing,
       activeTab,
       uomList,
       setActiveTab,
@@ -991,6 +1240,9 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       activateDraft,
       setMasterDataRole,
       cloneReferenceToCurrent,
+      cloneCurrentToReference,
+      clearMasterDataDataset,
+      updateMasterDataDatasetSizing,
       updateMasterDataProduct,
       addMasterDataBOMItem,
       updateMasterDataBOMItem,
@@ -1020,8 +1272,11 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       importFromExcel,
       importSnapshotFromExcel,
       resetToDefault,
-      clearAllData
+      clearAllData,
+      workingDatasets,
+      updateWorkingDataset
     }}>
+
       {children}
     </AppContext.Provider>
   )

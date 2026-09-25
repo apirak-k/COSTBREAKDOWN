@@ -17,7 +17,7 @@ This design clarifies row-count configuration and proposes bidirectional cloning
 ## Confirmed design decisions
 
 1. **Reference and Current are peers.** Either side can be prepared first. Neither side is the required source of defaults for the other.
-2. **Sizing belongs to a working dataset.** Each side independently stores its starting row counts for Work Center, BOM, and Routing. The Product identity does not own these settings.
+2. **Sizing belongs to a working dataset.** Each side independently stores its starting row counts for Work Center, BOM, and Routing. The Product identity does not own these settings. On a fresh workspace, no count is pre-filled; the user sets the counts when preparing that dataset.
 3. **Sizing stays editable.** Users may change a side's row counts while entering data on the web. The counts are starting row slots, not a hard maximum; users may add more rows.
 4. **Template follows the selected side.** Downloading from Reference uses Reference's counts; downloading from Current uses Current's counts. The workbook's business-data cells, including Product values, start blank for the user to fill.
 5. **Clone works either direction.** Reference may be cloned to Current, or Current to Reference. Clone copies the source dataset and its sizing as an initial state. The target becomes an independent working dataset after the copy; later edits do not propagate.
@@ -41,7 +41,7 @@ Product | Work Center | BOM | Routing
 [Import Excel] [Download Template] [Export Excel]
 ```
 
-The 4 / 16 / 39 values above are suggested editable starting defaults carried over from the legacy setup experience. They are not limits. Each side can diverge from those values. Cloning copies the source side's current counts along with its data.
+The controls above illustrate the adjustable counts only; they do not imply pre-filled defaults. Counts start unset for a fresh dataset. A separate Excel mock may demonstrate the workbook layout and workflow, but it is illustrative and does not define default counts or override the product agreement. Cloning copies the source side's current counts along with its data.
 
 On the Current side, the user can choose **Clone from Reference**; on Reference, **Clone from Current** is available. Clone is a full replacement of the destination dataset, not a merge. If the destination already has data, show a confirmation that clearly names the destination before replacing it.
 
@@ -61,6 +61,13 @@ On the Current side, the user can choose **Clone from Reference**; on Reference,
 - Keep headers and calculation-required fields consistent with the application's core data model. This design does not add arbitrary user-defined columns or change calculation semantics.
 - Template download does not modify either working dataset. Importing the completed workbook later replaces only the selected side, following the existing import rule.
 
+## Excel export behavior
+
+- Export is separate from downloading a blank template: **Template** creates an empty workbook with row slots based on the selected side's sizing; **Export** contains that side's current working data.
+- Export either Reference or Current independently, using the latest in-memory values, including manual edits, additions, and deletions made after import.
+- The exported workbook uses the canonical core workbook structure and can be imported back into either selected side through the existing import path.
+- Export does not require running comparison and does not modify either dataset, its sizing, or the opposite side.
+
 ## State and independence
 
 Sizing configuration is temporary working state associated with its Reference or Current dataset and follows the existing browser/session lifetime. Cloning copies both source data and source sizing once; it does not create a live link. Changing one side's counts, rows, or Product information must not mutate the other side.
@@ -75,7 +82,7 @@ Sizing configuration is temporary working state associated with its Reference or
 
 ## Acceptance criteria
 
-1. A fresh Master Data page presents Reference and Current without a Product-selection step or setup wizard.
+1. A fresh Master Data page presents Reference and Current without a Product-selection step or setup wizard; each side's sizing starts unset rather than pre-filled with fixed counts.
 2. The user can start with either side and configure its Work Center, BOM, and Routing starting row counts independently.
 3. Changing one side's sizing leaves the opposite side unchanged.
 4. A user can adjust sizing after web entry; populated data is never removed implicitly by reducing the configured row count.
@@ -83,6 +90,7 @@ Sizing configuration is temporary working state associated with its Reference or
 6. The template remains importable through the canonical import path after required Product information is filled in.
 7. Clone is available in both directions, copies the source data and sizing, replaces the destination as one dataset after confirmation when destination data exists, and leaves the two sides independent afterward.
 8. Existing import replacement, non-blocking Product mismatch behavior, and comparison by business identity remain intact.
+9. Exporting either side contains its latest working data, round-trips through the canonical import path, and does not alter either side or its sizing.
 
 ## Implementation touchpoints to verify
 

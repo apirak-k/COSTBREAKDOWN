@@ -66,6 +66,7 @@ export interface CostSnapshot {
   rates: SnapshotWorkCenterRate[]
   bom: SnapshotBOMItem[]
   routing: SnapshotRoutingStep[]
+  sizing?: import('./product.types').DatasetSizing
   additionalFields?: Record<string, unknown>
   warnings?: string[]
 }

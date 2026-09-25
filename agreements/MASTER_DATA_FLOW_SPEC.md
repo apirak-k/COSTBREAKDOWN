@@ -175,33 +175,39 @@ After the import finishes, the user may freely modify the imported data again.
 
 ---
 
-## 7. Copy Reference to Current
+## 7. Bidirectional Cloning & Per-Dataset Sizing
 
-The system should support the common case where Current is only a small modification of Reference.
+### 7.1 Bidirectional Cloning
 
-Provide an action such as:
-
-```text
-Copy Reference → Current
-```
+The system supports cloning datasets in both directions:
+- **Copy Reference → Current** (when preparing Current based on Reference)
+- **Copy Current → Reference** (when preparing Reference based on Current)
 
 Behavior:
 
 ```text
-Reference Working Dataset
-        ↓ Copy
-Current Working Dataset
+Source Working Dataset (Reference or Current)
+        ↓ Clone
+Destination Working Dataset (Current or Reference)
         ↓
 User edits only the changed values
         ↓
 Compare
 ```
 
-After copying, Reference and Current must be independent working datasets.
+After cloning, Reference and Current remain completely independent working datasets.
+Editing one side does not change the other.
+If the destination dataset already contains data, the system prompts for explicit confirmation before replacing it.
 
-Editing Current must not change Reference.
+### 7.2 Per-Dataset Sizing
 
-This is especially important when the user wants to keep the original baseline and modify only a few BOM, routing, work-center, or product values for the Current case.
+Each working dataset (`Reference` and `Current`) independently stores its own starting row counts for Work Center, BOM, and Routing (`DatasetSizing`).
+
+- Either side may be prepared first; sizing belongs to the working dataset, not the Product identity.
+- On a fresh workspace, starting row counts begin unset.
+- Users can set or adjust sizing on either side at any time.
+- Decreasing the configured row count removes surplus unpopulated blank slots only; populated records are never implicitly deleted.
+- Download Template uses the selected dataset's configured row counts to generate blank input rows for the user to fill in.
 
 ---
 

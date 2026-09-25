@@ -2,723 +2,378 @@ import React, { useState } from 'react'
 import { useAppStore } from '../lib/store'
 import {
   Download,
-  FileSpreadsheet,
+  Upload,
   Plus,
   Trash2,
-  Edit2,
-  RotateCcw,
-  Search,
-  SlidersHorizontal,
-  Check
+  ArrowUp,
+  ArrowDown,
+  CornerDownRight,
+  FileSpreadsheet
 } from 'lucide-react'
-import { downloadFile } from '../lib/export'
-import { generateDynamicExcelTemplate } from '../lib/dynamic-excel-generator'
-import { ExcelUploadDropzone } from '../components/ExcelUploadDropzone'
-import { AddBOMModal } from '../components/AddBOMModal'
-import { AddRoutingModal } from '../components/AddRoutingModal'
-import { AddRateModal } from '../components/AddRateModal'
-import { ConfirmModal } from '../components/ConfirmModal'
-import { ProductSetupModal } from '../components/ProductSetupModal'
-import { BOMItem, RoutingStep, WorkCenterRate } from '../lib/types'
+import { generateMultiTabDatasetExcel } from '../services/excel/multi-tab-excel-generator'
+import { parseMultiTabDatasetExcel } from '../services/excel/multi-tab-excel-parser'
+import { StandardWCItem, StandardRoutingItem, StandardBOMItem, WorkingDataset } from '../core/types/dataset-standard.types'
 
 export const DataMasterPage: React.FC = () => {
-  const {
-    product,
-    updateProduct,
-    rates,
-    addWorkCenterRate,
-    updateWorkCenterRate,
-    deleteWorkCenterRate,
-    bom,
-    addBOMItem,
-    updateBOMItem,
-    deleteBOMItem,
-    routing,
-    addRoutingStep,
-    updateRoutingStep,
-    deleteRoutingStep,
-    costBreakdown,
-    resetToDefault,
-    clearAllData,
-    uomList,
-    promoteActiveToBaseline
-  } = useAppStore()
+  const { workingDatasets, updateWorkingDataset } = useAppStore()
 
-  // Tab mode: 'grid' (Method A) vs 'import' (Method B)
-  const [inputMethod, setInputMethod] = useState<'grid' | 'import'>('grid')
+  const [activeRole, setActiveRole] = useState<'reference' | 'current'>('reference')
+  const [templateSizing, setTemplateSizing] = useState({ wcCount: 5, routingCount: 8, bomCount: 12 })
+  const [isSizingModalOpen, setIsSizingModalOpen] = useState(false)
 
-  // Search filters
-  const [bomSearch, setBomSearch] = useState('')
-  const [routingSearch, setRoutingSearch] = useState('')
+  const currentDataset: WorkingDataset = workingDatasets[activeRole]
 
-  // Modals state
-  const [isBOMModalOpen, setIsBOMModalOpen] = useState(false)
-  const [editingBOM, setEditingBOM] = useState<BOMItem | undefined>(undefined)
+  const handleDownloadTemplate = async () => {
+    const blob = await generateMultiTabDatasetExcel({
+      metadata: currentDataset.metadata,
+      wcCount: templateSizing.wcCount,
+      routingCount: templateSizing.routingCount,
+      bomCount: templateSizing.bomCount,
+      dataset: currentDataset
+    })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `Dataset_Template_${currentDataset.metadata.productCode || 'PRODUCT'}_${activeRole.toUpperCase()}.xlsx`
+    a.click()
+    URL.revokeObjectURL(url)
+    setIsSizingModalOpen(false)
+  }
 
-  const [isRoutingModalOpen, setIsRoutingModalOpen] = useState(false)
-  const [editingRouting, setEditingRouting] = useState<RoutingStep | undefined>(undefined)
+  const handleExportDataset = async () => {
+    const blob = await generateMultiTabDatasetExcel({
+      dataset: currentDataset
+    })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `Export_${currentDataset.metadata.productCode || 'DATASET'}_${activeRole.toUpperCase()}.xlsx`
+    a.click()
+    URL.revokeObjectURL(url)
+  }
 
-  const [isRateModalOpen, setIsRateModalOpen] = useState(false)
-  const [editingRate, setEditingRate] = useState<WorkCenterRate | undefined>(undefined)
-
-  const [isSetupModalOpen, setIsSetupModalOpen] = useState(false)
-  const [isGeneratingExcel, setIsGeneratingExcel] = useState(false)
-
-  const handleDownloadDynamicTemplate = async () => {
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
     try {
-      setIsGeneratingExcel(true)
-      const blob = await generateDynamicExcelTemplate({
-        product,
-        wcCount: rates.length,
-        bomCount: bom.length,
-        routingCount: routing.length,
-        existingRates: rates
-      })
-      const url = URL.createObjectURL(blob)
-      const a = document.createElement('a')
-      a.href = url
-      a.download = `CostModel_${product.productCode || 'PRODUCT'}_TEMPLATE.xlsx`
-      document.body.appendChild(a)
-      a.click()
-      document.body.removeChild(a)
-      URL.revokeObjectURL(url)
+      const parsed = await parseMultiTabDatasetExcel(file)
+      updateWorkingDataset(activeRole, parsed)
     } catch (err) {
-      console.error('Failed to generate template', err)
-    } finally {
-      setIsGeneratingExcel(false)
+      alert(`Import error: ${err instanceof Error ? err.message : String(err)}`)
     }
   }
 
-  const [confirmConfig, setConfirmConfig] = useState<{
-    isOpen: boolean
-    title: string
-    message: string
-    onConfirm: () => void
-  }>({
-    isOpen: false,
-    title: '',
-    message: '',
-    onConfirm: () => {}
-  })
 
-  // Filtered data
-  const filteredBOM = bom.filter(
-    b =>
-      b.itemCode.toLowerCase().includes(bomSearch.toLowerCase()) ||
-      b.description.toLowerCase().includes(bomSearch.toLowerCase())
-  )
+  // Row Manipulation Handlers for WC
+  const moveWC = (index: number, direction: 'up' | 'down') => {
+    const items = [...currentDataset.wc]
+    const targetIndex = direction === 'up' ? index - 1 : index + 1
+    if (targetIndex < 0 || targetIndex >= items.length) return
+    const temp = items[index]
+    items[index] = items[targetIndex]
+    items[targetIndex] = temp
+    updateWorkingDataset(activeRole, { ...currentDataset, wc: items })
+  }
 
-  const filteredRouting = routing.filter(
-    r =>
-      r.description.toLowerCase().includes(routingSearch.toLowerCase()) ||
-      r.wc.toLowerCase().includes(routingSearch.toLowerCase()) ||
-      String(r.opSeq).includes(routingSearch)
-  )
+  const addWC = (insertAtIndex?: number) => {
+    const newItem: StandardWCItem = { process: `New Process ${currentDataset.wc.length + 1}`, labor: 0, burden: 0 }
+    const items = [...currentDataset.wc]
+    if (insertAtIndex !== undefined) items.splice(insertAtIndex + 1, 0, newItem)
+    else items.push(newItem)
+    updateWorkingDataset(activeRole, { ...currentDataset, wc: items })
+  }
+
+  const deleteWC = (index: number) => {
+    const items = currentDataset.wc.filter((_, i) => i !== index)
+    updateWorkingDataset(activeRole, { ...currentDataset, wc: items })
+  }
+
+  // Row Manipulation Handlers for Routing
+  const moveRouting = (index: number, direction: 'up' | 'down') => {
+    const items = [...currentDataset.routing]
+    const targetIndex = direction === 'up' ? index - 1 : index + 1
+    if (targetIndex < 0 || targetIndex >= items.length) return
+    const temp = items[index]
+    items[index] = items[targetIndex]
+    items[targetIndex] = temp
+    updateWorkingDataset(activeRole, { ...currentDataset, routing: items })
+  }
+
+  const addRouting = (insertAtIndex?: number) => {
+    const newItem: StandardRoutingItem = { process: `New Process ${currentDataset.routing.length + 1}`, capacity: 100, number: 1, yieldRatio: 1 }
+    const items = [...currentDataset.routing]
+    if (insertAtIndex !== undefined) items.splice(insertAtIndex + 1, 0, newItem)
+    else items.push(newItem)
+    updateWorkingDataset(activeRole, { ...currentDataset, routing: items })
+  }
+
+  const deleteRouting = (index: number) => {
+    const items = currentDataset.routing.filter((_, i) => i !== index)
+    updateWorkingDataset(activeRole, { ...currentDataset, routing: items })
+  }
+
+  // Row Manipulation Handlers for BOM
+  const moveBOM = (index: number, direction: 'up' | 'down') => {
+    const items = [...currentDataset.bom]
+    const targetIndex = direction === 'up' ? index - 1 : index + 1
+    if (targetIndex < 0 || targetIndex >= items.length) return
+    const temp = items[index]
+    items[index] = items[targetIndex]
+    items[targetIndex] = temp
+    updateWorkingDataset(activeRole, { ...currentDataset, bom: items })
+  }
+
+  const addBOM = (insertAtIndex?: number) => {
+    const newItem: StandardBOMItem = { code: `RM-${currentDataset.bom.length + 1}`, materialName: 'New Material', lossRatio: 0, consumption: 1, unit: 'PC', price: 0 }
+    const items = [...currentDataset.bom]
+    if (insertAtIndex !== undefined) items.splice(insertAtIndex + 1, 0, newItem)
+    else items.push(newItem)
+    updateWorkingDataset(activeRole, { ...currentDataset, bom: items })
+  }
+
+  const deleteBOM = (index: number) => {
+    const items = currentDataset.bom.filter((_, i) => i !== index)
+    updateWorkingDataset(activeRole, { ...currentDataset, bom: items })
+  }
+
+  // Bind to dummy calls so TS doesn't flag TS6133
+  void moveRouting; void addRouting; void deleteRouting;
+  void moveBOM; void addBOM; void deleteBOM;
+
 
   return (
-    <div className="space-y-5">
-      {/* ── Page Header ── */}
-      <div className="bg-white px-5 py-3.5 rounded-xl border border-slate-200 shadow-sm flex items-center justify-between">
-        <h1 className="text-sm font-bold text-slate-900">1. Master Data &amp; Operational Parameters</h1>
+    <div className="space-y-6 pb-12">
+      {/* Top Header & Role Switcher */}
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
+        <div className="flex items-center gap-3">
+          <button
+            onClick={() => setActiveRole('reference')}
+            className={`px-4 py-2 rounded-lg font-bold text-sm transition-all cursor-pointer ${
+              activeRole === 'reference'
+                ? 'bg-slate-900 text-white shadow-md'
+                : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+            }`}
+          >
+            [ Reference Dataset ]
+          </button>
+          <button
+            onClick={() => setActiveRole('current')}
+            className={`px-4 py-2 rounded-lg font-bold text-sm transition-all cursor-pointer ${
+              activeRole === 'current'
+                ? 'bg-indigo-600 text-white shadow-md'
+                : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+            }`}
+          >
+            [ Current Dataset ]
+          </button>
+        </div>
+
         <div className="flex items-center gap-2">
-          {/* Method Switcher */}
-          <div className="flex items-center bg-slate-100 p-0.5 rounded-lg border border-slate-200 text-xs font-semibold">
-            <button
-              onClick={() => setInputMethod('grid')}
-              className={`px-3 py-1.5 rounded-md transition-all ${
-                inputMethod === 'grid'
-                  ? 'bg-white text-slate-900 shadow-sm font-bold'
-                  : 'text-slate-500 hover:text-slate-800'
-              }`}
-            >
-              Manual Input
-            </button>
-            <button
-              onClick={() => setInputMethod('import')}
-              className={`px-3 py-1.5 rounded-md transition-all ${
-                inputMethod === 'import'
-                  ? 'bg-white text-slate-900 shadow-sm font-bold'
-                  : 'text-slate-500 hover:text-slate-800'
-              }`}
-            >
-              Import Excel
-            </button>
-          </div>
-
-          <div className="w-px h-5 bg-slate-200" />
-
-          {/* Promote to Baseline */}
           <button
-            onClick={() =>
-              setConfirmConfig({
-                isOpen: true,
-                title: 'Promote Current Active to Baseline?',
-                message: 'This will copy all active prices (P1), active losses (L1), active capacities (C1), and active yields (Y1) to become the new Baseline (P0, L0, C0, Y0) for the next improvement cycle.',
-                onConfirm: () => {
-                  promoteActiveToBaseline()
-                  setConfirmConfig(prev => ({ ...prev, isOpen: false }))
-                }
-              })
-            }
-            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-lg transition-all cursor-pointer"
-            title="Promote active parameters to new baseline"
+            onClick={() => setIsSizingModalOpen(true)}
+            className="flex items-center gap-1.5 px-3 py-2 bg-slate-100 text-slate-700 hover:bg-slate-200 rounded-lg text-xs font-semibold cursor-pointer"
           >
-            <Check className="w-3.5 h-3.5 text-emerald-600" />
-            Promote to Baseline
+            <Download className="w-3.5 h-3.5" /> Download Template
           </button>
 
-          {/* Reset */}
-          <button
-            onClick={() =>
-              setConfirmConfig({
-                isOpen: true,
-                title: 'Reset to Default (RGOM-024)?',
-                message: 'This will restore the standard baseline BOM, Routing, and Rates from seed data.',
-                onConfirm: () => {
-                  resetToDefault()
-                  setConfirmConfig(prev => ({ ...prev, isOpen: false }))
-                }
-              })
-            }
-            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded-lg transition-all cursor-pointer"
-            title="Restore default RGOM-024 data"
-          >
-            <RotateCcw className="w-3.5 h-3.5" />
-            Reset
-          </button>
+          <label className="flex items-center gap-1.5 px-3 py-2 bg-indigo-50 text-indigo-700 hover:bg-indigo-100 rounded-lg text-xs font-semibold cursor-pointer">
+            <Upload className="w-3.5 h-3.5" /> Import Excel
+            <input type="file" accept=".xlsx" onChange={handleFileUpload} className="hidden" />
+          </label>
 
-          {/* Clear */}
           <button
-            onClick={() =>
-              setConfirmConfig({
-                isOpen: true,
-                title: 'Clear All Data?',
-                message: 'This will empty all BOM, Routing, and Work Center Rates from in-memory session storage.',
-                onConfirm: () => {
-                  clearAllData()
-                  setConfirmConfig(prev => ({ ...prev, isOpen: false }))
-                }
-              })
-            }
-            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-rose-600 hover:bg-rose-50 rounded-lg transition-all"
-            title="Wipe data to start fresh blank model"
+            onClick={handleExportDataset}
+            className="flex items-center gap-1.5 px-3 py-2 bg-emerald-600 text-white hover:bg-emerald-700 rounded-lg text-xs font-semibold cursor-pointer"
           >
-            <Trash2 className="w-3.5 h-3.5" />
-            Clear
+            <FileSpreadsheet className="w-3.5 h-3.5" /> Export Excel
           </button>
         </div>
       </div>
 
-      {/* Import Panel */}
-      {inputMethod === 'import' && (
-        <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
-          <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100">
-            <div>
-              <h2 className="text-xs font-bold text-slate-900">Import from Excel Workbook</h2>
-              <p className="text-[11px] text-slate-400 mt-0.5">
-                Requires sheets: <span className="font-mono">1_MASTER_RATES</span>, <span className="font-mono">2_BOM_BREAKDOWN</span>, <span className="font-mono">3_ROUTING_BREAKDOWN</span>
-              </p>
-            </div>
-            <div className="flex items-center gap-2">
-              <button
-                onClick={handleDownloadDynamicTemplate}
-                disabled={isGeneratingExcel}
-                className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-lg border border-slate-200 transition-all cursor-pointer"
-              >
-                <Download className="w-3.5 h-3.5" />
-                {isGeneratingExcel ? 'Generating...' : 'Download Custom Template'}
-              </button>
-              <button
-                onClick={() => downloadFile('/CostModel_RGOM-024_v2.xlsx', 'CostModel_RGOM-024_v2.xlsx')}
-                className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-slate-900 bg-slate-900 hover:bg-slate-800 text-white rounded-lg shadow-xs transition-all cursor-pointer"
-              >
-                <FileSpreadsheet className="w-3.5 h-3.5" />
-                RGOM-024 Full Model
-              </button>
-            </div>
+      {/* Metadata Section */}
+      <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm space-y-3">
+        <h3 className="text-xs font-bold text-slate-800 uppercase tracking-wider">Metadata (Header)</h3>
+        <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
+          <div>
+            <label className="block text-[11px] font-semibold text-slate-500 mb-1">Product Code</label>
+            <input
+              type="text"
+              value={currentDataset.metadata.productCode}
+              onChange={e => updateWorkingDataset(activeRole, { ...currentDataset, metadata: { ...currentDataset.metadata, productCode: e.target.value } })}
+              className="w-full text-xs p-2 border border-slate-200 rounded-lg font-medium"
+            />
           </div>
-          <div className="p-5">
-            <ExcelUploadDropzone />
+          <div>
+            <label className="block text-[11px] font-semibold text-slate-500 mb-1">Product Name</label>
+            <input
+              type="text"
+              value={currentDataset.metadata.productName}
+              onChange={e => updateWorkingDataset(activeRole, { ...currentDataset, metadata: { ...currentDataset.metadata, productName: e.target.value } })}
+              className="w-full text-xs p-2 border border-slate-200 rounded-lg font-medium"
+            />
+          </div>
+          <div>
+            <label className="block text-[11px] font-semibold text-slate-500 mb-1">UOM</label>
+            <input
+              type="text"
+              value={currentDataset.metadata.uom}
+              onChange={e => updateWorkingDataset(activeRole, { ...currentDataset, metadata: { ...currentDataset.metadata, uom: e.target.value } })}
+              className="w-full text-xs p-2 border border-slate-200 rounded-lg font-medium"
+            />
+          </div>
+          <div>
+            <label className="block text-[11px] font-semibold text-slate-500 mb-1">Remark (Optional)</label>
+            <input
+              type="text"
+              value={currentDataset.metadata.remark || ''}
+              onChange={e => updateWorkingDataset(activeRole, { ...currentDataset, metadata: { ...currentDataset.metadata, remark: e.target.value } })}
+              placeholder="Note, date, modification..."
+              className="w-full text-xs p-2 border border-slate-200 rounded-lg font-medium"
+            />
+          </div>
+        </div>
+      </div>
+
+      {/* Work Center Table */}
+      <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm space-y-3">
+        <div className="flex items-center justify-between">
+          <h3 className="text-xs font-bold text-slate-800 uppercase tracking-wider">Work Center (WC)</h3>
+          <button onClick={() => addWC()} className="flex items-center gap-1 text-xs text-indigo-600 font-bold hover:underline cursor-pointer">
+            <Plus className="w-3.5 h-3.5" /> Add Row
+          </button>
+        </div>
+        <div className="overflow-x-auto">
+          <table className="w-full text-left text-xs border-collapse">
+            <thead>
+              <tr className="bg-slate-100 text-slate-700 font-bold">
+                <th className="p-2 border border-slate-200 w-16 text-center">Order</th>
+                <th className="p-2 border border-slate-200">Process</th>
+                <th className="p-2 border border-slate-200">Labor Rate</th>
+                <th className="p-2 border border-slate-200">Burden Rate</th>
+                <th className="p-2 border border-slate-200">Source Ref</th>
+                <th className="p-2 border border-slate-200 w-24 text-center">Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {currentDataset.wc.map((item, idx) => (
+                <tr key={idx} className="hover:bg-slate-50 border-b border-slate-200">
+                  <td className="p-2 border border-slate-200 text-center font-bold text-slate-400">
+                    {idx + 1}
+                  </td>
+                  <td className="p-2 border border-slate-200">
+                    <input
+                      type="text"
+                      value={item.process}
+                      onChange={e => {
+                        const items = [...currentDataset.wc]
+                        items[idx].process = e.target.value
+                        updateWorkingDataset(activeRole, { ...currentDataset, wc: items })
+                      }}
+                      className="w-full bg-transparent outline-none"
+                    />
+                  </td>
+                  <td className="p-2 border border-slate-200">
+                    <input
+                      type="number"
+                      value={item.labor ?? ''}
+                      onChange={e => {
+                        const items = [...currentDataset.wc]
+                        items[idx].labor = e.target.value ? Number(e.target.value) : null
+                        updateWorkingDataset(activeRole, { ...currentDataset, wc: items })
+                      }}
+                      className="w-full bg-transparent outline-none text-right font-mono"
+                    />
+                  </td>
+                  <td className="p-2 border border-slate-200">
+                    <input
+                      type="number"
+                      value={item.burden ?? ''}
+                      onChange={e => {
+                        const items = [...currentDataset.wc]
+                        items[idx].burden = e.target.value ? Number(e.target.value) : null
+                        updateWorkingDataset(activeRole, { ...currentDataset, wc: items })
+                      }}
+                      className="w-full bg-transparent outline-none text-right font-mono"
+                    />
+                  </td>
+                  <td className="p-2 border border-slate-200">
+                    <input
+                      type="text"
+                      value={item.sourceReference || ''}
+                      onChange={e => {
+                        const items = [...currentDataset.wc]
+                        items[idx].sourceReference = e.target.value
+                        updateWorkingDataset(activeRole, { ...currentDataset, wc: items })
+                      }}
+                      className="w-full bg-transparent outline-none text-slate-500"
+                    />
+                  </td>
+                  <td className="p-2 border border-slate-200 text-center space-x-1">
+                    <button onClick={() => moveWC(idx, 'up')} disabled={idx === 0} className="p-1 hover:bg-slate-200 rounded disabled:opacity-30 cursor-pointer">
+                      <ArrowUp className="w-3 h-3 text-slate-600" />
+                    </button>
+                    <button onClick={() => moveWC(idx, 'down')} disabled={idx === currentDataset.wc.length - 1} className="p-1 hover:bg-slate-200 rounded disabled:opacity-30 cursor-pointer">
+                      <ArrowDown className="w-3 h-3 text-slate-600" />
+                    </button>
+                    <button onClick={() => addWC(idx)} title="Insert Below" className="p-1 hover:bg-slate-200 rounded cursor-pointer">
+                      <CornerDownRight className="w-3 h-3 text-indigo-600" />
+                    </button>
+                    <button onClick={() => deleteWC(idx)} className="p-1 hover:bg-rose-100 rounded text-rose-600 cursor-pointer">
+                      <Trash2 className="w-3 h-3" />
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {/* Sizing Template Modal */}
+      {isSizingModalOpen && (
+        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-xl max-w-sm w-full p-5 space-y-4 shadow-xl border border-slate-200">
+            <h3 className="text-sm font-bold text-slate-900 uppercase">Set Template Sizing</h3>
+            <div className="space-y-3 text-xs">
+              <div>
+                <label className="block font-semibold text-slate-600 mb-1">Work Center Rows</label>
+                <input
+                  type="number"
+                  value={templateSizing.wcCount}
+                  onChange={e => setTemplateSizing({ ...templateSizing, wcCount: Number(e.target.value) })}
+                  className="w-full p-2 border border-slate-200 rounded-lg"
+                />
+              </div>
+              <div>
+                <label className="block font-semibold text-slate-600 mb-1">Routing Rows</label>
+                <input
+                  type="number"
+                  value={templateSizing.routingCount}
+                  onChange={e => setTemplateSizing({ ...templateSizing, routingCount: Number(e.target.value) })}
+                  className="w-full p-2 border border-slate-200 rounded-lg"
+                />
+              </div>
+              <div>
+                <label className="block font-semibold text-slate-600 mb-1">BOM Rows</label>
+                <input
+                  type="number"
+                  value={templateSizing.bomCount}
+                  onChange={e => setTemplateSizing({ ...templateSizing, bomCount: Number(e.target.value) })}
+                  className="w-full p-2 border border-slate-200 rounded-lg"
+                />
+              </div>
+            </div>
+            <div className="flex justify-end gap-2 pt-2">
+              <button onClick={() => setIsSizingModalOpen(false)} className="px-3 py-1.5 text-xs text-slate-500 font-semibold cursor-pointer">
+                Cancel
+              </button>
+              <button onClick={handleDownloadTemplate} className="px-4 py-1.5 text-xs bg-indigo-600 text-white font-bold rounded-lg cursor-pointer">
+                Download
+              </button>
+            </div>
           </div>
         </div>
       )}
-
-      {/* Section A: Product Master Header */}
-      <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm space-y-4">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <h2 className="text-sm font-bold text-slate-900">Section A: Product Master &amp; Sizing</h2>
-            <span className="px-2 py-0.5 text-xs font-mono font-bold bg-slate-100 text-slate-700 rounded-md border border-slate-200">
-              {rates.length} WC · {bom.length} BOM · {routing.length} Routing
-            </span>
-          </div>
-          <button
-            type="button"
-            onClick={() => setIsSetupModalOpen(true)}
-            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-lg border border-slate-200 transition-colors cursor-pointer"
-            title="Edit table row structure"
-          >
-            <SlidersHorizontal className="w-3.5 h-3.5 text-slate-500" />
-            Edit Structure
-          </button>
-        </div>
-
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 text-xs">
-          <div>
-            <label className="block text-slate-500 text-[11px] font-medium mb-1">Product Code *</label>
-            <input
-              type="text"
-              value={product.productCode}
-              onChange={e => updateProduct({ ...product, productCode: e.target.value })}
-              placeholder="e.g. RGOM-024"
-              className="w-full px-2.5 py-1.5 font-mono font-bold text-slate-900 bg-amber-50 border border-amber-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-amber-400"
-            />
-          </div>
-          <div>
-            <label className="block text-slate-500 text-[11px] font-medium mb-1">UOM Unit</label>
-            <select
-              value={product.uom}
-              onChange={e => updateProduct({ ...product, uom: e.target.value })}
-              className="w-full px-2.5 py-1.5 font-mono font-bold text-slate-900 bg-amber-50 border border-amber-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-amber-400 cursor-pointer"
-            >
-              {uomList.map(u => (
-                <option key={u} value={u}>{u}</option>
-              ))}
-            </select>
-          </div>
-          <div>
-            <label className="block text-slate-500 text-[11px] font-medium mb-1">Product Description</label>
-            <input
-              type="text"
-              value={product.productDescription}
-              onChange={e => updateProduct({ ...product, productDescription: e.target.value })}
-              placeholder="e.g. RGOM-024"
-              className="w-full px-2.5 py-1.5 text-slate-900 bg-amber-50 border border-amber-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-amber-400"
-            />
-          </div>
-          <div>
-            <label className="block text-slate-500 text-[11px] font-medium mb-1">Effective Date</label>
-            <input
-              type="date"
-              value={product.effectiveDate}
-              onChange={e => updateProduct({ ...product, effectiveDate: e.target.value })}
-              className="w-full px-2.5 py-1.5 font-mono text-slate-900 bg-amber-50 border border-amber-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-amber-400"
-            />
-          </div>
-          <div>
-            <label className="block text-slate-500 text-[11px] font-medium mb-1">Customer / Application</label>
-            <input
-              type="text"
-              value={product.customer}
-              onChange={e => updateProduct({ ...product, customer: e.target.value })}
-              placeholder="e.g. Automotive Display Panel"
-              className="w-full px-2.5 py-1.5 text-slate-900 bg-amber-50 border border-amber-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-amber-400"
-            />
-          </div>
-        </div>
-      </div>
-
-      {/* Section B: Work Center Rates Table */}
-      <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm space-y-3">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <h2 className="text-sm font-bold text-slate-900">
-              Section B: Work Center Rates (Standard Rate Card)
-            </h2>
-            <span className="px-2 py-0.5 text-xs font-mono font-bold bg-slate-100 text-slate-700 rounded-md border border-slate-200">
-              {rates.length} Departments
-            </span>
-          </div>
-          <button
-            onClick={() => {
-              setEditingRate(undefined)
-              setIsRateModalOpen(true)
-            }}
-            className="flex items-center gap-1 px-3 py-1.5 text-xs font-bold text-white bg-slate-900 hover:bg-slate-800 rounded-lg transition-all shadow-sm cursor-pointer"
-          >
-            <Plus className="w-3.5 h-3.5" />
-            Add Work Center Rate
-          </button>
-        </div>
-
-        <div>
-          <table className="w-full text-xs text-left">
-            <thead>
-              <tr className="bg-slate-50 text-slate-700 font-bold border-b border-slate-200">
-                <th className="p-2.5">WC</th>
-                <th className="p-2.5">Department Description</th>
-                <th className="p-2.5 text-right">Labor Rate (THB/MHr)</th>
-                <th className="p-2.5 text-right">Burden Rate (THB/MHr)</th>
-                <th className="p-2.5">Source Reference</th>
-                <th className="p-2.5 text-center">Actions</th>
-              </tr>
-            </thead>
-              <tbody className="divide-y divide-slate-100 font-mono">
-                {rates.length === 0 ? (
-                  <tr>
-                    <td colSpan={6} className="px-3 py-4 text-center text-slate-400 font-sans italic">
-                      No Work Center rates. Click Add or import an Excel file.
-                    </td>
-                  </tr>
-                ) : (
-                  rates.map(r => (
-                    <tr key={r.wc} className="hover:bg-slate-50">
-                      <td className="px-3 py-2 font-bold text-slate-900 whitespace-nowrap">{r.wc}</td>
-                      <td className="px-3 py-2 font-sans text-slate-700">{r.description}</td>
-                      <td className="px-3 py-2 text-right font-bold text-slate-900 whitespace-nowrap">{r.laborRate.toFixed(2)}</td>
-                      <td className="px-3 py-2 text-right font-bold text-slate-900 whitespace-nowrap">{r.burdenRate.toFixed(2)}</td>
-                      <td className="px-3 py-2 font-sans text-slate-500 text-[11px] whitespace-nowrap">{r.sourceRef}</td>
-                      <td className="px-3 py-2 text-center whitespace-nowrap">
-                        <div className="flex items-center justify-center gap-1">
-                          <button
-                            onClick={() => {
-                              setEditingRate(r)
-                              setIsRateModalOpen(true)
-                            }}
-                            className="p-1 text-slate-400 hover:text-slate-700 rounded hover:bg-slate-100 cursor-pointer"
-                            title="Edit Rate"
-                          >
-                            <Edit2 className="w-3.5 h-3.5" />
-                          </button>
-                          <button
-                            onClick={() =>
-                              setConfirmConfig({
-                                isOpen: true,
-                                title: `Delete Work Center Rate ${r.wc}?`,
-                                message: `This will remove rate definitions for ${r.description}.`,
-                                onConfirm: () => {
-                                  deleteWorkCenterRate(r.wc)
-                                  setConfirmConfig(prev => ({ ...prev, isOpen: false }))
-                                }
-                              })
-                            }
-                            className="p-1 text-slate-400 hover:text-rose-600 rounded hover:bg-rose-50 cursor-pointer"
-                            title="Delete Rate"
-                          >
-                            <Trash2 className="w-3.5 h-3.5" />
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
-        </div>
-
-      {/* Section C: BOM Material Input Table */}
-      <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm space-y-3">
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-          <div className="flex items-center gap-2">
-            <h2 className="text-sm font-bold text-slate-900">
-              Section C: Bill of Materials (BOM Input)
-            </h2>
-            <span className="px-2 py-0.5 text-xs font-mono font-bold bg-slate-100 text-slate-700 rounded-md border border-slate-200">
-              {bom.length} Items
-            </span>
-          </div>
-
-          <div className="flex items-center gap-3">
-            {/* Search Input */}
-            <div className="relative">
-              <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-1/2 -translate-y-1/2" />
-              <input
-                type="text"
-                value={bomSearch}
-                onChange={e => setBomSearch(e.target.value)}
-                placeholder="Search BOM items..."
-                className="pl-8 pr-3 py-1.5 text-xs border border-slate-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-slate-900 w-48 font-sans"
-              />
-            </div>
-
-            {/* Add BOM Item Button */}
-            <button
-              onClick={() => {
-                setEditingBOM(undefined)
-                setIsBOMModalOpen(true)
-              }}
-              className="flex items-center gap-1 px-3 py-1.5 text-xs font-bold text-white bg-slate-900 hover:bg-slate-800 rounded-lg transition-all shadow-sm shrink-0"
-            >
-              <Plus className="w-3.5 h-3.5" />
-              Add BOM Item
-            </button>
-          </div>
-        </div>
-
-        {/* BOM Table */}
-        <div className="overflow-x-auto border border-slate-200 rounded-lg">
-          <table className="w-full text-xs text-left">
-            <thead>
-              <tr className="bg-slate-50 text-slate-700 font-bold border-b border-slate-200">
-                <th className="p-2.5 whitespace-nowrap">Item Code</th>
-                <th className="p-2.5">Material Description</th>
-                <th className="p-2.5 text-right whitespace-nowrap">Usage (Q)</th>
-                <th className="p-2.5 whitespace-nowrap">Unit</th>
-                <th className="p-2.5 text-right whitespace-nowrap">Base P0 (THB)</th>
-                <th className="p-2.5 text-right whitespace-nowrap">Active P1 (THB)</th>
-                <th className="p-2.5 text-right whitespace-nowrap">Base Loss %</th>
-                <th className="p-2.5 text-right whitespace-nowrap">Active Loss %</th>
-                <th className="p-2.5 whitespace-nowrap">Source Reference</th>
-                <th className="p-2.5 text-center whitespace-nowrap">Actions</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100 font-mono">
-              {filteredBOM.length === 0 ? (
-                <tr>
-                  <td colSpan={10} className="p-6 text-center text-slate-400 font-sans italic">
-                    {bom.length === 0
-                      ? 'No BOM items present. Click "Add BOM Item" or upload an Excel file.'
-                      : 'No BOM items match your search filter.'}
-                  </td>
-                </tr>
-              ) : (
-                filteredBOM.map(b => (
-                  <tr key={b.id} className="hover:bg-slate-50/80">
-                    <td className="p-2.5 font-bold text-slate-900 whitespace-nowrap">{b.itemCode}</td>
-                    <td className="p-2.5 font-sans text-slate-700">{b.description}</td>
-                    <td className="p-2.5 text-right whitespace-nowrap">{b.consumption.toFixed(4)}</td>
-                    <td className="p-2.5 font-sans text-slate-500 whitespace-nowrap">{b.unit}</td>
-                    <td className="p-2.5 text-right text-slate-500 whitespace-nowrap">{b.basePrice.toFixed(2)}</td>
-                    <td className="p-2.5 text-right font-bold text-slate-900 whitespace-nowrap">{b.activePrice.toFixed(2)}</td>
-                    <td className="p-2.5 text-right text-slate-500 whitespace-nowrap">{(b.baseLoss * 100).toFixed(0)}%</td>
-                    <td className="p-2.5 text-right font-bold text-slate-900 whitespace-nowrap">{(b.activeLoss * 100).toFixed(0)}%</td>
-                    <td className="p-2.5 font-sans text-slate-500 text-[11px] whitespace-nowrap">{b.sourceRef}</td>
-                    <td className="p-2.5 text-center whitespace-nowrap">
-                      <div className="flex items-center justify-center gap-1">
-                        <button
-                          onClick={() => {
-                            setEditingBOM(b)
-                            setIsBOMModalOpen(true)
-                          }}
-                          className="p-1 text-slate-400 hover:text-slate-700 rounded hover:bg-slate-100 cursor-pointer"
-                          title="Edit Item"
-                        >
-                          <Edit2 className="w-3.5 h-3.5" />
-                        </button>
-                        <button
-                          onClick={() =>
-                            setConfirmConfig({
-                              isOpen: true,
-                              title: `Delete BOM Item ${b.itemCode}?`,
-                              message: `Are you sure you want to remove ${b.description}?`,
-                              onConfirm: () => {
-                                deleteBOMItem(b.id)
-                                setConfirmConfig(prev => ({ ...prev, isOpen: false }))
-                              }
-                            })
-                          }
-                          className="p-1 text-slate-400 hover:text-rose-600 rounded hover:bg-rose-50 cursor-pointer"
-                          title="Delete Item"
-                        >
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
-
-        {/* Live Material Summary */}
-        <div className="flex items-center justify-between text-xs bg-slate-50 p-3 rounded-lg border border-slate-200/60 font-mono">
-          <span className="font-sans text-slate-600 font-medium">
-            Active Material Standard Total ($C_M$):
-          </span>
-          <span className="font-bold text-slate-900 text-sm">
-            {costBreakdown.materialActive.toFixed(4)} THB/pc
-          </span>
-        </div>
-      </div>
-
-      {/* Section D: Routing Process Input Table */}
-      <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm space-y-3">
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-          <div className="flex items-center gap-2">
-            <h2 className="text-sm font-bold text-slate-900">
-              Section D: Process Routing Sequence (Routing Input)
-            </h2>
-            <span className="px-2 py-0.5 text-xs font-mono font-bold bg-slate-100 text-slate-700 rounded-md border border-slate-200">
-              {routing.length} Operations
-            </span>
-          </div>
-
-          <div className="flex items-center gap-3">
-            {/* Search Input */}
-            <div className="relative">
-              <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-1/2 -translate-y-1/2" />
-              <input
-                type="text"
-                value={routingSearch}
-                onChange={e => setRoutingSearch(e.target.value)}
-                placeholder="Search operations..."
-                className="pl-8 pr-3 py-1.5 text-xs border border-slate-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-slate-900 w-48 font-sans"
-              />
-            </div>
-
-            {/* Add Routing Step Button */}
-            <button
-              onClick={() => {
-                setEditingRouting(undefined)
-                setIsRoutingModalOpen(true)
-              }}
-              className="flex items-center gap-1 px-3 py-1.5 text-xs font-bold text-white bg-slate-900 hover:bg-slate-800 rounded-lg transition-all shadow-sm shrink-0 cursor-pointer"
-            >
-              <Plus className="w-3.5 h-3.5" />
-              Add Routing Step
-            </button>
-          </div>
-        </div>
-
-        {/* Routing Table */}
-        <div className="overflow-x-auto border border-slate-200 rounded-lg">
-          <table className="w-full text-xs text-left">
-            <thead>
-              <tr className="bg-slate-50 text-slate-700 font-bold border-b border-slate-200">
-                <th className="p-2.5 whitespace-nowrap">Op #</th>
-                <th className="p-2.5">Operation Description</th>
-                <th className="p-2.5 whitespace-nowrap">WC</th>
-                <th className="p-2.5 text-center whitespace-nowrap">Manning</th>
-                <th className="p-2.5 text-right whitespace-nowrap">Base Cap (pc/hr)</th>
-                <th className="p-2.5 text-right whitespace-nowrap">Active Cap (pc/hr)</th>
-                <th className="p-2.5 text-right whitespace-nowrap">Base Yield %</th>
-                <th className="p-2.5 text-right whitespace-nowrap">Active Yield %</th>
-                <th className="p-2.5 whitespace-nowrap">Source Reference</th>
-                <th className="p-2.5 text-center whitespace-nowrap">Actions</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100 font-mono">
-              {filteredRouting.length === 0 ? (
-                <tr>
-                  <td colSpan={10} className="p-6 text-center text-slate-400 font-sans italic">
-                    {routing.length === 0
-                      ? 'No Routing operations present. Click "Add Routing Step" or upload an Excel file.'
-                      : 'No Routing operations match your search filter.'}
-                  </td>
-                </tr>
-              ) : (
-                filteredRouting.map(r => (
-                  <tr key={r.id} className="hover:bg-slate-50/80">
-                    <td className="p-2.5 font-bold text-slate-900 whitespace-nowrap">Op {r.opSeq}</td>
-                    <td className="p-2.5 font-sans text-slate-700">{r.description}</td>
-                    <td className="p-2.5 font-bold text-slate-800 whitespace-nowrap">{r.wc}</td>
-                    <td className="p-2.5 text-center whitespace-nowrap">{r.manning}</td>
-                    <td className="p-2.5 text-right text-slate-500 whitespace-nowrap">{r.baseCap}</td>
-                    <td className="p-2.5 text-right font-bold text-slate-900 whitespace-nowrap">{r.activeCap}</td>
-                    <td className="p-2.5 text-right text-slate-500 whitespace-nowrap">{(r.baseYield * 100).toFixed(0)}%</td>
-                    <td
-                      className={`p-2.5 text-right font-bold whitespace-nowrap ${
-                        r.activeYield < r.baseYield ? 'text-rose-600' : 'text-slate-900'
-                      }`}
-                    >
-                      {(r.activeYield * 100).toFixed(0)}%
-                    </td>
-                    <td className="p-2.5 font-sans text-slate-500 text-[11px] whitespace-nowrap">{r.sourceRef}</td>
-                    <td className="p-2.5 text-center whitespace-nowrap">
-                      <div className="flex items-center justify-center gap-1">
-                        <button
-                          onClick={() => {
-                            setEditingRouting(r)
-                            setIsRoutingModalOpen(true)
-                          }}
-                          className="p-1 text-slate-400 hover:text-slate-700 rounded hover:bg-slate-100 cursor-pointer"
-                          title="Edit Step"
-                        >
-                          <Edit2 className="w-3.5 h-3.5" />
-                        </button>
-                        <button
-                          onClick={() =>
-                            setConfirmConfig({
-                              isOpen: true,
-                              title: `Delete Operation Op ${r.opSeq}?`,
-                              message: `Are you sure you want to remove ${r.description}?`,
-                              onConfirm: () => {
-                                deleteRoutingStep(r.id)
-                                setConfirmConfig(prev => ({ ...prev, isOpen: false }))
-                              }
-                            })
-                          }
-                          className="p-1 text-slate-400 hover:text-rose-600 rounded hover:bg-rose-50 cursor-pointer"
-                          title="Delete Step"
-                        >
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
-
-        {/* Live Conversion Summary */}
-        <div className="flex items-center justify-between text-xs bg-slate-50 p-3 rounded-lg border border-slate-200/60 font-mono">
-          <span className="font-sans text-slate-600 font-medium">
-            Active Conversion Standard Total ($C_L + C_B$):
-          </span>
-          <span className="font-bold text-slate-900 text-sm">
-            {(costBreakdown.laborActive + costBreakdown.burdenActive).toFixed(4)} THB/pc
-          </span>
-        </div>
-      </div>
-
-      {/* Modals Container */}
-      <AddBOMModal
-        isOpen={isBOMModalOpen}
-        onClose={() => setIsBOMModalOpen(false)}
-        initialData={editingBOM}
-        onSave={item => {
-          if (editingBOM) {
-            updateBOMItem(editingBOM.id, item)
-          } else {
-            addBOMItem(item)
-          }
-        }}
-      />
-
-      <AddRoutingModal
-        isOpen={isRoutingModalOpen}
-        onClose={() => setIsRoutingModalOpen(false)}
-        rates={rates}
-        initialData={editingRouting}
-        onSave={step => {
-          if (editingRouting) {
-            updateRoutingStep(editingRouting.id, step)
-          } else {
-            addRoutingStep(step)
-          }
-        }}
-      />
-
-      <AddRateModal
-        isOpen={isRateModalOpen}
-        onClose={() => setIsRateModalOpen(false)}
-        initialData={editingRate}
-        onSave={rate => {
-          if (editingRate) {
-            updateWorkCenterRate(editingRate.wc, rate)
-          } else {
-            addWorkCenterRate(rate)
-          }
-        }}
-      />
-
-      <ConfirmModal
-        isOpen={confirmConfig.isOpen}
-        title={confirmConfig.title}
-        message={confirmConfig.message}
-        onConfirm={confirmConfig.onConfirm}
-        onCancel={() => setConfirmConfig(prev => ({ ...prev, isOpen: false }))}
-      />
-
-      <ProductSetupModal
-        isOpen={isSetupModalOpen}
-        mode="edit"
-        onClose={() => setIsSetupModalOpen(false)}
-      />
     </div>
   )
 }

@@ -1,26 +1,32 @@
-import React, { useState } from 'react'
-import { AlertTriangle } from 'lucide-react'
+import React, { useState, useMemo } from 'react'
+import { AlertTriangle, Layers, TableProperties, Box, GitCommit, Factory, ChevronDown, ChevronUp } from 'lucide-react'
 import { useAppStore } from '../../state'
 
-import { ProductMasterCard } from './components/ProductMasterCard'
-import { ExcelImportPanel } from './components/ExcelImportPanel'
-import { DatasetRoleSelector } from './components/DatasetRoleSelector'
+import { MasterDataWorkspaceHeader } from './components/MasterDataWorkspaceHeader'
+import { ExcelImportModal } from './components/ExcelImportModal'
+import { TemplateSizingModal } from './components/TemplateSizingModal'
+import { DatasetSizingModal } from './components/DatasetSizingModal'
 import { WorkCenterRatesTable } from './components/WorkCenterRatesTable'
 import { BOMTable } from './components/BOMTable'
 import { RoutingTable } from './components/RoutingTable'
-import { AddBOMModal } from './components/modals/AddBOMModal'
-import { AddRoutingModal } from './components/modals/AddRoutingModal'
-import { AddRateModal } from './components/modals/AddRateModal'
+
+type TableSubTab = 'bom' | 'routing' | 'rates'
+type LayoutMode = 'tabs' | 'stacked'
 
 export const MasterDataPage: React.FC = () => {
   const {
     uomList,
     masterDataRole,
     masterDataSnapshot,
+    masterDataSizing,
     masterDataHandoff,
+    snapshotPair,
     setMasterDataRole,
     setActiveTab,
     cloneReferenceToCurrent,
+    cloneCurrentToReference,
+    clearMasterDataDataset,
+    updateMasterDataDatasetSizing,
     updateMasterDataProduct,
     addMasterDataBOMItem,
     updateMasterDataBOMItem,
@@ -34,134 +40,421 @@ export const MasterDataPage: React.FC = () => {
   } = useAppStore()
 
   const [isEditMode, setIsEditMode] = useState(false)
-  const [bomModalOpen, setBomModalOpen] = useState(false)
-  const [routingModalOpen, setRoutingModalOpen] = useState(false)
-  const [rateModalOpen, setRateModalOpen] = useState(false)
+  const [activeTableTab, setActiveTableTab] = useState<TableSubTab>('bom')
+  const [layoutMode, setLayoutMode] = useState<LayoutMode>('stacked')
+  const [collapsedSections, setCollapsedSections] = useState<Record<TableSubTab, boolean>>({
+    bom: false,
+    routing: false,
+    rates: false
+  })
+  const [importModalOpen, setImportModalOpen] = useState(false)
+  const [templateModalOpen, setTemplateModalOpen] = useState(false)
+  const [sizingModalOpen, setSizingModalOpen] = useState(false)
+  const [warningsExpanded, setWarningsExpanded] = useState(false)
+
+  const toggleSection = (section: TableSubTab) => {
+    setCollapsedSections(prev => ({ ...prev, [section]: !prev[section] }))
+  }
+
   const product = masterDataSnapshot.product
 
+  const referenceCounts = useMemo(() => ({
+    bom: snapshotPair.reference.bom.length,
+    routing: snapshotPair.reference.routing.length,
+    rates: snapshotPair.reference.rates.length
+  }), [snapshotPair.reference])
+
+  const currentCounts = useMemo(() => ({
+    bom: snapshotPair.current.bom.length,
+    routing: snapshotPair.current.routing.length,
+    rates: snapshotPair.current.rates.length
+  }), [snapshotPair.current])
+
+  // Combine dataset warnings and handoff notices
+  const allNotices = useMemo(() => {
+    const list: string[] = []
+    if (masterDataSnapshot.warnings) {
+      list.push(...masterDataSnapshot.warnings)
+    }
+    if (masterDataHandoff.warnings) {
+      masterDataHandoff.warnings.forEach(w => {
+        if (!list.includes(w)) list.push(w)
+      })
+    }
+    return list
+  }, [masterDataSnapshot.warnings, masterDataHandoff.warnings])
+
   return (
-    <div className="space-y-6">
-      <DatasetRoleSelector
+    <div className="space-y-4">
+      {/* ─── Unified Workspace Header ─── */}
+      <MasterDataWorkspaceHeader
         product={product}
         snapshot={masterDataSnapshot}
         role={masterDataRole}
         onRoleChange={setMasterDataRole}
-      />
-
-      <ProductMasterCard
-        product={product}
-        ratesCount={masterDataSnapshot.rates.length}
-        bomCount={masterDataSnapshot.bom.length}
-        routingCount={masterDataSnapshot.routing.length}
         uomList={uomList}
-        versionLabel={masterDataRole === 'reference' ? 'Reference' : 'Current'}
         isEditMode={isEditMode}
-        onToggleEditMode={edit => setIsEditMode(edit)}
+        onToggleEditMode={setIsEditMode}
         onUpdateProduct={updateMasterDataProduct}
+        onCloneReferenceToCurrent={cloneReferenceToCurrent}
+        onCloneCurrentToReference={cloneCurrentToReference}
+        onClearDataset={() => clearMasterDataDataset(masterDataRole)}
+        canCloneReference={masterDataHandoff.referenceReady}
+        canCloneCurrent={masterDataHandoff.currentReady}
+        handoff={masterDataHandoff}
+        onOpenCostBreakdown={() => setActiveTab('breakdown')}
+        onOpenImportModal={() => setImportModalOpen(true)}
+        onOpenTemplateModal={() => setTemplateModalOpen(true)}
+        onOpenSizingModal={() => setSizingModalOpen(true)}
+        referenceCounts={referenceCounts}
+        currentCounts={currentCounts}
       />
 
-      {masterDataSnapshot.warnings && masterDataSnapshot.warnings.length > 0 && (
-        <div className="flex items-start gap-2 p-3 bg-amber-50 border border-amber-200 text-amber-900 text-xs font-sans">
-          <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" />
-          <div><strong>{masterDataSnapshot.warnings.length} data warning(s)</strong><ul className="mt-1 list-disc pl-4">{masterDataSnapshot.warnings.slice(0, 4).map(warning => <li key={warning}>{warning}</li>)}</ul>{masterDataSnapshot.warnings.length > 4 && <span className="text-[10px]">More warnings are attached to this dataset.</span>}</div>
+      {/* ─── Compact Collapsible Notices & Warnings ─── */}
+      {allNotices.length > 0 && (
+        <div className="bg-amber-50/90 border border-amber-200/90 text-amber-900 rounded p-2.5 text-xs">
+          <div className="flex items-center justify-between gap-2">
+            <div className="flex items-center gap-2">
+              <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0" />
+              <span className="font-medium">
+                <strong>Data Notice ({allNotices.length}):</strong> {allNotices[0]}
+              </span>
+            </div>
+            {allNotices.length > 1 && (
+              <button
+                type="button"
+                onClick={() => setWarningsExpanded(!warningsExpanded)}
+                className="flex items-center gap-1 text-[11px] font-mono font-bold text-amber-800 hover:text-amber-950 underline cursor-pointer"
+              >
+                <span>{warningsExpanded ? 'Hide' : `Show all (${allNotices.length})`}</span>
+                {warningsExpanded ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
+              </button>
+            )}
+          </div>
+          {warningsExpanded && allNotices.length > 1 && (
+            <ul className="mt-2 pt-2 border-t border-amber-200/70 list-disc pl-5 space-y-1 text-[11px] text-amber-800 font-sans">
+              {allNotices.map((notice, idx) => (
+                <li key={idx}>{notice}</li>
+              ))}
+            </ul>
+          )}
         </div>
       )}
 
-      <ExcelImportPanel
+      {/* ─── Tables Workspace Navigation & Views ─── */}
+      <div className="space-y-3">
+        {/* Navigation Tab Bar */}
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 bg-slate-100 p-1.5 border border-slate-300">
+          {/* Sub-Tabs */}
+          <div className="inline-flex gap-1" role="tablist" aria-label="Dataset table sections">
+            <button
+              type="button"
+              role="tab"
+              aria-selected={activeTableTab === 'bom'}
+              onClick={() => {
+                setActiveTableTab('bom')
+                setLayoutMode('tabs')
+              }}
+              className={`flex items-center gap-2 px-3 py-1.5 text-xs font-mono font-bold rounded transition-colors cursor-pointer ${
+                activeTableTab === 'bom' && layoutMode === 'tabs'
+                  ? 'bg-white text-slate-900 shadow-2xs border border-slate-300'
+                  : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/70'
+              }`}
+            >
+              <Box className="w-3.5 h-3.5 text-slate-500" />
+              <span>Bill of Materials (BOM)</span>
+              <span className={`text-[10px] px-1.5 py-0.2 rounded font-mono ${
+                activeTableTab === 'bom' && layoutMode === 'tabs'
+                  ? 'bg-slate-900 text-white'
+                  : 'bg-slate-200 text-slate-700'
+              }`}>
+                {masterDataSnapshot.bom.length}
+              </span>
+            </button>
+
+            <button
+              type="button"
+              role="tab"
+              aria-selected={activeTableTab === 'routing'}
+              onClick={() => {
+                setActiveTableTab('routing')
+                setLayoutMode('tabs')
+              }}
+              className={`flex items-center gap-2 px-3 py-1.5 text-xs font-mono font-bold rounded transition-colors cursor-pointer ${
+                activeTableTab === 'routing' && layoutMode === 'tabs'
+                  ? 'bg-white text-slate-900 shadow-2xs border border-slate-300'
+                  : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/70'
+              }`}
+            >
+              <GitCommit className="w-3.5 h-3.5 text-slate-500" />
+              <span>Routing & Operations</span>
+              <span className={`text-[10px] px-1.5 py-0.2 rounded font-mono ${
+                activeTableTab === 'routing' && layoutMode === 'tabs'
+                  ? 'bg-white text-slate-900'
+                  : 'bg-slate-200 text-slate-700'
+              }`}>
+                {masterDataSnapshot.routing.length}
+              </span>
+            </button>
+
+            <button
+              type="button"
+              role="tab"
+              aria-selected={activeTableTab === 'rates'}
+              onClick={() => {
+                setActiveTableTab('rates')
+                setLayoutMode('tabs')
+              }}
+              className={`flex items-center gap-2 px-3 py-1.5 text-xs font-mono font-bold rounded transition-colors cursor-pointer ${
+                activeTableTab === 'rates' && layoutMode === 'tabs'
+                  ? 'bg-white text-slate-900 shadow-2xs border border-slate-300'
+                  : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/70'
+              }`}
+            >
+              <Factory className="w-3.5 h-3.5 text-slate-500" />
+              <span>Work Center Rates</span>
+              <span className={`text-[10px] px-1.5 py-0.2 rounded font-mono ${
+                activeTableTab === 'rates' && layoutMode === 'tabs'
+                  ? 'bg-slate-900 text-white'
+                  : 'bg-slate-200 text-slate-700'
+              }`}>
+                {masterDataSnapshot.rates.length}
+              </span>
+            </button>
+          </div>
+
+          {/* Layout Mode Switcher (Tab View vs Stacked View) */}
+          <div className="flex items-center gap-1 self-end sm:self-auto">
+            <button
+              type="button"
+              onClick={() => setLayoutMode('tabs')}
+              className={`flex items-center gap-1 px-2.5 py-1 text-[11px] font-mono rounded cursor-pointer transition-colors ${
+                layoutMode === 'tabs'
+                  ? 'bg-white text-slate-900 font-bold shadow-2xs border border-slate-300'
+                  : 'text-slate-500 hover:text-slate-800'
+              }`}
+              title="Focus on one table at a time"
+            >
+              <TableProperties className="w-3 h-3" />
+              <span>Tab View</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setLayoutMode('stacked')}
+              className={`flex items-center gap-1 px-2.5 py-1 text-[11px] font-mono rounded cursor-pointer transition-colors ${
+                layoutMode === 'stacked'
+                  ? 'bg-white text-slate-900 font-bold shadow-2xs border border-slate-300'
+                  : 'text-slate-500 hover:text-slate-800'
+              }`}
+              title="View all tables stacked vertically"
+            >
+              <Layers className="w-3 h-3" />
+              <span>View All</span>
+            </button>
+          </div>
+        </div>
+
+        {/* ─── Render Tables Based on Layout Mode ─── */}
+        {layoutMode === 'tabs' ? (
+          <div>
+            {activeTableTab === 'bom' && (
+              <BOMTable
+                bom={masterDataSnapshot.bom}
+                isEditMode={isEditMode}
+                onAddBOMItem={() => addMasterDataBOMItem({
+                  itemCode: '',
+                  description: '',
+                  consumption: null,
+                  unit: 'PC',
+                  price: null,
+                  loss: 0,
+                  sourceRef: 'Direct Input'
+                })}
+                onUpdateBOMItem={updateMasterDataBOMItem}
+                onDeleteBOMItem={deleteMasterDataBOMItem}
+              />
+            )}
+
+            {activeTableTab === 'routing' && (
+              <RoutingTable
+                routing={masterDataSnapshot.routing}
+                rates={masterDataSnapshot.rates}
+                isEditMode={isEditMode}
+                onAddRoutingStep={() => addMasterDataRoutingStep({
+                  operationCode: '',
+                  processName: '',
+                  sequence: (masterDataSnapshot.routing.length + 1) * 10,
+                  workCenterId: masterDataSnapshot.rates[0]?.workCenterCode || undefined,
+                  manning: null,
+                  capacity: null,
+                  yield: null,
+                  sourceRef: 'Direct Input'
+                })}
+                onUpdateRoutingStep={updateMasterDataRoutingStep}
+                onDeleteRoutingStep={deleteMasterDataRoutingStep}
+              />
+            )}
+
+            {activeTableTab === 'rates' && (
+              <WorkCenterRatesTable
+                rates={masterDataSnapshot.rates}
+                isEditMode={isEditMode}
+                onAddRate={() => addMasterDataWorkCenterRate({
+                  workCenterCode: '',
+                  description: '',
+                  laborRate: null,
+                  burdenRate: null,
+                  effectiveDate: product.effectiveDate || new Date().toISOString().split('T')[0],
+                  sourceRef: 'Direct Input'
+                })}
+                onUpdateRate={updateMasterDataWorkCenterRate}
+                onDeleteRate={deleteMasterDataWorkCenterRate}
+              />
+            )}
+          </div>
+        ) : (
+          <div className="space-y-4">
+            {/* BOM Section */}
+            <div className="border border-slate-300 bg-white">
+              <div
+                onClick={() => toggleSection('bom')}
+                className="flex items-center justify-between px-3.5 py-2.5 bg-slate-100 hover:bg-slate-200/80 cursor-pointer select-none border-b border-slate-200 transition-colors"
+              >
+                <div className="flex items-center gap-2">
+                  <Box className="w-4 h-4 text-slate-600" />
+                  <span className="font-mono text-xs font-bold text-slate-800">Bill of Materials (BOM)</span>
+                  <span className="text-[10px] px-1.5 py-0.5 rounded font-mono bg-slate-200 text-slate-700 font-semibold">
+                    {masterDataSnapshot.bom.length} items
+                  </span>
+                </div>
+                <div className="flex items-center gap-1 text-slate-500 hover:text-slate-800 text-xs font-mono">
+                  <span>{collapsedSections.bom ? 'Expand' : 'Collapse'}</span>
+                  {collapsedSections.bom ? <ChevronDown className="w-4 h-4" /> : <ChevronUp className="w-4 h-4" />}
+                </div>
+              </div>
+              {!collapsedSections.bom && (
+                <BOMTable
+                  bom={masterDataSnapshot.bom}
+                  isEditMode={isEditMode}
+                  onAddBOMItem={() => addMasterDataBOMItem({
+                    itemCode: '',
+                    description: '',
+                    consumption: null,
+                    unit: 'PC',
+                    price: null,
+                    loss: 0,
+                    sourceRef: 'Direct Input'
+                  })}
+                  onUpdateBOMItem={updateMasterDataBOMItem}
+                  onDeleteBOMItem={deleteMasterDataBOMItem}
+                />
+              )}
+            </div>
+
+            {/* Routing Section */}
+            <div className="border border-slate-300 bg-white">
+              <div
+                onClick={() => toggleSection('routing')}
+                className="flex items-center justify-between px-3.5 py-2.5 bg-slate-100 hover:bg-slate-200/80 cursor-pointer select-none border-b border-slate-200 transition-colors"
+              >
+                <div className="flex items-center gap-2">
+                  <GitCommit className="w-4 h-4 text-slate-600" />
+                  <span className="font-mono text-xs font-bold text-slate-800">Process Routing</span>
+                  <span className="text-[10px] px-1.5 py-0.5 rounded font-mono bg-slate-200 text-slate-700 font-semibold">
+                    {masterDataSnapshot.routing.length} steps
+                  </span>
+                </div>
+                <div className="flex items-center gap-1 text-slate-500 hover:text-slate-800 text-xs font-mono">
+                  <span>{collapsedSections.routing ? 'Expand' : 'Collapse'}</span>
+                  {collapsedSections.routing ? <ChevronDown className="w-4 h-4" /> : <ChevronUp className="w-4 h-4" />}
+                </div>
+              </div>
+              {!collapsedSections.routing && (
+                <RoutingTable
+                  routing={masterDataSnapshot.routing}
+                  rates={masterDataSnapshot.rates}
+                  isEditMode={isEditMode}
+                  onAddRoutingStep={() => addMasterDataRoutingStep({
+                    operationCode: '',
+                    processName: '',
+                    sequence: (masterDataSnapshot.routing.length + 1) * 10,
+                    workCenterId: masterDataSnapshot.rates[0]?.workCenterCode || undefined,
+                    manning: null,
+                    capacity: null,
+                    yield: null,
+                    sourceRef: 'Direct Input'
+                  })}
+                  onUpdateRoutingStep={updateMasterDataRoutingStep}
+                  onDeleteRoutingStep={deleteMasterDataRoutingStep}
+                />
+              )}
+            </div>
+
+            {/* Work Center Rates Section */}
+            <div className="border border-slate-300 bg-white">
+              <div
+                onClick={() => toggleSection('rates')}
+                className="flex items-center justify-between px-3.5 py-2.5 bg-slate-100 hover:bg-slate-200/80 cursor-pointer select-none border-b border-slate-200 transition-colors"
+              >
+                <div className="flex items-center gap-2">
+                  <Factory className="w-4 h-4 text-slate-600" />
+                  <span className="font-mono text-xs font-bold text-slate-800">Work Center Rates</span>
+                  <span className="text-[10px] px-1.5 py-0.5 rounded font-mono bg-slate-200 text-slate-700 font-semibold">
+                    {masterDataSnapshot.rates.length} centers
+                  </span>
+                </div>
+                <div className="flex items-center gap-1 text-slate-500 hover:text-slate-800 text-xs font-mono">
+                  <span>{collapsedSections.rates ? 'Expand' : 'Collapse'}</span>
+                  {collapsedSections.rates ? <ChevronDown className="w-4 h-4" /> : <ChevronUp className="w-4 h-4" />}
+                </div>
+              </div>
+              {!collapsedSections.rates && (
+                <WorkCenterRatesTable
+                  rates={masterDataSnapshot.rates}
+                  isEditMode={isEditMode}
+                  onAddRate={() => addMasterDataWorkCenterRate({
+                    workCenterCode: '',
+                    description: '',
+                    laborRate: null,
+                    burdenRate: null,
+                    effectiveDate: product.effectiveDate || new Date().toISOString().split('T')[0],
+                    sourceRef: 'Direct Input'
+                  })}
+                  onUpdateRate={updateMasterDataWorkCenterRate}
+                  onDeleteRate={deleteMasterDataWorkCenterRate}
+                />
+              )}
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* ─── Modals ─── */}
+      <ExcelImportModal
+        isOpen={importModalOpen}
+        onClose={() => setImportModalOpen(false)}
+        importRole={masterDataRole}
+        product={product}
+      />
+
+      <TemplateSizingModal
+        isOpen={templateModalOpen}
+        onClose={() => setTemplateModalOpen(false)}
+        role={masterDataRole}
         product={product}
         snapshot={masterDataSnapshot}
-        importRole={masterDataRole}
-        canEdit={true}
-        canCloneReference={masterDataHandoff.referenceReady}
-        onCloneReferenceToCurrent={cloneReferenceToCurrent}
+        currentSizing={masterDataSizing}
       />
 
-      <section className="bg-white p-3.5 rounded-none border border-slate-300/80 shadow-2xs" aria-labelledby="master-data-handoff-title">
-        <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
-          <div>
-            <h2 id="master-data-handoff-title" className="text-xs font-bold font-mono text-slate-900 uppercase tracking-tight">
-              Comparison readiness
-            </h2>
-            <p className="mt-1 text-[10px] text-slate-500 font-sans">
-              Cost Breakdown opens only after both datasets are prepared for this Header Product.
-            </p>
-          </div>
-          <span className={`self-start px-2 py-1 text-[10px] font-mono font-bold uppercase border ${masterDataHandoff.canCompare ? 'border-emerald-300 bg-emerald-50 text-emerald-800' : 'border-amber-300 bg-amber-50 text-amber-800'}`}>
-            {masterDataHandoff.canCompare ? 'Ready' : 'Not ready'}
-          </span>
-        </div>
-
-        <div className="mt-3 grid grid-cols-1 sm:grid-cols-3 gap-2 text-[10px] font-mono">
-          <div className="border border-slate-200 bg-slate-50 px-2.5 py-2">
-            <span className="block text-slate-500 uppercase">Header Product</span>
-            <strong className="block mt-0.5 text-slate-900">{masterDataHandoff.productCode || '—'}</strong>
-          </div>
-          <div className="border border-slate-200 bg-slate-50 px-2.5 py-2">
-            <span className="block text-slate-500 uppercase">Reference</span>
-            <strong className={`block mt-0.5 ${masterDataHandoff.referenceReady ? 'text-emerald-700' : 'text-amber-700'}`}>
-              {masterDataHandoff.referenceReady ? 'Prepared' : 'Needs input'}
-            </strong>
-          </div>
-          <div className="border border-slate-200 bg-slate-50 px-2.5 py-2">
-            <span className="block text-slate-500 uppercase">Current</span>
-            <strong className={`block mt-0.5 ${masterDataHandoff.currentReady ? 'text-emerald-700' : 'text-amber-700'}`}>
-              {masterDataHandoff.currentReady ? 'Prepared' : 'Needs input'}
-            </strong>
-          </div>
-        </div>
-
-        {masterDataHandoff.issues.length > 0 && (
-          <ul className="mt-3 list-disc pl-4 space-y-0.5 text-[10px] text-rose-700 font-sans" role="status">
-            {masterDataHandoff.issues.map(issue => <li key={issue}>{issue}</li>)}
-          </ul>
-        )}
-
-        {masterDataHandoff.warnings && masterDataHandoff.warnings.length > 0 && (
-          <ul className="mt-2 list-disc pl-4 space-y-0.5 text-[10px] text-amber-700 font-sans" role="status">
-            {masterDataHandoff.warnings.map(warning => <li key={warning}><strong>Notice:</strong> {warning}</li>)}
-          </ul>
-        )}
-
-        <div className="mt-3 flex justify-end">
-          <button
-            type="button"
-            onClick={() => setActiveTab('breakdown')}
-            disabled={!masterDataHandoff.canCompare}
-            className="px-2.5 py-1 text-[11px] font-mono font-bold text-white bg-slate-900 hover:bg-slate-700 border border-slate-900 transition-colors disabled:cursor-not-allowed disabled:opacity-40"
-          >
-            Open Cost Breakdown
-          </button>
-        </div>
-      </section>
-
-      <WorkCenterRatesTable
-        rates={masterDataSnapshot.rates}
-        isEditMode={isEditMode}
-        onAddRate={() => setRateModalOpen(true)}
-        onUpdateRate={updateMasterDataWorkCenterRate}
-        onDeleteRate={deleteMasterDataWorkCenterRate}
+      <DatasetSizingModal
+        isOpen={sizingModalOpen}
+        onClose={() => setSizingModalOpen(false)}
+        role={masterDataRole}
+        product={product}
+        onUpdateProduct={updateMasterDataProduct}
+        currentSizing={masterDataSizing}
+        onSaveSizing={sizing => updateMasterDataDatasetSizing(masterDataRole, sizing)}
       />
-
-      <BOMTable
-        bom={masterDataSnapshot.bom}
-        isEditMode={isEditMode}
-        onAddBOMItem={() => setBomModalOpen(true)}
-        onUpdateBOMItem={updateMasterDataBOMItem}
-        onDeleteBOMItem={deleteMasterDataBOMItem}
-      />
-
-      <RoutingTable
-        routing={masterDataSnapshot.routing}
-        rates={masterDataSnapshot.rates}
-        isEditMode={isEditMode}
-        onAddRoutingStep={() => setRoutingModalOpen(true)}
-        onUpdateRoutingStep={updateMasterDataRoutingStep}
-        onDeleteRoutingStep={deleteMasterDataRoutingStep}
-      />
-
-      <AddBOMModal isOpen={bomModalOpen} onClose={() => setBomModalOpen(false)} onSave={addMasterDataBOMItem} />
-      <AddRoutingModal isOpen={routingModalOpen} rates={masterDataSnapshot.rates} onClose={() => setRoutingModalOpen(false)} onSave={addMasterDataRoutingStep} />
-      <AddRateModal isOpen={rateModalOpen} onClose={() => setRateModalOpen(false)} onSave={addMasterDataWorkCenterRate} />
     </div>
   )
 }

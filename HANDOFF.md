@@ -1,4 +1,46 @@
-# Current Handoff — Adopt the New Cost Breakdown Agreement
+# Current Handoff — Cross-Device Checkpoint (2026-09-25)
+
+> This is the current checkpoint and supersedes older status/verification notes below. Historical notes remain for context only; verify them against the current checkout before relying on them.
+
+## Repository and sync state
+
+- Repository: `COSTBREAKDOWN`; remote `origin` is configured.
+- Branch: `codex/snapshot-import-role-selector`.
+- Checkout HEAD when this checkpoint was written: `abf47171ba40c1d20cee54e32bbf7c330a6c68e8`.
+- The working tree contains substantial **uncommitted user changes** (modified agreement/spec, Master Data UI/state/Excel files, and new files including a mock workbook). They were not created by this handoff task. Preserve them; do not reset, restore, or overwrite them.
+- This checkpoint has **not been committed or pushed**. Another device will see only changes that are already on the remote; it will not automatically receive this handoff or the dirty working-tree changes. Before continuing implementation on another device, verify branch/HEAD/worktree and arrange an authorized sync of the intended changes.
+
+## Current task and scope
+
+The user asked for a code-to-spec check of the Master Data page. Review scope is the active runtime page and its state/calculation/Excel paths. No implementation changes were made during the review.
+
+- Runtime route: `src/App.tsx` renders `MasterDataPage` from `src/features/master-data/` for the `master` tab. `src/pages/DataMasterPage.tsx` is not the active route.
+- Requirements source: `agreements/MASTER_DATA_FLOW_SPEC.md`, indexed in `docs/REQUIREMENTS_INDEX.md`. `PROJECT_SPECIFIC.md` applies. The detailed sizing document under `docs/superpowers/specs/` labels itself **Proposed**; keep that status distinct from the agreed spec unless the user confirms it.
+
+## Confirmed Master Data findings
+
+1. **Data loss on sizing reduction:** `src/state/store.tsx` truncates `rates`, `bom`, and `routing` with `slice(0, target)` when configured counts decrease (around lines 761–822). This conflicts with the agreed rule that only surplus blank slots may be removed and populated records must remain.
+2. **Blank sizing slots act like real records:** sizing creates snapshot rows with generated IDs and empty business fields. Cost calculation reports missing-input warnings for them, and comparison falls back to row IDs as keys, so Reference/Current blank slots can show as added/removed findings. The detailed Proposed design explicitly says blank slots must not create cost, findings, or false readiness.
+3. **Readiness can be set by Product-only edits:** `updateMasterDataProduct` marks the selected side prepared. Handoff readiness checks those flags, so entering Product information alone can make the comparison action ready even when the data sections are empty. This appears inconsistent with the agreed “enough information for the intended calculation” flow and the Proposed design's no-false-readiness criterion.
+4. **Template sizing edge cases:** the modal treats a configured count of zero as unset and falls back to existing rows or 1; the generator also enforces at least one row. The detailed Proposed design says templates use that side's configured count. The current generator pre-fills Product values, while the Proposed design says Product/template business-input values start blank.
+5. **Displayed sizing maxima are not enforced:** `max` attributes are present, but the Apply handler does not clamp/validate values before the store allocates rows. Very large values may cause a long freeze or allocation failure.
+
+Behavior that appears aligned with the agreed flow: fresh sessions use empty Reference/Current snapshots; imports update only the selected side; clone actions exist in both directions; Product mismatch is a warning and does not block comparison; export uses the selected snapshot; working session data uses `sessionStorage`.
+
+## Verification record for this review
+
+- `npm run build`: **passed** when run outside the filesystem sandbox; TypeScript and Vite completed, 1,688 modules transformed. Vite reported the JS bundle at about 1.67 MB, above its 500 KB advisory threshold.
+- `node --experimental-strip-types scripts/verify_master_data_handoff.ts`: **failed** at the old assertion expecting Product mismatch to block comparison. That expectation conflicts with the current agreement, which says the mismatch warning must not block.
+- `npx tsx scripts/verify_dataset_sizing_and_clone.ts`: could not run because `tsx` is not installed and npm registry access failed (`EHOSTUNREACH`). Native Node execution also could not resolve an extensionless import. The script's populated-record-preservation section mutates a plain fixture directly instead of exercising the store sizing function.
+- [Unverified] Browser rendering and end-to-end Excel template/import/export round-trip were not exercised in this review.
+
+## Resume point
+
+Start by verifying the actual checkout and syncing the intended dirty changes safely. Then, if the user authorizes implementation, fix the sizing/data-record semantics first and add verification that calls the production store path. Update the stale handoff verifier to assert that Product mismatch warns but remains non-blocking. Re-run focused checks and `npm run build`; report any remaining browser/Excel checks as unverified until executed.
+
+---
+
+# Historical Handoff — Adopt the New Cost Breakdown Agreement
 
 **Updated:** 2026-09-24
 **Repository:** E:\COSTBREAKDOWN

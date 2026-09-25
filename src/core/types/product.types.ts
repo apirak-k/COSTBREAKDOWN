@@ -18,6 +18,12 @@ export interface ProductSizingConfig {
   routingCount: number
 }
 
+export interface DatasetSizing {
+  wcCount?: number
+  bomCount?: number
+  routingCount?: number
+}
+
 export type DatasetStatus = 'archived' | 'active' | 'draft'
 
 export type SnapshotRoleReadiness = Record<import('./snapshot.types').ComparisonRole, boolean>
@@ -49,6 +55,8 @@ export interface ProductSession {
   preparedSnapshotRoles?: SnapshotRoleReadiness
   /** Dataset currently open in Master Data; Product context remains session-scoped. */
   masterDataRole?: import('./snapshot.types').ComparisonRole
+  /** Per-dataset row sizing configuration. */
+  datasetSizing?: Record<import('./snapshot.types').ComparisonRole, DatasetSizing>
 }
 
 import { WorkCenterRate, BOMItem, RoutingStep, CostDriver, DriverRcaRecord } from './cost.types'
