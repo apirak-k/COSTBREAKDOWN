@@ -302,11 +302,11 @@ Tasks are ordered by dependency. Keep each implementation slice focused and leav
 **Description:** Remove embedded Trial validation and baseline promotion; leave an explicit human-selected scenario handoff only.
 
 **Acceptance criteria:**
-- [ ] A person chooses which scenario proceeds; the UI does not preselect one as the answer.
-- [ ] Measured actual cost, Trial validation, and baseline promotion are absent until a separate agreement defines them.
-- [ ] Deferred financial parameters remain out of the RCA & Simulation flow.
+- [x] A person chooses which scenario proceeds; the UI does not preselect one as the answer.
+- [x] Measured actual cost, Trial validation, and baseline promotion are absent until a separate agreement defines them.
+- [x] Deferred financial parameters remain out of the RCA & Simulation flow.
 
-**Verification:** Check the handoff choice and confirm no Trial validation or future finance controls remain on the active page.
+**Verification:** `verify_rca_handoff` passed; `npm run build` passed. Caller search confirmed the baseline-promotion action had no consumer beyond the deleted Trial card.
 
 **Dependencies:** Task 16.
 

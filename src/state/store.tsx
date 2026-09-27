@@ -274,7 +274,6 @@ interface AppContextType {
   addWorkCenterRate: (rate: Omit<WorkCenterRate, 'id'>) => void
   updateWorkCenterRate: (wc: string, rate: Partial<WorkCenterRate>) => void
   deleteWorkCenterRate: (wc: string) => void
-  promoteActiveToBaseline: () => void
   toggleCandidateControllable: (candidateKey: string, nextValue: boolean) => void
   saveCandidateRca: (candidateKey: string, draft: CandidateRcaDraft) => void
   importFromExcel: (result: ExcelImportResult) => void
@@ -990,26 +989,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     patchActive({ rates: rates.filter(r => r.wc !== wc) })
   }
 
-  // Promote Active to Baseline — closes PDCA cycle
-  const promoteActiveToBaseline = () => {
-    patchActive({
-      bom: bom.map(b => ({
-        ...b,
-        basePrice: b.activePrice,
-        baseLoss: b.activeLoss
-      })),
-      routing: routing.map(r => ({
-        ...r,
-        baseCap: r.activeCap,
-        baseYield: r.activeYield
-      })),
-      savedDrivers: [],
-      selectedDriverKeys: [],
-      rcaRecords: {},
-      candidateRcaRecords: {}
-    })
-  }
-
   const toggleCandidateControllable = (candidateKey: string, nextValue: boolean) => {
     const existing = activeSession.candidateControllability ?? {}
     patchActive({
@@ -1179,7 +1158,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       addWorkCenterRate,
       updateWorkCenterRate,
       deleteWorkCenterRate,
-      promoteActiveToBaseline,
       toggleCandidateControllable,
       saveCandidateRca,
       importFromExcel,

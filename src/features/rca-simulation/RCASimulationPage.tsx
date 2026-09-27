@@ -28,6 +28,7 @@ export const RCASimulationPage: React.FC = () => {
   } = useAppStore()
 
   const [selectedCandidateKey, setSelectedCandidateKey] = useState<string | null>(null)
+  const [trialHandoffLetter, setTrialHandoffLetter] = useState<'A' | 'B' | 'C' | null>(null)
   const [selectionProductId, setSelectionProductId] = useState(activeProductId)
   const [scenarioDraftsByProduct, setScenarioDraftsByProduct] = useState<Record<string, Record<string, ScenarioDraftForm[]>>>({})
 
@@ -45,6 +46,10 @@ export const RCASimulationPage: React.FC = () => {
       setSelectedCandidateKey(null)
     }
   }, [candidates, effectiveSelectedCandidateKey])
+
+  useEffect(() => {
+    setTrialHandoffLetter(null)
+  }, [activeProductId, effectiveSelectedCandidateKey])
 
   const selectedCandidate = candidates.find(candidate => candidate.candidateKey === effectiveSelectedCandidateKey) ?? null
   const selectCandidate = (candidateKey: string | null) => {
@@ -189,6 +194,32 @@ export const RCASimulationPage: React.FC = () => {
             onUpdateInput={handleUpdateInput}
             onUpdateEconomics={handleUpdateEconomics}
           />
+
+          <section aria-labelledby="trial-handoff-heading" className="rounded-lg border border-slate-200 bg-white p-4">
+            <h2 id="trial-handoff-heading" className="text-sm font-semibold text-slate-900">Trial handoff</h2>
+            <p className="mt-1 text-xs text-slate-600">Choose which scenario should proceed to the separate Trial stage.</p>
+            <label htmlFor="trial-handoff-scenario" className="mt-3 block text-xs font-medium text-slate-700">
+              Choose Scenario for Trial
+            </label>
+            <select
+              id="trial-handoff-scenario"
+              value={trialHandoffLetter ?? ''}
+              onChange={event => setTrialHandoffLetter((event.target.value || null) as 'A' | 'B' | 'C' | null)}
+              className="mt-1 w-full max-w-sm rounded border border-slate-300 bg-white px-2.5 py-2 text-sm text-slate-900 focus:border-slate-600 focus:outline-none focus:ring-2 focus:ring-slate-300"
+            >
+              <option value="">Select a scenario</option>
+              {scenarioDrafts.map(scenario => (
+                <option key={scenario.letter} value={scenario.letter}>
+                  Scenario {scenario.letter}{scenario.label ? ` — ${scenario.label}` : ''}
+                </option>
+              ))}
+            </select>
+            {trialHandoffLetter && (
+              <p role="status" className="mt-2 text-xs text-slate-700">
+                Scenario {trialHandoffLetter} selected for Trial handoff. Trial workflow remains outside this agreement.
+              </p>
+            )}
+          </section>
         </>
       )}
     </div>

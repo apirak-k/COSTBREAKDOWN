@@ -22,7 +22,8 @@ The maintainability rule is recorded in `PROJECT_SPECIFIC.md`: shared behavior h
 - **Task 14 — implemented and verified:** RCA starts without a selected candidate; user chooses from the full candidate pool; optional Root Cause and Action notes are saved by candidate and excluded from numeric calculations. Removed the obsolete Ranking-driven selection path and dead UI/API. Deprecated persisted fields remain only for old-session compatibility.
 - **Task 15 — implemented and verified:** independent A/B/C overrides for measurable BOM and Work Center inputs recalculate from the Current snapshot through the shared Standard Cost engine. Consumption is supported; structural edits remain excluded.
 - **Task 16 — implemented and verified:** Gross Saving and improvement economics are calculated separately from Standard Cost; A/B/C remain comparable, with no automatic recommendation.
-- **Tasks 17–18 — pending:** explicit human-selected Trial handoff without Trial validation/promotion; full synthetic browser workflow and final review.
+- **Task 17 — implemented and verified:** the user explicitly selects a scenario for handoff; Trial validation, actual-cost fields, baseline promotion, and their unused types are removed.
+- **Task 18 — pending:** full synthetic browser workflow and final review.
 - **Human acceptance — pending:** user has not reviewed the updated RCA pages. Automated results do not establish acceptance.
 
 ## Task 14 verification
@@ -68,9 +69,16 @@ Fresh checks in the active worktree passed:
 
 Improvement economics reads only the scenario cost outputs and its own assumptions. It does not modify the Standard Cost calculation or inputs.
 
+## Task 17 verification
+
+- `verify_rca_handoff` passed. The Trial choice starts empty and requires a human selection.
+- The Trial validation component, baseline-promotion store action, old what-if result types, and Trial validation record type have no remaining source callers and were removed.
+- `npm run build` passed; TypeScript and Vite completed with 1,691 modules transformed.
+- No browser workflow or human acceptance is claimed; Task 18 remains.
+
 ## Resume point
 
-Complete the human-selected Trial handoff in Task 17 and synthetic browser review in Task 18. Tasks 14 (`2f5596a`), 15 (`04d7d96`), and 16 are local checkpoints; do not push.
+Run the synthetic browser workflow in Task 18, review the integrated diff, and record implementation evidence separately from human acceptance. Tasks 14 (`2f5596a`), 15 (`04d7d96`), and 16 (`68b1abe`) are local checkpoints; do not push.
 
 ---
 
