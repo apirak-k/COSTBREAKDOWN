@@ -106,7 +106,7 @@ Fresh focused verification passed all 13 checks:
 - At Task 18 close, before the follow-up below, `npm audit --audit-level=high` reported five advisories (three Moderate, two High). The two High findings were prototype pollution and ReDoS in xlsx 0.18.5. The security remediation below closes that gate while preserving the import contract.
 - Human acceptance remains pending. The automated browser pass and implementation review are evidence, not user acceptance.
 
-## Agreement re-audit — 2026-09-27
+## Agreement re-audit — 2026-09-28
 
 ### AI-side result
 
@@ -123,7 +123,8 @@ The four current files in `agreements/` were checked against the current impleme
 
 - Empty Reference and Current datasets remain usable. Direct entry/editing is independent by side; bidirectional cloning creates independent data.
 - Per-side sizing and blank-row preservation, selected-side import replacement, non-blocking Product mismatch warnings, and export/import round-trip behavior match the current Master Data agreement.
-- Current-branch verifiers passed: `verify_direct_dataset_editing`, `verify_dataset_sizing_and_clone`, `verify_dataset_sizing_preservation`, `verify_import_mismatch_export`, `verify_master_data_handoff`, `verify_snapshot_import`, and `verify_workspace_initialization`.
+- Untouched rows allocated by sizing are excluded from cost, comparison, and processing-candidate calculations. User-created blank rows still report missing inputs.
+- Current-branch verifiers passed: `verify_direct_dataset_editing`, `verify_dataset_sizing_and_clone`, `verify_dataset_sizing_preservation`, `verify_sizing_placeholders_ignored`, `verify_import_mismatch_export`, `verify_master_data_handoff`, `verify_snapshot_import`, and `verify_workspace_initialization`.
 
 ### Candidate Prioritization and RCA & Simulation
 
@@ -135,12 +136,14 @@ The four current files in `agreements/` were checked against the current impleme
 
 - With no Reference/Current data, Cost Breakdown, Candidate Selection, and RCA & Simulation were opened in the browser; unavailable values and explanations appeared while navigation remained available. No user data was entered.
 - Current-branch Comparison verifiers passed: `verify_comparison_reconciliation`, `verify_candidate_prioritization`, `verify_bom_comparison_view`, `verify_routing_comparison_view`, `verify_work_center_comparison_view`, `verify_snapshot_comparison_view`, and `verify_comparison_export`.
-- A fresh `npm run build` passed: TypeScript succeeded and Vite built 1,688 modules. The existing large-bundle advisory remains (1,715.49 kB JavaScript, 498.90 kB gzip).
+- A fresh `npm run build` passed: TypeScript succeeded and Vite built 1,689 modules. The existing large-bundle advisory remains (1,715.61 kB JavaScript, 499.06 kB gzip).
+- The representative-data Chrome workflow was repeated after the latest Comparison and sizing-placeholder fixes. All four pages passed; the exact comparison/candidate gap remained 7.5065, the manual BOM row gap was 0.4375, the scenario changed 30.2215 to 28.3465 while Current stayed 30.2215, and there were no browser or console errors.
+- The affected calculation/comparison verifiers passed: `verify_snapshot_quality`, `verify_snapshot_comparison_dynamic_fields`, `verify_comparison_reconciliation`, `verify_candidate_prioritization`, `verify_dataset_sizing_preservation`, `verify_scenario_cost_overrides`, `verify_snapshot_full_flow`, `verify_comparison_export`, and `verify_sizing_placeholders_ignored`.
 
 ### Evidence limits and acceptance
 
-- [Unverified] The representative-data browser workflow was not repeated after the latest Comparison fixes. The earlier Task 18 browser smoke is retained as historical evidence; current-branch synthetic full-flow verifiers passed, but they are not a replacement for a final human browser review.
-- No confirmed implementation gap remains from this AI-side audit. Human acceptance is pending until the user reviews the result.
+- The representative-data browser workflow passed after the latest fixes. Automated verification remains implementation evidence, not human acceptance; page-by-page human review is pending.
+- No confirmed implementation gap remains from this AI-side audit.
 - Do not promote unapproved audit suggestions into requirements.
 
 ## HAWS dependency security remediation (2026-09-27)
@@ -157,7 +160,7 @@ The four current files in `agreements/` were checked against the current impleme
 
 ## Resume point
 
-The AI-side Agreement re-audit and evidence update are complete. The user authorized a normal push after this documentation checkpoint; verify that the remote branch reaches the final local commit in the task closeout. Human acceptance remains pending.
+The AI-side Agreement re-audit, implementation fixes, focused verification, browser replay, and evidence update are complete. The user authorized the normal push as the final repository action after this work is complete. Human acceptance remains pending.
 
 ---
 
@@ -326,15 +329,11 @@ The 2026-09-23 handoff recorded successful build, Excel model, focused verifier,
 - Regressions check: `scripts/verify_import_mismatch_export.ts` and `scripts/verify_comparison_reconciliation.ts` both passed.
 - Build: `npm run build` completed cleanly (0 errors, 1687 modules transformed).
 
-## Next work
+## Current status (2026-09-28)
 
-1. Phase 4 — RCA & Simulation (Tasks 14–17):
-   - **Task 14:** Move candidate selection and Root Cause/Action notes to RCA & Simulation; permit selection from the full Candidate pool.
-   - **Task 15:** Adopt the shared snapshot cost engine for baseline and simulation.
-   - **Task 16:** Remove hardcoded Routing/rate assumptions from simulation.
-   - **Task 17:** Align simulation outputs and Trial handoff.
-2. Phase 5 — Handoff & Governance (Task 18).
-3. Run focused verifiers, `npm run build`, commit per phase, and push to remote.
+- Tasks 1–18 and the Agreement re-audit are implemented and verified on `codex/rca-task-14`.
+- The final sizing-placeholder regression, affected focused verifiers, production build, and representative-data browser workflow passed.
+- The user asked for the push after all work is complete; human acceptance remains pending their review.
 
 ## Open specification boundary
 

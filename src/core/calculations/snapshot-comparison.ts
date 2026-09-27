@@ -14,6 +14,7 @@ import {
 import { calculateSnapshotCost } from './snapshot-cost'
 import { calculateSnapshotBOMDetail } from './snapshot-bom-detail'
 import { calculateSnapshotRoutingDetail } from './snapshot-routing-detail'
+import { excludeGeneratedSizingPlaceholders } from '../utils/sizing'
 
 type SnapshotRow = {
   id: string
@@ -306,6 +307,12 @@ function gap(current: number | null, reference: number | null): number | null {
 export function compareSnapshots(reference: CostSnapshot, current: CostSnapshot): CostComparison {
   const referenceCost = calculateSnapshotCost(reference)
   const currentCost = calculateSnapshotCost(current)
+  const referenceBom = excludeGeneratedSizingPlaceholders(reference.bom)
+  const currentBom = excludeGeneratedSizingPlaceholders(current.bom)
+  const referenceRouting = excludeGeneratedSizingPlaceholders(reference.routing)
+  const currentRouting = excludeGeneratedSizingPlaceholders(current.routing)
+  const referenceRates = excludeGeneratedSizingPlaceholders(reference.rates)
+  const currentRates = excludeGeneratedSizingPlaceholders(current.rates)
   const warnings: ComparisonWarning[] = [
     ...calculationWarnings(reference.id, referenceCost.warnings),
     ...calculationWarnings(current.id, currentCost.warnings)
@@ -313,8 +320,8 @@ export function compareSnapshots(reference: CostSnapshot, current: CostSnapshot)
 
   const bomFindings = compareRows(
     'BOM',
-    reference.bom,
-    current.bom,
+    referenceBom,
+    currentBom,
     bomKey,
     bomFlags,
     materialCostEffect,
@@ -323,18 +330,18 @@ export function compareSnapshots(reference: CostSnapshot, current: CostSnapshot)
 
   const routingFindings = compareRows(
     'Routing',
-    reference.routing,
-    current.routing,
+    referenceRouting,
+    currentRouting,
     routingKey,
     routingFlags,
-    (ref, cur) => routingCostEffect(ref, cur, reference.rates, current.rates),
+    (ref, cur) => routingCostEffect(ref, cur, referenceRates, currentRates),
     warnings
   )
 
   const workCenterFindings = compareRows(
     'Work Center',
-    reference.rates,
-    current.rates,
+    referenceRates,
+    currentRates,
     rateKey,
     rateFlags,
     undefined,

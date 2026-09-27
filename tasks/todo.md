@@ -359,7 +359,7 @@ Tasks are ordered by dependency. Keep each implementation slice focused and leav
 - [ ] Human acceptance has been recorded as accepted.
 - [x] HAWS dependency audit has zero High/Critical vulnerabilities.
 
-## Current Agreement Re-audit — 2026-09-27
+## Current Agreement Re-audit — 2026-09-28
 
 ChatGPT's review was treated as a set of leads. The four files in `agreements/` remain authoritative; prior task checkboxes are historical evidence, not full-contract approval.
 
@@ -370,18 +370,21 @@ ChatGPT's review was treated as a set of leads. The four files in `agreements/` 
 - [x] Candidate source/status/gap/ranking and Work Center aggregation checked against `CANDIDATE_PRIORITIZATION_SPEC.md`.
 - [x] Human candidate selection, optional notes, A/B/C calculation, separate economics, and explicit Trial handoff checked against `RCA_SIMULATION_SPEC.md`.
 - [x] Empty-data navigation manually checked: Cost Breakdown, Candidate Selection, and RCA & Simulation remain accessible with unavailable values and explanations.
-- [x] Current-branch focused Comparison, Master Data, Candidate, and RCA verifiers passed. A fresh `npm run build` passed; Vite retained the existing bundle-size advisory.
+- [x] Untouched sizing placeholders are excluded from cost, comparison, and processing candidates; unflagged user-created blank rows still report missing inputs.
+- [x] Current-branch affected verifiers, production build, and representative-data browser workflow passed; Vite retained the existing bundle-size advisory.
 - [x] No confirmed Agreement mismatch remains in the AI-side review.
 
 ### Evidence limits and acceptance
 
-- [Unverified] The representative-data browser workflow was not repeated after the latest Comparison fixes. Task 18's browser smoke predates those fixes; current-branch synthetic full-flow verifiers passed.
+- The representative-data browser workflow was repeated after the latest Comparison and sizing-placeholder fixes. All four pages passed, the comparison and candidate gaps matched at 7.5065, the scenario result remained isolated from Current, and there were no browser or console errors.
 - [ ] Human acceptance is pending the user's review. Automated results do not establish acceptance.
 
 ### Evidence
 
-Master Data verifiers: `verify_direct_dataset_editing`, `verify_dataset_sizing_and_clone`, `verify_dataset_sizing_preservation`, `verify_import_mismatch_export`, `verify_master_data_handoff`, `verify_snapshot_import`, `verify_workspace_initialization`.
+Master Data verifiers: `verify_direct_dataset_editing`, `verify_dataset_sizing_and_clone`, `verify_dataset_sizing_preservation`, `verify_sizing_placeholders_ignored`, `verify_import_mismatch_export`, `verify_master_data_handoff`, `verify_snapshot_import`, `verify_workspace_initialization`.
 
 Candidate/RCA verifiers: `verify_candidate_prioritization`, `verify_missing_work_center_rate`, `verify_rca_candidate_notes`, `verify_rca_handoff`, `verify_rca_record`, `verify_scenario_cost_overrides`, `verify_scenario_draft`, `verify_scenario_input_mapping`, `verify_scenario_variables`, `verify_simulation_context`, `verify_snapshot_bridge`, `verify_snapshot_full_flow`.
 
-Comparison verifiers: `verify_comparison_reconciliation`, `verify_candidate_prioritization`, `verify_bom_comparison_view`, `verify_routing_comparison_view`, `verify_work_center_comparison_view`, `verify_snapshot_comparison_view`, `verify_comparison_export`.
+Comparison verifiers: `verify_comparison_reconciliation`, `verify_candidate_prioritization`, `verify_bom_comparison_view`, `verify_routing_comparison_view`, `verify_work_center_comparison_view`, `verify_snapshot_comparison_view`, `verify_comparison_export`, `verify_snapshot_quality`, `verify_snapshot_comparison_dynamic_fields`.
+
+Sizing-placeholder regression and affected verification run (2026-09-28): `verify_sizing_placeholders_ignored`, `verify_snapshot_quality`, `verify_snapshot_comparison_dynamic_fields`, `verify_comparison_reconciliation`, `verify_candidate_prioritization`, `verify_dataset_sizing_preservation`, `verify_scenario_cost_overrides`, `verify_snapshot_full_flow`, and `verify_comparison_export` all passed; `npm run build` passed; `task18_browser_smoke.cjs` passed.

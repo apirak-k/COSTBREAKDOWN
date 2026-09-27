@@ -6,6 +6,7 @@ import {
 } from '../types'
 import { calculateSnapshotRoutingDetail } from './snapshot-routing-detail'
 import { PrioritizationCandidate, PrioritizationStatus } from './material-candidates'
+import { excludeGeneratedSizingPlaceholders } from '../utils/sizing'
 
 function normalizeKey(value: string | undefined): string {
   return value?.trim().toLowerCase() ?? ''
@@ -44,15 +45,20 @@ export function buildProcessingCandidates(
   currentSnapshot: CostSnapshot,
   controllabilityMap?: Record<string, boolean>
 ): PrioritizationCandidate[] {
+  const referenceRouting = excludeGeneratedSizingPlaceholders(referenceSnapshot.routing)
+  const currentRouting = excludeGeneratedSizingPlaceholders(currentSnapshot.routing)
+  const referenceRates = excludeGeneratedSizingPlaceholders(referenceSnapshot.rates)
+  const currentRates = excludeGeneratedSizingPlaceholders(currentSnapshot.rates)
+
   // Aggregate Routing costs by Work Center for Reference
   const refWcCosts = new Map<string, { labor: number | null; burden: number | null; total: number | null; steps: SnapshotRoutingStep[] }>()
-  for (const step of referenceSnapshot.routing) {
+  for (const step of referenceRouting) {
     const wcKey = normalizeKey(step.workCenterId)
     if (!wcKey) continue
     const detail = calculateSnapshotRoutingDetail(
       { reference: step },
-      referenceSnapshot.rates,
-      currentSnapshot.rates
+      referenceRates,
+      currentRates
     )
     const labor = detail.referenceLaborCost
     const burden = detail.referenceBurdenCost
@@ -68,13 +74,13 @@ export function buildProcessingCandidates(
 
   // Aggregate Routing costs by Work Center for Current
   const curWcCosts = new Map<string, { labor: number | null; burden: number | null; total: number | null; steps: SnapshotRoutingStep[] }>()
-  for (const step of currentSnapshot.routing) {
+  for (const step of currentRouting) {
     const wcKey = normalizeKey(step.workCenterId)
     if (!wcKey) continue
     const detail = calculateSnapshotRoutingDetail(
       { current: step },
-      referenceSnapshot.rates,
-      currentSnapshot.rates
+      referenceRates,
+      currentRates
     )
     const labor = detail.currentLaborCost
     const burden = detail.currentBurdenCost
@@ -90,10 +96,10 @@ export function buildProcessingCandidates(
 
   // Work Center Rate lookup to get descriptive codes / descriptions
   const refRateMap = new Map<string, SnapshotWorkCenterRate>(
-    referenceSnapshot.rates.map(r => [normalizeKey(r.workCenterCode), r])
+    referenceRates.map(r => [normalizeKey(r.workCenterCode), r])
   )
   const curRateMap = new Map<string, SnapshotWorkCenterRate>(
-    currentSnapshot.rates.map(r => [normalizeKey(r.workCenterCode), r])
+    currentRates.map(r => [normalizeKey(r.workCenterCode), r])
   )
 
   // Collect all unique Work Center keys

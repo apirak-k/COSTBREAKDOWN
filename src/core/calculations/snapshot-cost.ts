@@ -1,4 +1,5 @@
 import { safeDivide } from '../utils/guards'
+import { excludeGeneratedSizingPlaceholders } from '../utils/sizing'
 import { CostSnapshot, SnapshotCost, SnapshotWorkCenterRate } from '../types'
 
 function finiteValue(value: number | null, label: string, warnings: Set<string>): number | null {
@@ -31,12 +32,14 @@ function rateMap(rates: SnapshotWorkCenterRate[], warnings: Set<string>): Map<st
 /** Calculates one snapshot without mutating the source data. */
 export function calculateSnapshotCost(snapshot: CostSnapshot): SnapshotCost {
   const warnings = new Set<string>()
-  const rates = rateMap(snapshot.rates, warnings)
+  const rates = rateMap(excludeGeneratedSizingPlaceholders(snapshot.rates), warnings)
+  const bom = excludeGeneratedSizingPlaceholders(snapshot.bom)
+  const routing = excludeGeneratedSizingPlaceholders(snapshot.routing)
 
   let materialTotal = 0
-  let materialKnown = snapshot.bom.length > 0
+  let materialKnown = bom.length > 0
   if (!materialKnown) warnings.add('Missing BOM data. No BOM rows found')
-  snapshot.bom.forEach(item => {
+  bom.forEach(item => {
     const consumption = finiteValue(item.consumption, `BOM ${item.id} consumption`, warnings)
     const price = finiteValue(item.price, `BOM ${item.id} price`, warnings)
     const loss = finiteValue(item.loss, `BOM ${item.id} loss`, warnings)
@@ -49,11 +52,11 @@ export function calculateSnapshotCost(snapshot: CostSnapshot): SnapshotCost {
 
   let laborTotal = 0
   let burdenTotal = 0
-  let laborKnown = snapshot.routing.length > 0
-  let burdenKnown = snapshot.routing.length > 0
-  if (snapshot.routing.length === 0) warnings.add('Missing routing data. No Routing rows found')
+  let laborKnown = routing.length > 0
+  let burdenKnown = routing.length > 0
+  if (routing.length === 0) warnings.add('Missing routing data. No Routing rows found')
 
-  for (const step of snapshot.routing) {
+  for (const step of routing) {
     const manning = finiteValue(step.manning, `Routing ${step.id} manning`, warnings)
     const capacity = finiteValue(step.capacity, `Routing ${step.id} capacity`, warnings)
     const yieldValue = finiteValue(step.yield, `Routing ${step.id} yield`, warnings)
