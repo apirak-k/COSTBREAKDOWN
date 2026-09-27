@@ -14,12 +14,14 @@ The user-facing behavior and boundaries for each stage are defined in agreements
 
 - Runtime and language: TypeScript, React 18, and Vite.
 - UI: Tailwind CSS and shared components.
-- Application entry: src/App.tsx.
-- Feature areas: Master Data, Cost Breakdown, Candidate Selection, and RCA Simulation under src/features/.
-- Calculation and domain logic: src/core/.
-- Application state: src/state/.
-- Excel import and generation: src/services/excel/.
-- A legacy-looking path also exists under src/lib/. Verify runtime callers before changing either path.
+- Application entry: `src/main.tsx` and `src/App.tsx`.
+- Feature pages and feature-owned UI: `src/features/` (`master-data`, `cost-breakdown`, `candidate-selection`, and `rca-simulation`).
+- Domain types, calculations, and data migrations: `src/core/`.
+- Application state and dataset operations: `src/state/`.
+- Excel and browser-session storage integrations: `src/services/`.
+- Shared application layout and cross-feature UI: `src/shared/`.
+- Keep feature-specific UI beside its feature; place UI in `src/shared/` only when active features share it.
+- The former top-level `src/pages/`, `src/components/`, and `src/lib/` trees were disconnected from the active entry path and have been retired. Their source remains available in Git history.
 - Spreadsheet dependencies already present include xlsx and exceljs.
 
 ## Implementation context

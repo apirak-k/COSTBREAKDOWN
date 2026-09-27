@@ -1,6 +1,51 @@
-# Current Handoff — Master Data Sizing Preservation (2026-09-25)
+# Current Handoff — Repository Structure Cleanup (2026-09-27)
 
-> This is the current checkpoint and supersedes older status/verification notes below. Historical notes remain for context only; verify them against the current checkout before relying on them.
+> This checkpoint describes the current worktree. Older implementation and verification notes below are historical; verify their scope and commit before relying on them.
+
+## Repository and Git state
+
+- Repository: `COSTBREAKDOWN`.
+- Branch: `codex/snapshot-import-role-selector`.
+- Starting HEAD: `0bb60f5f40055e32b6e5e62195f8736f3550d06d`.
+- The repository-structure checkpoint is local to this branch and has not been pushed. Check Git for the current commit and staging state.
+- The local `origin/feature/taste-frontend-ui` ref is an ancestor of this branch. This branch contains 89 later commits; no branch switch or remote fetch was performed.
+
+## Current scope
+
+Clarify the canonical project structure and remove disconnected legacy source paths so future work follows the active feature layout. Preserve the four agreements, current task backlog, design proposal status, and historical handoffs. This cleanup does not change product behavior or establish human acceptance.
+
+## Changes
+
+- Keep `src/features/`, `src/core/`, `src/state/`, `src/services/`, and `src/shared/` as the canonical application structure.
+- Retire the unreachable top-level `src/pages/`, `src/components/`, and `src/lib/` trees, plus unused single-sheet and multi-tab Excel adapters.
+- Add `*.tsbuildinfo` to `.gitignore` and remove the already-tracked build metadata from the Git index. The generated file remains local and ignored.
+- Update project navigation and structural guidance in `README.md`, `PROJECT.md`, and `PROJECT_SPECIFIC.md`.
+- Record the structure audit and its evidence in `.planning/2026-09-27-repository-structure/`.
+
+## Verification and product status
+
+- Active import traversal from `src/main.tsx` found 95 source modules and zero modules under the retired directories.
+- Repository reference search found the retired trees were referenced only inside the disconnected legacy source island and tracked TypeScript build metadata.
+- Pre-cleanup build at starting HEAD `0bb60f5` passed.
+- Post-cleanup `npm run build` passed: 1,689 modules transformed. Vite reports the existing large-chunk advisory; the main JavaScript bundle is 1,673.45 kB.
+- Post-cleanup import traversal still resolves 95 source modules and zero under the retired paths. Repository search found no source or script references to removed modules.
+- `git diff --check` passed with no whitespace errors. Git reports line-ending normalization warnings for edited Markdown files.
+- Reviewed the complete change list. Agreement files, `tasks/plan.md`, `tasks/todo.md`, the sizing proposal, and the completed agreement audit are unchanged.
+- `git check-ignore --no-index` confirms the local generated metadata now follows the ignore rule.
+- No behavioral tests or browser walkthrough were run. UI and domain logic were not changed.
+- The four agreements remain the product behavior source of truth.
+- `tasks/todo.md` remains unchanged. Tasks 14–18 and end-to-end agreement acceptance remain open.
+- The 2026-09-25 Master Data sizing design remains Proposed.
+
+## Resume point
+
+Continue agreement work from Task 14 in `tasks/todo.md` or another user-selected task. The structure cleanup does not establish agreement implementation or user acceptance.
+
+---
+
+# Historical Handoff — Master Data Sizing Preservation (2026-09-25)
+
+> This was the current checkpoint at the time. The 2026-09-27 structure checkpoint above supersedes it; retain this record as history and verify its claims against the relevant commit.
 
 ## Repository and sync state
 
