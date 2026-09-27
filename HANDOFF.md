@@ -7,13 +7,13 @@
 - Repository: `COSTBREAKDOWN`.
 - Active worktree: `C:\Users\Boom\.codex\worktrees\rca-agreement\COSTBREAKDOWN`.
 - Branch: `codex/rca-task-14`, created from `0d7079d`; later agreement-re-audit checkpoints are on this branch.
-- The upstream tracking ref was `b81483f` at the start of this re-audit. Local checkpoints after that ref have not been pushed.
+- The upstream tracking ref was `b81483f` at the start of this re-audit. Checkpoints `2c804d5` and `e83e092` contain the Comparison fixes; this handoff records the completed AI-side Agreement re-audit. The user authorized pushing after the re-audit and documentation closeout are complete.
 - The original checkout at `E:\COSTBREAKDOWN` remains unchanged by this feature work.
 - `origin/feature/taste-frontend-ui` remains a reference ancestor; this work does not switch to it.
 
 ## Goal and scope
 
-The earlier implementation checklist records Tasks 1–18 as completed at their respective checkpoints. A later user-requested re-audit found Comparison gaps despite those checkboxes. Continue checking the live code against all four files in `agreements/`; treat previous checkmarks and ChatGPT's review as leads/evidence to verify, not proof of full compliance. Keep implementation evidence separate from human review and acceptance.
+The earlier implementation checklist records Tasks 1–18 as completed at their respective checkpoints. A later user-requested re-audit found Comparison gaps despite those checkboxes. This final AI-side re-audit checked the live code against all four current Agreement files; previous checkmarks and ChatGPT's review were treated as leads/evidence, not proof of full compliance. Human acceptance is tracked separately and remains pending.
 
 The maintainability rule is recorded in `PROJECT_SPECIFIC.md`: shared behavior has one canonical implementation imported by consumers; reuse follows matching behavior and meaning; intentional local exceptions carry a nearby note; inspect callers before changing shared modules.
 
@@ -108,19 +108,40 @@ Fresh focused verification passed all 13 checks:
 
 ## Agreement re-audit — 2026-09-27
 
-### Confirmed and fixed in the current re-audit
+### AI-side result
 
-- The earlier code had non-canonical comparison statuses/business-key fallbacks and candidate gaps that could hide unavailable values. Local checkpoint `2c804d5` fixes these; its focused verifiers and build passed.
-- The next Comparison slice adds row-effect → Material/Labor/Burden reconciliation, keeps branch → Total reconciliation, routes table/candidate values through the shared finding effects, and includes those effects in comparison Excel. Workbook read-back checks assert row cells and branch reconciliation.
-- Browser check with empty Reference/Current data opened Cost Breakdown, Candidate Selection, and RCA & Simulation. The pages showed unavailable values and explanations while remaining navigable. No user data was entered or changed.
-- Focused verifiers passed: comparison reconciliation, candidate prioritization, BOM/Routing/Work Center/snapshot views, and comparison Excel export. `npm run build` passed; Vite still reports the existing 1.7 MB chunk-size advisory. `git diff --check` passed with line-ending normalization warnings only.
+The four current files in `agreements/` were checked against the current implementation and available verification evidence. No confirmed Agreement mismatch remains in the AI-side review. This is implementation evidence, not human acceptance.
 
-### Not yet complete
+### Comparison
 
-- This is not an Agreement-wide compliance sign-off. Master Data's full manual/import/edit/export flow and the realistic-data RCA path still need an evidence-based re-audit against the four current agreements. Earlier Task 18 evidence is retained as history and should be checked where current changes affect its assumptions.
-- The empty-data navigation requirement is confirmed for the three downstream pages. The separate readiness action inside Master Data can remain disabled while that page itself is open; that is distinct from blocking navigation.
-- Human acceptance remains pending. The previous task checkboxes describe implementation checkpoints, not approval that the current app meets every Agreement requirement.
-- Do not promote later audit suggestions into requirements unless an Agreement or explicit user decision supports them. Keep the open custom-field/import questions separate from confirmed defects.
+- Business-key matching uses the four agreed statuses. Missing or duplicate keys remain validation findings; they do not produce guessed matches or fabricated zero gaps.
+- Row-level Material, Labor, and Burden effects reconcile to their branches; the branches reconcile to Total or surface an explicit unavailable/mismatch issue.
+- Comparison tables and workbook rows use the shared finding effects. Material candidates consume comparison findings; processing candidates aggregate Routing detail by Work Center using the shared Routing cost calculator.
+- Export read-back verifies row values and effect sums against the Summary gaps.
+
+### Master Data
+
+- Empty Reference and Current datasets remain usable. Direct entry/editing is independent by side; bidirectional cloning creates independent data.
+- Per-side sizing and blank-row preservation, selected-side import replacement, non-blocking Product mismatch warnings, and export/import round-trip behavior match the current Master Data agreement.
+- Current-branch verifiers passed: `verify_direct_dataset_editing`, `verify_dataset_sizing_and_clone`, `verify_dataset_sizing_preservation`, `verify_import_mismatch_export`, `verify_master_data_handoff`, `verify_snapshot_import`, and `verify_workspace_initialization`.
+
+### Candidate Prioritization and RCA & Simulation
+
+- Candidates preserve the agreed status and gap meaning; processing candidates aggregate by Work Center.
+- RCA requires the user to choose a candidate. Root Cause and Action notes are optional and separate from calculations. A/B/C scenarios start from Current and use the shared Standard Cost calculation; improvement economics remain separate. Trial handoff requires an explicit user choice.
+- Current-branch verifiers passed: `verify_candidate_prioritization`, `verify_missing_work_center_rate`, `verify_rca_candidate_notes`, `verify_rca_handoff`, `verify_rca_record`, `verify_scenario_cost_overrides`, `verify_scenario_draft`, `verify_scenario_input_mapping`, `verify_scenario_variables`, `verify_simulation_context`, `verify_snapshot_bridge`, and `verify_snapshot_full_flow`.
+
+### Navigation and final verification
+
+- With no Reference/Current data, Cost Breakdown, Candidate Selection, and RCA & Simulation were opened in the browser; unavailable values and explanations appeared while navigation remained available. No user data was entered.
+- Current-branch Comparison verifiers passed: `verify_comparison_reconciliation`, `verify_candidate_prioritization`, `verify_bom_comparison_view`, `verify_routing_comparison_view`, `verify_work_center_comparison_view`, `verify_snapshot_comparison_view`, and `verify_comparison_export`.
+- A fresh `npm run build` passed: TypeScript succeeded and Vite built 1,688 modules. The existing large-bundle advisory remains (1,715.49 kB JavaScript, 498.90 kB gzip).
+
+### Evidence limits and acceptance
+
+- [Unverified] The representative-data browser workflow was not repeated after the latest Comparison fixes. The earlier Task 18 browser smoke is retained as historical evidence; current-branch synthetic full-flow verifiers passed, but they are not a replacement for a final human browser review.
+- No confirmed implementation gap remains from this AI-side audit. Human acceptance is pending until the user reviews the result.
+- Do not promote unapproved audit suggestions into requirements.
 
 ## HAWS dependency security remediation (2026-09-27)
 
@@ -136,7 +157,7 @@ Fresh focused verification passed all 13 checks:
 
 ## Resume point
 
-Next: finish the Agreement re-audit of Master Data and the realistic-data RCA/simulation flow, record each confirmed gap and verification, then report the evidence and remaining acceptance status. The current local Comparison checkpoint is not pushed; push only if the user asks.
+The AI-side Agreement re-audit and evidence update are complete. The user authorized a normal push after this documentation checkpoint; verify that the remote branch reaches the final local commit in the task closeout. Human acceptance remains pending.
 
 ---
 

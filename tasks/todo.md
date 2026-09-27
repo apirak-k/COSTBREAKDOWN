@@ -361,20 +361,27 @@ Tasks are ordered by dependency. Keep each implementation slice focused and leav
 
 ## Current Agreement Re-audit — 2026-09-27
 
-ChatGPT's review is treated as a list of leads. The four files in `agreements/` remain authoritative, and each current claim must be checked against the implementation and evidence. The earlier task checkboxes are history, not a whole-contract sign-off.
+ChatGPT's review was treated as a set of leads. The four files in `agreements/` remain authoritative; prior task checkboxes are historical evidence, not full-contract approval.
 
-### Confirmed in the current re-audit
+### AI-side technical audit — complete
 
-- [x] Comparison statuses use the canonical four statuses; missing/duplicate business keys remain validation findings, not guessed matches. Candidate gaps preserve unavailable values. Checkpoint: `2c804d5`.
-- [x] Row effects reconcile to Material, Labor, and Burden; those branches reconcile to Total or produce an explicit unavailable/mismatch issue.
-- [x] Comparison tables and candidate values consume the shared Comparison effects; the comparison workbook carries per-row material/labor/burden effects.
-- [x] Workbook read-back checks verify the row cells and that exported BOM/Route effect sums reconcile to the Summary gaps.
-- [x] With empty Reference/Current data, Cost Breakdown, Candidate Selection, and RCA & Simulation remain reachable and display unavailable data/warnings without blanking or blocking the next pages.
-- [x] Focused comparison, candidate, table/view, and Excel export verifiers passed; `npm run build` passed. Vite's existing bundle-size advisory remains.
+- [x] Comparison matching, canonical statuses, unavailable values, row-to-branch reconciliation, table output, and workbook effects checked against `COSTBREAKDOWN_COMPARISON_PRINCIPLES.md`.
+- [x] Master Data manual editing, independent Reference/Current state, bidirectional clone, sizing, import replacement, mismatch warning, and side-specific export checked against `MASTER_DATA_FLOW_SPEC.md`.
+- [x] Candidate source/status/gap/ranking and Work Center aggregation checked against `CANDIDATE_PRIORITIZATION_SPEC.md`.
+- [x] Human candidate selection, optional notes, A/B/C calculation, separate economics, and explicit Trial handoff checked against `RCA_SIMULATION_SPEC.md`.
+- [x] Empty-data navigation manually checked: Cost Breakdown, Candidate Selection, and RCA & Simulation remain accessible with unavailable values and explanations.
+- [x] Current-branch focused Comparison, Master Data, Candidate, and RCA verifiers passed. A fresh `npm run build` passed; Vite retained the existing bundle-size advisory.
+- [x] No confirmed Agreement mismatch remains in the AI-side review.
 
-### Still open before calling all four Agreements re-audited
+### Evidence limits and acceptance
 
-- [ ] Re-audit the full Master Data manual-entry/edit, import replacement, mismatch warning, and latest-side export flow against `agreements/MASTER_DATA_FLOW_SPEC.md`; distinguish current code inspection from older Task 18 evidence.
-- [ ] Re-audit a realistic-data path from Comparison through Candidate Selection and RCA scenarios/economics/explicit Trial handoff against the current Comparison changes and `agreements/RCA_SIMULATION_SPEC.md`.
-- [ ] Record any confirmed remaining mismatch with a source requirement, observed behavior, and focused evidence; do not convert unapproved audit suggestions into requirements.
-- [ ] Keep human acceptance pending until the user reviews the integrated result.
+- [Unverified] The representative-data browser workflow was not repeated after the latest Comparison fixes. Task 18's browser smoke predates those fixes; current-branch synthetic full-flow verifiers passed.
+- [ ] Human acceptance is pending the user's review. Automated results do not establish acceptance.
+
+### Evidence
+
+Master Data verifiers: `verify_direct_dataset_editing`, `verify_dataset_sizing_and_clone`, `verify_dataset_sizing_preservation`, `verify_import_mismatch_export`, `verify_master_data_handoff`, `verify_snapshot_import`, `verify_workspace_initialization`.
+
+Candidate/RCA verifiers: `verify_candidate_prioritization`, `verify_missing_work_center_rate`, `verify_rca_candidate_notes`, `verify_rca_handoff`, `verify_rca_record`, `verify_scenario_cost_overrides`, `verify_scenario_draft`, `verify_scenario_input_mapping`, `verify_scenario_variables`, `verify_simulation_context`, `verify_snapshot_bridge`, `verify_snapshot_full_flow`.
+
+Comparison verifiers: `verify_comparison_reconciliation`, `verify_candidate_prioritization`, `verify_bom_comparison_view`, `verify_routing_comparison_view`, `verify_work_center_comparison_view`, `verify_snapshot_comparison_view`, `verify_comparison_export`.
