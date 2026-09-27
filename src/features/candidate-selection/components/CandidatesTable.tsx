@@ -11,7 +11,7 @@ export const CandidatesTable: React.FC<CandidatesTableProps> = ({
   candidates,
   onToggleControllable
 }) => {
-  const totalGap = candidates.reduce((sum, c) => sum + c.costGap, 0)
+  const totalGap = candidates.length > 0 ? candidates.reduce((sum, c) => sum + c.costGap, 0) : null
 
   return (
     <div className="bg-white rounded border border-slate-300/80 shadow-2xs overflow-hidden">
@@ -33,7 +33,7 @@ export const CandidatesTable: React.FC<CandidatesTableProps> = ({
             {candidates.length === 0 ? (
               <tr>
                 <td colSpan={7} className="p-8 text-center text-slate-400 font-sans italic">
-                  No candidates match the selected status filter.
+                  No candidates available in this view.
                 </td>
               </tr>
             ) : (
@@ -57,8 +57,8 @@ export const CandidatesTable: React.FC<CandidatesTableProps> = ({
 
         <div className="text-right flex items-center gap-2">
           <span className="text-[11px] text-slate-500 font-sans">Net Candidate Gap:</span>
-          <span className={`text-xs font-bold tabular-nums ${totalGap >= 0 ? 'text-rose-700' : 'text-emerald-700'}`}>
-            {formatCurrency(totalGap, 4, 'THB/pc')}
+          <span className={`text-xs font-bold tabular-nums ${totalGap === null ? 'text-slate-400' : totalGap >= 0 ? 'text-rose-700' : 'text-emerald-700'}`}>
+            {totalGap === null ? '—' : formatCurrency(totalGap, 4, 'THB/pc')}
           </span>
         </div>
       </div>

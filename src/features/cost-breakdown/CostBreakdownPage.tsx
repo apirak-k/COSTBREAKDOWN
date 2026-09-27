@@ -1,6 +1,6 @@
 import React, { useState } from 'react'
 import { useAppStore } from '../../state'
-import { AlertTriangle, ArrowLeft, ChevronDown, ChevronRight } from 'lucide-react'
+import { ChevronDown, ChevronRight } from 'lucide-react'
 
 // Sub-components
 import { ExecutiveKPICards } from './components/ExecutiveKPICards'
@@ -16,7 +16,7 @@ import { areSnapshotCostsComplete } from '../../core'
 type SubTab = 'bom' | 'routing' | 'work-center'
 
 export const CostBreakdownPage: React.FC = () => {
-  const { costBreakdown, snapshotComparison, snapshotPair, bom, routing, rates, masterDataHandoff, setActiveTab } = useAppStore()
+  const { costBreakdown, snapshotComparison, snapshotPair, bom, routing, rates, masterDataHandoff } = useAppStore()
   const [subTab, setSubTab] = useState<SubTab>('bom')
   const [comparisonView, setComparisonView] = useState<ComparisonViewMode>('all')
   const [isDetailedExpanded, setIsDetailedExpanded] = useState(true)
@@ -31,37 +31,20 @@ export const CostBreakdownPage: React.FC = () => {
   const unchangedFindingsCount = allFindings.filter(f => f.matchStatus === 'matched' && Object.keys(f.fieldDiffs).length === 0).length
   const exactSnapshotCalculation = areSnapshotCostsComplete(snapshotComparison.referenceCost, snapshotComparison.currentCost)
 
-  if (!masterDataHandoff.canCompare) {
-    return (
-      <div className="max-w-3xl mx-auto bg-white border border-amber-300 p-5 shadow-2xs" role="alert">
-        <div className="flex items-start gap-3">
-          <AlertTriangle className="w-5 h-5 shrink-0 text-amber-600 mt-0.5" aria-hidden="true" />
-          <div>
-            <h1 className="text-sm font-bold font-mono text-slate-900 uppercase tracking-tight">Comparison is not ready</h1>
-            <p className="mt-1 text-xs text-slate-600 font-sans">
-              Prepare both Reference and Current datasets for Header Product <strong className="font-mono text-slate-900">{masterDataHandoff.productCode || '—'}</strong> in Master Data first.
-            </p>
-          </div>
-        </div>
-
-        <ul className="mt-4 list-disc pl-5 space-y-1 text-xs text-amber-900 font-sans">
-          {masterDataHandoff.issues.map(issue => <li key={issue}>{issue}</li>)}
-        </ul>
-
-        <button
-          type="button"
-          onClick={() => setActiveTab('master')}
-          className="mt-5 inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-mono font-bold text-white bg-slate-900 hover:bg-slate-700 transition-colors"
-        >
-          <ArrowLeft className="w-3.5 h-3.5" aria-hidden="true" />
-          Return to Master Data
-        </button>
-      </div>
-    )
-  }
-
   return (
     <div className="space-y-4">
+      {!masterDataHandoff.canCompare && (
+        <div className="border border-amber-200 bg-amber-50/70 px-4 py-3 text-[11px] text-amber-900 font-sans" role="status">
+          <strong className="font-mono">Comparison values are unavailable yet.</strong>{' '}
+          Prepare both Reference and Current datasets in Master Data.
+          {masterDataHandoff.issues.length > 0 && (
+            <ul className="mt-2 list-disc pl-5 space-y-1">
+              {masterDataHandoff.issues.map(issue => <li key={issue}>{issue}</li>)}
+            </ul>
+          )}
+        </div>
+      )}
+
       {/* 1. Top Executive KPIs */}
       {exactSnapshotCalculation ? (
         <ExecutiveKPICards costBreakdown={costBreakdown} />

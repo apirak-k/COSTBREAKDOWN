@@ -23,25 +23,24 @@ export const CandidateSelectionPage: React.FC = () => {
   const addedCount = useMemo(() => candidates.filter(c => c.status === 'ADDED').length, [candidates])
   const removedCount = useMemo(() => candidates.filter(c => c.status === 'REMOVED').length, [candidates])
 
-  const totalGap = snapshotComparison.totalGap ?? candidates.reduce((sum, c) => sum + c.costGap, 0)
-
-  if (!masterDataHandoff.canCompare) {
-    return (
-      <div className="space-y-4">
-        <div className="bg-white px-4 py-3 rounded border border-slate-300/80 shadow-2xs">
-          <h1 className="text-xs font-bold font-mono text-slate-800 uppercase tracking-tight">
-            Candidate Prioritization
-          </h1>
-        </div>
-        <div className="bg-white py-12 rounded border border-slate-300/80 shadow-2xs text-center text-slate-400 text-xs font-mono">
-          Comparison is not ready. Prepare Reference and Current datasets in Master Data to evaluate candidates.
-        </div>
-      </div>
-    )
-  }
+  const totalGap = masterDataHandoff.canCompare
+    ? snapshotComparison.totalGap ?? candidates.reduce((sum, c) => sum + c.costGap, 0)
+    : null
 
   return (
     <div className="space-y-4">
+      {!masterDataHandoff.canCompare && (
+        <div className="border border-amber-200 bg-amber-50/70 px-4 py-3 text-[11px] text-amber-900 font-sans" role="status">
+          <strong className="font-mono">Candidate values are unavailable yet.</strong>{' '}
+          Prepare both Reference and Current datasets in Master Data.
+          {masterDataHandoff.issues.length > 0 && (
+            <ul className="mt-2 list-disc pl-5 space-y-1">
+              {masterDataHandoff.issues.map(issue => <li key={issue}>{issue}</li>)}
+            </ul>
+          )}
+        </div>
+      )}
+
       {/* Header Panel */}
       <div className="bg-white px-4 py-3 rounded border border-slate-300/80 shadow-2xs flex flex-wrap items-center justify-between gap-3">
         <div>
@@ -55,9 +54,9 @@ export const CandidateSelectionPage: React.FC = () => {
         <div className="text-right font-mono flex items-center gap-2">
           <span className="text-[11px] text-slate-500">Net Comparison Gap (Δ):</span>
           <span className={`text-xs font-bold px-2 py-0.5 rounded font-mono tabular-nums bg-slate-100 border border-slate-200 ${
-            totalGap > 0 ? 'text-rose-700' : totalGap < 0 ? 'text-emerald-700' : 'text-slate-600'
+            totalGap === null ? 'text-slate-400' : totalGap > 0 ? 'text-rose-700' : totalGap < 0 ? 'text-emerald-700' : 'text-slate-600'
           }`}>
-            {formatVariance(totalGap, 4)} THB/pc
+            {totalGap === null ? '—' : `${formatVariance(totalGap, 4)} THB/pc`}
           </span>
         </div>
 
