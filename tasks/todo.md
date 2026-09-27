@@ -255,7 +255,7 @@ Tasks are ordered by dependency. Keep each implementation slice focused and leav
 
 **Verification:** Check an unselected candidate, blank notes, saved notes, and formula results with/without note text.
 
-**Implementation evidence:** `verify_rca_candidate_notes` passed 8 checks; `verify_simulation_context` and six related regression verifiers passed; `npm run build` passed. Browser and human review remain pending.
+**Implementation evidence:** `verify_rca_candidate_notes` passed 8 checks; `verify_simulation_context` and six related regression verifiers passed; `npm run build` passed. At Task 14 close, browser and human review remained pending; Task 18 later covered the core browser flow, with human acceptance still pending.
 
 **Dependencies:** Candidate checkpoint.
 
@@ -272,7 +272,7 @@ Tasks are ordered by dependency. Keep each implementation slice focused and leav
 - [x] Each scenario starts from Current, is isolated from the other scenarios, and does not mutate Current.
 - [x] Structural add/remove/split/merge changes are not simulated.
 
-**Verification:** `verify_scenario_cost_overrides`, `verify_scenario_input_mapping`, `verify_scenario_draft`, `verify_missing_work_center_rate`, and `verify_rca_candidate_notes` passed; `npm run build` and `npm run excel` passed. Browser interaction remains in Task 18.
+**Verification:** `verify_scenario_cost_overrides`, `verify_scenario_input_mapping`, `verify_scenario_draft`, `verify_missing_work_center_rate`, and `verify_rca_candidate_notes` passed; `npm run build` and `npm run excel` passed. Browser interaction was verified in Task 18; human acceptance remains pending.
 
 **Dependencies:** Task 14.
 
@@ -316,8 +316,8 @@ Tasks are ordered by dependency. Keep each implementation slice focused and leav
 
 ### Checkpoint: RCA & Simulation
 
-- [ ] Candidate choice, notes, A/B/C results, economics, and Trial handoff follow the agreement.
-- [ ] Focused checks and `npm run build` pass before end-to-end review.
+- [x] Candidate choice, notes, A/B/C results, economics, and Trial handoff follow the agreement.
+- [x] Focused checks, `npm run build`, and the Task 18 end-to-end browser review pass. Human acceptance remains pending.
 
 ## Phase 5 — Cross-Flow Acceptance
 
@@ -326,19 +326,25 @@ Tasks are ordered by dependency. Keep each implementation slice focused and leav
 **Description:** Run synthetic import/manual-entry workflows through all four pages, review the integration, and record implementation evidence separately from human acceptance.
 
 **Acceptance criteria:**
-- [ ] Identity warnings, statuses, record gaps, candidate totals, and scenario results remain consistent end to end.
-- [ ] No Trial workflow or future financial model was added without a new agreement.
-- [ ] Build/focused verification evidence and human acceptance status are recorded in `HANDOFF.md`.
+- [x] Identity warnings, statuses, record gaps, candidate totals, and scenario results remain consistent end to end.
+- [x] No Trial workflow or future financial model was added without a new agreement.
+- [x] Build/focused verification evidence and human acceptance status are recorded in `HANDOFF.md`.
 
-**Verification:** Run the repository build, focused checks, and a browser smoke workflow with a synthetic workbook; review the final diff and workflow with the human.
+**Implementation evidence:** The xlsx skill read-only inspection confirmed canonical synthetic workbooks with one Product, four Work Centers, ten BOM rows, fifteen Routing rows, and no formula cells. Browser smoke covered all four pages, mismatch warning, comparison gap 7.5065, matching candidate total, explicit candidate/Trial choices, saved notes, and Scenario A cost 30.2215 → 28.3465 while Current remained 30.2215. No browser page or console errors were reported.
+
+**Verification:** All 13 focused verifiers passed; `npm run build` passed (1,691 modules). The synthetic Chrome workflow passed. `npm audit --audit-level=high` found five advisories including two High in xlsx with no fix; the HAWS security gate is recorded open in `HANDOFF.md`.
+
+**Human acceptance:** Pending user review; automated verification is not acceptance.
 
 **Dependencies:** Tasks 1–17.
 
-**Files likely touched:** focused `scripts/verify_*.ts`, `HANDOFF.md`.
+**Files touched:** `scripts/verify_simulation_context.ts`, `tasks/todo.md`, `HANDOFF.md`.
 
 **Estimated scope:** Medium.
 
 ### Checkpoint: Complete
 
-- [ ] All acceptance criteria are satisfied, the application builds, and the integrated flow has been reviewed.
-- [ ] Automated verification is recorded separately from human acceptance.
+- [x] Implementation acceptance criteria are satisfied, the application builds, and the integrated flow has been reviewed.
+- [x] Automated verification is recorded separately from human acceptance.
+- [ ] Human acceptance has been recorded as accepted.
+- [ ] HAWS dependency audit has zero High/Critical vulnerabilities.

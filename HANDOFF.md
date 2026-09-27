@@ -23,17 +23,18 @@ The maintainability rule is recorded in `PROJECT_SPECIFIC.md`: shared behavior h
 - **Task 15 — implemented and verified:** independent A/B/C overrides for measurable BOM and Work Center inputs recalculate from the Current snapshot through the shared Standard Cost engine. Consumption is supported; structural edits remain excluded.
 - **Task 16 — implemented and verified:** Gross Saving and improvement economics are calculated separately from Standard Cost; A/B/C remain comparable, with no automatic recommendation.
 - **Task 17 — implemented and verified:** the user explicitly selects a scenario for handoff; Trial validation, actual-cost fields, baseline promotion, and their unused types are removed.
-- **Task 18 — pending:** full synthetic browser workflow and final review.
-- **Human acceptance — pending:** user has not reviewed the updated RCA pages. Automated results do not establish acceptance.
+- **Task 18 — implementation verification complete and checkpointed locally:** synthetic browser workflow, focused checks, build, and final implementation review are recorded below.
+- **Human acceptance — pending:** user review is still required; automated results do not establish acceptance.
+- **HAWS security gate — open:** npm audit reports two High vulnerabilities in xlsx with no available fix; dependency remediation needs separate scope.
 
 ## Task 14 verification
 
-Fresh run in the active worktree passed all eight focused verifiers:
+At Task 14 close, a fresh run in the active worktree passed all eight focused verifiers:
 
 - `verify_candidate_prioritization`
 - `verify_rca_record`
 - `verify_rca_candidate_notes` — 8 checks
-- `verify_simulation_context`
+- `verify_simulation_context` (later refreshed to the Task 15 API and passed again in Task 18)
 - `verify_scenario_draft`
 - `verify_scenario_variables`
 - `verify_snapshot_full_flow`
@@ -41,7 +42,7 @@ Fresh run in the active worktree passed all eight focused verifiers:
 
 `npm run build` passed: TypeScript and Vite completed; 1,689 modules transformed. Vite reports the existing large-chunk advisory (1,674.34 kB JavaScript output). `git diff --check` passed; Git reported line-ending normalization warnings only.
 
-[Unverified] Browser layout, keyboard interaction, and screen-reader behavior remain for the integrated browser pass and human review.
+At Task 14 close, browser interaction remained unverified. Task 18 later covered the core flow in Chrome; keyboard, screen-reader, and human acceptance remain pending.
 
 ## Task 15 verification
 
@@ -56,7 +57,7 @@ Fresh checks in the active worktree passed:
 - `npm run excel` — generated workbook audit passed with zero errors
 - `git diff --check` — passed; Git reported line-ending normalization warnings only
 
-Scenario drafts are keyed by product and candidate. Each starts from Current, applies only supported numeric field overrides, and preserves missing values and structure. Scenario values are not yet browser-verified.
+Scenario drafts are keyed by product and candidate. Each starts from Current, applies only supported numeric field overrides, and preserves missing values and structure. Scenario values were later browser-verified in Task 18.
 
 ## Task 16 verification
 
@@ -74,11 +75,41 @@ Improvement economics reads only the scenario cost outputs and its own assumptio
 - `verify_rca_handoff` passed. The Trial choice starts empty and requires a human selection.
 - The Trial validation component, baseline-promotion store action, old what-if result types, and Trial validation record type have no remaining source callers and were removed.
 - `npm run build` passed; TypeScript and Vite completed with 1,691 modules transformed.
-- No browser workflow or human acceptance is claimed; Task 18 remains.
+- At Task 17 close, browser verification and human acceptance were pending; Task 18 later verified the core workflow, while human acceptance remains pending.
+
+## Task 18 verification
+
+- The xlsx skill read-only inspection confirmed the generated synthetic Reference and Current files use the canonical META, PRODUCT, WORK_CENTER, BOM, and ROUTING sheets, with one Product, four Work Centers, ten BOM rows, fifteen Routing rows, and no formula cells. The tracked mock workbook was not changed.
+- Browser smoke covered Master Data, Cost Breakdown, Candidate Selection, and RCA & Simulation. Both imports reported four Work Centers, ten BOM rows, and fifteen Routing rows.
+- Editing Current Product Code showed the mismatch warning while Compare remained available. Editing BOM item MAT-FILM-01 price to 60 produced a 7.5065 cost gap; Candidate Selection showed the same 7.5065 total.
+- RCA opened with no selected candidate; a candidate was selected explicitly and notes were saved. Scenario A kept Current Standard Cost at 30.2215 and recalculated Scenario Standard Cost to 28.3465. Entering fixed investment did not change either Standard Cost. Trial handoff started blank and required an explicit choice; no Trial validation or actual-cost flow appeared.
+- Browser reported no page errors or console errors. Synthetic workbook creation and browser fixtures stayed in the task visualization folder.
+
+Fresh focused verification passed all 13 checks:
+
+- `verify_simulation_context`
+- `verify_rca_candidate_notes`
+- `verify_rca_record`
+- `verify_scenario_draft`
+- `verify_scenario_cost_overrides`
+- `verify_scenario_input_mapping`
+- `verify_scenario_variables`
+- `verify_missing_work_center_rate`
+- `verify_rca_handoff`
+- `verify_candidate_prioritization`
+- `verify_snapshot_bridge`
+- `verify_comparison_reconciliation`
+- `verify_import_mismatch_export`
+
+- The simulation-context verifier still uses current Task 15 scenario-draft APIs; it had become stale when that API changed and was repaired at this checkpoint.
+- `npm run build` passed: TypeScript succeeded; Vite transformed 1,691 modules and built the application. The existing chunk-size advisory remains (1,670.44 kB JavaScript, 486.02 kB gzip).
+- `npm audit --audit-level=high` remains blocked: five advisories total (three Moderate, two High). The High findings are prototype pollution and ReDoS in xlsx 0.18.5, with no fix available. Moderate advisories affect esbuild through Vite and uuid through ExcelJS. No dependency changes were made; `npm audit fix --force` proposes breaking changes.
+- The upload path reads user-provided workbooks through xlsx. The security gate therefore remains open until a separately scoped parser/remediation decision preserves agreed Excel import behavior.
+- Human acceptance remains pending. The automated browser pass and implementation review are evidence, not user acceptance.
 
 ## Resume point
 
-Run the synthetic browser workflow in Task 18, review the integrated diff, and record implementation evidence separately from human acceptance. Tasks 14 (`2f5596a`), 15 (`04d7d96`), and 16 (`68b1abe`) are local checkpoints; do not push.
+Next: obtain human review/acceptance of the integrated RCA flow, then decide whether to authorize a separate xlsx security remediation that preserves the existing import contract. Tasks 14–17 have earlier local checkpoints; Task 18 is the current local checkpoint. No remote push has been made.
 
 ---
 

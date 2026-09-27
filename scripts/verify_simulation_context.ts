@@ -1,16 +1,20 @@
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
-import { createScenarioDrafts, updateScenarioDraft } from '../src/features/rca-simulation/scenario-draft'
+import { createScenarioDrafts, updateScenarioInputValue } from '../src/features/rca-simulation/scenario-draft'
 
-const draftsByDriver = {
-  'bom:bom-1': updateScenarioDraft(createScenarioDrafts(), 0, 'targetValue', '10'),
-  'routing:rt-1': updateScenarioDraft(createScenarioDrafts(), 0, 'targetValue', '80')
-}
+const bomInputKey = JSON.stringify(['bom', 'bom-1', 'price'])
+const routingInputKey = JSON.stringify(['routing', 'rt-1', 'manning'])
+const scenarioDrafts = updateScenarioInputValue(
+  updateScenarioInputValue(createScenarioDrafts(), 'A', bomInputKey, '10'),
+  'A',
+  routingInputKey,
+  '80'
+)
 
-assert.equal(draftsByDriver['bom:bom-1'][0].targetValue, '10')
-assert.equal(draftsByDriver['routing:rt-1'][0].targetValue, '80')
-assert.equal(draftsByDriver['bom:bom-1'][1].targetValue, '')
+assert.equal(scenarioDrafts[0].inputValues[bomInputKey], '10')
+assert.equal(scenarioDrafts[0].inputValues[routingInputKey], '80')
+assert.equal(scenarioDrafts[1].inputValues[bomInputKey], undefined)
 
 const pageSource = readFileSync(resolve(process.cwd(), 'src/features/rca-simulation/RCASimulationPage.tsx'), 'utf8')
 const selectorSource = readFileSync(resolve(process.cwd(), 'src/features/rca-simulation/components/CandidateSelector.tsx'), 'utf8')
