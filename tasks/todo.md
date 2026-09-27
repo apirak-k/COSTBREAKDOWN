@@ -285,11 +285,11 @@ Tasks are ordered by dependency. Keep each implementation slice focused and leav
 **Description:** Show Current and Scenario Standard Cost plus Gross Saving separately from fixed investment, variable added cost, volume, and net benefit.
 
 **Acceptance criteria:**
-- [ ] Gross Saving per piece equals Current Standard Cost minus Scenario Standard Cost.
-- [ ] Fixed and variable improvement costs affect economics only, not either Standard Cost result.
-- [ ] Scenario A/B/C results remain comparable without auto-selecting a recommended solution.
+- [x] Gross Saving per piece equals Current Standard Cost minus Scenario Standard Cost.
+- [x] Fixed and variable improvement costs affect economics only, not either Standard Cost result.
+- [x] Scenario A/B/C results remain comparable without auto-selecting a recommended solution.
 
-**Verification:** Check economic formula fixtures and compare every displayed scenario metric to the calculation output.
+**Verification:** `verify_scenario_variables` passed formula, missing-input, zero-volume, scenario-isolation, and displayed-metric checks; Task 15 focused verifiers passed; `npm run build` and `npm run excel` passed.
 
 **Dependencies:** Task 15.
 

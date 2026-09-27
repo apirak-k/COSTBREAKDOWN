@@ -1,10 +1,11 @@
-import { ScenarioCostDraft, ScenarioParameterOverrides } from '../../core'
-import { ScenarioInputDefinition } from './scenario-inputs'
+import type { ScenarioCostDraft, ScenarioEconomicsInputs, ScenarioParameterOverrides } from '../../core'
+import type { ScenarioInputDefinition } from './scenario-inputs'
 
 export interface ScenarioDraftForm {
   letter: 'A' | 'B' | 'C'
   label: string
   inputValues: Record<string, string>
+  economicsInputs: Record<keyof ScenarioEconomicsInputs, string>
 }
 
 export interface PreparedScenarioDrafts {
@@ -12,8 +13,18 @@ export interface PreparedScenarioDrafts {
   inputWarningsByLetter: Record<'A' | 'B' | 'C', string[]>
 }
 
+export interface PreparedScenarioEconomicsInputs {
+  inputsByLetter: Record<ScenarioDraftForm['letter'], ScenarioEconomicsInputs>
+  warningsByLetter: Record<ScenarioDraftForm['letter'], string[]>
+}
+
 export function createScenarioDrafts(): ScenarioDraftForm[] {
-  return (['A', 'B', 'C'] as const).map(letter => ({ letter, label: '', inputValues: {} }))
+  return (['A', 'B', 'C'] as const).map(letter => ({
+    letter,
+    label: '',
+    inputValues: {},
+    economicsInputs: { fixedInvestment: '', variableAddedCostPerPiece: '', evaluationVolume: '' }
+  }))
 }
 
 export function updateScenarioLabel(
@@ -37,6 +48,27 @@ export function updateScenarioInputValue(
     else inputValues[inputKey] = value
     return { ...draft, inputValues }
   })
+}
+
+export function updateScenarioEconomicsInput(
+  drafts: ScenarioDraftForm[],
+  letter: ScenarioDraftForm['letter'],
+  key: keyof ScenarioEconomicsInputs,
+  value: string
+): ScenarioDraftForm[] {
+  return drafts.map(draft => draft.letter === letter
+    ? { ...draft, economicsInputs: { ...draft.economicsInputs, [key]: value } }
+    : draft)
+}
+
+function parseFiniteInput(rawValue: string | undefined, label: string, warnings: string[]): number | null {
+  if (rawValue === undefined || rawValue.trim() === '') return null
+  const value = Number(rawValue)
+  if (!Number.isFinite(value)) {
+    warnings.push(`${label} must be a finite number.`)
+    return null
+  }
+  return value
 }
 
 function addNumericOverride(
@@ -79,10 +111,8 @@ export function prepareScenarioDrafts(
     const warnings = inputWarningsByLetter[formDraft.letter]
 
     inputDefinitions.forEach(definition => {
-      const rawValue = formDraft.inputValues[definition.key]
-      if (rawValue === undefined || rawValue.trim() === '') return
-
-      const displayValue = Number(rawValue)
+      const displayValue = parseFiniteInput(formDraft.inputValues[definition.key], definition.label, warnings)
+      if (displayValue === null) return
       const value = displayValue / definition.displayScale
       if (!Number.isFinite(value)) {
         warnings.push(`${definition.label} must be a finite number.`)
@@ -96,4 +126,22 @@ export function prepareScenarioDrafts(
   })
 
   return { drafts, inputWarningsByLetter }
+}
+
+export function prepareScenarioEconomicsInputs(
+  formDrafts: ScenarioDraftForm[]
+): PreparedScenarioEconomicsInputs {
+  const warningsByLetter: PreparedScenarioEconomicsInputs['warningsByLetter'] = { A: [], B: [], C: [] }
+  const inputsByLetter = {} as PreparedScenarioEconomicsInputs['inputsByLetter']
+
+  formDrafts.forEach(draft => {
+    const warnings = warningsByLetter[draft.letter]
+    inputsByLetter[draft.letter] = {
+      fixedInvestment: parseFiniteInput(draft.economicsInputs.fixedInvestment, 'Fixed Investment', warnings),
+      variableAddedCostPerPiece: parseFiniteInput(draft.economicsInputs.variableAddedCostPerPiece, 'Variable Added Cost / pc', warnings),
+      evaluationVolume: parseFiniteInput(draft.economicsInputs.evaluationVolume, 'Evaluation Volume', warnings)
+    }
+  })
+
+  return { inputsByLetter, warningsByLetter }
 }

@@ -1,5 +1,5 @@
 import React from 'react'
-import type { ScenarioCostResult } from '../../../core'
+import type { ScenarioCostResult, ScenarioEconomicsInputs, ScenarioEconomicsResult } from '../../../core'
 import type { ScenarioDraftForm } from '../scenario-draft'
 import type { ScenarioInputDefinition } from '../scenario-inputs'
 import { ScenarioInputField } from './ScenarioInputField'
@@ -8,9 +8,12 @@ interface ScenarioCardProps {
   scenario: ScenarioDraftForm
   inputDefinitions: ScenarioInputDefinition[]
   result: ScenarioCostResult
+  economics: ScenarioEconomicsResult
   inputWarnings: string[]
+  economicsInputWarnings: string[]
   onUpdateLabel: (label: string) => void
   onUpdateInput: (inputKey: string, value: string) => void
+  onUpdateEconomics: (key: keyof ScenarioEconomicsInputs, value: string) => void
 }
 
 const COST_ROWS = [
@@ -18,6 +21,21 @@ const COST_ROWS = [
   { key: 'labor', label: 'Labor' },
   { key: 'burden', label: 'Burden' },
   { key: 'total', label: 'Total' }
+] as const
+
+const ECONOMIC_INPUTS = [
+  { key: 'fixedInvestment', label: 'Fixed Investment', unit: 'THB' },
+  { key: 'variableAddedCostPerPiece', label: 'Variable Added Cost', unit: 'THB/pc' },
+  { key: 'evaluationVolume', label: 'Evaluation Volume', unit: 'pcs' }
+] as const
+
+const ECONOMIC_ROWS = [
+  { key: 'grossSavingPerPiece', label: 'Gross Saving / pc', unit: 'THB/pc' },
+  { key: 'fixedCostEquivalentPerPiece', label: 'Fixed Cost Equivalent / pc', unit: 'THB/pc' },
+  { key: 'netBenefitPerPiece', label: 'Net Benefit / pc', unit: 'THB/pc' },
+  { key: 'totalGrossSaving', label: 'Total Gross Saving', unit: 'THB' },
+  { key: 'totalVariableAddedCost', label: 'Total Variable Added Cost', unit: 'THB' },
+  { key: 'totalNetBenefit', label: 'Total Net Benefit', unit: 'THB' }
 ] as const
 
 const STATUS_CLASS: Record<string, string> = {
@@ -34,9 +52,12 @@ export const ScenarioCard: React.FC<ScenarioCardProps> = ({
   scenario,
   inputDefinitions,
   result,
+  economics,
   inputWarnings,
+  economicsInputWarnings,
   onUpdateLabel,
-  onUpdateInput
+  onUpdateInput,
+  onUpdateEconomics
 }) => {
   const warningSections = [
     { label: 'Current cost', messages: result.currentCost.warnings },
@@ -54,6 +75,7 @@ export const ScenarioCard: React.FC<ScenarioCardProps> = ({
   })
   const uniqueWarnings = Array.from(warningSources, ([message, sources]) => ({ message, sources }))
   const warningCount = uniqueWarnings.length
+  const economicsWarnings = [...new Set([...economicsInputWarnings, ...economics.warnings])]
   const labelId = `scenario-label-${scenario.letter}`
 
   return (
@@ -144,6 +166,52 @@ export const ScenarioCard: React.FC<ScenarioCardProps> = ({
               </tbody>
             </table>
           </div>
+        </section>
+
+        <section aria-label={`Improvement economics for Scenario ${scenario.letter}`} className="border-t border-slate-200 pt-3">
+          <h4 className="text-xs font-semibold uppercase tracking-wide text-slate-700">Improvement economics</h4>
+          <p className="mt-1 text-[11px] text-slate-500">
+            These assumptions do not change Current or Scenario Standard Cost.
+          </p>
+          <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-3">
+            {ECONOMIC_INPUTS.map(({ key, label, unit }) => {
+              const inputId = `scenario-${scenario.letter}-economics-${key}`
+              return (
+                <label key={key} htmlFor={inputId} className="block min-w-0 text-xs font-medium text-slate-700">
+                  {label} <span className="font-normal text-slate-500">({unit})</span>
+                  <input
+                    id={inputId}
+                    type="number"
+                    step="any"
+                    inputMode="decimal"
+                    value={scenario.economicsInputs[key]}
+                    onChange={event => onUpdateEconomics(key, event.target.value)}
+                    className="mt-1 w-full rounded border border-slate-300 px-2.5 py-2 font-mono text-sm tabular-nums text-slate-900 focus:border-slate-600 focus:outline-none focus:ring-2 focus:ring-slate-300"
+                  />
+                </label>
+              )
+            })}
+          </div>
+          <div className="mt-3 overflow-x-auto rounded border border-slate-200">
+            <table className="w-full text-xs">
+              <caption className="sr-only">Scenario {scenario.letter} improvement economics</caption>
+              <tbody>
+                {ECONOMIC_ROWS.map(({ key, label, unit }) => (
+                  <tr key={key} className="border-b border-slate-100 last:border-0">
+                    <th scope="row" className="px-2.5 py-2 text-left font-medium text-slate-700">{label}</th>
+                    <td className="px-2.5 py-2 text-right font-mono tabular-nums text-slate-900">
+                      {economics[key] === null ? 'N/A' : `${formatCost(economics[key])} ${unit}`}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          {economicsWarnings.length > 0 && (
+            <ul role="status" className="mt-2 list-disc space-y-1 pl-5 text-xs text-amber-800">
+              {economicsWarnings.map(warning => <li key={warning}>{warning}</li>)}
+            </ul>
+          )}
         </section>
 
         <section aria-label={`Warnings for Scenario ${scenario.letter}`} className="mt-auto border-t border-slate-200 pt-3">

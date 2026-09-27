@@ -21,7 +21,8 @@ The maintainability rule is recorded in `PROJECT_SPECIFIC.md`: shared behavior h
 
 - **Task 14 — implemented and verified:** RCA starts without a selected candidate; user chooses from the full candidate pool; optional Root Cause and Action notes are saved by candidate and excluded from numeric calculations. Removed the obsolete Ranking-driven selection path and dead UI/API. Deprecated persisted fields remain only for old-session compatibility.
 - **Task 15 — implemented and verified:** independent A/B/C overrides for measurable BOM and Work Center inputs recalculate from the Current snapshot through the shared Standard Cost engine. Consumption is supported; structural edits remain excluded.
-- **Tasks 16–18 — pending:** separate Standard Cost and improvement economics; explicit human-selected Trial handoff without Trial validation/promotion; full synthetic browser workflow and final review.
+- **Task 16 — implemented and verified:** Gross Saving and improvement economics are calculated separately from Standard Cost; A/B/C remain comparable, with no automatic recommendation.
+- **Tasks 17–18 — pending:** explicit human-selected Trial handoff without Trial validation/promotion; full synthetic browser workflow and final review.
 - **Human acceptance — pending:** user has not reviewed the updated RCA pages. Automated results do not establish acceptance.
 
 ## Task 14 verification
@@ -56,9 +57,20 @@ Fresh checks in the active worktree passed:
 
 Scenario drafts are keyed by product and candidate. Each starts from Current, applies only supported numeric field overrides, and preserves missing values and structure. Scenario values are not yet browser-verified.
 
+## Task 16 verification
+
+Fresh checks in the active worktree passed:
+
+- `verify_scenario_variables` — economics formulas, missing inputs, zero volume, per-scenario isolation, and UI metric mapping
+- Task 15 focused verifiers — scenario cost parity, input mapping, draft isolation, missing rate, and candidate-note separation
+- `npm run build` — TypeScript and Vite completed; 1,691 modules transformed
+- `npm run excel` — generated workbook audit passed with zero errors
+
+Improvement economics reads only the scenario cost outputs and its own assumptions. It does not modify the Standard Cost calculation or inputs.
+
 ## Resume point
 
-Implement Task 16 economics without changing Standard Cost outputs, then complete the human-selected Trial handoff in Task 17 and synthetic browser review in Task 18. Task 14 (`2f5596a`) and Task 15 remain local checkpoints; do not push.
+Complete the human-selected Trial handoff in Task 17 and synthetic browser review in Task 18. Tasks 14 (`2f5596a`), 15 (`04d7d96`), and 16 are local checkpoints; do not push.
 
 ---
 

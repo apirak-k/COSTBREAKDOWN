@@ -28,3 +28,19 @@ export interface ScenarioCostResult {
   scenarioCost: SnapshotCost
   overrideWarnings: string[]
 }
+
+export interface ScenarioEconomicsInputs {
+  fixedInvestment: number | null
+  variableAddedCostPerPiece: number | null
+  evaluationVolume: number | null
+}
+
+export interface ScenarioEconomicsResult {
+  grossSavingPerPiece: number | null
+  fixedCostEquivalentPerPiece: number | null
+  netBenefitPerPiece: number | null
+  totalGrossSaving: number | null
+  totalVariableAddedCost: number | null
+  totalNetBenefit: number | null
+  warnings: string[]
+}

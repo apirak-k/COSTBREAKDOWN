@@ -1,10 +1,14 @@
 import React, { useEffect, useMemo, useState } from 'react'
 import { calculateScenarioCosts } from '../../core/calculations/scenario-cost'
+import { calculateScenarioEconomics } from '../../core/calculations/scenario-economics'
+import type { ScenarioEconomicsInputs } from '../../core'
 import { useAppStore } from '../../state'
 import {
   createScenarioDrafts,
+  prepareScenarioEconomicsInputs,
   prepareScenarioDrafts,
   ScenarioDraftForm,
+  updateScenarioEconomicsInput,
   updateScenarioInputValue,
   updateScenarioLabel
 } from './scenario-draft'
@@ -65,9 +69,24 @@ export const RCASimulationPage: React.FC = () => {
     () => prepareScenarioDrafts(scenarioDrafts, inputDefinitions),
     [scenarioDrafts, inputDefinitions]
   )
+  const preparedEconomics = useMemo(
+    () => prepareScenarioEconomicsInputs(scenarioDrafts),
+    [scenarioDrafts]
+  )
   const scenarioResults = useMemo(
     () => selectedCandidate ? calculateScenarioCosts(currentSnapshot, preparedDrafts.drafts) : [],
     [selectedCandidate, currentSnapshot, preparedDrafts.drafts]
+  )
+  const economicsResults = useMemo(
+    () => scenarioResults.map(result => ({
+      letter: result.letter,
+      ...calculateScenarioEconomics(
+        result.currentCost.total,
+        result.scenarioCost.total,
+        preparedEconomics.inputsByLetter[result.letter]
+      )
+    })),
+    [scenarioResults, preparedEconomics.inputsByLetter]
   )
 
   const updateDrafts = (transform: (drafts: ScenarioDraftForm[]) => ScenarioDraftForm[]) => {
@@ -93,6 +112,14 @@ export const RCASimulationPage: React.FC = () => {
 
   const handleUpdateInput = (letter: ScenarioDraftForm['letter'], inputKey: string, value: string) => {
     updateDrafts(drafts => updateScenarioInputValue(drafts, letter, inputKey, value))
+  }
+
+  const handleUpdateEconomics = (
+    letter: ScenarioDraftForm['letter'],
+    key: keyof ScenarioEconomicsInputs,
+    value: string
+  ) => {
+    updateDrafts(drafts => updateScenarioEconomicsInput(drafts, letter, key, value))
   }
 
   return (
@@ -155,9 +182,12 @@ export const RCASimulationPage: React.FC = () => {
             scenarios={scenarioDrafts}
             inputDefinitions={inputDefinitions}
             results={scenarioResults}
+            economicsResults={economicsResults}
             inputWarningsByLetter={preparedDrafts.inputWarningsByLetter}
+            economicsInputWarningsByLetter={preparedEconomics.warningsByLetter}
             onUpdateLabel={handleUpdateLabel}
             onUpdateInput={handleUpdateInput}
+            onUpdateEconomics={handleUpdateEconomics}
           />
         </>
       )}
