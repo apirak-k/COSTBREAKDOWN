@@ -336,6 +336,14 @@ Tasks are ordered by dependency. Keep each implementation slice focused and leav
 
 **Human acceptance:** Pending user review; automated verification is not acceptance.
 
+### Follow-up: HAWS dependency security remediation (2026-09-27)
+
+**Status:** Implemented and verified locally.
+
+**Changes:** Updated SheetJS to official CDN release 0.20.3 and Vite to patched 6.4.3. The parser implementation and `.xls`/`.xlsx` upload contract remain unchanged. Refreshed `package-lock.json`; no forced audit fix was used.
+
+**Verification:** `npm audit --audit-level=high` passes with zero High/Critical findings; the full audit retains two Moderate findings through uuid/ExcelJS. `npm audit signatures` verified 238 registry signatures and 40 attestations. `npm run build` and the verifier type-check passed. The focused synthetic import verifiers passed canonical XLSX and XLS, legacy parsing, export/import round-trip, non-blocking mismatch behavior, and blank template rows.
+
 **Dependencies:** Tasks 1–17.
 
 **Files touched:** `scripts/verify_simulation_context.ts`, `tasks/todo.md`, `HANDOFF.md`.
@@ -347,4 +355,4 @@ Tasks are ordered by dependency. Keep each implementation slice focused and leav
 - [x] Implementation acceptance criteria are satisfied, the application builds, and the integrated flow has been reviewed.
 - [x] Automated verification is recorded separately from human acceptance.
 - [ ] Human acceptance has been recorded as accepted.
-- [ ] HAWS dependency audit has zero High/Critical vulnerabilities.
+- [x] HAWS dependency audit has zero High/Critical vulnerabilities.

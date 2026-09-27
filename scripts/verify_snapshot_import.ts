@@ -44,8 +44,8 @@ const matchingProductResult = parseSnapshotWorkbookData(workbookBytes, 'current'
 assert.equal(matchingProductResult.success, true)
 
 const mismatchedProductResult = parseSnapshotWorkbookData(workbookBytes, 'current', 'P-999')
-assert.equal(mismatchedProductResult.success, false)
-assert.match(mismatchedProductResult.message, /Product Code mismatch/)
+assert.equal(mismatchedProductResult.success, true)
+assert.ok(mismatchedProductResult.warnings?.some(warning => warning.includes('Product mismatch: Selected Product')))
 
 assert.equal(result.success, true)
 assert.equal(result.format, 'canonical')
@@ -89,9 +89,9 @@ async function verifyCanonicalTemplate(): Promise<void> {
   const roundTrip = parseSnapshotWorkbookData(templateBytes, 'reference', 'P-001')
   assert.equal(roundTrip.success, true)
   assert.equal(roundTrip.format, 'canonical')
-  assert.equal(roundTrip.snapshot?.rates.length, 2)
-  assert.equal(roundTrip.snapshot?.bom.length, 2)
-  assert.equal(roundTrip.snapshot?.routing.length, 1)
+  assert.equal(roundTrip.snapshot?.rates.length, 0)
+  assert.equal(roundTrip.snapshot?.bom.length, 0)
+  assert.equal(roundTrip.snapshot?.routing.length, 0)
 }
 
 const invalidWorkbook = XLSX.utils.book_new()
@@ -158,8 +158,23 @@ async function verifyLegacyAdapter(): Promise<void> {
   assert.ok(legacyResult.warnings?.some(warning => warning.includes('legacy paired')))
 }
 
+async function verifyCanonicalXlsUpload(): Promise<void> {
+  const xlsFile = new File([
+    XLSX.write(workbook, { type: 'array', bookType: 'biff8' })
+  ], 'canonical.xls')
+  const xlsResult = await parseSnapshotExcelInputFile(xlsFile, 'current', {
+    allowLegacy: false,
+    expectedProductCode: 'P-001'
+  })
+
+  assert.equal(xlsResult.success, true)
+  assert.equal(xlsResult.format, 'canonical')
+  assert.equal(xlsResult.snapshot?.product.productCode, 'P-001')
+}
+
 verifyCanonicalTemplate()
   .then(() => verifyLegacyAdapter())
+  .then(() => verifyCanonicalXlsUpload())
   .then(() => console.log('Snapshot import self-check: PASS'))
   .catch(error => {
     console.error(error)

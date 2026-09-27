@@ -25,7 +25,7 @@ The maintainability rule is recorded in `PROJECT_SPECIFIC.md`: shared behavior h
 - **Task 17 — implemented and verified:** the user explicitly selects a scenario for handoff; Trial validation, actual-cost fields, baseline promotion, and their unused types are removed.
 - **Task 18 — implementation verification complete and checkpointed locally:** synthetic browser workflow, focused checks, build, and final implementation review are recorded below.
 - **Human acceptance — pending:** user review is still required; automated results do not establish acceptance.
-- **HAWS security gate — open:** npm audit reports two High vulnerabilities in xlsx with no available fix; dependency remediation needs separate scope.
+- **HAWS security gate — cleared by automated audit:** SheetJS is on official 0.20.3 and Vite is on patched 6.4.3. `npm audit --audit-level=high` passes; two Moderate findings remain through ExcelJS/uuid.
 
 ## Task 14 verification
 
@@ -103,13 +103,24 @@ Fresh focused verification passed all 13 checks:
 
 - The simulation-context verifier still uses current Task 15 scenario-draft APIs; it had become stale when that API changed and was repaired at this checkpoint.
 - `npm run build` passed: TypeScript succeeded; Vite transformed 1,691 modules and built the application. The existing chunk-size advisory remains (1,670.44 kB JavaScript, 486.02 kB gzip).
-- `npm audit --audit-level=high` remains blocked: five advisories total (three Moderate, two High). The High findings are prototype pollution and ReDoS in xlsx 0.18.5, with no fix available. Moderate advisories affect esbuild through Vite and uuid through ExcelJS. No dependency changes were made; `npm audit fix --force` proposes breaking changes.
-- The upload path reads user-provided workbooks through xlsx. The security gate therefore remains open until a separately scoped parser/remediation decision preserves agreed Excel import behavior.
+- At Task 18 close, before the follow-up below, `npm audit --audit-level=high` reported five advisories (three Moderate, two High). The two High findings were prototype pollution and ReDoS in xlsx 0.18.5. The security remediation below closes that gate while preserving the import contract.
 - Human acceptance remains pending. The automated browser pass and implementation review are evidence, not user acceptance.
+
+## HAWS dependency security remediation (2026-09-27)
+
+- Updated SheetJS to 0.20.3 from the official CDN tarball and Vite to 6.4.3, the first patched release listed by the reviewed Vite advisory. The existing React plugin supports Vite 6.
+- Kept the existing parser modules, service API, and `.xls`/`.xlsx` upload contract. No application UI or agreement behavior changed.
+- The package lock pins the official SheetJS URL and its SHA-512 integrity. The SheetJS CDN package is not an npm-registry package, so it is not represented in the registry-signature count.
+- `npm audit --audit-level=high` passed with zero High/Critical findings. The full audit reports two Moderate findings through `uuid`/ExcelJS.
+- `npm audit signatures` passed: 238 registry packages have verified signatures and 40 packages have verified attestations.
+- `npm run build` passed with 1,688 modules transformed. Vite still reports the existing large-chunk warning (1,711.30 kB JavaScript, 498.13 kB gzip).
+- `scripts/verify_snapshot_import.ts` passed with synthetic canonical `.xlsx` and `.xls` workbooks, legacy import, a non-blocking Product mismatch warning, and blank template rows ignored. The test's former blocking-mismatch and populated-template expectations were stale against the current agreement and template instructions; only those assertions were corrected.
+- The verifier type-check passed, and `scripts/verify_import_mismatch_export.ts` passed export/import round-trip, non-blocking mismatch, comparison handoff, and replacement-side isolation.
+- The operational RGOM workbook was not opened. Human acceptance remains pending for the user's page-by-page review.
 
 ## Resume point
 
-Next: obtain human review/acceptance of the integrated RCA flow, then decide whether to authorize a separate xlsx security remediation that preserves the existing import contract. Tasks 14–17 have earlier local checkpoints; Task 18 is the current local checkpoint. No remote push has been made.
+Next: user reviews the integrated flow page by page. Tasks 14–18 and the HAWS dependency security gate are implemented and automated checks are recorded; human acceptance remains pending. No remote push has been made.
 
 ---
 
