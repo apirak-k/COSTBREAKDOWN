@@ -1,45 +1,48 @@
-# Current Handoff — Repository Structure Cleanup (2026-09-27)
+# Current Handoff — RCA & Simulation Agreement Work (2026-09-27)
 
-> This checkpoint describes the current worktree. Older implementation and verification notes below are historical; verify their scope and commit before relying on them.
+> This checkpoint records the active implementation state. Earlier handoffs remain below as history.
 
 ## Repository and Git state
 
 - Repository: `COSTBREAKDOWN`.
-- Branch: `codex/snapshot-import-role-selector`.
-- Starting HEAD: `0bb60f5f40055e32b6e5e62195f8736f3550d06d`.
-- The repository-structure checkpoint is local to this branch and has not been pushed. Check Git for the current commit and staging state.
-- The local `origin/feature/taste-frontend-ui` ref is an ancestor of this branch. This branch contains 89 later commits; no branch switch or remote fetch was performed.
+- Active worktree: `C:\Users\Boom\.codex\worktrees\rca-agreement\COSTBREAKDOWN`.
+- Branch: `codex/rca-task-14`, based on local checkpoint `0d7079d`.
+- The original checkout at `E:\COSTBREAKDOWN` remains unchanged by this feature work.
+- No remote push has been made or authorized.
+- `origin/feature/taste-frontend-ui` remains a reference ancestor; this work does not switch to it.
 
-## Current scope
+## Goal and scope
 
-Clarify the canonical project structure and remove disconnected legacy source paths so future work follows the active feature layout. Preserve the four agreements, current task backlog, design proposal status, and historical handoffs. This cleanup does not change product behavior or establish human acceptance.
+Complete agreement Tasks 14–18 in dependency order. The four files in `agreements/` remain the product behavior source of truth. Keep implementation evidence separate from human review and acceptance.
 
-## Changes
+The maintainability rule is recorded in `PROJECT_SPECIFIC.md`: shared behavior has one canonical implementation imported by consumers; reuse follows matching behavior and meaning; intentional local exceptions carry a nearby note; inspect callers before changing shared modules.
 
-- Keep `src/features/`, `src/core/`, `src/state/`, `src/services/`, and `src/shared/` as the canonical application structure.
-- Retire the unreachable top-level `src/pages/`, `src/components/`, and `src/lib/` trees, plus unused single-sheet and multi-tab Excel adapters.
-- Add `*.tsbuildinfo` to `.gitignore` and remove the already-tracked build metadata from the Git index. The generated file remains local and ignored.
-- Update project navigation and structural guidance in `README.md`, `PROJECT.md`, and `PROJECT_SPECIFIC.md`.
-- Record the structure audit and its evidence in `.planning/2026-09-27-repository-structure/`.
+## Task status
 
-## Verification and product status
+- **Task 14 — implemented and verified:** RCA starts without a selected candidate; user chooses from the full candidate pool; optional Root Cause and Action notes are saved by candidate and excluded from numeric calculations. Removed the obsolete Ranking-driven selection path and dead UI/API. Deprecated persisted fields remain only for old-session compatibility.
+- **Tasks 15–18 — pending:** shared-engine scenario overrides; separate Standard Cost and improvement economics; explicit human-selected Trial handoff without Trial validation/promotion; full synthetic browser workflow and final review.
+- **Human acceptance — pending:** user has not reviewed the updated RCA pages. Automated results do not establish acceptance.
 
-- Active import traversal from `src/main.tsx` found 95 source modules and zero modules under the retired directories.
-- Repository reference search found the retired trees were referenced only inside the disconnected legacy source island and tracked TypeScript build metadata.
-- Pre-cleanup build at starting HEAD `0bb60f5` passed.
-- Post-cleanup `npm run build` passed: 1,689 modules transformed. Vite reports the existing large-chunk advisory; the main JavaScript bundle is 1,673.45 kB.
-- Post-cleanup import traversal still resolves 95 source modules and zero under the retired paths. Repository search found no source or script references to removed modules.
-- `git diff --check` passed with no whitespace errors. Git reports line-ending normalization warnings for edited Markdown files.
-- Reviewed the complete change list. Agreement files, `tasks/plan.md`, `tasks/todo.md`, the sizing proposal, and the completed agreement audit are unchanged.
-- `git check-ignore --no-index` confirms the local generated metadata now follows the ignore rule.
-- No behavioral tests or browser walkthrough were run. UI and domain logic were not changed.
-- The four agreements remain the product behavior source of truth.
-- `tasks/todo.md` remains unchanged. Tasks 14–18 and end-to-end agreement acceptance remain open.
-- The 2026-09-25 Master Data sizing design remains Proposed.
+## Task 14 verification
+
+Fresh run in the active worktree passed all eight focused verifiers:
+
+- `verify_candidate_prioritization`
+- `verify_rca_record`
+- `verify_rca_candidate_notes` — 8 checks
+- `verify_simulation_context`
+- `verify_scenario_draft`
+- `verify_scenario_variables`
+- `verify_snapshot_full_flow`
+- `verify_snapshot_bridge`
+
+`npm run build` passed: TypeScript and Vite completed; 1,689 modules transformed. Vite reports the existing large-chunk advisory (1,674.34 kB JavaScript output). `git diff --check` passed; Git reported line-ending normalization warnings only.
+
+[Unverified] Browser layout, keyboard interaction, and screen-reader behavior remain for the integrated browser pass and human review.
 
 ## Resume point
 
-Continue agreement work from Task 14 in `tasks/todo.md` or another user-selected task. The structure cleanup does not establish agreement implementation or user acceptance.
+Commit the verified Task 14 checkpoint locally, then start Task 15 with a failing focused verifier. Do not push. Keep each task checkpoint local and reviewable.
 
 ---
 

@@ -1,75 +1,55 @@
 import React from 'react'
-import { CostDriver, DriverRcaRecord, formatParam, formatVariance, isYieldDriver } from '../../../core'
+import type { PrioritizationCandidate } from '../../../core'
+import { formatVariance } from '../../../core'
 
 interface ProblemStatementCardProps {
-  driver: CostDriver | null
-  rca?: DriverRcaRecord
+  candidate: PrioritizationCandidate
 }
 
-export const ProblemStatementCard: React.FC<ProblemStatementCardProps> = ({ driver, rca }) => {
-  if (!driver) {
-    return (
-      <div className="bg-white p-3.5 rounded border border-slate-300/80 shadow-2xs">
-        <div className="p-3 bg-emerald-50 rounded border border-emerald-200 text-xs text-emerald-800 font-mono">
-          All operational parameters are at or below baseline — no unfavorable cost drivers detected.
+function formatCandidateValue(value: number | null): string {
+  return value === null ? 'N/A' : value.toLocaleString(undefined, { maximumFractionDigits: 4 })
+}
+
+export const ProblemStatementCard: React.FC<ProblemStatementCardProps> = ({ candidate }) => (
+  <section className="rounded-lg border border-slate-200 bg-white p-4 shadow-xs">
+    <div className="flex flex-wrap items-start justify-between gap-3">
+      <div>
+        <div className="mb-2 flex flex-wrap items-center gap-2">
+          <span className="rounded border border-slate-200 bg-slate-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-slate-600">
+            {candidate.status}
+          </span>
+          <span className="text-xs text-slate-500">Ranking context #{candidate.rank}</span>
         </div>
+        <h2 className="text-sm font-semibold text-slate-900">{candidate.candidateName}</h2>
+        <p className="mt-1 text-xs text-slate-600">
+          {candidate.category}{candidate.factor ? ` · ${candidate.factor}` : ''}
+        </p>
       </div>
-    )
-  }
-
-  const yieldDriver = isYieldDriver(driver.rcaParameter)
-  const isUncontrollable = driver.controllability === 'Uncontrollable'
-
-  return (
-    <div className="bg-white p-4 rounded-lg border border-slate-200/90 shadow-xs space-y-3">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <div className="flex items-center gap-2">
-          <span className="w-5 h-5 rounded-full bg-slate-900 text-white font-mono font-bold text-[10px] flex items-center justify-center tabular-nums">
-            #{driver.rank}
-          </span>
-          <h2 className="text-xs font-bold font-mono text-slate-900">
-            {driver.driverName}
-          </h2>
-          <span className="px-2 py-0.5 text-[10px] font-mono font-medium bg-slate-100/90 text-slate-700 rounded border border-slate-200/70">
-            {driver.category}
-          </span>
-          {isUncontrollable && (
-            <span className="px-2 py-0.5 text-[10px] font-mono font-bold bg-slate-100 text-slate-700 rounded border border-slate-300">
-              UNCONTROLLABLE
-            </span>
-          )}
-        </div>
-
-        <div className="text-right font-mono flex items-center gap-1.5">
-          <span className="text-[11px] text-slate-500">Cost Gap:</span>
-          <span className="text-xs font-bold text-rose-700 bg-slate-100 px-2 py-0.5 rounded border border-slate-200 tabular-nums">
-            {formatVariance(driver.costGap, 4)} THB/pc
-          </span>
-        </div>
+      <div className="text-right">
+        <p className="text-[10px] font-medium uppercase tracking-wide text-slate-500">Cost gap</p>
+        <p className="font-mono text-sm font-semibold tabular-nums text-slate-900">
+          {formatVariance(candidate.costGap, 4)} THB/pc
+        </p>
       </div>
-
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5 text-xs">
-        <div className="p-2.5 bg-slate-50 rounded border border-slate-200 space-y-1">
-          <p className="text-[10px] font-mono font-bold uppercase tracking-wider text-slate-400">Parameter &amp; Symptom</p>
-          <p className="font-mono text-xs text-slate-800 font-semibold">{driver.rcaParameter || 'Parameter variance'}</p>
-        </div>
-
-        <div className="p-2.5 bg-slate-50 rounded border border-slate-200 space-y-1">
-          <p className="text-[10px] font-mono font-bold uppercase tracking-wider text-slate-400">Baseline vs Active</p>
-          <p className="font-mono text-xs font-bold text-slate-900 tabular-nums">
-            Base: {formatParam(driver.baseParameter, yieldDriver)} ➔ Active: {formatParam(driver.activeParameter, yieldDriver)}
-          </p>
-        </div>
-      </div>
-
-      {(rca?.action || driver.actionPlan) && (
-        <div className="p-2.5 bg-slate-50 rounded border border-slate-200 text-xs">
-          <span className="font-mono font-bold text-slate-700 text-[10px] uppercase tracking-wider block mb-0.5">
-            {rca?.action ? 'RCA Action:' : 'Action Plan:'}
-          </span>
-          <p className="text-slate-800 font-sans">{rca?.action || driver.actionPlan}</p>
-        </div>
-      )}
     </div>
-  )
-}
+
+    <dl className="mt-4 grid grid-cols-1 gap-2 text-xs sm:grid-cols-2">
+      <div className="rounded border border-slate-200 bg-slate-50 p-2.5">
+        <dt className="text-[10px] font-medium uppercase tracking-wide text-slate-500">
+          Reference {candidate.paramLabel ?? 'value'}
+        </dt>
+        <dd className="mt-1 font-mono tabular-nums text-slate-900">
+          {formatCandidateValue(candidate.referenceParam ?? candidate.referenceCost)}
+        </dd>
+      </div>
+      <div className="rounded border border-slate-200 bg-slate-50 p-2.5">
+        <dt className="text-[10px] font-medium uppercase tracking-wide text-slate-500">
+          Current {candidate.paramLabel ?? 'value'}
+        </dt>
+        <dd className="mt-1 font-mono tabular-nums text-slate-900">
+          {formatCandidateValue(candidate.currentParam ?? candidate.currentCost)}
+        </dd>
+      </div>
+    </dl>
+  </section>
+)

@@ -249,11 +249,13 @@ Tasks are ordered by dependency. Keep each implementation slice focused and leav
 **Description:** Move candidate selection and Root Cause/Action notes to RCA & Simulation; permit selection from the full Candidate pool.
 
 **Acceptance criteria:**
-- [ ] The user can choose any candidate on the RCA page without preselecting it on Candidate Prioritization.
-- [ ] No candidate is auto-selected by rank; Root Cause and Action are optional descriptive notes.
-- [ ] Notes do not feed numeric calculations.
+- [x] The user can choose any candidate on the RCA page without preselecting it on Candidate Prioritization.
+- [x] No candidate is auto-selected by rank; Root Cause and Action are optional descriptive notes.
+- [x] Notes do not feed numeric calculations.
 
 **Verification:** Check an unselected candidate, blank notes, saved notes, and formula results with/without note text.
+
+**Implementation evidence:** `verify_rca_candidate_notes` passed 8 checks; `verify_simulation_context` and six related regression verifiers passed; `npm run build` passed. Browser and human review remain pending.
 
 **Dependencies:** Candidate checkpoint.
 

@@ -28,6 +28,16 @@ export type DatasetStatus = 'archived' | 'active' | 'draft'
 
 export type SnapshotRoleReadiness = Record<import('./snapshot.types').ComparisonRole, boolean>
 
+export interface CandidateRcaDraft {
+  rootCause: string
+  action: string
+}
+
+export interface CandidateRcaRecord extends CandidateRcaDraft {
+  candidateKey: string
+  updatedAt: string
+}
+
 // A self-contained product session — one "workbook" per product version
 export interface ProductSession {
   id: string
@@ -37,10 +47,12 @@ export interface ProductSession {
   routing: RoutingStep[]
   /** Persisted driver annotations are keyed by CostDriver.driverKey, not display rank. */
   savedDrivers: CostDriver[]
-  /** Session-scoped Ranking/RCA selection, keyed by CostDriver.driverKey. */
+  /** @deprecated Retained to preserve older session data; active RCA selects candidates on the RCA page. */
   selectedDriverKeys?: string[]
-  /** Extensible RCA records keyed by the selected CostDriver.driverKey. */
+  /** @deprecated Retained to preserve older RCA notes; active notes use candidateRcaRecords. */
   rcaRecords?: Record<string, DriverRcaRecord>
+  /** RCA notes are keyed by the Candidate Prioritization candidateKey. */
+  candidateRcaRecords?: Record<string, CandidateRcaRecord>
   /** Session-scoped candidate controllability map, keyed by candidateKey. */
   candidateControllability?: Record<string, boolean>
   status: DatasetStatus

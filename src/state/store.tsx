@@ -19,8 +19,8 @@ import {
   SnapshotWorkCenterRate,
   FieldEvidence,
   CostComparison,
-  DriverRcaDraft,
-  DriverRcaRecord,
+  CandidateRcaDraft,
+  CandidateRcaRecord,
   PrioritizationCandidate,
   buildPrioritizationCandidates,
   calculateCostBreakdown,
@@ -30,7 +30,6 @@ import {
   applySnapshotPairToSession,
   updateCurrentSnapshotFromLegacySession,
   getFieldConfidence,
-  createDriverRcaRecord,
   evaluateMasterDataHandoff,
   getSnapshotRoleReadiness
 } from '../core'
@@ -161,6 +160,7 @@ function makeSizedSession(id: string, config: ProductSizingConfig, now: string):
     bom,
     routing,
     savedDrivers: [],
+    candidateRcaRecords: {},
     preparedSnapshotRoles: { reference: false, current: false },
     status: 'draft',
     versionLabel: 'Draft',
@@ -179,6 +179,7 @@ export function makeEmptySession(id: string = 'ps-empty-default'): ProductSessio
     bom: [],
     routing: [],
     savedDrivers: [],
+    candidateRcaRecords: {},
     preparedSnapshotRoles: { reference: false, current: false },
     status: 'draft',
     versionLabel: 'Draft',
@@ -197,6 +198,7 @@ export function makeSeedSession(): ProductSession {
     bom: seedBOM,
     routing: seedRouting,
     savedDrivers: [],
+    candidateRcaRecords: {},
     preparedSnapshotRoles: { reference: true, current: true },
     status: 'active',
     versionLabel: 'Active Baseline (RGOM-024)',
@@ -219,8 +221,7 @@ interface AppContextType {
   costBreakdown: CostElementBreakdown
   topDrivers: CostDriver[]
   candidates: PrioritizationCandidate[]
-  selectedDriverKeys: string[]
-  rcaRecords: Record<string, DriverRcaRecord>
+  candidateRcaRecords: Record<string, CandidateRcaRecord>
   snapshotPair: SnapshotPair
   snapshotComparison: CostComparison
   masterDataHandoff: MasterDataHandoffStatus
@@ -274,17 +275,8 @@ interface AppContextType {
   updateWorkCenterRate: (wc: string, rate: Partial<WorkCenterRate>) => void
   deleteWorkCenterRate: (wc: string) => void
   promoteActiveToBaseline: () => void
-  updateDriverHumanInput: (
-    driverKey: string,
-    controllability: CostDriver['controllability'],
-    actionPlan: string,
-    canInfluence?: boolean,
-    requirementFit?: boolean
-  ) => void
-  toggleDriverSelection: (driverKey: string) => void
   toggleCandidateControllable: (candidateKey: string, nextValue: boolean) => void
-  clearDriverSelection: () => void
-  saveDriverRca: (driverKey: string, draft: DriverRcaDraft) => void
+  saveCandidateRca: (candidateKey: string, draft: CandidateRcaDraft) => void
   importFromExcel: (result: ExcelImportResult) => void
   importSnapshotFromExcel: (result: SnapshotImportResult) => void
   resetToDefault: () => void
@@ -305,6 +297,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     return loaded.map((s, idx) => {
       const normalized = withSnapshotPair({
         ...s,
+        candidateRcaRecords: s.candidateRcaRecords ?? {},
         masterDataRole: s.masterDataRole ?? 'current',
         status: s.status || (idx === 0 ? 'draft' : 'draft'),
         versionLabel: s.versionLabel || (s.status === 'archived' ? 'Archived' : 'Draft')
@@ -382,8 +375,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
   const costBreakdown = calculateCostBreakdown(bom, routing, rates)
   const topDrivers = calculateTopDrivers(bom, routing, rates, savedDrivers)
-  const selectedDriverKeys = activeSession.selectedDriverKeys ?? []
-  const rcaRecords = activeSession.rcaRecords ?? {}
+  const candidateRcaRecords = activeSession.candidateRcaRecords ?? {}
   const snapshotPair = activeSession.snapshotPair ?? sessionToSnapshotPair(activeSession)
   const snapshotComparison = compareSnapshots(snapshotPair.reference, snapshotPair.current)
   const candidateControllability = activeSession.candidateControllability ?? {}
@@ -511,6 +503,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       savedDrivers: [],
       selectedDriverKeys: [],
       rcaRecords: {},
+      candidateRcaRecords: {},
       preparedSnapshotRoles: { reference: false, current: false },
       status: 'draft',
       versionLabel: `Draft (${source.product.productCode || 'Copy'})`,
@@ -1012,43 +1005,9 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       })),
       savedDrivers: [],
       selectedDriverKeys: [],
-      rcaRecords: {}
+      rcaRecords: {},
+      candidateRcaRecords: {}
     })
-  }
-
-  const updateDriverHumanInput = (
-    driverKey: string,
-    controllability: CostDriver['controllability'],
-    actionPlan: string,
-    canInfluence?: boolean,
-    requirementFit?: boolean
-  ) => {
-    const driver = topDrivers.find(d => d.driverKey === driverKey)
-    if (!driver) return
-    const updated = savedDrivers.filter(d => {
-      const savedKey = d.driverKey
-      return savedKey !== driverKey && !(savedKey === undefined && d.driverName === driver.driverName)
-    })
-    patchActive({
-      savedDrivers: [
-        ...updated,
-        {
-          ...driver,
-          controllability,
-          actionPlan,
-          canInfluence: canInfluence !== undefined ? canInfluence : driver.canInfluence,
-          requirementFit: requirementFit !== undefined ? requirementFit : driver.requirementFit
-        }
-      ]
-    })
-  }
-
-  const toggleDriverSelection = (driverKey: string) => {
-    if (!topDrivers.some(driver => driver.driverKey === driverKey)) return
-    const selected = new Set(selectedDriverKeys)
-    if (selected.has(driverKey)) selected.delete(driverKey)
-    else selected.add(driverKey)
-    patchActive({ selectedDriverKeys: [...selected] })
   }
 
   const toggleCandidateControllable = (candidateKey: string, nextValue: boolean) => {
@@ -1061,19 +1020,18 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     })
   }
 
-  const clearDriverSelection = () => {
-    if (selectedDriverKeys.length === 0) return
-    patchActive({ selectedDriverKeys: [] })
-  }
+  const saveCandidateRca = (candidateKey: string, draft: CandidateRcaDraft) => {
+    if (!candidates.some(candidate => candidate.candidateKey === candidateKey)) return
 
-  const saveDriverRca = (driverKey: string, draft: DriverRcaDraft) => {
-    const driver = topDrivers.find(item => item.driverKey === driverKey)
-    if (!driver) return
-    const record = createDriverRcaRecord(driver, draft, new Date().toISOString())
     patchActive({
-      rcaRecords: {
-        ...rcaRecords,
-        [driverKey]: record
+      candidateRcaRecords: {
+        ...candidateRcaRecords,
+        [candidateKey]: {
+          candidateKey,
+          rootCause: draft.rootCause,
+          action: draft.action,
+          updatedAt: new Date().toISOString()
+        }
       }
     })
   }
@@ -1092,6 +1050,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       savedDrivers: [],
       selectedDriverKeys: [],
       rcaRecords: {},
+      candidateRcaRecords: {},
       preparedSnapshotRoles: { reference: false, current: true },
       status: 'draft',
       versionLabel: `Draft (Imported: ${result.product?.productCode || product.productCode || 'Excel'})`,
@@ -1140,6 +1099,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       savedDrivers: [],
       selectedDriverKeys: [],
       rcaRecords: {},
+      candidateRcaRecords: {},
       preparedSnapshotRoles: { reference: false, current: false },
       status: 'draft',
       versionLabel: 'Draft',
@@ -1157,6 +1117,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       savedDrivers: [],
       selectedDriverKeys: [],
       rcaRecords: {},
+      candidateRcaRecords: {},
       preparedSnapshotRoles: { reference: false, current: false },
       snapshotPair: createEmptySnapshotPair(activeSession.id),
       snapshotPairMode: 'independent'
@@ -1175,8 +1136,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       costBreakdown,
       topDrivers,
       candidates,
-      selectedDriverKeys,
-      rcaRecords,
+      candidateRcaRecords,
       snapshotPair,
       snapshotComparison,
       masterDataHandoff,
@@ -1220,11 +1180,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       updateWorkCenterRate,
       deleteWorkCenterRate,
       promoteActiveToBaseline,
-      updateDriverHumanInput,
-      toggleDriverSelection,
       toggleCandidateControllable,
-      clearDriverSelection,
-      saveDriverRca,
+      saveCandidateRca,
       importFromExcel,
       importSnapshotFromExcel,
       resetToDefault,
