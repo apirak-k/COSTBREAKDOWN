@@ -20,7 +20,8 @@ The maintainability rule is recorded in `PROJECT_SPECIFIC.md`: shared behavior h
 ## Task status
 
 - **Task 14 — implemented and verified:** RCA starts without a selected candidate; user chooses from the full candidate pool; optional Root Cause and Action notes are saved by candidate and excluded from numeric calculations. Removed the obsolete Ranking-driven selection path and dead UI/API. Deprecated persisted fields remain only for old-session compatibility.
-- **Tasks 15–18 — pending:** shared-engine scenario overrides; separate Standard Cost and improvement economics; explicit human-selected Trial handoff without Trial validation/promotion; full synthetic browser workflow and final review.
+- **Task 15 — implemented and verified:** independent A/B/C overrides for measurable BOM and Work Center inputs recalculate from the Current snapshot through the shared Standard Cost engine. Consumption is supported; structural edits remain excluded.
+- **Tasks 16–18 — pending:** separate Standard Cost and improvement economics; explicit human-selected Trial handoff without Trial validation/promotion; full synthetic browser workflow and final review.
 - **Human acceptance — pending:** user has not reviewed the updated RCA pages. Automated results do not establish acceptance.
 
 ## Task 14 verification
@@ -40,9 +41,24 @@ Fresh run in the active worktree passed all eight focused verifiers:
 
 [Unverified] Browser layout, keyboard interaction, and screen-reader behavior remain for the integrated browser pass and human review.
 
+## Task 15 verification
+
+Fresh checks in the active worktree passed:
+
+- `verify_scenario_cost_overrides`
+- `verify_scenario_input_mapping`
+- `verify_scenario_draft`
+- `verify_missing_work_center_rate`
+- `verify_rca_candidate_notes` — 7 checks
+- `npm run build` — TypeScript and Vite completed; 1,692 modules transformed
+- `npm run excel` — generated workbook audit passed with zero errors
+- `git diff --check` — passed; Git reported line-ending normalization warnings only
+
+Scenario drafts are keyed by product and candidate. Each starts from Current, applies only supported numeric field overrides, and preserves missing values and structure. Scenario values are not yet browser-verified.
+
 ## Resume point
 
-Commit the verified Task 14 checkpoint locally, then start Task 15 with a failing focused verifier. Do not push. Keep each task checkpoint local and reviewable.
+Implement Task 16 economics without changing Standard Cost outputs, then complete the human-selected Trial handoff in Task 17 and synthetic browser review in Task 18. Task 14 (`2f5596a`) and Task 15 remain local checkpoints; do not push.
 
 ---
 

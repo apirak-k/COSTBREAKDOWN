@@ -1,35 +1,31 @@
 import React, { useEffect, useMemo, useState } from 'react'
+import { calculateScenarioCosts } from '../../core/calculations/scenario-cost'
 import { useAppStore } from '../../state'
 import {
-  WhatIfScenario,
-  formatCurrency,
-  isPriceDriver,
-  simulateWhatIfScenarios
-} from '../../core'
-import { createScenarioDrafts, updateScenarioDraft } from './scenario-draft'
+  createScenarioDrafts,
+  prepareScenarioDrafts,
+  ScenarioDraftForm,
+  updateScenarioInputValue,
+  updateScenarioLabel
+} from './scenario-draft'
+import { getScenarioInputDefinitions } from './scenario-inputs'
 import { CandidateRcaForm } from './components/CandidateRcaForm'
 import { CandidateSelector } from './components/CandidateSelector'
 import { ProblemStatementCard } from './components/ProblemStatementCard'
 import { SimulationGrid } from './components/SimulationGrid'
-import { TrialValidationCard } from './components/TrialValidationCard'
 
 export const RCASimulationPage: React.FC = () => {
   const {
     activeProductId,
     candidates,
-    topDrivers,
     candidateRcaRecords,
-    costBreakdown,
-    bom,
-    rates,
     snapshotPair,
-    saveCandidateRca,
-    promoteActiveToBaseline
+    saveCandidateRca
   } = useAppStore()
 
   const [selectedCandidateKey, setSelectedCandidateKey] = useState<string | null>(null)
   const [selectionProductId, setSelectionProductId] = useState(activeProductId)
-  const [scenarioDraftsByProduct, setScenarioDraftsByProduct] = useState<Record<string, Record<string, WhatIfScenario[]>>>({})
+  const [scenarioDraftsByProduct, setScenarioDraftsByProduct] = useState<Record<string, Record<string, ScenarioDraftForm[]>>>({})
 
   useEffect(() => {
     setSelectedCandidateKey(null)
@@ -51,80 +47,53 @@ export const RCASimulationPage: React.FC = () => {
     setSelectionProductId(activeProductId)
     setSelectedCandidateKey(candidateKey)
   }
-  const currentSnapshotBom = selectedCandidate?.sourceType === 'bom'
-    ? snapshotPair.current.bom.find(item => item.id === selectedCandidate.sourceId) ?? null
-    : null
-  const legacyBomItem = selectedCandidate?.sourceType === 'bom'
-    ? bom.find(item => item.id === selectedCandidate.sourceId) ?? null
-    : null
-  const simulationBomItem = currentSnapshotBom && legacyBomItem
-    && currentSnapshotBom.itemCode === legacyBomItem.itemCode
-    && currentSnapshotBom.consumption === legacyBomItem.consumption
-    && currentSnapshotBom.price === legacyBomItem.activePrice
-    && currentSnapshotBom.loss === legacyBomItem.activeLoss
-    ? legacyBomItem
-    : null
 
-  const simulationDriver = useMemo(() => {
-    if (
-      !selectedCandidate
-      || selectedCandidate.status !== 'CHANGED'
-      || selectedCandidate.sourceType !== 'bom'
-      || !simulationBomItem
-      || (selectedCandidate.factor !== 'Price' && selectedCandidate.factor !== 'Loss %')
-    ) {
-      return null
-    }
+  const savedScenarioDrafts = selectedCandidate
+    ? scenarioDraftsByProduct[activeProductId]?.[selectedCandidate.candidateKey]
+    : undefined
+  const scenarioDrafts = useMemo(
+    () => savedScenarioDrafts ?? createScenarioDrafts(),
+    [activeProductId, selectedCandidate?.candidateKey, savedScenarioDrafts]
+  )
 
-    return topDrivers.find(driver => (
-      driver.sourceType === 'bom'
-      && driver.sourceId === selectedCandidate.sourceId
-      && (selectedCandidate.factor === 'Price'
-        ? isPriceDriver(driver.rcaParameter)
-        : /loss/i.test(driver.rcaParameter))
-    )) ?? null
-  }, [selectedCandidate, simulationBomItem, topDrivers])
+  const currentSnapshot = snapshotPair.current
+  const inputDefinitions = useMemo(
+    () => selectedCandidate ? getScenarioInputDefinitions(selectedCandidate, currentSnapshot) : [],
+    [selectedCandidate, currentSnapshot]
+  )
+  const preparedDrafts = useMemo(
+    () => prepareScenarioDrafts(scenarioDrafts, inputDefinitions),
+    [scenarioDrafts, inputDefinitions]
+  )
+  const scenarioResults = useMemo(
+    () => selectedCandidate ? calculateScenarioCosts(currentSnapshot, preparedDrafts.drafts) : [],
+    [selectedCandidate, currentSnapshot, preparedDrafts.drafts]
+  )
 
-  const scenarios = selectedCandidate
-    ? scenarioDraftsByProduct[activeProductId]?.[selectedCandidate.candidateKey] ?? createScenarioDrafts()
-    : []
+  const updateDrafts = (transform: (drafts: ScenarioDraftForm[]) => ScenarioDraftForm[]) => {
+    if (!selectedCandidate) return
+    const candidateKey = selectedCandidate.candidateKey
 
-  const updateScenario = (idx: number, field: string, val: string) => {
-    if (!selectedCandidate || !simulationDriver || idx < 0 || idx >= scenarios.length) return
-    setScenarioDraftsByProduct(previous => ({
-      ...previous,
-      [activeProductId]: {
-        ...previous[activeProductId],
-        [selectedCandidate.candidateKey]: updateScenarioDraft(
-          previous[activeProductId]?.[selectedCandidate.candidateKey] ?? createScenarioDrafts(),
-          idx,
-          field as keyof WhatIfScenario,
-          val
-        )
+    setScenarioDraftsByProduct(previous => {
+      const productDrafts = previous[activeProductId] ?? {}
+      const currentDrafts = productDrafts[candidateKey] ?? createScenarioDrafts()
+      return {
+        ...previous,
+        [activeProductId]: {
+          ...productDrafts,
+          [candidateKey]: transform(currentDrafts)
+        }
       }
-    }))
+    })
   }
 
-  const simulationResults = useMemo(() => {
-    if (!simulationDriver || !simulationBomItem) return []
-    return simulateWhatIfScenarios({
-      driver: simulationDriver,
-      bomItem: simulationBomItem,
-      routingStep: null,
-      rates,
-      totalActiveCost: costBreakdown.totalActive,
-      scenarios
-    })
-  }, [simulationDriver, simulationBomItem, rates, costBreakdown.totalActive, scenarios])
+  const handleUpdateLabel = (letter: ScenarioDraftForm['letter'], label: string) => {
+    updateDrafts(drafts => updateScenarioLabel(drafts, letter, label))
+  }
 
-  const targetLabel = simulationDriver && isPriceDriver(simulationDriver.rcaParameter)
-    ? 'Target Purchase Price (THB)'
-    : 'Target Scrap Loss (%)'
-  const targetPlaceholder = simulationDriver && simulationBomItem
-    ? isPriceDriver(simulationDriver.rcaParameter)
-      ? `e.g. ${simulationBomItem.basePrice.toFixed(2)}`
-      : `e.g. ${(simulationBomItem.baseLoss * 100).toFixed(0)}`
-    : ''
+  const handleUpdateInput = (letter: ScenarioDraftForm['letter'], inputKey: string, value: string) => {
+    updateDrafts(drafts => updateScenarioInputValue(drafts, letter, inputKey, value))
+  }
 
   return (
     <div className="space-y-5">
@@ -132,13 +101,13 @@ export const RCASimulationPage: React.FC = () => {
         <div>
           <h1 className="text-sm font-bold text-slate-900">Root Cause Analysis &amp; What-If Simulator</h1>
           <p className="mt-0.5 text-[11px] text-slate-500">
-            Select a candidate, document optional notes, and review supported scenarios.
+            Select a candidate, document optional notes, and compare independent scenarios from Current.
           </p>
         </div>
       </div>
 
       <div role="status" className="rounded border border-slate-200 bg-slate-50 px-3 py-2.5 text-[11px] text-slate-600">
-        Scenario drafts recalculate this page without changing Active, Reference, Current, or Master Data.
+        Scenario drafts use the shared Standard Cost engine. Blank inputs keep Current values; scenario edits do not change Current, Reference, or Master Data.
       </div>
 
       <CandidateSelector
@@ -151,7 +120,7 @@ export const RCASimulationPage: React.FC = () => {
         <div role="status" className="rounded-lg border border-amber-200 bg-amber-50/50 p-5 text-sm text-amber-900">
           <h2 className="font-bold text-xs uppercase tracking-wide">No candidates available</h2>
           <p className="mt-1 text-xs">
-            Candidate Prioritization has no findings to select. RCA notes and simulation become available when the pool contains a candidate.
+            Candidate Prioritization has no findings to select. RCA notes and scenarios become available when the pool contains a candidate.
           </p>
         </div>
       )}
@@ -173,41 +142,23 @@ export const RCASimulationPage: React.FC = () => {
             onSave={draft => saveCandidateRca(selectedCandidate.candidateKey, draft)}
           />
 
-          {simulationDriver && simulationBomItem ? (
-            <>
-              <div role="status" className="rounded border border-slate-200 bg-slate-50 px-3 py-2.5 text-[11px] text-slate-600">
-                The current simulator supports changed material Price and Loss candidates only when the matching Current BOM values are available.
-              </div>
-              <SimulationGrid
-                scenarios={simulationResults}
-                targetLabel={targetLabel}
-                targetPlaceholder={targetPlaceholder}
-                isRouting={false}
-                onUpdateScenario={updateScenario}
-              />
-
-              <div className="flex items-center justify-between rounded-lg border border-slate-200 bg-slate-50 p-3 font-mono text-xs">
-                <span className="font-sans font-medium text-slate-600">Active Total Cost:</span>
-                <span className="text-sm font-bold text-slate-900">
-                  {formatCurrency(costBreakdown.totalActive, 4, 'THB/pc')}
-                </span>
-              </div>
-
-              <TrialValidationCard
-                baselineTotalCost={costBreakdown.totalBase}
-                activeTotalCost={costBreakdown.totalActive}
-                scenarios={simulationResults}
-                onPromoteToBaseline={promoteActiveToBaseline}
-              />
-            </>
-          ) : (
+          {inputDefinitions.length === 0 && (
             <div role="status" className="rounded-lg border border-amber-200 bg-amber-50/50 p-4 text-sm text-amber-900">
-              <h3 className="font-semibold">Simulation is not available for this candidate yet</h3>
+              <h3 className="font-semibold">No measurable Current inputs are available for this candidate</h3>
               <p className="mt-1 text-xs">
-                This candidate remains selected and its notes can be saved. The current simulator does not model this candidate, and no other driver is substituted.
+                The scenarios remain based on Current. Structural changes such as adding, removing, splitting, or merging records are not simulated.
               </p>
             </div>
           )}
+
+          <SimulationGrid
+            scenarios={scenarioDrafts}
+            inputDefinitions={inputDefinitions}
+            results={scenarioResults}
+            inputWarningsByLetter={preparedDrafts.inputWarningsByLetter}
+            onUpdateLabel={handleUpdateLabel}
+            onUpdateInput={handleUpdateInput}
+          />
         </>
       )}
     </div>

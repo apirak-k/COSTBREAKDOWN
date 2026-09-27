@@ -268,11 +268,11 @@ Tasks are ordered by dependency. Keep each implementation slice focused and leav
 **Description:** Build independent A/B/C drafts from Current and calculate each scenario's per-piece Material + Labor + Burden through the shared cost logic.
 
 **Acceptance criteria:**
-- [ ] Supported measurable overrides include the verified input fields, including Usage/Consumption where supported by the engine.
-- [ ] Each scenario starts from Current, is isolated from the other scenarios, and does not mutate Current.
-- [ ] Structural add/remove/split/merge changes are not simulated.
+- [x] Supported measurable overrides include the verified input fields, including Usage/Consumption where supported by the engine.
+- [x] Each scenario starts from Current, is isolated from the other scenarios, and does not mutate Current.
+- [x] Structural add/remove/split/merge changes are not simulated.
 
-**Verification:** Check material and processing overrides, engine parity, scenario independence, missing inputs, and unchanged source data.
+**Verification:** `verify_scenario_cost_overrides`, `verify_scenario_input_mapping`, `verify_scenario_draft`, `verify_missing_work_center_rate`, and `verify_rca_candidate_notes` passed; `npm run build` and `npm run excel` passed. Browser interaction remains in Task 18.
 
 **Dependencies:** Task 14.
 

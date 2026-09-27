@@ -1,239 +1,172 @@
 import React from 'react'
-import { WhatIfResult, formatCurrency, formatVariance } from '../../../core'
+import type { ScenarioCostResult } from '../../../core'
+import type { ScenarioDraftForm } from '../scenario-draft'
+import type { ScenarioInputDefinition } from '../scenario-inputs'
+import { ScenarioInputField } from './ScenarioInputField'
 
 interface ScenarioCardProps {
-  scenario: WhatIfResult
-  targetLabel: string
-  targetPlaceholder: string
-  isRouting?: boolean
-  secondaryLabel?: string
-  secondaryPlaceholder?: string
-  onUpdate: (field: string, val: string) => void
+  scenario: ScenarioDraftForm
+  inputDefinitions: ScenarioInputDefinition[]
+  result: ScenarioCostResult
+  inputWarnings: string[]
+  onUpdateLabel: (label: string) => void
+  onUpdateInput: (inputKey: string, value: string) => void
 }
 
-const originClass: Record<string, string> = {
-  source: 'text-slate-600 bg-slate-100 border-slate-200',
-  calculated: 'text-blue-700 bg-blue-50 border-blue-200',
-  override: 'text-amber-800 bg-amber-50 border-amber-200'
+const COST_ROWS = [
+  { key: 'material', label: 'Material' },
+  { key: 'labor', label: 'Labor' },
+  { key: 'burden', label: 'Burden' },
+  { key: 'total', label: 'Total' }
+] as const
+
+const STATUS_CLASS: Record<string, string> = {
+  complete: 'border-emerald-200 bg-emerald-50 text-emerald-800',
+  estimated: 'border-amber-200 bg-amber-50 text-amber-800',
+  missing: 'border-rose-200 bg-rose-50 text-rose-800'
 }
 
-const ScenarioVariableProvenance: React.FC<{ scenario: WhatIfResult }> = ({ scenario }) => (
-  <details className="pt-2 border-t border-slate-200 text-[10px] font-sans">
-    <summary className="cursor-pointer text-slate-600 font-semibold">
-      Variable provenance ({scenario.scenarioValues.length})
-    </summary>
-    <div className="mt-2 grid grid-cols-1 gap-1">
-      {scenario.scenarioValues.map(variable => (
-        <div key={variable.key} className="flex items-center justify-between gap-2" title={variable.formula}>
-          <span className="truncate text-slate-600">{variable.label}</span>
-          <span className="flex items-center gap-1 shrink-0">
-            <span className="text-slate-500 tabular-nums">
-              {variable.value === null ? '—' : String(variable.value)}{variable.unit ? ` ${variable.unit}` : ''}
-            </span>
-            <span className={`px-1 py-0.5 rounded border text-[8px] font-mono font-bold uppercase ${originClass[variable.origin] || originClass.calculated}`}>
-              {variable.origin}
-            </span>
-          </span>
-        </div>
-      ))}
-    </div>
-  </details>
-)
+function formatCost(value: number | null): string {
+  return value === null ? 'N/A' : value.toLocaleString(undefined, { maximumFractionDigits: 4 })
+}
 
 export const ScenarioCard: React.FC<ScenarioCardProps> = ({
   scenario,
-  targetLabel,
-  targetPlaceholder,
-  isRouting,
-  secondaryLabel = 'Target Manning (Heads)',
-  secondaryPlaceholder = '1',
-  onUpdate
+  inputDefinitions,
+  result,
+  inputWarnings,
+  onUpdateLabel,
+  onUpdateInput
 }) => {
+  const warningSections = [
+    { label: 'Current cost', messages: result.currentCost.warnings },
+    { label: 'Scenario cost', messages: result.scenarioCost.warnings },
+    { label: 'Unsupported or ambiguous overrides', messages: result.overrideWarnings },
+    { label: 'Invalid input', messages: inputWarnings }
+  ]
+  const warningSources = new Map<string, string[]>()
+  warningSections.forEach(section => {
+    section.messages.forEach(message => {
+      const sources = warningSources.get(message) ?? []
+      if (!sources.includes(section.label)) sources.push(section.label)
+      warningSources.set(message, sources)
+    })
+  })
+  const uniqueWarnings = Array.from(warningSources, ([message, sources]) => ({ message, sources }))
+  const warningCount = uniqueWarnings.length
+  const labelId = `scenario-label-${scenario.letter}`
+
   return (
-    <div
-      className={`rounded-lg border overflow-hidden transition-all bg-white flex flex-col justify-between shadow-xs ${
-        scenario.valid && scenario.isProfitable
-          ? 'border-slate-300'
-          : scenario.valid && !scenario.isProfitable
-          ? 'border-slate-300'
-          : 'border-slate-200'
-      }`}
-    >
-      {/* Option Header */}
-      <div>
-        <div className="flex items-center justify-between px-4 py-2 border-b border-slate-200 bg-slate-50">
-          <span className="px-2 py-0.5 text-xs font-bold bg-slate-900 text-white rounded font-mono shadow-2xs">
-            Option {scenario.letter}
-          </span>
-          <div className="flex items-center gap-1.5">
-            <span className="text-[9px] font-mono font-bold px-1.5 py-0.5 rounded border border-amber-200 bg-amber-50 text-amber-800">
-              SCENARIO DRAFT
-            </span>
-            {scenario.valid && (
-              <span
-                className={`text-[10px] font-mono font-bold px-2 py-0.5 rounded border ${
-                  scenario.isProfitable
-                    ? 'bg-slate-100 text-emerald-700 border-slate-200'
-                    : 'bg-slate-100 text-rose-700 border-slate-200'
-                }`}
-              >
-                {scenario.isProfitable ? 'PROFITABLE' : 'UNPROFITABLE'}
-              </span>
-            )}
-          </div>
+    <article className="flex min-w-0 flex-col overflow-hidden rounded-lg border border-slate-200 bg-white shadow-xs">
+      <header className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-200 bg-slate-50 px-4 py-3">
+        <h3 className="text-sm font-semibold text-slate-900">Scenario {scenario.letter}</h3>
+        <span className="rounded border border-slate-200 bg-white px-2 py-1 text-[10px] font-semibold uppercase tracking-wide text-slate-600">
+          Draft
+        </span>
+      </header>
+
+      <div className="flex flex-1 flex-col gap-4 p-4">
+        <div>
+          <label htmlFor={labelId} className="mb-1 block text-xs font-medium text-slate-700">
+            Scenario label
+          </label>
+          <input
+            id={labelId}
+            type="text"
+            value={scenario.label}
+            onChange={event => onUpdateLabel(event.target.value)}
+            placeholder={`Scenario ${scenario.letter}`}
+            className="w-full rounded border border-slate-300 px-2.5 py-2 text-sm text-slate-900 focus:border-slate-600 focus:outline-none focus:ring-2 focus:ring-slate-300"
+          />
         </div>
 
-        {/* Input Fields */}
-        <div className="p-4 space-y-3 bg-white">
-          <div>
-            <label className="block text-[10px] font-mono font-semibold text-slate-500 mb-1 uppercase tracking-wider">
-              Action Title
-            </label>
-            <input
-              type="text"
-              value={scenario.label}
-              onChange={e => onUpdate('label', e.target.value)}
-              placeholder="e.g. Install calibration jig / upgrade"
-              className="w-full px-2.5 py-1.5 text-xs bg-white border border-slate-300 rounded font-sans text-slate-900 focus:bg-white focus:outline-none focus:ring-1 focus:ring-slate-800 focus:border-slate-800 placeholder:text-slate-400 shadow-2xs transition-all"
-            />
-          </div>
-
-          <div className={isRouting ? 'grid grid-cols-2 gap-2.5' : ''}>
-            <div>
-              <label className="block text-[10px] font-mono font-semibold text-slate-500 mb-1 uppercase tracking-wider">
-                {targetLabel}
-              </label>
-              <input
-                type="number"
-                step="any"
-                value={scenario.targetValue}
-                onChange={e => onUpdate('targetValue', e.target.value)}
-                placeholder={targetPlaceholder}
-                className="w-full px-2.5 py-1.5 text-xs bg-white border border-slate-300 rounded font-mono font-bold text-slate-900 focus:bg-white focus:outline-none focus:ring-1 focus:ring-slate-800 focus:border-slate-800 tabular-nums shadow-2xs transition-all"
+        <section aria-labelledby={`${labelId}-inputs-heading`} className="space-y-3">
+          <h4 id={`${labelId}-inputs-heading`} className="text-xs font-semibold uppercase tracking-wide text-slate-600">
+            Scenario inputs
+          </h4>
+          {inputDefinitions.length > 0 ? (
+            inputDefinitions.map(definition => (
+              <ScenarioInputField
+                key={definition.key}
+                definition={definition}
+                scenarioLetter={scenario.letter}
+                value={scenario.inputValues[definition.key]}
+                onChange={onUpdateInput}
               />
-            </div>
-
-            {isRouting && (
-              <div>
-                <label className="block text-[10px] font-mono font-semibold text-slate-500 mb-1 uppercase tracking-wider">
-                  {secondaryLabel}
-                </label>
-                <input
-                  type="number"
-                  step="any"
-                  value={scenario.secondaryTargetValue || ''}
-                  onChange={e => onUpdate('secondaryTargetValue', e.target.value)}
-                  placeholder={secondaryPlaceholder}
-                  className="w-full px-2.5 py-1.5 text-xs bg-white border border-slate-300 rounded font-mono text-slate-900 focus:bg-white focus:outline-none focus:ring-1 focus:ring-slate-800 focus:border-slate-800 tabular-nums shadow-2xs transition-all"
-                />
-              </div>
-            )}
-          </div>
-
-          <div className="grid grid-cols-2 gap-2.5">
-            <div>
-              <label className="block text-[10px] font-mono font-semibold text-slate-500 mb-1 uppercase tracking-wider">
-                Fixed Inv (THB)
-              </label>
-              <input
-                type="number"
-                step="any"
-                value={scenario.investment}
-                onChange={e => onUpdate('investment', e.target.value)}
-                placeholder="0"
-                className="w-full px-2.5 py-1.5 text-xs bg-white border border-slate-300 rounded font-mono text-slate-900 focus:bg-white focus:outline-none focus:ring-1 focus:ring-slate-800 focus:border-slate-800 tabular-nums shadow-2xs transition-all"
-              />
-            </div>
-            <div>
-              <label className="block text-[10px] font-mono font-semibold text-slate-500 mb-1 uppercase tracking-wider">
-                Lot Size (pcs)
-              </label>
-              <input
-                type="number"
-                step="any"
-                value={scenario.lotSize}
-                onChange={e => onUpdate('lotSize', e.target.value)}
-                placeholder="5000"
-                className="w-full px-2.5 py-1.5 text-xs bg-white border border-slate-300 rounded font-mono text-slate-900 focus:bg-white focus:outline-none focus:ring-1 focus:ring-slate-800 focus:border-slate-800 tabular-nums shadow-2xs transition-all"
-              />
-            </div>
-          </div>
-
-          <div>
-            <label className="block text-[10px] font-mono font-semibold text-slate-500 mb-1 uppercase tracking-wider">
-              Var Cost (THB/pc)
-            </label>
-            <input
-              type="number"
-              step="any"
-              value={scenario.variableAddedCost || ''}
-              onChange={e => onUpdate('variableAddedCost', e.target.value)}
-              placeholder="0.00"
-              className="w-full px-2.5 py-1.5 text-xs bg-white border border-slate-300 rounded font-mono text-slate-900 focus:bg-white focus:outline-none focus:ring-1 focus:ring-slate-800 focus:border-slate-800 tabular-nums shadow-2xs transition-all"
-            />
-          </div>
-        </div>
-      </div>
-
-      {/* Calculated Results & Apply Action */}
-      {scenario.valid ? (
-        <div className="p-4 bg-slate-50 border-t border-slate-200 space-y-2 text-xs font-mono">
-          <div className="flex justify-between items-center">
-            <span className="text-slate-500 font-sans">Gross Saving:</span>
-            <span className={`tabular-nums ${scenario.grossSaving > 0 ? 'text-emerald-700 font-bold' : 'text-rose-600 font-bold'}`}>
-              {formatVariance(scenario.grossSaving, 4)} THB
-            </span>
-          </div>
-
-          <div className="flex justify-between items-center text-[11px]">
-            <span className="text-slate-400 font-sans">↳ Fixed Cost:</span>
-            <span className="text-slate-600 tabular-nums">
-              -{scenario.fixedAddedCostPerUnit.toFixed(4)} THB
-            </span>
-          </div>
-
-          {scenario.variableAddedCostPerUnit > 0 && (
-            <div className="flex justify-between items-center text-[11px]">
-              <span className="text-slate-400 font-sans">↳ Var Cost:</span>
-              <span className="text-slate-600 tabular-nums">
-                -{scenario.variableAddedCostPerUnit.toFixed(4)} THB
-              </span>
-            </div>
+            ))
+          ) : (
+            <p className="text-xs text-slate-500">No supported scenario inputs are available.</p>
           )}
+        </section>
 
-          <div className="flex justify-between items-center">
-            <span className="text-slate-500 font-sans">Added Cost:</span>
-            <span className="text-rose-600 font-semibold tabular-nums">
-              -{scenario.addedCost.toFixed(4)} THB
-            </span>
+        <section aria-labelledby={`${labelId}-costs-heading`} className="border-t border-slate-200 pt-3">
+          <div className="mb-2 flex flex-wrap items-start justify-between gap-2">
+            <div>
+              <h4 id={`${labelId}-costs-heading`} className="text-xs font-semibold uppercase tracking-wide text-slate-600">
+                Standard cost per piece
+              </h4>
+              <p className="mt-1 text-[11px] text-slate-500">THB/pc</p>
+            </div>
+            <div className="flex flex-wrap gap-1.5 text-[10px]">
+              <span className={`rounded border px-1.5 py-1 ${STATUS_CLASS[result.currentCost.status] ?? STATUS_CLASS.missing}`}>
+                Current: {result.currentCost.status}
+              </span>
+              <span className={`rounded border px-1.5 py-1 ${STATUS_CLASS[result.scenarioCost.status] ?? STATUS_CLASS.missing}`}>
+                Scenario: {result.scenarioCost.status}
+              </span>
+            </div>
           </div>
 
-          <div className="flex justify-between items-center font-bold border-t border-slate-200 pt-1.5 text-slate-900">
-            <span className="font-sans">Net Saving:</span>
-            <span className={`tabular-nums ${scenario.netSaving > 0 ? 'text-emerald-700 font-bold' : 'text-rose-600 font-bold'}`}>
-              {formatVariance(scenario.netSaving, 4)} THB
-            </span>
+          <div className="overflow-x-auto">
+            <table className="w-full text-xs">
+              <caption className="sr-only">
+                Current and Scenario {scenario.letter} material, labor, burden, and total cost per piece in Thai baht
+              </caption>
+              <thead>
+                <tr className="border-b border-slate-200 text-left text-[10px] uppercase tracking-wide text-slate-500">
+                  <th scope="col" className="py-2 pr-2 font-medium">Cost element</th>
+                  <th scope="col" className="px-2 py-2 text-right font-medium">Current</th>
+                  <th scope="col" className="py-2 pl-2 text-right font-medium">Scenario</th>
+                </tr>
+              </thead>
+              <tbody>
+                {COST_ROWS.map(({ key, label }) => (
+                  <tr key={key} className={key === 'total' ? 'border-t border-slate-200 font-semibold text-slate-900' : 'text-slate-700'}>
+                    <th scope="row" className="py-2 pr-2 text-left font-medium">{label}</th>
+                    <td className="px-2 py-2 text-right font-mono tabular-nums">
+                      {formatCost(result.currentCost[key])}
+                    </td>
+                    <td className="py-2 pl-2 text-right font-mono tabular-nums">
+                      {formatCost(result.scenarioCost[key])}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
+        </section>
 
-          <div className="flex justify-between items-center font-bold border-t border-slate-200 pt-1.5">
-            <span className="text-slate-600 font-sans text-xs">Predicted Cost:</span>
-            <span className="text-slate-900 text-xs font-bold font-mono tabular-nums">
-              {formatCurrency(scenario.predictedTotal, 4, 'THB/pc')}
-            </span>
-          </div>
-
-          <p className="pt-1 text-[10px] text-slate-500 font-sans">
-            This result is isolated to the scenario draft; official source values remain unchanged.
-          </p>
-          <ScenarioVariableProvenance scenario={scenario} />
-        </div>
-      ) : (
-        <div className="p-4 bg-slate-50 border-t border-slate-200 text-center text-slate-400 text-[11px] font-mono italic">
-          Enter a valid target value above to simulate. Official source values remain unchanged.
-          <ScenarioVariableProvenance scenario={scenario} />
-        </div>
-      )}
-    </div>
-
+        <section aria-label={`Warnings for Scenario ${scenario.letter}`} className="mt-auto border-t border-slate-200 pt-3">
+          {warningCount === 0 ? (
+            <p role="status" className="text-xs text-slate-500">No calculation or override warnings.</p>
+          ) : (
+            <details>
+              <summary className="cursor-pointer text-xs font-semibold text-amber-800 focus:outline-none focus:ring-2 focus:ring-amber-300">
+                Warnings ({warningCount})
+              </summary>
+              <div className="mt-2 space-y-3 rounded border border-amber-200 bg-amber-50 p-3 text-xs text-amber-950">
+                <ul className="list-disc space-y-1 pl-5">
+                  {uniqueWarnings.map(({ message, sources }) => (
+                    <li key={message}>
+                      <span className="font-semibold">{sources.join(' · ')}: </span>{message}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            </details>
+          )}
+        </section>
+      </div>
+    </article>
   )
 }

@@ -3,9 +3,9 @@ import {
   calculateCostBreakdown,
   calculateRoutingDetailedRows,
   calculateTopDrivers,
-  simulateWhatIfScenarios
+  calculateScenarioCosts
 } from '../src/core/calculations'
-import { CostDriver, RoutingStep } from '../src/core/types'
+import { CostDriver, CostSnapshot, RoutingStep } from '../src/core/types'
 
 const missingRateRouting: RoutingStep[] = [{
   id: 'routing-unknown-wc',
@@ -61,14 +61,32 @@ const routingDriver: CostDriver = {
   controllability: '',
   actionPlan: ''
 }
-const simulation = simulateWhatIfScenarios({
-  driver: routingDriver,
-  bomItem: null,
-  routingStep: missingRateRouting[0],
+const currentSnapshot: CostSnapshot = {
+  id: 'missing-rate-current',
+  product: { productCode: 'TEST-001', productDescription: 'Synthetic', uom: 'PC', customer: 'Synthetic', effectiveDate: '2026-09-27' },
+  effectiveDate: '2026-09-27',
+  sourceRef: 'missing-rate-fixture',
+  status: 'active',
   rates: [],
-  totalActiveCost: 0,
-  scenarios: [{ letter: 'A', label: 'Test', targetValue: '100', investment: '', lotSize: '1' }]
-})
-assert.equal(simulation[0]?.grossSaving, 0, 'what-if simulation must not use an invented Work Center rate')
+  bom: [{
+    id: 'bom-1', itemCode: 'MAT-01', description: 'Synthetic material',
+    consumption: 1, unit: 'pc', price: 1, loss: 0, confidence: {}
+  }],
+  routing: [{
+    id: 'routing-unknown-wc', processName: 'Unknown rate operation', workCenterId: 'UNKNOWN-WC',
+    manning: 1, capacity: 100, yield: 1, confidence: {}
+  }]
+}
+const scenario = calculateScenarioCosts(currentSnapshot, [{
+  letter: 'A',
+  label: 'Attempt unsupported rate addition',
+  overrides: { rates: { 'new-rate': { laborRate: 100, burdenRate: 100 } } }
+}])[0]
+assert.ok(scenario, 'shared-engine scenario result should exist')
+assert.equal(scenario.scenarioCost.labor, null, 'scenario must not fabricate a Work Center rate')
+assert.equal(scenario.scenarioCost.burden, null, 'scenario must not fabricate a Work Center burden rate')
+assert.equal(scenario.scenarioCost.total, null, 'missing Work Center data must remain unresolved')
+assert.ok(scenario.overrideWarnings.some(warning => warning.includes('no matching record')))
+assert.equal(currentSnapshot.rates.length, 0, 'scenario override must not add a Work Center rate record')
 
 console.log('Missing Work Center rate self-check: PASS')
