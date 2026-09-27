@@ -47,6 +47,9 @@ export interface ComparisonExportBOMRow {
   referenceLoss: number | null
   currentLoss: number | null
   lossGap: number | null
+  referenceCost: number | null
+  currentCost: number | null
+  costGap: number | null
   referenceSource: string
   currentSource: string
 }
@@ -67,6 +70,15 @@ export interface ComparisonExportRoutingRow {
   referenceYield: number | null
   currentYield: number | null
   yieldGap: number | null
+  referenceLaborCost: number | null
+  currentLaborCost: number | null
+  laborCostGap: number | null
+  referenceBurdenCost: number | null
+  currentBurdenCost: number | null
+  burdenCostGap: number | null
+  referenceCost: number | null
+  currentCost: number | null
+  costGap: number | null
   referenceSource: string
   currentSource: string
 }
@@ -218,7 +230,10 @@ function buildBOMRows(
       priceGap: gap(current.price, reference?.price),
       referenceLoss: reference?.loss ?? null,
       currentLoss: current.loss,
-      lossGap: gap(current.loss, reference?.loss)
+      lossGap: gap(current.loss, reference?.loss),
+      referenceCost: finding?.costEffect?.reference.material ?? null,
+      currentCost: finding?.costEffect?.current.material ?? null,
+      costGap: finding?.costEffect?.gap.material ?? null
     }
   })
 
@@ -241,7 +256,10 @@ function buildBOMRows(
         priceGap: null,
         referenceLoss: reference.loss,
         currentLoss: null,
-        lossGap: null
+        lossGap: null,
+        referenceCost: finding.costEffect?.reference.material ?? null,
+        currentCost: finding.costEffect?.current.material ?? null,
+        costGap: finding.costEffect?.gap.material ?? null
       })
     })
 
@@ -278,7 +296,16 @@ function buildRoutingRows(
       capacityGap: gap(current.capacity, reference?.capacity),
       referenceYield: reference?.yield ?? null,
       currentYield: current.yield,
-      yieldGap: gap(current.yield, reference?.yield)
+      yieldGap: gap(current.yield, reference?.yield),
+      referenceLaborCost: finding?.costEffect?.reference.labor ?? null,
+      currentLaborCost: finding?.costEffect?.current.labor ?? null,
+      laborCostGap: finding?.costEffect?.gap.labor ?? null,
+      referenceBurdenCost: finding?.costEffect?.reference.burden ?? null,
+      currentBurdenCost: finding?.costEffect?.current.burden ?? null,
+      burdenCostGap: finding?.costEffect?.gap.burden ?? null,
+      referenceCost: finding?.costEffect?.reference.total ?? null,
+      currentCost: finding?.costEffect?.current.total ?? null,
+      costGap: finding?.costEffect?.gap.total ?? null
     }
   })
 
@@ -302,7 +329,16 @@ function buildRoutingRows(
         capacityGap: null,
         referenceYield: reference.yield,
         currentYield: null,
-        yieldGap: null
+        yieldGap: null,
+        referenceLaborCost: finding.costEffect?.reference.labor ?? null,
+        currentLaborCost: finding.costEffect?.current.labor ?? null,
+        laborCostGap: finding.costEffect?.gap.labor ?? null,
+        referenceBurdenCost: finding.costEffect?.reference.burden ?? null,
+        currentBurdenCost: finding.costEffect?.current.burden ?? null,
+        burdenCostGap: finding.costEffect?.gap.burden ?? null,
+        referenceCost: finding.costEffect?.reference.total ?? null,
+        currentCost: finding.costEffect?.current.total ?? null,
+        costGap: finding.costEffect?.gap.total ?? null
       })
     })
 
@@ -704,6 +740,8 @@ function writeBOMSheet(workbook: ExcelJS.Workbook, model: ComparisonExportModel)
     { header: 'Reference Price', width: 16 }, { header: 'Current Price', width: 16 },
     { header: 'Δ Price', width: 14 }, { header: 'Reference Loss', width: 14 },
     { header: 'Current Loss', width: 14 }, { header: 'Δ Loss', width: 12 },
+    { header: 'Reference Material Cost', width: 20 }, { header: 'Current Material Cost', width: 20 },
+    { header: 'Δ Material Cost', width: 16 },
     { header: 'Reference Source', width: 24 }, { header: 'Current Source', width: 24 }
   ])
 
@@ -712,13 +750,15 @@ function writeBOMSheet(workbook: ExcelJS.Workbook, model: ComparisonExportModel)
       row.itemCode, row.description, row.comparison, confidenceLabel(row.confidence),
       row.referenceConsumption, row.currentConsumption, row.consumptionGap, row.unit,
       row.referencePrice, row.currentPrice, row.priceGap, row.referenceLoss,
-      row.currentLoss, row.lossGap, row.referenceSource, row.currentSource
+      row.currentLoss, row.lossGap, row.referenceCost, row.currentCost, row.costGap,
+      row.referenceSource, row.currentSource
     ])
   })
   styleDataRows(sheet, 5, 4 + model.bomRows.length, 3, 4, {
     5: '#,##0.0000', 6: '#,##0.0000', 7: '#,##0.0000;[Red]-#,##0.0000;—',
     9: '#,##0.0000', 10: '#,##0.0000', 11: '#,##0.0000;[Red]-#,##0.0000;—',
-    12: '0.00%', 13: '0.00%', 14: '0.00%;[Red]-0.00%;—'
+    12: '0.00%', 13: '0.00%', 14: '0.00%;[Red]-0.00%;—',
+    15: '#,##0.0000', 16: '#,##0.0000', 17: '#,##0.0000;[Red]-#,##0.0000;—'
   })
 }
 
@@ -731,7 +771,13 @@ function writeRoutingSheet(workbook: ExcelJS.Workbook, model: ComparisonExportMo
     { header: 'Manning', width: 12 }, { header: 'Reference Capacity', width: 18 },
     { header: 'Current Capacity', width: 18 }, { header: 'Δ Capacity', width: 14 },
     { header: 'Reference Yield', width: 16 }, { header: 'Current Yield', width: 16 },
-    { header: 'Δ Yield', width: 12 }, { header: 'Reference Source', width: 24 },
+    { header: 'Δ Yield', width: 12 },
+    { header: 'Reference Labor Cost', width: 20 }, { header: 'Current Labor Cost', width: 20 },
+    { header: 'Δ Labor Cost', width: 16 },
+    { header: 'Reference Burden Cost', width: 22 }, { header: 'Current Burden Cost', width: 22 },
+    { header: 'Δ Burden Cost', width: 16 },
+    { header: 'Reference Conversion Cost', width: 24 }, { header: 'Current Conversion Cost', width: 24 },
+    { header: 'Δ Conversion Cost', width: 20 }, { header: 'Reference Source', width: 24 },
     { header: 'Current Source', width: 24 }
   ])
 
@@ -740,13 +786,19 @@ function writeRoutingSheet(workbook: ExcelJS.Workbook, model: ComparisonExportMo
       row.operationCode, row.processName, row.comparison, confidenceLabel(row.confidence),
       row.referenceSequence, row.currentSequence, row.referenceWorkCenter, row.currentWorkCenter,
       row.manning, row.referenceCapacity, row.currentCapacity, row.capacityGap,
-      row.referenceYield, row.currentYield, row.yieldGap, row.referenceSource, row.currentSource
+      row.referenceYield, row.currentYield, row.yieldGap,
+      row.referenceLaborCost, row.currentLaborCost, row.laborCostGap,
+      row.referenceBurdenCost, row.currentBurdenCost, row.burdenCostGap,
+      row.referenceCost, row.currentCost, row.costGap, row.referenceSource, row.currentSource
     ])
   })
   styleDataRows(sheet, 5, 4 + model.routingRows.length, 3, 4, {
     5: '0', 6: '0', 9: '#,##0.0', 10: '#,##0.0000', 11: '#,##0.0000',
     12: '#,##0.0000;[Red]-#,##0.0000;—', 13: '0.00%', 14: '0.00%',
-    15: '0.00%;[Red]-0.00%;—'
+    15: '0.00%;[Red]-0.00%;—',
+    16: '#,##0.0000', 17: '#,##0.0000', 18: '#,##0.0000;[Red]-#,##0.0000;—',
+    19: '#,##0.0000', 20: '#,##0.0000', 21: '#,##0.0000;[Red]-#,##0.0000;—',
+    22: '#,##0.0000', 23: '#,##0.0000', 24: '#,##0.0000;[Red]-#,##0.0000;—'
   })
 }
 

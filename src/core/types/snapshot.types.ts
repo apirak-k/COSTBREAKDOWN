@@ -105,8 +105,22 @@ export interface ComparisonFinding {
   changeFlags: ChangeFlags
   fieldDiffs: Record<string, { reference: unknown; current: unknown }>
   costGap?: number | null
+  costEffect?: ComparisonRecordCostEffect
   confidence: ConfidenceStatus
   reviewRequired?: boolean
+}
+
+export interface ComparisonCostValues {
+  material: number | null
+  labor: number | null
+  burden: number | null
+  total: number | null
+}
+
+export interface ComparisonRecordCostEffect {
+  reference: ComparisonCostValues
+  current: ComparisonCostValues
+  gap: ComparisonCostValues
 }
 
 export interface ComparisonWarning {
@@ -118,6 +132,8 @@ export interface ComparisonWarning {
 
 export interface ComparisonReconciliation {
   reconciled: boolean
+  recordEffectGaps: Record<'material' | 'labor' | 'burden', number | null>
+  recordEffectDiscrepancies: Record<'material' | 'labor' | 'burden', number | null>
   totalGap: number | null
   sumOfElementGaps: number | null
   discrepancy: number | null

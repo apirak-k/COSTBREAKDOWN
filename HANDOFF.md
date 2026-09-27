@@ -6,14 +6,14 @@
 
 - Repository: `COSTBREAKDOWN`.
 - Active worktree: `C:\Users\Boom\.codex\worktrees\rca-agreement\COSTBREAKDOWN`.
-- Branch: `codex/rca-task-14`, based on local checkpoint `0d7079d`.
+- Branch: `codex/rca-task-14`, created from `0d7079d`; later agreement-re-audit checkpoints are on this branch.
+- The upstream tracking ref was `b81483f` at the start of this re-audit. Local checkpoints after that ref have not been pushed.
 - The original checkout at `E:\COSTBREAKDOWN` remains unchanged by this feature work.
-- No remote push has been made or authorized.
 - `origin/feature/taste-frontend-ui` remains a reference ancestor; this work does not switch to it.
 
 ## Goal and scope
 
-Complete agreement Tasks 14–18 in dependency order. The four files in `agreements/` remain the product behavior source of truth. Keep implementation evidence separate from human review and acceptance.
+The earlier implementation checklist records Tasks 1–18 as completed at their respective checkpoints. A later user-requested re-audit found Comparison gaps despite those checkboxes. Continue checking the live code against all four files in `agreements/`; treat previous checkmarks and ChatGPT's review as leads/evidence to verify, not proof of full compliance. Keep implementation evidence separate from human review and acceptance.
 
 The maintainability rule is recorded in `PROJECT_SPECIFIC.md`: shared behavior has one canonical implementation imported by consumers; reuse follows matching behavior and meaning; intentional local exceptions carry a nearby note; inspect callers before changing shared modules.
 
@@ -106,6 +106,22 @@ Fresh focused verification passed all 13 checks:
 - At Task 18 close, before the follow-up below, `npm audit --audit-level=high` reported five advisories (three Moderate, two High). The two High findings were prototype pollution and ReDoS in xlsx 0.18.5. The security remediation below closes that gate while preserving the import contract.
 - Human acceptance remains pending. The automated browser pass and implementation review are evidence, not user acceptance.
 
+## Agreement re-audit — 2026-09-27
+
+### Confirmed and fixed in the current re-audit
+
+- The earlier code had non-canonical comparison statuses/business-key fallbacks and candidate gaps that could hide unavailable values. Local checkpoint `2c804d5` fixes these; its focused verifiers and build passed.
+- The next Comparison slice adds row-effect → Material/Labor/Burden reconciliation, keeps branch → Total reconciliation, routes table/candidate values through the shared finding effects, and includes those effects in comparison Excel. Workbook read-back checks assert row cells and branch reconciliation.
+- Browser check with empty Reference/Current data opened Cost Breakdown, Candidate Selection, and RCA & Simulation. The pages showed unavailable values and explanations while remaining navigable. No user data was entered or changed.
+- Focused verifiers passed: comparison reconciliation, candidate prioritization, BOM/Routing/Work Center/snapshot views, and comparison Excel export. `npm run build` passed; Vite still reports the existing 1.7 MB chunk-size advisory. `git diff --check` passed with line-ending normalization warnings only.
+
+### Not yet complete
+
+- This is not an Agreement-wide compliance sign-off. Master Data's full manual/import/edit/export flow and the realistic-data RCA path still need an evidence-based re-audit against the four current agreements. Earlier Task 18 evidence is retained as history and should be checked where current changes affect its assumptions.
+- The empty-data navigation requirement is confirmed for the three downstream pages. The separate readiness action inside Master Data can remain disabled while that page itself is open; that is distinct from blocking navigation.
+- Human acceptance remains pending. The previous task checkboxes describe implementation checkpoints, not approval that the current app meets every Agreement requirement.
+- Do not promote later audit suggestions into requirements unless an Agreement or explicit user decision supports them. Keep the open custom-field/import questions separate from confirmed defects.
+
 ## HAWS dependency security remediation (2026-09-27)
 
 - Updated SheetJS to 0.20.3 from the official CDN tarball and Vite to 6.4.3, the first patched release listed by the reviewed Vite advisory. The existing React plugin supports Vite 6.
@@ -120,7 +136,7 @@ Fresh focused verification passed all 13 checks:
 
 ## Resume point
 
-Next: user reviews the integrated flow page by page. Tasks 14–18 and the HAWS dependency security gate are implemented and automated checks are recorded; human acceptance remains pending. No remote push has been made.
+Next: finish the Agreement re-audit of Master Data and the realistic-data RCA/simulation flow, record each confirmed gap and verification, then report the evidence and remaining acceptance status. The current local Comparison checkpoint is not pushed; push only if the user asks.
 
 ---
 

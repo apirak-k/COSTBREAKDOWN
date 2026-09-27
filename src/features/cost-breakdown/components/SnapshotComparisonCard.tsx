@@ -121,9 +121,20 @@ export const SnapshotComparisonCard: React.FC<SnapshotComparisonCardProps> = ({ 
       <div className="border-t border-slate-200">
         <div className="px-4 py-2.5 flex items-center justify-between gap-3">
           <h3 className="text-[11px] font-bold font-mono text-slate-700 uppercase tracking-tight">Cost element bridge</h3>
-          <span className="text-[10px] font-mono text-slate-400">
-            {summary.matchedCount} matched · {summary.estimatedCount} estimated · {summary.missingCount} missing
-          </span>
+          <div className="flex items-center gap-3">
+            <span className="text-[10px] font-mono text-slate-400">
+              {summary.matchedCount} matched · {summary.estimatedCount} estimated · {summary.missingCount} missing
+            </span>
+            <span
+              className={`rounded border px-1.5 py-0.5 text-[9px] font-mono font-bold uppercase ${comparison.reconciliation?.reconciled
+                ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
+                : 'border-amber-200 bg-amber-50 text-amber-800'
+              }`}
+              role="status"
+            >
+              {comparison.reconciliation?.reconciled ? 'Reconciled' : 'Reconciliation needs review'}
+            </span>
+          </div>
         </div>
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse">

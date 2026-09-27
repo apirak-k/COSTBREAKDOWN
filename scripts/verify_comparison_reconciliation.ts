@@ -76,6 +76,8 @@ console.log('2. Checking Record-Level effect with absent-side zero...')
 const addedBom = comparison.bomFindings.find(f => f.matchStatus === 'added')
 assert(addedBom, 'Added BOM finding exists')
 assert(addedBom.costGap !== null && addedBom.costGap > 0, 'Added BOM record costGap must be positive (+Current)')
+assert.equal(addedBom.costEffect?.reference.material, 0, 'Added BOM effect uses zero only for the absent Reference record')
+assert.equal(addedBom.costEffect?.gap.material, addedBom.costGap, 'Comparison finding exposes its material record effect')
 
 const removedBom = comparison.bomFindings.find(f => f.matchStatus === 'removed')
 assert(removedBom, 'Removed BOM finding exists')
@@ -86,6 +88,13 @@ console.log('3. Checking Reconciliation (Total = Material + Labor + Burden)...')
 assert(comparison.reconciliation, 'Comparison must include reconciliation metadata')
 assert.equal(comparison.reconciliation.reconciled, true, 'Reconciliation must hold')
 assert.equal(comparison.reconciliation.discrepancy, 0, 'Discrepancy must be 0')
+for (const branch of ['material', 'labor', 'burden'] as const) {
+  const rowGap = comparison.reconciliation.recordEffectGaps[branch]
+  const branchGap = comparison.elementGaps[branch]
+  assert(rowGap !== null && branchGap !== null && Math.abs(rowGap - branchGap) < 0.0001, `${branch} row effects must reconcile to the branch gap`)
+  const discrepancy = comparison.reconciliation.recordEffectDiscrepancies[branch]
+  assert(discrepancy !== null && discrepancy < 0.0001, `${branch} row-to-branch difference must be within tolerance`)
+}
 console.log('Reconciliation summary:', comparison.reconciliation)
 
 // 4. Task 9 & 10: Filtering
@@ -152,5 +161,7 @@ for (const [section, findings, sharedId] of [
 }
 assert(missingKeyComparison.warnings.some(warning => warning.code === 'MISSING_BUSINESS_KEY'), 'Missing business keys must be reported as validation warnings')
 assert(!isVisibleInComparisonView(missingKeyComparison.bomFindings.find(finding => finding.currentId === 'shared-bom-id'), 'changed'), 'Unmatched rows must not be misfiled under Changed')
+assert.equal(missingKeyComparison.reconciliation?.reconciled, false, 'Unattributed record effects must not be reported as reconciled')
+assert(missingKeyComparison.reconciliation?.issues.length, 'Unavailable row-to-branch checks must report an issue')
 
 console.log('All Phase 2 checks passed successfully!')

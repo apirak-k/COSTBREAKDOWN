@@ -142,6 +142,14 @@ assert.equal(model.workCenterRows.find(row => row.workCenterCode === 'WC-1')?.co
 assert.equal(model.workCenterRows.find(row => row.workCenterCode === 'WC-2')?.comparison, 'ADDED')
 assert.equal(model.workCenterRows.find(row => row.workCenterCode === 'WC-1')?.laborGap, 20)
 assert.deepEqual(model.statusCounts, { unchanged: 0, changed: 3, added: 3, removed: 0, review: 0 })
+assert(model.bomRows.every(row => row.costGap !== null), 'Valid BOM rows export a record cost effect')
+assert(model.routingRows.every(row => row.laborCostGap !== null && row.burdenCostGap !== null), 'Valid Routing rows export Labor and Burden effects')
+const materialGap = model.summaryRows.find(row => row.element === 'Material')?.gap
+const laborGap = model.summaryRows.find(row => row.element === 'Labor')?.gap
+const burdenGap = model.summaryRows.find(row => row.element === 'Burden')?.gap
+assert.equal(model.bomRows.reduce((sum, row) => sum + (row.costGap ?? 0), 0), materialGap, 'Exported BOM row effects must sum to Material gap')
+assert.equal(model.routingRows.reduce((sum, row) => sum + (row.laborCostGap ?? 0), 0), laborGap, 'Exported Routing labor effects must sum to Labor gap')
+assert.equal(model.routingRows.reduce((sum, row) => sum + (row.burdenCostGap ?? 0), 0), burdenGap, 'Exported Routing burden effects must sum to Burden gap')
 assert.ok(model.warnings.length >= 0)
 assert.equal(getComparisonExportFilename('RGOM/024'), 'CostBreakdown_Comparison_RGOM_024.xlsx')
 
@@ -159,6 +167,28 @@ async function verifyWorkbook(): Promise<void> {
   assert.equal(workbook.getWorksheet('Summary')?.getCell('A6').value, 'Element')
   assert.equal(workbook.getWorksheet('Summary')?.getCell('A7').value, 'Material')
   assert.equal(workbook.getWorksheet('BOM Comparison')?.getCell('A4').value, 'Item Code')
+  assert.equal(workbook.getWorksheet('BOM Comparison')?.getCell('O4').value, 'Reference Material Cost')
+  assert.equal(workbook.getWorksheet('Routing Comparison')?.getCell('P4').value, 'Reference Labor Cost')
+  const bomSheet = workbook.getWorksheet('BOM Comparison')
+  const routingSheet = workbook.getWorksheet('Routing Comparison')
+  assert.equal(bomSheet?.getCell('O5').value, model.bomRows[0].referenceCost)
+  assert.equal(bomSheet?.getCell('P5').value, model.bomRows[0].currentCost)
+  assert.equal(bomSheet?.getCell('Q5').value, model.bomRows[0].costGap)
+  assert.equal(routingSheet?.getCell('P5').value, model.routingRows[0].referenceLaborCost)
+  assert.equal(routingSheet?.getCell('Q5').value, model.routingRows[0].currentLaborCost)
+  assert.equal(routingSheet?.getCell('R5').value, model.routingRows[0].laborCostGap)
+  assert.equal(routingSheet?.getCell('S5').value, model.routingRows[0].referenceBurdenCost)
+  assert.equal(routingSheet?.getCell('T5').value, model.routingRows[0].currentBurdenCost)
+  assert.equal(routingSheet?.getCell('U5').value, model.routingRows[0].burdenCostGap)
+  const workbookBomGap = model.bomRows.reduce((sum, _, index) => sum + Number(bomSheet?.getCell(5 + index, 17).value ?? 0), 0)
+  const workbookLaborGap = model.routingRows.reduce((sum, _, index) => sum + Number(routingSheet?.getCell(5 + index, 18).value ?? 0), 0)
+  const workbookBurdenGap = model.routingRows.reduce((sum, _, index) => sum + Number(routingSheet?.getCell(5 + index, 21).value ?? 0), 0)
+  assert(Math.abs(workbookBomGap - Number(workbook.getWorksheet('Summary')?.getCell('D7').value)) < 0.0001, 'Workbook BOM effects must reconcile to Summary Material gap')
+  assert(Math.abs(workbookLaborGap - Number(workbook.getWorksheet('Summary')?.getCell('D8').value)) < 0.0001, 'Workbook routing Labor effects must reconcile to Summary Labor gap')
+  assert(Math.abs(workbookBurdenGap - Number(workbook.getWorksheet('Summary')?.getCell('D9').value)) < 0.0001, 'Workbook routing Burden effects must reconcile to Summary Burden gap')
+  assert.equal(workbook.getWorksheet('Summary')?.getCell('A14').value, 'UNCHANGED')
+  assert.equal(workbook.getWorksheet('Summary')?.getCell('A15').value, 'CHANGED')
+  assert.equal(workbook.getWorksheet('Summary')?.getCell('A18').value, 'Validation warnings')
   assert.equal(workbook.getWorksheet('Work Center Comparison')?.getCell('A4').value, 'Work Center')
 }
 

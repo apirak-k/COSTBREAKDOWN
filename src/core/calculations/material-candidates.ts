@@ -5,7 +5,6 @@ import {
   DataConfidence
 } from '../types'
 import { getCanonicalComparisonStatus } from './comparison-status'
-import { calculateSnapshotBOMDetail } from './snapshot-bom-detail'
 
 export type PrioritizationStatus = 'CHANGED' | 'ADDED' | 'REMOVED'
 
@@ -62,13 +61,11 @@ export function buildMaterialCandidates(
     const status: PrioritizationStatus = canonicalStatus // CHANGED | ADDED | REMOVED
     const refItem = finding.referenceId ? refBomById.get(finding.referenceId) : undefined
     const curItem = finding.currentId ? curBomById.get(finding.currentId) : undefined
-    const detail = calculateSnapshotBOMDetail({ reference: refItem, current: curItem })
-
     const itemCode = curItem?.itemCode || refItem?.itemCode || finding.currentId || finding.referenceId || 'UNKNOWN'
     const itemDesc = curItem?.description || refItem?.description || itemCode
 
-    const referenceCost = detail.referenceCost
-    const currentCost = detail.currentCost
+    const referenceCost = finding.costEffect?.reference.material ?? null
+    const currentCost = finding.costEffect?.current.material ?? null
     const netGap = currentCost === null || referenceCost === null ? null : currentCost - referenceCost
 
     const baseKey = `mat:${itemCode}`

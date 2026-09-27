@@ -3,6 +3,7 @@ import {
   ComparisonFinding,
   ComparisonWarning,
   ConfidenceStatus,
+  ComparisonRecordCostEffect,
   CostComparison,
   CostSnapshot,
   FieldEvidence,
@@ -116,7 +117,7 @@ function compareRows<T extends SnapshotRow>(
   currentRows: T[],
   keyOf: (row: T) => string,
   flagsOf: (reference: T, current: T) => ChangeFlags,
-  calculateRecordCostGap?: (reference: T | undefined, current: T | undefined) => number | null,
+  calculateRecordCostEffect?: (reference: T | undefined, current: T | undefined) => ComparisonRecordCostEffect,
   warnings: ComparisonWarning[] = []
 ): ComparisonFinding[] {
   const referenceMap = new Map<string, T[]>()
@@ -168,14 +169,15 @@ function compareRows<T extends SnapshotRow>(
 
     if (references.length === 0 && currents.length === 1) {
       const current = currents[0]
-      const costGap = calculateRecordCostGap ? calculateRecordCostGap(undefined, current) : null
+      const costEffect = calculateRecordCostEffect?.(undefined, current)
       findings.push({
         referenceId: undefined,
         currentId: current.id,
         matchStatus: 'added',
         changeFlags: {},
         fieldDiffs: {},
-        costGap,
+        costGap: costEffect?.gap.total ?? null,
+        costEffect,
         confidence: confidenceOf(current),
         reviewRequired: hasAdditionalFields(current)
       })
@@ -184,14 +186,15 @@ function compareRows<T extends SnapshotRow>(
 
     if (references.length === 1 && currents.length === 0) {
       const reference = references[0]
-      const costGap = calculateRecordCostGap ? calculateRecordCostGap(reference, undefined) : null
+      const costEffect = calculateRecordCostEffect?.(reference, undefined)
       findings.push({
         referenceId: reference.id,
         currentId: undefined,
         matchStatus: 'removed',
         changeFlags: {},
         fieldDiffs: {},
-        costGap,
+        costGap: costEffect?.gap.total ?? null,
+        costEffect,
         confidence: confidenceOf(reference),
         reviewRequired: hasAdditionalFields(reference)
       })
@@ -200,14 +203,15 @@ function compareRows<T extends SnapshotRow>(
 
     const reference = references[0]
     const current = currents[0]
-    const costGap = calculateRecordCostGap ? calculateRecordCostGap(reference, current) : null
+    const costEffect = calculateRecordCostEffect?.(reference, current)
     findings.push({
       referenceId: reference.id,
       currentId: current.id,
       matchStatus: 'matched',
       changeFlags: flagsOf(reference, current),
       fieldDiffs: diffSupportedFields(reference, current),
-      costGap,
+      costGap: costEffect?.gap.total ?? null,
+      costEffect,
       confidence: combinedConfidence(reference, current),
       reviewRequired: hasAdditionalFields(reference) || hasAdditionalFields(current)
     })
@@ -253,6 +257,46 @@ function calculationWarnings(snapshotId: string, warnings: string[]): Comparison
   }))
 }
 
+function materialCostEffect(reference: SnapshotBOMItem | undefined, current: SnapshotBOMItem | undefined): ComparisonRecordCostEffect {
+  const detail = calculateSnapshotBOMDetail({ reference, current })
+  return {
+    reference: { material: detail.referenceCost, labor: 0, burden: 0, total: detail.referenceCost },
+    current: { material: detail.currentCost, labor: 0, burden: 0, total: detail.currentCost },
+    gap: { material: detail.costGap, labor: 0, burden: 0, total: detail.costGap }
+  }
+}
+
+function routingCostEffect(
+  reference: SnapshotRoutingStep | undefined,
+  current: SnapshotRoutingStep | undefined,
+  referenceRates: SnapshotWorkCenterRate[],
+  currentRates: SnapshotWorkCenterRate[]
+): ComparisonRecordCostEffect {
+  const detail = calculateSnapshotRoutingDetail({ reference, current }, referenceRates, currentRates)
+  const laborGap = gap(detail.currentLaborCost, detail.referenceLaborCost)
+  const burdenGap = gap(detail.currentBurdenCost, detail.referenceBurdenCost)
+  return {
+    reference: { material: 0, labor: detail.referenceLaborCost, burden: detail.referenceBurdenCost, total: detail.referenceTotal },
+    current: { material: 0, labor: detail.currentLaborCost, burden: detail.currentBurdenCost, total: detail.currentTotal },
+    gap: { material: 0, labor: laborGap, burden: burdenGap, total: detail.totalGap }
+  }
+}
+
+function sumRecordEffects(findings: ComparisonFinding[], element: keyof ComparisonRecordCostEffect['gap']): number | null {
+  let total = 0
+  for (const finding of findings) {
+    if (finding.matchStatus === 'ambiguous' || finding.matchStatus === 'unmatched') return null
+    const effect = finding.costEffect?.gap[element]
+    if (effect === null || effect === undefined) return null
+    total += effect
+  }
+  return total
+}
+
+function difference(left: number | null, right: number | null): number | null {
+  return left === null || right === null ? null : Math.abs(left - right)
+}
+
 function gap(current: number | null, reference: number | null): number | null {
   if (current === null || reference === null) return null
   return current - reference
@@ -273,7 +317,7 @@ export function compareSnapshots(reference: CostSnapshot, current: CostSnapshot)
     current.bom,
     bomKey,
     bomFlags,
-    (ref, cur) => calculateSnapshotBOMDetail({ reference: ref, current: cur }).costGap,
+    materialCostEffect,
     warnings
   )
 
@@ -283,7 +327,7 @@ export function compareSnapshots(reference: CostSnapshot, current: CostSnapshot)
     current.routing,
     routingKey,
     routingFlags,
-    (ref, cur) => calculateSnapshotRoutingDetail({ reference: ref, current: cur }, reference.rates, current.rates).totalGap,
+    (ref, cur) => routingCostEffect(ref, cur, reference.rates, current.rates),
     warnings
   )
 
@@ -302,24 +346,43 @@ export function compareSnapshots(reference: CostSnapshot, current: CostSnapshot)
   const burdenGap = gap(currentCost.burden, referenceCost.burden)
   const totalGap = gap(currentCost.total, referenceCost.total)
 
-  // Reconciliation check: material + labor + burden should equal total gap
+  const recordEffectGaps = {
+    material: sumRecordEffects(bomFindings, 'material'),
+    labor: sumRecordEffects(routingFindings, 'labor'),
+    burden: sumRecordEffects(routingFindings, 'burden')
+  }
+  const recordEffectDiscrepancies = {
+    material: difference(recordEffectGaps.material, materialGap),
+    labor: difference(recordEffectGaps.labor, laborGap),
+    burden: difference(recordEffectGaps.burden, burdenGap)
+  }
+
+  // Reconciliation check: material + labor + burden should equal total gap.
   const sumOfElementGaps = (materialGap !== null && laborGap !== null && burdenGap !== null)
     ? materialGap + laborGap + burdenGap
     : null
   const discrepancy = (totalGap !== null && sumOfElementGaps !== null)
     ? Math.abs(totalGap - sumOfElementGaps)
     : null
-  const reconciled = discrepancy !== null ? discrepancy < 0.0001 : (totalGap === null && sumOfElementGaps === null)
-
   const reconciliationIssues: string[] = []
-  if (discrepancy !== null && discrepancy >= 0.0001) {
-    const issueMsg = `Reconciliation mismatch: Total gap (${totalGap?.toFixed(4)}) != sum of element gaps (${sumOfElementGaps?.toFixed(4)}). Difference: ${discrepancy.toFixed(4)}`
-    reconciliationIssues.push(issueMsg)
-    warnings.push({
-      code: 'RECONCILIATION_MISMATCH',
-      message: issueMsg
-    })
-  }
+  const reconciliationChecks = [
+    { label: 'Material row effects vs Material gap', difference: recordEffectDiscrepancies.material },
+    { label: 'Routing labor effects vs Labor gap', difference: recordEffectDiscrepancies.labor },
+    { label: 'Routing burden effects vs Burden gap', difference: recordEffectDiscrepancies.burden },
+    { label: 'Cost branches vs Total gap', difference: discrepancy }
+  ]
+  reconciliationChecks.forEach(check => {
+    if (check.difference === null) {
+      const issueMsg = `Unable to verify reconciliation: ${check.label} has unavailable values.`
+      reconciliationIssues.push(issueMsg)
+      warnings.push({ code: 'RECONCILIATION_UNAVAILABLE', message: issueMsg })
+    } else if (check.difference >= 0.0001) {
+      const issueMsg = `Reconciliation mismatch: ${check.label} differs by ${check.difference.toFixed(4)}.`
+      reconciliationIssues.push(issueMsg)
+      warnings.push({ code: 'RECONCILIATION_MISMATCH', message: issueMsg })
+    }
+  })
+  const reconciled = reconciliationChecks.every(check => check.difference !== null && check.difference < 0.0001)
 
   return {
     id: `${reference.id}::${current.id}`,
@@ -340,6 +403,8 @@ export function compareSnapshots(reference: CostSnapshot, current: CostSnapshot)
     warnings,
     reconciliation: {
       reconciled,
+      recordEffectGaps,
+      recordEffectDiscrepancies,
       totalGap,
       sumOfElementGaps,
       discrepancy,

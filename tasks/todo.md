@@ -2,6 +2,8 @@
 
 Tasks are ordered by dependency. Keep each implementation slice focused and leave the application buildable before moving to the next task.
 
+> Status note: the checkboxes below record the evidence available when each earlier task was closed. A later user-requested audit found Comparison gaps despite those checkboxes. See the current Agreement re-audit at the end; it supersedes the overall completion claim until its remaining items are closed.
+
 ## Phase 1 — Temporary Reference/Current Workspace
 
 ### Task 1: Initialize empty Reference and Current Working Datasets
@@ -350,9 +352,29 @@ Tasks are ordered by dependency. Keep each implementation slice focused and leav
 
 **Estimated scope:** Medium.
 
-### Checkpoint: Complete
+### Checkpoint: Complete at the earlier implementation review (superseded by current re-audit below)
 
 - [x] Implementation acceptance criteria are satisfied, the application builds, and the integrated flow has been reviewed.
 - [x] Automated verification is recorded separately from human acceptance.
 - [ ] Human acceptance has been recorded as accepted.
 - [x] HAWS dependency audit has zero High/Critical vulnerabilities.
+
+## Current Agreement Re-audit — 2026-09-27
+
+ChatGPT's review is treated as a list of leads. The four files in `agreements/` remain authoritative, and each current claim must be checked against the implementation and evidence. The earlier task checkboxes are history, not a whole-contract sign-off.
+
+### Confirmed in the current re-audit
+
+- [x] Comparison statuses use the canonical four statuses; missing/duplicate business keys remain validation findings, not guessed matches. Candidate gaps preserve unavailable values. Checkpoint: `2c804d5`.
+- [x] Row effects reconcile to Material, Labor, and Burden; those branches reconcile to Total or produce an explicit unavailable/mismatch issue.
+- [x] Comparison tables and candidate values consume the shared Comparison effects; the comparison workbook carries per-row material/labor/burden effects.
+- [x] Workbook read-back checks verify the row cells and that exported BOM/Route effect sums reconcile to the Summary gaps.
+- [x] With empty Reference/Current data, Cost Breakdown, Candidate Selection, and RCA & Simulation remain reachable and display unavailable data/warnings without blanking or blocking the next pages.
+- [x] Focused comparison, candidate, table/view, and Excel export verifiers passed; `npm run build` passed. Vite's existing bundle-size advisory remains.
+
+### Still open before calling all four Agreements re-audited
+
+- [ ] Re-audit the full Master Data manual-entry/edit, import replacement, mismatch warning, and latest-side export flow against `agreements/MASTER_DATA_FLOW_SPEC.md`; distinguish current code inspection from older Task 18 evidence.
+- [ ] Re-audit a realistic-data path from Comparison through Candidate Selection and RCA scenarios/economics/explicit Trial handoff against the current Comparison changes and `agreements/RCA_SIMULATION_SPEC.md`.
+- [ ] Record any confirmed remaining mismatch with a source requirement, observed behavior, and focused evidence; do not convert unapproved audit suggestions into requirements.
+- [ ] Keep human acceptance pending until the user reviews the integrated result.

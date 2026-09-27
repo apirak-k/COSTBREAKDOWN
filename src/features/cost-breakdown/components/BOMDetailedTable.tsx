@@ -1,6 +1,5 @@
 import React from 'react'
 import {
-  ComparisonFinding,
   SnapshotBOMItem,
   calculateSnapshotBOMDetail,
   formatNumber,
@@ -8,7 +7,7 @@ import {
   formatPercent,
   getComparisonStatusLabels
 } from '../../../core'
-import type { ComparisonStatus } from '../../../core'
+import type { ComparisonFinding, ComparisonStatus } from '../../../core'
 import { ConfidenceBadge } from '../../../shared/ui/ConfidenceBadge'
 import { ComparisonViewMode, isVisibleInComparisonView } from './comparison-view'
 import { DataQualityPairBadge } from './DataQualityPairBadge'
@@ -42,6 +41,19 @@ function sumNullable(values: Array<number | null>): number | null {
     : values.reduce<number>((sum, value) => sum + (value as number), 0)
 }
 
+function comparisonDetail(
+  pair: { reference?: SnapshotBOMItem; current?: SnapshotBOMItem },
+  finding: ComparisonFinding | undefined,
+  showComparison: boolean
+) {
+  const detail = calculateSnapshotBOMDetail(pair)
+  if (!showComparison) return detail
+  const effect = finding?.costEffect
+  return effect
+    ? { ...detail, referenceCost: effect.reference.material, currentCost: effect.current.material, costGap: effect.gap.material }
+    : { ...detail, referenceCost: null, currentCost: null, costGap: null }
+}
+
 export const BOMDetailedTable: React.FC<BOMDetailedTableProps> = ({
   referenceItems,
   currentItems,
@@ -59,21 +71,18 @@ export const BOMDetailedTable: React.FC<BOMDetailedTableProps> = ({
   const currentRows = currentItems.map(current => {
     const finding = findingByCurrentId.get(current.id)
     const reference = finding?.referenceId ? referenceById.get(finding.referenceId) : undefined
-    const detail = calculateSnapshotBOMDetail({ reference, current })
     return {
       finding,
-      detail: finding?.matchStatus === 'ambiguous' || finding?.matchStatus === 'unmatched'
-        ? { ...detail, referenceCost: null, currentCost: null, costGap: null }
-        : detail
+      detail: comparisonDetail({ reference, current }, finding, showComparison)
     }
   })
   const referenceOnlyRows = (findings ?? [])
     .filter(finding => !finding.currentId && finding.referenceId)
     .map(finding => ({
       finding,
-      detail: calculateSnapshotBOMDetail({
+      detail: comparisonDetail({
         reference: finding.referenceId ? referenceById.get(finding.referenceId) : undefined
-      })
+      }, finding, showComparison)
     }))
   const rows = [...currentRows, ...referenceOnlyRows]
   const visibleRows = rows.filter(row => isVisibleInComparisonView(row.finding, viewMode))

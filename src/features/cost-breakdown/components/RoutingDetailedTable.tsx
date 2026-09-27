@@ -1,6 +1,5 @@
 import React from 'react'
 import {
-  ComparisonFinding,
   SnapshotRoutingStep,
   SnapshotWorkCenterRate,
   calculateSnapshotRoutingDetail,
@@ -9,7 +8,7 @@ import {
   formatPercent,
   getComparisonStatusLabels
 } from '../../../core'
-import type { ComparisonStatus } from '../../../core'
+import type { ComparisonStatus, ComparisonFinding } from '../../../core'
 import { ConfidenceBadge } from '../../../shared/ui/ConfidenceBadge'
 import { ComparisonViewMode, isVisibleInComparisonView } from './comparison-view'
 import { DataQualityPairBadge } from './DataQualityPairBadge'
@@ -46,6 +45,39 @@ function sumNullable(values: Array<number | null>): number | null {
     : values.reduce<number>((sum, value) => sum + (value as number), 0)
 }
 
+function costGapClass(value: number | null): string {
+  if (value === null || Math.abs(value) < 0.00005) return 'text-slate-400'
+  return value > 0 ? 'text-rose-600' : 'text-emerald-700'
+}
+
+function gap(current: number | null, reference: number | null): number | null {
+  return current === null || reference === null ? null : current - reference
+}
+
+function comparisonDetail(
+  pair: { reference?: SnapshotRoutingStep; current?: SnapshotRoutingStep },
+  finding: ComparisonFinding | undefined,
+  showComparison: boolean,
+  referenceRates: SnapshotWorkCenterRate[],
+  currentRates: SnapshotWorkCenterRate[]
+) {
+  const detail = calculateSnapshotRoutingDetail(pair, referenceRates, currentRates)
+  if (!showComparison) return detail
+  const effect = finding?.costEffect
+  return effect
+    ? {
+        ...detail,
+        referenceLaborCost: effect.reference.labor,
+        currentLaborCost: effect.current.labor,
+        referenceBurdenCost: effect.reference.burden,
+        currentBurdenCost: effect.current.burden,
+        referenceTotal: effect.reference.total,
+        currentTotal: effect.current.total,
+        totalGap: effect.gap.total
+      }
+    : { ...detail, referenceLaborCost: null, currentLaborCost: null, referenceBurdenCost: null, currentBurdenCost: null, referenceTotal: null, currentTotal: null, totalGap: null }
+}
+
 export const RoutingDetailedTable: React.FC<RoutingDetailedTableProps> = ({
   referenceItems,
   currentItems,
@@ -65,26 +97,18 @@ export const RoutingDetailedTable: React.FC<RoutingDetailedTableProps> = ({
   const currentRows = currentItems.map(current => {
     const finding = findingByCurrentId.get(current.id)
     const reference = finding?.referenceId ? referenceById.get(finding.referenceId) : undefined
-    const detail = calculateSnapshotRoutingDetail({ reference, current }, referenceRates, currentRates)
     return {
       finding,
-      detail: finding?.matchStatus === 'ambiguous' || finding?.matchStatus === 'unmatched'
-        ? { ...detail, referenceLaborCost: null, currentLaborCost: null, referenceBurdenCost: null, currentBurdenCost: null, referenceTotal: null, currentTotal: null, totalGap: null }
-        : detail
+      detail: comparisonDetail({ reference, current }, finding, showComparison, referenceRates, currentRates)
     }
   })
   const referenceOnlyRows = (findings ?? [])
     .filter(finding => !finding.currentId && finding.referenceId)
     .map(finding => ({
       finding,
-      detail: (() => {
-        const detail = calculateSnapshotRoutingDetail({
+      detail: comparisonDetail({
         reference: finding.referenceId ? referenceById.get(finding.referenceId) : undefined
-        }, referenceRates, currentRates)
-        return finding.matchStatus === 'ambiguous' || finding.matchStatus === 'unmatched'
-          ? { ...detail, referenceLaborCost: null, currentLaborCost: null, referenceBurdenCost: null, currentBurdenCost: null, referenceTotal: null, currentTotal: null, totalGap: null }
-          : detail
-      })()
+      }, finding, showComparison, referenceRates, currentRates)
     }))
   const rows = [...currentRows, ...referenceOnlyRows]
   const visibleRows = rows.filter(row => isVisibleInComparisonView(row.finding, viewMode))
@@ -109,6 +133,12 @@ export const RoutingDetailedTable: React.FC<RoutingDetailedTableProps> = ({
             <th className="p-2.5 text-right">Current Cap</th>
             <th className="p-2.5 text-right">Ref Yield</th>
             <th className="p-2.5 text-right">Current Yield</th>
+            <th className="p-2.5 text-right">Ref Labor</th>
+            <th className="p-2.5 text-right">Current Labor</th>
+            <th className="p-2.5 text-right">Δ Labor</th>
+            <th className="p-2.5 text-right">Ref Burden</th>
+            <th className="p-2.5 text-right">Current Burden</th>
+            <th className="p-2.5 text-right">Δ Burden</th>
             <th className="p-2.5 text-right">Ref Conv</th>
             <th className="p-2.5 text-right">Current Conv</th>
             <th className="p-2.5 text-right">Δ Variance</th>
@@ -117,7 +147,7 @@ export const RoutingDetailedTable: React.FC<RoutingDetailedTableProps> = ({
         <tbody className="divide-y divide-slate-100 font-mono">
           {visibleRows.length === 0 ? (
             <tr>
-              <td colSpan={showComparison ? 14 : 11} className="p-6 text-center text-slate-400 font-sans italic">
+              <td colSpan={showComparison ? 20 : 17} className="p-6 text-center text-slate-400 font-sans italic">
                 No rows match this comparison view.
               </td>
             </tr>
@@ -131,6 +161,8 @@ export const RoutingDetailedTable: React.FC<RoutingDetailedTableProps> = ({
               ? `${referenceWorkCenter} → ${currentWorkCenter}`
               : currentWorkCenter ?? referenceWorkCenter ?? '—'
             const operationKey = current?.id ?? reference?.id ?? row.finding?.referenceId ?? 'unknown'
+            const laborGap = showComparison ? row.finding?.costEffect?.gap.labor ?? null : gap(row.detail.currentLaborCost, row.detail.referenceLaborCost)
+            const burdenGap = showComparison ? row.finding?.costEffect?.gap.burden ?? null : gap(row.detail.currentBurdenCost, row.detail.referenceBurdenCost)
 
             return (
               <tr key={operationKey} className="hover:bg-slate-50/70 transition-colors">
@@ -162,9 +194,19 @@ export const RoutingDetailedTable: React.FC<RoutingDetailedTableProps> = ({
                 <td className="p-2.5 text-right font-bold text-slate-900 tabular-nums">{formatNullable(current?.capacity ?? null, value => formatNumber(value, 0))}</td>
                 <td className="p-2.5 text-right text-slate-500 tabular-nums">{formatNullable(reference?.yield ?? null, value => formatPercent(value, 1))}</td>
                 <td className="p-2.5 text-right font-bold text-slate-900 tabular-nums">{formatNullable(current?.yield ?? null, value => formatPercent(value, 1))}</td>
+                <td className="p-2.5 text-right text-slate-500 tabular-nums">{formatNullable(row.detail.referenceLaborCost, value => formatNumber(value, 4))}</td>
+                <td className="p-2.5 text-right font-bold text-slate-900 tabular-nums">{formatNullable(row.detail.currentLaborCost, value => formatNumber(value, 4))}</td>
+                <td className={`p-2.5 text-right tabular-nums ${costGapClass(laborGap)}`}>
+                  {formatNullable(laborGap, value => formatVariance(value, 4))}
+                </td>
+                <td className="p-2.5 text-right text-slate-500 tabular-nums">{formatNullable(row.detail.referenceBurdenCost, value => formatNumber(value, 4))}</td>
+                <td className="p-2.5 text-right font-bold text-slate-900 tabular-nums">{formatNullable(row.detail.currentBurdenCost, value => formatNumber(value, 4))}</td>
+                <td className={`p-2.5 text-right tabular-nums ${costGapClass(burdenGap)}`}>
+                  {formatNullable(burdenGap, value => formatVariance(value, 4))}
+                </td>
                 <td className="p-2.5 text-right text-slate-500 tabular-nums">{formatNullable(row.detail.referenceTotal, value => formatNumber(value, 4))}</td>
                 <td className="p-2.5 text-right font-bold text-slate-900 tabular-nums">{formatNullable(row.detail.currentTotal, value => formatNumber(value, 4))}</td>
-                <td className={`p-2.5 text-right tabular-nums ${row.detail.totalGap === null ? 'text-slate-400' : row.detail.totalGap > 0 ? 'text-rose-600' : row.detail.totalGap < 0 ? 'text-emerald-700' : 'text-slate-400'}`}>
+                <td className={`p-2.5 text-right tabular-nums ${costGapClass(row.detail.totalGap)}`}>
                   {formatNullable(row.detail.totalGap, value => formatVariance(value, 4))}
                 </td>
               </tr>
@@ -173,7 +215,7 @@ export const RoutingDetailedTable: React.FC<RoutingDetailedTableProps> = ({
         </tbody>
         <tfoot>
           <tr className="bg-slate-100/90 border-t-2 border-slate-300/80 font-bold text-xs">
-            <td colSpan={showComparison ? 11 : 8} className="p-2.5 text-right text-slate-700 uppercase tracking-wider text-[10px] font-sans">
+            <td colSpan={showComparison ? 17 : 14} className="p-2.5 text-right text-slate-700 uppercase tracking-wider text-[10px] font-sans">
               {viewMode === 'changed' ? 'Visible Changed Conversion (THB/pc)' : 'Total Conversion Cost (THB/pc)'}
             </td>
             <td className="p-2.5 text-right font-mono text-slate-800 tabular-nums">{formatNullable(referenceTotal, value => formatNumber(value, 4))}</td>
