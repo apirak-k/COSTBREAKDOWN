@@ -25,7 +25,7 @@ export interface ComparisonExportSummaryRow {
 }
 
 export interface ComparisonExportStatusCounts {
-  matched: number
+  unchanged: number
   changed: number
   added: number
   removed: number
@@ -134,7 +134,7 @@ function statusGroup(finding: ComparisonFinding | undefined, changed: boolean): 
   if (!finding || finding.matchStatus === 'ambiguous' || finding.matchStatus === 'unmatched') return 'review'
   if (finding.matchStatus === 'added') return 'added'
   if (finding.matchStatus === 'removed') return 'removed'
-  return changed ? 'changed' : 'matched'
+  return changed ? 'changed' : 'unchanged'
 }
 
 function addStatusCount(
@@ -375,7 +375,7 @@ function countFindingStatuses(
 export function buildComparisonExportModel(input: ComparisonExportInput): ComparisonExportModel {
   const { product, snapshotPair, comparison } = input
   const statusCounts: ComparisonExportStatusCounts = {
-    matched: 0,
+    unchanged: 0,
     changed: 0,
     added: 0,
     removed: 0,
@@ -539,12 +539,10 @@ function styleDataRows(
 }
 
 function statusCellStyle(status: string): { fill: ExcelJS.Fill; text: string } {
-  if (status === 'Matched') return { fill: solidFill(COLOR_GREEN), text: COLOR_GREEN_TEXT }
-  if (status.includes('Changed') || status.includes('Reordered') || status.includes('Moved')) {
-    return { fill: solidFill(COLOR_AMBER), text: COLOR_AMBER_TEXT }
-  }
-  if (status === 'Added') return { fill: solidFill(COLOR_BLUE), text: COLOR_BLUE_TEXT }
-  if (status === 'Removed') return { fill: solidFill(COLOR_RED), text: COLOR_RED_TEXT }
+  if (status === 'UNCHANGED') return { fill: solidFill(COLOR_GREEN), text: COLOR_GREEN_TEXT }
+  if (status === 'CHANGED') return { fill: solidFill(COLOR_AMBER), text: COLOR_AMBER_TEXT }
+  if (status === 'ADDED') return { fill: solidFill(COLOR_BLUE), text: COLOR_BLUE_TEXT }
+  if (status === 'REMOVED') return { fill: solidFill(COLOR_RED), text: COLOR_RED_TEXT }
   return { fill: solidFill(COLOR_SLATE), text: COLOR_SLATE_TEXT }
 }
 
@@ -669,11 +667,11 @@ function writeSummarySheet(workbook: ExcelJS.Workbook, model: ComparisonExportMo
   countHeader.values = ['Status', 'Count']
   styleHeaderRow(countHeader, 2)
   const statusRows: Array<[string, number]> = [
-    ['Matched', model.statusCounts.matched],
-    ['Changed', model.statusCounts.changed],
-    ['Added', model.statusCounts.added],
-    ['Removed', model.statusCounts.removed],
-    ['Review', model.statusCounts.review]
+    ['UNCHANGED', model.statusCounts.unchanged],
+    ['CHANGED', model.statusCounts.changed],
+    ['ADDED', model.statusCounts.added],
+    ['REMOVED', model.statusCounts.removed],
+    ['Validation warnings', model.statusCounts.review]
   ]
   statusRows.forEach(([status, count]) => {
     const row = sheet.addRow([status, count])

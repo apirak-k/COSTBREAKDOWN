@@ -10,12 +10,12 @@ const finding = (overrides: Partial<ComparisonFinding>): ComparisonFinding => ({
   ...overrides
 })
 
-assert.deepEqual(getRoutingComparisonLabels(finding({})), ['Unchanged'])
+assert.deepEqual(getRoutingComparisonLabels(finding({})), ['UNCHANGED'])
 assert.deepEqual(getRoutingComparisonLabels(finding({
   changeFlags: { reordered: true, movedWorkCenter: true, changedInputs: true }
-})), ['Reordered', 'Moved Work Center', 'Modified'])
-assert.deepEqual(getRoutingComparisonLabels(finding({ matchStatus: 'added' })), ['Added'])
-assert.deepEqual(getRoutingComparisonLabels(finding({ matchStatus: 'removed' })), ['Removed'])
-assert.deepEqual(getRoutingComparisonLabels(finding({ matchStatus: 'ambiguous' })), ['Need Review'])
+})), ['CHANGED'])
+assert.deepEqual(getRoutingComparisonLabels(finding({ matchStatus: 'added' })), ['ADDED'])
+assert.deepEqual(getRoutingComparisonLabels(finding({ matchStatus: 'removed' })), ['REMOVED'])
+assert.deepEqual(getRoutingComparisonLabels(finding({ matchStatus: 'ambiguous' })), [])
 
 console.log('Routing comparison view self-check: PASS')

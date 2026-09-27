@@ -28,7 +28,7 @@ export const ProblemStatementCard: React.FC<ProblemStatementCardProps> = ({ cand
       <div className="text-right">
         <p className="text-[10px] font-medium uppercase tracking-wide text-slate-500">Cost gap</p>
         <p className="font-mono text-sm font-semibold tabular-nums text-slate-900">
-          {formatVariance(candidate.costGap, 4)} THB/pc
+          {candidate.costGap === null ? '—' : `${formatVariance(candidate.costGap, 4)} THB/pc`}
         </p>
       </div>
     </div>

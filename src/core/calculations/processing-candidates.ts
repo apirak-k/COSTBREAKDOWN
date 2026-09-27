@@ -11,6 +11,24 @@ function normalizeKey(value: string | undefined): string {
   return value?.trim().toLowerCase() ?? ''
 }
 
+function addCost(total: number | null, value: number | null): number | null {
+  return total === null || value === null ? null : total + value
+}
+
+function routingSignature(steps: SnapshotRoutingStep[]): string {
+  const signatures = steps.map(step => JSON.stringify([
+    normalizeKey(step.operationCode),
+    normalizeKey(step.processCode),
+    step.processName,
+    step.sequence,
+    normalizeKey(step.workCenterId),
+    step.manning,
+    step.capacity,
+    step.yield
+  ])).sort((left, right) => left.localeCompare(right))
+  return JSON.stringify(signatures)
+}
+
 /**
  * Builds Processing Candidates aggregated by Work Center.
  * Section 5 of CANDIDATE_PRIORITIZATION_SPEC.md:
@@ -27,7 +45,7 @@ export function buildProcessingCandidates(
   controllabilityMap?: Record<string, boolean>
 ): PrioritizationCandidate[] {
   // Aggregate Routing costs by Work Center for Reference
-  const refWcCosts = new Map<string, { labor: number; burden: number; total: number; steps: SnapshotRoutingStep[] }>()
+  const refWcCosts = new Map<string, { labor: number | null; burden: number | null; total: number | null; steps: SnapshotRoutingStep[] }>()
   for (const step of referenceSnapshot.routing) {
     const wcKey = normalizeKey(step.workCenterId)
     if (!wcKey) continue
@@ -36,20 +54,20 @@ export function buildProcessingCandidates(
       referenceSnapshot.rates,
       currentSnapshot.rates
     )
-    const labor = detail.referenceLaborCost ?? 0
-    const burden = detail.referenceBurdenCost ?? 0
-    const total = detail.referenceTotal ?? 0
+    const labor = detail.referenceLaborCost
+    const burden = detail.referenceBurdenCost
+    const total = detail.referenceTotal
 
     const currentAggr = refWcCosts.get(wcKey) ?? { labor: 0, burden: 0, total: 0, steps: [] }
-    currentAggr.labor += labor
-    currentAggr.burden += burden
-    currentAggr.total += total
+    currentAggr.labor = addCost(currentAggr.labor, labor)
+    currentAggr.burden = addCost(currentAggr.burden, burden)
+    currentAggr.total = addCost(currentAggr.total, total)
     currentAggr.steps.push(step)
     refWcCosts.set(wcKey, currentAggr)
   }
 
   // Aggregate Routing costs by Work Center for Current
-  const curWcCosts = new Map<string, { labor: number; burden: number; total: number; steps: SnapshotRoutingStep[] }>()
+  const curWcCosts = new Map<string, { labor: number | null; burden: number | null; total: number | null; steps: SnapshotRoutingStep[] }>()
   for (const step of currentSnapshot.routing) {
     const wcKey = normalizeKey(step.workCenterId)
     if (!wcKey) continue
@@ -58,14 +76,14 @@ export function buildProcessingCandidates(
       referenceSnapshot.rates,
       currentSnapshot.rates
     )
-    const labor = detail.currentLaborCost ?? 0
-    const burden = detail.currentBurdenCost ?? 0
-    const total = detail.currentTotal ?? 0
+    const labor = detail.currentLaborCost
+    const burden = detail.currentBurdenCost
+    const total = detail.currentTotal
 
     const currentAggr = curWcCosts.get(wcKey) ?? { labor: 0, burden: 0, total: 0, steps: [] }
-    currentAggr.labor += labor
-    currentAggr.burden += burden
-    currentAggr.total += total
+    currentAggr.labor = addCost(currentAggr.labor, labor)
+    currentAggr.burden = addCost(currentAggr.burden, burden)
+    currentAggr.total = addCost(currentAggr.total, total)
     currentAggr.steps.push(step)
     curWcCosts.set(wcKey, currentAggr)
   }
@@ -104,24 +122,22 @@ export function buildProcessingCandidates(
     } else if (hasRef && hasCur) {
       referenceCost = refData!.total
       currentCost = curData!.total
-      // If neither cost changed nor any steps changed, it's UNCHANGED -> skip
-      const costGap = currentCost - referenceCost
-      const sameStepCount = refData!.steps.length === curData!.steps.length
-      // If gap is 0 and no steps changed, skip UNCHANGED
-      if (Math.abs(costGap) < 0.0001 && sameStepCount) {
-        // Check if rate or inputs changed
-        const anyDiff = refData!.steps.some((rs, idx) => {
-          const cs = curData!.steps[idx]
-          return rs.capacity !== cs.capacity || rs.yield !== cs.yield || rs.manning !== cs.manning
-        })
-        if (!anyDiff) continue
-      }
+      const costGap = currentCost === null || referenceCost === null ? null : currentCost - referenceCost
+      const sameRoutingData = routingSignature(refData!.steps) === routingSignature(curData!.steps)
+      const referenceRate = refRateMap.get(wcKey)
+      const currentRate = curRateMap.get(wcKey)
+      const sameRate = Boolean(referenceRate) === Boolean(currentRate)
+        && (!referenceRate || !currentRate || (
+          referenceRate.laborRate === currentRate.laborRate
+          && referenceRate.burdenRate === currentRate.burdenRate
+        ))
+      if (sameRoutingData && sameRate && (costGap === null || Math.abs(costGap) < 0.0001)) continue
       status = 'CHANGED'
     } else {
       continue
     }
 
-    const costGap = (currentCost ?? 0) - (referenceCost ?? 0)
+    const costGap = currentCost === null || referenceCost === null ? null : currentCost - referenceCost
     const candidateKey = `wc:${wcKey}`
     const rateInfo = curRateMap.get(wcKey) || refRateMap.get(wcKey)
     const wcCode = rateInfo?.workCenterCode || wcKey.toUpperCase()

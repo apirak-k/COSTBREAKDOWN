@@ -29,11 +29,10 @@ export function getRoutingComparisonLabels(finding: ComparisonFinding): Comparis
 }
 
 function comparisonClass(label: string): string {
-  if (label === 'Unchanged') return 'text-emerald-700 bg-emerald-50 border-emerald-200'
-  if (label === 'Modified') return 'text-amber-700 bg-amber-50 border-amber-200'
-  if (label === 'Reordered' || label === 'Moved Work Center') return 'text-sky-700 bg-sky-50 border-sky-200'
-  if (label === 'Added') return 'text-sky-700 bg-sky-50 border-sky-200'
-  if (label === 'Removed') return 'text-rose-700 bg-rose-50 border-rose-200'
+  if (label === 'UNCHANGED') return 'text-emerald-700 bg-emerald-50 border-emerald-200'
+  if (label === 'CHANGED') return 'text-amber-700 bg-amber-50 border-amber-200'
+  if (label === 'ADDED') return 'text-sky-700 bg-sky-50 border-sky-200'
+  if (label === 'REMOVED') return 'text-rose-700 bg-rose-50 border-rose-200'
   return 'text-slate-700 bg-slate-100 border-slate-200'
 }
 
@@ -66,18 +65,26 @@ export const RoutingDetailedTable: React.FC<RoutingDetailedTableProps> = ({
   const currentRows = currentItems.map(current => {
     const finding = findingByCurrentId.get(current.id)
     const reference = finding?.referenceId ? referenceById.get(finding.referenceId) : undefined
+    const detail = calculateSnapshotRoutingDetail({ reference, current }, referenceRates, currentRates)
     return {
       finding,
-      detail: calculateSnapshotRoutingDetail({ reference, current }, referenceRates, currentRates)
+      detail: finding?.matchStatus === 'ambiguous' || finding?.matchStatus === 'unmatched'
+        ? { ...detail, referenceLaborCost: null, currentLaborCost: null, referenceBurdenCost: null, currentBurdenCost: null, referenceTotal: null, currentTotal: null, totalGap: null }
+        : detail
     }
   })
   const referenceOnlyRows = (findings ?? [])
     .filter(finding => !finding.currentId && finding.referenceId)
     .map(finding => ({
       finding,
-      detail: calculateSnapshotRoutingDetail({
+      detail: (() => {
+        const detail = calculateSnapshotRoutingDetail({
         reference: finding.referenceId ? referenceById.get(finding.referenceId) : undefined
-      }, referenceRates, currentRates)
+        }, referenceRates, currentRates)
+        return finding.matchStatus === 'ambiguous' || finding.matchStatus === 'unmatched'
+          ? { ...detail, referenceLaborCost: null, currentLaborCost: null, referenceBurdenCost: null, currentBurdenCost: null, referenceTotal: null, currentTotal: null, totalGap: null }
+          : detail
+      })()
     }))
   const rows = [...currentRows, ...referenceOnlyRows]
   const visibleRows = rows.filter(row => isVisibleInComparisonView(row.finding, viewMode))
@@ -117,7 +124,7 @@ export const RoutingDetailedTable: React.FC<RoutingDetailedTableProps> = ({
           ) : visibleRows.map(row => {
             const reference = row.detail.pair.reference
             const current = row.detail.pair.current
-            const labels = row.finding ? getRoutingComparisonLabels(row.finding) : ['Need Review']
+            const labels = row.finding ? getRoutingComparisonLabels(row.finding) : []
             const referenceWorkCenter = reference?.workCenterId
             const currentWorkCenter = current?.workCenterId
             const workCenter = referenceWorkCenter && currentWorkCenter && referenceWorkCenter !== currentWorkCenter
@@ -135,7 +142,7 @@ export const RoutingDetailedTable: React.FC<RoutingDetailedTableProps> = ({
                 {showComparison && (
                   <td className="p-2.5 min-w-[150px]">
                     <div className="flex flex-wrap gap-1">
-                      {labels.map(label => <span key={label} className={`inline-flex px-1.5 py-0.5 rounded border text-[10px] font-mono font-bold whitespace-nowrap ${comparisonClass(label)}`}>{label}</span>)}
+                      {labels.length > 0 ? labels.map(label => <span key={label} className={`inline-flex px-1.5 py-0.5 rounded border text-[10px] font-mono font-bold whitespace-nowrap ${comparisonClass(label)}`}>{label}</span>) : <span title="No comparable business identity; see validation warnings">—</span>}
                     </div>
                   </td>
                 )}

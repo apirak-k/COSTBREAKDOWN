@@ -62,9 +62,9 @@ export const CandidateRow: React.FC<CandidateRowProps> = ({
 
       {/* Gap */}
       <td className={`p-2.5 text-right tabular-nums font-bold ${
-        candidate.costGap > 0 ? 'text-rose-700' : candidate.costGap < 0 ? 'text-emerald-700' : 'text-slate-500'
+        candidate.costGap === null ? 'text-slate-400' : candidate.costGap > 0 ? 'text-rose-700' : candidate.costGap < 0 ? 'text-emerald-700' : 'text-slate-500'
       }`}>
-        {formatVariance(candidate.costGap, 4)}
+        {candidate.costGap === null ? '—' : formatVariance(candidate.costGap, 4)}
       </td>
 
       {/* Controllable */}

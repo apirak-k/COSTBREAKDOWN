@@ -10,10 +10,10 @@ const finding = (overrides: Partial<ComparisonFinding>): ComparisonFinding => ({
   ...overrides
 })
 
-assert.equal(getWorkCenterComparisonLabel(finding({})), 'Unchanged')
-assert.equal(getWorkCenterComparisonLabel(finding({ changeFlags: { changedRate: true } })), 'Modified')
-assert.equal(getWorkCenterComparisonLabel(finding({ matchStatus: 'added' })), 'Added')
-assert.equal(getWorkCenterComparisonLabel(finding({ matchStatus: 'removed' })), 'Removed')
-assert.equal(getWorkCenterComparisonLabel(finding({ matchStatus: 'ambiguous' })), 'Need Review')
+assert.equal(getWorkCenterComparisonLabel(finding({})), 'UNCHANGED')
+assert.equal(getWorkCenterComparisonLabel(finding({ changeFlags: { changedRate: true } })), 'CHANGED')
+assert.equal(getWorkCenterComparisonLabel(finding({ matchStatus: 'added' })), 'ADDED')
+assert.equal(getWorkCenterComparisonLabel(finding({ matchStatus: 'removed' })), 'REMOVED')
+assert.equal(getWorkCenterComparisonLabel(finding({ matchStatus: 'ambiguous' })), null)
 
 console.log('Work Center comparison view self-check: PASS')

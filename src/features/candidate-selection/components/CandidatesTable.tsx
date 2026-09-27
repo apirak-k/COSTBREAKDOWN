@@ -11,7 +11,9 @@ export const CandidatesTable: React.FC<CandidatesTableProps> = ({
   candidates,
   onToggleControllable
 }) => {
-  const totalGap = candidates.length > 0 ? candidates.reduce((sum, c) => sum + c.costGap, 0) : null
+  const totalGap = candidates.length > 0 && candidates.every(candidate => candidate.costGap !== null)
+    ? candidates.reduce<number>((sum, candidate) => sum + (candidate.costGap as number), 0)
+    : null
 
   return (
     <div className="bg-white rounded border border-slate-300/80 shadow-2xs overflow-hidden">

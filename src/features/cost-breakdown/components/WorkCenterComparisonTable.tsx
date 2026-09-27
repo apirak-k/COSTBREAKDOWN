@@ -18,15 +18,15 @@ interface WorkCenterComparisonTableProps {
   viewMode?: ComparisonViewMode
 }
 
-export function getWorkCenterComparisonLabel(finding: ComparisonFinding): ComparisonStatus {
-  return getComparisonStatusLabels(finding)[0]
+export function getWorkCenterComparisonLabel(finding: ComparisonFinding): ComparisonStatus | null {
+  return getComparisonStatusLabels(finding)[0] ?? null
 }
 
 function comparisonClass(label: ReturnType<typeof getWorkCenterComparisonLabel>): string {
-  if (label === 'Unchanged') return 'text-emerald-700 bg-emerald-50 border-emerald-200'
-  if (label === 'Modified') return 'text-amber-700 bg-amber-50 border-amber-200'
-  if (label === 'Added') return 'text-sky-700 bg-sky-50 border-sky-200'
-  if (label === 'Removed') return 'text-rose-700 bg-rose-50 border-rose-200'
+  if (label === 'UNCHANGED') return 'text-emerald-700 bg-emerald-50 border-emerald-200'
+  if (label === 'CHANGED') return 'text-amber-700 bg-amber-50 border-amber-200'
+  if (label === 'ADDED') return 'text-sky-700 bg-sky-50 border-sky-200'
+  if (label === 'REMOVED') return 'text-rose-700 bg-rose-50 border-rose-200'
   return 'text-slate-700 bg-slate-100 border-slate-200'
 }
 
@@ -68,7 +68,7 @@ export const WorkCenterComparisonTable: React.FC<WorkCenterComparisonTableProps>
       finding: findingByCurrentId.get(rate.id)
     })),
     ...findings
-      .filter(finding => finding.matchStatus === 'removed')
+      .filter(finding => !finding.currentId && finding.referenceId)
       .map(finding => ({
         current: undefined,
         reference: finding.referenceId ? referenceById.get(finding.referenceId) : undefined,
@@ -111,18 +111,18 @@ export const WorkCenterComparisonTable: React.FC<WorkCenterComparisonTableProps>
               </td>
             </tr>
           ) : visibleRows.map(row => {
-            const label = row.finding ? getWorkCenterComparisonLabel(row.finding) : 'Need Review'
+            const label = row.finding ? getWorkCenterComparisonLabel(row.finding) : null
             const workCenterCode = row.current?.workCenterCode ?? row.reference?.workCenterCode ?? 'Unknown'
             const description = row.current?.description ?? row.reference?.description ?? '—'
             const source = row.current?.sourceRef ?? row.reference?.sourceRef ?? '—'
 
             return (
-              <tr key={row.current?.id ?? `removed-${row.reference?.id ?? workCenterCode}`} className={`hover:bg-slate-50/70 transition-colors ${label === 'Removed' ? 'bg-rose-50/60' : ''}`}>
+              <tr key={row.current?.id ?? `removed-${row.reference?.id ?? workCenterCode}`} className={`hover:bg-slate-50/70 transition-colors ${label === 'REMOVED' ? 'bg-rose-50/60' : ''}`}>
                 <th scope="row" className="p-2.5 font-bold text-slate-900 whitespace-nowrap">{workCenterCode}</th>
                 <td className="p-2.5 font-sans text-slate-700">{description}</td>
                 <td className="p-2.5 whitespace-nowrap">
-                  <span className={`inline-flex px-1.5 py-0.5 rounded border text-[10px] font-mono font-bold ${comparisonClass(label)}`}>
-                    {label}
+                  <span title={label ? undefined : 'No comparable business identity; see validation warnings'} className={`inline-flex px-1.5 py-0.5 rounded border text-[10px] font-mono font-bold ${comparisonClass(label)}`}>
+                    {label ?? '—'}
                   </span>
                 </td>
                 <td className="p-2.5 whitespace-nowrap">

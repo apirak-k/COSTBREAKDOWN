@@ -20,15 +20,15 @@ interface BOMDetailedTableProps {
   viewMode?: ComparisonViewMode
 }
 
-export function getBOMComparisonLabel(finding: ComparisonFinding): ComparisonStatus {
-  return getComparisonStatusLabels(finding)[0]
+export function getBOMComparisonLabel(finding: ComparisonFinding): ComparisonStatus | null {
+  return getComparisonStatusLabels(finding)[0] ?? null
 }
 
-function comparisonClass(label: string): string {
-  if (label === 'Unchanged') return 'text-emerald-700 bg-emerald-50 border-emerald-200'
-  if (label === 'Modified') return 'text-amber-700 bg-amber-50 border-amber-200'
-  if (label === 'Added') return 'text-sky-700 bg-sky-50 border-sky-200'
-  if (label === 'Removed') return 'text-rose-700 bg-rose-50 border-rose-200'
+function comparisonClass(label: ComparisonStatus | null): string {
+  if (label === 'UNCHANGED') return 'text-emerald-700 bg-emerald-50 border-emerald-200'
+  if (label === 'CHANGED') return 'text-amber-700 bg-amber-50 border-amber-200'
+  if (label === 'ADDED') return 'text-sky-700 bg-sky-50 border-sky-200'
+  if (label === 'REMOVED') return 'text-rose-700 bg-rose-50 border-rose-200'
   return 'text-slate-700 bg-slate-100 border-slate-200'
 }
 
@@ -59,9 +59,12 @@ export const BOMDetailedTable: React.FC<BOMDetailedTableProps> = ({
   const currentRows = currentItems.map(current => {
     const finding = findingByCurrentId.get(current.id)
     const reference = finding?.referenceId ? referenceById.get(finding.referenceId) : undefined
+    const detail = calculateSnapshotBOMDetail({ reference, current })
     return {
       finding,
-      detail: calculateSnapshotBOMDetail({ reference, current })
+      detail: finding?.matchStatus === 'ambiguous' || finding?.matchStatus === 'unmatched'
+        ? { ...detail, referenceCost: null, currentCost: null, costGap: null }
+        : detail
     }
   })
   const referenceOnlyRows = (findings ?? [])
@@ -112,7 +115,7 @@ export const BOMDetailedTable: React.FC<BOMDetailedTableProps> = ({
           ) : visibleRows.map((row, index) => {
             const reference = row.detail.pair.reference
             const current = row.detail.pair.current
-            const label = row.finding ? getBOMComparisonLabel(row.finding) : 'Need Review'
+            const label = row.finding ? getBOMComparisonLabel(row.finding) : null
             const itemCode = current?.itemCode ?? reference?.itemCode ?? '—'
             const description = current?.description ?? reference?.description ?? '—'
             const unit = current?.unit ?? reference?.unit ?? '—'
@@ -124,8 +127,8 @@ export const BOMDetailedTable: React.FC<BOMDetailedTableProps> = ({
                 <td className="p-2.5 font-sans font-medium text-slate-800 truncate max-w-[220px]" title={description}>{description}</td>
                 {showComparison && (
                   <td className="p-2.5 min-w-[120px]">
-                    <span className={`inline-flex px-1.5 py-0.5 rounded border text-[10px] font-mono font-bold whitespace-nowrap ${comparisonClass(label)}`}>
-                      {label}
+                    <span title={label ? undefined : 'No comparable business identity; see validation warnings'} className={`inline-flex px-1.5 py-0.5 rounded border text-[10px] font-mono font-bold whitespace-nowrap ${comparisonClass(label)}`}>
+                      {label ?? '—'}
                     </span>
                   </td>
                 )}

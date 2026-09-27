@@ -26,7 +26,7 @@ export function summarizeSnapshotComparison(comparison: CostComparison): Snapsho
   const missingCount = findings.filter(finding => finding.confidence === 'missing').length
   const estimatedCount = findings.filter(finding => finding.confidence === 'estimated').length
   const matchedCount = findings.filter(finding => finding.matchStatus === 'matched').length
-  const reviewCount = findings.filter(finding => finding.matchStatus !== 'matched').length
+  const reviewCount = findings.filter(finding => finding.matchStatus === 'ambiguous' || finding.matchStatus === 'unmatched' || finding.reviewRequired).length
   const hasMissingCost = comparison.referenceCost.status === 'missing' || comparison.currentCost.status === 'missing'
   const hasEstimatedCost = comparison.referenceCost.status === 'estimated' || comparison.currentCost.status === 'estimated'
 

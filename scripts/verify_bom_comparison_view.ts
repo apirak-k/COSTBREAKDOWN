@@ -10,10 +10,10 @@ const finding = (overrides: Partial<ComparisonFinding>): ComparisonFinding => ({
   ...overrides
 })
 
-assert.equal(getBOMComparisonLabel(finding({})), 'Unchanged')
-assert.equal(getBOMComparisonLabel(finding({ fieldDiffs: { price: { reference: 1, current: 2 } } })), 'Modified')
-assert.equal(getBOMComparisonLabel(finding({ matchStatus: 'added' })), 'Added')
-assert.equal(getBOMComparisonLabel(finding({ matchStatus: 'removed' })), 'Removed')
-assert.equal(getBOMComparisonLabel(finding({ matchStatus: 'ambiguous' })), 'Need Review')
+assert.equal(getBOMComparisonLabel(finding({})), 'UNCHANGED')
+assert.equal(getBOMComparisonLabel(finding({ fieldDiffs: { price: { reference: 1, current: 2 } } })), 'CHANGED')
+assert.equal(getBOMComparisonLabel(finding({ matchStatus: 'added' })), 'ADDED')
+assert.equal(getBOMComparisonLabel(finding({ matchStatus: 'removed' })), 'REMOVED')
+assert.equal(getBOMComparisonLabel(finding({ matchStatus: 'ambiguous' })), null)
 
 console.log('BOM comparison view self-check: PASS')

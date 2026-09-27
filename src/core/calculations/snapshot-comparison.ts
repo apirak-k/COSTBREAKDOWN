@@ -111,6 +111,7 @@ function diffProductFields(reference: CostSnapshot['product'], current: CostSnap
 }
 
 function compareRows<T extends SnapshotRow>(
+  section: string,
   referenceRows: T[],
   currentRows: T[],
   keyOf: (row: T) => string,
@@ -120,20 +121,36 @@ function compareRows<T extends SnapshotRow>(
 ): ComparisonFinding[] {
   const referenceMap = new Map<string, T[]>()
   const currentMap = new Map<string, T[]>()
+  const findings: ComparisonFinding[] = []
 
   referenceRows.forEach(row => {
     const key = keyOf(row)
-    if (!key) return
+    if (!key) {
+      warnings.push({
+        code: 'MISSING_BUSINESS_KEY',
+        message: `Reference ${section} row "${row.id}" has no stable business key; it was not matched.`,
+        referenceId: row.id
+      })
+      findings.push({ referenceId: row.id, matchStatus: 'unmatched', changeFlags: {}, fieldDiffs: {}, costGap: null, confidence: confidenceOf(row), reviewRequired: true })
+      return
+    }
     referenceMap.set(key, [...(referenceMap.get(key) ?? []), row])
   })
   currentRows.forEach(row => {
     const key = keyOf(row)
-    if (!key) return
+    if (!key) {
+      warnings.push({
+        code: 'MISSING_BUSINESS_KEY',
+        message: `Current ${section} row "${row.id}" has no stable business key; it was not matched.`,
+        currentId: row.id
+      })
+      findings.push({ currentId: row.id, matchStatus: 'unmatched', changeFlags: {}, fieldDiffs: {}, costGap: null, confidence: confidenceOf(row), reviewRequired: true })
+      return
+    }
     currentMap.set(key, [...(currentMap.get(key) ?? []), row])
   })
 
   const keys = new Set([...referenceMap.keys(), ...currentMap.keys()])
-  const findings: ComparisonFinding[] = []
 
   keys.forEach(key => {
     const references = referenceMap.get(key) ?? []
@@ -144,16 +161,8 @@ function compareRows<T extends SnapshotRow>(
         code: 'AMBIGUOUS_KEY',
         message: `Duplicate key "${key}" found in ${references.length > 1 ? 'Reference' : ''} ${currents.length > 1 ? 'Current' : ''}`.trim()
       })
-      findings.push({
-        referenceId: references[0]?.id,
-        currentId: currents[0]?.id,
-        matchStatus: 'ambiguous',
-        changeFlags: {},
-        fieldDiffs: {},
-        costGap: null,
-        confidence: combinedConfidence(references[0], currents[0]),
-        reviewRequired: true
-      })
+      references.forEach(row => findings.push({ referenceId: row.id, matchStatus: 'ambiguous', changeFlags: {}, fieldDiffs: {}, costGap: null, confidence: confidenceOf(row), reviewRequired: true }))
+      currents.forEach(row => findings.push({ currentId: row.id, matchStatus: 'ambiguous', changeFlags: {}, fieldDiffs: {}, costGap: null, confidence: confidenceOf(row), reviewRequired: true }))
       return
     }
 
@@ -208,15 +217,15 @@ function compareRows<T extends SnapshotRow>(
 }
 
 function bomKey(row: SnapshotBOMItem): string {
-  return normalizeKey(row.itemCode) || `id:${row.id}`
+  return normalizeKey(row.itemCode)
 }
 
 function routingKey(row: SnapshotRoutingStep): string {
-  return normalizeKey(row.operationCode) || normalizeKey(row.processCode) || normalizeKey(row.processName) || `id:${row.id}`
+  return normalizeKey(row.operationCode) || normalizeKey(row.processCode)
 }
 
 function rateKey(row: SnapshotWorkCenterRate): string {
-  return normalizeKey(row.workCenterCode) || `id:${row.id}`
+  return normalizeKey(row.workCenterCode)
 }
 
 function bomFlags(): ChangeFlags {
@@ -259,6 +268,7 @@ export function compareSnapshots(reference: CostSnapshot, current: CostSnapshot)
   ]
 
   const bomFindings = compareRows(
+    'BOM',
     reference.bom,
     current.bom,
     bomKey,
@@ -268,6 +278,7 @@ export function compareSnapshots(reference: CostSnapshot, current: CostSnapshot)
   )
 
   const routingFindings = compareRows(
+    'Routing',
     reference.routing,
     current.routing,
     routingKey,
@@ -277,6 +288,7 @@ export function compareSnapshots(reference: CostSnapshot, current: CostSnapshot)
   )
 
   const workCenterFindings = compareRows(
+    'Work Center',
     reference.rates,
     current.rates,
     rateKey,

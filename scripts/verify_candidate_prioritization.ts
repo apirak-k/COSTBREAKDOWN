@@ -108,4 +108,71 @@ assert(changedOnly.every(c => c.status === 'CHANGED'), 'Changed filter only cont
 assert(addedOnly.every(c => c.status === 'ADDED'), 'Added filter only contains ADDED')
 assert(removedOnly.every(c => c.status === 'REMOVED'), 'Removed filter only contains REMOVED')
 
+// 4. Missing values on present records stay unavailable in Candidate findings.
+console.log('4. Checking missing candidate inputs are not converted to zero...')
+const missingMaterialReference: CostSnapshot = {
+  ...refSnapshot,
+  id: 'missing-material-reference',
+  bom: [{ id: 'mat-missing', itemCode: 'MAT-MISSING', description: 'Missing loss', consumption: 1, unit: 'KG', price: 10, loss: 0, confidence: {} }]
+}
+const missingMaterialCurrent: CostSnapshot = {
+  ...curSnapshot,
+  id: 'missing-material-current',
+  bom: [{ id: 'mat-missing', itemCode: 'MAT-MISSING', description: 'Missing loss', consumption: 1, unit: 'KG', price: 12, loss: null, confidence: {} }]
+}
+const missingMaterialCandidate = buildMaterialCandidates(
+  compareSnapshots(missingMaterialReference, missingMaterialCurrent),
+  missingMaterialReference,
+  missingMaterialCurrent
+).find(candidate => candidate.candidateName.includes('MAT-MISSING'))
+assert(missingMaterialCandidate, 'Changed material with incomplete cost inputs remains visible')
+assert.equal(missingMaterialCandidate.currentCost, null, 'Missing material input keeps Current cost unavailable')
+assert.equal(missingMaterialCandidate.costGap, null, 'Missing material input keeps Gap unavailable')
+
+const missingRouteReference: CostSnapshot = {
+  ...refSnapshot,
+  id: 'missing-route-reference',
+  bom: [],
+  routing: [{ id: 'route-one', operationCode: 'OP-ONE', sequence: 10, workCenterId: 'WC-1', manning: 1, capacity: 100, yield: 1, confidence: {} }]
+}
+const missingRouteCurrent: CostSnapshot = {
+  ...curSnapshot,
+  id: 'missing-route-current',
+  bom: [],
+  routing: [{ id: 'route-one', operationCode: 'OP-ONE', sequence: 10, workCenterId: 'WC-1', manning: 1, capacity: null, yield: 1, confidence: {} }]
+}
+const missingRouteCandidate = buildProcessingCandidates(
+  compareSnapshots(missingRouteReference, missingRouteCurrent),
+  missingRouteReference,
+  missingRouteCurrent
+).find(candidate => candidate.candidateKey === 'wc:wc-1')
+assert(missingRouteCandidate, 'Changed processing candidate remains visible when an input is missing')
+assert.equal(missingRouteCandidate.currentCost, null, 'Missing routing input keeps Current cost unavailable')
+assert.equal(missingRouteCandidate.costGap, null, 'Missing routing input keeps Gap unavailable')
+
+// Reordering complete routes does not create an aggregate Work Center candidate.
+const reorderedReference: CostSnapshot = {
+  ...refSnapshot,
+  id: 'reordered-reference',
+  bom: [],
+  routing: [
+    { id: 'route-a-ref', operationCode: 'OP-A', sequence: 10, workCenterId: 'WC-1', manning: 1, capacity: 100, yield: 1, confidence: {} },
+    { id: 'route-b-ref', operationCode: 'OP-B', sequence: 20, workCenterId: 'WC-1', manning: 1, capacity: 200, yield: 1, confidence: {} }
+  ]
+}
+const reorderedCurrent: CostSnapshot = {
+  ...curSnapshot,
+  id: 'reordered-current',
+  bom: [],
+  routing: [
+    { id: 'route-b-current', operationCode: 'OP-B', sequence: 20, workCenterId: 'WC-1', manning: 1, capacity: 200, yield: 1, confidence: {} },
+    { id: 'route-a-current', operationCode: 'OP-A', sequence: 10, workCenterId: 'WC-1', manning: 1, capacity: 100, yield: 1, confidence: {} }
+  ]
+}
+assert.equal(buildProcessingCandidates(
+  compareSnapshots(reorderedReference, reorderedCurrent),
+  reorderedReference,
+  reorderedCurrent
+).some(candidate => candidate.candidateKey === 'wc:wc-1'), false, 'Route row order alone must not create a Work Center candidate')
+
 console.log('All Phase 3 candidate prioritization checks passed successfully!')

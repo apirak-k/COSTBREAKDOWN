@@ -17,7 +17,7 @@ export interface PrioritizationCandidate {
   status: PrioritizationStatus
   referenceCost: number | null
   currentCost: number | null
-  costGap: number
+  costGap: number | null
   controllable: boolean
   rank: number
   sourceType: 'bom' | 'work-center'
@@ -57,7 +57,7 @@ export function buildMaterialCandidates(
   for (const finding of comparison.bomFindings) {
     const canonicalStatus = getCanonicalComparisonStatus(finding)
     // Section 6: UNCHANGED does not belong on Candidate Prioritization page
-    if (canonicalStatus === 'UNCHANGED') continue
+    if (canonicalStatus === null || canonicalStatus === 'UNCHANGED') continue
 
     const status: PrioritizationStatus = canonicalStatus // CHANGED | ADDED | REMOVED
     const refItem = finding.referenceId ? refBomById.get(finding.referenceId) : undefined
@@ -69,7 +69,7 @@ export function buildMaterialCandidates(
 
     const referenceCost = detail.referenceCost
     const currentCost = detail.currentCost
-    const netGap = (currentCost ?? 0) - (referenceCost ?? 0)
+    const netGap = currentCost === null || referenceCost === null ? null : currentCost - referenceCost
 
     const baseKey = `mat:${itemCode}`
     const controllable = controllabilityMap?.[baseKey] ?? true
@@ -83,7 +83,7 @@ export function buildMaterialCandidates(
         status: 'ADDED',
         referenceCost: 0,
         currentCost,
-        costGap: currentCost ?? 0,
+        costGap: currentCost,
         controllable,
         rank: 0,
         sourceType: 'bom',
@@ -103,7 +103,7 @@ export function buildMaterialCandidates(
         status: 'REMOVED',
         referenceCost,
         currentCost: 0,
-        costGap: -(referenceCost ?? 0),
+        costGap: referenceCost === null ? null : -referenceCost,
         controllable,
         rank: 0,
         sourceType: 'bom',

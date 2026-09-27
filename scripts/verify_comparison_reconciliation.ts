@@ -103,4 +103,54 @@ assert(filteredAdded.length > 0 && filteredAdded.every(f => getCanonicalComparis
 assert(filteredRemoved.length > 0 && filteredRemoved.every(f => getCanonicalComparisonStatus(f) === 'REMOVED'), 'Removed filter only has REMOVED')
 assert(filteredUnchanged.length > 0 && filteredUnchanged.every(f => getCanonicalComparisonStatus(f) === 'UNCHANGED'), 'Unchanged filter only has UNCHANGED')
 
+// 5. Unstable or missing keys must not be guessed from IDs, names, or row order.
+console.log('5. Checking missing business keys remain separate from comparison statuses...')
+const missingKeyReference: CostSnapshot = {
+  ...refSnapshot,
+  id: 'missing-key-reference',
+  bom: [...refSnapshot.bom, {
+    id: 'shared-bom-id', itemCode: '', description: 'No stable BOM key', consumption: 1,
+    unit: 'KG', price: 10, loss: 0, confidence: {}
+  }],
+  rates: [...refSnapshot.rates, {
+    id: 'shared-rate-id', workCenterCode: '', description: 'No stable Work Center key',
+    laborRate: 10, burdenRate: 5, effectiveDate: '2026-09-24', confidence: {}
+  }],
+  routing: [...refSnapshot.routing, {
+    id: 'shared-routing-id', processName: 'Same display name', workCenterId: 'WC-1',
+    manning: 1, capacity: 100, yield: 1, confidence: {}
+  }]
+}
+const missingKeyCurrent: CostSnapshot = {
+  ...curSnapshot,
+  id: 'missing-key-current',
+  bom: [...curSnapshot.bom, {
+    id: 'shared-bom-id', itemCode: '', description: 'No stable BOM key', consumption: 1,
+    unit: 'KG', price: 10, loss: 0, confidence: {}
+  }],
+  rates: [...curSnapshot.rates, {
+    id: 'shared-rate-id', workCenterCode: '', description: 'No stable Work Center key',
+    laborRate: 10, burdenRate: 5, effectiveDate: '2026-09-24', confidence: {}
+  }],
+  routing: [...curSnapshot.routing, {
+    id: 'shared-routing-id', processName: 'Same display name', workCenterId: 'WC-1',
+    manning: 1, capacity: 100, yield: 1, confidence: {}
+  }]
+}
+const missingKeyComparison = compareSnapshots(missingKeyReference, missingKeyCurrent)
+
+for (const [section, findings, sharedId] of [
+  ['BOM', missingKeyComparison.bomFindings, 'shared-bom-id'],
+  ['Work Center', missingKeyComparison.workCenterFindings, 'shared-rate-id'],
+  ['Routing', missingKeyComparison.routingFindings, 'shared-routing-id']
+] as const) {
+  const unmatched = findings.filter(finding => finding.referenceId === sharedId || finding.currentId === sharedId)
+  assert.equal(unmatched.length, 2, `${section} rows without business keys must remain two unmatched findings`)
+  assert(unmatched.every(finding => finding.matchStatus === 'unmatched'), `${section} missing-key rows must be unmatched`)
+  assert(unmatched.every(finding => getCanonicalComparisonStatus(finding) === null), `${section} unmatched rows have no comparison status`)
+  assert(unmatched.every(finding => finding.costGap === null), `${section} unmatched rows must not invent absent-side cost effects`)
+}
+assert(missingKeyComparison.warnings.some(warning => warning.code === 'MISSING_BUSINESS_KEY'), 'Missing business keys must be reported as validation warnings')
+assert(!isVisibleInComparisonView(missingKeyComparison.bomFindings.find(finding => finding.currentId === 'shared-bom-id'), 'changed'), 'Unmatched rows must not be misfiled under Changed')
+
 console.log('All Phase 2 checks passed successfully!')

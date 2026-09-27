@@ -46,7 +46,7 @@ export function buildPrioritizationCandidates(
 
   // Default sorting: Highest Gap -> Lowest Gap (Gap descending)
   all.sort((a, b) => {
-    const gapDiff = b.costGap - a.costGap
+    const gapDiff = (b.costGap ?? Number.NEGATIVE_INFINITY) - (a.costGap ?? Number.NEGATIVE_INFINITY)
     if (Math.abs(gapDiff) > 0.00001) return gapDiff
     return a.candidateKey.localeCompare(b.candidateKey)
   })
