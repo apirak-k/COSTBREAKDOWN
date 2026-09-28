@@ -19,8 +19,7 @@ export const AddRateModal: React.FC<AddRateModalProps> = ({ isOpen, onClose, onS
   const [description, setDescription] = useState('')
   const [laborRate, setLaborRate] = useState('')
   const [burdenRate, setBurdenRate] = useState('')
-  const [effectiveDate, setEffectiveDate] = useState('')
-  const [sourceRef, setSourceRef] = useState('')
+  const [note, setNote] = useState('')
   const [error, setError] = useState('')
 
   useEffect(() => {
@@ -29,8 +28,7 @@ export const AddRateModal: React.FC<AddRateModalProps> = ({ isOpen, onClose, onS
     setDescription(initialData?.description || '')
     setLaborRate(textNumber(initialData?.laborRate))
     setBurdenRate(textNumber(initialData?.burdenRate))
-    setEffectiveDate(initialData?.effectiveDate || '')
-    setSourceRef(initialData?.sourceRef || '')
+    setNote(initialData?.note || '')
     setError('')
   }, [initialData, isOpen])
 
@@ -48,8 +46,8 @@ export const AddRateModal: React.FC<AddRateModalProps> = ({ isOpen, onClose, onS
       description: description.trim(),
       laborRate: labor,
       burdenRate: burden,
-      effectiveDate: effectiveDate.trim(),
-      sourceRef: sourceRef.trim() || undefined
+      effectiveDate: initialData?.effectiveDate ?? '',
+      note: note.trim() || undefined
     })
     onClose()
   }
@@ -59,10 +57,9 @@ export const AddRateModal: React.FC<AddRateModalProps> = ({ isOpen, onClose, onS
       <div className="flex items-center justify-between p-4 border-b border-slate-100"><h3 className="text-sm font-bold text-slate-900">{initialData ? 'Edit Work Center Rate' : 'Add Work Center Rate'}</h3><button type="button" onClick={onClose} className="text-slate-400 hover:text-slate-600 p-1 cursor-pointer"><X className="w-4 h-4" /></button></div>
       <form onSubmit={handleSubmit} className="p-4 space-y-3 text-xs">
         {error && <div className="p-2.5 bg-rose-50 border border-rose-200 text-rose-800 rounded-lg font-medium">{error}</div>}
-        <div className="grid grid-cols-2 gap-3"><label className="font-semibold text-slate-700">Work Center Code *<input value={workCenterCode} onChange={event => { setWorkCenterCode(event.target.value); setError('') }} className="mt-1 w-full px-3 py-1.5 border border-slate-300 rounded-md font-mono text-slate-900" /></label><label className="font-semibold text-slate-700">Effective Date<input type="date" value={effectiveDate} onChange={event => setEffectiveDate(event.target.value)} className="mt-1 w-full px-3 py-1.5 border border-slate-300 rounded-md font-mono text-slate-900" /></label></div>
-        <label className="block font-semibold text-slate-700">Description<input value={description} onChange={event => setDescription(event.target.value)} className="mt-1 w-full px-3 py-1.5 border border-slate-300 rounded-md text-slate-900" /></label>
+        <div className="grid grid-cols-2 gap-3"><label className="font-semibold text-slate-700">Work Center Code *<input value={workCenterCode} onChange={event => { setWorkCenterCode(event.target.value); setError('') }} className="mt-1 w-full px-3 py-1.5 border border-slate-300 rounded-md font-mono text-slate-900" /></label><label className="font-semibold text-slate-700">Work Center Name<input value={description} onChange={event => setDescription(event.target.value)} className="mt-1 w-full px-3 py-1.5 border border-slate-300 rounded-md text-slate-900" /></label></div>
         <div className="grid grid-cols-2 gap-3"><label className="font-semibold text-slate-700">Labor Rate<input type="number" step="any" value={laborRate} onChange={event => setLaborRate(event.target.value)} placeholder="blank = missing" className="mt-1 w-full px-3 py-1.5 border border-slate-300 rounded-md font-mono text-slate-900" /></label><label className="font-semibold text-slate-700">Burden Rate<input type="number" step="any" value={burdenRate} onChange={event => setBurdenRate(event.target.value)} placeholder="blank = missing" className="mt-1 w-full px-3 py-1.5 border border-slate-300 rounded-md font-mono text-slate-900" /></label></div>
-        <label className="block font-semibold text-slate-700">Source Reference<input value={sourceRef} onChange={event => setSourceRef(event.target.value)} placeholder="optional; keep traceability" className="mt-1 w-full px-3 py-1.5 border border-slate-300 rounded-md text-slate-900" /></label>
+        <label className="block font-semibold text-slate-700">Note<textarea rows={2} value={note} onChange={event => setNote(event.target.value)} className="mt-1 w-full px-3 py-1.5 border border-slate-300 rounded-md text-slate-900 resize-y" /></label>
         <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-100"><button type="button" onClick={onClose} className="px-3.5 py-1.5 border border-slate-200 text-slate-600 rounded-lg hover:bg-slate-50 cursor-pointer">Cancel</button><button type="submit" className="px-4 py-1.5 bg-slate-900 text-white rounded-lg hover:bg-slate-800 font-bold flex items-center gap-1.5 cursor-pointer"><Check className="w-3.5 h-3.5" /> Save</button></div>
       </form>
     </div></div>

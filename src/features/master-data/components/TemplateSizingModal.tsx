@@ -80,7 +80,7 @@ export const TemplateSizingModal: React.FC<TemplateSizingModalProps> = ({
       bomCount: parsedBom,
       routingCount: parsedRouting
     })
-    downloadBlob(blob, `MasterData_Template_${targetProduct.productCode || 'PRODUCT'}_${roleLabel}.xlsx`)
+    downloadBlob(blob, `MasterData_Template_${targetProduct.productCode || 'PRODUCT'}.xlsx`)
     onClose()
   }
 

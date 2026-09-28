@@ -23,7 +23,7 @@ export const AddBOMModal: React.FC<AddBOMModalProps> = ({ isOpen, onClose, onSav
   const [unit, setUnit] = useState('')
   const [price, setPrice] = useState('')
   const [loss, setLoss] = useState('')
-  const [sourceRef, setSourceRef] = useState('')
+  const [note, setNote] = useState('')
   const [error, setError] = useState('')
 
   useEffect(() => {
@@ -34,7 +34,7 @@ export const AddBOMModal: React.FC<AddBOMModalProps> = ({ isOpen, onClose, onSav
     setUnit(initialData?.unit || uomList[0] || '')
     setPrice(textNumber(initialData?.price))
     setLoss(initialData?.loss === null || initialData?.loss === undefined ? '' : String(initialData.loss * 100))
-    setSourceRef(initialData?.sourceRef || '')
+    setNote(initialData?.note || '')
     setError('')
   }, [initialData, isOpen, uomList])
 
@@ -56,7 +56,7 @@ export const AddBOMModal: React.FC<AddBOMModalProps> = ({ isOpen, onClose, onSav
       unit: unit.trim(),
       price: p,
       loss: l === null ? null : l / 100,
-      sourceRef: sourceRef.trim() || undefined
+      note: note.trim() || undefined
     })
     onClose()
   }
@@ -77,7 +77,7 @@ export const AddBOMModal: React.FC<AddBOMModalProps> = ({ isOpen, onClose, onSav
             <label className="font-semibold text-slate-700">Price<input type="number" step="any" value={price} onChange={event => setPrice(event.target.value)} placeholder="blank = missing" className="mt-1 w-full px-3 py-1.5 border border-slate-300 rounded-md font-mono text-slate-900" /></label>
             <label className="font-semibold text-slate-700">Loss %<input type="number" step="any" min="0" max="100" value={loss} onChange={event => setLoss(event.target.value)} placeholder="blank = missing" className="mt-1 w-full px-3 py-1.5 border border-slate-300 rounded-md font-mono text-slate-900" /></label>
           </div>
-          <label className="block font-semibold text-slate-700">Source Reference<input value={sourceRef} onChange={event => setSourceRef(event.target.value)} placeholder="optional; keep traceability" className="mt-1 w-full px-3 py-1.5 border border-slate-300 rounded-md text-slate-900" /></label>
+          <label className="block font-semibold text-slate-700">Note<textarea rows={2} value={note} onChange={event => setNote(event.target.value)} className="mt-1 w-full px-3 py-1.5 border border-slate-300 rounded-md text-slate-900 resize-y" /></label>
           <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-100"><button type="button" onClick={onClose} className="px-3.5 py-1.5 border border-slate-200 text-slate-600 rounded-lg hover:bg-slate-50 cursor-pointer">Cancel</button><button type="submit" className="px-4 py-1.5 bg-slate-900 text-white rounded-lg hover:bg-slate-800 font-bold flex items-center gap-1.5 cursor-pointer"><Check className="w-3.5 h-3.5" /> Save</button></div>
         </form>
       </div>

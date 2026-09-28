@@ -94,19 +94,18 @@ export const WorkCenterComparisonTable: React.FC<WorkCenterComparisonTableProps>
             <th scope="col" className="p-2.5 text-right">Burden Ref</th>
             <th scope="col" className="p-2.5 text-right">Burden Current</th>
             <th scope="col" className="p-2.5 text-right">Burden Δ</th>
-            <th scope="col" className="p-2.5">Source</th>
           </tr>
         </thead>
         <tbody className="divide-y divide-slate-100 font-mono">
           {rows.length === 0 ? (
             <tr>
-              <td colSpan={12} className="p-6 text-center text-slate-400 font-sans italic">
+              <td colSpan={11} className="p-6 text-center text-slate-400 font-sans italic">
                 No Work Center rates configured.
               </td>
             </tr>
           ) : visibleRows.length === 0 ? (
             <tr>
-              <td colSpan={12} className="p-6 text-center text-slate-400 font-sans italic">
+              <td colSpan={11} className="p-6 text-center text-slate-400 font-sans italic">
                 No rows match this comparison view.
               </td>
             </tr>
@@ -114,7 +113,6 @@ export const WorkCenterComparisonTable: React.FC<WorkCenterComparisonTableProps>
             const label = row.finding ? getWorkCenterComparisonLabel(row.finding) : null
             const workCenterCode = row.current?.workCenterCode ?? row.reference?.workCenterCode ?? 'Unknown'
             const description = row.current?.description ?? row.reference?.description ?? '—'
-            const source = row.current?.sourceRef ?? row.reference?.sourceRef ?? '—'
 
             return (
               <tr key={row.current?.id ?? `removed-${row.reference?.id ?? workCenterCode}`} className={`hover:bg-slate-50/70 transition-colors ${label === 'REMOVED' ? 'bg-rose-50/60' : ''}`}>
@@ -139,7 +137,6 @@ export const WorkCenterComparisonTable: React.FC<WorkCenterComparisonTableProps>
                 <td className={`p-2.5 text-right font-bold tabular-nums ${gapClass(row.reference?.burdenRate, row.current?.burdenRate)}`}>
                   {formatRateGap(row.reference?.burdenRate, row.current?.burdenRate)}
                 </td>
-                <td className="p-2.5 font-sans text-[10px] text-slate-500 whitespace-nowrap">{source}</td>
               </tr>
             )
           })}
