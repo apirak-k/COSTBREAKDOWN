@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import { compareSnapshots } from '../src/core/calculations/snapshot-comparison.ts'
 import { getCanonicalComparisonStatus } from '../src/core/calculations/comparison-status.ts'
-import type { CostSnapshot, SnapshotRoutingStep } from '../src/core/types/snapshot.types.ts'
+import type { CostSnapshot, SnapshotRoutingStep, SnapshotWorkCenterRate } from '../src/core/types/snapshot.types.ts'
 
 const product = {
   productCode: 'TEST-001',
@@ -32,14 +32,18 @@ function routingStep(
   }
 }
 
-function snapshot(id: string, routing: SnapshotRoutingStep[]): CostSnapshot {
+function snapshot(
+  id: string,
+  routing: SnapshotRoutingStep[],
+  rates: SnapshotWorkCenterRate[] = []
+): CostSnapshot {
   return {
     id,
     product,
     effectiveDate: '',
     sourceRef: id,
     status: 'draft',
-    rates: [],
+    rates,
     bom: [],
     routing
   }
@@ -67,6 +71,58 @@ const sameCodeDifferentProcess = compareSnapshots(
 assert.equal(sameCodeDifferentProcess.routingFindings.length, 1, 'equal Operation Codes match despite changed Process Name')
 assert.equal(sameCodeDifferentProcess.routingFindings[0].matchStatus, 'matched')
 assert.equal(getCanonicalComparisonStatus(sameCodeDifferentProcess.routingFindings[0]), 'CHANGED')
+
+// COSTBREAKDOWN_COMPARISON_PRINCIPLES.md §3.1 defines Operation Code as the
+// only Routing identity and explicitly excludes legacy Process Code as a key.
+// MASTER_DATA_FLOW_SPEC.md §5.2's neutral ROUTING schema also has no Process Code.
+const legacyProcessCodeChanged = compareSnapshots(
+  snapshot('reference', [routingStep('ref-legacy-process', '10', { processCode: 'LEGACY-A' })]),
+  snapshot('current', [routingStep('current-legacy-process', '10', { processCode: 'LEGACY-B' })])
+)
+assert.equal(legacyProcessCodeChanged.routingFindings.length, 1, 'a legacy Process Code edit must preserve the Operation Code match')
+assert.equal(legacyProcessCodeChanged.routingFindings[0].matchStatus, 'matched')
+assert.equal(
+  getCanonicalComparisonStatus(legacyProcessCodeChanged.routingFindings[0]),
+  'UNCHANGED',
+  'legacy Process Code is outside the neutral business schema and must not produce canonical CHANGED'
+)
+assert.deepEqual(
+  legacyProcessCodeChanged.routingFindings[0].fieldDiffs,
+  {},
+  'legacy Process Code must not appear among canonical Routing field differences'
+)
+
+function workCenterRate(id: string, effectiveDate: string): SnapshotWorkCenterRate {
+  return {
+    id,
+    workCenterCode: 'WC-1',
+    description: 'Assembly Center',
+    laborRate: 100,
+    burdenRate: 50,
+    effectiveDate,
+    sourceRef: 'synthetic-fixture',
+    confidence: {}
+  }
+}
+
+// MASTER_DATA_FLOW_SPEC.md §5.2 excludes Effective Date from the neutral
+// dataset schema, so this legacy-only difference is not canonical business data.
+const effectiveDateOnlyChanged = compareSnapshots(
+  snapshot('reference', [], [workCenterRate('ref-rate', '2026-01-01')]),
+  snapshot('current', [], [workCenterRate('current-rate', '2026-02-01')])
+)
+assert.equal(effectiveDateOnlyChanged.workCenterFindings.length, 1, 'equal Work Center Code must match across legacy Effective Date edits')
+assert.equal(effectiveDateOnlyChanged.workCenterFindings[0].matchStatus, 'matched')
+assert.deepEqual(
+  effectiveDateOnlyChanged.workCenterFindings[0].fieldDiffs,
+  {},
+  'legacy Effective Date must not appear among canonical Work Center field differences'
+)
+assert.equal(
+  getCanonicalComparisonStatus(effectiveDateOnlyChanged.workCenterFindings[0]),
+  'UNCHANGED',
+  'legacy Effective Date alone must not produce canonical CHANGED'
+)
 
 const missingCode = compareSnapshots(
   snapshot('reference', [routingStep('ref-no-op-code', undefined)]),

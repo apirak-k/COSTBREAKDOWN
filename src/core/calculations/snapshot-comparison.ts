@@ -41,7 +41,16 @@ function combinedConfidence(reference: SnapshotRow | undefined, current: Snapsho
   return 'verified'
 }
 
-const COMPARISON_METADATA_FIELDS = new Set(['id', 'confidence', 'sourceRef', 'additionalFields', 'note'])
+const COMPARISON_METADATA_FIELDS = new Set([
+  'id',
+  'confidence',
+  'sourceRef',
+  'additionalFields',
+  'note',
+  // Legacy columns excluded from the neutral dataset schema.
+  'effectiveDate',
+  'processCode'
+])
 
 function valuesEqual(left: unknown, right: unknown): boolean {
   if (Object.is(left, right)) return true
@@ -101,7 +110,7 @@ function diffSupportedFields<T extends SnapshotRow>(
 
 function diffProductFields(reference: CostSnapshot['product'], current: CostSnapshot['product']): Record<string, { reference: unknown; current: unknown }> {
   const diffs: Record<string, { reference: unknown; current: unknown }> = {}
-  const metadata = new Set(['additionalFields', 'note'])
+  const metadata = new Set(['additionalFields', 'note', 'effectiveDate'])
   const fields = new Set([...Object.keys(reference), ...Object.keys(current)])
   fields.forEach(field => {
     if (metadata.has(field)) return

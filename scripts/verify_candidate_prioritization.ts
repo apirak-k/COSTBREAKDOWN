@@ -175,4 +175,85 @@ assert.equal(buildProcessingCandidates(
   reorderedCurrent
 ).some(candidate => candidate.candidateKey === 'wc:wc-1'), false, 'Route row order alone must not create a Work Center candidate')
 
+// MASTER_DATA_FLOW_SPEC.md §5.2 has no Process Code in the neutral ROUTING
+// schema. A legacy Process Code edit must not change aggregate equivalence or
+// create/rerank a processing candidate when all business routing inputs match.
+const legacyProcessReference: CostSnapshot = {
+  ...refSnapshot,
+  id: 'legacy-process-reference',
+  bom: [{
+    id: 'legacy-process-material',
+    itemCode: 'MAT-RANK',
+    description: 'Stable ranking fixture',
+    consumption: 1,
+    unit: 'KG',
+    price: 10,
+    loss: 0,
+    confidence: {}
+  }],
+  routing: [{
+    id: 'legacy-process-ref-route',
+    operationCode: 'OP-10',
+    processCode: 'LEGACY-A',
+    sequence: 10,
+    workCenterId: 'WC-1',
+    manning: 1,
+    capacity: 100,
+    yield: 1,
+    confidence: {}
+  }]
+}
+const legacyProcessCurrent: CostSnapshot = {
+  ...curSnapshot,
+  id: 'legacy-process-current',
+  bom: [{
+    id: 'legacy-process-material-current',
+    itemCode: 'MAT-RANK',
+    description: 'Stable ranking fixture',
+    consumption: 1,
+    unit: 'KG',
+    price: 11,
+    loss: 0,
+    confidence: {}
+  }],
+  routing: [{
+    ...legacyProcessReference.routing[0],
+    id: 'legacy-process-current-route'
+  }]
+}
+const changedLegacyProcessCurrent: CostSnapshot = {
+  ...legacyProcessCurrent,
+  id: 'legacy-process-changed-current',
+  routing: [{ ...legacyProcessCurrent.routing[0], processCode: 'LEGACY-B' }]
+}
+
+const sameLegacyProcessComparison = compareSnapshots(legacyProcessReference, legacyProcessCurrent)
+const changedLegacyProcessComparison = compareSnapshots(legacyProcessReference, changedLegacyProcessCurrent)
+const sameLegacyProcessRanking = buildPrioritizationCandidates(
+  sameLegacyProcessComparison,
+  legacyProcessReference,
+  legacyProcessCurrent
+)
+assert(sameLegacyProcessRanking.length > 0, 'The rank comparison includes a separate real material candidate')
+const sameLegacyProcessCandidates = buildProcessingCandidates(
+  sameLegacyProcessComparison,
+  legacyProcessReference,
+  legacyProcessCurrent
+)
+const changedLegacyProcessCandidates = buildProcessingCandidates(
+  changedLegacyProcessComparison,
+  legacyProcessReference,
+  changedLegacyProcessCurrent
+)
+assert.deepEqual(
+  changedLegacyProcessCandidates,
+  sameLegacyProcessCandidates,
+  'Process Code-only edits must not change processing candidate equivalence, status, or rank'
+)
+assert.deepEqual(
+  sameLegacyProcessRanking,
+  buildPrioritizationCandidates(changedLegacyProcessComparison, legacyProcessReference, changedLegacyProcessCurrent),
+  'Process Code-only edits must not change consolidated candidate ordering or ranks'
+)
+
 console.log('All Phase 3 candidate prioritization checks passed successfully!')

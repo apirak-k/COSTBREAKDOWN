@@ -197,4 +197,19 @@ const noteOnlyProductComparison = compareSnapshots(
 )
 assert.deepEqual(noteOnlyProductComparison.productFieldDiffs, {})
 
+// MASTER_DATA_FLOW_SPEC.md §5.2 excludes Effective Date from the neutral
+// product schema, so a legacy Product Effective Date edit must not become a
+// product business-field diff or change canonical status for an unchanged row.
+const productEffectiveDateOnlyComparison = compareSnapshots(
+  snapshot('product-date-reference', 'reference', [plainReferenceBOM], [], [], { ...product, effectiveDate: '2026-01-01' }),
+  snapshot('product-date-current', 'current', [plainCurrentBOM], [], [], { ...product, effectiveDate: '2026-02-01' })
+)
+assert.deepEqual(productEffectiveDateOnlyComparison.productFieldDiffs, {}, 'legacy Product Effective Date is not a canonical product field diff')
+assert.deepEqual(productEffectiveDateOnlyComparison.bomFindings[0].fieldDiffs, {})
+assert.equal(
+  getCanonicalComparisonStatus(productEffectiveDateOnlyComparison.bomFindings[0]),
+  'UNCHANGED',
+  'legacy Product Effective Date alone must not change canonical status'
+)
+
 console.log('Dynamic snapshot comparison verification passed.')
