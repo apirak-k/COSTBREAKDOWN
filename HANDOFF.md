@@ -1,6 +1,6 @@
 # Current Handoff — Neutral Dataset Agreement Follow-up (2026-09-28)
 
-> This is the verified implementation checkpoint before final branch synchronization. Earlier handoffs remain below as history. The user asked for local checkpoints during work and one push at final closeout.
+> This handoff records the verified local implementation and synchronization checkpoint. Earlier handoffs remain below as history. The user asked for local checkpoints during work and one push at final closeout.
 
 ## Repository and checkpoint
 
@@ -8,9 +8,9 @@
 - Active worktree: `C:\Users\ai-project\.codex\worktrees\rca-neutral-dataset-followup\Cost Breakdown`.
 - Work branch: `codex/rca-task-14-neutral-dataset`, based on `5ddaf4a` (`codex/rca-task-14`).
 - Local checkpoints: `99077d5` locks the neutral workbook/Routing identity agreement; `ccc8bf5` uses Operation Code as Routing identity; `41e47a8` implements the neutral dataset follow-up.
-- The original checkout `C:\Users\ai-project\Desktop\SC0434\Cost Breakdown` remains at `5ddaf4a`; its tracked worktree is unchanged. The user's untracked `AGENTS.md` is preserved.
+- The original checkout `C:\Users\ai-project\Desktop\SC0434\Cost Breakdown` has now been fast-forwarded through `41e47a8` and `1eb208a`; its tracked worktree is clean. The user's untracked `AGENTS.md` is preserved.
+- `origin/codex/rca-task-14` was freshly confirmed at `5ddaf4a` before the local fast-forward. The one authorized push is still pending.
 - No workbook under `Sources` was opened, read, or staged. Verification used synthetic/in-memory workbooks only.
-- At the time of this checkpoint, final fast-forward integration to `codex/rca-task-14` and the one authorized push are still pending.
 
 ## Agreed scope implemented
 
@@ -22,8 +22,8 @@
 
 ## Verification and evidence limits
 
-- `npm run build`: passed (TypeScript and Vite; 1,689 modules). Existing large-chunk advisory remains: 1,708.87 kB JavaScript / 497.35 kB gzip.
-- All 13 focused verifiers passed: `verify_master_data_clear_dataset`, `verify_neutral_dataset_workbook`, `verify_snapshot_comparison_dynamic_fields`, `verify_dataset_sizing_preservation`, `verify_snapshot_import`, `verify_snapshot_routing_identity`, `verify_dataset_sizing_and_clone`, `verify_snapshot_projection`, `verify_master_data_handoff`, `verify_snapshot_full_flow`, `verify_comparison_reconciliation`, `verify_snapshot_comparison_view`, and `verify_import_mismatch_export`.
+- The isolated worktree build passed with Vite 6.4.3 (the declared `^6.4.3` range; 1,689 modules). The final build from the original checkout also passed, but its existing `node_modules` contains stale Vite 5.4.21, which `npm ls vite --depth=0` flags as invalid. No dependency or lockfile was changed; run `npm ci` before relying on that checkout's local toolchain on another work session. The latest bundle warning was 1,668.00 kB JavaScript / 485.65 kB gzip.
+- All 13 focused verifiers passed from the original checkout: `verify_master_data_clear_dataset`, `verify_neutral_dataset_workbook`, `verify_snapshot_comparison_dynamic_fields`, `verify_dataset_sizing_preservation`, `verify_snapshot_import`, `verify_snapshot_routing_identity`, `verify_dataset_sizing_and_clone`, `verify_snapshot_projection`, `verify_master_data_handoff`, `verify_snapshot_full_flow`, `verify_comparison_reconciliation`, `verify_snapshot_comparison_view`, and `verify_import_mismatch_export`.
 - `git diff --check` passed. Focused TypeScript scripts were bundled with the already-installed esbuild and run as ESM; no dependency was added.
 - Runtime UI smoke showed the neutral table headers, selected-dataset tooltips, and associated labels/inputs in sizing dialogs. No company workbook or user data was loaded. Browser-console status is **[Unverified]**.
 - A prior `npm audit --audit-level=high` passed; two Moderate findings remain through ExcelJS/uuid. The suggested forced remediation downgrades ExcelJS and was not applied.
@@ -33,7 +33,7 @@
 ## Open decision and resume point
 
 - The parser still accepts arbitrary extra workbook columns into internal `additionalFields`, while the neutral exporter emits only the agreed schema. Agreement does not define whether unknown columns should be rejected, retained through export, or ignored; do not claim arbitrary-column round-trip support until this is decided.
-- Next: fast-forward the verified work branch into `codex/rca-task-14`, recheck the original checkout (preserving `AGENTS.md`), then push once at final closeout. Human review of the implemented workflow remains pending.
+- Next: run the final verification from the original checkout, then push `codex/rca-task-14` once and record the resulting remote SHA. Human review of the implemented workflow remains pending.
 
 ---
 
