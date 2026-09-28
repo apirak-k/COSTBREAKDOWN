@@ -29,9 +29,9 @@ export const ExecutiveKPICards: React.FC<ExecutiveKPICardsProps> = ({
     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5">
       {/* 1. Total Standard Cost */}
       <KPIStatCard
-        title="Total Standard Cost"
+        title="Current Standard Cost"
         value={formatNumber(totalActive, 4)}
-        badgeText={`Base: ${formatNumber(totalBase, 4)}`}
+        badgeText={`Reference: ${formatNumber(totalBase, 4)}`}
         delta={{
           value: totalVariance,
           formatted: formatVariance(totalVariance, 4),
@@ -41,9 +41,9 @@ export const ExecutiveKPICards: React.FC<ExecutiveKPICardsProps> = ({
 
       {/* 2. Direct Material */}
       <KPIStatCard
-        title="Direct Material"
+        title="Current Direct Material"
         value={formatNumber(materialActive, 4)}
-        badgeText={`Base: ${formatNumber(materialBase, 4)}`}
+        badgeText={`Reference: ${formatNumber(materialBase, 4)}`}
         delta={{
           value: matVar,
           formatted: formatVariance(matVar, 4),
@@ -53,9 +53,9 @@ export const ExecutiveKPICards: React.FC<ExecutiveKPICardsProps> = ({
 
       {/* 3. Direct Labor */}
       <KPIStatCard
-        title="Direct Labor"
+        title="Current Direct Labor"
         value={formatNumber(laborActive, 4)}
-        badgeText={`Base: ${formatNumber(laborBase, 4)}`}
+        badgeText={`Reference: ${formatNumber(laborBase, 4)}`}
         delta={{
           value: labVar,
           formatted: formatVariance(labVar, 4),
@@ -65,9 +65,9 @@ export const ExecutiveKPICards: React.FC<ExecutiveKPICardsProps> = ({
 
       {/* 4. Manufacturing Burden */}
       <KPIStatCard
-        title="Mfg Burden"
+        title="Current Mfg Burden"
         value={formatNumber(burdenActive, 4)}
-        badgeText={`Base: ${formatNumber(burdenBase, 4)}`}
+        badgeText={`Reference: ${formatNumber(burdenBase, 4)}`}
         delta={{
           value: burVar,
           formatted: formatVariance(burVar, 4),

@@ -22,7 +22,6 @@ export interface SnapshotImportResult {
 }
 
 export interface SnapshotImportOptions {
-  expectedProductCode?: string
   allowLegacy?: boolean
 }
 

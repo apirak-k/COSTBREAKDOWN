@@ -16,7 +16,7 @@ import { areSnapshotCostsComplete } from '../../core'
 type SubTab = 'bom' | 'routing' | 'work-center'
 
 export const CostBreakdownPage: React.FC = () => {
-  const { costBreakdown, snapshotComparison, snapshotPair, bom, routing, rates, masterDataHandoff } = useAppStore()
+  const { costBreakdown, snapshotComparison, snapshotPair, bom, routing, rates } = useAppStore()
   const [subTab, setSubTab] = useState<SubTab>('bom')
   const [comparisonView, setComparisonView] = useState<ComparisonViewMode>('all')
   const [isDetailedExpanded, setIsDetailedExpanded] = useState(true)
@@ -33,18 +33,6 @@ export const CostBreakdownPage: React.FC = () => {
 
   return (
     <div className="space-y-4">
-      {!masterDataHandoff.canCompare && (
-        <div className="border border-amber-200 bg-amber-50/70 px-4 py-3 text-[11px] text-amber-900 font-sans" role="status">
-          <strong className="font-mono">Comparison values are unavailable yet.</strong>{' '}
-          Prepare both Reference and Current datasets in Master Data.
-          {masterDataHandoff.issues.length > 0 && (
-            <ul className="mt-2 list-disc pl-5 space-y-1">
-              {masterDataHandoff.issues.map(issue => <li key={issue}>{issue}</li>)}
-            </ul>
-          )}
-        </div>
-      )}
-
       {/* 1. Top Executive KPIs */}
       {exactSnapshotCalculation ? (
         <ExecutiveKPICards costBreakdown={costBreakdown} />

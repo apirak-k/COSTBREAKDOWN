@@ -9,7 +9,6 @@ export const CandidateSelectionPage: React.FC = () => {
     candidates,
     toggleCandidateControllable,
     snapshotComparison,
-    masterDataHandoff
   } = useAppStore()
 
   const [statusFilter, setStatusFilter] = useState<CandidateStatusFilter>('all')
@@ -26,24 +25,10 @@ export const CandidateSelectionPage: React.FC = () => {
   const candidateGap = candidates.length > 0 && candidates.every(candidate => candidate.costGap !== null)
     ? candidates.reduce<number>((sum, candidate) => sum + (candidate.costGap as number), 0)
     : null
-  const totalGap = masterDataHandoff.canCompare
-    ? snapshotComparison.totalGap ?? candidateGap
-    : null
+  const totalGap = snapshotComparison.totalGap ?? candidateGap
 
   return (
     <div className="space-y-4">
-      {!masterDataHandoff.canCompare && (
-        <div className="border border-amber-200 bg-amber-50/70 px-4 py-3 text-[11px] text-amber-900 font-sans" role="status">
-          <strong className="font-mono">Candidate values are unavailable yet.</strong>{' '}
-          Prepare both Reference and Current datasets in Master Data.
-          {masterDataHandoff.issues.length > 0 && (
-            <ul className="mt-2 list-disc pl-5 space-y-1">
-              {masterDataHandoff.issues.map(issue => <li key={issue}>{issue}</li>)}
-            </ul>
-          )}
-        </div>
-      )}
-
       {/* Header Panel */}
       <div className="bg-white px-4 py-3 rounded border border-slate-300/80 shadow-2xs flex flex-wrap items-center justify-between gap-3">
         <div>

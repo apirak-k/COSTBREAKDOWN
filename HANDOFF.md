@@ -1,4 +1,40 @@
-# Current Handoff — RCA & Simulation Agreement Work (2026-09-27)
+# Current Handoff — Post-push Agreement Follow-up (2026-09-28)
+
+> This follow-up supersedes the earlier “no confirmed Agreement mismatch remains” conclusion below. A second review against the four current Agreements and the user-provided ChatGPT review found additional gaps. Earlier entries remain as history.
+
+## Repository and sync state
+
+- Repository: `COSTBREAKDOWN`; active worktree: `C:\Users\Boom\.codex\worktrees\rca-agreement\COSTBREAKDOWN`.
+- Branch: `codex/rca-task-14`; entry HEAD was `5f40df5`, matching `origin/codex/rca-task-14`.
+- Follow-up changes are complete and verified, but are not yet committed or pushed. The user explicitly authorized push after the work is complete; push is the remaining repository action.
+- The original checkout at `E:\COSTBREAKDOWN` was not edited.
+
+## Follow-up findings and changes
+
+- Canonical Excel import discarded `Process Code` and skipped Routing rows whose ID and Operation Code were blank. Import now retains Process Code, uses it as the internal row ID only when both stronger identifiers are absent, and keeps it separate from Operation Code. No composite business key was introduced.
+- Snapshot export omitted imported additional fields. Scalar extra fields now round-trip through the matching Product, Work Center, BOM, Routing, or META area. Non-scalar values fail clearly instead of disappearing silently.
+- The template exposed `Status`, `Comparison Role`, `Notes`, and `ADDITIONAL_DATA` even though the import path did not support them. The template no longer advertises those fields, and export omits lifecycle metadata that the parser treats as system fields.
+- The header-level Product comparison and selected-product import check were removed. Reference and Current Product Codes remain compared with a non-blocking warning.
+- Dataset preparation state was conflated with calculation readiness. The state is now named `datasetsPrepared`; Cost Breakdown navigation stays available, empty values remain visible as unavailable, Candidate totals use actual snapshot results, and empty-page content is not gated by that flag.
+- The Cost Breakdown footer now reflects snapshot Reference/Current/Gap values. Its legacy KPI and variance-tree labels now say Reference/Current rather than Base/Active; formulas were not changed.
+- Removed the unused `DatasetRoleSelector` and `ExcelImportPanel` after confirming there are no active imports. Removed the uploader's unused disabled mode, which only served the retired Draft/Active flow.
+
+## Verification in this follow-up
+
+- `npm run build`: **passed**; TypeScript succeeded and Vite transformed 1,689 modules. Existing bundle-size advisory remains (1,714.32 kB JavaScript, 498.88 kB gzip).
+- `npm run excel`: **passed**; generated workbook audit reported zero errors. Its two untracked output workbooks were removed and verified absent.
+- Focused verifiers passed: `verify_master_data_handoff`, `verify_snapshot_import`, `verify_import_mismatch_export`, `verify_dataset_sizing_and_clone`, `verify_comparison_reconciliation`, `verify_snapshot_full_flow`, `verify_candidate_prioritization`, and `verify_snapshot_comparison_view`.
+- The package has no `tsx` runner and Node’s direct type stripping cannot resolve the existing extensionless/directory imports in these scripts. The affected scripts were bundled with the already-installed esbuild and executed with Node; no dependency was added.
+- An isolated browser session rendered the empty Master Data workspace with its empty-table messages, all four navigation buttons, and an enabled Cost Breakdown action. No data was entered. **[Unverified]** Direct click-through of Cost Breakdown, Candidate Selection, and RCA & Simulation in this follow-up; source navigation buttons are not disabled by data readiness. A prior no-data browser smoke is recorded below.
+- Human acceptance remains pending. The independent Routing business-key choice when ID, Operation Code, and Process Code conflict or duplicate remains a business decision; do not invent composite-key behavior.
+
+## Resume point
+
+Run the final diff/status check, commit the verified code and this handoff, then push `codex/rca-task-14` to `origin` as authorized. Verify the remote ref equals local HEAD and report the commit/push result. If work reaches 08:00 Bangkok before completion, push a checkpoint and preserve any remaining `[Unverified]` items here.
+
+---
+
+# Historical Handoff — RCA & Simulation Agreement Work (2026-09-27)
 
 > This checkpoint records the active implementation state. Earlier handoffs remain below as history.
 

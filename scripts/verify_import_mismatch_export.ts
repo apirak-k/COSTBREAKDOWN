@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict'
+import * as XLSX from 'xlsx'
 import { CostSnapshot, SnapshotPair } from '../src/core'
 import { parseSnapshotWorkbookData } from '../src/services/excel/snapshot-parser.ts'
 import { exportSnapshotToExcel } from '../src/services/excel/snapshot-export.ts'
@@ -17,7 +18,8 @@ const testSnapshot: CostSnapshot = {
     productDescription: 'Round-Trip Product',
     uom: 'PC',
     customer: 'Test Customer',
-    effectiveDate: '2026-09-24'
+    effectiveDate: '2026-09-24',
+    additionalFields: { 'Customer Group': 'Consumer' }
   },
   rates: [
     {
@@ -27,7 +29,8 @@ const testSnapshot: CostSnapshot = {
       laborRate: 120,
       burdenRate: 80,
       effectiveDate: '2026-09-24',
-      confidence: {}
+      confidence: {},
+      additionalFields: { 'Supplier Group': 'Vendor-01' }
     }
   ],
   bom: [
@@ -39,7 +42,8 @@ const testSnapshot: CostSnapshot = {
       unit: 'KG',
       price: 45.5,
       loss: 0.03,
-      confidence: {}
+      confidence: {},
+      additionalFields: { Supplier: 'Factory A', 'Material Group': 'Film' }
     }
   ],
   routing: [
@@ -53,9 +57,16 @@ const testSnapshot: CostSnapshot = {
       manning: 1,
       capacity: 500,
       yield: 0.99,
-      confidence: {}
+      confidence: {},
+      additionalFields: { 'Operator Note': 'Keep guard fitted' }
     }
   ],
+  additionalFields: {
+    'Dataset Note': 'Imported working dataset',
+    Status: 'archived',
+    'Dataset Status': 'archived',
+    'Comparison Role': 'current'
+  },
   warnings: []
 }
 
@@ -65,7 +76,7 @@ async function runTests() {
   console.log(`✓ Exported snapshot to Excel (${blob.size} bytes)`)
 
   const buffer = await blob.arrayBuffer()
-  const importResult = parseSnapshotWorkbookData(buffer, 'reference', 'PROD-RT-01')
+  const importResult = parseSnapshotWorkbookData(buffer, 'reference')
   assert.ok(importResult.success, `Import should succeed: ${importResult.message}`)
   assert.ok(importResult.snapshot, 'Snapshot must be parsed')
 
@@ -74,22 +85,42 @@ async function runTests() {
   assert.equal(parsed.rates.length, 1)
   assert.equal(parsed.rates[0].workCenterCode, 'WC-CUT')
   assert.equal(parsed.rates[0].laborRate, 120)
+  assert.equal(parsed.rates[0].additionalFields?.['Supplier Group'], 'Vendor-01')
   assert.equal(parsed.bom.length, 1)
   assert.equal(parsed.bom[0].itemCode, 'MAT-01')
   assert.equal(parsed.bom[0].consumption, 1.25)
   assert.equal(parsed.bom[0].price, 45.5)
+  assert.equal(parsed.bom[0].additionalFields?.Supplier, 'Factory A')
+  assert.equal(parsed.bom[0].additionalFields?.['Material Group'], 'Film')
+  assert.equal(parsed.product.additionalFields?.['Customer Group'], 'Consumer')
   assert.equal(parsed.routing.length, 1)
   assert.equal(parsed.routing[0].processName, 'Saw Cutting')
+  assert.equal(parsed.routing[0].processCode, 'PRC-01')
   assert.equal(parsed.routing[0].capacity, 500)
+  assert.equal(parsed.routing[0].additionalFields?.['Operator Note'], 'Keep guard fitted')
+  assert.equal(parsed.additionalFields?.['Dataset Note'], 'Imported working dataset')
+  assert.equal(parsed.additionalFields?.Status, undefined)
+  assert.equal(parsed.additionalFields?.['Dataset Status'], undefined)
+  assert.equal(parsed.additionalFields?.['Comparison Role'], undefined)
   console.log('✓ Export -> Import round-trip preserves all Product, Rates, BOM, and Routing data (Task 5)')
 
-  // 2. Task 4: Product Mismatch must be a non-blocking warning (not an error rejecting import or comparison)
-  // Test import with different expectedProductCode
-  const mismatchImport = parseSnapshotWorkbookData(buffer, 'reference', 'PROD-DIFFERENT')
-  assert.ok(mismatchImport.success, 'Import with mismatching expectedProductCode must succeed')
-  assert.ok(mismatchImport.warnings && mismatchImport.warnings.length > 0, 'Mismatch warning must be present')
-  assert.ok(mismatchImport.warnings?.some(w => w.includes('Product mismatch')), 'Warning text must mention Product mismatch')
-  console.log('✓ Excel import with Product mismatch succeeds with non-blocking warning (Task 4)')
+  const exportedWorkbook = XLSX.read(buffer, { type: 'array' })
+  assert.equal(exportedWorkbook.SheetNames.includes('ADDITIONAL_DATA'), false)
+  const metaRows = XLSX.utils.sheet_to_json(exportedWorkbook.Sheets.META, { header: 1, defval: null }) as unknown[][]
+  const metaKeys = metaRows.slice(3).map(row => String(row[0] ?? ''))
+  assert.equal(metaKeys.includes('Status'), false)
+  assert.equal(metaKeys.includes('Dataset Status'), false)
+  assert.equal(metaKeys.includes('Comparison Role'), false)
+  assert.ok(metaKeys.includes('Dataset Note'))
+  const productRows = XLSX.utils.sheet_to_json(exportedWorkbook.Sheets.PRODUCT, { header: 1, defval: null }) as unknown[][]
+  const workCenterRows = XLSX.utils.sheet_to_json(exportedWorkbook.Sheets.WORK_CENTER, { header: 1, defval: null }) as unknown[][]
+  const bomRows = XLSX.utils.sheet_to_json(exportedWorkbook.Sheets.BOM, { header: 1, defval: null }) as unknown[][]
+  const routingRows = XLSX.utils.sheet_to_json(exportedWorkbook.Sheets.ROUTING, { header: 1, defval: null }) as unknown[][]
+  assert.ok(productRows[2]?.includes('Customer Group'))
+  assert.ok(workCenterRows[2]?.includes('Supplier Group'))
+  assert.ok(bomRows[2]?.includes('Supplier'))
+  assert.ok(routingRows[2]?.includes('Operator Note'))
+  console.log('✓ Export workbook preserves imported additional fields and omits unsupported lifecycle metadata')
 
   // Test comparison handoff with mismatching Reference and Current Product Codes
   const currentSnapshot: CostSnapshot = {
@@ -103,16 +134,16 @@ async function runTests() {
   }
 
   const session = {
-    product: { productCode: 'PROD-RT-01', productDescription: '', uom: 'PC', customer: '', effectiveDate: '' },
     snapshotPairMode: 'independent' as const,
     snapshotPair: { reference: testSnapshot, current: currentSnapshot },
     preparedSnapshotRoles: { reference: true, current: true }
   }
 
   const handoff = evaluateMasterDataHandoff(session, session.snapshotPair)
-  assert.ok(handoff.canCompare, 'Comparison must be allowed (canCompare === true) despite product mismatch')
+  assert.ok(handoff.datasetsPrepared, 'Prepared datasets remain visible despite product mismatch')
   assert.ok(handoff.warnings && handoff.warnings.length > 0, 'Handoff must record non-blocking warning')
   assert.ok(handoff.warnings?.some(w => w.includes('Product mismatch')), 'Handoff warning must mention Product mismatch')
+  assert.equal(handoff.warnings?.some(w => w.includes('Header Product')), false)
   console.log('✓ Comparison handoff allows comparison with mismatching Product Codes with non-blocking warning (Task 4)')
 
   // 3. Task 3: Replacement rule - replacing selected side keeps opposite side intact

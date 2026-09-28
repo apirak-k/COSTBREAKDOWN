@@ -1,20 +1,18 @@
 import React from 'react'
 import { X, FileSpreadsheet, AlertCircle } from 'lucide-react'
-import { ComparisonRole, ProductMaster } from '../../../core'
+import { ComparisonRole } from '../../../core'
 import { ExcelUploadDropzone } from '../../../shared/ui/ExcelUploadDropzone'
 
 interface ExcelImportModalProps {
   isOpen: boolean
   onClose: () => void
   importRole: ComparisonRole
-  product: ProductMaster
 }
 
 export const ExcelImportModal: React.FC<ExcelImportModalProps> = ({
   isOpen,
   onClose,
-  importRole,
-  product
+  importRole
 }) => {
   if (!isOpen) return null
 
@@ -70,8 +68,6 @@ export const ExcelImportModal: React.FC<ExcelImportModalProps> = ({
           <div className="border border-slate-200 rounded p-1 bg-slate-50/50">
             <ExcelUploadDropzone
               importRole={importRole}
-              expectedProductCode={product.productCode}
-              disabled={false}
             />
           </div>
         </div>

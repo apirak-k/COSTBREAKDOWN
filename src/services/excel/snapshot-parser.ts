@@ -130,13 +130,13 @@ function metaValue(meta: Map<string, string>, aliases: string[]): string {
 
 function additionalMetaFields(meta: Map<string, string>): Record<string, unknown> | undefined {
   const known = new Set([
-    'template version', 'version',
+    'format version', 'template version', 'version',
     'product code', 'productcode', 'code',
     'product description', 'productdescription', 'description', 'name',
     'uom', 'unit', 'customer', 'customer application',
     'source ref', 'sourceref', 'source',
     'effective date', 'effectivedate',
-    'snapshot id', 'snapshotid', 'id',
+    'snapshot id', 'snapshotid', 'id', 'comparison role',
     'status', 'dataset status'
   ].map(normalizeLabel))
   const fields = Object.fromEntries([...meta.entries()].filter(([key]) => !known.has(normalizeLabel(key))))
@@ -336,8 +336,9 @@ function parseRouting(
   rows.slice(headerIndex + 1).forEach((row, index) => {
     const rowNumber = headerIndex + index + 2
     const operationCode = textValue(cell(row, map, ['operation code', 'operationcode', 'operation']))
-    const id = textValue(cell(row, map, ['id', 'routing id', 'routingid'])) || operationCode
-    if (!id && !operationCode) {
+    const processCode = textValue(cell(row, map, ['process code', 'processcode']))
+    const id = textValue(cell(row, map, ['id', 'routing id', 'routingid'])) || operationCode || processCode
+    if (!id && !operationCode && !processCode) {
       if (row.some(value => textValue(value) !== '')) warnings.push(`Missing routing identity at row ${rowNumber}`)
       return
     }
@@ -355,6 +356,7 @@ function parseRouting(
       id: id || operationCode,
       operationCode: operationCode || undefined,
       sequence: sequence.value ?? undefined,
+      processCode: processCode || undefined,
       processName,
       workCenterId: workCenterId || undefined,
       manning: manning.value,
@@ -369,6 +371,7 @@ function parseRouting(
       },
       additionalFields: additionalFields(row, rows[headerIndex], [
         'operation code', 'operationcode', 'operation', 'id', 'routing id', 'routingid',
+        'process code', 'processcode',
         'sequence', 'seq', 'op seq', 'manning', 'headcount', 'capacity', 'cap', 'yield', 'yield rate',
         'process name', 'process', 'description', 'work center id', 'workcenterid',
         'work center code', 'work center', 'wc', 'source ref', 'sourceref', 'source', 'confidence', 'status'
@@ -386,8 +389,7 @@ function isCanonicalWorkbook(workbook: XLSX.WorkBook): boolean {
 /** Parses the canonical one-snapshot workbook without defaulting blank numeric cells to zero. */
 export function parseSnapshotWorkbookData(
   data: ArrayBuffer,
-  role: ComparisonRole,
-  expectedProductCode?: string
+  role: ComparisonRole
 ): SnapshotImportResult {
   const workbook = XLSX.read(data, { type: 'array', cellDates: true })
   const warnings: string[] = []
@@ -422,9 +424,6 @@ export function parseSnapshotWorkbookData(
       warnings,
       role
     }
-  }
-  if (expectedProductCode && product.productCode.trim().toLowerCase() !== expectedProductCode.trim().toLowerCase()) {
-    warnings.push(`Product mismatch: Selected Product is "${expectedProductCode}", but imported workbook Product is "${product.productCode}".`)
   }
   const sourceRef = metaValue(meta, ['source ref', 'sourceref', 'source'])
   const effectiveDate = product.effectiveDate || metaValue(meta, ['effective date', 'effectivedate'])
@@ -472,7 +471,7 @@ export async function parseSnapshotExcelInputFile(
   options: SnapshotImportOptions = {}
 ): Promise<SnapshotImportResult> {
   const data = await file.arrayBuffer()
-  const canonicalResult = parseSnapshotWorkbookData(data, role, options.expectedProductCode)
+  const canonicalResult = parseSnapshotWorkbookData(data, role)
   if (canonicalResult.success) return canonicalResult
 
   if (options.allowLegacy === false) return canonicalResult

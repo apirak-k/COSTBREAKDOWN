@@ -434,7 +434,6 @@ export const MasterDataPage: React.FC = () => {
         isOpen={importModalOpen}
         onClose={() => setImportModalOpen(false)}
         importRole={masterDataRole}
-        product={product}
       />
 
       <TemplateSizingModal

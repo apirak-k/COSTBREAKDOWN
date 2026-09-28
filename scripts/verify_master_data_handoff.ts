@@ -35,21 +35,19 @@ const pair = {
 }
 
 const baseSession = {
-  product,
   snapshotPair: pair,
   snapshotPairMode: 'independent' as const,
   preparedSnapshotRoles: { reference: true, current: true }
 }
 
 const ready = evaluateMasterDataHandoff(baseSession, pair)
-assert.equal(ready.canCompare, true)
-assert.equal(ready.productCode, product.productCode)
+assert.equal(ready.datasetsPrepared, true)
 
 const noRolesPrepared = evaluateMasterDataHandoff({
   ...baseSession,
   preparedSnapshotRoles: { reference: false, current: false }
 }, pair)
-assert.equal(noRolesPrepared.canCompare, false)
+assert.equal(noRolesPrepared.datasetsPrepared, false)
 assert.equal(noRolesPrepared.referenceReady, false)
 assert.equal(noRolesPrepared.currentReady, false)
 assert.ok(noRolesPrepared.issues.includes('Reference dataset is not prepared yet.'))
@@ -59,7 +57,7 @@ const referenceOnly = evaluateMasterDataHandoff({
   ...baseSession,
   preparedSnapshotRoles: { reference: true, current: false }
 }, pair)
-assert.equal(referenceOnly.canCompare, false)
+assert.equal(referenceOnly.datasetsPrepared, false)
 assert.equal(referenceOnly.referenceReady, true)
 assert.equal(referenceOnly.currentReady, false)
 assert.ok(referenceOnly.issues.includes('Current dataset is not prepared yet.'))
@@ -68,7 +66,7 @@ const currentOnly = evaluateMasterDataHandoff({
   ...baseSession,
   preparedSnapshotRoles: { reference: false, current: true }
 }, pair)
-assert.equal(currentOnly.canCompare, false)
+assert.equal(currentOnly.datasetsPrepared, false)
 assert.equal(currentOnly.referenceReady, false)
 assert.equal(currentOnly.currentReady, true)
 assert.ok(currentOnly.issues.includes('Reference dataset is not prepared yet.'))
@@ -77,7 +75,7 @@ const bothRolesPrepared = evaluateMasterDataHandoff({
   ...baseSession,
   preparedSnapshotRoles: { reference: true, current: true }
 }, pair)
-assert.equal(bothRolesPrepared.canCompare, true)
+assert.equal(bothRolesPrepared.datasetsPrepared, true)
 assert.equal(bothRolesPrepared.referenceReady, true)
 assert.equal(bothRolesPrepared.currentReady, true)
 assert.deepEqual(bothRolesPrepared.issues, [])
@@ -87,35 +85,32 @@ const mismatchedPair = {
   current: { ...pair.current, product: { ...product, productCode: 'P-999' } }
 }
 const mismatch = evaluateMasterDataHandoff(baseSession, mismatchedPair)
-assert.equal(mismatch.canCompare, true)
+assert.equal(mismatch.datasetsPrepared, true)
 assert.deepEqual(mismatch.issues, [])
-assert.ok(mismatch.warnings?.some(warning => warning.includes('Current Product Code (P-999) differs')))
 assert.ok(mismatch.warnings?.some(warning => warning.includes('Product mismatch: Reference is "P-001" while Current is "P-999"')))
+assert.equal(mismatch.warnings?.some(warning => warning.includes('Header Product')), false)
 
 const mismatchedReferencePair = {
   ...pair,
   reference: { ...pair.reference, product: { ...product, productCode: 'P-998' } }
 }
 const referenceMismatch = evaluateMasterDataHandoff(baseSession, mismatchedReferencePair)
-assert.equal(referenceMismatch.canCompare, true)
+assert.equal(referenceMismatch.datasetsPrepared, true)
 assert.deepEqual(referenceMismatch.issues, [])
-assert.ok(referenceMismatch.warnings?.some(warning => warning.includes('Reference Product Code (P-998) differs')))
 assert.ok(referenceMismatch.warnings?.some(warning => warning.includes('Product mismatch: Reference is "P-998" while Current is "P-001"')))
 
 const bothProductsMismatch = evaluateMasterDataHandoff(baseSession, {
   reference: { ...pair.reference, product: { ...product, productCode: 'P-999' } },
   current: { ...pair.current, product: { ...product, productCode: 'P-999' } }
 })
-assert.equal(bothProductsMismatch.canCompare, true)
+assert.equal(bothProductsMismatch.datasetsPrepared, true)
 assert.deepEqual(bothProductsMismatch.issues, [])
-assert.ok(bothProductsMismatch.warnings?.some(warning => warning.includes('Reference Product Code (P-999) differs')))
-assert.ok(bothProductsMismatch.warnings?.some(warning => warning.includes('Current Product Code (P-999) differs')))
+assert.equal(bothProductsMismatch.warnings?.some(warning => warning.includes('Product mismatch')), false)
 
 const missingHeaderProduct = evaluateMasterDataHandoff({
-  ...baseSession,
-  product: { ...product, productCode: '  ' }
+  ...baseSession
 }, pair)
-assert.equal(missingHeaderProduct.canCompare, true)
+assert.equal(missingHeaderProduct.datasetsPrepared, true)
 assert.deepEqual(missingHeaderProduct.issues, [])
 
 const legacyDerived = evaluateMasterDataHandoff({
@@ -123,7 +118,7 @@ const legacyDerived = evaluateMasterDataHandoff({
   snapshotPair: pair,
   snapshotPairMode: 'derived'
 }, pair)
-assert.equal(legacyDerived.canCompare, false)
+assert.equal(legacyDerived.datasetsPrepared, false)
 assert.equal(legacyDerived.referenceReady, false)
 assert.equal(legacyDerived.currentReady, false)
 

@@ -183,25 +183,6 @@ function writeRoutingSheet(sheet: ExcelJS.Worksheet, count: number): void {
   sheet.views = [{ state: 'frozen', ySplit: 4 }]
 }
 
-function writeAdditionalDataSheet(sheet: ExcelJS.Worksheet): void {
-  const headers = ['Key', 'Value', 'Source Ref', 'Notes']
-  sheet.columns = [{ width: 26 }, { width: 42 }, { width: 28 }, { width: 54 }]
-  sheet.getCell('A1').value = 'ADDITIONAL_DATA'
-  sheet.getCell('A1').font = fontTitle
-  sheet.mergeCells('A1:D1')
-  sheet.getCell('A3').value = 'Optional non-calculation fields; keep extra costing logic in Simulation/Calculation pages.'
-  sheet.getCell('A3').font = fontSection
-  sheet.getRow(4).values = headers
-  styleHeaderRow(sheet.getRow(4), headers.length)
-  for (let index = 0; index < 5; index += 1) {
-    const row = sheet.getRow(index + 5)
-    row.values = ['', '', '', '']
-    styleInputRow(row, headers.length)
-  }
-  sheet.autoFilter = 'A4:D9'
-  sheet.views = [{ state: 'frozen', ySplit: 4 }]
-}
-
 export async function generateDynamicExcelTemplate(options: DynamicTemplateOptions): Promise<Blob> {
   const { product, snapshot } = options
   const wcCount = Math.max(1, options.wcCount ?? snapshot?.rates.length ?? 4)
@@ -216,16 +197,13 @@ export async function generateDynamicExcelTemplate(options: DynamicTemplateOptio
   writeKeyValueSheet(workbook.addWorksheet('META', { views: [{ showGridLines: true }] }), [
     ['Format Version', 'master-data-v1'],
     ['Snapshot ID', snapshot?.id || `${product?.productCode || 'PRODUCT'}-dataset`],
-    ['Status', 'draft'],
     ['Effective Date', snapshot?.effectiveDate || product?.effectiveDate || ''],
-    ['Source Ref', sourceFor(snapshot, '')],
-    ['Notes', '']
+    ['Source Ref', sourceFor(snapshot, '')]
   ])
   writeProductSheet(workbook.addWorksheet('PRODUCT', { views: [{ showGridLines: true }] }), product)
   writeWorkCenterSheet(workbook.addWorksheet('WORK_CENTER', { views: [{ showGridLines: true }] }), wcCount)
   writeBOMSheet(workbook.addWorksheet('BOM', { views: [{ showGridLines: true }] }), bomCount)
   writeRoutingSheet(workbook.addWorksheet('ROUTING', { views: [{ showGridLines: true }] }), routingCount)
-  writeAdditionalDataSheet(workbook.addWorksheet('ADDITIONAL_DATA', { views: [{ showGridLines: true }] }))
 
   const buffer = await workbook.xlsx.writeBuffer()
   return new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' })

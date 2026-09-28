@@ -12,8 +12,8 @@ export const VarianceTreeCard: React.FC<VarianceTreeCardProps> = ({ costBreakdow
       base: costBreakdown.materialBase,
       active: costBreakdown.materialActive,
       items: [
-        { name: 'Material Price Variance', desc: 'Purchase price change (P0 → P1)', val: costBreakdown.mpv },
-        { name: 'Material Loss Variance', desc: 'Scrap / loss rate change (L0 → L1)', val: costBreakdown.mlv }
+        { name: 'Material Price Variance', desc: 'Purchase price change (Reference → Current)', val: costBreakdown.mpv },
+        { name: 'Material Loss Variance', desc: 'Scrap / loss rate change (Reference → Current)', val: costBreakdown.mlv }
       ]
     },
     {
@@ -56,7 +56,7 @@ export const VarianceTreeCard: React.FC<VarianceTreeCardProps> = ({ costBreakdow
           </p>
         </div>
         <div className="text-right flex items-center gap-2 font-mono">
-          <span className="text-[11px] text-slate-500">Net Variance (Δ):</span>
+          <span className="text-[11px] text-slate-500">Net Cost Gap (Δ):</span>
           <span className={`text-xs font-bold px-2 py-0.5 rounded font-mono tabular-nums bg-slate-100 border border-slate-200 ${
             costBreakdown.totalVariance >= 0 ? 'text-rose-700' : 'text-emerald-700'
           }`}>
@@ -75,8 +75,8 @@ export const VarianceTreeCard: React.FC<VarianceTreeCardProps> = ({ costBreakdow
               <div className="flex items-center justify-between mb-2">
                 <span className="text-xs font-bold font-mono text-slate-900">{cat.name}</span>
                 <div className="flex items-center gap-4 font-mono text-xs tabular-nums">
-                  <span className="text-slate-500 text-[11px]">Base: {formatNumber(cat.base, 4)}</span>
-                  <span className="text-slate-800 font-semibold text-[11px]">Active: {formatNumber(cat.active, 4)}</span>
+                  <span className="text-slate-500 text-[11px]">Reference: {formatNumber(cat.base, 4)}</span>
+                  <span className="text-slate-800 font-semibold text-[11px]">Current: {formatNumber(cat.active, 4)}</span>
                   <span className={`font-bold w-24 text-right ${catVar >= 0 ? 'text-rose-600' : 'text-emerald-700'}`}>
                     {formatVariance(catVar, 4)} THB
                   </span>

@@ -19,6 +19,37 @@ const borderThin = {
   right: { style: 'thin' as const, color: { argb: COLOR_BORDER } }
 }
 
+type AdditionalFieldRecord = { additionalFields?: Record<string, unknown> }
+type ExcelScalar = string | number | boolean | Date | null
+
+function normalizedHeader(value: string): string {
+  return value.trim().toLowerCase().replace(/[\s_\-/]+/g, '')
+}
+
+function additionalHeaders(rows: AdditionalFieldRecord[], canonicalHeaders: string[]): string[] {
+  const seen = new Set(canonicalHeaders.map(normalizedHeader))
+  const headers: string[] = []
+  rows.forEach(row => {
+    Object.keys(row.additionalFields ?? {}).forEach(header => {
+      const normalized = normalizedHeader(header)
+      if (!normalized || seen.has(normalized)) return
+      seen.add(normalized)
+      headers.push(header)
+    })
+  })
+  return headers
+}
+
+function scalarValue(value: unknown, header: string): ExcelScalar {
+  if (value === undefined || value === null) return null
+  if (typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean' || value instanceof Date) return value
+  throw new Error(`Cannot export non-scalar additional field "${header}".`)
+}
+
+function additionalValues(row: AdditionalFieldRecord, headers: string[]): ExcelScalar[] {
+  return headers.map(header => scalarValue(row.additionalFields?.[header], header))
+}
+
 function styleHeaderRow(row: ExcelJS.Row, columns: number): void {
   for (let column = 1; column <= columns; column += 1) {
     const cell = row.getCell(column)
@@ -39,7 +70,7 @@ function styleDataRow(row: ExcelJS.Row, columns: number, numericColumns: number[
   }
 }
 
-function writeKeyValueSheet(sheet: ExcelJS.Worksheet, values: Array<[string, string]>): void {
+function writeKeyValueSheet(sheet: ExcelJS.Worksheet, values: Array<[string, unknown]>): void {
   sheet.columns = [{ width: 24 }, { width: 56 }]
   sheet.getCell('A1').value = 'MASTER DATA DATASET'
   sheet.getCell('A1').font = fontTitle
@@ -48,7 +79,7 @@ function writeKeyValueSheet(sheet: ExcelJS.Worksheet, values: Array<[string, str
   styleHeaderRow(sheet.getRow(3), 2)
   values.forEach(([key, value], index) => {
     const row = sheet.getRow(index + 4)
-    row.values = [key, value]
+    row.values = [key, scalarValue(value, key)]
     styleDataRow(row, 2)
     row.getCell(1).font = { ...fontData, bold: true }
   })
@@ -56,36 +87,45 @@ function writeKeyValueSheet(sheet: ExcelJS.Worksheet, values: Array<[string, str
 }
 
 function writeProductSheet(sheet: ExcelJS.Worksheet, product: ProductMaster): void {
-  sheet.columns = [{ width: 22 }, { width: 34 }, { width: 12 }, { width: 28 }, { width: 18 }]
+  const headers = ['Product Code', 'Product Description', 'UOM', 'Customer / Application', 'Effective Date']
+  const extraHeaders = additionalHeaders([product], headers)
+  sheet.columns = [
+    { width: 22 }, { width: 34 }, { width: 12 }, { width: 28 }, { width: 18 },
+    ...extraHeaders.map(() => ({ width: 24 }))
+  ]
   sheet.getCell('A1').value = 'PRODUCT'
   sheet.getCell('A1').font = fontTitle
   sheet.mergeCells('A1:E1')
-  const headers = ['Product Code', 'Product Description', 'UOM', 'Customer / Application', 'Effective Date']
-  sheet.getRow(3).values = headers
-  styleHeaderRow(sheet.getRow(3), headers.length)
+  const outputHeaders = [...headers, ...extraHeaders]
+  sheet.getRow(3).values = outputHeaders
+  styleHeaderRow(sheet.getRow(3), outputHeaders.length)
   sheet.getRow(4).values = [
     product.productCode,
     product.productDescription,
     product.uom,
     product.customer,
-    product.effectiveDate
+    product.effectiveDate,
+    ...additionalValues(product, extraHeaders)
   ]
-  styleDataRow(sheet.getRow(4), headers.length)
-  sheet.autoFilter = 'A3:E4'
+  styleDataRow(sheet.getRow(4), outputHeaders.length)
+  sheet.autoFilter = `A3:${sheet.getColumn(outputHeaders.length).letter}4`
   sheet.views = [{ state: 'frozen', ySplit: 3 }]
 }
 
 function writeWorkCenterSheet(sheet: ExcelJS.Worksheet, snapshot: CostSnapshot): void {
   const headers = ['ID', 'Work Center Code', 'Description', 'Labor Rate', 'Burden Rate', 'Effective Date', 'Source Ref', 'Confidence']
+  const extraHeaders = additionalHeaders(snapshot.rates, headers)
   sheet.columns = [
     { width: 18 }, { width: 22 }, { width: 34 }, { width: 16 },
-    { width: 16 }, { width: 18 }, { width: 28 }, { width: 16 }
+    { width: 16 }, { width: 18 }, { width: 28 }, { width: 16 },
+    ...extraHeaders.map(() => ({ width: 24 }))
   ]
   sheet.getCell('A1').value = 'WORK_CENTER'
   sheet.getCell('A1').font = fontTitle
   sheet.mergeCells('A1:H1')
-  sheet.getRow(3).values = headers
-  styleHeaderRow(sheet.getRow(3), headers.length)
+  const outputHeaders = [...headers, ...extraHeaders]
+  sheet.getRow(3).values = outputHeaders
+  styleHeaderRow(sheet.getRow(3), outputHeaders.length)
 
   snapshot.rates.forEach((rate, index) => {
     const row = sheet.getRow(index + 4)
@@ -97,28 +137,32 @@ function writeWorkCenterSheet(sheet: ExcelJS.Worksheet, snapshot: CostSnapshot):
       rate.burdenRate,
       rate.effectiveDate,
       rate.sourceRef || '',
-      ''
+      '',
+      ...additionalValues(rate, extraHeaders)
     ]
-    styleDataRow(row, headers.length, [4, 5])
+    styleDataRow(row, outputHeaders.length, [4, 5])
   })
 
   if (snapshot.rates.length > 0) {
-    sheet.autoFilter = `A3:H${snapshot.rates.length + 3}`
+    sheet.autoFilter = `A3:${sheet.getColumn(outputHeaders.length).letter}${snapshot.rates.length + 3}`
   }
   sheet.views = [{ state: 'frozen', ySplit: 3 }]
 }
 
 function writeBOMSheet(sheet: ExcelJS.Worksheet, snapshot: CostSnapshot): void {
   const headers = ['ID', 'Item Code', 'Description', 'Consumption', 'Unit', 'Price', 'Loss', 'Source Ref', 'Confidence']
+  const extraHeaders = additionalHeaders(snapshot.bom, headers)
   sheet.columns = [
     { width: 18 }, { width: 18 }, { width: 36 }, { width: 16 }, { width: 12 },
-    { width: 16 }, { width: 14 }, { width: 28 }, { width: 16 }
+    { width: 16 }, { width: 14 }, { width: 28 }, { width: 16 },
+    ...extraHeaders.map(() => ({ width: 24 }))
   ]
   sheet.getCell('A1').value = 'BOM'
   sheet.getCell('A1').font = fontTitle
   sheet.mergeCells('A1:I1')
-  sheet.getRow(3).values = headers
-  styleHeaderRow(sheet.getRow(3), headers.length)
+  const outputHeaders = [...headers, ...extraHeaders]
+  sheet.getRow(3).values = outputHeaders
+  styleHeaderRow(sheet.getRow(3), outputHeaders.length)
 
   snapshot.bom.forEach((item, index) => {
     const row = sheet.getRow(index + 4)
@@ -131,28 +175,32 @@ function writeBOMSheet(sheet: ExcelJS.Worksheet, snapshot: CostSnapshot): void {
       item.price,
       item.loss,
       item.sourceRef || '',
-      ''
+      '',
+      ...additionalValues(item, extraHeaders)
     ]
-    styleDataRow(row, headers.length, [4, 6, 7])
+    styleDataRow(row, outputHeaders.length, [4, 6, 7])
   })
 
   if (snapshot.bom.length > 0) {
-    sheet.autoFilter = `A3:I${snapshot.bom.length + 3}`
+    sheet.autoFilter = `A3:${sheet.getColumn(outputHeaders.length).letter}${snapshot.bom.length + 3}`
   }
   sheet.views = [{ state: 'frozen', ySplit: 3 }]
 }
 
 function writeRoutingSheet(sheet: ExcelJS.Worksheet, snapshot: CostSnapshot): void {
   const headers = ['ID', 'Operation Code', 'Sequence', 'Process Code', 'Process Name', 'Work Center Code', 'Manning', 'Capacity', 'Yield', 'Source Ref', 'Confidence']
+  const extraHeaders = additionalHeaders(snapshot.routing, headers)
   sheet.columns = [
     { width: 18 }, { width: 18 }, { width: 12 }, { width: 16 }, { width: 32 },
-    { width: 22 }, { width: 14 }, { width: 14 }, { width: 14 }, { width: 28 }, { width: 16 }
+    { width: 22 }, { width: 14 }, { width: 14 }, { width: 14 }, { width: 28 }, { width: 16 },
+    ...extraHeaders.map(() => ({ width: 24 }))
   ]
   sheet.getCell('A1').value = 'ROUTING'
   sheet.getCell('A1').font = fontTitle
   sheet.mergeCells('A1:K1')
-  sheet.getRow(3).values = headers
-  styleHeaderRow(sheet.getRow(3), headers.length)
+  const outputHeaders = [...headers, ...extraHeaders]
+  sheet.getRow(3).values = outputHeaders
+  styleHeaderRow(sheet.getRow(3), outputHeaders.length)
 
   snapshot.routing.forEach((step, index) => {
     const row = sheet.getRow(index + 4)
@@ -167,13 +215,14 @@ function writeRoutingSheet(sheet: ExcelJS.Worksheet, snapshot: CostSnapshot): vo
       step.capacity,
       step.yield,
       step.sourceRef || '',
-      ''
+      '',
+      ...additionalValues(step, extraHeaders)
     ]
-    styleDataRow(row, headers.length, [3, 7, 8, 9])
+    styleDataRow(row, outputHeaders.length, [3, 7, 8, 9])
   })
 
   if (snapshot.routing.length > 0) {
-    sheet.autoFilter = `A3:K${snapshot.routing.length + 3}`
+    sheet.autoFilter = `A3:${sheet.getColumn(outputHeaders.length).letter}${snapshot.routing.length + 3}`
   }
   sheet.views = [{ state: 'frozen', ySplit: 3 }]
 }
@@ -184,14 +233,24 @@ export async function exportSnapshotToExcel(snapshot: CostSnapshot, product?: Pr
   workbook.creator = 'Cost Breakdown Analysis Platform'
   workbook.created = new Date()
 
+  const metaKeys = new Set([
+    'format version', 'template version', 'version',
+    'product code', 'productcode', 'code',
+    'product description', 'productdescription', 'description', 'name',
+    'uom', 'unit', 'customer', 'customer application',
+    'source ref', 'sourceref', 'source',
+    'effective date', 'effectivedate',
+    'snapshot id', 'snapshotid', 'id', 'comparison role',
+    'status', 'dataset status'
+  ].map(normalizedHeader))
+  const additionalMeta = Object.entries(snapshot.additionalFields ?? {})
+    .filter(([key]) => !metaKeys.has(normalizedHeader(key)))
   writeKeyValueSheet(workbook.addWorksheet('META', { views: [{ showGridLines: true }] }), [
     ['Format Version', 'master-data-v1'],
     ['Snapshot ID', snapshot.id],
-    ['Status', snapshot.status || 'draft'],
-    ['Comparison Role', snapshot.comparisonRole || 'current'],
     ['Effective Date', snapshot.effectiveDate || effectiveProduct.effectiveDate || ''],
     ['Source Ref', snapshot.sourceRef || 'Working Dataset Export'],
-    ['Notes', '']
+    ...additionalMeta
   ])
 
   writeProductSheet(workbook.addWorksheet('PRODUCT', { views: [{ showGridLines: true }] }), effectiveProduct)

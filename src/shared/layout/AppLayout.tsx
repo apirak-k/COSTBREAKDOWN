@@ -8,9 +8,11 @@ interface AppLayoutProps {
 }
 
 export const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
-  const { product, bom, routing, rates, costBreakdown, snapshotComparison, masterDataHandoff } = useAppStore()
-  const canShowCostTotals = masterDataHandoff.canCompare
-    && areSnapshotCostsComplete(snapshotComparison.referenceCost, snapshotComparison.currentCost)
+  const { bom, routing, rates, snapshotComparison } = useAppStore()
+  const hasCostTotals = snapshotComparison.referenceCost.total !== null
+    && snapshotComparison.currentCost.total !== null
+    && snapshotComparison.totalGap !== null
+  const costsComplete = areSnapshotCostsComplete(snapshotComparison.referenceCost, snapshotComparison.currentCost)
 
   return (
     <div className="min-h-screen bg-slate-100/70 text-slate-900 flex flex-col font-sans text-xs antialiased">
@@ -28,9 +30,6 @@ export const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
               SYSTEM ACTIVE
             </span>
             <span className="text-slate-600">|</span>
-            <span className="text-slate-200 font-bold">{product.productCode || 'NO-PRODUCT'}</span>
-            <span className="text-slate-400">({product.uom || 'PC'})</span>
-            <span className="text-slate-600">|</span>
             <span>BOM: <strong className="text-slate-200">{bom.length}</strong> items</span>
             <span className="text-slate-600">|</span>
             <span>Routing: <strong className="text-slate-200">{routing.length}</strong> ops</span>
@@ -39,28 +38,25 @@ export const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
           </div>
 
           <div className="flex items-center gap-3">
-            {canShowCostTotals ? (
+            {hasCostTotals ? (
               <>
-                <span>Base: <strong className="text-slate-200">{formatNumber(costBreakdown.totalBase, 4)}</strong> THB</span>
+                <span>Reference: <strong className="text-slate-200">{formatNumber(snapshotComparison.referenceCost.total!, 4)}</strong> THB</span>
                 <span className="text-slate-600">|</span>
-                <span>Active: <strong className="text-slate-200">{formatNumber(costBreakdown.totalActive, 4)}</strong> THB</span>
+                <span>Current: <strong className="text-slate-200">{formatNumber(snapshotComparison.currentCost.total!, 4)}</strong> THB</span>
                 <span className="text-slate-600">|</span>
                 <span>
-                  Net Gap:{' '}
-                  <strong className={costBreakdown.totalVariance > 0 ? 'text-rose-400' : 'text-emerald-400'}>
-                    {formatVariance(costBreakdown.totalVariance, 4)} THB/pc
+                  Gap:{' '}
+                  <strong className={snapshotComparison.totalGap! > 0 ? 'text-rose-400' : 'text-emerald-400'}>
+                    {formatVariance(snapshotComparison.totalGap!, 4)} THB/pc
                   </strong>
                 </span>
+                {!costsComplete && <span className="text-amber-300">Available with warnings</span>}
               </>
             ) : (
               <span role="status" className="text-amber-300 font-bold">
-                {masterDataHandoff.canCompare ? 'Cost summary on hold' : 'Comparison not ready'}
+                Cost values unavailable
               </span>
             )}
-            <span className="text-slate-600">|</span>
-            <span className="text-[10px] uppercase tracking-wider text-slate-400 bg-slate-800 px-1.5 py-0.5 rounded border border-slate-700">
-              Excel v2 Parity: 100%
-            </span>
           </div>
         </div>
       </footer>

@@ -1,10 +1,9 @@
 import type { ProductSession, SnapshotPair, SnapshotRoleReadiness } from '../types'
 
 export interface MasterDataHandoffStatus {
-  productCode: string
   referenceReady: boolean
   currentReady: boolean
-  canCompare: boolean
+  datasetsPrepared: boolean
   issues: string[]
   warnings?: string[]
 }
@@ -34,14 +33,13 @@ function normalized(value: string | undefined): string {
 }
 
 /**
- * Describes whether Master Data has a trustworthy Reference/Current pair for
- * the selected product before Cost Breakdown is allowed to calculate.
+ * Reports which sides have been prepared and warns about a Product mismatch.
+ * Preparation is informational; missing inputs remain visible in Cost Breakdown.
  */
 export function evaluateMasterDataHandoff(
-  session: Pick<ProductSession, 'product' | 'snapshotPairMode' | 'snapshotPair' | 'preparedSnapshotRoles'>,
+  session: Pick<ProductSession, 'snapshotPairMode' | 'snapshotPair' | 'preparedSnapshotRoles'>,
   pair: SnapshotPair
 ): MasterDataHandoffStatus {
-  const productCode = session.product.productCode.trim()
   const readiness = getSnapshotRoleReadiness(session)
   const issues: string[] = []
   const warnings: string[] = []
@@ -56,8 +54,6 @@ export function evaluateMasterDataHandoff(
 
     if (!snapshotCode) {
       warnings.push(`${label} Product Code is not specified.`)
-    } else if (productCode && normalized(snapshotCode) !== normalized(productCode)) {
-      warnings.push(`${label} Product Code (${snapshotCode}) differs from Header Product (${productCode}).`)
     }
   })
 
@@ -69,10 +65,9 @@ export function evaluateMasterDataHandoff(
   }
 
   return {
-    productCode,
     referenceReady: readiness.reference,
     currentReady: readiness.current,
-    canCompare: issues.length === 0,
+    datasetsPrepared: issues.length === 0,
     issues,
     warnings
   }

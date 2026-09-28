@@ -256,7 +256,7 @@ async function runVerifications() {
   const buffer = await testWb.xlsx.writeBuffer()
   const testFile = new File([buffer], 'TestImportTemplate.xlsx', { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' })
 
-  const importResult = await parseSnapshotExcelInputFile(testFile, 'reference', { expectedProductCode: 'RGOM-024' })
+  const importResult = await parseSnapshotExcelInputFile(testFile, 'reference')
   if (!importResult.success || !importResult.snapshot) {
     throw new Error(`Import failed: ${importResult.message}`)
   }
@@ -268,7 +268,7 @@ async function runVerifications() {
   // Export Reference and Import into Current (Round-Trip)
   const exportedBlob = await exportSnapshotToExcel(importResult.snapshot, session.product)
   const exportedFile = new File([await exportedBlob.arrayBuffer()], 'ExportedRef.xlsx', { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' })
-  const roundTripResult = await parseSnapshotExcelInputFile(exportedFile, 'current', { expectedProductCode: 'RGOM-024' })
+  const roundTripResult = await parseSnapshotExcelInputFile(exportedFile, 'current')
   if (!roundTripResult.success || !roundTripResult.snapshot) {
     throw new Error(`Round-trip import failed: ${roundTripResult.message}`)
   }

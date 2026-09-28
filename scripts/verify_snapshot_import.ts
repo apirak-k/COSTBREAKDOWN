@@ -33,20 +33,14 @@ XLSX.utils.book_append_sheet(workbook, sheet([
   ['bom-2', 'MAT-2', 'Material 2', 2, 'PC', null, null, '', '']
 ]), 'BOM')
 XLSX.utils.book_append_sheet(workbook, sheet([
-  ['ID', 'Operation Code', 'Sequence', 'Process Name', 'Work Center ID', 'Manning', 'Capacity', 'Yield', 'Source Ref', 'Confidence'],
-  ['routing-1', 'OP-10', 10, 'Cut', 'WC-1', 1, 100, 0.9, 'routing.xlsx', 'Verified']
+  ['ID', 'Operation Code', 'Sequence', 'Process Code', 'Process Name', 'Work Center ID', 'Manning', 'Capacity', 'Yield', 'Source Ref', 'Confidence'],
+  ['routing-1', 'OP-10', 10, 'PRC-10', 'Cut', 'WC-1', 1, 100, 0.9, 'routing.xlsx', 'Verified'],
+  ['', '', 20, 'PRC-20', 'Print', 'WC-2', 1, 80, 0.95, 'routing.xlsx', 'Verified']
 ]), 'ROUTING')
 
 const result = parseSnapshotWorkbookData(XLSX.write(workbook, { type: 'array', bookType: 'xlsx' }), 'current')
 
 const workbookBytes = XLSX.write(workbook, { type: 'array', bookType: 'xlsx' })
-const matchingProductResult = parseSnapshotWorkbookData(workbookBytes, 'current', 'P-001')
-assert.equal(matchingProductResult.success, true)
-
-const mismatchedProductResult = parseSnapshotWorkbookData(workbookBytes, 'current', 'P-999')
-assert.equal(mismatchedProductResult.success, true)
-assert.ok(mismatchedProductResult.warnings?.some(warning => warning.includes('Product mismatch: Selected Product')))
-
 assert.equal(result.success, true)
 assert.equal(result.format, 'canonical')
 assert.equal(result.snapshot?.id, 'after-2026-09-21')
@@ -60,6 +54,10 @@ assert.equal(result.snapshot?.rates[1].confidence.laborRate.status, 'estimated')
 assert.equal(result.snapshot?.bom[1].price, null)
 assert.equal(result.snapshot?.bom[1].confidence.price.status, 'missing')
 assert.equal(result.snapshot?.routing[0].workCenterId, 'WC-1')
+assert.equal(result.snapshot?.routing[0].processCode, 'PRC-10')
+assert.equal(result.snapshot?.routing[1].id, 'PRC-20')
+assert.equal(result.snapshot?.routing[1].operationCode, undefined)
+assert.equal(result.snapshot?.routing[1].processCode, 'PRC-20')
 assert.ok(result.warnings.some(warning => warning.includes('burdenRate')))
 
 async function verifyCanonicalTemplate(): Promise<void> {
@@ -85,8 +83,12 @@ async function verifyCanonicalTemplate(): Promise<void> {
   assert.equal(templateValues.includes('Active Price P1'), false)
   assert.equal(templateValues.includes('Base Cap (pc/hr)'), false)
   assert.equal(templateValues.includes('Active Cap (pc/hr)'), false)
+  assert.equal(templateWorkbook.SheetNames.includes('ADDITIONAL_DATA'), false)
+  assert.equal(templateValues.includes('Status'), false)
+  assert.equal(templateValues.includes('Comparison Role'), false)
+  assert.equal(templateValues.includes('draft'), false)
 
-  const roundTrip = parseSnapshotWorkbookData(templateBytes, 'reference', 'P-001')
+  const roundTrip = parseSnapshotWorkbookData(templateBytes, 'reference')
   assert.equal(roundTrip.success, true)
   assert.equal(roundTrip.format, 'canonical')
   assert.equal(roundTrip.snapshot?.rates.length, 0)
@@ -163,8 +165,7 @@ async function verifyCanonicalXlsUpload(): Promise<void> {
     XLSX.write(workbook, { type: 'array', bookType: 'biff8' })
   ], 'canonical.xls')
   const xlsResult = await parseSnapshotExcelInputFile(xlsFile, 'current', {
-    allowLegacy: false,
-    expectedProductCode: 'P-001'
+    allowLegacy: false
   })
 
   assert.equal(xlsResult.success, true)

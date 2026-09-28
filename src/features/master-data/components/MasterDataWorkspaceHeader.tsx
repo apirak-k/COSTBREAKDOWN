@@ -189,18 +189,18 @@ export const MasterDataWorkspaceHeader: React.FC<MasterDataWorkspaceHeaderProps>
               type="button"
               onClick={() => setShowReadinessPopover(!showReadinessPopover)}
               className={`flex items-center gap-1.5 px-3 py-1.5 text-[11px] font-mono font-bold uppercase rounded-md border transition-all cursor-pointer shadow-2xs ${
-                handoff.canCompare
+                handoff.datasetsPrepared
                   ? 'border-emerald-500/80 bg-emerald-950/70 text-emerald-300 hover:bg-emerald-900/80 ring-1 ring-emerald-500/30'
                   : 'border-amber-500/80 bg-amber-950/70 text-amber-300 hover:bg-amber-900/80 ring-1 ring-amber-500/30'
               }`}
               title="Click to view readiness status details"
             >
-              {handoff.canCompare ? (
+              {handoff.datasetsPrepared ? (
                 <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
               ) : (
                 <AlertTriangle className="w-3.5 h-3.5 text-amber-400 shrink-0" />
               )}
-              <span>{handoff.canCompare ? 'Ready to Compare' : 'Needs Input'}</span>
+              <span>{handoff.datasetsPrepared ? 'Datasets Prepared' : 'Needs Input'}</span>
               <Info className="w-3 h-3 opacity-70 ml-0.5" />
             </button>
 
@@ -210,7 +210,7 @@ export const MasterDataWorkspaceHeader: React.FC<MasterDataWorkspaceHeaderProps>
                 <div className="flex items-center justify-between pb-2 border-b border-slate-100 font-mono text-[11px] font-bold text-slate-900 uppercase">
                   <span className="flex items-center gap-1.5">
                     <Info className="w-3.5 h-3.5 text-slate-500" />
-                    Comparison Readiness
+                    Dataset Preparation
                   </span>
                   <button
                     type="button"
@@ -221,10 +221,6 @@ export const MasterDataWorkspaceHeader: React.FC<MasterDataWorkspaceHeaderProps>
                   </button>
                 </div>
                 <div className="mt-2.5 space-y-2 text-[11px]">
-                  <div className="flex justify-between items-center py-0.5">
-                    <span className="text-slate-500">Header Product:</span>
-                    <span className="font-mono font-bold text-slate-900 bg-slate-100 px-1.5 py-0.5 rounded">{handoff.productCode || '—'}</span>
-                  </div>
                   <div className="flex justify-between items-center py-0.5">
                     <span className="text-slate-500">Reference:</span>
                     <span className={`font-mono font-bold px-1.5 py-0.5 rounded ${handoff.referenceReady ? 'bg-emerald-50 text-emerald-700' : 'bg-amber-50 text-amber-700'}`}>
@@ -239,9 +235,13 @@ export const MasterDataWorkspaceHeader: React.FC<MasterDataWorkspaceHeaderProps>
                   </div>
                 </div>
 
+                <p className="mt-2 border-t border-slate-100 pt-2 text-[10px] leading-relaxed text-slate-500">
+                  Preparation shows whether each side has been entered or imported. Missing cost inputs remain visible on Cost Breakdown and do not block navigation.
+                </p>
+
                 {handoff.issues.length > 0 && (
                   <div className="mt-2.5 pt-2 border-t border-slate-100">
-                    <span className="block text-[10px] font-bold text-rose-700 uppercase">Remaining Issues:</span>
+                    <span className="block text-[10px] font-bold text-rose-700 uppercase">Preparation Notes:</span>
                     <ul className="mt-1 list-disc pl-4 text-[10px] text-rose-600 space-y-0.5">
                       {handoff.issues.map(iss => <li key={iss}>{iss}</li>)}
                     </ul>
@@ -264,8 +264,8 @@ export const MasterDataWorkspaceHeader: React.FC<MasterDataWorkspaceHeaderProps>
           <button
             type="button"
             onClick={onOpenCostBreakdown}
-            disabled={!handoff.canCompare}
-            className="flex items-center gap-2 px-4 py-1.5 text-xs font-mono font-bold text-white bg-blue-600 hover:bg-blue-500 active:bg-blue-700 disabled:bg-slate-800 disabled:text-slate-500 disabled:border-slate-700 border border-blue-500 rounded-md shadow-sm transition-all cursor-pointer disabled:cursor-not-allowed active:scale-[0.98]"
+            title="Open Cost Breakdown; missing inputs remain visible there."
+            className="flex items-center gap-2 px-4 py-1.5 text-xs font-mono font-bold text-white bg-blue-600 hover:bg-blue-500 active:bg-blue-700 border border-blue-500 rounded-md shadow-sm transition-all cursor-pointer active:scale-[0.98]"
           >
             <span>Cost Breakdown</span>
             <ArrowRight className="w-3.5 h-3.5" />
