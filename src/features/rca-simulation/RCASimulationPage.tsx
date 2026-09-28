@@ -17,6 +17,7 @@ import { CandidateRcaForm } from './components/CandidateRcaForm'
 import { CandidateSelector } from './components/CandidateSelector'
 import { ProblemStatementCard } from './components/ProblemStatementCard'
 import { SimulationGrid } from './components/SimulationGrid'
+import { PageHeading } from '../../shared'
 
 export const RCASimulationPage: React.FC = () => {
   const {
@@ -129,16 +130,12 @@ export const RCASimulationPage: React.FC = () => {
 
   return (
     <div className="space-y-5">
-      <div className="flex items-center justify-between rounded-xl border border-slate-200 bg-white px-5 py-4 shadow-xs">
-        <div>
-          <h1 className="text-sm font-bold text-slate-900">Root Cause Analysis &amp; What-If Simulator</h1>
-          <p className="mt-0.5 text-[11px] text-slate-500">
-            Select a candidate, document optional notes, and compare independent scenarios from Current.
-          </p>
-        </div>
-      </div>
+      <PageHeading
+        title="RCA & Simulation"
+        description="Select a candidate, add optional root-cause notes, and compare independent scenarios based on Current."
+      />
 
-      <div role="status" className="rounded border border-slate-200 bg-slate-50 px-3 py-2.5 text-[11px] text-slate-600">
+      <div role="status" className="rounded-md border-l-4 border-l-slate-500 border-y border-r border-slate-200 bg-white px-4 py-3 text-sm leading-6 text-slate-700">
         Scenario drafts use the shared Standard Cost engine. Blank inputs keep Current values; scenario edits do not change Current, Reference, or Master Data.
       </div>
 
@@ -150,8 +147,8 @@ export const RCASimulationPage: React.FC = () => {
 
       {candidates.length === 0 && (
         <div role="status" className="rounded-lg border border-amber-200 bg-amber-50/50 p-5 text-sm text-amber-900">
-          <h2 className="font-bold text-xs uppercase tracking-wide">No candidates available</h2>
-          <p className="mt-1 text-xs">
+          <h2 className="font-semibold text-sm">No candidates available</h2>
+          <p className="mt-1 text-sm leading-6">
             Candidate Prioritization has no findings to select. RCA notes and scenarios become available when the pool contains a candidate.
           </p>
         </div>

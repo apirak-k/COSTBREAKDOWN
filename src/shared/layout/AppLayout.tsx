@@ -15,47 +15,50 @@ export const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
   const costsComplete = areSnapshotCostsComplete(snapshotComparison.referenceCost, snapshotComparison.currentCost)
 
   return (
-    <div className="min-h-screen bg-slate-100/70 text-slate-900 flex flex-col font-sans text-xs antialiased">
+    <div className="min-h-screen min-h-dvh bg-slate-100 text-slate-900 flex flex-col font-sans antialiased">
+      <a
+        href="#main-content"
+        className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-[100] focus:rounded-md focus:bg-white focus:px-4 focus:py-3 focus:font-medium focus:text-slate-900 focus:shadow-lg"
+      >
+        Skip to main content
+      </a>
       <Navbar />
-      <main className="flex-1 max-w-7xl w-full mx-auto px-3 sm:px-4 lg:px-6 py-4">
+      <main
+        id="main-content"
+        tabIndex={-1}
+        className="mx-auto w-full max-w-7xl flex-1 px-3 py-5 sm:px-4 sm:py-6 lg:px-6"
+      >
         {children}
       </main>
 
-      {/* Industrial Console Footer Status Bar */}
-      <footer className="bg-slate-900 text-slate-400 border-t border-slate-800 text-[11px] font-mono py-2 px-4 select-none sticky bottom-0 z-40">
-        <div className="max-w-7xl w-full mx-auto flex flex-wrap items-center justify-between gap-3">
-          <div className="flex items-center gap-3">
-            <span className="flex items-center gap-1.5 text-emerald-400 font-bold">
-              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-              SYSTEM ACTIVE
-            </span>
-            <span className="text-slate-600">|</span>
-            <span>BOM: <strong className="text-slate-200">{bom.length}</strong> items</span>
-            <span className="text-slate-600">|</span>
-            <span>Routing: <strong className="text-slate-200">{routing.length}</strong> ops</span>
-            <span className="text-slate-600">|</span>
-            <span>WC: <strong className="text-slate-200">{rates.length}</strong> depts</span>
-          </div>
+      <footer className="border-t border-slate-200 bg-white px-4 py-3 text-xs text-slate-600">
+        <div className="mx-auto flex w-full max-w-7xl flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+          <dl className="flex flex-wrap items-center gap-x-4 gap-y-1">
+            <div className="flex items-center gap-1.5">
+              <dt>BOM</dt><dd className="font-mono font-semibold tabular-nums text-slate-900">{bom.length}</dd>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <dt>Routing</dt><dd className="font-mono font-semibold tabular-nums text-slate-900">{routing.length}</dd>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <dt>Work centers</dt><dd className="font-mono font-semibold tabular-nums text-slate-900">{rates.length}</dd>
+            </div>
+          </dl>
 
-          <div className="flex items-center gap-3">
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-1" role="status">
             {hasCostTotals ? (
               <>
-                <span>Reference: <strong className="text-slate-200">{formatNumber(snapshotComparison.referenceCost.total!, 4)}</strong> THB</span>
-                <span className="text-slate-600">|</span>
-                <span>Current: <strong className="text-slate-200">{formatNumber(snapshotComparison.currentCost.total!, 4)}</strong> THB</span>
-                <span className="text-slate-600">|</span>
+                <span>Reference <strong className="font-mono text-slate-900">{formatNumber(snapshotComparison.referenceCost.total!, 4)} THB</strong></span>
+                <span>Current <strong className="font-mono text-slate-900">{formatNumber(snapshotComparison.currentCost.total!, 4)} THB</strong></span>
                 <span>
-                  Gap:{' '}
-                  <strong className={snapshotComparison.totalGap! > 0 ? 'text-rose-400' : 'text-emerald-400'}>
+                  Gap <strong className={`font-mono ${snapshotComparison.totalGap! > 0 ? 'text-rose-700' : 'text-emerald-700'}`}>
                     {formatVariance(snapshotComparison.totalGap!, 4)} THB/pc
                   </strong>
                 </span>
-                {!costsComplete && <span className="text-amber-300">Available with warnings</span>}
+                {!costsComplete && <span className="text-amber-800">Available with warnings</span>}
               </>
             ) : (
-              <span role="status" className="text-amber-300 font-bold">
-                Cost values unavailable
-              </span>
+              <span className="font-medium text-amber-800">Cost values unavailable</span>
             )}
           </div>
         </div>

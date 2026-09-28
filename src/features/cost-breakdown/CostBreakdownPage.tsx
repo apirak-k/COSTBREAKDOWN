@@ -12,6 +12,7 @@ import { SnapshotComparisonCard } from './components/SnapshotComparisonCard'
 import { isVisibleInComparisonView } from './components/comparison-view'
 import type { ComparisonViewMode } from './components/comparison-view'
 import { areSnapshotCostsComplete } from '../../core'
+import { PageHeading } from '../../shared'
 
 type SubTab = 'bom' | 'routing' | 'work-center'
 
@@ -32,7 +33,12 @@ export const CostBreakdownPage: React.FC = () => {
   const exactSnapshotCalculation = areSnapshotCostsComplete(snapshotComparison.referenceCost, snapshotComparison.currentCost)
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-5">
+      <PageHeading
+        title="Cost Breakdown"
+        description="Compare Reference and Current cost, then review the record-level changes that explain the gap."
+      />
+
       {/* 1. Top Executive KPIs */}
       {exactSnapshotCalculation ? (
         <ExecutiveKPICards costBreakdown={costBreakdown} />
@@ -53,12 +59,12 @@ export const CostBreakdownPage: React.FC = () => {
       {/* 2. Independent Reference vs Current comparison */}
       <SnapshotComparisonCard comparison={snapshotComparison} />
 
-      <section className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 px-3.5 py-3 bg-white border border-slate-300/80 shadow-2xs" aria-labelledby="comparison-view-title">
+      <section className="flex flex-col gap-3 rounded-md border border-slate-200 bg-white px-4 py-3 sm:flex-row sm:items-center sm:justify-between" aria-labelledby="comparison-view-title">
         <div>
-          <h2 id="comparison-view-title" className="text-xs font-bold font-mono text-slate-800 uppercase tracking-tight">Comparison view</h2>
-          <p className="mt-0.5 text-[10px] text-slate-500 font-sans">Filter itemized comparison rows by canonical status: Unchanged, Changed, Added, or Removed.</p>
+          <h2 id="comparison-view-title" className="text-sm font-semibold text-slate-900">Comparison view</h2>
+          <p className="mt-0.5 text-xs text-slate-600">Filter itemized rows by status: Unchanged, Changed, Added, or Removed.</p>
         </div>
-        <div className="flex flex-wrap items-center gap-1 font-mono text-[11px]" role="group" aria-label="Comparison view">
+        <div className="flex flex-wrap items-center gap-1.5 text-xs" role="group" aria-label="Comparison view">
           {([
             { mode: 'all' as const, label: 'All', count: allFindings.length },
             { mode: 'changed' as const, label: 'Changed', count: changedFindingsCount },
@@ -71,7 +77,7 @@ export const CostBreakdownPage: React.FC = () => {
               type="button"
               aria-pressed={comparisonView === option.mode}
               onClick={() => setComparisonView(option.mode)}
-              className={`px-2.5 py-1.5 border transition-colors cursor-pointer ${comparisonView === option.mode ? 'bg-slate-900 text-white border-slate-900 font-bold' : 'bg-slate-50 text-slate-700 border-slate-300 hover:bg-slate-100'}`}
+              className={`min-h-9 rounded-sm border px-3 py-1.5 font-medium transition-colors cursor-pointer focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700 ${comparisonView === option.mode ? 'bg-slate-900 text-white border-slate-900 font-semibold' : 'bg-white text-slate-700 border-slate-300 hover:bg-slate-50'}`}
             >
               {option.label} <span className={comparisonView === option.mode ? 'text-slate-300' : 'text-slate-400'}>({option.count})</span>
             </button>
@@ -87,21 +93,25 @@ export const CostBreakdownPage: React.FC = () => {
         {/* Section Accordion Header */}
         <div className="flex items-center justify-between px-3.5 py-2.5 bg-slate-50/70 border-b border-slate-200">
           <button
+            type="button"
             onClick={() => setIsDetailedExpanded(!isDetailedExpanded)}
-            className="flex items-center gap-2 text-xs font-bold font-mono text-slate-800 uppercase tracking-tight hover:text-slate-950 cursor-pointer"
+            aria-expanded={isDetailedExpanded}
+            className="flex min-h-10 items-center gap-2 text-sm font-semibold text-slate-900 hover:text-blue-800 cursor-pointer focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700"
           >
             {isDetailedExpanded ? (
               <ChevronDown className="w-3.5 h-3.5 text-slate-500" />
             ) : (
               <ChevronRight className="w-3.5 h-3.5 text-slate-500" />
             )}
-            <span>Itemized Cost Breakdown · {comparisonView.toUpperCase()}</span>
+            <span>Itemized Cost Breakdown <span className="font-normal text-slate-500">· {comparisonView.toUpperCase()}</span></span>
           </button>
 
           {/* Sub-Tab Switcher */}
         <div className="flex flex-wrap items-center justify-end gap-2">
           <div className="flex items-center gap-1 font-mono text-[11px]">
             <button
+              type="button"
+              aria-pressed={subTab === 'bom'}
               onClick={() => setSubTab('bom')}
               className={`px-2.5 py-1 rounded transition-colors cursor-pointer ${
                 subTab === 'bom'
@@ -112,6 +122,8 @@ export const CostBreakdownPage: React.FC = () => {
               BOM ({bom.length})
             </button>
             <button
+              type="button"
+              aria-pressed={subTab === 'routing'}
               onClick={() => setSubTab('routing')}
               className={`px-2.5 py-1 rounded transition-colors cursor-pointer ${
                 subTab === 'routing'
@@ -122,6 +134,8 @@ export const CostBreakdownPage: React.FC = () => {
               Routing ({routing.length})
             </button>
             <button
+              type="button"
+              aria-pressed={subTab === 'work-center'}
               onClick={() => setSubTab('work-center')}
               className={`px-2.5 py-1 rounded transition-colors cursor-pointer ${
                 subTab === 'work-center'

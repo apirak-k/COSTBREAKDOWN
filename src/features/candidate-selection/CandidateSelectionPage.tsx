@@ -3,6 +3,7 @@ import { useAppStore } from '../../state'
 import { formatVariance } from '../../core'
 import { CandidatesTable } from './components/CandidatesTable'
 import { CandidateStatusFilter, filterPrioritizationCandidates } from '../../core/calculations/candidate-prioritization'
+import { PageHeading } from '../../shared'
 
 export const CandidateSelectionPage: React.FC = () => {
   const {
@@ -28,29 +29,34 @@ export const CandidateSelectionPage: React.FC = () => {
   const totalGap = snapshotComparison.totalGap ?? candidateGap
 
   return (
-    <div className="space-y-4">
-      {/* Header Panel */}
-      <div className="bg-white px-4 py-3 rounded border border-slate-300/80 shadow-2xs flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h1 className="text-xs font-bold font-mono text-slate-800 uppercase tracking-tight">
-            Candidate Prioritization
-          </h1>
-          <p className="text-[11px] text-slate-500 font-sans mt-0.5">
-            Cost-change findings derived from Comparison, ranked by Cost Gap with Controllability assessment
-          </p>
-        </div>
-        <div className="text-right font-mono flex items-center gap-2">
-          <span className="text-[11px] text-slate-500">Net Comparison Gap (Δ):</span>
-          <span className={`text-xs font-bold px-2 py-0.5 rounded font-mono tabular-nums bg-slate-100 border border-slate-200 ${
-            totalGap === null ? 'text-slate-400' : totalGap > 0 ? 'text-rose-700' : totalGap < 0 ? 'text-emerald-700' : 'text-slate-600'
-          }`}>
-            {totalGap === null ? '—' : `${formatVariance(totalGap, 4)} THB/pc`}
+    <div className="space-y-5">
+      <PageHeading
+        title="Candidate Prioritization"
+        description="Comparison findings ranked by cost gap, with a separate controllability assessment."
+        actions={(
+          <dl className="flex items-center gap-3 rounded-md border border-slate-200 bg-white px-3 py-2">
+            <dt className="text-xs font-medium text-slate-600">Net comparison gap</dt>
+            <dd className={`font-mono text-sm font-semibold tabular-nums ${
+              totalGap === null ? 'text-slate-500' : totalGap > 0 ? 'text-rose-700' : totalGap < 0 ? 'text-emerald-700' : 'text-slate-700'
+            }`}>
+              {totalGap === null ? '—' : `${formatVariance(totalGap, 4)} THB/pc`}
+            </dd>
+          </dl>
+        )}
+      />
+
+      <section className="space-y-3 rounded-md border border-slate-200 bg-white px-4 py-3" aria-labelledby="candidate-filter-title">
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <h2 id="candidate-filter-title" className="text-sm font-semibold text-slate-900">Findings</h2>
+            <p className="mt-0.5 text-xs text-slate-600">Filter by comparison status. Candidates remain ranked by cost gap.</p>
+          </div>
+          <span role="status" className="text-xs text-slate-600">
+            Showing <strong className="font-mono tabular-nums text-slate-900">{visibleCandidates.length}</strong> of{' '}
+            <strong className="font-mono tabular-nums text-slate-900">{candidates.length}</strong> candidates
           </span>
         </div>
-
-        {/* Filter Toolbar: Status filtering only per Section 10 */}
-        <div className="w-full border-t border-slate-100 pt-3 flex flex-wrap items-center justify-between gap-2">
-          <div className="flex flex-wrap items-center gap-1 font-mono text-[11px]" role="group" aria-label="Status filter">
+        <div className="flex flex-wrap items-center gap-2 text-sm" role="group" aria-label="Status filter">
             {([
               { filter: 'all' as const, label: 'All', count: candidates.length },
               { filter: 'CHANGED' as const, label: 'Changed', count: changedCount },
@@ -62,7 +68,7 @@ export const CandidateSelectionPage: React.FC = () => {
                 type="button"
                 aria-pressed={statusFilter === option.filter}
                 onClick={() => setStatusFilter(option.filter)}
-                className={`px-2.5 py-1.5 border transition-colors cursor-pointer ${
+                className={`min-h-9 rounded-sm border px-3 py-1.5 font-medium transition-colors cursor-pointer focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700 ${
                   statusFilter === option.filter
                     ? 'bg-slate-900 text-white border-slate-900 font-bold'
                     : 'bg-slate-50 text-slate-700 border-slate-300 hover:bg-slate-100'
@@ -72,12 +78,7 @@ export const CandidateSelectionPage: React.FC = () => {
               </button>
             ))}
           </div>
-
-          <span role="status" className="text-[11px] text-slate-500 font-sans">
-            Showing {visibleCandidates.length} of {candidates.length} candidates (sorted by Gap descending)
-          </span>
-        </div>
-      </div>
+      </section>
 
       {/* Candidates Table */}
       <CandidatesTable

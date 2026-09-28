@@ -9,6 +9,7 @@ import { DatasetSizingModal } from './components/DatasetSizingModal'
 import { WorkCenterRatesTable } from './components/WorkCenterRatesTable'
 import { BOMTable } from './components/BOMTable'
 import { RoutingTable } from './components/RoutingTable'
+import { PageHeading } from '../../shared'
 
 type TableSubTab = 'bom' | 'routing' | 'rates'
 type LayoutMode = 'tabs' | 'stacked'
@@ -86,7 +87,12 @@ export const MasterDataPage: React.FC = () => {
   }, [masterDataSnapshot.warnings, masterDataHandoff.warnings])
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-5">
+      <PageHeading
+        title="Master Data"
+        description="Prepare independent Reference and Current datasets through direct entry or Excel import."
+      />
+
       {/* ─── Unified Workspace Header ─── */}
       <MasterDataWorkspaceHeader
         product={product}
