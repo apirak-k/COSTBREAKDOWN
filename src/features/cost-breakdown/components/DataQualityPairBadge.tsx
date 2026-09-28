@@ -12,7 +12,7 @@ interface DataQualityPairBadgeProps {
 function SideBadge({ role, label }: { role: 'Ref' | 'Current'; label: DataQualityLabel }): React.ReactElement {
   return (
     <span
-      className={`inline-flex items-center px-1.5 py-0.5 rounded border text-[9px] font-mono font-bold whitespace-nowrap ${dataQualityClass(label)}`}
+      className={`inline-flex min-h-7 items-center rounded-sm border px-2 py-1 text-xs font-medium whitespace-nowrap ${dataQualityClass(label)}`}
       title={`${role} data quality: ${label}`}
     >
       {role}: {label}
@@ -30,9 +30,9 @@ export function DataQualityPairBadge({
   const currentQuality = currentQualityOverride ?? getSnapshotDataQuality(current)
 
   return (
-    <div className="flex flex-wrap gap-1 min-w-[120px]" aria-label={`Data quality — Reference: ${referenceQuality ?? 'Not present'}; Current: ${currentQuality ?? 'Not present'}`}>
-      {referenceQuality ? <SideBadge role="Ref" label={referenceQuality} /> : <span className="text-[10px] text-slate-400">Ref: —</span>}
-      {currentQuality ? <SideBadge role="Current" label={currentQuality} /> : <span className="text-[10px] text-slate-400">Current: —</span>}
+    <div className="flex min-w-[140px] flex-wrap gap-1" aria-label={`Data quality — Reference: ${referenceQuality ?? 'Not present'}; Current: ${currentQuality ?? 'Not present'}`}>
+      {referenceQuality ? <SideBadge role="Ref" label={referenceQuality} /> : <span className="text-xs text-slate-600">Ref: —</span>}
+      {currentQuality ? <SideBadge role="Current" label={currentQuality} /> : <span className="text-xs text-slate-600">Current: —</span>}
     </div>
   )
 }

@@ -95,7 +95,8 @@ export const ExcelUploadDropzone: React.FC<ExcelUploadDropzoneProps> = ({
             fileInputRef.current?.click()
           }
         }}
-        className={`border-2 border-dashed rounded-none p-6 text-center transition-colors ${
+        aria-label="Select or drop an Excel workbook to import"
+        className={`rounded-md border-2 border-dashed p-8 text-center transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700 ${
           isDragging
             ? 'border-slate-900 bg-slate-200 cursor-pointer'
             : 'border-slate-300 hover:border-slate-500 bg-slate-50/50 hover:bg-slate-100/60 cursor-pointer'
@@ -114,7 +115,7 @@ export const ExcelUploadDropzone: React.FC<ExcelUploadDropzoneProps> = ({
         />
 
         <div className="flex flex-col items-center justify-center gap-2">
-          <div className="w-9 h-9 rounded-none bg-white border border-slate-300 shadow-2xs flex items-center justify-center text-slate-700">
+          <div className="flex h-11 w-11 items-center justify-center rounded-sm border border-slate-300 bg-white text-slate-700">
             {isLoading ? (
               <Loader2 className="w-4 h-4 animate-spin text-slate-600" />
             ) : (
@@ -122,12 +123,12 @@ export const ExcelUploadDropzone: React.FC<ExcelUploadDropzoneProps> = ({
             )}
           </div>
           <div>
-            <p className="text-xs font-mono font-bold text-slate-800">
+            <p className="text-sm font-semibold text-slate-900">
               {isLoading
                 ? 'Processing Excel Workbook Data...'
                 : 'Click to upload or drag & drop Excel workbook (.xlsx)'}
             </p>
-            <p className="text-[10px] text-slate-500 font-sans mt-0.5">
+            <p className="mt-1 text-xs leading-5 text-slate-600">
               Importing into <span className="font-bold text-slate-700">{importRole === 'reference' ? 'Reference' : 'Current'}</span>. The workbook supplies the Product information for this dataset.
             </p>
           </div>
@@ -137,7 +138,8 @@ export const ExcelUploadDropzone: React.FC<ExcelUploadDropzoneProps> = ({
       {/* Status Alert Banner */}
       {statusMessage && (
         <div
-          className={`p-3 rounded-none border flex items-start justify-between gap-2 text-xs font-mono ${
+          role="status"
+          className={`flex items-start justify-between gap-2 rounded-sm border p-3 text-sm ${
             statusMessage.type === 'success'
               ? 'bg-emerald-50 text-emerald-900 border-emerald-300'
               : statusMessage.type === 'warning'
@@ -154,7 +156,7 @@ export const ExcelUploadDropzone: React.FC<ExcelUploadDropzoneProps> = ({
             <div>
               <p className="font-bold">{statusMessage.text}</p>
               {statusMessage.details && statusMessage.details.length > 0 && (
-                <ul className="list-disc list-inside mt-1 space-y-0.5 text-[11px] text-slate-700 font-sans">
+                <ul className="mt-1 list-disc list-inside space-y-1 text-xs text-slate-700">
                   {statusMessage.details.map((item, idx) => (
                     <li key={idx}>{item}</li>
                   ))}
@@ -163,8 +165,10 @@ export const ExcelUploadDropzone: React.FC<ExcelUploadDropzoneProps> = ({
             </div>
           </div>
           <button
+            type="button"
             onClick={() => setStatusMessage(null)}
-            className="text-slate-400 hover:text-slate-600 text-xs font-bold px-1"
+            aria-label="Dismiss import status"
+            className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-sm text-slate-600 hover:bg-white/70 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700"
           >
             ✕
           </button>

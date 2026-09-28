@@ -36,7 +36,7 @@ export function DatasetQualityBadge({ evidences, sourceRef }: { evidences: Field
 
   return (
     <span
-      className={`inline-flex items-center px-1.5 py-0.5 rounded border text-[9px] font-mono font-bold uppercase ${className}`}
+      className={`inline-flex min-h-7 items-center rounded-sm border px-2 py-1 text-xs font-medium ${className}`}
       title={`${label}${sourceRef ? ` · Source: ${sourceRef}` : ''}`}
     >
       {label}
