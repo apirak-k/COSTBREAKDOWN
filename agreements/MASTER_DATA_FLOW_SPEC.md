@@ -54,12 +54,15 @@ MASTER DATA
 
 The user can switch between them at any time.
 
-Each side contains one **Working Dataset**.
+Each side contains one **Working Dataset**. Reference and Current are complete,
+independent datasets; this includes each side's Product data and metadata, not
+only its Work Center, BOM, and Routing rows.
 
 At the core, a Working Dataset contains the existing master-data sections used by the system:
 
 ```text
 Working Dataset
+├── META
 ├── Product
 ├── Work Center
 ├── BOM
@@ -151,7 +154,7 @@ The imported Excel is therefore a starting data source, not a read-only file.
 
 ## 6. Important Import Rule
 
-Importing Excel should **not automatically merge** imported data with manually entered data that already exists in the same Working Dataset.
+Importing Excel should **not automatically merge** imported data with manually entered data that already exists in the same Working Dataset. The workbook is a neutral, single-dataset file: it contains no Reference/Current role, and the user chooses the destination side in the application. Import replaces that selected side only; the other side is untouched.
 
 This avoids ambiguous or mixed data.
 
@@ -172,6 +175,29 @@ Previous manual data is no longer used
 The UI may show a confirmation before replacing existing working data to prevent accidental loss.
 
 After the import finishes, the user may freely modify the imported data again.
+
+### 5.2 Neutral Dataset Workbook
+
+The default import, template, and export format is one neutral dataset with these
+worksheets and user-facing columns, in this order:
+
+| Worksheet | Columns |
+| --- | --- |
+| `META` | `Remark` |
+| `PRODUCT` | `Product Code`, `Product Name`, `UOM`, `Note` |
+| `WORK_CENTER` | `Work Center Code`, `Work Center Name`, `Labor Rate`, `Burden Rate`, `Note` |
+| `BOM` | `Item Code`, `Description`, `Consumption`, `Unit`, `Price`, `Loss`, `Note` |
+| `ROUTING` | `Operation Code`, `Sequence`, `Process Name`, `Work Center Code`, `Manning`, `Capacity`, `Yield`, `Note` |
+
+The workbook must not require or expose dataset role, Base/Active, Customer or
+Application, Effective Date, Snapshot ID, Source Ref, Confidence, or user-facing
+record ID columns. Internal IDs or data-quality/provenance metadata may remain
+internal where the application needs them.
+
+`Note` is editable record-level annotation and `META.Remark` is dataset-level
+annotation. Both must survive workbook import/export and web editing, but neither
+is a calculation input or record identity. A note-only change does not make a
+business record `CHANGED`.
 
 ---
 
@@ -208,6 +234,14 @@ Each working dataset (`Reference` and `Current`) independently stores its own st
 - Users can set or adjust sizing on either side at any time.
 - Decreasing the configured row count removes surplus unpopulated blank slots only; populated records are never implicitly deleted.
 - Download Template uses the selected dataset's configured row counts to generate blank input rows for the user to fill in.
+- Each configured starting row count has a minimum of 1. This is a starting-row minimum, not a maximum-record limit.
+
+### 7.3 Clear Selected Dataset
+
+`Clear Dataset` clears only the currently selected side, including its META
+remark, Product, Work Center, BOM, Routing, and DatasetSizing values. It must not
+preserve shared Product data or change any value on the other side. The action
+may ask for confirmation before discarding the selected side's data.
 
 ---
 
@@ -315,7 +349,7 @@ Reference Working Dataset → Export Excel
 Current Working Dataset   → Export Excel
 ```
 
-The exported file must represent the **latest current state** of the dataset, including all edits made on the web page.
+The exported file must represent the **latest current state** of the dataset, including all edits made on the web page, and use the neutral dataset workbook schema above.
 
 Example:
 

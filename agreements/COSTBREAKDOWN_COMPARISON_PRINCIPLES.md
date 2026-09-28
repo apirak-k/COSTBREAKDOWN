@@ -86,10 +86,31 @@ Work Center
 → Work Center Code
 
 Routing
-→ Stable Operation ID / Process Code / other agreed business key
+→ Operation Code only
 ```
 
 Sequence number is an attribute that may change. It must not be treated as the only identity of a routing operation.
+
+### 3.1 Routing Identity Is Operation Code Only
+
+For Routing, match records only by `Operation Code`. Do not fall back to
+`Process Code`, process name, sequence, row position, or a composite key. A
+missing or duplicate Operation Code is a validation warning; do not guess a
+match. `Sequence` is a comparable attribute, so a sequence change on the same
+Operation Code is `CHANGED`.
+
+For example, if Reference has Operation Code `10` and Current has Operation
+Code `20`, those are different identities:
+
+```text
+Operation Code 10 → REMOVED
+Operation Code 20 → ADDED
+```
+
+Do not infer that one operation replaced the other. `REPLACE` is not a
+comparison status; replacement-like cases are represented by the applicable
+`REMOVED` and `ADDED` records unless a future explicit business rule defines
+another relationship.
 
 ---
 
@@ -152,6 +173,10 @@ Current:   no Old Packing operation
 ```
 
 These four statuses must be used consistently across BOM, Routing, Work Center, and other comparable master-data sections.
+
+There is no additional `REPLACE` status. Notes/remarks are annotations rather
+than business inputs, so a note-only difference does not make a record
+`CHANGED`.
 
 ---
 
@@ -583,3 +608,5 @@ Allow status filtering and drill-down
 12. Every detailed cost effect should reconcile back to the overall cost gap.
 13. The comparison layer explains the gap; later RCA/improvement logic comes after this layer.
 14. This specification defines behavior, not UI layout.
+15. Routing identity is `Operation Code` only; ambiguous or missing keys produce a validation warning instead of a guessed match.
+16. A different Routing Operation Code is represented as one `REMOVED` and one `ADDED`, never an inferred `REPLACE` status.
