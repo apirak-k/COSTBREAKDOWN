@@ -1,38 +1,39 @@
-# Current Handoff — Post-push Agreement Follow-up (2026-09-28)
+# Current Handoff — Neutral Dataset Agreement Follow-up (2026-09-28)
 
-> This follow-up supersedes the earlier “no confirmed Agreement mismatch remains” conclusion below. A second review against the four current Agreements and the user-provided ChatGPT review found additional gaps. Earlier entries remain as history.
+> This is the verified implementation checkpoint before final branch synchronization. Earlier handoffs remain below as history. The user asked for local checkpoints during work and one push at final closeout.
 
-## Repository and sync state
+## Repository and checkpoint
 
-- Repository: `COSTBREAKDOWN`; active worktree: `C:\Users\Boom\.codex\worktrees\rca-agreement\COSTBREAKDOWN`.
-- Branch: `codex/rca-task-14`; entry HEAD was `5f40df5`, matching `origin/codex/rca-task-14`.
-- Implementation commit `73054e9` (`fix: align data and comparison flows with agreements`) was pushed to `origin/codex/rca-task-14`; the remote ref matched the full commit SHA at closeout. This handoff update records that result in a documentation-only follow-up.
-- The original checkout at `E:\COSTBREAKDOWN` was not edited.
+- Repository: `Cost Breakdown`.
+- Active worktree: `C:\Users\ai-project\.codex\worktrees\rca-neutral-dataset-followup\Cost Breakdown`.
+- Work branch: `codex/rca-task-14-neutral-dataset`, based on `5ddaf4a` (`codex/rca-task-14`).
+- Local checkpoints: `99077d5` locks the neutral workbook/Routing identity agreement; `ccc8bf5` uses Operation Code as Routing identity; `41e47a8` implements the neutral dataset follow-up.
+- The original checkout `C:\Users\ai-project\Desktop\SC0434\Cost Breakdown` remains at `5ddaf4a`; its tracked worktree is unchanged. The user's untracked `AGENTS.md` is preserved.
+- No workbook under `Sources` was opened, read, or staged. Verification used synthetic/in-memory workbooks only.
+- At the time of this checkpoint, final fast-forward integration to `codex/rca-task-14` and the one authorized push are still pending.
 
-## Follow-up findings and changes
+## Agreed scope implemented
 
-- Canonical Excel import discarded `Process Code` and skipped Routing rows whose ID and Operation Code were blank. Import now retains Process Code, uses it as the internal row ID only when both stronger identifiers are absent, and keeps it separate from Operation Code. No composite business key was introduced.
-- Snapshot export omitted imported additional fields. Scalar extra fields now round-trip through the matching Product, Work Center, BOM, Routing, or META area. Non-scalar values fail clearly instead of disappearing silently.
-- The template exposed `Status`, `Comparison Role`, `Notes`, and `ADDITIONAL_DATA` even though the import path did not support them. The template no longer advertises those fields, and export omits lifecycle metadata that the parser treats as system fields.
-- The header-level Product comparison and selected-product import check were removed. Reference and Current Product Codes remain compared with a non-blocking warning.
-- Dataset preparation state was conflated with calculation readiness. The state is now named `datasetsPrepared`; Cost Breakdown navigation stays available, empty values remain visible as unavailable, Candidate totals use actual snapshot results, and empty-page content is not gated by that flag.
-- The Cost Breakdown footer now reflects snapshot Reference/Current/Gap values. Its legacy KPI and variance-tree labels now say Reference/Current rather than Base/Active; formulas were not changed.
-- Removed the unused `DatasetRoleSelector` and `ExcelImportPanel` after confirming there are no active imports. Removed the uploader's unused disabled mode, which only served the retired Draft/Active flow.
+- Template and export use exactly five sheets: `META`, `PRODUCT`, `WORK_CENTER`, `BOM`, and `ROUTING`. The agreed columns are neutral business fields plus annotations: `Remark` in META and `Note` on Product, Work Center, BOM, and Routing. IDs, confidence, source references, and lifecycle/role fields are not in the neutral workbook schema.
+- Import maps `Remark`/`Note` into their agreed fields. Clear Dataset clears only the selected side, including its sizing/readiness state, and leaves the opposite side intact. Configured sizing is at least one row and reducing it does not delete populated records.
+- Routing comparison uses Operation Code only. Changed codes remain separate `REMOVED` and `ADDED` rows; missing or duplicate codes are not guessed from Process Name and remain unresolved comparison findings.
+- Annotation-only changes do not create business comparison changes. Independent Current snapshots remain canonical instead of being repopulated from a fallback-filled compatibility projection.
+- No additional feature scope was introduced.
 
-## Verification in this follow-up
+## Verification and evidence limits
 
-- `npm run build`: **passed**; TypeScript succeeded and Vite transformed 1,689 modules. Existing bundle-size advisory remains (1,714.32 kB JavaScript, 498.88 kB gzip).
-- `npm run excel`: **passed**; generated workbook audit reported zero errors. Its two untracked output workbooks were removed and verified absent.
-- Focused verifiers passed: `verify_master_data_handoff`, `verify_snapshot_import`, `verify_import_mismatch_export`, `verify_dataset_sizing_and_clone`, `verify_comparison_reconciliation`, `verify_snapshot_full_flow`, `verify_candidate_prioritization`, and `verify_snapshot_comparison_view`.
-- The package has no `tsx` runner and Node’s direct type stripping cannot resolve the existing extensionless/directory imports in these scripts. The affected scripts were bundled with the already-installed esbuild and executed with Node; no dependency was added.
-- An isolated browser session rendered the empty Master Data workspace with its empty-table messages, all four navigation buttons, and an enabled Cost Breakdown action. No data was entered. **[Unverified]** Direct click-through of Cost Breakdown, Candidate Selection, and RCA & Simulation in this follow-up; source navigation buttons are not disabled by data readiness. A prior no-data browser smoke is recorded below.
-- Human acceptance remains pending. The independent Routing business-key choice when ID, Operation Code, and Process Code conflict or duplicate remains a business decision; do not invent composite-key behavior.
+- `npm run build`: passed (TypeScript and Vite; 1,689 modules). Existing large-chunk advisory remains: 1,708.87 kB JavaScript / 497.35 kB gzip.
+- All 13 focused verifiers passed: `verify_master_data_clear_dataset`, `verify_neutral_dataset_workbook`, `verify_snapshot_comparison_dynamic_fields`, `verify_dataset_sizing_preservation`, `verify_snapshot_import`, `verify_snapshot_routing_identity`, `verify_dataset_sizing_and_clone`, `verify_snapshot_projection`, `verify_master_data_handoff`, `verify_snapshot_full_flow`, `verify_comparison_reconciliation`, `verify_snapshot_comparison_view`, and `verify_import_mismatch_export`.
+- `git diff --check` passed. Focused TypeScript scripts were bundled with the already-installed esbuild and run as ESM; no dependency was added.
+- Runtime UI smoke showed the neutral table headers, selected-dataset tooltips, and associated labels/inputs in sizing dialogs. No company workbook or user data was loaded. Browser-console status is **[Unverified]**.
+- A prior `npm audit --audit-level=high` passed; two Moderate findings remain through ExcelJS/uuid. The suggested forced remediation downgrades ExcelJS and was not applied.
+- `npm run excel` was not used for this change because its legacy script emits hardcoded sample workbooks; the focused workbook verifier exercises the modified template/export paths directly.
+- Human acceptance remains pending. Existing keyboard-only row-selection/accordion accessibility concerns were not part of this scope.
 
-## Closeout and resume point
+## Open decision and resume point
 
-- The implementation has been pushed. Human acceptance remains pending; the automated checks are not acceptance.
-- The implementation checkpoint is `73054e9`. This documentation-only follow-up records the verified push and is part of the same branch history.
-- The no-data Master Data screen was opened in an isolated browser. Direct click-through of Cost Breakdown, Candidate Selection, and RCA & Simulation remains **[Unverified]** in this follow-up; all four navigation buttons were present and enabled in the rendered empty workspace.
+- The parser still accepts arbitrary extra workbook columns into internal `additionalFields`, while the neutral exporter emits only the agreed schema. Agreement does not define whether unknown columns should be rejected, retained through export, or ignored; do not claim arbitrary-column round-trip support until this is decided.
+- Next: fast-forward the verified work branch into `codex/rca-task-14`, recheck the original checkout (preserving `AGENTS.md`), then push once at final closeout. Human review of the implemented workflow remains pending.
 
 ---
 
