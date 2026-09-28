@@ -146,7 +146,7 @@ export const RCASimulationPage: React.FC = () => {
       />
 
       {candidates.length === 0 && (
-        <div role="status" className="rounded-lg border border-amber-200 bg-amber-50/50 p-5 text-sm text-amber-900">
+        <div role="status" className="rounded-md border border-amber-200 bg-amber-50 p-5 text-sm text-amber-950">
           <h2 className="font-semibold text-sm">No candidates available</h2>
           <p className="mt-1 text-sm leading-6">
             Candidate Prioritization has no findings to select. RCA notes and scenarios become available when the pool contains a candidate.
@@ -155,7 +155,7 @@ export const RCASimulationPage: React.FC = () => {
       )}
 
       {candidates.length > 0 && !selectedCandidate && (
-        <p role="status" className="rounded-lg border border-slate-200 bg-white p-4 text-sm text-slate-600">
+        <p role="status" className="rounded-md border border-slate-200 bg-white p-4 text-sm text-slate-700">
           Select a candidate to view its context and record optional Root Cause and Action notes.
         </p>
       )}
@@ -172,7 +172,7 @@ export const RCASimulationPage: React.FC = () => {
           />
 
           {inputDefinitions.length === 0 && (
-            <div role="status" className="rounded-lg border border-amber-200 bg-amber-50/50 p-4 text-sm text-amber-900">
+            <div role="status" className="rounded-md border border-amber-200 bg-amber-50 p-4 text-sm text-amber-950">
               <h3 className="font-semibold">No measurable Current inputs are available for this candidate</h3>
               <p className="mt-1 text-xs">
                 The scenarios remain based on Current. Structural changes such as adding, removing, splitting, or merging records are not simulated.
@@ -192,7 +192,7 @@ export const RCASimulationPage: React.FC = () => {
             onUpdateEconomics={handleUpdateEconomics}
           />
 
-          <section aria-labelledby="trial-handoff-heading" className="rounded-lg border border-slate-200 bg-white p-4">
+          <section aria-labelledby="trial-handoff-heading" className="rounded-md border border-slate-200 bg-white p-4">
             <h2 id="trial-handoff-heading" className="text-sm font-semibold text-slate-900">Trial handoff</h2>
             <p className="mt-1 text-xs text-slate-600">Choose which scenario should proceed to the separate Trial stage.</p>
             <label htmlFor="trial-handoff-scenario" className="mt-3 block text-xs font-medium text-slate-700">
@@ -202,7 +202,7 @@ export const RCASimulationPage: React.FC = () => {
               id="trial-handoff-scenario"
               value={trialHandoffLetter ?? ''}
               onChange={event => setTrialHandoffLetter((event.target.value || null) as 'A' | 'B' | 'C' | null)}
-              className="mt-1 w-full max-w-sm rounded border border-slate-300 bg-white px-2.5 py-2 text-sm text-slate-900 focus:border-slate-600 focus:outline-none focus:ring-2 focus:ring-slate-300"
+              className="mt-1 min-h-10 w-full max-w-sm rounded-sm border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 focus:border-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-200"
             >
               <option value="">Select a scenario</option>
               {scenarioDrafts.map(scenario => (

@@ -21,7 +21,7 @@ export const CandidateRcaForm: React.FC<CandidateRcaFormProps> = ({
   }, [candidateKey, record?.rootCause, record?.action])
 
   return (
-    <section className="rounded-lg border border-slate-200 bg-white p-4 shadow-xs">
+    <section className="rounded-md border border-slate-200 bg-white p-4">
       <div className="mb-3">
         <h3 className="text-sm font-semibold text-slate-900">Root Cause and Action</h3>
         <p className="mt-1 text-xs text-slate-500">
@@ -39,7 +39,7 @@ export const CandidateRcaForm: React.FC<CandidateRcaFormProps> = ({
             value={rootCause}
             onChange={event => setRootCause(event.target.value)}
             rows={3}
-            className="w-full rounded border border-slate-300 px-3 py-2 text-sm text-slate-900 focus:border-slate-500 focus:outline-none focus:ring-2 focus:ring-slate-300"
+            className="min-h-24 w-full rounded-sm border border-slate-300 px-3 py-2 text-sm text-slate-900 focus:border-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-200"
           />
         </div>
 
@@ -52,7 +52,7 @@ export const CandidateRcaForm: React.FC<CandidateRcaFormProps> = ({
             value={action}
             onChange={event => setAction(event.target.value)}
             rows={3}
-            className="w-full rounded border border-slate-300 px-3 py-2 text-sm text-slate-900 focus:border-slate-500 focus:outline-none focus:ring-2 focus:ring-slate-300"
+            className="min-h-24 w-full rounded-sm border border-slate-300 px-3 py-2 text-sm text-slate-900 focus:border-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-200"
           />
         </div>
       </div>
@@ -61,7 +61,7 @@ export const CandidateRcaForm: React.FC<CandidateRcaFormProps> = ({
         <button
           type="button"
           onClick={() => onSave({ rootCause, action })}
-          className="rounded bg-slate-900 px-3 py-2 text-xs font-semibold text-white hover:bg-slate-700 focus:outline-none focus:ring-2 focus:ring-slate-400 focus:ring-offset-2"
+          className="min-h-10 rounded-sm bg-slate-900 px-4 text-sm font-semibold text-white transition-colors hover:bg-slate-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700"
         >
           Save notes
         </button>
