@@ -102,6 +102,7 @@ export const emptyProductMaster: ProductMaster = {
   productCode: '',
   productDescription: '',
   uom: 'PC',
+  note: '',
   customer: '',
   effectiveDate: ''
 }

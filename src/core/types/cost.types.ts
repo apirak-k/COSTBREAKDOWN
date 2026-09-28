@@ -11,6 +11,7 @@ export interface WorkCenterRate {
   effectiveDate: string
   sourceRef: string
   confidence?: DataConfidence
+  note?: string
 }
 
 export interface BOMItem {
@@ -27,12 +28,15 @@ export interface BOMItem {
   activeLoss: number // L1 (e.g. 0.30 = 30%)
   sourceRef: string
   confidence?: DataConfidence
+  note?: string
 }
 
 export interface RoutingStep {
   id: string
   /** Internal marker preserving untouched sizing placeholders across session projection. */
   isGeneratedSizingPlaceholder?: boolean
+  /** Stable Routing business identity retained by the snapshot compatibility projection. */
+  operationCode?: string
   opSeq: number
   description: string
   wc: string
@@ -43,6 +47,7 @@ export interface RoutingStep {
   activeYield: number // Y1 (e.g. 0.90 = 90%)
   sourceRef: string
   confidence?: DataConfidence
+  note?: string
 }
 
 export interface CostElementBreakdown {

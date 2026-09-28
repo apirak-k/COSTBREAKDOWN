@@ -25,6 +25,33 @@ function key(value: string | undefined, fallback: string): string {
   return value?.trim().toLowerCase() || fallback
 }
 
+function routingProjectionMap(
+  rows: SnapshotRoutingStep[],
+  role: 'reference' | 'current'
+): Map<string, SnapshotRoutingStep> {
+  const counts = new Map<string, number>()
+  rows.forEach(step => {
+    const operationCode = step.operationCode?.trim().toLowerCase()
+    if (operationCode) counts.set(operationCode, (counts.get(operationCode) ?? 0) + 1)
+  })
+
+  return new Map(rows.map((step, index) => {
+    const operationCode = step.operationCode?.trim().toLowerCase()
+    const rowIdentity = `${index}:${step.id.trim().toLowerCase()}`
+    const projectionKey = !operationCode
+      ? `missing:${role}:${rowIdentity}`
+      : counts.get(operationCode) === 1
+        ? `operation:${operationCode}`
+        : `ambiguous:${role}:${operationCode}:${rowIdentity}`
+    return [projectionKey, step] as const
+  }))
+}
+
+function routingMembershipKey(step: { operationCode?: string; id: string }): string {
+  const operationCode = step.operationCode?.trim().toLowerCase()
+  return operationCode ? `operation:${operationCode}` : `id:${step.id.trim().toLowerCase()}`
+}
+
 function uniqueProjectionId(preferred: string | undefined, fallback: string, usedIds: Set<string>): string {
   const base = preferred?.trim() || fallback
   let candidate = base
@@ -57,6 +84,7 @@ function mergedProduct(reference: ProductMaster, current: ProductMaster): Produc
     productCode: current.productCode || reference.productCode,
     productDescription: current.productDescription || reference.productDescription,
     uom: current.uom || reference.uom,
+    note: current.note ?? '',
     customer: current.customer || reference.customer,
     effectiveDate: current.effectiveDate || reference.effectiveDate
   }
@@ -79,6 +107,7 @@ function projectBOM(reference: SnapshotBOMItem | undefined, current: SnapshotBOM
     activePrice: current?.price ?? 0,
     baseLoss: reference?.loss ?? 0,
     activeLoss: current?.loss ?? 0,
+    note: current ? (current.note ?? '') : (reference?.note ?? ''),
     sourceRef: current?.sourceRef || reference?.sourceRef || sourceRef,
     confidence: combineConfidence(reference?.confidence, current?.confidence)
   }
@@ -88,6 +117,7 @@ function projectRouting(reference: SnapshotRoutingStep | undefined, current: Sna
   return {
     id,
     isGeneratedSizingPlaceholder: current?.isGeneratedSizingPlaceholder ?? reference?.isGeneratedSizingPlaceholder,
+    operationCode: current?.operationCode ?? reference?.operationCode,
     opSeq: current?.sequence ?? reference?.sequence ?? 0,
     description: current?.processName || reference?.processName || '',
     wc: current?.workCenterId || reference?.workCenterId || '',
@@ -96,6 +126,7 @@ function projectRouting(reference: SnapshotRoutingStep | undefined, current: Sna
     activeCap: current?.capacity ?? 0,
     baseYield: reference?.yield ?? 0,
     activeYield: current?.yield ?? 0,
+    note: current ? (current.note ?? '') : (reference?.note ?? ''),
     sourceRef: current?.sourceRef || reference?.sourceRef || sourceRef,
     confidence: combineConfidence(reference?.confidence, current?.confidence)
   }
@@ -110,6 +141,7 @@ function projectRate(rate: SnapshotWorkCenterRate, index: number): WorkCenterRat
     laborRate: rate.laborRate ?? 0,
     burdenRate: rate.burdenRate ?? 0,
     effectiveDate: rate.effectiveDate,
+    note: rate.note,
     sourceRef: rate.sourceRef || '',
     confidence: combineConfidence(rate.confidence, rate.confidence)
   }
@@ -121,8 +153,8 @@ export function projectSnapshotPairToLegacySession(pair: SnapshotPair): LegacySe
   const currentBOM = new Map(pair.current.bom.map(item => [key(item.itemCode, item.id), item]))
   const bomKeys = new Set([...referenceBOM.keys(), ...currentBOM.keys()])
 
-  const referenceRouting = new Map(pair.reference.routing.map(item => [key(item.operationCode || item.processName, item.id), item]))
-  const currentRouting = new Map(pair.current.routing.map(item => [key(item.operationCode || item.processName, item.id), item]))
+  const referenceRouting = routingProjectionMap(pair.reference.routing, 'reference')
+  const currentRouting = routingProjectionMap(pair.current.routing, 'current')
   const routingKeys = new Set([...referenceRouting.keys(), ...currentRouting.keys()])
   const usedBOMIds = new Set<string>()
   const usedRoutingIds = new Set<string>()
@@ -170,13 +202,15 @@ function currentRowsAfterLegacyProjection<T>(
 }
 
 /**
- * Rebuilds the Current snapshot after legacy-screen edits while preserving
- * independent snapshot membership (including removed and newly added rows).
+ * Rebuilds Current only for legacy-derived sessions. An independent pair is
+ * canonical and must never be regenerated from its fallback-filled UI projection.
  */
 export function updateCurrentSnapshotFromLegacySession(
   session: ProductSession,
   pair: SnapshotPair
 ): CostSnapshot {
+  if (session.snapshotPairMode === 'independent') return pair.current
+
   const derivedCurrent = sessionToSnapshotPair(session).current
 
   return {
@@ -186,6 +220,10 @@ export function updateCurrentSnapshotFromLegacySession(
     status: pair.current.status,
     effectiveDate: derivedCurrent.effectiveDate || pair.current.effectiveDate,
     sourceRef: pair.current.sourceRef,
+    remark: pair.current.remark,
+    sizing: pair.current.sizing,
+    additionalFields: pair.current.additionalFields,
+    warnings: pair.current.warnings,
     bom: currentRowsAfterLegacyProjection(
       derivedCurrent.bom,
       pair.reference.bom,
@@ -196,7 +234,7 @@ export function updateCurrentSnapshotFromLegacySession(
       derivedCurrent.routing,
       pair.reference.routing,
       pair.current.routing,
-      step => key(step.operationCode || step.processName, step.id)
+      routingMembershipKey
     )
   }
 }

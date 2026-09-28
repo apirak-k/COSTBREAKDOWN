@@ -1,7 +1,6 @@
 import React, { useMemo, useRef, useState } from 'react'
 import { Plus, Search, Trash2, CheckSquare } from 'lucide-react'
 import { SnapshotBOMItem } from '../../../core'
-import { DatasetQualityBadge } from './DatasetQualityBadge'
 import { useDragSelect } from '../hooks/useDragSelect'
 import { useTableKeyboardNav } from '../hooks/useTableKeyboardNav'
 
@@ -26,7 +25,6 @@ export const BOMTable: React.FC<BOMTableProps> = ({
 }) => {
   const tableRef = useRef<HTMLTableElement | null>(null)
   const [searchTerm, setSearchTerm] = useState('')
-  const [bulkSource, setBulkSource] = useState('')
 
   const filteredBOM = useMemo(() => bom.filter(item =>
     `${item.itemCode} ${item.description}`.toLowerCase().includes(searchTerm.toLowerCase())
@@ -48,13 +46,6 @@ export const BOMTable: React.FC<BOMTableProps> = ({
     tableRef,
     isEditMode
   })
-
-  const applyBulkSource = () => {
-    if (!bulkSource.trim()) return
-    selectedIds.forEach(id => onUpdateBOMItem(id, { sourceRef: bulkSource.trim() }))
-    clearSelection()
-    setBulkSource('')
-  }
 
   const handleDeleteSelected = () => {
     selectedIds.forEach(id => onDeleteBOMItem(id))
@@ -96,29 +87,6 @@ export const BOMTable: React.FC<BOMTableProps> = ({
             <CheckSquare className="w-3.5 h-3.5" />
             {selectedIds.size} row{selectedIds.size > 1 ? 's' : ''} selected
           </span>
-          <span className="text-slate-500">|</span>
-
-          {/* Bulk Source Reference */}
-          <div className="flex items-center gap-1.5">
-            <span className="text-slate-300">Source:</span>
-            <input
-              value={bulkSource}
-              onChange={event => setBulkSource(event.target.value)}
-              placeholder="e.g. Cost declare row..."
-              className="px-2 py-0.5 bg-slate-800 text-white border border-slate-600 rounded text-[11px] placeholder:text-slate-400 focus:outline-none focus:border-slate-400 w-44"
-            />
-            <button
-              type="button"
-              disabled={!bulkSource.trim()}
-              onClick={applyBulkSource}
-              className="px-2.5 py-0.5 bg-white text-slate-900 font-bold rounded hover:bg-slate-200 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer transition-colors"
-            >
-              Apply Source
-            </button>
-          </div>
-
-          <span className="text-slate-500">|</span>
-
           <button
             type="button"
             onClick={handleDeleteSelected}
@@ -158,8 +126,7 @@ export const BOMTable: React.FC<BOMTableProps> = ({
               <th className="py-1.5 px-2">Unit</th>
               <th className="py-1.5 px-2 text-right">Price</th>
               <th className="py-1.5 px-2 text-right">Loss</th>
-              <th className="py-1.5 px-2">Source Reference</th>
-              <th className="py-1.5 px-2">Quality</th>
+              <th className="py-1.5 px-2">Note</th>
               {isEditMode && <th className="py-1.5 px-1 text-center">Actions</th>}
             </tr>
           </thead>
@@ -272,20 +239,14 @@ export const BOMTable: React.FC<BOMTableProps> = ({
                   <td className="py-1 px-2 font-sans text-slate-600">
                     {isEditMode ? (
                       <input
-                        value={item.sourceRef || ''}
-                        onChange={event => onUpdateBOMItem(item.id, { sourceRef: event.target.value })}
-                        placeholder="Source ref"
-                        className="w-full min-w-[120px] px-1 py-0.5 border border-transparent focus:border-slate-300 focus:bg-white bg-transparent"
+                        value={item.note || ''}
+                        onChange={event => onUpdateBOMItem(item.id, { note: event.target.value })}
+                        placeholder="Note"
+                        className="w-full min-w-[160px] px-1 py-0.5 border border-transparent focus:border-slate-300 focus:bg-white bg-transparent"
                       />
                     ) : (
-                      item.sourceRef || '—'
+                      item.note || '—'
                     )}
-                  </td>
-                  <td className="py-1 px-2">
-                    <DatasetQualityBadge
-                      evidences={[item.confidence.consumption, item.confidence.price, item.confidence.loss]}
-                      sourceRef={item.sourceRef}
-                    />
                   </td>
                   {isEditMode && (
                     <td className="py-1 px-1 text-center">
@@ -304,7 +265,7 @@ export const BOMTable: React.FC<BOMTableProps> = ({
             })}
             {filteredBOM.length === 0 && (
               <tr>
-                <td colSpan={isEditMode ? 10 : 8} className="py-6 text-center text-slate-500 font-sans">
+                <td colSpan={isEditMode ? 9 : 7} className="py-6 text-center text-slate-500 font-sans">
                   <div className="flex flex-col items-center justify-center gap-2">
                     <p className="text-xs text-slate-500 italic">
                       {bom.length === 0 ? 'No BOM items in this dataset yet.' : 'No rows match your filter.'}

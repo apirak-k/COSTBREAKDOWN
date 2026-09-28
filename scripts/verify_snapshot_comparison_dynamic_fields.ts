@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict'
 import { compareSnapshots } from '../src/core/calculations/snapshot-comparison.ts'
+import { getCanonicalComparisonStatus } from '../src/core/calculations/comparison-status.ts'
 import type {
   CostSnapshot,
   SnapshotBOMItem,
@@ -107,11 +108,12 @@ const snapshot = (
   role: 'reference' | 'current',
   bom: SnapshotBOMItem[],
   routing: SnapshotRoutingStep[],
-  rates: SnapshotWorkCenterRate[]
+  rates: SnapshotWorkCenterRate[],
+  snapshotProduct = product
 ): CostSnapshot => ({
   id,
-  product,
-  effectiveDate: product.effectiveDate,
+  product: snapshotProduct,
+  effectiveDate: snapshotProduct.effectiveDate,
   sourceRef: id,
   comparisonRole: role,
   status: 'active',
@@ -164,5 +166,35 @@ assert.equal(workCenterFinding.changeFlags.changedRate, false, 'custom fields ar
 
 assert.equal(comparison.totalGap, 0, 'custom and provenance changes do not change calculated cost')
 assert.equal(comparison.referenceCost.total, comparison.currentCost.total)
+
+const noteOnlyReference = { ...plainReferenceBOM, id: 'bom-note-only', note: 'Reference note', additionalFields: { Note: 'legacy Reference note' } }
+const noteOnlyCurrent = { ...plainReferenceBOM, id: 'bom-note-only-current', note: 'Current note', additionalFields: { Note: 'legacy Current note' } }
+const noteOnlyComparison = compareSnapshots(
+  snapshot('note-reference', 'reference', [noteOnlyReference], [], []),
+  snapshot('note-current', 'current', [noteOnlyCurrent], [], [])
+)
+assert.deepEqual(noteOnlyComparison.bomFindings[0].fieldDiffs, {}, 'Note is annotation only, including legacy additionalFields.Note')
+assert.notEqual(noteOnlyComparison.bomFindings[0].reviewRequired, true, 'Note alone does not require business-field review')
+assert.equal(getCanonicalComparisonStatus(noteOnlyComparison.bomFindings[0]), 'UNCHANGED', 'Note-only edits do not change canonical status')
+
+const noteOnlyRoutingComparison = compareSnapshots(
+  snapshot('routing-note-reference', 'reference', [], [{ ...referenceRouting, note: 'Reference annotation', additionalFields: undefined }], []),
+  snapshot('routing-note-current', 'current', [], [{ ...currentRouting, note: 'Current annotation' }], [])
+)
+assert.deepEqual(noteOnlyRoutingComparison.routingFindings[0].fieldDiffs, {})
+assert.equal(getCanonicalComparisonStatus(noteOnlyRoutingComparison.routingFindings[0]), 'UNCHANGED')
+
+const noteOnlyRateComparison = compareSnapshots(
+  snapshot('rate-note-reference', 'reference', [], [], [{ ...referenceRate, note: 'Reference annotation' }]),
+  snapshot('rate-note-current', 'current', [], [], [{ ...currentRate, note: 'Current annotation', additionalFields: undefined }])
+)
+assert.deepEqual(noteOnlyRateComparison.workCenterFindings[0].fieldDiffs, {})
+assert.equal(getCanonicalComparisonStatus(noteOnlyRateComparison.workCenterFindings[0]), 'UNCHANGED')
+
+const noteOnlyProductComparison = compareSnapshots(
+  snapshot('product-note-reference', 'reference', [], [], [], { ...product, note: 'Reference annotation' }),
+  snapshot('product-note-current', 'current', [], [], [], { ...product, note: 'Current annotation' })
+)
+assert.deepEqual(noteOnlyProductComparison.productFieldDiffs, {})
 
 console.log('Dynamic snapshot comparison verification passed.')

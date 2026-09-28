@@ -3,7 +3,8 @@ import {
   projectSnapshotPairToLegacySession,
   updateCurrentSnapshotFromLegacySession
 } from '../src/core/migrations/snapshot-to-session'
-import type { SnapshotPair } from '../src/core'
+import { sessionToSnapshotPair } from '../src/core/migrations/session-to-snapshots'
+import type { ProductSession, SnapshotPair } from '../src/core'
 
 const product = {
   productCode: 'P-001',
@@ -109,5 +110,103 @@ const collisionPair: SnapshotPair = {
 const collisionProjection = projectSnapshotPairToLegacySession(collisionPair)
 assert.equal(new Set(collisionProjection.bom.map(item => item.id)).size, collisionProjection.bom.length)
 assert.equal(new Set(collisionProjection.routing.map(item => item.id)).size, collisionProjection.routing.length)
+
+const routingIdentityPair: SnapshotPair = {
+  reference: {
+    ...pair.reference,
+    routing: [{ ...pair.reference.routing[0], operationCode: 'OP-REF', processName: 'Same process' }]
+  },
+  current: {
+    ...pair.current,
+    routing: [{ ...pair.current.routing[0], operationCode: 'OP-CUR', processName: 'Same process' }]
+  }
+}
+const routingIdentityProjection = projectSnapshotPairToLegacySession(routingIdentityPair)
+assert.deepEqual(
+  routingIdentityProjection.routing.map(step => step.operationCode).sort(),
+  ['OP-CUR', 'OP-REF'],
+  'legacy projection must retain each dataset Routing Operation Code'
+)
+const compatibilityPair = sessionToSnapshotPair({
+  id: 'routing-identity-session',
+  product,
+  rates: [],
+  bom: [],
+  routing: routingIdentityProjection.routing,
+  savedDrivers: [],
+  status: 'draft',
+  createdAt: '',
+  updatedAt: ''
+} as ProductSession)
+assert.deepEqual(compatibilityPair.current.routing.map(step => step.operationCode).sort(), ['OP-CUR', 'OP-REF'])
+
+const missingRoutingIdentityPair: SnapshotPair = {
+  reference: {
+    ...pair.reference,
+    routing: [{ ...pair.reference.routing[0], operationCode: undefined, processName: 'Same process' }]
+  },
+  current: {
+    ...pair.current,
+    routing: [{ ...pair.current.routing[0], operationCode: undefined, processName: 'Same process' }]
+  }
+}
+const missingRoutingIdentityProjection = projectSnapshotPairToLegacySession(missingRoutingIdentityPair)
+assert.equal(
+  missingRoutingIdentityProjection.routing.length,
+  2,
+  'rows without Operation Code must not be paired by Process Name'
+)
+
+const duplicateRoutingCodePair: SnapshotPair = {
+  reference: {
+    ...pair.reference,
+    routing: [{ ...pair.reference.routing[0], operationCode: 'OP-DUP', processName: 'Cut' }]
+  },
+  current: {
+    ...pair.current,
+    routing: [
+      { ...pair.current.routing[0], id: 'current-duplicate-1', operationCode: 'OP-DUP', processName: 'Cut' },
+      { ...pair.current.routing[0], id: 'current-duplicate-2', operationCode: 'OP-DUP', sequence: 20, processName: 'Cut' }
+    ]
+  }
+}
+const duplicateRoutingProjection = projectSnapshotPairToLegacySession(duplicateRoutingCodePair)
+assert.equal(duplicateRoutingProjection.routing.length, 3, 'duplicate Operation Codes remain distinct instead of collapsing in compatibility projection')
+assert.equal(new Set(duplicateRoutingProjection.routing.map(step => step.id)).size, 3)
+assert.deepEqual(duplicateRoutingProjection.routing.map(step => step.operationCode), ['OP-DUP', 'OP-DUP', 'OP-DUP'])
+
+const sparsePair: SnapshotPair = {
+  reference: {
+    ...pair.reference,
+    product: { ...product, productCode: 'REF-PRODUCT', productDescription: 'Reference name', uom: 'KG' },
+    bom: [{ ...pair.reference.bom[0], itemCode: 'MAT-SAME', description: 'Reference material', consumption: 3, unit: 'KG', price: 10, loss: 0.1 }]
+  },
+  current: {
+    ...pair.current,
+    product: { ...product, productCode: '', productDescription: '', uom: '' },
+    bom: [{ ...pair.current.bom[0], itemCode: 'MAT-SAME', description: '', consumption: null, unit: '', price: null, loss: null }]
+  }
+}
+const sparseProjection = projectSnapshotPairToLegacySession(sparsePair)
+const sparseSession = {
+  id: 'sparse-session',
+  product: sparseProjection.product,
+  ...sparseProjection,
+  savedDrivers: [],
+  status: 'draft' as const,
+  createdAt: '',
+  updatedAt: '',
+  snapshotPair: sparsePair,
+  snapshotPairMode: 'independent' as const
+}
+const sparseCurrentAfterHydration = updateCurrentSnapshotFromLegacySession(sparseSession, sparsePair)
+assert.strictEqual(sparseCurrentAfterHydration, sparsePair.current, 'independent Current remains the canonical snapshot during compatibility hydration')
+assert.equal(sparseCurrentAfterHydration.product.productCode, '')
+assert.equal(sparseCurrentAfterHydration.product.productDescription, '')
+assert.equal(sparseCurrentAfterHydration.product.uom, '')
+assert.equal(sparseCurrentAfterHydration.bom[0].description, '')
+assert.equal(sparseCurrentAfterHydration.bom[0].consumption, null)
+assert.equal(sparseCurrentAfterHydration.bom[0].price, null)
+assert.equal(sparseCurrentAfterHydration.bom[0].loss, null)
 
 console.log('Snapshot projection self-check: PASS')

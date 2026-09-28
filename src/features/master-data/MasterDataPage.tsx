@@ -28,6 +28,7 @@ export const MasterDataPage: React.FC = () => {
     clearMasterDataDataset,
     updateMasterDataDatasetSizing,
     updateMasterDataProduct,
+    updateMasterDataRemark,
     addMasterDataBOMItem,
     updateMasterDataBOMItem,
     deleteMasterDataBOMItem,
@@ -96,6 +97,7 @@ export const MasterDataPage: React.FC = () => {
         isEditMode={isEditMode}
         onToggleEditMode={setIsEditMode}
         onUpdateProduct={updateMasterDataProduct}
+        onUpdateRemark={updateMasterDataRemark}
         onCloneReferenceToCurrent={cloneReferenceToCurrent}
         onCloneCurrentToReference={cloneCurrentToReference}
         onClearDataset={() => clearMasterDataDataset(masterDataRole)}

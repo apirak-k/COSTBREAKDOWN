@@ -57,6 +57,7 @@ function isBlankRate(row: SnapshotWorkCenterRate, snapshot: CostSnapshot): boole
   const defaultRates = (row.laborRate === null && row.burdenRate === null) ||
     (generatedPlaceholder && row.laborRate === 0 && row.burdenRate === 0)
   return isGeneratedRow(row, 'rate') && isEmpty(row.workCenterCode) && isEmpty(row.description) &&
+    isEmpty(row.note) &&
     defaultRates &&
     (generatedPlaceholder || isEmpty(row.effectiveDate) || row.effectiveDate === snapshot.product.effectiveDate ||
       row.effectiveDate === generatedRateDate(row.id)) &&
@@ -70,6 +71,7 @@ function isBlankBom(row: SnapshotBOMItem): boolean {
   const defaultQuantities = (row.consumption === null && row.price === null) ||
     (generatedPlaceholder && row.consumption === 0 && row.price === 0)
   return isGeneratedRow(row, 'bom') && isEmpty(row.itemCode) && isEmpty(row.description) &&
+    isEmpty(row.note) &&
     defaultQuantities && row.unit === 'PC' && row.loss === 0 &&
     (row.sourceRef === undefined || row.sourceRef === 'Direct Input') &&
     hasNoExtraFields(row.additionalFields) &&
@@ -84,7 +86,7 @@ function isBlankRouting(row: SnapshotRoutingStep, snapshot: CostSnapshot): boole
   const defaultMetrics = (row.manning === null && row.capacity === null && row.yield === null) ||
     (generatedPlaceholder && row.manning === 0 && row.capacity === 0 && row.yield === 0)
   return isGeneratedRow(row, 'routing') && isEmpty(row.operationCode) &&
-    isEmpty(row.processCode) && isEmpty(row.processName) &&
+    isEmpty(row.processCode) && isEmpty(row.processName) && isEmpty(row.note) &&
     (row.sequence === undefined || row.sequence === defaultSequence) &&
     (isEmpty(row.workCenterId) || row.workCenterId === defaultWorkCenter) &&
     defaultMetrics &&
@@ -98,7 +100,7 @@ function isBlankRouting(row: SnapshotRoutingStep, snapshot: CostSnapshot): boole
 function resizeRows<T>(rows: T[], count: number | undefined, isBlank: (row: T) => boolean, create: (index: number) => T): T[] {
   const next = [...rows]
   if (count === undefined) return next
-  const target = Math.max(0, count)
+  const target = Math.max(1, Math.floor(count))
   for (let index = next.length - 1; index >= 0 && next.length > target; index--) {
     if (isBlank(next[index])) next.splice(index, 1)
   }

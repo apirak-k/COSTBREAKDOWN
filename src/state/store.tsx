@@ -28,7 +28,6 @@ import {
   compareSnapshots,
   sessionToSnapshotPair,
   applySnapshotPairToSession,
-  updateCurrentSnapshotFromLegacySession,
   getFieldConfidence,
   evaluateMasterDataHandoff,
   getSnapshotRoleReadiness
@@ -41,6 +40,7 @@ import {
 } from './working-datasets'
 import { WorkingDataset } from '../core/types/dataset-standard.types'
 import { markSizingPlaceholderEdited, resizeMasterDataSnapshotForSizing } from './dataset-sizing'
+import { clearMasterDataDatasetState } from './clear-master-data-dataset'
 import { STORAGE_KEYS, loadFromSession, saveToSession } from '../services'
 
 import {
@@ -65,14 +65,8 @@ function withSnapshotPair(session: ProductSession, explicitPair?: SnapshotPair):
   }
 
   if (session.snapshotPairMode === 'independent' && session.snapshotPair) {
-    return {
-      ...session,
-      snapshotPair: {
-        ...session.snapshotPair,
-        current: updateCurrentSnapshotFromLegacySession(session, session.snapshotPair)
-      },
-      snapshotPairMode: 'independent'
-    }
+    // Keep independent snapshots canonical; legacy fields are only a projection here.
+    return applySnapshotPairToSession(session, session.snapshotPair)
   }
 
   return {
@@ -253,6 +247,7 @@ interface AppContextType {
   clearMasterDataDataset: (role: ComparisonRole) => void
   updateMasterDataDatasetSizing: (role: ComparisonRole, sizing: Partial<import('../core/types').DatasetSizing>) => void
   updateMasterDataProduct: (product: ProductMaster) => void
+  updateMasterDataRemark: (remark: string) => void
   addMasterDataBOMItem: (item: Omit<SnapshotBOMItem, 'id' | 'confidence'>) => void
   updateMasterDataBOMItem: (id: string, item: Partial<Omit<SnapshotBOMItem, 'id' | 'confidence'>>) => void
   deleteMasterDataBOMItem: (id: string) => void
@@ -635,6 +630,10 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     }))
   }
 
+  const updateMasterDataRemark = (remark: string) => {
+    updateMasterDataDataset(dataset => ({ ...dataset, remark }))
+  }
+
   const cloneReferenceToCurrent = () => {
     setProductSessions(prev => prev.map(session => {
       if (session.id !== activeSession.id) return session
@@ -792,42 +791,9 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   }
 
   const clearMasterDataDataset = (role: ComparisonRole) => {
-    setProductSessions(prev => prev.map(session => {
-      if (session.id !== activeSession.id) return session
-      const pair = session.snapshotPair ?? sessionToSnapshotPair(session)
-      const emptySnapshot: CostSnapshot = {
-        id: `${session.id}:${role}`,
-        product: { ...session.product },
-        effectiveDate: session.product.effectiveDate,
-        sourceRef: `Empty dataset (${role})`,
-        comparisonRole: role,
-        status: 'draft',
-        rates: [],
-        bom: [],
-        routing: [],
-        sizing: undefined
-      }
-      const nextPair = {
-        ...pair,
-        [role]: emptySnapshot
-      }
-      const readiness = getSnapshotRoleReadiness(session)
-      const nextSizing: Record<ComparisonRole, DatasetSizing> = {
-        reference: session.datasetSizing?.reference ?? {},
-        current: session.datasetSizing?.current ?? {},
-        [role]: {}
-      }
-      return {
-        ...session,
-        datasetSizing: nextSizing,
-        snapshotPair: nextPair,
-        preparedSnapshotRoles: {
-          ...readiness,
-          [role]: false
-        },
-        updatedAt: new Date().toISOString()
-      }
-    }))
+    setProductSessions(prev => prev.map(session => session.id === activeSession.id
+      ? clearMasterDataDatasetState(session, role)
+      : session))
   }
 
   const addMasterDataBOMItem = (item: Omit<SnapshotBOMItem, 'id' | 'confidence'>) => {
@@ -1139,6 +1105,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       clearMasterDataDataset,
       updateMasterDataDatasetSizing,
       updateMasterDataProduct,
+      updateMasterDataRemark,
       addMasterDataBOMItem,
       updateMasterDataBOMItem,
       deleteMasterDataBOMItem,

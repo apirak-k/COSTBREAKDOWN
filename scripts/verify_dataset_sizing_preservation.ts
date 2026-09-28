@@ -132,6 +132,9 @@ assert.notStrictEqual(afterShrink, beforeShrink, 'sizing must return a new snaps
 assert.deepEqual(afterShrink.rates.map(row => row.id), ['rate-size-legacy-2', 'rate-edited'])
 assert.deepEqual(afterShrink.bom.map(row => row.id), ['bom-size-legacy-2', 'bom-edited'])
 assert.deepEqual(afterShrink.routing.map(row => row.id), ['routing-size-legacy-2', 'routing-edited'])
+assert.deepEqual(afterShrink.rates, beforeShrink.rates.filter(row => ['rate-size-legacy-2', 'rate-edited'].includes(row.id)))
+assert.deepEqual(afterShrink.bom, beforeShrink.bom.filter(row => ['bom-size-legacy-2', 'bom-edited'].includes(row.id)))
+assert.deepEqual(afterShrink.routing, beforeShrink.routing.filter(row => ['routing-size-legacy-2', 'routing-edited'].includes(row.id)))
 assert.equal(beforeShrink.rates.length, 4, 'sizing must not mutate the original snapshot')
 assert.equal(beforeShrink.bom.length, 4)
 assert.equal(beforeShrink.routing.length, 4)
@@ -180,7 +183,7 @@ const linkedRoutingPlaceholder = snapshot({
 const afterLinkedRoutingShrink = resizeMasterDataSnapshotForSizing(
   linkedRoutingPlaceholder, { routingCount: 0 }, factories
 )
-assert.deepEqual(afterLinkedRoutingShrink.routing, [], 'generated workCenterId must not make a legacy blank route populated')
+assert.deepEqual(afterLinkedRoutingShrink.routing.map(row => row.id), ['routing-size-legacy-1'], 'sizing cannot reduce a configured section below its one-row minimum')
 assert.deepEqual(afterLinkedRoutingShrink.rates.map(row => row.id), ['configured-rate'])
 
 // A generated rate defaults to today's date when its Product has no effective date.
@@ -203,7 +206,7 @@ const noProductDateSnapshot = snapshot({
 const afterNoProductDateShrink = resizeMasterDataSnapshotForSizing(
   noProductDateSnapshot, { wcCount: 0 }, factories
 )
-assert.deepEqual(afterNoProductDateShrink.rates, [], 'the generated effective date is still a default when Product date is unset')
+assert.deepEqual(afterNoProductDateShrink.rates.map(row => row.id), [`rate-size-${generatedAt}-1`], 'the one-row minimum preserves the configured blank slot')
 
 const staleGeneratedRate = rate(`rate-size-${generatedAt}-2`, {
   effectiveDate: '2026-09-01',
@@ -218,7 +221,7 @@ const afterProductDateChangeShrink = resizeMasterDataSnapshotForSizing(
   snapshot({ rates: [staleGeneratedRate], bom: [], routing: [] }, '2026-09-25'),
   { wcCount: 0 }, factories
 )
-assert.deepEqual(afterProductDateChangeShrink.rates, [], 'changing Product effective date does not populate an untouched generated rate')
+assert.deepEqual(afterProductDateChangeShrink.rates.map(row => row.id), [`rate-size-${generatedAt}-2`], 'changing Product effective date does not populate an untouched generated rate')
 
 // The session compatibility projection must preserve placeholder identity across reload hydration.
 const persistedGeneratedAt = Date.now()
@@ -272,16 +275,16 @@ const hydratedCurrent = updateCurrentSnapshotFromLegacySession(persistedSession,
 const afterHydratedShrink = resizeMasterDataSnapshotForSizing(hydratedCurrent, {
   wcCount: 0, bomCount: 0, routingCount: 0
 }, factories)
-assert.deepEqual(afterHydratedShrink.rates, [], 'rehydrated generated rates should remain removable')
-assert.deepEqual(afterHydratedShrink.bom, [], 'rehydrated generated BOM rows should remain removable')
-assert.deepEqual(afterHydratedShrink.routing, [], 'rehydrated generated routing rows should remain removable')
+assert.deepEqual(afterHydratedShrink.rates.map(row => row.id), [`rate-size-${persistedGeneratedAt}-1`], 'rehydrated rates retain the minimum starting row')
+assert.deepEqual(afterHydratedShrink.bom.map(row => row.id), ['bom-size-persisted-1'], 'rehydrated BOM retains the minimum starting row')
+assert.deepEqual(afterHydratedShrink.routing.map(row => row.id), [`routing-size-${persistedGeneratedAt}-1`], 'rehydrated routing retains the minimum starting row')
 const projectedAfterShrink = applySnapshotPairToSession(persistedSession, {
   reference: sizingPair.reference,
   current: afterHydratedShrink
 })
-assert.equal(projectedAfterShrink.rates.length, 0, 'legacy session projection should reflect removed rate placeholders')
-assert.equal(projectedAfterShrink.bom.length, 0, 'legacy session projection should reflect removed BOM placeholders')
-assert.equal(projectedAfterShrink.routing.length, 0, 'legacy session projection should reflect removed routing placeholders')
+assert.equal(projectedAfterShrink.rates.length, 1, 'legacy session projection should reflect the minimum Work Center row')
+assert.equal(projectedAfterShrink.bom.length, 1, 'legacy session projection should reflect the minimum BOM row')
+assert.equal(projectedAfterShrink.routing.length, 1, 'legacy session projection should reflect the minimum Routing row')
 
 // Growth adds only the missing rows, with one-based indexes and removable markers.
 const beforeGrowth = snapshot({

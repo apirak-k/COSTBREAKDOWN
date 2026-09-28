@@ -62,9 +62,9 @@ export const TemplateSizingModal: React.FC<TemplateSizingModalProps> = ({
   const roleLabel = role === 'reference' ? 'Reference' : 'Current'
 
   const handleDownload = async () => {
-    const parsedWc = wcCount.trim() === '' ? 1 : Math.max(1, Number(wcCount))
-    const parsedBom = bomCount.trim() === '' ? 1 : Math.max(1, Number(bomCount))
-    const parsedRouting = routingCount.trim() === '' ? 1 : Math.max(1, Number(routingCount))
+    const parsedWc = wcCount.trim() === '' ? 1 : Math.max(1, Math.floor(Number(wcCount) || 1))
+    const parsedBom = bomCount.trim() === '' ? 1 : Math.max(1, Math.floor(Number(bomCount) || 1))
+    const parsedRouting = routingCount.trim() === '' ? 1 : Math.max(1, Math.floor(Number(routingCount) || 1))
 
     const targetProduct: ProductMaster = {
       ...product,
@@ -123,10 +123,11 @@ export const TemplateSizingModal: React.FC<TemplateSizingModalProps> = ({
             </div>
             <div className="grid grid-cols-2 gap-2">
               <div>
-                <label className="block text-[10px] font-bold uppercase text-slate-600 mb-1">
+                <label htmlFor="template-sizing-product-code" className="block text-[10px] font-bold uppercase text-slate-600 mb-1">
                   Product Code
                 </label>
                 <input
+                  id="template-sizing-product-code"
                   type="text"
                   placeholder="e.g. FG-1001"
                   value={productCode}
@@ -135,10 +136,11 @@ export const TemplateSizingModal: React.FC<TemplateSizingModalProps> = ({
                 />
               </div>
               <div>
-                <label className="block text-[10px] font-bold uppercase text-slate-600 mb-1">
+                <label htmlFor="template-sizing-uom" className="block text-[10px] font-bold uppercase text-slate-600 mb-1">
                   Base UOM
                 </label>
                 <input
+                  id="template-sizing-uom"
                   type="text"
                   placeholder="e.g. PC, SET"
                   value={uom}
@@ -148,10 +150,11 @@ export const TemplateSizingModal: React.FC<TemplateSizingModalProps> = ({
               </div>
             </div>
             <div>
-              <label className="block text-[10px] font-bold uppercase text-slate-600 mb-1">
+              <label htmlFor="template-sizing-product-name" className="block text-[10px] font-bold uppercase text-slate-600 mb-1">
                 Product Name / Description
               </label>
               <input
+                id="template-sizing-product-name"
                 type="text"
                 placeholder="Product description / title"
                 value={productDescription}
@@ -166,12 +169,14 @@ export const TemplateSizingModal: React.FC<TemplateSizingModalProps> = ({
               Starting Blank Rows
             </div>
             <div>
-              <label className="block text-[10px] font-bold uppercase text-slate-500 mb-1">
+              <label htmlFor="template-sizing-work-center-rows" className="block text-[10px] font-bold uppercase text-slate-500 mb-1">
                 Work Center Rows
               </label>
               <input
+                id="template-sizing-work-center-rows"
                 type="number"
                 min="1"
+                step="1"
                 max="500"
                 placeholder="1"
                 value={wcCount}
@@ -181,12 +186,14 @@ export const TemplateSizingModal: React.FC<TemplateSizingModalProps> = ({
             </div>
 
             <div>
-              <label className="block text-[10px] font-bold uppercase text-slate-500 mb-1">
+              <label htmlFor="template-sizing-bom-rows" className="block text-[10px] font-bold uppercase text-slate-500 mb-1">
                 BOM Rows (Materials)
               </label>
               <input
+                id="template-sizing-bom-rows"
                 type="number"
                 min="1"
+                step="1"
                 max="1000"
                 placeholder="1"
                 value={bomCount}
@@ -196,12 +203,14 @@ export const TemplateSizingModal: React.FC<TemplateSizingModalProps> = ({
             </div>
 
             <div>
-              <label className="block text-[10px] font-bold uppercase text-slate-500 mb-1">
+              <label htmlFor="template-sizing-routing-rows" className="block text-[10px] font-bold uppercase text-slate-500 mb-1">
                 Routing Rows (Operations)
               </label>
               <input
+                id="template-sizing-routing-rows"
                 type="number"
                 min="1"
+                step="1"
                 max="500"
                 placeholder="1"
                 value={routingCount}

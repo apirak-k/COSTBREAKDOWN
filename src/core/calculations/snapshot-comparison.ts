@@ -41,7 +41,7 @@ function combinedConfidence(reference: SnapshotRow | undefined, current: Snapsho
   return 'verified'
 }
 
-const COMPARISON_METADATA_FIELDS = new Set(['id', 'confidence', 'sourceRef', 'additionalFields'])
+const COMPARISON_METADATA_FIELDS = new Set(['id', 'confidence', 'sourceRef', 'additionalFields', 'note'])
 
 function valuesEqual(left: unknown, right: unknown): boolean {
   if (Object.is(left, right)) return true
@@ -68,6 +68,7 @@ function addAdditionalFieldDiffs(
 ): void {
   const keys = new Set([...Object.keys(reference ?? {}), ...Object.keys(current ?? {})])
   keys.forEach(key => {
+    if (key.trim().toLowerCase() === 'note') return
     const referenceValue = reference?.[key]
     const currentValue = current?.[key]
     if (!valuesEqual(referenceValue, currentValue)) {
@@ -77,7 +78,7 @@ function addAdditionalFieldDiffs(
 }
 
 function hasAdditionalFields(row: SnapshotRow | undefined): boolean {
-  return Object.keys(row?.additionalFields ?? {}).length > 0
+  return Object.keys(row?.additionalFields ?? {}).some(key => key.trim().toLowerCase() !== 'note')
 }
 
 function diffSupportedFields<T extends SnapshotRow>(
@@ -100,7 +101,7 @@ function diffSupportedFields<T extends SnapshotRow>(
 
 function diffProductFields(reference: CostSnapshot['product'], current: CostSnapshot['product']): Record<string, { reference: unknown; current: unknown }> {
   const diffs: Record<string, { reference: unknown; current: unknown }> = {}
-  const metadata = new Set(['additionalFields'])
+  const metadata = new Set(['additionalFields', 'note'])
   const fields = new Set([...Object.keys(reference), ...Object.keys(current)])
   fields.forEach(field => {
     if (metadata.has(field)) return

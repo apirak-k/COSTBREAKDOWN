@@ -1,7 +1,6 @@
 import React, { useMemo, useRef, useState } from 'react'
 import { Plus, Search, Trash2, CheckSquare } from 'lucide-react'
 import { SnapshotRoutingStep, SnapshotWorkCenterRate } from '../../../core'
-import { DatasetQualityBadge } from './DatasetQualityBadge'
 import { useDragSelect } from '../hooks/useDragSelect'
 import { useTableKeyboardNav } from '../hooks/useTableKeyboardNav'
 
@@ -26,7 +25,6 @@ export const RoutingTable: React.FC<RoutingTableProps> = ({
 }) => {
   const tableRef = useRef<HTMLTableElement | null>(null)
   const [searchTerm, setSearchTerm] = useState('')
-  const [bulkSource, setBulkSource] = useState('')
   const [bulkWorkCenter, setBulkWorkCenter] = useState('')
 
   const filteredRouting = useMemo(() => routing.filter(step =>
@@ -49,13 +47,6 @@ export const RoutingTable: React.FC<RoutingTableProps> = ({
     tableRef,
     isEditMode
   })
-
-  const applyBulkSource = () => {
-    if (!bulkSource.trim()) return
-    selectedIds.forEach(id => onUpdateRoutingStep(id, { sourceRef: bulkSource.trim() }))
-    clearSelection()
-    setBulkSource('')
-  }
 
   const applyBulkWorkCenter = () => {
     if (!bulkWorkCenter) return
@@ -133,27 +124,6 @@ export const RoutingTable: React.FC<RoutingTableProps> = ({
 
           <span className="text-slate-500">|</span>
 
-          {/* Bulk Source Reference */}
-          <div className="flex items-center gap-1.5">
-            <span className="text-slate-300">Source:</span>
-            <input
-              value={bulkSource}
-              onChange={event => setBulkSource(event.target.value)}
-              placeholder="e.g. Cost declare row..."
-              className="px-2 py-0.5 bg-slate-800 text-white border border-slate-600 rounded text-[11px] placeholder:text-slate-400 focus:outline-none focus:border-slate-400 w-36"
-            />
-            <button
-              type="button"
-              disabled={!bulkSource.trim()}
-              onClick={applyBulkSource}
-              className="px-2.5 py-0.5 bg-white text-slate-900 font-bold rounded hover:bg-slate-200 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer transition-colors"
-            >
-              Apply Source
-            </button>
-          </div>
-
-          <span className="text-slate-500">|</span>
-
           <button
             type="button"
             onClick={handleDeleteSelected}
@@ -187,14 +157,14 @@ export const RoutingTable: React.FC<RoutingTableProps> = ({
                   />
                 </th>
               )}
-              <th className="py-1.5 px-2">Operation</th>
+              <th className="py-1.5 px-2">Operation Code</th>
+              <th className="py-1.5 px-2 text-right">Sequence</th>
               <th className="py-1.5 px-2">Process Name</th>
               <th className="py-1.5 px-2">Work Center</th>
               <th className="py-1.5 px-2 text-right">Manning</th>
               <th className="py-1.5 px-2 text-right">Capacity</th>
               <th className="py-1.5 px-2 text-right">Yield</th>
-              <th className="py-1.5 px-2">Source Reference</th>
-              <th className="py-1.5 px-2">Quality</th>
+              <th className="py-1.5 px-2">Note</th>
               {isEditMode && <th className="py-1.5 px-1 text-center">Actions</th>}
             </tr>
           </thead>
@@ -226,24 +196,27 @@ export const RoutingTable: React.FC<RoutingTableProps> = ({
                   )}
                   <td className="py-1 px-2 font-bold text-slate-900">
                     {isEditMode ? (
-                      <div className="flex items-center gap-1">
-                        <input
-                          value={step.operationCode || ''}
-                          onChange={event => onUpdateRoutingStep(step.id, { operationCode: event.target.value })}
-                          placeholder="Op Code"
-                          className="w-20 px-1 py-0.5 border border-transparent focus:border-slate-300 focus:bg-white bg-transparent"
-                        />
-                        <input
-                          type="number"
-                          step="1"
-                          value={numberValue(step.sequence)}
-                          onChange={event => onUpdateRoutingStep(step.id, { sequence: parseNumber(event.target.value) ?? undefined })}
-                          placeholder="Seq"
-                          className="w-14 px-1 py-0.5 text-right border border-transparent focus:border-slate-300 focus:bg-white bg-transparent"
-                        />
-                      </div>
+                      <input
+                        value={step.operationCode || ''}
+                        onChange={event => onUpdateRoutingStep(step.id, { operationCode: event.target.value })}
+                        placeholder="Operation Code"
+                        className="w-24 px-1 py-0.5 border border-transparent focus:border-slate-300 focus:bg-white bg-transparent"
+                      />
                     ) : (
-                      `${step.operationCode || `Op ${step.sequence ?? '—'}`}`
+                      step.operationCode || <span className="text-amber-700">—</span>
+                    )}
+                  </td>
+                  <td className="py-1 px-2 text-right">
+                    {isEditMode ? (
+                      <input
+                        type="number"
+                        step="1"
+                        value={numberValue(step.sequence)}
+                        onChange={event => onUpdateRoutingStep(step.id, { sequence: parseNumber(event.target.value) ?? undefined })}
+                        className="w-16 px-1 py-0.5 text-right border border-transparent focus:border-slate-300 focus:bg-white bg-transparent"
+                      />
+                    ) : (
+                      step.sequence ?? <span className="text-amber-700">—</span>
                     )}
                   </td>
                   <td className="py-1 px-2 font-sans text-slate-800">
@@ -325,20 +298,14 @@ export const RoutingTable: React.FC<RoutingTableProps> = ({
                   <td className="py-1 px-2 font-sans text-slate-600">
                     {isEditMode ? (
                       <input
-                        value={step.sourceRef || ''}
-                        onChange={event => onUpdateRoutingStep(step.id, { sourceRef: event.target.value })}
-                        placeholder="Source ref"
-                        className="w-full min-w-[120px] px-1 py-0.5 border border-transparent focus:border-slate-300 focus:bg-white bg-transparent"
+                        value={step.note || ''}
+                        onChange={event => onUpdateRoutingStep(step.id, { note: event.target.value })}
+                        placeholder="Note"
+                        className="w-full min-w-[160px] px-1 py-0.5 border border-transparent focus:border-slate-300 focus:bg-white bg-transparent"
                       />
                     ) : (
-                      step.sourceRef || '—'
+                      step.note || '—'
                     )}
-                  </td>
-                  <td className="py-1 px-2">
-                    <DatasetQualityBadge
-                      evidences={[step.confidence.sequence, step.confidence.manning, step.confidence.capacity, step.confidence.yield]}
-                      sourceRef={step.sourceRef}
-                    />
                   </td>
                   {isEditMode && (
                     <td className="py-1 px-1 text-center">

@@ -25,6 +25,7 @@ export interface SnapshotBOMItem {
   unit: string
   price: number | null
   loss: number | null
+  note?: string
   sourceRef?: string
   confidence: Record<string, FieldEvidence>
   /** Imported dataset fields that are retained for comparison but have no core cost mapping yet. */
@@ -43,6 +44,7 @@ export interface SnapshotRoutingStep {
   manning: number | null
   capacity: number | null
   yield: number | null
+  note?: string
   sourceRef?: string
   confidence: Record<string, FieldEvidence>
   additionalFields?: Record<string, unknown>
@@ -57,6 +59,7 @@ export interface SnapshotWorkCenterRate {
   laborRate: number | null
   burdenRate: number | null
   effectiveDate: string
+  note?: string
   sourceRef?: string
   confidence: Record<string, FieldEvidence>
   additionalFields?: Record<string, unknown>
@@ -72,6 +75,7 @@ export interface CostSnapshot {
   rates: SnapshotWorkCenterRate[]
   bom: SnapshotBOMItem[]
   routing: SnapshotRoutingStep[]
+  remark?: string
   sizing?: import('./product.types').DatasetSizing
   additionalFields?: Record<string, unknown>
   warnings?: string[]

@@ -26,6 +26,7 @@ interface MasterDataWorkspaceHeaderProps {
   isEditMode: boolean
   onToggleEditMode: (edit: boolean) => void
   onUpdateProduct: (product: ProductMaster) => void
+  onUpdateRemark: (remark: string) => void
   onCloneReferenceToCurrent: () => void
   onCloneCurrentToReference: () => void
   onClearDataset: () => void
@@ -49,6 +50,7 @@ export const MasterDataWorkspaceHeader: React.FC<MasterDataWorkspaceHeaderProps>
   isEditMode,
   onToggleEditMode,
   onUpdateProduct,
+  onUpdateRemark,
   onCloneReferenceToCurrent,
   onCloneCurrentToReference,
   onClearDataset,
@@ -64,7 +66,7 @@ export const MasterDataWorkspaceHeader: React.FC<MasterDataWorkspaceHeaderProps>
 }) => {
   const [showReadinessPopover, setShowReadinessPopover] = useState(false)
   const handleExportDataset = async () => {
-    const blob = await exportSnapshotToExcel(snapshot, product)
+    const blob = await exportSnapshotToExcel(snapshot)
     const roleLabel = role === 'reference' ? 'Reference' : 'Current'
     downloadBlob(blob, `Dataset_${product.productCode || 'PRODUCT'}_${roleLabel}.xlsx`)
   }
@@ -86,7 +88,7 @@ export const MasterDataWorkspaceHeader: React.FC<MasterDataWorkspaceHeaderProps>
 
   const handleClearDatasetWithConfirm = () => {
     const roleLabel = role === 'reference' ? 'Reference' : 'Current'
-    const ok = window.confirm(`Clear all data on ${roleLabel}? Product, Work Centers, BOM, and Routing for ${roleLabel} will be reset.`)
+    const ok = window.confirm(`Clear all data on ${roleLabel}? Remark, Product, Work Centers, BOM, Routing, and row setup for ${roleLabel} will be reset.`)
     if (!ok) return
     onClearDataset()
   }
@@ -336,6 +338,42 @@ export const MasterDataWorkspaceHeader: React.FC<MasterDataWorkspaceHeaderProps>
               <span className="font-mono font-bold text-slate-700 text-xs px-1">{product.uom || '—'}</span>
             )}
           </div>
+
+          {/* Product Note */}
+          <div className="flex items-center gap-1.5 bg-white border border-slate-200/90 rounded-md px-2 py-1 shadow-2xs">
+            <span className="text-[11px] font-mono font-bold uppercase tracking-tight text-slate-400">
+              Note:
+            </span>
+            {isEditMode ? (
+              <input
+                type="text"
+                value={product.note || ''}
+                onChange={e => onUpdateProduct({ ...product, note: e.target.value })}
+                aria-label="Product Note"
+                className="w-36 sm:w-48 px-1.5 py-0.5 font-sans text-xs bg-slate-50 text-slate-900 border border-slate-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500 focus:bg-white"
+              />
+            ) : (
+              <span className="max-w-[180px] truncate text-slate-700 text-xs" title={product.note || ''}>{product.note || '—'}</span>
+            )}
+          </div>
+
+          {/* Dataset Remark */}
+          <div className="flex items-center gap-1.5 bg-white border border-slate-200/90 rounded-md px-2 py-1 shadow-2xs">
+            <span className="text-[11px] font-mono font-bold uppercase tracking-tight text-slate-400">
+              Remark:
+            </span>
+            {isEditMode ? (
+              <input
+                type="text"
+                value={snapshot.remark || ''}
+                onChange={e => onUpdateRemark(e.target.value)}
+                aria-label="Dataset Remark"
+                className="w-36 sm:w-48 px-1.5 py-0.5 font-sans text-xs bg-slate-50 text-slate-900 border border-slate-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500 focus:bg-white"
+              />
+            ) : (
+              <span className="max-w-[180px] truncate text-slate-700 text-xs" title={snapshot.remark || ''}>{snapshot.remark || '—'}</span>
+            )}
+          </div>
         </div>
 
         {/* Right: Clean Grouped Actions */}
@@ -387,7 +425,7 @@ export const MasterDataWorkspaceHeader: React.FC<MasterDataWorkspaceHeaderProps>
               type="button"
               onClick={onOpenImportModal}
               className="flex items-center gap-1.5 px-3 py-1 text-xs font-mono font-semibold text-slate-700 hover:bg-slate-100 hover:text-slate-900 transition-colors cursor-pointer active:bg-slate-100"
-              title="Import Excel file into active dataset"
+              title="Import Excel file into selected dataset"
             >
               <Upload className="w-3.5 h-3.5 text-slate-500" />
               <span>Import</span>
@@ -396,7 +434,7 @@ export const MasterDataWorkspaceHeader: React.FC<MasterDataWorkspaceHeaderProps>
               type="button"
               onClick={handleExportDataset}
               className="flex items-center gap-1.5 px-3 py-1 text-xs font-mono font-semibold text-slate-700 hover:bg-slate-100 hover:text-slate-900 transition-colors cursor-pointer active:bg-slate-100"
-              title="Export active dataset to Excel"
+              title="Export selected dataset to Excel"
             >
               <Download className="w-3.5 h-3.5 text-slate-500" />
               <span>Export</span>

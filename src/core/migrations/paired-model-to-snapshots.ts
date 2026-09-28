@@ -35,6 +35,7 @@ function toBOMItem(item: BOMItem, role: ComparisonRole): SnapshotBOMItem {
     unit: item.unit,
     price,
     loss,
+    note: item.note,
     sourceRef: item.sourceRef,
     confidence: {
       consumption: evidence(item.consumption, item.sourceRef, item.confidence),
@@ -51,9 +52,11 @@ function toRoutingStep(step: RoutingStep, role: ComparisonRole): SnapshotRouting
   return {
     id: step.id,
     isGeneratedSizingPlaceholder: step.isGeneratedSizingPlaceholder,
+    operationCode: step.operationCode,
     sequence: step.opSeq,
     processName: step.description,
     workCenterId: step.wc,
+    note: step.note,
     manning: step.manning,
     capacity,
     yield: yieldValue,
@@ -75,6 +78,7 @@ function toWorkCenterRate(rate: WorkCenterRate): SnapshotWorkCenterRate {
     laborRate: rate.laborRate,
     burdenRate: rate.burdenRate,
     effectiveDate: rate.effectiveDate,
+    note: rate.note,
     sourceRef: rate.sourceRef,
     confidence: {
       laborRate: evidence(rate.laborRate, rate.sourceRef, rate.confidence),

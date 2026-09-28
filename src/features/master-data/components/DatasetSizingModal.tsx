@@ -50,9 +50,9 @@ export const DatasetSizingModal: React.FC<DatasetSizingModalProps> = ({
       uom: uom.trim() || 'PC'
     })
     onSaveSizing({
-      wcCount: wcCount.trim() === '' ? undefined : Math.max(0, Number(wcCount)),
-      bomCount: bomCount.trim() === '' ? undefined : Math.max(0, Number(bomCount)),
-      routingCount: routingCount.trim() === '' ? undefined : Math.max(0, Number(routingCount))
+      wcCount: wcCount.trim() === '' ? undefined : Math.max(1, Math.floor(Number(wcCount) || 1)),
+      bomCount: bomCount.trim() === '' ? undefined : Math.max(1, Math.floor(Number(bomCount) || 1)),
+      routingCount: routingCount.trim() === '' ? undefined : Math.max(1, Math.floor(Number(routingCount) || 1))
     })
     onClose()
   }
@@ -101,10 +101,11 @@ export const DatasetSizingModal: React.FC<DatasetSizingModalProps> = ({
             </div>
             <div className="grid grid-cols-2 gap-2">
               <div>
-                <label className="block text-[10px] font-bold uppercase text-slate-600 mb-1">
+                <label htmlFor="dataset-sizing-product-code" className="block text-[10px] font-bold uppercase text-slate-600 mb-1">
                   Product Code
                 </label>
                 <input
+                  id="dataset-sizing-product-code"
                   type="text"
                   placeholder="e.g. FG-1001"
                   value={productCode}
@@ -113,10 +114,11 @@ export const DatasetSizingModal: React.FC<DatasetSizingModalProps> = ({
                 />
               </div>
               <div>
-                <label className="block text-[10px] font-bold uppercase text-slate-600 mb-1">
+                <label htmlFor="dataset-sizing-uom" className="block text-[10px] font-bold uppercase text-slate-600 mb-1">
                   Base UOM
                 </label>
                 <input
+                  id="dataset-sizing-uom"
                   type="text"
                   placeholder="e.g. PC, SET"
                   value={uom}
@@ -126,10 +128,11 @@ export const DatasetSizingModal: React.FC<DatasetSizingModalProps> = ({
               </div>
             </div>
             <div>
-              <label className="block text-[10px] font-bold uppercase text-slate-600 mb-1">
+              <label htmlFor="dataset-sizing-product-name" className="block text-[10px] font-bold uppercase text-slate-600 mb-1">
                 Product Name / Description
               </label>
               <input
+                id="dataset-sizing-product-name"
                 type="text"
                 placeholder="Product description / title"
                 value={productDescription}
@@ -144,12 +147,14 @@ export const DatasetSizingModal: React.FC<DatasetSizingModalProps> = ({
               Starting Blank Rows
             </div>
             <div>
-              <label className="block text-[10px] font-bold uppercase text-slate-500 mb-1">
+              <label htmlFor="dataset-sizing-work-center-rows" className="block text-[10px] font-bold uppercase text-slate-500 mb-1">
                 Work Center Rows
               </label>
               <input
+                id="dataset-sizing-work-center-rows"
                 type="number"
-                min="0"
+                min="1"
+                step="1"
                 max="500"
                 placeholder="Unset"
                 value={wcCount}
@@ -159,12 +164,14 @@ export const DatasetSizingModal: React.FC<DatasetSizingModalProps> = ({
             </div>
 
             <div>
-              <label className="block text-[10px] font-bold uppercase text-slate-500 mb-1">
+              <label htmlFor="dataset-sizing-bom-rows" className="block text-[10px] font-bold uppercase text-slate-500 mb-1">
                 BOM Rows (Materials)
               </label>
               <input
+                id="dataset-sizing-bom-rows"
                 type="number"
-                min="0"
+                min="1"
+                step="1"
                 max="1000"
                 placeholder="Unset"
                 value={bomCount}
@@ -174,12 +181,14 @@ export const DatasetSizingModal: React.FC<DatasetSizingModalProps> = ({
             </div>
 
             <div>
-              <label className="block text-[10px] font-bold uppercase text-slate-500 mb-1">
+              <label htmlFor="dataset-sizing-routing-rows" className="block text-[10px] font-bold uppercase text-slate-500 mb-1">
                 Routing Rows (Operations)
               </label>
               <input
+                id="dataset-sizing-routing-rows"
                 type="number"
-                min="0"
+                min="1"
+                step="1"
                 max="500"
                 placeholder="Unset"
                 value={routingCount}

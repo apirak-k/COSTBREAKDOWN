@@ -2,6 +2,7 @@ export interface ProductMaster {
   productCode: string
   productDescription: string
   uom: string
+  note?: string
   customer: string
   effectiveDate: string
   additionalFields?: Record<string, unknown>

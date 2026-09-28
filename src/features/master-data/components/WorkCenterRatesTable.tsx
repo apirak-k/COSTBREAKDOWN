@@ -1,7 +1,6 @@
 import React, { useMemo, useRef, useState } from 'react'
 import { Plus, Search, Trash2, CheckSquare } from 'lucide-react'
 import { SnapshotWorkCenterRate } from '../../../core'
-import { DatasetQualityBadge } from './DatasetQualityBadge'
 import { useDragSelect } from '../hooks/useDragSelect'
 import { useTableKeyboardNav } from '../hooks/useTableKeyboardNav'
 
@@ -25,7 +24,6 @@ export const WorkCenterRatesTable: React.FC<WorkCenterRatesTableProps> = ({
 }) => {
   const tableRef = useRef<HTMLTableElement | null>(null)
   const [searchTerm, setSearchTerm] = useState('')
-  const [bulkSource, setBulkSource] = useState('')
 
   const filteredRates = useMemo(() => rates.filter(rate =>
     `${rate.workCenterCode} ${rate.description}`.toLowerCase().includes(searchTerm.toLowerCase())
@@ -47,13 +45,6 @@ export const WorkCenterRatesTable: React.FC<WorkCenterRatesTableProps> = ({
     tableRef,
     isEditMode
   })
-
-  const applyBulkSource = () => {
-    if (!bulkSource.trim()) return
-    selectedIds.forEach(id => onUpdateRate(id, { sourceRef: bulkSource.trim() }))
-    clearSelection()
-    setBulkSource('')
-  }
 
   const handleDeleteSelected = () => {
     selectedIds.forEach(id => onDeleteRate(id))
@@ -95,29 +86,6 @@ export const WorkCenterRatesTable: React.FC<WorkCenterRatesTableProps> = ({
             <CheckSquare className="w-3.5 h-3.5" />
             {selectedIds.size} row{selectedIds.size > 1 ? 's' : ''} selected
           </span>
-          <span className="text-slate-500">|</span>
-
-          {/* Bulk Source Reference */}
-          <div className="flex items-center gap-1.5">
-            <span className="text-slate-300">Source:</span>
-            <input
-              value={bulkSource}
-              onChange={event => setBulkSource(event.target.value)}
-              placeholder="e.g. Cost declare row..."
-              className="px-2 py-0.5 bg-slate-800 text-white border border-slate-600 rounded text-[11px] placeholder:text-slate-400 focus:outline-none focus:border-slate-400 w-44"
-            />
-            <button
-              type="button"
-              disabled={!bulkSource.trim()}
-              onClick={applyBulkSource}
-              className="px-2.5 py-0.5 bg-white text-slate-900 font-bold rounded hover:bg-slate-200 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer transition-colors"
-            >
-              Apply Source
-            </button>
-          </div>
-
-          <span className="text-slate-500">|</span>
-
           <button
             type="button"
             onClick={handleDeleteSelected}
@@ -151,13 +119,11 @@ export const WorkCenterRatesTable: React.FC<WorkCenterRatesTableProps> = ({
                   />
                 </th>
               )}
-              <th className="py-1.5 px-2">Work Center</th>
-              <th className="py-1.5 px-2">Description</th>
+              <th className="py-1.5 px-2">Work Center Code</th>
+              <th className="py-1.5 px-2">Work Center Name</th>
               <th className="py-1.5 px-2 text-right">Labor Rate</th>
               <th className="py-1.5 px-2 text-right">Burden Rate</th>
-              <th className="py-1.5 px-2">Effective Date</th>
-              <th className="py-1.5 px-2">Source Reference</th>
-              <th className="py-1.5 px-2">Quality</th>
+              <th className="py-1.5 px-2">Note</th>
               {isEditMode && <th className="py-1.5 px-1 text-center">Actions</th>}
             </tr>
           </thead>
@@ -239,35 +205,17 @@ export const WorkCenterRatesTable: React.FC<WorkCenterRatesTableProps> = ({
                       rate.burdenRate.toFixed(4)
                     )}
                   </td>
-                  <td className="py-1 px-2 text-slate-600">
-                    {isEditMode ? (
-                      <input
-                        type="date"
-                        value={rate.effectiveDate || ''}
-                        onChange={event => onUpdateRate(rate.id, { effectiveDate: event.target.value })}
-                        className="w-32 px-1 py-0.5 border border-transparent focus:border-slate-300 focus:bg-white bg-transparent text-[11px]"
-                      />
-                    ) : (
-                      rate.effectiveDate || '—'
-                    )}
-                  </td>
                   <td className="py-1 px-2 font-sans text-slate-600">
                     {isEditMode ? (
                       <input
-                        value={rate.sourceRef || ''}
-                        onChange={event => onUpdateRate(rate.id, { sourceRef: event.target.value })}
-                        placeholder="Source ref"
-                        className="w-full min-w-[120px] px-1 py-0.5 border border-transparent focus:border-slate-300 focus:bg-white bg-transparent"
+                        value={rate.note || ''}
+                        onChange={event => onUpdateRate(rate.id, { note: event.target.value })}
+                        placeholder="Note"
+                        className="w-full min-w-[160px] px-1 py-0.5 border border-transparent focus:border-slate-300 focus:bg-white bg-transparent"
                       />
                     ) : (
-                      rate.sourceRef || '—'
+                      rate.note || '—'
                     )}
-                  </td>
-                  <td className="py-1 px-2">
-                    <DatasetQualityBadge
-                      evidences={[rate.confidence.laborRate, rate.confidence.burdenRate]}
-                      sourceRef={rate.sourceRef}
-                    />
                   </td>
                   {isEditMode && (
                     <td className="py-1 px-1 text-center">
@@ -286,7 +234,7 @@ export const WorkCenterRatesTable: React.FC<WorkCenterRatesTableProps> = ({
             })}
             {filteredRates.length === 0 && (
               <tr>
-                <td colSpan={isEditMode ? 9 : 7} className="py-6 text-center text-slate-500 font-sans">
+                <td colSpan={isEditMode ? 7 : 5} className="py-6 text-center text-slate-500 font-sans">
                   <div className="flex flex-col items-center justify-center gap-2">
                     <p className="text-xs text-slate-500 italic">
                       {rates.length === 0 ? 'No Work Center rates in this dataset yet.' : 'No rows match your filter.'}
