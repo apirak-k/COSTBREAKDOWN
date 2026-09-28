@@ -41,10 +41,20 @@ function styleInputRow(row: ExcelJS.Row, columns: number, numericColumns: number
   }
 }
 
+function writeInputLegend(sheet: ExcelJS.Worksheet, columns: number): void {
+  if (columns > 1) sheet.mergeCells(2, 1, 2, columns)
+  const legend = sheet.getCell('A2')
+  legend.value = 'Yellow cells are editable inputs. Leave unknown values blank.'
+  legend.font = { ...fontData, italic: true, color: { argb: 'FF475569' } }
+  legend.alignment = { vertical: 'middle', wrapText: true }
+  sheet.getRow(2).height = 22
+}
+
 function writeRemarkSheet(sheet: ExcelJS.Worksheet, remark: string | undefined): void {
   sheet.columns = [{ width: 88 }]
   sheet.getCell('A1').value = 'MASTER DATA DATASET TEMPLATE'
   sheet.getCell('A1').font = fontTitle
+  writeInputLegend(sheet, 1)
   sheet.getRow(3).values = ['Remark']
   styleHeaderRow(sheet.getRow(3), 1)
   sheet.getCell('A4').value = remark || ''
@@ -57,6 +67,7 @@ function writeProductSheet(sheet: ExcelJS.Worksheet, product?: DynamicTemplateOp
   sheet.getCell('A1').value = 'PRODUCT'
   sheet.getCell('A1').font = fontTitle
   sheet.mergeCells('A1:D1')
+  writeInputLegend(sheet, 4)
   sheet.getCell('A3').value = 'Exactly one Product row is allowed.'
   sheet.getCell('A3').font = fontSection
   const headers = ['Product Code', 'Product Name', 'UOM', 'Note']
@@ -77,6 +88,7 @@ function writeWorkCenterSheet(
   sheet.getCell('A1').value = 'WORK_CENTER'
   sheet.getCell('A1').font = fontTitle
   sheet.mergeCells('A1:E1')
+  writeInputLegend(sheet, headers.length)
   sheet.getCell('A3').value = 'Work Center rates for this Dataset'
   sheet.getCell('A3').font = fontSection
   sheet.getRow(4).values = headers
@@ -96,6 +108,7 @@ function writeBOMSheet(sheet: ExcelJS.Worksheet, count: number): void {
   sheet.getCell('A1').value = 'BOM'
   sheet.getCell('A1').font = fontTitle
   sheet.mergeCells('A1:G1')
+  writeInputLegend(sheet, headers.length)
   sheet.getCell('A3').value = 'Material inputs for this Dataset'
   sheet.getCell('A3').font = fontSection
   sheet.getRow(4).values = headers
@@ -115,6 +128,7 @@ function writeRoutingSheet(sheet: ExcelJS.Worksheet, count: number): void {
   sheet.getCell('A1').value = 'ROUTING'
   sheet.getCell('A1').font = fontTitle
   sheet.mergeCells('A1:H1')
+  writeInputLegend(sheet, headers.length)
   sheet.getCell('A3').value = 'Routing inputs linked to WORK_CENTER in this Dataset'
   sheet.getCell('A3').font = fontSection
   sheet.getRow(4).values = headers

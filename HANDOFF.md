@@ -1,15 +1,15 @@
 # Current Handoff — Neutral Dataset Agreement Follow-up (2026-09-28)
 
-> This handoff records the verified local implementation and synchronization checkpoint. Earlier handoffs remain below as history. The user asked for local checkpoints during work and one push at final closeout.
+> This handoff records the verified implementation and synchronization state. The previously authorized push was completed; the Excel-template legend follow-up below is local and has not been pushed.
 
 ## Repository and checkpoint
 
-- Repository: `Cost Breakdown`.
-- Active worktree: `C:\Users\ai-project\.codex\worktrees\rca-neutral-dataset-followup\Cost Breakdown`.
-- Work branch: `codex/rca-task-14-neutral-dataset`, based on `5ddaf4a` (`codex/rca-task-14`).
-- Local checkpoints: `99077d5` locks the neutral workbook/Routing identity agreement; `ccc8bf5` uses Operation Code as Routing identity; `41e47a8` implements the neutral dataset follow-up.
-- The original checkout `C:\Users\ai-project\Desktop\SC0434\Cost Breakdown` has now been fast-forwarded through `41e47a8` and `1eb208a`; its tracked worktree is clean. The user's untracked `AGENTS.md` is preserved.
-- `origin/codex/rca-task-14` was freshly confirmed at `5ddaf4a` before the local fast-forward. The one authorized push is still pending.
+- Repository and active checkout: `C:\Users\ai-project\Desktop\SC0434\Cost Breakdown`.
+- Active branch: `codex/rca-task-14`.
+- The implementation checkpoints are `99077d5` (neutral workbook/Routing identity agreement), `ccc8bf5` (Operation Code identity), `41e47a8` (neutral dataset implementation), `1eb208a` (handoff), and `8a52467` (final sync/toolchain-state handoff).
+- The managed worktree `C:\Users\ai-project\.codex\worktrees\rca-neutral-dataset-followup\Cost Breakdown` remains on `codex/rca-task-14-neutral-dataset` at `1eb208a`; the current Excel-template follow-up is being made in the primary checkout.
+- The last verified SHA for `origin/codex/rca-task-14` was `8a52467` after the one authorized push. A live `git ls-remote` recheck in this turn could not connect to GitHub; do not assume the remote has not changed since. The template legend and its verifier are local follow-up work; do not push them without fresh user authorization.
+- The user's untracked `AGENTS.md` is preserved.
 - No workbook under `Sources` was opened, read, or staged. Verification used synthetic/in-memory workbooks only.
 
 ## Agreed scope implemented
@@ -19,13 +19,14 @@
 - Routing comparison uses Operation Code only. Changed codes remain separate `REMOVED` and `ADDED` rows; missing or duplicate codes are not guessed from Process Name and remain unresolved comparison findings.
 - Annotation-only changes do not create business comparison changes. Independent Current snapshots remain canonical instead of being repopulated from a fallback-filled compatibility projection.
 - No additional feature scope was introduced.
+- Each neutral template sheet now has a row-2 legend: yellow cells are editable and unknown values should be left blank. A sample data row was deliberately not added: the agreement calls for blank input rows, and the importer can treat a populated example as real dataset content.
 
 ## Verification and evidence limits
 
-- The isolated worktree build passed with Vite 6.4.3 (the declared `^6.4.3` range; 1,689 modules). The final build from the original checkout also passed, but its existing `node_modules` contains stale Vite 5.4.21, which `npm ls vite --depth=0` flags as invalid. No dependency or lockfile was changed; run `npm ci` before relying on that checkout's local toolchain on another work session. The latest bundle warning was 1,668.00 kB JavaScript / 485.65 kB gzip.
+- After the legend change, `npm run build` passed, but the primary checkout's installed Vite is 5.4.21 while `package.json` requires `^6.4.3`; `npm ls vite --depth=0` previously flagged this installation as invalid. The earlier isolated-worktree build used Vite 6.4.3 but preceded the legend change. No dependency or lockfile was changed. Reconcile dependencies before treating this checkout's build as verification with the declared toolchain. The current bundle warning is 1,668.32 kB JavaScript / 485.76 kB gzip.
 - All 13 focused verifiers passed from the original checkout: `verify_master_data_clear_dataset`, `verify_neutral_dataset_workbook`, `verify_snapshot_comparison_dynamic_fields`, `verify_dataset_sizing_preservation`, `verify_snapshot_import`, `verify_snapshot_routing_identity`, `verify_dataset_sizing_and_clone`, `verify_snapshot_projection`, `verify_master_data_handoff`, `verify_snapshot_full_flow`, `verify_comparison_reconciliation`, `verify_snapshot_comparison_view`, and `verify_import_mismatch_export`.
 - `git diff --check` passed. Focused TypeScript scripts were bundled with the already-installed esbuild and run as ESM; no dependency was added.
-- Runtime UI smoke showed the neutral table headers, selected-dataset tooltips, and associated labels/inputs in sizing dialogs. No company workbook or user data was loaded. Browser-console status is **[Unverified]**.
+- The generated workbook verifier reads back the new legend from all five sheets. Runtime UI smoke from the earlier implementation showed the neutral table headers, selected-dataset tooltips, and sizing-dialog labels/inputs. No company workbook or user data was loaded. Browser-console status is **[Unverified]**.
 - A prior `npm audit --audit-level=high` passed; two Moderate findings remain through ExcelJS/uuid. The suggested forced remediation downgrades ExcelJS and was not applied.
 - `npm run excel` was not used for this change because its legacy script emits hardcoded sample workbooks; the focused workbook verifier exercises the modified template/export paths directly.
 - Human acceptance remains pending. Existing keyboard-only row-selection/accordion accessibility concerns were not part of this scope.
@@ -33,7 +34,7 @@
 ## Open decision and resume point
 
 - The parser still accepts arbitrary extra workbook columns into internal `additionalFields`, while the neutral exporter emits only the agreed schema. Agreement does not define whether unknown columns should be rejected, retained through export, or ignored; do not claim arbitrary-column round-trip support until this is decided.
-- Next: run the final verification from the original checkout, then push `codex/rca-task-14` once and record the resulting remote SHA. Human review of the implemented workflow remains pending.
+- The last verified remote SHA is `8a52467`, but its current state could not be checked in this turn. The legend follow-up is local and unpushed. Ask before any additional push. Human review of the implemented workflow remains pending.
 
 ---
 

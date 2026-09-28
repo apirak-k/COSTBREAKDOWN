@@ -160,6 +160,11 @@ const template = await generateDynamicExcelTemplate({
 const templateBytes = await template.arrayBuffer()
 const templateWorkbook = XLSX.read(templateBytes, { type: 'array' })
 assert.deepEqual(templateWorkbook.SheetNames, expectedSheets)
+for (const sheetName of expectedSheets) {
+  const legend = String(templateWorkbook.Sheets[sheetName].A2?.v ?? '')
+  assert.match(legend, /yellow/i, `${sheetName} template must explain which cells are editable`)
+  assert.match(legend, /unknown values blank/i, `${sheetName} template must explain how to leave unknown inputs`)
+}
 const styledTemplate = new ExcelJS.Workbook()
 await styledTemplate.xlsx.load(Buffer.from(templateBytes))
 assert.equal(styledTemplate.getWorksheet('WORK_CENTER')?.getCell('C5').numFmt, '#,##0.0000')
