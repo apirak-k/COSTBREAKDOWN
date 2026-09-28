@@ -226,7 +226,7 @@ function bomKey(row: SnapshotBOMItem): string {
 }
 
 function routingKey(row: SnapshotRoutingStep): string {
-  return normalizeKey(row.operationCode) || normalizeKey(row.processCode)
+  return normalizeKey(row.operationCode)
 }
 
 function rateKey(row: SnapshotWorkCenterRate): string {
