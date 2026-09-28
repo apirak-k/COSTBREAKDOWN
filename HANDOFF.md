@@ -1,41 +1,41 @@
-# Current Handoff — Neutral Dataset Agreement Follow-up (2026-09-28)
+# Current Handoff — Neutral Dataset Review Follow-up (2026-09-29)
 
-> This handoff records the verified implementation and synchronization state. The previously authorized push was completed; the Excel-template legend follow-up below is local and has not been pushed.
+> AI implementation and automated verification for this follow-up are complete; human review is the next step. Three implementation checkpoints and this handoff update are local. This follow-up has not been pushed.
 
-## Repository and checkpoint
+## Repository and Git state
 
-- Repository and active checkout: `C:\Users\ai-project\Desktop\SC0434\Cost Breakdown`.
-- Active branch: `codex/rca-task-14`.
-- The implementation checkpoints are `99077d5` (neutral workbook/Routing identity agreement), `ccc8bf5` (Operation Code identity), `41e47a8` (neutral dataset implementation), `1eb208a` (handoff), and `8a52467` (final sync/toolchain-state handoff).
-- The managed worktree `C:\Users\ai-project\.codex\worktrees\rca-neutral-dataset-followup\Cost Breakdown` remains on `codex/rca-task-14-neutral-dataset` at `1eb208a`; the current Excel-template follow-up is being made in the primary checkout.
-- The last verified SHA for `origin/codex/rca-task-14` was `8a52467` after the one authorized push. A live `git ls-remote` recheck on 2026-09-28 could not connect to GitHub; treat `8a52467` as the last verified remote state, not a live confirmation. The template legend/example follow-up is local; do not push it without fresh user authorization.
-- Repository-level `AGENTS.md` is included in this checkpoint so the HAWS and project instructions travel with the branch; it contains no operational workbook data.
-- No workbook under `Sources` was opened, read, staged, or committed. `verify_snapshot_full_flow` loads tracked fixtures from `public/`: `CostModel_SYNTHETIC_MOCK_v2.xlsx` and `CostModel_RGOM-024_v2.xlsx`. The user confirmed on 2026-09-28 that operational source workbooks are in `Sources` and workbook files elsewhere in the repository are simulated; these two tracked files are mock fixtures and may be regenerated from source data if needed.
+- Active checkout: `E:\COSTBREAKDOWN` on branch `codex/rca-task-14`.
+- Starting checkpoint: `1a86cda`. The local tracking ref `origin/codex/rca-task-14` also pointed to `1a86cda` when this follow-up began; no live fetch or remote query was made. Treat that as local tracking information, not a live remote confirmation.
+- Implementation checkpoints: `6efda54` (neutral master-data UI), `162d2a0` (legacy comparison fields), and `695ad42` (incomplete Product Code import). This handoff update is the fourth local commit after the starting checkpoint.
+- No worktree was created or switched to for this follow-up. No push was performed; do not push without the user's explicit authorization.
+- No operational workbook under `Sources` was opened, read, staged, or committed. The full-flow verifier reads only tracked mock fixtures in `public/`: `CostModel_SYNTHETIC_MOCK_v2.xlsx` and `CostModel_RGOM-024_v2.xlsx`.
 
-## Agreed scope implemented
+## Existing neutral-dataset baseline
 
-- Template and export use exactly five sheets: `META`, `PRODUCT`, `WORK_CENTER`, `BOM`, and `ROUTING`. The agreed columns are neutral business fields plus annotations: `Remark` in META and `Note` on Product, Work Center, BOM, and Routing. IDs, confidence, source references, and lifecycle/role fields are not in the neutral workbook schema.
-- Import maps `Remark`/`Note` into their agreed fields. Clear Dataset clears only the selected side, including its sizing/readiness state, and leaves the opposite side intact. Configured sizing is at least one row and reducing it does not delete populated records.
-- Routing comparison uses Operation Code only. Changed codes remain separate `REMOVED` and `ADDED` rows; missing or duplicate codes are not guessed from Process Name and remain unresolved comparison findings.
-- Annotation-only changes do not create business comparison changes. Independent Current snapshots remain canonical instead of being repopulated from a fallback-filled compatibility projection.
-- No additional feature scope was introduced.
-- Each neutral template sheet has a row-2 legend identifying yellow editable inputs and directing users to leave unknowns blank. `WORK_CENTER` also has one synthetic gray example row above its row-4 headers, labeled as not imported. The parser begins after the detected header; the verifier confirms the example is excluded and the actual input rows remain blank.
+- The role-neutral workbook has exactly five sheets: `META`, `PRODUCT`, `WORK_CENTER`, `BOM`, and `ROUTING`, with the columns defined in `agreements/MASTER_DATA_FLOW_SPEC.md` §5.2. `META.Remark` and each record's `Note` survive import/export and web editing; notes are annotations, not identity or calculation inputs.
+- Reference and Current remain independent editable datasets. Copying works in either direction; clearing one side does not clear the other. Dataset sizing preserves populated records.
+- Routing records match by Operation Code only. Missing or duplicate keys remain validation findings; comparison statuses remain `UNCHANGED`, `CHANGED`, `ADDED`, and `REMOVED`.
 
-## Verification and evidence limits
+## Completed in this follow-up
 
-- After the legend and example-row change, all 13 focused verifiers passed from the primary checkout: `verify_master_data_clear_dataset`, `verify_neutral_dataset_workbook`, `verify_snapshot_comparison_dynamic_fields`, `verify_dataset_sizing_preservation`, `verify_snapshot_import`, `verify_snapshot_routing_identity`, `verify_dataset_sizing_and_clone`, `verify_snapshot_projection`, `verify_master_data_handoff`, `verify_snapshot_full_flow`, `verify_comparison_reconciliation`, `verify_snapshot_comparison_view`, and `verify_import_mismatch_export`.
-- `npm run build` passed TypeScript and Vite, but the primary checkout's installed Vite is 5.4.21 while `package.json` requires `^6.4.3`. A separate build of the active checkout's source with Vite 6.4.3 from the managed worktree also passed (1,689 modules). No dependency or lockfile was changed. Reconcile the primary checkout's installed dependencies before relying on its normal `npm run build` on another work session. The Vite 6 build reports the existing large-bundle advisory (1,676.68 kB JavaScript / 487.74 kB gzip).
-- `git diff --check` passed. Focused TypeScript scripts were bundled with the already-installed esbuild and run as ESM; no dependency was added.
-- Fresh full-flow verification after the fixture clarification passed with `$env:JITI_CACHE = 'false'; .\node_modules\.bin\jiti.cmd scripts\verify_snapshot_full_flow.ts` (exit 0; `Snapshot full-flow self-check: PASS`). It read only the approved `public/` mocks: Reference 10 BOM / 15 Routing / 4 Work Centers; Current 16 BOM / 39 Routing / 4 Work Centers; 26 BOM / 54 Routing / 8 Work Center findings; exported workbook 22,104 bytes. An earlier esbuild invocation failed before entering the verifier, so it was a runner limitation, not a test failure.
-- The generated workbook verifier reads back all five legends, confirms the yellow input styling and gray sample, checks blank input rows, and round-trips the template without importing the example. The generated disposable template was opened and visually inspected in Microsoft Excel on 2026-09-28. All five sheets (`META`, `PRODUCT`, `WORK_CENTER`, `BOM`, and `ROUTING`) displayed the title, row-2 editable-input legend, information/header rows, and pale-yellow input cells; `WORK_CENTER`'s gray sample row and “Example only, not imported” label were visible. The workbook was not edited. Runtime UI smoke from the earlier implementation showed the neutral table headers, selected-dataset tooltips, and sizing-dialog labels/inputs. A fresh isolated browser smoke on 2026-09-28 started the Vite app at `127.0.0.1:5174`; the root page rendered the navigation and empty Current dataset controls, and the temporary server was stopped afterward. This confirms initial rendering only; browser-console status remains **[Unverified]**.
-- A prior `npm audit --audit-level=high` passed; two Moderate findings remain through ExcelJS/uuid. The suggested forced remediation downgrades ExcelJS and was not applied.
-- `npm run excel` was not used: its legacy script writes separate hardcoded root-level cost-model workbooks and does not exercise this neutral template generator. The focused verifier directly tests the modified generator/import path without creating those unrelated files.
-- Human acceptance remains pending. Existing keyboard-only row-selection/accordion accessibility concerns were not part of this scope.
+- Add Routing/BOM/Work Center forms now use the neutral fields and accept record-level `Note`; legacy Process Code, Source Reference, and Effective Date inputs were removed. The Work Center form labels its name field to match the neutral schema.
+- Cost Breakdown no longer shows the Source Groups card or Work Center Source column. The Changed badge count now matches the existing Agreement-defined filter (`CHANGED` + `ADDED` + `REMOVED`).
+- Neutral template downloads no longer include a Reference/Current suffix in the filename.
+- Legacy `Process Code` and `Effective Date` values no longer create canonical comparison field differences. Process Code is also excluded from processing-candidate equivalence. Operation Code remains the sole Routing identity. Existing arbitrary imported-field review behavior and Note-only behavior remain intact.
+- A canonical workbook with one Product row and a blank Product Code imports as editable starting data and retains the existing missing-code warning, instead of being rejected.
 
-## Open decision and resume point
+## Verification and limits
 
-- The parser still accepts arbitrary extra workbook columns into internal `additionalFields`, while the neutral exporter emits only the agreed schema. Agreement does not define whether unknown columns should be rejected, retained through export, or ignored; do not claim arbitrary-column round-trip support until this is decided.
-- The last verified remote SHA is `8a52467`, but its current state could not be checked in this turn. The legend follow-up is local and unpushed. Ask before any additional push. Human review of the implemented workflow remains pending.
+- Passed focused verifiers: `verify_snapshot_import`, `verify_snapshot_routing_identity`, `verify_snapshot_comparison_dynamic_fields`, `verify_candidate_prioritization`, `verify_comparison_reconciliation`, `verify_neutral_dataset_workbook`, and `verify_snapshot_full_flow`.
+- `npm run build` passed with Vite 6.4.3; TypeScript completed and Vite transformed 1,687 modules. The build reports the existing large-bundle advisory (1,704.44 kB JavaScript / 496.51 kB gzip).
+- `git diff --check` passed for the final handoff documentation diff and for staged changes before each implementation commit.
+- No browser smoke or accessibility test was run in this follow-up. Human acceptance remains pending; automated checks do not establish acceptance.
+- `npm run excel` was not run because its legacy script writes unrelated hardcoded cost-model workbooks. The modified import path was covered directly by `verify_snapshot_import`.
+
+## Remaining boundary
+
+- The importer still retains arbitrary extra workbook columns in internal `additionalFields`, while the neutral exporter emits only the agreed schema. The Agreement does not decide whether unknown columns should be rejected, ignored, or retained through export; do not claim arbitrary-column round-trip support until that is resolved.
+- At handoff, the local tracking ref is still the starting SHA `1a86cda`; this branch contains four new local commits and has not been pushed. Human review of the changes is the next step.
 
 ---
 
