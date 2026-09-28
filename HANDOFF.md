@@ -9,7 +9,7 @@
 - The implementation checkpoints are `99077d5` (neutral workbook/Routing identity agreement), `ccc8bf5` (Operation Code identity), `41e47a8` (neutral dataset implementation), `1eb208a` (handoff), and `8a52467` (final sync/toolchain-state handoff).
 - The managed worktree `C:\Users\ai-project\.codex\worktrees\rca-neutral-dataset-followup\Cost Breakdown` remains on `codex/rca-task-14-neutral-dataset` at `1eb208a`; the current Excel-template follow-up is being made in the primary checkout.
 - The last verified SHA for `origin/codex/rca-task-14` was `8a52467` after the one authorized push. A live `git ls-remote` recheck on 2026-09-28 could not connect to GitHub; treat `8a52467` as the last verified remote state, not a live confirmation. The template legend/example follow-up is local; do not push it without fresh user authorization.
-- The user's untracked `AGENTS.md` is preserved.
+- Repository-level `AGENTS.md` is included in this checkpoint so the HAWS and project instructions travel with the branch; it contains no operational workbook data.
 - No workbook under `Sources` was opened, read, staged, or committed. `verify_snapshot_full_flow` loads tracked fixtures from `public/`: `CostModel_SYNTHETIC_MOCK_v2.xlsx` and `CostModel_RGOM-024_v2.xlsx`. The user confirmed on 2026-09-28 that operational source workbooks are in `Sources` and workbook files elsewhere in the repository are simulated; these two tracked files are mock fixtures and may be regenerated from source data if needed.
 
 ## Agreed scope implemented
