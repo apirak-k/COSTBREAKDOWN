@@ -165,8 +165,38 @@ for (const sheetName of expectedSheets) {
   assert.match(legend, /yellow/i, `${sheetName} template must explain which cells are editable`)
   assert.match(legend, /unknown values blank/i, `${sheetName} template must explain how to leave unknown inputs`)
 }
+assert.match(String(templateWorkbook.Sheets.WORK_CENTER.A2?.v ?? ''), /gray row 3.*example.*not imported/i)
 const styledTemplate = new ExcelJS.Workbook()
 await styledTemplate.xlsx.load(Buffer.from(templateBytes))
+const workCenterExample = styledTemplate.getWorksheet('WORK_CENTER')
+assert.deepEqual(workCenterExample?.getRow(3).values.slice(1), [
+  'WC-EXAMPLE',
+  'Demonstration machining center',
+  125.5,
+  31.25,
+  'Example only; not imported'
+])
+assert.equal(workCenterExample?.getCell('A3').fill.fgColor?.argb, 'FFF1F5F9')
+for (const [sheetName, address] of [
+  ['META', 'A4'],
+  ['PRODUCT', 'A5'],
+  ['WORK_CENTER', 'A5'],
+  ['BOM', 'A5'],
+  ['ROUTING', 'A5']
+] as const) {
+  assert.equal(
+    styledTemplate.getWorksheet(sheetName)?.getCell(address).fill.fgColor?.argb,
+    'FFFEF9C3',
+    `${sheetName}.${address} must remain a yellow editable input cell`
+  )
+}
+for (const sheetName of ['WORK_CENTER', 'BOM', 'ROUTING'] as const) {
+  const inputRow = styledTemplate.getWorksheet(sheetName)?.getRow(5)
+  for (let column = 1; column <= (inputRow?.cellCount ?? 0); column += 1) {
+    const value = inputRow?.getCell(column).value
+    assert.ok(value === null || value === undefined || value === '', `${sheetName} input row must start blank`)
+  }
+}
 assert.equal(styledTemplate.getWorksheet('WORK_CENTER')?.getCell('C5').numFmt, '#,##0.0000')
 assert.equal(styledTemplate.getWorksheet('WORK_CENTER')?.getCell('D5').numFmt, '#,##0.0000')
 assert.equal(styledTemplate.getWorksheet('BOM')?.getCell('C5').numFmt, '#,##0.0000')
@@ -203,6 +233,9 @@ const templateRoundTrip = parseSnapshotWorkbookData(
 assert.equal(templateRoundTrip.success, true, templateRoundTrip.message)
 assert.equal(templateRoundTrip.snapshot?.remark, 'Template Remark')
 assert.equal(templateRoundTrip.snapshot?.product.note, 'Template Product Note')
+assert.equal(templateRoundTrip.snapshot?.rates.length, 0)
+assert.equal(templateRoundTrip.snapshot?.bom.length, 0)
+assert.equal(templateRoundTrip.snapshot?.routing.length, 0)
 
 const templateValues = templateWorkbook.SheetNames.flatMap(name => {
   const rows = XLSX.utils.sheet_to_json(templateWorkbook.Sheets[name], { header: 1, defval: null }) as unknown[][]

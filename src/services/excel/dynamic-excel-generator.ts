@@ -5,6 +5,7 @@ const COLOR_DARK_NAVY = 'FF1E293B'
 const COLOR_BORDER = 'FFE2E8F0'
 const COLOR_WHITE = 'FFFFFFFF'
 const COLOR_SOFT_YELLOW = 'FFFEF9C3'
+const COLOR_EXAMPLE = 'FFF1F5F9'
 
 const fontTitle = { name: 'Calibri', size: 14, bold: true, color: { argb: COLOR_DARK_NAVY } }
 const fontSection = { name: 'Calibri', size: 11, bold: true, color: { argb: COLOR_DARK_NAVY } }
@@ -41,10 +42,14 @@ function styleInputRow(row: ExcelJS.Row, columns: number, numericColumns: number
   }
 }
 
-function writeInputLegend(sheet: ExcelJS.Worksheet, columns: number): void {
+function writeInputLegend(
+  sheet: ExcelJS.Worksheet,
+  columns: number,
+  text = 'Yellow cells are editable inputs. Leave unknown values blank.'
+): void {
   if (columns > 1) sheet.mergeCells(2, 1, 2, columns)
   const legend = sheet.getCell('A2')
-  legend.value = 'Yellow cells are editable inputs. Leave unknown values blank.'
+  legend.value = text
   legend.font = { ...fontData, italic: true, color: { argb: 'FF475569' } }
   legend.alignment = { vertical: 'middle', wrapText: true }
   sheet.getRow(2).height = 22
@@ -88,9 +93,26 @@ function writeWorkCenterSheet(
   sheet.getCell('A1').value = 'WORK_CENTER'
   sheet.getCell('A1').font = fontTitle
   sheet.mergeCells('A1:E1')
-  writeInputLegend(sheet, headers.length)
-  sheet.getCell('A3').value = 'Work Center rates for this Dataset'
-  sheet.getCell('A3').font = fontSection
+  writeInputLegend(
+    sheet,
+    headers.length,
+    'Yellow cells are editable inputs. Gray row 3 is an example, not imported. Leave unknown values blank.'
+  )
+  const exampleRow = sheet.getRow(3)
+  exampleRow.values = [
+    'WC-EXAMPLE',
+    'Demonstration machining center',
+    125.5,
+    31.25,
+    'Example only; not imported'
+  ]
+  for (let column = 1; column <= headers.length; column += 1) {
+    const cell = exampleRow.getCell(column)
+    cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: COLOR_EXAMPLE } }
+    cell.font = { ...fontData, italic: true, color: { argb: 'FF64748B' } }
+    cell.border = borderThin
+    if (column === 3 || column === 4) cell.numFmt = '#,##0.0000'
+  }
   sheet.getRow(4).values = headers
   styleHeaderRow(sheet.getRow(4), headers.length)
   for (let index = 0; index < count; index += 1) {
