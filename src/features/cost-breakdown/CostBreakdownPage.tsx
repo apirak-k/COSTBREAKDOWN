@@ -43,14 +43,14 @@ export const CostBreakdownPage: React.FC = () => {
       {exactSnapshotCalculation ? (
         <ExecutiveKPICards costBreakdown={costBreakdown} />
       ) : (
-        <div className="px-4 py-3 rounded border border-amber-200 bg-amber-50/70 text-[11px] text-amber-900 font-sans" role="status">
+        <div className="rounded-md border border-amber-200 bg-amber-50 px-4 py-3 text-sm leading-6 text-amber-950" role="status">
           <strong className="font-mono">Exact legacy variance summary is on hold.</strong>{' '}
           Snapshot calculation has missing, invalid, or reviewable inputs. The comparison card below keeps the affected values as N/A and lists the source warnings.
         </div>
       )}
 
       {costBreakdown.missingWorkCenters.length > 0 && (
-        <div className="px-4 py-3 rounded-lg border border-amber-200 bg-amber-50/70 text-[11px] text-amber-900 font-sans" role="status">
+        <div className="rounded-md border border-amber-200 bg-amber-50 px-4 py-3 text-sm leading-6 text-amber-950" role="status">
           <strong className="font-mono">Missing Work Center rates:</strong>{' '}
           {costBreakdown.missingWorkCenters.join(', ')}. Affected conversion values remain unavailable until a rate is configured.
         </div>
@@ -89,14 +89,15 @@ export const CostBreakdownPage: React.FC = () => {
       {exactSnapshotCalculation && <VarianceTreeCard costBreakdown={costBreakdown} />}
 
       {/* 4. Detailed Breakdown Tables Panel */}
-      <div className="bg-white rounded border border-slate-300/80 shadow-2xs overflow-hidden">
+      <section className="overflow-hidden rounded-md border border-slate-200 bg-white" aria-label="Itemized cost breakdown">
         {/* Section Accordion Header */}
-        <div className="flex items-center justify-between px-3.5 py-2.5 bg-slate-50/70 border-b border-slate-200">
+        <div className="flex flex-col gap-3 border-b border-slate-200 bg-slate-50 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
           <button
             type="button"
             onClick={() => setIsDetailedExpanded(!isDetailedExpanded)}
             aria-expanded={isDetailedExpanded}
-            className="flex min-h-10 items-center gap-2 text-sm font-semibold text-slate-900 hover:text-blue-800 cursor-pointer focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700"
+            aria-controls="itemized-cost-details"
+            className="flex min-h-10 items-center gap-2 text-left text-sm font-semibold text-slate-900 hover:text-blue-800 cursor-pointer focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700"
           >
             {isDetailedExpanded ? (
               <ChevronDown className="w-3.5 h-3.5 text-slate-500" />
@@ -107,77 +108,77 @@ export const CostBreakdownPage: React.FC = () => {
           </button>
 
           {/* Sub-Tab Switcher */}
-        <div className="flex flex-wrap items-center justify-end gap-2">
-          <div className="flex items-center gap-1 font-mono text-[11px]">
-            <button
-              type="button"
-              aria-pressed={subTab === 'bom'}
-              onClick={() => setSubTab('bom')}
-              className={`px-2.5 py-1 rounded transition-colors cursor-pointer ${
-                subTab === 'bom'
-                  ? 'bg-slate-900 text-white font-bold'
-                  : 'bg-slate-100 text-slate-700 hover:bg-slate-200 border border-slate-200'
-              }`}
-            >
-              BOM ({bom.length})
-            </button>
-            <button
-              type="button"
-              aria-pressed={subTab === 'routing'}
-              onClick={() => setSubTab('routing')}
-              className={`px-2.5 py-1 rounded transition-colors cursor-pointer ${
-                subTab === 'routing'
-                  ? 'bg-slate-900 text-white font-bold'
-                  : 'bg-slate-100 text-slate-700 hover:bg-slate-200 border border-slate-200'
-              }`}
-            >
-              Routing ({routing.length})
-            </button>
-            <button
-              type="button"
-              aria-pressed={subTab === 'work-center'}
-              onClick={() => setSubTab('work-center')}
-              className={`px-2.5 py-1 rounded transition-colors cursor-pointer ${
-                subTab === 'work-center'
-                  ? 'bg-slate-900 text-white font-bold'
-                  : 'bg-slate-100 text-slate-700 hover:bg-slate-200 border border-slate-200'
-              }`}
-            >
-              Work Center ({rates.length})
-            </button>
+          <div className="flex flex-wrap items-center justify-start gap-2 sm:justify-end">
+            <div className="flex flex-wrap items-center gap-1" role="group" aria-label="Detailed cost section">
+              <button
+                type="button"
+                aria-pressed={subTab === 'bom'}
+                onClick={() => setSubTab('bom')}
+                className={`min-h-9 rounded-sm border px-3 text-xs font-medium transition-colors cursor-pointer focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700 ${
+                  subTab === 'bom'
+                    ? 'bg-slate-900 text-white border-slate-900 font-semibold'
+                    : 'bg-white text-slate-700 hover:bg-slate-100 border-slate-300'
+                }`}
+              >
+                BOM ({bom.length})
+              </button>
+              <button
+                type="button"
+                aria-pressed={subTab === 'routing'}
+                onClick={() => setSubTab('routing')}
+                className={`min-h-9 rounded-sm border px-3 text-xs font-medium transition-colors cursor-pointer focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700 ${
+                  subTab === 'routing'
+                    ? 'bg-slate-900 text-white border-slate-900 font-semibold'
+                    : 'bg-white text-slate-700 hover:bg-slate-100 border-slate-300'
+                }`}
+              >
+                Routing ({routing.length})
+              </button>
+              <button
+                type="button"
+                aria-pressed={subTab === 'work-center'}
+                onClick={() => setSubTab('work-center')}
+                className={`min-h-9 rounded-sm border px-3 text-xs font-medium transition-colors cursor-pointer focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700 ${
+                  subTab === 'work-center'
+                    ? 'bg-slate-900 text-white border-slate-900 font-semibold'
+                    : 'bg-white text-slate-700 hover:bg-slate-100 border-slate-300'
+                }`}
+              >
+                Work Center ({rates.length})
+              </button>
+            </div>
           </div>
         </div>
-      </div>
 
       {isDetailedExpanded && (
-          <div className="p-0">
-            {subTab === 'bom' ? (
-              <BOMDetailedTable
-                findings={snapshotComparison.bomFindings}
-                referenceItems={snapshotPair.reference.bom}
-                currentItems={snapshotPair.current.bom}
-                viewMode={comparisonView}
-              />
-            ) : subTab === 'routing' ? (
-              <RoutingDetailedTable
-                findings={snapshotComparison.routingFindings}
-                referenceItems={snapshotPair.reference.routing}
-                currentItems={snapshotPair.current.routing}
-                referenceRates={snapshotPair.reference.rates}
-                currentRates={snapshotPair.current.rates}
-                viewMode={comparisonView}
-              />
-            ) : (
-              <WorkCenterComparisonTable
-                referenceRates={snapshotPair.reference.rates}
-                currentRates={snapshotPair.current.rates}
-                findings={snapshotComparison.workCenterFindings}
-                viewMode={comparisonView}
-              />
-            )}
-          </div>
-        )}
-      </div>
+        <div id="itemized-cost-details">
+          {subTab === 'bom' ? (
+            <BOMDetailedTable
+              findings={snapshotComparison.bomFindings}
+              referenceItems={snapshotPair.reference.bom}
+              currentItems={snapshotPair.current.bom}
+              viewMode={comparisonView}
+            />
+          ) : subTab === 'routing' ? (
+            <RoutingDetailedTable
+              findings={snapshotComparison.routingFindings}
+              referenceItems={snapshotPair.reference.routing}
+              currentItems={snapshotPair.current.routing}
+              referenceRates={snapshotPair.reference.rates}
+              currentRates={snapshotPair.current.rates}
+              viewMode={comparisonView}
+            />
+          ) : (
+            <WorkCenterComparisonTable
+              referenceRates={snapshotPair.reference.rates}
+              currentRates={snapshotPair.current.rates}
+              findings={snapshotComparison.workCenterFindings}
+              viewMode={comparisonView}
+            />
+          )}
+        </div>
+      )}
+      </section>
     </div>
   )
 }

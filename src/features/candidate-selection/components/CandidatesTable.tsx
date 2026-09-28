@@ -16,25 +16,25 @@ export const CandidatesTable: React.FC<CandidatesTableProps> = ({
     : null
 
   return (
-    <div className="bg-white rounded border border-slate-300/80 shadow-2xs overflow-hidden">
+    <section className="overflow-hidden rounded-md border border-slate-200 bg-white" aria-label="Prioritized candidate findings">
       <div className="w-full overflow-x-auto">
-        <table className="w-full text-xs text-left">
+        <table className="w-full min-w-[900px] text-left text-xs">
           <caption className="sr-only">Prioritized Cost Driver Candidates ranked by Cost Gap</caption>
           <thead>
-            <tr className="bg-slate-900 text-white font-semibold text-[11px]">
-              <th scope="col" className="p-2.5 text-center w-12">Rank</th>
-              <th scope="col" className="p-2.5">Candidate / Finding</th>
-              <th scope="col" className="p-2.5 text-center w-28">Status</th>
-              <th scope="col" className="p-2.5 text-right w-28">Reference</th>
-              <th scope="col" className="p-2.5 text-right w-28">Current</th>
-              <th scope="col" className="p-2.5 text-right w-28">Gap (THB)</th>
-              <th scope="col" className="p-2.5 text-center w-28">Controllable</th>
+            <tr className="bg-slate-800 text-left text-xs font-semibold text-white">
+              <th scope="col" className="w-12 px-3 py-3 text-center">Rank</th>
+              <th scope="col" className="px-3 py-3">Candidate / Finding</th>
+              <th scope="col" className="w-28 px-3 py-3 text-center">Status</th>
+              <th scope="col" className="w-28 px-3 py-3 text-right">Reference</th>
+              <th scope="col" className="w-28 px-3 py-3 text-right">Current</th>
+              <th scope="col" className="w-28 px-3 py-3 text-right">Gap (THB)</th>
+              <th scope="col" className="w-32 px-3 py-3 text-center">Controllable</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100 font-mono">
             {candidates.length === 0 ? (
               <tr>
-                <td colSpan={7} className="p-8 text-center text-slate-400 font-sans italic">
+                <td colSpan={7} className="px-4 py-10 text-center text-sm text-slate-600">
                   No candidates available in this view.
                 </td>
               </tr>
@@ -52,18 +52,18 @@ export const CandidatesTable: React.FC<CandidatesTableProps> = ({
       </div>
 
       {/* Footer */}
-      <div className="flex items-center justify-between px-4 py-2.5 border-t border-slate-200 bg-slate-50 text-xs font-mono">
-        <span className="text-slate-500 text-[11px]">
+      <div className="flex flex-col gap-2 border-t border-slate-200 bg-slate-50 px-4 py-3 text-xs sm:flex-row sm:items-center sm:justify-between">
+        <span className="text-slate-600">
           Total Candidates ({candidates.length})
         </span>
 
-        <div className="text-right flex items-center gap-2">
-          <span className="text-[11px] text-slate-500 font-sans">Net Candidate Gap:</span>
-          <span className={`text-xs font-bold tabular-nums ${totalGap === null ? 'text-slate-400' : totalGap >= 0 ? 'text-rose-700' : 'text-emerald-700'}`}>
+        <div className="flex items-center gap-2 sm:justify-end">
+          <span className="text-slate-600">Net candidate gap:</span>
+          <span className={`font-mono text-sm font-semibold tabular-nums ${totalGap === null ? 'text-slate-500' : totalGap >= 0 ? 'text-rose-700' : 'text-emerald-700'}`}>
             {totalGap === null ? '—' : formatCurrency(totalGap, 4, 'THB/pc')}
           </span>
         </div>
       </div>
-    </div>
+    </section>
   )
 }

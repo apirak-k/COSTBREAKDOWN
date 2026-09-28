@@ -79,10 +79,10 @@ export const WorkCenterComparisonTable: React.FC<WorkCenterComparisonTableProps>
 
   return (
     <div className="w-full overflow-x-auto">
-      <table className="w-full text-xs text-left">
+      <table className="w-full min-w-[1120px] text-left text-xs">
         <caption className="sr-only">Reference and current Work Center rate comparison</caption>
         <thead>
-          <tr className="bg-slate-900 text-white font-semibold text-[11px]">
+          <tr className="bg-slate-800 text-xs font-semibold text-white">
             <th scope="col" className="p-2.5">Work Center</th>
             <th scope="col" className="p-2.5">Description</th>
             <th scope="col" className="p-2.5">Comparison</th>

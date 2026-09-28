@@ -78,55 +78,55 @@ export const SnapshotComparisonCard: React.FC<SnapshotComparisonCardProps> = ({ 
   return (
     <section
       aria-labelledby="snapshot-comparison-title"
-      className="bg-white rounded-lg border border-slate-200 shadow-xs overflow-hidden"
+      className="overflow-hidden rounded-md border border-slate-200 bg-white"
     >
-      <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 px-4 py-3 bg-slate-50 border-b border-slate-200">
+      <div className="flex flex-col gap-3 border-b border-slate-200 bg-slate-50 px-4 py-4 sm:flex-row sm:items-start sm:justify-between">
         <div>
-          <h2 id="snapshot-comparison-title" className="text-xs font-bold font-mono text-slate-800 uppercase tracking-tight">
+          <h2 id="snapshot-comparison-title" className="text-base font-semibold text-slate-900">
             Reference vs Current Snapshot
           </h2>
-          <p className="text-[11px] text-slate-500 font-sans mt-0.5">
+          <p className="mt-1 text-sm leading-5 text-slate-600">
             Independent snapshot calculation and comparison. Exact gap first; attribution follows later.
           </p>
         </div>
-        <div className={`inline-flex items-center gap-1.5 self-start px-2 py-1 rounded border text-[10px] font-mono font-bold uppercase ${qualityClass}`} role="status">
+        <div className={`inline-flex min-h-9 items-center gap-1.5 self-start rounded-sm border px-3 py-1 text-xs font-medium ${qualityClass}`} role="status">
           <QualityIcon className="w-3.5 h-3.5" aria-hidden="true" />
           Data quality: {summary.quality}
         </div>
       </div>
 
       <dl className="grid grid-cols-2 lg:grid-cols-4 divide-x divide-y lg:divide-y-0 divide-slate-100">
-        <div className="p-3">
-          <dt className="text-[10px] font-mono font-bold text-slate-500 uppercase tracking-wider">Reference</dt>
-          <dd className="mt-1 text-lg font-mono font-bold text-slate-900 tabular-nums">{formatCost(comparison.referenceCost.total)}</dd>
-          <span className="text-[10px] text-slate-400 font-sans">THB / unit</span>
+        <div className="p-4">
+          <dt className="text-xs font-medium text-slate-600">Reference</dt>
+          <dd className="mt-1 text-xl font-mono font-semibold text-slate-950 tabular-nums">{formatCost(comparison.referenceCost.total)}</dd>
+          <span className="text-xs text-slate-600">THB / unit</span>
         </div>
-        <div className="p-3">
-          <dt className="text-[10px] font-mono font-bold text-slate-500 uppercase tracking-wider">Current</dt>
-          <dd className="mt-1 text-lg font-mono font-bold text-slate-900 tabular-nums">{formatCost(comparison.currentCost.total)}</dd>
-          <span className="text-[10px] text-slate-400 font-sans">THB / unit</span>
+        <div className="p-4">
+          <dt className="text-xs font-medium text-slate-600">Current</dt>
+          <dd className="mt-1 text-xl font-mono font-semibold text-slate-950 tabular-nums">{formatCost(comparison.currentCost.total)}</dd>
+          <span className="text-xs text-slate-600">THB / unit</span>
         </div>
-        <div className="p-3">
-          <dt className="text-[10px] font-mono font-bold text-slate-500 uppercase tracking-wider">Exact Cost Gap</dt>
-          <dd className={`mt-1 text-lg font-mono font-bold tabular-nums ${gapClass(comparison.totalGap)}`}>{formatGap(comparison.totalGap)}</dd>
-          <span className="text-[10px] text-slate-400 font-sans">Current − Reference</span>
+        <div className="p-4">
+          <dt className="text-xs font-medium text-slate-600">Exact cost gap</dt>
+          <dd className={`mt-1 text-xl font-mono font-semibold tabular-nums ${gapClass(comparison.totalGap)}`}>{formatGap(comparison.totalGap)}</dd>
+          <span className="text-xs text-slate-600">Current − Reference</span>
         </div>
-        <div className="p-3">
-          <dt className="text-[10px] font-mono font-bold text-slate-500 uppercase tracking-wider">Match Review</dt>
-          <dd className="mt-1 text-lg font-mono font-bold text-slate-900 tabular-nums">{summary.reviewCount}</dd>
-          <span className="text-[10px] text-slate-400 font-sans">rows need review</span>
+        <div className="p-4">
+          <dt className="text-xs font-medium text-slate-600">Match review</dt>
+          <dd className="mt-1 text-xl font-mono font-semibold text-slate-950 tabular-nums">{summary.reviewCount}</dd>
+          <span className="text-xs text-slate-600">rows need review</span>
         </div>
       </dl>
 
       <div className="border-t border-slate-200">
-        <div className="px-4 py-2.5 flex items-center justify-between gap-3">
-          <h3 className="text-[11px] font-bold font-mono text-slate-700 uppercase tracking-tight">Cost element bridge</h3>
-          <div className="flex items-center gap-3">
-            <span className="text-[10px] font-mono text-slate-400">
+        <div className="flex flex-col gap-2 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+          <h3 className="text-sm font-semibold text-slate-900">Cost element bridge</h3>
+          <div className="flex flex-wrap items-center gap-2 sm:gap-3">
+            <span className="text-xs text-slate-600">
               {summary.matchedCount} matched · {summary.estimatedCount} estimated · {summary.missingCount} missing
             </span>
             <span
-              className={`rounded border px-1.5 py-0.5 text-[9px] font-mono font-bold uppercase ${comparison.reconciliation?.reconciled
+              className={`rounded-sm border px-2 py-1 text-xs font-medium ${comparison.reconciliation?.reconciled
                 ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
                 : 'border-amber-200 bg-amber-50 text-amber-800'
               }`}
@@ -140,7 +140,7 @@ export const SnapshotComparisonCard: React.FC<SnapshotComparisonCardProps> = ({ 
           <table className="w-full text-left border-collapse">
             <caption className="sr-only">Reference and current cost by element</caption>
             <thead className="bg-slate-50 border-y border-slate-200">
-              <tr className="text-[10px] font-mono font-bold text-slate-500 uppercase tracking-wider">
+              <tr className="bg-white text-xs font-semibold text-slate-700">
                 <th scope="col" className="px-4 py-2">Cost element</th>
                 <th scope="col" className="px-4 py-2 text-right">Reference</th>
                 <th scope="col" className="px-4 py-2 text-right">Current</th>
@@ -151,11 +151,11 @@ export const SnapshotComparisonCard: React.FC<SnapshotComparisonCardProps> = ({ 
               {elements.map(element => {
                 const gap = comparison.elementGaps[element.key]
                 return (
-                  <tr key={element.key} className="text-xs font-mono text-slate-700">
+                  <tr key={element.key} className="text-sm text-slate-700">
                     <th scope="row" className="px-4 py-2.5 font-medium text-slate-800">{element.label}</th>
-                    <td className="px-4 py-2.5 text-right tabular-nums">{formatCost(element.reference)}</td>
-                    <td className="px-4 py-2.5 text-right tabular-nums">{formatCost(element.current)}</td>
-                    <td className={`px-4 py-2.5 text-right tabular-nums font-bold ${gapClass(gap)}`}>{formatGap(gap)}</td>
+                    <td className="px-4 py-2.5 text-right font-mono tabular-nums">{formatCost(element.reference)}</td>
+                    <td className="px-4 py-2.5 text-right font-mono tabular-nums">{formatCost(element.current)}</td>
+                    <td className={`px-4 py-2.5 text-right font-mono font-semibold tabular-nums ${gapClass(gap)}`}>{formatGap(gap)}</td>
                   </tr>
                 )
               })}
@@ -169,14 +169,14 @@ export const SnapshotComparisonCard: React.FC<SnapshotComparisonCardProps> = ({ 
           <div className="flex items-start gap-2">
             <AlertTriangle className="w-4 h-4 text-amber-700 shrink-0 mt-0.5" aria-hidden="true" />
             <div className="min-w-0">
-              <p className="text-[11px] font-bold font-mono text-amber-900">Review warnings ({summary.warningCount})</p>
-              <ul className="mt-1 space-y-0.5 text-[11px] text-amber-900 font-sans">
+              <p className="text-sm font-semibold text-amber-950">Review warnings ({summary.warningCount})</p>
+              <ul className="mt-1 space-y-1 text-sm text-amber-950">
                 {comparison.warnings.slice(0, 3).map((warning, index) => (
                   <li key={`${warning.code}-${warning.referenceId ?? warning.currentId ?? index}`}>{warning.message}</li>
                 ))}
               </ul>
               {comparison.warnings.length > 3 && (
-                <p className="mt-1 text-[10px] text-amber-800 font-sans">+{comparison.warnings.length - 3} more warnings in detailed comparison.</p>
+                <p className="mt-1 text-xs text-amber-900">+{comparison.warnings.length - 3} more warnings in detailed comparison.</p>
               )}
             </div>
           </div>

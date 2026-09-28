@@ -118,10 +118,10 @@ export const RoutingDetailedTable: React.FC<RoutingDetailedTableProps> = ({
 
   return (
     <div className="w-full overflow-x-auto">
-      <table className="w-full text-xs text-left">
+      <table className="w-full min-w-[1500px] text-left text-xs">
         <caption className="sr-only">Reference and current routing cost comparison using matching Work Center rates</caption>
         <thead>
-          <tr className="bg-slate-900 text-white font-semibold text-[11px]">
+          <tr className="bg-slate-800 text-xs font-semibold text-white">
             <th className="p-2.5 w-12">Op #</th>
             <th className="p-2.5">Operation Description</th>
             <th className="p-2.5">Work Center</th>

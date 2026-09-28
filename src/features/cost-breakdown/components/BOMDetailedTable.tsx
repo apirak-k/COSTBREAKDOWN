@@ -92,10 +92,10 @@ export const BOMDetailedTable: React.FC<BOMDetailedTableProps> = ({
 
   return (
     <div className="w-full overflow-x-auto">
-      <table className="w-full text-xs text-left">
+      <table className="w-full min-w-[1320px] text-left text-xs">
         <caption className="sr-only">Reference and current BOM cost comparison using snapshot source values</caption>
         <thead>
-          <tr className="bg-slate-900 text-white font-semibold text-[11px]">
+          <tr className="bg-slate-800 text-xs font-semibold text-white">
             <th scope="col" className="p-2.5 w-12">#</th>
             <th scope="col" className="p-2.5">Item Code</th>
             <th scope="col" className="p-2.5">Material Description</th>
