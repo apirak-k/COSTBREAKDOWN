@@ -11,7 +11,8 @@ import {
   Edit3,
   Eye,
   Sliders,
-  Trash2
+  Trash2,
+  X
 } from 'lucide-react'
 import { ComparisonRole, CostSnapshot, ProductMaster } from '../../../core'
 import { MasterDataHandoffStatus } from '../../../core/calculations/master-data-handoff'
@@ -94,21 +95,20 @@ export const MasterDataWorkspaceHeader: React.FC<MasterDataWorkspaceHeaderProps>
   }
 
   return (
-    <div className="bg-white rounded-lg border border-slate-200 shadow-sm overflow-hidden space-y-0 divide-y divide-slate-200">
+    <div className="overflow-hidden rounded-md border border-slate-200 bg-white divide-y divide-slate-200">
       {/* ─── Level 1: Primary Control Bar (Dataset Switcher + Readiness + Primary Action) ─── */}
-      <div className="px-4 py-3 bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 text-white flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3">
+      <div className="flex flex-col gap-3 bg-slate-900 px-4 py-3 text-white lg:flex-row lg:items-center lg:justify-between">
         {/* Left: Role Switcher Tabs & Clone Action */}
         <div className="flex flex-wrap items-center gap-3">
-          <div className="inline-flex p-1 bg-slate-950/60 border border-slate-700/80 rounded-md gap-1 shadow-inner" role="tablist" aria-label="Working dataset side">
+          <div className="inline-flex gap-1 rounded-md border border-slate-700 bg-slate-950/60 p-1" role="group" aria-label="Working dataset side">
             {/* Reference Tab */}
             <button
               type="button"
-              role="tab"
-              aria-selected={isReference}
+              aria-pressed={isReference}
               onClick={() => onRoleChange('reference')}
-              className={`flex items-center gap-2 px-3 py-1.5 text-xs font-mono font-bold rounded transition-all cursor-pointer ${
+              className={`flex min-h-10 items-center gap-2 rounded px-3 py-1.5 text-sm font-medium transition-colors cursor-pointer focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white ${
                 isReference
-                  ? 'bg-white text-slate-900 shadow-md ring-1 ring-black/5'
+                  ? 'bg-white text-slate-900'
                   : 'text-slate-300 hover:text-white hover:bg-slate-800/80'
               }`}
             >
@@ -117,8 +117,8 @@ export const MasterDataWorkspaceHeader: React.FC<MasterDataWorkspaceHeaderProps>
               <span className={`text-[10px] px-1.5 py-0.5 rounded font-mono font-semibold ${
                 isReference ? 'bg-blue-50 text-blue-700' : 'bg-slate-800 text-slate-400'
               }`}>
-                {referenceCounts.bom > 0 || referenceCounts.routing > 0
-                  ? `${referenceCounts.bom} BOM · ${referenceCounts.routing} RTG`
+                {referenceCounts.bom > 0 || referenceCounts.routing > 0 || referenceCounts.rates > 0
+                  ? `${referenceCounts.bom} BOM · ${referenceCounts.routing} RTG · ${referenceCounts.rates} WC`
                   : 'Empty'}
               </span>
             </button>
@@ -126,12 +126,11 @@ export const MasterDataWorkspaceHeader: React.FC<MasterDataWorkspaceHeaderProps>
             {/* Current Tab */}
             <button
               type="button"
-              role="tab"
-              aria-selected={isCurrent}
+              aria-pressed={isCurrent}
               onClick={() => onRoleChange('current')}
-              className={`flex items-center gap-2 px-3 py-1.5 text-xs font-mono font-bold rounded transition-all cursor-pointer ${
+              className={`flex min-h-10 items-center gap-2 rounded px-3 py-1.5 text-sm font-medium transition-colors cursor-pointer focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white ${
                 isCurrent
-                  ? 'bg-white text-slate-900 shadow-md ring-1 ring-black/5'
+                  ? 'bg-white text-slate-900'
                   : 'text-slate-300 hover:text-white hover:bg-slate-800/80'
               }`}
             >
@@ -140,8 +139,8 @@ export const MasterDataWorkspaceHeader: React.FC<MasterDataWorkspaceHeaderProps>
               <span className={`text-[10px] px-1.5 py-0.5 rounded font-mono font-semibold ${
                 isCurrent ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-800 text-slate-400'
               }`}>
-                {currentCounts.bom > 0 || currentCounts.routing > 0
-                  ? `${currentCounts.bom} BOM · ${currentCounts.routing} RTG`
+                {currentCounts.bom > 0 || currentCounts.routing > 0 || currentCounts.rates > 0
+                  ? `${currentCounts.bom} BOM · ${currentCounts.routing} RTG · ${currentCounts.rates} WC`
                   : 'Empty'}
               </span>
             </button>
@@ -153,7 +152,7 @@ export const MasterDataWorkspaceHeader: React.FC<MasterDataWorkspaceHeaderProps>
               type="button"
               onClick={handleCloneRefToCurWithConfirm}
               disabled={!canCloneReference}
-              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-mono font-medium text-slate-200 bg-slate-800/90 hover:bg-slate-700 hover:text-white border border-slate-700/90 rounded-md transition-all disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer shadow-xs active:scale-[0.98]"
+              className="flex min-h-10 items-center gap-1.5 rounded-md border border-slate-700 px-3 py-1.5 text-sm font-medium text-slate-200 transition-colors hover:bg-slate-800 hover:text-white disabled:cursor-not-allowed disabled:opacity-40 cursor-pointer"
               title={
                 canCloneReference
                   ? 'Copy Reference dataset into Current to quickly modify values'
@@ -170,7 +169,7 @@ export const MasterDataWorkspaceHeader: React.FC<MasterDataWorkspaceHeaderProps>
               type="button"
               onClick={handleCloneCurToRefWithConfirm}
               disabled={!canCloneCurrent}
-              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-mono font-medium text-slate-200 bg-slate-800/90 hover:bg-slate-700 hover:text-white border border-slate-700/90 rounded-md transition-all disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer shadow-xs active:scale-[0.98]"
+              className="flex min-h-10 items-center gap-1.5 rounded-md border border-slate-700 px-3 py-1.5 text-sm font-medium text-slate-200 transition-colors hover:bg-slate-800 hover:text-white disabled:cursor-not-allowed disabled:opacity-40 cursor-pointer"
               title={
                 canCloneCurrent
                   ? 'Copy Current dataset into Reference'
@@ -184,16 +183,18 @@ export const MasterDataWorkspaceHeader: React.FC<MasterDataWorkspaceHeaderProps>
         </div>
 
         {/* Right: Comparison Readiness Status & Primary CTA */}
-        <div className="flex items-center gap-3 self-start lg:self-auto">
+        <div className="flex flex-col items-stretch gap-2 sm:flex-row sm:flex-wrap sm:items-center lg:self-auto">
           {/* Readiness Pill */}
           <div className="relative">
             <button
               type="button"
               onClick={() => setShowReadinessPopover(!showReadinessPopover)}
-              className={`flex items-center gap-1.5 px-3 py-1.5 text-[11px] font-mono font-bold uppercase rounded-md border transition-all cursor-pointer shadow-2xs ${
+              aria-expanded={showReadinessPopover}
+              aria-controls="dataset-readiness-panel"
+              className={`flex min-h-10 items-center gap-1.5 rounded-md border px-3 py-1.5 text-sm font-medium transition-colors cursor-pointer focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white ${
                 handoff.datasetsPrepared
-                  ? 'border-emerald-500/80 bg-emerald-950/70 text-emerald-300 hover:bg-emerald-900/80 ring-1 ring-emerald-500/30'
-                  : 'border-amber-500/80 bg-amber-950/70 text-amber-300 hover:bg-amber-900/80 ring-1 ring-amber-500/30'
+                  ? 'border-emerald-700 bg-emerald-950 text-emerald-200 hover:bg-emerald-900'
+                  : 'border-amber-700 bg-amber-950 text-amber-200 hover:bg-amber-900'
               }`}
               title="Click to view readiness status details"
             >
@@ -203,26 +204,27 @@ export const MasterDataWorkspaceHeader: React.FC<MasterDataWorkspaceHeaderProps>
                 <AlertTriangle className="w-3.5 h-3.5 text-amber-400 shrink-0" />
               )}
               <span>{handoff.datasetsPrepared ? 'Datasets Prepared' : 'Needs Input'}</span>
-              <Info className="w-3 h-3 opacity-70 ml-0.5" />
+              <Info aria-hidden="true" className="ml-0.5 h-4 w-4 opacity-80" />
             </button>
 
             {/* Readiness Popover */}
             {showReadinessPopover && (
-              <div className="absolute right-0 top-full mt-2 w-72 bg-white text-slate-800 p-3.5 shadow-xl border border-slate-200 z-50 text-xs font-sans rounded-lg animate-in fade-in zoom-in-95 duration-150">
-                <div className="flex items-center justify-between pb-2 border-b border-slate-100 font-mono text-[11px] font-bold text-slate-900 uppercase">
+              <div id="dataset-readiness-panel" role="region" aria-label="Dataset preparation status" className="absolute left-0 top-full z-50 mt-2 w-[min(20rem,calc(100vw-2rem))] rounded-md border border-slate-200 bg-white p-4 text-sm text-slate-800 shadow-lg sm:left-auto sm:right-0">
+                <div className="flex items-center justify-between gap-3 border-b border-slate-100 pb-2 font-semibold text-slate-900">
                   <span className="flex items-center gap-1.5">
-                    <Info className="w-3.5 h-3.5 text-slate-500" />
+                    <Info aria-hidden="true" className="h-4 w-4 text-slate-500" />
                     Dataset Preparation
                   </span>
-                  <button
-                    type="button"
-                    onClick={() => setShowReadinessPopover(false)}
-                    className="text-slate-400 hover:text-slate-700 text-sm font-bold cursor-pointer transition-colors"
+                    <button
+                      type="button"
+                      onClick={() => setShowReadinessPopover(false)}
+                    aria-label="Close dataset preparation status"
+                    className="grid h-9 w-9 place-items-center rounded text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-900 cursor-pointer"
                   >
-                    ✕
+                    <X aria-hidden="true" className="h-4 w-4" />
                   </button>
                 </div>
-                <div className="mt-2.5 space-y-2 text-[11px]">
+                <div className="mt-3 space-y-2 text-sm">
                   <div className="flex justify-between items-center py-0.5">
                     <span className="text-slate-500">Reference:</span>
                     <span className={`font-mono font-bold px-1.5 py-0.5 rounded ${handoff.referenceReady ? 'bg-emerald-50 text-emerald-700' : 'bg-amber-50 text-amber-700'}`}>
@@ -237,14 +239,14 @@ export const MasterDataWorkspaceHeader: React.FC<MasterDataWorkspaceHeaderProps>
                   </div>
                 </div>
 
-                <p className="mt-2 border-t border-slate-100 pt-2 text-[10px] leading-relaxed text-slate-500">
+                <p className="mt-3 border-t border-slate-100 pt-3 text-xs leading-5 text-slate-600">
                   Preparation shows whether each side has been entered or imported. Missing cost inputs remain visible on Cost Breakdown and do not block navigation.
                 </p>
 
                 {handoff.issues.length > 0 && (
                   <div className="mt-2.5 pt-2 border-t border-slate-100">
-                    <span className="block text-[10px] font-bold text-rose-700 uppercase">Preparation Notes:</span>
-                    <ul className="mt-1 list-disc pl-4 text-[10px] text-rose-600 space-y-0.5">
+                    <span className="block text-xs font-semibold text-rose-800">Preparation notes</span>
+                    <ul className="mt-1 list-disc space-y-1 pl-4 text-xs text-rose-800">
                       {handoff.issues.map(iss => <li key={iss}>{iss}</li>)}
                     </ul>
                   </div>
@@ -252,8 +254,8 @@ export const MasterDataWorkspaceHeader: React.FC<MasterDataWorkspaceHeaderProps>
 
                 {handoff.warnings && handoff.warnings.length > 0 && (
                   <div className="mt-2 pt-2 border-t border-slate-100">
-                    <span className="block text-[10px] font-bold text-amber-700 uppercase">Notices:</span>
-                    <ul className="mt-1 list-disc pl-4 text-[10px] text-amber-600 space-y-0.5">
+                    <span className="block text-xs font-semibold text-amber-800">Notices</span>
+                    <ul className="mt-1 list-disc space-y-1 pl-4 text-xs text-amber-800">
                       {handoff.warnings.map(w => <li key={w}>{w}</li>)}
                     </ul>
                   </div>
@@ -267,7 +269,7 @@ export const MasterDataWorkspaceHeader: React.FC<MasterDataWorkspaceHeaderProps>
             type="button"
             onClick={onOpenCostBreakdown}
             title="Open Cost Breakdown; missing inputs remain visible there."
-            className="flex items-center gap-2 px-4 py-1.5 text-xs font-mono font-bold text-white bg-blue-600 hover:bg-blue-500 active:bg-blue-700 border border-blue-500 rounded-md shadow-sm transition-all cursor-pointer active:scale-[0.98]"
+            className="flex min-h-10 items-center justify-center gap-2 rounded-md border border-blue-700 bg-blue-700 px-4 py-1.5 text-sm font-semibold text-white transition-colors hover:bg-blue-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white cursor-pointer"
           >
             <span>Cost Breakdown</span>
             <ArrowRight className="w-3.5 h-3.5" />
@@ -276,72 +278,75 @@ export const MasterDataWorkspaceHeader: React.FC<MasterDataWorkspaceHeaderProps>
       </div>
 
       {/* ─── Level 2: Context & Operations Toolbar ─── */}
-      <div className="px-4 py-2.5 bg-slate-50/90 flex flex-wrap items-center justify-between gap-x-6 gap-y-2 text-xs">
+      <div className="grid gap-4 bg-slate-50 px-4 py-4 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-end">
         {/* Left: Product Master Summary / Inputs */}
-        <div className="flex flex-wrap items-center gap-3">
+        <div className="grid min-w-0 grid-cols-1 gap-2 sm:grid-cols-2 xl:grid-cols-5">
           {/* Product Code */}
-          <div className="flex items-center gap-1.5 bg-white border border-slate-200/90 rounded-md px-2.5 py-1 shadow-2xs">
-            <span className="text-[11px] font-mono font-bold uppercase tracking-tight text-slate-400">
-              Product:
+          <div className="min-w-0 rounded-sm border border-slate-200 bg-white px-3 py-2">
+            <span className="block text-xs font-medium text-slate-600">
+              Product code
             </span>
             {isEditMode ? (
               <input
                 type="text"
+                aria-label="Product code"
                 value={product.productCode}
                 onChange={e => onUpdateProduct({ ...product, productCode: e.target.value })}
                 placeholder="Product Code"
-                className="w-28 px-1.5 py-0.5 font-mono font-bold text-xs bg-slate-50 text-slate-900 border border-slate-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500 focus:bg-white"
+                className="mt-1 min-h-10 w-full rounded-sm border border-slate-300 bg-white px-2.5 font-mono text-sm font-semibold text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-700"
               />
             ) : (
-              <span className="font-mono font-bold text-slate-900 text-xs">
+              <span className="mt-1 block truncate font-mono text-sm font-semibold text-slate-900">
                 {product.productCode || '—'}
               </span>
             )}
           </div>
 
           {/* Product Name */}
-          <div className="flex items-center gap-1.5 bg-white border border-slate-200/90 rounded-md px-2.5 py-1 shadow-2xs">
-            <span className="text-[11px] font-mono font-bold uppercase tracking-tight text-slate-400">
-              Name:
+          <div className="min-w-0 rounded-sm border border-slate-200 bg-white px-3 py-2">
+            <span className="block text-xs font-medium text-slate-600">
+              Product description
             </span>
             {isEditMode ? (
               <input
                 type="text"
+                aria-label="Product description"
                 value={product.productDescription}
                 onChange={e => onUpdateProduct({ ...product, productDescription: e.target.value })}
                 placeholder="Description"
-                className="w-40 sm:w-52 px-1.5 py-0.5 font-sans text-xs bg-slate-50 text-slate-900 border border-slate-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500 focus:bg-white"
+                className="mt-1 min-h-10 w-full rounded-sm border border-slate-300 bg-white px-2.5 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-700"
               />
             ) : (
-              <span className="text-slate-800 font-sans max-w-[180px] sm:max-w-[240px] truncate text-xs font-medium" title={product.productDescription}>
+              <span className="mt-1 block truncate text-sm font-medium text-slate-900" title={product.productDescription}>
                 {product.productDescription || '—'}
               </span>
             )}
           </div>
 
           {/* UOM */}
-          <div className="flex items-center gap-1.5 bg-white border border-slate-200/90 rounded-md px-2 py-1 shadow-2xs">
-            <span className="text-[11px] font-mono font-bold uppercase tracking-tight text-slate-400">
+          <div className="min-w-0 rounded-sm border border-slate-200 bg-white px-3 py-2">
+            <span className="block text-xs font-medium text-slate-600">
               UOM:
             </span>
             {isEditMode ? (
-              <select
+                <select
+                aria-label="Unit of measure"
                 value={product.uom}
                 onChange={e => onUpdateProduct({ ...product, uom: e.target.value })}
-                className="px-1 py-0.5 font-mono font-bold text-xs bg-slate-50 text-slate-900 border border-slate-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500 focus:bg-white cursor-pointer"
+                className="mt-1 min-h-10 w-full rounded-sm border border-slate-300 bg-white px-2.5 font-mono text-sm font-semibold text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-700 cursor-pointer"
               >
                 {uomList.map(u => (
                   <option key={u} value={u}>{u}</option>
                 ))}
               </select>
             ) : (
-              <span className="font-mono font-bold text-slate-700 text-xs px-1">{product.uom || '—'}</span>
+              <span className="mt-1 block font-mono text-sm font-semibold text-slate-900">{product.uom || '—'}</span>
             )}
           </div>
 
           {/* Product Note */}
-          <div className="flex items-center gap-1.5 bg-white border border-slate-200/90 rounded-md px-2 py-1 shadow-2xs">
-            <span className="text-[11px] font-mono font-bold uppercase tracking-tight text-slate-400">
+          <div className="min-w-0 rounded-sm border border-slate-200 bg-white px-3 py-2">
+            <span className="block text-xs font-medium text-slate-600">
               Note:
             </span>
             {isEditMode ? (
@@ -350,16 +355,16 @@ export const MasterDataWorkspaceHeader: React.FC<MasterDataWorkspaceHeaderProps>
                 value={product.note || ''}
                 onChange={e => onUpdateProduct({ ...product, note: e.target.value })}
                 aria-label="Product Note"
-                className="w-36 sm:w-48 px-1.5 py-0.5 font-sans text-xs bg-slate-50 text-slate-900 border border-slate-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500 focus:bg-white"
+                className="mt-1 min-h-10 w-full rounded-sm border border-slate-300 bg-white px-2.5 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-700"
               />
             ) : (
-              <span className="max-w-[180px] truncate text-slate-700 text-xs" title={product.note || ''}>{product.note || '—'}</span>
+              <span className="mt-1 block truncate text-sm text-slate-900" title={product.note || ''}>{product.note || '—'}</span>
             )}
           </div>
 
           {/* Dataset Remark */}
-          <div className="flex items-center gap-1.5 bg-white border border-slate-200/90 rounded-md px-2 py-1 shadow-2xs">
-            <span className="text-[11px] font-mono font-bold uppercase tracking-tight text-slate-400">
+          <div className="min-w-0 rounded-sm border border-slate-200 bg-white px-3 py-2">
+            <span className="block text-xs font-medium text-slate-600">
               Remark:
             </span>
             {isEditMode ? (
@@ -368,22 +373,23 @@ export const MasterDataWorkspaceHeader: React.FC<MasterDataWorkspaceHeaderProps>
                 value={snapshot.remark || ''}
                 onChange={e => onUpdateRemark(e.target.value)}
                 aria-label="Dataset Remark"
-                className="w-36 sm:w-48 px-1.5 py-0.5 font-sans text-xs bg-slate-50 text-slate-900 border border-slate-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500 focus:bg-white"
+                className="mt-1 min-h-10 w-full rounded-sm border border-slate-300 bg-white px-2.5 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-700"
               />
             ) : (
-              <span className="max-w-[180px] truncate text-slate-700 text-xs" title={snapshot.remark || ''}>{snapshot.remark || '—'}</span>
+              <span className="mt-1 block truncate text-sm text-slate-900" title={snapshot.remark || ''}>{snapshot.remark || '—'}</span>
             )}
           </div>
         </div>
 
         {/* Right: Clean Grouped Actions */}
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="flex min-w-0 flex-wrap items-center gap-2 lg:justify-end">
           {/* View / Edit Mode Segmented Control */}
-          <div className="flex items-center bg-slate-200/80 p-0.5 rounded-md border border-slate-300/80 shadow-2xs">
+          <div className="flex items-center rounded-sm border border-slate-300 bg-white p-0.5">
             <button
               type="button"
+              aria-pressed={!isEditMode}
               onClick={() => onToggleEditMode(false)}
-              className={`flex items-center gap-1.5 px-2.5 py-1 text-[11px] font-mono font-bold rounded transition-all cursor-pointer ${
+              className={`flex min-h-9 items-center gap-1.5 rounded px-3 py-1 text-xs font-medium transition-colors cursor-pointer ${
                 !isEditMode
                   ? 'bg-white text-slate-900 shadow-xs border border-slate-200'
                   : 'text-slate-600 hover:text-slate-900'
@@ -394,8 +400,9 @@ export const MasterDataWorkspaceHeader: React.FC<MasterDataWorkspaceHeaderProps>
             </button>
             <button
               type="button"
+              aria-pressed={isEditMode}
               onClick={() => onToggleEditMode(true)}
-              className={`flex items-center gap-1.5 px-2.5 py-1 text-[11px] font-mono font-bold rounded transition-all cursor-pointer ${
+              className={`flex min-h-9 items-center gap-1.5 rounded px-3 py-1 text-xs font-medium transition-colors cursor-pointer ${
                 isEditMode
                   ? 'bg-slate-900 text-white shadow-xs'
                   : 'text-slate-600 hover:text-slate-900'
@@ -412,7 +419,7 @@ export const MasterDataWorkspaceHeader: React.FC<MasterDataWorkspaceHeaderProps>
           <button
             type="button"
             onClick={onOpenSizingModal}
-            className="flex items-center gap-1.5 px-3 py-1 text-xs font-mono font-semibold bg-white text-slate-700 hover:bg-slate-100 hover:text-slate-900 border border-slate-300 rounded-md transition-all cursor-pointer shadow-2xs active:scale-[0.98]"
+            className="flex min-h-9 items-center gap-1.5 rounded-sm border border-slate-300 bg-white px-3 py-1 text-xs font-medium text-slate-700 transition-colors hover:bg-slate-100 hover:text-slate-900 cursor-pointer"
             title="Configure dataset row starting counts"
           >
             <Sliders className="w-3.5 h-3.5 text-slate-500" />
@@ -420,11 +427,11 @@ export const MasterDataWorkspaceHeader: React.FC<MasterDataWorkspaceHeaderProps>
           </button>
 
           {/* Excel Tools Joined Group */}
-          <div className="inline-flex items-center rounded-md border border-slate-300 bg-white shadow-2xs divide-x divide-slate-200 overflow-hidden">
+          <div className="inline-flex items-center divide-x divide-slate-200 overflow-hidden rounded-sm border border-slate-300 bg-white">
             <button
               type="button"
               onClick={onOpenImportModal}
-              className="flex items-center gap-1.5 px-3 py-1 text-xs font-mono font-semibold text-slate-700 hover:bg-slate-100 hover:text-slate-900 transition-colors cursor-pointer active:bg-slate-100"
+              className="flex min-h-9 items-center gap-1.5 px-3 py-1 text-xs font-medium text-slate-700 transition-colors hover:bg-slate-100 hover:text-slate-900 cursor-pointer"
               title="Import Excel file into selected dataset"
             >
               <Upload className="w-3.5 h-3.5 text-slate-500" />
@@ -433,7 +440,7 @@ export const MasterDataWorkspaceHeader: React.FC<MasterDataWorkspaceHeaderProps>
             <button
               type="button"
               onClick={handleExportDataset}
-              className="flex items-center gap-1.5 px-3 py-1 text-xs font-mono font-semibold text-slate-700 hover:bg-slate-100 hover:text-slate-900 transition-colors cursor-pointer active:bg-slate-100"
+              className="flex min-h-9 items-center gap-1.5 px-3 py-1 text-xs font-medium text-slate-700 transition-colors hover:bg-slate-100 hover:text-slate-900 cursor-pointer"
               title="Export selected dataset to Excel"
             >
               <Download className="w-3.5 h-3.5 text-slate-500" />
@@ -442,7 +449,7 @@ export const MasterDataWorkspaceHeader: React.FC<MasterDataWorkspaceHeaderProps>
             <button
               type="button"
               onClick={onOpenTemplateModal}
-              className="flex items-center gap-1.5 px-3 py-1 text-xs font-mono font-semibold text-slate-700 hover:bg-slate-100 hover:text-slate-900 transition-colors cursor-pointer active:bg-slate-100"
+              className="flex min-h-9 items-center gap-1.5 px-3 py-1 text-xs font-medium text-slate-700 transition-colors hover:bg-slate-100 hover:text-slate-900 cursor-pointer"
               title="Download blank template with customizable row counts"
             >
               <FileSpreadsheet className="w-3.5 h-3.5 text-slate-500" />
@@ -456,7 +463,7 @@ export const MasterDataWorkspaceHeader: React.FC<MasterDataWorkspaceHeaderProps>
           <button
             type="button"
             onClick={handleClearDatasetWithConfirm}
-            className="flex items-center gap-1.5 px-3 py-1 text-xs font-mono font-semibold text-rose-700 hover:text-rose-900 bg-white hover:bg-rose-50 border border-slate-300 hover:border-rose-300 rounded-md transition-all cursor-pointer shadow-2xs active:scale-[0.98]"
+            className="flex min-h-9 items-center gap-1.5 rounded-sm border border-rose-300 bg-rose-50 px-3 py-1 text-xs font-medium text-rose-800 transition-colors hover:bg-rose-100 hover:text-rose-900 cursor-pointer"
             title={`Clear all data on ${role === 'reference' ? 'Reference' : 'Current'}`}
           >
             <Trash2 className="w-3.5 h-3.5 text-rose-600" />

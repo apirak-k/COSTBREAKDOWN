@@ -152,18 +152,17 @@ export const MasterDataPage: React.FC = () => {
       {/* ─── Tables Workspace Navigation & Views ─── */}
       <div className="space-y-3">
         {/* Navigation Tab Bar */}
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 bg-slate-100/90 p-1.5 rounded-lg border border-slate-200/90 shadow-2xs">
+        <div className="flex flex-col gap-2 rounded-md border border-slate-200 bg-white p-2 sm:flex-row sm:items-center sm:justify-between">
           {/* Sub-Tabs */}
-          <div className="inline-flex gap-1" role="tablist" aria-label="Dataset table sections">
+          <div className="flex w-full min-w-0 gap-1 overflow-x-auto sm:w-auto" role="group" aria-label="Dataset table sections">
             <button
               type="button"
-              role="tab"
-              aria-selected={activeTableTab === 'bom'}
+              aria-pressed={activeTableTab === 'bom'}
               onClick={() => {
                 setActiveTableTab('bom')
                 setLayoutMode('tabs')
               }}
-              className={`flex items-center gap-2 px-3.5 py-1.5 text-xs font-mono font-bold rounded-md transition-all cursor-pointer ${
+              className={`flex min-h-10 shrink-0 items-center gap-2 rounded-sm px-3 text-sm font-medium transition-colors cursor-pointer ${
                 activeTableTab === 'bom' && layoutMode === 'tabs'
                   ? 'bg-white text-slate-900 shadow-sm border border-slate-200'
                   : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/70'
@@ -182,13 +181,12 @@ export const MasterDataPage: React.FC = () => {
 
             <button
               type="button"
-              role="tab"
-              aria-selected={activeTableTab === 'routing'}
+              aria-pressed={activeTableTab === 'routing'}
               onClick={() => {
                 setActiveTableTab('routing')
                 setLayoutMode('tabs')
               }}
-              className={`flex items-center gap-2 px-3.5 py-1.5 text-xs font-mono font-bold rounded-md transition-all cursor-pointer ${
+              className={`flex min-h-10 shrink-0 items-center gap-2 rounded-sm px-3 text-sm font-medium transition-colors cursor-pointer ${
                 activeTableTab === 'routing' && layoutMode === 'tabs'
                   ? 'bg-white text-slate-900 shadow-sm border border-slate-200'
                   : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/70'
@@ -207,13 +205,12 @@ export const MasterDataPage: React.FC = () => {
 
             <button
               type="button"
-              role="tab"
-              aria-selected={activeTableTab === 'rates'}
+              aria-pressed={activeTableTab === 'rates'}
               onClick={() => {
                 setActiveTableTab('rates')
                 setLayoutMode('tabs')
               }}
-              className={`flex items-center gap-2 px-3.5 py-1.5 text-xs font-mono font-bold rounded-md transition-all cursor-pointer ${
+              className={`flex min-h-10 shrink-0 items-center gap-2 rounded-sm px-3 text-sm font-medium transition-colors cursor-pointer ${
                 activeTableTab === 'rates' && layoutMode === 'tabs'
                   ? 'bg-white text-slate-900 shadow-sm border border-slate-200'
                   : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/70'
@@ -232,11 +229,12 @@ export const MasterDataPage: React.FC = () => {
           </div>
 
           {/* Layout Mode Switcher (Tab View vs Stacked View) */}
-          <div className="flex items-center gap-1 self-end sm:self-auto bg-slate-200/60 p-0.5 rounded-md border border-slate-300/60">
+          <div className="flex items-center gap-1 self-start rounded-sm border border-slate-300 bg-slate-50 p-0.5 sm:self-auto">
             <button
               type="button"
+              aria-pressed={layoutMode === 'tabs'}
               onClick={() => setLayoutMode('tabs')}
-              className={`flex items-center gap-1.5 px-2.5 py-1 text-[11px] font-mono rounded cursor-pointer transition-all ${
+              className={`flex min-h-9 items-center gap-1.5 rounded px-3 py-1 text-xs transition-colors cursor-pointer ${
                 layoutMode === 'tabs'
                   ? 'bg-white text-slate-900 font-bold shadow-xs border border-slate-200'
                   : 'text-slate-600 hover:text-slate-900'
@@ -248,8 +246,9 @@ export const MasterDataPage: React.FC = () => {
             </button>
             <button
               type="button"
+              aria-pressed={layoutMode === 'stacked'}
               onClick={() => setLayoutMode('stacked')}
-              className={`flex items-center gap-1.5 px-2.5 py-1 text-[11px] font-mono rounded cursor-pointer transition-all ${
+              className={`flex min-h-9 items-center gap-1.5 rounded px-3 py-1 text-xs transition-colors cursor-pointer ${
                 layoutMode === 'stacked'
                   ? 'bg-white text-slate-900 font-bold shadow-xs border border-slate-200'
                   : 'text-slate-600 hover:text-slate-900'
@@ -324,22 +323,24 @@ export const MasterDataPage: React.FC = () => {
           <div className="space-y-4">
             {/* BOM Section */}
             <div className="border border-slate-200 bg-white rounded-lg shadow-2xs overflow-hidden">
-              <div
+              <button
+                type="button"
                 onClick={() => toggleSection('bom')}
-                className="flex items-center justify-between px-4 py-2.5 bg-slate-100/90 hover:bg-slate-200/80 cursor-pointer select-none border-b border-slate-200 transition-colors"
+                aria-expanded={!collapsedSections.bom}
+                className="flex min-h-12 w-full items-center justify-between gap-3 border-b border-slate-200 bg-slate-50 px-4 py-2.5 text-left transition-colors hover:bg-slate-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700 cursor-pointer"
               >
-                <div className="flex items-center gap-2">
+                <span className="flex items-center gap-2">
                   <Box className="w-4 h-4 text-slate-600" />
-                  <span className="font-mono text-xs font-bold text-slate-800">Bill of Materials (BOM)</span>
+                  <span className="text-sm font-semibold text-slate-900">Bill of Materials (BOM)</span>
                   <span className="text-[10px] px-1.5 py-0.5 rounded font-mono bg-slate-200 text-slate-700 font-semibold">
                     {masterDataSnapshot.bom.length} items
                   </span>
-                </div>
-                <div className="flex items-center gap-1 text-slate-500 hover:text-slate-800 text-xs font-mono">
-                  <span>{collapsedSections.bom ? 'Expand' : 'Collapse'}</span>
+                </span>
+                <span className="flex items-center gap-1 text-slate-500 text-xs">
+                  <span className="hidden sm:inline">{collapsedSections.bom ? 'Expand' : 'Collapse'}</span>
                   {collapsedSections.bom ? <ChevronDown className="w-4 h-4" /> : <ChevronUp className="w-4 h-4" />}
-                </div>
-              </div>
+                </span>
+              </button>
               {!collapsedSections.bom && (
                 <BOMTable
                   bom={masterDataSnapshot.bom}
@@ -361,22 +362,24 @@ export const MasterDataPage: React.FC = () => {
 
             {/* Routing Section */}
             <div className="border border-slate-200 bg-white rounded-lg shadow-2xs overflow-hidden">
-              <div
+              <button
+                type="button"
                 onClick={() => toggleSection('routing')}
-                className="flex items-center justify-between px-4 py-2.5 bg-slate-100/90 hover:bg-slate-200/80 cursor-pointer select-none border-b border-slate-200 transition-colors"
+                aria-expanded={!collapsedSections.routing}
+                className="flex min-h-12 w-full items-center justify-between gap-3 border-b border-slate-200 bg-slate-50 px-4 py-2.5 text-left transition-colors hover:bg-slate-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700 cursor-pointer"
               >
-                <div className="flex items-center gap-2">
+                <span className="flex items-center gap-2">
                   <GitCommit className="w-4 h-4 text-slate-600" />
-                  <span className="font-mono text-xs font-bold text-slate-800">Process Routing</span>
+                  <span className="text-sm font-semibold text-slate-900">Process Routing</span>
                   <span className="text-[10px] px-1.5 py-0.5 rounded font-mono bg-slate-200 text-slate-700 font-semibold">
                     {masterDataSnapshot.routing.length} steps
                   </span>
-                </div>
-                <div className="flex items-center gap-1 text-slate-500 hover:text-slate-800 text-xs font-mono">
-                  <span>{collapsedSections.routing ? 'Expand' : 'Collapse'}</span>
+                </span>
+                <span className="flex items-center gap-1 text-slate-500 text-xs">
+                  <span className="hidden sm:inline">{collapsedSections.routing ? 'Expand' : 'Collapse'}</span>
                   {collapsedSections.routing ? <ChevronDown className="w-4 h-4" /> : <ChevronUp className="w-4 h-4" />}
-                </div>
-              </div>
+                </span>
+              </button>
               {!collapsedSections.routing && (
                 <RoutingTable
                   routing={masterDataSnapshot.routing}
@@ -400,22 +403,24 @@ export const MasterDataPage: React.FC = () => {
 
             {/* Work Center Rates Section */}
             <div className="border border-slate-200 bg-white rounded-lg shadow-2xs overflow-hidden">
-              <div
+              <button
+                type="button"
                 onClick={() => toggleSection('rates')}
-                className="flex items-center justify-between px-4 py-2.5 bg-slate-100/90 hover:bg-slate-200/80 cursor-pointer select-none border-b border-slate-200 transition-colors"
+                aria-expanded={!collapsedSections.rates}
+                className="flex min-h-12 w-full items-center justify-between gap-3 border-b border-slate-200 bg-slate-50 px-4 py-2.5 text-left transition-colors hover:bg-slate-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700 cursor-pointer"
               >
-                <div className="flex items-center gap-2">
+                <span className="flex items-center gap-2">
                   <Factory className="w-4 h-4 text-slate-600" />
-                  <span className="font-mono text-xs font-bold text-slate-800">Work Center Rates</span>
+                  <span className="text-sm font-semibold text-slate-900">Work Center Rates</span>
                   <span className="text-[10px] px-1.5 py-0.5 rounded font-mono bg-slate-200 text-slate-700 font-semibold">
                     {masterDataSnapshot.rates.length} centers
                   </span>
-                </div>
-                <div className="flex items-center gap-1 text-slate-500 hover:text-slate-800 text-xs font-mono">
-                  <span>{collapsedSections.rates ? 'Expand' : 'Collapse'}</span>
+                </span>
+                <span className="flex items-center gap-1 text-slate-500 text-xs">
+                  <span className="hidden sm:inline">{collapsedSections.rates ? 'Expand' : 'Collapse'}</span>
                   {collapsedSections.rates ? <ChevronDown className="w-4 h-4" /> : <ChevronUp className="w-4 h-4" />}
-                </div>
-              </div>
+                </span>
+              </button>
               {!collapsedSections.rates && (
                 <WorkCenterRatesTable
                   rates={masterDataSnapshot.rates}
