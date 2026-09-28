@@ -429,15 +429,6 @@ export function parseSnapshotWorkbookData(
       role
     }
   }
-  if (!product.productCode) {
-    return {
-      success: false,
-      message: 'Product Code is required in the PRODUCT sheet.',
-      format: 'canonical',
-      warnings,
-      role
-    }
-  }
   const sourceRef = metaValue(meta, ['source ref', 'sourceref', 'source'])
   const effectiveDate = product.effectiveDate || metaValue(meta, ['effective date', 'effectivedate'])
   const snapshotId = metaValue(meta, ['snapshot id', 'snapshotid', 'id']) || `${product.productCode || 'snapshot'}:${role}`

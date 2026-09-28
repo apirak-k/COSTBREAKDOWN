@@ -60,6 +60,53 @@ assert.equal(result.snapshot?.routing[1].operationCode, undefined)
 assert.equal(result.snapshot?.routing[1].processCode, 'PRC-20')
 assert.ok(result.warnings.some(warning => warning.includes('burdenRate')))
 
+// MASTER_DATA_FLOW_SPEC.md §§5.1, 5.2, and 9 treat imported data as editable
+// starting data and require non-blocking warnings for product mismatches.
+// A blank Product Code must therefore be retained with a warning for later edit.
+const startingDataWorkbook = XLSX.utils.book_new()
+XLSX.utils.book_append_sheet(startingDataWorkbook, sheet([
+  ['MASTER DATA DATASET'],
+  [],
+  ['Remark'],
+  ['Starting data with incomplete product identity']
+]), 'META')
+XLSX.utils.book_append_sheet(startingDataWorkbook, sheet([
+  ['PRODUCT'],
+  [],
+  [],
+  ['Product Code', 'Product Name', 'UOM', 'Note'],
+  ['', 'Starting Product', 'PC', '']
+]), 'PRODUCT')
+XLSX.utils.book_append_sheet(startingDataWorkbook, sheet([
+  ['WORK_CENTER'],
+  [],
+  [],
+  ['Work Center Code', 'Work Center Name', 'Labor Rate', 'Burden Rate', 'Note']
+]), 'WORK_CENTER')
+XLSX.utils.book_append_sheet(startingDataWorkbook, sheet([
+  ['BOM'],
+  [],
+  [],
+  ['Item Code', 'Description', 'Consumption', 'Unit', 'Price', 'Loss', 'Note']
+]), 'BOM')
+XLSX.utils.book_append_sheet(startingDataWorkbook, sheet([
+  ['ROUTING'],
+  [],
+  [],
+  ['Operation Code', 'Sequence', 'Process Name', 'Work Center Code', 'Manning', 'Capacity', 'Yield', 'Note']
+]), 'ROUTING')
+const startingDataResult = parseSnapshotWorkbookData(
+  XLSX.write(startingDataWorkbook, { type: 'array', bookType: 'xlsx' }),
+  'reference'
+)
+assert.equal(startingDataResult.success, true, startingDataResult.message)
+assert.equal(startingDataResult.format, 'canonical')
+assert.equal(startingDataResult.snapshot?.product.productCode, '')
+assert.ok(
+  startingDataResult.warnings?.some(warning => warning.toLowerCase().includes('missing product code')),
+  'Blank Product Code must remain visible as a warning while the starting dataset imports'
+)
+
 async function verifyCanonicalTemplate(): Promise<void> {
   assert.ok(result.snapshot)
   const template = await generateDynamicExcelTemplate({
