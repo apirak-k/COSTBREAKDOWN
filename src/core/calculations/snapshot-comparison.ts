@@ -48,6 +48,7 @@ const COMPARISON_METADATA_FIELDS = new Set([
   'sourceRef',
   'additionalFields',
   'note',
+  'isGeneratedSizingPlaceholder',
   // Legacy columns excluded from the neutral dataset schema.
   'effectiveDate',
   'processCode'

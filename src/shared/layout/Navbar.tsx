@@ -4,7 +4,7 @@ import { useAppStore } from '../../state'
 const navItems = [
   { id: 'master', label: 'Master Data' },
   { id: 'breakdown', label: 'Cost Breakdown' },
-  { id: 'candidate', label: 'Candidate Selection' },
+  { id: 'candidate', label: 'Candidate Prioritization' },
   { id: 'rca', label: 'RCA & Simulation' },
 ] as const
 

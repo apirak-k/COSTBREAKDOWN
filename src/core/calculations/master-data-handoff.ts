@@ -57,11 +57,19 @@ export function evaluateMasterDataHandoff(
     }
   })
 
-  // Compare Reference and Current Product Code if both exist
+  // Product Code is the primary identity. Fall back to Product Name only when
+  // both datasets cannot be compared by Product Code.
   const refCode = pair.reference.product.productCode.trim()
   const curCode = pair.current.product.productCode.trim()
-  if (refCode && curCode && normalized(refCode) !== normalized(curCode)) {
-    warnings.push(`Product mismatch: Reference is "${refCode}" while Current is "${curCode}".`)
+  const refName = pair.reference.product.productDescription.trim()
+  const curName = pair.current.product.productDescription.trim()
+
+  if (refCode && curCode) {
+    if (normalized(refCode) !== normalized(curCode)) {
+      warnings.push(`Product mismatch: Reference is "${refCode}" while Current is "${curCode}".`)
+    }
+  } else if (refName && curName && normalized(refName) !== normalized(curName)) {
+    warnings.push(`Product mismatch: Reference is "${refName}" while Current is "${curName}".`)
   }
 
   return {

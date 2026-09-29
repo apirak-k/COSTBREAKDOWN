@@ -1,4 +1,41 @@
-# Current Handoff — Cross-device continuation (2026-09-29)
+# Current Handoff — AI-side work complete, human review pending (2026-09-29)
+
+## Current checkpoint
+
+- Repository: `E:\COSTBREAKDOWN`; active branch: `current`; starting `HEAD`: `c2d13d50822e1df18e07b9be7ddd281ac335dc1f`.
+- The branch was renamed locally after workspace cleanup; this continuation starts from the same recorded application checkpoint. No fetch, commit, or push was made during this work. Current implementation and handoff edits are local and uncommitted.
+- Product behavior remains governed by `docs/REQUIREMENTS_INDEX.md` and the four current files in `agreements/`. This handoff records status and evidence, not new product requirements.
+
+## AI-side implementation completed
+
+1. **Sizing metadata no longer changes business comparison status.** `isGeneratedSizingPlaceholder` is excluded from row field diffs, so an otherwise identical manual/imported row and generated row stay `UNCHANGED`.
+2. **Master Data identity warning follows Code-primary fallback.** When both sides have Product Code, compare Code only. If either Code is blank, compare Product Name when both names are present. Mismatches remain warnings and do not block handoff. Missing Product Code warnings remain.
+3. **Navigation wording is aligned.** The navbar now says “Candidate Prioritization”; its route and workflow ID are unchanged.
+
+Regression coverage includes BOM, Routing, and Work Center rows with identical business data and only the internal sizing marker changed; canonical status stays `UNCHANGED` and total Gap stays zero. Master Data checks cover differing Codes, matching Codes with different Names, missing Code on both or one side, same/different fallback Names, and absent identifiers.
+
+## Verification on this checkpoint
+
+- All 40 `scripts/verify_*.ts` verifiers passed on the current working tree using esbuild bundles (`--packages=external`), including the six that the old `jiti` runner could not parse.
+- Focused Master Data handoff, sizing comparison, dynamic snapshot comparison, and import/export mismatch checks passed.
+- A second review in ChatGPT conversation “บูมเอง 2” confirmed the Code-primary fallback direction and suggested extra edge coverage; the distinct row IDs, one-missing-Code/same-Name case, and non-blocking assertions are included. This review is corroborating feedback, not a product authority.
+- `npm run build` passed (1,688 modules). Vite still reports the existing large-bundle advisory: the main JS output is about 1,715 kB / 498 kB gzip.
+- Production preview loaded successfully; the navbar label and Candidate Prioritization page heading both displayed correctly. This is a smoke check, not full UX/UI or accessibility acceptance.
+- No operational workbook was reviewed. The user’s UX/UI and logic review remains pending; AI verification is not human acceptance.
+
+## Remaining human decisions and next action
+
+- **UX/UI and logic acceptance:** the user will review the real flows. The six previously blocked assertions now pass through the alternate verifier runner, but no full user acceptance pass has been recorded.
+- **All filter:** keep the current select-all behavior. A toggle/indeterminate interaction is a low-priority UX question and is deferred; it does not block review or use.
+- **Custom `additionalFields`:** keep current behavior for now. Preserve and display the custom data, and continue allowing its differences to appear in `fieldDiffs` and affect `CHANGED` status. Revisit only if this causes a meaningful problem; it does not block review or use.
+- **Deferred concepts:** add a `Load Mock Data` option and allow comparison over a user-selected subset. These are not part of the current Agreements or implementation patch. Before implementing partial comparison, define what can be selected and whether excluded rows are outside the calculation or only hidden, since that changes totals, Gaps, and downstream candidates.
+- After UX/UI review, record any accepted Agreement changes, then make only the corresponding implementation changes. Keep human acceptance separate from automated `PASS` results.
+
+---
+
+# Historical Handoff — Cross-device continuation (2026-09-29)
+
+> The checkpoint below predates the local continuation above. Its branch instructions and statement that no application-code fix had been made are historical; use the current checkpoint at the top of this file.
 
 ## Branch checkpoint
 

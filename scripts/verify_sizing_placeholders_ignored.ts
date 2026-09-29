@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict'
 import { CostSnapshot, compareSnapshots, calculateSnapshotCost, buildProcessingCandidates } from '../src/core'
+import { getCanonicalComparisonStatus } from '../src/core/calculations/comparison-status'
 
 const base: CostSnapshot = {
   id: 'sizing-base',
@@ -61,6 +62,38 @@ assert.ok(!comparison.routingFindings.some(finding => finding.currentId === 'siz
 assert.ok(!comparison.workCenterFindings.some(finding => finding.currentId === 'size-rate-1'))
 assert.ok(!comparison.warnings.some(warning => warning.code === 'MISSING_BUSINESS_KEY'))
 assert.deepEqual(buildProcessingCandidates(comparison), [])
+
+const metadataReference: CostSnapshot = {
+  ...base,
+  id: 'metadata-reference',
+  rates: base.rates.map(rate => ({ ...rate, id: 'rate-metadata-reference' })),
+  bom: base.bom.map(item => ({ ...item, id: 'bom-metadata-reference' })),
+  routing: base.routing.map(step => ({ ...step, id: 'routing-metadata-reference' }))
+}
+const metadataCurrent: CostSnapshot = {
+  ...base,
+  id: 'metadata-current',
+  rates: base.rates.map(rate => ({ ...rate, id: 'rate-metadata-current', isGeneratedSizingPlaceholder: false })),
+  bom: base.bom.map(item => ({ ...item, id: 'bom-metadata-current', isGeneratedSizingPlaceholder: false })),
+  routing: base.routing.map(step => ({ ...step, id: 'routing-metadata-current', isGeneratedSizingPlaceholder: false }))
+}
+const metadataComparison = compareSnapshots(metadataReference, metadataCurrent)
+const metadataBOMFinding = metadataComparison.bomFindings.find(finding => finding.currentId === 'bom-metadata-current')
+assert.ok(metadataBOMFinding, 'equivalent BOM rows with different sizing metadata must match')
+assert.deepEqual(metadataBOMFinding.fieldDiffs, {}, 'the internal sizing marker is not a business field')
+assert.equal(getCanonicalComparisonStatus(metadataBOMFinding), 'UNCHANGED')
+assert.equal(metadataBOMFinding.costGap, 0)
+
+const metadataRoutingFinding = metadataComparison.routingFindings.find(finding => finding.currentId === 'routing-metadata-current')
+assert.ok(metadataRoutingFinding, 'equivalent Routing rows with different sizing metadata must match')
+assert.deepEqual(metadataRoutingFinding.fieldDiffs, {})
+assert.equal(getCanonicalComparisonStatus(metadataRoutingFinding), 'UNCHANGED')
+
+const metadataRateFinding = metadataComparison.workCenterFindings.find(finding => finding.currentId === 'rate-metadata-current')
+assert.ok(metadataRateFinding, 'equivalent Work Center rows with different sizing metadata must match')
+assert.deepEqual(metadataRateFinding.fieldDiffs, {})
+assert.equal(getCanonicalComparisonStatus(metadataRateFinding), 'UNCHANGED')
+assert.equal(metadataComparison.totalGap, 0)
 
 const userBlankRow: CostSnapshot = {
   ...base,
