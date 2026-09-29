@@ -3,7 +3,7 @@
 ## Current checkpoint
 
 - Repository: `E:\COSTBREAKDOWN`; active branch: `current`; starting `HEAD`: `c2d13d50822e1df18e07b9be7ddd281ac335dc1f`.
-- The branch was renamed locally after workspace cleanup; this continuation starts from the same recorded application checkpoint. No fetch, commit, or push was made during this work. Current implementation and handoff edits are local and uncommitted.
+- The active working branch is `current`, continuing from the recorded application checkpoint. The implementation and handoff changes are committed and pushed to `origin/current`.
 - Product behavior remains governed by `docs/REQUIREMENTS_INDEX.md` and the four current files in `agreements/`. This handoff records status and evidence, not new product requirements.
 
 ## AI-side implementation completed
@@ -18,7 +18,7 @@ Regression coverage includes BOM, Routing, and Work Center rows with identical b
 
 - All 40 `scripts/verify_*.ts` verifiers passed on the current working tree using esbuild bundles (`--packages=external`), including the six that the old `jiti` runner could not parse.
 - Focused Master Data handoff, sizing comparison, dynamic snapshot comparison, and import/export mismatch checks passed.
-- A second review in ChatGPT conversation “บูมเอง 2” confirmed the Code-primary fallback direction and suggested extra edge coverage; the distinct row IDs, one-missing-Code/same-Name case, and non-blocking assertions are included. This review is corroborating feedback, not a product authority.
+- A prior text-only discussion in ChatGPT conversation “บูมเอง 2” suggested edge coverage; it did not inspect the published commit. A review request with the pushed commit URL has been sent, and URL-based feedback is pending. ChatGPT feedback is corroborating input, not a product authority.
 - `npm run build` passed (1,688 modules). Vite still reports the existing large-bundle advisory: the main JS output is about 1,715 kB / 498 kB gzip.
 - Production preview loaded successfully; the navbar label and Candidate Prioritization page heading both displayed correctly. This is a smoke check, not full UX/UI or accessibility acceptance.
 - No operational workbook was reviewed. The user’s UX/UI and logic review remains pending; AI verification is not human acceptance.
