@@ -165,6 +165,37 @@ assert(missingMaterialCandidate, 'Changed material with incomplete cost inputs r
 assert.equal(missingMaterialCandidate.currentCost, null, 'Missing material input keeps Current cost unavailable')
 assert.equal(missingMaterialCandidate.costGap, null, 'Missing material input keeps Gap unavailable')
 
+const incompleteFactorsReference: CostSnapshot = {
+  ...refSnapshot,
+  id: 'incomplete-factors-reference',
+  rates: [],
+  routing: [],
+  bom: [{ id: 'mat-incomplete-factors-ref', itemCode: 'MAT-MULTI', description: 'Multiple changed factors', consumption: 1, unit: 'KG', price: 10, loss: null, confidence: {} }]
+}
+const incompleteFactorsCurrent: CostSnapshot = {
+  ...curSnapshot,
+  id: 'incomplete-factors-current',
+  rates: [],
+  routing: [],
+  bom: [{ id: 'mat-incomplete-factors-cur', itemCode: 'MAT-MULTI', description: 'Multiple changed factors', consumption: 2, unit: 'KG', price: 12, loss: null, confidence: {} }]
+}
+const incompleteFactorCandidates = buildMaterialCandidates(
+  compareSnapshots(incompleteFactorsReference, incompleteFactorsCurrent),
+  incompleteFactorsReference,
+  incompleteFactorsCurrent
+)
+assert.equal(incompleteFactorCandidates.length, 2, 'Each changed material factor remains a candidate when attribution inputs are missing')
+const incompletePriceCandidate = incompleteFactorCandidates.find(candidate => candidate.factor === 'Price')
+const incompleteUsageCandidate = incompleteFactorCandidates.find(candidate => candidate.factor === 'Usage')
+assert(incompletePriceCandidate, 'Price change remains a candidate when Loss is unavailable')
+assert.equal(incompletePriceCandidate.referenceParam, 10)
+assert.equal(incompletePriceCandidate.currentParam, 12)
+assert.equal(incompletePriceCandidate.costGap, null, 'Price attribution gap stays unavailable when Loss is missing')
+assert(incompleteUsageCandidate, 'Usage change remains a candidate when Loss is unavailable')
+assert.equal(incompleteUsageCandidate.referenceParam, 1)
+assert.equal(incompleteUsageCandidate.currentParam, 2)
+assert.equal(incompleteUsageCandidate.costGap, null, 'Usage attribution gap stays unavailable when Loss is missing')
+
 const missingRouteReference: CostSnapshot = {
   ...refSnapshot,
   id: 'missing-route-reference',

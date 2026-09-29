@@ -36,6 +36,10 @@ export interface PrioritizationCandidate {
   paramLabel?: string
 }
 
+function finiteInputs(values: Array<number | null | undefined>): values is number[] {
+  return values.every(value => typeof value === 'number' && Number.isFinite(value))
+}
+
 /**
  * Builds Material Candidates from Cost Comparison findings.
  * Section 4 of CANDIDATE_PRIORITIZATION_SPEC.md:
@@ -133,9 +137,12 @@ export function buildMaterialCandidates(
 
     // If multiple factors changed, provide factor candidates or a unified candidate with factor details
     if (factorCount > 1 && refItem && curItem) {
-      if (priceChanged && refItem.price !== null && curItem.price !== null && curItem.consumption !== null && curItem.loss !== null) {
+      if (priceChanged) {
         const factorKey = `${baseKey}:price`
-        const priceVariance = (curItem.price - refItem.price) * curItem.consumption * (1 + curItem.loss)
+        const inputs = [refItem.price, curItem.price, curItem.consumption, curItem.loss]
+        const priceVariance = finiteInputs(inputs)
+          ? (inputs[1] - inputs[0]) * inputs[2] * (1 + inputs[3])
+          : null
         candidates.push({
           candidateKey: factorKey,
           candidateName: `${itemCode} — ${itemDesc} (Price Change)`,
@@ -157,9 +164,12 @@ export function buildMaterialCandidates(
           currentParam: curItem.price
         })
       }
-      if (lossChanged && refItem.loss !== null && curItem.loss !== null && refItem.price !== null && curItem.consumption !== null) {
+      if (lossChanged) {
         const factorKey = `${baseKey}:loss`
-        const lossVariance = refItem.price * curItem.consumption * (curItem.loss - refItem.loss)
+        const inputs = [refItem.price, curItem.consumption, curItem.loss, refItem.loss]
+        const lossVariance = finiteInputs(inputs)
+          ? inputs[0] * inputs[1] * (inputs[2] - inputs[3])
+          : null
         candidates.push({
           candidateKey: factorKey,
           candidateName: `${itemCode} — ${itemDesc} (Loss % Change)`,
@@ -181,9 +191,12 @@ export function buildMaterialCandidates(
           currentParam: curItem.loss
         })
       }
-      if (usageChanged && refItem.consumption !== null && curItem.consumption !== null && refItem.price !== null && refItem.loss !== null) {
+      if (usageChanged) {
         const factorKey = `${baseKey}:usage`
-        const usageVariance = (curItem.consumption - refItem.consumption) * refItem.price * (1 + refItem.loss)
+        const inputs = [refItem.consumption, curItem.consumption, refItem.price, refItem.loss]
+        const usageVariance = finiteInputs(inputs)
+          ? (inputs[1] - inputs[0]) * inputs[2] * (1 + inputs[3])
+          : null
         candidates.push({
           candidateKey: factorKey,
           candidateName: `${itemCode} — ${itemDesc} (Usage Change)`,
