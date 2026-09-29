@@ -1,28 +1,26 @@
-# Current Handoff — Comparison Agreement Follow-up (2026-09-29)
+# Current Handoff — Four-Agreement SPEC Audit (2026-09-29)
 
 ## Repository and Git state
 
 - Active checkout: `C:\Users\ai-project\Desktop\SC0434\Cost Breakdown` on branch `codex/rca-task-14`.
-- Base SHA before this follow-up: `bf339c24769715b33dcd9d76dd6af3b8226057b7`. The cached local `origin/codex/rca-task-14` tracking ref remains at that SHA; it is not a fresh GitHub check.
-- The follow-up is split into two local commits: Comparison (`e8cd0e6`) and Candidate Prioritization (this checkpoint). The local branch is ahead of the cached tracking ref; nothing was pushed.
-- The earlier Neutral Dataset Review checkpoint below is historical and describes a different checkout state.
+- Starting SHA: `bf339c24769715b33dcd9d76dd6af3b8226057b7`. The cached local `origin/codex/rca-task-14` tracking ref still points there; this is not a live GitHub check. Five local commits are ahead of that cached ref; nothing was pushed.
+- Local implementation commits, in order: `e8cd0e6` Comparison view alignment; `ecf806c` retain changed material findings; `8e382df` derive Processing candidates from Comparison findings; `9f07367` retain material candidates when attribution inputs are missing; `8732eeb` reconcile factor Reference/Current costs with Gap.
+- Sections below this checkpoint are historical records from earlier checkout states.
 
-## Completed in this follow-up
+## Four-Agreement audit and implementation
 
-- Recorded that Status and Gap are independent, that table rows keep `UNCHANGED` data without an `UNCHANGED` badge, and that comparison filters are multi-select. `All` selects every canonical status; unmatched rows remain visible under `All` for review.
-- Updated Candidate Prioritization to use the same multi-select behavior. `Changed` selects only `CHANGED`; added and removed findings are separate statuses.
-- Kept changed material findings available to candidates even when the changed field is outside the former Price/Loss/Usage allowlist or the calculated Gap is zero; Candidate rows now show each changed field with its Reference and Current values.
-- Confirmed Processing candidates remain `CHANGED` for a changed Routing structure with a zero Work Center Gap; added a regression check for that case and for a zero-gap descriptive material change.
-- Changed Cost Breakdown KPI and element summary cards to use snapshot comparison values. The legacy-only price/loss/efficiency decomposition has been removed from this page until a snapshot-backed attribution model exists.
+- **Master Data Flow:** audited the neutral dataset schema, independent Reference/Current datasets, import/clone/clear behavior, validation, comparison handoff, session handling, and export paths. No confirmed mismatch was found in the audited flow. The Agreement does not define round-tripping arbitrary extra workbook columns; the importer retains such fields internally while the neutral exporter emits the agreed schema.
+- **Snapshot Comparison:** status and Gap remain independent; records match by business identity; missing values are not guessed; warnings remain separate from canonical statuses; and comparison totals reconcile. Cost Breakdown now uses snapshot comparison values. Processing candidates consume canonical Comparison findings instead of recalculating them.
+- **Candidate Prioritization:** changed material findings remain visible, including zero-Gap and non-standard-factor changes. When Price/Loss/Usage attribution inputs are available, each row's Reference and Current are factor cost contributions, Gap equals Current minus Reference, and factor Gaps sum to the Comparison material Gap. Missing inputs preserve the finding and produce a null cost effect. Processing candidates preserve Comparison status and Gap.
+- **RCA & Simulation:** no candidate is auto-selected; the user chooses from the candidate pool. Root Cause and Action are optional notes, not calculation inputs. A/B/C scenarios start from Current, use the shared Cost Engine and supported measurable overrides, and do not mutate the source snapshot. The user chooses the scenario for handoff. Detailed Trial workflow is outside the Agreement's implementation scope.
 
-## Verification and next step
+## Verification and handoff
 
-- Passed `verify_cost_breakdown_view`, `verify_candidate_prioritization`, `verify_comparison_reconciliation`, `verify_snapshot_full_flow`, `verify_snapshot_routing_identity`, `verify_snapshot_comparison_dynamic_fields`, `verify_snapshot_projection`, and `verify_snapshot_import` using the locally installed `jiti` runner.
-- Expanded `scripts/verify_*.ts` sweep: 34 of 40 scripts passed. Six scripts could not run through `jiti` because they import TSX components or the TSX store and hit module/ESM loader errors: `verify_bom_comparison_view`, `verify_direct_dataset_editing`, `verify_routing_comparison_view`, `verify_snapshot_comparison_view`, `verify_work_center_comparison_view`, and `verify_workspace_initialization`. These are runner errors, not failed assertions.
-- `npm run build` passed: TypeScript completed and Vite 5.4.21 produced the production bundle. The existing large-chunk advisory remains (1,672.92 kB JavaScript / 485.47 kB gzip).
-- `git diff --check` passed; Git reports line-ending normalization warnings only. Browser visual/accessibility review has not been run.
-- A local browser smoke confirmed the comparison and candidate status controls toggle and `All` restores every status. The isolated browser session had no sample rows, so row-level badge/detail rendering still has not been visually checked with populated data.
-- The Comparison and Candidate Prioritization clauses changed in this follow-up have been cross-checked. A full clause-by-clause audit of all four current Agreements has not been completed; do not claim project-wide SPEC compliance.
+- Focused `verify_candidate_prioritization`, `verify_comparison_reconciliation`, `verify_snapshot_full_flow`, and `verify_sizing_placeholders_ignored` passed after the final implementation change. Full `scripts/verify_*.ts` sweep: 34/40 passed.
+- Six UI/store verifiers remain **Unverified** because the installed `jiti` runner fails to parse TSX imports before assertions: `verify_bom_comparison_view`, `verify_direct_dataset_editing`, `verify_routing_comparison_view`, `verify_snapshot_comparison_view`, `verify_work_center_comparison_view`, and `verify_workspace_initialization`. Treat these as runner-blocked, not as passing or as confirmed product defects.
+- Production build passed with Vite 6.4.3 using `npm run build -- --configLoader runner`. The existing large-bundle advisory remains (1,715.22 kB JavaScript / 497.55 kB gzip). `git diff --check` passed.
+- No populated browser visual review has been completed. The next step is human UX/UI and usage-logic acceptance using representative Reference/Current data, especially row badges/details, missing-input display, candidate factor costs, and RCA scenario behavior. Automated code/spec checks do not replace that review.
+- AI-side code audit covered all four current Agreements and no confirmed mismatch remains in the audited implementation paths. This does not claim browser-level acceptance. No operational workbook was opened for this audit; fixtures were synthetic/tracked test data.
 
 ---
 
