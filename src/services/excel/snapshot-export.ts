@@ -1,6 +1,7 @@
 import type ExcelJS from 'exceljs'
 import { CostSnapshot, ProductMaster } from '../../core'
 import { excludeGeneratedSizingPlaceholders } from '../../core/utils/sizing'
+import { loadExcelJS } from './exceljs-runtime'
 
 const COLOR_DARK_NAVY = 'FF1E293B'
 const COLOR_BORDER = 'FFE2E8F0'
@@ -67,6 +68,7 @@ function writeProductSheet(sheet: ExcelJS.Worksheet, product: ProductMaster): vo
 
 function writeWorkCenterSheet(sheet: ExcelJS.Worksheet, snapshot: CostSnapshot): void {
   const headers = ['Work Center Code', 'Work Center Name', 'Labor Rate', 'Burden Rate', 'Note']
+  const rates = excludeGeneratedSizingPlaceholders(snapshot.rates)
   sheet.columns = [{ width: 22 }, { width: 34 }, { width: 16 }, { width: 16 }, { width: 48 }]
   sheet.getCell('A1').value = 'WORK_CENTER'
   sheet.getCell('A1').font = fontTitle
@@ -74,18 +76,19 @@ function writeWorkCenterSheet(sheet: ExcelJS.Worksheet, snapshot: CostSnapshot):
   sheet.getRow(3).values = headers
   styleHeaderRow(sheet.getRow(3), headers.length)
 
-  excludeGeneratedSizingPlaceholders(snapshot.rates).forEach((rate, index) => {
+  rates.forEach((rate, index) => {
     const row = sheet.getRow(index + 4)
     row.values = [rate.workCenterCode, rate.description, rate.laborRate, rate.burdenRate, rate.note || '']
     styleDataRow(row, headers.length, [3, 4])
   })
 
-  if (snapshot.rates.length > 0) sheet.autoFilter = `A3:E${snapshot.rates.length + 3}`
+  if (rates.length > 0) sheet.autoFilter = `A3:E${rates.length + 3}`
   sheet.views = [{ state: 'frozen', ySplit: 3 }]
 }
 
 function writeBOMSheet(sheet: ExcelJS.Worksheet, snapshot: CostSnapshot): void {
   const headers = ['Item Code', 'Description', 'Consumption', 'Unit', 'Price', 'Loss', 'Note']
+  const items = excludeGeneratedSizingPlaceholders(snapshot.bom)
   sheet.columns = [{ width: 18 }, { width: 36 }, { width: 16 }, { width: 12 }, { width: 16 }, { width: 14 }, { width: 48 }]
   sheet.getCell('A1').value = 'BOM'
   sheet.getCell('A1').font = fontTitle
@@ -93,18 +96,19 @@ function writeBOMSheet(sheet: ExcelJS.Worksheet, snapshot: CostSnapshot): void {
   sheet.getRow(3).values = headers
   styleHeaderRow(sheet.getRow(3), headers.length)
 
-  excludeGeneratedSizingPlaceholders(snapshot.bom).forEach((item, index) => {
+  items.forEach((item, index) => {
     const row = sheet.getRow(index + 4)
     row.values = [item.itemCode, item.description, item.consumption, item.unit, item.price, item.loss, item.note || '']
     styleDataRow(row, headers.length, [3, 5, 6])
   })
 
-  if (snapshot.bom.length > 0) sheet.autoFilter = `A3:G${snapshot.bom.length + 3}`
+  if (items.length > 0) sheet.autoFilter = `A3:G${items.length + 3}`
   sheet.views = [{ state: 'frozen', ySplit: 3 }]
 }
 
 function writeRoutingSheet(sheet: ExcelJS.Worksheet, snapshot: CostSnapshot): void {
   const headers = ['Operation Code', 'Sequence', 'Process Name', 'Work Center Code', 'Manning', 'Capacity', 'Yield', 'Note']
+  const steps = excludeGeneratedSizingPlaceholders(snapshot.routing)
   sheet.columns = [{ width: 18 }, { width: 12 }, { width: 32 }, { width: 22 }, { width: 14 }, { width: 14 }, { width: 14 }, { width: 48 }]
   sheet.getCell('A1').value = 'ROUTING'
   sheet.getCell('A1').font = fontTitle
@@ -112,7 +116,7 @@ function writeRoutingSheet(sheet: ExcelJS.Worksheet, snapshot: CostSnapshot): vo
   sheet.getRow(3).values = headers
   styleHeaderRow(sheet.getRow(3), headers.length)
 
-  excludeGeneratedSizingPlaceholders(snapshot.routing).forEach((step, index) => {
+  steps.forEach((step, index) => {
     const row = sheet.getRow(index + 4)
     row.values = [
       step.operationCode || '',
@@ -127,12 +131,12 @@ function writeRoutingSheet(sheet: ExcelJS.Worksheet, snapshot: CostSnapshot): vo
     styleDataRow(row, headers.length, [2, 5, 6, 7])
   })
 
-  if (snapshot.routing.length > 0) sheet.autoFilter = `A3:H${snapshot.routing.length + 3}`
+  if (steps.length > 0) sheet.autoFilter = `A3:H${steps.length + 3}`
   sheet.views = [{ state: 'frozen', ySplit: 3 }]
 }
 
 export async function exportSnapshotToExcel(snapshot: CostSnapshot): Promise<Blob> {
-  const ExcelJS = (await import('exceljs/lib/exceljs.bare.js')).default
+  const ExcelJS = await loadExcelJS()
   const workbook = new ExcelJS.Workbook()
   workbook.creator = 'Cost Breakdown Analysis Platform'
   workbook.created = new Date()

@@ -10,13 +10,18 @@
     "excel": "node scripts/build_excel_models.js && node scripts/verify_excel_models.js"
   },
   "dependencies": {
+    "buffer": "5.7.1",
     "clsx": "^2.1.1",
+    "events": "3.3.0",
     "exceljs": "^4.4.0",
     "jszip": "^3.10.1",
     "lucide-react": "^0.475.0",
+    "process": "0.11.10",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
+    "readable-stream": "3.6.2",
     "tailwind-merge": "^3.0.1",
+    "util": "0.12.5",
     "xlsx": "https://cdn.sheetjs.com/xlsx-0.20.3/xlsx-0.20.3.tgz"
   },
   "devDependencies": {

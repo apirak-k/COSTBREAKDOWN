@@ -31,7 +31,9 @@ This document records choices that affect more than one COSTBREAKDOWN flow. The 
 
 - Feature pages retain the existing loading behavior. Excel parsing, template generation, and workbook export are loaded when the corresponding action runs.
 - Keep the production build below Vite's default 500 kB chunk advisory. Do not raise `chunkSizeWarningLimit` to hide the output size.
-- The ExcelJS browser build currently uses the package's `exceljs/lib/exceljs.bare.js` entry. Vite still reports externalized Node built-ins from ExcelJS dependencies; browser execution of the production Excel actions remains to be confirmed.
+- The ExcelJS `bare` entry is loaded only after the browser shims (`buffer`, `process`, `readable-stream`, `events`, and `util`) are available. `readable-stream` is isolated in its own lazy chunk.
+- Latest production build sizes are: main entry 379.55 kB, parser 381.31 kB, ExcelJS 431.35 kB, and Excel stream support 104.43 kB. The default `> 500 kB` advisory is gone; its configured threshold is unchanged.
+- Vite still reports externalized `fs` and `crypto` imports from ExcelJS and its CSV dependencies. A production-preview Template action completed workbook generation and closed the dialog without a new browser exception. The browser harness did not capture a download event, so the saved `.xlsx` file still needs a direct human check.
 
 ### Existing comparison choices retained
 

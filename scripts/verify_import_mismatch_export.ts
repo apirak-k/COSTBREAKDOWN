@@ -158,6 +158,9 @@ async function runTests() {
   const workCenterRows = XLSX.utils.sheet_to_json(exportedWorkbook.Sheets.WORK_CENTER, { header: 1, defval: null }) as unknown[][]
   const bomRows = XLSX.utils.sheet_to_json(exportedWorkbook.Sheets.BOM, { header: 1, defval: null }) as unknown[][]
   const routingRows = XLSX.utils.sheet_to_json(exportedWorkbook.Sheets.ROUTING, { header: 1, defval: null }) as unknown[][]
+  assert.equal(exportedWorkbook.Sheets.WORK_CENTER['!autofilter']?.ref, 'A3:E4')
+  assert.equal(exportedWorkbook.Sheets.BOM['!autofilter']?.ref, 'A3:G4')
+  assert.equal(exportedWorkbook.Sheets.ROUTING['!autofilter']?.ref, 'A3:H4')
   assert.deepEqual(productRows[2], ['Product Code', 'Product Name', 'UOM', 'Note'])
   assert.deepEqual(workCenterRows[2], ['Work Center Code', 'Work Center Name', 'Labor Rate', 'Burden Rate', 'Note'])
   assert.deepEqual(bomRows[2], ['Item Code', 'Description', 'Consumption', 'Unit', 'Price', 'Loss', 'Note'])
