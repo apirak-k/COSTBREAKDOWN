@@ -9,7 +9,8 @@ import {
   FieldEvidence,
   SnapshotBOMItem,
   SnapshotRoutingStep,
-  SnapshotWorkCenterRate
+  SnapshotWorkCenterRate,
+  WorkCenterProcessingFinding
 } from '../types'
 import { calculateSnapshotCost } from './snapshot-cost'
 import { calculateSnapshotBOMDetail } from './snapshot-bom-detail'
@@ -313,6 +314,135 @@ function gap(current: number | null, reference: number | null): number | null {
   return current - reference
 }
 
+function addCost(total: number | null, value: number | null): number | null {
+  return total === null || value === null ? null : total + value
+}
+
+function routingSignature(steps: SnapshotRoutingStep[]): string {
+  const signatures = steps.map(step => JSON.stringify([
+    normalizeKey(step.operationCode),
+    step.processName,
+    step.sequence,
+    normalizeKey(step.workCenterId),
+    step.manning,
+    step.capacity,
+    step.yield
+  ])).sort((left, right) => left.localeCompare(right))
+  return JSON.stringify(signatures)
+}
+
+function groupRoutingByWorkCenter(steps: SnapshotRoutingStep[]): Map<string, SnapshotRoutingStep[]> {
+  const groups = new Map<string, SnapshotRoutingStep[]>()
+  for (const step of steps) {
+    const key = normalizeKey(step.workCenterId)
+    if (!key) continue
+    groups.set(key, [...(groups.get(key) ?? []), step])
+  }
+  return groups
+}
+
+function aggregateRoutingCost(
+  steps: SnapshotRoutingStep[],
+  side: 'reference' | 'current',
+  referenceRates: SnapshotWorkCenterRate[],
+  currentRates: SnapshotWorkCenterRate[]
+): { labor: number | null; burden: number | null; total: number | null } {
+  let labor: number | null = 0
+  let burden: number | null = 0
+  for (const step of steps) {
+    const detail = calculateSnapshotRoutingDetail(
+      side === 'reference' ? { reference: step } : { current: step },
+      referenceRates,
+      currentRates
+    )
+    labor = addCost(labor, side === 'reference' ? detail.referenceLaborCost : detail.currentLaborCost)
+    burden = addCost(burden, side === 'reference' ? detail.referenceBurdenCost : detail.currentBurdenCost)
+  }
+  return { labor, burden, total: addCost(labor, burden) }
+}
+
+function processingCostEffect(
+  reference: { labor: number | null; burden: number | null; total: number | null },
+  current: { labor: number | null; burden: number | null; total: number | null }
+): ComparisonRecordCostEffect {
+  return {
+    reference: { material: 0, labor: reference.labor, burden: reference.burden, total: reference.total },
+    current: { material: 0, labor: current.labor, burden: current.burden, total: current.total },
+    gap: {
+      material: 0,
+      labor: gap(current.labor, reference.labor),
+      burden: gap(current.burden, reference.burden),
+      total: gap(current.total, reference.total)
+    }
+  }
+}
+
+function buildProcessingFindings(
+  referenceRouting: SnapshotRoutingStep[],
+  currentRouting: SnapshotRoutingStep[],
+  referenceRates: SnapshotWorkCenterRate[],
+  currentRates: SnapshotWorkCenterRate[],
+  workCenterFindings: ComparisonFinding[]
+): WorkCenterProcessingFinding[] {
+  const referenceByWorkCenter = groupRoutingByWorkCenter(referenceRouting)
+  const currentByWorkCenter = groupRoutingByWorkCenter(currentRouting)
+  const referenceRatesById = new Map(referenceRates.map(rate => [rate.id, rate]))
+  const currentRatesById = new Map(currentRates.map(rate => [rate.id, rate]))
+  const changedRateWorkCenters = new Set<string>()
+
+  for (const finding of workCenterFindings) {
+    const changed = finding.matchStatus === 'added'
+      || finding.matchStatus === 'removed'
+      || finding.changeFlags.changedRate === true
+    if (!changed) continue
+    const referenceRate = finding.referenceId ? referenceRatesById.get(finding.referenceId) : undefined
+    const currentRate = finding.currentId ? currentRatesById.get(finding.currentId) : undefined
+    if (referenceRate) changedRateWorkCenters.add(normalizeKey(referenceRate.workCenterCode))
+    if (currentRate) changedRateWorkCenters.add(normalizeKey(currentRate.workCenterCode))
+  }
+
+  const findings: WorkCenterProcessingFinding[] = []
+  const keys = new Set([...referenceByWorkCenter.keys(), ...currentByWorkCenter.keys()])
+  for (const workCenterKey of keys) {
+    const referenceSteps = referenceByWorkCenter.get(workCenterKey) ?? []
+    const currentSteps = currentByWorkCenter.get(workCenterKey) ?? []
+    const referenceRate = referenceRates.find(rate => normalizeKey(rate.workCenterCode) === workCenterKey)
+    const currentRate = currentRates.find(rate => normalizeKey(rate.workCenterCode) === workCenterKey)
+    const hasReference = referenceSteps.length > 0
+    const hasCurrent = currentSteps.length > 0
+    const matchStatus = !hasReference ? 'added' : !hasCurrent ? 'removed' : 'matched'
+    const changeFlags = {
+      changedInputs: hasReference && hasCurrent
+        && routingSignature(referenceSteps) !== routingSignature(currentSteps),
+      changedRate: changedRateWorkCenters.has(workCenterKey)
+    }
+    const referenceCost = hasReference
+      ? aggregateRoutingCost(referenceSteps, 'reference', referenceRates, currentRates)
+      : { labor: 0, burden: 0, total: 0 }
+    const currentCost = hasCurrent
+      ? aggregateRoutingCost(currentSteps, 'current', referenceRates, currentRates)
+      : { labor: 0, burden: 0, total: 0 }
+    const costEffect = processingCostEffect(referenceCost, currentCost)
+    const rate = currentRate ?? referenceRate
+    const route = currentSteps[0] ?? referenceSteps[0]
+
+    findings.push({
+      workCenterCode: rate?.workCenterCode ?? route?.workCenterId ?? workCenterKey.toUpperCase(),
+      workCenterDescription: rate?.description,
+      sourceId: rate?.id ?? workCenterKey,
+      sourceRef: currentRate?.sourceRef ?? route?.sourceRef ?? referenceRate?.sourceRef,
+      matchStatus,
+      changeFlags,
+      fieldDiffs: {},
+      costGap: costEffect.gap.total,
+      costEffect,
+      confidence: 'verified'
+    })
+  }
+
+  return findings
+}
+
 /** Calculates both snapshots independently and then returns explicit comparison findings. */
 export function compareSnapshots(reference: CostSnapshot, current: CostSnapshot): CostComparison {
   const referenceCost = calculateSnapshotCost(reference)
@@ -356,6 +486,14 @@ export function compareSnapshots(reference: CostSnapshot, current: CostSnapshot)
     rateFlags,
     undefined,
     warnings
+  )
+
+  const processingFindings = buildProcessingFindings(
+    referenceRouting,
+    currentRouting,
+    referenceRates,
+    currentRates,
+    workCenterFindings
   )
 
   const materialGap = gap(currentCost.material, referenceCost.material)
@@ -416,6 +554,7 @@ export function compareSnapshots(reference: CostSnapshot, current: CostSnapshot)
     bomFindings,
     routingFindings,
     workCenterFindings,
+    processingFindings,
     productFieldDiffs: diffProductFields(reference.product, current.product),
     warnings,
     reconciliation: {

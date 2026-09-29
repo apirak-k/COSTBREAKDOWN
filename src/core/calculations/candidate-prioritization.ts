@@ -37,8 +37,6 @@ export function buildPrioritizationCandidates(
 
   const processingCandidates = buildProcessingCandidates(
     comparison,
-    referenceSnapshot,
-    currentSnapshot,
     controllabilityMap
   )
 

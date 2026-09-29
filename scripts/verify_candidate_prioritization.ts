@@ -78,7 +78,7 @@ assert.equal(removedMat.costGap, -15, 'Removed material gap must be -Reference c
 
 // 2. Task 12: Processing Candidates aggregated by Work Center
 console.log('2. Checking Processing Candidates aggregated by Work Center...')
-const procCandidates = buildProcessingCandidates(comparison, refSnapshot, curSnapshot)
+const procCandidates = buildProcessingCandidates(comparison)
 assert(procCandidates.length >= 1, 'Processing candidates generated')
 
 const wc2 = procCandidates.find(c => c.candidateKey === 'wc:wc-2')
@@ -178,9 +178,7 @@ const missingRouteCurrent: CostSnapshot = {
   routing: [{ id: 'route-one', operationCode: 'OP-ONE', sequence: 10, workCenterId: 'WC-1', manning: 1, capacity: null, yield: 1, confidence: {} }]
 }
 const missingRouteCandidate = buildProcessingCandidates(
-  compareSnapshots(missingRouteReference, missingRouteCurrent),
-  missingRouteReference,
-  missingRouteCurrent
+  compareSnapshots(missingRouteReference, missingRouteCurrent)
 ).find(candidate => candidate.candidateKey === 'wc:wc-1')
 assert(missingRouteCandidate, 'Changed processing candidate remains visible when an input is missing')
 assert.equal(missingRouteCandidate.currentCost, null, 'Missing routing input keeps Current cost unavailable')
@@ -206,9 +204,7 @@ const reorderedCurrent: CostSnapshot = {
   ]
 }
 assert.equal(buildProcessingCandidates(
-  compareSnapshots(reorderedReference, reorderedCurrent),
-  reorderedReference,
-  reorderedCurrent
+  compareSnapshots(reorderedReference, reorderedCurrent)
 ).some(candidate => candidate.candidateKey === 'wc:wc-1'), false, 'Route row order alone must not create a Work Center candidate')
 
 // MASTER_DATA_FLOW_SPEC.md §5.2 has no Process Code in the neutral ROUTING
@@ -272,14 +268,10 @@ const sameLegacyProcessRanking = buildPrioritizationCandidates(
 )
 assert(sameLegacyProcessRanking.length > 0, 'The rank comparison includes a separate real material candidate')
 const sameLegacyProcessCandidates = buildProcessingCandidates(
-  sameLegacyProcessComparison,
-  legacyProcessReference,
-  legacyProcessCurrent
+  sameLegacyProcessComparison
 )
 const changedLegacyProcessCandidates = buildProcessingCandidates(
-  changedLegacyProcessComparison,
-  legacyProcessReference,
-  changedLegacyProcessCurrent
+  changedLegacyProcessComparison
 )
 assert.deepEqual(
   changedLegacyProcessCandidates,
@@ -291,5 +283,47 @@ assert.deepEqual(
   buildPrioritizationCandidates(changedLegacyProcessComparison, legacyProcessReference, changedLegacyProcessCurrent),
   'Process Code-only edits must not change consolidated candidate ordering or ranks'
 )
+
+// Processing Candidates are prepared by the Comparison layer and consumed as findings.
+assert(Array.isArray(comparison.processingFindings), 'Comparison exposes Work Center processing findings')
+
+// A Work Center rate-only change is a processing candidate even when Routing fields do not change.
+const changedRateCurrent: CostSnapshot = {
+  ...refSnapshot,
+  id: 'changed-rate-current',
+  rates: refSnapshot.rates.map(rate => rate.workCenterCode === 'WC-1'
+    ? { ...rate, laborRate: (rate.laborRate ?? 0) + 10 }
+    : rate)
+}
+const changedRateCandidate = buildProcessingCandidates(
+  compareSnapshots(refSnapshot, changedRateCurrent)
+).find(candidate => candidate.candidateKey === 'wc:wc-1')
+assert(changedRateCandidate, 'Rate-only changes produce a Work Center processing candidate')
+assert.equal(changedRateCandidate.status, 'CHANGED')
+
+// Candidate aggregation follows each side's Work Center when an operation moves.
+const movedReference: CostSnapshot = {
+  ...refSnapshot,
+  id: 'moved-reference',
+  bom: [],
+  routing: [
+    { id: 'move-route-a', operationCode: 'OP-MOVE', sequence: 10, workCenterId: 'WC-1', manning: 1, capacity: 100, yield: 1, confidence: {} }
+  ]
+}
+const movedCurrent: CostSnapshot = {
+  ...curSnapshot,
+  id: 'moved-current',
+  bom: [],
+  routing: [
+    { id: 'move-route-b', operationCode: 'OP-MOVE', sequence: 10, workCenterId: 'WC-2', manning: 1, capacity: 100, yield: 1, confidence: {} }
+  ]
+}
+const movedCandidates = buildProcessingCandidates(compareSnapshots(movedReference, movedCurrent))
+const movedOutCandidate = movedCandidates.find(candidate => candidate.candidateKey === 'wc:wc-1')
+const movedInCandidate = movedCandidates.find(candidate => candidate.candidateKey === 'wc:wc-2')
+assert(movedOutCandidate, 'Work Center losing a moved operation remains visible')
+assert(movedInCandidate, 'Work Center gaining a moved operation remains visible')
+assert.equal(movedOutCandidate.status, 'REMOVED')
+assert.equal(movedInCandidate.status, 'ADDED')
 
 console.log('All Phase 3 candidate prioritization checks passed successfully!')

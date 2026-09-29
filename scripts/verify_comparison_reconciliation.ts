@@ -95,6 +95,17 @@ for (const branch of ['material', 'labor', 'burden'] as const) {
   const discrepancy = comparison.reconciliation.recordEffectDiscrepancies[branch]
   assert(discrepancy !== null && discrepancy < 0.0001, `${branch} row-to-branch difference must be within tolerance`)
 }
+for (const branch of ['labor', 'burden'] as const) {
+  const workCenterGap = comparison.processingFindings.reduce<number | null>(
+    (sum, finding) => sum === null || finding.costEffect.gap[branch] === null
+      ? null
+      : sum + finding.costEffect.gap[branch]!,
+    0
+  )
+  const branchGap = comparison.elementGaps[branch]
+  assert(workCenterGap !== null && branchGap !== null && Math.abs(workCenterGap - branchGap) < 0.0001,
+    `Work Center processing ${branch} findings must reconcile to the ${branch} comparison gap`)
+}
 console.log('Reconciliation summary:', comparison.reconciliation)
 
 // 4. Task 9 & 10: Filtering

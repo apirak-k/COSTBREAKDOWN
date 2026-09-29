@@ -94,6 +94,7 @@ export interface SnapshotCost {
 }
 
 export type MatchStatus = 'matched' | 'added' | 'removed' | 'ambiguous' | 'unmatched'
+export type CanonicalComparisonStatus = 'UNCHANGED' | 'CHANGED' | 'ADDED' | 'REMOVED'
 
 export interface ChangeFlags {
   reordered?: boolean
@@ -112,6 +113,15 @@ export interface ComparisonFinding {
   costEffect?: ComparisonRecordCostEffect
   confidence: ConfidenceStatus
   reviewRequired?: boolean
+}
+
+/** Processing-cost comparison aggregated at the Work Center level. */
+export interface WorkCenterProcessingFinding extends ComparisonFinding {
+  workCenterCode: string
+  workCenterDescription?: string
+  sourceId: string
+  sourceRef?: string
+  costEffect: ComparisonRecordCostEffect
 }
 
 export interface ComparisonCostValues {
@@ -155,6 +165,7 @@ export interface CostComparison {
   bomFindings: ComparisonFinding[]
   routingFindings: ComparisonFinding[]
   workCenterFindings: ComparisonFinding[]
+  processingFindings: WorkCenterProcessingFinding[]
   productFieldDiffs: Record<string, { reference: unknown; current: unknown }>
   warnings: ComparisonWarning[]
   reconciliation?: ComparisonReconciliation

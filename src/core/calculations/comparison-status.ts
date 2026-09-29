@@ -1,7 +1,7 @@
-import { ComparisonFinding } from '../types'
+import { CanonicalComparisonStatus, ComparisonFinding } from '../types'
 
 /** The four canonical comparison statuses per Section 4 of COSTBREAKDOWN_COMPARISON_PRINCIPLES.md */
-export type CanonicalComparisonStatus = 'UNCHANGED' | 'CHANGED' | 'ADDED' | 'REMOVED'
+export type { CanonicalComparisonStatus } from '../types'
 export type ComparisonStatus = CanonicalComparisonStatus
 
 /**
