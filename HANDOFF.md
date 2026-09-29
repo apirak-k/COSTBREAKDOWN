@@ -3,7 +3,7 @@
 ## Repository and Git state
 
 - Active checkout: `C:\Users\ai-project\Desktop\SC0434\Cost Breakdown` on branch `codex/rca-task-14`.
-- Starting SHA: `bf339c24769715b33dcd9d76dd6af3b8226057b7`. The cached local `origin/codex/rca-task-14` tracking ref still points there; this is not a live GitHub check. Five local commits are ahead of that cached ref; nothing was pushed.
+- Starting SHA for the implementation follow-up: `bf339c24769715b33dcd9d76dd6af3b8226057b7`. Before preparing this reviewer handoff, local HEAD was `e8c874d`, six commits ahead of the cached local `origin/codex/rca-task-14` ref. The cached ref is not a live GitHub check; a direct GitHub query failed to connect. No push had been made at the time this handoff update was prepared.
 - Local implementation commits, in order: `e8cd0e6` Comparison view alignment; `ecf806c` retain changed material findings; `8e382df` derive Processing candidates from Comparison findings; `9f07367` retain material candidates when attribution inputs are missing; `8732eeb` reconcile factor Reference/Current costs with Gap.
 - Sections below this checkpoint are historical records from earlier checkout states.
 
@@ -21,6 +21,14 @@
 - Production build passed with Vite 6.4.3 using `npm run build -- --configLoader runner`. The existing large-bundle advisory remains (1,715.22 kB JavaScript / 497.55 kB gzip). `git diff --check` passed.
 - No populated browser visual review has been completed. The next step is human UX/UI and usage-logic acceptance using representative Reference/Current data, especially row badges/details, missing-input display, candidate factor costs, and RCA scenario behavior. Automated code/spec checks do not replace that review.
 - AI-side code audit covered all four current Agreements and no confirmed mismatch remains in the audited implementation paths. This does not claim browser-level acceptance. No operational workbook was opened for this audit; fixtures were synthetic/tracked test data.
+
+## Next reviewer handoff — ChatGPT remote review
+
+After this branch is pushed, inspect the latest remote `codex/rca-task-14` HEAD (verify its SHA; do not rely on a stale local tracking ref). Read `docs/REQUIREMENTS_INDEX.md` first, then audit all four current Agreements against the actual implementation, with particular attention to UX/UI and usage logic. Treat the agreements as the product contract and this handoff as status/context, not as proof of compliance.
+
+Report each finding in three groups: **Matches** (Agreement clause plus code/UI evidence), **Mismatches** (expected versus actual behavior and a reproducible case), and **Unverified** (what could not be exercised and the concrete reason). Do not call a runner/load failure a product defect, and do not claim full runtime acceptance from a code review alone. Review only; make no edits and do not push.
+
+Known verification limits to check independently: 34 of 40 verifier scripts passed; six UI/store scripts did not reach assertions because the local `jiti` runner could not parse TSX imports. Production build passed. No populated browser visual review or operational workbook review was performed. The Agreements do not define round-tripping arbitrary extra workbook columns; detailed Trial workflow is out of scope.
 
 ---
 
