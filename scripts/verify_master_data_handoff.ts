@@ -136,6 +136,24 @@ assert.deepEqual(missingCodeDifferentNames.issues, [])
 assert.ok(missingCodeDifferentNames.warnings?.some(warning => warning.includes('Product mismatch: Reference is "Reference product" while Current is "Current product"')))
 assert.ok(missingCodeDifferentNames.warnings?.includes('Reference Product Code is not specified.'))
 
+const currentMissingCodeSameName = evaluateMasterDataHandoff(baseSession, {
+  reference: pair.reference,
+  current: { ...pair.current, product: { ...product, productCode: '' } }
+})
+assert.equal(currentMissingCodeSameName.datasetsPrepared, true)
+assert.deepEqual(currentMissingCodeSameName.issues, [])
+assert.deepEqual(currentMissingCodeSameName.warnings?.filter(warning => warning.includes('Product mismatch')), [])
+assert.ok(currentMissingCodeSameName.warnings?.includes('Current Product Code is not specified.'))
+
+const currentMissingCodeDifferentNames = evaluateMasterDataHandoff(baseSession, {
+  reference: { ...pair.reference, product: { ...product, productDescription: 'Reference product' } },
+  current: { ...pair.current, product: { ...product, productCode: '', productDescription: 'Current product' } }
+})
+assert.equal(currentMissingCodeDifferentNames.datasetsPrepared, true)
+assert.deepEqual(currentMissingCodeDifferentNames.issues, [])
+assert.ok(currentMissingCodeDifferentNames.warnings?.some(warning => warning.includes('Product mismatch: Reference is "Reference product" while Current is "Current product"')))
+assert.ok(currentMissingCodeDifferentNames.warnings?.includes('Current Product Code is not specified.'))
+
 const sameCodeDifferentName = evaluateMasterDataHandoff(baseSession, {
   reference: { ...pair.reference, product: { ...product, productDescription: 'Reference product' } },
   current: { ...pair.current, product: { ...product, productDescription: 'Current product' } }

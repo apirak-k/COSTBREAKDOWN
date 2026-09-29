@@ -18,7 +18,7 @@ Regression coverage includes BOM, Routing, and Work Center rows with identical b
 
 - All 40 `scripts/verify_*.ts` verifiers passed on the current working tree using esbuild bundles (`--packages=external`), including the six that the old `jiti` runner could not parse.
 - Focused Master Data handoff, sizing comparison, dynamic snapshot comparison, and import/export mismatch checks passed.
-- A prior text-only discussion in ChatGPT conversation “บูมเอง 2” suggested edge coverage; it did not inspect the published commit. A review request with the pushed commit URL has been sent, and URL-based feedback is pending. ChatGPT feedback is corroborating input, not a product authority.
+- A URL-based review of application commit `d5d9f7f` in ChatGPT conversation “บูมเอง 2” found no requirement conflicts or confirmed bugs. It identified a low test gap for Current-side-only missing Product Code; both same-name and different-name cases were added, and the focused Master Data handoff verifier passed. ChatGPT feedback is corroborating input, not a product authority.
 - `npm run build` passed (1,688 modules). Vite still reports the existing large-bundle advisory: the main JS output is about 1,715 kB / 498 kB gzip.
 - Production preview loaded successfully; the navbar label and Candidate Prioritization page heading both displayed correctly. This is a smoke check, not full UX/UI or accessibility acceptance.
 - No operational workbook was reviewed. The user’s UX/UI and logic review remains pending; AI verification is not human acceptance.
