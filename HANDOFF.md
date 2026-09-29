@@ -1,4 +1,53 @@
-# Current Handoff — Four-Agreement SPEC Audit (2026-09-29)
+# Current Handoff — Cross-device continuation (2026-09-29)
+
+## Branch checkpoint
+
+- Repository: `C:\Users\ai-project\Desktop\SC0434\Cost Breakdown`; branch: `codex/rca-task-14`.
+- Review base: `b3327a73795a255f49e981218f2f2a5ecb236efd`. At the start of this update, `HEAD` and freshly fetched `origin/codex/rca-task-14` matched this SHA and the worktree was clean.
+- This update records review results and the continuation plan; no application-code fix has been made for the findings below. Commit and push this handoff, then fetch on the receiving device and verify its `HEAD` against `origin/codex/rca-task-14` before continuing.
+- Requirements authority: read `docs/REQUIREMENTS_INDEX.md`; the four files in `agreements/` are the product contract. This handoff records status and evidence, not new requirements.
+
+## Review result — ChatGPT “บูมเอง 2” plus independent checks
+
+The remote review is ready to report, but the branch is not ready to close as SPEC-complete. Two functional mismatches were reproduced against the review base:
+
+1. **Sizing metadata can create a false `CHANGED` status.** Editing a generated sizing row sets `isGeneratedSizingPlaceholder: false` (`src/state/dataset-sizing.ts`), while snapshot comparison does not ignore that internal marker and compares it as a field (`src/core/calculations/snapshot-comparison.ts`). Status then becomes `CHANGED` despite equal business data and zero Gap (`src/core/calculations/comparison-status.ts`). A read-only probe reproduced this. `verify_sizing_placeholders_ignored` passes, but only covers untouched blank sizing rows; it lacks the cross-origin/equivalent-business-data case. Fix the comparison contract and add that regression case.
+2. **Product Name is not used as the documented identity fallback for mismatch warnings.** `agreements/MASTER_DATA_FLOW_SPEC.md` §9 allows identifying information such as Product Code and/or Product Name and defines the mismatch warning as non-blocking. `src/core/calculations/master-data-handoff.ts` currently warns about missing codes but only compares codes. With both codes blank and different names, a probe produced no mismatch warning. Extend the warning logic and cover missing-code/same-name, missing-code/different-name, and missing-identifier cases.
+
+Additional items to carry forward:
+
+- **Navigation wording:** the navbar says “Candidate Selection” while the page and current requirement terminology say “Candidate Prioritization” (`src/shared/layout/Navbar.tsx`, `src/features/candidate-selection/CandidateSelectionPage.tsx`). Align the label.
+- **All-filter behavior needs a product decision recorded in an Agreement.** The current agreements define All as select-all; the “บูมเอง 2” discussion captures a preference for a true select/deselect toggle with an indeterminate partial state. Current filters only select all and show no partial state (`CostBreakdownPage.tsx`, `CandidateSelectionPage.tsx`). Confirm/formalize the intended behavior, then apply consistently to both pages.
+- **Custom `additionalFields` status policy is unspecified.** Current comparison treats differing extra fields as field differences and can mark a row `CHANGED`; Master Data Flow §74 leaves arbitrary-field behavior out of scope. Decide in the Agreement whether these fields affect canonical status or are retained for review only before changing behavior.
+
+Confirmed matches include independent Reference/Current calculations, separate Status and Gap meanings, warnings outside canonical status, candidate calculations consuming canonical comparison findings, and RCA starting without an auto-selected candidate. Detailed Trial workflow remains outside current Agreement scope.
+
+## Verification and limits
+
+- Focused checks passed: `verify_sizing_placeholders_ignored`, `verify_master_data_handoff`, and `verify_candidate_prioritization`. The first two do not cover the reproductions above; add targeted regression tests rather than treating these passes as resolution.
+- The full verifier sweep was 34/40. Six UI/store verifiers remain **Unverified** because the installed `jiti` runner fails to parse their TSX imports before assertions: `verify_bom_comparison_view`, `verify_direct_dataset_editing`, `verify_routing_comparison_view`, `verify_snapshot_comparison_view`, `verify_work_center_comparison_view`, and `verify_workspace_initialization`. This is a runner limitation, not evidence those behaviors pass or fail.
+- Production build passed with Vite 6.4.3 using `npm run build -- --configLoader runner`; the existing large-bundle advisory remains. Prior representative-data browser flow is recorded in the historical audit below, but this review did not complete a fresh full UX/accessibility acceptance pass. No operational workbook was reviewed.
+
+## Continue on the receiving device
+
+If the repository is already cloned, open its project folder and run:
+
+```powershell
+git fetch origin
+git switch codex/rca-task-14
+git pull --ff-only origin codex/rca-task-14
+git status --short --branch
+git rev-parse HEAD
+git rev-parse origin/codex/rca-task-14
+```
+
+Confirm the two SHAs match and the branch is clean, then read this handoff and `docs/REQUIREMENTS_INDEX.md`. If the repository is not cloned on that device, clone `https://github.com/apirak-k/COSTBREAKDOWN.git`, switch to `codex/rca-task-14`, and follow the same checks. Resume with the two reproduced fixes and regression tests above; resolve the two Agreement-level decisions before implementing those behaviors.
+
+---
+
+# Previous Handoff — Four-Agreement SPEC Audit (2026-09-29)
+
+> Historical checkpoint superseded by the review findings above. The earlier “no confirmed mismatch” conclusion and the review-only prompt below are no longer current.
 
 ## Repository and Git state
 
@@ -22,7 +71,7 @@
 - No populated browser visual review has been completed. The next step is human UX/UI and usage-logic acceptance using representative Reference/Current data, especially row badges/details, missing-input display, candidate factor costs, and RCA scenario behavior. Automated code/spec checks do not replace that review.
 - AI-side code audit covered all four current Agreements and no confirmed mismatch remains in the audited implementation paths. This does not claim browser-level acceptance. No operational workbook was opened for this audit; fixtures were synthetic/tracked test data.
 
-## Next reviewer handoff — ChatGPT remote review
+## Completed reviewer prompt (historical)
 
 After this branch is pushed, inspect the latest remote `codex/rca-task-14` HEAD (verify its SHA; do not rely on a stale local tracking ref). Read `docs/REQUIREMENTS_INDEX.md` first, then audit all four current Agreements against the actual implementation, with particular attention to UX/UI and usage logic. Treat the agreements as the product contract and this handoff as status/context, not as proof of compliance.
 
