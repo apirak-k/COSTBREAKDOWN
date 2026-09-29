@@ -8,6 +8,12 @@ import { getCanonicalComparisonStatus } from './comparison-status'
 
 export type PrioritizationStatus = 'CHANGED' | 'ADDED' | 'REMOVED'
 
+export interface CandidateChangeDetail {
+  field: string
+  reference: unknown
+  current: unknown
+}
+
 export interface PrioritizationCandidate {
   candidateKey: string
   candidateName: string
@@ -23,6 +29,7 @@ export interface PrioritizationCandidate {
   sourceId: string
   sourceRef?: string
   confidence?: DataConfidence
+  changeDetails?: CandidateChangeDetail[]
   // Optional drill-down info
   referenceParam?: number | null
   currentParam?: number | null
@@ -70,6 +77,11 @@ export function buildMaterialCandidates(
 
     const baseKey = `mat:${itemCode}`
     const controllable = controllabilityMap?.[baseKey] ?? true
+    const changeDetails = Object.entries(finding.fieldDiffs).map(([field, values]) => ({
+      field,
+      reference: values.reference,
+      current: values.current
+    }))
 
     if (status === 'ADDED') {
       candidates.push({
@@ -139,6 +151,7 @@ export function buildMaterialCandidates(
           sourceId: curItem.id,
           sourceRef: curItem.sourceRef,
           confidence: 'verified',
+          changeDetails,
           paramLabel: 'Price (THB)',
           referenceParam: refItem.price,
           currentParam: curItem.price
@@ -162,6 +175,7 @@ export function buildMaterialCandidates(
           sourceId: curItem.id,
           sourceRef: curItem.sourceRef,
           confidence: 'verified',
+          changeDetails,
           paramLabel: 'Loss (%)',
           referenceParam: refItem.loss,
           currentParam: curItem.loss
@@ -185,6 +199,7 @@ export function buildMaterialCandidates(
           sourceId: curItem.id,
           sourceRef: curItem.sourceRef,
           confidence: 'verified',
+          changeDetails,
           paramLabel: 'Usage (Qty)',
           referenceParam: refItem.consumption,
           currentParam: curItem.consumption
@@ -210,7 +225,8 @@ export function buildMaterialCandidates(
         sourceType: 'bom',
         sourceId: curItem?.id || finding.currentId || finding.referenceId || itemCode,
         sourceRef: curItem?.sourceRef || currentSnapshot.sourceRef,
-        confidence: 'verified'
+        confidence: 'verified',
+        changeDetails
       })
     }
   }

@@ -2,8 +2,12 @@ import React, { useMemo, useState } from 'react'
 import { useAppStore } from '../../state'
 import { formatVariance } from '../../core'
 import { CandidatesTable } from './components/CandidatesTable'
-import { CandidateStatusFilter, filterPrioritizationCandidates } from '../../core/calculations/candidate-prioritization'
+import { filterPrioritizationCandidates } from '../../core/calculations/candidate-prioritization'
+import type { CandidateStatusFilter } from '../../core/calculations/candidate-prioritization'
+import type { PrioritizationStatus } from '../../core'
 import { PageHeading } from '../../shared'
+
+const ALL_CANDIDATE_STATUSES: PrioritizationStatus[] = ['CHANGED', 'ADDED', 'REMOVED']
 
 export const CandidateSelectionPage: React.FC = () => {
   const {
@@ -12,7 +16,13 @@ export const CandidateSelectionPage: React.FC = () => {
     snapshotComparison,
   } = useAppStore()
 
-  const [statusFilter, setStatusFilter] = useState<CandidateStatusFilter>('all')
+  const [statusFilter, setStatusFilter] = useState<CandidateStatusFilter>(ALL_CANDIDATE_STATUSES)
+
+  const toggleCandidateStatus = (status: PrioritizationStatus) => {
+    setStatusFilter(current => current.includes(status)
+      ? current.filter(selected => selected !== status)
+      : [...current, status])
+  }
 
   const visibleCandidates = useMemo(
     () => filterPrioritizationCandidates(candidates, statusFilter),
@@ -58,25 +68,36 @@ export const CandidateSelectionPage: React.FC = () => {
         </div>
         <div className="flex flex-wrap items-center gap-2 text-sm" role="group" aria-label="Status filter">
             {([
-              { filter: 'all' as const, label: 'All', count: candidates.length },
-              { filter: 'CHANGED' as const, label: 'Changed', count: changedCount },
-              { filter: 'ADDED' as const, label: 'Added', count: addedCount },
-              { filter: 'REMOVED' as const, label: 'Removed', count: removedCount }
+              { status: 'CHANGED' as const, label: 'Changed', count: changedCount },
+              { status: 'ADDED' as const, label: 'Added', count: addedCount },
+              { status: 'REMOVED' as const, label: 'Removed', count: removedCount }
             ]).map(option => (
               <button
-                key={option.filter}
+                key={option.status}
                 type="button"
-                aria-pressed={statusFilter === option.filter}
-                onClick={() => setStatusFilter(option.filter)}
+                aria-pressed={statusFilter.includes(option.status)}
+                onClick={() => toggleCandidateStatus(option.status)}
                 className={`min-h-9 rounded-sm border px-3 py-1.5 font-medium transition-colors cursor-pointer focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700 ${
-                  statusFilter === option.filter
+                  statusFilter.includes(option.status)
                     ? 'bg-slate-900 text-white border-slate-900 font-bold'
                     : 'bg-slate-50 text-slate-700 border-slate-300 hover:bg-slate-100'
                 }`}
               >
-                {option.label} <span className={statusFilter === option.filter ? 'text-slate-300' : 'text-slate-400'}>({option.count})</span>
+                {option.label} <span className={statusFilter.includes(option.status) ? 'text-slate-300' : 'text-slate-400'}>({option.count})</span>
               </button>
             ))}
+            <button
+              type="button"
+              aria-pressed={ALL_CANDIDATE_STATUSES.every(status => statusFilter.includes(status))}
+              onClick={() => setStatusFilter(ALL_CANDIDATE_STATUSES)}
+              className={`min-h-9 rounded-sm border px-3 py-1.5 font-medium transition-colors cursor-pointer focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700 ${
+                ALL_CANDIDATE_STATUSES.every(status => statusFilter.includes(status))
+                  ? 'bg-slate-900 text-white border-slate-900 font-bold'
+                  : 'bg-slate-50 text-slate-700 border-slate-300 hover:bg-slate-100'
+              }`}
+            >
+              All <span className={ALL_CANDIDATE_STATUSES.every(status => statusFilter.includes(status)) ? 'text-slate-300' : 'text-slate-400'}>({candidates.length})</span>
+            </button>
           </div>
       </section>
 

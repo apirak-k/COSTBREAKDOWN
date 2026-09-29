@@ -85,6 +85,10 @@ const wc2 = procCandidates.find(c => c.candidateKey === 'wc:wc-2')
 assert(wc2, 'WC-2 candidate exists')
 assert.equal(wc2.status, 'REMOVED', 'WC-2 is REMOVED when not present in current routing')
 assert.equal(wc2.currentCost, 0, 'WC-2 current cost must be 0')
+const wc1 = procCandidates.find(c => c.candidateKey === 'wc:wc-1')
+assert(wc1, 'WC-1 candidate exists when routing structure changes')
+assert.equal(wc1.status, 'CHANGED', 'A routing structure change remains CHANGED even when its Work Center Gap is zero')
+assert.equal(wc1.costGap, 0, 'The split routing fixture has zero net Work Center Gap')
 
 // 3. Task 13: Consolidated candidates, default controllable=true, sorted descending by Gap
 console.log('3. Checking Consolidated candidates, default controllable, and ranking...')
@@ -100,13 +104,45 @@ for (let i = 0; i < allCandidates.length - 1; i++) {
 }
 
 // Filtering by status
-const changedOnly = filterPrioritizationCandidates(allCandidates, 'CHANGED')
-const addedOnly = filterPrioritizationCandidates(allCandidates, 'ADDED')
-const removedOnly = filterPrioritizationCandidates(allCandidates, 'REMOVED')
+const changedOnly = filterPrioritizationCandidates(allCandidates, ['CHANGED'])
+const addedOnly = filterPrioritizationCandidates(allCandidates, ['ADDED'])
+const removedOnly = filterPrioritizationCandidates(allCandidates, ['REMOVED'])
+const changedAndAdded = filterPrioritizationCandidates(allCandidates, ['CHANGED', 'ADDED'])
+const none = filterPrioritizationCandidates(allCandidates, [])
 
 assert(changedOnly.every(c => c.status === 'CHANGED'), 'Changed filter only contains CHANGED')
 assert(addedOnly.every(c => c.status === 'ADDED'), 'Added filter only contains ADDED')
 assert(removedOnly.every(c => c.status === 'REMOVED'), 'Removed filter only contains REMOVED')
+assert(changedAndAdded.every(c => c.status === 'CHANGED' || c.status === 'ADDED'), 'Combined status filter contains selected statuses only')
+assert.equal(changedAndAdded.length, changedOnly.length + addedOnly.length, 'Combined status filter is the union of selected statuses')
+assert.equal(none.length, 0, 'An empty status filter returns no candidates')
+
+// A non-cost material field change remains a visible zero-gap finding with its field values.
+const descriptiveReference: CostSnapshot = {
+  ...refSnapshot,
+  id: 'descriptive-reference',
+  rates: [],
+  routing: [],
+  bom: [{ id: 'description-mat', itemCode: 'M-DESC', description: 'Old description', consumption: 1, unit: 'KG', price: 10, loss: 0, confidence: {} }]
+}
+const descriptiveCurrent: CostSnapshot = {
+  ...curSnapshot,
+  id: 'descriptive-current',
+  rates: [],
+  routing: [],
+  bom: [{ id: 'description-mat-current', itemCode: 'M-DESC', description: 'New description', consumption: 1, unit: 'KG', price: 10, loss: 0, confidence: {} }]
+}
+const descriptiveCandidate = buildMaterialCandidates(
+  compareSnapshots(descriptiveReference, descriptiveCurrent),
+  descriptiveReference,
+  descriptiveCurrent
+).find(candidate => candidate.candidateName.includes('M-DESC'))
+assert(descriptiveCandidate, 'A descriptive material change remains a Candidate finding')
+assert.equal(descriptiveCandidate.status, 'CHANGED')
+assert.equal(descriptiveCandidate.costGap, 0)
+assert.deepEqual(descriptiveCandidate.changeDetails, [
+  { field: 'description', reference: 'Old description', current: 'New description' }
+], 'Candidate findings preserve the changed field and its Reference/Current values')
 
 // 4. Missing values on present records stay unavailable in Candidate findings.
 console.log('4. Checking missing candidate inputs are not converted to zero...')

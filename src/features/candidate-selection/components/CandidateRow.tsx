@@ -13,6 +13,18 @@ function statusBadgeClass(status: PrioritizationCandidate['status']): string {
   return 'text-slate-700 bg-slate-100 border-slate-200'
 }
 
+function displayChangeValue(value: unknown): string {
+  if (value === undefined) return 'Not set'
+  if (value === null) return 'null'
+  if (typeof value === 'string') return value
+  if (typeof value === 'number' || typeof value === 'boolean') return String(value)
+  try {
+    return JSON.stringify(value) ?? String(value)
+  } catch {
+    return String(value)
+  }
+}
+
 export const CandidateRow: React.FC<CandidateRowProps> = ({
   candidate,
   onToggleControllable
@@ -39,6 +51,16 @@ export const CandidateRow: React.FC<CandidateRowProps> = ({
             <span className="text-xs text-slate-600 font-sans">
               · {candidate.factor}
             </span>
+          )}
+          {candidate.changeDetails && candidate.changeDetails.length > 0 && (
+            <div className="basis-full break-words text-xs font-sans text-slate-600">
+              <span className="font-medium">Changed fields: </span>
+              {candidate.changeDetails.map(detail => (
+                <span key={detail.field} className="mr-2">
+                  {detail.field}: {displayChangeValue(detail.reference)} → {displayChangeValue(detail.current)}
+                </span>
+              ))}
+            </div>
           )}
         </div>
       </td>

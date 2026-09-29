@@ -58,12 +58,11 @@ export function buildPrioritizationCandidates(
   }))
 }
 
-export type CandidateStatusFilter = 'all' | PrioritizationStatus
+export type CandidateStatusFilter = readonly PrioritizationStatus[]
 
 export function filterPrioritizationCandidates(
   candidates: PrioritizationCandidate[],
   statusFilter: CandidateStatusFilter
 ): PrioritizationCandidate[] {
-  if (statusFilter === 'all') return candidates
-  return candidates.filter(c => c.status === statusFilter)
+  return candidates.filter(candidate => statusFilter.includes(candidate.status))
 }

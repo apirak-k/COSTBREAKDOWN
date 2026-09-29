@@ -1,4 +1,32 @@
-# Current Handoff — Neutral Dataset Review Follow-up (2026-09-29)
+# Current Handoff — Comparison Agreement Follow-up (2026-09-29)
+
+## Repository and Git state
+
+- Active checkout: `C:\Users\ai-project\Desktop\SC0434\Cost Breakdown` on branch `codex/rca-task-14`.
+- Base SHA before this follow-up: `bf339c24769715b33dcd9d76dd6af3b8226057b7`. The cached local `origin/codex/rca-task-14` tracking ref remains at that SHA; it is not a fresh GitHub check.
+- The follow-up is split into two local commits: Comparison (`e8cd0e6`) and Candidate Prioritization (this checkpoint). The local branch is ahead of the cached tracking ref; nothing was pushed.
+- The earlier Neutral Dataset Review checkpoint below is historical and describes a different checkout state.
+
+## Completed in this follow-up
+
+- Recorded that Status and Gap are independent, that table rows keep `UNCHANGED` data without an `UNCHANGED` badge, and that comparison filters are multi-select. `All` selects every canonical status; unmatched rows remain visible under `All` for review.
+- Updated Candidate Prioritization to use the same multi-select behavior. `Changed` selects only `CHANGED`; added and removed findings are separate statuses.
+- Kept changed material findings available to candidates even when the changed field is outside the former Price/Loss/Usage allowlist or the calculated Gap is zero; Candidate rows now show each changed field with its Reference and Current values.
+- Confirmed Processing candidates remain `CHANGED` for a changed Routing structure with a zero Work Center Gap; added a regression check for that case and for a zero-gap descriptive material change.
+- Changed Cost Breakdown KPI and element summary cards to use snapshot comparison values. The legacy-only price/loss/efficiency decomposition has been removed from this page until a snapshot-backed attribution model exists.
+
+## Verification and next step
+
+- Passed `verify_cost_breakdown_view`, `verify_candidate_prioritization`, `verify_comparison_reconciliation`, `verify_snapshot_full_flow`, `verify_snapshot_routing_identity`, `verify_snapshot_comparison_dynamic_fields`, `verify_snapshot_projection`, and `verify_snapshot_import` using the locally installed `jiti` runner.
+- Expanded `scripts/verify_*.ts` sweep: 34 of 40 scripts passed. Six scripts could not run through `jiti` because they import TSX components or the TSX store and hit module/ESM loader errors: `verify_bom_comparison_view`, `verify_direct_dataset_editing`, `verify_routing_comparison_view`, `verify_snapshot_comparison_view`, `verify_work_center_comparison_view`, and `verify_workspace_initialization`. These are runner errors, not failed assertions.
+- `npm run build` passed: TypeScript completed and Vite 5.4.21 produced the production bundle. The existing large-chunk advisory remains (1,672.92 kB JavaScript / 485.47 kB gzip).
+- `git diff --check` passed; Git reports line-ending normalization warnings only. Browser visual/accessibility review has not been run.
+- A local browser smoke confirmed the comparison and candidate status controls toggle and `All` restores every status. The isolated browser session had no sample rows, so row-level badge/detail rendering still has not been visually checked with populated data.
+- The Comparison and Candidate Prioritization clauses changed in this follow-up have been cross-checked. A full clause-by-clause audit of all four current Agreements has not been completed; do not claim project-wide SPEC compliance.
+
+---
+
+# Previous Handoff — Neutral Dataset Review Follow-up (2026-09-29)
 
 > AI implementation and automated verification for this follow-up are complete; human review is the next step. Three implementation checkpoints and this handoff update are local. This follow-up has not been pushed.
 

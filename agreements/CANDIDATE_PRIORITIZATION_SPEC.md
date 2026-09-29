@@ -73,6 +73,8 @@ Candidate Prioritization
 
 Material candidates come from meaningful material changes identified by the comparison layer.
 
+Do not suppress a `CHANGED` material finding solely because its changed business field is not `Price`, `Loss`, or `Usage`. Keep the finding available with its changed-field details and calculated Gap so the user can judge its relevance. A numeric Gap of `0` does not by itself remove a changed material finding from Candidate Prioritization.
+
 Examples:
 
 ```text
@@ -225,6 +227,8 @@ Gap = 0
 
 A structurally changed candidate with `Gap = 0` must still remain visible.
 
+This also applies to a changed material finding whose calculated cost Gap is zero. The user, not the Gap sign or a hard-coded field allowlist, decides whether to prioritize it.
+
 Example:
 
 ```text
@@ -315,13 +319,13 @@ Unchecked candidates:
 
 For the current scope, keep filtering intentionally simple.
 
-Only provide status filtering:
+Only provide status filtering, with multi-select behavior. Each status can be selected independently, and the visible candidates are the union of selected statuses:
 
 ```text
-All
-Changed
-Added
-Removed
+All     = CHANGED + ADDED + REMOVED
+Changed = CHANGED only
+Added   = ADDED only
+Removed = REMOVED only
 ```
 
 Default:
@@ -329,6 +333,8 @@ Default:
 ```text
 All
 ```
+
+`All` selects every available candidate status; it is a select-all control, not a candidate status. Any combination of `Changed`, `Added`, and `Removed` may be selected.
 
 Do not add additional filters yet unless required later.
 
