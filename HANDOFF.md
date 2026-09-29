@@ -4,7 +4,7 @@
 
 - Repository: `C:\Users\ai-project\Desktop\SC0434\Cost Breakdown`; branch: `codex/rca-task-14`.
 - Review base: `b3327a73795a255f49e981218f2f2a5ecb236efd`. At the start of this update, `HEAD` and freshly fetched `origin/codex/rca-task-14` matched this SHA and the worktree was clean.
-- This update records review results and the continuation plan; no application-code fix has been made for the findings below. Commit and push this handoff, then fetch on the receiving device and verify its `HEAD` against `origin/codex/rca-task-14` before continuing.
+- This handoff records the review results and continuation plan; no application-code fix has been made for the findings below. It has been committed and pushed. On the receiving device, fetch `origin` and verify `HEAD` against `origin/codex/rca-task-14` before continuing.
 - Requirements authority: read `docs/REQUIREMENTS_INDEX.md`; the four files in `agreements/` are the product contract. This handoff records status and evidence, not new requirements.
 
 ## Review result — ChatGPT “บูมเอง 2” plus independent checks
