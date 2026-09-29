@@ -196,6 +196,45 @@ assert.equal(incompleteUsageCandidate.referenceParam, 1)
 assert.equal(incompleteUsageCandidate.currentParam, 2)
 assert.equal(incompleteUsageCandidate.costGap, null, 'Usage attribution gap stays unavailable when Loss is missing')
 
+const multiFactorReference: CostSnapshot = {
+  ...refSnapshot,
+  id: 'multi-factor-reference',
+  rates: [],
+  routing: [],
+  bom: [{ id: 'mat-multi-factor-ref', itemCode: 'MAT-FACTORS', description: 'Multiple factors', consumption: 1, unit: 'KG', price: 10, loss: 0.1, confidence: {} }]
+}
+const multiFactorCurrent: CostSnapshot = {
+  ...curSnapshot,
+  id: 'multi-factor-current',
+  rates: [],
+  routing: [],
+  bom: [{ id: 'mat-multi-factor-cur', itemCode: 'MAT-FACTORS', description: 'Multiple factors', consumption: 2, unit: 'KG', price: 12, loss: 0.2, confidence: {} }]
+}
+const multiFactorComparison = compareSnapshots(multiFactorReference, multiFactorCurrent)
+const multiFactorCandidates = buildMaterialCandidates(multiFactorComparison, multiFactorReference, multiFactorCurrent)
+assert.equal(multiFactorCandidates.length, 3, 'Price, Loss, and Usage changes remain separate factor findings')
+const multiPriceCandidate = multiFactorCandidates.find(candidate => candidate.factor === 'Price')
+const multiLossCandidate = multiFactorCandidates.find(candidate => candidate.factor === 'Loss %')
+const multiUsageCandidate = multiFactorCandidates.find(candidate => candidate.factor === 'Usage')
+assert(multiPriceCandidate && multiLossCandidate && multiUsageCandidate, 'Each changed factor has a candidate')
+assert.equal(multiPriceCandidate.referenceCost, 24)
+assert(multiPriceCandidate.currentCost !== null)
+assert.ok(Math.abs(multiPriceCandidate.currentCost - 28.8) < 1e-10)
+assert.equal(multiLossCandidate.referenceCost, 22)
+assert.equal(multiLossCandidate.currentCost, 24)
+assert.equal(multiUsageCandidate.referenceCost, 11)
+assert.equal(multiUsageCandidate.currentCost, 22)
+for (const candidate of multiFactorCandidates) {
+  assert(candidate.referenceCost !== null && candidate.currentCost !== null && candidate.costGap !== null)
+  assert.ok(Math.abs(candidate.currentCost - candidate.referenceCost - candidate.costGap) < 1e-10,
+    `${candidate.factor} Gap must equal Current cost minus Reference cost`)
+}
+const multiFactorMaterialGap = multiFactorComparison.bomFindings[0]?.costEffect?.gap.material
+const summedFactorGap = multiFactorCandidates.reduce((sum, candidate) => sum + (candidate.costGap ?? 0), 0)
+assert(multiFactorMaterialGap !== null && multiFactorMaterialGap !== undefined)
+assert.ok(Math.abs(summedFactorGap - multiFactorMaterialGap) < 1e-10,
+  'Separate factor Gap values must sum to the Comparison material gap')
+
 const missingRouteReference: CostSnapshot = {
   ...refSnapshot,
   id: 'missing-route-reference',

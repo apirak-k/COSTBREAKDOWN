@@ -140,17 +140,17 @@ export function buildMaterialCandidates(
       if (priceChanged) {
         const factorKey = `${baseKey}:price`
         const inputs = [refItem.price, curItem.price, curItem.consumption, curItem.loss]
-        const priceVariance = finiteInputs(inputs)
-          ? (inputs[1] - inputs[0]) * inputs[2] * (1 + inputs[3])
-          : null
+        const referenceCost = finiteInputs(inputs) ? inputs[0] * inputs[2] * (1 + inputs[3]) : null
+        const currentCost = finiteInputs(inputs) ? inputs[1] * inputs[2] * (1 + inputs[3]) : null
+        const priceVariance = referenceCost === null || currentCost === null ? null : currentCost - referenceCost
         candidates.push({
           candidateKey: factorKey,
           candidateName: `${itemCode} — ${itemDesc} (Price Change)`,
           category: 'Direct Material',
           factor: 'Price',
           status: 'CHANGED',
-          referenceCost: refItem.price,
-          currentCost: curItem.price,
+          referenceCost,
+          currentCost,
           costGap: priceVariance,
           controllable: controllabilityMap?.[factorKey] ?? true,
           rank: 0,
@@ -167,17 +167,17 @@ export function buildMaterialCandidates(
       if (lossChanged) {
         const factorKey = `${baseKey}:loss`
         const inputs = [refItem.price, curItem.consumption, curItem.loss, refItem.loss]
-        const lossVariance = finiteInputs(inputs)
-          ? inputs[0] * inputs[1] * (inputs[2] - inputs[3])
-          : null
+        const referenceCost = finiteInputs(inputs) ? inputs[0] * inputs[1] * (1 + inputs[3]) : null
+        const currentCost = finiteInputs(inputs) ? inputs[0] * inputs[1] * (1 + inputs[2]) : null
+        const lossVariance = referenceCost === null || currentCost === null ? null : currentCost - referenceCost
         candidates.push({
           candidateKey: factorKey,
           candidateName: `${itemCode} — ${itemDesc} (Loss % Change)`,
           category: 'Direct Material',
           factor: 'Loss %',
           status: 'CHANGED',
-          referenceCost: refItem.loss,
-          currentCost: curItem.loss,
+          referenceCost,
+          currentCost,
           costGap: lossVariance,
           controllable: controllabilityMap?.[factorKey] ?? true,
           rank: 0,
@@ -194,17 +194,17 @@ export function buildMaterialCandidates(
       if (usageChanged) {
         const factorKey = `${baseKey}:usage`
         const inputs = [refItem.consumption, curItem.consumption, refItem.price, refItem.loss]
-        const usageVariance = finiteInputs(inputs)
-          ? (inputs[1] - inputs[0]) * inputs[2] * (1 + inputs[3])
-          : null
+        const referenceCost = finiteInputs(inputs) ? inputs[2] * inputs[0] * (1 + inputs[3]) : null
+        const currentCost = finiteInputs(inputs) ? inputs[2] * inputs[1] * (1 + inputs[3]) : null
+        const usageVariance = referenceCost === null || currentCost === null ? null : currentCost - referenceCost
         candidates.push({
           candidateKey: factorKey,
           candidateName: `${itemCode} — ${itemDesc} (Usage Change)`,
           category: 'Direct Material',
           factor: 'Usage',
           status: 'CHANGED',
-          referenceCost: refItem.consumption,
-          currentCost: curItem.consumption,
+          referenceCost,
+          currentCost,
           costGap: usageVariance,
           controllable: controllabilityMap?.[factorKey] ?? true,
           rank: 0,
