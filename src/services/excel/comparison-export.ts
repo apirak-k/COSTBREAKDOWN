@@ -1,4 +1,4 @@
-import ExcelJS from 'exceljs'
+import type ExcelJS from 'exceljs'
 import {
   ComparisonFinding,
   ConfidenceStatus,
@@ -834,6 +834,7 @@ function writeWorkCenterSheet(workbook: ExcelJS.Workbook, model: ComparisonExpor
 
 /** Generates a comparison workbook without mutating the current application state. */
 export async function generateSnapshotComparisonExcel(input: ComparisonExportInput): Promise<Blob> {
+  const ExcelJS = (await import('exceljs/lib/exceljs.bare.js')).default
   const model = buildComparisonExportModel(input)
   const workbook = new ExcelJS.Workbook()
   workbook.creator = 'Cost Breakdown Analysis Platform'

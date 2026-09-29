@@ -16,7 +16,7 @@ import {
 } from 'lucide-react'
 import { ComparisonRole, CostSnapshot, ProductMaster } from '../../../core'
 import { MasterDataHandoffStatus } from '../../../core/calculations/master-data-handoff'
-import { exportSnapshotToExcel, downloadBlob } from '../../../services'
+import { downloadBlob } from '../../../services/excel/export'
 
 interface MasterDataWorkspaceHeaderProps {
   product: ProductMaster
@@ -67,6 +67,7 @@ export const MasterDataWorkspaceHeader: React.FC<MasterDataWorkspaceHeaderProps>
 }) => {
   const [showReadinessPopover, setShowReadinessPopover] = useState(false)
   const handleExportDataset = async () => {
+    const { exportSnapshotToExcel } = await import('../../../services/excel/snapshot-export')
     const blob = await exportSnapshotToExcel(snapshot)
     const roleLabel = role === 'reference' ? 'Reference' : 'Current'
     downloadBlob(blob, `Dataset_${product.productCode || 'PRODUCT'}_${roleLabel}.xlsx`)
@@ -450,7 +451,7 @@ export const MasterDataWorkspaceHeader: React.FC<MasterDataWorkspaceHeaderProps>
               type="button"
               onClick={onOpenTemplateModal}
               className="flex min-h-9 items-center gap-1.5 px-3 py-1 text-xs font-medium text-slate-700 transition-colors hover:bg-slate-100 hover:text-slate-900 cursor-pointer"
-              title="Download blank template with customizable row counts"
+              title="Download blank template using this dataset's configured row counts"
             >
               <FileSpreadsheet className="w-3.5 h-3.5 text-slate-500" />
               <span>Template</span>

@@ -33,6 +33,16 @@ const testSnapshot: CostSnapshot = {
       note: 'Work Center annotation',
       confidence: {},
       additionalFields: { 'Supplier Group': 'Vendor-01' }
+    },
+    {
+      id: 'rate-size-legacy-2',
+      workCenterCode: '',
+      description: '',
+      laborRate: 0,
+      burdenRate: 0,
+      effectiveDate: '2026-09-24',
+      confidence: {},
+      isGeneratedSizingPlaceholder: true
     }
   ],
   bom: [
@@ -47,6 +57,17 @@ const testSnapshot: CostSnapshot = {
       note: 'BOM annotation',
       confidence: {},
       additionalFields: { Supplier: 'Factory A', 'Material Group': 'Film' }
+    },
+    {
+      id: 'bom-size-legacy-2',
+      itemCode: '',
+      description: '',
+      consumption: null,
+      unit: 'PC',
+      price: null,
+      loss: 0,
+      confidence: {},
+      isGeneratedSizingPlaceholder: true
     }
   ],
   routing: [
@@ -63,6 +84,18 @@ const testSnapshot: CostSnapshot = {
       note: 'Routing annotation',
       confidence: {},
       additionalFields: { 'Operator Note': 'Keep guard fitted' }
+    },
+    {
+      id: 'routing-size-legacy-2',
+      operationCode: '',
+      sequence: 20,
+      processName: '',
+      workCenterId: 'WC-CUT',
+      manning: null,
+      capacity: null,
+      yield: null,
+      confidence: {},
+      isGeneratedSizingPlaceholder: true
     }
   ],
   additionalFields: {
@@ -107,6 +140,7 @@ async function runTests() {
   assert.equal(parsed.routing[0].processCode, undefined)
   assert.equal(parsed.routing[0].capacity, 500)
   assert.equal(parsed.routing[0].note, 'Routing annotation')
+  assert.equal(parsed.warnings?.some(warning => warning.includes('Operation Code')), false)
   assert.equal(parsed.routing[0].additionalFields?.['Operator Note'], undefined)
   assert.equal(parsed.remark, 'Dataset annotation')
   assert.equal(parsed.additionalFields?.Status, undefined)

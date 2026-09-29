@@ -1,7 +1,6 @@
 import React, { useState, useRef } from 'react'
 import { UploadCloud, CheckCircle, AlertCircle, Loader2 } from 'lucide-react'
 import { ComparisonRole } from '../../core'
-import { parseSnapshotExcelInputFile } from '../../services'
 import { useAppStore } from '../../state'
 
 interface ExcelUploadDropzoneProps {
@@ -35,6 +34,7 @@ export const ExcelUploadDropzone: React.FC<ExcelUploadDropzoneProps> = ({
     setStatusMessage(null)
 
     try {
+      const { parseSnapshotExcelInputFile } = await import('../../services/excel/snapshot-parser')
       const result = await parseSnapshotExcelInputFile(file, importRole, {
         allowLegacy: false
       })

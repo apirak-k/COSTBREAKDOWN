@@ -1,4 +1,4 @@
-import ExcelJS from 'exceljs'
+import type ExcelJS from 'exceljs'
 import { DynamicTemplateOptions } from '../../core'
 
 const COLOR_DARK_NAVY = 'FF1E293B'
@@ -165,6 +165,7 @@ function writeRoutingSheet(sheet: ExcelJS.Worksheet, count: number): void {
 }
 
 export async function generateDynamicExcelTemplate(options: DynamicTemplateOptions): Promise<Blob> {
+  const ExcelJS = (await import('exceljs/lib/exceljs.bare.js')).default
   const { product, snapshot } = options
   const wcCount = Math.max(1, Math.floor(options.wcCount ?? snapshot?.rates.length ?? 4))
   const bomCount = Math.max(1, Math.floor(options.bomCount ?? snapshot?.bom.length ?? 16))

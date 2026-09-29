@@ -17,6 +17,7 @@ type LayoutMode = 'tabs' | 'stacked'
 export const MasterDataPage: React.FC = () => {
   const {
     uomList,
+    isDevelopmentReviewFixture,
     masterDataRole,
     masterDataSnapshot,
     masterDataSizing,
@@ -24,6 +25,8 @@ export const MasterDataPage: React.FC = () => {
     snapshotPair,
     setMasterDataRole,
     setActiveTab,
+    loadDevelopmentReviewFixture,
+    returnFromDevelopmentReviewFixture,
     cloneReferenceToCurrent,
     cloneCurrentToReference,
     clearMasterDataDataset,
@@ -56,6 +59,14 @@ export const MasterDataPage: React.FC = () => {
 
   const toggleSection = (section: TableSubTab) => {
     setCollapsedSections(prev => ({ ...prev, [section]: !prev[section] }))
+  }
+
+  const handleLoadSyntheticReviewData = async () => {
+    if (!import.meta.env.DEV) return
+    if (!window.confirm('Load or reset the dedicated mock review session? Your current working session will be kept.')) return
+
+    const { createSyntheticReviewSnapshotPair } = await import('./fixtures/synthetic-review-data')
+    loadDevelopmentReviewFixture(createSyntheticReviewSnapshotPair())
   }
 
   const product = masterDataSnapshot.product
@@ -91,6 +102,29 @@ export const MasterDataPage: React.FC = () => {
       <PageHeading
         title="Master Data"
         description="Prepare independent Reference and Current datasets through direct entry or Excel import."
+        actions={import.meta.env.DEV && (isDevelopmentReviewFixture
+          ? (
+            <button
+              type="button"
+              onClick={() => {
+                if (window.confirm('Return to your previous working session? The mock review session will be kept.')) {
+                  returnFromDevelopmentReviewFixture()
+                }
+              }}
+              className="min-h-10 rounded-sm border border-slate-300 bg-white px-3 text-sm font-medium text-slate-700 hover:bg-slate-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700 cursor-pointer"
+            >
+              Return to working session
+            </button>
+          )
+          : (
+            <button
+              type="button"
+              onClick={() => { void handleLoadSyntheticReviewData() }}
+              className="min-h-10 rounded-sm border border-slate-300 bg-white px-3 text-sm font-medium text-slate-700 hover:bg-slate-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700 cursor-pointer"
+            >
+              Load mock review data
+            </button>
+          ))}
       />
 
       {/* ─── Unified Workspace Header ─── */}

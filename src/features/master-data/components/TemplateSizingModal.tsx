@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import { X, FileSpreadsheet, Download } from 'lucide-react'
 import { ComparisonRole, CostSnapshot, ProductMaster, DatasetSizing } from '../../../core'
-import { generateDynamicExcelTemplate, downloadBlob } from '../../../services'
+import { downloadBlob } from '../../../services/excel/export'
 
 interface TemplateSizingModalProps {
   isOpen: boolean
@@ -20,52 +20,33 @@ export const TemplateSizingModal: React.FC<TemplateSizingModalProps> = ({
   snapshot,
   currentSizing
 }) => {
-  // Default initial values to configured sizing (same as Dataset Setup), falling back to populated rows, or 1
-  const defaultWc = currentSizing.wcCount !== undefined && currentSizing.wcCount > 0
-    ? currentSizing.wcCount
-    : (snapshot.rates.length > 0 ? snapshot.rates.length : 1)
-  const defaultBom = currentSizing.bomCount !== undefined && currentSizing.bomCount > 0
-    ? currentSizing.bomCount
-    : (snapshot.bom.length > 0 ? snapshot.bom.length : 1)
-  const defaultRouting = currentSizing.routingCount !== undefined && currentSizing.routingCount > 0
-    ? currentSizing.routingCount
-    : (snapshot.routing.length > 0 ? snapshot.routing.length : 1)
-
-  const [wcCount, setWcCount] = useState<string>(String(defaultWc))
-  const [bomCount, setBomCount] = useState<string>(String(defaultBom))
-  const [routingCount, setRoutingCount] = useState<string>(String(defaultRouting))
+  const rowCounts = {
+    wcCount: currentSizing.wcCount !== undefined && currentSizing.wcCount > 0
+      ? currentSizing.wcCount
+      : (snapshot.rates.length || 1),
+    bomCount: currentSizing.bomCount !== undefined && currentSizing.bomCount > 0
+      ? currentSizing.bomCount
+      : (snapshot.bom.length || 1),
+    routingCount: currentSizing.routingCount !== undefined && currentSizing.routingCount > 0
+      ? currentSizing.routingCount
+      : (snapshot.routing.length || 1)
+  }
 
   const [productCode, setProductCode] = useState(product.productCode || '')
   const [productDescription, setProductDescription] = useState(product.productDescription || '')
   const [uom, setUom] = useState(product.uom || 'PC')
 
   useEffect(() => {
-    const nextWc = currentSizing.wcCount !== undefined && currentSizing.wcCount > 0
-      ? currentSizing.wcCount
-      : (snapshot.rates.length > 0 ? snapshot.rates.length : 1)
-    const nextBom = currentSizing.bomCount !== undefined && currentSizing.bomCount > 0
-      ? currentSizing.bomCount
-      : (snapshot.bom.length > 0 ? snapshot.bom.length : 1)
-    const nextRouting = currentSizing.routingCount !== undefined && currentSizing.routingCount > 0
-      ? currentSizing.routingCount
-      : (snapshot.routing.length > 0 ? snapshot.routing.length : 1)
-    setWcCount(String(nextWc))
-    setBomCount(String(nextBom))
-    setRoutingCount(String(nextRouting))
     setProductCode(product.productCode || '')
     setProductDescription(product.productDescription || '')
     setUom(product.uom || 'PC')
-  }, [currentSizing, snapshot, product, isOpen])
+  }, [product, isOpen])
 
   if (!isOpen) return null
 
   const roleLabel = role === 'reference' ? 'Reference' : 'Current'
 
   const handleDownload = async () => {
-    const parsedWc = wcCount.trim() === '' ? 1 : Math.max(1, Math.floor(Number(wcCount) || 1))
-    const parsedBom = bomCount.trim() === '' ? 1 : Math.max(1, Math.floor(Number(bomCount) || 1))
-    const parsedRouting = routingCount.trim() === '' ? 1 : Math.max(1, Math.floor(Number(routingCount) || 1))
-
     const targetProduct: ProductMaster = {
       ...product,
       productCode: productCode.trim() || product.productCode,
@@ -73,12 +54,11 @@ export const TemplateSizingModal: React.FC<TemplateSizingModalProps> = ({
       uom: uom.trim() || product.uom || 'PC'
     }
 
+    const { generateDynamicExcelTemplate } = await import('../../../services/excel/dynamic-excel-generator')
     const blob = await generateDynamicExcelTemplate({
       product: targetProduct,
       snapshot,
-      wcCount: parsedWc,
-      bomCount: parsedBom,
-      routingCount: parsedRouting
+      ...rowCounts
     })
     downloadBlob(blob, `MasterData_Template_${targetProduct.productCode || 'PRODUCT'}.xlsx`)
     onClose()
@@ -113,7 +93,7 @@ export const TemplateSizingModal: React.FC<TemplateSizingModalProps> = ({
         {/* Content */}
         <div className="space-y-4 p-5 text-sm">
           <p className="leading-6 text-slate-700">
-            Configure product identity and starting row slots for <strong className="font-mono text-slate-900 uppercase">{roleLabel}</strong> template.
+            Configure product identity for the <strong className="font-mono text-slate-900 uppercase">{roleLabel}</strong> template.
           </p>
 
           {/* Product Fields (Blue Group - Identical to Dataset Setup Dialog) */}
@@ -165,59 +145,24 @@ export const TemplateSizingModal: React.FC<TemplateSizingModalProps> = ({
           </div>
 
           <div className="space-y-3 rounded-sm border border-slate-200 bg-slate-50 p-4">
-            <div className="text-xs font-semibold text-slate-800">
-              Starting Blank Rows
-            </div>
-            <div>
-              <label htmlFor="template-sizing-work-center-rows" className="mb-1 block text-xs font-medium text-slate-700">
-                Work Center Rows
-              </label>
-              <input
-                id="template-sizing-work-center-rows"
-                type="number"
-                min="1"
-                step="1"
-                max="500"
-                placeholder="1"
-                value={wcCount}
-                onChange={e => setWcCount(e.target.value)}
-                className="min-h-10 w-full rounded-sm border border-slate-300 bg-white px-3 py-2 font-mono text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-200"
-              />
-            </div>
-
-            <div>
-              <label htmlFor="template-sizing-bom-rows" className="mb-1 block text-xs font-medium text-slate-700">
-                BOM Rows (Materials)
-              </label>
-              <input
-                id="template-sizing-bom-rows"
-                type="number"
-                min="1"
-                step="1"
-                max="1000"
-                placeholder="1"
-                value={bomCount}
-                onChange={e => setBomCount(e.target.value)}
-                className="min-h-10 w-full rounded-sm border border-slate-300 bg-white px-3 py-2 font-mono text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-200"
-              />
-            </div>
-
-            <div>
-              <label htmlFor="template-sizing-routing-rows" className="mb-1 block text-xs font-medium text-slate-700">
-                Routing Rows (Operations)
-              </label>
-              <input
-                id="template-sizing-routing-rows"
-                type="number"
-                min="1"
-                step="1"
-                max="500"
-                placeholder="1"
-                value={routingCount}
-                onChange={e => setRoutingCount(e.target.value)}
-                className="min-h-10 w-full rounded-sm border border-slate-300 bg-white px-3 py-2 font-mono text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-200"
-              />
-            </div>
+            <div className="text-xs font-semibold text-slate-800">Starting Blank Rows</div>
+            <p className="text-xs leading-5 text-slate-600">
+              Uses the counts configured for this dataset. Change row counts in Dataset Setup.
+            </p>
+            <dl className="grid grid-cols-3 gap-2 text-xs">
+              <div className="rounded-sm border border-slate-200 bg-white p-2">
+                <dt className="text-slate-600">Work Center</dt>
+                <dd className="mt-1 font-mono font-semibold text-slate-900">{rowCounts.wcCount}</dd>
+              </div>
+              <div className="rounded-sm border border-slate-200 bg-white p-2">
+                <dt className="text-slate-600">BOM</dt>
+                <dd className="mt-1 font-mono font-semibold text-slate-900">{rowCounts.bomCount}</dd>
+              </div>
+              <div className="rounded-sm border border-slate-200 bg-white p-2">
+                <dt className="text-slate-600">Routing</dt>
+                <dd className="mt-1 font-mono font-semibold text-slate-900">{rowCounts.routingCount}</dd>
+              </div>
+            </dl>
           </div>
         </div>
 

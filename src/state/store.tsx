@@ -41,7 +41,7 @@ import {
 import { WorkingDataset } from '../core/types/dataset-standard.types'
 import { markSizingPlaceholderEdited, resizeMasterDataSnapshotForSizing } from './dataset-sizing'
 import { clearMasterDataDatasetState } from './clear-master-data-dataset'
-import { STORAGE_KEYS, loadFromSession, saveToSession } from '../services'
+import { STORAGE_KEYS, loadFromSession, saveToSession } from '../services/storage'
 
 import {
   seedProductMaster,
@@ -54,6 +54,9 @@ import {
 } from './seed-data'
 
 export const DEFAULT_UOMS = ['PC', 'SET', 'PANEL', 'GM', 'KG', 'SM', 'M', 'RL', 'L', 'BOX', 'TRAY']
+
+const DEVELOPMENT_REVIEW_FIXTURE_ID = 'ps-dev-review-fixture'
+const DEVELOPMENT_REVIEW_RETURN_ID_KEY = 'cost_breakdown_dev_review_return_id'
 
 function withSnapshotPair(session: ProductSession, explicitPair?: SnapshotPair): ProductSession {
   if (explicitPair) {
@@ -222,6 +225,7 @@ interface AppContextType {
   masterDataRole: ComparisonRole
   masterDataSnapshot: CostSnapshot
   masterDataSizing: import('../core/types').DatasetSizing
+  isDevelopmentReviewFixture: boolean
   activeTab: 'master' | 'breakdown' | 'candidate' | 'rca'
   uomList: string[]
 
@@ -273,6 +277,8 @@ interface AppContextType {
   saveCandidateRca: (candidateKey: string, draft: CandidateRcaDraft) => void
   importFromExcel: (result: ExcelImportResult) => void
   importSnapshotFromExcel: (result: SnapshotImportResult) => void
+  loadDevelopmentReviewFixture: (pair: SnapshotPair) => void
+  returnFromDevelopmentReviewFixture: () => void
   resetToDefault: () => void
 
   clearAllData: () => void
@@ -383,6 +389,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const masterDataRole = activeSession.masterDataRole ?? 'current'
   const masterDataSnapshot = masterDataRole === 'reference' ? snapshotPair.reference : snapshotPair.current
   const masterDataSizing = activeSession.datasetSizing?.[masterDataRole] ?? masterDataSnapshot.sizing ?? {}
+  const isDevelopmentReviewFixture = activeProductId === DEVELOPMENT_REVIEW_FIXTURE_ID
 
   // Product Session Actions
   const createProductWithSizing = (config: ProductSizingConfig) => {
@@ -1035,6 +1042,63 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     setActiveTab('master')
   }
 
+  const loadDevelopmentReviewFixture = (pair: SnapshotPair) => {
+    if (!import.meta.env.DEV) return
+
+    if (!isDevelopmentReviewFixture && !sessionStorage.getItem(DEVELOPMENT_REVIEW_RETURN_ID_KEY)) {
+      sessionStorage.setItem(DEVELOPMENT_REVIEW_RETURN_ID_KEY, activeProductId)
+    }
+
+    const referenceSizing: DatasetSizing = {
+      wcCount: pair.reference.sizing?.wcCount ?? pair.reference.rates.length,
+      bomCount: pair.reference.sizing?.bomCount ?? pair.reference.bom.length,
+      routingCount: pair.reference.sizing?.routingCount ?? pair.reference.routing.length
+    }
+    const currentSizing: DatasetSizing = {
+      wcCount: pair.current.sizing?.wcCount ?? pair.current.rates.length,
+      bomCount: pair.current.sizing?.bomCount ?? pair.current.bom.length,
+      routingCount: pair.current.sizing?.routingCount ?? pair.current.routing.length
+    }
+    const nextPair: SnapshotPair = {
+      reference: { ...pair.reference, comparisonRole: 'reference', sizing: referenceSizing },
+      current: { ...pair.current, comparisonRole: 'current', sizing: currentSizing }
+    }
+    const source = productSessions.find(session => session.id === DEVELOPMENT_REVIEW_FIXTURE_ID) ??
+      makeEmptySession(DEVELOPMENT_REVIEW_FIXTURE_ID)
+    const now = new Date().toISOString()
+    const updated = applySnapshotPairToSession({
+      ...source,
+      masterDataRole: 'current',
+      updatedAt: now,
+      savedDrivers: [],
+      selectedDriverKeys: [],
+      rcaRecords: {},
+      candidateRcaRecords: {},
+      candidateControllability: {},
+      preparedSnapshotRoles: { reference: true, current: true },
+      datasetSizing: { reference: referenceSizing, current: currentSizing },
+      status: 'draft',
+      versionLabel: 'Synthetic Review Fixture'
+    }, nextPair)
+
+    setProductSessions(prev => prev.some(session => session.id === source.id)
+      ? prev.map(session => session.id === source.id ? updated : session)
+      : [...prev, updated])
+    setActiveProductId(DEVELOPMENT_REVIEW_FIXTURE_ID)
+    setActiveTab('master')
+  }
+
+  const returnFromDevelopmentReviewFixture = () => {
+    if (!import.meta.env.DEV) return
+
+    const previousId = sessionStorage.getItem(DEVELOPMENT_REVIEW_RETURN_ID_KEY)
+    sessionStorage.removeItem(DEVELOPMENT_REVIEW_RETURN_ID_KEY)
+    if (previousId && productSessions.some(session => session.id === previousId)) {
+      setActiveProductId(previousId)
+      setActiveTab('master')
+    }
+  }
+
   const resetToDefault = () => {
     patchActive({
       product: { ...emptyProductMaster },
@@ -1088,6 +1152,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       masterDataRole,
       masterDataSnapshot,
       masterDataSizing,
+      isDevelopmentReviewFixture,
       activeTab,
       uomList,
       setActiveTab,
@@ -1129,6 +1194,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       saveCandidateRca,
       importFromExcel,
       importSnapshotFromExcel,
+      loadDevelopmentReviewFixture,
+      returnFromDevelopmentReviewFixture,
       resetToDefault,
       clearAllData,
       workingDatasets,

@@ -1,35 +1,36 @@
-# Current Handoff — AI-side work complete, human review pending (2026-09-29)
+# Current Handoff — AI implementation delivered, human review pending (2026-09-30)
 
 ## Current checkpoint
 
-- Repository: `E:\COSTBREAKDOWN`; active branch: `current`; starting `HEAD`: `c2d13d50822e1df18e07b9be7ddd281ac335dc1f`.
-- The active working branch is `current`, continuing from the recorded application checkpoint. The implementation and handoff changes are committed and pushed to `origin/current`.
+- Repository: `E:\COSTBREAKDOWN`; active branch: `current`.
+- At the start of this implementation, `HEAD` and `origin/current` both matched `b4aa9eb3fbc07fd34a2a199bc0c41a2ab5217255`, and the worktree was clean. This implementation is intended to be committed and pushed to `origin/current`.
 - Product behavior remains governed by `docs/REQUIREMENTS_INDEX.md` and the four current files in `agreements/`. This handoff records status and evidence, not new product requirements.
 
-## AI-side implementation completed
+## AI-side implementation delivered
 
-1. **Sizing metadata no longer changes business comparison status.** `isGeneratedSizingPlaceholder` is excluded from row field diffs, so an otherwise identical manual/imported row and generated row stay `UNCHANGED`.
-2. **Master Data identity warning follows Code-primary fallback.** When both sides have Product Code, compare Code only. If either Code is blank, compare Product Name when both names are present. Mismatches remain warnings and do not block handoff. Missing Product Code warnings remain.
-3. **Navigation wording is aligned.** The navbar now says “Candidate Prioritization”; its route and workflow ID are unchanged.
+1. **Template counts follow the selected dataset.** The modal displays saved `DatasetSizing` counts as read-only; users edit counts in Dataset Setup. Product identity fields remain editable.
+2. **Generated sizing placeholders are omitted from dataset exports.** Export filters only rows with `isGeneratedSizingPlaceholder === true` in Work Center rates, BOM, and Routing. Incomplete rows without that marker remain exportable. The round-trip verifier covers a Routing placeholder that otherwise has a sequence and Work Center.
+3. **A development-only synthetic mock fixture is available.** “Load mock review data” resets the dedicated `ps-dev-review-fixture` session and preserves the previously active session. “Return to working session” restores it. The fixture provides unchanged, changed, added, and removed BOM/Routing rows and a changed Work Center rate.
+4. **The app and Excel actions are split into lazy chunks.** Feature pages load on navigation; Excel parsing, template creation, and export load on demand. The production build no longer emits Vite's default `> 500 kB` chunk advisory. The largest chunk is close to the threshold; do not increase the warning limit.
 
-Regression coverage includes BOM, Routing, and Work Center rows with identical business data and only the internal sizing marker changed; canonical status stays `UNCHANGED` and total Gap stays zero. Master Data checks cover differing Codes, matching Codes with different Names, missing Code on both or one side, same/different fallback Names, and absent identifiers.
+The product choices and unresolved questions are recorded in [docs/CROSS_CUTTING_DECISIONS.md](docs/CROSS_CUTTING_DECISIONS.md). The four agreements remain authoritative.
 
 ## Verification on this checkpoint
 
-- All 40 `scripts/verify_*.ts` verifiers passed on the current working tree using esbuild bundles (`--packages=external`), including the six that the old `jiti` runner could not parse.
-- Focused Master Data handoff, sizing comparison, dynamic snapshot comparison, and import/export mismatch checks passed.
-- A URL-based review of application commit `d5d9f7f` in ChatGPT conversation “บูมเอง 2” found no requirement conflicts or confirmed bugs. It identified a low test gap for Current-side-only missing Product Code; both same-name and different-name cases were added, and the focused Master Data handoff verifier passed. ChatGPT feedback is corroborating input, not a product authority.
-- `npm run build` passed (1,688 modules). Vite still reports the existing large-bundle advisory: the main JS output is about 1,715 kB / 498 kB gzip.
-- Production preview loaded successfully; the navbar label and Candidate Prioritization page heading both displayed correctly. This is a smoke check, not full UX/UI or accessibility acceptance.
-- No operational workbook was reviewed. The user’s UX/UI and logic review remains pending; AI verification is not human acceptance.
+- All 41 `scripts/verify_*.ts` verifiers passed on 2026-09-30 using esbuild bundles (`--packages=external`), including the sizing/template, export/import, synthetic-fixture, and UI/store checks.
+- `npm run excel` passed: both generated workbooks passed formula shielding and template-input checks. The generated workbooks were removed after verification because they were new untracked outputs, not part of this change.
+- `npm run build` passed (1,954 modules). The entry chunk is 216.37 kB (65.73 kB gzip), the parser chunk is 381.28 kB (128.39 kB gzip), and the largest chunk, `exceljs.bare`, is 496.68 kB (142.65 kB gzip). No `> 500 kB` advisory is emitted. Vite still warns that ExcelJS dependencies import externalized Node built-ins (`fs`, `crypto`, `events`, `util`, and `stream`); production browser execution of Excel actions remains **Unverified**.
+- Production assets do not contain the mock fixture records, factory name, or development button label.
+- Production browser interaction was not completed: the Computer Use app approval timed out before any page interaction. The user's UX/UI and flow-logic review remains pending. Automated verification and ChatGPT feedback are not human acceptance.
+- `git diff --check` is part of the final pre-commit verification.
 
-## Remaining human decisions and next action
+## Human review and remaining decisions
 
-- **UX/UI and logic acceptance:** the user will review the real flows. The six previously blocked assertions now pass through the alternate verifier runner, but no full user acceptance pass has been recorded.
-- **All filter:** keep the current select-all behavior. A toggle/indeterminate interaction is a low-priority UX question and is deferred; it does not block review or use.
-- **Custom `additionalFields`:** keep current behavior for now. Preserve and display the custom data, and continue allowing its differences to appear in `fieldDiffs` and affect `CHANGED` status. Revisit only if this causes a meaningful problem; it does not block review or use.
-- **Deferred concepts:** add a `Load Mock Data` option and allow comparison over a user-selected subset. These are not part of the current Agreements or implementation patch. Before implementing partial comparison, define what can be selected and whether excluded rows are outside the calculation or only hidden, since that changes totals, Gaps, and downstream candidates.
-- After UX/UI review, record any accepted Agreement changes, then make only the corresponding implementation changes. Keep human acceptance separate from automated `PASS` results.
+- **UX/UI and flow-logic review:** load mock review data in a development build and review the actual flows. After use, select “Return to working session.” The dedicated fixture session is retained for repeat review.
+- **Import and `DatasetSizing`:** preserve the existing behavior until the owner defines how imports affect saved sizing. Do not infer configured counts from imported rows.
+- **Current placeholders in Cost Breakdown:** keep the current display until UX review decides whether they should be visible.
+- **Partial comparison:** remains deferred. Define its effect on totals, Gaps, and candidate findings before implementation.
+- Record any accepted product changes in the agreements, then implement only those decisions. Keep human acceptance separate from automated `PASS` results.
 
 ---
 

@@ -1,5 +1,6 @@
-import ExcelJS from 'exceljs'
+import type ExcelJS from 'exceljs'
 import { CostSnapshot, ProductMaster } from '../../core'
+import { excludeGeneratedSizingPlaceholders } from '../../core/utils/sizing'
 
 const COLOR_DARK_NAVY = 'FF1E293B'
 const COLOR_BORDER = 'FFE2E8F0'
@@ -73,7 +74,7 @@ function writeWorkCenterSheet(sheet: ExcelJS.Worksheet, snapshot: CostSnapshot):
   sheet.getRow(3).values = headers
   styleHeaderRow(sheet.getRow(3), headers.length)
 
-  snapshot.rates.forEach((rate, index) => {
+  excludeGeneratedSizingPlaceholders(snapshot.rates).forEach((rate, index) => {
     const row = sheet.getRow(index + 4)
     row.values = [rate.workCenterCode, rate.description, rate.laborRate, rate.burdenRate, rate.note || '']
     styleDataRow(row, headers.length, [3, 4])
@@ -92,7 +93,7 @@ function writeBOMSheet(sheet: ExcelJS.Worksheet, snapshot: CostSnapshot): void {
   sheet.getRow(3).values = headers
   styleHeaderRow(sheet.getRow(3), headers.length)
 
-  snapshot.bom.forEach((item, index) => {
+  excludeGeneratedSizingPlaceholders(snapshot.bom).forEach((item, index) => {
     const row = sheet.getRow(index + 4)
     row.values = [item.itemCode, item.description, item.consumption, item.unit, item.price, item.loss, item.note || '']
     styleDataRow(row, headers.length, [3, 5, 6])
@@ -111,7 +112,7 @@ function writeRoutingSheet(sheet: ExcelJS.Worksheet, snapshot: CostSnapshot): vo
   sheet.getRow(3).values = headers
   styleHeaderRow(sheet.getRow(3), headers.length)
 
-  snapshot.routing.forEach((step, index) => {
+  excludeGeneratedSizingPlaceholders(snapshot.routing).forEach((step, index) => {
     const row = sheet.getRow(index + 4)
     row.values = [
       step.operationCode || '',
@@ -131,6 +132,7 @@ function writeRoutingSheet(sheet: ExcelJS.Worksheet, snapshot: CostSnapshot): vo
 }
 
 export async function exportSnapshotToExcel(snapshot: CostSnapshot): Promise<Blob> {
+  const ExcelJS = (await import('exceljs/lib/exceljs.bare.js')).default
   const workbook = new ExcelJS.Workbook()
   workbook.creator = 'Cost Breakdown Analysis Platform'
   workbook.created = new Date()
