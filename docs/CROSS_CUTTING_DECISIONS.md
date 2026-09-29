@@ -29,7 +29,7 @@ This document records choices that affect more than one COSTBREAKDOWN flow. The 
 
 ### JavaScript bundle splitting
 
-- Feature pages are loaded on navigation. Excel parsing, template generation, and workbook export are loaded when the corresponding action runs.
+- Feature pages retain the existing loading behavior. Excel parsing, template generation, and workbook export are loaded when the corresponding action runs.
 - Keep the production build below Vite's default 500 kB chunk advisory. Do not raise `chunkSizeWarningLimit` to hide the output size.
 - The ExcelJS browser build currently uses the package's `exceljs/lib/exceljs.bare.js` entry. Vite still reports externalized Node built-ins from ExcelJS dependencies; browser execution of the production Excel actions remains to be confirmed.
 

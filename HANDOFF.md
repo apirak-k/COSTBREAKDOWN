@@ -3,7 +3,7 @@
 ## Current checkpoint
 
 - Repository: `E:\COSTBREAKDOWN`; active branch: `current`.
-- At the start of this implementation, `HEAD` and `origin/current` both matched `b4aa9eb3fbc07fd34a2a199bc0c41a2ab5217255`, and the worktree was clean. This implementation is intended to be committed and pushed to `origin/current`.
+- At the start of this implementation, `HEAD` and `origin/current` both matched `b4aa9eb3fbc07fd34a2a199bc0c41a2ab5217255`, and the worktree was clean. This implementation is committed on `current` and pushed to `origin/current`; verify the live tip before continuing.
 - Product behavior remains governed by `docs/REQUIREMENTS_INDEX.md` and the four current files in `agreements/`. This handoff records status and evidence, not new product requirements.
 
 ## AI-side implementation delivered
@@ -11,7 +11,7 @@
 1. **Template counts follow the selected dataset.** The modal displays saved `DatasetSizing` counts as read-only; users edit counts in Dataset Setup. Product identity fields remain editable.
 2. **Generated sizing placeholders are omitted from dataset exports.** Export filters only rows with `isGeneratedSizingPlaceholder === true` in Work Center rates, BOM, and Routing. Incomplete rows without that marker remain exportable. The round-trip verifier covers a Routing placeholder that otherwise has a sequence and Work Center.
 3. **A development-only synthetic mock fixture is available.** “Load mock review data” resets the dedicated `ps-dev-review-fixture` session and preserves the previously active session. “Return to working session” restores it. The fixture provides unchanged, changed, added, and removed BOM/Routing rows and a changed Work Center rate.
-4. **The app and Excel actions are split into lazy chunks.** Feature pages load on navigation; Excel parsing, template creation, and export load on demand. The production build no longer emits Vite's default `> 500 kB` chunk advisory. The largest chunk is close to the threshold; do not increase the warning limit.
+4. **Excel actions load on demand.** Excel parsing, template creation, and export load only when used; the existing feature-page loading behavior stays unchanged. The production build no longer emits Vite's default `> 500 kB` chunk advisory. Do not increase the warning limit.
 
 The product choices and unresolved questions are recorded in [docs/CROSS_CUTTING_DECISIONS.md](docs/CROSS_CUTTING_DECISIONS.md). The four agreements remain authoritative.
 
@@ -19,7 +19,7 @@ The product choices and unresolved questions are recorded in [docs/CROSS_CUTTING
 
 - All 41 `scripts/verify_*.ts` verifiers passed on 2026-09-30 using esbuild bundles (`--packages=external`), including the sizing/template, export/import, synthetic-fixture, and UI/store checks.
 - `npm run excel` passed: both generated workbooks passed formula shielding and template-input checks. The generated workbooks were removed after verification because they were new untracked outputs, not part of this change.
-- `npm run build` passed (1,954 modules). The entry chunk is 216.37 kB (65.73 kB gzip), the parser chunk is 381.28 kB (128.39 kB gzip), and the largest chunk, `exceljs.bare`, is 496.68 kB (142.65 kB gzip). No `> 500 kB` advisory is emitted. Vite still warns that ExcelJS dependencies import externalized Node built-ins (`fs`, `crypto`, `events`, `util`, and `stream`); production browser execution of Excel actions remains **Unverified**.
+- `npm run build` passed (1,959 modules). The main entry fell from 1,715.44 kB to 379.87 kB (95.04 kB gzip); the parser chunk is 381.28 kB (128.39 kB gzip), and the largest chunk, `exceljs.bare`, is 496.68 kB (142.65 kB gzip). No `> 500 kB` advisory is emitted. Vite still warns that ExcelJS dependencies import externalized Node built-ins (`fs`, `crypto`, `events`, `util`, and `stream`); production browser execution of Excel actions remains **Unverified**.
 - Production assets do not contain the mock fixture records, factory name, or development button label.
 - Production browser interaction was not completed: the Computer Use app approval timed out before any page interaction. The user's UX/UI and flow-logic review remains pending. Automated verification and ChatGPT feedback are not human acceptance.
 - `git diff --check` is part of the final pre-commit verification.
