@@ -1,79 +1,58 @@
 import React from 'react'
-import {
-  CostElementBreakdown,
-  formatNumber,
-  formatVariance,
-  formatPercent
-} from '../../../core'
+import { CostComparison, formatNumber, formatPercent, formatVariance } from '../../../core'
 import { KPIStatCard } from '../../../shared'
 
 interface ExecutiveKPICardsProps {
-  costBreakdown: CostElementBreakdown
+  comparison: CostComparison
 }
 
-export const ExecutiveKPICards: React.FC<ExecutiveKPICardsProps> = ({
-  costBreakdown
-}) => {
-  const {
-    totalBase, totalActive, totalVariance,
-    materialBase, materialActive,
-    laborBase, laborActive,
-    burdenBase, burdenActive
-  } = costBreakdown
+const formatCost = (value: number | null): string => value === null ? '—' : formatNumber(value, 4)
 
-  const matVar = materialActive - materialBase
-  const labVar = laborActive - laborBase
-  const burVar = burdenActive - burdenBase
+export const ExecutiveKPICards: React.FC<ExecutiveKPICardsProps> = ({ comparison }) => {
+  const metrics = [
+    {
+      title: 'Current Standard Cost',
+      reference: comparison.referenceCost.total,
+      current: comparison.currentCost.total,
+      gap: comparison.totalGap
+    },
+    {
+      title: 'Current Direct Material',
+      reference: comparison.referenceCost.material,
+      current: comparison.currentCost.material,
+      gap: comparison.elementGaps.material
+    },
+    {
+      title: 'Current Direct Labor',
+      reference: comparison.referenceCost.labor,
+      current: comparison.currentCost.labor,
+      gap: comparison.elementGaps.labor
+    },
+    {
+      title: 'Current Mfg Burden',
+      reference: comparison.referenceCost.burden,
+      current: comparison.currentCost.burden,
+      gap: comparison.elementGaps.burden
+    }
+  ]
 
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5">
-      {/* 1. Total Standard Cost */}
-      <KPIStatCard
-        title="Current Standard Cost"
-        value={formatNumber(totalActive, 4)}
-        badgeText={`Reference: ${formatNumber(totalBase, 4)}`}
-        delta={{
-          value: totalVariance,
-          formatted: formatVariance(totalVariance, 4),
-          percent: totalBase > 0 ? formatPercent(totalVariance / totalBase, 1) : undefined
-        }}
-      />
-
-      {/* 2. Direct Material */}
-      <KPIStatCard
-        title="Current Direct Material"
-        value={formatNumber(materialActive, 4)}
-        badgeText={`Reference: ${formatNumber(materialBase, 4)}`}
-        delta={{
-          value: matVar,
-          formatted: formatVariance(matVar, 4),
-          percent: materialBase > 0 ? formatPercent(matVar / materialBase, 1) : undefined
-        }}
-      />
-
-      {/* 3. Direct Labor */}
-      <KPIStatCard
-        title="Current Direct Labor"
-        value={formatNumber(laborActive, 4)}
-        badgeText={`Reference: ${formatNumber(laborBase, 4)}`}
-        delta={{
-          value: labVar,
-          formatted: formatVariance(labVar, 4),
-          percent: laborBase > 0 ? formatPercent(labVar / laborBase, 1) : undefined
-        }}
-      />
-
-      {/* 4. Manufacturing Burden */}
-      <KPIStatCard
-        title="Current Mfg Burden"
-        value={formatNumber(burdenActive, 4)}
-        badgeText={`Reference: ${formatNumber(burdenBase, 4)}`}
-        delta={{
-          value: burVar,
-          formatted: formatVariance(burVar, 4),
-          percent: burdenBase > 0 ? formatPercent(burVar / burdenBase, 1) : undefined
-        }}
-      />
+    <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-2 lg:grid-cols-4">
+      {metrics.map(metric => (
+        <KPIStatCard
+          key={metric.title}
+          title={metric.title}
+          value={formatCost(metric.current)}
+          badgeText={`Reference: ${formatCost(metric.reference)}`}
+          delta={metric.gap === null ? undefined : {
+            value: metric.gap,
+            formatted: formatVariance(metric.gap, 4),
+            percent: metric.reference !== null && metric.reference > 0
+              ? formatPercent(metric.gap / metric.reference, 1)
+              : undefined
+          }}
+        />
+      ))}
     </div>
   )
 }

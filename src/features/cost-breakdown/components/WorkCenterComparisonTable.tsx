@@ -8,7 +8,8 @@ import {
 } from '../../../core'
 import type { ComparisonStatus } from '../../../core'
 import { ConfidenceBadge } from '../../../shared/ui/ConfidenceBadge'
-import { ComparisonViewMode, isVisibleInComparisonView } from './comparison-view'
+import { ALL_COMPARISON_STATUSES, isVisibleInComparisonView } from './comparison-view'
+import type { ComparisonViewMode } from './comparison-view'
 import { DataQualityPairBadge } from './DataQualityPairBadge'
 
 interface WorkCenterComparisonTableProps {
@@ -49,7 +50,7 @@ export const WorkCenterComparisonTable: React.FC<WorkCenterComparisonTableProps>
   referenceRates,
   currentRates,
   findings,
-  viewMode = 'all'
+  viewMode = ALL_COMPARISON_STATUSES
 }) => {
   const referenceById = new Map(referenceRates.map(rate => [rate.id, rate]))
   const findingByCurrentId = new Map(
@@ -111,6 +112,7 @@ export const WorkCenterComparisonTable: React.FC<WorkCenterComparisonTableProps>
             </tr>
           ) : visibleRows.map(row => {
             const label = row.finding ? getWorkCenterComparisonLabel(row.finding) : null
+            const visibleLabel = label === 'UNCHANGED' ? null : label
             const workCenterCode = row.current?.workCenterCode ?? row.reference?.workCenterCode ?? 'Unknown'
             const description = row.current?.description ?? row.reference?.description ?? '—'
 
@@ -119,9 +121,15 @@ export const WorkCenterComparisonTable: React.FC<WorkCenterComparisonTableProps>
                 <th scope="row" className="p-2.5 font-bold text-slate-900 whitespace-nowrap">{workCenterCode}</th>
                 <td className="p-2.5 font-sans text-slate-700">{description}</td>
                 <td className="p-2.5 whitespace-nowrap">
-                  <span title={label ? undefined : 'No comparable business identity; see validation warnings'} className={`inline-flex px-1.5 py-0.5 rounded border text-[10px] font-mono font-bold ${comparisonClass(label)}`}>
-                    {label ?? '—'}
-                  </span>
+                  {visibleLabel ? (
+                    <span className={`inline-flex px-1.5 py-0.5 rounded border text-[10px] font-mono font-bold ${comparisonClass(visibleLabel)}`}>
+                      {visibleLabel}
+                    </span>
+                  ) : (
+                    <span aria-label={label === 'UNCHANGED' ? 'Unchanged' : undefined} title={!row.finding || !label ? 'No comparable business identity; see validation warnings' : undefined}>
+                      —
+                    </span>
+                  )}
                 </td>
                 <td className="p-2.5 whitespace-nowrap">
                   <ConfidenceBadge status={row.finding?.confidence ?? 'missing'} showLabel />

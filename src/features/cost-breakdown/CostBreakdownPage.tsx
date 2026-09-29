@@ -9,28 +9,35 @@ import { BOMDetailedTable } from './components/BOMDetailedTable'
 import { RoutingDetailedTable } from './components/RoutingDetailedTable'
 import { WorkCenterComparisonTable } from './components/WorkCenterComparisonTable'
 import { SnapshotComparisonCard } from './components/SnapshotComparisonCard'
-import { isVisibleInComparisonView } from './components/comparison-view'
+import { ALL_COMPARISON_STATUSES, areAllComparisonStatusesSelected, getComparisonViewLabel } from './components/comparison-view'
 import type { ComparisonViewMode } from './components/comparison-view'
-import { areSnapshotCostsComplete } from '../../core'
+import { areSnapshotCostsComplete, getCanonicalComparisonStatus } from '../../core'
+import type { ComparisonStatus } from '../../core'
 import { PageHeading } from '../../shared'
 
 type SubTab = 'bom' | 'routing' | 'work-center'
 
 export const CostBreakdownPage: React.FC = () => {
-  const { costBreakdown, snapshotComparison, snapshotPair, bom, routing, rates } = useAppStore()
+  const { snapshotComparison, snapshotPair, bom, routing, rates } = useAppStore()
   const [subTab, setSubTab] = useState<SubTab>('bom')
-  const [comparisonView, setComparisonView] = useState<ComparisonViewMode>('all')
+  const [comparisonView, setComparisonView] = useState<ComparisonViewMode>(ALL_COMPARISON_STATUSES)
   const [isDetailedExpanded, setIsDetailedExpanded] = useState(true)
   const allFindings = [
     ...snapshotComparison.bomFindings,
     ...snapshotComparison.routingFindings,
     ...snapshotComparison.workCenterFindings
   ]
-  const changedFindingsCount = allFindings.filter(finding => isVisibleInComparisonView(finding, 'changed')).length
-  const addedFindingsCount = allFindings.filter(f => f.matchStatus === 'added').length
-  const removedFindingsCount = allFindings.filter(f => f.matchStatus === 'removed').length
-  const unchangedFindingsCount = allFindings.filter(f => f.matchStatus === 'matched' && Object.keys(f.fieldDiffs).length === 0).length
+  const changedFindingsCount = allFindings.filter(finding => getCanonicalComparisonStatus(finding) === 'CHANGED').length
+  const addedFindingsCount = allFindings.filter(finding => getCanonicalComparisonStatus(finding) === 'ADDED').length
+  const removedFindingsCount = allFindings.filter(finding => getCanonicalComparisonStatus(finding) === 'REMOVED').length
+  const unchangedFindingsCount = allFindings.filter(finding => getCanonicalComparisonStatus(finding) === 'UNCHANGED').length
   const exactSnapshotCalculation = areSnapshotCostsComplete(snapshotComparison.referenceCost, snapshotComparison.currentCost)
+
+  const toggleComparisonStatus = (status: ComparisonStatus) => {
+    setComparisonView(current => current.includes(status)
+      ? current.filter(selected => selected !== status)
+      : [...current, status])
+  }
 
   return (
     <div className="space-y-5">
@@ -41,18 +48,11 @@ export const CostBreakdownPage: React.FC = () => {
 
       {/* 1. Top Executive KPIs */}
       {exactSnapshotCalculation ? (
-        <ExecutiveKPICards costBreakdown={costBreakdown} />
+        <ExecutiveKPICards comparison={snapshotComparison} />
       ) : (
         <div className="rounded-md border border-amber-200 bg-amber-50 px-4 py-3 text-sm leading-6 text-amber-950" role="status">
-          <strong className="font-mono">Exact legacy variance summary is on hold.</strong>{' '}
-          Snapshot calculation has missing, invalid, or reviewable inputs. The comparison card below keeps the affected values as N/A and lists the source warnings.
-        </div>
-      )}
-
-      {costBreakdown.missingWorkCenters.length > 0 && (
-        <div className="rounded-md border border-amber-200 bg-amber-50 px-4 py-3 text-sm leading-6 text-amber-950" role="status">
-          <strong className="font-mono">Missing Work Center rates:</strong>{' '}
-          {costBreakdown.missingWorkCenters.join(', ')}. Affected conversion values remain unavailable until a rate is configured.
+          <strong className="font-mono">Snapshot cost summary is on hold.</strong>{' '}
+          Snapshot calculation has missing, invalid, or reviewable inputs. The comparison card below keeps the affected values as unavailable and lists the source warnings.
         </div>
       )}
 
@@ -62,31 +62,38 @@ export const CostBreakdownPage: React.FC = () => {
       <section className="flex flex-col gap-3 rounded-md border border-slate-200 bg-white px-4 py-3 sm:flex-row sm:items-center sm:justify-between" aria-labelledby="comparison-view-title">
         <div>
           <h2 id="comparison-view-title" className="text-sm font-semibold text-slate-900">Comparison view</h2>
-          <p className="mt-0.5 text-xs text-slate-600">Filter itemized rows by status: Unchanged, Changed, Added, or Removed.</p>
+          <p className="mt-0.5 text-xs text-slate-600">Select any combination of statuses. Unmatched rows remain visible under All for review.</p>
         </div>
         <div className="flex flex-wrap items-center gap-1.5 text-xs" role="group" aria-label="Comparison view">
           {([
-            { mode: 'all' as const, label: 'All', count: allFindings.length },
-            { mode: 'changed' as const, label: 'Changed', count: changedFindingsCount },
-            { mode: 'added' as const, label: 'Added', count: addedFindingsCount },
-            { mode: 'removed' as const, label: 'Removed', count: removedFindingsCount },
-            { mode: 'unchanged' as const, label: 'Unchanged', count: unchangedFindingsCount }
+            { status: 'CHANGED' as const, label: 'Changed', count: changedFindingsCount },
+            { status: 'ADDED' as const, label: 'Added', count: addedFindingsCount },
+            { status: 'REMOVED' as const, label: 'Removed', count: removedFindingsCount },
+            { status: 'UNCHANGED' as const, label: 'Unchanged', count: unchangedFindingsCount }
           ]).map(option => (
             <button
-              key={option.mode}
+              key={option.status}
               type="button"
-              aria-pressed={comparisonView === option.mode}
-              onClick={() => setComparisonView(option.mode)}
-              className={`min-h-9 rounded-sm border px-3 py-1.5 font-medium transition-colors cursor-pointer focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700 ${comparisonView === option.mode ? 'bg-slate-900 text-white border-slate-900 font-semibold' : 'bg-white text-slate-700 border-slate-300 hover:bg-slate-50'}`}
+              aria-pressed={comparisonView.includes(option.status)}
+              onClick={() => toggleComparisonStatus(option.status)}
+              className={`min-h-9 rounded-sm border px-3 py-1.5 font-medium transition-colors cursor-pointer focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700 ${comparisonView.includes(option.status) ? 'bg-slate-900 text-white border-slate-900 font-semibold' : 'bg-white text-slate-700 border-slate-300 hover:bg-slate-50'}`}
             >
-              {option.label} <span className={comparisonView === option.mode ? 'text-slate-300' : 'text-slate-400'}>({option.count})</span>
+              {option.label} <span className={comparisonView.includes(option.status) ? 'text-slate-300' : 'text-slate-400'}>({option.count})</span>
             </button>
           ))}
+          <button
+            type="button"
+            aria-pressed={areAllComparisonStatusesSelected(comparisonView)}
+            onClick={() => setComparisonView(ALL_COMPARISON_STATUSES)}
+            className={`min-h-9 rounded-sm border px-3 py-1.5 font-medium transition-colors cursor-pointer focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700 ${areAllComparisonStatusesSelected(comparisonView) ? 'bg-slate-900 text-white border-slate-900 font-semibold' : 'bg-white text-slate-700 border-slate-300 hover:bg-slate-50'}`}
+          >
+            All <span className={areAllComparisonStatusesSelected(comparisonView) ? 'text-slate-300' : 'text-slate-400'}>({allFindings.length})</span>
+          </button>
         </div>
       </section>
 
       {/* 3. Variance Tree Decomposition */}
-      {exactSnapshotCalculation && <VarianceTreeCard costBreakdown={costBreakdown} />}
+      {exactSnapshotCalculation && <VarianceTreeCard comparison={snapshotComparison} />}
 
       {/* 4. Detailed Breakdown Tables Panel */}
       <section className="overflow-hidden rounded-md border border-slate-200 bg-white" aria-label="Itemized cost breakdown">
@@ -104,7 +111,7 @@ export const CostBreakdownPage: React.FC = () => {
             ) : (
               <ChevronRight className="w-3.5 h-3.5 text-slate-500" />
             )}
-            <span>Itemized Cost Breakdown <span className="font-normal text-slate-500">· {comparisonView.toUpperCase()}</span></span>
+            <span>Itemized Cost Breakdown <span className="font-normal text-slate-500">· {getComparisonViewLabel(comparisonView)}</span></span>
           </button>
 
           {/* Sub-Tab Switcher */}

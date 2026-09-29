@@ -101,13 +101,15 @@ console.log('Reconciliation summary:', comparison.reconciliation)
 console.log('4. Checking Status Filtering in comparison-view...')
 const allFindings = [...comparison.bomFindings, ...comparison.routingFindings, ...comparison.workCenterFindings]
 
-const filteredAll = allFindings.filter(f => isVisibleInComparisonView(f, 'all'))
-const filteredChanged = allFindings.filter(f => isVisibleInComparisonView(f, 'changed'))
-const filteredAdded = allFindings.filter(f => isVisibleInComparisonView(f, 'added'))
-const filteredRemoved = allFindings.filter(f => isVisibleInComparisonView(f, 'removed'))
-const filteredUnchanged = allFindings.filter(f => isVisibleInComparisonView(f, 'unchanged'))
+const allStatuses = ['UNCHANGED', 'CHANGED', 'ADDED', 'REMOVED'] as const
+const filteredAll = allFindings.filter(f => isVisibleInComparisonView(f, allStatuses))
+const filteredChanged = allFindings.filter(f => isVisibleInComparisonView(f, ['CHANGED']))
+const filteredAdded = allFindings.filter(f => isVisibleInComparisonView(f, ['ADDED']))
+const filteredRemoved = allFindings.filter(f => isVisibleInComparisonView(f, ['REMOVED']))
+const filteredUnchanged = allFindings.filter(f => isVisibleInComparisonView(f, ['UNCHANGED']))
 
 assert.equal(filteredAll.length, allFindings.length, 'All must include every finding')
+assert(filteredChanged.every(f => getCanonicalComparisonStatus(f) === 'CHANGED'), 'Changed filter only has CHANGED')
 assert(filteredAdded.length > 0 && filteredAdded.every(f => getCanonicalComparisonStatus(f) === 'ADDED'), 'Added filter only has ADDED')
 assert(filteredRemoved.length > 0 && filteredRemoved.every(f => getCanonicalComparisonStatus(f) === 'REMOVED'), 'Removed filter only has REMOVED')
 assert(filteredUnchanged.length > 0 && filteredUnchanged.every(f => getCanonicalComparisonStatus(f) === 'UNCHANGED'), 'Unchanged filter only has UNCHANGED')
@@ -160,7 +162,8 @@ for (const [section, findings, sharedId] of [
   assert(unmatched.every(finding => finding.costGap === null), `${section} unmatched rows must not invent absent-side cost effects`)
 }
 assert(missingKeyComparison.warnings.some(warning => warning.code === 'MISSING_BUSINESS_KEY'), 'Missing business keys must be reported as validation warnings')
-assert(!isVisibleInComparisonView(missingKeyComparison.bomFindings.find(finding => finding.currentId === 'shared-bom-id'), 'changed'), 'Unmatched rows must not be misfiled under Changed')
+assert(!isVisibleInComparisonView(missingKeyComparison.bomFindings.find(finding => finding.currentId === 'shared-bom-id'), ['CHANGED']), 'Unmatched rows must not be misfiled under Changed')
+assert(isVisibleInComparisonView(missingKeyComparison.bomFindings.find(finding => finding.currentId === 'shared-bom-id'), allStatuses), 'All must preserve unmatched rows for validation review')
 assert.equal(missingKeyComparison.reconciliation?.reconciled, false, 'Unattributed record effects must not be reported as reconciled')
 assert(missingKeyComparison.reconciliation?.issues.length, 'Unavailable row-to-branch checks must report an issue')
 

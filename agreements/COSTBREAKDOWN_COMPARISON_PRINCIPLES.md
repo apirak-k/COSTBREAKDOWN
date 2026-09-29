@@ -372,14 +372,23 @@ The Cost Breakdown page should display the normal comparison data for all record
 
 `UNCHANGED` records remain visible in the normal data view.
 
-However, status labels should not create unnecessary visual noise.
+Status and Gap are independent outputs:
+
+```text
+Status = what changed in the compared record
+Gap    = the cost impact, Current - Reference
+```
+
+Do not infer Status from the Gap or infer the Gap from Status. A `CHANGED` record may have a positive, negative, zero, or unavailable Gap. A record may also have a non-zero cost Gap while its own business fields are unchanged, when a cost dependency changes.
+
+Status labels should not create unnecessary visual noise. The table omits the `UNCHANGED` label while keeping the row and its cost values visible. The `UNCHANGED` status remains available to filtering and comparison logic.
 
 Recommended behavior:
 
 ```text
 UNCHANGED
 → data remains visible
-→ status label may be visually omitted by default
+→ status label is omitted
 
 CHANGED
 → show status
@@ -391,25 +400,25 @@ REMOVED
 → show status
 ```
 
-The exact visual treatment is a UI decision and is not defined by this document.
+Other visual details are UI decisions and are not defined by this document.
 
 ---
 
 ## 11. Status Filtering
 
-The user must be able to filter comparison records by status.
+The user must be able to filter comparison records by status using multi-select behavior. Each status can be selected independently, and the visible rows are the union of the selected statuses.
 
 Conceptually:
 
 ```text
-All
-Changed
-Added
-Removed
-Unchanged
+All     = UNCHANGED + CHANGED + ADDED + REMOVED
+Changed = CHANGED only
+Added   = ADDED only
+Removed = REMOVED only
+Unchanged = UNCHANGED only
 ```
 
-The filter should support viewing only the changes that matter to the user.
+`All` selects all four statuses; it is a select-all control, not a fifth comparison status. The default view selects all statuses. The user may combine any status filters.
 
 For example:
 
@@ -420,8 +429,6 @@ Changed + Added + Removed
 means:
 
 > Show only records where something changed between Reference and Current.
-
-The default view may still show all records.
 
 ---
 

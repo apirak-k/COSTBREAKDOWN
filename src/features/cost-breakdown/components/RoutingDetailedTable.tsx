@@ -10,7 +10,8 @@ import {
 } from '../../../core'
 import type { ComparisonStatus, ComparisonFinding } from '../../../core'
 import { ConfidenceBadge } from '../../../shared/ui/ConfidenceBadge'
-import { ComparisonViewMode, isVisibleInComparisonView } from './comparison-view'
+import { ALL_COMPARISON_STATUSES, isOnlyComparisonStatus, isVisibleInComparisonView } from './comparison-view'
+import type { ComparisonViewMode } from './comparison-view'
 import { DataQualityPairBadge } from './DataQualityPairBadge'
 import { getRoutingDataQuality } from './data-quality'
 
@@ -84,7 +85,7 @@ export const RoutingDetailedTable: React.FC<RoutingDetailedTableProps> = ({
   referenceRates,
   currentRates,
   findings,
-  viewMode = 'all'
+  viewMode = ALL_COMPARISON_STATUSES
 }) => {
   const showComparison = findings !== undefined
   const referenceById = new Map(referenceItems.map(item => [item.id, item]))
@@ -155,6 +156,7 @@ export const RoutingDetailedTable: React.FC<RoutingDetailedTableProps> = ({
             const reference = row.detail.pair.reference
             const current = row.detail.pair.current
             const labels = row.finding ? getRoutingComparisonLabels(row.finding) : []
+            const visibleLabels = labels.filter(label => label !== 'UNCHANGED')
             const referenceWorkCenter = reference?.workCenterId
             const currentWorkCenter = current?.workCenterId
             const workCenter = referenceWorkCenter && currentWorkCenter && referenceWorkCenter !== currentWorkCenter
@@ -174,7 +176,7 @@ export const RoutingDetailedTable: React.FC<RoutingDetailedTableProps> = ({
                 {showComparison && (
                   <td className="p-2.5 min-w-[150px]">
                     <div className="flex flex-wrap gap-1">
-                      {labels.length > 0 ? labels.map(label => <span key={label} className={`inline-flex px-1.5 py-0.5 rounded border text-[10px] font-mono font-bold whitespace-nowrap ${comparisonClass(label)}`}>{label}</span>) : <span title="No comparable business identity; see validation warnings">—</span>}
+                      {visibleLabels.length > 0 ? visibleLabels.map(label => <span key={label} className={`inline-flex px-1.5 py-0.5 rounded border text-[10px] font-mono font-bold whitespace-nowrap ${comparisonClass(label)}`}>{label}</span>) : <span aria-label={labels.includes('UNCHANGED') ? 'Unchanged' : undefined} title={labels.length === 0 ? 'No comparable business identity; see validation warnings' : undefined}>—</span>}
                     </div>
                   </td>
                 )}
@@ -216,7 +218,7 @@ export const RoutingDetailedTable: React.FC<RoutingDetailedTableProps> = ({
         <tfoot>
           <tr className="bg-slate-100/90 border-t-2 border-slate-300/80 font-bold text-xs">
             <td colSpan={showComparison ? 17 : 14} className="p-2.5 text-right text-slate-700 uppercase tracking-wider text-[10px] font-sans">
-              {viewMode === 'changed' ? 'Visible Changed Conversion (THB/pc)' : 'Total Conversion Cost (THB/pc)'}
+              {isOnlyComparisonStatus(viewMode, 'CHANGED') ? 'Visible Changed Conversion (THB/pc)' : viewMode.length < 4 ? 'Visible Conversion Cost (THB/pc)' : 'Total Conversion Cost (THB/pc)'}
             </td>
             <td className="p-2.5 text-right font-mono text-slate-800 tabular-nums">{formatNullable(referenceTotal, value => formatNumber(value, 4))}</td>
             <td className="p-2.5 text-right font-mono text-slate-900 tabular-nums">{formatNullable(currentTotal, value => formatNumber(value, 4))}</td>

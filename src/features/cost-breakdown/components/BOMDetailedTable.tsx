@@ -9,7 +9,8 @@ import {
 } from '../../../core'
 import type { ComparisonFinding, ComparisonStatus } from '../../../core'
 import { ConfidenceBadge } from '../../../shared/ui/ConfidenceBadge'
-import { ComparisonViewMode, isVisibleInComparisonView } from './comparison-view'
+import { ALL_COMPARISON_STATUSES, isOnlyComparisonStatus, isVisibleInComparisonView } from './comparison-view'
+import type { ComparisonViewMode } from './comparison-view'
 import { DataQualityPairBadge } from './DataQualityPairBadge'
 
 interface BOMDetailedTableProps {
@@ -58,7 +59,7 @@ export const BOMDetailedTable: React.FC<BOMDetailedTableProps> = ({
   referenceItems,
   currentItems,
   findings,
-  viewMode = 'all'
+  viewMode = ALL_COMPARISON_STATUSES
 }) => {
   const showComparison = findings !== undefined
   const referenceById = new Map(referenceItems.map(item => [item.id, item]))
@@ -125,6 +126,7 @@ export const BOMDetailedTable: React.FC<BOMDetailedTableProps> = ({
             const reference = row.detail.pair.reference
             const current = row.detail.pair.current
             const label = row.finding ? getBOMComparisonLabel(row.finding) : null
+            const visibleLabel = label === 'UNCHANGED' ? null : label
             const itemCode = current?.itemCode ?? reference?.itemCode ?? '—'
             const description = current?.description ?? reference?.description ?? '—'
             const unit = current?.unit ?? reference?.unit ?? '—'
@@ -136,9 +138,15 @@ export const BOMDetailedTable: React.FC<BOMDetailedTableProps> = ({
                 <td className="p-2.5 font-sans font-medium text-slate-800 truncate max-w-[220px]" title={description}>{description}</td>
                 {showComparison && (
                   <td className="p-2.5 min-w-[120px]">
-                    <span title={label ? undefined : 'No comparable business identity; see validation warnings'} className={`inline-flex px-1.5 py-0.5 rounded border text-[10px] font-mono font-bold whitespace-nowrap ${comparisonClass(label)}`}>
-                      {label ?? '—'}
-                    </span>
+                    {visibleLabel ? (
+                      <span className={`inline-flex px-1.5 py-0.5 rounded border text-[10px] font-mono font-bold whitespace-nowrap ${comparisonClass(visibleLabel)}`}>
+                        {visibleLabel}
+                      </span>
+                    ) : (
+                      <span aria-label={label === 'UNCHANGED' ? 'Unchanged' : undefined} title={!row.finding || !label ? 'No comparable business identity; see validation warnings' : undefined}>
+                        —
+                      </span>
+                    )}
                   </td>
                 )}
                 {showComparison && (
@@ -166,7 +174,7 @@ export const BOMDetailedTable: React.FC<BOMDetailedTableProps> = ({
         <tfoot>
           <tr className="bg-slate-100/90 border-t-2 border-slate-300/80 font-bold text-xs">
             <td colSpan={showComparison ? 13 : 10} className="p-2.5 text-right text-slate-700 uppercase tracking-wider text-[10px] font-sans">
-              {viewMode === 'changed' ? 'Visible Changed Material (THB/pc)' : 'Total Direct Material (THB/pc)'}
+              {isOnlyComparisonStatus(viewMode, 'CHANGED') ? 'Visible Changed Material (THB/pc)' : viewMode.length < 4 ? 'Visible Direct Material (THB/pc)' : 'Total Direct Material (THB/pc)'}
             </td>
             <td className="p-2.5 text-right font-mono text-slate-800 tabular-nums">{formatNullable(referenceTotal, value => formatNumber(value, 4))}</td>
             <td className="p-2.5 text-right font-mono text-slate-900 tabular-nums">{formatNullable(currentTotal, value => formatNumber(value, 4))}</td>

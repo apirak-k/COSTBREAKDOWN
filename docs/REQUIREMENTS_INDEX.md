@@ -25,6 +25,7 @@ Candidate selection happens in RCA & Simulation. Ranking does not select a candi
 - Match comparable records by business identity, never by row position.
 - Comparison statuses are UNCHANGED, CHANGED, ADDED, and REMOVED. Validation and data-quality warnings are separate.
 - Gap is Current cost minus Reference cost. Detailed cost effects must reconcile to the total.
+- Status filters are multi-select. In Cost Breakdown, unchanged rows remain visible by default while their status labels are omitted; `All` selects every comparison status.
 - Candidate Prioritization receives comparison findings and does not perform a second comparison.
 - Simulation uses the existing verified Cost Engine, starts from Current, and must not mutate it.
 - Root Cause and Action are optional notes, not calculation inputs.

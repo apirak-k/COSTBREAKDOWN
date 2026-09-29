@@ -1,17 +1,32 @@
 import { getCanonicalComparisonStatus } from '../../../core'
-import type { ComparisonFinding } from '../../../core'
+import type { ComparisonFinding, ComparisonStatus } from '../../../core'
 
-export type ComparisonViewMode = 'all' | 'changed' | 'added' | 'removed' | 'unchanged'
+export type ComparisonViewMode = readonly ComparisonStatus[]
+
+export const ALL_COMPARISON_STATUSES: readonly ComparisonStatus[] = ['UNCHANGED', 'CHANGED', 'ADDED', 'REMOVED']
+
+export function areAllComparisonStatusesSelected(selectedStatuses: readonly ComparisonStatus[]): boolean {
+  return ALL_COMPARISON_STATUSES.every(status => selectedStatuses.includes(status))
+}
+
+export function getComparisonViewLabel(selectedStatuses: readonly ComparisonStatus[]): string {
+  if (areAllComparisonStatusesSelected(selectedStatuses)) return 'All'
+  if (selectedStatuses.length === 0) return 'None'
+  return selectedStatuses.map(status => status[0] + status.slice(1).toLowerCase()).join(' + ')
+}
+
+export function isOnlyComparisonStatus(
+  selectedStatuses: readonly ComparisonStatus[],
+  status: ComparisonStatus
+): boolean {
+  return selectedStatuses.length === 1 && selectedStatuses[0] === status
+}
 
 export function isVisibleInComparisonView(
   finding: ComparisonFinding | undefined,
-  viewMode: ComparisonViewMode
+  selectedStatuses: ComparisonViewMode
 ): boolean {
-  if (viewMode === 'all') return true
+  if (areAllComparisonStatusesSelected(selectedStatuses)) return true
   const status = getCanonicalComparisonStatus(finding)
-  if (viewMode === 'changed') return status === 'CHANGED' || status === 'ADDED' || status === 'REMOVED'
-  if (viewMode === 'added') return status === 'ADDED'
-  if (viewMode === 'removed') return status === 'REMOVED'
-  if (viewMode === 'unchanged') return status === 'UNCHANGED'
-  return true
+  return status !== null && selectedStatuses.includes(status)
 }
