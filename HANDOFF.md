@@ -3,7 +3,7 @@
 ## Current checkpoint
 
 - Repository: `E:\COSTBREAKDOWN`; active branch: `current`.
-- This follow-up started from clean `current` at `1ba82d396bc2251e04c7382161d449901a65d484`, matching `origin/current`. Commit `ee98cdd1a6a9e0e47c547fc3b8be1ca26eac8ff7` contains the fixes below and was pushed to `origin/current` on 2026-09-30. Verify the live tip before continuing.
+- The import/RCA follow-up started from clean `current` at `1ba82d396bc2251e04c7382161d449901a65d484`, matching `origin/current`; its implementation is `ee98cdd1a6a9e0e47c547fc3b8be1ca26eac8ff7`. The ChatGPT review found stale RCA page state after Master Data changes; the fix is in `bd4d448` and is pushed with this handoff update on 2026-09-30. Verify the live tip before continuing.
 - Product behavior remains governed by `docs/REQUIREMENTS_INDEX.md` and the four current files in `agreements/`. This handoff records status and evidence, not new product requirements.
 
 ## AI-side implementation delivered
@@ -12,15 +12,16 @@
 2. **Generated sizing placeholders are omitted from dataset exports.** Export filters only rows with `isGeneratedSizingPlaceholder === true` in Work Center rates, BOM, and Routing. Incomplete rows without that marker remain exportable. Excel filter ranges use the same filtered rows. The round-trip verifier covers a Routing placeholder that otherwise has a sequence and Work Center.
 3. **A development-only synthetic mock fixture is available.** “Load mock review data” resets the dedicated `ps-dev-review-fixture` session and preserves the previously active session. “Return to working session” restores it. The fixture provides unchanged, changed, added, and removed BOM/Routing rows and a changed Work Center rate.
 4. **Excel actions load on demand.** Excel parsing, template creation, and export load only when used; the existing feature-page loading behavior stays unchanged. The browser-safe ExcelJS shims load at the action boundary. The production build no longer emits Vite's default `> 500 kB` chunk advisory. Do not increase the warning limit.
-5. **Follow-up import and RCA fixes.** Data-bearing Work Center/BOM rows without a business code are retained with warnings; routing rows receive unique internal IDs when imported IDs collide; selected candidate, trial handoff, and scenario drafts survive page navigation within the browser session.
+5. **Follow-up import and RCA fixes.** Data-bearing Work Center/BOM rows without a business code are retained with warnings; routing rows receive unique internal IDs when imported IDs collide; selected candidate, Trial handoff, and scenario drafts survive page navigation within the browser session while their source data stays unchanged.
+6. **Stale RCA state is invalidated.** Product sessions carry a Master Data revision that advances on Master Data edits, imports, clones, sizing changes, clears, and resets. A revision mismatch clears the selected candidate, Trial handoff, and scenario drafts for that product; navigation still preserves them when the data has not changed.
 
 The product choices and unresolved questions are recorded in [docs/CROSS_CUTTING_DECISIONS.md](docs/CROSS_CUTTING_DECISIONS.md). The four agreements remain authoritative.
 
 ## Verification on this checkpoint
 
-- All 41 `scripts/verify_*.ts` verifiers passed on the preceding checkpoint. After this follow-up, the focused import and RCA verifiers passed: `verify_snapshot_import.ts`, `verify_snapshot_routing_identity.ts`, `verify_simulation_context.ts`, `verify_rca_candidate_notes.ts`, `verify_rca_handoff.ts`, and `verify_scenario_draft.ts`.
+- All 41 `scripts/verify_*.ts` verifiers passed on the preceding checkpoint. For commit `bd4d448`, `verify_simulation_context.ts`, `verify_master_data_clear_dataset.ts`, `verify_snapshot_routing_identity.ts`, `verify_rca_candidate_notes.ts`, `verify_rca_handoff.ts`, and `verify_scenario_draft.ts` passed. A fresh `verify_snapshot_import.ts` run under the local `jiti` runner failed before assertions while loading ExcelJS bare (`Cannot read properties of undefined`) during template generation; its earlier successful run is historical, not fresh verification of this follow-up.
 - `npm run excel` passed: both generated workbooks passed formula shielding and template-input checks. The generated workbooks were removed after verification because they were new untracked outputs, not part of this change.
-- The follow-up `npm run build` passed (2,024 modules): main entry 380.10 kB (95.21 kB gzip), snapshot parser 381.40 kB (128.46 kB gzip), ExcelJS bare 431.35 kB (123.19 kB gzip), and Excel stream 104.43 kB (32.67 kB gzip). It emits no `> 500 kB` advisory; the threshold was not changed. Vite still reports externalized `fs` and `crypto` imports from ExcelJS.
+- The follow-up `npm run build` passed (2,025 modules): main entry 380.64 kB (95.39 kB gzip), snapshot parser 381.40 kB (128.46 kB gzip), ExcelJS bare 431.35 kB (123.19 kB gzip), and Excel stream 104.43 kB (32.67 kB gzip). It emits no `> 500 kB` advisory; the threshold was not changed. Vite still reports externalized `fs` and `crypto` imports from ExcelJS.
 - Production assets do not contain the mock fixture records, factory name, or development button label.
 - Production-preview Template action was clicked with the latest assets; workbook generation completed and closed the dialog without a new browser exception. The browser harness did not expose a download event, so the saved file is not confirmed here. The user's UX/UI and flow-logic review remains pending. Automated verification and ChatGPT feedback are not human acceptance.
 - A browser-level RCA navigation smoke check was not completed; focused state verifiers and the production build passed. Human review remains pending.
@@ -32,6 +33,7 @@ The product choices and unresolved questions are recorded in [docs/CROSS_CUTTING
 - **Import and `DatasetSizing`:** preserve the existing behavior until the owner defines how imports affect saved sizing. Do not infer configured counts from imported rows.
 - **Current placeholders in Cost Breakdown:** keep the current display until UX review decides whether they should be visible.
 - **Partial comparison:** remains deferred. Define its effect on totals, Gaps, and candidate findings before implementation.
+- **Blank user-owned rows:** round-trip remains unresolved because an empty user row is indistinguishable from an empty template row in the workbook; do not change the import rule without an agreed representation or policy.
 - Record any accepted product changes in the agreements, then implement only those decisions. Keep human acceptance separate from automated `PASS` results.
 
 ---

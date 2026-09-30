@@ -28,6 +28,7 @@ This document records choices that affect more than one COSTBREAKDOWN flow. The 
 ### RCA and scenario UI state
 
 - Selected candidate, trial handoff, and scenario drafts are kept per product in `sessionStorage` so navigating between pages does not discard them. They remain browser-session data, not permanent application storage.
+- RCA page state is bound to the product session's Master Data revision. Any Master Data edit, import, clone, sizing change, clear, or reset advances that revision; saved candidate selection, Trial handoff, and scenario drafts are then replaced with empty state. Navigating between pages or products without changing their data preserves their drafts.
 
 ### Synthetic review data
 
@@ -41,7 +42,7 @@ This document records choices that affect more than one COSTBREAKDOWN flow. The 
 - Feature pages retain the existing loading behavior. Excel parsing, template generation, and workbook export are loaded when the corresponding action runs.
 - Keep the production build below Vite's default 500 kB chunk advisory. Do not raise `chunkSizeWarningLimit` to hide the output size.
 - The ExcelJS `bare` entry is loaded only after the browser shims (`buffer`, `process`, `readable-stream`, `events`, and `util`) are available. `readable-stream` is isolated in its own lazy chunk.
-- Latest production build sizes are: main entry 379.55 kB, parser 381.31 kB, ExcelJS 431.35 kB, and Excel stream support 104.43 kB. The default `> 500 kB` advisory is gone; its configured threshold is unchanged.
+- Latest production build sizes are: main entry 380.64 kB, parser 381.40 kB, ExcelJS 431.35 kB, and Excel stream support 104.43 kB. The default `> 500 kB` advisory is gone; its configured threshold is unchanged.
 - Vite still reports externalized `fs` and `crypto` imports from ExcelJS and its CSV dependencies. A production-preview Template action completed workbook generation and closed the dialog without a new browser exception. The browser harness did not capture a download event, so the saved `.xlsx` file still needs a direct human check.
 
 ### Existing comparison choices retained
@@ -54,4 +55,5 @@ This document records choices that affect more than one COSTBREAKDOWN flow. The 
 
 - **Import and sizing metadata:** The current agreement does not settle whether replacing a dataset by import should preserve, reset, or recalculate saved `DatasetSizing`. Keep the existing behavior and do not infer saved sizing counts from imported row counts until this policy is agreed.
 - **Partial comparison:** Deferred. Before implementing a selectable subset, define whether excluded rows leave the calculation or are only hidden; the choice affects totals, Gaps, and downstream candidates.
+- **Blank user-owned rows:** Export can include an intentionally blank user row, while import skips all-empty rows. The current workbook has no marker that distinguishes an intentionally blank row from an empty template row; defer round-trip support until the representation or policy is agreed.
 - **Human acceptance:** UX/UI and end-to-end flow logic acceptance remains with the user. Automated verifiers and ChatGPT review do not count as acceptance.
