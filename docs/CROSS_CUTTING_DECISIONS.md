@@ -28,7 +28,7 @@ This document records choices that affect more than one COSTBREAKDOWN flow. The 
 ### RCA and scenario UI state
 
 - Selected candidate, trial handoff, and scenario drafts are kept per product in `sessionStorage` so navigating between pages does not discard them. They remain browser-session data, not permanent application storage.
-- RCA page state is bound to the product session's Master Data revision. Any Master Data edit, import, clone, sizing change, clear, or reset advances that revision; saved candidate selection, Trial handoff, and scenario drafts are then replaced with empty state. Navigating between pages or products without changing their data preserves their drafts.
+- RCA page state is bound to the product session's Master Data revision. Edits, snapshot imports into an existing session, Reference/Current copy operations, sizing changes, clears, and resets advance that revision; saved candidate selection, Trial handoff, and scenario drafts are then replaced with empty state. Legacy Excel import creates a new product session, so it has no prior RCA page state to invalidate. Navigating between pages or products without changing their data preserves drafts, and deleting a session prunes its orphaned RCA state.
 
 ### Synthetic review data
 
