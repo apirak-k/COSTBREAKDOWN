@@ -28,7 +28,7 @@ This document records choices that affect more than one COSTBREAKDOWN flow. The 
 ### RCA and scenario UI state
 
 - Selected candidate, trial handoff, and scenario drafts are kept per product in `sessionStorage` so navigating between pages does not discard them. They remain browser-session data, not permanent application storage.
-- RCA page state is bound to the product session's Master Data revision. Edits, snapshot imports into an existing session, Reference/Current copy operations, sizing changes, clears, and resets advance that revision; saved candidate selection, Trial handoff, and scenario drafts are then replaced with empty state. Legacy Excel import creates a new product session, so it has no prior RCA page state to invalidate. Navigating between pages or products without changing their data preserves drafts, and deleting a session prunes its orphaned RCA state.
+- RCA page state is bound to the product session's Master Data revision. Effective edits, snapshot imports into an existing session, Reference/Current copy operations, sizing changes, clears, and resets advance that revision; saved candidate selection, Trial handoff, and scenario drafts are then replaced with empty state. Applying unchanged product/sizing values, or resetting already-unset sizing, is a no-op and preserves RCA state. Legacy Excel import creates a new product session, so it has no prior RCA page state to invalidate. Navigating between pages or products without changing their data preserves drafts, and deleting a session prunes its orphaned RCA state.
 
 ### Synthetic review data
 
@@ -42,7 +42,7 @@ This document records choices that affect more than one COSTBREAKDOWN flow. The 
 - Feature pages retain the existing loading behavior. Excel parsing, template generation, and workbook export are loaded when the corresponding action runs.
 - Keep the production build below Vite's default 500 kB chunk advisory. Do not raise `chunkSizeWarningLimit` to hide the output size.
 - The ExcelJS `bare` entry is loaded only after the browser shims (`buffer`, `process`, `readable-stream`, `events`, and `util`) are available. `readable-stream` is isolated in its own lazy chunk.
-- Latest production build sizes are: main entry 380.87 kB, parser 381.40 kB, ExcelJS 431.35 kB, and Excel stream support 104.43 kB. The default `> 500 kB` advisory is gone; its configured threshold is unchanged.
+- Latest production build sizes are: main entry 381.23 kB, parser 381.40 kB, ExcelJS 431.35 kB, and Excel stream support 104.43 kB. The default `> 500 kB` advisory is gone; its configured threshold is unchanged.
 - Vite still reports externalized `fs` and `crypto` imports from ExcelJS and its CSV dependencies. A production-preview Template action completed workbook generation and closed the dialog without a new browser exception. The browser harness did not capture a download event, so the saved `.xlsx` file still needs a direct human check.
 
 ### Existing comparison choices retained
