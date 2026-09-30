@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import { X, Sliders, Check } from 'lucide-react'
 import { ComparisonRole, DatasetSizing, ProductMaster } from '../../../core'
+import { hasDatasetSizingChanged, hasProductSizingFieldsChanged } from '../dataset-sizing-form'
 
 interface DatasetSizingModalProps {
   isOpen: boolean
@@ -43,22 +44,33 @@ export const DatasetSizingModal: React.FC<DatasetSizingModalProps> = ({
   const roleLabel = role === 'reference' ? 'Reference' : 'Current'
 
   const handleApply = () => {
-    onUpdateProduct({
+    const nextProduct = {
       ...product,
       productCode: productCode.trim(),
       productDescription: productDescription.trim(),
       uom: uom.trim() || 'PC'
-    })
-    onSaveSizing({
+    }
+    const previousProductFields = {
+      productCode: product.productCode || '',
+      productDescription: product.productDescription || '',
+      uom: product.uom || 'PC'
+    }
+    if (hasProductSizingFieldsChanged(previousProductFields, nextProduct)) {
+      onUpdateProduct(nextProduct)
+    }
+
+    const nextSizing = {
       wcCount: wcCount.trim() === '' ? undefined : Math.max(1, Math.floor(Number(wcCount) || 1)),
       bomCount: bomCount.trim() === '' ? undefined : Math.max(1, Math.floor(Number(bomCount) || 1)),
       routingCount: routingCount.trim() === '' ? undefined : Math.max(1, Math.floor(Number(routingCount) || 1))
-    })
+    }
+    if (hasDatasetSizingChanged(currentSizing, nextSizing)) onSaveSizing(nextSizing)
     onClose()
   }
 
   const handleReset = () => {
-    onSaveSizing({ wcCount: undefined, bomCount: undefined, routingCount: undefined })
+    const resetSizing = { wcCount: undefined, bomCount: undefined, routingCount: undefined }
+    if (hasDatasetSizingChanged(currentSizing, resetSizing)) onSaveSizing(resetSizing)
     onClose()
   }
 
