@@ -60,6 +60,71 @@ assert.equal(result.snapshot?.routing[1].operationCode, undefined)
 assert.equal(result.snapshot?.routing[1].processCode, 'PRC-20')
 assert.ok(result.warnings.some(warning => warning.includes('burdenRate')))
 
+const incompleteIdentityWorkbook = XLSX.utils.book_new()
+XLSX.utils.book_append_sheet(incompleteIdentityWorkbook, sheet([
+  ['Key', 'Value'],
+  ['Snapshot ID', 'incomplete-identities']
+]), 'META')
+XLSX.utils.book_append_sheet(incompleteIdentityWorkbook, sheet([
+  ['Product Code', 'Product Description', 'UOM'],
+  ['P-002', 'Test Product', 'PC']
+]), 'PRODUCT')
+XLSX.utils.book_append_sheet(incompleteIdentityWorkbook, sheet([
+  ['Work Center Code', 'Work Center Name', 'Labor Rate', 'Burden Rate', 'Note'],
+  ['', 'Unkeyed Assembly', 120, 45, 'Needs a code']
+]), 'WORK_CENTER')
+XLSX.utils.book_append_sheet(incompleteIdentityWorkbook, sheet([
+  ['Item Code', 'Description', 'Consumption', 'Unit', 'Price', 'Loss', 'Note'],
+  ['', 'Unkeyed Material', 2, 'PC', 10, 0.05, 'Needs a code']
+]), 'BOM')
+XLSX.utils.book_append_sheet(incompleteIdentityWorkbook, sheet([
+  ['Operation Code', 'Sequence', 'Process Name', 'Work Center Code', 'Manning', 'Capacity', 'Yield', 'Note'],
+  ['OP-10', 10, 'Cutting', 'WC-1', 1, 100, 1, '']
+]), 'ROUTING')
+const incompleteIdentityResult = parseSnapshotWorkbookData(
+  XLSX.write(incompleteIdentityWorkbook, { type: 'array', bookType: 'xlsx' }),
+  'current'
+)
+assert.equal(incompleteIdentityResult.success, true, incompleteIdentityResult.message)
+assert.equal(incompleteIdentityResult.snapshot?.rates.length, 1, 'a Work Center row with data but no key must be retained')
+assert.equal(incompleteIdentityResult.snapshot?.rates[0].workCenterCode, '')
+assert.ok(incompleteIdentityResult.warnings?.some(warning => warning.includes('Missing Work Center code')))
+assert.equal(incompleteIdentityResult.snapshot?.bom.length, 1, 'a BOM row with data but no key must be retained')
+assert.equal(incompleteIdentityResult.snapshot?.bom[0].itemCode, '')
+assert.ok(incompleteIdentityResult.warnings?.some(warning => warning.includes('Missing item code')))
+
+const duplicateRoutingWorkbook = XLSX.utils.book_new()
+XLSX.utils.book_append_sheet(duplicateRoutingWorkbook, sheet([
+  ['Key', 'Value'],
+  ['Snapshot ID', 'duplicate-routing-ids']
+]), 'META')
+XLSX.utils.book_append_sheet(duplicateRoutingWorkbook, sheet([
+  ['Product Code', 'Product Description', 'UOM'],
+  ['P-003', 'Test Product', 'PC']
+]), 'PRODUCT')
+XLSX.utils.book_append_sheet(duplicateRoutingWorkbook, sheet([
+  ['Work Center Code', 'Work Center Name', 'Labor Rate', 'Burden Rate'],
+  ['WC-1', 'Cutting', 100, 50]
+]), 'WORK_CENTER')
+XLSX.utils.book_append_sheet(duplicateRoutingWorkbook, sheet([
+  ['Item Code', 'Description', 'Consumption', 'Unit', 'Price', 'Loss']
+]), 'BOM')
+XLSX.utils.book_append_sheet(duplicateRoutingWorkbook, sheet([
+  ['Operation Code', 'Sequence', 'Process Name', 'Work Center Code', 'Manning', 'Capacity', 'Yield'],
+  ['10', 10, 'Cutting', 'WC-1', 1, 100, 1],
+  ['10', 20, 'Packing', 'WC-1', 1, 100, 1]
+]), 'ROUTING')
+const duplicateRoutingResult = parseSnapshotWorkbookData(
+  XLSX.write(duplicateRoutingWorkbook, { type: 'array', bookType: 'xlsx' }),
+  'current'
+)
+assert.equal(duplicateRoutingResult.success, true, duplicateRoutingResult.message)
+const duplicateRoutingRows = duplicateRoutingResult.snapshot?.routing ?? []
+assert.equal(duplicateRoutingRows.length, 2)
+assert.equal(duplicateRoutingRows[0].operationCode, duplicateRoutingRows[1].operationCode)
+assert.notEqual(duplicateRoutingRows[0].id, duplicateRoutingRows[1].id, 'duplicate business keys still need distinct internal row IDs')
+assert.equal(new Set(duplicateRoutingRows.map(row => row.id)).size, 2)
+
 // MASTER_DATA_FLOW_SPEC.md §§5.1, 5.2, and 9 treat imported data as editable
 // starting data and require non-blocking warnings for product mismatches.
 // A blank Product Code must therefore be retained with a warning for later edit.

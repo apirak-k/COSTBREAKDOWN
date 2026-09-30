@@ -20,6 +20,15 @@ This document records choices that affect more than one COSTBREAKDOWN flow. The 
 - Manually edited rows and incomplete business rows remain exportable, even when their visible fields are blank. Export does not infer placeholder status from row contents, IDs, or position.
 - This applies to Work Center rates, BOM, and Routing.
 
+### Snapshot import identity
+
+- Data-bearing Work Center and BOM rows with a missing business code remain in the editable Working Dataset and carry a warning. Empty rows are skipped.
+- Routing comparison still matches only by Operation Code; missing or duplicate codes remain warnings and are not guessed. Imported Routing rows receive distinct internal IDs when their preferred IDs collide.
+
+### RCA and scenario UI state
+
+- Selected candidate, trial handoff, and scenario drafts are kept per product in `sessionStorage` so navigating between pages does not discard them. They remain browser-session data, not permanent application storage.
+
 ### Synthetic review data
 
 - The Master Data page offers a synthetic mock review fixture in development builds only.

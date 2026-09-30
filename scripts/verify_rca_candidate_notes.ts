@@ -50,7 +50,8 @@ check('RCA page consumes the canonical candidate pool', () => {
 })
 
 check('RCA selection starts empty and does not depend on Ranking preselection', () => {
-  assert.match(pageSource, /selectedCandidateKey[\s\S]{0,100}useState(?:<[^>]+>)?\(\s*null\s*\)/)
+  assert.match(draftSource, /selectedCandidateKey:\s*null/)
+  assert.match(pageSource, /state\.selectedCandidateKey/)
   assert.doesNotMatch(pageSource, /selectedDriverKeys|getSelectedDrivers/)
   assert.doesNotMatch(pageSource, /candidates\s*\[\s*0\s*\]/)
 })

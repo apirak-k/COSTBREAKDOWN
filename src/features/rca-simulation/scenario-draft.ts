@@ -8,6 +8,24 @@ export interface ScenarioDraftForm {
   economicsInputs: Record<keyof ScenarioEconomicsInputs, string>
 }
 
+export interface RcaSimulationPageState {
+  selectedCandidateKey: string | null
+  trialHandoffLetter: ScenarioDraftForm['letter'] | null
+  scenarioDraftsByCandidate: Record<string, ScenarioDraftForm[]>
+}
+
+export function createRcaSimulationPageState(): RcaSimulationPageState {
+  return { selectedCandidateKey: null, trialHandoffLetter: null, scenarioDraftsByCandidate: {} }
+}
+
+export function updateRcaSimulationStateByProduct(
+  states: Record<string, RcaSimulationPageState>,
+  productId: string,
+  update: (state: RcaSimulationPageState) => RcaSimulationPageState
+): Record<string, RcaSimulationPageState> {
+  return { ...states, [productId]: update(states[productId] ?? createRcaSimulationPageState()) }
+}
+
 export interface PreparedScenarioDrafts {
   drafts: ScenarioCostDraft[]
   inputWarningsByLetter: Record<'A' | 'B' | 'C', string[]>

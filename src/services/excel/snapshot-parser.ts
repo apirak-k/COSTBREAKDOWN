@@ -243,10 +243,10 @@ function parseWorkCenters(
   const rates: SnapshotWorkCenterRate[] = []
   rows.slice(headerIndex + 1).forEach((row, index) => {
     const rowNumber = headerIndex + index + 2
+    if (!row.some(value => textValue(value) !== '')) return
     const code = textValue(cell(row, map, ['work center code', 'workcentercode', 'work center', 'wc']))
     if (!code) {
-      if (row.some(value => textValue(value) !== '')) warnings.push(`Missing Work Center code at row ${rowNumber}`)
-      return
+      warnings.push(`Missing Work Center code at row ${rowNumber}`)
     }
     const sourceRef = textValue(cell(row, map, ['source ref', 'sourceref', 'source'])) || fallbackSource
     const explicitConfidence = parseConfidence(cell(row, map, ['confidence', 'status']))
@@ -294,10 +294,10 @@ function parseBOM(
   const items: SnapshotBOMItem[] = []
   rows.slice(headerIndex + 1).forEach((row, index) => {
     const rowNumber = headerIndex + index + 2
+    if (!row.some(value => textValue(value) !== '')) return
     const itemCode = textValue(cell(row, map, ['item code', 'itemcode', 'material', 'material code']))
     if (!itemCode) {
-      if (row.some(value => textValue(value) !== '')) warnings.push(`Missing item code at row ${rowNumber}`)
-      return
+      warnings.push(`Missing item code at row ${rowNumber}`)
     }
     const sourceRef = textValue(cell(row, map, ['source ref', 'sourceref', 'source'])) || fallbackSource
     const explicitConfidence = parseConfidence(cell(row, map, ['confidence', 'status']))
@@ -346,13 +346,20 @@ function parseRouting(
   }
   const map = columnMap(rows[headerIndex])
   const steps: SnapshotRoutingStep[] = []
+  const usedIds = new Set<string>()
   rows.slice(headerIndex + 1).forEach((row, index) => {
     const rowNumber = headerIndex + index + 2
     const operationCode = textValue(cell(row, map, ['operation code', 'operationcode', 'operation']))
     const processCode = textValue(cell(row, map, ['process code', 'processcode']))
     const hasData = row.some(value => textValue(value) !== '')
     if (!hasData) return
-    const id = textValue(cell(row, map, ['id', 'routing id', 'routingid'])) || operationCode || processCode || `routing-${rowNumber}`
+    const preferredId = textValue(cell(row, map, ['id', 'routing id', 'routingid'])) || operationCode || processCode || `routing-${rowNumber}`
+    let id = preferredId
+    if (usedIds.has(id)) {
+      id = `routing-${rowNumber}`
+      while (usedIds.has(id)) id = `${id}-imported`
+    }
+    usedIds.add(id)
     if (!operationCode) warnings.push(`Missing Operation Code at row ${rowNumber}; Routing row will not be matched.`)
     const sourceRef = textValue(cell(row, map, ['source ref', 'sourceref', 'source'])) || fallbackSource
     const explicitConfidence = parseConfidence(cell(row, map, ['confidence', 'status']))
@@ -365,7 +372,7 @@ function parseRouting(
     if (!processName) warnings.push(`Missing processName at row ${rowNumber}`)
     if (!workCenterId) warnings.push(`Missing workCenterId at row ${rowNumber}`)
     steps.push({
-      id: id || operationCode,
+      id,
       operationCode: operationCode || undefined,
       sequence: sequence.value ?? undefined,
       processCode: processCode || undefined,

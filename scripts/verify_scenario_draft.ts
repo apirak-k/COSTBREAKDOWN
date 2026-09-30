@@ -89,7 +89,7 @@ assert.equal(resultC.scenarioCost.material, resultC.currentCost.material, 'inval
 assert.equal(JSON.stringify(currentSnapshot), snapshotBeforeCalculation, 'scenario calculation must not mutate Current')
 
 const pageSource = readFileSync(resolve(process.cwd(), 'src/features/rca-simulation/RCASimulationPage.tsx'), 'utf8')
-assert.match(pageSource, /scenarioDraftsByProduct\[activeProductId\]\?\.\[selectedCandidate\.candidateKey\]/)
+assert.match(pageSource, /state\.scenarioDraftsByCandidate\[selectedCandidate\.candidateKey\]/)
 assert.match(pageSource, /calculateScenarioCosts\(currentSnapshot,\s*preparedDrafts\.drafts\)/)
 assert.doesNotMatch(pageSource, /simulateWhatIfScenarios/)
 

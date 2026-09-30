@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react'
+import React, { useEffect, useMemo } from 'react'
 import { calculateScenarioCosts } from '../../core/calculations/scenario-cost'
 import { calculateScenarioEconomics } from '../../core/calculations/scenario-economics'
 import type { ScenarioEconomicsInputs } from '../../core'
@@ -7,7 +7,8 @@ import {
   createScenarioDrafts,
   prepareScenarioEconomicsInputs,
   prepareScenarioDrafts,
-  ScenarioDraftForm,
+  type RcaSimulationPageState,
+  type ScenarioDraftForm,
   updateScenarioEconomicsInput,
   updateScenarioInputValue,
   updateScenarioLabel
@@ -19,51 +20,36 @@ import { ProblemStatementCard } from './components/ProblemStatementCard'
 import { SimulationGrid } from './components/SimulationGrid'
 import { PageHeading } from '../../shared'
 
-export const RCASimulationPage: React.FC = () => {
+interface RCASimulationPageProps {
+  state: RcaSimulationPageState
+  updateState: (update: (state: RcaSimulationPageState) => RcaSimulationPageState) => void
+}
+
+export const RCASimulationPage: React.FC<RCASimulationPageProps> = ({ state, updateState }) => {
   const {
-    activeProductId,
     candidates,
     candidateRcaRecords,
     snapshotPair,
     saveCandidateRca
   } = useAppStore()
 
-  const [selectedCandidateKey, setSelectedCandidateKey] = useState<string | null>(null)
-  const [trialHandoffLetter, setTrialHandoffLetter] = useState<'A' | 'B' | 'C' | null>(null)
-  const [selectionProductId, setSelectionProductId] = useState(activeProductId)
-  const [scenarioDraftsByProduct, setScenarioDraftsByProduct] = useState<Record<string, Record<string, ScenarioDraftForm[]>>>({})
-
   useEffect(() => {
-    setSelectedCandidateKey(null)
-    setSelectionProductId(activeProductId)
-  }, [activeProductId])
-
-  const effectiveSelectedCandidateKey = selectionProductId === activeProductId
-    ? selectedCandidateKey
-    : null
-
-  useEffect(() => {
-    if (effectiveSelectedCandidateKey && !candidates.some(candidate => candidate.candidateKey === effectiveSelectedCandidateKey)) {
-      setSelectedCandidateKey(null)
+    if (state.selectedCandidateKey && !candidates.some(candidate => candidate.candidateKey === state.selectedCandidateKey)) {
+      updateState(previous => ({ ...previous, selectedCandidateKey: null, trialHandoffLetter: null }))
     }
-  }, [candidates, effectiveSelectedCandidateKey])
+  }, [candidates, state.selectedCandidateKey, updateState])
 
-  useEffect(() => {
-    setTrialHandoffLetter(null)
-  }, [activeProductId, effectiveSelectedCandidateKey])
-
-  const selectedCandidate = candidates.find(candidate => candidate.candidateKey === effectiveSelectedCandidateKey) ?? null
+  const selectedCandidate = candidates.find(candidate => candidate.candidateKey === state.selectedCandidateKey) ?? null
   const selectCandidate = (candidateKey: string | null) => {
-    setSelectionProductId(activeProductId)
-    setSelectedCandidateKey(candidateKey)
+    updateState(previous => ({ ...previous, selectedCandidateKey: candidateKey, trialHandoffLetter: null }))
   }
 
   const savedScenarioDrafts = selectedCandidate
-    ? scenarioDraftsByProduct[activeProductId]?.[selectedCandidate.candidateKey]
+    ? state.scenarioDraftsByCandidate[selectedCandidate.candidateKey]
     : undefined
   const scenarioDrafts = useMemo(
     () => savedScenarioDrafts ?? createScenarioDrafts(),
-    [activeProductId, selectedCandidate?.candidateKey, savedScenarioDrafts]
+    [selectedCandidate?.candidateKey, savedScenarioDrafts]
   )
 
   const currentSnapshot = snapshotPair.current
@@ -99,13 +85,12 @@ export const RCASimulationPage: React.FC = () => {
     if (!selectedCandidate) return
     const candidateKey = selectedCandidate.candidateKey
 
-    setScenarioDraftsByProduct(previous => {
-      const productDrafts = previous[activeProductId] ?? {}
-      const currentDrafts = productDrafts[candidateKey] ?? createScenarioDrafts()
+    updateState(previous => {
+      const currentDrafts = previous.scenarioDraftsByCandidate[candidateKey] ?? createScenarioDrafts()
       return {
         ...previous,
-        [activeProductId]: {
-          ...productDrafts,
+        scenarioDraftsByCandidate: {
+          ...previous.scenarioDraftsByCandidate,
           [candidateKey]: transform(currentDrafts)
         }
       }
@@ -141,7 +126,7 @@ export const RCASimulationPage: React.FC = () => {
 
       <CandidateSelector
         candidates={candidates}
-        selectedCandidateKey={effectiveSelectedCandidateKey}
+        selectedCandidateKey={state.selectedCandidateKey}
         onSelectCandidate={selectCandidate}
       />
 
@@ -200,8 +185,11 @@ export const RCASimulationPage: React.FC = () => {
             </label>
             <select
               id="trial-handoff-scenario"
-              value={trialHandoffLetter ?? ''}
-              onChange={event => setTrialHandoffLetter((event.target.value || null) as 'A' | 'B' | 'C' | null)}
+              value={state.trialHandoffLetter ?? ''}
+              onChange={event => updateState(previous => ({
+                ...previous,
+                trialHandoffLetter: (event.target.value || null) as 'A' | 'B' | 'C' | null
+              }))}
               className="mt-1 min-h-10 w-full max-w-sm rounded-sm border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 focus:border-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-200"
             >
               <option value="">Select a scenario</option>
@@ -211,9 +199,9 @@ export const RCASimulationPage: React.FC = () => {
                 </option>
               ))}
             </select>
-            {trialHandoffLetter && (
+            {state.trialHandoffLetter && (
               <p role="status" className="mt-2 text-xs text-slate-700">
-                Scenario {trialHandoffLetter} selected for Trial handoff. Trial workflow remains outside this agreement.
+                Scenario {state.trialHandoffLetter} selected for Trial handoff. Trial workflow remains outside this agreement.
               </p>
             )}
           </section>
