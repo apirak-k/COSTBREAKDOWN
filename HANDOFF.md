@@ -3,7 +3,7 @@
 ## Current checkpoint
 
 - Repository: `E:\COSTBREAKDOWN`; active branch: `current`.
-- This follow-up started from clean `current` at `1ba82d396bc2251e04c7382161d449901a65d484`, matching `origin/current`. The fixes below are committed locally on `current`. Push to `origin/current` is pending confirmation that the configured remote is the intended destination.
+- This follow-up started from clean `current` at `1ba82d396bc2251e04c7382161d449901a65d484`, matching `origin/current`. Commit `ee98cdd1a6a9e0e47c547fc3b8be1ca26eac8ff7` contains the fixes below and was pushed to `origin/current` on 2026-09-30. Verify the live tip before continuing.
 - Product behavior remains governed by `docs/REQUIREMENTS_INDEX.md` and the four current files in `agreements/`. This handoff records status and evidence, not new product requirements.
 
 ## AI-side implementation delivered
