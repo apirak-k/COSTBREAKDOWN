@@ -5,6 +5,7 @@ import {
 } from '../core'
 import type { ComparisonRole, CostSnapshot, ProductSession } from '../core'
 import { emptyProductMaster } from './seed-data'
+import { markMasterDataChanged } from './master-data-revision'
 
 export function clearMasterDataDatasetState(session: ProductSession, role: ComparisonRole): ProductSession {
   const pair = session.snapshotPair ?? sessionToSnapshotPair(session)
@@ -31,7 +32,7 @@ export function clearMasterDataDatasetState(session: ProductSession, role: Compa
     [role]: {}
   }
 
-  const updated = applySnapshotPairToSession({
+  const updated = markMasterDataChanged(applySnapshotPairToSession({
     ...session,
     datasetSizing: nextSizing,
     preparedSnapshotRoles: {
@@ -39,7 +40,7 @@ export function clearMasterDataDatasetState(session: ProductSession, role: Compa
       [role]: false
     },
     updatedAt: new Date().toISOString()
-  }, nextPair)
+  }, nextPair))
 
   // The legacy session projection represents Current. Do not let Reference's
   // fallback Product repopulate a Current dataset that was explicitly cleared.

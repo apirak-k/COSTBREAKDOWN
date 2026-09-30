@@ -80,6 +80,7 @@ const session = {
 } as ProductSession
 
 const clearedReference = clearMasterDataDatasetState(session, 'reference')
+assert.equal(clearedReference.masterDataRevision, 1, 'Clearing Reference must invalidate saved RCA scenarios')
 assert.strictEqual(clearedReference.snapshotPair?.current, pair.current)
 assert.equal(clearedReference.snapshotPair?.reference.product.productCode, emptyProductMaster.productCode)
 assert.equal(clearedReference.snapshotPair?.reference.product.note, emptyProductMaster.note)
@@ -98,6 +99,7 @@ assert.equal(clearedReference.snapshotPair?.current.remark, 'current remark')
 assert.equal(clearedReference.snapshotPair?.current.routing[0].note, 'current routing note')
 
 const clearedCurrent = clearMasterDataDatasetState(session, 'current')
+assert.equal(clearedCurrent.masterDataRevision, 1, 'Clearing Current must invalidate saved RCA scenarios')
 assert.strictEqual(clearedCurrent.snapshotPair?.reference, pair.reference)
 assert.equal(clearedCurrent.snapshotPair?.current.product.productCode, emptyProductMaster.productCode)
 assert.equal(clearedCurrent.snapshotPair?.current.remark, '')

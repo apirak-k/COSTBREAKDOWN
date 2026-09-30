@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useMemo, useState } from 'react'
 import { AppProvider, useAppStore } from './state'
 import { AppLayout } from './shared'
 import {
@@ -8,26 +8,34 @@ import {
   RCASimulationPage
 } from './features'
 import {
-  createRcaSimulationPageState,
+  getRcaSimulationStateForRevision,
   updateRcaSimulationStateByProduct,
   type RcaSimulationPageState
 } from './features/rca-simulation/scenario-draft'
 import { loadFromSession, saveToSession, STORAGE_KEYS } from './services/storage'
 
 const AppRouter: React.FC = () => {
-  const { activeTab, activeProductId } = useAppStore()
+  const { activeTab, activeProductId, activeSession } = useAppStore()
   const [rcaSimulationStatesByProduct, setRcaSimulationStatesByProduct] = useState<Record<string, RcaSimulationPageState>>(
     () => loadFromSession(STORAGE_KEYS.RCA_SIMULATION_STATES, {})
   )
+  const sourceDataRevision = activeSession.masterDataRevision ?? 0
+  const rcaSimulationState = useMemo(
+    () => getRcaSimulationStateForRevision(rcaSimulationStatesByProduct[activeProductId], sourceDataRevision),
+    [activeProductId, rcaSimulationStatesByProduct, sourceDataRevision]
+  )
+  const statesToPersist = useMemo(
+    () => ({ ...rcaSimulationStatesByProduct, [activeProductId]: rcaSimulationState }),
+    [activeProductId, rcaSimulationState, rcaSimulationStatesByProduct]
+  )
 
   useEffect(() => {
-    saveToSession(STORAGE_KEYS.RCA_SIMULATION_STATES, rcaSimulationStatesByProduct)
-  }, [rcaSimulationStatesByProduct])
+    saveToSession(STORAGE_KEYS.RCA_SIMULATION_STATES, statesToPersist)
+  }, [statesToPersist])
 
-  const rcaSimulationState = rcaSimulationStatesByProduct[activeProductId] ?? createRcaSimulationPageState()
   const updateRcaSimulationState = (update: (state: RcaSimulationPageState) => RcaSimulationPageState) => {
     setRcaSimulationStatesByProduct(previous =>
-      updateRcaSimulationStateByProduct(previous, activeProductId, update)
+      updateRcaSimulationStateByProduct(previous, activeProductId, sourceDataRevision, update)
     )
   }
 

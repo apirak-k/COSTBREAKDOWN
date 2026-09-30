@@ -41,6 +41,7 @@ import {
 import { WorkingDataset } from '../core/types/dataset-standard.types'
 import { markSizingPlaceholderEdited, resizeMasterDataSnapshotForSizing } from './dataset-sizing'
 import { clearMasterDataDatasetState } from './clear-master-data-dataset'
+import { markMasterDataChanged } from './master-data-revision'
 import { STORAGE_KEYS, loadFromSession, saveToSession } from '../services/storage'
 
 import {
@@ -77,6 +78,10 @@ function withSnapshotPair(session: ProductSession, explicitPair?: SnapshotPair):
     snapshotPair: sessionToSnapshotPair(session),
     snapshotPairMode: 'derived'
   }
+}
+
+function applyMasterDataSnapshotPair(session: ProductSession, pair: SnapshotPair): ProductSession {
+  return markMasterDataChanged(applySnapshotPairToSession(session, pair))
 }
 
 function isMissingValue(value: unknown): boolean {
@@ -366,10 +371,14 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
   const patchActive = (patch: Partial<ProductSession>) => {
     const now = new Date().toISOString()
+    const changesMasterData = ['product', 'rates', 'bom', 'routing', 'snapshotPair', 'snapshotPairMode', 'datasetSizing']
+      .some(key => Object.prototype.hasOwnProperty.call(patch, key))
     setProductSessions(prev =>
-      prev.map(s => s.id === activeSession.id
-        ? withSnapshotPair({ ...s, ...patch, updatedAt: now })
-        : s)
+      prev.map(s => {
+        if (s.id !== activeSession.id) return s
+        const updated = withSnapshotPair({ ...s, ...patch, updatedAt: now })
+        return changesMasterData ? markMasterDataChanged(updated) : updated
+      })
     )
   }
 
@@ -601,7 +610,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       const nextPair = role === 'reference'
         ? { reference: { ...nextDataset, comparisonRole: 'reference' as const }, current: pair.current }
         : { reference: pair.reference, current: { ...nextDataset, comparisonRole: 'current' as const } }
-      const updated = applySnapshotPairToSession({
+      const updated = applyMasterDataSnapshotPair({
         ...session,
         masterDataRole: role,
         updatedAt: new Date().toISOString()
@@ -618,7 +627,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const nextPair: SnapshotPair = role === 'reference'
       ? { reference: { ...pair.reference, product: { ...nextProduct } }, current: pair.current }
       : { reference: pair.reference, current: { ...pair.current, product: { ...nextProduct } } }
-    return applySnapshotPairToSession({
+    return applyMasterDataSnapshotPair({
       ...session,
       masterDataRole: role,
       updatedAt: new Date().toISOString()
@@ -667,7 +676,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         current: refSizing ? { ...refSizing } : (session.datasetSizing?.current ?? {})
       }
 
-      const updated = applySnapshotPairToSession({
+      const updated = applyMasterDataSnapshotPair({
         ...session,
         datasetSizing: updatedSizing,
         masterDataRole: 'current',
@@ -706,7 +715,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         current: session.datasetSizing?.current ?? {}
       }
 
-      const updated = applySnapshotPairToSession({
+      const updated = applyMasterDataSnapshotPair({
         ...session,
         datasetSizing: updatedSizing,
         masterDataRole: 'reference',
@@ -789,7 +798,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         ...pair,
         [role]: updatedSnapshot
       }
-      return applySnapshotPairToSession({
+      return applyMasterDataSnapshotPair({
         ...session,
         datasetSizing: nextDatasetSizing,
         updatedAt: new Date().toISOString()
@@ -1029,7 +1038,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       [result.role]: true
     }
 
-    const updated = applySnapshotPairToSession(
+    const updated = applyMasterDataSnapshotPair(
       {
         ...source,
         masterDataRole: result.role,
@@ -1066,7 +1075,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const source = productSessions.find(session => session.id === DEVELOPMENT_REVIEW_FIXTURE_ID) ??
       makeEmptySession(DEVELOPMENT_REVIEW_FIXTURE_ID)
     const now = new Date().toISOString()
-    const updated = applySnapshotPairToSession({
+    const updated = applyMasterDataSnapshotPair({
       ...source,
       masterDataRole: 'current',
       updatedAt: now,

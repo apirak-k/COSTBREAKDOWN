@@ -9,21 +9,31 @@ export interface ScenarioDraftForm {
 }
 
 export interface RcaSimulationPageState {
+  sourceDataRevision: number
   selectedCandidateKey: string | null
   trialHandoffLetter: ScenarioDraftForm['letter'] | null
   scenarioDraftsByCandidate: Record<string, ScenarioDraftForm[]>
 }
 
-export function createRcaSimulationPageState(): RcaSimulationPageState {
-  return { selectedCandidateKey: null, trialHandoffLetter: null, scenarioDraftsByCandidate: {} }
+export function createRcaSimulationPageState(sourceDataRevision = 0): RcaSimulationPageState {
+  return { sourceDataRevision, selectedCandidateKey: null, trialHandoffLetter: null, scenarioDraftsByCandidate: {} }
+}
+
+export function getRcaSimulationStateForRevision(
+  state: RcaSimulationPageState | undefined,
+  sourceDataRevision: number
+): RcaSimulationPageState {
+  return state?.sourceDataRevision === sourceDataRevision ? state : createRcaSimulationPageState(sourceDataRevision)
 }
 
 export function updateRcaSimulationStateByProduct(
   states: Record<string, RcaSimulationPageState>,
   productId: string,
+  sourceDataRevision: number,
   update: (state: RcaSimulationPageState) => RcaSimulationPageState
 ): Record<string, RcaSimulationPageState> {
-  return { ...states, [productId]: update(states[productId] ?? createRcaSimulationPageState()) }
+  const current = getRcaSimulationStateForRevision(states[productId], sourceDataRevision)
+  return { ...states, [productId]: { ...update(current), sourceDataRevision } }
 }
 
 export interface PreparedScenarioDrafts {
