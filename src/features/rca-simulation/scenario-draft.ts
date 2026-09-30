@@ -36,6 +36,14 @@ export function updateRcaSimulationStateByProduct(
   return { ...states, [productId]: { ...update(current), sourceDataRevision } }
 }
 
+export function retainRcaSimulationStatesForProducts(
+  states: Record<string, RcaSimulationPageState>,
+  liveProductIds: ReadonlySet<string>
+): Record<string, RcaSimulationPageState> {
+  const retained = Object.fromEntries(Object.entries(states).filter(([productId]) => liveProductIds.has(productId)))
+  return Object.keys(retained).length === Object.keys(states).length ? states : retained
+}
+
 export interface PreparedScenarioDrafts {
   drafts: ScenarioCostDraft[]
   inputWarningsByLetter: Record<'A' | 'B' | 'C', string[]>

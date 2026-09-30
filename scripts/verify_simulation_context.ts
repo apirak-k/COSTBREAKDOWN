@@ -5,6 +5,7 @@ import {
   createRcaSimulationPageState,
   createScenarioDrafts,
   getRcaSimulationStateForRevision,
+  retainRcaSimulationStatesForProducts,
   updateRcaSimulationStateByProduct,
   updateScenarioInputValue
 } from '../src/features/rca-simulation/scenario-draft'
@@ -43,6 +44,14 @@ assert.equal(pageStatesAfterSecondProduct['product-1'].selectedCandidateKey, 'ca
 assert.equal(pageStatesAfterSecondProduct['product-1'].trialHandoffLetter, 'B')
 assert.equal(pageStatesAfterSecondProduct['product-1'].scenarioDraftsByCandidate['candidate-1'][0].inputValues[bomInputKey], '10')
 assert.equal(pageStatesAfterSecondProduct['product-2'].selectedCandidateKey, 'candidate-2')
+assert.strictEqual(
+  retainRcaSimulationStatesForProducts(pageStatesAfterSecondProduct, new Set(['product-1', 'product-2'])),
+  pageStatesAfterSecondProduct,
+  'Existing product state must be preserved when its session still exists'
+)
+const pageStatesAfterProductDeletion = retainRcaSimulationStatesForProducts(pageStatesAfterSecondProduct, new Set(['product-2']))
+assert.deepEqual(Object.keys(pageStatesAfterProductDeletion), ['product-2'], 'Deleting a product must remove its orphan RCA state')
+assert.strictEqual(pageStatesAfterProductDeletion['product-2'], pageStatesAfterSecondProduct['product-2'])
 assert.equal(getRcaSimulationStateForRevision(pageStatesAfterSecondProduct['product-1'], 3).selectedCandidateKey, 'candidate-1')
 
 const stalePageState = getRcaSimulationStateForRevision(pageStatesAfterSecondProduct['product-1'], 4)
@@ -77,6 +86,8 @@ assert.match(appSource, /loadFromSession\(STORAGE_KEYS\.RCA_SIMULATION_STATES/, 
 assert.match(appSource, /saveToSession\(STORAGE_KEYS\.RCA_SIMULATION_STATES/, 'RCA UI state must be saved in session storage')
 assert.match(appSource, /rcaSimulationStatesByProduct\[activeProductId\]/, 'RCA UI state must be isolated by product session')
 assert.match(appSource, /activeSession\.masterDataRevision/, 'RCA UI state must be tied to its product master-data revision')
+assert.match(appSource, /retainRcaSimulationStatesForProducts/, 'RCA state must be pruned when its ProductSession is deleted')
+assert.match(appSource, /productSessions\.map\(session => session\.id\)/, 'RCA cleanup must use the current ProductSession ids')
 assert.match(storeSource, /changesMasterData \? markMasterDataChanged\(updated\)/, 'Legacy Product data edits must advance the source revision')
 assert.match(storeSource, /function applyMasterDataSnapshotPair[\s\S]*markMasterDataChanged\(applySnapshotPairToSession\(session, pair\)\)/, 'Snapshot dataset mutations must advance the source revision')
 assert.equal((storeSource.match(/\bapplySnapshotPairToSession\(/g) ?? []).length, 2, 'Snapshot writes must go through the versioned helper')

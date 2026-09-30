@@ -9,13 +9,14 @@ import {
 } from './features'
 import {
   getRcaSimulationStateForRevision,
+  retainRcaSimulationStatesForProducts,
   updateRcaSimulationStateByProduct,
   type RcaSimulationPageState
 } from './features/rca-simulation/scenario-draft'
 import { loadFromSession, saveToSession, STORAGE_KEYS } from './services/storage'
 
 const AppRouter: React.FC = () => {
-  const { activeTab, activeProductId, activeSession } = useAppStore()
+  const { activeTab, activeProductId, activeSession, productSessions } = useAppStore()
   const [rcaSimulationStatesByProduct, setRcaSimulationStatesByProduct] = useState<Record<string, RcaSimulationPageState>>(
     () => loadFromSession(STORAGE_KEYS.RCA_SIMULATION_STATES, {})
   )
@@ -28,6 +29,11 @@ const AppRouter: React.FC = () => {
     () => ({ ...rcaSimulationStatesByProduct, [activeProductId]: rcaSimulationState }),
     [activeProductId, rcaSimulationState, rcaSimulationStatesByProduct]
   )
+
+  useEffect(() => {
+    const liveProductIds = new Set(productSessions.map(session => session.id))
+    setRcaSimulationStatesByProduct(previous => retainRcaSimulationStatesForProducts(previous, liveProductIds))
+  }, [productSessions])
 
   useEffect(() => {
     saveToSession(STORAGE_KEYS.RCA_SIMULATION_STATES, statesToPersist)
