@@ -1,11 +1,19 @@
-# Current Handoff — latest ChatGPT sizing feedback fixed, human review pending (2026-09-30)
+# Current Handoff — comparison UI review follow-up, human acceptance pending (2026-10-01)
 
 ## Current checkpoint
 
 - Repository: `E:\COSTBREAKDOWN`; active branch: `current`.
 - The import/RCA follow-up started from clean `current` at `1ba82d396bc2251e04c7382161d449901a65d484`, matching `origin/current`; its implementation is `ee98cdd1a6a9e0e47c547fc3b8be1ca26eac8ff7`. The stale RCA revision fix is in `bd4d448`. ChatGPT's follow-up review of `64cf4f5` found no Medium/High mismatches and noted two Low items: orphan RCA state after deleting a product session and imprecise wording about Excel imports. The cleanup fix is in `6d58a15`; the current handoff and cross-cutting decision record those clarifications. Verify the live tip before continuing.
-- ChatGPT “บูมเอง 4” reviewed the pushed range through `a487a8d` and found a Medium issue: applying unchanged Dataset Setup values still advanced Master Data revision and cleared RCA drafts. The focused fix is in `ff4f35b`; unchanged Apply and already-empty Reset now avoid writes, while real changes still update Master Data. The fix has not yet been reviewed remotely.
+- ChatGPT “บูมเอง 4” reviewed the pushed range through `a487a8d` and found a Medium issue: applying unchanged Dataset Setup values still advanced Master Data revision and cleared RCA drafts. The focused fix is in `ff4f35b`; unchanged Apply and already-empty Reset now avoid writes, while real changes still update Master Data. Remote review confirmed the fix, and the targeted browser smoke evidence is recorded below.
 - Product behavior remains governed by `docs/REQUIREMENTS_INDEX.md` and the four current files in `agreements/`. This handoff records status and evidence, not new product requirements.
+
+## 2026-10-01 comparison-display review follow-up
+
+- A source-only ChatGPT audit of pushed `current@f4a4153` found one Medium comparison-detail issue and two Low issues: changed fields were not exposed consistently, Routing could show Reference when a Current field was missing, warnings after the first three were not visible, and the earlier remote-review sentence was stale.
+- Detailed comparison rows now expose every `fieldDiffs` value; Routing displays Reference and Current Sequence and Manning separately; missing Current-side labels no longer fall back to Reference. The snapshot card renders every warning, and the stale review sentence is updated.
+- Local verification passed: `node scripts/verify_cost_breakdown_review_feedback.mjs` (server-rendered component checks), `npx jiti scripts/verify_snapshot_comparison_dynamic_fields.ts`, `npm run build` (2,028 modules; main entry 382.79 kB, no 500 kB advisory), and `git diff --check`. The build still reports the existing externalized `fs`/`crypto` imports from ExcelJS.
+- `[Unverified]` ChatGPT did not execute tests in its audit. The legacy BOM/Routing/Work Center view verifiers could not resolve their TSX imports under the installed `jiti` runner. Browser smoke could not be completed: bundled Python lacks Playwright, and the isolated in-app browser timed out after the mock-fixture confirmation dialog.
+- Human UX/UI acceptance remains pending. The follow-up GitHub review of this fix is pending.
 
 ## AI-side implementation delivered
 

@@ -171,13 +171,10 @@ export const SnapshotComparisonCard: React.FC<SnapshotComparisonCardProps> = ({ 
             <div className="min-w-0">
               <p className="text-sm font-semibold text-amber-950">Review warnings ({summary.warningCount})</p>
               <ul className="mt-1 space-y-1 text-sm text-amber-950">
-                {comparison.warnings.slice(0, 3).map((warning, index) => (
+                {comparison.warnings.map((warning, index) => (
                   <li key={`${warning.code}-${warning.referenceId ?? warning.currentId ?? index}`}>{warning.message}</li>
                 ))}
               </ul>
-              {comparison.warnings.length > 3 && (
-                <p className="mt-1 text-xs text-amber-900">+{comparison.warnings.length - 3} more warnings in detailed comparison.</p>
-              )}
             </div>
           </div>
         </div>

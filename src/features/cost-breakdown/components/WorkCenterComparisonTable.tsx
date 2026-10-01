@@ -10,6 +10,7 @@ import type { ComparisonStatus } from '../../../core'
 import { ConfidenceBadge } from '../../../shared/ui/ConfidenceBadge'
 import { ALL_COMPARISON_STATUSES, isVisibleInComparisonView } from './comparison-view'
 import type { ComparisonViewMode } from './comparison-view'
+import { ComparisonFieldDetails } from './ComparisonFieldDetails'
 import { DataQualityPairBadge } from './DataQualityPairBadge'
 
 interface WorkCenterComparisonTableProps {
@@ -113,23 +114,26 @@ export const WorkCenterComparisonTable: React.FC<WorkCenterComparisonTableProps>
           ) : visibleRows.map(row => {
             const label = row.finding ? getWorkCenterComparisonLabel(row.finding) : null
             const visibleLabel = label === 'UNCHANGED' ? null : label
-            const workCenterCode = row.current?.workCenterCode ?? row.reference?.workCenterCode ?? 'Unknown'
-            const description = row.current?.description ?? row.reference?.description ?? '—'
+            const workCenterCode = row.current ? row.current.workCenterCode || '—' : row.reference?.workCenterCode ?? 'Unknown'
+            const description = row.current ? row.current.description || '—' : row.reference?.description ?? '—'
 
             return (
               <tr key={row.current?.id ?? `removed-${row.reference?.id ?? workCenterCode}`} className={`hover:bg-slate-50/70 transition-colors ${label === 'REMOVED' ? 'bg-rose-50/60' : ''}`}>
                 <th scope="row" className="p-2.5 font-bold text-slate-900 whitespace-nowrap">{workCenterCode}</th>
                 <td className="p-2.5 font-sans text-slate-700">{description}</td>
-                <td className="p-2.5 whitespace-nowrap">
-                  {visibleLabel ? (
-                    <span className={`inline-flex px-1.5 py-0.5 rounded border text-[10px] font-mono font-bold ${comparisonClass(visibleLabel)}`}>
-                      {visibleLabel}
-                    </span>
-                  ) : (
-                    <span aria-label={label === 'UNCHANGED' ? 'Unchanged' : undefined} title={!row.finding || !label ? 'No comparable business identity; see validation warnings' : undefined}>
-                      —
-                    </span>
-                  )}
+                <td className="p-2.5">
+                  <div className="flex flex-col items-start gap-1.5">
+                    {visibleLabel ? (
+                      <span className={`inline-flex px-1.5 py-0.5 rounded border text-[10px] font-mono font-bold ${comparisonClass(visibleLabel)}`}>
+                        {visibleLabel}
+                      </span>
+                    ) : (
+                      <span aria-label={label === 'UNCHANGED' ? 'Unchanged' : undefined} title={!row.finding || !label ? 'No comparable business identity; see validation warnings' : undefined}>
+                        —
+                      </span>
+                    )}
+                    <ComparisonFieldDetails finding={row.finding} />
+                  </div>
                 </td>
                 <td className="p-2.5 whitespace-nowrap">
                   <ConfidenceBadge status={row.finding?.confidence ?? 'missing'} showLabel />

@@ -12,6 +12,7 @@ import type { ComparisonStatus, ComparisonFinding } from '../../../core'
 import { ConfidenceBadge } from '../../../shared/ui/ConfidenceBadge'
 import { ALL_COMPARISON_STATUSES, isOnlyComparisonStatus, isVisibleInComparisonView } from './comparison-view'
 import type { ComparisonViewMode } from './comparison-view'
+import { ComparisonFieldDetails } from './ComparisonFieldDetails'
 import { DataQualityPairBadge } from './DataQualityPairBadge'
 import { getRoutingDataQuality } from './data-quality'
 
@@ -123,13 +124,15 @@ export const RoutingDetailedTable: React.FC<RoutingDetailedTableProps> = ({
         <caption className="sr-only">Reference and current routing cost comparison using matching Work Center rates</caption>
         <thead>
           <tr className="bg-slate-800 text-xs font-semibold text-white">
-            <th className="p-2.5 w-12">Op #</th>
+            <th className="p-2.5">Ref Sequence</th>
+            <th className="p-2.5">Current Sequence</th>
             <th className="p-2.5">Operation Description</th>
             <th className="p-2.5">Work Center</th>
             {showComparison && <th className="p-2.5">Comparison</th>}
             {showComparison && <th className="p-2.5">Confidence</th>}
             {showComparison && <th className="p-2.5">Data Quality</th>}
-            <th className="p-2.5 text-right">Manning</th>
+            <th className="p-2.5 text-right">Ref Manning</th>
+            <th className="p-2.5 text-right">Current Manning</th>
             <th className="p-2.5 text-right">Ref Cap</th>
             <th className="p-2.5 text-right">Current Cap</th>
             <th className="p-2.5 text-right">Ref Yield</th>
@@ -148,7 +151,7 @@ export const RoutingDetailedTable: React.FC<RoutingDetailedTableProps> = ({
         <tbody className="divide-y divide-slate-100 font-mono">
           {visibleRows.length === 0 ? (
             <tr>
-              <td colSpan={showComparison ? 20 : 17} className="p-6 text-center text-slate-400 font-sans italic">
+              <td colSpan={showComparison ? 22 : 19} className="p-6 text-center text-slate-400 font-sans italic">
                 No rows match this comparison view.
               </td>
             </tr>
@@ -159,24 +162,31 @@ export const RoutingDetailedTable: React.FC<RoutingDetailedTableProps> = ({
             const visibleLabels = labels.filter(label => label !== 'UNCHANGED')
             const referenceWorkCenter = reference?.workCenterId
             const currentWorkCenter = current?.workCenterId
-            const workCenter = referenceWorkCenter && currentWorkCenter && referenceWorkCenter !== currentWorkCenter
-              ? `${referenceWorkCenter} → ${currentWorkCenter}`
-              : currentWorkCenter ?? referenceWorkCenter ?? '—'
+            const normalizedReferenceWorkCenter = referenceWorkCenter || null
+            const normalizedCurrentWorkCenter = currentWorkCenter || null
+            const workCenter = row.finding?.matchStatus === 'matched' && normalizedReferenceWorkCenter !== normalizedCurrentWorkCenter
+              ? `${normalizedReferenceWorkCenter ?? '—'} → ${normalizedCurrentWorkCenter ?? '—'}`
+              : current ? normalizedCurrentWorkCenter ?? '—' : normalizedReferenceWorkCenter ?? '—'
+            const processName = current ? current.processName ?? '—' : reference?.processName ?? '—'
             const operationKey = current?.id ?? reference?.id ?? row.finding?.referenceId ?? 'unknown'
             const laborGap = showComparison ? row.finding?.costEffect?.gap.labor ?? null : gap(row.detail.currentLaborCost, row.detail.referenceLaborCost)
             const burdenGap = showComparison ? row.finding?.costEffect?.gap.burden ?? null : gap(row.detail.currentBurdenCost, row.detail.referenceBurdenCost)
 
             return (
               <tr key={operationKey} className="hover:bg-slate-50/70 transition-colors">
-                <td className="p-2.5 text-slate-500 tabular-nums">{current?.sequence ?? reference?.sequence ?? '—'}</td>
-                <td className="p-2.5 font-sans font-medium text-slate-800 truncate max-w-[220px]" title={current?.processName ?? reference?.processName ?? '—'}>
-                  {current?.processName ?? reference?.processName ?? '—'}
+                <td className="p-2.5 text-slate-500 tabular-nums">{formatNullable(reference?.sequence ?? null, value => formatNumber(value, 0))}</td>
+                <td className="p-2.5 text-right font-bold text-slate-900 tabular-nums">{formatNullable(current?.sequence ?? null, value => formatNumber(value, 0))}</td>
+                <td className="p-2.5 font-sans font-medium text-slate-800 truncate max-w-[220px]" title={processName}>
+                  {processName}
                 </td>
                 <td className="p-2.5 font-sans text-slate-600 truncate max-w-[160px]" title={workCenter}>{workCenter}</td>
                 {showComparison && (
                   <td className="p-2.5 min-w-[150px]">
-                    <div className="flex flex-wrap gap-1">
-                      {visibleLabels.length > 0 ? visibleLabels.map(label => <span key={label} className={`inline-flex px-1.5 py-0.5 rounded border text-[10px] font-mono font-bold whitespace-nowrap ${comparisonClass(label)}`}>{label}</span>) : <span aria-label={labels.includes('UNCHANGED') ? 'Unchanged' : undefined} title={labels.length === 0 ? 'No comparable business identity; see validation warnings' : undefined}>—</span>}
+                    <div className="flex flex-col items-start gap-1.5">
+                      <div className="flex flex-wrap gap-1">
+                        {visibleLabels.length > 0 ? visibleLabels.map(label => <span key={label} className={`inline-flex px-1.5 py-0.5 rounded border text-[10px] font-mono font-bold whitespace-nowrap ${comparisonClass(label)}`}>{label}</span>) : <span aria-label={labels.includes('UNCHANGED') ? 'Unchanged' : undefined} title={labels.length === 0 ? 'No comparable business identity; see validation warnings' : undefined}>—</span>}
+                      </div>
+                      <ComparisonFieldDetails finding={row.finding} />
                     </div>
                   </td>
                 )}
@@ -191,7 +201,8 @@ export const RoutingDetailedTable: React.FC<RoutingDetailedTableProps> = ({
                     currentQualityOverride={getRoutingDataQuality(current, currentRates)}
                   /></td>
                 )}
-                <td className="p-2.5 text-right tabular-nums">{formatNullable(current?.manning ?? reference?.manning ?? null, value => formatNumber(value, 1))}</td>
+                <td className="p-2.5 text-right text-slate-500 tabular-nums">{formatNullable(reference?.manning ?? null, value => formatNumber(value, 1))}</td>
+                <td className="p-2.5 text-right font-bold text-slate-900 tabular-nums">{formatNullable(current?.manning ?? null, value => formatNumber(value, 1))}</td>
                 <td className="p-2.5 text-right text-slate-500 tabular-nums">{formatNullable(reference?.capacity ?? null, value => formatNumber(value, 0))}</td>
                 <td className="p-2.5 text-right font-bold text-slate-900 tabular-nums">{formatNullable(current?.capacity ?? null, value => formatNumber(value, 0))}</td>
                 <td className="p-2.5 text-right text-slate-500 tabular-nums">{formatNullable(reference?.yield ?? null, value => formatPercent(value, 1))}</td>
@@ -217,7 +228,7 @@ export const RoutingDetailedTable: React.FC<RoutingDetailedTableProps> = ({
         </tbody>
         <tfoot>
           <tr className="bg-slate-100/90 border-t-2 border-slate-300/80 font-bold text-xs">
-            <td colSpan={showComparison ? 17 : 14} className="p-2.5 text-right text-slate-700 uppercase tracking-wider text-[10px] font-sans">
+            <td colSpan={showComparison ? 19 : 16} className="p-2.5 text-right text-slate-700 uppercase tracking-wider text-[10px] font-sans">
               {isOnlyComparisonStatus(viewMode, 'CHANGED') ? 'Visible Changed Conversion (THB/pc)' : viewMode.length < 4 ? 'Visible Conversion Cost (THB/pc)' : 'Total Conversion Cost (THB/pc)'}
             </td>
             <td className="p-2.5 text-right font-mono text-slate-800 tabular-nums">{formatNullable(referenceTotal, value => formatNumber(value, 4))}</td>
