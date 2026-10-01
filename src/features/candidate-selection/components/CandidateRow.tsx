@@ -6,11 +6,10 @@ interface CandidateRowProps {
   onToggleControllable: (candidateKey: string, nextValue: boolean) => void
 }
 
-function statusBadgeClass(status: PrioritizationCandidate['status']): string {
-  if (status === 'CHANGED') return 'text-amber-700 bg-amber-50 border-amber-200'
-  if (status === 'ADDED') return 'text-sky-700 bg-sky-50 border-sky-200'
-  if (status === 'REMOVED') return 'text-rose-700 bg-rose-50 border-rose-200'
-  return 'text-slate-700 bg-slate-100 border-slate-200'
+const STATUS_STYLES: Record<PrioritizationCandidate['status'], { text: string; marker: string }> = {
+  CHANGED: { text: 'text-amber-800', marker: 'bg-amber-700' },
+  ADDED: { text: 'text-blue-800', marker: 'bg-blue-700' },
+  REMOVED: { text: 'text-rose-800', marker: 'bg-rose-700' }
 }
 
 function displayChangeValue(value: unknown): string {
@@ -25,83 +24,80 @@ function displayChangeValue(value: unknown): string {
   }
 }
 
+function hasRedundantFactor(candidate: PrioritizationCandidate): boolean {
+  const factor = candidate.factor?.trim().toLocaleLowerCase()
+  return (candidate.status === 'ADDED' && (factor === 'item added' || factor === 'added'))
+    || (candidate.status === 'REMOVED' && (factor === 'item removed' || factor === 'removed'))
+}
+
 export const CandidateRow: React.FC<CandidateRowProps> = ({
   candidate,
   onToggleControllable
 }) => {
+  const statusStyle = STATUS_STYLES[candidate.status]
+  const showFactor = Boolean(candidate.factor) && !hasRedundantFactor(candidate)
+
   return (
-    <tr className={`transition-colors text-xs font-mono ${!candidate.controllable ? 'bg-slate-50 text-slate-600' : 'hover:bg-slate-50/70'}`}>
-      {/* Rank */}
-      <td className="px-3 py-3 text-center w-12">
-        <span className="mx-auto flex h-6 w-6 items-center justify-center rounded-full bg-slate-800 text-xs font-semibold tabular-nums text-white">
-          {candidate.rank}
-        </span>
+    <tr className={`transition-colors ${!candidate.controllable ? 'bg-slate-50 text-slate-600' : 'hover:bg-slate-50/70'}`}>
+      <td className="w-14 px-3 py-3 text-center align-top">
+        <span className="font-mono text-xs font-medium tabular-nums text-slate-500">{String(candidate.rank).padStart(2, '0')}</span>
       </td>
 
-      {/* Candidate / Finding */}
-      <td className="px-3 py-3">
-        <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-          <span className="font-semibold text-sm text-slate-900 font-sans">
-            {candidate.candidateName}
-          </span>
-          <span className="rounded-sm border border-slate-200 bg-slate-100 px-2 py-1 text-xs text-slate-700">
-            {candidate.category}
-          </span>
-          {candidate.factor && (
-            <span className="text-xs text-slate-600 font-sans">
-              · {candidate.factor}
-            </span>
-          )}
+      <td className="min-w-72 px-4 py-3 align-top">
+        <div className="min-w-0">
+          <div className="mb-1 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs">
+            <span className="font-medium uppercase tracking-wide text-slate-500">{candidate.category}</span>
+            {showFactor && <span className="text-slate-500">{candidate.factor}</span>}
+          </div>
+          <p className="break-words text-sm font-medium leading-5 text-slate-950">{candidate.candidateName}</p>
           {candidate.changeDetails && candidate.changeDetails.length > 0 && (
-            <div className="basis-full break-words text-xs font-sans text-slate-600">
-              <span className="font-medium">Changed fields: </span>
-              {candidate.changeDetails.map(detail => (
-                <span key={detail.field} className="mr-2">
-                  {detail.field}: {displayChangeValue(detail.reference)} → {displayChangeValue(detail.current)}
+            <p className="mt-1.5 break-words text-xs leading-5 text-slate-600">
+              <span className="mr-1 font-medium text-slate-700">Changed fields:</span>
+              {candidate.changeDetails.map((detail, index) => (
+                <span key={detail.field}>
+                  {index > 0 && <span aria-hidden="true" className="mx-1.5 text-slate-400">·</span>}
+                  <span className="font-medium">{detail.field}:</span>{' '}
+                  <span className="font-mono tabular-nums">{displayChangeValue(detail.reference)}</span>{' '}
+                  <span aria-hidden="true" className="text-slate-400">→</span><span className="sr-only">to</span>{' '}
+                  <span className="font-mono tabular-nums">{displayChangeValue(detail.current)}</span>
                 </span>
               ))}
-            </div>
+            </p>
           )}
         </div>
       </td>
 
-      {/* Status */}
-      <td className="px-3 py-3 text-center">
-        <span className={`inline-flex min-h-7 items-center rounded-sm border px-2 py-1 text-xs font-semibold ${statusBadgeClass(candidate.status)}`}>
+      <td className="px-3 py-3 text-center align-top">
+        <span className={`inline-flex min-h-7 items-center gap-1.5 whitespace-nowrap text-xs font-semibold ${statusStyle.text}`}>
+          <span aria-hidden="true" className={`h-1.5 w-1.5 rounded-full ${statusStyle.marker}`} />
           {candidate.status}
         </span>
       </td>
 
-      {/* Reference Cost */}
-      <td className="px-3 py-3 text-right tabular-nums text-slate-600">
+      <td className="px-3 py-3 text-right align-top font-mono text-sm tabular-nums text-slate-600">
         {candidate.referenceCost === null ? '—' : formatNumber(candidate.referenceCost, 4)}
       </td>
 
-      {/* Current Cost */}
-      <td className="px-3 py-3 text-right tabular-nums text-slate-900 font-medium">
+      <td className="px-3 py-3 text-right align-top font-mono text-sm font-medium tabular-nums text-slate-950">
         {candidate.currentCost === null ? '—' : formatNumber(candidate.currentCost, 4)}
       </td>
 
-      {/* Gap */}
-      <td className={`px-3 py-3 text-right tabular-nums font-semibold ${
+      <td className={`px-3 py-3 text-right align-top font-mono text-sm font-semibold tabular-nums ${
         candidate.costGap === null ? 'text-slate-400' : candidate.costGap > 0 ? 'text-rose-700' : candidate.costGap < 0 ? 'text-emerald-700' : 'text-slate-500'
       }`}>
         {candidate.costGap === null ? '—' : formatVariance(candidate.costGap, 4)}
       </td>
 
-      {/* Controllable */}
-      <td className="px-3 py-3 text-center">
-        <label className="inline-flex min-h-9 items-center justify-center gap-2 rounded-sm px-2 cursor-pointer select-none hover:bg-slate-50">
+      <td className="px-3 py-3 text-center align-top">
+        <label className="inline-flex min-h-9 items-center justify-center gap-2 px-2 select-none cursor-pointer">
           <input
             type="checkbox"
             checked={candidate.controllable}
             onChange={e => onToggleControllable(candidate.candidateKey, e.target.checked)}
-            className="h-5 w-5 rounded border-slate-300 accent-slate-900 cursor-pointer focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700"
-            aria-label={`Controllable flag for ${candidate.candidateName}`}
+            className="h-5 w-5 rounded-sm border-slate-400 accent-slate-900 cursor-pointer focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700"
+            aria-label={`Mark ${candidate.candidateName} as controllable`}
           />
-          <span className="text-xs font-sans font-medium text-slate-700">
-            {candidate.controllable ? 'Yes' : 'No'}
-          </span>
+          <span className="text-xs font-medium text-slate-700">{candidate.controllable ? 'Yes' : 'No'}</span>
         </label>
       </td>
     </tr>
