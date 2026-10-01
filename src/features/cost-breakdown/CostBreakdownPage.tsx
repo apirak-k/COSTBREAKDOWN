@@ -3,8 +3,6 @@ import { useAppStore } from '../../state'
 import { ChevronDown, ChevronRight } from 'lucide-react'
 
 // Sub-components
-import { ExecutiveKPICards } from './components/ExecutiveKPICards'
-import { VarianceTreeCard } from './components/VarianceTreeCard'
 import { BOMDetailedTable } from './components/BOMDetailedTable'
 import { RoutingDetailedTable } from './components/RoutingDetailedTable'
 import { WorkCenterComparisonTable } from './components/WorkCenterComparisonTable'
@@ -46,17 +44,14 @@ export const CostBreakdownPage: React.FC = () => {
         description="Compare Reference and Current cost, then review the record-level changes that explain the gap."
       />
 
-      {/* 1. Top Executive KPIs */}
-      {exactSnapshotCalculation ? (
-        <ExecutiveKPICards comparison={snapshotComparison} />
-      ) : (
+      {!exactSnapshotCalculation && (
         <div className="rounded-md border border-amber-200 bg-amber-50 px-4 py-3 text-sm leading-6 text-amber-950" role="status">
           <strong className="font-mono">Snapshot cost summary is on hold.</strong>{' '}
           Snapshot calculation has missing, invalid, or reviewable inputs. The comparison card below keeps the affected values as unavailable and lists the source warnings.
         </div>
       )}
 
-      {/* 2. Independent Reference vs Current comparison */}
+      {/* One canonical summary and cost element bridge */}
       <SnapshotComparisonCard comparison={snapshotComparison} />
 
       <section className="flex flex-col gap-3 rounded-md border border-slate-200 bg-white px-4 py-3 sm:flex-row sm:items-center sm:justify-between" aria-labelledby="comparison-view-title">
@@ -92,10 +87,7 @@ export const CostBreakdownPage: React.FC = () => {
         </div>
       </section>
 
-      {/* 3. Variance Tree Decomposition */}
-      {exactSnapshotCalculation && <VarianceTreeCard comparison={snapshotComparison} />}
-
-      {/* 4. Detailed Breakdown Tables Panel */}
+      {/* Record-level detail */}
       <section className="overflow-hidden rounded-md border border-slate-200 bg-white" aria-label="Itemized cost breakdown">
         {/* Section Accordion Header */}
         <div className="flex flex-col gap-3 border-b border-slate-200 bg-slate-50 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">

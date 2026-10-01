@@ -7,8 +7,8 @@
   line-height: 1.5;
   font-weight: 400;
   color-scheme: light;
-  background-color: #f1f5f9;
-  color: #0f172a;
+  background-color: #f3f0e8;
+  color: #1f2c29;
 }
 
 body {
@@ -22,8 +22,13 @@ body {
 }
 
 :focus-visible:not(:disabled) {
-  outline: 2px solid #1d4ed8;
+  outline: 2px solid #356a55;
   outline-offset: 2px;
+}
+
+::selection {
+  color: #151f1d;
+  background: #dcebe2;
 }
 
 /* Tabular numbers for financial and engineering precision */
@@ -37,14 +42,14 @@ body {
   height: 6px;
 }
 ::-webkit-scrollbar-track {
-  background: #f1f5f9;
+  background: #f3f0e8;
 }
 ::-webkit-scrollbar-thumb {
-  background: #cbd5e1;
+  background: #cec7ba;
   border-radius: 3px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: #94a3b8;
+  background: #a29b8f;
 }
 
 @media (prefers-reduced-motion: reduce) {
