@@ -1,11 +1,23 @@
 import React, { ReactNode } from 'react'
 import { Navbar } from './Navbar'
+import { useAppStore } from '../../state'
+import { formatVariance } from '../../core'
 
 interface AppLayoutProps {
   children: ReactNode
 }
 
 export const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
+  const { snapshotPair, snapshotComparison, masterDataHandoff } = useAppStore()
+  const totalGap = snapshotComparison.totalGap
+  const gapTextClass = totalGap === null
+    ? 'text-slate-400'
+    : totalGap > 0
+      ? 'text-rose-300'
+      : totalGap < 0
+        ? 'text-emerald-300'
+        : 'text-slate-200'
+
   return (
     <div className="min-h-screen min-h-dvh bg-slate-100/70 text-slate-900 flex flex-col font-sans text-xs antialiased">
       <a
@@ -22,6 +34,38 @@ export const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
       >
         {children}
       </main>
+      <footer aria-label="Workspace data status" className="mt-auto border-t border-slate-800 bg-slate-900 px-3 py-2.5 font-mono text-[10px] text-slate-400 sm:px-4 lg:px-6">
+        <div className="mx-auto flex w-full max-w-7xl flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+            <span className="font-bold tracking-wide text-slate-200">WORKSPACE</span>
+            <span className="hidden text-slate-700 sm:inline" aria-hidden="true">|</span>
+            <span role="group" aria-label={`Reference dataset: ${snapshotPair.reference.bom.length} BOM items, ${snapshotPair.reference.routing.length} routing operations, ${snapshotPair.reference.rates.length} work centers`}>
+              <span className="mr-1 font-bold text-slate-300">REF</span>
+              BOM {snapshotPair.reference.bom.length} · RTG {snapshotPair.reference.routing.length} · WC {snapshotPair.reference.rates.length}
+            </span>
+            <span className="hidden text-slate-700 sm:inline" aria-hidden="true">|</span>
+            <span role="group" aria-label={`Current dataset: ${snapshotPair.current.bom.length} BOM items, ${snapshotPair.current.routing.length} routing operations, ${snapshotPair.current.rates.length} work centers`}>
+              <span className="mr-1 font-bold text-slate-300">CUR</span>
+              BOM {snapshotPair.current.bom.length} · RTG {snapshotPair.current.routing.length} · WC {snapshotPair.current.rates.length}
+            </span>
+          </div>
+          <div role="group" aria-label="Dataset preparation and comparison state" className="flex flex-wrap items-center gap-x-4 gap-y-1">
+            <span className="flex items-center gap-2">
+              <span aria-hidden="true" className={`h-1.5 w-1.5 rounded-full ${masterDataHandoff.datasetsPrepared ? 'bg-emerald-400' : 'bg-amber-400'}`} />
+              <span className={`font-semibold tracking-wide ${masterDataHandoff.datasetsPrepared ? 'text-emerald-300' : 'text-amber-300'}`}>
+                {masterDataHandoff.datasetsPrepared ? 'BOTH DATASETS PREPARED' : 'DATASET PREPARATION INCOMPLETE'}
+              </span>
+            </span>
+            <span className="whitespace-nowrap">
+              <span className="mr-1 font-bold text-slate-300">GAP</span>
+              <span className={`font-semibold tabular-nums ${gapTextClass}`}>
+                {totalGap === null ? '—' : formatVariance(totalGap, 4)}
+              </span>
+              <span className="ml-1 text-slate-500">THB/pc</span>
+            </span>
+          </div>
+        </div>
+      </footer>
     </div>
   )
 }

@@ -9,14 +9,9 @@ const navItems = [
 ] as const
 
 export const Navbar: React.FC = () => {
-  const { activeTab, setActiveTab, activeSession } = useAppStore()
-  const productCode = activeSession.product.productCode || 'NO PRODUCT'
-  const sessionStatus = activeSession.status || 'active'
-  const statusClass = sessionStatus === 'draft'
-    ? 'border-amber-800/60 bg-amber-950/40 text-amber-300'
-    : sessionStatus === 'active'
-      ? 'border-slate-600 bg-slate-900 text-slate-300'
-      : 'border-slate-700 bg-slate-900 text-slate-400'
+  const { activeTab, setActiveTab, snapshotPair } = useAppStore()
+  const referenceCode = snapshotPair.reference.product.productCode || 'NO CODE'
+  const currentCode = snapshotPair.current.product.productCode || 'NO CODE'
 
   return (
     <header className="sticky top-0 z-50 select-none border-b border-slate-800 bg-slate-900 text-white shadow-xs">
@@ -32,13 +27,16 @@ export const Navbar: React.FC = () => {
             </div>
             <div
               role="group"
-              aria-label={`Product ${productCode}, ${sessionStatus}`}
-              className="hidden min-w-0 items-center gap-1.5 border border-slate-700 bg-slate-800 px-2 py-1 lg:flex"
+              aria-label={`Reference ${referenceCode}; Current ${currentCode}`}
+              className="hidden min-w-0 items-center gap-1.5 font-mono text-[9px] xl:flex"
             >
-              <span className="font-mono text-[9px] font-semibold uppercase tracking-wide text-slate-400">Product:</span>
-              <span className="max-w-40 truncate font-mono text-[11px] font-bold text-slate-100">{productCode}</span>
-              <span className={`border px-1 py-0.5 font-mono text-[8px] font-bold uppercase tracking-wide ${statusClass}`}>
-                {sessionStatus}
+              <span className="border border-slate-700 bg-slate-800 px-2 py-1 text-slate-300">
+                <span className="mr-1 text-slate-500">REF</span>
+                <span className="max-w-28 truncate font-semibold text-slate-100">{referenceCode}</span>
+              </span>
+              <span className="border border-slate-700 bg-slate-800 px-2 py-1 text-slate-300">
+                <span className="mr-1 text-slate-500">CUR</span>
+                <span className="max-w-28 truncate font-semibold text-slate-100">{currentCode}</span>
               </span>
             </div>
           </div>
