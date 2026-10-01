@@ -12,31 +12,43 @@ export const CandidateSelector: React.FC<CandidateSelectorProps> = ({
   selectedCandidateKey,
   onSelectCandidate
 }) => (
-  <section className="rounded-md border border-slate-200 bg-white p-4" aria-label="Candidate selection">
-    <label
-      htmlFor="rca-candidate-selector"
-      className="block text-sm font-semibold text-slate-800"
-    >
-      Select candidate
-    </label>
-    <select
-      id="rca-candidate-selector"
-      value={selectedCandidateKey ?? ''}
-      onChange={event => onSelectCandidate(event.target.value || null)}
-      disabled={candidates.length === 0}
-      className="mt-2 min-h-10 w-full rounded-sm border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 focus:border-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-200 disabled:cursor-not-allowed disabled:bg-slate-100"
-    >
-      <option value="" disabled>
-        {candidates.length === 0 ? 'No candidates available' : 'Choose a candidate'}
-      </option>
-      {candidates.map(candidate => (
-        <option key={candidate.candidateKey} value={candidate.candidateKey}>
-          #{candidate.rank} · {candidate.candidateName} · {candidate.status}
+  <section
+    aria-labelledby="rca-candidate-heading"
+    className="grid grid-cols-1 items-end gap-3 border-y-2 border-slate-900 bg-slate-50 px-4 py-4 md:grid-cols-[minmax(0,1fr)_minmax(18rem,1.2fr)] md:gap-6"
+  >
+    <div>
+      <p className="font-mono text-xs font-medium uppercase tracking-wide text-slate-600">01 / Candidate</p>
+      <h2 id="rca-candidate-heading" className="mt-1 text-base font-semibold text-slate-900">
+        Choose the RCA target
+      </h2>
+      <p id="rca-candidate-guidance" className="mt-1 text-sm leading-5 text-slate-600">
+        {candidates.length === 0
+          ? 'The candidate pool is empty. Add findings in Candidate Prioritization first.'
+          : 'Ranking is context only. No candidate is selected until you choose one.'}
+      </p>
+    </div>
+
+    <div>
+      <label htmlFor="rca-candidate-selector" className="mb-1 block text-xs font-semibold text-slate-800">
+        Candidate
+      </label>
+      <select
+        id="rca-candidate-selector"
+        aria-describedby="rca-candidate-guidance"
+        value={selectedCandidateKey ?? ''}
+        onChange={event => onSelectCandidate(event.target.value || null)}
+        disabled={candidates.length === 0}
+        className="min-h-11 w-full rounded-sm border border-slate-400 bg-white px-3 py-2 text-sm text-slate-900 focus:border-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-200 disabled:cursor-not-allowed disabled:bg-slate-100"
+      >
+        <option value="" disabled>
+          {candidates.length === 0 ? 'No candidates available' : 'Choose a candidate'}
         </option>
-      ))}
-    </select>
-    <p className="mt-2 text-sm text-slate-600">
-      Choose the RCA target here. Ranking is context only and does not preselect a candidate.
-    </p>
+        {candidates.map(candidate => (
+          <option key={candidate.candidateKey} value={candidate.candidateKey}>
+            #{candidate.rank} · {candidate.candidateName} · {candidate.status}
+          </option>
+        ))}
+      </select>
+    </div>
   </section>
 )

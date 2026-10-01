@@ -20,7 +20,7 @@ const COST_ROWS = [
   { key: 'material', label: 'Material' },
   { key: 'labor', label: 'Labor' },
   { key: 'burden', label: 'Burden' },
-  { key: 'total', label: 'Total' }
+  { key: 'total', label: 'Standard cost / pc' }
 ] as const
 
 const ECONOMIC_INPUTS = [
@@ -30,7 +30,6 @@ const ECONOMIC_INPUTS = [
 ] as const
 
 const ECONOMIC_ROWS = [
-  { key: 'grossSavingPerPiece', label: 'Gross Saving / pc', unit: 'THB/pc' },
   { key: 'fixedCostEquivalentPerPiece', label: 'Fixed Cost Equivalent / pc', unit: 'THB/pc' },
   { key: 'netBenefitPerPiece', label: 'Net Benefit / pc', unit: 'THB/pc' },
   { key: 'totalGrossSaving', label: 'Total Gross Saving', unit: 'THB' },
@@ -39,13 +38,19 @@ const ECONOMIC_ROWS = [
 ] as const
 
 const STATUS_CLASS: Record<string, string> = {
-  complete: 'border-emerald-200 bg-emerald-50 text-emerald-800',
-  estimated: 'border-amber-200 bg-amber-50 text-amber-800',
-  missing: 'border-rose-200 bg-rose-50 text-rose-800'
+  complete: 'text-emerald-800',
+  estimated: 'text-amber-800',
+  missing: 'text-rose-800'
 }
 
 function formatCost(value: number | null): string {
   return value === null ? 'N/A' : value.toLocaleString(undefined, { maximumFractionDigits: 4 })
+}
+
+function formatDifference(current: number | null, scenario: number | null): string {
+  if (current === null || scenario === null) return 'N/A'
+  const difference = scenario - current
+  return difference > 0 ? `+${formatCost(difference)}` : formatCost(difference)
 }
 
 export const ScenarioCard: React.FC<ScenarioCardProps> = ({
@@ -60,7 +65,6 @@ export const ScenarioCard: React.FC<ScenarioCardProps> = ({
   onUpdateEconomics
 }) => {
   const warningSections = [
-    { label: 'Current cost', messages: result.currentCost.warnings },
     { label: 'Scenario cost', messages: result.scenarioCost.warnings },
     { label: 'Unsupported or ambiguous overrides', messages: result.overrideWarnings },
     { label: 'Invalid input', messages: inputWarnings }
@@ -74,92 +78,85 @@ export const ScenarioCard: React.FC<ScenarioCardProps> = ({
     })
   })
   const uniqueWarnings = Array.from(warningSources, ([message, sources]) => ({ message, sources }))
-  const warningCount = uniqueWarnings.length
   const economicsWarnings = [...new Set([...economicsInputWarnings, ...economics.warnings])]
   const labelId = `scenario-label-${scenario.letter}`
+  const inputGuidanceId = `scenario-${scenario.letter}-input-guidance`
+  const hasEconomicsInputs = Object.values(scenario.economicsInputs).some(value => value.trim() !== '')
 
   return (
-    <article className="flex min-w-0 flex-col overflow-hidden rounded-md border border-slate-200 bg-white">
-      <header className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-200 bg-slate-50 px-4 py-3">
-        <h3 className="text-sm font-semibold text-slate-900">Scenario {scenario.letter}</h3>
-        <span className="inline-flex min-h-8 items-center rounded-sm border border-slate-200 bg-white px-2.5 text-xs font-medium text-slate-700">
-          Draft
-        </span>
+    <article className="flex min-w-0 flex-col border border-slate-300 border-t-2 border-t-slate-900 bg-white">
+      <header className="border-b border-slate-300 px-4 py-3">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <h3 className="text-sm font-semibold text-slate-900">Scenario {scenario.letter}</h3>
+          <span className={`text-xs font-semibold capitalize ${STATUS_CLASS[result.scenarioCost.status] ?? STATUS_CLASS.missing}`}>
+            Calculation: {result.scenarioCost.status}
+          </span>
+        </div>
+        <label htmlFor={labelId} className="mt-3 block text-xs font-medium text-slate-700">
+          Scenario name
+        </label>
+        <input
+          id={labelId}
+          type="text"
+          value={scenario.label}
+          onChange={event => onUpdateLabel(event.target.value)}
+          placeholder={`Scenario ${scenario.letter}`}
+          className="mt-1 min-h-11 w-full rounded-sm border border-slate-400 bg-white px-3 py-2 text-sm text-slate-900 focus:border-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-200"
+        />
       </header>
 
       <div className="flex flex-1 flex-col gap-4 p-4">
-        <div>
-          <label htmlFor={labelId} className="mb-1 block text-xs font-medium text-slate-700">
-            Scenario label
-          </label>
-          <input
-            id={labelId}
-            type="text"
-            value={scenario.label}
-            onChange={event => onUpdateLabel(event.target.value)}
-            placeholder={`Scenario ${scenario.letter}`}
-            className="min-h-10 w-full rounded-sm border border-slate-300 px-3 py-2 text-sm text-slate-900 focus:border-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-200"
-          />
-        </div>
+        {inputDefinitions.length > 0 && (
+          <fieldset aria-describedby={inputGuidanceId} className="space-y-3">
+            <legend className="text-sm font-semibold text-slate-800">Parameter overrides</legend>
+            <p id={inputGuidanceId} className="text-xs leading-5 text-slate-600">
+              Leave a field blank to keep its Current value.
+            </p>
+            <div className="space-y-3">
+              {inputDefinitions.map(definition => (
+                <ScenarioInputField
+                  key={definition.key}
+                  definition={definition}
+                  scenarioLetter={scenario.letter}
+                  value={scenario.inputValues[definition.key]}
+                  onChange={onUpdateInput}
+                />
+              ))}
+            </div>
+          </fieldset>
+        )}
 
-        <section aria-labelledby={`${labelId}-inputs-heading`} className="space-y-3">
-          <h4 id={`${labelId}-inputs-heading`} className="text-sm font-semibold text-slate-800">
-            Scenario inputs
-          </h4>
-          {inputDefinitions.length > 0 ? (
-            inputDefinitions.map(definition => (
-              <ScenarioInputField
-                key={definition.key}
-                definition={definition}
-                scenarioLetter={scenario.letter}
-                value={scenario.inputValues[definition.key]}
-                onChange={onUpdateInput}
-              />
-            ))
-          ) : (
-            <p className="text-xs text-slate-500">No supported scenario inputs are available.</p>
-          )}
-        </section>
-
-        <section aria-labelledby={`${labelId}-costs-heading`} className="border-t border-slate-200 pt-3">
+        <section aria-labelledby={`${labelId}-costs-heading`} className="border-y border-slate-300 py-3">
           <div className="mb-2 flex flex-wrap items-start justify-between gap-2">
             <div>
               <h4 id={`${labelId}-costs-heading`} className="text-sm font-semibold text-slate-800">
-                Standard cost per piece
+                Standard cost by element
               </h4>
-              <p className="mt-1 text-xs text-slate-600">THB/pc</p>
-            </div>
-            <div className="flex flex-wrap gap-1.5 text-xs">
-              <span className={`min-h-8 rounded-sm border px-2 py-1 ${STATUS_CLASS[result.currentCost.status] ?? STATUS_CLASS.missing}`}>
-                Current: {result.currentCost.status}
-              </span>
-              <span className={`min-h-8 rounded-sm border px-2 py-1 ${STATUS_CLASS[result.scenarioCost.status] ?? STATUS_CLASS.missing}`}>
-                Scenario: {result.scenarioCost.status}
-              </span>
+              <p className="mt-0.5 text-xs text-slate-600">THB/pc</p>
             </div>
           </div>
 
           <div className="overflow-x-auto">
             <table className="w-full text-xs">
               <caption className="sr-only">
-                Current and Scenario {scenario.letter} material, labor, burden, and total cost per piece in Thai baht
+                Scenario {scenario.letter} material, labor, burden, and standard cost per piece, with cost change from Current
               </caption>
               <thead>
-                <tr className="border-b border-slate-200 bg-slate-50 text-left text-xs font-semibold text-slate-700">
-                  <th scope="col" className="py-2.5 pr-2">Cost element</th>
-                  <th scope="col" className="px-2 py-2.5 text-right">Current</th>
-                  <th scope="col" className="py-2.5 pl-2 text-right">Scenario</th>
+                <tr className="border-b border-slate-300 text-left font-semibold text-slate-700">
+                  <th scope="col" className="py-2 pr-2">Cost element</th>
+                  <th scope="col" className="px-2 py-2 text-right">Scenario</th>
+                  <th scope="col" className="py-2 pl-2 text-right">Change</th>
                 </tr>
               </thead>
               <tbody>
                 {COST_ROWS.map(({ key, label }) => (
-                  <tr key={key} className={key === 'total' ? 'border-t border-slate-200 font-semibold text-slate-900' : 'text-slate-700'}>
+                  <tr key={key} className={key === 'total' ? 'border-t border-slate-300 font-semibold text-slate-900' : 'text-slate-700'}>
                     <th scope="row" className="py-2 pr-2 text-left font-medium">{label}</th>
                     <td className="px-2 py-2 text-right font-mono tabular-nums">
-                      {formatCost(result.currentCost[key])}
+                      {formatCost(result.scenarioCost[key])}
                     </td>
                     <td className="py-2 pl-2 text-right font-mono tabular-nums">
-                      {formatCost(result.scenarioCost[key])}
+                      {formatDifference(result.currentCost[key], result.scenarioCost[key])}
                     </td>
                   </tr>
                 ))}
@@ -168,12 +165,20 @@ export const ScenarioCard: React.FC<ScenarioCardProps> = ({
           </div>
         </section>
 
-        <section aria-label={`Improvement economics for Scenario ${scenario.letter}`} className="border-t border-slate-200 pt-3">
-          <h4 className="text-sm font-semibold text-slate-800">Improvement economics</h4>
-          <p className="mt-1 text-xs text-slate-600">
-            These assumptions do not change Current or Scenario Standard Cost.
-          </p>
-          <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-3">
+        <section aria-label={`Improvement economics for Scenario ${scenario.letter}`} className="space-y-3">
+          <div>
+            <h4 className="text-sm font-semibold text-slate-800">Improvement economics</h4>
+            <div className="mt-2 flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1 border-b border-slate-200 pb-2">
+              <span className="text-xs font-medium text-slate-700">Gross Saving / pc</span>
+              <span className="font-mono text-sm font-semibold tabular-nums text-slate-900">
+                {economics.grossSavingPerPiece === null
+                  ? 'N/A'
+                  : `${formatCost(economics.grossSavingPerPiece)} THB/pc`}
+              </span>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
             {ECONOMIC_INPUTS.map(({ key, label, unit }) => {
               const inputId = `scenario-${scenario.letter}-economics-${key}`
               return (
@@ -186,43 +191,49 @@ export const ScenarioCard: React.FC<ScenarioCardProps> = ({
                     inputMode="decimal"
                     value={scenario.economicsInputs[key]}
                     onChange={event => onUpdateEconomics(key, event.target.value)}
-                    className="mt-1 min-h-10 w-full rounded-sm border border-slate-300 px-3 py-2 font-mono text-sm tabular-nums text-slate-900 focus:border-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-200"
+                    className="mt-1 min-h-11 w-full rounded-sm border border-slate-400 bg-white px-3 py-2 font-mono text-sm tabular-nums text-slate-900 focus:border-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-200"
                   />
                 </label>
               )
             })}
           </div>
-          <div className="mt-3 overflow-x-auto rounded-sm border border-slate-200">
-            <table className="w-full text-xs">
-              <caption className="sr-only">Scenario {scenario.letter} improvement economics</caption>
-              <tbody>
-                {ECONOMIC_ROWS.map(({ key, label, unit }) => (
-                  <tr key={key} className="border-b border-slate-100 last:border-0">
-                    <th scope="row" className="px-3 py-2.5 text-left text-xs font-medium text-slate-700">{label}</th>
-                    <td className="px-3 py-2.5 text-right font-mono text-xs tabular-nums text-slate-900">
-                      {economics[key] === null ? 'N/A' : `${formatCost(economics[key])} ${unit}`}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+
+          {hasEconomicsInputs ? (
+            <div className="overflow-x-auto border-t border-slate-200">
+              <table className="w-full text-xs">
+                <caption className="sr-only">Scenario {scenario.letter} improvement economics</caption>
+                <tbody>
+                  {ECONOMIC_ROWS.map(({ key, label, unit }) => (
+                    <tr key={key} className="border-b border-slate-100 last:border-0">
+                      <th scope="row" className="py-2.5 pr-2 text-left font-medium text-slate-700">{label}</th>
+                      <td className="py-2.5 pl-2 text-right font-mono tabular-nums text-slate-900">
+                        {economics[key] === null ? 'N/A' : `${formatCost(economics[key])} ${unit}`}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            <p className="text-xs leading-5 text-slate-600">
+              Add investment, added cost, and volume assumptions to see the net benefit and total amounts.
+            </p>
+          )}
+
           {economicsWarnings.length > 0 && (
-            <ul role="status" className="mt-2 list-disc space-y-1 pl-5 text-sm text-amber-900">
+            <ul role="status" className="list-disc space-y-1 pl-5 text-sm text-amber-900">
               {economicsWarnings.map(warning => <li key={warning}>{warning}</li>)}
             </ul>
           )}
         </section>
 
-        <section aria-label={`Warnings for Scenario ${scenario.letter}`} className="mt-auto border-t border-slate-200 pt-3">
-          {warningCount === 0 ? (
-            <p role="status" className="text-sm text-slate-600">No calculation or override warnings.</p>
-          ) : (
+        {uniqueWarnings.length > 0 && (
+          <section aria-label={`Warnings for Scenario ${scenario.letter}`} className="mt-auto border-t border-slate-300 pt-3">
             <details>
-              <summary className="min-h-9 cursor-pointer rounded-sm py-1 text-sm font-semibold text-amber-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-amber-500">
-                Warnings ({warningCount})
+              <summary className="min-h-9 cursor-pointer py-1 text-sm font-semibold text-amber-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-amber-500">
+                Scenario warnings ({uniqueWarnings.length})
               </summary>
-              <div className="mt-2 space-y-3 rounded-sm border border-amber-200 bg-amber-50 p-3 text-sm text-amber-950">
+              <div className="mt-2 border-l-2 border-amber-600 bg-amber-50 p-3 text-sm text-amber-950">
                 <ul className="list-disc space-y-1 pl-5">
                   {uniqueWarnings.map(({ message, sources }) => (
                     <li key={message}>
@@ -232,8 +243,8 @@ export const ScenarioCard: React.FC<ScenarioCardProps> = ({
                 </ul>
               </div>
             </details>
-          )}
-        </section>
+          </section>
+        )}
       </div>
     </article>
   )

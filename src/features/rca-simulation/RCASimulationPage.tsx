@@ -114,36 +114,25 @@ export const RCASimulationPage: React.FC<RCASimulationPageProps> = ({ state, upd
   }
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-6">
       <PageHeading
         title="RCA & Simulation"
-        description="Select a candidate, add optional root-cause notes, and compare independent scenarios based on Current."
+        description="Record the cause and response, then compare cost scenarios for a candidate you choose."
       />
 
-      <div role="status" className="rounded-md border-l-4 border-l-slate-500 border-y border-r border-slate-200 bg-white px-4 py-3 text-sm leading-6 text-slate-700">
-        Scenario drafts use the shared Standard Cost engine. Blank inputs keep Current values; scenario edits do not change Current, Reference, or Master Data.
-      </div>
+      <aside aria-label="Simulation basis" className="flex flex-wrap items-baseline gap-x-3 gap-y-1 border-l-2 border-blue-700 bg-slate-50 px-4 py-3">
+        <span className="font-mono text-xs font-semibold uppercase tracking-wide text-slate-600">Simulation basis</span>
+        <span className="font-semibold text-slate-900">Current</span>
+        <p className="min-w-0 flex-1 text-sm leading-5 text-slate-700">
+          A, B, and C are independent predictions through the shared Standard Cost engine. Edits never change Current, Reference, or Master Data.
+        </p>
+      </aside>
 
       <CandidateSelector
         candidates={candidates}
         selectedCandidateKey={state.selectedCandidateKey}
         onSelectCandidate={selectCandidate}
       />
-
-      {candidates.length === 0 && (
-        <div role="status" className="rounded-md border border-amber-200 bg-amber-50 p-5 text-sm text-amber-950">
-          <h2 className="font-semibold text-sm">No candidates available</h2>
-          <p className="mt-1 text-sm leading-6">
-            Candidate Prioritization has no findings to select. RCA notes and scenarios become available when the pool contains a candidate.
-          </p>
-        </div>
-      )}
-
-      {candidates.length > 0 && !selectedCandidate && (
-        <p role="status" className="rounded-md border border-slate-200 bg-white p-4 text-sm text-slate-700">
-          Select a candidate to view its context and record optional Root Cause and Action notes.
-        </p>
-      )}
 
       {selectedCandidate && (
         <>
@@ -155,15 +144,6 @@ export const RCASimulationPage: React.FC<RCASimulationPageProps> = ({ state, upd
             record={candidateRcaRecords[selectedCandidate.candidateKey]}
             onSave={draft => saveCandidateRca(selectedCandidate.candidateKey, draft)}
           />
-
-          {inputDefinitions.length === 0 && (
-            <div role="status" className="rounded-md border border-amber-200 bg-amber-50 p-4 text-sm text-amber-950">
-              <h3 className="font-semibold">No measurable Current inputs are available for this candidate</h3>
-              <p className="mt-1 text-xs">
-                The scenarios remain based on Current. Structural changes such as adding, removing, splitting, or merging records are not simulated.
-              </p>
-            </div>
-          )}
 
           <SimulationGrid
             scenarios={scenarioDrafts}
@@ -177,31 +157,41 @@ export const RCASimulationPage: React.FC<RCASimulationPageProps> = ({ state, upd
             onUpdateEconomics={handleUpdateEconomics}
           />
 
-          <section aria-labelledby="trial-handoff-heading" className="rounded-md border border-slate-200 bg-white p-4">
-            <h2 id="trial-handoff-heading" className="text-sm font-semibold text-slate-900">Trial handoff</h2>
-            <p className="mt-1 text-xs text-slate-600">Choose which scenario should proceed to the separate Trial stage.</p>
-            <label htmlFor="trial-handoff-scenario" className="mt-3 block text-xs font-medium text-slate-700">
-              Choose Scenario for Trial
-            </label>
-            <select
-              id="trial-handoff-scenario"
-              value={state.trialHandoffLetter ?? ''}
-              onChange={event => updateState(previous => ({
-                ...previous,
-                trialHandoffLetter: (event.target.value || null) as 'A' | 'B' | 'C' | null
-              }))}
-              className="mt-1 min-h-10 w-full max-w-sm rounded-sm border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 focus:border-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-200"
-            >
-              <option value="">Select a scenario</option>
-              {scenarioDrafts.map(scenario => (
-                <option key={scenario.letter} value={scenario.letter}>
-                  Scenario {scenario.letter}{scenario.label ? ` — ${scenario.label}` : ''}
-                </option>
-              ))}
-            </select>
+          <section aria-labelledby="trial-handoff-heading" className="border-t-2 border-slate-900 pt-4">
+            <div className="grid grid-cols-1 gap-3 md:grid-cols-[minmax(0,1fr)_minmax(18rem,1fr)] md:items-end">
+              <div>
+                <p className="font-mono text-xs font-medium uppercase tracking-wide text-slate-600">04 / Trial</p>
+                <h2 id="trial-handoff-heading" className="mt-1 text-base font-semibold text-slate-900">Mark a scenario for Trial</h2>
+                <p id="trial-handoff-guidance" className="mt-1 text-sm leading-5 text-slate-600">
+                  Choose after reviewing the scenarios. This selection is a handoff marker; Trial is a separate stage.
+                </p>
+              </div>
+              <div>
+                <label htmlFor="trial-handoff-scenario" className="mb-1 block text-xs font-semibold text-slate-700">
+                  Scenario
+                </label>
+                <select
+                  id="trial-handoff-scenario"
+                  aria-describedby="trial-handoff-guidance"
+                  value={state.trialHandoffLetter ?? ''}
+                  onChange={event => updateState(previous => ({
+                    ...previous,
+                    trialHandoffLetter: (event.target.value || null) as 'A' | 'B' | 'C' | null
+                  }))}
+                  className="min-h-11 w-full rounded-sm border border-slate-400 bg-white px-3 py-2 text-sm text-slate-900 focus:border-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-200"
+                >
+                  <option value="">Select a scenario</option>
+                  {scenarioDrafts.map(scenario => (
+                    <option key={scenario.letter} value={scenario.letter}>
+                      Scenario {scenario.letter}{scenario.label ? ` — ${scenario.label}` : ''}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
             {state.trialHandoffLetter && (
-              <p role="status" className="mt-2 text-xs text-slate-700">
-                Scenario {state.trialHandoffLetter} selected for Trial handoff. Trial workflow remains outside this agreement.
+              <p role="status" className="mt-3 border-l-2 border-emerald-700 pl-3 text-sm text-slate-700">
+                Scenario {state.trialHandoffLetter} is marked for the separate Trial stage.
               </p>
             )}
           </section>
