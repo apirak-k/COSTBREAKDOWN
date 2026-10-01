@@ -33,10 +33,7 @@ export const CandidateSelectionPage: React.FC = () => {
   const addedCount = useMemo(() => candidates.filter(c => c.status === 'ADDED').length, [candidates])
   const removedCount = useMemo(() => candidates.filter(c => c.status === 'REMOVED').length, [candidates])
 
-  const candidateGap = candidates.length > 0 && candidates.every(candidate => candidate.costGap !== null)
-    ? candidates.reduce<number>((sum, candidate) => sum + (candidate.costGap as number), 0)
-    : null
-  const totalGap = snapshotComparison.totalGap ?? candidateGap
+  const totalGap = snapshotComparison.totalGap
 
   return (
     <div className="space-y-5">

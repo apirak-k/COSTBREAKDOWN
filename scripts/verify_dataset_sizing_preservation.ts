@@ -161,6 +161,22 @@ assert.deepEqual(afterZero.rates.map(row => row.id), ['manual-rate'])
 assert.deepEqual(afterZero.bom.map(row => row.id), ['manual-bom'])
 assert.deepEqual(afterZero.routing.map(row => row.id), ['manual-routing'])
 
+assert.throws(
+  () => resizeMasterDataSnapshotForSizing(beforeShrink, { wcCount: 501 }, factories),
+  RangeError,
+  'dataset sizing must reject counts above the supported Work Center limit before allocating rows'
+)
+assert.throws(
+  () => resizeMasterDataSnapshotForSizing(beforeShrink, { bomCount: Number.NaN }, factories),
+  RangeError,
+  'dataset sizing must reject non-finite counts'
+)
+assert.throws(
+  () => resizeMasterDataSnapshotForSizing(beforeShrink, { routingCount: Number.POSITIVE_INFINITY }, factories),
+  RangeError,
+  'dataset sizing must reject infinite counts before row allocation'
+)
+
 // Editing a generated row marks it as user-owned, even if the entered values are still blank.
 const editedBlankRate = markSizingPlaceholderEdited(rate('new-rate-4', { isGeneratedSizingPlaceholder: true }))
 const editedBlankBom = markSizingPlaceholderEdited(bom('new-bom-4', { isGeneratedSizingPlaceholder: true }))

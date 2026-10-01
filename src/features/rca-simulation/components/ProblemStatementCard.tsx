@@ -6,8 +6,16 @@ interface ProblemStatementCardProps {
   candidate: PrioritizationCandidate
 }
 
-function formatCandidateValue(value: number | null): string {
-  return value === null ? 'N/A' : value.toLocaleString(undefined, { maximumFractionDigits: 4 })
+function formatCandidateValue(value: number | null, scale = 1): string {
+  return value === null ? 'N/A' : (value * scale).toLocaleString(undefined, { maximumFractionDigits: 4 })
+}
+
+function formatCandidateParameter(candidate: PrioritizationCandidate, side: 'reference' | 'current'): string {
+  const isLossPercentage = candidate.paramLabel?.trim().toLowerCase() === 'loss (%)'
+  const parameter = side === 'reference' ? candidate.referenceParam : candidate.currentParam
+  const cost = side === 'reference' ? candidate.referenceCost : candidate.currentCost
+  const value = isLossPercentage ? parameter ?? null : parameter ?? cost
+  return formatCandidateValue(value, isLossPercentage ? 100 : 1)
 }
 
 export const ProblemStatementCard: React.FC<ProblemStatementCardProps> = ({ candidate }) => (
@@ -39,7 +47,7 @@ export const ProblemStatementCard: React.FC<ProblemStatementCardProps> = ({ cand
           Reference {candidate.paramLabel ?? 'value'}
         </dt>
         <dd className="mt-1 font-mono tabular-nums text-slate-900">
-          {formatCandidateValue(candidate.referenceParam ?? candidate.referenceCost)}
+          {formatCandidateParameter(candidate, 'reference')}
         </dd>
       </div>
       <div className="rounded-sm border border-slate-200 bg-slate-50 p-3">
@@ -47,7 +55,7 @@ export const ProblemStatementCard: React.FC<ProblemStatementCardProps> = ({ cand
           Current {candidate.paramLabel ?? 'value'}
         </dt>
         <dd className="mt-1 font-mono tabular-nums text-slate-900">
-          {formatCandidateValue(candidate.currentParam ?? candidate.currentCost)}
+          {formatCandidateParameter(candidate, 'current')}
         </dd>
       </div>
     </dl>

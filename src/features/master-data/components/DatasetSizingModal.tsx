@@ -1,7 +1,9 @@
 import React, { useState, useEffect } from 'react'
 import { X, Sliders, Check } from 'lucide-react'
 import { ComparisonRole, DatasetSizing, ProductMaster } from '../../../core'
-import { hasDatasetSizingChanged, hasProductSizingFieldsChanged } from '../dataset-sizing-form'
+import { DATASET_SIZING_LIMITS } from '../../../core/utils/sizing'
+import { hasDatasetSizingChanged, hasProductSizingFieldsChanged, parseDatasetSizingCounts } from '../dataset-sizing-form'
+import { useDialogFocus } from '../use-dialog-focus'
 
 interface DatasetSizingModalProps {
   isOpen: boolean
@@ -29,6 +31,8 @@ export const DatasetSizingModal: React.FC<DatasetSizingModalProps> = ({
   const [productCode, setProductCode] = useState(product.productCode || '')
   const [productDescription, setProductDescription] = useState(product.productDescription || '')
   const [uom, setUom] = useState(product.uom || 'PC')
+  const [sizingError, setSizingError] = useState('')
+  const dialogRef = useDialogFocus(isOpen, onClose)
 
   useEffect(() => {
     setWcCount(currentSizing.wcCount !== undefined ? String(currentSizing.wcCount) : '')
@@ -37,6 +41,7 @@ export const DatasetSizingModal: React.FC<DatasetSizingModalProps> = ({
     setProductCode(product.productCode || '')
     setProductDescription(product.productDescription || '')
     setUom(product.uom || 'PC')
+    setSizingError('')
   }, [currentSizing, product, isOpen])
 
   if (!isOpen) return null
@@ -44,6 +49,14 @@ export const DatasetSizingModal: React.FC<DatasetSizingModalProps> = ({
   const roleLabel = role === 'reference' ? 'Reference' : 'Current'
 
   const handleApply = () => {
+    let nextSizing: DatasetSizing
+    try {
+      nextSizing = parseDatasetSizingCounts({ wcCount, bomCount, routingCount })
+    } catch (error) {
+      setSizingError(error instanceof Error ? error.message : 'Enter valid starting row counts.')
+      return
+    }
+
     const nextProduct = {
       ...product,
       productCode: productCode.trim(),
@@ -59,16 +72,12 @@ export const DatasetSizingModal: React.FC<DatasetSizingModalProps> = ({
       onUpdateProduct(nextProduct)
     }
 
-    const nextSizing = {
-      wcCount: wcCount.trim() === '' ? undefined : Math.max(1, Math.floor(Number(wcCount) || 1)),
-      bomCount: bomCount.trim() === '' ? undefined : Math.max(1, Math.floor(Number(bomCount) || 1)),
-      routingCount: routingCount.trim() === '' ? undefined : Math.max(1, Math.floor(Number(routingCount) || 1))
-    }
     if (hasDatasetSizingChanged(currentSizing, nextSizing)) onSaveSizing(nextSizing)
     onClose()
   }
 
   const handleReset = () => {
+    setSizingError('')
     const resetSizing = { wcCount: undefined, bomCount: undefined, routingCount: undefined }
     if (hasDatasetSizingChanged(currentSizing, resetSizing)) onSaveSizing(resetSizing)
     onClose()
@@ -76,6 +85,8 @@ export const DatasetSizingModal: React.FC<DatasetSizingModalProps> = ({
 
   return (
     <div
+      ref={dialogRef}
+      tabIndex={-1}
       className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-slate-900/55 p-4 animate-in fade-in duration-150"
       role="dialog"
       aria-modal="true"
@@ -154,6 +165,7 @@ export const DatasetSizingModal: React.FC<DatasetSizingModalProps> = ({
             </div>
           </div>
 
+          {sizingError && <p className="text-sm font-medium text-rose-700" role="alert">{sizingError}</p>}
           <div className="space-y-3 rounded-sm border border-slate-200 bg-slate-50 p-4">
             <div className="text-xs font-semibold text-slate-800">
               Starting Blank Rows
@@ -167,10 +179,10 @@ export const DatasetSizingModal: React.FC<DatasetSizingModalProps> = ({
                 type="number"
                 min="1"
                 step="1"
-                max="500"
+                max={DATASET_SIZING_LIMITS.wcCount}
                 placeholder="Unset"
                 value={wcCount}
-                onChange={e => setWcCount(e.target.value)}
+                onChange={e => { setWcCount(e.target.value); setSizingError('') }}
                 className="min-h-10 w-full rounded-sm border border-slate-300 bg-white px-3 py-2 font-mono text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-200"
               />
             </div>
@@ -184,10 +196,10 @@ export const DatasetSizingModal: React.FC<DatasetSizingModalProps> = ({
                 type="number"
                 min="1"
                 step="1"
-                max="1000"
+                max={DATASET_SIZING_LIMITS.bomCount}
                 placeholder="Unset"
                 value={bomCount}
-                onChange={e => setBomCount(e.target.value)}
+                onChange={e => { setBomCount(e.target.value); setSizingError('') }}
                 className="min-h-10 w-full rounded-sm border border-slate-300 bg-white px-3 py-2 font-mono text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-200"
               />
             </div>
@@ -201,10 +213,10 @@ export const DatasetSizingModal: React.FC<DatasetSizingModalProps> = ({
                 type="number"
                 min="1"
                 step="1"
-                max="500"
+                max={DATASET_SIZING_LIMITS.routingCount}
                 placeholder="Unset"
                 value={routingCount}
-                onChange={e => setRoutingCount(e.target.value)}
+                onChange={e => { setRoutingCount(e.target.value); setSizingError('') }}
                 className="min-h-10 w-full rounded-sm border border-slate-300 bg-white px-3 py-2 font-mono text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-200"
               />
             </div>

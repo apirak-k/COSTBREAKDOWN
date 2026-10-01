@@ -1,12 +1,33 @@
 import assert from 'node:assert/strict'
 import React from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
+import * as XLSX from 'xlsx'
 import { createServer } from 'vite'
+
+const comparisonGapCandidate = {
+  candidateKey: 'bom:bom-1', candidateName: 'Material price', category: 'Direct Material',
+  factor: 'Price', status: 'CHANGED', referenceCost: 10, currentCost: 22, costGap: 12,
+  controllable: true, rank: 1, sourceType: 'bom', sourceId: 'bom-1'
+}
 
 const vite = await createServer({
   server: { middlewareMode: true },
   appType: 'custom',
-  logLevel: 'error'
+  logLevel: 'error',
+  plugins: [{
+    name: 'candidate-selection-test-store',
+    enforce: 'pre',
+    resolveId(source, importer) {
+      if (source === '../../state' && importer?.replaceAll('\\', '/').endsWith('/src/features/candidate-selection/CandidateSelectionPage.tsx')) {
+        return '\0candidate-selection-test-store'
+      }
+      return null
+    },
+    load(id) {
+      if (id !== '\0candidate-selection-test-store') return null
+      return `export const useAppStore = () => ({ candidates: [${JSON.stringify(comparisonGapCandidate)}], snapshotComparison: { totalGap: null }, toggleCandidateControllable() {} })`
+    }
+  }]
 })
 const visibleText = markup => markup.replace(/<[^>]*>/g, '')
 
@@ -16,14 +37,51 @@ try {
     { BOMDetailedTable },
     { WorkCenterComparisonTable },
     { SnapshotComparisonCard },
-    { formatComparisonFieldDiffs }
+    { formatComparisonFieldDiffs },
+    { ProblemStatementCard },
+    { CandidateSelectionPage },
+    { parseSnapshotWorkbookData }
   ] = await Promise.all([
     vite.ssrLoadModule('/src/features/cost-breakdown/components/RoutingDetailedTable.tsx'),
     vite.ssrLoadModule('/src/features/cost-breakdown/components/BOMDetailedTable.tsx'),
     vite.ssrLoadModule('/src/features/cost-breakdown/components/WorkCenterComparisonTable.tsx'),
     vite.ssrLoadModule('/src/features/cost-breakdown/components/SnapshotComparisonCard.tsx'),
-    vite.ssrLoadModule('/src/features/cost-breakdown/components/comparison-field-details.ts')
+    vite.ssrLoadModule('/src/features/cost-breakdown/components/comparison-field-details.ts'),
+    vite.ssrLoadModule('/src/features/rca-simulation/components/ProblemStatementCard.tsx'),
+    vite.ssrLoadModule('/src/features/candidate-selection/CandidateSelectionPage.tsx'),
+    vite.ssrLoadModule('/src/services/excel/snapshot-parser.ts')
   ])
+
+  const blankWorkCenterWorkbook = XLSX.utils.book_new()
+  const addSheet = (name, rows) => XLSX.utils.book_append_sheet(blankWorkCenterWorkbook, XLSX.utils.aoa_to_sheet(rows), name)
+  addSheet('META', [['Remark'], ['']])
+  addSheet('PRODUCT', [['Product Code', 'Product Name', 'UOM', 'Note'], ['P-1', 'Part', 'PC', '']])
+  addSheet('WORK_CENTER', [
+    ['Work Center Code', 'Work Center Name', 'Labor Rate', 'Burden Rate', 'Note'],
+    ['WC-1', '', 10, 5, '']
+  ])
+  addSheet('BOM', [['Item Code', 'Description', 'Consumption', 'Unit', 'Price', 'Loss', 'Note']])
+  addSheet('ROUTING', [['Operation Code', 'Sequence', 'Process Name', 'Work Center Code', 'Manning', 'Capacity', 'Yield', 'Note']])
+  const workbookBytes = XLSX.write(blankWorkCenterWorkbook, { type: 'array', bookType: 'xlsx' })
+  const workbookBuffer = workbookBytes instanceof ArrayBuffer
+    ? workbookBytes
+    : workbookBytes.buffer.slice(workbookBytes.byteOffset, workbookBytes.byteOffset + workbookBytes.byteLength)
+  const roundTripResult = parseSnapshotWorkbookData(workbookBuffer, 'current')
+  assert.equal(roundTripResult.success, true)
+  assert.equal(roundTripResult.snapshot.rates[0].description, '', 'blank Work Center Name must stay blank when imported')
+
+  const lossMarkup = renderToStaticMarkup(React.createElement(ProblemStatementCard, {
+    candidate: {
+      ...comparisonGapCandidate, paramLabel: 'Loss (%)', referenceParam: 0.1, currentParam: 0.2
+    }
+  }))
+  assert.match(lossMarkup, /Reference Loss \(%\)<\/dt><dd[^>]*>10<\/dd>/)
+  assert.match(lossMarkup, /Current Loss \(%\)<\/dt><dd[^>]*>20<\/dd>/)
+
+  const candidateSummaryMarkup = renderToStaticMarkup(React.createElement(CandidateSelectionPage))
+  const comparisonSummary = candidateSummaryMarkup.match(/<dt[^>]*>Net comparison gap<\/dt><dd[^>]*>([\s\S]*?)<\/dd>/)?.[1]
+  assert.equal(comparisonSummary, '—', 'the exact comparison total must remain unavailable when reconciliation has no total')
+  assert.ok(candidateSummaryMarkup.includes('Net candidate gap:'), 'candidate subtotal remains separately labeled in its table')
 
   assert.deepEqual(formatComparisonFieldDiffs({
     sequence: { reference: 10, current: 20 },

@@ -1,11 +1,18 @@
-# Current Handoff — comparison UI review follow-up, human acceptance pending (2026-10-01)
+# Current Handoff — cost breakdown review-fix batch (2026-10-02)
 
 ## Current checkpoint
 
-- Repository: `E:\COSTBREAKDOWN`; active branch: `current`.
+- Repository: `E:\COSTBREAKDOWN`; active branch: `current`. This batch started from `2a08e98395776080307cbc1791afd53e09bbce91`, matching `origin/current` at the time.
+- The batch implements the seven findings reviewed in ChatGPT “บูมเอง 4” and fixes the additional Low revision-comparison edge case. The follow-up review confirmed the Low finding is closed and reported no remaining concrete finding within this batch scope; it was not a new full-repository audit.
+- Focused verifiers passed: `verify_scenario_input_mapping.ts`, `verify_dataset_sizing_preservation.ts`, `verify_dataset_sizing_noop.ts`, `verify_simulation_context.ts`, and `verify_cost_breakdown_review_feedback.mjs`. After the Low fix, `verify_simulation_context.ts` passed through the local Vite SSR loader because `tsx` is not installed and npm registry access was unavailable. `npm run build` and `git diff --check` passed. The build retains existing ExcelJS externalized `fs`/`crypto` warnings; Git reports the existing LF-to-CRLF working-copy warnings.
+- Browser checks passed for the three dialogs: initial focus, Tab/Shift+Tab trap, Escape close, focus restoration, and rejection of a sizing count of 501. These automated and agent-run checks are not human acceptance.
+- Human UX/UI acceptance remains pending. The user authorized committing and pushing this batch on `current`; no merge to the default branch was requested.
+- Product behavior remains governed by `docs/REQUIREMENTS_INDEX.md` and the four current files in `agreements/`. This handoff records status and evidence, not new product requirements.
+
+## Previous checkpoint summary (2026-10-01)
+
 - The import/RCA follow-up started from clean `current` at `1ba82d396bc2251e04c7382161d449901a65d484`, matching `origin/current`; its implementation is `ee98cdd1a6a9e0e47c547fc3b8be1ca26eac8ff7`. The stale RCA revision fix is in `bd4d448`. ChatGPT's follow-up review of `64cf4f5` found no Medium/High mismatches and noted two Low items: orphan RCA state after deleting a product session and imprecise wording about Excel imports. The cleanup fix is in `6d58a15`; the current handoff and cross-cutting decision record those clarifications. Verify the live tip before continuing.
 - ChatGPT “บูมเอง 4” reviewed the pushed range through `a487a8d` and found a Medium issue: applying unchanged Dataset Setup values still advanced Master Data revision and cleared RCA drafts. The focused fix is in `ff4f35b`; unchanged Apply and already-empty Reset now avoid writes, while real changes still update Master Data. Remote review confirmed the fix, and the targeted browser smoke evidence is recorded below.
-- Product behavior remains governed by `docs/REQUIREMENTS_INDEX.md` and the four current files in `agreements/`. This handoff records status and evidence, not new product requirements.
 
 ## 2026-10-01 comparison-display review follow-up
 

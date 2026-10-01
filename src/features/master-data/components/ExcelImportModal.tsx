@@ -2,6 +2,7 @@ import React from 'react'
 import { X, FileSpreadsheet, AlertCircle } from 'lucide-react'
 import { ComparisonRole } from '../../../core'
 import { ExcelUploadDropzone } from '../../../shared/ui/ExcelUploadDropzone'
+import { useDialogFocus } from '../use-dialog-focus'
 
 interface ExcelImportModalProps {
   isOpen: boolean
@@ -14,12 +15,15 @@ export const ExcelImportModal: React.FC<ExcelImportModalProps> = ({
   onClose,
   importRole
 }) => {
+  const dialogRef = useDialogFocus(isOpen, onClose)
   if (!isOpen) return null
 
   const roleLabel = importRole === 'reference' ? 'Reference (Baseline)' : 'Current (Target)'
 
   return (
     <div
+      ref={dialogRef}
+      tabIndex={-1}
       className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-slate-900/55 p-4 animate-in fade-in duration-150"
       role="dialog"
       aria-modal="true"

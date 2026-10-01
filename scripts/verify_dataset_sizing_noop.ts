@@ -5,6 +5,7 @@ import {
   hasDatasetSizingChanged,
   hasProductSizingFieldsChanged
 } from '../src/features/master-data/dataset-sizing-form'
+import * as datasetSizingForm from '../src/features/master-data/dataset-sizing-form'
 
 const emptySizing = {}
 const unsetSizing = { wcCount: undefined, bomCount: undefined, routingCount: undefined }
@@ -34,6 +35,28 @@ assert.equal(
   true,
   'changing an editable product field must update Master Data'
 )
+
+assert.equal(typeof datasetSizingForm.parseDatasetSizingCounts, 'function', 'sizing input parsing must validate bounds before saving')
+assert.deepEqual(datasetSizingForm.parseDatasetSizingCounts({ wcCount: '500', bomCount: '1000', routingCount: '500' }), {
+  wcCount: 500, bomCount: 1000, routingCount: 500
+})
+assert.deepEqual(datasetSizingForm.parseDatasetSizingCounts({ wcCount: '', bomCount: '1', routingCount: '' }), {
+  bomCount: 1
+})
+for (const invalid of [
+  { wcCount: '501' },
+  { bomCount: '1001' },
+  { routingCount: '501' },
+  { wcCount: '0' },
+  { bomCount: '1.5' },
+  { routingCount: 'Infinity' }
+]) {
+  assert.throws(
+    () => datasetSizingForm.parseDatasetSizingCounts(invalid),
+    RangeError,
+    `sizing input ${JSON.stringify(invalid)} must be rejected`
+  )
+}
 
 const modalSource = readFileSync(
   resolve(process.cwd(), 'src/features/master-data/components/DatasetSizingModal.tsx'),

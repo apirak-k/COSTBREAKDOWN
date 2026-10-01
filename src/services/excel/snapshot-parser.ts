@@ -257,7 +257,7 @@ function parseWorkCenters(
     rates.push({
       id,
       workCenterCode: code,
-      description: textValue(cell(row, map, ['work center name', 'workcentername', 'description', 'work center description', 'workcenterdescription'])) || code,
+      description: textValue(cell(row, map, ['work center name', 'workcentername', 'description', 'work center description', 'workcenterdescription'])),
       laborRate: laborRate.value,
       burdenRate: burdenRate.value,
       effectiveDate,

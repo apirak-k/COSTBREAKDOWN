@@ -88,6 +88,16 @@ const currentSnapshot: CostSnapshot = {
       confidence: {}
     },
     {
+      id: 'routing-wc-01-generated',
+      processName: '',
+      workCenterId: 'WC-01',
+      manning: null,
+      capacity: null,
+      yield: null,
+      isGeneratedSizingPlaceholder: true,
+      confidence: {}
+    },
+    {
       id: 'routing-wc-02',
       processName: 'Other work center operation',
       workCenterId: 'WC-02',

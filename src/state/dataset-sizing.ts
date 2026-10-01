@@ -5,6 +5,7 @@ import type {
   SnapshotRoutingStep,
   SnapshotWorkCenterRate
 } from '../core/types/snapshot.types'
+import { assertDatasetSizingCounts } from '../core/utils/sizing'
 
 export interface MasterDataSizingFactories {
   rate: (index: number) => SnapshotWorkCenterRate
@@ -113,6 +114,8 @@ export function resizeMasterDataSnapshotForSizing(
   sizing: DatasetSizing,
   factories: MasterDataSizingFactories
 ): CostSnapshot {
+  // Zero remains valid for older persisted setups; resizeRows enforces the one-row section minimum.
+  assertDatasetSizingCounts(sizing, { allowZero: true })
   const rates = resizeRows(snapshot.rates, sizing.wcCount, row => isBlankRate(row, snapshot), factories.rate)
   return {
     ...snapshot,

@@ -41,7 +41,7 @@ import {
 import { WorkingDataset } from '../core/types/dataset-standard.types'
 import { markSizingPlaceholderEdited, resizeMasterDataSnapshotForSizing } from './dataset-sizing'
 import { clearMasterDataDatasetState } from './clear-master-data-dataset'
-import { markMasterDataChanged } from './master-data-revision'
+import { markMasterDataChanged, markMasterDataChangedForSnapshotPair } from './master-data-revision'
 import { STORAGE_KEYS, loadFromSession, saveToSession } from '../services/storage'
 
 import {
@@ -81,7 +81,8 @@ function withSnapshotPair(session: ProductSession, explicitPair?: SnapshotPair):
 }
 
 function applyMasterDataSnapshotPair(session: ProductSession, pair: SnapshotPair): ProductSession {
-  return markMasterDataChanged(applySnapshotPairToSession(session, pair))
+  const previousPair = session.snapshotPair ?? sessionToSnapshotPair(session)
+  return markMasterDataChangedForSnapshotPair(applySnapshotPairToSession(session, pair), previousPair, pair)
 }
 
 function isMissingValue(value: unknown): boolean {

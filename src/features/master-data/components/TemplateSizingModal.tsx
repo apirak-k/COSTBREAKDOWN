@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react'
 import { X, FileSpreadsheet, Download } from 'lucide-react'
 import { ComparisonRole, CostSnapshot, ProductMaster, DatasetSizing } from '../../../core'
 import { downloadBlob } from '../../../services/excel/export'
+import { useDialogFocus } from '../use-dialog-focus'
 
 interface TemplateSizingModalProps {
   isOpen: boolean
@@ -35,6 +36,7 @@ export const TemplateSizingModal: React.FC<TemplateSizingModalProps> = ({
   const [productCode, setProductCode] = useState(product.productCode || '')
   const [productDescription, setProductDescription] = useState(product.productDescription || '')
   const [uom, setUom] = useState(product.uom || 'PC')
+  const dialogRef = useDialogFocus(isOpen, onClose)
 
   useEffect(() => {
     setProductCode(product.productCode || '')
@@ -66,6 +68,8 @@ export const TemplateSizingModal: React.FC<TemplateSizingModalProps> = ({
 
   return (
     <div
+      ref={dialogRef}
+      tabIndex={-1}
       className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-slate-900/55 p-4 animate-in fade-in duration-150"
       role="dialog"
       aria-modal="true"

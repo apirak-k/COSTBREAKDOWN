@@ -74,7 +74,9 @@ function getWorkCenterInputs(
     )
   }
 
-  const matchingSteps = current.routing.filter(step => normalizeCode(step.workCenterId) === centerCode)
+  const matchingSteps = current.routing.filter(step =>
+    step.isGeneratedSizingPlaceholder !== true && normalizeCode(step.workCenterId) === centerCode
+  )
   const seenStepIds = new Set<string>()
   matchingSteps.forEach(step => {
     if (!step.id || seenStepIds.has(step.id) || matchingSteps.filter(item => item.id === step.id).length !== 1) return
