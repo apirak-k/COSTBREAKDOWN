@@ -7,8 +7,8 @@
   line-height: 1.5;
   font-weight: 400;
   color-scheme: light;
-  background-color: #f3f0e8;
-  color: #1f2c29;
+  background-color: #f1f5f9;
+  color: #0f172a;
 }
 
 body {
@@ -21,14 +21,21 @@ body {
   -moz-osx-font-smoothing: grayscale;
 }
 
+table thead th {
+  font-family: "JetBrains Mono", "Fira Code", Consolas, monospace;
+  font-size: 10px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
 :focus-visible:not(:disabled) {
-  outline: 2px solid #356a55;
+  outline: 2px solid #3b82f6;
   outline-offset: 2px;
 }
 
 ::selection {
-  color: #151f1d;
-  background: #dcebe2;
+  color: #0f172a;
+  background: #dbeafe;
 }
 
 /* Tabular numbers for financial and engineering precision */
@@ -42,14 +49,14 @@ body {
   height: 6px;
 }
 ::-webkit-scrollbar-track {
-  background: #f3f0e8;
+  background: #f1f5f9;
 }
 ::-webkit-scrollbar-thumb {
-  background: #cec7ba;
+  background: #cbd5e1;
   border-radius: 3px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: #a29b8f;
+  background: #94a3b8;
 }
 
 @media (prefers-reduced-motion: reduce) {

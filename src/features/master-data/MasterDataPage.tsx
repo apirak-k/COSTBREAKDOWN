@@ -91,7 +91,7 @@ export const MasterDataPage: React.FC = () => {
       : 'Work Center Rates'
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-5">
       <PageHeading
         title="Master Data"
         description="Prepare independent Reference and Current datasets through direct entry or Excel import."
@@ -178,8 +178,8 @@ export const MasterDataPage: React.FC = () => {
       <section className="overflow-hidden border border-slate-300 bg-white" aria-label="Working dataset tables">
         <div className="flex flex-col gap-2 border-b border-slate-300 bg-slate-100 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <h2 className="text-sm font-semibold text-slate-950">Dataset tables</h2>
-            <p className="mt-0.5 text-xs text-slate-600">Select a section to review or edit its rows.</p>
+          <h2 className="font-mono text-[11px] font-bold uppercase tracking-wide text-slate-950">Dataset tables</h2>
+          <p className="mt-0.5 text-[11px] text-slate-600">Select a section to review or edit its rows.</p>
           </div>
           <div className="flex min-w-0 gap-1 overflow-x-auto" role="group" aria-label="Dataset table sections">
             <button
@@ -188,7 +188,7 @@ export const MasterDataPage: React.FC = () => {
               aria-pressed={activeTableTab === 'bom'}
               aria-controls="master-data-table-panel"
               onClick={() => setActiveTableTab('bom')}
-              className={'flex min-h-10 shrink-0 items-center gap-2 border-b-2 px-3 text-sm font-medium transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-blue-700 ' +
+              className={'flex min-h-8 shrink-0 items-center gap-2 border-b-2 px-3 font-mono text-xs font-medium transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-blue-700 ' +
                 (activeTableTab === 'bom'
                   ? 'border-b-blue-700 bg-white text-slate-950'
                   : 'border-b-transparent text-slate-600 hover:bg-white hover:text-slate-950')}
@@ -205,7 +205,7 @@ export const MasterDataPage: React.FC = () => {
               aria-pressed={activeTableTab === 'routing'}
               aria-controls="master-data-table-panel"
               onClick={() => setActiveTableTab('routing')}
-              className={'flex min-h-10 shrink-0 items-center gap-2 border-b-2 px-3 text-sm font-medium transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-blue-700 ' +
+              className={'flex min-h-8 shrink-0 items-center gap-2 border-b-2 px-3 font-mono text-xs font-medium transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-blue-700 ' +
                 (activeTableTab === 'routing'
                   ? 'border-b-blue-700 bg-white text-slate-950'
                   : 'border-b-transparent text-slate-600 hover:bg-white hover:text-slate-950')}
@@ -222,7 +222,7 @@ export const MasterDataPage: React.FC = () => {
               aria-pressed={activeTableTab === 'rates'}
               aria-controls="master-data-table-panel"
               onClick={() => setActiveTableTab('rates')}
-              className={'flex min-h-10 shrink-0 items-center gap-2 border-b-2 px-3 text-sm font-medium transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-blue-700 ' +
+              className={'flex min-h-8 shrink-0 items-center gap-2 border-b-2 px-3 font-mono text-xs font-medium transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-blue-700 ' +
                 (activeTableTab === 'rates'
                   ? 'border-b-blue-700 bg-white text-slate-950'
                   : 'border-b-transparent text-slate-600 hover:bg-white hover:text-slate-950')}

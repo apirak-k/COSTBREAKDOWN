@@ -77,33 +77,33 @@ export const SnapshotComparisonCard: React.FC<SnapshotComparisonCardProps> = ({ 
     <section aria-labelledby="snapshot-comparison-title" className="overflow-hidden border border-slate-300 bg-white">
       <div className="flex flex-col gap-3 border-b border-slate-200 bg-slate-50 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h2 id="snapshot-comparison-title" className="text-base font-semibold text-slate-950">Reference vs Current</h2>
-          <p className="mt-0.5 text-xs leading-5 text-slate-600">Standard cost and the element gaps that make up the difference.</p>
+          <h2 id="snapshot-comparison-title" className="font-mono text-xs font-bold uppercase tracking-wide text-slate-950">Reference vs Current</h2>
+          <p className="mt-0.5 text-[11px] leading-4 text-slate-600">Standard cost and the element gaps that make up the difference.</p>
         </div>
-        <div className={`inline-flex min-h-8 items-center gap-1.5 self-start border px-2.5 py-1 text-xs font-medium ${qualityClass}`} role="status">
-          <QualityIcon className="h-3.5 w-3.5" aria-hidden="true" />
+        <div className={`inline-flex min-h-7 items-center gap-1.5 self-start border px-2 py-1 font-mono text-[10px] font-semibold uppercase ${qualityClass}`} role="status">
+          <QualityIcon className="h-3 w-3" aria-hidden="true" />
           Data quality: {summary.quality}
         </div>
       </div>
 
       <dl className="grid grid-cols-1 divide-y divide-slate-700 bg-slate-900 text-white sm:grid-cols-3 sm:divide-x sm:divide-y-0">
         <div className="px-4 py-3">
-          <dt className="text-xs text-slate-300">Reference · THB / unit</dt>
+          <dt className="font-mono text-[10px] uppercase tracking-wide text-slate-300">Reference · THB / unit</dt>
           <dd className="mt-1 font-mono text-xl font-semibold tabular-nums">{formatCost(comparison.referenceCost.total)}</dd>
         </div>
         <div className="px-4 py-3">
-          <dt className="text-xs text-slate-300">Current · THB / unit</dt>
+          <dt className="font-mono text-[10px] uppercase tracking-wide text-slate-300">Current · THB / unit</dt>
           <dd className="mt-1 font-mono text-xl font-semibold tabular-nums">{formatCost(comparison.currentCost.total)}</dd>
         </div>
         <div className="px-4 py-3">
-          <dt className="text-xs text-slate-300">Cost gap · Current − Reference</dt>
+          <dt className="font-mono text-[10px] uppercase tracking-wide text-slate-300">Cost gap · Current − Reference</dt>
           <dd className={`mt-1 font-mono text-xl font-semibold tabular-nums ${comparison.totalGap === null ? 'text-slate-300' : comparison.totalGap > 0 ? 'text-rose-300' : comparison.totalGap < 0 ? 'text-emerald-300' : 'text-white'}`}>
             {formatGap(comparison.totalGap)} <span className="text-xs font-normal text-slate-300">THB / unit</span>
           </dd>
         </div>
       </dl>
 
-      <div className="flex flex-col gap-2 border-b border-slate-200 px-4 py-2.5 text-xs sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
+      <div className="flex flex-col gap-2 border-b border-slate-200 px-4 py-2 text-[11px] sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
         <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-slate-600">
           <span><strong className="font-mono text-slate-900">{summary.matchedCount}</strong> matched</span>
           <span><strong className="font-mono text-slate-900">{summary.estimatedCount}</strong> estimated</span>
@@ -116,16 +116,16 @@ export const SnapshotComparisonCard: React.FC<SnapshotComparisonCardProps> = ({ 
       <div className="overflow-x-auto">
         <table className="w-full min-w-[620px] border-collapse text-left">
           <caption className="sr-only">Reference and current cost by element, with the resulting gap and percentage change</caption>
-          <thead className="border-b border-slate-300 bg-slate-100 text-xs font-semibold text-slate-700">
+          <thead className="border-b border-slate-300 bg-slate-100 text-[10px] font-semibold text-slate-700">
             <tr>
-              <th scope="col" className="px-4 py-2.5">Cost element</th>
-              <th scope="col" className="px-4 py-2.5 text-right">Reference</th>
-              <th scope="col" className="px-4 py-2.5 text-right">Current</th>
-              <th scope="col" className="px-4 py-2.5 text-right">Gap</th>
-              <th scope="col" className="px-4 py-2.5 text-right">Change vs Ref</th>
+              <th scope="col" className="px-4 py-2">Cost element</th>
+              <th scope="col" className="px-4 py-2 text-right">Reference</th>
+              <th scope="col" className="px-4 py-2 text-right">Current</th>
+              <th scope="col" className="px-4 py-2 text-right">Gap</th>
+              <th scope="col" className="px-4 py-2 text-right">Change vs Ref</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-slate-100 text-sm">
+          <tbody className="divide-y divide-slate-100 text-xs">
             {elements.map(element => {
               const gap = comparison.elementGaps[element.key]
               const change = gap !== null && element.reference !== null && element.reference !== 0
@@ -134,11 +134,11 @@ export const SnapshotComparisonCard: React.FC<SnapshotComparisonCardProps> = ({ 
 
               return (
                 <tr key={element.key}>
-                  <th scope="row" className="px-4 py-2.5 font-medium text-slate-800">{element.label}</th>
-                  <td className="px-4 py-2.5 text-right font-mono tabular-nums text-slate-600">{formatCost(element.reference)}</td>
-                  <td className="px-4 py-2.5 text-right font-mono tabular-nums font-medium text-slate-900">{formatCost(element.current)}</td>
-                  <td className={`px-4 py-2.5 text-right font-mono font-semibold tabular-nums ${gapClass(gap)}`}>{formatGap(gap)}</td>
-                  <td className={`px-4 py-2.5 text-right font-mono tabular-nums ${gapClass(gap)}`}>{change}</td>
+                  <th scope="row" className="px-4 py-2 font-medium text-slate-800">{element.label}</th>
+                  <td className="px-4 py-2 text-right font-mono tabular-nums text-slate-600">{formatCost(element.reference)}</td>
+                  <td className="px-4 py-2 text-right font-mono tabular-nums font-medium text-slate-900">{formatCost(element.current)}</td>
+                  <td className={`px-4 py-2 text-right font-mono font-semibold tabular-nums ${gapClass(gap)}`}>{formatGap(gap)}</td>
+                  <td className={`px-4 py-2 text-right font-mono tabular-nums ${gapClass(gap)}`}>{change}</td>
                 </tr>
               )
             })}

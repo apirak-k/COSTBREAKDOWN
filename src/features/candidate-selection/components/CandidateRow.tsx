@@ -39,19 +39,19 @@ export const CandidateRow: React.FC<CandidateRowProps> = ({
 
   return (
     <tr className={`transition-colors ${!candidate.controllable ? 'bg-slate-50 text-slate-600' : 'hover:bg-slate-50/70'}`}>
-      <td className="w-14 px-3 py-3 text-center align-top">
-        <span className="font-mono text-xs font-medium tabular-nums text-slate-500">{String(candidate.rank).padStart(2, '0')}</span>
+      <td className="w-14 px-3 py-2 text-center align-top">
+        <span className="font-mono text-[11px] font-medium tabular-nums text-slate-500">{String(candidate.rank).padStart(2, '0')}</span>
       </td>
 
-      <td className="min-w-72 px-4 py-3 align-top">
+      <td className="min-w-72 px-4 py-2 align-top">
         <div className="min-w-0">
-          <div className="mb-1 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs">
-            <span className="font-medium uppercase tracking-wide text-slate-500">{candidate.category}</span>
+          <div className="mb-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[10px]">
+            <span className="font-mono font-semibold uppercase tracking-wide text-slate-500">{candidate.category}</span>
             {showFactor && <span className="text-slate-500">{candidate.factor}</span>}
           </div>
-          <p className="break-words text-sm font-medium leading-5 text-slate-950">{candidate.candidateName}</p>
+          <p className="break-words text-xs font-semibold leading-4 text-slate-950">{candidate.candidateName}</p>
           {candidate.changeDetails && candidate.changeDetails.length > 0 && (
-            <p className="mt-1.5 break-words text-xs leading-5 text-slate-600">
+            <p className="mt-1 break-words text-[10px] leading-4 text-slate-600">
               <span className="mr-1 font-medium text-slate-700">Changed fields:</span>
               {candidate.changeDetails.map((detail, index) => (
                 <span key={detail.field}>
@@ -67,37 +67,37 @@ export const CandidateRow: React.FC<CandidateRowProps> = ({
         </div>
       </td>
 
-      <td className="px-3 py-3 text-center align-top">
-        <span className={`inline-flex min-h-7 items-center gap-1.5 whitespace-nowrap text-xs font-semibold ${statusStyle.text}`}>
+      <td className="px-3 py-2 text-center align-top">
+        <span className={`inline-flex min-h-6 items-center gap-1.5 whitespace-nowrap font-mono text-[10px] font-semibold ${statusStyle.text}`}>
           <span aria-hidden="true" className={`h-1.5 w-1.5 rounded-full ${statusStyle.marker}`} />
           {candidate.status}
         </span>
       </td>
 
-      <td className="px-3 py-3 text-right align-top font-mono text-sm tabular-nums text-slate-600">
+      <td className="px-3 py-2 text-right align-top font-mono text-xs tabular-nums text-slate-600">
         {candidate.referenceCost === null ? '—' : formatNumber(candidate.referenceCost, 4)}
       </td>
 
-      <td className="px-3 py-3 text-right align-top font-mono text-sm font-medium tabular-nums text-slate-950">
+      <td className="px-3 py-2 text-right align-top font-mono text-xs font-medium tabular-nums text-slate-950">
         {candidate.currentCost === null ? '—' : formatNumber(candidate.currentCost, 4)}
       </td>
 
-      <td className={`px-3 py-3 text-right align-top font-mono text-sm font-semibold tabular-nums ${
+      <td className={`px-3 py-2 text-right align-top font-mono text-xs font-semibold tabular-nums ${
         candidate.costGap === null ? 'text-slate-400' : candidate.costGap > 0 ? 'text-rose-700' : candidate.costGap < 0 ? 'text-emerald-700' : 'text-slate-500'
       }`}>
         {candidate.costGap === null ? '—' : formatVariance(candidate.costGap, 4)}
       </td>
 
-      <td className="px-3 py-3 text-center align-top">
-        <label className="inline-flex min-h-9 items-center justify-center gap-2 px-2 select-none cursor-pointer">
+      <td className="px-3 py-2 text-center align-top">
+        <label className="inline-flex min-h-8 items-center justify-center gap-1.5 px-1 select-none cursor-pointer">
           <input
             type="checkbox"
             checked={candidate.controllable}
             onChange={e => onToggleControllable(candidate.candidateKey, e.target.checked)}
-            className="h-5 w-5 rounded-sm border-slate-400 accent-slate-900 cursor-pointer focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700"
+            className="h-4 w-4 rounded-sm border-slate-400 accent-slate-900 cursor-pointer focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700"
             aria-label={`Mark ${candidate.candidateName} as controllable`}
           />
-          <span className="text-xs font-medium text-slate-700">{candidate.controllable ? 'Yes' : 'No'}</span>
+          <span className="text-[10px] font-medium text-slate-700">{candidate.controllable ? 'Yes' : 'No'}</span>
         </label>
       </td>
     </tr>
