@@ -7,6 +7,7 @@ import { BOMDetailedTable } from './components/BOMDetailedTable'
 import { RoutingDetailedTable } from './components/RoutingDetailedTable'
 import { WorkCenterComparisonTable } from './components/WorkCenterComparisonTable'
 import { SnapshotComparisonCard } from './components/SnapshotComparisonCard'
+import { VarianceTreeCard } from './components/VarianceTreeCard'
 import { ALL_COMPARISON_STATUSES, areAllComparisonStatusesSelected, getComparisonViewLabel } from './components/comparison-view'
 import type { ComparisonViewMode } from './components/comparison-view'
 import { areSnapshotCostsComplete, getCanonicalComparisonStatus } from '../../core'
@@ -35,6 +36,11 @@ export const CostBreakdownPage: React.FC = () => {
     setComparisonView(current => current.includes(status)
       ? current.filter(selected => selected !== status)
       : [...current, status])
+  }
+
+  const openDetailSection = (section: SubTab) => {
+    setSubTab(section)
+    setIsDetailedExpanded(true)
   }
 
   return (
@@ -87,8 +93,14 @@ export const CostBreakdownPage: React.FC = () => {
         </div>
       </section>
 
+      <VarianceTreeCard
+        comparison={snapshotComparison}
+        comparisonView={comparisonView}
+        onOpenDetail={openDetailSection}
+      />
+
       {/* Record-level detail */}
-      <section className="overflow-hidden rounded-md border border-slate-200 bg-white" aria-label="Itemized cost breakdown">
+      <section id="itemized-cost-details" tabIndex={-1} className="scroll-mt-16 overflow-hidden rounded-md border border-slate-200 bg-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700" aria-label="Itemized cost breakdown">
         {/* Section Accordion Header */}
         <div className="flex flex-col gap-3 border-b border-slate-200 bg-slate-50 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
           <button
@@ -150,7 +162,7 @@ export const CostBreakdownPage: React.FC = () => {
         </div>
 
       {isDetailedExpanded && (
-        <div id="itemized-cost-details">
+        <div>
           {subTab === 'bom' ? (
             <BOMDetailedTable
               findings={snapshotComparison.bomFindings}

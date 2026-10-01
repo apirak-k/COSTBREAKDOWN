@@ -1,6 +1,7 @@
 import React from 'react'
 import { AlertTriangle, CheckCircle2, CircleHelp } from 'lucide-react'
-import { CostComparison, formatNumber, formatPercent, formatVariance } from '../../../core'
+import { formatNumber, formatPercent } from '../../../core'
+import type { CostComparison } from '../../../core'
 
 export type SnapshotQuality = 'Verified' | 'Estimated' | 'Missing'
 
@@ -45,7 +46,6 @@ interface SnapshotComparisonCardProps {
 }
 
 const formatCost = (value: number | null): string => value === null ? '—' : formatNumber(value, 4)
-const formatGap = (value: number | null): string => value === null ? '—' : formatVariance(value, 4)
 
 function gapClass(value: number | null): string {
   if (value === null || Math.abs(value) < 0.00005) return 'text-slate-500'
@@ -65,10 +65,11 @@ export const SnapshotComparisonCard: React.FC<SnapshotComparisonCardProps> = ({ 
     ? CircleHelp
     : AlertTriangle
 
-  const elements = [
-    { label: 'Direct Material', key: 'material' as const, reference: comparison.referenceCost.material, current: comparison.currentCost.material },
-    { label: 'Direct Labor', key: 'labor' as const, reference: comparison.referenceCost.labor, current: comparison.currentCost.labor },
-    { label: 'Manufacturing Burden', key: 'burden' as const, reference: comparison.referenceCost.burden, current: comparison.currentCost.burden }
+  const metrics = [
+    { label: 'Total Standard Cost', key: 'total' as const, reference: comparison.referenceCost.total, current: comparison.currentCost.total, gap: comparison.totalGap, emphasis: true },
+    { label: 'Direct Material', key: 'material' as const, reference: comparison.referenceCost.material, current: comparison.currentCost.material, gap: comparison.elementGaps.material },
+    { label: 'Direct Labor', key: 'labor' as const, reference: comparison.referenceCost.labor, current: comparison.currentCost.labor, gap: comparison.elementGaps.labor },
+    { label: 'Manufacturing Burden', key: 'burden' as const, reference: comparison.referenceCost.burden, current: comparison.currentCost.burden, gap: comparison.elementGaps.burden }
   ]
   const discrepancy = comparison.reconciliation?.discrepancy ?? null
   const reconciled = comparison.reconciliation?.reconciled === true
@@ -78,30 +79,13 @@ export const SnapshotComparisonCard: React.FC<SnapshotComparisonCardProps> = ({ 
       <div className="flex flex-col gap-3 border-b border-slate-200 bg-slate-50 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h2 id="snapshot-comparison-title" className="font-mono text-xs font-bold uppercase tracking-wide text-slate-950">Reference vs Current</h2>
-          <p className="mt-0.5 text-[11px] leading-4 text-slate-600">Standard cost and the element gaps that make up the difference.</p>
+          <p className="mt-0.5 text-[11px] leading-4 text-slate-600">Four cost measures across the two independent snapshots.</p>
         </div>
         <div className={`inline-flex min-h-7 items-center gap-1.5 self-start border px-2 py-1 font-mono text-[10px] font-semibold uppercase ${qualityClass}`} role="status">
           <QualityIcon className="h-3 w-3" aria-hidden="true" />
           Data quality: {summary.quality}
         </div>
       </div>
-
-      <dl className="grid grid-cols-1 divide-y divide-slate-700 bg-slate-900 text-white sm:grid-cols-3 sm:divide-x sm:divide-y-0">
-        <div className="px-4 py-3">
-          <dt className="font-mono text-[10px] uppercase tracking-wide text-slate-300">Reference · THB / unit</dt>
-          <dd className="mt-1 font-mono text-xl font-semibold tabular-nums">{formatCost(comparison.referenceCost.total)}</dd>
-        </div>
-        <div className="px-4 py-3">
-          <dt className="font-mono text-[10px] uppercase tracking-wide text-slate-300">Current · THB / unit</dt>
-          <dd className="mt-1 font-mono text-xl font-semibold tabular-nums">{formatCost(comparison.currentCost.total)}</dd>
-        </div>
-        <div className="px-4 py-3">
-          <dt className="font-mono text-[10px] uppercase tracking-wide text-slate-300">Cost gap · Current − Reference</dt>
-          <dd className={`mt-1 font-mono text-xl font-semibold tabular-nums ${comparison.totalGap === null ? 'text-slate-300' : comparison.totalGap > 0 ? 'text-rose-300' : comparison.totalGap < 0 ? 'text-emerald-300' : 'text-white'}`}>
-            {formatGap(comparison.totalGap)} <span className="text-xs font-normal text-slate-300">THB / unit</span>
-          </dd>
-        </div>
-      </dl>
 
       <div className="flex flex-col gap-2 border-b border-slate-200 px-4 py-2 text-[11px] sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
         <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-slate-600">
@@ -113,38 +97,34 @@ export const SnapshotComparisonCard: React.FC<SnapshotComparisonCardProps> = ({ 
         </div>
       </div>
 
-      <div className="overflow-x-auto">
-        <table className="w-full min-w-[620px] border-collapse text-left">
-          <caption className="sr-only">Reference and current cost by element, with the resulting gap and percentage change</caption>
-          <thead className="border-b border-slate-300 bg-slate-100 text-[10px] font-semibold text-slate-700">
-            <tr>
-              <th scope="col" className="px-4 py-2">Cost element</th>
-              <th scope="col" className="px-4 py-2 text-right">Reference</th>
-              <th scope="col" className="px-4 py-2 text-right">Current</th>
-              <th scope="col" className="px-4 py-2 text-right">Gap</th>
-              <th scope="col" className="px-4 py-2 text-right">Change vs Ref</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-slate-100 text-xs">
-            {elements.map(element => {
-              const gap = comparison.elementGaps[element.key]
-              const change = gap !== null && element.reference !== null && element.reference !== 0
-                ? formatPercent(gap / element.reference, 1)
-                : '—'
+      <section aria-label="Reference and Current cost measures" className="grid grid-cols-1 gap-px bg-slate-300 sm:grid-cols-2 xl:grid-cols-4">
+        {metrics.map(metric => {
+          const change = metric.gap !== null && metric.reference !== null && metric.reference !== 0
+            ? `${metric.gap > 0 ? '+' : ''}${formatPercent(metric.gap / metric.reference, 1)}`
+            : '—'
 
-              return (
-                <tr key={element.key}>
-                  <th scope="row" className="px-4 py-2 font-medium text-slate-800">{element.label}</th>
-                  <td className="px-4 py-2 text-right font-mono tabular-nums text-slate-600">{formatCost(element.reference)}</td>
-                  <td className="px-4 py-2 text-right font-mono tabular-nums font-medium text-slate-900">{formatCost(element.current)}</td>
-                  <td className={`px-4 py-2 text-right font-mono font-semibold tabular-nums ${gapClass(gap)}`}>{formatGap(gap)}</td>
-                  <td className={`px-4 py-2 text-right font-mono tabular-nums ${gapClass(gap)}`}>{change}</td>
-                </tr>
-              )
-            })}
-          </tbody>
-        </table>
-      </div>
+          return (
+            <article key={metric.key} className={`min-w-0 bg-white px-3 py-3 ${metric.emphasis ? 'border-t-2 border-t-slate-900' : 'border-t-2 border-t-slate-400'}`}>
+              <h3 className="truncate font-mono text-[10px] font-bold uppercase tracking-wide text-slate-600" title={metric.label}>{metric.label}</h3>
+              <p className="mt-2 flex min-w-0 items-baseline gap-1 font-mono tabular-nums text-slate-950">
+                <span className="shrink-0 text-[9px] font-medium uppercase tracking-wide text-slate-500">Current</span>
+                <span className="truncate text-lg font-semibold tracking-tight">{formatCost(metric.current)}</span>
+                <span className="shrink-0 text-[10px] text-slate-500">THB/pc</span>
+              </p>
+              <dl className="mt-2 space-y-1 border-t border-slate-200 pt-2 text-[10px]">
+                <div className="flex items-center justify-between gap-2">
+                  <dt className="text-slate-500">Reference</dt>
+                  <dd className="truncate font-mono tabular-nums text-slate-700">{formatCost(metric.reference)}</dd>
+                </div>
+                <div className="flex items-center justify-between gap-2">
+                  <dt className="text-slate-500">Change vs Ref</dt>
+                  <dd className={`font-mono font-semibold tabular-nums ${gapClass(metric.gap)}`}>{change}</dd>
+                </div>
+              </dl>
+            </article>
+          )
+        })}
+      </section>
 
       <div className="flex flex-col gap-1 border-t border-slate-200 bg-slate-50 px-4 py-2.5 text-xs sm:flex-row sm:items-center sm:justify-between">
         <span className="text-slate-600">Material, labor, and burden gaps should add to the total gap.</span>
