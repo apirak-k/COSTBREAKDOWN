@@ -84,16 +84,16 @@ export const ScenarioCard: React.FC<ScenarioCardProps> = ({
   const hasEconomicsInputs = Object.values(scenario.economicsInputs).some(value => value.trim() !== '')
 
   return (
-    <article className="flex min-w-0 flex-col border border-slate-300 border-t-2 border-t-slate-900 bg-white">
-      <header className="border-b border-slate-300 px-4 py-3">
+    <article className="flex min-w-0 flex-col border border-slate-300 bg-white">
+      <header className="border-b border-slate-300 bg-slate-50 px-3 py-2">
         <div className="flex flex-wrap items-center justify-between gap-2">
-          <h3 className="text-sm font-semibold text-slate-900">Scenario {scenario.letter}</h3>
-          <span className={`text-xs font-semibold capitalize ${STATUS_CLASS[result.scenarioCost.status] ?? STATUS_CLASS.missing}`}>
-            Calculation: {result.scenarioCost.status}
+          <h3 className="border border-slate-800 bg-slate-900 px-2 py-0.5 font-mono text-[10px] font-bold uppercase tracking-wide text-white">Option {scenario.letter}</h3>
+          <span className={`font-mono text-[9px] font-semibold uppercase ${STATUS_CLASS[result.scenarioCost.status] ?? STATUS_CLASS.missing}`}>
+            {result.scenarioCost.status}
           </span>
         </div>
-        <label htmlFor={labelId} className="mt-3 block text-xs font-medium text-slate-700">
-          Scenario name
+        <label htmlFor={labelId} className="mt-2 block font-mono text-[10px] font-semibold uppercase text-slate-700">
+          Action title
         </label>
         <input
           id={labelId}
@@ -101,18 +101,18 @@ export const ScenarioCard: React.FC<ScenarioCardProps> = ({
           value={scenario.label}
           onChange={event => onUpdateLabel(event.target.value)}
           placeholder={`Scenario ${scenario.letter}`}
-          className="mt-1 min-h-11 w-full rounded-sm border border-slate-400 bg-white px-3 py-2 text-sm text-slate-900 focus:border-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-200"
+          className="mt-1 min-h-8 w-full rounded-sm border border-slate-400 bg-white px-2 py-1 font-sans text-xs text-slate-900 focus:border-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-200"
         />
       </header>
 
-      <div className="flex flex-1 flex-col gap-4 p-4">
+      <div className="flex flex-1 flex-col gap-3 p-3">
         {inputDefinitions.length > 0 && (
-          <fieldset aria-describedby={inputGuidanceId} className="space-y-3">
-            <legend className="text-sm font-semibold text-slate-800">Parameter overrides</legend>
-            <p id={inputGuidanceId} className="text-xs leading-5 text-slate-600">
+          <fieldset aria-describedby={inputGuidanceId} className="space-y-2">
+            <legend className="font-mono text-[10px] font-bold uppercase text-slate-800">Parameter overrides</legend>
+            <p id={inputGuidanceId} className="text-[10px] leading-4 text-slate-600">
               Leave a field blank to keep its Current value.
             </p>
-            <div className="space-y-3">
+            <div className="space-y-2">
               {inputDefinitions.map(definition => (
                 <ScenarioInputField
                   key={definition.key}
@@ -126,13 +126,13 @@ export const ScenarioCard: React.FC<ScenarioCardProps> = ({
           </fieldset>
         )}
 
-        <section aria-labelledby={`${labelId}-costs-heading`} className="border-y border-slate-300 py-3">
-          <div className="mb-2 flex flex-wrap items-start justify-between gap-2">
+        <section aria-labelledby={`${labelId}-costs-heading`} className="border-y border-slate-300 py-2">
+          <div className="mb-1.5 flex flex-wrap items-start justify-between gap-2">
             <div>
-              <h4 id={`${labelId}-costs-heading`} className="text-sm font-semibold text-slate-800">
+              <h4 id={`${labelId}-costs-heading`} className="font-mono text-[10px] font-bold uppercase text-slate-800">
                 Standard cost by element
               </h4>
-              <p className="mt-0.5 text-xs text-slate-600">THB/pc</p>
+              <p className="mt-0.5 text-[10px] text-slate-600">THB/pc</p>
             </div>
           </div>
 
@@ -143,19 +143,19 @@ export const ScenarioCard: React.FC<ScenarioCardProps> = ({
               </caption>
               <thead>
                 <tr className="border-b border-slate-300 text-left font-semibold text-slate-700">
-                  <th scope="col" className="py-2 pr-2">Cost element</th>
-                  <th scope="col" className="px-2 py-2 text-right">Scenario</th>
-                  <th scope="col" className="py-2 pl-2 text-right">Change</th>
+                  <th scope="col" className="py-1.5 pr-2">Cost element</th>
+                  <th scope="col" className="px-2 py-1.5 text-right">Scenario</th>
+                  <th scope="col" className="py-1.5 pl-2 text-right">Change</th>
                 </tr>
               </thead>
               <tbody>
                 {COST_ROWS.map(({ key, label }) => (
                   <tr key={key} className={key === 'total' ? 'border-t border-slate-300 font-semibold text-slate-900' : 'text-slate-700'}>
-                    <th scope="row" className="py-2 pr-2 text-left font-medium">{label}</th>
-                    <td className="px-2 py-2 text-right font-mono tabular-nums">
+                    <th scope="row" className="py-1.5 pr-2 text-left font-medium">{label}</th>
+                    <td className="px-2 py-1.5 text-right font-mono tabular-nums">
                       {formatCost(result.scenarioCost[key])}
                     </td>
-                    <td className="py-2 pl-2 text-right font-mono tabular-nums">
+                    <td className="py-1.5 pl-2 text-right font-mono tabular-nums">
                       {formatDifference(result.currentCost[key], result.scenarioCost[key])}
                     </td>
                   </tr>
@@ -165,12 +165,12 @@ export const ScenarioCard: React.FC<ScenarioCardProps> = ({
           </div>
         </section>
 
-        <section aria-label={`Improvement economics for Scenario ${scenario.letter}`} className="space-y-3">
+        <section aria-label={`Improvement economics for Scenario ${scenario.letter}`} className="space-y-2.5">
           <div>
-            <h4 className="text-sm font-semibold text-slate-800">Improvement economics</h4>
-            <div className="mt-2 flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1 border-b border-slate-200 pb-2">
-              <span className="text-xs font-medium text-slate-700">Gross Saving / pc</span>
-              <span className="font-mono text-sm font-semibold tabular-nums text-slate-900">
+            <h4 className="font-mono text-[10px] font-bold uppercase text-slate-800">Improvement economics</h4>
+            <div className="mt-1.5 flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1 border-b border-slate-200 pb-1.5">
+              <span className="text-[11px] font-medium text-slate-700">Gross Saving / pc</span>
+              <span className="font-mono text-xs font-semibold tabular-nums text-slate-900">
                 {economics.grossSavingPerPiece === null
                   ? 'N/A'
                   : `${formatCost(economics.grossSavingPerPiece)} THB/pc`}
@@ -178,11 +178,11 @@ export const ScenarioCard: React.FC<ScenarioCardProps> = ({
             </div>
           </div>
 
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+          <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
             {ECONOMIC_INPUTS.map(({ key, label, unit }) => {
               const inputId = `scenario-${scenario.letter}-economics-${key}`
               return (
-                <label key={key} htmlFor={inputId} className="block min-w-0 text-xs font-medium text-slate-700">
+                <label key={key} htmlFor={inputId} className="block min-w-0 font-mono text-[10px] font-semibold uppercase text-slate-700">
                   {label} <span className="font-normal text-slate-500">({unit})</span>
                   <input
                     id={inputId}
@@ -191,7 +191,7 @@ export const ScenarioCard: React.FC<ScenarioCardProps> = ({
                     inputMode="decimal"
                     value={scenario.economicsInputs[key]}
                     onChange={event => onUpdateEconomics(key, event.target.value)}
-                    className="mt-1 min-h-11 w-full rounded-sm border border-slate-400 bg-white px-3 py-2 font-mono text-sm tabular-nums text-slate-900 focus:border-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-200"
+                    className="mt-1 min-h-8 w-full rounded-sm border border-slate-400 bg-white px-2 py-1 font-mono text-xs tabular-nums text-slate-900 focus:border-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-200"
                   />
                 </label>
               )
@@ -205,8 +205,8 @@ export const ScenarioCard: React.FC<ScenarioCardProps> = ({
                 <tbody>
                   {ECONOMIC_ROWS.map(({ key, label, unit }) => (
                     <tr key={key} className="border-b border-slate-100 last:border-0">
-                      <th scope="row" className="py-2.5 pr-2 text-left font-medium text-slate-700">{label}</th>
-                      <td className="py-2.5 pl-2 text-right font-mono tabular-nums text-slate-900">
+                      <th scope="row" className="py-2 pr-2 text-left font-medium text-slate-700">{label}</th>
+                      <td className="py-2 pl-2 text-right font-mono tabular-nums text-slate-900">
                         {economics[key] === null ? 'N/A' : `${formatCost(economics[key])} ${unit}`}
                       </td>
                     </tr>
@@ -215,7 +215,7 @@ export const ScenarioCard: React.FC<ScenarioCardProps> = ({
               </table>
             </div>
           ) : (
-            <p className="text-xs leading-5 text-slate-600">
+            <p className="text-[10px] leading-4 text-slate-600">
               Add investment, added cost, and volume assumptions to see the net benefit and total amounts.
             </p>
           )}
@@ -230,10 +230,10 @@ export const ScenarioCard: React.FC<ScenarioCardProps> = ({
         {uniqueWarnings.length > 0 && (
           <section aria-label={`Warnings for Scenario ${scenario.letter}`} className="mt-auto border-t border-slate-300 pt-3">
             <details>
-              <summary className="min-h-9 cursor-pointer py-1 text-sm font-semibold text-amber-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-amber-500">
+                <summary className="min-h-8 cursor-pointer py-1 font-mono text-[10px] font-semibold uppercase text-amber-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-amber-500">
                 Scenario warnings ({uniqueWarnings.length})
               </summary>
-              <div className="mt-2 border-l-2 border-amber-600 bg-amber-50 p-3 text-sm text-amber-950">
+              <div className="mt-2 border-l-2 border-amber-600 bg-amber-50 p-3 text-xs text-amber-950">
                 <ul className="list-disc space-y-1 pl-5">
                   {uniqueWarnings.map(({ message, sources }) => (
                     <li key={message}>

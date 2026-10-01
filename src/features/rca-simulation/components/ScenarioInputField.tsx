@@ -20,7 +20,7 @@ export const ScenarioInputField: React.FC<ScenarioInputFieldProps> = ({
 
   return (
     <div className="min-w-0">
-      <label htmlFor={inputId} className="mb-1.5 block min-h-5 text-sm font-medium leading-5 text-slate-800">
+      <label htmlFor={inputId} className="mb-1 block min-h-4 font-mono text-[10px] font-semibold uppercase leading-4 text-slate-700">
         {definition.label}
       </label>
       <div className="flex items-center gap-2">
@@ -32,7 +32,7 @@ export const ScenarioInputField: React.FC<ScenarioInputFieldProps> = ({
           value={value ?? ''}
           onChange={event => onChange(definition.key, event.target.value)}
           aria-describedby={helperId}
-          className="min-h-11 min-w-0 flex-1 rounded-sm border border-slate-400 bg-white px-3 py-2 font-mono text-sm tabular-nums text-slate-900 focus:border-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-200"
+          className="min-h-8 min-w-0 flex-1 rounded-sm border border-slate-400 bg-white px-2 py-1 font-mono text-xs tabular-nums text-slate-900 focus:border-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-200"
         />
         {definition.unit && (
           <span className="shrink-0 text-xs text-slate-600" aria-hidden="true">
