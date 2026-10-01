@@ -61,51 +61,44 @@ export const RoutingTable: React.FC<RoutingTableProps> = ({
   }
 
   return (
-    <section className="overflow-hidden rounded-md border border-slate-200 bg-white select-none">
-      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 bg-slate-50 px-4 py-3">
-        <div className="flex items-center gap-2">
-          <span className="text-sm font-semibold text-slate-900">Process Routing</span>
-          <span className="rounded-sm border border-slate-200 bg-white px-2 py-1 text-xs font-medium text-slate-700">{routing.length} steps</span>
-        </div>
-        <div className="flex flex-wrap items-center gap-2">
-          <div className="relative">
+    <section aria-label="Process Routing rows" className="overflow-hidden bg-white select-none">
+      <div className="flex flex-col gap-3 border-b border-slate-300 bg-slate-50 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="relative w-full sm:w-64">
             <Search className="absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" aria-hidden="true" />
             <input
               value={searchTerm}
               onChange={event => setSearchTerm(event.target.value)}
-              placeholder="Filter operation / WC..."
+              placeholder="Find operation or work center"
               aria-label="Filter routing by operation, process, or work center"
-              className="min-h-9 w-56 rounded-sm border border-slate-300 bg-white py-1 pl-9 pr-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-700"
+              className="min-h-9 w-full border border-slate-300 bg-white py-1 pl-9 pr-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-700"
             />
-          </div>
-          {isEditMode && (
-            <button
-              type="button"
-              onClick={onAddRoutingStep}
-              className="flex min-h-9 items-center gap-1.5 rounded-sm bg-slate-900 px-3 text-sm font-medium text-white transition-colors hover:bg-slate-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700 cursor-pointer"
-            >
-              <Plus className="w-3 h-3" /> Add Row
-            </button>
-          )}
         </div>
+        {isEditMode && (
+          <button
+            type="button"
+            onClick={onAddRoutingStep}
+            className="flex min-h-9 shrink-0 items-center justify-center gap-1.5 bg-slate-900 px-3 text-sm font-medium text-white transition-colors hover:bg-slate-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700 cursor-pointer"
+          >
+            <Plus className="w-3 h-3" /> Add row
+          </button>
+        )}
       </div>
 
       {isEditMode && selectedIds.size > 0 && (
-        <div className="flex flex-wrap items-center gap-3 bg-slate-900 px-4 py-2 text-xs text-white animate-in fade-in duration-100">
-          <span className="font-bold flex items-center gap-1 text-emerald-300">
-            <CheckSquare className="w-3.5 h-3.5" />
+        <div className="flex flex-wrap items-center gap-3 border-b border-blue-200 bg-blue-50 px-4 py-2 text-xs text-slate-800 animate-in fade-in duration-100">
+          <span className="flex items-center gap-1 font-semibold text-slate-900">
+            <CheckSquare className="w-3.5 h-3.5 text-blue-700" />
             {selectedIds.size} row{selectedIds.size > 1 ? 's' : ''} selected
           </span>
-          <span className="text-slate-500">|</span>
 
           {/* Bulk Assign Work Center */}
           <div className="flex items-center gap-1.5">
-            <label htmlFor="bulk-work-center" className="text-slate-200">Work center</label>
+            <label htmlFor="bulk-work-center" className="text-slate-700">Work center</label>
             <select
               id="bulk-work-center"
               value={bulkWorkCenter}
               onChange={e => setBulkWorkCenter(e.target.value)}
-              className="min-h-9 max-w-full rounded-sm border border-slate-500 bg-slate-800 px-2.5 text-sm text-white focus:outline-none focus:ring-2 focus:ring-blue-300"
+              className="min-h-9 max-w-full border border-slate-300 bg-white px-2.5 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-700"
             >
               <option value="">Select Work Center...</option>
               {rates.map(rate => (
@@ -118,18 +111,16 @@ export const RoutingTable: React.FC<RoutingTableProps> = ({
               type="button"
               disabled={!bulkWorkCenter}
               onClick={applyBulkWorkCenter}
-              className="min-h-9 rounded-sm bg-emerald-700 px-3 text-sm font-semibold text-white transition-colors hover:bg-emerald-600 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-300 disabled:cursor-not-allowed disabled:opacity-50 cursor-pointer"
+              className="min-h-9 bg-slate-900 px-3 text-sm font-medium text-white transition-colors hover:bg-slate-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700 disabled:cursor-not-allowed disabled:opacity-50 cursor-pointer"
             >
               Apply WC
             </button>
           </div>
 
-          <span className="text-slate-500">|</span>
-
           <button
             type="button"
             onClick={handleDeleteSelected}
-            className="flex min-h-9 items-center gap-1.5 rounded-sm px-3 text-sm text-rose-200 transition-colors hover:bg-rose-950/60 hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-rose-300 cursor-pointer"
+            className="flex min-h-9 items-center gap-1.5 px-3 text-sm text-rose-800 transition-colors hover:bg-rose-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-rose-700 cursor-pointer"
             title="Delete selected rows"
           >
             <Trash2 className="w-3 h-3" /> Delete
@@ -138,7 +129,7 @@ export const RoutingTable: React.FC<RoutingTableProps> = ({
           <button
             type="button"
             onClick={clearSelection}
-            className="min-h-9 rounded-sm px-3 text-sm text-slate-300 hover:bg-slate-800 hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-300 cursor-pointer ml-auto"
+            className="min-h-9 px-3 text-sm text-slate-700 hover:bg-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700 cursor-pointer ml-auto"
           >
             Cancel
           </button>
@@ -147,7 +138,7 @@ export const RoutingTable: React.FC<RoutingTableProps> = ({
 
       <div className="overflow-x-auto max-h-[520px]">
         <table ref={tableRef} className="w-full min-w-[980px] border-collapse text-left text-xs">
-          <thead className="sticky top-0 z-10 border-b border-slate-300 bg-slate-100 text-xs font-semibold text-slate-700 select-none">
+          <thead className="sticky top-0 z-10 border-y-2 border-slate-400 bg-slate-100 text-[11px] font-semibold uppercase tracking-wide text-slate-800 select-none">
             <tr>
               {isEditMode && (
                 <th scope="col" className="px-3 py-2.5 text-center w-10">
@@ -171,7 +162,7 @@ export const RoutingTable: React.FC<RoutingTableProps> = ({
               {isEditMode && <th scope="col" className="px-2 py-2.5 text-center">Actions</th>}
             </tr>
           </thead>
-          <tbody className="divide-y divide-slate-100 font-mono text-xs">
+          <tbody className="divide-y divide-slate-200 text-sm">
             {filteredRouting.map(step => {
               const isSelected = selectedIds.has(step.id)
               return (
@@ -180,8 +171,8 @@ export const RoutingTable: React.FC<RoutingTableProps> = ({
                   onMouseEnter={() => onMouseEnterRow(step.id)}
                   className={`transition-colors ${
                     isSelected
-                      ? 'bg-blue-50/80 hover:bg-blue-100/70 border-l-2 border-l-blue-600'
-                      : 'hover:bg-slate-50/80'
+                      ? 'border-l-2 border-l-blue-700 bg-blue-50 hover:bg-blue-100'
+                      : 'hover:bg-slate-50'
                   }`}
                 >
                   {isEditMode && (
@@ -211,7 +202,7 @@ export const RoutingTable: React.FC<RoutingTableProps> = ({
                       step.operationCode || <span className="text-amber-700">—</span>
                     )}
                   </td>
-                  <td className="px-3 py-2 text-right">
+                  <td className="px-3 py-2 text-right font-mono tabular-nums">
                     {isEditMode ? (
                       <input
                         type="number"
@@ -256,7 +247,7 @@ export const RoutingTable: React.FC<RoutingTableProps> = ({
                       step.workCenterId || <span className="text-amber-700">—</span>
                     )}
                   </td>
-                  <td className="px-3 py-2 text-right">
+                  <td className="px-3 py-2 text-right font-mono tabular-nums">
                     {isEditMode ? (
                       <input
                         type="number"
@@ -270,7 +261,7 @@ export const RoutingTable: React.FC<RoutingTableProps> = ({
                       numberValue(step.manning) || <span className="text-amber-700">—</span>
                     )}
                   </td>
-                  <td className="px-3 py-2 text-right">
+                  <td className="px-3 py-2 text-right font-mono tabular-nums">
                     {isEditMode ? (
                       <input
                         type="number"
@@ -359,9 +350,11 @@ export const RoutingTable: React.FC<RoutingTableProps> = ({
           </tbody>
         </table>
       </div>
-      <div className="border-t border-slate-200 bg-slate-50 px-4 py-2.5 text-xs text-slate-600">
-        Displaying {filteredRouting.length} of {routing.length} Routing Steps
-      </div>
+      {searchTerm.trim() !== '' && (
+        <div role="status" className="border-t border-slate-200 bg-slate-50 px-4 py-2 text-xs text-slate-600">
+          Showing {filteredRouting.length} of {routing.length} matching rows
+        </div>
+      )}
     </section>
   )
 }

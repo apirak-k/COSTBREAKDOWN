@@ -52,45 +52,39 @@ export const WorkCenterRatesTable: React.FC<WorkCenterRatesTableProps> = ({
   }
 
   return (
-    <section className="overflow-hidden rounded-md border border-slate-200 bg-white select-none">
-      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 bg-slate-50 px-4 py-3">
-        <div className="flex items-center gap-2">
-          <span className="text-sm font-semibold text-slate-900">Work Center Rates</span>
-          <span className="rounded-sm border border-slate-200 bg-white px-2 py-1 text-xs font-medium text-slate-700">{rates.length} rows</span>
-        </div>
-        <div className="flex flex-wrap items-center gap-2">
-          <div className="relative">
+    <section aria-label="Work Center Rates rows" className="overflow-hidden bg-white select-none">
+      <div className="flex flex-col gap-3 border-b border-slate-300 bg-slate-50 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="relative w-full sm:w-64">
             <Search className="absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" aria-hidden="true" />
             <input
               value={searchTerm}
               onChange={event => setSearchTerm(event.target.value)}
-              placeholder="Filter work centers..."
+              placeholder="Find work center"
               aria-label="Filter work center rates by code or name"
-              className="min-h-9 w-56 rounded-sm border border-slate-300 bg-white py-1 pl-9 pr-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-700"
+              className="min-h-9 w-full border border-slate-300 bg-white py-1 pl-9 pr-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-700"
             />
-          </div>
-          {isEditMode && (
-            <button
-              type="button"
-              onClick={onAddRate}
-              className="flex min-h-9 items-center gap-1.5 rounded-sm bg-slate-900 px-3 text-sm font-medium text-white transition-colors hover:bg-slate-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700 cursor-pointer"
-            >
-              <Plus className="w-3 h-3" /> Add Row
-            </button>
-          )}
         </div>
+        {isEditMode && (
+          <button
+            type="button"
+            onClick={onAddRate}
+            className="flex min-h-9 shrink-0 items-center justify-center gap-1.5 bg-slate-900 px-3 text-sm font-medium text-white transition-colors hover:bg-slate-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700 cursor-pointer"
+          >
+            <Plus className="w-3 h-3" /> Add row
+          </button>
+        )}
       </div>
 
       {isEditMode && selectedIds.size > 0 && (
-        <div className="flex flex-wrap items-center gap-3 bg-slate-900 px-4 py-2 text-xs text-white animate-in fade-in duration-100">
-          <span className="font-bold flex items-center gap-1 text-emerald-300">
-            <CheckSquare className="w-3.5 h-3.5" />
+        <div className="flex flex-wrap items-center gap-3 border-b border-blue-200 bg-blue-50 px-4 py-2 text-xs text-slate-800 animate-in fade-in duration-100">
+          <span className="flex items-center gap-1 font-semibold text-slate-900">
+            <CheckSquare className="w-3.5 h-3.5 text-blue-700" />
             {selectedIds.size} row{selectedIds.size > 1 ? 's' : ''} selected
           </span>
           <button
             type="button"
             onClick={handleDeleteSelected}
-            className="flex min-h-9 items-center gap-1.5 rounded-sm px-3 text-sm text-rose-200 transition-colors hover:bg-rose-950/60 hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-rose-300 cursor-pointer"
+            className="flex min-h-9 items-center gap-1.5 px-3 text-sm text-rose-800 transition-colors hover:bg-rose-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-rose-700 cursor-pointer"
             title="Delete selected rows"
           >
             <Trash2 className="w-3 h-3" /> Delete
@@ -99,7 +93,7 @@ export const WorkCenterRatesTable: React.FC<WorkCenterRatesTableProps> = ({
           <button
             type="button"
             onClick={clearSelection}
-            className="min-h-9 rounded-sm px-3 text-sm text-slate-300 hover:bg-slate-800 hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-300 cursor-pointer ml-auto"
+            className="min-h-9 px-3 text-sm text-slate-700 hover:bg-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700 cursor-pointer ml-auto"
           >
             Cancel
           </button>
@@ -108,7 +102,7 @@ export const WorkCenterRatesTable: React.FC<WorkCenterRatesTableProps> = ({
 
       <div className="overflow-x-auto max-h-[520px]">
         <table ref={tableRef} className="w-full min-w-[820px] border-collapse text-left text-xs">
-          <thead className="sticky top-0 z-10 border-b border-slate-300 bg-slate-100 text-xs font-semibold text-slate-700 select-none">
+          <thead className="sticky top-0 z-10 border-y-2 border-slate-400 bg-slate-100 text-[11px] font-semibold uppercase tracking-wide text-slate-800 select-none">
             <tr>
               {isEditMode && (
                 <th scope="col" className="px-3 py-2.5 text-center w-10">
@@ -129,7 +123,7 @@ export const WorkCenterRatesTable: React.FC<WorkCenterRatesTableProps> = ({
               {isEditMode && <th scope="col" className="px-2 py-2.5 text-center">Actions</th>}
             </tr>
           </thead>
-          <tbody className="divide-y divide-slate-100 font-mono text-xs">
+          <tbody className="divide-y divide-slate-200 text-sm">
             {filteredRates.map(rate => {
               const isSelected = selectedIds.has(rate.id)
               return (
@@ -138,8 +132,8 @@ export const WorkCenterRatesTable: React.FC<WorkCenterRatesTableProps> = ({
                   onMouseEnter={() => onMouseEnterRow(rate.id)}
                   className={`transition-colors ${
                     isSelected
-                      ? 'bg-blue-50/80 hover:bg-blue-100/70 border-l-2 border-l-blue-600'
-                      : 'hover:bg-slate-50/80'
+                      ? 'border-l-2 border-l-blue-700 bg-blue-50 hover:bg-blue-100'
+                      : 'hover:bg-slate-50'
                   }`}
                 >
                   {isEditMode && (
@@ -156,7 +150,7 @@ export const WorkCenterRatesTable: React.FC<WorkCenterRatesTableProps> = ({
                       />
                     </td>
                   )}
-                  <td className="px-3 py-2 font-semibold text-slate-900">
+                  <td className="px-3 py-2 font-mono font-semibold text-slate-950">
                     {isEditMode ? (
                       <input
                         value={rate.workCenterCode}
@@ -180,7 +174,7 @@ export const WorkCenterRatesTable: React.FC<WorkCenterRatesTableProps> = ({
                       rate.description || '—'
                     )}
                   </td>
-                  <td className="px-3 py-2 text-right">
+                  <td className="px-3 py-2 text-right font-mono tabular-nums">
                     {isEditMode ? (
                       <input
                         type="number"
@@ -196,7 +190,7 @@ export const WorkCenterRatesTable: React.FC<WorkCenterRatesTableProps> = ({
                       rate.laborRate.toFixed(4)
                     )}
                   </td>
-                  <td className="px-3 py-2 text-right">
+                  <td className="px-3 py-2 text-right font-mono tabular-nums">
                     {isEditMode ? (
                       <input
                         type="number"
@@ -265,9 +259,11 @@ export const WorkCenterRatesTable: React.FC<WorkCenterRatesTableProps> = ({
           </tbody>
         </table>
       </div>
-      <div className="border-t border-slate-200 bg-slate-50 px-4 py-2.5 text-xs text-slate-600">
-        Displaying {filteredRates.length} of {rates.length} Work Centers
-      </div>
+      {searchTerm.trim() !== '' && (
+        <div role="status" className="border-t border-slate-200 bg-slate-50 px-4 py-2 text-xs text-slate-600">
+          Showing {filteredRates.length} of {rates.length} matching rows
+        </div>
+      )}
     </section>
   )
 }

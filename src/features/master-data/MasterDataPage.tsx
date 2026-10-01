@@ -1,5 +1,5 @@
-import React, { useState, useMemo } from 'react'
-import { AlertTriangle, Layers, TableProperties, Box, GitCommit, Factory, ChevronDown, ChevronUp } from 'lucide-react'
+import React, { useMemo, useState } from 'react'
+import { AlertTriangle, Box, ChevronDown, ChevronUp, Factory, GitCommit } from 'lucide-react'
 import { useAppStore } from '../../state'
 
 import { MasterDataWorkspaceHeader } from './components/MasterDataWorkspaceHeader'
@@ -12,7 +12,6 @@ import { RoutingTable } from './components/RoutingTable'
 import { PageHeading } from '../../shared'
 
 type TableSubTab = 'bom' | 'routing' | 'rates'
-type LayoutMode = 'tabs' | 'stacked'
 
 export const MasterDataPage: React.FC = () => {
   const {
@@ -24,7 +23,6 @@ export const MasterDataPage: React.FC = () => {
     masterDataHandoff,
     snapshotPair,
     setMasterDataRole,
-    setActiveTab,
     loadDevelopmentReviewFixture,
     returnFromDevelopmentReviewFixture,
     cloneReferenceToCurrent,
@@ -46,20 +44,10 @@ export const MasterDataPage: React.FC = () => {
 
   const [isEditMode, setIsEditMode] = useState(false)
   const [activeTableTab, setActiveTableTab] = useState<TableSubTab>('bom')
-  const [layoutMode, setLayoutMode] = useState<LayoutMode>('stacked')
-  const [collapsedSections, setCollapsedSections] = useState<Record<TableSubTab, boolean>>({
-    bom: false,
-    routing: false,
-    rates: false
-  })
   const [importModalOpen, setImportModalOpen] = useState(false)
   const [templateModalOpen, setTemplateModalOpen] = useState(false)
   const [sizingModalOpen, setSizingModalOpen] = useState(false)
   const [warningsExpanded, setWarningsExpanded] = useState(false)
-
-  const toggleSection = (section: TableSubTab) => {
-    setCollapsedSections(prev => ({ ...prev, [section]: !prev[section] }))
-  }
 
   const handleLoadSyntheticReviewData = async () => {
     if (!import.meta.env.DEV) return
@@ -83,22 +71,27 @@ export const MasterDataPage: React.FC = () => {
     rates: snapshotPair.current.rates.length
   }), [snapshotPair.current])
 
-  // Combine dataset warnings and handoff notices
   const allNotices = useMemo(() => {
     const list: string[] = []
     if (masterDataSnapshot.warnings) {
       list.push(...masterDataSnapshot.warnings)
     }
     if (masterDataHandoff.warnings) {
-      masterDataHandoff.warnings.forEach(w => {
-        if (!list.includes(w)) list.push(w)
+      masterDataHandoff.warnings.forEach(warning => {
+        if (!list.includes(warning)) list.push(warning)
       })
     }
     return list
   }, [masterDataSnapshot.warnings, masterDataHandoff.warnings])
 
+  const tableLabel = activeTableTab === 'bom'
+    ? 'BOM'
+    : activeTableTab === 'routing'
+      ? 'Routing'
+      : 'Work Center Rates'
+
   return (
-    <div className="space-y-5">
+    <div className="space-y-6">
       <PageHeading
         title="Master Data"
         description="Prepare independent Reference and Current datasets through direct entry or Excel import."
@@ -111,7 +104,7 @@ export const MasterDataPage: React.FC = () => {
                   returnFromDevelopmentReviewFixture()
                 }
               }}
-              className="min-h-10 rounded-sm border border-slate-300 bg-white px-3 text-sm font-medium text-slate-700 hover:bg-slate-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700 cursor-pointer"
+              className="min-h-10 border border-slate-300 bg-white px-3 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700"
             >
               Return to working session
             </button>
@@ -120,14 +113,13 @@ export const MasterDataPage: React.FC = () => {
             <button
               type="button"
               onClick={() => { void handleLoadSyntheticReviewData() }}
-              className="min-h-10 rounded-sm border border-slate-300 bg-white px-3 text-sm font-medium text-slate-700 hover:bg-slate-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700 cursor-pointer"
+              className="min-h-10 border border-slate-300 bg-white px-3 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700"
             >
               Load mock review data
             </button>
           ))}
       />
 
-      {/* ─── Unified Workspace Header ─── */}
       <MasterDataWorkspaceHeader
         product={product}
         snapshot={masterDataSnapshot}
@@ -144,7 +136,6 @@ export const MasterDataPage: React.FC = () => {
         canCloneReference={masterDataHandoff.referenceReady}
         canCloneCurrent={masterDataHandoff.currentReady}
         handoff={masterDataHandoff}
-        onOpenCostBreakdown={() => setActiveTab('breakdown')}
         onOpenImportModal={() => setImportModalOpen(true)}
         onOpenTemplateModal={() => setTemplateModalOpen(true)}
         onOpenSizingModal={() => setSizingModalOpen(true)}
@@ -152,331 +143,162 @@ export const MasterDataPage: React.FC = () => {
         currentCounts={currentCounts}
       />
 
-      {/* ─── Compact Collapsible Notices & Warnings ─── */}
       {allNotices.length > 0 && (
-        <div className="bg-amber-50/90 border border-amber-200/90 text-amber-900 rounded-lg p-3 text-xs shadow-2xs">
-          <div className="flex items-center justify-between gap-2">
-            <div className="flex items-center gap-2">
-              <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0" />
-              <span className="font-medium">
-                <strong className="font-mono uppercase text-[11px] tracking-tight text-amber-950">Data Notice ({allNotices.length}):</strong> {allNotices[0]}
-              </span>
+        <aside className="border-y border-slate-300 border-l-4 border-l-amber-600 bg-amber-50 px-4 py-3 text-sm text-slate-800" aria-label="Dataset notices">
+          <div className="flex items-start justify-between gap-3">
+            <div className="flex min-w-0 items-start gap-2">
+              <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-amber-700" aria-hidden="true" />
+              <p className="min-w-0 leading-5">
+                <span className="mr-2 font-semibold text-slate-950">Data notice</span>
+                {allNotices[0]}
+              </p>
             </div>
             {allNotices.length > 1 && (
               <button
                 type="button"
                 onClick={() => setWarningsExpanded(!warningsExpanded)}
-                className="flex items-center gap-1 text-[11px] font-mono font-bold text-amber-800 hover:text-amber-950 underline cursor-pointer transition-colors"
+                aria-expanded={warningsExpanded}
+                className="inline-flex min-h-8 shrink-0 items-center gap-1 px-2 text-xs font-medium text-slate-700 underline underline-offset-2 hover:text-slate-950 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700"
               >
-                <span>{warningsExpanded ? 'Hide' : `Show all (${allNotices.length})`}</span>
-                {warningsExpanded ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
+                {warningsExpanded ? 'Hide notices' : 'All ' + allNotices.length}
+                {warningsExpanded
+                  ? <ChevronUp className="h-3.5 w-3.5" aria-hidden="true" />
+                  : <ChevronDown className="h-3.5 w-3.5" aria-hidden="true" />}
               </button>
             )}
           </div>
           {warningsExpanded && allNotices.length > 1 && (
-            <ul className="mt-2 pt-2 border-t border-amber-200/70 list-disc pl-5 space-y-1 text-[11px] text-amber-800 font-sans">
-              {allNotices.map((notice, idx) => (
-                <li key={idx}>{notice}</li>
-              ))}
+            <ul className="mt-3 space-y-1 border-t border-amber-200 pt-3 pl-6 text-sm leading-5 text-slate-700">
+              {allNotices.map((notice, index) => <li key={index}>{notice}</li>)}
             </ul>
           )}
-        </div>
+        </aside>
       )}
 
-      {/* ─── Tables Workspace Navigation & Views ─── */}
-      <div className="space-y-3">
-        {/* Navigation Tab Bar */}
-        <div className="flex flex-col gap-2 rounded-md border border-slate-200 bg-white p-2 sm:flex-row sm:items-center sm:justify-between">
-          {/* Sub-Tabs */}
-          <div className="flex w-full min-w-0 gap-1 overflow-x-auto sm:w-auto" role="group" aria-label="Dataset table sections">
+      <section className="overflow-hidden border border-slate-300 bg-white" aria-label="Working dataset tables">
+        <div className="flex flex-col gap-2 border-b border-slate-300 bg-slate-100 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <h2 className="text-sm font-semibold text-slate-950">Dataset tables</h2>
+            <p className="mt-0.5 text-xs text-slate-600">Select a section to review or edit its rows.</p>
+          </div>
+          <div className="flex min-w-0 gap-1 overflow-x-auto" role="group" aria-label="Dataset table sections">
             <button
+              id="master-data-nav-bom"
               type="button"
               aria-pressed={activeTableTab === 'bom'}
-              onClick={() => {
-                setActiveTableTab('bom')
-                setLayoutMode('tabs')
-              }}
-              className={`flex min-h-10 shrink-0 items-center gap-2 rounded-sm px-3 text-sm font-medium transition-colors cursor-pointer ${
-                activeTableTab === 'bom' && layoutMode === 'tabs'
-                  ? 'bg-white text-slate-900 shadow-sm border border-slate-200'
-                  : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/70'
-              }`}
+              aria-controls="master-data-table-panel"
+              onClick={() => setActiveTableTab('bom')}
+              className={'flex min-h-10 shrink-0 items-center gap-2 border-b-2 px-3 text-sm font-medium transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-blue-700 ' +
+                (activeTableTab === 'bom'
+                  ? 'border-b-blue-700 bg-white text-slate-950'
+                  : 'border-b-transparent text-slate-600 hover:bg-white hover:text-slate-950')}
             >
-              <Box className="w-3.5 h-3.5 text-slate-500" />
-              <span>Bill of Materials (BOM)</span>
-              <span className={`text-[10px] px-1.5 py-0.5 rounded font-mono font-semibold ${
-                activeTableTab === 'bom' && layoutMode === 'tabs'
-                  ? 'bg-slate-900 text-white'
-                  : 'bg-slate-200 text-slate-700'
-              }`}>
+              <Box className="h-4 w-4 text-slate-600" aria-hidden="true" />
+              <span>BOM</span>
+              <span className={'font-mono text-xs tabular-nums ' + (activeTableTab === 'bom' ? 'text-slate-950' : 'text-slate-500')}>
                 {masterDataSnapshot.bom.length}
               </span>
             </button>
-
             <button
+              id="master-data-nav-routing"
               type="button"
               aria-pressed={activeTableTab === 'routing'}
-              onClick={() => {
-                setActiveTableTab('routing')
-                setLayoutMode('tabs')
-              }}
-              className={`flex min-h-10 shrink-0 items-center gap-2 rounded-sm px-3 text-sm font-medium transition-colors cursor-pointer ${
-                activeTableTab === 'routing' && layoutMode === 'tabs'
-                  ? 'bg-white text-slate-900 shadow-sm border border-slate-200'
-                  : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/70'
-              }`}
+              aria-controls="master-data-table-panel"
+              onClick={() => setActiveTableTab('routing')}
+              className={'flex min-h-10 shrink-0 items-center gap-2 border-b-2 px-3 text-sm font-medium transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-blue-700 ' +
+                (activeTableTab === 'routing'
+                  ? 'border-b-blue-700 bg-white text-slate-950'
+                  : 'border-b-transparent text-slate-600 hover:bg-white hover:text-slate-950')}
             >
-              <GitCommit className="w-3.5 h-3.5 text-slate-500" />
-              <span>Routing & Operations</span>
-              <span className={`text-[10px] px-1.5 py-0.5 rounded font-mono font-semibold ${
-                activeTableTab === 'routing' && layoutMode === 'tabs'
-                  ? 'bg-slate-900 text-white'
-                  : 'bg-slate-200 text-slate-700'
-              }`}>
+              <GitCommit className="h-4 w-4 text-slate-600" aria-hidden="true" />
+              <span>Routing</span>
+              <span className={'font-mono text-xs tabular-nums ' + (activeTableTab === 'routing' ? 'text-slate-950' : 'text-slate-500')}>
                 {masterDataSnapshot.routing.length}
               </span>
             </button>
-
             <button
+              id="master-data-nav-rates"
               type="button"
               aria-pressed={activeTableTab === 'rates'}
-              onClick={() => {
-                setActiveTableTab('rates')
-                setLayoutMode('tabs')
-              }}
-              className={`flex min-h-10 shrink-0 items-center gap-2 rounded-sm px-3 text-sm font-medium transition-colors cursor-pointer ${
-                activeTableTab === 'rates' && layoutMode === 'tabs'
-                  ? 'bg-white text-slate-900 shadow-sm border border-slate-200'
-                  : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/70'
-              }`}
+              aria-controls="master-data-table-panel"
+              onClick={() => setActiveTableTab('rates')}
+              className={'flex min-h-10 shrink-0 items-center gap-2 border-b-2 px-3 text-sm font-medium transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-blue-700 ' +
+                (activeTableTab === 'rates'
+                  ? 'border-b-blue-700 bg-white text-slate-950'
+                  : 'border-b-transparent text-slate-600 hover:bg-white hover:text-slate-950')}
             >
-              <Factory className="w-3.5 h-3.5 text-slate-500" />
-              <span>Work Center Rates</span>
-              <span className={`text-[10px] px-1.5 py-0.5 rounded font-mono font-semibold ${
-                activeTableTab === 'rates' && layoutMode === 'tabs'
-                  ? 'bg-slate-900 text-white'
-                  : 'bg-slate-200 text-slate-700'
-              }`}>
+              <Factory className="h-4 w-4 text-slate-600" aria-hidden="true" />
+              <span>Work Centers</span>
+              <span className={'font-mono text-xs tabular-nums ' + (activeTableTab === 'rates' ? 'text-slate-950' : 'text-slate-500')}>
                 {masterDataSnapshot.rates.length}
               </span>
             </button>
           </div>
-
-          {/* Layout Mode Switcher (Tab View vs Stacked View) */}
-          <div className="flex items-center gap-1 self-start rounded-sm border border-slate-300 bg-slate-50 p-0.5 sm:self-auto">
-            <button
-              type="button"
-              aria-pressed={layoutMode === 'tabs'}
-              onClick={() => setLayoutMode('tabs')}
-              className={`flex min-h-9 items-center gap-1.5 rounded px-3 py-1 text-xs transition-colors cursor-pointer ${
-                layoutMode === 'tabs'
-                  ? 'bg-white text-slate-900 font-bold shadow-xs border border-slate-200'
-                  : 'text-slate-600 hover:text-slate-900'
-              }`}
-              title="Focus on one table at a time"
-            >
-              <TableProperties className="w-3 h-3 text-slate-500" />
-              <span>Tab View</span>
-            </button>
-            <button
-              type="button"
-              aria-pressed={layoutMode === 'stacked'}
-              onClick={() => setLayoutMode('stacked')}
-              className={`flex min-h-9 items-center gap-1.5 rounded px-3 py-1 text-xs transition-colors cursor-pointer ${
-                layoutMode === 'stacked'
-                  ? 'bg-white text-slate-900 font-bold shadow-xs border border-slate-200'
-                  : 'text-slate-600 hover:text-slate-900'
-              }`}
-              title="View all tables stacked vertically"
-            >
-              <Layers className="w-3 h-3 text-slate-500" />
-              <span>View All</span>
-            </button>
-          </div>
         </div>
 
-        {/* ─── Render Tables Based on Layout Mode ─── */}
-        {layoutMode === 'tabs' ? (
-          <div>
-            {activeTableTab === 'bom' && (
-              <BOMTable
-                bom={masterDataSnapshot.bom}
-                isEditMode={isEditMode}
-                onAddBOMItem={() => addMasterDataBOMItem({
-                  itemCode: '',
-                  description: '',
-                  consumption: null,
-                  unit: 'PC',
-                  price: null,
-                  loss: 0,
-                  sourceRef: 'Direct Input'
-                })}
-                onUpdateBOMItem={updateMasterDataBOMItem}
-                onDeleteBOMItem={deleteMasterDataBOMItem}
-              />
-            )}
+        <div
+          id="master-data-table-panel"
+          role="region"
+          aria-label={tableLabel + ' table'}
+          aria-labelledby={'master-data-nav-' + activeTableTab}
+        >
+          {activeTableTab === 'bom' && (
+            <BOMTable
+              bom={masterDataSnapshot.bom}
+              isEditMode={isEditMode}
+              onAddBOMItem={() => addMasterDataBOMItem({
+                itemCode: '',
+                description: '',
+                consumption: null,
+                unit: 'PC',
+                price: null,
+                loss: 0,
+                sourceRef: 'Direct Input'
+              })}
+              onUpdateBOMItem={updateMasterDataBOMItem}
+              onDeleteBOMItem={deleteMasterDataBOMItem}
+            />
+          )}
 
-            {activeTableTab === 'routing' && (
-              <RoutingTable
-                routing={masterDataSnapshot.routing}
-                rates={masterDataSnapshot.rates}
-                isEditMode={isEditMode}
-                onAddRoutingStep={() => addMasterDataRoutingStep({
-                  operationCode: '',
-                  processName: '',
-                  sequence: (masterDataSnapshot.routing.length + 1) * 10,
-                  workCenterId: masterDataSnapshot.rates[0]?.workCenterCode || undefined,
-                  manning: null,
-                  capacity: null,
-                  yield: null,
-                  sourceRef: 'Direct Input'
-                })}
-                onUpdateRoutingStep={updateMasterDataRoutingStep}
-                onDeleteRoutingStep={deleteMasterDataRoutingStep}
-              />
-            )}
+          {activeTableTab === 'routing' && (
+            <RoutingTable
+              routing={masterDataSnapshot.routing}
+              rates={masterDataSnapshot.rates}
+              isEditMode={isEditMode}
+              onAddRoutingStep={() => addMasterDataRoutingStep({
+                operationCode: '',
+                processName: '',
+                sequence: (masterDataSnapshot.routing.length + 1) * 10,
+                workCenterId: masterDataSnapshot.rates[0]?.workCenterCode || undefined,
+                manning: null,
+                capacity: null,
+                yield: null,
+                sourceRef: 'Direct Input'
+              })}
+              onUpdateRoutingStep={updateMasterDataRoutingStep}
+              onDeleteRoutingStep={deleteMasterDataRoutingStep}
+            />
+          )}
 
-            {activeTableTab === 'rates' && (
-              <WorkCenterRatesTable
-                rates={masterDataSnapshot.rates}
-                isEditMode={isEditMode}
-                onAddRate={() => addMasterDataWorkCenterRate({
-                  workCenterCode: '',
-                  description: '',
-                  laborRate: null,
-                  burdenRate: null,
-                  effectiveDate: product.effectiveDate || new Date().toISOString().split('T')[0],
-                  sourceRef: 'Direct Input'
-                })}
-                onUpdateRate={updateMasterDataWorkCenterRate}
-                onDeleteRate={deleteMasterDataWorkCenterRate}
-              />
-            )}
-          </div>
-        ) : (
-          <div className="space-y-4">
-            {/* BOM Section */}
-            <div className="border border-slate-200 bg-white rounded-lg shadow-2xs overflow-hidden">
-              <button
-                type="button"
-                onClick={() => toggleSection('bom')}
-                aria-expanded={!collapsedSections.bom}
-                className="flex min-h-12 w-full items-center justify-between gap-3 border-b border-slate-200 bg-slate-50 px-4 py-2.5 text-left transition-colors hover:bg-slate-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700 cursor-pointer"
-              >
-                <span className="flex items-center gap-2">
-                  <Box className="w-4 h-4 text-slate-600" />
-                  <span className="text-sm font-semibold text-slate-900">Bill of Materials (BOM)</span>
-                  <span className="text-[10px] px-1.5 py-0.5 rounded font-mono bg-slate-200 text-slate-700 font-semibold">
-                    {masterDataSnapshot.bom.length} items
-                  </span>
-                </span>
-                <span className="flex items-center gap-1 text-slate-500 text-xs">
-                  <span className="hidden sm:inline">{collapsedSections.bom ? 'Expand' : 'Collapse'}</span>
-                  {collapsedSections.bom ? <ChevronDown className="w-4 h-4" /> : <ChevronUp className="w-4 h-4" />}
-                </span>
-              </button>
-              {!collapsedSections.bom && (
-                <BOMTable
-                  bom={masterDataSnapshot.bom}
-                  isEditMode={isEditMode}
-                  onAddBOMItem={() => addMasterDataBOMItem({
-                    itemCode: '',
-                    description: '',
-                    consumption: null,
-                    unit: 'PC',
-                    price: null,
-                    loss: 0,
-                    sourceRef: 'Direct Input'
-                  })}
-                  onUpdateBOMItem={updateMasterDataBOMItem}
-                  onDeleteBOMItem={deleteMasterDataBOMItem}
-                />
-              )}
-            </div>
+          {activeTableTab === 'rates' && (
+            <WorkCenterRatesTable
+              rates={masterDataSnapshot.rates}
+              isEditMode={isEditMode}
+              onAddRate={() => addMasterDataWorkCenterRate({
+                workCenterCode: '',
+                description: '',
+                laborRate: null,
+                burdenRate: null,
+                effectiveDate: product.effectiveDate || new Date().toISOString().split('T')[0],
+                sourceRef: 'Direct Input'
+              })}
+              onUpdateRate={updateMasterDataWorkCenterRate}
+              onDeleteRate={deleteMasterDataWorkCenterRate}
+            />
+          )}
+        </div>
+      </section>
 
-            {/* Routing Section */}
-            <div className="border border-slate-200 bg-white rounded-lg shadow-2xs overflow-hidden">
-              <button
-                type="button"
-                onClick={() => toggleSection('routing')}
-                aria-expanded={!collapsedSections.routing}
-                className="flex min-h-12 w-full items-center justify-between gap-3 border-b border-slate-200 bg-slate-50 px-4 py-2.5 text-left transition-colors hover:bg-slate-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700 cursor-pointer"
-              >
-                <span className="flex items-center gap-2">
-                  <GitCommit className="w-4 h-4 text-slate-600" />
-                  <span className="text-sm font-semibold text-slate-900">Process Routing</span>
-                  <span className="text-[10px] px-1.5 py-0.5 rounded font-mono bg-slate-200 text-slate-700 font-semibold">
-                    {masterDataSnapshot.routing.length} steps
-                  </span>
-                </span>
-                <span className="flex items-center gap-1 text-slate-500 text-xs">
-                  <span className="hidden sm:inline">{collapsedSections.routing ? 'Expand' : 'Collapse'}</span>
-                  {collapsedSections.routing ? <ChevronDown className="w-4 h-4" /> : <ChevronUp className="w-4 h-4" />}
-                </span>
-              </button>
-              {!collapsedSections.routing && (
-                <RoutingTable
-                  routing={masterDataSnapshot.routing}
-                  rates={masterDataSnapshot.rates}
-                  isEditMode={isEditMode}
-                  onAddRoutingStep={() => addMasterDataRoutingStep({
-                    operationCode: '',
-                    processName: '',
-                    sequence: (masterDataSnapshot.routing.length + 1) * 10,
-                    workCenterId: masterDataSnapshot.rates[0]?.workCenterCode || undefined,
-                    manning: null,
-                    capacity: null,
-                    yield: null,
-                    sourceRef: 'Direct Input'
-                  })}
-                  onUpdateRoutingStep={updateMasterDataRoutingStep}
-                  onDeleteRoutingStep={deleteMasterDataRoutingStep}
-                />
-              )}
-            </div>
-
-            {/* Work Center Rates Section */}
-            <div className="border border-slate-200 bg-white rounded-lg shadow-2xs overflow-hidden">
-              <button
-                type="button"
-                onClick={() => toggleSection('rates')}
-                aria-expanded={!collapsedSections.rates}
-                className="flex min-h-12 w-full items-center justify-between gap-3 border-b border-slate-200 bg-slate-50 px-4 py-2.5 text-left transition-colors hover:bg-slate-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700 cursor-pointer"
-              >
-                <span className="flex items-center gap-2">
-                  <Factory className="w-4 h-4 text-slate-600" />
-                  <span className="text-sm font-semibold text-slate-900">Work Center Rates</span>
-                  <span className="text-[10px] px-1.5 py-0.5 rounded font-mono bg-slate-200 text-slate-700 font-semibold">
-                    {masterDataSnapshot.rates.length} centers
-                  </span>
-                </span>
-                <span className="flex items-center gap-1 text-slate-500 text-xs">
-                  <span className="hidden sm:inline">{collapsedSections.rates ? 'Expand' : 'Collapse'}</span>
-                  {collapsedSections.rates ? <ChevronDown className="w-4 h-4" /> : <ChevronUp className="w-4 h-4" />}
-                </span>
-              </button>
-              {!collapsedSections.rates && (
-                <WorkCenterRatesTable
-                  rates={masterDataSnapshot.rates}
-                  isEditMode={isEditMode}
-                  onAddRate={() => addMasterDataWorkCenterRate({
-                    workCenterCode: '',
-                    description: '',
-                    laborRate: null,
-                    burdenRate: null,
-                    effectiveDate: product.effectiveDate || new Date().toISOString().split('T')[0],
-                    sourceRef: 'Direct Input'
-                  })}
-                  onUpdateRate={updateMasterDataWorkCenterRate}
-                  onDeleteRate={deleteMasterDataWorkCenterRate}
-                />
-              )}
-            </div>
-          </div>
-        )}
-      </div>
-
-      {/* ─── Modals ─── */}
       <ExcelImportModal
         isOpen={importModalOpen}
         onClose={() => setImportModalOpen(false)}
