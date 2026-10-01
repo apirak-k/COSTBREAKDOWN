@@ -144,6 +144,13 @@ try {
   for (const warning of warnings) assert.ok(summaryMarkup.includes(warning.message))
   assert.equal((summaryMarkup.match(/<li>/g) ?? []).length, 5)
   assert.ok(!summaryMarkup.includes('more warnings in detailed comparison'))
+  const warningBlockStart = summaryMarkup.lastIndexOf(
+    'border-t border-amber-200 bg-amber-50/70',
+    summaryMarkup.indexOf('Review warnings (5)')
+  )
+  const warningBlock = summaryMarkup.slice(warningBlockStart, summaryMarkup.indexOf('</section>', warningBlockStart))
+  assert.match(warningBlock, /<p\b[^>]*\brole="status"[^>]*>Review warnings \(5\)<\/p><ul\b/)
+  assert.equal((warningBlock.match(/role="status"/g) ?? []).length, 1)
 
   console.log('Cost Breakdown review feedback component checks passed.')
 } finally {

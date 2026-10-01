@@ -13,7 +13,9 @@
 - Detailed comparison rows now expose every `fieldDiffs` value; Routing displays Reference and Current Sequence and Manning separately; missing Current-side labels no longer fall back to Reference. The snapshot card renders every warning, and the stale review sentence is updated.
 - Local verification passed: `node scripts/verify_cost_breakdown_review_feedback.mjs` (server-rendered component checks), `npx jiti scripts/verify_snapshot_comparison_dynamic_fields.ts`, `npm run build` (2,028 modules; main entry 382.79 kB, no 500 kB advisory), and `git diff --check`. The build still reports the existing externalized `fs`/`crypto` imports from ExcelJS.
 - `[Unverified]` ChatGPT did not execute tests in its audit. The legacy BOM/Routing/Work Center view verifiers could not resolve their TSX imports under the installed `jiti` runner. Browser smoke could not be completed: bundled Python lacks Playwright, and the isolated in-app browser timed out after the mock-fixture confirmation dialog.
-- Human UX/UI acceptance remains pending. The follow-up GitHub review of this fix is pending.
+- ChatGPT's review of pushed `9ffe4d1` confirmed the substantive comparison fixes, found no new High/Medium issue, and identified two Low follow-ups: stale build-size documentation and the warnings list being inside a `role="status"` live region. This checkpoint updates the documented main bundle size and limits that live region to the warning count.
+- Follow-up verification passed: `node scripts/verify_cost_breakdown_review_feedback.mjs` confirms all five warnings render while only the warning-count summary is a live region; `npm run build` passed with 2,028 modules, a 382.79 kB main entry (95.96 kB gzip), and no 500 kB advisory; `git diff --check` passed. Existing externalized `fs`/`crypto` warnings remain.
+- Human UX/UI acceptance remains pending.
 
 ## AI-side implementation delivered
 

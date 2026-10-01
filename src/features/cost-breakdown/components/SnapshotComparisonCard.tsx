@@ -165,11 +165,11 @@ export const SnapshotComparisonCard: React.FC<SnapshotComparisonCardProps> = ({ 
       </div>
 
       {comparison.warnings.length > 0 && (
-        <div className="px-4 py-3 border-t border-amber-200 bg-amber-50/70" role="status">
+        <div className="px-4 py-3 border-t border-amber-200 bg-amber-50/70">
           <div className="flex items-start gap-2">
             <AlertTriangle className="w-4 h-4 text-amber-700 shrink-0 mt-0.5" aria-hidden="true" />
             <div className="min-w-0">
-              <p className="text-sm font-semibold text-amber-950">Review warnings ({summary.warningCount})</p>
+              <p role="status" className="text-sm font-semibold text-amber-950">Review warnings ({summary.warningCount})</p>
               <ul className="mt-1 space-y-1 text-sm text-amber-950">
                 {comparison.warnings.map((warning, index) => (
                   <li key={`${warning.code}-${warning.referenceId ?? warning.currentId ?? index}`}>{warning.message}</li>
