@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react'
-import { AlertTriangle, Box, ChevronDown, ChevronUp, Factory, GitCommit } from 'lucide-react'
+import { AlertTriangle, Box, ChevronDown, ChevronUp, Factory, GitCommit, Layers } from 'lucide-react'
 import { useAppStore } from '../../state'
 
 import { MasterDataWorkspaceHeader } from './components/MasterDataWorkspaceHeader'
@@ -44,6 +44,7 @@ export const MasterDataPage: React.FC = () => {
 
   const [isEditMode, setIsEditMode] = useState(false)
   const [activeTableTab, setActiveTableTab] = useState<TableSubTab>('bom')
+  const [isAllTablesVisible, setIsAllTablesVisible] = useState(true)
   const [importModalOpen, setImportModalOpen] = useState(false)
   const [templateModalOpen, setTemplateModalOpen] = useState(false)
   const [sizingModalOpen, setSizingModalOpen] = useState(false)
@@ -89,6 +90,74 @@ export const MasterDataPage: React.FC = () => {
     : activeTableTab === 'routing'
       ? 'Routing'
       : 'Work Center Rates'
+
+  const renderTable = (table: TableSubTab) => {
+    if (table === 'rates') {
+      return (
+        <WorkCenterRatesTable
+          rates={masterDataSnapshot.rates}
+          isEditMode={isEditMode}
+          onAddRate={() => addMasterDataWorkCenterRate({
+            workCenterCode: '',
+            description: '',
+            laborRate: null,
+            burdenRate: null,
+            effectiveDate: product.effectiveDate || new Date().toISOString().split('T')[0],
+            sourceRef: 'Direct Input'
+          })}
+          onUpdateRate={updateMasterDataWorkCenterRate}
+          onDeleteRate={deleteMasterDataWorkCenterRate}
+        />
+      )
+    }
+
+    if (table === 'bom') {
+      return (
+        <BOMTable
+          bom={masterDataSnapshot.bom}
+          isEditMode={isEditMode}
+          onAddBOMItem={() => addMasterDataBOMItem({
+            itemCode: '',
+            description: '',
+            consumption: null,
+            unit: 'PC',
+            price: null,
+            loss: 0,
+            sourceRef: 'Direct Input'
+          })}
+          onUpdateBOMItem={updateMasterDataBOMItem}
+          onDeleteBOMItem={deleteMasterDataBOMItem}
+        />
+      )
+    }
+
+    return (
+      <RoutingTable
+        routing={masterDataSnapshot.routing}
+        rates={masterDataSnapshot.rates}
+        isEditMode={isEditMode}
+        onAddRoutingStep={() => addMasterDataRoutingStep({
+          operationCode: '',
+          processName: '',
+          sequence: (masterDataSnapshot.routing.length + 1) * 10,
+          workCenterId: masterDataSnapshot.rates[0]?.workCenterCode || undefined,
+          manning: null,
+          capacity: null,
+          yield: null,
+          sourceRef: 'Direct Input'
+        })}
+        onUpdateRoutingStep={updateMasterDataRoutingStep}
+        onDeleteRoutingStep={deleteMasterDataRoutingStep}
+      />
+    )
+  }
+
+  const tableSections = [
+    { key: 'rates' as const, id: 'master-data-table-rates', label: 'Work Center Rates', navLabel: 'Work Centers', icon: Factory },
+    { key: 'bom' as const, id: 'master-data-table-bom', label: 'Bill of Materials', navLabel: 'BOM', icon: Box },
+    { key: 'routing' as const, id: 'master-data-table-routing', label: 'Process Routing', navLabel: 'Routing', icon: GitCommit }
+  ]
+  const activeSection = tableSections.find(section => section.key === activeTableTab)
 
   return (
     <div className="space-y-5">
@@ -178,124 +247,110 @@ export const MasterDataPage: React.FC = () => {
       <section className="overflow-hidden border border-slate-300 bg-white" aria-label="Working dataset tables">
         <div className="flex flex-col gap-2 border-b border-slate-300 bg-slate-100 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
           <div>
-          <h2 className="font-mono text-[11px] font-bold uppercase tracking-wide text-slate-950">Dataset tables</h2>
-          <p className="mt-0.5 text-[11px] text-slate-600">Select a section to review or edit its rows.</p>
+            <h2 className="font-mono text-[11px] font-bold uppercase tracking-wide text-slate-950">Dataset tables</h2>
+            <p className="mt-0.5 text-[11px] text-slate-600">
+              {isAllTablesVisible
+                ? 'All sections are shown below. Use the links to move between them.'
+                : 'Select one section to review or edit its rows.'}
+            </p>
           </div>
-          <div className="flex min-w-0 gap-1 overflow-x-auto" role="group" aria-label="Dataset table sections">
-            <button
-              id="master-data-nav-bom"
-              type="button"
-              aria-pressed={activeTableTab === 'bom'}
-              aria-controls="master-data-table-panel"
-              onClick={() => setActiveTableTab('bom')}
-              className={'flex min-h-8 shrink-0 items-center gap-2 border-b-2 px-3 font-mono text-xs font-medium transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-blue-700 ' +
-                (activeTableTab === 'bom'
-                  ? 'border-b-blue-700 bg-white text-slate-950'
-                  : 'border-b-transparent text-slate-600 hover:bg-white hover:text-slate-950')}
-            >
-              <Box className="h-4 w-4 text-slate-600" aria-hidden="true" />
-              <span>BOM</span>
-              <span className={'font-mono text-xs tabular-nums ' + (activeTableTab === 'bom' ? 'text-slate-950' : 'text-slate-500')}>
-                {masterDataSnapshot.bom.length}
-              </span>
-            </button>
-            <button
-              id="master-data-nav-routing"
-              type="button"
-              aria-pressed={activeTableTab === 'routing'}
-              aria-controls="master-data-table-panel"
-              onClick={() => setActiveTableTab('routing')}
-              className={'flex min-h-8 shrink-0 items-center gap-2 border-b-2 px-3 font-mono text-xs font-medium transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-blue-700 ' +
-                (activeTableTab === 'routing'
-                  ? 'border-b-blue-700 bg-white text-slate-950'
-                  : 'border-b-transparent text-slate-600 hover:bg-white hover:text-slate-950')}
-            >
-              <GitCommit className="h-4 w-4 text-slate-600" aria-hidden="true" />
-              <span>Routing</span>
-              <span className={'font-mono text-xs tabular-nums ' + (activeTableTab === 'routing' ? 'text-slate-950' : 'text-slate-500')}>
-                {masterDataSnapshot.routing.length}
-              </span>
-            </button>
-            <button
-              id="master-data-nav-rates"
-              type="button"
-              aria-pressed={activeTableTab === 'rates'}
-              aria-controls="master-data-table-panel"
-              onClick={() => setActiveTableTab('rates')}
-              className={'flex min-h-8 shrink-0 items-center gap-2 border-b-2 px-3 font-mono text-xs font-medium transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-blue-700 ' +
-                (activeTableTab === 'rates'
-                  ? 'border-b-blue-700 bg-white text-slate-950'
-                  : 'border-b-transparent text-slate-600 hover:bg-white hover:text-slate-950')}
-            >
-              <Factory className="h-4 w-4 text-slate-600" aria-hidden="true" />
-              <span>Work Centers</span>
-              <span className={'font-mono text-xs tabular-nums ' + (activeTableTab === 'rates' ? 'text-slate-950' : 'text-slate-500')}>
-                {masterDataSnapshot.rates.length}
-              </span>
-            </button>
-          </div>
+          {isAllTablesVisible ? (
+            <nav className="flex min-w-0 flex-wrap items-center gap-1.5" aria-label="Jump to dataset table">
+              {tableSections.map(section => {
+                const Icon = section.icon
+                return (
+                  <a
+                    key={section.key}
+                    href={'#' + section.id}
+                    onClick={() => setActiveTableTab(section.key)}
+                    className="inline-flex min-h-8 items-center gap-1.5 border border-slate-300 bg-white px-2.5 font-mono text-xs text-slate-700 transition-colors hover:border-slate-500 hover:text-slate-950 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700"
+                  >
+                    <Icon className="h-3.5 w-3.5" aria-hidden="true" />
+                    {section.navLabel}
+                  </a>
+                )
+              })}
+              <button
+                type="button"
+                onClick={() => setIsAllTablesVisible(false)}
+                className="min-h-8 border border-slate-400 bg-slate-200 px-2.5 font-mono text-xs font-medium text-slate-800 transition-colors hover:bg-slate-300 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700"
+              >
+                Show {tableLabel} only
+              </button>
+            </nav>
+          ) : (
+            <div className="flex min-w-0 flex-wrap items-center gap-1" role="group" aria-label="Dataset table sections">
+              {tableSections.map(section => {
+                const Icon = section.icon
+                const isActive = activeTableTab === section.key
+                return (
+                  <button
+                    key={section.key}
+                    type="button"
+                    aria-pressed={isActive}
+                    aria-controls="master-data-table-panel"
+                    onClick={() => setActiveTableTab(section.key)}
+                    className={'flex min-h-8 items-center gap-1.5 border-b-2 px-2.5 font-mono text-xs font-medium transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-blue-700 ' +
+                      (isActive
+                        ? 'border-b-blue-700 bg-white text-slate-950'
+                        : 'border-b-transparent text-slate-600 hover:bg-white hover:text-slate-950')}
+                  >
+                    <Icon className="h-3.5 w-3.5 text-slate-600" aria-hidden="true" />
+                    <span>{section.navLabel}</span>
+                  </button>
+                )
+              })}
+              <button
+                type="button"
+                aria-pressed={isAllTablesVisible}
+                aria-controls="master-data-table-panel"
+                onClick={() => setIsAllTablesVisible(true)}
+                className="flex min-h-8 items-center gap-1.5 border border-slate-300 bg-white px-2.5 font-mono text-xs font-medium text-slate-700 transition-colors hover:bg-slate-50 hover:text-slate-950 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700"
+              >
+                <Layers className="h-3.5 w-3.5" aria-hidden="true" />
+                All tables
+              </button>
+            </div>
+          )}
         </div>
 
         <div
           id="master-data-table-panel"
           role="region"
-          aria-label={tableLabel + ' table'}
-          aria-labelledby={'master-data-nav-' + activeTableTab}
+          aria-label={isAllTablesVisible ? 'All dataset tables' : tableLabel + ' table'}
         >
-          {activeTableTab === 'bom' && (
-            <BOMTable
-              bom={masterDataSnapshot.bom}
-              isEditMode={isEditMode}
-              onAddBOMItem={() => addMasterDataBOMItem({
-                itemCode: '',
-                description: '',
-                consumption: null,
-                unit: 'PC',
-                price: null,
-                loss: 0,
-                sourceRef: 'Direct Input'
-              })}
-              onUpdateBOMItem={updateMasterDataBOMItem}
-              onDeleteBOMItem={deleteMasterDataBOMItem}
-            />
-          )}
-
-          {activeTableTab === 'routing' && (
-            <RoutingTable
-              routing={masterDataSnapshot.routing}
-              rates={masterDataSnapshot.rates}
-              isEditMode={isEditMode}
-              onAddRoutingStep={() => addMasterDataRoutingStep({
-                operationCode: '',
-                processName: '',
-                sequence: (masterDataSnapshot.routing.length + 1) * 10,
-                workCenterId: masterDataSnapshot.rates[0]?.workCenterCode || undefined,
-                manning: null,
-                capacity: null,
-                yield: null,
-                sourceRef: 'Direct Input'
-              })}
-              onUpdateRoutingStep={updateMasterDataRoutingStep}
-              onDeleteRoutingStep={deleteMasterDataRoutingStep}
-            />
-          )}
-
-          {activeTableTab === 'rates' && (
-            <WorkCenterRatesTable
-              rates={masterDataSnapshot.rates}
-              isEditMode={isEditMode}
-              onAddRate={() => addMasterDataWorkCenterRate({
-                workCenterCode: '',
-                description: '',
-                laborRate: null,
-                burdenRate: null,
-                effectiveDate: product.effectiveDate || new Date().toISOString().split('T')[0],
-                sourceRef: 'Direct Input'
-              })}
-              onUpdateRate={updateMasterDataWorkCenterRate}
-              onDeleteRate={deleteMasterDataWorkCenterRate}
-            />
-          )}
+          {isAllTablesVisible
+            ? tableSections.map(section => (
+              <section
+                key={section.key}
+                id={section.id}
+                tabIndex={-1}
+                aria-labelledby={section.id + '-heading'}
+                className="scroll-mt-20 border-b border-slate-300 last:border-b-0 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-blue-700"
+              >
+                <header className="border-b border-slate-200 bg-white px-4 py-2.5">
+                  <h3 id={section.id + '-heading'} className="font-mono text-[11px] font-bold uppercase tracking-wide text-slate-900">
+                    {section.label}
+                  </h3>
+                </header>
+                {renderTable(section.key)}
+              </section>
+            ))
+            : activeSection && (
+                <section
+                  id={activeSection.id}
+                  tabIndex={-1}
+                  aria-labelledby={activeSection.id + '-heading'}
+                  className="scroll-mt-20 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-blue-700"
+                >
+                  <header className="border-b border-slate-200 bg-white px-4 py-2.5">
+                    <h3 id={activeSection.id + '-heading'} className="font-mono text-[11px] font-bold uppercase tracking-wide text-slate-900">
+                      {activeSection.label}
+                    </h3>
+                  </header>
+                  {renderTable(activeSection.key)}
+                </section>
+              )}
         </div>
       </section>
 
