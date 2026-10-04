@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react'
+import React, { createContext, useContext, useState, useEffect, useMemo, ReactNode } from 'react'
 import {
   ProductMaster,
   WorkCenterRate,
@@ -17,6 +17,7 @@ import {
   SnapshotBOMItem,
   SnapshotRoutingStep,
   SnapshotWorkCenterRate,
+  SelectedComparisonSelection,
   FieldEvidence,
   CostComparison,
   CandidateRcaDraft,
@@ -32,6 +33,7 @@ import {
   evaluateMasterDataHandoff,
   getSnapshotRoleReadiness
 } from '../core'
+import { createSelectedSnapshotPair, getCanonicalComparisonStatus, getComparisonFindingKey } from '../core'
 import type { MasterDataHandoffStatus } from '../core'
 import {
   loadWorkingDatasetsFromStorage,
@@ -58,6 +60,10 @@ export const DEFAULT_UOMS = ['PC', 'SET', 'PANEL', 'GM', 'KG', 'SM', 'M', 'RL', 
 
 const DEVELOPMENT_REVIEW_FIXTURE_ID = 'ps-dev-review-fixture'
 const DEVELOPMENT_REVIEW_RETURN_ID_KEY = 'cost_breakdown_dev_review_return_id'
+
+interface StoredSelectedComparison extends SelectedComparisonSelection {
+  sourceFingerprint: string
+}
 
 function moveSnapshotRow<T extends { id: string }>(
   rows: T[],
@@ -270,6 +276,10 @@ interface AppContextType {
   candidateRcaRecords: Record<string, CandidateRcaRecord>
   snapshotPair: SnapshotPair
   snapshotComparison: CostComparison
+  fullSnapshotComparison: CostComparison
+  analysisSnapshotPair: SnapshotPair
+  selectedComparisonSelection: SelectedComparisonSelection | null
+  isSelectedComparisonActive: boolean
   masterDataHandoff: MasterDataHandoffStatus
   masterDataRole: ComparisonRole
   masterDataSnapshot: CostSnapshot
@@ -316,6 +326,8 @@ interface AppContextType {
   updateMasterDataWorkCenterRate: (id: string, rate: Partial<Omit<SnapshotWorkCenterRate, 'id' | 'confidence'>>) => void
   deleteMasterDataWorkCenterRate: (id: string) => void
   reorderMasterDataWorkCenters: (movingId: string, targetId: string, position: 'before' | 'after') => void
+  applySelectedComparison: (selection: SelectedComparisonSelection) => void
+  clearSelectedComparison: () => void
 
   // Active-product CRUD
   updateProduct: (p: ProductMaster) => void
@@ -379,6 +391,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const [workingDatasets, setWorkingDatasets] = useState<SingleSheetWorkingDatasets>(() =>
     loadWorkingDatasetsFromStorage()
   )
+  const [selectedComparisonScope, setSelectedComparisonScope] = useState<StoredSelectedComparison | null>(null)
 
   useEffect(() => {
     saveWorkingDatasetsToStorage(workingDatasets)
@@ -436,12 +449,51 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const topDrivers = calculateTopDrivers(bom, routing, rates, savedDrivers)
   const candidateRcaRecords = activeSession.candidateRcaRecords ?? {}
   const snapshotPair = activeSession.snapshotPair ?? sessionToSnapshotPair(activeSession)
-  const snapshotComparison = compareSnapshots(snapshotPair.reference, snapshotPair.current)
+  const fullSnapshotComparison = compareSnapshots(snapshotPair.reference, snapshotPair.current)
+  const snapshotSourceFingerprint = useMemo(() => JSON.stringify([snapshotPair.reference, snapshotPair.current]), [snapshotPair])
+  const activeSelectedComparisonScope = selectedComparisonScope?.sourceFingerprint === snapshotSourceFingerprint
+    ? selectedComparisonScope
+    : null
+  const analysisSnapshotPair = activeSelectedComparisonScope
+    ? createSelectedSnapshotPair(snapshotPair, fullSnapshotComparison, activeSelectedComparisonScope)
+    : snapshotPair
+  const snapshotComparison = activeSelectedComparisonScope
+    ? compareSnapshots(analysisSnapshotPair.reference, analysisSnapshotPair.current)
+    : fullSnapshotComparison
+  const selectedComparisonSelection: SelectedComparisonSelection | null = activeSelectedComparisonScope
+    ? {
+        bomFindingKeys: activeSelectedComparisonScope.bomFindingKeys,
+        routingFindingKeys: activeSelectedComparisonScope.routingFindingKeys
+      }
+    : null
+  const isSelectedComparisonActive = activeSelectedComparisonScope !== null
+
+  useEffect(() => {
+    if (selectedComparisonScope && !activeSelectedComparisonScope) setSelectedComparisonScope(null)
+  }, [selectedComparisonScope, activeSelectedComparisonScope])
+
+  const applySelectedComparison = (selection: SelectedComparisonSelection) => {
+    const selectableBOMKeys = new Set(fullSnapshotComparison.bomFindings
+      .filter(finding => getCanonicalComparisonStatus(finding) !== null)
+      .map(finding => getComparisonFindingKey('bom', finding)))
+    const selectableRoutingKeys = new Set(fullSnapshotComparison.routingFindings
+      .filter(finding => getCanonicalComparisonStatus(finding) !== null)
+      .map(finding => getComparisonFindingKey('routing', finding)))
+    const nextScope: StoredSelectedComparison = {
+      sourceFingerprint: snapshotSourceFingerprint,
+      bomFindingKeys: [...new Set(selection.bomFindingKeys)].filter(key => selectableBOMKeys.has(key)),
+      routingFindingKeys: [...new Set(selection.routingFindingKeys)].filter(key => selectableRoutingKeys.has(key))
+    }
+    if (nextScope.bomFindingKeys.length === 0 && nextScope.routingFindingKeys.length === 0) return
+    setSelectedComparisonScope(nextScope)
+  }
+
+  const clearSelectedComparison = () => setSelectedComparisonScope(null)
   const candidateControllability = activeSession.candidateControllability ?? {}
   const candidates = buildPrioritizationCandidates(
     snapshotComparison,
-    snapshotPair.reference,
-    snapshotPair.current,
+    analysisSnapshotPair.reference,
+    analysisSnapshotPair.current,
     candidateControllability
   )
   const masterDataHandoff = evaluateMasterDataHandoff(activeSession, snapshotPair)
@@ -1274,6 +1326,10 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       candidateRcaRecords,
       snapshotPair,
       snapshotComparison,
+      fullSnapshotComparison,
+      analysisSnapshotPair,
+      selectedComparisonSelection,
+      isSelectedComparisonActive,
       masterDataHandoff,
       masterDataRole,
       masterDataSnapshot,
@@ -1312,6 +1368,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       updateMasterDataWorkCenterRate,
       deleteMasterDataWorkCenterRate,
       reorderMasterDataWorkCenters,
+      applySelectedComparison,
+      clearSelectedComparison,
       updateProduct,
       addBOMItem,
       updateBOMItem,

@@ -185,3 +185,8 @@ export interface SnapshotPair {
   reference: CostSnapshot
   current: CostSnapshot
 }
+
+export interface SelectedComparisonSelection {
+  bomFindingKeys: string[]
+  routingFindingKeys: string[]
+}

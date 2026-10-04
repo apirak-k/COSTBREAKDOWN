@@ -5,7 +5,9 @@ import {
   formatNumber,
   formatVariance,
   formatPercent,
-  getComparisonStatusLabels
+  getComparisonStatusLabels,
+  getCanonicalComparisonStatus,
+  getComparisonFindingKey
 } from '../../../core'
 import type { ComparisonFinding, ComparisonStatus } from '../../../core'
 import { ConfidenceBadge } from '../../../shared/ui/ConfidenceBadge'
@@ -19,6 +21,9 @@ interface BOMDetailedTableProps {
   currentItems: SnapshotBOMItem[]
   findings?: ComparisonFinding[]
   viewMode?: ComparisonViewMode
+  selectionMode?: boolean
+  selectedFindingKeys?: Set<string>
+  onToggleFinding?: (key: string) => void
 }
 
 export function getBOMComparisonLabel(finding: ComparisonFinding): ComparisonStatus | null {
@@ -60,7 +65,10 @@ export const BOMDetailedTable: React.FC<BOMDetailedTableProps> = ({
   referenceItems,
   currentItems,
   findings,
-  viewMode = ALL_COMPARISON_STATUSES
+  viewMode = ALL_COMPARISON_STATUSES,
+  selectionMode = false,
+  selectedFindingKeys,
+  onToggleFinding
 }) => {
   const showComparison = findings !== undefined
   const referenceById = new Map(referenceItems.map(item => [item.id, item]))
@@ -98,6 +106,7 @@ export const BOMDetailedTable: React.FC<BOMDetailedTableProps> = ({
         <caption className="sr-only">Reference and current BOM cost comparison using snapshot source values</caption>
         <thead>
           <tr className="bg-slate-800 text-xs font-semibold text-white">
+            {selectionMode && <th scope="col" className="p-2.5">Include</th>}
             <th scope="col" className="p-2.5 w-12">#</th>
             <th scope="col" className="p-2.5">Item Code</th>
             <th scope="col" className="p-2.5">Material Description</th>
@@ -119,7 +128,7 @@ export const BOMDetailedTable: React.FC<BOMDetailedTableProps> = ({
         <tbody className="divide-y divide-slate-100 font-mono">
           {visibleRows.length === 0 ? (
             <tr>
-              <td colSpan={showComparison ? 16 : 13} className="p-6 text-center text-slate-400 font-sans italic">
+              <td colSpan={(showComparison ? 16 : 13) + Number(selectionMode)} className="p-6 text-center text-slate-400 font-sans italic">
                 No rows match this comparison view.
               </td>
             </tr>
@@ -131,9 +140,24 @@ export const BOMDetailedTable: React.FC<BOMDetailedTableProps> = ({
             const itemCode = current?.itemCode ?? reference?.itemCode ?? '—'
             const description = current ? current.description ?? '—' : reference?.description ?? '—'
             const unit = current ? current.unit ?? '—' : reference?.unit ?? '—'
+            const findingKey = row.finding ? getComparisonFindingKey('bom', row.finding) : null
+            const canSelectFinding = row.finding !== undefined && getCanonicalComparisonStatus(row.finding) !== null
 
             return (
               <tr key={current?.id ?? `removed-${reference?.id ?? itemCode}-${index}`} className="hover:bg-slate-50/70 transition-colors">
+                {selectionMode && (
+                  <td className="p-2.5 text-center">
+                    <input
+                      type="checkbox"
+                      checked={Boolean(findingKey && selectedFindingKeys?.has(findingKey))}
+                      disabled={!canSelectFinding || !findingKey}
+                      onChange={() => { if (findingKey) onToggleFinding?.(findingKey) }}
+                      aria-label={`Include ${description} in Selected Comparison`}
+                      title={canSelectFinding ? 'Include this finding in Selected Comparison' : 'This finding has no comparable business identity'}
+                      className="h-4 w-4 accent-slate-900 disabled:cursor-not-allowed disabled:opacity-30"
+                    />
+                  </td>
+                )}
                 <td className="p-2.5 text-slate-500 tabular-nums">{index + 1}</td>
                 <th scope="row" className="p-2.5 font-bold text-slate-900 whitespace-nowrap">{itemCode}</th>
                 <td className="p-2.5 font-sans font-medium text-slate-800 truncate max-w-[220px]" title={description}>{description}</td>
@@ -177,7 +201,7 @@ export const BOMDetailedTable: React.FC<BOMDetailedTableProps> = ({
         </tbody>
         <tfoot>
           <tr className="bg-slate-100/90 border-t-2 border-slate-300/80 font-bold text-xs">
-            <td colSpan={showComparison ? 13 : 10} className="p-2.5 text-right text-slate-700 uppercase tracking-wider text-[10px] font-sans">
+            <td colSpan={(showComparison ? 13 : 10) + Number(selectionMode)} className="p-2.5 text-right text-slate-700 uppercase tracking-wider text-[10px] font-sans">
               {isOnlyComparisonStatus(viewMode, 'CHANGED') ? 'Visible Changed Material (THB/pc)' : viewMode.length < 4 ? 'Visible Direct Material (THB/pc)' : 'Total Direct Material (THB/pc)'}
             </td>
             <td className="p-2.5 text-right font-mono text-slate-800 tabular-nums">{formatNullable(referenceTotal, value => formatNumber(value, 4))}</td>

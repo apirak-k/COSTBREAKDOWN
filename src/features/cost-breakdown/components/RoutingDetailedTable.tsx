@@ -6,7 +6,9 @@ import {
   formatNumber,
   formatVariance,
   formatPercent,
-  getComparisonStatusLabels
+  getComparisonStatusLabels,
+  getCanonicalComparisonStatus,
+  getComparisonFindingKey
 } from '../../../core'
 import type { ComparisonStatus, ComparisonFinding } from '../../../core'
 import { ConfidenceBadge } from '../../../shared/ui/ConfidenceBadge'
@@ -23,6 +25,9 @@ interface RoutingDetailedTableProps {
   currentRates: SnapshotWorkCenterRate[]
   findings?: ComparisonFinding[]
   viewMode?: ComparisonViewMode
+  selectionMode?: boolean
+  selectedFindingKeys?: Set<string>
+  onToggleFinding?: (key: string) => void
 }
 
 export function getRoutingComparisonLabels(finding: ComparisonFinding): ComparisonStatus[] {
@@ -86,7 +91,10 @@ export const RoutingDetailedTable: React.FC<RoutingDetailedTableProps> = ({
   referenceRates,
   currentRates,
   findings,
-  viewMode = ALL_COMPARISON_STATUSES
+  viewMode = ALL_COMPARISON_STATUSES,
+  selectionMode = false,
+  selectedFindingKeys,
+  onToggleFinding
 }) => {
   const showComparison = findings !== undefined
   const referenceById = new Map(referenceItems.map(item => [item.id, item]))
@@ -124,6 +132,7 @@ export const RoutingDetailedTable: React.FC<RoutingDetailedTableProps> = ({
         <caption className="sr-only">Reference and current routing cost comparison using matching Work Center rates</caption>
         <thead>
           <tr className="bg-slate-800 text-xs font-semibold text-white">
+            {selectionMode && <th scope="col" className="p-2.5">Include</th>}
             <th className="p-2.5">Ref Sequence</th>
             <th className="p-2.5">Current Sequence</th>
             <th className="p-2.5">Operation Description</th>
@@ -151,7 +160,7 @@ export const RoutingDetailedTable: React.FC<RoutingDetailedTableProps> = ({
         <tbody className="divide-y divide-slate-100 font-mono">
           {visibleRows.length === 0 ? (
             <tr>
-              <td colSpan={showComparison ? 22 : 19} className="p-6 text-center text-slate-400 font-sans italic">
+              <td colSpan={(showComparison ? 22 : 19) + Number(selectionMode)} className="p-6 text-center text-slate-400 font-sans italic">
                 No rows match this comparison view.
               </td>
             </tr>
@@ -169,11 +178,26 @@ export const RoutingDetailedTable: React.FC<RoutingDetailedTableProps> = ({
               : current ? normalizedCurrentWorkCenter ?? '—' : normalizedReferenceWorkCenter ?? '—'
             const processName = current ? current.processName ?? '—' : reference?.processName ?? '—'
             const operationKey = current?.id ?? reference?.id ?? row.finding?.referenceId ?? 'unknown'
+            const findingKey = row.finding ? getComparisonFindingKey('routing', row.finding) : null
+            const canSelectFinding = row.finding !== undefined && getCanonicalComparisonStatus(row.finding) !== null
             const laborGap = showComparison ? row.finding?.costEffect?.gap.labor ?? null : gap(row.detail.currentLaborCost, row.detail.referenceLaborCost)
             const burdenGap = showComparison ? row.finding?.costEffect?.gap.burden ?? null : gap(row.detail.currentBurdenCost, row.detail.referenceBurdenCost)
 
             return (
               <tr key={operationKey} className="hover:bg-slate-50/70 transition-colors">
+                {selectionMode && (
+                  <td className="p-2.5 text-center">
+                    <input
+                      type="checkbox"
+                      checked={Boolean(findingKey && selectedFindingKeys?.has(findingKey))}
+                      disabled={!canSelectFinding || !findingKey}
+                      onChange={() => { if (findingKey) onToggleFinding?.(findingKey) }}
+                      aria-label={`Include ${processName} in Selected Comparison`}
+                      title={canSelectFinding ? 'Include this finding in Selected Comparison' : 'This finding has no comparable business identity'}
+                      className="h-4 w-4 accent-slate-900 disabled:cursor-not-allowed disabled:opacity-30"
+                    />
+                  </td>
+                )}
                 <td className="p-2.5 text-slate-500 tabular-nums">{formatNullable(reference?.sequence ?? null, value => formatNumber(value, 0))}</td>
                 <td className="p-2.5 text-right font-bold text-slate-900 tabular-nums">{formatNullable(current?.sequence ?? null, value => formatNumber(value, 0))}</td>
                 <td className="p-2.5 font-sans font-medium text-slate-800 truncate max-w-[220px]" title={processName}>
@@ -228,7 +252,7 @@ export const RoutingDetailedTable: React.FC<RoutingDetailedTableProps> = ({
         </tbody>
         <tfoot>
           <tr className="bg-slate-100/90 border-t-2 border-slate-300/80 font-bold text-xs">
-            <td colSpan={showComparison ? 19 : 16} className="p-2.5 text-right text-slate-700 uppercase tracking-wider text-[10px] font-sans">
+            <td colSpan={(showComparison ? 19 : 16) + Number(selectionMode)} className="p-2.5 text-right text-slate-700 uppercase tracking-wider text-[10px] font-sans">
               {isOnlyComparisonStatus(viewMode, 'CHANGED') ? 'Visible Changed Conversion (THB/pc)' : viewMode.length < 4 ? 'Visible Conversion Cost (THB/pc)' : 'Total Conversion Cost (THB/pc)'}
             </td>
             <td className="p-2.5 text-right font-mono text-slate-800 tabular-nums">{formatNullable(referenceTotal, value => formatNumber(value, 4))}</td>

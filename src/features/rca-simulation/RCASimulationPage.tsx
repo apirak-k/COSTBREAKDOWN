@@ -29,7 +29,7 @@ export const RCASimulationPage: React.FC<RCASimulationPageProps> = ({ state, upd
   const {
     candidates,
     candidateRcaRecords,
-    snapshotPair,
+    analysisSnapshotPair,
     saveCandidateRca
   } = useAppStore()
 
@@ -52,7 +52,7 @@ export const RCASimulationPage: React.FC<RCASimulationPageProps> = ({ state, upd
     [selectedCandidate?.candidateKey, savedScenarioDrafts]
   )
 
-  const currentSnapshot = snapshotPair.current
+  const currentSnapshot = analysisSnapshotPair.current
   const inputDefinitions = useMemo(
     () => selectedCandidate ? getScenarioInputDefinitions(selectedCandidate, currentSnapshot) : [],
     [selectedCandidate, currentSnapshot]

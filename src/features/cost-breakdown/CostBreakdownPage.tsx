@@ -17,20 +17,70 @@ import { PageHeading } from '../../shared'
 type SubTab = 'bom' | 'routing' | 'work-center'
 
 export const CostBreakdownPage: React.FC = () => {
-  const { snapshotComparison, snapshotPair, bom, routing, rates } = useAppStore()
+  const {
+    snapshotComparison,
+    fullSnapshotComparison,
+    snapshotPair,
+    analysisSnapshotPair,
+    selectedComparisonSelection,
+    isSelectedComparisonActive,
+    applySelectedComparison,
+    clearSelectedComparison,
+    bom,
+    routing,
+    rates
+  } = useAppStore()
   const [subTab, setSubTab] = useState<SubTab>('bom')
   const [comparisonView, setComparisonView] = useState<ComparisonViewMode>(ALL_COMPARISON_STATUSES)
   const [isDetailedExpanded, setIsDetailedExpanded] = useState(true)
+  const [isSelectingScope, setIsSelectingScope] = useState(false)
+  const [selectionDraft, setSelectionDraft] = useState({ bomFindingKeys: [] as string[], routingFindingKeys: [] as string[] })
+  const viewComparison = isSelectingScope ? fullSnapshotComparison : snapshotComparison
+  const viewPair = isSelectingScope ? snapshotPair : analysisSnapshotPair
   const allFindings = [
-    ...snapshotComparison.bomFindings,
-    ...snapshotComparison.routingFindings,
-    ...snapshotComparison.workCenterFindings
+    ...viewComparison.bomFindings,
+    ...viewComparison.routingFindings,
+    ...viewComparison.workCenterFindings
   ]
   const changedFindingsCount = allFindings.filter(finding => getCanonicalComparisonStatus(finding) === 'CHANGED').length
   const addedFindingsCount = allFindings.filter(finding => getCanonicalComparisonStatus(finding) === 'ADDED').length
   const removedFindingsCount = allFindings.filter(finding => getCanonicalComparisonStatus(finding) === 'REMOVED').length
   const unchangedFindingsCount = allFindings.filter(finding => getCanonicalComparisonStatus(finding) === 'UNCHANGED').length
-  const exactSnapshotCalculation = areSnapshotCostsComplete(snapshotComparison.referenceCost, snapshotComparison.currentCost)
+  const exactSnapshotCalculation = areSnapshotCostsComplete(viewComparison.referenceCost, viewComparison.currentCost)
+  const selectedCount = selectionDraft.bomFindingKeys.length + selectionDraft.routingFindingKeys.length
+  const selectedBOMKeys = new Set(selectionDraft.bomFindingKeys)
+  const selectedRoutingKeys = new Set(selectionDraft.routingFindingKeys)
+
+  const beginScopeSelection = () => {
+    setSelectionDraft(selectedComparisonSelection
+      ? {
+          bomFindingKeys: [...selectedComparisonSelection.bomFindingKeys],
+          routingFindingKeys: [...selectedComparisonSelection.routingFindingKeys]
+        }
+      : { bomFindingKeys: [], routingFindingKeys: [] })
+    setIsSelectingScope(true)
+  }
+
+  const toggleSelection = (section: 'bom' | 'routing', findingKey: string) => {
+    setSelectionDraft(current => {
+      const field = section === 'bom' ? 'bomFindingKeys' : 'routingFindingKeys'
+      const currentKeys = current[field]
+      const nextKeys = currentKeys.includes(findingKey)
+        ? currentKeys.filter(key => key !== findingKey)
+        : [...currentKeys, findingKey]
+      return { ...current, [field]: nextKeys }
+    })
+  }
+
+  const cancelScopeSelection = () => {
+    setIsSelectingScope(false)
+    clearSelectedComparison()
+  }
+
+  const applyScopeSelection = () => {
+    applySelectedComparison(selectionDraft)
+    setIsSelectingScope(false)
+  }
 
   const toggleComparisonStatus = (status: ComparisonStatus) => {
     setComparisonView(current => current.includes(status)
@@ -50,6 +100,35 @@ export const CostBreakdownPage: React.FC = () => {
         description="Compare Reference and Current cost, then review the record-level changes that explain the gap."
       />
 
+      <section className="flex flex-col gap-3 border border-slate-300 bg-white px-4 py-3 sm:flex-row sm:items-center sm:justify-between" aria-label="Selected Comparison controls">
+        <div>
+          <h2 className="font-mono text-[11px] font-bold uppercase tracking-wide text-slate-900">
+            {isSelectingScope ? 'Choose Selected Comparison rows' : isSelectedComparisonActive ? 'Selected Comparison is active' : 'Full Comparison is active'}
+          </h2>
+          <p className="mt-1 max-w-3xl text-xs leading-5 text-slate-600">
+            {isSelectingScope
+              ? 'Select BOM and Routing findings below. A matched finding selects both sides; Added and Removed select their existing side. All WC rates stay in the calculation.'
+              : isSelectedComparisonActive
+                ? 'This temporary scope follows you to Candidate Selection and RCA & Simulation. Source data changes clear it.'
+                : 'Full Comparison includes all findings. Selected Comparison is a temporary analysis scope for chosen BOM and Routing findings.'}
+          </p>
+        </div>
+        {isSelectingScope ? (
+          <div className="flex shrink-0 items-center gap-2">
+            <span className="font-mono text-xs text-slate-600">{selectedCount} selected</span>
+            <button type="button" onClick={cancelScopeSelection} className="min-h-9 border border-slate-300 bg-white px-3 text-sm text-slate-700 hover:bg-slate-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700">Cancel</button>
+            <button type="button" onClick={applyScopeSelection} disabled={selectedCount === 0} className="min-h-9 bg-slate-900 px-3 text-sm font-medium text-white hover:bg-slate-700 disabled:cursor-not-allowed disabled:opacity-40 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700">Apply Selected Comparison</button>
+          </div>
+        ) : isSelectedComparisonActive ? (
+          <div className="flex shrink-0 items-center gap-2">
+            <button type="button" onClick={beginScopeSelection} className="min-h-9 border border-slate-300 bg-white px-3 text-sm text-slate-700 hover:bg-slate-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700">Edit selection</button>
+            <button type="button" onClick={clearSelectedComparison} className="min-h-9 border border-slate-300 bg-white px-3 text-sm text-slate-700 hover:bg-slate-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700">Exit Selected Comparison</button>
+          </div>
+        ) : (
+          <button type="button" onClick={beginScopeSelection} className="min-h-9 shrink-0 bg-slate-900 px-3 text-sm font-medium text-white hover:bg-slate-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700">Enter Selected Comparison</button>
+        )}
+      </section>
+
       {!exactSnapshotCalculation && (
         <div className="rounded-md border border-amber-200 bg-amber-50 px-4 py-3 text-sm leading-6 text-amber-950" role="status">
           <strong className="font-mono">Snapshot cost summary is on hold.</strong>{' '}
@@ -58,7 +137,7 @@ export const CostBreakdownPage: React.FC = () => {
       )}
 
       {/* One canonical summary and cost element bridge */}
-      <SnapshotComparisonCard comparison={snapshotComparison} />
+      <SnapshotComparisonCard comparison={viewComparison} />
 
       <section className="flex flex-col gap-3 rounded-md border border-slate-200 bg-white px-4 py-3 sm:flex-row sm:items-center sm:justify-between" aria-labelledby="comparison-view-title">
         <div>
@@ -94,7 +173,7 @@ export const CostBreakdownPage: React.FC = () => {
       </section>
 
       <VarianceTreeCard
-        comparison={snapshotComparison}
+        comparison={viewComparison}
         comparisonView={comparisonView}
         onOpenDetail={openDetailSection}
       />
@@ -165,25 +244,31 @@ export const CostBreakdownPage: React.FC = () => {
         <div>
           {subTab === 'bom' ? (
             <BOMDetailedTable
-              findings={snapshotComparison.bomFindings}
-              referenceItems={snapshotPair.reference.bom}
-              currentItems={snapshotPair.current.bom}
+              findings={viewComparison.bomFindings}
+              referenceItems={viewPair.reference.bom}
+              currentItems={viewPair.current.bom}
               viewMode={comparisonView}
+              selectionMode={isSelectingScope}
+              selectedFindingKeys={selectedBOMKeys}
+              onToggleFinding={key => toggleSelection('bom', key)}
             />
           ) : subTab === 'routing' ? (
             <RoutingDetailedTable
-              findings={snapshotComparison.routingFindings}
-              referenceItems={snapshotPair.reference.routing}
-              currentItems={snapshotPair.current.routing}
-              referenceRates={snapshotPair.reference.rates}
-              currentRates={snapshotPair.current.rates}
+              findings={viewComparison.routingFindings}
+              referenceItems={viewPair.reference.routing}
+              currentItems={viewPair.current.routing}
+              referenceRates={viewPair.reference.rates}
+              currentRates={viewPair.current.rates}
               viewMode={comparisonView}
+              selectionMode={isSelectingScope}
+              selectedFindingKeys={selectedRoutingKeys}
+              onToggleFinding={key => toggleSelection('routing', key)}
             />
           ) : (
             <WorkCenterComparisonTable
-              referenceRates={snapshotPair.reference.rates}
-              currentRates={snapshotPair.current.rates}
-              findings={snapshotComparison.workCenterFindings}
+              referenceRates={viewPair.reference.rates}
+              currentRates={viewPair.current.rates}
+              findings={viewComparison.workCenterFindings}
               viewMode={comparisonView}
             />
           )}
