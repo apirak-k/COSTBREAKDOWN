@@ -1,4 +1,9 @@
 export interface ProductMaster {
+  /** Canonical Master Data identity. Legacy fields below remain for old session adapters. */
+  productName?: string
+  sellingPrice?: number | null
+  /** Percentage of Selling Price, stored as entered (e.g. 8 means 8%). */
+  sgaPercent?: number | null
   productCode: string
   productDescription: string
   uom: string
@@ -9,6 +14,9 @@ export interface ProductMaster {
 }
 
 export interface ProductSizingConfig {
+  productName?: string
+  sellingPrice?: number | null
+  sgaPercent?: number | null
   productCode: string
   productDescription: string
   uom: string

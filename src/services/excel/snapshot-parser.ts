@@ -49,6 +49,21 @@ function numberValue(
   return { value: parsed, quality: 'valid' }
 }
 
+function optionalNumberValue(
+  value: CellValue | undefined,
+  label: string,
+  rowNumber: number,
+  warnings: string[]
+): number | null {
+  if (value === null || value === undefined || textValue(value) === '') return null
+  const parsed = typeof value === 'number' ? value : Number(textValue(value).replace(/,/g, ''))
+  if (!Number.isFinite(parsed)) {
+    warnings.push(`Invalid ${label} at row ${rowNumber}`)
+    return null
+  }
+  return parsed
+}
+
 function findSheetName(workbook: XLSX.WorkBook, wanted: string): string | undefined {
   return workbook.SheetNames.find(name => normalizeLabel(name) === normalizeLabel(wanted))
 }
@@ -193,7 +208,10 @@ function productFromSheet(
   meta: Map<string, string>,
   warnings: string[]
 ): { product: CostSnapshot['product']; rowCount: number } {
-  const headerIndex = findHeaderRow(rows, [['productcode', 'code'], ['product name', 'productname', 'productdescription', 'description', 'name']])
+  const headerIndex = findHeaderRow(rows, [
+    ['product name', 'productname', 'product description', 'productdescription', 'description', 'name'],
+    ['uom', 'unit']
+  ])
   const header = headerIndex >= 0 ? rows[headerIndex] : []
   const map = columnMap(header)
   const dataRows = headerIndex >= 0
@@ -201,17 +219,22 @@ function productFromSheet(
     : []
   const row = dataRows[0] ?? []
   const productCode = textValue(cell(row, map, ['product code', 'productcode', 'code']))
-  const productDescription = textValue(cell(row, map, ['product name', 'productname', 'product description', 'productdescription', 'description', 'name'])) || metaValue(meta, ['product name', 'productname', 'product description', 'productdescription'])
+  const productName = textValue(cell(row, map, ['product name', 'productname', 'product description', 'productdescription', 'description', 'name'])) || metaValue(meta, ['product name', 'productname', 'product description', 'productdescription'])
+  const productDescription = productName
   const uom = textValue(cell(row, map, ['uom', 'unit'])) || metaValue(meta, ['uom', 'unit'])
   const customer = textValue(cell(row, map, ['customer', 'customer application'])) || metaValue(meta, ['customer'])
   const effectiveDate = textValue(cell(row, map, ['effective date', 'effectivedate'])) || metaValue(meta, ['effective date', 'effectivedate'])
   const note = textValue(cell(row, map, ['note']))
+  const sellingPrice = optionalNumberValue(cell(row, map, ['selling price', 'sellingprice']), 'Selling Price', headerIndex + 2, warnings)
+  const sgaPercent = optionalNumberValue(cell(row, map, ['sg&a (%)', 'sg&a (% of selling price)', 'sga (% of selling price)', 'sga % of selling price', 'sga percent', 'sga']), 'SG&A percentage', headerIndex + 2, warnings)
 
-  if (!productCode) warnings.push('Missing product code in PRODUCT')
-  if (!productDescription) warnings.push('Missing product description in PRODUCT')
+  if (!productName) warnings.push('Missing Product Name in PRODUCT')
   if (!uom) warnings.push('Missing UOM in PRODUCT')
   return {
     product: {
+      productName,
+      sellingPrice,
+      sgaPercent,
       productCode,
       productDescription,
       uom,
@@ -221,7 +244,9 @@ function productFromSheet(
       additionalFields: additionalFields(row, header, [
         'product code', 'productcode', 'code',
         'product name', 'productname', 'product description', 'productdescription', 'description', 'name',
-        'uom', 'unit', 'note', 'customer', 'customer application', 'effective date', 'effectivedate'
+        'uom', 'unit', 'selling price', 'sellingprice',
+        'sg&a (%)', 'sg&a (% of selling price)', 'sga (% of selling price)', 'sga % of selling price', 'sga percent', 'sga',
+        'note', 'customer', 'customer application', 'effective date', 'effectivedate'
       ])
     },
     rowCount: dataRows.length
@@ -234,7 +259,11 @@ function parseWorkCenters(
   fallbackDate: string,
   warnings: string[]
 ): SnapshotWorkCenterRate[] {
-  const headerIndex = findHeaderRow(rows, [['work center code', 'workcentercode', 'work center', 'wc'], ['labor rate'], ['burden rate']])
+  const headerIndex = findHeaderRow(rows, [
+    ['wc', 'work center code', 'workcentercode', 'work center'],
+    ['labor', 'labor rate'],
+    ['burden', 'burden rate']
+  ])
   if (headerIndex < 0) {
     warnings.push('WORK_CENTER header not found')
     return []
@@ -244,20 +273,20 @@ function parseWorkCenters(
   rows.slice(headerIndex + 1).forEach((row, index) => {
     const rowNumber = headerIndex + index + 2
     if (!row.some(value => textValue(value) !== '')) return
-    const code = textValue(cell(row, map, ['work center code', 'workcentercode', 'work center', 'wc']))
+    const code = textValue(cell(row, map, ['wc', 'work center code', 'workcentercode', 'work center']))
     if (!code) {
-      warnings.push(`Missing Work Center code at row ${rowNumber}`)
+      warnings.push(`Missing WC at row ${rowNumber}`)
     }
     const sourceRef = textValue(cell(row, map, ['source ref', 'sourceref', 'source'])) || fallbackSource
     const explicitConfidence = parseConfidence(cell(row, map, ['confidence', 'status']))
-    const laborRate = numberValue(cell(row, map, ['labor rate', 'laborrate']), 'laborRate', rowNumber, warnings)
-    const burdenRate = numberValue(cell(row, map, ['burden rate', 'burdenrate']), 'burdenRate', rowNumber, warnings)
+    const laborRate = numberValue(cell(row, map, ['labor', 'labor rate', 'laborrate']), 'Labor', rowNumber, warnings)
+    const burdenRate = numberValue(cell(row, map, ['burden', 'burden rate', 'burdenrate']), 'Burden', rowNumber, warnings)
     const effectiveDate = textValue(cell(row, map, ['effective date', 'effectivedate'])) || fallbackDate
     const id = textValue(cell(row, map, ['id', 'work center id', 'workcenterid'])) || `rate-${rowNumber}`
     rates.push({
       id,
       workCenterCode: code,
-      description: textValue(cell(row, map, ['work center name', 'workcentername', 'description', 'work center description', 'workcenterdescription'])),
+      description: textValue(cell(row, map, ['work center name', 'workcentername', 'description', 'work center description', 'workcenterdescription'])) || code,
       laborRate: laborRate.value,
       burdenRate: burdenRate.value,
       effectiveDate,
@@ -269,7 +298,7 @@ function parseWorkCenters(
       },
       additionalFields: additionalFields(row, rows[headerIndex], [
         'work center code', 'workcentercode', 'work center', 'wc',
-        'labor rate', 'laborrate', 'burden rate', 'burdenrate',
+        'labor', 'labor rate', 'laborrate', 'burden', 'burden rate', 'burdenrate',
         'description', 'work center name', 'workcentername', 'work center description', 'workcenterdescription',
         'effective date', 'effectivedate', 'id', 'work center id', 'workcenterid',
         'source ref', 'sourceref', 'source', 'confidence', 'status', 'note'
@@ -285,7 +314,11 @@ function parseBOM(
   fallbackSource: string,
   warnings: string[]
 ): SnapshotBOMItem[] {
-  const headerIndex = findHeaderRow(rows, [['item code', 'itemcode', 'material', 'material code'], ['consumption', 'usage'], ['price']])
+  const headerIndex = findHeaderRow(rows, [
+    ['name', 'material name', 'description', 'material description', 'item code', 'itemcode', 'material code', 'material'],
+    ['usage', 'consumption', 'quantity'],
+    ['price', 'material price']
+  ])
   if (headerIndex < 0) {
     warnings.push('BOM header not found')
     return []
@@ -295,16 +328,15 @@ function parseBOM(
   rows.slice(headerIndex + 1).forEach((row, index) => {
     const rowNumber = headerIndex + index + 2
     if (!row.some(value => textValue(value) !== '')) return
-    const itemCode = textValue(cell(row, map, ['item code', 'itemcode', 'material', 'material code']))
-    if (!itemCode) {
-      warnings.push(`Missing item code at row ${rowNumber}`)
-    }
+    const name = textValue(cell(row, map, ['name', 'material name', 'description', 'material description']))
+    const itemCode = textValue(cell(row, map, ['item code', 'itemcode', 'material code', 'material'])) || name
+    if (!name) warnings.push(`Missing BOM Name at row ${rowNumber}`)
     const sourceRef = textValue(cell(row, map, ['source ref', 'sourceref', 'source'])) || fallbackSource
     const explicitConfidence = parseConfidence(cell(row, map, ['confidence', 'status']))
     const consumption = numberValue(cell(row, map, ['consumption', 'usage', 'quantity']), 'consumption', rowNumber, warnings)
     const price = numberValue(cell(row, map, ['price', 'material price']), 'price', rowNumber, warnings)
     const loss = numberValue(cell(row, map, ['loss', 'loss rate']), 'loss', rowNumber, warnings)
-    const description = textValue(cell(row, map, ['description', 'material description']))
+    const description = name
     const unit = textValue(cell(row, map, ['unit', 'uom']))
     if (!unit) warnings.push(`Missing unit at row ${rowNumber}`)
     items.push({
@@ -323,7 +355,7 @@ function parseBOM(
         loss: evidence(loss.value, sourceRef, explicitConfidence, loss.quality)
       },
       additionalFields: additionalFields(row, rows[headerIndex], [
-        'item code', 'itemcode', 'material', 'material code',
+        'name', 'material name', 'item code', 'itemcode', 'material', 'material code',
         'consumption', 'usage', 'quantity', 'price', 'material price',
         'loss', 'loss rate', 'description', 'material description', 'unit', 'uom',
         'id', 'bom id', 'bomid', 'source ref', 'sourceref', 'source', 'confidence', 'status', 'note'
@@ -339,7 +371,11 @@ function parseRouting(
   fallbackSource: string,
   warnings: string[]
 ): SnapshotRoutingStep[] {
-  const headerIndex = findHeaderRow(rows, [['sequence', 'seq', 'op seq'], ['process name', 'process', 'description'], ['work center code', 'work center id', 'work center', 'wc']])
+  const headerIndex = findHeaderRow(rows, [
+    ['process', 'process name', 'description'],
+    ['wc', 'work center code', 'work center id', 'work center'],
+    ['manning', 'headcount']
+  ])
   if (headerIndex < 0) {
     warnings.push('ROUTING header not found')
     return []
@@ -353,28 +389,27 @@ function parseRouting(
     const processCode = textValue(cell(row, map, ['process code', 'processcode']))
     const hasData = row.some(value => textValue(value) !== '')
     if (!hasData) return
-    const preferredId = textValue(cell(row, map, ['id', 'routing id', 'routingid'])) || operationCode || processCode || `routing-${rowNumber}`
+    const processName = textValue(cell(row, map, ['process', 'process name', 'description']))
+    const preferredId = textValue(cell(row, map, ['id', 'routing id', 'routingid'])) || operationCode || processCode || processName || `routing-${rowNumber}`
     let id = preferredId
     if (usedIds.has(id)) {
       id = `routing-${rowNumber}`
       while (usedIds.has(id)) id = `${id}-imported`
     }
     usedIds.add(id)
-    if (!operationCode) warnings.push(`Missing Operation Code at row ${rowNumber}; Routing row will not be matched.`)
     const sourceRef = textValue(cell(row, map, ['source ref', 'sourceref', 'source'])) || fallbackSource
     const explicitConfidence = parseConfidence(cell(row, map, ['confidence', 'status']))
-    const sequence = numberValue(cell(row, map, ['sequence', 'seq', 'op seq']), 'sequence', rowNumber, warnings)
+    const sequence = optionalNumberValue(cell(row, map, ['sequence', 'seq', 'op seq']), 'sequence', rowNumber, warnings)
     const manning = numberValue(cell(row, map, ['manning', 'headcount']), 'manning', rowNumber, warnings)
     const capacity = numberValue(cell(row, map, ['capacity', 'cap']), 'capacity', rowNumber, warnings)
     const yieldValue = numberValue(cell(row, map, ['yield', 'yield rate']), 'yield', rowNumber, warnings)
-    const processName = textValue(cell(row, map, ['process name', 'process', 'description']))
     const workCenterId = textValue(cell(row, map, ['work center id', 'workcenterid', 'work center code', 'work center', 'wc']))
-    if (!processName) warnings.push(`Missing processName at row ${rowNumber}`)
+    if (!processName) warnings.push(`Missing Process at row ${rowNumber}`)
     if (!workCenterId) warnings.push(`Missing workCenterId at row ${rowNumber}`)
     steps.push({
       id,
       operationCode: operationCode || undefined,
-      sequence: sequence.value ?? undefined,
+      sequence: sequence ?? undefined,
       processCode: processCode || undefined,
       processName,
       workCenterId: workCenterId || undefined,
@@ -384,7 +419,6 @@ function parseRouting(
       note: textValue(cell(row, map, ['note'])),
       sourceRef,
       confidence: {
-        sequence: evidence(sequence.value, sourceRef, explicitConfidence, sequence.quality),
         manning: evidence(manning.value, sourceRef, explicitConfidence, manning.quality),
         capacity: evidence(capacity.value, sourceRef, explicitConfidence, capacity.quality),
         yield: evidence(yieldValue.value, sourceRef, explicitConfidence, yieldValue.quality)
@@ -438,7 +472,7 @@ export function parseSnapshotWorkbookData(
   }
   const sourceRef = metaValue(meta, ['source ref', 'sourceref', 'source'])
   const effectiveDate = product.effectiveDate || metaValue(meta, ['effective date', 'effectivedate'])
-  const snapshotId = metaValue(meta, ['snapshot id', 'snapshotid', 'id']) || `${product.productCode || 'snapshot'}:${role}`
+  const snapshotId = metaValue(meta, ['snapshot id', 'snapshotid', 'id']) || `${product.productName || 'snapshot'}:${role}`
   const status = parseStatus(metaValue(meta, ['status', 'dataset status']), warnings)
 
   const snapshot: CostSnapshot = {

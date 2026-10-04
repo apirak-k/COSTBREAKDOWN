@@ -51,7 +51,11 @@ const COMPARISON_METADATA_FIELDS = new Set([
   'isGeneratedSizingPlaceholder',
   // Legacy columns excluded from the neutral dataset schema.
   'effectiveDate',
-  'processCode'
+  'processCode',
+  // Removed from the approved Master Data schemas; kept only by legacy adapters.
+  'itemCode',
+  'operationCode',
+  'sequence'
 ])
 
 function valuesEqual(left: unknown, right: unknown): boolean {
@@ -94,12 +98,13 @@ function hasAdditionalFields(row: SnapshotRow | undefined): boolean {
 
 function diffSupportedFields<T extends SnapshotRow>(
   reference: T,
-  current: T
+  current: T,
+  ignoredFields: ReadonlySet<string> = new Set()
 ): Record<string, { reference: unknown; current: unknown }> {
   const diffs: Record<string, { reference: unknown; current: unknown }> = {}
   const fields = new Set([...Object.keys(reference), ...Object.keys(current)])
   fields.forEach(field => {
-    if (COMPARISON_METADATA_FIELDS.has(field)) return
+    if (COMPARISON_METADATA_FIELDS.has(field) || ignoredFields.has(field)) return
     const referenceValue = (reference as unknown as Record<string, unknown>)[field]
     const currentValue = (current as unknown as Record<string, unknown>)[field]
     if (!valuesEqual(referenceValue, currentValue)) {
@@ -112,7 +117,15 @@ function diffSupportedFields<T extends SnapshotRow>(
 
 function diffProductFields(reference: CostSnapshot['product'], current: CostSnapshot['product']): Record<string, { reference: unknown; current: unknown }> {
   const diffs: Record<string, { reference: unknown; current: unknown }> = {}
-  const metadata = new Set(['additionalFields', 'note', 'effectiveDate'])
+  const metadata = new Set([
+    'additionalFields',
+    'note',
+    'effectiveDate',
+    // These fields are retained only by legacy Product-session adapters.
+    'productCode',
+    'productDescription',
+    'customer'
+  ])
   const fields = new Set([...Object.keys(reference), ...Object.keys(current)])
   fields.forEach(field => {
     if (metadata.has(field)) return
@@ -131,7 +144,8 @@ function compareRows<T extends SnapshotRow>(
   keyOf: (row: T) => string,
   flagsOf: (reference: T, current: T) => ChangeFlags,
   calculateRecordCostEffect?: (reference: T | undefined, current: T | undefined) => ComparisonRecordCostEffect,
-  warnings: ComparisonWarning[] = []
+  warnings: ComparisonWarning[] = [],
+  ignoredFields: ReadonlySet<string> = new Set()
 ): ComparisonFinding[] {
   const referenceMap = new Map<string, T[]>()
   const currentMap = new Map<string, T[]>()
@@ -222,7 +236,7 @@ function compareRows<T extends SnapshotRow>(
       currentId: current.id,
       matchStatus: 'matched',
       changeFlags: flagsOf(reference, current),
-      fieldDiffs: diffSupportedFields(reference, current),
+      fieldDiffs: diffSupportedFields(reference, current, ignoredFields),
       costGap: costEffect?.gap.total ?? null,
       costEffect,
       confidence: combinedConfidence(reference, current),
@@ -234,11 +248,11 @@ function compareRows<T extends SnapshotRow>(
 }
 
 function bomKey(row: SnapshotBOMItem): string {
-  return normalizeKey(row.itemCode)
+  return normalizeKey(row.description)
 }
 
 function routingKey(row: SnapshotRoutingStep): string {
-  return normalizeKey(row.operationCode)
+  return normalizeKey(row.processName)
 }
 
 function rateKey(row: SnapshotWorkCenterRate): string {
@@ -251,7 +265,6 @@ function bomFlags(): ChangeFlags {
 
 function routingFlags(reference: SnapshotRoutingStep, current: SnapshotRoutingStep): ChangeFlags {
   return {
-    reordered: reference.sequence !== current.sequence,
     movedWorkCenter: reference.workCenterId !== current.workCenterId,
     changedInputs: reference.manning !== current.manning || reference.capacity !== current.capacity || reference.yield !== current.yield
   }
@@ -486,7 +499,8 @@ export function compareSnapshots(reference: CostSnapshot, current: CostSnapshot)
     rateKey,
     rateFlags,
     undefined,
-    warnings
+    warnings,
+    new Set(['description'])
   )
 
   const processingFindings = buildProcessingFindings(

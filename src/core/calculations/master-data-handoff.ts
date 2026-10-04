@@ -46,29 +46,21 @@ export function evaluateMasterDataHandoff(
 
   ;(['reference', 'current'] as const).forEach(role => {
     const label = roleLabels[role]
-    const snapshotCode = pair[role].product.productCode.trim()
+    const snapshotName = (pair[role].product.productName || pair[role].product.productDescription).trim()
 
     if (!readiness[role]) {
       issues.push(`${label} dataset is not prepared yet.`)
     }
 
-    if (!snapshotCode) {
-      warnings.push(`${label} Product Code is not specified.`)
+    if (!snapshotName) {
+      warnings.push(`${label} Product Name is not specified.`)
     }
   })
 
-  // Product Code is the primary identity. Fall back to Product Name only when
-  // both datasets cannot be compared by Product Code.
-  const refCode = pair.reference.product.productCode.trim()
-  const curCode = pair.current.product.productCode.trim()
-  const refName = pair.reference.product.productDescription.trim()
-  const curName = pair.current.product.productDescription.trim()
+  const refName = (pair.reference.product.productName || pair.reference.product.productDescription).trim()
+  const curName = (pair.current.product.productName || pair.current.product.productDescription).trim()
 
-  if (refCode && curCode) {
-    if (normalized(refCode) !== normalized(curCode)) {
-      warnings.push(`Product mismatch: Reference is "${refCode}" while Current is "${curCode}".`)
-    }
-  } else if (refName && curName && normalized(refName) !== normalized(curName)) {
+  if (refName && curName && normalized(refName) !== normalized(curName)) {
     warnings.push(`Product mismatch: Reference is "${refName}" while Current is "${curName}".`)
   }
 

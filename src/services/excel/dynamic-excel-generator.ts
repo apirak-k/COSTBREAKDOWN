@@ -69,18 +69,18 @@ function writeRemarkSheet(sheet: ExcelJS.Worksheet, remark: string | undefined):
 }
 
 function writeProductSheet(sheet: ExcelJS.Worksheet, product?: DynamicTemplateOptions['product']): void {
-  sheet.columns = [{ width: 22 }, { width: 34 }, { width: 12 }, { width: 48 }]
+  sheet.columns = [{ width: 34 }, { width: 12 }, { width: 18 }, { width: 28 }]
   sheet.getCell('A1').value = 'PRODUCT'
   sheet.getCell('A1').font = fontTitle
   sheet.mergeCells('A1:D1')
   writeInputLegend(sheet, 4)
   sheet.getCell('A3').value = 'Exactly one Product row is allowed.'
   sheet.getCell('A3').font = fontSection
-  const headers = ['Product Code', 'Product Name', 'UOM', 'Note']
+  const headers = ['Product Name', 'UOM', 'Selling Price (THB)', 'SG&A (%)']
   sheet.getRow(4).values = headers
   styleHeaderRow(sheet.getRow(4), headers.length)
-  sheet.getRow(5).values = [product?.productCode || '', product?.productDescription || '', product?.uom || '', product?.note || '']
-  styleInputRow(sheet.getRow(5), headers.length)
+  sheet.getRow(5).values = [product?.productName || product?.productDescription || '', product?.uom || '', product?.sellingPrice ?? null, product?.sgaPercent ?? null]
+  styleInputRow(sheet.getRow(5), headers.length, [3, 4])
   sheet.autoFilter = 'A4:D5'
   sheet.views = [{ state: 'frozen', ySplit: 4 }]
 }
@@ -89,11 +89,11 @@ function writeWorkCenterSheet(
   sheet: ExcelJS.Worksheet,
   count: number
 ): void {
-  const headers = ['Work Center Code', 'Work Center Name', 'Labor Rate', 'Burden Rate', 'Note']
-  sheet.columns = [{ width: 22 }, { width: 34 }, { width: 16 }, { width: 16 }, { width: 48 }]
+  const headers = ['WC', 'Labor', 'Burden', 'Note']
+  sheet.columns = [{ width: 24 }, { width: 18 }, { width: 18 }, { width: 48 }]
   sheet.getCell('A1').value = 'WORK_CENTER'
   sheet.getCell('A1').font = fontTitle
-  sheet.mergeCells('A1:E1')
+  sheet.mergeCells('A1:D1')
   writeInputLegend(
     sheet,
     headers.length,
@@ -102,7 +102,6 @@ function writeWorkCenterSheet(
   const exampleRow = sheet.getRow(3)
   exampleRow.values = [
     'WC-EXAMPLE',
-    'Demonstration machining center',
     125.5,
     31.25,
     'Example only; not imported'
@@ -112,25 +111,25 @@ function writeWorkCenterSheet(
     cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: COLOR_EXAMPLE } }
     cell.font = { ...fontData, italic: true, color: { argb: 'FF64748B' } }
     cell.border = borderThin
-    if (column === 3 || column === 4) cell.numFmt = '#,##0.0000'
+    if (column === 2 || column === 3) cell.numFmt = '#,##0.0000'
   }
   sheet.getRow(4).values = headers
   styleHeaderRow(sheet.getRow(4), headers.length)
   for (let index = 0; index < count; index += 1) {
     const row = sheet.getRow(index + 5)
-    row.values = ['', '', null, null, '']
-    styleInputRow(row, headers.length, [3, 4])
+    row.values = ['', null, null, '']
+    styleInputRow(row, headers.length, [2, 3])
   }
-  sheet.autoFilter = `A4:E${count + 4}`
+  sheet.autoFilter = `A4:D${count + 4}`
   sheet.views = [{ state: 'frozen', ySplit: 4 }]
 }
 
 function writeBOMSheet(sheet: ExcelJS.Worksheet, count: number): void {
-  const headers = ['Item Code', 'Description', 'Consumption', 'Unit', 'Price', 'Loss', 'Note']
-  sheet.columns = [{ width: 18 }, { width: 36 }, { width: 16 }, { width: 12 }, { width: 16 }, { width: 14 }, { width: 48 }]
+  const headers = ['Name', 'Usage', 'Unit', 'Price', 'Loss', 'Note']
+  sheet.columns = [{ width: 36 }, { width: 16 }, { width: 12 }, { width: 16 }, { width: 14 }, { width: 48 }]
   sheet.getCell('A1').value = 'BOM'
   sheet.getCell('A1').font = fontTitle
-  sheet.mergeCells('A1:G1')
+  sheet.mergeCells('A1:F1')
   writeInputLegend(sheet, headers.length)
   sheet.getCell('A3').value = 'Material inputs for this Dataset'
   sheet.getCell('A3').font = fontSection
@@ -138,19 +137,19 @@ function writeBOMSheet(sheet: ExcelJS.Worksheet, count: number): void {
   styleHeaderRow(sheet.getRow(4), headers.length)
   for (let index = 0; index < count; index += 1) {
     const row = sheet.getRow(index + 5)
-    row.values = ['', '', null, '', null, null, '']
-    styleInputRow(row, headers.length, [3, 5, 6])
+    row.values = ['', null, '', null, null, '']
+    styleInputRow(row, headers.length, [2, 4, 5])
   }
-  sheet.autoFilter = `A4:G${count + 4}`
+  sheet.autoFilter = `A4:F${count + 4}`
   sheet.views = [{ state: 'frozen', ySplit: 4 }]
 }
 
 function writeRoutingSheet(sheet: ExcelJS.Worksheet, count: number): void {
-  const headers = ['Operation Code', 'Sequence', 'Process Name', 'Work Center Code', 'Manning', 'Capacity', 'Yield', 'Note']
-  sheet.columns = [{ width: 18 }, { width: 12 }, { width: 32 }, { width: 22 }, { width: 14 }, { width: 14 }, { width: 14 }, { width: 48 }]
+  const headers = ['Process', 'WC', 'Manning', 'Cap', 'Yield', 'Note']
+  sheet.columns = [{ width: 32 }, { width: 24 }, { width: 14 }, { width: 14 }, { width: 14 }, { width: 48 }]
   sheet.getCell('A1').value = 'ROUTING'
   sheet.getCell('A1').font = fontTitle
-  sheet.mergeCells('A1:H1')
+  sheet.mergeCells('A1:F1')
   writeInputLegend(sheet, headers.length)
   sheet.getCell('A3').value = 'Routing inputs linked to WORK_CENTER in this Dataset'
   sheet.getCell('A3').font = fontSection
@@ -158,10 +157,10 @@ function writeRoutingSheet(sheet: ExcelJS.Worksheet, count: number): void {
   styleHeaderRow(sheet.getRow(4), headers.length)
   for (let index = 0; index < count; index += 1) {
     const row = sheet.getRow(index + 5)
-    row.values = ['', null, '', '', null, null, null, '']
-    styleInputRow(row, headers.length, [2, 5, 6, 7])
+    row.values = ['', '', null, null, null, '']
+    styleInputRow(row, headers.length, [3, 4, 5])
   }
-  sheet.autoFilter = `A4:H${count + 4}`
+  sheet.autoFilter = `A4:F${count + 4}`
   sheet.views = [{ state: 'frozen', ySplit: 4 }]
 }
 

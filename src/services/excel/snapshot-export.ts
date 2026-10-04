@@ -53,74 +53,72 @@ function writeRemarkSheet(sheet: ExcelJS.Worksheet, remark: string | undefined):
 }
 
 function writeProductSheet(sheet: ExcelJS.Worksheet, product: ProductMaster): void {
-  const headers = ['Product Code', 'Product Name', 'UOM', 'Note']
-  sheet.columns = [{ width: 22 }, { width: 34 }, { width: 12 }, { width: 48 }]
+  const headers = ['Product Name', 'UOM', 'Selling Price (THB)', 'SG&A (%)']
+  sheet.columns = [{ width: 34 }, { width: 12 }, { width: 18 }, { width: 28 }]
   sheet.getCell('A1').value = 'PRODUCT'
   sheet.getCell('A1').font = fontTitle
   sheet.mergeCells('A1:D1')
   sheet.getRow(3).values = headers
   styleHeaderRow(sheet.getRow(3), headers.length)
-  sheet.getRow(4).values = [product.productCode, product.productDescription, product.uom, product.note || '']
-  styleDataRow(sheet.getRow(4), headers.length)
+  sheet.getRow(4).values = [product.productName || product.productDescription, product.uom, product.sellingPrice ?? null, product.sgaPercent ?? null]
+  styleDataRow(sheet.getRow(4), headers.length, [3, 4])
   sheet.autoFilter = 'A3:D4'
   sheet.views = [{ state: 'frozen', ySplit: 3 }]
 }
 
 function writeWorkCenterSheet(sheet: ExcelJS.Worksheet, snapshot: CostSnapshot): void {
-  const headers = ['Work Center Code', 'Work Center Name', 'Labor Rate', 'Burden Rate', 'Note']
+  const headers = ['WC', 'Labor', 'Burden', 'Note']
   const rates = excludeGeneratedSizingPlaceholders(snapshot.rates)
-  sheet.columns = [{ width: 22 }, { width: 34 }, { width: 16 }, { width: 16 }, { width: 48 }]
+  sheet.columns = [{ width: 24 }, { width: 18 }, { width: 18 }, { width: 48 }]
   sheet.getCell('A1').value = 'WORK_CENTER'
   sheet.getCell('A1').font = fontTitle
-  sheet.mergeCells('A1:E1')
+  sheet.mergeCells('A1:D1')
   sheet.getRow(3).values = headers
   styleHeaderRow(sheet.getRow(3), headers.length)
 
   rates.forEach((rate, index) => {
     const row = sheet.getRow(index + 4)
-    row.values = [rate.workCenterCode, rate.description, rate.laborRate, rate.burdenRate, rate.note || '']
-    styleDataRow(row, headers.length, [3, 4])
+    row.values = [rate.workCenterCode, rate.laborRate, rate.burdenRate, rate.note || '']
+    styleDataRow(row, headers.length, [2, 3])
   })
 
-  if (rates.length > 0) sheet.autoFilter = `A3:E${rates.length + 3}`
+  if (rates.length > 0) sheet.autoFilter = `A3:D${rates.length + 3}`
   sheet.views = [{ state: 'frozen', ySplit: 3 }]
 }
 
 function writeBOMSheet(sheet: ExcelJS.Worksheet, snapshot: CostSnapshot): void {
-  const headers = ['Item Code', 'Description', 'Consumption', 'Unit', 'Price', 'Loss', 'Note']
+  const headers = ['Name', 'Usage', 'Unit', 'Price', 'Loss', 'Note']
   const items = excludeGeneratedSizingPlaceholders(snapshot.bom)
-  sheet.columns = [{ width: 18 }, { width: 36 }, { width: 16 }, { width: 12 }, { width: 16 }, { width: 14 }, { width: 48 }]
+  sheet.columns = [{ width: 36 }, { width: 16 }, { width: 12 }, { width: 16 }, { width: 14 }, { width: 48 }]
   sheet.getCell('A1').value = 'BOM'
   sheet.getCell('A1').font = fontTitle
-  sheet.mergeCells('A1:G1')
+  sheet.mergeCells('A1:F1')
   sheet.getRow(3).values = headers
   styleHeaderRow(sheet.getRow(3), headers.length)
 
   items.forEach((item, index) => {
     const row = sheet.getRow(index + 4)
-    row.values = [item.itemCode, item.description, item.consumption, item.unit, item.price, item.loss, item.note || '']
-    styleDataRow(row, headers.length, [3, 5, 6])
+    row.values = [item.description || item.itemCode, item.consumption, item.unit, item.price, item.loss, item.note || '']
+    styleDataRow(row, headers.length, [2, 4, 5])
   })
 
-  if (items.length > 0) sheet.autoFilter = `A3:G${items.length + 3}`
+  if (items.length > 0) sheet.autoFilter = `A3:F${items.length + 3}`
   sheet.views = [{ state: 'frozen', ySplit: 3 }]
 }
 
 function writeRoutingSheet(sheet: ExcelJS.Worksheet, snapshot: CostSnapshot): void {
-  const headers = ['Operation Code', 'Sequence', 'Process Name', 'Work Center Code', 'Manning', 'Capacity', 'Yield', 'Note']
+  const headers = ['Process', 'WC', 'Manning', 'Cap', 'Yield', 'Note']
   const steps = excludeGeneratedSizingPlaceholders(snapshot.routing)
-  sheet.columns = [{ width: 18 }, { width: 12 }, { width: 32 }, { width: 22 }, { width: 14 }, { width: 14 }, { width: 14 }, { width: 48 }]
+  sheet.columns = [{ width: 32 }, { width: 24 }, { width: 14 }, { width: 14 }, { width: 14 }, { width: 48 }]
   sheet.getCell('A1').value = 'ROUTING'
   sheet.getCell('A1').font = fontTitle
-  sheet.mergeCells('A1:H1')
+  sheet.mergeCells('A1:F1')
   sheet.getRow(3).values = headers
   styleHeaderRow(sheet.getRow(3), headers.length)
 
   steps.forEach((step, index) => {
     const row = sheet.getRow(index + 4)
     row.values = [
-      step.operationCode || '',
-      step.sequence ?? null,
       step.processName,
       step.workCenterId || '',
       step.manning,
@@ -128,10 +126,10 @@ function writeRoutingSheet(sheet: ExcelJS.Worksheet, snapshot: CostSnapshot): vo
       step.yield,
       step.note || ''
     ]
-    styleDataRow(row, headers.length, [2, 5, 6, 7])
+    styleDataRow(row, headers.length, [3, 4, 5])
   })
 
-  if (steps.length > 0) sheet.autoFilter = `A3:H${steps.length + 3}`
+  if (steps.length > 0) sheet.autoFilter = `A3:F${steps.length + 3}`
   sheet.views = [{ state: 'frozen', ySplit: 3 }]
 }
 
