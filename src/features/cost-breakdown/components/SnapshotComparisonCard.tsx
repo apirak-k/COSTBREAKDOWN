@@ -14,12 +14,21 @@ export interface SnapshotComparisonSummary {
   reviewCount: number
 }
 
-export function summarizeSnapshotComparison(comparison: CostComparison): SnapshotComparisonSummary {
+function getSnapshotWarnings(comparison: CostComparison, selectedComparison: boolean) {
+  if (!selectedComparison) return comparison.warnings
+  return comparison.warnings.filter(warning => !(
+    (warning.code === 'MISSING_BUSINESS_KEY' || warning.code === 'AMBIGUOUS_KEY')
+    && warning.message.includes('Work Center')
+  ))
+}
+
+export function summarizeSnapshotComparison(comparison: CostComparison, selectedComparison = false): SnapshotComparisonSummary {
   const findings = [
     ...comparison.bomFindings,
     ...comparison.routingFindings,
-    ...comparison.workCenterFindings
+    ...(selectedComparison ? [] : comparison.workCenterFindings)
   ]
+  const warnings = getSnapshotWarnings(comparison, selectedComparison)
   const missingCount = findings.filter(finding => finding.confidence === 'missing').length
   const estimatedCount = findings.filter(finding => finding.confidence === 'estimated').length
   const matchedCount = findings.filter(finding => finding.matchStatus === 'matched').length
@@ -35,7 +44,7 @@ export function summarizeSnapshotComparison(comparison: CostComparison): Snapsho
       : 'Verified',
     missingCount,
     estimatedCount,
-    warningCount: comparison.warnings.length,
+    warningCount: warnings.length,
     matchedCount,
     reviewCount
   }
@@ -43,6 +52,7 @@ export function summarizeSnapshotComparison(comparison: CostComparison): Snapsho
 
 interface SnapshotComparisonCardProps {
   comparison: CostComparison
+  selectedComparison?: boolean
 }
 
 const formatCost = (value: number | null): string => value === null ? '—' : formatNumber(value, 4)
@@ -52,8 +62,9 @@ function gapClass(value: number | null): string {
   return value > 0 ? 'text-rose-700' : 'text-emerald-700'
 }
 
-export const SnapshotComparisonCard: React.FC<SnapshotComparisonCardProps> = ({ comparison }) => {
-  const summary = summarizeSnapshotComparison(comparison)
+export const SnapshotComparisonCard: React.FC<SnapshotComparisonCardProps> = ({ comparison, selectedComparison = false }) => {
+  const summary = summarizeSnapshotComparison(comparison, selectedComparison)
+  const warnings = getSnapshotWarnings(comparison, selectedComparison)
   const qualityClass = summary.quality === 'Verified'
     ? 'text-emerald-800 bg-emerald-50 border-emerald-200'
     : summary.quality === 'Estimated'
@@ -78,8 +89,12 @@ export const SnapshotComparisonCard: React.FC<SnapshotComparisonCardProps> = ({ 
     <section aria-labelledby="snapshot-comparison-title" className="overflow-hidden border border-slate-300 bg-white">
       <div className="flex flex-col gap-3 border-b border-slate-200 bg-slate-50 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h2 id="snapshot-comparison-title" className="font-mono text-xs font-bold uppercase tracking-wide text-slate-950">Reference vs Current</h2>
-          <p className="mt-0.5 text-[11px] leading-4 text-slate-600">Four cost measures across the two independent snapshots.</p>
+          <h2 id="snapshot-comparison-title" className="font-mono text-xs font-bold uppercase tracking-wide text-slate-950">{selectedComparison ? 'Selected Comparison · Reference vs Current' : 'Reference vs Current'}</h2>
+          <p className="mt-0.5 text-[11px] leading-4 text-slate-600">
+            {selectedComparison
+              ? 'Cost measures use the selected BOM and Routing findings with all Work Center rates as calculation context.'
+              : 'Four cost measures across the two independent snapshots.'}
+          </p>
         </div>
         <div className={`inline-flex min-h-7 items-center gap-1.5 self-start border px-2 py-1 font-mono text-[10px] font-semibold uppercase ${qualityClass}`} role="status">
           <QualityIcon className="h-3 w-3" aria-hidden="true" />
@@ -135,14 +150,14 @@ export const SnapshotComparisonCard: React.FC<SnapshotComparisonCardProps> = ({ 
         </span>
       </div>
 
-      {comparison.warnings.length > 0 && (
+      {warnings.length > 0 && (
         <div className="border-t border-amber-200 bg-amber-50/70 px-4 py-3">
           <div className="flex items-start gap-2">
             <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-amber-700" aria-hidden="true" />
             <div className="min-w-0">
               <p role="status" className="text-sm font-semibold text-amber-950">Review warnings ({summary.warningCount})</p>
               <ul className="mt-1 space-y-1 text-sm text-amber-950">
-                {comparison.warnings.map((warning, index) => (
+                {warnings.map((warning, index) => (
                   <li key={`${warning.code}-${warning.referenceId ?? warning.currentId ?? index}`}>{warning.message}</li>
                 ))}
               </ul>

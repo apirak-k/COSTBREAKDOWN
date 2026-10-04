@@ -8,7 +8,7 @@ interface AppLayoutProps {
 }
 
 export const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
-  const { snapshotPair, snapshotComparison, masterDataHandoff } = useAppStore()
+  const { snapshotPair, snapshotComparison, masterDataHandoff, isSelectedComparisonActive } = useAppStore()
   const totalGap = snapshotComparison.totalGap
   const gapTextClass = totalGap === null
     ? 'text-slate-400'
@@ -57,7 +57,7 @@ export const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
               </span>
             </span>
             <span className="whitespace-nowrap">
-              <span className="mr-1 font-bold text-slate-300">GAP</span>
+              <span className="mr-1 font-bold text-slate-300">{isSelectedComparisonActive ? 'SELECTED GAP' : 'GAP'}</span>
               <span className={`font-semibold tabular-nums ${gapTextClass}`}>
                 {totalGap === null ? '—' : formatVariance(totalGap, 4)}
               </span>

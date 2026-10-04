@@ -18,6 +18,7 @@ interface WorkCenterComparisonTableProps {
   currentRates: SnapshotWorkCenterRate[]
   findings: ComparisonFinding[]
   viewMode?: ComparisonViewMode
+  contextOnly?: boolean
 }
 
 export function getWorkCenterComparisonLabel(finding: ComparisonFinding): ComparisonStatus | null {
@@ -51,7 +52,8 @@ export const WorkCenterComparisonTable: React.FC<WorkCenterComparisonTableProps>
   referenceRates,
   currentRates,
   findings,
-  viewMode = ALL_COMPARISON_STATUSES
+  viewMode = ALL_COMPARISON_STATUSES,
+  contextOnly = false
 }) => {
   const referenceById = new Map(referenceRates.map(rate => [rate.id, rate]))
   const findingByCurrentId = new Map(
@@ -77,37 +79,41 @@ export const WorkCenterComparisonTable: React.FC<WorkCenterComparisonTableProps>
         finding
       }))
   ]
-  const visibleRows = rows.filter(row => isVisibleInComparisonView(row.finding, viewMode))
+  const visibleRows = contextOnly ? rows : rows.filter(row => isVisibleInComparisonView(row.finding, viewMode))
 
   return (
     <div className="w-full overflow-x-auto">
-      <table className="w-full min-w-[1120px] text-left text-xs">
-        <caption className="sr-only">Reference and current Work Center rate comparison</caption>
+      <table className={`w-full ${contextOnly ? 'min-w-[660px]' : 'min-w-[1120px]'} text-left text-xs`}>
+        <caption className="sr-only">
+          {contextOnly
+            ? 'All Reference and Current Work Center rates retained as Selected Comparison calculation context; rate gaps are not shown.'
+            : 'Reference and current Work Center rate comparison'}
+        </caption>
         <thead>
           <tr className="bg-slate-800 text-xs font-semibold text-white">
             <th scope="col" className="p-2.5">Work Center</th>
             <th scope="col" className="p-2.5">Description</th>
-            <th scope="col" className="p-2.5">Comparison</th>
-            <th scope="col" className="p-2.5">Confidence</th>
-            <th scope="col" className="p-2.5">Data Quality</th>
+            {!contextOnly && <th scope="col" className="p-2.5">Comparison</th>}
+            {!contextOnly && <th scope="col" className="p-2.5">Confidence</th>}
+            {!contextOnly && <th scope="col" className="p-2.5">Data Quality</th>}
             <th scope="col" className="p-2.5 text-right">Labor Ref</th>
             <th scope="col" className="p-2.5 text-right">Labor Current</th>
-            <th scope="col" className="p-2.5 text-right">Labor Δ</th>
+            {!contextOnly && <th scope="col" className="p-2.5 text-right">Labor Δ</th>}
             <th scope="col" className="p-2.5 text-right">Burden Ref</th>
             <th scope="col" className="p-2.5 text-right">Burden Current</th>
-            <th scope="col" className="p-2.5 text-right">Burden Δ</th>
+            {!contextOnly && <th scope="col" className="p-2.5 text-right">Burden Δ</th>}
           </tr>
         </thead>
         <tbody className="divide-y divide-slate-100 font-mono">
           {rows.length === 0 ? (
             <tr>
-              <td colSpan={11} className="p-6 text-center text-slate-400 font-sans italic">
+              <td colSpan={contextOnly ? 6 : 11} className="p-6 text-center text-slate-400 font-sans italic">
                 No Work Center rates configured.
               </td>
             </tr>
           ) : visibleRows.length === 0 ? (
             <tr>
-              <td colSpan={11} className="p-6 text-center text-slate-400 font-sans italic">
+              <td colSpan={contextOnly ? 6 : 11} className="p-6 text-center text-slate-400 font-sans italic">
                 No rows match this comparison view.
               </td>
             </tr>
@@ -118,10 +124,10 @@ export const WorkCenterComparisonTable: React.FC<WorkCenterComparisonTableProps>
             const description = row.current ? row.current.description || '—' : row.reference?.description ?? '—'
 
             return (
-              <tr key={row.current?.id ?? `removed-${row.reference?.id ?? workCenterCode}`} className={`hover:bg-slate-50/70 transition-colors ${label === 'REMOVED' ? 'bg-rose-50/60' : ''}`}>
+              <tr key={row.current?.id ?? `removed-${row.reference?.id ?? workCenterCode}`} className={`hover:bg-slate-50/70 transition-colors ${!contextOnly && label === 'REMOVED' ? 'bg-rose-50/60' : ''}`}>
                 <th scope="row" className="p-2.5 font-bold text-slate-900 whitespace-nowrap">{workCenterCode}</th>
                 <td className="p-2.5 font-sans text-slate-700">{description}</td>
-                <td className="p-2.5">
+                {!contextOnly && <td className="p-2.5">
                   <div className="flex flex-col items-start gap-1.5">
                     {visibleLabel ? (
                       <span className={`inline-flex px-1.5 py-0.5 rounded border text-[10px] font-mono font-bold ${comparisonClass(visibleLabel)}`}>
@@ -134,21 +140,21 @@ export const WorkCenterComparisonTable: React.FC<WorkCenterComparisonTableProps>
                     )}
                     <ComparisonFieldDetails finding={row.finding} />
                   </div>
-                </td>
-                <td className="p-2.5 whitespace-nowrap">
+                </td>}
+                {!contextOnly && <td className="p-2.5 whitespace-nowrap">
                   <ConfidenceBadge status={row.finding?.confidence ?? 'missing'} showLabel />
-                </td>
-                <td className="p-2.5"><DataQualityPairBadge reference={row.reference} current={row.current} /></td>
+                </td>}
+                {!contextOnly && <td className="p-2.5"><DataQualityPairBadge reference={row.reference} current={row.current} /></td>}
                 <td className="p-2.5 text-right text-slate-500 tabular-nums">{formatRate(row.reference?.laborRate)}</td>
                 <td className="p-2.5 text-right font-bold text-slate-900 tabular-nums">{formatRate(row.current?.laborRate)}</td>
-                <td className={`p-2.5 text-right font-bold tabular-nums ${gapClass(row.reference?.laborRate, row.current?.laborRate)}`}>
+                {!contextOnly && <td className={`p-2.5 text-right font-bold tabular-nums ${gapClass(row.reference?.laborRate, row.current?.laborRate)}`}>
                   {formatRateGap(row.reference?.laborRate, row.current?.laborRate)}
-                </td>
+                </td>}
                 <td className="p-2.5 text-right text-slate-500 tabular-nums">{formatRate(row.reference?.burdenRate)}</td>
                 <td className="p-2.5 text-right font-bold text-slate-900 tabular-nums">{formatRate(row.current?.burdenRate)}</td>
-                <td className={`p-2.5 text-right font-bold tabular-nums ${gapClass(row.reference?.burdenRate, row.current?.burdenRate)}`}>
+                {!contextOnly && <td className={`p-2.5 text-right font-bold tabular-nums ${gapClass(row.reference?.burdenRate, row.current?.burdenRate)}`}>
                   {formatRateGap(row.reference?.burdenRate, row.current?.burdenRate)}
-                </td>
+                </td>}
               </tr>
             )
           })}

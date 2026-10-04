@@ -9,6 +9,7 @@ type CostDetailSection = 'bom' | 'routing' | 'work-center'
 interface VarianceTreeCardProps {
   comparison: CostComparison
   comparisonView: ComparisonViewMode
+  selectedComparison?: boolean
   onOpenDetail: (section: CostDetailSection) => void
 }
 
@@ -40,7 +41,7 @@ function detailLink(section: CostDetailSection, label: string, onOpenDetail: Var
   )
 }
 
-export const VarianceTreeCard: React.FC<VarianceTreeCardProps> = ({ comparison, comparisonView, onOpenDetail }) => {
+export const VarianceTreeCard: React.FC<VarianceTreeCardProps> = ({ comparison, comparisonView, selectedComparison = false, onOpenDetail }) => {
   const bomCount = visibleCount(comparison.bomFindings, comparisonView)
   const routingCount = visibleCount(comparison.routingFindings, comparisonView)
   const rateCount = visibleCount(comparison.workCenterFindings, comparisonView)
@@ -50,7 +51,11 @@ export const VarianceTreeCard: React.FC<VarianceTreeCardProps> = ({ comparison, 
       <header className="flex flex-col gap-1 border-b border-slate-200 bg-slate-50 px-4 py-3 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <h2 id="variance-tree-title" className="font-mono text-xs font-bold uppercase tracking-wide text-slate-950">Variance tree</h2>
-          <p className="mt-0.5 text-[11px] leading-4 text-slate-600">Element gaps use all records. Finding counts follow the status filter above.</p>
+          <p className="mt-0.5 text-[11px] leading-4 text-slate-600">
+            {selectedComparison
+              ? 'Element gaps use the selected BOM and Routing rows with all Work Center rates as calculation inputs.'
+              : 'Element gaps use all records. Finding counts follow the status filter above.'}
+          </p>
         </div>
         <p className="font-mono text-[10px] text-slate-600">Gap = Current − Reference · THB/pc</p>
       </header>
@@ -90,8 +95,10 @@ export const VarianceTreeCard: React.FC<VarianceTreeCardProps> = ({ comparison, 
               </div>
               <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
                 {detailLink('routing', 'Review Routing rows', onOpenDetail)}
-                <p className="text-[10px] text-slate-500">Rate input findings: <span className="font-mono tabular-nums text-slate-700">{rateCount}</span></p>
-                {detailLink('work-center', 'Review rates', onOpenDetail)}
+                {selectedComparison
+                  ? <p className="text-[10px] text-slate-500">All Work Center rates remain calculation context.</p>
+                  : <p className="text-[10px] text-slate-500">Rate input findings: <span className="font-mono tabular-nums text-slate-700">{rateCount}</span></p>}
+                {detailLink('work-center', selectedComparison ? 'Review rate context' : 'Review rates', onOpenDetail)}
               </div>
             </div>
 

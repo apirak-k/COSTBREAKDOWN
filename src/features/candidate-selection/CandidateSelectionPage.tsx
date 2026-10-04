@@ -5,7 +5,7 @@ import { CandidatesTable } from './components/CandidatesTable'
 import { filterPrioritizationCandidates } from '../../core/calculations/candidate-prioritization'
 import type { CandidateStatusFilter } from '../../core/calculations/candidate-prioritization'
 import type { PrioritizationStatus } from '../../core'
-import { PageHeading } from '../../shared'
+import { PageHeading, SelectedComparisonBanner } from '../../shared'
 
 const ALL_CANDIDATE_STATUSES: PrioritizationStatus[] = ['CHANGED', 'ADDED', 'REMOVED']
 
@@ -14,6 +14,9 @@ export const CandidateSelectionPage: React.FC = () => {
     candidates,
     toggleCandidateControllable,
     snapshotComparison,
+    isSelectedComparisonActive,
+    selectedComparisonSelection,
+    clearSelectedComparison,
   } = useAppStore()
 
   const [statusFilter, setStatusFilter] = useState<CandidateStatusFilter>(ALL_CANDIDATE_STATUSES)
@@ -48,16 +51,20 @@ export const CandidateSelectionPage: React.FC = () => {
         description="Review cost findings in gap order, then mark whether each is within your control. Rankings guide review; they do not select work automatically."
         actions={(
           <dl className="border-l-2 border-slate-900 py-1 pl-3 sm:min-w-48">
-            <dt className="font-mono text-[10px] font-bold uppercase tracking-wide text-slate-600">Full comparison gap</dt>
+            <dt className="font-mono text-[10px] font-bold uppercase tracking-wide text-slate-600">{isSelectedComparisonActive ? 'Selected comparison gap' : 'Full comparison gap'}</dt>
             <dd className={`mt-1 font-mono text-base font-semibold tabular-nums ${
               totalGap === null ? 'text-slate-500' : totalGap > 0 ? 'text-rose-700' : totalGap < 0 ? 'text-emerald-700' : 'text-slate-700'
             }`}>
               {totalGap === null ? '—' : <>{formatVariance(totalGap, 4)} <span className="text-xs font-medium text-slate-600">THB/pc</span></>}
             </dd>
-            <dd className="mt-0.5 text-xs text-slate-500">Reference vs Current · all cost elements</dd>
+            <dd className="mt-0.5 text-xs text-slate-500">{isSelectedComparisonActive ? 'Selected BOM/Routing · all cost elements' : 'Reference vs Current · all cost elements'}</dd>
           </dl>
         )}
       />
+
+      {isSelectedComparisonActive && selectedComparisonSelection && (
+        <SelectedComparisonBanner selection={selectedComparisonSelection} onExit={clearSelectedComparison} />
+      )}
 
       <section className="flex flex-col gap-2 border border-slate-300 bg-white px-3 py-2.5 sm:flex-row sm:items-center sm:justify-between" aria-labelledby="candidate-filter-title">
         <div className="min-w-40">

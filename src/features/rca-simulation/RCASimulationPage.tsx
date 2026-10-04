@@ -18,7 +18,7 @@ import { CandidateRcaForm } from './components/CandidateRcaForm'
 import { CandidateSelector } from './components/CandidateSelector'
 import { ProblemStatementCard } from './components/ProblemStatementCard'
 import { SimulationGrid } from './components/SimulationGrid'
-import { PageHeading } from '../../shared'
+import { PageHeading, SelectedComparisonBanner } from '../../shared'
 
 interface RCASimulationPageProps {
   state: RcaSimulationPageState
@@ -30,6 +30,9 @@ export const RCASimulationPage: React.FC<RCASimulationPageProps> = ({ state, upd
     candidates,
     candidateRcaRecords,
     analysisSnapshotPair,
+    isSelectedComparisonActive,
+    selectedComparisonSelection,
+    clearSelectedComparison,
     saveCandidateRca
   } = useAppStore()
 
@@ -120,11 +123,17 @@ export const RCASimulationPage: React.FC<RCASimulationPageProps> = ({ state, upd
         description="Record the cause and response, then compare cost scenarios for a candidate you choose."
       />
 
+      {isSelectedComparisonActive && selectedComparisonSelection && (
+        <SelectedComparisonBanner selection={selectedComparisonSelection} onExit={clearSelectedComparison} />
+      )}
+
       <aside aria-label="Simulation basis" className="flex flex-wrap items-baseline gap-x-3 gap-y-1 border border-l-4 border-slate-300 border-l-slate-900 bg-white px-3 py-2.5">
         <span className="font-mono text-[10px] font-bold uppercase tracking-wide text-slate-600">Simulation basis</span>
         <span className="font-semibold text-slate-900">Current</span>
         <p className="min-w-0 flex-1 text-xs leading-5 text-slate-700">
-          A, B, and C are independent predictions through the shared Standard Cost engine. Edits never change Current, Reference, or Master Data.
+          {isSelectedComparisonActive
+            ? 'A, B, and C use the selected BOM and Routing scope with all Work Center rates. Edits never change Current, Reference, or Master Data.'
+            : 'A, B, and C are independent predictions through the shared Standard Cost engine. Edits never change Current, Reference, or Master Data.'}
         </p>
       </aside>
 

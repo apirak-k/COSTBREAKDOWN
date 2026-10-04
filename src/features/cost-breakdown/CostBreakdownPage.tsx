@@ -8,7 +8,7 @@ import { RoutingDetailedTable } from './components/RoutingDetailedTable'
 import { WorkCenterComparisonTable } from './components/WorkCenterComparisonTable'
 import { SnapshotComparisonCard } from './components/SnapshotComparisonCard'
 import { VarianceTreeCard } from './components/VarianceTreeCard'
-import { ALL_COMPARISON_STATUSES, areAllComparisonStatusesSelected, getComparisonViewLabel } from './components/comparison-view'
+import { ALL_COMPARISON_STATUSES, areAllComparisonStatusesSelected, getComparisonViewLabel, isVisibleInComparisonView } from './components/comparison-view'
 import type { ComparisonViewMode } from './components/comparison-view'
 import { areSnapshotCostsComplete, getCanonicalComparisonStatus } from '../../core'
 import type { ComparisonStatus } from '../../core'
@@ -35,18 +35,21 @@ export const CostBreakdownPage: React.FC = () => {
   const [isDetailedExpanded, setIsDetailedExpanded] = useState(true)
   const [isSelectingScope, setIsSelectingScope] = useState(false)
   const [selectionDraft, setSelectionDraft] = useState({ bomFindingKeys: [] as string[], routingFindingKeys: [] as string[] })
+  const isViewingSelectedScope = isSelectedComparisonActive && !isSelectingScope
   const viewComparison = isSelectingScope ? fullSnapshotComparison : snapshotComparison
   const viewPair = isSelectingScope ? snapshotPair : analysisSnapshotPair
   const allFindings = [
     ...viewComparison.bomFindings,
     ...viewComparison.routingFindings,
-    ...viewComparison.workCenterFindings
+    ...(isViewingSelectedScope ? [] : viewComparison.workCenterFindings)
   ]
   const changedFindingsCount = allFindings.filter(finding => getCanonicalComparisonStatus(finding) === 'CHANGED').length
   const addedFindingsCount = allFindings.filter(finding => getCanonicalComparisonStatus(finding) === 'ADDED').length
   const removedFindingsCount = allFindings.filter(finding => getCanonicalComparisonStatus(finding) === 'REMOVED').length
   const unchangedFindingsCount = allFindings.filter(finding => getCanonicalComparisonStatus(finding) === 'UNCHANGED').length
   const exactSnapshotCalculation = areSnapshotCostsComplete(viewComparison.referenceCost, viewComparison.currentCost)
+  const visibleBOMCount = viewComparison.bomFindings.filter(finding => isVisibleInComparisonView(finding, comparisonView)).length
+  const visibleRoutingCount = viewComparison.routingFindings.filter(finding => isVisibleInComparisonView(finding, comparisonView)).length
   const selectedCount = selectionDraft.bomFindingKeys.length + selectionDraft.routingFindingKeys.length
   const selectedBOMKeys = new Set(selectionDraft.bomFindingKeys)
   const selectedRoutingKeys = new Set(selectionDraft.routingFindingKeys)
@@ -58,6 +61,7 @@ export const CostBreakdownPage: React.FC = () => {
           routingFindingKeys: [...selectedComparisonSelection.routingFindingKeys]
         }
       : { bomFindingKeys: [], routingFindingKeys: [] })
+    clearSelectedComparison()
     setIsSelectingScope(true)
   }
 
@@ -137,12 +141,16 @@ export const CostBreakdownPage: React.FC = () => {
       )}
 
       {/* One canonical summary and cost element bridge */}
-      <SnapshotComparisonCard comparison={viewComparison} />
+      <SnapshotComparisonCard comparison={viewComparison} selectedComparison={isViewingSelectedScope} />
 
       <section className="flex flex-col gap-3 rounded-md border border-slate-200 bg-white px-4 py-3 sm:flex-row sm:items-center sm:justify-between" aria-labelledby="comparison-view-title">
         <div>
           <h2 id="comparison-view-title" className="font-mono text-[11px] font-bold uppercase tracking-wide text-slate-900">Comparison view</h2>
-          <p className="mt-0.5 text-[11px] text-slate-600">Select any combination of statuses. Unmatched rows remain visible under All for review.</p>
+          <p className="mt-0.5 text-[11px] text-slate-600">
+            {isViewingSelectedScope
+              ? 'Filter the selected BOM and Routing findings. Work Center rates stay as complete calculation context.'
+              : 'Select any combination of statuses. Unmatched rows remain visible under All for review.'}
+          </p>
         </div>
         <div className="flex flex-wrap items-center gap-1.5 text-xs" role="group" aria-label="Comparison view">
           {([
@@ -175,6 +183,7 @@ export const CostBreakdownPage: React.FC = () => {
       <VarianceTreeCard
         comparison={viewComparison}
         comparisonView={comparisonView}
+        selectedComparison={isViewingSelectedScope}
         onOpenDetail={openDetailSection}
       />
 
@@ -210,7 +219,7 @@ export const CostBreakdownPage: React.FC = () => {
                     : 'bg-white text-slate-700 hover:bg-slate-100 border-slate-300'
                 }`}
               >
-                BOM ({bom.length})
+                BOM ({isViewingSelectedScope ? visibleBOMCount : bom.length})
               </button>
               <button
                 type="button"
@@ -222,7 +231,7 @@ export const CostBreakdownPage: React.FC = () => {
                     : 'bg-white text-slate-700 hover:bg-slate-100 border-slate-300'
                 }`}
               >
-                Routing ({routing.length})
+                Routing ({isViewingSelectedScope ? visibleRoutingCount : routing.length})
               </button>
               <button
                 type="button"
@@ -234,7 +243,7 @@ export const CostBreakdownPage: React.FC = () => {
                     : 'bg-white text-slate-700 hover:bg-slate-100 border-slate-300'
                 }`}
               >
-                Work Center ({rates.length})
+                {isViewingSelectedScope ? 'Work Center context' : 'Work Center'} ({rates.length})
               </button>
             </div>
           </div>
@@ -270,6 +279,7 @@ export const CostBreakdownPage: React.FC = () => {
               currentRates={viewPair.current.rates}
               findings={viewComparison.workCenterFindings}
               viewMode={comparisonView}
+              contextOnly={isViewingSelectedScope}
             />
           )}
         </div>
