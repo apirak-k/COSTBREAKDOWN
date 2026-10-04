@@ -7,7 +7,8 @@ import { parseSnapshotWorkbookData } from '../src/services/excel/snapshot-parser
 import { exportSnapshotToExcel } from '../src/services/excel/snapshot-export.ts'
 
 async function verifyNeutralDatasetWorkbook(): Promise<void> {
-const expectedSheets = ['META', 'PRODUCT', 'WORK_CENTER', 'BOM', 'ROUTING']
+const dataSheets = ['META', 'BOM', 'ROUTING', 'WORK_CENTER']
+const expectedSheets = [...dataSheets, 'COST_CALCULATION']
 const workbook = XLSX.utils.book_new()
 const addSheet = (name: string, rows: (string | number | null)[][]) => {
   XLSX.utils.book_append_sheet(workbook, XLSX.utils.aoa_to_sheet(rows), name)
@@ -16,36 +17,29 @@ const addSheet = (name: string, rows: (string | number | null)[][]) => {
 addSheet('META', [
   ['MASTER DATA DATASET'],
   [],
-  ['Remark'],
-  ['Prepared from approved neutral schema']
-])
-addSheet('PRODUCT', [
-  ['PRODUCT'],
-  [],
-  [],
-  ['Product Code', 'Product Name', 'UOM', 'Note'],
-  ['P-001', 'Fixture Product', 'PC', 'Product annotation']
+  ['Product Name', 'UOM', 'Selling Price (THB)', 'SG&A (%)', 'Dataset Remark'],
+  ['Fixture Product', 'PC', 123.5, 8, 'Prepared from approved neutral schema']
 ])
 addSheet('WORK_CENTER', [
   ['WORK_CENTER'],
   [],
   [],
-  ['Work Center Code', 'Work Center Name', 'Labor Rate', 'Burden Rate', 'Note'],
-  ['WC-1', 'Cutting', 100, 50, 'Rate annotation']
+  ['WC', 'Labor', 'Burden', 'Note'],
+  ['WC-1', 100, 50, 'Rate annotation']
 ])
 addSheet('BOM', [
   ['BOM'],
   [],
   [],
-  ['Item Code', 'Description', 'Consumption', 'Unit', 'Price', 'Loss', 'Note'],
-  ['MAT-1', 'Film', 2, 'SM', 10, 0.1, 'Material annotation']
+  ['Name', 'Usage', 'Unit', 'Price', 'Loss', 'Note'],
+  ['Film', 2, 'SM', 10, 0.1, 'Material annotation']
 ])
 addSheet('ROUTING', [
   ['ROUTING'],
   [],
   [],
-  ['Operation Code', 'Sequence', 'Process Name', 'Work Center Code', 'Manning', 'Capacity', 'Yield', 'Note'],
-  ['10', 10, 'Cut', 'WC-1', 1, 100, 0.95, 'Operation annotation']
+  ['Process', 'WC', 'Manning', 'Cap', 'Yield', 'Note'],
+  ['Cut', 'WC-1', 1, 100, 0.95, 'Operation annotation']
 ])
 
 const inputBytes = XLSX.write(workbook, { type: 'array', bookType: 'xlsx' })
@@ -53,11 +47,31 @@ const imported = parseSnapshotWorkbookData(inputBytes, 'reference')
 assert.equal(imported.success, true, imported.message)
 assert.ok(imported.snapshot)
 assert.equal(imported.snapshot.remark, 'Prepared from approved neutral schema')
-assert.equal(imported.snapshot.product.productDescription, 'Fixture Product')
-assert.equal(imported.snapshot.product.note, 'Product annotation')
+assert.equal(imported.snapshot.product.productName, 'Fixture Product')
+assert.equal(imported.snapshot.product.uom, 'PC')
+assert.equal(imported.snapshot.product.sellingPrice, 123.5)
+assert.equal(imported.snapshot.product.sgaPercent, 8)
 assert.equal(imported.snapshot.rates[0].note, 'Rate annotation')
 assert.equal(imported.snapshot.bom[0].note, 'Material annotation')
 assert.equal(imported.snapshot.routing[0].note, 'Operation annotation')
+
+const legacyWorkbook = XLSX.utils.book_new()
+const addLegacySheet = (name: string, rows: (string | number | null)[][]) => {
+  XLSX.utils.book_append_sheet(legacyWorkbook, XLSX.utils.aoa_to_sheet(rows), name)
+}
+addLegacySheet('META', [['MASTER DATA DATASET'], [], ['Remark'], ['Legacy workbook remains importable']])
+addLegacySheet('PRODUCT', [
+  ['PRODUCT'], [], [],
+  ['Product Name', 'UOM', 'Selling Price (THB)', 'SG&A (%)'],
+  ['Legacy Product', 'PC', 50, 4]
+])
+addLegacySheet('BOM', [['BOM'], [], [], ['Name', 'Usage', 'Unit', 'Price', 'Loss', 'Note'], ['Legacy material', 1, 'PC', 5, 0, '']])
+addLegacySheet('ROUTING', [['ROUTING'], [], [], ['Process', 'WC', 'Manning', 'Cap', 'Yield', 'Note'], ['Legacy process', 'WC-1', 1, 100, 1, '']])
+addLegacySheet('WORK_CENTER', [['WORK_CENTER'], [], [], ['WC', 'Labor', 'Burden', 'Note'], ['WC-1', 10, 5, '']])
+const legacyImport = parseSnapshotWorkbookData(XLSX.write(legacyWorkbook, { type: 'array', bookType: 'xlsx' }), 'reference')
+assert.equal(legacyImport.success, true, legacyImport.message)
+assert.equal(legacyImport.snapshot?.product.productName, 'Legacy Product')
+assert.equal(legacyImport.snapshot?.remark, 'Legacy workbook remains importable')
 
 const exportedBlob = await exportSnapshotToExcel(imported.snapshot)
 const exportedWorkbook = XLSX.read(await exportedBlob.arrayBuffer(), { type: 'array' })
@@ -72,36 +86,37 @@ const headersFor = (sheetName: string, rowNumber: number) => {
   return rows[0]?.map(value => String(value ?? ''))
 }
 
-assert.deepEqual(headersFor('META', 3), ['Remark'])
-assert.deepEqual(headersFor('PRODUCT', 3), ['Product Code', 'Product Name', 'UOM', 'Note'])
-assert.deepEqual(headersFor('WORK_CENTER', 3), ['Work Center Code', 'Work Center Name', 'Labor Rate', 'Burden Rate', 'Note'])
-assert.deepEqual(headersFor('BOM', 3), ['Item Code', 'Description', 'Consumption', 'Unit', 'Price', 'Loss', 'Note'])
-assert.deepEqual(headersFor('ROUTING', 3), ['Operation Code', 'Sequence', 'Process Name', 'Work Center Code', 'Manning', 'Capacity', 'Yield', 'Note'])
+assert.deepEqual(headersFor('META', 3), ['Product Name', 'UOM', 'Selling Price (THB)', 'SG&A (%)', 'Dataset Remark'])
+assert.deepEqual(headersFor('WORK_CENTER', 3), ['WC', 'Labor', 'Burden', 'Note'])
+assert.deepEqual(headersFor('BOM', 3), ['Name', 'Usage', 'Unit', 'Price', 'Loss', 'Note'])
+assert.deepEqual(headersFor('ROUTING', 3), ['Process', 'WC', 'Manning', 'Cap', 'Yield', 'Note'])
 
 const exportedValues = exportedWorkbook.SheetNames.flatMap(name => {
   const rows = XLSX.utils.sheet_to_json(exportedWorkbook.Sheets[name], { header: 1, defval: null }) as unknown[][]
   return rows.flat().map(value => String(value ?? '').trim().toLowerCase())
 })
-for (const forbidden of ['id', 'confidence', 'source ref', 'snapshot id', 'effective date', 'customer / application', 'process code', 'reference', 'current']) {
+for (const forbidden of ['id', 'confidence', 'source ref', 'snapshot id', 'effective date', 'customer / application', 'product code', 'process code', 'reference', 'current']) {
   assert.equal(exportedValues.includes(forbidden), false, `neutral workbook must not expose ${forbidden}`)
 }
 
 const roundTrip = parseSnapshotWorkbookData(XLSX.write(exportedWorkbook, { type: 'array', bookType: 'xlsx' }), 'current')
 assert.equal(roundTrip.success, true, roundTrip.message)
+assert.equal(roundTrip.snapshot?.rates.length, imported.snapshot.rates.length)
+assert.equal(roundTrip.snapshot?.bom.length, imported.snapshot.bom.length)
+assert.equal(roundTrip.snapshot?.routing.length, imported.snapshot.routing.length)
 assert.equal(roundTrip.snapshot?.remark, imported.snapshot.remark)
-assert.equal(roundTrip.snapshot?.product.productCode, imported.snapshot.product.productCode)
+assert.equal(roundTrip.snapshot?.product.productName, imported.snapshot.product.productName)
 assert.equal(roundTrip.snapshot?.product.uom, imported.snapshot.product.uom)
-assert.equal(roundTrip.snapshot?.product.note, imported.snapshot.product.note)
+assert.equal(roundTrip.snapshot?.product.sellingPrice, imported.snapshot.product.sellingPrice)
+assert.equal(roundTrip.snapshot?.product.sgaPercent, imported.snapshot.product.sgaPercent)
 assert.deepEqual(
   {
     code: roundTrip.snapshot?.rates[0].workCenterCode,
-    name: roundTrip.snapshot?.rates[0].description,
     labor: roundTrip.snapshot?.rates[0].laborRate,
     burden: roundTrip.snapshot?.rates[0].burdenRate
   },
   {
     code: imported.snapshot.rates[0].workCenterCode,
-    name: imported.snapshot.rates[0].description,
     labor: imported.snapshot.rates[0].laborRate,
     burden: imported.snapshot.rates[0].burdenRate
   }
@@ -109,16 +124,14 @@ assert.deepEqual(
 assert.equal(roundTrip.snapshot?.rates[0].note, imported.snapshot.rates[0].note)
 assert.deepEqual(
   {
-    code: roundTrip.snapshot?.bom[0].itemCode,
-    description: roundTrip.snapshot?.bom[0].description,
+    name: roundTrip.snapshot?.bom[0].description,
     consumption: roundTrip.snapshot?.bom[0].consumption,
     unit: roundTrip.snapshot?.bom[0].unit,
     price: roundTrip.snapshot?.bom[0].price,
     loss: roundTrip.snapshot?.bom[0].loss
   },
   {
-    code: imported.snapshot.bom[0].itemCode,
-    description: imported.snapshot.bom[0].description,
+    name: imported.snapshot.bom[0].description,
     consumption: imported.snapshot.bom[0].consumption,
     unit: imported.snapshot.bom[0].unit,
     price: imported.snapshot.bom[0].price,
@@ -128,8 +141,6 @@ assert.deepEqual(
 assert.equal(roundTrip.snapshot?.bom[0].note, imported.snapshot.bom[0].note)
 assert.deepEqual(
   {
-    operationCode: roundTrip.snapshot?.routing[0].operationCode,
-    sequence: roundTrip.snapshot?.routing[0].sequence,
     processName: roundTrip.snapshot?.routing[0].processName,
     workCenter: roundTrip.snapshot?.routing[0].workCenterId,
     manning: roundTrip.snapshot?.routing[0].manning,
@@ -137,8 +148,6 @@ assert.deepEqual(
     yield: roundTrip.snapshot?.routing[0].yield
   },
   {
-    operationCode: imported.snapshot.routing[0].operationCode,
-    sequence: imported.snapshot.routing[0].sequence,
     processName: imported.snapshot.routing[0].processName,
     workCenter: imported.snapshot.routing[0].workCenterId,
     manning: imported.snapshot.routing[0].manning,
@@ -148,7 +157,18 @@ assert.deepEqual(
 )
 assert.equal(roundTrip.snapshot?.routing[0].note, imported.snapshot.routing[0].note)
 
-const templateProduct = { ...imported.snapshot.product, note: 'Template Product Note' }
+const exportedFormulaWorkbook = new ExcelJS.Workbook()
+await exportedFormulaWorkbook.xlsx.load(Buffer.from(await exportedBlob.arrayBuffer()))
+const calculationSheet = exportedFormulaWorkbook.getWorksheet('COST_CALCULATION')
+const formulaAt = (address: string) => (calculationSheet?.getCell(address).value as { formula?: string })?.formula ?? ''
+assert.match(formulaAt('B6'), /SUM\(F14:F14\)/, 'Material summary must sum linked BOM formulas')
+assert.match(formulaAt('B7'), /SUM\(G19:G19\)/, 'Labor summary must sum linked Routing formulas')
+assert.match(formulaAt('B9'), /SUM\(B6:B8\)/, 'Total Standard Cost must be a formula')
+assert.match(formulaAt('F14'), /BOM!B4\*BOM!D4\*\(1\+BOM!E4\)/, 'Material formula must link Usage, Price, and Loss')
+assert.match(formulaAt('G19'), /ROUTING!C4\/\(ROUTING!D4\*ROUTING!E4\)/, 'Labor formula must link Manning, Capacity, and Yield')
+assert.match(formulaAt('G19'), /COUNTIF\(/, 'Work Center matching must reject missing or duplicate rate keys')
+
+const templateProduct = { ...imported.snapshot.product, productName: 'Template Product' }
 const templateSnapshot: CostSnapshot = { ...imported.snapshot, remark: 'Template Remark', product: templateProduct }
 const template = await generateDynamicExcelTemplate({
   product: templateProduct,
@@ -160,7 +180,7 @@ const template = await generateDynamicExcelTemplate({
 const templateBytes = await template.arrayBuffer()
 const templateWorkbook = XLSX.read(templateBytes, { type: 'array' })
 assert.deepEqual(templateWorkbook.SheetNames, expectedSheets)
-for (const sheetName of expectedSheets) {
+for (const sheetName of dataSheets) {
   const legend = String(templateWorkbook.Sheets[sheetName].A2?.v ?? '')
   assert.match(legend, /yellow/i, `${sheetName} template must explain which cells are editable`)
   assert.match(legend, /unknown values blank/i, `${sheetName} template must explain how to leave unknown inputs`)
@@ -171,7 +191,6 @@ await styledTemplate.xlsx.load(Buffer.from(templateBytes))
 const workCenterExample = styledTemplate.getWorksheet('WORK_CENTER')
 assert.deepEqual(workCenterExample?.getRow(3).values.slice(1), [
   'WC-EXAMPLE',
-  'Demonstration machining center',
   125.5,
   31.25,
   'Example only; not imported'
@@ -179,7 +198,6 @@ assert.deepEqual(workCenterExample?.getRow(3).values.slice(1), [
 assert.equal(workCenterExample?.getCell('A3').fill.fgColor?.argb, 'FFF1F5F9')
 for (const [sheetName, address] of [
   ['META', 'A4'],
-  ['PRODUCT', 'A5'],
   ['WORK_CENTER', 'A5'],
   ['BOM', 'A5'],
   ['ROUTING', 'A5']
@@ -197,15 +215,16 @@ for (const sheetName of ['WORK_CENTER', 'BOM', 'ROUTING'] as const) {
     assert.ok(value === null || value === undefined || value === '', `${sheetName} input row must start blank`)
   }
 }
+assert.equal(styledTemplate.getWorksheet('WORK_CENTER')?.getCell('B5').numFmt, '#,##0.0000')
 assert.equal(styledTemplate.getWorksheet('WORK_CENTER')?.getCell('C5').numFmt, '#,##0.0000')
-assert.equal(styledTemplate.getWorksheet('WORK_CENTER')?.getCell('D5').numFmt, '#,##0.0000')
-assert.equal(styledTemplate.getWorksheet('BOM')?.getCell('C5').numFmt, '#,##0.0000')
-assert.equal(styledTemplate.getWorksheet('BOM')?.getCell('E5').numFmt, '#,##0.0000')
-assert.equal(styledTemplate.getWorksheet('BOM')?.getCell('F5').numFmt, '#,##0.0000')
-assert.equal(styledTemplate.getWorksheet('ROUTING')?.getCell('B5').numFmt, '#,##0.0000')
-assert.equal(styledTemplate.getWorksheet('ROUTING')?.getCell('E5').numFmt, '#,##0.0000')
-assert.equal(styledTemplate.getWorksheet('ROUTING')?.getCell('F5').numFmt, '#,##0.0000')
-assert.equal(styledTemplate.getWorksheet('ROUTING')?.getCell('G5').numFmt, '#,##0.0000')
+assert.equal(styledTemplate.getWorksheet('BOM')?.getCell('B5').numFmt, '#,##0.0000')
+assert.equal(styledTemplate.getWorksheet('BOM')?.getCell('D5').numFmt, '#,##0.0000')
+assert.equal(styledTemplate.getWorksheet('BOM')?.getCell('E5').numFmt, '0.00%')
+assert.equal(styledTemplate.getWorksheet('ROUTING')?.getCell('C5').numFmt, '#,##0.0000')
+assert.equal(styledTemplate.getWorksheet('ROUTING')?.getCell('D5').numFmt, '#,##0.0000')
+assert.equal(styledTemplate.getWorksheet('ROUTING')?.getCell('E5').numFmt, '0.00%')
+assert.equal(styledTemplate.getWorksheet('META')?.getCell('C4').numFmt, '#,##0.0000')
+assert.equal(styledTemplate.getWorksheet('META')?.getCell('D4').numFmt, '0.00"%"')
 
 const templateHeaders = (sheetName: string, headerRow: number) => {
   const rows = XLSX.utils.sheet_to_json(templateWorkbook.Sheets[sheetName], {
@@ -215,33 +234,42 @@ const templateHeaders = (sheetName: string, headerRow: number) => {
   }) as unknown[][]
   return rows[0]?.map(value => String(value ?? ''))
 }
-assert.deepEqual(templateHeaders('META', 3), ['Remark'])
-assert.deepEqual(templateHeaders('PRODUCT', 4), ['Product Code', 'Product Name', 'UOM', 'Note'])
-assert.equal(templateWorkbook.Sheets.PRODUCT['!autofilter']?.ref, 'A4:D5')
-assert.deepEqual(templateHeaders('WORK_CENTER', 4), ['Work Center Code', 'Work Center Name', 'Labor Rate', 'Burden Rate', 'Note'])
-assert.deepEqual(templateHeaders('BOM', 4), ['Item Code', 'Description', 'Consumption', 'Unit', 'Price', 'Loss', 'Note'])
-assert.deepEqual(templateHeaders('ROUTING', 4), ['Operation Code', 'Sequence', 'Process Name', 'Work Center Code', 'Manning', 'Capacity', 'Yield', 'Note'])
+assert.deepEqual(templateHeaders('META', 3), ['Product Name', 'UOM', 'Selling Price (THB)', 'SG&A (%)', 'Dataset Remark'])
+assert.equal(templateWorkbook.Sheets.META['!autofilter']?.ref, 'A3:E4')
+assert.deepEqual(templateHeaders('WORK_CENTER', 4), ['WC', 'Labor', 'Burden', 'Note'])
+assert.deepEqual(templateHeaders('BOM', 4), ['Name', 'Usage', 'Unit', 'Price', 'Loss', 'Note'])
+assert.deepEqual(templateHeaders('ROUTING', 4), ['Process', 'WC', 'Manning', 'Cap', 'Yield', 'Note'])
 
-for (const sheetName of ['PRODUCT', 'WORK_CENTER', 'BOM', 'ROUTING']) {
+for (const sheetName of ['META', 'WORK_CENTER', 'BOM', 'ROUTING']) {
   const range = XLSX.utils.decode_range(templateWorkbook.Sheets[sheetName]['!ref'] || 'A1:A1')
-  assert.equal(range.e.r, 4, `${sheetName} template must contain exactly one row when sizing is clamped to the minimum`)
+  assert.equal(range.e.r, sheetName === 'META' ? 3 : 4, `${sheetName} template must contain exactly one row when sizing is clamped to the minimum`)
 }
+
+const templateCalculationSheet = styledTemplate.getWorksheet('COST_CALCULATION')
+assert.equal((templateCalculationSheet?.getCell('B9').value as { formula?: string })?.formula?.includes('SUM(B6:B8)'), true)
+assert.equal((templateCalculationSheet?.getCell('F14').value as { formula?: string })?.formula?.includes('BOM!B5'), true)
+assert.equal((templateCalculationSheet?.getCell('G19').value as { formula?: string })?.formula?.includes('ROUTING!C5'), true)
 const templateRoundTrip = parseSnapshotWorkbookData(
   XLSX.write(templateWorkbook, { type: 'array', bookType: 'xlsx' }),
   'current'
 )
 assert.equal(templateRoundTrip.success, true, templateRoundTrip.message)
 assert.equal(templateRoundTrip.snapshot?.remark, 'Template Remark')
-assert.equal(templateRoundTrip.snapshot?.product.note, 'Template Product Note')
+assert.equal(templateRoundTrip.snapshot?.product.productName, 'Template Product')
 assert.equal(templateRoundTrip.snapshot?.rates.length, 0)
 assert.equal(templateRoundTrip.snapshot?.bom.length, 0)
 assert.equal(templateRoundTrip.snapshot?.routing.length, 0)
 
-const templateValues = templateWorkbook.SheetNames.flatMap(name => {
+const templateValues = dataSheets.flatMap(name => {
   const rows = XLSX.utils.sheet_to_json(templateWorkbook.Sheets[name], { header: 1, defval: null }) as unknown[][]
   return rows.flat().map(value => String(value ?? '').trim().toLowerCase())
 })
-for (const forbidden of ['id', 'confidence', 'source ref', 'snapshot id', 'effective date', 'customer / application', 'process code', 'reference', 'current', 'instructions']) {
+for (const forbidden of [
+  'id', 'confidence', 'source ref', 'snapshot id', 'effective date', 'customer / application',
+  'product code', 'work center code', 'work center name', 'labor rate', 'burden rate',
+  'item code', 'description', 'operation code', 'sequence', 'process code', 'capacity',
+  'reference', 'current', 'instructions'
+]) {
   assert.equal(templateValues.includes(forbidden), false, `neutral template must not expose ${forbidden}`)
 }
 

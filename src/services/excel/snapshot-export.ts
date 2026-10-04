@@ -2,14 +2,15 @@ import type ExcelJS from 'exceljs'
 import { CostSnapshot, ProductMaster } from '../../core'
 import { excludeGeneratedSizingPlaceholders } from '../../core/utils/sizing'
 import { loadExcelJS } from './exceljs-runtime'
+import { addCostCalculationSheet } from './cost-calculation-sheet'
 
 const COLOR_DARK_NAVY = 'FF1E293B'
 const COLOR_BORDER = 'FFE2E8F0'
 const COLOR_WHITE = 'FFFFFFFF'
 
-const fontTitle = { name: 'Calibri', size: 14, bold: true, color: { argb: COLOR_DARK_NAVY } }
-const fontHeader = { name: 'Calibri', size: 10, bold: true, color: { argb: COLOR_WHITE } }
-const fontData = { name: 'Calibri', size: 10, color: { argb: 'FF0F172A' } }
+const fontTitle = { name: 'Arial', size: 14, bold: true, color: { argb: COLOR_DARK_NAVY } }
+const fontHeader = { name: 'Arial', size: 10, bold: true, color: { argb: COLOR_WHITE } }
+const fontData = { name: 'Arial', size: 10, color: { argb: 'FF0F172A' } }
 
 const fillHeader = { type: 'pattern' as const, pattern: 'solid' as const, fgColor: { argb: COLOR_DARK_NAVY } }
 const fillRow = { type: 'pattern' as const, pattern: 'solid' as const, fgColor: { argb: COLOR_WHITE } }
@@ -42,29 +43,24 @@ function styleDataRow(row: ExcelJS.Row, columns: number, numericColumns: number[
   }
 }
 
-function writeRemarkSheet(sheet: ExcelJS.Worksheet, remark: string | undefined): void {
-  sheet.columns = [{ width: 88 }]
+function writeMetadataSheet(sheet: ExcelJS.Worksheet, product: ProductMaster, remark: string | undefined): void {
+  const headers = ['Product Name', 'UOM', 'Selling Price (THB)', 'SG&A (%)', 'Dataset Remark']
+  sheet.columns = [{ width: 34 }, { width: 12 }, { width: 20 }, { width: 14 }, { width: 56 }]
   sheet.getCell('A1').value = 'MASTER DATA DATASET'
   sheet.getCell('A1').font = fontTitle
-  sheet.getRow(3).values = ['Remark']
-  styleHeaderRow(sheet.getRow(3), 1)
-  sheet.getRow(4).values = [remark || '']
-  styleDataRow(sheet.getRow(4), 1)
-  sheet.views = [{ state: 'frozen', ySplit: 3 }]
-}
-
-function writeProductSheet(sheet: ExcelJS.Worksheet, product: ProductMaster): void {
-  const headers = ['Product Name', 'UOM', 'Selling Price (THB)', 'SG&A (%)']
-  sheet.columns = [{ width: 34 }, { width: 12 }, { width: 18 }, { width: 28 }]
-  sheet.getCell('A1').value = 'PRODUCT'
-  sheet.getCell('A1').font = fontTitle
-  sheet.mergeCells('A1:D1')
   sheet.getRow(3).values = headers
   styleHeaderRow(sheet.getRow(3), headers.length)
-  sheet.getRow(4).values = [product.productName || product.productDescription, product.uom, product.sellingPrice ?? null, product.sgaPercent ?? null]
+  sheet.getRow(4).values = [
+    product.productName || product.productDescription,
+    product.uom,
+    product.sellingPrice ?? null,
+    product.sgaPercent ?? null,
+    remark || ''
+  ]
   styleDataRow(sheet.getRow(4), headers.length, [3])
   sheet.getCell('D4').numFmt = '0.00"%"'
-  sheet.autoFilter = 'A3:D4'
+  if (sheet.getCell('E4').value === '') sheet.getCell('E4').value = null
+  sheet.autoFilter = 'A3:E4'
   sheet.views = [{ state: 'frozen', ySplit: 3 }]
 }
 
@@ -141,11 +137,22 @@ export async function exportSnapshotToExcel(snapshot: CostSnapshot): Promise<Blo
   workbook.creator = 'Cost Breakdown Analysis Platform'
   workbook.created = new Date()
 
-  writeRemarkSheet(workbook.addWorksheet('META', { views: [{ showGridLines: true }] }), snapshot.remark)
-  writeProductSheet(workbook.addWorksheet('PRODUCT', { views: [{ showGridLines: true }] }), snapshot.product)
-  writeWorkCenterSheet(workbook.addWorksheet('WORK_CENTER', { views: [{ showGridLines: true }] }), snapshot)
+  const bomCount = excludeGeneratedSizingPlaceholders(snapshot.bom).length
+  const routingCount = excludeGeneratedSizingPlaceholders(snapshot.routing).length
+  const workCenterCount = excludeGeneratedSizingPlaceholders(snapshot.rates).length
+  writeMetadataSheet(workbook.addWorksheet('META', { views: [{ showGridLines: true }] }), snapshot.product, snapshot.remark)
   writeBOMSheet(workbook.addWorksheet('BOM', { views: [{ showGridLines: true }] }), snapshot)
   writeRoutingSheet(workbook.addWorksheet('ROUTING', { views: [{ showGridLines: true }] }), snapshot)
+  writeWorkCenterSheet(workbook.addWorksheet('WORK_CENTER', { views: [{ showGridLines: true }] }), snapshot)
+  addCostCalculationSheet(workbook, {
+    bomStartRow: 4,
+    bomRowCount: bomCount,
+    routingStartRow: 4,
+    routingRowCount: routingCount,
+    workCenterStartRow: 4,
+    workCenterRowCount: workCenterCount
+  })
+  workbook.calcProperties = { fullCalcOnLoad: true }
 
   const buffer = await workbook.xlsx.writeBuffer()
   return new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' })

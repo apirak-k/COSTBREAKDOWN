@@ -19,7 +19,7 @@ type CellValue = string | number | boolean | Date | null
 type Row = CellValue[]
 type NumericResult = { value: number | null; quality: DataQualityStatus }
 
-const CANONICAL_SHEETS = ['META', 'PRODUCT', 'WORK_CENTER', 'BOM', 'ROUTING'] as const
+const REQUIRED_DATA_SHEETS = ['META', 'WORK_CENTER', 'BOM', 'ROUTING'] as const
 
 function normalizeLabel(value: CellValue | undefined): string {
   return String(value ?? '').trim().toLowerCase().replace(/[\s_\-/]+/g, '')
@@ -151,10 +151,10 @@ function metaValues(rows: Row[]): Map<string, string> {
     return values
   }
 
-  const remarkHeaderIndex = findHeaderRow(rows, [['remark']])
+  const remarkHeaderIndex = findHeaderRow(rows, [['remark', 'dataset remark']])
   if (remarkHeaderIndex >= 0) {
     const map = columnMap(rows[remarkHeaderIndex])
-    const index = columnIndex(map, ['remark'])
+    const index = columnIndex(map, ['remark', 'dataset remark'])
     const row = rows.slice(remarkHeaderIndex + 1).find(candidate => candidate.some(value => textValue(value) !== ''))
     values.set('Remark', index >= 0 && row ? textValue(row[index]) : '')
   }
@@ -175,8 +175,9 @@ function additionalMetaFields(meta: Map<string, string>): Record<string, unknown
     'format version', 'template version', 'version',
     'product code', 'productcode', 'code',
     'product name', 'productname', 'product description', 'productdescription', 'description', 'name',
-    'uom', 'unit', 'customer', 'customer application',
-    'remark', 'note',
+    'uom', 'unit', 'selling price', 'sellingprice', 'selling price (thb)',
+    'sg&a (%)', 'sga', 'sga percent', 'customer', 'customer application',
+    'remark', 'dataset remark', 'note',
     'source ref', 'sourceref', 'source',
     'effective date', 'effectivedate',
     'snapshot id', 'snapshotid', 'id', 'comparison role',
@@ -223,7 +224,8 @@ function evidence(
 function productFromSheet(
   rows: Row[],
   meta: Map<string, string>,
-  warnings: string[]
+  warnings: string[],
+  sheetName = 'PRODUCT'
 ): { product: CostSnapshot['product']; rowCount: number } {
   const headerIndex = findHeaderRow(rows, [
     ['product name', 'productname', 'product description', 'productdescription', 'description', 'name'],
@@ -242,11 +244,11 @@ function productFromSheet(
   const customer = textValue(cell(row, map, ['customer', 'customer application'])) || metaValue(meta, ['customer'])
   const effectiveDate = textValue(cell(row, map, ['effective date', 'effectivedate'])) || metaValue(meta, ['effective date', 'effectivedate'])
   const note = textValue(cell(row, map, ['note']))
-  const sellingPrice = optionalNumberValue(cell(row, map, ['selling price', 'sellingprice']), 'Selling Price', headerIndex + 2, warnings)
+  const sellingPrice = optionalNumberValue(cell(row, map, ['selling price', 'sellingprice', 'selling price (thb)']), 'Selling Price', headerIndex + 2, warnings)
   const sgaPercent = optionalNumberValue(cell(row, map, ['sg&a (%)', 'sg&a (% of selling price)', 'sga (% of selling price)', 'sga % of selling price', 'sga percent', 'sga']), 'SG&A percentage', headerIndex + 2, warnings)
 
-  if (!productName) warnings.push('Missing Product Name in PRODUCT')
-  if (!uom) warnings.push('Missing UOM in PRODUCT')
+  if (!productName) warnings.push(`Missing Product Name in ${sheetName}`)
+  if (!uom) warnings.push(`Missing UOM in ${sheetName}`)
   return {
     product: {
       productName,
@@ -261,7 +263,7 @@ function productFromSheet(
       additionalFields: additionalFields(row, header, [
         'product code', 'productcode', 'code',
         'product name', 'productname', 'product description', 'productdescription', 'description', 'name',
-        'uom', 'unit', 'selling price', 'sellingprice',
+        'uom', 'unit', 'selling price', 'sellingprice', 'selling price (thb)',
         'sg&a (%)', 'sg&a (% of selling price)', 'sga (% of selling price)', 'sga % of selling price', 'sga percent', 'sga',
         'note', 'customer', 'customer application', 'effective date', 'effectivedate'
       ])
@@ -454,7 +456,13 @@ function parseRouting(
 }
 
 function isCanonicalWorkbook(workbook: XLSX.WorkBook): boolean {
-  return CANONICAL_SHEETS.every(sheet => Boolean(findSheetName(workbook, sheet)))
+  const hasDataSheets = REQUIRED_DATA_SHEETS.every(sheet => Boolean(findSheetName(workbook, sheet)))
+  if (!hasDataSheets) return false
+  if (findSheetName(workbook, 'PRODUCT')) return true
+  return findHeaderRow(rowsFor(workbook, 'META'), [
+    ['product name', 'productname', 'product description', 'productdescription'],
+    ['uom', 'unit']
+  ]) >= 0
 }
 
 /** Parses the canonical one-snapshot workbook without defaulting blank numeric cells to zero. */
@@ -468,15 +476,19 @@ export function parseSnapshotWorkbookData(
   if (!isCanonicalWorkbook(workbook)) {
     return {
       success: false,
-      message: 'Canonical snapshot workbook not recognized. Required sheets: META, PRODUCT, WORK_CENTER, BOM, ROUTING.',
+      message: 'Dataset workbook not recognized. Required sheets: META, BOM, ROUTING, WORK_CENTER, with Product Name and UOM in META.',
       format: undefined,
       warnings: ['Workbook is not in the canonical one-Product/one-Dataset format.'],
       role
     }
   }
 
-  const meta = metaValues(rowsFor(workbook, 'META'))
-  const productResult = productFromSheet(rowsFor(workbook, 'PRODUCT'), meta, warnings)
+  const metaRows = rowsFor(workbook, 'META')
+  const meta = metaValues(metaRows)
+  const legacyProductRows = rowsFor(workbook, 'PRODUCT')
+  const productSheetName = legacyProductRows.length > 0 ? 'PRODUCT' : 'META'
+  const productRows = legacyProductRows.length > 0 ? legacyProductRows : metaRows
+  const productResult = productFromSheet(productRows, meta, warnings, productSheetName)
   const product = productResult.product
   if (productResult.rowCount !== 1) {
     return {
@@ -499,7 +511,7 @@ export function parseSnapshotWorkbookData(
     sourceRef: sourceRef || 'Imported Excel (source not provided)',
     comparisonRole: role,
     status,
-    remark: metaValue(meta, ['remark']),
+    remark: metaValue(meta, ['remark', 'dataset remark']),
     rates: parseWorkCenters(rowsFor(workbook, 'WORK_CENTER'), sourceRef, effectiveDate, warnings),
     bom: parseBOM(rowsFor(workbook, 'BOM'), sourceRef, warnings),
     routing: parseRouting(rowsFor(workbook, 'ROUTING'), sourceRef, warnings),

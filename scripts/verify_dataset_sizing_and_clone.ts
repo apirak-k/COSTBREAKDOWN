@@ -237,15 +237,8 @@ async function runVerifications() {
   const metaSheet = testWb.addWorksheet('META')
   metaSheet.addRow(['MASTER DATA DATASET'])
   metaSheet.addRow([])
-  metaSheet.addRow(['Remark'])
-  metaSheet.addRow(['Sizing and Clone round-trip fixture'])
-
-  const prodSheet = testWb.addWorksheet('PRODUCT')
-  prodSheet.addRow(['PRODUCT'])
-  prodSheet.addRow([])
-  prodSheet.addRow([])
-  prodSheet.addRow(['Product Name', 'UOM', 'Selling Price (THB)', 'SG&A (%)'])
-  prodSheet.addRow(['Test Membrane Panel', 'PCS', 245, 8])
+  metaSheet.addRow(['Product Name', 'UOM', 'Selling Price (THB)', 'SG&A (%)', 'Dataset Remark'])
+  metaSheet.addRow(['Test Membrane Panel', 'PCS', 245, 8, 'Sizing and Clone round-trip fixture'])
 
   const wcSheet = testWb.addWorksheet('WORK_CENTER')
   wcSheet.addRow(['WORK_CENTER'])
