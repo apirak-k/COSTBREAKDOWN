@@ -10,7 +10,7 @@ import { SnapshotComparisonCard } from './components/SnapshotComparisonCard'
 import { VarianceTreeCard } from './components/VarianceTreeCard'
 import { ALL_COMPARISON_STATUSES, areAllComparisonStatusesSelected, getComparisonViewLabel, isVisibleInComparisonView } from './components/comparison-view'
 import type { ComparisonViewMode } from './components/comparison-view'
-import { areSnapshotCostsComplete, getCanonicalComparisonStatus } from '../../core'
+import { getCanonicalComparisonStatus } from '../../core'
 import type { ComparisonStatus } from '../../core'
 import { PageHeading } from '../../shared'
 
@@ -47,7 +47,6 @@ export const CostBreakdownPage: React.FC = () => {
   const addedFindingsCount = allFindings.filter(finding => getCanonicalComparisonStatus(finding) === 'ADDED').length
   const removedFindingsCount = allFindings.filter(finding => getCanonicalComparisonStatus(finding) === 'REMOVED').length
   const unchangedFindingsCount = allFindings.filter(finding => getCanonicalComparisonStatus(finding) === 'UNCHANGED').length
-  const exactSnapshotCalculation = areSnapshotCostsComplete(viewComparison.referenceCost, viewComparison.currentCost)
   const visibleBOMCount = viewComparison.bomFindings.filter(finding => isVisibleInComparisonView(finding, comparisonView)).length
   const visibleRoutingCount = viewComparison.routingFindings.filter(finding => isVisibleInComparisonView(finding, comparisonView)).length
   const selectedCount = selectionDraft.bomFindingKeys.length + selectionDraft.routingFindingKeys.length
@@ -132,13 +131,6 @@ export const CostBreakdownPage: React.FC = () => {
           <button type="button" onClick={beginScopeSelection} className="min-h-9 shrink-0 bg-slate-900 px-3 text-sm font-medium text-white hover:bg-slate-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700">Enter Selected Comparison</button>
         )}
       </section>
-
-      {!exactSnapshotCalculation && (
-        <div className="rounded-md border border-amber-200 bg-amber-50 px-4 py-3 text-sm leading-6 text-amber-950" role="status">
-          <strong className="font-mono">Snapshot cost summary is on hold.</strong>{' '}
-          Snapshot calculation has missing, invalid, or reviewable inputs. The comparison card below keeps the affected values as unavailable and lists the source warnings.
-        </div>
-      )}
 
       {/* One canonical summary and cost element bridge */}
       <SnapshotComparisonCard comparison={viewComparison} selectedComparison={isViewingSelectedScope} />

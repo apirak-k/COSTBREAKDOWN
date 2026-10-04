@@ -31,22 +31,6 @@ export const WorkCenterRatesTable: React.FC<WorkCenterRatesTableProps> = ({
   const tableRef = useRef<HTMLTableElement | null>(null)
   const [searchTerm, setSearchTerm] = useState('')
   const duplicateWcIds = useMemo(() => duplicateIdentityIds(rates, rate => rate.id, rate => rate.workCenterCode), [rates])
-  const rowIssues = useMemo(() => {
-    const issuesById = new Map<string, string[]>()
-    rates.forEach(rate => {
-      const issues: string[] = []
-      if (!rate.isGeneratedSizingPlaceholder) {
-        if (!rate.workCenterCode.trim()) issues.push('WC is required.')
-        else if (duplicateWcIds.has(rate.id)) issues.push('WC must be unique.')
-        if (rate.laborRate === null) issues.push('Labor is missing.')
-        else if (hasInvalidNumber(rate.laborRate)) issues.push('Labor must be a non-negative number.')
-        if (rate.burdenRate === null) issues.push('Burden is missing.')
-        else if (hasInvalidNumber(rate.burdenRate)) issues.push('Burden must be a non-negative number.')
-      }
-      issuesById.set(rate.id, issues)
-    })
-    return issuesById
-  }, [rates, duplicateWcIds])
 
   const query = searchTerm.trim().toLocaleLowerCase()
   const filteredRates = useMemo(() => rates.filter(rate =>
@@ -194,28 +178,25 @@ export const WorkCenterRatesTable: React.FC<WorkCenterRatesTableProps> = ({
         <table ref={tableRef} className="w-full min-w-[720px] border-collapse text-left text-xs">
           <thead className="sticky top-0 z-30 border-y-2 border-slate-400 bg-slate-100 text-[11px] font-semibold uppercase tracking-wide text-slate-800">
             <tr>
-              {isEditMode && <th scope="col" className="sticky left-0 z-40 w-8 bg-slate-100 px-1 py-2.5" aria-label="Reorder rows" />}
-              <th scope="col" className={`sticky ${isEditMode ? 'left-8' : 'left-0'} z-40 w-12 bg-slate-100 px-3 py-2.5 text-center`}>#</th>
+              <th scope="col" className="sticky left-0 z-40 w-12 bg-slate-100 px-3 py-2.5 text-center">#</th>
               <th scope="col" className="px-3 py-2.5">WC</th>
               <th scope="col" className="px-3 py-2.5 text-right">Labor</th>
               <th scope="col" className="px-3 py-2.5 text-right">Burden</th>
               <th scope="col" className="px-3 py-2.5">Note</th>
               {isEditMode && <th scope="col" className="w-12 px-2 py-2.5 text-center">Actions</th>}
+              {isEditMode && <th scope="col" className="w-8 px-1 py-2.5 text-center" aria-label="Reorder rows" />}
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-200 text-sm">
             {filteredRates.map(rate => {
               const isSelected = selectedIds.has(rate.id)
-              const issues = rowIssues.get(rate.id) || []
               const identityInvalid = !rate.isGeneratedSizingPlaceholder && (!rate.workCenterCode.trim() || duplicateWcIds.has(rate.id))
               const laborInvalid = !rate.isGeneratedSizingPlaceholder && (rate.laborRate === null || hasInvalidNumber(rate.laborRate))
               const burdenInvalid = !rate.isGeneratedSizingPlaceholder && (rate.burdenRate === null || hasInvalidNumber(rate.burdenRate))
               const rowNumber = rates.findIndex(row => row.id === rate.id) + 1
-              const pinnedCellBackground = isSelected
+              const rowMarkerBackground = isSelected
                 ? 'bg-blue-50 group-hover:bg-blue-100'
-                : issues.length > 0
-                  ? 'bg-amber-50/50 group-hover:bg-amber-100/60'
-                  : 'bg-white group-hover:bg-slate-50'
+                : 'bg-white group-hover:bg-slate-50'
               const numericClass = (invalid: boolean) => `min-h-9 rounded-sm border px-2 text-right text-sm tabular-nums focus:outline-none focus:ring-2 focus:ring-blue-700 ${invalid ? 'border-amber-600 bg-amber-50' : 'border-slate-300 bg-white'}`
 
               return (
@@ -224,24 +205,9 @@ export const WorkCenterRatesTable: React.FC<WorkCenterRatesTableProps> = ({
                   onMouseEnter={() => onMouseEnterRow(rate.id)}
                   onDragOver={event => { if (isEditMode) event.preventDefault() }}
                   onDrop={event => { if (isEditMode) handleRowDrop(event, rate.id) }}
-                  className={`group ${issues.length > 0 ? 'bg-amber-50/50 ' : ''}${isSelected ? 'border-l-2 border-l-blue-700 bg-blue-50 hover:bg-blue-100' : 'hover:bg-slate-50'}`}
-                  title={issues.length > 0 ? issues.join(' ') : undefined}
+                  className={`group ${isSelected ? 'border-l-2 border-l-blue-700 bg-blue-50 hover:bg-blue-100' : 'hover:bg-slate-50'}`}
                 >
-                  {isEditMode && (
-                    <td className={`sticky left-0 z-20 w-8 px-1 py-2 text-center ${pinnedCellBackground}`}>
-                      <button
-                        type="button"
-                        draggable
-                        onDragStart={event => handleDragStart(event, rate.id)}
-                        aria-label={`Drag to reorder WC row ${rowNumber}`}
-                        title="Drag to reorder"
-                        className="inline-flex h-8 w-7 cursor-grab items-center justify-center text-slate-500 hover:bg-slate-200 active:cursor-grabbing"
-                      >
-                        <GripVertical className="h-4 w-4" aria-hidden="true" />
-                      </button>
-                    </td>
-                  )}
-                  <th scope="row" className={`sticky ${isEditMode ? 'left-8' : 'left-0'} z-20 w-12 px-2 py-2 text-center font-mono font-normal text-slate-600 ${pinnedCellBackground}`}>
+                  <th scope="row" className={`sticky left-0 z-20 w-12 px-2 py-2 text-center font-mono font-normal text-slate-600 ${rowMarkerBackground}`}>
                     {isEditMode ? (
                       <button
                         type="button"
@@ -268,12 +234,10 @@ export const WorkCenterRatesTable: React.FC<WorkCenterRatesTableProps> = ({
                           aria-invalid={identityInvalid}
                           className={`min-h-9 w-full rounded-sm border bg-white px-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-700 ${identityInvalid ? 'border-amber-600' : 'border-slate-300'} ${selectedCellKeys.has(tableCellKey(rate.id, 'workCenterCode')) ? 'ring-2 ring-blue-500 ring-inset' : ''}`}
                         />
-                        {issues.length > 0 && <p className="mt-1 whitespace-normal font-sans text-xs font-normal leading-4 text-amber-800">{issues.join(' ')}</p>}
                       </div>
                     ) : (
                       <div>
                         {rate.workCenterCode || <span className="text-amber-700">—</span>}
-                        {issues.length > 0 && <p className="mt-1 whitespace-normal font-sans text-xs font-normal leading-4 text-amber-800">{issues.join(' ')}</p>}
                       </div>
                     )}
                   </td>
@@ -335,6 +299,20 @@ export const WorkCenterRatesTable: React.FC<WorkCenterRatesTableProps> = ({
                       </button>
                     </td>
                   )}
+                  {isEditMode && (
+                    <td className={`w-8 px-1 py-2 text-center ${rowMarkerBackground}`}>
+                      <button
+                        type="button"
+                        draggable
+                        onDragStart={event => handleDragStart(event, rate.id)}
+                        aria-label={`Drag to reorder WC row ${rowNumber}`}
+                        title="Drag to reorder"
+                        className="inline-flex h-8 w-7 cursor-grab items-center justify-center text-slate-500 hover:bg-slate-200 active:cursor-grabbing"
+                      >
+                        <GripVertical className="h-4 w-4" aria-hidden="true" />
+                      </button>
+                    </td>
+                  )}
                 </tr>
               )
             })}
@@ -355,10 +333,9 @@ export const WorkCenterRatesTable: React.FC<WorkCenterRatesTableProps> = ({
           </tbody>
         </table>
       </div>
-      {(query || filteredRates.some(rate => (rowIssues.get(rate.id) || []).length > 0)) && (
+      {query && (
         <div role="status" className="border-t border-slate-200 bg-slate-50 px-4 py-2 text-xs text-slate-600">
-          {query && `Showing ${filteredRates.length} of ${rates.length} rows. `}
-          {filteredRates.filter(rate => (rowIssues.get(rate.id) || []).length > 0).length} rows need review.
+          Showing {filteredRates.length} of {rates.length} rows.
         </div>
       )}
     </section>

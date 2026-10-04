@@ -36,26 +36,6 @@ export const RoutingTable: React.FC<RoutingTableProps> = ({
   const knownWorkCenters = useMemo(() => new Set(
     rates.map(rate => rate.workCenterCode.trim().toLocaleLowerCase()).filter(Boolean)
   ), [rates])
-  const rowIssues = useMemo(() => {
-    const issuesById = new Map<string, string[]>()
-    routing.forEach(step => {
-      const issues: string[] = []
-      if (!step.isGeneratedSizingPlaceholder) {
-        if (!step.processName.trim()) issues.push('Process is required.')
-        else if (duplicateProcessIds.has(step.id)) issues.push('Process must be unique.')
-        if (!step.workCenterId?.trim()) issues.push('WC is required.')
-        else if (!knownWorkCenters.has(step.workCenterId.trim().toLocaleLowerCase())) issues.push(`WC "${step.workCenterId}" is not in the WC table.`)
-        if (step.manning === null) issues.push('Manning is missing.')
-        else if (hasInvalidNumber(step.manning)) issues.push('Manning must be a non-negative number.')
-        if (step.capacity === null) issues.push('Cap is missing.')
-        else if (hasInvalidNumber(step.capacity)) issues.push('Cap must be a non-negative number.')
-        if (step.yield === null) issues.push('Yield is missing.')
-        else if (hasInvalidNumber(step.yield) || step.yield > 1) issues.push('Yield must be between 0 and 100%.')
-      }
-      issuesById.set(step.id, issues)
-    })
-    return issuesById
-  }, [routing, duplicateProcessIds, knownWorkCenters])
 
   const query = searchTerm.trim().toLocaleLowerCase()
   const filteredRouting = useMemo(() => routing.filter(step =>
@@ -205,8 +185,7 @@ export const RoutingTable: React.FC<RoutingTableProps> = ({
         <table ref={tableRef} className="w-full min-w-[960px] border-collapse text-left text-xs">
           <thead className="sticky top-0 z-30 border-y-2 border-slate-400 bg-slate-100 text-[11px] font-semibold uppercase tracking-wide text-slate-800">
             <tr>
-              {isEditMode && <th scope="col" className="sticky left-0 z-40 w-8 bg-slate-100 px-1 py-2.5" aria-label="Reorder rows" />}
-              <th scope="col" className={`sticky ${isEditMode ? 'left-8' : 'left-0'} z-40 w-12 bg-slate-100 px-3 py-2.5 text-center`}>#</th>
+              <th scope="col" className="sticky left-0 z-40 w-12 bg-slate-100 px-3 py-2.5 text-center">#</th>
               <th scope="col" className="px-3 py-2.5">Process</th>
               <th scope="col" className="px-3 py-2.5">WC</th>
               <th scope="col" className="px-3 py-2.5 text-right">Manning</th>
@@ -214,23 +193,21 @@ export const RoutingTable: React.FC<RoutingTableProps> = ({
               <th scope="col" className="px-3 py-2.5 text-right">Yield</th>
               <th scope="col" className="px-3 py-2.5">Note</th>
               {isEditMode && <th scope="col" className="w-12 px-2 py-2.5 text-center">Actions</th>}
+              {isEditMode && <th scope="col" className="w-8 px-1 py-2.5 text-center" aria-label="Reorder rows" />}
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-200 text-sm">
             {filteredRouting.map(step => {
               const isSelected = selectedIds.has(step.id)
-              const issues = rowIssues.get(step.id) || []
               const identityInvalid = !step.isGeneratedSizingPlaceholder && (!step.processName.trim() || duplicateProcessIds.has(step.id))
               const workCenterInvalid = !step.isGeneratedSizingPlaceholder && (!step.workCenterId?.trim() || !knownWorkCenters.has(step.workCenterId.trim().toLocaleLowerCase()))
               const manningInvalid = !step.isGeneratedSizingPlaceholder && (step.manning === null || hasInvalidNumber(step.manning))
               const capacityInvalid = !step.isGeneratedSizingPlaceholder && (step.capacity === null || hasInvalidNumber(step.capacity))
               const yieldInvalid = !step.isGeneratedSizingPlaceholder && (step.yield === null || hasInvalidNumber(step.yield) || step.yield > 1)
               const rowNumber = routing.findIndex(row => row.id === step.id) + 1
-              const pinnedCellBackground = isSelected
+              const rowMarkerBackground = isSelected
                 ? 'bg-blue-50 group-hover:bg-blue-100'
-                : issues.length > 0
-                  ? 'bg-amber-50/50 group-hover:bg-amber-100/60'
-                  : 'bg-white group-hover:bg-slate-50'
+                : 'bg-white group-hover:bg-slate-50'
               const numericClass = (invalid: boolean) => `min-h-9 rounded-sm border px-2 text-right text-sm tabular-nums focus:outline-none focus:ring-2 focus:ring-blue-700 ${invalid ? 'border-amber-600 bg-amber-50' : 'border-slate-300 bg-white'}`
 
               return (
@@ -239,24 +216,9 @@ export const RoutingTable: React.FC<RoutingTableProps> = ({
                   onMouseEnter={() => onMouseEnterRow(step.id)}
                   onDragOver={event => { if (isEditMode) event.preventDefault() }}
                   onDrop={event => { if (isEditMode) handleRowDrop(event, step.id) }}
-                  className={`group ${issues.length > 0 ? 'bg-amber-50/50 ' : ''}${isSelected ? 'border-l-2 border-l-blue-700 bg-blue-50 hover:bg-blue-100' : 'hover:bg-slate-50'}`}
-                  title={issues.length > 0 ? issues.join(' ') : undefined}
+                  className={`group ${isSelected ? 'border-l-2 border-l-blue-700 bg-blue-50 hover:bg-blue-100' : 'hover:bg-slate-50'}`}
                 >
-                  {isEditMode && (
-                    <td className={`sticky left-0 z-20 w-8 px-1 py-2 text-center ${pinnedCellBackground}`}>
-                      <button
-                        type="button"
-                        draggable
-                        onDragStart={event => handleDragStart(event, step.id)}
-                        aria-label={`Drag to reorder Routing row ${rowNumber}`}
-                        title="Drag to reorder"
-                        className="inline-flex h-8 w-7 cursor-grab items-center justify-center text-slate-500 hover:bg-slate-200 active:cursor-grabbing"
-                      >
-                        <GripVertical className="h-4 w-4" aria-hidden="true" />
-                      </button>
-                    </td>
-                  )}
-                  <th scope="row" className={`sticky ${isEditMode ? 'left-8' : 'left-0'} z-20 w-12 px-2 py-2 text-center font-mono font-normal text-slate-600 ${pinnedCellBackground}`}>
+                  <th scope="row" className={`sticky left-0 z-20 w-12 px-2 py-2 text-center font-mono font-normal text-slate-600 ${rowMarkerBackground}`}>
                     {isEditMode ? (
                       <button
                         type="button"
@@ -284,7 +246,6 @@ export const RoutingTable: React.FC<RoutingTableProps> = ({
                           className={`min-h-9 w-full rounded-sm border bg-white px-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-700 ${identityInvalid ? 'border-amber-600' : 'border-slate-300'} ${selectedCellKeys.has(tableCellKey(step.id, 'processName')) ? 'ring-2 ring-blue-500 ring-inset' : ''}`}
                         />
                       ) : step.processName || <span className="text-amber-700">—</span>}
-                      {issues.length > 0 && <p className="mt-1 text-xs leading-4 text-amber-800">{issues.join(' ')}</p>}
                     </div>
                   </td>
                   <td className="px-3 py-2">
@@ -393,6 +354,20 @@ export const RoutingTable: React.FC<RoutingTableProps> = ({
                       </button>
                     </td>
                   )}
+                  {isEditMode && (
+                    <td className={`w-8 px-1 py-2 text-center ${rowMarkerBackground}`}>
+                      <button
+                        type="button"
+                        draggable
+                        onDragStart={event => handleDragStart(event, step.id)}
+                        aria-label={`Drag to reorder Routing row ${rowNumber}`}
+                        title="Drag to reorder"
+                        className="inline-flex h-8 w-7 cursor-grab items-center justify-center text-slate-500 hover:bg-slate-200 active:cursor-grabbing"
+                      >
+                        <GripVertical className="h-4 w-4" aria-hidden="true" />
+                      </button>
+                    </td>
+                  )}
                 </tr>
               )
             })}
@@ -413,10 +388,9 @@ export const RoutingTable: React.FC<RoutingTableProps> = ({
           </tbody>
         </table>
       </div>
-      {(query || filteredRouting.some(step => (rowIssues.get(step.id) || []).length > 0)) && (
+      {query && (
         <div role="status" className="border-t border-slate-200 bg-slate-50 px-4 py-2 text-xs text-slate-600">
-          {query && `Showing ${filteredRouting.length} of ${routing.length} rows. `}
-          {filteredRouting.filter(step => (rowIssues.get(step.id) || []).length > 0).length} rows need review.
+          Showing {filteredRouting.length} of {routing.length} rows.
         </div>
       )}
     </section>

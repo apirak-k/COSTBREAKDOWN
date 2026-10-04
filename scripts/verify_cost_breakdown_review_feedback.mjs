@@ -37,38 +37,50 @@ try {
     { BOMDetailedTable },
     { WorkCenterComparisonTable },
     { SnapshotComparisonCard },
+    { BOMTable },
+    { WorkCenterRatesTable },
+    { RoutingTable },
     { formatComparisonFieldDiffs },
     { ProblemStatementCard },
     { CandidateSelectionPage },
+    { CandidatesTable },
     { parseSnapshotWorkbookData }
   ] = await Promise.all([
     vite.ssrLoadModule('/src/features/cost-breakdown/components/RoutingDetailedTable.tsx'),
     vite.ssrLoadModule('/src/features/cost-breakdown/components/BOMDetailedTable.tsx'),
     vite.ssrLoadModule('/src/features/cost-breakdown/components/WorkCenterComparisonTable.tsx'),
     vite.ssrLoadModule('/src/features/cost-breakdown/components/SnapshotComparisonCard.tsx'),
+    vite.ssrLoadModule('/src/features/master-data/components/BOMTable.tsx'),
+    vite.ssrLoadModule('/src/features/master-data/components/WorkCenterRatesTable.tsx'),
+    vite.ssrLoadModule('/src/features/master-data/components/RoutingTable.tsx'),
     vite.ssrLoadModule('/src/features/cost-breakdown/components/comparison-field-details.ts'),
     vite.ssrLoadModule('/src/features/rca-simulation/components/ProblemStatementCard.tsx'),
     vite.ssrLoadModule('/src/features/candidate-selection/CandidateSelectionPage.tsx'),
+    vite.ssrLoadModule('/src/features/candidate-selection/components/CandidatesTable.tsx'),
     vite.ssrLoadModule('/src/services/excel/snapshot-parser.ts')
   ])
 
   const blankWorkCenterWorkbook = XLSX.utils.book_new()
   const addSheet = (name, rows) => XLSX.utils.book_append_sheet(blankWorkCenterWorkbook, XLSX.utils.aoa_to_sheet(rows), name)
-  addSheet('META', [['Remark'], ['']])
-  addSheet('PRODUCT', [['Product Code', 'Product Name', 'UOM', 'Note'], ['P-1', 'Part', 'PC', '']])
-  addSheet('WORK_CENTER', [
-    ['Work Center Code', 'Work Center Name', 'Labor Rate', 'Burden Rate', 'Note'],
-    ['WC-1', '', 10, 5, '']
+  addSheet('META', [
+    ['MASTER DATA DATASET'],
+    [],
+    ['Product Name', 'UOM', 'Selling Price (THB)', 'SG&A (%)', 'Dataset Remark'],
+    ['Review fixture', 'PC', null, null, '']
   ])
-  addSheet('BOM', [['Item Code', 'Description', 'Consumption', 'Unit', 'Price', 'Loss', 'Note']])
-  addSheet('ROUTING', [['Operation Code', 'Sequence', 'Process Name', 'Work Center Code', 'Manning', 'Capacity', 'Yield', 'Note']])
+  addSheet('WORK_CENTER', [
+    ['WC', 'Labor', 'Burden', 'Note'],
+    ['WC-1', 10, 5, '']
+  ])
+  addSheet('BOM', [['Name', 'Usage', 'Unit', 'Price', 'Loss', 'Note']])
+  addSheet('ROUTING', [['Process', 'WC', 'Manning', 'Cap', 'Yield', 'Note']])
   const workbookBytes = XLSX.write(blankWorkCenterWorkbook, { type: 'array', bookType: 'xlsx' })
   const workbookBuffer = workbookBytes instanceof ArrayBuffer
     ? workbookBytes
     : workbookBytes.buffer.slice(workbookBytes.byteOffset, workbookBytes.byteOffset + workbookBytes.byteLength)
   const roundTripResult = parseSnapshotWorkbookData(workbookBuffer, 'current')
   assert.equal(roundTripResult.success, true)
-  assert.equal(roundTripResult.snapshot.rates[0].description, '', 'blank Work Center Name must stay blank when imported')
+  assert.equal(roundTripResult.snapshot.rates[0].workCenterCode, 'WC-1', 'approved Work Center identity must stay intact when imported')
 
   const lossMarkup = renderToStaticMarkup(React.createElement(ProblemStatementCard, {
     candidate: {
@@ -79,9 +91,13 @@ try {
   assert.match(lossMarkup, /Current Loss \(%\)<\/dt><dd[^>]*>20<\/dd>/)
 
   const candidateSummaryMarkup = renderToStaticMarkup(React.createElement(CandidateSelectionPage))
-  const comparisonSummary = candidateSummaryMarkup.match(/<dt[^>]*>Net comparison gap<\/dt><dd[^>]*>([\s\S]*?)<\/dd>/)?.[1]
+  const comparisonSummary = candidateSummaryMarkup.match(/<dt[^>]*>(?:Full|Selected) comparison gap<\/dt><dd[^>]*>([\s\S]*?)<\/dd>/i)?.[1]
   assert.equal(comparisonSummary, '—', 'the exact comparison total must remain unavailable when reconciliation has no total')
-  assert.ok(candidateSummaryMarkup.includes('Net candidate gap:'), 'candidate subtotal remains separately labeled in its table')
+  const candidateSubtotalMarkup = renderToStaticMarkup(React.createElement(CandidatesTable, {
+    candidates: [comparisonGapCandidate], onToggleControllable() {}, showVisibleGap: true
+  }))
+  assert.ok(candidateSubtotalMarkup.includes('Visible candidate gap'), 'candidate subtotal remains separately labeled in its table')
+  assert.ok(candidateSubtotalMarkup.includes('Subtotal · selected status rows'))
 
   assert.deepEqual(formatComparisonFieldDiffs({
     sequence: { reference: 10, current: 20 },
@@ -181,6 +197,38 @@ try {
   assert.ok(workCenterText.includes('Description: Old work center → —'))
   assert.match(workCenterMarkup, /<td class="p-2\.5 font-sans text-slate-700">—<\/td>/)
 
+  const assertMasterDataTableIsQuiet = (markup, reorderLabel) => {
+    assert.doesNotMatch(markup, /rows need review|Name is required|Name must be unique|Usage is missing|Unit is missing|Price is missing|Loss is missing|WC is required|Process is required|not in the WC table|Manning is missing|Cap is missing|Yield is missing/)
+    assert.ok(markup.includes('aria-invalid="true"'), 'invalid cells stay exposed to assistive technology')
+    assert.ok(markup.includes('border-amber-600 bg-amber-50'), 'invalid cells stay visibly marked')
+    const headerRow = markup.match(/<thead[^>]*>\s*<tr>([\s\S]*?)<\/tr>/)?.[1] ?? ''
+    assert.match(headerRow, /<th[^>]*class="sticky left-0[^>]*>\#<\/th>/, 'row number must stay pinned at the left')
+    assert.ok(headerRow.lastIndexOf('aria-label="Reorder rows"') > headerRow.lastIndexOf('>Actions</th>'), 'reorder column must be at the far right')
+    const firstBodyRow = markup.match(/<tbody[^>]*>[\s\S]*?<tr[^>]*>([\s\S]*?)<\/tr>/)?.[1] ?? ''
+    const cells = [...firstBodyRow.matchAll(/<td\b[^>]*>[\s\S]*?<\/td>/g)].map(match => match[0])
+    assert.ok(cells.at(-1)?.includes(reorderLabel), 'drag handle must be the last row cell')
+  }
+  const masterDataCallbacks = {
+    onAddBOMItem() {}, onUpdateBOMItem() {}, onDeleteBOMItem() {}, onReorderRows() {},
+    onAddRate() {}, onUpdateRate() {}, onDeleteRate() {},
+    onAddRoutingStep() {}, onUpdateRoutingStep() {}, onDeleteRoutingStep() {}
+  }
+  const bomTableMarkup = renderToStaticMarkup(React.createElement(BOMTable, {
+    bom: [{ id: 'bom-invalid', description: '', consumption: null, unit: '', price: null, loss: null, note: '' }],
+    isEditMode: true, historyScope: 'review-feedback', ...masterDataCallbacks
+  }))
+  assertMasterDataTableIsQuiet(bomTableMarkup, 'Drag to reorder BOM row 1')
+  const workCenterTableMarkup = renderToStaticMarkup(React.createElement(WorkCenterRatesTable, {
+    rates: [{ id: 'wc-invalid', workCenterCode: '', laborRate: null, burdenRate: null, note: '' }],
+    isEditMode: true, historyScope: 'review-feedback', ...masterDataCallbacks
+  }))
+  assertMasterDataTableIsQuiet(workCenterTableMarkup, 'Drag to reorder WC row 1')
+  const routingTableMarkup = renderToStaticMarkup(React.createElement(RoutingTable, {
+    routing: [{ id: 'routing-invalid', processName: '', workCenterId: 'UNKNOWN', manning: null, capacity: null, yield: null, note: '' }],
+    rates: [], isEditMode: true, historyScope: 'review-feedback', ...masterDataCallbacks
+  }))
+  assertMasterDataTableIsQuiet(routingTableMarkup, 'Drag to reorder Routing row 1')
+
   const warnings = Array.from({ length: 5 }, (_, index) => ({
     code: `WARNING-${index + 1}`,
     message: `Review warning ${index + 1}`
@@ -201,14 +249,9 @@ try {
   }))
   for (const warning of warnings) assert.ok(summaryMarkup.includes(warning.message))
   assert.equal((summaryMarkup.match(/<li>/g) ?? []).length, 5)
-  assert.ok(!summaryMarkup.includes('more warnings in detailed comparison'))
-  const warningBlockStart = summaryMarkup.lastIndexOf(
-    'border-t border-amber-200 bg-amber-50/70',
-    summaryMarkup.indexOf('Review warnings (5)')
-  )
-  const warningBlock = summaryMarkup.slice(warningBlockStart, summaryMarkup.indexOf('</section>', warningBlockStart))
-  assert.match(warningBlock, /<p\b[^>]*\brole="status"[^>]*>Review warnings \(5\)<\/p><ul\b/)
-  assert.equal((warningBlock.match(/role="status"/g) ?? []).length, 1)
+  const warningDisclosure = summaryMarkup.match(/<details>([\s\S]*?)<\/details>/)?.[0] ?? ''
+  assert.match(warningDisclosure, /<summary[^>]*>Review warnings \(5\)<\/summary>[\s\S]*?<ul\b/)
+  assert.ok(!/<details\b[^>]*\bopen/.test(warningDisclosure), 'warning details must be collapsed by default')
 
   console.log('Cost Breakdown review feedback component checks passed.')
 } finally {

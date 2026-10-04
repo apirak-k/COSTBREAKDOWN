@@ -151,18 +151,17 @@ export const SnapshotComparisonCard: React.FC<SnapshotComparisonCardProps> = ({ 
       </div>
 
       {warnings.length > 0 && (
-        <div className="border-t border-amber-200 bg-amber-50/70 px-4 py-3">
-          <div className="flex items-start gap-2">
-            <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-amber-700" aria-hidden="true" />
-            <div className="min-w-0">
-              <p role="status" className="text-sm font-semibold text-amber-950">Review warnings ({summary.warningCount})</p>
-              <ul className="mt-1 space-y-1 text-sm text-amber-950">
-                {warnings.map((warning, index) => (
-                  <li key={`${warning.code}-${warning.referenceId ?? warning.currentId ?? index}`}>{warning.message}</li>
-                ))}
-              </ul>
-            </div>
-          </div>
+        <div className="border-t border-amber-200 bg-amber-50/50 px-4 py-2">
+          <details>
+            <summary className="cursor-pointer text-xs font-semibold text-amber-950 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700">
+              Review warnings ({summary.warningCount})
+            </summary>
+            <ul className="mt-2 space-y-1 border-t border-amber-200 pt-2 text-xs leading-5 text-amber-950">
+              {warnings.map((warning, index) => (
+                <li key={`${warning.code}-${warning.referenceId ?? warning.currentId ?? index}`}>{warning.message}</li>
+              ))}
+            </ul>
+          </details>
         </div>
       )}
     </section>
