@@ -65,20 +65,22 @@ interface StoredSelectedComparison extends SelectedComparisonSelection {
   sourceFingerprint: string
 }
 
-function moveSnapshotRow<T extends { id: string }>(
+function moveSnapshotRows<T extends { id: string }>(
   rows: T[],
-  movingId: string,
+  movingIds: string[],
   targetId: string,
   position: 'before' | 'after'
 ): T[] {
-  if (movingId === targetId) return rows
-  const sourceIndex = rows.findIndex(row => row.id === movingId)
-  if (sourceIndex < 0 || !rows.some(row => row.id === targetId)) return rows
-  const next = [...rows]
-  const [moving] = next.splice(sourceIndex, 1)
-  const targetIndex = next.findIndex(row => row.id === targetId)
-  next.splice(targetIndex + (position === 'after' ? 1 : 0), 0, moving)
-  return next
+  const requestedIds = new Set(movingIds)
+  const movingRows = rows.filter(row => requestedIds.has(row.id))
+  if (movingRows.length === 0 || requestedIds.has(targetId) || !rows.some(row => row.id === targetId)) return rows
+
+  const movingRowIds = new Set(movingRows.map(row => row.id))
+  const remainingRows = rows.filter(row => !movingRowIds.has(row.id))
+  const targetIndex = remainingRows.findIndex(row => row.id === targetId)
+  if (targetIndex < 0) return rows
+  remainingRows.splice(targetIndex + (position === 'after' ? 1 : 0), 0, ...movingRows)
+  return remainingRows
 }
 
 function withSnapshotPair(session: ProductSession, explicitPair?: SnapshotPair): ProductSession {
@@ -317,15 +319,15 @@ interface AppContextType {
   addMasterDataBOMItem: (item: Omit<SnapshotBOMItem, 'id' | 'confidence'>) => void
   updateMasterDataBOMItem: (id: string, item: Partial<Omit<SnapshotBOMItem, 'id' | 'confidence'>>) => void
   deleteMasterDataBOMItem: (id: string) => void
-  reorderMasterDataBOMItems: (movingId: string, targetId: string, position: 'before' | 'after') => void
+  reorderMasterDataBOMItems: (movingId: string, targetId: string, position: 'before' | 'after', movingIds?: string[]) => void
   addMasterDataRoutingStep: (step: Omit<SnapshotRoutingStep, 'id' | 'confidence'>) => void
   updateMasterDataRoutingStep: (id: string, step: Partial<Omit<SnapshotRoutingStep, 'id' | 'confidence'>>) => void
   deleteMasterDataRoutingStep: (id: string) => void
-  reorderMasterDataRoutingSteps: (movingId: string, targetId: string, position: 'before' | 'after') => void
+  reorderMasterDataRoutingSteps: (movingId: string, targetId: string, position: 'before' | 'after', movingIds?: string[]) => void
   addMasterDataWorkCenterRate: (rate: Omit<SnapshotWorkCenterRate, 'id' | 'confidence'>) => void
   updateMasterDataWorkCenterRate: (id: string, rate: Partial<Omit<SnapshotWorkCenterRate, 'id' | 'confidence'>>) => void
   deleteMasterDataWorkCenterRate: (id: string) => void
-  reorderMasterDataWorkCenters: (movingId: string, targetId: string, position: 'before' | 'after') => void
+  reorderMasterDataWorkCenters: (movingId: string, targetId: string, position: 'before' | 'after', movingIds?: string[]) => void
   applySelectedComparison: (selection: SelectedComparisonSelection) => void
   clearSelectedComparison: () => void
 
@@ -1006,8 +1008,9 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     updateMasterDataDataset(dataset => ({ ...dataset, bom: dataset.bom.filter(item => item.id !== id) }))
   }
 
-  const reorderMasterDataBOMItems = (movingId: string, targetId: string, position: 'before' | 'after') => {
-    updateMasterDataDataset(dataset => ({ ...dataset, bom: moveSnapshotRow(dataset.bom, movingId, targetId, position) }))
+  const reorderMasterDataBOMItems = (movingId: string, targetId: string, position: 'before' | 'after', movingIds?: string[]) => {
+    const idsToMove = movingIds?.includes(movingId) ? movingIds : [movingId]
+    updateMasterDataDataset(dataset => ({ ...dataset, bom: moveSnapshotRows(dataset.bom, idsToMove, targetId, position) }))
   }
 
   const addMasterDataRoutingStep = (step: Omit<SnapshotRoutingStep, 'id' | 'confidence'>) => {
@@ -1051,8 +1054,9 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     updateMasterDataDataset(dataset => ({ ...dataset, routing: dataset.routing.filter(step => step.id !== id) }))
   }
 
-  const reorderMasterDataRoutingSteps = (movingId: string, targetId: string, position: 'before' | 'after') => {
-    updateMasterDataDataset(dataset => ({ ...dataset, routing: moveSnapshotRow(dataset.routing, movingId, targetId, position) }))
+  const reorderMasterDataRoutingSteps = (movingId: string, targetId: string, position: 'before' | 'after', movingIds?: string[]) => {
+    const idsToMove = movingIds?.includes(movingId) ? movingIds : [movingId]
+    updateMasterDataDataset(dataset => ({ ...dataset, routing: moveSnapshotRows(dataset.routing, idsToMove, targetId, position) }))
   }
 
   const addMasterDataWorkCenterRate = (rate: Omit<SnapshotWorkCenterRate, 'id' | 'confidence'>) => {
@@ -1094,8 +1098,9 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     updateMasterDataDataset(dataset => ({ ...dataset, rates: dataset.rates.filter(rate => rate.id !== id) }))
   }
 
-  const reorderMasterDataWorkCenters = (movingId: string, targetId: string, position: 'before' | 'after') => {
-    updateMasterDataDataset(dataset => ({ ...dataset, rates: moveSnapshotRow(dataset.rates, movingId, targetId, position) }))
+  const reorderMasterDataWorkCenters = (movingId: string, targetId: string, position: 'before' | 'after', movingIds?: string[]) => {
+    const idsToMove = movingIds?.includes(movingId) ? movingIds : [movingId]
+    updateMasterDataDataset(dataset => ({ ...dataset, rates: moveSnapshotRows(dataset.rates, idsToMove, targetId, position) }))
   }
 
   // Active-product CRUD

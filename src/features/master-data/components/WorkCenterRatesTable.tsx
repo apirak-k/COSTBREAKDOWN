@@ -13,7 +13,7 @@ interface WorkCenterRatesTableProps {
   onAddRate: () => void
   onUpdateRate: (id: string, partial: Partial<Omit<SnapshotWorkCenterRate, 'id' | 'confidence'>>) => void
   onDeleteRate: (id: string) => void
-  onReorderRows: (movingId: string, targetId: string, position: 'before' | 'after') => void
+  onReorderRows: (movingId: string, targetId: string, position: 'before' | 'after', movingIds?: string[]) => void
 }
 
 const numberValue = (value: number | null): string => value === null ? '' : String(value)
@@ -108,6 +108,7 @@ export const WorkCenterRatesTable: React.FC<WorkCenterRatesTableProps> = ({
 
   const handleDragStart = (event: React.DragEvent<HTMLButtonElement>, id: string) => {
     event.dataTransfer.setData('text/plain', id)
+    event.dataTransfer.setData('application/x-costbreakdown-row-ids', JSON.stringify(selectedIds.has(id) ? [...selectedIds] : [id]))
     event.dataTransfer.effectAllowed = 'move'
   }
 
@@ -115,8 +116,19 @@ export const WorkCenterRatesTable: React.FC<WorkCenterRatesTableProps> = ({
     event.preventDefault()
     const movingId = event.dataTransfer.getData('text/plain')
     if (!movingId || movingId === targetId) return
+    let movingIds = [movingId]
+    try {
+      const parsedIds: unknown = JSON.parse(event.dataTransfer.getData('application/x-costbreakdown-row-ids'))
+      if (Array.isArray(parsedIds)) {
+        const validIds = parsedIds.filter((id): id is string => typeof id === 'string')
+        if (validIds.includes(movingId)) movingIds = validIds
+      }
+    } catch {
+      // Keep the existing single-row drag behavior when group data is unavailable.
+    }
+    if (movingIds.includes(targetId)) return
     const bounds = event.currentTarget.getBoundingClientRect()
-    onReorderRows(movingId, targetId, event.clientY >= bounds.top + bounds.height / 2 ? 'after' : 'before')
+    onReorderRows(movingId, targetId, event.clientY >= bounds.top + bounds.height / 2 ? 'after' : 'before', movingIds)
   }
 
   return (
@@ -173,10 +185,10 @@ export const WorkCenterRatesTable: React.FC<WorkCenterRatesTableProps> = ({
 
       <div className="max-h-[520px] overflow-x-auto">
         <table ref={tableRef} className="w-full min-w-[720px] border-collapse text-left text-xs">
-          <thead className="sticky top-0 z-10 border-y-2 border-slate-400 bg-slate-100 text-[11px] font-semibold uppercase tracking-wide text-slate-800">
+          <thead className="sticky top-0 z-30 border-y-2 border-slate-400 bg-slate-100 text-[11px] font-semibold uppercase tracking-wide text-slate-800">
             <tr>
-              {isEditMode && <th scope="col" className="w-8 px-1 py-2.5" aria-label="Reorder rows" />}
-              <th scope="col" className="w-12 px-3 py-2.5 text-center">#</th>
+              {isEditMode && <th scope="col" className="sticky left-0 z-40 w-8 bg-slate-100 px-1 py-2.5" aria-label="Reorder rows" />}
+              <th scope="col" className={`sticky ${isEditMode ? 'left-8' : 'left-0'} z-40 w-12 bg-slate-100 px-3 py-2.5 text-center`}>#</th>
               <th scope="col" className="px-3 py-2.5">WC</th>
               <th scope="col" className="px-3 py-2.5 text-right">Labor</th>
               <th scope="col" className="px-3 py-2.5 text-right">Burden</th>
@@ -189,8 +201,15 @@ export const WorkCenterRatesTable: React.FC<WorkCenterRatesTableProps> = ({
               const isSelected = selectedIds.has(rate.id)
               const issues = rowIssues.get(rate.id) || []
               const identityInvalid = !rate.isGeneratedSizingPlaceholder && (!rate.workCenterCode.trim() || duplicateWcIds.has(rate.id))
+              const laborInvalid = !rate.isGeneratedSizingPlaceholder && (rate.laborRate === null || hasInvalidNumber(rate.laborRate))
+              const burdenInvalid = !rate.isGeneratedSizingPlaceholder && (rate.burdenRate === null || hasInvalidNumber(rate.burdenRate))
               const rowNumber = rates.findIndex(row => row.id === rate.id) + 1
-              const numericClass = 'min-h-9 rounded-sm border border-slate-300 bg-white px-2 text-right text-sm tabular-nums focus:outline-none focus:ring-2 focus:ring-blue-700'
+              const pinnedCellBackground = isSelected
+                ? 'bg-blue-50 group-hover:bg-blue-100'
+                : issues.length > 0
+                  ? 'bg-amber-50/50 group-hover:bg-amber-100/60'
+                  : 'bg-white group-hover:bg-slate-50'
+              const numericClass = (invalid: boolean) => `min-h-9 rounded-sm border px-2 text-right text-sm tabular-nums focus:outline-none focus:ring-2 focus:ring-blue-700 ${invalid ? 'border-amber-600 bg-amber-50' : 'border-slate-300 bg-white'}`
 
               return (
                 <tr
@@ -198,11 +217,11 @@ export const WorkCenterRatesTable: React.FC<WorkCenterRatesTableProps> = ({
                   onMouseEnter={() => onMouseEnterRow(rate.id)}
                   onDragOver={event => { if (isEditMode) event.preventDefault() }}
                   onDrop={event => { if (isEditMode) handleRowDrop(event, rate.id) }}
-                  className={`${issues.length > 0 ? 'bg-amber-50/50 ' : ''}${isSelected ? 'border-l-2 border-l-blue-700 bg-blue-50 hover:bg-blue-100' : 'hover:bg-slate-50'}`}
+                  className={`group ${issues.length > 0 ? 'bg-amber-50/50 ' : ''}${isSelected ? 'border-l-2 border-l-blue-700 bg-blue-50 hover:bg-blue-100' : 'hover:bg-slate-50'}`}
                   title={issues.length > 0 ? issues.join(' ') : undefined}
                 >
                   {isEditMode && (
-                    <td className="w-8 px-1 py-2 text-center">
+                    <td className={`sticky left-0 z-20 w-8 px-1 py-2 text-center ${pinnedCellBackground}`}>
                       <button
                         type="button"
                         draggable
@@ -215,7 +234,7 @@ export const WorkCenterRatesTable: React.FC<WorkCenterRatesTableProps> = ({
                       </button>
                     </td>
                   )}
-                  <th scope="row" className="px-2 py-2 text-center font-mono font-normal text-slate-600">
+                  <th scope="row" className={`sticky ${isEditMode ? 'left-8' : 'left-0'} z-20 w-12 px-2 py-2 text-center font-mono font-normal text-slate-600 ${pinnedCellBackground}`}>
                     {isEditMode ? (
                       <button
                         type="button"
@@ -251,7 +270,7 @@ export const WorkCenterRatesTable: React.FC<WorkCenterRatesTableProps> = ({
                       </div>
                     )}
                   </td>
-                  <td className="px-3 py-2 text-right font-mono tabular-nums">
+                  <td className={`px-3 py-2 text-right font-mono tabular-nums ${laborInvalid ? 'bg-amber-50/60 text-amber-900' : ''}`}>
                     {isEditMode ? (
                       <input
                         type="number"
@@ -262,12 +281,12 @@ export const WorkCenterRatesTable: React.FC<WorkCenterRatesTableProps> = ({
                         data-grid-row-id={rate.id}
                         data-grid-field="laborRate"
                         aria-label={`Labor for ${rate.workCenterCode || `WC row ${rowNumber}`}`}
-                        aria-invalid={!rate.isGeneratedSizingPlaceholder && (rate.laborRate === null || hasInvalidNumber(rate.laborRate))}
-                        className={`${numericClass} w-28 ${selectedCellKeys.has(tableCellKey(rate.id, 'laborRate')) ? 'ring-2 ring-blue-500 ring-inset' : ''}`}
+                        aria-invalid={laborInvalid}
+                        className={`${numericClass(laborInvalid)} w-28 ${selectedCellKeys.has(tableCellKey(rate.id, 'laborRate')) ? 'ring-2 ring-blue-500 ring-inset' : ''}`}
                       />
                     ) : rate.laborRate === null ? <span className="text-amber-700">—</span> : rate.laborRate.toFixed(4)}
                   </td>
-                  <td className="px-3 py-2 text-right font-mono tabular-nums">
+                  <td className={`px-3 py-2 text-right font-mono tabular-nums ${burdenInvalid ? 'bg-amber-50/60 text-amber-900' : ''}`}>
                     {isEditMode ? (
                       <input
                         type="number"
@@ -278,8 +297,8 @@ export const WorkCenterRatesTable: React.FC<WorkCenterRatesTableProps> = ({
                         data-grid-row-id={rate.id}
                         data-grid-field="burdenRate"
                         aria-label={`Burden for ${rate.workCenterCode || `WC row ${rowNumber}`}`}
-                        aria-invalid={!rate.isGeneratedSizingPlaceholder && (rate.burdenRate === null || hasInvalidNumber(rate.burdenRate))}
-                        className={`${numericClass} w-28 ${selectedCellKeys.has(tableCellKey(rate.id, 'burdenRate')) ? 'ring-2 ring-blue-500 ring-inset' : ''}`}
+                        aria-invalid={burdenInvalid}
+                        className={`${numericClass(burdenInvalid)} w-28 ${selectedCellKeys.has(tableCellKey(rate.id, 'burdenRate')) ? 'ring-2 ring-blue-500 ring-inset' : ''}`}
                       />
                     ) : rate.burdenRate === null ? <span className="text-amber-700">—</span> : rate.burdenRate.toFixed(4)}
                   </td>

@@ -4,7 +4,7 @@ import { SnapshotRoutingStep, SnapshotWorkCenterRate } from '../../../core'
 import { useDragSelect } from '../hooks/useDragSelect'
 import { SpreadsheetPasteCell, tableCellKey, useTableKeyboardNav } from '../hooks/useTableKeyboardNav'
 import { RowChanges, useSpreadsheetEditing } from '../hooks/useSpreadsheetEditing'
-import { duplicateIdentityIds, hasInvalidNumber } from '../table-validation'
+import { duplicateIdentityIds, hasInvalidNumber, parsePercentage } from '../table-validation'
 
 interface RoutingTableProps {
   routing: SnapshotRoutingStep[]
@@ -14,7 +14,7 @@ interface RoutingTableProps {
   onAddRoutingStep: () => void
   onUpdateRoutingStep: (id: string, partial: Partial<Omit<SnapshotRoutingStep, 'id' | 'confidence'>>) => void
   onDeleteRoutingStep: (id: string) => void
-  onReorderRows: (movingId: string, targetId: string, position: 'before' | 'after') => void
+  onReorderRows: (movingId: string, targetId: string, position: 'before' | 'after', movingIds?: string[]) => void
 }
 
 const numberValue = (value: number | null | undefined): string => value === null || value === undefined ? '' : String(value)
@@ -97,7 +97,7 @@ export const RoutingTable: React.FC<RoutingTableProps> = ({
       else if (cell.field === 'workCenterId') changes = { workCenterId: cell.value || undefined }
       else if (cell.field === 'manning') changes = { manning: parseNumber(cell.value) }
       else if (cell.field === 'capacity') changes = { capacity: parseNumber(cell.value) }
-      else if (cell.field === 'yield') changes = { yield: cell.value.trim() === '' ? null : Number(cell.value) / 100 }
+      else if (cell.field === 'yield') changes = { yield: parsePercentage(cell.value) }
       else if (cell.field === 'note') changes = { note: cell.value }
       return changes ? [{ id: cell.rowId, changes }] : []
     })
@@ -119,6 +119,7 @@ export const RoutingTable: React.FC<RoutingTableProps> = ({
 
   const handleDragStart = (event: React.DragEvent<HTMLButtonElement>, id: string) => {
     event.dataTransfer.setData('text/plain', id)
+    event.dataTransfer.setData('application/x-costbreakdown-row-ids', JSON.stringify(selectedIds.has(id) ? [...selectedIds] : [id]))
     event.dataTransfer.effectAllowed = 'move'
   }
 
@@ -126,8 +127,19 @@ export const RoutingTable: React.FC<RoutingTableProps> = ({
     event.preventDefault()
     const movingId = event.dataTransfer.getData('text/plain')
     if (!movingId || movingId === targetId) return
+    let movingIds = [movingId]
+    try {
+      const parsedIds: unknown = JSON.parse(event.dataTransfer.getData('application/x-costbreakdown-row-ids'))
+      if (Array.isArray(parsedIds)) {
+        const validIds = parsedIds.filter((id): id is string => typeof id === 'string')
+        if (validIds.includes(movingId)) movingIds = validIds
+      }
+    } catch {
+      // Keep the existing single-row drag behavior when group data is unavailable.
+    }
+    if (movingIds.includes(targetId)) return
     const bounds = event.currentTarget.getBoundingClientRect()
-    onReorderRows(movingId, targetId, event.clientY >= bounds.top + bounds.height / 2 ? 'after' : 'before')
+    onReorderRows(movingId, targetId, event.clientY >= bounds.top + bounds.height / 2 ? 'after' : 'before', movingIds)
   }
 
   return (
@@ -184,10 +196,10 @@ export const RoutingTable: React.FC<RoutingTableProps> = ({
 
       <div className="max-h-[520px] overflow-x-auto">
         <table ref={tableRef} className="w-full min-w-[960px] border-collapse text-left text-xs">
-          <thead className="sticky top-0 z-10 border-y-2 border-slate-400 bg-slate-100 text-[11px] font-semibold uppercase tracking-wide text-slate-800">
+          <thead className="sticky top-0 z-30 border-y-2 border-slate-400 bg-slate-100 text-[11px] font-semibold uppercase tracking-wide text-slate-800">
             <tr>
-              {isEditMode && <th scope="col" className="w-8 px-1 py-2.5" aria-label="Reorder rows" />}
-              <th scope="col" className="w-12 px-3 py-2.5 text-center">#</th>
+              {isEditMode && <th scope="col" className="sticky left-0 z-40 w-8 bg-slate-100 px-1 py-2.5" aria-label="Reorder rows" />}
+              <th scope="col" className={`sticky ${isEditMode ? 'left-8' : 'left-0'} z-40 w-12 bg-slate-100 px-3 py-2.5 text-center`}>#</th>
               <th scope="col" className="px-3 py-2.5">Process</th>
               <th scope="col" className="px-3 py-2.5">WC</th>
               <th scope="col" className="px-3 py-2.5 text-right">Manning</th>
@@ -203,8 +215,16 @@ export const RoutingTable: React.FC<RoutingTableProps> = ({
               const issues = rowIssues.get(step.id) || []
               const identityInvalid = !step.isGeneratedSizingPlaceholder && (!step.processName.trim() || duplicateProcessIds.has(step.id))
               const workCenterInvalid = !step.isGeneratedSizingPlaceholder && (!step.workCenterId?.trim() || !knownWorkCenters.has(step.workCenterId.trim().toLocaleLowerCase()))
+              const manningInvalid = !step.isGeneratedSizingPlaceholder && (step.manning === null || hasInvalidNumber(step.manning))
+              const capacityInvalid = !step.isGeneratedSizingPlaceholder && (step.capacity === null || hasInvalidNumber(step.capacity))
+              const yieldInvalid = !step.isGeneratedSizingPlaceholder && (step.yield === null || hasInvalidNumber(step.yield) || step.yield > 1)
               const rowNumber = routing.findIndex(row => row.id === step.id) + 1
-              const numericClass = 'min-h-9 rounded-sm border border-slate-300 bg-white px-2 text-right text-sm tabular-nums focus:outline-none focus:ring-2 focus:ring-blue-700'
+              const pinnedCellBackground = isSelected
+                ? 'bg-blue-50 group-hover:bg-blue-100'
+                : issues.length > 0
+                  ? 'bg-amber-50/50 group-hover:bg-amber-100/60'
+                  : 'bg-white group-hover:bg-slate-50'
+              const numericClass = (invalid: boolean) => `min-h-9 rounded-sm border px-2 text-right text-sm tabular-nums focus:outline-none focus:ring-2 focus:ring-blue-700 ${invalid ? 'border-amber-600 bg-amber-50' : 'border-slate-300 bg-white'}`
 
               return (
                 <tr
@@ -212,11 +232,11 @@ export const RoutingTable: React.FC<RoutingTableProps> = ({
                   onMouseEnter={() => onMouseEnterRow(step.id)}
                   onDragOver={event => { if (isEditMode) event.preventDefault() }}
                   onDrop={event => { if (isEditMode) handleRowDrop(event, step.id) }}
-                  className={`${issues.length > 0 ? 'bg-amber-50/50 ' : ''}${isSelected ? 'border-l-2 border-l-blue-700 bg-blue-50 hover:bg-blue-100' : 'hover:bg-slate-50'}`}
+                  className={`group ${issues.length > 0 ? 'bg-amber-50/50 ' : ''}${isSelected ? 'border-l-2 border-l-blue-700 bg-blue-50 hover:bg-blue-100' : 'hover:bg-slate-50'}`}
                   title={issues.length > 0 ? issues.join(' ') : undefined}
                 >
                   {isEditMode && (
-                    <td className="w-8 px-1 py-2 text-center">
+                    <td className={`sticky left-0 z-20 w-8 px-1 py-2 text-center ${pinnedCellBackground}`}>
                       <button
                         type="button"
                         draggable
@@ -229,7 +249,7 @@ export const RoutingTable: React.FC<RoutingTableProps> = ({
                       </button>
                     </td>
                   )}
-                  <th scope="row" className="px-2 py-2 text-center font-mono font-normal text-slate-600">
+                  <th scope="row" className={`sticky ${isEditMode ? 'left-8' : 'left-0'} z-20 w-12 px-2 py-2 text-center font-mono font-normal text-slate-600 ${pinnedCellBackground}`}>
                     {isEditMode ? (
                       <button
                         type="button"
@@ -286,7 +306,7 @@ export const RoutingTable: React.FC<RoutingTableProps> = ({
                       </span>
                     ) : <span className="text-amber-700">—</span>}
                   </td>
-                  <td className="px-3 py-2 text-right font-mono tabular-nums">
+                  <td className={`px-3 py-2 text-right font-mono tabular-nums ${manningInvalid ? 'bg-amber-50/60 text-amber-900' : ''}`}>
                     {isEditMode ? (
                       <input
                         type="number"
@@ -297,12 +317,12 @@ export const RoutingTable: React.FC<RoutingTableProps> = ({
                         data-grid-row-id={step.id}
                         data-grid-field="manning"
                         aria-label={`Manning for ${step.processName || `Routing row ${rowNumber}`}`}
-                        aria-invalid={!step.isGeneratedSizingPlaceholder && (step.manning === null || hasInvalidNumber(step.manning))}
-                        className={`${numericClass} w-24 ${selectedCellKeys.has(tableCellKey(step.id, 'manning')) ? 'ring-2 ring-blue-500 ring-inset' : ''}`}
+                        aria-invalid={manningInvalid}
+                        className={`${numericClass(manningInvalid)} w-24 ${selectedCellKeys.has(tableCellKey(step.id, 'manning')) ? 'ring-2 ring-blue-500 ring-inset' : ''}`}
                       />
                     ) : numberValue(step.manning) || <span className="text-amber-700">—</span>}
                   </td>
-                  <td className="px-3 py-2 text-right font-mono tabular-nums">
+                  <td className={`px-3 py-2 text-right font-mono tabular-nums ${capacityInvalid ? 'bg-amber-50/60 text-amber-900' : ''}`}>
                     {isEditMode ? (
                       <input
                         type="number"
@@ -313,12 +333,12 @@ export const RoutingTable: React.FC<RoutingTableProps> = ({
                         data-grid-row-id={step.id}
                         data-grid-field="capacity"
                         aria-label={`Cap for ${step.processName || `Routing row ${rowNumber}`}`}
-                        aria-invalid={!step.isGeneratedSizingPlaceholder && (step.capacity === null || hasInvalidNumber(step.capacity))}
-                        className={`${numericClass} w-28 ${selectedCellKeys.has(tableCellKey(step.id, 'capacity')) ? 'ring-2 ring-blue-500 ring-inset' : ''}`}
+                        aria-invalid={capacityInvalid}
+                        className={`${numericClass(capacityInvalid)} w-28 ${selectedCellKeys.has(tableCellKey(step.id, 'capacity')) ? 'ring-2 ring-blue-500 ring-inset' : ''}`}
                       />
                     ) : numberValue(step.capacity) || <span className="text-amber-700">—</span>}
                   </td>
-                  <td className="px-3 py-2 text-right">
+                  <td className={`px-3 py-2 text-right ${yieldInvalid ? 'bg-amber-50/60 text-amber-900' : ''}`}>
                     {isEditMode ? (
                       <div className="flex items-center justify-end gap-1">
                         <input
@@ -333,8 +353,8 @@ export const RoutingTable: React.FC<RoutingTableProps> = ({
                           data-grid-row-id={step.id}
                           data-grid-field="yield"
                           aria-label={`Yield percentage for ${step.processName || `Routing row ${rowNumber}`}`}
-                          aria-invalid={!step.isGeneratedSizingPlaceholder && (step.yield === null || hasInvalidNumber(step.yield) || step.yield > 1)}
-                          className={`${numericClass} w-20 ${selectedCellKeys.has(tableCellKey(step.id, 'yield')) ? 'ring-2 ring-blue-500 ring-inset' : ''}`}
+                          aria-invalid={yieldInvalid}
+                          className={`${numericClass(yieldInvalid)} w-20 ${selectedCellKeys.has(tableCellKey(step.id, 'yield')) ? 'ring-2 ring-blue-500 ring-inset' : ''}`}
                         />
                         <span className="text-slate-400">%</span>
                       </div>

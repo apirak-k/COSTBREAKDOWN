@@ -33,13 +33,14 @@ function styleHeaderRow(row: ExcelJS.Row, columns: number): void {
   }
 }
 
-function styleInputRow(row: ExcelJS.Row, columns: number, numericColumns: number[] = []): void {
+function styleInputRow(row: ExcelJS.Row, columns: number, numericColumns: number[] = [], fractionPercentColumns: number[] = []): void {
   for (let column = 1; column <= columns; column += 1) {
     const cell = row.getCell(column)
     cell.fill = fillInput
     cell.font = fontData
     cell.border = borderThin
     if (numericColumns.includes(column)) cell.numFmt = '#,##0.0000'
+    if (fractionPercentColumns.includes(column)) cell.numFmt = '0.00%'
   }
 }
 
@@ -73,14 +74,15 @@ function writeProductSheet(sheet: ExcelJS.Worksheet, product?: DynamicTemplateOp
   sheet.getCell('A1').value = 'PRODUCT'
   sheet.getCell('A1').font = fontTitle
   sheet.mergeCells('A1:D1')
-  writeInputLegend(sheet, 4)
+  writeInputLegend(sheet, 4, 'Enter SG&A as percent points (8 means 8%).')
   sheet.getCell('A3').value = 'Exactly one Product row is allowed.'
   sheet.getCell('A3').font = fontSection
   const headers = ['Product Name', 'UOM', 'Selling Price (THB)', 'SG&A (%)']
   sheet.getRow(4).values = headers
   styleHeaderRow(sheet.getRow(4), headers.length)
   sheet.getRow(5).values = [product?.productName || product?.productDescription || '', product?.uom || '', product?.sellingPrice ?? null, product?.sgaPercent ?? null]
-  styleInputRow(sheet.getRow(5), headers.length, [3, 4])
+  styleInputRow(sheet.getRow(5), headers.length, [3])
+  sheet.getCell('D5').numFmt = '0.00"%"'
   sheet.autoFilter = 'A4:D5'
   sheet.views = [{ state: 'frozen', ySplit: 4 }]
 }
@@ -130,7 +132,7 @@ function writeBOMSheet(sheet: ExcelJS.Worksheet, count: number): void {
   sheet.getCell('A1').value = 'BOM'
   sheet.getCell('A1').font = fontTitle
   sheet.mergeCells('A1:F1')
-  writeInputLegend(sheet, headers.length)
+  writeInputLegend(sheet, headers.length, 'Enter Loss as a percentage (type 5% for five percent).')
   sheet.getCell('A3').value = 'Material inputs for this Dataset'
   sheet.getCell('A3').font = fontSection
   sheet.getRow(4).values = headers
@@ -138,7 +140,7 @@ function writeBOMSheet(sheet: ExcelJS.Worksheet, count: number): void {
   for (let index = 0; index < count; index += 1) {
     const row = sheet.getRow(index + 5)
     row.values = ['', null, '', null, null, '']
-    styleInputRow(row, headers.length, [2, 4, 5])
+    styleInputRow(row, headers.length, [2, 4], [5])
   }
   sheet.autoFilter = `A4:F${count + 4}`
   sheet.views = [{ state: 'frozen', ySplit: 4 }]
@@ -150,7 +152,7 @@ function writeRoutingSheet(sheet: ExcelJS.Worksheet, count: number): void {
   sheet.getCell('A1').value = 'ROUTING'
   sheet.getCell('A1').font = fontTitle
   sheet.mergeCells('A1:F1')
-  writeInputLegend(sheet, headers.length)
+  writeInputLegend(sheet, headers.length, 'Enter Yield as a percentage (type 95% for ninety-five percent).')
   sheet.getCell('A3').value = 'Routing inputs linked to WORK_CENTER in this Dataset'
   sheet.getCell('A3').font = fontSection
   sheet.getRow(4).values = headers
@@ -158,7 +160,7 @@ function writeRoutingSheet(sheet: ExcelJS.Worksheet, count: number): void {
   for (let index = 0; index < count; index += 1) {
     const row = sheet.getRow(index + 5)
     row.values = ['', '', null, null, null, '']
-    styleInputRow(row, headers.length, [3, 4, 5])
+    styleInputRow(row, headers.length, [3, 4], [5])
   }
   sheet.autoFilter = `A4:F${count + 4}`
   sheet.views = [{ state: 'frozen', ySplit: 4 }]

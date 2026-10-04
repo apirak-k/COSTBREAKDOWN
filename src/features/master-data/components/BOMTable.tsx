@@ -4,7 +4,7 @@ import { SnapshotBOMItem } from '../../../core'
 import { useDragSelect } from '../hooks/useDragSelect'
 import { SpreadsheetPasteCell, tableCellKey, useTableKeyboardNav } from '../hooks/useTableKeyboardNav'
 import { RowChanges, useSpreadsheetEditing } from '../hooks/useSpreadsheetEditing'
-import { duplicateIdentityIds, hasInvalidNumber } from '../table-validation'
+import { duplicateIdentityIds, hasInvalidNumber, parsePercentage } from '../table-validation'
 
 interface BOMTableProps {
   bom: SnapshotBOMItem[]
@@ -13,7 +13,7 @@ interface BOMTableProps {
   onAddBOMItem: () => void
   onUpdateBOMItem: (id: string, partial: Partial<Omit<SnapshotBOMItem, 'id' | 'confidence'>>) => void
   onDeleteBOMItem: (id: string) => void
-  onReorderRows: (movingId: string, targetId: string, position: 'before' | 'after') => void
+  onReorderRows: (movingId: string, targetId: string, position: 'before' | 'after', movingIds?: string[]) => void
 }
 
 const numberValue = (value: number | null): string => value === null ? '' : String(value)
@@ -92,7 +92,7 @@ export const BOMTable: React.FC<BOMTableProps> = ({
       else if (cell.field === 'consumption') changes = { consumption: parseNumber(cell.value) }
       else if (cell.field === 'unit') changes = { unit: cell.value }
       else if (cell.field === 'price') changes = { price: parseNumber(cell.value) }
-      else if (cell.field === 'loss') changes = { loss: cell.value.trim() === '' ? null : Number(cell.value) / 100 }
+      else if (cell.field === 'loss') changes = { loss: parsePercentage(cell.value) }
       else if (cell.field === 'note') changes = { note: cell.value }
       return changes ? [{ id: cell.rowId, changes }] : []
     })
@@ -114,6 +114,7 @@ export const BOMTable: React.FC<BOMTableProps> = ({
 
   const handleDragStart = (event: React.DragEvent<HTMLButtonElement>, id: string) => {
     event.dataTransfer.setData('text/plain', id)
+    event.dataTransfer.setData('application/x-costbreakdown-row-ids', JSON.stringify(selectedIds.has(id) ? [...selectedIds] : [id]))
     event.dataTransfer.effectAllowed = 'move'
   }
 
@@ -121,8 +122,19 @@ export const BOMTable: React.FC<BOMTableProps> = ({
     event.preventDefault()
     const movingId = event.dataTransfer.getData('text/plain')
     if (!movingId || movingId === targetId) return
+    let movingIds = [movingId]
+    try {
+      const parsedIds: unknown = JSON.parse(event.dataTransfer.getData('application/x-costbreakdown-row-ids'))
+      if (Array.isArray(parsedIds)) {
+        const validIds = parsedIds.filter((id): id is string => typeof id === 'string')
+        if (validIds.includes(movingId)) movingIds = validIds
+      }
+    } catch {
+      // Keep the existing single-row drag behavior when group data is unavailable.
+    }
+    if (movingIds.includes(targetId)) return
     const bounds = event.currentTarget.getBoundingClientRect()
-    onReorderRows(movingId, targetId, event.clientY >= bounds.top + bounds.height / 2 ? 'after' : 'before')
+    onReorderRows(movingId, targetId, event.clientY >= bounds.top + bounds.height / 2 ? 'after' : 'before', movingIds)
   }
 
   return (
@@ -179,10 +191,10 @@ export const BOMTable: React.FC<BOMTableProps> = ({
 
       <div className="max-h-[520px] overflow-x-auto">
         <table ref={tableRef} className="w-full min-w-[860px] border-collapse text-left text-xs">
-          <thead className="sticky top-0 z-10 border-y-2 border-slate-400 bg-slate-100 text-[11px] font-semibold uppercase tracking-wide text-slate-800">
+          <thead className="sticky top-0 z-30 border-y-2 border-slate-400 bg-slate-100 text-[11px] font-semibold uppercase tracking-wide text-slate-800">
             <tr>
-              {isEditMode && <th scope="col" className="w-8 px-1 py-2.5" aria-label="Reorder rows" />}
-              <th scope="col" className="w-12 px-3 py-2.5 text-center">#</th>
+              {isEditMode && <th scope="col" className="sticky left-0 z-40 w-8 bg-slate-100 px-1 py-2.5" aria-label="Reorder rows" />}
+              <th scope="col" className={`sticky ${isEditMode ? 'left-8' : 'left-0'} z-40 w-12 bg-slate-100 px-3 py-2.5 text-center`}>#</th>
               <th scope="col" className="px-3 py-2.5">Name</th>
               <th scope="col" className="px-3 py-2.5 text-right">Usage</th>
               <th scope="col" className="px-3 py-2.5">Unit</th>
@@ -197,8 +209,16 @@ export const BOMTable: React.FC<BOMTableProps> = ({
               const isSelected = selectedIds.has(item.id)
               const issues = rowIssues.get(item.id) || []
               const identityInvalid = !item.isGeneratedSizingPlaceholder && (!item.description.trim() || duplicateNameIds.has(item.id))
+              const consumptionInvalid = !item.isGeneratedSizingPlaceholder && (item.consumption === null || hasInvalidNumber(item.consumption))
+              const priceInvalid = !item.isGeneratedSizingPlaceholder && (item.price === null || hasInvalidNumber(item.price))
+              const lossInvalid = !item.isGeneratedSizingPlaceholder && (item.loss === null || hasInvalidNumber(item.loss))
               const rowNumber = bom.findIndex(row => row.id === item.id) + 1
-              const numericClass = 'min-h-9 rounded-sm border border-slate-300 bg-white px-2 text-right text-sm tabular-nums focus:outline-none focus:ring-2 focus:ring-blue-700'
+              const pinnedCellBackground = isSelected
+                ? 'bg-blue-50 group-hover:bg-blue-100'
+                : issues.length > 0
+                  ? 'bg-amber-50/50 group-hover:bg-amber-100/60'
+                  : 'bg-white group-hover:bg-slate-50'
+              const numericClass = (invalid: boolean) => `min-h-9 rounded-sm border px-2 text-right text-sm tabular-nums focus:outline-none focus:ring-2 focus:ring-blue-700 ${invalid ? 'border-amber-600 bg-amber-50' : 'border-slate-300 bg-white'}`
 
               return (
                 <tr
@@ -206,11 +226,11 @@ export const BOMTable: React.FC<BOMTableProps> = ({
                   onMouseEnter={() => onMouseEnterRow(item.id)}
                   onDragOver={event => { if (isEditMode) event.preventDefault() }}
                   onDrop={event => { if (isEditMode) handleRowDrop(event, item.id) }}
-                  className={`${issues.length > 0 ? 'bg-amber-50/50 ' : ''}${isSelected ? 'border-l-2 border-l-blue-700 bg-blue-50 hover:bg-blue-100' : 'hover:bg-slate-50'}`}
+                  className={`group ${issues.length > 0 ? 'bg-amber-50/50 ' : ''}${isSelected ? 'border-l-2 border-l-blue-700 bg-blue-50 hover:bg-blue-100' : 'hover:bg-slate-50'}`}
                   title={issues.length > 0 ? issues.join(' ') : undefined}
                 >
                   {isEditMode && (
-                    <td className="w-8 px-1 py-2 text-center">
+                    <td className={`sticky left-0 z-20 w-8 px-1 py-2 text-center ${pinnedCellBackground}`}>
                       <button
                         type="button"
                         draggable
@@ -223,7 +243,7 @@ export const BOMTable: React.FC<BOMTableProps> = ({
                       </button>
                     </td>
                   )}
-                  <th scope="row" className="px-2 py-2 text-center font-mono font-normal text-slate-600">
+                  <th scope="row" className={`sticky ${isEditMode ? 'left-8' : 'left-0'} z-20 w-12 px-2 py-2 text-center font-mono font-normal text-slate-600 ${pinnedCellBackground}`}>
                     {isEditMode ? (
                       <button
                         type="button"
@@ -254,7 +274,7 @@ export const BOMTable: React.FC<BOMTableProps> = ({
                       {issues.length > 0 && <p className="mt-1 text-xs leading-4 text-amber-800">{issues.join(' ')}</p>}
                     </div>
                   </td>
-                  <td className="px-3 py-2 text-right font-mono tabular-nums">
+                  <td className={`px-3 py-2 text-right font-mono tabular-nums ${consumptionInvalid ? 'bg-amber-50/60 text-amber-900' : ''}`}>
                     {isEditMode ? (
                       <input
                         type="number"
@@ -265,8 +285,8 @@ export const BOMTable: React.FC<BOMTableProps> = ({
                         data-grid-row-id={item.id}
                         data-grid-field="consumption"
                         aria-label={`Usage for ${item.description || `BOM row ${rowNumber}`}`}
-                        aria-invalid={!item.isGeneratedSizingPlaceholder && (item.consumption === null || hasInvalidNumber(item.consumption))}
-                        className={`${numericClass} w-28 ${selectedCellKeys.has(tableCellKey(item.id, 'consumption')) ? 'ring-2 ring-blue-500 ring-inset' : ''}`}
+                        aria-invalid={consumptionInvalid}
+                        className={`${numericClass(consumptionInvalid)} w-28 ${selectedCellKeys.has(tableCellKey(item.id, 'consumption')) ? 'ring-2 ring-blue-500 ring-inset' : ''}`}
                       />
                     ) : displayNumber(item.consumption)}
                   </td>
@@ -284,7 +304,7 @@ export const BOMTable: React.FC<BOMTableProps> = ({
                       />
                     ) : item.unit || <span className="text-amber-700">—</span>}
                   </td>
-                  <td className="px-3 py-2 text-right font-mono tabular-nums">
+                  <td className={`px-3 py-2 text-right font-mono tabular-nums ${priceInvalid ? 'bg-amber-50/60 text-amber-900' : ''}`}>
                     {isEditMode ? (
                       <input
                         type="number"
@@ -295,12 +315,12 @@ export const BOMTable: React.FC<BOMTableProps> = ({
                         data-grid-row-id={item.id}
                         data-grid-field="price"
                         aria-label={`Price for ${item.description || `BOM row ${rowNumber}`}`}
-                        aria-invalid={!item.isGeneratedSizingPlaceholder && (item.price === null || hasInvalidNumber(item.price))}
-                        className={`${numericClass} w-28 ${selectedCellKeys.has(tableCellKey(item.id, 'price')) ? 'ring-2 ring-blue-500 ring-inset' : ''}`}
+                        aria-invalid={priceInvalid}
+                        className={`${numericClass(priceInvalid)} w-28 ${selectedCellKeys.has(tableCellKey(item.id, 'price')) ? 'ring-2 ring-blue-500 ring-inset' : ''}`}
                       />
                     ) : displayNumber(item.price, 2)}
                   </td>
-                  <td className="px-3 py-2 text-right font-mono tabular-nums">
+                  <td className={`px-3 py-2 text-right font-mono tabular-nums ${lossInvalid ? 'bg-amber-50/60 text-amber-900' : ''}`}>
                     {isEditMode ? (
                       <div className="flex items-center justify-end gap-1">
                         <input
@@ -315,8 +335,8 @@ export const BOMTable: React.FC<BOMTableProps> = ({
                           data-grid-row-id={item.id}
                           data-grid-field="loss"
                           aria-label={`Loss percentage for ${item.description || `BOM row ${rowNumber}`}`}
-                          aria-invalid={!item.isGeneratedSizingPlaceholder && (item.loss === null || hasInvalidNumber(item.loss))}
-                          className={`${numericClass} w-20 ${selectedCellKeys.has(tableCellKey(item.id, 'loss')) ? 'ring-2 ring-blue-500 ring-inset' : ''}`}
+                          aria-invalid={lossInvalid}
+                          className={`${numericClass(lossInvalid)} w-20 ${selectedCellKeys.has(tableCellKey(item.id, 'loss')) ? 'ring-2 ring-blue-500 ring-inset' : ''}`}
                         />
                         <span className="text-slate-400">%</span>
                       </div>

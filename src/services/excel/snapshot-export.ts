@@ -31,13 +31,14 @@ function styleHeaderRow(row: ExcelJS.Row, columns: number): void {
   }
 }
 
-function styleDataRow(row: ExcelJS.Row, columns: number, numericColumns: number[] = []): void {
+function styleDataRow(row: ExcelJS.Row, columns: number, numericColumns: number[] = [], fractionPercentColumns: number[] = []): void {
   for (let column = 1; column <= columns; column += 1) {
     const cell = row.getCell(column)
     cell.fill = fillRow
     cell.font = fontData
     cell.border = borderThin
     if (numericColumns.includes(column)) cell.numFmt = '#,##0.0000'
+    if (fractionPercentColumns.includes(column)) cell.numFmt = '0.00%'
   }
 }
 
@@ -61,7 +62,8 @@ function writeProductSheet(sheet: ExcelJS.Worksheet, product: ProductMaster): vo
   sheet.getRow(3).values = headers
   styleHeaderRow(sheet.getRow(3), headers.length)
   sheet.getRow(4).values = [product.productName || product.productDescription, product.uom, product.sellingPrice ?? null, product.sgaPercent ?? null]
-  styleDataRow(sheet.getRow(4), headers.length, [3, 4])
+  styleDataRow(sheet.getRow(4), headers.length, [3])
+  sheet.getCell('D4').numFmt = '0.00"%"'
   sheet.autoFilter = 'A3:D4'
   sheet.views = [{ state: 'frozen', ySplit: 3 }]
 }
@@ -99,7 +101,7 @@ function writeBOMSheet(sheet: ExcelJS.Worksheet, snapshot: CostSnapshot): void {
   items.forEach((item, index) => {
     const row = sheet.getRow(index + 4)
     row.values = [item.description || item.itemCode, item.consumption, item.unit, item.price, item.loss, item.note || '']
-    styleDataRow(row, headers.length, [2, 4, 5])
+    styleDataRow(row, headers.length, [2, 4], [5])
   })
 
   if (items.length > 0) sheet.autoFilter = `A3:F${items.length + 3}`
@@ -126,7 +128,7 @@ function writeRoutingSheet(sheet: ExcelJS.Worksheet, snapshot: CostSnapshot): vo
       step.yield,
       step.note || ''
     ]
-    styleDataRow(row, headers.length, [3, 4, 5])
+    styleDataRow(row, headers.length, [3, 4], [5])
   })
 
   if (steps.length > 0) sheet.autoFilter = `A3:F${steps.length + 3}`

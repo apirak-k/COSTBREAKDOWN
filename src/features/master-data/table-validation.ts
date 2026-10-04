@@ -20,3 +20,12 @@ export function duplicateIdentityIds<T extends { isGeneratedSizingPlaceholder?: 
 export function hasInvalidNumber(value: number | null | undefined): boolean {
   return value !== null && value !== undefined && (!Number.isFinite(value) || value < 0)
 }
+
+export function parsePercentage(value: string): number | null {
+  const normalized = value.trim()
+  if (!normalized) return null
+  const hasPercentSuffix = normalized.endsWith('%')
+  const numericText = (hasPercentSuffix ? normalized.slice(0, -1) : normalized).replace(/,/g, '').trim()
+  const numericValue = Number(numericText)
+  return Number.isFinite(numericValue) ? numericValue / 100 : Number.NaN
+}

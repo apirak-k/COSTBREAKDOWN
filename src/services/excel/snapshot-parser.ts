@@ -49,6 +49,23 @@ function numberValue(
   return { value: parsed, quality: 'valid' }
 }
 
+function fractionPercentValue(
+  value: CellValue | undefined,
+  label: string,
+  rowNumber: number,
+  warnings: string[]
+): NumericResult {
+  if (typeof value === 'string' && value.trim().endsWith('%')) {
+    const parsed = Number(value.trim().slice(0, -1).replace(/,/g, '').trim()) / 100
+    if (!Number.isFinite(parsed)) {
+      warnings.push(`Invalid ${label} at row ${rowNumber}`)
+      return { value: null, quality: 'invalid' }
+    }
+    return { value: parsed, quality: 'valid' }
+  }
+  return numberValue(value, label, rowNumber, warnings)
+}
+
 function optionalNumberValue(
   value: CellValue | undefined,
   label: string,
@@ -335,7 +352,7 @@ function parseBOM(
     const explicitConfidence = parseConfidence(cell(row, map, ['confidence', 'status']))
     const consumption = numberValue(cell(row, map, ['consumption', 'usage', 'quantity']), 'consumption', rowNumber, warnings)
     const price = numberValue(cell(row, map, ['price', 'material price']), 'price', rowNumber, warnings)
-    const loss = numberValue(cell(row, map, ['loss', 'loss rate']), 'loss', rowNumber, warnings)
+    const loss = fractionPercentValue(cell(row, map, ['loss', 'loss rate']), 'loss', rowNumber, warnings)
     const description = name
     const unit = textValue(cell(row, map, ['unit', 'uom']))
     if (!unit) warnings.push(`Missing unit at row ${rowNumber}`)
@@ -402,7 +419,7 @@ function parseRouting(
     const sequence = optionalNumberValue(cell(row, map, ['sequence', 'seq', 'op seq']), 'sequence', rowNumber, warnings)
     const manning = numberValue(cell(row, map, ['manning', 'headcount']), 'manning', rowNumber, warnings)
     const capacity = numberValue(cell(row, map, ['capacity', 'cap']), 'capacity', rowNumber, warnings)
-    const yieldValue = numberValue(cell(row, map, ['yield', 'yield rate']), 'yield', rowNumber, warnings)
+    const yieldValue = fractionPercentValue(cell(row, map, ['yield', 'yield rate']), 'yield', rowNumber, warnings)
     const workCenterId = textValue(cell(row, map, ['work center id', 'workcenterid', 'work center code', 'work center', 'wc']))
     if (!processName) warnings.push(`Missing Process at row ${rowNumber}`)
     if (!workCenterId) warnings.push(`Missing workCenterId at row ${rowNumber}`)
