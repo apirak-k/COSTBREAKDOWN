@@ -113,7 +113,7 @@ export const MasterDataWorkspaceHeader: React.FC<MasterDataWorkspaceHeaderProps>
   }
 
   return (
-    <section className="overflow-visible border border-slate-300 bg-white" aria-label="Working dataset controls">
+    <section className="sticky top-0 z-40 overflow-visible border border-slate-300 bg-white" aria-label="Working dataset controls">
       <div role="toolbar" aria-label="Dataset and table actions" className="flex flex-wrap items-center gap-1 border-b border-slate-300 bg-white px-1.5 py-1">
       <div className="contents">
         <div className="contents">

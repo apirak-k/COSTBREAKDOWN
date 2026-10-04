@@ -169,8 +169,8 @@ export const MasterDataPage: React.FC = () => {
   }
 
   const tableSections = [
-    { key: 'wc' as const, id: 'master-data-table-wc', label: 'Work Centers', navLabel: 'Work Centers', icon: Factory },
     { key: 'bom' as const, id: 'master-data-table-bom', label: 'BOM', navLabel: 'BOM', icon: Box },
+    { key: 'wc' as const, id: 'master-data-table-wc', label: 'Work Centers', navLabel: 'Work Centers', icon: Factory },
     { key: 'routing' as const, id: 'master-data-table-routing', label: 'Process Routing', navLabel: 'Routing', icon: GitCommit }
   ]
   const activeSection = tableSections.find(section => section.key === activeTableTab)

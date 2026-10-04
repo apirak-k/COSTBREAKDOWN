@@ -9,15 +9,31 @@ const navItems = [
 ] as const
 
 export const Navbar: React.FC = () => {
-  const { activeTab, setActiveTab, snapshotPair } = useAppStore()
-  const referenceCode = snapshotPair.reference.product.productCode || 'NO CODE'
-  const currentCode = snapshotPair.current.product.productCode || 'NO CODE'
+  const {
+    activeTab,
+    setActiveTab,
+    snapshotPair,
+    isSelectedComparisonActive,
+    masterDataHandoff
+  } = useAppStore()
+  const currentProduct = snapshotPair.current.product
+  const currentProductName = currentProduct.productName || currentProduct.productDescription || '—'
+  const currentUom = currentProduct.uom || '—'
+  const hasProductMismatch = masterDataHandoff.warnings?.some(warning => warning.startsWith('Product mismatch:')) ?? false
+  const workflowStatus = isSelectedComparisonActive
+    ? 'Selected Comparison Mode'
+    : hasProductMismatch
+      ? 'Product Mismatch'
+      : masterDataHandoff.datasetsPrepared
+        ? 'Datasets Prepared'
+        : 'Preparation Incomplete'
+  const statusIsWarning = !isSelectedComparisonActive && (hasProductMismatch || !masterDataHandoff.datasetsPrepared)
 
   return (
     <header className="sticky top-0 z-50 select-none border-b border-slate-800 bg-slate-900 text-white shadow-xs">
       <div className="w-full px-3 sm:px-4 lg:px-4">
         <div className="flex min-h-12 flex-col gap-1 py-1 lg:flex-row lg:items-center lg:justify-between">
-          <div className="flex min-h-8 shrink-0 items-center gap-3">
+          <div className="flex min-h-8 min-w-0 flex-wrap items-center gap-x-3 gap-y-1">
             <span aria-hidden="true" className="grid h-7 w-7 place-items-center rounded-sm border border-slate-700 bg-slate-800 font-mono text-[11px] font-bold tracking-tight text-slate-200">
               CB
             </span>
@@ -27,17 +43,26 @@ export const Navbar: React.FC = () => {
             </div>
             <div
               role="group"
-              aria-label={`Reference ${referenceCode}; Current ${currentCode}`}
-              className="hidden min-w-0 items-center gap-1.5 font-mono text-[9px] xl:flex"
+              aria-label={`Current product: ${currentProductName}, UOM: ${currentUom}`}
+              className="flex min-w-0 items-center gap-1.5 font-mono text-[9px]"
             >
-              <span className="border border-slate-700 bg-slate-800 px-2 py-1 text-slate-300">
-                <span className="mr-1 text-slate-500">REF</span>
-                <span className="max-w-28 truncate font-semibold text-slate-100">{referenceCode}</span>
+              <span className="shrink-0 text-slate-500">PRODUCT</span>
+              <span title={currentProductName} className="max-w-24 truncate font-semibold text-slate-100 sm:max-w-40">
+                {currentProductName}
               </span>
-              <span className="border border-slate-700 bg-slate-800 px-2 py-1 text-slate-300">
-                <span className="mr-1 text-slate-500">CUR</span>
-                <span className="max-w-28 truncate font-semibold text-slate-100">{currentCode}</span>
-              </span>
+              <span className="shrink-0 text-slate-400">({currentUom})</span>
+            </div>
+            <div
+              role="status"
+              aria-label={`Workflow status: ${workflowStatus}`}
+              className={`flex shrink-0 items-center gap-1.5 border px-2 py-1 font-mono text-[9px] ${
+                statusIsWarning
+                  ? 'border-amber-700 bg-amber-950/40 text-amber-100'
+                  : 'border-slate-700 bg-slate-800 text-slate-100'
+              }`}
+            >
+              <span className="text-slate-400">STATUS</span>
+              <span>{workflowStatus}</span>
             </div>
           </div>
 

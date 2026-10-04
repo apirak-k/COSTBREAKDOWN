@@ -19,7 +19,7 @@ export const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
         : 'text-slate-200'
 
   return (
-    <div className="min-h-screen min-h-dvh bg-slate-100/70 text-slate-900 flex flex-col font-sans text-xs antialiased">
+    <div className="h-dvh min-h-0 overflow-hidden bg-slate-100/70 text-slate-900 flex flex-col font-sans text-xs antialiased">
       <a
         href="#main-content"
         className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-[100] focus:rounded-md focus:bg-white focus:px-4 focus:py-3 focus:font-medium focus:text-slate-900 focus:shadow-lg"
@@ -30,7 +30,7 @@ export const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
       <main
         id="main-content"
         tabIndex={-1}
-        className="mx-auto w-full max-w-7xl flex-1 px-3 py-4 sm:px-4 lg:px-6"
+        className="mx-auto min-h-0 w-full max-w-7xl flex-1 overflow-y-auto px-3 py-4 sm:px-4 lg:px-6"
       >
         {children}
       </main>
