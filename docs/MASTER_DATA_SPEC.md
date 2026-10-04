@@ -600,10 +600,10 @@ It is **not Save history** and does not create persistent versions.
 
 Selection and row movement must use **separate interaction targets** so one drag gesture never ambiguously means both "select" and "move".
 
-Use a narrow row-control gutter to the left of the actual data columns:
+Keep the display row number pinned at the left edge. In Edit Mode, place the dedicated reorder handle in the table's rightmost column, after Actions:
 
 ```text
-[drag handle] [#] | dataset columns...
+[#] | dataset columns... | [Actions] [drag handle]
 ```
 
 These are UI controls, not dataset fields.
@@ -644,6 +644,12 @@ Data cells remain dedicated to spreadsheet interaction:
 This prevents row selection/reorder gestures from conflicting with data entry.
 
 ---
+
+### 12.4 Warning density
+
+- Do not render warning prose, per-row issue badges, or warning-count footers inside Master Data tables.
+- Keep invalid values visibly marked at the affected cell and expose dataset-level notices outside the tables.
+- In Cost Breakdown, keep the warning count concise and collapse the full details by default; remove duplicate alert copy.
 
 ## 13. Bulk Editing
 

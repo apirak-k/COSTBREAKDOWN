@@ -1878,3 +1878,13 @@ This document is intentionally comprehensive and should be treated as the conver
 ## Execution
 
 - Implement the AI-ready scope in small verified chunks, update this source context and the single 80-topic ledger with evidence, commit each coherent stage, then push the authorized branch. Keep deferred work and human acceptance visible in the handoff.
+
+---
+
+# 78. Table and Warning Density — 2026-10-05
+
+**FINALIZED by the user's latest UI direction.**
+
+- Keep warning prose, per-row issue badges, and warning-count footers out of Master Data tables. Preserve cell-level invalid cues and show dataset-level notices outside the tables.
+- Keep `#` at the left; place the reorder-only drag handle in the rightmost table column, after Actions.
+- On Cost Breakdown, remove the redundant top calculation warning banner. Keep the full warning details available in a collapsed disclosure with the concise label `Review warnings (N)`.

@@ -22,6 +22,7 @@ The older files in `agreements/` are historical references only. The user said t
 - Excel templates and exports use four data tabs in this order: `META`, `BOM`, `ROUTING`, `WORK_CENTER`. Product metadata and Dataset Remark share `META`. `COST_CALCULATION` is a separate formula-linked view.
 - The Excel calculation view mirrors the current Cost Engine: Material = Usage × Price × (1 + Loss); Labor and Burden = Manning ÷ (Capacity × Yield) × the matching Work Center rate. It is an inspectable Standard Cost calculation, not a new accounting model. GP/COGS/OP, margin, and monetary SG&A formulas remain deferred.
 - Use the supplied screenshot as the layout direction for the complete Master Data page. Its displayed BOM table is an example, not the only table. Keep the Master Data toolbar and metadata summary together at the top of its scroll region and keep the workspace footer at the bottom of the application frame.
+- Keep warning prose/counts out of Master Data table rows and footers; retain cell-level invalid cues and show dataset notices outside tables. Keep `#` at the left and the reorder-only drag handle in the rightmost table column. Collapse Cost Breakdown warning details behind a concise count by default and remove duplicate alert copy.
 
 ## Supporting project documents
 

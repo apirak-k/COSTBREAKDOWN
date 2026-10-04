@@ -6,7 +6,7 @@
 
 ## Current Progress Snapshot — 2026-10-05
 
-- The crosswalk is the sole per-topic status ledger for the 80 source topics; its counts and evidence are not repeated here. Master Data behavior/data is closed, and Selected Comparison displays only its selected-scope Gap. Candidate/RCA redesign, dashboard details, accounting formulas, and Trial remain future scope unless a later source closes them.
+- The crosswalk is the sole per-topic status ledger for the 80 source topics; its counts and evidence are not repeated here. Master Data behavior/data is closed, and Selected Comparison displays only its selected-scope Gap. The latest UI refinement keeps warning prose out of tables, moves the reorder handle to the rightmost column, and collapses Cost Breakdown warning details. Candidate/RCA redesign, dashboard details, accounting formulas, and Trial remain future scope unless a later source closes them.
 - This file holds the task-level implementation plan and verification detail below. Automated evidence and human UX acceptance remain separate.
 
 ### Final integration gate
@@ -97,10 +97,10 @@ Per-topic PASS/PARTIAL/OPEN/DEFERRED/RECORDED status and the exact next actions 
 **Acceptance criteria:**
 - [x] Master Data follows the screenshot's overall layout, with table selection for Work Centers, BOM, Routing, and All Tables; it is not limited to BOM.
 - [x] Every table view shows its approved fields and keeps data editing/selection behavior consistent.
-- [x] Search is the single query control; validation remains visible and non-blocking.
+- [x] Search is the single query control; validation remains visible and non-blocking, with warning prose outside the tables.
 - [x] Routing Work Center references resolve against the WC list without inventing a cost when missing.
 
-**Verification:** Production build passed. Browser review checked Work Centers, Routing, and All Tables; All Tables visibly contained BOM → Work Centers → Routing with the approved columns. Toolbar/metadata remained together and Footer stayed at the viewport bottom while scrolling.
+**Verification:** Production build passed. Browser review checked Work Centers, Routing, and All Tables; All Tables visibly contained BOM → Work Centers → Routing with the approved columns. Toolbar/metadata remained together and Footer stayed at the viewport bottom while scrolling. The 2026-10-05 focused verifier additionally checks that invalid rows have no inline warning prose/counts and the reorder handle is the final column in BOM, WC, and Routing.
 
 **Dependencies:** Tasks 1–3.
 
@@ -114,10 +114,10 @@ Per-topic PASS/PARTIAL/OPEN/DEFERRED/RECORDED status and the exact next actions 
 
 **Acceptance criteria:**
 - [x] Arrow keys/Tab/Enter, copy/paste, and range selection work in editable cells; undo/redo is provided where practical.
-- [x] Row-number selection and the reorder-only drag handle are separate controls; both controls stay pinned in the left gutter during horizontal scrolling.
+- [x] Row-number selection and the reorder-only drag handle are separate controls; `#` stays pinned at the left and the drag handle is the rightmost table column after Actions.
 - [x] Add/Delete selected rows and bulk edits do not change comparison identity by row position; dragging a selected row moves its selected group in source order.
 
-**Verification:** Production build passed. Isolated-browser review confirmed arrow/Tab/Enter navigation, TSV and cell copy/paste, visible invalid-cell feedback, undo/redo, same-column bulk edits in BOM/Work Centers/Routing, row-range selection, independent row-number and reorder controls, selected-group movement in source order, identity-based matching after reorder, add/delete in all three tables, selection reset on dataset-side change, and pinned row controls during horizontal scrolling at a 700px viewport.
+**Verification:** Earlier isolated-browser review confirmed arrow/Tab/Enter navigation, TSV and cell copy/paste, cell-level invalid feedback, undo/redo, same-column bulk edits in BOM/Work Centers/Routing, row-range selection, independent row-number and reorder controls, selected-group movement in source order, identity-based matching after reorder, add/delete in all three tables, and selection reset on dataset-side change. After the user chose a rightmost drag handle, `verify_cost_breakdown_review_feedback.mjs` confirmed by server rendering that `#` is left-pinned and the reorder control is the final column in all three tables. `[Unverified]` Browser-level reachability of the rightmost handle during horizontal scrolling was not rechecked; do not reuse the earlier left-gutter browser result as evidence for the new location.
 
 **Dependencies:** Task 4.
 
@@ -169,11 +169,11 @@ Per-topic PASS/PARTIAL/OPEN/DEFERRED/RECORDED status and the exact next actions 
 
 **Acceptance criteria:**
 - [x] Master Data follows the screenshot's full-page layout, and its table controls expose Work Centers, BOM, Routing, and All Tables while using the approved field schema and interaction rules.
-- [x] Downstream pages follow the agreed result → cause → detail direction where confirmed calculations support it.
+- [x] Downstream pages follow the agreed result → cause → detail direction where confirmed calculations support it; Cost Breakdown warning details are collapsed by default behind a concise count, without the duplicate top warning banner.
 - [x] No unapproved GP/COGS/OP, margin, SG&A monetary, MatVAR/LBVAR/BDVAR, or chart formula is introduced.
 - [x] `npm run build` succeeds; changed flows are presented for human review with implementation evidence distinct from acceptance.
 
-**Verification:** `npm run build` succeeded and focused verifiers passed for the current schema, row identity/processing regression, Candidate, Master Data handoff, workbook round trips, and sizing/clone model behavior. Isolated-browser review covered the Master Data structure/interactions and a valid Selected Comparison flow through Cost Breakdown → Candidate → RCA. Current per-topic browser gaps are maintained only in `source-crosswalk-80.md`; the narrow-viewport row-control check passed. Human UX acceptance remains pending. The interactive business graph/live-scenario direction is future scope until calculation formulas and chart UX are agreed.
+**Verification:** `npm run build` succeeded and focused verifiers passed for the current schema, row identity/processing regression, Candidate, Master Data handoff, workbook round trips, sizing/clone model behavior, and the latest table/warning-density refinement. Isolated-browser review covered the Master Data structure/interactions and a valid Selected Comparison flow through Cost Breakdown → Candidate → RCA. `[Unverified]` The latest warning-density and rightmost-handle layout was not reviewed in a browser; current per-topic browser gaps are maintained only in `source-crosswalk-80.md`. Human UX acceptance remains pending. The interactive business graph/live-scenario direction is future scope until calculation formulas and chart UX are agreed.
 
 **Dependencies:** Tasks 1–7.
 
