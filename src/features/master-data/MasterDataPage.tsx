@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react'
-import { AlertTriangle, Box, ChevronDown, ChevronUp, Factory, GitCommit, Layers } from 'lucide-react'
+import { AlertTriangle, Box, ChevronDown, ChevronUp, Factory, GitCommit } from 'lucide-react'
 import { useAppStore } from '../../state'
 
 import { MasterDataWorkspaceHeader } from './components/MasterDataWorkspaceHeader'
@@ -49,7 +49,7 @@ export const MasterDataPage: React.FC = () => {
 
   const [isEditMode, setIsEditMode] = useState(false)
   const [activeTableTab, setActiveTableTab] = useState<TableSubTab>('bom')
-  const [isAllTablesVisible, setIsAllTablesVisible] = useState(true)
+  const [isAllTablesVisible, setIsAllTablesVisible] = useState(false)
   const [importModalOpen, setImportModalOpen] = useState(false)
   const [sizingModalOpen, setSizingModalOpen] = useState(false)
   const [warningsExpanded, setWarningsExpanded] = useState(false)
@@ -88,12 +88,6 @@ export const MasterDataPage: React.FC = () => {
     }
     return list
   }, [masterDataSnapshot.warnings, masterDataHandoff.warnings])
-
-  const tableLabel = activeTableTab === 'bom'
-    ? 'BOM'
-    : activeTableTab === 'routing'
-      ? 'Routing'
-      : 'WC'
 
   const renderTable = (table: TableSubTab) => {
     if (table === 'wc') {
@@ -168,6 +162,45 @@ export const MasterDataPage: React.FC = () => {
     { key: 'routing' as const, id: 'master-data-table-routing', label: 'Process Routing', navLabel: 'Routing', icon: GitCommit }
   ]
   const activeSection = tableSections.find(section => section.key === activeTableTab)
+  const tableSelector = (
+    <div className="flex flex-wrap items-center gap-1" role="group" aria-label="Master Data table section">
+      {tableSections.map(section => {
+        const Icon = section.icon
+        const isActive = !isAllTablesVisible && activeTableTab === section.key
+        return (
+          <button
+            key={section.key}
+            type="button"
+            aria-pressed={isActive}
+            aria-controls="master-data-table-panel"
+            onClick={() => {
+              setActiveTableTab(section.key)
+              setIsAllTablesVisible(false)
+            }}
+            className={'inline-flex min-h-8 items-center gap-1.5 border px-2.5 font-mono text-xs font-medium transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700 ' +
+              (isActive
+                ? 'border-slate-900 bg-slate-900 text-white'
+                : 'border-slate-300 bg-white text-slate-700 hover:bg-slate-100 hover:text-slate-950')}
+          >
+            <Icon className="h-3.5 w-3.5" aria-hidden="true" />
+            {section.navLabel}
+          </button>
+        )
+      })}
+      <button
+        type="button"
+        aria-pressed={isAllTablesVisible}
+        aria-controls="master-data-table-panel"
+        onClick={() => setIsAllTablesVisible(true)}
+        className={'min-h-8 border px-2.5 font-mono text-xs font-medium transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700 ' +
+          (isAllTablesVisible
+            ? 'border-slate-900 bg-slate-900 text-white'
+            : 'border-slate-300 bg-white text-slate-700 hover:bg-slate-100 hover:text-slate-950')}
+      >
+        All tables
+      </button>
+    </div>
+  )
 
   return (
     <div className="space-y-5">
@@ -222,6 +255,7 @@ export const MasterDataPage: React.FC = () => {
         onOpenSizingModal={() => setSizingModalOpen(true)}
         referenceCounts={referenceCounts}
         currentCounts={currentCounts}
+        tableSelector={tableSelector}
       />
 
       {allNotices.length > 0 && (
@@ -257,79 +291,10 @@ export const MasterDataPage: React.FC = () => {
       )}
 
       <section className="overflow-hidden border border-slate-300 bg-white" aria-label="Working dataset tables">
-        <div className="flex flex-col gap-2 border-b border-slate-300 bg-slate-100 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <h2 className="font-mono text-[11px] font-bold uppercase tracking-wide text-slate-950">Dataset tables</h2>
-            <p className="mt-0.5 text-[11px] text-slate-600">
-              {isAllTablesVisible
-                ? 'All sections are shown below. Use the links to move between them.'
-                : 'Select one section to review or edit its rows.'}
-            </p>
-          </div>
-          {isAllTablesVisible ? (
-            <nav className="flex min-w-0 flex-wrap items-center gap-1.5" aria-label="Jump to dataset table">
-              {tableSections.map(section => {
-                const Icon = section.icon
-                return (
-                  <a
-                    key={section.key}
-                    href={'#' + section.id}
-                    onClick={() => setActiveTableTab(section.key)}
-                    className="inline-flex min-h-8 items-center gap-1.5 border border-slate-300 bg-white px-2.5 font-mono text-xs text-slate-700 transition-colors hover:border-slate-500 hover:text-slate-950 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700"
-                  >
-                    <Icon className="h-3.5 w-3.5" aria-hidden="true" />
-                    {section.navLabel}
-                  </a>
-                )
-              })}
-              <button
-                type="button"
-                onClick={() => setIsAllTablesVisible(false)}
-                className="min-h-8 border border-slate-400 bg-slate-200 px-2.5 font-mono text-xs font-medium text-slate-800 transition-colors hover:bg-slate-300 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700"
-              >
-                Show {tableLabel} only
-              </button>
-            </nav>
-          ) : (
-            <div className="flex min-w-0 flex-wrap items-center gap-1" role="group" aria-label="Dataset table sections">
-              {tableSections.map(section => {
-                const Icon = section.icon
-                const isActive = activeTableTab === section.key
-                return (
-                  <button
-                    key={section.key}
-                    type="button"
-                    aria-pressed={isActive}
-                    aria-controls="master-data-table-panel"
-                    onClick={() => setActiveTableTab(section.key)}
-                    className={'flex min-h-8 items-center gap-1.5 border-b-2 px-2.5 font-mono text-xs font-medium transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-blue-700 ' +
-                      (isActive
-                        ? 'border-b-blue-700 bg-white text-slate-950'
-                        : 'border-b-transparent text-slate-600 hover:bg-white hover:text-slate-950')}
-                  >
-                    <Icon className="h-3.5 w-3.5 text-slate-600" aria-hidden="true" />
-                    <span>{section.navLabel}</span>
-                  </button>
-                )
-              })}
-              <button
-                type="button"
-                aria-pressed={isAllTablesVisible}
-                aria-controls="master-data-table-panel"
-                onClick={() => setIsAllTablesVisible(true)}
-                className="flex min-h-8 items-center gap-1.5 border border-slate-300 bg-white px-2.5 font-mono text-xs font-medium text-slate-700 transition-colors hover:bg-slate-50 hover:text-slate-950 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700"
-              >
-                <Layers className="h-3.5 w-3.5" aria-hidden="true" />
-                All tables
-              </button>
-            </div>
-          )}
-        </div>
-
         <div
           id="master-data-table-panel"
           role="region"
-          aria-label={isAllTablesVisible ? 'All dataset tables' : tableLabel + ' table'}
+          aria-label={isAllTablesVisible ? 'All dataset tables' : `${activeSection?.label ?? 'Dataset'} table`}
         >
           {isAllTablesVisible
             ? tableSections.map(section => (

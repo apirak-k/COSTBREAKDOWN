@@ -41,6 +41,7 @@ interface MasterDataWorkspaceHeaderProps {
   onOpenSizingModal: () => void
   referenceCounts: { bom: number; routing: number; rates: number }
   currentCounts: { bom: number; routing: number; rates: number }
+  tableSelector: React.ReactNode
 }
 
 const toolbarButton = 'inline-flex min-h-9 items-center justify-center gap-1.5 border border-slate-300 bg-white px-3 text-xs font-medium text-slate-700 transition-colors hover:bg-slate-100 hover:text-slate-950 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700'
@@ -68,7 +69,8 @@ export const MasterDataWorkspaceHeader: React.FC<MasterDataWorkspaceHeaderProps>
   onOpenImportModal,
   onOpenSizingModal,
   referenceCounts,
-  currentCounts
+  currentCounts,
+  tableSelector
 }) => {
   const [showReadinessPopover, setShowReadinessPopover] = useState(false)
 
@@ -145,35 +147,6 @@ export const MasterDataWorkspaceHeader: React.FC<MasterDataWorkspaceHeaderProps>
             </button>
           </div>
 
-          {isCurrent && (
-            <button
-              type="button"
-              onClick={handleCloneRefToCurWithConfirm}
-              disabled={!canCloneReference}
-              className={toolbarButton + ' disabled:cursor-not-allowed disabled:opacity-50'}
-              title={canCloneReference
-                ? 'Copy Reference dataset into Current to quickly modify values'
-                : 'Prepare Reference dataset first before copying to Current'}
-            >
-              <Copy className="h-3.5 w-3.5 text-slate-500" aria-hidden="true" />
-              <span>Copy Reference to Current</span>
-            </button>
-          )}
-
-          {isReference && (
-            <button
-              type="button"
-              onClick={handleCloneCurToRefWithConfirm}
-              disabled={!canCloneCurrent}
-              className={toolbarButton + ' disabled:cursor-not-allowed disabled:opacity-50'}
-              title={canCloneCurrent
-                ? 'Copy Current dataset into Reference'
-                : 'Prepare Current dataset first before copying to Reference'}
-            >
-              <Copy className="h-3.5 w-3.5 rotate-180 text-slate-500" aria-hidden="true" />
-              <span>Copy Current to Reference</span>
-            </button>
-          )}
         </div>
 
         <div className="relative flex shrink-0 items-center">
@@ -255,6 +228,102 @@ export const MasterDataWorkspaceHeader: React.FC<MasterDataWorkspaceHeaderProps>
               )}
             </div>
           )}
+        </div>
+      </div>
+
+      <div role="toolbar" aria-label="Dataset and table actions" className="flex flex-wrap items-center gap-2 border-b border-slate-300 bg-white px-4 py-3">
+        <div className="inline-flex border border-slate-300 bg-white p-0.5" role="group" aria-label="View or edit dataset">
+          <button
+            type="button"
+            aria-pressed={!isEditMode}
+            onClick={() => onToggleEditMode(false)}
+            className={'inline-flex min-h-8 items-center gap-1.5 px-2.5 text-xs font-medium transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-blue-700 ' +
+              (!isEditMode ? 'bg-slate-900 text-white' : 'text-slate-700 hover:bg-slate-100')}
+          >
+            <Eye className="h-3.5 w-3.5" aria-hidden="true" />
+            View
+          </button>
+          <button
+            type="button"
+            aria-pressed={isEditMode}
+            onClick={() => onToggleEditMode(true)}
+            className={'inline-flex min-h-8 items-center gap-1.5 px-2.5 text-xs font-medium transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-blue-700 ' +
+              (isEditMode ? 'bg-slate-900 text-white' : 'text-slate-700 hover:bg-slate-100')}
+          >
+            <Edit3 className="h-3.5 w-3.5" aria-hidden="true" />
+            Edit
+          </button>
+        </div>
+
+        <button type="button" onClick={onOpenSizingModal} className={toolbarButton} title="Configure dataset row starting counts">
+          <Sliders className="h-3.5 w-3.5 text-slate-500" aria-hidden="true" />
+          Sizing
+        </button>
+
+        <div className="inline-flex divide-x divide-slate-300 border border-slate-300 bg-white">
+          <button type="button" onClick={onOpenImportModal} className={toolbarButton + ' border-0'} title="Import Excel file into selected dataset">
+            <Upload className="h-3.5 w-3.5 text-slate-500" aria-hidden="true" />
+            Import
+          </button>
+          <button
+            type="button"
+            onClick={handleExportDataset}
+            disabled={!lastSavedSnapshot}
+            className={toolbarButton + ' border-0 disabled:cursor-not-allowed disabled:opacity-45 cursor-pointer'}
+            title={lastSavedSnapshot ? 'Export Last Saved dataset to Excel' : 'Save this dataset before exporting'}
+          >
+            <Download className="h-3.5 w-3.5 text-slate-500" aria-hidden="true" />
+            Export
+          </button>
+        </div>
+
+        <button
+          type="button"
+          onClick={isCurrent ? handleCloneRefToCurWithConfirm : handleCloneCurToRefWithConfirm}
+          disabled={isCurrent ? !canCloneReference : !canCloneCurrent}
+          aria-label={isCurrent ? 'Clone Reference into Current' : 'Clone Current into Reference'}
+          className={toolbarButton + ' disabled:cursor-not-allowed disabled:opacity-50'}
+          title={isCurrent
+            ? canCloneReference ? 'Copy Reference dataset into Current' : 'Prepare Reference dataset first before copying to Current'
+            : canCloneCurrent ? 'Copy Current dataset into Reference' : 'Prepare Current dataset first before copying to Reference'}
+        >
+          <Copy className="h-3.5 w-3.5 text-slate-500" aria-hidden="true" />
+          Clone
+        </button>
+
+        <button
+          type="button"
+          onClick={handleResetDatasetWithConfirm}
+          disabled={!lastSavedSnapshot}
+          className={toolbarButton + ' disabled:cursor-not-allowed disabled:opacity-45 cursor-pointer'}
+          title={lastSavedSnapshot ? 'Reset selected Working dataset from Last Saved' : 'No Last Saved state exists for this dataset'}
+        >
+          <RotateCcw className="h-3.5 w-3.5" aria-hidden="true" />
+          Reset
+        </button>
+
+        <button
+          type="button"
+          onClick={handleClearDatasetWithConfirm}
+          className="inline-flex min-h-9 items-center justify-center gap-1.5 border border-rose-300 bg-rose-50 px-3 text-xs font-medium text-rose-800 transition-colors hover:bg-rose-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-rose-700"
+          title={'Clear all data on ' + (role === 'reference' ? 'Reference' : 'Current')}
+        >
+          <Trash2 className="h-3.5 w-3.5 text-rose-700" aria-hidden="true" />
+          Clear
+        </button>
+
+        <button
+          type="button"
+          onClick={onSaveWorkingDataset}
+          className={toolbarButton + ' border-blue-300 bg-blue-50 font-semibold text-blue-800 hover:bg-blue-100 hover:text-blue-950'}
+          title={`Save ${role === 'reference' ? 'Reference' : 'Current'} Working as Last Saved`}
+        >
+          <Save className="h-3.5 w-3.5" aria-hidden="true" />
+          Save
+        </button>
+
+        <div className="ml-auto flex flex-wrap items-center gap-2 border-t border-slate-200 pt-2 sm:border-0 sm:pt-0">
+          {tableSelector}
         </div>
       </div>
 
@@ -363,89 +432,6 @@ export const MasterDataWorkspaceHeader: React.FC<MasterDataWorkspaceHeaderProps>
           </div>
         </dl>
 
-        <div role="toolbar" aria-label="Dataset actions" className="mt-3 flex flex-wrap items-center gap-2 border-t border-slate-300 pt-3">
-          <div className="inline-flex border border-slate-300 bg-white p-0.5" role="group" aria-label="View or edit dataset">
-            <button
-              type="button"
-              aria-pressed={!isEditMode}
-              onClick={() => onToggleEditMode(false)}
-              className={'inline-flex min-h-8 items-center gap-1.5 px-2.5 text-xs font-medium transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-blue-700 ' +
-                (!isEditMode ? 'bg-slate-900 text-white' : 'text-slate-700 hover:bg-slate-100')}
-            >
-              <Eye className="h-3.5 w-3.5" aria-hidden="true" />
-              View
-            </button>
-            <button
-              type="button"
-              aria-pressed={isEditMode}
-              onClick={() => onToggleEditMode(true)}
-              className={'inline-flex min-h-8 items-center gap-1.5 px-2.5 text-xs font-medium transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-blue-700 ' +
-                (isEditMode ? 'bg-slate-900 text-white' : 'text-slate-700 hover:bg-slate-100')}
-            >
-              <Edit3 className="h-3.5 w-3.5" aria-hidden="true" />
-              Edit
-            </button>
-          </div>
-
-          <button type="button" onClick={onOpenSizingModal} className={toolbarButton} title="Configure dataset row starting counts">
-            <Sliders className="h-3.5 w-3.5 text-slate-500" aria-hidden="true" />
-            Sizing
-          </button>
-
-          <div className="inline-flex divide-x divide-slate-300 border border-slate-300 bg-white">
-            <button
-              type="button"
-              onClick={onOpenImportModal}
-              className={toolbarButton + ' border-0'}
-              title="Import Excel file into selected dataset"
-            >
-              <Upload className="h-3.5 w-3.5 text-slate-500" aria-hidden="true" />
-              Import
-            </button>
-            <button
-              type="button"
-              onClick={handleExportDataset}
-              disabled={!lastSavedSnapshot}
-              className={toolbarButton + ' border-0 disabled:cursor-not-allowed disabled:opacity-45 cursor-pointer'}
-              title={lastSavedSnapshot ? 'Export Last Saved dataset to Excel' : 'Save this dataset before exporting'}
-            >
-              <Download className="h-3.5 w-3.5 text-slate-500" aria-hidden="true" />
-              Export
-            </button>
-          </div>
-
-          <button
-            type="button"
-            onClick={onSaveWorkingDataset}
-            className={toolbarButton + ' border-blue-300 bg-blue-50 font-semibold text-blue-800 hover:bg-blue-100 hover:text-blue-950'}
-            title={`Save ${role === 'reference' ? 'Reference' : 'Current'} Working as Last Saved`}
-          >
-            <Save className="h-3.5 w-3.5" aria-hidden="true" />
-            Save
-          </button>
-
-          <button
-            type="button"
-            onClick={handleResetDatasetWithConfirm}
-            disabled={!lastSavedSnapshot}
-            className={toolbarButton + ' disabled:cursor-not-allowed disabled:opacity-45 cursor-pointer'}
-            title={lastSavedSnapshot ? 'Reset selected Working dataset from Last Saved' : 'No Last Saved state exists for this dataset'}
-          >
-            <RotateCcw className="h-3.5 w-3.5" aria-hidden="true" />
-            Reset
-          </button>
-
-          {/* Clear Dataset Button */}
-          <button
-            type="button"
-            onClick={handleClearDatasetWithConfirm}
-            className="inline-flex min-h-9 items-center justify-center gap-1.5 border border-rose-300 bg-rose-50 px-3 text-xs font-medium text-rose-800 transition-colors hover:bg-rose-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-rose-700"
-            title={'Clear all data on ' + (role === 'reference' ? 'Reference' : 'Current')}
-          >
-            <Trash2 className="h-3.5 w-3.5 text-rose-700" aria-hidden="true" />
-            Clear dataset
-          </button>
-        </div>
       </div>
     </section>
   )
