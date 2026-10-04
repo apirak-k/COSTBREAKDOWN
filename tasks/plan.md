@@ -2,7 +2,7 @@
 
 ## Revision and scope
 
-This is the active plan as of 2026-10-05. It follows the user's complete shared-chat decisions, `docs/MASTER_DATA_SPEC.md`, and `docs/COSTBREAKDOWN_REVIEW_CONTEXT_FOR_CODEX.md`, with precedence recorded in `docs/REQUIREMENTS_INDEX.md`. The earlier agreement plan is retained below as history; its future scope and open questions are superseded where the newer sources make a decision.
+This is the active plan as of 2026-10-05. It follows the user's latest recorded decisions, the 80-topic crosswalk, `docs/MASTER_DATA_SPEC.md`, and `docs/COSTBREAKDOWN_REVIEW_CONTEXT_FOR_CODEX.md`, with precedence recorded in `docs/REQUIREMENTS_INDEX.md`. The earlier agreement plan is retained below as history; its future scope and open questions are superseded where the newer sources make a decision.
 
 The goal is to align the source with the confirmed Master Data workflow and Selected Comparison behavior while preserving the existing Standard Cost calculation contract. The supplied screenshot is the target layout direction for the full Master Data page; the BOM table shown is one example, not the only table the page should support. The task-level plan and verification details are in `tasks/todo.md`; the single per-topic source/status ledger is `tasks/source-crosswalk-80.md`; `HANDOFF.md` records the current checkpoint and resume point.
 
@@ -14,24 +14,26 @@ The goal is to align the source with the confirmed Master Data workflow and Sele
 - Use compatible `uiux-refresh` patterns where helpful, without making that branch the required implementation baseline or allowing older columns to override the newer schema.
 - Keep Reference and Current datasets independent. Each gets one in-session Working state and one Last Saved state; nothing persists across an application restart.
 - Keep the current cost engine and the confirmed `Gap = Current - Reference` rule. Add Selling Price and SG&A metadata, but do not invent GP/COGS/OP or monetary SG&A formulas.
+- Excel templates and exports contain four data sheets (`META`, `BOM`, `ROUTING`, `WORK_CENTER`) and a separate formula-linked `COST_CALCULATION` view; import reads only the four data sheets.
 - Compare BOM by Name, WC by WC, and Routing by Process. Preserve validation warnings for missing or duplicate identities; never guess matches from row position.
 - Selected Comparison is temporary analysis state. It selects BOM and Routing only, retains the full WC dataset as calculation context, flows to downstream analysis, and clears when source data changes. In this mode, show only the selected-scope Gap; never show the Full Gap alongside it.
 - Keep formula definitions and detailed dashboard metrics that the sources mark unresolved out of implementation scope.
 
-### Follow-up source audit — 2026-10-04
+### Follow-up source and implementation audit — 2026-10-05
 
 - The later shared-chat checklist covers 80 topics, but it mixes verified baseline, finalized decisions, design directions, and pending items; it is not an 80-feature implementation backlog.
 - Master Data behavior/data is closed. Candidate and RCA/Simulation redesign, the business dashboard, accounting formulas, and Trial remain future review work.
 - The item-by-item crosswalk is in `tasks/source-crosswalk-80.md`. It found four context-document traceability gaps to preserve without inventing requirements: the explicit KEEP/CHANGE/REMOVE/ADD/UNDECIDED review labels; details from the dashboard reference; the provisional (not finalized) Selected Comparison control examples; and the explicit status that Candidate/RCA pages have not been re-reviewed. Figma optionality/sketch acceptability is also recorded as a smaller partial detail.
 - The checklist called Full-vs-Selected Gap presentation pending at that point. The user's later explicit decision is controlling: Selected mode displays only the selected-scope Gap. The context file's pending wording is historical and is not an open product question.
 - The source-to-code re-audit found and corrected an over-restriction: Clone was disabled until the source side was marked prepared, although the source defines Clone as a Working-state copy and says warnings should block only impossible operations. Both directions are now callable, and the destination inherits the source readiness flag. Final browser replay remains open.
-- The same audit found that legacy Routing `Operation Code` and `Sequence` could mark a Work Center processing finding changed despite not belonging to the approved schema. They are now excluded from that signature; a regression case is in `verify_comparison_reconciliation.ts` and remains unrun for the final check bundle.
-- The active workbook export and Sizing template already use the approved schema, while their old verifier still expected Product Code/Note, Item Code, and Routing Operation Code/Sequence. The neutral-workbook, Routing-identity, and Candidate verifiers have been aligned to the current Product/BOM/WC/Routing contract and remain unrun for the final bundle.
-- The first workbook-verifier run found that the parser missed the export's exact `Selling Price (THB)` header. The parser alias is corrected; verify the full workbook round trip and production build again.
+- The same audit found that legacy Routing `Operation Code` and `Sequence` could mark a Work Center processing finding changed despite not belonging to the approved schema. They are now excluded from that signature; the regression case in `verify_comparison_reconciliation.ts` passed the final focused check.
+- The workbook, Routing-identity, and Candidate verifiers are aligned to the current Product/BOM/WC/Routing contract. The neutral-workbook verifier, workbook round trip, Sizing/Clone verifier, and production build all passed at this checkpoint.
+- The parser's `Selling Price (THB)` alias is covered by the workbook round trip. Templates and exports now have the four agreed data sheets plus a distinct linked calculation view. Synthetic Excel recalculation confirmed the expected sample cost and unavailable states for missing or duplicate inputs, with zero formula errors.
+- Browser-only reset/import/export/clone/download and visible-status interactions remain recorded in the crosswalk; the local browser inspection was refused by the security policy and was not retried through another surface.
 
 ## Ordered implementation plan
 
-1. **Domain and workbook contract.** Align Product, BOM, WC, and Routing types with the approved fields. Update snapshot conversion, import, template, and export together so a round trip preserves the new schema and old product-session architecture does not leak into the active workflow.
+1. **Domain and workbook contract.** Align Product, BOM, WC, and Routing types with the approved fields. Update snapshot conversion, import, template, and export together so a round trip preserves the four data sheets; keep the formula-linked calculation view separate and excluded from imports.
 2. **Working / Last Saved lifecycle.** Add independent per-side states and implement Save, Reset, Import-to-Working, Clear-Working, Clone-to-current-side-Working, and Export-from-Last-Saved. Keep the state in the current runtime only.
 3. **Sizing and metadata flow.** Replace Setup with Sizing; synchronize its metadata with the selected dataset; support row counts and template download from Sizing. Represent Selling Price and SG&A without applying undecided formulas.
 4. **Master Data layout and tables.** Rebuild the page around the screenshot's overall hierarchy: navigation/status, dataset/action toolbar, product summary, then the table workspace. Include table selection for Work Centers, BOM, Routing, and All Tables; the screenshot's BOM is one example, not a BOM-only requirement. Implement approved schemas and identities, non-blocking validation including Routing-to-WC references, separate row selection from reordering, and use Search as the only table query control.

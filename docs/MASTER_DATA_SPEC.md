@@ -1,8 +1,8 @@
 # COSTBREAKDOWN — Master Data Specification
 
 - **Status:** Finalized for Master Data review
-- **Scope:** Product/data behavior, session state, Master Data flow, table data model, and editing interaction rules
-- **Not in scope:** Final visual styling, exact component placement, final accounting/calculation formulas, and detailed behavior of later pages except where explicitly noted
+- **Scope:** Product/data behavior, session state, Master Data flow, table data model, editing interaction rules, fixed toolbar/metadata/footer placement, and the linked Standard Cost view in Excel
+- **Not in scope:** Final visual styling, final accounting formulas, and detailed behavior of later pages except where explicitly noted
 
 ---
 
@@ -818,6 +818,12 @@ Examples already agreed in principle:
 
 Product mismatch or missing data may direct the user back to Master Data for review, but the workflow remains accessible.
 
+### 17.4 Fixed placement while scrolling
+
+- Keep the selected-dataset toolbar and its product metadata summary together at the top of the Master Data content scroll region.
+- Keep the workspace footer at the bottom of the application frame while the main content scrolls.
+- These placement rules do not prescribe final colors, typography, spacing, or other visual styling.
+
 ---
 
 ## 18. Product Mismatch
@@ -918,6 +924,33 @@ Reference/Current source data changes
 
 Do not attempt to remap or preserve the old selection.
 
+## 19. Excel Dataset Workbook and Calculation View
+
+The neutral dataset workbook has four data tabs, in this order:
+
+1. `META` — Product Name, UOM, Selling Price (THB), SG&A (%), and Dataset Remark
+2. `BOM`
+3. `ROUTING`
+4. `WORK_CENTER`
+
+`META` contains the product fields and Dataset Remark together. There is no separate Product data tab. A separate `COST_CALCULATION` tab is a formula-linked inspection view; it is not a fifth data tab and does not participate in import.
+
+The calculation view follows the existing application Cost Engine:
+
+```text
+Material = Usage × Price × (1 + Loss)
+Routing Factor = Manning ÷ (Capacity × Yield)
+Labor = Routing Factor × matching Work Center Labor rate
+Burden = Routing Factor × matching Work Center Burden rate
+Total Standard Cost = Material + Labor + Burden
+```
+
+The workbook must link calculation cells to the data tabs so edits recalculate in Excel. Missing or invalid inputs, non-positive Capacity/Yield, and missing or duplicate WC matches leave the relevant result unavailable. Do not silently substitute zero. Zero remains a valid input when it is present.
+
+The historical blank calculation template uses a different BOM Loss expression. Use the current application Cost Engine for the linked view; do not silently change the engine or introduce that older expression.
+
+Selling Price and SG&A remain metadata inputs. Do not add GP, COGS, OP, margin, or monetary SG&A formulas to this Standard Cost view.
+
 ---
 
 ## A.2 Partial selection does not mutate datasets
@@ -960,7 +993,7 @@ The following are intentionally **not finalized by this Master Data spec**:
 - exact SG&A accounting treatment beyond input being `% of Selling Price`
 - final OP/business dashboard design
 - exact footer financial metrics
-- exact visual styling, colors, spacing, and component treatment
+- exact visual styling, colors, spacing, and component treatment beyond the fixed toolbar/metadata/footer placement in §17.4
 - final Cost Breakdown page layout
 - final Candidate Prioritization behavior changes
 - final RCA & Simulation redesign

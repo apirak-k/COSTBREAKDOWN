@@ -1846,3 +1846,35 @@ Codex should:
 10. Use this document to derive the actual implementation spec or refactor plan when asked.
 
 This document is intentionally comprehensive and should be treated as the conversation-derived source for the next extraction step.
+
+---
+
+# 77. Later User Decisions and Work Instructions — 2026-10-05
+
+**FINALIZED where stated below.** This dated addendum supersedes earlier pending wording above when it covers the same point.
+
+## Requirements authority and checklist use
+
+- The user designated the 80-topic checklist, the two linked ChatGPT conversations, and this review context plus `MASTER_DATA_SPEC.md` as the current source set.
+- The older files in `agreements/` are outdated and are historical references only.
+- `tasks/source-crosswalk-80.md` remains the single row-by-row evidence/status ledger. The 80 rows are checked against source decisions; they are not 80 feature tickets to implement blindly.
+- Mark a row PASS only when there is current implementation evidence. Keep unresolved or human-acceptance items distinct from completed AI implementation.
+
+## Comparison and layout
+
+- **Selected Comparison Gap:** show only the selected-scope Gap in Selected mode. Do not show the Full Gap beside it. This supersedes the earlier pending wording in §75 and the earlier checklist label.
+- Use the supplied Master Data screenshot as the layout direction for the full page. The BOM table is one example; support all approved tables.
+- Keep the dataset toolbar and metadata summary together at the top of the Master Data scrolling region. Keep the application footer at the bottom of the app frame while content scrolls.
+- Final colors, exact visual styling, and detailed status wording remain open for human UX review.
+
+## Excel dataset workbook and formulas
+
+- Use four data tabs, in order: `META`, `BOM`, `ROUTING`, `WORK_CENTER`. Put Product Name, UOM, Selling Price, SG&A %, and Dataset Remark together in `META`.
+- Put formula-linked Standard Cost inspection on a separate `COST_CALCULATION` tab. Use formulas that link to the data sheets and recalculate in Excel.
+- Follow the current in-app Cost Engine: Material = Usage × Price × (1 + Loss); Routing Factor = Manning ÷ (Capacity × Yield); Labor and Burden equal that factor times the matching Work Center rate; Total Standard Cost is the sum of the three components.
+- Keep missing or invalid inputs unavailable; do not replace them with zero. Do not add GP/COGS/OP, margin, or monetary SG&A formulas.
+- The old blank Excel template has a different BOM Loss formula. For this implementation, the current Cost Engine is the formula source; this does not authorize changing the engine.
+
+## Execution
+
+- Implement the AI-ready scope in small verified chunks, update this source context and the single 80-topic ledger with evidence, commit each coherent stage, then push the authorized branch. Keep deferred work and human acceptance visible in the handoff.

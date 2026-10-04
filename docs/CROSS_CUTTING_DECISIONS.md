@@ -1,10 +1,10 @@
-# Cross-Cutting Decisions
+# Cross-Cutting Decisions — Historical Snapshot
 
-**Updated:** 2026-09-30
+**Original snapshot:** 2026-09-30
 
-**Status:** Records implementation choices and unresolved owner decisions.
+**Status:** Historical implementation context only. This is not a current requirements or status ledger.
 
-This document records choices that affect more than one COSTBREAKDOWN flow. The four current agreements, listed in [REQUIREMENTS_INDEX.md](REQUIREMENTS_INDEX.md), remain the product authority. This document does not amend them. ChatGPT review is corroborating input, not product authority.
+Current requirements and source precedence are in [REQUIREMENTS_INDEX.md](REQUIREMENTS_INDEX.md). The user later designated the two newer Markdown documents, the two linked ChatGPT source conversations, and the 80-topic crosswalk as the active source set; the older `agreements/` are historical only. Some choices below were superseded, including the Routing identity and partial/Selected Comparison scope. Do not copy an old item below into the active plan without checking the current sources.
 
 ## Decisions for the current implementation
 

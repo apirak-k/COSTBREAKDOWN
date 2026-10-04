@@ -2,12 +2,12 @@
 
 ## Requirements authority
 
-Follow the current agreement set in agreements/, indexed by docs/REQUIREMENTS_INDEX.md. PROJECT.md and HANDOFF.md describe implementation state; they do not change product behavior.
+Follow the current source order in `docs/REQUIREMENTS_INDEX.md`: the user's latest explicit decisions, the two current Markdown requirements/context documents, the two linked source conversations, and the 80-topic crosswalk. The user designated `agreements/` as outdated; treat those files as historical reference only. `PROJECT.md` and `HANDOFF.md` describe implementation state and do not change product behavior.
 
 ## Data and calculation safeguards
 
 - Protect factory, pricing, customer, and other proprietary data. Do not add real operational data or private source workbooks to version control.
-- Use the existing Cost Engine and verified workbook logic. Do not invent factory formulas or silently replace missing required inputs with zero or another plausible value.
+- Use the existing Cost Engine and verified workbook logic. The Excel `COST_CALCULATION` tab must link to the four dataset tabs and mirror that engine. Do not invent factory formulas or silently replace missing required inputs with zero or another plausible value.
 - Keep Reference and Current independent. Scenario changes must not mutate Current.
 - Keep system-generated UI text in English. Human-entered notes may use the user's language.
 - Treat validation warnings separately from comparison statuses.

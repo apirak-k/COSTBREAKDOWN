@@ -59,6 +59,10 @@ function dataset(role: 'reference' | 'current'): CostSnapshot {
 }
 
 const pair: SnapshotPair = { reference: dataset('reference'), current: dataset('current') }
+const savedMasterData = {
+  reference: { snapshot: pair.reference, prepared: true, sizing: { ...pair.reference.sizing } },
+  current: { snapshot: pair.current, prepared: true, sizing: { ...pair.current.sizing } }
+}
 const session = {
   id: 'clear-fixture',
   product: pair.current.product,
@@ -71,6 +75,7 @@ const session = {
   createdAt: '',
   updatedAt: '',
   preparedSnapshotRoles: { reference: true, current: true },
+  lastSavedMasterData: savedMasterData,
   datasetSizing: {
     reference: { ...pair.reference.sizing },
     current: { ...pair.current.sizing }
@@ -81,6 +86,9 @@ const session = {
 
 const clearedReference = clearMasterDataDatasetState(session, 'reference')
 assert.equal(clearedReference.masterDataRevision, 1, 'Clearing Reference must invalidate saved RCA scenarios')
+assert.strictEqual(clearedReference.lastSavedMasterData, savedMasterData, 'Clearing Reference must retain both Last Saved datasets')
+assert.deepEqual(clearedReference.lastSavedMasterData?.reference?.snapshot, pair.reference)
+assert.deepEqual(clearedReference.lastSavedMasterData?.current?.snapshot, pair.current)
 assert.strictEqual(clearedReference.snapshotPair?.current, pair.current)
 assert.equal(clearedReference.snapshotPair?.reference.product.productCode, emptyProductMaster.productCode)
 assert.equal(clearedReference.snapshotPair?.reference.product.note, emptyProductMaster.note)
@@ -100,6 +108,9 @@ assert.equal(clearedReference.snapshotPair?.current.routing[0].note, 'current ro
 
 const clearedCurrent = clearMasterDataDatasetState(session, 'current')
 assert.equal(clearedCurrent.masterDataRevision, 1, 'Clearing Current must invalidate saved RCA scenarios')
+assert.strictEqual(clearedCurrent.lastSavedMasterData, savedMasterData, 'Clearing Current must retain both Last Saved datasets')
+assert.deepEqual(clearedCurrent.lastSavedMasterData?.reference?.snapshot, pair.reference)
+assert.deepEqual(clearedCurrent.lastSavedMasterData?.current?.snapshot, pair.current)
 assert.strictEqual(clearedCurrent.snapshotPair?.reference, pair.reference)
 assert.equal(clearedCurrent.snapshotPair?.current.product.productCode, emptyProductMaster.productCode)
 assert.equal(clearedCurrent.snapshotPair?.current.remark, '')

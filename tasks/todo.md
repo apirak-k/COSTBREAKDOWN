@@ -13,8 +13,8 @@
 
 Per-topic PASS/PARTIAL/OPEN/DEFERRED/RECORDED status and the exact next actions are maintained only in [`source-crosswalk-80.md`](source-crosswalk-80.md). Use this final gate for the integrated closeout, not as a second item-by-item status list.
 
-- [ ] Complete the remaining in-scope checks from the crosswalk on the final source tree, then run the focused verifiers and production build.
-- [ ] Review the connected Master Data → Cost Breakdown → Candidate/RCA flow and record human UX acceptance separately from automated evidence.
+- [x] Run the final focused verifiers and production build on the current implementation checkpoint; see the verification record under Task 8.
+- [ ] Complete browser-only interactions still open or partial in the crosswalk, then record human UX acceptance separately from automated evidence.
 
 ### Phase 0 — Confirmed baseline
 
@@ -27,7 +27,7 @@ Per-topic PASS/PARTIAL/OPEN/DEFERRED/RECORDED status and the exact next actions 
 - [x] Selected mode displays only its selected-scope Gap; Full Gap is shown only in Full Comparison.
 - [x] Formula and dashboard metrics marked undecided remain out of scope.
 
-**Verification:** Confirmed against the complete shared chat and both supplied Markdown files; the user clarified that the screenshot represents the page layout and that the BOM table is illustrative. No unresolved question blocks implementation.
+**Verification:** The 80-row crosswalk records the supplied conversation topics and their status separately from the two current Markdown specifications. The screenshot is the page-layout direction and its BOM table is illustrative. No product decision blocks the AI-side implementation; browser-only evidence remains tracked in the crosswalk.
 
 **Dependencies:** None.
 
@@ -63,7 +63,7 @@ Per-topic PASS/PARTIAL/OPEN/DEFERRED/RECORDED status and the exact next actions 
 - [x] Import/Clear/Clone/Sizing affect Working; Clone copies the opposite side into the viewed side without a readiness gate, and the destination inherits the source's preparation state.
 - [x] Export reads Last Saved, and neither state persists after the app session ends.
 
-**Verification:** Source audit confirms independent per-side transitions and session storage. The production build passes after the Clone availability/readiness correction. The bundled `verify_dataset_sizing_and_clone.ts` passed both modeled Clone directions, data independence, copied sizing, and populated-row preservation. In isolated browser tabs, Save was checked independently for Current and Reference, and saving enabled that side's Reset/Export controls. Reset and Clone confirmation results, Clear retaining Last Saved, actual import/export file interactions, readiness propagation, and the complete lifecycle replay remain open. Chrome blocked attaching the synthetic workbook because the extension lacks file-URL access; that permission was left off.
+**Verification:** Source audit confirms independent per-side transitions and session storage. `verify_dataset_sizing_and_clone.ts` passed both modeled Clone directions, data independence, copied sizing, and populated-row preservation. `verify_master_data_clear_dataset.ts` passed for both sides and confirms Clear retains both Last Saved snapshots. In isolated browser tabs, Save was checked independently for Current and Reference, enabling that side's Reset/Export controls. Reset confirmation results, actual import/export file interactions, Clone readiness propagation, and the complete lifecycle replay remain open or partial in the crosswalk. Chrome blocked attaching the synthetic workbook because the extension lacks file-URL access; that permission was left off.
 
 **Dependencies:** Task 1.
 
@@ -80,7 +80,7 @@ Per-topic PASS/PARTIAL/OPEN/DEFERRED/RECORDED status and the exact next actions 
 - [x] Import populates Working; Export uses Last Saved; templates and round trips use the approved field names and percent display conventions.
 - [x] Selling Price and SG&A are preserved as metadata only until their formulas are defined.
 
-**Verification:** Source mapping and production build pass. Both the current-schema workbook verifier and the refreshed sizing/clone verifier passed import, export/re-import, all approved fields and row counts, current template headers, and blank template checks. Loss/Yield are exported and templated as Excel percentages, pasted percentage strings are parsed, and SG&A remains percentage points (8 means 8%). The in-browser Sizing download/import interaction remains open.
+**Verification:** `verify_neutral_dataset_workbook.ts` and `verify_dataset_sizing_and_clone.ts` passed schema, import/export round trip, approved fields, row counts, and template checks. The four data sheets are `META`, `BOM`, `ROUTING`, and `WORK_CENTER`; the separate `COST_CALCULATION` view uses linked formulas matching the in-app Standard Cost engine. Excel recalculation on synthetic sample, blank, duplicate-rate, and missing-input workbooks produced the expected amounts/unavailable states with zero formula errors. Loss/Yield use Excel percentages; SG&A remains percentage points (8 means 8%). Browser download/import remains open in the crosswalk.
 
 **Dependencies:** Tasks 1–2.
 
