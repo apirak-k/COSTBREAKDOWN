@@ -100,6 +100,33 @@ function workingEvidence(value: unknown, sourceRef: string | undefined, previous
   }
 }
 
+function cloneMasterDataSnapshot(snapshot: CostSnapshot): CostSnapshot {
+  return {
+    ...snapshot,
+    product: {
+      ...snapshot.product,
+      additionalFields: snapshot.product.additionalFields ? { ...snapshot.product.additionalFields } : undefined
+    },
+    sizing: snapshot.sizing ? { ...snapshot.sizing } : undefined,
+    warnings: snapshot.warnings ? [...snapshot.warnings] : undefined,
+    rates: snapshot.rates.map(rate => ({
+      ...rate,
+      confidence: { ...rate.confidence },
+      additionalFields: rate.additionalFields ? { ...rate.additionalFields } : undefined
+    })),
+    bom: snapshot.bom.map(item => ({
+      ...item,
+      confidence: { ...item.confidence },
+      additionalFields: item.additionalFields ? { ...item.additionalFields } : undefined
+    })),
+    routing: snapshot.routing.map(step => ({
+      ...step,
+      confidence: { ...step.confidence },
+      additionalFields: step.additionalFields ? { ...step.additionalFields } : undefined
+    }))
+  }
+}
+
 // Helper: create a brand-new session with sizing
 function makeSizedSession(id: string, config: ProductSizingConfig, now: string): ProductSession {
   const defaultWcNames = ['Cutting', 'Printing-Digital RGOM', 'Assembly Digital RGOM', 'OQA-Digital']
@@ -230,6 +257,7 @@ interface AppContextType {
   masterDataHandoff: MasterDataHandoffStatus
   masterDataRole: ComparisonRole
   masterDataSnapshot: CostSnapshot
+  masterDataLastSavedSnapshot?: CostSnapshot
   masterDataSizing: import('../core/types').DatasetSizing
   isDevelopmentReviewFixture: boolean
   activeTab: 'master' | 'breakdown' | 'candidate' | 'rca'
@@ -252,6 +280,8 @@ interface AppContextType {
 
   // Master Data dataset controls
   setMasterDataRole: (role: ComparisonRole) => void
+  saveMasterDataWorkingDataset: (role: ComparisonRole) => void
+  resetMasterDataWorkingDataset: (role: ComparisonRole) => void
   cloneReferenceToCurrent: () => void
   cloneCurrentToReference: () => void
   clearMasterDataDataset: (role: ComparisonRole) => void
@@ -398,6 +428,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const masterDataHandoff = evaluateMasterDataHandoff(activeSession, snapshotPair)
   const masterDataRole = activeSession.masterDataRole ?? 'current'
   const masterDataSnapshot = masterDataRole === 'reference' ? snapshotPair.reference : snapshotPair.current
+  const masterDataLastSavedSnapshot = activeSession.lastSavedMasterData?.[masterDataRole]?.snapshot
   const masterDataSizing = activeSession.datasetSizing?.[masterDataRole] ?? masterDataSnapshot.sizing ?? {}
   const isDevelopmentReviewFixture = activeProductId === DEVELOPMENT_REVIEW_FIXTURE_ID
 
@@ -598,6 +629,57 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     setProductSessions(prev => prev.map(session => session.id === activeSession.id
       ? { ...session, masterDataRole: role }
       : session))
+  }
+
+  const saveMasterDataWorkingDataset = (role: ComparisonRole) => {
+    const now = new Date().toISOString()
+    setProductSessions(prev => prev.map(session => {
+      if (session.id !== activeSession.id) return session
+      const pair = session.snapshotPair ?? sessionToSnapshotPair(session)
+      const snapshot = pair[role]
+      return {
+        ...session,
+        updatedAt: now,
+        lastSavedMasterData: {
+          ...session.lastSavedMasterData,
+          [role]: {
+            snapshot: cloneMasterDataSnapshot(snapshot),
+            prepared: getSnapshotRoleReadiness(session)[role],
+            sizing: { ...(session.datasetSizing?.[role] ?? snapshot.sizing ?? {}) }
+          }
+        }
+      }
+    }))
+  }
+
+  const resetMasterDataWorkingDataset = (role: ComparisonRole) => {
+    const now = new Date().toISOString()
+    setProductSessions(prev => prev.map(session => {
+      if (session.id !== activeSession.id) return session
+      const saved = session.lastSavedMasterData?.[role]
+      if (!saved) return session
+
+      const pair = session.snapshotPair ?? sessionToSnapshotPair(session)
+      const nextPair: SnapshotPair = {
+        ...pair,
+        [role]: cloneMasterDataSnapshot(saved.snapshot)
+      }
+      const nextSizing = {
+        reference: session.datasetSizing?.reference ?? pair.reference.sizing ?? {},
+        current: session.datasetSizing?.current ?? pair.current.sizing ?? {},
+        [role]: { ...(saved.sizing ?? saved.snapshot.sizing ?? {}) }
+      }
+      const nextPrepared = {
+        ...getSnapshotRoleReadiness(session),
+        [role]: saved.prepared
+      }
+      return applyMasterDataSnapshotPair({
+        ...session,
+        datasetSizing: nextSizing,
+        preparedSnapshotRoles: nextPrepared,
+        updatedAt: now
+      }, nextPair)
+    }))
   }
 
   const updateMasterDataDataset = (mutate: (snapshot: CostSnapshot) => CostSnapshot) => {
@@ -1161,6 +1243,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       masterDataHandoff,
       masterDataRole,
       masterDataSnapshot,
+      masterDataLastSavedSnapshot,
       masterDataSizing,
       isDevelopmentReviewFixture,
       activeTab,
@@ -1175,6 +1258,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       cloneActiveToDraft,
       activateDraft,
       setMasterDataRole,
+      saveMasterDataWorkingDataset,
+      resetMasterDataWorkingDataset,
       cloneReferenceToCurrent,
       cloneCurrentToReference,
       clearMasterDataDataset,

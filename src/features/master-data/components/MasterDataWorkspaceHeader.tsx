@@ -7,6 +7,8 @@ import {
   Sliders,
   Trash2,
   Upload,
+  Save,
+  RotateCcw,
   X,
   CheckCircle2,
   AlertTriangle,
@@ -20,8 +22,11 @@ import { downloadBlob } from '../../../services/excel/export'
 interface MasterDataWorkspaceHeaderProps {
   product: ProductMaster
   snapshot: CostSnapshot
+  lastSavedSnapshot?: CostSnapshot
   role: ComparisonRole
   onRoleChange: (role: ComparisonRole) => void
+  onSaveWorkingDataset: () => void
+  onResetWorkingDataset: () => void
   uomList: string[]
   isEditMode: boolean
   onToggleEditMode: (edit: boolean) => void
@@ -46,8 +51,11 @@ const fieldInput = 'mt-1 min-h-9 w-full border-b border-slate-300 bg-transparent
 export const MasterDataWorkspaceHeader: React.FC<MasterDataWorkspaceHeaderProps> = ({
   product,
   snapshot,
+  lastSavedSnapshot,
   role,
   onRoleChange,
+  onSaveWorkingDataset,
+  onResetWorkingDataset,
   uomList,
   isEditMode,
   onToggleEditMode,
@@ -68,10 +76,13 @@ export const MasterDataWorkspaceHeader: React.FC<MasterDataWorkspaceHeaderProps>
   const [showReadinessPopover, setShowReadinessPopover] = useState(false)
 
   const handleExportDataset = async () => {
+    if (!lastSavedSnapshot) return
     const { exportSnapshotToExcel } = await import('../../../services/excel/snapshot-export')
-    const blob = await exportSnapshotToExcel(snapshot)
+    const blob = await exportSnapshotToExcel(lastSavedSnapshot)
     const roleLabel = role === 'reference' ? 'Reference' : 'Current'
-    downloadBlob(blob, 'Dataset_' + (product.productCode || 'PRODUCT') + '_' + roleLabel + '.xlsx')
+    const savedProductName = lastSavedSnapshot.product.productName || lastSavedSnapshot.product.productDescription || 'PRODUCT'
+    const fileProductName = savedProductName.replace(/[<>:"/\\|?*\u0000-\u001F]/g, '-').trim() || 'PRODUCT'
+    downloadBlob(blob, `Dataset_${fileProductName}_${roleLabel}.xlsx`)
   }
 
   const isCurrent = role === 'current'
@@ -101,6 +112,14 @@ export const MasterDataWorkspaceHeader: React.FC<MasterDataWorkspaceHeaderProps>
       BOM {counts.bom} · RTG {counts.routing} · WC {counts.rates}
     </span>
   )
+
+  const handleResetDatasetWithConfirm = () => {
+    if (!lastSavedSnapshot) return
+    const roleLabel = role === 'reference' ? 'Reference' : 'Current'
+    const ok = window.confirm(`Reset ${roleLabel} Working to its Last Saved copy? Unsaved changes on this side will be lost.`)
+    if (!ok) return
+    onResetWorkingDataset()
+  }
 
   return (
     <section className="overflow-visible border border-slate-300 bg-white" aria-label="Working dataset controls">
@@ -386,8 +405,9 @@ export const MasterDataWorkspaceHeader: React.FC<MasterDataWorkspaceHeaderProps>
             <button
               type="button"
               onClick={handleExportDataset}
-              className={toolbarButton + ' border-0'}
-              title="Export selected dataset to Excel"
+              disabled={!lastSavedSnapshot}
+              className={toolbarButton + ' border-0 disabled:cursor-not-allowed disabled:opacity-45 cursor-pointer'}
+              title={lastSavedSnapshot ? 'Export Last Saved dataset to Excel' : 'Save this dataset before exporting'}
             >
               <Download className="h-3.5 w-3.5 text-slate-500" aria-hidden="true" />
               Export
@@ -403,6 +423,28 @@ export const MasterDataWorkspaceHeader: React.FC<MasterDataWorkspaceHeaderProps>
             </button>
           </div>
 
+          <button
+            type="button"
+            onClick={onSaveWorkingDataset}
+            className={toolbarButton + ' border-blue-300 bg-blue-50 font-semibold text-blue-800 hover:bg-blue-100 hover:text-blue-950'}
+            title={`Save ${role === 'reference' ? 'Reference' : 'Current'} Working as Last Saved`}
+          >
+            <Save className="h-3.5 w-3.5" aria-hidden="true" />
+            Save
+          </button>
+
+          <button
+            type="button"
+            onClick={handleResetDatasetWithConfirm}
+            disabled={!lastSavedSnapshot}
+            className={toolbarButton + ' disabled:cursor-not-allowed disabled:opacity-45 cursor-pointer'}
+            title={lastSavedSnapshot ? 'Reset selected Working dataset from Last Saved' : 'No Last Saved state exists for this dataset'}
+          >
+            <RotateCcw className="h-3.5 w-3.5" aria-hidden="true" />
+            Reset
+          </button>
+
+          {/* Clear Dataset Button */}
           <button
             type="button"
             onClick={handleClearDatasetWithConfirm}

@@ -47,6 +47,12 @@ export interface CandidateRcaRecord extends CandidateRcaDraft {
   updatedAt: string
 }
 
+export interface LastSavedMasterDataDataset {
+  snapshot: import('./snapshot.types').CostSnapshot
+  prepared: boolean
+  sizing?: DatasetSizing
+}
+
 // A self-contained product session — one "workbook" per product version
 export interface ProductSession {
   id: string
@@ -80,6 +86,8 @@ export interface ProductSession {
   masterDataRole?: import('./snapshot.types').ComparisonRole
   /** Per-dataset row sizing configuration. */
   datasetSizing?: Record<import('./snapshot.types').ComparisonRole, DatasetSizing>
+  /** Explicitly saved Master Data snapshots, kept only for this browser session. */
+  lastSavedMasterData?: Partial<Record<import('./snapshot.types').ComparisonRole, LastSavedMasterDataDataset>>
 }
 
 import { WorkCenterRate, BOMItem, RoutingStep, CostDriver, DriverRcaRecord } from './cost.types'

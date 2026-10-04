@@ -19,10 +19,13 @@ export const MasterDataPage: React.FC = () => {
     isDevelopmentReviewFixture,
     masterDataRole,
     masterDataSnapshot,
+    masterDataLastSavedSnapshot,
     masterDataSizing,
     masterDataHandoff,
     snapshotPair,
     setMasterDataRole,
+    saveMasterDataWorkingDataset,
+    resetMasterDataWorkingDataset,
     loadDevelopmentReviewFixture,
     returnFromDevelopmentReviewFixture,
     cloneReferenceToCurrent,
@@ -192,8 +195,11 @@ export const MasterDataPage: React.FC = () => {
       <MasterDataWorkspaceHeader
         product={product}
         snapshot={masterDataSnapshot}
+        lastSavedSnapshot={masterDataLastSavedSnapshot}
         role={masterDataRole}
         onRoleChange={setMasterDataRole}
+        onSaveWorkingDataset={() => saveMasterDataWorkingDataset(masterDataRole)}
+        onResetWorkingDataset={() => resetMasterDataWorkingDataset(masterDataRole)}
         uomList={uomList}
         isEditMode={isEditMode}
         onToggleEditMode={setIsEditMode}
