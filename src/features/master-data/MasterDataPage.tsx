@@ -8,7 +8,6 @@ import { DatasetSizingModal } from './components/DatasetSizingModal'
 import { WorkCenterRatesTable } from './components/WorkCenterRatesTable'
 import { BOMTable } from './components/BOMTable'
 import { RoutingTable } from './components/RoutingTable'
-import { PageHeading } from '../../shared'
 
 type TableSubTab = 'bom' | 'wc' | 'routing'
 
@@ -21,7 +20,6 @@ export const MasterDataPage: React.FC = () => {
     masterDataLastSavedSnapshot,
     masterDataSizing,
     masterDataHandoff,
-    snapshotPair,
     setMasterDataRole,
     saveMasterDataWorkingDataset,
     resetMasterDataWorkingDataset,
@@ -62,19 +60,33 @@ export const MasterDataPage: React.FC = () => {
     loadDevelopmentReviewFixture(createSyntheticReviewSnapshotPair())
   }
 
+  const developmentAction = import.meta.env.DEV
+    ? isDevelopmentReviewFixture
+      ? (
+        <button
+          type="button"
+          onClick={() => {
+            if (window.confirm('Return to your previous working session? The mock review session will be kept.')) {
+              returnFromDevelopmentReviewFixture()
+            }
+          }}
+          className="min-h-8 border border-slate-300 bg-white px-2 text-[11px] font-medium text-slate-700 transition-colors hover:bg-slate-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700"
+        >
+          Return to working session
+        </button>
+      )
+      : (
+        <button
+          type="button"
+          onClick={() => { void handleLoadSyntheticReviewData() }}
+          className="min-h-8 border border-slate-300 bg-white px-2 text-[11px] font-medium text-slate-700 transition-colors hover:bg-slate-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700"
+        >
+          Load mock review data
+        </button>
+      )
+    : undefined
+
   const product = masterDataSnapshot.product
-
-  const referenceCounts = useMemo(() => ({
-    bom: snapshotPair.reference.bom.length,
-    routing: snapshotPair.reference.routing.length,
-    rates: snapshotPair.reference.rates.length
-  }), [snapshotPair.reference])
-
-  const currentCounts = useMemo(() => ({
-    bom: snapshotPair.current.bom.length,
-    routing: snapshotPair.current.routing.length,
-    rates: snapshotPair.current.rates.length
-  }), [snapshotPair.current])
 
   const allNotices = useMemo(() => {
     const list: string[] = []
@@ -157,8 +169,8 @@ export const MasterDataPage: React.FC = () => {
   }
 
   const tableSections = [
+    { key: 'wc' as const, id: 'master-data-table-wc', label: 'Work Centers', navLabel: 'Work Centers', icon: Factory },
     { key: 'bom' as const, id: 'master-data-table-bom', label: 'BOM', navLabel: 'BOM', icon: Box },
-    { key: 'wc' as const, id: 'master-data-table-wc', label: 'WC', navLabel: 'WC', icon: Factory },
     { key: 'routing' as const, id: 'master-data-table-routing', label: 'Process Routing', navLabel: 'Routing', icon: GitCommit }
   ]
   const activeSection = tableSections.find(section => section.key === activeTableTab)
@@ -177,7 +189,7 @@ export const MasterDataPage: React.FC = () => {
               setActiveTableTab(section.key)
               setIsAllTablesVisible(false)
             }}
-            className={'inline-flex min-h-8 items-center gap-1.5 border px-2.5 font-mono text-xs font-medium transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700 ' +
+            className={'inline-flex min-h-8 items-center gap-1 border px-2 font-mono text-[11px] font-medium transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700 ' +
               (isActive
                 ? 'border-slate-900 bg-slate-900 text-white'
                 : 'border-slate-300 bg-white text-slate-700 hover:bg-slate-100 hover:text-slate-950')}
@@ -192,7 +204,7 @@ export const MasterDataPage: React.FC = () => {
         aria-pressed={isAllTablesVisible}
         aria-controls="master-data-table-panel"
         onClick={() => setIsAllTablesVisible(true)}
-        className={'min-h-8 border px-2.5 font-mono text-xs font-medium transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700 ' +
+        className={'min-h-8 border px-2 font-mono text-[11px] font-medium transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700 ' +
           (isAllTablesVisible
             ? 'border-slate-900 bg-slate-900 text-white'
             : 'border-slate-300 bg-white text-slate-700 hover:bg-slate-100 hover:text-slate-950')}
@@ -204,34 +216,6 @@ export const MasterDataPage: React.FC = () => {
 
   return (
     <div className="space-y-5">
-      <PageHeading
-        title="Master Data"
-        description="Prepare independent Reference and Current datasets through direct entry or Excel import."
-        actions={import.meta.env.DEV && (isDevelopmentReviewFixture
-          ? (
-            <button
-              type="button"
-              onClick={() => {
-                if (window.confirm('Return to your previous working session? The mock review session will be kept.')) {
-                  returnFromDevelopmentReviewFixture()
-                }
-              }}
-              className="min-h-10 border border-slate-300 bg-white px-3 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700"
-            >
-              Return to working session
-            </button>
-          )
-          : (
-            <button
-              type="button"
-              onClick={() => { void handleLoadSyntheticReviewData() }}
-              className="min-h-10 border border-slate-300 bg-white px-3 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700"
-            >
-              Load mock review data
-            </button>
-          ))}
-      />
-
       <MasterDataWorkspaceHeader
         product={product}
         snapshot={masterDataSnapshot}
@@ -253,8 +237,7 @@ export const MasterDataPage: React.FC = () => {
         handoff={masterDataHandoff}
         onOpenImportModal={() => setImportModalOpen(true)}
         onOpenSizingModal={() => setSizingModalOpen(true)}
-        referenceCounts={referenceCounts}
-        currentCounts={currentCounts}
+        developmentAction={developmentAction}
         tableSelector={tableSelector}
       />
 

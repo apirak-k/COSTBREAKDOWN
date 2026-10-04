@@ -39,12 +39,11 @@ interface MasterDataWorkspaceHeaderProps {
   handoff: MasterDataHandoffStatus
   onOpenImportModal: () => void
   onOpenSizingModal: () => void
-  referenceCounts: { bom: number; routing: number; rates: number }
-  currentCounts: { bom: number; routing: number; rates: number }
+  developmentAction?: React.ReactNode
   tableSelector: React.ReactNode
 }
 
-const toolbarButton = 'inline-flex min-h-9 items-center justify-center gap-1.5 border border-slate-300 bg-white px-3 text-xs font-medium text-slate-700 transition-colors hover:bg-slate-100 hover:text-slate-950 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700'
+const toolbarButton = 'inline-flex min-h-8 shrink-0 items-center justify-center gap-1 border border-slate-300 bg-white px-1.5 text-[11px] font-medium text-slate-700 transition-colors hover:bg-slate-100 hover:text-slate-950 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700'
 const fieldInput = 'mt-1 min-h-9 w-full border-b border-slate-300 bg-transparent px-1 py-1 text-sm text-slate-950 focus:border-blue-700 focus:outline-none'
 
 export const MasterDataWorkspaceHeader: React.FC<MasterDataWorkspaceHeaderProps> = ({
@@ -68,8 +67,7 @@ export const MasterDataWorkspaceHeader: React.FC<MasterDataWorkspaceHeaderProps>
   handoff,
   onOpenImportModal,
   onOpenSizingModal,
-  referenceCounts,
-  currentCounts,
+  developmentAction,
   tableSelector
 }) => {
   const [showReadinessPopover, setShowReadinessPopover] = useState(false)
@@ -106,12 +104,6 @@ export const MasterDataWorkspaceHeader: React.FC<MasterDataWorkspaceHeaderProps>
     onClearDataset()
   }
 
-  const countLabel = (counts: { bom: number; routing: number; rates: number }) => (
-    <span className="font-mono text-[11px] tabular-nums">
-      BOM {counts.bom} · RTG {counts.routing} · WC {counts.rates}
-    </span>
-  )
-
   const handleResetDatasetWithConfirm = () => {
     if (!lastSavedSnapshot) return
     const roleLabel = role === 'reference' ? 'Reference' : 'Current'
@@ -122,40 +114,39 @@ export const MasterDataWorkspaceHeader: React.FC<MasterDataWorkspaceHeaderProps>
 
   return (
     <section className="overflow-visible border border-slate-300 bg-white" aria-label="Working dataset controls">
-      <div className="flex flex-col gap-3 border-b border-slate-300 bg-slate-100 px-4 py-3 lg:flex-row lg:items-center lg:justify-between">
-        <div className="flex min-w-0 flex-wrap items-center gap-3">
-          <div className="inline-flex border border-slate-300 bg-white p-0.5" role="group" aria-label="Working dataset side">
+      <div role="toolbar" aria-label="Dataset and table actions" className="flex flex-wrap items-center gap-1 border-b border-slate-300 bg-white px-1.5 py-1">
+      <div className="contents">
+        <div className="contents">
+          <div className="inline-flex shrink-0 border border-slate-300 bg-white p-0.5" role="group" aria-label="Working dataset side">
             <button
               type="button"
               aria-pressed={isReference}
               onClick={() => onRoleChange('reference')}
-              className={'flex min-h-10 items-center gap-2 px-3 text-sm font-medium transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-blue-700 ' +
+              className={'flex min-h-8 items-center px-2 text-xs font-medium transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-blue-700 ' +
                 (isReference ? 'bg-slate-900 text-white' : 'text-slate-700 hover:bg-slate-100 hover:text-slate-950')}
             >
-              <span>Reference</span>
-              <span className={isReference ? 'text-blue-100' : 'text-slate-500'}>{countLabel(referenceCounts)}</span>
+              Reference
             </button>
             <button
               type="button"
               aria-pressed={isCurrent}
               onClick={() => onRoleChange('current')}
-              className={'flex min-h-10 items-center gap-2 px-3 text-sm font-medium transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700 ' +
+              className={'flex min-h-8 items-center px-2 text-xs font-medium transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700 ' +
                 (isCurrent ? 'bg-slate-900 text-white' : 'text-slate-700 hover:bg-slate-100 hover:text-slate-950')}
             >
-              <span>Current</span>
-              <span className={isCurrent ? 'text-blue-100' : 'text-slate-500'}>{countLabel(currentCounts)}</span>
+              Current
             </button>
           </div>
-
         </div>
 
-        <div className="relative flex shrink-0 items-center">
+        <div className="relative order-10 flex shrink-0 items-center">
           <button
             type="button"
             onClick={() => setShowReadinessPopover(!showReadinessPopover)}
             aria-expanded={showReadinessPopover}
             aria-controls="dataset-readiness-panel"
-            className={'inline-flex min-h-10 items-center gap-2 border px-3 text-sm font-medium transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700 ' +
+            aria-label={(handoff.datasetsPrepared ? 'Datasets prepared' : 'Datasets need input') + ' — view preparation status'}
+            className={'inline-flex h-8 w-8 items-center justify-center border transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700 ' +
               (handoff.datasetsPrepared
                 ? 'border-blue-300 bg-blue-50 text-slate-900 hover:bg-blue-100'
                 : 'border-amber-300 bg-amber-50 text-slate-900 hover:bg-amber-100')}
@@ -164,8 +155,6 @@ export const MasterDataWorkspaceHeader: React.FC<MasterDataWorkspaceHeaderProps>
             {handoff.datasetsPrepared
               ? <CheckCircle2 className="h-4 w-4 text-blue-700" aria-hidden="true" />
               : <AlertTriangle className="h-4 w-4 text-amber-700" aria-hidden="true" />}
-            <span>{handoff.datasetsPrepared ? 'Datasets prepared' : 'Needs input'}</span>
-            <Info aria-hidden="true" className="h-4 w-4 text-slate-500" />
           </button>
 
           {showReadinessPopover && (
@@ -226,18 +215,24 @@ export const MasterDataWorkspaceHeader: React.FC<MasterDataWorkspaceHeaderProps>
                   </ul>
                 </div>
               )}
+
+              {developmentAction && (
+                <div className="mt-3 border-t border-slate-200 pt-3">
+                  {developmentAction}
+                </div>
+              )}
             </div>
           )}
         </div>
       </div>
 
-      <div role="toolbar" aria-label="Dataset and table actions" className="flex flex-wrap items-center gap-2 border-b border-slate-300 bg-white px-4 py-3">
-        <div className="inline-flex border border-slate-300 bg-white p-0.5" role="group" aria-label="View or edit dataset">
+      <div className="contents">
+        <div className="inline-flex shrink-0 border border-slate-300 bg-white p-0.5" role="group" aria-label="View or edit dataset">
           <button
             type="button"
             aria-pressed={!isEditMode}
             onClick={() => onToggleEditMode(false)}
-            className={'inline-flex min-h-8 items-center gap-1.5 px-2.5 text-xs font-medium transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-blue-700 ' +
+            className={'inline-flex min-h-7 items-center gap-1 px-1.5 text-[11px] font-medium transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-blue-700 ' +
               (!isEditMode ? 'bg-slate-900 text-white' : 'text-slate-700 hover:bg-slate-100')}
           >
             <Eye className="h-3.5 w-3.5" aria-hidden="true" />
@@ -247,7 +242,7 @@ export const MasterDataWorkspaceHeader: React.FC<MasterDataWorkspaceHeaderProps>
             type="button"
             aria-pressed={isEditMode}
             onClick={() => onToggleEditMode(true)}
-            className={'inline-flex min-h-8 items-center gap-1.5 px-2.5 text-xs font-medium transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-blue-700 ' +
+            className={'inline-flex min-h-7 items-center gap-1 px-1.5 text-[11px] font-medium transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-blue-700 ' +
               (isEditMode ? 'bg-slate-900 text-white' : 'text-slate-700 hover:bg-slate-100')}
           >
             <Edit3 className="h-3.5 w-3.5" aria-hidden="true" />
@@ -305,7 +300,7 @@ export const MasterDataWorkspaceHeader: React.FC<MasterDataWorkspaceHeaderProps>
         <button
           type="button"
           onClick={handleClearDatasetWithConfirm}
-          className="inline-flex min-h-9 items-center justify-center gap-1.5 border border-rose-300 bg-rose-50 px-3 text-xs font-medium text-rose-800 transition-colors hover:bg-rose-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-rose-700"
+          className="inline-flex min-h-8 shrink-0 items-center justify-center gap-1 border border-rose-300 bg-rose-50 px-1.5 text-[11px] font-medium text-rose-800 transition-colors hover:bg-rose-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-rose-700"
           title={'Clear all data on ' + (role === 'reference' ? 'Reference' : 'Current')}
         >
           <Trash2 className="h-3.5 w-3.5 text-rose-700" aria-hidden="true" />
@@ -322,20 +317,14 @@ export const MasterDataWorkspaceHeader: React.FC<MasterDataWorkspaceHeaderProps>
           Save
         </button>
 
-        <div className="ml-auto flex flex-wrap items-center gap-2 border-t border-slate-200 pt-2 sm:border-0 sm:pt-0">
+        <div className="ml-auto order-20 flex shrink-0 items-center">
           {tableSelector}
         </div>
       </div>
+      </div>
 
-      <div className="px-4 py-4">
-        <div className="flex flex-wrap items-baseline justify-between gap-2">
-          <h2 className="font-mono text-[11px] font-bold uppercase tracking-wide text-slate-700">Product context</h2>
-          <span className="font-mono text-[10px] uppercase text-slate-500">
-            {isReference ? 'Reference dataset' : 'Current dataset'}
-          </span>
-        </div>
-
-        <dl className="mt-2 grid min-w-0 grid-cols-1 gap-x-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
+      <div className="px-3 py-2">
+        <dl className="grid min-w-0 grid-cols-1 gap-x-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
           <div className="min-w-0 border-t border-slate-300 py-2">
             <dt className="font-mono text-[10px] font-semibold uppercase tracking-wide text-slate-600">Product Name</dt>
             <dd className="mt-1 min-w-0">
