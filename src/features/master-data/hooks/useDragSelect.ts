@@ -8,7 +8,7 @@ interface UseDragSelectOptions<T> {
 
 /**
  * Provides Excel-like click & drag multi-row selection:
- * - Click down on a checkbox cell or handle to begin selecting.
+ * - Click down on a row-number cell to begin selecting.
  * - Dragging down/up across rows toggles or extends the selection.
  * - Mouse up anywhere ends the drag mode.
  */
@@ -24,6 +24,16 @@ export function useDragSelect<T>({ items, getItemId, isEditMode }: UseDragSelect
   const clearSelection = useCallback(() => {
     setSelectedIds(new Set())
   }, [])
+
+  const toggleRow = useCallback((id: string) => {
+    if (!isEditMode) return
+    setSelectedIds(prev => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
+  }, [isEditMode])
 
   const startDrag = useCallback((id: string, e: React.MouseEvent) => {
     // Only primary mouse click
@@ -69,6 +79,7 @@ export function useDragSelect<T>({ items, getItemId, isEditMode }: UseDragSelect
     setSelectedIds,
     toggleAll,
     clearSelection,
+    toggleRow,
     startDrag,
     onMouseEnterRow
   }

@@ -10,7 +10,7 @@ import { BOMTable } from './components/BOMTable'
 import { RoutingTable } from './components/RoutingTable'
 import { PageHeading } from '../../shared'
 
-type TableSubTab = 'bom' | 'routing' | 'rates'
+type TableSubTab = 'bom' | 'wc' | 'routing'
 
 export const MasterDataPage: React.FC = () => {
   const {
@@ -90,10 +90,10 @@ export const MasterDataPage: React.FC = () => {
     ? 'BOM'
     : activeTableTab === 'routing'
       ? 'Routing'
-      : 'Work Center Rates'
+      : 'WC'
 
   const renderTable = (table: TableSubTab) => {
-    if (table === 'rates') {
+    if (table === 'wc') {
       return (
         <WorkCenterRatesTable
           rates={masterDataSnapshot.rates}
@@ -141,7 +141,7 @@ export const MasterDataPage: React.FC = () => {
           operationCode: '',
           processName: '',
           sequence: (masterDataSnapshot.routing.length + 1) * 10,
-          workCenterId: masterDataSnapshot.rates[0]?.workCenterCode || undefined,
+          workCenterId: undefined,
           manning: null,
           capacity: null,
           yield: null,
@@ -154,8 +154,8 @@ export const MasterDataPage: React.FC = () => {
   }
 
   const tableSections = [
-    { key: 'rates' as const, id: 'master-data-table-rates', label: 'Work Center Rates', navLabel: 'Work Centers', icon: Factory },
-    { key: 'bom' as const, id: 'master-data-table-bom', label: 'Bill of Materials', navLabel: 'BOM', icon: Box },
+    { key: 'bom' as const, id: 'master-data-table-bom', label: 'BOM', navLabel: 'BOM', icon: Box },
+    { key: 'wc' as const, id: 'master-data-table-wc', label: 'WC', navLabel: 'WC', icon: Factory },
     { key: 'routing' as const, id: 'master-data-table-routing', label: 'Process Routing', navLabel: 'Routing', icon: GitCommit }
   ]
   const activeSection = tableSections.find(section => section.key === activeTableTab)
