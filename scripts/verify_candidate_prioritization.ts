@@ -27,8 +27,8 @@ const refSnapshot: CostSnapshot = {
     { id: 'mat-removed', itemCode: 'M-03', description: 'Mat 03', consumption: 1.0, unit: 'KG', price: 15, loss: 0, confidence: {} }
   ],
   routing: [
-    { id: 'rt-ref-1', operationCode: 'OP-10', sequence: 10, workCenterId: 'WC-1', manning: 1, capacity: 100, yield: 1.0, confidence: {} },
-    { id: 'rt-ref-2', operationCode: 'OP-20', sequence: 20, workCenterId: 'WC-2', manning: 1, capacity: 100, yield: 1.0, confidence: {} }
+    { id: 'rt-ref-1', processName: 'Process A', operationCode: 'OP-10', sequence: 10, workCenterId: 'WC-1', manning: 1, capacity: 100, yield: 1.0, confidence: {} },
+    { id: 'rt-ref-2', processName: 'Process B', operationCode: 'OP-20', sequence: 20, workCenterId: 'WC-2', manning: 1, capacity: 100, yield: 1.0, confidence: {} }
   ],
   warnings: []
 }
@@ -51,8 +51,8 @@ const curSnapshot: CostSnapshot = {
   ],
   routing: [
     // WC-1 has two routing steps in current instead of one (1-to-many change without 1:1 ID match)
-    { id: 'rt-cur-1a', operationCode: 'OP-10A', sequence: 10, workCenterId: 'WC-1', manning: 1, capacity: 200, yield: 1.0, confidence: {} },
-    { id: 'rt-cur-1b', operationCode: 'OP-10B', sequence: 15, workCenterId: 'WC-1', manning: 1, capacity: 200, yield: 1.0, confidence: {} }
+    { id: 'rt-cur-1a', processName: 'Process A', operationCode: 'OP-10A', sequence: 10, workCenterId: 'WC-1', manning: 1, capacity: 200, yield: 1.0, confidence: {} },
+    { id: 'rt-cur-1b', processName: 'Process A2', operationCode: 'OP-10B', sequence: 15, workCenterId: 'WC-1', manning: 1, capacity: 200, yield: 1.0, confidence: {} }
     // WC-2 is removed in current
   ],
   warnings: []
@@ -117,7 +117,7 @@ assert(changedAndAdded.every(c => c.status === 'CHANGED' || c.status === 'ADDED'
 assert.equal(changedAndAdded.length, changedOnly.length + addedOnly.length, 'Combined status filter is the union of selected statuses')
 assert.equal(none.length, 0, 'An empty status filter returns no candidates')
 
-// A non-cost material field change remains a visible zero-gap finding with its field values.
+// BOM Name is the business identity; changing it creates one Removed and one Added finding.
 const descriptiveReference: CostSnapshot = {
   ...refSnapshot,
   id: 'descriptive-reference',
@@ -132,17 +132,19 @@ const descriptiveCurrent: CostSnapshot = {
   routing: [],
   bom: [{ id: 'description-mat-current', itemCode: 'M-DESC', description: 'New description', consumption: 1, unit: 'KG', price: 10, loss: 0, confidence: {} }]
 }
-const descriptiveCandidate = buildMaterialCandidates(
-  compareSnapshots(descriptiveReference, descriptiveCurrent),
-  descriptiveReference,
-  descriptiveCurrent
-).find(candidate => candidate.candidateName.includes('M-DESC'))
-assert(descriptiveCandidate, 'A descriptive material change remains a Candidate finding')
-assert.equal(descriptiveCandidate.status, 'CHANGED')
-assert.equal(descriptiveCandidate.costGap, 0)
-assert.deepEqual(descriptiveCandidate.changeDetails, [
-  { field: 'description', reference: 'Old description', current: 'New description' }
-], 'Candidate findings preserve the changed field and its Reference/Current values')
+const descriptiveComparison = compareSnapshots(descriptiveReference, descriptiveCurrent)
+const descriptiveCandidates = buildMaterialCandidates(descriptiveComparison, descriptiveReference, descriptiveCurrent)
+assert.deepEqual(
+  descriptiveComparison.bomFindings.map(finding => finding.matchStatus),
+  ['removed', 'added'],
+  'Changing BOM Name does not get matched through the removed legacy Item Code'
+)
+assert.deepEqual(
+  descriptiveCandidates.map(candidate => candidate.status).sort(),
+  ['ADDED', 'REMOVED'],
+  'Renamed BOM identities remain visible as Removed and Added candidate findings'
+)
+assert.equal(descriptiveComparison.elementGaps.material, 0, 'Equal-cost removed and added names reconcile to a zero material Gap')
 
 // 4. Missing values on present records stay unavailable in Candidate findings.
 console.log('4. Checking missing candidate inputs are not converted to zero...')
@@ -239,13 +241,13 @@ const missingRouteReference: CostSnapshot = {
   ...refSnapshot,
   id: 'missing-route-reference',
   bom: [],
-  routing: [{ id: 'route-one', operationCode: 'OP-ONE', sequence: 10, workCenterId: 'WC-1', manning: 1, capacity: 100, yield: 1, confidence: {} }]
+  routing: [{ id: 'route-one', processName: 'Route One', operationCode: 'OP-ONE', sequence: 10, workCenterId: 'WC-1', manning: 1, capacity: 100, yield: 1, confidence: {} }]
 }
 const missingRouteCurrent: CostSnapshot = {
   ...curSnapshot,
   id: 'missing-route-current',
   bom: [],
-  routing: [{ id: 'route-one', operationCode: 'OP-ONE', sequence: 10, workCenterId: 'WC-1', manning: 1, capacity: null, yield: 1, confidence: {} }]
+  routing: [{ id: 'route-one', processName: 'Route One', operationCode: 'OP-ONE', sequence: 10, workCenterId: 'WC-1', manning: 1, capacity: null, yield: 1, confidence: {} }]
 }
 const missingRouteCandidate = buildProcessingCandidates(
   compareSnapshots(missingRouteReference, missingRouteCurrent)
@@ -260,8 +262,8 @@ const reorderedReference: CostSnapshot = {
   id: 'reordered-reference',
   bom: [],
   routing: [
-    { id: 'route-a-ref', operationCode: 'OP-A', sequence: 10, workCenterId: 'WC-1', manning: 1, capacity: 100, yield: 1, confidence: {} },
-    { id: 'route-b-ref', operationCode: 'OP-B', sequence: 20, workCenterId: 'WC-1', manning: 1, capacity: 200, yield: 1, confidence: {} }
+    { id: 'route-a-ref', processName: 'Route A', operationCode: 'OP-A', sequence: 10, workCenterId: 'WC-1', manning: 1, capacity: 100, yield: 1, confidence: {} },
+    { id: 'route-b-ref', processName: 'Route B', operationCode: 'OP-B', sequence: 20, workCenterId: 'WC-1', manning: 1, capacity: 200, yield: 1, confidence: {} }
   ]
 }
 const reorderedCurrent: CostSnapshot = {
@@ -269,17 +271,16 @@ const reorderedCurrent: CostSnapshot = {
   id: 'reordered-current',
   bom: [],
   routing: [
-    { id: 'route-b-current', operationCode: 'OP-B', sequence: 20, workCenterId: 'WC-1', manning: 1, capacity: 200, yield: 1, confidence: {} },
-    { id: 'route-a-current', operationCode: 'OP-A', sequence: 10, workCenterId: 'WC-1', manning: 1, capacity: 100, yield: 1, confidence: {} }
+    { id: 'route-b-current', processName: 'Route B', operationCode: 'OP-B', sequence: 20, workCenterId: 'WC-1', manning: 1, capacity: 200, yield: 1, confidence: {} },
+    { id: 'route-a-current', processName: 'Route A', operationCode: 'OP-A', sequence: 10, workCenterId: 'WC-1', manning: 1, capacity: 100, yield: 1, confidence: {} }
   ]
 }
 assert.equal(buildProcessingCandidates(
   compareSnapshots(reorderedReference, reorderedCurrent)
 ).some(candidate => candidate.candidateKey === 'wc:wc-1'), false, 'Route row order alone must not create a Work Center candidate')
 
-// MASTER_DATA_FLOW_SPEC.md §5.2 has no Process Code in the neutral ROUTING
-// schema. A legacy Process Code edit must not change aggregate equivalence or
-// create/rerank a processing candidate when all business routing inputs match.
+// A legacy Process Code edit must not change aggregate equivalence or create /
+// rerank a processing candidate when approved routing inputs match.
 const legacyProcessReference: CostSnapshot = {
   ...refSnapshot,
   id: 'legacy-process-reference',
@@ -295,6 +296,7 @@ const legacyProcessReference: CostSnapshot = {
   }],
   routing: [{
     id: 'legacy-process-ref-route',
+    processName: 'Stable Process',
     operationCode: 'OP-10',
     processCode: 'LEGACY-A',
     sequence: 10,
@@ -377,7 +379,7 @@ const movedReference: CostSnapshot = {
   id: 'moved-reference',
   bom: [],
   routing: [
-    { id: 'move-route-a', operationCode: 'OP-MOVE', sequence: 10, workCenterId: 'WC-1', manning: 1, capacity: 100, yield: 1, confidence: {} }
+    { id: 'move-route-a', processName: 'Move Process', operationCode: 'OP-MOVE', sequence: 10, workCenterId: 'WC-1', manning: 1, capacity: 100, yield: 1, confidence: {} }
   ]
 }
 const movedCurrent: CostSnapshot = {
@@ -385,7 +387,7 @@ const movedCurrent: CostSnapshot = {
   id: 'moved-current',
   bom: [],
   routing: [
-    { id: 'move-route-b', operationCode: 'OP-MOVE', sequence: 10, workCenterId: 'WC-2', manning: 1, capacity: 100, yield: 1, confidence: {} }
+    { id: 'move-route-b', processName: 'Move Process', operationCode: 'OP-MOVE', sequence: 10, workCenterId: 'WC-2', manning: 1, capacity: 100, yield: 1, confidence: {} }
   ]
 }
 const movedCandidates = buildProcessingCandidates(compareSnapshots(movedReference, movedCurrent))

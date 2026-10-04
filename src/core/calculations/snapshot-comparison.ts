@@ -334,9 +334,7 @@ function addCost(total: number | null, value: number | null): number | null {
 
 function routingSignature(steps: SnapshotRoutingStep[]): string {
   const signatures = steps.map(step => JSON.stringify([
-    normalizeKey(step.operationCode),
-    step.processName,
-    step.sequence,
+    normalizeKey(step.processName),
     normalizeKey(step.workCenterId),
     step.manning,
     step.capacity,

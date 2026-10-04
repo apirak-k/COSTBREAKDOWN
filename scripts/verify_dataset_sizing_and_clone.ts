@@ -4,6 +4,7 @@ import { parseSnapshotExcelInputFile } from '../src/services/excel/snapshot-pars
 import { createEmptySnapshotPair } from '../src/state/seed-data.ts'
 import { ProductSession, DatasetSizing, SnapshotPair, CostSnapshot } from '../src/core/types/index.ts'
 import ExcelJS from 'exceljs'
+import assert from 'node:assert/strict'
 
 async function runVerifications() {
   console.log('--- Verifying Master Data Dataset Sizing & Bi-directional Clone ---')
@@ -234,24 +235,38 @@ async function runVerifications() {
   // Programmatically create and populate a test Excel workbook to test import
   const testWb = new ExcelJS.Workbook()
   const metaSheet = testWb.addWorksheet('META')
-  metaSheet.addRow(['Key', 'Value'])
-  metaSheet.addRow(['Format Version', 'master-data-v1'])
+  metaSheet.addRow(['MASTER DATA DATASET'])
+  metaSheet.addRow([])
+  metaSheet.addRow(['Remark'])
+  metaSheet.addRow(['Sizing and Clone round-trip fixture'])
 
   const prodSheet = testWb.addWorksheet('PRODUCT')
-  prodSheet.addRow(['Product Code', 'Product Description', 'UOM', 'Customer / Application', 'Effective Date'])
-  prodSheet.addRow(['RGOM-024', 'Test Membrane Panel', 'PCS', 'Auto Customer', '2026-09-25'])
+  prodSheet.addRow(['PRODUCT'])
+  prodSheet.addRow([])
+  prodSheet.addRow([])
+  prodSheet.addRow(['Product Name', 'UOM', 'Selling Price (THB)', 'SG&A (%)'])
+  prodSheet.addRow(['Test Membrane Panel', 'PCS', 245, 8])
 
   const wcSheet = testWb.addWorksheet('WORK_CENTER')
-  wcSheet.addRow(['ID', 'Work Center Code', 'Description', 'Labor Rate', 'Burden Rate', 'Effective Date', 'Source Ref', 'Confidence'])
-  wcSheet.addRow(['wc-10', 'WC-PRINT', 'Screen Printing', 120.5, 95.0, '2026-09-25', 'Ref-Doc', ''])
+  wcSheet.addRow(['WORK_CENTER'])
+  wcSheet.addRow([])
+  wcSheet.addRow([])
+  wcSheet.addRow(['WC', 'Labor', 'Burden', 'Note'])
+  wcSheet.addRow(['WC-PRINT', 120.5, 95.0, 'Rate note'])
 
   const bomSheet = testWb.addWorksheet('BOM')
-  bomSheet.addRow(['ID', 'Item Code', 'Description', 'Consumption', 'Unit', 'Price', 'Loss', 'Source Ref', 'Confidence'])
-  bomSheet.addRow(['bom-10', 'RM-FILM-10', 'Polyester Film', 0.08, 'M2', 50.0, 0.03, 'Ref-Doc', ''])
+  bomSheet.addRow(['BOM'])
+  bomSheet.addRow([])
+  bomSheet.addRow([])
+  bomSheet.addRow(['Name', 'Usage', 'Unit', 'Price', 'Loss', 'Note'])
+  bomSheet.addRow(['Polyester Film', 0.08, 'M2', 50.0, 0.03, 'Film note'])
 
   const rtgSheet = testWb.addWorksheet('ROUTING')
-  rtgSheet.addRow(['ID', 'Operation Code', 'Sequence', 'Process Code', 'Process Name', 'Work Center Code', 'Manning', 'Capacity', 'Yield', 'Source Ref', 'Confidence'])
-  rtgSheet.addRow(['rtg-10', 'OP-20', 20, 'PR-PRINT', 'Circuit Printing', 'WC-PRINT', 1, 400, 0.95, 'Ref-Doc', ''])
+  rtgSheet.addRow(['ROUTING'])
+  rtgSheet.addRow([])
+  rtgSheet.addRow([])
+  rtgSheet.addRow(['Process', 'WC', 'Manning', 'Cap', 'Yield', 'Note'])
+  rtgSheet.addRow(['Circuit Printing', 'WC-PRINT', 1, 400, 0.95, 'Routing note'])
 
   const buffer = await testWb.xlsx.writeBuffer()
   const testFile = new File([buffer], 'TestImportTemplate.xlsx', { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' })
@@ -260,21 +275,61 @@ async function runVerifications() {
   if (!importResult.success || !importResult.snapshot) {
     throw new Error(`Import failed: ${importResult.message}`)
   }
-  if (importResult.snapshot.bom.length !== 1 || importResult.snapshot.bom[0].itemCode !== 'RM-FILM-10') {
+  if (
+    importResult.snapshot.bom.length !== 1 ||
+    importResult.snapshot.bom[0].description !== 'Polyester Film' ||
+    importResult.snapshot.rates.length !== 1 ||
+    importResult.snapshot.rates[0].workCenterCode !== 'WC-PRINT' ||
+    importResult.snapshot.routing.length !== 1 ||
+    importResult.snapshot.routing[0].processName !== 'Circuit Printing'
+  ) {
     throw new Error('Imported data does not match populated workbook data')
   }
   console.log('✓ Import populated workbook into Reference succeeded')
 
   // Export Reference and Import into Current (Round-Trip)
-  const exportedBlob = await exportSnapshotToExcel(importResult.snapshot, session.product)
+  const exportedBlob = await exportSnapshotToExcel(importResult.snapshot)
   const exportedFile = new File([await exportedBlob.arrayBuffer()], 'ExportedRef.xlsx', { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' })
   const roundTripResult = await parseSnapshotExcelInputFile(exportedFile, 'current')
   if (!roundTripResult.success || !roundTripResult.snapshot) {
     throw new Error(`Round-trip import failed: ${roundTripResult.message}`)
   }
-  if (roundTripResult.snapshot.bom[0].itemCode !== 'RM-FILM-10' || !roundTripResult.snapshot.routing[0].processName) {
-    throw new Error('Round-trip export -> import failed to preserve dataset values')
-  }
+  const compareDatasetValues = (snapshot: CostSnapshot) => ({
+    remark: snapshot.remark ?? '',
+    product: {
+      productName: snapshot.product.productName ?? '',
+      uom: snapshot.product.uom ?? '',
+      sellingPrice: snapshot.product.sellingPrice ?? null,
+      sgaPercent: snapshot.product.sgaPercent ?? null
+    },
+    rates: snapshot.rates.map(rate => ({
+      workCenterCode: rate.workCenterCode,
+      laborRate: rate.laborRate,
+      burdenRate: rate.burdenRate,
+      note: rate.note ?? ''
+    })),
+    bom: snapshot.bom.map(item => ({
+      name: item.description,
+      usage: item.consumption,
+      unit: item.unit,
+      price: item.price,
+      loss: item.loss,
+      note: item.note ?? ''
+    })),
+    routing: snapshot.routing.map(step => ({
+      process: step.processName,
+      workCenter: step.workCenterId,
+      manning: step.manning,
+      capacity: step.capacity,
+      yield: step.yield,
+      note: step.note ?? ''
+    }))
+  })
+  assert.deepEqual(
+    compareDatasetValues(roundTripResult.snapshot),
+    compareDatasetValues(importResult.snapshot),
+    'Round-trip export -> import must preserve approved dataset fields and row counts'
+  )
   console.log('✓ Export -> Import round-trip preserved all Product, Rates, BOM, and Routing data')
 
   console.log('--- ALL MASTER DATA DATASET SIZING & CLONE VERIFICATIONS PASSED SUCCESSFULLY! ---')

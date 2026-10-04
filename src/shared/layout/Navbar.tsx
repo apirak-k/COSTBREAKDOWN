@@ -1,5 +1,6 @@
 import React from 'react'
 import { useAppStore } from '../../state'
+import { resolveWorkflowStatus } from './workflow-status'
 
 const navItems = [
   { id: 'master', label: 'Master Data' },
@@ -13,6 +14,7 @@ export const Navbar: React.FC = () => {
     activeTab,
     setActiveTab,
     snapshotPair,
+    snapshotComparison,
     isSelectedComparisonActive,
     masterDataHandoff
   } = useAppStore()
@@ -20,14 +22,16 @@ export const Navbar: React.FC = () => {
   const currentProductName = currentProduct.productName || currentProduct.productDescription || '—'
   const currentUom = currentProduct.uom || '—'
   const hasProductMismatch = masterDataHandoff.warnings?.some(warning => warning.startsWith('Product mismatch:')) ?? false
-  const workflowStatus = isSelectedComparisonActive
-    ? 'Selected Comparison Mode'
-    : hasProductMismatch
-      ? 'Product Mismatch'
-      : masterDataHandoff.datasetsPrepared
-        ? 'Datasets Prepared'
-        : 'Preparation Incomplete'
-  const statusIsWarning = !isSelectedComparisonActive && (hasProductMismatch || !masterDataHandoff.datasetsPrepared)
+  const missingData = masterDataHandoff.datasetsPrepared && (
+    snapshotComparison.totalGap === null || snapshotComparison.warnings.length > 0
+  )
+  const workflowStatus = resolveWorkflowStatus({
+    selectedComparisonActive: isSelectedComparisonActive,
+    productMismatch: hasProductMismatch,
+    missingData,
+    datasetsPrepared: masterDataHandoff.datasetsPrepared
+  })
+  const statusIsWarning = workflowStatus.destination === 'master'
 
   return (
     <header className="sticky top-0 z-50 select-none border-b border-slate-800 bg-slate-900 text-white shadow-xs">
@@ -52,17 +56,30 @@ export const Navbar: React.FC = () => {
               </span>
               <span className="shrink-0 text-slate-400">({currentUom})</span>
             </div>
-            <div
-              role="status"
-              aria-label={`Workflow status: ${workflowStatus}`}
-              className={`flex shrink-0 items-center gap-1.5 border px-2 py-1 font-mono text-[9px] ${
-                statusIsWarning
-                  ? 'border-amber-700 bg-amber-950/40 text-amber-100'
-                  : 'border-slate-700 bg-slate-800 text-slate-100'
-              }`}
-            >
-              <span className="text-slate-400">STATUS</span>
-              <span>{workflowStatus}</span>
+            <div className="flex shrink-0 items-center gap-1.5" aria-label="Global workflow status and review action">
+              <div
+                role="status"
+                aria-live="polite"
+                aria-label={`Workflow status: ${workflowStatus.label}`}
+                className={`flex items-center gap-1.5 border px-2 py-1 font-mono text-[9px] ${
+                  statusIsWarning
+                    ? 'border-amber-700 bg-amber-950/40 text-amber-100'
+                    : 'border-slate-700 bg-slate-800 text-slate-100'
+                }`}
+              >
+                <span className="text-slate-400">STATUS</span>
+                <span>{workflowStatus.label}</span>
+              </div>
+              {activeTab !== workflowStatus.destination && (
+                <button
+                  type="button"
+                  onClick={() => setActiveTab(workflowStatus.destination)}
+                  aria-label={workflowStatus.actionLabel}
+                  className="min-h-7 border border-slate-700 px-2 py-1 font-mono text-[9px] text-slate-300 transition-colors hover:bg-slate-800 hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-400"
+                >
+                  {workflowStatus.actionLabel}
+                </button>
+              )}
             </div>
           </div>
 

@@ -810,7 +810,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     setProductSessions(prev => prev.map(session => {
       if (session.id !== activeSession.id) return session
       const readiness = getSnapshotRoleReadiness(session)
-      if (!readiness.reference) return session
       const pair = session.snapshotPair ?? sessionToSnapshotPair(session)
       const reference = pair.reference
       const refSizing = session.datasetSizing?.reference ?? reference.sizing
@@ -840,7 +839,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       }, { reference, current })
       return {
         ...updated,
-        preparedSnapshotRoles: { ...readiness, current: true }
+        preparedSnapshotRoles: { ...readiness, current: readiness.reference }
       }
     }))
   }
@@ -849,7 +848,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     setProductSessions(prev => prev.map(session => {
       if (session.id !== activeSession.id) return session
       const readiness = getSnapshotRoleReadiness(session)
-      if (!readiness.current) return session
       const pair = session.snapshotPair ?? sessionToSnapshotPair(session)
       const current = pair.current
       const currentSizing = session.datasetSizing?.current ?? current.sizing
@@ -879,7 +877,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       }, { reference, current })
       return {
         ...updated,
-        preparedSnapshotRoles: { ...readiness, reference: true }
+        preparedSnapshotRoles: { ...readiness, reference: readiness.current }
       }
     }))
   }

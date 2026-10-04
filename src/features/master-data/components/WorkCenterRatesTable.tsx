@@ -63,7 +63,8 @@ export const WorkCenterRatesTable: React.FC<WorkCenterRatesTableProps> = ({
   } = useDragSelect({
     items: filteredRates,
     getItemId: rate => rate.id,
-    isEditMode
+    isEditMode,
+    selectionScope: historyScope
   })
 
   const {
@@ -159,27 +160,33 @@ export const WorkCenterRatesTable: React.FC<WorkCenterRatesTableProps> = ({
         )}
       </div>
 
-      {isEditMode && selectedIds.size > 0 && (
-        <div className="flex flex-wrap items-center gap-3 border-b border-blue-200 bg-blue-50 px-4 py-2 text-xs text-slate-800">
-          <span className="flex items-center gap-1 font-semibold text-slate-900">
-            <CheckSquare className="h-3.5 w-3.5 text-blue-700" aria-hidden="true" />
-            {selectedIds.size} row{selectedIds.size === 1 ? '' : 's'} selected
-          </span>
-          <button
-            type="button"
-            onClick={handleDeleteSelected}
-            className="flex min-h-9 items-center gap-1.5 px-3 text-sm text-rose-800 hover:bg-rose-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-rose-700"
-            title="Delete selected rows"
-          >
-            <Trash2 className="h-3 w-3" aria-hidden="true" /> Delete
-          </button>
-          <button
-            type="button"
-            onClick={clearSelection}
-            className="ml-auto min-h-9 px-3 text-sm text-slate-700 hover:bg-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700"
-          >
-            Cancel
-          </button>
+      {isEditMode && (
+        <div className={`flex h-[52px] items-center gap-3 overflow-x-auto border-b px-4 text-xs text-slate-800 ${selectedIds.size > 0 ? 'border-blue-200 bg-blue-50' : 'border-slate-200 bg-slate-50'}`}>
+          {selectedIds.size > 0 ? (
+            <>
+              <span className="flex shrink-0 items-center gap-1 whitespace-nowrap font-semibold text-slate-900">
+                <CheckSquare className="h-3.5 w-3.5 text-blue-700" aria-hidden="true" />
+                {selectedIds.size} row{selectedIds.size === 1 ? '' : 's'} selected
+              </span>
+              <button
+                type="button"
+                onClick={handleDeleteSelected}
+                className="flex min-h-9 shrink-0 items-center gap-1.5 whitespace-nowrap px-3 text-sm text-rose-800 hover:bg-rose-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-rose-700"
+                title="Delete selected rows"
+              >
+                <Trash2 className="h-3 w-3" aria-hidden="true" /> Delete
+              </button>
+              <button
+                type="button"
+                onClick={clearSelection}
+                className="ml-auto min-h-9 shrink-0 whitespace-nowrap px-3 text-sm text-slate-700 hover:bg-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700"
+              >
+                Cancel
+              </button>
+            </>
+          ) : (
+            <span className="shrink-0 whitespace-nowrap text-slate-500">Select rows by # or drag across the row numbers.</span>
+          )}
         </div>
       )}
 

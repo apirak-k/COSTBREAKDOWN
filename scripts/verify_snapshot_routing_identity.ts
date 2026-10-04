@@ -13,12 +13,12 @@ const product = {
 
 function routingStep(
   id: string,
-  operationCode: string | undefined,
+  legacyOperationCode: string | undefined,
   overrides: Partial<SnapshotRoutingStep> = {}
 ): SnapshotRoutingStep {
   return {
     id,
-    operationCode,
+    operationCode: legacyOperationCode,
     processCode: 'LEGACY-PROCESS',
     sequence: 10,
     processName: 'Assembly',
@@ -56,30 +56,30 @@ const changedCode = compareSnapshots(
 assert.deepEqual(
   changedCode.routingFindings.map(({ matchStatus, referenceId, currentId }) => ({ matchStatus, referenceId, currentId })),
   [
-    { matchStatus: 'removed', referenceId: 'ref-op-10', currentId: undefined },
-    { matchStatus: 'added', referenceId: undefined, currentId: 'current-op-20' }
+    { matchStatus: 'matched', referenceId: 'ref-op-10', currentId: 'current-op-20' }
   ],
-  'different Operation Codes must remain separate Removed/Added records even when Process Code matches'
+  'different legacy Operation Codes must still match by the same approved Process identity'
 )
-assert.ok(!changedCode.routingFindings.some(finding => String(finding.matchStatus) === 'replace'))
-assert.deepEqual(changedCode.routingFindings.map(getCanonicalComparisonStatus), ['REMOVED', 'ADDED'])
+assert.deepEqual(changedCode.routingFindings.map(getCanonicalComparisonStatus), ['UNCHANGED'])
 
 const sameCodeDifferentProcess = compareSnapshots(
   snapshot('reference', [routingStep('ref-op-10', '10', { processName: 'Cutting' })]),
   snapshot('current', [routingStep('current-op-10', '10', { processName: 'Packaging' })])
 )
-assert.equal(sameCodeDifferentProcess.routingFindings.length, 1, 'equal Operation Codes match despite changed Process Name')
-assert.equal(sameCodeDifferentProcess.routingFindings[0].matchStatus, 'matched')
-assert.equal(getCanonicalComparisonStatus(sameCodeDifferentProcess.routingFindings[0]), 'CHANGED')
+assert.deepEqual(
+  sameCodeDifferentProcess.routingFindings.map(finding => finding.matchStatus),
+  ['removed', 'added'],
+  'different Process names remain separate findings even if a legacy Operation Code matches'
+)
+assert.deepEqual(sameCodeDifferentProcess.routingFindings.map(getCanonicalComparisonStatus), ['REMOVED', 'ADDED'])
 
-// COSTBREAKDOWN_COMPARISON_PRINCIPLES.md §3.1 defines Operation Code as the
-// only Routing identity and explicitly excludes legacy Process Code as a key.
-// MASTER_DATA_FLOW_SPEC.md §5.2's neutral ROUTING schema also has no Process Code.
+// The current Master Data schema uses Process as Routing identity; legacy
+// Process Code, Operation Code, and Sequence do not define canonical status.
 const legacyProcessCodeChanged = compareSnapshots(
   snapshot('reference', [routingStep('ref-legacy-process', '10', { processCode: 'LEGACY-A' })]),
   snapshot('current', [routingStep('current-legacy-process', '10', { processCode: 'LEGACY-B' })])
 )
-assert.equal(legacyProcessCodeChanged.routingFindings.length, 1, 'a legacy Process Code edit must preserve the Operation Code match')
+assert.equal(legacyProcessCodeChanged.routingFindings.length, 1, 'a legacy Process Code edit must preserve the Process match')
 assert.equal(legacyProcessCodeChanged.routingFindings[0].matchStatus, 'matched')
 assert.equal(
   getCanonicalComparisonStatus(legacyProcessCodeChanged.routingFindings[0]),
@@ -105,8 +105,7 @@ function workCenterRate(id: string, effectiveDate: string): SnapshotWorkCenterRa
   }
 }
 
-// MASTER_DATA_FLOW_SPEC.md §5.2 excludes Effective Date from the neutral
-// dataset schema, so this legacy-only difference is not canonical business data.
+// Effective Date is excluded from the current neutral dataset schema.
 const effectiveDateOnlyChanged = compareSnapshots(
   snapshot('reference', [], [workCenterRate('ref-rate', '2026-01-01')]),
   snapshot('current', [], [workCenterRate('current-rate', '2026-02-01')])
@@ -124,29 +123,28 @@ assert.equal(
   'legacy Effective Date alone must not produce canonical CHANGED'
 )
 
-const missingCode = compareSnapshots(
-  snapshot('reference', [routingStep('ref-no-op-code', undefined)]),
-  snapshot('current', [routingStep('current-no-op-code', undefined)])
+const missingProcess = compareSnapshots(
+  snapshot('reference', [routingStep('ref-no-process', undefined, { processName: '' })]),
+  snapshot('current', [routingStep('current-no-process', undefined, { processName: '' })])
 )
-assert.deepEqual(missingCode.routingFindings.map(finding => finding.matchStatus), ['unmatched', 'unmatched'])
-assert.deepEqual(missingCode.routingFindings.map(getCanonicalComparisonStatus), [null, null])
-assert.ok(missingCode.warnings.some(warning => warning.code === 'MISSING_BUSINESS_KEY'))
+assert.deepEqual(missingProcess.routingFindings.map(finding => finding.matchStatus), ['unmatched', 'unmatched'])
+assert.deepEqual(missingProcess.routingFindings.map(getCanonicalComparisonStatus), [null, null])
+assert.ok(missingProcess.warnings.some(warning => warning.code === 'MISSING_BUSINESS_KEY'))
 
-const duplicateCode = compareSnapshots(
-  snapshot('reference', [routingStep('ref-1', '10'), routingStep('ref-2', '10')]),
-  snapshot('current', [routingStep('current-1', '10')])
+const duplicateProcess = compareSnapshots(
+  snapshot('reference', [routingStep('ref-1', '10'), routingStep('ref-2', '20')]),
+  snapshot('current', [routingStep('current-1', '30')])
 )
-assert.ok(duplicateCode.routingFindings.every(finding => finding.matchStatus === 'ambiguous'))
-assert.deepEqual(duplicateCode.routingFindings.map(getCanonicalComparisonStatus), [null, null, null])
-assert.ok(duplicateCode.warnings.some(warning => warning.code === 'AMBIGUOUS_KEY'))
+assert.ok(duplicateProcess.routingFindings.every(finding => finding.matchStatus === 'ambiguous'))
+assert.deepEqual(duplicateProcess.routingFindings.map(getCanonicalComparisonStatus), [null, null, null])
+assert.ok(duplicateProcess.warnings.some(warning => warning.code === 'AMBIGUOUS_KEY'))
 
 const sequenceChanged = compareSnapshots(
   snapshot('reference', [routingStep('ref-sequence', '10', { sequence: 10 })]),
   snapshot('current', [routingStep('current-sequence', '10', { sequence: 20 })])
 )
 assert.equal(sequenceChanged.routingFindings[0].matchStatus, 'matched')
-assert.equal(getCanonicalComparisonStatus(sequenceChanged.routingFindings[0]), 'CHANGED')
-assert.equal(sequenceChanged.routingFindings[0].changeFlags.reordered, true)
-assert.deepEqual(sequenceChanged.routingFindings[0].fieldDiffs.sequence, { reference: 10, current: 20 })
+assert.equal(getCanonicalComparisonStatus(sequenceChanged.routingFindings[0]), 'UNCHANGED')
+assert.deepEqual(sequenceChanged.routingFindings[0].fieldDiffs, {})
 
-console.log('Routing Operation Code identity verification passed.')
+console.log('Routing Process identity verification passed.')

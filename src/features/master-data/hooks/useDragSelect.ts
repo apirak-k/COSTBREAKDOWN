@@ -4,6 +4,7 @@ interface UseDragSelectOptions<T> {
   items: T[]
   getItemId: (item: T) => string
   isEditMode: boolean
+  selectionScope?: string
 }
 
 /**
@@ -12,7 +13,7 @@ interface UseDragSelectOptions<T> {
  * - Dragging down/up across rows toggles or extends the selection.
  * - Mouse up anywhere ends the drag mode.
  */
-export function useDragSelect<T>({ items, getItemId, isEditMode }: UseDragSelectOptions<T>) {
+export function useDragSelect<T>({ items, getItemId, isEditMode, selectionScope }: UseDragSelectOptions<T>) {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
   const isDraggingRef = useRef(false)
   const selectionAnchorId = useRef<string | null>(null)
@@ -24,6 +25,12 @@ export function useDragSelect<T>({ items, getItemId, isEditMode }: UseDragSelect
   const clearSelection = useCallback(() => {
     setSelectedIds(new Set())
   }, [])
+
+  useEffect(() => {
+    setSelectedIds(new Set())
+    isDraggingRef.current = false
+    selectionAnchorId.current = null
+  }, [selectionScope])
 
   const toggleRow = useCallback((id: string) => {
     if (!isEditMode) return

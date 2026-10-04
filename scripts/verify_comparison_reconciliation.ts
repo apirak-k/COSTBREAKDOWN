@@ -26,9 +26,9 @@ const refSnapshot: CostSnapshot = {
     { id: 'mat-removed', itemCode: 'M-03', description: 'Mat 03', consumption: 1.0, unit: 'KG', price: 15, loss: 0, confidence: {} }
   ],
   routing: [
-    { id: 'rt-unchanged', operationCode: 'OP-10', sequence: 10, workCenterId: 'WC-1', manning: 1, capacity: 100, yield: 1.0, confidence: {} },
-    { id: 'rt-changed', operationCode: 'OP-20', sequence: 20, workCenterId: 'WC-1', manning: 1, capacity: 100, yield: 1.0, confidence: {} },
-    { id: 'rt-removed', operationCode: 'OP-30', sequence: 30, workCenterId: 'WC-REM', manning: 1, capacity: 100, yield: 1.0, confidence: {} }
+    { id: 'rt-unchanged', processName: 'Process A', operationCode: 'OP-10', sequence: 10, workCenterId: 'WC-1', manning: 1, capacity: 100, yield: 1.0, confidence: {} },
+    { id: 'rt-changed', processName: 'Process B', operationCode: 'OP-20', sequence: 20, workCenterId: 'WC-1', manning: 1, capacity: 100, yield: 1.0, confidence: {} },
+    { id: 'rt-removed', processName: 'Process Removed', operationCode: 'OP-30', sequence: 30, workCenterId: 'WC-REM', manning: 1, capacity: 100, yield: 1.0, confidence: {} }
   ],
   warnings: []
 }
@@ -50,14 +50,43 @@ const curSnapshot: CostSnapshot = {
     { id: 'mat-added', itemCode: 'M-04', description: 'Mat 04', consumption: 0.5, unit: 'KG', price: 30, loss: 0, confidence: {} }    // Added
   ],
   routing: [
-    { id: 'rt-unchanged', operationCode: 'OP-10', sequence: 10, workCenterId: 'WC-1', manning: 1, capacity: 100, yield: 1.0, confidence: {} }, // Unchanged
-    { id: 'rt-changed', operationCode: 'OP-20', sequence: 20, workCenterId: 'WC-1', manning: 2, capacity: 80, yield: 0.95, confidence: {} },   // Changed
-    { id: 'rt-added', operationCode: 'OP-40', sequence: 40, workCenterId: 'WC-ADD', manning: 1, capacity: 200, yield: 1.0, confidence: {} }    // Added
+    { id: 'rt-unchanged', processName: 'Process A', operationCode: 'OP-10', sequence: 10, workCenterId: 'WC-1', manning: 1, capacity: 100, yield: 1.0, confidence: {} }, // Unchanged
+    { id: 'rt-changed', processName: 'Process B', operationCode: 'OP-20', sequence: 20, workCenterId: 'WC-1', manning: 2, capacity: 80, yield: 0.95, confidence: {} },   // Changed
+    { id: 'rt-added', processName: 'Process Added', operationCode: 'OP-40', sequence: 40, workCenterId: 'WC-ADD', manning: 1, capacity: 200, yield: 1.0, confidence: {} }    // Added
   ],
   warnings: []
 }
 
 const comparison = compareSnapshots(refSnapshot, curSnapshot)
+
+// Legacy Routing metadata is excluded from the approved dataset schema and must
+// not create a changed Work Center processing finding by itself.
+const legacyRoutingMetadataComparison = compareSnapshots(
+  {
+    ...refSnapshot,
+    id: 'legacy-routing-metadata-reference',
+    bom: [],
+    routing: [{
+      id: 'legacy-route-reference', processName: 'Assembly', operationCode: 'OLD-OP', sequence: 10,
+      workCenterId: 'WC-1', manning: 1, capacity: 100, yield: 1, confidence: {}
+    }]
+  },
+  {
+    ...curSnapshot,
+    id: 'legacy-routing-metadata-current',
+    bom: [],
+    routing: [{
+      id: 'legacy-route-current', processName: 'Assembly', operationCode: 'NEW-OP', sequence: 90,
+      workCenterId: 'WC-1', manning: 1, capacity: 100, yield: 1, confidence: {}
+    }]
+  }
+)
+const legacyMetadataRoute = legacyRoutingMetadataComparison.routingFindings[0]
+const legacyMetadataProcessing = legacyRoutingMetadataComparison.processingFindings.find(finding => finding.workCenterCode === 'WC-1')
+assert(legacyMetadataRoute, 'Routing finding exists for the approved Process identity')
+assert.equal(getCanonicalComparisonStatus(legacyMetadataRoute), 'UNCHANGED', 'Legacy Operation Code and Sequence changes alone must not change a Routing finding')
+assert(legacyMetadataProcessing, 'Work Center processing finding exists')
+assert.equal(getCanonicalComparisonStatus(legacyMetadataProcessing), 'UNCHANGED', 'Legacy Operation Code and Sequence changes alone must not change its Work Center processing finding')
 
 // 1. Task 6: Canonical Status Validation
 console.log('1. Checking Canonical 4 Statuses...')
@@ -131,7 +160,7 @@ const missingKeyReference: CostSnapshot = {
   ...refSnapshot,
   id: 'missing-key-reference',
   bom: [...refSnapshot.bom, {
-    id: 'shared-bom-id', itemCode: '', description: 'No stable BOM key', consumption: 1,
+    id: 'shared-bom-id', itemCode: '', description: '', consumption: 1,
     unit: 'KG', price: 10, loss: 0, confidence: {}
   }],
   rates: [...refSnapshot.rates, {
@@ -139,7 +168,7 @@ const missingKeyReference: CostSnapshot = {
     laborRate: 10, burdenRate: 5, effectiveDate: '2026-09-24', confidence: {}
   }],
   routing: [...refSnapshot.routing, {
-    id: 'shared-routing-id', processName: 'Same display name', workCenterId: 'WC-1',
+    id: 'shared-routing-id', processName: '', workCenterId: 'WC-1',
     manning: 1, capacity: 100, yield: 1, confidence: {}
   }]
 }
@@ -147,7 +176,7 @@ const missingKeyCurrent: CostSnapshot = {
   ...curSnapshot,
   id: 'missing-key-current',
   bom: [...curSnapshot.bom, {
-    id: 'shared-bom-id', itemCode: '', description: 'No stable BOM key', consumption: 1,
+    id: 'shared-bom-id', itemCode: '', description: '', consumption: 1,
     unit: 'KG', price: 10, loss: 0, confidence: {}
   }],
   rates: [...curSnapshot.rates, {
@@ -155,7 +184,7 @@ const missingKeyCurrent: CostSnapshot = {
     laborRate: 10, burdenRate: 5, effectiveDate: '2026-09-24', confidence: {}
   }],
   routing: [...curSnapshot.routing, {
-    id: 'shared-routing-id', processName: 'Same display name', workCenterId: 'WC-1',
+    id: 'shared-routing-id', processName: '', workCenterId: 'WC-1',
     manning: 1, capacity: 100, yield: 1, confidence: {}
   }]
 }

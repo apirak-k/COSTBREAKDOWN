@@ -232,8 +232,6 @@ export const MasterDataPage: React.FC = () => {
         onCloneReferenceToCurrent={cloneReferenceToCurrent}
         onCloneCurrentToReference={cloneCurrentToReference}
         onClearDataset={() => clearMasterDataDataset(masterDataRole)}
-        canCloneReference={masterDataHandoff.referenceReady}
-        canCloneCurrent={masterDataHandoff.currentReady}
         handoff={masterDataHandoff}
         onOpenImportModal={() => setImportModalOpen(true)}
         onOpenSizingModal={() => setSizingModalOpen(true)}

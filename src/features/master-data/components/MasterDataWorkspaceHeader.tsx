@@ -34,8 +34,6 @@ interface MasterDataWorkspaceHeaderProps {
   onCloneReferenceToCurrent: () => void
   onCloneCurrentToReference: () => void
   onClearDataset: () => void
-  canCloneReference: boolean
-  canCloneCurrent: boolean
   handoff: MasterDataHandoffStatus
   onOpenImportModal: () => void
   onOpenSizingModal: () => void
@@ -62,8 +60,6 @@ export const MasterDataWorkspaceHeader: React.FC<MasterDataWorkspaceHeaderProps>
   onCloneReferenceToCurrent,
   onCloneCurrentToReference,
   onClearDataset,
-  canCloneReference,
-  canCloneCurrent,
   handoff,
   onOpenImportModal,
   onOpenSizingModal,
@@ -275,12 +271,9 @@ export const MasterDataWorkspaceHeader: React.FC<MasterDataWorkspaceHeaderProps>
         <button
           type="button"
           onClick={isCurrent ? handleCloneRefToCurWithConfirm : handleCloneCurToRefWithConfirm}
-          disabled={isCurrent ? !canCloneReference : !canCloneCurrent}
           aria-label={isCurrent ? 'Clone Reference into Current' : 'Clone Current into Reference'}
-          className={toolbarButton + ' disabled:cursor-not-allowed disabled:opacity-50'}
-          title={isCurrent
-            ? canCloneReference ? 'Copy Reference dataset into Current' : 'Prepare Reference dataset first before copying to Current'
-            : canCloneCurrent ? 'Copy Current dataset into Reference' : 'Prepare Current dataset first before copying to Reference'}
+          className={toolbarButton}
+          title={isCurrent ? 'Copy Reference dataset into Current' : 'Copy Current dataset into Reference'}
         >
           <Copy className="h-3.5 w-3.5 text-slate-500" aria-hidden="true" />
           Clone
