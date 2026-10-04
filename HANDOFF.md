@@ -1,12 +1,23 @@
-# Current Handoff — cost breakdown review-fix batch (2026-10-02)
+# Current Handoff — Master Data refresh and Selected Comparison (2026-10-04)
 
-## Current checkpoint
+## Active implementation checkpoint
 
-- Repository: `E:\COSTBREAKDOWN`; active branch: `current`. This batch started from `2a08e98395776080307cbc1791afd53e09bbce91`, matching `origin/current` at the time.
+- Repository: `E:\COSTBREAKDOWN`; active branch: `codex/costbreakdown-spec-source`; latest application-source commit: `7a862a2` (`ui: align master data workspace with compact reference`). The branch is available in the user's existing VS Code checkout. `codex/uiux-refresh` is an ancestor of that source commit, so its compatible baseline is already included.
+- Current requirements and implementation order are in the user-provided `docs/MASTER_DATA_SPEC.md`, `docs/COSTBREAKDOWN_REVIEW_CONTEXT_FOR_CODEX.md`, and `tasks/plan.md`. These files, plus `tasks/todo.md`, remain local and uncommitted; implementation commits intentionally contain only source files.
+- The selected-comparison implementation is committed in `872e02e` and `07ba640`. Master Data compact layout is committed in `7a862a2`: it opens on BOM, places dataset actions and BOM/WC/Routing/All tables navigation above Product context, and retains the approved new field schemas. The BOM-first default is an inference from the supplied screenshot and remains subject to human review.
+- Verification: `npm run build` passed (TypeScript build and Vite production build; 2,030 modules), and `git diff --check` passed. Vite still reports the existing ExcelJS `fs`/`crypto` browser externalization warnings. No test suite was run, consistent with the active plan.
+- `[Unverified]` Manual browser review of Master Data and the complete Master Data → Cost Breakdown → Candidate/RCA flow could not be completed: the browser-control attempt timed out and localhost access was blocked. Human UX acceptance remains pending.
+- Next: review the working UI in the app, including BOM/WC/Routing/All tables navigation and selected-scope Gap displays across downstream pages; record feedback, then make any requested corrections. Do not push this branch unless the user asks.
+
+## Previous checkpoint — cost breakdown review-fix batch (2026-10-02)
+
+### Prior review-fix checkpoint details
+
+- Repository: `E:\COSTBREAKDOWN`; that review-fix batch used branch `current`, starting from `2a08e98395776080307cbc1791afd53e09bbce91`, which matched `origin/current` at the time.
 - The batch implements the seven findings reviewed in ChatGPT “บูมเอง 4” and fixes the additional Low revision-comparison edge case. The follow-up review confirmed the Low finding is closed and reported no remaining concrete finding within this batch scope; it was not a new full-repository audit.
 - Focused verifiers passed: `verify_scenario_input_mapping.ts`, `verify_dataset_sizing_preservation.ts`, `verify_dataset_sizing_noop.ts`, `verify_simulation_context.ts`, and `verify_cost_breakdown_review_feedback.mjs`. After the Low fix, `verify_simulation_context.ts` passed through the local Vite SSR loader because `tsx` is not installed and npm registry access was unavailable. `npm run build` and `git diff --check` passed. The build retains existing ExcelJS externalized `fs`/`crypto` warnings; Git reports the existing LF-to-CRLF working-copy warnings.
 - Browser checks passed for the three dialogs: initial focus, Tab/Shift+Tab trap, Escape close, focus restoration, and rejection of a sizing count of 501. These automated and agent-run checks are not human acceptance.
-- Human UX/UI acceptance remains pending. The user authorized committing and pushing this batch on `current`; no merge to the default branch was requested.
+- Human UX/UI acceptance for that batch remained pending. The user authorized committing and pushing that batch on `current`; no merge to the default branch was requested.
 - Product behavior remains governed by `docs/REQUIREMENTS_INDEX.md` and the four current files in `agreements/`. This handoff records status and evidence, not new product requirements.
 
 ## Previous checkpoint summary (2026-10-01)
