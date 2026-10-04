@@ -1,13 +1,14 @@
-# Current Handoff — Master Data refresh and Selected Comparison (2026-10-04)
+# Current Handoff — Master Data refresh and Selected Comparison (2026-10-05)
 
 ## Active implementation checkpoint
 
-- Repository: `E:\COSTBREAKDOWN`; active branch: `codex/costbreakdown-spec-source`; latest application-source commit: `7a862a2` (`ui: align master data workspace with compact reference`). The branch is available in the user's existing VS Code checkout. `codex/uiux-refresh` is an ancestor of that source commit, so its compatible baseline is already included.
-- Current requirements and implementation order are in the user-provided `docs/MASTER_DATA_SPEC.md`, `docs/COSTBREAKDOWN_REVIEW_CONTEXT_FOR_CODEX.md`, and `tasks/plan.md`. These files, plus `tasks/todo.md`, remain local and uncommitted; implementation commits intentionally contain only source files.
-- The selected-comparison implementation is committed in `872e02e` and `07ba640`. Master Data compact layout is committed in `7a862a2`: it opens on BOM, places dataset actions and BOM/WC/Routing/All tables navigation above Product context, and retains the approved new field schemas. The BOM-first default is an inference from the supplied screenshot and remains subject to human review.
-- Verification: `npm run build` passed (TypeScript build and Vite production build; 2,030 modules), and `git diff --check` passed. Vite still reports the existing ExcelJS `fs`/`crypto` browser externalization warnings. No test suite was run, consistent with the active plan.
-- `[Unverified]` Manual browser review of Master Data and the complete Master Data → Cost Breakdown → Candidate/RCA flow could not be completed: the browser-control attempt timed out and localhost access was blocked. Human UX acceptance remains pending.
-- Next: review the working UI in the app, including BOM/WC/Routing/All tables navigation and selected-scope Gap displays across downstream pages; record feedback, then make any requested corrections. Do not push this branch unless the user asks.
+- Repository: `E:\COSTBREAKDOWN`; active branch: `codex/costbreakdown-spec-source`; last committed application-source checkpoint: `7747fae` (`feat: finish master data table behavior`), preceded by `f7f9d10` (`ui: pin master data workspace and footer`). `codex/uiux-refresh` is an ancestor of this implementation branch.
+- Requirements authority and precedence are defined in `docs/REQUIREMENTS_INDEX.md`. The two supplied Master Data documents and shared-chat decisions supersede older agreements only where they speak; older agreements still govern unaffected behavior.
+- Implemented scope includes the screenshot-based Master Data layout, pinned toolbar/metadata and viewport-bottom Footer, BOM → Work Centers → Routing order, spreadsheet table behavior, and Selected Comparison showing only the selected-scope Gap.
+- The latest recorded production build and focused verifier results are summarized in the task-level Verification sections in `tasks/todo.md`. The build retains existing ExcelJS `fs`/`crypto` externalization warnings; the default `jiti` runner cannot load some ExcelJS/TSX paths before assertions.
+- `tasks/source-crosswalk-80.md` is the single per-topic status/evidence/next-action ledger. Use it for current PARTIAL/OPEN items; do not recreate a second item list here. Automated evidence does not equal human UX acceptance.
+- Current worktree includes uncommitted application-source changes. They are outside the documentation-only commit and must remain unstaged when committing this documentation update. Check `git status` before further source work.
+- Next: continue the current in-scope PARTIAL/OPEN items in the crosswalk, then review the connected workflow with the user. Human UX acceptance remains separate.
 
 ## Previous checkpoint — cost breakdown review-fix batch (2026-10-02)
 

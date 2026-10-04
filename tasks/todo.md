@@ -1,4 +1,189 @@
-# Implementation Tasks — Current Cost Breakdown Agreement
+# Implementation Tasks — Master Data Refresh and Selected Comparison
+
+> Active queue revised 2026-10-05 from the user's shared-chat decisions and the two supplied Markdown specifications. The original agreement checklist is retained as history; newer sources supersede only the behavior they cover. See [`plan.md`](plan.md) for scope and [`source-crosswalk-80.md`](source-crosswalk-80.md) for the single per-topic status and evidence ledger.
+
+## Active Plan Revision — 2026-10-05
+
+## Current Progress Snapshot — 2026-10-05
+
+- The crosswalk is the sole per-topic status ledger for the 80 source topics; its counts and evidence are not repeated here. Master Data behavior/data is closed, and Selected Comparison displays only its selected-scope Gap. Candidate/RCA redesign, dashboard details, accounting formulas, and Trial remain future scope unless a later source closes them.
+- This file holds the task-level implementation plan and verification detail below. Automated evidence and human UX acceptance remain separate.
+
+### Final integration gate
+
+Per-topic PASS/PARTIAL/OPEN/DEFERRED/RECORDED status and the exact next actions are maintained only in [`source-crosswalk-80.md`](source-crosswalk-80.md). Use this final gate for the integrated closeout, not as a second item-by-item status list.
+
+- [ ] Complete the remaining in-scope checks from the crosswalk on the final source tree, then run the focused verifiers and production build.
+- [ ] Review the connected Master Data → Cost Breakdown → Candidate/RCA flow and record human UX acceptance separately from automated evidence.
+
+### Phase 0 — Confirmed baseline
+
+#### Task 0: Freeze the implementation baseline and source set
+
+**Description:** Continue from the active COSTBREAKDOWN workspace; the branch name does not constrain the work. Use the latest chat and today's `MASTER_DATA_SPEC.md` / `COSTBREAKDOWN_REVIEW_CONTEXT_FOR_CODEX.md` as behavior requirements. The supplied screenshot is the target layout direction for the full Master Data page; its BOM table is one example, not the only supported table.
+
+**Acceptance criteria:**
+- [x] No remaining question blocks the Master Data or Selected Comparison scope.
+- [x] Selected mode displays only its selected-scope Gap; Full Gap is shown only in Full Comparison.
+- [x] Formula and dashboard metrics marked undecided remain out of scope.
+
+**Verification:** Confirmed against the complete shared chat and both supplied Markdown files; the user clarified that the screenshot represents the page layout and that the BOM table is illustrative. No unresolved question blocks implementation.
+
+**Dependencies:** None.
+
+**Files likely touched:** None.
+
+**Estimated scope:** Small.
+
+### Phase 1 — Master Data foundation
+
+#### Task 1: Align the domain model to the approved dataset fields
+
+**Description:** Update product metadata and BOM/WC/Routing row types, conversions, and comparison identity inputs while keeping the existing cost calculations intact.
+
+**Acceptance criteria:**
+- [x] Product Name, UOM, Selling Price, SG&A rate, and Dataset Remark are represented without applying undecided formulas.
+- [x] BOM, WC, and Routing use the approved visible columns and comparison keys: Name, WC, and Process.
+- [x] Missing or duplicate identities remain warnings; matching never falls back to row order or the display row number.
+
+**Verification:** Source audit and build confirm the active UI/import/export/comparison paths use the new schema. Old Product-session fields remain only in compatibility/session migration paths; they are not rendered as Master Data columns or used as active row-match keys.
+
+**Dependencies:** Task 0.
+
+**Files likely touched:** `src/core/types/product.types.ts`, `src/core/types/snapshot.types.ts`, `src/core/migrations/`, `src/core/calculations/snapshot-comparison.ts`.
+
+**Estimated scope:** Medium.
+
+#### Task 2: Implement independent Working and Last Saved state per side
+
+**Description:** Give Reference and Current their own in-session Working and Last Saved datasets and implement the agreed state transitions.
+
+**Acceptance criteria:**
+- [x] Save/Reset affect only the viewed side; Reset restores that side's Last Saved state.
+- [x] Import/Clear/Clone/Sizing affect Working; Clone copies the opposite side into the viewed side without a readiness gate, and the destination inherits the source's preparation state.
+- [x] Export reads Last Saved, and neither state persists after the app session ends.
+
+**Verification:** Source audit confirms independent per-side transitions and session storage. The production build passes after the Clone availability/readiness correction. The bundled `verify_dataset_sizing_and_clone.ts` passed both modeled Clone directions, data independence, copied sizing, and populated-row preservation. In isolated browser tabs, Save was checked independently for Current and Reference, and saving enabled that side's Reset/Export controls. Reset and Clone confirmation results, Clear retaining Last Saved, actual import/export file interactions, readiness propagation, and the complete lifecycle replay remain open. Chrome blocked attaching the synthetic workbook because the extension lacks file-URL access; that permission was left off.
+
+**Dependencies:** Task 1.
+
+**Files likely touched:** `src/state/store.tsx`, `src/state/working-datasets.ts`, `src/state/seed-data.ts`.
+
+**Estimated scope:** Medium.
+
+#### Task 3: Align Sizing, metadata, and workbook round trips
+
+**Description:** Replace Setup with Sizing, connect metadata and row counts, move template download into Sizing, and align import/export workbook columns with the new schema.
+
+**Acceptance criteria:**
+- [x] Sizing edits the viewed Working dataset and keeps metadata synchronized with Master Data.
+- [x] Import populates Working; Export uses Last Saved; templates and round trips use the approved field names and percent display conventions.
+- [x] Selling Price and SG&A are preserved as metadata only until their formulas are defined.
+
+**Verification:** Source mapping and production build pass. Both the current-schema workbook verifier and the refreshed sizing/clone verifier passed import, export/re-import, all approved fields and row counts, current template headers, and blank template checks. Loss/Yield are exported and templated as Excel percentages, pasted percentage strings are parsed, and SG&A remains percentage points (8 means 8%). The in-browser Sizing download/import interaction remains open.
+
+**Dependencies:** Tasks 1–2.
+
+**Files likely touched:** `src/features/master-data/MasterDataPage.tsx`, `src/features/master-data/components/MasterDataWorkspaceHeader.tsx`, `src/features/master-data/components/DatasetSizingModal.tsx`, `src/services/excel/snapshot-parser.ts`, `src/services/excel/snapshot-export.ts`.
+
+**Estimated scope:** Medium.
+
+### Phase 2 — Master Data workspace and editing
+
+#### Task 4: Rebuild the Master Data page structure and table schemas
+
+**Description:** Apply the screenshot's overall Master Data layout: navigation/status, dataset/action toolbar, product summary, and table workspace. Provide Work Centers, BOM, Routing, and All Tables views; the BOM shown in the screenshot is one example only. Use the approved metadata and table schemas rather than treating the screenshot's sample columns/data as the full schema; use `#` only as a display/selection row number.
+
+**Acceptance criteria:**
+- [x] Master Data follows the screenshot's overall layout, with table selection for Work Centers, BOM, Routing, and All Tables; it is not limited to BOM.
+- [x] Every table view shows its approved fields and keeps data editing/selection behavior consistent.
+- [x] Search is the single query control; validation remains visible and non-blocking.
+- [x] Routing Work Center references resolve against the WC list without inventing a cost when missing.
+
+**Verification:** Production build passed. Browser review checked Work Centers, Routing, and All Tables; All Tables visibly contained BOM → Work Centers → Routing with the approved columns. Toolbar/metadata remained together and Footer stayed at the viewport bottom while scrolling.
+
+**Dependencies:** Tasks 1–3.
+
+**Files likely touched:** `src/features/master-data/MasterDataPage.tsx`, `src/features/master-data/components/ProductMasterCard.tsx`, `src/features/master-data/components/BOMTable.tsx`, `src/features/master-data/components/WorkCenterRatesTable.tsx`, `src/features/master-data/components/RoutingTable.tsx`.
+
+**Estimated scope:** Medium.
+
+#### Task 5: Add spreadsheet-style editing and row controls
+
+**Description:** Make table editing work like the agreed spreadsheet workflow, including keyboard navigation, clipboard operations, range and row selection, and same-column bulk edits.
+
+**Acceptance criteria:**
+- [x] Arrow keys/Tab/Enter, copy/paste, and range selection work in editable cells; undo/redo is provided where practical.
+- [x] Row-number selection and the reorder-only drag handle are separate controls; both controls stay pinned in the left gutter during horizontal scrolling.
+- [x] Add/Delete selected rows and bulk edits do not change comparison identity by row position; dragging a selected row moves its selected group in source order.
+
+**Verification:** Production build passed. Isolated-browser review confirmed arrow/Tab/Enter navigation, TSV and cell copy/paste, visible invalid-cell feedback, undo/redo, same-column bulk edits in BOM/Work Centers/Routing, row-range selection, independent row-number and reorder controls, selected-group movement in source order, identity-based matching after reorder, add/delete in all three tables, selection reset on dataset-side change, and pinned row controls during horizontal scrolling at a 700px viewport.
+
+**Dependencies:** Task 4.
+
+**Files likely touched:** `src/features/master-data/components/BOMTable.tsx`, `src/features/master-data/components/WorkCenterRatesTable.tsx`, `src/features/master-data/components/RoutingTable.tsx`, `src/features/master-data/hooks/useTableKeyboardNav.ts`, `src/features/master-data/hooks/useDragSelect.ts`.
+
+**Estimated scope:** Medium.
+
+### Phase 3 — Selected Comparison end to end
+
+#### Task 6: Add temporary selected analysis scope and invalidation
+
+**Description:** Add app-memory selection for BOM/Routing findings, retaining matched pairs and complete WC calculation context, and route the selected result through downstream analysis.
+
+**Acceptance criteria:**
+- [x] CHANGED/UNCHANGED select or exclude the Reference+Current pair; ADDED/REMOVED select independently.
+- [x] Selected calculations include only selected BOM/Routing rows and keep all WC rates as supporting context; source datasets are never mutated.
+- [x] Scope is not saved, exported, versioned, or persisted; source edits or cancellation clear it and return to Full Comparison.
+
+**Verification:** Source audit and browser review covered paired CHANGED plus independent ADDED selection, retained WC context, navigation, exit, and unchanged dataset counts. A direct fixture check changed MAT-A price from 12 to 13; Selected Comparison exited immediately, then the test value was restored to 12.
+
+**Dependencies:** Tasks 1–4.
+
+**Files likely touched:** `src/state/store.tsx`, `src/core/calculations/snapshot-comparison.ts`, `src/features/cost-breakdown/`, `src/features/candidate-selection/`, `src/features/rca-simulation/`.
+
+**Estimated scope:** Medium.
+
+#### Task 7: Route every comparison display through the active scope
+
+**Description:** Keep Full Comparison as the default and make every selected-mode summary and table show only the selected-scope result and Gap.
+
+**Acceptance criteria:**
+- [x] Full mode shows the full comparison; Selected mode shows only selected rows and selected-scope Gap, with no Full Gap beside or behind it.
+- [x] BOM/Routing are selectable; Work Centers remain complete calculation context and do not expose a misleading full-scope Gap in Selected mode.
+- [x] The mode can be cancelled, stays identifiable across downstream pages, and clears on Reference/Current source changes.
+
+**Verification:** An isolated valid fixture produced a +4.0000 THB/pc Selected Gap and carried the selected rows/scope through Cost Breakdown, Candidate, and RCA. Selected mode showed only that selected-scope Gap, and exiting returned to Full Comparison.
+
+**Dependencies:** Task 6.
+
+**Files likely touched:** `src/features/cost-breakdown/CostBreakdownPage.tsx`, `src/features/cost-breakdown/components/`, `src/features/candidate-selection/CandidateSelectionPage.tsx`, `src/features/rca-simulation/RCASimulationPage.tsx`.
+
+**Estimated scope:** Medium.
+
+### Phase 4 — Visual alignment and handoff
+
+#### Task 8: Apply compatible UX refresh patterns and review the end-to-end flow
+
+**Description:** Apply the screenshot's page layout to Master Data across Work Centers, BOM, Routing, and All Tables; use compatible `uiux-refresh` patterns where helpful. Apply the approved executive-first result → cause → detail direction to downstream pages where confirmed calculations support it, then present a reviewable build.
+
+**Acceptance criteria:**
+- [x] Master Data follows the screenshot's full-page layout, and its table controls expose Work Centers, BOM, Routing, and All Tables while using the approved field schema and interaction rules.
+- [x] Downstream pages follow the agreed result → cause → detail direction where confirmed calculations support it.
+- [x] No unapproved GP/COGS/OP, margin, SG&A monetary, MatVAR/LBVAR/BDVAR, or chart formula is introduced.
+- [x] `npm run build` succeeds; changed flows are presented for human review with implementation evidence distinct from acceptance.
+
+**Verification:** `npm run build` succeeded and focused verifiers passed for the current schema, row identity/processing regression, Candidate, Master Data handoff, workbook round trips, and sizing/clone model behavior. Isolated-browser review covered the Master Data structure/interactions and a valid Selected Comparison flow through Cost Breakdown → Candidate → RCA. Current per-topic browser gaps are maintained only in `source-crosswalk-80.md`; the narrow-viewport row-control check passed. Human UX acceptance remains pending. The interactive business graph/live-scenario direction is future scope until calculation formulas and chart UX are agreed.
+
+**Dependencies:** Tasks 1–7.
+
+**Files likely touched:** `src/features/cost-breakdown/`, `src/features/master-data/`, `src/index.css`.
+
+**Estimated scope:** Medium.
+
+---
+
+## Historical Task Ledger — Original Agreement Plan
 
 Tasks are ordered by dependency. Keep each implementation slice focused and leave the application buildable before moving to the next task.
 
