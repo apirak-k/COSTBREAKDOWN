@@ -3,7 +3,6 @@ import {
   Copy,
   Download,
   Eye,
-  FileSpreadsheet,
   Sliders,
   Trash2,
   Upload,
@@ -39,7 +38,6 @@ interface MasterDataWorkspaceHeaderProps {
   canCloneCurrent: boolean
   handoff: MasterDataHandoffStatus
   onOpenImportModal: () => void
-  onOpenTemplateModal: () => void
   onOpenSizingModal: () => void
   referenceCounts: { bom: number; routing: number; rates: number }
   currentCounts: { bom: number; routing: number; rates: number }
@@ -68,7 +66,6 @@ export const MasterDataWorkspaceHeader: React.FC<MasterDataWorkspaceHeaderProps>
   canCloneCurrent,
   handoff,
   onOpenImportModal,
-  onOpenTemplateModal,
   onOpenSizingModal,
   referenceCounts,
   currentCounts
@@ -271,51 +268,31 @@ export const MasterDataWorkspaceHeader: React.FC<MasterDataWorkspaceHeaderProps>
 
         <dl className="mt-2 grid min-w-0 grid-cols-1 gap-x-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
           <div className="min-w-0 border-t border-slate-300 py-2">
-            <dt className="font-mono text-[10px] font-semibold uppercase tracking-wide text-slate-600">Product code</dt>
+            <dt className="font-mono text-[10px] font-semibold uppercase tracking-wide text-slate-600">Product Name</dt>
             <dd className="mt-1 min-w-0">
               {isEditMode ? (
                 <input
                   type="text"
-                  aria-label="Product code"
-                  value={product.productCode}
-                  onChange={event => onUpdateProduct({ ...product, productCode: event.target.value })}
-                  placeholder="Product code"
-                  className={fieldInput + ' font-mono font-semibold'}
-                />
-              ) : (
-                <span className="block truncate font-mono text-xs font-semibold text-slate-950">
-                  {product.productCode || '—'}
-                </span>
-              )}
-            </dd>
-          </div>
-
-          <div className="min-w-0 border-t border-slate-300 py-2">
-            <dt className="font-mono text-[10px] font-semibold uppercase tracking-wide text-slate-600">Product name</dt>
-            <dd className="mt-1 min-w-0">
-              {isEditMode ? (
-                <input
-                  type="text"
-                  aria-label="Product name"
-                  value={product.productDescription}
-                  onChange={event => onUpdateProduct({ ...product, productDescription: event.target.value })}
-                  placeholder="Product name"
+                  aria-label="Product Name"
+                  value={product.productName || product.productDescription || ''}
+                  onChange={event => onUpdateProduct({ ...product, productName: event.target.value, productDescription: event.target.value })}
+                  placeholder="Product Name"
                   className={fieldInput}
                 />
               ) : (
-                <span className="block truncate text-xs text-slate-950" title={product.productDescription}>
-                  {product.productDescription || '—'}
+                <span className="block truncate text-xs text-slate-950" title={product.productName || product.productDescription}>
+                  {product.productName || product.productDescription || '—'}
                 </span>
               )}
             </dd>
           </div>
 
           <div className="min-w-0 border-t border-slate-300 py-2">
-            <dt className="font-mono text-[10px] font-semibold uppercase tracking-wide text-slate-600">Unit of measure</dt>
+            <dt className="font-mono text-[10px] font-semibold uppercase tracking-wide text-slate-600">UOM</dt>
             <dd className="mt-1 min-w-0">
               {isEditMode ? (
                 <select
-                  aria-label="Unit of measure"
+                  aria-label="UOM"
                   value={product.uom}
                   onChange={event => onUpdateProduct({ ...product, uom: event.target.value })}
                   className={fieldInput + ' cursor-pointer font-mono'}
@@ -329,18 +306,41 @@ export const MasterDataWorkspaceHeader: React.FC<MasterDataWorkspaceHeaderProps>
           </div>
 
           <div className="min-w-0 border-t border-slate-300 py-2">
-            <dt className="font-mono text-[10px] font-semibold uppercase tracking-wide text-slate-600">Product note</dt>
+            <dt className="font-mono text-[10px] font-semibold uppercase tracking-wide text-slate-600">Selling Price (THB)</dt>
             <dd className="mt-1 min-w-0">
               {isEditMode ? (
                 <input
-                  type="text"
-                  value={product.note || ''}
-                  onChange={event => onUpdateProduct({ ...product, note: event.target.value })}
-                  aria-label="Product note"
-                  className={fieldInput}
+                  type="number"
+                  step="any"
+                  value={product.sellingPrice ?? ''}
+                  onChange={event => onUpdateProduct({ ...product, sellingPrice: event.target.value === '' ? null : Number(event.target.value) })}
+                  aria-label="Selling Price (THB)"
+                  className={fieldInput + ' font-mono'}
                 />
               ) : (
-                <span className="block truncate text-xs text-slate-800" title={product.note || ''}>{product.note || '—'}</span>
+                <span className="block truncate font-mono text-xs text-slate-950">
+                  {product.sellingPrice == null ? '—' : `${product.sellingPrice.toLocaleString()} THB`}
+                </span>
+              )}
+            </dd>
+          </div>
+
+          <div className="min-w-0 border-t border-slate-300 py-2">
+            <dt className="font-mono text-[10px] font-semibold uppercase tracking-wide text-slate-600">SG&amp;A (%)</dt>
+            <dd className="mt-1 min-w-0">
+              {isEditMode ? (
+                <input
+                  type="number"
+                  step="any"
+                  value={product.sgaPercent ?? ''}
+                  onChange={event => onUpdateProduct({ ...product, sgaPercent: event.target.value === '' ? null : Number(event.target.value) })}
+                  aria-label="SG&A (%)"
+                  className={fieldInput + ' font-mono'}
+                />
+              ) : (
+                <span className="block truncate font-mono text-xs text-slate-950">
+                  {product.sgaPercent == null ? '—' : `${product.sgaPercent.toLocaleString()} %`}
+                </span>
               )}
             </dd>
           </div>
@@ -389,7 +389,7 @@ export const MasterDataWorkspaceHeader: React.FC<MasterDataWorkspaceHeaderProps>
 
           <button type="button" onClick={onOpenSizingModal} className={toolbarButton} title="Configure dataset row starting counts">
             <Sliders className="h-3.5 w-3.5 text-slate-500" aria-hidden="true" />
-            Setup
+            Sizing
           </button>
 
           <div className="inline-flex divide-x divide-slate-300 border border-slate-300 bg-white">
@@ -411,15 +411,6 @@ export const MasterDataWorkspaceHeader: React.FC<MasterDataWorkspaceHeaderProps>
             >
               <Download className="h-3.5 w-3.5 text-slate-500" aria-hidden="true" />
               Export
-            </button>
-            <button
-              type="button"
-              onClick={onOpenTemplateModal}
-              className={toolbarButton + ' border-0'}
-              title="Download blank template using this dataset's configured row counts"
-            >
-              <FileSpreadsheet className="h-3.5 w-3.5 text-slate-500" aria-hidden="true" />
-              Template
             </button>
           </div>
 

@@ -4,7 +4,6 @@ import { useAppStore } from '../../state'
 
 import { MasterDataWorkspaceHeader } from './components/MasterDataWorkspaceHeader'
 import { ExcelImportModal } from './components/ExcelImportModal'
-import { TemplateSizingModal } from './components/TemplateSizingModal'
 import { DatasetSizingModal } from './components/DatasetSizingModal'
 import { WorkCenterRatesTable } from './components/WorkCenterRatesTable'
 import { BOMTable } from './components/BOMTable'
@@ -49,7 +48,6 @@ export const MasterDataPage: React.FC = () => {
   const [activeTableTab, setActiveTableTab] = useState<TableSubTab>('bom')
   const [isAllTablesVisible, setIsAllTablesVisible] = useState(true)
   const [importModalOpen, setImportModalOpen] = useState(false)
-  const [templateModalOpen, setTemplateModalOpen] = useState(false)
   const [sizingModalOpen, setSizingModalOpen] = useState(false)
   const [warningsExpanded, setWarningsExpanded] = useState(false)
 
@@ -212,7 +210,6 @@ export const MasterDataPage: React.FC = () => {
         canCloneCurrent={masterDataHandoff.currentReady}
         handoff={masterDataHandoff}
         onOpenImportModal={() => setImportModalOpen(true)}
-        onOpenTemplateModal={() => setTemplateModalOpen(true)}
         onOpenSizingModal={() => setSizingModalOpen(true)}
         referenceCounts={referenceCounts}
         currentCounts={currentCounts}
@@ -366,21 +363,14 @@ export const MasterDataPage: React.FC = () => {
         importRole={masterDataRole}
       />
 
-      <TemplateSizingModal
-        isOpen={templateModalOpen}
-        onClose={() => setTemplateModalOpen(false)}
-        role={masterDataRole}
-        product={product}
-        snapshot={masterDataSnapshot}
-        currentSizing={masterDataSizing}
-      />
-
       <DatasetSizingModal
         isOpen={sizingModalOpen}
         onClose={() => setSizingModalOpen(false)}
         role={masterDataRole}
         product={product}
+        snapshot={masterDataSnapshot}
         onUpdateProduct={updateMasterDataProduct}
+        onUpdateRemark={updateMasterDataRemark}
         currentSizing={masterDataSizing}
         onSaveSizing={sizing => updateMasterDataDatasetSizing(masterDataRole, sizing)}
       />

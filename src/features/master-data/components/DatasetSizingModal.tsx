@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react'
-import { X, Sliders, Check } from 'lucide-react'
-import { ComparisonRole, DatasetSizing, ProductMaster } from '../../../core'
+import { X, Sliders, Check, FileSpreadsheet } from 'lucide-react'
+import { ComparisonRole, CostSnapshot, DatasetSizing, ProductMaster } from '../../../core'
 import { DATASET_SIZING_LIMITS } from '../../../core/utils/sizing'
-import { hasDatasetSizingChanged, hasProductSizingFieldsChanged, parseDatasetSizingCounts } from '../dataset-sizing-form'
+import { hasDatasetMetadataChanged, hasDatasetSizingChanged, parseDatasetSizingCounts } from '../dataset-sizing-form'
+import { downloadBlob } from '../../../services/excel/export'
 import { useDialogFocus } from '../use-dialog-focus'
 
 interface DatasetSizingModalProps {
@@ -10,7 +11,9 @@ interface DatasetSizingModalProps {
   onClose: () => void
   role: ComparisonRole
   product: ProductMaster
+  snapshot: CostSnapshot
   onUpdateProduct: (product: ProductMaster) => void
+  onUpdateRemark: (remark: string) => void
   currentSizing: DatasetSizing
   onSaveSizing: (sizing: Partial<DatasetSizing>) => void
 }
@@ -20,7 +23,9 @@ export const DatasetSizingModal: React.FC<DatasetSizingModalProps> = ({
   onClose,
   role,
   product,
+  snapshot,
   onUpdateProduct,
+  onUpdateRemark,
   currentSizing,
   onSaveSizing
 }) => {
@@ -28,9 +33,11 @@ export const DatasetSizingModal: React.FC<DatasetSizingModalProps> = ({
   const [bomCount, setBomCount] = useState<string>(currentSizing.bomCount !== undefined ? String(currentSizing.bomCount) : '')
   const [routingCount, setRoutingCount] = useState<string>(currentSizing.routingCount !== undefined ? String(currentSizing.routingCount) : '')
 
-  const [productCode, setProductCode] = useState(product.productCode || '')
-  const [productDescription, setProductDescription] = useState(product.productDescription || '')
+  const [productName, setProductName] = useState(product.productName || product.productDescription || '')
   const [uom, setUom] = useState(product.uom || 'PC')
+  const [sellingPrice, setSellingPrice] = useState(product.sellingPrice == null ? '' : String(product.sellingPrice))
+  const [sgaPercent, setSgaPercent] = useState(product.sgaPercent == null ? '' : String(product.sgaPercent))
+  const [remark, setRemark] = useState(snapshot.remark || '')
   const [sizingError, setSizingError] = useState('')
   const dialogRef = useDialogFocus(isOpen, onClose)
 
@@ -38,49 +45,86 @@ export const DatasetSizingModal: React.FC<DatasetSizingModalProps> = ({
     setWcCount(currentSizing.wcCount !== undefined ? String(currentSizing.wcCount) : '')
     setBomCount(currentSizing.bomCount !== undefined ? String(currentSizing.bomCount) : '')
     setRoutingCount(currentSizing.routingCount !== undefined ? String(currentSizing.routingCount) : '')
-    setProductCode(product.productCode || '')
-    setProductDescription(product.productDescription || '')
+    setProductName(product.productName || product.productDescription || '')
     setUom(product.uom || 'PC')
+    setSellingPrice(product.sellingPrice == null ? '' : String(product.sellingPrice))
+    setSgaPercent(product.sgaPercent == null ? '' : String(product.sgaPercent))
+    setRemark(snapshot.remark || '')
     setSizingError('')
-  }, [currentSizing, product, isOpen])
+  }, [currentSizing, product, snapshot.remark, isOpen])
 
   if (!isOpen) return null
 
   const roleLabel = role === 'reference' ? 'Reference' : 'Current'
 
-  const handleApply = () => {
-    let nextSizing: DatasetSizing
-    try {
-      nextSizing = parseDatasetSizingCounts({ wcCount, bomCount, routingCount })
-    } catch (error) {
-      setSizingError(error instanceof Error ? error.message : 'Enter valid starting row counts.')
-      return
+  const buildSizingDraft = () => {
+    const nextSizing = parseDatasetSizingCounts({ wcCount, bomCount, routingCount })
+    const parseOptionalNumber = (value: string, label: string): number | null => {
+      const trimmed = value.trim()
+      if (!trimmed) return null
+      const parsed = Number(trimmed)
+      if (!Number.isFinite(parsed)) throw new RangeError(`${label} must be a valid number.`)
+      return parsed
     }
-
+    const nextProductName = productName.trim()
     const nextProduct = {
       ...product,
-      productCode: productCode.trim(),
-      productDescription: productDescription.trim(),
-      uom: uom.trim() || 'PC'
+      productName: nextProductName,
+      productDescription: nextProductName,
+      uom: uom.trim() || 'PC',
+      sellingPrice: parseOptionalNumber(sellingPrice, 'Selling Price'),
+      sgaPercent: parseOptionalNumber(sgaPercent, 'SG&A')
     }
     const previousProductFields = {
-      productCode: product.productCode || '',
-      productDescription: product.productDescription || '',
-      uom: product.uom || 'PC'
+      productName: product.productName || '',
+      uom: product.uom || 'PC',
+      sellingPrice: product.sellingPrice ?? null,
+      sgaPercent: product.sgaPercent ?? null
     }
-    if (hasProductSizingFieldsChanged(previousProductFields, nextProduct)) {
-      onUpdateProduct(nextProduct)
-    }
-
-    if (hasDatasetSizingChanged(currentSizing, nextSizing)) onSaveSizing(nextSizing)
-    onClose()
+    return { nextSizing, nextProduct, previousProductFields }
   }
 
-  const handleReset = () => {
-    setSizingError('')
-    const resetSizing = { wcCount: undefined, bomCount: undefined, routingCount: undefined }
-    if (hasDatasetSizingChanged(currentSizing, resetSizing)) onSaveSizing(resetSizing)
-    onClose()
+  const handleApply = () => {
+    try {
+      const { nextSizing, nextProduct, previousProductFields } = buildSizingDraft()
+      const nextProductFields = {
+        productName: nextProduct.productName || '',
+        uom: nextProduct.uom || 'PC',
+        sellingPrice: nextProduct.sellingPrice ?? null,
+        sgaPercent: nextProduct.sgaPercent ?? null
+      }
+      if (
+        hasDatasetMetadataChanged(previousProductFields, nextProductFields) ||
+        product.productDescription !== nextProduct.productDescription
+      ) {
+        onUpdateProduct(nextProduct)
+      }
+
+      if ((snapshot.remark || '') !== remark) onUpdateRemark(remark)
+      if (hasDatasetSizingChanged(currentSizing, nextSizing)) onSaveSizing(nextSizing)
+      onClose()
+    } catch (error) {
+      setSizingError(error instanceof Error ? error.message : 'Enter valid metadata and starting row counts.')
+    }
+  }
+
+  const handleDownloadTemplate = async () => {
+    try {
+      const { nextSizing, nextProduct } = buildSizingDraft()
+      const templateSnapshot = { ...snapshot, product: nextProduct, remark, sizing: nextSizing }
+      const { generateDynamicExcelTemplate } = await import('../../../services/excel/dynamic-excel-generator')
+      const blob = await generateDynamicExcelTemplate({
+        product: nextProduct,
+        snapshot: templateSnapshot,
+        wcCount: nextSizing.wcCount ?? Math.max(snapshot.rates.length, 1),
+        bomCount: nextSizing.bomCount ?? Math.max(snapshot.bom.length, 1),
+        routingCount: nextSizing.routingCount ?? Math.max(snapshot.routing.length, 1)
+      })
+      const safeProductName = (nextProduct.productName || 'PRODUCT').replace(/[<>:"/\\|?*\u0000-\u001F]/g, '-').trim() || 'PRODUCT'
+      downloadBlob(blob, `MasterData_Template_${safeProductName}_${roleLabel}.xlsx`)
+    } catch (error) {
+      setSizingError(error instanceof Error ? error.message : 'Template could not be generated.')
+    }
   }
 
   return (
@@ -92,13 +136,13 @@ export const DatasetSizingModal: React.FC<DatasetSizingModalProps> = ({
       aria-modal="true"
       aria-labelledby="sizing-modal-title"
     >
-      <div className="my-auto max-h-[calc(100dvh-2rem)] w-full max-w-md overflow-y-auto rounded-md border border-slate-200 bg-white text-slate-900 shadow-xl">
+      <div className="my-auto max-h-[calc(100dvh-2rem)] w-full max-w-3xl overflow-y-auto rounded-md border border-slate-200 bg-white text-slate-900 shadow-xl">
         {/* Header */}
         <div className="flex items-center justify-between gap-3 bg-slate-900 px-5 py-4 text-white">
           <div className="flex items-center gap-2.5">
             <Sliders className="w-4 h-4 text-blue-400" />
             <h3 id="sizing-modal-title" className="text-base font-semibold">
-              Dataset Row Setup ({roleLabel})
+              Sizing · {roleLabel}
             </h3>
           </div>
           <button
@@ -114,125 +158,94 @@ export const DatasetSizingModal: React.FC<DatasetSizingModalProps> = ({
         {/* Content */}
         <div className="space-y-4 p-5 text-sm">
           <p className="leading-6 text-slate-700">
-            Configure product identity and starting row slots for <strong className="font-mono text-slate-900 uppercase">{roleLabel}</strong>.
+            Set metadata and starting row counts for the selected Working dataset.
           </p>
 
-          {/* Product Fields (Blue Group) */}
-          <div className="space-y-3 rounded-sm border border-blue-200 bg-blue-50/60 p-4">
-            <div className="text-xs font-semibold text-blue-900">
-              Product Identity ({roleLabel})
-            </div>
+          <div className="space-y-3 border border-slate-200 bg-white p-4">
+            <div className="font-mono text-[11px] font-bold uppercase tracking-wide text-slate-700">Metadata</div>
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-              <div>
-                <label htmlFor="dataset-sizing-product-code" className="mb-1 block text-xs font-medium text-slate-700">
-                  Product Code
-                </label>
+              <div className="sm:col-span-2">
+                <label htmlFor="dataset-sizing-product-name" className="mb-1 block text-xs font-medium text-slate-700">Product Name</label>
                 <input
-                  id="dataset-sizing-product-code"
+                  id="dataset-sizing-product-name"
                   type="text"
-                  placeholder="e.g. FG-1001"
-                  value={productCode}
-                  onChange={e => setProductCode(e.target.value)}
-                  className="min-h-10 w-full rounded-sm border border-blue-300 bg-white px-3 py-2 text-sm font-medium text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-200"
+                  value={productName}
+                  onChange={event => { setProductName(event.target.value); setSizingError('') }}
+                  className="min-h-10 w-full border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-700"
                 />
               </div>
               <div>
-                <label htmlFor="dataset-sizing-uom" className="mb-1 block text-xs font-medium text-slate-700">
-                  Base UOM
-                </label>
+                <label htmlFor="dataset-sizing-uom" className="mb-1 block text-xs font-medium text-slate-700">UOM</label>
                 <input
                   id="dataset-sizing-uom"
                   type="text"
-                  placeholder="e.g. PC, SET"
                   value={uom}
-                  onChange={e => setUom(e.target.value)}
-                  className="min-h-10 w-full rounded-sm border border-blue-300 bg-white px-3 py-2 text-sm font-medium text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-200"
+                  onChange={event => { setUom(event.target.value); setSizingError('') }}
+                  className="min-h-10 w-full border border-slate-300 bg-white px-3 py-2 font-mono text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-700"
+                />
+              </div>
+              <div>
+                <label htmlFor="dataset-sizing-selling-price" className="mb-1 block text-xs font-medium text-slate-700">Selling Price (THB)</label>
+                <input
+                  id="dataset-sizing-selling-price"
+                  type="number"
+                  step="any"
+                  value={sellingPrice}
+                  onChange={event => { setSellingPrice(event.target.value); setSizingError('') }}
+                  className="min-h-10 w-full border border-slate-300 bg-white px-3 py-2 font-mono text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-700"
+                />
+              </div>
+              <div>
+                <label htmlFor="dataset-sizing-sga-percent" className="mb-1 block text-xs font-medium text-slate-700">SG&amp;A (%)</label>
+                <input
+                  id="dataset-sizing-sga-percent"
+                  type="number"
+                  step="any"
+                  value={sgaPercent}
+                  onChange={event => { setSgaPercent(event.target.value); setSizingError('') }}
+                  className="min-h-10 w-full border border-slate-300 bg-white px-3 py-2 font-mono text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-700"
+                />
+              </div>
+              <div>
+                <label htmlFor="dataset-sizing-dataset-remark" className="mb-1 block text-xs font-medium text-slate-700">Dataset Remark</label>
+                <input
+                  id="dataset-sizing-dataset-remark"
+                  type="text"
+                  value={remark}
+                  onChange={event => { setRemark(event.target.value); setSizingError('') }}
+                  className="min-h-10 w-full border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-700"
                 />
               </div>
             </div>
-            <div>
-              <label htmlFor="dataset-sizing-product-name" className="mb-1 block text-xs font-medium text-slate-700">
-                Product Name / Description
-              </label>
-              <input
-                id="dataset-sizing-product-name"
-                type="text"
-                placeholder="Product description / title"
-                value={productDescription}
-                onChange={e => setProductDescription(e.target.value)}
-                className="min-h-10 w-full rounded-sm border border-blue-300 bg-white px-3 py-2 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-200"
-              />
-            </div>
           </div>
 
+          <div className="space-y-3 rounded-sm border border-blue-200 bg-blue-50/60 p-4">
+            <div className="text-xs font-semibold text-blue-900">Dataset Size</div>
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+              <div>
+                <label htmlFor="dataset-sizing-bom-rows" className="mb-1 block text-xs font-medium text-slate-700">BOM row count</label>
+                <input id="dataset-sizing-bom-rows" type="number" min="1" step="1" max={DATASET_SIZING_LIMITS.bomCount} placeholder="Unset" value={bomCount} onChange={event => { setBomCount(event.target.value); setSizingError('') }} className="min-h-10 w-full border border-slate-300 bg-white px-3 py-2 font-mono text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-700" />
+              </div>
+              <div>
+                <label htmlFor="dataset-sizing-work-center-rows" className="mb-1 block text-xs font-medium text-slate-700">WC row count</label>
+                <input id="dataset-sizing-work-center-rows" type="number" min="1" step="1" max={DATASET_SIZING_LIMITS.wcCount} placeholder="Unset" value={wcCount} onChange={event => { setWcCount(event.target.value); setSizingError('') }} className="min-h-10 w-full border border-slate-300 bg-white px-3 py-2 font-mono text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-700" />
+              </div>
+              <div>
+                <label htmlFor="dataset-sizing-routing-rows" className="mb-1 block text-xs font-medium text-slate-700">Routing row count</label>
+                <input id="dataset-sizing-routing-rows" type="number" min="1" step="1" max={DATASET_SIZING_LIMITS.routingCount} placeholder="Unset" value={routingCount} onChange={event => { setRoutingCount(event.target.value); setSizingError('') }} className="min-h-10 w-full border border-slate-300 bg-white px-3 py-2 font-mono text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-700" />
+              </div>
+            </div>
+          </div>
           {sizingError && <p className="text-sm font-medium text-rose-700" role="alert">{sizingError}</p>}
-          <div className="space-y-3 rounded-sm border border-slate-200 bg-slate-50 p-4">
-            <div className="text-xs font-semibold text-slate-800">
-              Starting Blank Rows
-            </div>
-            <div>
-              <label htmlFor="dataset-sizing-work-center-rows" className="mb-1 block text-xs font-medium text-slate-700">
-                Work Center Rows
-              </label>
-              <input
-                id="dataset-sizing-work-center-rows"
-                type="number"
-                min="1"
-                step="1"
-                max={DATASET_SIZING_LIMITS.wcCount}
-                placeholder="Unset"
-                value={wcCount}
-                onChange={e => { setWcCount(e.target.value); setSizingError('') }}
-                className="min-h-10 w-full rounded-sm border border-slate-300 bg-white px-3 py-2 font-mono text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-200"
-              />
-            </div>
-
-            <div>
-              <label htmlFor="dataset-sizing-bom-rows" className="mb-1 block text-xs font-medium text-slate-700">
-                BOM Rows (Materials)
-              </label>
-              <input
-                id="dataset-sizing-bom-rows"
-                type="number"
-                min="1"
-                step="1"
-                max={DATASET_SIZING_LIMITS.bomCount}
-                placeholder="Unset"
-                value={bomCount}
-                onChange={e => { setBomCount(e.target.value); setSizingError('') }}
-                className="min-h-10 w-full rounded-sm border border-slate-300 bg-white px-3 py-2 font-mono text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-200"
-              />
-            </div>
-
-            <div>
-              <label htmlFor="dataset-sizing-routing-rows" className="mb-1 block text-xs font-medium text-slate-700">
-                Routing Rows (Operations)
-              </label>
-              <input
-                id="dataset-sizing-routing-rows"
-                type="number"
-                min="1"
-                step="1"
-                max={DATASET_SIZING_LIMITS.routingCount}
-                placeholder="Unset"
-                value={routingCount}
-                onChange={e => { setRoutingCount(e.target.value); setSizingError('') }}
-                className="min-h-10 w-full rounded-sm border border-slate-300 bg-white px-3 py-2 font-mono text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-200"
-              />
-            </div>
-          </div>
         </div>
 
         {/* Footer */}
         <div className="flex flex-col gap-2 border-t border-slate-200 bg-slate-50 px-5 py-3 sm:flex-row sm:items-center sm:justify-between">
-          <button
-            type="button"
-            onClick={handleReset}
-            className="min-h-9 self-start text-sm text-slate-700 underline hover:text-slate-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700 cursor-pointer"
-          >
-            Reset Sizing
+          <button type="button" onClick={() => { void handleDownloadTemplate() }} className="inline-flex min-h-10 items-center justify-center gap-2 border border-slate-300 bg-white px-4 text-sm font-medium text-slate-800 hover:bg-slate-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700 cursor-pointer">
+            <FileSpreadsheet className="h-4 w-4" aria-hidden="true" />
+            Download Template
           </button>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center justify-end gap-2">
             <button
               type="button"
               onClick={onClose}

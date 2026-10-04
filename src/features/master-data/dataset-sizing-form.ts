@@ -1,7 +1,7 @@
 import type { DatasetSizing, ProductMaster } from '../../core/types'
 import { DATASET_SIZING_LIMITS } from '../../core/utils/sizing'
 
-export type DatasetSizingProductFields = Pick<ProductMaster, 'productCode' | 'productDescription' | 'uom'>
+export type DatasetSizingProductFields = Pick<ProductMaster, 'productName' | 'uom' | 'sellingPrice' | 'sgaPercent'>
 
 export function parseDatasetSizingCounts(
   values: Partial<Record<keyof DatasetSizing, string>>
@@ -29,11 +29,12 @@ export function hasDatasetSizingChanged(previous: DatasetSizing, next: DatasetSi
   return sizingFields.some(field => previous[field] !== next[field])
 }
 
-export function hasProductSizingFieldsChanged(
+export function hasDatasetMetadataChanged(
   previous: DatasetSizingProductFields,
   next: DatasetSizingProductFields
 ): boolean {
-  return previous.productCode !== next.productCode ||
-    previous.productDescription !== next.productDescription ||
-    previous.uom !== next.uom
+  return previous.productName !== next.productName ||
+    previous.uom !== next.uom ||
+    previous.sellingPrice !== next.sellingPrice ||
+    previous.sgaPercent !== next.sgaPercent
 }
