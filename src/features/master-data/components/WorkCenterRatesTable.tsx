@@ -1,16 +1,19 @@
-import React, { useMemo, useRef, useState } from 'react'
-import { CheckSquare, Plus, Search, Trash2 } from 'lucide-react'
+import React, { useCallback, useMemo, useRef, useState } from 'react'
+import { CheckSquare, GripVertical, Plus, Redo2, Search, Trash2, Undo2 } from 'lucide-react'
 import { SnapshotWorkCenterRate } from '../../../core'
 import { useDragSelect } from '../hooks/useDragSelect'
-import { useTableKeyboardNav } from '../hooks/useTableKeyboardNav'
+import { SpreadsheetPasteCell, tableCellKey, useTableKeyboardNav } from '../hooks/useTableKeyboardNav'
+import { RowChanges, useSpreadsheetEditing } from '../hooks/useSpreadsheetEditing'
 import { duplicateIdentityIds, hasInvalidNumber } from '../table-validation'
 
 interface WorkCenterRatesTableProps {
   rates: SnapshotWorkCenterRate[]
   isEditMode?: boolean
+  historyScope: string
   onAddRate: () => void
   onUpdateRate: (id: string, partial: Partial<Omit<SnapshotWorkCenterRate, 'id' | 'confidence'>>) => void
   onDeleteRate: (id: string) => void
+  onReorderRows: (movingId: string, targetId: string, position: 'before' | 'after') => void
 }
 
 const numberValue = (value: number | null): string => value === null ? '' : String(value)
@@ -19,9 +22,11 @@ const parseNumber = (value: string): number | null => value.trim() === '' ? null
 export const WorkCenterRatesTable: React.FC<WorkCenterRatesTableProps> = ({
   rates,
   isEditMode = false,
+  historyScope,
   onAddRate,
   onUpdateRate,
-  onDeleteRate
+  onDeleteRate,
+  onReorderRows
 }) => {
   const tableRef = useRef<HTMLTableElement | null>(null)
   const [searchTerm, setSearchTerm] = useState('')
@@ -61,11 +66,57 @@ export const WorkCenterRatesTable: React.FC<WorkCenterRatesTableProps> = ({
     isEditMode
   })
 
-  useTableKeyboardNav({ tableRef, isEditMode })
+  const {
+    applyCellUpdate,
+    applyPasteUpdates,
+    undo,
+    redo,
+    canUndo,
+    canRedo
+  } = useSpreadsheetEditing({
+    rows: rates,
+    selectedIds,
+    isEditMode,
+    historyScope,
+    onUpdate: onUpdateRate
+  })
+
+  const handlePasteCells = useCallback((cells: SpreadsheetPasteCell[]) => {
+    const updates = cells.flatMap(cell => {
+      let changes: RowChanges<SnapshotWorkCenterRate> | null = null
+      if (cell.field === 'workCenterCode') changes = { workCenterCode: cell.value }
+      else if (cell.field === 'laborRate') changes = { laborRate: parseNumber(cell.value) }
+      else if (cell.field === 'burdenRate') changes = { burdenRate: parseNumber(cell.value) }
+      else if (cell.field === 'note') changes = { note: cell.value }
+      return changes ? [{ id: cell.rowId, changes }] : []
+    })
+    applyPasteUpdates(updates)
+  }, [applyPasteUpdates])
+
+  const { selectedCellKeys } = useTableKeyboardNav({
+    tableRef,
+    isEditMode,
+    onPasteCells: handlePasteCells,
+    onUndo: undo,
+    onRedo: redo
+  })
 
   const handleDeleteSelected = () => {
     selectedIds.forEach(id => onDeleteRate(id))
     clearSelection()
+  }
+
+  const handleDragStart = (event: React.DragEvent<HTMLButtonElement>, id: string) => {
+    event.dataTransfer.setData('text/plain', id)
+    event.dataTransfer.effectAllowed = 'move'
+  }
+
+  const handleRowDrop = (event: React.DragEvent<HTMLTableRowElement>, targetId: string) => {
+    event.preventDefault()
+    const movingId = event.dataTransfer.getData('text/plain')
+    if (!movingId || movingId === targetId) return
+    const bounds = event.currentTarget.getBoundingClientRect()
+    onReorderRows(movingId, targetId, event.clientY >= bounds.top + bounds.height / 2 ? 'after' : 'before')
   }
 
   return (
@@ -82,13 +133,17 @@ export const WorkCenterRatesTable: React.FC<WorkCenterRatesTableProps> = ({
           />
         </div>
         {isEditMode && (
-          <button
-            type="button"
-            onClick={onAddRate}
-            className="flex min-h-9 shrink-0 items-center justify-center gap-1.5 bg-slate-900 px-3 text-sm font-medium text-white hover:bg-slate-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700"
-          >
-            <Plus className="h-3 w-3" aria-hidden="true" /> Add row
-          </button>
+          <div className="flex shrink-0 items-center gap-1.5">
+            <button type="button" onClick={undo} disabled={!canUndo} aria-label="Undo last table edit" className="inline-flex min-h-9 items-center gap-1 border border-slate-300 bg-white px-2 text-xs text-slate-700 hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-40" title="Undo (Ctrl+Z)">
+              <Undo2 className="h-3.5 w-3.5" aria-hidden="true" /> Undo
+            </button>
+            <button type="button" onClick={redo} disabled={!canRedo} aria-label="Redo table edit" className="inline-flex min-h-9 items-center gap-1 border border-slate-300 bg-white px-2 text-xs text-slate-700 hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-40" title="Redo (Ctrl+Y)">
+              <Redo2 className="h-3.5 w-3.5" aria-hidden="true" /> Redo
+            </button>
+            <button type="button" onClick={onAddRate} className="flex min-h-9 items-center justify-center gap-1.5 bg-slate-900 px-3 text-sm font-medium text-white hover:bg-slate-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700">
+              <Plus className="h-3 w-3" aria-hidden="true" /> Add row
+            </button>
+          </div>
         )}
       </div>
 
@@ -117,9 +172,10 @@ export const WorkCenterRatesTable: React.FC<WorkCenterRatesTableProps> = ({
       )}
 
       <div className="max-h-[520px] overflow-x-auto">
-        <table ref={tableRef} className="w-full min-w-[680px] border-collapse text-left text-xs">
+        <table ref={tableRef} className="w-full min-w-[720px] border-collapse text-left text-xs">
           <thead className="sticky top-0 z-10 border-y-2 border-slate-400 bg-slate-100 text-[11px] font-semibold uppercase tracking-wide text-slate-800">
             <tr>
+              {isEditMode && <th scope="col" className="w-8 px-1 py-2.5" aria-label="Reorder rows" />}
               <th scope="col" className="w-12 px-3 py-2.5 text-center">#</th>
               <th scope="col" className="px-3 py-2.5">WC</th>
               <th scope="col" className="px-3 py-2.5 text-right">Labor</th>
@@ -140,9 +196,25 @@ export const WorkCenterRatesTable: React.FC<WorkCenterRatesTableProps> = ({
                 <tr
                   key={rate.id}
                   onMouseEnter={() => onMouseEnterRow(rate.id)}
+                  onDragOver={event => { if (isEditMode) event.preventDefault() }}
+                  onDrop={event => { if (isEditMode) handleRowDrop(event, rate.id) }}
                   className={`${issues.length > 0 ? 'bg-amber-50/50 ' : ''}${isSelected ? 'border-l-2 border-l-blue-700 bg-blue-50 hover:bg-blue-100' : 'hover:bg-slate-50'}`}
                   title={issues.length > 0 ? issues.join(' ') : undefined}
                 >
+                  {isEditMode && (
+                    <td className="w-8 px-1 py-2 text-center">
+                      <button
+                        type="button"
+                        draggable
+                        onDragStart={event => handleDragStart(event, rate.id)}
+                        aria-label={`Drag to reorder WC row ${rowNumber}`}
+                        title="Drag to reorder"
+                        className="inline-flex h-8 w-7 cursor-grab items-center justify-center text-slate-500 hover:bg-slate-200 active:cursor-grabbing"
+                      >
+                        <GripVertical className="h-4 w-4" aria-hidden="true" />
+                      </button>
+                    </td>
+                  )}
                   <th scope="row" className="px-2 py-2 text-center font-mono font-normal text-slate-600">
                     {isEditMode ? (
                       <button
@@ -162,10 +234,13 @@ export const WorkCenterRatesTable: React.FC<WorkCenterRatesTableProps> = ({
                       <div className="min-w-[150px]">
                         <input
                           value={rate.workCenterCode}
-                          onChange={event => onUpdateRate(rate.id, { workCenterCode: event.target.value })}
+                          onChange={event => applyCellUpdate(rate.id, { workCenterCode: event.target.value })}
+                          data-grid-cell="true"
+                          data-grid-row-id={rate.id}
+                          data-grid-field="workCenterCode"
                           aria-label={`WC for row ${rowNumber}`}
                           aria-invalid={identityInvalid}
-                          className={`min-h-9 w-full rounded-sm border bg-white px-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-700 ${identityInvalid ? 'border-amber-600' : 'border-slate-300'}`}
+                          className={`min-h-9 w-full rounded-sm border bg-white px-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-700 ${identityInvalid ? 'border-amber-600' : 'border-slate-300'} ${selectedCellKeys.has(tableCellKey(rate.id, 'workCenterCode')) ? 'ring-2 ring-blue-500 ring-inset' : ''}`}
                         />
                         {issues.length > 0 && <p className="mt-1 whitespace-normal font-sans text-xs font-normal leading-4 text-amber-800">{issues.join(' ')}</p>}
                       </div>
@@ -182,10 +257,13 @@ export const WorkCenterRatesTable: React.FC<WorkCenterRatesTableProps> = ({
                         type="number"
                         step="any"
                         value={numberValue(rate.laborRate)}
-                        onChange={event => onUpdateRate(rate.id, { laborRate: parseNumber(event.target.value) })}
+                        onChange={event => applyCellUpdate(rate.id, { laborRate: parseNumber(event.target.value) })}
+                        data-grid-cell="true"
+                        data-grid-row-id={rate.id}
+                        data-grid-field="laborRate"
                         aria-label={`Labor for ${rate.workCenterCode || `WC row ${rowNumber}`}`}
                         aria-invalid={!rate.isGeneratedSizingPlaceholder && (rate.laborRate === null || hasInvalidNumber(rate.laborRate))}
-                        className={`${numericClass} w-28`}
+                        className={`${numericClass} w-28 ${selectedCellKeys.has(tableCellKey(rate.id, 'laborRate')) ? 'ring-2 ring-blue-500 ring-inset' : ''}`}
                       />
                     ) : rate.laborRate === null ? <span className="text-amber-700">—</span> : rate.laborRate.toFixed(4)}
                   </td>
@@ -195,10 +273,13 @@ export const WorkCenterRatesTable: React.FC<WorkCenterRatesTableProps> = ({
                         type="number"
                         step="any"
                         value={numberValue(rate.burdenRate)}
-                        onChange={event => onUpdateRate(rate.id, { burdenRate: parseNumber(event.target.value) })}
+                        onChange={event => applyCellUpdate(rate.id, { burdenRate: parseNumber(event.target.value) })}
+                        data-grid-cell="true"
+                        data-grid-row-id={rate.id}
+                        data-grid-field="burdenRate"
                         aria-label={`Burden for ${rate.workCenterCode || `WC row ${rowNumber}`}`}
                         aria-invalid={!rate.isGeneratedSizingPlaceholder && (rate.burdenRate === null || hasInvalidNumber(rate.burdenRate))}
-                        className={`${numericClass} w-28`}
+                        className={`${numericClass} w-28 ${selectedCellKeys.has(tableCellKey(rate.id, 'burdenRate')) ? 'ring-2 ring-blue-500 ring-inset' : ''}`}
                       />
                     ) : rate.burdenRate === null ? <span className="text-amber-700">—</span> : rate.burdenRate.toFixed(4)}
                   </td>
@@ -206,9 +287,12 @@ export const WorkCenterRatesTable: React.FC<WorkCenterRatesTableProps> = ({
                     {isEditMode ? (
                       <input
                         value={rate.note || ''}
-                        onChange={event => onUpdateRate(rate.id, { note: event.target.value })}
+                        onChange={event => applyCellUpdate(rate.id, { note: event.target.value })}
+                        data-grid-cell="true"
+                        data-grid-row-id={rate.id}
+                        data-grid-field="note"
                         aria-label={`Note for ${rate.workCenterCode || `WC row ${rowNumber}`}`}
-                        className="min-h-9 w-full min-w-[160px] rounded-sm border border-slate-300 bg-white px-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-700"
+                        className={`min-h-9 w-full min-w-[160px] rounded-sm border border-slate-300 bg-white px-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-700 ${selectedCellKeys.has(tableCellKey(rate.id, 'note')) ? 'ring-2 ring-blue-500 ring-inset' : ''}`}
                       />
                     ) : rate.note || '—'}
                   </td>
@@ -230,7 +314,7 @@ export const WorkCenterRatesTable: React.FC<WorkCenterRatesTableProps> = ({
             })}
             {filteredRates.length === 0 && (
               <tr>
-                <td colSpan={isEditMode ? 6 : 5} className="py-6 text-center font-sans text-slate-500">
+                <td colSpan={isEditMode ? 7 : 5} className="py-6 text-center font-sans text-slate-500">
                   <div className="flex flex-col items-center justify-center gap-2">
                     <p className="text-xs italic text-slate-500">{rates.length === 0 ? 'No WC rows in this dataset yet.' : 'No rows match your search.'}</p>
                     {isEditMode && rates.length === 0 && (

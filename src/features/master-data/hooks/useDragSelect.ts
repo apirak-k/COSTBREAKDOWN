@@ -15,7 +15,7 @@ interface UseDragSelectOptions<T> {
 export function useDragSelect<T>({ items, getItemId, isEditMode }: UseDragSelectOptions<T>) {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
   const isDraggingRef = useRef(false)
-  const dragTargetStateRef = useRef<boolean>(true) // true = selecting, false = deselecting
+  const selectionAnchorId = useRef<string | null>(null)
 
   const toggleAll = useCallback((checked: boolean) => {
     setSelectedIds(checked ? new Set(items.map(getItemId)) : new Set())
@@ -38,28 +38,41 @@ export function useDragSelect<T>({ items, getItemId, isEditMode }: UseDragSelect
   const startDrag = useCallback((id: string, e: React.MouseEvent) => {
     // Only primary mouse click
     if (e.button !== 0 || !isEditMode) return
-    isDraggingRef.current = true
+    if (e.shiftKey) {
+      isDraggingRef.current = false
+      const anchorId = selectionAnchorId.current || id
+      const anchorIndex = items.findIndex(item => getItemId(item) === anchorId)
+      const targetIndex = items.findIndex(item => getItemId(item) === id)
+      const range = items.slice(Math.min(anchorIndex < 0 ? targetIndex : anchorIndex, targetIndex), Math.max(anchorIndex, targetIndex) + 1)
+      setSelectedIds(prev => {
+        const next = e.ctrlKey || e.metaKey ? new Set(prev) : new Set<string>()
+        range.forEach(item => next.add(getItemId(item)))
+        return next
+      })
+      return
+    }
 
-    // Determine whether this drag is selecting or deselecting
-    setSelectedIds(prev => {
-      const willSelect = !prev.has(id)
-      dragTargetStateRef.current = willSelect
-      const next = new Set(prev)
-      if (willSelect) next.add(id)
-      else next.delete(id)
-      return next
-    })
-  }, [isEditMode])
+    selectionAnchorId.current = id
+    if (e.ctrlKey || e.metaKey) {
+      isDraggingRef.current = false
+      setSelectedIds(prev => {
+        const next = new Set(prev)
+        if (next.has(id)) next.delete(id)
+        else next.add(id)
+        return next
+      })
+      return
+    }
+
+    isDraggingRef.current = true
+    setSelectedIds(new Set([id]))
+  }, [getItemId, isEditMode, items])
 
   const onMouseEnterRow = useCallback((id: string) => {
     if (!isDraggingRef.current || !isEditMode) return
     setSelectedIds(prev => {
       const next = new Set(prev)
-      if (dragTargetStateRef.current) {
-        next.add(id)
-      } else {
-        next.delete(id)
-      }
+      next.add(id)
       return next
     })
   }, [isEditMode])

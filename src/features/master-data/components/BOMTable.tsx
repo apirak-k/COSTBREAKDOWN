@@ -1,16 +1,19 @@
-import React, { useMemo, useRef, useState } from 'react'
-import { CheckSquare, Plus, Search, Trash2 } from 'lucide-react'
+import React, { useCallback, useMemo, useRef, useState } from 'react'
+import { CheckSquare, GripVertical, Plus, Redo2, Search, Trash2, Undo2 } from 'lucide-react'
 import { SnapshotBOMItem } from '../../../core'
 import { useDragSelect } from '../hooks/useDragSelect'
-import { useTableKeyboardNav } from '../hooks/useTableKeyboardNav'
+import { SpreadsheetPasteCell, tableCellKey, useTableKeyboardNav } from '../hooks/useTableKeyboardNav'
+import { RowChanges, useSpreadsheetEditing } from '../hooks/useSpreadsheetEditing'
 import { duplicateIdentityIds, hasInvalidNumber } from '../table-validation'
 
 interface BOMTableProps {
   bom: SnapshotBOMItem[]
   isEditMode?: boolean
+  historyScope: string
   onAddBOMItem: () => void
   onUpdateBOMItem: (id: string, partial: Partial<Omit<SnapshotBOMItem, 'id' | 'confidence'>>) => void
   onDeleteBOMItem: (id: string) => void
+  onReorderRows: (movingId: string, targetId: string, position: 'before' | 'after') => void
 }
 
 const numberValue = (value: number | null): string => value === null ? '' : String(value)
@@ -20,9 +23,11 @@ const displayNumber = (value: number | null, digits = 4): string => value === nu
 export const BOMTable: React.FC<BOMTableProps> = ({
   bom,
   isEditMode = false,
+  historyScope,
   onAddBOMItem,
   onUpdateBOMItem,
-  onDeleteBOMItem
+  onDeleteBOMItem,
+  onReorderRows
 }) => {
   const tableRef = useRef<HTMLTableElement | null>(null)
   const [searchTerm, setSearchTerm] = useState('')
@@ -65,11 +70,59 @@ export const BOMTable: React.FC<BOMTableProps> = ({
     isEditMode
   })
 
-  useTableKeyboardNav({ tableRef, isEditMode })
+  const {
+    applyCellUpdate,
+    applyPasteUpdates,
+    undo,
+    redo,
+    canUndo,
+    canRedo
+  } = useSpreadsheetEditing({
+    rows: bom,
+    selectedIds,
+    isEditMode,
+    historyScope,
+    onUpdate: onUpdateBOMItem
+  })
+
+  const handlePasteCells = useCallback((cells: SpreadsheetPasteCell[]) => {
+    const updates = cells.flatMap(cell => {
+      let changes: RowChanges<SnapshotBOMItem> | null = null
+      if (cell.field === 'description') changes = { description: cell.value }
+      else if (cell.field === 'consumption') changes = { consumption: parseNumber(cell.value) }
+      else if (cell.field === 'unit') changes = { unit: cell.value }
+      else if (cell.field === 'price') changes = { price: parseNumber(cell.value) }
+      else if (cell.field === 'loss') changes = { loss: cell.value.trim() === '' ? null : Number(cell.value) / 100 }
+      else if (cell.field === 'note') changes = { note: cell.value }
+      return changes ? [{ id: cell.rowId, changes }] : []
+    })
+    applyPasteUpdates(updates)
+  }, [applyPasteUpdates])
+
+  const { selectedCellKeys } = useTableKeyboardNav({
+    tableRef,
+    isEditMode,
+    onPasteCells: handlePasteCells,
+    onUndo: undo,
+    onRedo: redo
+  })
 
   const handleDeleteSelected = () => {
     selectedIds.forEach(id => onDeleteBOMItem(id))
     clearSelection()
+  }
+
+  const handleDragStart = (event: React.DragEvent<HTMLButtonElement>, id: string) => {
+    event.dataTransfer.setData('text/plain', id)
+    event.dataTransfer.effectAllowed = 'move'
+  }
+
+  const handleRowDrop = (event: React.DragEvent<HTMLTableRowElement>, targetId: string) => {
+    event.preventDefault()
+    const movingId = event.dataTransfer.getData('text/plain')
+    if (!movingId || movingId === targetId) return
+    const bounds = event.currentTarget.getBoundingClientRect()
+    onReorderRows(movingId, targetId, event.clientY >= bounds.top + bounds.height / 2 ? 'after' : 'before')
   }
 
   return (
@@ -86,13 +139,17 @@ export const BOMTable: React.FC<BOMTableProps> = ({
           />
         </div>
         {isEditMode && (
-          <button
-            type="button"
-            onClick={onAddBOMItem}
-            className="flex min-h-9 shrink-0 items-center justify-center gap-1.5 bg-slate-900 px-3 text-sm font-medium text-white transition-colors hover:bg-slate-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700"
-          >
-            <Plus className="h-3 w-3" aria-hidden="true" /> Add row
-          </button>
+          <div className="flex shrink-0 items-center gap-1.5">
+            <button type="button" onClick={undo} disabled={!canUndo} aria-label="Undo last table edit" className="inline-flex min-h-9 items-center gap-1 border border-slate-300 bg-white px-2 text-xs text-slate-700 hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-40" title="Undo (Ctrl+Z)">
+              <Undo2 className="h-3.5 w-3.5" aria-hidden="true" /> Undo
+            </button>
+            <button type="button" onClick={redo} disabled={!canRedo} aria-label="Redo table edit" className="inline-flex min-h-9 items-center gap-1 border border-slate-300 bg-white px-2 text-xs text-slate-700 hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-40" title="Redo (Ctrl+Y)">
+              <Redo2 className="h-3.5 w-3.5" aria-hidden="true" /> Redo
+            </button>
+            <button type="button" onClick={onAddBOMItem} className="flex min-h-9 items-center justify-center gap-1.5 bg-slate-900 px-3 text-sm font-medium text-white hover:bg-slate-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700">
+              <Plus className="h-3 w-3" aria-hidden="true" /> Add row
+            </button>
+          </div>
         )}
       </div>
 
@@ -121,9 +178,10 @@ export const BOMTable: React.FC<BOMTableProps> = ({
       )}
 
       <div className="max-h-[520px] overflow-x-auto">
-        <table ref={tableRef} className="w-full min-w-[820px] border-collapse text-left text-xs">
+        <table ref={tableRef} className="w-full min-w-[860px] border-collapse text-left text-xs">
           <thead className="sticky top-0 z-10 border-y-2 border-slate-400 bg-slate-100 text-[11px] font-semibold uppercase tracking-wide text-slate-800">
             <tr>
+              {isEditMode && <th scope="col" className="w-8 px-1 py-2.5" aria-label="Reorder rows" />}
               <th scope="col" className="w-12 px-3 py-2.5 text-center">#</th>
               <th scope="col" className="px-3 py-2.5">Name</th>
               <th scope="col" className="px-3 py-2.5 text-right">Usage</th>
@@ -146,9 +204,25 @@ export const BOMTable: React.FC<BOMTableProps> = ({
                 <tr
                   key={item.id}
                   onMouseEnter={() => onMouseEnterRow(item.id)}
+                  onDragOver={event => { if (isEditMode) event.preventDefault() }}
+                  onDrop={event => { if (isEditMode) handleRowDrop(event, item.id) }}
                   className={`${issues.length > 0 ? 'bg-amber-50/50 ' : ''}${isSelected ? 'border-l-2 border-l-blue-700 bg-blue-50 hover:bg-blue-100' : 'hover:bg-slate-50'}`}
                   title={issues.length > 0 ? issues.join(' ') : undefined}
                 >
+                  {isEditMode && (
+                    <td className="w-8 px-1 py-2 text-center">
+                      <button
+                        type="button"
+                        draggable
+                        onDragStart={event => handleDragStart(event, item.id)}
+                        aria-label={`Drag to reorder BOM row ${rowNumber}`}
+                        title="Drag to reorder"
+                        className="inline-flex h-8 w-7 cursor-grab items-center justify-center text-slate-500 hover:bg-slate-200 active:cursor-grabbing"
+                      >
+                        <GripVertical className="h-4 w-4" aria-hidden="true" />
+                      </button>
+                    </td>
+                  )}
                   <th scope="row" className="px-2 py-2 text-center font-mono font-normal text-slate-600">
                     {isEditMode ? (
                       <button
@@ -168,10 +242,13 @@ export const BOMTable: React.FC<BOMTableProps> = ({
                       {isEditMode ? (
                         <input
                           value={item.description}
-                          onChange={event => onUpdateBOMItem(item.id, { description: event.target.value })}
+                          onChange={event => applyCellUpdate(item.id, { description: event.target.value })}
+                          data-grid-cell="true"
+                          data-grid-row-id={item.id}
+                          data-grid-field="description"
                           aria-label={`Name for BOM row ${rowNumber}`}
                           aria-invalid={identityInvalid}
-                          className={`min-h-9 w-full rounded-sm border bg-white px-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-700 ${identityInvalid ? 'border-amber-600' : 'border-slate-300'}`}
+                          className={`min-h-9 w-full rounded-sm border bg-white px-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-700 ${identityInvalid ? 'border-amber-600' : 'border-slate-300'} ${selectedCellKeys.has(tableCellKey(item.id, 'description')) ? 'ring-2 ring-blue-500 ring-inset' : ''}`}
                         />
                       ) : item.description || <span className="text-amber-700">—</span>}
                       {issues.length > 0 && <p className="mt-1 text-xs leading-4 text-amber-800">{issues.join(' ')}</p>}
@@ -183,10 +260,13 @@ export const BOMTable: React.FC<BOMTableProps> = ({
                         type="number"
                         step="any"
                         value={numberValue(item.consumption)}
-                        onChange={event => onUpdateBOMItem(item.id, { consumption: parseNumber(event.target.value) })}
+                        onChange={event => applyCellUpdate(item.id, { consumption: parseNumber(event.target.value) })}
+                        data-grid-cell="true"
+                        data-grid-row-id={item.id}
+                        data-grid-field="consumption"
                         aria-label={`Usage for ${item.description || `BOM row ${rowNumber}`}`}
                         aria-invalid={!item.isGeneratedSizingPlaceholder && (item.consumption === null || hasInvalidNumber(item.consumption))}
-                        className={`${numericClass} w-28`}
+                        className={`${numericClass} w-28 ${selectedCellKeys.has(tableCellKey(item.id, 'consumption')) ? 'ring-2 ring-blue-500 ring-inset' : ''}`}
                       />
                     ) : displayNumber(item.consumption)}
                   </td>
@@ -194,10 +274,13 @@ export const BOMTable: React.FC<BOMTableProps> = ({
                     {isEditMode ? (
                       <input
                         value={item.unit}
-                        onChange={event => onUpdateBOMItem(item.id, { unit: event.target.value })}
+                        onChange={event => applyCellUpdate(item.id, { unit: event.target.value })}
+                        data-grid-cell="true"
+                        data-grid-row-id={item.id}
+                        data-grid-field="unit"
                         aria-label={`Unit for ${item.description || `BOM row ${rowNumber}`}`}
                         aria-invalid={!item.isGeneratedSizingPlaceholder && !item.unit.trim()}
-                        className={`min-h-9 w-20 rounded-sm border bg-white px-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-700 ${!item.isGeneratedSizingPlaceholder && !item.unit.trim() ? 'border-amber-600' : 'border-slate-300'}`}
+                        className={`min-h-9 w-20 rounded-sm border bg-white px-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-700 ${!item.isGeneratedSizingPlaceholder && !item.unit.trim() ? 'border-amber-600' : 'border-slate-300'} ${selectedCellKeys.has(tableCellKey(item.id, 'unit')) ? 'ring-2 ring-blue-500 ring-inset' : ''}`}
                       />
                     ) : item.unit || <span className="text-amber-700">—</span>}
                   </td>
@@ -207,10 +290,13 @@ export const BOMTable: React.FC<BOMTableProps> = ({
                         type="number"
                         step="any"
                         value={numberValue(item.price)}
-                        onChange={event => onUpdateBOMItem(item.id, { price: parseNumber(event.target.value) })}
+                        onChange={event => applyCellUpdate(item.id, { price: parseNumber(event.target.value) })}
+                        data-grid-cell="true"
+                        data-grid-row-id={item.id}
+                        data-grid-field="price"
                         aria-label={`Price for ${item.description || `BOM row ${rowNumber}`}`}
                         aria-invalid={!item.isGeneratedSizingPlaceholder && (item.price === null || hasInvalidNumber(item.price))}
-                        className={`${numericClass} w-28`}
+                        className={`${numericClass} w-28 ${selectedCellKeys.has(tableCellKey(item.id, 'price')) ? 'ring-2 ring-blue-500 ring-inset' : ''}`}
                       />
                     ) : displayNumber(item.price, 2)}
                   </td>
@@ -223,11 +309,14 @@ export const BOMTable: React.FC<BOMTableProps> = ({
                           value={item.loss === null ? '' : String(item.loss * 100)}
                           onChange={event => {
                             const value = event.target.value.trim()
-                            onUpdateBOMItem(item.id, { loss: value === '' ? null : Number(value) / 100 })
+                            applyCellUpdate(item.id, { loss: value === '' ? null : Number(value) / 100 })
                           }}
+                          data-grid-cell="true"
+                          data-grid-row-id={item.id}
+                          data-grid-field="loss"
                           aria-label={`Loss percentage for ${item.description || `BOM row ${rowNumber}`}`}
                           aria-invalid={!item.isGeneratedSizingPlaceholder && (item.loss === null || hasInvalidNumber(item.loss))}
-                          className={`${numericClass} w-20`}
+                          className={`${numericClass} w-20 ${selectedCellKeys.has(tableCellKey(item.id, 'loss')) ? 'ring-2 ring-blue-500 ring-inset' : ''}`}
                         />
                         <span className="text-slate-400">%</span>
                       </div>
@@ -237,9 +326,12 @@ export const BOMTable: React.FC<BOMTableProps> = ({
                     {isEditMode ? (
                       <input
                         value={item.note || ''}
-                        onChange={event => onUpdateBOMItem(item.id, { note: event.target.value })}
+                        onChange={event => applyCellUpdate(item.id, { note: event.target.value })}
+                        data-grid-cell="true"
+                        data-grid-row-id={item.id}
+                        data-grid-field="note"
                         aria-label={`Note for ${item.description || `BOM row ${rowNumber}`}`}
-                        className="min-h-9 w-full min-w-[160px] rounded-sm border border-slate-300 bg-white px-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-700"
+                        className={`min-h-9 w-full min-w-[160px] rounded-sm border border-slate-300 bg-white px-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-700 ${selectedCellKeys.has(tableCellKey(item.id, 'note')) ? 'ring-2 ring-blue-500 ring-inset' : ''}`}
                       />
                     ) : item.note || '—'}
                   </td>
@@ -261,7 +353,7 @@ export const BOMTable: React.FC<BOMTableProps> = ({
             })}
             {filteredBOM.length === 0 && (
               <tr>
-                <td colSpan={isEditMode ? 8 : 7} className="py-6 text-center font-sans text-slate-500">
+                <td colSpan={isEditMode ? 9 : 7} className="py-6 text-center font-sans text-slate-500">
                   <div className="flex flex-col items-center justify-center gap-2">
                     <p className="text-xs italic text-slate-500">{bom.length === 0 ? 'No BOM rows in this dataset yet.' : 'No rows match your search.'}</p>
                     {isEditMode && bom.length === 0 && (

@@ -59,6 +59,22 @@ export const DEFAULT_UOMS = ['PC', 'SET', 'PANEL', 'GM', 'KG', 'SM', 'M', 'RL', 
 const DEVELOPMENT_REVIEW_FIXTURE_ID = 'ps-dev-review-fixture'
 const DEVELOPMENT_REVIEW_RETURN_ID_KEY = 'cost_breakdown_dev_review_return_id'
 
+function moveSnapshotRow<T extends { id: string }>(
+  rows: T[],
+  movingId: string,
+  targetId: string,
+  position: 'before' | 'after'
+): T[] {
+  if (movingId === targetId) return rows
+  const sourceIndex = rows.findIndex(row => row.id === movingId)
+  if (sourceIndex < 0 || !rows.some(row => row.id === targetId)) return rows
+  const next = [...rows]
+  const [moving] = next.splice(sourceIndex, 1)
+  const targetIndex = next.findIndex(row => row.id === targetId)
+  next.splice(targetIndex + (position === 'after' ? 1 : 0), 0, moving)
+  return next
+}
+
 function withSnapshotPair(session: ProductSession, explicitPair?: SnapshotPair): ProductSession {
   if (explicitPair) {
     return {
@@ -291,12 +307,15 @@ interface AppContextType {
   addMasterDataBOMItem: (item: Omit<SnapshotBOMItem, 'id' | 'confidence'>) => void
   updateMasterDataBOMItem: (id: string, item: Partial<Omit<SnapshotBOMItem, 'id' | 'confidence'>>) => void
   deleteMasterDataBOMItem: (id: string) => void
+  reorderMasterDataBOMItems: (movingId: string, targetId: string, position: 'before' | 'after') => void
   addMasterDataRoutingStep: (step: Omit<SnapshotRoutingStep, 'id' | 'confidence'>) => void
   updateMasterDataRoutingStep: (id: string, step: Partial<Omit<SnapshotRoutingStep, 'id' | 'confidence'>>) => void
   deleteMasterDataRoutingStep: (id: string) => void
+  reorderMasterDataRoutingSteps: (movingId: string, targetId: string, position: 'before' | 'after') => void
   addMasterDataWorkCenterRate: (rate: Omit<SnapshotWorkCenterRate, 'id' | 'confidence'>) => void
   updateMasterDataWorkCenterRate: (id: string, rate: Partial<Omit<SnapshotWorkCenterRate, 'id' | 'confidence'>>) => void
   deleteMasterDataWorkCenterRate: (id: string) => void
+  reorderMasterDataWorkCenters: (movingId: string, targetId: string, position: 'before' | 'after') => void
 
   // Active-product CRUD
   updateProduct: (p: ProductMaster) => void
@@ -925,13 +944,18 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
             confidence[field] = workingEvidence(next[field], sourceRef, item.confidence[field])
           }
         })
-        return markSizingPlaceholderEdited({ ...next, sourceRef, confidence })
+        const updated = { ...next, sourceRef, confidence }
+        return changes.isGeneratedSizingPlaceholder === true ? updated : markSizingPlaceholderEdited(updated)
       })
     }))
   }
 
   const deleteMasterDataBOMItem = (id: string) => {
     updateMasterDataDataset(dataset => ({ ...dataset, bom: dataset.bom.filter(item => item.id !== id) }))
+  }
+
+  const reorderMasterDataBOMItems = (movingId: string, targetId: string, position: 'before' | 'after') => {
+    updateMasterDataDataset(dataset => ({ ...dataset, bom: moveSnapshotRow(dataset.bom, movingId, targetId, position) }))
   }
 
   const addMasterDataRoutingStep = (step: Omit<SnapshotRoutingStep, 'id' | 'confidence'>) => {
@@ -965,13 +989,18 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
             confidence[field] = workingEvidence(next[field], sourceRef, step.confidence[field])
           }
         })
-        return markSizingPlaceholderEdited({ ...next, sourceRef, confidence })
+        const updated = { ...next, sourceRef, confidence }
+        return changes.isGeneratedSizingPlaceholder === true ? updated : markSizingPlaceholderEdited(updated)
       })
     }))
   }
 
   const deleteMasterDataRoutingStep = (id: string) => {
     updateMasterDataDataset(dataset => ({ ...dataset, routing: dataset.routing.filter(step => step.id !== id) }))
+  }
+
+  const reorderMasterDataRoutingSteps = (movingId: string, targetId: string, position: 'before' | 'after') => {
+    updateMasterDataDataset(dataset => ({ ...dataset, routing: moveSnapshotRow(dataset.routing, movingId, targetId, position) }))
   }
 
   const addMasterDataWorkCenterRate = (rate: Omit<SnapshotWorkCenterRate, 'id' | 'confidence'>) => {
@@ -1003,13 +1032,18 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
             confidence[field] = workingEvidence(next[field], sourceRef, rate.confidence[field])
           }
         })
-        return markSizingPlaceholderEdited({ ...next, sourceRef, confidence })
+        const updated = { ...next, sourceRef, confidence }
+        return changes.isGeneratedSizingPlaceholder === true ? updated : markSizingPlaceholderEdited(updated)
       })
     }))
   }
 
   const deleteMasterDataWorkCenterRate = (id: string) => {
     updateMasterDataDataset(dataset => ({ ...dataset, rates: dataset.rates.filter(rate => rate.id !== id) }))
+  }
+
+  const reorderMasterDataWorkCenters = (movingId: string, targetId: string, position: 'before' | 'after') => {
+    updateMasterDataDataset(dataset => ({ ...dataset, rates: moveSnapshotRow(dataset.rates, movingId, targetId, position) }))
   }
 
   // Active-product CRUD
@@ -1269,12 +1303,15 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       addMasterDataBOMItem,
       updateMasterDataBOMItem,
       deleteMasterDataBOMItem,
+      reorderMasterDataBOMItems,
       addMasterDataRoutingStep,
       updateMasterDataRoutingStep,
       deleteMasterDataRoutingStep,
+      reorderMasterDataRoutingSteps,
       addMasterDataWorkCenterRate,
       updateMasterDataWorkCenterRate,
       deleteMasterDataWorkCenterRate,
+      reorderMasterDataWorkCenters,
       updateProduct,
       addBOMItem,
       updateBOMItem,

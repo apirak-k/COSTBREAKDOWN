@@ -36,12 +36,15 @@ export const MasterDataPage: React.FC = () => {
     addMasterDataBOMItem,
     updateMasterDataBOMItem,
     deleteMasterDataBOMItem,
+    reorderMasterDataBOMItems,
     addMasterDataRoutingStep,
     updateMasterDataRoutingStep,
     deleteMasterDataRoutingStep,
+    reorderMasterDataRoutingSteps,
     addMasterDataWorkCenterRate,
     updateMasterDataWorkCenterRate,
-    deleteMasterDataWorkCenterRate
+    deleteMasterDataWorkCenterRate,
+    reorderMasterDataWorkCenters
   } = useAppStore()
 
   const [isEditMode, setIsEditMode] = useState(false)
@@ -98,6 +101,7 @@ export const MasterDataPage: React.FC = () => {
         <WorkCenterRatesTable
           rates={masterDataSnapshot.rates}
           isEditMode={isEditMode}
+          historyScope={masterDataRole}
           onAddRate={() => addMasterDataWorkCenterRate({
             workCenterCode: '',
             description: '',
@@ -108,6 +112,7 @@ export const MasterDataPage: React.FC = () => {
           })}
           onUpdateRate={updateMasterDataWorkCenterRate}
           onDeleteRate={deleteMasterDataWorkCenterRate}
+          onReorderRows={reorderMasterDataWorkCenters}
         />
       )
     }
@@ -117,6 +122,7 @@ export const MasterDataPage: React.FC = () => {
         <BOMTable
           bom={masterDataSnapshot.bom}
           isEditMode={isEditMode}
+          historyScope={masterDataRole}
           onAddBOMItem={() => addMasterDataBOMItem({
             itemCode: '',
             description: '',
@@ -128,6 +134,7 @@ export const MasterDataPage: React.FC = () => {
           })}
           onUpdateBOMItem={updateMasterDataBOMItem}
           onDeleteBOMItem={deleteMasterDataBOMItem}
+          onReorderRows={reorderMasterDataBOMItems}
         />
       )
     }
@@ -137,6 +144,7 @@ export const MasterDataPage: React.FC = () => {
         routing={masterDataSnapshot.routing}
         rates={masterDataSnapshot.rates}
         isEditMode={isEditMode}
+        historyScope={masterDataRole}
         onAddRoutingStep={() => addMasterDataRoutingStep({
           operationCode: '',
           processName: '',
@@ -149,6 +157,7 @@ export const MasterDataPage: React.FC = () => {
         })}
         onUpdateRoutingStep={updateMasterDataRoutingStep}
         onDeleteRoutingStep={deleteMasterDataRoutingStep}
+        onReorderRows={reorderMasterDataRoutingSteps}
       />
     )
   }
