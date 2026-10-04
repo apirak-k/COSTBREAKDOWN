@@ -323,7 +323,7 @@ export const MasterDataWorkspaceHeader: React.FC<MasterDataWorkspaceHeaderProps>
       </div>
       </div>
 
-      <div className="px-3 py-2">
+      <div className="px-1.5 py-2">
         <dl className="grid min-w-0 grid-cols-1 gap-x-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
           <div className="min-w-0 border-t border-slate-300 py-2">
             <dt className="font-mono text-[10px] font-semibold uppercase tracking-wide text-slate-600">Product Name</dt>

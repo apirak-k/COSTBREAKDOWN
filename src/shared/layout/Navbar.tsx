@@ -15,7 +15,7 @@ export const Navbar: React.FC = () => {
 
   return (
     <header className="sticky top-0 z-50 select-none border-b border-slate-800 bg-slate-900 text-white shadow-xs">
-      <div className="mx-auto w-full max-w-7xl px-3 sm:px-4 lg:px-6">
+      <div className="w-full px-3 sm:px-4 lg:px-4">
         <div className="flex min-h-12 flex-col gap-1 py-1 lg:flex-row lg:items-center lg:justify-between">
           <div className="flex min-h-8 shrink-0 items-center gap-3">
             <span aria-hidden="true" className="grid h-7 w-7 place-items-center rounded-sm border border-slate-700 bg-slate-800 font-mono text-[11px] font-bold tracking-tight text-slate-200">
