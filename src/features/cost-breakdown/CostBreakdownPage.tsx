@@ -4,8 +4,7 @@ import { ChevronDown, ChevronRight } from 'lucide-react'
 
 // Sub-components
 import { BOMDetailedTable } from './components/BOMDetailedTable'
-import { RoutingDetailedTable } from './components/RoutingDetailedTable'
-import { WorkCenterComparisonTable } from './components/WorkCenterComparisonTable'
+import { WorkCenterProcessingTable } from './components/WorkCenterProcessingTable'
 import { SnapshotComparisonCard } from './components/SnapshotComparisonCard'
 import { VarianceTreeCard } from './components/VarianceTreeCard'
 import { ALL_COMPARISON_STATUSES, areAllComparisonStatusesSelected, getComparisonViewLabel, isVisibleInComparisonView } from './components/comparison-view'
@@ -14,7 +13,7 @@ import { getCanonicalComparisonStatus } from '../../core'
 import type { ComparisonStatus } from '../../core'
 import { PageHeading } from '../../shared'
 
-type SubTab = 'bom' | 'routing' | 'work-center'
+type SubTab = 'bom' | 'processing'
 
 export const CostBreakdownPage: React.FC = () => {
   const {
@@ -27,8 +26,7 @@ export const CostBreakdownPage: React.FC = () => {
     applySelectedComparison,
     clearSelectedComparison,
     bom,
-    routing,
-    rates
+    routing
   } = useAppStore()
   const [subTab, setSubTab] = useState<SubTab>('bom')
   const [comparisonView, setComparisonView] = useState<ComparisonViewMode>(ALL_COMPARISON_STATUSES)
@@ -215,27 +213,15 @@ export const CostBreakdownPage: React.FC = () => {
               </button>
               <button
                 type="button"
-                aria-pressed={subTab === 'routing'}
-                onClick={() => setSubTab('routing')}
+                aria-pressed={subTab === 'processing'}
+                onClick={() => setSubTab('processing')}
                 className={`min-h-9 rounded-sm border px-3 text-xs font-medium transition-colors cursor-pointer focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700 ${
-                  subTab === 'routing'
+                  subTab === 'processing'
                     ? 'bg-slate-900 text-white border-slate-900 font-semibold'
                     : 'bg-white text-slate-700 hover:bg-slate-100 border-slate-300'
                 }`}
               >
-                Routing ({isViewingSelectedScope ? visibleRoutingCount : routing.length})
-              </button>
-              <button
-                type="button"
-                aria-pressed={subTab === 'work-center'}
-                onClick={() => setSubTab('work-center')}
-                className={`min-h-9 rounded-sm border px-3 text-xs font-medium transition-colors cursor-pointer focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700 ${
-                  subTab === 'work-center'
-                    ? 'bg-slate-900 text-white border-slate-900 font-semibold'
-                    : 'bg-white text-slate-700 hover:bg-slate-100 border-slate-300'
-                }`}
-              >
-                {isViewingSelectedScope ? 'Work Center context' : 'Work Center'} ({rates.length})
+                Processing ({visibleRoutingCount})
               </button>
             </div>
           </div>
@@ -253,25 +239,18 @@ export const CostBreakdownPage: React.FC = () => {
               selectedFindingKeys={selectedBOMKeys}
               onToggleFinding={key => toggleSelection('bom', key)}
             />
-          ) : subTab === 'routing' ? (
-            <RoutingDetailedTable
-              findings={viewComparison.routingFindings}
-              referenceItems={viewPair.reference.routing}
-              currentItems={viewPair.current.routing}
+          ) : (
+            <WorkCenterProcessingTable
+              referenceRouting={viewPair.reference.routing}
+              currentRouting={viewPair.current.routing}
               referenceRates={viewPair.reference.rates}
               currentRates={viewPair.current.rates}
+              routingFindings={viewComparison.routingFindings}
+              processingFindings={viewComparison.processingFindings}
               viewMode={comparisonView}
               selectionMode={isSelectingScope}
               selectedFindingKeys={selectedRoutingKeys}
               onToggleFinding={key => toggleSelection('routing', key)}
-            />
-          ) : (
-            <WorkCenterComparisonTable
-              referenceRates={viewPair.reference.rates}
-              currentRates={viewPair.current.rates}
-              findings={viewComparison.workCenterFindings}
-              viewMode={comparisonView}
-              contextOnly={isViewingSelectedScope}
             />
           )}
         </div>

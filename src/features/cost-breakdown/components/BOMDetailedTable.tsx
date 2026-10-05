@@ -12,7 +12,6 @@ import {
 import type { ComparisonFinding, ComparisonStatus } from '../../../core'
 import { ALL_COMPARISON_STATUSES, isOnlyComparisonStatus, isVisibleInComparisonView } from './comparison-view'
 import type { ComparisonViewMode } from './comparison-view'
-import { ComparisonFieldDetails } from './ComparisonFieldDetails'
 
 interface BOMDetailedTableProps {
   referenceItems: SnapshotBOMItem[]
@@ -100,7 +99,7 @@ export const BOMDetailedTable: React.FC<BOMDetailedTableProps> = ({
 
   return (
     <div className="w-full overflow-x-auto">
-      <table className="w-full min-w-[1120px] text-left text-xs">
+      <table className="w-full min-w-[1180px] text-left text-xs">
         <caption className="sr-only">Reference, current, and gap for each BOM material using snapshot source values</caption>
         <thead>
           <tr className="bg-slate-800 text-xs font-semibold text-white">
@@ -109,7 +108,8 @@ export const BOMDetailedTable: React.FC<BOMDetailedTableProps> = ({
             {showComparison && <th scope="col" className="p-2.5">Status</th>}
             <th scope="col" className="p-2.5 text-right">Ref Usage</th>
             <th scope="col" className="p-2.5 text-right">Current Usage</th>
-            <th scope="col" className="p-2.5">Unit</th>
+            <th scope="col" className="p-2.5">Ref Unit</th>
+            <th scope="col" className="p-2.5">Current Unit</th>
             <th scope="col" className="p-2.5 text-right">Ref Price</th>
             <th scope="col" className="p-2.5 text-right">Current Price</th>
             <th scope="col" className="p-2.5 text-right">Ref Loss</th>
@@ -122,7 +122,7 @@ export const BOMDetailedTable: React.FC<BOMDetailedTableProps> = ({
         <tbody className="divide-y divide-slate-100 font-mono">
           {visibleRows.length === 0 ? (
             <tr>
-              <td colSpan={(showComparison ? 12 : 11) + Number(selectionMode)} className="p-6 text-center text-slate-400 font-sans italic">
+              <td colSpan={(showComparison ? 13 : 12) + Number(selectionMode)} className="p-6 text-center text-slate-400 font-sans italic">
                 No rows match this comparison view.
               </td>
             </tr>
@@ -132,7 +132,6 @@ export const BOMDetailedTable: React.FC<BOMDetailedTableProps> = ({
             const label = row.finding ? getBOMComparisonLabel(row.finding) : null
             const visibleLabel = label === 'UNCHANGED' ? null : label
             const description = current ? current.description ?? '—' : reference?.description ?? '—'
-            const unit = current ? current.unit ?? '—' : reference?.unit ?? '—'
             const findingKey = row.finding ? getComparisonFindingKey('bom', row.finding) : null
             const canSelectFinding = row.finding !== undefined && getCanonicalComparisonStatus(row.finding) !== null
 
@@ -164,13 +163,13 @@ export const BOMDetailedTable: React.FC<BOMDetailedTableProps> = ({
                           —
                         </span>
                       )}
-                      <ComparisonFieldDetails finding={row.finding} />
                     </div>
                   </td>
                 )}
                 <td className="p-2.5 text-right text-slate-500 tabular-nums">{formatNullable(reference?.consumption ?? null, value => formatNumber(value, 4))}</td>
                 <td className="p-2.5 text-right font-bold text-slate-900 tabular-nums">{formatNullable(current?.consumption ?? null, value => formatNumber(value, 4))}</td>
-                <td className="p-2.5 font-sans text-slate-600 whitespace-nowrap">{unit}</td>
+                <td className="p-2.5 font-sans text-slate-600 whitespace-nowrap">{reference?.unit ?? '—'}</td>
+                <td className="p-2.5 font-sans font-medium text-slate-800 whitespace-nowrap">{current?.unit ?? '—'}</td>
                 <td className="p-2.5 text-right text-slate-500 tabular-nums">{formatNullable(reference?.price ?? null, value => formatNumber(value, 4))}</td>
                 <td className="p-2.5 text-right font-bold text-slate-900 tabular-nums">{formatNullable(current?.price ?? null, value => formatNumber(value, 4))}</td>
                 <td className="p-2.5 text-right text-slate-500 tabular-nums">{formatNullable(reference?.loss ?? null, value => formatPercent(value, 1))}</td>
@@ -186,7 +185,7 @@ export const BOMDetailedTable: React.FC<BOMDetailedTableProps> = ({
         </tbody>
         <tfoot>
           <tr className="bg-slate-100/90 border-t-2 border-slate-300/80 font-bold text-xs">
-            <td colSpan={(showComparison ? 9 : 8) + Number(selectionMode)} className="p-2.5 text-right text-slate-700 uppercase tracking-wider text-[10px] font-sans">
+            <td colSpan={(showComparison ? 10 : 9) + Number(selectionMode)} className="p-2.5 text-right text-slate-700 uppercase tracking-wider text-[10px] font-sans">
               {isOnlyComparisonStatus(viewMode, 'CHANGED') ? 'Visible Changed Material (THB/pc)' : viewMode.length < 4 ? 'Visible Direct Material (THB/pc)' : 'Total Direct Material (THB/pc)'}
             </td>
             <td className="p-2.5 text-right font-mono text-slate-800 tabular-nums">{formatNullable(referenceTotal, value => formatNumber(value, 4))}</td>

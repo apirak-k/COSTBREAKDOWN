@@ -4,7 +4,7 @@ import type { ComparisonFinding, CostComparison } from '../../../core'
 import { isVisibleInComparisonView } from './comparison-view'
 import type { ComparisonViewMode } from './comparison-view'
 
-type CostDetailSection = 'bom' | 'routing' | 'work-center'
+type CostDetailSection = 'bom' | 'processing'
 
 interface VarianceTreeCardProps {
   comparison: CostComparison
@@ -45,6 +45,7 @@ export const VarianceTreeCard: React.FC<VarianceTreeCardProps> = ({ comparison, 
   const bomCount = visibleCount(comparison.bomFindings, comparisonView)
   const routingCount = visibleCount(comparison.routingFindings, comparisonView)
   const rateCount = visibleCount(comparison.workCenterFindings, comparisonView)
+  const processingCount = visibleCount(comparison.processingFindings, comparisonView)
 
   return (
     <section aria-labelledby="variance-tree-title" className="overflow-hidden border border-slate-300 bg-white">
@@ -94,11 +95,10 @@ export const VarianceTreeCard: React.FC<VarianceTreeCardProps> = ({ comparison, 
                 <p className="mt-0.5 text-[10px] text-slate-600">Routing operations in selected view: <span className="font-mono tabular-nums text-slate-900">{routingCount}</span></p>
               </div>
               <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
-                {detailLink('routing', 'Review Routing rows', onOpenDetail)}
                 {selectedComparison
                   ? <p className="text-[10px] text-slate-500">All Work Center rates remain calculation context.</p>
-                  : <p className="text-[10px] text-slate-500">Rate input findings: <span className="font-mono tabular-nums text-slate-700">{rateCount}</span></p>}
-                {detailLink('work-center', selectedComparison ? 'Review rate context' : 'Review rates', onOpenDetail)}
+                  : <p className="text-[10px] text-slate-500">Work Center groups: <span className="font-mono tabular-nums text-slate-700">{processingCount}</span> · rate findings: <span className="font-mono tabular-nums text-slate-700">{rateCount}</span></p>}
+                {detailLink('processing', 'Review Work Centers and Process detail', onOpenDetail)}
               </div>
             </div>
 
