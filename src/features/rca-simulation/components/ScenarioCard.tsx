@@ -87,7 +87,7 @@ export const ScenarioCard: React.FC<ScenarioCardProps> = ({
     <article className="flex min-w-0 flex-col border border-slate-300 bg-white">
       <header className="border-b border-slate-300 bg-slate-50 px-3 py-2">
         <div className="flex flex-wrap items-center justify-between gap-2">
-          <h3 className="border border-slate-800 bg-slate-900 px-2 py-0.5 font-mono text-[10px] font-bold uppercase tracking-wide text-white">Scenario {scenario.letter}</h3>
+          <h3 className="border border-slate-800 bg-slate-900 px-2 py-0.5 font-mono text-[10px] font-bold uppercase tracking-wide text-white">Option {scenario.letter}</h3>
           <span className={`font-mono text-[9px] font-semibold uppercase ${STATUS_CLASS[result.scenarioCost.status] ?? STATUS_CLASS.missing}`}>
             {result.scenarioCost.status}
           </span>
@@ -107,7 +107,7 @@ export const ScenarioCard: React.FC<ScenarioCardProps> = ({
 
       <div className="flex flex-1 flex-col gap-3 p-3">
         {inputDefinitions.length > 0 && (
-          <fieldset aria-describedby={inputGuidanceId} className="space-y-2 border border-slate-200 bg-slate-50/60 px-2.5 py-2">
+          <fieldset aria-describedby={inputGuidanceId} className="space-y-2">
             <legend className="font-mono text-[10px] font-bold uppercase text-slate-800">Parameter overrides</legend>
             <p id={inputGuidanceId} className="text-[10px] leading-4 text-slate-600">
               Leave a field blank to keep its Current value.
@@ -165,37 +165,8 @@ export const ScenarioCard: React.FC<ScenarioCardProps> = ({
           </div>
         </section>
 
-        <section aria-label={`Improvement economics for Scenario ${scenario.letter}`} className="space-y-3">
-          <fieldset className="border border-slate-200 bg-slate-50/60 p-2.5">
-            <legend className="px-1 font-mono text-[10px] font-bold uppercase text-slate-800">Assumptions</legend>
-            <div className="grid grid-cols-1 gap-2">
-              {ECONOMIC_INPUTS.map(({ key, label, unit }) => {
-                const inputId = `scenario-${scenario.letter}-economics-${key}`
-                return (
-                  <label key={key} htmlFor={inputId} className="block min-w-0 font-mono text-[10px] font-semibold uppercase text-slate-700">
-                    {label} <span className="font-normal text-slate-500">({unit})</span>
-                    <input
-                      id={inputId}
-                      type="number"
-                      step="any"
-                      inputMode="decimal"
-                      value={scenario.economicsInputs[key]}
-                      onChange={event => onUpdateEconomics(key, event.target.value)}
-                      className="mt-1 min-h-8 w-full rounded-sm border border-slate-400 bg-white px-2 py-1 font-mono text-xs tabular-nums text-slate-900 focus:border-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-200"
-                    />
-                  </label>
-                )
-              })}
-            </div>
-
-            {!hasEconomicsInputs && (
-              <p className="mt-2 border-t border-slate-200 pt-2 text-[10px] leading-4 text-slate-600">
-                Add investment, added cost, and volume assumptions to see the net benefit and total amounts.
-              </p>
-            )}
-          </fieldset>
-
-          <div className="border-t border-slate-200 pt-2">
+        <section aria-label={`Improvement economics for Scenario ${scenario.letter}`} className="space-y-2.5">
+          <div>
             <h4 className="font-mono text-[10px] font-bold uppercase text-slate-800">Improvement economics</h4>
             <div className="mt-1.5 flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1 border-b border-slate-200 pb-1.5">
               <span className="text-[11px] font-medium text-slate-700">Gross Saving / pc</span>
@@ -205,25 +176,49 @@ export const ScenarioCard: React.FC<ScenarioCardProps> = ({
                   : `${formatCost(economics.grossSavingPerPiece)} THB/pc`}
               </span>
             </div>
-
-            {hasEconomicsInputs && (
-              <div className="mt-2 overflow-x-auto">
-                <table className="w-full text-xs">
-                  <caption className="sr-only">Scenario {scenario.letter} improvement economics</caption>
-                  <tbody>
-                    {ECONOMIC_ROWS.map(({ key, label, unit }) => (
-                      <tr key={key} className="border-b border-slate-100 last:border-0">
-                        <th scope="row" className="py-2 pr-2 text-left font-medium text-slate-700">{label}</th>
-                        <td className="py-2 pl-2 text-right font-mono tabular-nums text-slate-900">
-                          {economics[key] === null ? 'N/A' : `${formatCost(economics[key])} ${unit}`}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
           </div>
+
+          <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
+            {ECONOMIC_INPUTS.map(({ key, label, unit }) => {
+              const inputId = `scenario-${scenario.letter}-economics-${key}`
+              return (
+                <label key={key} htmlFor={inputId} className="block min-w-0 font-mono text-[10px] font-semibold uppercase text-slate-700">
+                  {label} <span className="font-normal text-slate-500">({unit})</span>
+                  <input
+                    id={inputId}
+                    type="number"
+                    step="any"
+                    inputMode="decimal"
+                    value={scenario.economicsInputs[key]}
+                    onChange={event => onUpdateEconomics(key, event.target.value)}
+                    className="mt-1 min-h-8 w-full rounded-sm border border-slate-400 bg-white px-2 py-1 font-mono text-xs tabular-nums text-slate-900 focus:border-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-200"
+                  />
+                </label>
+              )
+            })}
+          </div>
+
+          {hasEconomicsInputs ? (
+            <div className="overflow-x-auto border-t border-slate-200">
+              <table className="w-full text-xs">
+                <caption className="sr-only">Scenario {scenario.letter} improvement economics</caption>
+                <tbody>
+                  {ECONOMIC_ROWS.map(({ key, label, unit }) => (
+                    <tr key={key} className="border-b border-slate-100 last:border-0">
+                      <th scope="row" className="py-2 pr-2 text-left font-medium text-slate-700">{label}</th>
+                      <td className="py-2 pl-2 text-right font-mono tabular-nums text-slate-900">
+                        {economics[key] === null ? 'N/A' : `${formatCost(economics[key])} ${unit}`}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            <p className="text-[10px] leading-4 text-slate-600">
+              Add investment, added cost, and volume assumptions to see the net benefit and total amounts.
+            </p>
+          )}
 
           {economicsWarnings.length > 0 && (
             <ul role="status" className="list-disc space-y-1 pl-5 text-sm text-amber-900">
