@@ -67,7 +67,7 @@ export const SimulationGrid: React.FC<SimulationGridProps> = ({
   ]))
 
   return (
-    <section aria-labelledby="simulation-heading" className="space-y-3">
+    <section aria-labelledby="simulation-heading" className="space-y-4">
       <div className="flex flex-wrap items-end justify-between gap-3 border-b border-slate-300 pb-2.5">
         <div>
           <p className="font-mono text-[10px] font-bold uppercase tracking-wide text-slate-600">03 / Simulation</p>
@@ -79,7 +79,7 @@ export const SimulationGrid: React.FC<SimulationGridProps> = ({
         </div>
       </div>
 
-      <section aria-labelledby="current-baseline-heading" className="border border-slate-300 bg-white px-3 py-3">
+      <section aria-labelledby="current-baseline-heading" className="border border-slate-300 bg-white px-3 py-3 sm:px-4">
         <div className="flex flex-wrap items-baseline justify-between gap-2">
           <div>
             <h3 id="current-baseline-heading" className="font-mono text-[11px] font-bold uppercase text-slate-900">Current baseline</h3>
@@ -142,7 +142,7 @@ export const SimulationGrid: React.FC<SimulationGridProps> = ({
         )}
       </section>
 
-      <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
+      <div className="grid grid-cols-1 gap-3 lg:grid-cols-3">
         {scenarios.map(scenario => {
           const result = results.find(item => item.letter === scenario.letter) ?? unavailableResult(scenario)
           const economics = economicsResults.find(item => item.letter === scenario.letter) ?? {
