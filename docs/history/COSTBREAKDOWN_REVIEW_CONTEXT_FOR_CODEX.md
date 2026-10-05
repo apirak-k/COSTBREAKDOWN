@@ -1,6 +1,6 @@
 # COSTBREAKDOWN — Complete Review Context for Codex
 
-> HISTORICAL CONTEXT ONLY — This file records an earlier review snapshot. Its instructions and summaries are not current authority. Follow `docs/REQUIREMENTS_INDEX.md` and `docs/specs/`; use this file only as historical evidence.
+> DATED SOURCE CONTEXT — Preserve the original `FINALIZED`, `CONFIRMED`, `CURRENT BASELINE`, `DESIGN DIRECTION`, `PENDING`, and `UNDECIDED` labels. Archive location alone does not invalidate finalized decisions. Later explicit user decisions supersede only the specific behavior they change; follow `docs/REQUIREMENTS_INDEX.md` for the corrected migration rule.
 
 **Purpose:** This file is a complete handoff of the product/system discussion so far. It is intentionally broader than a final spec and contains:
 

@@ -1,6 +1,6 @@
 # COSTBREAKDOWN — Master Data Specification
 
-> HISTORICAL SNAPSHOT — This former spec is preserved for traceability and is superseded by `docs/specs/MASTER_DATA.md` and `docs/specs/CROSS_CUTTING.md`.
+> FINALIZED SOURCE SPEC — This dated specification was finalized for the Master Data review. Preserve every compatible finalized decision in the current specs unless a later explicit user decision supersedes that specific behavior. Archive location or missing current-spec text does not invalidate it; see `docs/REQUIREMENTS_INDEX.md`.
 
 - **Status:** Finalized for Master Data review
 - **Scope:** Product/data behavior, session state, Master Data flow, table data model, editing interaction rules, fixed toolbar/metadata/footer placement, and the linked Standard Cost view in Excel

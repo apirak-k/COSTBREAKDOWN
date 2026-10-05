@@ -1,6 +1,6 @@
 # RCA & Simulation Specification
 
-> HISTORICAL REFERENCE ONLY — Current authority is `docs/REQUIREMENTS_INDEX.md` and `docs/specs/`. Do not use this agreement to fill an open decision.
+> FINALIZED DECISION RECORD — The finalized RCA & Simulation behavior in this agreement remains valid unless a later explicit user decision supersedes that specific behavior. If a decision is missing from `docs/specs/`, treat it as a migration gap, not `PENDING/TBD`. See `docs/REQUIREMENTS_INDEX.md` for source precedence.
 
 **Status:** Finalized concept / behavior specification  
 **Scope:** RCA & Simulation page only  

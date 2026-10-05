@@ -1,13 +1,13 @@
 # Operational Task Ledger — Master Data Refresh and Selected Comparison
 
-> Operational history only; this is not a product requirement source or authorization for new feature work. Canonical requirements are under [`docs/specs/`](../docs/specs/). The original agreement checklist is historical. Per-topic status and evidence are maintained only in [`source-crosswalk-80.md`](source-crosswalk-80.md).
+> Operational history only; this is not a product requirement source or authorization for new feature work. Current behavior is consolidated under [`docs/specs/`](../docs/specs/); the original agreements remain valid evidence for finalized decisions unless a later explicit user decision supersedes them. Per-topic implementation/verification status is maintained only in [`source-crosswalk-80.md`](source-crosswalk-80.md).
 
 ## Recorded Plan Revision — 2026-10-05
 
 ## Current Progress Snapshot — 2026-10-05
 
 - Current source-reconciliation checkpoint and resume instructions are in `HANDOFF.md`.
-- This file preserves historical task-level implementation and verification notes. Canonical behavior is in `docs/specs/`; the 80-topic implementation/verification status is only in `source-crosswalk-80.md`.
+- This file preserves historical task-level implementation and verification notes. Canonical behavior is consolidated in `docs/specs/`; original decision status and provenance remain in the source agreements. The 80-topic implementation/verification status is only in `source-crosswalk-80.md`.
 - Automated evidence and human acceptance remain separate; do not treat the historical task checklist as new feature authorization.
 
 ### Final integration gate
@@ -171,7 +171,7 @@ Per-topic PASS/PARTIAL/OPEN/DEFERRED/RECORDED status and the exact next actions 
 **Acceptance criteria:**
 - [x] Master Data follows the screenshot's full-page layout, and its table controls expose Work Centers, BOM, Routing, and All Tables while using the approved field schema and interaction rules.
 - [x] Downstream pages follow the agreed result → cause → detail direction where confirmed calculations support it; Cost Breakdown warning details are collapsed by default behind a concise count, without the duplicate top warning banner.
-- [x] No unapproved GP/COGS/OP, margin, SG&A monetary, MatVAR/LBVAR/BDVAR, or chart formula is introduced.
+- [x] No unapproved GP/COGS/OP, margin, SG&A monetary, or chart formula is introduced. MatVAR/LBVAR/BDVAR are removed from current scope.
 - [x] `npm run build` succeeds; changed flows are presented for human review with implementation evidence distinct from acceptance.
 
 **Verification:** `npm run build` succeeded and focused verifiers passed for the current schema, row identity/processing regression, Candidate, Master Data handoff, workbook round trips, sizing/clone model behavior, and the latest table/warning-density refinement. Isolated-browser review covered the Master Data structure/interactions and a valid Selected Comparison flow through Cost Breakdown → Candidate → RCA. `[Unverified]` The latest warning-density and rightmost-handle layout was not reviewed in a browser; current per-topic browser gaps are maintained only in `source-crosswalk-80.md`. Human UX acceptance remains pending. The interactive business graph/live-scenario direction is future scope until calculation formulas and chart UX are agreed.
@@ -547,7 +547,7 @@ Tasks are ordered by dependency. Keep each implementation slice focused and leav
 
 ## Current Agreement Re-audit — 2026-09-28
 
-At the 2026-09-28 checkpoint, ChatGPT's review was treated as a set of leads and the four `agreements/` files were treated as authoritative. That historical authority order is superseded by `docs/REQUIREMENTS_INDEX.md`; the checkboxes below are operational history only.
+This section records the 2026-09-28 implementation audit and its evidence only. The current source order is in `docs/REQUIREMENTS_INDEX.md`; a later correction preserves previously finalized agreement decisions unless a later explicit user decision supersedes them. These historical checkboxes do not replace source reconciliation or authorize new feature work.
 
 ### AI-side technical audit — complete
 

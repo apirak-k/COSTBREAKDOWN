@@ -1,6 +1,6 @@
 # COSTBREAKDOWN — Comparison Principles
 
-> HISTORICAL REFERENCE ONLY — Current authority is `docs/REQUIREMENTS_INDEX.md` and `docs/specs/`. Do not use this agreement to fill an open decision.
+> COMPARISON DECISION SOURCE — The agreed comparison rules here remain valid unless a later explicit user decision supersedes a specific behavior. A missing rule in `docs/specs/` is a migration gap, not by itself an open decision. This source contains an older Routing identity; the later approved identity is Routing `Process` as recorded in the current Master Data source and index.
 
 **Status:** Working Specification  
 **Scope:** Comparison logic only  

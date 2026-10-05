@@ -8,7 +8,7 @@ The agreed flow is:
 
 Master Data → Cost Breakdown / Comparison → Candidate Prioritization → RCA & Simulation → Trial.
 
-The user-facing behavior and boundaries are defined by the relevant files in docs/specs/. Detailed Candidate, RCA & Simulation, and Trial behavior remains pending where those specs say PENDING/TBD.
+The user-facing behavior and boundaries are consolidated in the relevant files in docs/specs/. Candidate and RCA & Simulation behavioral decisions from their finalized agreements remain active; only the specific page-design, formula, and Trial workflow items marked PENDING/TBD remain open.
 
 ## Application structure
 
@@ -26,13 +26,13 @@ The user-facing behavior and boundaries are defined by the relevant files in doc
 
 ## Implementation context
 
-The code was developed under earlier specifications that used Product selection, dataset lifecycle states, and other behaviors that differ from the current agreements. The 2026-09-23 handoff recorded role-aware Master Data work and downstream compatibility behavior under that earlier contract.
+The code was developed under earlier specifications that used Product selection, dataset lifecycle states, and other behaviors that differ from the current user decisions. The 2026-09-23 handoff recorded role-aware Master Data work and downstream compatibility behavior under that earlier contract.
 
-Treat the existing implementation as a starting point to inspect against the current agreements. Do not treat earlier task completion, build output, or browser walkthroughs as acceptance of the new behavior.
+Treat the existing implementation as a starting point to inspect against the current source decisions and consolidated specs. Do not treat earlier task completion, build output, or browser walkthroughs as acceptance of behavior.
 
 ## Calculation references
 
-The shared calculation rules are recorded in docs/specs/CROSS_CUTTING.md. Keep workbook calculations aligned with the specified Standard Cost engine. Gap arithmetic remains pending canonical confirmation; code and checked-in workbooks under excel_models/ are implementation evidence, not requirements.
+The shared calculation rules are recorded in docs/specs/CROSS_CUTTING.md. Keep workbook calculations aligned with the specified Standard Cost engine and `Gap = Current - Reference`. Code and checked-in workbooks under excel_models/ are implementation evidence, not requirements.
 
 ## Current verification record
 

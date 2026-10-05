@@ -15,7 +15,7 @@ The goal is to align the source with the confirmed Master Data workflow and Sele
 - Use the supplied screenshot as the target layout direction for the complete Master Data page: app navigation/status, dataset and action toolbar, product summary, and table workspace. The visible BOM table and its sample values/columns are illustrative; support Work Centers, BOM, Routing, and an All Tables view using the approved schema.
 - Use compatible `uiux-refresh` patterns where helpful, without making that branch the required implementation baseline or allowing older columns to override the newer schema.
 - Keep Reference and Current datasets independent. Each gets one in-session Working state and one Last Saved state; nothing persists across an application restart.
-- This plan recorded `Gap = Current - Reference`; that sign convention is now `PENDING/TBD` in the canonical spec until confirmed against the original source conversation. Do not promote the code or this historical plan to authority.
+- `Gap = Current - Reference` is a finalized comparison decision recorded in the original comparison and Candidate agreements and reconfirmed by the user for this recovery. The previous documentation pass incorrectly downgraded it to `PENDING/TBD`; the canonical specs now restore it.
 - Excel templates and exports contain four data sheets (`META`, `BOM`, `ROUTING`, `WORK_CENTER`) and a separate formula-linked `COST_CALCULATION` view; import reads only the four data sheets.
 - Compare BOM by Name, WC by WC, and Routing by Process. Preserve validation warnings for missing or duplicate identities; never guess matches from row position.
 - Selected Comparison is temporary analysis state. It selects BOM and Routing only, retains the full WC dataset as calculation context, flows to downstream analysis, and clears when source data changes. In this mode, show only the selected-scope Gap; never show the Full Gap alongside it.
@@ -24,10 +24,10 @@ The goal is to align the source with the confirmed Master Data workflow and Sele
 ### Follow-up source and implementation audit — 2026-10-05
 
 - The later shared-chat checklist covers 80 topics, but it mixes verified baseline, finalized decisions, design directions, and pending items; it is not an 80-feature implementation backlog.
-- Master Data behavior/data is closed. Candidate and RCA/Simulation redesign, the business dashboard, accounting formulas, and Trial remain future review work.
+- Master Data behavior/data is closed. Candidate and RCA/Simulation behavior remains finalized in their agreements; their exact redesign/layout, business formulas, and Trial execution/approval remain future review work.
 - The item-by-item crosswalk is in `tasks/source-crosswalk-80.md`. It found four context-document traceability gaps to preserve without inventing requirements: the explicit KEEP/CHANGE/REMOVE/ADD/UNDECIDED review labels; details from the dashboard reference; the provisional (not finalized) Selected Comparison control examples; and the explicit status that Candidate/RCA pages have not been re-reviewed. Figma optionality/sketch acceptability is also recorded as a smaller partial detail.
 - The checklist called Full-vs-Selected Gap presentation pending at that point. The user's later explicit decision is controlling: Selected mode displays only the selected-scope Gap. The context file's pending wording is historical and is not an open product question.
-- The source-to-code re-audit found and corrected an over-restriction: Clone was disabled until the source side was marked prepared, although the source defines Clone as a Working-state copy and says warnings should block only impossible operations. Both directions are now callable, and the destination inherits the source readiness flag. Final browser replay remains open.
+- The source confirms Clone copies the opposite dataset's Working state into the viewed side and leaves Last Saved unchanged. The prior audit described code that allowed cloning from an unprepared source and copied a readiness flag; those implementation details do not establish a requirement. Source-readiness gating and readiness transfer remain unresolved.
 - The same audit found that legacy Routing `Operation Code` and `Sequence` could mark a Work Center processing finding changed despite not belonging to the approved schema. They are now excluded from that signature; the regression case in `verify_comparison_reconciliation.ts` passed the final focused check.
 - The workbook, Routing-identity, and Candidate verifiers are aligned to the current Product/BOM/WC/Routing contract. The neutral-workbook verifier, workbook round trip, Sizing/Clone verifier, and production build all passed at this checkpoint.
 - The parser's `Selling Price (THB)` alias is covered by the workbook round trip. Templates and exports now have the four agreed data sheets plus a distinct linked calculation view. Synthetic Excel recalculation confirmed the expected sample cost and unavailable states for missing or duplicate inputs, with zero formula errors.
@@ -54,7 +54,7 @@ The goal is to align the source with the confirmed Master Data workflow and Sele
 ## Deferred decisions
 
 - GP, COGS, OP, margin, Sales and SG&A monetary calculations.
-- MatVAR/LBVAR/BDVAR definitions and the final chart composition. The interactive business graph, live scenario updates, and result-to-cause drilldown are confirmed future behavior; implementation waits for the formula and UX decisions identified in the source documents.
+- MatVAR/LBVAR/BDVAR are removed from current scope by the latest explicit user decision. Other business/P&L formulas and final chart composition remain open. The interactive business graph, live scenario updates, and result-to-cause drilldown are confirmed future direction; implementation waits for the formulas and UX decisions identified in the source documents.
 - Any Trial workflow rules not already settled in the source documents.
 
 ## Risks and handling

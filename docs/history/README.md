@@ -1,5 +1,7 @@
-# Historical project documents
+# Archived source and checkpoint records
 
-Files in this directory preserve earlier context, draft designs, handoffs, and specifications. They are evidence of past work only. Do not use their requirements or implementation instructions to override [the current authority order](../REQUIREMENTS_INDEX.md) or [canonical specifications](../specs/).
+This directory preserves dated source context, prior finalized specifications, handoffs, and design records. Its location does not make a decision obsolete: retain source decisions according to their original status unless a later explicit user decision supersedes the specific behavior. If a still-valid finalized decision is absent from a current spec, record and repair that migration gap.
 
-The active 80-topic evidence and status ledger remains [../../tasks/source-crosswalk-80.md](../../tasks/source-crosswalk-80.md).
+Some archived documents contain authority summaries that were later corrected. The current migration rule is in [REQUIREMENTS_INDEX.md](../REQUIREMENTS_INDEX.md). The 2026-10-05 source context and Master Data specification remain evidence for decisions they marked `FINALIZED` or `CONFIRMED`; read their dated addenda and later user decisions in order.
+
+The active 80-topic evidence and status ledger remains [../../tasks/source-crosswalk-80.md](../../tasks/source-crosswalk-80.md), for traceability only.

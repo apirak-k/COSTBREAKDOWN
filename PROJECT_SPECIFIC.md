@@ -2,13 +2,13 @@
 
 ## Requirements authority
 
-Follow the authority order in `docs/REQUIREMENTS_INDEX.md`: latest explicit user decisions; intentional user-directed behavior changes with matching commits; canonical specs under `docs/specs/`; historical agreements/context; then existing code as implementation evidence only. `tasks/source-crosswalk-80.md` is traceability/status, not a requirements source. `PROJECT.md`, `tasks/`, and `HANDOFF.md` are operational context and do not change product behavior.
+Follow `docs/REQUIREMENTS_INDEX.md`. A later explicit user decision supersedes an earlier decision only for the behavior it changes. Previously finalized decisions in source conversations and `agreements/` remain valid until explicitly superseded; missing text in a canonical spec is a migration gap. Canonical specs under `docs/specs/` consolidate current behavior. Commits can support chronology but do not prove intent; code is implementation evidence only. `tasks/source-crosswalk-80.md` is traceability/status, not a requirements source. `PROJECT.md`, `tasks/`, and `HANDOFF.md` are operational context and do not change product behavior.
 
 ## Data and calculation safeguards
 
 - Protect factory, pricing, customer, and other proprietary data. Do not add real operational data or private source workbooks to version control.
 - Follow `docs/specs/CROSS_CUTTING.md` for calculation and workbook behavior. Use code and checked-in workbooks as evidence only; do not invent formulas or silently replace missing inputs with zero or another plausible value.
-- Keep Reference and Current independent. Do not infer scenario behavior from the existing page; use `docs/specs/RCA_SIMULATION.md` and leave its `PENDING/TBD` items open.
+- Keep Reference and Current independent. Do not infer scenario behavior from the existing page; use `docs/specs/RCA_SIMULATION.md` and leave only its genuinely `PENDING/TBD` details open.
 - Keep system-generated UI text in English. Human-entered notes may use the user's language.
 - Treat validation warnings separately from comparison statuses.
 

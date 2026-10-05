@@ -1,12 +1,12 @@
 # Cross-Cutting Decisions — Historical Snapshot
 
-> HISTORICAL SNAPSHOT — Use `docs/specs/CROSS_CUTTING.md` for current shared requirements. This file does not override canonical specs.
+> DATED IMPLEMENTATION SNAPSHOT — Preserve this file as a record of the decisions and open items recorded at this checkpoint. Later explicit user decisions may supersede specific statements; archive location does not invalidate still-valid finalized decisions. Use `docs/REQUIREMENTS_INDEX.md` to reconcile chronology.
 
 **Original snapshot:** 2026-09-30
 
-**Status:** Historical implementation context only. This is not a current requirements or status ledger.
+**Status:** Historical implementation context only; not a current requirements or status ledger.
 
-Current requirements and source precedence are in [REQUIREMENTS_INDEX.md](../REQUIREMENTS_INDEX.md). The user later designated the two newer Markdown documents, the two linked ChatGPT source conversations, and the 80-topic crosswalk as the active source set; the older `agreements/` are historical only. Some choices below were superseded, including the Routing identity and partial/Selected Comparison scope. Do not copy an old item below into the active plan without checking the current sources.
+Current requirements and source precedence are in [REQUIREMENTS_INDEX.md](../REQUIREMENTS_INDEX.md). This snapshot's former statement that all `agreements/` were historical-only was corrected by a later explicit user instruction: previously finalized agreement decisions remain valid until migrated and are superseded only by later explicit decisions. Some specific choices below were superseded, including the Routing identity and partial/Selected Comparison scope; check each behavior's chronology rather than treating the whole source as obsolete.
 
 ## Decisions for the current implementation
 

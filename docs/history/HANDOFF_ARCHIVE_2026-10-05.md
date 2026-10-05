@@ -2,6 +2,8 @@
 
 > ARCHIVED HANDOFF — Historical checkpoint only. Do not use its instructions or statuses to resume work; read the current root `HANDOFF.md`.
 
+> CORRECTION — The requirements-authority paragraph in this archived checkpoint incorrectly called `agreements/` historical-only before all finalized decisions had been migrated. That statement was superseded by the documentation recovery: retain every still-valid finalized agreement decision unless a later explicit user decision supersedes it. See the current [`REQUIREMENTS_INDEX.md`](../REQUIREMENTS_INDEX.md).
+
 ## Active implementation checkpoint
 
 - Repository: `E:\COSTBREAKDOWN`; active branch: `codex/costbreakdown-spec-source`. Relevant implementation commits include `862fb60` (workflow/comparison), `5a08907` (four-sheet dataset workbook and linked cost view), `28cf447` (source checklist/workbook handoff), and newest `bd967b5` (table and Cost Breakdown warning-density refinement). The branch is based on the existing `codex/uiux-refresh` work.

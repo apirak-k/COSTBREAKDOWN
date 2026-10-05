@@ -4,7 +4,7 @@ An Excel-assisted cost analysis application for preparing datasets, comparing co
 
 ## Current requirements
 
-The current authority order and canonical specifications are listed in [docs/REQUIREMENTS_INDEX.md](docs/REQUIREMENTS_INDEX.md). Read the relevant files under [docs/specs/](docs/specs/) for product behavior. The files in [agreements/](agreements/) are historical references.
+The decision authority and current specifications are listed in [docs/REQUIREMENTS_INDEX.md](docs/REQUIREMENTS_INDEX.md). Read the relevant files under [docs/specs/](docs/specs/) for the consolidated behavior. Files in [agreements/](agreements/) preserve prior decisions; finalized decisions stay valid unless a later explicit user decision supersedes them. Missing spec coverage is a migration gap.
 
 ## Project context
 
@@ -36,7 +36,8 @@ PROJECT.md describes the implementation recorded before the current agreement wa
 - `scripts/` — Excel model tools and focused verification scripts.
 - excel_models/ — calculation reference workbooks.
 - `docs/specs/` — canonical product specifications.
-- `docs/history/` and `agreements/` — historical context only.
+- `agreements/` — original decision records and their status.
+- `docs/history/` — dated source, specification, and checkpoint records; use chronology and original decision status.
 - `tasks/source-crosswalk-80.md` — topic-level traceability and implementation/verification status, not a requirements source.
 - `tasks/` — operational plans, tasks, and handoff records.
 - `.planning/` — dated audit and planning records.

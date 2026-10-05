@@ -1,6 +1,6 @@
 # Master Data Page — Agreed Flow and Behavior
 
-> HISTORICAL REFERENCE ONLY — Current authority is `docs/REQUIREMENTS_INDEX.md` and `docs/specs/`. Do not use this agreement to fill an open decision.
+> EARLIER MASTER DATA DECISION SOURCE — Compatible finalized workflow decisions remain valid unless explicitly superseded. The later finalized Master Data source changes specific fields/identities, workbook shape, and export semantics; see `docs/REQUIREMENTS_INDEX.md` and `docs/specs/MASTER_DATA.md`. Do not treat the whole agreement as obsolete or infer that an omitted decision is `PENDING/TBD`.
 
 ## 1. Purpose
 

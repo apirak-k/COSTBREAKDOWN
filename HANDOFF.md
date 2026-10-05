@@ -1,35 +1,43 @@
-# Current Handoff — Source-of-Truth Reconciliation
+# Current Handoff — Documentation Source-of-Truth Recovery
 
 **Updated:** 2026-10-05
 
 ## Active checkpoint
 
 - Repository: `E:\COSTBREAKDOWN`.
-- Active branch: `codex/costbreakdown-spec-source`.
-- Documentation reconciliation is committed and pushed as `793e62b` (`docs: reconcile canonical source of truth`) on `origin/codex/costbreakdown-spec-source`. The prior checkpoint was `cf504f9` (`revert: restore pre-UI review checkpoint`).
-- The `feature/taste-frontend-ui` reference still points to `f873540`; the root `design.md` is absent after the rollback.
-- This work is documentation-only. No application source or UI feature files were changed.
-- The existing eight untracked synthetic verification scratch files remain local and were excluded from the documentation commits.
+- Branch: `codex/costbreakdown-spec-source`.
+- Starting HEAD: `b746b16` (`docs: refresh reconciliation handoff`), pushed to `origin/codex/costbreakdown-spec-source`.
+- Current task: documentation/source-of-truth recovery only. This recovery is recorded as a documentation-only commit on the active branch. No application code has been changed.
+- Eight untracked synthetic verification scratch files remain local and must stay outside documentation commits.
+
+## Correction being applied
+
+The previous reconciliation in `793e62b` wrongly treated agreements as historical-only and downgraded finalized decisions missing from the short specs to `PENDING/TBD`. This pass restores valid decisions from agreements and the dated source material, applying only specific later user decisions that supersede them. Source precedence and migration protection are in `docs/REQUIREMENTS_INDEX.md`.
 
 ## Current document roles
 
-- `docs/REQUIREMENTS_INDEX.md`: authority order and reading order.
-- `docs/specs/`: canonical product specifications.
-- `tasks/source-crosswalk-80.md`: 80-topic traceability, commit references, implementation status, verification status, and gaps. It is not a requirements source.
-- `tasks/plan.md` and `tasks/todo.md`: operational history/task tracking only.
-- `HANDOFF.md`: active checkpoint and resume instructions only.
-- `agreements/` and `docs/history/`: historical reference only.
+- `docs/specs/`: consolidated, user-readable product behavior, including a Final Target State for each page.
+- `agreements/` and dated source records under `docs/history/`: decision evidence with original status and chronology; archive location does not invalidate finalized decisions.
+- `tasks/source-crosswalk-80.md`: traceability and implementation/verification status only, not product requirements or a user-facing feature checklist.
+- `tasks/plan.md`, `tasks/todo.md`, and this file: operational history and checkpoint only.
 
-## Reconciliation limits and open items
+## Recovered and superseded behavior
 
-- The ChatGPT source links remain listed in `docs/REQUIREMENTS_INDEX.md`. The saved browser policy blocked reopening those links during this pass; they were not accessed through another browser surface. The crosswalk carries forward its previous verification evidence and makes this limitation explicit.
-- No tests, builds, or browser verification were run during this documentation pass.
-- `docs/specs/CROSS_CUTTING.md` marks Gap sign convention and unclosed downstream behaviors `PENDING/TBD` instead of treating the implementation as authority. `docs/specs/MASTER_DATA.md` also leaves Clone readiness behavior open pending source confirmation.
-- Prior mistaken UI commits `df82a9d`, `9b39e22`, `2fd57ea`, and `52e5c9d` were reverted by `cf504f9`. Do not treat those edits or their deleted `design.md` as current work or approved behavior.
+- Recovered comparison sign and calculation rules, independent Reference/Current calculation, business-identity matching, four statuses, Work Center processing aggregation, and the Standard Cost equations.
+- Restored finalized Candidate and RCA & Simulation behavior from their agreements while keeping exact page redesign separate.
+- Preserved finalized Selected Comparison lifecycle and Selected-only Gap display.
+- Kept the later Master Data schema/workbook/export/identity and warning/layout decisions over the older conflicting details.
+- MatVAR/LBVAR/BDVAR are removed from current scope by the latest explicit user decision.
+
+## Genuine open items and verification
+
+- Remaining product details explicitly not settled: sizing-count behavior after import; whether Clone is gated by source readiness and how readiness transfers; whether Clear asks for confirmation; exact Reset/Export presentation before first Save; business metric formulas/chart composition; Trial execution/approval/promotion; exact downstream page layouts and human visual acceptance.
+- Direct retrieval of the original ChatGPT links was attempted: the first share URL timed out; the 80-topic URL returned only the logged-out ChatGPT shell, not the conversation. The local agreements, archived source context/spec, chronology, and this task's explicit corrections were inspected and used. Do not claim the inaccessible conversation messages were read; their lack of retrieval does not invalidate finalized decisions present in the local evidence or the user's explicit corrections.
+- This is documentation-only work. No application tests/build/browser checks are in scope or claimed. Run documentation consistency checks and `git diff --check` before handoff.
 
 ## Resume
 
-1. Check `git status --short --branch` and confirm the active branch before editing.
-2. Read `docs/REQUIREMENTS_INDEX.md`, then only the applicable files in `docs/specs/`.
-3. Read `tasks/source-crosswalk-80.md` for status and evidence; do not infer requirements from the application code.
-4. Keep any future feature work separate from this documentation reconciliation and wait for the user's direction before expanding scope.
+1. Check branch, HEAD, and worktree; preserve the eight local scratch files.
+2. Read `docs/REQUIREMENTS_INDEX.md` and the applicable canonical spec before any product work.
+3. If any previously finalized agreement decision is absent from a spec, treat that as a migration gap. Do not infer a supersession from age, archive location, or current code.
+4. Do not implement application behavior as part of this recovery.

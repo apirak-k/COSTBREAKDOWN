@@ -11,5 +11,5 @@ Before project work, read and follow the shared HAWS standard:
 ## Cost Breakdown project context
 
 - Read `PROJECT_SPECIFIC.md` for project safeguards.
-- Follow `docs/REQUIREMENTS_INDEX.md` and the canonical specs under `docs/specs/`. Treat `agreements/` and `docs/history/` as historical references only.
+- Follow `docs/REQUIREMENTS_INDEX.md`. `agreements/` and archived source documents preserve decisions; a previously finalized decision remains valid unless a later explicit user decision supersedes that specific behavior. Missing coverage in `docs/specs/` is a migration gap, not a reason to mark it TBD.
 - Read `HANDOFF.md` when resuming work. It records implementation status; verify its checkpoint against the active branch, HEAD, and worktree. Older handoff sections are historical unless the current section says otherwise.

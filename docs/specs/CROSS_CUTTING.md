@@ -1,54 +1,90 @@
 # Cross-Cutting Product Rules
 
-**Status:** Canonical shared behavior. Rules not closed below are marked PENDING/TBD.
+**Status:** The comparison, Selected Comparison, warning, and Standard Cost rules below are agreed. Future business formulas and the listed implementation/UI details remain open.
+
+## Final Target State
+
+Calculate Reference and Current independently from their own data, then compare the calculated results by business identity. Use `Gap = Current - Reference`; never pair by row position or turn missing required inputs into zero. Routing operations use their Work Center's rates; processing cost is aggregated and compared at Work Center level, with Process available as detail. Full Comparison is the default. Selected Comparison is temporary, leaves source datasets intact, and shows only its selected-scope Gap until a real source-data change or cancellation returns the user to Full Comparison.
 
 ## Source authority
 
-Follow [REQUIREMENTS_INDEX.md](../REQUIREMENTS_INDEX.md). A code behavior creates no requirement by itself. A changed behavior becomes a requirement only when there is a matching explicit user decision and an identifiable implementation commit; otherwise record the difference as a gap.
+Follow [REQUIREMENTS_INDEX.md](../REQUIREMENTS_INDEX.md). A newer summary cannot erase a prior finalized decision by omission. Existing code and workbook files are implementation evidence only. The 80-topic crosswalk records sources and implementation/verification status; it does not define requirements.
 
-## Dataset state and save boundaries
+## Independent calculations and business identity
 
-Reference and Current each have an independent in-session Working state and one Last Saved state. Save and Reset affect only the viewed side. Export reads Last Saved; Import and Clear affect only Working; Clone copies the opposite Working state into the viewed Working state. State does not persist across application restarts. See [MASTER_DATA.md](MASTER_DATA.md) for the Master Data actions and workbook shape.
+Reference and Current are independent snapshots and may have different row counts, table sizes, or structures. Calculate each dataset on its own first; compare the two results only after each side's Standard Cost calculation.
 
-## Comparison identity and result integrity
+Match comparable records by the approved Master Data business identity, never by row position:
 
-- Compare by business identity, never row order: BOM Name, Work Center WC, and Routing Process.
-- Keep comparison status and numeric Gap as separate concepts. Do not guess ambiguous matches or fabricate unavailable costs.
-- Full Comparison is the default.
-- Selected Comparison displays only the selected-scope Gap. Do not display the Full Gap alongside it while Selected mode is active.
-- Selected scope applies to BOM and Routing. Keep all Work Centers as calculation context. CHANGED/UNCHANGED findings are selected as Reference/Current pairs; ADDED and REMOVED findings can be selected independently.
-- Selected scope is temporary analysis state. It does not change source data, Save state, or exports. A change to Reference or Current clears the scope and returns to Full Comparison; cancellation does the same. When active, carry the selected scope through Cost Breakdown, Candidate, and RCA/Simulation.
+- BOM: `Name`
+- Work Center: `WC`
+- Routing: `Process`
 
-The arithmetic/sign convention for Gap is **PENDING/TBD** in the canonical requirements pending confirmation against the original source conversation. The historical review context recorded `Current - Reference`; that historical statement alone does not close the decision.
+Use the comparison statuses `UNCHANGED`, `CHANGED`, `ADDED`, and `REMOVED` where applicable. Status says what changed in the business record; Gap says the cost direction and amount. They are independent. Do not infer a status from Gap or invent a `REPLACE` status. Ambiguous identity is a data-quality warning; do not guess. A note-only difference is not a business change.
+
+The earlier Cost Comparison agreement's Routing identity based on `Operation Code`/`Sequence`, and the still older Master Data keys based on item/code fields, were superseded by the later finalized Master Data schema. Do not reintroduce those fields as active requirements.
 
 ## Standard Cost calculation
 
-The workbook inspection view mirrors the in-app Standard Cost engine:
+Use this formula for the in-app Standard Cost and the separate Excel inspection view:
 
 ```text
-Material = Usage × Price × (1 + Loss)
-Routing Factor = Manning ÷ (Capacity × Yield)
-Labor = Routing Factor × matching Work Center Labor rate
-Burden = Routing Factor × matching Work Center Burden rate
-Total Standard Cost = Material + Labor + Burden
+Direct Material = Usage × Price × (1 + Loss)
+Routing Factor = Manning / (Capacity × Yield)
+Labor = Routing Factor × Labor Rate
+Burden = Routing Factor × Burden Rate
+Conversion Cost = Labor + Burden
+Standard Cost = Direct Material + Labor + Burden
 ```
 
-Use unavailable/status output when required inputs are missing or invalid, Capacity or Yield is non-positive, or a Work Center match is missing or duplicated. Do not substitute zero or change the in-app engine as part of the workbook view. Zero is valid when it is an explicit input.
+`Conversion Cost` is a subtotal of Labor and Burden. Do not add it again to Standard Cost. Calculate Standard Cost per piece. Routing rates come from the matching Work Center master data.
 
-Selling Price and SG&A remain metadata inputs. GP/COGS/OP, margin, monetary SG&A, MatVAR/LBVAR/BDVAR, and business-dashboard formulas are **PENDING/TBD**; do not add them to the Standard Cost view.
+If a required input is missing or invalid, Capacity or Yield is non-positive, or a Work Center reference is missing/duplicated, keep the affected result unavailable and explain the issue. Do not silently substitute zero or another plausible value. An explicitly entered zero is valid.
 
-## Warning behavior
+## Processing cost and Work Center comparison
 
-Warnings normally inform and direct; they do not block navigation. Disable only operations that cannot be performed. Keep validation warnings separate from comparison statuses and retain unavailable results when calculation inputs are insufficient.
+For each dataset, calculate each Routing operation using its referenced Work Center Labor and Burden rates. Aggregate the resulting processing costs by Work Center, then compare Reference and Current processing totals at that Work Center:
 
-On Master Data, cell-level invalid cues remain while warning prose, row badges, and warning-count footers stay outside table rows. On Cost Breakdown, remove the redundant top calculation warning banner and collapse details behind the concise label `Review warnings (N)`.
+```text
+WC Net Gap = Current WC processing total - Reference WC processing total
+```
 
-## Shared status and downstream boundaries
+Routing `Process` remains drill-down detail under its Work Center. Matching Routing operations one-to-one is not required to calculate the Work Center processing total or `WC Net Gap`. Missing or invalid calculation inputs remain unavailable under the Standard Cost rules above.
 
-The system may show workflow status and a relevant review action, including when Selected Comparison is active. Exact wording, placement, and behavior of status controls remain **PENDING/TBD** until page-level UX review.
+## Full and Selected Comparison
 
-ProductSession architecture, business metrics/formulas, exact dashboard composition, Candidate redesign, RCA/Simulation redesign, and Trial execution/approval remain **PENDING/TBD** unless a later explicit user decision closes them.
+- Full Comparison is the default.
+- Selected Comparison is an optional, temporary analysis scope entered from Cost Breakdown. It applies to BOM and Routing; all Work Centers remain available as calculation context.
+- For a matched `CHANGED` or `UNCHANGED` finding, select/exclude the Reference and Current pair together. `ADDED` and `REMOVED` findings are independently selectable.
+- Selected mode recalculates from the selected scope and shows **only the selected-scope Gap**. Do not show the Full Gap beside or behind it.
+- The scope is analysis state, not a dataset edit. It is not included in Save, export, or version history and does not persist across application restart. Unselected records remain in the source datasets.
+- Carry the selected analysis scope through Cost Breakdown, Candidate, and RCA/Simulation. Exact downstream page presentation is specified per page where closed.
+- Cancellation, or an actual change to Reference or Current source data, clears the selection and returns to Full Comparison immediately. Do not remap stale selections or ask recovery questions.
+
+## Warnings and result integrity
+
+Warnings inform and direct; they normally do not block navigation. Disable only operations that cannot be performed. Keep validation warnings separate from comparison statuses and never show fabricated cost values.
+
+On Master Data, preserve cell-level invalid cues and show dataset notices outside tables; keep warning prose, row issue badges, and warning-count footers out of the tables. On Cost Breakdown, remove the duplicate top calculation-warning banner and keep details collapsed by default behind `Review warnings (N)`.
+
+## Business analysis: confirmed direction and scope
+
+The future business dashboard direction is interactive, updates with simulation, tells the result-to-cause story (`Result → Cause → Detail`), and gives executives an overview with details available on demand. A bar-chart-first approach is a design direction, not a finalized chart specification. Keep calculation/domain logic separate from UI presentation.
+
+Confirmed business concepts include Selling Price, SG&A, Material, Processing, COGS, GP, GP Margin, OP, OP Margin, Sales, and Volume/Quantity. OP must allow negative values. Business metric formulas, monetary SG&A treatment, total GP/OP formulas, and exact chart composition remain undecided; do not infer them from labels or current code. Selling Price and SG&A are stored as metadata inputs, with SG&A entered as a percent of Selling Price. Scenario overrides of Selling Price and SG&A are a confirmed future direction; each uses the current dataset value by default and clearing an override falls back to Current.
+
+**MatVAR, LBVAR, and BDVAR are removed from current scope by the latest explicit user decision.** They are neither pending formulas nor deferred features. Do not add them to Standard Cost or the current dashboard scope.
+
+The actual Trial execution, validation, approval, and promotion workflow remains unspecified. The agreed Candidate-to-scenario selection and scenario-to-Trial handoff are described in [RCA_SIMULATION.md](RCA_SIMULATION.md).
+
+## Genuine PENDING/TBD boundaries
+
+- Whether importing a dataset preserves, resets, or recalculates its saved Sizing counts.
+- Whether Clone is gated by source readiness and how readiness metadata transfers; the copy direction and Working/Last Saved behavior are settled in [MASTER_DATA.md](MASTER_DATA.md).
+- Exact disabled/error presentation for Reset/Export before the first Save.
+- Exact page layout, visual styling, status wording/placement, and final human visual acceptance where the page specs leave them open.
+- Business metric formulas and final chart composition as listed above; actual Trial execution/validation/approval/promotion.
 
 ## Traceability
 
-Selected-scope implementation history is in `872e02e` and `07ba640`; later comparison alignment is in `862fb60`. The formula-linked workbook view is in `5a08907`; warning-density behavior is in `bd967b5` and `2bf5ec5`. See [the 80-topic crosswalk](../../tasks/source-crosswalk-80.md) for evidence and verification status.
+Key sources are [`agreements/COSTBREAKDOWN_COMPARISON_PRINCIPLES.md`](../../agreements/COSTBREAKDOWN_COMPARISON_PRINCIPLES.md), the finalized [Master Data source specification](../history/MASTER_DATA_SPEC_2026-10-05.md), the later [review-context decisions](../history/COSTBREAKDOWN_REVIEW_CONTEXT_FOR_CODEX.md), and the user-directed workbook update recorded in commit `5a08907`. The 80-topic crosswalk links implementation and verification evidence without changing these requirements.
