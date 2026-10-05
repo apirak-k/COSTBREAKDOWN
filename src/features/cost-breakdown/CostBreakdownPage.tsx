@@ -25,8 +25,7 @@ export const CostBreakdownPage: React.FC = () => {
     isSelectedComparisonActive,
     applySelectedComparison,
     clearSelectedComparison,
-    bom,
-    routing
+    bom
   } = useAppStore()
   const [subTab, setSubTab] = useState<SubTab>('bom')
   const [comparisonView, setComparisonView] = useState<ComparisonViewMode>(ALL_COMPARISON_STATUSES)
