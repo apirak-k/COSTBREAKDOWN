@@ -1,6 +1,5 @@
 import React from 'react'
-import { AlertTriangle, CheckCircle2, CircleHelp } from 'lucide-react'
-import { formatNumber, formatPercent } from '../../../core'
+import { formatNumber, formatVariance } from '../../../core'
 import type { CostComparison } from '../../../core'
 
 export type SnapshotQuality = 'Verified' | 'Estimated' | 'Missing'
@@ -57,6 +56,14 @@ interface SnapshotComparisonCardProps {
 
 const formatCost = (value: number | null): string => value === null ? '—' : formatNumber(value, 4)
 
+function addCosts(left: number | null, right: number | null): number | null {
+  return left === null || right === null ? null : left + right
+}
+
+function costGap(current: number | null, reference: number | null): number | null {
+  return current === null || reference === null ? null : current - reference
+}
+
 function gapClass(value: number | null): string {
   if (value === null || Math.abs(value) < 0.00005) return 'text-slate-500'
   return value > 0 ? 'text-rose-700' : 'text-emerald-700'
@@ -65,22 +72,14 @@ function gapClass(value: number | null): string {
 export const SnapshotComparisonCard: React.FC<SnapshotComparisonCardProps> = ({ comparison, selectedComparison = false }) => {
   const summary = summarizeSnapshotComparison(comparison, selectedComparison)
   const warnings = getSnapshotWarnings(comparison, selectedComparison)
-  const qualityClass = summary.quality === 'Verified'
-    ? 'text-emerald-800 bg-emerald-50 border-emerald-200'
-    : summary.quality === 'Estimated'
-    ? 'text-amber-800 bg-amber-50 border-amber-200'
-    : 'text-rose-800 bg-rose-50 border-rose-200'
-  const QualityIcon = summary.quality === 'Verified'
-    ? CheckCircle2
-    : summary.quality === 'Estimated'
-    ? CircleHelp
-    : AlertTriangle
-
+  const referenceConversion = addCosts(comparison.referenceCost.labor, comparison.referenceCost.burden)
+  const currentConversion = addCosts(comparison.currentCost.labor, comparison.currentCost.burden)
   const metrics = [
-    { label: 'Total Standard Cost', key: 'total' as const, reference: comparison.referenceCost.total, current: comparison.currentCost.total, gap: comparison.totalGap, emphasis: true },
     { label: 'Direct Material', key: 'material' as const, reference: comparison.referenceCost.material, current: comparison.currentCost.material, gap: comparison.elementGaps.material },
     { label: 'Direct Labor', key: 'labor' as const, reference: comparison.referenceCost.labor, current: comparison.currentCost.labor, gap: comparison.elementGaps.labor },
-    { label: 'Manufacturing Burden', key: 'burden' as const, reference: comparison.referenceCost.burden, current: comparison.currentCost.burden, gap: comparison.elementGaps.burden }
+    { label: 'Manufacturing Burden', key: 'burden' as const, reference: comparison.referenceCost.burden, current: comparison.currentCost.burden, gap: comparison.elementGaps.burden },
+    { label: 'Conversion subtotal', key: 'conversion' as const, reference: referenceConversion, current: currentConversion, gap: costGap(currentConversion, referenceConversion), subtotal: true },
+    { label: 'Standard Cost', key: 'total' as const, reference: comparison.referenceCost.total, current: comparison.currentCost.total, gap: comparison.totalGap, emphasis: true }
   ]
   const discrepancy = comparison.reconciliation?.discrepancy ?? null
   const reconciled = comparison.reconciliation?.reconciled === true
@@ -93,56 +92,39 @@ export const SnapshotComparisonCard: React.FC<SnapshotComparisonCardProps> = ({ 
           <p className="mt-0.5 text-[11px] leading-4 text-slate-600">
             {selectedComparison
               ? 'Cost measures use the selected BOM and Routing findings with all Work Center rates as calculation context.'
-              : 'Four cost measures across the two independent snapshots.'}
+              : 'Reference and Current are calculated independently. Gap = Current − Reference.'}
           </p>
         </div>
-        <div className={`inline-flex min-h-7 items-center gap-1.5 self-start border px-2 py-1 font-mono text-[10px] font-semibold uppercase ${qualityClass}`} role="status">
-          <QualityIcon className="h-3 w-3" aria-hidden="true" />
-          Data quality: {summary.quality}
-        </div>
       </div>
 
-      <div className="flex flex-col gap-2 border-b border-slate-200 px-4 py-2 text-[11px] sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
-        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-slate-600">
-          <span><strong className="font-mono text-slate-900">{summary.matchedCount}</strong> matched</span>
-          <span><strong className="font-mono text-slate-900">{summary.estimatedCount}</strong> estimated</span>
-          <span><strong className="font-mono text-slate-900">{summary.missingCount}</strong> missing</span>
-          <span className="text-slate-300" aria-hidden="true">|</span>
-          <span>Match review: <strong className="font-mono text-slate-900">{summary.reviewCount}</strong></span>
-        </div>
+      <div className="w-full overflow-x-auto">
+        <table className="w-full min-w-[640px] text-left text-xs">
+          <caption className="sr-only">Reference, Current, and Gap for material, labor, burden, conversion subtotal, and standard cost</caption>
+          <thead>
+            <tr className="bg-slate-800 font-semibold text-white">
+              <th scope="col" className="p-2.5">Cost category</th>
+              <th scope="col" className="p-2.5 text-right">Reference (THB/pc)</th>
+              <th scope="col" className="p-2.5 text-right">Current (THB/pc)</th>
+              <th scope="col" className="p-2.5 text-right">Gap (THB/pc)</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-slate-200 font-mono tabular-nums">
+            {metrics.map(metric => (
+              <tr key={metric.key} className={metric.emphasis ? 'border-t-2 border-slate-400 bg-slate-100 font-bold text-slate-950' : metric.subtotal ? 'bg-slate-50 text-slate-700' : 'bg-white text-slate-800'}>
+                <th scope="row" className={`p-2.5 text-left ${metric.subtotal ? 'font-medium italic' : 'font-semibold'}`}>
+                  {metric.label}{metric.subtotal && <span className="ml-2 font-sans text-[10px] font-normal not-italic text-slate-500">Labor + Burden; subtotal only</span>}
+                </th>
+                <td className="p-2.5 text-right">{formatCost(metric.reference)}</td>
+                <td className="p-2.5 text-right">{formatCost(metric.current)}</td>
+                <td className={`p-2.5 text-right ${gapClass(metric.gap)}`}>{metric.gap === null ? '—' : formatVariance(metric.gap, 4)}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
       </div>
-
-      <section aria-label="Reference and Current cost measures" className="grid grid-cols-1 gap-px bg-slate-300 sm:grid-cols-2 xl:grid-cols-4">
-        {metrics.map(metric => {
-          const change = metric.gap !== null && metric.reference !== null && metric.reference !== 0
-            ? `${metric.gap > 0 ? '+' : ''}${formatPercent(metric.gap / metric.reference, 1)}`
-            : '—'
-
-          return (
-            <article key={metric.key} className={`min-w-0 bg-white px-3 py-3 ${metric.emphasis ? 'border-t-2 border-t-slate-900' : 'border-t-2 border-t-slate-400'}`}>
-              <h3 className="truncate font-mono text-[10px] font-bold uppercase tracking-wide text-slate-600" title={metric.label}>{metric.label}</h3>
-              <p className="mt-2 flex min-w-0 items-baseline gap-1 font-mono tabular-nums text-slate-950">
-                <span className="shrink-0 text-[9px] font-medium uppercase tracking-wide text-slate-500">Current</span>
-                <span className="truncate text-lg font-semibold tracking-tight">{formatCost(metric.current)}</span>
-                <span className="shrink-0 text-[10px] text-slate-500">THB/pc</span>
-              </p>
-              <dl className="mt-2 space-y-1 border-t border-slate-200 pt-2 text-[10px]">
-                <div className="flex items-center justify-between gap-2">
-                  <dt className="text-slate-500">Reference</dt>
-                  <dd className="truncate font-mono tabular-nums text-slate-700">{formatCost(metric.reference)}</dd>
-                </div>
-                <div className="flex items-center justify-between gap-2">
-                  <dt className="text-slate-500">Change vs Ref</dt>
-                  <dd className={`font-mono font-semibold tabular-nums ${gapClass(metric.gap)}`}>{change}</dd>
-                </div>
-              </dl>
-            </article>
-          )
-        })}
-      </section>
 
       <div className="flex flex-col gap-1 border-t border-slate-200 bg-slate-50 px-4 py-2.5 text-xs sm:flex-row sm:items-center sm:justify-between">
-        <span className="text-slate-600">Material, labor, and burden gaps should add to the total gap.</span>
+        <span className="text-slate-600">Material + labor + burden reconcile to Standard Cost Gap; Conversion is a labor + burden subtotal and is not counted again.</span>
         <span className={`font-mono font-semibold tabular-nums ${reconciled ? 'text-emerald-800' : 'text-amber-800'}`}>
           {reconciled
             ? discrepancy === null ? 'Balanced' : `${formatNumber(Math.abs(discrepancy), 4)} THB · Balanced`
