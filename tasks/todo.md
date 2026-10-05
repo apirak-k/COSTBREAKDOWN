@@ -1,13 +1,14 @@
-# Implementation Tasks — Master Data Refresh and Selected Comparison
+# Operational Task Ledger — Master Data Refresh and Selected Comparison
 
-> Active queue revised 2026-10-05 from the user's shared-chat decisions and the two supplied Markdown specifications. The original agreement checklist is retained as history; newer sources supersede only the behavior they cover. See [`plan.md`](plan.md) for scope and [`source-crosswalk-80.md`](source-crosswalk-80.md) for the single per-topic status and evidence ledger.
+> Operational history only; this is not a product requirement source or authorization for new feature work. Canonical requirements are under [`docs/specs/`](../docs/specs/). The original agreement checklist is historical. Per-topic status and evidence are maintained only in [`source-crosswalk-80.md`](source-crosswalk-80.md).
 
-## Active Plan Revision — 2026-10-05
+## Recorded Plan Revision — 2026-10-05
 
 ## Current Progress Snapshot — 2026-10-05
 
-- The crosswalk is the sole per-topic status ledger for the 80 source topics; its counts and evidence are not repeated here. Master Data behavior/data is closed, and Selected Comparison displays only its selected-scope Gap. The latest UI refinement keeps warning prose out of tables, moves the reorder handle to the rightmost column, and collapses Cost Breakdown warning details. Candidate/RCA redesign, dashboard details, accounting formulas, and Trial remain future scope unless a later source closes them.
-- This file holds the task-level implementation plan and verification detail below. Automated evidence and human UX acceptance remain separate.
+- Current source-reconciliation checkpoint and resume instructions are in `HANDOFF.md`.
+- This file preserves historical task-level implementation and verification notes. Canonical behavior is in `docs/specs/`; the 80-topic implementation/verification status is only in `source-crosswalk-80.md`.
+- Automated evidence and human acceptance remain separate; do not treat the historical task checklist as new feature authorization.
 
 ### Final integration gate
 
@@ -20,7 +21,7 @@ Per-topic PASS/PARTIAL/OPEN/DEFERRED/RECORDED status and the exact next actions 
 
 #### Task 0: Freeze the implementation baseline and source set
 
-**Description:** Continue from the active COSTBREAKDOWN workspace; the branch name does not constrain the work. Use the latest chat and today's `MASTER_DATA_SPEC.md` / `COSTBREAKDOWN_REVIEW_CONTEXT_FOR_CODEX.md` as behavior requirements. The supplied screenshot is the target layout direction for the full Master Data page; its BOM table is one example, not the only supported table.
+**Description:** Historical task description. Current product behavior is defined only by the relevant canonical specs under `docs/specs/`; the supplied screenshot defines the whole Master Data page structure, with the BOM table as one example.
 
 **Acceptance criteria:**
 - [x] No remaining question blocks the Master Data or Selected Comparison scope.
@@ -546,7 +547,7 @@ Tasks are ordered by dependency. Keep each implementation slice focused and leav
 
 ## Current Agreement Re-audit — 2026-09-28
 
-ChatGPT's review was treated as a set of leads. The four files in `agreements/` remain authoritative; prior task checkboxes are historical evidence, not full-contract approval.
+At the 2026-09-28 checkpoint, ChatGPT's review was treated as a set of leads and the four `agreements/` files were treated as authoritative. That historical authority order is superseded by `docs/REQUIREMENTS_INDEX.md`; the checkboxes below are operational history only.
 
 ### AI-side technical audit — complete
 

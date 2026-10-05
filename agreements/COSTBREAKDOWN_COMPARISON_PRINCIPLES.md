@@ -1,5 +1,7 @@
 # COSTBREAKDOWN — Comparison Principles
 
+> HISTORICAL REFERENCE ONLY — Current authority is `docs/REQUIREMENTS_INDEX.md` and `docs/specs/`. Do not use this agreement to fill an open decision.
+
 **Status:** Working Specification  
 **Scope:** Comparison logic only  
 **Audience:** AI coding agent / implementation team

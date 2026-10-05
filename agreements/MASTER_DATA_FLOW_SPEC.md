@@ -1,5 +1,7 @@
 # Master Data Page — Agreed Flow and Behavior
 
+> HISTORICAL REFERENCE ONLY — Current authority is `docs/REQUIREMENTS_INDEX.md` and `docs/specs/`. Do not use this agreement to fill an open decision.
+
 ## 1. Purpose
 
 The **Master Data** page is a temporary workspace for preparing two sets of input data:

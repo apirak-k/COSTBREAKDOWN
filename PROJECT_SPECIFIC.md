@@ -2,13 +2,13 @@
 
 ## Requirements authority
 
-Follow the current source order in `docs/REQUIREMENTS_INDEX.md`: the user's latest explicit decisions, the two current Markdown requirements/context documents, the two linked source conversations, and the 80-topic crosswalk. The user designated `agreements/` as outdated; treat those files as historical reference only. `PROJECT.md` and `HANDOFF.md` describe implementation state and do not change product behavior.
+Follow the authority order in `docs/REQUIREMENTS_INDEX.md`: latest explicit user decisions; intentional user-directed behavior changes with matching commits; canonical specs under `docs/specs/`; historical agreements/context; then existing code as implementation evidence only. `tasks/source-crosswalk-80.md` is traceability/status, not a requirements source. `PROJECT.md`, `tasks/`, and `HANDOFF.md` are operational context and do not change product behavior.
 
 ## Data and calculation safeguards
 
 - Protect factory, pricing, customer, and other proprietary data. Do not add real operational data or private source workbooks to version control.
-- Use the existing Cost Engine and verified workbook logic. The Excel `COST_CALCULATION` tab must link to the four dataset tabs and mirror that engine. Do not invent factory formulas or silently replace missing required inputs with zero or another plausible value.
-- Keep Reference and Current independent. Scenario changes must not mutate Current.
+- Follow `docs/specs/CROSS_CUTTING.md` for calculation and workbook behavior. Use code and checked-in workbooks as evidence only; do not invent formulas or silently replace missing inputs with zero or another plausible value.
+- Keep Reference and Current independent. Do not infer scenario behavior from the existing page; use `docs/specs/RCA_SIMULATION.md` and leave its `PENDING/TBD` items open.
 - Keep system-generated UI text in English. Human-entered notes may use the user's language.
 - Treat validation warnings separately from comparison statuses.
 

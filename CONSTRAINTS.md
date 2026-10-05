@@ -1,24 +1,19 @@
 # Engineering Constraints — Cost Breakdown
 
-The behavior contract is in agreements/ and is indexed by docs/REQUIREMENTS_INDEX.md. These constraints describe implementation and verification quality; they do not add product behavior.
+The behavior contract is in the canonical specs indexed by docs/REQUIREMENTS_INDEX.md. These constraints describe implementation and verification quality; they do not add product behavior.
 
 ## Calculation and data integrity
 
-- Calculate Reference and Current independently before comparing them.
-- Match records by business identity. Do not use row position as identity or guess ambiguous matches.
-- Use Gap = Current cost - Reference cost.
-- A record absent on one side contributes zero on that side. A missing required input is a validation/data-quality issue, not zero.
-- Reconcile detailed cost effects to their parent and total gaps.
-- Aggregate Processing candidates by Work Center as specified; do not count the same cost effect twice.
-- Reuse the verified Cost Engine for scenarios. Keep scenarios isolated from Current and limit overrides to supported measurable inputs.
+- Follow the calculation and comparison rules in `docs/specs/CROSS_CUTTING.md`; do not derive product formulas from code or old workbooks.
+- Match by canonical business identity and do not use row position or guess ambiguous matches.
+- Keep missing or invalid required inputs unavailable; do not silently replace them with zero or another plausible value.
+- Reconcile detailed cost effects to their parent results whenever the canonical spec defines such a breakdown.
 - Handle predictable missing, invalid, and divide-by-zero cases explicitly. Show a safe status instead of a misleading number.
 
 ## Scope boundaries
 
-- Candidate ranking must not select an improvement target automatically.
-- Root Cause and Action are optional descriptive fields and are not numeric inputs.
-- Structural Simulation and additional financial metrics remain outside the current RCA & Simulation scope.
-- UI layout is not fixed by the behavior specifications.
+- Follow the current Candidate and RCA/Simulation specs. Where they say `PENDING/TBD`, do not infer behavior from the existing pages.
+- Master Data's agreed structural layout is in `docs/specs/MASTER_DATA.md`; other exact page layouts remain pending where the canonical specs say so.
 
 ## Verification
 

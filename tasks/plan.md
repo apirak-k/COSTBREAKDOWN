@@ -1,19 +1,21 @@
-# Active Implementation Plan: Master Data Refresh and Selected Comparison
+# Historical Implementation Plan: Master Data Refresh and Selected Comparison
+
+> Operational history only. Canonical product requirements are under `docs/specs/`; per-topic status and evidence live only in `source-crosswalk-80.md`. Do not treat this plan or its unchecked items as product requirements or authorization for new feature work.
 
 ## Revision and scope
 
-This is the active plan as of 2026-10-05. It follows the user's latest recorded decisions, the 80-topic crosswalk, `docs/MASTER_DATA_SPEC.md`, and `docs/COSTBREAKDOWN_REVIEW_CONTEXT_FOR_CODEX.md`, with precedence recorded in `docs/REQUIREMENTS_INDEX.md`. The earlier agreement plan is retained below as history; its future scope and open questions are superseded where the newer sources make a decision.
+This plan preserves the implementation sequence recorded on 2026-10-05. It is not the current requirements source or active work authorization. Apply `docs/REQUIREMENTS_INDEX.md` and the canonical specs; use the crosswalk for implementation and verification status. Earlier agreement plans below remain historical.
 
 The goal is to align the source with the confirmed Master Data workflow and Selected Comparison behavior while preserving the existing Standard Cost calculation contract. The supplied screenshot is the target layout direction for the full Master Data page; the BOM table shown is one example, not the only table the page should support. The task-level plan and verification details are in `tasks/todo.md`; the single per-topic source/status ledger is `tasks/source-crosswalk-80.md`; `HANDOFF.md` records the current checkpoint and resume point.
 
 ## Baseline and decisions
 
 - The branch name does not constrain the work. Continue from the active COSTBREAKDOWN workspace and preserve its existing user changes.
-- The active implementation branch is already based on `codex/uiux-refresh`; retain compatible patterns from it while following the latest chat and the two new Master Data documents for behavior.
+- The implementation branch history included `codex/uiux-refresh`. This note is historical; use the authority order and canonical specs for behavior.
 - Use the supplied screenshot as the target layout direction for the complete Master Data page: app navigation/status, dataset and action toolbar, product summary, and table workspace. The visible BOM table and its sample values/columns are illustrative; support Work Centers, BOM, Routing, and an All Tables view using the approved schema.
 - Use compatible `uiux-refresh` patterns where helpful, without making that branch the required implementation baseline or allowing older columns to override the newer schema.
 - Keep Reference and Current datasets independent. Each gets one in-session Working state and one Last Saved state; nothing persists across an application restart.
-- Keep the current cost engine and the confirmed `Gap = Current - Reference` rule. Add Selling Price and SG&A metadata, but do not invent GP/COGS/OP or monetary SG&A formulas.
+- This plan recorded `Gap = Current - Reference`; that sign convention is now `PENDING/TBD` in the canonical spec until confirmed against the original source conversation. Do not promote the code or this historical plan to authority.
 - Excel templates and exports contain four data sheets (`META`, `BOM`, `ROUTING`, `WORK_CENTER`) and a separate formula-linked `COST_CALCULATION` view; import reads only the four data sheets.
 - Compare BOM by Name, WC by WC, and Routing by Process. Preserve validation warnings for missing or duplicate identities; never guess matches from row position.
 - Selected Comparison is temporary analysis state. It selects BOM and Routing only, retains the full WC dataset as calculation context, flows to downstream analysis, and clears when source data changes. In this mode, show only the selected-scope Gap; never show the Full Gap alongside it.

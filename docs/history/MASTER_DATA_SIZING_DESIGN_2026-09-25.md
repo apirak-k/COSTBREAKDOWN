@@ -1,5 +1,7 @@
 # Master Data Dataset Sizing and Bidirectional Clone — Design
 
+> HISTORICAL PROPOSAL — This draft is preserved for history only. Current Master Data requirements are in `docs/specs/MASTER_DATA.md`.
+
 **Status:** Proposed design for user review; not yet part of the current agreement set.
 
 ## Goal

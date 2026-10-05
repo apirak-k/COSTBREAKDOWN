@@ -1,6 +1,6 @@
 # Project Context — Cost Breakdown
 
-> Current product behavior is defined by the agreement set listed in docs/REQUIREMENTS_INDEX.md. This file records implementation context and must not override those agreements.
+> Current product behavior is defined by the canonical specifications listed in docs/REQUIREMENTS_INDEX.md. This file records implementation context and must not override those specifications.
 
 ## Product flow
 
@@ -8,7 +8,7 @@ The agreed flow is:
 
 Master Data → Cost Breakdown / Comparison → Candidate Prioritization → RCA & Simulation → Trial.
 
-The user-facing behavior and boundaries for each stage are defined in agreements/. Trial is named as the next stage but does not yet have a detailed specification.
+The user-facing behavior and boundaries are defined by the relevant files in docs/specs/. Detailed Candidate, RCA & Simulation, and Trial behavior remains pending where those specs say PENDING/TBD.
 
 ## Application structure
 
@@ -32,7 +32,7 @@ Treat the existing implementation as a starting point to inspect against the cur
 
 ## Calculation references
 
-The RCA & Simulation agreement requires reuse of the existing verified Cost Engine. The current source code and checked-in workbooks under excel_models/ are the calculation references. Keep Standard Cost as Material + Labor + Burden and use Gap = Current - Reference as specified. Verify calculation parity when a code change affects formulas.
+The shared calculation rules are recorded in docs/specs/CROSS_CUTTING.md. Keep workbook calculations aligned with the specified Standard Cost engine. Gap arithmetic remains pending canonical confirmation; code and checked-in workbooks under excel_models/ are implementation evidence, not requirements.
 
 ## Current verification record
 

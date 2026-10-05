@@ -1,5 +1,7 @@
 # Candidate Prioritization Specification
 
+> HISTORICAL REFERENCE ONLY — Current authority is `docs/REQUIREMENTS_INDEX.md` and `docs/specs/`. Do not use this agreement to fill an open decision.
+
 **Status:** Finalized concept / behavior specification  
 **Scope:** Candidate Prioritization page only  
 **Audience:** AI coding agent / implementation team  
