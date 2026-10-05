@@ -6,10 +6,10 @@
 
 - Repository: `E:\COSTBREAKDOWN`.
 - Active branch: `codex/costbreakdown-spec-source`.
-- Last committed checkpoint before this documentation work: `cf504f9` (`revert: restore pre-UI review checkpoint`). The documentation reconciliation is currently in the working tree and has not been committed.
+- Documentation reconciliation is committed and pushed as `793e62b` (`docs: reconcile canonical source of truth`) on `origin/codex/costbreakdown-spec-source`. The prior checkpoint was `cf504f9` (`revert: restore pre-UI review checkpoint`).
 - The `feature/taste-frontend-ui` reference still points to `f873540`; the root `design.md` is absent after the rollback.
 - This work is documentation-only. No application source or UI feature files were changed.
-- The existing eight untracked synthetic verification scratch files were preserved; do not include them in a documentation commit.
+- The existing eight untracked synthetic verification scratch files remain local and were excluded from the documentation commits.
 
 ## Current document roles
 
