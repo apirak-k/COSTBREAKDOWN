@@ -153,3 +153,10 @@ Use semantic colors only when the displayed state warrants them. Do not use colo
 2. Implement visual changes in reviewable page-sized slices. Every UI implementation commit message must contain `ui` and identify the affected area.
 3. Keep the current design contract current when an approved UI decision changes. Update `HANDOFF.md` with the base commit, commits, verification evidence, and remaining visual review needs.
 4. Before calling the work complete, verify the affected build and existing UI checks, inspect the final diff, and report any browser-rendered review that remains unverified. Automated checks do not equal human UI acceptance.
+
+## Implementation record — 2026-10-05
+
+- Design-only checkpoint: `2bf5ec50335beb8064b782f4063a9a1df862ac67`; design contract commit: `df82a9d`.
+- Implemented on the existing `codex/costbreakdown-spec-source` branch in separate commits: `9b39e22` (Master Data toolbar and metadata) and `2fd57ea` (RCA and Simulation layout). The reference `feature/taste-frontend-ui@f873540` was read-only.
+- The shell/footer, Cost Breakdown warning disclosure, and Candidate scope/filter layout were already present at the checkpoint and remain unchanged in this pass. Calculation engines, comparison rules, candidate generation, scenario computation, and workbook structure/formulas were not changed.
+- `npm run build` passed after each UI implementation slice; `git diff --check` passed before each commit. Automated UI checks and tests were not run in this pass. Browser-rendered review remains **[Unverified]** under the existing no-retry instruction in `HANDOFF.md`.
