@@ -110,7 +110,7 @@ export const MasterDataWorkspaceHeader: React.FC<MasterDataWorkspaceHeaderProps>
 
   return (
     <section className="sticky top-0 z-40 overflow-visible border border-slate-300 bg-white" aria-label="Working dataset controls">
-      <div role="toolbar" aria-label="Dataset and table actions" className="flex flex-wrap items-center gap-1 border-b border-slate-300 bg-white px-1.5 py-1">
+      <div role="toolbar" aria-label="Dataset and table actions" className="flex flex-wrap items-center gap-1.5 border-b border-slate-300 bg-white px-2 py-1.5">
       <div className="contents">
         <div className="contents">
           <div className="inline-flex shrink-0 border border-slate-300 bg-white p-0.5" role="group" aria-label="Working dataset side">
@@ -317,7 +317,26 @@ export const MasterDataWorkspaceHeader: React.FC<MasterDataWorkspaceHeaderProps>
       </div>
 
       <div className="px-1.5 py-2">
-        <dl className="grid min-w-0 grid-cols-1 gap-x-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
+        <dl className="grid min-w-0 grid-cols-1 gap-x-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
+          <div className="min-w-0 border-t border-slate-300 py-2">
+            <dt className="font-mono text-[10px] font-semibold uppercase tracking-wide text-slate-600">Product Code</dt>
+            <dd className="mt-1 min-w-0">
+              {isEditMode ? (
+                <input
+                  type="text"
+                  aria-label="Product Code"
+                  value={product.productCode}
+                  onChange={event => onUpdateProduct({ ...product, productCode: event.target.value })}
+                  className={fieldInput + ' font-mono'}
+                />
+              ) : (
+                <span className="block truncate font-mono text-xs text-slate-950" title={product.productCode}>
+                  {product.productCode || '—'}
+                </span>
+              )}
+            </dd>
+          </div>
+
           <div className="min-w-0 border-t border-slate-300 py-2">
             <dt className="font-mono text-[10px] font-semibold uppercase tracking-wide text-slate-600">Product Name</dt>
             <dd className="mt-1 min-w-0">
