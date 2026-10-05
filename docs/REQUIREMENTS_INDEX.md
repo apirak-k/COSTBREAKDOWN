@@ -21,6 +21,8 @@ Do not call an agreement obsolete merely because it is older or its decision is 
 
 The later finalized Master Data source supersedes specific earlier Master Data agreement details: the Product/BOM/WC/Routing fields and identities, the earlier workbook shape, and Working-state export (current export uses Last Saved). It also adds the four-data-sheet workbook with its separate calculation view and the rightmost reorder handle. Other compatible finalized Master Data decisions remain valid. The old Cost Comparison routing identity based on Operation Code/Sequence is superseded by the later approved Routing `Process` identity. These specific changes do not invalidate the rest of either source.
 
+The latest Master Data addendum in the dated review context (§79) finalizes the first-entry default of All Tables, same-session Master Data UI-state preservation, page-level Working-edit Undo/Redo scope, and the Excel yellow-cell rule. It also records UX/UI directions separately from product behavior and pending exact layout details.
+
 The latest user correction also removes MatVAR, LBVAR, and BDVAR from current scope. They are not pending formulas or deferred features.
 
 ## Reading order

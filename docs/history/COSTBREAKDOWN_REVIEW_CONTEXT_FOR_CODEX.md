@@ -1890,3 +1890,55 @@ This document is intentionally comprehensive and should be treated as the conver
 - Keep warning prose, per-row issue badges, and warning-count footers out of Master Data tables. Preserve cell-level invalid cues and show dataset-level notices outside the tables.
 - Keep `#` at the left; place the reorder-only drag handle in the rightmost table column, after Actions.
 - On Cost Breakdown, remove the redundant top calculation warning banner. Keep the full warning details available in a collapsed disclosure with the concise label `Review warnings (N)`.
+
+---
+
+# 79. Latest Master Data Decisions and UI Direction — 2026-10-05
+
+**Master Data behavior remains CLOSED.** This addendum migrates the latest missed decisions into the canonical Master Data specification. It does not reopen or replace compatible finalized Master Data decisions above.
+
+## FINALIZED behavior
+
+### Default table view
+
+On the first entry to Master Data in a session, the default table view is **All Tables**. All Tables displays **BOM → Work Centers → Routing** vertically.
+
+### Same-session Master Data UI state
+
+When the user leaves Master Data and returns during the same application/browser session, preserve at least:
+
+- selected dataset: Reference or Current
+- selected mode: View or Edit
+- selected table view: BOM, Work Centers, Routing, or All Tables
+
+This is UI/session state only. It does not persist across application restart, create Save or version history, change Working/Last Saved semantics, or become dataset/business data. A fresh application session starts fresh under the existing session model.
+
+### Undo / Redo scope
+
+Undo / Redo applies across Master Data Working edits at the page level, including edits made in different tables. It is Working-edit history only; it is not Save history, dataset-version history, or state persisted across restart.
+
+### Excel yellow-cell rule
+
+The yellow-cell convention applies to Excel template/export presentation only:
+
+- editable/user-input cells are yellow
+- formula/calculated/read-only cells are not yellow
+
+This does not require yellow editable cells in the web Master Data tables. Workbook presentation and web-table styling remain separate.
+
+## UX/UI directions — not product-logic blockers
+
+- Make Master Data tables more compact/dense and reduce unnecessary visual weight and whitespace.
+- Use `feature/taste-frontend-ui` only as a visual/design-language reference; do not copy old behavior. Keep the engineering/industrial console direction.
+- Fix horizontal-scrollbar and table-alignment issues during the UI pass.
+- Remove unnecessary application branding/chrome: `CB`, `Product Cost Analysis`, and bottom-left `Workspace`.
+- Make Reference and Current total values visible somewhere useful. Their exact placement/layout is not finalized.
+- Keep Undo/Redo controls compact and icon-only. Exact placement is a UX/UI detail, not a locked behavior.
+- Address the existing footer visual/layout bug during a later UI pass. This does not create a new footer behavior requirement.
+
+## Still pending
+
+- Exact placement/layout for Reference and Current totals and Undo/Redo controls.
+- Exact final visual styling and human visual acceptance.
+
+These UI items do not reopen the finalized Master Data data model, lifecycle, workbook schema, identity, validation, editing, or warning behavior.

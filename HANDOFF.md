@@ -1,4 +1,4 @@
-# Current Handoff — Documentation Source-of-Truth Recovery
+# Current Handoff — Latest Master Data Decision Migration
 
 **Updated:** 2026-10-05
 
@@ -6,38 +6,28 @@
 
 - Repository: `E:\COSTBREAKDOWN`.
 - Branch: `codex/costbreakdown-spec-source`.
-- Starting HEAD: `b746b16` (`docs: refresh reconciliation handoff`), pushed to `origin/codex/costbreakdown-spec-source`.
-- Current task: documentation/source-of-truth recovery only. This recovery is recorded as a documentation-only commit on the active branch. No application code has been changed.
-- Eight untracked synthetic verification scratch files remain local and must stay outside documentation commits.
+- Base HEAD: `2609f19` (`docs: restore finalized source decisions`), tracking `origin/codex/costbreakdown-spec-source`.
+- Current slice: documentation-only migration of the latest Master Data user decisions. No application/source code has been changed.
+- Eight untracked synthetic verification scratch files remain local and must stay outside commits.
 
-## Correction being applied
+## Completed in this slice
 
-The previous reconciliation in `793e62b` wrongly treated agreements as historical-only and downgraded finalized decisions missing from the short specs to `PENDING/TBD`. This pass restores valid decisions from agreements and the dated source material, applying only specific later user decisions that supersede them. Source precedence and migration protection are in `docs/REQUIREMENTS_INDEX.md`.
+- Migrated the new finalized Master Data behavior and separate UX/UI directions into `docs/specs/MASTER_DATA.md`.
+- Preserved the dated decision record in `docs/history/COSTBREAKDOWN_REVIEW_CONTEXT_FOR_CODEX.md` §79.
+- Linked the addendum from `docs/REQUIREMENTS_INDEX.md` and `tasks/source-crosswalk-80.md`.
+- Compared the addendum against the older Master Data agreement and the finalized dated Master Data source. No unresolved conflict between explicit decisions was found; older details remain superseded only where the existing index already identifies a later decision.
 
-## Current document roles
+## Scope and verification
 
-- `docs/specs/`: consolidated, user-readable product behavior, including a Final Target State for each page.
-- `agreements/` and dated source records under `docs/history/`: decision evidence with original status and chronology; archive location does not invalidate finalized decisions.
-- `tasks/source-crosswalk-80.md`: traceability and implementation/verification status only, not product requirements or a user-facing feature checklist.
-- `tasks/plan.md`, `tasks/todo.md`, and this file: operational history and checkpoint only.
-
-## Recovered and superseded behavior
-
-- Recovered comparison sign and calculation rules, independent Reference/Current calculation, business-identity matching, four statuses, Work Center processing aggregation, and the Standard Cost equations.
-- Restored finalized Candidate and RCA & Simulation behavior from their agreements while keeping exact page redesign separate.
-- Preserved finalized Selected Comparison lifecycle and Selected-only Gap display.
-- Kept the later Master Data schema/workbook/export/identity and warning/layout decisions over the older conflicting details.
-- MatVAR/LBVAR/BDVAR are removed from current scope by the latest explicit user decision.
-
-## Genuine open items and verification
-
-- Remaining product details explicitly not settled: sizing-count behavior after import; whether Clone is gated by source readiness and how readiness transfers; whether Clear asks for confirmation; exact Reset/Export presentation before first Save; business metric formulas/chart composition; Trial execution/approval/promotion; exact downstream page layouts and human visual acceptance.
-- Direct retrieval of the original ChatGPT links was attempted: the first share URL timed out; the 80-topic URL returned only the logged-out ChatGPT shell, not the conversation. The local agreements, archived source context/spec, chronology, and this task's explicit corrections were inspected and used. Do not claim the inaccessible conversation messages were read; their lack of retrieval does not invalidate finalized decisions present in the local evidence or the user's explicit corrections.
-- This is documentation-only work. No application tests/build/browser checks are in scope or claimed. Run documentation consistency checks and `git diff --check` before handoff.
+- This documentation slice does not redesign Cost Breakdown, Candidate, or RCA, and does not change Master Data application behavior.
+- No application behavior tests, build, or browser checks were run or claimed.
+- Compared the current canonical Master Data spec with compatible finalized decisions in the older agreement, the dated finalized Master Data source, the review context, and the latest addendum. No unresolved conflict between explicit decisions was found.
+- `git diff --check` passed; Git emitted only its expected LF-to-CRLF normalization notices for edited Markdown files.
+- UX/UI directions are not product-logic blockers. Exact placement/layout and final human visual acceptance remain open as recorded in the canonical spec.
 
 ## Resume
 
-1. Check branch, HEAD, and worktree; preserve the eight local scratch files.
-2. Read `docs/REQUIREMENTS_INDEX.md` and the applicable canonical spec before any product work.
-3. If any previously finalized agreement decision is absent from a spec, treat that as a migration gap. Do not infer a supersession from age, archive location, or current code.
-4. Do not implement application behavior as part of this recovery.
+1. Verify the branch and stage only the documentation files in this slice; keep the eight local scratch files untracked and excluded.
+2. Run the required documentation consistency checks and `git diff --check`, then commit the documentation slice.
+3. Resume the previously authorized Cost Breakdown page work using its accepted user brief and `docs/specs/COST_BREAKDOWN.md` as the behavior contract. Keep that application-code work separate from this documentation-only slice.
+4. Push `codex/costbreakdown-spec-source` after all currently authorized work is complete.
