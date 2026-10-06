@@ -5,8 +5,7 @@ import {
   MasterDataPage,
   CostBreakdownPage,
   CandidateSelectionPage,
-  RCASimulationPage,
-  DashboardPage
+  RCASimulationPage
 } from './features'
 import {
   getRcaSimulationStateForRevision,
@@ -21,15 +20,7 @@ const AppRouter: React.FC = () => {
     activeTab,
     activeProductId,
     activeSession,
-    productSessions,
-    analysisSnapshotPair,
-    snapshotPair,
-    snapshotComparison,
-    candidates,
-    selectedComparisonSelection,
-    isSelectedComparisonActive,
-    clearSelectedComparison,
-    setActiveTab
+    productSessions
   } = useAppStore()
   const [rcaSimulationStatesByProduct, setRcaSimulationStatesByProduct] = useState<Record<string, RcaSimulationPageState>>(
     () => loadFromSession(STORAGE_KEYS.RCA_SIMULATION_STATES, {})
@@ -63,19 +54,6 @@ const AppRouter: React.FC = () => {
     <AppLayout>
       {activeTab === 'master' && <MasterDataPage />}
       {activeTab === 'breakdown' && <CostBreakdownPage />}
-      {activeTab === 'dashboard' && (
-        <DashboardPage
-          analysisSnapshotPair={analysisSnapshotPair}
-          simulationCurrentSnapshot={snapshotPair.current}
-          comparison={snapshotComparison}
-          candidates={candidates}
-          selectedComparisonSelection={selectedComparisonSelection}
-          isSelectedComparisonActive={isSelectedComparisonActive}
-          clearSelectedComparison={clearSelectedComparison}
-          simulationState={rcaSimulationState}
-          onOpenRca={() => setActiveTab('rca')}
-        />
-      )}
       {activeTab === 'candidate' && <CandidateSelectionPage />}
       {activeTab === 'rca' && <RCASimulationPage state={rcaSimulationState} updateState={updateRcaSimulationState} />}
     </AppLayout>

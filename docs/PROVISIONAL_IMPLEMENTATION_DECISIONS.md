@@ -31,13 +31,13 @@ Do not promote an entry to a user decision based on implementation, test results
 
 ### P-002 — Engineering-first Dashboard composition
 
-- **Status:** `PROVISIONAL — AI CHOICE`
+- **Status:** Superseded by the user's later decision to integrate the Dashboard overview into Simulation and remove the separate workflow page. This AI choice is retained as provenance only.
 - **Choice:** start the current Dashboard with settled Standard Cost results, explain Material and Processing causes, and provide BOM/Work Center/Process detail. Any Dashboard scenario summary is supplemental; the required Scenario A/B money comparison and Reference → Current → Simulated story belong to the Simulation result flow.
 - **Why:** it provides a useful dashboard from settled calculations while only the remaining unfinalized business metrics remain unresolved.
 - **Must preserve:** the confirmed interactive/live, executive-overview, `Result → Cause → Detail` direction; source datasets are not changed by simulation; the dashboard does not select a Candidate or scenario; finalized Selling Price, SG&A, and OP formulas are used; only genuinely pending metrics remain unavailable, never fabricated as zero.
 - **Reversible:** the ordering, layout, chart/card choices, and detail presentation can change without changing calculation rules or product flow.
 - **Review trigger:** a later formula decision for remaining metrics, explicit dashboard design decisions, or human visual acceptance.
-- **Related contract:** [`CROSS_CUTTING.md`](specs/CROSS_CUTTING.md#dashboard-with-finalized-outputs-and-remaining-pending-metrics) and [`design.md`](../design.md).
+- **Related contract:** [`CROSS_CUTTING.md`](specs/CROSS_CUTTING.md#simulation-result-overview-with-finalized-outputs-and-remaining-pending-metrics) and [`design.md`](../design.md).
 
 ### P-003 — Work Center Labor/Burden Rate scenario overrides (superseded)
 
@@ -114,23 +114,23 @@ Do not promote an entry to a user decision based on implementation, test results
 
 ### P-011 — Adapt the left-side dashboard chart to the available snapshots
 
-- **Status:** `PROVISIONAL — AI CHOICE`
+- **Status:** Superseded by the user's later decision to place the dashboard/story graph in the Simulation result flow. The visual direction remains compatible and is applied to the finalized three-state story; the old standalone Reference/Current chart is not a separate view.
 - **Choice:** render a stacked vertical bar for Reference and Current using Material, Labor, and Burden; show Selling Price as a line on the same THB/pc scale when values are available. Label the chart as a Reference/Current comparison, not a monthly trend. If a snapshot's required cost components are unavailable, do not draw a complete-looking total bar for that side.
 - **Why:** this follows the user's confirmed left-side stacked-bar visual direction and the reference's Selling Price line while using only the existing snapshot pair, settled Standard Cost components, and already-entered Selling Price metadata.
 - **Must preserve:** do not include MatVAR/LBVAR/BDVAR; calculate finalized SG&A and OP only from their approved inputs/formulas, and do not guess other business metrics; do not turn missing values into zero; keep Labor + Burden as the Processing/Conversion subtotal without counting that subtotal as another stack segment; do not invent monthly history or period averages. This Reference/Current snapshot chart does not replace the required Scenario A/B money comparison or Reference → Current → Simulated result story in [`FINAL_LOGIC_SPEC.md`](specs/FINAL_LOGIC_SPEC.md).
 - **Reversible:** the snapshot labels, exact chart geometry, colors, axis ticks, and whether the Selling Price line is shown can change after visual review without changing product calculations or dataset behavior.
 - **Review trigger:** human visual review or a later approved time-series data source/business formula.
-- **Related contract:** [`CROSS_CUTTING.md`](specs/CROSS_CUTTING.md#business-analysis-confirmed-direction-and-scope) and [`design.md`](../design.md#dashboard-chart).
+- **Related contract:** [`CROSS_CUTTING.md`](specs/CROSS_CUTTING.md#business-analysis-confirmed-direction-and-scope) and [`design.md`](../design.md#simulation-storytelling-graph).
 
 ### P-012 — Lead the Dashboard with the result and largest cost movement
 
-- **Status:** `PROVISIONAL — AI CHOICE`
+- **Status:** Superseded by the user's later decision to integrate the Dashboard overview into Simulation and remove the separate workflow page. This AI choice is retained as provenance only.
 - **Choice:** show the net Reference/Current Standard Cost result first, state whether Current is higher or lower, identify the largest known Material or Processing component Gap, then present the chart, relevant input context, cause breakdown, and record/process detail.
 - **Why:** make the confirmed `Result → Cause → Detail` story understandable at a glance while using only settled comparison values.
 - **Must preserve:** Gap remains Current − Reference; positive and negative directions stay explicit; missing required inputs remain unavailable; use the finalized Selling Price, SG&A, and OP formulas, preserving negative OP as a loss; do not add unrelated metrics, unfinalized business formulas, or fabricated periods.
 - **Reversible:** headline wording, emphasis, component summary placement, and responsive layout may change after visual review without changing calculation behavior.
 - **Review trigger:** human visual review of whether the result and its main cost movement are clear on first view.
-- **Related contract:** [`CROSS_CUTTING.md`](specs/CROSS_CUTTING.md#business-analysis-confirmed-direction-and-scope) and [`design.md`](../design.md#dashboard-story-order).
+- **Related contract:** [`CROSS_CUTTING.md`](specs/CROSS_CUTTING.md#business-analysis-confirmed-direction-and-scope) and [`design.md`](../design.md#simulation-story-order).
 
 ## Genuine pending boundaries
 

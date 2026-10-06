@@ -60,12 +60,13 @@ requirements:
 - `FINALIZED — USER DECISION`: on first entry to Master Data in a session,
   **All Tables** is the default and displays BOM → Work Centers → Routing
   vertically [`MASTER_DATA.md`:L7, L28-L30, L67-L68].
-- `CONFIRMED DIRECTION — USER DECISION`: the dashboard tells a
-  **Result → Cause → Detail** story, gives an executive overview with details
-  on demand, and updates with simulation. The user-supplied reference confirms
-  a left-side stacked vertical cost chart with Selling Price as a line. The
-  current Reference/Current data does not provide monthly history, and formulas
-  remain governed by [`CROSS_CUTTING.md`](docs/specs/CROSS_CUTTING.md).
+- `CONFIRMED DIRECTION — USER DECISION`: the Dashboard/result overview is
+  integrated into the Simulation result flow. It tells a **Result → Cause →
+  Detail** story, gives an executive overview with details on demand, and
+  updates with simulation. The user-supplied reference confirms a left-side
+  stacked vertical cost chart with Selling Price as a line. The current
+  Reference/Current data does not provide monthly history, and formulas remain
+  governed by [`CROSS_CUTTING.md`](docs/specs/CROSS_CUTTING.md).
 - Keep Cost Breakdown's path from total Gap through category and BOM/Work
   Center/Process detail to changed fields, and keep `Review warnings (N)` as a
   collapsed disclosure [`COST_BREAKDOWN.md`:L31-L50;
@@ -108,26 +109,26 @@ help answer the page's main question; use detail on demand. This composition
 may be revised when it conflicts with an explicit product requirement or
 human visual review.
 
-### Dashboard chart
+### Simulation storytelling graph
 
 The left-side stacked bar and Selling Price line are confirmed visual direction.
-The Reference/Current adaptation, component colors, numeric scale, incomplete
-input handling, and responsive geometry are `PROVISIONAL — AI CHOICE`; see
+The finalized three-state story adapts that direction to Reference → Current →
+Simulated after a scenario is selected. Component colors, numeric scale,
+incomplete input handling, and responsive geometry are `PROVISIONAL — AI CHOICE`;
+the superseded two-state dashboard chart remains provenance in
 [`PROVISIONAL_IMPLEMENTATION_DECISIONS.md`](docs/PROVISIONAL_IMPLEMENTATION_DECISIONS.md#p-011--adapt-the-left-side-dashboard-chart-to-the-available-snapshots).
 Use only settled Material, Labor, and Burden calculations. Do not add excluded
-variance categories or guessed business measures. Do not present the snapshot
-pair as a monthly trend.
+variance categories or guessed business measures. Do not present snapshots as a
+monthly trend.
 
-### Dashboard story order
+### Simulation story order
 
-`PROVISIONAL — AI CHOICE`: put the net Standard Cost result first, followed by
-the largest known Material or Processing component movement, then the chart and
-supporting cost/input context. Keep record-level and process details below the
-summary for review on demand. Show finalized Selling Price, SG&A, and OP
-outputs when their required inputs are available; preserve negative OP as a
-loss. Do not add unrelated metrics, invented
-financial values, or historical periods. See
-[`PROVISIONAL_IMPLEMENTATION_DECISIONS.md`](docs/PROVISIONAL_IMPLEMENTATION_DECISIONS.md#p-012--lead-the-dashboard-with-the-result-and-largest-cost-movement).
+Use the finalized flow: compare Scenario A and B first, then show the selected
+scenario as Simulated in the Reference → Current → Simulated story. Keep
+supporting detail available on demand, show finalized Selling Price, SG&A, and
+OP when inputs permit, and preserve negative OP as a loss. Avoid repeating
+candidate details already available in Cost Breakdown and Candidate
+Prioritization. Do not add invented financial values or historical periods.
 
 ## 2. Color Palette & Semantic Tokens
 
@@ -277,13 +278,13 @@ the top of its content scroll area, as required by
   convention from Excel. That convention is for workbook presentation only
   [`MASTER_DATA.md`:L63-L63].
 
-### Dashboard, Candidate, and RCA presentation
+### Simulation, Candidate, and RCA presentation
 
-- **Dashboard — PROVISIONAL — AI CHOICE:** start with settled engineering
-  results, then expose cost causes and their relevant BOM/Work Center/Process
-  detail. Show finalized Selling Price, SG&A, and OP logic, and keep only
-  genuinely pending business metrics unavailable. Do not make a particular
-  chart type or number of summary cards a permanent requirement.
+- **Simulation result overview:** integrate the live executive Result → Cause
+  → Detail view with Simulation. Do not add a separate Dashboard workflow or
+  repeat details available in Cost Breakdown and Candidate Prioritization.
+  Preserve the confirmed chart visual direction and keep genuinely pending
+  business metrics unavailable.
 - **Candidate — PROVISIONAL — AI CHOICE:** a material finding may be displayed
   as one record-level monetary item with changed input details nested beneath
   it. This presentation is reversible; keep each changed factor visible as

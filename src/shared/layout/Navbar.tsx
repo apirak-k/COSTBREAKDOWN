@@ -5,7 +5,6 @@ import { resolveWorkflowStatus } from './workflow-status'
 const navItems = [
   { id: 'master', label: 'Master Data' },
   { id: 'breakdown', label: 'Cost Breakdown' },
-  { id: 'dashboard', label: 'Dashboard' },
   { id: 'candidate', label: 'Candidate Prioritization' },
   { id: 'rca', label: 'RCA & Simulation' },
 ] as const

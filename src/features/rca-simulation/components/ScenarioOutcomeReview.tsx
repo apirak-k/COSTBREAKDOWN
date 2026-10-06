@@ -134,12 +134,14 @@ function FinalStoryGraph({ story }: { story: ScenarioStory }) {
         <p><span className="font-semibold text-slate-900">Reference → Current</span><br /><span className="text-slate-600">Gap 1 = Current − Reference</span></p>
         <p><span className="font-semibold text-slate-900">Current → Simulated</span><br /><span className="text-slate-600">Gap 2 = Simulated − Current</span></p>
       </div>
-      <svg
-        role="img"
-        aria-label="Reference, Current, and Simulated stacked Standard Cost by MAT, LB, and BD, with Selling Price shown as a line."
-        viewBox="0 0 700 246"
-        className="mt-2 block w-full"
-      >
+      <div className="grid grid-cols-1 gap-3 xl:grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)] xl:items-start">
+        <div className="min-w-0">
+          <svg
+            role="img"
+            aria-label="Reference, Current, and Simulated stacked Standard Cost by MAT, LB, and BD, with Selling Price shown as a line."
+            viewBox="0 0 700 246"
+            className="mt-2 block w-full"
+          >
         <title>Reference to Current to Simulated cost composition</title>
         {[0, 1, 2, 3, 4].map(step => {
           const value = minimum + ((maximum - minimum) * step) / 4
@@ -185,13 +187,14 @@ function FinalStoryGraph({ story }: { story: ScenarioStory }) {
             <title>{`${point.label} Selling Price: ${formatValue(point.value)} THB/pc`}</title>
           </g>
         ))}
-      </svg>
-      <ul aria-label="Final story graph legend" className="flex flex-wrap gap-x-4 gap-y-1 border-t border-slate-200 pt-2 text-[11px] text-slate-600">
-        {COST_PARTS.map(part => <li key={part.key} className="inline-flex items-center gap-1.5"><i className="h-2.5 w-2.5" style={{ backgroundColor: part.color }} />{part.label}</li>)}
-        <li className="inline-flex items-center gap-1.5"><i className="h-0.5 w-4 bg-blue-700" />Selling Price</li>
-      </ul>
-      <div className="mt-3 overflow-x-auto">
-        <table className="w-full min-w-[680px] text-[11px]">
+          </svg>
+          <ul aria-label="Final story graph legend" className="flex flex-wrap gap-x-4 gap-y-1 border-t border-slate-200 pt-2 text-[11px] text-slate-600">
+            {COST_PARTS.map(part => <li key={part.key} className="inline-flex items-center gap-1.5"><i className="h-2.5 w-2.5" style={{ backgroundColor: part.color }} />{part.label}</li>)}
+            <li className="inline-flex items-center gap-1.5"><i className="h-0.5 w-4 bg-blue-700" />Selling Price</li>
+          </ul>
+        </div>
+        <div className="min-w-0 overflow-x-auto">
+          <table className="w-full min-w-[680px] text-[11px]">
           <thead>
             <tr className="border-b border-slate-300 text-left font-mono uppercase text-slate-600">
               <th scope="col" className="py-2 pr-2">THB/pc</th>
@@ -214,7 +217,8 @@ function FinalStoryGraph({ story }: { story: ScenarioStory }) {
               </tr>
             ))}
           </tbody>
-        </table>
+          </table>
+        </div>
       </div>
       <figcaption className="mt-2 text-[11px] leading-4 text-slate-600">
         Gap 2 is signed Simulated − Current; a negative Standard Cost movement means cost decreased. Negative OP values remain visible as operating losses.

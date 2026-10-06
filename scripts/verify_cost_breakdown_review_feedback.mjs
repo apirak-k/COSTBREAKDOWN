@@ -45,7 +45,6 @@ try {
     { CandidateSelectionPage },
     { CandidatesTable },
     { CandidateRow },
-    { DashboardPage },
     { parseSnapshotWorkbookData },
     { SimulationGrid },
     { createScenarioDrafts },
@@ -64,7 +63,6 @@ try {
     vite.ssrLoadModule('/src/features/candidate-selection/CandidateSelectionPage.tsx'),
     vite.ssrLoadModule('/src/features/candidate-selection/components/CandidatesTable.tsx'),
     vite.ssrLoadModule('/src/features/candidate-selection/components/CandidateRow.tsx'),
-    vite.ssrLoadModule('/src/features/dashboard/DashboardPage.tsx'),
     vite.ssrLoadModule('/src/services/excel/snapshot-parser.ts'),
     vite.ssrLoadModule('/src/features/rca-simulation/components/SimulationGrid.tsx'),
     vite.ssrLoadModule('/src/features/rca-simulation/scenario-draft.ts'),
@@ -108,6 +106,10 @@ try {
   }))
   assert.match(noScenarioChoiceMarkup, /A\/B monetary outcomes · THB\/pc/)
   assert.match(noScenarioChoiceMarkup, /Selling Price/)
+  assert.match(noScenarioChoiceMarkup, /aria-label="Scenario A and B per-piece comparison for MAT, LB, BD, Standard Cost, SG&amp;A, OP, and Selling Price\./)
+  for (const value of ['A 40.00', 'B 42.00', 'A 12.00', 'B 10.00', 'A 8.00', 'B 7.00', 'A 60.00', 'B 59.00', 'A 70.00', 'B 67.00']) {
+    assert.ok(noScenarioChoiceMarkup.includes(value), `A/B result graph must expose ${value}`)
+  }
   assert.match(noScenarioChoiceMarkup, /Select Scenario A or B/)
   assert.doesNotMatch(noScenarioChoiceMarkup, /final-story-graph-heading/)
 
@@ -118,6 +120,14 @@ try {
     story: finalStory,
     onSelectScenario() {}
   }))
+  const selectedStoryText = visibleText(selectedStoryMarkup)
+  for (const label of ['MAT', 'LB', 'BD', 'Standard Cost', 'OP', 'Selling Price']) {
+    assert.ok(selectedStoryText.includes(label), `the final story must expose ${label}`)
+  }
+  assert.ok(selectedStoryMarkup.includes('SG&amp;A'), 'the final story must expose SG&A')
+  for (const value of ['10.0000', '2.0000', '3.0000', '15.0000', '25.0000', '12.0000', '16.0000', '95.0000', '100.0000', '-5.0000']) {
+    assert.ok(selectedStoryText.includes(value), `the final story must expose the state value ${value}`)
+  }
   const scenarioAOpLabel = selectedStoryMarkup.match(/<text x="548" y="([^"]+)"[^>]*>A 2\.00<\/text>/)
   const scenarioBOpLabel = selectedStoryMarkup.match(/<text x="548" y="([^"]+)"[^>]*>B -1\.00 · Operating loss<\/text>/)
   assert.ok(scenarioAOpLabel && scenarioBOpLabel, 'the A/B graph places its Operating loss values in separate aligned rows')
@@ -212,144 +222,6 @@ try {
   const factorCandidateText = visibleText(factorCandidateMarkup)
   assert.ok(factorCandidateText.includes('Price: 2.0000 → to 3.0000'))
   assert.ok(factorCandidateText.includes('Loss: 10.0% → to 20.0%'))
-
-  const makeDashboardSnapshot = (role, price) => ({
-    id: `dashboard-${role}`,
-    comparisonRole: role,
-    status: 'active',
-    sourceRef: `${role}.xlsx`,
-    effectiveDate: '',
-    product: {
-      productName: 'Dashboard review fixture', productDescription: 'Dashboard review fixture',
-      productCode: 'DASH-01', uom: 'PC', customer: '', effectiveDate: '',
-      sellingPrice: 25, sgaPercent: 8
-    },
-    bom: [{ id: role === 'current' ? 'bom-current' : 'bom-reference', itemCode: 'legacy-item-code', description: 'Resin', consumption: 1, unit: 'KG', price, loss: 0.1, confidence: {} }],
-    routing: [{ id: role === 'current' ? 'route-current' : 'route-reference', processName: 'Process A', workCenterId: 'WC-1', manning: 1, capacity: 1, yield: 1, confidence: {} }],
-    rates: [{ id: role === 'current' ? 'rate-current' : 'rate-reference', workCenterCode: 'WC-1', description: 'Cutting', laborRate: 2, burdenRate: 1, effectiveDate: '', confidence: {} }]
-  })
-  const dashboardReference = makeDashboardSnapshot('reference', 9.09090909090909)
-  const dashboardCurrent = makeDashboardSnapshot('current', 10)
-  const dashboardCandidate = {
-    candidateKey: 'mat:resin', candidateName: 'Resin', category: 'Direct Material', factor: 'Price',
-    status: 'CHANGED', referenceCost: 10, currentCost: 11, costGap: 1, controllable: true,
-    rank: 1, sourceType: 'bom', sourceId: 'bom-current',
-    changeDetails: [{ field: 'Price', reference: 9.09090909090909, current: 10 }]
-  }
-  const dashboardProcessingCandidate = {
-    candidateKey: 'process:process a', candidateName: 'Process A', category: 'Process / Routing',
-    factor: 'Process / Routing', status: 'CHANGED', referenceCost: 3, currentCost: 3,
-    costGap: 0, controllable: true, rank: 2, sourceType: 'process', sourceId: 'route-current',
-    processBreakdown: {
-      reference: [{ id: 'route-reference', processName: 'Process A', manning: 1, capacity: 1, yield: 1, laborCost: 2, burdenCost: 1, totalCost: 3 }],
-      current: [{ id: 'route-current', processName: 'Process A', manning: 1, capacity: 1, yield: 1, laborCost: 2, burdenCost: 1, totalCost: 3 }]
-    }
-  }
-  const dashboardComparison = {
-    id: 'dashboard-comparison', referenceSnapshotId: dashboardReference.id, currentSnapshotId: dashboardCurrent.id,
-    referenceCost: { snapshotId: dashboardReference.id, material: 10, labor: 2, burden: 1, total: 13, status: 'complete', warnings: [] },
-    currentCost: { snapshotId: dashboardCurrent.id, material: 11, labor: 2, burden: 1, total: 14, status: 'complete', warnings: [] },
-    totalGap: 1, elementGaps: { material: 1, labor: 0, burden: 0 },
-    bomFindings: [], routingFindings: [], workCenterFindings: [], processingFindings: [], productFieldDiffs: {}, warnings: []
-  }
-  const dashboardDrafts = ['A', 'B'].map(letter => ({
-    letter, label: letter === 'A' ? 'Higher price trial' : '',
-    inputValues: letter === 'A'
-      ? { '["bom","bom-current","price"]': '12' }
-      : letter === 'B'
-        ? { '["bom","bom-current","price"]': '8' }
-        : {},
-    economicsInputs: letter === 'A'
-      ? { fixedInvestment: '200', fixedInvestmentCategory: 'burden', variableAddedCostPerPiece: '0.5', variableAddedCostCategory: 'material', evaluationVolume: '100' }
-      : { fixedInvestment: '', fixedInvestmentCategory: '', variableAddedCostPerPiece: '', variableAddedCostCategory: '', evaluationVolume: '' },
-    businessInputs: letter === 'A' ? { sellingPrice: '100', sgaPercent: '10' } : { sellingPrice: '', sgaPercent: '' }
-  }))
-  const dashboardState = {
-    sourceDataRevision: 0, selectedCandidateKey: 'mat:resin', trialHandoffLetter: null,
-    scenarioDraftsByCandidate: { 'mat:resin': dashboardDrafts }
-  }
-  const dashboardProps = {
-    analysisSnapshotPair: { reference: dashboardReference, current: dashboardCurrent },
-    simulationCurrentSnapshot: dashboardCurrent,
-    comparison: dashboardComparison,
-    candidates: [dashboardCandidate, dashboardProcessingCandidate],
-    selectedComparisonSelection: null, isSelectedComparisonActive: false,
-    clearSelectedComparison() {}, simulationState: dashboardState, onOpenRca() {}
-  }
-  const dashboardMarkup = renderToStaticMarkup(React.createElement(DashboardPage, dashboardProps))
-  const dashboardText = visibleText(dashboardMarkup)
-  const opPanelMarkup = dashboardMarkup.match(/<aside aria-label="Current OP calculation"[\s\S]*?<\/aside>/)?.[0] ?? ''
-  assert.ok(dashboardText.includes('Current Standard Cost is higher'))
-  assert.ok(dashboardText.includes('Largest component movement: Material +1.0000 THB/pc'))
-  assert.ok(dashboardText.includes('Operating Profit (OP)'))
-  assert.ok(dashboardText.includes('OP = Selling Price'))
-  assert.ok(dashboardText.includes('Negative OP is an operating loss'))
-  assert.ok(dashboardText.includes('Standard Cost by component'))
-  assert.ok(dashboardText.includes('Reference vs Current'))
-  assert.match(dashboardMarkup, /role="img" aria-label="Reference and Current stacked Standard Cost bars for Material, Labor, and Burden, with Selling Price shown as a line when available\."/)
-  assert.ok(dashboardText.includes('Standard Cost / pc'))
-  assert.ok(dashboardText.includes('+1.0000 THB/pc'))
-  assert.ok(dashboardText.includes('Processing · Labor + Burden'))
-  assert.ok(dashboardText.includes('Processing by Process (1)'))
-  assert.ok(dashboardText.includes('Price: 9.0909 → 10'))
-  assert.ok(dashboardText.includes('Process A'))
-  assert.ok(dashboardText.includes('25.0000 THB'))
-  assert.ok(dashboardText.includes('8.00%'))
-  assert.doesNotMatch(dashboardMarkup, /MatVAR|LBVAR|BDVAR/)
-  assert.ok(dashboardMarkup.includes('SG&amp;A amount / pc'))
-  assert.ok(dashboardText.includes('9.0000'))
-  assert.ok(dashboardText.includes('2.0000'))
-  assert.doesNotMatch(dashboardText, /formula pending/)
-  assert.doesNotMatch(opPanelMarkup, />\s*(?:\+|-)?0(?:\.0000)?\s*</)
-  assert.ok(dashboardText.includes('18.7000'))
-  assert.ok(dashboardText.includes('71.3000'), 'scenario OP must use its local Selling Price and SG&A overrides')
-  assert.match(dashboardMarkup, /<tr><th scope="row" class="py-1 text-left font-medium text-slate-700">MAT<\/th><td class="py-1 text-right font-mono tabular-nums">11\.0000<\/td><td class="py-1 text-right font-mono tabular-nums">13\.7000<\/td><\/tr>/)
-  assert.match(dashboardMarkup, /<tr><th scope="row" class="py-1 text-left font-medium text-slate-700">BD<\/th><td class="py-1 text-right font-mono tabular-nums">1\.0000<\/td><td class="py-1 text-right font-mono tabular-nums">3\.0000<\/td><\/tr>/)
-  assert.ok(dashboardText.includes('-4.7000'))
-  assert.ok(dashboardText.includes('11.8000'))
-  assert.ok(dashboardText.includes('+2.2000'))
-  assert.match(dashboardMarkup, /Gross Improvement · THB\/pc<\/p><p class="mt-1 font-mono text-base font-bold tabular-nums text-rose-700">-4\.7000/)
-  assert.doesNotMatch(dashboardMarkup, /<dt[^>]*>COGS|<dt[^>]*>GP Margin|<dt[^>]*>OP Margin/)
-
-  const dashboardLowerCostMarkup = renderToStaticMarkup(React.createElement(DashboardPage, {
-    ...dashboardProps,
-    comparison: { ...dashboardComparison, totalGap: -1, elementGaps: { material: -1, labor: 0, burden: 0 } }
-  }))
-  const dashboardLowerCostText = visibleText(dashboardLowerCostMarkup)
-  assert.ok(dashboardLowerCostText.includes('Current Standard Cost is lower'))
-  assert.ok(dashboardLowerCostText.includes('Largest component movement: Material -1.0000 THB/pc'))
-
-  const dashboardUnavailableMarkup = renderToStaticMarkup(React.createElement(DashboardPage, {
-    ...dashboardProps,
-    comparison: { ...dashboardComparison, totalGap: null }
-  }))
-  const dashboardUnavailableText = visibleText(dashboardUnavailableMarkup)
-  assert.ok(dashboardUnavailableText.includes('Standard Cost comparison unavailable'))
-  assert.ok(dashboardUnavailableText.includes('Operating Profit (OP)'))
-
-  const dashboardFlatMarkup = renderToStaticMarkup(React.createElement(DashboardPage, {
-    ...dashboardProps,
-    comparison: { ...dashboardComparison, totalGap: 0, elementGaps: { material: 0, labor: 0, burden: 0 } }
-  }))
-  const dashboardFlatText = visibleText(dashboardFlatMarkup)
-  assert.ok(dashboardFlatText.includes('No net Standard Cost difference'))
-  assert.ok(dashboardFlatText.includes('0.0000 THB/pc'))
-
-  const dashboardWithoutCandidate = renderToStaticMarkup(React.createElement(DashboardPage, {
-    ...dashboardProps,
-    simulationState: { ...dashboardState, selectedCandidateKey: null }
-  }))
-  assert.match(dashboardWithoutCandidate, /Select a candidate in RCA &amp; Simulation/)
-  assert.doesNotMatch(dashboardWithoutCandidate, /Scenario Standard Cost \/ pc/)
-
-  const dashboardWithMissingCost = renderToStaticMarkup(React.createElement(DashboardPage, {
-    ...dashboardProps,
-    comparison: {
-      ...dashboardComparison,
-      currentCost: { ...dashboardComparison.currentCost, labor: null, total: null, status: 'missing' }
-    }
-  }))
-  assert.ok(visibleText(dashboardWithMissingCost).includes('Unavailable'))
 
   assert.deepEqual(formatComparisonFieldDiffs({
     sequence: { reference: 10, current: 20 },

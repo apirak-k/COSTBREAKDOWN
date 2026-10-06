@@ -23,8 +23,7 @@ Use **Load complete review mock** for this sequence:
 4. Clone in both directions and review the populated-destination confirmation. Clear the viewed Working dataset, then reload the mock to restore the sample.
 5. In Cost Breakdown, inspect the status categories, Ref → Current changed inputs, record/WC Gaps, reconciliation, Process drill-down under Work Center, and Selected Comparison. Follow the selected scope downstream.
 6. In Candidate Prioritization, inspect changed/added/removed findings, gap-descending order, status filtering, and Controllable. Choose a candidate only on RCA & Simulation.
-7. In RCA & Simulation, choose one Candidate for RCA, add optional Root Cause/Action notes, and compare exactly Scenario A and Scenario B. Verify both begin independently from full Current, use supported Standard Cost inputs and finalized economics/Selling Price/SG&A/OP behavior, and leave Reference, Current, and the other scenario unchanged. Review the monetary comparison and the Reference → Current → selected Simulated story.
-8. In Dashboard, inspect the snapshot chart and open the detailed engineering results. Unfinalized business metrics stay explicitly unavailable.
+7. In RCA & Simulation, choose one Candidate for RCA, add optional Root Cause/Action notes, and compare exactly Scenario A and Scenario B. Verify both begin independently from full Current, use supported Standard Cost inputs and finalized economics/Selling Price/SG&A/OP behavior, and leave Reference, Current, and the other scenario unchanged. Review the monetary comparison and the Reference → Current → selected Simulated story, including its Result → Cause → Detail overview.
 
 Use **Load data-quality mock** to check duplicate-identity warnings, Product mismatch, missing-input notices, and unavailable calculation states. Return to the working session when finished.
 
@@ -32,10 +31,10 @@ Use **Load data-quality mock** to check duplicate-identity warnings, Product mis
 
 | Fixture | Intended review |
 |---|---|
-| Complete review mock | BOM and Routing `UNCHANGED`, `CHANGED`, `ADDED`, and `REMOVED` states; Price, Usage, Loss, Manning, Capacity, Yield, and Work Center rate changes; record-level material cost gaps with changed inputs shown separately; Work Center processing aggregation where Reference and Current have no one-to-one Process match; complete Reference/Current cost results for the dashboard chart and scenario review. |
+| Complete review mock | BOM and Routing `UNCHANGED`, `CHANGED`, `ADDED`, and `REMOVED` states; Price, Usage, Loss, Manning, Capacity, Yield, and Work Center rate changes; record-level material cost gaps with changed inputs shown separately; Work Center processing aggregation where Reference and Current have no one-to-one Process match; complete Reference/Current cost results for the integrated Simulation result story. |
 | Data-quality mock | Missing material price and missing Work Center rate keep Current cost unavailable; duplicate BOM identity is ambiguous; different Product Names surface a mismatch; warnings remain inspectable. |
 
-Both fixtures can be used to review the Master Data tables, Reference/Current switching, View/Edit, All Tables order, Cost Breakdown, Candidate Prioritization, RCA & Simulation, and the existing Dashboard presentation. Verify that Selected Scope limits Cost Breakdown/Ranking only and ends when one Candidate enters RCA; any Candidate origin shown afterward is context, not active scope. Manual interaction steps such as Save, Reset, Clear, Clone, Sizing, template download, workbook export, and import can be exercised in the dedicated session without risking the user's previous session.
+Both fixtures can be used to review the Master Data tables, Reference/Current switching, View/Edit, All Tables order, Cost Breakdown, Candidate Prioritization, and the integrated RCA & Simulation result flow. Verify that Selected Scope limits Cost Breakdown/Ranking only and ends when one Candidate enters RCA; any Candidate origin shown afterward is context, not active scope. Manual interaction steps such as Save, Reset, Clear, Clone, Sizing, template download, workbook export, and import can be exercised in the dedicated session without risking the user's previous session.
 
 The deterministic data checks live in `scripts/verify_synthetic_review_fixture.ts` and run with:
 
