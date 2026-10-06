@@ -41,7 +41,7 @@ import {
   SingleSheetWorkingDatasets
 } from './working-datasets'
 import { WorkingDataset } from '../core/types/dataset-standard.types'
-import { markSizingPlaceholderEdited, resizeMasterDataSnapshotForSizing } from './dataset-sizing'
+import { hasEnteredMasterData, markSizingPlaceholderEdited, resizeMasterDataSnapshotForSizing } from './dataset-sizing'
 import { clearMasterDataDatasetState } from './clear-master-data-dataset'
 import { markMasterDataChanged, markMasterDataChangedForSnapshotPair } from './master-data-revision'
 import {
@@ -922,7 +922,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     }, { reference, current })
     const next = {
       ...updated,
-      preparedSnapshotRoles: { ...readiness, current: readiness.reference }
+      preparedSnapshotRoles: { ...readiness, current: hasEnteredMasterData(current) }
     }
     commitMasterDataWorkingSession(session, next, 'current')
   }
@@ -958,7 +958,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     }, { reference, current })
     const next = {
       ...updated,
-      preparedSnapshotRoles: { ...readiness, reference: readiness.current }
+      preparedSnapshotRoles: { ...readiness, reference: hasEnteredMasterData(reference) }
     }
     commitMasterDataWorkingSession(session, next, 'reference')
   }

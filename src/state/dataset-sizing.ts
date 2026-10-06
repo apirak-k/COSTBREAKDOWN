@@ -98,6 +98,30 @@ function isBlankRouting(row: SnapshotRoutingStep, snapshot: CostSnapshot): boole
       { sequence: row.sequence, manning: null, capacity: null, yield: null }))
 }
 
+export function hasEnteredMasterData(snapshot: CostSnapshot): boolean {
+  const product = snapshot.product
+  const normalizedUom = product.uom?.trim().toUpperCase()
+  const hasUserMetadata =
+    !isEmpty(product.productName) ||
+    product.sellingPrice !== undefined && product.sellingPrice !== null ||
+    product.sgaPercent !== undefined && product.sgaPercent !== null ||
+    Boolean(normalizedUom && normalizedUom !== 'PC') ||
+    !isEmpty(product.productCode) ||
+    !isEmpty(product.productDescription) ||
+    !isEmpty(product.note) ||
+    !isEmpty(product.customer) ||
+    !isEmpty(product.effectiveDate) ||
+    !isEmpty(snapshot.effectiveDate) ||
+    !isEmpty(snapshot.remark) ||
+    !hasNoExtraFields(product.additionalFields) ||
+    !hasNoExtraFields(snapshot.additionalFields)
+
+  return hasUserMetadata ||
+    snapshot.rates.some(row => !isBlankRate(row, snapshot)) ||
+    snapshot.bom.some(row => !isBlankBom(row)) ||
+    snapshot.routing.some(row => !isBlankRouting(row, snapshot))
+}
+
 function resizeRows<T>(rows: T[], count: number | undefined, isBlank: (row: T) => boolean, create: (index: number) => T): T[] {
   const next = [...rows]
   if (count === undefined) return next

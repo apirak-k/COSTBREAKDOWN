@@ -19,7 +19,7 @@ Reference and Current are independent. Each has one in-session `Working` dataset
 - **Export:** export only the viewed dataset's `Last Saved` state. Unsaved Working edits are not exported.
 - **Import:** replace only the viewed dataset's `Working` state. Import does not save it, and does not merge it with that side's existing Working data.
 - **Clear:** clear only the viewed dataset's `Working` state, including its metadata, Dataset Remark, table rows, and Sizing values; retain `Last Saved` and leave the other side unchanged.
-- **Clone:** copy the opposite dataset's `Working` state into the viewed dataset's `Working` state. It does not replace `Last Saved`. If the destination already contains data, ask for explicit confirmation before replacing it. Source-readiness gating and readiness-metadata transfer remain unresolved; do not infer either from code.
+- **Clone:** always copy the opposite dataset's `Working` state into the viewed dataset's `Working` state, regardless of the source's Prepared/Needs input status. It does not replace `Last Saved`. If the destination already contains data, ask for explicit confirmation before replacing it. After the copy, recalculate the destination's Prepared/Needs input status from the copied Working content rather than copying the source readiness flag; the reversible content-detection detail is recorded as P-010 in [`PROVISIONAL_IMPLEMENTATION_DECISIONS.md`](../PROVISIONAL_IMPLEMENTATION_DECISIONS.md).
 
 The two sides remain independent. Comparing uses their current Working states; no Save, export, confirmation, Activate, or version-history step is required first. Closing/restarting the application ends the session and starts with a fresh empty workspace.
 
@@ -97,11 +97,10 @@ Validation is local and normally non-blocking. Keep invalid-value cues on affect
 
 ## PENDING — USER DECISION NEEDED
 
-These narrow details were not finalized in the sources; do not infer them from code:
+These narrow details remain unresolved; do not infer them from code:
 
-- Whether Clone is gated by source readiness and how readiness metadata transfers. The copy direction and Working/Last Saved semantics above are finalized.
 - Whether importing a dataset preserves, resets, or recalculates its saved Sizing counts.
-- The calculation/readiness treatment of generated blank Sizing rows is not established by a finalized source. Do not infer it from the historical September proposal or from code; escalate only if a concrete implementation requirement depends on it.
+- Whether untouched generated blank Sizing rows contribute to general dataset readiness, cost calculation, or comparison is not established by a finalized source. Clone readiness is separately defined above and in P-010; do not infer other readiness or calculation behavior from it, from the historical September proposal, or from code. Escalate only if a concrete implementation requirement depends on this boundary.
 
 The existing confirmation before Clear and the disabled Reset/Export controls before a selected-side `Last Saved` state are reversible interface choices, not additional user requirements; their current provenance is recorded in [`PROVISIONAL_IMPLEMENTATION_DECISIONS.md`](../PROVISIONAL_IMPLEMENTATION_DECISIONS.md). The exact placement of Reference and Current totals and compact Undo/Redo controls, colors, typography, spacing, and status presentation are ordinary visual choices. Follow the confirmed visual direction and record unfinalized implementation choices as provisional; they do not block implementation. Human visual acceptance remains a later review checkpoint.
 

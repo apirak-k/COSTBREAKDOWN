@@ -108,6 +108,16 @@ Do not promote an entry to a user decision based on implementation, test results
 - **Review trigger:** human visual acceptance, responsive review, or accessibility/usability findings.
 - **Related contract:** [`MASTER_DATA.md`](specs/MASTER_DATA.md#uxui-directions) and [`design.md`](../design.md#4-spacing-radius--elevation).
 
+### P-010 — Determine Clone readiness from copied content
+
+- **Status:** `PROVISIONAL — AI CHOICE`
+- **Choice:** after either Clone direction copies the opposite Working snapshot, mark the destination Prepared when it contains entered/imported metadata or business rows; ignore untouched generated Sizing placeholders and generated defaults alone. The destination status is recalculated from the copied snapshot and does not inherit the source readiness flag.
+- **Why:** the user finalized that Clone must copy regardless of the source's readiness status and adopted the recommendation to recalculate destination readiness from the copied data. Existing placeholder checks distinguish generated empty sizing rows from entered/imported rows without treating them as business input.
+- **Must preserve:** Clone is never gated by source readiness; copy all opposite-side Working content and its Sizing; do not change destination Last Saved or the other side; do not change calculation, comparison, matching, or cost semantics; leave missing cost inputs visible and non-blocking.
+- **Reversible:** the readiness content-detection criterion can change if the user clarifies what should count as prepared; the two-way copy and no-gate behavior remain user-finalized.
+- **Review trigger:** a later explicit user decision about readiness, or evidence that metadata/record detection mislabels a copied dataset.
+- **Related contract:** [`MASTER_DATA.md`](specs/MASTER_DATA.md#dataset-lifecycle).
+
 ## Genuine pending boundaries
 
 These are not AI choices and must not be inferred away:

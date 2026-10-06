@@ -24,6 +24,7 @@
 - Master Data opens on All Tables in BOM → Work Centers → Routing order and restores selected side, View/Edit mode, and table view during same-session navigation using transient application state.
 - Removed CB, Product Cost Analysis, and bottom-left Workspace chrome while retaining useful totals/status.
 - Master Data Undo/Redo now covers Working edits across the page and all tables. Spreadsheet paste and selected-row bulk operations are batched into one history action.
+- Clone now copies the opposite Working dataset without a source-readiness gate and recalculates destination readiness from the copied content. P-010 records the reversible content-detection criterion; Clone never changes Last Saved.
 - Candidate material rows show record-level cost Gap separately from changed input details.
 - Applied the compact full-width design direction: tighter page spacing, 36px target data rows, 32px edit controls, and table-local horizontal scrolling.
 - Updated five stale verifier fixtures to current schema and identity contracts.
@@ -31,7 +32,8 @@
 
 ## Verification
 
-- All 47 scripts/verify*.ts and scripts/verify*.mjs verifiers passed after the final implementation and lockfile patch.
+- Before the Clone-readiness follow-up, all 47 scripts/verify*.ts and scripts/verify*.mjs verifiers passed after the final implementation and lockfile patch.
+- After the Clone readiness clarification, `npx jiti scripts/verify_master_data_clone_readiness.ts` passed all four focused cases, and `npm run build` passed. The focused check verifies the shared readiness helper; it does not exercise the React Clone actions interactively.
 - npm run build passed: TypeScript and Vite production build; 2,035 modules transformed. Vite still reports ExcelJS browser externalization warnings for Node fs/crypto.
 - git diff --check passed. The repository has no npm lint or generic test script.
 - npm audit was run. A non-breaking npm audit fix removed the compatible findings; 5 high and 4 moderate transitive advisories remain around Tailwind/ExcelJS. The suggested force update crosses major versions and was not applied.
@@ -39,16 +41,15 @@
 
 ## Genuine pending product decisions
 
-Master Data lifecycle questions in docs/specs/MASTER_DATA.md remain open and must not be resolved from existing implementation code:
+Two Master Data items remain open in docs/specs/MASTER_DATA.md and must not be resolved from existing implementation code:
 
-1. Whether Clone requires a ready source and how readiness state transfers to the destination.
-2. Whether Import preserves the target side’s configured Sizing counts, resets them, or recalculates them.
-3. Whether generated blank Sizing rows count toward calculation/readiness or remain excluded placeholders.
+1. Whether Import preserves the target side’s configured Sizing counts, resets them, or recalculates them.
+2. Whether untouched generated blank Sizing rows contribute to general dataset readiness, cost calculation, or comparison. Clone readiness is separately settled; its reversible detection choice is P-010.
 
 The confirmed business concepts still lack approved formulas for COGS, GP, GP Margin, OP, OP Margin, Sales, and Volume/Quantity. Trial execution, validation, approval, and promotion also remain unspecified. The engineering-first dashboard continues to provide useful settled outputs without fabricating these values.
 
-Current code contains implementation behavior for Clone readiness, Import readiness/Sizing, and generated placeholders. That behavior is evidence of what the code currently does, not evidence of a user decision. See the escalation packet in the delivery response before changing those lifecycle semantics.
+The two remaining items are genuine product boundaries, not blockers for independent implementation. Do not infer their behavior from code or the historical September sizing proposal; escalate only when a concrete implementation depends on them.
 
 ## Next step
 
-Bring the three narrow Master Data questions to the ChatGPT conversation “CBD Refactor #1”. Independent implementation from finalized requirements is committed on this branch. After those answers, update the canonical spec first, then adjust the affected lifecycle paths.
+Continue implementation from the finalized canonical specs. If Import/Sizing preservation or generated-row calculation behavior becomes necessary, bring those two narrow questions to “CBD Refactor #1”; Clone readiness no longer needs escalation. Keep browser visual acceptance separate from automated verification.

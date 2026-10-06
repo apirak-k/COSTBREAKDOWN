@@ -1942,3 +1942,13 @@ This does not require yellow editable cells in the web Master Data tables. Workb
 - Exact final visual styling and human visual acceptance.
 
 These UI items do not reopen the finalized Master Data data model, lifecycle, workbook schema, identity, validation, editing, or warning behavior.
+
+---
+
+# 80. Clone Readiness Clarification — 2026-10-06
+
+**FINALIZED user direction:** Clone means copying the opposite side's Working dataset into the viewed side. It must proceed regardless of the source side's Prepared/Needs input status. Clone continues to leave both Last Saved states untouched and keeps Reference and Current independent.
+
+The user adopted the recommendation that destination readiness be recalculated from the copied destination content rather than copying the source readiness flag. The reversible content-detection detail is an AI implementation choice recorded as P-010 in `docs/PROVISIONAL_IMPLEMENTATION_DECISIONS.md`; this decision does not define how generated blank rows affect general dataset readiness, cost calculation, or comparison.
+
+The canonical implementation contract is [`docs/specs/MASTER_DATA.md`](../specs/MASTER_DATA.md#dataset-lifecycle). The remaining Master Data questions are Import/Sizing metadata and generated blank rows' general readiness/calculation/comparison treatment.
