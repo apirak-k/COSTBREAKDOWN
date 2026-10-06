@@ -99,13 +99,11 @@ Validation is local and normally non-blocking. Keep invalid-value cues on affect
 
 These narrow details were not finalized in the sources; do not infer them from code:
 
-- Whether Clear requires a confirmation step. The earlier agreement allowed confirmation but did not require it.
-- Exact disabled/error presentation for Reset or Export before the selected side has a `Last Saved` state. Their behavior is settled: Reset has no saved state to restore, and Export has no valid saved source.
 - Whether Clone is gated by source readiness and how readiness metadata transfers. The copy direction and Working/Last Saved semantics above are finalized.
 - Whether importing a dataset preserves, resets, or recalculates its saved Sizing counts.
 - The calculation/readiness treatment of generated blank Sizing rows is not established by a finalized source. Do not infer it from the historical September proposal or from code; escalate only if a concrete implementation requirement depends on it.
 
-The exact placement of Reference and Current totals and compact Undo/Redo controls, colors, typography, spacing, and status presentation are ordinary visual choices. Follow the confirmed visual direction and record unfinalized implementation choices as provisional; they do not block implementation. Human visual acceptance remains a later review checkpoint.
+The existing confirmation before Clear and the disabled Reset/Export controls before a selected-side `Last Saved` state are reversible interface choices, not additional user requirements; their current provenance is recorded in [`PROVISIONAL_IMPLEMENTATION_DECISIONS.md`](../PROVISIONAL_IMPLEMENTATION_DECISIONS.md). The exact placement of Reference and Current totals and compact Undo/Redo controls, colors, typography, spacing, and status presentation are ordinary visual choices. Follow the confirmed visual direction and record unfinalized implementation choices as provisional; they do not block implementation. Human visual acceptance remains a later review checkpoint.
 
 ## Traceability
 

@@ -78,6 +78,26 @@ Do not promote an entry to a user decision based on implementation, test results
 - **Review trigger:** an explicit history-scope decision or evidence that the snapshot-based behavior does not match the user's editing flow.
 - **Related contract:** [`MASTER_DATA.md`](specs/MASTER_DATA.md#spreadsheet-style-editing-and-row-order).
 
+### P-007 — Reset and Export presentation before Last Saved exists
+
+- **Status:** `PROVISIONAL — AI CHOICE`
+- **Choice:** disable Reset and Export when the selected side has no `Last Saved` dataset, and provide a short title explaining that Reset has no saved state to restore or that the user must Save before Export.
+- **Why:** both actions lack a valid source in that state, so disabling them avoids a no-op while keeping the reason discoverable.
+- **Must preserve:** Reset acts only on the selected side's Working dataset and uses that side's Last Saved snapshot; Export reads only that side's Last Saved snapshot. This presentation does not create Save requirements for comparison or change dataset lifecycle.
+- **Reversible:** button availability and explanatory copy can change after user feedback while keeping the finalized Reset/Export data sources intact.
+- **Review trigger:** explicit user feedback or an accessibility/usability finding.
+- **Related contract:** [`MASTER_DATA.md`](specs/MASTER_DATA.md#dataset-lifecycle).
+
+### P-008 — Confirm Master Data Clear
+
+- **Status:** `PROVISIONAL — AI CHOICE`
+- **Choice:** ask for confirmation before clearing the viewed side's Working dataset, including when it appears empty.
+- **Why:** Clear is an explicitly destructive action and the source agreement permits a confirmation; one consistent prompt reduces accidental activation without changing what Clear removes.
+- **Must preserve:** after confirmation, only the viewed side's Working metadata, Dataset Remark, rows, and Sizing are cleared; its Last Saved state and the other side remain unchanged.
+- **Reversible:** the prompt can become conditional or be removed after an explicit interaction decision; it does not alter the Clear operation itself.
+- **Review trigger:** explicit user feedback about confirmation frequency or a confirmed interaction rule.
+- **Related contract:** [`MASTER_DATA.md`](specs/MASTER_DATA.md#dataset-lifecycle).
+
 ## Genuine pending boundaries
 
 These are not AI choices and must not be inferred away:
