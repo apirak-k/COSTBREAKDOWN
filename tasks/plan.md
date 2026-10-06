@@ -1,6 +1,7 @@
 # Historical Implementation Plan: Master Data Refresh and Selected Comparison
 
 > Operational history only. Canonical product requirements are under `docs/specs/`; per-topic status and evidence live only in `source-crosswalk-80.md`. Do not treat this plan or its unchecked items as product requirements or authorization for new feature work.
+> **Final Logic supersession:** This 2026-10-05 plan predates [`docs/specs/FINAL_LOGIC_SPEC.md`](../docs/specs/FINAL_LOGIC_SPEC.md). Its Work Center Candidate grouping, Selected Scope continuing into RCA/Simulation, pending Selling Price/SG&A/OP formulas, and downstream-flow steps are historical and must not be used as current logic. Compatible Master Data UX/UI, editing, workbook, and other requirements remain valid.
 
 ## Revision and scope
 
@@ -18,7 +19,7 @@ The goal is to align the source with the confirmed Master Data workflow and Sele
 - `Gap = Current - Reference` is a finalized comparison decision recorded in the original comparison and Candidate agreements and reconfirmed by the user for this recovery. The previous documentation pass incorrectly downgraded it to `PENDING/TBD`; the canonical specs now restore it.
 - Excel templates and exports contain four data sheets (`META`, `BOM`, `ROUTING`, `WORK_CENTER`) and a separate formula-linked `COST_CALCULATION` view; import reads only the four data sheets.
 - Compare BOM by Name, WC by WC, and Routing by Process. Preserve validation warnings for missing or duplicate identities; never guess matches from row position.
-- Selected Comparison is temporary analysis state. It selects BOM and Routing only, retains the full WC dataset as calculation context, flows to downstream analysis, and clears when source data changes. In this mode, show only the selected-scope Gap; never show the Full Gap alongside it.
+- Selected Comparison was recorded here as flowing through downstream analysis; that lifecycle is superseded. Current logic permits scoped Ranking only and ends Selected Scope when one Candidate enters RCA; Simulation uses full Current. Its BOM/Routing selection, Work Center context, temporary-state, and selected-only Gap details remain compatible where applicable.
 - Keep formula definitions and detailed dashboard metrics that the sources mark unresolved out of implementation scope.
 
 ### Follow-up source and implementation audit — 2026-10-05
@@ -37,10 +38,10 @@ The goal is to align the source with the confirmed Master Data workflow and Sele
 
 1. **Domain and workbook contract.** Align Product, BOM, WC, and Routing types with the approved fields. Update snapshot conversion, import, template, and export together so a round trip preserves the four data sheets; keep the formula-linked calculation view separate and excluded from imports.
 2. **Working / Last Saved lifecycle.** Add independent per-side states and implement Save, Reset, Import-to-Working, Clear-Working, Clone-to-current-side-Working, and Export-from-Last-Saved. Keep the state in the current runtime only.
-3. **Sizing and metadata flow.** Replace Setup with Sizing; synchronize its metadata with the selected dataset; support row counts and template download from Sizing. Represent Selling Price and SG&A without applying undecided formulas.
+3. **Sizing and metadata flow.** Replace Setup with Sizing; synchronize its metadata with the selected dataset; support row counts and template download from Sizing. This plan treated Selling Price and SG&A as inputs only; Final Logic later finalized scenario overrides and the SG&A/OP formulas.
 4. **Master Data layout and tables.** Rebuild the page around the screenshot's overall hierarchy: navigation/status, dataset/action toolbar, product summary, then the table workspace. Include table selection for Work Centers, BOM, Routing, and All Tables; the screenshot's BOM is one example, not a BOM-only requirement. Implement approved schemas and identities, non-blocking validation including Routing-to-WC references, keep warning prose outside the tables, keep `#` at the left, place the reorder handle in the rightmost column, and use Search as the only table query control.
 5. **Spreadsheet editing.** Add direct cell editing, keyboard navigation, copy/paste and range selection, practical undo/redo, same-column bulk edits, and selected-row add/delete. Keep drag handles dedicated to reorder only.
-6. **Selected Comparison end to end.** Store the temporary scope in app memory so it survives page navigation but not restart. Let users select paired CHANGED/UNCHANGED BOM and Routing findings and independent ADDED/REMOVED findings. Recalculate from the selected BOM/Routing rows plus all WC rates; feed that result to Cost Breakdown and downstream analysis. Source changes or cancellation return to Full Comparison and clear selection without mutating either dataset.
+6. **Selected Comparison (historical sequence; lifecycle superseded).** This plan recorded a scope continuing through downstream analysis. The current finalized flow permits the scope through scoped Ranking; after one human-selected Candidate enters RCA the scope ends, and Simulation uses full Current. The BOM/Routing pair selection, Work Center calculation context, selected-only Gap, temporary state, source-change invalidation, and no dataset mutation remain compatible.
 7. **Cost Breakdown presentation.** Apply the agreed executive-first, result → cause → detail direction, using compatible `uiux-refresh` patterns. In Selected mode, every displayed summary and detail must use the selected result; WC remains calculation context and must not expose a misleading full-scope Gap. Keep detailed warnings collapsed behind a concise count and remove redundant alert copy.
 8. **Integration checkpoint and review.** Run relevant existing focused verifiers and the documented production build after the connected slices, manually review the complete Master Data → Cost Breakdown → Candidate/RCA flow, and present the result for user review. Do not add a new test framework just for this work.
 
@@ -48,12 +49,12 @@ The goal is to align the source with the confirmed Master Data workflow and Sele
 
 - After steps 1–3: build is coherent; both sides' Working/Last Saved, Sizing, and workbook actions follow the lifecycle.
 - After steps 4–5: the new tables and spreadsheet editing behave according to the spec, and the comparison identities match the approved fields.
-- After steps 6–7: selected scope survives downstream navigation, invalidates on source edits, and no Full Gap leaks into Selected mode.
+- The original step 6 checkpoint expected downstream scope persistence; that checkpoint is superseded. Current verification must confirm scope ends at RCA entry and Simulation uses full Current.
 - Final: production build succeeds and the user can review the complete workflow. Human acceptance remains separate from build success.
 
 ## Deferred decisions
 
-- GP, COGS, OP, margin, Sales and SG&A monetary calculations.
+- Other business metric formulas such as COGS, GP, GP Margin, OP Margin, Sales and Volume/Quantity remain pending. Selling Price, SG&A, and OP formulas were finalized later in `FINAL_LOGIC_SPEC.md`.
 - MatVAR/LBVAR/BDVAR are removed from current scope by the latest explicit user decision. Other business/P&L formulas and final chart composition remain open. The interactive business graph, live scenario updates, and result-to-cause drilldown are confirmed future direction; implementation waits for the formulas and UX decisions identified in the source documents.
 - Any Trial workflow rules not already settled in the source documents.
 
@@ -78,7 +79,7 @@ Bring the current application into line with the four authoritative documents in
 
 - Keep Reference and Current as independent, browser-session Working Datasets. Manual edits, imports, comparison, and optional per-side exports use the same normalized data model.
 - Make one Comparison result the source of truth for identity validation, four statuses, field differences, record cost effects, and reconciliation. UI tables, exports, and Candidate Prioritization consume those findings.
-- Keep Candidate Prioritization limited to status, Reference/Current costs, Gap, Work Center aggregation, ranking, and the human Controllable mark.
+- This historical plan scoped Candidate Prioritization to Work Center aggregation. Current logic keeps the same status, costs, Gap, ranking, and Controllable behavior, but the processing Candidate is Process/Routing; Work Center aggregation is Cost Breakdown context only.
 - Run scenario overrides through the verified Standard Cost engine. Keep improvement economics separate from Standard Cost.
 - Do not implement Trial validation/promotion or future financial metrics until separately specified.
 

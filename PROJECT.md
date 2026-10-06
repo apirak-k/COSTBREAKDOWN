@@ -8,7 +8,7 @@ The agreed flow is:
 
 Master Data → Cost Breakdown / Comparison → Candidate Prioritization → RCA & Simulation → Trial.
 
-The user-facing behavior and boundaries are consolidated in the relevant files in docs/specs/. Candidate and RCA & Simulation behavioral decisions from their finalized agreements remain active; only the specific page-design, formula, and Trial workflow items marked PENDING/TBD remain open.
+Product logic is governed by `docs/specs/FINAL_LOGIC_SPEC.md`; compatible page-specific requirements remain in the other canonical specs under `docs/specs/`. Final Logic supersedes older sources only where product logic conflicts. Compatible finalized decisions from agreements remain valid; only genuinely pending items in the canonical specs remain open.
 
 ## Application structure
 

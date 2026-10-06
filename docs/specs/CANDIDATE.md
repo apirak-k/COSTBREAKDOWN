@@ -4,11 +4,11 @@
 
 ## FINALIZED — USER DECISION
 
-Candidate Prioritization receives findings from Cost Breakdown, shows `CHANGED`, `ADDED`, and `REMOVED` candidates with Reference, Current, and Gap, and aggregates processing candidates by Work Center. Every candidate starts marked Controllable; the user may uncheck a candidate without hiding, deleting, or blocking it. Users can filter by status and sort by Gap, but ranking never chooses what to improve or sends a candidate to RCA automatically. If Selected Comparison is active, the candidate pool uses that selected analysis scope.
+Candidate Prioritization receives findings from Cost Breakdown and has exactly two Candidate groups: BOM and Process/Routing. It shows `CHANGED`, `ADDED`, and `REMOVED` Candidates with Reference, Current, and Gap. Work Center owns rates and provides calculation/aggregation context, but is never a Candidate. Every Candidate starts marked Controllable; the user may uncheck a Candidate without hiding, deleting, or blocking it. Users can filter by status and sort by Gap, but ranking never chooses what to improve or sends a Candidate to RCA automatically. If Selected Comparison is active, Ranking is limited to that scope until the user chooses one Candidate for RCA.
 
 ## Candidate source and scope
 
-Candidates come from [Cost Breakdown / Comparison findings](COST_BREAKDOWN.md). Do not recreate comparison logic from an older paired-row model. Carry the active Selected Comparison scope through this page as defined in [CROSS_CUTTING.md](CROSS_CUTTING.md#full-and-selected-comparison).
+Candidates come from [Cost Breakdown / Comparison findings](COST_BREAKDOWN.md). Do not recreate comparison logic from an older paired-row model. Selected Comparison may limit this page's Candidate pool as defined in [CROSS_CUTTING.md](CROSS_CUTTING.md#full-and-selected-comparison). When the human selects exactly one Candidate and it enters RCA, Selected Scope ends; Simulation uses full Current regardless of the Candidate's scope origin. See [`FINAL_LOGIC_SPEC.md`](FINAL_LOGIC_SPEC.md).
 
 ## Material monetary Gap and factor details — FINALIZED — USER DECISION
 
@@ -18,15 +18,21 @@ There is **no user-agreed method** to allocate one material record's cost Gap in
 
 Meaningful factors may remain separate findings where that preserves useful distinctions; do not silently drop or collapse unrelated changed details merely because they belong to one material. Whether the current UI renders one record-level monetary candidate with its changed input details underneath is a `PROVISIONAL — AI CHOICE`, not a permanent grouping requirement; see the ledger.
 
-## Processing candidates
+## Processing Candidates
 
-Calculate each Routing operation cost using the Work Center rates/master data for that Reference or Current dataset. Aggregate the Routing processing costs by Work Center, then compare the two Work Center totals:
+The processing Candidate is always the Process/Routing record. Calculate each Process's processing cost using its Work Center rates/master data for that Reference or Current dataset, then compare Reference and Current Process costs by Process identity. Use the Process-level `Gap = Current - Reference` for that Candidate. Keep each Process as one Candidate; do not split it into separate Labor and Burden Candidates.
+
+Work Center is the rate owner and calculation context, not a Candidate. Cost Breakdown may aggregate Process costs by Work Center for a total or drill-down view:
 
 ```text
 WC Net Gap = Current WC processing total - Reference WC processing total
 ```
 
-Show the processing candidate at Work Center level with Reference cost, Current cost, and Gap. Routing `Process` is drill-down detail under its Work Center. Routing operations do not need one-to-one matching merely to calculate the Work Center `WC Net Gap`; do not add new Routing IDs, manual mappings, or split/merge mapping for this purpose. Follow [the shared calculation and data-quality rules](CROSS_CUTTING.md).
+That aggregate does not change Candidate identity. Routing operations do not need one-to-one matching merely to calculate the Cost Breakdown Work Center total; do not add new Routing IDs, manual mappings, or split/merge mapping for this purpose. Follow [the shared calculation and data-quality rules](CROSS_CUTTING.md).
+
+### Work Center rate dependency
+
+If a Work Center Labor Rate or Burden Rate change causes a Process's calculated Labor, Burden, Conversion, or total processing cost to change, that Process remains the Candidate. For a Process present in both Reference and Current, classify it as `CHANGED` when its calculated processing cost changes solely because of that rate dependency, even if Manning, Capacity, Yield, and WC assignment are unchanged. Show the Work Center rate change as explanatory dependency/context. If one Work Center rate affects multiple Processes, each affected Process may independently become a Candidate. Never create a Work Center Candidate. The detailed rule and example are in [`FINAL_LOGIC_SPEC.md`](FINAL_LOGIC_SPEC.md#work-center-rate-dependency).
 
 ## Status and Gap
 
@@ -64,4 +70,4 @@ The current presentation follows the provisional design contract in [`design.md`
 
 ## Traceability
 
-The full finalized source is [`agreements/CANDIDATE_PRIORITIZATION_SPEC.md`](../../agreements/CANDIDATE_PRIORITIZATION_SPEC.md). Its Work Center processing aggregation, status, Gap, controllability, filtering, and ranking decisions are retained here. The later Master Data schema changes comparison identity to BOM `Name`, Work Center `WC`, and Routing `Process`; do not reintroduce superseded legacy keys. The 80-topic crosswalk tracks implementation/verification only.
+The original finalized source is [`agreements/CANDIDATE_PRIORITIZATION_SPEC.md`](../../agreements/CANDIDATE_PRIORITIZATION_SPEC.md); its compatible status, Gap, controllability, filtering, and ranking decisions remain. Its older Work Center Candidate grouping was superseded by [`FINAL_LOGIC_SPEC.md`](FINAL_LOGIC_SPEC.md); Work Center aggregation remains Cost Breakdown context, while Process/Routing is the Candidate. The later Master Data schema uses BOM `Name`, Work Center `WC`, and Routing `Process`; do not reintroduce superseded legacy keys. The 80-topic crosswalk tracks implementation/verification only.

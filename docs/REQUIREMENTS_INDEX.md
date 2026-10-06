@@ -2,11 +2,15 @@
 
 **Updated:** 2026-10-06
 
+## Final Logic authority
+
+[`specs/FINAL_LOGIC_SPEC.md`](specs/FINAL_LOGIC_SPEC.md) is the latest authority for product logic and behavior. It finalizes logic/behavior only; it does not replace the rest of the product contract. If an older specification, agreement, design document, implementation decision, or current code conflicts with Final Logic on product logic, follow Final Logic only for that conflicting behavior. Existing finalized or accepted UX/UI, layout, visual style, wording, interaction behavior, and other requirements remain valid when compatible. Absence from Final Logic does not automatically remove an older non-conflicting finalized requirement. Existing code is implementation evidence, not requirements authority.
+
 ## Decision authority and migration protection
 
 Use chronology and the original decision status to resolve behavior:
 
-1. The user's latest explicit decision supersedes an earlier decision only for the behavior it explicitly changes.
+1. Apply the latest explicit user decision to the behavior it changes. For product logic, [`FINAL_LOGIC_SPEC.md`](specs/FINAL_LOGIC_SPEC.md) is the latest finalized authority and supersedes only conflicting logic.
 2. A previously `FINALIZED` decision in a source conversation or `agreements/` remains valid unless a later explicit user decision supersedes it.
 3. `docs/specs/` is the consolidated, user-readable destination for current behavior. If a finalized decision is missing there, that is a migration gap; absence does not make it `PENDING — USER DECISION NEEDED` or invalidate its source.
 4. Preserve the labels in source records: `FINALIZED`, `CONFIRMED`, `CURRENT BASELINE`, `DESIGN DIRECTION`, `PENDING`, and `UNDECIDED` are not interchangeable. Use the current implementation-status labels below when consolidating a decision; do not promote a baseline/direction to a requirement or downgrade a finalized decision because it is absent from a newer summary.
@@ -44,12 +48,12 @@ The Candidate monetary boundary is explicit: a material record's calculated Refe
 
 ## Reading order
 
-1. Read this index and the latest explicit user decisions for the task.
-2. Read the canonical behavior in [`specs/CROSS_CUTTING.md`](specs/CROSS_CUTTING.md) and the page specs: [Master Data](specs/MASTER_DATA.md), [Cost Breakdown](specs/COST_BREAKDOWN.md), [Candidate](specs/CANDIDATE.md), and [RCA & Simulation](specs/RCA_SIMULATION.md). Treat these as the normal product contracts.
-3. Read [`PROVISIONAL_IMPLEMENTATION_DECISIONS.md`](PROVISIONAL_IMPLEMENTATION_DECISIONS.md) for reversible AI choices. It is implementation guidance only and is subordinate to this index and the canonical specs.
-4. Consult `agreements/` and `docs/history/` only to recover still-valid finalized detail, repair a migration gap, or resolve chronology. Preserve the source status; do not copy superseded behavior or reopen settled decisions.
-5. Read [`tasks/source-crosswalk-80.md`](../tasks/source-crosswalk-80.md) only for traceability, implementation status, verification evidence, and gaps.
-6. Read [`HANDOFF.md`](../HANDOFF.md) only for the active work checkpoint. Consult `tasks/plan.md` and `tasks/todo.md` for operational history only.
+1. Read this index for authority, migration, and project-level requirements safeguards.
+2. Read [`specs/FINAL_LOGIC_SPEC.md`](specs/FINAL_LOGIC_SPEC.md) for the latest finalized product logic and its detailed checklist.
+3. Read the page-specific canonical specs: [Cross-Cutting](specs/CROSS_CUTTING.md), [Master Data](specs/MASTER_DATA.md), [Cost Breakdown](specs/COST_BREAKDOWN.md), [Candidate](specs/CANDIDATE.md), and [RCA & Simulation](specs/RCA_SIMULATION.md). They retain compatible finalized requirements and page details.
+4. Read [`PROVISIONAL_IMPLEMENTATION_DECISIONS.md`](PROVISIONAL_IMPLEMENTATION_DECISIONS.md) where relevant for reversible AI choices. It is implementation guidance only and is subordinate to the user decisions and canonical specs.
+5. Consult `agreements/` and `docs/history/` only for provenance, recovery of compatible finalized detail, migration-gap repair, or chronology. Preserve historical content and source status; do not copy superseded behavior as current.
+6. Read implementation/crosswalk/handoff documents only for implementation evidence, traceability, verification status, and the active work checkpoint: [`tasks/source-crosswalk-80.md`](../tasks/source-crosswalk-80.md), [`HANDOFF.md`](../HANDOFF.md), `tasks/plan.md`, and `tasks/todo.md`. They do not define requirements.
 
 ## Original source conversations
 

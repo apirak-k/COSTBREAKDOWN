@@ -1,6 +1,7 @@
 # Operational Task Ledger — Master Data Refresh and Selected Comparison
 
 > Operational history only; this is not a product requirement source or authorization for new feature work. Current behavior is consolidated under [`docs/specs/`](../docs/specs/); the original agreements remain valid evidence for finalized decisions unless a later explicit user decision supersedes them. Per-topic implementation/verification status is maintained only in [`source-crosswalk-80.md`](source-crosswalk-80.md).
+> **Final Logic supersession:** This task ledger records earlier implementation work. Its Work Center Candidate, Selected Scope through RCA/Simulation, Scenario A/B/C, economics-outside-Standard-Cost, and pending Selling Price/SG&A/OP statements are historical checkpoints only and are superseded by [`docs/specs/FINAL_LOGIC_SPEC.md`](../docs/specs/FINAL_LOGIC_SPEC.md). Do not treat those old tasks or checkboxes as current behavior or proof of conformance. Compatible Master Data, UX/UI, editing, keyboard, navigation, and workbook requirements remain valid.
 
 ## Recorded Plan Revision — 2026-10-05
 
@@ -43,7 +44,7 @@ Per-topic PASS/PARTIAL/OPEN/DEFERRED/RECORDED status and the exact next actions 
 **Description:** Update product metadata and BOM/WC/Routing row types, conversions, and comparison identity inputs while keeping the existing cost calculations intact.
 
 **Acceptance criteria:**
-- [x] Product Name, UOM, Selling Price, SG&A rate, and Dataset Remark are represented without applying undecided formulas.
+- [x] Historical checkpoint: Product Name, UOM, Selling Price, SG&A rate, and Dataset Remark were represented without applying formulas that were undecided at that time. Finalized Selling Price/SG&A/OP formulas are now in `FINAL_LOGIC_SPEC.md`.
 - [x] BOM, WC, and Routing use the approved visible columns and comparison keys: Name, WC, and Process.
 - [x] Missing or duplicate identities remain warnings; matching never falls back to row order or the display row number.
 
@@ -79,7 +80,7 @@ Per-topic PASS/PARTIAL/OPEN/DEFERRED/RECORDED status and the exact next actions 
 **Acceptance criteria:**
 - [x] Sizing edits the viewed Working dataset and keeps metadata synchronized with Master Data.
 - [x] Import populates Working; Export uses Last Saved; templates and round trips use the approved field names and percent display conventions.
-- [x] Selling Price and SG&A are preserved as metadata only until their formulas are defined.
+- [x] Historical checkpoint: Selling Price and SG&A were preserved as metadata while their formulas were undecided; Final Logic later finalized scenario overrides and SG&A/OP formulas.
 
 **Verification:** `verify_neutral_dataset_workbook.ts` and `verify_dataset_sizing_and_clone.ts` passed schema, import/export round trip, approved fields, row counts, and template checks. The four data sheets are `META`, `BOM`, `ROUTING`, and `WORK_CENTER`; the separate `COST_CALCULATION` view uses linked formulas matching the in-app Standard Cost engine. Excel recalculation on synthetic sample, blank, duplicate-rate, and missing-input workbooks produced the expected amounts/unavailable states with zero formula errors. Loss/Yield use Excel percentages; SG&A remains percentage points (8 means 8%). Browser download/import remains open in the crosswalk.
 
@@ -171,10 +172,10 @@ Per-topic PASS/PARTIAL/OPEN/DEFERRED/RECORDED status and the exact next actions 
 **Acceptance criteria:**
 - [x] Master Data follows the screenshot's full-page layout, and its table controls expose Work Centers, BOM, Routing, and All Tables while using the approved field schema and interaction rules.
 - [x] Downstream pages follow the agreed result → cause → detail direction where confirmed calculations support it; Cost Breakdown warning details are collapsed by default behind a concise count, without the duplicate top warning banner.
-- [x] No unapproved GP/COGS/OP, margin, SG&A monetary, or chart formula is introduced. MatVAR/LBVAR/BDVAR are removed from current scope.
+- [x] At this historical checkpoint, no then-unapproved formula was introduced. Current formulas and graph logic are governed by `FINAL_LOGIC_SPEC.md`; MatVAR/LBVAR/BDVAR remain out of scope.
 - [x] `npm run build` succeeds; changed flows are presented for human review with implementation evidence distinct from acceptance.
 
-**Verification:** `npm run build` succeeded and focused verifiers passed for the current schema, row identity/processing regression, Candidate, Master Data handoff, workbook round trips, sizing/clone model behavior, and the latest table/warning-density refinement. Isolated-browser review covered the Master Data structure/interactions and a valid Selected Comparison flow through Cost Breakdown → Candidate → RCA. `[Unverified]` The latest warning-density and rightmost-handle layout was not reviewed in a browser; current per-topic browser gaps are maintained only in `source-crosswalk-80.md`. Human UX acceptance remains pending. The interactive business graph/live-scenario direction is future scope until calculation formulas and chart UX are agreed.
+**Verification:** `npm run build` succeeded and focused verifiers passed for the current schema, row identity/processing regression, Candidate, Master Data handoff, workbook round trips, sizing/clone model behavior, and the latest table/warning-density refinement. Isolated-browser review covered the Master Data structure/interactions and a valid Selected Comparison flow through Cost Breakdown → Candidate → RCA at that earlier checkpoint. `[Unverified]` The latest warning-density and rightmost-handle layout was not reviewed in a browser; current per-topic browser gaps are maintained only in `source-crosswalk-80.md`. Human UX acceptance remains pending. Final Logic later finalized the Simulation money comparison, the Reference → Current → Simulated story, and Selling Price/SG&A/OP logic; those runtime behaviors were not established by this historical verification.
 
 **Dependencies:** Tasks 1–7.
 
@@ -391,13 +392,13 @@ Tasks are ordered by dependency. Keep each implementation slice focused and leav
 
 **Estimated scope:** Medium.
 
-### Task 12: Aggregate processing candidates by Work Center
+### Task 12: Historical processing candidates aggregated by Work Center — superseded
 
-**Description:** Aggregate Routing cost effects by Work Center on each side and derive processing candidates without one-to-one Routing matching.
+**Description:** This earlier implementation task created processing candidates by Work Center. Work Center aggregation remains valid for Cost Breakdown context, but Candidate identity is now Process/Routing. The Work Center rate dependency may make each affected Process `CHANGED`; it never creates a Work Center Candidate. See `docs/specs/FINAL_LOGIC_SPEC.md`.
 
 **Acceptance criteria:**
 - [x] Reference and Current processing costs aggregate by Work Center and use `Current - Reference`.
-- [x] Different Routing structures can still produce one Work Center candidate with operation detail.
+- [x] Historical task criterion: different Routing structures produced one Work Center Candidate with operation detail; this Candidate identity was superseded by Process/Routing.
 - [x] Candidate identity does not require new Routing IDs or split/merge mappings.
 
 **Verification:** Check one-to-many and many-to-one Routing fixtures whose Work Center totals reconcile.
@@ -427,7 +428,7 @@ Tasks are ordered by dependency. Keep each implementation slice focused and leav
 
 ### Checkpoint: Candidate Prioritization
 
-- [x] Material and Work Center candidates trace back to Comparison, preserve status/gap meaning, and rank/filter as agreed.
+- [x] Historical implementation check: Material and Work Center candidates traced to Comparison; the Work Center Candidate grouping is superseded. Current processing Candidates are Process/Routing, with Work Center retained as calculation context.
 - [x] Focused checks and `npm run build` pass before RCA work begins.
 
 ## Phase 4 — RCA & Simulation
@@ -451,9 +452,9 @@ Tasks are ordered by dependency. Keep each implementation slice focused and leav
 
 **Estimated scope:** Medium.
 
-### Task 15: Recalculate scenario overrides with the Standard Cost engine
+### Task 15: Historical Scenario A/B/C behavior — superseded
 
-**Description:** Build independent A/B/C drafts from Current and calculate each scenario's per-piece Material + Labor + Burden through the shared cost logic.
+**Description:** This earlier implementation task built three drafts from Current. Final Logic now requires exactly two independent scenarios, A and B, each based on full Current, using the supported engine inputs listed in `docs/specs/FINAL_LOGIC_SPEC.md`.
 
 **Acceptance criteria:**
 - [x] Supported measurable overrides include the verified input fields, including Usage/Consumption where supported by the engine.
@@ -470,12 +471,12 @@ Tasks are ordered by dependency. Keep each implementation slice focused and leav
 
 ### Task 16: Separate Standard Cost from improvement economics
 
-**Description:** Show Current and Scenario Standard Cost plus Gross Saving separately from fixed investment, variable added cost, volume, and net benefit.
+**Description:** This earlier task kept improvement economics outside Standard Cost and calculated a separate net benefit. Final Logic now categorizes applicable economics into simulated MAT/LB/BD, includes them in Simulated Standard Cost, and calculates Gross Improvement and Total Improvement without double counting.
 
 **Acceptance criteria:**
-- [x] Gross Saving per piece equals Current Standard Cost minus Scenario Standard Cost.
-- [x] Fixed and variable improvement costs affect economics only, not either Standard Cost result.
-- [x] Scenario A/B/C results remain comparable without auto-selecting a recommended solution.
+- [x] Historical Gross Saving used Current Standard Cost minus Scenario Standard Cost; the finalized calculation is Gross Improvement / pc = Current Standard Cost / pc - Simulated Standard Cost / pc.
+- [x] Historical fixed/variable cost treatment was separate from Standard Cost; finalized categorized economics are composed into simulated MAT/LB/BD and must not be subtracted again.
+- [x] Historical scenarios were not auto-selected; current logic compares exactly Scenario A and Scenario B and leaves preference to the human.
 
 **Verification:** `verify_scenario_variables` passed formula, missing-input, zero-volume, scenario-isolation, and displayed-metric checks; Task 15 focused verifiers passed; `npm run build` and `npm run excel` passed.
 
@@ -504,7 +505,7 @@ Tasks are ordered by dependency. Keep each implementation slice focused and leav
 
 ### Checkpoint: RCA & Simulation
 
-- [x] Candidate choice, notes, A/B/C results, economics, and Trial handoff follow the agreement.
+- [x] Historical Candidate choice, notes, A/B/C results, economics, and Trial handoff were checked against the earlier agreement; current scenario/economics requirements are in `FINAL_LOGIC_SPEC.md`.
 - [x] Focused checks, `npm run build`, and the Task 18 end-to-end browser review pass. Human acceptance remains pending.
 
 ## Phase 5 — Cross-Flow Acceptance
@@ -553,8 +554,8 @@ This section records the 2026-09-28 implementation audit and its evidence only. 
 
 - [x] Comparison matching, canonical statuses, unavailable values, row-to-branch reconciliation, table output, and workbook effects checked against `COSTBREAKDOWN_COMPARISON_PRINCIPLES.md`.
 - [x] Master Data manual editing, independent Reference/Current state, bidirectional clone, sizing, import replacement, mismatch warning, and side-specific export checked against `MASTER_DATA_FLOW_SPEC.md`.
-- [x] Candidate source/status/gap/ranking and Work Center aggregation checked against `CANDIDATE_PRIORITIZATION_SPEC.md`.
-- [x] Human candidate selection, optional notes, A/B/C calculation, separate economics, and explicit Trial handoff checked against `RCA_SIMULATION_SPEC.md`.
+- [x] Historical Candidate source/status/gap/ranking and Work Center Candidate behavior checked against the earlier agreement; current Candidate logic is in `FINAL_LOGIC_SPEC.md`.
+- [x] Historical human candidate selection, optional notes, A/B/C calculation, separate economics, and Trial handoff checked against the earlier agreement; current simulation/economics logic is in `FINAL_LOGIC_SPEC.md`.
 - [x] Empty-data navigation manually checked: Cost Breakdown, Candidate Selection, and RCA & Simulation remain accessible with unavailable values and explanations.
 - [x] Current implementation behavior: untouched sizing placeholders are excluded from cost, comparison, and processing candidates; unflagged user-created blank rows still report missing inputs. This is implementation evidence only and does not resolve the general generated-row behavior or intentional blank-row Excel round-trip questions in `docs/specs/MASTER_DATA.md`.
 - [x] Current-branch affected verifiers, production build, and representative-data browser workflow passed; Vite retained the existing bundle-size advisory.

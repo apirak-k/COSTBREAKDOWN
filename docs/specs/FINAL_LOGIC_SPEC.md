@@ -185,6 +185,41 @@ Examples:
 - A record can be `CHANGED` with unavailable Gap when calculation inputs are invalid.
 - A record may have unchanged own fields while its calculated cost changes because of a dependency such as a Work Center rate.
 
+### Work Center rate dependency
+
+Work Center is never a Candidate. The processing Candidate unit is always `Process / Routing`; Work Center is the rate owner and calculation/aggregation context.
+
+If a Work Center Labor Rate or Burden Rate change causes one or more Processes' calculated Labor, Burden, Conversion, or total processing cost to change, each affected Process remains the Candidate. For a Process present in both Reference and Current, that Process is `CHANGED` when its calculated processing cost changes solely because of the Work Center rate dependency, even if its Routing-owned Manning, Capacity, Yield, and WC assignment are unchanged. The Work Center rate change is explanatory dependency/context; it does not create a Work Center Candidate.
+
+If one Work Center serves multiple Processes and its rate change affects them, each affected Process may independently become a Process Candidate. Do not split one Process into Labor and Burden Candidates.
+
+Example:
+
+```text
+Process: Cutting
+
+Routing fields:
+Manning     1 → 1
+Capacity  100 → 100
+Yield      95% → 95%
+WC        WC-A → WC-A
+
+WC-A Labor Rate:
+10 → 12
+
+Result:
+Cutting calculated Labor / Conversion cost changes.
+
+Candidate:
+Cutting — CHANGED
+
+Explanation/context:
+WC-A Labor Rate 10 → 12
+
+Do NOT create:
+WC-A Candidate
+```
+
 ## 2.4 Gap convention
 
 Always use:
@@ -956,6 +991,8 @@ WC changed
 ```
 
 but the Process itself remains the Candidate.
+
+Apply the [Work Center rate dependency rule](#work-center-rate-dependency): a changed rate may make each affected Process `CHANGED` based on its calculated processing-cost movement, even when that Process's Routing-owned fields are unchanged. Work Center remains dependency context, never a Candidate.
 
 ## 6.5 Ranking order
 

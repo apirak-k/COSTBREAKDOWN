@@ -70,16 +70,16 @@ requirements:
   Center/Process detail to changed fields, and keep `Review warnings (N)` as a
   collapsed disclosure [`COST_BREAKDOWN.md`:L31-L50;
   `CROSS_CUTTING.md`:L64-L68].
-- Until business formulas are finalized, do not show guessed COGS, GP, margin,
-  OP, or Sales values as zero. Use an explicit unavailable label such as
-  **“Not calculated — formula pending”**. Do not invent financial calculations
-  to fill a visual slot [`CROSS_CUTTING.md`:L72-L88].
+- Follow the finalized Selling Price, SG&A, and OP formulas in
+  [`FINAL_LOGIC_SPEC.md`](docs/specs/FINAL_LOGIC_SPEC.md). Keep only genuinely
+  pending business metrics explicitly unavailable; never fill a visual slot
+  with guessed values [`CROSS_CUTTING.md`](docs/specs/CROSS_CUTTING.md).
 - For a material finding, show the record-level comparison Gap and the changed
   inputs as Reference → Current details. Do not attach invented THB effects to
   Price, Usage, Loss, or another individual factor; do not repeat the whole
   material Gap beside each factor [`CANDIDATE.md`:L13-L22].
-- RCA begins with a human-selected candidate; Root Cause and Action are
-  optional notes, and Scenario A/B/C are independent views from Current. Do not
+- RCA begins with a human-selected Candidate; Root Cause and Action are
+  optional notes, and Scenario A and B independently use full Current. Do not
   use visual emphasis or default selection to imply an automatic RCA target
   [`RCA_SIMULATION.md`:L7-L23].
 
@@ -123,9 +123,9 @@ pair as a monthly trend.
 `PROVISIONAL — AI CHOICE`: put the net Standard Cost result first, followed by
 the largest known Material or Processing component movement, then the chart and
 supporting cost/input context. Keep record-level and process details below the
-summary for review on demand. Show Operating Profit (OP) as explicitly
-uncalculated while its formula is pending; preserve its ability to be negative
-when it is eventually calculated. Do not add unrelated metrics, invented
+summary for review on demand. Show finalized Selling Price, SG&A, and OP
+outputs when their required inputs are available; preserve negative OP as a
+loss. Do not add unrelated metrics, invented
 financial values, or historical periods. See
 [`PROVISIONAL_IMPLEMENTATION_DECISIONS.md`](docs/PROVISIONAL_IMPLEMENTATION_DECISIONS.md#p-012--lead-the-dashboard-with-the-result-and-largest-cost-movement).
 
@@ -281,17 +281,17 @@ the top of its content scroll area, as required by
 
 - **Dashboard — PROVISIONAL — AI CHOICE:** start with settled engineering
   results, then expose cost causes and their relevant BOM/Work Center/Process
-  detail. Keep business metrics visibly unavailable while their formulas are
-  pending. Do not make a particular chart type or number of summary cards a
-  permanent requirement.
+  detail. Show finalized Selling Price, SG&A, and OP logic, and keep only
+  genuinely pending business metrics unavailable. Do not make a particular
+  chart type or number of summary cards a permanent requirement.
 - **Candidate — PROVISIONAL — AI CHOICE:** a material finding may be displayed
   as one record-level monetary item with changed input details nested beneath
   it. This presentation is reversible; keep each changed factor visible as
   Reference → Current and never repeat the record Gap as a factor-level THB
   effect. Follow [`CANDIDATE.md`](docs/specs/CANDIDATE.md) for the actual
   finding/ranking behavior.
-- **RCA & Simulation:** visually distinguish the human-selected candidate,
-  optional Root Cause/Action notes, and independent Scenario A/B/C areas. Do
+- **RCA & Simulation:** visually distinguish the human-selected Candidate,
+  optional Root Cause/Action notes, and independent Scenario A/B areas. Do
   not use the design to imply that a scenario is approved, promoted, or sent to
   Trial automatically [`RCA_SIMULATION.md`](docs/specs/RCA_SIMULATION.md).
 

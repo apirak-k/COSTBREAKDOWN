@@ -1,10 +1,10 @@
 # Cross-Cutting Product Rules
 
-**Status:** Comparison, Selected Comparison, warning, and Standard Cost rules are `FINALIZED — USER DECISION`. Dashboard and visual outcomes are `CONFIRMED DIRECTION — USER DECISION`; safe presentation details are reversible AI choices in [`design.md`](../../design.md) and [`PROVISIONAL_IMPLEMENTATION_DECISIONS.md`](../PROVISIONAL_IMPLEMENTATION_DECISIONS.md). Within this cross-cutting scope, business formulas and Trial workflow remain `PENDING — USER DECISION NEEDED`; Master Data lifecycle questions are listed in [MASTER_DATA.md](MASTER_DATA.md).
+**Status:** Comparison, Selected Comparison lifecycle, warning, Standard Cost, Process Candidate dependency, and Selling Price/SG&A/OP rules are `FINALIZED — USER DECISION`. [`FINAL_LOGIC_SPEC.md`](FINAL_LOGIC_SPEC.md) is the latest authority for product logic; this and the page-specific specs retain compatible requirements and UX/UI. Dashboard and visual outcomes remain `CONFIRMED DIRECTION — USER DECISION`; safe presentation details are reversible AI choices in [`design.md`](../../design.md) and [`PROVISIONAL_IMPLEMENTATION_DECISIONS.md`](../PROVISIONAL_IMPLEMENTATION_DECISIONS.md). Other business formulas and Trial workflow remain `PENDING — USER DECISION NEEDED`; Master Data lifecycle questions are listed in [MASTER_DATA.md](MASTER_DATA.md).
 
 ## Final Target State
 
-Calculate Reference and Current independently from their own data, then compare the calculated results by business identity. Use `Gap = Current - Reference`; never pair by row position or turn missing required inputs into zero. Routing operations use their Work Center's rates; processing cost is aggregated and compared at Work Center level, with Process available as detail. Full Comparison is the default. Selected Comparison is temporary, leaves source datasets intact, and shows only its selected-scope Gap until a real source-data change or cancellation returns the user to Full Comparison.
+Calculate Reference and Current independently from their own data, then compare the calculated results by business identity. Use `Gap = Current - Reference`; never pair by row position or turn missing required inputs into zero. Routing operations use their Work Center's rates; Cost Breakdown may aggregate processing cost by Work Center for calculation and context, while the processing Candidate is always Process/Routing. Full Comparison is the default. Selected Comparison is temporary, leaves source datasets intact, and shows only its selected-scope Gap. It may continue from Cost Breakdown into scoped Ranking; when one human-selected Candidate enters RCA, Selected Scope ends and Simulation uses full Current. An actual source-data change or cancellation at Cost Breakdown clears the scope and returns to Full Comparison.
 
 ## Source authority
 
@@ -49,7 +49,7 @@ For each dataset, calculate each Routing operation using its referenced Work Cen
 WC Net Gap = Current WC processing total - Reference WC processing total
 ```
 
-Routing `Process` remains drill-down detail under its Work Center. Matching Routing operations one-to-one is not required to calculate the Work Center processing total or `WC Net Gap`. Missing or invalid calculation inputs remain unavailable under the Standard Cost rules above.
+Routing `Process` remains drill-down detail under its Work Center in Cost Breakdown. Matching Routing operations one-to-one is not required to calculate the Work Center processing total or `WC Net Gap`. This Work Center aggregation is calculation/context detail and does not create a Work Center Candidate; Candidate Prioritization uses Process/Routing as the processing Candidate. If a Work Center Labor Rate or Burden Rate change causes calculated cost to change for one or more Processes, each affected Process may independently be `CHANGED` and remain the Candidate even when its Routing-owned fields are unchanged. See [Candidate Prioritization](CANDIDATE.md#processing-candidates) and the [Work Center rate dependency rule](FINAL_LOGIC_SPEC.md#work-center-rate-dependency). Missing or invalid calculation inputs remain unavailable under the Standard Cost rules above.
 
 ## Full and Selected Comparison
 
@@ -58,7 +58,7 @@ Routing `Process` remains drill-down detail under its Work Center. Matching Rout
 - For a matched `CHANGED` or `UNCHANGED` finding, select/exclude the Reference and Current pair together. `ADDED` and `REMOVED` findings are independently selectable.
 - Selected mode recalculates from the selected scope and shows **only the selected-scope Gap**. Do not show the Full Gap beside or behind it.
 - The scope is analysis state, not a dataset edit. It is not included in Save, export, or version history and does not persist across application restart. Unselected records remain in the source datasets.
-- Carry the selected analysis scope through Cost Breakdown, Candidate, and RCA/Simulation. Exact downstream page presentation is specified per page where closed.
+- The selected analysis scope may continue through Cost Breakdown and scoped Candidate Ranking. The human selects exactly one Candidate; when it enters RCA, Selected Scope ends. Simulation then starts from the normal full Current dataset. A Candidate may retain its origin as context, but that must not restrict its RCA or Simulation calculations.
 - Cancellation, or an actual change to Reference or Current source data, clears the selection and returns to Full Comparison immediately. Do not remap stale selections or ask recovery questions.
 
 ## Warnings and result integrity
@@ -71,37 +71,43 @@ On Master Data, preserve cell-level invalid cues and show dataset notices outsid
 
 `CONFIRMED DIRECTION — USER DECISION`: provide a shared status/context cue that helps users understand what is happening and where to review it. Relevant states may include Ready for comparison, Product Mismatch, Missing data, and active Selected Comparison. When a state has a useful review destination, provide a link or action to that page. Status is informational and normally does not block navigation; disable only an operation that is logically impossible.
 
-When Selected Comparison continues through Candidate and RCA/Simulation, keep the active selected scope recognizable to the user. Exact placement (such as header, footer, or another shared area), wording, and control styling remain reversible UI choices; this direction does not require a specific persistent status-bar layout.
+Keep an active Selected Comparison recognizable while it applies in Cost Breakdown and scoped Candidate Ranking. At RCA entry the scope ends; subsequent RCA/Simulation may retain the selected Candidate's origin as context, but must not show or apply an active Selected Scope. Exact placement, wording, and control styling while the scope is active remain reversible UI choices; this direction does not require a specific persistent status-bar layout.
 
 ## Business analysis: confirmed direction and scope
 
 `CONFIRMED DIRECTION — USER DECISION`: the dashboard is interactive/live with simulation, tells the result-to-cause story (`Result → Cause → Detail`), and gives executives an overview with details available on demand. The user-supplied dashboard reference confirms a left-side stacked vertical cost bar chart with Selling Price shown as a line. This fixes the chart's visual direction, not its time period or business formulas. The current product data is a Reference/Current snapshot pair; do not fabricate monthly history. The reversible adaptation to available snapshot data is recorded in [`PROVISIONAL_IMPLEMENTATION_DECISIONS.md`](../PROVISIONAL_IMPLEMENTATION_DECISIONS.md). Keep calculation/domain logic separate from UI presentation.
 
-Confirmed business concepts include Selling Price, SG&A, Material, Processing, COGS, GP, GP Margin, OP, OP Margin, Sales, and Volume/Quantity. These concepts and candidate formulas have been discussed; that does not mean the business formulas were finalized. The formula candidates recovered from `CBD Refactor #1` are preserved below as discussion only. OP must allow negative values. Business metric formulas, monetary SG&A treatment, total GP/OP formulas, and the chart's historical period/source remain pending; do not infer approval from labels, the reference image, or current code. Selling Price and SG&A are stored as metadata inputs, with SG&A entered as a percent of Selling Price. Scenario overrides of Selling Price and SG&A are a confirmed future direction; each uses the current dataset value by default and clearing an override falls back to Current.
+Confirmed business concepts include Selling Price, SG&A, Material, Processing, COGS, GP, GP Margin, OP, OP Margin, Sales, and Volume/Quantity. Selling Price and SG&A% are scenario-editable; each defaults to Current and clearing an override returns to Current. SG&A is a percentage of Selling Price, and the SG&A and OP formulas are finalized:
+
+```text
+SG&A amount / pc = Selling Price × SG&A %
+OP / pc = Selling Price - Standard Cost - SG&A amount
+OP = Selling Price - MAT - LB - BD - SG&A
+```
+
+OP may be positive, zero, or negative; negative OP represents a loss and must not be clamped or labeled unavailable solely because it is negative. Do not treat formulas for other business concepts as finalized unless another compatible finalized requirement explicitly does so. The chart's historical period/source remains pending; do not infer approval from labels, the reference image, or current code.
 
 **MatVAR, LBVAR, and BDVAR are removed from current scope by the latest explicit user decision.** They are neither pending formulas nor deferred features. Do not add them to Standard Cost or the current dashboard scope.
 
-### Engineering-first dashboard while business formulas are pending
+### Dashboard with finalized outputs and remaining pending metrics
 
-`CONFIRMED DIRECTION — USER DECISION`: until business formulas are finalized, the dashboard may provide a useful engineering-first view using only settled calculations: Standard Cost; Material; Labor; Burden; Processing/Conversion; comparison Gap; scenario Standard Cost and Gross Saving; and relevant BOM, Work Center, and Process detail. For the confirmed left-side chart, the visual reference may be adapted to the available Reference/Current comparison using settled cost components and the Selling Price metadata input. Exact chart data mapping and layout details are recorded as reversible AI choices; no historical periods or unavailable values may be invented.
+`CONFIRMED DIRECTION — USER DECISION`: the dashboard may provide a useful engineering-first view using settled calculations: Standard Cost; Material; Labor; Burden; Processing/Conversion; comparison Gap; scenario results; finalized Selling Price, SG&A, and OP; and relevant BOM, Work Center, and Process detail. For the confirmed left-side chart, the visual reference may be adapted to the available snapshots. After a scenario is selected, the main result story is Reference → Current → Simulated with only the two adjacent state gaps; the Scenario A/B comparison supports money series and scenario-change context as specified in [`FINAL_LOGIC_SPEC.md`](FINAL_LOGIC_SPEC.md). Exact chart data mapping and layout details remain reversible AI choices; do not fabricate historical periods or unavailable values.
 
-Do not fabricate numeric COGS, GP, GP Margin, OP, OP Margin, Sales, or Volume/Quantity results from guessed formulas or inputs. Do not display numeric zero for a metric whose formula is unavailable. Show an explicit unavailable state, such as **“Not calculated — formula pending”**, or equivalent wording. Selling Price and SG&A may appear as input context without being presented as calculated business results. The current engineering-first composition is a `PROVISIONAL — AI CHOICE` recorded in [`PROVISIONAL_IMPLEMENTATION_DECISIONS.md`](../PROVISIONAL_IMPLEMENTATION_DECISIONS.md); its exact layout can change without reopening these boundaries.
+Do not fabricate numeric COGS, GP, GP Margin, OP Margin, Sales, or Volume/Quantity results from guessed formulas or inputs. OP and SG&A amount use the finalized formulas above when required inputs are available. Do not display numeric zero for a metric whose formula is unavailable; show an explicit unavailable state instead. The current dashboard composition is a `PROVISIONAL — AI CHOICE` recorded in [`PROVISIONAL_IMPLEMENTATION_DECISIONS.md`](../PROVISIONAL_IMPLEMENTATION_DECISIONS.md); its exact layout can change without reopening these boundaries.
 
 The actual Trial execution, validation, approval, and promotion workflow remains unspecified. The agreed Candidate-to-scenario selection and scenario-to-Trial handoff are described in [RCA_SIMULATION.md](RCA_SIMULATION.md).
 
 ## PENDING — USER DECISION NEEDED
 
-- Business metric formulas and any financial treatment needed to calculate them; actual Trial execution/validation/approval/promotion.
+- Formulas for other business metrics such as COGS, GP, GP Margin, OP Margin, Sales, and Volume/Quantity, plus actual Trial execution/validation/approval/promotion. Selling Price, SG&A, and OP rules are finalized above.
 - The following equations were proposed/discussed but have no explicit user approval as system formulas. Preserve them as discussion context; do not implement them as finalized requirements until approved:
   - `COGS = Material + Processing`
   - `GP = Selling Price - COGS`
   - `GP Margin = GP / Selling Price`
-  - `OP = GP - SG&A`
   - `OP Margin = OP / Selling Price`
   - `Sales = Selling Price × Volume`
   - `Total GP = GP per piece × Volume`
   - `Total OP = OP per piece × Volume`
-  - `SG&A amount = Selling Price × SG&A%`
 - Historical dashboard periods, data sources, Reference/Current-to-period mapping, annual averages, and exact business-chart series have not been finalized. The supplied image is visual context, not historical data or formula approval.
 
 ## Human review checkpoint

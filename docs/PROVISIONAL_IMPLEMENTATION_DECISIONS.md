@@ -17,7 +17,7 @@ For each new AI-selected behavior or presentation detail, record:
 
 Do not promote an entry to a user decision based on implementation, test results, elapsed time, or omission from a later summary. Only an explicit user decision can settle the behavior it addresses.
 
-## Active provisional choices
+## Choice records (active and superseded)
 
 ### P-001 — One record-level material monetary candidate with visible factor details
 
@@ -32,22 +32,16 @@ Do not promote an entry to a user decision based on implementation, test results
 ### P-002 — Engineering-first Dashboard composition
 
 - **Status:** `PROVISIONAL — AI CHOICE`
-- **Choice:** start the current Dashboard with settled Standard Cost results, explain Material and Processing causes, provide BOM/Work Center/Process detail, and show live Scenario A/B/C cost results when a human has selected an RCA candidate.
-- **Why:** it provides a useful current dashboard from calculations that are already settled while the future business formulas remain unresolved.
-- **Must preserve:** the confirmed interactive/live, executive-overview, `Result → Cause → Detail` direction; source datasets are not changed by simulation; the dashboard does not select a candidate or scenario; unresolved COGS, GP, margins, OP, Sales, and Volume/Quantity results remain explicitly unavailable, never fabricated as zero.
+- **Choice:** start the current Dashboard with settled Standard Cost results, explain Material and Processing causes, and provide BOM/Work Center/Process detail. Any Dashboard scenario summary is supplemental; the required Scenario A/B money comparison and Reference → Current → Simulated story belong to the Simulation result flow.
+- **Why:** it provides a useful dashboard from settled calculations while only the remaining unfinalized business metrics remain unresolved.
+- **Must preserve:** the confirmed interactive/live, executive-overview, `Result → Cause → Detail` direction; source datasets are not changed by simulation; the dashboard does not select a Candidate or scenario; finalized Selling Price, SG&A, and OP formulas are used; only genuinely pending metrics remain unavailable, never fabricated as zero.
 - **Reversible:** the ordering, layout, chart/card choices, and detail presentation can change without changing calculation rules or product flow.
-- **Review trigger:** final business formulas, explicit dashboard design decisions, or human visual acceptance.
-- **Related contract:** [`CROSS_CUTTING.md`](specs/CROSS_CUTTING.md#engineering-first-dashboard-while-business-formulas-are-pending) and [`design.md`](../design.md).
+- **Review trigger:** a later formula decision for remaining metrics, explicit dashboard design decisions, or human visual acceptance.
+- **Related contract:** [`CROSS_CUTTING.md`](specs/CROSS_CUTTING.md#dashboard-with-finalized-outputs-and-remaining-pending-metrics) and [`design.md`](../design.md).
 
-### P-003 — Work Center Labor/Burden Rate scenario overrides
+### P-003 — Work Center Labor/Burden Rate scenario overrides (superseded)
 
-- **Status:** `PROVISIONAL — AI CHOICE`
-- **Choice:** keep Work Center Labor Rate and Burden Rate available as scenario-local overrides for the selected Work Center processing candidate.
-- **Why:** those rates are measurable inputs to the existing Standard Cost engine, and changing a scenario copy can reuse the settled calculation without inventing a new formula.
-- **Must preserve:** scenarios start from Current; they never mutate Reference or Current; cost remains calculated by the existing Standard Cost rules; only measurable existing inputs are exposed; the canonical user-finalized examples remain BOM Usage/Price/Loss and Routing Manning/Capacity/Yield.
-- **Reversible:** remove or narrow the rate fields if the user later decides that scenarios should edit only the explicitly named BOM/Routing parameters.
-- **Review trigger:** an explicit user decision on the scenario-editable input set.
-- **Related contract:** [`RCA_SIMULATION.md`](specs/RCA_SIMULATION.md#scenarios-and-simulation-inputs).
+- **Status:** Superseded by the user-finalized Work Center rate inputs in [`FINAL_LOGIC_SPEC.md`](specs/FINAL_LOGIC_SPEC.md) and [`RCA_SIMULATION.md`](specs/RCA_SIMULATION.md#scenarios-and-simulation-inputs). The former AI-choice record is retained here only as provenance; rate editing is no longer provisional.
 
 ### P-004 — Current-branch visual system and page composition
 
@@ -123,7 +117,7 @@ Do not promote an entry to a user decision based on implementation, test results
 - **Status:** `PROVISIONAL — AI CHOICE`
 - **Choice:** render a stacked vertical bar for Reference and Current using Material, Labor, and Burden; show Selling Price as a line on the same THB/pc scale when values are available. Label the chart as a Reference/Current comparison, not a monthly trend. If a snapshot's required cost components are unavailable, do not draw a complete-looking total bar for that side.
 - **Why:** this follows the user's confirmed left-side stacked-bar visual direction and the reference's Selling Price line while using only the existing snapshot pair, settled Standard Cost components, and already-entered Selling Price metadata.
-- **Must preserve:** do not include MatVAR/LBVAR/BDVAR; do not calculate monetary SG&A, COGS, GP, GP Margin, OP, OP Margin, Sales, or Volume/Quantity from guesses; do not turn missing values into zero; keep Labor + Burden as the Processing/Conversion subtotal without counting that subtotal as another stack segment; do not invent monthly history or period averages.
+- **Must preserve:** do not include MatVAR/LBVAR/BDVAR; calculate finalized SG&A and OP only from their approved inputs/formulas, and do not guess other business metrics; do not turn missing values into zero; keep Labor + Burden as the Processing/Conversion subtotal without counting that subtotal as another stack segment; do not invent monthly history or period averages. This Reference/Current snapshot chart does not replace the required Scenario A/B money comparison or Reference → Current → Simulated result story in [`FINAL_LOGIC_SPEC.md`](specs/FINAL_LOGIC_SPEC.md).
 - **Reversible:** the snapshot labels, exact chart geometry, colors, axis ticks, and whether the Selling Price line is shown can change after visual review without changing product calculations or dataset behavior.
 - **Review trigger:** human visual review or a later approved time-series data source/business formula.
 - **Related contract:** [`CROSS_CUTTING.md`](specs/CROSS_CUTTING.md#business-analysis-confirmed-direction-and-scope) and [`design.md`](../design.md#dashboard-chart).
@@ -133,7 +127,7 @@ Do not promote an entry to a user decision based on implementation, test results
 - **Status:** `PROVISIONAL — AI CHOICE`
 - **Choice:** show the net Reference/Current Standard Cost result first, state whether Current is higher or lower, identify the largest known Material or Processing component Gap, then present the chart, relevant input context, cause breakdown, and record/process detail.
 - **Why:** make the confirmed `Result → Cause → Detail` story understandable at a glance while using only settled comparison values.
-- **Must preserve:** Gap remains Current − Reference; positive and negative directions stay explicit; missing values remain unavailable; OP remains a required metric and can be negative, but its numeric value stays unavailable until its formula is confirmed; do not add unrelated metrics, new business formulas, or fabricated periods.
+- **Must preserve:** Gap remains Current − Reference; positive and negative directions stay explicit; missing required inputs remain unavailable; use the finalized Selling Price, SG&A, and OP formulas, preserving negative OP as a loss; do not add unrelated metrics, unfinalized business formulas, or fabricated periods.
 - **Reversible:** headline wording, emphasis, component summary placement, and responsive layout may change after visual review without changing calculation behavior.
 - **Review trigger:** human visual review of whether the result and its main cost movement are clear on first view.
 - **Related contract:** [`CROSS_CUTTING.md`](specs/CROSS_CUTTING.md#business-analysis-confirmed-direction-and-scope) and [`design.md`](../design.md#dashboard-story-order).
@@ -142,7 +136,7 @@ Do not promote an entry to a user decision based on implementation, test results
 
 These are not AI choices and must not be inferred away:
 
-- Business metric formulas and any financial treatment required for COGS, GP, GP Margin, OP, OP Margin, Sales, and Volume/Quantity.
+- Other business metric formulas and any financial treatment required for COGS, GP, GP Margin, OP Margin, Sales, and Volume/Quantity. Selling Price, SG&A, and OP are finalized in [`FINAL_LOGIC_SPEC.md`](specs/FINAL_LOGIC_SPEC.md).
 - Trial execution, validation, approval, and promotion.
 - The Master Data lifecycle/interaction items explicitly listed under `PENDING — USER DECISION NEEDED` in [`MASTER_DATA.md`](specs/MASTER_DATA.md#pending-user-decision-needed).
 

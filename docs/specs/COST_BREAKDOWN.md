@@ -20,7 +20,7 @@ A positive Gap means Current cost is higher; a negative Gap means it is lower; z
 
 ## Comparison results
 
-Use `UNCHANGED`, `CHANGED`, `ADDED`, and `REMOVED` where applicable, matched by the current Master Data identities. Status and Gap are independent: a `CHANGED` finding can have positive, negative, zero, or unavailable Gap; cost dependencies can change Gap even when that record's own business fields are unchanged. Field differences are details of `CHANGED`, not extra statuses. Do not invent a `REPLACE` status or infer split/merge relationships.
+Use `UNCHANGED`, `CHANGED`, `ADDED`, and `REMOVED` where applicable, matched by the current Master Data identities. Status and Gap are independent: a `CHANGED` finding can have positive, negative, zero, or unavailable Gap; cost dependencies can change Gap even when that record's own business fields are unchanged. In particular, when a Work Center Labor/Burden Rate dependency changes a Process's calculated processing cost, the Process is `CHANGED` even if its Routing-owned fields are unchanged; the Work Center remains rate owner/context, not a Candidate. See [the finalized dependency rule](FINAL_LOGIC_SPEC.md#work-center-rate-dependency). Field differences are details of `CHANGED`, not extra statuses. Do not invent a `REPLACE` status or infer split/merge relationships.
 
 Keep unchanged records available in the normal comparison data and for status filtering. The status filter is multi-select: each status may be selected independently, and visible records are the union of selected statuses. `All` selects all four statuses and is the default; it is a control, not a fifth status.
 
@@ -44,6 +44,8 @@ If detail cannot reconcile because of missing/invalid calculation data, surface 
 Full Comparison remains the default. Selected Comparison follows [the shared scope and lifecycle](CROSS_CUTTING.md#full-and-selected-comparison): BOM and Routing findings are selectable; Work Centers remain full calculation context; matched `CHANGED`/`UNCHANGED` findings move as Reference/Current pairs; `ADDED`/`REMOVED` are independently selectable.
 
 Selected Comparison is a temporary analysis scope and does not change or save either source dataset. While it is active, show the selected findings and **only the selected-scope Gap**. Do not show the Full Gap alongside it. Cancellation or an actual Reference/Current source-data change clears the scope and returns to Full Comparison.
+
+The scope may continue from Cost Breakdown into scoped Candidate Ranking. When one human-selected Candidate enters RCA, the scope ends; Simulation uses full Current. See [`FINAL_LOGIC_SPEC.md`](FINAL_LOGIC_SPEC.md).
 
 ## Warnings and presentation boundaries
 
