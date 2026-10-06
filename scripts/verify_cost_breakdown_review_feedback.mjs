@@ -118,6 +118,10 @@ try {
     story: finalStory,
     onSelectScenario() {}
   }))
+  const scenarioAOpLabel = selectedStoryMarkup.match(/<text x="548" y="([^"]+)"[^>]*>A 2\.00<\/text>/)
+  const scenarioBOpLabel = selectedStoryMarkup.match(/<text x="548" y="([^"]+)"[^>]*>B -1\.00 · Operating loss<\/text>/)
+  assert.ok(scenarioAOpLabel && scenarioBOpLabel, 'the A/B graph places its Operating loss values in separate aligned rows')
+  assert.notEqual(scenarioAOpLabel[1], scenarioBOpLabel[1], 'Scenario A and B value labels do not share a baseline')
   assert.match(selectedStoryMarkup, /Reference → Current → Simulated/)
   assert.match(selectedStoryMarkup, /Gap 1<br\/?>Current − Reference/)
   assert.match(selectedStoryMarkup, /Gap 2<br\/?>Simulated − Current/)

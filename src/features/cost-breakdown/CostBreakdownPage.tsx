@@ -109,7 +109,7 @@ export const CostBreakdownPage: React.FC = () => {
             {isSelectingScope
               ? 'Select BOM and Routing findings below. A matched finding selects both sides; Added and Removed select their existing side. All WC rates stay in the calculation.'
               : isSelectedComparisonActive
-                ? 'This temporary scope follows you to Candidate Selection and RCA & Simulation. Source data changes clear it.'
+                ? 'This temporary scope limits Cost Breakdown and Candidate Selection. It ends when you choose one Candidate for RCA. Source data changes clear it.'
                 : 'Full Comparison includes all findings. Selected Comparison is a temporary analysis scope for chosen BOM and Routing findings.'}
           </p>
         </div>

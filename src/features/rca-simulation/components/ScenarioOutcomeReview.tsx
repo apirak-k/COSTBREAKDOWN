@@ -85,7 +85,7 @@ function ScenarioComparisonGraph({ scenarioA, scenarioB }: Pick<ScenarioOutcomeR
               {aValue !== null && <rect x={aValue < 0 ? center - aWidth : center} y={y - 1} width={Math.max(aWidth, 1)} height="7" fill="#1d4ed8"><title>{`Scenario A ${label}: ${formatValue(aValue)} THB/pc`}</title></rect>}
               {bValue !== null && <rect x={bValue < 0 ? center - bWidth : center} y={y + 8} width={Math.max(bWidth, 1)} height="7" fill="#d97706"><title>{`Scenario B ${label}: ${formatValue(bValue)} THB/pc`}</title></rect>}
               <text x="548" y={y + 4} fill="#1e3a8a" fontSize="9" fontFamily="ui-monospace, monospace">A {formatMetricValue(key, aValue, 2)}</text>
-              <text x="645" y={y + 4} fill="#92400e" fontSize="9" fontFamily="ui-monospace, monospace">B {formatMetricValue(key, bValue, 2)}</text>
+              <text x="548" y={y + 14} fill="#92400e" fontSize="9" fontFamily="ui-monospace, monospace">B {formatMetricValue(key, bValue, 2)}</text>
             </g>
           )
         })}
