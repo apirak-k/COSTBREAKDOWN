@@ -61,7 +61,7 @@ assert.ok(!comparison.bomFindings.some(finding => finding.currentId === 'size-bo
 assert.ok(!comparison.routingFindings.some(finding => finding.currentId === 'size-routing-1'))
 assert.ok(!comparison.workCenterFindings.some(finding => finding.currentId === 'size-rate-1'))
 assert.ok(!comparison.warnings.some(warning => warning.code === 'MISSING_BUSINESS_KEY'))
-assert.deepEqual(buildProcessingCandidates(comparison), [])
+assert.deepEqual(buildProcessingCandidates(comparison, reference, current), [])
 
 const metadataReference: CostSnapshot = {
   ...base,

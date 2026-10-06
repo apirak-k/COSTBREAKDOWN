@@ -32,7 +32,7 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({
 }) => {
   const product = analysisSnapshotPair.current.product
   const materialCandidates = candidates.filter(candidate => candidate.sourceType === 'bom')
-  const processingCandidates = candidates.filter(candidate => candidate.sourceType === 'work-center')
+  const processingCandidates = candidates.filter(candidate => candidate.sourceType === 'process')
 
   return (
     <div className="space-y-4">

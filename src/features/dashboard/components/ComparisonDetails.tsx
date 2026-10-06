@@ -101,7 +101,7 @@ function ProcessList({ label, rows }: {
     <section aria-label={`${label} Routing Process details`} className="min-w-0">
       <h4 className="font-mono text-[9px] font-bold uppercase tracking-wide text-slate-600">{label} · {rows.length} {rows.length === 1 ? 'process' : 'processes'}</h4>
       {rows.length === 0 ? (
-        <p className="mt-1 text-[10px] text-slate-500">No Routing Process at this Work Center.</p>
+        <p className="mt-1 text-[10px] text-slate-500">No matching Routing Process on this side.</p>
       ) : (
         <ul className="mt-1 space-y-1.5">
           {rows.map(process => (
@@ -125,10 +125,10 @@ function ProcessingDetails({ candidates }: { candidates: PrioritizationCandidate
   return (
     <details className="border border-slate-300 bg-white">
       <summary className="cursor-pointer px-3 py-2.5 font-mono text-[10px] font-bold uppercase tracking-wide text-slate-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700">
-        Processing by Work Center ({candidates.length})
+        Processing by Process ({candidates.length})
       </summary>
       {candidates.length === 0 ? (
-        <p className="border-t border-slate-200 px-3 py-3 text-xs text-slate-600">No changed, added, or removed Work Center processing findings in this comparison.</p>
+        <p className="border-t border-slate-200 px-3 py-3 text-xs text-slate-600">No changed, added, or removed Process findings in this comparison.</p>
       ) : (
         <ul className="divide-y divide-slate-200 border-t border-slate-200">
           {candidates.map(candidate => (
@@ -147,7 +147,7 @@ function ProcessingDetails({ candidates }: { candidates: PrioritizationCandidate
               {candidate.processBreakdown ? (
                 <details className="border-t border-slate-200 pt-1.5">
                   <summary className="min-h-7 cursor-pointer py-1 font-mono text-[10px] font-semibold text-slate-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700">
-                    Routing Process details ({candidate.processBreakdown.reference.length} Reference · {candidate.processBreakdown.current.length} Current)
+                    Process details ({candidate.processBreakdown.reference.length} Reference · {candidate.processBreakdown.current.length} Current)
                   </summary>
                   <div className="mt-1 grid grid-cols-1 gap-3 border-l-2 border-slate-300 pl-2 sm:grid-cols-2">
                     <ProcessList label="Reference" rows={candidate.processBreakdown.reference} />
@@ -167,7 +167,7 @@ export const ComparisonDetails: React.FC<ComparisonDetailsProps> = ({ materialCa
   <section aria-labelledby="comparison-detail-heading" className="space-y-2">
     <div className="border-b border-slate-300 pb-2">
       <p className="font-mono text-[9px] font-bold uppercase tracking-wide text-slate-500">Detail</p>
-      <h2 id="comparison-detail-heading" className="mt-0.5 text-xs font-semibold text-slate-900">Changed records and Routing Process cost</h2>
+      <h2 id="comparison-detail-heading" className="mt-0.5 text-xs font-semibold text-slate-900">Changed records and Process cost</h2>
     </div>
     <MaterialDetails candidates={materialCandidates} />
     <ProcessingDetails candidates={processingCandidates} />

@@ -142,7 +142,7 @@ function compareRows<T extends SnapshotRow>(
   referenceRows: T[],
   currentRows: T[],
   keyOf: (row: T) => string,
-  flagsOf: (reference: T, current: T) => ChangeFlags,
+  flagsOf: (reference: T, current: T, costEffect?: ComparisonRecordCostEffect) => ChangeFlags,
   calculateRecordCostEffect?: (reference: T | undefined, current: T | undefined) => ComparisonRecordCostEffect,
   warnings: ComparisonWarning[] = [],
   ignoredFields: ReadonlySet<string> = new Set()
@@ -235,7 +235,7 @@ function compareRows<T extends SnapshotRow>(
       referenceId: reference.id,
       currentId: current.id,
       matchStatus: 'matched',
-      changeFlags: flagsOf(reference, current),
+      changeFlags: flagsOf(reference, current, costEffect),
       fieldDiffs: diffSupportedFields(reference, current, ignoredFields),
       costGap: costEffect?.gap.total ?? null,
       costEffect,
@@ -263,11 +263,22 @@ function bomFlags(): ChangeFlags {
   return {}
 }
 
-function routingFlags(reference: SnapshotRoutingStep, current: SnapshotRoutingStep): ChangeFlags {
-  return {
-    movedWorkCenter: reference.workCenterId !== current.workCenterId,
-    changedInputs: reference.manning !== current.manning || reference.capacity !== current.capacity || reference.yield !== current.yield
-  }
+function routingFlags(
+  reference: SnapshotRoutingStep,
+  current: SnapshotRoutingStep,
+  costEffect?: ComparisonRecordCostEffect
+): ChangeFlags {
+  const movedWorkCenter = reference.workCenterId !== current.workCenterId
+  const changedInputs = reference.manning !== current.manning
+    || reference.capacity !== current.capacity
+    || reference.yield !== current.yield
+  const changedRate = !movedWorkCenter && !changedInputs && [
+    costEffect?.gap.labor,
+    costEffect?.gap.burden,
+    costEffect?.gap.total
+  ].some(value => typeof value === 'number' && Number.isFinite(value) && value !== 0)
+
+  return { movedWorkCenter, changedInputs, changedRate }
 }
 
 function rateFlags(reference: SnapshotWorkCenterRate, current: SnapshotWorkCenterRate): ChangeFlags {

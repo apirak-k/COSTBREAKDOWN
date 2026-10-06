@@ -13,10 +13,10 @@ export interface CandidatePrioritizationResult {
 }
 
 /**
- * Builds all candidates (Material and Processing by Work Center) from comparison findings.
+ * Builds BOM and Process/Routing candidates from comparison findings.
  * Section 11 & 14 of CANDIDATE_PRIORITIZATION_SPEC.md:
  * - Material: material-level changed findings
- * - Processing: Routing cost aggregated by Work Center
+ * - Processing: one Process/Routing candidate per Process finding
  * - Candidate statuses: CHANGED, ADDED, REMOVED
  * - Controllable starts explicitly true
  * - Sorted by Gap descending by default (+Gap -> -Gap)
@@ -37,8 +37,9 @@ export function buildPrioritizationCandidates(
 
   const processingCandidates = buildProcessingCandidates(
     comparison,
-    controllabilityMap,
-    { reference: referenceSnapshot, current: currentSnapshot }
+    referenceSnapshot,
+    currentSnapshot,
+    controllabilityMap
   )
 
   const all = [...materialCandidates, ...processingCandidates]

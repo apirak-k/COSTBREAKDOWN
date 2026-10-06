@@ -54,40 +54,33 @@ function getBOMInputs(
   ]
 }
 
-function getWorkCenterInputs(
+function getProcessInputs(
   candidate: PrioritizationCandidate,
   current: CostSnapshot
 ): ScenarioInputDefinition[] {
-  const candidateRates = current.rates.filter(rate => rate.id === candidate.sourceId)
-  if (candidateRates.length !== 1) return []
+  const matchingSteps = current.routing.filter(step =>
+    step.id === candidate.sourceId && step.isGeneratedSizingPlaceholder !== true
+  )
+  if (matchingSteps.length !== 1) return []
 
-  const rate = candidateRates[0]
-  const centerCode = normalizeCode(rate?.workCenterCode)
-  if (!rate || !centerCode) return []
-
-  const ratesForCenter = current.rates.filter(item => normalizeCode(item.workCenterCode) === centerCode)
-  const inputs: ScenarioInputDefinition[] = []
-  if (ratesForCenter.length === 1) {
+  const step = matchingSteps[0]
+  const processName = step.processName || step.processCode || step.operationCode || step.id
+  const inputs = [
+    inputDefinition('routing', step.id, 'manning', processName + ' — Manning', 'people', step.manning, 1),
+    inputDefinition('routing', step.id, 'capacity', processName + ' — Capacity', 'pcs/hr', step.capacity, 1),
+    inputDefinition('routing', step.id, 'yield', processName + ' — Yield', '%', step.yield, 100)
+  ]
+  const centerCode = normalizeCode(step.workCenterId)
+  const ratesForCenter = current.rates.filter(rate =>
+    rate.isGeneratedSizingPlaceholder !== true && normalizeCode(rate.workCenterCode) === centerCode
+  )
+  if (centerCode && ratesForCenter.length === 1) {
+    const rate = ratesForCenter[0]
     inputs.push(
-      inputDefinition('rate', rate.id, 'laborRate', `${rate.workCenterCode} — Labor rate`, 'THB/MHr', rate.laborRate, 1),
-      inputDefinition('rate', rate.id, 'burdenRate', `${rate.workCenterCode} — Burden rate`, 'THB/MHr', rate.burdenRate, 1)
+      inputDefinition('rate', rate.id, 'laborRate', rate.workCenterCode + ' — Labor rate', 'THB/MHr', rate.laborRate, 1),
+      inputDefinition('rate', rate.id, 'burdenRate', rate.workCenterCode + ' — Burden rate', 'THB/MHr', rate.burdenRate, 1)
     )
   }
-
-  const matchingSteps = current.routing.filter(step =>
-    step.isGeneratedSizingPlaceholder !== true && normalizeCode(step.workCenterId) === centerCode
-  )
-  const seenStepIds = new Set<string>()
-  matchingSteps.forEach(step => {
-    if (!step.id || seenStepIds.has(step.id) || matchingSteps.filter(item => item.id === step.id).length !== 1) return
-    seenStepIds.add(step.id)
-    const operationName = step.processName || step.processCode || step.operationCode || step.id
-    inputs.push(
-      inputDefinition('routing', step.id, 'manning', `${operationName} — Manning`, 'people', step.manning, 1),
-      inputDefinition('routing', step.id, 'capacity', `${operationName} — Capacity`, 'pcs/hr', step.capacity, 1),
-      inputDefinition('routing', step.id, 'yield', `${operationName} — Yield`, '%', step.yield, 100)
-    )
-  })
 
   return inputs
 }
@@ -98,5 +91,5 @@ export function getScenarioInputDefinitions(
   currentSnapshot: CostSnapshot
 ): ScenarioInputDefinition[] {
   if (candidate.sourceType === 'bom') return getBOMInputs(candidate, currentSnapshot)
-  return getWorkCenterInputs(candidate, currentSnapshot)
+  return getProcessInputs(candidate, currentSnapshot)
 }

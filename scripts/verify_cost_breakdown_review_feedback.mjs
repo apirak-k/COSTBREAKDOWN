@@ -119,21 +119,18 @@ try {
   const processCandidateMarkup = renderToStaticMarkup(React.createElement(CandidateRow, {
     candidate: {
       ...comparisonGapCandidate,
-      candidateName: 'Work Center WC-1',
-      category: 'Processing Cost',
-      sourceType: 'work-center',
+      candidateName: 'Process A',
+      category: 'Process / Routing',
+      sourceType: 'process',
       processBreakdown: {
         reference: [{ id: 'ref-a', processName: 'Process A', manning: 1, capacity: 10, yield: 1, laborCost: 1, burdenCost: 0.5, totalCost: 1.5 }],
-        current: [
-          { id: 'cur-a', processName: 'Process A', manning: 1, capacity: 10, yield: 1, laborCost: 1, burdenCost: 0.5, totalCost: 1.5 },
-          { id: 'cur-a2', processName: 'Process A2', manning: 1, capacity: 20, yield: 1, laborCost: 0.5, burdenCost: 0.25, totalCost: 0.75 }
-        ]
+        current: [{ id: 'cur-a', processName: 'Process A', manning: 1, capacity: 10, yield: 1, laborCost: 1, burdenCost: 0.5, totalCost: 1.5 }]
       }
     },
     onToggleControllable() {}
   }))
-  assert.match(processCandidateMarkup, /Routing Process details \(1 Reference · 2 Current\)/)
-  assert.match(processCandidateMarkup, /Process A2/)
+  assert.match(processCandidateMarkup, /Process details \(1 Reference · 1 Current\)/)
+  assert.doesNotMatch(processCandidateMarkup, /Process A2/)
 
   const factorCandidateMarkup = renderToStaticMarkup(React.createElement(CandidateRow, {
     candidate: {
@@ -175,12 +172,12 @@ try {
     changeDetails: [{ field: 'Price', reference: 9.09090909090909, current: 10 }]
   }
   const dashboardProcessingCandidate = {
-    candidateKey: 'wc:wc-1', candidateName: 'Work Center WC-1', category: 'Processing Cost',
-    factor: 'Work Center Aggregation', status: 'CHANGED', referenceCost: 3, currentCost: 3,
-    costGap: 0, controllable: true, rank: 2, sourceType: 'work-center', sourceId: 'rate-current',
+    candidateKey: 'process:process a', candidateName: 'Process A', category: 'Process / Routing',
+    factor: 'Process / Routing', status: 'CHANGED', referenceCost: 3, currentCost: 3,
+    costGap: 0, controllable: true, rank: 2, sourceType: 'process', sourceId: 'route-current',
     processBreakdown: {
-      reference: [{ id: 'route-reference:0', processName: 'Process A', manning: 1, capacity: 1, yield: 1, laborCost: 2, burdenCost: 1, totalCost: 3 }],
-      current: [{ id: 'route-current:0', processName: 'Process A', manning: 1, capacity: 1, yield: 1, laborCost: 2, burdenCost: 1, totalCost: 3 }]
+      reference: [{ id: 'route-reference', processName: 'Process A', manning: 1, capacity: 1, yield: 1, laborCost: 2, burdenCost: 1, totalCost: 3 }],
+      current: [{ id: 'route-current', processName: 'Process A', manning: 1, capacity: 1, yield: 1, laborCost: 2, burdenCost: 1, totalCost: 3 }]
     }
   }
   const dashboardComparison = {
@@ -223,6 +220,7 @@ try {
   assert.ok(dashboardText.includes('Standard Cost / pc'))
   assert.ok(dashboardText.includes('+1.0000 THB/pc'))
   assert.ok(dashboardText.includes('Processing · Labor + Burden'))
+  assert.ok(dashboardText.includes('Processing by Process (1)'))
   assert.ok(dashboardText.includes('Price: 9.0909 → 10'))
   assert.ok(dashboardText.includes('Process A'))
   assert.ok(dashboardText.includes('25.0000 THB'))

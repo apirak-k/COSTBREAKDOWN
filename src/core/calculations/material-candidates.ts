@@ -41,7 +41,7 @@ export interface PrioritizationCandidate {
   costGap: number | null
   controllable: boolean
   rank: number
-  sourceType: 'bom' | 'work-center'
+  sourceType: 'bom' | 'process'
   sourceId: string
   sourceRef?: string
   confidence?: DataConfidence

@@ -117,7 +117,7 @@ function makeCandidate(
     candidateKey: sourceType + ':' + sourceId,
     candidateName: 'Synthetic ' + sourceType + ' candidate',
     category: sourceType === 'bom' ? 'Direct Material' : 'Processing Cost',
-    factor: sourceType === 'bom' ? 'Price' : 'Work Center Aggregation',
+    factor: sourceType === 'bom' ? 'Price' : 'Process / Routing',
     status: 'CHANGED',
     referenceCost: 10,
     currentCost: 12,
@@ -176,21 +176,18 @@ assert.deepEqual(targets(bomInputs), [
 ])
 assertStableUniqueKeys(bomInputs, bomCandidate)
 
-const workCenterCandidate = makeCandidate('work-center', 'rate-current-wc-01')
-const workCenterInputs = getInputs(workCenterCandidate)
-assert.deepEqual(targets(workCenterInputs), [
+const processCandidate = makeCandidate('process', 'routing-wc-01-a')
+const processInputs = getInputs(processCandidate)
+assert.deepEqual(targets(processInputs), [
   { sourceType: 'rate', sourceId: 'rate-current-wc-01', field: 'burdenRate', currentValue: 9, displayScale: 1 },
   { sourceType: 'rate', sourceId: 'rate-current-wc-01', field: 'laborRate', currentValue: 18, displayScale: 1 },
   { sourceType: 'routing', sourceId: 'routing-wc-01-a', field: 'capacity', currentValue: 120, displayScale: 1 },
   { sourceType: 'routing', sourceId: 'routing-wc-01-a', field: 'manning', currentValue: 1.5, displayScale: 1 },
   { sourceType: 'routing', sourceId: 'routing-wc-01-a', field: 'yield', currentValue: 0.9, displayScale: 100 },
-  { sourceType: 'routing', sourceId: 'routing-wc-01-b', field: 'capacity', currentValue: 80, displayScale: 1 },
-  { sourceType: 'routing', sourceId: 'routing-wc-01-b', field: 'manning', currentValue: 2, displayScale: 1 },
-  { sourceType: 'routing', sourceId: 'routing-wc-01-b', field: 'yield', currentValue: 0.8, displayScale: 100 }
 ])
-assertStableUniqueKeys(workCenterInputs, workCenterCandidate)
+assertStableUniqueKeys(processInputs, processCandidate)
 
-for (const definition of [...bomInputs, ...workCenterInputs]) {
+for (const definition of [...bomInputs, ...processInputs]) {
   assert.ok(definition.label.trim().length > 0, 'Every editable input must have a display label')
   assert.ok(definition.unit.trim().length > 0, 'Every editable input must have a display unit')
 }
@@ -201,9 +198,9 @@ assert.deepEqual(
   'A BOM candidate missing from Current must produce no editable inputs'
 )
 assert.deepEqual(
-  getInputs(makeCandidate('work-center', 'rate-absent')),
+  getInputs(makeCandidate('process', 'routing-absent')),
   [],
-  'A Work Center candidate without a Current rate must produce no editable inputs'
+  'A Process candidate without a Current Routing record must produce no editable inputs'
 )
 
 console.log('Scenario input mapping verification passed')

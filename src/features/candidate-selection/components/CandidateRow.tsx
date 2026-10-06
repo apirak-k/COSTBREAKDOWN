@@ -74,7 +74,7 @@ export const CandidateRow: React.FC<CandidateRowProps> = ({
           {candidate.processBreakdown && (
             <details className="mt-2 border-t border-slate-200 pt-1.5">
               <summary className="min-h-7 cursor-pointer py-1 font-mono text-[10px] font-semibold text-slate-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700">
-                Routing Process details ({candidate.processBreakdown.reference.length} Reference · {candidate.processBreakdown.current.length} Current)
+                Process details ({candidate.processBreakdown.reference.length} Reference · {candidate.processBreakdown.current.length} Current)
               </summary>
               <div className="mt-1 space-y-2 border-l-2 border-slate-300 pl-2">
                 {([
