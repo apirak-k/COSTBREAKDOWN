@@ -56,7 +56,10 @@ After reviewing scenarios, the user may select one scenario to continue to Trial
 
 - Business formulas and chart behavior listed in [CROSS_CUTTING.md](CROSS_CUTTING.md#business-analysis-confirmed-direction-and-scope). MatVAR/LBVAR/BDVAR are explicitly removed from scope, not pending.
 - Trial execution, validation, approval, and promotion. The scenario-to-Trial handoff itself is agreed above.
-- Final human visual acceptance after implementing the reversible presentation in [`design.md`](../../design.md); page layout details are not a blocker to implementation.
+
+## Human review checkpoint
+
+Final human visual acceptance after implementing the reversible presentation in [`design.md`](../../design.md) has not been recorded. It is a review checkpoint; page layout details do not block implementation.
 
 ## Traceability
 

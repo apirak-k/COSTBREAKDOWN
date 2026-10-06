@@ -144,3 +144,11 @@ The table below retains the previously recorded status for all 80 topics and add
 - Counts and verification evidence are carried forward from the existing 2026-10-05 ledger, not re-run in this documentation pass.
 - Human visual acceptance remains separate from implementation verification.
 - The current migration-protection rule is in `docs/REQUIREMENTS_INDEX.md`; specs consolidate user-readable behavior, and this ledger remains traceability/status only.
+
+## Current implementation verification checkpoint — 2026-10-06
+
+- All **47** `scripts/verify*.ts` and `scripts/verify*.mjs` checks passed after the current implementation and dependency patch.
+- `npm run build` passed (`tsc -b` and Vite production build; 2,035 modules transformed). Existing ExcelJS browser-externalization warnings for Node `fs`/`crypto` remain.
+- `git diff --check` passed. Human visual acceptance was not performed because local browser inspection is blocked in this environment; no visual-acceptance claim is made.
+- `npm audit` was run. A non-breaking `npm audit fix` updated `brace-expansion` and `source-map-js`; **5 high and 4 moderate** advisories remain in transitive Tailwind/ExcelJS dependencies. The available suggested force fix crosses major versions and was not applied.
+- This aggregate verification note supplements implementation evidence; it does not recalculate or redefine the 80 topic statuses.

@@ -1,6 +1,6 @@
 # Candidate Prioritization Specification
 
-**Status:** Candidate behavior is `FINALIZED — USER DECISION`. Its current row grouping and visual presentation are reversible AI choices recorded in [`PROVISIONAL_IMPLEMENTATION_DECISIONS.md`](../PROVISIONAL_IMPLEMENTATION_DECISIONS.md) and [`design.md`](../../design.md); human visual acceptance remains outstanding.
+**Status:** Candidate behavior is `FINALIZED — USER DECISION`. Its current row grouping and visual presentation are reversible AI choices recorded in [`PROVISIONAL_IMPLEMENTATION_DECISIONS.md`](../PROVISIONAL_IMPLEMENTATION_DECISIONS.md) and [`design.md`](../../design.md); human visual acceptance remains a review checkpoint.
 
 ## FINALIZED — USER DECISION
 
@@ -58,9 +58,9 @@ The default ranking sorts Gap descending (highest to lowest). Keep positive, zer
 
 Candidate Prioritization ends with reviewing findings, filtering/ranking, and marking controllability. It does not contain candidate-for-RCA selection, Root Cause, Action, Requirement Fit, a feasibility checklist, or Simulation. Human candidate selection takes place in [RCA & Simulation](RCA_SIMULATION.md).
 
-## Presentation and genuine pending decisions
+## Presentation and human review
 
-The current presentation follows the provisional design contract in [`design.md`](../../design.md). Layout, grouping, and styling choices remain reversible and do not require individual user approval. No Candidate business behavior is pending in this spec; final human visual acceptance remains outstanding.
+The current presentation follows the provisional design contract in [`design.md`](../../design.md). Layout, grouping, and styling choices remain reversible and do not require individual user approval. No Candidate business behavior is pending in this spec. Final human visual acceptance is a review checkpoint, not an unsettled Candidate product decision.
 
 ## Traceability
 

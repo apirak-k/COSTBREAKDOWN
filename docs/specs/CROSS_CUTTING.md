@@ -1,6 +1,6 @@
 # Cross-Cutting Product Rules
 
-**Status:** Comparison, Selected Comparison, warning, and Standard Cost rules are `FINALIZED — USER DECISION`. Dashboard and visual outcomes are `CONFIRMED DIRECTION — USER DECISION`; safe presentation details are reversible AI choices in [`design.md`](../../design.md) and [`PROVISIONAL_IMPLEMENTATION_DECISIONS.md`](../PROVISIONAL_IMPLEMENTATION_DECISIONS.md). Only the stated business formulas and Trial workflow remain `PENDING — USER DECISION NEEDED`.
+**Status:** Comparison, Selected Comparison, warning, and Standard Cost rules are `FINALIZED — USER DECISION`. Dashboard and visual outcomes are `CONFIRMED DIRECTION — USER DECISION`; safe presentation details are reversible AI choices in [`design.md`](../../design.md) and [`PROVISIONAL_IMPLEMENTATION_DECISIONS.md`](../PROVISIONAL_IMPLEMENTATION_DECISIONS.md). Within this cross-cutting scope, business formulas and Trial workflow remain `PENDING — USER DECISION NEEDED`; Master Data lifecycle questions are listed in [MASTER_DATA.md](MASTER_DATA.md).
 
 ## Final Target State
 
@@ -85,11 +85,11 @@ The actual Trial execution, validation, approval, and promotion workflow remains
 
 ## PENDING — USER DECISION NEEDED
 
-- Whether importing a dataset preserves, resets, or recalculates its saved Sizing counts.
-- Whether Clone is gated by source readiness and how readiness metadata transfers; the copy direction and Working/Last Saved behavior are settled in [MASTER_DATA.md](MASTER_DATA.md).
-- Whether Clear requires a confirmation step; preserve the agreed Clear data effects while this interaction detail remains unresolved.
 - Business metric formulas and any financial treatment needed to calculate them; actual Trial execution/validation/approval/promotion.
-- Final human visual acceptance after applying the provisional visual contract. Routine layout, styling, status wording, and disabled/error presentation choices may be made provisionally and do not block implementation.
+
+## Human review checkpoint
+
+Final visual acceptance after applying the provisional visual contract has not been recorded. This is a review checkpoint, not a pending product rule; reversible layout, styling, status wording, and disabled/error presentation choices may be implemented before review.
 
 ## Traceability
 

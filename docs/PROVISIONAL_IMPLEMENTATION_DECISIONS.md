@@ -115,6 +115,9 @@ These are not AI choices and must not be inferred away:
 - Business metric formulas and any financial treatment required for COGS, GP, GP Margin, OP, OP Margin, Sales, and Volume/Quantity.
 - Trial execution, validation, approval, and promotion.
 - The Master Data lifecycle/interaction items explicitly listed under `PENDING — USER DECISION NEEDED` in [`MASTER_DATA.md`](specs/MASTER_DATA.md#pending-user-decision-needed).
-- Final human visual acceptance after the UI pass.
+
+## Human review checkpoint
+
+Final human visual acceptance after the UI pass has not been recorded. This is a review checkpoint, not a product rule or a reason to pause reversible implementation choices.
 
 See [`REQUIREMENTS_INDEX.md`](REQUIREMENTS_INDEX.md) for the authority rules and the exact boundary between user decisions, AI choices, and genuine pending decisions.
