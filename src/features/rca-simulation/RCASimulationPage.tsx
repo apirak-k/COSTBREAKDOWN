@@ -81,12 +81,13 @@ export const RCASimulationPage: React.FC<RCASimulationPageProps> = ({ state, upd
     () => scenarioResults.map(result => ({
       letter: result.letter,
       ...calculateScenarioEconomics(
-        result.currentCost.total,
-        result.scenarioCost.total,
-        preparedEconomics.inputsByLetter[result.letter]
+        result.currentCost,
+        result.scenarioCost,
+        preparedEconomics.inputsByLetter[result.letter],
+        new Set(preparedEconomics.invalidFieldsByLetter[result.letter])
       )
     })),
-    [scenarioResults, preparedEconomics.inputsByLetter]
+    [scenarioResults, preparedEconomics.inputsByLetter, preparedEconomics.invalidFieldsByLetter]
   )
 
   const updateDrafts = (transform: (drafts: ScenarioDraftForm[]) => ScenarioDraftForm[]) => {

@@ -214,7 +214,9 @@ try {
       : letter === 'B'
         ? { '["bom","bom-current","price"]': '8' }
         : {},
-    economicsInputs: { fixedInvestment: '', variableAddedCostPerPiece: '', evaluationVolume: '' }
+    economicsInputs: letter === 'A'
+      ? { fixedInvestment: '200', fixedInvestmentCategory: 'burden', variableAddedCostPerPiece: '0.5', variableAddedCostCategory: 'material', evaluationVolume: '100' }
+      : { fixedInvestment: '', fixedInvestmentCategory: '', variableAddedCostPerPiece: '', variableAddedCostCategory: '', evaluationVolume: '' }
   }))
   const dashboardState = {
     sourceDataRevision: 0, selectedCandidateKey: 'mat:resin', trialHandoffLetter: null,
@@ -249,11 +251,13 @@ try {
   assert.doesNotMatch(dashboardMarkup, /MatVAR|LBVAR|BDVAR/)
   assert.ok(dashboardText.includes('Not calculated — formula pending'))
   assert.doesNotMatch(opPanelMarkup, />\s*(?:\+|-)?0(?:\.0000)?\s*</)
-  assert.ok(dashboardText.includes('16.2000'))
-  assert.ok(dashboardText.includes('-2.2000'))
+  assert.ok(dashboardText.includes('18.7000'))
+  assert.match(dashboardMarkup, /<tr><th scope="row" class="py-1 text-left font-medium text-slate-700">MAT<\/th><td class="py-1 text-right font-mono tabular-nums">11\.0000<\/td><td class="py-1 text-right font-mono tabular-nums">13\.7000<\/td><\/tr>/)
+  assert.match(dashboardMarkup, /<tr><th scope="row" class="py-1 text-left font-medium text-slate-700">BD<\/th><td class="py-1 text-right font-mono tabular-nums">1\.0000<\/td><td class="py-1 text-right font-mono tabular-nums">3\.0000<\/td><\/tr>/)
+  assert.ok(dashboardText.includes('-4.7000'))
   assert.ok(dashboardText.includes('11.8000'))
   assert.ok(dashboardText.includes('+2.2000'))
-  assert.match(dashboardMarkup, /Gross Saving · THB\/pc<\/p><p class="mt-1 font-mono text-base font-bold tabular-nums text-emerald-700">\+2\.2000/)
+  assert.match(dashboardMarkup, /Gross Improvement · THB\/pc<\/p><p class="mt-1 font-mono text-base font-bold tabular-nums text-rose-700">-4\.7000/)
   assert.doesNotMatch(dashboardMarkup, /<dt[^>]*>COGS|<dt[^>]*>GP Margin|<dt[^>]*>OP Margin/)
 
   const dashboardLowerCostMarkup = renderToStaticMarkup(React.createElement(DashboardPage, {

@@ -81,7 +81,7 @@ function applyScenarioOverrides(
   }
 }
 
-/** Recalculates A/B/C from the same Current snapshot using the canonical Standard Cost engine. */
+/** Recalculates independent A/B drafts from the same Current snapshot using the canonical Standard Cost engine. */
 export function calculateScenarioCosts(
   currentSnapshot: CostSnapshot,
   drafts: ScenarioCostDraft[]

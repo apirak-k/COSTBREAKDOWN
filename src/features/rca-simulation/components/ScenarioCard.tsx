@@ -26,15 +26,18 @@ const COST_ROWS = [
 const ECONOMIC_INPUTS = [
   { key: 'fixedInvestment', label: 'Fixed Investment', unit: 'THB' },
   { key: 'variableAddedCostPerPiece', label: 'Variable Added Cost', unit: 'THB/pc' },
-  { key: 'evaluationVolume', label: 'Evaluation Volume', unit: 'pcs' }
+  { key: 'evaluationVolume', label: 'Evaluation Quantity', unit: 'pc' }
+] as const
+
+const ECONOMIC_CATEGORY_INPUTS = [
+  { key: 'fixedInvestmentCategory', label: 'Fixed Investment category' },
+  { key: 'variableAddedCostCategory', label: 'Variable Added Cost category' }
 ] as const
 
 const ECONOMIC_ROWS = [
   { key: 'fixedCostEquivalentPerPiece', label: 'Fixed Cost Equivalent / pc', unit: 'THB/pc' },
-  { key: 'netBenefitPerPiece', label: 'Net Benefit / pc', unit: 'THB/pc' },
-  { key: 'totalGrossSaving', label: 'Total Gross Saving', unit: 'THB' },
-  { key: 'totalVariableAddedCost', label: 'Total Variable Added Cost', unit: 'THB' },
-  { key: 'totalNetBenefit', label: 'Total Net Benefit', unit: 'THB' }
+  { key: 'variableAddedCostPerPiece', label: 'Variable Added Cost / pc', unit: 'THB/pc' },
+  { key: 'totalImprovement', label: 'Total Improvement', unit: 'THB' }
 ] as const
 
 const STATUS_CLASS: Record<string, string> = {
@@ -65,7 +68,7 @@ export const ScenarioCard: React.FC<ScenarioCardProps> = ({
   onUpdateEconomics
 }) => {
   const warningSections = [
-    { label: 'Scenario cost', messages: result.scenarioCost.warnings },
+    { label: 'Scenario cost', messages: economics.scenarioCost.warnings },
     { label: 'Unsupported or ambiguous overrides', messages: result.overrideWarnings },
     { label: 'Invalid input', messages: inputWarnings }
   ]
@@ -81,15 +84,15 @@ export const ScenarioCard: React.FC<ScenarioCardProps> = ({
   const economicsWarnings = [...new Set([...economicsInputWarnings, ...economics.warnings])]
   const labelId = `scenario-label-${scenario.letter}`
   const inputGuidanceId = `scenario-${scenario.letter}-input-guidance`
-  const hasEconomicsInputs = Object.values(scenario.economicsInputs).some(value => value.trim() !== '')
+  const hasEconomicsInputs = ECONOMIC_INPUTS.some(({ key }) => (scenario.economicsInputs[key] ?? '').trim() !== '')
 
   return (
     <article className="flex min-w-0 flex-col border border-slate-300 bg-white">
       <header className="border-b border-slate-300 bg-slate-50 px-3 py-2">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <h3 className="border border-slate-800 bg-slate-900 px-2 py-0.5 font-mono text-[10px] font-bold uppercase tracking-wide text-white">Option {scenario.letter}</h3>
-          <span className={`font-mono text-[9px] font-semibold uppercase ${STATUS_CLASS[result.scenarioCost.status] ?? STATUS_CLASS.missing}`}>
-            {result.scenarioCost.status}
+          <span className={`font-mono text-[9px] font-semibold uppercase ${STATUS_CLASS[economics.scenarioCost.status] ?? STATUS_CLASS.missing}`}>
+            {economics.scenarioCost.status}
           </span>
         </div>
         <label htmlFor={labelId} className="mt-2 block font-mono text-[10px] font-semibold uppercase text-slate-700">
@@ -139,7 +142,7 @@ export const ScenarioCard: React.FC<ScenarioCardProps> = ({
           <div className="overflow-x-auto">
             <table className="w-full text-xs">
               <caption className="sr-only">
-                Scenario {scenario.letter} material, labor, burden, and standard cost per piece, with cost change from Current
+                Scenario {scenario.letter} MAT, LB, BD, and Standard Cost per piece, with cost change from Current
               </caption>
               <thead>
                 <tr className="border-b border-slate-300 text-left font-semibold text-slate-700">
@@ -153,10 +156,10 @@ export const ScenarioCard: React.FC<ScenarioCardProps> = ({
                   <tr key={key} className={key === 'total' ? 'border-t border-slate-300 font-semibold text-slate-900' : 'text-slate-700'}>
                     <th scope="row" className="py-1.5 pr-2 text-left font-medium">{label}</th>
                     <td className="px-2 py-1.5 text-right font-mono tabular-nums">
-                      {formatCost(result.scenarioCost[key])}
+                      {formatCost(economics.scenarioCost[key])}
                     </td>
                     <td className="py-1.5 pl-2 text-right font-mono tabular-nums">
-                      {formatDifference(result.currentCost[key], result.scenarioCost[key])}
+                      {formatDifference(result.currentCost[key], economics.scenarioCost[key])}
                     </td>
                   </tr>
                 ))}
@@ -169,11 +172,11 @@ export const ScenarioCard: React.FC<ScenarioCardProps> = ({
           <div>
             <h4 className="font-mono text-[10px] font-bold uppercase text-slate-800">Improvement economics</h4>
             <div className="mt-1.5 flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1 border-b border-slate-200 pb-1.5">
-              <span className="text-[11px] font-medium text-slate-700">Gross Saving / pc</span>
+              <span className="text-[11px] font-medium text-slate-700">Gross Improvement / pc</span>
               <span className="font-mono text-xs font-semibold tabular-nums text-slate-900">
-                {economics.grossSavingPerPiece === null
+                {economics.grossImprovementPerPiece === null
                   ? 'N/A'
-                  : `${formatCost(economics.grossSavingPerPiece)} THB/pc`}
+                  : `${formatCost(economics.grossImprovementPerPiece)} THB/pc`}
               </span>
             </div>
           </div>
@@ -189,7 +192,7 @@ export const ScenarioCard: React.FC<ScenarioCardProps> = ({
                     type="number"
                     step="any"
                     inputMode="decimal"
-                    value={scenario.economicsInputs[key]}
+                    value={scenario.economicsInputs[key] ?? ''}
                     onChange={event => onUpdateEconomics(key, event.target.value)}
                     className="mt-1 min-h-8 w-full rounded-sm border border-slate-400 bg-white px-2 py-1 font-mono text-xs tabular-nums text-slate-900 focus:border-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-200"
                   />
@@ -197,6 +200,31 @@ export const ScenarioCard: React.FC<ScenarioCardProps> = ({
               )
             })}
           </div>
+
+          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+            {ECONOMIC_CATEGORY_INPUTS.map(({ key, label }) => {
+              const inputId = `scenario-${scenario.letter}-economics-${key}`
+              return (
+                <label key={key} htmlFor={inputId} className="block min-w-0 font-mono text-[10px] font-semibold uppercase text-slate-700">
+                  {label}
+                  <select
+                    id={inputId}
+                    value={scenario.economicsInputs[key] ?? ''}
+                    onChange={event => onUpdateEconomics(key, event.target.value)}
+                    className="mt-1 min-h-8 w-full rounded-sm border border-slate-400 bg-white px-2 py-1 font-sans text-xs normal-case text-slate-900 focus:border-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-200"
+                  >
+                    <option value="">Select when this cost is included</option>
+                    <option value="material">MAT</option>
+                    <option value="labor">LB</option>
+                    <option value="burden">BD</option>
+                  </select>
+                </label>
+              )
+            })}
+          </div>
+          <p className="text-[10px] leading-4 text-slate-600">
+            Assign each included economics cost to MAT, LB, or BD. Do not repeat costs already represented by BOM, Routing, or Work Center rate changes.
+          </p>
 
           {hasEconomicsInputs ? (
             <div className="overflow-x-auto border-t border-slate-200">
@@ -207,7 +235,9 @@ export const ScenarioCard: React.FC<ScenarioCardProps> = ({
                     <tr key={key} className="border-b border-slate-100 last:border-0">
                       <th scope="row" className="py-2 pr-2 text-left font-medium text-slate-700">{label}</th>
                       <td className="py-2 pl-2 text-right font-mono tabular-nums text-slate-900">
-                        {economics[key] === null ? 'N/A' : `${formatCost(economics[key])} ${unit}`}
+                        {economics[key] === null
+                          ? key === 'variableAddedCostPerPiece' ? '—' : 'N/A'
+                          : `${formatCost(economics[key])} ${unit}`}
                       </td>
                     </tr>
                   ))}
@@ -216,7 +246,7 @@ export const ScenarioCard: React.FC<ScenarioCardProps> = ({
             </div>
           ) : (
             <p className="text-[10px] leading-4 text-slate-600">
-              Add investment, added cost, and volume assumptions to see the net benefit and total amounts.
+              Add economics assumptions to see categorized Standard Cost and Total Improvement.
             </p>
           )}
 

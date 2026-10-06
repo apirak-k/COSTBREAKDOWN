@@ -6,8 +6,10 @@ import {
   formatVariance
 } from '../../../core'
 import type { CostSnapshot, PrioritizationCandidate } from '../../../core'
+import type { ScenarioEconomicsResult } from '../../../core'
 import {
   createScenarioDrafts,
+  prepareScenarioEconomicsInputs,
   prepareScenarioDrafts,
   type RcaSimulationPageState
 } from '../../rca-simulation/scenario-draft'
@@ -39,23 +41,22 @@ function savingColor(saving: number | null): string {
 
 function ScenarioCard({
   result,
+  economics,
   label,
   hasOverrides,
-  inputWarnings
+  inputWarnings,
+  economicsInputWarnings
 }: {
   result: ReturnType<typeof calculateScenarioCosts>[number]
+  economics: ScenarioEconomicsResult
   label: string
   hasOverrides: boolean
   inputWarnings: string[]
+  economicsInputWarnings: string[]
 }) {
-  const economics = calculateScenarioEconomics(result.currentCost.total, result.scenarioCost.total, {
-    fixedInvestment: null,
-    variableAddedCostPerPiece: null,
-    evaluationVolume: null
-  })
   const currentProcessing = sumCostParts(result.currentCost.labor, result.currentCost.burden)
-  const scenarioProcessing = sumCostParts(result.scenarioCost.labor, result.scenarioCost.burden)
-  const warnings = [...inputWarnings, ...result.overrideWarnings]
+  const scenarioProcessing = sumCostParts(economics.scenarioCost.labor, economics.scenarioCost.burden)
+  const warnings = [...inputWarnings, ...economicsInputWarnings, ...result.overrideWarnings, ...economics.warnings]
 
   return (
     <article className="border border-slate-300 bg-white">
@@ -69,20 +70,20 @@ function ScenarioCard({
       <div className="grid grid-cols-2 gap-3 px-3 py-3">
         <div>
           <p className="font-mono text-[9px] font-semibold uppercase text-slate-500">Scenario Standard Cost · THB/pc</p>
-          <p className="mt-1 font-mono text-base font-bold tabular-nums text-slate-950">{formatCost(result.scenarioCost.total)}</p>
-          <p className="mt-0.5 font-mono text-[9px] text-slate-500">{statusText(result.scenarioCost.status)}</p>
+          <p className="mt-1 font-mono text-base font-bold tabular-nums text-slate-950">{formatCost(economics.scenarioCost.total)}</p>
+          <p className="mt-0.5 font-mono text-[9px] text-slate-500">{statusText(economics.scenarioCost.status)}</p>
         </div>
         <div className="text-right">
-          <p className="font-mono text-[9px] font-semibold uppercase text-slate-500">Gross Saving · THB/pc</p>
-          <p className={`mt-1 font-mono text-base font-bold tabular-nums ${savingColor(economics.grossSavingPerPiece)}`}>
-            {economics.grossSavingPerPiece === null ? '—' : formatVariance(economics.grossSavingPerPiece, 4)}
+          <p className="font-mono text-[9px] font-semibold uppercase text-slate-500">Gross Improvement · THB/pc</p>
+          <p className={`mt-1 font-mono text-base font-bold tabular-nums ${savingColor(economics.grossImprovementPerPiece)}`}>
+            {economics.grossImprovementPerPiece === null ? '—' : formatVariance(economics.grossImprovementPerPiece, 4)}
           </p>
           <p className="mt-0.5 font-mono text-[9px] text-slate-500">Current − Scenario</p>
         </div>
       </div>
       <details className="border-t border-slate-200 px-3 py-2">
         <summary className="min-h-7 cursor-pointer py-1 font-mono text-[9px] font-semibold uppercase text-slate-600 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700">
-          Material, Labor, Burden, and Processing
+          MAT, LB, BD, and Processing
         </summary>
         <div className="mt-1 overflow-x-auto">
           <table className="w-full min-w-[360px] text-xs">
@@ -90,9 +91,9 @@ function ScenarioCard({
               <tr><th scope="col" className="py-1 text-left">Cost · THB/pc</th><th scope="col" className="py-1 text-right">Current</th><th scope="col" className="py-1 text-right">Scenario</th></tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              <tr><th scope="row" className="py-1 text-left font-medium text-slate-700">Material</th><td className="py-1 text-right font-mono tabular-nums">{formatCost(result.currentCost.material)}</td><td className="py-1 text-right font-mono tabular-nums">{formatCost(result.scenarioCost.material)}</td></tr>
-              <tr><th scope="row" className="py-1 text-left font-medium text-slate-700">Labor</th><td className="py-1 text-right font-mono tabular-nums">{formatCost(result.currentCost.labor)}</td><td className="py-1 text-right font-mono tabular-nums">{formatCost(result.scenarioCost.labor)}</td></tr>
-              <tr><th scope="row" className="py-1 text-left font-medium text-slate-700">Burden</th><td className="py-1 text-right font-mono tabular-nums">{formatCost(result.currentCost.burden)}</td><td className="py-1 text-right font-mono tabular-nums">{formatCost(result.scenarioCost.burden)}</td></tr>
+              <tr><th scope="row" className="py-1 text-left font-medium text-slate-700">MAT</th><td className="py-1 text-right font-mono tabular-nums">{formatCost(result.currentCost.material)}</td><td className="py-1 text-right font-mono tabular-nums">{formatCost(economics.scenarioCost.material)}</td></tr>
+              <tr><th scope="row" className="py-1 text-left font-medium text-slate-700">LB</th><td className="py-1 text-right font-mono tabular-nums">{formatCost(result.currentCost.labor)}</td><td className="py-1 text-right font-mono tabular-nums">{formatCost(economics.scenarioCost.labor)}</td></tr>
+              <tr><th scope="row" className="py-1 text-left font-medium text-slate-700">BD</th><td className="py-1 text-right font-mono tabular-nums">{formatCost(result.currentCost.burden)}</td><td className="py-1 text-right font-mono tabular-nums">{formatCost(economics.scenarioCost.burden)}</td></tr>
               <tr><th scope="row" className="py-1 text-left font-medium text-slate-700">Processing · Labor + Burden</th><td className="py-1 text-right font-mono tabular-nums">{formatCost(currentProcessing)}</td><td className="py-1 text-right font-mono tabular-nums">{formatCost(scenarioProcessing)}</td></tr>
             </tbody>
           </table>
@@ -120,6 +121,10 @@ export function ScenarioOverview({ currentSnapshot, candidates, simulationState,
     () => prepareScenarioDrafts(scenarioForms, inputDefinitions),
     [scenarioForms, inputDefinitions]
   )
+  const preparedEconomics = useMemo(
+    () => prepareScenarioEconomicsInputs(scenarioForms),
+    [scenarioForms]
+  )
   const scenarioResults = useMemo(
     () => selectedCandidate ? calculateScenarioCosts(currentSnapshot, preparedScenarios.drafts) : [],
     [selectedCandidate, currentSnapshot, preparedScenarios.drafts]
@@ -144,13 +149,21 @@ export function ScenarioOverview({ currentSnapshot, candidates, simulationState,
               const form = scenarioForms.find(item => item.letter === result.letter)
               const prepared = preparedScenarios.drafts.find(item => item.letter === result.letter)
               const hasOverrides = Boolean(prepared && Object.values(prepared.overrides).some(records => records && Object.keys(records).length > 0))
+              const economics = calculateScenarioEconomics(
+                result.currentCost,
+                result.scenarioCost,
+                preparedEconomics.inputsByLetter[result.letter],
+                new Set(preparedEconomics.invalidFieldsByLetter[result.letter])
+              )
               return (
                 <ScenarioCard
                   key={result.letter}
                   result={result}
+                  economics={economics}
                   label={form?.label.trim() ?? ''}
                   hasOverrides={hasOverrides}
                   inputWarnings={preparedScenarios.inputWarningsByLetter[result.letter]}
+                  economicsInputWarnings={preparedEconomics.warningsByLetter[result.letter]}
                 />
               )
             })}

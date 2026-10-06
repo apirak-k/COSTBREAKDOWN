@@ -74,7 +74,7 @@ export const SimulationGrid: React.FC<SimulationGridProps> = ({
           <h2 id="simulation-heading" className="mt-1 font-mono text-xs font-bold uppercase text-slate-900">Compare two scenarios</h2>
         </div>
         <div className="max-w-xl text-[11px] leading-4 text-slate-600">
-          <p>Each draft starts from the same Current snapshot. Improvement-economics assumptions do not change Standard Cost.</p>
+          <p>Each draft starts from the same Current snapshot. Categorized economics costs are included once in Simulated Standard Cost.</p>
           <p className="mt-1 text-xs">Cost change is Scenario − Current; a negative value means lower cost.</p>
         </div>
       </div>
@@ -146,12 +146,11 @@ export const SimulationGrid: React.FC<SimulationGridProps> = ({
         {scenarios.map(scenario => {
           const result = results.find(item => item.letter === scenario.letter) ?? unavailableResult(scenario)
           const economics = economicsResults.find(item => item.letter === scenario.letter) ?? {
-            grossSavingPerPiece: null,
+            scenarioCost: result.scenarioCost,
+            grossImprovementPerPiece: null,
             fixedCostEquivalentPerPiece: null,
-            netBenefitPerPiece: null,
-            totalGrossSaving: null,
-            totalVariableAddedCost: null,
-            totalNetBenefit: null,
+            variableAddedCostPerPiece: null,
+            totalImprovement: null,
             warnings: []
           }
 

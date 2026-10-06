@@ -31,16 +31,19 @@ export interface ScenarioCostResult {
 
 export interface ScenarioEconomicsInputs {
   fixedInvestment: number | null
+  fixedInvestmentCategory: ScenarioCostCategory | null
   variableAddedCostPerPiece: number | null
+  variableAddedCostCategory: ScenarioCostCategory | null
   evaluationVolume: number | null
 }
 
+export type ScenarioCostCategory = 'material' | 'labor' | 'burden'
+
 export interface ScenarioEconomicsResult {
-  grossSavingPerPiece: number | null
+  scenarioCost: SnapshotCost
+  grossImprovementPerPiece: number | null
   fixedCostEquivalentPerPiece: number | null
-  netBenefitPerPiece: number | null
-  totalGrossSaving: number | null
-  totalVariableAddedCost: number | null
-  totalNetBenefit: number | null
+  variableAddedCostPerPiece: number | null
+  totalImprovement: number | null
   warnings: string[]
 }

@@ -1,4 +1,4 @@
-import type { ScenarioCostDraft, ScenarioEconomicsInputs, ScenarioParameterOverrides } from '../../core'
+import type { ScenarioCostCategory, ScenarioCostDraft, ScenarioEconomicsInputs, ScenarioParameterOverrides } from '../../core'
 import type { ScenarioInputDefinition } from './scenario-inputs'
 
 export interface ScenarioDraftForm {
@@ -85,6 +85,7 @@ export interface PreparedScenarioDrafts {
 export interface PreparedScenarioEconomicsInputs {
   inputsByLetter: Record<ScenarioDraftForm['letter'], ScenarioEconomicsInputs>
   warningsByLetter: Record<ScenarioDraftForm['letter'], string[]>
+  invalidFieldsByLetter: Record<ScenarioDraftForm['letter'], (keyof ScenarioEconomicsInputs)[]>
 }
 
 export function createScenarioDrafts(): ScenarioDraftForm[] {
@@ -92,7 +93,11 @@ export function createScenarioDrafts(): ScenarioDraftForm[] {
     letter,
     label: '',
     inputValues: {},
-    economicsInputs: { fixedInvestment: '', variableAddedCostPerPiece: '', evaluationVolume: '' }
+    economicsInputs: {
+      fixedInvestment: '', fixedInvestmentCategory: '',
+      variableAddedCostPerPiece: '', variableAddedCostCategory: '',
+      evaluationVolume: ''
+    }
   }))
 }
 
@@ -138,6 +143,21 @@ function parseFiniteInput(rawValue: string | undefined, label: string, warnings:
     return null
   }
   return value
+}
+
+function hasInvalidFiniteInput(rawValue: string | undefined): boolean {
+  return rawValue !== undefined && rawValue.trim() !== '' && !Number.isFinite(Number(rawValue))
+}
+
+function parseCategoryInput(
+  rawValue: string | undefined,
+  label: string,
+  warnings: string[]
+): ScenarioCostCategory | null {
+  if (rawValue === undefined || rawValue.trim() === '') return null
+  if (rawValue === 'material' || rawValue === 'labor' || rawValue === 'burden') return rawValue
+  warnings.push(`${label} category must be MAT, LB, or BD.`)
+  return null
 }
 
 function addNumericOverride(
@@ -201,16 +221,24 @@ export function prepareScenarioEconomicsInputs(
   formDrafts: ScenarioDraftForm[]
 ): PreparedScenarioEconomicsInputs {
   const warningsByLetter: PreparedScenarioEconomicsInputs['warningsByLetter'] = { A: [], B: [] }
+  const invalidFieldsByLetter: PreparedScenarioEconomicsInputs['invalidFieldsByLetter'] = { A: [], B: [] }
   const inputsByLetter = {} as PreparedScenarioEconomicsInputs['inputsByLetter']
 
   formDrafts.forEach(draft => {
     const warnings = warningsByLetter[draft.letter]
+    const invalidFields = invalidFieldsByLetter[draft.letter]
+    const numericFields = ['fixedInvestment', 'variableAddedCostPerPiece', 'evaluationVolume'] as const
+    numericFields.forEach(key => {
+      if (hasInvalidFiniteInput(draft.economicsInputs[key])) invalidFields.push(key)
+    })
     inputsByLetter[draft.letter] = {
       fixedInvestment: parseFiniteInput(draft.economicsInputs.fixedInvestment, 'Fixed Investment', warnings),
+      fixedInvestmentCategory: parseCategoryInput(draft.economicsInputs.fixedInvestmentCategory, 'Fixed Investment', warnings),
       variableAddedCostPerPiece: parseFiniteInput(draft.economicsInputs.variableAddedCostPerPiece, 'Variable Added Cost / pc', warnings),
-      evaluationVolume: parseFiniteInput(draft.economicsInputs.evaluationVolume, 'Evaluation Volume', warnings)
+      variableAddedCostCategory: parseCategoryInput(draft.economicsInputs.variableAddedCostCategory, 'Variable Added Cost / pc', warnings),
+      evaluationVolume: parseFiniteInput(draft.economicsInputs.evaluationVolume, 'Evaluation Quantity', warnings)
     }
   })
 
-  return { inputsByLetter, warningsByLetter }
+  return { inputsByLetter, warningsByLetter, invalidFieldsByLetter }
 }
