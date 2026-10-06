@@ -1,32 +1,40 @@
-# Current Handoff — Master Data Decision Migration and Cost Breakdown UI
+# Current Handoff — Spec-Aligned Product Implementation
 
-**Updated:** 2026-10-05
+**Updated:** 2026-10-06
 
 ## Active checkpoint
 
 - Repository: `E:\COSTBREAKDOWN`.
 - Branch: `codex/costbreakdown-spec-source`.
-- This work started from `2609f19` (`docs: restore finalized source decisions`).
-- Documentation migration and the authorized Cost Breakdown UI slices are committed; push remains the final action for this checkpoint.
-- Keep the eight local synthetic verification scratch files untracked and out of commits.
+- The pre-implementation checkpoint tag `checkpoint/pre-overnight-spec-implementation-2026-10-06` points to `3b2d60d` and is present locally and on `origin`.
+- The verified implementation slice is committed as `d9d38dd` (`feat: add live cost overview and candidate drilldowns`); the follow-up documentation checkpoint is being committed next.
+- The user authorized pushing the completed work to `origin/codex/costbreakdown-spec-source` after final verification.
+- Keep these eight local synthetic-verification files untracked and out of commits: `.make-synthetic-verification.mjs`, `.synthetic-current.xlsx`, `.synthetic-mismatch.xlsx`, `.synthetic-reference.xlsx`, `.verify-cost-calc-sample.mjs`, `.verify-duplicate-calc.mjs`, `.verify-neutral-workbook-via-vite.mjs`, and `.verify-sizing-via-vite.mjs`.
 
 ## Completed
 
-- Migrated the latest finalized Master Data decisions into the canonical spec and traceability documents. The dated decision record is in `docs/history/COSTBREAKDOWN_REVIEW_CONTEXT_FOR_CODEX.md` §79. No unresolved contradiction between explicit decisions was found.
-- Reworked the Cost Breakdown summary as a Reference / Current / Gap table for material, labor, burden, Conversion subtotal, and Standard Cost. Conversion remains a subtotal and is not counted twice.
-- Cleaned the BOM detail table: removed the item code and extra field-difference disclosure, retained status/selection, and showed Reference and Current usage, units, prices, losses, costs, and Gap.
-- Combined Routing and Work Center detail under Processing. Work Center totals use the existing core processing findings; Routing Process inputs and matching Work Center rates appear in expandable detail. All rates remain available as calculation context.
-- Kept status filters and Selected Comparison controls, left unchanged rows without status badges, and preserved the collapsed `Review warnings (N)` disclosure.
+- Preserved the agreed Cost Breakdown calculations and comparison lifecycle.
+- Candidate findings use BOM `Name`, take record-level material costs and Gap from the Comparison layer, and show each changed input as Reference → Current without assigning THB to individual factors.
+- Processing candidates remain aggregated by Work Center; their Routing Process drill-down lists each side independently and uses the existing routing-cost calculation.
+- Cost Breakdown now exposes changed BOM fields under the Name row. RCA shows record-level Reference/Current cost and the selected Candidate's changed input values. Scenario inputs use the approved BOM Name and call Usage by its approved label.
+- Added a Dashboard page with Standard Cost result, Material/Processing causes, BOM and Work Center/Process detail, and live Scenario A/B/C results from the human-selected RCA Candidate. The Dashboard does not select a candidate or scenario automatically.
+- Selling Price and SG&A appear as Current context only. COGS, GP, margins, OP, and Sales remain uncalculated while formulas are pending. Trial execution/approval remains out of scope; MatVAR/LBVAR/BDVAR remain removed from scope.
+- Updated the 80-topic crosswalk for current implementation and verification evidence; it continues to track status only, not define requirements.
 
-## Scope and verification
+## Verification
 
-- The UI change consumes existing calculations; it does not change core cost formulas, lifecycle behavior, Candidate, or RCA.
-- No application tests, build, or browser checks were run or claimed for this checkpoint.
-- `git diff --check` passed for the documentation migration and the staged UI slice. Git emitted only LF-to-CRLF normalization notices.
-- Local synthetic verification scripts and workbooks remain untracked and were excluded from commits.
+- `npm run build` passed (2,033 modules). Vite reports existing ExcelJS browser externalization warnings for `fs` and `crypto`.
+- `node scripts/verify_cost_breakdown_review_feedback.mjs` passed, including Candidate/Cost Breakdown details and server-rendered Dashboard checks for live scenarios, pending business formulas, and no auto-selection.
+- Focused `npx jiti` verifiers passed for Candidate prioritization, ranking, Cost Breakdown view and reconciliation, scenario input mapping/drafts/economics, RCA record/notes/handoff/simulation context, and global workflow status.
+- `git diff --check` passed; Git reported only LF-to-CRLF normalization notices.
+- Browser visual inspection and human UI acceptance are not recorded. Local browser navigation was blocked by the browser policy, so no rendered-browser or human-acceptance claim is made.
 
-## Resume
+## Remaining boundaries
 
-1. Confirm the remote branch still descends from `2609f19` and push `codex/costbreakdown-spec-source` after this handoff update is committed.
-2. Do not include the eight local scratch files in the push.
-3. If further Cost Breakdown changes are requested, use the accepted brief in `C:\Users\Boom\.codex\attachments\c5d12e60-ab76-4922-8ad4-630cbf697f85\Pasted text.txt` and `docs/specs/COST_BREAKDOWN.md` as the behavior contract.
+- Keep business formulas and exact chart composition pending until explicit decisions are recorded.
+- Keep Trial execution, validation, approval, and promotion separate and unspecified.
+- Exact final page styling and human visual acceptance remain open.
+
+## Next action
+
+Commit this handoff/crosswalk update, then push the completed branch to `origin/codex/costbreakdown-spec-source` and verify the remote tip. Do not merge.
