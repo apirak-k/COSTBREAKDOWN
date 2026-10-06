@@ -1952,3 +1952,27 @@ These UI items do not reopen the finalized Master Data data model, lifecycle, wo
 The user adopted the recommendation that destination readiness be recalculated from the copied destination content rather than copying the source readiness flag. The reversible content-detection detail is an AI implementation choice recorded as P-010 in `docs/PROVISIONAL_IMPLEMENTATION_DECISIONS.md`; this decision does not define how generated blank rows affect general dataset readiness, cost calculation, or comparison.
 
 The canonical implementation contract is [`docs/specs/MASTER_DATA.md`](../specs/MASTER_DATA.md#dataset-lifecycle). The remaining Master Data questions are Import/Sizing metadata and generated blank rows' general readiness/calculation/comparison treatment.
+
+---
+
+# 81. Dashboard Reference and Formula Discussion Clarification — 2026-10-06
+
+**Source:** the user's supplied dashboard reference image and a follow-up requirement-history review in the ChatGPT conversation `CBD Refactor #1`.
+
+**CONFIRMED DIRECTION:** the dashboard reference confirms a left-side stacked vertical cost chart with a Selling Price line. The visual reference does not finalize the historical time axis, time-series data source, Reference/Current-to-period mapping, annual-average method, or exact business series. The current application provides Reference/Current snapshots and no agreed monthly-history source. MatVAR, LBVAR, and BDVAR remain excluded by the later explicit user decision.
+
+**Discussed, not finalized:** the following business equations were proposed or discussed, but the review found no explicit user approval to make them system formulas:
+
+```text
+COGS = Material + Processing
+GP = Selling Price - COGS
+GP Margin = GP / Selling Price
+OP = GP - SG&A
+OP Margin = OP / Selling Price
+Sales = Selling Price × Volume
+Total GP = GP per piece × Volume
+Total OP = OP per piece × Volume
+SG&A amount = Selling Price × SG&A%
+```
+
+Keep these formulas as conversation context only. The finalized Standard Cost and Scenario Gross Saving formulas remain unchanged. Do not implement the listed business equations until the user explicitly approves them. The current dashboard may continue to use settled Reference/Current engineering calculations under the provisional chart adaptation.

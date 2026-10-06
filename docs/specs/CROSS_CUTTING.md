@@ -77,7 +77,7 @@ When Selected Comparison continues through Candidate and RCA/Simulation, keep th
 
 `CONFIRMED DIRECTION — USER DECISION`: the dashboard is interactive/live with simulation, tells the result-to-cause story (`Result → Cause → Detail`), and gives executives an overview with details available on demand. The user-supplied dashboard reference confirms a left-side stacked vertical cost bar chart with Selling Price shown as a line. This fixes the chart's visual direction, not its time period or business formulas. The current product data is a Reference/Current snapshot pair; do not fabricate monthly history. The reversible adaptation to available snapshot data is recorded in [`PROVISIONAL_IMPLEMENTATION_DECISIONS.md`](../PROVISIONAL_IMPLEMENTATION_DECISIONS.md). Keep calculation/domain logic separate from UI presentation.
 
-Confirmed business concepts include Selling Price, SG&A, Material, Processing, COGS, GP, GP Margin, OP, OP Margin, Sales, and Volume/Quantity. These concepts and the need to review their formulas have been discussed; that does not mean the business formulas were finalized. OP must allow negative values. Business metric formulas, monetary SG&A treatment, total GP/OP formulas, and the chart's historical period/source remain pending; do not infer them from labels, the reference image, or current code. Selling Price and SG&A are stored as metadata inputs, with SG&A entered as a percent of Selling Price. Scenario overrides of Selling Price and SG&A are a confirmed future direction; each uses the current dataset value by default and clearing an override falls back to Current.
+Confirmed business concepts include Selling Price, SG&A, Material, Processing, COGS, GP, GP Margin, OP, OP Margin, Sales, and Volume/Quantity. These concepts and candidate formulas have been discussed; that does not mean the business formulas were finalized. The formula candidates recovered from `CBD Refactor #1` are preserved below as discussion only. OP must allow negative values. Business metric formulas, monetary SG&A treatment, total GP/OP formulas, and the chart's historical period/source remain pending; do not infer approval from labels, the reference image, or current code. Selling Price and SG&A are stored as metadata inputs, with SG&A entered as a percent of Selling Price. Scenario overrides of Selling Price and SG&A are a confirmed future direction; each uses the current dataset value by default and clearing an override falls back to Current.
 
 **MatVAR, LBVAR, and BDVAR are removed from current scope by the latest explicit user decision.** They are neither pending formulas nor deferred features. Do not add them to Standard Cost or the current dashboard scope.
 
@@ -92,6 +92,17 @@ The actual Trial execution, validation, approval, and promotion workflow remains
 ## PENDING — USER DECISION NEEDED
 
 - Business metric formulas and any financial treatment needed to calculate them; actual Trial execution/validation/approval/promotion.
+- The following equations were proposed/discussed but have no explicit user approval as system formulas. Preserve them as discussion context; do not implement them as finalized requirements until approved:
+  - `COGS = Material + Processing`
+  - `GP = Selling Price - COGS`
+  - `GP Margin = GP / Selling Price`
+  - `OP = GP - SG&A`
+  - `OP Margin = OP / Selling Price`
+  - `Sales = Selling Price × Volume`
+  - `Total GP = GP per piece × Volume`
+  - `Total OP = OP per piece × Volume`
+  - `SG&A amount = Selling Price × SG&A%`
+- Historical dashboard periods, data sources, Reference/Current-to-period mapping, annual averages, and exact business-chart series have not been finalized. The supplied image is visual context, not historical data or formula approval.
 
 ## Human review checkpoint
 
