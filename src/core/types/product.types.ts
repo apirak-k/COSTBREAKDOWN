@@ -82,8 +82,6 @@ export interface ProductSession {
   preparedSnapshotRoles?: SnapshotRoleReadiness
   /** Monotonic source revision used to invalidate RCA scenarios after Master Data changes. */
   masterDataRevision?: number
-  /** Dataset currently open in Master Data; Product context remains session-scoped. */
-  masterDataRole?: import('./snapshot.types').ComparisonRole
   /** Per-dataset row sizing configuration. */
   datasetSizing?: Record<import('./snapshot.types').ComparisonRole, DatasetSizing>
   /** Explicitly saved Master Data snapshots, kept only for this browser session. */

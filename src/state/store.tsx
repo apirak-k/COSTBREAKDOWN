@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, useMemo, ReactNode } from 'react'
+import React, { createContext, useContext, useState, useEffect, useMemo, useReducer, ReactNode } from 'react'
 import {
   ProductMaster,
   WorkCenterRate,
@@ -44,6 +44,12 @@ import { WorkingDataset } from '../core/types/dataset-standard.types'
 import { markSizingPlaceholderEdited, resizeMasterDataSnapshotForSizing } from './dataset-sizing'
 import { clearMasterDataDatasetState } from './clear-master-data-dataset'
 import { markMasterDataChanged, markMasterDataChangedForSnapshotPair } from './master-data-revision'
+import {
+  INITIAL_MASTER_DATA_UI_STATE,
+  reduceMasterDataUiState,
+  type MasterDataUiAction,
+  type MasterDataUiState
+} from '../features/master-data/master-data-ui-state'
 import { STORAGE_KEYS, loadFromSession, saveToSession } from '../services/storage'
 
 import {
@@ -283,6 +289,7 @@ interface AppContextType {
   selectedComparisonSelection: SelectedComparisonSelection | null
   isSelectedComparisonActive: boolean
   masterDataHandoff: MasterDataHandoffStatus
+  masterDataUiState: MasterDataUiState
   masterDataRole: ComparisonRole
   masterDataSnapshot: CostSnapshot
   masterDataLastSavedSnapshot?: CostSnapshot
@@ -307,6 +314,7 @@ interface AppContextType {
   activateDraft: (draftId: string) => void
 
   // Master Data dataset controls
+  updateMasterDataUiState: (action: MasterDataUiAction) => void
   setMasterDataRole: (role: ComparisonRole) => void
   saveMasterDataWorkingDataset: (role: ComparisonRole) => void
   resetMasterDataWorkingDataset: (role: ComparisonRole) => void
@@ -364,12 +372,13 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const [productSessions, setProductSessions] = useState<ProductSession[]>(() => {
     const loaded = loadFromSession<ProductSession[]>(STORAGE_KEYS.SESSIONS, [makeEmptySession()])
     return loaded.map((s, idx) => {
+      const sessionWithoutLegacyUiState = { ...s } as ProductSession & { masterDataRole?: ComparisonRole }
+      delete sessionWithoutLegacyUiState.masterDataRole
       const normalized = withSnapshotPair({
-        ...s,
-        candidateRcaRecords: s.candidateRcaRecords ?? {},
-        masterDataRole: s.masterDataRole ?? 'current',
-        status: s.status || (idx === 0 ? 'draft' : 'draft'),
-        versionLabel: s.versionLabel || (s.status === 'archived' ? 'Archived' : 'Draft')
+        ...sessionWithoutLegacyUiState,
+        candidateRcaRecords: sessionWithoutLegacyUiState.candidateRcaRecords ?? {},
+        status: sessionWithoutLegacyUiState.status || (idx === 0 ? 'draft' : 'draft'),
+        versionLabel: sessionWithoutLegacyUiState.versionLabel || (sessionWithoutLegacyUiState.status === 'archived' ? 'Archived' : 'Draft')
       })
       return {
         ...normalized,
@@ -377,6 +386,12 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       }
     })
   })
+
+  const [masterDataUiState, dispatchMasterDataUiState] = useReducer(
+    reduceMasterDataUiState,
+    INITIAL_MASTER_DATA_UI_STATE
+  )
+  const updateMasterDataUiState = (action: MasterDataUiAction) => dispatchMasterDataUiState(action)
 
   const [activeProductId, setActiveProductId] = useState<string>(() =>
     loadFromSession(STORAGE_KEYS.ACTIVE_ID, 'ps-empty-default')
@@ -499,7 +514,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     candidateControllability
   )
   const masterDataHandoff = evaluateMasterDataHandoff(activeSession, snapshotPair)
-  const masterDataRole = activeSession.masterDataRole ?? 'current'
+  const masterDataRole = masterDataUiState.role
   const masterDataSnapshot = masterDataRole === 'reference' ? snapshotPair.reference : snapshotPair.current
   const masterDataLastSavedSnapshot = activeSession.lastSavedMasterData?.[masterDataRole]?.snapshot
   const masterDataSizing = activeSession.datasetSizing?.[masterDataRole] ?? masterDataSnapshot.sizing ?? {}
@@ -699,9 +714,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   }
 
   const setMasterDataRole = (role: ComparisonRole) => {
-    setProductSessions(prev => prev.map(session => session.id === activeSession.id
-      ? { ...session, masterDataRole: role }
-      : session))
+    updateMasterDataUiState({ type: 'set-role', role })
   }
 
   const saveMasterDataWorkingDataset = (role: ComparisonRole) => {
@@ -758,7 +771,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const updateMasterDataDataset = (mutate: (snapshot: CostSnapshot) => CostSnapshot) => {
     setProductSessions(prev => prev.map(session => {
       if (session.id !== activeSession.id) return session
-      const role = session.masterDataRole ?? 'current'
+      const role = masterDataUiState.role
       const pair = session.snapshotPair ?? sessionToSnapshotPair(session)
       const readiness = getSnapshotRoleReadiness(session)
       const dataset = role === 'reference' ? pair.reference : pair.current
@@ -768,7 +781,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         : { reference: pair.reference, current: { ...nextDataset, comparisonRole: 'current' as const } }
       const updated = applyMasterDataSnapshotPair({
         ...session,
-        masterDataRole: role,
         updatedAt: new Date().toISOString()
       }, nextPair)
       return {
@@ -778,14 +790,12 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     }))
   }
 
-  const setMasterDataProduct = (session: ProductSession, pair: SnapshotPair, nextProduct: ProductMaster): ProductSession => {
-    const role = session.masterDataRole ?? 'current'
+  const setMasterDataProduct = (session: ProductSession, pair: SnapshotPair, nextProduct: ProductMaster, role: ComparisonRole): ProductSession => {
     const nextPair: SnapshotPair = role === 'reference'
       ? { reference: { ...pair.reference, product: { ...nextProduct } }, current: pair.current }
       : { reference: pair.reference, current: { ...pair.current, product: { ...nextProduct } } }
     return applyMasterDataSnapshotPair({
       ...session,
-      masterDataRole: role,
       updatedAt: new Date().toISOString()
     }, nextPair)
   }
@@ -793,8 +803,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const updateMasterDataProduct = (nextProduct: ProductMaster) => {
     setProductSessions(prev => prev.map(session => {
       if (session.id !== activeSession.id) return session
-      const role = session.masterDataRole ?? 'current'
-      const updated = setMasterDataProduct(session, session.snapshotPair ?? sessionToSnapshotPair(session), nextProduct)
+      const role = masterDataUiState.role
+      const updated = setMasterDataProduct(session, session.snapshotPair ?? sessionToSnapshotPair(session), nextProduct, role)
       return {
         ...updated,
         preparedSnapshotRoles: { ...getSnapshotRoleReadiness(session), [role]: true }
@@ -834,7 +844,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       const updated = applyMasterDataSnapshotPair({
         ...session,
         datasetSizing: updatedSizing,
-        masterDataRole: 'current',
         updatedAt: new Date().toISOString()
       }, { reference, current })
       return {
@@ -872,7 +881,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       const updated = applyMasterDataSnapshotPair({
         ...session,
         datasetSizing: updatedSizing,
-        masterDataRole: 'reference',
         updatedAt: new Date().toISOString()
       }, { reference, current })
       return {
@@ -1213,13 +1221,13 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const updated = applyMasterDataSnapshotPair(
       {
         ...source,
-        masterDataRole: result.role,
         updatedAt: now,
         preparedSnapshotRoles
       },
       nextPair
     )
     setProductSessions(prev => prev.map(session => session.id === source.id ? updated : session))
+    updateMasterDataUiState({ type: 'set-role', role: result.role })
     setActiveTab('master')
   }
 
@@ -1249,7 +1257,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const now = new Date().toISOString()
     const updated = applyMasterDataSnapshotPair({
       ...source,
-      masterDataRole: 'current',
       updatedAt: now,
       savedDrivers: [],
       selectedDriverKeys: [],
@@ -1334,6 +1341,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       selectedComparisonSelection,
       isSelectedComparisonActive,
       masterDataHandoff,
+      masterDataUiState,
       masterDataRole,
       masterDataSnapshot,
       masterDataLastSavedSnapshot,
@@ -1350,6 +1358,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       addUOM,
       cloneActiveToDraft,
       activateDraft,
+      updateMasterDataUiState,
       setMasterDataRole,
       saveMasterDataWorkingDataset,
       resetMasterDataWorkingDataset,

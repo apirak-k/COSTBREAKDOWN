@@ -15,12 +15,14 @@ export const MasterDataPage: React.FC = () => {
   const {
     uomList,
     isDevelopmentReviewFixture,
+    masterDataUiState,
     masterDataRole,
     masterDataSnapshot,
     masterDataLastSavedSnapshot,
     masterDataSizing,
     masterDataHandoff,
     setMasterDataRole,
+    updateMasterDataUiState,
     saveMasterDataWorkingDataset,
     resetMasterDataWorkingDataset,
     loadDevelopmentReviewFixture,
@@ -45,12 +47,13 @@ export const MasterDataPage: React.FC = () => {
     reorderMasterDataWorkCenters
   } = useAppStore()
 
-  const [isEditMode, setIsEditMode] = useState(false)
-  const [activeTableTab, setActiveTableTab] = useState<TableSubTab>('bom')
-  const [isAllTablesVisible, setIsAllTablesVisible] = useState(false)
   const [importModalOpen, setImportModalOpen] = useState(false)
   const [sizingModalOpen, setSizingModalOpen] = useState(false)
   const [warningsExpanded, setWarningsExpanded] = useState(false)
+
+  const isEditMode = masterDataUiState.mode === 'edit'
+  const isAllTablesVisible = masterDataUiState.tableView === 'all'
+  const activeTableTab: TableSubTab = masterDataUiState.tableView === 'all' ? 'bom' : masterDataUiState.tableView
 
   const handleLoadSyntheticReviewData = async () => {
     if (!import.meta.env.DEV) return
@@ -186,8 +189,7 @@ export const MasterDataPage: React.FC = () => {
             aria-pressed={isActive}
             aria-controls="master-data-table-panel"
             onClick={() => {
-              setActiveTableTab(section.key)
-              setIsAllTablesVisible(false)
+              updateMasterDataUiState({ type: 'set-table-view', tableView: section.key })
             }}
             className={'inline-flex min-h-8 items-center gap-1 border px-2 font-mono text-[11px] font-medium transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700 ' +
               (isActive
@@ -203,7 +205,7 @@ export const MasterDataPage: React.FC = () => {
         type="button"
         aria-pressed={isAllTablesVisible}
         aria-controls="master-data-table-panel"
-        onClick={() => setIsAllTablesVisible(true)}
+        onClick={() => updateMasterDataUiState({ type: 'set-table-view', tableView: 'all' })}
         className={'min-h-8 border px-2 font-mono text-[11px] font-medium transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700 ' +
           (isAllTablesVisible
             ? 'border-slate-900 bg-slate-900 text-white'
@@ -226,7 +228,7 @@ export const MasterDataPage: React.FC = () => {
         onResetWorkingDataset={() => resetMasterDataWorkingDataset(masterDataRole)}
         uomList={uomList}
         isEditMode={isEditMode}
-        onToggleEditMode={setIsEditMode}
+        onToggleEditMode={mode => updateMasterDataUiState({ type: 'set-mode', mode: mode ? 'edit' : 'view' })}
         onUpdateProduct={updateMasterDataProduct}
         onUpdateRemark={updateMasterDataRemark}
         onCloneReferenceToCurrent={cloneReferenceToCurrent}
