@@ -1,14 +1,17 @@
 import React, { useEffect, useMemo } from 'react'
 import { calculateScenarioCosts } from '../../core/calculations/scenario-cost'
 import { calculateScenarioEconomics } from '../../core/calculations/scenario-economics'
-import type { ScenarioEconomicsInputs } from '../../core'
+import { calculateScenarioBusinessMetrics } from '../../core/calculations/scenario-business'
+import type { ScenarioBusinessInputs, ScenarioBusinessResult, ScenarioEconomicsInputs } from '../../core'
 import { useAppStore } from '../../state'
 import {
   createScenarioDrafts,
+  prepareScenarioBusinessInputs,
   prepareScenarioEconomicsInputs,
   prepareScenarioDrafts,
   type RcaSimulationPageState,
   type ScenarioDraftForm,
+  updateScenarioBusinessInput,
   updateScenarioEconomicsInput,
   updateScenarioInputValue,
   updateScenarioLabel
@@ -61,6 +64,13 @@ export const RCASimulationPage: React.FC<RCASimulationPageProps> = ({ state, upd
   )
 
   const currentSnapshot = snapshotPair.current
+  const currentBusinessInputs = useMemo<ScenarioBusinessInputs>(
+    () => ({
+      sellingPrice: currentSnapshot.product.sellingPrice ?? null,
+      sgaPercent: currentSnapshot.product.sgaPercent ?? null
+    }),
+    [currentSnapshot.product.sellingPrice, currentSnapshot.product.sgaPercent]
+  )
   const inputDefinitions = useMemo(
     () => selectedCandidate ? getScenarioInputDefinitions(selectedCandidate, currentSnapshot) : [],
     [selectedCandidate, currentSnapshot]
@@ -72,6 +82,10 @@ export const RCASimulationPage: React.FC<RCASimulationPageProps> = ({ state, upd
   const preparedEconomics = useMemo(
     () => prepareScenarioEconomicsInputs(scenarioDrafts),
     [scenarioDrafts]
+  )
+  const preparedBusiness = useMemo(
+    () => prepareScenarioBusinessInputs(scenarioDrafts, currentBusinessInputs),
+    [scenarioDrafts, currentBusinessInputs]
   )
   const scenarioResults = useMemo(
     () => selectedCandidate && !isSelectedComparisonActive ? calculateScenarioCosts(currentSnapshot, preparedDrafts.drafts) : [],
@@ -88,6 +102,17 @@ export const RCASimulationPage: React.FC<RCASimulationPageProps> = ({ state, upd
       )
     })),
     [scenarioResults, preparedEconomics.inputsByLetter, preparedEconomics.invalidFieldsByLetter]
+  )
+  const businessResults = useMemo(
+    () => scenarioResults.map(result => {
+      const economics = economicsResults.find(item => item.letter === result.letter)
+      const business: ScenarioBusinessResult = calculateScenarioBusinessMetrics(
+        preparedBusiness.inputsByLetter[result.letter],
+        economics?.scenarioCost.total ?? null
+      )
+      return { letter: result.letter, ...business }
+    }),
+    [scenarioResults, economicsResults, preparedBusiness.inputsByLetter]
   )
 
   const updateDrafts = (transform: (drafts: ScenarioDraftForm[]) => ScenarioDraftForm[]) => {
@@ -120,6 +145,14 @@ export const RCASimulationPage: React.FC<RCASimulationPageProps> = ({ state, upd
     value: string
   ) => {
     updateDrafts(drafts => updateScenarioEconomicsInput(drafts, letter, key, value))
+  }
+
+  const handleUpdateBusinessInput = (
+    letter: ScenarioDraftForm['letter'],
+    key: keyof ScenarioBusinessInputs,
+    value: string
+  ) => {
+    updateDrafts(drafts => updateScenarioBusinessInput(drafts, letter, key, value))
   }
 
   return (
@@ -161,11 +194,15 @@ export const RCASimulationPage: React.FC<RCASimulationPageProps> = ({ state, upd
             inputDefinitions={inputDefinitions}
             results={scenarioResults}
             economicsResults={economicsResults}
+            businessResults={businessResults}
+            currentBusinessInputs={currentBusinessInputs}
             inputWarningsByLetter={preparedDrafts.inputWarningsByLetter}
             economicsInputWarningsByLetter={preparedEconomics.warningsByLetter}
+            businessInputWarningsByLetter={preparedBusiness.warningsByLetter}
             onUpdateLabel={handleUpdateLabel}
             onUpdateInput={handleUpdateInput}
             onUpdateEconomics={handleUpdateEconomics}
+            onUpdateBusinessInput={handleUpdateBusinessInput}
           />
 
           <section aria-labelledby="trial-handoff-heading" className="border border-slate-300 bg-white px-3 py-3">

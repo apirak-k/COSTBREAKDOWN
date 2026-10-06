@@ -1,4 +1,4 @@
-import type { ScenarioCostCategory, ScenarioCostDraft, ScenarioEconomicsInputs, ScenarioParameterOverrides } from '../../core'
+import type { ProductMaster, ScenarioBusinessInputs, ScenarioCostCategory, ScenarioCostDraft, ScenarioEconomicsInputs, ScenarioParameterOverrides } from '../../core'
 import type { ScenarioInputDefinition } from './scenario-inputs'
 
 export interface ScenarioDraftForm {
@@ -6,6 +6,7 @@ export interface ScenarioDraftForm {
   label: string
   inputValues: Record<string, string>
   economicsInputs: Record<keyof ScenarioEconomicsInputs, string>
+  businessInputs: Record<keyof ScenarioBusinessInputs, string>
 }
 
 export interface RcaSimulationPageState {
@@ -88,6 +89,11 @@ export interface PreparedScenarioEconomicsInputs {
   invalidFieldsByLetter: Record<ScenarioDraftForm['letter'], (keyof ScenarioEconomicsInputs)[]>
 }
 
+export interface PreparedScenarioBusinessInputs {
+  inputsByLetter: Record<ScenarioDraftForm['letter'], ScenarioBusinessInputs>
+  warningsByLetter: Record<ScenarioDraftForm['letter'], string[]>
+}
+
 export function createScenarioDrafts(): ScenarioDraftForm[] {
   return (['A', 'B'] as const).map(letter => ({
     letter,
@@ -97,7 +103,8 @@ export function createScenarioDrafts(): ScenarioDraftForm[] {
       fixedInvestment: '', fixedInvestmentCategory: '',
       variableAddedCostPerPiece: '', variableAddedCostCategory: '',
       evaluationVolume: ''
-    }
+    },
+    businessInputs: { sellingPrice: '', sgaPercent: '' }
   }))
 }
 
@@ -145,8 +152,67 @@ function parseFiniteInput(rawValue: string | undefined, label: string, warnings:
   return value
 }
 
+export function updateScenarioBusinessInput(
+  drafts: ScenarioDraftForm[],
+  letter: ScenarioDraftForm['letter'],
+  key: keyof ScenarioBusinessInputs,
+  value: string
+): ScenarioDraftForm[] {
+  return drafts.map(draft => draft.letter === letter
+    ? {
+        ...draft,
+        businessInputs: {
+          sellingPrice: draft.businessInputs?.sellingPrice ?? '',
+          sgaPercent: draft.businessInputs?.sgaPercent ?? '',
+          [key]: value
+        }
+      }
+    : draft)
+}
+
 function hasInvalidFiniteInput(rawValue: string | undefined): boolean {
   return rawValue !== undefined && rawValue.trim() !== '' && !Number.isFinite(Number(rawValue))
+}
+
+function parseBusinessOverride(
+  rawValue: string | undefined,
+  currentValue: number | null | undefined,
+  label: string,
+  warnings: string[]
+): number | null {
+  if (rawValue === undefined || rawValue.trim() === '') {
+    if (currentValue === null || currentValue === undefined) return null
+    if (!Number.isFinite(currentValue)) {
+      warnings.push(`Current ${label} must be a finite number.`)
+      return null
+    }
+    return currentValue
+  }
+
+  const value = Number(rawValue)
+  if (!Number.isFinite(value)) {
+    warnings.push(`${label} must be a finite number.`)
+    return null
+  }
+  return value
+}
+
+export function prepareScenarioBusinessInputs(
+  formDrafts: ScenarioDraftForm[],
+  currentProduct: Pick<ProductMaster, 'sellingPrice' | 'sgaPercent'>
+): PreparedScenarioBusinessInputs {
+  const warningsByLetter: PreparedScenarioBusinessInputs['warningsByLetter'] = { A: [], B: [] }
+  const inputsByLetter = {} as PreparedScenarioBusinessInputs['inputsByLetter']
+
+  formDrafts.forEach(draft => {
+    const warnings = warningsByLetter[draft.letter]
+    inputsByLetter[draft.letter] = {
+      sellingPrice: parseBusinessOverride(draft.businessInputs?.sellingPrice, currentProduct.sellingPrice, 'Selling Price', warnings),
+      sgaPercent: parseBusinessOverride(draft.businessInputs?.sgaPercent, currentProduct.sgaPercent, 'SG&A %', warnings)
+    }
+  })
+
+  return { inputsByLetter, warningsByLetter }
 }
 
 function parseCategoryInput(

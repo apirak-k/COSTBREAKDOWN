@@ -1,5 +1,5 @@
 import React from 'react'
-import type { ScenarioCostResult, ScenarioEconomicsInputs, ScenarioEconomicsResult } from '../../../core'
+import type { ScenarioBusinessInputs, ScenarioBusinessResult, ScenarioCostResult, ScenarioEconomicsInputs, ScenarioEconomicsResult } from '../../../core'
 import type { ScenarioDraftForm } from '../scenario-draft'
 import type { ScenarioInputDefinition } from '../scenario-inputs'
 import { ScenarioCard } from './ScenarioCard'
@@ -9,11 +9,15 @@ interface SimulationGridProps {
   inputDefinitions: ScenarioInputDefinition[]
   results: ScenarioCostResult[]
   economicsResults: Array<ScenarioEconomicsResult & { letter: 'A' | 'B' }>
+  businessResults: Array<ScenarioBusinessResult & { letter: 'A' | 'B' }>
+  currentBusinessInputs: ScenarioBusinessInputs
   inputWarningsByLetter: Record<'A' | 'B', string[]>
   economicsInputWarningsByLetter: Record<'A' | 'B', string[]>
+  businessInputWarningsByLetter: Record<'A' | 'B', string[]>
   onUpdateLabel: (letter: 'A' | 'B', label: string) => void
   onUpdateInput: (letter: 'A' | 'B', inputKey: string, value: string) => void
   onUpdateEconomics: (letter: 'A' | 'B', key: keyof ScenarioEconomicsInputs, value: string) => void
+  onUpdateBusinessInput: (letter: 'A' | 'B', key: keyof ScenarioBusinessInputs, value: string) => void
 }
 
 function unavailableResult(scenario: ScenarioDraftForm): ScenarioCostResult {
@@ -53,11 +57,15 @@ export const SimulationGrid: React.FC<SimulationGridProps> = ({
   inputDefinitions,
   results,
   economicsResults,
+  businessResults,
+  currentBusinessInputs,
   inputWarningsByLetter,
   economicsInputWarningsByLetter,
+  businessInputWarningsByLetter,
   onUpdateLabel,
   onUpdateInput,
-  onUpdateEconomics
+  onUpdateEconomics,
+  onUpdateBusinessInput
 }) => {
   const baselineResult = results[0] ?? (scenarios[0] ? unavailableResult(scenarios[0]) : null)
   const currentCost = baselineResult?.currentCost ?? null
@@ -153,6 +161,12 @@ export const SimulationGrid: React.FC<SimulationGridProps> = ({
             totalImprovement: null,
             warnings: []
           }
+          const business = businessResults.find(item => item.letter === scenario.letter) ?? {
+            ...currentBusinessInputs,
+            sgaAmountPerPiece: null,
+            operatingProfitPerPiece: null,
+            warnings: ['No business calculation result was returned for this scenario.']
+          }
 
           return (
             <ScenarioCard
@@ -161,11 +175,15 @@ export const SimulationGrid: React.FC<SimulationGridProps> = ({
               inputDefinitions={inputDefinitions}
               result={result}
               economics={economics}
+              business={business}
+              currentBusinessInputs={currentBusinessInputs}
               inputWarnings={inputWarningsByLetter[scenario.letter] ?? []}
               economicsInputWarnings={economicsInputWarningsByLetter[scenario.letter] ?? []}
+              businessInputWarnings={businessInputWarningsByLetter[scenario.letter] ?? []}
               onUpdateLabel={label => onUpdateLabel(scenario.letter, label)}
               onUpdateInput={(inputKey, value) => onUpdateInput(scenario.letter, inputKey, value)}
               onUpdateEconomics={(key, value) => onUpdateEconomics(scenario.letter, key, value)}
+              onUpdateBusinessInput={(key, value) => onUpdateBusinessInput(scenario.letter, key, value)}
             />
           )
         })}

@@ -2,13 +2,14 @@ import { useMemo } from 'react'
 import {
   calculateScenarioCosts,
   calculateScenarioEconomics,
+  calculateScenarioBusinessMetrics,
   formatNumber,
   formatVariance
 } from '../../../core'
-import type { CostSnapshot, PrioritizationCandidate } from '../../../core'
-import type { ScenarioEconomicsResult } from '../../../core'
+import type { CostSnapshot, PrioritizationCandidate, ScenarioBusinessResult, ScenarioEconomicsResult } from '../../../core'
 import {
   createScenarioDrafts,
+  prepareScenarioBusinessInputs,
   prepareScenarioEconomicsInputs,
   prepareScenarioDrafts,
   type RcaSimulationPageState
@@ -42,6 +43,7 @@ function savingColor(saving: number | null): string {
 function ScenarioCard({
   result,
   economics,
+  business,
   label,
   hasOverrides,
   inputWarnings,
@@ -49,6 +51,7 @@ function ScenarioCard({
 }: {
   result: ReturnType<typeof calculateScenarioCosts>[number]
   economics: ScenarioEconomicsResult
+  business: ScenarioBusinessResult
   label: string
   hasOverrides: boolean
   inputWarnings: string[]
@@ -56,7 +59,7 @@ function ScenarioCard({
 }) {
   const currentProcessing = sumCostParts(result.currentCost.labor, result.currentCost.burden)
   const scenarioProcessing = sumCostParts(economics.scenarioCost.labor, economics.scenarioCost.burden)
-  const warnings = [...inputWarnings, ...economicsInputWarnings, ...result.overrideWarnings, ...economics.warnings]
+  const warnings = [...inputWarnings, ...economicsInputWarnings, ...result.overrideWarnings, ...economics.warnings, ...business.warnings]
 
   return (
     <article className="border border-slate-300 bg-white">
@@ -81,6 +84,14 @@ function ScenarioCard({
           <p className="mt-0.5 font-mono text-[9px] text-slate-500">Current − Scenario</p>
         </div>
       </div>
+      <dl className="grid grid-cols-2 gap-x-3 border-t border-slate-200 px-3 py-2 text-[10px]">
+        <div><dt className="font-mono uppercase text-slate-500">Selling Price · THB/pc</dt><dd className="mt-0.5 font-mono tabular-nums text-slate-900">{formatCost(business.sellingPrice)}</dd></div>
+        <div><dt className="font-mono uppercase text-slate-500">SG&amp;A %</dt><dd className="mt-0.5 font-mono tabular-nums text-slate-900">{business.sgaPercent === null ? '—' : `${formatNumber(business.sgaPercent, 4)}%`}</dd></div>
+        <div><dt className="font-mono uppercase text-slate-500">SG&amp;A amount / pc</dt><dd className="mt-0.5 font-mono tabular-nums text-slate-900">{formatCost(business.sgaAmountPerPiece)}</dd></div>
+        <div><dt className="font-mono uppercase text-slate-500">OP / pc</dt><dd className={`mt-0.5 font-mono font-semibold tabular-nums ${business.operatingProfitPerPiece !== null && business.operatingProfitPerPiece < 0 ? 'text-rose-700' : 'text-slate-900'}`}>
+          {formatCost(business.operatingProfitPerPiece)}{business.operatingProfitPerPiece !== null && business.operatingProfitPerPiece < 0 ? ' · Operating loss' : ''}
+        </dd></div>
+      </dl>
       <details className="border-t border-slate-200 px-3 py-2">
         <summary className="min-h-7 cursor-pointer py-1 font-mono text-[9px] font-semibold uppercase text-slate-600 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700">
           MAT, LB, BD, and Processing
@@ -125,6 +136,13 @@ export function ScenarioOverview({ currentSnapshot, candidates, simulationState,
     () => prepareScenarioEconomicsInputs(scenarioForms),
     [scenarioForms]
   )
+  const preparedBusiness = useMemo(
+    () => prepareScenarioBusinessInputs(scenarioForms, {
+      sellingPrice: currentSnapshot.product.sellingPrice ?? null,
+      sgaPercent: currentSnapshot.product.sgaPercent ?? null
+    }),
+    [scenarioForms, currentSnapshot.product.sellingPrice, currentSnapshot.product.sgaPercent]
+  )
   const scenarioResults = useMemo(
     () => selectedCandidate ? calculateScenarioCosts(currentSnapshot, preparedScenarios.drafts) : [],
     [selectedCandidate, currentSnapshot, preparedScenarios.drafts]
@@ -155,15 +173,23 @@ export function ScenarioOverview({ currentSnapshot, candidates, simulationState,
                 preparedEconomics.inputsByLetter[result.letter],
                 new Set(preparedEconomics.invalidFieldsByLetter[result.letter])
               )
+              const business = calculateScenarioBusinessMetrics(
+                preparedBusiness.inputsByLetter[result.letter],
+                economics.scenarioCost.total
+              )
               return (
                 <ScenarioCard
                   key={result.letter}
                   result={result}
                   economics={economics}
+                  business={business}
                   label={form?.label.trim() ?? ''}
                   hasOverrides={hasOverrides}
                   inputWarnings={preparedScenarios.inputWarningsByLetter[result.letter]}
-                  economicsInputWarnings={preparedEconomics.warningsByLetter[result.letter]}
+                  economicsInputWarnings={[
+                    ...preparedEconomics.warningsByLetter[result.letter],
+                    ...preparedBusiness.warningsByLetter[result.letter]
+                  ]}
                 />
               )
             })}

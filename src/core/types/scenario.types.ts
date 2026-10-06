@@ -39,6 +39,17 @@ export interface ScenarioEconomicsInputs {
 
 export type ScenarioCostCategory = 'material' | 'labor' | 'burden'
 
+export interface ScenarioBusinessInputs {
+  sellingPrice: number | null
+  sgaPercent: number | null
+}
+
+export interface ScenarioBusinessResult extends ScenarioBusinessInputs {
+  sgaAmountPerPiece: number | null
+  operatingProfitPerPiece: number | null
+  warnings: string[]
+}
+
 export interface ScenarioEconomicsResult {
   scenarioCost: SnapshotCost
   grossImprovementPerPiece: number | null

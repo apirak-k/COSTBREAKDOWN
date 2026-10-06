@@ -73,11 +73,15 @@ try {
     inputDefinitions: [],
     results: [],
     economicsResults: [],
+    businessResults: [],
+    currentBusinessInputs: { sellingPrice: null, sgaPercent: null },
     inputWarningsByLetter: { A: [], B: [] },
     economicsInputWarningsByLetter: { A: [], B: [] },
+    businessInputWarningsByLetter: { A: [], B: [] },
     onUpdateLabel() {},
     onUpdateInput() {},
-    onUpdateEconomics() {}
+    onUpdateEconomics() {},
+    onUpdateBusinessInput() {}
   }))
   assert.match(simulationGridMarkup, /Compare two scenarios/)
   assert.match(simulationGridMarkup, /Scenario A/)
@@ -216,7 +220,8 @@ try {
         : {},
     economicsInputs: letter === 'A'
       ? { fixedInvestment: '200', fixedInvestmentCategory: 'burden', variableAddedCostPerPiece: '0.5', variableAddedCostCategory: 'material', evaluationVolume: '100' }
-      : { fixedInvestment: '', fixedInvestmentCategory: '', variableAddedCostPerPiece: '', variableAddedCostCategory: '', evaluationVolume: '' }
+      : { fixedInvestment: '', fixedInvestmentCategory: '', variableAddedCostPerPiece: '', variableAddedCostCategory: '', evaluationVolume: '' },
+    businessInputs: letter === 'A' ? { sellingPrice: '100', sgaPercent: '10' } : { sellingPrice: '', sgaPercent: '' }
   }))
   const dashboardState = {
     sourceDataRevision: 0, selectedCandidateKey: 'mat:resin', trialHandoffLetter: null,
@@ -232,11 +237,12 @@ try {
   }
   const dashboardMarkup = renderToStaticMarkup(React.createElement(DashboardPage, dashboardProps))
   const dashboardText = visibleText(dashboardMarkup)
-  const opPanelMarkup = dashboardMarkup.match(/<aside aria-label="Business metric formula status"[\s\S]*?<\/aside>/)?.[0] ?? ''
+  const opPanelMarkup = dashboardMarkup.match(/<aside aria-label="Current OP calculation"[\s\S]*?<\/aside>/)?.[0] ?? ''
   assert.ok(dashboardText.includes('Current Standard Cost is higher'))
   assert.ok(dashboardText.includes('Largest component movement: Material +1.0000 THB/pc'))
   assert.ok(dashboardText.includes('Operating Profit (OP)'))
-  assert.ok(dashboardText.includes('OP can be positive or negative'))
+  assert.ok(dashboardText.includes('OP = Selling Price'))
+  assert.ok(dashboardText.includes('Negative OP is an operating loss'))
   assert.ok(dashboardText.includes('Standard Cost by component'))
   assert.ok(dashboardText.includes('Reference vs Current'))
   assert.match(dashboardMarkup, /role="img" aria-label="Reference and Current stacked Standard Cost bars for Material, Labor, and Burden, with Selling Price shown as a line when available\."/)
@@ -249,9 +255,13 @@ try {
   assert.ok(dashboardText.includes('25.0000 THB'))
   assert.ok(dashboardText.includes('8.00%'))
   assert.doesNotMatch(dashboardMarkup, /MatVAR|LBVAR|BDVAR/)
-  assert.ok(dashboardText.includes('Not calculated — formula pending'))
+  assert.ok(dashboardMarkup.includes('SG&amp;A amount / pc'))
+  assert.ok(dashboardText.includes('9.0000'))
+  assert.ok(dashboardText.includes('2.0000'))
+  assert.doesNotMatch(dashboardText, /formula pending/)
   assert.doesNotMatch(opPanelMarkup, />\s*(?:\+|-)?0(?:\.0000)?\s*</)
   assert.ok(dashboardText.includes('18.7000'))
+  assert.ok(dashboardText.includes('71.3000'), 'scenario OP must use its local Selling Price and SG&A overrides')
   assert.match(dashboardMarkup, /<tr><th scope="row" class="py-1 text-left font-medium text-slate-700">MAT<\/th><td class="py-1 text-right font-mono tabular-nums">11\.0000<\/td><td class="py-1 text-right font-mono tabular-nums">13\.7000<\/td><\/tr>/)
   assert.match(dashboardMarkup, /<tr><th scope="row" class="py-1 text-left font-medium text-slate-700">BD<\/th><td class="py-1 text-right font-mono tabular-nums">1\.0000<\/td><td class="py-1 text-right font-mono tabular-nums">3\.0000<\/td><\/tr>/)
   assert.ok(dashboardText.includes('-4.7000'))

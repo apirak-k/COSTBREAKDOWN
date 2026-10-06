@@ -1,5 +1,5 @@
 import React from 'react'
-import type { ScenarioCostResult, ScenarioEconomicsInputs, ScenarioEconomicsResult } from '../../../core'
+import type { ScenarioBusinessInputs, ScenarioBusinessResult, ScenarioCostResult, ScenarioEconomicsInputs, ScenarioEconomicsResult } from '../../../core'
 import type { ScenarioDraftForm } from '../scenario-draft'
 import type { ScenarioInputDefinition } from '../scenario-inputs'
 import { ScenarioInputField } from './ScenarioInputField'
@@ -9,11 +9,15 @@ interface ScenarioCardProps {
   inputDefinitions: ScenarioInputDefinition[]
   result: ScenarioCostResult
   economics: ScenarioEconomicsResult
+  business: ScenarioBusinessResult
+  currentBusinessInputs: ScenarioBusinessInputs
   inputWarnings: string[]
   economicsInputWarnings: string[]
+  businessInputWarnings: string[]
   onUpdateLabel: (label: string) => void
   onUpdateInput: (inputKey: string, value: string) => void
   onUpdateEconomics: (key: keyof ScenarioEconomicsInputs, value: string) => void
+  onUpdateBusinessInput: (key: keyof ScenarioBusinessInputs, value: string) => void
 }
 
 const COST_ROWS = [
@@ -32,6 +36,11 @@ const ECONOMIC_INPUTS = [
 const ECONOMIC_CATEGORY_INPUTS = [
   { key: 'fixedInvestmentCategory', label: 'Fixed Investment category' },
   { key: 'variableAddedCostCategory', label: 'Variable Added Cost category' }
+] as const
+
+const BUSINESS_INPUTS = [
+  { key: 'sellingPrice', label: 'Selling Price', unit: 'THB/pc' },
+  { key: 'sgaPercent', label: 'SG&A %', unit: '%' }
 ] as const
 
 const ECONOMIC_ROWS = [
@@ -61,11 +70,15 @@ export const ScenarioCard: React.FC<ScenarioCardProps> = ({
   inputDefinitions,
   result,
   economics,
+  business,
+  currentBusinessInputs,
   inputWarnings,
   economicsInputWarnings,
+  businessInputWarnings,
   onUpdateLabel,
   onUpdateInput,
-  onUpdateEconomics
+  onUpdateEconomics,
+  onUpdateBusinessInput
 }) => {
   const warningSections = [
     { label: 'Scenario cost', messages: economics.scenarioCost.warnings },
@@ -82,6 +95,7 @@ export const ScenarioCard: React.FC<ScenarioCardProps> = ({
   })
   const uniqueWarnings = Array.from(warningSources, ([message, sources]) => ({ message, sources }))
   const economicsWarnings = [...new Set([...economicsInputWarnings, ...economics.warnings])]
+  const businessWarnings = [...new Set([...businessInputWarnings, ...business.warnings])]
   const labelId = `scenario-label-${scenario.letter}`
   const inputGuidanceId = `scenario-${scenario.letter}-input-guidance`
   const hasEconomicsInputs = ECONOMIC_INPUTS.some(({ key }) => (scenario.economicsInputs[key] ?? '').trim() !== '')
@@ -253,6 +267,61 @@ export const ScenarioCard: React.FC<ScenarioCardProps> = ({
           {economicsWarnings.length > 0 && (
             <ul role="status" className="list-disc space-y-1 pl-5 text-sm text-amber-900">
               {economicsWarnings.map(warning => <li key={warning}>{warning}</li>)}
+            </ul>
+          )}
+        </section>
+
+        <section aria-label={`Selling Price, SG&A, and OP for Scenario ${scenario.letter}`} className="space-y-2.5 border-t border-slate-300 pt-3">
+          <div>
+            <h4 className="font-mono text-[10px] font-bold uppercase text-slate-800">Selling Price, SG&A, and OP</h4>
+            <p className="mt-1 text-[10px] leading-4 text-slate-600">Leave an override blank to use Current. Clearing it returns to the Current value.</p>
+          </div>
+          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+            {BUSINESS_INPUTS.map(({ key, label, unit }) => {
+              const inputId = `scenario-${scenario.letter}-business-${key}`
+              const currentValue = currentBusinessInputs[key]
+              const placeholder = currentValue === null ? 'Current unavailable' : `Current ${formatCost(currentValue)} ${unit}`
+              return (
+                <label key={key} htmlFor={inputId} className="block min-w-0 font-mono text-[10px] font-semibold uppercase text-slate-700">
+                  {label} <span className="font-normal text-slate-500">({unit})</span>
+                  <input
+                    id={inputId}
+                    type="number"
+                    step="any"
+                    inputMode="decimal"
+                    value={scenario.businessInputs?.[key] ?? ''}
+                    placeholder={placeholder}
+                    onChange={event => onUpdateBusinessInput(key, event.target.value)}
+                    className="mt-1 min-h-8 w-full rounded-sm border border-slate-400 bg-white px-2 py-1 font-mono text-xs tabular-nums text-slate-900 focus:border-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-200"
+                  />
+                </label>
+              )
+            })}
+          </div>
+          <dl className="grid grid-cols-2 gap-x-4 border-t border-slate-200 pt-2">
+            <div className="border-b border-slate-100 py-1.5">
+              <dt className="font-mono text-[9px] uppercase text-slate-500">Scenario Selling Price · THB/pc</dt>
+              <dd className="mt-0.5 font-mono text-xs tabular-nums text-slate-900">{formatCost(business.sellingPrice)}</dd>
+            </div>
+            <div className="border-b border-slate-100 py-1.5">
+              <dt className="font-mono text-[9px] uppercase text-slate-500">Scenario SG&amp;A %</dt>
+              <dd className="mt-0.5 font-mono text-xs tabular-nums text-slate-900">{business.sgaPercent === null ? 'N/A' : `${formatCost(business.sgaPercent)}%`}</dd>
+            </div>
+            <div className="border-b border-slate-100 py-1.5">
+              <dt className="font-mono text-[9px] uppercase text-slate-500">SG&amp;A amount / pc</dt>
+              <dd className="mt-0.5 font-mono text-xs tabular-nums text-slate-900">{formatCost(business.sgaAmountPerPiece)}</dd>
+            </div>
+            <div className="border-b border-slate-100 py-1.5">
+              <dt className="font-mono text-[9px] uppercase text-slate-500">OP / pc</dt>
+              <dd className={`mt-0.5 font-mono text-xs font-semibold tabular-nums ${business.operatingProfitPerPiece !== null && business.operatingProfitPerPiece < 0 ? 'text-rose-700' : 'text-slate-900'}`}>
+                {formatCost(business.operatingProfitPerPiece)}
+                {business.operatingProfitPerPiece !== null && business.operatingProfitPerPiece < 0 ? ' · Operating loss' : ''}
+              </dd>
+            </div>
+          </dl>
+          {businessWarnings.length > 0 && (
+            <ul role="status" className="list-disc space-y-1 pl-5 text-xs text-amber-900">
+              {businessWarnings.map(warning => <li key={warning}>{warning}</li>)}
             </ul>
           )}
         </section>
