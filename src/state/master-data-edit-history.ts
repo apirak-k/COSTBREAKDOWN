@@ -1,4 +1,7 @@
 import type { ComparisonRole, CostSnapshot, DatasetSizing } from '../core/types'
+import { applySnapshotPairToSession, sessionToSnapshotPair } from '../core'
+import type { ProductSession } from '../core'
+import { markMasterDataChangedForSnapshotPair } from './master-data-revision'
 
 export interface MasterDataEditHistoryEntry {
   sessionId: string
@@ -60,4 +63,35 @@ export function redoMasterDataEdit(history: MasterDataEditHistory): {
     },
     entry
   }
+}
+
+export function applyMasterDataEditHistoryEntry(
+  session: ProductSession,
+  entry: MasterDataEditHistoryEntry,
+  direction: 'undo' | 'redo'
+): ProductSession | undefined {
+  if (session.id !== entry.sessionId) return undefined
+
+  const pair = session.snapshotPair ?? sessionToSnapshotPair(session)
+  const expected = direction === 'undo' ? entry.after : entry.before
+  if (JSON.stringify(pair[entry.role]) !== JSON.stringify(expected)) return undefined
+
+  const snapshot = direction === 'undo' ? entry.before : entry.after
+  const preparedSnapshotRoles = direction === 'undo' ? entry.beforePrepared : entry.afterPrepared
+  const datasetSizing = direction === 'undo' ? entry.beforeSizing : entry.afterSizing
+  const nextPair = {
+    ...pair,
+    [entry.role]: snapshot
+  }
+  const nextSession = applySnapshotPairToSession({
+    ...session,
+    datasetSizing: datasetSizing ? {
+      reference: { ...(datasetSizing.reference ?? {}) },
+      current: { ...(datasetSizing.current ?? {}) }
+    } : undefined,
+    preparedSnapshotRoles: { ...preparedSnapshotRoles },
+    updatedAt: new Date().toISOString()
+  }, nextPair)
+
+  return markMasterDataChangedForSnapshotPair(nextSession, pair, nextPair)
 }

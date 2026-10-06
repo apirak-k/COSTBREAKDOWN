@@ -1,10 +1,12 @@
 import assert from 'node:assert/strict'
 import type { CostSnapshot, ComparisonRole } from '../src/core/types'
+import type { ProductSession } from '../src/core'
 import {
   createMasterDataEditHistory,
   recordMasterDataEdit,
   undoMasterDataEdit,
-  redoMasterDataEdit
+  redoMasterDataEdit,
+  applyMasterDataEditHistoryEntry
 } from '../src/state/master-data-edit-history'
 
 function snapshot(id: string): CostSnapshot {
@@ -56,5 +58,56 @@ for (let index = 0; index < 105; index += 1) {
 }
 assert.equal(capped.undo.length, 100, 'History stays within its in-memory safety cap')
 assert.equal(capped.undo[0].before.id, 'before-5', 'The oldest entries are discarded first')
+
+const beforeReference = snapshot('reference-before')
+const beforeCurrent = snapshot('current-before')
+const afterCurrent = snapshot('current-after')
+const lastSavedCurrent = snapshot('current-last-saved')
+const session: ProductSession = {
+  id: 'session-a',
+  product: { ...beforeCurrent.product },
+  rates: [],
+  bom: [],
+  routing: [],
+  savedDrivers: [],
+  candidateRcaRecords: {},
+  status: 'draft',
+  createdAt: '2026-01-01T00:00:00.000Z',
+  updatedAt: '2026-01-01T00:00:00.000Z',
+  snapshotPair: { reference: beforeReference, current: afterCurrent },
+  snapshotPairMode: 'independent',
+  preparedSnapshotRoles: { reference: true, current: true },
+  datasetSizing: { reference: { bomCount: 1 }, current: { bomCount: 2 } },
+  lastSavedMasterData: {
+    current: { snapshot: lastSavedCurrent, prepared: false, sizing: { bomCount: 3 } }
+  }
+}
+const sessionEntry = {
+  ...edit('session-a', 'current', beforeCurrent.id, afterCurrent.id),
+  before: beforeCurrent,
+  after: afterCurrent,
+  beforePrepared: { reference: true, current: false },
+  afterPrepared: { reference: true, current: true },
+  beforeSizing: { reference: { bomCount: 1 }, current: { bomCount: 1 } },
+  afterSizing: { reference: { bomCount: 1 }, current: { bomCount: 2 } }
+}
+const undoneSession = applyMasterDataEditHistoryEntry(session, sessionEntry, 'undo')
+assert.ok(undoneSession, 'Undo applies when the current Working snapshot matches the history entry')
+assert.equal(undoneSession.snapshotPair?.current.id, beforeCurrent.id, 'Undo restores only the edited side')
+assert.equal(undoneSession.snapshotPair?.reference.id, beforeReference.id, 'Undo leaves the other dataset side unchanged')
+assert.equal(undoneSession.preparedSnapshotRoles?.current, false, 'Undo restores side readiness from before the edit')
+assert.equal(undoneSession.datasetSizing?.current.bomCount, 1, 'Undo restores the Working sizing state')
+assert.equal(undoneSession.lastSavedMasterData?.current?.snapshot.id, lastSavedCurrent.id, 'Undo never rewrites Last Saved')
+
+const redoneSession = applyMasterDataEditHistoryEntry(undoneSession, sessionEntry, 'redo')
+assert.ok(redoneSession, 'Redo reapplies an entry when the current Working snapshot matches its before state')
+assert.equal(redoneSession.snapshotPair?.current.id, afterCurrent.id, 'Redo restores the edited snapshot')
+assert.equal(redoneSession.datasetSizing?.current.bomCount, 2, 'Redo restores the after sizing state')
+
+const staleSession = {
+  ...session,
+  snapshotPair: { reference: beforeReference, current: snapshot('unexpected') }
+}
+assert.equal(applyMasterDataEditHistoryEntry(staleSession, sessionEntry, 'undo'), undefined, 'Stale history never overwrites a newer Working snapshot')
 
 console.log('Master Data page-level edit history verification passed')

@@ -49,6 +49,7 @@ import {
   recordMasterDataEdit,
   undoMasterDataEdit as takeMasterDataUndo,
   redoMasterDataEdit as takeMasterDataRedo,
+  applyMasterDataEditHistoryEntry as restoreMasterDataEditHistoryEntry,
   type MasterDataEditHistoryEntry
 } from './master-data-edit-history'
 import {
@@ -868,25 +869,12 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       return
     }
 
-    const pair = session.snapshotPair ?? sessionToSnapshotPair(session)
-    const expected = direction === 'undo' ? entry.after : entry.before
-    if (JSON.stringify(pair[entry.role]) !== JSON.stringify(expected)) {
+    const updated = restoreMasterDataEditHistoryEntry(session, entry, direction)
+    if (!updated) {
       clearMasterDataEditHistory()
       return
     }
 
-    const snapshot = direction === 'undo' ? entry.before : entry.after
-    const preparedSnapshotRoles = direction === 'undo' ? entry.beforePrepared : entry.afterPrepared
-    const datasetSizing = direction === 'undo' ? entry.beforeSizing : entry.afterSizing
-    const updated = applyMasterDataSnapshotPair({
-      ...session,
-      datasetSizing: copyDatasetSizing(datasetSizing),
-      preparedSnapshotRoles: { ...preparedSnapshotRoles },
-      updatedAt: new Date().toISOString()
-    }, {
-      ...pair,
-      [entry.role]: cloneMasterDataSnapshot(snapshot)
-    })
     setProductSessions(previous => previous.map(candidate => candidate.id === session.id ? updated : candidate))
     setMasterDataHistoryRevision(revision => revision + 1)
   }
