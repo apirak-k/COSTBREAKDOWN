@@ -1,12 +1,12 @@
 # Current Handoff — Spec-Aligned Product Implementation
 
-**Updated:** 2026-10-06
+**Updated:** 2026-10-07
 
 ## Active checkpoint
 
 - Repository: E:\COSTBREAKDOWN.
 - Working branch: codex/costbreakdown-spec-source.
-- Remote target: origin/codex/costbreakdown-spec-source. This documentation-migration task explicitly prohibits pushing; create only its authorized local documentation commit. Do not merge to main.
+- Remote target: origin/codex/costbreakdown-spec-source. The user authorized the complete implementation plan and a normal push after final verification. Do not merge to main or force-push.
 - The design reference branch feature/taste-frontend-ui remains read-only. The current branch owns all implementation and design.md.
 - This run’s local planning notes are in the untracked .planning/2026-10-06-cbd-autonomous-implementation/ folder; the active-plan pointer was restored and the notes are excluded from product commits.
 - The eight pre-existing synthetic verification files remain untracked and untouched: .make-synthetic-verification.mjs, .synthetic-current.xlsx, .synthetic-mismatch.xlsx, .synthetic-reference.xlsx, .verify-cost-calc-sample.mjs, .verify-duplicate-calc.mjs, .verify-neutral-workbook-via-vite.mjs, and .verify-sizing-via-vite.mjs.
@@ -18,11 +18,16 @@
 - design.md was created using the HAWS DESIGN.md template. It extracts visual language from feature/taste-frontend-ui at f873540a6fa2bd1564c070a1164f457857762752 without importing its product behavior.
 - docs/PROVISIONAL_IMPLEMENTATION_DECISIONS.md records reversible AI choices separately from user decisions. P-009 records the compact, full-width table work surface.
 - Candidate monetary values remain at material-record level. THB is the cost unit; changed Price/Usage/Loss values remain explanatory Ref → Current details. No conversion or per-factor THB allocation was added.
-- At the prior implementation checkpoint, the Dashboard used settled engineering calculations and left then-unresolved business metrics unavailable; MatVAR/LBVAR/BDVAR remain out of scope. Final Logic now requires Selling Price/SG&A/OP calculations and the specified scenario/result graphs; the prior snapshot composition does not establish conformance to them.
+- Selling Price, SG&A, and OP now use the finalized formulas; MatVAR/LBVAR/BDVAR and other unfinalized business metrics remain out of scope. The selected-scenario story uses Reference → Current → Simulated without fabricated monthly history.
 
-## Implementation logic audit — documentation migration only
+## Final Logic implementation status
 
-The 2026-10-06 static audit found that the current application still conflicts with Final Logic in these areas: Work Center rather than Process/Routing as the processing Candidate; Selected Scope continuing into RCA/Simulation and constraining the baseline; three scenarios rather than exactly A/B; improvement economics composition; finalized Selling Price/SG&A/OP calculation; and Scenario A/B plus Reference → Current → Simulated graph behavior. Application code was intentionally not changed. The implementation evidence below records prior behavior/checkpoints and must not be read as the current product contract.
+- Batches 1–7 are complete in separate commits; the cleanup regression commit is `f5d6ff6`.
+- The 430-item Final Logic re-audit is **424 PASS, 6 PARTIAL, 0 FAIL, 0 NOT VERIFIED** after isolated browser verification. The only partial finding is duplicate-economics prevention: the app warns against repeating a cost already modeled through BOM/Routing/WC inputs, but the spec defines no safe identity/matching rule for automatic detection.
+- Runtime verification in a separate in-app browser used the dedicated synthetic fixture. It exercised Master Data → Cost Breakdown → scoped Ranking → RCA Candidate selection → full-Current Simulation, confirmed exactly A/B, categorized economics, scenario-local price/SG&A, negative OP, human scenario selection, and both graphs. Selecting a scoped Candidate cleared active Selected Scope and restored the full Current baseline.
+- A/B negative-OP labels now occupy separate aligned rows, and Selected Comparison copy states that the scope ends when one Candidate enters RCA.
+- Final checks: 49/49 TypeScript verifiers, 2/2 MJS verifiers, the 31/31 comprehensive audit, both v2 workbook verifiers, production build, and `git diff --check` passed. The Vite build retains its existing ExcelJS `fs`/`crypto` externalization warnings. `package.json` defines no generic test or lint script.
+- Browser download capture was not completed by the isolated browser adapter; workbook parsing/export model verifiers passed. Three Master Data product boundaries remain intentionally pending in `docs/specs/MASTER_DATA.md` and are not inferred from code.
 
 ## Implementation evidence from prior checkpoints
 
@@ -37,7 +42,7 @@ The 2026-10-06 static audit found that the current application still conflicts w
 - Updated five stale verifier fixtures to current schema and identity contracts.
 - Updated compatible lockfile patches for brace-expansion and source-map-js; no breaking dependency upgrades were applied.
 
-## Verification
+## Historical verification checkpoints (before the Final Logic implementation)
 
 - Before the Clone-readiness follow-up, all 47 scripts/verify*.ts and scripts/verify*.mjs verifiers passed after the final implementation and lockfile patch.
 - After the Clone readiness clarification, `npx jiti scripts/verify_master_data_clone_readiness.ts` passed all four focused cases, and `npm run build` passed. The focused check verifies the shared readiness helper; it does not exercise the React Clone actions interactively.
@@ -62,7 +67,7 @@ Three Master Data items remain open in docs/specs/MASTER_DATA.md and must not be
 2. Whether untouched generated blank Sizing rows contribute to general dataset readiness, cost calculation, or comparison. Clone readiness is separately settled; its reversible detection choice is P-010.
 3. Whether an intentionally blank user-created row must survive Excel export/import round-trip; no agreed marker or policy distinguishes it from a blank template row.
 
-Final Logic now finalizes Selling Price overrides, SG&A%, SG&A amount, and OP formulas. The current implementation still calls OP uncalculated; that is a known logic gap, not a pending product decision. Other concepts such as COGS, GP, GP Margin, OP Margin, Sales, and Volume/Quantity remain unfinalized where listed in `docs/specs/CROSS_CUTTING.md`; the old formula candidates are discussion only. Trial execution, validation, approval, and promotion also remain unspecified. The user-supplied chart shows monthly periods, but the current product has only Reference/Current snapshots and no historical monthly data source; do not fabricate monthly periods.
+Final Logic finalizes Selling Price overrides, SG&A%, SG&A amount, and OP formulas; the current implementation now calculates them. Other concepts such as COGS, GP, GP Margin, OP Margin, Sales, and Volume/Quantity remain unfinalized where listed in `docs/specs/CROSS_CUTTING.md`; the old formula candidates are discussion only. Trial execution, validation, approval, and promotion remain unspecified. The user-supplied chart shows monthly periods, but the current product has only Reference/Current snapshots and no historical monthly data source; do not fabricate monthly periods.
 
 A 2026-10-06 readback from “CBD Refactor #1” confirmed that it supplied no new finalized behavior: business formulas, Import/Sizing policy, blank-row round-trip, Trial lifecycle, and hidden ProductSession architecture remain unresolved; it found no decision there on monthly source/period/AVG or generated blank-row calculation semantics. The existing rule that relevant source changes invalidate stale Selected Comparison remains in force. Whether editing a non-selected hidden ProductSession must invalidate active Candidate/Scenario/Trial state remains unresolved and is tracked as DEFERRED in source-crosswalk item 4.
 
@@ -70,4 +75,4 @@ These are genuine product boundaries, not blockers for independent implementatio
 
 ## Next step
 
-The documentation-migration commit is the end of this task. Wait for user review before beginning runtime implementation. For later work, use `docs/specs/FINAL_LOGIC_SPEC.md` as the logic checklist; retain compatible Master Data UX/UI and interaction requirements, and keep browser interaction and human visual acceptance separate from static or automated evidence.
+The seven implementation batches, isolated runtime verification, re-audit, and required cleanup are complete. The current branch is authorized for a normal push after the status-document refresh. Do not merge to `main`. Keep the duplicate-economics limitation explicit; do not add automatic matching without a finalized effect-mapping rule. Preserve the three pending Master Data decisions and the historical checkpoints below.
