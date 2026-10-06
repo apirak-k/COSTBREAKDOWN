@@ -34,11 +34,9 @@ export const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
       >
         {children}
       </main>
-      <footer aria-label="Workspace data status" className="mt-auto border-t border-slate-800 bg-slate-900 py-2 font-mono text-[10px] text-slate-400">
+      <footer aria-label="Dataset and comparison status" className="mt-auto border-t border-slate-800 bg-slate-900 py-2 font-mono text-[10px] text-slate-400">
         <div className="flex w-full flex-col gap-2 px-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between sm:px-4 lg:px-3">
           <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-            <span className="font-bold tracking-wide text-slate-200">WORKSPACE</span>
-            <span className="hidden text-slate-700 sm:inline" aria-hidden="true">|</span>
             <span role="group" aria-label={`Reference dataset: ${snapshotPair.reference.bom.length} BOM items, ${snapshotPair.reference.routing.length} routing operations, ${snapshotPair.reference.rates.length} work centers`}>
               <span className="mr-1 font-bold text-slate-300">REF</span>
               BOM {snapshotPair.reference.bom.length} · RTG {snapshotPair.reference.routing.length} · WC {snapshotPair.reference.rates.length}

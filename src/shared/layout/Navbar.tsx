@@ -39,12 +39,8 @@ export const Navbar: React.FC = () => {
       <div className="w-full px-3 sm:px-4 lg:px-4">
         <div className="flex min-h-12 flex-col gap-1 py-1 lg:flex-row lg:items-center lg:justify-between">
           <div className="flex min-h-8 min-w-0 flex-wrap items-center gap-x-3 gap-y-1">
-            <span aria-hidden="true" className="grid h-7 w-7 place-items-center rounded-sm border border-slate-700 bg-slate-800 font-mono text-[11px] font-bold tracking-tight text-slate-200">
-              CB
-            </span>
             <div className="leading-tight">
               <span className="block font-mono text-xs font-bold tracking-tight text-slate-100">COST BREAKDOWN</span>
-              <span className="hidden font-mono text-[9px] uppercase tracking-[0.16em] text-slate-400 sm:block">Product cost analysis</span>
             </div>
             <div
               role="group"
