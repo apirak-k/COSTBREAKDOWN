@@ -59,17 +59,19 @@ export const MasterDataPage: React.FC = () => {
   const isAllTablesVisible = masterDataUiState.tableView === 'all'
   const activeTableTab: TableSubTab = masterDataUiState.tableView === 'all' ? 'bom' : masterDataUiState.tableView
 
-  const handleLoadSyntheticReviewData = async () => {
+  const handleLoadSyntheticReviewData = async (fixture: 'complete' | 'data-quality') => {
     if (!import.meta.env.DEV) return
     if (!window.confirm('Load or reset the dedicated mock review session? Your current working session will be kept.')) return
 
-    const { createSyntheticReviewSnapshotPair } = await import('./fixtures/synthetic-review-data')
-    loadDevelopmentReviewFixture(createSyntheticReviewSnapshotPair())
+    const fixtures = await import('./fixtures/synthetic-review-data')
+    loadDevelopmentReviewFixture(fixture === 'data-quality'
+      ? fixtures.createSyntheticDataQualitySnapshotPair()
+      : fixtures.createSyntheticReviewSnapshotPair())
   }
 
-  const developmentAction = import.meta.env.DEV
-    ? isDevelopmentReviewFixture
-      ? (
+  const developmentAction = import.meta.env.DEV ? (
+    <div className="flex flex-wrap items-center gap-1" role="group" aria-label="Development review fixtures">
+      {isDevelopmentReviewFixture && (
         <button
           type="button"
           onClick={() => {
@@ -81,17 +83,23 @@ export const MasterDataPage: React.FC = () => {
         >
           Return to working session
         </button>
-      )
-      : (
-        <button
-          type="button"
-          onClick={() => { void handleLoadSyntheticReviewData() }}
-          className="min-h-8 border border-slate-300 bg-white px-2 text-[11px] font-medium text-slate-700 transition-colors hover:bg-slate-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700"
-        >
-          Load mock review data
-        </button>
-      )
-    : undefined
+      )}
+      <button
+        type="button"
+        onClick={() => { void handleLoadSyntheticReviewData('complete') }}
+        className="min-h-8 border border-slate-300 bg-white px-2 text-[11px] font-medium text-slate-700 transition-colors hover:bg-slate-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700"
+      >
+        Load complete review mock
+      </button>
+      <button
+        type="button"
+        onClick={() => { void handleLoadSyntheticReviewData('data-quality') }}
+        className="min-h-8 border border-slate-300 bg-white px-2 text-[11px] font-medium text-slate-700 transition-colors hover:bg-slate-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700"
+      >
+        Load data-quality mock
+      </button>
+    </div>
+  ) : undefined
 
   const product = masterDataSnapshot.product
 
