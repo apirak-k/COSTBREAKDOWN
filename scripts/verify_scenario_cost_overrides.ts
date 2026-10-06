@@ -9,7 +9,7 @@ import type {
 } from '../src/core/types'
 
 type ScenarioDraftFixture = {
-  letter: 'A' | 'B' | 'C'
+  letter: 'A' | 'B'
   label: string
   overrides: {
     bom?: Record<string, Partial<Pick<SnapshotBOMItem, 'price' | 'loss' | 'consumption'>>>
@@ -76,14 +76,6 @@ const drafts: ScenarioDraftFixture[] = [
     overrides: {
       bom: { 'bom-1': { consumption: 4 } }
     }
-  },
-  {
-    letter: 'C',
-    label: 'Processing and burden-rate change',
-    overrides: {
-      routing: { 'routing-1': { capacity: 50, yield: 0.5 } },
-      rates: { 'rate-1': { burdenRate: 4 } }
-    }
   }
 ]
 
@@ -112,7 +104,7 @@ const sourceBeforeCalculation = JSON.stringify(currentSnapshot)
 const currentCost = calculateSnapshotCost(currentSnapshot)
 const scenarioResults = calculateScenarioCosts(currentSnapshot, drafts)
 
-function resultFor(letter: 'A' | 'B' | 'C') {
+function resultFor(letter: 'A' | 'B') {
   const result = scenarioResults.find(item => item.letter === letter)
   assert.ok(result, 'Scenario ' + letter + ' should have a result')
   return result
@@ -137,19 +129,16 @@ for (const draft of drafts) {
 
 const scenarioA = resultFor('A')
 const scenarioB = resultFor('B')
-const scenarioC = resultFor('C')
 
+assert.deepEqual(scenarioResults.map(result => result.letter), ['A', 'B'], 'The cost engine returns exactly A and B')
 assert.notEqual(scenarioA.scenarioCost.total, currentCost.total, 'A should apply material and processing changes')
 assert.notEqual(scenarioB.scenarioCost.material, currentCost.material, 'B should apply its Consumption override')
-assert.equal(scenarioB.scenarioCost.labor, currentCost.labor, 'B must not inherit A or C processing edits')
-assert.equal(scenarioB.scenarioCost.burden, currentCost.burden, 'B must not inherit A or C rate edits')
-assert.equal(scenarioC.scenarioCost.material, currentCost.material, 'C must not inherit A or B material edits')
-assert.notEqual(scenarioC.scenarioCost.labor, currentCost.labor, 'C should apply its Routing overrides')
-assert.notEqual(scenarioC.scenarioCost.burden, currentCost.burden, 'C should apply its Work Center rate override')
+assert.equal(scenarioB.scenarioCost.labor, currentCost.labor, 'B must not inherit A processing edits')
+assert.equal(scenarioB.scenarioCost.burden, currentCost.burden, 'B must not inherit A rate edits')
 assert.equal(JSON.stringify(currentSnapshot), sourceBeforeCalculation, 'Scenario calculation must not mutate Current')
 
 const unknownIdDraft: ScenarioDraftFixture = {
-  letter: 'C',
+  letter: 'B',
   label: 'Unknown record IDs',
   overrides: {
     bom: { 'unknown-bom': { price: 1 } },

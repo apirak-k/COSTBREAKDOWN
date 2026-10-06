@@ -2,7 +2,7 @@ import type { ScenarioCostDraft, ScenarioEconomicsInputs, ScenarioParameterOverr
 import type { ScenarioInputDefinition } from './scenario-inputs'
 
 export interface ScenarioDraftForm {
-  letter: 'A' | 'B' | 'C'
+  letter: 'A' | 'B'
   label: string
   inputValues: Record<string, string>
   economicsInputs: Record<keyof ScenarioEconomicsInputs, string>
@@ -19,11 +19,31 @@ export function createRcaSimulationPageState(sourceDataRevision = 0): RcaSimulat
   return { sourceDataRevision, selectedCandidateKey: null, trialHandoffLetter: null, scenarioDraftsByCandidate: {} }
 }
 
+function isScenarioLetter(value: unknown): value is ScenarioDraftForm['letter'] {
+  return value === 'A' || value === 'B'
+}
+
 export function getRcaSimulationStateForRevision(
   state: RcaSimulationPageState | undefined,
   sourceDataRevision: number
 ): RcaSimulationPageState {
-  return state?.sourceDataRevision === sourceDataRevision ? state : createRcaSimulationPageState(sourceDataRevision)
+  if (state?.sourceDataRevision !== sourceDataRevision) return createRcaSimulationPageState(sourceDataRevision)
+
+  let hasUnsupportedState = !isScenarioLetter(state.trialHandoffLetter) && state.trialHandoffLetter !== null
+  const scenarioDraftsByCandidate = Object.fromEntries(
+    Object.entries(state.scenarioDraftsByCandidate).map(([candidateKey, drafts]) => {
+      const supportedDrafts = drafts.filter(draft => isScenarioLetter((draft as { letter: unknown }).letter))
+      if (supportedDrafts.length !== drafts.length) hasUnsupportedState = true
+      return [candidateKey, supportedDrafts]
+    })
+  )
+
+  if (!hasUnsupportedState) return state
+  return {
+    ...state,
+    trialHandoffLetter: isScenarioLetter(state.trialHandoffLetter) ? state.trialHandoffLetter : null,
+    scenarioDraftsByCandidate
+  }
 }
 
 export function updateRcaSimulationStateByProduct(
@@ -40,13 +60,26 @@ export function retainRcaSimulationStatesForProducts(
   states: Record<string, RcaSimulationPageState>,
   liveProductIds: ReadonlySet<string>
 ): Record<string, RcaSimulationPageState> {
-  const retained = Object.fromEntries(Object.entries(states).filter(([productId]) => liveProductIds.has(productId)))
-  return Object.keys(retained).length === Object.keys(states).length ? states : retained
+  let changed = false
+  const retained: Record<string, RcaSimulationPageState> = {}
+
+  Object.entries(states).forEach(([productId, state]) => {
+    if (!liveProductIds.has(productId)) {
+      changed = true
+      return
+    }
+
+    const normalizedState = getRcaSimulationStateForRevision(state, state.sourceDataRevision)
+    if (normalizedState !== state) changed = true
+    retained[productId] = normalizedState
+  })
+
+  return changed ? retained : states
 }
 
 export interface PreparedScenarioDrafts {
   drafts: ScenarioCostDraft[]
-  inputWarningsByLetter: Record<'A' | 'B' | 'C', string[]>
+  inputWarningsByLetter: Record<'A' | 'B', string[]>
 }
 
 export interface PreparedScenarioEconomicsInputs {
@@ -55,7 +88,7 @@ export interface PreparedScenarioEconomicsInputs {
 }
 
 export function createScenarioDrafts(): ScenarioDraftForm[] {
-  return (['A', 'B', 'C'] as const).map(letter => ({
+  return (['A', 'B'] as const).map(letter => ({
     letter,
     label: '',
     inputValues: {},
@@ -141,7 +174,7 @@ export function prepareScenarioDrafts(
   formDrafts: ScenarioDraftForm[],
   inputDefinitions: ScenarioInputDefinition[]
 ): PreparedScenarioDrafts {
-  const inputWarningsByLetter: PreparedScenarioDrafts['inputWarningsByLetter'] = { A: [], B: [], C: [] }
+  const inputWarningsByLetter: PreparedScenarioDrafts['inputWarningsByLetter'] = { A: [], B: [] }
   const drafts = formDrafts.map(formDraft => {
     const overrides: ScenarioParameterOverrides = {}
     const warnings = inputWarningsByLetter[formDraft.letter]
@@ -167,7 +200,7 @@ export function prepareScenarioDrafts(
 export function prepareScenarioEconomicsInputs(
   formDrafts: ScenarioDraftForm[]
 ): PreparedScenarioEconomicsInputs {
-  const warningsByLetter: PreparedScenarioEconomicsInputs['warningsByLetter'] = { A: [], B: [], C: [] }
+  const warningsByLetter: PreparedScenarioEconomicsInputs['warningsByLetter'] = { A: [], B: [] }
   const inputsByLetter = {} as PreparedScenarioEconomicsInputs['inputsByLetter']
 
   formDrafts.forEach(draft => {

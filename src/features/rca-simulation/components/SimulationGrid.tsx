@@ -8,12 +8,12 @@ interface SimulationGridProps {
   scenarios: ScenarioDraftForm[]
   inputDefinitions: ScenarioInputDefinition[]
   results: ScenarioCostResult[]
-  economicsResults: Array<ScenarioEconomicsResult & { letter: 'A' | 'B' | 'C' }>
-  inputWarningsByLetter: Record<'A' | 'B' | 'C', string[]>
-  economicsInputWarningsByLetter: Record<'A' | 'B' | 'C', string[]>
-  onUpdateLabel: (letter: 'A' | 'B' | 'C', label: string) => void
-  onUpdateInput: (letter: 'A' | 'B' | 'C', inputKey: string, value: string) => void
-  onUpdateEconomics: (letter: 'A' | 'B' | 'C', key: keyof ScenarioEconomicsInputs, value: string) => void
+  economicsResults: Array<ScenarioEconomicsResult & { letter: 'A' | 'B' }>
+  inputWarningsByLetter: Record<'A' | 'B', string[]>
+  economicsInputWarningsByLetter: Record<'A' | 'B', string[]>
+  onUpdateLabel: (letter: 'A' | 'B', label: string) => void
+  onUpdateInput: (letter: 'A' | 'B', inputKey: string, value: string) => void
+  onUpdateEconomics: (letter: 'A' | 'B', key: keyof ScenarioEconomicsInputs, value: string) => void
 }
 
 function unavailableResult(scenario: ScenarioDraftForm): ScenarioCostResult {
@@ -71,7 +71,7 @@ export const SimulationGrid: React.FC<SimulationGridProps> = ({
       <div className="flex flex-wrap items-end justify-between gap-3 border-b border-slate-300 pb-2.5">
         <div>
           <p className="font-mono text-[10px] font-bold uppercase tracking-wide text-slate-600">03 / Simulation</p>
-          <h2 id="simulation-heading" className="mt-1 font-mono text-xs font-bold uppercase text-slate-900">Compare three scenarios</h2>
+          <h2 id="simulation-heading" className="mt-1 font-mono text-xs font-bold uppercase text-slate-900">Compare two scenarios</h2>
         </div>
         <div className="max-w-xl text-[11px] leading-4 text-slate-600">
           <p>Each draft starts from the same Current snapshot. Improvement-economics assumptions do not change Standard Cost.</p>
@@ -142,7 +142,7 @@ export const SimulationGrid: React.FC<SimulationGridProps> = ({
         )}
       </section>
 
-      <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
+      <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
         {scenarios.map(scenario => {
           const result = results.find(item => item.letter === scenario.letter) ?? unavailableResult(scenario)
           const economics = economicsResults.find(item => item.letter === scenario.letter) ?? {

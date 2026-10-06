@@ -46,7 +46,9 @@ try {
     { CandidatesTable },
     { CandidateRow },
     { DashboardPage },
-    { parseSnapshotWorkbookData }
+    { parseSnapshotWorkbookData },
+    { SimulationGrid },
+    { createScenarioDrafts }
   ] = await Promise.all([
     vite.ssrLoadModule('/src/features/cost-breakdown/components/RoutingDetailedTable.tsx'),
     vite.ssrLoadModule('/src/features/cost-breakdown/components/BOMDetailedTable.tsx'),
@@ -61,9 +63,27 @@ try {
     vite.ssrLoadModule('/src/features/candidate-selection/components/CandidatesTable.tsx'),
     vite.ssrLoadModule('/src/features/candidate-selection/components/CandidateRow.tsx'),
     vite.ssrLoadModule('/src/features/dashboard/DashboardPage.tsx'),
-    vite.ssrLoadModule('/src/services/excel/snapshot-parser.ts')
+    vite.ssrLoadModule('/src/services/excel/snapshot-parser.ts'),
+    vite.ssrLoadModule('/src/features/rca-simulation/components/SimulationGrid.tsx'),
+    vite.ssrLoadModule('/src/features/rca-simulation/scenario-draft.ts')
   ])
 
+  const simulationGridMarkup = renderToStaticMarkup(React.createElement(SimulationGrid, {
+    scenarios: createScenarioDrafts(),
+    inputDefinitions: [],
+    results: [],
+    economicsResults: [],
+    inputWarningsByLetter: { A: [], B: [] },
+    economicsInputWarningsByLetter: { A: [], B: [] },
+    onUpdateLabel() {},
+    onUpdateInput() {},
+    onUpdateEconomics() {}
+  }))
+  assert.match(simulationGridMarkup, /Compare two scenarios/)
+  assert.match(simulationGridMarkup, /Scenario A/)
+  assert.match(simulationGridMarkup, /Scenario B/)
+  assert.doesNotMatch(simulationGridMarkup, /Scenario C/)
+  assert.equal((simulationGridMarkup.match(/<article\b/g) ?? []).length, 2, 'the simulation renders exactly two scenario cards')
   const blankWorkCenterWorkbook = XLSX.utils.book_new()
   const addSheet = (name, rows) => XLSX.utils.book_append_sheet(blankWorkCenterWorkbook, XLSX.utils.aoa_to_sheet(rows), name)
   addSheet('META', [
@@ -187,7 +207,7 @@ try {
     totalGap: 1, elementGaps: { material: 1, labor: 0, burden: 0 },
     bomFindings: [], routingFindings: [], workCenterFindings: [], processingFindings: [], productFieldDiffs: {}, warnings: []
   }
-  const dashboardDrafts = ['A', 'B', 'C'].map(letter => ({
+  const dashboardDrafts = ['A', 'B'].map(letter => ({
     letter, label: letter === 'A' ? 'Higher price trial' : '',
     inputValues: letter === 'A'
       ? { '["bom","bom-current","price"]': '12' }

@@ -53,10 +53,10 @@ assert.deepEqual(prepared.inputsByLetter.B, {
 }, 'economics assumptions must remain isolated by scenario')
 assert.deepEqual(prepared.warningsByLetter.A, [])
 
-const invalidDrafts = updateScenarioEconomicsInput(withVolume, 'C', 'variableAddedCostPerPiece', 'Infinity')
+const invalidDrafts = updateScenarioEconomicsInput(withVolume, 'B', 'variableAddedCostPerPiece', 'Infinity')
 const invalidPrepared = prepareScenarioEconomicsInputs(invalidDrafts)
-assert.equal(invalidPrepared.inputsByLetter.C.variableAddedCostPerPiece, null)
-assert.match(invalidPrepared.warningsByLetter.C[0] ?? '', /finite number/)
+assert.equal(invalidPrepared.inputsByLetter.B.variableAddedCostPerPiece, null)
+assert.match(invalidPrepared.warningsByLetter.B[0] ?? '', /finite number/)
 
 const pageSource = readFileSync(resolve(process.cwd(), 'src/features/rca-simulation/RCASimulationPage.tsx'), 'utf8')
 const cardSource = readFileSync(resolve(process.cwd(), 'src/features/rca-simulation/components/ScenarioCard.tsx'), 'utf8')

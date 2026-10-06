@@ -10,6 +10,7 @@ import {
   updateScenarioInputValue
 } from '../src/features/rca-simulation/scenario-draft'
 import * as masterDataRevision from '../src/state/master-data-revision'
+import type { RcaSimulationPageState } from '../src/features/rca-simulation/scenario-draft'
 
 const bomInputKey = JSON.stringify(['bom', 'bom-1', 'price'])
 const routingInputKey = JSON.stringify(['routing', 'rt-1', 'manning'])
@@ -33,6 +34,23 @@ const savedPageState = {
     'candidate-1': scenarioDrafts
   }
 }
+const legacyCPageState = {
+  ...savedPageState,
+  trialHandoffLetter: 'C',
+  scenarioDraftsByCandidate: {
+    'candidate-1': [
+      ...scenarioDrafts,
+      { letter: 'C', label: 'Legacy C', inputValues: {}, economicsInputs: { fixedInvestment: '', variableAddedCostPerPiece: '', evaluationVolume: '' } }
+    ]
+  }
+} as unknown as RcaSimulationPageState
+const migratedLegacyPageState = getRcaSimulationStateForRevision(legacyCPageState, 3)
+assert.equal(migratedLegacyPageState.trialHandoffLetter, null, 'Legacy Scenario C handoff state must be discarded')
+assert.deepEqual(
+  migratedLegacyPageState.scenarioDraftsByCandidate['candidate-1']?.map(draft => draft.letter),
+  ['A', 'B'],
+  'Legacy persisted Scenario C drafts must be removed'
+)
 const pageStatesAfterFirstProduct = updateRcaSimulationStateByProduct({}, 'product-1', 3, () => savedPageState)
 const pageStatesAfterSecondProduct = updateRcaSimulationStateByProduct(
   pageStatesAfterFirstProduct,
@@ -48,6 +66,16 @@ assert.strictEqual(
   retainRcaSimulationStatesForProducts(pageStatesAfterSecondProduct, new Set(['product-1', 'product-2'])),
   pageStatesAfterSecondProduct,
   'Existing product state must be preserved when its session still exists'
+)
+const statesWithLegacyCProduct = { ...pageStatesAfterSecondProduct, 'product-2': legacyCPageState }
+const normalizedProductStates = retainRcaSimulationStatesForProducts(
+  statesWithLegacyCProduct,
+  new Set(['product-1', 'product-2'])
+)
+assert.deepEqual(
+  normalizedProductStates['product-2'].scenarioDraftsByCandidate['candidate-1']?.map(draft => draft.letter),
+  ['A', 'B'],
+  'Legacy Scenario C state must be normalized for inactive products too'
 )
 const pageStatesAfterProductDeletion = retainRcaSimulationStatesForProducts(pageStatesAfterSecondProduct, new Set(['product-2']))
 assert.deepEqual(Object.keys(pageStatesAfterProductDeletion), ['product-2'], 'Deleting a product must remove its orphan RCA state')

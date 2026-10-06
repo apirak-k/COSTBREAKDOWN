@@ -139,7 +139,7 @@ export function ScenarioOverview({ currentSnapshot, candidates, simulationState,
       {selectedCandidate ? (
         <>
           <p className="text-[10px] text-slate-600">Human-selected candidate: <span className="font-semibold text-slate-900">{selectedCandidate.candidateName}</span>. All scenarios recalculate from Current.</p>
-          <div className="grid grid-cols-1 gap-2 xl:grid-cols-3">
+          <div className="grid grid-cols-1 gap-2 xl:grid-cols-2">
             {scenarioResults.map(result => {
               const form = scenarioForms.find(item => item.letter === result.letter)
               const prepared = preparedScenarios.drafts.find(item => item.letter === result.letter)
@@ -158,7 +158,7 @@ export function ScenarioOverview({ currentSnapshot, candidates, simulationState,
         </>
       ) : (
         <div role="status" className="border border-dashed border-slate-400 bg-white px-3 py-4 text-xs text-slate-600">
-          Select a candidate in RCA &amp; Simulation to see its live Scenario A/B/C results here. The dashboard does not choose a candidate or scenario for you.
+          Select a candidate in RCA &amp; Simulation to see its live Scenario A/B results here. The dashboard does not choose a candidate or scenario for you.
         </div>
       )}
     </section>

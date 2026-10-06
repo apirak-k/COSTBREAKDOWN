@@ -16,7 +16,7 @@ export interface ScenarioParameterOverrides {
 }
 
 export interface ScenarioCostDraft {
-  letter: 'A' | 'B' | 'C'
+  letter: 'A' | 'B'
   label: string
   overrides: ScenarioParameterOverrides
 }

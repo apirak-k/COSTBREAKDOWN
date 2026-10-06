@@ -134,7 +134,7 @@ export const RCASimulationPage: React.FC<RCASimulationPageProps> = ({ state, upd
         <span className="font-mono text-[10px] font-bold uppercase tracking-wide text-slate-600">Simulation basis</span>
         <span className="font-semibold text-slate-900">Current</span>
         <p className="min-w-0 flex-1 text-xs leading-5 text-slate-700">
-          A, B, and C are independent predictions from the full Current snapshot through the shared Standard Cost engine. Edits never change Current, Reference, or Master Data.
+          A and B are independent predictions from the full Current snapshot through the shared Standard Cost engine. Edits never change Current, Reference, or Master Data.
         </p>
       </aside>
 
@@ -186,7 +186,7 @@ export const RCASimulationPage: React.FC<RCASimulationPageProps> = ({ state, upd
                   value={state.trialHandoffLetter ?? ''}
                   onChange={event => updateState(previous => ({
                     ...previous,
-                    trialHandoffLetter: (event.target.value || null) as 'A' | 'B' | 'C' | null
+                    trialHandoffLetter: (event.target.value || null) as 'A' | 'B' | null
                   }))}
                   className="min-h-9 w-full rounded-sm border border-slate-400 bg-white px-2.5 py-1.5 text-xs text-slate-900 focus:border-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-200"
                 >

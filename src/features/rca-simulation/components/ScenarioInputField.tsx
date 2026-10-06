@@ -3,7 +3,7 @@ import type { ScenarioInputDefinition } from '../scenario-inputs'
 
 interface ScenarioInputFieldProps {
   definition: ScenarioInputDefinition
-  scenarioLetter: 'A' | 'B' | 'C'
+  scenarioLetter: 'A' | 'B'
   value: string | undefined
   onChange: (inputKey: string, value: string) => void
 }
