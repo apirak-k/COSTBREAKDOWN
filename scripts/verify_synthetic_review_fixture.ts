@@ -25,7 +25,7 @@ assert.deepEqual(countStatuses(comparison.bomFindings), {
   UNCHANGED: 1, CHANGED: 3, ADDED: 1, REMOVED: 1
 })
 assert.deepEqual(countStatuses(comparison.routingFindings), {
-  UNCHANGED: 2, CHANGED: 2, ADDED: 3, REMOVED: 3
+  UNCHANGED: 1, CHANGED: 3, ADDED: 3, REMOVED: 3
 })
 assert.deepEqual(countStatuses(comparison.workCenterFindings), {
   UNCHANGED: 2, CHANGED: 1, ADDED: 1, REMOVED: 1
@@ -66,6 +66,13 @@ const changedWorkCenterRate = comparison.workCenterFindings.find(finding =>
 assert.ok(changedWorkCenterRate)
 assert.ok('laborRate' in changedWorkCenterRate.fieldDiffs)
 assert.ok('burdenRate' in changedWorkCenterRate.fieldDiffs)
+
+const rateAffectedProcess = comparison.routingFindings.find(finding =>
+  finding.currentId && pair.current.routing.find(row => row.id === finding.currentId)?.processName === 'OP-10'
+)
+assert.ok(rateAffectedProcess)
+assert.equal(getCanonicalComparisonStatus(rateAffectedProcess), 'CHANGED', 'WC rate-only cost movement keeps Process as the Candidate')
+assert.equal(rateAffectedProcess.changeFlags.changedRate, true)
 
 const referenceSharedProcesses = pair.reference.routing
   .filter(step => step.workCenterId === 'WC-SHARED')
