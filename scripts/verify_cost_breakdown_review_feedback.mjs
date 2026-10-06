@@ -202,6 +202,7 @@ try {
   }
   const dashboardProps = {
     analysisSnapshotPair: { reference: dashboardReference, current: dashboardCurrent },
+    simulationCurrentSnapshot: dashboardCurrent,
     comparison: dashboardComparison,
     candidates: [dashboardCandidate, dashboardProcessingCandidate],
     selectedComparisonSelection: null, isSelectedComparisonActive: false,

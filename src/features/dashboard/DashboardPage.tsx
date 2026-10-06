@@ -1,6 +1,6 @@
 import React from 'react'
 import { formatNumber } from '../../core'
-import type { CostComparison, PrioritizationCandidate, SelectedComparisonSelection, SnapshotPair } from '../../core'
+import type { CostComparison, CostSnapshot, PrioritizationCandidate, SelectedComparisonSelection, SnapshotPair } from '../../core'
 import { PageHeading, SelectedComparisonBanner } from '../../shared'
 import type { RcaSimulationPageState } from '../rca-simulation/scenario-draft'
 import { ComparisonDetails } from './components/ComparisonDetails'
@@ -11,6 +11,7 @@ import { ScenarioOverview } from './components/ScenarioOverview'
 
 interface DashboardPageProps {
   analysisSnapshotPair: SnapshotPair
+  simulationCurrentSnapshot: CostSnapshot
   comparison: CostComparison
   candidates: PrioritizationCandidate[]
   selectedComparisonSelection: SelectedComparisonSelection | null
@@ -22,6 +23,7 @@ interface DashboardPageProps {
 
 export const DashboardPage: React.FC<DashboardPageProps> = ({
   analysisSnapshotPair,
+  simulationCurrentSnapshot,
   comparison,
   candidates,
   selectedComparisonSelection,
@@ -79,7 +81,7 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({
       <CostCauseSection comparison={comparison} />
       <ComparisonDetails materialCandidates={materialCandidates} processingCandidates={processingCandidates} />
       <ScenarioOverview
-        currentSnapshot={analysisSnapshotPair.current}
+        currentSnapshot={simulationCurrentSnapshot}
         candidates={candidates}
         simulationState={simulationState}
         onOpenRca={onOpenRca}

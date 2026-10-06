@@ -23,6 +23,7 @@ const AppRouter: React.FC = () => {
     activeSession,
     productSessions,
     analysisSnapshotPair,
+    snapshotPair,
     snapshotComparison,
     candidates,
     selectedComparisonSelection,
@@ -65,6 +66,7 @@ const AppRouter: React.FC = () => {
       {activeTab === 'dashboard' && (
         <DashboardPage
           analysisSnapshotPair={analysisSnapshotPair}
+          simulationCurrentSnapshot={snapshotPair.current}
           comparison={snapshotComparison}
           candidates={candidates}
           selectedComparisonSelection={selectedComparisonSelection}

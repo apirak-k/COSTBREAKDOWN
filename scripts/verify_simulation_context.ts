@@ -151,6 +151,7 @@ assert.equal(
 const pageSource = readFileSync(resolve(process.cwd(), 'src/features/rca-simulation/RCASimulationPage.tsx'), 'utf8')
 const selectorSource = readFileSync(resolve(process.cwd(), 'src/features/rca-simulation/components/CandidateSelector.tsx'), 'utf8')
 const appSource = readFileSync(resolve(process.cwd(), 'src/App.tsx'), 'utf8')
+const dashboardSource = readFileSync(resolve(process.cwd(), 'src/features/dashboard/DashboardPage.tsx'), 'utf8')
 const storeSource = readFileSync(resolve(process.cwd(), 'src/state/store.tsx'), 'utf8')
 const clearDatasetSource = readFileSync(resolve(process.cwd(), 'src/state/clear-master-data-dataset.ts'), 'utf8')
 
@@ -166,6 +167,10 @@ assert.match(appSource, /activeSession\.masterDataRevision/, 'RCA UI state must 
 assert.match(appSource, /retainRcaSimulationStatesForProducts/, 'RCA state must be pruned when its ProductSession is deleted')
 assert.match(appSource, /productSessions\.map\(session => session\.id\)/, 'RCA cleanup must use the current ProductSession ids')
 assert.match(storeSource, /changesMasterData \? markMasterDataChanged\(updated\)/, 'Legacy Product data edits must advance the source revision')
+assert.match(pageSource, /const currentSnapshot = snapshotPair\.current/, 'Simulation calculations must start from the full Current snapshot')
+assert.match(pageSource, /selectedCandidate && !isSelectedComparisonActive \? calculateScenarioCosts\(currentSnapshot, preparedDrafts\.drafts\)/, 'Simulation must wait until the Selected Scope has ended')
+assert.match(appSource, /simulationCurrentSnapshot=\{snapshotPair\.current\}/, 'Dashboard preview must receive full Current independently of the selected comparison pair')
+assert.match(dashboardSource, /currentSnapshot=\{simulationCurrentSnapshot\}/, 'Dashboard simulation preview must calculate from full Current')
 assert.match(storeSource, /function applyMasterDataSnapshotPair[\s\S]*markMasterDataChangedForSnapshotPair\(/, 'Snapshot dataset mutations must compare business data before advancing the source revision')
 assert.equal((storeSource.match(/\bapplySnapshotPairToSession\(/g) ?? []).length, 2, 'Snapshot writes must go through the versioned helper')
 assert.match(clearDatasetSource, /markMasterDataChanged\(/, 'Clearing a comparison dataset must advance the source revision')
@@ -173,4 +178,7 @@ assert.match(appSource, /<RCASimulationPage\s+state=\{rcaSimulationState\}/, 'Th
 assert.doesNotMatch(pageSource, /useState\(/, 'RCA page state must live above the conditionally mounted page')
 assert.match(pageSource, /state\.scenarioDraftsByCandidate/, 'Scenario drafts must remain isolated by selected candidate')
 
+assert.match(pageSource, /const selectCandidate = \(candidateKey: string \| null\) => \{[\s\S]*?if \(candidateKey\) clearSelectedComparison\(\)/, 'Choosing one Candidate ends the multi-finding scope before Simulation')
+assert.match(pageSource, /if \(selectedCandidate && isSelectedComparisonActive\) clearSelectedComparison\(\)/, 'A Candidate already selected before RCA entry also ends the scope')
+assert.doesNotMatch(pageSource, /selected BOM and Routing scope/, 'Simulation must not calculate from a selected-only product')
 console.log('Simulation context verification passed')
