@@ -174,18 +174,18 @@ export const BOMTable: React.FC<BOMTableProps> = ({
         <table ref={tableRef} className="w-full min-w-[860px] border-collapse text-left text-xs">
           <thead className="sticky top-0 z-30 border-y-2 border-slate-400 bg-slate-100 text-[11px] font-semibold uppercase tracking-wide text-slate-800">
             <tr>
-              <th scope="col" className="sticky left-0 z-40 w-12 bg-slate-100 px-3 py-2.5 text-center">#</th>
-              <th scope="col" className="px-3 py-2.5">Name</th>
-              <th scope="col" className="px-3 py-2.5 text-right">Usage</th>
-              <th scope="col" className="px-3 py-2.5">Unit</th>
-              <th scope="col" className="px-3 py-2.5 text-right">Price</th>
-              <th scope="col" className="px-3 py-2.5 text-right">Loss</th>
-              <th scope="col" className="px-3 py-2.5">Note</th>
-              {isEditMode && <th scope="col" className="w-12 px-2 py-2.5 text-center">Actions</th>}
-              {isEditMode && <th scope="col" className="w-8 px-1 py-2.5 text-center" aria-label="Reorder rows" />}
+              <th scope="col" className="sticky left-0 z-40 w-12 bg-slate-100 px-2 py-2 text-center">#</th>
+              <th scope="col" className="px-2 py-2">Name</th>
+              <th scope="col" className="px-2 py-2 text-right">Usage</th>
+              <th scope="col" className="px-2 py-2">Unit</th>
+              <th scope="col" className="px-2 py-2 text-right">Price</th>
+              <th scope="col" className="px-2 py-2 text-right">Loss</th>
+              <th scope="col" className="px-2 py-2">Note</th>
+              {isEditMode && <th scope="col" className="w-12 px-2 py-2 text-center">Actions</th>}
+              {isEditMode && <th scope="col" className="w-8 px-1 py-2 text-center" aria-label="Reorder rows" />}
             </tr>
           </thead>
-          <tbody className="divide-y divide-slate-200 text-sm">
+          <tbody className="divide-y divide-slate-200 text-xs">
             {filteredBOM.map(item => {
               const isSelected = selectedIds.has(item.id)
               const identityInvalid = !item.isGeneratedSizingPlaceholder && (!item.description.trim() || duplicateNameIds.has(item.id))
@@ -196,7 +196,7 @@ export const BOMTable: React.FC<BOMTableProps> = ({
               const rowMarkerBackground = isSelected
                 ? 'bg-blue-50 group-hover:bg-blue-100'
                 : 'bg-white group-hover:bg-slate-50'
-              const numericClass = (invalid: boolean) => `min-h-9 rounded-sm border px-2 text-right text-sm tabular-nums focus:outline-none focus:ring-2 focus:ring-blue-700 ${invalid ? 'border-amber-600 bg-amber-50' : 'border-slate-300 bg-white'}`
+              const numericClass = (invalid: boolean) => `min-h-8 rounded-sm border px-2 text-right text-xs tabular-nums focus:outline-none focus:ring-2 focus:ring-blue-700 ${invalid ? 'border-amber-600 bg-amber-50' : 'border-slate-300 bg-white'}`
 
               return (
                 <tr
@@ -204,9 +204,9 @@ export const BOMTable: React.FC<BOMTableProps> = ({
                   onMouseEnter={() => onMouseEnterRow(item.id)}
                   onDragOver={event => { if (isEditMode) event.preventDefault() }}
                   onDrop={event => { if (isEditMode) handleRowDrop(event, item.id) }}
-                  className={`group ${isSelected ? 'border-l-2 border-l-blue-700 bg-blue-50 hover:bg-blue-100' : 'hover:bg-slate-50'}`}
+                  className={`group h-9 ${isSelected ? 'border-l-2 border-l-blue-700 bg-blue-50 hover:bg-blue-100' : 'hover:bg-slate-50'}`}
                 >
-                  <th scope="row" className={`sticky left-0 z-20 w-12 px-2 py-2 text-center font-mono font-normal text-slate-600 ${rowMarkerBackground}`}>
+                  <th scope="row" className={`sticky left-0 z-20 w-12 px-1.5 py-0.5 text-center font-mono font-normal text-slate-600 ${rowMarkerBackground}`}>
                     {isEditMode ? (
                       <button
                         type="button"
@@ -220,7 +220,7 @@ export const BOMTable: React.FC<BOMTableProps> = ({
                       </button>
                     ) : rowNumber}
                   </th>
-                  <td className="px-3 py-2 font-sans text-slate-800">
+                  <td className="px-2 py-0.5 font-sans text-slate-800">
                     <div className="min-w-[170px]">
                       {isEditMode ? (
                         <input
@@ -231,12 +231,12 @@ export const BOMTable: React.FC<BOMTableProps> = ({
                           data-grid-field="description"
                           aria-label={`Name for BOM row ${rowNumber}`}
                           aria-invalid={identityInvalid}
-                          className={`min-h-9 w-full rounded-sm border bg-white px-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-700 ${identityInvalid ? 'border-amber-600' : 'border-slate-300'} ${selectedCellKeys.has(tableCellKey(item.id, 'description')) ? 'ring-2 ring-blue-500 ring-inset' : ''}`}
+                          className={`min-h-8 w-full rounded-sm border bg-white px-2 text-xs focus:outline-none focus:ring-2 focus:ring-blue-700 ${identityInvalid ? 'border-amber-600' : 'border-slate-300'} ${selectedCellKeys.has(tableCellKey(item.id, 'description')) ? 'ring-2 ring-blue-500 ring-inset' : ''}`}
                         />
                       ) : item.description || <span className="text-amber-700">—</span>}
                     </div>
                   </td>
-                  <td className={`px-3 py-2 text-right font-mono tabular-nums ${consumptionInvalid ? 'bg-amber-50/60 text-amber-900' : ''}`}>
+                  <td className={`px-2 py-0.5 text-right font-mono tabular-nums ${consumptionInvalid ? 'bg-amber-50/60 text-amber-900' : ''}`}>
                     {isEditMode ? (
                       <input
                         type="number"
@@ -252,7 +252,7 @@ export const BOMTable: React.FC<BOMTableProps> = ({
                       />
                     ) : displayNumber(item.consumption)}
                   </td>
-                  <td className="px-3 py-2 font-mono">
+                  <td className="px-2 py-0.5 font-mono">
                     {isEditMode ? (
                       <input
                         value={item.unit}
@@ -262,11 +262,11 @@ export const BOMTable: React.FC<BOMTableProps> = ({
                         data-grid-field="unit"
                         aria-label={`Unit for ${item.description || `BOM row ${rowNumber}`}`}
                         aria-invalid={!item.isGeneratedSizingPlaceholder && !item.unit.trim()}
-                        className={`min-h-9 w-20 rounded-sm border bg-white px-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-700 ${!item.isGeneratedSizingPlaceholder && !item.unit.trim() ? 'border-amber-600' : 'border-slate-300'} ${selectedCellKeys.has(tableCellKey(item.id, 'unit')) ? 'ring-2 ring-blue-500 ring-inset' : ''}`}
+                        className={`min-h-8 w-20 rounded-sm border bg-white px-2 text-xs focus:outline-none focus:ring-2 focus:ring-blue-700 ${!item.isGeneratedSizingPlaceholder && !item.unit.trim() ? 'border-amber-600' : 'border-slate-300'} ${selectedCellKeys.has(tableCellKey(item.id, 'unit')) ? 'ring-2 ring-blue-500 ring-inset' : ''}`}
                       />
                     ) : item.unit || <span className="text-amber-700">—</span>}
                   </td>
-                  <td className={`px-3 py-2 text-right font-mono tabular-nums ${priceInvalid ? 'bg-amber-50/60 text-amber-900' : ''}`}>
+                  <td className={`px-2 py-0.5 text-right font-mono tabular-nums ${priceInvalid ? 'bg-amber-50/60 text-amber-900' : ''}`}>
                     {isEditMode ? (
                       <input
                         type="number"
@@ -282,7 +282,7 @@ export const BOMTable: React.FC<BOMTableProps> = ({
                       />
                     ) : displayNumber(item.price, 2)}
                   </td>
-                  <td className={`px-3 py-2 text-right font-mono tabular-nums ${lossInvalid ? 'bg-amber-50/60 text-amber-900' : ''}`}>
+                  <td className={`px-2 py-0.5 text-right font-mono tabular-nums ${lossInvalid ? 'bg-amber-50/60 text-amber-900' : ''}`}>
                     {isEditMode ? (
                       <div className="flex items-center justify-end gap-1">
                         <input
@@ -304,7 +304,7 @@ export const BOMTable: React.FC<BOMTableProps> = ({
                       </div>
                     ) : item.loss === null ? <span className="text-amber-700">—</span> : `${(item.loss * 100).toFixed(1)}%`}
                   </td>
-                  <td className="px-3 py-2 font-sans text-slate-600">
+                  <td className="px-2 py-0.5 font-sans text-slate-600">
                     {isEditMode ? (
                       <input
                         value={item.note || ''}
@@ -313,12 +313,12 @@ export const BOMTable: React.FC<BOMTableProps> = ({
                         data-grid-row-id={item.id}
                         data-grid-field="note"
                         aria-label={`Note for ${item.description || `BOM row ${rowNumber}`}`}
-                        className={`min-h-9 w-full min-w-[160px] rounded-sm border border-slate-300 bg-white px-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-700 ${selectedCellKeys.has(tableCellKey(item.id, 'note')) ? 'ring-2 ring-blue-500 ring-inset' : ''}`}
+                        className={`min-h-8 w-full min-w-[160px] rounded-sm border border-slate-300 bg-white px-2 text-xs focus:outline-none focus:ring-2 focus:ring-blue-700 ${selectedCellKeys.has(tableCellKey(item.id, 'note')) ? 'ring-2 ring-blue-500 ring-inset' : ''}`}
                       />
                     ) : item.note || '—'}
                   </td>
                   {isEditMode && (
-                    <td className="px-2 py-1 text-center">
+                    <td className="px-2 py-0.5 text-center">
                       <button
                         type="button"
                         onClick={() => onDeleteBOMItems([item.id])}
@@ -331,7 +331,7 @@ export const BOMTable: React.FC<BOMTableProps> = ({
                     </td>
                   )}
                   {isEditMode && (
-                    <td className={`w-8 px-1 py-2 text-center ${rowMarkerBackground}`}>
+                    <td className={`w-8 px-1 py-0.5 text-center ${rowMarkerBackground}`}>
                       <button
                         type="button"
                         draggable

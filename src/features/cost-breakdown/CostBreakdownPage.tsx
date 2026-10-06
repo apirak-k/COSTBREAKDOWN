@@ -94,7 +94,7 @@ export const CostBreakdownPage: React.FC = () => {
   }
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-4">
       <PageHeading
         title="Cost Breakdown"
         description="Compare Reference and Current cost, then review the record-level changes that explain the gap."

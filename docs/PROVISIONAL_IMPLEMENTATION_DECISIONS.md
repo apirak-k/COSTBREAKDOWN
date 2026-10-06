@@ -98,6 +98,16 @@ Do not promote an entry to a user decision based on implementation, test results
 - **Review trigger:** explicit user feedback about confirmation frequency or a confirmed interaction rule.
 - **Related contract:** [`MASTER_DATA.md`](specs/MASTER_DATA.md#dataset-lifecycle).
 
+### P-009 — Full-width compact Master Data work surface
+
+- **Status:** `PROVISIONAL — AI CHOICE`
+- **Choice:** let the shared workspace and Master Data tables use the available viewport width; keep horizontal scrolling inside each table region; target 36-pixel table rows with 32-pixel editable controls and compact cell padding.
+- **Why:** the nested page-width caps and 52-pixel editable rows leave less room for the dense engineering data the page is meant to support.
+- **Must preserve:** BOM → Work Centers → Routing order, sticky identity/selection column, table-local scrolling, visible focus states, operable action controls, and the finalized spreadsheet editing and selection interactions.
+- **Reversible:** page gutters, width behavior, row height, and padding can be adjusted after visual review without changing table data or interaction behavior.
+- **Review trigger:** human visual acceptance, responsive review, or accessibility/usability findings.
+- **Related contract:** [`MASTER_DATA.md`](specs/MASTER_DATA.md#uxui-directions) and [`design.md`](../design.md#4-spacing-radius--elevation).
+
 ## Genuine pending boundaries
 
 These are not AI choices and must not be inferred away:

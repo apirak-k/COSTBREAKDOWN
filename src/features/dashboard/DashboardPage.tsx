@@ -46,7 +46,7 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({
   const processingCandidates = candidates.filter(candidate => candidate.sourceType === 'work-center')
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-4">
       <PageHeading
         title="Cost Overview"
         description="Standard Cost comparison with BOM and Work Center detail. Business measures remain uncalculated until their formulas are confirmed."

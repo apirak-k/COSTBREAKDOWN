@@ -227,7 +227,7 @@ export const MasterDataPage: React.FC = () => {
   )
 
   return (
-    <div className="mx-auto max-w-6xl space-y-5 lg:px-6">
+    <div className="w-full space-y-4">
       <MasterDataWorkspaceHeader
         product={product}
         snapshot={masterDataSnapshot}

@@ -178,18 +178,18 @@ export const RoutingTable: React.FC<RoutingTableProps> = ({
         <table ref={tableRef} className="w-full min-w-[960px] border-collapse text-left text-xs">
           <thead className="sticky top-0 z-30 border-y-2 border-slate-400 bg-slate-100 text-[11px] font-semibold uppercase tracking-wide text-slate-800">
             <tr>
-              <th scope="col" className="sticky left-0 z-40 w-12 bg-slate-100 px-3 py-2.5 text-center">#</th>
-              <th scope="col" className="px-3 py-2.5">Process</th>
-              <th scope="col" className="px-3 py-2.5">WC</th>
-              <th scope="col" className="px-3 py-2.5 text-right">Manning</th>
-              <th scope="col" className="px-3 py-2.5 text-right">Cap</th>
-              <th scope="col" className="px-3 py-2.5 text-right">Yield</th>
-              <th scope="col" className="px-3 py-2.5">Note</th>
-              {isEditMode && <th scope="col" className="w-12 px-2 py-2.5 text-center">Actions</th>}
-              {isEditMode && <th scope="col" className="w-8 px-1 py-2.5 text-center" aria-label="Reorder rows" />}
+              <th scope="col" className="sticky left-0 z-40 w-12 bg-slate-100 px-2 py-2 text-center">#</th>
+              <th scope="col" className="px-2 py-2">Process</th>
+              <th scope="col" className="px-2 py-2">WC</th>
+              <th scope="col" className="px-2 py-2 text-right">Manning</th>
+              <th scope="col" className="px-2 py-2 text-right">Cap</th>
+              <th scope="col" className="px-2 py-2 text-right">Yield</th>
+              <th scope="col" className="px-2 py-2">Note</th>
+              {isEditMode && <th scope="col" className="w-12 px-2 py-2 text-center">Actions</th>}
+              {isEditMode && <th scope="col" className="w-8 px-1 py-2 text-center" aria-label="Reorder rows" />}
             </tr>
           </thead>
-          <tbody className="divide-y divide-slate-200 text-sm">
+          <tbody className="divide-y divide-slate-200 text-xs">
             {filteredRouting.map(step => {
               const isSelected = selectedIds.has(step.id)
               const identityInvalid = !step.isGeneratedSizingPlaceholder && (!step.processName.trim() || duplicateProcessIds.has(step.id))
@@ -201,7 +201,7 @@ export const RoutingTable: React.FC<RoutingTableProps> = ({
               const rowMarkerBackground = isSelected
                 ? 'bg-blue-50 group-hover:bg-blue-100'
                 : 'bg-white group-hover:bg-slate-50'
-              const numericClass = (invalid: boolean) => `min-h-9 rounded-sm border px-2 text-right text-sm tabular-nums focus:outline-none focus:ring-2 focus:ring-blue-700 ${invalid ? 'border-amber-600 bg-amber-50' : 'border-slate-300 bg-white'}`
+              const numericClass = (invalid: boolean) => `min-h-8 rounded-sm border px-2 text-right text-xs tabular-nums focus:outline-none focus:ring-2 focus:ring-blue-700 ${invalid ? 'border-amber-600 bg-amber-50' : 'border-slate-300 bg-white'}`
 
               return (
                 <tr
@@ -209,9 +209,9 @@ export const RoutingTable: React.FC<RoutingTableProps> = ({
                   onMouseEnter={() => onMouseEnterRow(step.id)}
                   onDragOver={event => { if (isEditMode) event.preventDefault() }}
                   onDrop={event => { if (isEditMode) handleRowDrop(event, step.id) }}
-                  className={`group ${isSelected ? 'border-l-2 border-l-blue-700 bg-blue-50 hover:bg-blue-100' : 'hover:bg-slate-50'}`}
+                  className={`group h-9 ${isSelected ? 'border-l-2 border-l-blue-700 bg-blue-50 hover:bg-blue-100' : 'hover:bg-slate-50'}`}
                 >
-                  <th scope="row" className={`sticky left-0 z-20 w-12 px-2 py-2 text-center font-mono font-normal text-slate-600 ${rowMarkerBackground}`}>
+                  <th scope="row" className={`sticky left-0 z-20 w-12 px-1.5 py-0.5 text-center font-mono font-normal text-slate-600 ${rowMarkerBackground}`}>
                     {isEditMode ? (
                       <button
                         type="button"
@@ -225,7 +225,7 @@ export const RoutingTable: React.FC<RoutingTableProps> = ({
                       </button>
                     ) : rowNumber}
                   </th>
-                  <td className="px-3 py-2 font-sans text-slate-800">
+                  <td className="px-2 py-0.5 font-sans text-slate-800">
                     <div className="min-w-[170px]">
                       {isEditMode ? (
                         <input
@@ -236,12 +236,12 @@ export const RoutingTable: React.FC<RoutingTableProps> = ({
                           data-grid-field="processName"
                           aria-label={`Process for Routing row ${rowNumber}`}
                           aria-invalid={identityInvalid}
-                          className={`min-h-9 w-full rounded-sm border bg-white px-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-700 ${identityInvalid ? 'border-amber-600' : 'border-slate-300'} ${selectedCellKeys.has(tableCellKey(step.id, 'processName')) ? 'ring-2 ring-blue-500 ring-inset' : ''}`}
+                          className={`min-h-8 w-full rounded-sm border bg-white px-2 text-xs focus:outline-none focus:ring-2 focus:ring-blue-700 ${identityInvalid ? 'border-amber-600' : 'border-slate-300'} ${selectedCellKeys.has(tableCellKey(step.id, 'processName')) ? 'ring-2 ring-blue-500 ring-inset' : ''}`}
                         />
                       ) : step.processName || <span className="text-amber-700">—</span>}
                     </div>
                   </td>
-                  <td className="px-3 py-2">
+                  <td className="px-2 py-0.5">
                     {isEditMode ? (
                       <select
                         value={step.workCenterId || ''}
@@ -251,7 +251,7 @@ export const RoutingTable: React.FC<RoutingTableProps> = ({
                         data-grid-field="workCenterId"
                         aria-label={`WC for Routing row ${rowNumber}`}
                         aria-invalid={workCenterInvalid}
-                        className={`min-h-9 w-40 rounded-sm border bg-white px-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-700 ${workCenterInvalid ? 'border-amber-600' : 'border-slate-300'} ${selectedCellKeys.has(tableCellKey(step.id, 'workCenterId')) ? 'ring-2 ring-blue-500 ring-inset' : ''}`}
+                        className={`min-h-8 w-40 rounded-sm border bg-white px-2 text-xs focus:outline-none focus:ring-2 focus:ring-blue-700 ${workCenterInvalid ? 'border-amber-600' : 'border-slate-300'} ${selectedCellKeys.has(tableCellKey(step.id, 'workCenterId')) ? 'ring-2 ring-blue-500 ring-inset' : ''}`}
                       >
                         <option value="">Select WC</option>
                         {step.workCenterId && !knownWorkCenters.has(step.workCenterId.trim().toLocaleLowerCase()) && (
@@ -267,7 +267,7 @@ export const RoutingTable: React.FC<RoutingTableProps> = ({
                       </span>
                     ) : <span className="text-amber-700">—</span>}
                   </td>
-                  <td className={`px-3 py-2 text-right font-mono tabular-nums ${manningInvalid ? 'bg-amber-50/60 text-amber-900' : ''}`}>
+                  <td className={`px-2 py-0.5 text-right font-mono tabular-nums ${manningInvalid ? 'bg-amber-50/60 text-amber-900' : ''}`}>
                     {isEditMode ? (
                       <input
                         type="number"
@@ -283,7 +283,7 @@ export const RoutingTable: React.FC<RoutingTableProps> = ({
                       />
                     ) : numberValue(step.manning) || <span className="text-amber-700">—</span>}
                   </td>
-                  <td className={`px-3 py-2 text-right font-mono tabular-nums ${capacityInvalid ? 'bg-amber-50/60 text-amber-900' : ''}`}>
+                  <td className={`px-2 py-0.5 text-right font-mono tabular-nums ${capacityInvalid ? 'bg-amber-50/60 text-amber-900' : ''}`}>
                     {isEditMode ? (
                       <input
                         type="number"
@@ -299,7 +299,7 @@ export const RoutingTable: React.FC<RoutingTableProps> = ({
                       />
                     ) : numberValue(step.capacity) || <span className="text-amber-700">—</span>}
                   </td>
-                  <td className={`px-3 py-2 text-right ${yieldInvalid ? 'bg-amber-50/60 text-amber-900' : ''}`}>
+                  <td className={`px-2 py-0.5 text-right ${yieldInvalid ? 'bg-amber-50/60 text-amber-900' : ''}`}>
                     {isEditMode ? (
                       <div className="flex items-center justify-end gap-1">
                         <input
@@ -321,7 +321,7 @@ export const RoutingTable: React.FC<RoutingTableProps> = ({
                       </div>
                     ) : step.yield === null ? <span className="text-amber-700">—</span> : `${(step.yield * 100).toFixed(1)}%`}
                   </td>
-                  <td className="px-3 py-2 font-sans text-slate-600">
+                  <td className="px-2 py-0.5 font-sans text-slate-600">
                     {isEditMode ? (
                       <input
                         value={step.note || ''}
@@ -330,7 +330,7 @@ export const RoutingTable: React.FC<RoutingTableProps> = ({
                         data-grid-row-id={step.id}
                         data-grid-field="note"
                         aria-label={`Note for ${step.processName || `Routing row ${rowNumber}`}`}
-                        className={`min-h-9 w-full min-w-[160px] rounded-sm border border-slate-300 bg-white px-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-700 ${selectedCellKeys.has(tableCellKey(step.id, 'note')) ? 'ring-2 ring-blue-500 ring-inset' : ''}`}
+                        className={`min-h-8 w-full min-w-[160px] rounded-sm border border-slate-300 bg-white px-2 text-xs focus:outline-none focus:ring-2 focus:ring-blue-700 ${selectedCellKeys.has(tableCellKey(step.id, 'note')) ? 'ring-2 ring-blue-500 ring-inset' : ''}`}
                       />
                     ) : step.note || '—'}
                   </td>
@@ -348,7 +348,7 @@ export const RoutingTable: React.FC<RoutingTableProps> = ({
                     </td>
                   )}
                   {isEditMode && (
-                    <td className={`w-8 px-1 py-2 text-center ${rowMarkerBackground}`}>
+                    <td className={`w-8 px-1 py-0.5 text-center ${rowMarkerBackground}`}>
                       <button
                         type="button"
                         draggable

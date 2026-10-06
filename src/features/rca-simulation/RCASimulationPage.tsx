@@ -117,7 +117,7 @@ export const RCASimulationPage: React.FC<RCASimulationPageProps> = ({ state, upd
   }
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-4">
       <PageHeading
         title="RCA & Simulation"
         description="Record the cause and response, then compare cost scenarios for a candidate you choose."

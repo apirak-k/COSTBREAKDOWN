@@ -171,16 +171,16 @@ export const WorkCenterRatesTable: React.FC<WorkCenterRatesTableProps> = ({
         <table ref={tableRef} className="w-full min-w-[720px] border-collapse text-left text-xs">
           <thead className="sticky top-0 z-30 border-y-2 border-slate-400 bg-slate-100 text-[11px] font-semibold uppercase tracking-wide text-slate-800">
             <tr>
-              <th scope="col" className="sticky left-0 z-40 w-12 bg-slate-100 px-3 py-2.5 text-center">#</th>
-              <th scope="col" className="px-3 py-2.5">WC</th>
-              <th scope="col" className="px-3 py-2.5 text-right">Labor</th>
-              <th scope="col" className="px-3 py-2.5 text-right">Burden</th>
-              <th scope="col" className="px-3 py-2.5">Note</th>
-              {isEditMode && <th scope="col" className="w-12 px-2 py-2.5 text-center">Actions</th>}
-              {isEditMode && <th scope="col" className="w-8 px-1 py-2.5 text-center" aria-label="Reorder rows" />}
+              <th scope="col" className="sticky left-0 z-40 w-12 bg-slate-100 px-2 py-2 text-center">#</th>
+              <th scope="col" className="px-2 py-2">WC</th>
+              <th scope="col" className="px-2 py-2 text-right">Labor</th>
+              <th scope="col" className="px-2 py-2 text-right">Burden</th>
+              <th scope="col" className="px-2 py-2">Note</th>
+              {isEditMode && <th scope="col" className="w-12 px-2 py-2 text-center">Actions</th>}
+              {isEditMode && <th scope="col" className="w-8 px-1 py-2 text-center" aria-label="Reorder rows" />}
             </tr>
           </thead>
-          <tbody className="divide-y divide-slate-200 text-sm">
+          <tbody className="divide-y divide-slate-200 text-xs">
             {filteredRates.map(rate => {
               const isSelected = selectedIds.has(rate.id)
               const identityInvalid = !rate.isGeneratedSizingPlaceholder && (!rate.workCenterCode.trim() || duplicateWcIds.has(rate.id))
@@ -190,7 +190,7 @@ export const WorkCenterRatesTable: React.FC<WorkCenterRatesTableProps> = ({
               const rowMarkerBackground = isSelected
                 ? 'bg-blue-50 group-hover:bg-blue-100'
                 : 'bg-white group-hover:bg-slate-50'
-              const numericClass = (invalid: boolean) => `min-h-9 rounded-sm border px-2 text-right text-sm tabular-nums focus:outline-none focus:ring-2 focus:ring-blue-700 ${invalid ? 'border-amber-600 bg-amber-50' : 'border-slate-300 bg-white'}`
+              const numericClass = (invalid: boolean) => `min-h-8 rounded-sm border px-2 text-right text-xs tabular-nums focus:outline-none focus:ring-2 focus:ring-blue-700 ${invalid ? 'border-amber-600 bg-amber-50' : 'border-slate-300 bg-white'}`
 
               return (
                 <tr
@@ -198,9 +198,9 @@ export const WorkCenterRatesTable: React.FC<WorkCenterRatesTableProps> = ({
                   onMouseEnter={() => onMouseEnterRow(rate.id)}
                   onDragOver={event => { if (isEditMode) event.preventDefault() }}
                   onDrop={event => { if (isEditMode) handleRowDrop(event, rate.id) }}
-                  className={`group ${isSelected ? 'border-l-2 border-l-blue-700 bg-blue-50 hover:bg-blue-100' : 'hover:bg-slate-50'}`}
+                  className={`group h-9 ${isSelected ? 'border-l-2 border-l-blue-700 bg-blue-50 hover:bg-blue-100' : 'hover:bg-slate-50'}`}
                 >
-                  <th scope="row" className={`sticky left-0 z-20 w-12 px-2 py-2 text-center font-mono font-normal text-slate-600 ${rowMarkerBackground}`}>
+                  <th scope="row" className={`sticky left-0 z-20 w-12 px-1.5 py-0.5 text-center font-mono font-normal text-slate-600 ${rowMarkerBackground}`}>
                     {isEditMode ? (
                       <button
                         type="button"
@@ -214,7 +214,7 @@ export const WorkCenterRatesTable: React.FC<WorkCenterRatesTableProps> = ({
                       </button>
                     ) : rowNumber}
                   </th>
-                  <td className="px-3 py-2 font-mono font-semibold text-slate-950">
+                  <td className="px-2 py-0.5 font-mono font-semibold text-slate-950">
                     {isEditMode ? (
                       <div className="min-w-[150px]">
                         <input
@@ -225,7 +225,7 @@ export const WorkCenterRatesTable: React.FC<WorkCenterRatesTableProps> = ({
                           data-grid-field="workCenterCode"
                           aria-label={`WC for row ${rowNumber}`}
                           aria-invalid={identityInvalid}
-                          className={`min-h-9 w-full rounded-sm border bg-white px-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-700 ${identityInvalid ? 'border-amber-600' : 'border-slate-300'} ${selectedCellKeys.has(tableCellKey(rate.id, 'workCenterCode')) ? 'ring-2 ring-blue-500 ring-inset' : ''}`}
+                          className={`min-h-8 w-full rounded-sm border bg-white px-2 text-xs focus:outline-none focus:ring-2 focus:ring-blue-700 ${identityInvalid ? 'border-amber-600' : 'border-slate-300'} ${selectedCellKeys.has(tableCellKey(rate.id, 'workCenterCode')) ? 'ring-2 ring-blue-500 ring-inset' : ''}`}
                         />
                       </div>
                     ) : (
@@ -234,7 +234,7 @@ export const WorkCenterRatesTable: React.FC<WorkCenterRatesTableProps> = ({
                       </div>
                     )}
                   </td>
-                  <td className={`px-3 py-2 text-right font-mono tabular-nums ${laborInvalid ? 'bg-amber-50/60 text-amber-900' : ''}`}>
+                  <td className={`px-2 py-0.5 text-right font-mono tabular-nums ${laborInvalid ? 'bg-amber-50/60 text-amber-900' : ''}`}>
                     {isEditMode ? (
                       <input
                         type="number"
@@ -250,7 +250,7 @@ export const WorkCenterRatesTable: React.FC<WorkCenterRatesTableProps> = ({
                       />
                     ) : rate.laborRate === null ? <span className="text-amber-700">—</span> : rate.laborRate.toFixed(4)}
                   </td>
-                  <td className={`px-3 py-2 text-right font-mono tabular-nums ${burdenInvalid ? 'bg-amber-50/60 text-amber-900' : ''}`}>
+                  <td className={`px-2 py-0.5 text-right font-mono tabular-nums ${burdenInvalid ? 'bg-amber-50/60 text-amber-900' : ''}`}>
                     {isEditMode ? (
                       <input
                         type="number"
@@ -266,7 +266,7 @@ export const WorkCenterRatesTable: React.FC<WorkCenterRatesTableProps> = ({
                       />
                     ) : rate.burdenRate === null ? <span className="text-amber-700">—</span> : rate.burdenRate.toFixed(4)}
                   </td>
-                  <td className="px-3 py-2 font-sans text-slate-600">
+                  <td className="px-2 py-0.5 font-sans text-slate-600">
                     {isEditMode ? (
                       <input
                         value={rate.note || ''}
@@ -275,7 +275,7 @@ export const WorkCenterRatesTable: React.FC<WorkCenterRatesTableProps> = ({
                         data-grid-row-id={rate.id}
                         data-grid-field="note"
                         aria-label={`Note for ${rate.workCenterCode || `WC row ${rowNumber}`}`}
-                        className={`min-h-9 w-full min-w-[160px] rounded-sm border border-slate-300 bg-white px-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-700 ${selectedCellKeys.has(tableCellKey(rate.id, 'note')) ? 'ring-2 ring-blue-500 ring-inset' : ''}`}
+                        className={`min-h-8 w-full min-w-[160px] rounded-sm border border-slate-300 bg-white px-2 text-xs focus:outline-none focus:ring-2 focus:ring-blue-700 ${selectedCellKeys.has(tableCellKey(rate.id, 'note')) ? 'ring-2 ring-blue-500 ring-inset' : ''}`}
                       />
                     ) : rate.note || '—'}
                   </td>
@@ -293,7 +293,7 @@ export const WorkCenterRatesTable: React.FC<WorkCenterRatesTableProps> = ({
                     </td>
                   )}
                   {isEditMode && (
-                    <td className={`w-8 px-1 py-2 text-center ${rowMarkerBackground}`}>
+                    <td className={`w-8 px-1 py-0.5 text-center ${rowMarkerBackground}`}>
                       <button
                         type="button"
                         draggable

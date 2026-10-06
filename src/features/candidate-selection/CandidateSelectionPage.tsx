@@ -45,7 +45,7 @@ export const CandidateSelectionPage: React.FC = () => {
   ]
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-4">
       <PageHeading
         title="Candidate Prioritization"
         description="Review cost findings in gap order, then mark whether each is within your control. Rankings guide review; they do not select work automatically."

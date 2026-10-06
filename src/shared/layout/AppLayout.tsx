@@ -30,7 +30,7 @@ export const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
       <main
         id="main-content"
         tabIndex={-1}
-        className="mx-auto min-h-0 w-full max-w-7xl flex-1 overflow-y-auto px-3 py-4 sm:px-4 lg:px-6"
+        className="min-h-0 w-full flex-1 overflow-y-auto px-3 py-3 sm:px-4 lg:px-6"
       >
         {children}
       </main>
