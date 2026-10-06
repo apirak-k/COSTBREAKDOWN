@@ -62,9 +62,10 @@ requirements:
   vertically [`MASTER_DATA.md`:L7, L28-L30, L67-L68].
 - `CONFIRMED DIRECTION — USER DECISION`: the dashboard tells a
   **Result → Cause → Detail** story, gives an executive overview with details
-  on demand, and updates with simulation. A bar-chart-first dashboard is only
-  a design direction, not a finalized chart specification
-  [`CROSS_CUTTING.md`:L72-L76].
+  on demand, and updates with simulation. The user-supplied reference confirms
+  a left-side stacked vertical cost chart with Selling Price as a line. The
+  current Reference/Current data does not provide monthly history, and formulas
+  remain governed by [`CROSS_CUTTING.md`](docs/specs/CROSS_CUTTING.md).
 - Keep Cost Breakdown's path from total Gap through category and BOM/Work
   Center/Process detail to changed fields, and keep `Review warnings (N)` as a
   collapsed disclosure [`COST_BREAKDOWN.md`:L31-L50;
@@ -84,9 +85,10 @@ requirements:
 
 ### Shared page composition — PROVISIONAL — AI CHOICE
 
-Use this as a reversible layout starting point. It applies the confirmed
-result-to-detail direction without fixing a specific chart, card count, or
-page geometry:
+Use this as a reversible layout starting point. It keeps the confirmed chart
+on the left, with the headline comparison beside it on wide screens. Exact
+geometry remains provisional and the layout stacks with the chart first on
+narrow screens:
 
 ```text
 ┌─────────────────────────────────────────────────────────────────┐
@@ -95,7 +97,7 @@ page geometry:
 │ Page title and task actions                                      │
 │ Scope / dataset / filter controls when the page requires them    │
 ├─────────────────────────────────────────────────────────────────┤
-│ Result summary                                                   │
+│ Left: stacked cost chart                Right: result summary     │
 │ Cause or comparison explanation                                  │
 │ Detail table / drill-down / disclosure                           │
 └─────────────────────────────────────────────────────────────────┘
@@ -105,6 +107,16 @@ Keep page content left-aligned. Use grouped summary metrics only where they
 help answer the page's main question; use detail on demand. This composition
 may be revised when it conflicts with an explicit product requirement or
 human visual review.
+
+### Dashboard chart
+
+The left-side stacked bar and Selling Price line are confirmed visual direction.
+The Reference/Current adaptation, component colors, numeric scale, incomplete
+input handling, and responsive geometry are `PROVISIONAL — AI CHOICE`; see
+[`PROVISIONAL_IMPLEMENTATION_DECISIONS.md`](docs/PROVISIONAL_IMPLEMENTATION_DECISIONS.md#p-011--adapt-the-left-side-dashboard-chart-to-the-available-snapshots).
+Use only settled Material, Labor, and Burden calculations. Do not add excluded
+variance categories or guessed business measures. Do not present the snapshot
+pair as a monthly trend.
 
 ## 2. Color Palette & Semantic Tokens
 

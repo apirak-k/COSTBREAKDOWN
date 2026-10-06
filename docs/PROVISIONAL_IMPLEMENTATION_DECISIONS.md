@@ -118,6 +118,16 @@ Do not promote an entry to a user decision based on implementation, test results
 - **Review trigger:** a later explicit user decision about readiness, or evidence that metadata/record detection mislabels a copied dataset.
 - **Related contract:** [`MASTER_DATA.md`](specs/MASTER_DATA.md#dataset-lifecycle).
 
+### P-011 — Adapt the left-side dashboard chart to the available snapshots
+
+- **Status:** `PROVISIONAL — AI CHOICE`
+- **Choice:** render a stacked vertical bar for Reference and Current using Material, Labor, and Burden; show Selling Price as a line on the same THB/pc scale when values are available. Label the chart as a Reference/Current comparison, not a monthly trend. If a snapshot's required cost components are unavailable, do not draw a complete-looking total bar for that side.
+- **Why:** this follows the user's confirmed left-side stacked-bar visual direction and the reference's Selling Price line while using only the existing snapshot pair, settled Standard Cost components, and already-entered Selling Price metadata.
+- **Must preserve:** do not include MatVAR/LBVAR/BDVAR; do not calculate monetary SG&A, COGS, GP, GP Margin, OP, OP Margin, Sales, or Volume/Quantity from guesses; do not turn missing values into zero; keep Labor + Burden as the Processing/Conversion subtotal without counting that subtotal as another stack segment; do not invent monthly history or period averages.
+- **Reversible:** the snapshot labels, exact chart geometry, colors, axis ticks, and whether the Selling Price line is shown can change after visual review without changing product calculations or dataset behavior.
+- **Review trigger:** human visual review or a later approved time-series data source/business formula.
+- **Related contract:** [`CROSS_CUTTING.md`](specs/CROSS_CUTTING.md#business-analysis-confirmed-direction-and-scope) and [`design.md`](../design.md#dashboard-chart).
+
 ## Genuine pending boundaries
 
 These are not AI choices and must not be inferred away:
