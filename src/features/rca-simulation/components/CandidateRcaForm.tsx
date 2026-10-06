@@ -24,8 +24,8 @@ export const CandidateRcaForm: React.FC<CandidateRcaFormProps> = ({
     <section aria-labelledby="candidate-rca-heading" className="border border-slate-300 bg-white p-3">
       <div className="mb-3 flex flex-wrap items-start justify-between gap-2">
         <div>
-          <p className="font-mono text-[10px] font-bold uppercase tracking-wide text-slate-600">02 / RCA notes</p>
-          <h2 id="candidate-rca-heading" className="mt-1 font-mono text-xs font-bold uppercase text-slate-900">
+          <p className="font-sans text-[11px] font-semibold text-slate-600">02 / RCA notes</p>
+          <h2 id="candidate-rca-heading" className="mt-1 font-sans text-sm font-semibold text-slate-900">
             Root Cause and Action
           </h2>
         </div>
@@ -36,7 +36,7 @@ export const CandidateRcaForm: React.FC<CandidateRcaFormProps> = ({
 
       <div className="grid grid-cols-1 gap-x-4 gap-y-3 md:grid-cols-2">
         <div>
-          <label htmlFor={`candidate-root-cause-${candidateKey}`} className="mb-1 block font-mono text-[10px] font-semibold uppercase text-slate-700">
+          <label htmlFor={`candidate-root-cause-${candidateKey}`} className="mb-1 block font-sans text-[11px] font-medium text-slate-700">
             Root Cause / Why? <span className="font-normal text-slate-400">(optional)</span>
           </label>
           <textarea
@@ -49,7 +49,7 @@ export const CandidateRcaForm: React.FC<CandidateRcaFormProps> = ({
         </div>
 
         <div>
-          <label htmlFor={`candidate-action-${candidateKey}`} className="mb-1 block font-mono text-[10px] font-semibold uppercase text-slate-700">
+          <label htmlFor={`candidate-action-${candidateKey}`} className="mb-1 block font-sans text-[11px] font-medium text-slate-700">
             Action <span className="font-normal text-slate-400">(optional)</span>
           </label>
           <textarea
@@ -71,7 +71,7 @@ export const CandidateRcaForm: React.FC<CandidateRcaFormProps> = ({
           Save notes
         </button>
         {record && (
-          <p role="status" className="font-mono text-[10px] text-emerald-700">
+          <p role="status" className="font-mono text-[11px] text-emerald-700">
             Notes saved for this candidate.
           </p>
         )}

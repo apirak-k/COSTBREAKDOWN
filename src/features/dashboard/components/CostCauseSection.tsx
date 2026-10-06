@@ -43,12 +43,12 @@ function CauseCard({
 }) {
   return (
     <article className="border border-slate-300 bg-white px-3 py-3">
-      <h3 className="font-mono text-[10px] font-bold uppercase tracking-wide text-slate-700">{label}</h3>
+      <h3 className="font-sans text-sm font-semibold text-slate-800">{label}</h3>
       <dl className="mt-2 grid grid-cols-2 gap-x-3 gap-y-2">
-        <div><dt className="font-mono text-[9px] uppercase text-slate-500">Reference · THB/pc</dt><dd className="font-mono text-xs tabular-nums text-slate-600">{formatCost(reference)}</dd></div>
-        <div><dt className="font-mono text-[9px] uppercase text-slate-500">Current · THB/pc</dt><dd className="font-mono text-xs tabular-nums text-slate-900">{formatCost(current)}</dd></div>
+        <div><dt className="font-sans text-[11px] text-slate-600">Reference · THB/pc</dt><dd className="font-mono text-xs tabular-nums text-slate-600">{formatCost(reference)}</dd></div>
+        <div><dt className="font-sans text-[11px] text-slate-600">Current · THB/pc</dt><dd className="font-mono text-xs tabular-nums text-slate-900">{formatCost(current)}</dd></div>
         <div className="col-span-2 flex items-baseline justify-between gap-2 border-t border-slate-200 pt-2">
-          <dt className="font-mono text-[9px] font-semibold uppercase text-slate-500">Gap · THB/pc · Current − Reference</dt>
+          <dt className="font-sans text-[11px] font-medium text-slate-600">Gap · THB/pc · Current − Reference</dt>
           <dd className={`font-mono text-xs font-bold tabular-nums ${gapColor(gap)}`}>{gap === null ? '—' : formatVariance(gap, 4)}</dd>
         </div>
       </dl>
@@ -71,10 +71,10 @@ export function CostCauseSection({ comparison }: { comparison: CostComparison })
     <section aria-labelledby="overview-causes-heading" className="space-y-2">
       <div className="flex flex-wrap items-end justify-between gap-2 border-b border-slate-300 pb-2">
         <div>
-          <p className="font-mono text-[9px] font-bold uppercase tracking-wide text-slate-500">Cause</p>
-          <h2 id="overview-causes-heading" className="mt-0.5 text-xs font-semibold text-slate-900">Where the cost Gap comes from</h2>
+          <p className="font-sans text-[11px] font-semibold text-slate-600">Cause</p>
+          <h2 id="overview-causes-heading" className="mt-0.5 text-sm font-semibold text-slate-900">Where the cost Gap comes from</h2>
         </div>
-        <p className="font-mono text-[9px] text-slate-500">Bar length shows relative Gap magnitude; signed values show direction.</p>
+        <p className="font-sans text-[11px] text-slate-600">Bar length shows relative Gap magnitude; signed values show direction.</p>
       </div>
       <div className="grid grid-cols-1 gap-2 md:grid-cols-2">
         {causes.map(cause => <CauseCard key={cause.label} {...cause} maximum={maximumGap} />)}

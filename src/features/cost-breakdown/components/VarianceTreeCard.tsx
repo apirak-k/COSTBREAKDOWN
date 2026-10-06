@@ -51,24 +51,24 @@ export const VarianceTreeCard: React.FC<VarianceTreeCardProps> = ({ comparison, 
     <section aria-labelledby="variance-tree-title" className="overflow-hidden border border-slate-300 bg-white">
       <header className="flex flex-col gap-1 border-b border-slate-200 bg-slate-50 px-4 py-3 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <h2 id="variance-tree-title" className="font-mono text-xs font-bold uppercase tracking-wide text-slate-950">Variance tree</h2>
+          <h2 id="variance-tree-title" className="font-sans text-sm font-semibold tracking-tight text-slate-950">Variance tree</h2>
           <p className="mt-0.5 text-[11px] leading-4 text-slate-600">
             {selectedComparison
               ? 'Element gaps use the selected BOM and Routing rows with all Work Center rates as calculation inputs.'
               : 'Element gaps use all records. Finding counts follow the status filter above.'}
           </p>
         </div>
-        <p className="font-mono text-[10px] text-slate-600">Gap = Current − Reference · THB/pc</p>
+        <p className="font-mono text-[11px] text-slate-600">Gap = Current − Reference · THB/pc</p>
       </header>
 
       <div className="p-3 sm:p-4">
         <div className="flex flex-col gap-1 border border-slate-800 bg-slate-900 px-3 py-2.5 text-white sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <p className="font-mono text-[10px] font-bold uppercase tracking-wide text-slate-300">Total standard cost</p>
-            <p className="text-[10px] text-slate-400">Material + labor + burden</p>
+            <p className="font-sans text-[11px] font-semibold text-slate-300">Total standard cost</p>
+            <p className="text-[11px] text-slate-400">Material + labor + burden</p>
           </div>
           <p className={`font-mono text-base font-semibold tabular-nums ${darkGapClass(comparison.totalGap)}`}>
-            {formatGap(comparison.totalGap)} <span className="text-[10px] font-normal text-slate-300">THB/pc</span>
+            {formatGap(comparison.totalGap)} <span className="text-[11px] font-normal text-slate-300">THB/pc</span>
           </p>
         </div>
 
@@ -77,11 +77,11 @@ export const VarianceTreeCard: React.FC<VarianceTreeCardProps> = ({ comparison, 
             <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
               <div className="min-w-0">
                 <h3 className="text-xs font-semibold text-slate-900">Direct material</h3>
-                <p className="mt-0.5 text-[10px] text-slate-600">BOM findings in selected view: <span className="font-mono tabular-nums text-slate-900">{bomCount}</span></p>
+                <p className="mt-0.5 text-[11px] text-slate-600">BOM findings in selected view: <span className="font-mono tabular-nums text-slate-900">{bomCount}</span></p>
               </div>
               <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1 sm:justify-end">
                 <p className={`font-mono text-xs font-semibold tabular-nums ${gapClass(comparison.elementGaps.material)}`}>
-                  {formatGap(comparison.elementGaps.material)} <span className="text-[10px] font-normal text-slate-500">THB/pc</span>
+                  {formatGap(comparison.elementGaps.material)} <span className="text-[11px] font-normal text-slate-500">THB/pc</span>
                 </p>
                 {detailLink('bom', 'Review BOM rows', onOpenDetail)}
               </div>
@@ -92,12 +92,12 @@ export const VarianceTreeCard: React.FC<VarianceTreeCardProps> = ({ comparison, 
             <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
               <div className="min-w-0">
                 <h3 className="text-xs font-semibold text-slate-900">Processing cost</h3>
-                <p className="mt-0.5 text-[10px] text-slate-600">Routing operations in selected view: <span className="font-mono tabular-nums text-slate-900">{routingCount}</span></p>
+                <p className="mt-0.5 text-[11px] text-slate-600">Routing operations in selected view: <span className="font-mono tabular-nums text-slate-900">{routingCount}</span></p>
               </div>
               <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
                 {selectedComparison
-                  ? <p className="text-[10px] text-slate-500">All Work Center rates remain calculation context.</p>
-                  : <p className="text-[10px] text-slate-500">Work Center groups: <span className="font-mono tabular-nums text-slate-700">{processingCount}</span> · rate findings: <span className="font-mono tabular-nums text-slate-700">{rateCount}</span></p>}
+                  ? <p className="text-[11px] text-slate-500">All Work Center rates remain calculation context.</p>
+                  : <p className="text-[11px] text-slate-500">Work Center groups: <span className="font-mono tabular-nums text-slate-700">{processingCount}</span> · rate findings: <span className="font-mono tabular-nums text-slate-700">{rateCount}</span></p>}
                 {detailLink('processing', 'Review Work Centers and Process detail', onOpenDetail)}
               </div>
             </div>
@@ -106,13 +106,13 @@ export const VarianceTreeCard: React.FC<VarianceTreeCardProps> = ({ comparison, 
               <li className="relative flex flex-col gap-1 before:absolute before:-left-[1.3rem] before:top-2 before:w-3 before:border-t before:border-slate-300 sm:flex-row sm:items-center sm:justify-between sm:before:-left-[1.55rem] sm:before:w-5">
                 <h4 className="text-[11px] font-medium text-slate-700">Direct labor</h4>
                 <p className={`font-mono text-xs font-semibold tabular-nums ${gapClass(comparison.elementGaps.labor)}`}>
-                  {formatGap(comparison.elementGaps.labor)} <span className="text-[10px] font-normal text-slate-500">THB/pc</span>
+                  {formatGap(comparison.elementGaps.labor)} <span className="text-[11px] font-normal text-slate-500">THB/pc</span>
                 </p>
               </li>
               <li className="relative flex flex-col gap-1 before:absolute before:-left-[1.3rem] before:top-2 before:w-3 before:border-t before:border-slate-300 sm:flex-row sm:items-center sm:justify-between sm:before:-left-[1.55rem] sm:before:w-5">
                 <h4 className="text-[11px] font-medium text-slate-700">Manufacturing burden</h4>
                 <p className={`font-mono text-xs font-semibold tabular-nums ${gapClass(comparison.elementGaps.burden)}`}>
-                  {formatGap(comparison.elementGaps.burden)} <span className="text-[10px] font-normal text-slate-500">THB/pc</span>
+                  {formatGap(comparison.elementGaps.burden)} <span className="text-[11px] font-normal text-slate-500">THB/pc</span>
                 </p>
               </li>
             </ol>

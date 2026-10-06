@@ -66,10 +66,10 @@ export function CostComparisonChart({
     <figure aria-labelledby="cost-comparison-chart-title" className="min-w-0 border border-slate-300 bg-white px-3 py-3">
       <div className="flex flex-wrap items-start justify-between gap-2 border-b border-slate-200 pb-2">
         <div>
-          <p className="font-mono text-[9px] font-bold uppercase tracking-wide text-slate-500">Cost structure</p>
-          <h2 id="cost-comparison-chart-title" className="mt-0.5 text-xs font-semibold text-slate-900">Standard Cost by component</h2>
+          <p className="font-sans text-[11px] font-semibold text-slate-600">Cost structure</p>
+          <h2 id="cost-comparison-chart-title" className="mt-0.5 text-sm font-semibold text-slate-900">Standard Cost by component</h2>
         </div>
-        <p className="font-mono text-[9px] font-semibold uppercase text-slate-500">Reference vs Current · THB/pc</p>
+        <p className="font-sans text-[11px] font-medium text-slate-600">Reference vs Current · THB/pc</p>
       </div>
 
       <svg
@@ -143,7 +143,7 @@ export function CostComparisonChart({
         ))}
       </svg>
 
-      <ul aria-label="Chart legend" className="flex flex-wrap gap-x-4 gap-y-1 border-t border-slate-200 pt-2 text-[10px] text-slate-600">
+      <ul aria-label="Chart legend" className="flex flex-wrap gap-x-4 gap-y-1 border-t border-slate-200 pt-2 text-[11px] text-slate-600">
         {costParts.map(part => (
           <li key={part.key} className="inline-flex items-center gap-1.5">
             <span aria-hidden="true" className="h-2.5 w-2.5" style={{ backgroundColor: part.color }} />
@@ -155,7 +155,7 @@ export function CostComparisonChart({
           Selling Price
         </li>
       </ul>
-      <figcaption className="mt-1 text-[9px] leading-4 text-slate-500">
+      <figcaption className="mt-1 text-[11px] leading-4 text-slate-500">
         Stacked bars show Standard Cost; the line shows the entered Selling Price. This view compares the two datasets and does not imply monthly history.
       </figcaption>
     </figure>

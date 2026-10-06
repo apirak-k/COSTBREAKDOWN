@@ -162,7 +162,7 @@ export const DatasetSizingModal: React.FC<DatasetSizingModalProps> = ({
           </p>
 
           <div className="space-y-3 border border-slate-200 bg-white p-4">
-            <div className="font-mono text-[11px] font-bold uppercase tracking-wide text-slate-700">Metadata</div>
+            <div className="font-sans text-[11px] font-semibold text-slate-700">Metadata</div>
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <div className="sm:col-span-2">
                 <label htmlFor="dataset-sizing-product-name" className="mb-1 block text-xs font-medium text-slate-700">Product Name</label>

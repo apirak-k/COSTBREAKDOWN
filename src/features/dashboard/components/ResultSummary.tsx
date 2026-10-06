@@ -52,30 +52,30 @@ export function ResultSummary({ comparison }: { comparison: CostComparison }) {
   return (
     <section aria-labelledby="overview-result-heading" className="grid min-w-0 border border-slate-400 bg-white md:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)]">
       <div className="flex min-w-0 flex-col justify-center border-b border-slate-200 px-3 py-3 md:border-b-0 md:border-r">
-        <p className="font-mono text-[9px] font-bold uppercase tracking-wide text-slate-500">Result · Standard Cost / pc</p>
+        <p className="font-sans text-[11px] font-semibold text-slate-600">Result · Standard Cost / pc</p>
         <div className="mt-1 flex flex-wrap items-baseline gap-x-2 gap-y-1">
           <h2 id="overview-result-heading" className="text-sm font-bold text-slate-950">{resultLabel}</h2>
           {displayedGap !== null && <span className={`font-mono text-base font-bold tabular-nums ${gapColor(displayedGap)}`}>{formatGap(displayedGap)} THB/pc</span>}
         </div>
-        <p className="mt-1 text-[10px] leading-4 text-slate-600">Gap = Current − Reference. Positive means Current costs more; negative means it costs less.</p>
-        <p className="mt-2 border-t border-slate-200 pt-2 text-[10px] font-semibold leading-4 text-slate-800">{movementLabel}</p>
+        <p className="mt-1 text-[11px] leading-4 text-slate-600">Gap = Current − Reference. Positive means Current costs more; negative means it costs less.</p>
+        <p className="mt-2 border-t border-slate-200 pt-2 text-[11px] font-semibold leading-4 text-slate-800">{movementLabel}</p>
       </div>
 
       <dl className="grid grid-cols-2 md:grid-cols-3">
         <div className="min-w-0 border-b border-r border-slate-200 px-2 py-3 sm:px-3 md:border-b-0">
-          <dt className="font-mono text-[9px] font-semibold uppercase text-slate-500">Reference</dt>
+          <dt className="font-sans text-[11px] font-medium text-slate-600">Reference</dt>
           <dd className="mt-1 break-words font-mono text-sm font-bold tabular-nums text-slate-700">{formatCost(comparison.referenceCost.total)}</dd>
-          <dd className="mt-0.5 text-[9px] text-slate-500">{statusText(comparison.referenceCost.status)} · THB/pc</dd>
+          <dd className="mt-0.5 text-[11px] text-slate-500">{statusText(comparison.referenceCost.status)} · THB/pc</dd>
         </div>
         <div className="min-w-0 border-b border-slate-200 px-2 py-3 sm:px-3 md:border-r md:border-b-0">
-          <dt className="font-mono text-[9px] font-semibold uppercase text-slate-500">Current</dt>
+          <dt className="font-sans text-[11px] font-medium text-slate-600">Current</dt>
           <dd className="mt-1 break-words font-mono text-sm font-bold tabular-nums text-slate-950">{formatCost(comparison.currentCost.total)}</dd>
-          <dd className="mt-0.5 text-[9px] text-slate-500">{statusText(comparison.currentCost.status)} · THB/pc</dd>
+          <dd className="mt-0.5 text-[11px] text-slate-500">{statusText(comparison.currentCost.status)} · THB/pc</dd>
         </div>
         <div className="col-span-2 min-w-0 bg-slate-50 px-2 py-3 sm:px-3 md:col-span-1">
-          <dt className="font-mono text-[9px] font-semibold uppercase text-slate-500">Gap</dt>
+          <dt className="font-sans text-[11px] font-medium text-slate-600">Gap</dt>
           <dd className={`mt-1 break-words font-mono text-sm font-bold tabular-nums ${gapColor(displayedGap)}`}>{displayedGap === null ? '—' : formatGap(displayedGap)}</dd>
-          <dd className="mt-0.5 text-[9px] text-slate-500">Current − Reference · THB/pc</dd>
+          <dd className="mt-0.5 text-[11px] text-slate-500">Current − Reference · THB/pc</dd>
         </div>
       </dl>
     </section>

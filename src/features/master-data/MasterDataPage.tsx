@@ -311,7 +311,7 @@ export const MasterDataPage: React.FC = () => {
                 className="scroll-mt-20 border-b border-slate-300 last:border-b-0 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-blue-700"
               >
                 <header className="border-b border-slate-200 bg-white px-4 py-2.5">
-                  <h3 id={section.id + '-heading'} className="font-mono text-[11px] font-bold uppercase tracking-wide text-slate-900">
+                  <h3 id={section.id + '-heading'} className="font-sans text-sm font-semibold text-slate-900">
                     {section.label}
                   </h3>
                 </header>
@@ -326,7 +326,7 @@ export const MasterDataPage: React.FC = () => {
                   className="scroll-mt-20 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-blue-700"
                 >
                   <header className="border-b border-slate-200 bg-white px-4 py-2.5">
-                    <h3 id={activeSection.id + '-heading'} className="font-mono text-[11px] font-bold uppercase tracking-wide text-slate-900">
+                    <h3 id={activeSection.id + '-heading'} className="font-sans text-sm font-semibold text-slate-900">
                       {activeSection.label}
                     </h3>
                   </header>

@@ -130,7 +130,7 @@ export const WorkCenterComparisonTable: React.FC<WorkCenterComparisonTableProps>
                 {!contextOnly && <td className="p-2.5">
                   <div className="flex flex-col items-start gap-1.5">
                     {visibleLabel ? (
-                      <span className={`inline-flex px-1.5 py-0.5 rounded border text-[10px] font-mono font-bold ${comparisonClass(visibleLabel)}`}>
+                      <span className={`inline-flex px-1.5 py-0.5 rounded border text-[11px] font-mono font-bold ${comparisonClass(visibleLabel)}`}>
                         {visibleLabel}
                       </span>
                     ) : (

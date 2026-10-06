@@ -104,12 +104,12 @@ export const ScenarioCard: React.FC<ScenarioCardProps> = ({
     <article className="flex min-w-0 flex-col border border-slate-300 bg-white">
       <header className="border-b border-slate-300 bg-slate-50 px-3 py-2">
         <div className="flex flex-wrap items-center justify-between gap-2">
-          <h3 className="border border-slate-800 bg-slate-900 px-2 py-0.5 font-mono text-[10px] font-bold uppercase tracking-wide text-white">Option {scenario.letter}</h3>
-          <span className={`font-mono text-[9px] font-semibold uppercase ${STATUS_CLASS[economics.scenarioCost.status] ?? STATUS_CLASS.missing}`}>
+          <h3 className="border border-slate-800 bg-slate-900 px-2 py-0.5 font-sans text-[11px] font-semibold text-white">Option {scenario.letter}</h3>
+          <span className={`font-sans text-[11px] font-medium ${STATUS_CLASS[economics.scenarioCost.status] ?? STATUS_CLASS.missing}`}>
             {economics.scenarioCost.status}
           </span>
         </div>
-        <label htmlFor={labelId} className="mt-2 block font-mono text-[10px] font-semibold uppercase text-slate-700">
+        <label htmlFor={labelId} className="mt-2 block font-sans text-[11px] font-medium text-slate-700">
           Action title
         </label>
         <input
@@ -125,8 +125,8 @@ export const ScenarioCard: React.FC<ScenarioCardProps> = ({
       <div className="flex flex-1 flex-col gap-3 p-3">
         {inputDefinitions.length > 0 && (
           <fieldset aria-describedby={inputGuidanceId} className="space-y-2">
-            <legend className="font-mono text-[10px] font-bold uppercase text-slate-800">Parameter overrides</legend>
-            <p id={inputGuidanceId} className="text-[10px] leading-4 text-slate-600">
+            <legend className="font-sans text-[11px] font-semibold text-slate-800">Parameter overrides</legend>
+            <p id={inputGuidanceId} className="text-[11px] leading-4 text-slate-600">
               Leave a field blank to keep its Current value.
             </p>
             <div className="space-y-2">
@@ -146,10 +146,10 @@ export const ScenarioCard: React.FC<ScenarioCardProps> = ({
         <section aria-labelledby={`${labelId}-costs-heading`} className="border-y border-slate-300 py-2">
           <div className="mb-1.5 flex flex-wrap items-start justify-between gap-2">
             <div>
-              <h4 id={`${labelId}-costs-heading`} className="font-mono text-[10px] font-bold uppercase text-slate-800">
+              <h4 id={`${labelId}-costs-heading`} className="font-sans text-sm font-semibold text-slate-800">
                 Standard cost by element
               </h4>
-              <p className="mt-0.5 text-[10px] text-slate-600">THB/pc</p>
+              <p className="mt-0.5 text-[11px] text-slate-600">THB/pc</p>
             </div>
           </div>
 
@@ -184,7 +184,7 @@ export const ScenarioCard: React.FC<ScenarioCardProps> = ({
 
         <section aria-label={`Improvement economics for Scenario ${scenario.letter}`} className="space-y-2.5">
           <div>
-            <h4 className="font-mono text-[10px] font-bold uppercase text-slate-800">Improvement economics</h4>
+            <h4 className="font-sans text-sm font-semibold text-slate-800">Improvement economics</h4>
             <div className="mt-1.5 flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1 border-b border-slate-200 pb-1.5">
               <span className="text-[11px] font-medium text-slate-700">Gross Improvement / pc</span>
               <span className="font-mono text-xs font-semibold tabular-nums text-slate-900">
@@ -199,7 +199,7 @@ export const ScenarioCard: React.FC<ScenarioCardProps> = ({
             {ECONOMIC_INPUTS.map(({ key, label, unit }) => {
               const inputId = `scenario-${scenario.letter}-economics-${key}`
               return (
-                <label key={key} htmlFor={inputId} className="block min-w-0 font-mono text-[10px] font-semibold uppercase text-slate-700">
+                <label key={key} htmlFor={inputId} className="block min-w-0 font-sans text-[11px] font-medium text-slate-700">
                   {label} <span className="font-normal text-slate-500">({unit})</span>
                   <input
                     id={inputId}
@@ -219,7 +219,7 @@ export const ScenarioCard: React.FC<ScenarioCardProps> = ({
             {ECONOMIC_CATEGORY_INPUTS.map(({ key, label }) => {
               const inputId = `scenario-${scenario.letter}-economics-${key}`
               return (
-                <label key={key} htmlFor={inputId} className="block min-w-0 font-mono text-[10px] font-semibold uppercase text-slate-700">
+                <label key={key} htmlFor={inputId} className="block min-w-0 font-sans text-[11px] font-medium text-slate-700">
                   {label}
                   <select
                     id={inputId}
@@ -236,7 +236,7 @@ export const ScenarioCard: React.FC<ScenarioCardProps> = ({
               )
             })}
           </div>
-          <p className="text-[10px] leading-4 text-slate-600">
+          <p className="text-[11px] leading-4 text-slate-600">
             Assign each included economics cost to MAT, LB, or BD. Do not repeat costs already represented by BOM, Routing, or Work Center rate changes.
           </p>
 
@@ -259,7 +259,7 @@ export const ScenarioCard: React.FC<ScenarioCardProps> = ({
               </table>
             </div>
           ) : (
-            <p className="text-[10px] leading-4 text-slate-600">
+            <p className="text-[11px] leading-4 text-slate-600">
               Add economics assumptions to see categorized Standard Cost and Total Improvement.
             </p>
           )}
@@ -272,17 +272,14 @@ export const ScenarioCard: React.FC<ScenarioCardProps> = ({
         </section>
 
         <section aria-label={`Selling Price, SG&A, and OP for Scenario ${scenario.letter}`} className="space-y-2.5 border-t border-slate-300 pt-3">
-          <div>
-            <h4 className="font-mono text-[10px] font-bold uppercase text-slate-800">Selling Price, SG&A, and OP</h4>
-            <p className="mt-1 text-[10px] leading-4 text-slate-600">Leave an override blank to use Current. Clearing it returns to the Current value.</p>
-          </div>
+          <h4 className="font-sans text-sm font-semibold text-slate-800">Selling Price, SG&A, and OP</h4>
           <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
             {BUSINESS_INPUTS.map(({ key, label, unit }) => {
               const inputId = `scenario-${scenario.letter}-business-${key}`
               const currentValue = currentBusinessInputs[key]
               const placeholder = currentValue === null ? 'Current unavailable' : `Current ${formatCost(currentValue)} ${unit}`
               return (
-                <label key={key} htmlFor={inputId} className="block min-w-0 font-mono text-[10px] font-semibold uppercase text-slate-700">
+                <label key={key} htmlFor={inputId} className="block min-w-0 font-sans text-[11px] font-medium text-slate-700">
                   {label} <span className="font-normal text-slate-500">({unit})</span>
                   <input
                     id={inputId}
@@ -300,19 +297,19 @@ export const ScenarioCard: React.FC<ScenarioCardProps> = ({
           </div>
           <dl className="grid grid-cols-2 gap-x-4 border-t border-slate-200 pt-2">
             <div className="border-b border-slate-100 py-1.5">
-              <dt className="font-mono text-[9px] uppercase text-slate-500">Scenario Selling Price · THB/pc</dt>
+              <dt className="font-sans text-[11px] text-slate-500">Scenario Selling Price · THB/pc</dt>
               <dd className="mt-0.5 font-mono text-xs tabular-nums text-slate-900">{formatCost(business.sellingPrice)}</dd>
             </div>
             <div className="border-b border-slate-100 py-1.5">
-              <dt className="font-mono text-[9px] uppercase text-slate-500">Scenario SG&amp;A %</dt>
+              <dt className="font-sans text-[11px] text-slate-500">Scenario SG&amp;A %</dt>
               <dd className="mt-0.5 font-mono text-xs tabular-nums text-slate-900">{business.sgaPercent === null ? 'N/A' : `${formatCost(business.sgaPercent)}%`}</dd>
             </div>
             <div className="border-b border-slate-100 py-1.5">
-              <dt className="font-mono text-[9px] uppercase text-slate-500">SG&amp;A amount / pc</dt>
+              <dt className="font-sans text-[11px] text-slate-500">SG&amp;A amount / pc</dt>
               <dd className="mt-0.5 font-mono text-xs tabular-nums text-slate-900">{formatCost(business.sgaAmountPerPiece)}</dd>
             </div>
             <div className="border-b border-slate-100 py-1.5">
-              <dt className="font-mono text-[9px] uppercase text-slate-500">OP / pc</dt>
+              <dt className="font-sans text-[11px] text-slate-500">OP / pc</dt>
               <dd className={`mt-0.5 font-mono text-xs font-semibold tabular-nums ${business.operatingProfitPerPiece !== null && business.operatingProfitPerPiece < 0 ? 'text-rose-700' : 'text-slate-900'}`}>
                 {formatCost(business.operatingProfitPerPiece)}
                 {business.operatingProfitPerPiece !== null && business.operatingProfitPerPiece < 0 ? ' · Operating loss' : ''}
@@ -329,7 +326,7 @@ export const ScenarioCard: React.FC<ScenarioCardProps> = ({
         {uniqueWarnings.length > 0 && (
           <section aria-label={`Warnings for Scenario ${scenario.letter}`} className="mt-auto border-t border-slate-300 pt-3">
             <details>
-                <summary className="min-h-8 cursor-pointer py-1 font-mono text-[10px] font-semibold uppercase text-amber-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-amber-500">
+                <summary className="min-h-8 cursor-pointer py-1 font-sans text-[11px] font-medium text-amber-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-amber-500">
                 Scenario warnings ({uniqueWarnings.length})
               </summary>
               <div className="mt-2 border-l-2 border-amber-600 bg-amber-50 p-3 text-xs text-amber-950">

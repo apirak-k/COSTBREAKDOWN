@@ -29,10 +29,10 @@ export const ProblemStatementCard: React.FC<ProblemStatementCardProps> = ({ cand
     <div className="flex flex-wrap items-start justify-between gap-3">
       <div>
         <div className="mb-1 flex flex-wrap items-center gap-2">
-        <span className="border border-slate-300 bg-slate-100 px-1.5 py-0.5 font-mono text-[10px] font-bold text-slate-700">
+        <span className="border border-slate-300 bg-slate-100 px-1.5 py-0.5 font-mono text-[11px] font-bold text-slate-700">
             {candidate.status}
           </span>
-          <span className="font-mono text-[10px] uppercase text-slate-500">Ranking context #{candidate.rank}</span>
+          <span className="font-sans text-[11px] text-slate-500">Ranking context #{candidate.rank}</span>
         </div>
         <h2 className="text-xs font-semibold text-slate-900">{candidate.candidateName}</h2>
         <p className="mt-0.5 text-[11px] text-slate-600">
@@ -40,7 +40,7 @@ export const ProblemStatementCard: React.FC<ProblemStatementCardProps> = ({ cand
         </p>
       </div>
       <div className="text-right">
-        <p className="font-mono text-[10px] font-semibold uppercase text-slate-600">Cost gap</p>
+        <p className="font-sans text-[11px] font-medium text-slate-600">Cost gap</p>
         <p className="font-mono text-xs font-semibold tabular-nums text-slate-900">
           {candidate.costGap === null ? '—' : `${formatVariance(candidate.costGap, 4)} THB/pc`}
         </p>
@@ -49,13 +49,13 @@ export const ProblemStatementCard: React.FC<ProblemStatementCardProps> = ({ cand
 
     <dl className="mt-3 grid grid-cols-1 gap-2 text-xs sm:grid-cols-2">
       <div className="border border-slate-200 bg-slate-50 px-2.5 py-2">
-        <dt className="font-mono text-[10px] font-semibold uppercase text-slate-600">Reference cost (THB/pc)</dt>
+        <dt className="font-sans text-[11px] font-medium text-slate-600">Reference cost (THB/pc)</dt>
         <dd className="mt-0.5 font-mono text-xs tabular-nums text-slate-900">
           {formatCandidateValue(candidate.referenceCost)}
         </dd>
       </div>
       <div className="border border-slate-200 bg-slate-50 px-2.5 py-2">
-        <dt className="font-mono text-[10px] font-semibold uppercase text-slate-600">Current cost (THB/pc)</dt>
+        <dt className="font-sans text-[11px] font-medium text-slate-600">Current cost (THB/pc)</dt>
         <dd className="mt-0.5 font-mono text-xs tabular-nums text-slate-900">
           {formatCandidateValue(candidate.currentCost)}
         </dd>
@@ -64,7 +64,7 @@ export const ProblemStatementCard: React.FC<ProblemStatementCardProps> = ({ cand
 
     {candidate.changeDetails && candidate.changeDetails.length > 0 && (
       <section aria-label="Changed inputs" className="mt-3 border-t border-slate-200 pt-2">
-        <h3 className="font-mono text-[10px] font-semibold uppercase tracking-wide text-slate-600">Changed inputs</h3>
+        <h3 className="font-sans text-[11px] font-medium tracking-wide text-slate-600">Changed inputs</h3>
         <ul className="mt-1 space-y-1 text-xs">
           {candidate.changeDetails.map(detail => (
             <li key={detail.field} className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-0.5">

@@ -19,7 +19,7 @@ export const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
         : 'text-slate-200'
 
   return (
-    <div className="h-dvh min-h-0 overflow-hidden bg-slate-100/70 text-slate-900 flex flex-col font-sans text-xs antialiased">
+    <div className="h-dvh min-h-0 overflow-hidden bg-slate-100/70 text-slate-900 flex flex-col font-sans text-[13px] antialiased">
       <a
         href="#main-content"
         className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-[100] focus:rounded-md focus:bg-white focus:px-4 focus:py-3 focus:font-medium focus:text-slate-900 focus:shadow-lg"
@@ -34,7 +34,7 @@ export const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
       >
         {children}
       </main>
-      <footer aria-label="Dataset and comparison status" className="mt-auto border-t border-slate-800 bg-slate-900 py-2 font-mono text-[10px] text-slate-400">
+      <footer aria-label="Dataset and comparison status" className="mt-auto border-t border-slate-800 bg-slate-900 py-2 font-sans text-[11px] text-slate-400">
         <div className="flex w-full flex-col gap-2 px-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between sm:px-4 lg:px-3">
           <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
             <span role="group" aria-label={`Reference dataset: ${snapshotPair.reference.bom.length} BOM items, ${snapshotPair.reference.routing.length} routing operations, ${snapshotPair.reference.rates.length} work centers`}>
@@ -51,7 +51,7 @@ export const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
             <span className="flex items-center gap-2">
               <span aria-hidden="true" className={`h-1.5 w-1.5 rounded-full ${masterDataHandoff.datasetsPrepared ? 'bg-emerald-400' : 'bg-amber-400'}`} />
               <span className={`font-semibold tracking-wide ${masterDataHandoff.datasetsPrepared ? 'text-emerald-300' : 'text-amber-300'}`}>
-                {masterDataHandoff.datasetsPrepared ? 'BOTH DATASETS PREPARED' : 'DATASET PREPARATION INCOMPLETE'}
+                {masterDataHandoff.datasetsPrepared ? 'Both datasets prepared' : 'Dataset preparation incomplete'}
               </span>
             </span>
             <span className="whitespace-nowrap">

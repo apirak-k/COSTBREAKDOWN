@@ -102,7 +102,7 @@ export const CostBreakdownPage: React.FC = () => {
 
       <section className="flex flex-col gap-3 border border-slate-300 bg-white px-4 py-3 sm:flex-row sm:items-center sm:justify-between" aria-label="Selected Comparison controls">
         <div>
-          <h2 className="font-mono text-[11px] font-bold uppercase tracking-wide text-slate-900">
+          <h2 className="font-sans text-sm font-semibold text-slate-900">
             {isSelectingScope ? 'Choose Selected Comparison rows' : isSelectedComparisonActive ? 'Selected Comparison is active' : 'Full Comparison is active'}
           </h2>
           <p className="mt-1 max-w-3xl text-xs leading-5 text-slate-600">
@@ -134,7 +134,7 @@ export const CostBreakdownPage: React.FC = () => {
 
       <section className="flex flex-col gap-3 rounded-md border border-slate-200 bg-white px-4 py-3 sm:flex-row sm:items-center sm:justify-between" aria-labelledby="comparison-view-title">
         <div>
-          <h2 id="comparison-view-title" className="font-mono text-[11px] font-bold uppercase tracking-wide text-slate-900">Comparison view</h2>
+          <h2 id="comparison-view-title" className="font-sans text-sm font-semibold text-slate-900">Comparison view</h2>
           <p className="mt-0.5 text-[11px] text-slate-600">
             {isViewingSelectedScope
               ? 'Filter the selected BOM and Routing findings. Work Center rates stay as complete calculation context.'
@@ -153,7 +153,7 @@ export const CostBreakdownPage: React.FC = () => {
               type="button"
               aria-pressed={comparisonView.includes(option.status)}
               onClick={() => toggleComparisonStatus(option.status)}
-              className={`min-h-8 rounded-sm border px-2.5 py-1 font-mono text-[10px] font-medium transition-colors cursor-pointer focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700 ${comparisonView.includes(option.status) ? 'bg-slate-900 text-white border-slate-900 font-semibold' : 'bg-white text-slate-700 border-slate-300 hover:bg-slate-50'}`}
+              className={`min-h-8 rounded-sm border px-2.5 py-1 font-sans text-xs font-medium transition-colors cursor-pointer focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700 ${comparisonView.includes(option.status) ? 'bg-slate-900 text-white border-slate-900 font-semibold' : 'bg-white text-slate-700 border-slate-300 hover:bg-slate-50'}`}
             >
               {option.label} <span className={comparisonView.includes(option.status) ? 'text-slate-300' : 'text-slate-400'}>({option.count})</span>
             </button>
@@ -162,7 +162,7 @@ export const CostBreakdownPage: React.FC = () => {
             type="button"
             aria-pressed={areAllComparisonStatusesSelected(comparisonView)}
             onClick={() => setComparisonView(ALL_COMPARISON_STATUSES)}
-            className={`min-h-8 rounded-sm border px-2.5 py-1 font-mono text-[10px] font-medium transition-colors cursor-pointer focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700 ${areAllComparisonStatusesSelected(comparisonView) ? 'bg-slate-900 text-white border-slate-900 font-semibold' : 'bg-white text-slate-700 border-slate-300 hover:bg-slate-50'}`}
+            className={`min-h-8 rounded-sm border px-2.5 py-1 font-sans text-xs font-medium transition-colors cursor-pointer focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700 ${areAllComparisonStatusesSelected(comparisonView) ? 'bg-slate-900 text-white border-slate-900 font-semibold' : 'bg-white text-slate-700 border-slate-300 hover:bg-slate-50'}`}
           >
             All <span className={areAllComparisonStatusesSelected(comparisonView) ? 'text-slate-300' : 'text-slate-400'}>({allFindings.length})</span>
           </button>
@@ -185,7 +185,7 @@ export const CostBreakdownPage: React.FC = () => {
             onClick={() => setIsDetailedExpanded(!isDetailedExpanded)}
             aria-expanded={isDetailedExpanded}
             aria-controls="itemized-cost-details"
-            className="flex min-h-8 items-center gap-2 text-left font-mono text-xs font-bold uppercase text-slate-900 hover:text-blue-800 cursor-pointer focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700"
+            className="flex min-h-8 items-center gap-2 text-left font-sans text-sm font-semibold text-slate-900 hover:text-blue-800 cursor-pointer focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700"
           >
             {isDetailedExpanded ? (
               <ChevronDown className="w-3.5 h-3.5 text-slate-500" />

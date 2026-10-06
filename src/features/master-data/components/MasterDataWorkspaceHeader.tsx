@@ -352,7 +352,7 @@ export const MasterDataWorkspaceHeader: React.FC<MasterDataWorkspaceHeaderProps>
       <div className="px-1.5 py-2">
         <dl className="grid min-w-0 grid-cols-1 gap-x-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
           <div className="min-w-0 border-t border-slate-300 py-2">
-            <dt className="font-mono text-[10px] font-semibold uppercase tracking-wide text-slate-600">Product Name</dt>
+            <dt className="font-sans text-[11px] font-medium tracking-wide text-slate-600">Product Name</dt>
             <dd className="mt-1 min-w-0">
               {isEditMode ? (
                 <input
@@ -372,7 +372,7 @@ export const MasterDataWorkspaceHeader: React.FC<MasterDataWorkspaceHeaderProps>
           </div>
 
           <div className="min-w-0 border-t border-slate-300 py-2">
-            <dt className="font-mono text-[10px] font-semibold uppercase tracking-wide text-slate-600">UOM</dt>
+            <dt className="font-sans text-[11px] font-medium tracking-wide text-slate-600">UOM</dt>
             <dd className="mt-1 min-w-0">
               {isEditMode ? (
                 <select
@@ -390,7 +390,7 @@ export const MasterDataWorkspaceHeader: React.FC<MasterDataWorkspaceHeaderProps>
           </div>
 
           <div className="min-w-0 border-t border-slate-300 py-2">
-            <dt className="font-mono text-[10px] font-semibold uppercase tracking-wide text-slate-600">Selling Price (THB)</dt>
+            <dt className="font-sans text-[11px] font-medium tracking-wide text-slate-600">Selling Price (THB)</dt>
             <dd className="mt-1 min-w-0">
               {isEditMode ? (
                 <input
@@ -410,7 +410,7 @@ export const MasterDataWorkspaceHeader: React.FC<MasterDataWorkspaceHeaderProps>
           </div>
 
           <div className="min-w-0 border-t border-slate-300 py-2">
-            <dt className="font-mono text-[10px] font-semibold uppercase tracking-wide text-slate-600">SG&amp;A (%)</dt>
+            <dt className="font-sans text-[11px] font-medium tracking-wide text-slate-600">SG&amp;A (%)</dt>
             <dd className="mt-1 min-w-0">
               {isEditMode ? (
                 <input
@@ -430,7 +430,7 @@ export const MasterDataWorkspaceHeader: React.FC<MasterDataWorkspaceHeaderProps>
           </div>
 
           <div className="min-w-0 border-t border-slate-300 py-2">
-            <dt className="font-mono text-[10px] font-semibold uppercase tracking-wide text-slate-600">Dataset remark</dt>
+            <dt className="font-sans text-[11px] font-medium tracking-wide text-slate-600">Dataset remark</dt>
             <dd className="mt-1 min-w-0">
               {isEditMode ? (
                 <input

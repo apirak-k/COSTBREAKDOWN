@@ -279,7 +279,7 @@ export const WorkCenterProcessingTable: React.FC<WorkCenterProcessingTableProps>
   return (
     <div className="space-y-3 p-3 sm:p-4">
       <div>
-        <h3 className="font-mono text-[11px] font-bold uppercase tracking-wide text-slate-900">Processing cost by Work Center</h3>
+        <h3 className="font-sans text-sm font-semibold text-slate-900">Processing cost by Work Center</h3>
         <p className="mt-1 text-[11px] leading-4 text-slate-600">
           Work Center totals use each side&apos;s full Routing and rates. The status filter applies to findings and Routing Process detail; it does not change WC totals. One-to-one process matching is not required for WC Net Gap.
         </p>
@@ -311,11 +311,11 @@ export const WorkCenterProcessingTable: React.FC<WorkCenterProcessingTableProps>
                 <tr className="bg-white">
                   <th scope="row" className="p-2.5 font-semibold text-slate-900">
                     <span className="block">{group.workCenterCode}</span>
-                    {group.description !== '—' && <span className="mt-0.5 block font-sans text-[10px] font-normal text-slate-500">{group.description}</span>}
+                    {group.description !== '—' && <span className="mt-0.5 block font-sans text-[11px] font-normal text-slate-500">{group.description}</span>}
                   </th>
                   <td className="p-2.5">
                     {status && status !== 'UNCHANGED'
-                      ? <span className={`inline-flex rounded-sm border px-1.5 py-0.5 font-mono text-[10px] font-bold ${statusClass(status)}`}>{status}</span>
+                      ? <span className={`inline-flex rounded-sm border px-1.5 py-0.5 font-mono text-[11px] font-bold ${statusClass(status)}`}>{status}</span>
                       : <span aria-label={status === 'UNCHANGED' ? 'Unchanged' : undefined}>—</span>}
                   </td>
                   <td className="p-2.5 text-right font-mono tabular-nums text-slate-700">{formatNullable(effect?.reference.total ?? null, value => formatNumber(value, 4))}</td>
@@ -451,11 +451,11 @@ function RoutingProcessDetailTable({
                 )}
                 <th scope="row" className="p-2 font-medium text-slate-900">
                   <span className="block">{processName}</span>
-                  {row.movedWorkCenter && <span className="mt-1 block font-sans text-[10px] font-normal text-slate-500">Moved {row.movedSide === 'reference' ? 'to' : 'from'} {row.movedWorkCenter}</span>}
+                  {row.movedWorkCenter && <span className="mt-1 block font-sans text-[11px] font-normal text-slate-500">Moved {row.movedSide === 'reference' ? 'to' : 'from'} {row.movedWorkCenter}</span>}
                 </th>
                 <td className="p-2">
                   {status && status !== 'UNCHANGED'
-                    ? <span className={`inline-flex rounded-sm border px-1.5 py-0.5 font-mono text-[10px] font-bold ${statusClass(status)}`}>{status}</span>
+                    ? <span className={`inline-flex rounded-sm border px-1.5 py-0.5 font-mono text-[11px] font-bold ${statusClass(status)}`}>{status}</span>
                     : <span aria-label={status === 'UNCHANGED' ? 'Unchanged' : undefined}>—</span>}
                 </td>
                 <td className="p-2 font-mono tabular-nums text-slate-700">

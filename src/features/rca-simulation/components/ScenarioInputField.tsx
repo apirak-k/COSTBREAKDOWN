@@ -20,7 +20,7 @@ export const ScenarioInputField: React.FC<ScenarioInputFieldProps> = ({
 
   return (
     <div className="min-w-0">
-      <label htmlFor={inputId} className="mb-1 block min-h-4 font-mono text-[10px] font-semibold uppercase leading-4 text-slate-700">
+      <label htmlFor={inputId} className="mb-1 block min-h-4 font-sans text-[11px] font-medium leading-4 text-slate-700">
         {definition.label}
       </label>
       <div className="flex items-center gap-2">

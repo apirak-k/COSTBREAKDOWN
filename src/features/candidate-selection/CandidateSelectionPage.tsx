@@ -51,7 +51,7 @@ export const CandidateSelectionPage: React.FC = () => {
         description="Review cost findings in gap order, then mark whether each is within your control. Rankings guide review; they do not select work automatically."
         actions={(
           <dl className="border-l-2 border-slate-900 py-1 pl-3 sm:min-w-48">
-            <dt className="font-mono text-[10px] font-bold uppercase tracking-wide text-slate-600">{isSelectedComparisonActive ? 'Selected comparison gap' : 'Full comparison gap'}</dt>
+            <dt className="font-sans text-[11px] font-semibold text-slate-600">{isSelectedComparisonActive ? 'Selected comparison gap' : 'Full comparison gap'}</dt>
             <dd className={`mt-1 font-mono text-base font-semibold tabular-nums ${
               totalGap === null ? 'text-slate-500' : totalGap > 0 ? 'text-rose-700' : totalGap < 0 ? 'text-emerald-700' : 'text-slate-700'
             }`}>
@@ -68,7 +68,7 @@ export const CandidateSelectionPage: React.FC = () => {
 
       <section className="flex flex-col gap-2 border border-slate-300 bg-white px-3 py-2.5 sm:flex-row sm:items-center sm:justify-between" aria-labelledby="candidate-filter-title">
         <div className="min-w-40">
-          <h2 id="candidate-filter-title" className="font-mono text-[11px] font-bold uppercase tracking-wide text-slate-950">Comparison status</h2>
+          <h2 id="candidate-filter-title" className="font-sans text-sm font-semibold text-slate-950">Comparison status</h2>
           <p className="mt-0.5 text-[11px] text-slate-600">Highest cost gap first</p>
         </div>
 
@@ -77,7 +77,7 @@ export const CandidateSelectionPage: React.FC = () => {
             type="button"
             aria-pressed={allStatusesSelected}
             onClick={() => setStatusFilter(ALL_CANDIDATE_STATUSES)}
-            className={`min-h-8 border px-2.5 py-1 font-mono text-[11px] font-medium transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700 ${
+            className={`min-h-8 border px-2.5 py-1 font-sans text-xs font-medium transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700 ${
               allStatusesSelected
                 ? 'border-slate-900 bg-slate-900 text-white'
                 : 'border-slate-300 bg-transparent text-slate-700 hover:bg-slate-100'
@@ -91,7 +91,7 @@ export const CandidateSelectionPage: React.FC = () => {
               type="button"
               aria-pressed={statusFilter.includes(option.status)}
               onClick={() => toggleCandidateStatus(option.status)}
-              className={`min-h-8 border px-2.5 py-1 font-mono text-[11px] font-medium transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700 ${
+              className={`min-h-8 border px-2.5 py-1 font-sans text-xs font-medium transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700 ${
                 statusFilter.includes(option.status)
                   ? 'border-slate-500 bg-slate-200 text-slate-950'
                   : 'border-slate-300 bg-transparent text-slate-700 hover:bg-slate-100'

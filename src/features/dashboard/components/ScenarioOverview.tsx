@@ -65,40 +65,40 @@ function ScenarioCard({
     <article className="border border-slate-300 bg-white">
       <header className="flex flex-wrap items-start justify-between gap-2 border-b border-slate-200 bg-slate-50 px-3 py-2.5">
         <div>
-          <h3 className="font-mono text-[10px] font-bold uppercase tracking-wide text-slate-900">Scenario {result.letter}</h3>
+          <h3 className="font-sans text-sm font-semibold text-slate-900">Scenario {result.letter}</h3>
           {label && <p className="mt-0.5 break-words text-xs font-medium text-slate-700">{label}</p>}
         </div>
-        <span className="font-mono text-[9px] uppercase text-slate-500">{hasOverrides ? 'Live preview from Current' : 'Current baseline'}</span>
+        <span className="font-sans text-[11px] text-slate-600">{hasOverrides ? 'Live preview from Current' : 'Current baseline'}</span>
       </header>
       <div className="grid grid-cols-2 gap-3 px-3 py-3">
         <div>
-          <p className="font-mono text-[9px] font-semibold uppercase text-slate-500">Scenario Standard Cost · THB/pc</p>
+          <p className="font-sans text-[11px] font-medium text-slate-600">Scenario Standard Cost · THB/pc</p>
           <p className="mt-1 font-mono text-base font-bold tabular-nums text-slate-950">{formatCost(economics.scenarioCost.total)}</p>
-          <p className="mt-0.5 font-mono text-[9px] text-slate-500">{statusText(economics.scenarioCost.status)}</p>
+          <p className="mt-0.5 font-mono text-[11px] text-slate-500">{statusText(economics.scenarioCost.status)}</p>
         </div>
         <div className="text-right">
-          <p className="font-mono text-[9px] font-semibold uppercase text-slate-500">Gross Improvement · THB/pc</p>
+          <p className="font-sans text-[11px] font-medium text-slate-600">Gross Improvement · THB/pc</p>
           <p className={`mt-1 font-mono text-base font-bold tabular-nums ${savingColor(economics.grossImprovementPerPiece)}`}>
             {economics.grossImprovementPerPiece === null ? '—' : formatVariance(economics.grossImprovementPerPiece, 4)}
           </p>
-          <p className="mt-0.5 font-mono text-[9px] text-slate-500">Current − Scenario</p>
+          <p className="mt-0.5 font-mono text-[11px] text-slate-500">Current − Scenario</p>
         </div>
       </div>
-      <dl className="grid grid-cols-2 gap-x-3 border-t border-slate-200 px-3 py-2 text-[10px]">
-        <div><dt className="font-mono uppercase text-slate-500">Selling Price · THB/pc</dt><dd className="mt-0.5 font-mono tabular-nums text-slate-900">{formatCost(business.sellingPrice)}</dd></div>
-        <div><dt className="font-mono uppercase text-slate-500">SG&amp;A %</dt><dd className="mt-0.5 font-mono tabular-nums text-slate-900">{business.sgaPercent === null ? '—' : `${formatNumber(business.sgaPercent, 4)}%`}</dd></div>
-        <div><dt className="font-mono uppercase text-slate-500">SG&amp;A amount / pc</dt><dd className="mt-0.5 font-mono tabular-nums text-slate-900">{formatCost(business.sgaAmountPerPiece)}</dd></div>
-        <div><dt className="font-mono uppercase text-slate-500">OP / pc</dt><dd className={`mt-0.5 font-mono font-semibold tabular-nums ${business.operatingProfitPerPiece !== null && business.operatingProfitPerPiece < 0 ? 'text-rose-700' : 'text-slate-900'}`}>
+      <dl className="grid grid-cols-2 gap-x-3 border-t border-slate-200 px-3 py-2 text-[11px]">
+        <div><dt className="font-sans text-[11px] text-slate-600">Selling Price · THB/pc</dt><dd className="mt-0.5 font-mono tabular-nums text-slate-900">{formatCost(business.sellingPrice)}</dd></div>
+        <div><dt className="font-sans text-[11px] text-slate-600">SG&amp;A %</dt><dd className="mt-0.5 font-mono tabular-nums text-slate-900">{business.sgaPercent === null ? '—' : `${formatNumber(business.sgaPercent, 4)}%`}</dd></div>
+        <div><dt className="font-sans text-[11px] text-slate-600">SG&amp;A amount / pc</dt><dd className="mt-0.5 font-mono tabular-nums text-slate-900">{formatCost(business.sgaAmountPerPiece)}</dd></div>
+        <div><dt className="font-sans text-[11px] text-slate-600">OP / pc</dt><dd className={`mt-0.5 font-mono font-semibold tabular-nums ${business.operatingProfitPerPiece !== null && business.operatingProfitPerPiece < 0 ? 'text-rose-700' : 'text-slate-900'}`}>
           {formatCost(business.operatingProfitPerPiece)}{business.operatingProfitPerPiece !== null && business.operatingProfitPerPiece < 0 ? ' · Operating loss' : ''}
         </dd></div>
       </dl>
       <details className="border-t border-slate-200 px-3 py-2">
-        <summary className="min-h-7 cursor-pointer py-1 font-mono text-[9px] font-semibold uppercase text-slate-600 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700">
+        <summary className="min-h-7 cursor-pointer py-1 font-sans text-[11px] font-medium text-slate-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700">
           MAT, LB, BD, and Processing
         </summary>
         <div className="mt-1 overflow-x-auto">
           <table className="w-full min-w-[360px] text-xs">
-            <thead className="font-mono text-[9px] uppercase text-slate-500">
+            <thead className="font-sans text-slate-600">
               <tr><th scope="col" className="py-1 text-left">Cost · THB/pc</th><th scope="col" className="py-1 text-right">Current</th><th scope="col" className="py-1 text-right">Scenario</th></tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
@@ -111,7 +111,7 @@ function ScenarioCard({
         </div>
       </details>
       {warnings.length > 0 && (
-        <ul aria-label={`Scenario ${result.letter} review warnings`} className="space-y-1 border-t border-amber-200 bg-amber-50 px-3 py-2 text-[10px] leading-4 text-amber-950">
+        <ul aria-label={`Scenario ${result.letter} review warnings`} className="space-y-1 border-t border-amber-200 bg-amber-50 px-3 py-2 text-[11px] leading-4 text-amber-950">
           {warnings.map((warning, index) => <li key={`${index}-${warning}`}>{warning}</li>)}
         </ul>
       )}
@@ -152,16 +152,16 @@ export function ScenarioOverview({ currentSnapshot, candidates, simulationState,
     <section aria-labelledby="scenario-overview-heading" className="space-y-2">
       <div className="flex flex-wrap items-end justify-between gap-2 border-b border-slate-300 pb-2">
         <div>
-          <p className="font-mono text-[9px] font-bold uppercase tracking-wide text-slate-500">Scenario impact</p>
+          <p className="font-sans text-[11px] font-semibold text-slate-500">Scenario impact</p>
           <h2 id="scenario-overview-heading" className="mt-0.5 text-xs font-semibold text-slate-900">Live RCA &amp; Simulation results</h2>
         </div>
-        <button type="button" onClick={onOpenRca} className="min-h-8 border border-slate-400 bg-white px-2.5 font-mono text-[9px] font-semibold uppercase text-slate-700 hover:bg-slate-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700">
+        <button type="button" onClick={onOpenRca} className="min-h-8 border border-slate-400 bg-white px-2.5 font-sans text-[11px] font-medium text-slate-700 hover:bg-slate-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700">
           Open RCA &amp; Simulation
         </button>
       </div>
       {selectedCandidate ? (
         <>
-          <p className="text-[10px] text-slate-600">Human-selected candidate: <span className="font-semibold text-slate-900">{selectedCandidate.candidateName}</span>. All scenarios recalculate from Current.</p>
+          <p className="text-[11px] text-slate-600">Human-selected candidate: <span className="font-semibold text-slate-900">{selectedCandidate.candidateName}</span>. All scenarios recalculate from Current.</p>
           <div className="grid grid-cols-1 gap-2 xl:grid-cols-2">
             {scenarioResults.map(result => {
               const form = scenarioForms.find(item => item.letter === result.letter)

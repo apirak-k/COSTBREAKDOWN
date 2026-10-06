@@ -88,7 +88,7 @@ export const SnapshotComparisonCard: React.FC<SnapshotComparisonCardProps> = ({ 
     <section aria-labelledby="snapshot-comparison-title" className="overflow-hidden border border-slate-300 bg-white">
       <div className="flex flex-col gap-3 border-b border-slate-200 bg-slate-50 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h2 id="snapshot-comparison-title" className="font-mono text-xs font-bold uppercase tracking-wide text-slate-950">{selectedComparison ? 'Selected Comparison · Reference vs Current' : 'Reference vs Current'}</h2>
+          <h2 id="snapshot-comparison-title" className="font-sans text-sm font-semibold tracking-tight text-slate-950">{selectedComparison ? 'Selected Comparison · Reference vs Current' : 'Reference vs Current'}</h2>
           <p className="mt-0.5 text-[11px] leading-4 text-slate-600">
             {selectedComparison
               ? 'Cost measures use the selected BOM and Routing findings with all Work Center rates as calculation context.'
@@ -108,15 +108,15 @@ export const SnapshotComparisonCard: React.FC<SnapshotComparisonCardProps> = ({ 
               <th scope="col" className="p-2.5 text-right">Gap (THB/pc)</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-slate-200 font-mono tabular-nums">
+          <tbody className="divide-y divide-slate-200">
             {metrics.map(metric => (
               <tr key={metric.key} className={metric.emphasis ? 'border-t-2 border-slate-400 bg-slate-100 font-bold text-slate-950' : metric.subtotal ? 'bg-slate-50 text-slate-700' : 'bg-white text-slate-800'}>
                 <th scope="row" className={`p-2.5 text-left ${metric.subtotal ? 'font-medium italic' : 'font-semibold'}`}>
-                  {metric.label}{metric.subtotal && <span className="ml-2 font-sans text-[10px] font-normal not-italic text-slate-500">Labor + Burden; subtotal only</span>}
+                  {metric.label}{metric.subtotal && <span className="ml-2 font-sans text-[11px] font-normal not-italic text-slate-500">Labor + Burden; subtotal only</span>}
                 </th>
-                <td className="p-2.5 text-right">{formatCost(metric.reference)}</td>
-                <td className="p-2.5 text-right">{formatCost(metric.current)}</td>
-                <td className={`p-2.5 text-right ${gapClass(metric.gap)}`}>{metric.gap === null ? '—' : formatVariance(metric.gap, 4)}</td>
+                <td className="p-2.5 text-right font-mono tabular-nums">{formatCost(metric.reference)}</td>
+                <td className="p-2.5 text-right font-mono tabular-nums">{formatCost(metric.current)}</td>
+                <td className={`p-2.5 text-right font-mono tabular-nums ${gapClass(metric.gap)}`}>{metric.gap === null ? '—' : formatVariance(metric.gap, 4)}</td>
               </tr>
             ))}
           </tbody>

@@ -208,7 +208,7 @@ export const RoutingDetailedTable: React.FC<RoutingDetailedTableProps> = ({
                   <td className="p-2.5 min-w-[150px]">
                     <div className="flex flex-col items-start gap-1.5">
                       <div className="flex flex-wrap gap-1">
-                        {visibleLabels.length > 0 ? visibleLabels.map(label => <span key={label} className={`inline-flex px-1.5 py-0.5 rounded border text-[10px] font-mono font-bold whitespace-nowrap ${comparisonClass(label)}`}>{label}</span>) : <span aria-label={labels.includes('UNCHANGED') ? 'Unchanged' : undefined} title={labels.length === 0 ? 'No comparable business identity; see validation warnings' : undefined}>—</span>}
+                        {visibleLabels.length > 0 ? visibleLabels.map(label => <span key={label} className={`inline-flex px-1.5 py-0.5 rounded border text-[11px] font-mono font-bold whitespace-nowrap ${comparisonClass(label)}`}>{label}</span>) : <span aria-label={labels.includes('UNCHANGED') ? 'Unchanged' : undefined} title={labels.length === 0 ? 'No comparable business identity; see validation warnings' : undefined}>—</span>}
                       </div>
                       <ComparisonFieldDetails finding={row.finding} />
                     </div>
@@ -252,7 +252,7 @@ export const RoutingDetailedTable: React.FC<RoutingDetailedTableProps> = ({
         </tbody>
         <tfoot>
           <tr className="bg-slate-100/90 border-t-2 border-slate-300/80 font-bold text-xs">
-            <td colSpan={(showComparison ? 19 : 16) + Number(selectionMode)} className="p-2.5 text-right text-slate-700 uppercase tracking-wider text-[10px] font-sans">
+            <td colSpan={(showComparison ? 19 : 16) + Number(selectionMode)} className="p-2.5 text-right text-slate-700 uppercase tracking-wider text-[11px] font-sans">
               {isOnlyComparisonStatus(viewMode, 'CHANGED') ? 'Visible Changed Conversion (THB/pc)' : viewMode.length < 4 ? 'Visible Conversion Cost (THB/pc)' : 'Total Conversion Cost (THB/pc)'}
             </td>
             <td className="p-2.5 text-right font-mono text-slate-800 tabular-nums">{formatNullable(referenceTotal, value => formatNumber(value, 4))}</td>

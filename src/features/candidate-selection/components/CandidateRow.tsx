@@ -52,13 +52,13 @@ export const CandidateRow: React.FC<CandidateRowProps> = ({
 
       <td className="min-w-72 px-4 py-2 align-top">
         <div className="min-w-0">
-          <div className="mb-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[10px]">
+          <div className="mb-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[11px]">
             <span className="font-mono font-semibold uppercase tracking-wide text-slate-500">{candidate.category}</span>
             {showFactor && <span className="text-slate-500">{candidate.factor}</span>}
           </div>
           <p className="break-words text-xs font-semibold leading-4 text-slate-950">{candidate.candidateName}</p>
           {candidate.changeDetails && candidate.changeDetails.length > 0 && (
-            <p className="mt-1 break-words text-[10px] leading-4 text-slate-600">
+            <p className="mt-1 break-words text-[11px] leading-4 text-slate-600">
               <span className="mr-1 font-medium text-slate-700">Changed fields:</span>
               {candidate.changeDetails.map((detail, index) => (
                 <span key={detail.field}>
@@ -73,7 +73,7 @@ export const CandidateRow: React.FC<CandidateRowProps> = ({
           )}
           {candidate.processBreakdown && (
             <details className="mt-2 border-t border-slate-200 pt-1.5">
-              <summary className="min-h-7 cursor-pointer py-1 font-mono text-[10px] font-semibold text-slate-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700">
+              <summary className="min-h-7 cursor-pointer py-1 font-mono text-[11px] font-semibold text-slate-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700">
                 Process details ({candidate.processBreakdown.reference.length} Reference · {candidate.processBreakdown.current.length} Current)
               </summary>
               <div className="mt-1 space-y-2 border-l-2 border-slate-300 pl-2">
@@ -82,22 +82,22 @@ export const CandidateRow: React.FC<CandidateRowProps> = ({
                   { key: 'current', label: 'Current', rows: candidate.processBreakdown.current }
                 ] as const).map(({ key, label, rows }) => (
                   <section key={key} aria-label={`${label} Routing Processes`}>
-                    <h3 className="font-mono text-[9px] font-bold uppercase tracking-wide text-slate-600">
+                    <h3 className="font-sans text-[11px] font-semibold text-slate-600">
                       {label} · {rows.length} {rows.length === 1 ? 'process' : 'processes'}
                     </h3>
                     {rows.length === 0 ? (
-                      <p className="mt-1 text-[10px] text-slate-500">No Routing Process at this Work Center.</p>
+                      <p className="mt-1 text-[11px] text-slate-500">No Routing Process at this Work Center.</p>
                     ) : (
                       <ul className="mt-1 space-y-1.5">
                         {rows.map(process => (
                           <li key={process.id} className="border-l border-slate-300 pl-2">
-                            <p className="break-words text-[10px] font-semibold text-slate-800">{process.processName}</p>
-                            <p className="font-mono text-[9px] leading-4 text-slate-600">
+                            <p className="break-words text-[11px] font-semibold text-slate-800">{process.processName}</p>
+                            <p className="font-mono text-[11px] leading-4 text-slate-600">
                               Manning {formatNullable(process.manning, value => formatNumber(value, 2))}
                               {' · '}Capacity {formatNullable(process.capacity, value => formatNumber(value, 2))}
                               {' · '}Yield {formatNullable(process.yield, value => formatPercent(value, 1))}
                             </p>
-                            <p className="font-mono text-[9px] leading-4 text-slate-600">
+                            <p className="font-mono text-[11px] leading-4 text-slate-600">
                               Labor {formatNullable(process.laborCost, value => formatNumber(value, 4))}
                               {' · '}Burden {formatNullable(process.burdenCost, value => formatNumber(value, 4))}
                               {' · '}Processing {formatNullable(process.totalCost, value => formatNumber(value, 4))} THB/pc
@@ -115,7 +115,7 @@ export const CandidateRow: React.FC<CandidateRowProps> = ({
       </td>
 
       <td className="px-3 py-2 text-center align-top">
-        <span className={`inline-flex min-h-6 items-center gap-1.5 whitespace-nowrap font-mono text-[10px] font-semibold ${statusStyle.text}`}>
+        <span className={`inline-flex min-h-6 items-center gap-1.5 whitespace-nowrap font-mono text-[11px] font-semibold ${statusStyle.text}`}>
           <span aria-hidden="true" className={`h-1.5 w-1.5 rounded-full ${statusStyle.marker}`} />
           {candidate.status}
         </span>
@@ -144,7 +144,7 @@ export const CandidateRow: React.FC<CandidateRowProps> = ({
             className="h-4 w-4 rounded-sm border-slate-400 accent-slate-900 cursor-pointer focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700"
             aria-label={`Mark ${candidate.candidateName} as controllable`}
           />
-          <span className="text-[10px] font-medium text-slate-700">{candidate.controllable ? 'Yes' : 'No'}</span>
+          <span className="text-[11px] font-medium text-slate-700">{candidate.controllable ? 'Yes' : 'No'}</span>
         </label>
       </td>
     </tr>

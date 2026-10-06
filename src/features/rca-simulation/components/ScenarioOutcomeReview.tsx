@@ -56,10 +56,10 @@ function ScenarioComparisonGraph({ scenarioA, scenarioB }: Pick<ScenarioOutcomeR
     <figure aria-labelledby="scenario-ab-graph-heading" className="border border-slate-300 bg-white px-3 py-3">
       <div className="flex flex-wrap items-start justify-between gap-2 border-b border-slate-200 pb-2">
         <div>
-          <p className="font-mono text-[9px] font-bold uppercase tracking-wide text-slate-500">Strategy comparison</p>
+          <p className="font-sans text-[11px] font-semibold text-slate-500">Strategy comparison</p>
           <h3 id="scenario-ab-graph-heading" className="mt-0.5 text-xs font-semibold text-slate-900">A/B monetary outcomes · THB/pc</h3>
         </div>
-        <div className="flex gap-3 font-mono text-[9px] font-semibold uppercase text-slate-600">
+        <div className="flex gap-3 font-sans text-[11px] font-medium text-slate-600">
           <span><i className="mr-1 inline-block h-2 w-3 bg-blue-700" />Scenario A</span>
           <span><i className="mr-1 inline-block h-2 w-3 bg-amber-600" />Scenario B</span>
         </div>
@@ -72,7 +72,7 @@ function ScenarioComparisonGraph({ scenarioA, scenarioB }: Pick<ScenarioOutcomeR
       >
         <title>Scenario A and B money comparison in THB per piece</title>
         <line x1={center} x2={center} y1="8" y2={height - 4} stroke="#94a3b8" strokeWidth="1" />
-        <text x={center} y="9" textAnchor="middle" fill="#64748b" fontSize="8" fontFamily="ui-monospace, monospace">0</text>
+        <text x={center} y="9" textAnchor="middle" fill="#64748b" fontSize="9" fontFamily="ui-monospace, monospace">0</text>
         {METRICS.map(({ key, label }, index) => {
           const y = 23 + index * rowHeight
           const aValue = scenarioA[key]
@@ -84,14 +84,14 @@ function ScenarioComparisonGraph({ scenarioA, scenarioB }: Pick<ScenarioOutcomeR
               <text x="6" y={y + 9} fill="#334155" fontSize="10" fontWeight="600" fontFamily="ui-sans-serif, system-ui">{label}</text>
               {aValue !== null && <rect x={aValue < 0 ? center - aWidth : center} y={y - 1} width={Math.max(aWidth, 1)} height="7" fill="#1d4ed8"><title>{`Scenario A ${label}: ${formatValue(aValue)} THB/pc`}</title></rect>}
               {bValue !== null && <rect x={bValue < 0 ? center - bWidth : center} y={y + 8} width={Math.max(bWidth, 1)} height="7" fill="#d97706"><title>{`Scenario B ${label}: ${formatValue(bValue)} THB/pc`}</title></rect>}
-              <text x="548" y={y + 4} fill="#1e3a8a" fontSize="9" fontFamily="ui-monospace, monospace">A {formatMetricValue(key, aValue, 2)}</text>
-              <text x="548" y={y + 14} fill="#92400e" fontSize="9" fontFamily="ui-monospace, monospace">B {formatMetricValue(key, bValue, 2)}</text>
+              <text x="548" y={y + 4} fill="#1e3a8a" fontSize="10" fontFamily="ui-monospace, monospace">A {formatMetricValue(key, aValue, 2)}</text>
+              <text x="548" y={y + 14} fill="#92400e" fontSize="10" fontFamily="ui-monospace, monospace">B {formatMetricValue(key, bValue, 2)}</text>
             </g>
           )
         })}
       </svg>
-      <figcaption className="mt-1 border-t border-slate-200 pt-2 text-[9px] leading-4 text-slate-600">
-        The graph compares only per-piece money outcomes. Engineering changes and economics assumptions remain visible in each scenario card above; no scenario is ranked or selected automatically.
+      <figcaption className="mt-1 border-t border-slate-200 pt-2 text-[11px] leading-4 text-slate-600">
+        The graph compares per-piece money outcomes. Engineering changes and economics assumptions remain in each scenario card above.
       </figcaption>
     </figure>
   )
@@ -127,10 +127,10 @@ function FinalStoryGraph({ story }: { story: ScenarioStory }) {
   return (
     <figure aria-labelledby="final-story-graph-heading" className="border border-slate-300 bg-white px-3 py-3">
       <div className="border-b border-slate-200 pb-2">
-        <p className="font-mono text-[9px] font-bold uppercase tracking-wide text-slate-500">Selected scenario result</p>
+        <p className="font-sans text-[11px] font-semibold text-slate-500">Selected scenario result</p>
         <h3 id="final-story-graph-heading" className="mt-0.5 text-xs font-semibold text-slate-900">Reference → Current → Simulated</h3>
       </div>
-      <div className="grid grid-cols-1 gap-2 border-b border-slate-200 py-2 text-[10px] sm:grid-cols-2">
+      <div className="grid grid-cols-1 gap-2 border-b border-slate-200 py-2 text-[11px] sm:grid-cols-2">
         <p><span className="font-semibold text-slate-900">Reference → Current</span><br /><span className="text-slate-600">Gap 1 = Current − Reference</span></p>
         <p><span className="font-semibold text-slate-900">Current → Simulated</span><br /><span className="text-slate-600">Gap 2 = Simulated − Current</span></p>
       </div>
@@ -147,7 +147,7 @@ function FinalStoryGraph({ story }: { story: ScenarioStory }) {
           return (
             <g key={step}>
               <line x1="55" x2="650" y1={lineY} y2={lineY} stroke={step === 2 ? '#94a3b8' : '#e2e8f0'} strokeWidth="1" />
-              <text x="48" y={lineY + 3} textAnchor="end" fill="#64748b" fontSize="8" fontFamily="ui-monospace, monospace">{formatNumber(value, 2)}</text>
+              <text x="48" y={lineY + 3} textAnchor="end" fill="#64748b" fontSize="9" fontFamily="ui-monospace, monospace">{formatNumber(value, 2)}</text>
             </g>
           )
         })}
@@ -170,7 +170,7 @@ function FinalStoryGraph({ story }: { story: ScenarioStory }) {
                 return <rect key={part.key} x={state.x - 29} y={top} width="58" height={Math.max(height, 1)} fill={part.color}><title>{`${state.label} ${part.label}: ${formatValue(value)} THB/pc`}</title></rect>
               }) : <text x={state.x} y={zeroY - 8} textAnchor="middle" fill="#92400e" fontSize="9">Cost unavailable</text>}
               {complete && state.values.standardCost !== null && Number.isFinite(state.values.standardCost) && (
-                <text x={state.x} y={y(state.values.standardCost) - 7} textAnchor="middle" fill="#0f172a" fontSize="8" fontWeight="700" fontFamily="ui-monospace, monospace">
+                <text x={state.x} y={y(state.values.standardCost) - 7} textAnchor="middle" fill="#0f172a" fontSize="9" fontWeight="700" fontFamily="ui-monospace, monospace">
                   {`STD ${formatValue(state.values.standardCost)}`}
                 </text>
               )}
@@ -186,12 +186,12 @@ function FinalStoryGraph({ story }: { story: ScenarioStory }) {
           </g>
         ))}
       </svg>
-      <ul aria-label="Final story graph legend" className="flex flex-wrap gap-x-4 gap-y-1 border-t border-slate-200 pt-2 text-[9px] text-slate-600">
+      <ul aria-label="Final story graph legend" className="flex flex-wrap gap-x-4 gap-y-1 border-t border-slate-200 pt-2 text-[11px] text-slate-600">
         {COST_PARTS.map(part => <li key={part.key} className="inline-flex items-center gap-1.5"><i className="h-2.5 w-2.5" style={{ backgroundColor: part.color }} />{part.label}</li>)}
         <li className="inline-flex items-center gap-1.5"><i className="h-0.5 w-4 bg-blue-700" />Selling Price</li>
       </ul>
       <div className="mt-3 overflow-x-auto">
-        <table className="w-full min-w-[680px] text-[10px]">
+        <table className="w-full min-w-[680px] text-[11px]">
           <thead>
             <tr className="border-b border-slate-300 text-left font-mono uppercase text-slate-600">
               <th scope="col" className="py-2 pr-2">THB/pc</th>
@@ -216,7 +216,7 @@ function FinalStoryGraph({ story }: { story: ScenarioStory }) {
           </tbody>
         </table>
       </div>
-      <figcaption className="mt-2 text-[9px] leading-4 text-slate-600">
+      <figcaption className="mt-2 text-[11px] leading-4 text-slate-600">
         Gap 2 is signed Simulated − Current; a negative Standard Cost movement means cost decreased. Negative OP values remain visible as operating losses.
       </figcaption>
     </figure>
@@ -227,11 +227,11 @@ export function ScenarioOutcomeReview(props: ScenarioOutcomeReviewProps) {
   const { scenarioA, scenarioB, selectedScenarioLetter, story, onSelectScenario } = props
   return (
     <section aria-labelledby="scenario-outcome-heading" className="space-y-3">
-      <h2 id="scenario-outcome-heading" className="font-mono text-xs font-bold uppercase text-slate-900">Scenario comparison and result</h2>
+      <h2 id="scenario-outcome-heading" className="font-sans text-sm font-semibold text-slate-900">Scenario comparison and result</h2>
       <ScenarioComparisonGraph scenarioA={scenarioA} scenarioB={scenarioB} />
       <fieldset className="border border-slate-300 bg-white px-3 py-3">
-        <legend className="px-1 font-mono text-[10px] font-bold uppercase text-slate-800">Choose the scenario to continue</legend>
-        <p className="mb-2 text-[10px] leading-4 text-slate-600">Your choice becomes Simulated in the final story. The system does not select a winner.</p>
+        <legend className="px-1 font-sans text-[11px] font-semibold text-slate-800">Choose the scenario to continue</legend>
+        <p className="mb-2 text-[11px] leading-4 text-slate-600">Your choice becomes Simulated in the final story. The system does not select a winner.</p>
         <div className="flex flex-wrap gap-4 text-xs">
           {(['A', 'B'] as const).map(letter => (
             <label key={letter} className="inline-flex min-h-8 cursor-pointer items-center gap-2 font-medium text-slate-800">

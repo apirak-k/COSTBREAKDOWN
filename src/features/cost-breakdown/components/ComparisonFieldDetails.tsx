@@ -11,7 +11,7 @@ export function ComparisonFieldDetails({ finding, fieldLabelOverrides }: Compari
   if (changes.length === 0) return null
 
   return (
-    <details className="font-sans text-[10px] text-slate-600">
+    <details className="font-sans text-[11px] text-slate-600">
       <summary className="cursor-pointer whitespace-nowrap font-medium hover:text-slate-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700">
         Changed fields ({changes.length})
       </summary>

@@ -161,7 +161,7 @@ export const BOMDetailedTable: React.FC<BOMDetailedTableProps> = ({
                   <td className="p-2.5 min-w-[120px]">
                     <div className="flex flex-col items-start gap-1.5">
                       {visibleLabel ? (
-                        <span className={`inline-flex px-1.5 py-0.5 rounded border text-[10px] font-mono font-bold whitespace-nowrap ${comparisonClass(visibleLabel)}`}>
+                        <span className={`inline-flex px-1.5 py-0.5 rounded border text-[11px] font-mono font-bold whitespace-nowrap ${comparisonClass(visibleLabel)}`}>
                           {visibleLabel}
                         </span>
                       ) : (
@@ -191,7 +191,7 @@ export const BOMDetailedTable: React.FC<BOMDetailedTableProps> = ({
         </tbody>
         <tfoot>
           <tr className="bg-slate-100/90 border-t-2 border-slate-300/80 font-bold text-xs">
-            <td colSpan={(showComparison ? 10 : 9) + Number(selectionMode)} className="p-2.5 text-right text-slate-700 uppercase tracking-wider text-[10px] font-sans">
+            <td colSpan={(showComparison ? 10 : 9) + Number(selectionMode)} className="p-2.5 text-right text-slate-700 uppercase tracking-wider text-[11px] font-sans">
               {isOnlyComparisonStatus(viewMode, 'CHANGED') ? 'Visible Changed Material (THB/pc)' : viewMode.length < 4 ? 'Visible Direct Material (THB/pc)' : 'Total Direct Material (THB/pc)'}
             </td>
             <td className="p-2.5 text-right font-mono text-slate-800 tabular-nums">{formatNullable(referenceTotal, value => formatNumber(value, 4))}</td>

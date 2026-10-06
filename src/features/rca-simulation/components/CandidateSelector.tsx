@@ -17,8 +17,8 @@ export const CandidateSelector: React.FC<CandidateSelectorProps> = ({
     className="grid grid-cols-1 items-end gap-3 border border-slate-300 bg-white px-3 py-3 md:grid-cols-[minmax(0,1fr)_minmax(18rem,1.2fr)] md:gap-5"
   >
     <div>
-      <p className="font-mono text-[10px] font-bold uppercase tracking-wide text-slate-600">01 / Candidate</p>
-      <h2 id="rca-candidate-heading" className="mt-1 font-mono text-xs font-bold uppercase text-slate-900">
+      <p className="font-sans text-[11px] font-medium text-slate-600">01 / Candidate</p>
+      <h2 id="rca-candidate-heading" className="mt-1 font-sans text-sm font-semibold text-slate-900">
         Choose the RCA target
       </h2>
       <p id="rca-candidate-guidance" className="mt-1 text-xs leading-5 text-slate-600">
@@ -29,7 +29,7 @@ export const CandidateSelector: React.FC<CandidateSelectorProps> = ({
     </div>
 
     <div>
-      <label htmlFor="rca-candidate-selector" className="mb-1 block font-mono text-[10px] font-semibold uppercase text-slate-700">
+      <label htmlFor="rca-candidate-selector" className="mb-1 block font-sans text-[11px] font-medium text-slate-700">
         Candidate
       </label>
       <select

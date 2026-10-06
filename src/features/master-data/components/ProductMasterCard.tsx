@@ -32,14 +32,14 @@ export const ProductMasterCard: React.FC<ProductMasterCardProps> = ({
     <div className="bg-white p-3.5 rounded-none border border-slate-300/80 shadow-2xs space-y-3">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="flex items-center gap-2">
-          <h2 className="text-xs font-bold font-mono uppercase tracking-tight text-slate-900">
+          <h2 className="text-sm font-semibold font-sans tracking-tight text-slate-900">
             Product Master
           </h2>
-          <span className="px-1.5 py-0.5 text-[10px] font-mono font-bold bg-slate-100 text-slate-700 rounded-none border border-slate-200">
+          <span className="px-1.5 py-0.5 text-[11px] font-mono font-bold bg-slate-100 text-slate-700 rounded-none border border-slate-200">
             {ratesCount} WC · {bomCount} BOM · {routingCount} ROUTING
           </span>
           {versionLabel && (
-            <span className="px-2 py-0.5 text-[10px] font-mono font-bold bg-slate-100 text-slate-700 rounded-none border border-slate-200 uppercase tracking-wide">
+            <span className="px-2 py-0.5 text-[11px] font-mono font-bold bg-slate-100 text-slate-700 rounded-none border border-slate-200 uppercase tracking-wide">
               {versionLabel}
             </span>
           )}
@@ -91,7 +91,7 @@ export const ProductMasterCard: React.FC<ProductMasterCardProps> = ({
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-2 text-xs">
         <div>
-          <label className="block text-slate-500 text-[10px] font-mono font-bold uppercase mb-0.5">Product Code *</label>
+          <label className="block text-slate-500 text-[11px] font-mono font-bold uppercase mb-0.5">Product Code *</label>
           {isEditMode ? (
             <input
               type="text"
@@ -105,7 +105,7 @@ export const ProductMasterCard: React.FC<ProductMasterCardProps> = ({
           )}
         </div>
         <div>
-          <label className="block text-slate-500 text-[10px] font-mono font-bold uppercase mb-0.5">UOM Unit</label>
+          <label className="block text-slate-500 text-[11px] font-mono font-bold uppercase mb-0.5">UOM Unit</label>
           {isEditMode ? (
             <select
               value={product.uom}
@@ -121,7 +121,7 @@ export const ProductMasterCard: React.FC<ProductMasterCardProps> = ({
           )}
         </div>
         <div>
-          <label className="block text-slate-500 text-[10px] font-mono font-bold uppercase mb-0.5">Product Description</label>
+          <label className="block text-slate-500 text-[11px] font-mono font-bold uppercase mb-0.5">Product Description</label>
           {isEditMode ? (
             <input
               type="text"
@@ -135,7 +135,7 @@ export const ProductMasterCard: React.FC<ProductMasterCardProps> = ({
           )}
         </div>
         <div>
-          <label className="block text-slate-500 text-[10px] font-mono font-bold uppercase mb-0.5">Effective Date</label>
+          <label className="block text-slate-500 text-[11px] font-mono font-bold uppercase mb-0.5">Effective Date</label>
           {isEditMode ? (
             <input
               type="date"
@@ -148,7 +148,7 @@ export const ProductMasterCard: React.FC<ProductMasterCardProps> = ({
           )}
         </div>
         <div>
-          <label className="block text-slate-500 text-[10px] font-mono font-bold uppercase mb-0.5">Customer / Application</label>
+          <label className="block text-slate-500 text-[11px] font-mono font-bold uppercase mb-0.5">Customer / Application</label>
           {isEditMode ? (
             <input
               type="text"

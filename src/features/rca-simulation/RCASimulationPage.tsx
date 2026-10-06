@@ -209,7 +209,7 @@ export const RCASimulationPage: React.FC<RCASimulationPageProps> = ({ state, upd
         <SelectedComparisonBanner selection={selectedComparisonSelection} onExit={clearSelectedComparison} />
       )}
       <aside aria-label="Simulation basis" className="flex flex-wrap items-baseline gap-x-3 gap-y-1 border border-l-4 border-slate-300 border-l-slate-900 bg-white px-3 py-2.5">
-        <span className="font-mono text-[10px] font-bold uppercase tracking-wide text-slate-600">Simulation basis</span>
+        <span className="font-sans text-[11px] font-semibold text-slate-600">Simulation basis</span>
         <span className="font-semibold text-slate-900">Current</span>
         <p className="min-w-0 flex-1 text-xs leading-5 text-slate-700">
           A and B are independent predictions from the full Current snapshot through the shared Standard Cost engine. Edits never change Current, Reference, or Master Data.
@@ -260,14 +260,14 @@ export const RCASimulationPage: React.FC<RCASimulationPageProps> = ({ state, upd
           <section aria-labelledby="trial-handoff-heading" className="border border-slate-300 bg-white px-3 py-3">
             <div className="grid grid-cols-1 gap-3 md:grid-cols-[minmax(0,1fr)_minmax(18rem,1fr)] md:items-end">
               <div>
-                <p className="font-mono text-[10px] font-bold uppercase tracking-wide text-slate-600">04 / Trial</p>
-                <h2 id="trial-handoff-heading" className="mt-1 font-mono text-xs font-bold uppercase text-slate-900">Mark a scenario for Trial</h2>
+                <p className="font-sans text-[11px] font-medium text-slate-600">04 / Trial</p>
+                <h2 id="trial-handoff-heading" className="mt-1 font-sans text-sm font-semibold text-slate-900">Mark a scenario for Trial</h2>
                 <p id="trial-handoff-guidance" className="mt-1 text-xs leading-5 text-slate-600">
                   Choose after reviewing the scenarios. This selection is a handoff marker; Trial is a separate stage.
                 </p>
               </div>
               <div>
-                <label htmlFor="trial-handoff-scenario" className="mb-1 block font-mono text-[10px] font-semibold uppercase text-slate-700">
+                <label htmlFor="trial-handoff-scenario" className="mb-1 block font-sans text-[11px] font-medium text-slate-700">
                   Scenario
                 </label>
                 <select
