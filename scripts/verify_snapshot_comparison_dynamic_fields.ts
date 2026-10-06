@@ -64,7 +64,8 @@ const currentBOM: SnapshotBOMItem = {
 const plainReferenceBOM: SnapshotBOMItem = {
   ...baseBOM,
   id: 'bom-2',
-  itemCode: 'MAT-2'
+  itemCode: 'MAT-2',
+  description: 'Material 2'
 }
 const plainCurrentBOM: SnapshotBOMItem = { ...plainReferenceBOM }
 

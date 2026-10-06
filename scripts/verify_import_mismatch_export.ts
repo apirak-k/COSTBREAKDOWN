@@ -14,12 +14,15 @@ const testSnapshot: CostSnapshot = {
   status: 'draft',
   sourceRef: 'Manual Entry Baseline',
   product: {
-    productCode: 'PROD-RT-01',
+    productName: 'Round-Trip Product',
+    productCode: '',
     productDescription: 'Round-Trip Product',
     uom: 'PC',
-    note: 'Product annotation',
-    customer: 'Test Customer',
-    effectiveDate: '2026-09-24',
+    sellingPrice: 125,
+    sgaPercent: 8,
+    note: 'Legacy product note is intentionally excluded',
+    customer: '',
+    effectiveDate: '',
     additionalFields: { 'Customer Group': 'Consumer' }
   },
   rates: [
@@ -119,15 +122,18 @@ async function runTests() {
   assert.ok(importResult.snapshot, 'Snapshot must be parsed')
 
   const parsed = importResult.snapshot!
-  assert.equal(parsed.product.productCode, 'PROD-RT-01')
-  assert.equal(parsed.product.note, 'Product annotation')
+  assert.equal(parsed.product.productName, 'Round-Trip Product')
+  assert.equal(parsed.product.uom, 'PC')
+  assert.equal(parsed.product.sellingPrice, 125)
+  assert.equal(parsed.product.sgaPercent, 8)
+  assert.equal(parsed.product.note, '')
   assert.equal(parsed.rates.length, 1)
   assert.equal(parsed.rates[0].workCenterCode, 'WC-CUT')
   assert.equal(parsed.rates[0].laborRate, 120)
   assert.equal(parsed.rates[0].note, 'Work Center annotation')
   assert.equal(parsed.rates[0].additionalFields?.['Supplier Group'], undefined)
   assert.equal(parsed.bom.length, 1)
-  assert.equal(parsed.bom[0].itemCode, 'MAT-01')
+  assert.equal(parsed.bom[0].description, 'Aluminum Extrusion')
   assert.equal(parsed.bom[0].consumption, 1.25)
   assert.equal(parsed.bom[0].price, 45.5)
   assert.equal(parsed.bom[0].note, 'BOM annotation')
@@ -136,7 +142,7 @@ async function runTests() {
   assert.equal(parsed.product.additionalFields?.['Customer Group'], undefined)
   assert.equal(parsed.routing.length, 1)
   assert.equal(parsed.routing[0].processName, 'Saw Cutting')
-  assert.equal(parsed.routing[0].operationCode, 'OP-10')
+  assert.equal(parsed.routing[0].operationCode, undefined)
   assert.equal(parsed.routing[0].processCode, undefined)
   assert.equal(parsed.routing[0].capacity, 500)
   assert.equal(parsed.routing[0].note, 'Routing annotation')
@@ -149,32 +155,32 @@ async function runTests() {
   console.log('✓ Neutral Export -> Import round-trip preserves agreed business fields and annotations (Task 5)')
 
   const exportedWorkbook = XLSX.read(buffer, { type: 'array' })
-  assert.deepEqual(exportedWorkbook.SheetNames, ['META', 'PRODUCT', 'WORK_CENTER', 'BOM', 'ROUTING'])
+  assert.deepEqual(exportedWorkbook.SheetNames, ['META', 'BOM', 'ROUTING', 'WORK_CENTER', 'COST_CALCULATION'])
   assert.equal(exportedWorkbook.SheetNames.includes('ADDITIONAL_DATA'), false)
   const metaRows = XLSX.utils.sheet_to_json(exportedWorkbook.Sheets.META, { header: 1, defval: null }) as unknown[][]
-  assert.deepEqual(metaRows[2], ['Remark'])
-  assert.equal(metaRows[3][0], 'Dataset annotation')
-  const productRows = XLSX.utils.sheet_to_json(exportedWorkbook.Sheets.PRODUCT, { header: 1, defval: null }) as unknown[][]
+  assert.deepEqual(metaRows[2], ['Product Name', 'UOM', 'Selling Price (THB)', 'SG&A (%)', 'Dataset Remark'])
+  assert.equal(metaRows[3][0], 'Round-Trip Product')
+  assert.equal(metaRows[3][4], 'Dataset annotation')
   const workCenterRows = XLSX.utils.sheet_to_json(exportedWorkbook.Sheets.WORK_CENTER, { header: 1, defval: null }) as unknown[][]
   const bomRows = XLSX.utils.sheet_to_json(exportedWorkbook.Sheets.BOM, { header: 1, defval: null }) as unknown[][]
   const routingRows = XLSX.utils.sheet_to_json(exportedWorkbook.Sheets.ROUTING, { header: 1, defval: null }) as unknown[][]
-  assert.equal(exportedWorkbook.Sheets.WORK_CENTER['!autofilter']?.ref, 'A3:E4')
-  assert.equal(exportedWorkbook.Sheets.BOM['!autofilter']?.ref, 'A3:G4')
-  assert.equal(exportedWorkbook.Sheets.ROUTING['!autofilter']?.ref, 'A3:H4')
-  assert.deepEqual(productRows[2], ['Product Code', 'Product Name', 'UOM', 'Note'])
-  assert.deepEqual(workCenterRows[2], ['Work Center Code', 'Work Center Name', 'Labor Rate', 'Burden Rate', 'Note'])
-  assert.deepEqual(bomRows[2], ['Item Code', 'Description', 'Consumption', 'Unit', 'Price', 'Loss', 'Note'])
-  assert.deepEqual(routingRows[2], ['Operation Code', 'Sequence', 'Process Name', 'Work Center Code', 'Manning', 'Capacity', 'Yield', 'Note'])
-  console.log('✓ Export workbook uses only the exact neutral schema and omits unsupported custom/lifecycle fields')
+  assert.equal(exportedWorkbook.Sheets.WORK_CENTER['!autofilter']?.ref, 'A3:D4')
+  assert.equal(exportedWorkbook.Sheets.BOM['!autofilter']?.ref, 'A3:F4')
+  assert.equal(exportedWorkbook.Sheets.ROUTING['!autofilter']?.ref, 'A3:F4')
+  assert.deepEqual(workCenterRows[2], ['WC', 'Labor', 'Burden', 'Note'])
+  assert.deepEqual(bomRows[2], ['Name', 'Usage', 'Unit', 'Price', 'Loss', 'Note'])
+  assert.deepEqual(routingRows[2], ['Process', 'WC', 'Manning', 'Cap', 'Yield', 'Note'])
+  console.log('✓ Export workbook uses the current four-sheet Master Data schema and omits unsupported custom/lifecycle fields')
 
-  // Test comparison handoff with mismatching Reference and Current Product Codes
+  // Product Name mismatch stays visible as a non-blocking handoff warning.
   const currentSnapshot: CostSnapshot = {
     ...testSnapshot,
     id: 'snap-cur-02',
     comparisonRole: 'current',
     product: {
       ...testSnapshot.product,
-      productCode: 'PROD-CUR-02'
+      productName: 'Current Product',
+      productDescription: 'Current Product'
     }
   }
 
@@ -189,7 +195,7 @@ async function runTests() {
   assert.ok(handoff.warnings && handoff.warnings.length > 0, 'Handoff must record non-blocking warning')
   assert.ok(handoff.warnings?.some(w => w.includes('Product mismatch')), 'Handoff warning must mention Product mismatch')
   assert.equal(handoff.warnings?.some(w => w.includes('Header Product')), false)
-  console.log('✓ Comparison handoff allows comparison with mismatching Product Codes with non-blocking warning (Task 4)')
+  console.log('✓ Comparison handoff allows mismatching Product Names with a non-blocking warning')
 
   // 3. Task 3: Replacement rule - replacing selected side keeps opposite side intact
   const originalReference = { ...testSnapshot }
@@ -204,7 +210,7 @@ async function runTests() {
   const newImportedReference: CostSnapshot = {
     ...testSnapshot,
     id: 'new-ref-import',
-    bom: [{ ...testSnapshot.bom[0], itemCode: 'NEW-MAT-99', price: 88 }]
+    bom: [{ ...testSnapshot.bom[0], description: 'New Material', itemCode: 'New Material', price: 88 }]
   }
 
   const nextPair: SnapshotPair = {
@@ -212,7 +218,7 @@ async function runTests() {
     current: pair.current
   }
 
-  assert.equal(nextPair.reference.bom[0].itemCode, 'NEW-MAT-99')
+  assert.equal(nextPair.reference.bom[0].description, 'New Material')
   assert.equal(nextPair.current.bom[0].price, 999, 'Current must remain completely untouched when Reference is replaced')
   console.log('✓ Import replacement replaces selected side and preserves opposite side (Task 3)')
 }

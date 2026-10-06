@@ -111,7 +111,7 @@ const current = {
   routing: [
     {
       ...reference.routing[0],
-      sequence: 20,
+      capacity: 80,
       sourceRef: 'current.xlsx'
     },
     {

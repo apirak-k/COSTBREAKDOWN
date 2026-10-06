@@ -12,30 +12,34 @@ function sheet(rows: (string | number | null)[][]): XLSX.WorkSheet {
 
 const workbook = XLSX.utils.book_new()
 XLSX.utils.book_append_sheet(workbook, sheet([
-  ['Key', 'Value'],
-  ['Snapshot ID', 'after-2026-09-21'],
-  ['Effective Date', '2026-09-21'],
-  ['Source Ref', 'after.xlsx'],
-  ['Status', 'draft']
+  ['MASTER DATA DATASET'],
+  [],
+  ['Product Name', 'UOM', 'Selling Price (THB)', 'SG&A (%)', 'Dataset Remark'],
+  ['Test Product', 'PC', 123.5, 8, 'Imported dataset']
 ]), 'META')
 XLSX.utils.book_append_sheet(workbook, sheet([
-  ['Product Code', 'Product Description', 'UOM', 'Customer', 'Effective Date'],
-  ['P-001', 'Test Product', 'PC', 'Test Customer', '2026-09-21']
-]), 'PRODUCT')
-XLSX.utils.book_append_sheet(workbook, sheet([
-  ['ID', 'Work Center Code', 'Description', 'Labor Rate', 'Burden Rate', 'Effective Date', 'Source Ref', 'Confidence'],
-  ['wc-1', 'WC-1', 'Cutting', 100, 50, '2026-09-21', 'rates.xlsx', 'Verified'],
-  ['wc-2', 'WC-2', 'Assembly', 90, null, '2026-09-21', 'Assumption', '']
+  ['WORK_CENTER'],
+  [],
+  [],
+  ['WC', 'Labor', 'Burden', 'Note'],
+  ['WC-1', 100, 50, 'Cutting'],
+  ['WC-2', 90, null, 'Assembly']
 ]), 'WORK_CENTER')
 XLSX.utils.book_append_sheet(workbook, sheet([
-  ['ID', 'Item Code', 'Description', 'Consumption', 'Unit', 'Price', 'Loss', 'Source Ref', 'Confidence'],
-  ['bom-1', 'MAT-1', 'Material 1', 2, 'PC', 10, 0.1, 'bom.xlsx', 'Verified'],
-  ['bom-2', 'MAT-2', 'Material 2', 2, 'PC', null, null, '', '']
+  ['BOM'],
+  [],
+  [],
+  ['Name', 'Usage', 'Unit', 'Price', 'Loss', 'Note'],
+  ['Material 1', 2, 'PC', 10, 0.1, ''],
+  ['Material 2', 2, 'PC', null, null, '']
 ]), 'BOM')
 XLSX.utils.book_append_sheet(workbook, sheet([
-  ['ID', 'Operation Code', 'Sequence', 'Process Code', 'Process Name', 'Work Center ID', 'Manning', 'Capacity', 'Yield', 'Source Ref', 'Confidence'],
-  ['routing-1', 'OP-10', 10, 'PRC-10', 'Cut', 'WC-1', 1, 100, 0.9, 'routing.xlsx', 'Verified'],
-  ['', '', 20, 'PRC-20', 'Print', 'WC-2', 1, 80, 0.95, 'routing.xlsx', 'Verified']
+  ['ROUTING'],
+  [],
+  [],
+  ['Process', 'WC', 'Manning', 'Cap', 'Yield', 'Note'],
+  ['Cut', 'WC-1', 1, 100, 0.9, ''],
+  ['Print', 'WC-2', 1, 80, 0.95, '']
 ]), 'ROUTING')
 
 const result = parseSnapshotWorkbookData(XLSX.write(workbook, { type: 'array', bookType: 'xlsx' }), 'current')
@@ -43,9 +47,12 @@ const result = parseSnapshotWorkbookData(XLSX.write(workbook, { type: 'array', b
 const workbookBytes = XLSX.write(workbook, { type: 'array', bookType: 'xlsx' })
 assert.equal(result.success, true)
 assert.equal(result.format, 'canonical')
-assert.equal(result.snapshot?.id, 'after-2026-09-21')
 assert.equal(result.snapshot?.comparisonRole, 'current')
-assert.equal(result.snapshot?.product.productCode, 'P-001')
+assert.equal(result.snapshot?.product.productName, 'Test Product')
+assert.equal(result.snapshot?.product.uom, 'PC')
+assert.equal(result.snapshot?.product.sellingPrice, 123.5)
+assert.equal(result.snapshot?.product.sgaPercent, 8)
+assert.equal(result.snapshot?.remark, 'Imported dataset')
 assert.equal(result.snapshot?.rates.length, 2)
 assert.equal(result.snapshot?.rates[1].burdenRate, null)
 assert.equal(result.snapshot?.rates[1].confidence.burdenRate.status, 'missing')
@@ -54,32 +61,32 @@ assert.equal(result.snapshot?.rates[1].confidence.laborRate.status, 'estimated')
 assert.equal(result.snapshot?.bom[1].price, null)
 assert.equal(result.snapshot?.bom[1].confidence.price.status, 'missing')
 assert.equal(result.snapshot?.routing[0].workCenterId, 'WC-1')
-assert.equal(result.snapshot?.routing[0].processCode, 'PRC-10')
-assert.equal(result.snapshot?.routing[1].id, 'PRC-20')
+assert.equal(result.snapshot?.routing[0].processName, 'Cut')
+assert.equal(result.snapshot?.routing[1].id, 'Print')
 assert.equal(result.snapshot?.routing[1].operationCode, undefined)
-assert.equal(result.snapshot?.routing[1].processCode, 'PRC-20')
-assert.ok(result.warnings.some(warning => warning.includes('burdenRate')))
+assert.ok(result.warnings.some(warning => warning.includes('Missing Burden at row 6')))
 
 const incompleteIdentityWorkbook = XLSX.utils.book_new()
 XLSX.utils.book_append_sheet(incompleteIdentityWorkbook, sheet([
-  ['Key', 'Value'],
-  ['Snapshot ID', 'incomplete-identities']
+  ['MASTER DATA DATASET'],
+  [],
+  ['Product Name', 'UOM', 'Selling Price (THB)', 'SG&A (%)', 'Dataset Remark'],
+  ['Incomplete Product', 'PC', null, null, '']
 ]), 'META')
 XLSX.utils.book_append_sheet(incompleteIdentityWorkbook, sheet([
-  ['Product Code', 'Product Description', 'UOM'],
-  ['P-002', 'Test Product', 'PC']
-]), 'PRODUCT')
-XLSX.utils.book_append_sheet(incompleteIdentityWorkbook, sheet([
-  ['Work Center Code', 'Work Center Name', 'Labor Rate', 'Burden Rate', 'Note'],
-  ['', 'Unkeyed Assembly', 120, 45, 'Needs a code']
+  ['WORK_CENTER'], [], [],
+  ['WC', 'Labor', 'Burden', 'Note'],
+  ['', 120, 45, 'Needs a Work Center identity']
 ]), 'WORK_CENTER')
 XLSX.utils.book_append_sheet(incompleteIdentityWorkbook, sheet([
-  ['Item Code', 'Description', 'Consumption', 'Unit', 'Price', 'Loss', 'Note'],
-  ['', 'Unkeyed Material', 2, 'PC', 10, 0.05, 'Needs a code']
+  ['BOM'], [], [],
+  ['Name', 'Usage', 'Unit', 'Price', 'Loss', 'Note'],
+  ['', 2, 'PC', 10, 0.05, 'Needs a BOM identity']
 ]), 'BOM')
 XLSX.utils.book_append_sheet(incompleteIdentityWorkbook, sheet([
-  ['Operation Code', 'Sequence', 'Process Name', 'Work Center Code', 'Manning', 'Capacity', 'Yield', 'Note'],
-  ['OP-10', 10, 'Cutting', 'WC-1', 1, 100, 1, '']
+  ['ROUTING'], [], [],
+  ['Process', 'WC', 'Manning', 'Cap', 'Yield', 'Note'],
+  ['Cutting', 'WC-1', 1, 100, 1, '']
 ]), 'ROUTING')
 const incompleteIdentityResult = parseSnapshotWorkbookData(
   XLSX.write(incompleteIdentityWorkbook, { type: 'array', bookType: 'xlsx' }),
@@ -88,31 +95,31 @@ const incompleteIdentityResult = parseSnapshotWorkbookData(
 assert.equal(incompleteIdentityResult.success, true, incompleteIdentityResult.message)
 assert.equal(incompleteIdentityResult.snapshot?.rates.length, 1, 'a Work Center row with data but no key must be retained')
 assert.equal(incompleteIdentityResult.snapshot?.rates[0].workCenterCode, '')
-assert.ok(incompleteIdentityResult.warnings?.some(warning => warning.includes('Missing Work Center code')))
+assert.ok(incompleteIdentityResult.warnings?.some(warning => warning.includes('Missing WC')))
 assert.equal(incompleteIdentityResult.snapshot?.bom.length, 1, 'a BOM row with data but no key must be retained')
 assert.equal(incompleteIdentityResult.snapshot?.bom[0].itemCode, '')
-assert.ok(incompleteIdentityResult.warnings?.some(warning => warning.includes('Missing item code')))
+assert.ok(incompleteIdentityResult.warnings?.some(warning => warning.includes('Missing BOM Name')))
 
 const duplicateRoutingWorkbook = XLSX.utils.book_new()
 XLSX.utils.book_append_sheet(duplicateRoutingWorkbook, sheet([
-  ['Key', 'Value'],
-  ['Snapshot ID', 'duplicate-routing-ids']
+  ['MASTER DATA DATASET'], [],
+  ['Product Name', 'UOM', 'Selling Price (THB)', 'SG&A (%)', 'Dataset Remark'],
+  ['Duplicate Routing Test', 'PC', null, null, '']
 ]), 'META')
 XLSX.utils.book_append_sheet(duplicateRoutingWorkbook, sheet([
-  ['Product Code', 'Product Description', 'UOM'],
-  ['P-003', 'Test Product', 'PC']
-]), 'PRODUCT')
-XLSX.utils.book_append_sheet(duplicateRoutingWorkbook, sheet([
-  ['Work Center Code', 'Work Center Name', 'Labor Rate', 'Burden Rate'],
-  ['WC-1', 'Cutting', 100, 50]
+  ['WORK_CENTER'], [], [],
+  ['WC', 'Labor', 'Burden', 'Note'],
+  ['WC-1', 100, 50, 'Cutting']
 ]), 'WORK_CENTER')
 XLSX.utils.book_append_sheet(duplicateRoutingWorkbook, sheet([
-  ['Item Code', 'Description', 'Consumption', 'Unit', 'Price', 'Loss']
+  ['BOM'], [], [],
+  ['Name', 'Usage', 'Unit', 'Price', 'Loss', 'Note']
 ]), 'BOM')
 XLSX.utils.book_append_sheet(duplicateRoutingWorkbook, sheet([
-  ['Operation Code', 'Sequence', 'Process Name', 'Work Center Code', 'Manning', 'Capacity', 'Yield'],
-  ['10', 10, 'Cutting', 'WC-1', 1, 100, 1],
-  ['10', 20, 'Packing', 'WC-1', 1, 100, 1]
+  ['ROUTING'], [], [],
+  ['Process', 'WC', 'Manning', 'Cap', 'Yield', 'Note'],
+  ['Cutting', 'WC-1', 1, 100, 1, 'First route'],
+  ['Cutting', 'WC-1', 1, 100, 1, 'Duplicate business identity']
 ]), 'ROUTING')
 const duplicateRoutingResult = parseSnapshotWorkbookData(
   XLSX.write(duplicateRoutingWorkbook, { type: 'array', bookType: 'xlsx' }),
@@ -121,44 +128,29 @@ const duplicateRoutingResult = parseSnapshotWorkbookData(
 assert.equal(duplicateRoutingResult.success, true, duplicateRoutingResult.message)
 const duplicateRoutingRows = duplicateRoutingResult.snapshot?.routing ?? []
 assert.equal(duplicateRoutingRows.length, 2)
-assert.equal(duplicateRoutingRows[0].operationCode, duplicateRoutingRows[1].operationCode)
+assert.equal(duplicateRoutingRows[0].processName, duplicateRoutingRows[1].processName)
 assert.notEqual(duplicateRoutingRows[0].id, duplicateRoutingRows[1].id, 'duplicate business keys still need distinct internal row IDs')
 assert.equal(new Set(duplicateRoutingRows.map(row => row.id)).size, 2)
 
-// MASTER_DATA_FLOW_SPEC.md §§5.1, 5.2, and 9 treat imported data as editable
-// starting data and require non-blocking warnings for product mismatches.
-// A blank Product Code must therefore be retained with a warning for later edit.
+// Incomplete canonical Product Name is retained with a non-blocking warning so
+// the user can complete it in the selected Working dataset.
 const startingDataWorkbook = XLSX.utils.book_new()
 XLSX.utils.book_append_sheet(startingDataWorkbook, sheet([
-  ['MASTER DATA DATASET'],
-  [],
-  ['Remark'],
-  ['Starting data with incomplete product identity']
+  ['MASTER DATA DATASET'], [],
+  ['Product Name', 'UOM', 'Selling Price (THB)', 'SG&A (%)', 'Dataset Remark'],
+  ['', 'PC', null, null, 'Starting data with incomplete Product Name']
 ]), 'META')
 XLSX.utils.book_append_sheet(startingDataWorkbook, sheet([
-  ['PRODUCT'],
-  [],
-  [],
-  ['Product Code', 'Product Name', 'UOM', 'Note'],
-  ['', 'Starting Product', 'PC', '']
-]), 'PRODUCT')
-XLSX.utils.book_append_sheet(startingDataWorkbook, sheet([
-  ['WORK_CENTER'],
-  [],
-  [],
-  ['Work Center Code', 'Work Center Name', 'Labor Rate', 'Burden Rate', 'Note']
+  ['WORK_CENTER'], [], [],
+  ['WC', 'Labor', 'Burden', 'Note']
 ]), 'WORK_CENTER')
 XLSX.utils.book_append_sheet(startingDataWorkbook, sheet([
-  ['BOM'],
-  [],
-  [],
-  ['Item Code', 'Description', 'Consumption', 'Unit', 'Price', 'Loss', 'Note']
+  ['BOM'], [], [],
+  ['Name', 'Usage', 'Unit', 'Price', 'Loss', 'Note']
 ]), 'BOM')
 XLSX.utils.book_append_sheet(startingDataWorkbook, sheet([
-  ['ROUTING'],
-  [],
-  [],
-  ['Operation Code', 'Sequence', 'Process Name', 'Work Center Code', 'Manning', 'Capacity', 'Yield', 'Note']
+  ['ROUTING'], [], [],
+  ['Process', 'WC', 'Manning', 'Cap', 'Yield', 'Note']
 ]), 'ROUTING')
 const startingDataResult = parseSnapshotWorkbookData(
   XLSX.write(startingDataWorkbook, { type: 'array', bookType: 'xlsx' }),
@@ -166,10 +158,10 @@ const startingDataResult = parseSnapshotWorkbookData(
 )
 assert.equal(startingDataResult.success, true, startingDataResult.message)
 assert.equal(startingDataResult.format, 'canonical')
-assert.equal(startingDataResult.snapshot?.product.productCode, '')
+assert.equal(startingDataResult.snapshot?.product.productName, '')
 assert.ok(
-  startingDataResult.warnings?.some(warning => warning.toLowerCase().includes('missing product code')),
-  'Blank Product Code must remain visible as a warning while the starting dataset imports'
+  startingDataResult.warnings?.some(warning => warning.toLowerCase().includes('missing product name')),
+  'Blank Product Name must remain visible as a warning while the starting dataset imports'
 )
 
 async function verifyCanonicalTemplate(): Promise<void> {
@@ -184,10 +176,10 @@ async function verifyCanonicalTemplate(): Promise<void> {
   const templateBytes = await template.arrayBuffer()
   const templateWorkbook = XLSX.read(templateBytes, { type: 'array' })
   assert.deepEqual(
-    templateWorkbook.SheetNames.filter(name => ['META', 'PRODUCT', 'WORK_CENTER', 'BOM', 'ROUTING'].includes(name)),
-    ['META', 'PRODUCT', 'WORK_CENTER', 'BOM', 'ROUTING']
+    templateWorkbook.SheetNames,
+    ['META', 'BOM', 'ROUTING', 'WORK_CENTER', 'COST_CALCULATION']
   )
-  const templateValues = templateWorkbook.SheetNames.flatMap(name => {
+  const templateValues = ['META', 'BOM', 'ROUTING', 'WORK_CENTER'].flatMap(name => {
     const sheetValues = XLSX.utils.sheet_to_json(templateWorkbook.Sheets[name], { header: 1, defval: null }) as unknown[][]
     return sheetValues.flat().map(value => String(value ?? ''))
   })
@@ -210,24 +202,24 @@ async function verifyCanonicalTemplate(): Promise<void> {
 
 const invalidWorkbook = XLSX.utils.book_new()
 XLSX.utils.book_append_sheet(invalidWorkbook, sheet([
-  ['Key', 'Value'],
-  ['Source Ref', 'invalid.xlsx']
+  ['MASTER DATA DATASET'], [],
+  ['Product Name', 'UOM', 'Selling Price (THB)', 'SG&A (%)', 'Dataset Remark'],
+  ['Invalid Product', 'PC', null, null, '']
 ]), 'META')
 XLSX.utils.book_append_sheet(invalidWorkbook, sheet([
-  ['Product Code', 'Product Description', 'UOM'],
-  ['P-002', 'Invalid Product', 'PC']
-]), 'PRODUCT')
-XLSX.utils.book_append_sheet(invalidWorkbook, sheet([
-  ['Work Center Code', 'Description', 'Labor Rate', 'Burden Rate'],
-  ['WC-2', 'Assembly', 'not-a-number', 50]
+  ['WORK_CENTER'], [], [],
+  ['WC', 'Labor', 'Burden', 'Note'],
+  ['WC-2', 'not-a-number', 50, 'Assembly']
 ]), 'WORK_CENTER')
 XLSX.utils.book_append_sheet(invalidWorkbook, sheet([
-  ['Item Code', 'Description', 'Consumption', 'Unit', 'Price', 'Loss'],
-  ['MAT-2', 'Material 2', 1, 'PC', 10, 0]
+  ['BOM'], [], [],
+  ['Name', 'Usage', 'Unit', 'Price', 'Loss', 'Note'],
+  ['Material 2', 1, 'PC', 10, 0, '']
 ]), 'BOM')
 XLSX.utils.book_append_sheet(invalidWorkbook, sheet([
-  ['Operation Code', 'Sequence', 'Process Name', 'Work Center Code', 'Manning', 'Capacity', 'Yield'],
-  ['OP-20', 20, 'Unknown WC', 'WC-NOPE', 1, 100, 0.9]
+  ['ROUTING'], [], [],
+  ['Process', 'WC', 'Manning', 'Cap', 'Yield', 'Note'],
+  ['Unknown WC', 'WC-NOPE', 1, 100, 0.9, '']
 ]), 'ROUTING')
 
 const invalidResult = parseSnapshotWorkbookData(XLSX.write(invalidWorkbook, { type: 'array', bookType: 'xlsx' }), 'current')
@@ -282,7 +274,7 @@ async function verifyCanonicalXlsUpload(): Promise<void> {
 
   assert.equal(xlsResult.success, true)
   assert.equal(xlsResult.format, 'canonical')
-  assert.equal(xlsResult.snapshot?.product.productCode, 'P-001')
+  assert.equal(xlsResult.snapshot?.product.productName, 'Test Product')
 }
 
 verifyCanonicalTemplate()

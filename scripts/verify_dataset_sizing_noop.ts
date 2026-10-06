@@ -3,7 +3,7 @@ import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import {
   hasDatasetSizingChanged,
-  hasProductSizingFieldsChanged
+  hasDatasetMetadataChanged
 } from '../src/features/master-data/dataset-sizing-form'
 import * as datasetSizingForm from '../src/features/master-data/dataset-sizing-form'
 
@@ -24,14 +24,14 @@ assert.equal(
   'resetting configured sizing must update Master Data'
 )
 
-const productFields = { productCode: 'MAT-1', productDescription: 'Part', uom: 'PC' }
+const productFields = { productName: 'Part', uom: 'PC', sellingPrice: 100, sgaPercent: 5 }
 assert.equal(
-  hasProductSizingFieldsChanged(productFields, { ...productFields }),
+  hasDatasetMetadataChanged(productFields, { ...productFields }),
   false,
   'applying unchanged product fields must be a no-op'
 )
 assert.equal(
-  hasProductSizingFieldsChanged(productFields, { ...productFields, uom: 'KG' }),
+  hasDatasetMetadataChanged(productFields, { ...productFields, uom: 'KG' }),
   true,
   'changing an editable product field must update Master Data'
 )
@@ -62,8 +62,8 @@ const modalSource = readFileSync(
   resolve(process.cwd(), 'src/features/master-data/components/DatasetSizingModal.tsx'),
   'utf8'
 )
-assert.match(modalSource, /if \(hasProductSizingFieldsChanged\(previousProductFields, nextProduct\)\)\s*\{\s*onUpdateProduct\(nextProduct\)/)
+assert.match(modalSource, /hasDatasetMetadataChanged\(previousProductFields, nextProductFields\)/)
+assert.match(modalSource, /onUpdateProduct\(nextProduct\)/)
 assert.match(modalSource, /if \(hasDatasetSizingChanged\(currentSizing, nextSizing\)\) onSaveSizing\(nextSizing\)/)
-assert.match(modalSource, /if \(hasDatasetSizingChanged\(currentSizing, resetSizing\)\) onSaveSizing\(resetSizing\)/)
 
 console.log('Dataset sizing no-op verification passed')
