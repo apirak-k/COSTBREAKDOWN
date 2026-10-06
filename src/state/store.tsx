@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, useMemo, useReducer, ReactNode } from 'react'
+import React, { createContext, useContext, useState, useEffect, useMemo, useReducer, useRef, ReactNode } from 'react'
 import {
   ProductMaster,
   WorkCenterRate,
@@ -44,6 +44,13 @@ import { WorkingDataset } from '../core/types/dataset-standard.types'
 import { markSizingPlaceholderEdited, resizeMasterDataSnapshotForSizing } from './dataset-sizing'
 import { clearMasterDataDatasetState } from './clear-master-data-dataset'
 import { markMasterDataChanged, markMasterDataChangedForSnapshotPair } from './master-data-revision'
+import {
+  createMasterDataEditHistory,
+  recordMasterDataEdit,
+  undoMasterDataEdit as takeMasterDataUndo,
+  redoMasterDataEdit as takeMasterDataRedo,
+  type MasterDataEditHistoryEntry
+} from './master-data-edit-history'
 import {
   INITIAL_MASTER_DATA_UI_STATE,
   reduceMasterDataUiState,
@@ -290,6 +297,8 @@ interface AppContextType {
   isSelectedComparisonActive: boolean
   masterDataHandoff: MasterDataHandoffStatus
   masterDataUiState: MasterDataUiState
+  canUndoMasterDataEdit: boolean
+  canRedoMasterDataEdit: boolean
   masterDataRole: ComparisonRole
   masterDataSnapshot: CostSnapshot
   masterDataLastSavedSnapshot?: CostSnapshot
@@ -316,6 +325,8 @@ interface AppContextType {
   // Master Data dataset controls
   updateMasterDataUiState: (action: MasterDataUiAction) => void
   setMasterDataRole: (role: ComparisonRole) => void
+  undoMasterDataEdit: () => void
+  redoMasterDataEdit: () => void
   saveMasterDataWorkingDataset: (role: ComparisonRole) => void
   resetMasterDataWorkingDataset: (role: ComparisonRole) => void
   cloneReferenceToCurrent: () => void
@@ -324,17 +335,23 @@ interface AppContextType {
   updateMasterDataDatasetSizing: (role: ComparisonRole, sizing: Partial<import('../core/types').DatasetSizing>) => void
   updateMasterDataProduct: (product: ProductMaster) => void
   updateMasterDataRemark: (remark: string) => void
+  updateMasterDataBOMItems: (updates: Array<{ id: string; changes: Partial<Omit<SnapshotBOMItem, 'id' | 'confidence'>> }>) => void
   addMasterDataBOMItem: (item: Omit<SnapshotBOMItem, 'id' | 'confidence'>) => void
   updateMasterDataBOMItem: (id: string, item: Partial<Omit<SnapshotBOMItem, 'id' | 'confidence'>>) => void
   deleteMasterDataBOMItem: (id: string) => void
+  deleteMasterDataBOMItems: (ids: string[]) => void
   reorderMasterDataBOMItems: (movingId: string, targetId: string, position: 'before' | 'after', movingIds?: string[]) => void
   addMasterDataRoutingStep: (step: Omit<SnapshotRoutingStep, 'id' | 'confidence'>) => void
+  updateMasterDataRoutingSteps: (updates: Array<{ id: string; changes: Partial<Omit<SnapshotRoutingStep, 'id' | 'confidence'>> }>) => void
   updateMasterDataRoutingStep: (id: string, step: Partial<Omit<SnapshotRoutingStep, 'id' | 'confidence'>>) => void
   deleteMasterDataRoutingStep: (id: string) => void
+  deleteMasterDataRoutingSteps: (ids: string[]) => void
   reorderMasterDataRoutingSteps: (movingId: string, targetId: string, position: 'before' | 'after', movingIds?: string[]) => void
   addMasterDataWorkCenterRate: (rate: Omit<SnapshotWorkCenterRate, 'id' | 'confidence'>) => void
+  updateMasterDataWorkCenterRates: (updates: Array<{ id: string; changes: Partial<Omit<SnapshotWorkCenterRate, 'id' | 'confidence'>> }>) => void
   updateMasterDataWorkCenterRate: (id: string, rate: Partial<Omit<SnapshotWorkCenterRate, 'id' | 'confidence'>>) => void
   deleteMasterDataWorkCenterRate: (id: string) => void
+  deleteMasterDataWorkCenterRates: (ids: string[]) => void
   reorderMasterDataWorkCenters: (movingId: string, targetId: string, position: 'before' | 'after', movingIds?: string[]) => void
   applySelectedComparison: (selection: SelectedComparisonSelection) => void
   clearSelectedComparison: () => void
@@ -392,10 +409,41 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     INITIAL_MASTER_DATA_UI_STATE
   )
   const updateMasterDataUiState = (action: MasterDataUiAction) => dispatchMasterDataUiState(action)
+  const masterDataHistoryRef = useRef(createMasterDataEditHistory())
+  const [, setMasterDataHistoryRevision] = useState(0)
+  const clearMasterDataEditHistory = () => {
+    masterDataHistoryRef.current = createMasterDataEditHistory()
+    setMasterDataHistoryRevision(revision => revision + 1)
+  }
+  const copyDatasetSizing = (sizing?: Record<ComparisonRole, DatasetSizing>) => sizing ? {
+    reference: { ...(sizing.reference ?? {}) },
+    current: { ...(sizing.current ?? {}) }
+  } : undefined
+  const recordMasterDataWorkingEdit = (before: ProductSession, after: ProductSession, role: ComparisonRole) => {
+    const beforePair = before.snapshotPair ?? sessionToSnapshotPair(before)
+    const afterPair = after.snapshotPair ?? sessionToSnapshotPair(after)
+    const entry: MasterDataEditHistoryEntry = {
+      sessionId: before.id,
+      role,
+      before: cloneMasterDataSnapshot(beforePair[role]),
+      after: cloneMasterDataSnapshot(afterPair[role]),
+      beforePrepared: { ...getSnapshotRoleReadiness(before) },
+      afterPrepared: { ...getSnapshotRoleReadiness(after) },
+      beforeSizing: copyDatasetSizing(before.datasetSizing),
+      afterSizing: copyDatasetSizing(after.datasetSizing)
+    }
+    masterDataHistoryRef.current = recordMasterDataEdit(masterDataHistoryRef.current, entry)
+    setMasterDataHistoryRevision(revision => revision + 1)
+  }
 
   const [activeProductId, setActiveProductId] = useState<string>(() =>
     loadFromSession(STORAGE_KEYS.ACTIVE_ID, 'ps-empty-default')
   )
+
+  useEffect(() => {
+    masterDataHistoryRef.current = createMasterDataEditHistory()
+    setMasterDataHistoryRevision(revision => revision + 1)
+  }, [activeProductId])
 
   const [activeTab, setActiveTabState] = useState<'master' | 'breakdown' | 'dashboard' | 'candidate' | 'rca'>(() =>
     loadFromSession(STORAGE_KEYS.ACTIVE_TAB, 'master')
@@ -738,175 +786,211 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     }))
   }
 
-  const resetMasterDataWorkingDataset = (role: ComparisonRole) => {
-    const now = new Date().toISOString()
-    setProductSessions(prev => prev.map(session => {
-      if (session.id !== activeSession.id) return session
-      const saved = session.lastSavedMasterData?.[role]
-      if (!saved) return session
+  const commitMasterDataWorkingSession = (before: ProductSession, after: ProductSession, role: ComparisonRole) => {
+    const beforePair = before.snapshotPair ?? sessionToSnapshotPair(before)
+    const afterPair = after.snapshotPair ?? sessionToSnapshotPair(after)
+    const beforeState = {
+      snapshot: beforePair[role],
+      prepared: getSnapshotRoleReadiness(before),
+      sizing: before.datasetSizing
+    }
+    const afterState = {
+      snapshot: afterPair[role],
+      prepared: getSnapshotRoleReadiness(after),
+      sizing: after.datasetSizing
+    }
+    if (JSON.stringify(beforeState) === JSON.stringify(afterState)) return
 
-      const pair = session.snapshotPair ?? sessionToSnapshotPair(session)
-      const nextPair: SnapshotPair = {
-        ...pair,
-        [role]: cloneMasterDataSnapshot(saved.snapshot)
-      }
-      const nextSizing = {
-        reference: session.datasetSizing?.reference ?? pair.reference.sizing ?? {},
-        current: session.datasetSizing?.current ?? pair.current.sizing ?? {},
-        [role]: { ...(saved.sizing ?? saved.snapshot.sizing ?? {}) }
-      }
-      const nextPrepared = {
-        ...getSnapshotRoleReadiness(session),
-        [role]: saved.prepared
-      }
-      return applyMasterDataSnapshotPair({
-        ...session,
-        datasetSizing: nextSizing,
-        preparedSnapshotRoles: nextPrepared,
-        updatedAt: now
-      }, nextPair)
-    }))
+    setProductSessions(previous => previous.map(session => session.id === before.id ? after : session))
+    recordMasterDataWorkingEdit(before, after, role)
+  }
+
+  const resetMasterDataWorkingDataset = (role: ComparisonRole) => {
+    const session = activeSession
+    const now = new Date().toISOString()
+    const saved = session.lastSavedMasterData?.[role]
+    if (!saved) return
+
+    const pair = session.snapshotPair ?? sessionToSnapshotPair(session)
+    const nextPair: SnapshotPair = {
+      ...pair,
+      [role]: cloneMasterDataSnapshot(saved.snapshot)
+    }
+    const nextSizing = {
+      reference: session.datasetSizing?.reference ?? pair.reference.sizing ?? {},
+      current: session.datasetSizing?.current ?? pair.current.sizing ?? {},
+      [role]: { ...(saved.sizing ?? saved.snapshot.sizing ?? {}) }
+    }
+    const nextPrepared = {
+      ...getSnapshotRoleReadiness(session),
+      [role]: saved.prepared
+    }
+    const updated = applyMasterDataSnapshotPair({
+      ...session,
+      datasetSizing: nextSizing,
+      preparedSnapshotRoles: nextPrepared,
+      updatedAt: now
+    }, nextPair)
+    commitMasterDataWorkingSession(session, updated, role)
   }
 
   const updateMasterDataDataset = (mutate: (snapshot: CostSnapshot) => CostSnapshot) => {
-    setProductSessions(prev => prev.map(session => {
-      if (session.id !== activeSession.id) return session
-      const role = masterDataUiState.role
-      const pair = session.snapshotPair ?? sessionToSnapshotPair(session)
-      const readiness = getSnapshotRoleReadiness(session)
-      const dataset = role === 'reference' ? pair.reference : pair.current
-      const nextDataset = mutate(dataset)
-      const nextPair = role === 'reference'
-        ? { reference: { ...nextDataset, comparisonRole: 'reference' as const }, current: pair.current }
-        : { reference: pair.reference, current: { ...nextDataset, comparisonRole: 'current' as const } }
-      const updated = applyMasterDataSnapshotPair({
-        ...session,
-        updatedAt: new Date().toISOString()
-      }, nextPair)
-      return {
-        ...updated,
-        preparedSnapshotRoles: { ...readiness, [role]: true }
-      }
-    }))
-  }
-
-  const setMasterDataProduct = (session: ProductSession, pair: SnapshotPair, nextProduct: ProductMaster, role: ComparisonRole): ProductSession => {
-    const nextPair: SnapshotPair = role === 'reference'
-      ? { reference: { ...pair.reference, product: { ...nextProduct } }, current: pair.current }
-      : { reference: pair.reference, current: { ...pair.current, product: { ...nextProduct } } }
-    return applyMasterDataSnapshotPair({
+    const session = activeSession
+    const role = masterDataUiState.role
+    const pair = session.snapshotPair ?? sessionToSnapshotPair(session)
+    const readiness = getSnapshotRoleReadiness(session)
+    const currentDataset = pair[role]
+    const nextDataset = mutate(currentDataset)
+    const nextPair: SnapshotPair = {
+      ...pair,
+      [role]: { ...nextDataset, comparisonRole: role }
+    }
+    const updated = applyMasterDataSnapshotPair({
       ...session,
-      updatedAt: new Date().toISOString()
+      updatedAt: new Date().toISOString(),
+      preparedSnapshotRoles: { ...readiness, [role]: true }
     }, nextPair)
+    commitMasterDataWorkingSession(session, updated, role)
   }
 
   const updateMasterDataProduct = (nextProduct: ProductMaster) => {
-    setProductSessions(prev => prev.map(session => {
-      if (session.id !== activeSession.id) return session
-      const role = masterDataUiState.role
-      const updated = setMasterDataProduct(session, session.snapshotPair ?? sessionToSnapshotPair(session), nextProduct, role)
-      return {
-        ...updated,
-        preparedSnapshotRoles: { ...getSnapshotRoleReadiness(session), [role]: true }
-      }
-    }))
+    updateMasterDataDataset(dataset => ({ ...dataset, product: { ...nextProduct } }))
   }
 
   const updateMasterDataRemark = (remark: string) => {
     updateMasterDataDataset(dataset => ({ ...dataset, remark }))
   }
 
-  const cloneReferenceToCurrent = () => {
-    setProductSessions(prev => prev.map(session => {
-      if (session.id !== activeSession.id) return session
-      const readiness = getSnapshotRoleReadiness(session)
-      const pair = session.snapshotPair ?? sessionToSnapshotPair(session)
-      const reference = pair.reference
-      const refSizing = session.datasetSizing?.reference ?? reference.sizing
-      const current: CostSnapshot = {
-        ...reference,
-        id: `${reference.id}:current`,
-        comparisonRole: 'current',
-        status: 'draft',
-        sourceRef: `Cloned from Reference: ${reference.sourceRef}`,
-        product: { ...reference.product },
-        rates: reference.rates.map(rate => ({ ...rate, confidence: { ...rate.confidence } })),
-        bom: reference.bom.map(item => ({ ...item, confidence: { ...item.confidence } })),
-        routing: reference.routing.map(step => ({ ...step, confidence: { ...step.confidence } })),
-        sizing: refSizing ? { ...refSizing } : undefined,
-        warnings: [...(reference.warnings ?? [])]
-      }
-      const updatedSizing: Record<ComparisonRole, DatasetSizing> = {
-        reference: session.datasetSizing?.reference ?? {},
-        current: refSizing ? { ...refSizing } : (session.datasetSizing?.current ?? {})
-      }
+  const applyMasterDataHistoryEntry = (entry: MasterDataEditHistoryEntry, direction: 'undo' | 'redo') => {
+    const session = productSessions.find(candidate => candidate.id === entry.sessionId)
+    if (!session) {
+      clearMasterDataEditHistory()
+      return
+    }
 
-      const updated = applyMasterDataSnapshotPair({
-        ...session,
-        datasetSizing: updatedSizing,
-        updatedAt: new Date().toISOString()
-      }, { reference, current })
-      return {
-        ...updated,
-        preparedSnapshotRoles: { ...readiness, current: readiness.reference }
-      }
-    }))
+    const pair = session.snapshotPair ?? sessionToSnapshotPair(session)
+    const expected = direction === 'undo' ? entry.after : entry.before
+    if (JSON.stringify(pair[entry.role]) !== JSON.stringify(expected)) {
+      clearMasterDataEditHistory()
+      return
+    }
+
+    const snapshot = direction === 'undo' ? entry.before : entry.after
+    const preparedSnapshotRoles = direction === 'undo' ? entry.beforePrepared : entry.afterPrepared
+    const datasetSizing = direction === 'undo' ? entry.beforeSizing : entry.afterSizing
+    const updated = applyMasterDataSnapshotPair({
+      ...session,
+      datasetSizing: copyDatasetSizing(datasetSizing),
+      preparedSnapshotRoles: { ...preparedSnapshotRoles },
+      updatedAt: new Date().toISOString()
+    }, {
+      ...pair,
+      [entry.role]: cloneMasterDataSnapshot(snapshot)
+    })
+    setProductSessions(previous => previous.map(candidate => candidate.id === session.id ? updated : candidate))
+    setMasterDataHistoryRevision(revision => revision + 1)
+  }
+
+  const undoMasterDataEdit = () => {
+    const result = takeMasterDataUndo(masterDataHistoryRef.current)
+    masterDataHistoryRef.current = result.history
+    if (result.entry) applyMasterDataHistoryEntry(result.entry, 'undo')
+  }
+
+  const redoMasterDataEdit = () => {
+    const result = takeMasterDataRedo(masterDataHistoryRef.current)
+    masterDataHistoryRef.current = result.history
+    if (result.entry) applyMasterDataHistoryEntry(result.entry, 'redo')
+  }
+
+  const cloneReferenceToCurrent = () => {
+    const session = activeSession
+    const readiness = getSnapshotRoleReadiness(session)
+    const pair = session.snapshotPair ?? sessionToSnapshotPair(session)
+    const reference = pair.reference
+    const refSizing = session.datasetSizing?.reference ?? reference.sizing
+    const current: CostSnapshot = {
+      ...reference,
+      id: `${reference.id}:current`,
+      comparisonRole: 'current',
+      status: 'draft',
+      sourceRef: `Cloned from Reference: ${reference.sourceRef}`,
+      product: { ...reference.product },
+      rates: reference.rates.map(rate => ({ ...rate, confidence: { ...rate.confidence } })),
+      bom: reference.bom.map(item => ({ ...item, confidence: { ...item.confidence } })),
+      routing: reference.routing.map(step => ({ ...step, confidence: { ...step.confidence } })),
+      sizing: refSizing ? { ...refSizing } : undefined,
+      warnings: [...(reference.warnings ?? [])]
+    }
+    const updatedSizing: Record<ComparisonRole, DatasetSizing> = {
+      reference: session.datasetSizing?.reference ?? {},
+      current: refSizing ? { ...refSizing } : (session.datasetSizing?.current ?? {})
+    }
+
+    const updated = applyMasterDataSnapshotPair({
+      ...session,
+      datasetSizing: updatedSizing,
+      updatedAt: new Date().toISOString()
+    }, { reference, current })
+    const next = {
+      ...updated,
+      preparedSnapshotRoles: { ...readiness, current: readiness.reference }
+    }
+    commitMasterDataWorkingSession(session, next, 'current')
   }
 
   const cloneCurrentToReference = () => {
-    setProductSessions(prev => prev.map(session => {
-      if (session.id !== activeSession.id) return session
-      const readiness = getSnapshotRoleReadiness(session)
-      const pair = session.snapshotPair ?? sessionToSnapshotPair(session)
-      const current = pair.current
-      const currentSizing = session.datasetSizing?.current ?? current.sizing
-      const reference: CostSnapshot = {
-        ...current,
-        id: `${current.id}:reference`,
-        comparisonRole: 'reference',
-        status: 'draft',
-        sourceRef: `Cloned from Current: ${current.sourceRef}`,
-        product: { ...current.product },
-        rates: current.rates.map(rate => ({ ...rate, confidence: { ...rate.confidence } })),
-        bom: current.bom.map(item => ({ ...item, confidence: { ...item.confidence } })),
-        routing: current.routing.map(step => ({ ...step, confidence: { ...step.confidence } })),
-        sizing: currentSizing ? { ...currentSizing } : undefined,
-        warnings: [...(current.warnings ?? [])]
-      }
-      const updatedSizing: Record<ComparisonRole, DatasetSizing> = {
-        reference: currentSizing ? { ...currentSizing } : (session.datasetSizing?.reference ?? {}),
-        current: session.datasetSizing?.current ?? {}
-      }
+    const session = activeSession
+    const readiness = getSnapshotRoleReadiness(session)
+    const pair = session.snapshotPair ?? sessionToSnapshotPair(session)
+    const current = pair.current
+    const currentSizing = session.datasetSizing?.current ?? current.sizing
+    const reference: CostSnapshot = {
+      ...current,
+      id: `${current.id}:reference`,
+      comparisonRole: 'reference',
+      status: 'draft',
+      sourceRef: `Cloned from Current: ${current.sourceRef}`,
+      product: { ...current.product },
+      rates: current.rates.map(rate => ({ ...rate, confidence: { ...rate.confidence } })),
+      bom: current.bom.map(item => ({ ...item, confidence: { ...item.confidence } })),
+      routing: current.routing.map(step => ({ ...step, confidence: { ...step.confidence } })),
+      sizing: currentSizing ? { ...currentSizing } : undefined,
+      warnings: [...(current.warnings ?? [])]
+    }
+    const updatedSizing: Record<ComparisonRole, DatasetSizing> = {
+      reference: currentSizing ? { ...currentSizing } : (session.datasetSizing?.reference ?? {}),
+      current: session.datasetSizing?.current ?? {}
+    }
 
-      const updated = applyMasterDataSnapshotPair({
-        ...session,
-        datasetSizing: updatedSizing,
-        updatedAt: new Date().toISOString()
-      }, { reference, current })
-      return {
-        ...updated,
-        preparedSnapshotRoles: { ...readiness, reference: readiness.current }
-      }
-    }))
+    const updated = applyMasterDataSnapshotPair({
+      ...session,
+      datasetSizing: updatedSizing,
+      updatedAt: new Date().toISOString()
+    }, { reference, current })
+    const next = {
+      ...updated,
+      preparedSnapshotRoles: { ...readiness, reference: readiness.current }
+    }
+    commitMasterDataWorkingSession(session, next, 'reference')
   }
 
   const updateMasterDataDatasetSizing = (role: ComparisonRole, sizing: Partial<DatasetSizing>) => {
-    setProductSessions(prev => prev.map(session => {
-      if (session.id !== activeSession.id) return session
-      const existingRoleSizing = session.datasetSizing?.[role] ?? {}
-      const nextRoleSizing: DatasetSizing = {
-        ...existingRoleSizing,
-        ...sizing
-      }
-      const nextDatasetSizing: Record<ComparisonRole, DatasetSizing> = {
-        reference: session.datasetSizing?.reference ?? {},
-        current: session.datasetSizing?.current ?? {},
-        [role]: nextRoleSizing
-      }
-      const pair = session.snapshotPair ?? sessionToSnapshotPair(session)
-      const currentDataset = pair[role]
+    const session = activeSession
+    const existingRoleSizing = session.datasetSizing?.[role] ?? {}
+    const nextRoleSizing: DatasetSizing = {
+      ...existingRoleSizing,
+      ...sizing
+    }
+    const nextDatasetSizing: Record<ComparisonRole, DatasetSizing> = {
+      reference: session.datasetSizing?.reference ?? {},
+      current: session.datasetSizing?.current ?? {},
+      [role]: nextRoleSizing
+    }
+    const pair = session.snapshotPair ?? sessionToSnapshotPair(session)
+    const currentDataset = pair[role]
 
-      const updatedSnapshot = resizeMasterDataSnapshotForSizing(currentDataset, nextRoleSizing, {
+    const updatedSnapshot = resizeMasterDataSnapshotForSizing(currentDataset, nextRoleSizing, {
         rate: (idx): SnapshotWorkCenterRate => ({
           id: `rate-size-${Date.now()}-${idx}`,
           isGeneratedSizingPlaceholder: true,
@@ -955,23 +1039,23 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
             yield: workingEvidence(null, 'Direct Input')
           }
         })
-      })
-      const nextPair = {
-        ...pair,
-        [role]: updatedSnapshot
-      }
-      return applyMasterDataSnapshotPair({
-        ...session,
-        datasetSizing: nextDatasetSizing,
-        updatedAt: new Date().toISOString()
-      }, nextPair)
-    }))
+    })
+    const nextPair: SnapshotPair = {
+      ...pair,
+      [role]: updatedSnapshot
+    }
+    const updated = applyMasterDataSnapshotPair({
+      ...session,
+      datasetSizing: nextDatasetSizing,
+      updatedAt: new Date().toISOString()
+    }, nextPair)
+    commitMasterDataWorkingSession(session, updated, role)
   }
 
   const clearMasterDataDataset = (role: ComparisonRole) => {
-    setProductSessions(prev => prev.map(session => session.id === activeSession.id
-      ? clearMasterDataDatasetState(session, role)
-      : session))
+    const session = activeSession
+    const updated = clearMasterDataDatasetState(session, role)
+    commitMasterDataWorkingSession(session, updated, role)
   }
 
   const addMasterDataBOMItem = (item: Omit<SnapshotBOMItem, 'id' | 'confidence'>) => {
@@ -991,11 +1075,14 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     })
   }
 
-  const updateMasterDataBOMItem = (id: string, changes: Partial<Omit<SnapshotBOMItem, 'id' | 'confidence'>>) => {
+  const updateMasterDataBOMItems = (updates: Array<{ id: string; changes: Partial<Omit<SnapshotBOMItem, 'id' | 'confidence'>> }>) => {
+    const changesById = new Map<string, Partial<Omit<SnapshotBOMItem, 'id' | 'confidence'>>>()
+    updates.forEach(({ id, changes }) => changesById.set(id, { ...changesById.get(id), ...changes }))
     updateMasterDataDataset(dataset => ({
       ...dataset,
       bom: dataset.bom.map(item => {
-        if (item.id !== id) return item
+        const changes = changesById.get(item.id)
+        if (!changes) return item
         const next = { ...item, ...changes }
         const sourceRef = next.sourceRef || dataset.sourceRef
         const confidence = { ...item.confidence }
@@ -1010,8 +1097,18 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     }))
   }
 
+  const updateMasterDataBOMItem = (id: string, changes: Partial<Omit<SnapshotBOMItem, 'id' | 'confidence'>>) => {
+    updateMasterDataBOMItems([{ id, changes }])
+  }
+
+  const deleteMasterDataBOMItems = (ids: string[]) => {
+    const deletedIds = new Set(ids)
+    if (deletedIds.size === 0) return
+    updateMasterDataDataset(dataset => ({ ...dataset, bom: dataset.bom.filter(item => !deletedIds.has(item.id)) }))
+  }
+
   const deleteMasterDataBOMItem = (id: string) => {
-    updateMasterDataDataset(dataset => ({ ...dataset, bom: dataset.bom.filter(item => item.id !== id) }))
+    deleteMasterDataBOMItems([id])
   }
 
   const reorderMasterDataBOMItems = (movingId: string, targetId: string, position: 'before' | 'after', movingIds?: string[]) => {
@@ -1037,11 +1134,14 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     })
   }
 
-  const updateMasterDataRoutingStep = (id: string, changes: Partial<Omit<SnapshotRoutingStep, 'id' | 'confidence'>>) => {
+  const updateMasterDataRoutingSteps = (updates: Array<{ id: string; changes: Partial<Omit<SnapshotRoutingStep, 'id' | 'confidence'>> }>) => {
+    const changesById = new Map<string, Partial<Omit<SnapshotRoutingStep, 'id' | 'confidence'>>>()
+    updates.forEach(({ id, changes }) => changesById.set(id, { ...changesById.get(id), ...changes }))
     updateMasterDataDataset(dataset => ({
       ...dataset,
       routing: dataset.routing.map(step => {
-        if (step.id !== id) return step
+        const changes = changesById.get(step.id)
+        if (!changes) return step
         const next = { ...step, ...changes }
         const sourceRef = next.sourceRef || dataset.sourceRef
         const confidence = { ...step.confidence }
@@ -1056,8 +1156,18 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     }))
   }
 
+  const updateMasterDataRoutingStep = (id: string, changes: Partial<Omit<SnapshotRoutingStep, 'id' | 'confidence'>>) => {
+    updateMasterDataRoutingSteps([{ id, changes }])
+  }
+
+  const deleteMasterDataRoutingSteps = (ids: string[]) => {
+    const deletedIds = new Set(ids)
+    if (deletedIds.size === 0) return
+    updateMasterDataDataset(dataset => ({ ...dataset, routing: dataset.routing.filter(step => !deletedIds.has(step.id)) }))
+  }
+
   const deleteMasterDataRoutingStep = (id: string) => {
-    updateMasterDataDataset(dataset => ({ ...dataset, routing: dataset.routing.filter(step => step.id !== id) }))
+    deleteMasterDataRoutingSteps([id])
   }
 
   const reorderMasterDataRoutingSteps = (movingId: string, targetId: string, position: 'before' | 'after', movingIds?: string[]) => {
@@ -1081,11 +1191,14 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     })
   }
 
-  const updateMasterDataWorkCenterRate = (id: string, changes: Partial<Omit<SnapshotWorkCenterRate, 'id' | 'confidence'>>) => {
+  const updateMasterDataWorkCenterRates = (updates: Array<{ id: string; changes: Partial<Omit<SnapshotWorkCenterRate, 'id' | 'confidence'>> }>) => {
+    const changesById = new Map<string, Partial<Omit<SnapshotWorkCenterRate, 'id' | 'confidence'>>>()
+    updates.forEach(({ id, changes }) => changesById.set(id, { ...changesById.get(id), ...changes }))
     updateMasterDataDataset(dataset => ({
       ...dataset,
       rates: dataset.rates.map(rate => {
-        if (rate.id !== id) return rate
+        const changes = changesById.get(rate.id)
+        if (!changes) return rate
         const next = { ...rate, ...changes }
         const sourceRef = next.sourceRef || dataset.sourceRef
         const confidence = { ...rate.confidence }
@@ -1100,8 +1213,18 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     }))
   }
 
+  const updateMasterDataWorkCenterRate = (id: string, changes: Partial<Omit<SnapshotWorkCenterRate, 'id' | 'confidence'>>) => {
+    updateMasterDataWorkCenterRates([{ id, changes }])
+  }
+
+  const deleteMasterDataWorkCenterRates = (ids: string[]) => {
+    const deletedIds = new Set(ids)
+    if (deletedIds.size === 0) return
+    updateMasterDataDataset(dataset => ({ ...dataset, rates: dataset.rates.filter(rate => !deletedIds.has(rate.id)) }))
+  }
+
   const deleteMasterDataWorkCenterRate = (id: string) => {
-    updateMasterDataDataset(dataset => ({ ...dataset, rates: dataset.rates.filter(rate => rate.id !== id) }))
+    deleteMasterDataWorkCenterRates([id])
   }
 
   const reorderMasterDataWorkCenters = (movingId: string, targetId: string, position: 'before' | 'after', movingIds?: string[]) => {
@@ -1227,6 +1350,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       nextPair
     )
     setProductSessions(prev => prev.map(session => session.id === source.id ? updated : session))
+    recordMasterDataWorkingEdit(source, updated, result.role)
     updateMasterDataUiState({ type: 'set-role', role: result.role })
     setActiveTab('master')
   }
@@ -1342,6 +1466,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       isSelectedComparisonActive,
       masterDataHandoff,
       masterDataUiState,
+      canUndoMasterDataEdit: masterDataHistoryRef.current.undo.length > 0,
+      canRedoMasterDataEdit: masterDataHistoryRef.current.redo.length > 0,
       masterDataRole,
       masterDataSnapshot,
       masterDataLastSavedSnapshot,
@@ -1360,6 +1486,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       activateDraft,
       updateMasterDataUiState,
       setMasterDataRole,
+      undoMasterDataEdit,
+      redoMasterDataEdit,
       saveMasterDataWorkingDataset,
       resetMasterDataWorkingDataset,
       cloneReferenceToCurrent,
@@ -1368,17 +1496,23 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       updateMasterDataDatasetSizing,
       updateMasterDataProduct,
       updateMasterDataRemark,
+      updateMasterDataBOMItems,
       addMasterDataBOMItem,
       updateMasterDataBOMItem,
       deleteMasterDataBOMItem,
+      deleteMasterDataBOMItems,
       reorderMasterDataBOMItems,
       addMasterDataRoutingStep,
+      updateMasterDataRoutingSteps,
       updateMasterDataRoutingStep,
       deleteMasterDataRoutingStep,
+      deleteMasterDataRoutingSteps,
       reorderMasterDataRoutingSteps,
       addMasterDataWorkCenterRate,
+      updateMasterDataWorkCenterRates,
       updateMasterDataWorkCenterRate,
       deleteMasterDataWorkCenterRate,
+      deleteMasterDataWorkCenterRates,
       reorderMasterDataWorkCenters,
       applySelectedComparison,
       clearSelectedComparison,

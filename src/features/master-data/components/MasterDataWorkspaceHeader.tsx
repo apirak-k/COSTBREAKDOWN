@@ -12,7 +12,9 @@ import {
   CheckCircle2,
   AlertTriangle,
   Info,
-  Edit3
+  Edit3,
+  Redo2,
+  Undo2
 } from 'lucide-react'
 import { ComparisonRole, CostSnapshot, ProductMaster } from '../../../core'
 import { MasterDataHandoffStatus } from '../../../core/calculations/master-data-handoff'
@@ -35,6 +37,10 @@ interface MasterDataWorkspaceHeaderProps {
   onCloneCurrentToReference: () => void
   onClearDataset: () => void
   handoff: MasterDataHandoffStatus
+  canUndo: boolean
+  canRedo: boolean
+  onUndo: () => void
+  onRedo: () => void
   onOpenImportModal: () => void
   onOpenSizingModal: () => void
   developmentAction?: React.ReactNode
@@ -61,6 +67,10 @@ export const MasterDataWorkspaceHeader: React.FC<MasterDataWorkspaceHeaderProps>
   onCloneCurrentToReference,
   onClearDataset,
   handoff,
+  canUndo,
+  canRedo,
+  onUndo,
+  onRedo,
   onOpenImportModal,
   onOpenSizingModal,
   developmentAction,
@@ -309,6 +319,29 @@ export const MasterDataWorkspaceHeader: React.FC<MasterDataWorkspaceHeaderProps>
           <Save className="h-3.5 w-3.5" aria-hidden="true" />
           Save
         </button>
+
+        <div className="inline-flex shrink-0 items-center gap-0.5 border border-slate-300 bg-white p-0.5" role="group" aria-label="Working edit history">
+          <button
+            type="button"
+            onClick={onUndo}
+            disabled={!canUndo}
+            aria-label="Undo Master Data edit"
+            title="Undo Master Data edit (Ctrl/Cmd+Z)"
+            className="grid h-8 w-8 place-items-center text-slate-700 transition-colors hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-40 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-blue-700"
+          >
+            <Undo2 className="h-4 w-4" aria-hidden="true" />
+          </button>
+          <button
+            type="button"
+            onClick={onRedo}
+            disabled={!canRedo}
+            aria-label="Redo Master Data edit"
+            title="Redo Master Data edit (Ctrl/Cmd+Y or Ctrl/Cmd+Shift+Z)"
+            className="grid h-8 w-8 place-items-center text-slate-700 transition-colors hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-40 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-blue-700"
+          >
+            <Redo2 className="h-4 w-4" aria-hidden="true" />
+          </button>
+        </div>
 
         <div className="ml-auto order-20 flex shrink-0 items-center">
           {tableSelector}

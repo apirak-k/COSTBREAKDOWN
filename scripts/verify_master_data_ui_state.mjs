@@ -93,6 +93,10 @@ const makeStore = (uiState = { role: 'current', mode: 'view', tableView: 'all' }
       warnings: []
     },
     masterDataUiState: uiState,
+    canUndoMasterDataEdit: false,
+    canRedoMasterDataEdit: false,
+    undoMasterDataEdit: noOp,
+    redoMasterDataEdit: noOp,
     setMasterDataRole: noOp,
     updateMasterDataUiState: noOp,
     saveMasterDataWorkingDataset: noOp,
@@ -106,16 +110,16 @@ const makeStore = (uiState = { role: 'current', mode: 'view', tableView: 'all' }
     updateMasterDataProduct: noOp,
     updateMasterDataRemark: noOp,
     addMasterDataBOMItem: noOp,
-    updateMasterDataBOMItem: noOp,
-    deleteMasterDataBOMItem: noOp,
+    updateMasterDataBOMItems: noOp,
+    deleteMasterDataBOMItems: noOp,
     reorderMasterDataBOMItems: noOp,
     addMasterDataRoutingStep: noOp,
-    updateMasterDataRoutingStep: noOp,
-    deleteMasterDataRoutingStep: noOp,
+    updateMasterDataRoutingSteps: noOp,
+    deleteMasterDataRoutingSteps: noOp,
     reorderMasterDataRoutingSteps: noOp,
     addMasterDataWorkCenterRate: noOp,
-    updateMasterDataWorkCenterRate: noOp,
-    deleteMasterDataWorkCenterRate: noOp,
+    updateMasterDataWorkCenterRates: noOp,
+    deleteMasterDataWorkCenterRates: noOp,
     reorderMasterDataWorkCenters: noOp
   }
 }
@@ -147,6 +151,11 @@ try {
   assert.equal(pressedButton(defaultMarkup, 'Current'), true, 'a fresh application session starts on Current')
   assert.equal(pressedButton(defaultMarkup, 'View'), true, 'a fresh application session starts in View mode')
   assert.equal(pressedButton(defaultMarkup, 'All tables'), true, 'Master Data first opens with All Tables selected')
+  assert.equal((defaultMarkup.match(/aria-label="Undo Master Data edit"/g) ?? []).length, 1, 'All Tables renders one page-level Undo control')
+  assert.equal((defaultMarkup.match(/aria-label="Redo Master Data edit"/g) ?? []).length, 1, 'All Tables renders one page-level Redo control')
+  assert.match(defaultMarkup, /role="group" aria-label="Working edit history"/, 'Undo/Redo controls have one shared accessible group')
+  const undoButtonAttrs = defaultMarkup.match(/<button\b(?=[^>]*aria-label="Undo Master Data edit")[^>]*>/)?.[0] ?? ''
+  assert.match(undoButtonAttrs, /\bdisabled(?:="")?(?:\s|>)/, 'Undo is disabled when the Working history is empty')
 
   assert.match(defaultMarkup, /id="master-data-table-panel" role="region" aria-label="All dataset tables"/, 'All Tables exposes one semantic region containing all dataset tables')
   const tableSections = [
@@ -205,6 +214,7 @@ try {
   assert.equal(pressedButton(returnedPageMarkup, 'Routing'), true, 'a remounted page reflects the retained table view')
   assert.equal(pressedButton(returnedPageMarkup, 'All tables'), false, 'the retained Routing view does not revert to All Tables')
   assert.match(returnedPageMarkup, /aria-label="Process Routing table"/, 'the selected Routing view remains the only table region')
+  assert.equal((returnedPageMarkup.match(/aria-label="Undo Master Data edit"/g) ?? []).length, 1, 'a single-table view still renders one page-level Undo control')
 
   const freshAppSessionMarkup = await renderMasterDataPage(INITIAL_MASTER_DATA_UI_STATE)
   assert.equal(pressedButton(freshAppSessionMarkup, 'Current'), true, 'a fresh app session does not inherit Reference selection')

@@ -1,5 +1,5 @@
 import React, { useCallback, useMemo, useRef, useState } from 'react'
-import { CheckSquare, GripVertical, Plus, Redo2, Search, Trash2, Undo2 } from 'lucide-react'
+import { CheckSquare, GripVertical, Plus, Search, Trash2 } from 'lucide-react'
 import { SnapshotRoutingStep, SnapshotWorkCenterRate } from '../../../core'
 import { useDragSelect } from '../hooks/useDragSelect'
 import { SpreadsheetPasteCell, tableCellKey, useTableKeyboardNav } from '../hooks/useTableKeyboardNav'
@@ -11,9 +11,11 @@ interface RoutingTableProps {
   rates: SnapshotWorkCenterRate[]
   isEditMode?: boolean
   historyScope: string
+  onUndo: () => void
+  onRedo: () => void
   onAddRoutingStep: () => void
-  onUpdateRoutingStep: (id: string, partial: Partial<Omit<SnapshotRoutingStep, 'id' | 'confidence'>>) => void
-  onDeleteRoutingStep: (id: string) => void
+  onUpdateRoutingSteps: (updates: Array<{ id: string; changes: Partial<Omit<SnapshotRoutingStep, 'id' | 'confidence'>> }>) => void
+  onDeleteRoutingSteps: (ids: string[]) => void
   onReorderRows: (movingId: string, targetId: string, position: 'before' | 'after', movingIds?: string[]) => void
 }
 
@@ -25,9 +27,11 @@ export const RoutingTable: React.FC<RoutingTableProps> = ({
   rates,
   isEditMode = false,
   historyScope,
+  onUndo,
+  onRedo,
   onAddRoutingStep,
-  onUpdateRoutingStep,
-  onDeleteRoutingStep,
+  onUpdateRoutingSteps,
+  onDeleteRoutingSteps,
   onReorderRows
 }) => {
   const tableRef = useRef<HTMLTableElement | null>(null)
@@ -58,17 +62,12 @@ export const RoutingTable: React.FC<RoutingTableProps> = ({
 
   const {
     applyCellUpdate,
-    applyPasteUpdates,
-    undo,
-    redo,
-    canUndo,
-    canRedo
+    applyPasteUpdates
   } = useSpreadsheetEditing({
     rows: routing,
     selectedIds,
     isEditMode,
-    historyScope,
-    onUpdate: onUpdateRoutingStep
+    onUpdateBatch: onUpdateRoutingSteps
   })
 
   const handlePasteCells = useCallback((cells: SpreadsheetPasteCell[]) => {
@@ -89,12 +88,12 @@ export const RoutingTable: React.FC<RoutingTableProps> = ({
     tableRef,
     isEditMode,
     onPasteCells: handlePasteCells,
-    onUndo: undo,
-    onRedo: redo
+    onUndo,
+    onRedo
   })
 
   const handleDeleteSelected = () => {
-    selectedIds.forEach(id => onDeleteRoutingStep(id))
+    onDeleteRoutingSteps([...selectedIds])
     clearSelection()
   }
 
@@ -138,12 +137,6 @@ export const RoutingTable: React.FC<RoutingTableProps> = ({
         </div>
         {isEditMode && (
           <div className="flex shrink-0 items-center gap-1.5">
-            <button type="button" onClick={undo} disabled={!canUndo} aria-label="Undo last table edit" className="inline-flex min-h-9 items-center gap-1 border border-slate-300 bg-white px-2 text-xs text-slate-700 hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-40" title="Undo (Ctrl+Z)">
-              <Undo2 className="h-3.5 w-3.5" aria-hidden="true" /> Undo
-            </button>
-            <button type="button" onClick={redo} disabled={!canRedo} aria-label="Redo table edit" className="inline-flex min-h-9 items-center gap-1 border border-slate-300 bg-white px-2 text-xs text-slate-700 hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-40" title="Redo (Ctrl+Y)">
-              <Redo2 className="h-3.5 w-3.5" aria-hidden="true" /> Redo
-            </button>
             <button type="button" onClick={onAddRoutingStep} className="flex min-h-9 items-center justify-center gap-1.5 bg-slate-900 px-3 text-sm font-medium text-white hover:bg-slate-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700">
               <Plus className="h-3 w-3" aria-hidden="true" /> Add row
             </button>
@@ -345,7 +338,7 @@ export const RoutingTable: React.FC<RoutingTableProps> = ({
                     <td className="px-2 py-1 text-center">
                       <button
                         type="button"
-                        onClick={() => onDeleteRoutingStep(step.id)}
+                        onClick={() => onDeleteRoutingSteps([step.id])}
                         aria-label={`Delete Routing row ${rowNumber}`}
                         className="inline-flex h-9 w-9 items-center justify-center text-slate-600 hover:bg-rose-50 hover:text-rose-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700"
                         title="Delete row"

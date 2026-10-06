@@ -21,6 +21,10 @@ export const MasterDataPage: React.FC = () => {
     masterDataLastSavedSnapshot,
     masterDataSizing,
     masterDataHandoff,
+    canUndoMasterDataEdit,
+    canRedoMasterDataEdit,
+    undoMasterDataEdit,
+    redoMasterDataEdit,
     setMasterDataRole,
     updateMasterDataUiState,
     saveMasterDataWorkingDataset,
@@ -34,16 +38,16 @@ export const MasterDataPage: React.FC = () => {
     updateMasterDataProduct,
     updateMasterDataRemark,
     addMasterDataBOMItem,
-    updateMasterDataBOMItem,
-    deleteMasterDataBOMItem,
+    updateMasterDataBOMItems,
+    deleteMasterDataBOMItems,
     reorderMasterDataBOMItems,
     addMasterDataRoutingStep,
-    updateMasterDataRoutingStep,
-    deleteMasterDataRoutingStep,
+    updateMasterDataRoutingSteps,
+    deleteMasterDataRoutingSteps,
     reorderMasterDataRoutingSteps,
     addMasterDataWorkCenterRate,
-    updateMasterDataWorkCenterRate,
-    deleteMasterDataWorkCenterRate,
+    updateMasterDataWorkCenterRates,
+    deleteMasterDataWorkCenterRates,
     reorderMasterDataWorkCenters
   } = useAppStore()
 
@@ -111,6 +115,8 @@ export const MasterDataPage: React.FC = () => {
           rates={masterDataSnapshot.rates}
           isEditMode={isEditMode}
           historyScope={masterDataRole}
+          onUndo={undoMasterDataEdit}
+          onRedo={redoMasterDataEdit}
           onAddRate={() => addMasterDataWorkCenterRate({
             workCenterCode: '',
             description: '',
@@ -119,8 +125,8 @@ export const MasterDataPage: React.FC = () => {
             effectiveDate: product.effectiveDate || new Date().toISOString().split('T')[0],
             sourceRef: 'Direct Input'
           })}
-          onUpdateRate={updateMasterDataWorkCenterRate}
-          onDeleteRate={deleteMasterDataWorkCenterRate}
+          onUpdateRates={updateMasterDataWorkCenterRates}
+          onDeleteRates={deleteMasterDataWorkCenterRates}
           onReorderRows={reorderMasterDataWorkCenters}
         />
       )
@@ -132,6 +138,8 @@ export const MasterDataPage: React.FC = () => {
           bom={masterDataSnapshot.bom}
           isEditMode={isEditMode}
           historyScope={masterDataRole}
+          onUndo={undoMasterDataEdit}
+          onRedo={redoMasterDataEdit}
           onAddBOMItem={() => addMasterDataBOMItem({
             itemCode: '',
             description: '',
@@ -141,8 +149,8 @@ export const MasterDataPage: React.FC = () => {
             loss: 0,
             sourceRef: 'Direct Input'
           })}
-          onUpdateBOMItem={updateMasterDataBOMItem}
-          onDeleteBOMItem={deleteMasterDataBOMItem}
+          onUpdateBOMItems={updateMasterDataBOMItems}
+          onDeleteBOMItems={deleteMasterDataBOMItems}
           onReorderRows={reorderMasterDataBOMItems}
         />
       )
@@ -154,6 +162,8 @@ export const MasterDataPage: React.FC = () => {
         rates={masterDataSnapshot.rates}
         isEditMode={isEditMode}
         historyScope={masterDataRole}
+        onUndo={undoMasterDataEdit}
+        onRedo={redoMasterDataEdit}
         onAddRoutingStep={() => addMasterDataRoutingStep({
           operationCode: '',
           processName: '',
@@ -164,8 +174,8 @@ export const MasterDataPage: React.FC = () => {
           yield: null,
           sourceRef: 'Direct Input'
         })}
-        onUpdateRoutingStep={updateMasterDataRoutingStep}
-        onDeleteRoutingStep={deleteMasterDataRoutingStep}
+        onUpdateRoutingSteps={updateMasterDataRoutingSteps}
+        onDeleteRoutingSteps={deleteMasterDataRoutingSteps}
         onReorderRows={reorderMasterDataRoutingSteps}
       />
     )
@@ -234,7 +244,11 @@ export const MasterDataPage: React.FC = () => {
         onCloneReferenceToCurrent={cloneReferenceToCurrent}
         onCloneCurrentToReference={cloneCurrentToReference}
         onClearDataset={() => clearMasterDataDataset(masterDataRole)}
-        handoff={masterDataHandoff}
+          handoff={masterDataHandoff}
+          canUndo={canUndoMasterDataEdit}
+          canRedo={canRedoMasterDataEdit}
+          onUndo={undoMasterDataEdit}
+          onRedo={redoMasterDataEdit}
         onOpenImportModal={() => setImportModalOpen(true)}
         onOpenSizingModal={() => setSizingModalOpen(true)}
         developmentAction={developmentAction}

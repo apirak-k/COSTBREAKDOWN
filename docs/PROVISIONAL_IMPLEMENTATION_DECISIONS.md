@@ -68,6 +68,16 @@ Do not promote an entry to a user decision based on implementation, test results
 - **Review trigger:** an explicit session-lifecycle decision or evidence that provider state does not cover the required application session.
 - **Related contract:** [`MASTER_DATA.md`](specs/MASTER_DATA.md#page-structure-and-metadata).
 
+### P-006 — Session-wide Master Data edit-history mechanics
+
+- **Status:** `PROVISIONAL — AI CHOICE`
+- **Choice:** keep one in-memory LIFO history for the active product session. A single cell edit, a pasted range, a selected-row bulk edit/delete, a reorder, metadata edit, sizing change, import, clone, clear, or reset is one Working-state history entry. The stack spans Reference/Current and BOM/Work Centers/Routing. Save changes only Last Saved and is not an Undo entry. Retain at most 100 entries.
+- **Why:** the finalized requirement puts Undo/Redo at page level, and storing complete before/after snapshots makes an action made in one table reversible from the shared toolbar without coupling history to individual table components.
+- **Must preserve:** history is transient and limited to Master Data Working state; it never rewrites Last Saved, creates dataset-version history, persists across restart, or changes formulas, identities, comparison semantics, or the independent Reference/Current datasets.
+- **Reversible:** stack capacity and which atomic controls create one entry can change later while retaining page-level Working history and the finalized non-persistence boundary.
+- **Review trigger:** an explicit history-scope decision or evidence that the snapshot-based behavior does not match the user's editing flow.
+- **Related contract:** [`MASTER_DATA.md`](specs/MASTER_DATA.md#spreadsheet-style-editing-and-row-order).
+
 ## Genuine pending boundaries
 
 These are not AI choices and must not be inferred away:
