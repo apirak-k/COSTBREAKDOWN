@@ -50,6 +50,24 @@ export interface ScenarioBusinessResult extends ScenarioBusinessInputs {
   warnings: string[]
 }
 
+export interface ScenarioFinancialResult {
+  material: number | null
+  labor: number | null
+  burden: number | null
+  standardCost: number | null
+  sgaAmountPerPiece: number | null
+  operatingProfitPerPiece: number | null
+  sellingPrice: number | null
+}
+
+export interface ScenarioStory {
+  reference: ScenarioFinancialResult
+  current: ScenarioFinancialResult
+  simulated: ScenarioFinancialResult
+  gap1: ScenarioFinancialResult
+  gap2: ScenarioFinancialResult
+}
+
 export interface ScenarioEconomicsResult {
   scenarioCost: SnapshotCost
   grossImprovementPerPiece: number | null

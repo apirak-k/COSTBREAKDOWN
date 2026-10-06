@@ -12,12 +12,13 @@ export interface ScenarioDraftForm {
 export interface RcaSimulationPageState {
   sourceDataRevision: number
   selectedCandidateKey: string | null
+  selectedScenarioLetter: ScenarioDraftForm['letter'] | null
   trialHandoffLetter: ScenarioDraftForm['letter'] | null
   scenarioDraftsByCandidate: Record<string, ScenarioDraftForm[]>
 }
 
 export function createRcaSimulationPageState(sourceDataRevision = 0): RcaSimulationPageState {
-  return { sourceDataRevision, selectedCandidateKey: null, trialHandoffLetter: null, scenarioDraftsByCandidate: {} }
+  return { sourceDataRevision, selectedCandidateKey: null, selectedScenarioLetter: null, trialHandoffLetter: null, scenarioDraftsByCandidate: {} }
 }
 
 function isScenarioLetter(value: unknown): value is ScenarioDraftForm['letter'] {
@@ -30,7 +31,9 @@ export function getRcaSimulationStateForRevision(
 ): RcaSimulationPageState {
   if (state?.sourceDataRevision !== sourceDataRevision) return createRcaSimulationPageState(sourceDataRevision)
 
-  let hasUnsupportedState = !isScenarioLetter(state.trialHandoffLetter) && state.trialHandoffLetter !== null
+  let hasUnsupportedState =
+    (!isScenarioLetter(state.selectedScenarioLetter) && state.selectedScenarioLetter !== null) ||
+    (!isScenarioLetter(state.trialHandoffLetter) && state.trialHandoffLetter !== null)
   const scenarioDraftsByCandidate = Object.fromEntries(
     Object.entries(state.scenarioDraftsByCandidate).map(([candidateKey, drafts]) => {
       const supportedDrafts = drafts.filter(draft => isScenarioLetter((draft as { letter: unknown }).letter))
@@ -42,6 +45,7 @@ export function getRcaSimulationStateForRevision(
   if (!hasUnsupportedState) return state
   return {
     ...state,
+    selectedScenarioLetter: isScenarioLetter(state.selectedScenarioLetter) ? state.selectedScenarioLetter : null,
     trialHandoffLetter: isScenarioLetter(state.trialHandoffLetter) ? state.trialHandoffLetter : null,
     scenarioDraftsByCandidate
   }

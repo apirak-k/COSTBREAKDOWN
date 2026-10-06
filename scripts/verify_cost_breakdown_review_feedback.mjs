@@ -48,7 +48,9 @@ try {
     { DashboardPage },
     { parseSnapshotWorkbookData },
     { SimulationGrid },
-    { createScenarioDrafts }
+    { createScenarioDrafts },
+    { ScenarioOutcomeReview },
+    { createScenarioStory }
   ] = await Promise.all([
     vite.ssrLoadModule('/src/features/cost-breakdown/components/RoutingDetailedTable.tsx'),
     vite.ssrLoadModule('/src/features/cost-breakdown/components/BOMDetailedTable.tsx'),
@@ -65,7 +67,9 @@ try {
     vite.ssrLoadModule('/src/features/dashboard/DashboardPage.tsx'),
     vite.ssrLoadModule('/src/services/excel/snapshot-parser.ts'),
     vite.ssrLoadModule('/src/features/rca-simulation/components/SimulationGrid.tsx'),
-    vite.ssrLoadModule('/src/features/rca-simulation/scenario-draft.ts')
+    vite.ssrLoadModule('/src/features/rca-simulation/scenario-draft.ts'),
+    vite.ssrLoadModule('/src/features/rca-simulation/components/ScenarioOutcomeReview.tsx'),
+    vite.ssrLoadModule('/src/core/calculations/scenario-story.ts')
   ])
 
   const simulationGridMarkup = renderToStaticMarkup(React.createElement(SimulationGrid, {
@@ -88,6 +92,39 @@ try {
   assert.match(simulationGridMarkup, /Scenario B/)
   assert.doesNotMatch(simulationGridMarkup, /Scenario C/)
   assert.equal((simulationGridMarkup.match(/<article\b/g) ?? []).length, 2, 'the simulation renders exactly two scenario cards')
+
+  const storyReference = { material: 10, labor: 2, burden: 3, standardCost: 15, sgaAmountPerPiece: 2, operatingProfitPerPiece: 8, sellingPrice: 25 }
+  const storyCurrent = { material: 12, labor: 1, burden: 3, standardCost: 16, sgaAmountPerPiece: 2.5, operatingProfitPerPiece: 6.5, sellingPrice: 25 }
+  const storySimulated = { material: 60, labor: 20, burden: 15, standardCost: 95, sgaAmountPerPiece: 10, operatingProfitPerPiece: -5, sellingPrice: 100 }
+  const finalStory = createScenarioStory(storyReference, storyCurrent, storySimulated)
+  const scenarioAResult = { material: 40, labor: 12, burden: 8, standardCost: 60, sgaAmountPerPiece: 8, operatingProfitPerPiece: 2, sellingPrice: 70 }
+  const scenarioBResult = { material: 42, labor: 10, burden: 7, standardCost: 59, sgaAmountPerPiece: 9, operatingProfitPerPiece: -1, sellingPrice: 67 }
+  const noScenarioChoiceMarkup = renderToStaticMarkup(React.createElement(ScenarioOutcomeReview, {
+    scenarioA: scenarioAResult,
+    scenarioB: scenarioBResult,
+    selectedScenarioLetter: null,
+    story: null,
+    onSelectScenario() {}
+  }))
+  assert.match(noScenarioChoiceMarkup, /A\/B monetary outcomes · THB\/pc/)
+  assert.match(noScenarioChoiceMarkup, /Selling Price/)
+  assert.match(noScenarioChoiceMarkup, /Select Scenario A or B/)
+  assert.doesNotMatch(noScenarioChoiceMarkup, /final-story-graph-heading/)
+
+  const selectedStoryMarkup = renderToStaticMarkup(React.createElement(ScenarioOutcomeReview, {
+    scenarioA: scenarioAResult,
+    scenarioB: scenarioBResult,
+    selectedScenarioLetter: 'A',
+    story: finalStory,
+    onSelectScenario() {}
+  }))
+  assert.match(selectedStoryMarkup, /Reference → Current → Simulated/)
+  assert.match(selectedStoryMarkup, /Gap 1<br\/?>Current − Reference/)
+  assert.match(selectedStoryMarkup, /Gap 2<br\/?>Simulated − Current/)
+  assert.equal((selectedStoryMarkup.match(/Gap [12]<br/g) ?? []).length, 2, 'the selected story has exactly two adjacent gaps')
+  assert.match(selectedStoryMarkup, /Simulated − Current/)
+  assert.match(selectedStoryMarkup, /Operating loss/)
+  assert.doesNotMatch(selectedStoryMarkup, /Simulated − Reference|Reference − Simulated|Gross Profit|GP Margin|OP Margin/)
   const blankWorkCenterWorkbook = XLSX.utils.book_new()
   const addSheet = (name, rows) => XLSX.utils.book_append_sheet(blankWorkCenterWorkbook, XLSX.utils.aoa_to_sheet(rows), name)
   addSheet('META', [

@@ -25,10 +25,12 @@ assert.equal(scenarioDrafts[0].inputValues[bomInputKey], '10')
 assert.equal(scenarioDrafts[0].inputValues[routingInputKey], '80')
 assert.equal(scenarioDrafts[1].inputValues[bomInputKey], undefined)
 assert.equal(createRcaSimulationPageState().selectedCandidateKey, null, 'RCA must wait for a human candidate selection')
+assert.equal(createRcaSimulationPageState().selectedScenarioLetter, null, 'Simulation must wait for a human scenario selection')
 
 const savedPageState = {
   ...createRcaSimulationPageState(3),
   selectedCandidateKey: 'candidate-1',
+  selectedScenarioLetter: 'A' as const,
   trialHandoffLetter: 'B' as const,
   scenarioDraftsByCandidate: {
     'candidate-1': scenarioDrafts
@@ -36,6 +38,7 @@ const savedPageState = {
 }
 const legacyCPageState = {
   ...savedPageState,
+  selectedScenarioLetter: 'C',
   trialHandoffLetter: 'C',
   scenarioDraftsByCandidate: {
     'candidate-1': [
@@ -46,6 +49,7 @@ const legacyCPageState = {
 } as unknown as RcaSimulationPageState
 const migratedLegacyPageState = getRcaSimulationStateForRevision(legacyCPageState, 3)
 assert.equal(migratedLegacyPageState.trialHandoffLetter, null, 'Legacy Scenario C handoff state must be discarded')
+assert.equal(migratedLegacyPageState.selectedScenarioLetter, null, 'Legacy Scenario C selection must be discarded')
 assert.deepEqual(
   migratedLegacyPageState.scenarioDraftsByCandidate['candidate-1']?.map(draft => draft.letter),
   ['A', 'B'],
@@ -60,6 +64,7 @@ const pageStatesAfterSecondProduct = updateRcaSimulationStateByProduct(
 )
 assert.equal(pageStatesAfterSecondProduct['product-1'].selectedCandidateKey, 'candidate-1')
 assert.equal(pageStatesAfterSecondProduct['product-1'].trialHandoffLetter, 'B')
+assert.equal(pageStatesAfterSecondProduct['product-1'].selectedScenarioLetter, 'A')
 assert.equal(pageStatesAfterSecondProduct['product-1'].scenarioDraftsByCandidate['candidate-1'][0].inputValues[bomInputKey], '10')
 assert.equal(pageStatesAfterSecondProduct['product-2'].selectedCandidateKey, 'candidate-2')
 assert.strictEqual(
@@ -85,6 +90,7 @@ assert.equal(getRcaSimulationStateForRevision(pageStatesAfterSecondProduct['prod
 const stalePageState = getRcaSimulationStateForRevision(pageStatesAfterSecondProduct['product-1'], 4)
 assert.equal(stalePageState.selectedCandidateKey, null, 'Replacing source data must clear the selected RCA candidate')
 assert.equal(stalePageState.trialHandoffLetter, null, 'Replacing source data must clear the old Trial handoff')
+assert.equal(stalePageState.selectedScenarioLetter, null, 'Replacing source data must clear the selected scenario')
 assert.deepEqual(stalePageState.scenarioDraftsByCandidate, {}, 'Replacing source data must clear scenario drafts')
 
 const pageStatesAfterDataReplacement = updateRcaSimulationStateByProduct(
@@ -95,6 +101,7 @@ const pageStatesAfterDataReplacement = updateRcaSimulationStateByProduct(
 )
 assert.equal(pageStatesAfterDataReplacement['product-1'].selectedCandidateKey, 'candidate-2')
 assert.equal(pageStatesAfterDataReplacement['product-1'].trialHandoffLetter, null)
+assert.equal(pageStatesAfterDataReplacement['product-1'].selectedScenarioLetter, null)
 assert.deepEqual(pageStatesAfterDataReplacement['product-1'].scenarioDraftsByCandidate, {})
 assert.equal(masterDataRevision.markMasterDataChanged({ masterDataRevision: 8 }).masterDataRevision, 9)
 assert.equal(masterDataRevision.markMasterDataChanged({}).masterDataRevision, 1)

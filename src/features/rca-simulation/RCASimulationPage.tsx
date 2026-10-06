@@ -2,7 +2,9 @@ import React, { useEffect, useMemo } from 'react'
 import { calculateScenarioCosts } from '../../core/calculations/scenario-cost'
 import { calculateScenarioEconomics } from '../../core/calculations/scenario-economics'
 import { calculateScenarioBusinessMetrics } from '../../core/calculations/scenario-business'
-import type { ScenarioBusinessInputs, ScenarioBusinessResult, ScenarioEconomicsInputs } from '../../core'
+import { calculateSnapshotCost } from '../../core/calculations/snapshot-cost'
+import { createScenarioFinancialResult, createScenarioStory } from '../../core/calculations/scenario-story'
+import type { ScenarioBusinessInputs, ScenarioBusinessResult, ScenarioEconomicsInputs, ScenarioFinancialResult } from '../../core'
 import { useAppStore } from '../../state'
 import {
   createScenarioDrafts,
@@ -21,6 +23,7 @@ import { CandidateRcaForm } from './components/CandidateRcaForm'
 import { CandidateSelector } from './components/CandidateSelector'
 import { ProblemStatementCard } from './components/ProblemStatementCard'
 import { SimulationGrid } from './components/SimulationGrid'
+import { ScenarioOutcomeReview } from './components/ScenarioOutcomeReview'
 import { PageHeading, SelectedComparisonBanner } from '../../shared'
 
 interface RCASimulationPageProps {
@@ -42,7 +45,7 @@ export const RCASimulationPage: React.FC<RCASimulationPageProps> = ({ state, upd
 
   useEffect(() => {
     if (state.selectedCandidateKey && !candidates.some(candidate => candidate.candidateKey === state.selectedCandidateKey)) {
-      updateState(previous => ({ ...previous, selectedCandidateKey: null, trialHandoffLetter: null }))
+      updateState(previous => ({ ...previous, selectedCandidateKey: null, selectedScenarioLetter: null, trialHandoffLetter: null }))
     }
   }, [candidates, state.selectedCandidateKey, updateState])
 
@@ -51,7 +54,7 @@ export const RCASimulationPage: React.FC<RCASimulationPageProps> = ({ state, upd
   }, [selectedCandidate?.candidateKey, isSelectedComparisonActive, clearSelectedComparison])
 
   const selectCandidate = (candidateKey: string | null) => {
-    updateState(previous => ({ ...previous, selectedCandidateKey: candidateKey, trialHandoffLetter: null }))
+    updateState(previous => ({ ...previous, selectedCandidateKey: candidateKey, selectedScenarioLetter: null, trialHandoffLetter: null }))
     if (candidateKey) clearSelectedComparison()
   }
 
@@ -64,12 +67,34 @@ export const RCASimulationPage: React.FC<RCASimulationPageProps> = ({ state, upd
   )
 
   const currentSnapshot = snapshotPair.current
+  const referenceSnapshot = snapshotPair.reference
   const currentBusinessInputs = useMemo<ScenarioBusinessInputs>(
     () => ({
       sellingPrice: currentSnapshot.product.sellingPrice ?? null,
       sgaPercent: currentSnapshot.product.sgaPercent ?? null
     }),
     [currentSnapshot.product.sellingPrice, currentSnapshot.product.sgaPercent]
+  )
+  const referenceEngineCost = useMemo(() => calculateSnapshotCost(referenceSnapshot), [referenceSnapshot])
+  const currentEngineCost = useMemo(() => calculateSnapshotCost(currentSnapshot), [currentSnapshot])
+  const referenceBusiness = useMemo(
+    () => calculateScenarioBusinessMetrics({
+      sellingPrice: referenceSnapshot.product.sellingPrice ?? null,
+      sgaPercent: referenceSnapshot.product.sgaPercent ?? null
+    }, referenceEngineCost.total),
+    [referenceSnapshot.product.sellingPrice, referenceSnapshot.product.sgaPercent, referenceEngineCost.total]
+  )
+  const currentBusiness = useMemo(
+    () => calculateScenarioBusinessMetrics(currentBusinessInputs, currentEngineCost.total),
+    [currentBusinessInputs, currentEngineCost.total]
+  )
+  const referenceFinancialResult = useMemo(
+    () => createScenarioFinancialResult(referenceEngineCost, referenceBusiness),
+    [referenceEngineCost, referenceBusiness]
+  )
+  const currentFinancialResult = useMemo(
+    () => createScenarioFinancialResult(currentEngineCost, currentBusiness),
+    [currentEngineCost, currentBusiness]
   )
   const inputDefinitions = useMemo(
     () => selectedCandidate ? getScenarioInputDefinitions(selectedCandidate, currentSnapshot) : [],
@@ -114,6 +139,25 @@ export const RCASimulationPage: React.FC<RCASimulationPageProps> = ({ state, upd
     }),
     [scenarioResults, economicsResults, preparedBusiness.inputsByLetter]
   )
+  const scenarioFinancialResults = useMemo(
+    () => economicsResults.flatMap(economics => {
+      const business = businessResults.find(item => item.letter === economics.letter)
+      return business ? [{ letter: economics.letter, ...createScenarioFinancialResult(economics.scenarioCost, business) }] : []
+    }),
+    [economicsResults, businessResults]
+  )
+  const unavailableFinancialResult: ScenarioFinancialResult = {
+    material: null, labor: null, burden: null, standardCost: null,
+    sgaAmountPerPiece: null, operatingProfitPerPiece: null, sellingPrice: null
+  }
+  const scenarioAFinancialResult = scenarioFinancialResults.find(item => item.letter === 'A') ?? unavailableFinancialResult
+  const scenarioBFinancialResult = scenarioFinancialResults.find(item => item.letter === 'B') ?? unavailableFinancialResult
+  const simulatedFinancialResult = state.selectedScenarioLetter === 'A'
+    ? scenarioAFinancialResult
+    : state.selectedScenarioLetter === 'B' ? scenarioBFinancialResult : null
+  const finalScenarioStory = simulatedFinancialResult
+    ? createScenarioStory(referenceFinancialResult, currentFinancialResult, simulatedFinancialResult)
+    : null
 
   const updateDrafts = (transform: (drafts: ScenarioDraftForm[]) => ScenarioDraftForm[]) => {
     if (!selectedCandidate) return
@@ -203,6 +247,14 @@ export const RCASimulationPage: React.FC<RCASimulationPageProps> = ({ state, upd
             onUpdateInput={handleUpdateInput}
             onUpdateEconomics={handleUpdateEconomics}
             onUpdateBusinessInput={handleUpdateBusinessInput}
+          />
+
+          <ScenarioOutcomeReview
+            scenarioA={scenarioAFinancialResult}
+            scenarioB={scenarioBFinancialResult}
+            selectedScenarioLetter={state.selectedScenarioLetter ?? null}
+            story={finalScenarioStory}
+            onSelectScenario={letter => updateState(previous => ({ ...previous, selectedScenarioLetter: letter }))}
           />
 
           <section aria-labelledby="trial-handoff-heading" className="border border-slate-300 bg-white px-3 py-3">
