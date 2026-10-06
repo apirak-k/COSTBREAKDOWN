@@ -34,6 +34,7 @@
 
 - Before the Clone-readiness follow-up, all 47 scripts/verify*.ts and scripts/verify*.mjs verifiers passed after the final implementation and lockfile patch.
 - After the Clone readiness clarification, `npx jiti scripts/verify_master_data_clone_readiness.ts` passed all four focused cases, and `npm run build` passed. The focused check verifies the shared readiness helper; it does not exercise the React Clone actions interactively.
+- A further 10 Master Data lifecycle/import/Sizing/workbook/Clone TypeScript verifiers plus the UI-state MJS verifier passed using `node node_modules/.cache/codex-cbd-verifiers-20261006-final/run-ts.cjs` (MJS used Node directly). Running the ExcelJS-dependent Sizing/Clone verifier with `npx jiti` failed because its lazy ExcelJS import resolved without `Workbook`; the same verifier passed with the repository CJS shim, so this was a runner incompatibility, not a product failure.
 - npm run build passed: TypeScript and Vite production build; 2,035 modules transformed. Vite still reports ExcelJS browser externalization warnings for Node fs/crypto.
 - git diff --check passed. The repository has no npm lint or generic test script.
 - npm audit was run. A non-breaking npm audit fix removed the compatible findings; 5 high and 4 moderate transitive advisories remain around Tailwind/ExcelJS. The suggested force update crosses major versions and was not applied.
