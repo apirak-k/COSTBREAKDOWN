@@ -81,7 +81,11 @@ function calcCostFormula(
   const hasNoData = `COUNTA(ROUTING!A${routingRow}:F${routingRow})=0`
   const invalidInputs = `OR(NOT(ISNUMBER(${manning})),NOT(ISNUMBER(${capacity})),NOT(ISNUMBER(${yieldValue})),${capacity}<=0,${yieldValue}<=0,TRIM(${routingWC})="")`
 
-  return `IF(${hasNoData},"",IF(${invalidInputs},"Unavailable",IF(${matchCount}<>1,"Unavailable",IF(NOT(ISNUMBER(${rate})),"Unavailable",${manning}/(${capacity}*${yieldValue})*${rate}))))`
+  return `IF(${hasNoData},"",IF(${invalidInputs},"Unavailable",IF(${matchCount}<>1,"Unavailable",IF(NOT(ISNUMBER(${rate})),"Unavailable",IFERROR(${manning}/(${capacity}*${yieldValue})*${rate},"Unavailable")))))`
+}
+
+function checkedTotalStatusFormula(range: string): string {
+  return `IFERROR(IF(ISNUMBER(SUM(${range})),"Available","Unavailable: non-finite total"),"Unavailable: non-finite total")`
 }
 
 /** Adds a linked calculation view. Formulas mirror calculateSnapshotCost and leave incomplete costs unavailable. */
@@ -129,14 +133,14 @@ export function addCostCalculationSheet(
   setFormula(sheet.getCell('Z2'), `=${routingCountFormula}`)
   sheet.getColumn('Z').hidden = true
 
-  setFormula(sheet.getCell('C6'), '=IF($Z$1=0,"Unavailable: no BOM rows",IF(COUNT(' + bomCostRange + ')=$Z$1,"Available","Unavailable: check BOM inputs"))')
-  setFormula(sheet.getCell('B6'), `=IF(C6="Available",SUM(${bomCostRange}),"")`)
-  setFormula(sheet.getCell('C7'), '=IF($Z$2=0,"Unavailable: no Routing rows",IF(COUNT(' + laborCostRange + ')=$Z$2,"Available","Unavailable: check Routing or Work Center inputs"))')
-  setFormula(sheet.getCell('B7'), `=IF(C7="Available",SUM(${laborCostRange}),"")`)
-  setFormula(sheet.getCell('C8'), '=IF($Z$2=0,"Unavailable: no Routing rows",IF(COUNT(' + burdenCostRange + ')=$Z$2,"Available","Unavailable: check Routing or Work Center inputs"))')
-  setFormula(sheet.getCell('B8'), `=IF(C8="Available",SUM(${burdenCostRange}),"")`)
-  setFormula(sheet.getCell('C9'), '=IF(AND(C6="Available",C7="Available",C8="Available"),"Available","Unavailable: see components")')
-  setFormula(sheet.getCell('B9'), '=IF(C9="Available",SUM(B6:B8),"")')
+  setFormula(sheet.getCell('C6'), `=IF($Z$1=0,"Unavailable: no BOM rows",IF(COUNT(${bomCostRange})<>$Z$1,"Unavailable: check BOM inputs",${checkedTotalStatusFormula(bomCostRange)}))`)
+  setFormula(sheet.getCell('B6'), `=IF(C6="Available",IFERROR(SUM(${bomCostRange}),""),"")`)
+  setFormula(sheet.getCell('C7'), `=IF($Z$2=0,"Unavailable: no Routing rows",IF(COUNT(${laborCostRange})<>$Z$2,"Unavailable: check Routing or Work Center inputs",${checkedTotalStatusFormula(laborCostRange)}))`)
+  setFormula(sheet.getCell('B7'), `=IF(C7="Available",IFERROR(SUM(${laborCostRange}),""),"")`)
+  setFormula(sheet.getCell('C8'), `=IF($Z$2=0,"Unavailable: no Routing rows",IF(COUNT(${burdenCostRange})<>$Z$2,"Unavailable: check Routing or Work Center inputs",${checkedTotalStatusFormula(burdenCostRange)}))`)
+  setFormula(sheet.getCell('B8'), `=IF(C8="Available",IFERROR(SUM(${burdenCostRange}),""),"")`)
+  setFormula(sheet.getCell('C9'), `=IF(AND(C6="Available",C7="Available",C8="Available"),${checkedTotalStatusFormula('B6:B8')},"Unavailable: see components")`)
+  setFormula(sheet.getCell('B9'), '=IF(C9="Available",IFERROR(SUM(B6:B8),""),"")')
   for (const rowNumber of [6, 7, 8, 9]) {
     const label = sheet.getCell(`A${rowNumber}`)
     label.font = { name: 'Arial', size: 10, bold: rowNumber === 9, color: { argb: COLOR_TEXT } }
@@ -160,7 +164,7 @@ export function addCostCalculationSheet(
     }
     setFormula(
       sheet.getCell(`F${rowNumber}`),
-      `=IF(${hasData},"",IF(OR(NOT(ISNUMBER(BOM!B${sourceRow})),NOT(ISNUMBER(BOM!D${sourceRow})),NOT(ISNUMBER(BOM!E${sourceRow}))),"Unavailable",BOM!B${sourceRow}*BOM!D${sourceRow}*(1+BOM!E${sourceRow})))`
+      `=IF(${hasData},"",IF(OR(NOT(ISNUMBER(BOM!B${sourceRow})),NOT(ISNUMBER(BOM!D${sourceRow})),NOT(ISNUMBER(BOM!E${sourceRow}))),"Unavailable",IFERROR(BOM!B${sourceRow}*BOM!D${sourceRow}*(1+BOM!E${sourceRow}),"Unavailable")))`
     )
     setFormula(sheet.getCell(`G${rowNumber}`), `=IF(${hasData},"",IF(ISNUMBER(F${rowNumber}),"Calculated","Unavailable: check Usage, Price, and Loss"))`)
     for (const column of ['B', 'D', 'F']) sheet.getCell(`${column}${rowNumber}`).numFmt = '#,##0.0000;(#,##0.0000);-'
@@ -181,7 +185,7 @@ export function addCostCalculationSheet(
     for (const [column, sourceColumn] of [['A', 'A'], ['B', 'B'], ['C', 'C'], ['D', 'D'], ['E', 'E']] as const) {
       setFormula(sheet.getCell(`${column}${rowNumber}`), `=IF(ROUTING!${sourceColumn}${sourceRow}="","",ROUTING!${sourceColumn}${sourceRow})`, true)
     }
-    setFormula(sheet.getCell(`F${rowNumber}`), `=IF(${hasData},"",IF(${invalidInputs},"Unavailable",${manning}/(${capacity}*${yieldValue})))`)
+    setFormula(sheet.getCell(`F${rowNumber}`), `=IF(${hasData},"",IF(${invalidInputs},"Unavailable",IFERROR(${manning}/(${capacity}*${yieldValue}),"Unavailable")))`)
     setFormula(sheet.getCell(`G${rowNumber}`), `=${calcCostFormula(sourceRow, 'B', options.workCenterStartRow, options.workCenterRowCount)}`)
     setFormula(sheet.getCell(`H${rowNumber}`), `=${calcCostFormula(sourceRow, 'C', options.workCenterStartRow, options.workCenterRowCount)}`)
     setFormula(sheet.getCell(`I${rowNumber}`), `=IF(${hasData},"",IF(AND(ISNUMBER(G${rowNumber}),ISNUMBER(H${rowNumber})),"Calculated","Unavailable: check Routing or Work Center inputs"))`)

@@ -1,4 +1,5 @@
 import { SnapshotBOMItem } from '../types'
+import { safeAdd, safeMultiply } from '../utils/guards'
 
 export interface SnapshotBOMPair {
   reference?: SnapshotBOMItem
@@ -13,9 +14,12 @@ export interface SnapshotBOMDetail {
 }
 
 function costOf(item: SnapshotBOMItem | undefined): number | null {
-  if (!item || item.consumption === null || item.price === null || item.loss === null) return null
-  const cost = item.consumption * item.price * (1 + item.loss)
-  return Number.isFinite(cost) ? cost : null
+  if (!item
+    || item.consumption === null || !Number.isFinite(item.consumption)
+    || item.price === null || !Number.isFinite(item.price)
+    || item.loss === null || !Number.isFinite(item.loss)) return null
+  const lossFactor = safeAdd(1, item.loss)
+  return lossFactor === null ? null : safeMultiply(item.consumption, item.price, lossFactor)
 }
 
 /** Calculates BOM costs with absent-side zero for added/removed records without converting missing inputs to zero. */
@@ -29,6 +33,6 @@ export function calculateSnapshotBOMDetail(pair: SnapshotBOMPair): SnapshotBOMDe
     pair,
     referenceCost,
     currentCost,
-    costGap: referenceCost === null || currentCost === null ? null : currentCost - referenceCost
+    costGap: referenceCost === null || currentCost === null ? null : safeAdd(currentCost, -referenceCost)
   }
 }

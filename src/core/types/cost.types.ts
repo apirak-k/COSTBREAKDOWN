@@ -51,21 +51,21 @@ export interface RoutingStep {
 }
 
 export interface CostElementBreakdown {
-  materialBase: number
-  materialActive: number
-  laborBase: number
-  laborActive: number
-  burdenBase: number
-  burdenActive: number
-  totalBase: number
-  totalActive: number
-  totalVariance: number
-  mpv: number // Material Price Variance
-  mlv: number // Material Loss Variance
-  lrv: number // Labor Rate Variance
-  lev: number // Labor Efficiency Variance
-  brv: number // Burden Rate Variance
-  bev: number // Burden Efficiency Variance
+  materialBase: number | null
+  materialActive: number | null
+  laborBase: number | null
+  laborActive: number | null
+  burdenBase: number | null
+  burdenActive: number | null
+  totalBase: number | null
+  totalActive: number | null
+  totalVariance: number | null
+  mpv: number | null // Material Price Variance
+  mlv: number | null // Material Loss Variance
+  lrv: number | null // Labor Rate Variance
+  lev: number | null // Labor Efficiency Variance
+  brv: number | null // Burden Rate Variance
+  bev: number | null // Burden Efficiency Variance
   missingWorkCenters: string[]
 }
 
@@ -128,22 +128,22 @@ export interface DriverRcaRecord extends DriverRcaDraft {
 
 // Detailed row breakdown types
 export interface BOMDetailedRow extends BOMItem {
-  baseCost: number
-  activeCost: number
-  variance: number
-  mpv: number
-  mlv: number
+  baseCost: number | null
+  activeCost: number | null
+  variance: number | null
+  mpv: number | null
+  mlv: number | null
 }
 
 export interface RoutingDetailedRow extends RoutingStep {
-  baseRuntime: number
-  activeRuntime: number
-  baseLaborCost: number
-  activeLaborCost: number
-  baseBurdenCost: number
-  activeBurdenCost: number
-  baseTotal: number
-  activeTotal: number
-  variance: number
+  baseRuntime: number | null
+  activeRuntime: number | null
+  baseLaborCost: number | null
+  activeLaborCost: number | null
+  baseBurdenCost: number | null
+  activeBurdenCost: number | null
+  baseTotal: number | null
+  activeTotal: number | null
+  variance: number | null
 }
 

@@ -165,8 +165,12 @@ assert.match(formulaAt('B6'), /SUM\(F14:F14\)/, 'Material summary must sum linke
 assert.match(formulaAt('B7'), /SUM\(G19:G19\)/, 'Labor summary must sum linked Routing formulas')
 assert.match(formulaAt('B9'), /SUM\(B6:B8\)/, 'Total Standard Cost must be a formula')
 assert.match(formulaAt('F14'), /BOM!B4\*BOM!D4\*\(1\+BOM!E4\)/, 'Material formula must link Usage, Price, and Loss')
+assert.match(formulaAt('F14'), /IFERROR\(/, 'Material calculation errors must remain unavailable')
 assert.match(formulaAt('G19'), /ROUTING!C4\/\(ROUTING!D4\*ROUTING!E4\)/, 'Labor formula must link Manning, Capacity, and Yield')
 assert.match(formulaAt('G19'), /COUNTIF\(/, 'Work Center matching must reject missing or duplicate rate keys')
+assert.match(formulaAt('G19'), /IFERROR\(/, 'Routing rate calculation errors must remain unavailable')
+assert.match(formulaAt('C6'), /non-finite total/, 'Material total overflow must be unavailable')
+assert.match(formulaAt('C9'), /IFERROR\(/, 'Standard Cost total overflow must be unavailable')
 
 const templateProduct = { ...imported.snapshot.product, productName: 'Template Product' }
 const templateSnapshot: CostSnapshot = { ...imported.snapshot, remark: 'Template Remark', product: templateProduct }

@@ -1,103 +1,91 @@
 import { BOMItem, RoutingStep, WorkCenterRate, BOMDetailedRow, RoutingDetailedRow } from '../types'
-import { safeDivide } from '../utils/guards'
+import { safeAdd, safeDivide, safeMultiply } from '../utils/guards'
 import { createWorkCenterRateMap, resolveWorkCenterRate } from './work-center-rate'
 
-/**
- * Computes row-by-row BOM material breakdown metrics.
- */
-export function calculateBOMDetailedRows(bom: BOMItem[]): {
-  rows: BOMDetailedRow[]
-  totalBase: number
-  totalActive: number
-  totalVariance: number
-  totalMPV: number
-  totalMLV: number
-} {
-  let totalBase = 0
-  let totalActive = 0
-  let totalMPV = 0
-  let totalMLV = 0
-
-  const rows: BOMDetailedRow[] = bom.map(b => {
-    const baseCost = b.consumption * b.basePrice * (1 + b.baseLoss)
-    const activeCost = b.consumption * b.activePrice * (1 + b.activeLoss)
-    const variance = activeCost - baseCost
-    const mpv = (b.activePrice - b.basePrice) * b.consumption * (1 + b.activeLoss)
-    const mlv = (b.activeLoss - b.baseLoss) * b.consumption * b.basePrice
-
-    totalBase += baseCost
-    totalActive += activeCost
-    totalMPV += mpv
-    totalMLV += mlv
-
-    return {
-      ...b,
-      baseCost,
-      activeCost,
-      variance,
-      mpv,
-      mlv
-    }
-  })
-
-  return {
-    rows,
-    totalBase,
-    totalActive,
-    totalVariance: totalActive - totalBase,
-    totalMPV,
-    totalMLV
-  }
+function addNullable(total: number | null, value: number | null): number | null {
+  return total === null || value === null ? null : safeAdd(total, value)
 }
 
-/**
- * Computes row-by-row Routing conversion breakdown metrics.
- */
+function difference(after: number | null, before: number | null): number | null {
+  return after === null || before === null ? null : safeAdd(after, -before)
+}
+
+function routingRuntime(manning: number, capacity: number, yieldValue: number): number | null {
+  if (![manning, capacity, yieldValue].every(Number.isFinite) || capacity <= 0 || yieldValue <= 0) return null
+  const denominator = safeMultiply(capacity, yieldValue)
+  return denominator === null ? null : safeDivide(manning, denominator)
+}
+
+/** Computes BOM detail while preserving invalid and non-finite rows as unavailable. */
+export function calculateBOMDetailedRows(bom: BOMItem[]): {
+  rows: BOMDetailedRow[]
+  totalBase: number | null
+  totalActive: number | null
+  totalVariance: number | null
+  totalMPV: number | null
+  totalMLV: number | null
+} {
+  const rows: BOMDetailedRow[] = bom.map(item => {
+    if (![item.consumption, item.basePrice, item.activePrice, item.baseLoss, item.activeLoss].every(Number.isFinite)) {
+      return { ...item, baseCost: null, activeCost: null, variance: null, mpv: null, mlv: null }
+    }
+    const baseLossFactor = safeAdd(1, item.baseLoss)
+    const activeLossFactor = safeAdd(1, item.activeLoss)
+    const baseCost = baseLossFactor === null ? null : safeMultiply(item.consumption, item.basePrice, baseLossFactor)
+    const activeCost = activeLossFactor === null ? null : safeMultiply(item.consumption, item.activePrice, activeLossFactor)
+    const priceDelta = safeAdd(item.activePrice, -item.basePrice)
+    const lossDelta = safeAdd(item.activeLoss, -item.baseLoss)
+    const mpv = priceDelta === null || activeLossFactor === null
+      ? null
+      : safeMultiply(priceDelta, item.consumption, activeLossFactor)
+    const mlv = lossDelta === null ? null : safeMultiply(lossDelta, item.consumption, item.basePrice)
+    return { ...item, baseCost, activeCost, variance: difference(activeCost, baseCost), mpv, mlv }
+  })
+
+  let totalBase: number | null = bom.length ? 0 : null
+  let totalActive: number | null = bom.length ? 0 : null
+  let totalMPV: number | null = bom.length ? 0 : null
+  let totalMLV: number | null = bom.length ? 0 : null
+  for (const row of rows) {
+    totalBase = addNullable(totalBase, row.baseCost)
+    totalActive = addNullable(totalActive, row.activeCost)
+    totalMPV = addNullable(totalMPV, row.mpv)
+    totalMLV = addNullable(totalMLV, row.mlv)
+  }
+
+  return { rows, totalBase, totalActive, totalVariance: difference(totalActive, totalBase), totalMPV, totalMLV }
+}
+
+/** Computes Routing detail with absent rates, invalid factors, and overflow shown as unavailable. */
 export function calculateRoutingDetailedRows(
   routing: RoutingStep[],
   rates: WorkCenterRate[]
 ): {
   rows: RoutingDetailedRow[]
-  totalBaseLabor: number
-  totalActiveLabor: number
-  totalBaseBurden: number
-  totalActiveBurden: number
-  totalBase: number
-  totalActive: number
-  totalVariance: number
+  totalBaseLabor: number | null
+  totalActiveLabor: number | null
+  totalBaseBurden: number | null
+  totalActiveBurden: number | null
+  totalBase: number | null
+  totalActive: number | null
+  totalVariance: number | null
 } {
   const rateMap = createWorkCenterRateMap(rates)
-
-  let totalBaseLabor = 0
-  let totalActiveLabor = 0
-  let totalBaseBurden = 0
-  let totalActiveBurden = 0
-
-  const rows: RoutingDetailedRow[] = routing.map(rt => {
-    const r = resolveWorkCenterRate(rateMap, rt.wc).rate
-    const baseRuntime = rt.baseCap > 0 && rt.baseYield > 0
-      ? safeDivide(rt.manning, rt.baseCap * rt.baseYield)
-      : 0
-    const activeRuntime = rt.activeCap > 0 && rt.activeYield > 0
-      ? safeDivide(rt.manning, rt.activeCap * rt.activeYield)
-      : 0
-
-    const baseLaborCost = baseRuntime * r.labor
-    const activeLaborCost = activeRuntime * r.labor
-    const baseBurdenCost = baseRuntime * r.burden
-    const activeBurdenCost = activeRuntime * r.burden
-
-    const baseTotal = baseLaborCost + baseBurdenCost
-    const activeTotal = activeLaborCost + activeBurdenCost
-    const variance = activeTotal - baseTotal
-
-    totalBaseLabor += baseLaborCost
-    totalActiveLabor += activeLaborCost
-    totalBaseBurden += baseBurdenCost
-    totalActiveBurden += activeBurdenCost
+  const rows: RoutingDetailedRow[] = routing.map(step => {
+    const resolution = resolveWorkCenterRate(rateMap, step.wc)
+    const rate = resolution.rate
+    const baseRuntime = routingRuntime(step.manning, step.baseCap, step.baseYield)
+    const activeRuntime = routingRuntime(step.manning, step.activeCap, step.activeYield)
+    const validRates = rate !== null && Number.isFinite(rate.labor) && Number.isFinite(rate.burden)
+    const baseLaborCost = validRates && baseRuntime !== null ? safeMultiply(baseRuntime, rate.labor) : null
+    const activeLaborCost = validRates && activeRuntime !== null ? safeMultiply(activeRuntime, rate.labor) : null
+    const baseBurdenCost = validRates && baseRuntime !== null ? safeMultiply(baseRuntime, rate.burden) : null
+    const activeBurdenCost = validRates && activeRuntime !== null ? safeMultiply(activeRuntime, rate.burden) : null
+    const baseTotal = baseLaborCost === null || baseBurdenCost === null ? null : safeAdd(baseLaborCost, baseBurdenCost)
+    const activeTotal = activeLaborCost === null || activeBurdenCost === null ? null : safeAdd(activeLaborCost, activeBurdenCost)
 
     return {
-      ...rt,
+      ...step,
       baseRuntime,
       activeRuntime,
       baseLaborCost,
@@ -106,12 +94,22 @@ export function calculateRoutingDetailedRows(
       activeBurdenCost,
       baseTotal,
       activeTotal,
-      variance
+      variance: difference(activeTotal, baseTotal)
     }
   })
 
-  const totalBase = totalBaseLabor + totalBaseBurden
-  const totalActive = totalActiveLabor + totalActiveBurden
+  let totalBaseLabor: number | null = routing.length ? 0 : null
+  let totalActiveLabor: number | null = routing.length ? 0 : null
+  let totalBaseBurden: number | null = routing.length ? 0 : null
+  let totalActiveBurden: number | null = routing.length ? 0 : null
+  for (const row of rows) {
+    totalBaseLabor = addNullable(totalBaseLabor, row.baseLaborCost)
+    totalActiveLabor = addNullable(totalActiveLabor, row.activeLaborCost)
+    totalBaseBurden = addNullable(totalBaseBurden, row.baseBurdenCost)
+    totalActiveBurden = addNullable(totalActiveBurden, row.activeBurdenCost)
+  }
+  const totalBase = totalBaseLabor === null || totalBaseBurden === null ? null : safeAdd(totalBaseLabor, totalBaseBurden)
+  const totalActive = totalActiveLabor === null || totalActiveBurden === null ? null : safeAdd(totalActiveLabor, totalActiveBurden)
 
   return {
     rows,
@@ -121,6 +119,6 @@ export function calculateRoutingDetailedRows(
     totalActiveBurden,
     totalBase,
     totalActive,
-    totalVariance: totalActive - totalBase
+    totalVariance: difference(totalActive, totalBase)
   }
 }

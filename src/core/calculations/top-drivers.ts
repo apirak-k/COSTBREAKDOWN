@@ -1,5 +1,5 @@
 import { BOMItem, RoutingStep, WorkCenterRate, CostDriver, buildDriverKey, getCostDriverImpact } from '../types'
-import { safeDivide } from '../utils/guards'
+import { safeAdd, safeDivide, safeMultiply } from '../utils/guards'
 import { getFieldConfidence } from '../utils/confidence'
 import { createWorkCenterRateMap, resolveWorkCenterRate } from './work-center-rate'
 
@@ -48,9 +48,10 @@ export function calculateTopDrivers(
 
     id++
     const driverKey = buildDriverKey('bom', b.id)
-    const baseMatCost = b.consumption * b.basePrice * (1 + b.baseLoss)
-    const activeMatCost = b.consumption * b.activePrice * (1 + b.activeLoss)
-    const gap = activeMatCost - baseMatCost
+    const baseMatCost = safeMultiply(b.consumption, b.basePrice, 1 + b.baseLoss)
+    const activeMatCost = safeMultiply(b.consumption, b.activePrice, 1 + b.activeLoss)
+    const gap = baseMatCost === null || activeMatCost === null ? null : safeAdd(activeMatCost, -baseMatCost)
+    if (gap === null) return
 
     let rcaParameter = ''
     let baseParam: number | null = null
@@ -114,22 +115,28 @@ export function calculateTopDrivers(
   routing.forEach(rt => {
     const resolvedRate = resolveWorkCenterRate(rateMap, rt.wc)
     const r = resolvedRate.rate
+    if (!r) return
     const validRate = Number.isFinite(r.labor) && Number.isFinite(r.burden) && r.labor >= 0 && r.burden >= 0
     if (resolvedRate.missing || !validRate) return
 
     id++
     const driverKey = buildDriverKey('routing', rt.id)
 
-    const baseRuntime = rt.baseCap > 0 && rt.baseYield > 0
-      ? safeDivide(rt.manning, rt.baseCap * rt.baseYield)
-      : 0
-    const activeRuntime = rt.activeCap > 0 && rt.activeYield > 0
-      ? safeDivide(rt.manning, rt.activeCap * rt.activeYield)
-      : 0
+    if (![rt.manning, rt.baseCap, rt.activeCap, rt.baseYield, rt.activeYield].every(Number.isFinite)
+      || rt.baseCap <= 0 || rt.activeCap <= 0 || rt.baseYield <= 0 || rt.activeYield <= 0) return
+    const baseDenominator = safeMultiply(rt.baseCap, rt.baseYield)
+    const activeDenominator = safeMultiply(rt.activeCap, rt.activeYield)
+    const baseRuntime = baseDenominator === null ? null : safeDivide(rt.manning, baseDenominator)
+    const activeRuntime = activeDenominator === null ? null : safeDivide(rt.manning, activeDenominator)
+    const conversionRate = safeAdd(r.labor, r.burden)
+    if (baseRuntime === null || activeRuntime === null || conversionRate === null) return
 
-    const baseConvCost = baseRuntime * (r.labor + r.burden)
-    const activeConvCost = activeRuntime * (r.labor + r.burden)
-    const gap = activeConvCost - baseConvCost
+    const baseConvCost = safeMultiply(baseRuntime, conversionRate)
+    const activeConvCost = safeMultiply(activeRuntime, conversionRate)
+    const gap = baseConvCost === null || activeConvCost === null
+      ? null
+      : safeAdd(activeConvCost, -baseConvCost)
+    if (gap === null) return
 
     let rcaParameter = ''
     let baseParam: number | null = null

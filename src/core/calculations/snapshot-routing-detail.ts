@@ -1,4 +1,5 @@
 import { SnapshotRoutingStep, SnapshotWorkCenterRate } from '../types'
+import { safeAdd, safeDivide, safeMultiply } from '../utils/guards'
 
 export interface SnapshotRoutingPair {
   reference?: SnapshotRoutingStep
@@ -30,7 +31,10 @@ function normalizeKey(value: string | undefined): string {
 }
 
 function calculateSide(step: SnapshotRoutingStep | undefined, rates: SnapshotWorkCenterRate[]): SideCalculation {
-  if (!step || step.manning === null || step.capacity === null || step.yield === null) {
+  if (!step
+    || step.manning === null || !Number.isFinite(step.manning)
+    || step.capacity === null || !Number.isFinite(step.capacity)
+    || step.yield === null || !Number.isFinite(step.yield)) {
     return { runtime: null, laborCost: null, burdenCost: null, total: null }
   }
 
@@ -38,8 +42,9 @@ function calculateSide(step: SnapshotRoutingStep | undefined, rates: SnapshotWor
     return { runtime: null, laborCost: null, burdenCost: null, total: null }
   }
 
-  const runtime = step.manning / (step.capacity * step.yield)
-  if (!Number.isFinite(runtime)) {
+  const denominator = safeMultiply(step.capacity, step.yield)
+  const runtime = denominator === null ? null : safeDivide(step.manning, denominator)
+  if (runtime === null) {
     return { runtime: null, laborCost: null, burdenCost: null, total: null }
   }
 
@@ -47,13 +52,13 @@ function calculateSide(step: SnapshotRoutingStep | undefined, rates: SnapshotWor
     ? rates.filter(candidate => normalizeKey(candidate.workCenterCode) === normalizeKey(step.workCenterId))
     : []
   const rate = matchingRates.length === 1 ? matchingRates[0] : undefined
-  const laborCost = rate?.laborRate === null || rate?.laborRate === undefined
+  const laborCost = rate?.laborRate === null || rate?.laborRate === undefined || !Number.isFinite(rate.laborRate)
     ? null
-    : runtime * rate.laborRate
-  const burdenCost = rate?.burdenRate === null || rate?.burdenRate === undefined
+    : safeMultiply(runtime, rate.laborRate)
+  const burdenCost = rate?.burdenRate === null || rate?.burdenRate === undefined || !Number.isFinite(rate.burdenRate)
     ? null
-    : runtime * rate.burdenRate
-  const total = laborCost === null || burdenCost === null ? null : laborCost + burdenCost
+    : safeMultiply(runtime, rate.burdenRate)
+  const total = laborCost === null || burdenCost === null ? null : safeAdd(laborCost, burdenCost)
 
   return { runtime, laborCost, burdenCost, total }
 }
@@ -77,6 +82,6 @@ export function calculateSnapshotRoutingDetail(
     currentBurdenCost: current.burdenCost,
     referenceTotal: reference.total,
     currentTotal: current.total,
-    totalGap: reference.total === null || current.total === null ? null : current.total - reference.total
+    totalGap: reference.total === null || current.total === null ? null : safeAdd(current.total, -reference.total)
   }
 }

@@ -2,17 +2,35 @@
  * Poka-Yoke Guards and Safe Mathematical Operations.
  */
 
-export function safeDivide(numerator: number, denominator: number, fallback = 0): number {
-  if (isNaN(numerator) || isNaN(denominator) || Math.abs(denominator) < 1e-9) {
-    return fallback
-  }
+export function safeDivide(numerator: number, denominator: number): number | null {
+  if (!Number.isFinite(numerator) || !Number.isFinite(denominator) || denominator === 0) return null
   const result = numerator / denominator
-  return isFinite(result) ? result : fallback
+  return Number.isFinite(result) ? result : null
 }
 
-export function parsePercentage(value: string | number): number {
+export function safeMultiply(...values: number[]): number | null {
+  let result = 1
+  for (const value of values) {
+    if (!Number.isFinite(value)) return null
+    result *= value
+    if (!Number.isFinite(result)) return null
+  }
+  return result
+}
+
+export function safeAdd(...values: number[]): number | null {
+  let result = 0
+  for (const value of values) {
+    if (!Number.isFinite(value)) return null
+    result += value
+    if (!Number.isFinite(result)) return null
+  }
+  return result
+}
+
+export function parsePercentage(value: string | number): number | null {
   const num = typeof value === 'string' ? parseFloat(value) : value
-  if (isNaN(num) || num <= 0) return 0
+  if (!Number.isFinite(num)) return null
   return num > 1 ? num / 100 : num
 }
 

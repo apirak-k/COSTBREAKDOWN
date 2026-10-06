@@ -1,11 +1,27 @@
 import { BOMItem, RoutingStep, WorkCenterRate, CostElementBreakdown } from '../types'
-import { safeDivide } from '../utils/guards'
+import { safeAdd, safeDivide, safeMultiply } from '../utils/guards'
 import { createWorkCenterRateMap, resolveWorkCenterRate } from './work-center-rate'
 
-/**
- * Calculates high-level cost breakdown and Level 3 atomic variances.
- * 100% mathematical parity with verified Excel v2 model.
- */
+function addNullable(total: number | null, value: number | null): number | null {
+  return total === null || value === null ? null : safeAdd(total, value)
+}
+
+function difference(after: number | null, before: number | null): number | null {
+  return after === null || before === null ? null : safeAdd(after, -before)
+}
+
+function sumComponents(...values: Array<number | null>): number | null {
+  if (values.some(value => value === null)) return null
+  return safeAdd(...values as number[])
+}
+
+function routingRuntime(manning: number, capacity: number, yieldValue: number): number | null {
+  if (![manning, capacity, yieldValue].every(Number.isFinite) || capacity <= 0 || yieldValue <= 0) return null
+  const denominator = safeMultiply(capacity, yieldValue)
+  return denominator === null ? null : safeDivide(manning, denominator)
+}
+
+/** Calculates the legacy single-session view without replacing unavailable inputs with zero. */
 export function calculateCostBreakdown(
   bom: BOMItem[],
   routing: RoutingStep[],
@@ -14,55 +30,65 @@ export function calculateCostBreakdown(
   const rateMap = createWorkCenterRateMap(rates)
   const missingWorkCenters = new Set<string>()
 
-  // 1. Direct Material Breakdown
-  let materialBase = 0
-  let materialActive = 0
-  let mpv = 0
-  let mlv = 0
+  let materialBase: number | null = bom.length ? 0 : null
+  let materialActive: number | null = bom.length ? 0 : null
+  let mpv: number | null = bom.length ? 0 : null
+  let mlv: number | null = bom.length ? 0 : null
 
-  bom.forEach(b => {
-    const bCost = b.consumption * b.basePrice * (1 + b.baseLoss)
-    const aCost = b.consumption * b.activePrice * (1 + b.activeLoss)
-    materialBase += bCost
-    materialActive += aCost
-
-    // Level 3 Atomic Variances
-    mpv += (b.activePrice - b.basePrice) * b.consumption * (1 + b.activeLoss)
-    mlv += (b.activeLoss - b.baseLoss) * b.consumption * b.basePrice
+  bom.forEach(item => {
+    const valid = [item.consumption, item.basePrice, item.activePrice, item.baseLoss, item.activeLoss]
+      .every(Number.isFinite)
+    if (!valid) {
+      materialBase = materialActive = mpv = mlv = null
+      return
+    }
+    const baseLossFactor = safeAdd(1, item.baseLoss)
+    const activeLossFactor = safeAdd(1, item.activeLoss)
+    const baseCost = baseLossFactor === null ? null : safeMultiply(item.consumption, item.basePrice, baseLossFactor)
+    const activeCost = activeLossFactor === null ? null : safeMultiply(item.consumption, item.activePrice, activeLossFactor)
+    const priceDelta = safeAdd(item.activePrice, -item.basePrice)
+    const lossDelta = safeAdd(item.activeLoss, -item.baseLoss)
+    const priceVariance = priceDelta === null || activeLossFactor === null
+      ? null
+      : safeMultiply(priceDelta, item.consumption, activeLossFactor)
+    const lossVariance = lossDelta === null ? null : safeMultiply(lossDelta, item.consumption, item.basePrice)
+    materialBase = addNullable(materialBase, baseCost)
+    materialActive = addNullable(materialActive, activeCost)
+    mpv = addNullable(mpv, priceVariance)
+    mlv = addNullable(mlv, lossVariance)
   })
 
-  // 2. Conversion Process Breakdown
-  let laborBase = 0
-  let laborActive = 0
-  let burdenBase = 0
-  let burdenActive = 0
+  let laborBase: number | null = routing.length ? 0 : null
+  let laborActive: number | null = routing.length ? 0 : null
+  let burdenBase: number | null = routing.length ? 0 : null
+  let burdenActive: number | null = routing.length ? 0 : null
 
-  routing.forEach(rt => {
-    const resolvedRate = resolveWorkCenterRate(rateMap, rt.wc)
+  routing.forEach(step => {
+    const resolvedRate = resolveWorkCenterRate(rateMap, step.wc)
     if (resolvedRate.missing) missingWorkCenters.add(resolvedRate.workCenterKey)
-    const r = resolvedRate.rate
-    const baseRuntime = rt.baseCap > 0 && rt.baseYield > 0
-      ? safeDivide(rt.manning, rt.baseCap * rt.baseYield)
-      : 0
-    const activeRuntime = rt.activeCap > 0 && rt.activeYield > 0
-      ? safeDivide(rt.manning, rt.activeCap * rt.activeYield)
-      : 0
+    const rate = resolvedRate.rate
+    const baseRuntime = routingRuntime(step.manning, step.baseCap, step.baseYield)
+    const activeRuntime = routingRuntime(step.manning, step.activeCap, step.activeYield)
+    if (!rate
+      || !Number.isFinite(rate.labor) || !Number.isFinite(rate.burden)
+      || baseRuntime === null || activeRuntime === null) {
+      laborBase = laborActive = burdenBase = burdenActive = null
+      return
+    }
 
-    laborBase += baseRuntime * r.labor
-    laborActive += activeRuntime * r.labor
-    burdenBase += baseRuntime * r.burden
-    burdenActive += activeRuntime * r.burden
+    laborBase = addNullable(laborBase, safeMultiply(baseRuntime, rate.labor))
+    laborActive = addNullable(laborActive, safeMultiply(activeRuntime, rate.labor))
+    burdenBase = addNullable(burdenBase, safeMultiply(baseRuntime, rate.burden))
+    burdenActive = addNullable(burdenActive, safeMultiply(activeRuntime, rate.burden))
   })
 
-  const totalBase = materialBase + laborBase + burdenBase
-  const totalActive = materialActive + laborActive + burdenActive
-  const totalVariance = totalActive - totalBase
-
-  // Rate variance is 0 within standard fiscal year card
+  const totalBase = sumComponents(materialBase, laborBase, burdenBase)
+  const totalActive = sumComponents(materialActive, laborActive, burdenActive)
+  const totalVariance = difference(totalActive, totalBase)
   const lrv = 0
-  const lev = laborActive - laborBase - lrv
+  const lev = difference(difference(laborActive, laborBase), lrv)
   const brv = 0
-  const bev = burdenActive - burdenBase - brv
+  const bev = difference(difference(burdenActive, burdenBase), brv)
 
   return {
     materialBase,

@@ -16,6 +16,7 @@ import { calculateSnapshotCost } from './snapshot-cost'
 import { calculateSnapshotBOMDetail } from './snapshot-bom-detail'
 import { calculateSnapshotRoutingDetail } from './snapshot-routing-detail'
 import { excludeGeneratedSizingPlaceholders } from '../utils/sizing'
+import { safeAdd } from '../utils/guards'
 
 type SnapshotRow = {
   id: string
@@ -325,22 +326,25 @@ function sumRecordEffects(findings: ComparisonFinding[], element: keyof Comparis
     if (finding.matchStatus === 'ambiguous' || finding.matchStatus === 'unmatched') return null
     const effect = finding.costEffect?.gap[element]
     if (effect === null || effect === undefined) return null
-    total += effect
+    const nextTotal = safeAdd(total, effect)
+    if (nextTotal === null) return null
+    total = nextTotal
   }
   return total
 }
 
 function difference(left: number | null, right: number | null): number | null {
-  return left === null || right === null ? null : Math.abs(left - right)
+  if (left === null || right === null) return null
+  const value = safeAdd(left, -right)
+  return value === null ? null : Math.abs(value)
 }
 
 function gap(current: number | null, reference: number | null): number | null {
-  if (current === null || reference === null) return null
-  return current - reference
+  return current === null || reference === null ? null : safeAdd(current, -reference)
 }
 
 function addCost(total: number | null, value: number | null): number | null {
-  return total === null || value === null ? null : total + value
+  return total === null || value === null ? null : safeAdd(total, value)
 }
 
 function routingSignature(steps: SnapshotRoutingStep[]): string {
@@ -537,12 +541,13 @@ export function compareSnapshots(reference: CostSnapshot, current: CostSnapshot)
   }
 
   // Reconciliation check: material + labor + burden should equal total gap.
-  const sumOfElementGaps = (materialGap !== null && laborGap !== null && burdenGap !== null)
-    ? materialGap + laborGap + burdenGap
+  const sumOfElementGaps = materialGap !== null && laborGap !== null && burdenGap !== null
+    ? safeAdd(materialGap, laborGap, burdenGap)
     : null
-  const discrepancy = (totalGap !== null && sumOfElementGaps !== null)
-    ? Math.abs(totalGap - sumOfElementGaps)
+  const discrepancyValue = totalGap !== null && sumOfElementGaps !== null
+    ? safeAdd(totalGap, -sumOfElementGaps)
     : null
+  const discrepancy = discrepancyValue === null ? null : Math.abs(discrepancyValue)
   const reconciliationIssues: string[] = []
   const reconciliationChecks = [
     { label: 'Material row effects vs Material gap', difference: recordEffectDiscrepancies.material },

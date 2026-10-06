@@ -1,4 +1,4 @@
-import { safeDivide } from '../utils/guards'
+import { safeAdd, safeDivide, safeMultiply } from '../utils/guards'
 import { excludeGeneratedSizingPlaceholders } from '../utils/sizing'
 import { CostSnapshot, SnapshotCost, SnapshotWorkCenterRate } from '../types'
 
@@ -36,7 +36,7 @@ export function calculateSnapshotCost(snapshot: CostSnapshot): SnapshotCost {
   const bom = excludeGeneratedSizingPlaceholders(snapshot.bom)
   const routing = excludeGeneratedSizingPlaceholders(snapshot.routing)
 
-  let materialTotal = 0
+  let materialTotal: number | null = 0
   let materialKnown = bom.length > 0
   if (!materialKnown) warnings.add('Missing BOM data. No BOM rows found')
   bom.forEach(item => {
@@ -47,11 +47,20 @@ export function calculateSnapshotCost(snapshot: CostSnapshot): SnapshotCost {
       materialKnown = false
       return
     }
-    materialTotal += consumption * price * (1 + loss)
+    const lossFactor = safeAdd(1, loss)
+    const rowCost = lossFactor === null ? null : safeMultiply(consumption, price, lossFactor)
+    const nextTotal = rowCost === null || materialTotal === null ? null : safeAdd(materialTotal, rowCost)
+    if (rowCost === null || nextTotal === null) {
+      materialKnown = false
+      materialTotal = null
+      warnings.add(`Invalid or non-finite BOM ${item.id} material cost or material total`)
+      return
+    }
+    materialTotal = nextTotal
   })
 
-  let laborTotal = 0
-  let burdenTotal = 0
+  let laborTotal: number | null = 0
+  let burdenTotal: number | null = 0
   let laborKnown = routing.length > 0
   let burdenKnown = routing.length > 0
   if (routing.length === 0) warnings.add('Missing routing data. No Routing rows found')
@@ -81,26 +90,58 @@ export function calculateSnapshotCost(snapshot: CostSnapshot): SnapshotCost {
       continue
     }
 
-    const runtime = safeDivide(manning, capacity * yieldValue)
+    const denominator = safeMultiply(capacity, yieldValue)
+    const runtime = denominator === null ? null : safeDivide(manning, denominator)
+    if (runtime === null) {
+      laborKnown = false
+      burdenKnown = false
+      warnings.add(`Invalid or non-finite Routing ${step.id} factor`)
+      continue
+    }
 
     const laborRate = finiteValue(rate?.laborRate ?? null, `Work Center ${step.workCenterId ?? 'unknown'} labor rate`, warnings)
     const burdenRate = finiteValue(rate?.burdenRate ?? null, `Work Center ${step.workCenterId ?? 'unknown'} burden rate`, warnings)
 
-    if (laborRate === null) laborKnown = false
-    else if (laborKnown) laborTotal += runtime * laborRate
+    if (laborRate === null) {
+      laborKnown = false
+      laborTotal = null
+    } else if (laborKnown && laborTotal !== null) {
+      const rowCost = safeMultiply(runtime, laborRate)
+      const nextLaborTotal: number | null = rowCost === null ? null : safeAdd(laborTotal, rowCost)
+      if (nextLaborTotal === null) {
+        laborKnown = false
+        laborTotal = null
+        warnings.add(`Invalid or non-finite Routing ${step.id} labor cost or labor total`)
+      } else {
+        laborTotal = nextLaborTotal
+      }
+    }
 
-    if (burdenRate === null) burdenKnown = false
-    else if (burdenKnown) burdenTotal += runtime * burdenRate
+    if (burdenRate === null) {
+      burdenKnown = false
+      burdenTotal = null
+    } else if (burdenKnown && burdenTotal !== null) {
+      const rowCost = safeMultiply(runtime, burdenRate)
+      const nextBurdenTotal: number | null = rowCost === null ? null : safeAdd(burdenTotal, rowCost)
+      if (nextBurdenTotal === null) {
+        burdenKnown = false
+        burdenTotal = null
+        warnings.add(`Invalid or non-finite Routing ${step.id} burden cost or burden total`)
+      } else {
+        burdenTotal = nextBurdenTotal
+      }
+    }
   }
 
-  const warningList = [...warnings]
-  const hasMissing = warningList.some(warning => warning.includes('Missing'))
   const material = materialKnown ? materialTotal : null
   const labor = laborKnown ? laborTotal : null
   const burden = burdenKnown ? burdenTotal : null
-  const total = material === null || labor === null || burden === null
-    ? null
-    : material + labor + burden
+  let total: number | null = null
+  if (material !== null && labor !== null && burden !== null) {
+    total = safeAdd(material, labor, burden)
+    if (total === null) warnings.add('Invalid or non-finite Standard Cost total')
+  }
+  const unavailable = material === null || labor === null || burden === null || total === null
 
   return {
     snapshotId: snapshot.id,
@@ -108,8 +149,8 @@ export function calculateSnapshotCost(snapshot: CostSnapshot): SnapshotCost {
     labor,
     burden,
     total,
-    status: hasMissing ? 'missing' : warningList.length > 0 ? 'estimated' : 'complete',
-    warnings: warningList
+    status: unavailable ? 'missing' : warnings.size > 0 ? 'estimated' : 'complete',
+    warnings: [...warnings]
   }
 }
 

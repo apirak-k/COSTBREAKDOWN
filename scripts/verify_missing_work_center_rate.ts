@@ -21,10 +21,10 @@ const missingRateRouting: RoutingStep[] = [{
 }]
 
 const breakdown = calculateCostBreakdown([], missingRateRouting, [])
-assert.equal(breakdown.laborBase, 0, 'missing Work Center must not use an invented base labor rate')
-assert.equal(breakdown.laborActive, 0, 'missing Work Center must not use an invented active labor rate')
-assert.equal(breakdown.burdenBase, 0, 'missing Work Center must not use an invented base burden rate')
-assert.equal(breakdown.burdenActive, 0, 'missing Work Center must not use an invented active burden rate')
+assert.equal(breakdown.laborBase, null, 'missing Work Center labor must remain unavailable')
+assert.equal(breakdown.laborActive, null, 'missing Work Center labor must remain unavailable')
+assert.equal(breakdown.burdenBase, null, 'missing Work Center burden must remain unavailable')
+assert.equal(breakdown.burdenActive, null, 'missing Work Center burden must remain unavailable')
 assert.deepEqual(breakdown.missingWorkCenters, ['UNKNOWN-WC'])
 
 const configuredBreakdown = calculateCostBreakdown([], missingRateRouting, [{
@@ -41,8 +41,8 @@ assert.equal(configuredBreakdown.burdenBase, 0.2, 'known Work Center burden must
 assert.deepEqual(configuredBreakdown.missingWorkCenters, [])
 
 const detail = calculateRoutingDetailedRows(missingRateRouting, [])
-assert.equal(detail.rows[0]?.baseTotal, 0, 'routing detail must agree with the primary breakdown')
-assert.equal(detail.rows[0]?.activeTotal, 0, 'routing detail must agree with the primary breakdown')
+assert.equal(detail.rows[0]?.baseTotal, null, 'routing detail must preserve unavailable costs')
+assert.equal(detail.rows[0]?.activeTotal, null, 'routing detail must preserve unavailable costs')
 
 const drivers = calculateTopDrivers([], missingRateRouting, [])
 assert.equal(drivers.length, 0, 'missing Work Center must not create a cost driver from a fabricated rate')

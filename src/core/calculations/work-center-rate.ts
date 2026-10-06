@@ -6,29 +6,33 @@ export interface CalculationWorkCenterRate {
 }
 
 export interface WorkCenterRateResolution {
-  rate: CalculationWorkCenterRate
+  rate: CalculationWorkCenterRate | null
   missing: boolean
   workCenterKey: string
 }
 
-const ZERO_RATE: CalculationWorkCenterRate = { labor: 0, burden: 0 }
-
-export function createWorkCenterRateMap(rates: WorkCenterRate[]): Map<string, CalculationWorkCenterRate> {
-  return new Map(rates.map(rate => [rate.wc, {
-    labor: rate.laborRate,
-    burden: rate.burdenRate
-  }]))
+export function createWorkCenterRateMap(rates: WorkCenterRate[]): Map<string, CalculationWorkCenterRate | null> {
+  const map = new Map<string, CalculationWorkCenterRate | null>()
+  for (const rate of rates) {
+    if (map.has(rate.wc)) {
+      map.set(rate.wc, null)
+      continue
+    }
+    map.set(rate.wc, { labor: rate.laborRate, burden: rate.burdenRate })
+  }
+  return map
 }
 
 export function resolveWorkCenterRate(
-  rateMap: Map<string, CalculationWorkCenterRate>,
+  rateMap: Map<string, CalculationWorkCenterRate | null>,
   workCenter: string | undefined
 ): WorkCenterRateResolution {
   const rate = workCenter ? rateMap.get(workCenter) : undefined
+  const resolvedRate = rate ?? null
 
   return {
-    rate: rate ?? ZERO_RATE,
-    missing: !rate,
+    rate: resolvedRate,
+    missing: resolvedRate === null,
     workCenterKey: workCenter?.trim() || '(blank)'
   }
 }
