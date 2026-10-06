@@ -35,6 +35,7 @@
 - Before the Clone-readiness follow-up, all 47 scripts/verify*.ts and scripts/verify*.mjs verifiers passed after the final implementation and lockfile patch.
 - After the Clone readiness clarification, `npx jiti scripts/verify_master_data_clone_readiness.ts` passed all four focused cases, and `npm run build` passed. The focused check verifies the shared readiness helper; it does not exercise the React Clone actions interactively.
 - A further 10 Master Data lifecycle/import/Sizing/workbook/Clone TypeScript verifiers plus the UI-state MJS verifier passed using `node node_modules/.cache/codex-cbd-verifiers-20261006-final/run-ts.cjs` (MJS used Node directly). Running the ExcelJS-dependent Sizing/Clone verifier with `npx jiti` failed because its lazy ExcelJS import resolved without `Workbook`; the same verifier passed with the repository CJS shim, so this was a runner incompatibility, not a product failure.
+- The 80-topic crosswalk currently records 59 PASS, 12 OPEN/PARTIAL, 4 DEFERRED, 4 RECORDED, and 1 OUT OF SCOPE. PASS means evidence at the cited checkpoint; it does not mean all 59 checks were rerun in this audit or received human acceptance.
 - npm run build passed: TypeScript and Vite production build; 2,035 modules transformed. Vite still reports ExcelJS browser externalization warnings for Node fs/crypto.
 - git diff --check passed. The repository has no npm lint or generic test script.
 - npm audit was run. A non-breaking npm audit fix removed the compatible findings; 5 high and 4 moderate transitive advisories remain around Tailwind/ExcelJS. The suggested force update crosses major versions and was not applied.
@@ -42,15 +43,16 @@
 
 ## Genuine pending product decisions
 
-Two Master Data items remain open in docs/specs/MASTER_DATA.md and must not be resolved from existing implementation code:
+Three Master Data items remain open in docs/specs/MASTER_DATA.md and must not be resolved from existing implementation code:
 
 1. Whether Import preserves the target side’s configured Sizing counts, resets them, or recalculates them.
 2. Whether untouched generated blank Sizing rows contribute to general dataset readiness, cost calculation, or comparison. Clone readiness is separately settled; its reversible detection choice is P-010.
+3. Whether an intentionally blank user-created row must survive Excel export/import round-trip; no agreed marker or policy distinguishes it from a blank template row.
 
 The confirmed business concepts still lack approved formulas for COGS, GP, GP Margin, OP, OP Margin, Sales, and Volume/Quantity. Trial execution, validation, approval, and promotion also remain unspecified. The engineering-first dashboard continues to provide useful settled outputs without fabricating these values.
 
-The two remaining items are genuine product boundaries, not blockers for independent implementation. Do not infer their behavior from code or the historical September sizing proposal; escalate only when a concrete implementation depends on them.
+These are genuine product boundaries, not blockers for independent implementation. Do not infer their behavior from code or the historical September sizing proposal; escalate only when a concrete implementation depends on them.
 
 ## Next step
 
-Continue implementation from the finalized canonical specs. If Import/Sizing preservation or generated-row calculation behavior becomes necessary, bring those two narrow questions to “CBD Refactor #1”; Clone readiness no longer needs escalation. Keep browser visual acceptance separate from automated verification.
+Continue implementation from the finalized canonical specs. If Import/Sizing preservation, generated-row calculation behavior, or blank user-row round-trip becomes necessary, bring that narrow question to “CBD Refactor #1”; Clone readiness no longer needs escalation. Keep browser visual acceptance separate from automated verification.

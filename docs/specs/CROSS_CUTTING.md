@@ -67,6 +67,12 @@ Warnings inform and direct; they normally do not block navigation. Disable only 
 
 On Master Data, preserve cell-level invalid cues and show dataset notices outside tables; keep warning prose, row issue badges, and warning-count footers out of the tables. On Cost Breakdown, remove the duplicate top calculation-warning banner and keep details collapsed by default behind `Review warnings (N)`.
 
+## Shared status and analysis context
+
+`CONFIRMED DIRECTION — USER DECISION`: provide a shared status/context cue that helps users understand what is happening and where to review it. Relevant states may include Ready for comparison, Product Mismatch, Missing data, and active Selected Comparison. When a state has a useful review destination, provide a link or action to that page. Status is informational and normally does not block navigation; disable only an operation that is logically impossible.
+
+When Selected Comparison continues through Candidate and RCA/Simulation, keep the active selected scope recognizable to the user. Exact placement (such as header, footer, or another shared area), wording, and control styling remain reversible UI choices; this direction does not require a specific persistent status-bar layout.
+
 ## Business analysis: confirmed direction and scope
 
 `CONFIRMED DIRECTION — USER DECISION`: the dashboard is interactive/live with simulation, tells the result-to-cause story (`Result → Cause → Detail`), and gives executives an overview with details available on demand. A bar-chart-first approach is a design direction, not a fixed chart requirement. Keep calculation/domain logic separate from UI presentation.

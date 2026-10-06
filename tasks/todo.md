@@ -61,7 +61,7 @@ Per-topic PASS/PARTIAL/OPEN/DEFERRED/RECORDED status and the exact next actions 
 
 **Acceptance criteria:**
 - [x] Save/Reset affect only the viewed side; Reset restores that side's Last Saved state.
-- [x] Import/Clear/Clone/Sizing affect Working; Clone copies the opposite side into the viewed side without a readiness gate, and the destination inherits the source's preparation state.
+- [x] Import/Clear/Clone/Sizing affect Working; Clone copies the opposite side into the viewed side without a readiness gate. Historical note: this 2026-10-05 task originally said the destination inherited source readiness; that detail was superseded by the 2026-10-06 Clone decision and P-010, which recalculates destination readiness from copied Working content.
 - [x] Export reads Last Saved, and neither state persists after the app session ends.
 
 **Verification:** Source audit confirms independent per-side transitions and session storage. `verify_dataset_sizing_and_clone.ts` passed both modeled Clone directions, data independence, copied sizing, and populated-row preservation. `verify_master_data_clear_dataset.ts` passed for both sides and confirms Clear retains both Last Saved snapshots. In isolated browser tabs, Save was checked independently for Current and Reference, enabling that side's Reset/Export controls. Reset confirmation results, actual import/export file interactions, Clone readiness propagation, and the complete lifecycle replay remain open or partial in the crosswalk. Chrome blocked attaching the synthetic workbook because the extension lacks file-URL access; that permission was left off.
@@ -556,7 +556,7 @@ This section records the 2026-09-28 implementation audit and its evidence only. 
 - [x] Candidate source/status/gap/ranking and Work Center aggregation checked against `CANDIDATE_PRIORITIZATION_SPEC.md`.
 - [x] Human candidate selection, optional notes, A/B/C calculation, separate economics, and explicit Trial handoff checked against `RCA_SIMULATION_SPEC.md`.
 - [x] Empty-data navigation manually checked: Cost Breakdown, Candidate Selection, and RCA & Simulation remain accessible with unavailable values and explanations.
-- [x] Untouched sizing placeholders are excluded from cost, comparison, and processing candidates; unflagged user-created blank rows still report missing inputs.
+- [x] Current implementation behavior: untouched sizing placeholders are excluded from cost, comparison, and processing candidates; unflagged user-created blank rows still report missing inputs. This is implementation evidence only and does not resolve the general generated-row behavior or intentional blank-row Excel round-trip questions in `docs/specs/MASTER_DATA.md`.
 - [x] Current-branch affected verifiers, production build, and representative-data browser workflow passed; Vite retained the existing bundle-size advisory.
 - [x] No confirmed Agreement mismatch remains in the AI-side review.
 

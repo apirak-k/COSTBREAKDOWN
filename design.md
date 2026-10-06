@@ -195,6 +195,10 @@ the top of its content scroll area, as required by
 - **PROVISIONAL — AI CHOICE:** use a compact dark-slate top navigation band with
   the current page clearly marked. Keep the page navigation usable at narrow
   widths by allowing it to scroll or reflow without covering page content.
+- Keep the confirmed shared workflow status/context and active Selected
+  Comparison state recognizable where relevant. Their exact placement,
+  wording, and control styling remain reversible UI choices under
+  [`CROSS_CUTTING.md`](docs/specs/CROSS_CUTTING.md#shared-status-and-analysis-context).
 - Remove `CB`, `Product Cost Analysis`, and the bottom-left `Workspace` label
   per the confirmed Master Data visual direction. Do not replace them with a
   decorative slogan or redundant branding.
