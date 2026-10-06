@@ -7,8 +7,8 @@
 - Repository: `E:\COSTBREAKDOWN`.
 - Branch: `codex/costbreakdown-spec-source`.
 - The pre-implementation checkpoint tag `checkpoint/pre-overnight-spec-implementation-2026-10-06` points to `3b2d60d` and is present locally and on `origin`.
-- The verified implementation slice is committed as `d9d38dd` (`feat: add live cost overview and candidate drilldowns`); the follow-up documentation checkpoint is being committed next.
-- The user authorized pushing the completed work to `origin/codex/costbreakdown-spec-source` after final verification.
+- The verified implementation slice is `d9d38dd` (`feat: add live cost overview and candidate drilldowns`); the implementation and crosswalk checkpoint `31a6add` is pushed to `origin/codex/costbreakdown-spec-source`.
+- The remote branch was fetched, confirmed as an ancestor, and advanced from `3b2d60d` to `31a6add` without a force push.
 - Keep these eight local synthetic-verification files untracked and out of commits: `.make-synthetic-verification.mjs`, `.synthetic-current.xlsx`, `.synthetic-mismatch.xlsx`, `.synthetic-reference.xlsx`, `.verify-cost-calc-sample.mjs`, `.verify-duplicate-calc.mjs`, `.verify-neutral-workbook-via-vite.mjs`, and `.verify-sizing-via-vite.mjs`.
 
 ## Completed
@@ -37,4 +37,4 @@
 
 ## Next action
 
-Commit this handoff/crosswalk update, then push the completed branch to `origin/codex/costbreakdown-spec-source` and verify the remote tip. Do not merge.
+Continue from the pushed `codex/costbreakdown-spec-source` baseline. Do not merge.
