@@ -1,6 +1,6 @@
 # Development Review Fixtures
 
-The development build provides two synthetic dataset pairs from the Master Data page. They load into a dedicated review session; the previously active working session is preserved and can be restored with **Return to working session**. Loading either fixture again resets that dedicated session.
+The development build provides two synthetic dataset pairs from the Master Data page. They load into a dedicated review session; the previously active working session, its Undo/Redo history, and its Selected Comparison are preserved for the current app session and can be restored with **Return to working session**. Loading either fixture again resets the dedicated mock's Working/Last Saved data and downstream review state.
 
 These fixtures are for deterministic local review. They contain no operational customer data and do not define behavior for requirements that are still pending.
 
