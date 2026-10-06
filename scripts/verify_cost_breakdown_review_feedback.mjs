@@ -212,6 +212,9 @@ try {
   }
   const dashboardMarkup = renderToStaticMarkup(React.createElement(DashboardPage, dashboardProps))
   const dashboardText = visibleText(dashboardMarkup)
+  assert.ok(dashboardText.includes('Standard Cost by component'))
+  assert.ok(dashboardText.includes('Reference vs Current'))
+  assert.match(dashboardMarkup, /role="img" aria-label="Reference and Current stacked Standard Cost bars for Material, Labor, and Burden, with Selling Price shown as a line when available\."/)
   assert.ok(dashboardText.includes('Standard Cost / pc'))
   assert.ok(dashboardText.includes('+1.0000 THB/pc'))
   assert.ok(dashboardText.includes('Processing · Labor + Burden'))
@@ -219,6 +222,7 @@ try {
   assert.ok(dashboardText.includes('Process A'))
   assert.ok(dashboardText.includes('25.0000 THB'))
   assert.ok(dashboardText.includes('8.00%'))
+  assert.doesNotMatch(dashboardMarkup, /MatVAR|LBVAR|BDVAR/)
   assert.ok(dashboardText.includes('Business metrics are not calculated — formula pending'))
   assert.ok(dashboardText.includes('16.2000'))
   assert.ok(dashboardText.includes('-2.2000'))
@@ -233,6 +237,15 @@ try {
   }))
   assert.match(dashboardWithoutCandidate, /Select a candidate in RCA &amp; Simulation/)
   assert.doesNotMatch(dashboardWithoutCandidate, /Scenario Standard Cost \/ pc/)
+
+  const dashboardWithMissingCost = renderToStaticMarkup(React.createElement(DashboardPage, {
+    ...dashboardProps,
+    comparison: {
+      ...dashboardComparison,
+      currentCost: { ...dashboardComparison.currentCost, labor: null, total: null, status: 'missing' }
+    }
+  }))
+  assert.ok(visibleText(dashboardWithMissingCost).includes('Unavailable'))
 
   assert.deepEqual(formatComparisonFieldDiffs({
     sequence: { reference: 10, current: 20 },
