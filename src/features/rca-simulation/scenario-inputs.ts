@@ -45,12 +45,12 @@ function getBOMInputs(
   const item = current.bom.find(row => row.id === candidate.sourceId)
   if (!item || current.bom.filter(row => row.id === candidate.sourceId).length !== 1) return []
 
-  const materialName = item.itemCode || item.description || item.id
+  const materialName = item.description || item.itemCode || item.id
   const unit = item.unit.trim() || 'unit'
   return [
     inputDefinition('bom', item.id, 'price', `${materialName} — Price`, `THB/${unit}`, item.price, 1),
     inputDefinition('bom', item.id, 'loss', `${materialName} — Loss`, '%', item.loss, 100),
-    inputDefinition('bom', item.id, 'consumption', `${materialName} — Consumption`, `${unit}/pc`, item.consumption, 1)
+    inputDefinition('bom', item.id, 'consumption', `${materialName} — Usage`, `${unit}/pc`, item.consumption, 1)
   ]
 }
 

@@ -90,6 +90,26 @@ assert(wc1, 'WC-1 candidate exists when routing structure changes')
 assert.equal(wc1.status, 'CHANGED', 'A routing structure change remains CHANGED even when its Work Center Gap is zero')
 assert.equal(wc1.costGap, 0, 'The split routing fixture has zero net Work Center Gap')
 
+const rankedWc1 = buildPrioritizationCandidates(comparison, refSnapshot, curSnapshot)
+  .find(candidate => candidate.candidateKey === 'wc:wc-1')
+assert(rankedWc1?.processBreakdown, 'A Work Center candidate exposes its Routing Process drill-down')
+assert.deepEqual(
+  rankedWc1.processBreakdown.reference.map(process => process.processName),
+  ['Process A'],
+  'Reference Process rows are shown under their Work Center'
+)
+assert.deepEqual(
+  rankedWc1.processBreakdown.current.map(process => process.processName),
+  ['Process A', 'Process A2'],
+  'Current Process rows remain visible without requiring one-to-one Routing matches'
+)
+assert.equal(rankedWc1.processBreakdown.reference[0]?.totalCost, 1.5)
+assert.equal(
+  rankedWc1.processBreakdown.current.reduce((sum, process) => sum + (process.totalCost ?? 0), 0),
+  1.5,
+  'Process detail uses each side Work Center rate and reconciles to the Work Center total'
+)
+
 // 3. Task 13: Consolidated candidates, default controllable=true, sorted descending by Gap
 console.log('3. Checking Consolidated candidates, default controllable, and ranking...')
 const allCandidates = buildPrioritizationCandidates(comparison, refSnapshot, curSnapshot)
@@ -144,6 +164,8 @@ assert.deepEqual(
   ['ADDED', 'REMOVED'],
   'Renamed BOM identities remain visible as Removed and Added candidate findings'
 )
+assert(descriptiveCandidates.every(candidate => !candidate.candidateName.includes('M-DESC')),
+  'Candidate identity uses the approved BOM Name rather than legacy Item Code')
 assert.equal(descriptiveComparison.elementGaps.material, 0, 'Equal-cost removed and added names reconcile to a zero material Gap')
 
 // 4. Missing values on present records stay unavailable in Candidate findings.
@@ -162,7 +184,7 @@ const missingMaterialCandidate = buildMaterialCandidates(
   compareSnapshots(missingMaterialReference, missingMaterialCurrent),
   missingMaterialReference,
   missingMaterialCurrent
-).find(candidate => candidate.candidateName.includes('MAT-MISSING'))
+).find(candidate => candidate.candidateName.includes('Missing loss'))
 assert(missingMaterialCandidate, 'Changed material with incomplete cost inputs remains visible')
 assert.equal(missingMaterialCandidate.currentCost, null, 'Missing material input keeps Current cost unavailable')
 assert.equal(missingMaterialCandidate.costGap, null, 'Missing material input keeps Gap unavailable')
@@ -186,17 +208,15 @@ const incompleteFactorCandidates = buildMaterialCandidates(
   incompleteFactorsReference,
   incompleteFactorsCurrent
 )
-assert.equal(incompleteFactorCandidates.length, 2, 'Each changed material factor remains a candidate when attribution inputs are missing')
-const incompletePriceCandidate = incompleteFactorCandidates.find(candidate => candidate.factor === 'Price')
-const incompleteUsageCandidate = incompleteFactorCandidates.find(candidate => candidate.factor === 'Usage')
-assert(incompletePriceCandidate, 'Price change remains a candidate when Loss is unavailable')
-assert.equal(incompletePriceCandidate.referenceParam, 10)
-assert.equal(incompletePriceCandidate.currentParam, 12)
-assert.equal(incompletePriceCandidate.costGap, null, 'Price attribution gap stays unavailable when Loss is missing')
-assert(incompleteUsageCandidate, 'Usage change remains a candidate when Loss is unavailable')
-assert.equal(incompleteUsageCandidate.referenceParam, 1)
-assert.equal(incompleteUsageCandidate.currentParam, 2)
-assert.equal(incompleteUsageCandidate.costGap, null, 'Usage attribution gap stays unavailable when Loss is missing')
+assert.equal(incompleteFactorCandidates.length, 1, 'Multiple changed inputs stay under one material-level candidate')
+const incompleteFactorCandidate = incompleteFactorCandidates[0]
+assert.equal(incompleteFactorCandidate.currentCost, null, 'Missing material input keeps Current cost unavailable')
+assert.equal(incompleteFactorCandidate.costGap, null, 'Missing material input keeps Gap unavailable')
+assert.deepEqual(
+  incompleteFactorCandidate.changeDetails?.map(detail => detail.field).sort(),
+  ['Price', 'Usage'],
+  'All changed factor inputs remain visible without assigning them individual THB gaps'
+)
 
 const multiFactorReference: CostSnapshot = {
   ...refSnapshot,
@@ -214,28 +234,41 @@ const multiFactorCurrent: CostSnapshot = {
 }
 const multiFactorComparison = compareSnapshots(multiFactorReference, multiFactorCurrent)
 const multiFactorCandidates = buildMaterialCandidates(multiFactorComparison, multiFactorReference, multiFactorCurrent)
-assert.equal(multiFactorCandidates.length, 3, 'Price, Loss, and Usage changes remain separate factor findings')
-const multiPriceCandidate = multiFactorCandidates.find(candidate => candidate.factor === 'Price')
-const multiLossCandidate = multiFactorCandidates.find(candidate => candidate.factor === 'Loss %')
-const multiUsageCandidate = multiFactorCandidates.find(candidate => candidate.factor === 'Usage')
-assert(multiPriceCandidate && multiLossCandidate && multiUsageCandidate, 'Each changed factor has a candidate')
-assert.equal(multiPriceCandidate.referenceCost, 24)
-assert(multiPriceCandidate.currentCost !== null)
-assert.ok(Math.abs(multiPriceCandidate.currentCost - 28.8) < 1e-10)
-assert.equal(multiLossCandidate.referenceCost, 22)
-assert.equal(multiLossCandidate.currentCost, 24)
-assert.equal(multiUsageCandidate.referenceCost, 11)
-assert.equal(multiUsageCandidate.currentCost, 22)
-for (const candidate of multiFactorCandidates) {
-  assert(candidate.referenceCost !== null && candidate.currentCost !== null && candidate.costGap !== null)
-  assert.ok(Math.abs(candidate.currentCost - candidate.referenceCost - candidate.costGap) < 1e-10,
-    `${candidate.factor} Gap must equal Current cost minus Reference cost`)
-}
+assert.equal(multiFactorCandidates.length, 1, 'A material remains one monetary/ranking candidate when several fields change')
+const multiFactorCandidate = multiFactorCandidates[0]
+assert.equal(multiFactorCandidate.referenceCost, 11)
+assert.ok(Math.abs((multiFactorCandidate.currentCost ?? 0) - 28.8) < 1e-10)
+assert.ok(Math.abs((multiFactorCandidate.costGap ?? 0) - 17.8) < 1e-10)
+assert.deepEqual(
+  multiFactorCandidate.changeDetails?.map(detail => detail.field).sort(),
+  ['Loss', 'Price', 'Usage'],
+  'Price, Loss, and Usage changes remain individually visible as input details'
+)
 const multiFactorMaterialGap = multiFactorComparison.bomFindings[0]?.costEffect?.gap.material
-const summedFactorGap = multiFactorCandidates.reduce((sum, candidate) => sum + (candidate.costGap ?? 0), 0)
 assert(multiFactorMaterialGap !== null && multiFactorMaterialGap !== undefined)
-assert.ok(Math.abs(summedFactorGap - multiFactorMaterialGap) < 1e-10,
-  'Separate factor Gap values must sum to the Comparison material gap')
+assert.ok(Math.abs((multiFactorCandidate.costGap ?? 0) - multiFactorMaterialGap) < 1e-10,
+  'The material candidate Gap uses the comparison layer result without per-factor THB attribution')
+
+const sameNameReference: CostSnapshot = {
+  ...refSnapshot,
+  rates: [],
+  routing: [],
+  bom: [{ id: 'name-key-ref', itemCode: 'LEGACY-REF', description: 'Approved BOM Name', consumption: 1, unit: 'KG', price: 10, loss: 0, confidence: {} }]
+}
+const sameNameCurrent: CostSnapshot = {
+  ...curSnapshot,
+  rates: [],
+  routing: [],
+  bom: [{ id: 'name-key-current', itemCode: 'LEGACY-CURRENT', description: 'Approved BOM Name', consumption: 1, unit: 'KG', price: 12, loss: 0, confidence: {} }]
+}
+const sameNameCandidates = buildMaterialCandidates(
+  compareSnapshots(sameNameReference, sameNameCurrent),
+  sameNameReference,
+  sameNameCurrent
+)
+assert.equal(sameNameCandidates.length, 1, 'Equal BOM Names produce one changed material candidate despite legacy Item Code changes')
+assert.equal(sameNameCandidates[0]?.candidateKey, 'mat:approved bom name')
+assert.equal(sameNameCandidates[0]?.candidateName, 'Approved BOM Name')
 
 const missingRouteReference: CostSnapshot = {
   ...refSnapshot,

@@ -29,7 +29,7 @@ const vite = await createServer({
     }
   }]
 })
-const visibleText = markup => markup.replace(/<[^>]*>/g, '')
+const visibleText = markup => markup.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim()
 
 try {
   const [
@@ -44,6 +44,8 @@ try {
     { ProblemStatementCard },
     { CandidateSelectionPage },
     { CandidatesTable },
+    { CandidateRow },
+    { DashboardPage },
     { parseSnapshotWorkbookData }
   ] = await Promise.all([
     vite.ssrLoadModule('/src/features/cost-breakdown/components/RoutingDetailedTable.tsx'),
@@ -57,6 +59,8 @@ try {
     vite.ssrLoadModule('/src/features/rca-simulation/components/ProblemStatementCard.tsx'),
     vite.ssrLoadModule('/src/features/candidate-selection/CandidateSelectionPage.tsx'),
     vite.ssrLoadModule('/src/features/candidate-selection/components/CandidatesTable.tsx'),
+    vite.ssrLoadModule('/src/features/candidate-selection/components/CandidateRow.tsx'),
+    vite.ssrLoadModule('/src/features/dashboard/DashboardPage.tsx'),
     vite.ssrLoadModule('/src/services/excel/snapshot-parser.ts')
   ])
 
@@ -82,13 +86,26 @@ try {
   assert.equal(roundTripResult.success, true)
   assert.equal(roundTripResult.snapshot.rates[0].workCenterCode, 'WC-1', 'approved Work Center identity must stay intact when imported')
 
-  const lossMarkup = renderToStaticMarkup(React.createElement(ProblemStatementCard, {
+  const costContextMarkup = renderToStaticMarkup(React.createElement(ProblemStatementCard, {
+    candidate: comparisonGapCandidate
+  }))
+  assert.match(costContextMarkup, /Reference cost \(THB\/pc\)<\/dt><dd[^>]*>10<\/dd>/)
+  assert.match(costContextMarkup, /Current cost \(THB\/pc\)<\/dt><dd[^>]*>22<\/dd>/)
+
+  const changedInputsMarkup = renderToStaticMarkup(React.createElement(ProblemStatementCard, {
     candidate: {
-      ...comparisonGapCandidate, paramLabel: 'Loss (%)', referenceParam: 0.1, currentParam: 0.2
+      ...comparisonGapCandidate,
+      changeDetails: [
+        { field: 'Price', reference: 2, current: 3 },
+        { field: 'Loss', reference: 0.1, current: 0.2 }
+      ]
     }
   }))
-  assert.match(lossMarkup, /Reference Loss \(%\)<\/dt><dd[^>]*>10<\/dd>/)
-  assert.match(lossMarkup, /Current Loss \(%\)<\/dt><dd[^>]*>20<\/dd>/)
+  const changedInputsText = visibleText(changedInputsMarkup)
+  assert.ok(changedInputsText.includes('Changed inputs'))
+  assert.ok(changedInputsText.includes('Price 2 → to 3'))
+  assert.ok(changedInputsText.includes('Loss 10% → to 20%'))
+  assert.doesNotMatch(changedInputsMarkup, /Price.*THB.*allocation/i)
 
   const candidateSummaryMarkup = renderToStaticMarkup(React.createElement(CandidateSelectionPage))
   const comparisonSummary = candidateSummaryMarkup.match(/<dt[^>]*>(?:Full|Selected) comparison gap<\/dt><dd[^>]*>([\s\S]*?)<\/dd>/i)?.[1]
@@ -98,6 +115,124 @@ try {
   }))
   assert.ok(candidateSubtotalMarkup.includes('Visible candidate gap'), 'candidate subtotal remains separately labeled in its table')
   assert.ok(candidateSubtotalMarkup.includes('Subtotal · selected status rows'))
+
+  const processCandidateMarkup = renderToStaticMarkup(React.createElement(CandidateRow, {
+    candidate: {
+      ...comparisonGapCandidate,
+      candidateName: 'Work Center WC-1',
+      category: 'Processing Cost',
+      sourceType: 'work-center',
+      processBreakdown: {
+        reference: [{ id: 'ref-a', processName: 'Process A', manning: 1, capacity: 10, yield: 1, laborCost: 1, burdenCost: 0.5, totalCost: 1.5 }],
+        current: [
+          { id: 'cur-a', processName: 'Process A', manning: 1, capacity: 10, yield: 1, laborCost: 1, burdenCost: 0.5, totalCost: 1.5 },
+          { id: 'cur-a2', processName: 'Process A2', manning: 1, capacity: 20, yield: 1, laborCost: 0.5, burdenCost: 0.25, totalCost: 0.75 }
+        ]
+      }
+    },
+    onToggleControllable() {}
+  }))
+  assert.match(processCandidateMarkup, /Routing Process details \(1 Reference · 2 Current\)/)
+  assert.match(processCandidateMarkup, /Process A2/)
+
+  const factorCandidateMarkup = renderToStaticMarkup(React.createElement(CandidateRow, {
+    candidate: {
+      ...comparisonGapCandidate,
+      candidateName: 'Resin',
+      factor: 'Multiple input changes',
+      changeDetails: [
+        { field: 'Price', reference: 2, current: 3 },
+        { field: 'Loss', reference: 0.1, current: 0.2 }
+      ]
+    },
+    onToggleControllable() {}
+  }))
+  const factorCandidateText = visibleText(factorCandidateMarkup)
+  assert.ok(factorCandidateText.includes('Price: 2.0000 → to 3.0000'))
+  assert.ok(factorCandidateText.includes('Loss: 10.0% → to 20.0%'))
+
+  const makeDashboardSnapshot = (role, price) => ({
+    id: `dashboard-${role}`,
+    comparisonRole: role,
+    status: 'active',
+    sourceRef: `${role}.xlsx`,
+    effectiveDate: '',
+    product: {
+      productName: 'Dashboard review fixture', productDescription: 'Dashboard review fixture',
+      productCode: 'DASH-01', uom: 'PC', customer: '', effectiveDate: '',
+      sellingPrice: 25, sgaPercent: 8
+    },
+    bom: [{ id: role === 'current' ? 'bom-current' : 'bom-reference', itemCode: 'legacy-item-code', description: 'Resin', consumption: 1, unit: 'KG', price, loss: 0.1, confidence: {} }],
+    routing: [{ id: role === 'current' ? 'route-current' : 'route-reference', processName: 'Process A', workCenterId: 'WC-1', manning: 1, capacity: 1, yield: 1, confidence: {} }],
+    rates: [{ id: role === 'current' ? 'rate-current' : 'rate-reference', workCenterCode: 'WC-1', description: 'Cutting', laborRate: 2, burdenRate: 1, effectiveDate: '', confidence: {} }]
+  })
+  const dashboardReference = makeDashboardSnapshot('reference', 9.09090909090909)
+  const dashboardCurrent = makeDashboardSnapshot('current', 10)
+  const dashboardCandidate = {
+    candidateKey: 'mat:resin', candidateName: 'Resin', category: 'Direct Material', factor: 'Price',
+    status: 'CHANGED', referenceCost: 10, currentCost: 11, costGap: 1, controllable: true,
+    rank: 1, sourceType: 'bom', sourceId: 'bom-current',
+    changeDetails: [{ field: 'Price', reference: 9.09090909090909, current: 10 }]
+  }
+  const dashboardProcessingCandidate = {
+    candidateKey: 'wc:wc-1', candidateName: 'Work Center WC-1', category: 'Processing Cost',
+    factor: 'Work Center Aggregation', status: 'CHANGED', referenceCost: 3, currentCost: 3,
+    costGap: 0, controllable: true, rank: 2, sourceType: 'work-center', sourceId: 'rate-current',
+    processBreakdown: {
+      reference: [{ id: 'route-reference:0', processName: 'Process A', manning: 1, capacity: 1, yield: 1, laborCost: 2, burdenCost: 1, totalCost: 3 }],
+      current: [{ id: 'route-current:0', processName: 'Process A', manning: 1, capacity: 1, yield: 1, laborCost: 2, burdenCost: 1, totalCost: 3 }]
+    }
+  }
+  const dashboardComparison = {
+    id: 'dashboard-comparison', referenceSnapshotId: dashboardReference.id, currentSnapshotId: dashboardCurrent.id,
+    referenceCost: { snapshotId: dashboardReference.id, material: 10, labor: 2, burden: 1, total: 13, status: 'complete', warnings: [] },
+    currentCost: { snapshotId: dashboardCurrent.id, material: 11, labor: 2, burden: 1, total: 14, status: 'complete', warnings: [] },
+    totalGap: 1, elementGaps: { material: 1, labor: 0, burden: 0 },
+    bomFindings: [], routingFindings: [], workCenterFindings: [], processingFindings: [], productFieldDiffs: {}, warnings: []
+  }
+  const dashboardDrafts = ['A', 'B', 'C'].map(letter => ({
+    letter, label: letter === 'A' ? 'Higher price trial' : '',
+    inputValues: letter === 'A'
+      ? { '["bom","bom-current","price"]': '12' }
+      : letter === 'B'
+        ? { '["bom","bom-current","price"]': '8' }
+        : {},
+    economicsInputs: { fixedInvestment: '', variableAddedCostPerPiece: '', evaluationVolume: '' }
+  }))
+  const dashboardState = {
+    sourceDataRevision: 0, selectedCandidateKey: 'mat:resin', trialHandoffLetter: null,
+    scenarioDraftsByCandidate: { 'mat:resin': dashboardDrafts }
+  }
+  const dashboardProps = {
+    analysisSnapshotPair: { reference: dashboardReference, current: dashboardCurrent },
+    comparison: dashboardComparison,
+    candidates: [dashboardCandidate, dashboardProcessingCandidate],
+    selectedComparisonSelection: null, isSelectedComparisonActive: false,
+    clearSelectedComparison() {}, simulationState: dashboardState, onOpenRca() {}
+  }
+  const dashboardMarkup = renderToStaticMarkup(React.createElement(DashboardPage, dashboardProps))
+  const dashboardText = visibleText(dashboardMarkup)
+  assert.ok(dashboardText.includes('Standard Cost / pc'))
+  assert.ok(dashboardText.includes('+1.0000 THB/pc'))
+  assert.ok(dashboardText.includes('Processing · Labor + Burden'))
+  assert.ok(dashboardText.includes('Price: 9.0909 → 10'))
+  assert.ok(dashboardText.includes('Process A'))
+  assert.ok(dashboardText.includes('25.0000 THB'))
+  assert.ok(dashboardText.includes('8.00%'))
+  assert.ok(dashboardText.includes('Business metrics are not calculated — formula pending'))
+  assert.ok(dashboardText.includes('16.2000'))
+  assert.ok(dashboardText.includes('-2.2000'))
+  assert.ok(dashboardText.includes('11.8000'))
+  assert.ok(dashboardText.includes('+2.2000'))
+  assert.match(dashboardMarkup, /Gross Saving · THB\/pc<\/p><p class="mt-1 font-mono text-base font-bold tabular-nums text-emerald-700">\+2\.2000/)
+  assert.doesNotMatch(dashboardMarkup, /<dt[^>]*>COGS|<dt[^>]*>GP Margin|<dt[^>]*>OP Margin/)
+
+  const dashboardWithoutCandidate = renderToStaticMarkup(React.createElement(DashboardPage, {
+    ...dashboardProps,
+    simulationState: { ...dashboardState, selectedCandidateKey: null }
+  }))
+  assert.match(dashboardWithoutCandidate, /Select a candidate in RCA &amp; Simulation/)
+  assert.doesNotMatch(dashboardWithoutCandidate, /Scenario Standard Cost \/ pc/)
 
   assert.deepEqual(formatComparisonFieldDiffs({
     sequence: { reference: 10, current: 20 },
@@ -173,10 +308,10 @@ try {
   }))
   const bomText = visibleText(bomMarkup)
   const bomBody = bomMarkup.match(/<tbody[^>]*>([\s\S]*?)<\/tbody>/)?.[1] ?? ''
-  assert.ok(bomText.includes('Description: Old description → —'))
+  assert.ok(bomText.includes('Name: Old description → —'))
   assert.ok(bomText.includes('Unit: EA → —'))
-  assert.match(bomBody, /title="—">—<\/td>/)
-  assert.match(bomBody, /class="p-2\.5 font-sans text-slate-600 whitespace-nowrap">—<\/td>/)
+  assert.match(bomBody, /title="—"><div class="space-y-1"><div>—<\/div>/)
+  assert.match(bomBody, /class="p-2\.5 font-sans font-medium text-slate-800 whitespace-nowrap">—<\/td>/)
 
   const referenceRate = {
     id: 'rate-ref', workCenterCode: 'WC-01', description: 'Old work center',

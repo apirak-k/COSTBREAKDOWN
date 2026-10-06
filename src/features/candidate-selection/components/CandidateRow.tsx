@@ -1,5 +1,5 @@
 import React from 'react'
-import { PrioritizationCandidate, formatNumber, formatVariance } from '../../../core'
+import { PrioritizationCandidate, formatNumber, formatPercent, formatVariance } from '../../../core'
 
 interface CandidateRowProps {
   candidate: PrioritizationCandidate
@@ -12,16 +12,23 @@ const STATUS_STYLES: Record<PrioritizationCandidate['status'], { text: string; m
   REMOVED: { text: 'text-rose-800', marker: 'bg-rose-700' }
 }
 
-function displayChangeValue(value: unknown): string {
+function displayChangeValue(field: string, value: unknown): string {
   if (value === undefined) return 'Not set'
-  if (value === null) return 'null'
+  if (value === null) return '—'
   if (typeof value === 'string') return value
-  if (typeof value === 'number' || typeof value === 'boolean') return String(value)
+  if (typeof value === 'number') {
+    return field.trim().toLowerCase() === 'loss' ? formatPercent(value, 1) : formatNumber(value, 4)
+  }
+  if (typeof value === 'boolean') return String(value)
   try {
     return JSON.stringify(value) ?? String(value)
   } catch {
     return String(value)
   }
+}
+
+function formatNullable(value: number | null, formatter: (value: number) => string): string {
+  return value === null ? '—' : formatter(value)
 }
 
 function hasRedundantFactor(candidate: PrioritizationCandidate): boolean {
@@ -57,12 +64,52 @@ export const CandidateRow: React.FC<CandidateRowProps> = ({
                 <span key={detail.field}>
                   {index > 0 && <span aria-hidden="true" className="mx-1.5 text-slate-400">·</span>}
                   <span className="font-medium">{detail.field}:</span>{' '}
-                  <span className="font-mono tabular-nums">{displayChangeValue(detail.reference)}</span>{' '}
+                  <span className="font-mono tabular-nums">{displayChangeValue(detail.field, detail.reference)}</span>{' '}
                   <span aria-hidden="true" className="text-slate-400">→</span><span className="sr-only">to</span>{' '}
-                  <span className="font-mono tabular-nums">{displayChangeValue(detail.current)}</span>
+                  <span className="font-mono tabular-nums">{displayChangeValue(detail.field, detail.current)}</span>
                 </span>
               ))}
             </p>
+          )}
+          {candidate.processBreakdown && (
+            <details className="mt-2 border-t border-slate-200 pt-1.5">
+              <summary className="min-h-7 cursor-pointer py-1 font-mono text-[10px] font-semibold text-slate-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700">
+                Routing Process details ({candidate.processBreakdown.reference.length} Reference · {candidate.processBreakdown.current.length} Current)
+              </summary>
+              <div className="mt-1 space-y-2 border-l-2 border-slate-300 pl-2">
+                {([
+                  { key: 'reference', label: 'Reference', rows: candidate.processBreakdown.reference },
+                  { key: 'current', label: 'Current', rows: candidate.processBreakdown.current }
+                ] as const).map(({ key, label, rows }) => (
+                  <section key={key} aria-label={`${label} Routing Processes`}>
+                    <h3 className="font-mono text-[9px] font-bold uppercase tracking-wide text-slate-600">
+                      {label} · {rows.length} {rows.length === 1 ? 'process' : 'processes'}
+                    </h3>
+                    {rows.length === 0 ? (
+                      <p className="mt-1 text-[10px] text-slate-500">No Routing Process at this Work Center.</p>
+                    ) : (
+                      <ul className="mt-1 space-y-1.5">
+                        {rows.map(process => (
+                          <li key={process.id} className="border-l border-slate-300 pl-2">
+                            <p className="break-words text-[10px] font-semibold text-slate-800">{process.processName}</p>
+                            <p className="font-mono text-[9px] leading-4 text-slate-600">
+                              Manning {formatNullable(process.manning, value => formatNumber(value, 2))}
+                              {' · '}Capacity {formatNullable(process.capacity, value => formatNumber(value, 2))}
+                              {' · '}Yield {formatNullable(process.yield, value => formatPercent(value, 1))}
+                            </p>
+                            <p className="font-mono text-[9px] leading-4 text-slate-600">
+                              Labor {formatNullable(process.laborCost, value => formatNumber(value, 4))}
+                              {' · '}Burden {formatNullable(process.burdenCost, value => formatNumber(value, 4))}
+                              {' · '}Processing {formatNullable(process.totalCost, value => formatNumber(value, 4))} THB/pc
+                            </p>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </section>
+                ))}
+              </div>
+            </details>
           )}
         </div>
       </td>

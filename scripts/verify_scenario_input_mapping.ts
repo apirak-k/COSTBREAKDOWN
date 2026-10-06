@@ -160,6 +160,15 @@ function assertStableUniqueKeys(inputs: InputDefinitionContract[], candidate: Pr
 
 const bomCandidate = makeCandidate('bom', 'bom-current')
 const bomInputs = getInputs(bomCandidate)
+assert.deepEqual(
+  bomInputs.map(input => input.label).sort(),
+  [
+    'Current material — Usage',
+    'Current material — Loss',
+    'Current material — Price'
+  ].sort(),
+  'Scenario input labels use the approved BOM Name rather than the legacy Item Code'
+)
 assert.deepEqual(targets(bomInputs), [
   { sourceType: 'bom', sourceId: 'bom-current', field: 'consumption', currentValue: 2.5, displayScale: 1 },
   { sourceType: 'bom', sourceId: 'bom-current', field: 'loss', currentValue: 0.15, displayScale: 100 },

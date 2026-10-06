@@ -9,10 +9,10 @@ const types = readFileSync(resolve(process.cwd(), 'src/core/types/cost.types.ts'
 const scenarioCard = readFileSync(resolve(process.cwd(), 'src/features/rca-simulation/components/ScenarioCard.tsx'), 'utf8')
 
 assert.match(page, /state\.trialHandoffLetter/)
-assert.match(page, /Choose Scenario for Trial/i)
+assert.match(page, /Mark a scenario for Trial/i)
 assert.match(page, /value=\{state\.trialHandoffLetter \?\? ''\}/)
 assert.match(page, /scenarioDrafts\.map\(scenario =>/)
-assert.match(page, /Scenario \{state\.trialHandoffLetter\} selected for Trial handoff/)
+assert.match(page, /Scenario \{state\.trialHandoffLetter\} is marked for the separate Trial stage/)
 assert.doesNotMatch(page, /TrialValidationCard|promoteActiveToBaseline|Actual Cost|Measured Trial/i)
 assert.doesNotMatch(store, /promoteActiveToBaseline/)
 assert.equal(existsSync(resolve(process.cwd(), 'src/features/rca-simulation/components/TrialValidationCard.tsx')), false)

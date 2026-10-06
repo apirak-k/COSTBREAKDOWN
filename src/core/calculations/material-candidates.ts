@@ -14,6 +14,22 @@ export interface CandidateChangeDetail {
   current: unknown
 }
 
+export interface CandidateProcessDetail {
+  id: string
+  processName: string
+  manning: number | null
+  capacity: number | null
+  yield: number | null
+  laborCost: number | null
+  burdenCost: number | null
+  totalCost: number | null
+}
+
+export interface CandidateProcessBreakdown {
+  reference: CandidateProcessDetail[]
+  current: CandidateProcessDetail[]
+}
+
 export interface PrioritizationCandidate {
   candidateKey: string
   candidateName: string
@@ -30,14 +46,21 @@ export interface PrioritizationCandidate {
   sourceRef?: string
   confidence?: DataConfidence
   changeDetails?: CandidateChangeDetail[]
-  // Optional drill-down info
-  referenceParam?: number | null
-  currentParam?: number | null
-  paramLabel?: string
+  processBreakdown?: CandidateProcessBreakdown
 }
 
-function finiteInputs(values: Array<number | null | undefined>): values is number[] {
-  return values.every(value => typeof value === 'number' && Number.isFinite(value))
+function normalizeKey(value: string): string {
+  return value.trim().toLowerCase()
+}
+
+function candidateFieldLabel(field: string): string {
+  if (field === 'consumption') return 'Usage'
+  if (field === 'price') return 'Price'
+  if (field === 'loss') return 'Loss'
+  return field
+    .replace(/^additionalFields\./, '')
+    .replace(/([a-z0-9])([A-Z])/g, '$1 $2')
+    .replace(/^./, character => character.toUpperCase())
 }
 
 /**
@@ -72,17 +95,17 @@ export function buildMaterialCandidates(
     const status: PrioritizationStatus = canonicalStatus // CHANGED | ADDED | REMOVED
     const refItem = finding.referenceId ? refBomById.get(finding.referenceId) : undefined
     const curItem = finding.currentId ? curBomById.get(finding.currentId) : undefined
-    const itemCode = curItem?.itemCode || refItem?.itemCode || finding.currentId || finding.referenceId || 'UNKNOWN'
-    const itemDesc = curItem?.description || refItem?.description || itemCode
+    const materialName = curItem?.description.trim() || refItem?.description.trim() || ''
+    if (!materialName) continue
 
     const referenceCost = finding.costEffect?.reference.material ?? null
     const currentCost = finding.costEffect?.current.material ?? null
-    const netGap = currentCost === null || referenceCost === null ? null : currentCost - referenceCost
+    const materialGap = finding.costEffect?.gap.material ?? null
 
-    const baseKey = `mat:${itemCode}`
+    const baseKey = `mat:${normalizeKey(materialName)}`
     const controllable = controllabilityMap?.[baseKey] ?? true
     const changeDetails = Object.entries(finding.fieldDiffs).map(([field, values]) => ({
-      field,
+      field: candidateFieldLabel(field),
       reference: values.reference,
       current: values.current
     }))
@@ -90,17 +113,17 @@ export function buildMaterialCandidates(
     if (status === 'ADDED') {
       candidates.push({
         candidateKey: baseKey,
-        candidateName: `${itemCode} — ${itemDesc}`,
+        candidateName: materialName,
         category: 'Direct Material',
         factor: 'Item Added',
         status: 'ADDED',
         referenceCost: 0,
         currentCost,
-        costGap: currentCost,
+        costGap: materialGap,
         controllable,
         rank: 0,
         sourceType: 'bom',
-        sourceId: curItem?.id || finding.currentId || itemCode,
+        sourceId: curItem?.id || finding.currentId || baseKey,
         sourceRef: curItem?.sourceRef || currentSnapshot.sourceRef,
         confidence: curItem?.confidence ? 'verified' : 'estimated'
       })
@@ -110,138 +133,47 @@ export function buildMaterialCandidates(
     if (status === 'REMOVED') {
       candidates.push({
         candidateKey: baseKey,
-        candidateName: `${itemCode} — ${itemDesc}`,
+        candidateName: materialName,
         category: 'Direct Material',
         factor: 'Item Removed',
         status: 'REMOVED',
         referenceCost,
         currentCost: 0,
-        costGap: referenceCost === null ? null : -referenceCost,
+        costGap: materialGap,
         controllable,
         rank: 0,
         sourceType: 'bom',
-        sourceId: refItem?.id || finding.referenceId || itemCode,
+        sourceId: refItem?.id || finding.referenceId || baseKey,
         sourceRef: refItem?.sourceRef || referenceSnapshot.sourceRef,
         confidence: refItem?.confidence ? 'verified' : 'estimated'
       })
       continue
     }
 
-    // status === 'CHANGED'
-    // Check individual factors: Price, Loss, Usage
-    const priceChanged = refItem?.price !== null && refItem?.price !== undefined && curItem?.price !== null && curItem?.price !== undefined && refItem.price !== curItem.price
-    const lossChanged = refItem?.loss !== null && refItem?.loss !== undefined && curItem?.loss !== null && curItem?.loss !== undefined && refItem.loss !== curItem.loss
-    const usageChanged = refItem?.consumption !== null && refItem?.consumption !== undefined && curItem?.consumption !== null && curItem?.consumption !== undefined && refItem.consumption !== curItem.consumption
+    const changedFields = Object.keys(finding.fieldDiffs)
+    const factor = changedFields.length > 1
+      ? 'Multiple input changes'
+      : changedFields.length === 1
+        ? candidateFieldLabel(changedFields[0])
+        : 'Material Cost'
 
-    let factorCount = (priceChanged ? 1 : 0) + (lossChanged ? 1 : 0) + (usageChanged ? 1 : 0)
-
-    // If multiple factors changed, provide factor candidates or a unified candidate with factor details
-    if (factorCount > 1 && refItem && curItem) {
-      if (priceChanged) {
-        const factorKey = `${baseKey}:price`
-        const inputs = [refItem.price, curItem.price, curItem.consumption, curItem.loss]
-        const referenceCost = finiteInputs(inputs) ? inputs[0] * inputs[2] * (1 + inputs[3]) : null
-        const currentCost = finiteInputs(inputs) ? inputs[1] * inputs[2] * (1 + inputs[3]) : null
-        const priceVariance = referenceCost === null || currentCost === null ? null : currentCost - referenceCost
-        candidates.push({
-          candidateKey: factorKey,
-          candidateName: `${itemCode} — ${itemDesc} (Price Change)`,
-          category: 'Direct Material',
-          factor: 'Price',
-          status: 'CHANGED',
-          referenceCost,
-          currentCost,
-          costGap: priceVariance,
-          controllable: controllabilityMap?.[factorKey] ?? true,
-          rank: 0,
-          sourceType: 'bom',
-          sourceId: curItem.id,
-          sourceRef: curItem.sourceRef,
-          confidence: 'verified',
-          changeDetails,
-          paramLabel: 'Price (THB)',
-          referenceParam: refItem.price,
-          currentParam: curItem.price
-        })
-      }
-      if (lossChanged) {
-        const factorKey = `${baseKey}:loss`
-        const inputs = [refItem.price, curItem.consumption, curItem.loss, refItem.loss]
-        const referenceCost = finiteInputs(inputs) ? inputs[0] * inputs[1] * (1 + inputs[3]) : null
-        const currentCost = finiteInputs(inputs) ? inputs[0] * inputs[1] * (1 + inputs[2]) : null
-        const lossVariance = referenceCost === null || currentCost === null ? null : currentCost - referenceCost
-        candidates.push({
-          candidateKey: factorKey,
-          candidateName: `${itemCode} — ${itemDesc} (Loss % Change)`,
-          category: 'Direct Material',
-          factor: 'Loss %',
-          status: 'CHANGED',
-          referenceCost,
-          currentCost,
-          costGap: lossVariance,
-          controllable: controllabilityMap?.[factorKey] ?? true,
-          rank: 0,
-          sourceType: 'bom',
-          sourceId: curItem.id,
-          sourceRef: curItem.sourceRef,
-          confidence: 'verified',
-          changeDetails,
-          paramLabel: 'Loss (%)',
-          referenceParam: refItem.loss,
-          currentParam: curItem.loss
-        })
-      }
-      if (usageChanged) {
-        const factorKey = `${baseKey}:usage`
-        const inputs = [refItem.consumption, curItem.consumption, refItem.price, refItem.loss]
-        const referenceCost = finiteInputs(inputs) ? inputs[2] * inputs[0] * (1 + inputs[3]) : null
-        const currentCost = finiteInputs(inputs) ? inputs[2] * inputs[1] * (1 + inputs[3]) : null
-        const usageVariance = referenceCost === null || currentCost === null ? null : currentCost - referenceCost
-        candidates.push({
-          candidateKey: factorKey,
-          candidateName: `${itemCode} — ${itemDesc} (Usage Change)`,
-          category: 'Direct Material',
-          factor: 'Usage',
-          status: 'CHANGED',
-          referenceCost,
-          currentCost,
-          costGap: usageVariance,
-          controllable: controllabilityMap?.[factorKey] ?? true,
-          rank: 0,
-          sourceType: 'bom',
-          sourceId: curItem.id,
-          sourceRef: curItem.sourceRef,
-          confidence: 'verified',
-          changeDetails,
-          paramLabel: 'Usage (Qty)',
-          referenceParam: refItem.consumption,
-          currentParam: curItem.consumption
-        })
-      }
-    } else {
-      let factorName = 'Material Cost'
-      if (priceChanged) factorName = 'Price'
-      else if (lossChanged) factorName = 'Loss %'
-      else if (usageChanged) factorName = 'Usage'
-
-      candidates.push({
-        candidateKey: baseKey,
-        candidateName: `${itemCode} — ${itemDesc}`,
-        category: 'Direct Material',
-        factor: factorName,
-        status: 'CHANGED',
-        referenceCost,
-        currentCost,
-        costGap: netGap,
-        controllable,
-        rank: 0,
-        sourceType: 'bom',
-        sourceId: curItem?.id || finding.currentId || finding.referenceId || itemCode,
-        sourceRef: curItem?.sourceRef || currentSnapshot.sourceRef,
-        confidence: 'verified',
-        changeDetails
-      })
-    }
+    candidates.push({
+      candidateKey: baseKey,
+      candidateName: materialName,
+      category: 'Direct Material',
+      factor,
+      status: 'CHANGED',
+      referenceCost,
+      currentCost,
+      costGap: materialGap,
+      controllable,
+      rank: 0,
+      sourceType: 'bom',
+      sourceId: curItem?.id || finding.currentId || finding.referenceId || baseKey,
+      sourceRef: curItem?.sourceRef || currentSnapshot.sourceRef,
+      confidence: 'verified',
+      changeDetails
+    })
   }
 
   return candidates

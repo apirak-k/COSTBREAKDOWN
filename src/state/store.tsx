@@ -288,11 +288,11 @@ interface AppContextType {
   masterDataLastSavedSnapshot?: CostSnapshot
   masterDataSizing: import('../core/types').DatasetSizing
   isDevelopmentReviewFixture: boolean
-  activeTab: 'master' | 'breakdown' | 'candidate' | 'rca'
+  activeTab: 'master' | 'breakdown' | 'dashboard' | 'candidate' | 'rca'
   uomList: string[]
 
   // Navigation
-  setActiveTab: (tab: 'master' | 'breakdown' | 'candidate' | 'rca') => void
+  setActiveTab: (tab: 'master' | 'breakdown' | 'dashboard' | 'candidate' | 'rca') => void
 
   // Product session management
   createProductWithSizing: (config: ProductSizingConfig) => void
@@ -382,7 +382,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     loadFromSession(STORAGE_KEYS.ACTIVE_ID, 'ps-empty-default')
   )
 
-  const [activeTab, setActiveTabState] = useState<'master' | 'breakdown' | 'candidate' | 'rca'>(() =>
+  const [activeTab, setActiveTabState] = useState<'master' | 'breakdown' | 'dashboard' | 'candidate' | 'rca'>(() =>
     loadFromSession(STORAGE_KEYS.ACTIVE_TAB, 'master')
   )
 
@@ -415,7 +415,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   useEffect(() => saveToSession(STORAGE_KEYS.ACTIVE_ID, activeProductId), [activeProductId])
   useEffect(() => saveToSession(STORAGE_KEYS.UOM_LIST, uomList), [uomList])
 
-  const setActiveTab = (tab: 'master' | 'breakdown' | 'candidate' | 'rca') => {
+  const setActiveTab = (tab: 'master' | 'breakdown' | 'dashboard' | 'candidate' | 'rca') => {
     setActiveTabState(tab)
     saveToSession(STORAGE_KEYS.ACTIVE_TAB, tab)
   }

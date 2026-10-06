@@ -12,6 +12,7 @@ import {
 import type { ComparisonFinding, ComparisonStatus } from '../../../core'
 import { ALL_COMPARISON_STATUSES, isOnlyComparisonStatus, isVisibleInComparisonView } from './comparison-view'
 import type { ComparisonViewMode } from './comparison-view'
+import { ComparisonFieldDetails } from './ComparisonFieldDetails'
 
 interface BOMDetailedTableProps {
   referenceItems: SnapshotBOMItem[]
@@ -150,7 +151,12 @@ export const BOMDetailedTable: React.FC<BOMDetailedTableProps> = ({
                     />
                   </td>
                 )}
-                <th scope="row" className="p-2.5 font-sans font-medium text-slate-800 min-w-[180px]" title={description}>{description}</th>
+                <th scope="row" className="p-2.5 font-sans font-medium text-slate-800 min-w-[180px]" title={description}>
+                  <div className="space-y-1">
+                    <div>{description}</div>
+                    {showComparison && <ComparisonFieldDetails finding={row.finding} fieldLabelOverrides={{ description: 'Name' }} />}
+                  </div>
+                </th>
                 {showComparison && (
                   <td className="p-2.5 min-w-[120px]">
                     <div className="flex flex-col items-start gap-1.5">

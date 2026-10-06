@@ -3,10 +3,11 @@ import { formatComparisonFieldDiffs } from './comparison-field-details'
 
 interface ComparisonFieldDetailsProps {
   finding?: ComparisonFinding
+  fieldLabelOverrides?: Record<string, string>
 }
 
-export function ComparisonFieldDetails({ finding }: ComparisonFieldDetailsProps) {
-  const changes = formatComparisonFieldDiffs(finding?.fieldDiffs ?? {})
+export function ComparisonFieldDetails({ finding, fieldLabelOverrides }: ComparisonFieldDetailsProps) {
+  const changes = formatComparisonFieldDiffs(finding?.fieldDiffs ?? {}, fieldLabelOverrides)
   if (changes.length === 0) return null
 
   return (
