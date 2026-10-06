@@ -128,6 +128,16 @@ Do not promote an entry to a user decision based on implementation, test results
 - **Review trigger:** human visual review or a later approved time-series data source/business formula.
 - **Related contract:** [`CROSS_CUTTING.md`](specs/CROSS_CUTTING.md#business-analysis-confirmed-direction-and-scope) and [`design.md`](../design.md#dashboard-chart).
 
+### P-012 — Lead the Dashboard with the result and largest cost movement
+
+- **Status:** `PROVISIONAL — AI CHOICE`
+- **Choice:** show the net Reference/Current Standard Cost result first, state whether Current is higher or lower, identify the largest known Material or Processing component Gap, then present the chart, relevant input context, cause breakdown, and record/process detail.
+- **Why:** make the confirmed `Result → Cause → Detail` story understandable at a glance while using only settled comparison values.
+- **Must preserve:** Gap remains Current − Reference; positive and negative directions stay explicit; missing values remain unavailable; OP remains a required metric and can be negative, but its numeric value stays unavailable until its formula is confirmed; do not add unrelated metrics, new business formulas, or fabricated periods.
+- **Reversible:** headline wording, emphasis, component summary placement, and responsive layout may change after visual review without changing calculation behavior.
+- **Review trigger:** human visual review of whether the result and its main cost movement are clear on first view.
+- **Related contract:** [`CROSS_CUTTING.md`](specs/CROSS_CUTTING.md#business-analysis-confirmed-direction-and-scope) and [`design.md`](../design.md#dashboard-story-order).
+
 ## Genuine pending boundaries
 
 These are not AI choices and must not be inferred away:

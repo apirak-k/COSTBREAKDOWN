@@ -212,6 +212,11 @@ try {
   }
   const dashboardMarkup = renderToStaticMarkup(React.createElement(DashboardPage, dashboardProps))
   const dashboardText = visibleText(dashboardMarkup)
+  const opPanelMarkup = dashboardMarkup.match(/<aside aria-label="Business metric formula status"[\s\S]*?<\/aside>/)?.[0] ?? ''
+  assert.ok(dashboardText.includes('Current Standard Cost is higher'))
+  assert.ok(dashboardText.includes('Largest component movement: Material +1.0000 THB/pc'))
+  assert.ok(dashboardText.includes('Operating Profit (OP)'))
+  assert.ok(dashboardText.includes('OP can be positive or negative'))
   assert.ok(dashboardText.includes('Standard Cost by component'))
   assert.ok(dashboardText.includes('Reference vs Current'))
   assert.match(dashboardMarkup, /role="img" aria-label="Reference and Current stacked Standard Cost bars for Material, Labor, and Burden, with Selling Price shown as a line when available\."/)
@@ -223,13 +228,38 @@ try {
   assert.ok(dashboardText.includes('25.0000 THB'))
   assert.ok(dashboardText.includes('8.00%'))
   assert.doesNotMatch(dashboardMarkup, /MatVAR|LBVAR|BDVAR/)
-  assert.ok(dashboardText.includes('Business metrics are not calculated — formula pending'))
+  assert.ok(dashboardText.includes('Not calculated — formula pending'))
+  assert.doesNotMatch(opPanelMarkup, />\s*(?:\+|-)?0(?:\.0000)?\s*</)
   assert.ok(dashboardText.includes('16.2000'))
   assert.ok(dashboardText.includes('-2.2000'))
   assert.ok(dashboardText.includes('11.8000'))
   assert.ok(dashboardText.includes('+2.2000'))
   assert.match(dashboardMarkup, /Gross Saving · THB\/pc<\/p><p class="mt-1 font-mono text-base font-bold tabular-nums text-emerald-700">\+2\.2000/)
   assert.doesNotMatch(dashboardMarkup, /<dt[^>]*>COGS|<dt[^>]*>GP Margin|<dt[^>]*>OP Margin/)
+
+  const dashboardLowerCostMarkup = renderToStaticMarkup(React.createElement(DashboardPage, {
+    ...dashboardProps,
+    comparison: { ...dashboardComparison, totalGap: -1, elementGaps: { material: -1, labor: 0, burden: 0 } }
+  }))
+  const dashboardLowerCostText = visibleText(dashboardLowerCostMarkup)
+  assert.ok(dashboardLowerCostText.includes('Current Standard Cost is lower'))
+  assert.ok(dashboardLowerCostText.includes('Largest component movement: Material -1.0000 THB/pc'))
+
+  const dashboardUnavailableMarkup = renderToStaticMarkup(React.createElement(DashboardPage, {
+    ...dashboardProps,
+    comparison: { ...dashboardComparison, totalGap: null }
+  }))
+  const dashboardUnavailableText = visibleText(dashboardUnavailableMarkup)
+  assert.ok(dashboardUnavailableText.includes('Standard Cost comparison unavailable'))
+  assert.ok(dashboardUnavailableText.includes('Operating Profit (OP)'))
+
+  const dashboardFlatMarkup = renderToStaticMarkup(React.createElement(DashboardPage, {
+    ...dashboardProps,
+    comparison: { ...dashboardComparison, totalGap: 0, elementGaps: { material: 0, labor: 0, burden: 0 } }
+  }))
+  const dashboardFlatText = visibleText(dashboardFlatMarkup)
+  assert.ok(dashboardFlatText.includes('No net Standard Cost difference'))
+  assert.ok(dashboardFlatText.includes('0.0000 THB/pc'))
 
   const dashboardWithoutCandidate = renderToStaticMarkup(React.createElement(DashboardPage, {
     ...dashboardProps,

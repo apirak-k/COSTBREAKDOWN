@@ -1,11 +1,12 @@
 import React from 'react'
-import { formatNumber, formatVariance } from '../../core'
+import { formatNumber } from '../../core'
 import type { CostComparison, PrioritizationCandidate, SelectedComparisonSelection, SnapshotPair } from '../../core'
 import { PageHeading, SelectedComparisonBanner } from '../../shared'
 import type { RcaSimulationPageState } from '../rca-simulation/scenario-draft'
 import { ComparisonDetails } from './components/ComparisonDetails'
 import { CostComparisonChart } from './components/CostComparisonChart'
 import { CostCauseSection } from './components/CostCauseSection'
+import { ResultSummary } from './components/ResultSummary'
 import { ScenarioOverview } from './components/ScenarioOverview'
 
 interface DashboardPageProps {
@@ -17,19 +18,6 @@ interface DashboardPageProps {
   clearSelectedComparison: () => void
   simulationState: RcaSimulationPageState
   onOpenRca: () => void
-}
-
-function formatCost(value: number | null): string {
-  return value === null ? '—' : formatNumber(value, 4)
-}
-
-function gapColor(gap: number | null): string {
-  if (gap === null || gap === 0) return 'text-slate-700'
-  return gap > 0 ? 'text-rose-700' : 'text-emerald-700'
-}
-
-function statusText(status: string): string {
-  return status === 'complete' ? 'Complete' : status === 'estimated' ? 'Estimated' : 'Missing inputs'
 }
 
 export const DashboardPage: React.FC<DashboardPageProps> = ({
@@ -50,12 +38,14 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({
     <div className="space-y-4">
       <PageHeading
         title="Cost Overview"
-        description="Standard Cost comparison with BOM and Work Center detail. Business measures remain uncalculated until their formulas are confirmed."
+        description="Result → Cause → Detail. Start with the net Standard Cost Gap, then review its largest component movement."
       />
 
       {isSelectedComparisonActive && selectedComparisonSelection && (
         <SelectedComparisonBanner selection={selectedComparisonSelection} onExit={clearSelectedComparison} />
       )}
+
+      <ResultSummary comparison={comparison} />
 
       <div className="grid min-w-0 grid-cols-1 items-start gap-3 xl:grid-cols-[minmax(0,1.55fr)_minmax(18rem,1fr)]">
         <CostComparisonChart
@@ -65,34 +55,6 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({
         />
 
         <div className="space-y-3">
-          <section aria-labelledby="overview-result-heading" className="border border-slate-300 bg-white">
-            <div className="flex flex-wrap items-start justify-between gap-3 border-b border-slate-200 px-3 py-3">
-              <div>
-                <p className="font-mono text-[9px] font-bold uppercase tracking-wide text-slate-500">Result</p>
-                <h2 id="overview-result-heading" className="mt-0.5 font-mono text-xs font-bold uppercase tracking-wide text-slate-900">Standard Cost / pc</h2>
-              </div>
-              <div className="min-w-32 text-right">
-                <p className="font-mono text-[9px] font-semibold uppercase text-slate-500">Gap · Current − Reference</p>
-                <p className={`mt-0.5 font-mono text-base font-bold tabular-nums ${gapColor(comparison.totalGap)}`}>
-                  {comparison.totalGap === null ? '—' : formatVariance(comparison.totalGap, 4)}
-                  <span className="ml-1 text-[9px] font-medium">THB/pc</span>
-                </p>
-              </div>
-            </div>
-            <dl className="grid grid-cols-2 gap-px bg-slate-200">
-              <div className="bg-white px-3 py-3">
-                <dt className="font-mono text-[9px] font-semibold uppercase text-slate-500">Reference</dt>
-                <dd className="mt-1 font-mono text-lg font-bold tabular-nums text-slate-600">{formatCost(comparison.referenceCost.total)}</dd>
-                <dd className="mt-0.5 font-mono text-[9px] text-slate-500">{statusText(comparison.referenceCost.status)} · THB/pc</dd>
-              </div>
-              <div className="bg-white px-3 py-3">
-                <dt className="font-mono text-[9px] font-semibold uppercase text-slate-500">Current</dt>
-                <dd className="mt-1 font-mono text-lg font-bold tabular-nums text-slate-950">{formatCost(comparison.currentCost.total)}</dd>
-                <dd className="mt-0.5 font-mono text-[9px] text-slate-500">{statusText(comparison.currentCost.status)} · THB/pc</dd>
-              </div>
-            </dl>
-          </section>
-
           <section aria-labelledby="business-context-heading" className="border border-slate-300 bg-white px-3 py-3">
             <p className="font-mono text-[9px] font-bold uppercase tracking-wide text-slate-500">Current input context</p>
             <h2 id="business-context-heading" className="mt-0.5 text-xs font-semibold text-slate-900">Selling Price and SG&amp;A</h2>
@@ -105,8 +67,11 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({
 
           <aside aria-label="Business metric formula status" className="border border-amber-300 bg-amber-50 px-3 py-3">
             <p className="font-mono text-[9px] font-bold uppercase tracking-wide text-amber-900">Calculation status</p>
-            <p className="mt-1 text-xs font-semibold text-amber-950">Business metrics are not calculated — formula pending.</p>
-            <p className="mt-1 text-[10px] leading-4 text-amber-900">COGS, GP, GP Margin, OP, OP Margin, Sales, and Volume/Quantity are not shown as numeric results. No placeholder values are used.</p>
+            <div className="mt-1 flex flex-wrap items-baseline justify-between gap-2">
+              <h2 className="text-xs font-bold text-amber-950">Operating Profit (OP)</h2>
+              <p className="text-[10px] font-semibold text-amber-950">Not calculated — formula pending</p>
+            </div>
+            <p className="mt-1 text-[10px] leading-4 text-amber-900">OP can be positive or negative. Other unavailable business measures: COGS, GP, GP Margin, OP Margin, Sales, and Volume/Quantity.</p>
           </aside>
         </div>
       </div>

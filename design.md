@@ -118,6 +118,17 @@ Use only settled Material, Labor, and Burden calculations. Do not add excluded
 variance categories or guessed business measures. Do not present the snapshot
 pair as a monthly trend.
 
+### Dashboard story order
+
+`PROVISIONAL — AI CHOICE`: put the net Standard Cost result first, followed by
+the largest known Material or Processing component movement, then the chart and
+supporting cost/input context. Keep record-level and process details below the
+summary for review on demand. Show Operating Profit (OP) as explicitly
+uncalculated while its formula is pending; preserve its ability to be negative
+when it is eventually calculated. Do not add unrelated metrics, invented
+financial values, or historical periods. See
+[`PROVISIONAL_IMPLEMENTATION_DECISIONS.md`](docs/PROVISIONAL_IMPLEMENTATION_DECISIONS.md#p-012--lead-the-dashboard-with-the-result-and-largest-cost-movement).
+
 ## 2. Color Palette & Semantic Tokens
 
 **PROVISIONAL — AI CHOICE:** start with the following light workspace palette.
