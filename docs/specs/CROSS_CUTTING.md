@@ -1,6 +1,6 @@
 # Cross-Cutting Product Rules
 
-**Status:** The comparison, Selected Comparison, warning, and Standard Cost rules below are agreed. Future business formulas and the listed implementation/UI details remain open.
+**Status:** Comparison, Selected Comparison, warning, and Standard Cost rules are `FINALIZED — USER DECISION`. Dashboard and visual outcomes are `CONFIRMED DIRECTION — USER DECISION`; safe presentation details are reversible AI choices in [`design.md`](../../design.md) and [`PROVISIONAL_IMPLEMENTATION_DECISIONS.md`](../PROVISIONAL_IMPLEMENTATION_DECISIONS.md). Only the stated business formulas and Trial workflow remain `PENDING — USER DECISION NEEDED`.
 
 ## Final Target State
 
@@ -69,21 +69,27 @@ On Master Data, preserve cell-level invalid cues and show dataset notices outsid
 
 ## Business analysis: confirmed direction and scope
 
-The future business dashboard direction is interactive, updates with simulation, tells the result-to-cause story (`Result → Cause → Detail`), and gives executives an overview with details available on demand. A bar-chart-first approach is a design direction, not a finalized chart specification. Keep calculation/domain logic separate from UI presentation.
+`CONFIRMED DIRECTION — USER DECISION`: the dashboard is interactive/live with simulation, tells the result-to-cause story (`Result → Cause → Detail`), and gives executives an overview with details available on demand. A bar-chart-first approach is a design direction, not a fixed chart requirement. Keep calculation/domain logic separate from UI presentation.
 
 Confirmed business concepts include Selling Price, SG&A, Material, Processing, COGS, GP, GP Margin, OP, OP Margin, Sales, and Volume/Quantity. OP must allow negative values. Business metric formulas, monetary SG&A treatment, total GP/OP formulas, and exact chart composition remain undecided; do not infer them from labels or current code. Selling Price and SG&A are stored as metadata inputs, with SG&A entered as a percent of Selling Price. Scenario overrides of Selling Price and SG&A are a confirmed future direction; each uses the current dataset value by default and clearing an override falls back to Current.
 
 **MatVAR, LBVAR, and BDVAR are removed from current scope by the latest explicit user decision.** They are neither pending formulas nor deferred features. Do not add them to Standard Cost or the current dashboard scope.
 
+### Engineering-first dashboard while business formulas are pending
+
+`CONFIRMED DIRECTION — USER DECISION`: until business formulas are finalized, the dashboard may provide a useful engineering-first view using only settled calculations: Standard Cost; Material; Labor; Burden; Processing/Conversion; comparison Gap; scenario Standard Cost and Gross Saving; and relevant BOM, Work Center, and Process detail.
+
+Do not fabricate numeric COGS, GP, GP Margin, OP, OP Margin, Sales, or Volume/Quantity results from guessed formulas or inputs. Do not display numeric zero for a metric whose formula is unavailable. Show an explicit unavailable state, such as **“Not calculated — formula pending”**, or equivalent wording. Selling Price and SG&A may appear as input context without being presented as calculated business results. The current engineering-first composition is a `PROVISIONAL — AI CHOICE` recorded in [`PROVISIONAL_IMPLEMENTATION_DECISIONS.md`](../PROVISIONAL_IMPLEMENTATION_DECISIONS.md); its exact layout can change without reopening these boundaries.
+
 The actual Trial execution, validation, approval, and promotion workflow remains unspecified. The agreed Candidate-to-scenario selection and scenario-to-Trial handoff are described in [RCA_SIMULATION.md](RCA_SIMULATION.md).
 
-## Genuine PENDING/TBD boundaries
+## PENDING — USER DECISION NEEDED
 
 - Whether importing a dataset preserves, resets, or recalculates its saved Sizing counts.
 - Whether Clone is gated by source readiness and how readiness metadata transfers; the copy direction and Working/Last Saved behavior are settled in [MASTER_DATA.md](MASTER_DATA.md).
-- Exact disabled/error presentation for Reset/Export before the first Save.
-- Exact page layout, visual styling, status wording/placement, and final human visual acceptance where the page specs leave them open.
-- Business metric formulas and final chart composition as listed above; actual Trial execution/validation/approval/promotion.
+- Whether Clear requires a confirmation step; preserve the agreed Clear data effects while this interaction detail remains unresolved.
+- Business metric formulas and any financial treatment needed to calculate them; actual Trial execution/validation/approval/promotion.
+- Final human visual acceptance after applying the provisional visual contract. Routine layout, styling, status wording, and disabled/error presentation choices may be made provisionally and do not block implementation.
 
 ## Traceability
 

@@ -1,6 +1,6 @@
 # Master Data Specification
 
-**Status:** Master Data behavior and dataset shape are finalized. UX/UI directions are recorded below; exact styling, placement, and the listed edge details remain open.
+**Status:** Core Master Data behavior and dataset shape are `FINALIZED — USER DECISION`. The visual principles below are `CONFIRMED DIRECTION — USER DECISION`; reversible visual choices belong in [`design.md`](../../design.md) and [`PROVISIONAL_IMPLEMENTATION_DECISIONS.md`](../PROVISIONAL_IMPLEMENTATION_DECISIONS.md). Only items explicitly listed under `PENDING — USER DECISION NEEDED` remain unresolved.
 
 ## Final Target State
 
@@ -19,7 +19,7 @@ Reference and Current are independent. Each has one in-session `Working` dataset
 - **Export:** export only the viewed dataset's `Last Saved` state. Unsaved Working edits are not exported.
 - **Import:** replace only the viewed dataset's `Working` state. Import does not save it, and does not merge it with that side's existing Working data.
 - **Clear:** clear only the viewed dataset's `Working` state, including its metadata, Dataset Remark, table rows, and Sizing values; retain `Last Saved` and leave the other side unchanged.
-- **Clone:** copy the opposite dataset's `Working` state into the viewed dataset's `Working` state. It does not replace `Last Saved`.
+- **Clone:** copy the opposite dataset's `Working` state into the viewed dataset's `Working` state. It does not replace `Last Saved`. If the destination already contains data, ask for explicit confirmation before replacing it. Source-readiness gating and readiness-metadata transfer remain unresolved; do not infer either from code.
 
 The two sides remain independent. Comparing uses their current Working states; no Save, export, confirmation, Activate, or version-history step is required first. Closing/restarting the application ends the session and starts with a fresh empty workspace.
 
@@ -58,9 +58,11 @@ The old Setup concept is replaced by **Sizing**. Sizing uses the selected side's
 
 Sizing belongs independently to Reference or Current. On a fresh workspace its starting row counts are unset; each configured count has a minimum of one. These counts set the starting number of rows, not a maximum-record limit. Decreasing a count may remove surplus unpopulated generated blank slots only; populated records are not implicitly deleted. Applying metadata in Sizing updates the viewed side's Working metadata.
 
-The neutral workbook contains exactly four data sheets, in this order: `META`, `BOM`, `ROUTING`, `WORK_CENTER`. `META` contains Product Name, UOM, Selling Price, SG&A, and Dataset Remark. Keep the formula-linked `COST_CALCULATION` inspection view on a separate sheet; it is not a fifth data sheet and is excluded from import. Its formulas follow [the shared Standard Cost rules](CROSS_CUTTING.md#standard-cost-calculation).
+The neutral workbook contains exactly four data sheets, in this order: `META`, `BOM`, `ROUTING`, `WORK_CENTER`. `META` contains Product Name, UOM, Selling Price, SG&A, and Dataset Remark. Download Template uses the selected dataset's configured Sizing counts to create that number of blank input rows in each data table; these are starting row counts, not maximum-record limits. Keep the formula-linked `COST_CALCULATION` inspection view on a separate sheet; it is not a fifth data sheet and is excluded from import. Its formulas follow [the shared Standard Cost rules](CROSS_CUTTING.md#standard-cost-calculation).
 
 In the Excel template/export presentation, yellow marks editable user-input cells. Formula, calculated, and read-only cells are not yellow. This workbook convention does not apply to editable cells in the web Master Data tables; workbook and web-table styling remain separate.
+
+Record-level `Note` values and dataset-level `META.Remark` are annotations. Preserve them through web editing and workbook import/export. Neither field is a calculation input or record identity, and a note-only difference does not make a business record `CHANGED`.
 
 ## Tables, identity, and editing
 
@@ -74,15 +76,26 @@ Routing      # | Process | WC | Manning | Cap | Yield | Note
 
 `#` is a display row number and row-selection control, not a dataset field, business identity, calculation input, or Routing sequence. Match by BOM `Name`, Work Center `WC`, and Routing `Process`; never match by row position. Duplicate or ambiguous identity values are data-quality warnings, not a reason to guess.
 
-View Mode is read-only. Edit Mode supports direct cell editing; spreadsheet keyboard navigation and copy/paste; row and range selection; page-level Undo/Redo across Working edits from all Master Data tables; same-column bulk edits to selected rows; adding and deleting rows; and row reordering. Undo/Redo is Working-edit history only, not Save history or dataset-version history, and it does not persist across application restart. Keep Undo/Redo controls compact and icon-only; exact placement is a UX/UI detail. These interactions should remain lightweight rather than turn the page into a full spreadsheet application. Search is the only Master Data query control; it changes presentation, not dataset contents.
+View Mode is read-only. Edit Mode supports direct cell editing and spreadsheet keyboard navigation:
+
+- Arrow keys move between cells.
+- Enter moves down; Shift+Enter moves up.
+- Tab moves right; Shift+Tab moves left.
+- Escape cancels or exits the current edit state where appropriate.
+- Ctrl/Cmd+C and Ctrl/Cmd+V copy and paste, including tabular data copied from Excel; pasted values map by row and column, and invalid pasted cells are identified locally rather than failing the page.
+- Ctrl/Cmd+Z undoes; Ctrl/Cmd+Y or Ctrl/Cmd+Shift+Z redoes.
+
+Support row and range selection, same-column bulk edits to selected rows, adding rows, deleting one or multiple selected rows, and row reordering. Page-level Undo/Redo spans Working edits across all Master Data tables. Undo/Redo is Working-edit history only, not Save history or dataset-version history, and does not persist across application restart. Keep Undo/Redo controls compact and icon-only; exact placement is a UX/UI detail. These interactions should remain lightweight rather than turn the page into a full spreadsheet application. Search is the only Master Data query control; it changes presentation, not dataset contents.
 
 Keep row selection separate from reordering. `#` stays at the left for row selection. The reorder-only handle is in the rightmost table column, after Actions; selected rows may move together while preserving their order. Reordering changes Working row order but does not make a business record `CHANGED`.
+
+Row-selection gestures are: click a row header to select one row; drag across row headers to select a contiguous range; Shift+click to select a range; and Ctrl/Cmd+click to add or remove a non-contiguous row. Data cells remain dedicated to editing, navigation, copy/paste, and range selection. Selection and reorder use separate controls and gestures.
 
 ## Validation and notices
 
 Validation is local and normally non-blocking. Keep invalid-value cues on affected cells. Keep warning prose, per-row issue badges, and warning-count footers out of Master Data tables; show dataset-level notices outside the tables. Routing `WC` references the Work Center table, and its entry control should help prevent typos. Missing or invalid values must not produce fabricated calculation results. Only logically impossible operations should be unavailable.
 
-## PENDING/TBD
+## PENDING — USER DECISION NEEDED
 
 These narrow details were not finalized in the sources; do not infer them from code:
 
@@ -90,8 +103,9 @@ These narrow details were not finalized in the sources; do not infer them from c
 - Exact disabled/error presentation for Reset or Export before the selected side has a `Last Saved` state. Their behavior is settled: Reset has no saved state to restore, and Export has no valid saved source.
 - Whether Clone is gated by source readiness and how readiness metadata transfers. The copy direction and Working/Last Saved semantics above are finalized.
 - Whether importing a dataset preserves, resets, or recalculates its saved Sizing counts.
-- Exact placement of the Reference and Current total values and the compact Undo/Redo controls.
-- Exact colors, typography, spacing, status wording, and final human visual acceptance.
+- The calculation/readiness treatment of generated blank Sizing rows is not established by a finalized source. Do not infer it from the historical September proposal or from code; escalate only if a concrete implementation requirement depends on it.
+
+The exact placement of Reference and Current totals and compact Undo/Redo controls, colors, typography, spacing, and status presentation are ordinary visual choices. Follow the confirmed visual direction and record unfinalized implementation choices as provisional; they do not block implementation. Human visual acceptance remains a later review checkpoint.
 
 ## Traceability
 

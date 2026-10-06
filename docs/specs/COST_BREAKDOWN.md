@@ -1,6 +1,6 @@
 # Cost Breakdown Specification
 
-**Status:** Core comparison, calculation, gap, and Selected Comparison behavior is agreed. Exact page hierarchy and visual acceptance remain open.
+**Status:** Core comparison, calculation, Gap, and Selected Comparison behavior is `FINALIZED — USER DECISION`. The result → cause → detail experience is a `CONFIRMED DIRECTION — USER DECISION`; its current visual composition is a reversible AI choice in [`design.md`](../../design.md). Human visual acceptance remains outstanding.
 
 ## Final Target State
 
@@ -37,6 +37,8 @@ Changed effects + Added effects + Removed effects = their parent branch Gap
 
 If detail cannot reconcile because of missing/invalid calculation data, surface an unavailable or validation state instead of a misleading number.
 
+`FINALIZED — USER DECISION`: Cost Breakdown exposes record- or Work Center-level cost Gap and changed inputs as Reference → Current details. There is no agreed method to allocate a material record's cost Gap into THB effects for Price, Usage, Loss, or another input. Do not invent or display per-input monetary effects, or repeat the entire record Gap for each changed input.
+
 ## Selected Comparison
 
 Full Comparison remains the default. Selected Comparison follows [the shared scope and lifecycle](CROSS_CUTTING.md#full-and-selected-comparison): BOM and Routing findings are selectable; Work Centers remain full calculation context; matched `CHANGED`/`UNCHANGED` findings move as Reference/Current pairs; `ADDED`/`REMOVED` are independently selectable.
@@ -47,7 +49,7 @@ Selected Comparison is a temporary analysis scope and does not change or save ei
 
 Warnings normally inform and direct without blocking navigation. Keep comparison statuses separate from validation warnings. Keep the duplicate top calculation-warning banner removed; show the full warning details in a collapsed disclosure labeled `Review warnings (N)`.
 
-The behavior above does not prescribe exact KPI cards, table layout, visual styling, or status wording. Preserve the confirmed result → cause → detail direction without treating a current implementation layout as a requirement.
+`CONFIRMED DIRECTION — USER DECISION`: preserve the result → cause → detail direction. Exact KPI cards, table layout, visual styling, and status wording are `PROVISIONAL — AI CHOICE` in [`design.md`](../../design.md) and the provisional-decision ledger; code does not make them permanent requirements.
 
 ## Traceability
 

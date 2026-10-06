@@ -1,8 +1,8 @@
 # RCA & Simulation Specification
 
-**Status:** RCA & Simulation behavior is finalized by its agreement, subject to later explicit decisions. Exact page layout and unclosed business/Trial details remain open.
+**Status:** Human candidate selection, optional RCA notes, and non-mutating Scenario A/B/C behavior are `FINALIZED — USER DECISION`. Business-input overrides are a `CONFIRMED DIRECTION — USER DECISION`. Current page presentation choices are reversible AI choices in [`design.md`](../../design.md); business formulas and Trial workflow remain genuinely pending.
 
-## Final Target State
+## FINALIZED — USER DECISION
 
 The user chooses a candidate from the Candidate pool; the system never auto-selects the highest Gap. Root Cause and Action are optional real-world notes and do not affect calculations. The user compares independent Scenario A/B/C drafts made from Current, overrides only supported measurable inputs, and reviews each scenario's recalculated Standard Cost and savings/economics without changing Reference or Current. The user decides whether to hand a scenario to Trial; Trial execution and approval are a separate, not-yet-specified workflow.
 
@@ -17,6 +17,8 @@ Root Cause / Why and Action are optional, user-entered real-world notes. They ar
 Provide Scenario A, Scenario B, and Scenario C. Each begins from the Current state as an independent simulation draft. An explicit scenario override changes that scenario's measurable input; an unmodified/cleared input uses the Current value. Simulation is prediction only: it must not mutate Current or Reference.
 
 Only override measurable parameters supported by the agreed Standard Cost engine, such as BOM Usage, Price, Loss, and Routing Manning, Capacity, or Yield. Do not add new factory formulas or change the data structure through simulation. Structural simulation is outside scope: do not add/remove Material, BOM, or Routing records and do not create Routing split/merge simulations.
+
+The named BOM and Routing inputs above are grounded in the finalized user decisions. The source records do not explicitly finalize Work Center Labor Rate or Burden Rate as scenario-editable inputs. Their current exposure is a `PROVISIONAL — AI CHOICE`: they are measurable inputs to the existing Cost Engine, so the current implementation permits scenario-local rate changes while keeping the established formulas and source-dataset immutability. This choice is reversible and must not be represented as a user-finalized input set; see [`PROVISIONAL_IMPLEMENTATION_DECISIONS.md`](../PROVISIONAL_IMPLEMENTATION_DECISIONS.md).
 
 Each scenario recalculates through the same Standard Cost rules in [CROSS_CUTTING.md](CROSS_CUTTING.md#standard-cost-calculation), on a per-piece basis. The user does not type a predicted Standard Cost.
 
@@ -50,11 +52,11 @@ A later confirmed direction allows future scenarios to override business assumpt
 
 After reviewing scenarios, the user may select one scenario to continue to Trial. Selection is human-driven; Candidate ranking or simulation results never automatically choose it. Trial is a separate stage, not part of the core RCA calculation.
 
-## PENDING/TBD
+## PENDING — USER DECISION NEEDED
 
-- Exact RCA & Simulation page hierarchy, visual design, and final human UX acceptance.
 - Business formulas and chart behavior listed in [CROSS_CUTTING.md](CROSS_CUTTING.md#business-analysis-confirmed-direction-and-scope). MatVAR/LBVAR/BDVAR are explicitly removed from scope, not pending.
 - Trial execution, validation, approval, and promotion. The scenario-to-Trial handoff itself is agreed above.
+- Final human visual acceptance after implementing the reversible presentation in [`design.md`](../../design.md); page layout details are not a blocker to implementation.
 
 ## Traceability
 
