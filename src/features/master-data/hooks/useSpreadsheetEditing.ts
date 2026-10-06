@@ -19,6 +19,24 @@ interface UseSpreadsheetEditingOptions<T extends EditableRow> {
   onUpdateBatch: (updates: RowUpdate<T>[]) => void
 }
 
+export function prepareSpreadsheetBatch<T extends EditableRow>(rows: T[], updates: RowUpdate<T>[]): RowUpdate<T>[] {
+  const grouped = new Map<string, RowChanges<T>>()
+  updates.forEach(({ id, changes }) => {
+    grouped.set(id, { ...grouped.get(id), ...changes })
+  })
+
+  const rowsById = new Map(rows.map(row => [row.id, row]))
+  const batch: RowUpdate<T>[] = []
+  grouped.forEach((changes, id) => {
+    const row = rowsById.get(id)
+    if (!row) return
+    const after: RowChanges<T> & { isGeneratedSizingPlaceholder?: boolean } = { ...changes }
+    if (row.isGeneratedSizingPlaceholder) after.isGeneratedSizingPlaceholder = false
+    batch.push({ id, changes: after })
+  })
+  return batch
+}
+
 export function useSpreadsheetEditing<T extends EditableRow>({
   rows,
   selectedIds,
@@ -27,21 +45,7 @@ export function useSpreadsheetEditing<T extends EditableRow>({
 }: UseSpreadsheetEditingOptions<T>) {
   const applyChanges = useCallback((updates: RowUpdate<T>[]) => {
     if (!isEditMode || updates.length === 0) return
-
-    const grouped = new Map<string, RowChanges<T>>()
-    updates.forEach(({ id, changes }) => {
-      grouped.set(id, { ...grouped.get(id), ...changes })
-    })
-
-    const batch: RowUpdate<T>[] = []
-    grouped.forEach((changes, id) => {
-      const row = rows.find(candidate => candidate.id === id)
-      if (!row) return
-      const after: RowChanges<T> & { isGeneratedSizingPlaceholder?: boolean } = { ...changes }
-      if (row.isGeneratedSizingPlaceholder) after.isGeneratedSizingPlaceholder = false
-      batch.push({ id, changes: after })
-    })
-
+    const batch = prepareSpreadsheetBatch(rows, updates)
     if (batch.length > 0) onUpdateBatch(batch)
   }, [isEditMode, onUpdateBatch, rows])
 
