@@ -7,13 +7,14 @@ import { addCostCalculationSheet } from './cost-calculation-sheet'
 const COLOR_DARK_NAVY = 'FF1E293B'
 const COLOR_BORDER = 'FFE2E8F0'
 const COLOR_WHITE = 'FFFFFFFF'
+const COLOR_SOFT_YELLOW = 'FFFEF9C3'
 
 const fontTitle = { name: 'Arial', size: 14, bold: true, color: { argb: COLOR_DARK_NAVY } }
 const fontHeader = { name: 'Arial', size: 10, bold: true, color: { argb: COLOR_WHITE } }
 const fontData = { name: 'Arial', size: 10, color: { argb: 'FF0F172A' } }
 
 const fillHeader = { type: 'pattern' as const, pattern: 'solid' as const, fgColor: { argb: COLOR_DARK_NAVY } }
-const fillRow = { type: 'pattern' as const, pattern: 'solid' as const, fgColor: { argb: COLOR_WHITE } }
+const fillInput = { type: 'pattern' as const, pattern: 'solid' as const, fgColor: { argb: COLOR_SOFT_YELLOW } }
 
 const borderThin = {
   top: { style: 'thin' as const, color: { argb: COLOR_BORDER } },
@@ -35,7 +36,7 @@ function styleHeaderRow(row: ExcelJS.Row, columns: number): void {
 function styleDataRow(row: ExcelJS.Row, columns: number, numericColumns: number[] = [], fractionPercentColumns: number[] = []): void {
   for (let column = 1; column <= columns; column += 1) {
     const cell = row.getCell(column)
-    cell.fill = fillRow
+    cell.fill = fillInput
     cell.font = fontData
     cell.border = borderThin
     if (numericColumns.includes(column)) cell.numFmt = '#,##0.0000'

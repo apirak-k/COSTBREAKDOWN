@@ -76,6 +76,25 @@ assert.equal(legacyImport.snapshot?.remark, 'Legacy workbook remains importable'
 const exportedBlob = await exportSnapshotToExcel(imported.snapshot)
 const exportedWorkbook = XLSX.read(await exportedBlob.arrayBuffer(), { type: 'array' })
 assert.deepEqual(exportedWorkbook.SheetNames, expectedSheets)
+const styledExport = new ExcelJS.Workbook()
+await styledExport.xlsx.load(Buffer.from(await exportedBlob.arrayBuffer()))
+for (const [sheetName, address] of [
+  ['META', 'A4'],
+  ['BOM', 'A4'],
+  ['ROUTING', 'A4'],
+  ['WORK_CENTER', 'A4']
+] as const) {
+  assert.equal(
+    styledExport.getWorksheet(sheetName)?.getCell(address).fill.fgColor?.argb,
+    'FFFEF9C3',
+    `${sheetName}.${address} export value must remain an editable yellow input cell`
+  )
+}
+assert.notEqual(
+  styledExport.getWorksheet('COST_CALCULATION')?.getCell('B6').fill.fgColor?.argb,
+  'FFFEF9C3',
+  'calculated cells must not be yellow input cells'
+)
 
 const headersFor = (sheetName: string, rowNumber: number) => {
   const rows = XLSX.utils.sheet_to_json(exportedWorkbook.Sheets[sheetName], {
