@@ -106,7 +106,7 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({
         <aside aria-label="Business metric formula status" className="border border-amber-300 bg-amber-50 px-3 py-3">
           <p className="font-mono text-[9px] font-bold uppercase tracking-wide text-amber-900">Calculation status</p>
           <p className="mt-1 text-xs font-semibold text-amber-950">Business metrics are not calculated — formula pending.</p>
-          <p className="mt-1 text-[10px] leading-4 text-amber-900">COGS, GP, GP Margin, OP, OP Margin, and Sales are not shown as numeric results. No placeholder values are used.</p>
+          <p className="mt-1 text-[10px] leading-4 text-amber-900">COGS, GP, GP Margin, OP, OP Margin, Sales, and Volume/Quantity are not shown as numeric results. No placeholder values are used.</p>
         </aside>
       </section>
     </div>

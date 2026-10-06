@@ -23,6 +23,7 @@ export const CandidatesTable: React.FC<CandidatesTableProps> = ({
         <div>
           <h2 id="candidate-table-title" className="font-mono text-[11px] font-bold uppercase tracking-wide text-slate-950">Ranked findings</h2>
           <p className="mt-0.5 text-[11px] text-slate-600">Review the numbers and change details before prioritizing work.</p>
+          <p className="mt-0.5 text-[10px] text-slate-500">Material Gap is the calculated cost difference for the whole BOM record; changed inputs are shown as value details.</p>
         </div>
         <p className="text-xs text-slate-500 sm:hidden">Scroll horizontally to view all columns.</p>
       </div>

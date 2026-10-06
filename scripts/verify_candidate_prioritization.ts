@@ -76,6 +76,10 @@ assert(removedMat, 'Removed material candidate exists')
 assert.equal(removedMat.currentCost, 0, 'Removed material current cost must be 0')
 assert.equal(removedMat.costGap, -15, 'Removed material gap must be -Reference cost')
 
+const changedPriceMat = matCandidates.find(c => c.candidateName === 'Mat 02')
+assert(changedPriceMat, 'Changed material candidate exists')
+assert.equal(changedPriceMat.factor, 'Record cost', 'A changed input label must not imply its own THB allocation of the whole material-record Gap')
+
 // 2. Task 12: Processing Candidates aggregated by Work Center
 console.log('2. Checking Processing Candidates aggregated by Work Center...')
 const procCandidates = buildProcessingCandidates(comparison)

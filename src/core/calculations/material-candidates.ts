@@ -150,18 +150,11 @@ export function buildMaterialCandidates(
       continue
     }
 
-    const changedFields = Object.keys(finding.fieldDiffs)
-    const factor = changedFields.length > 1
-      ? 'Multiple input changes'
-      : changedFields.length === 1
-        ? candidateFieldLabel(changedFields[0])
-        : 'Material Cost'
-
     candidates.push({
       candidateKey: baseKey,
       candidateName: materialName,
       category: 'Direct Material',
-      factor,
+      factor: 'Record cost',
       status: 'CHANGED',
       referenceCost,
       currentCost,
