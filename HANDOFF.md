@@ -23,7 +23,7 @@
 ## Final Logic implementation status
 
 - Batches 1–7 are complete in separate commits; the cleanup regression commit is `f5d6ff6`.
-- The 430-item Final Logic re-audit is **424 PASS, 6 PARTIAL, 0 FAIL, 0 NOT VERIFIED** after isolated browser verification. The only partial finding is duplicate-economics prevention: the app warns against repeating a cost already modeled through BOM/Routing/WC inputs, but the spec defines no safe identity/matching rule for automatic detection.
+- The 430-item Final Logic re-audit is **430 PASS, 0 PARTIAL, 0 FAIL, 0 NOT VERIFIED** after isolated browser verification and the user's clarification of economics input responsibility. The warning against repeating a cost already modeled through BOM/Routing/WC remains; a duplicate entry is invalid scenario input, and the product does not need to infer semantic duplicates. Categorized economics is composed once and is not subtracted again downstream.
 - Runtime verification in a separate in-app browser used the dedicated synthetic fixture. It exercised Master Data → Cost Breakdown → scoped Ranking → RCA Candidate selection → full-Current Simulation, confirmed exactly A/B, categorized economics, scenario-local price/SG&A, negative OP, human scenario selection, and both graphs. Selecting a scoped Candidate cleared active Selected Scope and restored the full Current baseline.
 - A/B negative-OP labels now occupy separate aligned rows, and Selected Comparison copy states that the scope ends when one Candidate enters RCA.
 - Final checks: 49/49 TypeScript verifiers, 2/2 MJS verifiers, the 31/31 comprehensive audit, both v2 workbook verifiers, production build, and `git diff --check` passed. The Vite build retains its existing ExcelJS `fs`/`crypto` externalization warnings. `package.json` defines no generic test or lint script.
@@ -75,4 +75,4 @@ These are genuine product boundaries, not blockers for independent implementatio
 
 ## Next step
 
-The seven implementation batches, isolated runtime verification, re-audit, and required cleanup are complete. The current branch is authorized for a normal push after the status-document refresh. Do not merge to `main`. Keep the duplicate-economics limitation explicit; do not add automatic matching without a finalized effect-mapping rule. Preserve the three pending Master Data decisions and the historical checkpoints below.
+The seven implementation batches, isolated runtime verification, 430-item Final Logic re-audit, and required cleanup are complete. After pushing the status refresh, continue with the requested style-only UI pass on this branch, following `design.md` and the read-only `feature/taste-frontend-ui` reference. Keep layout, content, behavior, and calculations intact; remove only redundant presentation copy and tune visual style. Do not merge to `main`. Preserve the three pending Master Data decisions and the historical checkpoints below.
