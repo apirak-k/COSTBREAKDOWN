@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict'
-import { calculateSnapshotCost, compareSnapshots } from '../src/core'
+import { calculateSnapshotCost, compareSnapshots, type ProductSession } from '../src/core'
 import { getCanonicalComparisonStatus } from '../src/core/calculations/comparison-status'
+import { resetDevelopmentReviewFixtureSession } from '../src/state/development-review-fixture'
 import {
   createSyntheticDataQualitySnapshotPair,
   createSyntheticReviewSnapshotPair
@@ -87,4 +88,41 @@ assert.ok(qualityComparison.productFieldDiffs.productName, 'different Product Na
 assert.ok(qualityComparison.bomFindings.some(finding => finding.matchStatus === 'ambiguous'), 'duplicate BOM identities are flagged as ambiguous')
 assert.ok(qualityComparison.processingFindings.some(finding => finding.workCenterCode === 'WC-MISSING' && finding.costGap === null), 'an unpriced Work Center stays unavailable')
 
-console.log('Synthetic review fixtures cover full comparison states, changed input details, Work Center aggregation without process matching, and unavailable/data-quality states.')
+const savedFixtureSession: ProductSession = {
+  id: 'ps-dev-review-fixture',
+  product: { ...pair.reference.product },
+  rates: [],
+  bom: [],
+  routing: [],
+  savedDrivers: [],
+  selectedDriverKeys: ['bom:stale'],
+  rcaRecords: {},
+  candidateRcaRecords: {
+    stale: { candidateKey: 'stale', rootCause: 'Old note', action: 'Old action', updatedAt: '2026-01-01' }
+  },
+  candidateControllability: { stale: false },
+  status: 'active',
+  createdAt: '2026-01-01',
+  updatedAt: '2026-01-01',
+  snapshotPair: pair,
+  snapshotPairMode: 'independent',
+  preparedSnapshotRoles: { reference: false, current: false },
+  datasetSizing: { reference: { wcCount: 1 }, current: { wcCount: 1 } },
+  lastSavedMasterData: {
+    reference: { snapshot: pair.reference, prepared: true },
+    current: { snapshot: pair.current, prepared: true }
+  },
+  masterDataRevision: 10
+}
+const resetFixtureSession = resetDevelopmentReviewFixtureSession(savedFixtureSession, qualityPair, '2026-10-06T00:00:00.000Z')
+assert.deepEqual(resetFixtureSession.lastSavedMasterData, {}, 'reloading a review fixture removes stale Last Saved copies')
+assert.deepEqual(resetFixtureSession.candidateRcaRecords, {}, 'reloading a review fixture removes stale RCA notes')
+assert.deepEqual(resetFixtureSession.candidateControllability, {}, 'reloading a review fixture resets candidate annotations')
+assert.deepEqual(resetFixtureSession.selectedDriverKeys, [])
+assert.deepEqual(resetFixtureSession.preparedSnapshotRoles, { reference: true, current: true })
+assert.deepEqual(resetFixtureSession.datasetSizing, qualityPair.reference.sizing && qualityPair.current.sizing
+  ? { reference: qualityPair.reference.sizing, current: qualityPair.current.sizing }
+  : undefined)
+assert.equal(resetFixtureSession.masterDataRevision, 11, 'each fixture load invalidates stale page simulation state')
+
+console.log('Synthetic review fixtures cover comparison states, changed inputs, Work Center aggregation, unavailable/data-quality states, and clean session resets.')

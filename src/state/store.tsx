@@ -50,8 +50,13 @@ import {
   undoMasterDataEdit as takeMasterDataUndo,
   redoMasterDataEdit as takeMasterDataRedo,
   applyMasterDataEditHistoryEntry as restoreMasterDataEditHistoryEntry,
+  type MasterDataEditHistory,
   type MasterDataEditHistoryEntry
 } from './master-data-edit-history'
+import {
+  DEVELOPMENT_REVIEW_FIXTURE_ID,
+  resetDevelopmentReviewFixtureSession
+} from './development-review-fixture'
 import {
   INITIAL_MASTER_DATA_UI_STATE,
   reduceMasterDataUiState,
@@ -72,7 +77,6 @@ import {
 
 export const DEFAULT_UOMS = ['PC', 'SET', 'PANEL', 'GM', 'KG', 'SM', 'M', 'RL', 'L', 'BOX', 'TRAY']
 
-const DEVELOPMENT_REVIEW_FIXTURE_ID = 'ps-dev-review-fixture'
 const DEVELOPMENT_REVIEW_RETURN_ID_KEY = 'cost_breakdown_dev_review_return_id'
 
 interface StoredSelectedComparison extends SelectedComparisonSelection {
@@ -441,11 +445,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     loadFromSession(STORAGE_KEYS.ACTIVE_ID, 'ps-empty-default')
   )
 
-  useEffect(() => {
-    masterDataHistoryRef.current = createMasterDataEditHistory()
-    setMasterDataHistoryRevision(revision => revision + 1)
-  }, [activeProductId])
-
   const [activeTab, setActiveTabState] = useState<'master' | 'breakdown' | 'dashboard' | 'candidate' | 'rca'>(() =>
     loadFromSession(STORAGE_KEYS.ACTIVE_TAB, 'master')
   )
@@ -458,6 +457,25 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     loadWorkingDatasetsFromStorage()
   )
   const [selectedComparisonScope, setSelectedComparisonScope] = useState<StoredSelectedComparison | null>(null)
+  const developmentReviewReturnStateRef = useRef<{
+    productId: string
+    history: MasterDataEditHistory
+    selectedComparisonScope: StoredSelectedComparison | null
+  } | null>(null)
+  const restoreDevelopmentReviewHistoryForProductIdRef = useRef<string | null>(null)
+
+  useEffect(() => {
+    const restoreForProductId = restoreDevelopmentReviewHistoryForProductIdRef.current
+    const returnState = developmentReviewReturnStateRef.current
+    if (restoreForProductId === activeProductId && returnState?.productId === activeProductId) {
+      masterDataHistoryRef.current = returnState.history
+      developmentReviewReturnStateRef.current = null
+      restoreDevelopmentReviewHistoryForProductIdRef.current = null
+    } else {
+      masterDataHistoryRef.current = createMasterDataEditHistory()
+    }
+    setMasterDataHistoryRevision(revision => revision + 1)
+  }, [activeProductId])
 
   useEffect(() => {
     saveWorkingDatasetsToStorage(workingDatasets)
@@ -1348,39 +1366,20 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
     if (!isDevelopmentReviewFixture && !sessionStorage.getItem(DEVELOPMENT_REVIEW_RETURN_ID_KEY)) {
       sessionStorage.setItem(DEVELOPMENT_REVIEW_RETURN_ID_KEY, activeProductId)
+      developmentReviewReturnStateRef.current = {
+        productId: activeProductId,
+        history: masterDataHistoryRef.current,
+        selectedComparisonScope
+      }
     }
 
-    const referenceSizing: DatasetSizing = {
-      wcCount: pair.reference.sizing?.wcCount ?? pair.reference.rates.length,
-      bomCount: pair.reference.sizing?.bomCount ?? pair.reference.bom.length,
-      routingCount: pair.reference.sizing?.routingCount ?? pair.reference.routing.length
-    }
-    const currentSizing: DatasetSizing = {
-      wcCount: pair.current.sizing?.wcCount ?? pair.current.rates.length,
-      bomCount: pair.current.sizing?.bomCount ?? pair.current.bom.length,
-      routingCount: pair.current.sizing?.routingCount ?? pair.current.routing.length
-    }
-    const nextPair: SnapshotPair = {
-      reference: { ...pair.reference, comparisonRole: 'reference', sizing: referenceSizing },
-      current: { ...pair.current, comparisonRole: 'current', sizing: currentSizing }
-    }
     const source = productSessions.find(session => session.id === DEVELOPMENT_REVIEW_FIXTURE_ID) ??
       makeEmptySession(DEVELOPMENT_REVIEW_FIXTURE_ID)
     const now = new Date().toISOString()
-    const updated = applyMasterDataSnapshotPair({
-      ...source,
-      updatedAt: now,
-      savedDrivers: [],
-      selectedDriverKeys: [],
-      rcaRecords: {},
-      candidateRcaRecords: {},
-      candidateControllability: {},
-      preparedSnapshotRoles: { reference: true, current: true },
-      datasetSizing: { reference: referenceSizing, current: currentSizing },
-      status: 'draft',
-      versionLabel: 'Synthetic Review Fixture'
-    }, nextPair)
+    const updated = resetDevelopmentReviewFixtureSession(source, pair, now)
 
+    clearMasterDataEditHistory()
+    setSelectedComparisonScope(null)
     setProductSessions(prev => prev.some(session => session.id === source.id)
       ? prev.map(session => session.id === source.id ? updated : session)
       : [...prev, updated])
@@ -1394,8 +1393,20 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const previousId = sessionStorage.getItem(DEVELOPMENT_REVIEW_RETURN_ID_KEY)
     sessionStorage.removeItem(DEVELOPMENT_REVIEW_RETURN_ID_KEY)
     if (previousId && productSessions.some(session => session.id === previousId)) {
+      const returnState = developmentReviewReturnStateRef.current
+      restoreDevelopmentReviewHistoryForProductIdRef.current = returnState?.productId === previousId
+        ? previousId
+        : null
+      setSelectedComparisonScope(returnState?.productId === previousId
+        ? returnState.selectedComparisonScope
+        : null)
       setActiveProductId(previousId)
       setActiveTab('master')
+    } else {
+      developmentReviewReturnStateRef.current = null
+      restoreDevelopmentReviewHistoryForProductIdRef.current = null
+      setSelectedComparisonScope(null)
+      clearMasterDataEditHistory()
     }
   }
 
