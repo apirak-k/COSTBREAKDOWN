@@ -1,6 +1,8 @@
 import type { DatasetSizing } from '../core/types/product.types'
 import type {
+  ComparisonRole,
   CostSnapshot,
+  SnapshotPair,
   SnapshotBOMItem,
   SnapshotRoutingStep,
   SnapshotWorkCenterRate
@@ -15,6 +17,29 @@ export interface MasterDataSizingFactories {
 
 export function markSizingPlaceholderEdited<T extends { isGeneratedSizingPlaceholder?: boolean }>(row: T): T {
   return { ...row, isGeneratedSizingPlaceholder: false }
+}
+
+export function importSnapshotForRole(
+  pair: SnapshotPair,
+  existingSizing: Partial<Record<ComparisonRole, DatasetSizing>> | undefined,
+  role: ComparisonRole,
+  snapshot: CostSnapshot
+): { snapshotPair: SnapshotPair; datasetSizing: Record<ComparisonRole, DatasetSizing> } {
+  const sizing = {
+    wcCount: snapshot.rates.length,
+    bomCount: snapshot.bom.length,
+    routingCount: snapshot.routing.length
+  }
+  const snapshotPair = { ...pair, [role]: { ...snapshot, sizing } }
+
+  return {
+    snapshotPair,
+    datasetSizing: {
+      reference: existingSizing?.reference ?? pair.reference.sizing ?? {},
+      current: existingSizing?.current ?? pair.current.sizing ?? {},
+      [role]: sizing
+    }
+  }
 }
 
 function isGeneratedRow(row: { id: string; isGeneratedSizingPlaceholder?: boolean }, prefix: string): boolean {

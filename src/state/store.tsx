@@ -41,7 +41,7 @@ import {
   SingleSheetWorkingDatasets
 } from './working-datasets'
 import { WorkingDataset } from '../core/types/dataset-standard.types'
-import { hasEnteredMasterData, markSizingPlaceholderEdited, resizeMasterDataSnapshotForSizing } from './dataset-sizing'
+import { hasEnteredMasterData, importSnapshotForRole, markSizingPlaceholderEdited, resizeMasterDataSnapshotForSizing } from './dataset-sizing'
 import { clearMasterDataDatasetState } from './clear-master-data-dataset'
 import { markMasterDataChanged, markMasterDataChangedForSnapshotPair } from './master-data-revision'
 import {
@@ -1345,9 +1345,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
     const source = activeSession
     const existingPair = source.snapshotPair ?? sessionToSnapshotPair(source)
-    const nextPair: SnapshotPair = result.role === 'reference'
-      ? { reference: result.snapshot, current: existingPair.current }
-      : { reference: existingPair.reference, current: result.snapshot }
+    const imported = importSnapshotForRole(existingPair, source.datasetSizing, result.role, result.snapshot)
     const now = new Date().toISOString()
     const preparedSnapshotRoles = {
       ...getSnapshotRoleReadiness(source),
@@ -1357,10 +1355,11 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const updated = applyMasterDataSnapshotPair(
       {
         ...source,
+        datasetSizing: imported.datasetSizing,
         updatedAt: now,
         preparedSnapshotRoles
       },
-      nextPair
+      imported.snapshotPair
     )
     setProductSessions(prev => prev.map(session => session.id === source.id ? updated : session))
     recordMasterDataWorkingEdit(source, updated, result.role)

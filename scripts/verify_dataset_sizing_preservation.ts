@@ -1,8 +1,10 @@
 import assert from 'node:assert/strict'
 import {
+  importSnapshotForRole,
   markSizingPlaceholderEdited,
   resizeMasterDataSnapshotForSizing
 } from '../src/state/dataset-sizing.ts'
+import { hasDatasetSizingChanged, parseDatasetSizingCounts } from '../src/features/master-data/dataset-sizing-form.ts'
 import {
   applySnapshotPairToSession,
   projectSnapshotPairToLegacySession,
@@ -103,6 +105,52 @@ const factories = {
   bom: (index: number) => bom(`new-bom-${index}`, { isGeneratedSizingPlaceholder: true }),
   routing: (index: number) => routing(`new-routing-${index}`, { isGeneratedSizingPlaceholder: true })
 }
+
+const importReference = snapshot({
+  rates: [rate('import-reference-rate')],
+  bom: [bom('import-reference-bom')],
+  routing: [routing('import-reference-routing')]
+})
+importReference.sizing = { wcCount: 7, bomCount: 8, routingCount: 9 }
+const importCurrent = snapshot({
+  rates: [rate('import-current-rate-1'), rate('import-current-rate-2'), rate('import-current-rate-3')],
+  bom: Array.from({ length: 6 }, (_, index) => bom(`import-current-bom-${index + 1}`)),
+  routing: Array.from({ length: 4 }, (_, index) => routing(`import-current-routing-${index + 1}`))
+})
+const importedCurrent = importSnapshotForRole(
+  { reference: importReference, current: snapshot({ rates: [], bom: [], routing: [] }) },
+  { reference: importReference.sizing, current: { wcCount: 2, bomCount: 2, routingCount: 2 } },
+  'current',
+  importCurrent
+)
+assert.equal(importedCurrent.snapshotPair.current.rates.length, 3)
+assert.equal(importedCurrent.snapshotPair.current.bom.length, 6)
+assert.equal(importedCurrent.snapshotPair.current.routing.length, 4)
+assert.deepEqual(importedCurrent.datasetSizing.current, { wcCount: 3, bomCount: 6, routingCount: 4 })
+assert.deepEqual(importedCurrent.snapshotPair.current.sizing, importedCurrent.datasetSizing.current)
+assert.strictEqual(importedCurrent.snapshotPair.reference, importReference, 'Current import preserves Reference')
+assert.deepEqual(importedCurrent.datasetSizing.reference, importReference.sizing, 'Current import preserves Reference sizing')
+
+const importedReference = importSnapshotForRole(
+  importedCurrent.snapshotPair,
+  importedCurrent.datasetSizing,
+  'reference',
+  snapshot({
+    rates: [rate('import-reference-new-rate-1'), rate('import-reference-new-rate-2')],
+    bom: Array.from({ length: 5 }, (_, index) => bom(`import-reference-new-bom-${index + 1}`)),
+    routing: Array.from({ length: 3 }, (_, index) => routing(`import-reference-new-routing-${index + 1}`))
+  })
+)
+assert.deepEqual(importedReference.datasetSizing.reference, { wcCount: 2, bomCount: 5, routingCount: 3 })
+assert.deepEqual(importedReference.datasetSizing.current, { wcCount: 3, bomCount: 6, routingCount: 4 })
+assert.strictEqual(importedReference.snapshotPair.current, importedCurrent.snapshotPair.current, 'Reference import preserves Current')
+
+const unchangedSizing = parseDatasetSizingCounts({ wcCount: '3', bomCount: '6', routingCount: '4' })
+assert.equal(hasDatasetSizingChanged(importedCurrent.datasetSizing.current, unchangedSizing), false, 'same sizing is a no-op')
+const largerSizing = parseDatasetSizingCounts({ wcCount: '4', bomCount: '8', routingCount: '6' })
+assert.equal(hasDatasetSizingChanged(importedCurrent.datasetSizing.current, largerSizing), true, 'sizing can increase after import')
+const smallerSizing = parseDatasetSizingCounts({ wcCount: '2', bomCount: '5', routingCount: '3' })
+assert.equal(hasDatasetSizingChanged(importedCurrent.datasetSizing.current, smallerSizing), true, 'sizing can decrease after import')
 
 // A small target must not silently discard data, including sparse edits and numeric zeroes.
 const beforeShrink = snapshot({
