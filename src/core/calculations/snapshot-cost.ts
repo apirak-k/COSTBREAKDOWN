@@ -1,5 +1,4 @@
 import { safeAdd, safeDivide, safeMultiply } from '../utils/guards'
-import { excludeGeneratedSizingPlaceholders } from '../utils/sizing'
 import { CostSnapshot, SnapshotCost, SnapshotWorkCenterRate } from '../types'
 
 function finiteValue(value: number | null, label: string, warnings: Set<string>): number | null {
@@ -32,9 +31,15 @@ function rateMap(rates: SnapshotWorkCenterRate[], warnings: Set<string>): Map<st
 /** Calculates one snapshot without mutating the source data. */
 export function calculateSnapshotCost(snapshot: CostSnapshot): SnapshotCost {
   const warnings = new Set<string>()
-  const rates = rateMap(excludeGeneratedSizingPlaceholders(snapshot.rates), warnings)
-  const bom = excludeGeneratedSizingPlaceholders(snapshot.bom)
-  const routing = excludeGeneratedSizingPlaceholders(snapshot.routing)
+  const rates = rateMap(snapshot.rates, warnings)
+  const bom = snapshot.bom
+  const routing = snapshot.routing
+  const missingIdentity = snapshot.rates.some(rate => !normalizeKey(rate.workCenterCode))
+    || bom.some(item => !normalizeKey(item.description))
+    || routing.some(step => !normalizeKey(step.processName))
+  if (snapshot.rates.some(rate => !normalizeKey(rate.workCenterCode))) warnings.add('Missing Work Center identity')
+  if (bom.some(item => !normalizeKey(item.description))) warnings.add('Missing BOM identity')
+  if (routing.some(step => !normalizeKey(step.processName))) warnings.add('Missing Routing identity')
 
   let materialTotal: number | null = 0
   let materialKnown = bom.length > 0
@@ -137,7 +142,7 @@ export function calculateSnapshotCost(snapshot: CostSnapshot): SnapshotCost {
   const labor = laborKnown ? laborTotal : null
   const burden = burdenKnown ? burdenTotal : null
   let total: number | null = null
-  if (material !== null && labor !== null && burden !== null) {
+  if (!missingIdentity && material !== null && labor !== null && burden !== null) {
     total = safeAdd(material, labor, burden)
     if (total === null) warnings.add('Invalid or non-finite Standard Cost total')
   }

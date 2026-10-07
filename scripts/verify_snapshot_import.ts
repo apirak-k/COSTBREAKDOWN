@@ -164,9 +164,9 @@ async function verifyCanonicalTemplate(): Promise<void> {
   const roundTrip = parseSnapshotWorkbookData(templateBytes, 'reference')
   assert.equal(roundTrip.success, true)
   assert.equal(roundTrip.format, 'canonical')
-  assert.equal(roundTrip.snapshot?.rates.length, 0)
-  assert.equal(roundTrip.snapshot?.bom.length, 0)
-  assert.equal(roundTrip.snapshot?.routing.length, 0)
+  assert.equal(roundTrip.snapshot?.rates.length, 2)
+  assert.equal(roundTrip.snapshot?.bom.length, 2)
+  assert.equal(roundTrip.snapshot?.routing.length, 1)
 }
 
 const invalidWorkbook = XLSX.utils.book_new()

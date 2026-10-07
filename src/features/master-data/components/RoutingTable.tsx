@@ -4,7 +4,7 @@ import { SnapshotRoutingStep, SnapshotWorkCenterRate } from '../../../core'
 import { useDragSelect } from '../hooks/useDragSelect'
 import { SpreadsheetPasteCell, tableCellKey, useTableKeyboardNav } from '../hooks/useTableKeyboardNav'
 import { RowChanges, useSpreadsheetEditing } from '../hooks/useSpreadsheetEditing'
-import { duplicateIdentityIds, hasInvalidNumber, parsePercentage } from '../table-validation'
+import { blankIdentityOrdinals, duplicateIdentityIds, hasInvalidNumber, parsePercentage } from '../table-validation'
 
 interface RoutingTableProps {
   routing: SnapshotRoutingStep[]
@@ -37,6 +37,7 @@ export const RoutingTable: React.FC<RoutingTableProps> = ({
   const tableRef = useRef<HTMLTableElement | null>(null)
   const [searchTerm, setSearchTerm] = useState('')
   const duplicateProcessIds = useMemo(() => duplicateIdentityIds(routing, step => step.id, step => step.processName), [routing])
+  const placeholderNumbers = useMemo(() => blankIdentityOrdinals(routing, step => step.processName), [routing])
   const knownWorkCenters = useMemo(() => new Set(
     rates.map(rate => rate.workCenterCode.trim().toLocaleLowerCase()).filter(Boolean)
   ), [rates])
@@ -192,12 +193,13 @@ export const RoutingTable: React.FC<RoutingTableProps> = ({
           <tbody className="divide-y divide-slate-200 text-xs">
             {filteredRouting.map(step => {
               const isSelected = selectedIds.has(step.id)
-              const identityInvalid = !step.isGeneratedSizingPlaceholder && (!step.processName.trim() || duplicateProcessIds.has(step.id))
-              const workCenterInvalid = !step.isGeneratedSizingPlaceholder && (!step.workCenterId?.trim() || !knownWorkCenters.has(step.workCenterId.trim().toLocaleLowerCase()))
-              const manningInvalid = !step.isGeneratedSizingPlaceholder && (step.manning === null || hasInvalidNumber(step.manning))
-              const capacityInvalid = !step.isGeneratedSizingPlaceholder && (step.capacity === null || hasInvalidNumber(step.capacity))
-              const yieldInvalid = !step.isGeneratedSizingPlaceholder && (step.yield === null || hasInvalidNumber(step.yield) || step.yield > 1)
+              const identityInvalid = !step.processName.trim() || duplicateProcessIds.has(step.id)
+              const workCenterInvalid = !step.workCenterId?.trim() || !knownWorkCenters.has(step.workCenterId.trim().toLocaleLowerCase())
+              const manningInvalid = step.manning === null || hasInvalidNumber(step.manning)
+              const capacityInvalid = step.capacity === null || hasInvalidNumber(step.capacity)
+              const yieldInvalid = step.yield === null || hasInvalidNumber(step.yield) || step.yield > 1
               const rowNumber = routing.findIndex(row => row.id === step.id) + 1
+              const placeholderNumber = placeholderNumbers.get(step.id)
               const rowMarkerBackground = isSelected
                 ? 'bg-blue-50 group-hover:bg-blue-100'
                 : 'bg-white group-hover:bg-slate-50'
@@ -230,6 +232,7 @@ export const RoutingTable: React.FC<RoutingTableProps> = ({
                       {isEditMode ? (
                         <input
                           value={step.processName}
+                          placeholder={placeholderNumber === undefined ? undefined : String(placeholderNumber)}
                           onChange={event => applyCellUpdate(step.id, { processName: event.target.value })}
                           data-grid-cell="true"
                           data-grid-row-id={step.id}
@@ -238,7 +241,7 @@ export const RoutingTable: React.FC<RoutingTableProps> = ({
                           aria-invalid={identityInvalid}
                           className={`min-h-8 w-full rounded-sm border bg-white px-2 text-xs focus:outline-none focus:ring-2 focus:ring-blue-700 ${identityInvalid ? 'border-amber-600' : 'border-slate-300'} ${selectedCellKeys.has(tableCellKey(step.id, 'processName')) ? 'ring-2 ring-blue-500 ring-inset' : ''}`}
                         />
-                      ) : step.processName || <span className="text-amber-700">—</span>}
+                      ) : step.processName || <span className="text-amber-700">{placeholderNumber ?? '—'}</span>}
                     </div>
                   </td>
                   <td className="px-2 py-0.5">

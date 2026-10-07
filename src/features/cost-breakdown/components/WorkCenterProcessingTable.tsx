@@ -215,8 +215,8 @@ export const WorkCenterProcessingTable: React.FC<WorkCenterProcessingTableProps>
   selectedFindingKeys,
   onToggleFinding
 }) => {
-  const referenceById = new Map(referenceRouting.filter(step => !step.isGeneratedSizingPlaceholder).map(step => [step.id, step]))
-  const currentById = new Map(currentRouting.filter(step => !step.isGeneratedSizingPlaceholder).map(step => [step.id, step]))
+  const referenceById = new Map(referenceRouting.map(step => [step.id, step]))
+  const currentById = new Map(currentRouting.map(step => [step.id, step]))
   const groupsByKey = new Map<string, ProcessingGroup>()
 
   const ensureGroup = (key: string, workCenterCode: string, description: string): ProcessingGroup => {

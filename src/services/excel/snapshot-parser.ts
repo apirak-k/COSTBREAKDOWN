@@ -322,10 +322,11 @@ function parseWorkCenters(
   }
   const map = columnMap(rows[headerIndex])
   const rates: SnapshotWorkCenterRate[] = []
+  let blankIdentityCount = 0
   rows.slice(headerIndex + 1).forEach((row, index) => {
     const rowNumber = headerIndex + index + 2
-    if (!row.some(value => textValue(value) !== '')) return
     const code = textValue(cell(row, map, ['wc', 'work center code', 'workcentercode', 'work center']))
+    const blankIdentityOrdinal = code ? undefined : ++blankIdentityCount
     if (!code) {
       warnings.push(`Missing WC at row ${rowNumber}`)
     }
@@ -334,7 +335,8 @@ function parseWorkCenters(
     const laborRate = numberValue(cell(row, map, ['labor', 'labor rate', 'laborrate']), 'Labor', rowNumber, warnings)
     const burdenRate = numberValue(cell(row, map, ['burden', 'burden rate', 'burdenrate']), 'Burden', rowNumber, warnings)
     const effectiveDate = textValue(cell(row, map, ['effective date', 'effectivedate'])) || fallbackDate
-    const id = textValue(cell(row, map, ['id', 'work center id', 'workcenterid'])) || `rate-${rowNumber}`
+    const suppliedId = textValue(cell(row, map, ['id', 'work center id', 'workcenterid']))
+    const id = suppliedId || (blankIdentityOrdinal ? `rate-placeholder-${blankIdentityOrdinal}` : `rate-${rowNumber}`)
     rates.push({
       id,
       workCenterCode: code,
@@ -377,10 +379,11 @@ function parseBOM(
   }
   const map = columnMap(rows[headerIndex])
   const items: SnapshotBOMItem[] = []
+  let blankIdentityCount = 0
   rows.slice(headerIndex + 1).forEach((row, index) => {
     const rowNumber = headerIndex + index + 2
-    if (!row.some(value => textValue(value) !== '')) return
     const name = textValue(cell(row, map, ['name', 'material name', 'description', 'material description']))
+    const blankIdentityOrdinal = name ? undefined : ++blankIdentityCount
     const itemCode = textValue(cell(row, map, ['item code', 'itemcode', 'material code', 'material'])) || name
     if (!name) warnings.push(`Missing BOM Name at row ${rowNumber}`)
     const sourceRef = textValue(cell(row, map, ['source ref', 'sourceref', 'source'])) || fallbackSource
@@ -391,8 +394,9 @@ function parseBOM(
     const description = name
     const unit = textValue(cell(row, map, ['unit', 'uom']))
     if (!unit) warnings.push(`Missing unit at row ${rowNumber}`)
+    const suppliedId = textValue(cell(row, map, ['id', 'bom id', 'bomid']))
     items.push({
-      id: textValue(cell(row, map, ['id', 'bom id', 'bomid'])) || `bom-${rowNumber}`,
+      id: suppliedId || (blankIdentityOrdinal ? `bom-placeholder-${blankIdentityOrdinal}` : `bom-${rowNumber}`),
       itemCode,
       description,
       consumption: consumption.value,
@@ -435,14 +439,17 @@ function parseRouting(
   const map = columnMap(rows[headerIndex])
   const steps: SnapshotRoutingStep[] = []
   const usedIds = new Set<string>()
+  let blankIdentityCount = 0
   rows.slice(headerIndex + 1).forEach((row, index) => {
     const rowNumber = headerIndex + index + 2
     const operationCode = textValue(cell(row, map, ['operation code', 'operationcode', 'operation']))
     const processCode = textValue(cell(row, map, ['process code', 'processcode']))
-    const hasData = row.some(value => textValue(value) !== '')
-    if (!hasData) return
     const processName = textValue(cell(row, map, ['process', 'process name', 'description']))
-    const preferredId = textValue(cell(row, map, ['id', 'routing id', 'routingid'])) || operationCode || processCode || processName || `routing-${rowNumber}`
+    const blankIdentityOrdinal = processName ? undefined : ++blankIdentityCount
+    const suppliedId = textValue(cell(row, map, ['id', 'routing id', 'routingid']))
+    const preferredId = suppliedId || (processName
+      ? operationCode || processCode || processName
+      : `routing-placeholder-${blankIdentityOrdinal}`)
     let id = preferredId
     if (usedIds.has(id)) {
       id = `routing-${rowNumber}`

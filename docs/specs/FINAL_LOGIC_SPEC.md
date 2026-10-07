@@ -534,9 +534,11 @@ They:
 
 ## 3.9 Sizing
 
-Sizing controls the starting number of rows and shared metadata for the selected side.
+Sizing controls exact row counts and shared metadata for the selected side.
 
-Row counts are starting counts, not maximum limits.
+Applying a row count creates exactly that many row slots. Increasing appends blank rows. Decreasing removes rows from the end, including populated rows, and removed data is lost. Import initializes the selected side's counts to the actual imported row counts. Direct table additions and deletions keep that section's count aligned with its current rows; Reference and Current remain independent. A blank identity displays an ordinal counted among blank identities only, not by UI row position, and the ordinal is not a business identity. Blank numeric inputs remain blank.
+
+A row with missing required data is MISSING. A MISSING row is not eligible for normal comparison as a complete record, and missing required calculation values do not produce a cost or gap.
 
 Sizing must not create a record-count equality requirement between Reference and Current.
 
@@ -2655,8 +2657,11 @@ NOT APPLICABLE
 ## K. Master Data — Sizing/workbook logic
 
 - [ ] Sizing belongs to the selected Reference/Current side.
-- [ ] Sizing row counts are starting counts.
-- [ ] Sizing row counts are not maximum record limits.
+- [ ] Sizing row counts determine the exact current row slots.
+- [ ] Decreasing Sizing removes rows from the end, including populated rows.
+- [ ] Import initializes Sizing to actual row counts; Reference and Current remain independent.
+- [ ] Export and re-import preserve blank row slots and numeric blanks.
+- [ ] Missing required rows are MISSING and cannot be treated as complete comparisons.
 - [ ] Sizing does not require Ref/Current counts to match.
 - [ ] Workbook data sheets are META / BOM / ROUTING / WORK_CENTER.
 - [ ] Separate calculation inspection view is not imported as a data sheet.

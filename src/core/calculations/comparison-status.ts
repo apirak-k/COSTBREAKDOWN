@@ -6,10 +6,10 @@ export type ComparisonStatus = CanonicalComparisonStatus
 
 /**
  * Returns the exact canonical comparison status (UNCHANGED, CHANGED, ADDED, REMOVED).
- * Note: Validation warnings (like ambiguous keys or missing required data) are separate from status.
+ * Missing data prevents a canonical status; other validation warnings remain separate.
  */
 export function getCanonicalComparisonStatus(finding: ComparisonFinding | undefined): CanonicalComparisonStatus | null {
-  if (!finding) return null
+  if (!finding || finding.confidence === 'missing') return null
   if (finding.matchStatus === 'added') return 'ADDED'
   if (finding.matchStatus === 'removed') return 'REMOVED'
   if (finding.matchStatus === 'matched') {

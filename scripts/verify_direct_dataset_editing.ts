@@ -1,12 +1,30 @@
 import assert from 'node:assert/strict'
-import { makeEmptySession } from '../src/state/store.tsx'
 import { applySnapshotPairToSession } from '../src/core/migrations/snapshot-to-session.ts'
-import { CostSnapshot, SnapshotPair } from '../src/core'
+import { CostSnapshot, ProductSession, SnapshotPair } from '../src/core'
+import { createEmptySnapshotPair, emptyProductMaster } from '../src/state/seed-data.ts'
 
 console.log('--- Verifying Direct Working Dataset Editing & Lifecycle De-gating (Task 2) ---')
 
 // 1. Verify a session can be edited directly on Reference without draft gating
-let session = makeEmptySession('ps-test-editing')
+const emptyPair = createEmptySnapshotPair('ps-test-editing')
+const now = new Date().toISOString()
+let session: ProductSession = {
+  id: 'ps-test-editing',
+  product: { ...emptyProductMaster },
+  rates: [],
+  bom: [],
+  routing: [],
+  savedDrivers: [],
+  candidateRcaRecords: {},
+  preparedSnapshotRoles: { reference: false, current: false },
+  status: 'draft',
+  versionLabel: 'Draft',
+  createdAt: now,
+  updatedAt: now,
+  snapshotPairMode: 'independent',
+  snapshotPair: emptyPair,
+  masterDataRole: 'reference'
+}
 assert.ok(session.snapshotPair, 'Snapshot pair must exist')
 
 // Simulate direct mutation of Reference dataset (simulating updateMasterDataDataset / setMasterDataRole('reference'))

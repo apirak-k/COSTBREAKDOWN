@@ -1,6 +1,12 @@
 import assert from 'node:assert/strict'
-import { CostSnapshot, compareSnapshots, calculateSnapshotCost, buildProcessingCandidates } from '../src/core'
-import { getCanonicalComparisonStatus } from '../src/core/calculations/comparison-status'
+import {
+  CostSnapshot,
+  buildProcessingCandidates,
+  calculateSnapshotCost,
+  compareSnapshots,
+  getCanonicalComparisonStatus
+} from '../src/core'
+import { blankIdentityOrdinals } from '../src/features/master-data/table-validation.ts'
 
 const base: CostSnapshot = {
   id: 'sizing-base',
@@ -28,40 +34,98 @@ const base: CostSnapshot = {
   }]
 }
 
-const reference: CostSnapshot = { ...base, id: 'sizing-reference' }
 const current: CostSnapshot = {
   ...base,
   id: 'sizing-current',
   rates: [...base.rates, {
     id: 'size-rate-1', isGeneratedSizingPlaceholder: true, workCenterCode: '',
-    description: '', laborRate: null, burdenRate: null, effectiveDate: '', confidence: {}
+    description: '', laborRate: null, burdenRate: null, effectiveDate: '', confidence: {
+      laborRate: { status: 'missing' }, burdenRate: { status: 'missing' }
+    }
   }],
   bom: [...base.bom, {
     id: 'size-bom-1', isGeneratedSizingPlaceholder: true, itemCode: '', description: '',
-    consumption: null, unit: '', price: null, loss: null, confidence: {}
+    consumption: null, unit: 'PC', price: null, loss: null, confidence: {
+      consumption: { status: 'missing' }, price: { status: 'missing' }, loss: { status: 'missing' }
+    }
   }],
   routing: [...base.routing, {
     id: 'size-routing-1', isGeneratedSizingPlaceholder: true,
-    operationCode: '', processName: '', sequence: undefined, workCenterId: 'WC-1',
-    manning: null, capacity: null, yield: null, confidence: {}
+    operationCode: '', processName: '', sequence: undefined, workCenterId: undefined,
+    manning: null, capacity: null, yield: null, confidence: {
+      manning: { status: 'missing' }, capacity: { status: 'missing' }, yield: { status: 'missing' }
+    }
   }]
 }
 
-const referenceCost = calculateSnapshotCost(reference)
 const currentCost = calculateSnapshotCost(current)
-assert.equal(referenceCost.status, 'complete')
-assert.equal(currentCost.status, 'complete', 'untouched sizing slots must not make a populated dataset incomplete')
-assert.equal(currentCost.total, referenceCost.total)
-assert.deepEqual(currentCost.warnings, [])
+assert.equal(currentCost.status, 'missing', 'blank Sizing rows make the dataset incomplete')
+assert.equal(currentCost.material, null, 'blank BOM inputs never become zero')
+assert.equal(currentCost.labor, null, 'blank Routing inputs never become zero')
+assert.equal(currentCost.burden, null, 'blank Routing inputs never become zero')
+assert.equal(currentCost.total, null, 'an incomplete dataset has no Standard Cost')
 
-const comparison = compareSnapshots(reference, current)
+const comparison = compareSnapshots(base, current)
 assert.equal(comparison.referenceCost.status, 'complete')
-assert.equal(comparison.currentCost.status, 'complete')
-assert.ok(!comparison.bomFindings.some(finding => finding.currentId === 'size-bom-1'))
-assert.ok(!comparison.routingFindings.some(finding => finding.currentId === 'size-routing-1'))
-assert.ok(!comparison.workCenterFindings.some(finding => finding.currentId === 'size-rate-1'))
-assert.ok(!comparison.warnings.some(warning => warning.code === 'MISSING_BUSINESS_KEY'))
-assert.deepEqual(buildProcessingCandidates(comparison, reference, current), [])
+assert.equal(comparison.currentCost.status, 'missing')
+assert.equal(comparison.totalGap, null, 'incomplete datasets have no comparable total gap')
+for (const [findings, id] of [
+  [comparison.bomFindings, 'size-bom-1'],
+  [comparison.routingFindings, 'size-routing-1'],
+  [comparison.workCenterFindings, 'size-rate-1']
+] as const) {
+  const finding = findings.find(row => row.currentId === id)
+  assert.ok(finding, `Sizing row ${id} must remain visible in comparison validation`)
+  assert.equal(finding.confidence, 'missing')
+  assert.equal(getCanonicalComparisonStatus(finding), null, 'MISSING rows are not selectable as complete comparisons')
+}
+assert.ok(comparison.warnings.some(warning => warning.code === 'MISSING_BUSINESS_KEY'))
+assert.deepEqual(buildProcessingCandidates(comparison, base, current), [], 'MISSING Routing rows cannot create candidates')
+
+const incompleteNamed: CostSnapshot = {
+  ...base,
+  id: 'incomplete-named',
+  bom: [{
+    ...base.bom[0],
+    price: null,
+    confidence: { price: { status: 'missing' } }
+  }]
+}
+const incompleteComparison = compareSnapshots(base, incompleteNamed)
+const incompleteFinding = incompleteComparison.bomFindings.find(row => row.currentId === 'bom-mat-1')
+assert.ok(incompleteFinding)
+assert.equal(incompleteFinding.matchStatus, 'matched')
+assert.equal(incompleteFinding.confidence, 'missing')
+assert.equal(getCanonicalComparisonStatus(incompleteFinding), null)
+assert.equal(incompleteFinding.costEffect?.gap.total, null)
+assert.equal(incompleteComparison.currentCost.total, null)
+
+const missingIdentity: CostSnapshot = {
+  ...base,
+  id: 'missing-identity',
+  bom: [...base.bom, {
+    id: 'bom-placeholder-1', itemCode: '', description: '', consumption: 1,
+    unit: 'KG', price: 3, loss: 0, confidence: {}
+  }]
+}
+assert.equal(calculateSnapshotCost(missingIdentity).status, 'missing', 'a blank required identity keeps a dataset MISSING')
+assert.equal(calculateSnapshotCost(missingIdentity).total, null)
+const missingIdentityFinding = compareSnapshots(base, missingIdentity).bomFindings.find(row => row.currentId === 'bom-placeholder-1')
+assert.equal(missingIdentityFinding?.confidence, 'missing')
+assert.equal(getCanonicalComparisonStatus(missingIdentityFinding), null)
+
+const mixedRows = [
+  { id: 'real-1', name: 'Material A' },
+  { id: 'placeholder-1', name: '' },
+  { id: 'real-2', name: 'Material B' },
+  { id: 'placeholder-2', name: '' },
+  { id: 'placeholder-3', name: '' }
+]
+assert.deepEqual(
+  [...blankIdentityOrdinals(mixedRows, row => row.name)],
+  [['placeholder-1', 1], ['placeholder-2', 2], ['placeholder-3', 3]],
+  'blank identity labels count blank rows only, not UI row positions'
+)
 
 const metadataReference: CostSnapshot = {
   ...base,
@@ -78,31 +142,9 @@ const metadataCurrent: CostSnapshot = {
   routing: base.routing.map(step => ({ ...step, id: 'routing-metadata-current', isGeneratedSizingPlaceholder: false }))
 }
 const metadataComparison = compareSnapshots(metadataReference, metadataCurrent)
-const metadataBOMFinding = metadataComparison.bomFindings.find(finding => finding.currentId === 'bom-metadata-current')
-assert.ok(metadataBOMFinding, 'equivalent BOM rows with different sizing metadata must match')
-assert.deepEqual(metadataBOMFinding.fieldDiffs, {}, 'the internal sizing marker is not a business field')
-assert.equal(getCanonicalComparisonStatus(metadataBOMFinding), 'UNCHANGED')
-assert.equal(metadataBOMFinding.costGap, 0)
+const metadataFinding = metadataComparison.bomFindings.find(row => row.currentId === 'bom-metadata-current')
+assert.ok(metadataFinding)
+assert.deepEqual(metadataFinding.fieldDiffs, {}, 'the internal sizing marker is not a business field')
+assert.equal(getCanonicalComparisonStatus(metadataFinding), 'UNCHANGED')
 
-const metadataRoutingFinding = metadataComparison.routingFindings.find(finding => finding.currentId === 'routing-metadata-current')
-assert.ok(metadataRoutingFinding, 'equivalent Routing rows with different sizing metadata must match')
-assert.deepEqual(metadataRoutingFinding.fieldDiffs, {})
-assert.equal(getCanonicalComparisonStatus(metadataRoutingFinding), 'UNCHANGED')
-
-const metadataRateFinding = metadataComparison.workCenterFindings.find(finding => finding.currentId === 'rate-metadata-current')
-assert.ok(metadataRateFinding, 'equivalent Work Center rows with different sizing metadata must match')
-assert.deepEqual(metadataRateFinding.fieldDiffs, {})
-assert.equal(getCanonicalComparisonStatus(metadataRateFinding), 'UNCHANGED')
-assert.equal(metadataComparison.totalGap, 0)
-
-const userBlankRow: CostSnapshot = {
-  ...base,
-  id: 'user-blank-row',
-  bom: [...base.bom, {
-    id: 'manual-bom-blank', itemCode: '', description: '', consumption: null,
-    unit: '', price: null, loss: null, confidence: {}
-  }]
-}
-assert.equal(calculateSnapshotCost(userBlankRow).status, 'missing', 'a non-placeholder blank row remains missing data')
-
-console.log('Sizing placeholder verification passed.')
+console.log('Sizing row completeness verification passed.')

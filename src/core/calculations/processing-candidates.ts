@@ -68,8 +68,7 @@ function processDetailsForSide(
   side: 'reference' | 'current'
 ): NonNullable<PrioritizationCandidate['processBreakdown']>['reference'] {
   return snapshot.routing
-    .filter(step => step.isGeneratedSizingPlaceholder !== true
-      && normalizeKey(step.processName) === normalizeKey(processName))
+    .filter(step => normalizeKey(step.processName) === normalizeKey(processName))
     .map(step => {
       const detail = calculateSnapshotRoutingDetail(
         side === 'reference' ? { reference: step } : { current: step },

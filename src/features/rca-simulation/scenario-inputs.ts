@@ -59,7 +59,7 @@ function getProcessInputs(
   current: CostSnapshot
 ): ScenarioInputDefinition[] {
   const matchingSteps = current.routing.filter(step =>
-    step.id === candidate.sourceId && step.isGeneratedSizingPlaceholder !== true
+    step.id === candidate.sourceId
   )
   if (matchingSteps.length !== 1) return []
 
@@ -72,7 +72,7 @@ function getProcessInputs(
   ]
   const centerCode = normalizeCode(step.workCenterId)
   const ratesForCenter = current.rates.filter(rate =>
-    rate.isGeneratedSizingPlaceholder !== true && normalizeCode(rate.workCenterCode) === centerCode
+    normalizeCode(rate.workCenterCode) === centerCode
   )
   if (centerCode && ratesForCenter.length === 1) {
     const rate = ratesForCenter[0]

@@ -41,7 +41,7 @@ import {
   SingleSheetWorkingDatasets
 } from './working-datasets'
 import { WorkingDataset } from '../core/types/dataset-standard.types'
-import { hasEnteredMasterData, importSnapshotForRole, markSizingPlaceholderEdited, resizeMasterDataSnapshotForSizing } from './dataset-sizing'
+import { hasEnteredMasterData, importSnapshotForRole, markSizingPlaceholderEdited, resizeMasterDataSnapshotForSizing, synchronizeDatasetSizingToRows } from './dataset-sizing'
 import { clearMasterDataDatasetState } from './clear-master-data-dataset'
 import { markMasterDataChanged, markMasterDataChangedForSnapshotPair } from './master-data-revision'
 import {
@@ -860,19 +860,29 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     commitMasterDataWorkingSession(session, updated, role)
   }
 
-  const updateMasterDataDataset = (mutate: (snapshot: CostSnapshot) => CostSnapshot) => {
+  const updateMasterDataDataset = (
+    mutate: (snapshot: CostSnapshot) => CostSnapshot,
+    sizingField?: keyof DatasetSizing
+  ) => {
     const session = activeSession
     const role = masterDataUiState.role
     const pair = session.snapshotPair ?? sessionToSnapshotPair(session)
     const readiness = getSnapshotRoleReadiness(session)
     const currentDataset = pair[role]
     const nextDataset = mutate(currentDataset)
-    const nextPair: SnapshotPair = {
+    let nextPair: SnapshotPair = {
       ...pair,
       [role]: { ...nextDataset, comparisonRole: role }
     }
+    let nextSizing = session.datasetSizing
+    if (sizingField) {
+      const synchronized = synchronizeDatasetSizingToRows(nextPair, session.datasetSizing, role, sizingField)
+      nextPair = synchronized.snapshotPair
+      nextSizing = synchronized.datasetSizing
+    }
     const updated = applyMasterDataSnapshotPair({
       ...session,
+      ...(sizingField ? { datasetSizing: nextSizing } : {}),
       updatedAt: new Date().toISOString(),
       preparedSnapshotRoles: { ...readiness, [role]: true }
     }, nextPair)
@@ -1026,12 +1036,12 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
           consumption: null,
           unit: 'PC',
           price: null,
-          loss: 0,
+          loss: null,
           sourceRef: 'Direct Input',
           confidence: {
             consumption: workingEvidence(null, 'Direct Input'),
             price: workingEvidence(null, 'Direct Input'),
-            loss: workingEvidence(0, 'Direct Input')
+            loss: workingEvidence(null, 'Direct Input')
           }
         }),
         routing: (idx, rates): SnapshotRoutingStep => ({
@@ -1085,7 +1095,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         }
       }
       return { ...dataset, bom: [...dataset.bom, newItem] }
-    })
+    }, 'bomCount')
   }
 
   const updateMasterDataBOMItems = (updates: Array<{ id: string; changes: Partial<Omit<SnapshotBOMItem, 'id' | 'confidence'>> }>) => {
@@ -1117,7 +1127,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const deleteMasterDataBOMItems = (ids: string[]) => {
     const deletedIds = new Set(ids)
     if (deletedIds.size === 0) return
-    updateMasterDataDataset(dataset => ({ ...dataset, bom: dataset.bom.filter(item => !deletedIds.has(item.id)) }))
+    updateMasterDataDataset(dataset => ({ ...dataset, bom: dataset.bom.filter(item => !deletedIds.has(item.id)) }), 'bomCount')
   }
 
   const deleteMasterDataBOMItem = (id: string) => {
@@ -1144,7 +1154,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         }
       }
       return { ...dataset, routing: [...dataset.routing, newStep] }
-    })
+    }, 'routingCount')
   }
 
   const updateMasterDataRoutingSteps = (updates: Array<{ id: string; changes: Partial<Omit<SnapshotRoutingStep, 'id' | 'confidence'>> }>) => {
@@ -1176,7 +1186,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const deleteMasterDataRoutingSteps = (ids: string[]) => {
     const deletedIds = new Set(ids)
     if (deletedIds.size === 0) return
-    updateMasterDataDataset(dataset => ({ ...dataset, routing: dataset.routing.filter(step => !deletedIds.has(step.id)) }))
+    updateMasterDataDataset(dataset => ({ ...dataset, routing: dataset.routing.filter(step => !deletedIds.has(step.id)) }), 'routingCount')
   }
 
   const deleteMasterDataRoutingStep = (id: string) => {
@@ -1201,7 +1211,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         }
       }
       return { ...dataset, rates: [...dataset.rates, newRate] }
-    })
+    }, 'wcCount')
   }
 
   const updateMasterDataWorkCenterRates = (updates: Array<{ id: string; changes: Partial<Omit<SnapshotWorkCenterRate, 'id' | 'confidence'>> }>) => {
@@ -1233,7 +1243,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const deleteMasterDataWorkCenterRates = (ids: string[]) => {
     const deletedIds = new Set(ids)
     if (deletedIds.size === 0) return
-    updateMasterDataDataset(dataset => ({ ...dataset, rates: dataset.rates.filter(rate => !deletedIds.has(rate.id)) }))
+    updateMasterDataDataset(dataset => ({ ...dataset, rates: dataset.rates.filter(rate => !deletedIds.has(rate.id)) }), 'wcCount')
   }
 
   const deleteMasterDataWorkCenterRate = (id: string) => {

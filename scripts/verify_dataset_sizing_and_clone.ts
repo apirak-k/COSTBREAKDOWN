@@ -2,6 +2,7 @@ import { evaluateMasterDataHandoff } from '../src/core/calculations/master-data-
 import { generateDynamicExcelTemplate, exportSnapshotToExcel } from '../src/services/excel/index.ts'
 import { parseSnapshotExcelInputFile } from '../src/services/excel/snapshot-parser.ts'
 import { createEmptySnapshotPair } from '../src/state/seed-data.ts'
+import { resizeMasterDataSnapshotForSizing } from '../src/state/dataset-sizing.ts'
 import { ProductSession, DatasetSizing, SnapshotPair, CostSnapshot } from '../src/core/types/index.ts'
 import ExcelJS from 'exceljs'
 import assert from 'node:assert/strict'
@@ -209,14 +210,24 @@ async function runVerifications() {
   }
   console.log('✓ Clone Current -> Reference copied dataset data and sizing')
 
-  // 4. Sizing Adjustment & Populated Record Preservation
-  console.log('4. Checking Populated Record Preservation on Sizing Reduction...')
-  // Session has 1 populated BOM item, let's set bomCount: 1
+  // 4. Sizing reduction keeps the retained prefix and drops rows past the target.
+  console.log('4. Checking exact row count on Sizing Reduction...')
+  const retainedBOM = session.snapshotPair.reference.bom[0]
+  const extraBOM = { ...retainedBOM, id: 'bom-to-drop', itemCode: 'MAT-TO-DROP', description: 'Removed by Sizing' }
+  session.snapshotPair.reference = resizeMasterDataSnapshotForSizing(
+    { ...session.snapshotPair.reference, bom: [...session.snapshotPair.reference.bom, extraBOM] },
+    { bomCount: 1 },
+    {
+      rate: index => ({ ...session.snapshotPair!.reference.rates[0], id: `resize-rate-${index}` }),
+      bom: index => ({ ...retainedBOM, id: `resize-bom-${index}` }),
+      routing: index => ({ ...session.snapshotPair!.reference.routing[0], id: `resize-routing-${index}` })
+    }
+  )
   session.datasetSizing.reference.bomCount = 1
   if (session.snapshotPair.reference.bom.length !== 1 || session.snapshotPair.reference.bom[0].itemCode !== 'MAT-INK-02') {
-    throw new Error('Reducing configured sizing count deleted populated records')
+    throw new Error('Sizing reduction must keep the retained row and match the exact requested count')
   }
-  console.log('✓ Reducing configured sizing count preserved all populated records')
+  console.log('✓ Sizing reduction kept the first row, dropped the row beyond the target, and left one row')
 
   // 5. Excel Template & Import/Export Round-Trip
   console.log('5. Checking Excel Template Generation & Import/Export Round-Trip...')

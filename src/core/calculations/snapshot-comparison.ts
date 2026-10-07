@@ -15,7 +15,6 @@ import {
 import { calculateSnapshotCost } from './snapshot-cost'
 import { calculateSnapshotBOMDetail } from './snapshot-bom-detail'
 import { calculateSnapshotRoutingDetail } from './snapshot-routing-detail'
-import { excludeGeneratedSizingPlaceholders } from '../utils/sizing'
 import { safeAdd } from '../utils/guards'
 
 type SnapshotRow = {
@@ -160,7 +159,7 @@ function compareRows<T extends SnapshotRow>(
         message: `Reference ${section} row "${row.id}" has no stable business key; it was not matched.`,
         referenceId: row.id
       })
-      findings.push({ referenceId: row.id, matchStatus: 'unmatched', changeFlags: {}, fieldDiffs: {}, costGap: null, confidence: confidenceOf(row), reviewRequired: true })
+      findings.push({ referenceId: row.id, matchStatus: 'unmatched', changeFlags: {}, fieldDiffs: {}, costGap: null, confidence: 'missing', reviewRequired: true })
       return
     }
     referenceMap.set(key, [...(referenceMap.get(key) ?? []), row])
@@ -173,7 +172,7 @@ function compareRows<T extends SnapshotRow>(
         message: `Current ${section} row "${row.id}" has no stable business key; it was not matched.`,
         currentId: row.id
       })
-      findings.push({ currentId: row.id, matchStatus: 'unmatched', changeFlags: {}, fieldDiffs: {}, costGap: null, confidence: confidenceOf(row), reviewRequired: true })
+      findings.push({ currentId: row.id, matchStatus: 'unmatched', changeFlags: {}, fieldDiffs: {}, costGap: null, confidence: 'missing', reviewRequired: true })
       return
     }
     currentMap.set(key, [...(currentMap.get(key) ?? []), row])
@@ -463,7 +462,8 @@ function buildProcessingFindings(
       fieldDiffs: {},
       costGap: costEffect.gap.total,
       costEffect,
-      confidence: 'verified'
+      confidence: [...referenceSteps, ...currentSteps, ...(referenceRate ? [referenceRate] : []), ...(currentRate ? [currentRate] : [])]
+        .some(row => confidenceOf(row) === 'missing') ? 'missing' : 'verified'
     })
   }
 
@@ -474,12 +474,12 @@ function buildProcessingFindings(
 export function compareSnapshots(reference: CostSnapshot, current: CostSnapshot): CostComparison {
   const referenceCost = calculateSnapshotCost(reference)
   const currentCost = calculateSnapshotCost(current)
-  const referenceBom = excludeGeneratedSizingPlaceholders(reference.bom)
-  const currentBom = excludeGeneratedSizingPlaceholders(current.bom)
-  const referenceRouting = excludeGeneratedSizingPlaceholders(reference.routing)
-  const currentRouting = excludeGeneratedSizingPlaceholders(current.routing)
-  const referenceRates = excludeGeneratedSizingPlaceholders(reference.rates)
-  const currentRates = excludeGeneratedSizingPlaceholders(current.rates)
+  const referenceBom = reference.bom
+  const currentBom = current.bom
+  const referenceRouting = reference.routing
+  const currentRouting = current.routing
+  const referenceRates = reference.rates
+  const currentRates = current.rates
   const warnings: ComparisonWarning[] = [
     ...calculationWarnings(reference.id, referenceCost.warnings),
     ...calculationWarnings(current.id, currentCost.warnings)

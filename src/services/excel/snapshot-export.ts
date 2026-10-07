@@ -1,5 +1,4 @@
 import { CostSnapshot } from '../../core'
-import { excludeGeneratedSizingPlaceholders } from '../../core/utils/sizing'
 import { loadExcelJS } from './exceljs-runtime'
 import { addMasterDataWorkbook } from './master-data-workbook'
 
@@ -13,13 +12,13 @@ export async function exportSnapshotToExcel(snapshot: CostSnapshot): Promise<Blo
     product: snapshot.product,
     remark: snapshot.remark,
     rows: {
-      bom: excludeGeneratedSizingPlaceholders(snapshot.bom).map(item => [
+      bom: snapshot.bom.map(item => [
         item.description || item.itemCode, item.consumption, item.unit, item.price, item.loss, item.note || ''
       ]),
-      workCenters: excludeGeneratedSizingPlaceholders(snapshot.rates).map(rate => [
+      workCenters: snapshot.rates.map(rate => [
         rate.workCenterCode, rate.laborRate, rate.burdenRate, rate.note || ''
       ]),
-      routing: excludeGeneratedSizingPlaceholders(snapshot.routing).map(step => [
+      routing: snapshot.routing.map(step => [
         step.processName, step.workCenterId || '', step.manning, step.capacity, step.yield, step.note || ''
       ])
     }

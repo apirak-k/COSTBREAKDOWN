@@ -1,12 +1,11 @@
-export function duplicateIdentityIds<T extends { isGeneratedSizingPlaceholder?: boolean }>(
-  items: T[],
+export function duplicateIdentityIds<T>(
+  items: readonly T[],
   getId: (item: T) => string,
   getIdentity: (item: T) => string
 ): Set<string> {
   const idsByIdentity = new Map<string, string[]>()
 
   items.forEach(item => {
-    if (item.isGeneratedSizingPlaceholder) return
     const identity = getIdentity(item).trim().toLocaleLowerCase()
     if (!identity) return
     const ids = idsByIdentity.get(identity) || []
@@ -15,6 +14,21 @@ export function duplicateIdentityIds<T extends { isGeneratedSizingPlaceholder?: 
   })
 
   return new Set([...idsByIdentity.values()].filter(ids => ids.length > 1).flat())
+}
+
+export function blankIdentityOrdinals<T extends { id: string }>(
+  items: readonly T[],
+  getIdentity: (item: T) => string
+): Map<string, number> {
+  const ordinals = new Map<string, number>()
+  let next = 0
+
+  items.forEach(item => {
+    if (getIdentity(item).trim()) return
+    ordinals.set(item.id, ++next)
+  })
+
+  return ordinals
 }
 
 export function hasInvalidNumber(value: number | null | undefined): boolean {

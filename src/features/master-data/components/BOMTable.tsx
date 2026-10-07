@@ -4,7 +4,7 @@ import { SnapshotBOMItem } from '../../../core'
 import { useDragSelect } from '../hooks/useDragSelect'
 import { SpreadsheetPasteCell, tableCellKey, useTableKeyboardNav } from '../hooks/useTableKeyboardNav'
 import { RowChanges, useSpreadsheetEditing } from '../hooks/useSpreadsheetEditing'
-import { duplicateIdentityIds, hasInvalidNumber, parsePercentage } from '../table-validation'
+import { blankIdentityOrdinals, duplicateIdentityIds, hasInvalidNumber, parsePercentage } from '../table-validation'
 
 interface BOMTableProps {
   bom: SnapshotBOMItem[]
@@ -36,6 +36,7 @@ export const BOMTable: React.FC<BOMTableProps> = ({
   const tableRef = useRef<HTMLTableElement | null>(null)
   const [searchTerm, setSearchTerm] = useState('')
   const duplicateNameIds = useMemo(() => duplicateIdentityIds(bom, item => item.id, item => item.description), [bom])
+  const placeholderNumbers = useMemo(() => blankIdentityOrdinals(bom, item => item.description), [bom])
 
   const query = searchTerm.trim().toLocaleLowerCase()
   const filteredBOM = useMemo(() => bom.filter(item =>
@@ -188,11 +189,12 @@ export const BOMTable: React.FC<BOMTableProps> = ({
           <tbody className="divide-y divide-slate-200 text-xs">
             {filteredBOM.map(item => {
               const isSelected = selectedIds.has(item.id)
-              const identityInvalid = !item.isGeneratedSizingPlaceholder && (!item.description.trim() || duplicateNameIds.has(item.id))
-              const consumptionInvalid = !item.isGeneratedSizingPlaceholder && (item.consumption === null || hasInvalidNumber(item.consumption))
-              const priceInvalid = !item.isGeneratedSizingPlaceholder && (item.price === null || hasInvalidNumber(item.price))
-              const lossInvalid = !item.isGeneratedSizingPlaceholder && (item.loss === null || hasInvalidNumber(item.loss))
+              const identityInvalid = !item.description.trim() || duplicateNameIds.has(item.id)
+              const consumptionInvalid = item.consumption === null || hasInvalidNumber(item.consumption)
+              const priceInvalid = item.price === null || hasInvalidNumber(item.price)
+              const lossInvalid = item.loss === null || hasInvalidNumber(item.loss)
               const rowNumber = bom.findIndex(row => row.id === item.id) + 1
+              const placeholderNumber = placeholderNumbers.get(item.id)
               const rowMarkerBackground = isSelected
                 ? 'bg-blue-50 group-hover:bg-blue-100'
                 : 'bg-white group-hover:bg-slate-50'
@@ -225,6 +227,7 @@ export const BOMTable: React.FC<BOMTableProps> = ({
                       {isEditMode ? (
                         <input
                           value={item.description}
+                          placeholder={placeholderNumber === undefined ? undefined : String(placeholderNumber)}
                           onChange={event => applyCellUpdate(item.id, { description: event.target.value })}
                           data-grid-cell="true"
                           data-grid-row-id={item.id}
@@ -233,7 +236,7 @@ export const BOMTable: React.FC<BOMTableProps> = ({
                           aria-invalid={identityInvalid}
                           className={`min-h-8 w-full rounded-sm border bg-white px-2 text-xs focus:outline-none focus:ring-2 focus:ring-blue-700 ${identityInvalid ? 'border-amber-600' : 'border-slate-300'} ${selectedCellKeys.has(tableCellKey(item.id, 'description')) ? 'ring-2 ring-blue-500 ring-inset' : ''}`}
                         />
-                      ) : item.description || <span className="text-amber-700">—</span>}
+                      ) : item.description || <span className="text-amber-700">{placeholderNumber ?? '—'}</span>}
                     </div>
                   </td>
                   <td className={`px-2 py-0.5 text-right font-mono tabular-nums ${consumptionInvalid ? 'bg-amber-50/60 text-amber-900' : ''}`}>
@@ -261,8 +264,8 @@ export const BOMTable: React.FC<BOMTableProps> = ({
                         data-grid-row-id={item.id}
                         data-grid-field="unit"
                         aria-label={`Unit for ${item.description || `BOM row ${rowNumber}`}`}
-                        aria-invalid={!item.isGeneratedSizingPlaceholder && !item.unit.trim()}
-                        className={`min-h-8 w-20 rounded-sm border bg-white px-2 text-xs focus:outline-none focus:ring-2 focus:ring-blue-700 ${!item.isGeneratedSizingPlaceholder && !item.unit.trim() ? 'border-amber-600' : 'border-slate-300'} ${selectedCellKeys.has(tableCellKey(item.id, 'unit')) ? 'ring-2 ring-blue-500 ring-inset' : ''}`}
+                        aria-invalid={!item.unit.trim()}
+                        className={`min-h-8 w-20 rounded-sm border bg-white px-2 text-xs focus:outline-none focus:ring-2 focus:ring-blue-700 ${!item.unit.trim() ? 'border-amber-600' : 'border-slate-300'} ${selectedCellKeys.has(tableCellKey(item.id, 'unit')) ? 'ring-2 ring-blue-500 ring-inset' : ''}`}
                       />
                     ) : item.unit || <span className="text-amber-700">—</span>}
                   </td>

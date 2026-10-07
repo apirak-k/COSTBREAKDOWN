@@ -1,6 +1,6 @@
 # Requirements Index
 
-**Updated:** 2026-10-06
+**Updated:** 2026-10-07
 
 ## Final Logic authority
 
@@ -40,7 +40,7 @@ The later finalized Master Data source supersedes specific earlier Master Data a
 
 The latest Master Data addendum in the dated review context (§79) finalizes the first-entry default of All Tables, same-session Master Data UI-state preservation, page-level Working-edit Undo/Redo scope, and the Excel yellow-cell rule. It also records UX/UI directions separately from product behavior and pending exact layout details.
 
-The 2026-09-30 cross-cutting snapshot also records a still-open Excel boundary for intentionally blank user-owned rows: without an agreed marker or policy, they cannot be distinguished from blank template rows for round-trip. Keep this separate from the open behavior of generated Sizing rows; the current pending questions are listed in `specs/MASTER_DATA.md`.
+The user's 2026-10-07 follow-up finalizes exact Sizing row counts, destructive end-truncation, Import count initialization, blank-row MISSING treatment, and Excel round-trip preservation. These later decisions supersede the 2026-09-30 open boundary for intentionally blank rows.
 
 The latest user correction also removes MatVAR, LBVAR, and BDVAR from current scope. They are not pending formulas or deferred features.
 

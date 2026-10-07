@@ -4,7 +4,7 @@ import { SnapshotWorkCenterRate } from '../../../core'
 import { useDragSelect } from '../hooks/useDragSelect'
 import { SpreadsheetPasteCell, tableCellKey, useTableKeyboardNav } from '../hooks/useTableKeyboardNav'
 import { RowChanges, useSpreadsheetEditing } from '../hooks/useSpreadsheetEditing'
-import { duplicateIdentityIds, hasInvalidNumber } from '../table-validation'
+import { blankIdentityOrdinals, duplicateIdentityIds, hasInvalidNumber } from '../table-validation'
 
 interface WorkCenterRatesTableProps {
   rates: SnapshotWorkCenterRate[]
@@ -35,6 +35,7 @@ export const WorkCenterRatesTable: React.FC<WorkCenterRatesTableProps> = ({
   const tableRef = useRef<HTMLTableElement | null>(null)
   const [searchTerm, setSearchTerm] = useState('')
   const duplicateWcIds = useMemo(() => duplicateIdentityIds(rates, rate => rate.id, rate => rate.workCenterCode), [rates])
+  const placeholderNumbers = useMemo(() => blankIdentityOrdinals(rates, rate => rate.workCenterCode), [rates])
 
   const query = searchTerm.trim().toLocaleLowerCase()
   const filteredRates = useMemo(() => rates.filter(rate =>
@@ -183,10 +184,11 @@ export const WorkCenterRatesTable: React.FC<WorkCenterRatesTableProps> = ({
           <tbody className="divide-y divide-slate-200 text-xs">
             {filteredRates.map(rate => {
               const isSelected = selectedIds.has(rate.id)
-              const identityInvalid = !rate.isGeneratedSizingPlaceholder && (!rate.workCenterCode.trim() || duplicateWcIds.has(rate.id))
-              const laborInvalid = !rate.isGeneratedSizingPlaceholder && (rate.laborRate === null || hasInvalidNumber(rate.laborRate))
-              const burdenInvalid = !rate.isGeneratedSizingPlaceholder && (rate.burdenRate === null || hasInvalidNumber(rate.burdenRate))
+              const identityInvalid = !rate.workCenterCode.trim() || duplicateWcIds.has(rate.id)
+              const laborInvalid = rate.laborRate === null || hasInvalidNumber(rate.laborRate)
+              const burdenInvalid = rate.burdenRate === null || hasInvalidNumber(rate.burdenRate)
               const rowNumber = rates.findIndex(row => row.id === rate.id) + 1
+              const placeholderNumber = placeholderNumbers.get(rate.id)
               const rowMarkerBackground = isSelected
                 ? 'bg-blue-50 group-hover:bg-blue-100'
                 : 'bg-white group-hover:bg-slate-50'
@@ -219,6 +221,7 @@ export const WorkCenterRatesTable: React.FC<WorkCenterRatesTableProps> = ({
                       <div className="min-w-[150px]">
                         <input
                           value={rate.workCenterCode}
+                          placeholder={placeholderNumber === undefined ? undefined : String(placeholderNumber)}
                           onChange={event => applyCellUpdate(rate.id, { workCenterCode: event.target.value })}
                           data-grid-cell="true"
                           data-grid-row-id={rate.id}
@@ -230,7 +233,7 @@ export const WorkCenterRatesTable: React.FC<WorkCenterRatesTableProps> = ({
                       </div>
                     ) : (
                       <div>
-                        {rate.workCenterCode || <span className="text-amber-700">—</span>}
+                        {rate.workCenterCode || <span className="text-amber-700">{placeholderNumber ?? '—'}</span>}
                       </div>
                     )}
                   </td>

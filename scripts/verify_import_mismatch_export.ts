@@ -42,10 +42,13 @@ const testSnapshot: CostSnapshot = {
       id: 'rate-size-legacy-2',
       workCenterCode: '',
       description: '',
-      laborRate: 0,
-      burdenRate: 0,
+      laborRate: null,
+      burdenRate: null,
       effectiveDate: '2026-09-24',
-      confidence: {},
+      confidence: {
+        laborRate: { status: 'missing' },
+        burdenRate: { status: 'missing' }
+      },
       isGeneratedSizingPlaceholder: true
     }
   ],
@@ -69,8 +72,12 @@ const testSnapshot: CostSnapshot = {
       consumption: null,
       unit: 'PC',
       price: null,
-      loss: 0,
-      confidence: {},
+      loss: null,
+      confidence: {
+        consumption: { status: 'missing' },
+        price: { status: 'missing' },
+        loss: { status: 'missing' }
+      },
       isGeneratedSizingPlaceholder: true
     }
   ],
@@ -128,20 +135,26 @@ async function runTests() {
   assert.equal(parsed.product.sellingPrice, 125)
   assert.equal(parsed.product.sgaPercent, 8)
   assert.equal(parsed.product.note, '')
-  assert.equal(parsed.rates.length, 1)
+  assert.equal(parsed.rates.length, 2, 'Export and Import retain the blank Sizing Work Center row')
   assert.equal(parsed.rates[0].workCenterCode, 'WC-CUT')
   assert.equal(parsed.rates[0].laborRate, 120)
   assert.equal(parsed.rates[0].note, 'Work Center annotation')
   assert.equal(parsed.rates[0].additionalFields?.['Supplier Group'], undefined)
-  assert.equal(parsed.bom.length, 1)
+  assert.equal(parsed.rates[1].workCenterCode, '')
+  assert.equal(parsed.rates[1].laborRate, null)
+  assert.equal(parsed.rates[1].id, 'rate-placeholder-1')
+  assert.equal(parsed.bom.length, 2, 'Export and Import retain the blank Sizing BOM row')
   assert.equal(parsed.bom[0].description, 'Aluminum Extrusion')
   assert.equal(parsed.bom[0].consumption, 1.25)
   assert.equal(parsed.bom[0].price, 45.5)
   assert.equal(parsed.bom[0].note, 'BOM annotation')
   assert.equal(parsed.bom[0].additionalFields?.Supplier, undefined)
   assert.equal(parsed.bom[0].additionalFields?.['Material Group'], undefined)
+  assert.equal(parsed.bom[1].description, '')
+  assert.equal(parsed.bom[1].loss, null)
+  assert.equal(parsed.bom[1].id, 'bom-placeholder-1')
   assert.equal(parsed.product.additionalFields?.['Customer Group'], undefined)
-  assert.equal(parsed.routing.length, 1)
+  assert.equal(parsed.routing.length, 2, 'Export and Import retain the blank Sizing Routing row')
   assert.equal(parsed.routing[0].processName, 'Saw Cutting')
   assert.equal(parsed.routing[0].operationCode, undefined)
   assert.equal(parsed.routing[0].processCode, undefined)
@@ -149,6 +162,9 @@ async function runTests() {
   assert.equal(parsed.routing[0].note, 'Routing annotation')
   assert.equal(parsed.warnings?.some(warning => warning.includes('Operation Code')), false)
   assert.equal(parsed.routing[0].additionalFields?.['Operator Note'], undefined)
+  assert.equal(parsed.routing[1].processName, '')
+  assert.equal(parsed.routing[1].manning, null)
+  assert.equal(parsed.routing[1].id, 'routing-placeholder-1')
   assert.equal(parsed.remark, 'Dataset annotation')
   assert.equal(parsed.additionalFields?.Status, undefined)
   assert.equal(parsed.additionalFields?.['Dataset Status'], undefined)
@@ -171,9 +187,9 @@ async function runTests() {
   const workCenterRows = XLSX.utils.sheet_to_json(exportedWorkbook.Sheets.WORK_CENTER, { header: 1, defval: null }) as unknown[][]
   const bomRows = XLSX.utils.sheet_to_json(exportedWorkbook.Sheets.BOM, { header: 1, defval: null }) as unknown[][]
   const routingRows = XLSX.utils.sheet_to_json(exportedWorkbook.Sheets.ROUTING, { header: 1, defval: null }) as unknown[][]
-  assert.equal(styledExport.getWorksheet('WORK_CENTER')?.getTable('WorkCenterData').table.tableRef, 'A3:D4')
-  assert.equal(styledExport.getWorksheet('BOM')?.getTable('BOMData').table.tableRef, 'A3:F4')
-  assert.equal(styledExport.getWorksheet('ROUTING')?.getTable('RoutingData').table.tableRef, 'A3:F4')
+  assert.equal(styledExport.getWorksheet('WORK_CENTER')?.getTable('WorkCenterData').table.tableRef, 'A3:D5')
+  assert.equal(styledExport.getWorksheet('BOM')?.getTable('BOMData').table.tableRef, 'A3:F5')
+  assert.equal(styledExport.getWorksheet('ROUTING')?.getTable('RoutingData').table.tableRef, 'A3:F5')
   assert.deepEqual(workCenterRows[2], ['WC', 'Labor', 'Burden', 'Note'])
   assert.deepEqual(bomRows[2], ['Name', 'Usage', 'Unit', 'Price', 'Loss', 'Note'])
   assert.deepEqual(routingRows[2], ['Process', 'WC', 'Manning', 'Cap', 'Yield', 'Note'])

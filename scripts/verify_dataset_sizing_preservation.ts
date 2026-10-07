@@ -2,7 +2,8 @@ import assert from 'node:assert/strict'
 import {
   importSnapshotForRole,
   markSizingPlaceholderEdited,
-  resizeMasterDataSnapshotForSizing
+  resizeMasterDataSnapshotForSizing,
+  synchronizeDatasetSizingToRows
 } from '../src/state/dataset-sizing.ts'
 import { hasDatasetSizingChanged, parseDatasetSizingCounts } from '../src/features/master-data/dataset-sizing-form.ts'
 import {
@@ -18,27 +19,34 @@ import type {
   SnapshotWorkCenterRate
 } from '../src/core/types/snapshot.types.ts'
 import type { ProductSession } from '../src/core/types/product.types.ts'
+import { blankIdentityOrdinals } from '../src/features/master-data/table-validation.ts'
 
 type SizingRow = { isGeneratedSizingPlaceholder?: boolean }
 
 function rate(id: string, changes: Partial<SnapshotWorkCenterRate & SizingRow> = {}): SnapshotWorkCenterRate & SizingRow {
   return {
     id, workCenterCode: '', description: '', laborRate: null, burdenRate: null,
-    effectiveDate: '', confidence: {}, ...changes
+    effectiveDate: '', confidence: {
+      laborRate: { status: 'missing' }, burdenRate: { status: 'missing' }
+    }, ...changes
   }
 }
 
 function bom(id: string, changes: Partial<SnapshotBOMItem & SizingRow> = {}): SnapshotBOMItem & SizingRow {
   return {
     id, itemCode: '', description: '', consumption: null, unit: 'PC',
-    price: null, loss: 0, confidence: {}, ...changes
+    price: null, loss: null, confidence: {
+      consumption: { status: 'missing' }, price: { status: 'missing' }, loss: { status: 'missing' }
+    }, ...changes
   }
 }
 
 function routing(id: string, changes: Partial<SnapshotRoutingStep & SizingRow> = {}): SnapshotRoutingStep & SizingRow {
   return {
     id, operationCode: '', processName: '', manning: null, capacity: null,
-    yield: null, confidence: {}, ...changes
+    yield: null, confidence: {
+      manning: { status: 'missing' }, capacity: { status: 'missing' }, yield: { status: 'missing' }
+    }, ...changes
   }
 }
 
@@ -131,6 +139,26 @@ assert.deepEqual(importedCurrent.snapshotPair.current.sizing, importedCurrent.da
 assert.strictEqual(importedCurrent.snapshotPair.reference, importReference, 'Current import preserves Reference')
 assert.deepEqual(importedCurrent.datasetSizing.reference, importReference.sizing, 'Current import preserves Reference sizing')
 
+const directBOMAdd = synchronizeDatasetSizingToRows({
+  ...importedCurrent.snapshotPair,
+  current: { ...importedCurrent.snapshotPair.current, bom: [...importedCurrent.snapshotPair.current.bom, bom('direct-bom-add')] }
+}, importedCurrent.datasetSizing, 'current', 'bomCount')
+assert.equal(directBOMAdd.snapshotPair.current.bom.length, 7)
+assert.equal(directBOMAdd.datasetSizing.current.bomCount, 7, 'direct BOM additions keep Sizing aligned')
+assert.deepEqual(directBOMAdd.datasetSizing.reference, importedCurrent.datasetSizing.reference)
+const directWCDelete = synchronizeDatasetSizingToRows({
+  ...directBOMAdd.snapshotPair,
+  current: { ...directBOMAdd.snapshotPair.current, rates: directBOMAdd.snapshotPair.current.rates.slice(1) }
+}, directBOMAdd.datasetSizing, 'current', 'wcCount')
+assert.equal(directWCDelete.snapshotPair.current.rates.length, 2)
+assert.equal(directWCDelete.datasetSizing.current.wcCount, 2, 'direct WC deletions keep Sizing aligned')
+assert.equal(directWCDelete.datasetSizing.current.bomCount, 7)
+const directBOMClear = synchronizeDatasetSizingToRows({
+  ...directWCDelete.snapshotPair,
+  current: { ...directWCDelete.snapshotPair.current, bom: [] }
+}, directWCDelete.datasetSizing, 'current', 'bomCount')
+assert.equal(directBOMClear.datasetSizing.current.bomCount, undefined, 'deleting all rows leaves the one-or-more Sizing field unset')
+
 const importedReference = importSnapshotForRole(
   importedCurrent.snapshotPair,
   importedCurrent.datasetSizing,
@@ -152,7 +180,29 @@ assert.equal(hasDatasetSizingChanged(importedCurrent.datasetSizing.current, larg
 const smallerSizing = parseDatasetSizingCounts({ wcCount: '2', bomCount: '5', routingCount: '3' })
 assert.equal(hasDatasetSizingChanged(importedCurrent.datasetSizing.current, smallerSizing), true, 'sizing can decrease after import')
 
-// A small target must not silently discard data, including sparse edits and numeric zeroes.
+assert.deepEqual(
+  [...blankIdentityOrdinals([
+    { id: 'real-a', name: 'Material A' },
+    { id: 'blank-1', name: '' },
+    { id: 'real-b', name: 'Material B' },
+    { id: 'blank-2', name: '' },
+    { id: 'blank-3', name: '' }
+  ], row => row.name)],
+  [['blank-1', 1], ['blank-2', 2], ['blank-3', 3]],
+  'placeholder identities count blank fields only, independent of the visible row number'
+)
+
+const grownImported = resizeMasterDataSnapshotForSizing(importedCurrent.snapshotPair.current, largerSizing, factories)
+assert.deepEqual(
+  [grownImported.rates.length, grownImported.bom.length, grownImported.routing.length],
+  [4, 8, 6],
+  'increasing 3/6/4 to 4/8/6 adds exactly the requested rows'
+)
+assert.strictEqual(grownImported.bom[0], importedCurrent.snapshotPair.current.bom[0], 'growth preserves existing rows')
+assert.equal(grownImported.bom[6].loss, null, 'new BOM loss input stays blank')
+assert.equal(grownImported.bom[6].confidence.loss.status, 'missing')
+
+// Shrinking keeps the leading rows in order and drops every row after the new exact count.
 const beforeShrink = snapshot({
   rates: [
     legacyRate(1),
@@ -174,20 +224,29 @@ const beforeShrink = snapshot({
   ]
 })
 const afterShrink = resizeMasterDataSnapshotForSizing(
-  beforeShrink, { wcCount: 1, bomCount: 1, routingCount: 1 }, factories
+  beforeShrink, { wcCount: 2, bomCount: 2, routingCount: 2 }, factories
 )
 assert.notStrictEqual(afterShrink, beforeShrink, 'sizing must return a new snapshot')
-assert.deepEqual(afterShrink.rates.map(row => row.id), ['rate-size-legacy-2', 'rate-edited'])
-assert.deepEqual(afterShrink.bom.map(row => row.id), ['bom-size-legacy-2', 'bom-edited'])
-assert.deepEqual(afterShrink.routing.map(row => row.id), ['routing-size-legacy-2', 'routing-edited'])
-assert.deepEqual(afterShrink.rates, beforeShrink.rates.filter(row => ['rate-size-legacy-2', 'rate-edited'].includes(row.id)))
-assert.deepEqual(afterShrink.bom, beforeShrink.bom.filter(row => ['bom-size-legacy-2', 'bom-edited'].includes(row.id)))
-assert.deepEqual(afterShrink.routing, beforeShrink.routing.filter(row => ['routing-size-legacy-2', 'routing-edited'].includes(row.id)))
+assert.deepEqual(afterShrink.rates.map(row => row.id), ['rate-size-legacy-1', 'rate-size-legacy-2'])
+assert.deepEqual(afterShrink.bom.map(row => row.id), ['bom-size-legacy-1', 'bom-size-legacy-2'])
+assert.deepEqual(afterShrink.routing.map(row => row.id), ['routing-size-legacy-1', 'routing-size-legacy-2'])
+assert.deepEqual(afterShrink.rates, beforeShrink.rates.slice(0, 2))
+assert.deepEqual(afterShrink.bom, beforeShrink.bom.slice(0, 2))
+assert.deepEqual(afterShrink.routing, beforeShrink.routing.slice(0, 2))
+assert.equal(afterShrink.rates[1].laborRate, 0, 'valid numeric zero in a retained row remains unchanged')
+assert.equal(afterShrink.bom[1].consumption, 0)
+assert.equal(afterShrink.routing[1].manning, 0)
+assert.equal(afterShrink.rates.length, 2)
+assert.equal(afterShrink.bom.length, 2)
+assert.equal(afterShrink.routing.length, 2)
+assert.ok(!afterShrink.rates.some(row => row.id === 'rate-edited'), 'populated rows beyond the target are dropped')
+assert.ok(!afterShrink.bom.some(row => row.id === 'bom-edited'))
+assert.ok(!afterShrink.routing.some(row => row.id === 'routing-edited'))
 assert.equal(beforeShrink.rates.length, 4, 'sizing must not mutate the original snapshot')
 assert.equal(beforeShrink.bom.length, 4)
 assert.equal(beforeShrink.routing.length, 4)
 
-// Blank rows created outside sizing must survive; only sizing placeholders are removable.
+// The existing one-row minimum applies equally to every row.
 const manualBlank = snapshot({
   rates: [
     rate('manual-rate', { isGeneratedSizingPlaceholder: false }),

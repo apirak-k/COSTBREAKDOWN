@@ -154,7 +154,7 @@ export const MasterDataPage: React.FC = () => {
             consumption: null,
             unit: 'PC',
             price: null,
-            loss: 0,
+            loss: null,
             sourceRef: 'Direct Input'
           })}
           onUpdateBOMItems={updateMasterDataBOMItems}

@@ -42,6 +42,33 @@ export function importSnapshotForRole(
   }
 }
 
+export function synchronizeDatasetSizingToRows(
+  pair: SnapshotPair,
+  existingSizing: Partial<Record<ComparisonRole, DatasetSizing>> | undefined,
+  role: ComparisonRole,
+  field: keyof DatasetSizing
+): { snapshotPair: SnapshotPair; datasetSizing: Record<ComparisonRole, DatasetSizing> } {
+  const snapshot = pair[role]
+  const count = {
+    wcCount: snapshot.rates.length,
+    bomCount: snapshot.bom.length,
+    routingCount: snapshot.routing.length
+  }[field]
+  const datasetSizing: Record<ComparisonRole, DatasetSizing> = {
+    reference: existingSizing?.reference ?? pair.reference.sizing ?? {},
+    current: existingSizing?.current ?? pair.current.sizing ?? {}
+  }
+  const roleSizing = { ...datasetSizing[role] }
+  if (count > 0) roleSizing[field] = count
+  else delete roleSizing[field]
+  datasetSizing[role] = roleSizing
+
+  return {
+    snapshotPair: { ...pair, [role]: { ...snapshot, sizing: roleSizing } },
+    datasetSizing
+  }
+}
+
 function isGeneratedRow(row: { id: string; isGeneratedSizingPlaceholder?: boolean }, prefix: string): boolean {
   return row.isGeneratedSizingPlaceholder === true ||
     (row.isGeneratedSizingPlaceholder === undefined &&
@@ -96,9 +123,10 @@ function isBlankBom(row: SnapshotBOMItem): boolean {
   const generatedPlaceholder = row.isGeneratedSizingPlaceholder === true
   const defaultQuantities = (row.consumption === null && row.price === null) ||
     (generatedPlaceholder && row.consumption === 0 && row.price === 0)
+  const defaultLoss = row.loss === null || (generatedPlaceholder && row.loss === 0)
   return isGeneratedRow(row, 'bom') && isEmpty(row.itemCode) && isEmpty(row.description) &&
     isEmpty(row.note) &&
-    defaultQuantities && row.unit === 'PC' && row.loss === 0 &&
+    defaultQuantities && row.unit === 'PC' && defaultLoss &&
     (row.sourceRef === undefined || row.sourceRef === 'Direct Input') &&
     hasNoExtraFields(row.additionalFields) &&
     (generatedPlaceholder || hasDefaultEvidence(row.confidence, { consumption: null, price: null, loss: 0 }))
@@ -147,13 +175,10 @@ export function hasEnteredMasterData(snapshot: CostSnapshot): boolean {
     snapshot.routing.some(row => !isBlankRouting(row, snapshot))
 }
 
-function resizeRows<T>(rows: T[], count: number | undefined, isBlank: (row: T) => boolean, create: (index: number) => T): T[] {
-  const next = [...rows]
-  if (count === undefined) return next
+function resizeRows<T>(rows: T[], count: number | undefined, create: (index: number) => T): T[] {
+  if (count === undefined) return [...rows]
   const target = Math.max(1, Math.floor(count))
-  for (let index = next.length - 1; index >= 0 && next.length > target; index--) {
-    if (isBlank(next[index])) next.splice(index, 1)
-  }
+  const next = rows.slice(0, target)
   while (next.length < target) next.push(create(next.length + 1))
   return next
 }
@@ -165,12 +190,12 @@ export function resizeMasterDataSnapshotForSizing(
 ): CostSnapshot {
   // Zero remains valid for older persisted setups; resizeRows enforces the one-row section minimum.
   assertDatasetSizingCounts(sizing, { allowZero: true })
-  const rates = resizeRows(snapshot.rates, sizing.wcCount, row => isBlankRate(row, snapshot), factories.rate)
+  const rates = resizeRows(snapshot.rates, sizing.wcCount, factories.rate)
   return {
     ...snapshot,
     sizing: { ...sizing },
     rates,
-    bom: resizeRows(snapshot.bom, sizing.bomCount, isBlankBom, factories.bom),
-    routing: resizeRows(snapshot.routing, sizing.routingCount, row => isBlankRouting(row, snapshot), index => factories.routing(index, rates))
+    bom: resizeRows(snapshot.bom, sizing.bomCount, factories.bom),
+    routing: resizeRows(snapshot.routing, sizing.routingCount, index => factories.routing(index, rates))
   }
 }

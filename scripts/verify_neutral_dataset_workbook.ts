@@ -7,6 +7,7 @@ import type { CostSnapshot } from '../src/core/types/snapshot.types.ts'
 import { generateDynamicExcelTemplate } from '../src/services/excel/dynamic-excel-generator.ts'
 import { parseSnapshotWorkbookData } from '../src/services/excel/snapshot-parser.ts'
 import { exportSnapshotToExcel } from '../src/services/excel/snapshot-export.ts'
+import { importSnapshotForRole } from '../src/state/dataset-sizing.ts'
 
 const SHEETS = ['META', 'BOM', 'WORK_CENTER', 'ROUTING']
 const INPUT_FILL = 'FFFEF9C3'
@@ -283,9 +284,90 @@ async function verify(): Promise<void> {
   const templateRoundTrip = parseSnapshotWorkbookData(XLSX.write(templateBytes, { type: 'array', bookType: 'xlsx' }), 'reference')
   assert.equal(templateRoundTrip.success, true, templateRoundTrip.message)
   assert.equal(templateRoundTrip.snapshot?.remark, imported.snapshot!.remark)
-  assert.equal(templateRoundTrip.snapshot?.rates.length, 0)
-  assert.equal(templateRoundTrip.snapshot?.bom.length, 0)
-  assert.equal(templateRoundTrip.snapshot?.routing.length, 0)
+  assert.equal(templateRoundTrip.snapshot?.rates.length, 2)
+  assert.equal(templateRoundTrip.snapshot?.bom.length, 3)
+  assert.equal(templateRoundTrip.snapshot?.routing.length, 4)
+
+  const sizedForRoundTrip: CostSnapshot = {
+    ...imported.snapshot!,
+    bom: [imported.snapshot!.bom[0], ...Array.from({ length: 5 }, (_, index) => ({
+      ...imported.snapshot!.bom[0],
+      id: `sized-bom-${index + 1}`,
+      itemCode: '',
+      description: '',
+      consumption: null,
+      unit: 'PC',
+      price: null,
+      loss: null,
+      confidence: {
+        consumption: { status: 'missing' as const },
+        price: { status: 'missing' as const },
+        loss: { status: 'missing' as const }
+      },
+      isGeneratedSizingPlaceholder: true
+    }))],
+    rates: [imported.snapshot!.rates[0], ...Array.from({ length: 2 }, (_, index) => ({
+      ...imported.snapshot!.rates[0],
+      id: `sized-rate-${index + 1}`,
+      workCenterCode: '',
+      description: '',
+      laborRate: null,
+      burdenRate: null,
+      confidence: {
+        laborRate: { status: 'missing' as const },
+        burdenRate: { status: 'missing' as const }
+      },
+      isGeneratedSizingPlaceholder: true
+    }))],
+    routing: [imported.snapshot!.routing[0], ...Array.from({ length: 3 }, (_, index) => ({
+      ...imported.snapshot!.routing[0],
+      id: `sized-routing-${index + 1}`,
+      processName: '',
+      workCenterId: undefined,
+      manning: null,
+      capacity: null,
+      yield: null,
+      confidence: {
+        manning: { status: 'missing' as const },
+        capacity: { status: 'missing' as const },
+        yield: { status: 'missing' as const }
+      },
+      isGeneratedSizingPlaceholder: true
+    }))]
+  }
+  assert.deepEqual([sizedForRoundTrip.bom.length, sizedForRoundTrip.rates.length, sizedForRoundTrip.routing.length], [6, 3, 4])
+  const sizedExport = await exportSnapshotToExcel(sizedForRoundTrip)
+  const sizedWorkbook = await loadExcel(sizedExport)
+  assert.deepEqual([
+    tableDataRowCount(sizedWorkbook, 'BOM', 'BOMData'),
+    tableDataRowCount(sizedWorkbook, 'WORK_CENTER', 'WorkCenterData'),
+    tableDataRowCount(sizedWorkbook, 'ROUTING', 'RoutingData')
+  ], [6, 3, 4], 'Export preserves the exact BOM/WC/Routing row counts')
+  const sizedRoundTrip = parseSnapshotWorkbookData(XLSX.write(
+    XLSX.read(await sizedExport.arrayBuffer(), { type: 'array' }),
+    { type: 'array', bookType: 'xlsx' }
+  ), 'current')
+  assert.equal(sizedRoundTrip.success, true, sizedRoundTrip.message)
+  assert.deepEqual([
+    sizedRoundTrip.snapshot?.bom.length,
+    sizedRoundTrip.snapshot?.rates.length,
+    sizedRoundTrip.snapshot?.routing.length
+  ], [6, 3, 4], 'Import preserves the exact BOM/WC/Routing row counts')
+  assert.deepEqual(
+    importSnapshotForRole(
+      { reference: imported.snapshot!, current: imported.snapshot! },
+      {},
+      'current',
+      sizedRoundTrip.snapshot!
+    ).datasetSizing.current,
+    { bomCount: 6, wcCount: 3, routingCount: 4 },
+    'Import initializes Sizing from actual round-trip row counts'
+  )
+  assert.equal(sizedRoundTrip.snapshot?.bom[1].consumption, null)
+  assert.equal(sizedRoundTrip.snapshot?.bom[1].loss, null, 'blank numeric fields stay blank on round-trip')
+  assert.equal(sizedRoundTrip.snapshot?.bom[1].id, 'bom-placeholder-1')
+  assert.equal(sizedRoundTrip.snapshot?.bom[2].id, 'bom-placeholder-2')
+  assert.equal(calculateSnapshotCost(sizedRoundTrip.snapshot!).status, 'missing')
 
   const incomplete: CostSnapshot = {
     ...imported.snapshot!,
