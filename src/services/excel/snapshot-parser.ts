@@ -19,7 +19,15 @@ type CellValue = string | number | boolean | Date | null
 type Row = CellValue[]
 type NumericResult = { value: number | null; quality: DataQualityStatus }
 
-const REQUIRED_DATA_SHEETS = ['META', 'WORK_CENTER', 'BOM', 'ROUTING'] as const
+const REQUIRED_DATA_SHEETS = ['META', 'BOM', 'WORK_CENTER', 'ROUTING'] as const
+
+const META_LABELS: [string, string[]][] = [
+  ['Product Name', ['product name', 'product description', 'description', 'name']],
+  ['UOM', ['uom', 'unit']],
+  ['Selling Price', ['selling price', 'selling price (thb)']],
+  ['SG&A %', ['sg&a %', 'sg&a (%)', 'sg&a', 'sga %', 'sga (%)', 'sga percent', 'sga percentage']],
+  ['Dataset Remark', ['dataset remark', 'remark']]
+]
 
 function normalizeLabel(value: CellValue | undefined): string {
   return String(value ?? '').trim().toLowerCase().replace(/[\s_\-/]+/g, '')
@@ -151,6 +159,15 @@ function metaValues(rows: Row[]): Map<string, string> {
     return values
   }
 
+  if (hasLabelValueMeta(rows)) {
+    rows.forEach(row => {
+      const label = normalizeLabel(row[0])
+      const field = META_LABELS.find(([, aliases]) => aliases.some(alias => normalizeLabel(alias) === label))
+      if (field) values.set(field[0], textValue(row[1]))
+    })
+    return values
+  }
+
   const remarkHeaderIndex = findHeaderRow(rows, [['remark', 'dataset remark']])
   if (remarkHeaderIndex >= 0) {
     const map = columnMap(rows[remarkHeaderIndex])
@@ -159,6 +176,15 @@ function metaValues(rows: Row[]): Map<string, string> {
     values.set('Remark', index >= 0 && row ? textValue(row[index]) : '')
   }
   return values
+}
+
+function hasLabelValueMeta(rows: Row[]): boolean {
+  const labels = new Set(rows.map(row => normalizeLabel(row[0])))
+  const hasField = (name: string) => {
+    const field = META_LABELS.find(([canonical]) => canonical === name)
+    return Boolean(field && field[1].some(alias => labels.has(normalizeLabel(alias))))
+  }
+  return hasField('Product Name') && hasField('UOM')
 }
 
 function metaValue(meta: Map<string, string>, aliases: string[]): string {
@@ -176,7 +202,9 @@ function additionalMetaFields(meta: Map<string, string>): Record<string, unknown
     'product code', 'productcode', 'code',
     'product name', 'productname', 'product description', 'productdescription', 'description', 'name',
     'uom', 'unit', 'selling price', 'sellingprice', 'selling price (thb)',
-    'sg&a (%)', 'sga', 'sga percent', 'customer', 'customer application',
+    'sg&a %', 'sg&a (%)', 'sga', 'sga %', 'sga (%)', 'sga percent',
+    'mat', 'labor', 'burden', 'standard cost', 'sga amount', 'op',
+    'customer', 'customer application',
     'remark', 'dataset remark', 'note',
     'source ref', 'sourceref', 'source',
     'effective date', 'effectivedate',
@@ -227,6 +255,7 @@ function productFromSheet(
   warnings: string[],
   sheetName = 'PRODUCT'
 ): { product: CostSnapshot['product']; rowCount: number } {
+  const labelValueMeta = sheetName === 'META' && hasLabelValueMeta(rows)
   const headerIndex = findHeaderRow(rows, [
     ['product name', 'productname', 'product description', 'productdescription', 'description', 'name'],
     ['uom', 'unit']
@@ -244,8 +273,11 @@ function productFromSheet(
   const customer = textValue(cell(row, map, ['customer', 'customer application'])) || metaValue(meta, ['customer'])
   const effectiveDate = textValue(cell(row, map, ['effective date', 'effectivedate'])) || metaValue(meta, ['effective date', 'effectivedate'])
   const note = textValue(cell(row, map, ['note']))
-  const sellingPrice = optionalNumberValue(cell(row, map, ['selling price', 'sellingprice', 'selling price (thb)']), 'Selling Price', headerIndex + 2, warnings)
-  const sgaPercent = optionalNumberValue(cell(row, map, ['sg&a (%)', 'sg&a (% of selling price)', 'sga (% of selling price)', 'sga % of selling price', 'sga percent', 'sga']), 'SG&A percentage', headerIndex + 2, warnings)
+  const rowNumber = headerIndex >= 0 ? headerIndex + 2 : 1
+  const sellingPriceInput = cell(row, map, ['selling price', 'sellingprice', 'selling price (thb)']) ?? metaValue(meta, ['selling price', 'selling price (thb)'])
+  const sgaPercentInput = cell(row, map, ['sg&a %', 'sg&a (%)', 'sg&a (% of selling price)', 'sga (% of selling price)', 'sga % of selling price', 'sga percent', 'sga']) ?? metaValue(meta, ['sg&a %', 'sg&a (%)', 'sga percent', 'sga'])
+  const sellingPrice = optionalNumberValue(sellingPriceInput, 'Selling Price', rowNumber, warnings)
+  const sgaPercent = optionalNumberValue(sgaPercentInput, 'SG&A percentage', rowNumber, warnings)
 
   if (!productName) warnings.push(`Missing Product Name in ${sheetName}`)
   if (!uom) warnings.push(`Missing UOM in ${sheetName}`)
@@ -264,11 +296,12 @@ function productFromSheet(
         'product code', 'productcode', 'code',
         'product name', 'productname', 'product description', 'productdescription', 'description', 'name',
         'uom', 'unit', 'selling price', 'sellingprice', 'selling price (thb)',
-        'sg&a (%)', 'sg&a (% of selling price)', 'sga (% of selling price)', 'sga % of selling price', 'sga percent', 'sga',
+        'sg&a %', 'sg&a (%)', 'sg&a (% of selling price)', 'sga (% of selling price)', 'sga % of selling price', 'sga percent', 'sga',
+        'mat', 'labor', 'burden', 'standard cost', 'sga amount', 'op',
         'note', 'customer', 'customer application', 'effective date', 'effectivedate'
       ])
     },
-    rowCount: dataRows.length
+    rowCount: labelValueMeta ? 1 : dataRows.length
   }
 }
 
@@ -459,7 +492,8 @@ function isCanonicalWorkbook(workbook: XLSX.WorkBook): boolean {
   const hasDataSheets = REQUIRED_DATA_SHEETS.every(sheet => Boolean(findSheetName(workbook, sheet)))
   if (!hasDataSheets) return false
   if (findSheetName(workbook, 'PRODUCT')) return true
-  return findHeaderRow(rowsFor(workbook, 'META'), [
+  const metaRows = rowsFor(workbook, 'META')
+  return hasLabelValueMeta(metaRows) || findHeaderRow(metaRows, [
     ['product name', 'productname', 'product description', 'productdescription'],
     ['uom', 'unit']
   ]) >= 0
@@ -476,7 +510,7 @@ export function parseSnapshotWorkbookData(
   if (!isCanonicalWorkbook(workbook)) {
     return {
       success: false,
-      message: 'Dataset workbook not recognized. Required sheets: META, BOM, ROUTING, WORK_CENTER, with Product Name and UOM in META.',
+      message: 'Dataset workbook not recognized. Required sheets: META, BOM, WORK_CENTER, ROUTING, with Product Name and UOM in META.',
       format: undefined,
       warnings: ['Workbook is not in the canonical one-Product/one-Dataset format.'],
       role

@@ -1,136 +1,7 @@
-import type ExcelJS from 'exceljs'
-import { CostSnapshot, ProductMaster } from '../../core'
+import { CostSnapshot } from '../../core'
 import { excludeGeneratedSizingPlaceholders } from '../../core/utils/sizing'
 import { loadExcelJS } from './exceljs-runtime'
-import { addCostCalculationSheet } from './cost-calculation-sheet'
-
-const COLOR_DARK_NAVY = 'FF1E293B'
-const COLOR_BORDER = 'FFE2E8F0'
-const COLOR_WHITE = 'FFFFFFFF'
-const COLOR_SOFT_YELLOW = 'FFFEF9C3'
-
-const fontTitle = { name: 'Arial', size: 14, bold: true, color: { argb: COLOR_DARK_NAVY } }
-const fontHeader = { name: 'Arial', size: 10, bold: true, color: { argb: COLOR_WHITE } }
-const fontData = { name: 'Arial', size: 10, color: { argb: 'FF0F172A' } }
-
-const fillHeader = { type: 'pattern' as const, pattern: 'solid' as const, fgColor: { argb: COLOR_DARK_NAVY } }
-const fillInput = { type: 'pattern' as const, pattern: 'solid' as const, fgColor: { argb: COLOR_SOFT_YELLOW } }
-
-const borderThin = {
-  top: { style: 'thin' as const, color: { argb: COLOR_BORDER } },
-  left: { style: 'thin' as const, color: { argb: COLOR_BORDER } },
-  bottom: { style: 'thin' as const, color: { argb: COLOR_BORDER } },
-  right: { style: 'thin' as const, color: { argb: COLOR_BORDER } }
-}
-
-function styleHeaderRow(row: ExcelJS.Row, columns: number): void {
-  for (let column = 1; column <= columns; column += 1) {
-    const cell = row.getCell(column)
-    cell.fill = fillHeader
-    cell.font = fontHeader
-    cell.alignment = { vertical: 'middle', horizontal: 'center', wrapText: true }
-    cell.border = borderThin
-  }
-}
-
-function styleDataRow(row: ExcelJS.Row, columns: number, numericColumns: number[] = [], fractionPercentColumns: number[] = []): void {
-  for (let column = 1; column <= columns; column += 1) {
-    const cell = row.getCell(column)
-    cell.fill = fillInput
-    cell.font = fontData
-    cell.border = borderThin
-    if (numericColumns.includes(column)) cell.numFmt = '#,##0.0000'
-    if (fractionPercentColumns.includes(column)) cell.numFmt = '0.00%'
-  }
-}
-
-function writeMetadataSheet(sheet: ExcelJS.Worksheet, product: ProductMaster, remark: string | undefined): void {
-  const headers = ['Product Name', 'UOM', 'Selling Price (THB)', 'SG&A (%)', 'Dataset Remark']
-  sheet.columns = [{ width: 34 }, { width: 12 }, { width: 20 }, { width: 14 }, { width: 56 }]
-  sheet.getCell('A1').value = 'MASTER DATA DATASET'
-  sheet.getCell('A1').font = fontTitle
-  sheet.getRow(3).values = headers
-  styleHeaderRow(sheet.getRow(3), headers.length)
-  sheet.getRow(4).values = [
-    product.productName || product.productDescription,
-    product.uom,
-    product.sellingPrice ?? null,
-    product.sgaPercent ?? null,
-    remark || ''
-  ]
-  styleDataRow(sheet.getRow(4), headers.length, [3])
-  sheet.getCell('D4').numFmt = '0.00"%"'
-  if (sheet.getCell('E4').value === '') sheet.getCell('E4').value = null
-  sheet.autoFilter = 'A3:E4'
-  sheet.views = [{ state: 'frozen', ySplit: 3 }]
-}
-
-function writeWorkCenterSheet(sheet: ExcelJS.Worksheet, snapshot: CostSnapshot): void {
-  const headers = ['WC', 'Labor', 'Burden', 'Note']
-  const rates = excludeGeneratedSizingPlaceholders(snapshot.rates)
-  sheet.columns = [{ width: 24 }, { width: 18 }, { width: 18 }, { width: 48 }]
-  sheet.getCell('A1').value = 'WORK_CENTER'
-  sheet.getCell('A1').font = fontTitle
-  sheet.mergeCells('A1:D1')
-  sheet.getRow(3).values = headers
-  styleHeaderRow(sheet.getRow(3), headers.length)
-
-  rates.forEach((rate, index) => {
-    const row = sheet.getRow(index + 4)
-    row.values = [rate.workCenterCode, rate.laborRate, rate.burdenRate, rate.note || '']
-    styleDataRow(row, headers.length, [2, 3])
-  })
-
-  if (rates.length > 0) sheet.autoFilter = `A3:D${rates.length + 3}`
-  sheet.views = [{ state: 'frozen', ySplit: 3 }]
-}
-
-function writeBOMSheet(sheet: ExcelJS.Worksheet, snapshot: CostSnapshot): void {
-  const headers = ['Name', 'Usage', 'Unit', 'Price', 'Loss', 'Note']
-  const items = excludeGeneratedSizingPlaceholders(snapshot.bom)
-  sheet.columns = [{ width: 36 }, { width: 16 }, { width: 12 }, { width: 16 }, { width: 14 }, { width: 48 }]
-  sheet.getCell('A1').value = 'BOM'
-  sheet.getCell('A1').font = fontTitle
-  sheet.mergeCells('A1:F1')
-  sheet.getRow(3).values = headers
-  styleHeaderRow(sheet.getRow(3), headers.length)
-
-  items.forEach((item, index) => {
-    const row = sheet.getRow(index + 4)
-    row.values = [item.description || item.itemCode, item.consumption, item.unit, item.price, item.loss, item.note || '']
-    styleDataRow(row, headers.length, [2, 4], [5])
-  })
-
-  if (items.length > 0) sheet.autoFilter = `A3:F${items.length + 3}`
-  sheet.views = [{ state: 'frozen', ySplit: 3 }]
-}
-
-function writeRoutingSheet(sheet: ExcelJS.Worksheet, snapshot: CostSnapshot): void {
-  const headers = ['Process', 'WC', 'Manning', 'Cap', 'Yield', 'Note']
-  const steps = excludeGeneratedSizingPlaceholders(snapshot.routing)
-  sheet.columns = [{ width: 32 }, { width: 24 }, { width: 14 }, { width: 14 }, { width: 14 }, { width: 48 }]
-  sheet.getCell('A1').value = 'ROUTING'
-  sheet.getCell('A1').font = fontTitle
-  sheet.mergeCells('A1:F1')
-  sheet.getRow(3).values = headers
-  styleHeaderRow(sheet.getRow(3), headers.length)
-
-  steps.forEach((step, index) => {
-    const row = sheet.getRow(index + 4)
-    row.values = [
-      step.processName,
-      step.workCenterId || '',
-      step.manning,
-      step.capacity,
-      step.yield,
-      step.note || ''
-    ]
-    styleDataRow(row, headers.length, [3, 4], [5])
-  })
-
-  if (steps.length > 0) sheet.autoFilter = `A3:F${steps.length + 3}`
-  sheet.views = [{ state: 'frozen', ySplit: 3 }]
-}
+import { addMasterDataWorkbook } from './master-data-workbook'
 
 export async function exportSnapshotToExcel(snapshot: CostSnapshot): Promise<Blob> {
   const ExcelJS = await loadExcelJS()
@@ -138,20 +9,20 @@ export async function exportSnapshotToExcel(snapshot: CostSnapshot): Promise<Blo
   workbook.creator = 'Cost Breakdown Analysis Platform'
   workbook.created = new Date()
 
-  const bomCount = excludeGeneratedSizingPlaceholders(snapshot.bom).length
-  const routingCount = excludeGeneratedSizingPlaceholders(snapshot.routing).length
-  const workCenterCount = excludeGeneratedSizingPlaceholders(snapshot.rates).length
-  writeMetadataSheet(workbook.addWorksheet('META', { views: [{ showGridLines: true }] }), snapshot.product, snapshot.remark)
-  writeBOMSheet(workbook.addWorksheet('BOM', { views: [{ showGridLines: true }] }), snapshot)
-  writeRoutingSheet(workbook.addWorksheet('ROUTING', { views: [{ showGridLines: true }] }), snapshot)
-  writeWorkCenterSheet(workbook.addWorksheet('WORK_CENTER', { views: [{ showGridLines: true }] }), snapshot)
-  addCostCalculationSheet(workbook, {
-    bomStartRow: 4,
-    bomRowCount: bomCount,
-    routingStartRow: 4,
-    routingRowCount: routingCount,
-    workCenterStartRow: 4,
-    workCenterRowCount: workCenterCount
+  addMasterDataWorkbook(workbook, {
+    product: snapshot.product,
+    remark: snapshot.remark,
+    rows: {
+      bom: excludeGeneratedSizingPlaceholders(snapshot.bom).map(item => [
+        item.description || item.itemCode, item.consumption, item.unit, item.price, item.loss, item.note || ''
+      ]),
+      workCenters: excludeGeneratedSizingPlaceholders(snapshot.rates).map(rate => [
+        rate.workCenterCode, rate.laborRate, rate.burdenRate, rate.note || ''
+      ]),
+      routing: excludeGeneratedSizingPlaceholders(snapshot.routing).map(step => [
+        step.processName, step.workCenterId || '', step.manning, step.capacity, step.yield, step.note || ''
+      ])
+    }
   })
   workbook.calcProperties = { fullCalcOnLoad: true }
 

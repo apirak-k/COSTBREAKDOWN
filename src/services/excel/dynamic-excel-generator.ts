@@ -1,189 +1,23 @@
-import type ExcelJS from 'exceljs'
-import { loadExcelJS } from './exceljs-runtime'
-import { addCostCalculationSheet } from './cost-calculation-sheet'
 import { DynamicTemplateOptions } from '../../core'
-
-const COLOR_DARK_NAVY = 'FF1E293B'
-const COLOR_BORDER = 'FFE2E8F0'
-const COLOR_WHITE = 'FFFFFFFF'
-const COLOR_SOFT_YELLOW = 'FFFEF9C3'
-const COLOR_EXAMPLE = 'FFF1F5F9'
-
-const fontTitle = { name: 'Arial', size: 14, bold: true, color: { argb: COLOR_DARK_NAVY } }
-const fontSection = { name: 'Arial', size: 11, bold: true, color: { argb: COLOR_DARK_NAVY } }
-const fontHeader = { name: 'Arial', size: 10, bold: true, color: { argb: COLOR_WHITE } }
-const fontData = { name: 'Arial', size: 10, color: { argb: 'FF0F172A' } }
-
-const fillHeader = { type: 'pattern' as const, pattern: 'solid' as const, fgColor: { argb: COLOR_DARK_NAVY } }
-const fillInput = { type: 'pattern' as const, pattern: 'solid' as const, fgColor: { argb: COLOR_SOFT_YELLOW } }
-
-const borderThin = {
-  top: { style: 'thin' as const, color: { argb: COLOR_BORDER } },
-  left: { style: 'thin' as const, color: { argb: COLOR_BORDER } },
-  bottom: { style: 'thin' as const, color: { argb: COLOR_BORDER } },
-  right: { style: 'thin' as const, color: { argb: COLOR_BORDER } }
-}
-
-function styleHeaderRow(row: ExcelJS.Row, columns: number): void {
-  for (let column = 1; column <= columns; column += 1) {
-    const cell = row.getCell(column)
-    cell.fill = fillHeader
-    cell.font = fontHeader
-    cell.alignment = { vertical: 'middle', horizontal: 'center', wrapText: true }
-    cell.border = borderThin
-  }
-}
-
-function styleInputRow(row: ExcelJS.Row, columns: number, numericColumns: number[] = [], fractionPercentColumns: number[] = []): void {
-  for (let column = 1; column <= columns; column += 1) {
-    const cell = row.getCell(column)
-    cell.fill = fillInput
-    cell.font = fontData
-    cell.border = borderThin
-    if (numericColumns.includes(column)) cell.numFmt = '#,##0.0000'
-    if (fractionPercentColumns.includes(column)) cell.numFmt = '0.00%'
-  }
-}
-
-function writeInputLegend(
-  sheet: ExcelJS.Worksheet,
-  columns: number,
-  text = 'Yellow cells are editable inputs. Leave unknown values blank.'
-): void {
-  if (columns > 1) sheet.mergeCells(2, 1, 2, columns)
-  const legend = sheet.getCell('A2')
-  legend.value = text
-  legend.font = { ...fontData, italic: true, color: { argb: 'FF475569' } }
-  legend.alignment = { vertical: 'middle', wrapText: true }
-  sheet.getRow(2).height = 22
-}
-
-function writeMetadataSheet(
-  sheet: ExcelJS.Worksheet,
-  product: DynamicTemplateOptions['product'],
-  remark: string | undefined
-): void {
-  const headers = ['Product Name', 'UOM', 'Selling Price (THB)', 'SG&A (%)', 'Dataset Remark']
-  sheet.columns = [{ width: 34 }, { width: 12 }, { width: 20 }, { width: 14 }, { width: 56 }]
-  sheet.getCell('A1').value = 'MASTER DATA DATASET TEMPLATE'
-  sheet.getCell('A1').font = fontTitle
-  writeInputLegend(sheet, headers.length, 'Yellow cells are editable inputs. Leave unknown values blank. Enter SG&A as percent points (8 means 8%).')
-  sheet.getRow(3).values = headers
-  styleHeaderRow(sheet.getRow(3), headers.length)
-  sheet.getRow(4).values = [
-    product?.productName || product?.productDescription || '',
-    product?.uom || '',
-    product?.sellingPrice ?? null,
-    product?.sgaPercent ?? null,
-    remark || ''
-  ]
-  styleInputRow(sheet.getRow(4), headers.length, [3])
-  sheet.getCell('D4').numFmt = '0.00"%"'
-  sheet.autoFilter = 'A3:E4'
-  sheet.views = [{ state: 'frozen', ySplit: 3 }]
-}
-
-function writeWorkCenterSheet(
-  sheet: ExcelJS.Worksheet,
-  count: number
-): void {
-  const headers = ['WC', 'Labor', 'Burden', 'Note']
-  sheet.columns = [{ width: 24 }, { width: 18 }, { width: 18 }, { width: 48 }]
-  sheet.getCell('A1').value = 'WORK_CENTER'
-  sheet.getCell('A1').font = fontTitle
-  sheet.mergeCells('A1:D1')
-  writeInputLegend(
-    sheet,
-    headers.length,
-    'Yellow cells are editable inputs. Gray row 3 is an example, not imported. Leave unknown values blank.'
-  )
-  const exampleRow = sheet.getRow(3)
-  exampleRow.values = [
-    'WC-EXAMPLE',
-    125.5,
-    31.25,
-    'Example only; not imported'
-  ]
-  for (let column = 1; column <= headers.length; column += 1) {
-    const cell = exampleRow.getCell(column)
-    cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: COLOR_EXAMPLE } }
-    cell.font = { ...fontData, italic: true, color: { argb: 'FF64748B' } }
-    cell.border = borderThin
-    if (column === 2 || column === 3) cell.numFmt = '#,##0.0000'
-  }
-  sheet.getRow(4).values = headers
-  styleHeaderRow(sheet.getRow(4), headers.length)
-  for (let index = 0; index < count; index += 1) {
-    const row = sheet.getRow(index + 5)
-    row.values = ['', null, null, '']
-    styleInputRow(row, headers.length, [2, 3])
-  }
-  sheet.autoFilter = `A4:D${count + 4}`
-  sheet.views = [{ state: 'frozen', ySplit: 4 }]
-}
-
-function writeBOMSheet(sheet: ExcelJS.Worksheet, count: number): void {
-  const headers = ['Name', 'Usage', 'Unit', 'Price', 'Loss', 'Note']
-  sheet.columns = [{ width: 36 }, { width: 16 }, { width: 12 }, { width: 16 }, { width: 14 }, { width: 48 }]
-  sheet.getCell('A1').value = 'BOM'
-  sheet.getCell('A1').font = fontTitle
-  sheet.mergeCells('A1:F1')
-  writeInputLegend(sheet, headers.length, 'Yellow cells are editable inputs. Leave unknown values blank. Enter Loss as a percentage (type 5% for five percent).')
-  sheet.getCell('A3').value = 'Material inputs for this Dataset'
-  sheet.getCell('A3').font = fontSection
-  sheet.getRow(4).values = headers
-  styleHeaderRow(sheet.getRow(4), headers.length)
-  for (let index = 0; index < count; index += 1) {
-    const row = sheet.getRow(index + 5)
-    row.values = ['', null, '', null, null, '']
-    styleInputRow(row, headers.length, [2, 4], [5])
-  }
-  sheet.autoFilter = `A4:F${count + 4}`
-  sheet.views = [{ state: 'frozen', ySplit: 4 }]
-}
-
-function writeRoutingSheet(sheet: ExcelJS.Worksheet, count: number): void {
-  const headers = ['Process', 'WC', 'Manning', 'Cap', 'Yield', 'Note']
-  sheet.columns = [{ width: 32 }, { width: 24 }, { width: 14 }, { width: 14 }, { width: 14 }, { width: 48 }]
-  sheet.getCell('A1').value = 'ROUTING'
-  sheet.getCell('A1').font = fontTitle
-  sheet.mergeCells('A1:F1')
-  writeInputLegend(sheet, headers.length, 'Yellow cells are editable inputs. Leave unknown values blank. Enter Yield as a percentage (type 95% for ninety-five percent).')
-  sheet.getCell('A3').value = 'Routing inputs linked to WORK_CENTER in this Dataset'
-  sheet.getCell('A3').font = fontSection
-  sheet.getRow(4).values = headers
-  styleHeaderRow(sheet.getRow(4), headers.length)
-  for (let index = 0; index < count; index += 1) {
-    const row = sheet.getRow(index + 5)
-    row.values = ['', '', null, null, null, '']
-    styleInputRow(row, headers.length, [3, 4], [5])
-  }
-  sheet.autoFilter = `A4:F${count + 4}`
-  sheet.views = [{ state: 'frozen', ySplit: 4 }]
-}
+import { loadExcelJS } from './exceljs-runtime'
+import { addMasterDataWorkbook } from './master-data-workbook'
 
 export async function generateDynamicExcelTemplate(options: DynamicTemplateOptions): Promise<Blob> {
   const ExcelJS = await loadExcelJS()
   const { product, snapshot } = options
-  const wcCount = Math.max(1, Math.floor(options.wcCount ?? snapshot?.rates.length ?? 4))
-  const bomCount = Math.max(1, Math.floor(options.bomCount ?? snapshot?.bom.length ?? 16))
-  const routingCount = Math.max(1, Math.floor(options.routingCount ?? snapshot?.routing.length ?? 10))
-
+  const startingRows = {
+    workCenters: Math.max(1, Math.floor(options.wcCount ?? snapshot?.rates.length ?? 4)),
+    bom: Math.max(1, Math.floor(options.bomCount ?? snapshot?.bom.length ?? 16)),
+    routing: Math.max(1, Math.floor(options.routingCount ?? snapshot?.routing.length ?? 10))
+  }
   const workbook = new ExcelJS.Workbook()
   workbook.creator = 'Cost Breakdown Analysis Platform'
   workbook.created = new Date()
-
-  writeMetadataSheet(workbook.addWorksheet('META', { views: [{ showGridLines: true }] }), product, snapshot?.remark)
-  writeBOMSheet(workbook.addWorksheet('BOM', { views: [{ showGridLines: true }] }), bomCount)
-  writeRoutingSheet(workbook.addWorksheet('ROUTING', { views: [{ showGridLines: true }] }), routingCount)
-  writeWorkCenterSheet(workbook.addWorksheet('WORK_CENTER', { views: [{ showGridLines: true }] }), wcCount)
-  addCostCalculationSheet(workbook, {
-    bomStartRow: 5,
-    bomRowCount: bomCount,
-    routingStartRow: 5,
-    routingRowCount: routingCount,
-    workCenterStartRow: 5,
-    workCenterRowCount: wcCount
+  addMasterDataWorkbook(workbook, {
+    product,
+    remark: snapshot?.remark,
+    rows: { bom: [], workCenters: [], routing: [] },
+    startingRows
   })
   workbook.calcProperties = { fullCalcOnLoad: true }
 

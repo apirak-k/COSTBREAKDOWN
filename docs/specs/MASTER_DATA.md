@@ -58,11 +58,22 @@ The old Setup concept is replaced by **Sizing**. Sizing uses the selected side's
 
 Sizing belongs independently to Reference or Current. On a fresh workspace its starting row counts are unset; each configured count has a minimum of one. These counts set the starting number of rows, not a maximum-record limit. Decreasing a count may remove surplus unpopulated generated blank slots only; populated records are not implicitly deleted. Applying metadata in Sizing updates the viewed side's Working metadata.
 
-The neutral workbook contains exactly four data sheets, in this order: `META`, `BOM`, `ROUTING`, `WORK_CENTER`. `META` contains Product Name, UOM, Selling Price, SG&A, and Dataset Remark. Download Template uses the selected dataset's configured Sizing counts to create that number of blank input rows in each data table; these are starting row counts, not maximum-record limits. Keep the formula-linked `COST_CALCULATION` inspection view on a separate sheet; it is not a fifth data sheet and is excluded from import. Its formulas follow [the shared Standard Cost rules](CROSS_CUTTING.md#standard-cost-calculation).
+The canonical Master Data workbook contains exactly these sheets, in order:
 
-In the Excel template/export presentation, yellow marks editable user-input cells. Formula, calculated, and read-only cells are not yellow. This workbook convention does not apply to editable cells in the web Master Data tables; workbook and web-table styling remain separate.
+1. `META`
+2. `BOM`
+3. `WORK_CENTER`
+4. `ROUTING`
 
-Record-level `Note` values and dataset-level `META.Remark` are annotations. Preserve them through web editing and workbook import/export. Neither field is a calculation input or record identity, and a note-only difference does not make a business record `CHANGED`.
+There is no `COST_CALCULATION` sheet. `META` uses a label/value layout. Its user inputs are Product Name, UOM, Selling Price, SG&A %, and Dataset Remark. Its formula outputs are MAT, Labor, Burden, Standard Cost, SG&A Amount, and OP. These outputs follow [the shared Standard Cost rules](CROSS_CUTTING.md#standard-cost-calculation); SG&A Amount is Selling Price × SG&A %, and OP is Selling Price − Standard Cost − SG&A Amount. The workbook stores SG&A as the app's percentage points (8 means 8%), so the formula divides the entered value by 100. Negative OP remains valid.
+
+Calculated META cells are Excel formulas with Excel cell Notes describing the formula. If an output's required source inputs are incomplete or invalid, its formula displays blank. An explicitly entered zero remains valid. Import reads only the five META inputs and recalculates results through the application engine; formula outputs are never imported as source values.
+
+The data table schemas are `Name | Usage | Unit | Price | Loss | Note` for BOM, `WC | Labor | Burden | Note` for WORK_CENTER, and `Process | WC | Manning | Cap | Yield | Note` for ROUTING. Their header rows begin on row 3, after a title and a blank row. Excel Tables provide expandable formula ranges, so adding data beyond the initial Sizing counts remains supported. Download Template uses the selected dataset's configured Sizing counts to create that number of blank input rows; these are starting row counts, not maximum-record limits. Dataset Export contains the same four-sheet structure and excludes generated Sizing placeholder rows from its normal data rows.
+
+Workbook labels and table headers use a dark background with bold white text; yellow marks user-editable inputs; light gray marks formula-driven META outputs; unused worksheet cells remain white. Do not add a color legend, instruction prose, example rows, or extra source/system columns. This convention does not apply to editable cells in the web Master Data tables; workbook and web-table styling remain separate.
+
+Record-level `Note` values and dataset-level `META.Dataset Remark` are annotations. Preserve them through web editing and workbook import/export. Neither field is a calculation input or record identity, and a note-only difference does not make a business record `CHANGED`.
 
 ## Tables, identity, and editing
 
@@ -107,4 +118,4 @@ The existing confirmation before Clear and the disabled Reset/Export controls be
 
 ## Traceability
 
-Primary detailed source: [finalized Master Data source specification](../history/MASTER_DATA_SPEC_2026-10-05.md), [the review context's later decisions](../history/COSTBREAKDOWN_REVIEW_CONTEXT_FOR_CODEX.md), and its §79 latest Master Data addendum. The older [Master Data agreement](../../agreements/MASTER_DATA_FLOW_SPEC.md) remains evidence for compatible flow decisions; its earlier schema, workbook, export, and identity details were superseded by the later Master Data source. The current four-data-sheet workbook and separate calculation view were reaffirmed in the later user decision record.
+Primary detailed source: [finalized Master Data source specification](../history/MASTER_DATA_SPEC_2026-10-05.md), [the review context's later decisions](../history/COSTBREAKDOWN_REVIEW_CONTEXT_FOR_CODEX.md), and its §79 latest Master Data addendum. The older [Master Data agreement](../../agreements/MASTER_DATA_FLOW_SPEC.md) remains evidence for compatible flow decisions; its earlier schema, workbook, export, and identity details were superseded by the later Master Data source. The explicit workbook decision on 2026-10-07 supersedes the separate calculation view and finalizes the four-sheet structure and META formulas above.

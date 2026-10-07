@@ -10,37 +10,28 @@ function sheet(rows: (string | number | null)[][]): XLSX.WorkSheet {
   return XLSX.utils.aoa_to_sheet(rows)
 }
 
+function metaSheet(productName: string, uom: string, sellingPrice: number | null, sgaPercent: number | null, remark: string) {
+  return sheet([
+    ['META'], [],
+    ['PRODUCT NAME', productName], ['UOM', uom], ['SELLING PRICE', sellingPrice],
+    ['SG&A %', sgaPercent], ['DATASET REMARK', remark], [],
+    ['MAT', 999999], ['LABOR', 999999], ['BURDEN', 999999],
+    ['STANDARD COST', 999999], ['SG&A AMOUNT', 999999], ['OP', 999999]
+  ])
+}
+
+function tableSheet(title: string, headers: string[], ...rows: (string | number | null)[][]) {
+  return sheet([[title], [], headers, ...rows])
+}
+
 const workbook = XLSX.utils.book_new()
-XLSX.utils.book_append_sheet(workbook, sheet([
-  ['MASTER DATA DATASET'],
-  [],
-  ['Product Name', 'UOM', 'Selling Price (THB)', 'SG&A (%)', 'Dataset Remark'],
-  ['Test Product', 'PC', 123.5, 8, 'Imported dataset']
-]), 'META')
-XLSX.utils.book_append_sheet(workbook, sheet([
-  ['WORK_CENTER'],
-  [],
-  [],
-  ['WC', 'Labor', 'Burden', 'Note'],
-  ['WC-1', 100, 50, 'Cutting'],
-  ['WC-2', 90, null, 'Assembly']
-]), 'WORK_CENTER')
-XLSX.utils.book_append_sheet(workbook, sheet([
-  ['BOM'],
-  [],
-  [],
-  ['Name', 'Usage', 'Unit', 'Price', 'Loss', 'Note'],
-  ['Material 1', 2, 'PC', 10, 0.1, ''],
-  ['Material 2', 2, 'PC', null, null, '']
-]), 'BOM')
-XLSX.utils.book_append_sheet(workbook, sheet([
-  ['ROUTING'],
-  [],
-  [],
-  ['Process', 'WC', 'Manning', 'Cap', 'Yield', 'Note'],
-  ['Cut', 'WC-1', 1, 100, 0.9, ''],
-  ['Print', 'WC-2', 1, 80, 0.95, '']
-]), 'ROUTING')
+XLSX.utils.book_append_sheet(workbook, metaSheet('Test Product', 'PC', 123.5, 8, 'Imported dataset'), 'META')
+XLSX.utils.book_append_sheet(workbook, tableSheet('WORK_CENTER', ['WC', 'Labor', 'Burden', 'Note'],
+  ['WC-1', 100, 50, 'Cutting'], ['WC-2', 90, null, 'Assembly']), 'WORK_CENTER')
+XLSX.utils.book_append_sheet(workbook, tableSheet('BOM', ['Name', 'Usage', 'Unit', 'Price', 'Loss', 'Note'],
+  ['Material 1', 2, 'PC', 10, 0.1, ''], ['Material 2', 2, 'PC', null, null, '']), 'BOM')
+XLSX.utils.book_append_sheet(workbook, tableSheet('ROUTING', ['Process', 'WC', 'Manning', 'Cap', 'Yield', 'Note'],
+  ['Cut', 'WC-1', 1, 100, 0.9, ''], ['Print', 'WC-2', 1, 80, 0.95, '']), 'ROUTING')
 
 const result = parseSnapshotWorkbookData(XLSX.write(workbook, { type: 'array', bookType: 'xlsx' }), 'current')
 
@@ -64,30 +55,16 @@ assert.equal(result.snapshot?.routing[0].workCenterId, 'WC-1')
 assert.equal(result.snapshot?.routing[0].processName, 'Cut')
 assert.equal(result.snapshot?.routing[1].id, 'Print')
 assert.equal(result.snapshot?.routing[1].operationCode, undefined)
-assert.ok(result.warnings.some(warning => warning.includes('Missing Burden at row 6')))
+assert.ok(result.warnings.some(warning => warning.includes('Missing Burden at row 5')))
 
 const incompleteIdentityWorkbook = XLSX.utils.book_new()
-XLSX.utils.book_append_sheet(incompleteIdentityWorkbook, sheet([
-  ['MASTER DATA DATASET'],
-  [],
-  ['Product Name', 'UOM', 'Selling Price (THB)', 'SG&A (%)', 'Dataset Remark'],
-  ['Incomplete Product', 'PC', null, null, '']
-]), 'META')
-XLSX.utils.book_append_sheet(incompleteIdentityWorkbook, sheet([
-  ['WORK_CENTER'], [], [],
-  ['WC', 'Labor', 'Burden', 'Note'],
-  ['', 120, 45, 'Needs a Work Center identity']
-]), 'WORK_CENTER')
-XLSX.utils.book_append_sheet(incompleteIdentityWorkbook, sheet([
-  ['BOM'], [], [],
-  ['Name', 'Usage', 'Unit', 'Price', 'Loss', 'Note'],
-  ['', 2, 'PC', 10, 0.05, 'Needs a BOM identity']
-]), 'BOM')
-XLSX.utils.book_append_sheet(incompleteIdentityWorkbook, sheet([
-  ['ROUTING'], [], [],
-  ['Process', 'WC', 'Manning', 'Cap', 'Yield', 'Note'],
-  ['Cutting', 'WC-1', 1, 100, 1, '']
-]), 'ROUTING')
+XLSX.utils.book_append_sheet(incompleteIdentityWorkbook, metaSheet('Incomplete Product', 'PC', null, null, ''), 'META')
+XLSX.utils.book_append_sheet(incompleteIdentityWorkbook, tableSheet('WORK_CENTER', ['WC', 'Labor', 'Burden', 'Note'],
+  ['', 120, 45, 'Needs a Work Center identity']), 'WORK_CENTER')
+XLSX.utils.book_append_sheet(incompleteIdentityWorkbook, tableSheet('BOM', ['Name', 'Usage', 'Unit', 'Price', 'Loss', 'Note'],
+  ['', 2, 'PC', 10, 0.05, 'Needs a BOM identity']), 'BOM')
+XLSX.utils.book_append_sheet(incompleteIdentityWorkbook, tableSheet('ROUTING', ['Process', 'WC', 'Manning', 'Cap', 'Yield', 'Note'],
+  ['Cutting', 'WC-1', 1, 100, 1, '']), 'ROUTING')
 const incompleteIdentityResult = parseSnapshotWorkbookData(
   XLSX.write(incompleteIdentityWorkbook, { type: 'array', bookType: 'xlsx' }),
   'current'
@@ -101,26 +78,13 @@ assert.equal(incompleteIdentityResult.snapshot?.bom[0].itemCode, '')
 assert.ok(incompleteIdentityResult.warnings?.some(warning => warning.includes('Missing BOM Name')))
 
 const duplicateRoutingWorkbook = XLSX.utils.book_new()
-XLSX.utils.book_append_sheet(duplicateRoutingWorkbook, sheet([
-  ['MASTER DATA DATASET'], [],
-  ['Product Name', 'UOM', 'Selling Price (THB)', 'SG&A (%)', 'Dataset Remark'],
-  ['Duplicate Routing Test', 'PC', null, null, '']
-]), 'META')
-XLSX.utils.book_append_sheet(duplicateRoutingWorkbook, sheet([
-  ['WORK_CENTER'], [], [],
-  ['WC', 'Labor', 'Burden', 'Note'],
-  ['WC-1', 100, 50, 'Cutting']
-]), 'WORK_CENTER')
-XLSX.utils.book_append_sheet(duplicateRoutingWorkbook, sheet([
-  ['BOM'], [], [],
-  ['Name', 'Usage', 'Unit', 'Price', 'Loss', 'Note']
-]), 'BOM')
-XLSX.utils.book_append_sheet(duplicateRoutingWorkbook, sheet([
-  ['ROUTING'], [], [],
-  ['Process', 'WC', 'Manning', 'Cap', 'Yield', 'Note'],
+XLSX.utils.book_append_sheet(duplicateRoutingWorkbook, metaSheet('Duplicate Routing Test', 'PC', null, null, ''), 'META')
+XLSX.utils.book_append_sheet(duplicateRoutingWorkbook, tableSheet('WORK_CENTER', ['WC', 'Labor', 'Burden', 'Note'],
+  ['WC-1', 100, 50, 'Cutting']), 'WORK_CENTER')
+XLSX.utils.book_append_sheet(duplicateRoutingWorkbook, tableSheet('BOM', ['Name', 'Usage', 'Unit', 'Price', 'Loss', 'Note']), 'BOM')
+XLSX.utils.book_append_sheet(duplicateRoutingWorkbook, tableSheet('ROUTING', ['Process', 'WC', 'Manning', 'Cap', 'Yield', 'Note'],
   ['Cutting', 'WC-1', 1, 100, 1, 'First route'],
-  ['Cutting', 'WC-1', 1, 100, 1, 'Duplicate business identity']
-]), 'ROUTING')
+  ['Cutting', 'WC-1', 1, 100, 1, 'Duplicate business identity']), 'ROUTING')
 const duplicateRoutingResult = parseSnapshotWorkbookData(
   XLSX.write(duplicateRoutingWorkbook, { type: 'array', bookType: 'xlsx' }),
   'current'
@@ -135,23 +99,10 @@ assert.equal(new Set(duplicateRoutingRows.map(row => row.id)).size, 2)
 // Incomplete canonical Product Name is retained with a non-blocking warning so
 // the user can complete it in the selected Working dataset.
 const startingDataWorkbook = XLSX.utils.book_new()
-XLSX.utils.book_append_sheet(startingDataWorkbook, sheet([
-  ['MASTER DATA DATASET'], [],
-  ['Product Name', 'UOM', 'Selling Price (THB)', 'SG&A (%)', 'Dataset Remark'],
-  ['', 'PC', null, null, 'Starting data with incomplete Product Name']
-]), 'META')
-XLSX.utils.book_append_sheet(startingDataWorkbook, sheet([
-  ['WORK_CENTER'], [], [],
-  ['WC', 'Labor', 'Burden', 'Note']
-]), 'WORK_CENTER')
-XLSX.utils.book_append_sheet(startingDataWorkbook, sheet([
-  ['BOM'], [], [],
-  ['Name', 'Usage', 'Unit', 'Price', 'Loss', 'Note']
-]), 'BOM')
-XLSX.utils.book_append_sheet(startingDataWorkbook, sheet([
-  ['ROUTING'], [], [],
-  ['Process', 'WC', 'Manning', 'Cap', 'Yield', 'Note']
-]), 'ROUTING')
+XLSX.utils.book_append_sheet(startingDataWorkbook, metaSheet('', 'PC', null, null, 'Starting data with incomplete Product Name'), 'META')
+XLSX.utils.book_append_sheet(startingDataWorkbook, tableSheet('WORK_CENTER', ['WC', 'Labor', 'Burden', 'Note']), 'WORK_CENTER')
+XLSX.utils.book_append_sheet(startingDataWorkbook, tableSheet('BOM', ['Name', 'Usage', 'Unit', 'Price', 'Loss', 'Note']), 'BOM')
+XLSX.utils.book_append_sheet(startingDataWorkbook, tableSheet('ROUTING', ['Process', 'WC', 'Manning', 'Cap', 'Yield', 'Note']), 'ROUTING')
 const startingDataResult = parseSnapshotWorkbookData(
   XLSX.write(startingDataWorkbook, { type: 'array', bookType: 'xlsx' }),
   'reference'
@@ -163,6 +114,24 @@ assert.ok(
   startingDataResult.warnings?.some(warning => warning.toLowerCase().includes('missing product name')),
   'Blank Product Name must remain visible as a warning while the starting dataset imports'
 )
+
+const horizontalMetaWorkbook = XLSX.utils.book_new()
+XLSX.utils.book_append_sheet(horizontalMetaWorkbook, sheet([
+  ['MASTER DATA DATASET'], [],
+  ['Product Name', 'UOM', 'Selling Price (THB)', 'SG&A (%)', 'Dataset Remark'],
+  ['Legacy Horizontal Meta', 'PC', 50, 4, 'Compatible prior META layout']
+]), 'META')
+XLSX.utils.book_append_sheet(horizontalMetaWorkbook, tableSheet('BOM', ['Name', 'Usage', 'Unit', 'Price', 'Loss', 'Note']), 'BOM')
+XLSX.utils.book_append_sheet(horizontalMetaWorkbook, tableSheet('WORK_CENTER', ['WC', 'Labor', 'Burden', 'Note']), 'WORK_CENTER')
+XLSX.utils.book_append_sheet(horizontalMetaWorkbook, tableSheet('ROUTING', ['Process', 'WC', 'Manning', 'Cap', 'Yield', 'Note']), 'ROUTING')
+const horizontalMetaResult = parseSnapshotWorkbookData(
+  XLSX.write(horizontalMetaWorkbook, { type: 'array', bookType: 'xlsx' }),
+  'current'
+)
+assert.equal(horizontalMetaResult.success, true, horizontalMetaResult.message)
+assert.equal(horizontalMetaResult.snapshot?.product.productName, 'Legacy Horizontal Meta')
+assert.equal(horizontalMetaResult.snapshot?.product.sellingPrice, 50)
+assert.equal(horizontalMetaResult.snapshot?.remark, 'Compatible prior META layout')
 
 async function verifyCanonicalTemplate(): Promise<void> {
   assert.ok(result.snapshot)
@@ -177,7 +146,7 @@ async function verifyCanonicalTemplate(): Promise<void> {
   const templateWorkbook = XLSX.read(templateBytes, { type: 'array' })
   assert.deepEqual(
     templateWorkbook.SheetNames,
-    ['META', 'BOM', 'ROUTING', 'WORK_CENTER', 'COST_CALCULATION']
+    ['META', 'BOM', 'WORK_CENTER', 'ROUTING']
   )
   const templateValues = ['META', 'BOM', 'ROUTING', 'WORK_CENTER'].flatMap(name => {
     const sheetValues = XLSX.utils.sheet_to_json(templateWorkbook.Sheets[name], { header: 1, defval: null }) as unknown[][]
@@ -201,26 +170,13 @@ async function verifyCanonicalTemplate(): Promise<void> {
 }
 
 const invalidWorkbook = XLSX.utils.book_new()
-XLSX.utils.book_append_sheet(invalidWorkbook, sheet([
-  ['MASTER DATA DATASET'], [],
-  ['Product Name', 'UOM', 'Selling Price (THB)', 'SG&A (%)', 'Dataset Remark'],
-  ['Invalid Product', 'PC', null, null, '']
-]), 'META')
-XLSX.utils.book_append_sheet(invalidWorkbook, sheet([
-  ['WORK_CENTER'], [], [],
-  ['WC', 'Labor', 'Burden', 'Note'],
-  ['WC-2', 'not-a-number', 50, 'Assembly']
-]), 'WORK_CENTER')
-XLSX.utils.book_append_sheet(invalidWorkbook, sheet([
-  ['BOM'], [], [],
-  ['Name', 'Usage', 'Unit', 'Price', 'Loss', 'Note'],
-  ['Material 2', 1, 'PC', 10, 0, '']
-]), 'BOM')
-XLSX.utils.book_append_sheet(invalidWorkbook, sheet([
-  ['ROUTING'], [], [],
-  ['Process', 'WC', 'Manning', 'Cap', 'Yield', 'Note'],
-  ['Unknown WC', 'WC-NOPE', 1, 100, 0.9, '']
-]), 'ROUTING')
+XLSX.utils.book_append_sheet(invalidWorkbook, metaSheet('Invalid Product', 'PC', null, null, ''), 'META')
+XLSX.utils.book_append_sheet(invalidWorkbook, tableSheet('WORK_CENTER', ['WC', 'Labor', 'Burden', 'Note'],
+  ['WC-2', 'not-a-number', 50, 'Assembly']), 'WORK_CENTER')
+XLSX.utils.book_append_sheet(invalidWorkbook, tableSheet('BOM', ['Name', 'Usage', 'Unit', 'Price', 'Loss', 'Note'],
+  ['Material 2', 1, 'PC', 10, 0, '']), 'BOM')
+XLSX.utils.book_append_sheet(invalidWorkbook, tableSheet('ROUTING', ['Process', 'WC', 'Manning', 'Cap', 'Yield', 'Note'],
+  ['Unknown WC', 'WC-NOPE', 1, 100, 0.9, '']), 'ROUTING')
 
 const invalidResult = parseSnapshotWorkbookData(XLSX.write(invalidWorkbook, { type: 'array', bookType: 'xlsx' }), 'current')
 assert.equal(invalidResult.success, true)

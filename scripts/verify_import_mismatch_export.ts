@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict'
+import ExcelJS from 'exceljs'
 import * as XLSX from 'xlsx'
 import { CostSnapshot, SnapshotPair } from '../src/core'
 import { parseSnapshotWorkbookData } from '../src/services/excel/snapshot-parser.ts'
@@ -155,18 +156,24 @@ async function runTests() {
   console.log('✓ Neutral Export -> Import round-trip preserves agreed business fields and annotations (Task 5)')
 
   const exportedWorkbook = XLSX.read(buffer, { type: 'array' })
-  assert.deepEqual(exportedWorkbook.SheetNames, ['META', 'BOM', 'ROUTING', 'WORK_CENTER', 'COST_CALCULATION'])
+  const styledExport = new ExcelJS.Workbook()
+  await styledExport.xlsx.load(Buffer.from(buffer))
+  assert.deepEqual(exportedWorkbook.SheetNames, ['META', 'BOM', 'WORK_CENTER', 'ROUTING'])
   assert.equal(exportedWorkbook.SheetNames.includes('ADDITIONAL_DATA'), false)
   const metaRows = XLSX.utils.sheet_to_json(exportedWorkbook.Sheets.META, { header: 1, defval: null }) as unknown[][]
-  assert.deepEqual(metaRows[2], ['Product Name', 'UOM', 'Selling Price (THB)', 'SG&A (%)', 'Dataset Remark'])
-  assert.equal(metaRows[3][0], 'Round-Trip Product')
-  assert.equal(metaRows[3][4], 'Dataset annotation')
+  assert.deepEqual(metaRows.slice(2, 7), [
+    ['PRODUCT NAME', 'Round-Trip Product'],
+    ['UOM', 'PC'],
+    ['SELLING PRICE', 125],
+    ['SG&A %', 8],
+    ['DATASET REMARK', 'Dataset annotation']
+  ])
   const workCenterRows = XLSX.utils.sheet_to_json(exportedWorkbook.Sheets.WORK_CENTER, { header: 1, defval: null }) as unknown[][]
   const bomRows = XLSX.utils.sheet_to_json(exportedWorkbook.Sheets.BOM, { header: 1, defval: null }) as unknown[][]
   const routingRows = XLSX.utils.sheet_to_json(exportedWorkbook.Sheets.ROUTING, { header: 1, defval: null }) as unknown[][]
-  assert.equal(exportedWorkbook.Sheets.WORK_CENTER['!autofilter']?.ref, 'A3:D4')
-  assert.equal(exportedWorkbook.Sheets.BOM['!autofilter']?.ref, 'A3:F4')
-  assert.equal(exportedWorkbook.Sheets.ROUTING['!autofilter']?.ref, 'A3:F4')
+  assert.equal(styledExport.getWorksheet('WORK_CENTER')?.getTable('WorkCenterData').table.tableRef, 'A3:D4')
+  assert.equal(styledExport.getWorksheet('BOM')?.getTable('BOMData').table.tableRef, 'A3:F4')
+  assert.equal(styledExport.getWorksheet('ROUTING')?.getTable('RoutingData').table.tableRef, 'A3:F4')
   assert.deepEqual(workCenterRows[2], ['WC', 'Labor', 'Burden', 'Note'])
   assert.deepEqual(bomRows[2], ['Name', 'Usage', 'Unit', 'Price', 'Loss', 'Note'])
   assert.deepEqual(routingRows[2], ['Process', 'WC', 'Manning', 'Cap', 'Yield', 'Note'])

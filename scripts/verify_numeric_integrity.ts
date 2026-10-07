@@ -1,5 +1,4 @@
 import assert from 'node:assert/strict'
-import ExcelJS from 'exceljs'
 import {
   calculateCostBreakdown,
   calculateRoutingDetailedRows,
@@ -13,7 +12,6 @@ import {
   SnapshotWorkCenterRate
 } from '../src/core'
 import { safeAdd, safeDivide, safeMultiply } from '../src/core/utils/guards'
-import { addCostCalculationSheet } from '../src/services/excel/cost-calculation-sheet'
 
 const product = {
   productCode: 'NUMERIC-TEST',
@@ -164,17 +162,5 @@ const comparison = compareSnapshots(reference, current)
 assert.equal(comparison.totalGap, null)
 assert.equal(comparison.reconciliation.reconciled, false)
 assert.ok(comparison.reconciliation.issues.some(issue => issue.includes('unavailable values')))
-
-const workbook = new ExcelJS.Workbook()
-addCostCalculationSheet(workbook, {
-  bomStartRow: 4, bomRowCount: 1, routingStartRow: 4, routingRowCount: 1, workCenterStartRow: 4, workCenterRowCount: 1
-})
-const sheet = workbook.getWorksheet('COST_CALCULATION')
-const formulaAt = (cell: string) => (sheet?.getCell(cell).value as { formula?: string })?.formula ?? ''
-assert.match(formulaAt('F14'), /IFERROR\(/, 'BOM row overflow must be unavailable in the workbook')
-assert.match(formulaAt('F19'), /IFERROR\(/, 'Routing factor errors must be unavailable in the workbook')
-assert.match(formulaAt('G19'), /IFERROR\(/, 'Routing cost errors must be unavailable in the workbook')
-assert.match(formulaAt('C6'), /non-finite total/, 'BOM total overflow must be unavailable in the workbook')
-assert.match(formulaAt('C9'), /IFERROR\(/, 'Standard Cost total overflow must be unavailable in the workbook')
 
 console.log('Numeric integrity verification passed')

@@ -142,17 +142,20 @@ try {
   const blankWorkCenterWorkbook = XLSX.utils.book_new()
   const addSheet = (name, rows) => XLSX.utils.book_append_sheet(blankWorkCenterWorkbook, XLSX.utils.aoa_to_sheet(rows), name)
   addSheet('META', [
-    ['MASTER DATA DATASET'],
-    [],
-    ['Product Name', 'UOM', 'Selling Price (THB)', 'SG&A (%)', 'Dataset Remark'],
-    ['Review fixture', 'PC', null, null, '']
+    ['META'], [],
+    ['PRODUCT NAME', 'Review fixture'],
+    ['UOM', 'PC'],
+    ['SELLING PRICE', null],
+    ['SG&A %', null],
+    ['DATASET REMARK', '']
   ])
   addSheet('WORK_CENTER', [
+    ['WORK CENTER'], [],
     ['WC', 'Labor', 'Burden', 'Note'],
     ['WC-1', 10, 5, '']
   ])
-  addSheet('BOM', [['Name', 'Usage', 'Unit', 'Price', 'Loss', 'Note']])
-  addSheet('ROUTING', [['Process', 'WC', 'Manning', 'Cap', 'Yield', 'Note']])
+  addSheet('BOM', [['BOM'], [], ['Name', 'Usage', 'Unit', 'Price', 'Loss', 'Note']])
+  addSheet('ROUTING', [['ROUTING'], [], ['Process', 'WC', 'Manning', 'Cap', 'Yield', 'Note']])
   const workbookBytes = XLSX.write(blankWorkCenterWorkbook, { type: 'array', bookType: 'xlsx' })
   const workbookBuffer = workbookBytes instanceof ArrayBuffer
     ? workbookBytes
