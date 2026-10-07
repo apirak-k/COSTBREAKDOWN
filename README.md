@@ -6,6 +6,8 @@ An Excel-assisted cost analysis application for preparing datasets, comparing co
 
 The decision authority and current specifications are listed in [docs/REQUIREMENTS_INDEX.md](docs/REQUIREMENTS_INDEX.md). Read the relevant files under [docs/specs/](docs/specs/) for the consolidated behavior. Files in [agreements/](agreements/) preserve prior decisions; finalized decisions stay valid unless a later explicit user decision supersedes them. Missing spec coverage is a migration gap.
 
+For a diagram-oriented overview, see the [System Logic Diagram](docs/SYSTEM_LOGIC_DIAGRAM.md).
+
 ## Project context
 
 PROJECT.md describes the implementation recorded before the current agreement was adopted. HANDOFF.md records the current checkpoint. Existing implementation evidence is not user acceptance of the new behavior.
