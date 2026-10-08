@@ -1,6 +1,6 @@
 # RCA & Simulation Specification
 
-**Status:** Human selection of one Candidate, optional RCA notes, non-mutating Scenario A/B behavior, supported simulation inputs, improvement economics, and Selling Price/SG&A/OP behavior are `FINALIZED — USER DECISION`. [`FINAL_LOGIC_SPEC.md`](FINAL_LOGIC_SPEC.md) is the latest logic authority; compatible layout, wording, and interaction requirements remain valid. Current presentation choices are reversible AI choices in [`design.md`](../../design.md). Only other business metrics and the Trial lifecycle remain pending as noted below.
+**Status:** Human selection of one Candidate, optional RCA notes, non-mutating Scenario A/B behavior, supported simulation inputs, improvement economics, and Selling Price/SG&A/OP behavior are `FINALIZED — USER DECISION`. [`FINAL_LOGIC_SPEC.md`](FINAL_LOGIC_SPEC.md) is the latest logic authority; compatible layout, wording, and interaction requirements remain valid. Current presentation choices follow [`design.md`](../../design.md). Unfinalized business metrics and full Trial execution lifecycle are classified as OUT OF SCOPE.
 
 ## FINALIZED — USER DECISION
 
@@ -94,14 +94,12 @@ Do not add a required third Simulated-versus-Reference gap. Preserve MAT, LB, BD
 
 After reviewing the scenarios, the user may select one scenario to continue to Trial. Selection is human-driven; Candidate ranking or simulation results never automatically choose it. Trial is a separate stage, not part of the core RCA calculation. Trial execution, validation, approval, and promotion remain unspecified.
 
-## PENDING — USER DECISION NEEDED
-
-- Other business metrics such as COGS, GP, GP Margin, OP Margin, Sales, and Volume/Quantity, as scoped in [CROSS_CUTTING.md](CROSS_CUTTING.md#business-analysis-confirmed-direction-and-scope). Selling Price, SG&A, OP, and their formulas are finalized above. MatVAR/LBVAR/BDVAR are removed from scope, not pending.
-- Trial execution, validation, approval, and promotion. The human-selected scenario-to-Trial handoff itself is agreed above.
+- Other business metrics beyond Selling Price, MAT, LB, BD, Standard Cost, SG&A, and OP (e.g. COGS, GP, GP Margin, OP Margin, Sales, Volume/Quantity) are OUT OF SCOPE. Selling Price, SG&A, OP, and their formulas are finalized above. MatVAR/LBVAR/BDVAR are removed from scope.
+- Trial execution, validation, approval, and promotion are OUT OF SCOPE. The human-selected scenario-to-Trial handoff itself is agreed above.
 
 ## Human review checkpoint
 
-Final human visual acceptance after implementing the reversible presentation in [`design.md`](../../design.md) has not been recorded. It is a review checkpoint; page layout details do not block implementation.
+Final human visual acceptance after implementing the presentation in [`design.md`](../../design.md) has not been recorded. It is a verification/review checkpoint, not an unresolved product decision; page layout details do not block implementation.
 
 ## Traceability
 

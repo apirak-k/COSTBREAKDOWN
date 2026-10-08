@@ -1,6 +1,6 @@
 # Master Data Specification
 
-**Status:** Core Master Data behavior and dataset shape are `FINALIZED — USER DECISION`. The visual principles below are `CONFIRMED DIRECTION — USER DECISION`; reversible visual choices belong in [`design.md`](../../design.md) and [`PROVISIONAL_IMPLEMENTATION_DECISIONS.md`](../PROVISIONAL_IMPLEMENTATION_DECISIONS.md). Only items explicitly listed under `PENDING — USER DECISION NEEDED` remain unresolved.
+**Status:** Core Master Data behavior, dataset shape, and Sizing/workbook behaviors are `FINALIZED — USER DECISION`. The visual principles below are `CONFIRMED DIRECTION — USER DECISION`; presentation choices follow [`design.md`](../../design.md). Product decisions are complete (0 pending).
 
 ## Final Target State
 

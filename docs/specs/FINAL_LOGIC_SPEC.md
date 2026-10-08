@@ -544,18 +544,16 @@ Sizing must not create a record-count equality requirement between Reference and
 
 ## 3.10 Workbook logic preserved
 
-The neutral workbook has four data sheets:
+The canonical workbook contains exactly four sheets in order:
 
 ```text
 META
 BOM
-ROUTING
 WORK_CENTER
+ROUTING
 ```
 
-The calculation inspection view may exist separately and is not imported as a fifth data sheet.
-
-The calculation view follows the same Standard Cost engine as the app.
+There is no fifth `COST_CALCULATION` sheet in the current canonical workbook. META contains inputs and formula outputs (MAT, Labor, Burden, Standard Cost, SG&A Amount, OP) following the same Standard Cost engine as the app. Calculated META formula outputs are not imported as source inputs.
 
 ## 3.11 Master Data validation
 
@@ -2663,9 +2661,9 @@ NOT APPLICABLE
 - [ ] Export and re-import preserve blank row slots and numeric blanks.
 - [ ] Missing required rows are MISSING and cannot be treated as complete comparisons.
 - [ ] Sizing does not require Ref/Current counts to match.
-- [ ] Workbook data sheets are META / BOM / ROUTING / WORK_CENTER.
-- [ ] Separate calculation inspection view is not imported as a data sheet.
-- [ ] Calculation inspection uses same Standard Cost formula.
+- [ ] Canonical workbook sheets are META / BOM / WORK_CENTER / ROUTING in exact order.
+- [ ] There is no fifth `COST_CALCULATION` sheet in current canonical workbook.
+- [ ] META contains formulas for MAT, Labor, Burden, Standard Cost, SG&A Amount, and OP using the same Standard Cost engine.
 - [ ] Sizing/template logic does not alter comparison identities.
 
 ---

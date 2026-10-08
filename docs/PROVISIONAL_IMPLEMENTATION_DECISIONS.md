@@ -2,7 +2,7 @@
 
 **Status:** Implementation guidance only. Every entry marked `PROVISIONAL — AI CHOICE` was selected by AI because the user had not fixed that implementation detail. These choices remain reversible, do not become user requirements when implemented, and never override [`REQUIREMENTS_INDEX.md`](REQUIREMENTS_INDEX.md) or a canonical product spec.
 
-The user does not need to approve ordinary layout, wording, component, or implementation details individually. Make a safe choice from the available context, record its rationale and constraints here, and continue. If a business formula, monetary attribution method, identity/matching rule, persistence/lifecycle behavior, destructive action, or Trial approval/promotion decision cannot be resolved from an explicit source, leave it `PENDING — USER DECISION NEEDED`, prepare the exact narrow question, and continue independent work.
+The user does not need to approve ordinary layout, wording, component, or implementation details individually. Make a safe choice from the available context, record its rationale and constraints here, and continue. Product business rules, formulas, and boundaries are finalized in [`FINAL_LOGIC_SPEC.md`](specs/FINAL_LOGIC_SPEC.md) and the canonical specs under `docs/specs/`. Items outside defined scope (e.g. unagreed metrics or Trial execution engines) are classified as OUT OF SCOPE.
 
 ## Decision record format
 
@@ -34,10 +34,10 @@ Do not promote an entry to a user decision based on implementation, test results
 - **Status:** Superseded by the user's later decision to integrate the Dashboard overview into Simulation and remove the separate workflow page. This AI choice is retained as provenance only.
 - **Choice:** start the current Dashboard with settled Standard Cost results, explain Material and Processing causes, and provide BOM/Work Center/Process detail. Any Dashboard scenario summary is supplemental; the required Scenario A/B money comparison and Reference → Current → Simulated story belong to the Simulation result flow.
 - **Why:** it provides a useful dashboard from settled calculations while only the remaining unfinalized business metrics remain unresolved.
-- **Must preserve:** the confirmed interactive/live, executive-overview, `Result → Cause → Detail` direction; source datasets are not changed by simulation; the dashboard does not select a Candidate or scenario; finalized Selling Price, SG&A, and OP formulas are used; only genuinely pending metrics remain unavailable, never fabricated as zero.
+- **Must preserve:** the confirmed interactive/live, executive-overview, `Result → Cause → Detail` direction; source datasets are not changed by simulation; the dashboard does not select a Candidate or scenario; finalized Selling Price, SG&A, and OP formulas are used; out-of-scope metrics are not fabricated.
 - **Reversible:** the ordering, layout, chart/card choices, and detail presentation can change without changing calculation rules or product flow.
-- **Review trigger:** a later formula decision for remaining metrics, explicit dashboard design decisions, or human visual acceptance.
-- **Related contract:** [`CROSS_CUTTING.md`](specs/CROSS_CUTTING.md#simulation-result-overview-with-finalized-outputs-and-remaining-pending-metrics) and [`design.md`](../design.md).
+- **Review trigger:** explicit dashboard design decisions or human visual acceptance.
+- **Related contract:** [`CROSS_CUTTING.md`](specs/CROSS_CUTTING.md#simulation-result-overview-with-finalized-outputs) and [`design.md`](../design.md).
 
 ### P-003 — Work Center Labor/Burden Rate scenario overrides (superseded)
 
@@ -132,16 +132,17 @@ Do not promote an entry to a user decision based on implementation, test results
 - **Review trigger:** human visual review of whether the result and its main cost movement are clear on first view.
 - **Related contract:** [`CROSS_CUTTING.md`](specs/CROSS_CUTTING.md#business-analysis-confirmed-direction-and-scope) and [`design.md`](../design.md#simulation-story-order).
 
-## Genuine pending boundaries
+## Product decisions are complete (0 Pending Decisions)
 
-These are not AI choices and must not be inferred away:
-
-- Other business metric formulas and any financial treatment required for COGS, GP, GP Margin, OP Margin, Sales, and Volume/Quantity. Selling Price, SG&A, and OP are finalized in [`FINAL_LOGIC_SPEC.md`](specs/FINAL_LOGIC_SPEC.md).
-- Trial execution, validation, approval, and promotion.
-- The Master Data lifecycle/interaction items explicitly listed under `PENDING — USER DECISION NEEDED` in [`MASTER_DATA.md`](specs/MASTER_DATA.md#pending-user-decision-needed).
+All product requirements and lifecycle decisions are complete under the finalized authority chain:
+- Master Data sizing, row counts, truncation, blank row semantics, and Excel round-trip behavior are finalized.
+- Selling Price, SG&A%, SG&A amount, and OP formulas are finalized.
+- Scenario A/B independence, full Current baseline, economics composition, human selection, and Reference → Current → Simulated two-gap storytelling are finalized.
+- Candidate identification (Process/Routing as Candidate, Work Center as context) and selection of exactly one Candidate at RCA entry are finalized.
+- Additional business metrics (COGS, GP, GP Margin, OP Margin, Sales, historical time-series/periods) and full Trial execution/validation/approval/promotion workflows are classified as **OUT OF SCOPE**.
 
 ## Human review checkpoint
 
-Final human visual acceptance after the UI pass has not been recorded. This is a review checkpoint, not a product rule or a reason to pause reversible implementation choices.
+Final human visual acceptance after the UI pass has not been recorded. This is an implementation/verification review checkpoint, not an unresolved product decision or a reason to pause reversible implementation choices.
 
-See [`REQUIREMENTS_INDEX.md`](REQUIREMENTS_INDEX.md) for the authority rules and the exact boundary between user decisions, AI choices, and genuine pending decisions.
+See [`REQUIREMENTS_INDEX.md`](REQUIREMENTS_INDEX.md) for the authority rules and the exact boundary between user decisions, AI choices, and verification checkpoints.

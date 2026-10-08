@@ -1,6 +1,6 @@
 # Cross-Cutting Product Rules
 
-**Status:** Comparison, Selected Comparison lifecycle, warning, Standard Cost, Process Candidate dependency, and Selling Price/SG&A/OP rules are `FINALIZED — USER DECISION`. [`FINAL_LOGIC_SPEC.md`](FINAL_LOGIC_SPEC.md) is the latest authority for product logic; this and the page-specific specs retain compatible requirements and UX/UI. Dashboard and visual outcomes remain `CONFIRMED DIRECTION — USER DECISION`; safe presentation details are reversible AI choices in [`design.md`](../../design.md) and [`PROVISIONAL_IMPLEMENTATION_DECISIONS.md`](../PROVISIONAL_IMPLEMENTATION_DECISIONS.md). Other business formulas and Trial workflow remain `PENDING — USER DECISION NEEDED`; Master Data lifecycle questions are listed in [MASTER_DATA.md](MASTER_DATA.md).
+**Status:** Comparison, Selected Comparison lifecycle, warning, Standard Cost, Process Candidate dependency, and Selling Price/SG&A/OP rules are `FINALIZED — USER DECISION`. [`FINAL_LOGIC_SPEC.md`](FINAL_LOGIC_SPEC.md) is the latest authority for product logic; this and the page-specific specs retain compatible requirements and UX/UI. Visual outcomes follow [`design.md`](../../design.md) and [`PROVISIONAL_IMPLEMENTATION_DECISIONS.md`](../PROVISIONAL_IMPLEMENTATION_DECISIONS.md). Unfinalized business metrics and full Trial execution workflow are classified as OUT OF SCOPE. Product decisions are complete (0 pending).
 
 ## Final Target State
 
@@ -85,34 +85,38 @@ OP / pc = Selling Price - Standard Cost - SG&A amount
 OP = Selling Price - MAT - LB - BD - SG&A
 ```
 
-OP may be positive, zero, or negative; negative OP represents a loss and must not be clamped or labeled unavailable solely because it is negative. Do not treat formulas for other business concepts as finalized unless another compatible finalized requirement explicitly does so. The chart's historical period/source remains pending; do not infer approval from labels, the reference image, or current code.
+OP may be positive, zero, or negative; negative OP represents a loss and must not be clamped or labeled unavailable solely because it is negative. Do not treat formulas for other business concepts as finalized unless another compatible finalized requirement explicitly does so. Historical monthly period/source data is OUT OF SCOPE for current snapshot-based models; do not infer approval from labels, the reference image, or current code.
 
 **MatVAR, LBVAR, and BDVAR are removed from current scope by the latest explicit user decision.** They are neither pending formulas nor deferred features. Do not add them to Standard Cost or the current Simulation result flow.
 
-### Simulation result overview with finalized outputs and remaining pending metrics
+### Simulation result overview with finalized outputs
 
-`CONFIRMED DIRECTION — USER DECISION`: the integrated Simulation result flow may provide a useful engineering-first view using settled calculations: Standard Cost; Material; Labor; Burden; Processing/Conversion; comparison Gap; scenario results; finalized Selling Price, SG&A, and OP; and relevant BOM, Work Center, and Process detail. For the confirmed left-side chart, the visual reference may be adapted to the finalized Reference → Current → Simulated states after a scenario is selected. The result story has only the two adjacent state gaps; the Scenario A/B comparison supports money series and scenario-change context as specified in [`FINAL_LOGIC_SPEC.md`](FINAL_LOGIC_SPEC.md). Exact chart data mapping and layout details remain reversible AI choices; do not fabricate historical periods or unavailable values.
+`CONFIRMED DIRECTION — USER DECISION`: the integrated Simulation result flow provides an engineering-first view using settled calculations: Standard Cost; Material; Labor; Burden; Processing/Conversion; comparison Gap; scenario results; finalized Selling Price, SG&A, and OP; and relevant BOM, Work Center, and Process detail. The storytelling chart displays the finalized Reference → Current → Simulated states after a scenario is selected. The result story has only the two adjacent state gaps; the Scenario A/B comparison supports money series and scenario-change context as specified in [`FINAL_LOGIC_SPEC.md`](FINAL_LOGIC_SPEC.md).
 
-Do not fabricate numeric COGS, GP, GP Margin, OP Margin, Sales, or Volume/Quantity results from guessed formulas or inputs. OP and SG&A amount use the finalized formulas above when required inputs are available. Do not display numeric zero for a metric whose formula is unavailable; show an explicit unavailable state instead. The current Simulation result composition is a `PROVISIONAL — AI CHOICE` recorded in [`PROVISIONAL_IMPLEMENTATION_DECISIONS.md`](../PROVISIONAL_IMPLEMENTATION_DECISIONS.md); its exact layout can change without reopening these boundaries or creating a separate Dashboard page.
+Do not fabricate numeric COGS, GP, GP Margin, OP Margin, Sales, or Volume/Quantity results from guessed formulas or inputs. OP and SG&A amount use the finalized formulas above when required inputs are available. Do not display numeric zero for a metric whose formula is unavailable; show an explicit unavailable state instead. The current Simulation result composition is recorded in [`design.md`](../../design.md); its exact layout can change without reopening these boundaries or creating a separate Dashboard page.
 
-The actual Trial execution, validation, approval, and promotion workflow remains unspecified. The agreed Candidate-to-scenario selection and scenario-to-Trial handoff are described in [RCA_SIMULATION.md](RCA_SIMULATION.md).
+## Product Boundaries and Scope
 
-## PENDING — USER DECISION NEEDED
+### Trial Lifecycle Scope
+Current product scope contains only the Trial handoff/marker behavior already defined: after reviewing scenarios, the user may select one scenario to continue to Trial. A complete Trial execution engine, validation process, approval flow, and promotion flow are **OUT OF SCOPE**.
 
-- Formulas for other business metrics such as COGS, GP, GP Margin, OP Margin, Sales, and Volume/Quantity, plus actual Trial execution/validation/approval/promotion. Selling Price, SG&A, and OP rules are finalized above.
-- The following equations were proposed/discussed but have no explicit user approval as system formulas. Preserve them as discussion context; do not implement them as finalized requirements until approved:
-  - `COGS = Material + Processing`
-  - `GP = Selling Price - COGS`
-  - `GP Margin = GP / Selling Price`
-  - `OP Margin = OP / Selling Price`
-  - `Sales = Selling Price × Volume`
-  - `Total GP = GP per piece × Volume`
-  - `Total OP = OP per piece × Volume`
-- Historical dashboard periods, data sources, Reference/Current-to-period mapping, annual averages, and exact business-chart series have not been finalized. The supplied image is visual context, not historical data or formula approval.
+### Additional Business Metrics Scope
+The finalized current result/economics scope focuses strictly on Selling Price, MAT, LB, BD, Standard Cost, SG&A, and OP. Additional business metrics (such as COGS, GP, GP Margin, OP Margin, Sales, historical monthly metrics, and Volume beyond the finalized Evaluation Quantity usage) are **OUT OF SCOPE**. Do not invent formulas or requirements for these items.
+
+Discussion formulas preserved for historical context only (not implemented system formulas):
+- `COGS = Material + Processing`
+- `GP = Selling Price - COGS`
+- `GP Margin = GP / Selling Price`
+- `OP Margin = OP / Selling Price`
+- `Sales = Selling Price × Volume`
+- `Total GP = GP per piece × Volume`
+- `Total OP = OP per piece × Volume`
+
+Historical dashboard periods, time-series data sources, Reference/Current-to-period mapping, and annual averages are likewise OUT OF SCOPE for the current snapshot-based model.
 
 ## Human review checkpoint
 
-Final visual acceptance after applying the provisional visual contract has not been recorded. This is a review checkpoint, not a pending product rule; reversible layout, styling, status wording, and disabled/error presentation choices may be implemented before review.
+Final visual acceptance after applying the provisional visual contract has not been recorded. This is a verification/review checkpoint, not an unresolved product rule; reversible layout, styling, status wording, and disabled/error presentation choices may be implemented before review.
 
 ## Traceability
 
