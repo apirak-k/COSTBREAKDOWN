@@ -264,11 +264,11 @@ export function makeSeedSession(): ProductSession {
   }, seedSnapshotPair)
 }
 
-type ActiveTab = 'master' | 'breakdown' | 'candidate' | 'rca'
+type ActiveTab = 'master' | 'breakdown' | 'candidate' | 'simulation'
 
 function normalizeActiveTab(value: unknown): ActiveTab {
-  if (value === 'dashboard') return 'rca'
-  return value === 'breakdown' || value === 'candidate' || value === 'rca' ? value : 'master'
+  if (value === 'dashboard' || value === 'rca') return 'simulation'
+  return value === 'breakdown' || value === 'candidate' || value === 'simulation' ? value : 'master'
 }
 
 interface AppContextType {
@@ -289,6 +289,7 @@ interface AppContextType {
   rcaCases: RcaCaseRecord[]
   activeRcaCaseId: string | null
   snapshotPair: SnapshotPair
+  masterDataSnapshots: Record<MasterDataRole, CostSnapshot>
   snapshotComparison: CostComparison
   fullSnapshotComparison: CostComparison
   analysisSnapshotPair: SnapshotPair
@@ -586,6 +587,11 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const masterDataHandoff = evaluateMasterDataHandoff(activeSession, snapshotPair)
   const masterDataRole = masterDataUiState.role
   const masterDataSnapshot = getMasterDataSnapshot(activeSession, snapshotPair, masterDataRole)
+  const masterDataSnapshots: Record<MasterDataRole, CostSnapshot> = {
+    reference: getMasterDataSnapshot(activeSession, snapshotPair, 'reference'),
+    current: getMasterDataSnapshot(activeSession, snapshotPair, 'current'),
+    custom: getMasterDataSnapshot(activeSession, snapshotPair, 'custom')
+  }
   const masterDataLastSavedSnapshot = getLastSavedMasterData(activeSession, masterDataRole)?.snapshot
   const masterDataSizing = getMasterDataSizing(activeSession, masterDataSnapshot, masterDataRole)
   const isDevelopmentReviewFixture = activeProductId === DEVELOPMENT_REVIEW_FIXTURE_ID
@@ -1488,6 +1494,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       rcaCases,
       activeRcaCaseId,
       snapshotPair,
+      masterDataSnapshots,
       snapshotComparison,
       fullSnapshotComparison,
       analysisSnapshotPair,

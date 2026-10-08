@@ -65,13 +65,14 @@ Phase 7 — Independent Simulation module
 ### Phase 6 — Candidate and RCA workflow
 - [x] Select one or multiple Candidates into an RCA Case; preserve advisory ranking and complete RCA without Simulation.
 - [x] Verify the workflow and Candidate-pool/Case state invariants.
-- [ ] Commit this phase after final diff review.
-- **Status:** ready_to_commit
+- [x] Commit this phase after final diff review.
+- **Status:** complete (`74843ed5423d4e8a8d3bedc32a440a472753b7af`)
 
 ### Phase 7 — Independent Simulation module
-- [ ] Add independent temporary Simulation state, Start SIM From Reference/Current/Custom, and remove RCA/A-B dependencies.
-- [ ] Verify isolation and commit this phase.
-- **Status:** pending
+- [x] Add independent temporary Simulation state, Start SIM From Reference/Current/Custom, and remove RCA/A-B dependencies from the active route.
+- [x] Verify state isolation, basis invalidation, navigation, and Reset SIM behavior.
+- [ ] Commit this phase after final diff review.
+- **Status:** ready_to_commit
 
 ### Phase 8 — Parameter Simulation engine
 - [ ] Reuse the shared full-snapshot calculation/comparison engine; lock structure and allow only finalized parameter factors.

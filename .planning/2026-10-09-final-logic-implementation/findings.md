@@ -46,6 +46,12 @@
 - The Case editor remains within Candidate/RCA. The old RCA-and-scenarios page still exists temporarily for the upcoming Simulation extraction/removal phases; it is not the entry point for the new RCA Case flow.
 - Focused Candidate, RCA Case, comparison view/full-flow, typecheck, and production build checks passed. Build continues to emit the baseline ExcelJS browser externalization warnings.
 
+## Phase 7 findings
+
+- Simulation is a session-oriented workspace held separately from product Master Data and RCA data. Start copies the selected role's Working snapshot into that workspace.
+- The invalidation basis consists of the chosen source Working snapshot and Current Working snapshot because Current is the finalized Simulation comparison reference. Editing either resets the active SIM to the empty start state; changes in the third dataset do not.
+- The new Simulation route does not import or restore the old `RcaSimulationPageState`; legacy `rca` / `dashboard` active-tab values navigate to Simulation. The old implementation files remain temporarily until final caller inspection and retirement in Phase 11.
+
 ## Baseline verification discoveries
 
 - `npm run build` passed at baseline (`tsc -b && vite build`; exit 0). Vite emitted the existing ExcelJS `fs`/`crypto` browser-externalization warnings; 2,035 modules transformed.

@@ -124,7 +124,20 @@
 - `npm run build` — PASS; existing ExcelJS browser-externalization warnings remain; 2,038 modules transformed.
 - `git diff --check` — PASS; Git reports line-ending conversion notices only.
 - One attempted verifier path, `verify_selected_comparison_candidate_scope.ts`, did not exist; reran the existing snapshot comparison and full-flow verifiers instead. No product verifier failed.
-- **Phase 6 commit:** pending.
+- **Phase 6 commit:** `74843ed5423d4e8a8d3bedc32a440a472753b7af` (`feat: integrate multi-candidate RCA workflow`).
+
+### Phase 7 — Independent Simulation module
+
+- **Status:** in progress
+- Added a Simulation workspace state independent from Candidate selection and RCA Case state. It stores the selected Master Data source, copied SIM snapshot, session start time, and source/Current basis fingerprint.
+- Added Start SIM From Reference/Current/Custom. The SIM snapshot is copied; the Simulation page receives no Master Data mutation methods.
+- Added deterministic session-state invalidation when the chosen source or Current comparison basis changes. Changes in a different, unrelated dataset do not reset the active SIM.
+- Replaced the old RCA & Simulation navigation route with Candidate / RCA and Simulation. Legacy stored active tab values `rca` and `dashboard` map to Simulation; old scenario state is not loaded into the new workflow.
+- `verify_simulation_workspace.ts` — PASS for all three source roles, copy isolation, invalidation, and non-source non-basis isolation.
+- `npx tsc --noEmit --pretty false` — PASS.
+- `npm run build` — PASS; existing ExcelJS browser-externalization warnings remain; 2,041 modules transformed.
+- Browser preview on the isolated target worktree — PASS: the final navigation exposes separate Candidate / RCA and Simulation tabs; Start SIM From Reference/Current/Custom is available without RCA; starting from Custom shows the source and Current Working basis; Reset SIM returns to the start choices.
+- **Phase 7 commit:** pending.
 
 ## Error Log
 

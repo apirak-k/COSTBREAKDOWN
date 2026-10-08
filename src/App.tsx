@@ -1,53 +1,66 @@
 import React, { useEffect, useMemo, useState } from 'react'
+import type { MasterDataRole } from './core/types'
 import { AppProvider, useAppStore } from './state'
 import { AppLayout } from './shared'
 import {
   MasterDataPage,
   CostBreakdownPage,
   CandidateSelectionPage,
-  RCASimulationPage
+  SimulationPage
 } from './features'
 import {
-  getRcaSimulationStateForRevision,
-  retainRcaSimulationStatesForProducts,
-  updateRcaSimulationStateByProduct,
-  type RcaSimulationPageState
-} from './features/rca-simulation/scenario-draft'
+  createEmptySimulationState,
+  reconcileSimulationState,
+  retainSimulationStatesForProducts,
+  startSimulationFrom,
+  type SimulationWorkspaceState
+} from './features/simulation/simulation-state'
 import { loadFromSession, saveToSession, STORAGE_KEYS } from './services/storage'
 
 const AppRouter: React.FC = () => {
   const {
     activeTab,
     activeProductId,
-    activeSession,
+    masterDataSnapshots,
     productSessions
   } = useAppStore()
-  const [rcaSimulationStatesByProduct, setRcaSimulationStatesByProduct] = useState<Record<string, RcaSimulationPageState>>(
-    () => loadFromSession(STORAGE_KEYS.RCA_SIMULATION_STATES, {})
+  const [simulationStatesByProduct, setSimulationStatesByProduct] = useState<Record<string, SimulationWorkspaceState>>(
+    () => loadFromSession(STORAGE_KEYS.SIMULATION_STATES, {})
   )
-  const sourceDataRevision = activeSession.masterDataRevision ?? 0
-  const rcaSimulationState = useMemo(
-    () => getRcaSimulationStateForRevision(rcaSimulationStatesByProduct[activeProductId], sourceDataRevision),
-    [activeProductId, rcaSimulationStatesByProduct, sourceDataRevision]
+  const storedSimulationState = simulationStatesByProduct[activeProductId]
+  const simulationState = useMemo(
+    () => reconcileSimulationState(storedSimulationState, masterDataSnapshots),
+    [masterDataSnapshots, storedSimulationState]
   )
-  const statesToPersist = useMemo(
-    () => ({ ...rcaSimulationStatesByProduct, [activeProductId]: rcaSimulationState }),
-    [activeProductId, rcaSimulationState, rcaSimulationStatesByProduct]
-  )
+
+  useEffect(() => {
+    if (!storedSimulationState || simulationState === storedSimulationState) return
+    setSimulationStatesByProduct(previous => previous[activeProductId] === storedSimulationState
+      ? { ...previous, [activeProductId]: simulationState }
+      : previous)
+  }, [activeProductId, simulationState, storedSimulationState])
 
   useEffect(() => {
     const liveProductIds = new Set(productSessions.map(session => session.id))
-    setRcaSimulationStatesByProduct(previous => retainRcaSimulationStatesForProducts(previous, liveProductIds))
+    setSimulationStatesByProduct(previous => retainSimulationStatesForProducts(previous, liveProductIds))
   }, [productSessions])
 
   useEffect(() => {
-    saveToSession(STORAGE_KEYS.RCA_SIMULATION_STATES, statesToPersist)
-  }, [statesToPersist])
+    saveToSession(STORAGE_KEYS.SIMULATION_STATES, simulationStatesByProduct)
+  }, [simulationStatesByProduct])
 
-  const updateRcaSimulationState = (update: (state: RcaSimulationPageState) => RcaSimulationPageState) => {
-    setRcaSimulationStatesByProduct(previous =>
-      updateRcaSimulationStateByProduct(previous, activeProductId, sourceDataRevision, update)
-    )
+  const startFrom = (role: MasterDataRole) => {
+    setSimulationStatesByProduct(previous => ({
+      ...previous,
+      [activeProductId]: startSimulationFrom(role, masterDataSnapshots)
+    }))
+  }
+
+  const resetSimulation = () => {
+    setSimulationStatesByProduct(previous => ({
+      ...previous,
+      [activeProductId]: createEmptySimulationState()
+    }))
   }
 
   return (
@@ -55,7 +68,9 @@ const AppRouter: React.FC = () => {
       {activeTab === 'master' && <MasterDataPage />}
       {activeTab === 'breakdown' && <CostBreakdownPage />}
       {activeTab === 'candidate' && <CandidateSelectionPage />}
-      {activeTab === 'rca' && <RCASimulationPage state={rcaSimulationState} updateState={updateRcaSimulationState} />}
+      {activeTab === 'simulation' && (
+        <SimulationPage state={simulationState} onStartFrom={startFrom} onReset={resetSimulation} />
+      )}
     </AppLayout>
   )
 }

@@ -5,8 +5,8 @@ import { resolveWorkflowStatus } from './workflow-status'
 const navItems = [
   { id: 'master', label: 'Master Data' },
   { id: 'breakdown', label: 'Cost Breakdown' },
-  { id: 'candidate', label: 'Candidate Prioritization' },
-  { id: 'rca', label: 'RCA & Simulation' },
+  { id: 'candidate', label: 'Candidate / RCA' },
+  { id: 'simulation', label: 'Simulation' },
 ] as const
 
 export const Navbar: React.FC = () => {

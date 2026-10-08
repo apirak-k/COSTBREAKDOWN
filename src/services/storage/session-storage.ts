@@ -7,6 +7,7 @@ export const STORAGE_KEYS = {
   ACTIVE_ID: 'costbreakdown_active_id',
   ACTIVE_TAB: 'costbreakdown_active_tab',
   RCA_SIMULATION_STATES: 'costbreakdown_rca_simulation_states',
+  SIMULATION_STATES: 'costbreakdown_simulation_states',
   UOM_LIST: 'costbreakdown_uom_list'
 } as const
 
