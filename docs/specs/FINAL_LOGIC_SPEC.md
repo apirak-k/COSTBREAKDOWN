@@ -9,7 +9,7 @@
 
 ## 0. Purpose, Authority, and Precedence
 
-This document is the consolidated **logic-only source of truth** for the COSTBREAKDOWN application, incorporating the latest user-finalized business logic from `FINAL_LOGIC_INPUT.md`.
+This document is the consolidated **logic-only source of truth** for the COSTBREAKDOWN application, establishing the latest user-finalized business logic.
 
 It is intended to be usable directly by Codex or another implementation/review agent for:
 
