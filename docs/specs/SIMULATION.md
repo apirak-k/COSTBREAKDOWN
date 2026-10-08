@@ -80,7 +80,7 @@ In large industrial datasets, exposing every row simultaneously causes cognitive
 - When any input is edited, the **entire SIM dataset recalculates** through the shared cost engine.
 
 ### 1.7 Finalized SIM-Editable Parameters
-The parameters editable in Parameter Simulation are strictly:
+The parameters editable in Parameter Simulation are strictly physical and operational factors:
 
 **BOM:**
 - `Price` (THB)
@@ -92,12 +92,10 @@ The parameters editable in Parameter Simulation are strictly:
 - `Capacity`
 - `Yield` (%)
 
-#### Work Center Rates are NOT SIM-Editable
-Work Center `Labor Rate` and `Burden Rate` are essential cost inputs in the broader cost model, but in the finalized Simulation scope:
-- `Labor Rate`: **NOT editable in SIM**
-- `Burden Rate`: **NOT editable in SIM**
-
-If rate changes need to be tested, the engineer updates them in **Master Data** (typically in `Custom`) and starts Simulation from that dataset.
+#### Parameter Boundaries & Exclusions
+1. **Zero Structural Edits:** Simulation contains zero structural editing capabilities (cannot add/delete rows or change row counts). All structural changes belong strictly to Master Data / Sizing (see Section 1.3).
+2. **Work Center Rates are NOT SIM-Editable:** Work Center `Labor Rate` and `Burden Rate` are rates owned by Master Data. If rate changes need to be tested, the engineer updates them in Master Data (typically in `Custom`) and starts Simulation from that dataset.
+3. **Selling Price and SG&A % are Commercial Metadata Overrides:** Selling Price and SG&A % are economic/commercial parameters, NOT BOM or Routing parameter factor inputs. They are set and overridden at the scenario metadata level (see Section 4). They calculate SG&A Amount and Operating Profit (OP), and do NOT feed into Standard Cost (MAT, LB, BD).
 
 ### 1.8 Live Recalculation
 Parameter Simulation recalculates live upon every input change:

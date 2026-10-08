@@ -82,11 +82,12 @@ SIMULATION
 1. **Parameter Simulation:**
    - Evaluates what-if product costs under entered parameters.
    - May start from `Reference`, `Current`, or `Custom`.
-   - **Structure is locked:** Cannot add/remove/resize records in SIM. Structural edits belong in Master Data / Custom first.
+   - **Structure is locked (Zero structural edits):** Cannot add/remove/resize records in SIM. Master Data Sizing owns all structural changes; structural edits belong in Master Data / Custom first.
    - Primary comparison basis is always **Current vs SIM**.
    - Statuses in SIM: `CHANGED`, `UNCHANGED`, and `ADDED` are visible and parameter-editable; `REMOVED` is visible (affecting Gap) but not editable.
    - **Factors to Simulate:** Users select multiple factors for editing visibility; the entire SIM dataset recalculates live.
-   - SIM-editable parameters: BOM (Price, Usage, Loss) and Routing (Manning, Capacity, Yield). Work Center rates are **not** SIM-editable.
+   - SIM-editable parameters: Strictly physical BOM (`Price`, `Usage`, `Loss`) and Routing (`Manning`, `Capacity`, `Yield`). Work Center rates are **not** SIM-editable.
+   - **Selling Price and SG&A %:** Economic/commercial parameters overridden at scenario metadata level, NOT parameter factor inputs. They affect SG&A Amount and OP, not Standard Cost.
 
 2. **Economic Simulation:**
    - Evaluates investment feasibility: $\text{Required Saving / pc} = \frac{\text{Action Cost}}{\text{Evaluation Quantity}}$.

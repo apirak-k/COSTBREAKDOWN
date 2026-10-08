@@ -484,9 +484,11 @@ Even if SIM started from Reference or Custom, comparing against Current allows e
 - When an input changes, the **full SIM dataset recalculates** through the shared cost engine.
 
 ### Finalized SIM-Editable Parameters
-- **BOM:** `Price`, `Usage / Consumption`, `Loss`
-- **Routing:** `Manning`, `Capacity`, `Yield`
-- **Work Center Rates:** `Labor Rate` and `Burden Rate` are **NOT SIM-editable**. (Change them in Master Data / Custom).
+- **BOM:** `Price` (THB), `Usage / Consumption`, `Loss` (%)
+- **Routing:** `Manning`, `Capacity`, `Yield` (%)
+- **Work Center Rates:** `Labor Rate` and `Burden Rate` are rates owned by Master Data and are **NOT SIM-editable** (modify them in Master Data / Custom).
+- **Zero Structural Edits:** Simulation contains zero structural editing capabilities (cannot add/delete rows or change row counts). Master Data Sizing owns all structural changes.
+- **Selling Price and SG&A % Placement:** Selling Price and SG&A % are economic/commercial parameters and may be overridden in Scenario metadata (see Section 7), NOT as BOM or Routing parameter factor inputs. They determine SG&A Amount and OP, and do not alter Standard Cost (MAT, LB, BD).
 
 ### Live Recalculation
 Parameter edits immediately update:
