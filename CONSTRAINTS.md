@@ -12,7 +12,7 @@ The behavior contract is in the canonical specs indexed by docs/REQUIREMENTS_IND
 
 ## Scope boundaries
 
-- Follow the current Candidate and RCA/Simulation specs. Where they say `PENDING/TBD`, do not infer behavior from the existing pages.
+- Follow the current Candidate/RCA (`docs/specs/CANDIDATE.md`) and Simulation (`docs/specs/SIMULATION.md`) specs. Where they say `PENDING/TBD`, do not infer behavior from the existing pages.
 - Master Data's agreed structural layout is in `docs/specs/MASTER_DATA.md`; other exact page layouts remain pending where the canonical specs say so.
 
 ## Verification

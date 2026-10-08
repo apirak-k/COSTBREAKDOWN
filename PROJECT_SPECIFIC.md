@@ -8,7 +8,7 @@ Follow `docs/REQUIREMENTS_INDEX.md` and read `docs/specs/FINAL_LOGIC_SPEC.md` fi
 
 - Protect factory, pricing, customer, and other proprietary data. Do not add real operational data or private source workbooks to version control.
 - Follow `docs/specs/CROSS_CUTTING.md` for calculation and workbook behavior. Use code and checked-in workbooks as evidence only; do not invent formulas or silently replace missing inputs with zero or another plausible value.
-- Keep Reference and Current independent. Follow `docs/specs/FINAL_LOGIC_SPEC.md` for Simulation logic and `docs/specs/RCA_SIMULATION.md` for compatible page detail; leave only genuinely pending items open.
+- Keep datasets independent. Follow `docs/specs/FINAL_LOGIC_SPEC.md` for product logic, `docs/specs/CANDIDATE.md` for Candidate and RCA logic, and `docs/specs/SIMULATION.md` for Parameter and Economic Simulation logic.
 - Keep system-generated UI text in English. Human-entered notes may use the user's language.
 - Treat validation warnings separately from comparison statuses.
 

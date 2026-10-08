@@ -10,200 +10,140 @@ START
   ▼
 MASTER DATA
   ├─ Reference: Metadata / BOM / Work Center / Routing
-  └─ Current:   Metadata / BOM / Work Center / Routing
+  ├─ Current:   Metadata / BOM / Work Center / Routing
+  └─ Custom:    Metadata / BOM / Work Center / Routing
+       (Free workspace: structural changes, sizing, alternatives, trial data)
+  │
+  ├─ Clone From: Destination = Active dataset; Source = chosen dataset
   │
   ▼
-VALIDATE EACH DATASET
-  ├─ Valid enough to calculate → calculate that dataset independently
-  └─ Missing / invalid required input
-       └─ Mark affected result unavailable + warning (never fake 0)
+VALIDATE & CALCULATE DATASETS INDEPENDENTLY
+  ├─ Valid inputs → calculate using shared Standard Cost engine
+  └─ Missing/invalid inputs → mark affected results unavailable (never substitute 0)
   │
   ▼
-CALCULATE REFERENCE AND CURRENT INDEPENDENTLY
-  ├─ BOM
-  │    Usage × Price × (1 + Loss) → MAT
-  │
-  └─ Routing + Work Center
-       Routing Factor = Manning / (Capacity × Yield)
-         ├─ × Labor Rate  → LB
-         └─ × Burden Rate → BD
-       Conversion = LB + BD
+STANDARD COST ENGINE (Shared)
+  ├─ MAT = Σ(Usage × Price × (1 + Loss))
+  ├─ Routing Factor = Manning / (Capacity × Yield)
+  ├─ LB = Routing Factor × Labor Rate
+  ├─ BD = Routing Factor × Burden Rate
+  ├─ Conversion = LB + BD
+  └─ Standard Cost = MAT + LB + BD = MAT + Conversion
   │
   ▼
-STANDARD COST = MAT + LB + BD
+CBD — COST BREAKDOWN (Reference vs Current only)
+  ├─ Match by business identity: BOM Name / WC / Process
+  ├─ Comparison statuses: UNCHANGED / CHANGED / ADDED / REMOVED
+  ├─ Gap = Current - Reference
+  │
+  ├─ Mode A: Full Comparison (default)
+  └─ Mode B: Selected Comparison (temporary analysis scope; shows selected Gap only)
   │
   ▼
-CBD — FULL COMPARISON (default)
-  ├─ Match by business identity: BOM Name / Work Center WC / Routing Process
-  ├─ Compare Reference and Current
-  ├─ Status: UNCHANGED / CHANGED / ADDED / REMOVED
-  └─ Gap = Current - Reference
+CANDIDATE PRIORITIZATION / RANKING
+  ├─ Candidate pool from Full or Selected scope
+  ├─ Candidates: BOM (material records) and Process / Routing (processing records)
+  ├─ Work Center is calculation/rate context, never a Candidate
+  ├─ Gap magnitude descending (advisory ranking; no auto-selection)
+  └─ Controllable flag (human judgment, default true)
   │
   ▼
-COST BREAKDOWN / DRILL-DOWN
-  ├─ Material → BOM → Usage / Price / Loss
-  └─ Processing
-       ├─ Work Center context → Labor Rate / Burden Rate / aggregation
-       └─ Process / Routing → Manning / Capacity / Yield / WC assignment
+RCA CASE — SELECT 1 OR MANY CANDIDATES
+  ├─ Select 1 or Multiple Candidates into one RCA Case
+  ├─ Root Cause / Why? (Case-level operational diagnosis)
+  ├─ Action (Case-level countermeasure)
+  └─ END RCA (RCA legitimately completes here)
   │
-  ├─ Continue in Full Comparison → Ranking (full candidate pool)
-  │
-  └─ OPTIONAL SELECTED COMPARISON
-       ├─ Select BOM and/or Process findings (not Work Center)
-       ├─ Review Selected Gap for the active scope
-       ├─ Exit Selected → return to Full Comparison
-       └─ Continue → Ranking limited to Selected Scope
+────────────────── OPTIONAL ──────────────────
   │
   ▼
-RANKING
-  ├─ Candidates: BOM and Process / Routing
-  ├─ Work Center is context, not a Candidate
-  ├─ Rank by Gap; keep positive, zero, and negative Gaps visible
-  ├─ Controllable is a human judgment aid, not an automatic gate
-  └─ Human selects exactly ONE Candidate (no auto-selection)
+SIMULATION MODULE (Two Interoperable Dimensions)
   │
-  ▼
-RCA — ONE CANDIDATE AT A TIME
-  ├─ Why did it change?
-  └─ Optional Root Cause / Why? and Action notes
-  │
-  ▼
-SIMULATION
-  ├─ Baseline = Current
-  ├─ Scenario A: its own local overrides
-  └─ Scenario B: its own local overrides
-       For either scenario, supported inputs are:
-       BOM Usage / Price / Loss;
-       Routing Manning / Capacity / Yield;
-       Work Center Labor Rate / Burden Rate
-       Recalculate each independently with the same Standard Cost engine
-  │
-▼
-ECONOMICS + BUSINESS (for each scenario)
-  ├─ Fixed Investment and Variable Added Cost per pc are independent
-  ├─ Evaluation Quantity; Fixed Equivalent per pc = Fixed Investment / Quantity when used
-  ├─ Add categorized economics to MAT / LB / BD once; avoid double counting
-  ├─ Selling Price and SG&A % (default to Current unless overridden)
-  ├─ SG&A = Selling Price × SG&A %
-  └─ OP = Selling Price - Standard Cost - SG&A
-  │
-  ▼
-COMPARE SCENARIO A VS B
-  ├─ Compare MAT / LB / BD / Standard Cost / Selling Price / SG&A / OP
-  ├─ Show input-change and trade-off context
-  └─ Human selects ONE scenario; the system does not choose a winner
-  │
-  ▼
-SIMULATED = HUMAN-SELECTED SCENARIO
-  │
-  ▼
-FINAL STORY
-  Reference → Current → Simulated
-       Gap 1      Gap 2
-  Gap 1 = Current - Reference
-  Gap 2 = Simulated - Current
-  Show MAT / LB / BD / Standard Cost / Selling Price / SG&A / OP
-  Preserve signed values, including negative OP
-  │
-  ▼
-OPTIONAL TRIAL HANDOFF
-  │
-  ▼
-END
+  ├─────────────────────────────┬─────────────────────────────┐
+  ▼                             ▼                             ▼
+PARAMETER ONLY                ECONOMIC ONLY                 COMBINED
+  │                             │                             │
+  ├─ Start SIM From:            ├─ Action Cost (THB)          ├─ Both dimensions
+  │    Reference, Current,      ├─ Evaluation Quantity (pcs)  │    executed
+  │    or Custom                └─ Required Saving / pc =     │
+  ├─ Structure locked (no adds/      Action Cost / Quantity   ├─ Parameter Saving =
+  │    deletions/resizing)                                    │    Current STD - SIM STD
+  ├─ Current vs SIM comparison                                ├─ Required Saving =
+  │    CHANGED/UNCHANGED/ADDED:                               │    Action Cost / Qty
+  │      visible & editable                                   │
+  │    REMOVED:                                               └─ Economic Margin =
+  │      visible, NOT editable                                     Parameter Saving -
+  ├─ Select Factors to Simulate                                    Required Saving
+  │    (editing visibility only)                                   (Advisory; not an
+  ├─ Live full-dataset recalculate                                 approval gate)
+  ├─ BOM: Price, Usage, Loss
+  ├─ Routing: Manning, Cap, Yield
+  └─ WC Rates: NOT SIM-editable
 ```
 
-## Detailed flow
+## Detailed Flow
 
 ```mermaid
 flowchart TD
     start([START]) --> master["MASTER DATA"]
-    master --> refData["REFERENCE snapshot<br/>Metadata · BOM · Work Center · Routing"]
-    master --> curData["CURRENT snapshot<br/>Metadata · BOM · Work Center · Routing"]
+    master --> refData["REFERENCE snapshot<br/>Metadata · BOM · WC · Routing"]
+    master --> curData["CURRENT snapshot<br/>Metadata · BOM · WC · Routing"]
+    master --> customData["CUSTOM snapshot (Free workspace)<br/>Structural edits · Sizing · Alternatives"]
 
-    refData --> refValidate["Validate Reference dataset"]
-    curData --> curValidate["Validate Current dataset"]
-    refValidate -->|valid enough to calculate| refCalc["Calculate Reference independently"]
-    refValidate -->|required input missing or invalid| refUnavailable["Mark affected Reference result unavailable<br/>Show warning; never fake 0"]
-    curValidate -->|valid enough to calculate| curCalc["Calculate Current independently"]
-    curValidate -->|required input missing or invalid| curUnavailable["Mark affected Current result unavailable<br/>Show warning; never fake 0"]
+    master --> cloneAction["Clone From Action<br/>Destination = Active Dataset<br/>Source = Reference, Current, or Custom"]
 
-    refCalc --> refResult["Reference result<br/>MAT · LB · BD · Standard Cost"]
-    refUnavailable --> refResult
-    curCalc --> curResult["Current result<br/>MAT · LB · BD · Standard Cost"]
-    curUnavailable --> curResult
+    refData --> refValidate["Validate Reference"]
+    curData --> curValidate["Validate Current"]
+    customData --> customValidate["Validate Custom"]
 
-    costEngine["STANDARD COST ENGINE — invoked separately per snapshot<br/>MAT = Σ(Usage × Price × (1 + Loss))<br/>Routing Factor = Manning ÷ (Capacity × Yield)<br/>LB = Routing Factor × Labor Rate<br/>BD = Routing Factor × Burden Rate<br/>Conversion = LB + BD<br/>Standard Cost = MAT + LB + BD"]
+    refValidate --> refCalc["Calculate Reference independently"]
+    curValidate --> curCalc["Calculate Current independently"]
+    customValidate --> customCalc["Calculate Custom independently"]
+
+    costEngine["SHARED STANDARD COST ENGINE<br/>MAT = Σ(Usage × Price × (1 + Loss))<br/>Routing Factor = Manning ÷ (Capacity × Yield)<br/>LB = Routing Factor × Labor Rate<br/>BD = Routing Factor × Burden Rate<br/>Conversion = LB + BD<br/>Standard Cost = MAT + LB + BD"]
     costEngine -.-> refCalc
     costEngine -.-> curCalc
+    costEngine -.-> customCalc
 
-    refResult --> cbd["CBD — FULL COMPARISON (default)<br/>Match by business identity: BOM = Name · Work Center = WC · Routing = Process<br/>Status: UNCHANGED · CHANGED · ADDED · REMOVED<br/>Gap = Current − Reference"]
-    curResult --> cbd
+    refCalc --> cbd["CBD — COST BREAKDOWN<br/>Reference vs Current ONLY<br/>Match by Business Identity: Name · WC · Process<br/>Statuses: UNCHANGED · CHANGED · ADDED · REMOVED<br/>Gap = Current − Reference"]
+    curCalc --> cbd
 
-    cbd --> drill["COST BREAKDOWN / DRILL-DOWN"]
-    drill --> material["Material → BOM<br/>Status · Reference / Current cost · Gap<br/>Usage · Price · Loss explain changed inputs"]
-    drill --> processing["Processing"]
-    processing --> workCenter["Work Center context<br/>Labor Rate · Burden Rate<br/>Rate owner and aggregation context"]
-    processing --> process["Process / Routing<br/>Manning · Capacity · Yield · WC assignment"]
-    workCenter --> wcAggregation["Aggregate processing totals by Work Center<br/>1:1 Routing match is not required"]
-    process --> wcAggregation
+    cbd --> comparisonChoice{"Comparison Scope?"}
+    comparisonChoice -->|Full Comparison| fullPool["Full Candidate Pool"]
+    comparisonChoice -->|Selected Comparison| selectedScope["SELECTED COMPARISON<br/>Temporary analysis scope<br/>Shows only Selected Gap"]
+    selectedScope --> scopedPool["Scoped Candidate Pool"]
 
-    drill --> selectedChoice{"Enter optional Selected Comparison?"}
-    selectedChoice -->|No — continue with full scope| fullRanking["Full Candidate Pool"]
-    selectedChoice -->|Yes| selected["SELECTED COMPARISON<br/>Select BOM and/or Process findings; not Work Center<br/>Matched pairs move together; ADDED/REMOVED are selected independently<br/>Selected Gap = active selected scope"]
-    selected --> selectedExit{"Exit Selected or continue?"}
-    selectedExit -->|Exit Selected| cbd
-    selectedExit -->|Continue to Ranking| scopedRanking["Candidate Pool limited to Selected Scope"]
+    fullPool --> ranking["CANDIDATE RANKING<br/>BOM & Process/Routing Candidates<br/>Advisory ranking by Gap · Controllable flag"]
+    scopedPool --> ranking
 
-    fullRanking --> ranking["RANKING<br/>Candidates: BOM and Process / Routing; statuses CHANGED / ADDED / REMOVED<br/>Work Center is context, never a Candidate<br/>Gap descending; positive, zero, and negative Gaps remain visible<br/>Controllable = true by default; human judgment aid, not an automatic gate"]
-    scopedRanking --> ranking
-    ranking --> chooseCandidate["HUMAN SELECTS EXACTLY ONE CANDIDATE<br/>No automatic selection"]
-    chooseCandidate --> rca["RCA — one Candidate at a time<br/>Why did it change?<br/>Optional Root Cause / Why? and Action notes"]
+    ranking --> selectCandidates["Select 1 or Many Candidates"]
+    selectCandidates --> rcaCase["RCA CASE<br/>One Case can hold 1 or Multiple Candidates<br/>Analyze joint structural changes (e.g. QA1 → QA1.1 + QA1.2)"]
+    rcaCase --> rcaAnalysis["Record Root Cause / Why? and Action"]
+    rcaAnalysis --> endRCA["END RCA<br/>RCA legitimately completes here"]
 
-    rca --> simulation["SIMULATION<br/>Baseline = Current<br/>Exactly two independent scenarios; source snapshots stay unchanged"]
-    simulation --> scenarioA["SCENARIO A<br/>Scenario-local overrides"]
-    simulation --> scenarioB["SCENARIO B<br/>Scenario-local overrides"]
-    supportedInputs["Supported overrides<br/>BOM: Usage · Price · Loss<br/>Routing: Manning · Capacity · Yield<br/>Work Center: Labor Rate · Burden Rate<br/>No structural changes"]
-    supportedInputs -.-> scenarioA
-    supportedInputs -.-> scenarioB
+    endRCA --> simChoice{"Engage optional Simulation?"}
+    simChoice -->|No| finish([FINISH])
+    simChoice -->|Yes| simModule["SIMULATION MODULE"]
 
-    scenarioA --> recalcA["Recalculate with the same Standard Cost engine"]
-    scenarioB --> recalcB["Recalculate with the same Standard Cost engine"]
-    recalcA --> economicsA["ECONOMICS + BUSINESS — Scenario A"]
-    recalcB --> economicsB["ECONOMICS + BUSINESS — Scenario B"]
-    econRules["Per scenario: Fixed Investment and Variable Added Cost / pc are independent; Evaluation Quantity<br/>Fixed Equivalent / pc = Fixed Investment ÷ Evaluation Quantity when used; quantity must be positive<br/>Add categorized economics once to MAT / LB / BD; avoid double counting<br/>Simulated Standard Cost = MAT + LB + BD<br/>Selling Price and SG&A % default to Current unless overridden<br/>SG&A = Selling Price × SG&A % · OP = Selling Price − Standard Cost − SG&A"]
-    econRules -.-> economicsA
-    econRules -.-> economicsB
-    economicsA --> outcomeA["Scenario A money outcome<br/>Simulated MAT / LB / BD; Standard Cost; Selling Price; SG&A; OP"]
-    economicsB --> outcomeB["Scenario B money outcome<br/>Simulated MAT / LB / BD; Standard Cost; Selling Price; SG&A; OP"]
+    simModule --> simMode{"Select Simulation Mode"}
 
-    outcomeA --> compareScenarios["COMPARE SCENARIO A VS B<br/>Per-piece money outcomes: MAT · LB · BD · Standard Cost · SG&A · OP · Selling Price<br/>Show input-change / trade-off context"]
-    outcomeB --> compareScenarios
-    compareScenarios --> chooseScenario["HUMAN SELECTS ONE SCENARIO<br/>The system does not choose a winner"]
-    chooseScenario --> simulated["SIMULATED = human-selected scenario"]
-    simulated --> finalStory["FINAL STORY<br/>REFERENCE → CURRENT → SIMULATED<br/>Gap 1 = Current − Reference · Gap 2 = Simulated − Current<br/>For all three states: MAT · LB · BD · Standard Cost · Selling Price · SG&A · OP<br/>Preserve signed values, including negative OP"]
-    finalStory --> trialChoice{"Optional Trial handoff?"}
-    trialChoice -->|Yes| trial["Hand off the human-selected scenario<br/>Trial execution logic is not defined here"]
-    trialChoice -->|No| finish([END])
-    trial --> finish
+    simMode -->|Parameter Simulation| paramSim["PARAMETER SIMULATION<br/>Start SIM From: Reference, Current, or Custom<br/>Structure is LOCKED (no adds/removes/resizing)<br/>Select Factors to Simulate (controls editing UI)<br/>Live Recalculation of entire SIM dataset<br/>BOM: Price · Usage · Loss<br/>Routing: Manning · Cap · Yield<br/>WC Rates: NOT SIM-editable<br/>Comparison basis: Current vs SIM"]
+
+    simMode -->|Economic Simulation| econSim["ECONOMIC SIMULATION<br/>Inputs: Action Cost (THB) & Evaluation Quantity (pcs)<br/>Required Saving / pc = Action Cost ÷ Quantity<br/>Does NOT alter MAT, LB, BD, or Standard Cost"]
+
+    simMode -->|Combined Simulation| combinedSim["COMBINED EVALUATION<br/>Parameter Saving / pc = Current STD − SIM STD<br/>Required Saving / pc = Action Cost ÷ Quantity<br/>Economic Margin = Parameter Saving − Required Saving<br/>Advisory outcome: below break-even remains visible"]
+
+    paramSim --> finish
+    econSim --> finish
+    combinedSim --> finish
 ```
 
-## Interpretation rules
+## Key Architectural Principles
 
-- Match records by business identity only: BOM `Name`, Work Center `WC`, and Routing `Process`. Row order is not identity. Comparison `Status` and `Gap` are independent; `CHANGED` may have a zero Gap. An absent side for `ADDED` or `REMOVED` contributes zero, while missing or invalid required input remains unavailable. Changed BOM inputs explain the record Gap; no per-input monetary attribution is defined.
-- Work Center owns Labor and Burden rates and provides calculation/aggregation context. The Candidate is the BOM or Process / Routing finding, not the Work Center.
-- Selected Comparison is temporary, may narrow Ranking, and ends when one Candidate enters RCA. A Reference or Current source change invalidates the scope. Simulation then uses the normal full Current baseline.
-- Scenario A and B are independent. The user chooses the scenario that becomes `Simulated`; Trial may receive that selection, while Trial execution and approval behavior remain outside this specification.
-
-## Final Logic source map
-
-The line ranges below point to the authoritative detail behind both diagrams; edge cases and full wording remain in the source specification.
-
-| Diagram area | Final Logic source |
-| --- | --- |
-| End-to-end flow and Trial boundary | [`FINAL_LOGIC_SPEC.md` §1, L73–L119](specs/FINAL_LOGIC_SPEC.md#L73-L119) |
-| Snapshots, identity, statuses, formulas, unavailable inputs | [`FINAL_LOGIC_SPEC.md` §2, L120–L359](specs/FINAL_LOGIC_SPEC.md#L120-L359) |
-| Master Data and validation | [`FINAL_LOGIC_SPEC.md` §3, L360–L567](specs/FINAL_LOGIC_SPEC.md#L360-L567) |
-| CBD drill-down, aggregation, and warnings | [`FINAL_LOGIC_SPEC.md` §4, L568–L801](specs/FINAL_LOGIC_SPEC.md#L568-L801) |
-| Selected Comparison, Ranking, and RCA | [`FINAL_LOGIC_SPEC.md` §§5–7, L802–L1141](specs/FINAL_LOGIC_SPEC.md#L802-L1141) |
-| Simulation, Economics, Business, and A/B comparison | [`FINAL_LOGIC_SPEC.md` §§8–11, L1142–L1655](specs/FINAL_LOGIC_SPEC.md#L1142-L1655) |
-| Final Story and cross-page state boundaries | [`FINAL_LOGIC_SPEC.md` §§12 and 15, L1656–L1783 and L2366–L2430](specs/FINAL_LOGIC_SPEC.md#L1656-L1783) · [`§15, L2366–L2430`](specs/FINAL_LOGIC_SPEC.md#L2366-L2430) |
+1. **Master Data Workspaces & Structural Ownership:** Master Data manages `Reference`, `Current`, and `Custom`. All structural additions, deletions, and sizing changes occur in Master Data / Custom. Datasets copy via `Clone From`.
+2. **CBD Scope:** Cost Breakdown compares `Reference` vs `Current` only. `Custom` is never compared directly in CBD.
+3. **Selected Comparison Boundary:** Selected Comparison is an analysis scope, not an RCA Case and not a dataset.
+4. **Multi-Candidate RCA:** One RCA Case supports one or multiple Candidates to account for complex multi-row engineering changes. RCA completes upon recording Root Cause and Action.
+5. **Simulation Independence & Two Dimensions:** Simulation is an optional sandbox with Parameter Simulation (what-if cost calculation) and Economic Simulation (break-even feasibility).
+6. **SIM Comparison & Editability:** Parameter Simulation compares `Current vs SIM`. `CHANGED`, `UNCHANGED`, and `ADDED` records are editable; `REMOVED` records remain visible but non-editable.
+7. **Economic Separation:** Economic Action Cost is never folded into MAT, LB, BD, or Standard Cost.
