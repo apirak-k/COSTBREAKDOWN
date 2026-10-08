@@ -10,16 +10,19 @@ Align the implementation with the user-finalized COSTBREAKDOWN logic while prese
 
 - Target branch: `codex/final-logic-implementation`
 - Baseline: `665099b71319ec98c537a0859336dc01b9acc118`
+- Independent-review baseline: `e26f0b45d9a9b0b0835efe52fbec9c2f1a40ef34`
 - Source documentation branch: `codex/costbreakdown-spec-source` (read-only for this task)
 - Worktree: `.worktrees/codex-final-logic-implementation`
 
 ## Next Step
 
-Implementation, final verification, handoff, and authorized branch push are complete.
+Wait for the independent ChatGPT reviewer; if it reports another finding, fix and re-verify that finding before pushing again. Do not begin Footer/frontend styling until the reviewer explicitly says `FINAL LOGIC ALIGNED ✅`.
 
 ## Current Phase
 
-Phase 11 — Retire superseded active logic and final verification
+Phase 12 — Resolve independent review findings and await approval
+
+> Phase 11 completion is historical. An independent review later identified two remaining Simulation logic gaps; Phase 12 records their correction and the required approval gate.
 
 ## Phases
 
@@ -102,6 +105,18 @@ Phase 11 — Retire superseded active logic and final verification
 - [x] Confirm branch/worktree/history and push normally; do not merge to main or force-push.
 - **Status:** complete
 
+### Phase 12 — Resolve independent review findings and await approval
+- [x] Change Factors to Simulate from six global parameter types to selectable Material/Process records; reveal the selected record's permitted parameters while retaining full-SIM recalculation and excluding Work Center rates.
+- [x] Expose Economic Simulation before Parameter SIM starts; calculate Required Saving from Action Cost / Evaluation Quantity and retain those inputs when Parameter SIM starts.
+- [x] Keep Parameter Saving and Economic Margin in the combined mode only; preserve the finalized Selling Price, SG&A, OP, and Standard Cost calculation paths.
+- [x] Add/update targeted verifiers for record-based selection, per-record editing, Economic-only rendering/calculation, and transition into combined mode.
+- [x] Run all TypeScript verifiers, both MJS verifiers, explicit typecheck, production build, and `git diff --check`; inspect the implementation diff.
+- [x] Update this plan and HANDOFF with the review findings and actual verification evidence.
+- [x] Commit the correction as `fd870f8` and push it with the checkpoint documentation to `codex/final-logic-implementation`.
+- [ ] Obtain explicit independent reviewer confirmation: `FINAL LOGIC ALIGNED ✅`.
+- [ ] Begin Footer/frontend styling only after that confirmation.
+- **Status:** fixes pushed; independent review pending
+
 ## Decisions
 
 | Decision | Rationale |
@@ -109,6 +124,7 @@ Phase 11 — Retire superseded active logic and final verification
 | Work in a separate worktree on `codex/final-logic-implementation` at the exact supplied baseline. | Protects the documentation branch and pre-existing untracked local materials. |
 | Canonical specs override conflicting implementation-plan wording. | `docs/REQUIREMENTS_INDEX.md` and `FINAL_LOGIC_SPEC.md` define product behavior; this plan only orders execution. |
 | A phase with no necessary code change may be verification-only. | Avoids artificial source changes while retaining phase-level evidence. |
+| An independent review is the completion gate for final logic alignment. | The implementation agent must not declare alignment or begin deferred Footer/frontend styling before the exact reviewer confirmation is received. |
 
 ## Errors Encountered
 
