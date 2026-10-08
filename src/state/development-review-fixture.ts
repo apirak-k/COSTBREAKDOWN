@@ -34,7 +34,6 @@ export function resetDevelopmentReviewFixtureSession(
     savedDrivers: [],
     selectedDriverKeys: [],
     rcaRecords: {},
-    candidateRcaRecords: {},
     candidateControllability: {},
     preparedSnapshotRoles: { reference: true, current: true },
     datasetSizing: { reference: referenceSizing, current: currentSizing },

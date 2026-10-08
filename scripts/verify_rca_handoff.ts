@@ -1,22 +1,28 @@
 import assert from 'node:assert/strict'
 import { existsSync, readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
+import { createRcaCaseRecord, isRcaCaseComplete } from '../src/state/rca-cases.ts'
 
-const pagePath = resolve(process.cwd(), 'src/features/rca-simulation/RCASimulationPage.tsx')
-const page = readFileSync(pagePath, 'utf8')
-const store = readFileSync(resolve(process.cwd(), 'src/state/store.tsx'), 'utf8')
-const types = readFileSync(resolve(process.cwd(), 'src/core/types/cost.types.ts'), 'utf8')
-const scenarioCard = readFileSync(resolve(process.cwd(), 'src/features/rca-simulation/components/ScenarioCard.tsx'), 'utf8')
+const candidateKeys = ['bom:MAT-1', 'process:QA-1']
+const completedCase = createRcaCaseRecord('case-1', candidateKeys, {
+  rootCause: 'Shared process change', action: 'Balance the revised sequence'
+})
+assert.deepEqual(completedCase.candidateKeys, candidateKeys)
+assert.equal(isRcaCaseComplete(completedCase), true, 'Root Cause and Action complete RCA without a Simulation')
 
-assert.match(page, /state\.trialHandoffLetter/)
-assert.match(page, /Mark a scenario for Trial/i)
-assert.match(page, /value=\{state\.trialHandoffLetter \?\? ''\}/)
-assert.match(page, /scenarioDrafts\.map\(scenario =>/)
-assert.match(page, /Scenario \{state\.trialHandoffLetter\} is marked for the separate Trial stage/)
-assert.doesNotMatch(page, /TrialValidationCard|promoteActiveToBaseline|Actual Cost|Measured Trial/i)
-assert.doesNotMatch(store, /promoteActiveToBaseline/)
-assert.equal(existsSync(resolve(process.cwd(), 'src/features/rca-simulation/components/TrialValidationCard.tsx')), false)
-assert.doesNotMatch(types, /TrialValidationRecord|WhatIfResult|WhatIfScenario/)
-assert.doesNotMatch(page + scenarioCard, /payback|discounted cash|benefit period/i)
+const candidatePage = readFileSync(resolve(process.cwd(), 'src/features/candidate-selection/CandidateSelectionPage.tsx'), 'utf8')
+const caseWorkspace = readFileSync(resolve(process.cwd(), 'src/features/rca/RcaCaseWorkspace.tsx'), 'utf8')
+const app = readFileSync(resolve(process.cwd(), 'src/App.tsx'), 'utf8')
+const features = readFileSync(resolve(process.cwd(), 'src/features/index.ts'), 'utf8')
 
-console.log('RCA Trial handoff verification passed')
+assert.match(candidatePage, /Create RCA Case/)
+assert.match(candidatePage, /<RcaCaseWorkspace\b/)
+assert.match(caseWorkspace, /Root Cause \/ Why\?/)
+assert.match(caseWorkspace, /<h2[^>]*>RCA Case<\/h2>/)
+assert.match(caseWorkspace, /Simulation is optional/)
+assert.doesNotMatch(candidatePage + caseWorkspace + app + features, /Mark a scenario for Trial|trialHandoffLetter|selectedScenarioLetter/)
+assert.doesNotMatch(app + features, /rca-simulation/)
+assert.equal(existsSync(resolve(process.cwd(), 'src/features/rca-simulation/RCASimulationPage.tsx')), false,
+  'the combined legacy RCA/Simulation page is retired')
+
+console.log('RCA Case completion and independent workflow verification passed')

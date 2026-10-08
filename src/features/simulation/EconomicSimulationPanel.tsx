@@ -1,16 +1,13 @@
-import React, { useMemo } from 'react'
+import React from 'react'
 import { formatNumber } from '../../core'
-import type { CostSnapshot, SnapshotCost } from '../../core/types'
 import {
-  calculateEconomicSimulation,
   type EconomicSimulationDraft,
+  type EconomicSimulationResult,
   type EconomicSimulationField
 } from './simulation-economics'
 
 interface EconomicSimulationPanelProps {
-  currentSnapshot: CostSnapshot
-  simulationCost: SnapshotCost | null
-  parameterSavingPerPiece: number | null
+  result: EconomicSimulationResult
   draft: EconomicSimulationDraft
   onUpdate: (field: EconomicSimulationField, value: string) => void
 }
@@ -27,28 +24,12 @@ const INPUTS: Array<{ field: EconomicSimulationField; label: string; unit: strin
 ]
 
 export const EconomicSimulationPanel: React.FC<EconomicSimulationPanelProps> = ({
-  currentSnapshot,
-  simulationCost,
-  parameterSavingPerPiece,
+  result,
   draft,
   onUpdate
 }) => {
-  const result = useMemo(
-    () => calculateEconomicSimulation(currentSnapshot, simulationCost, parameterSavingPerPiece, draft),
-    [currentSnapshot, simulationCost, parameterSavingPerPiece, draft]
-  )
   const margin = result.economicMarginPerPiece
   const warnings = result.warnings.filter(warning => /finite number|greater than zero|could not be calculated/i.test(warning))
-  const businessMetrics = [
-    { label: 'Selling Price · THB/pc', value: result.business.sellingPrice === null ? null : formatValue(result.business.sellingPrice) },
-    { label: 'SG&A %', value: result.business.sgaPercent === null ? null : `${formatNumber(result.business.sgaPercent, 2)}%` },
-    { label: 'SG&A · THB/pc', value: result.business.sgaAmountPerPiece === null ? null : formatValue(result.business.sgaAmountPerPiece) },
-    {
-      label: 'OP · THB/pc',
-      value: result.business.operatingProfitPerPiece === null ? null : formatValue(result.business.operatingProfitPerPiece),
-      negative: result.business.operatingProfitPerPiece !== null && result.business.operatingProfitPerPiece < 0
-    }
-  ].filter((metric): metric is { label: string; value: string; negative?: boolean } => metric.value !== null)
 
   return (
     <section className="border border-slate-300 bg-white" aria-labelledby="economic-simulation-title">
@@ -99,16 +80,6 @@ export const EconomicSimulationPanel: React.FC<EconomicSimulationPanelProps> = (
                 : margin >= 0 ? 'At or above break-even.' : 'Below break-even.'}
             </p>
           </div>
-          {businessMetrics.length > 0 && (
-            <dl className="col-span-full grid grid-cols-2 gap-x-4 gap-y-1 border-t border-slate-200 pt-2 text-[11px] sm:grid-cols-4">
-              {businessMetrics.map(metric => (
-                <div key={metric.label}>
-                  <dt className="text-slate-500">{metric.label}</dt>
-                  <dd className={`font-mono tabular-nums ${metric.negative ? 'font-semibold text-rose-800' : ''}`}>{metric.value}</dd>
-                </div>
-              ))}
-            </dl>
-          )}
         </div>
       </div>
       {warnings.length > 0 && (

@@ -104,6 +104,7 @@ const AppRouter: React.FC = () => {
       {activeTab === 'simulation' && (
         <SimulationPage
           state={simulationState}
+          referenceSnapshot={masterDataSnapshots.reference}
           currentSnapshot={masterDataSnapshots.current}
           onStartFrom={startFrom}
           onReset={resetSimulation}

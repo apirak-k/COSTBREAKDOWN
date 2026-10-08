@@ -188,6 +188,17 @@
 - **Phase 10 source commit:** `fd559a0d4beb6014a282d51dc76790a5caf3e7cc` (`feat: implement independent economic simulation`).
 - This planning correction records the already completed source commit; the phase's original source verification is unchanged.
 
+### Phase 11 — Retire superseded active logic
+
+- **Status:** implementation verified; final repository verification pending.
+- Connected the finalized Reference → Current → Simulated story to the active Simulation page. Reference and Current use the shared comparison/cost engine; Simulated uses the active SIM cost and its economic business result.
+- Kept Parameter Saving in one visible summary. MAT/LB/BD/Standard Cost current-vs-SIM detail is collapsed because the story table already shows the same state metrics and adjacent gaps. Removed repeated Selling Price/SG&A/OP outputs from Economic Simulation; the story graph is their single output.
+- Removed the inactive combined `rca-simulation` feature, A/B draft/input/result components, Work Center rate override path, old categorized economics calculator/types, and their public exports after confirming there were no active application callers.
+- Removed the legacy per-Candidate RCA write API from the app store. Kept only the deprecated persisted `candidateRcaRecords` field and migration reader so saved RCA text remains available in the new case model.
+- Repointed retired-path verifiers to the independent Simulation, Economic Simulation, RCA Case, and active story behaviors. Updated the Cost Breakdown SSR feedback fixture for the current RCA Case store shape.
+- Targeted checks — PASS: `npx tsc --noEmit --pretty false`; `verify_simulation_story_view.ts`; `verify_rca_candidate_notes.ts`; `verify_rca_handoff.ts`; `verify_rca_case_domain.ts`; `verify_scenario_business_metrics.ts`; `verify_scenario_cost_overrides.ts`; `verify_scenario_draft.ts`; `verify_scenario_input_mapping.ts`; `verify_scenario_variables.ts`; `verify_simulation_context.ts`; `verify_simulation_economics.ts`; `verify_simulation_workspace.ts`; `verify_parameter_simulation_engine.ts`; `node scripts/verify_cost_breakdown_review_feedback.mjs`; active-source legacy scan; `git diff --check`.
+- **Phase 11 source commit:** pending final diff review.
+
 ## Error Log
 
 | Timestamp | Error | Attempt | Resolution |
@@ -195,6 +206,9 @@
 | 2026-10-09 | PowerShell parsed an unquoted Git rev expression as syntax. | 1 | Quoted it; baseline existence and exact SHA then verified. |
 | 2026-10-09 | First `rg` call treated a shell wildcard as a literal Windows path. | 1 | Used ripgrep's explicit `-g 'verify*'` glob. |
 | 2026-10-09 | First planning patch included an empty malformed hunk. | 1 | Reapplied only the intended findings update. |
+| 2026-10-09 | First RCA-retirement verifier checked for a removed directory that remained empty after tracked files were deleted. | 1 | Removed the empty directories and narrowed the assertion to the retired page file. |
+| 2026-10-09 | First overflow fixture used 100% SG&A, which did not overflow the selected finite Selling Price. | 1 | Set the fixture to 200%; the finalized formula now produces the intended non-finite result. |
+| 2026-10-09 | Cost Breakdown SSR fixture omitted the active RCA Case state/callbacks. | 1 | Added empty case state and callbacks; the feedback verifier passes. |
 
 ## 5-Question Reboot Check
 

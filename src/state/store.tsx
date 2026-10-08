@@ -22,7 +22,6 @@ import {
   FieldEvidence,
   CostComparison,
   CandidateRcaDraft,
-  CandidateRcaRecord,
   RcaCaseRecord,
   PrioritizationCandidate,
   buildPrioritizationCandidates,
@@ -217,7 +216,6 @@ function makeSizedSession(id: string, config: ProductSizingConfig, now: string):
     bom,
     routing,
     savedDrivers: [],
-    candidateRcaRecords: {},
     preparedSnapshotRoles: { reference: false, current: false },
     status: 'draft',
     versionLabel: 'Draft',
@@ -236,7 +234,6 @@ export function makeEmptySession(id: string = 'ps-empty-default'): ProductSessio
     bom: [],
     routing: [],
     savedDrivers: [],
-    candidateRcaRecords: {},
     preparedSnapshotRoles: { reference: false, current: false },
     status: 'draft',
     versionLabel: 'Draft',
@@ -255,7 +252,6 @@ export function makeSeedSession(): ProductSession {
     bom: seedBOM,
     routing: seedRouting,
     savedDrivers: [],
-    candidateRcaRecords: {},
     preparedSnapshotRoles: { reference: true, current: true },
     status: 'active',
     versionLabel: 'Active Baseline (RGOM-024)',
@@ -285,7 +281,6 @@ interface AppContextType {
   costBreakdown: CostElementBreakdown
   topDrivers: CostDriver[]
   candidates: PrioritizationCandidate[]
-  candidateRcaRecords: Record<string, CandidateRcaRecord>
   rcaCases: RcaCaseRecord[]
   activeRcaCaseId: string | null
   snapshotPair: SnapshotPair
@@ -367,7 +362,6 @@ interface AppContextType {
   updateWorkCenterRate: (wc: string, rate: Partial<WorkCenterRate>) => void
   deleteWorkCenterRate: (wc: string) => void
   toggleCandidateControllable: (candidateKey: string, nextValue: boolean) => void
-  saveCandidateRca: (candidateKey: string, draft: CandidateRcaDraft) => void
   createRcaCase: (candidateKeys: string[]) => void
   selectRcaCase: (id: string | null) => void
   saveRcaCase: (id: string, draft: CandidateRcaDraft) => void
@@ -395,7 +389,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       delete sessionWithoutLegacyUiState.masterDataRole
       const normalized = withSnapshotPair({
         ...sessionWithoutLegacyUiState,
-        candidateRcaRecords: sessionWithoutLegacyUiState.candidateRcaRecords ?? {},
         status: sessionWithoutLegacyUiState.status || (idx === 0 ? 'draft' : 'draft'),
         versionLabel: sessionWithoutLegacyUiState.versionLabel || (sessionWithoutLegacyUiState.status === 'archived' ? 'Archived' : 'Draft')
       })
@@ -531,7 +524,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
   const costBreakdown = calculateCostBreakdown(bom, routing, rates)
   const topDrivers = calculateTopDrivers(bom, routing, rates, savedDrivers)
-  const candidateRcaRecords = activeSession.candidateRcaRecords ?? {}
   const rcaCases = Object.values(activeSession.rcaCases ?? {})
   const activeRcaCaseId = activeSession.activeRcaCaseId && rcaCases.some(record => record.id === activeSession.activeRcaCaseId)
     ? activeSession.activeRcaCaseId
@@ -1290,22 +1282,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     })
   }
 
-  const saveCandidateRca = (candidateKey: string, draft: CandidateRcaDraft) => {
-    if (!candidates.some(candidate => candidate.candidateKey === candidateKey)) return
-
-    patchActive({
-      candidateRcaRecords: {
-        ...candidateRcaRecords,
-        [candidateKey]: {
-          candidateKey,
-          rootCause: draft.rootCause,
-          action: draft.action,
-          updatedAt: new Date().toISOString()
-        }
-      }
-    })
-  }
-
   const createRcaCase = (candidateKeys: string[]) => {
     const idBase = `rca-${Date.now()}`
     let id = idBase
@@ -1340,7 +1316,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       savedDrivers: [],
       selectedDriverKeys: [],
       rcaRecords: {},
-      candidateRcaRecords: {},
       preparedSnapshotRoles: { reference: false, current: true },
       status: 'draft',
       versionLabel: `Draft (Imported: ${result.product?.productCode || product.productCode || 'Excel'})`,
@@ -1490,7 +1465,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       costBreakdown,
       topDrivers,
       candidates,
-      candidateRcaRecords,
       rcaCases,
       activeRcaCaseId,
       snapshotPair,
@@ -1562,7 +1536,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       updateWorkCenterRate,
       deleteWorkCenterRate,
       toggleCandidateControllable,
-      saveCandidateRca,
       createRcaCase,
       selectRcaCase,
       saveRcaCase,

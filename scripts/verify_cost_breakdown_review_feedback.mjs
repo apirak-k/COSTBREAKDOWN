@@ -25,7 +25,7 @@ const vite = await createServer({
     },
     load(id) {
       if (id !== '\0candidate-selection-test-store') return null
-      return `export const useAppStore = () => ({ candidates: [${JSON.stringify(comparisonGapCandidate)}], snapshotComparison: { totalGap: null }, toggleCandidateControllable() {} })`
+      return `export const useAppStore = () => ({ candidates: [${JSON.stringify(comparisonGapCandidate)}], snapshotComparison: { totalGap: null }, rcaCases: [], activeRcaCaseId: null, isSelectedComparisonActive: false, selectedComparisonSelection: null, toggleCandidateControllable() {}, createRcaCase() {}, selectRcaCase() {}, saveRcaCase() {}, clearSelectedComparison() {} })`
     }
   }]
 })
@@ -41,14 +41,11 @@ try {
     { WorkCenterRatesTable },
     { RoutingTable },
     { formatComparisonFieldDiffs },
-    { ProblemStatementCard },
     { CandidateSelectionPage },
     { CandidatesTable },
     { CandidateRow },
     { parseSnapshotWorkbookData },
-    { SimulationGrid },
-    { createScenarioDrafts },
-    { ScenarioOutcomeReview },
+    { SimulationStoryGraph },
     { createScenarioStory }
   ] = await Promise.all([
     vite.ssrLoadModule('/src/features/cost-breakdown/components/RoutingDetailedTable.tsx'),
@@ -59,66 +56,20 @@ try {
     vite.ssrLoadModule('/src/features/master-data/components/WorkCenterRatesTable.tsx'),
     vite.ssrLoadModule('/src/features/master-data/components/RoutingTable.tsx'),
     vite.ssrLoadModule('/src/features/cost-breakdown/components/comparison-field-details.ts'),
-    vite.ssrLoadModule('/src/features/rca-simulation/components/ProblemStatementCard.tsx'),
     vite.ssrLoadModule('/src/features/candidate-selection/CandidateSelectionPage.tsx'),
     vite.ssrLoadModule('/src/features/candidate-selection/components/CandidatesTable.tsx'),
     vite.ssrLoadModule('/src/features/candidate-selection/components/CandidateRow.tsx'),
     vite.ssrLoadModule('/src/services/excel/snapshot-parser.ts'),
-    vite.ssrLoadModule('/src/features/rca-simulation/components/SimulationGrid.tsx'),
-    vite.ssrLoadModule('/src/features/rca-simulation/scenario-draft.ts'),
-    vite.ssrLoadModule('/src/features/rca-simulation/components/ScenarioOutcomeReview.tsx'),
+    vite.ssrLoadModule('/src/features/simulation/SimulationStoryGraph.tsx'),
     vite.ssrLoadModule('/src/core/calculations/scenario-story.ts')
   ])
-
-  const simulationGridMarkup = renderToStaticMarkup(React.createElement(SimulationGrid, {
-    scenarios: createScenarioDrafts(),
-    inputDefinitions: [],
-    results: [],
-    economicsResults: [],
-    businessResults: [],
-    currentBusinessInputs: { sellingPrice: null, sgaPercent: null },
-    inputWarningsByLetter: { A: [], B: [] },
-    economicsInputWarningsByLetter: { A: [], B: [] },
-    businessInputWarningsByLetter: { A: [], B: [] },
-    onUpdateLabel() {},
-    onUpdateInput() {},
-    onUpdateEconomics() {},
-    onUpdateBusinessInput() {}
-  }))
-  assert.match(simulationGridMarkup, /Compare two scenarios/)
-  assert.match(simulationGridMarkup, /Scenario A/)
-  assert.match(simulationGridMarkup, /Scenario B/)
-  assert.doesNotMatch(simulationGridMarkup, /Scenario C/)
-  assert.equal((simulationGridMarkup.match(/<article\b/g) ?? []).length, 2, 'the simulation renders exactly two scenario cards')
 
   const storyReference = { material: 10, labor: 2, burden: 3, standardCost: 15, sgaAmountPerPiece: 2, operatingProfitPerPiece: 8, sellingPrice: 25 }
   const storyCurrent = { material: 12, labor: 1, burden: 3, standardCost: 16, sgaAmountPerPiece: 2.5, operatingProfitPerPiece: 6.5, sellingPrice: 25 }
   const storySimulated = { material: 60, labor: 20, burden: 15, standardCost: 95, sgaAmountPerPiece: 10, operatingProfitPerPiece: -5, sellingPrice: 100 }
   const finalStory = createScenarioStory(storyReference, storyCurrent, storySimulated)
-  const scenarioAResult = { material: 40, labor: 12, burden: 8, standardCost: 60, sgaAmountPerPiece: 8, operatingProfitPerPiece: 2, sellingPrice: 70 }
-  const scenarioBResult = { material: 42, labor: 10, burden: 7, standardCost: 59, sgaAmountPerPiece: 9, operatingProfitPerPiece: -1, sellingPrice: 67 }
-  const noScenarioChoiceMarkup = renderToStaticMarkup(React.createElement(ScenarioOutcomeReview, {
-    scenarioA: scenarioAResult,
-    scenarioB: scenarioBResult,
-    selectedScenarioLetter: null,
-    story: null,
-    onSelectScenario() {}
-  }))
-  assert.match(noScenarioChoiceMarkup, /A\/B monetary outcomes · THB\/pc/)
-  assert.match(noScenarioChoiceMarkup, /Selling Price/)
-  assert.match(noScenarioChoiceMarkup, /aria-label="Scenario A and B per-piece comparison for MAT, LB, BD, Standard Cost, SG&amp;A, OP, and Selling Price\./)
-  for (const value of ['A 40.00', 'B 42.00', 'A 12.00', 'B 10.00', 'A 8.00', 'B 7.00', 'A 60.00', 'B 59.00', 'A 70.00', 'B 67.00']) {
-    assert.ok(noScenarioChoiceMarkup.includes(value), `A/B result graph must expose ${value}`)
-  }
-  assert.match(noScenarioChoiceMarkup, /Select Scenario A or B/)
-  assert.doesNotMatch(noScenarioChoiceMarkup, /final-story-graph-heading/)
-
-  const selectedStoryMarkup = renderToStaticMarkup(React.createElement(ScenarioOutcomeReview, {
-    scenarioA: scenarioAResult,
-    scenarioB: scenarioBResult,
-    selectedScenarioLetter: 'A',
-    story: finalStory,
-    onSelectScenario() {}
+  const selectedStoryMarkup = renderToStaticMarkup(React.createElement(SimulationStoryGraph, {
+    story: finalStory
   }))
   const selectedStoryText = visibleText(selectedStoryMarkup)
   for (const label of ['MAT', 'LB', 'BD', 'Standard Cost', 'OP', 'Selling Price']) {
@@ -128,16 +79,13 @@ try {
   for (const value of ['10.0000', '2.0000', '3.0000', '15.0000', '25.0000', '12.0000', '16.0000', '95.0000', '100.0000', '-5.0000']) {
     assert.ok(selectedStoryText.includes(value), `the final story must expose the state value ${value}`)
   }
-  const scenarioAOpLabel = selectedStoryMarkup.match(/<text x="548" y="([^"]+)"[^>]*>A 2\.00<\/text>/)
-  const scenarioBOpLabel = selectedStoryMarkup.match(/<text x="548" y="([^"]+)"[^>]*>B -1\.00 · Operating loss<\/text>/)
-  assert.ok(scenarioAOpLabel && scenarioBOpLabel, 'the A/B graph places its Operating loss values in separate aligned rows')
-  assert.notEqual(scenarioAOpLabel[1], scenarioBOpLabel[1], 'Scenario A and B value labels do not share a baseline')
   assert.match(selectedStoryMarkup, /Reference → Current → Simulated/)
   assert.match(selectedStoryMarkup, /Gap 1<br\/?>Current − Reference/)
   assert.match(selectedStoryMarkup, /Gap 2<br\/?>Simulated − Current/)
   assert.equal((selectedStoryMarkup.match(/Gap [12]<br/g) ?? []).length, 2, 'the selected story has exactly two adjacent gaps')
   assert.match(selectedStoryMarkup, /Simulated − Current/)
   assert.match(selectedStoryMarkup, /Operating loss/)
+  assert.doesNotMatch(selectedStoryMarkup, /Scenario A|Scenario B|Trial/)
   assert.doesNotMatch(selectedStoryMarkup, /Simulated − Reference|Reference − Simulated|Gross Profit|GP Margin|OP Margin/)
   const blankWorkCenterWorkbook = XLSX.utils.book_new()
   const addSheet = (name, rows) => XLSX.utils.book_append_sheet(blankWorkCenterWorkbook, XLSX.utils.aoa_to_sheet(rows), name)
@@ -164,32 +112,15 @@ try {
   assert.equal(roundTripResult.success, true)
   assert.equal(roundTripResult.snapshot.rates[0].workCenterCode, 'WC-1', 'approved Work Center identity must stay intact when imported')
 
-  const costContextMarkup = renderToStaticMarkup(React.createElement(ProblemStatementCard, {
-    candidate: comparisonGapCandidate
-  }))
-  assert.match(costContextMarkup, /Reference cost \(THB\/pc\)<\/dt><dd[^>]*>10<\/dd>/)
-  assert.match(costContextMarkup, /Current cost \(THB\/pc\)<\/dt><dd[^>]*>22<\/dd>/)
-
-  const changedInputsMarkup = renderToStaticMarkup(React.createElement(ProblemStatementCard, {
-    candidate: {
-      ...comparisonGapCandidate,
-      changeDetails: [
-        { field: 'Price', reference: 2, current: 3 },
-        { field: 'Loss', reference: 0.1, current: 0.2 }
-      ]
-    }
-  }))
-  const changedInputsText = visibleText(changedInputsMarkup)
-  assert.ok(changedInputsText.includes('Changed inputs'))
-  assert.ok(changedInputsText.includes('Price 2 → to 3'))
-  assert.ok(changedInputsText.includes('Loss 10% → to 20%'))
-  assert.doesNotMatch(changedInputsMarkup, /Price.*THB.*allocation/i)
-
   const candidateSummaryMarkup = renderToStaticMarkup(React.createElement(CandidateSelectionPage))
   const comparisonSummary = candidateSummaryMarkup.match(/<dt[^>]*>(?:Full|Selected) comparison gap<\/dt><dd[^>]*>([\s\S]*?)<\/dd>/i)?.[1]
   assert.equal(comparisonSummary, '—', 'the exact comparison total must remain unavailable when reconciliation has no total')
   const candidateSubtotalMarkup = renderToStaticMarkup(React.createElement(CandidatesTable, {
-    candidates: [comparisonGapCandidate], onToggleControllable() {}, showVisibleGap: true
+    candidates: [comparisonGapCandidate],
+    selectedCandidateKeys: new Set(),
+    onToggleControllable() {},
+    onToggleRcaSelection() {},
+    showVisibleGap: true
   }))
   assert.ok(candidateSubtotalMarkup.includes('Visible candidate gap'), 'candidate subtotal remains separately labeled in its table')
   assert.ok(candidateSubtotalMarkup.includes('Subtotal · selected status rows'))

@@ -94,8 +94,8 @@ Phase 11 — Retire superseded active logic and final verification
 - **Status:** complete (`fd559a0d4beb6014a282d51dc76790a5caf3e7cc`; `feat: implement independent economic simulation`)
 
 ### Phase 11 — Retire superseded active logic and final verification
-- [ ] Keep the finalized Reference → Current → Simulated story graph, using the active SIM as Simulated, without requiring A/B choice.
-- [ ] Remove unused active A/B, Trial, single-Candidate RCA, WC-rate Simulation, and categorized economics paths after caller inspection.
+- [x] Keep the finalized Reference → Current → Simulated story graph, using the active SIM as Simulated, without requiring A/B choice.
+- [x] Remove unused active A/B, Trial, single-Candidate RCA, WC-rate Simulation, and categorized economics paths after caller inspection.
 - [ ] Run complete relevant verification, workbook checks, build, diff review, and `git diff --check`.
 - [ ] Update HANDOFF with evidence, phase commits, limitations, and final alignment status; commit separately.
 - [ ] Confirm branch/worktree/history and push normally; do not merge to main or force-push.

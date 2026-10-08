@@ -1,9 +1,12 @@
 import React, { useMemo } from 'react'
-import { formatNumber } from '../../core'
+import { compareSnapshots, formatNumber } from '../../core'
+import { calculateScenarioBusinessMetrics } from '../../core/calculations/scenario-business'
+import { createScenarioFinancialResult, createScenarioStory } from '../../core/calculations/scenario-story'
 import type { CostSnapshot, MasterDataRole, SnapshotBOMItem, SnapshotRoutingStep } from '../../core/types'
 import { PageHeading } from '../../shared'
 import { EconomicSimulationPanel } from './EconomicSimulationPanel'
-import type { EconomicSimulationField } from './simulation-economics'
+import { SimulationStoryGraph } from './SimulationStoryGraph'
+import { calculateEconomicSimulation, type EconomicSimulationField } from './simulation-economics'
 import type { ParameterSimulationResult, SimulationComparisonRow, SimulationRecordKind } from './simulation-engine'
 import { calculateParameterSimulation } from './simulation-engine'
 import type { SimulationFactor, SimulationWorkspaceState } from './simulation-state'
@@ -11,6 +14,7 @@ import { SIMULATION_FACTORS } from './simulation-state'
 
 interface SimulationPageProps {
   state: SimulationWorkspaceState
+  referenceSnapshot: CostSnapshot
   currentSnapshot: CostSnapshot
   onStartFrom: (role: MasterDataRole) => void
   onReset: () => void
@@ -80,39 +84,42 @@ const CostSummary: React.FC<CostSummaryProps> = ({ result }) => {
           </dd>
         </dl>
       </div>
-      <div className="overflow-x-auto">
-        <table className="w-full min-w-[440px] text-left text-xs">
-          <thead className="bg-slate-100 text-[11px] font-semibold text-slate-700">
-            <tr>
-              <th scope="col" className="px-3 py-2">Cost element</th>
-              <th scope="col" className="px-3 py-2 text-right">Current</th>
-              <th scope="col" className="px-3 py-2 text-right">SIM</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-slate-200">
-            {lines.map(line => (
-              <tr key={line.label} className={line.label === 'Standard Cost' ? 'font-semibold text-slate-950' : 'text-slate-700'}>
-                <th scope="row" className="px-3 py-2 text-left">{line.label}</th>
-                <td className="px-3 py-2 text-right font-mono tabular-nums">{formatCost(line.current)}</td>
-                <td className="px-3 py-2 text-right font-mono tabular-nums">{formatCost(line.simulation)}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
       {(result.currentCost.status !== 'complete' || result.simulationCost.status !== 'complete') && (
-        <p role="status" className="border-t border-slate-200 px-3 py-2 text-xs text-amber-800">
+        <p role="status" className="border-b border-slate-200 px-3 py-2 text-xs text-amber-800">
           Saving is unavailable until both Current and SIM Standard Cost can be calculated.
         </p>
       )}
-      {warnings.length > 0 && (
-        <details className="border-t border-slate-200 px-3 py-2 text-xs text-slate-600">
-          <summary className="cursor-pointer font-medium">Calculation notes ({warnings.length})</summary>
-          <ul className="mt-2 list-disc space-y-1 pl-5">
-            {[...new Set(warnings)].map((warning, index) => <li key={`${index}-${warning}`}>{warning}</li>)}
-          </ul>
-        </details>
-      )}
+      <details className="px-3 py-2 text-xs text-slate-700">
+        <summary className="cursor-pointer font-medium">Current vs SIM cost detail</summary>
+        <div className="mt-2 overflow-x-auto">
+          <table className="w-full min-w-[440px] text-left text-xs">
+            <thead className="bg-slate-100 text-[11px] font-semibold text-slate-700">
+              <tr>
+                <th scope="col" className="px-3 py-2">Cost element</th>
+                <th scope="col" className="px-3 py-2 text-right">Current</th>
+                <th scope="col" className="px-3 py-2 text-right">SIM</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-200">
+              {lines.map(line => (
+                <tr key={line.label} className={line.label === 'Standard Cost' ? 'font-semibold text-slate-950' : 'text-slate-700'}>
+                  <th scope="row" className="px-3 py-2 text-left">{line.label}</th>
+                  <td className="px-3 py-2 text-right font-mono tabular-nums">{formatCost(line.current)}</td>
+                  <td className="px-3 py-2 text-right font-mono tabular-nums">{formatCost(line.simulation)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          {warnings.length > 0 && (
+            <details className="border-t border-slate-200 px-3 py-2 text-xs text-slate-600">
+              <summary className="cursor-pointer font-medium">Calculation notes ({warnings.length})</summary>
+              <ul className="mt-2 list-disc space-y-1 pl-5">
+                {[...new Set(warnings)].map((warning, index) => <li key={`${index}-${warning}`}>{warning}</li>)}
+              </ul>
+            </details>
+          )}
+        </div>
+      </details>
     </section>
   )
 }
@@ -243,6 +250,7 @@ const FACTOR_FIELDS: Record<SimulationFactor, string> = {
 
 export const SimulationPage: React.FC<SimulationPageProps> = ({
   state,
+  referenceSnapshot,
   currentSnapshot,
   onStartFrom,
   onReset,
@@ -255,6 +263,32 @@ export const SimulationPage: React.FC<SimulationPageProps> = ({
     () => state.snapshot ? calculateParameterSimulation(currentSnapshot, state.snapshot) : null,
     [currentSnapshot, state.snapshot]
   )
+  const referenceCurrent = useMemo(
+    () => compareSnapshots(referenceSnapshot, currentSnapshot),
+    [referenceSnapshot, currentSnapshot]
+  )
+  const economicResult = useMemo(
+    () => result
+      ? calculateEconomicSimulation(currentSnapshot, result.simulationCost, result.parameterSavingPerPiece, state.economicInputs)
+      : null,
+    [currentSnapshot, result, state.economicInputs]
+  )
+  const story = useMemo(() => {
+    if (!result || !economicResult) return null
+    const referenceBusiness = calculateScenarioBusinessMetrics({
+      sellingPrice: referenceSnapshot.product.sellingPrice ?? null,
+      sgaPercent: referenceSnapshot.product.sgaPercent ?? null
+    }, referenceCurrent.referenceCost.total)
+    const currentBusiness = calculateScenarioBusinessMetrics({
+      sellingPrice: currentSnapshot.product.sellingPrice ?? null,
+      sgaPercent: currentSnapshot.product.sgaPercent ?? null
+    }, referenceCurrent.currentCost.total)
+    return createScenarioStory(
+      createScenarioFinancialResult(referenceCurrent.referenceCost, referenceBusiness),
+      createScenarioFinancialResult(referenceCurrent.currentCost, currentBusiness),
+      createScenarioFinancialResult(result.simulationCost, economicResult.business)
+    )
+  }, [currentSnapshot, economicResult, referenceCurrent, referenceSnapshot, result])
   const bomRows = result?.records.filter(row => row.kind === 'bom') ?? []
   const routingRows = result?.records.filter(row => row.kind === 'routing') ?? []
 
@@ -294,7 +328,7 @@ export const SimulationPage: React.FC<SimulationPageProps> = ({
             ))}
           </div>
         </section>
-      ) : result && (
+      ) : result && economicResult && (
         <>
           <section className="flex flex-wrap items-baseline gap-x-4 gap-y-2 border border-slate-300 border-l-4 border-l-slate-900 bg-white px-3 py-3" aria-label="Simulation basis">
             <dl>
@@ -313,12 +347,12 @@ export const SimulationPage: React.FC<SimulationPageProps> = ({
           <CostSummary result={result} />
 
           <EconomicSimulationPanel
-            currentSnapshot={currentSnapshot}
-            simulationCost={result.simulationCost}
-            parameterSavingPerPiece={result.parameterSavingPerPiece}
+            result={economicResult}
             draft={state.economicInputs}
             onUpdate={onUpdateEconomicInput}
           />
+
+          {story && <SimulationStoryGraph story={story} />}
 
           <section className="border border-slate-300 bg-white p-3" aria-labelledby="simulation-factors-title">
             <h2 id="simulation-factors-title" className="font-sans text-sm font-semibold text-slate-950">Factors to Simulate</h2>

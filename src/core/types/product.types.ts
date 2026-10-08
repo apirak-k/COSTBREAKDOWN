@@ -70,9 +70,8 @@ export interface ProductSession {
   savedDrivers: CostDriver[]
   /** @deprecated Retained to preserve older session data; active RCA selects candidates on the RCA page. */
   selectedDriverKeys?: string[]
-  /** @deprecated Retained to preserve older RCA notes; active notes use candidateRcaRecords. */
+  /** @deprecated Retained only for older driver-level RCA note compatibility; active RCA Cases use rcaCases. */
   rcaRecords?: Record<string, DriverRcaRecord>
-  /** RCA notes are keyed by the Candidate Prioritization candidateKey. */
   /** @deprecated Migrated into rcaCases; retained for older saved session compatibility. */
   candidateRcaRecords?: Record<string, CandidateRcaRecord>
   /** RCA Cases group one or more Candidates under one Root Cause and Action. */

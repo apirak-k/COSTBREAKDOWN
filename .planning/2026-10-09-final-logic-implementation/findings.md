@@ -74,6 +74,14 @@
 - With no override entered, commercial metrics unavailable in Current are omitted from the compact output; invalid calculations remain available under collapsed Calculation notes. This avoids presenting repeated empty fields.
 - `design.md` still requires the three-state Reference → Current → Simulated story graph. The older A/B comparison selector can be retired, but the compatible three-state story must be retained in active Simulation.
 
+## Phase 11 findings
+
+- The three-state story graph is now an active Simulation component. It receives Reference, Current, and the full-calculation active SIM values; gaps remain adjacent (`Current − Reference`, `Simulated − Current`).
+- The graph owns the Selling Price, SG&A, and OP display for all three states. Economic Simulation owns only Action Cost, Evaluation Quantity, Required Saving, and advisory Economic Margin. Parameter Saving is shown once, with duplicated MAT/LB/BD/Standard Cost details available on demand.
+- `src/features/rca-simulation` and its old A/B cost/economics calculators had no active product route or legitimate active caller after Phase 7. The whole feature was removed; its historical script checks now target the current architecture.
+- Legacy saved `candidateRcaRecords` remain readable only by the one-way migration into `rcaCases`; the store no longer exposes the old per-Candidate notes or write method. Legacy persisted source fields remain intact for migration compatibility.
+- A repository search of active `src/` found no old A/B, Trial, categorized economics, Work Center rate override, or `rca-simulation` references. The separate legacy storage migration is intentionally retained.
+
 ## Baseline verification discoveries
 
 - `npm run build` passed at baseline (`tsc -b && vite build`; exit 0). Vite emitted the existing ExcelJS `fs`/`crypto` browser-externalization warnings; 2,035 modules transformed.
