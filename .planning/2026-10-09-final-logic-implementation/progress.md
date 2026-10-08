@@ -64,7 +64,22 @@
 - `verify_dataset_sizing_and_clone.ts` — PASS.
 - `tsc --noEmit --pretty false` — PASS.
 - `git diff --check` — PASS; only Git line-ending notices.
-- **Phase 2 commit:** pending.
+- **Phase 2 commit:** `b2b4be3fac734bd1710d308a3abc59d78c8edbaa` (`feat: support custom master data actions`).
+
+### Phase 3 — Master Data UI and generic Clone From
+
+- **Status:** complete
+- Added the Custom choice to the existing Reference/Current workspace selector and updated the accessible group name.
+- Replaced the two fixed directional clone actions with a `Clone From` source selector. The active workspace remains the destination; the active workspace is excluded as a source.
+- Clone confirmation appears only when the destination Working dataset contains entered data. The prompt states that Last Saved remains unchanged.
+- Shared clone state supports all six distinct source/destination pairs; it copies rows and sizing independently, strips/sets the comparison role based on destination, recalculates Ref/Cur readiness from copied content, and does not change Last Saved.
+- `verify_master_data_custom_dataset.ts` — PASS, including Current → Custom and Custom → Current, readiness recalculation, Last Saved preservation, source/destination isolation, and self-clone no-op.
+- `verify_dataset_sizing_and_clone.ts` — PASS for the existing Reference ↔ Current behavior.
+- `verify_snapshot_import.ts` — PASS.
+- `verify_master_data_clear_dataset.ts` — PASS.
+- `tsc --noEmit --pretty false` — PASS.
+- `npm run build` — PASS; existing ExcelJS browser-externalization warnings remain; 2,036 modules transformed.
+- **Phase 3 commit:** pending.
 
 ## Error Log
 
@@ -78,8 +93,8 @@
 
 | Question | Answer |
 |---|---|
-| Where am I? | Phases 0–2 are complete; beginning Phase 3. |
-| Where am I going? | Complete phases 3–11 and final verification/handoff, with separate commits per verified phase. |
+| Where am I? | Phases 0–3 are complete; beginning Phase 4. |
+| Where am I going? | Complete phases 4–11 and final verification/handoff, with separate commits per verified phase. |
 | What's the goal? | Align implementation with finalized logic, verify it, and push the authorized implementation branch. |
 | What have I learned? | Canonical specs changed after the old source checkpoint; see `findings.md`. |
-| What have I done? | Implemented an isolated Custom model plus Save/Reset/Clear/Sizing/import/export/edit/history behavior; focused verifiers and typecheck pass. |
+| What have I done? | Implemented Custom workspace state/actions plus generic Clone From and verified Custom isolation; typecheck and build pass. |

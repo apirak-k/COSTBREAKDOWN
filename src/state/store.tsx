@@ -45,10 +45,12 @@ import { WorkingDataset } from '../core/types/dataset-standard.types'
 import { hasEnteredMasterData, importSnapshotForCustom, importSnapshotForRole, markSizingPlaceholderEdited, resizeMasterDataSnapshotForSizing, synchronizeDatasetSizingToRows } from './dataset-sizing'
 import { clearMasterDataDatasetState } from './clear-master-data-dataset'
 import {
+  cloneCostSnapshot,
   getLastSavedMasterData,
   getMasterDataSizing,
   getMasterDataSnapshot,
   initializeCustomMasterData,
+  cloneMasterDataDatasetState,
   setMasterDataSnapshot
 } from './master-data-datasets'
 import { markMasterDataChanged, markMasterDataChangedForSnapshotPair } from './master-data-revision'
@@ -147,33 +149,6 @@ function workingEvidence(value: unknown, sourceRef: string | undefined, previous
     basis: 'Master Data working value',
     sourceValue: previous?.sourceValue ?? value,
     workingValue: value
-  }
-}
-
-function cloneMasterDataSnapshot(snapshot: CostSnapshot): CostSnapshot {
-  return {
-    ...snapshot,
-    product: {
-      ...snapshot.product,
-      additionalFields: snapshot.product.additionalFields ? { ...snapshot.product.additionalFields } : undefined
-    },
-    sizing: snapshot.sizing ? { ...snapshot.sizing } : undefined,
-    warnings: snapshot.warnings ? [...snapshot.warnings] : undefined,
-    rates: snapshot.rates.map(rate => ({
-      ...rate,
-      confidence: { ...rate.confidence },
-      additionalFields: rate.additionalFields ? { ...rate.additionalFields } : undefined
-    })),
-    bom: snapshot.bom.map(item => ({
-      ...item,
-      confidence: { ...item.confidence },
-      additionalFields: item.additionalFields ? { ...item.additionalFields } : undefined
-    })),
-    routing: snapshot.routing.map(step => ({
-      ...step,
-      confidence: { ...step.confidence },
-      additionalFields: step.additionalFields ? { ...step.additionalFields } : undefined
-    }))
   }
 }
 
@@ -349,8 +324,7 @@ interface AppContextType {
   redoMasterDataEdit: () => void
   saveMasterDataWorkingDataset: (role: MasterDataRole) => void
   resetMasterDataWorkingDataset: (role: MasterDataRole) => void
-  cloneReferenceToCurrent: () => void
-  cloneCurrentToReference: () => void
+  cloneMasterDataWorkspace: (sourceRole: MasterDataRole) => void
   clearMasterDataDataset: (role: MasterDataRole) => void
   updateMasterDataDatasetSizing: (role: MasterDataRole, sizing: Partial<import('../core/types').DatasetSizing>) => void
   updateMasterDataProduct: (product: ProductMaster) => void
@@ -445,8 +419,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const entry: MasterDataEditHistoryEntry = {
       sessionId: before.id,
       role,
-      before: cloneMasterDataSnapshot(getMasterDataSnapshot(before, beforePair, role)),
-      after: cloneMasterDataSnapshot(getMasterDataSnapshot(after, afterPair, role)),
+      before: cloneCostSnapshot(getMasterDataSnapshot(before, beforePair, role)),
+      after: cloneCostSnapshot(getMasterDataSnapshot(after, afterPair, role)),
       beforePrepared: { ...getSnapshotRoleReadiness(before) },
       afterPrepared: { ...getSnapshotRoleReadiness(after) },
       beforeSizing: copyDatasetSizing(before.datasetSizing),
@@ -808,7 +782,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       const pair = session.snapshotPair ?? sessionToSnapshotPair(session)
       const snapshot = getMasterDataSnapshot(session, pair, role)
       const saved = {
-        snapshot: cloneMasterDataSnapshot(snapshot),
+        snapshot: cloneCostSnapshot(snapshot),
         prepared: role === 'custom' ? hasEnteredMasterData(snapshot) : getSnapshotRoleReadiness(session)[role],
         sizing: { ...getMasterDataSizing(session, snapshot, role) }
       }
@@ -855,7 +829,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     if (role === 'custom') {
       const updated = {
         ...session,
-        customMasterData: cloneMasterDataSnapshot(saved.snapshot),
+        customMasterData: cloneCostSnapshot(saved.snapshot),
         customDatasetSizing: { ...(saved.sizing ?? saved.snapshot.sizing ?? {}) },
         updatedAt: now
       }
@@ -864,7 +838,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     }
     const nextPair: SnapshotPair = {
       ...pair,
-      [role]: cloneMasterDataSnapshot(saved.snapshot)
+      [role]: cloneCostSnapshot(saved.snapshot)
     }
     const nextSizing = {
       reference: session.datasetSizing?.reference ?? pair.reference.sizing ?? {},
@@ -972,76 +946,12 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     if (result.entry) applyMasterDataHistoryEntry(result.entry, 'redo')
   }
 
-  const cloneReferenceToCurrent = () => {
+  const cloneMasterDataWorkspace = (sourceRole: MasterDataRole) => {
     const session = activeSession
-    const readiness = getSnapshotRoleReadiness(session)
-    const pair = session.snapshotPair ?? sessionToSnapshotPair(session)
-    const reference = pair.reference
-    const refSizing = session.datasetSizing?.reference ?? reference.sizing
-    const current: CostSnapshot = {
-      ...reference,
-      id: `${reference.id}:current`,
-      comparisonRole: 'current',
-      status: 'draft',
-      sourceRef: `Cloned from Reference: ${reference.sourceRef}`,
-      product: { ...reference.product },
-      rates: reference.rates.map(rate => ({ ...rate, confidence: { ...rate.confidence } })),
-      bom: reference.bom.map(item => ({ ...item, confidence: { ...item.confidence } })),
-      routing: reference.routing.map(step => ({ ...step, confidence: { ...step.confidence } })),
-      sizing: refSizing ? { ...refSizing } : undefined,
-      warnings: [...(reference.warnings ?? [])]
-    }
-    const updatedSizing: Record<ComparisonRole, DatasetSizing> = {
-      reference: session.datasetSizing?.reference ?? {},
-      current: refSizing ? { ...refSizing } : (session.datasetSizing?.current ?? {})
-    }
-
-    const updated = applyMasterDataSnapshotPair({
-      ...session,
-      datasetSizing: updatedSizing,
-      updatedAt: new Date().toISOString()
-    }, { reference, current })
-    const next = {
-      ...updated,
-      preparedSnapshotRoles: { ...readiness, current: hasEnteredMasterData(current) }
-    }
-    commitMasterDataWorkingSession(session, next, 'current')
-  }
-
-  const cloneCurrentToReference = () => {
-    const session = activeSession
-    const readiness = getSnapshotRoleReadiness(session)
-    const pair = session.snapshotPair ?? sessionToSnapshotPair(session)
-    const current = pair.current
-    const currentSizing = session.datasetSizing?.current ?? current.sizing
-    const reference: CostSnapshot = {
-      ...current,
-      id: `${current.id}:reference`,
-      comparisonRole: 'reference',
-      status: 'draft',
-      sourceRef: `Cloned from Current: ${current.sourceRef}`,
-      product: { ...current.product },
-      rates: current.rates.map(rate => ({ ...rate, confidence: { ...rate.confidence } })),
-      bom: current.bom.map(item => ({ ...item, confidence: { ...item.confidence } })),
-      routing: current.routing.map(step => ({ ...step, confidence: { ...step.confidence } })),
-      sizing: currentSizing ? { ...currentSizing } : undefined,
-      warnings: [...(current.warnings ?? [])]
-    }
-    const updatedSizing: Record<ComparisonRole, DatasetSizing> = {
-      reference: currentSizing ? { ...currentSizing } : (session.datasetSizing?.reference ?? {}),
-      current: session.datasetSizing?.current ?? {}
-    }
-
-    const updated = applyMasterDataSnapshotPair({
-      ...session,
-      datasetSizing: updatedSizing,
-      updatedAt: new Date().toISOString()
-    }, { reference, current })
-    const next = {
-      ...updated,
-      preparedSnapshotRoles: { ...readiness, reference: hasEnteredMasterData(reference) }
-    }
-    commitMasterDataWorkingSession(session, next, 'reference')
+    const destinationRole = masterDataUiState.role
+    if (sourceRole === destinationRole) return
+    const updated = cloneMasterDataDatasetState(session, sourceRole, destinationRole)
+    commitMasterDataWorkingSession(session, updated, destinationRole)
   }
 
   const updateMasterDataDatasetSizing = (role: MasterDataRole, sizing: Partial<DatasetSizing>) => {
@@ -1575,8 +1485,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       redoMasterDataEdit,
       saveMasterDataWorkingDataset,
       resetMasterDataWorkingDataset,
-      cloneReferenceToCurrent,
-      cloneCurrentToReference,
+      cloneMasterDataWorkspace,
       clearMasterDataDataset,
       updateMasterDataDatasetSizing,
       updateMasterDataProduct,

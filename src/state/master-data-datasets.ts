@@ -1,9 +1,69 @@
 import type { DatasetSizing, LastSavedMasterDataDataset, ProductSession } from '../core/types/product.types'
 import type { CostSnapshot, MasterDataRole, SnapshotPair } from '../core/types/snapshot.types'
+import { applySnapshotPairToSession, getSnapshotRoleReadiness, sessionToSnapshotPair } from '../core'
 import { emptyProductMaster } from './seed-data'
+import { hasEnteredMasterData } from './dataset-sizing'
+import { markMasterDataChangedForSnapshotPair } from './master-data-revision'
 
-function cloneSnapshot(snapshot: CostSnapshot): CostSnapshot {
+export function cloneCostSnapshot(snapshot: CostSnapshot): CostSnapshot {
   return JSON.parse(JSON.stringify(snapshot)) as CostSnapshot
+}
+
+export function cloneMasterDataSnapshotForRole(
+  snapshot: CostSnapshot,
+  sourceRole: MasterDataRole,
+  destinationRole: MasterDataRole,
+  sizing: DatasetSizing
+): CostSnapshot {
+  const copied = cloneCostSnapshot(snapshot)
+  const { comparisonRole: _comparisonRole, ...independentSnapshot } = copied
+  return {
+    ...independentSnapshot,
+    id: `${snapshot.id}:${destinationRole}`,
+    sourceRef: `Cloned from ${sourceRole}: ${snapshot.sourceRef}`,
+    status: 'draft',
+    ...(destinationRole === 'custom' ? {} : { comparisonRole: destinationRole }),
+    sizing: { ...sizing }
+  }
+}
+
+export function cloneMasterDataDatasetState(
+  session: ProductSession,
+  sourceRole: MasterDataRole,
+  destinationRole: MasterDataRole,
+  now = new Date().toISOString()
+): ProductSession {
+  if (sourceRole === destinationRole) return session
+  const pair = session.snapshotPair ?? sessionToSnapshotPair(session)
+  const sourceSnapshot = getMasterDataSnapshot(session, pair, sourceRole)
+  const sourceSizing = getMasterDataSizing(session, sourceSnapshot, sourceRole)
+  const copied = cloneMasterDataSnapshotForRole(sourceSnapshot, sourceRole, destinationRole, sourceSizing)
+
+  if (destinationRole === 'custom') {
+    return {
+      ...session,
+      customMasterData: copied,
+      customDatasetSizing: { ...sourceSizing },
+      updatedAt: now
+    }
+  }
+
+  const nextPair = { ...pair, [destinationRole]: copied }
+  const nextSizing = {
+    reference: session.datasetSizing?.reference ?? pair.reference.sizing ?? {},
+    current: session.datasetSizing?.current ?? pair.current.sizing ?? {},
+    [destinationRole]: { ...sourceSizing }
+  }
+  const nextSession = applySnapshotPairToSession({
+    ...session,
+    datasetSizing: nextSizing,
+    preparedSnapshotRoles: {
+      ...getSnapshotRoleReadiness(session),
+      [destinationRole]: hasEnteredMasterData(copied)
+    },
+    updatedAt: now
+  }, nextPair)
+  return markMasterDataChangedForSnapshotPair(nextSession, pair, nextPair)
 }
 
 export function createEmptyCustomMasterData(sessionId: string): CostSnapshot {
@@ -23,7 +83,7 @@ export function createEmptyCustomMasterData(sessionId: string): CostSnapshot {
 export function initializeCustomMasterData(session: ProductSession): ProductSession {
   let customMasterData = session.customMasterData ?? createEmptyCustomMasterData(session.id)
   if (session.snapshotPair?.reference === customMasterData || session.snapshotPair?.current === customMasterData) {
-    customMasterData = cloneSnapshot(customMasterData)
+    customMasterData = cloneCostSnapshot(customMasterData)
   }
   if (customMasterData.comparisonRole) {
     const { comparisonRole: _comparisonRole, ...independentSnapshot } = customMasterData

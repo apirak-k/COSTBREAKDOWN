@@ -45,15 +45,16 @@ Phase 1 — Master Data domain model
 - **Status:** complete
 
 ### Phase 3 — Master Data UI and generic Clone From
-- [ ] Expose Reference, Current, and Custom.
-- [ ] Implement active destination / user-selected source Clone From behavior for valid pairs.
-- [ ] Verify and commit this phase.
-- **Status:** in_progress
+- [x] Expose Reference, Current, and Custom in the existing workspace selector.
+- [x] Implement active destination / user-selected source Clone From behavior for all distinct dataset pairs.
+- [x] Confirm only when the destination Working dataset already contains data; preserve Last Saved and recalculate comparison readiness from copied content.
+- [x] Verify and commit this phase.
+- **Status:** complete
 
 ### Phase 4 — CBD preservation gate
 - [ ] Verify Reference-vs-Current-only behavior and source fingerprint isolation from Custom.
 - [ ] Commit only if a required code change is needed; otherwise record verification evidence.
-- **Status:** pending
+- **Status:** in_progress
 
 ### Phase 5 — Multi-Candidate RCA domain
 - [ ] Add stable RCA Case identity and one-or-many Candidate membership with case-level Root Cause and Action.

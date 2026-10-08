@@ -31,8 +31,7 @@ export const MasterDataPage: React.FC = () => {
     resetMasterDataWorkingDataset,
     loadDevelopmentReviewFixture,
     returnFromDevelopmentReviewFixture,
-    cloneReferenceToCurrent,
-    cloneCurrentToReference,
+    cloneMasterDataWorkspace,
     clearMasterDataDataset,
     updateMasterDataDatasetSizing,
     updateMasterDataProduct,
@@ -249,8 +248,7 @@ export const MasterDataPage: React.FC = () => {
         onToggleEditMode={mode => updateMasterDataUiState({ type: 'set-mode', mode: mode ? 'edit' : 'view' })}
         onUpdateProduct={updateMasterDataProduct}
         onUpdateRemark={updateMasterDataRemark}
-        onCloneReferenceToCurrent={cloneReferenceToCurrent}
-        onCloneCurrentToReference={cloneCurrentToReference}
+        onCloneFrom={cloneMasterDataWorkspace}
         onClearDataset={() => clearMasterDataDataset(masterDataRole)}
           handoff={masterDataHandoff}
           canUndo={canUndoMasterDataEdit}

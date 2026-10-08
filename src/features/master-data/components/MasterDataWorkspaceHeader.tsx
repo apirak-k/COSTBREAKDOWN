@@ -19,6 +19,7 @@ import {
 import { MasterDataRole, CostSnapshot, ProductMaster } from '../../../core'
 import { MasterDataHandoffStatus } from '../../../core/calculations/master-data-handoff'
 import { downloadBlob } from '../../../services/excel/export'
+import { hasEnteredMasterData } from '../../../state/dataset-sizing'
 
 interface MasterDataWorkspaceHeaderProps {
   product: ProductMaster
@@ -33,8 +34,7 @@ interface MasterDataWorkspaceHeaderProps {
   onToggleEditMode: (edit: boolean) => void
   onUpdateProduct: (product: ProductMaster) => void
   onUpdateRemark: (remark: string) => void
-  onCloneReferenceToCurrent: () => void
-  onCloneCurrentToReference: () => void
+  onCloneFrom: (sourceRole: MasterDataRole) => void
   onClearDataset: () => void
   handoff: MasterDataHandoffStatus
   canUndo: boolean
@@ -63,8 +63,7 @@ export const MasterDataWorkspaceHeader: React.FC<MasterDataWorkspaceHeaderProps>
   onToggleEditMode,
   onUpdateProduct,
   onUpdateRemark,
-  onCloneReferenceToCurrent,
-  onCloneCurrentToReference,
+  onCloneFrom,
   onClearDataset,
   handoff,
   canUndo,
@@ -90,18 +89,14 @@ export const MasterDataWorkspaceHeader: React.FC<MasterDataWorkspaceHeaderProps>
 
   const isCurrent = role === 'current'
   const isReference = role === 'reference'
-  const isCustom = role === 'custom'
+  const masterDataRoles: MasterDataRole[] = ['reference', 'current', 'custom']
 
-  const handleCloneRefToCurWithConfirm = () => {
-    const ok = window.confirm('Copy Reference dataset into Current? Current data will be replaced by Reference.')
-    if (!ok) return
-    onCloneReferenceToCurrent()
-  }
-
-  const handleCloneCurToRefWithConfirm = () => {
-    const ok = window.confirm('Copy Current dataset into Reference? Reference data will be replaced by Current.')
-    if (!ok) return
-    onCloneCurrentToReference()
+  const handleCloneFrom = (sourceRole: MasterDataRole) => {
+    if (sourceRole === role) return
+    if (hasEnteredMasterData(snapshot) && !window.confirm(
+      `Replace ${roleLabel} Working with ${sourceRole} data? Last Saved will remain unchanged.`
+    )) return
+    onCloneFrom(sourceRole)
   }
 
   const handleClearDatasetWithConfirm = () => {
@@ -122,7 +117,7 @@ export const MasterDataWorkspaceHeader: React.FC<MasterDataWorkspaceHeaderProps>
       <div role="toolbar" aria-label="Dataset and table actions" className="flex flex-wrap items-center gap-1 border-b border-slate-300 bg-white px-1.5 py-1">
       <div className="contents">
         <div className="contents">
-          <div className="inline-flex shrink-0 border border-slate-300 bg-white p-0.5" role="group" aria-label="Working dataset side">
+          <div className="inline-flex shrink-0 border border-slate-300 bg-white p-0.5" role="group" aria-label="Master Data workspace">
             <button
               type="button"
               aria-pressed={isReference}
@@ -140,6 +135,15 @@ export const MasterDataWorkspaceHeader: React.FC<MasterDataWorkspaceHeaderProps>
                 (isCurrent ? 'bg-slate-900 text-white' : 'text-slate-700 hover:bg-slate-100 hover:text-slate-950')}
             >
               Current
+            </button>
+            <button
+              type="button"
+              aria-pressed={role === 'custom'}
+              onClick={() => onRoleChange('custom')}
+              className={'flex min-h-8 items-center px-2 text-xs font-medium transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700 ' +
+                (role === 'custom' ? 'bg-slate-900 text-white' : 'text-slate-700 hover:bg-slate-100 hover:text-slate-950')}
+            >
+              Custom
             </button>
           </div>
         </div>
@@ -277,16 +281,26 @@ export const MasterDataWorkspaceHeader: React.FC<MasterDataWorkspaceHeaderProps>
           </button>
         </div>
 
-        {!isCustom && <button
-          type="button"
-          onClick={isCurrent ? handleCloneRefToCurWithConfirm : handleCloneCurToRefWithConfirm}
-          aria-label={isCurrent ? 'Clone Reference into Current' : 'Clone Current into Reference'}
-          className={toolbarButton}
-          title={isCurrent ? 'Copy Reference dataset into Current' : 'Copy Current dataset into Reference'}
-        >
+        <label className="inline-flex min-h-8 shrink-0 items-center gap-1 border border-slate-300 bg-white px-1.5 text-[11px] font-medium text-slate-700 focus-within:outline focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-blue-700">
           <Copy className="h-3.5 w-3.5 text-slate-500" aria-hidden="true" />
-          Clone
-        </button>}
+          <span>Clone From</span>
+          <select
+            aria-label={`Clone ${roleLabel} from`}
+            value=""
+            onChange={event => {
+              const sourceRole = event.target.value as MasterDataRole
+              if (sourceRole) handleCloneFrom(sourceRole)
+            }}
+            className="min-h-7 max-w-32 border-0 bg-transparent pl-0.5 text-[11px] font-medium text-slate-700 focus:outline-none"
+          >
+            <option value="" disabled>Select source</option>
+            {masterDataRoles.filter(sourceRole => sourceRole !== role).map(sourceRole => (
+              <option key={sourceRole} value={sourceRole}>
+                {sourceRole === 'reference' ? 'Reference' : sourceRole === 'current' ? 'Current' : 'Custom'}
+              </option>
+            ))}
+          </select>
+        </label>
 
         <button
           type="button"

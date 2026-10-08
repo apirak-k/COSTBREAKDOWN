@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict'
 import type { CostSnapshot, ProductSession } from '../src/core/types'
 import {
+  cloneMasterDataDatasetState,
   getMasterDataSnapshot,
   initializeCustomMasterData,
   setMasterDataSnapshot
@@ -73,6 +74,32 @@ const imported = importSnapshotForCustom({ ...reference, comparisonRole: 'refere
 assert.equal(imported.snapshot.comparisonRole, undefined, 'A Custom import cannot inherit a CBD comparison role')
 assert.deepEqual(imported.sizing, { wcCount: 0, bomCount: 0, routingCount: 0 })
 assert.deepEqual(imported.snapshot.sizing, imported.sizing)
+
+const cloneInput: ProductSession = {
+  ...savedCustomSession,
+  snapshotPair: { reference, current },
+  datasetSizing: { reference: { wcCount: 1 }, current: { bomCount: 2 } },
+  lastSavedMasterData: {
+    reference: { snapshot: reference, prepared: true, sizing: { wcCount: 1 } },
+    current: { snapshot: current, prepared: false, sizing: { bomCount: 2 } }
+  }
+}
+const currentToCustom = cloneMasterDataDatasetState(cloneInput, 'current', 'custom')
+assert.equal(currentToCustom.customMasterData?.product.productCode, current.product.productCode)
+assert.deepEqual(currentToCustom.customDatasetSizing, { bomCount: 2 })
+assert.equal(currentToCustom.customMasterData?.comparisonRole, undefined)
+assert.strictEqual(currentToCustom.snapshotPair?.reference, reference)
+assert.strictEqual(currentToCustom.snapshotPair?.current, current)
+assert.strictEqual(currentToCustom.customLastSavedMasterData, lastSaved, 'Clone never mutates Custom Last Saved')
+
+const customToCurrent = cloneMasterDataDatasetState(currentToCustom, 'custom', 'current', '2026-01-02T00:00:00.000Z')
+assert.equal(customToCurrent.snapshotPair?.current.product.productCode, current.product.productCode)
+assert.equal(customToCurrent.snapshotPair?.current.comparisonRole, 'current')
+assert.equal(customToCurrent.preparedSnapshotRoles?.current, true, 'Cloning recalculates comparison-side readiness from copied content')
+assert.strictEqual(customToCurrent.snapshotPair?.reference, reference)
+assert.strictEqual(customToCurrent.customMasterData, currentToCustom.customMasterData)
+assert.strictEqual(customToCurrent.lastSavedMasterData?.current, cloneInput.lastSavedMasterData?.current)
+assert.strictEqual(cloneMasterDataDatasetState(cloneInput, 'current', 'current'), cloneInput, 'Cloning a dataset into itself is a no-op')
 
 const afterCustom = { ...editedCustom, product: { ...editedCustom.product, productCode: 'CUSTOM-002' } }
 const historySession: ProductSession = {
