@@ -15,7 +15,7 @@ Align the implementation with the user-finalized COSTBREAKDOWN logic while prese
 
 ## Next Step
 
-Expose the Parameter Simulation engine's factors, Current-vs-SIM statuses, editable values, and live results.
+Implement independent Economic Simulation inputs and results, without changing Standard Cost.
 
 ## Current Phase
 
@@ -77,13 +77,13 @@ Phase 9 — Parameter Simulation UI
 ### Phase 8 — Parameter Simulation engine
 - [x] Reuse the shared full-snapshot calculation/comparison engine; lock structure and allow only finalized parameter factors.
 - [x] Verify full recalculation, statuses, missing-cost behavior, and parameter saving; commit this phase.
-- [ ] Commit this phase after final diff review.
-- **Status:** ready_to_commit
+- [x] Commit this phase after final diff review.
+- **Status:** complete (`e770f8d72e9da9d9579b8bdc7c651c052c2b89f7`)
 
 ### Phase 9 — Parameter Simulation UI
-- [ ] Expose source, Current comparison, factors, editable values, live results, and statuses without WC-rate or structural editing.
-- [ ] Verify and commit this phase.
-- **Status:** pending
+- [x] Expose source, Current comparison, factors, editable values, live results, and statuses without WC-rate or structural editing.
+- [x] Verify UI interaction, typecheck/build, and diff; commit is the next action.
+- **Status:** ready_to_commit
 
 ### Phase 10 — Independent Economic Simulation
 - [ ] Implement Action Cost, Evaluation Quantity, Required Saving/pc, and advisory combined Economic Margin without changing Standard Cost.

@@ -141,7 +141,7 @@
 
 ### Phase 8 — Parameter Simulation engine
 
-- **Status:** in progress
+- **Status:** complete
 - Added the finalized six-factor set: BOM Price/Consumption/Loss and Routing Manning/Capacity/Yield. No Work Center rate factor is exposed.
 - Added identity-aware Current-vs-SIM status rows using the shared `compareSnapshots` implementation. ADDED is a SIM-side record; REMOVED is Current-only and has no editable SIM record. Ambiguous/unmatched identities remain explicit comparison issues and cannot be edited.
 - Added parameter updates gated by selected factor, finite value, unambiguous SIM record identity, and an editable record status. No structure mutation API is added.
@@ -151,7 +151,22 @@
 - `npx tsc --noEmit --pretty false` — PASS.
 - `npm run build` — PASS; existing ExcelJS browser-externalization warnings remain; 2,042 modules transformed.
 - `git diff --check` — PASS; Git reports line-ending conversion notices only.
-- **Phase 8 commit:** pending.
+- **Phase 8 commit:** `e770f8d72e9da9d9579b8bdc7c651c052c2b89f7` (`feat: allow clearing simulation parameters`).
+
+### Phase 9 — Parameter Simulation UI
+
+- **Status:** ready_to_commit
+- Connected Simulation UI to the independent per-product SIM state and Current Working snapshot.
+- Added the Current-vs-SIM Material, Labor, Burden, and Standard Cost summary; Parameter Saving remains unavailable when either complete Standard Cost is unavailable.
+- Exposed all six allowed factors as edit-visibility controls. Edits apply only to unambiguous SIM-side BOM/Routing rows; ADDED rows are editable, REMOVED rows remain visible without a SIM editor, and identity issues are not editable.
+- Added live Current-vs-SIM values and statuses, including structure/source notice and calculation warnings. No Work Center rate or structure controls were added.
+- `npx tsc --noEmit --pretty false` — PASS.
+- `verify_parameter_simulation_engine.ts` — PASS, including blanking a parameter to `null` and making complete-cost savings unavailable.
+- `verify_simulation_workspace.ts` — PASS.
+- `npm run build` — PASS; 2,042 modules transformed. Existing ExcelJS browser externalization warnings remain.
+- Isolated browser preview — PASS: Start SIM From Current showed Current and SIM values; selecting BOM Price exposed a SIM-only input; changing SIM Price from 12 to 10 kept Current at 12 and changed status to CHANGED. The minimal preview had no Routing rows, so shared calculation warnings correctly left Standard Cost unavailable. The temporary preview tab and its session data were closed.
+- `git diff --check` — PASS; only Git line-ending notices.
+- **Phase 9 commit:** pending.
 
 ## Error Log
 

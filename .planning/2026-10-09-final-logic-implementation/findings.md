@@ -59,6 +59,13 @@
 - Parameter edits target exactly one SIM-side row ID only after confirming its comparison identity and selected factor. The shared full-snapshot comparison recalculates both complete costs after the edit.
 - Parameter Saving uses `Current.total - SIM.total`; negative values are kept, while unavailable totals produce `null`.
 
+## Phase 9 findings
+
+- Simulation now presents its source and Current comparison basis, six factor controls, identity-aware Current/SIM parameter rows, and full-snapshot cost results.
+- The factor checkboxes control which SIM-side values can be edited. They do not filter the calculation. Parameter edits continue through the Phase 8 engine and the shared Standard Cost calculation.
+- ADDED rows have a SIM-side record and can be edited; REMOVED rows have no SIM-side record and render without an editor. Ambiguous and unmatched identities remain visible as issues and cannot be edited.
+- A temporary UI preview confirmed the SIM input changes without changing Current. With no Routing rows in that deliberately minimal preview, the shared engine reported missing Routing and left Standard Cost / Parameter Saving unavailable; no fallback value was fabricated.
+
 ## Baseline verification discoveries
 
 - `npm run build` passed at baseline (`tsc -b && vite build`; exit 0). Vite emitted the existing ExcelJS `fs`/`crypto` browser-externalization warnings; 2,035 modules transformed.
