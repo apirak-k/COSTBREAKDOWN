@@ -84,8 +84,14 @@ export interface ProductSession {
   masterDataRevision?: number
   /** Per-dataset row sizing configuration. */
   datasetSizing?: Record<import('./snapshot.types').ComparisonRole, DatasetSizing>
+  /** Independent Custom Master Data Working snapshot; never projected into CBD's pair. */
+  customMasterData?: import('./snapshot.types').CostSnapshot
+  /** Custom Master Data Sizing, kept separate from Reference/Current comparison state. */
+  customDatasetSizing?: DatasetSizing
   /** Explicitly saved Master Data snapshots, kept only for this browser session. */
   lastSavedMasterData?: Partial<Record<import('./snapshot.types').ComparisonRole, LastSavedMasterDataDataset>>
+  /** Custom's Last Saved state is isolated from the CBD Reference/Current pair. */
+  customLastSavedMasterData?: LastSavedMasterDataDataset
 }
 
 import { WorkCenterRate, BOMItem, RoutingStep, CostDriver, DriverRcaRecord } from './cost.types'

@@ -43,6 +43,7 @@ import {
 import { WorkingDataset } from '../core/types/dataset-standard.types'
 import { hasEnteredMasterData, importSnapshotForRole, markSizingPlaceholderEdited, resizeMasterDataSnapshotForSizing, synchronizeDatasetSizingToRows } from './dataset-sizing'
 import { clearMasterDataDatasetState } from './clear-master-data-dataset'
+import { initializeCustomMasterData } from './master-data-datasets'
 import { markMasterDataChanged, markMasterDataChangedForSnapshotPair } from './master-data-revision'
 import {
   createMasterDataEditHistory,
@@ -103,23 +104,23 @@ function moveSnapshotRows<T extends { id: string }>(
 
 function withSnapshotPair(session: ProductSession, explicitPair?: SnapshotPair): ProductSession {
   if (explicitPair) {
-    return {
+    return initializeCustomMasterData({
       ...session,
       snapshotPair: explicitPair,
       snapshotPairMode: 'independent'
-    }
+    })
   }
 
   if (session.snapshotPairMode === 'independent' && session.snapshotPair) {
     // Keep independent snapshots canonical; legacy fields are only a projection here.
-    return applySnapshotPairToSession(session, session.snapshotPair)
+    return initializeCustomMasterData(applySnapshotPairToSession(session, session.snapshotPair))
   }
 
-  return {
+  return initializeCustomMasterData({
     ...session,
     snapshotPair: sessionToSnapshotPair(session),
     snapshotPairMode: 'derived'
-  }
+  })
 }
 
 function applyMasterDataSnapshotPair(session: ProductSession, pair: SnapshotPair): ProductSession {

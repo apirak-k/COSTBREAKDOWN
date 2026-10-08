@@ -15,7 +15,7 @@ Align the implementation with the user-finalized COSTBREAKDOWN logic while prese
 
 ## Next Step
 
-Inspect the Master Data model, state, actions, and callers for Phase 1.
+Complete Custom Working actions, history, sizing, and import/export using the independent session model.
 
 ## Current Phase
 
@@ -32,15 +32,16 @@ Phase 1 — Master Data domain model
 - **Status:** complete
 
 ### Phase 1 — Master Data domain model
-- [ ] Add independent Custom Working/Last Saved/sizing/history/import-export support.
-- [ ] Preserve Reference/Current comparison-role semantics and CBD readiness.
-- [ ] Verify compatibility and commit this phase.
-- **Status:** in_progress
+- [x] Add an independent Custom snapshot, sizing, and Last Saved storage slot to the session model.
+- [x] Initialize missing Custom state for both new and previously saved sessions without mutating Reference/Current.
+- [x] Preserve Reference/Current comparison-role semantics and CBD readiness.
+- [x] Verify compatibility and commit this phase.
+- **Status:** complete
 
 ### Phase 2 — Complete Custom Master Data behavior
 - [ ] Support Save, Reset, Clear, Sizing, Import/Export, editing, ordering, and Undo/Redo for Custom.
 - [ ] Verify and commit this phase.
-- **Status:** pending
+- **Status:** in_progress
 
 ### Phase 3 — Master Data UI and generic Clone From
 - [ ] Expose Reference, Current, and Custom.

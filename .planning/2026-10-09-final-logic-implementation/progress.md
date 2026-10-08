@@ -34,6 +34,21 @@
 | `verify_neutral_dataset_workbook.ts` | Canonical four-sheet workbook behavior passes | Passed as part of 51/51 | PASS |
 | `git diff --check` | No whitespace errors | Exit 0; line-ending notice only | PASS |
 
+### Phase 1 — Master Data domain model
+
+- **Status:** complete
+- Added `MasterDataRole` to distinguish Master Data workspaces from CBD's narrower `ComparisonRole`.
+- Added separate `customMasterData`, `customDatasetSizing`, and `customLastSavedMasterData` session slots. Custom is not added to `SnapshotPair`, snapshot readiness, comparison fingerprints, or cost calculations.
+- Session normalization creates a blank, independent Custom workspace for older saved sessions and all newly created sessions; existing Reference/Current data and sizing remain intact.
+- Added a focused verifier covering legacy-session initialization and Custom/Ref/Cur snapshot isolation. Extended workspace initialization checks to verify new sessions contain independent Custom state.
+- `verify_master_data_custom_dataset.ts` — PASS.
+- `verify_workspace_initialization.ts` — PASS.
+- `verify_snapshot_projection.ts` — PASS.
+- `verify_master_data_clear_dataset.ts` — PASS.
+- `tsc --noEmit --pretty false` — PASS.
+- `npm run build` — PASS; existing ExcelJS browser-externalization warnings remain; 2,036 modules transformed.
+- **Phase 1 source commit:** pending.
+
 ## Error Log
 
 | Timestamp | Error | Attempt | Resolution |
@@ -46,8 +61,8 @@
 
 | Question | Answer |
 |---|---|
-| Where am I? | Phase 0 is complete; beginning Phase 1. |
-| Where am I going? | Complete phases 1–11 and final verification/handoff, with separate commits per verified phase. |
+| Where am I? | Phase 0 and Phase 1 are complete; beginning Phase 2. |
+| Where am I going? | Complete phases 2–11 and final verification/handoff, with separate commits per verified phase. |
 | What's the goal? | Align implementation with finalized logic, verify it, and push the authorized implementation branch. |
 | What have I learned? | Canonical specs changed after the old source checkpoint; see `findings.md`. |
-| What have I done? | Created an isolated target worktree and task plan; baseline build, 51 verifiers, workbook, and diff check passed; no source changes yet. |
+| What have I done? | Created an isolated target worktree; baseline build, 51 verifiers, workbook, and diff check passed; implemented and verified the independent Custom session model. |

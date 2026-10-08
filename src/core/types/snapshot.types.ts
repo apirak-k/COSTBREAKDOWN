@@ -2,6 +2,8 @@ import { ProductMaster, DatasetStatus } from './product.types'
 import { BOMItem, DataConfidence, RoutingStep, WorkCenterRate } from './cost.types'
 
 export type ComparisonRole = 'reference' | 'current'
+/** Master Data workspaces. Custom is independent and is not part of CBD comparison. */
+export type MasterDataRole = ComparisonRole | 'custom'
 export type ConfidenceStatus = DataConfidence
 
 export type DataQualityStatus = 'valid' | 'missing' | 'invalid' | 'warning' | 'needs-review'
