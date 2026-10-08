@@ -92,7 +92,7 @@ Do not add a required third Simulated-versus-Reference gap. Preserve MAT, LB, BD
 
 ## Trial handoff
 
-After reviewing the scenarios, the user may select one scenario to continue to Trial. Selection is human-driven; Candidate ranking or simulation results never automatically choose it. Trial is a separate stage, not part of the core RCA calculation. Trial execution, validation, approval, and promotion remain unspecified.
+After reviewing the scenarios, the user may select one scenario to continue to Trial. Selection is human-driven; Candidate ranking or simulation results never automatically choose it. Trial is a separate stage, not part of the core RCA calculation. Full Trial execution, validation, approval, and promotion are OUT OF SCOPE.
 
 - Other business metrics beyond Selling Price, MAT, LB, BD, Standard Cost, SG&A, and OP (e.g. COGS, GP, GP Margin, OP Margin, Sales, Volume/Quantity) are OUT OF SCOPE. Selling Price, SG&A, OP, and their formulas are finalized above. MatVAR/LBVAR/BDVAR are removed from scope.
 - Trial execution, validation, approval, and promotion are OUT OF SCOPE. The human-selected scenario-to-Trial handoff itself is agreed above.
@@ -103,4 +103,4 @@ Final human visual acceptance after implementing the presentation in [`design.md
 
 ## Traceability
 
-The original agreement is retained as provenance in [`agreements/RCA_SIMULATION_SPEC.md`](../../agreements/RCA_SIMULATION_SPEC.md). Current product logic follows [`FINAL_LOGIC_SPEC.md`](FINAL_LOGIC_SPEC.md); Trial execution/approval remain unspecified. The 80-topic crosswalk remains implementation/verification traceability only.
+The original agreement is retained as provenance in [`agreements/RCA_SIMULATION_SPEC.md`](../../agreements/RCA_SIMULATION_SPEC.md). Current product logic follows [`FINAL_LOGIC_SPEC.md`](FINAL_LOGIC_SPEC.md); full Trial execution/approval workflows are OUT OF SCOPE. The 80-topic crosswalk remains implementation/verification traceability only.
