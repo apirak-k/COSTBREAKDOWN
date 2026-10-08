@@ -52,6 +52,13 @@
 - The invalidation basis consists of the chosen source Working snapshot and Current Working snapshot because Current is the finalized Simulation comparison reference. Editing either resets the active SIM to the empty start state; changes in the third dataset do not.
 - The new Simulation route does not import or restore the old `RcaSimulationPageState`; legacy `rca` / `dashboard` active-tab values navigate to Simulation. The old implementation files remain temporarily until final caller inspection and retirement in Phase 11.
 
+## Phase 8 findings
+
+- Current-vs-SIM comparison calls the canonical identity-aware `compareSnapshots(current, sim)` function. The existing comparison's left/right semantics make `ADDED` SIM-only and `REMOVED` Current-only, matching the finalized editability rule.
+- The shared comparison reports ambiguous or unmatched business identities separately from the four canonical record statuses. Such rows remain visible as identity issues and are not editable; the engine never resolves them by row position or an arbitrary ID.
+- Parameter edits target exactly one SIM-side row ID only after confirming its comparison identity and selected factor. The shared full-snapshot comparison recalculates both complete costs after the edit.
+- Parameter Saving uses `Current.total - SIM.total`; negative values are kept, while unavailable totals produce `null`.
+
 ## Baseline verification discoveries
 
 - `npm run build` passed at baseline (`tsc -b && vite build`; exit 0). Vite emitted the existing ExcelJS `fs`/`crypto` browser-externalization warnings; 2,035 modules transformed.

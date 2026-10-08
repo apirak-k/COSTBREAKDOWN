@@ -137,7 +137,21 @@
 - `npx tsc --noEmit --pretty false` — PASS.
 - `npm run build` — PASS; existing ExcelJS browser-externalization warnings remain; 2,041 modules transformed.
 - Browser preview on the isolated target worktree — PASS: the final navigation exposes separate Candidate / RCA and Simulation tabs; Start SIM From Reference/Current/Custom is available without RCA; starting from Custom shows the source and Current Working basis; Reset SIM returns to the start choices.
-- **Phase 7 commit:** pending.
+- **Phase 7 commit:** `f82a693c13569845a39d053ae16647a465a987be` (`refactor: separate simulation from RCA workflow`).
+
+### Phase 8 — Parameter Simulation engine
+
+- **Status:** in progress
+- Added the finalized six-factor set: BOM Price/Consumption/Loss and Routing Manning/Capacity/Yield. No Work Center rate factor is exposed.
+- Added identity-aware Current-vs-SIM status rows using the shared `compareSnapshots` implementation. ADDED is a SIM-side record; REMOVED is Current-only and has no editable SIM record. Ambiguous/unmatched identities remain explicit comparison issues and cannot be edited.
+- Added parameter updates gated by selected factor, finite value, unambiguous SIM record identity, and an editable record status. No structure mutation API is added.
+- Full results use `compareSnapshots`/`calculateSnapshotCost` for the entire Current and SIM snapshots after edits. Parameter Saving is Current Standard Cost minus SIM Standard Cost and remains unavailable when either total is missing.
+- `verify_parameter_simulation_engine.ts` — PASS for all four statuses, all six allowed factors, factor gating, record identity/ambiguity, REMOVED lockout, full recalculation, negative saving, missing-value handling, and source isolation.
+- `verify_simulation_workspace.ts` — PASS.
+- `npx tsc --noEmit --pretty false` — PASS.
+- `npm run build` — PASS; existing ExcelJS browser-externalization warnings remain; 2,042 modules transformed.
+- `git diff --check` — PASS; Git reports line-ending conversion notices only.
+- **Phase 8 commit:** pending.
 
 ## Error Log
 

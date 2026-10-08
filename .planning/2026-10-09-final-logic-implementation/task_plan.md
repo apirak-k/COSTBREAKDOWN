@@ -15,11 +15,11 @@ Align the implementation with the user-finalized COSTBREAKDOWN logic while prese
 
 ## Next Step
 
-Create independent temporary Simulation state that can start from Reference, Current, or Custom without an RCA Case.
+Expose the Parameter Simulation engine's factors, Current-vs-SIM statuses, editable values, and live results.
 
 ## Current Phase
 
-Phase 7 — Independent Simulation module
+Phase 9 — Parameter Simulation UI
 
 ## Phases
 
@@ -71,13 +71,14 @@ Phase 7 — Independent Simulation module
 ### Phase 7 — Independent Simulation module
 - [x] Add independent temporary Simulation state, Start SIM From Reference/Current/Custom, and remove RCA/A-B dependencies from the active route.
 - [x] Verify state isolation, basis invalidation, navigation, and Reset SIM behavior.
-- [ ] Commit this phase after final diff review.
-- **Status:** ready_to_commit
+- [x] Commit this phase after final diff review.
+- **Status:** complete (`f82a693c13569845a39d053ae16647a465a987be`)
 
 ### Phase 8 — Parameter Simulation engine
-- [ ] Reuse the shared full-snapshot calculation/comparison engine; lock structure and allow only finalized parameter factors.
-- [ ] Verify full recalculation, statuses, and saving; commit this phase.
-- **Status:** pending
+- [x] Reuse the shared full-snapshot calculation/comparison engine; lock structure and allow only finalized parameter factors.
+- [x] Verify full recalculation, statuses, missing-cost behavior, and parameter saving; commit this phase.
+- [ ] Commit this phase after final diff review.
+- **Status:** ready_to_commit
 
 ### Phase 9 — Parameter Simulation UI
 - [ ] Expose source, Current comparison, factors, editable values, live results, and statuses without WC-rate or structural editing.
