@@ -32,7 +32,7 @@ lifecycle are not requirements for this branch.
   Analysis`, and bottom-left `Workspace` chrome. Master Data totals for
   Reference, Current, and Custom must be visible in a useful place; their exact
   placement is not finalized. These directions are recorded in
-  [`MASTER_DATA.md`](docs/specs/MASTER_DATA.md#uxui-directions) [L34-L41].
+  [`MASTER_DATA.md`](docs/specs/MASTER_DATA.md).
 * **Mood & Atmosphere — PROVISIONAL — AI CHOICE:** precise, calm, operational,
   and easy to scan. Use cool neutral surfaces, strong text hierarchy, crisp
   dividers, restrained semantic color, and minimal elevation. The content is
@@ -123,8 +123,7 @@ monthly trend.
 
 ### Simulation story order
 
-Use the finalized flow: compare Scenario A and B first, then show the selected
-scenario as Simulated in the Reference → Current → Simulated story. Keep
+Use the finalized flow: Simulation supports flexible scenario evaluation (single scenario, A/B comparison, or multiple scenarios; exact A/B is not mandatory). When a scenario is viewed or selected, show it as Simulated in the Reference → Current → Simulated story. Keep
 supporting detail available on demand, show finalized Selling Price, SG&A, and
 OP when inputs permit, and preserve negative OP as a loss. Avoid repeating
 candidate details already available in Cost Breakdown and Candidate
