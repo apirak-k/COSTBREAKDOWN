@@ -20,9 +20,9 @@ Wait for the independent ChatGPT reviewer; if it reports another finding, fix an
 
 ## Current Phase
 
-Phase 12 — Resolve independent review findings and await approval
+Phase 13 — Add the RCA → Simulation handoff and await approval
 
-> Phase 11 completion is historical. An independent review later identified two remaining Simulation logic gaps; Phase 12 records their correction and the required approval gate.
+> Phase 11 completion is historical. Later independent reviews identified Simulation logic gaps and an RCA → Simulation handoff gap; Phases 12 and 13 record their corrections and preserve the approval gate.
 
 ## Phases
 
@@ -116,6 +116,18 @@ Phase 12 — Resolve independent review findings and await approval
 - [ ] Obtain explicit independent reviewer confirmation: `FINAL LOGIC ALIGNED ✅`.
 - [ ] Begin Footer/frontend styling only after that confirmation.
 - **Status:** fixes pushed; independent review pending
+
+### Phase 13 — Add the RCA → Simulation handoff and await approval
+- [x] Read the canonical Candidate handoff and corresponding Final Logic sections before implementation.
+- [x] Add an explicit Simulation handoff from any active RCA Case, save/carry the latest Case context, and leave RCA complete without requiring Simulation.
+- [x] Put Current first for a new SIM entered from RCA while leaving Reference, Custom, standalone Simulation, and unrestricted Material/Process Factor selection available.
+- [x] Add targeted checks for incomplete one-Candidate and multi-Candidate Cases, context propagation, source choices, open Factor scope, standalone entry, and RCA completion without Simulation.
+- [x] Run the nine relevant TypeScript verifiers, both MJS verifiers, explicit typecheck, production build, `git diff --check`, and inspect the actual implementation diff.
+- [x] Commit the implementation separately as `56935a9` (`fix: add RCA to Simulation handoff`).
+- [x] Commit this plan/HANDOFF checkpoint separately, push it to `origin/codex/final-logic-implementation`, and verify the remote branch matches local HEAD.
+- [ ] Obtain explicit independent reviewer confirmation: `FINAL LOGIC ALIGNED ✅`.
+- [ ] Begin Footer/frontend styling only after that confirmation.
+- **Status:** implementation and checkpoint are pushed; independent review pending
 
 ## Decisions
 

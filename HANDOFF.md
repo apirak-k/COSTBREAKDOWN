@@ -10,29 +10,31 @@
 - **Remote target:** `origin/codex/final-logic-implementation`
 - **Worktree:** `.worktrees/codex-final-logic-implementation`
 - **Review baseline:** `e26f0b45d9a9b0b0835efe52fbec9c2f1a40ef34`
-- **Latest application source commit:** `fd870f8` (`fix: align simulation factors and economic modes`)
-- **Status:** The two independent-review findings below are corrected and verified. Final logic alignment is pending the independent ChatGPT reviewer; do not begin Footer/frontend styling before the exact approval `FINAL LOGIC ALIGNED ✅`. Compatible finalized requirements in existing specs and `design.md` remain in force. The documentation source branch was not modified.
+- **Latest application source commit:** `56935a9` (`fix: add RCA to Simulation handoff`)
+- **Status:** The three independent-review findings below are corrected and verified. Final logic alignment is pending the independent ChatGPT reviewer; do not begin Footer/frontend styling before the exact approval `FINAL LOGIC ALIGNED ✅`. Compatible finalized requirements in existing specs and `design.md` remain in force. The documentation source branch was not modified.
 - **Delivery target:** `codex/final-logic-implementation` → `origin/codex/final-logic-implementation`.
 
 ## Independent Review Findings Corrected
 
 1. **Factors to Simulate are business records.** The selector now lists eligible Material and Process/Routing records. Selecting a record exposes all three applicable BOM or Routing parameter inputs on that record. The calculation still recalculates the full SIM snapshot, and Work Center rates remain excluded. Existing stored parameter-type selections are discarded during state reconciliation.
 2. **Economic-only Simulation is independent.** Action Cost and Evaluation Quantity are available before Parameter SIM starts; Required Saving is calculated without a SIM snapshot. Starting Parameter SIM preserves those inputs. Economic Margin is shown only when Parameter Simulation exists, alongside the Parameter Saving result. Action Cost remains outside Standard Cost.
+3. **RCA Case can proceed to Simulation.** The active Case ID, Candidate keys, and latest Root Cause/Action draft are carried into Simulation. RCA remains complete without Simulation, and no completion gate is added. For a new SIM after this handoff, Current is the first/default source choice while Reference and Custom stay available. Candidate context does not lock or preselect Factors; all Material and Process records remain selectable.
 
 ## Verification
 
-- All 55 TypeScript verifier scripts pass, including the updated record-selection and Economic-only Simulation checks.
+- The nine relevant TypeScript verifiers for the RCA handoff and adjacent RCA/Simulation behavior pass: `verify_rca_handoff.ts`, `verify_rca_case_domain.ts`, `verify_rca_record.ts`, `verify_candidate_prioritization.ts`, `verify_simulation_context.ts`, `verify_simulation_workspace.ts`, `verify_simulation_story_view.ts`, `verify_parameter_simulation_engine.ts`, and `verify_simulation_economics.ts`.
 - Both MJS verifiers pass: `verify_master_data_ui_state.mjs` and `verify_cost_breakdown_review_feedback.mjs`.
 - `npx tsc --noEmit --pretty false` passes.
 - `npm run build` passes with 2,032 modules transformed.
 - `git diff --check` passes for the correction.
-- React server-render verification confirms Material/Process selectors expose only the selected record's permitted inputs, Economic-only mode works before SIM start, and values remain available in combined mode.
+- React server-render and static integration verification confirms one- and multi-Candidate RCA handoff context, handoff from an incomplete Case, Current-first source choices with Reference and Custom retained, open Material/Process Factor selection, and standalone Simulation without RCA context.
+- The adjacent Simulation verifiers confirm selected-record parameter visibility, Economic-only mode before SIM start, and retained inputs in combined mode.
 - `scripts/verify_simulation_economics.ts` confirms Required Saving, combined margin, Selling Price / SG&A / OP calculations, and that Action Cost does not change SIM Standard Cost.
 
 ## Remaining Verification Limits and Build Notes
 
-- No browser-driven click/input run was performed for this correction; server-rendered UI assertions and state/calculation verifiers cover the requested paths.
-- `verify_master_data_ui_state.mjs` notes it does not exercise a separate process restart; this does not affect the two reviewed Simulation findings.
+- No browser-driven click/input run was performed for the RCA handoff correction; server-rendered UI assertions, static app-routing assertions, and state/calculation verifiers cover the requested paths.
+- `verify_master_data_ui_state.mjs` notes it does not exercise a separate process restart; this is outside the RCA handoff paths covered by this correction.
 - Vite reports the existing ExcelJS `fs` / `crypto` browser-externalization warnings during build; the production build completes successfully.
 - The worktree contains an unrelated untracked `src/graphify-out/` directory generated by tooling. It was preserved and excluded from commits.
 
@@ -40,7 +42,7 @@
 
 1. **Master Data:** Reference, Current, and independent Custom workspaces. The active dataset is the destination for Clone From; structural edits stay in Master Data.
 2. **Cost Breakdown:** Reference vs Current only. Selected Comparison remains a temporary analysis scope and does not carry into Simulation.
-3. **RCA:** One Case can include one or multiple Candidates. Root Cause and Action complete RCA; Simulation is optional. Existing Master Data notes remain separate.
+3. **RCA:** One Case can include one or multiple Candidates. Root Cause and Action complete RCA; Simulation is optional. An active Case can pass context into Simulation without locking scope; a new SIM naturally starts from Current, with Reference and Custom still selectable. Existing Master Data notes remain separate.
 4. **Simulation:** One independent module starts from Reference, Current, or Custom; its structure is locked and Current vs SIM is the parameter comparison. Factors to Simulate are Material/Process records; selection controls visibility of that record's editable parameters. The six parameter types are BOM Price/Usage/Loss and Routing Manning/Capacity/Yield. The full SIM recalculates; Work Center rates are not editable.
 5. **Economics:** Economic-only mode calculates Required Saving from Action Cost / Evaluation Quantity without a Parameter SIM snapshot. Combined mode also shows Parameter Saving and Economic Margin (`Parameter Saving - Required Saving`); results remain advisory and Action Cost does not enter Standard Cost.
 6. **Business formulas:** SG&A amount = Selling Price × SG&A%; OP = Selling Price − Standard Cost − SG&A amount. Negative OP remains visible. The Reference → Current → Simulated graph stays active and shows adjacent signed gaps.
@@ -60,6 +62,7 @@
 - `a72570a`, `8e0944c` — Retire superseded active paths; final fixture/verifier correction
 - `c907efd` — Phase documentation correction
 - `fd870f8` — Correct record-based Factors to Simulate and independent Economic-only mode
+- `56935a9` — Add optional RCA Case context handoff to Simulation
 
 ## Next Step
 
