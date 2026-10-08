@@ -44,7 +44,7 @@ CANDIDATE PRIORITIZATION / RANKING
   ├─ Candidate pool from Full or Selected scope
   ├─ Candidates: BOM (material records) and Process / Routing (processing records)
   ├─ Work Center is calculation/rate context, never a Candidate
-  ├─ Gap magnitude descending (advisory ranking; no auto-selection)
+  ├─ Gap descending (highest to lowest; advisory ranking; no auto-selection)
   └─ Controllable flag (human judgment, default true)
   │
   ▼

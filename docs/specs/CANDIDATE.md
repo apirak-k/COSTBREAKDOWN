@@ -4,7 +4,7 @@
 
 ## Final Target State
 
-Candidate Prioritization receives findings from Cost Breakdown across BOM and Process/Routing records. It presents `CHANGED`, `ADDED`, and `REMOVED` Candidates with Reference, Current, and Gap values. Work Center owns rates and provides calculation context, but is never a Candidate. Every Candidate starts marked Controllable; users can sort by Gap magnitude and filter by status. Ranking is strictly advisory and never forces top-rank selection.
+Candidate Prioritization receives findings from Cost Breakdown across BOM and Process/Routing records. It presents `CHANGED`, `ADDED`, and `REMOVED` Candidates with Reference, Current, and Gap values. Work Center owns rates and provides calculation context, but is never a Candidate. Every Candidate starts marked Controllable; users can sort by Gap descending (highest to lowest) and filter by status. Ranking is strictly advisory and never forces top-rank selection.
 
 From the candidate pool, the engineer selects **one or multiple Candidates** to create an **RCA Case**. Inside the RCA Case, the engineer investigates and records **Root Cause / Why?** and **Action**. RCA legitimately ends upon recording this analysis. Simulation is optional and independent; RCA provides context, not a scope lock.
 
@@ -55,8 +55,8 @@ Only three candidate statuses exist:
 $$\text{Gap} = \text{Current Cost} - \text{Reference Cost}$$
 
 - **Controllable:** Every Candidate starts marked `true` by default. This is a human engineer judgment. Unchecking Controllable does not delete, hide, or remove the candidate from analysis.
-- **Filtering:** Status filtering is multi-select (`All`, `Changed`, `Added`, `Removed`).
-- **Ranking:** Default sorting is by Gap magnitude descending. Ranking is an **advisory aid only**; the system must never auto-select rank #1 or require top-rank selection.
+- **Filtering:** Filtering is by status only. `All` selects `CHANGED`, `ADDED`, and `REMOVED` and is the default. Any status filter may be toggled independently. Do not add material/processing, controllability, cost-direction, requirement-fit, or feasibility filters without a later explicit decision.
+- **Ranking:** The default ranking sorts Gap descending (highest to lowest: positive → zero → negative). Keep positive, zero, and negative Gap candidates visible in that sorted order. Zero-gap `CHANGED` candidates must remain visible in their sorted place. Do not infer that `ADDED` is necessarily an adverse cost increase or that `REMOVED` is necessarily a favorable cost decrease. A zero-gap candidate may be an operational change without cost impact. Ranking is an **advisory aid only**; the system must never auto-select rank #1 or require top-rank selection.
 
 ---
 

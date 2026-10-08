@@ -373,7 +373,7 @@ Selected Comparison may constrain the pool of findings shown on Candidate / Rank
 - Processing Candidates represent `Process / Routing` records.
 - Work Center is never a Candidate.
 - Controllable starts `true` by default; unchecking does not hide the candidate.
-- Ranking by Gap magnitude is **advisory only**. The system must never auto-select rank #1 or force top-rank selection.
+- Ranking by Gap descending (highest to lowest) is **advisory only**. The system must never auto-select rank #1 or force top-rank selection.
 
 ## 5.2 RCA Case Supports 1 or Many Candidates
 
