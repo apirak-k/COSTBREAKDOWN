@@ -77,7 +77,7 @@ Keep an active Selected Comparison recognizable while it applies in Cost Breakdo
 
 `CONFIRMED DIRECTION — USER DECISION`: the dashboard/result overview is interactive and live with Simulation, tells the result-to-cause story (`Result → Cause → Detail`), and gives executives an overview with details available on demand. The user-supplied dashboard reference confirms a left-side stacked vertical cost bar chart with Selling Price shown as a line. Per the user's later page-consolidation decision and [`FINAL_LOGIC_SPEC.md`](FINAL_LOGIC_SPEC.md#121-location), this overview and its result graph belong in the Simulation result flow; there is no separate Dashboard workflow page. This fixes the chart's visual direction, not its time period or business formulas. The current product data is a Reference/Current snapshot pair; do not fabricate monthly history. Keep calculation/domain logic separate from UI presentation.
 
-Confirmed current business concepts include Selling Price, SG&A, Material, and Processing (Labor and Burden). Selling Price and SG&A% are scenario-editable; each defaults to Current and clearing an override returns to Current. SG&A is a percentage of Selling Price, and the SG&A and OP formulas are finalized:
+Confirmed current business/economic concepts and outputs include Selling Price, MAT, LB, BD, Standard Cost, SG&A, and OP. Selling Price and SG&A% are scenario-editable; each defaults to Current and clearing an override returns to Current. SG&A is a percentage of Selling Price, and the SG&A and OP formulas are finalized:
 
 ```text
 SG&A amount / pc = Selling Price × SG&A %
