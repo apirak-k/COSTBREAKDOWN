@@ -19,7 +19,7 @@ Retire the old A/B/Trial active architecture while preserving the finalized Refe
 
 ## Current Phase
 
-Phase 10 — Independent Economic Simulation
+Phase 11 — Retire superseded active logic and final verification
 
 ## Phases
 
@@ -90,8 +90,8 @@ Phase 10 — Independent Economic Simulation
 - [x] Implement Action Cost, Evaluation Quantity, Required Saving/pc, and advisory combined Economic Margin without changing Standard Cost.
 - [x] Preserve Selling Price, SG&A, and negative OP formulas.
 - [x] Verify calculations, state migration, UI behavior, typecheck/build, and diff.
-- [ ] Commit this phase after final diff review.
-- **Status:** ready_to_commit
+- [x] Commit this phase after final diff review.
+- **Status:** complete (`fd559a0d4beb6014a282d51dc76790a5caf3e7cc`; `feat: implement independent economic simulation`)
 
 ### Phase 11 — Retire superseded active logic and final verification
 - [ ] Keep the finalized Reference → Current → Simulated story graph, using the active SIM as Simulated, without requiring A/B choice.
@@ -99,7 +99,7 @@ Phase 10 — Independent Economic Simulation
 - [ ] Run complete relevant verification, workbook checks, build, diff review, and `git diff --check`.
 - [ ] Update HANDOFF with evidence, phase commits, limitations, and final alignment status; commit separately.
 - [ ] Confirm branch/worktree/history and push normally; do not merge to main or force-push.
-- **Status:** pending
+- **Status:** in_progress
 
 ## Decisions
 

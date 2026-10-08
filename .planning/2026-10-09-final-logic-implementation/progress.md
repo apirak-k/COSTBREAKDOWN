@@ -170,7 +170,7 @@
 
 ### Phase 10 — Independent Economic Simulation
 
-- **Status:** ready_to_commit
+- **Status:** complete
 - Added a failing-first verifier for Action Cost / Evaluation Quantity, Required Saving / pc, Economic Margin, invalid/overflow inputs, commercial fallbacks, negative OP, economic-only calculation, and draft immutability. The initial run failed because the new module did not exist (expected RED).
 - Reused the existing finalized Selling Price / SG&A Amount / OP calculation rather than duplicating its percentage formula.
 - Added a separate economic calculation module. Action Cost and Evaluation Quantity calculate Required Saving / pc; Economic Margin is shown only when both Required Saving and Parameter Saving are available. The economic result does not change SIM Standard Cost.
@@ -185,7 +185,8 @@
   - `npx tsc --noEmit --pretty false` — PASS.
   - `npm run build` — PASS; 2,044 modules transformed; existing ExcelJS browser externalization warnings remain.
   - Isolated browser preview — PASS: with no selected/edited parameter factors, Action Cost 100,000 and Evaluation Quantity 100,000 produced Required Saving 1.0000 THB/pc; explicit Selling Price 100 and SG&A 10% produced SG&A 10.0000 THB/pc. Standard Cost remained unavailable in the empty preview; no Economic Margin or OP was fabricated.
-- **Phase 10 commit:** pending.
+- **Phase 10 source commit:** `fd559a0d4beb6014a282d51dc76790a5caf3e7cc` (`feat: implement independent economic simulation`).
+- This planning correction records the already completed source commit; the phase's original source verification is unchanged.
 
 ## Error Log
 
@@ -199,8 +200,8 @@
 
 | Question | Answer |
 |---|---|
-| Where am I? | Phases 0–6 are complete; beginning Phase 7. |
-| Where am I going? | Complete phases 7–11 and final verification/handoff, with separate commits per verified phase. |
+| Where am I? | Phases 0–10 are complete; Phase 11 is in progress. |
+| Where am I going? | Retire superseded active paths, finish final verification/handoff, and push the authorized implementation branch. |
 | What's the goal? | Align implementation with finalized logic, verify it, and push the authorized implementation branch. |
 | What have I learned? | Canonical specs changed after the old source checkpoint; see `findings.md`. |
-| What have I done? | Added independent multi-Candidate RCA Case creation and case-level Root Cause/Action workflow. Next is the independent Simulation state. |
+| What have I done? | Completed independent Parameter and Economic Simulation. Phase 11 must preserve the confirmed three-state story graph while removing the inactive old A/B/Trial implementation. |
