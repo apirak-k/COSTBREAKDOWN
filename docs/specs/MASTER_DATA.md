@@ -97,11 +97,12 @@ Do not add Product Code, Product Description, or Product Note. If Reference and 
 
 ## Sizing and Templates
 
-- Sizing edits the viewed dataset's metadata and exact row counts for BOM, Work Centers, and Routing (minimum 1 each).
+- Sizing edits the viewed dataset's metadata and exact row counts for BOM, Work Centers, and Routing (minimum 1 each). On a fresh workspace its row counts are unset.
 - Applying a count sets that table to exactly that many rows:
   - Increasing the count appends blank rows with placeholder numbers.
   - Decreasing the count removes rows from the end; populated rows removed during truncation are lost.
-  - Direct row additions/deletions in the table keep the configured Sizing count synchronized.
+  - Direct row additions and deletions keep that section's configured count synchronized; deleting all rows leaves the count unset.
+- A blank identity shows its placeholder ordinal, counted only among blank identities and independent of the `#` display row number; this ordinal is not a business identity and does not make the row complete.
 - **Download Template:** Located inside Sizing. Generates the canonical Excel workbook matching the viewed dataset's configured row counts.
 - **Import Initialization:** When an Excel workbook is imported into the viewed dataset, its Sizing row counts are initialized to the imported row counts.
 
@@ -114,7 +115,8 @@ The canonical Master Data workbook contains exactly four sheets in order:
 4. `ROUTING`
 
 There is no separate calculation sheet.
-- **`META`:** Contains key-value metadata inputs (Product Name, UOM, Selling Price, SG&A %, Dataset Remark) and Excel formula outputs for MAT, Labor, Burden, Standard Cost, SG&A Amount, and OP. OP can be negative.
+- **`META`:** Contains key-value metadata inputs (Product Name, UOM, Selling Price, SG&A %, Dataset Remark) and Excel formula outputs for MAT, Labor, Burden, Standard Cost, SG&A Amount, and OP. The workbook stores SG&A as the app's percentage points (8 means 8%), so the formula divides the entered value by 100. Negative OP remains valid.
+- Calculated META cells are Excel formulas with Excel cell Notes describing the formula. If an output's required source inputs are incomplete or invalid, its formula displays blank. An explicitly entered zero remains valid. Import reads only the five META inputs and recalculates results through the application engine; formula outputs are never imported as source values.
 - **`BOM`:** `Name | Usage | Unit | Price | Loss | Note`
 - **`WORK_CENTER`:** `WC | Labor | Burden | Note`
 - **`ROUTING`:** `Process | WC | Manning | Cap | Yield | Note`
@@ -123,10 +125,10 @@ Styling conventions in the workbook:
 - Dark header fill with bold white text.
 - **Yellow fill:** Marks user-editable input cells.
 - **Light gray fill:** Marks formula-driven calculation outputs on `META`.
-- Unused cells remain plain white.
+- Unused cells remain plain white. Do not add a color legend, instruction prose, example rows, or extra source/system columns.
 - (Note: Web table styling and Excel export styling remain separate; yellow cell rules apply to Excel export).
 
-Record `Note` values and dataset `META.Dataset Remark` are annotations. Preserve them through web editing and workbook round-trips.
+Record `Note` values and dataset `META.Dataset Remark` are annotations. Preserve them through web editing and workbook round-trips. Neither field is a calculation input or record identity, and a note-only difference does not make a business record `CHANGED`.
 
 ## Tables, Identity, and Spreadsheet Editing
 
@@ -138,23 +140,30 @@ Match records strictly by business identity:
 - Work Centers: `WC`
 - Routing: `Process`
 
-`#` is a left-pinned row number and selection handle, not an identity. Never match records by row order or position.
+`#` is a left-pinned row number and selection handle, not an identity. Never match records by row order or position. Search is the only Master Data query control; it changes presentation, not dataset contents.
 
 ### Spreadsheet Editing
 - View Mode is read-only.
-- Edit Mode supports direct cell editing and keyboard navigation:
+- Edit Mode supports direct cell editing and spreadsheet keyboard navigation:
   - Arrow keys: Navigate across cells.
   - Enter: Move down; Shift+Enter: Move up.
   - Tab: Move right; Shift+Tab: Move left.
-  - Escape: Cancel/exit cell editing.
-  - Ctrl/Cmd+C & Ctrl/Cmd+V: Clipboard copy/paste (including tabular data from Excel).
-  - Ctrl/Cmd+Z & Ctrl/Cmd+Y: Page-level Undo/Redo across all Working tables.
-- Selection gestures: Click `#` to select row; drag or Shift+click for contiguous range; Ctrl/Cmd+click for non-contiguous rows.
-- Reorder handle: Dedicated control in the rightmost column after Actions. Selected rows move together in source order.
+  - Escape: Cancel/exit cell editing where appropriate.
+  - Ctrl/Cmd+C & Ctrl/Cmd+V: Clipboard copy/paste (including tabular data from Excel; pasted values map by row and column, and invalid pasted cells are identified locally rather than failing the page).
+  - Ctrl/Cmd+Z: Undo; Ctrl/Cmd+Y or Ctrl/Cmd+Shift+Z: Redo. Page-level Undo/Redo spans Working edits across all Master Data tables.
+  - Same-column bulk edits to selected rows.
+- Selection gestures: Click `#` to select row; drag across row headers or Shift+click for contiguous range; Ctrl/Cmd+click for non-contiguous rows. Keep row selection separate from reordering.
+- Reorder handle: Dedicated control in the rightmost column after Actions. Selected rows move together in source order. Reordering changes Working row order but does not make a business record `CHANGED`.
 
 ## Validation and Edge Cases
 
 - Validation is local and non-blocking. Cues appear on affected cells.
 - Warning prose and count badges stay out of table rows; dataset-level notices appear outside the tables.
+- Routing `WC` references the Work Center table, and its entry control should help prevent typos.
 - Missing required numeric inputs leave rows marked `MISSING`; they are never replaced with zero. Costs requiring missing inputs remain `unavailable`.
 - Blank placeholder rows from Sizing remain marked missing and are excluded from cost calculations.
+- The existing confirmation before Clear and the disabled Reset/Export controls before a selected-side `Last Saved` state are reversible interface choices, not additional user requirements; their current provenance is recorded in [`PROVISIONAL_IMPLEMENTATION_DECISIONS.md`](../PROVISIONAL_IMPLEMENTATION_DECISIONS.md). The exact placement of Reference and Current totals and compact Undo/Redo controls, colors, typography, spacing, and status presentation are ordinary visual choices. Follow the confirmed visual direction and record unfinalized implementation choices as provisional; they do not block implementation. Human visual acceptance remains a later review checkpoint.
+
+## Traceability
+
+Primary detailed source: [finalized Master Data source specification](../history/MASTER_DATA_SPEC_2026-10-05.md), [the review context's later decisions](../history/COSTBREAKDOWN_REVIEW_CONTEXT_FOR_CODEX.md), and its §79 latest Master Data addendum. The older [Master Data agreement](../../agreements/MASTER_DATA_FLOW_SPEC.md) remains evidence for compatible flow decisions; its earlier schema, workbook, export, and identity details were superseded by the later Master Data source. The explicit workbook decision on 2026-10-07 supersedes the separate calculation view and finalizes the four-sheet structure and META formulas above. The generic `Clone From` semantics across Reference, Current, and Custom are finalized in [`FINAL_LOGIC_SPEC.md`](FINAL_LOGIC_SPEC.md).
