@@ -1,10 +1,10 @@
 import React, { useState, useRef } from 'react'
 import { UploadCloud, CheckCircle, AlertCircle, Loader2 } from 'lucide-react'
-import { ComparisonRole } from '../../core'
+import { MasterDataRole } from '../../core'
 import { useAppStore } from '../../state'
 
 interface ExcelUploadDropzoneProps {
-  importRole?: ComparisonRole
+  importRole?: MasterDataRole
 }
 
 export const ExcelUploadDropzone: React.FC<ExcelUploadDropzoneProps> = ({
@@ -129,7 +129,7 @@ export const ExcelUploadDropzone: React.FC<ExcelUploadDropzoneProps> = ({
                 : 'Click to upload or drag & drop Excel workbook (.xlsx)'}
             </p>
             <p className="mt-1 text-xs leading-5 text-slate-600">
-              Importing into <span className="font-bold text-slate-700">{importRole === 'reference' ? 'Reference' : 'Current'}</span>. The workbook supplies the Product information for this dataset.
+              Importing into <span className="font-bold text-slate-700">{importRole === 'reference' ? 'Reference' : importRole === 'current' ? 'Current' : 'Custom'}</span>. The workbook supplies the Product information for this dataset.
             </p>
           </div>
         </div>

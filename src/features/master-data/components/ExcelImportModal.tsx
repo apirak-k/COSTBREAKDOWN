@@ -1,13 +1,13 @@
 import React from 'react'
 import { X, FileSpreadsheet, AlertCircle } from 'lucide-react'
-import { ComparisonRole } from '../../../core'
+import { MasterDataRole } from '../../../core'
 import { ExcelUploadDropzone } from '../../../shared/ui/ExcelUploadDropzone'
 import { useDialogFocus } from '../use-dialog-focus'
 
 interface ExcelImportModalProps {
   isOpen: boolean
   onClose: () => void
-  importRole: ComparisonRole
+  importRole: MasterDataRole
 }
 
 export const ExcelImportModal: React.FC<ExcelImportModalProps> = ({
@@ -18,7 +18,7 @@ export const ExcelImportModal: React.FC<ExcelImportModalProps> = ({
   const dialogRef = useDialogFocus(isOpen, onClose)
   if (!isOpen) return null
 
-  const roleLabel = importRole === 'reference' ? 'Reference (Baseline)' : 'Current (Target)'
+  const roleLabel = importRole === 'reference' ? 'Reference (Baseline)' : importRole === 'current' ? 'Current (Target)' : 'Custom'
 
   return (
     <div
@@ -63,8 +63,9 @@ export const ExcelImportModal: React.FC<ExcelImportModalProps> = ({
             <div className="space-y-1">
               <p className="font-semibold">Notice on Dataset Replacement:</p>
               <p className="text-sm leading-6 text-amber-900">
-                Uploading a file will <strong>replace all existing data</strong> on the{' '}
-                <span className="font-mono font-bold uppercase">{importRole}</span> side (Product, Work Centers, BOM, Routing). The opposite dataset will remain unchanged.
+                Uploading a file will <strong>replace all existing data</strong> in the{' '}
+                <span className="font-mono font-bold uppercase">{roleLabel}</span> workspace (Product, Work Centers, BOM, Routing).{' '}
+                {importRole === 'custom' ? 'Reference and Current remain unchanged.' : 'The opposite dataset remains unchanged.'}
               </p>
             </div>
           </div>

@@ -1,17 +1,20 @@
-import type { ComparisonRole, CostSnapshot, DatasetSizing } from '../core/types'
+import type { ComparisonRole, CostSnapshot, DatasetSizing, MasterDataRole } from '../core/types'
 import { applySnapshotPairToSession, sessionToSnapshotPair } from '../core'
 import type { ProductSession } from '../core'
 import { markMasterDataChangedForSnapshotPair } from './master-data-revision'
+import { getMasterDataSnapshot } from './master-data-datasets'
 
 export interface MasterDataEditHistoryEntry {
   sessionId: string
-  role: ComparisonRole
+  role: MasterDataRole
   before: CostSnapshot
   after: CostSnapshot
   beforePrepared: Record<ComparisonRole, boolean>
   afterPrepared: Record<ComparisonRole, boolean>
   beforeSizing?: Record<ComparisonRole, DatasetSizing>
   afterSizing?: Record<ComparisonRole, DatasetSizing>
+  beforeCustomSizing?: DatasetSizing
+  afterCustomSizing?: DatasetSizing
 }
 
 export interface MasterDataEditHistory {
@@ -74,11 +77,20 @@ export function applyMasterDataEditHistoryEntry(
 
   const pair = session.snapshotPair ?? sessionToSnapshotPair(session)
   const expected = direction === 'undo' ? entry.after : entry.before
-  if (JSON.stringify(pair[entry.role]) !== JSON.stringify(expected)) return undefined
+  if (JSON.stringify(getMasterDataSnapshot(session, pair, entry.role)) !== JSON.stringify(expected)) return undefined
 
   const snapshot = direction === 'undo' ? entry.before : entry.after
   const preparedSnapshotRoles = direction === 'undo' ? entry.beforePrepared : entry.afterPrepared
   const datasetSizing = direction === 'undo' ? entry.beforeSizing : entry.afterSizing
+  const customDatasetSizing = direction === 'undo' ? entry.beforeCustomSizing : entry.afterCustomSizing
+  if (entry.role === 'custom') {
+    return {
+      ...session,
+      customMasterData: snapshot,
+      customDatasetSizing: customDatasetSizing ? { ...customDatasetSizing } : {},
+      updatedAt: new Date().toISOString()
+    }
+  }
   const nextPair = {
     ...pair,
     [entry.role]: snapshot

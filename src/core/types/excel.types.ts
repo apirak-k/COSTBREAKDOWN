@@ -1,6 +1,6 @@
 import { ProductMaster } from './product.types'
 import { WorkCenterRate, BOMItem, RoutingStep } from './cost.types'
-import { ComparisonRole, CostSnapshot } from './snapshot.types'
+import { MasterDataRole, CostSnapshot } from './snapshot.types'
 
 export interface ExcelImportResult {
   success: boolean
@@ -18,7 +18,7 @@ export interface SnapshotImportResult {
   format?: 'canonical' | 'legacy'
   snapshot?: CostSnapshot
   warnings?: string[]
-  role: ComparisonRole
+  role: MasterDataRole
 }
 
 export interface SnapshotImportOptions {

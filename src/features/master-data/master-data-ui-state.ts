@@ -1,15 +1,15 @@
-import type { ComparisonRole } from '../../core'
+import type { MasterDataRole } from '../../core'
 
 export type MasterDataTableView = 'all' | 'bom' | 'wc' | 'routing'
 
 export interface MasterDataUiState {
-  role: ComparisonRole
+  role: MasterDataRole
   mode: 'view' | 'edit'
   tableView: MasterDataTableView
 }
 
 export type MasterDataUiAction =
-  | { type: 'set-role'; role: ComparisonRole }
+  | { type: 'set-role'; role: MasterDataRole }
   | { type: 'set-mode'; mode: MasterDataUiState['mode'] }
   | { type: 'set-table-view'; tableView: MasterDataTableView }
 

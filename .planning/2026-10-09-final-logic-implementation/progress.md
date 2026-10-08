@@ -47,7 +47,24 @@
 - `verify_master_data_clear_dataset.ts` — PASS.
 - `tsc --noEmit --pretty false` — PASS.
 - `npm run build` — PASS; existing ExcelJS browser-externalization warnings remain; 2,036 modules transformed.
-- **Phase 1 source commit:** pending.
+- **Phase 1 source commit:** `19303af0d2bc6f699d6c77ec6449a78b412c020d` (`feat: add independent custom master data workspace`).
+
+### Phase 2 — Complete Custom Master Data behavior
+
+- **Status:** complete
+- Generalized page state and action types to distinguish `MasterDataRole` from CBD's `ComparisonRole`.
+- Routed Custom Save/Reset/Clear/Sizing/Import/Export and existing row editing, ordering, and page-level Undo/Redo through a Custom-only snapshot/sizing/Last Saved state.
+- Custom import supports canonical workbooks and the existing legacy adapter, strips comparison-role identity, and derives Sizing counts from imported rows.
+- Custom clear retains Last Saved; Reset and Export use Custom Last Saved. Undo/Redo restores Custom Working and Sizing without replacing Last Saved.
+- Custom changes do not alter Reference/Current snapshots, preparedness, CBD comparison fingerprints, or the Ref/Cur master-data revision.
+- `verify_master_data_custom_dataset.ts` — PASS, including migration, isolation, clear, sizing/import state, Last Saved retention, history, and UI-role reducer.
+- `verify_snapshot_import.ts` — PASS, including Custom canonical and legacy workbook parsing.
+- `verify_master_data_edit_history.ts` — PASS.
+- `verify_master_data_clear_dataset.ts` — PASS.
+- `verify_dataset_sizing_and_clone.ts` — PASS.
+- `tsc --noEmit --pretty false` — PASS.
+- `git diff --check` — PASS; only Git line-ending notices.
+- **Phase 2 commit:** pending.
 
 ## Error Log
 
@@ -61,8 +78,8 @@
 
 | Question | Answer |
 |---|---|
-| Where am I? | Phase 0 and Phase 1 are complete; beginning Phase 2. |
-| Where am I going? | Complete phases 2–11 and final verification/handoff, with separate commits per verified phase. |
+| Where am I? | Phases 0–2 are complete; beginning Phase 3. |
+| Where am I going? | Complete phases 3–11 and final verification/handoff, with separate commits per verified phase. |
 | What's the goal? | Align implementation with finalized logic, verify it, and push the authorized implementation branch. |
 | What have I learned? | Canonical specs changed after the old source checkpoint; see `findings.md`. |
-| What have I done? | Created an isolated target worktree; baseline build, 51 verifiers, workbook, and diff check passed; implemented and verified the independent Custom session model. |
+| What have I done? | Implemented an isolated Custom model plus Save/Reset/Clear/Sizing/import/export/edit/history behavior; focused verifiers and typecheck pass. |

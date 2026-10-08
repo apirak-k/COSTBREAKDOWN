@@ -1,6 +1,5 @@
 import * as XLSX from 'xlsx'
 import {
-  ComparisonRole,
   CostSnapshot,
   DataConfidence,
   FieldEvidence,
@@ -9,6 +8,7 @@ import {
   SnapshotRoutingStep,
   SnapshotWorkCenterRate,
   SnapshotImportOptions,
+  MasterDataRole,
   DataQualityStatus,
   getFieldConfidence,
   migratePairedModelToSnapshots
@@ -509,7 +509,7 @@ function isCanonicalWorkbook(workbook: XLSX.WorkBook): boolean {
 /** Parses the canonical one-snapshot workbook without defaulting blank numeric cells to zero. */
 export function parseSnapshotWorkbookData(
   data: ArrayBuffer,
-  role: ComparisonRole
+  role: MasterDataRole
 ): SnapshotImportResult {
   const workbook = XLSX.read(data, { type: 'array', cellDates: true })
   const warnings: string[] = []
@@ -550,7 +550,7 @@ export function parseSnapshotWorkbookData(
     product,
     effectiveDate,
     sourceRef: sourceRef || 'Imported Excel (source not provided)',
-    comparisonRole: role,
+    ...(role === 'custom' ? {} : { comparisonRole: role }),
     status,
     remark: metaValue(meta, ['remark', 'dataset remark']),
     rates: parseWorkCenters(rowsFor(workbook, 'WORK_CENTER'), sourceRef, effectiveDate, warnings),
@@ -580,7 +580,7 @@ export function parseSnapshotWorkbookData(
 
 export async function parseSnapshotExcelInputFile(
   file: File,
-  role: ComparisonRole,
+  role: MasterDataRole,
   options: SnapshotImportOptions = {}
 ): Promise<SnapshotImportResult> {
   const data = await file.arrayBuffer()
@@ -614,7 +614,13 @@ export async function parseSnapshotExcelInputFile(
     status: 'draft',
     sourceRef: file.name
   })
-  const snapshot = role === 'reference' ? legacyPair.reference : legacyPair.current
+  const sourceSnapshot = role === 'reference' ? legacyPair.reference : legacyPair.current
+  const snapshot = role === 'custom'
+    ? (() => {
+        const { comparisonRole: _comparisonRole, ...customSnapshot } = sourceSnapshot
+        return { ...customSnapshot, id: `${sourceSnapshot.id}:custom` }
+      })()
+    : sourceSnapshot
 
   return {
     success: true,

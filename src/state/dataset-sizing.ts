@@ -15,6 +15,19 @@ export interface MasterDataSizingFactories {
   routing: (index: number, rates: SnapshotWorkCenterRate[]) => SnapshotRoutingStep
 }
 
+export function importSnapshotForCustom(snapshot: CostSnapshot): {
+  snapshot: CostSnapshot
+  sizing: DatasetSizing
+} {
+  const { comparisonRole: _comparisonRole, ...customSnapshot } = snapshot
+  const sizing = {
+    wcCount: customSnapshot.rates.length,
+    bomCount: customSnapshot.bom.length,
+    routingCount: customSnapshot.routing.length
+  }
+  return { snapshot: { ...customSnapshot, sizing }, sizing }
+}
+
 export function markSizingPlaceholderEdited<T extends { isGeneratedSizingPlaceholder?: boolean }>(row: T): T {
   return { ...row, isGeneratedSizingPlaceholder: false }
 }

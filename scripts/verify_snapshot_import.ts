@@ -57,6 +57,12 @@ assert.equal(result.snapshot?.routing[1].id, 'Print')
 assert.equal(result.snapshot?.routing[1].operationCode, undefined)
 assert.ok(result.warnings.some(warning => warning.includes('Missing Burden at row 5')))
 
+const customResult = parseSnapshotWorkbookData(workbookBytes, 'custom')
+assert.equal(customResult.success, true, 'Custom accepts the canonical dataset workbook')
+assert.equal(customResult.role, 'custom')
+assert.equal(customResult.snapshot?.comparisonRole, undefined, 'Custom imports stay outside the CBD comparison pair')
+assert.equal(customResult.snapshot?.product.productName, 'Test Product')
+
 const incompleteIdentityWorkbook = XLSX.utils.book_new()
 XLSX.utils.book_append_sheet(incompleteIdentityWorkbook, metaSheet('Incomplete Product', 'PC', null, null, ''), 'META')
 XLSX.utils.book_append_sheet(incompleteIdentityWorkbook, tableSheet('WORK_CENTER', ['WC', 'Labor', 'Burden', 'Note'],
@@ -210,6 +216,7 @@ async function verifyLegacyAdapter(): Promise<void> {
     XLSX.write(legacyWorkbook, { type: 'array', bookType: 'xlsx' })
   ], 'legacy.xlsx')
   const legacyResult = await parseSnapshotExcelInputFile(legacyFile, 'reference')
+  const customLegacyResult = await parseSnapshotExcelInputFile(legacyFile, 'custom')
 
   assert.equal(legacyResult.success, true)
   assert.equal(legacyResult.format, 'legacy')
@@ -218,6 +225,9 @@ async function verifyLegacyAdapter(): Promise<void> {
   assert.equal(legacyResult.snapshot?.bom[0].price, 10)
   assert.equal(legacyResult.snapshot?.routing[0].workCenterId, 'WC-1')
   assert.ok(legacyResult.warnings?.some(warning => warning.includes('legacy paired')))
+  assert.equal(customLegacyResult.success, true)
+  assert.equal(customLegacyResult.role, 'custom')
+  assert.equal(customLegacyResult.snapshot?.comparisonRole, undefined, 'Legacy Custom imports remain independent of CBD roles')
 }
 
 async function verifyCanonicalXlsUpload(): Promise<void> {

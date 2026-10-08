@@ -39,15 +39,16 @@ Phase 1 — Master Data domain model
 - **Status:** complete
 
 ### Phase 2 — Complete Custom Master Data behavior
-- [ ] Support Save, Reset, Clear, Sizing, Import/Export, editing, ordering, and Undo/Redo for Custom.
-- [ ] Verify and commit this phase.
-- **Status:** in_progress
+- [x] Support Save, Reset, Clear, Sizing, Import/Export, editing, ordering, and Undo/Redo for Custom through the shared Master Data behavior paths.
+- [x] Keep Custom import, clear, and history changes independent from CBD preparation, comparison snapshots, and source revision.
+- [x] Verify focused behavior and commit this phase.
+- **Status:** complete
 
 ### Phase 3 — Master Data UI and generic Clone From
 - [ ] Expose Reference, Current, and Custom.
 - [ ] Implement active destination / user-selected source Clone From behavior for valid pairs.
 - [ ] Verify and commit this phase.
-- **Status:** pending
+- **Status:** in_progress
 
 ### Phase 4 — CBD preservation gate
 - [ ] Verify Reference-vs-Current-only behavior and source fingerprint isolation from Custom.

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { X, Sliders, Check, FileSpreadsheet } from 'lucide-react'
-import { ComparisonRole, CostSnapshot, DatasetSizing, ProductMaster } from '../../../core'
+import { MasterDataRole, CostSnapshot, DatasetSizing, ProductMaster } from '../../../core'
 import { DATASET_SIZING_LIMITS } from '../../../core/utils/sizing'
 import { hasDatasetMetadataChanged, hasDatasetSizingChanged, parseDatasetSizingCounts } from '../dataset-sizing-form'
 import { downloadBlob } from '../../../services/excel/export'
@@ -9,7 +9,7 @@ import { useDialogFocus } from '../use-dialog-focus'
 interface DatasetSizingModalProps {
   isOpen: boolean
   onClose: () => void
-  role: ComparisonRole
+  role: MasterDataRole
   product: ProductMaster
   snapshot: CostSnapshot
   onUpdateProduct: (product: ProductMaster) => void
@@ -55,7 +55,7 @@ export const DatasetSizingModal: React.FC<DatasetSizingModalProps> = ({
 
   if (!isOpen) return null
 
-  const roleLabel = role === 'reference' ? 'Reference' : 'Current'
+  const roleLabel = role === 'reference' ? 'Reference' : role === 'current' ? 'Current' : 'Custom'
 
   const buildSizingDraft = () => {
     const nextSizing = parseDatasetSizingCounts({ wcCount, bomCount, routingCount })

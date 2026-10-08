@@ -5,6 +5,10 @@ import {
   initializeCustomMasterData,
   setMasterDataSnapshot
 } from '../src/state/master-data-datasets.ts'
+import { clearMasterDataDatasetState } from '../src/state/clear-master-data-dataset.ts'
+import { importSnapshotForCustom } from '../src/state/dataset-sizing.ts'
+import { applyMasterDataEditHistoryEntry } from '../src/state/master-data-edit-history.ts'
+import { INITIAL_MASTER_DATA_UI_STATE, reduceMasterDataUiState } from '../src/features/master-data/master-data-ui-state.ts'
 
 function snapshot(id: string): CostSnapshot {
   return {
@@ -51,5 +55,48 @@ const updated = setMasterDataSnapshot(initialized, initialized.snapshotPair!, 'c
 assert.strictEqual(updated.snapshotPair?.reference, reference, 'Custom edits preserve the Reference snapshot')
 assert.strictEqual(updated.snapshotPair?.current, current, 'Custom edits preserve the Current snapshot')
 assert.equal(updated.customMasterData?.product.productCode, 'CUSTOM-001')
+
+const lastSaved = { snapshot: snapshot('custom-saved'), prepared: true, sizing: { bomCount: 4 } }
+const savedCustomSession: ProductSession = {
+  ...updated,
+  customLastSavedMasterData: lastSaved,
+  customDatasetSizing: { bomCount: 4 }
+}
+const clearedCustom = clearMasterDataDatasetState(savedCustomSession, 'custom')
+assert.equal(clearedCustom.customMasterData?.bom.length, 0, 'Clear removes only Custom Working rows')
+assert.deepEqual(clearedCustom.customDatasetSizing, {}, 'Clear resets only Custom sizing')
+assert.strictEqual(clearedCustom.customLastSavedMasterData, lastSaved, 'Clear retains Custom Last Saved')
+assert.strictEqual(clearedCustom.snapshotPair?.reference, reference)
+assert.strictEqual(clearedCustom.snapshotPair?.current, current)
+
+const imported = importSnapshotForCustom({ ...reference, comparisonRole: 'reference' })
+assert.equal(imported.snapshot.comparisonRole, undefined, 'A Custom import cannot inherit a CBD comparison role')
+assert.deepEqual(imported.sizing, { wcCount: 0, bomCount: 0, routingCount: 0 })
+assert.deepEqual(imported.snapshot.sizing, imported.sizing)
+
+const afterCustom = { ...editedCustom, product: { ...editedCustom.product, productCode: 'CUSTOM-002' } }
+const historySession: ProductSession = {
+  ...savedCustomSession,
+  customMasterData: afterCustom,
+  customDatasetSizing: { bomCount: 5 }
+}
+const historyEntry = {
+  sessionId: historySession.id,
+  role: 'custom' as const,
+  before: editedCustom,
+  after: afterCustom,
+  beforePrepared: { reference: true, current: true },
+  afterPrepared: { reference: true, current: true },
+  beforeCustomSizing: { bomCount: 4 },
+  afterCustomSizing: { bomCount: 5 }
+}
+const undone = applyMasterDataEditHistoryEntry(historySession, historyEntry, 'undo')
+assert.equal(undone?.customMasterData?.product.productCode, 'CUSTOM-001', 'Undo restores Custom Working')
+assert.deepEqual(undone?.customDatasetSizing, { bomCount: 4 }, 'Undo restores Custom sizing')
+assert.strictEqual(undone?.snapshotPair?.reference, reference, 'Undo does not mutate Reference')
+assert.strictEqual(undone?.snapshotPair?.current, current, 'Undo does not mutate Current')
+assert.strictEqual(undone?.customLastSavedMasterData, lastSaved, 'Undo does not rewrite Last Saved')
+
+assert.equal(reduceMasterDataUiState(INITIAL_MASTER_DATA_UI_STATE, { type: 'set-role', role: 'custom' }).role, 'custom')
 
 console.log('Custom Master Data isolation and migration verification passed')

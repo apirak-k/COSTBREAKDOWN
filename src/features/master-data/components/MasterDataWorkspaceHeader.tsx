@@ -16,7 +16,7 @@ import {
   Redo2,
   Undo2
 } from 'lucide-react'
-import { ComparisonRole, CostSnapshot, ProductMaster } from '../../../core'
+import { MasterDataRole, CostSnapshot, ProductMaster } from '../../../core'
 import { MasterDataHandoffStatus } from '../../../core/calculations/master-data-handoff'
 import { downloadBlob } from '../../../services/excel/export'
 
@@ -24,8 +24,8 @@ interface MasterDataWorkspaceHeaderProps {
   product: ProductMaster
   snapshot: CostSnapshot
   lastSavedSnapshot?: CostSnapshot
-  role: ComparisonRole
-  onRoleChange: (role: ComparisonRole) => void
+  role: MasterDataRole
+  onRoleChange: (role: MasterDataRole) => void
   onSaveWorkingDataset: () => void
   onResetWorkingDataset: () => void
   uomList: string[]
@@ -77,12 +77,12 @@ export const MasterDataWorkspaceHeader: React.FC<MasterDataWorkspaceHeaderProps>
   tableSelector
 }) => {
   const [showReadinessPopover, setShowReadinessPopover] = useState(false)
+  const roleLabel = role === 'reference' ? 'Reference' : role === 'current' ? 'Current' : 'Custom'
 
   const handleExportDataset = async () => {
     if (!lastSavedSnapshot) return
     const { exportSnapshotToExcel } = await import('../../../services/excel/snapshot-export')
     const blob = await exportSnapshotToExcel(lastSavedSnapshot)
-    const roleLabel = role === 'reference' ? 'Reference' : 'Current'
     const savedProductName = lastSavedSnapshot.product.productName || lastSavedSnapshot.product.productDescription || 'PRODUCT'
     const fileProductName = savedProductName.replace(/[<>:"/\\|?*\u0000-\u001F]/g, '-').trim() || 'PRODUCT'
     downloadBlob(blob, `Dataset_${fileProductName}_${roleLabel}.xlsx`)
@@ -90,6 +90,7 @@ export const MasterDataWorkspaceHeader: React.FC<MasterDataWorkspaceHeaderProps>
 
   const isCurrent = role === 'current'
   const isReference = role === 'reference'
+  const isCustom = role === 'custom'
 
   const handleCloneRefToCurWithConfirm = () => {
     const ok = window.confirm('Copy Reference dataset into Current? Current data will be replaced by Reference.')
@@ -104,7 +105,6 @@ export const MasterDataWorkspaceHeader: React.FC<MasterDataWorkspaceHeaderProps>
   }
 
   const handleClearDatasetWithConfirm = () => {
-    const roleLabel = role === 'reference' ? 'Reference' : 'Current'
     const ok = window.confirm('Clear all data on ' + roleLabel + '? Remark, Product, Work Centers, BOM, Routing, and row setup for ' + roleLabel + ' will be reset.')
     if (!ok) return
     onClearDataset()
@@ -112,7 +112,6 @@ export const MasterDataWorkspaceHeader: React.FC<MasterDataWorkspaceHeaderProps>
 
   const handleResetDatasetWithConfirm = () => {
     if (!lastSavedSnapshot) return
-    const roleLabel = role === 'reference' ? 'Reference' : 'Current'
     const ok = window.confirm(`Reset ${roleLabel} Working to its Last Saved copy? Unsaved changes on this side will be lost.`)
     if (!ok) return
     onResetWorkingDataset()
@@ -278,7 +277,7 @@ export const MasterDataWorkspaceHeader: React.FC<MasterDataWorkspaceHeaderProps>
           </button>
         </div>
 
-        <button
+        {!isCustom && <button
           type="button"
           onClick={isCurrent ? handleCloneRefToCurWithConfirm : handleCloneCurToRefWithConfirm}
           aria-label={isCurrent ? 'Clone Reference into Current' : 'Clone Current into Reference'}
@@ -287,7 +286,7 @@ export const MasterDataWorkspaceHeader: React.FC<MasterDataWorkspaceHeaderProps>
         >
           <Copy className="h-3.5 w-3.5 text-slate-500" aria-hidden="true" />
           Clone
-        </button>
+        </button>}
 
         <button
           type="button"
@@ -304,7 +303,7 @@ export const MasterDataWorkspaceHeader: React.FC<MasterDataWorkspaceHeaderProps>
           type="button"
           onClick={handleClearDatasetWithConfirm}
           className="inline-flex min-h-8 shrink-0 items-center justify-center gap-1 border border-rose-300 bg-rose-50 px-1.5 text-[11px] font-medium text-rose-800 transition-colors hover:bg-rose-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-rose-700"
-          title={'Clear all data on ' + (role === 'reference' ? 'Reference' : 'Current')}
+          title={'Clear all data on ' + roleLabel}
         >
           <Trash2 className="h-3.5 w-3.5 text-rose-700" aria-hidden="true" />
           Clear
@@ -314,7 +313,7 @@ export const MasterDataWorkspaceHeader: React.FC<MasterDataWorkspaceHeaderProps>
           type="button"
           onClick={onSaveWorkingDataset}
           className={toolbarButton + ' border-blue-300 bg-blue-50 font-semibold text-blue-800 hover:bg-blue-100 hover:text-blue-950'}
-          title={`Save ${role === 'reference' ? 'Reference' : 'Current'} Working as Last Saved`}
+          title={`Save ${roleLabel} Working as Last Saved`}
         >
           <Save className="h-3.5 w-3.5" aria-hidden="true" />
           Save
