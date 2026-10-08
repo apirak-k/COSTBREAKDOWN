@@ -23,7 +23,7 @@ Match comparable records strictly by the approved business identity:
 
 Use the comparison statuses `UNCHANGED`, `CHANGED`, `ADDED`, and `REMOVED`. Status describes what changed in the business record; Gap describes the cost direction and magnitude. They are independent. Do not infer a status from Gap or invent a `REPLACE` status. Ambiguous or duplicate identity is a data-quality warning; do not guess. A note-only difference is not a business change.
 
-## Standard Cost Calculation Engine
+## Standard Cost Calculation
 
 Use these canonical formulas across Master Data, Cost Breakdown, and Parameter Simulation:
 
@@ -122,3 +122,40 @@ No dedicated Trial execution, validation, approval, or promotion lifecycle is re
 - Warnings inform and direct; they do not block navigation unless an action is logically impossible.
 - Keep validation warnings separate from comparison statuses.
 - Missing required inputs leave calculations unavailable; never substitute zero.
+- On Master Data, preserve cell-level invalid cues and show dataset notices outside tables; keep warning prose, row issue badges, and warning-count footers out of the tables. On Cost Breakdown, remove duplicate top calculation-warning banners and keep details collapsed by default behind `Review warnings (N)`.
+
+## Shared Status and Analysis Context
+
+`CONFIRMED DIRECTION — USER DECISION`: provide a shared status/context cue that helps users understand what is happening and where to review it. Relevant states include:
+- **`Ready for comparison`:** Both Reference and Current contain sufficient valid data for Cost Breakdown.
+- **`Product Mismatch`:** Reference and Current have different Product Names (informational, non-blocking warning).
+- **`Missing data`:** One or both datasets have incomplete/missing required fields.
+- **`Active Selected Comparison`:** Cost Breakdown or Candidate Ranking is scoped to a selected subset of records; ends when leaving CBD/Candidate scope.
+
+When a state has a useful review destination, provide a convenient link or action to that page. Status is informational and normally does not block navigation; disable only an operation that is logically impossible.
+
+Keep an active Selected Comparison recognizable while it applies in Cost Breakdown and scoped Candidate Ranking. At RCA entry or when opening Simulation, the scope ends; subsequent RCA/Simulation may retain the selected Candidate's origin as context, but must not show or apply an active Selected Scope. Exact placement, wording, and control styling while the scope is active remain reversible UI choices; this direction does not require a specific persistent status-bar layout.
+
+## Product Boundaries and Scope
+
+### Additional Business Metrics Scope
+The finalized current result/economics scope focuses strictly on Selling Price, MAT, LB, BD, Standard Cost, SG&A, and OP. Additional business metrics (such as COGS, GP, GP Margin, OP Margin, Sales, historical monthly metrics, and Volume beyond the finalized Evaluation Quantity usage) are **OUT OF SCOPE**. Do not invent formulas or requirements for these items.
+
+Discussion formulas preserved for historical context only (not implemented system formulas):
+- `COGS = Material + Processing`
+- `GP = Selling Price - COGS`
+- `GP Margin = GP / Selling Price`
+- `OP Margin = OP / Selling Price`
+- `Sales = Selling Price × Volume`
+- `Total GP = GP per piece × Volume`
+- `Total OP = OP per piece × Volume`
+
+Historical dashboard periods, time-series data sources, Reference/Current-to-period mapping, and annual averages are likewise OUT OF SCOPE for the current snapshot-based model.
+
+## Human Review Checkpoint
+
+Final visual acceptance after applying the provisional visual contract has not been recorded. This is a verification/review checkpoint, not an unresolved product rule; reversible layout, styling, status wording, and disabled/error presentation choices may be implemented before review.
+
+## Traceability
+
+Key sources are [`agreements/COSTBREAKDOWN_COMPARISON_PRINCIPLES.md`](../../agreements/COSTBREAKDOWN_COMPARISON_PRINCIPLES.md), the finalized [Master Data source specification](../history/MASTER_DATA_SPEC_2026-10-05.md), the later [review-context decisions](../history/COSTBREAKDOWN_REVIEW_CONTEXT_FOR_CODEX.md), and the user-directed workbook update recorded in commit `5a08907`. The 80-topic crosswalk links implementation and verification evidence without changing these requirements. The consolidated business logic across datasets, Multi-Candidate RCA, and Simulation dimensions is finalized in [`FINAL_LOGIC_SPEC.md`](FINAL_LOGIC_SPEC.md).
