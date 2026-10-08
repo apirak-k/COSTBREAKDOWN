@@ -1,6 +1,6 @@
 # Candidate Prioritization and RCA Specification
 
-**Status:** Candidate and Root Cause Analysis (RCA) behavior is `FINALIZED — USER DECISION`. Its current visual presentation follows [`design.md`](../../design.md) and [`PROVISIONAL_IMPLEMENTATION_DECISIONS.md`](../PROVISIONAL_IMPLEMENTATION_DECISIONS.md).
+**Status:** Candidate and Root Cause Analysis (RCA) behavior is `FINALIZED — USER DECISION`. Its row grouping and visual presentation choices (such as P-001) follow [`design.md`](../../design.md) and [`PROVISIONAL_IMPLEMENTATION_DECISIONS.md`](../PROVISIONAL_IMPLEMENTATION_DECISIONS.md); human visual acceptance remains a review checkpoint.
 
 ## Final Target State
 
@@ -34,8 +34,9 @@ Candidates derive directly from [Cost Breakdown findings](COST_BREAKDOWN.md):
 ### Material Candidates (BOM)
 - A material Candidate corresponds to a BOM record.
 - The material record's calculated Reference cost, Current cost, and $\text{Gap} = \text{Current} - \text{Reference}$ provide its monetary value.
-- Changed inputs (Price, Usage, Loss) are displayed as Reference → Current explanatory details.
+- Changed inputs (Price, Usage, Loss) are displayed as Reference → Current explanatory details. Zero-gap `CHANGED` findings remain visible.
 - **No fabricated per-factor THB attribution:** There is no agreed accounting method to allocate a material record's Gap into separate THB amounts for Price, Usage, or Loss. Do not invent per-input monetary values or repeat the full record Gap across individual factors.
+- **Provisional Presentation Boundary (P-001):** How those changed factor details are visually and group-wise represented as one monetary Candidate (e.g. rendering one record-level monetary candidate with nested factor details underneath) is still governed by [P-001 in `PROVISIONAL_IMPLEMENTATION_DECISIONS.md`](../PROVISIONAL_IMPLEMENTATION_DECISIONS.md#p-001--one-record-level-material-monetary-candidate-with-visible-factor-details) (`PROVISIONAL — AI CHOICE`), not an unchangeable user-finalized grouping requirement.
 
 ### Processing Candidates (Process / Routing)
 - The processing Candidate is strictly the **Process / Routing** record.

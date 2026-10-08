@@ -79,10 +79,10 @@ requirements:
   inputs as Reference → Current details. Do not attach invented THB effects to
   Price, Usage, Loss, or another individual factor; do not repeat the whole
   material Gap beside each factor [`CANDIDATE.md`:L13-L22].
-- An RCA Case begins with human-selected Candidate(s) (1 or multiple); Root Cause and Action are
-  optional notes, and Simulation is optional and independent. Do not
-  use visual emphasis or default selection to imply an automatic RCA target
-  [`CANDIDATE.md`](docs/specs/CANDIDATE.md) and [`SIMULATION.md`](docs/specs/SIMULATION.md).
+- An RCA Case is formed from human-selected Candidate(s) (1 or multiple) and
+  completes with Root Cause / Why? and Action; Simulation is optional and
+  independent. Do not use visual emphasis or default selection to imply an
+  automatic RCA target [`CANDIDATE.md`](docs/specs/CANDIDATE.md) and [`SIMULATION.md`](docs/specs/SIMULATION.md).
 
 ### Shared page composition — PROVISIONAL — AI CHOICE
 
@@ -239,7 +239,7 @@ the top of its content scroll area, as required by
 - **Quiet:** text or subtle-surface action for non-primary controls.
 - Keep action sizing compact but operable. Icon-only Undo/Redo controls in
   Master Data must include accessible names and visible focus, while remaining
-  compact as finalized in [`MASTER_DATA.md`](docs/specs/MASTER_DATA.md#tables-identity-and-editing)
+  compact as finalized in [`MASTER_DATA.md`](docs/specs/MASTER_DATA.md#tables-identity-and-spreadsheet-editing)
   [L77-L79].
 - Do not use hover as the only way to reveal an action.
 
