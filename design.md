@@ -30,7 +30,7 @@ lifecycle are not requirements for this branch.
   dense, reduce unnecessary visual weight and whitespace, fix table alignment
   and horizontal-scroll issues, and remove the old `CB`, `Product Cost
   Analysis`, and bottom-left `Workspace` chrome. Master Data totals for
-  Reference and Current must be visible in a useful place; their exact
+  Reference, Current, and Custom must be visible in a useful place; their exact
   placement is not finalized. These directions are recorded in
   [`MASTER_DATA.md`](docs/specs/MASTER_DATA.md#uxui-directions) [L34-L41].
 * **Mood & Atmosphere — PROVISIONAL — AI CHOICE:** precise, calm, operational,
@@ -79,10 +79,10 @@ requirements:
   inputs as Reference → Current details. Do not attach invented THB effects to
   Price, Usage, Loss, or another individual factor; do not repeat the whole
   material Gap beside each factor [`CANDIDATE.md`:L13-L22].
-- RCA begins with a human-selected Candidate; Root Cause and Action are
-  optional notes, and Scenario A and B independently use full Current. Do not
+- An RCA Case begins with human-selected Candidate(s) (1 or multiple); Root Cause and Action are
+  optional notes, and Simulation is optional and independent. Do not
   use visual emphasis or default selection to imply an automatic RCA target
-  [`RCA_SIMULATION.md`:L7-L23].
+  [`CANDIDATE.md`](docs/specs/CANDIDATE.md) and [`SIMULATION.md`](docs/specs/SIMULATION.md).
 
 ### Shared page composition — PROVISIONAL — AI CHOICE
 
@@ -291,10 +291,9 @@ the top of its content scroll area, as required by
   Reference → Current and never repeat the record Gap as a factor-level THB
   effect. Follow [`CANDIDATE.md`](docs/specs/CANDIDATE.md) for the actual
   finding/ranking behavior.
-- **RCA & Simulation:** visually distinguish the human-selected Candidate,
-  optional Root Cause/Action notes, and independent Scenario A/B areas. Do
+- **RCA & Simulation:** visually distinguish Candidate findings, the multi-candidate RCA Case area, and Parameter/Economic Simulation dimensions. Do
   not use the design to imply that a scenario is approved, promoted, or sent to
-  Trial automatically [`RCA_SIMULATION.md`](docs/specs/RCA_SIMULATION.md).
+  Trial automatically [`CANDIDATE.md`](docs/specs/CANDIDATE.md) and [`SIMULATION.md`](docs/specs/SIMULATION.md).
 
 ### Responsive behavior and interaction
 
