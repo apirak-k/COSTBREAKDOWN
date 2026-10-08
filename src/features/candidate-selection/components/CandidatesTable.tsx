@@ -4,13 +4,17 @@ import { CandidateRow } from './CandidateRow'
 
 interface CandidatesTableProps {
   candidates: PrioritizationCandidate[]
+  selectedCandidateKeys: ReadonlySet<string>
   onToggleControllable: (candidateKey: string, nextValue: boolean) => void
+  onToggleRcaSelection: (candidateKey: string, nextValue: boolean) => void
   showVisibleGap: boolean
 }
 
 export const CandidatesTable: React.FC<CandidatesTableProps> = ({
   candidates,
+  selectedCandidateKeys,
   onToggleControllable,
+  onToggleRcaSelection,
   showVisibleGap
 }) => {
   const totalGap = candidates.length > 0 && candidates.every(candidate => candidate.costGap !== null)
@@ -33,10 +37,11 @@ export const CandidatesTable: React.FC<CandidatesTableProps> = ({
         aria-label="Ranked candidate findings table"
         tabIndex={0}
       >
-        <table className="w-full min-w-[960px] border-collapse text-left text-xs">
-          <caption className="sr-only">Candidate findings ranked from highest to lowest cost gap, with Reference and Current costs and a human-set controllability flag.</caption>
+        <table className="w-full min-w-[990px] border-collapse text-left text-xs">
+          <caption className="sr-only">Candidate findings ranked from highest to lowest cost gap, with independent RCA Case selection and a human-set controllability flag.</caption>
           <thead>
             <tr className="bg-slate-900 font-semibold text-white">
+              <th scope="col" className="w-12 px-3 py-2 text-center">Select</th>
               <th scope="col" className="w-14 px-3 py-2 text-center">Rank</th>
               <th scope="col" className="min-w-72 px-4 py-2">Candidate / finding</th>
               <th scope="col" className="w-28 px-3 py-2 text-center">Status</th>
@@ -49,7 +54,7 @@ export const CandidatesTable: React.FC<CandidatesTableProps> = ({
           <tbody className="divide-y divide-slate-200">
             {candidates.length === 0 ? (
               <tr>
-                <td colSpan={7} className="px-4 py-8 text-center text-xs text-slate-600">
+                <td colSpan={8} className="px-4 py-8 text-center text-xs text-slate-600">
                   No candidates in this view.
                 </td>
               </tr>
@@ -58,7 +63,9 @@ export const CandidatesTable: React.FC<CandidatesTableProps> = ({
                 <CandidateRow
                   key={candidate.candidateKey}
                   candidate={candidate}
+                  selectedForRca={selectedCandidateKeys.has(candidate.candidateKey)}
                   onToggleControllable={onToggleControllable}
+                  onToggleRcaSelection={onToggleRcaSelection}
                 />
               ))
             )}

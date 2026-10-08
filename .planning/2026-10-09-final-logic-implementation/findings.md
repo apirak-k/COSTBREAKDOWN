@@ -32,10 +32,19 @@
 | Use a separate Git worktree based on the exact baseline. | Preserves the source branch and unrelated untracked work. |
 | Reuse existing snapshot, calculation, workbook, and state helpers wherever behavior matches. | Avoids duplicated cost engines and parallel CRUD paths. |
 | Treat undefined lifecycle/calculation semantics as blockers only when a concrete implementation depends on them. | Avoids guessing business behavior; user authorized asking `CBD Simu #4` if stuck. |
+| Keep RCA Case entry in the Candidate workflow and make Case selection independent from the Controllable flag. | This directly supports selecting 1..N active-pool Candidates, while keeping ranking advisory and RCA completable without Simulation. |
 
 ## Issues and questions
 
 - No unresolved business question has been identified yet; escalate only if code implementation depends on one.
+
+## Phase 6 findings
+
+- Candidate Case creation accepts only Candidate keys in the currently derived Candidate pool. The pool may already be constrained by Selected Comparison; the Case stores Candidate identities only, not the comparison scope itself.
+- Selection is a separate control from Controllable; no Controllable state filters eligibility.
+- Case-level saves patch only the active product session's RCA Case data. They do not increment the Ref/Cur Master Data revision or mutate the comparison pair.
+- The Case editor remains within Candidate/RCA. The old RCA-and-scenarios page still exists temporarily for the upcoming Simulation extraction/removal phases; it is not the entry point for the new RCA Case flow.
+- Focused Candidate, RCA Case, comparison view/full-flow, typecheck, and production build checks passed. Build continues to emit the baseline ExcelJS browser externalization warnings.
 
 ## Baseline verification discoveries
 

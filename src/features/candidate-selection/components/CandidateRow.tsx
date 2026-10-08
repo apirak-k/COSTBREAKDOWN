@@ -3,7 +3,9 @@ import { PrioritizationCandidate, formatNumber, formatPercent, formatVariance } 
 
 interface CandidateRowProps {
   candidate: PrioritizationCandidate
+  selectedForRca: boolean
   onToggleControllable: (candidateKey: string, nextValue: boolean) => void
+  onToggleRcaSelection: (candidateKey: string, nextValue: boolean) => void
 }
 
 const STATUS_STYLES: Record<PrioritizationCandidate['status'], { text: string; marker: string }> = {
@@ -39,13 +41,24 @@ function hasRedundantFactor(candidate: PrioritizationCandidate): boolean {
 
 export const CandidateRow: React.FC<CandidateRowProps> = ({
   candidate,
-  onToggleControllable
+  selectedForRca,
+  onToggleControllable,
+  onToggleRcaSelection
 }) => {
   const statusStyle = STATUS_STYLES[candidate.status]
   const showFactor = Boolean(candidate.factor) && !hasRedundantFactor(candidate)
 
   return (
     <tr className={`transition-colors ${!candidate.controllable ? 'bg-slate-50 text-slate-600' : 'hover:bg-slate-50/70'}`}>
+      <td className="px-3 py-2 text-center align-top">
+        <input
+          type="checkbox"
+          checked={selectedForRca}
+          onChange={event => onToggleRcaSelection(candidate.candidateKey, event.target.checked)}
+          className="h-4 w-4 rounded-sm border-slate-400 accent-slate-900 cursor-pointer focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700"
+          aria-label={`Select ${candidate.candidateName} for an RCA Case`}
+        />
+      </td>
       <td className="w-14 px-3 py-2 text-center align-top">
         <span className="font-mono text-[11px] font-medium tabular-nums text-slate-500">{String(candidate.rank).padStart(2, '0')}</span>
       </td>

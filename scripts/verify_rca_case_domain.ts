@@ -2,8 +2,10 @@ import assert from 'node:assert/strict'
 import type { ProductSession } from '../src/core/types'
 import {
   createRcaCaseRecord,
+  createRcaCaseForCandidates,
   isRcaCaseComplete,
-  migrateLegacyCandidateRcaRecords
+  migrateLegacyCandidateRcaRecords,
+  saveRcaCaseRecord
 } from '../src/state/rca-cases.ts'
 
 const candidates = ['bom:MAT-1', 'process:QA-1', 'process:QA-2']
@@ -39,5 +41,28 @@ assert.strictEqual(migrateLegacyCandidateRcaRecords(migrated), migrated, 'Migrat
 
 const alreadyModeled = { ...migrated, rcaCases: { [created.id]: created } }
 assert.strictEqual(migrateLegacyCandidateRcaRecords(alreadyModeled), alreadyModeled, 'Existing RCA Cases are preserved')
+
+const newCaseSession = createRcaCaseForCandidates(
+  legacySession,
+  candidates,
+  [candidates[0], candidates[1]],
+  'new-case',
+  '2026-10-09T01:00:00.000Z'
+)
+assert.deepEqual(newCaseSession.rcaCases?.['new-case']?.candidateKeys, candidates.slice(0, 2))
+assert.equal(newCaseSession.activeRcaCaseId, 'new-case', 'Creating a Case makes that explicitly created Case active')
+assert.throws(() => createRcaCaseForCandidates(legacySession, candidates, ['outside-pool'], 'bad-case'), /active Candidate pool/i)
+assert.throws(() => createRcaCaseForCandidates(legacySession, candidates, [], 'empty-case'), /at least one Candidate/i)
+assert.throws(() => createRcaCaseForCandidates(newCaseSession, candidates, [candidates[0]], 'new-case'), /identity already exists/i)
+
+const savedCaseSession = saveRcaCaseRecord(newCaseSession, 'new-case', {
+  rootCause: 'Shared cause',
+  action: 'Shared action'
+}, '2026-10-09T01:05:00.000Z')
+assert.equal(savedCaseSession.rcaCases?.['new-case']?.rootCause, 'Shared cause')
+assert.equal(savedCaseSession.rcaCases?.['new-case']?.action, 'Shared action')
+assert.equal(savedCaseSession.rcaCases?.['new-case']?.candidateKeys.length, 2, 'Saving case-level fields preserves multi-Candidate membership')
+assert.equal(savedCaseSession.rcaCases?.['new-case']?.updatedAt, '2026-10-09T01:05:00.000Z')
+assert.equal(savedCaseSession.activeRcaCaseId, 'new-case')
 
 console.log('RCA Case domain and legacy migration verification passed')

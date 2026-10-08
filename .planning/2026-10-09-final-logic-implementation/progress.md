@@ -103,7 +103,28 @@
 - `verify_rca_candidate_notes.ts` — PASS (7 checks).
 - `tsc --noEmit --pretty false` — PASS.
 - `npm run build` — PASS; existing ExcelJS browser-externalization warnings remain; 2,037 modules transformed.
-- **Phase 5 commit:** pending.
+- **Phase 5 commit:** `368128b3543bf5520e35830cc7df275e95764022` (`feat: add multi-candidate RCA case domain`).
+
+### Phase 6 — Candidate and RCA workflow
+
+- **Status:** complete
+- Added an independent selection checkbox to each Candidate row; it does not depend on the Controllable flag, so unchecked Controllable Candidates remain eligible for RCA.
+- Added Create RCA Case for one or multiple explicitly selected Candidates in the active Candidate pool. Rank remains advisory, and Selected Comparison only shapes that pool.
+- Added a Case workspace inside Candidate/RCA with saved Case selection, Candidate identities, Case-level Root Cause / Why? and Action, and saved completion status. The user can finish RCA without entering Simulation.
+- Added session state/actions for creating, selecting, and saving Cases; case mutations do not alter Master Data revision or comparison state.
+- `verify_rca_case_domain.ts` — PASS for Candidate-pool validation, multi-Candidate creation, active Case, and saving Case-level fields without changing membership.
+- `verify_rca_record.ts` — PASS.
+- `verify_rca_candidate_notes.ts` — PASS (7 checks).
+- `verify_rca_handoff.ts` — PASS (legacy compatibility verifier; its old Trial wording/path remains scheduled for retirement in Phase 11).
+- `verify_candidate_prioritization.ts` — PASS.
+- `verify_snapshot_comparison_view.ts` — PASS.
+- `verify_snapshot_full_flow.ts` — PASS.
+- Browser preview on the isolated target worktree — PASS: selected a Candidate with Controllable = No, created a Case, entered/saved Case-level Root Cause and Action, and observed `RCA complete` without opening Simulation.
+- `npx tsc --noEmit --pretty false` — PASS.
+- `npm run build` — PASS; existing ExcelJS browser-externalization warnings remain; 2,038 modules transformed.
+- `git diff --check` — PASS; Git reports line-ending conversion notices only.
+- One attempted verifier path, `verify_selected_comparison_candidate_scope.ts`, did not exist; reran the existing snapshot comparison and full-flow verifiers instead. No product verifier failed.
+- **Phase 6 commit:** pending.
 
 ## Error Log
 
@@ -117,8 +138,8 @@
 
 | Question | Answer |
 |---|---|
-| Where am I? | Phases 0–5 are complete; beginning Phase 6. |
-| Where am I going? | Complete phases 6–11 and final verification/handoff, with separate commits per verified phase. |
+| Where am I? | Phases 0–6 are complete; beginning Phase 7. |
+| Where am I going? | Complete phases 7–11 and final verification/handoff, with separate commits per verified phase. |
 | What's the goal? | Align implementation with finalized logic, verify it, and push the authorized implementation branch. |
 | What have I learned? | Canonical specs changed after the old source checkpoint; see `findings.md`. |
-| What have I done? | Added the Multi-Candidate RCA Case domain and safe legacy migration. Next is the case selection/recording workflow. |
+| What have I done? | Added independent multi-Candidate RCA Case creation and case-level Root Cause/Action workflow. Next is the independent Simulation state. |

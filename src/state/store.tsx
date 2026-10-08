@@ -23,6 +23,7 @@ import {
   CostComparison,
   CandidateRcaDraft,
   CandidateRcaRecord,
+  RcaCaseRecord,
   PrioritizationCandidate,
   buildPrioritizationCandidates,
   calculateCostBreakdown,
@@ -44,7 +45,7 @@ import {
 import { WorkingDataset } from '../core/types/dataset-standard.types'
 import { hasEnteredMasterData, importSnapshotForCustom, importSnapshotForRole, markSizingPlaceholderEdited, resizeMasterDataSnapshotForSizing, synchronizeDatasetSizingToRows } from './dataset-sizing'
 import { clearMasterDataDatasetState } from './clear-master-data-dataset'
-import { migrateLegacyCandidateRcaRecords } from './rca-cases'
+import { createRcaCaseForCandidates, migrateLegacyCandidateRcaRecords, saveRcaCaseRecord as updateRcaCaseRecord } from './rca-cases'
 import {
   cloneCostSnapshot,
   getLastSavedMasterData,
@@ -285,6 +286,8 @@ interface AppContextType {
   topDrivers: CostDriver[]
   candidates: PrioritizationCandidate[]
   candidateRcaRecords: Record<string, CandidateRcaRecord>
+  rcaCases: RcaCaseRecord[]
+  activeRcaCaseId: string | null
   snapshotPair: SnapshotPair
   snapshotComparison: CostComparison
   fullSnapshotComparison: CostComparison
@@ -364,6 +367,9 @@ interface AppContextType {
   deleteWorkCenterRate: (wc: string) => void
   toggleCandidateControllable: (candidateKey: string, nextValue: boolean) => void
   saveCandidateRca: (candidateKey: string, draft: CandidateRcaDraft) => void
+  createRcaCase: (candidateKeys: string[]) => void
+  selectRcaCase: (id: string | null) => void
+  saveRcaCase: (id: string, draft: CandidateRcaDraft) => void
   importFromExcel: (result: ExcelImportResult) => void
   importSnapshotFromExcel: (result: SnapshotImportResult) => void
   loadDevelopmentReviewFixture: (pair: SnapshotPair) => void
@@ -525,6 +531,10 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const costBreakdown = calculateCostBreakdown(bom, routing, rates)
   const topDrivers = calculateTopDrivers(bom, routing, rates, savedDrivers)
   const candidateRcaRecords = activeSession.candidateRcaRecords ?? {}
+  const rcaCases = Object.values(activeSession.rcaCases ?? {})
+  const activeRcaCaseId = activeSession.activeRcaCaseId && rcaCases.some(record => record.id === activeSession.activeRcaCaseId)
+    ? activeSession.activeRcaCaseId
+    : null
   const snapshotPair = activeSession.snapshotPair ?? sessionToSnapshotPair(activeSession)
   const fullSnapshotComparison = compareSnapshots(snapshotPair.reference, snapshotPair.current)
   const snapshotSourceFingerprint = useMemo(() => JSON.stringify([snapshotPair.reference, snapshotPair.current]), [snapshotPair])
@@ -1290,6 +1300,26 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     })
   }
 
+  const createRcaCase = (candidateKeys: string[]) => {
+    const idBase = `rca-${Date.now()}`
+    let id = idBase
+    let suffix = 1
+    while (activeSession.rcaCases?.[id]) id = `${idBase}-${suffix++}`
+    const next = createRcaCaseForCandidates(activeSession, candidates.map(candidate => candidate.candidateKey), candidateKeys, id)
+    patchActive({ rcaCases: next.rcaCases, activeRcaCaseId: next.activeRcaCaseId })
+  }
+
+  const selectRcaCase = (id: string | null) => {
+    if (id !== null && !activeSession.rcaCases?.[id]) return
+    patchActive({ activeRcaCaseId: id ?? undefined })
+  }
+
+  const saveRcaCase = (id: string, draft: CandidateRcaDraft) => {
+    const next = updateRcaCaseRecord(activeSession, id, draft)
+    if (next === activeSession) return
+    patchActive({ rcaCases: next.rcaCases })
+  }
+
   // Import creates a new DRAFT session per Section 7
   const importFromExcel = (result: ExcelImportResult) => {
     if (!result.success) return
@@ -1455,6 +1485,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       topDrivers,
       candidates,
       candidateRcaRecords,
+      rcaCases,
+      activeRcaCaseId,
       snapshotPair,
       snapshotComparison,
       fullSnapshotComparison,
@@ -1524,6 +1556,9 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       deleteWorkCenterRate,
       toggleCandidateControllable,
       saveCandidateRca,
+      createRcaCase,
+      selectRcaCase,
+      saveRcaCase,
       importFromExcel,
       importSnapshotFromExcel,
       loadDevelopmentReviewFixture,

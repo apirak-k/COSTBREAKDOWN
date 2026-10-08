@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react'
+import React, { useEffect, useMemo, useState } from 'react'
 import { useAppStore } from '../../state'
 import { formatVariance } from '../../core'
 import { CandidatesTable } from './components/CandidatesTable'
@@ -6,6 +6,7 @@ import { filterPrioritizationCandidates } from '../../core/calculations/candidat
 import type { CandidateStatusFilter } from '../../core/calculations/candidate-prioritization'
 import type { PrioritizationStatus } from '../../core'
 import { PageHeading, SelectedComparisonBanner } from '../../shared'
+import { RcaCaseWorkspace } from '../rca/RcaCaseWorkspace'
 
 const ALL_CANDIDATE_STATUSES: PrioritizationStatus[] = ['CHANGED', 'ADDED', 'REMOVED']
 
@@ -13,6 +14,11 @@ export const CandidateSelectionPage: React.FC = () => {
   const {
     candidates,
     toggleCandidateControllable,
+    rcaCases,
+    activeRcaCaseId,
+    createRcaCase,
+    selectRcaCase,
+    saveRcaCase,
     snapshotComparison,
     isSelectedComparisonActive,
     selectedComparisonSelection,
@@ -20,6 +26,16 @@ export const CandidateSelectionPage: React.FC = () => {
   } = useAppStore()
 
   const [statusFilter, setStatusFilter] = useState<CandidateStatusFilter>(ALL_CANDIDATE_STATUSES)
+  const [selectedCandidateKeys, setSelectedCandidateKeys] = useState<Set<string>>(() => new Set())
+  const [showRcaCases, setShowRcaCases] = useState(Boolean(activeRcaCaseId))
+
+  useEffect(() => {
+    const eligibleKeys = new Set(candidates.map(candidate => candidate.candidateKey))
+    setSelectedCandidateKeys(current => {
+      const next = new Set([...current].filter(key => eligibleKeys.has(key)))
+      return next.size === current.size ? current : next
+    })
+  }, [candidates])
 
   const toggleCandidateStatus = (status: PrioritizationStatus) => {
     setStatusFilter(current => current.includes(status)
@@ -44,6 +60,22 @@ export const CandidateSelectionPage: React.FC = () => {
     { status: 'REMOVED' as const, label: 'Removed', count: removedCount }
   ]
 
+  const toggleRcaSelection = (candidateKey: string, selected: boolean) => {
+    setSelectedCandidateKeys(current => {
+      const next = new Set(current)
+      if (selected) next.add(candidateKey)
+      else next.delete(candidateKey)
+      return next
+    })
+  }
+
+  const startRcaCase = () => {
+    if (selectedCandidateKeys.size === 0) return
+    createRcaCase([...selectedCandidateKeys])
+    setSelectedCandidateKeys(new Set())
+    setShowRcaCases(true)
+  }
+
   return (
     <div className="space-y-4">
       <PageHeading
@@ -65,6 +97,33 @@ export const CandidateSelectionPage: React.FC = () => {
       {isSelectedComparisonActive && selectedComparisonSelection && (
         <SelectedComparisonBanner selection={selectedComparisonSelection} onExit={clearSelectedComparison} />
       )}
+
+      {showRcaCases ? (
+        <RcaCaseWorkspace
+          candidates={candidates}
+          cases={rcaCases}
+          activeCaseId={activeRcaCaseId}
+          onSelectCase={selectRcaCase}
+          onSave={saveRcaCase}
+          onClose={() => setShowRcaCases(false)}
+        />
+      ) : (
+        <>
+          <section className="flex flex-wrap items-center justify-between gap-2 border border-slate-300 bg-white px-3 py-2.5">
+            <p className="text-xs text-slate-700" aria-live="polite">
+              {selectedCandidateKeys.size} {selectedCandidateKeys.size === 1 ? 'Candidate' : 'Candidates'} selected for RCA
+            </p>
+            <div className="flex flex-wrap gap-2">
+              {rcaCases.length > 0 && (
+                <button type="button" onClick={() => setShowRcaCases(true)} className="min-h-9 border border-slate-400 bg-white px-3 text-xs font-medium text-slate-800 hover:bg-slate-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700">
+                  Open RCA Cases <span className="font-mono tabular-nums">({rcaCases.length})</span>
+                </button>
+              )}
+              <button type="button" onClick={startRcaCase} disabled={selectedCandidateKeys.size === 0} className="min-h-9 border border-slate-900 bg-slate-900 px-3 text-xs font-medium text-white hover:bg-slate-700 disabled:cursor-default disabled:border-slate-300 disabled:bg-slate-100 disabled:text-slate-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700">
+                Create RCA Case
+              </button>
+            </div>
+          </section>
 
       <section className="flex flex-col gap-2 border border-slate-300 bg-white px-3 py-2.5 sm:flex-row sm:items-center sm:justify-between" aria-labelledby="candidate-filter-title">
         <div className="min-w-40">
@@ -105,9 +164,13 @@ export const CandidateSelectionPage: React.FC = () => {
 
       <CandidatesTable
         candidates={visibleCandidates}
+        selectedCandidateKeys={selectedCandidateKeys}
         onToggleControllable={toggleCandidateControllable}
+        onToggleRcaSelection={toggleRcaSelection}
         showVisibleGap={!allStatusesSelected}
       />
+        </>
+      )}
     </div>
   )
 }

@@ -15,11 +15,11 @@ Align the implementation with the user-finalized COSTBREAKDOWN logic while prese
 
 ## Next Step
 
-Implement the Candidate-to-Case selection and case-level RCA workflow without requiring Simulation.
+Create independent temporary Simulation state that can start from Reference, Current, or Custom without an RCA Case.
 
 ## Current Phase
 
-Phase 6 — Candidate and RCA workflow
+Phase 7 — Independent Simulation module
 
 ## Phases
 
@@ -60,12 +60,13 @@ Phase 6 — Candidate and RCA workflow
 - [x] Add stable RCA Case identity and one-or-many Candidate membership with case-level Root Cause and Action.
 - [x] Migrate compatible legacy Candidate RCA records one-for-one while preserving the source compatibility field.
 - [x] Verify domain invariants and commit this phase.
-- **Status:** complete
+- **Status:** complete (`368128b3543bf5520e35830cc7df275e95764022`)
 
 ### Phase 6 — Candidate and RCA workflow
-- [ ] Select one or multiple Candidates into an RCA Case; preserve advisory ranking and complete RCA without Simulation.
-- [ ] Verify and commit this phase.
-- **Status:** in_progress
+- [x] Select one or multiple Candidates into an RCA Case; preserve advisory ranking and complete RCA without Simulation.
+- [x] Verify the workflow and Candidate-pool/Case state invariants.
+- [ ] Commit this phase after final diff review.
+- **Status:** ready_to_commit
 
 ### Phase 7 — Independent Simulation module
 - [ ] Add independent temporary Simulation state, Start SIM From Reference/Current/Custom, and remove RCA/A-B dependencies.

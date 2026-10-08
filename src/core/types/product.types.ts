@@ -77,6 +77,8 @@ export interface ProductSession {
   candidateRcaRecords?: Record<string, CandidateRcaRecord>
   /** RCA Cases group one or more Candidates under one Root Cause and Action. */
   rcaCases?: Record<string, RcaCaseRecord>
+  /** The Case explicitly selected in the Candidate/RCA workflow. */
+  activeRcaCaseId?: string
   /** Session-scoped candidate controllability map, keyed by candidateKey. */
   candidateControllability?: Record<string, boolean>
   status: DatasetStatus

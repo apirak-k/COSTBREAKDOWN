@@ -22,6 +22,45 @@ export function isRcaCaseComplete(record: Pick<RcaCaseRecord, 'candidateKeys' | 
   return record.candidateKeys.length > 0 && record.rootCause.trim().length > 0 && record.action.trim().length > 0
 }
 
+export function createRcaCaseForCandidates(
+  session: ProductSession,
+  eligibleCandidateKeys: string[],
+  selectedCandidateKeys: string[],
+  id: string,
+  now = new Date().toISOString()
+): ProductSession {
+  const eligible = new Set(eligibleCandidateKeys)
+  const candidateKeys = [...new Set(selectedCandidateKeys)]
+  if (candidateKeys.some(key => !eligible.has(key))) {
+    throw new RangeError('RCA Case Candidates must come from the active Candidate pool.')
+  }
+  if (session.rcaCases?.[id]) throw new RangeError(`RCA Case identity already exists: ${id}`)
+
+  const record = createRcaCaseRecord(id, candidateKeys, { rootCause: '', action: '' }, now)
+  return {
+    ...session,
+    rcaCases: { ...(session.rcaCases ?? {}), [id]: record },
+    activeRcaCaseId: id
+  }
+}
+
+export function saveRcaCaseRecord(
+  session: ProductSession,
+  id: string,
+  draft: CandidateRcaDraft,
+  now = new Date().toISOString()
+): ProductSession {
+  const record = session.rcaCases?.[id]
+  if (!record) return session
+  return {
+    ...session,
+    rcaCases: {
+      ...session.rcaCases,
+      [id]: { ...record, rootCause: draft.rootCause, action: draft.action, updatedAt: now }
+    }
+  }
+}
+
 export function migrateLegacyCandidateRcaRecords(session: ProductSession): ProductSession {
   if (session.rcaCases && Object.keys(session.rcaCases).length > 0) return session
   const legacyRecords = Object.entries(session.candidateRcaRecords ?? {})
