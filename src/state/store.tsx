@@ -44,6 +44,7 @@ import {
 import { WorkingDataset } from '../core/types/dataset-standard.types'
 import { hasEnteredMasterData, importSnapshotForCustom, importSnapshotForRole, markSizingPlaceholderEdited, resizeMasterDataSnapshotForSizing, synchronizeDatasetSizingToRows } from './dataset-sizing'
 import { clearMasterDataDatasetState } from './clear-master-data-dataset'
+import { migrateLegacyCandidateRcaRecords } from './rca-cases'
 import {
   cloneCostSnapshot,
   getLastSavedMasterData,
@@ -391,8 +392,9 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         status: sessionWithoutLegacyUiState.status || (idx === 0 ? 'draft' : 'draft'),
         versionLabel: sessionWithoutLegacyUiState.versionLabel || (sessionWithoutLegacyUiState.status === 'archived' ? 'Archived' : 'Draft')
       })
+      const normalizedRcaCases = migrateLegacyCandidateRcaRecords(normalized)
       return {
-        ...normalized,
+        ...normalizedRcaCases,
         preparedSnapshotRoles: getSnapshotRoleReadiness(normalized)
       }
     })

@@ -15,11 +15,11 @@ Align the implementation with the user-finalized COSTBREAKDOWN logic while prese
 
 ## Next Step
 
-Complete Custom Working actions, history, sizing, and import/export using the independent session model.
+Implement the Candidate-to-Case selection and case-level RCA workflow without requiring Simulation.
 
 ## Current Phase
 
-Phase 1 — Master Data domain model
+Phase 6 — Candidate and RCA workflow
 
 ## Phases
 
@@ -52,20 +52,20 @@ Phase 1 — Master Data domain model
 - **Status:** complete
 
 ### Phase 4 — CBD preservation gate
-- [ ] Verify Reference-vs-Current-only behavior and source fingerprint isolation from Custom.
-- [ ] Commit only if a required code change is needed; otherwise record verification evidence.
-- **Status:** in_progress
+- [x] Verify Reference-vs-Current-only behavior and source fingerprint isolation from Custom.
+- [x] Record verification evidence; no CBD code change was required.
+- **Status:** complete (verification-only)
 
 ### Phase 5 — Multi-Candidate RCA domain
-- [ ] Add stable RCA Case identity and one-or-many Candidate membership with case-level Root Cause and Action.
-- [ ] Migrate compatible legacy RCA records when safe.
-- [ ] Verify and commit this phase.
-- **Status:** pending
+- [x] Add stable RCA Case identity and one-or-many Candidate membership with case-level Root Cause and Action.
+- [x] Migrate compatible legacy Candidate RCA records one-for-one while preserving the source compatibility field.
+- [x] Verify domain invariants and commit this phase.
+- **Status:** complete
 
 ### Phase 6 — Candidate and RCA workflow
 - [ ] Select one or multiple Candidates into an RCA Case; preserve advisory ranking and complete RCA without Simulation.
 - [ ] Verify and commit this phase.
-- **Status:** pending
+- **Status:** in_progress
 
 ### Phase 7 — Independent Simulation module
 - [ ] Add independent temporary Simulation state, Start SIM From Reference/Current/Custom, and remove RCA/A-B dependencies.

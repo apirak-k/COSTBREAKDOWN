@@ -47,6 +47,12 @@ export interface CandidateRcaRecord extends CandidateRcaDraft {
   updatedAt: string
 }
 
+export interface RcaCaseRecord extends CandidateRcaDraft {
+  id: string
+  candidateKeys: string[]
+  updatedAt: string
+}
+
 export interface LastSavedMasterDataDataset {
   snapshot: import('./snapshot.types').CostSnapshot
   prepared: boolean
@@ -67,7 +73,10 @@ export interface ProductSession {
   /** @deprecated Retained to preserve older RCA notes; active notes use candidateRcaRecords. */
   rcaRecords?: Record<string, DriverRcaRecord>
   /** RCA notes are keyed by the Candidate Prioritization candidateKey. */
+  /** @deprecated Migrated into rcaCases; retained for older saved session compatibility. */
   candidateRcaRecords?: Record<string, CandidateRcaRecord>
+  /** RCA Cases group one or more Candidates under one Root Cause and Action. */
+  rcaCases?: Record<string, RcaCaseRecord>
   /** Session-scoped candidate controllability map, keyed by candidateKey. */
   candidateControllability?: Record<string, boolean>
   status: DatasetStatus

@@ -79,7 +79,31 @@
 - `verify_master_data_clear_dataset.ts` — PASS.
 - `tsc --noEmit --pretty false` — PASS.
 - `npm run build` — PASS; existing ExcelJS browser-externalization warnings remain; 2,036 modules transformed.
-- **Phase 3 commit:** pending.
+- **Phase 3 commit:** `eadc77567eb20e1916a8b8e78331a3aea8897370` (`feat: add generic master data clone from`).
+
+### Phase 4 — CBD preservation gate
+
+- **Status:** complete (verification-only; no source change was required).
+- Static data-flow inspection confirms `compareSnapshots`, source fingerprint, selected-scope projection, candidate construction, and Cost Breakdown receive only `snapshotPair.reference` and `snapshotPair.current`.
+- Custom Working mutations write `customMasterData` / `customDatasetSizing` and leave the CBD pair identity and JSON fingerprint unchanged. Custom changes bypass the Ref/Cur `masterDataRevision` path.
+- `verify_master_data_custom_dataset.ts` — PASS for independent Custom updates and clone destinations.
+- `verify_snapshot_full_flow.ts` — PASS.
+- `verify_snapshot_comparison_view.ts` — PASS.
+- `verify_comparison_reconciliation.ts` — PASS; canonical statuses and reconciliation remain intact.
+- `verify_candidate_prioritization.ts` — PASS; candidates derive from the current CBD comparison and missing inputs remain unavailable.
+
+### Phase 5 — Multi-Candidate RCA domain
+
+- **Status:** complete
+- Added `RcaCaseRecord` with a stable explicit ID, an ordered unique list of Candidate keys, and one case-level Root Cause and Action.
+- Added case creation and completion checks. A Case requires at least one Candidate; RCA completion requires Root Cause and Action, with no Simulation dependency.
+- Added idempotent migration from legacy one-Candidate RCA records to one Case per Candidate, preserving root cause, action, candidate identity, and last-updated timestamp. Existing Cases are not overwritten.
+- `verify_rca_case_domain.ts` — PASS for single/multiple membership, de-duplication, completion, validation, legacy migration, idempotence, and existing-case preservation.
+- `verify_rca_record.ts` — PASS.
+- `verify_rca_candidate_notes.ts` — PASS (7 checks).
+- `tsc --noEmit --pretty false` — PASS.
+- `npm run build` — PASS; existing ExcelJS browser-externalization warnings remain; 2,037 modules transformed.
+- **Phase 5 commit:** pending.
 
 ## Error Log
 
@@ -93,8 +117,8 @@
 
 | Question | Answer |
 |---|---|
-| Where am I? | Phases 0–3 are complete; beginning Phase 4. |
-| Where am I going? | Complete phases 4–11 and final verification/handoff, with separate commits per verified phase. |
+| Where am I? | Phases 0–5 are complete; beginning Phase 6. |
+| Where am I going? | Complete phases 6–11 and final verification/handoff, with separate commits per verified phase. |
 | What's the goal? | Align implementation with finalized logic, verify it, and push the authorized implementation branch. |
 | What have I learned? | Canonical specs changed after the old source checkpoint; see `findings.md`. |
-| What have I done? | Implemented Custom workspace state/actions plus generic Clone From and verified Custom isolation; typecheck and build pass. |
+| What have I done? | Added the Multi-Candidate RCA Case domain and safe legacy migration. Next is the case selection/recording workflow. |
