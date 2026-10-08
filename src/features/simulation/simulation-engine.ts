@@ -107,10 +107,11 @@ export function updateSimulationParameter(
   currentSnapshot: CostSnapshot,
   simulationRecordId: string,
   factor: SimulationFactor,
-  value: number
+  value: number | null
 ): SimulationWorkspaceState {
   const configuration = FACTOR_FIELDS[factor]
-  if (!configuration || !state.snapshot || !state.selectedFactors.includes(factor) || !Number.isFinite(value)) return state
+  if (!configuration || !state.snapshot || !state.selectedFactors.includes(factor)
+    || (value !== null && !Number.isFinite(value))) return state
 
   const row = calculateParameterSimulation(currentSnapshot, state.snapshot).records
     .find(record => record.kind === configuration.kind && record.simulationRecordId === simulationRecordId)
