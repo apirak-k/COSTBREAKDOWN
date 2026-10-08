@@ -1,5 +1,22 @@
 import type { CandidateRcaDraft, ProductSession, RcaCaseRecord } from '../core/types/product.types'
 
+export interface RcaSimulationHandoffContext extends CandidateRcaDraft {
+  caseId: string
+  candidateKeys: string[]
+}
+
+export function createRcaSimulationHandoffContext(
+  record: Pick<RcaCaseRecord, 'id' | 'candidateKeys'>,
+  draft: CandidateRcaDraft
+): RcaSimulationHandoffContext {
+  return {
+    caseId: record.id,
+    candidateKeys: [...record.candidateKeys],
+    rootCause: draft.rootCause,
+    action: draft.action
+  }
+}
+
 export function createRcaCaseRecord(
   id: string,
   candidateKeys: string[],

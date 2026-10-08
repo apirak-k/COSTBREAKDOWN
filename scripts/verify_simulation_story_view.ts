@@ -6,6 +6,7 @@ import { createScenarioFinancialResult, createScenarioStory } from '../src/core/
 import type { SnapshotCost } from '../src/core/types'
 import { SimulationStoryGraph } from '../src/features/simulation/SimulationStoryGraph.tsx'
 import { SimulationPage } from '../src/features/simulation/SimulationPage.tsx'
+import { createRcaCaseRecord, createRcaSimulationHandoffContext } from '../src/state/rca-cases.ts'
 import {
   createEmptySimulationState,
   setSimulationEconomicInput,
@@ -125,6 +126,75 @@ assert.ok(economicOnlyText.includes('Required Saving / pc') && economicOnlyText.
 assert.ok(economicOnlyText.includes('Start SIM From Current'), 'economic-only inputs do not require starting a Parameter SIM')
 assert.ok(!economicOnlyText.includes('Economic Margin / pc'), 'economic-only mode does not show combined-mode margin')
 assert.doesNotMatch(economicOnlyMarkup, /simulation-result-title|simulation-story-title/, 'economic-only mode does not fabricate Parameter results')
+assert.ok(economicOnlyText.indexOf('Start SIM From Reference') < economicOnlyText.indexOf('Start SIM From Current'),
+  'standalone Simulation keeps its existing source order')
+assert.ok(!economicOnlyText.includes('RCA Case context'), 'standalone Simulation does not require an RCA Case')
+
+const rcaCase = createRcaCaseRecord('handoff-case-1', ['process:Process A'], {
+  rootCause: 'Shared cycle-time issue', action: 'Review upstream and downstream processes'
+})
+const rcaContext = createRcaSimulationHandoffContext(rcaCase, rcaCase)
+const rcaStartMarkup = renderToStaticMarkup(React.createElement(SimulationPage, {
+  state: createEmptySimulationState(),
+  referenceSnapshot,
+  currentSnapshot,
+  rcaContext,
+  onStartFrom() {},
+  onReset() {},
+  onSelectFactors() {},
+  onUpdateParameter() {},
+  onUpdateEconomicInput() {}
+}))
+const rcaStartText = rcaStartMarkup.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ')
+assert.ok(rcaStartText.includes('handoff-case-1') && rcaStartText.includes('process:Process A'),
+  'RCA Case and Candidate context is carried into Simulation')
+assert.ok(rcaStartText.includes('Shared cycle-time issue') && rcaStartText.includes('Review upstream and downstream processes'))
+assert.ok(rcaStartText.indexOf('Start SIM From Current') < rcaStartText.indexOf('Start SIM From Reference'),
+  'Current is the natural first source on an RCA handoff')
+assert.ok(rcaStartText.includes('Start SIM From Custom'), 'RCA handoff leaves Custom available')
+
+const rcaParameterMarkup = renderToStaticMarkup(React.createElement(SimulationPage, {
+  state: simulationBasis,
+  referenceSnapshot,
+  currentSnapshot,
+  rcaContext,
+  onStartFrom() {},
+  onReset() {},
+  onSelectFactors() {},
+  onUpdateParameter() {},
+  onUpdateEconomicInput() {}
+}))
+for (const label of [
+  'Select Material factor Material X',
+  'Select Material factor Material Y',
+  'Select Process factor Process A',
+  'Select Process factor Process B'
+]) {
+  assert.ok(rcaParameterMarkup.includes(`aria-label="${label}"`), `RCA context leaves this Factor selectable: ${label}`)
+}
+assert.equal((rcaParameterMarkup.match(/type="checkbox"/g) ?? []).length, 4,
+  'RCA Candidates are not a hard scope; all Material and Process records remain available')
+assert.doesNotMatch(rcaParameterMarkup, /Material X price SIM value|Process A manning SIM value/,
+  'candidate context does not preselect Factors or require identity mapping')
+const additionalFactorState = setSimulationFactors(simulationBasis, [
+  simulationFactorId('bom', 'current-bom-y'),
+  simulationFactorId('routing', 'current-route-b')
+])
+const additionalFactorMarkup = renderToStaticMarkup(React.createElement(SimulationPage, {
+  state: additionalFactorState,
+  referenceSnapshot,
+  currentSnapshot,
+  rcaContext,
+  onStartFrom() {},
+  onReset() {},
+  onSelectFactors() {},
+  onUpdateParameter() {},
+  onUpdateEconomicInput() {}
+}))
+assert.ok(additionalFactorMarkup.includes('Material Y price SIM value') && additionalFactorMarkup.includes('Process B manning SIM value'),
+  'additional Material and Process Factors remain editable with RCA context present')
+assert.ok(!additionalFactorMarkup.includes('Process A manning SIM value'),
+  'selecting additional Factors does not force the RCA Candidate into Simulation')
 
 const combinedBasis = startSimulationFrom('current', sources, undefined, economicOnlyState.economicInputs)
 assert.equal(combinedBasis.economicInputs.actionCost, '100000', 'starting Parameter SIM preserves independent Economic inputs')

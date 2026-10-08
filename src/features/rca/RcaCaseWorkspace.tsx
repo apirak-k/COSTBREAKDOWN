@@ -1,6 +1,10 @@
 import React, { useEffect, useMemo, useState } from 'react'
 import type { CandidateRcaDraft, PrioritizationCandidate, RcaCaseRecord } from '../../core'
-import { isRcaCaseComplete } from '../../state/rca-cases'
+import {
+  createRcaSimulationHandoffContext,
+  isRcaCaseComplete,
+  type RcaSimulationHandoffContext
+} from '../../state/rca-cases'
 
 interface RcaCaseWorkspaceProps {
   candidates: PrioritizationCandidate[]
@@ -9,6 +13,7 @@ interface RcaCaseWorkspaceProps {
   onSelectCase: (id: string | null) => void
   onSave: (id: string, draft: CandidateRcaDraft) => void
   onClose: () => void
+  onProceedToSimulation: (context: RcaSimulationHandoffContext) => void
 }
 
 export const RcaCaseWorkspace: React.FC<RcaCaseWorkspaceProps> = ({
@@ -17,7 +22,8 @@ export const RcaCaseWorkspace: React.FC<RcaCaseWorkspaceProps> = ({
   activeCaseId,
   onSelectCase,
   onSave,
-  onClose
+  onClose,
+  onProceedToSimulation
 }) => {
   const activeCase = cases.find(record => record.id === activeCaseId) ?? null
   const [draft, setDraft] = useState<CandidateRcaDraft>({ rootCause: '', action: '' })
@@ -35,6 +41,12 @@ export const RcaCaseWorkspace: React.FC<RcaCaseWorkspaceProps> = ({
     if (!activeCase) return
     onSave(activeCase.id, draft)
     setSaved(true)
+  }
+
+  const proceedToSimulation = () => {
+    if (!activeCase) return
+    if (!saved) save()
+    onProceedToSimulation(createRcaSimulationHandoffContext(activeCase, draft))
   }
 
   const close = () => {
@@ -121,9 +133,14 @@ export const RcaCaseWorkspace: React.FC<RcaCaseWorkspaceProps> = ({
 
           <div className="flex flex-wrap items-center justify-between gap-2 border-t border-slate-200 pt-2">
             <p role="status" className="text-[11px] text-slate-600">{saved ? 'Saved' : 'Unsaved changes'}</p>
-            <button type="button" onClick={save} disabled={saved} className="min-h-9 border border-slate-900 bg-slate-900 px-3 text-xs font-medium text-white hover:bg-slate-700 disabled:cursor-default disabled:border-slate-300 disabled:bg-slate-100 disabled:text-slate-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700">
-              Save RCA
-            </button>
+            <div className="flex flex-wrap gap-2">
+              <button type="button" onClick={save} disabled={saved} className="min-h-9 border border-slate-900 bg-slate-900 px-3 text-xs font-medium text-white hover:bg-slate-700 disabled:cursor-default disabled:border-slate-300 disabled:bg-slate-100 disabled:text-slate-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700">
+                Save RCA
+              </button>
+              <button type="button" onClick={proceedToSimulation} className="min-h-9 border border-slate-400 bg-white px-3 text-xs font-medium text-slate-800 hover:bg-slate-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700">
+                Proceed to Simulation
+              </button>
+            </div>
           </div>
         </>
       )}

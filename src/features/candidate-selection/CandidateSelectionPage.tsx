@@ -7,10 +7,15 @@ import type { CandidateStatusFilter } from '../../core/calculations/candidate-pr
 import type { PrioritizationStatus } from '../../core'
 import { PageHeading, SelectedComparisonBanner } from '../../shared'
 import { RcaCaseWorkspace } from '../rca/RcaCaseWorkspace'
+import type { RcaSimulationHandoffContext } from '../../state/rca-cases'
 
 const ALL_CANDIDATE_STATUSES: PrioritizationStatus[] = ['CHANGED', 'ADDED', 'REMOVED']
 
-export const CandidateSelectionPage: React.FC = () => {
+interface CandidateSelectionPageProps {
+  onProceedToSimulation: (context: RcaSimulationHandoffContext) => void
+}
+
+export const CandidateSelectionPage: React.FC<CandidateSelectionPageProps> = ({ onProceedToSimulation }) => {
   const {
     candidates,
     toggleCandidateControllable,
@@ -106,6 +111,7 @@ export const CandidateSelectionPage: React.FC = () => {
           onSelectCase={selectRcaCase}
           onSave={saveRcaCase}
           onClose={() => setShowRcaCases(false)}
+          onProceedToSimulation={onProceedToSimulation}
         />
       ) : (
         <>

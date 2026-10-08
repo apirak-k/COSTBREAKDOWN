@@ -11,11 +11,13 @@ import type { ParameterSimulationResult, SimulationComparisonRow, SimulationReco
 import { calculateParameterSimulation } from './simulation-engine'
 import type { SimulationFactor, SimulationParameter, SimulationWorkspaceState } from './simulation-state'
 import { SIMULATION_PARAMETERS, simulationFactorId } from './simulation-state'
+import type { RcaSimulationHandoffContext } from '../../state/rca-cases'
 
 interface SimulationPageProps {
   state: SimulationWorkspaceState
   referenceSnapshot: CostSnapshot
   currentSnapshot: CostSnapshot
+  rcaContext?: RcaSimulationHandoffContext | null
   onStartFrom: (role: MasterDataRole) => void
   onReset: () => void
   onSelectFactors: (factors: SimulationFactor[]) => void
@@ -28,6 +30,13 @@ const SOURCES: Array<{ role: MasterDataRole; label: string }> = [
   { role: 'current', label: 'Current' },
   { role: 'custom', label: 'Custom' }
 ]
+
+function sourceChoicesForRcaHandoff() {
+  return [
+    ...SOURCES.filter(source => source.role === 'current'),
+    ...SOURCES.filter(source => source.role !== 'current')
+  ]
+}
 
 const PARAMETER_DETAILS: Record<SimulationParameter, { label: string; kind: SimulationRecordKind; displayScale: number }> = {
   'bom.price': { label: 'Price', kind: 'bom', displayScale: 1 },
@@ -253,6 +262,7 @@ export const SimulationPage: React.FC<SimulationPageProps> = ({
   state,
   referenceSnapshot,
   currentSnapshot,
+  rcaContext = null,
   onStartFrom,
   onReset,
   onSelectFactors,
@@ -260,6 +270,7 @@ export const SimulationPage: React.FC<SimulationPageProps> = ({
   onUpdateEconomicInput
 }) => {
   const sourceLabel = SOURCES.find(source => source.role === state.sourceRole)?.label
+  const startSources = rcaContext ? sourceChoicesForRcaHandoff() : SOURCES
   const result = useMemo(
     () => state.snapshot ? calculateParameterSimulation(currentSnapshot, state.snapshot) : null,
     [currentSnapshot, state.snapshot]
@@ -325,13 +336,26 @@ export const SimulationPage: React.FC<SimulationPageProps> = ({
         ) : undefined}
       />
 
+      {rcaContext && (
+        <section className="border border-slate-300 border-l-4 border-l-slate-700 bg-white px-3 py-2.5" aria-label="RCA Case context">
+          <h2 className="font-sans text-xs font-semibold text-slate-900">RCA Case context</h2>
+          <p className="mt-1 text-xs text-slate-700">
+            Case {rcaContext.caseId} · {rcaContext.candidateKeys.length} {rcaContext.candidateKeys.length === 1 ? 'Candidate' : 'Candidates'}
+            {rcaContext.candidateKeys.length > 0 && <> · {rcaContext.candidateKeys.join(', ')}</>}
+          </p>
+          {rcaContext.rootCause.trim() && <p className="mt-1 text-xs text-slate-600">Root Cause / Why?: {rcaContext.rootCause}</p>}
+          {rcaContext.action.trim() && <p className="mt-1 text-xs text-slate-600">Action: {rcaContext.action}</p>}
+          <p className="mt-1 text-[11px] text-slate-600">For a new SIM, Current is the default source; Reference and Custom remain available. RCA context does not restrict Material or Process selection.</p>
+        </section>
+      )}
+
       {!state.snapshot ? (
         <>
           <section className="border border-slate-300 bg-white p-3" aria-labelledby="simulation-start-title">
             <h2 id="simulation-start-title" className="font-sans text-sm font-semibold text-slate-950">Start SIM From</h2>
             <p className="mt-1 text-xs text-slate-600">SIM uses an isolated copy. Changes here do not update any Master Data workspace.</p>
             <div className="mt-3 flex flex-wrap gap-2">
-              {SOURCES.map(source => (
+              {startSources.map(source => (
                 <button
                   key={source.role}
                   type="button"

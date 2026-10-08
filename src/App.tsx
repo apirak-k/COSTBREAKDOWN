@@ -20,15 +20,21 @@ import {
 import { updateSimulationParameter } from './features/simulation/simulation-engine'
 import type { SimulationFactor, SimulationParameter } from './features/simulation/simulation-state'
 import type { EconomicSimulationField } from './features/simulation/simulation-economics'
+import type { RcaSimulationHandoffContext } from './state/rca-cases'
 import { loadFromSession, saveToSession, STORAGE_KEYS } from './services/storage'
 
 const AppRouter: React.FC = () => {
   const {
     activeTab,
     activeProductId,
+    setActiveTab,
     masterDataSnapshots,
     productSessions
   } = useAppStore()
+  const [simulationRcaHandoff, setSimulationRcaHandoff] = useState<{
+    productId: string
+    context: RcaSimulationHandoffContext
+  } | null>(null)
   const [simulationStatesByProduct, setSimulationStatesByProduct] = useState<Record<string, SimulationWorkspaceState>>(
     () => loadFromSession(STORAGE_KEYS.SIMULATION_STATES, {})
   )
@@ -37,6 +43,9 @@ const AppRouter: React.FC = () => {
     () => reconcileSimulationState(storedSimulationState, masterDataSnapshots),
     [masterDataSnapshots, storedSimulationState]
   )
+  const simulationRcaContext = simulationRcaHandoff?.productId === activeProductId
+    ? simulationRcaHandoff.context
+    : null
 
   useEffect(() => {
     if (!storedSimulationState || simulationState === storedSimulationState) return
@@ -99,16 +108,22 @@ const AppRouter: React.FC = () => {
     ))
   }
 
+  const proceedFromRcaToSimulation = (context: RcaSimulationHandoffContext) => {
+    setSimulationRcaHandoff({ productId: activeProductId, context })
+    setActiveTab('simulation')
+  }
+
   return (
     <AppLayout>
       {activeTab === 'master' && <MasterDataPage />}
       {activeTab === 'breakdown' && <CostBreakdownPage />}
-      {activeTab === 'candidate' && <CandidateSelectionPage />}
+      {activeTab === 'candidate' && <CandidateSelectionPage onProceedToSimulation={proceedFromRcaToSimulation} />}
       {activeTab === 'simulation' && (
         <SimulationPage
           state={simulationState}
           referenceSnapshot={masterDataSnapshots.reference}
           currentSnapshot={masterDataSnapshots.current}
+          rcaContext={simulationRcaContext}
           onStartFrom={startFrom}
           onReset={resetSimulation}
           onSelectFactors={selectSimulationFactors}
