@@ -34,6 +34,9 @@ export function resetDevelopmentReviewFixtureSession(
     savedDrivers: [],
     selectedDriverKeys: [],
     rcaRecords: {},
+    candidateRcaRecords: {},
+    rcaCases: {},
+    activeRcaCaseId: undefined,
     candidateControllability: {},
     preparedSnapshotRoles: { reference: true, current: true },
     datasetSizing: { reference: referenceSizing, current: currentSizing },
@@ -42,8 +45,7 @@ export function resetDevelopmentReviewFixtureSession(
     versionLabel: 'Synthetic Review Fixture'
   }, nextPair)
 
-  // Resetting the review session must also invalidate an old RCA/Scenario draft
-  // when the same fixture is loaded again with identical cost inputs.
+  // Resetting the review session must also invalidate stale RCA and Simulation state.
   return {
     ...resetSession,
     masterDataRevision: (source.masterDataRevision ?? 0) + 1,

@@ -3,9 +3,10 @@ import {
   calculateCostBreakdown,
   calculateRoutingDetailedRows,
   calculateTopDrivers,
-  calculateScenarioCosts
+  calculateSnapshotCost
 } from '../src/core/calculations'
 import { CostDriver, CostSnapshot, RoutingStep } from '../src/core/types'
+import { SIMULATION_FACTORS, startSimulationFrom } from '../src/features/simulation/simulation-state.ts'
 
 const missingRateRouting: RoutingStep[] = [{
   id: 'routing-unknown-wc',
@@ -77,16 +78,20 @@ const currentSnapshot: CostSnapshot = {
     manning: 1, capacity: 100, yield: 1, confidence: {}
   }]
 }
-const scenario = calculateScenarioCosts(currentSnapshot, [{
-  letter: 'A',
-  label: 'Attempt unsupported rate addition',
-  overrides: { rates: { 'new-rate': { laborRate: 100, burdenRate: 100 } } }
-}])[0]
-assert.ok(scenario, 'shared-engine scenario result should exist')
-assert.equal(scenario.scenarioCost.labor, null, 'scenario must not fabricate a Work Center rate')
-assert.equal(scenario.scenarioCost.burden, null, 'scenario must not fabricate a Work Center burden rate')
-assert.equal(scenario.scenarioCost.total, null, 'missing Work Center data must remain unresolved')
-assert.ok(scenario.overrideWarnings.some(warning => warning.includes('no matching record')))
-assert.equal(currentSnapshot.rates.length, 0, 'scenario override must not add a Work Center rate record')
+const cost = calculateSnapshotCost(currentSnapshot)
+assert.equal(cost.labor, null, 'Standard Cost must keep missing Work Center labor unavailable')
+assert.equal(cost.burden, null, 'Standard Cost must keep missing Work Center burden unavailable')
+assert.equal(cost.total, null, 'missing Work Center data must remain unresolved')
 
-console.log('Missing Work Center rate self-check: PASS')
+const simState = startSimulationFrom('current', {
+  reference: currentSnapshot,
+  current: currentSnapshot,
+  custom: currentSnapshot
+})
+assert.deepEqual(SIMULATION_FACTORS, [
+  'bom.price', 'bom.consumption', 'bom.loss',
+  'routing.manning', 'routing.capacity', 'routing.yield'
+], 'Simulation exposes no Work Center rate factors')
+assert.equal(simState.snapshot?.rates.length, 0, 'starting SIM does not fabricate Work Center rate records')
+
+console.log('Missing Work Center rate verification passed; no Simulation rate override is available')

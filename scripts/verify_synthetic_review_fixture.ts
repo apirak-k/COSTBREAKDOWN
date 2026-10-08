@@ -107,6 +107,10 @@ const savedFixtureSession: ProductSession = {
   candidateRcaRecords: {
     stale: { candidateKey: 'stale', rootCause: 'Old note', action: 'Old action', updatedAt: '2026-01-01' }
   },
+  rcaCases: {
+    'old-case': { id: 'old-case', candidateKeys: ['bom:stale'], rootCause: 'Old case cause', action: 'Old case action', updatedAt: '2026-01-01' }
+  },
+  activeRcaCaseId: 'old-case',
   candidateControllability: { stale: false },
   status: 'active',
   createdAt: '2026-01-01',
@@ -124,6 +128,8 @@ const savedFixtureSession: ProductSession = {
 const resetFixtureSession = resetDevelopmentReviewFixtureSession(savedFixtureSession, qualityPair, '2026-10-06T00:00:00.000Z')
 assert.deepEqual(resetFixtureSession.lastSavedMasterData, {}, 'reloading a review fixture removes stale Last Saved copies')
 assert.deepEqual(resetFixtureSession.candidateRcaRecords, {}, 'reloading a review fixture removes stale RCA notes')
+assert.deepEqual(resetFixtureSession.rcaCases, {}, 'reloading a review fixture removes stale RCA Cases')
+assert.equal(resetFixtureSession.activeRcaCaseId, undefined, 'reloading a review fixture clears the active RCA Case')
 assert.deepEqual(resetFixtureSession.candidateControllability, {}, 'reloading a review fixture resets candidate annotations')
 assert.deepEqual(resetFixtureSession.selectedDriverKeys, [])
 assert.deepEqual(resetFixtureSession.preparedSnapshotRoles, { reference: true, current: true })
