@@ -66,6 +66,14 @@
 - ADDED rows have a SIM-side record and can be edited; REMOVED rows have no SIM-side record and render without an editor. Ambiguous and unmatched identities remain visible as issues and cannot be edited.
 - A temporary UI preview confirmed the SIM input changes without changing Current. With no Routing rows in that deliberately minimal preview, the shared engine reported missing Routing and left Standard Cost / Parameter Saving unavailable; no fallback value was fabricated.
 
+## Phase 10 findings
+
+- Economic Simulation keeps Action Cost and Evaluation Quantity outside the shared Standard Cost calculation. Required Saving / pc is calculated only from finite Action Cost and a positive Evaluation Quantity; zero or negative quantity and non-finite results are unavailable with a calculation note.
+- Economic-only analysis works after starting a SIM even when no Parameter factors are selected or edited. Required Saving is independent; Economic Margin remains unavailable until Parameter Saving is available.
+- Blank Selling Price and SG&A overrides use Current snapshot values. A non-finite nonblank override stays unavailable and does not silently fall back. Existing `calculateScenarioBusinessMetrics` remains the single implementation of SG&A Amount and OP; negative OP remains a numeric loss.
+- With no override entered, commercial metrics unavailable in Current are omitted from the compact output; invalid calculations remain available under collapsed Calculation notes. This avoids presenting repeated empty fields.
+- `design.md` still requires the three-state Reference → Current → Simulated story graph. The older A/B comparison selector can be retired, but the compatible three-state story must be retained in active Simulation.
+
 ## Baseline verification discoveries
 
 - `npm run build` passed at baseline (`tsc -b && vite build`; exit 0). Vite emitted the existing ExcelJS `fs`/`crypto` browser-externalization warnings; 2,035 modules transformed.

@@ -3,6 +3,7 @@ import type { CostSnapshot, MasterDataRole } from '../src/core/types'
 import {
   createEmptySimulationState,
   reconcileSimulationState,
+  setSimulationEconomicInput,
   startSimulationFrom
 } from '../src/features/simulation/simulation-state.ts'
 
@@ -45,6 +46,14 @@ const changedCurrent = reconcileSimulationState(referenceSim, sources(10, 13))
 assert.deepEqual(changedCurrent, createEmptySimulationState(), 'Changing the Current comparison basis invalidates SIM deterministically')
 const changedUnrelatedSource = reconcileSimulationState(referenceSim, sources(10, 12, 99))
 assert.strictEqual(changedUnrelatedSource, referenceSim, 'A non-source, non-basis dataset change does not invalidate SIM')
+
+const withEconomics = setSimulationEconomicInput(referenceSim, 'actionCost', '100000')
+assert.equal(withEconomics.economicInputs.actionCost, '100000')
+assert.equal(referenceSim.economicInputs.actionCost, '', 'economic edits do not mutate prior workspace state')
+assert.strictEqual(reconcileSimulationState(withEconomics, initial), withEconomics, 'unchanged basis preserves economic inputs')
+const { economicInputs: _removed, ...legacyState } = withEconomics
+const upgradedLegacyState = reconcileSimulationState(legacyState as typeof withEconomics, initial)
+assert.deepEqual(upgradedLegacyState.economicInputs, createEmptySimulationState().economicInputs, 'older Simulation state gains blank economic inputs')
 
 const customSim = startSimulationFrom('custom', initial)
 assert.equal(customSim.sourceRole, 'custom')

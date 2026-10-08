@@ -12,12 +12,14 @@ import {
   createEmptySimulationState,
   reconcileSimulationState,
   retainSimulationStatesForProducts,
+  setSimulationEconomicInput,
   setSimulationFactors,
   startSimulationFrom,
   type SimulationWorkspaceState
 } from './features/simulation/simulation-state'
 import { updateSimulationParameter } from './features/simulation/simulation-engine'
 import type { SimulationFactor } from './features/simulation/simulation-state'
+import type { EconomicSimulationField } from './features/simulation/simulation-economics'
 import { loadFromSession, saveToSession, STORAGE_KEYS } from './services/storage'
 
 const AppRouter: React.FC = () => {
@@ -80,6 +82,10 @@ const AppRouter: React.FC = () => {
     updateSimulationState(state => setSimulationFactors(state, factors))
   }
 
+  const updateEconomicInput = (field: EconomicSimulationField, value: string) => {
+    updateSimulationState(state => setSimulationEconomicInput(state, field, value))
+  }
+
   const updateParameter = (recordId: string, factor: SimulationFactor, value: number | null) => {
     updateSimulationState(state => updateSimulationParameter(
       state,
@@ -103,6 +109,7 @@ const AppRouter: React.FC = () => {
           onReset={resetSimulation}
           onSelectFactors={selectSimulationFactors}
           onUpdateParameter={updateParameter}
+          onUpdateEconomicInput={updateEconomicInput}
         />
       )}
     </AppLayout>

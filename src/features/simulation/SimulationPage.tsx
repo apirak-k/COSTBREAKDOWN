@@ -2,6 +2,8 @@ import React, { useMemo } from 'react'
 import { formatNumber } from '../../core'
 import type { CostSnapshot, MasterDataRole, SnapshotBOMItem, SnapshotRoutingStep } from '../../core/types'
 import { PageHeading } from '../../shared'
+import { EconomicSimulationPanel } from './EconomicSimulationPanel'
+import type { EconomicSimulationField } from './simulation-economics'
 import type { ParameterSimulationResult, SimulationComparisonRow, SimulationRecordKind } from './simulation-engine'
 import { calculateParameterSimulation } from './simulation-engine'
 import type { SimulationFactor, SimulationWorkspaceState } from './simulation-state'
@@ -14,6 +16,7 @@ interface SimulationPageProps {
   onReset: () => void
   onSelectFactors: (factors: SimulationFactor[]) => void
   onUpdateParameter: (recordId: string, factor: SimulationFactor, value: number | null) => void
+  onUpdateEconomicInput: (field: EconomicSimulationField, value: string) => void
 }
 
 const SOURCES: Array<{ role: MasterDataRole; label: string }> = [
@@ -244,7 +247,8 @@ export const SimulationPage: React.FC<SimulationPageProps> = ({
   onStartFrom,
   onReset,
   onSelectFactors,
-  onUpdateParameter
+  onUpdateParameter,
+  onUpdateEconomicInput
 }) => {
   const sourceLabel = SOURCES.find(source => source.role === state.sourceRole)?.label
   const result = useMemo(
@@ -307,6 +311,14 @@ export const SimulationPage: React.FC<SimulationPageProps> = ({
           </section>
 
           <CostSummary result={result} />
+
+          <EconomicSimulationPanel
+            currentSnapshot={currentSnapshot}
+            simulationCost={result.simulationCost}
+            parameterSavingPerPiece={result.parameterSavingPerPiece}
+            draft={state.economicInputs}
+            onUpdate={onUpdateEconomicInput}
+          />
 
           <section className="border border-slate-300 bg-white p-3" aria-labelledby="simulation-factors-title">
             <h2 id="simulation-factors-title" className="font-sans text-sm font-semibold text-slate-950">Factors to Simulate</h2>

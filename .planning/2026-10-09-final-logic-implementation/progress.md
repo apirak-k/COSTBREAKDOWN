@@ -155,7 +155,7 @@
 
 ### Phase 9 — Parameter Simulation UI
 
-- **Status:** ready_to_commit
+- **Status:** complete
 - Connected Simulation UI to the independent per-product SIM state and Current Working snapshot.
 - Added the Current-vs-SIM Material, Labor, Burden, and Standard Cost summary; Parameter Saving remains unavailable when either complete Standard Cost is unavailable.
 - Exposed all six allowed factors as edit-visibility controls. Edits apply only to unambiguous SIM-side BOM/Routing rows; ADDED rows are editable, REMOVED rows remain visible without a SIM editor, and identity issues are not editable.
@@ -166,7 +166,26 @@
 - `npm run build` — PASS; 2,042 modules transformed. Existing ExcelJS browser externalization warnings remain.
 - Isolated browser preview — PASS: Start SIM From Current showed Current and SIM values; selecting BOM Price exposed a SIM-only input; changing SIM Price from 12 to 10 kept Current at 12 and changed status to CHANGED. The minimal preview had no Routing rows, so shared calculation warnings correctly left Standard Cost unavailable. The temporary preview tab and its session data were closed.
 - `git diff --check` — PASS; only Git line-ending notices.
-- **Phase 9 commit:** pending.
+- **Phase 9 commit:** `cca628e74ce920dcc6f5d436761f7e4e42bc8505` (`feat: add parameter simulation workflow`).
+
+### Phase 10 — Independent Economic Simulation
+
+- **Status:** ready_to_commit
+- Added a failing-first verifier for Action Cost / Evaluation Quantity, Required Saving / pc, Economic Margin, invalid/overflow inputs, commercial fallbacks, negative OP, economic-only calculation, and draft immutability. The initial run failed because the new module did not exist (expected RED).
+- Reused the existing finalized Selling Price / SG&A Amount / OP calculation rather than duplicating its percentage formula.
+- Added a separate economic calculation module. Action Cost and Evaluation Quantity calculate Required Saving / pc; Economic Margin is shown only when both Required Saving and Parameter Saving are available. The economic result does not change SIM Standard Cost.
+- Added session-scoped economic inputs and legacy-state normalization, including commercial override fields. Blank overrides resolve to Current; invalid non-finite overrides remain unavailable instead of falling back.
+- Added the Economic Simulation panel with Action Cost, Evaluation Quantity, optional Selling Price / SG&A overrides, Required Saving, advisory break-even margin, and available business outputs. Empty business outputs and ordinary missing values stay quiet; invalid input/formula warnings are available under Calculation notes.
+- Targeted verification:
+  - `verify_simulation_economics.ts` — PASS.
+  - `verify_simulation_workspace.ts` — PASS, including old-state normalization and economic-input state isolation.
+  - `verify_parameter_simulation_engine.ts` — PASS.
+  - `verify_scenario_business_metrics.ts` — PASS.
+  - `verify_scenario_variables.ts` — PASS (legacy verifier retained until caller inspection in Phase 11).
+  - `npx tsc --noEmit --pretty false` — PASS.
+  - `npm run build` — PASS; 2,044 modules transformed; existing ExcelJS browser externalization warnings remain.
+  - Isolated browser preview — PASS: with no selected/edited parameter factors, Action Cost 100,000 and Evaluation Quantity 100,000 produced Required Saving 1.0000 THB/pc; explicit Selling Price 100 and SG&A 10% produced SG&A 10.0000 THB/pc. Standard Cost remained unavailable in the empty preview; no Economic Margin or OP was fabricated.
+- **Phase 10 commit:** pending.
 
 ## Error Log
 

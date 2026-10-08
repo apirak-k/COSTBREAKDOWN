@@ -1,4 +1,10 @@
 import type { CostSnapshot, MasterDataRole } from '../../core/types'
+import {
+  createEconomicSimulationDraft,
+  updateEconomicSimulationDraft,
+  type EconomicSimulationDraft,
+  type EconomicSimulationField
+} from './simulation-economics'
 
 export type SimulationSources = Record<MasterDataRole, CostSnapshot>
 export const SIMULATION_FACTORS = [
@@ -13,12 +19,20 @@ export interface SimulationWorkspaceState {
   snapshot: CostSnapshot | null
   startedAt: string | null
   selectedFactors: SimulationFactor[]
+  economicInputs: EconomicSimulationDraft
 }
 
 const MASTER_DATA_ROLES: MasterDataRole[] = ['reference', 'current', 'custom']
 
 export function createEmptySimulationState(): SimulationWorkspaceState {
-  return { sourceRole: null, basisFingerprint: null, snapshot: null, startedAt: null, selectedFactors: [] }
+  return {
+    sourceRole: null,
+    basisFingerprint: null,
+    snapshot: null,
+    startedAt: null,
+    selectedFactors: [],
+    economicInputs: createEconomicSimulationDraft()
+  }
 }
 
 export function simulationBasisFingerprint(sourceRole: MasterDataRole, sources: SimulationSources): string {
@@ -35,7 +49,8 @@ export function startSimulationFrom(
     basisFingerprint: simulationBasisFingerprint(sourceRole, sources),
     snapshot: structuredClone(sources[sourceRole]),
     startedAt: now,
-    selectedFactors: []
+    selectedFactors: [],
+    economicInputs: createEconomicSimulationDraft()
   }
 }
 
@@ -44,15 +59,33 @@ export function reconcileSimulationState(
   sources: SimulationSources
 ): SimulationWorkspaceState {
   if (!state) return createEmptySimulationState()
-  if (!state.sourceRole && !state.snapshot && !state.basisFingerprint && !state.startedAt) return state
-  if (!state.sourceRole || !MASTER_DATA_ROLES.includes(state.sourceRole) || !state.snapshot || !state.basisFingerprint) return createEmptySimulationState()
-  if (simulationBasisFingerprint(state.sourceRole, sources) !== state.basisFingerprint) return createEmptySimulationState()
+
   const selectedFactors = [...new Set((Array.isArray(state.selectedFactors) ? state.selectedFactors : [])
     .filter((factor): factor is SimulationFactor => SIMULATION_FACTORS.includes(factor as SimulationFactor)))]
-  return selectedFactors.length === state.selectedFactors?.length
+  const storedInputs = state.economicInputs
+  const economicInputs: EconomicSimulationDraft = {
+    actionCost: typeof storedInputs?.actionCost === 'string' ? storedInputs.actionCost : '',
+    evaluationQuantity: typeof storedInputs?.evaluationQuantity === 'string' ? storedInputs.evaluationQuantity : '',
+    sellingPriceOverride: typeof storedInputs?.sellingPriceOverride === 'string' ? storedInputs.sellingPriceOverride : '',
+    sgaPercentOverride: typeof storedInputs?.sgaPercentOverride === 'string' ? storedInputs.sgaPercentOverride : ''
+  }
+
+  if (!state.sourceRole && !state.snapshot && !state.basisFingerprint && !state.startedAt) {
+    const factorsUnchanged = selectedFactors.length === state.selectedFactors?.length
+      && selectedFactors.every((factor, index) => factor === state.selectedFactors?.[index])
+    const inputsUnchanged = Object.keys(economicInputs).every(key =>
+      economicInputs[key as EconomicSimulationField] === storedInputs?.[key as EconomicSimulationField])
+    return factorsUnchanged && inputsUnchanged
+      ? state
+      : { ...createEmptySimulationState(), selectedFactors, economicInputs }
+  }
+  if (!state.sourceRole || !MASTER_DATA_ROLES.includes(state.sourceRole) || !state.snapshot || !state.basisFingerprint) return createEmptySimulationState()
+  if (simulationBasisFingerprint(state.sourceRole, sources) !== state.basisFingerprint) return createEmptySimulationState()
+  const factorsUnchanged = selectedFactors.length === state.selectedFactors?.length
     && selectedFactors.every((factor, index) => factor === state.selectedFactors?.[index])
-    ? state
-    : { ...state, selectedFactors }
+  const inputsUnchanged = Object.keys(economicInputs).every(key =>
+    economicInputs[key as EconomicSimulationField] === storedInputs?.[key as EconomicSimulationField])
+  return factorsUnchanged && inputsUnchanged ? state : { ...state, selectedFactors, economicInputs }
 }
 
 export function setSimulationFactors(
@@ -64,6 +97,15 @@ export function setSimulationFactors(
   if (selectedFactors.length === state.selectedFactors.length
     && selectedFactors.every((factor, index) => factor === state.selectedFactors[index])) return state
   return { ...state, selectedFactors }
+}
+
+export function setSimulationEconomicInput(
+  state: SimulationWorkspaceState,
+  field: EconomicSimulationField,
+  value: string
+): SimulationWorkspaceState {
+  const economicInputs = updateEconomicSimulationDraft(state.economicInputs, field, value)
+  return economicInputs === state.economicInputs ? state : { ...state, economicInputs }
 }
 
 export function retainSimulationStatesForProducts(

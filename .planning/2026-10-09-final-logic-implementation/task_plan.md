@@ -15,11 +15,11 @@ Align the implementation with the user-finalized COSTBREAKDOWN logic while prese
 
 ## Next Step
 
-Implement independent Economic Simulation inputs and results, without changing Standard Cost.
+Retire the old A/B/Trial active architecture while preserving the finalized Reference → Current → Simulated storytelling graph.
 
 ## Current Phase
 
-Phase 9 — Parameter Simulation UI
+Phase 10 — Independent Economic Simulation
 
 ## Phases
 
@@ -82,16 +82,19 @@ Phase 9 — Parameter Simulation UI
 
 ### Phase 9 — Parameter Simulation UI
 - [x] Expose source, Current comparison, factors, editable values, live results, and statuses without WC-rate or structural editing.
-- [x] Verify UI interaction, typecheck/build, and diff; commit is the next action.
-- **Status:** ready_to_commit
+- [x] Verify UI interaction, typecheck/build, and diff.
+- [x] Commit this phase.
+- **Status:** complete (`cca628e74ce920dcc6f5d436761f7e4e42bc8505`)
 
 ### Phase 10 — Independent Economic Simulation
-- [ ] Implement Action Cost, Evaluation Quantity, Required Saving/pc, and advisory combined Economic Margin without changing Standard Cost.
-- [ ] Preserve Selling Price, SG&A, and negative OP formulas.
-- [ ] Verify and commit this phase.
-- **Status:** pending
+- [x] Implement Action Cost, Evaluation Quantity, Required Saving/pc, and advisory combined Economic Margin without changing Standard Cost.
+- [x] Preserve Selling Price, SG&A, and negative OP formulas.
+- [x] Verify calculations, state migration, UI behavior, typecheck/build, and diff.
+- [ ] Commit this phase after final diff review.
+- **Status:** ready_to_commit
 
 ### Phase 11 — Retire superseded active logic and final verification
+- [ ] Keep the finalized Reference → Current → Simulated story graph, using the active SIM as Simulated, without requiring A/B choice.
 - [ ] Remove unused active A/B, Trial, single-Candidate RCA, WC-rate Simulation, and categorized economics paths after caller inspection.
 - [ ] Run complete relevant verification, workbook checks, build, diff review, and `git diff --check`.
 - [ ] Update HANDOFF with evidence, phase commits, limitations, and final alignment status; commit separately.
