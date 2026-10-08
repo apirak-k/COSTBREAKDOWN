@@ -190,14 +190,18 @@
 
 ### Phase 11 — Retire superseded active logic
 
-- **Status:** implementation verified; final repository verification pending.
+- **Status:** source implementation and final verification complete; target branch push pending.
 - Connected the finalized Reference → Current → Simulated story to the active Simulation page. Reference and Current use the shared comparison/cost engine; Simulated uses the active SIM cost and its economic business result.
 - Kept Parameter Saving in one visible summary. MAT/LB/BD/Standard Cost current-vs-SIM detail is collapsed because the story table already shows the same state metrics and adjacent gaps. Removed repeated Selling Price/SG&A/OP outputs from Economic Simulation; the story graph is their single output.
 - Removed the inactive combined `rca-simulation` feature, A/B draft/input/result components, Work Center rate override path, old categorized economics calculator/types, and their public exports after confirming there were no active application callers.
 - Removed the legacy per-Candidate RCA write API from the app store. Kept only the deprecated persisted `candidateRcaRecords` field and migration reader so saved RCA text remains available in the new case model.
 - Repointed retired-path verifiers to the independent Simulation, Economic Simulation, RCA Case, and active story behaviors. Updated the Cost Breakdown SSR feedback fixture for the current RCA Case store shape.
-- Targeted checks — PASS: `npx tsc --noEmit --pretty false`; `verify_simulation_story_view.ts`; `verify_rca_candidate_notes.ts`; `verify_rca_handoff.ts`; `verify_rca_case_domain.ts`; `verify_scenario_business_metrics.ts`; `verify_scenario_cost_overrides.ts`; `verify_scenario_draft.ts`; `verify_scenario_input_mapping.ts`; `verify_scenario_variables.ts`; `verify_simulation_context.ts`; `verify_simulation_economics.ts`; `verify_simulation_workspace.ts`; `verify_parameter_simulation_engine.ts`; `node scripts/verify_cost_breakdown_review_feedback.mjs`; active-source legacy scan; `git diff --check`.
-- **Phase 11 source commit:** pending final diff review.
+- Final verification — PASS: all 55 `scripts/verify*.ts` scripts, including the canonical neutral workbook verifier; both MJS verifiers (`verify_master_data_ui_state.mjs` and `verify_cost_breakdown_review_feedback.mjs`); `npx tsc --noEmit --pretty false`; `npm run build` (2,032 modules); and `git diff --check` against the supplied baseline.
+- Browser verification — PASS: started SIM from Current, navigated to Master Data and back, and reloaded. The active SIM basis and Reference → Current → Simulated graph remained visible. This browser check used empty local datasets, so calculated values correctly showed unavailable; numeric and populated-snapshot behavior is covered by the verifier suite.
+- Existing limitations/warnings: Vite continues to report ExcelJS `fs` / `crypto` browser-externalization warnings during production build. The Master Data UI state verifier still notes it does not cover a separate process restart; this run verified app navigation and page reload only.
+- Review-fixture fixes discovered during full verification are included in follow-up commit `8e0944c` (`fix: clear stale RCA state in review fixtures`). The retired Work Center-rate verifier now asserts the shared Standard Cost behavior and finalized six-factor Simulation set.
+- **Phase 11 source commits:** `a72570a` (`refactor: remove superseded RCA and simulation logic`) and `8e0944c` (review-fixture/verifier follow-up).
+- `HANDOFF.md` and this verification record are documentation-only changes, separated from the application implementation.
 
 ## Error Log
 
@@ -209,13 +213,15 @@
 | 2026-10-09 | First RCA-retirement verifier checked for a removed directory that remained empty after tracked files were deleted. | 1 | Removed the empty directories and narrowed the assertion to the retired page file. |
 | 2026-10-09 | First overflow fixture used 100% SG&A, which did not overflow the selected finite Selling Price. | 1 | Set the fixture to 200%; the finalized formula now produces the intended non-finite result. |
 | 2026-10-09 | Cost Breakdown SSR fixture omitted the active RCA Case state/callbacks. | 1 | Added empty case state and callbacks; the feedback verifier passes. |
+| 2026-10-09 | Full verification found the retired Work Center-rate verifier still importing the removed scenario calculator, and the synthetic fixture retained old/new RCA data on reset. | 1 | Repointed the verifier to active shared calculation rules and cleared both legacy and case RCA state; all 55 TypeScript verifiers pass. |
+| 2026-10-09 | Initial local preview arguments were misparsed, producing a 404 or an IPv4 connection refusal. | 1 | Stopped that preview and used the Vite localhost listener on port 5175; browser navigation and reload checks passed. |
 
 ## 5-Question Reboot Check
 
 | Question | Answer |
 |---|---|
-| Where am I? | Phases 0–10 are complete; Phase 11 is in progress. |
-| Where am I going? | Retire superseded active paths, finish final verification/handoff, and push the authorized implementation branch. |
+| Where am I? | Phases 0–11 source implementation and verification are complete; the handoff commit and push remain. |
+| Where am I going? | Commit the final evidence and push the authorized implementation branch normally. |
 | What's the goal? | Align implementation with finalized logic, verify it, and push the authorized implementation branch. |
 | What have I learned? | Canonical specs changed after the old source checkpoint; see `findings.md`. |
-| What have I done? | Completed independent Parameter and Economic Simulation. Phase 11 must preserve the confirmed three-state story graph while removing the inactive old A/B/Trial implementation. |
+| What have I done? | Completed Custom Master Data, multi-Candidate RCA, independent Parameter/Economic Simulation, the three-state cost story, and retirement of superseded active paths; 55/55 TypeScript and 2/2 MJS verifiers pass. |

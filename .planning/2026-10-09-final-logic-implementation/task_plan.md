@@ -15,7 +15,7 @@ Align the implementation with the user-finalized COSTBREAKDOWN logic while prese
 
 ## Next Step
 
-Retire the old A/B/Trial active architecture while preserving the finalized Reference → Current → Simulated storytelling graph.
+Push the verified final-logic implementation branch after committing the completed handoff and verification record.
 
 ## Current Phase
 
@@ -96,8 +96,9 @@ Phase 11 — Retire superseded active logic and final verification
 ### Phase 11 — Retire superseded active logic and final verification
 - [x] Keep the finalized Reference → Current → Simulated story graph, using the active SIM as Simulated, without requiring A/B choice.
 - [x] Remove unused active A/B, Trial, single-Candidate RCA, WC-rate Simulation, and categorized economics paths after caller inspection.
-- [ ] Run complete relevant verification, workbook checks, build, diff review, and `git diff --check`.
-- [ ] Update HANDOFF with evidence, phase commits, limitations, and final alignment status; commit separately.
+- [x] Run complete relevant verification, workbook checks, build, diff review, and `git diff --check`.
+- [x] Verify Simulation navigation and state retention after reload in a browser.
+- [x] Update HANDOFF with evidence, phase commits, limitations, and final alignment status; keep it separate from application changes.
 - [ ] Confirm branch/worktree/history and push normally; do not merge to main or force-push.
 - **Status:** in_progress
 
@@ -114,3 +115,4 @@ Phase 11 — Retire superseded active logic and final verification
 | Error | Attempt | Resolution |
 |---|---:|---|
 | Initial PowerShell parsing of an unquoted Git revision expression failed. | 1 | Quoted the revision expression; verified the baseline SHA and branch state successfully. |
+| An initial local preview command forwarded host/port values as positional arguments, so its root responded with 404 or was unreachable at IPv4. | 1 | Stopped the misconfigured preview, used Vite's available localhost listener on port 5175, and confirmed HTTP 200 plus the application UI in-browser. |

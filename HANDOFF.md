@@ -1,57 +1,58 @@
-# Current Handoff — Documentation Migration to Latest Final Logic
+# Current Handoff — Final Logic Implementation
 
-**Updated:** 2026-10-08
-**Checkpoint:** Documentation Migration & Preservation Repair Complete; Implementation Audit & Alignment Pending
+**Updated:** 2026-10-09
+**Checkpoint:** Finalized business logic implemented and verified
 
 ## Active Checkpoint
 
 - **Repository:** `apirak-k/COSTBREAKDOWN`
-- **Working branch:** `codex/costbreakdown-spec-source`
-- **Remote target:** `origin/codex/costbreakdown-spec-source`
-- **Baseline commit audited:** `9de6bce516d1ce8abcd7b0758cfa5ca424885a28`
-- **Status:** **Documentation requirements migration and preservation repair complete.** Canonical specifications under `docs/specs/`, `docs/REQUIREMENTS_INDEX.md`, `docs/SYSTEM_LOGIC_DIAGRAM.md`, `docs/PROVISIONAL_IMPLEMENTATION_DECISIONS.md`, and `design.md` reflect the user-finalized business logic with compatible requirements preserved.
-- **Verification Status:** Text encoding clean (zero mojibake), `git diff --check` clean, markdown link check clean (0 broken links across 47 documents), production build (`npm run build`) verified passing.
-- **Implementation Status Notice:** **Application source code has NOT yet been audited or aligned with the newly migrated business logic.** Prior verification passes and the 430-item audit evidence cited below reflect the immediately preceding baseline (which implemented the earlier exact-A/B, single-candidate RCA, and categorized economics model). Do not falsely claim code conformance with the new logic until the code audit and implementation tasks are executed.
+- **Implementation branch:** `codex/final-logic-implementation`
+- **Remote target:** `origin/codex/final-logic-implementation`
+- **Worktree:** `.worktrees/codex-final-logic-implementation`
+- **Implementation baseline:** `665099b71319ec98c537a0859336dc01b9acc118`
+- **Latest application source commit:** `8e0944c5d8527d6ac8b6571a766f90810bbeee3a`
+- **Status:** Application behavior is aligned with `docs/specs/FINAL_LOGIC_SPEC.md`, while compatible finalized requirements in the existing specs and `design.md` remain in force. The documentation source branch was not modified.
 
-## Key Finalized Business Logic Migrated in Canonical Docs
+## Verification
 
-1. **Master Data Workspaces:** `Reference | Current | Custom`. `Custom` is a free semantic workspace without hard-coded meaning (not locked to Trial, Simulation, Proposal, or Future).
-2. **Master Data Owns Structural Changes:** Adding/removing records, table resizing, and Sizing adjustments belong in Master Data / Custom. Simulation cannot perform structural changes.
-3. **`Clone From` Semantics:** Active dataset is Destination; user selects Source dataset. E.g., `Custom → Clone From Current` and `Current → Clone From Custom`. No separate promotion lifecycle.
-4. **CBD Scope:** Cost Breakdown compares strictly `Reference vs Current`. `Custom` is not compared directly in CBD.
-5. **Selected Comparison Boundary:** Selected Comparison is a temporary analysis scope, not a dataset and not an RCA Case.
-6. **Multi-Candidate RCA Cases:** One RCA Case supports **1 or Multiple Candidates** to represent real-world structural changes (e.g. QA1 REMOVED, QA1.1 ADDED, QA1.2 ADDED analyzed together).
-7. **RCA Completion Boundary:** RCA legitimately completes upon recording **Root Cause / Why?** and **Action**. Simulation is optional; Trial is not required.
-8. **No Duplicate RCA Notes:** Existing Master Data annotations (`Note`, `META.Dataset Remark`) remain separate; no duplicate RCA Note system is created.
-9. **Simulation Architecture:** Single module with two dimensions:
-   - **Parameter Simulation:** Starts from `Reference`, `Current`, or `Custom`. Structure is locked. Current vs SIM comparison. Statuses: CHANGED, UNCHANGED, ADDED (editable); REMOVED (visible, disabled). User selects multiple Factors to Simulate (controls editing UI, not calculation scope; full SIM dataset recalculates live). SIM-editable: BOM (Price, Usage, Loss) and Routing (Manning, Cap, Yield). Work Center rates are **not** SIM-editable.
-   - **Economic Simulation:** Inputs: Action Cost (THB) and Evaluation Quantity (pcs). Formula: $\text{Required Saving / pc} = \frac{\text{Action Cost}}{\text{Evaluation Quantity}}$. Economics is **separate from Standard Cost** (Action Cost is NOT folded into MAT/LB/BD/Standard Cost).
-   - **Combined Evaluation:** Compares Parameter Saving vs Required Saving to calculate Economic Margin. Advisory result; not an approval gate.
-10. **Scenario Count:** Exactly Scenario A and B is **not a mandatory business requirement**.
-11. **Selling Price, SG&A, and OP:** Preserved finalized formulas: $\text{SG&A amount} = \text{Selling Price} \times \text{SG\&A \%}$; $\text{OP} = \text{Selling Price} - \text{Standard Cost} - \text{SG\&A amount}$ (negative OP = operating loss). MatVAR, LBVAR, BDVAR remain out of scope.
-12. **Trial Lifecycle Boundary:** No dedicated Trial execution, validation, approval, or promotion lifecycle. Custom stores trial data; promote via `Clone From Custom`.
+- All 55 TypeScript verifier scripts pass, including `verify_neutral_dataset_workbook.ts`.
+- Both MJS verifiers pass: `verify_master_data_ui_state.mjs` and `verify_cost_breakdown_review_feedback.mjs`.
+- `npx tsc --noEmit --pretty false` passes.
+- `npm run build` passes with 2,032 modules transformed.
+- `git diff --check` passes against the implementation baseline.
+- Browser check passes for Start SIM From Current, navigation to Master Data and back, and reload retaining the active SIM and Reference → Current → Simulated story graph.
 
-## Canonical Documentation Target Structure
+## Remaining Verification Limits and Build Notes
 
-The active canonical documentation structure is:
+- The browser check used an empty local dataset. The graph was present and correctly showed unavailable values; calculation and populated-snapshot cases are covered by the verifier suite.
+- `verify_master_data_ui_state.mjs` still notes it does not exercise a separate process restart. This run verified in-app navigation and page reload, not a full browser/process restart.
+- Vite reports the existing ExcelJS `fs` / `crypto` browser-externalization warnings during build; the production build completes successfully.
+- The worktree contains an unrelated untracked `src/graphify-out/` directory generated by tooling. It was preserved and excluded from commits.
 
-```text
-docs/
-├── REQUIREMENTS_INDEX.md
-├── SYSTEM_LOGIC_DIAGRAM.md
-├── PROVISIONAL_IMPLEMENTATION_DECISIONS.md
-└── specs/
-    ├── FINAL_LOGIC_SPEC.md
-    ├── CROSS_CUTTING.md
-    ├── MASTER_DATA.md
-    ├── COST_BREAKDOWN.md
-    ├── CANDIDATE.md               (Candidate Prioritization & Multi-Candidate RCA)
-    └── SIMULATION.md              (Parameter Simulation & Economic Simulation)
-```
+## Finalized Logic Preserved
+
+1. **Master Data:** Reference, Current, and independent Custom workspaces. The active dataset is the destination for Clone From; structural edits stay in Master Data.
+2. **Cost Breakdown:** Reference vs Current only. Selected Comparison remains a temporary analysis scope and does not carry into Simulation.
+3. **RCA:** One Case can include one or multiple Candidates. Root Cause and Action complete RCA; Simulation is optional. Existing Master Data notes remain separate.
+4. **Simulation:** One independent module starts from Reference, Current, or Custom; its structure is locked and Current vs SIM is the parameter comparison. The six editable factors are BOM Price/Usage/Loss and Routing Manning/Capacity/Yield. Work Center rates are not editable.
+5. **Economics:** Action Cost divided by positive Evaluation Quantity gives Required Saving per piece. Economic Margin compares Required Saving with Parameter Saving and remains advisory; Action Cost does not enter Standard Cost.
+6. **Business formulas:** SG&A amount = Selling Price × SG&A%; OP = Selling Price − Standard Cost − SG&A amount. Negative OP remains visible. The Reference → Current → Simulated graph stays active and shows adjacent signed gaps.
+7. **Superseded workflows:** Scenario A/B is not mandatory. The dedicated Trial lifecycle and old combined A/B simulation flow are retired; Custom remains a general-purpose workspace.
+
+## Implementation Commit Map
+
+- `19303af` — Custom workspace state
+- `b2b4be3` — Custom Master Data actions and isolation
+- `eadc775` — Generic Clone From
+- `368128b` — Multi-Candidate RCA Case domain
+- `74843ed` — Candidate selection and RCA Case workflow
+- `f82a693` — Independent Simulation state and navigation
+- `4910176`, `e770f8d` — Parameter Simulation engine and nullable inputs
+- `cca628e` — Parameter Simulation UI
+- `fd559a0` — Independent Economic Simulation
+- `a72570a`, `8e0944c` — Retire superseded active paths; final fixture/verifier correction
+- `c907efd` — Phase documentation correction
 
 ## Next Step
 
-1. **External Review:** User review and verification of the migrated canonical documentation (`docs/specs/FINAL_LOGIC_SPEC.md`).
-2. **Code Audit:** Perform a systematic code audit of `src/` against the canonical specifications (`docs/specs/`).
-3. **Implementation Gap Analysis:** Identify exact code areas requiring updates (e.g., adding `Custom` workspace, `Clone From` UI, Multi-Candidate RCA selection, Parameter/Economic Simulation separation, locking SIM structure, removing rate editing from SIM, removing categorized economics folding).
-4. **Implementation Planning & Execution:** Formulate phased implementation plan and execute code updates with focused verification.
+No application logic implementation remains in this task. The final handoff/planning evidence is committed separately from the application changes; the authorized delivery target is only `codex/final-logic-implementation`.
