@@ -1,15 +1,16 @@
 # Current Handoff — Documentation Migration to Latest Final Logic
 
 **Updated:** 2026-10-08
-**Checkpoint:** Documentation Migration Complete; Implementation Audit & Alignment Pending
+**Checkpoint:** Documentation Migration & Preservation Repair Complete; Implementation Audit & Alignment Pending
 
 ## Active Checkpoint
 
 - **Repository:** `apirak-k/COSTBREAKDOWN`
 - **Working branch:** `codex/costbreakdown-spec-source`
 - **Remote target:** `origin/codex/costbreakdown-spec-source`
-- **Baseline commit audited:** `9de6bce516d1ce8abcd7b0758cfa5ca424885a28` (`docs: align business concepts summary wording with finalized scope in CROSS_CUTTING.md`)
-- **Status:** **Documentation-only requirements migration complete.** The canonical specifications under `docs/specs/`, `docs/REQUIREMENTS_INDEX.md`, `docs/SYSTEM_LOGIC_DIAGRAM.md`, `docs/PROVISIONAL_IMPLEMENTATION_DECISIONS.md`, and `design.md` have been updated to reflect the latest user-finalized business logic decisions.
+- **Baseline commit audited:** `9de6bce516d1ce8abcd7b0758cfa5ca424885a28`
+- **Status:** **Documentation requirements migration and preservation repair complete.** Canonical specifications under `docs/specs/`, `docs/REQUIREMENTS_INDEX.md`, `docs/SYSTEM_LOGIC_DIAGRAM.md`, `docs/PROVISIONAL_IMPLEMENTATION_DECISIONS.md`, and `design.md` reflect the user-finalized business logic with compatible requirements preserved.
+- **Verification Status:** Text encoding clean (zero mojibake), `git diff --check` clean, markdown link check clean (0 broken links across 47 documents), production build (`npm run build`) verified passing.
 - **Implementation Status Notice:** **Application source code has NOT yet been audited or aligned with the newly migrated business logic.** Prior verification passes and the 430-item audit evidence cited below reflect the immediately preceding baseline (which implemented the earlier exact-A/B, single-candidate RCA, and categorized economics model). Do not falsely claim code conformance with the new logic until the code audit and implementation tasks are executed.
 
 ## Key Finalized Business Logic Migrated in Canonical Docs
