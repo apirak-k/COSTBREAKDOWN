@@ -7,11 +7,18 @@ import {
 } from './simulation-economics'
 
 export type SimulationSources = Record<MasterDataRole, CostSnapshot>
-export const SIMULATION_FACTORS = [
+export type SimulationFactorRecordKind = 'bom' | 'routing'
+
+export const SIMULATION_PARAMETERS = [
   'bom.price', 'bom.consumption', 'bom.loss',
   'routing.manning', 'routing.capacity', 'routing.yield'
 ] as const
-export type SimulationFactor = typeof SIMULATION_FACTORS[number]
+export type SimulationParameter = typeof SIMULATION_PARAMETERS[number]
+export type SimulationFactor = `${SimulationFactorRecordKind}:${string}`
+
+export function simulationFactorId(kind: SimulationFactorRecordKind, recordId: string): SimulationFactor {
+  return `${kind}:${recordId}`
+}
 
 export interface SimulationWorkspaceState {
   sourceRole: MasterDataRole | null
@@ -42,7 +49,8 @@ export function simulationBasisFingerprint(sourceRole: MasterDataRole, sources: 
 export function startSimulationFrom(
   sourceRole: MasterDataRole,
   sources: SimulationSources,
-  now = new Date().toISOString()
+  now = new Date().toISOString(),
+  economicInputs = createEconomicSimulationDraft()
 ): SimulationWorkspaceState {
   return {
     sourceRole,
@@ -50,8 +58,26 @@ export function startSimulationFrom(
     snapshot: structuredClone(sources[sourceRole]),
     startedAt: now,
     selectedFactors: [],
-    economicInputs: createEconomicSimulationDraft()
+    economicInputs: { ...economicInputs }
   }
+}
+
+function factorsAvailableInSnapshot(factors: unknown, snapshot: CostSnapshot | null): SimulationFactor[] {
+  if (!snapshot || !Array.isArray(factors)) return []
+
+  const uniqueIds = (ids: string[]) => {
+    const counts = new Map<string, number>()
+    ids.forEach(id => counts.set(id, (counts.get(id) ?? 0) + 1))
+    return ids.filter(id => counts.get(id) === 1)
+  }
+  const availableFactors = new Set([
+    ...uniqueIds(snapshot.bom.map(item => item.id)).map(id => simulationFactorId('bom', id)),
+    ...uniqueIds(snapshot.routing.map(step => step.id)).map(id => simulationFactorId('routing', id))
+  ])
+
+  return [...new Set(factors.filter((factor): factor is SimulationFactor =>
+    typeof factor === 'string' && availableFactors.has(factor as SimulationFactor)
+  ))]
 }
 
 export function reconcileSimulationState(
@@ -60,8 +86,7 @@ export function reconcileSimulationState(
 ): SimulationWorkspaceState {
   if (!state) return createEmptySimulationState()
 
-  const selectedFactors = [...new Set((Array.isArray(state.selectedFactors) ? state.selectedFactors : [])
-    .filter((factor): factor is SimulationFactor => SIMULATION_FACTORS.includes(factor as SimulationFactor)))]
+  const selectedFactors = factorsAvailableInSnapshot(state.selectedFactors, state.snapshot)
   const storedInputs = state.economicInputs
   const economicInputs: EconomicSimulationDraft = {
     actionCost: typeof storedInputs?.actionCost === 'string' ? storedInputs.actionCost : '',
@@ -93,7 +118,7 @@ export function setSimulationFactors(
   factors: SimulationFactor[]
 ): SimulationWorkspaceState {
   if (!state.snapshot) return state
-  const selectedFactors = [...new Set(factors.filter(factor => SIMULATION_FACTORS.includes(factor)))]
+  const selectedFactors = factorsAvailableInSnapshot(factors, state.snapshot)
   if (selectedFactors.length === state.selectedFactors.length
     && selectedFactors.every((factor, index) => factor === state.selectedFactors[index])) return state
   return { ...state, selectedFactors }

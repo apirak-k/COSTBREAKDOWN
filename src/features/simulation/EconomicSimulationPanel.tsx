@@ -9,6 +9,7 @@ import {
 interface EconomicSimulationPanelProps {
   result: EconomicSimulationResult
   draft: EconomicSimulationDraft
+  hasParameterSimulation: boolean
   onUpdate: (field: EconomicSimulationField, value: string) => void
 }
 
@@ -26,6 +27,7 @@ const INPUTS: Array<{ field: EconomicSimulationField; label: string; unit: strin
 export const EconomicSimulationPanel: React.FC<EconomicSimulationPanelProps> = ({
   result,
   draft,
+  hasParameterSimulation,
   onUpdate
 }) => {
   const margin = result.economicMarginPerPiece
@@ -62,24 +64,26 @@ export const EconomicSimulationPanel: React.FC<EconomicSimulationPanelProps> = (
           )}
         </div>
 
-        <div className="grid content-start gap-3 sm:grid-cols-2">
+        <div className={`grid content-start gap-3 ${hasParameterSimulation ? 'sm:grid-cols-2' : ''}`}>
           <div className="border-l-2 border-slate-900 bg-slate-50 px-3 py-2">
             <p className="text-[11px] font-semibold text-slate-600">Required Saving / pc</p>
             <p className="mt-1 font-mono text-base font-semibold tabular-nums text-slate-950">
               {formatValue(result.requiredSavingPerPiece)} <span className="text-[11px] font-normal text-slate-500">THB/pc</span>
             </p>
           </div>
-          <div className={`border-l-2 px-3 py-2 ${margin === null ? 'border-slate-300 bg-slate-50' : margin >= 0 ? 'border-emerald-700 bg-emerald-50' : 'border-rose-700 bg-rose-50'}`}>
-            <p className="text-[11px] font-semibold text-slate-600">Economic Margin / pc</p>
-            <p className={`mt-1 font-mono text-base font-semibold tabular-nums ${margin === null ? 'text-slate-500' : margin >= 0 ? 'text-emerald-900' : 'text-rose-900'}`}>
-              {formatValue(margin)} <span className="text-[11px] font-normal text-slate-500">THB/pc</span>
-            </p>
-            <p className="mt-1 text-[10px] text-slate-600">
-              {margin === null
-                ? result.parameterSavingPerPiece === null ? 'Needs an available Parameter Saving.' : 'Enter valid economic inputs.'
-                : margin >= 0 ? 'At or above break-even.' : 'Below break-even.'}
-            </p>
-          </div>
+          {hasParameterSimulation && (
+            <div className={`border-l-2 px-3 py-2 ${margin === null ? 'border-slate-300 bg-slate-50' : margin >= 0 ? 'border-emerald-700 bg-emerald-50' : 'border-rose-700 bg-rose-50'}`}>
+              <p className="text-[11px] font-semibold text-slate-600">Economic Margin / pc</p>
+              <p className={`mt-1 font-mono text-base font-semibold tabular-nums ${margin === null ? 'text-slate-500' : margin >= 0 ? 'text-emerald-900' : 'text-rose-900'}`}>
+                {formatValue(margin)} <span className="text-[11px] font-normal text-slate-500">THB/pc</span>
+              </p>
+              <p className="mt-1 text-[10px] text-slate-600">
+                {margin === null
+                  ? result.parameterSavingPerPiece === null ? 'Needs an available Parameter Saving.' : 'Enter valid economic inputs.'
+                  : margin >= 0 ? 'At or above break-even.' : 'Below break-even.'}
+              </p>
+            </div>
+          )}
         </div>
       </div>
       {warnings.length > 0 && (

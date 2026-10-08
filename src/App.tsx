@@ -18,7 +18,7 @@ import {
   type SimulationWorkspaceState
 } from './features/simulation/simulation-state'
 import { updateSimulationParameter } from './features/simulation/simulation-engine'
-import type { SimulationFactor } from './features/simulation/simulation-state'
+import type { SimulationFactor, SimulationParameter } from './features/simulation/simulation-state'
 import type { EconomicSimulationField } from './features/simulation/simulation-economics'
 import { loadFromSession, saveToSession, STORAGE_KEYS } from './services/storage'
 
@@ -55,10 +55,13 @@ const AppRouter: React.FC = () => {
   }, [simulationStatesByProduct])
 
   const startFrom = (role: MasterDataRole) => {
-    setSimulationStatesByProduct(previous => ({
-      ...previous,
-      [activeProductId]: startSimulationFrom(role, masterDataSnapshots)
-    }))
+    setSimulationStatesByProduct(previous => {
+      const priorState = reconcileSimulationState(previous[activeProductId], masterDataSnapshots)
+      return {
+        ...previous,
+        [activeProductId]: startSimulationFrom(role, masterDataSnapshots, undefined, priorState.economicInputs)
+      }
+    })
   }
 
   const resetSimulation = () => {
@@ -86,12 +89,12 @@ const AppRouter: React.FC = () => {
     updateSimulationState(state => setSimulationEconomicInput(state, field, value))
   }
 
-  const updateParameter = (recordId: string, factor: SimulationFactor, value: number | null) => {
+  const updateParameter = (recordId: string, parameter: SimulationParameter, value: number | null) => {
     updateSimulationState(state => updateSimulationParameter(
       state,
       masterDataSnapshots.current,
       recordId,
-      factor,
+      parameter,
       value
     ))
   }

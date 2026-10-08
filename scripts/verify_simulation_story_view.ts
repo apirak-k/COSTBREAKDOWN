@@ -6,7 +6,13 @@ import { createScenarioFinancialResult, createScenarioStory } from '../src/core/
 import type { SnapshotCost } from '../src/core/types'
 import { SimulationStoryGraph } from '../src/features/simulation/SimulationStoryGraph.tsx'
 import { SimulationPage } from '../src/features/simulation/SimulationPage.tsx'
-import { setSimulationFactors, startSimulationFrom } from '../src/features/simulation/simulation-state.ts'
+import {
+  createEmptySimulationState,
+  setSimulationEconomicInput,
+  setSimulationFactors,
+  simulationFactorId,
+  startSimulationFrom
+} from '../src/features/simulation/simulation-state.ts'
 import { updateSimulationParameter } from '../src/features/simulation/simulation-engine.ts'
 
 function cost(snapshotId: string, material: number, labor: number, burden: number): SnapshotCost {
@@ -39,14 +45,23 @@ const product = (id: string, price: number, sellingPrice: number) => ({
   product: { productCode: 'P-1', productDescription: 'Fixture', uom: 'PC', customer: '', effectiveDate: '', sellingPrice, sgaPercent: 10 },
   effectiveDate: '', sourceRef: id, status: 'draft' as const,
   rates: [{ id: `${id}-rate`, workCenterCode: 'WC-1', description: 'Process', laborRate: 10, burdenRate: 5, effectiveDate: '', confidence: {} }],
-  bom: [{ id: `${id}-bom`, itemCode: 'MAT-1', description: 'Material', consumption: 1, unit: 'PC', price, loss: 0, confidence: {} }],
-  routing: [{ id: `${id}-route`, processName: 'Process', workCenterId: 'WC-1', manning: 1, capacity: 10, yield: 1, confidence: {} }]
+  bom: [
+    { id: `${id}-bom`, itemCode: 'MAT-1', description: 'Material X', consumption: 1, unit: 'PC', price, loss: 0, confidence: {} },
+    { id: `${id}-bom-y`, itemCode: 'MAT-2', description: 'Material Y', consumption: 2, unit: 'PC', price: 3, loss: 0.02, confidence: {} }
+  ],
+  routing: [
+    { id: `${id}-route`, processName: 'Process A', workCenterId: 'WC-1', manning: 1, capacity: 10, yield: 1, confidence: {} },
+    { id: `${id}-route-b`, processName: 'Process B', workCenterId: 'WC-1', manning: 2, capacity: 20, yield: 0.95, confidence: {} }
+  ]
 })
 const referenceSnapshot = product('reference', 10, 25)
 const currentSnapshot = product('current', 12, 25)
 const sources = { reference: referenceSnapshot, current: currentSnapshot, custom: product('custom', 12, 25) }
 const simulationBasis = startSimulationFrom('current', sources)
-const selectedState = setSimulationFactors(simulationBasis, ['bom.price'])
+const selectedState = setSimulationFactors(simulationBasis, [
+  simulationFactorId('bom', 'current-bom'),
+  simulationFactorId('routing', 'current-route')
+])
 const simulationState = updateSimulationParameter(selectedState, currentSnapshot, 'current-bom', 'bom.price', 8)
 const pageMarkup = renderToStaticMarkup(React.createElement(SimulationPage, {
   state: simulationState,
@@ -63,6 +78,69 @@ assert.ok(pageText.includes('Reference → Current → Simulated'), 'the active 
 assert.ok(pageText.includes('Gap 1') && pageText.includes('Gap 2'), 'the story uses both adjacent finalized gaps')
 assert.ok(pageText.includes('Parameter Saving / pc'))
 assert.ok(pageText.includes('Reference') && pageText.includes('Current') && pageText.includes('Simulated'))
+for (const label of [
+  'Select Material factor Material X',
+  'Select Material factor Material Y',
+  'Select Process factor Process A',
+  'Select Process factor Process B',
+  'Material X price SIM value',
+  'Material X usage SIM value',
+  'Material X loss SIM value',
+  'Process A manning SIM value',
+  'Process A capacity SIM value',
+  'Process A yield SIM value'
+]) {
+  assert.ok(pageMarkup.includes(`aria-label="${label}"`), `selected record exposes its applicable controls: ${label}`)
+}
+for (const label of [
+  'Material Y price SIM value',
+  'Material Y usage SIM value',
+  'Material Y loss SIM value',
+  'Process B manning SIM value',
+  'Process B capacity SIM value',
+  'Process B yield SIM value'
+]) {
+  assert.ok(!pageMarkup.includes(`aria-label="${label}"`), `unselected record has no visible edit control: ${label}`)
+}
+assert.doesNotMatch(pageMarkup, /BOM · Price|BOM · Usage|BOM · Loss|Routing · Manning|Routing · Capacity|Routing · Yield/)
 assert.doesNotMatch(pageMarkup, /Scenario A|Scenario B|Trial/)
+
+let economicOnlyState = createEmptySimulationState()
+economicOnlyState = setSimulationEconomicInput(economicOnlyState, 'actionCost', '100000')
+economicOnlyState = setSimulationEconomicInput(economicOnlyState, 'evaluationQuantity', '100000')
+const economicOnlyMarkup = renderToStaticMarkup(React.createElement(SimulationPage, {
+  state: economicOnlyState,
+  referenceSnapshot,
+  currentSnapshot,
+  onStartFrom() {},
+  onReset() {},
+  onSelectFactors() {},
+  onUpdateParameter() {},
+  onUpdateEconomicInput() {}
+}))
+const economicOnlyText = economicOnlyMarkup.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ')
+assert.ok(economicOnlyText.includes('Economic Simulation'), 'Economic Simulation is available before Parameter SIM starts')
+assert.ok(economicOnlyText.includes('Action Cost') && economicOnlyText.includes('Evaluation Quantity'))
+assert.ok(economicOnlyText.includes('Required Saving / pc') && economicOnlyText.includes('1.0000'), 'economic-only page calculates Action Cost divided by Evaluation Quantity')
+assert.ok(economicOnlyText.includes('Start SIM From Current'), 'economic-only inputs do not require starting a Parameter SIM')
+assert.ok(!economicOnlyText.includes('Economic Margin / pc'), 'economic-only mode does not show combined-mode margin')
+assert.doesNotMatch(economicOnlyMarkup, /simulation-result-title|simulation-story-title/, 'economic-only mode does not fabricate Parameter results')
+
+const combinedBasis = startSimulationFrom('current', sources, undefined, economicOnlyState.economicInputs)
+assert.equal(combinedBasis.economicInputs.actionCost, '100000', 'starting Parameter SIM preserves independent Economic inputs')
+assert.equal(combinedBasis.economicInputs.evaluationQuantity, '100000')
+const combinedMarkup = renderToStaticMarkup(React.createElement(SimulationPage, {
+  state: combinedBasis,
+  referenceSnapshot,
+  currentSnapshot,
+  onStartFrom() {},
+  onReset() {},
+  onSelectFactors() {},
+  onUpdateParameter() {},
+  onUpdateEconomicInput() {}
+}))
+const combinedText = combinedMarkup.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ')
+assert.ok(combinedText.includes('Parameter Saving / pc'), 'combined mode adds the Parameter Saving output')
+assert.ok(combinedText.includes('Economic Margin / pc') && combinedText.includes('-1.0000'), 'combined mode compares Parameter Saving with Required Saving')
 
 console.log('Simulation story graph verification passed')

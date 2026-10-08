@@ -6,7 +6,7 @@ import {
   calculateSnapshotCost
 } from '../src/core/calculations'
 import { CostDriver, CostSnapshot, RoutingStep } from '../src/core/types'
-import { SIMULATION_FACTORS, startSimulationFrom } from '../src/features/simulation/simulation-state.ts'
+import { SIMULATION_PARAMETERS, startSimulationFrom } from '../src/features/simulation/simulation-state.ts'
 
 const missingRateRouting: RoutingStep[] = [{
   id: 'routing-unknown-wc',
@@ -88,10 +88,10 @@ const simState = startSimulationFrom('current', {
   current: currentSnapshot,
   custom: currentSnapshot
 })
-assert.deepEqual(SIMULATION_FACTORS, [
+assert.deepEqual(SIMULATION_PARAMETERS, [
   'bom.price', 'bom.consumption', 'bom.loss',
   'routing.manning', 'routing.capacity', 'routing.yield'
-], 'Simulation exposes no Work Center rate factors')
+], 'Simulation exposes only the finalized BOM and Routing parameters')
 assert.equal(simState.snapshot?.rates.length, 0, 'starting SIM does not fabricate Work Center rate records')
 
 console.log('Missing Work Center rate verification passed; no Simulation rate override is available')

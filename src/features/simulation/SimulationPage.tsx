@@ -9,8 +9,8 @@ import { SimulationStoryGraph } from './SimulationStoryGraph'
 import { calculateEconomicSimulation, type EconomicSimulationField } from './simulation-economics'
 import type { ParameterSimulationResult, SimulationComparisonRow, SimulationRecordKind } from './simulation-engine'
 import { calculateParameterSimulation } from './simulation-engine'
-import type { SimulationFactor, SimulationWorkspaceState } from './simulation-state'
-import { SIMULATION_FACTORS } from './simulation-state'
+import type { SimulationFactor, SimulationParameter, SimulationWorkspaceState } from './simulation-state'
+import { SIMULATION_PARAMETERS, simulationFactorId } from './simulation-state'
 
 interface SimulationPageProps {
   state: SimulationWorkspaceState
@@ -19,7 +19,7 @@ interface SimulationPageProps {
   onStartFrom: (role: MasterDataRole) => void
   onReset: () => void
   onSelectFactors: (factors: SimulationFactor[]) => void
-  onUpdateParameter: (recordId: string, factor: SimulationFactor, value: number | null) => void
+  onUpdateParameter: (recordId: string, parameter: SimulationParameter, value: number | null) => void
   onUpdateEconomicInput: (field: EconomicSimulationField, value: string) => void
 }
 
@@ -29,7 +29,7 @@ const SOURCES: Array<{ role: MasterDataRole; label: string }> = [
   { role: 'custom', label: 'Custom' }
 ]
 
-const FACTOR_DETAILS: Record<SimulationFactor, { label: string; kind: SimulationRecordKind; displayScale: number }> = {
+const PARAMETER_DETAILS: Record<SimulationParameter, { label: string; kind: SimulationRecordKind; displayScale: number }> = {
   'bom.price': { label: 'Price', kind: 'bom', displayScale: 1 },
   'bom.consumption': { label: 'Usage', kind: 'bom', displayScale: 1 },
   'bom.loss': { label: 'Loss', kind: 'bom', displayScale: 100 },
@@ -38,9 +38,9 @@ const FACTOR_DETAILS: Record<SimulationFactor, { label: string; kind: Simulation
   'routing.yield': { label: 'Yield', kind: 'routing', displayScale: 100 }
 }
 
-function formatParameter(value: number | null, factor: SimulationFactor): string {
+function formatParameter(value: number | null, parameter: SimulationParameter): string {
   if (value === null || !Number.isFinite(value)) return '—'
-  const { displayScale } = FACTOR_DETAILS[factor]
+  const { displayScale } = PARAMETER_DETAILS[parameter]
   const displayedValue = value * displayScale
   return displayScale === 100
     ? `${formatNumber(displayedValue, 1)}%`
@@ -130,7 +130,7 @@ interface ParameterTableProps {
   currentSnapshot: CostSnapshot
   simulationSnapshot: CostSnapshot
   selectedFactors: SimulationFactor[]
-  onUpdate: (recordId: string, factor: SimulationFactor, value: number | null) => void
+  onUpdate: (recordId: string, parameter: SimulationParameter, value: number | null) => void
 }
 
 const ParameterTable: React.FC<ParameterTableProps> = ({
@@ -141,7 +141,7 @@ const ParameterTable: React.FC<ParameterTableProps> = ({
   selectedFactors,
   onUpdate
 }) => {
-  const factors = SIMULATION_FACTORS.filter(factor => FACTOR_DETAILS[factor].kind === kind)
+  const parameters = SIMULATION_PARAMETERS.filter(parameter => PARAMETER_DETAILS[parameter].kind === kind)
   const currentRows = kind === 'bom' ? currentSnapshot.bom : currentSnapshot.routing
   const simulationRows = kind === 'bom' ? simulationSnapshot.bom : simulationSnapshot.routing
   const title = kind === 'bom' ? 'BOM' : 'Process Routing'
@@ -158,17 +158,17 @@ const ParameterTable: React.FC<ParameterTableProps> = ({
             <tr>
               <th scope="col" className="min-w-48 px-3 py-2">{kind === 'bom' ? 'Material' : 'Process'}</th>
               <th scope="col" className="w-32 px-3 py-2">Status</th>
-              {factors.map(factor => (
-                <React.Fragment key={factor}>
-                  <th scope="col" className="min-w-28 px-3 py-2 text-right">{FACTOR_DETAILS[factor].label} · Current</th>
-                  <th scope="col" className="min-w-32 px-3 py-2 text-right">{FACTOR_DETAILS[factor].label} · SIM</th>
+              {parameters.map(parameter => (
+                <React.Fragment key={parameter}>
+                  <th scope="col" className="min-w-28 px-3 py-2 text-right">{PARAMETER_DETAILS[parameter].label} · Current</th>
+                  <th scope="col" className="min-w-32 px-3 py-2 text-right">{PARAMETER_DETAILS[parameter].label} · SIM</th>
                 </React.Fragment>
               ))}
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-200">
             {rows.length === 0 ? (
-              <tr><td colSpan={2 + factors.length * 2} className="px-3 py-5 text-center text-xs text-slate-600">No {title} records.</td></tr>
+              <tr><td colSpan={2 + parameters.length * 2} className="px-3 py-5 text-center text-xs text-slate-600">No {title} records.</td></tr>
             ) : rows.map((row, rowIndex) => {
               const currentRecord = row.currentRecordId
                 ? currentRows.find(record => record.id === row.currentRecordId)
@@ -194,37 +194,38 @@ const ParameterTable: React.FC<ParameterTableProps> = ({
                       {rowStatus(row)}
                     </span>
                   </td>
-                  {factors.map(factor => {
-                    const field = FACTOR_DETAILS[factor].label.toLocaleLowerCase()
-                    const currentValue = currentRecord ? (currentRecord as unknown as Record<string, number | null>)[FACTOR_FIELDS[factor]] ?? null : null
-                    const simulationValue = simulationRecord ? (simulationRecord as unknown as Record<string, number | null>)[FACTOR_FIELDS[factor]] ?? null : null
-                    const editorVisible = selectedFactors.includes(factor) && canEdit
+                  {parameters.map(parameter => {
+                    const field = PARAMETER_DETAILS[parameter].label.toLocaleLowerCase()
+                    const currentValue = currentRecord ? (currentRecord as unknown as Record<string, number | null>)[PARAMETER_FIELDS[parameter]] ?? null : null
+                    const simulationValue = simulationRecord ? (simulationRecord as unknown as Record<string, number | null>)[PARAMETER_FIELDS[parameter]] ?? null : null
+                    const factor = simulationRecord ? simulationFactorId(kind, simulationRecord.id) : null
+                    const editorVisible = factor !== null && selectedFactors.includes(factor) && canEdit
 
                     return (
-                      <React.Fragment key={factor}>
+                      <React.Fragment key={parameter}>
                         <td className="px-3 py-2 text-right font-mono tabular-nums text-slate-600">
-                          {currentRecord ? formatParameter(currentValue, factor) : '—'}
+                          {currentRecord ? formatParameter(currentValue, parameter) : '—'}
                         </td>
                         <td className="px-3 py-2 text-right font-mono tabular-nums text-slate-900">
                           {!simulationRecord ? '—' : editorVisible ? (
                             <input
                               type="number"
                               step="any"
-                              value={simulationValue === null ? '' : String(simulationValue * FACTOR_DETAILS[factor].displayScale)}
+                              value={simulationValue === null ? '' : String(simulationValue * PARAMETER_DETAILS[parameter].displayScale)}
                               onChange={event => {
                                 const raw = event.currentTarget.value
-                                if (raw === '') onUpdate(simulationRecord.id, factor, null)
+                                if (raw === '') onUpdate(simulationRecord.id, parameter, null)
                                 else {
                                   const displayedValue = Number(raw)
                                   if (Number.isFinite(displayedValue)) {
-                                    onUpdate(simulationRecord.id, factor, displayedValue / FACTOR_DETAILS[factor].displayScale)
+                                    onUpdate(simulationRecord.id, parameter, displayedValue / PARAMETER_DETAILS[parameter].displayScale)
                                   }
                                 }
                               }}
                               className="min-h-8 w-28 border border-blue-500 bg-white px-2 text-right font-mono text-xs tabular-nums focus:outline-none focus:ring-2 focus:ring-blue-200"
                               aria-label={`${row.name} ${field} SIM value`}
                             />
-                          ) : formatParameter(simulationValue, factor)}
+                          ) : formatParameter(simulationValue, parameter)}
                         </td>
                       </React.Fragment>
                     )
@@ -239,7 +240,7 @@ const ParameterTable: React.FC<ParameterTableProps> = ({
   )
 }
 
-const FACTOR_FIELDS: Record<SimulationFactor, string> = {
+const PARAMETER_FIELDS: Record<SimulationParameter, string> = {
   'bom.price': 'price',
   'bom.consumption': 'consumption',
   'bom.loss': 'loss',
@@ -268,9 +269,12 @@ export const SimulationPage: React.FC<SimulationPageProps> = ({
     [referenceSnapshot, currentSnapshot]
   )
   const economicResult = useMemo(
-    () => result
-      ? calculateEconomicSimulation(currentSnapshot, result.simulationCost, result.parameterSavingPerPiece, state.economicInputs)
-      : null,
+    () => calculateEconomicSimulation(
+      currentSnapshot,
+      result?.simulationCost ?? null,
+      result?.parameterSavingPerPiece ?? null,
+      state.economicInputs
+    ),
     [currentSnapshot, result, state.economicInputs]
   )
   const story = useMemo(() => {
@@ -291,6 +295,16 @@ export const SimulationPage: React.FC<SimulationPageProps> = ({
   }, [currentSnapshot, economicResult, referenceCurrent, referenceSnapshot, result])
   const bomRows = result?.records.filter(row => row.kind === 'bom') ?? []
   const routingRows = result?.records.filter(row => row.kind === 'routing') ?? []
+  const selectableFactors = useMemo(() => {
+    const seen = new Set<SimulationFactor>()
+    return (result?.records ?? []).flatMap(row => {
+      if (!row.simulationRecordId || !row.status || row.status === 'REMOVED' || row.identityIssue) return []
+      const factor = simulationFactorId(row.kind, row.simulationRecordId)
+      if (seen.has(factor)) return []
+      seen.add(factor)
+      return [{ factor, kind: row.kind, name: row.name }]
+    })
+  }, [result])
 
   const toggleFactor = (factor: SimulationFactor, selected: boolean) => {
     const next = new Set(state.selectedFactors)
@@ -312,22 +326,30 @@ export const SimulationPage: React.FC<SimulationPageProps> = ({
       />
 
       {!state.snapshot ? (
-        <section className="border border-slate-300 bg-white p-3" aria-labelledby="simulation-start-title">
-          <h2 id="simulation-start-title" className="font-sans text-sm font-semibold text-slate-950">Start SIM From</h2>
-          <p className="mt-1 text-xs text-slate-600">SIM uses an isolated copy. Changes here do not update any Master Data workspace.</p>
-          <div className="mt-3 flex flex-wrap gap-2">
-            {SOURCES.map(source => (
-              <button
-                key={source.role}
-                type="button"
-                onClick={() => onStartFrom(source.role)}
-                className="min-h-9 border border-slate-900 bg-slate-900 px-3 text-xs font-medium text-white hover:bg-slate-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700"
-              >
-                Start SIM From {source.label}
-              </button>
-            ))}
-          </div>
-        </section>
+        <>
+          <section className="border border-slate-300 bg-white p-3" aria-labelledby="simulation-start-title">
+            <h2 id="simulation-start-title" className="font-sans text-sm font-semibold text-slate-950">Start SIM From</h2>
+            <p className="mt-1 text-xs text-slate-600">SIM uses an isolated copy. Changes here do not update any Master Data workspace.</p>
+            <div className="mt-3 flex flex-wrap gap-2">
+              {SOURCES.map(source => (
+                <button
+                  key={source.role}
+                  type="button"
+                  onClick={() => onStartFrom(source.role)}
+                  className="min-h-9 border border-slate-900 bg-slate-900 px-3 text-xs font-medium text-white hover:bg-slate-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700"
+                >
+                  Start SIM From {source.label}
+                </button>
+              ))}
+            </div>
+          </section>
+          <EconomicSimulationPanel
+            result={economicResult}
+            draft={state.economicInputs}
+            hasParameterSimulation={false}
+            onUpdate={onUpdateEconomicInput}
+          />
+        </>
       ) : result && economicResult && (
         <>
           <section className="flex flex-wrap items-baseline gap-x-4 gap-y-2 border border-slate-300 border-l-4 border-l-slate-900 bg-white px-3 py-3" aria-label="Simulation basis">
@@ -349,6 +371,7 @@ export const SimulationPage: React.FC<SimulationPageProps> = ({
           <EconomicSimulationPanel
             result={economicResult}
             draft={state.economicInputs}
+            hasParameterSimulation
             onUpdate={onUpdateEconomicInput}
           />
 
@@ -356,23 +379,25 @@ export const SimulationPage: React.FC<SimulationPageProps> = ({
 
           <section className="border border-slate-300 bg-white p-3" aria-labelledby="simulation-factors-title">
             <h2 id="simulation-factors-title" className="font-sans text-sm font-semibold text-slate-950">Factors to Simulate</h2>
-            <p className="mt-1 text-xs text-slate-600">Selected factors show editable SIM values. Every edit recalculates the full snapshot.</p>
+            <p className="mt-1 text-xs text-slate-600">Select material or process records to show their editable parameters. Every edit recalculates the full SIM dataset.</p>
             <div className="mt-2 flex flex-wrap gap-x-4 gap-y-2">
-              {SIMULATION_FACTORS.map(factor => (
+              {selectableFactors.map(({ factor, kind, name }) => (
                 <label key={factor} className="inline-flex min-h-8 items-center gap-2 text-xs text-slate-800">
                   <input
                     type="checkbox"
                     checked={state.selectedFactors.includes(factor)}
                     onChange={event => toggleFactor(factor, event.target.checked)}
+                    aria-label={`Select ${kind === 'bom' ? 'Material' : 'Process'} factor ${name}`}
                     className="h-4 w-4 accent-slate-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700"
                   />
-                  <span>{FACTOR_DETAILS[factor].kind === 'bom' ? 'BOM' : 'Routing'} · {FACTOR_DETAILS[factor].label}</span>
+                  <span>{kind === 'bom' ? 'Material' : 'Process'} · {name}</span>
                 </label>
               ))}
             </div>
-            {state.selectedFactors.length === 0 && (
-              <p className="mt-2 text-[11px] text-slate-500">Select a factor to show its editable SIM values.</p>
+            {state.selectedFactors.length === 0 && selectableFactors.length > 0 && (
+              <p className="mt-2 text-[11px] text-slate-500">Select one or more records to show their editable SIM values.</p>
             )}
+            {selectableFactors.length === 0 && <p className="mt-2 text-[11px] text-slate-500">No editable SIM records are available to select.</p>}
           </section>
 
           <ParameterTable

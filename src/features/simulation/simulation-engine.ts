@@ -8,7 +8,11 @@ import type {
   SnapshotBOMItem,
   SnapshotRoutingStep
 } from '../../core/types'
-import type { SimulationFactor, SimulationWorkspaceState } from './simulation-state'
+import {
+  simulationFactorId,
+  type SimulationParameter,
+  type SimulationWorkspaceState
+} from './simulation-state'
 
 export type SimulationRecordKind = 'bom' | 'routing'
 export type SimulationRecordStatus = 'UNCHANGED' | 'CHANGED' | 'ADDED' | 'REMOVED'
@@ -93,7 +97,7 @@ export function calculateParameterSimulation(
   }
 }
 
-const FACTOR_FIELDS: Record<SimulationFactor, { kind: SimulationRecordKind; field: string }> = {
+const PARAMETER_FIELDS: Record<SimulationParameter, { kind: SimulationRecordKind; field: string }> = {
   'bom.price': { kind: 'bom', field: 'price' },
   'bom.consumption': { kind: 'bom', field: 'consumption' },
   'bom.loss': { kind: 'bom', field: 'loss' },
@@ -106,11 +110,12 @@ export function updateSimulationParameter(
   state: SimulationWorkspaceState,
   currentSnapshot: CostSnapshot,
   simulationRecordId: string,
-  factor: SimulationFactor,
+  parameter: SimulationParameter,
   value: number | null
 ): SimulationWorkspaceState {
-  const configuration = FACTOR_FIELDS[factor]
-  if (!configuration || !state.snapshot || !state.selectedFactors.includes(factor)
+  const configuration = PARAMETER_FIELDS[parameter]
+  if (!configuration || !state.snapshot
+    || !state.selectedFactors.includes(simulationFactorId(configuration.kind, simulationRecordId))
     || (value !== null && !Number.isFinite(value))) return state
 
   const row = calculateParameterSimulation(currentSnapshot, state.snapshot).records

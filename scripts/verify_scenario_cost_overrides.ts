@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import type { CostSnapshot } from '../src/core/types'
 import { calculateParameterSimulation, updateSimulationParameter } from '../src/features/simulation/simulation-engine.ts'
-import { setSimulationFactors, startSimulationFrom } from '../src/features/simulation/simulation-state.ts'
+import { setSimulationFactors, simulationFactorId, startSimulationFrom } from '../src/features/simulation/simulation-state.ts'
 
 const current: CostSnapshot = {
   id: 'current',
@@ -17,7 +17,7 @@ const result = calculateParameterSimulation(current, state.snapshot!)
 assert.equal(result.simulationCost.total, result.currentCost.total)
 assert.equal(JSON.stringify(state.snapshot?.rates), before)
 
-const selected = setSimulationFactors(state, ['routing.capacity'])
+const selected = setSimulationFactors(state, [simulationFactorId('routing', 'route-1')])
 const edited = updateSimulationParameter(selected, current, 'route-1', 'routing.capacity', 20)
 assert.equal(edited.snapshot?.routing[0]?.capacity, 20)
 assert.equal(edited.snapshot?.rates[0]?.laborRate, 10)

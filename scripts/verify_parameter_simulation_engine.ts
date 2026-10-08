@@ -4,7 +4,13 @@ import {
   calculateParameterSimulation,
   updateSimulationParameter
 } from '../src/features/simulation/simulation-engine.ts'
-import { setSimulationFactors, SIMULATION_FACTORS, startSimulationFrom } from '../src/features/simulation/simulation-state.ts'
+import {
+  reconcileSimulationState,
+  setSimulationFactors,
+  simulationFactorId,
+  SIMULATION_PARAMETERS,
+  startSimulationFrom
+} from '../src/features/simulation/simulation-state.ts'
 
 function bom(id: string, name: string, price: number | null, usage = 1): SnapshotBOMItem {
   return { id, itemCode: name, description: name, consumption: usage, unit: 'PC', price, loss: 0, confidence: {} }
@@ -50,10 +56,10 @@ const custom = snapshot('Custom', [
 const sources: Record<MasterDataRole, CostSnapshot> = { reference: current, current, custom }
 const state = startSimulationFrom('custom', sources)
 assert.ok(state.snapshot)
-assert.deepEqual(SIMULATION_FACTORS, [
+assert.deepEqual(SIMULATION_PARAMETERS, [
   'bom.price', 'bom.consumption', 'bom.loss',
   'routing.manning', 'routing.capacity', 'routing.yield'
-], 'Only finalized BOM and Routing factors are selectable')
+], 'Only finalized BOM and Routing parameters are editable')
 const result = calculateParameterSimulation(current, state.snapshot)
 assert.equal(result.currentCost.total, 33)
 assert.equal(result.simulationCost.total, 47)
@@ -71,38 +77,53 @@ assert.equal(row('routing', 'Inspect')?.status, 'REMOVED')
 
 const blockedWithoutFactor = updateSimulationParameter(state, current, 'custom-a', 'bom.price', 5)
 assert.strictEqual(blockedWithoutFactor, state, 'Parameters cannot change until their factor is selected')
-const selected = setSimulationFactors(state, ['bom.price'])
-const changedPrice = updateSimulationParameter(selected, current, 'custom-a', 'bom.price', 5)
+const materialA = simulationFactorId('bom', 'custom-a')
+const processAssembly = simulationFactorId('routing', 'custom-assembly')
+const selectedMaterial = setSimulationFactors(state, [materialA, materialA, simulationFactorId('bom', 'missing')])
+assert.deepEqual(selectedMaterial.selectedFactors, [materialA], 'selection contains eligible SIM records, deduplicated by record')
+const changedPrice = updateSimulationParameter(selectedMaterial, current, 'custom-a', 'bom.price', 5)
 assert.equal(changedPrice.snapshot?.bom.find(item => item.id === 'custom-a')?.price, 5)
 assert.equal(calculateParameterSimulation(current, changedPrice.snapshot!).parameterSavingPerPiece, -7)
-const clearedPrice = updateSimulationParameter(selected, current, 'custom-a', 'bom.price', null)
+const clearedPrice = updateSimulationParameter(selectedMaterial, current, 'custom-a', 'bom.price', null)
 assert.equal(clearedPrice.snapshot?.bom.find(item => item.id === 'custom-a')?.price, null, 'Clearing a SIM input preserves missing as null')
 assert.equal(calculateParameterSimulation(current, clearedPrice.snapshot!).parameterSavingPerPiece, null)
-assert.strictEqual(updateSimulationParameter(selected, current, 'current-removed', 'bom.price', 1), selected, 'REMOVED rows cannot be edited')
-assert.strictEqual(updateSimulationParameter(selected, current, 'custom-a', 'bom.price', Number.NaN), selected, 'Non-finite parameter values are rejected')
+assert.strictEqual(updateSimulationParameter(selectedMaterial, current, 'custom-removed', 'bom.price', 1), selectedMaterial, 'REMOVED rows cannot be edited')
+assert.strictEqual(updateSimulationParameter(selectedMaterial, current, 'custom-stable', 'bom.price', 1), selectedMaterial, 'Unselected material records cannot be edited')
+assert.strictEqual(updateSimulationParameter(selectedMaterial, current, 'custom-assembly', 'routing.manning', 1), selectedMaterial, 'Unselected process records cannot be edited')
+assert.strictEqual(updateSimulationParameter(selectedMaterial, current, 'custom-a', 'bom.price', Number.NaN), selectedMaterial, 'Non-finite parameter values are rejected')
 
 const changedConsumption = updateSimulationParameter(
-  setSimulationFactors(state, ['bom.consumption']), current, 'custom-a', 'bom.consumption', 2
+  selectedMaterial, current, 'custom-a', 'bom.consumption', 2
 )
 assert.equal(changedConsumption.snapshot?.bom.find(item => item.id === 'custom-a')?.consumption, 2)
 const changedLoss = updateSimulationParameter(
-  setSimulationFactors(state, ['bom.loss']), current, 'custom-a', 'bom.loss', 0.1
+  selectedMaterial, current, 'custom-a', 'bom.loss', 0.1
 )
 assert.equal(changedLoss.snapshot?.bom.find(item => item.id === 'custom-a')?.loss, 0.1)
 const changedCapacity = updateSimulationParameter(
-  setSimulationFactors(state, ['routing.capacity']), current, 'custom-assembly', 'routing.capacity', 2
+  setSimulationFactors(state, [processAssembly]), current, 'custom-assembly', 'routing.capacity', 2
 )
 assert.equal(changedCapacity.snapshot?.routing.find(step => step.id === 'custom-assembly')?.capacity, 2)
 const changedYield = updateSimulationParameter(
-  setSimulationFactors(state, ['routing.yield']), current, 'custom-assembly', 'routing.yield', 0.9
+  setSimulationFactors(state, [processAssembly]), current, 'custom-assembly', 'routing.yield', 0.9
 )
 assert.equal(changedYield.snapshot?.routing.find(step => step.id === 'custom-assembly')?.yield, 0.9)
 
-const selectedBoth = setSimulationFactors(changedPrice, ['bom.price', 'routing.manning'])
+const selectedBoth = setSimulationFactors(changedPrice, [materialA, processAssembly])
 const changedRoute = updateSimulationParameter(selectedBoth, current, 'custom-assembly', 'routing.manning', 1)
 assert.equal(changedRoute.snapshot?.routing.find(step => step.id === 'custom-assembly')?.manning, 1)
 assert.equal(calculateParameterSimulation(current, changedRoute.snapshot!).parameterSavingPerPiece, 5, 'Changing Routing recalculates full-snapshot cost')
 assert.deepEqual(state.snapshot, custom, 'Simulation calculations and edits leave Custom Working unchanged')
+
+const legacySelectedParameters = {
+  ...state,
+  selectedFactors: ['bom.price', 'routing.manning'] as unknown as string[]
+}
+assert.deepEqual(
+  reconcileSimulationState(legacySelectedParameters, sources).selectedFactors,
+  [],
+  'legacy parameter-type selections do not become record selections'
+)
 
 const incompleteCurrent = snapshot('Incomplete', [bom('bad-material', 'MAT-A', null)], [])
 const incompleteResult = calculateParameterSimulation(incompleteCurrent, state.snapshot)
