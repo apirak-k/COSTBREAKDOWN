@@ -12,6 +12,7 @@
 - **Implementation baseline:** `665099b71319ec98c537a0859336dc01b9acc118`
 - **Latest application source commit:** `8e0944c5d8527d6ac8b6571a766f90810bbeee3a`
 - **Status:** Application behavior is aligned with `docs/specs/FINAL_LOGIC_SPEC.md`, while compatible finalized requirements in the existing specs and `design.md` remain in force. The documentation source branch was not modified.
+- **Delivery:** `codex/final-logic-implementation` is pushed to `origin` and tracks the matching remote branch.
 
 ## Verification
 
