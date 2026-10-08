@@ -1,4 +1,4 @@
-# Current Handoff โ€” Documentation Migration to Latest Final Logic
+# Current Handoff — Documentation Migration to Latest Final Logic
 
 **Updated:** 2026-10-08
 **Checkpoint:** Documentation Migration Complete; Implementation Audit & Alignment Pending
@@ -16,7 +16,7 @@
 
 1. **Master Data Workspaces:** `Reference | Current | Custom`. `Custom` is a free semantic workspace without hard-coded meaning (not locked to Trial, Simulation, Proposal, or Future).
 2. **Master Data Owns Structural Changes:** Adding/removing records, table resizing, and Sizing adjustments belong in Master Data / Custom. Simulation cannot perform structural changes.
-3. **`Clone From` Semantics:** Active dataset is Destination; user selects Source dataset. E.g., `Custom โ’ Clone From Current` and `Current โ’ Clone From Custom`. No separate promotion lifecycle.
+3. **`Clone From` Semantics:** Active dataset is Destination; user selects Source dataset. E.g., `Custom → Clone From Current` and `Current → Clone From Custom`. No separate promotion lifecycle.
 4. **CBD Scope:** Cost Breakdown compares strictly `Reference vs Current`. `Custom` is not compared directly in CBD.
 5. **Selected Comparison Boundary:** Selected Comparison is a temporary analysis scope, not a dataset and not an RCA Case.
 6. **Multi-Candidate RCA Cases:** One RCA Case supports **1 or Multiple Candidates** to represent real-world structural changes (e.g. QA1 REMOVED, QA1.1 ADDED, QA1.2 ADDED analyzed together).
@@ -36,16 +36,16 @@ The active canonical documentation structure is:
 
 ```text
 docs/
-โ”โ”€โ”€ REQUIREMENTS_INDEX.md
-โ”โ”€โ”€ SYSTEM_LOGIC_DIAGRAM.md
-โ”โ”€โ”€ PROVISIONAL_IMPLEMENTATION_DECISIONS.md
-โ””โ”€โ”€ specs/
-    โ”โ”€โ”€ FINAL_LOGIC_SPEC.md
-    โ”โ”€โ”€ CROSS_CUTTING.md
-    โ”โ”€โ”€ MASTER_DATA.md
-    โ”โ”€โ”€ COST_BREAKDOWN.md
-    โ”โ”€โ”€ CANDIDATE.md               (Candidate Prioritization & Multi-Candidate RCA)
-    โ””โ”€โ”€ SIMULATION.md              (Parameter Simulation & Economic Simulation)
+├── REQUIREMENTS_INDEX.md
+├── SYSTEM_LOGIC_DIAGRAM.md
+├── PROVISIONAL_IMPLEMENTATION_DECISIONS.md
+└── specs/
+    ├── FINAL_LOGIC_SPEC.md
+    ├── CROSS_CUTTING.md
+    ├── MASTER_DATA.md
+    ├── COST_BREAKDOWN.md
+    ├── CANDIDATE.md               (Candidate Prioritization & Multi-Candidate RCA)
+    └── SIMULATION.md              (Parameter Simulation & Economic Simulation)
 ```
 
 ## Next Step

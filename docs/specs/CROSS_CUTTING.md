@@ -1,6 +1,6 @@
 # Cross-Cutting Product Rules
 
-**Status:** Comparison, calculation, Candidate/RCA, Simulation architecture, and Selling Price/SG&A/OP rules are `FINALIZED โ€” USER DECISION`. [`FINAL_LOGIC_SPEC.md`](FINAL_LOGIC_SPEC.md) is the latest authority for product logic; this and page-specific specs retain compatible requirements, calculations, and UX/UI rules. Visual outcomes follow [`design.md`](../../design.md) and [`PROVISIONAL_IMPLEMENTATION_DECISIONS.md`](../PROVISIONAL_IMPLEMENTATION_DECISIONS.md).
+**Status:** Comparison, calculation, Candidate/RCA, Simulation architecture, and Selling Price/SG&A/OP rules are `FINALIZED — USER DECISION`. [`FINAL_LOGIC_SPEC.md`](FINAL_LOGIC_SPEC.md) is the latest authority for product logic; this and page-specific specs retain compatible requirements, calculations, and UX/UI rules. Visual outcomes follow [`design.md`](../../design.md) and [`PROVISIONAL_IMPLEMENTATION_DECISIONS.md`](../PROVISIONAL_IMPLEMENTATION_DECISIONS.md).
 
 ## Final Target State
 
@@ -75,8 +75,8 @@ Routing `Process` remains drill-down detail under its Work Center in Cost Breakd
 Simulation is a single module with two dimensions:
 ```text
 SIMULATION
-โ”โ”€ Parameter Simulation
-โ””โ”€ Economic Simulation
+├─ Parameter Simulation
+└─ Economic Simulation
 ```
 
 1. **Parameter Simulation:**

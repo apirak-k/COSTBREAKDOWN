@@ -1,12 +1,12 @@
 # Master Data Specification
 
-**Status:** Core Master Data behavior, dataset shape, and actions are `FINALIZED โ€” USER DECISION`. The visual principles below are `CONFIRMED DIRECTION โ€” USER DECISION`; reversible visual choices belong in [`design.md`](../../design.md) and [`PROVISIONAL_IMPLEMENTATION_DECISIONS.md`](../PROVISIONAL_IMPLEMENTATION_DECISIONS.md).
+**Status:** Core Master Data behavior, dataset shape, and actions are `FINALIZED — USER DECISION`. The visual principles below are `CONFIRMED DIRECTION — USER DECISION`; reversible visual choices belong in [`design.md`](../../design.md) and [`PROVISIONAL_IMPLEMENTATION_DECISIONS.md`](../PROVISIONAL_IMPLEMENTATION_DECISIONS.md).
 
 ## Final Target State
 
-Opening a fresh session goes directly to an empty workspace with three independent datasets: **Reference**, **Current**, and **Custom**. There is no startup wizard or separate Product selector. The first time the user enters Master Data in a session, the default table view is **All Tables**, displaying BOM โ’ Work Centers โ’ Routing vertically. Users prepare independent datasets in that workspace, with Product Name stored as each dataset's metadata.
+Opening a fresh session goes directly to an empty workspace with three independent datasets: **Reference**, **Current**, and **Custom**. There is no startup wizard or separate Product selector. The first time the user enters Master Data in a session, the default table view is **All Tables**, displaying BOM → Work Centers → Routing vertically. Users prepare independent datasets in that workspace, with Product Name stored as each dataset's metadata.
 
-Each dataset has an in-session `Working` copy and one `Last Saved` copy; Save, Reset, Import, Clear, Clone From, and Export act on the dataset being viewed. Sizing edits that side's metadata and exact row counts, and generates the agreed Excel template. Once Working datasets have sufficient information, Reference and Current can be compared in Cost Breakdown without saving, exporting, or activating them. The tables are presented in BOM โ’ Work Centers โ’ Routing order, but users may prepare the data in any order. Matching uses business identity rather than row position. The toolbar and metadata stay together at the top of the content area, and the footer stays at the bottom of the app frame. Warnings inform the user without cluttering table rows or blocking normal navigation.
+Each dataset has an in-session `Working` copy and one `Last Saved` copy; Save, Reset, Import, Clear, Clone From, and Export act on the dataset being viewed. Sizing edits that side's metadata and exact row counts, and generates the agreed Excel template. Once Working datasets have sufficient information, Reference and Current can be compared in Cost Breakdown without saving, exporting, or activating them. The tables are presented in BOM → Work Centers → Routing order, but users may prepare the data in any order. Matching uses business identity rather than row position. The toolbar and metadata stay together at the top of the content area, and the footer stays at the bottom of the app frame. Warnings inform the user without cluttering table rows or blocking normal navigation.
 
 ## Purpose and Authority
 
@@ -58,11 +58,11 @@ Dataset copying uses unified **`Clone From`** semantics:
 > **The currently viewed dataset is the Destination. The user chooses the Source dataset.**
 
 Examples:
-- **`Custom โ’ Clone From Current`:**
+- **`Custom → Clone From Current`:**
   The user views `Custom`, clicks `Clone From`, and selects `Current`. Current's Working state is copied into Custom.
-- **`Current โ’ Clone From Custom`:**
+- **`Current → Clone From Custom`:**
   The user views `Current`, clicks `Clone From`, and selects `Custom`. Custom's Working state is copied into Current.
-- **`Custom โ’ Clone From Reference`:**
+- **`Custom → Clone From Reference`:**
   The user views `Custom`, clicks `Clone From`, and selects `Reference`. Reference's Working state is copied into Custom.
 
 Rules for Clone From:
@@ -130,7 +130,7 @@ Record `Note` values and dataset `META.Dataset Remark` are annotations. Preserve
 
 ## Tables, Identity, and Spreadsheet Editing
 
-Tables are displayed in standard order: **BOM โ’ Work Centers โ’ Routing**.
+Tables are displayed in standard order: **BOM → Work Centers → Routing**.
 
 ### Business Identity
 Match records strictly by business identity:

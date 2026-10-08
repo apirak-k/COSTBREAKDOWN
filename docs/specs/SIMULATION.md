@@ -1,6 +1,6 @@
 # Simulation Specification (Parameter & Economic)
 
-**Status:** Simulation behavior across Parameter Simulation and Economic Simulation is `FINALIZED โ€” USER DECISION`. The visual presentation follows [`design.md`](../../design.md) and [`PROVISIONAL_IMPLEMENTATION_DECISIONS.md`](../PROVISIONAL_IMPLEMENTATION_DECISIONS.md).
+**Status:** Simulation behavior across Parameter Simulation and Economic Simulation is `FINALIZED — USER DECISION`. The visual presentation follows [`design.md`](../../design.md) and [`PROVISIONAL_IMPLEMENTATION_DECISIONS.md`](../PROVISIONAL_IMPLEMENTATION_DECISIONS.md).
 
 ## Final Target State
 
@@ -8,8 +8,8 @@ Simulation is a single module comprising two distinct, interoperable dimensions:
 
 ```text
 SIMULATION
-โ”โ”€ Parameter Simulation (What-if engineering cost simulation)
-โ””โ”€ Economic Simulation  (Investment threshold & break-even evaluation)
+├─ Parameter Simulation (What-if engineering cost simulation)
+└─ Economic Simulation  (Investment threshold & break-even evaluation)
 ```
 
 The user may engage with Simulation in three valid modes:
@@ -24,7 +24,7 @@ Simulation does not permanently alter Master Data. It provides an interactive sa
 ## 1. Parameter Simulation Logic
 
 ### 1.1 Purpose
-Parameter Simulation answers: *โ€If these parameters had these values, what would the resulting product cost be?โ€*
+Parameter Simulation answers: *“If these parameters had these values, what would the resulting product cost be?”*
 
 It provides live what-if analysis against operational baselines. It does not claim to predict reality, but calculates the deterministic effect of entered assumptions through the shared cost engine.
 
@@ -109,7 +109,7 @@ $$\text{Parameter edits} \longrightarrow \text{Shared Cost Engine} \longrightarr
 
 ### 2.1 Purpose
 Economic Simulation is the second dimension within Simulation. It answers:
-*โ€Given the Action Cost and Evaluation Quantity, how much saving per piece is required to break even?โ€*
+*“Given the Action Cost and Evaluation Quantity, how much saving per piece is required to break even?”*
 
 ### 2.2 Core Inputs
 1. **Action Cost:** Total implementation, tooling, JIG, or capital investment cost (THB).
@@ -180,7 +180,7 @@ as appropriate for the UI. Exact A/B is not a mandatory business constraint.
 
 ## 6. Trial Lifecycle Boundary
 
-No special Trial lifecycle (such as `Scenario โ’ Trial โ’ Approve โ’ Promote`) is required:
+No special Trial lifecycle (such as `Scenario → Trial → Approve → Promote`) is required:
 - `Custom` in Master Data may be used to store and maintain real trial data.
 - If trial data in Custom is decided to become the new operational Current baseline, the user navigates to Master Data, views `Current`, and selects `Clone From Custom`.
 
@@ -196,7 +196,7 @@ Current Baseline:
 
 Start SIM From Current:
   User selects QA-Check as Factor to Simulate.
-  Updates Manning: 2 โ’ 1.
+  Updates Manning: 2 → 1.
   Recalculation:
   SIM Standard Cost = 7.00 THB/pc.
   Parameter Saving  = 3.00 THB/pc.

@@ -1,6 +1,6 @@
-# COSTBREAKDOWN โ€” Final Logic Specification & Implementation Checklist
+# COSTBREAKDOWN — Final Logic Specification & Implementation Checklist
 
-**Status:** FINALIZED LOGIC โ€” USER DECISION
+**Status:** FINALIZED LOGIC — USER DECISION
 **Date:** 2026-10-08
 **Scope:** Canonical business logic, calculations, comparison behavior, analysis scope, page-to-page flow, simulation logic, economics logic, graph/data logic, examples, edge cases, and acceptance checklist.
 **Not a visual redesign specification.**
@@ -56,7 +56,7 @@ This document explicitly supersedes older behavior in the following areas:
 
 - **Master Data supports Reference, Current, and Custom:** `Custom` is a free dataset workspace with no hard-coded semantic meaning (not locked to Trial, Simulation, Proposal, or Future).
 - **Master Data owns structural changes:** Adding, removing, resizing, or altering dataset structure belongs in Master Data / Custom, not in Simulation.
-- **`Clone From` action semantics:** The active dataset is the destination; the user selects the source dataset (e.g. `Custom โ’ Clone From Current`, `Current โ’ Clone From Custom`). No special promotion workflow.
+- **`Clone From` action semantics:** The active dataset is the destination; the user selects the source dataset (e.g. `Custom → Clone From Current`, `Current → Clone From Custom`). No special promotion workflow.
 - **Cost Breakdown (CBD) remains Reference vs Current only:** Custom is not a direct CBD comparison state.
 - **Selected Comparison is analysis scope/view only:** It is neither a new dataset nor an RCA Case.
 - **One RCA Case supports 1 or Many Candidates:** One real-world root cause may explain multiple comparison findings (e.g., QA1 REMOVED, QA1.1 ADDED, QA1.2 ADDED can be analyzed in one RCA Case).
@@ -72,7 +72,7 @@ This document explicitly supersedes older behavior in the following areas:
 - **Economic Simulation uses Action Cost and Evaluation Quantity:** Core formula is `Required Saving / pc = Action Cost / Evaluation Quantity`. It does not contain a duplicate parameter editor.
 - **Economics is separate from Standard Cost:** Action Cost must NOT automatically alter MAT, LB, BD, or Standard Cost.
 - **Economic result is advisory:** A scenario below break-even remains visible and selectable. The system informs; the engineer decides.
-- **No special Trial lifecycle:** Custom may hold trial data if the user wants; if it becomes Current, use `Current โ’ Clone From Custom`.
+- **No special Trial lifecycle:** Custom may hold trial data if the user wants; if it becomes Current, use `Current → Clone From Custom`.
 - **MatVAR, LBVAR, and BDVAR remain out of scope.**
 
 ---
@@ -83,40 +83,40 @@ The finalized product flow is:
 
 ```text
 MASTER DATA
-    โ”โ”€ Reference
-    โ”โ”€ Current
-    โ””โ”€ Custom (Free workspace for structural edits, alternatives, trial data)
-          โ”
-          โ–ผ
+    ├─ Reference
+    ├─ Current
+    └─ Custom (Free workspace for structural edits, alternatives, trial data)
+          │
+          ▼
          CBD (Reference vs Current)
-          โ”โ”€ Full Comparison
-          โ””โ”€ Selected Comparison (temporary analysis scope)
-                  โ”
-                  โ–ผ
+          ├─ Full Comparison
+          └─ Selected Comparison (temporary analysis scope)
+                  │
+                  ▼
          Candidate / Ranking
-                  โ”
-                  โ–ผ
+                  │
+                  ▼
          Select 1 or Many Candidates
-                  โ”
-                  โ–ผ
+                  │
+                  ▼
               RCA Case
-                  โ”โ”€ Root Cause / Why?
-                  โ”โ”€ Action
-                  โ””โ”€ END RCA (RCA is complete here)
+                  ├─ Root Cause / Why?
+                  ├─ Action
+                  └─ END RCA (RCA is complete here)
 
-โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€ OPTIONAL โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€
+────────────────── OPTIONAL ──────────────────
 
               SIMULATION
-    โ”โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”ดโ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”
-    โ–ผ                           โ–ผ
+    ┌─────────────┬─────────────┐
+    ▼                           ▼
 PARAMETER SIMULATION        ECONOMIC SIMULATION
-  โ”โ”€ Start From Ref/Cur/Custom โ”โ”€ Action Cost
-  โ”โ”€ Structure locked          โ”โ”€ Evaluation Quantity
-  โ”โ”€ Select Factors to edit    โ””โ”€ Required Saving / pc
-  โ”โ”€ Live full-dataset recalc        โ”
-  โ””โ”€ Current vs SIM comparison       โ–ผ
-            โ”               If both are used:
-            โ””โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ–บ Parameter Saving / pc vs Required Saving / pc
+  ├─ Start From Ref/Cur/Custom ├─ Action Cost
+  ├─ Structure locked          ├─ Evaluation Quantity
+  ├─ Select Factors to edit    └─ Required Saving / pc
+  ├─ Live full-dataset recalc        │
+  └─ Current vs SIM comparison       ▼
+            │               If both are used:
+            └───────────────► Parameter Saving / pc vs Required Saving / pc
                               (Economic Margin)
 ```
 
@@ -124,12 +124,12 @@ PARAMETER SIMULATION        ECONOMIC SIMULATION
 
 | Area | Question it answers | Core Responsibility |
 |---|---|---|
-| Master Data | โ€What data state do I have?โ€ | Prepare Reference, Current, and Custom snapshots; own structural edits and Sizing; generic `Clone From`. |
-| CBD | โ€What is different between Reference and Current?โ€ | Compare Reference vs Current; show Standard Cost gaps by MAT/LB/BD/Conversion; support Full and Selected Comparison views. |
-| Candidate / Ranking | โ€Which differences matter?โ€ | Prioritize findings based on record-level Gap and controllability; advisory ranking. |
-| RCA | โ€Why did it happen and what action should be taken?โ€ | Group 1 or many Candidates into an RCA Case; record Root Cause / Why? and Action; optional handoff to Simulation. |
-| Parameter Simulation | โ€If these parameters had these values, what would the cost become?โ€ | Temporary what-if analysis; locked structure; live recalculation of full SIM dataset against Current. |
-| Economic Simulation | โ€How much must the action save per piece to break even?โ€ | Calculate `Required Saving / pc = Action Cost / Evaluation Quantity`; evaluate economic feasibility without altering Standard Cost. |
+| Master Data | “What data state do I have?” | Prepare Reference, Current, and Custom snapshots; own structural edits and Sizing; generic `Clone From`. |
+| CBD | “What is different between Reference and Current?” | Compare Reference vs Current; show Standard Cost gaps by MAT/LB/BD/Conversion; support Full and Selected Comparison views. |
+| Candidate / Ranking | “Which differences matter?” | Prioritize findings based on record-level Gap and controllability; advisory ranking. |
+| RCA | “Why did it happen and what action should be taken?” | Group 1 or many Candidates into an RCA Case; record Root Cause / Why? and Action; optional handoff to Simulation. |
+| Parameter Simulation | “If these parameters had these values, what would the cost become?” | Temporary what-if analysis; locked structure; live recalculation of full SIM dataset against Current. |
+| Economic Simulation | “How much must the action save per piece to break even?” | Calculate `Required Saving / pc = Action Cost / Evaluation Quantity`; evaluate economic feasibility without altering Standard Cost. |
 
 ---
 
@@ -153,9 +153,9 @@ All calculations share one canonical cost engine. Do not create competing calcul
 Comparable records are matched strictly by business identity:
 
 ```text
-BOM         โ’ Name
-WORK_CENTER โ’ WC
-ROUTING     โ’ Process
+BOM         → Name
+WORK_CENTER → WC
+ROUTING     → Process
 ```
 
 The display `#` column is an ordinal row number and selection control, not an identity.
@@ -182,10 +182,10 @@ REMOVED
 ```
 
 Rules:
-- Record exists on both sides with equivalent values โ’ `UNCHANGED`.
-- Record exists on both sides with differing values โ’ `CHANGED`.
-- Record exists only on the right/new side โ’ `ADDED`.
-- Record exists only on the left/old side โ’ `REMOVED`.
+- Record exists on both sides with equivalent values → `UNCHANGED`.
+- Record exists on both sides with differing values → `CHANGED`.
+- Record exists only on the right/new side → `ADDED`.
+- Record exists only on the left/old side → `REMOVED`.
 
 Do not create statuses such as `MODIFIED`, `REPLACE`, or `NEED REVIEW`.
 
@@ -207,8 +207,8 @@ Gap = Current - Reference
 (Or in Simulation: `Gap = SIM - Current` / `Saving = Current - SIM`).
 
 For absent sides:
-- `ADDED` โ’ Reference contribution = 0 (record does not exist in Reference).
-- `REMOVED` โ’ Current contribution = 0 (record does not exist in Current).
+- `ADDED` → Reference contribution = 0 (record does not exist in Reference).
+- `REMOVED` → Current contribution = 0 (record does not exist in Current).
 
 This absent-record zero is **not** the same as missing data.
 
@@ -340,7 +340,7 @@ Styling rules:
 
 ## 4.1 Purpose and Comparison Scope
 
-CBD answers: *โ€What changed between Reference and Current, and where does the Standard Cost gap come from?โ€*
+CBD answers: *“What changed between Reference and Current, and where does the Standard Cost gap come from?”*
 
 CBD compares strictly:
 
@@ -393,9 +393,9 @@ Current:
   Process QA1.2
 
 CBD findings:
-  QA1   โ’ REMOVED
-  QA1.1 โ’ ADDED
-  QA1.2 โ’ ADDED
+  QA1   → REMOVED
+  QA1.1 → ADDED
+  QA1.2 → ADDED
 
 RCA Case:
   Candidates: [QA1, QA1.1, QA1.2]
@@ -434,8 +434,8 @@ Simulation is one module containing two dimensions:
 
 ```text
 SIMULATION
-โ”โ”€ Parameter Simulation
-โ””โ”€ Economic Simulation
+├─ Parameter Simulation
+└─ Economic Simulation
 ```
 
 Usage modes:
@@ -445,7 +445,7 @@ Usage modes:
 
 ## 6.1 Parameter Simulation
 
-Parameter Simulation answers: *โ€If these parameters had these values, what would the resulting cost be?โ€*
+Parameter Simulation answers: *“If these parameters had these values, what would the resulting cost be?”*
 
 ### Start SIM From
 Simulation may start from:
@@ -494,7 +494,7 @@ $$\text{SIM MAT / LB / BD / Conversion} \longrightarrow \text{SIM Standard Cost}
 
 ## 6.2 Economic Simulation
 
-Economic Simulation answers: *โ€Given the Action Cost and Evaluation Quantity, how much saving per piece is required to break even?โ€*
+Economic Simulation answers: *“Given the Action Cost and Evaluation Quantity, how much saving per piece is required to break even?”*
 
 ### Inputs
 1. **Action Cost:** Total implementation / capital cost (THB).
@@ -527,7 +527,7 @@ The economic result is **advisory / informational**, NOT an approval gate.
 - The system informs; the engineer decides.
 
 ### Avoid Double-Counting
-If a cost effect is already modeled in Parameter Simulation (e.g. Manning 2 โ’ 3), do not enter that same labor cost again as Action Cost.
+If a cost effect is already modeled in Parameter Simulation (e.g. Manning 2 → 3), do not enter that same labor cost again as Action Cost.
 
 ## 6.4 Scenario Count Flexibility
 Exact Scenario A and Scenario B is **not a mandatory business requirement**. The system may support single scenarios, A/B comparisons, or multiple scenarios without being constrained to a fixed pair.
@@ -561,8 +561,8 @@ $$\text{OP (Operating Profit) / pc} = \text{Selling Price} - \text{Standard Cost
 Reference           Current            Status      Gap
 MAT-Steel (10 THB)  MAT-Steel (12 THB) CHANGED     +2.00 THB/pc
 MAT-Bolt (1 THB)    MAT-Bolt (1 THB)   UNCHANGED    0.00 THB/pc
-โ€”                   MAT-Gasket         ADDED       +0.50 THB/pc
-MAT-Washer          โ€”                  REMOVED     -0.20 THB/pc
+—                   MAT-Gasket         ADDED       +0.50 THB/pc
+MAT-Washer          —                  REMOVED     -0.20 THB/pc
 ```
 
 ### Example 3: Multi-Candidate RCA
@@ -580,11 +580,11 @@ Action: Benchmark cycle time of optical inspection.
 ### Example 4: Parameter Simulation with Live Recalculation
 ```text
 Current:
-  Routing: Assembly (Manning=2, Cap=100, Yield=95%) โ’ Standard Cost = 10.00 THB/pc
+  Routing: Assembly (Manning=2, Cap=100, Yield=95%) → Standard Cost = 10.00 THB/pc
 
 Start SIM From Current:
   User selects Assembly as Factor to Simulate.
-  Edits Manning: 2 โ’ 1.
+  Edits Manning: 2 → 1.
   Live calculation recalculates entire SIM dataset:
   SIM Standard Cost = 7.00 THB/pc.
   Parameter Saving = 3.00 THB/pc.
@@ -665,13 +665,13 @@ Combined Result:
 The following older rules are **explicitly superseded** and must not be reintroduced:
 
 1. **Exactly one Candidate per RCA:** Superseded. An RCA Case may contain 1 or multiple Candidates.
-2. **Mandatory RCA โ’ Simulation:** Superseded. RCA ends at Root Cause + Action. Simulation is optional.
+2. **Mandatory RCA → Simulation:** Superseded. RCA ends at Root Cause + Action. Simulation is optional.
 3. **Simulation always has exactly Scenario A and B:** Superseded. Exact A/B is not mandatory.
 4. **Simulation baseline is always Current:** Superseded. SIM can start from Reference, Current, or Custom.
 5. **Structural editing inside Simulation:** Superseded. Structure is locked in SIM; structural edits happen in Master Data / Custom.
 6. **Work Center rates editable in Simulation:** Superseded. Rates are not SIM-editable; change them in Master Data / Custom.
 7. **Economics folded into MAT/LB/BD/Standard Cost:** Superseded. Standard Cost and Economics are separate dimensions.
-8. **Special Trial lifecycle (Trial โ’ Approve โ’ Promote):** Superseded. Custom may store trial data; promote via `Clone From Custom`.
+8. **Special Trial lifecycle (Trial → Approve → Promote):** Superseded. Custom may store trial data; promote via `Clone From Custom`.
 9. **Duplicate RCA Note system:** Superseded. Existing Master Data annotations remain separate.
 10. **MatVAR / LBVAR / BDVAR:** Superseded and removed from current scope.
 
@@ -684,7 +684,7 @@ The following older rules are **explicitly superseded** and must not be reintrod
 - [ ] Custom has no hard-coded semantic meaning.
 - [ ] Structural editing (add/remove/sizing) belongs in Master Data / Custom.
 - [ ] `Clone From` semantics: active dataset is destination, user chooses source.
-- [ ] User can clone Current โ’ Custom, Reference โ’ Custom, Custom โ’ Current.
+- [ ] User can clone Current → Custom, Reference → Custom, Custom → Current.
 - [ ] Sizing and Excel template generation preserved.
 - [ ] 4-sheet workbook format (`META`, `BOM`, `WORK_CENTER`, `ROUTING`) preserved with yellow editable cells.
 
@@ -732,9 +732,9 @@ The following older rules are **explicitly superseded** and must not be reintrod
 
 This tracks execution progress across future implementation phases.
 
-Allowed statuses: `TODO`, `IN PROGRESS`, `IMPLEMENTED`, `VERIFIED`, `BLOCKED โ€” BUSINESS QUESTION`.
+Allowed statuses: `TODO`, `IN PROGRESS`, `IMPLEMENTED`, `VERIFIED`, `BLOCKED — BUSINESS QUESTION`.
 
-### Phase 0 โ€” Baseline
+### Phase 0 — Baseline
 - [ ] Confirm active branch.
 - [ ] Record baseline commit SHA.
 - [ ] Confirm expected worktree state.
@@ -742,20 +742,20 @@ Allowed statuses: `TODO`, `IN PROGRESS`, `IMPLEMENTED`, `VERIFIED`, `BLOCKED โ
 - [ ] Read requirements authority and canonical specs.
 - [ ] Record baseline build/test status.
 
-### Phase 1 โ€” Documentation Alignment
+### Phase 1 — Documentation Alignment
 - [x] Migrate `FINAL_LOGIC_SPEC.md` to latest finalized logic.
 - [x] Update `REQUIREMENTS_INDEX.md`.
 - [x] Update `MASTER_DATA.md` (Ref / Cur / Custom, Clone From).
 - [x] Update `COST_BREAKDOWN.md` (Ref vs Cur, Selected scope).
 - [x] Update `CANDIDATE.md` (Candidate + Multi-Candidate RCA).
-- [x] Rename/rewrite `RCA_SIMULATION.md` โ’ `SIMULATION.md` (Parameter + Economic).
+- [x] Rename/rewrite `RCA_SIMULATION.md` → `SIMULATION.md` (Parameter + Economic).
 - [x] Update `CROSS_CUTTING.md`.
 - [x] Update `SYSTEM_LOGIC_DIAGRAM.md`.
 - [x] Reconcile provisional decisions and design references.
 - [x] Update `HANDOFF.md`.
 - [x] Verify cross-document consistency.
 
-### Phase 2+ โ€” Implementation
+### Phase 2+ — Implementation
 (To be executed during code audit and implementation phase).
 
 ---
@@ -778,7 +778,7 @@ If a question alters:
 
 then:
 > **DO NOT GUESS. DO NOT INVENT A RULE.**
-> Mark as `BLOCKED โ€” BUSINESS QUESTION` and report the exact context and question for external user resolution.
+> Mark as `BLOCKED — BUSINESS QUESTION` and report the exact context and question for external user resolution.
 
 ---
 
