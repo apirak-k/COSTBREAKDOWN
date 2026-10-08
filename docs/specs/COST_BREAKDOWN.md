@@ -1,58 +1,85 @@
 # Cost Breakdown Specification
 
-**Status:** Core comparison, calculation, Gap, and Selected Comparison behavior is `FINALIZED — USER DECISION`. The result → cause → detail experience is a `CONFIRMED DIRECTION — USER DECISION`; its current visual composition is a reversible AI choice in [`design.md`](../../design.md). Human visual acceptance remains outstanding.
+**Status:** Core comparison, calculation, Gap, and Selected Comparison behavior is `FINALIZED — USER DECISION`. The result → cause → detail experience is a `CONFIRMED DIRECTION — USER DECISION`; its current visual composition is a reversible AI choice in [`design.md`](../../design.md).
 
 ## Final Target State
 
 Cost Breakdown starts in Full Comparison. Reference and Current are calculated independently, then compared using business identities and the four applicable statuses. Gap is always Current minus Reference. Material costs are compared by BOM identity; processing uses each side's Routing and Work Center rates, aggregates by Work Center, and exposes Process as drill-down detail. Users can temporarily select BOM/Routing findings for analysis; while that scope is active, every result shows only the selected-scope Gap. Details explain and reconcile to the total without fabricating missing costs.
 
-## Inputs and calculation
+## Comparison Scope: Reference vs Current Only
 
-Cost Breakdown consumes the Reference and Current Working datasets from [Master Data](MASTER_DATA.md). Different table sizes and structures are valid; calculate each side independently before comparison. Use the shared formulas, identities, missing-input rules, and processing aggregation defined in [CROSS_CUTTING.md](CROSS_CUTTING.md).
+Cost Breakdown answers: *“What changed between Reference and Current, and where does the Standard Cost gap come from?”*
+
+Cost Breakdown compares strictly:
+
+$$\text{Reference} \longleftrightarrow \text{Current}$$
+
+- CBD consumes the independent Reference and Current Working datasets from [Master Data](MASTER_DATA.md).
+- `Custom` is **not** a direct comparison state in CBD. If a user wishes to evaluate a Custom dataset within CBD, they must clone it into Reference or Current first.
+- Different table sizes and structures are valid; each side calculates independently before comparison.
+- Shared calculation formulas, business identities, and missing-input safeguards follow [CROSS_CUTTING.md](CROSS_CUTTING.md) and [FINAL_LOGIC_SPEC.md](FINAL_LOGIC_SPEC.md).
 
 The signed cost difference is:
 
-```text
-Gap = Current Cost - Reference Cost
-```
+$$\text{Gap} = \text{Current Cost} - \text{Reference Cost}$$
 
-A positive Gap means Current cost is higher; a negative Gap means it is lower; zero means there is no net cost difference. For an `ADDED` record, the absent Reference-side contribution is zero. For a `REMOVED` record, the absent Current-side contribution is zero. This absent-record rule does not convert a missing required input inside an existing record to zero; such a result remains unavailable.
+- $\text{Gap} > 0$: Current cost is higher than Reference.
+- $\text{Gap} < 0$: Current cost is lower than Reference.
+- $\text{Gap} = 0$: No net monetary difference.
+- `ADDED` records: Reference contribution is zero (record does not exist in Reference).
+- `REMOVED` records: Current contribution is zero (record does not exist in Current).
+- This absent-record rule does not convert a missing required input inside an existing record to zero; missing inputs leave calculations unavailable.
 
-## Comparison results
+## Comparison Statuses
 
-Use `UNCHANGED`, `CHANGED`, `ADDED`, and `REMOVED` where applicable, matched by the current Master Data identities. Status and Gap are independent: a `CHANGED` finding can have positive, negative, zero, or unavailable Gap; cost dependencies can change Gap even when that record's own business fields are unchanged. In particular, when a Work Center Labor/Burden Rate dependency changes a Process's calculated processing cost, the Process is `CHANGED` even if its Routing-owned fields are unchanged; the Work Center remains rate owner/context, not a Candidate. See [the finalized dependency rule](FINAL_LOGIC_SPEC.md#work-center-rate-dependency). Field differences are details of `CHANGED`, not extra statuses. Do not invent a `REPLACE` status or infer split/merge relationships.
+Use only:
+- `UNCHANGED`
+- `CHANGED`
+- `ADDED`
+- `REMOVED`
 
-Keep unchanged records available in the normal comparison data and for status filtering. The status filter is multi-select: each status may be selected independently, and visible records are the union of selected statuses. `All` selects all four statuses and is the default; it is a control, not a fifth status.
+Status and Gap are independent:
+- A `CHANGED` finding can have positive, negative, zero, or unavailable Gap.
+- When a Work Center rate change causes a Process's calculated processing cost to change, that Process is `CHANGED` even if its own Routing-owned fields are unchanged. The Work Center remains rate owner and context, not a Candidate.
+- Field differences are details under `CHANGED`, not separate statuses. Do not invent a `REPLACE` status or infer split/merge relationships.
 
-## Processing and drill-down
+Keep unchanged records available in the normal comparison data and for status filtering. The status filter is multi-select (`All`, `Changed`, `Added`, `Removed`, `Unchanged`). `All` selects all statuses and is the default.
 
-Use Routing operations and the Work Center rates on each side to calculate processing cost independently. Aggregate processing by Work Center, then compare the Reference and Current Work Center totals. `WC Net Gap = Current WC processing total - Reference WC processing total`. Routing `Process` remains drill-down detail under Work Center; one-to-one Routing matching is not required to calculate `WC Net Gap`. See [CROSS_CUTTING.md](CROSS_CUTTING.md#processing-cost-and-work-center-comparison).
+## Processing and Drill-Down
 
-Provide a result-to-detail path from total Gap to cost category, Work Center/BOM/Routing detail, affected record, and changed fields where available. Detailed effects should reconcile to their parent totals:
+- Calculate processing cost independently on each side using Routing operations and Work Center rates.
+- Aggregate processing by Work Center, then compare Reference and Current Work Center totals:
+  $$\text{WC Net Gap} = \text{Current WC processing total} - \text{Reference WC processing total}$$
+- Routing `Process` remains drill-down detail under Work Center. One-to-one Routing matching is not required to calculate `WC Net Gap`.
+- Detailed effects reconcile to their parent totals:
+  $$\text{Material Gap} + \text{Labor Gap} + \text{Burden Gap} = \text{Total Gap}$$
+  $$\text{Changed effects} + \text{Added effects} + \text{Removed effects} = \text{Parent branch Gap}$$
+- If detail cannot reconcile due to missing/invalid calculation inputs, display an unavailable or validation state instead of guessing.
+- Record-level and Work Center-level gaps are shown with changed inputs as Reference → Current explanatory details. Do not fabricate unsupported per-input monetary attribution in THB.
 
-```text
-Material Gap + Labor Gap + Burden Gap = Total Gap
-Changed effects + Added effects + Removed effects = their parent branch Gap
-```
+## Full Comparison and Selected Comparison
 
-If detail cannot reconcile because of missing/invalid calculation data, surface an unavailable or validation state instead of a misleading number.
+- **Full Comparison:** The default comparison covering all eligible BOM and Routing records.
+- **Selected Comparison:** A temporary analysis scope/view of user-selected BOM and Routing findings:
+  - Work Centers remain complete calculation context.
+  - Matched `CHANGED`/`UNCHANGED` findings move as Reference/Current pairs.
+  - `ADDED` and `REMOVED` findings are independently selectable.
+  - While active, display only the selected findings and **only the selected-scope Gap**. Do not display the Full Gap beside or behind it.
+  - Selected Comparison does not mutate, save, or export either source dataset.
+  - Clearing scope or modifying source data clears the scope and returns to Full Comparison.
+  - Selected Comparison is an analysis scope, **not** a dataset and **not** an RCA Case.
+  - When active, Candidate / Ranking may be constrained to this selected subset.
 
-`FINALIZED — USER DECISION`: Cost Breakdown exposes record- or Work Center-level cost Gap and changed inputs as Reference → Current details. There is no agreed method to allocate a material record's cost Gap into THB effects for Price, Usage, Loss, or another input. Do not invent or display per-input monetary effects, or repeat the entire record Gap for each changed input.
+## Candidate and RCA Boundary
 
-## Selected Comparison
+The findings from CBD (whether Full or Selected) feed into [Candidate Prioritization and RCA](CANDIDATE.md).
+- One RCA Case may contain one or multiple Candidates.
+- RCA ends at Root Cause / Why? and Action.
+- Simulation is optional and independent; it may start from Reference, Current, or Custom, and compares Current vs SIM.
 
-Full Comparison remains the default. Selected Comparison follows [the shared scope and lifecycle](CROSS_CUTTING.md#full-and-selected-comparison): BOM and Routing findings are selectable; Work Centers remain full calculation context; matched `CHANGED`/`UNCHANGED` findings move as Reference/Current pairs; `ADDED`/`REMOVED` are independently selectable.
+## Warnings and Presentation Boundaries
 
-Selected Comparison is a temporary analysis scope and does not change or save either source dataset. While it is active, show the selected findings and **only the selected-scope Gap**. Do not show the Full Gap alongside it. Cancellation or an actual Reference/Current source-data change clears the scope and returns to Full Comparison.
-
-The scope may continue from Cost Breakdown into scoped Candidate Ranking. When one human-selected Candidate enters RCA, the scope ends; Simulation uses full Current. See [`FINAL_LOGIC_SPEC.md`](FINAL_LOGIC_SPEC.md).
-
-## Warnings and presentation boundaries
-
-Warnings normally inform and direct without blocking navigation. Keep comparison statuses separate from validation warnings. Keep the duplicate top calculation-warning banner removed; show the full warning details in a collapsed disclosure labeled `Review warnings (N)`.
-
-`CONFIRMED DIRECTION — USER DECISION`: preserve the result → cause → detail direction. Exact KPI cards, table layout, visual styling, and status wording are `PROVISIONAL — AI CHOICE` in [`design.md`](../../design.md) and the provisional-decision ledger; code does not make them permanent requirements.
-
-## Traceability
-
-The core comparison rules are recorded in [`agreements/COSTBREAKDOWN_COMPARISON_PRINCIPLES.md`](../../agreements/COSTBREAKDOWN_COMPARISON_PRINCIPLES.md). The `Gap = Current - Reference` convention and four statuses also appear in the finalized Candidate agreement. The later Selected-only Gap instruction is in the 2026-10-05 addendum of [the review context](../history/COSTBREAKDOWN_REVIEW_CONTEXT_FOR_CODEX.md). The warning-collapse and display decision was recorded in `bd967b5` and `2bf5ec5`. Implementation evidence is separate in [the 80-topic crosswalk](../../tasks/source-crosswalk-80.md).
+- Validation warnings inform and direct without blocking navigation.
+- Keep comparison statuses separate from data-quality validation warnings.
+- Keep duplicate top calculation warning banners removed; display warnings in a collapsed disclosure labeled `Review warnings (N)`.
+- Preserve the result → cause → detail direction.

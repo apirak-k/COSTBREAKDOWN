@@ -1,73 +1,119 @@
-# Candidate Prioritization Specification
+# Candidate Prioritization and RCA Specification
 
-**Status:** Candidate behavior is `FINALIZED — USER DECISION`. Its current row grouping and visual presentation are reversible AI choices recorded in [`PROVISIONAL_IMPLEMENTATION_DECISIONS.md`](../PROVISIONAL_IMPLEMENTATION_DECISIONS.md) and [`design.md`](../../design.md); human visual acceptance remains a review checkpoint.
+**Status:** Candidate and Root Cause Analysis (RCA) behavior is `FINALIZED — USER DECISION`. Its current visual presentation follows [`design.md`](../../design.md) and [`PROVISIONAL_IMPLEMENTATION_DECISIONS.md`](../PROVISIONAL_IMPLEMENTATION_DECISIONS.md).
 
-## FINALIZED — USER DECISION
+## Final Target State
 
-Candidate Prioritization receives findings from Cost Breakdown and has exactly two Candidate groups: BOM and Process/Routing. It shows `CHANGED`, `ADDED`, and `REMOVED` Candidates with Reference, Current, and Gap. Work Center owns rates and provides calculation/aggregation context, but is never a Candidate. Every Candidate starts marked Controllable; the user may uncheck a Candidate without hiding, deleting, or blocking it. Users can filter by status and sort by Gap, but ranking never chooses what to improve or sends a Candidate to RCA automatically. If Selected Comparison is active, Ranking is limited to that scope until the user chooses one Candidate for RCA.
+Candidate Prioritization receives findings from Cost Breakdown across BOM and Process/Routing records. It presents `CHANGED`, `ADDED`, and `REMOVED` Candidates with Reference, Current, and Gap values. Work Center owns rates and provides calculation context, but is never a Candidate. Every Candidate starts marked Controllable; users can sort by Gap magnitude and filter by status. Ranking is strictly advisory and never forces top-rank selection.
 
-## Candidate source and scope
-
-Candidates come from [Cost Breakdown / Comparison findings](COST_BREAKDOWN.md). Do not recreate comparison logic from an older paired-row model. Selected Comparison may limit this page's Candidate pool as defined in [CROSS_CUTTING.md](CROSS_CUTTING.md#full-and-selected-comparison). When the human selects exactly one Candidate and it enters RCA, Selected Scope ends; Simulation uses full Current regardless of the Candidate's scope origin. See [`FINAL_LOGIC_SPEC.md`](FINAL_LOGIC_SPEC.md).
-
-## Material monetary Gap and factor details — FINALIZED — USER DECISION
-
-Use material/BOM findings from the comparison layer. The material record's calculated Reference cost, Current cost, and `Gap = Current - Reference` may be used as its monetary/ranking value. Keep each changed input visible as Reference → Current explanatory detail so meaningful differences are not lost. A zero numeric Gap does not by itself remove a changed material finding.
-
-There is **no user-agreed method** to allocate one material record's cost Gap into separate THB effects for Price, Usage, Loss, or any other input. Do not fabricate `Price effect`, `Usage effect`, or `Loss effect` amounts, and do not repeat the full record Gap as the monetary Gap of each changed factor. The Gap describes the material record's calculated cost; changed inputs explain what differs.
-
-Meaningful factors may remain separate findings where that preserves useful distinctions; do not silently drop or collapse unrelated changed details merely because they belong to one material. Whether the current UI renders one record-level monetary candidate with its changed input details underneath is a `PROVISIONAL — AI CHOICE`, not a permanent grouping requirement; see the ledger.
-
-## Processing Candidates
-
-The processing Candidate is always the Process/Routing record. Calculate each Process's processing cost using its Work Center rates/master data for that Reference or Current dataset, then compare Reference and Current Process costs by Process identity. Use the Process-level `Gap = Current - Reference` for that Candidate. Keep each Process as one Candidate; do not split it into separate Labor and Burden Candidates.
-
-Work Center is the rate owner and calculation context, not a Candidate. Cost Breakdown may aggregate Process costs by Work Center for a total or drill-down view:
+From the candidate pool, the engineer selects **one or multiple Candidates** to create an **RCA Case**. Inside the RCA Case, the engineer investigates and records **Root Cause / Why?** and **Action**. RCA legitimately ends upon recording this analysis. Simulation is optional and independent; RCA provides context, not a scope lock.
 
 ```text
-WC Net Gap = Current WC processing total - Reference WC processing total
+CBD Findings
+    ↓
+Candidate / Ranking
+    ↓
+Select 1 or Many Candidates
+    ↓
+RCA Case
+    ├─ Root Cause / Why?
+    ├─ Action
+    └─ END RCA (RCA is complete here)
 ```
 
-That aggregate does not change Candidate identity. Routing operations do not need one-to-one matching merely to calculate the Cost Breakdown Work Center total; do not add new Routing IDs, manual mappings, or split/merge mapping for this purpose. Follow [the shared calculation and data-quality rules](CROSS_CUTTING.md).
+## Candidate Source and Scope
 
-### Work Center rate dependency
+Candidates derive directly from [Cost Breakdown findings](COST_BREAKDOWN.md):
+- **Full Comparison:** Candidate pool includes all eligible changed, added, or removed records.
+- **Selected Comparison:** If Selected Comparison is active in CBD, the Candidate pool is constrained to that selected subset.
+- Selected Comparison remains an analysis scope, **not** an RCA Case.
+- When Candidates enter an RCA Case, the engineer may analyze them without being forced into Simulation.
 
-If a Work Center Labor Rate or Burden Rate change causes a Process's calculated Labor, Burden, Conversion, or total processing cost to change, that Process remains the Candidate. For a Process present in both Reference and Current, classify it as `CHANGED` when its calculated processing cost changes solely because of that rate dependency, even if Manning, Capacity, Yield, and WC assignment are unchanged. Show the Work Center rate change as explanatory dependency/context. If one Work Center rate affects multiple Processes, each affected Process may independently become a Candidate. Never create a Work Center Candidate. The detailed rule and example are in [`FINAL_LOGIC_SPEC.md`](FINAL_LOGIC_SPEC.md#work-center-rate-dependency).
+## Material and Processing Candidates
 
-## Status and Gap
+### Material Candidates (BOM)
+- A material Candidate corresponds to a BOM record.
+- The material record's calculated Reference cost, Current cost, and $\text{Gap} = \text{Current} - \text{Reference}$ provide its monetary value.
+- Changed inputs (Price, Usage, Loss) are displayed as Reference → Current explanatory details.
+- **No fabricated per-factor THB attribution:** There is no agreed accounting method to allocate a material record's Gap into separate THB amounts for Price, Usage, or Loss. Do not invent per-input monetary values or repeat the full record Gap across individual factors.
 
-Candidate Prioritization uses only:
+### Processing Candidates (Process / Routing)
+- The processing Candidate is strictly the **Process / Routing** record.
+- Work Center is the rate owner and calculation context, never a Candidate.
+- Each Process is one Candidate; do not split one Process into separate Labor and Burden Candidates.
+- **Work Center Rate Dependency:** When a Work Center rate change causes a Process's calculated processing cost to change, that Process is classified as `CHANGED` even if its own Manning, Capacity, Yield, and WC assignment are unchanged. The Work Center rate change is shown as explanatory context.
 
-- `CHANGED`: the comparable candidate exists on both sides and its relevant value/cost changed.
-- `ADDED`: the candidate exists only in Current.
-- `REMOVED`: the candidate exists only in Reference.
+## Candidate Status, Gap, and Controllability
 
-`UNCHANGED` is not a Candidate. Status describes change/structure; Gap describes cost direction and magnitude. Use:
+Only three candidate statuses exist:
+- `CHANGED`: Record exists on both sides and its relevant value/cost differs.
+- `ADDED`: Record exists only in Current (absent Reference contribution is zero).
+- `REMOVED`: Record exists only in Reference (absent Current contribution is zero).
 
+`UNCHANGED` records do not become Candidates.
+
+$$\text{Gap} = \text{Current Cost} - \text{Reference Cost}$$
+
+- **Controllable:** Every Candidate starts marked `true` by default. This is a human engineer judgment. Unchecking Controllable does not delete, hide, or remove the candidate from analysis.
+- **Filtering:** Status filtering is multi-select (`All`, `Changed`, `Added`, `Removed`).
+- **Ranking:** Default sorting is by Gap magnitude descending. Ranking is an **advisory aid only**; the system must never auto-select rank #1 or require top-rank selection.
+
+---
+
+## RCA Case Logic: 1 or Many Candidates
+
+An **RCA Case** represents a focused engineering investigation.
+
+### One RCA Case Supports 1 or Multiple Candidates
+An RCA Case may contain:
+- **1 Candidate**, or
+- **Multiple Candidates**.
+
+*Engineering Rationale:* In manufacturing engineering, a single structural modification frequently produces multiple comparison findings. For instance, replacing an obsolete inspection station with two automated stations creates one REMOVED finding and two ADDED findings. These findings represent one cohesive event and belong in **one RCA Case**.
+
+### Multi-Candidate Example
 ```text
-Gap = Current - Reference
+Reference:
+  Process QA1
+
+Current:
+  Process QA1.1
+  Process QA1.2
+
+CBD Findings:
+  QA1   → REMOVED
+  QA1.1 → ADDED
+  QA1.2 → ADDED
+
+RCA Case:
+  Selected Candidates: [QA1, QA1.1, QA1.2]
+  Root Cause / Why?: Rebalancing quality line into sequential optical and mechanical checks.
+  Action: Fine-tune optical camera throughput to balance cycle times.
 ```
 
-Keep zero-gap changed candidates visible. Do not infer that `ADDED` is necessarily an adverse cost increase or that `REMOVED` is necessarily an improvement.
+## Root Cause / Why? and Action
 
-Each candidate exposes its finding/candidate identity, Status, Reference, Current, Gap, and Controllable mark.
+- **Root Cause / Why?:** Explains the physical, operational, or commercial reason for the observed cost gap.
+- **Action:** Describes the proposed or executed engineering countermeasure.
+- Both fields are captured at the **RCA Case level**.
+- Do not require duplicate Root Cause / Action fields for each individual candidate in the case.
+- **No new RCA Note system:** Do not create duplicate RCA Note, Candidate Note, or Bulk Note features. Existing Master Data annotations (`Note` and `META.Dataset Remark`) remain separate.
 
-## Controllable, filtering, and ranking
+## RCA Completion Boundary
 
-Every candidate defaults to **Controllable** (`true`). This is a human mark, not an automated feasibility judgment. If the user unchecks it, the candidate remains visible and in the candidate pool; it is not deleted, blocked, or excluded from analysis.
+RCA is complete when the engineer records:
+$$\text{Candidate(s)} + \text{Root Cause / Why?} + \text{Action}$$
 
-Filtering is by status only. `All` selects `CHANGED`, `ADDED`, and `REMOVED` and is the default. Any combination of the three statuses may be selected. Do not add material/processing, controllability, cost-direction, requirement-fit, or feasibility filters without a later explicit decision.
+- **Simulation is optional:** The engineer may complete RCA and end the workflow without running a Simulation.
+- **Trial execution is not mandatory:** The RCA Case does not require a formal Trial or approval workflow to be closed.
 
-The default ranking sorts Gap descending (highest to lowest). Keep positive, zero, and negative Gap candidates visible. Ranking is only a prioritization aid; it does not select a candidate for improvement or RCA.
+## Handoff from RCA to Simulation
 
-## Page boundary
-
-Candidate Prioritization ends with reviewing findings, filtering/ranking, and marking controllability. It does not contain candidate-for-RCA selection, Root Cause, Action, Requirement Fit, a feasibility checklist, or Simulation. Human candidate selection takes place in [RCA & Simulation](RCA_SIMULATION.md).
-
-## Presentation and human review
-
-The current presentation follows the provisional design contract in [`design.md`](../../design.md). Layout, grouping, and styling choices remain reversible and do not require individual user approval. No Candidate business behavior is pending in this spec. Final human visual acceptance is a review checkpoint, not an unsettled Candidate product decision.
+If the user chooses to proceed from RCA into Simulation:
+- The RCA Case provides **context**, not a hard scope lock.
+- **Start SIM From:** When launching from a Ref-vs-Cur RCA Case, the starting dataset naturally defaults to `Current`, but the engineer may start from `Reference` or `Custom`.
+- **Factors to Simulate:** Candidates from the RCA Case may be preselected or highlighted in Simulation. However, **the engineer must be allowed to select additional factors** to simulate (e.g. secondary processes or materials influenced by the action).
 
 ## Traceability
 
-The original finalized source is [`agreements/CANDIDATE_PRIORITIZATION_SPEC.md`](../../agreements/CANDIDATE_PRIORITIZATION_SPEC.md); its compatible status, Gap, controllability, filtering, and ranking decisions remain. Its older Work Center Candidate grouping was superseded by [`FINAL_LOGIC_SPEC.md`](FINAL_LOGIC_SPEC.md); Work Center aggregation remains Cost Breakdown context, while Process/Routing is the Candidate. The later Master Data schema uses BOM `Name`, Work Center `WC`, and Routing `Process`; do not reintroduce superseded legacy keys. The 80-topic crosswalk tracks implementation/verification only.
+The Candidate foundation derives from [`agreements/CANDIDATE_PRIORITIZATION_SPEC.md`](../../agreements/CANDIDATE_PRIORITIZATION_SPEC.md). The multi-candidate RCA Case model, optional Simulation boundary, and absence of duplicate note systems are finalized in [`FINAL_LOGIC_SPEC.md`](FINAL_LOGIC_SPEC.md).
