@@ -4,8 +4,6 @@ import {
   WorkCenterRate,
   BOMItem,
   RoutingStep,
-  CostElementBreakdown,
-  CostDriver,
   ExcelImportResult,
   SnapshotImportResult,
   ProductSession,
@@ -25,8 +23,6 @@ import {
   RcaCaseRecord,
   PrioritizationCandidate,
   buildPrioritizationCandidates,
-  calculateCostBreakdown,
-  calculateTopDrivers,
   compareSnapshots,
   sessionToSnapshotPair,
   applySnapshotPairToSession,
@@ -36,14 +32,9 @@ import {
 } from '../core'
 import { createSelectedSnapshotPair, getCanonicalComparisonStatus, getComparisonFindingKey } from '../core'
 import type { MasterDataHandoffStatus } from '../core'
-import {
-  loadWorkingDatasetsFromStorage,
-  saveWorkingDatasetsToStorage,
-  SingleSheetWorkingDatasets
-} from './working-datasets'
-import { WorkingDataset } from '../core/types/dataset-standard.types'
 import { hasEnteredMasterData, importSnapshotForCustom, importSnapshotForRole, markSizingPlaceholderEdited, resizeMasterDataSnapshotForSizing, synchronizeDatasetSizingToRows } from './dataset-sizing'
 import { clearMasterDataDatasetState } from './clear-master-data-dataset'
+import { moveSnapshotRows } from './master-data-row-order'
 import { createRcaCaseForCandidates, migrateLegacyCandidateRcaRecords, saveRcaCaseRecord as updateRcaCaseRecord } from './rca-cases'
 import {
   cloneCostSnapshot,
@@ -92,24 +83,6 @@ const DEVELOPMENT_REVIEW_RETURN_ID_KEY = 'cost_breakdown_dev_review_return_id'
 
 interface StoredSelectedComparison extends SelectedComparisonSelection {
   sourceFingerprint: string
-}
-
-function moveSnapshotRows<T extends { id: string }>(
-  rows: T[],
-  movingIds: string[],
-  targetId: string,
-  position: 'before' | 'after'
-): T[] {
-  const requestedIds = new Set(movingIds)
-  const movingRows = rows.filter(row => requestedIds.has(row.id))
-  if (movingRows.length === 0 || requestedIds.has(targetId) || !rows.some(row => row.id === targetId)) return rows
-
-  const movingRowIds = new Set(movingRows.map(row => row.id))
-  const remainingRows = rows.filter(row => !movingRowIds.has(row.id))
-  const targetIndex = remainingRows.findIndex(row => row.id === targetId)
-  if (targetIndex < 0) return rows
-  remainingRows.splice(targetIndex + (position === 'after' ? 1 : 0), 0, ...movingRows)
-  return remainingRows
 }
 
 function withSnapshotPair(session: ProductSession, explicitPair?: SnapshotPair): ProductSession {
@@ -278,8 +251,6 @@ interface AppContextType {
   rates: WorkCenterRate[]
   bom: BOMItem[]
   routing: RoutingStep[]
-  costBreakdown: CostElementBreakdown
-  topDrivers: CostDriver[]
   candidates: PrioritizationCandidate[]
   rcaCases: RcaCaseRecord[]
   activeRcaCaseId: string | null
@@ -372,9 +343,6 @@ interface AppContextType {
   resetToDefault: () => void
 
   clearAllData: () => void
-  // Single Sheet Working Datasets
-  workingDatasets: import('./working-datasets').SingleSheetWorkingDatasets
-  updateWorkingDataset: (role: ComparisonRole, dataset: import('../core/types/dataset-standard.types').WorkingDataset) => void
 }
 
 
@@ -446,9 +414,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     loadFromSession(STORAGE_KEYS.UOM_LIST, DEFAULT_UOMS)
   )
 
-  const [workingDatasets, setWorkingDatasets] = useState<SingleSheetWorkingDatasets>(() =>
-    loadWorkingDatasetsFromStorage()
-  )
   const [selectedComparisonScope, setSelectedComparisonScope] = useState<StoredSelectedComparison | null>(null)
   const developmentReviewReturnStateRef = useRef<{
     productId: string
@@ -470,27 +435,13 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     setMasterDataHistoryRevision(revision => revision + 1)
   }, [activeProductId])
 
-  useEffect(() => {
-    saveWorkingDatasetsToStorage(workingDatasets)
-  }, [workingDatasets])
-
-  const updateWorkingDataset = (
-    role: ComparisonRole,
-    dataset: WorkingDataset
-  ) => {
-    setWorkingDatasets(prev => ({
-      ...prev,
-      [role]: dataset
-    }))
-  }
-
-
   // Sync to sessionStorage
   useEffect(() => saveToSession(STORAGE_KEYS.SESSIONS, productSessions), [productSessions])
   useEffect(() => saveToSession(STORAGE_KEYS.ACTIVE_ID, activeProductId), [activeProductId])
   useEffect(() => saveToSession(STORAGE_KEYS.UOM_LIST, uomList), [uomList])
 
   const setActiveTab = (tab: ActiveTab) => {
+    if (tab === 'simulation') setSelectedComparisonScope(null)
     setActiveTabState(tab)
     saveToSession(STORAGE_KEYS.ACTIVE_TAB, tab)
   }
@@ -507,7 +458,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const activeSession: ProductSession =
     productSessions.find(s => s.id === activeProductId) ?? productSessions[0]
 
-  const { product, rates, bom, routing, savedDrivers } = activeSession
+  const { product, rates, bom, routing } = activeSession
 
   const patchActive = (patch: Partial<ProductSession>) => {
     const now = new Date().toISOString()
@@ -522,8 +473,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     )
   }
 
-  const costBreakdown = calculateCostBreakdown(bom, routing, rates)
-  const topDrivers = calculateTopDrivers(bom, routing, rates, savedDrivers)
   const rcaCases = Object.values(activeSession.rcaCases ?? {})
   const activeRcaCaseId = activeSession.activeRcaCaseId && rcaCases.some(record => record.id === activeSession.activeRcaCaseId)
     ? activeSession.activeRcaCaseId
@@ -1462,8 +1411,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       rates,
       bom,
       routing,
-      costBreakdown,
-      topDrivers,
       candidates,
       rcaCases,
       activeRcaCaseId,
@@ -1544,9 +1491,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       loadDevelopmentReviewFixture,
       returnFromDevelopmentReviewFixture,
       resetToDefault,
-      clearAllData,
-      workingDatasets,
-      updateWorkingDataset
+      clearAllData
     }}>
 
       {children}

@@ -48,6 +48,12 @@ const AppRouter: React.FC = () => {
     : null
 
   useEffect(() => {
+    if (simulationRcaHandoff && (activeTab !== 'simulation' || simulationRcaHandoff.productId !== activeProductId)) {
+      setSimulationRcaHandoff(null)
+    }
+  }, [activeProductId, activeTab, simulationRcaHandoff])
+
+  useEffect(() => {
     if (!storedSimulationState || simulationState === storedSimulationState) return
     setSimulationStatesByProduct(previous => previous[activeProductId] === storedSimulationState
       ? { ...previous, [activeProductId]: simulationState }

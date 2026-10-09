@@ -25,6 +25,15 @@ assert.equal(isRcaCaseComplete(completedCase), true, 'Root Cause and Action comp
 assert.deepEqual(createRcaSimulationHandoffContext(completedCase, completedCase), {
   caseId: 'case-many', candidateKeys, rootCause: completedCase.rootCause, action: completedCase.action
 }, 'multi-Candidate handoff carries every Case Candidate and its RCA context')
+const latestMultiCandidateDraft = {
+  rootCause: 'Latest unsaved multi-Candidate cause',
+  action: 'Latest unsaved action across both process steps'
+}
+assert.deepEqual(createRcaSimulationHandoffContext(completedCase, latestMultiCandidateDraft), {
+  caseId: 'case-many', candidateKeys,
+  rootCause: latestMultiCandidateDraft.rootCause,
+  action: latestMultiCandidateDraft.action
+}, 'multi-Candidate handoff carries the latest draft instead of stale saved values')
 
 const incompleteWorkspaceMarkup = renderToStaticMarkup(React.createElement(RcaCaseWorkspace, {
   candidates: [],

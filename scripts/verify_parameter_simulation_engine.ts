@@ -92,6 +92,20 @@ assert.strictEqual(updateSimulationParameter(selectedMaterial, current, 'custom-
 assert.strictEqual(updateSimulationParameter(selectedMaterial, current, 'custom-assembly', 'routing.manning', 1), selectedMaterial, 'Unselected process records cannot be edited')
 assert.strictEqual(updateSimulationParameter(selectedMaterial, current, 'custom-a', 'bom.price', Number.NaN), selectedMaterial, 'Non-finite parameter values are rejected')
 
+const selectedUnchanged = setSimulationFactors(state, [simulationFactorId('bom', 'custom-stable')])
+const editedUnchanged = updateSimulationParameter(selectedUnchanged, current, 'custom-stable', 'bom.price', 4)
+assert.equal(editedUnchanged.snapshot?.bom.find(item => item.id === 'custom-stable')?.price, 4,
+  'a selected UNCHANGED record remains editable')
+assert.equal(calculateParameterSimulation(current, editedUnchanged.snapshot!).parameterSavingPerPiece, -15,
+  'editing an UNCHANGED record recalculates the complete SIM snapshot')
+
+const selectedAdded = setSimulationFactors(state, [simulationFactorId('bom', 'custom-added')])
+const editedAdded = updateSimulationParameter(selectedAdded, current, 'custom-added', 'bom.price', 2)
+assert.equal(editedAdded.snapshot?.bom.find(item => item.id === 'custom-added')?.price, 2,
+  'a selected ADDED record remains editable')
+assert.equal(calculateParameterSimulation(current, editedAdded.snapshot!).parameterSavingPerPiece, -16,
+  'editing an ADDED record recalculates the complete SIM snapshot and retains signed saving')
+
 const changedConsumption = updateSimulationParameter(
   selectedMaterial, current, 'custom-a', 'bom.consumption', 2
 )

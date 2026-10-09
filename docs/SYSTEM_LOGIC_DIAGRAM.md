@@ -58,6 +58,7 @@ RCA CASE — SELECT 1 OR MANY CANDIDATES
   │
   ▼
 SIMULATION MODULE (Two Interoperable Dimensions)
+  (May also be opened directly without an RCA Case)
   │
   ├─────────────────────────────┬─────────────────────────────┐
   ▼                             ▼                             ▼
@@ -110,7 +111,7 @@ flowchart TD
 
     cbd --> comparisonChoice{"Comparison Scope?"}
     comparisonChoice -->|Full Comparison| fullPool["Full Candidate Pool"]
-    comparisonChoice -->|Selected Comparison| selectedScope["SELECTED COMPARISON<br/>Temporary analysis scope<br/>Shows only Selected Gap"]
+    comparisonChoice -->|Selected Comparison| selectedScope["SELECTED COMPARISON<br/>Temporary analysis scope<br/>Shows only Selected Gap<br/>Ends at RCA or Simulation entry"]
     selectedScope --> scopedPool["Scoped Candidate Pool"]
 
     fullPool --> ranking["CANDIDATE RANKING<br/>BOM & Process/Routing Candidates<br/>Advisory ranking by Gap · Controllable flag"]
@@ -121,9 +122,10 @@ flowchart TD
     rcaCase --> rcaAnalysis["Record Root Cause / Why? and Action"]
     rcaAnalysis --> endRCA["END RCA<br/>RCA legitimately completes here"]
 
-    endRCA --> simChoice{"Engage optional Simulation?"}
+    endRCA --> simChoice{"Proceed optionally from this RCA Case?"}
     simChoice -->|No| finish([FINISH])
-    simChoice -->|Yes| simModule["SIMULATION MODULE"]
+    simChoice -->|Yes · carry Case context; Current first| simModule["SIMULATION MODULE"]
+    start -.->|Open Simulation independently| simModule
 
     simModule --> simMode{"Select Simulation Mode"}
 
@@ -142,7 +144,7 @@ flowchart TD
 
 1. **Master Data Workspaces & Structural Ownership:** Master Data manages `Reference`, `Current`, and `Custom`. All structural additions, deletions, and sizing changes occur in Master Data / Custom. Datasets copy via `Clone From`.
 2. **CBD Scope:** Cost Breakdown compares `Reference` vs `Current` only. `Custom` is never compared directly in CBD.
-3. **Selected Comparison Boundary:** Selected Comparison is an analysis scope, not an RCA Case and not a dataset.
+3. **Selected Comparison Boundary:** Selected Comparison shapes the Candidate pool only. It ends when an RCA Case workspace or Simulation opens; downstream flows may retain origin context but never an active scope.
 4. **Multi-Candidate RCA:** One RCA Case supports one or multiple Candidates to account for complex multi-row engineering changes. RCA completes upon recording Root Cause and Action.
 5. **Simulation Independence & Two Dimensions:** Simulation is an optional sandbox with Parameter Simulation (what-if cost calculation) and Economic Simulation (break-even feasibility).
 6. **SIM Comparison & Editability:** Parameter Simulation compares `Current vs SIM`. `CHANGED`, `UNCHANGED`, and `ADDED` records are editable; `REMOVED` records remain visible but non-editable.

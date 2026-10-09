@@ -1,4 +1,6 @@
 import assert from 'node:assert/strict'
+import { readFileSync } from 'node:fs'
+import { resolve } from 'node:path'
 import type { CostSnapshot, MasterDataRole } from '../src/core/types'
 import {
   createEmptySimulationState,
@@ -62,5 +64,33 @@ assert.deepEqual(reconcileSimulationState(customSim, sources(10, 12, 15)), creat
 const currentSim = startSimulationFrom('current', initial)
 assert.equal(currentSim.sourceRole, 'current')
 assert.equal(currentSim.snapshot?.bom[0].price, 12)
+
+const invalidLegacyRole = reconcileSimulationState({
+  ...currentSim,
+  sourceRole: 'trial' as unknown as MasterDataRole,
+  selectedFactors: ['bom.price'] as unknown as typeof currentSim.selectedFactors
+}, initial)
+assert.deepEqual(invalidLegacyRole, createEmptySimulationState(),
+  'an incompatible legacy Trial/source state is sanitized instead of reinterpreted as a valid SIM')
+const incompleteStoredSimulation = reconcileSimulationState({
+  ...currentSim,
+  snapshot: null
+}, initial)
+assert.deepEqual(incompleteStoredSimulation, createEmptySimulationState(),
+  'a legacy SIM missing its isolated snapshot is discarded deterministically')
+const noFingerprintSimulation = reconcileSimulationState({
+  ...currentSim,
+  basisFingerprint: null
+}, initial)
+assert.deepEqual(noFingerprintSimulation, createEmptySimulationState(),
+  'a legacy SIM with no source/current basis is discarded deterministically')
+
+const storeSource = readFileSync(resolve(process.cwd(), 'src/state/store.tsx'), 'utf8')
+const routerSource = readFileSync(resolve(process.cwd(), 'src/App.tsx'), 'utf8')
+assert.match(storeSource, /normalizeActiveTab\(loadFromSession<unknown>\(STORAGE_KEYS\.ACTIVE_TAB, 'master'\)\)/)
+assert.match(storeSource, /value === 'dashboard' \|\| value === 'rca'[^\n]*return 'simulation'/,
+  'legacy navigation values are normalized into the independent Simulation module')
+assert.doesNotMatch(storeSource + routerSource, /RCA_SIMULATION_STATES|trialHandoffLetter|selectedScenarioLetter/,
+  'legacy Trial/A-B Simulation state is not loaded by active application routing')
 
 console.log('Independent Simulation workspace verification passed')

@@ -1,8 +1,11 @@
 import assert from 'node:assert/strict'
+import { readFileSync } from 'node:fs'
+import { resolve } from 'node:path'
 import type { CostSnapshot, ProductSession } from '../src/core/types'
 import {
   cloneMasterDataDatasetState,
   getMasterDataSnapshot,
+  getMasterDataSizing,
   initializeCustomMasterData,
   setMasterDataSnapshot
 } from '../src/state/master-data-datasets.ts'
@@ -100,6 +103,73 @@ assert.strictEqual(customToCurrent.snapshotPair?.reference, reference)
 assert.strictEqual(customToCurrent.customMasterData, currentToCustom.customMasterData)
 assert.strictEqual(customToCurrent.lastSavedMasterData?.current, cloneInput.lastSavedMasterData?.current)
 assert.strictEqual(cloneMasterDataDatasetState(cloneInput, 'current', 'current'), cloneInput, 'Cloning a dataset into itself is a no-op')
+
+const sourceReference = {
+  ...snapshot('source-reference'),
+  product: { ...snapshot('source-reference').product, productCode: 'REF-SOURCE' },
+  sizing: { wcCount: 2, bomCount: 3, routingCount: 4 }
+}
+const sourceCurrent = {
+  ...snapshot('source-current'),
+  product: { ...snapshot('source-current').product, productCode: 'CURRENT-SOURCE' },
+  sizing: { wcCount: 5, bomCount: 6, routingCount: 7 }
+}
+const sourceCustom = {
+  ...snapshot('source-custom'),
+  product: { ...snapshot('source-custom').product, productCode: 'CUSTOM-SOURCE' },
+  sizing: { wcCount: 8, bomCount: 9, routingCount: 10 }
+}
+const destinationSaved = {
+  reference: { snapshot: snapshot('saved-reference'), prepared: true, sizing: { bomCount: 11 } },
+  current: { snapshot: snapshot('saved-current'), prepared: false, sizing: { bomCount: 12 } },
+  custom: { snapshot: snapshot('saved-custom'), prepared: true, sizing: { bomCount: 13 } }
+}
+const allDirections: ProductSession = {
+  ...cloneInput,
+  snapshotPair: { reference: sourceReference, current: sourceCurrent },
+  customMasterData: sourceCustom,
+  datasetSizing: { reference: sourceReference.sizing, current: sourceCurrent.sizing },
+  customDatasetSizing: sourceCustom.sizing,
+  lastSavedMasterData: {
+    reference: destinationSaved.reference,
+    current: destinationSaved.current
+  },
+  customLastSavedMasterData: destinationSaved.custom,
+  preparedSnapshotRoles: { reference: true, current: false }
+}
+const cloneDirections = [
+  ['current', 'reference'], ['custom', 'reference'],
+  ['reference', 'current'], ['custom', 'current'],
+  ['reference', 'custom'], ['current', 'custom']
+] as const
+for (const [sourceRole, destinationRole] of cloneDirections) {
+  const sourceBefore = structuredClone(getMasterDataSnapshot(allDirections, allDirections.snapshotPair!, sourceRole))
+  const sizingBefore = getMasterDataSizing(allDirections, sourceBefore, sourceRole)
+  const destinationLastSaved = destinationRole === 'custom'
+    ? allDirections.customLastSavedMasterData
+    : allDirections.lastSavedMasterData?.[destinationRole]
+  const cloned = cloneMasterDataDatasetState(allDirections, sourceRole, destinationRole, '2026-01-03T00:00:00.000Z')
+  const copied = getMasterDataSnapshot(cloned, cloned.snapshotPair!, destinationRole)
+  assert.equal(copied.product.productCode, sourceBefore.product.productCode,
+    `${sourceRole} → ${destinationRole} copies the source Working content`)
+  assert.notStrictEqual(copied, sourceBefore, `${sourceRole} → ${destinationRole} creates an independent destination copy`)
+  assert.deepEqual(getMasterDataSizing(cloned, copied, destinationRole), sizingBefore,
+    `${sourceRole} → ${destinationRole} copies source sizing`)
+  assert.deepEqual(getMasterDataSnapshot(allDirections, allDirections.snapshotPair!, sourceRole), sourceBefore,
+    `${sourceRole} → ${destinationRole} does not mutate the source`)
+  const savedAfter = destinationRole === 'custom'
+    ? cloned.customLastSavedMasterData
+    : cloned.lastSavedMasterData?.[destinationRole]
+  assert.strictEqual(savedAfter, destinationLastSaved, `${sourceRole} → ${destinationRole} leaves destination Last Saved unchanged`)
+  if (destinationRole !== 'custom') {
+    assert.equal(cloned.preparedSnapshotRoles?.[destinationRole], true,
+      `${sourceRole} → ${destinationRole} recalculates readiness from copied content rather than inheriting false`)
+  }
+}
+
+const headerSource = readFileSync(resolve(process.cwd(), 'src/features/master-data/components/MasterDataWorkspaceHeader.tsx'), 'utf8')
+assert.match(headerSource, />Clone From</, 'Master Data uses the generic Clone From action wording')
+assert.match(headerSource, /sourceRole !== role/, 'the currently viewed dataset is never offered as its own source')
 
 const afterCustom = { ...editedCustom, product: { ...editedCustom.product, productCode: 'CUSTOM-002' } }
 const historySession: ProductSession = {

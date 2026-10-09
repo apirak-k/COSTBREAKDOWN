@@ -1,92 +1,122 @@
 import assert from 'node:assert/strict'
 import {
-  calculateCostBreakdown,
-  calculateRoutingDetailedRows,
-  calculateTopDrivers,
-  calculateSnapshotCost
-} from '../src/core/calculations'
-import { CostDriver, CostSnapshot, RoutingStep } from '../src/core/types'
+  buildPrioritizationCandidates,
+  calculateSnapshotCost,
+  calculateSnapshotRoutingDetail,
+  compareSnapshots,
+  CostSnapshot,
+  SnapshotBOMItem,
+  SnapshotRoutingStep,
+  SnapshotWorkCenterRate
+} from '../src/core'
 import { SIMULATION_PARAMETERS, startSimulationFrom } from '../src/features/simulation/simulation-state.ts'
 
-const missingRateRouting: RoutingStep[] = [{
-  id: 'routing-unknown-wc',
-  opSeq: 10,
-  description: 'Unknown rate operation',
-  wc: 'UNKNOWN-WC',
-  manning: 1,
-  baseCap: 100,
-  activeCap: 50,
-  baseYield: 1,
-  activeYield: 1,
-  sourceRef: 'missing-rate-fixture'
-}]
-
-const breakdown = calculateCostBreakdown([], missingRateRouting, [])
-assert.equal(breakdown.laborBase, null, 'missing Work Center labor must remain unavailable')
-assert.equal(breakdown.laborActive, null, 'missing Work Center labor must remain unavailable')
-assert.equal(breakdown.burdenBase, null, 'missing Work Center burden must remain unavailable')
-assert.equal(breakdown.burdenActive, null, 'missing Work Center burden must remain unavailable')
-assert.deepEqual(breakdown.missingWorkCenters, ['UNKNOWN-WC'])
-
-const configuredBreakdown = calculateCostBreakdown([], missingRateRouting, [{
-  id: 'rate-unknown-wc',
-  wc: 'UNKNOWN-WC',
-  description: 'Configured fixture rate',
-  laborRate: 10,
-  burdenRate: 20,
-  effectiveDate: '2026-09-21',
-  sourceRef: 'configured-rate-fixture'
-}])
-assert.equal(configuredBreakdown.laborBase, 0.1, 'known Work Center labor must keep using its configured rate')
-assert.equal(configuredBreakdown.burdenBase, 0.2, 'known Work Center burden must keep using its configured rate')
-assert.deepEqual(configuredBreakdown.missingWorkCenters, [])
-
-const detail = calculateRoutingDetailedRows(missingRateRouting, [])
-assert.equal(detail.rows[0]?.baseTotal, null, 'routing detail must preserve unavailable costs')
-assert.equal(detail.rows[0]?.activeTotal, null, 'routing detail must preserve unavailable costs')
-
-const drivers = calculateTopDrivers([], missingRateRouting, [])
-assert.equal(drivers.length, 0, 'missing Work Center must not create a cost driver from a fabricated rate')
-
-const routingDriver: CostDriver = {
-  id: 1,
-  category: 'UNKNOWN-WC',
-  driverName: 'Unknown rate operation',
-  rcaParameter: 'Capacity Drop (100 → 50 Unit/hr)',
-  baseParameter: 100,
-  activeParameter: 50,
-  costGap: 0,
-  tieBreakerScore: 0,
-  rank: 1,
-  pctContribution: 0,
-  controllability: '',
-  actionPlan: ''
+const product = {
+  productCode: 'TEST-001',
+  productDescription: 'Synthetic',
+  uom: 'PC',
+  customer: 'Synthetic',
+  effectiveDate: '2026-09-27'
 }
-const currentSnapshot: CostSnapshot = {
-  id: 'missing-rate-current',
-  product: { productCode: 'TEST-001', productDescription: 'Synthetic', uom: 'PC', customer: 'Synthetic', effectiveDate: '2026-09-27' },
-  effectiveDate: '2026-09-27',
-  sourceRef: 'missing-rate-fixture',
-  status: 'active',
-  rates: [],
-  bom: [{
+
+function bom(): SnapshotBOMItem {
+  return {
     id: 'bom-1', itemCode: 'MAT-01', description: 'Synthetic material',
     consumption: 1, unit: 'pc', price: 1, loss: 0, confidence: {}
-  }],
-  routing: [{
-    id: 'routing-unknown-wc', processName: 'Unknown rate operation', workCenterId: 'UNKNOWN-WC',
-    manning: 1, capacity: 100, yield: 1, confidence: {}
-  }]
+  }
 }
-const cost = calculateSnapshotCost(currentSnapshot)
-assert.equal(cost.labor, null, 'Standard Cost must keep missing Work Center labor unavailable')
-assert.equal(cost.burden, null, 'Standard Cost must keep missing Work Center burden unavailable')
-assert.equal(cost.total, null, 'missing Work Center data must remain unresolved')
+
+function route(overrides: Partial<SnapshotRoutingStep> = {}): SnapshotRoutingStep {
+  return {
+    id: 'routing-unknown-wc', processName: 'Unknown rate operation', workCenterId: 'UNKNOWN-WC',
+    manning: 1, capacity: 100, yield: 1, confidence: {}, ...overrides
+  }
+}
+
+function rate(overrides: Partial<SnapshotWorkCenterRate> = {}): SnapshotWorkCenterRate {
+  return {
+    id: 'rate-unknown-wc', workCenterCode: 'UNKNOWN-WC', description: 'Configured fixture rate',
+    laborRate: 10, burdenRate: 20, effectiveDate: '2026-09-27', confidence: {}, ...overrides
+  }
+}
+
+function snapshot(options: {
+  id: string
+  routing?: SnapshotRoutingStep[]
+  rates?: SnapshotWorkCenterRate[]
+}): CostSnapshot {
+  return {
+    id: options.id,
+    product,
+    effectiveDate: '2026-09-27',
+    sourceRef: 'missing-rate-fixture',
+    status: 'active',
+    rates: options.rates ?? [],
+    bom: [bom()],
+    routing: options.routing ?? [route()]
+  }
+}
+
+const reference = snapshot({ id: 'missing-rate-reference' })
+const current = snapshot({
+  id: 'missing-rate-current',
+  routing: [route({ id: 'routing-unknown-wc-current', capacity: 50 })]
+})
+
+const missingRateCost = calculateSnapshotCost(current)
+assert.equal(missingRateCost.labor, null, 'missing Work Center labor must remain unavailable')
+assert.equal(missingRateCost.burden, null, 'missing Work Center burden must remain unavailable')
+assert.equal(missingRateCost.total, null, 'missing Work Center data must not produce a Standard Cost')
+
+const missingRateDetail = calculateSnapshotRoutingDetail(
+  { reference: reference.routing[0], current: current.routing[0] },
+  reference.rates,
+  current.rates
+)
+assert.equal(missingRateDetail.referenceLaborCost, null)
+assert.equal(missingRateDetail.currentLaborCost, null)
+assert.equal(missingRateDetail.referenceBurdenCost, null)
+assert.equal(missingRateDetail.currentBurdenCost, null)
+assert.equal(missingRateDetail.totalGap, null, 'unavailable Process detail must not become zero')
+
+const missingRateComparison = compareSnapshots(reference, current)
+assert.equal(missingRateComparison.routingFindings[0]?.costEffect?.gap.total, null)
+const missingRateProcessCandidate = buildPrioritizationCandidates(
+  missingRateComparison,
+  reference,
+  current
+).find(candidate => candidate.sourceType === 'process')
+assert.ok(missingRateProcessCandidate, 'changed Process remains identifiable despite unavailable cost')
+assert.equal(missingRateProcessCandidate.costGap, null, 'Candidate pipeline must preserve unavailable Gap')
+
+const configuredReference = snapshot({ id: 'configured-reference', rates: [rate()] })
+const configuredCurrent = snapshot({
+  id: 'configured-current',
+  rates: [rate()],
+  routing: [route({ id: 'routing-configured-current', capacity: 50 })]
+})
+const configuredReferenceCost = calculateSnapshotCost(configuredReference)
+const configuredCurrentCost = calculateSnapshotCost(configuredCurrent)
+assert.equal(configuredReferenceCost.labor, 0.1, 'known Work Center labor uses its configured rate')
+assert.equal(configuredReferenceCost.burden, 0.2, 'known Work Center burden uses its configured rate')
+assert.equal(configuredCurrentCost.labor, 0.2)
+assert.equal(configuredCurrentCost.burden, 0.4)
+
+const configuredComparison = compareSnapshots(configuredReference, configuredCurrent)
+const configuredProcessCandidate = buildPrioritizationCandidates(
+  configuredComparison,
+  configuredReference,
+  configuredCurrent
+).find(candidate => candidate.sourceType === 'process')
+assert.ok(
+  Math.abs((configuredProcessCandidate?.costGap ?? Number.NaN) - 0.3) < 1e-12,
+  'Process Candidate Gap uses canonical side-specific snapshot rates'
+)
 
 const simState = startSimulationFrom('current', {
-  reference: currentSnapshot,
-  current: currentSnapshot,
-  custom: currentSnapshot
+  reference,
+  current,
+  custom: current
 })
 assert.deepEqual(SIMULATION_PARAMETERS, [
   'bom.price', 'bom.consumption', 'bom.loss',
@@ -94,4 +124,4 @@ assert.deepEqual(SIMULATION_PARAMETERS, [
 ], 'Simulation exposes only the finalized BOM and Routing parameters')
 assert.equal(simState.snapshot?.rates.length, 0, 'starting SIM does not fabricate Work Center rate records')
 
-console.log('Missing Work Center rate verification passed; no Simulation rate override is available')
+console.log('Canonical missing Work Center verification passed; unavailable costs remain explicit')

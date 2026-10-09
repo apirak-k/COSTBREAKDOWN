@@ -35,6 +35,10 @@ export const CandidateSelectionPage: React.FC<CandidateSelectionPageProps> = ({ 
   const [showRcaCases, setShowRcaCases] = useState(Boolean(activeRcaCaseId))
 
   useEffect(() => {
+    if (showRcaCases && isSelectedComparisonActive) clearSelectedComparison()
+  }, [showRcaCases, isSelectedComparisonActive, clearSelectedComparison])
+
+  useEffect(() => {
     const eligibleKeys = new Set(candidates.map(candidate => candidate.candidateKey))
     setSelectedCandidateKeys(current => {
       const next = new Set([...current].filter(key => eligibleKeys.has(key)))
@@ -78,6 +82,12 @@ export const CandidateSelectionPage: React.FC<CandidateSelectionPageProps> = ({ 
     if (selectedCandidateKeys.size === 0) return
     createRcaCase([...selectedCandidateKeys])
     setSelectedCandidateKeys(new Set())
+    clearSelectedComparison()
+    setShowRcaCases(true)
+  }
+
+  const openRcaCases = () => {
+    clearSelectedComparison()
     setShowRcaCases(true)
   }
 
@@ -121,7 +131,7 @@ export const CandidateSelectionPage: React.FC<CandidateSelectionPageProps> = ({ 
             </p>
             <div className="flex flex-wrap gap-2">
               {rcaCases.length > 0 && (
-                <button type="button" onClick={() => setShowRcaCases(true)} className="min-h-9 border border-slate-400 bg-white px-3 text-xs font-medium text-slate-800 hover:bg-slate-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700">
+                <button type="button" onClick={openRcaCases} className="min-h-9 border border-slate-400 bg-white px-3 text-xs font-medium text-slate-800 hover:bg-slate-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700">
                   Open RCA Cases <span className="font-mono tabular-nums">({rcaCases.length})</span>
                 </button>
               )}

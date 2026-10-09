@@ -1,7 +1,8 @@
 import assert from 'node:assert/strict'
+import { existsSync, readFileSync } from 'node:fs'
+import { resolve } from 'node:path'
+import * as publicCore from '../src/core'
 import {
-  calculateCostBreakdown,
-  calculateRoutingDetailedRows,
   calculateSnapshotBOMDetail,
   calculateSnapshotCost,
   calculateSnapshotRoutingDetail,
@@ -20,6 +21,25 @@ const product = {
   customer: 'Fixture',
   effectiveDate: '2026-10-07'
 }
+
+assert.equal('calculateCostBreakdown' in publicCore, false, 'legacy single-session cost engine must not be exported publicly')
+assert.equal('calculateTopDrivers' in publicCore, false, 'legacy driver engine must not be exported publicly')
+assert.equal('calculateBOMDetailedRows' in publicCore, false, 'legacy BOM variance breakdown must not be exported publicly')
+assert.equal('calculateRoutingDetailedRows' in publicCore, false, 'legacy Routing cost breakdown must not be exported publicly')
+assert.equal('compareWorkingDatasets' in publicCore, false, 'parallel two-dataset comparison must not be exported publicly')
+assert.equal('buildDriverKey' in publicCore, false, 'legacy driver key helper must not be exported publicly')
+assert.equal('getCostDriverImpact' in publicCore, false, 'legacy driver impact helper must not be exported publicly')
+assert.equal(existsSync(resolve(process.cwd(), 'src/state/working-datasets.ts')), false, 'parallel Reference/Current workspace module must be retired')
+assert.equal(existsSync(resolve(process.cwd(), 'src/core/types/dataset-standard.types.ts')), false, 'parallel dataset schema types must be retired')
+assert.equal(existsSync(resolve(process.cwd(), 'src/core/calculations/detailed-breakdown.ts')), false, 'retired unsupported monetary attribution module must be removed')
+
+const providerSource = readFileSync(resolve(process.cwd(), 'src/state/store.tsx'), 'utf8')
+assert.doesNotMatch(providerSource, /\bworkingDatasets\b/, 'Provider must not expose the disconnected two-dataset schema')
+assert.doesNotMatch(providerSource, /\bupdateWorkingDataset\b/, 'Provider must not expose the disconnected dataset updater')
+assert.doesNotMatch(providerSource, /\bcalculateCostBreakdown\b/, 'Provider must use the canonical snapshot calculation path')
+assert.doesNotMatch(providerSource, /\bcalculateTopDrivers\b/, 'Provider must use the canonical Candidate pipeline')
+assert.doesNotMatch(providerSource, /^\s*costBreakdown\s*:/m, 'Provider context must not expose a parallel cost result')
+assert.doesNotMatch(providerSource, /^\s*topDrivers\s*:/m, 'Provider context must expose Candidates, not legacy cost drivers')
 
 function bom(id: string, price: number, consumption = 1): SnapshotBOMItem {
   return { id, itemCode: id, description: id, consumption, unit: 'pc', price, loss: 0, confidence: {} }
@@ -83,23 +103,6 @@ assert.equal(tinyCost.labor, 1, 'a valid small denominator must keep its actual 
 const tinyDetail = calculateSnapshotRoutingDetail({ current: tinyPositive.routing[0] }, [], tinyPositive.rates)
 assert.equal(tinyDetail.currentRuntime, 1e12)
 assert.equal(tinyDetail.currentLaborCost, 1)
-const legacyTinyDetail = calculateRoutingDetailedRows([{
-  id: 'legacy-tiny-route', opSeq: 1, description: 'Tiny route', wc: 'WC-1', manning: 1,
-  baseCap: 1e-12, activeCap: 1e-12, baseYield: 1, activeYield: 1, sourceRef: 'numeric-test'
-}], [{
-  id: 'legacy-tiny-rate', wc: 'WC-1', description: 'Tiny rate', laborRate: 1e-12, burdenRate: 0,
-  effectiveDate: '2026-10-07', sourceRef: 'numeric-test'
-}])
-assert.equal(legacyTinyDetail.rows[0]?.baseRuntime, 1e12)
-assert.equal(legacyTinyDetail.rows[0]?.baseLaborCost, 1)
-assert.equal(calculateCostBreakdown([], [{
-  id: 'legacy-tiny-route', opSeq: 1, description: 'Tiny route', wc: 'WC-1', manning: 1,
-  baseCap: 1e-12, activeCap: 1e-12, baseYield: 1, activeYield: 1, sourceRef: 'numeric-test'
-}], [{
-  id: 'legacy-tiny-rate', wc: 'WC-1', description: 'Tiny rate', laborRate: 1e-12, burdenRate: 0,
-  effectiveDate: '2026-10-07', sourceRef: 'numeric-test'
-}]).laborBase, 1)
-
 for (const invalidRoute of [
   route({ capacity: 0 }),
   route({ yield: 0 }),

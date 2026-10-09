@@ -1,32 +1,57 @@
 import assert from 'node:assert/strict'
-import { calculateTopDrivers } from '../src/core/calculations/top-drivers'
+import { buildPrioritizationCandidates, compareSnapshots, CostSnapshot, SnapshotBOMItem } from '../src/core'
 
-const makeBom = (id: string, activePrice: number) => ({
-  id,
-  itemCode: id,
-  description: `Material ${id}`,
-  consumption: 1,
-  unit: 'EA',
-  basePrice: 10,
-  activePrice,
-  baseLoss: 0,
-  activeLoss: 0,
-  sourceRef: `population:${id}`
-})
+const product = {
+  productCode: 'CANDIDATE-POPULATION',
+  productDescription: 'Candidate Population Fixture',
+  uom: 'pc',
+  customer: 'Fixture',
+  effectiveDate: '2026-10-09'
+}
 
-const drivers = calculateTopDrivers(
-  Array.from({ length: 12 }, (_, index) => {
-    if (index === 10) return makeBom(`item-${index + 1}`, 10)
-    if (index === 11) return makeBom(`item-${index + 1}`, 8)
-    return makeBom(`item-${index + 1}`, 20 - index * 0.25)
-  }),
-  [],
-  []
-)
+function bom(index: number, price: number, unit = 'EA'): SnapshotBOMItem {
+  return {
+    id: `material-${index + 1}`,
+    itemCode: `CODE-${index + 1}`,
+    description: `Material ${index + 1}`,
+    consumption: 1,
+    unit,
+    price,
+    loss: 0,
+    confidence: {}
+  }
+}
 
-assert.equal(drivers.length, 12, 'all valid BOM findings must remain inspectable beyond the old Top 10 limit')
-assert.equal(drivers[0]?.costGap && drivers[0].costGap >= (drivers[1]?.costGap ?? 0), true, 'default order must be descending by cost impact')
-assert.equal(drivers.find(driver => driver.driverKey === 'bom:item-11')?.impact, 'neutral', 'zero gap must be explicit')
-assert.equal(drivers.find(driver => driver.driverKey === 'bom:item-12')?.impact, 'favorable', 'negative gap must be explicit')
+function snapshot(id: string, rows: SnapshotBOMItem[]): CostSnapshot {
+  return {
+    id,
+    product,
+    effectiveDate: product.effectiveDate,
+    sourceRef: id,
+    status: 'active',
+    rates: [],
+    bom: rows,
+    routing: []
+  }
+}
 
-console.log('driver population verification passed')
+const reference = snapshot('reference', Array.from({ length: 12 }, (_, index) => bom(index, 10)))
+const current = snapshot('current', Array.from({ length: 12 }, (_, index) => {
+  if (index === 10) return bom(index, 10, 'KG')
+  if (index === 11) return bom(index, 8)
+  return bom(index, 12 + index)
+}))
+
+const comparison = compareSnapshots(reference, current)
+const candidates = buildPrioritizationCandidates(comparison, reference, current)
+
+assert.equal(candidates.length, 12, 'all valid changed BOM Candidates remain available regardless of population size')
+assert.ok(candidates.every(candidate => candidate.status === 'CHANGED'))
+assert.equal(candidates[0]?.costGap, 11, 'default Candidate ordering uses signed Gap descending')
+assert.equal(candidates.at(-1)?.costGap, -2, 'negative Gap remains visible at the end of signed ordering')
+
+const neutral = candidates.find(candidate => candidate.candidateName === 'Material 11')
+assert.ok(neutral, 'zero-gap CHANGED record remains a Candidate')
+assert.equal(neutral.costGap, 0)
+
+console.log('canonical Candidate population verification passed')

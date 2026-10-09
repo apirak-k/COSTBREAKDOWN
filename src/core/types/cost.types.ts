@@ -50,40 +50,10 @@ export interface RoutingStep {
   note?: string
 }
 
-export interface CostElementBreakdown {
-  materialBase: number | null
-  materialActive: number | null
-  laborBase: number | null
-  laborActive: number | null
-  burdenBase: number | null
-  burdenActive: number | null
-  totalBase: number | null
-  totalActive: number | null
-  totalVariance: number | null
-  mpv: number | null // Material Price Variance
-  mlv: number | null // Material Loss Variance
-  lrv: number | null // Labor Rate Variance
-  lev: number | null // Labor Efficiency Variance
-  brv: number | null // Burden Rate Variance
-  bev: number | null // Burden Efficiency Variance
-  missingWorkCenters: string[]
-}
-
 export type CostDriverSource = 'bom' | 'routing'
 export type CostDriverImpact = 'unfavorable' | 'neutral' | 'favorable'
 
-/** Stable persistence identity for a driver: source kind + source record id. */
-export function buildDriverKey(sourceType: CostDriverSource, sourceId: string): string {
-  return `${sourceType}:${sourceId}`
-}
-
-export function getCostDriverImpact(costGap: number): CostDriverImpact {
-  if (costGap > 0) return 'unfavorable'
-  if (costGap < 0) return 'favorable'
-  return 'neutral'
-}
-
-// Single ranked cost driver from _CALC_ENGINE
+// Retained for migration and persisted annotation compatibility with earlier session data.
 export interface CostDriver {
   driverKey: string
   sourceType: CostDriverSource
@@ -125,25 +95,3 @@ export interface DriverRcaRecord extends DriverRcaDraft {
   sourceRef?: string
   updatedAt: string
 }
-
-// Detailed row breakdown types
-export interface BOMDetailedRow extends BOMItem {
-  baseCost: number | null
-  activeCost: number | null
-  variance: number | null
-  mpv: number | null
-  mlv: number | null
-}
-
-export interface RoutingDetailedRow extends RoutingStep {
-  baseRuntime: number | null
-  activeRuntime: number | null
-  baseLaborCost: number | null
-  activeLaborCost: number | null
-  baseBurdenCost: number | null
-  activeBurdenCost: number | null
-  baseTotal: number | null
-  activeTotal: number | null
-  variance: number | null
-}
-

@@ -1,5 +1,8 @@
 import assert from 'node:assert/strict'
+import React from 'react'
+import { renderToStaticMarkup } from 'react-dom/server'
 import type { CostSnapshot, SnapshotCost } from '../src/core/types'
+import { EconomicSimulationPanel } from '../src/features/simulation/EconomicSimulationPanel'
 import {
   calculateEconomicSimulation,
   createEconomicSimulationDraft,
@@ -27,6 +30,17 @@ assert.equal(combined.business.sgaPercent, 10)
 assert.equal(combined.business.sgaAmountPerPiece, 15)
 assert.equal(combined.business.operatingProfitPerPiece, 40)
 assert.equal(combined.simulationStandardCost, 95, 'Action Cost never changes Standard Cost')
+
+const atBreakEven = calculateEconomicSimulation(currentSnapshot, simulationCost, 1, draft)
+assert.equal(atBreakEven.economicMarginPerPiece, 0, 'exact break-even remains a valid numeric zero')
+const zeroMarginMarkup = renderToStaticMarkup(React.createElement(EconomicSimulationPanel, {
+  result: atBreakEven,
+  draft,
+  hasParameterSimulation: true,
+  onUpdate() {}
+}))
+assert.match(zeroMarginMarkup, /0\.0000 <span[^>]*>THB\/pc<\/span>/,
+  'the Economic Simulation panel visibly displays a zero Economic Margin')
 
 const belowBreakEven = calculateEconomicSimulation(currentSnapshot, simulationCost, -0.5, draft)
 assert.equal(belowBreakEven.economicMarginPerPiece, -1.5, 'negative margins remain numeric and visible')
