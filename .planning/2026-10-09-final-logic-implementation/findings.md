@@ -1129,6 +1129,7 @@ This section records the final A-01 through W-33 audit. The Phase 1 matrix and P
 | CK | material-candidates.ts, processing-candidates.ts, candidate-prioritization.ts and Candidate page/row controls. |
 | CL | rca-cases.ts, RcaCaseWorkspace.tsx and Candidate/RCA page; case-level Root Cause/Action and compatible migration. |
 | CM | App.tsx product-scoped handoff lifecycle; RcaCaseWorkspace.tsx; SimulationPage.tsx context/source/factor controls. |
+| CM2 | App.tsx handoff reset and RCA-context scope; simulation-state.ts prepareSimulationForRcaHandoff; rca-cases.ts retainRcaSimulationHandoff; SimulationPage.tsx source ordering and unrestricted record-factor controls. |
 | CN | simulation-state.ts, simulation-engine.ts, App.tsx and SimulationPage.tsx isolated full-snapshot SIM. |
 | CO | simulation-engine.ts/state.ts and SimulationPage.tsx record-based factor IDs, editability and full-dataset calculation. |
 | CP | simulation-economics.ts, EconomicSimulationPanel.tsx and SimulationPage.tsx. |
@@ -1136,6 +1137,7 @@ This section records the final A-01 through W-33 audit. The Phase 1 matrix and P
 | CR | scenario-story.ts, SimulationStoryGraph.tsx and SimulationPage.tsx. |
 | CS | workflow-status.ts, Navbar.tsx and AppLayout.tsx shared status/review actions. |
 | CT | App.tsx, store.tsx, session normalization, Selected Comparison and SIM lifecycle helpers. |
+| CT2 | state/active-tab.ts normalizeActiveTab; store.tsx legacy session initialization and App.tsx lifecycle transition. |
 | CU | Active source and navigation scan; no active Trial/A-B/formula lifecycle code. |
 | CV | Existing shared frame/page composition; diff has no Footer/layout/style redesign. |
 | CW | Full baseline-to-final diff reviewed against frozen requirements and scope. |
@@ -1157,6 +1159,7 @@ This section records the final A-01 through W-33 audit. The Phase 1 matrix and P
 | TK | Candidate prioritization, identity, population and unavailable Added/Removed verifiers. |
 | TL | RCA Case/domain/record/note/handoff verifiers; browser created one- and two-Candidate cases and showed RCA complete from Root Cause + Action. |
 | TM | RCA handoff, Simulation story and context-lifecycle verifiers; browser carried latest draft, placed Current first, retained Reference/Custom and allowed an additional Material Factor. |
+| TM2 | verify_rca_handoff.ts and verify_rca_simulation_fresh_start.ts exercise one-/multi-Candidate context, prior Current/Reference/Custom SIM reset, cleared Factors, preserved Economic inputs, rendered source order, and additional Material/Process selection. verify_rca_simulation_context_lifecycle.ts exercises handoff expiry and product scoping. |
 | TN | Simulation workspace/context/engine verifiers cover all three sources, isolation, locked structure and reset. |
 | TO | Parameter engine and story verifiers cover statuses, selected-record editability and full-snapshot recalculation. |
 | TP | Economics and story verifiers cover economic-only, invalid/zero/positive/negative and combined margin, Action Cost isolation; browser showed Required Saving 0.1500 before/after Parameter SIM start. |
@@ -1164,9 +1167,10 @@ This section records the final A-01 through W-33 audit. The Phase 1 matrix and P
 | TR | Simulation story/scenario verifiers confirm flexible Reference → Current → Simulated story with adjacent signed gaps. |
 | TS | Workflow-status, Cost Breakdown review and Selected Comparison boundary verifiers. |
 | TT | Selected Comparison, RCA/SIM context, simulation workspace/context verifiers; browser checked handoff, direct re-entry without stale RCA context, SIM Reset and retained RCA completion. |
+| TT2 | verify_selected_comparison_boundary.ts, verify_rca_simulation_fresh_start.ts, verify_rca_simulation_context_lifecycle.ts, and verify_legacy_active_tab_migration.ts; lifecycle and migration transitions are asserted by behavior, with SSR checks for available Simulation controls. |
 | TU | Simulation workspace/numeric-integrity verifiers and active-source scan. |
 | TV | Browser checked compatible interactions; source diff reviewed. Human visual acceptance is deferred and not claimed. |
-| TW | 60/60 TypeScript verifiers effective pass (59 cached CJS; story-view verifier passed with Vite after CJS ESM require limitation); 2/2 MJS, typecheck, build, diff check, stale scan and full diff review. |
+| TW | 62/62 TypeScript verifiers effective pass (60 through cached CJS and 2 through Vite SSR); 2/2 MJS, explicit typecheck, production build, diff check, stale scan and full baseline-to-HEAD diff review. |
 
 ### Final requirement-by-requirement status
 
@@ -1438,23 +1442,23 @@ This section records the final A-01 through W-33 audit. The Phase 1 matrix and P
 | L-15 | SK–SM | CL | TL | PASS |
 | L-16 | SK–SM | CL | TL | PASS |
 | M-01 | SK–SM | CM | TM | PASS |
-| M-02 | SK–SM | CM | TM | PASS |
-| M-03 | SK–SM | CM | TM | PASS |
-| M-04 | SK–SM | CM | TM | PASS |
-| M-05 | SK–SM | CM | TM | PASS |
-| M-06 | SK–SM | CM | TM | PASS |
-| M-07 | SK–SM | CM | TM | PASS |
-| M-08 | SK–SM | CM | TM | PASS |
-| M-09 | SK–SM | CM | TM | PASS |
-| M-10 | SK–SM | CM | TM | PASS |
+| M-02 | SK–SM | CM2 | TM2 | PASS |
+| M-03 | SK–SM | CM2 | TM2 | PASS |
+| M-04 | SK–SM | CM2 | TM2 | PASS |
+| M-05 | SK–SM | CM2 | TM2 | PASS |
+| M-06 | SK–SM | CM2 | TM2 | PASS |
+| M-07 | SK–SM | CM2 | TM2 | PASS |
+| M-08 | SK–SM | CM2 | TM2 | PASS |
+| M-09 | SK–SM | CM2 | TM2 | PASS |
+| M-10 | SK–SM | CM2 | TM2 | PASS |
 | M-11 | SK–SM | CM | TM | PASS |
 | M-12 | SK–SM | CM | TM | PASS |
 | M-13 | SK–SM | CM | TM | PASS |
 | M-14 | SK–SM | CM | TM | PASS |
 | M-15 | SK–SM | CM | TM | PASS |
-| M-16 | SK–SM | CM | TM | PASS |
-| M-17 | SK–SM | CM | TM | PASS |
-| M-18 | SK–SM | CM | TM | PASS |
+| M-16 | SK–SM | CM2 | TM2 | PASS |
+| M-17 | SK–SM | CM2 | TM2 | PASS |
+| M-18 | SK–SM | CM2 | TM2 | PASS |
 | N-01 | SN–SR | CN | TN | PASS |
 | N-02 | SN–SR | CN | TN | PASS |
 | N-03 | SN–SR | CN | TN | PASS |
@@ -1563,8 +1567,8 @@ This section records the final A-01 through W-33 audit. The Phase 1 matrix and P
 | T-01 | SS–ST | CT | TT | PASS |
 | T-02 | SS–ST | CT | TT | PASS |
 | T-03 | SS–ST | CT | TT | PASS |
-| T-04 | SS–ST | CT | TT | PASS |
-| T-05 | SS–ST | CT | TT | PASS |
+| T-04 | SS–ST | CJ / CM2 | TJ / TT2 | PASS |
+| T-05 | SS–ST | CN / CM2 | TN / TT2 | PASS |
 | T-06 | SS–ST | CT | TT | PASS |
 | T-07 | SS–ST | CT | TT | PASS |
 | T-08 | SS–ST | CT | TT | PASS |
@@ -1574,8 +1578,8 @@ This section records the final A-01 through W-33 audit. The Phase 1 matrix and P
 | T-12 | SS–ST | CT | TT | PASS |
 | T-13 | SS–ST | CT | TT | PASS |
 | T-14 | SS–ST | CT | TT | PASS |
-| T-15 | SS–ST | CT | TT | PASS |
-| T-16 | SS–ST | CT | TT | PASS |
+| T-15 | SS–ST | CT2 | TT2 | PASS |
+| T-16 | SS–ST | CT2 | TT2 | PASS |
 | U-01 | SU | CU | TU | PASS |
 | U-02 | SU | CU | TU | PASS |
 | U-03 | SU | CU | TU | PASS |
@@ -1627,7 +1631,7 @@ This section records the final A-01 through W-33 audit. The Phase 1 matrix and P
 | W-11 | SW | CW | TW | PASS |
 | W-12 | SW | CW | TW | PASS |
 | W-13 | SW | CW | TW | PASS |
-| W-14 | SW | CW | TW | PASS |
+| W-14 | SW | CM2 | TM2 | PASS |
 | W-15 | SW | CW | TW | PASS |
 | W-16 | SW | CW | TW | PASS |
 | W-17 | SW | CW | TW | PASS |
@@ -1637,7 +1641,7 @@ This section records the final A-01 through W-33 audit. The Phase 1 matrix and P
 | W-21 | SW | CW | TW | PASS |
 | W-22 | SW | CW | TW | PASS |
 | W-23 | SW | CW | TW | PASS |
-| W-24 | SW | CW | TW | PASS |
+| W-24 | SW | CJ / CT2 | TJ / TT2 | PASS |
 | W-25 | SW | CW | TW | PASS |
 | W-26 | SW | CW | TW | PASS |
 | W-27 | SW | CW | TW | PASS |
@@ -1684,6 +1688,9 @@ This section records the final A-01 through W-33 audit. The Phase 1 matrix and P
 - Closed G-05 with workbook label MAT, and I-13/K-02 by resolving one-sided ADDED/REMOVED identity status separately from calculation confidence.
 - Closed J-23/J-24/S-08/T-04 by ending Selected Comparison when RCA Case workspace or Simulation opens; source fingerprint changes invalidate stale scope.
 - Closed M-16/M-18/T-11/T-15 by clearing handoff context when leaving Simulation or changing product; direct Simulation re-entry showed no unrelated RCA context.
+- Independent review of `4a1968db841d97ff8d6c44b3aadf929f73e01be1` found that a new RCA handoff could retain an unrelated Parameter SIM and that legacy `activeTab='rca'` migrated to Simulation. Both were corrected in Phase 16: the explicit handoff now starts from a fresh Parameter SIM state, and legacy RCA navigation maps to Candidate.
+- The handoff reset clears Parameter source, snapshot, source fingerprint, start time, and selected Factors while preserving the reconciled Economic inputs. Current is first; Reference and Custom remain available; RCA Candidate context does not constrain Material or Process selection. A behavior-level verifier covers prior Current, Reference, and Custom SIM states and renders the fresh handoff choices.
+- Legacy tab migration now maps `dashboard` → `simulation` and `rca` → `candidate`; current tabs pass through and unknown/incompatible values fall back to `master`. Direct normalization tests cover these outcomes.
 - Remaining evidence gaps were covered with focused Master Data, Selected Comparison, RCA context, Simulation editability/economics and cross-flow verifiers; the relevant suite passed.
 - Workbook formulas were inspected in generated workbooks and checked by the workbook verifier plus shared-engine truth cases; native Excel calculation was not launched. No finalized item remains NOT VERIFIED.
 - Shift-click and Ctrl-click row selection were exercised in the isolated browser review tab. Ctrl-clicking BOM row 2 after selecting row 1 displayed `2 rows selected`; the temporary selection was cleared afterward. The original user tab was not changed.
@@ -1704,12 +1711,14 @@ No finalized requirement remains FINDING or NOT VERIFIED. R-10 and R-11 are N/A 
 
 ### Verification results
 
-- TypeScript: 60/60 effective PASS; 59 passed through the cached CJS runner and the ESM-only story-view verifier passed through Vite.
+- TypeScript: 62/62 effective PASS; 60 passed through the cached CJS runner and 2 SSR verifiers (`verify_simulation_story_view.ts`, `verify_rca_simulation_fresh_start.ts`) passed through Vite.
 - MJS: 2/2 PASS.
 - npx tsc --noEmit --pretty false: PASS.
-- npm run build: PASS; 2,027 modules transformed. Existing ExcelJS browser externalization warnings remain.
+- npm run build: PASS; 2,028 modules transformed. Existing ExcelJS browser externalization warnings for `fs`, `crypto`, and `fast-csv` remain.
 - Baseline-to-current and final worktree `git diff --check`: PASS after planning/handoff updates; only Git line-ending conversion notices remain.
 - Active-source scan found no superseded Trial/A-B/MatVAR/LBVAR/BDVAR/COGS or Work Center Candidate logic. Generic formatVariance identifiers are false positives for MatVAR.
+- Targeted lifecycle regression reruns: fresh RCA SIM start, legacy active-tab migration, RCA context expiry/product scope, and independent Simulation workspace all passed; the two new behavioral Vite/CJS checks also passed in the full suite.
+- The fresh-start regression directly exercises the reset transition for existing Current/Reference/Custom SIM states and server-renders the resulting source/factor controls. App route wiring is additionally asserted; a browser click-through of each old-SIM-to-RCA sequence was not run in this correction batch.
 - Browser checks used an isolated local review tab with synthetic data; the user original browser tab was not mutated.
 - `npm audit --audit-level=high` reports 5 High findings in the development Tailwind dependency chain and 4 Moderate findings overall. `npm audit --omit=dev --audit-level=high` exits successfully but reports 2 Moderate findings through ExcelJS 4.4.0 → uuid 8.3.2. `npm audit fix --dry-run` indicates its full automatic remediation requires `--force` and proposes a Tailwind major upgrade / ExcelJS downgrade; no dependency changes were made as part of the frozen logic scope. This remains a documented dependency-security limitation, separate from the finalized product-logic checklist.
 - Human visual acceptance remains a later checkpoint under V-10. It is not represented as completed by this logic audit.

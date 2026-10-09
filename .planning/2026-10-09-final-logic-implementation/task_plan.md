@@ -16,11 +16,11 @@ Align the implementation with the user-finalized COSTBREAKDOWN logic while prese
 
 ## Next Step
 
-The Frozen Final Requirement Traceability Checklist v1.0 has been re-audited: 473 PASS, 2 N/A — PROVISIONAL/UI ONLY, and no FINDING or NOT VERIFIED items. The implementation and final planning checkpoint are committed and pushed to `codex/final-logic-implementation`. Next, wait for the independent ChatGPT reviewer. Do not begin Footer/frontend styling until the reviewer explicitly says `FINAL LOGIC ALIGNED ✅`.
+Independent review of HEAD `4a1968db841d97ff8d6c44b3aadf929f73e01be1` found two lifecycle/migration regressions. Both are corrected, verified, committed (`15379d92a2815fa6bea89f2b9cad56ec29347148`), and pushed with the planning/HANDOFF checkpoint. Next, wait for the independent ChatGPT reviewer to inspect the updated branch. Do not begin Footer/frontend styling or self-issue `FINAL LOGIC ALIGNED ✅`.
 
 ## Current Phase
 
-Phase 15 — Complete; independent review pending
+Phase 16 — Complete; independent review pending
 
 > Phase 11 completion is historical. Later independent reviews identified Simulation logic gaps and an RCA → Simulation handoff gap; Phases 12 and 13 record their corrections and preserve the approval gate.
 
@@ -147,6 +147,17 @@ Phase 15 — Complete; independent review pending
 - [x] Commit the implementation and planning checkpoints, push normally to `origin/codex/final-logic-implementation`, and verify remote HEAD.
 - [x] Wait for explicit independent reviewer approval; do not self-issue `FINAL LOGIC ALIGNED ✅` and do not begin Footer/frontend styling before that approval.
 - **Status:** complete; implementation and checklist evidence are pushed; independent review pending. R-10 and R-11 remain N/A only because optional scenario UI is not required. Human visual acceptance and Footer/frontend styling remain deferred.
+
+### Phase 16 — Correct RCA handoff reset and legacy active-tab migration
+- [x] Read the two independent-review findings and confirm their affected checklist IDs against the frozen checklist without editing its wording or IDs.
+- [x] Make explicit RCA → Simulation handoff clear any existing Parameter SIM source, snapshot, factors, fingerprint, and start time while preserving the already validated Economic inputs deterministically.
+- [x] Keep Current first on RCA handoff; leave Reference and Custom available and keep Candidate context informational with unrestricted Material/Process Factors.
+- [x] Normalize legacy `dashboard` to `simulation` and legacy `rca` to `candidate`; preserve valid current tabs and fall back safely to `master` for incompatible values.
+- [x] Add behavioral fresh-start and legacy-tab regression verifiers; replace static-only RCA context lifecycle assertions with direct lifecycle transition checks.
+- [x] Re-run all 62 TypeScript verifiers, both MJS verifiers, typecheck, production build, stale-source scan, targeted lifecycle verifiers, `git diff --check`, and baseline-to-HEAD diff review.
+- [x] Record final results in findings/progress/task_plan/HANDOFF, commit the correction, push normally, and verify the remote branch head.
+- [ ] Wait for independent review; do not self-issue `FINAL LOGIC ALIGNED ✅` or begin Footer/frontend styling without that exact approval.
+- **Status:** implementation, verification, planning checkpoint, commit, and push complete; independent reviewer approval pending.
 
 ## Decisions
 
