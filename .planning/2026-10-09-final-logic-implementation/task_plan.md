@@ -16,11 +16,11 @@ Align the implementation with the user-finalized COSTBREAKDOWN logic while prese
 
 ## Next Step
 
-Wait for the independent ChatGPT reviewer; if it reports another finding, fix and re-verify that finding before pushing again. Do not begin Footer/frontend styling until the reviewer explicitly says `FINAL LOGIC ALIGNED ✅`.
+Implement the consolidated findings from the complete A-01 through W-33 audit, then run the same checklist again with full evidence. Commit and push the completed implementation to `codex/final-logic-implementation`; then wait for the independent ChatGPT reviewer. Do not begin Footer/frontend styling until the reviewer explicitly says `FINAL LOGIC ALIGNED ✅`.
 
 ## Current Phase
 
-Phase 13 — Add the RCA → Simulation handoff and await approval
+Phase 15 — Implement the consolidated findings and close verification gaps
 
 > Phase 11 completion is historical. Later independent reviews identified Simulation logic gaps and an RCA → Simulation handoff gap; Phases 12 and 13 record their corrections and preserve the approval gate.
 
@@ -129,6 +129,25 @@ Phase 13 — Add the RCA → Simulation handoff and await approval
 - [ ] Begin Footer/frontend styling only after that confirmation.
 - **Status:** implementation and checkpoint are pushed; independent review pending
 
+### Phase 14 — Audit and consolidate the Frozen Final Requirement Checklist
+- [x] Audit every applicable requirement from A-01 through W-33 against canonical spec, code, and test evidence before changing application code.
+- [x] Record a per-ID Spec / Code / Test / Status matrix and all confirmed findings in the existing `findings.md`.
+- [x] Consolidate cross-section duplicate findings and identify stale noncanonical review guidance without changing canonical specs.
+- [x] Verify checklist matrix coverage: 475 unique IDs, no duplicate IDs, and section totals reconciled against per-ID rows.
+- **Initial audit status after full-audit reconciliation:** 351 PASS, 26 FINDING, 96 NOT VERIFIED, 2 N/A — PROVISIONAL/UI ONLY.
+- **Status:** complete; no application source or test files were changed during the initial audit.
+
+### Phase 15 — Implement all findings and complete the final re-audit
+- [ ] Fix all confirmed logic conflicts and verification gaps listed in the Phase 1 matrix and Phase 2 consolidation in `findings.md`.
+- [ ] Update stale review guidance in `docs/testing/REVIEW_FIXTURES.md` without changing canonical specification source files.
+- [ ] Add targeted regression tests for every initial FINDING and testable verification gap; directly verify manual-only requirements in the browser where automation does not exercise real interaction.
+- [ ] Re-run the full A-01 through W-33 checklist and record final Spec / Code / Test / Status evidence for every ID; no finalized item may remain FINDING or NOT VERIFIED.
+- [ ] Run every TypeScript verifier, all relevant MJS verifiers, typecheck, production build, stale/superseded source scans, cross-flow regression tests, `git diff --check`, and baseline-to-HEAD diff review.
+- [ ] Update `task_plan.md`, `findings.md`, `progress.md`, and `HANDOFF.md` with verified results and remaining limitations.
+- [ ] Commit the implementation and planning checkpoints, push normally to `origin/codex/final-logic-implementation`, and verify remote HEAD.
+- [ ] Wait for explicit independent reviewer approval; do not self-issue `FINAL LOGIC ALIGNED ✅` and do not begin Footer/frontend styling before that approval.
+- **Status:** active; implementation has not started.
+
 ## Decisions
 
 | Decision | Rationale |
@@ -162,14 +181,14 @@ Every requirement must eventually have:
 - Test Evidence
 - Status
 
-During the audit, record those four fields for every requirement ID in this checklist. No evidence or audit status is assigned by this planning-only update.
+For every requirement ID, record Spec Evidence, Code Evidence, Test Evidence, and Status. The complete initial per-ID audit is recorded in `.planning/2026-10-09-final-logic-implementation/findings.md`. The Phase 15 final re-audit will update that evidence ledger; the frozen requirement wording and IDs remain unchanged.
 
 Allowed status:
 
 - PASS
 - FINDING
 - NOT VERIFIED
-- N/A — PROVISIONAL/UI ONLY
+- N/A — PROVISIONAL/UI ONLY, only where genuinely applicable
 
 FINAL LOGIC ALIGNED ✅ may be issued only when:
 

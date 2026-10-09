@@ -221,8 +221,21 @@
 
 | Question | Answer |
 |---|---|
-| Where am I? | Phases 0–11, final verification, handoff, and target branch push are complete. |
-| Where am I going? | No implementation steps remain for this task. |
+| Where am I? | Phase 14 completed the full initial A-01 through W-33 audit and reconciled status evidence: 26 findings, 96 verification gaps, and 2 provisional/UI-only items. No application source or test changes have started. |
+| Where am I going? | Implement the consolidated findings, verify every checklist ID, then commit and push before waiting for independent review. |
 | What's the goal? | Align implementation with finalized logic, verify it, and push the authorized implementation branch. |
-| What have I learned? | Canonical specs changed after the old source checkpoint; see `findings.md`. |
-| What have I done? | Completed Custom Master Data, multi-Candidate RCA, independent Parameter/Economic Simulation, the three-state cost story, retired superseded active paths, passed 55/55 TypeScript and 2/2 MJS verifiers, and pushed the implementation branch. |
+| What have I learned? | The first complete checklist audit found legacy parallel dataset/calculation state, reload persistence, a workbook label mismatch, incomplete one-sided status handling, RCA/Simulation boundary lifecycle defects, stale review guidance, and evidence gaps; see `findings.md`. |
+| What have I done? | Preserved the completed implementation history and completed an initial per-ID audit of all 475 checklist requirements. The implementation branch remains at the pre-fix checkpoint until Phase 15 begins. |
+
+## Phase 14 — Frozen checklist audit and Phase 2 consolidation
+
+- **Checkpoint:** branch `codex/final-logic-implementation`, HEAD `1e4bdbf35f8ade3ab1c5d4f97d51f80cdc107f8d`.
+- Audited every ID from A-01 through W-33 against the canonical specifications and implementation/test evidence before changing application code.
+- Added complete per-ID Spec / Code / Test / Status matrices and detailed findings for A–H, I–M, and N–W to this file's paired ledger in `findings.md`.
+- Verified 475 unique checklist IDs with no duplicates; corrected the A–H prose subtotal to match the actual per-ID rows.
+- Initial status after full-audit reconciliation: 351 PASS, 26 FINDING, 96 NOT VERIFIED, 2 N/A — PROVISIONAL/UI ONLY.
+- Consolidated logic findings: parallel legacy dataset/calculation paths; Master Data reload persistence; workbook `MATERIAL` vs `MAT`; incomplete one-sided ADDED/REMOVED status; Selected Comparison surviving the RCA/Simulation boundary; stale RCA context on later direct Simulation entry.
+- Consolidated verification gaps include Master Data Save/Reset/Clone directions, spreadsheet interaction events, Selected Comparison behavior/lifecycle, Candidate defaults/neutral interpretations, SIM edge-status editability, exact zero Economic Margin, legacy state migration, and final baseline diff review.
+- Documentation conflicts: `docs/testing/REVIEW_FIXTURES.md` still prescribes exactly Scenario A/B, a single Candidate, downstream Selected Comparison scope, and labels finalized Master Data behavior as pending. The superseded Dashboard rationale in `docs/PROVISIONAL_IMPLEMENTATION_DECISIONS.md` is retained as explicitly marked historical provenance.
+- **No application code or tests were changed during Phases 1–2.**
+- **Next:** Phase 15 implements confirmed gaps, adds targeted verification, and re-runs the same full checklist.

@@ -11,10 +11,12 @@
 - **Worktree:** `.worktrees/codex-final-logic-implementation`
 - **Review baseline:** `e26f0b45d9a9b0b0835efe52fbec9c2f1a40ef34`
 - **Latest application source commit:** `56935a9` (`fix: add RCA to Simulation handoff`)
-- **Status:** The three independent-review findings below are corrected and verified. Final logic alignment is pending the independent ChatGPT reviewer; do not begin Footer/frontend styling before the exact approval `FINAL LOGIC ALIGNED ✅`. Compatible finalized requirements in existing specs and `design.md` remain in force. The documentation source branch was not modified.
+- **Status:** The three previously reviewed findings below remain corrected. A full audit of the Frozen Final Requirement Traceability Checklist is complete at branch HEAD `1e4bdbf35f8ade3ab1c5d4f97d51f80cdc107f8d`; implementation changes for its findings have not started. Initial status after full-audit reconciliation: 351 PASS, 26 FINDING, 96 NOT VERIFIED, and 2 N/A — PROVISIONAL/UI ONLY. The documentation source branch was not modified. Footer/frontend styling remains deferred until the independent reviewer explicitly says `FINAL LOGIC ALIGNED ✅`.
 - **Delivery target:** `codex/final-logic-implementation` → `origin/codex/final-logic-implementation`.
 
 ## Independent Review Findings Corrected
+
+This section records the earlier review loop and remains historical implementation evidence. The full frozen checklist audit below supersedes its narrower completion checkpoint; it does not invalidate these individual fixes.
 
 1. **Factors to Simulate are business records.** The selector now lists eligible Material and Process/Routing records. Selecting a record exposes all three applicable BOM or Routing parameter inputs on that record. The calculation still recalculates the full SIM snapshot, and Work Center rates remain excluded. Existing stored parameter-type selections are discarded during state reconciliation.
 2. **Economic-only Simulation is independent.** Action Cost and Evaluation Quantity are available before Parameter SIM starts; Required Saving is calculated without a SIM snapshot. Starting Parameter SIM preserves those inputs. Economic Margin is shown only when Parameter Simulation exists, alongside the Parameter Saving result. Action Cost remains outside Standard Cost.
@@ -66,4 +68,4 @@
 
 ## Next Step
 
-Wait for the independent ChatGPT reviewer. If another finding is reported, fix, verify, commit, and push it. Do not start Footer/frontend styling until the reviewer explicitly says `FINAL LOGIC ALIGNED ✅`.
+Implement the complete consolidated findings recorded in `.planning/2026-10-09-final-logic-implementation/findings.md`, add evidence for all initially unverified requirements, re-run every applicable verifier plus typecheck/build/diff checks, and review the baseline-to-HEAD diff. Then commit and push the completed work normally to `origin/codex/final-logic-implementation`. Wait for the independent ChatGPT reviewer afterward; do not self-issue `FINAL LOGIC ALIGNED ✅` or begin Footer/frontend styling before the exact reviewer approval.
