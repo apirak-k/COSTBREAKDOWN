@@ -219,7 +219,7 @@ Missing required numeric inputs, invalid numbers, non-positive Capacity where a 
 - [x] `git diff --check` passes.
 - [x] Final diff is manually reviewed against this contract.
 - [x] Unrelated changes are absent.
-- [ ] Branch is committed and pushed without merging.
+- [x] Branch is committed and pushed without merging.
 
 ### Verification Notes
 
