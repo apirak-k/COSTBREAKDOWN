@@ -130,7 +130,7 @@ function writeMetaSheet(workbook: ExcelJS.Workbook, options: MasterDataWorkbookO
   sheet.getCell('B5').numFmt = '#,##0.00'
   sheet.getCell('B6').numFmt = '0.00"%"'
 
-  const outputLabels = ['MATERIAL', 'LABOR', 'BURDEN', 'STANDARD COST', 'SG&A AMOUNT', 'OP']
+  const outputLabels = ['MAT', 'LABOR', 'BURDEN', 'STANDARD COST', 'SG&A AMOUNT', 'OP']
   const notes = [
     'MAT = Σ[Usage × Price × (1 + Loss)]',
     'Labor = Σ[Routing Factor × Labor Rate]\nRouting Factor = Manning / (Capacity × Yield)',

@@ -137,7 +137,7 @@ function assertWorkbookSurface(excel: ExcelJS.Workbook): void {
     'PRODUCT NAME', 'UOM', 'SELLING PRICE', 'SG&A %', 'DATASET REMARK'
   ])
   assert.deepEqual(meta.getColumn(1).values.slice(9, 15), [
-    'MATERIAL', 'LABOR', 'BURDEN', 'STANDARD COST', 'SG&A AMOUNT', 'OP'
+    'MAT', 'LABOR', 'BURDEN', 'STANDARD COST', 'SG&A AMOUNT', 'OP'
   ])
   for (let row = 3; row <= 7; row += 1) {
     assert.equal(meta.getCell(`A${row}`).fill.fgColor?.argb, HEADER_FILL)
