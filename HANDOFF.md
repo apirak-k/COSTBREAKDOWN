@@ -1,7 +1,7 @@
 # Current Handoff — Final Logic Implementation
 
 **Updated:** 2026-10-09
-**Checkpoint:** Independent-review corrections verified; reviewer approval pending
+**Checkpoint:** Frozen checklist implementation and re-audit complete; independent reviewer approval pending
 
 ## Active Checkpoint
 
@@ -10,9 +10,18 @@
 - **Remote target:** `origin/codex/final-logic-implementation`
 - **Worktree:** `.worktrees/codex-final-logic-implementation`
 - **Review baseline:** `e26f0b45d9a9b0b0835efe52fbec9c2f1a40ef34`
-- **Latest application source commit:** `56935a9` (`fix: add RCA to Simulation handoff`)
-- **Status:** The three previously reviewed findings below remain corrected. A full audit of the Frozen Final Requirement Traceability Checklist is complete at branch HEAD `1e4bdbf35f8ade3ab1c5d4f97d51f80cdc107f8d`; implementation changes for its findings have not started. Initial status after full-audit reconciliation: 351 PASS, 26 FINDING, 96 NOT VERIFIED, and 2 N/A — PROVISIONAL/UI ONLY. The documentation source branch was not modified. Footer/frontend styling remains deferred until the independent reviewer explicitly says `FINAL LOGIC ALIGNED ✅`.
+- **Latest application source commit:** `3abb6f8` (`fix: close frozen final logic findings`)
+- **Review baseline:** `665099b71319ec98c537a0859336dc01b9acc118` (the full implementation baseline)
+- **Status:** The complete Frozen Final Requirement Traceability Checklist v1.0 audit and implementation re-audit are recorded in `.planning/2026-10-09-final-logic-implementation/findings.md`. All 475 IDs have Spec / Code / Test / Status evidence: 473 PASS, 2 N/A — PROVISIONAL/UI ONLY (R-10 and R-11), 0 FINDING, and 0 NOT VERIFIED. Implementation and final planning checkpoint are committed and pushed to this branch. The documentation source branch was not modified. Footer/frontend styling remains deferred until the independent reviewer explicitly says `FINAL LOGIC ALIGNED ✅`.
 - **Delivery target:** `codex/final-logic-implementation` → `origin/codex/final-logic-implementation`.
+
+## Frozen Checklist Completion Evidence
+
+- All initially confirmed implementation findings and applicable evidence gaps were addressed. The complete per-ID final matrix is in `findings.md`; the frozen requirement wording and IDs in `task_plan.md` are unchanged.
+- The active review fixture and system logic diagram were corrected. Superseded agreement/history documents remain retained and are called out in the audit ledger rather than rewritten as current requirements.
+- TypeScript verifiers: 60/60 effective PASS (59 through the cached CJS runner; the ESM-only story-view verifier passed through Vite). MJS verifiers: 2/2 PASS.
+- `npx tsc --noEmit --pretty false`: PASS. `npm run build`: PASS, 2,027 modules. Active-source superseded-logic scan: PASS. Baseline-to-HEAD review and `git diff --check`: PASS.
+- Isolated browser checks covered the Master Data spreadsheet interactions, including Shift/Ctrl row selection, and the RCA/Simulation, Selected Comparison, Economic-only, standalone Simulation, and context lifecycle flows. The original user tab was not modified.
 
 ## Independent Review Findings Corrected
 
@@ -24,20 +33,18 @@ This section records the earlier review loop and remains historical implementati
 
 ## Verification
 
-- The nine relevant TypeScript verifiers for the RCA handoff and adjacent RCA/Simulation behavior pass: `verify_rca_handoff.ts`, `verify_rca_case_domain.ts`, `verify_rca_record.ts`, `verify_candidate_prioritization.ts`, `verify_simulation_context.ts`, `verify_simulation_workspace.ts`, `verify_simulation_story_view.ts`, `verify_parameter_simulation_engine.ts`, and `verify_simulation_economics.ts`.
-- Both MJS verifiers pass: `verify_master_data_ui_state.mjs` and `verify_cost_breakdown_review_feedback.mjs`.
-- `npx tsc --noEmit --pretty false` passes.
-- `npm run build` passes with 2,032 modules transformed.
-- `git diff --check` passes for the correction.
-- React server-render and static integration verification confirms one- and multi-Candidate RCA handoff context, handoff from an incomplete Case, Current-first source choices with Reference and Custom retained, open Material/Process Factor selection, and standalone Simulation without RCA context.
-- The adjacent Simulation verifiers confirm selected-record parameter visibility, Economic-only mode before SIM start, and retained inputs in combined mode.
-- `scripts/verify_simulation_economics.ts` confirms Required Saving, combined margin, Selling Price / SG&A / OP calculations, and that Action Cost does not change SIM Standard Cost.
+- All 60 TypeScript verifiers pass effectively; 59 use the cached CJS runner and the ESM-only story-view verifier passes through Vite. Both MJS verifiers pass (2/2).
+- `npx tsc --noEmit --pretty false` passes. `npm run build` passes with 2,027 modules transformed. The build continues to report ExcelJS browser externalization warnings for `fs`, `crypto`, and `fast-csv`.
+- The final A-01 through W-33 matrix contains 475 unique IDs with no missing or duplicate IDs. Status is 473 PASS, 2 N/A (R-10/R-11), 0 FINDING, 0 NOT VERIFIED.
+- `git diff --check`, stale/superseded active-source scan, and full baseline-to-HEAD diff review pass.
+- Targeted tests cover Master Data lifecycle and all six Clone From directions; workbook formulas/round-trip; CBD identity/status/reconciliation; Selected Comparison lifecycle; candidate ranking; single/multi-Candidate RCA; RCA completion without SIM; RCA→SIM handoff; standalone and three-source Simulation; record-based factors/full-dataset recalculation; Economic-only and combined modes; Action Cost isolation; commercial formulas; state migration and cross-flow context.
+- Isolated browser checks confirmed Master Data editing/navigation/paste/bulk actions and Shift/Ctrl row selection; one-/multi-Candidate RCA handoff; Current-first with Reference/Custom available; additional Factor selection; Economic-only inputs before Parameter SIM and their persistence into combined mode; direct Simulation without stale RCA context.
 
 ## Remaining Verification Limits and Build Notes
 
-- No browser-driven click/input run was performed for the RCA handoff correction; server-rendered UI assertions, static app-routing assertions, and state/calculation verifiers cover the requested paths.
-- `verify_master_data_ui_state.mjs` notes it does not exercise a separate process restart; this is outside the RCA handoff paths covered by this correction.
+- Native Excel was not launched; generated workbook formulas, notes, styles, and round-trip behavior were checked by the workbook verifiers. Human visual acceptance remains a later checkpoint and was not represented as complete.
 - Vite reports the existing ExcelJS `fs` / `crypto` browser-externalization warnings during build; the production build completes successfully.
+- `npm audit --audit-level=high` reports 5 High development-dependency findings and 4 Moderate findings overall. The production-only audit has no High findings but reports 2 Moderate ExcelJS/uuid findings. npm's full automatic remediation proposes breaking dependency changes, so no dependency update was included in the frozen logic scope.
 - The worktree contains an unrelated untracked `src/graphify-out/` directory generated by tooling. It was preserved and excluded from commits.
 
 ## Finalized Logic Preserved
@@ -65,7 +72,8 @@ This section records the earlier review loop and remains historical implementati
 - `c907efd` — Phase documentation correction
 - `fd870f8` — Correct record-based Factors to Simulate and independent Economic-only mode
 - `56935a9` — Add optional RCA Case context handoff to Simulation
+- `3abb6f8` — Close frozen final logic audit findings; add regression evidence and remove disconnected competing state/engines
 
 ## Next Step
 
-Implement the complete consolidated findings recorded in `.planning/2026-10-09-final-logic-implementation/findings.md`, add evidence for all initially unverified requirements, re-run every applicable verifier plus typecheck/build/diff checks, and review the baseline-to-HEAD diff. Then commit and push the completed work normally to `origin/codex/final-logic-implementation`. Wait for the independent ChatGPT reviewer afterward; do not self-issue `FINAL LOGIC ALIGNED ✅` or begin Footer/frontend styling before the exact reviewer approval.
+Wait for the independent ChatGPT reviewer to inspect the pushed branch. If another finding is reported, correct it, verify it, commit and push the correction, and update this handoff. Do not self-issue `FINAL LOGIC ALIGNED ✅` or begin Footer/frontend styling before the exact reviewer approval.

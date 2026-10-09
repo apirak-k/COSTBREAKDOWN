@@ -1090,3 +1090,626 @@ These statuses will be resolved by targeted automated verifiers or direct manual
 - Initial audit coverage: all 475 IDs, A-01 through W-33, each appears once in the matrix and has Spec/Code/Test/Status evidence or an explicit evidence limitation.
 - Initial status after full-audit reconciliation: 351 PASS, 26 FINDING, 96 NOT VERIFIED, 2 N/A — PROVISIONAL/UI ONLY.
 - No application code has been modified during Phases 1–2. Source findings, evidence gaps, and stale test guidance are consolidated above; implementation may begin only after this planning checkpoint is reviewed locally.
+## Phase 3 — Complete implementation audit and final re-audit
+
+This section records the final A-01 through W-33 audit. The Phase 1 matrix and Phase 2 findings remain as initial audit history. Frozen requirement wording and IDs remain unchanged in task_plan.md. Each checklist ID below maps to the evidence keys defined here.
+
+### Final evidence key
+
+#### Spec evidence
+
+| Key | Canonical source |
+|---|---|
+| SA | REQUIREMENTS_INDEX authority; FINAL_LOGIC_SPEC §§0, 0.3. |
+| SB | FINAL_LOGIC_SPEC §§2.1–2.7; CROSS_CUTTING identity/calculation rules. |
+| SC–SH | MASTER_DATA and FINAL_LOGIC_SPEC §§3.1–3.4; design.md for preserved spreadsheet interaction. |
+| SI | COST_BREAKDOWN; FINAL_LOGIC_SPEC §4. |
+| SJ | COST_BREAKDOWN Selected Comparison; CROSS_CUTTING lifecycle; FINAL_LOGIC_SPEC §4.6. |
+| SK–SM | CANDIDATE; FINAL_LOGIC_SPEC §§5.1–5.6, including RCA Case and Handoff. |
+| SN–SR | SIMULATION; FINAL_LOGIC_SPEC §§6–7, including Simulation sources, factors, economics, commercial outputs, and story. |
+| SS–ST | CROSS_CUTTING; FINAL_LOGIC_SPEC §§1 and 8. |
+| SU | FINAL_LOGIC_SPEC §9 and superseded behavior register. |
+| SV | design.md; FINAL_LOGIC_SPEC §0.1; CROSS_CUTTING UI preservation. |
+| SW | Frozen completion gate in task_plan.md, W-01 through W-33. |
+
+#### Code evidence
+
+| Key | Implementation inspected |
+|---|---|
+| CA | snapshot/product types, shared snapshot cost/comparison engine and store; disconnected legacy WorkingDataset/schema/calculation modules deleted. |
+| CB | snapshot-cost.ts, snapshot-comparison.ts, comparison-status.ts, snapshot-routing-detail.ts; business-key matching and unavailable-result rules. |
+| CC | product.types.ts, snapshot.types.ts, master-data-datasets.ts, store.tsx; independent Reference/Current/Custom state. |
+| CD | store.tsx Save/Reset/import; clear-master-data-dataset.ts; MasterDataWorkspaceHeader.tsx. |
+| CE | master-data-datasets.ts clone helper; MasterDataWorkspaceHeader.tsx source, destination and confirmation. |
+| CF | dataset-sizing.ts, master-data-row-order.ts, sizing modal and Master Data structural handlers. |
+| CG | master-data-workbook.ts, snapshot-parser.ts, snapshot-export.ts, dynamic workbook template generator. |
+| CH | Master Data components/hooks: useTableKeyboardNav, useDragSelect, useSpreadsheetEditing, BOMTable, WorkCenterRatesTable, RoutingTable. |
+| CI | store.tsx, snapshot-comparison.ts, selected-comparison.ts, CostBreakdownPage.tsx and CBD detail components. |
+| CJ | store.tsx in-memory Selected Comparison, source fingerprint, tab-boundary clear; Candidate/RCA and Simulation entry handlers. |
+| CK | material-candidates.ts, processing-candidates.ts, candidate-prioritization.ts and Candidate page/row controls. |
+| CL | rca-cases.ts, RcaCaseWorkspace.tsx and Candidate/RCA page; case-level Root Cause/Action and compatible migration. |
+| CM | App.tsx product-scoped handoff lifecycle; RcaCaseWorkspace.tsx; SimulationPage.tsx context/source/factor controls. |
+| CN | simulation-state.ts, simulation-engine.ts, App.tsx and SimulationPage.tsx isolated full-snapshot SIM. |
+| CO | simulation-engine.ts/state.ts and SimulationPage.tsx record-based factor IDs, editability and full-dataset calculation. |
+| CP | simulation-economics.ts, EconomicSimulationPanel.tsx and SimulationPage.tsx. |
+| CQ | scenario-business.ts, simulation-economics.ts, workbook formulas and commercial override presentation. |
+| CR | scenario-story.ts, SimulationStoryGraph.tsx and SimulationPage.tsx. |
+| CS | workflow-status.ts, Navbar.tsx and AppLayout.tsx shared status/review actions. |
+| CT | App.tsx, store.tsx, session normalization, Selected Comparison and SIM lifecycle helpers. |
+| CU | Active source and navigation scan; no active Trial/A-B/formula lifecycle code. |
+| CV | Existing shared frame/page composition; diff has no Footer/layout/style redesign. |
+| CW | Full baseline-to-final diff reviewed against frozen requirements and scope. |
+
+#### Test and verification evidence
+
+| Key | Executed evidence |
+|---|---|
+| TA | Documentary authority review; verify_numeric_integrity.ts and active-source scan. |
+| TB | Numeric, missing-rate, snapshot quality/detail, comparison reconciliation and identity verifiers. |
+| TC | verify_workspace_initialization.ts, verify_master_data_custom_dataset.ts, verify_master_data_clear_dataset.ts, verify_master_data_ui_state.mjs; fresh isolated browser workspace opened empty. |
+| TD | Snapshot import/mismatch, clear, custom dataset and Master Data UI verifiers; isolated browser showed role-specific Save/Reset behavior. |
+| TE | verify_master_data_custom_dataset.ts covers all six Clone From directions; clone readiness/UI verifiers; populated destination warning observed and canceled. |
+| TF | Dataset sizing/no-op/preservation/placeholders and master-data-row-order verifiers. |
+| TG | verify_neutral_dataset_workbook.ts, snapshot import, import mismatch, comparison export and custom dataset verifiers. |
+| TH | Master Data UI/history/spreadsheet verifiers; isolated browser exercised View/Edit, keyboard movement, copy/paste, TSV paste with local invalid cue, Search, bulk edit, drag row selection, navigation, Save/Reset. Shift/Ctrl handler wiring is asserted in the UI verifier. |
+| TI | Comparison reconciliation, unavailable one-sided status, snapshot comparison/detail and Cost Breakdown UI verifiers. |
+| TJ | verify_selected_comparison_lifecycle.ts and verify_selected_comparison_boundary.ts cover pair selection, Added/Removed, selected Gap, WC rates, no mutation/storage/export, and RCA/SIM boundary. |
+| TK | Candidate prioritization, identity, population and unavailable Added/Removed verifiers. |
+| TL | RCA Case/domain/record/note/handoff verifiers; browser created one- and two-Candidate cases and showed RCA complete from Root Cause + Action. |
+| TM | RCA handoff, Simulation story and context-lifecycle verifiers; browser carried latest draft, placed Current first, retained Reference/Custom and allowed an additional Material Factor. |
+| TN | Simulation workspace/context/engine verifiers cover all three sources, isolation, locked structure and reset. |
+| TO | Parameter engine and story verifiers cover statuses, selected-record editability and full-snapshot recalculation. |
+| TP | Economics and story verifiers cover economic-only, invalid/zero/positive/negative and combined margin, Action Cost isolation; browser showed Required Saving 0.1500 before/after Parameter SIM start. |
+| TQ | Economic and scenario business/override verifiers plus neutral workbook formula verifier. |
+| TR | Simulation story/scenario verifiers confirm flexible Reference → Current → Simulated story with adjacent signed gaps. |
+| TS | Workflow-status, Cost Breakdown review and Selected Comparison boundary verifiers. |
+| TT | Selected Comparison, RCA/SIM context, simulation workspace/context verifiers; browser checked handoff, direct re-entry without stale RCA context, SIM Reset and retained RCA completion. |
+| TU | Simulation workspace/numeric-integrity verifiers and active-source scan. |
+| TV | Browser checked compatible interactions; source diff reviewed. Human visual acceptance is deferred and not claimed. |
+| TW | 60/60 TypeScript verifiers effective pass (59 cached CJS; story-view verifier passed with Vite after CJS ESM require limitation); 2/2 MJS, typecheck, build, diff check, stale scan and full diff review. |
+
+### Final requirement-by-requirement status
+
+| ID | Spec Evidence | Code Evidence | Test / verification Evidence | Status |
+|---|---|---|---|---|
+| A-01 | SA | CA | TA | PASS |
+| A-02 | SA | CA | TA | PASS |
+| A-03 | SA | CA | TA | PASS |
+| A-04 | SA | CA | TA | PASS |
+| A-05 | SA | CA | TA | PASS |
+| A-06 | SA | CA | TA | PASS |
+| A-07 | SA | CA | TA | PASS |
+| A-08 | SA | CA | TA | PASS |
+| A-09 | SA | CA | TA | PASS |
+| B-01 | SB | CB | TB | PASS |
+| B-02 | SB | CB | TB | PASS |
+| B-03 | SB | CB | TB | PASS |
+| B-04 | SB | CB | TB | PASS |
+| B-05 | SB | CB | TB | PASS |
+| B-06 | SB | CB | TB | PASS |
+| B-07 | SB | CB | TB | PASS |
+| B-08 | SB | CB | TB | PASS |
+| B-09 | SB | CB | TB | PASS |
+| B-10 | SB | CB | TB | PASS |
+| B-11 | SB | CB | TB | PASS |
+| B-12 | SB | CB | TB | PASS |
+| B-13 | SB | CB | TB | PASS |
+| B-14 | SB | CB | TB | PASS |
+| B-15 | SB | CB | TB | PASS |
+| B-16 | SB | CB | TB | PASS |
+| B-17 | SB | CB | TB | PASS |
+| B-18 | SB | CB | TB | PASS |
+| B-19 | SB | CB | TB | PASS |
+| B-20 | SB | CB | TB | PASS |
+| B-21 | SB | CB | TB | PASS |
+| B-22 | SB | CB | TB | PASS |
+| B-23 | SB | CB | TB | PASS |
+| B-24 | SB | CB | TB | PASS |
+| B-25 | SB | CB | TB | PASS |
+| B-26 | SB | CB | TB | PASS |
+| B-27 | SB | CB | TB | PASS |
+| C-01 | SC–SH | CC | TC | PASS |
+| C-02 | SC–SH | CC | TC | PASS |
+| C-03 | SC–SH | CC | TC | PASS |
+| C-04 | SC–SH | CC | TC | PASS |
+| C-05 | SC–SH | CC | TC | PASS |
+| C-06 | SC–SH | CC | TC | PASS |
+| C-07 | SC–SH | CC | TC | PASS |
+| C-08 | SC–SH | CC | TC | PASS |
+| C-09 | SC–SH | CC | TC | PASS |
+| C-10 | SC–SH | CC | TC | PASS |
+| C-11 | SC–SH | CC | TC | PASS |
+| C-12 | SC–SH | CC | TC | PASS |
+| C-13 | SC–SH | CC | TC | PASS |
+| C-14 | SC–SH | CC | TC | PASS |
+| C-15 | SC–SH | CC | TC | PASS |
+| C-16 | SC–SH | CC | TC | PASS |
+| C-17 | SC–SH | CC | TC | PASS |
+| C-18 | SC–SH | CC | TC | PASS |
+| C-19 | SC–SH | CC | TC | PASS |
+| D-01 | SC–SH | CD | TD | PASS |
+| D-02 | SC–SH | CD | TD | PASS |
+| D-03 | SC–SH | CD | TD | PASS |
+| D-04 | SC–SH | CD | TD | PASS |
+| D-05 | SC–SH | CD | TD | PASS |
+| D-06 | SC–SH | CD | TD | PASS |
+| D-07 | SC–SH | CD | TD | PASS |
+| D-08 | SC–SH | CD | TD | PASS |
+| D-09 | SC–SH | CD | TD | PASS |
+| D-10 | SC–SH | CD | TD | PASS |
+| D-11 | SC–SH | CD | TD | PASS |
+| D-12 | SC–SH | CD | TD | PASS |
+| D-13 | SC–SH | CD | TD | PASS |
+| D-14 | SC–SH | CD | TD | PASS |
+| E-01 | SC–SH | CE | TE | PASS |
+| E-02 | SC–SH | CE | TE | PASS |
+| E-03 | SC–SH | CE | TE | PASS |
+| E-04 | SC–SH | CE | TE | PASS |
+| E-05 | SC–SH | CE | TE | PASS |
+| E-06 | SC–SH | CE | TE | PASS |
+| E-07 | SC–SH | CE | TE | PASS |
+| E-08 | SC–SH | CE | TE | PASS |
+| E-09 | SC–SH | CE | TE | PASS |
+| E-10 | SC–SH | CE | TE | PASS |
+| E-11 | SC–SH | CE | TE | PASS |
+| E-12 | SC–SH | CE | TE | PASS |
+| E-13 | SC–SH | CE | TE | PASS |
+| E-14 | SC–SH | CE | TE | PASS |
+| E-15 | SC–SH | CE | TE | PASS |
+| E-16 | SC–SH | CE | TE | PASS |
+| E-17 | SC–SH | CE | TE | PASS |
+| E-18 | SC–SH | CE | TE | PASS |
+| E-19 | SC–SH | CE | TE | PASS |
+| E-20 | SC–SH | CE | TE | PASS |
+| E-21 | SC–SH | CE | TE | PASS |
+| F-01 | SC–SH | CF | TF | PASS |
+| F-02 | SC–SH | CF | TF | PASS |
+| F-03 | SC–SH | CF | TF | PASS |
+| F-04 | SC–SH | CF | TF | PASS |
+| F-05 | SC–SH | CF | TF | PASS |
+| F-06 | SC–SH | CF | TF | PASS |
+| F-07 | SC–SH | CF | TF | PASS |
+| F-08 | SC–SH | CF | TF | PASS |
+| F-09 | SC–SH | CF | TF | PASS |
+| F-10 | SC–SH | CF | TF | PASS |
+| F-11 | SC–SH | CF | TF | PASS |
+| F-12 | SC–SH | CF | TF | PASS |
+| F-13 | SC–SH | CF | TF | PASS |
+| F-14 | SC–SH | CF | TF | PASS |
+| F-15 | SC–SH | CF | TF | PASS |
+| F-16 | SC–SH | CF | TF | PASS |
+| F-17 | SC–SH | CF | TF | PASS |
+| F-18 | SC–SH | CF | TF | PASS |
+| F-19 | SC–SH | CF | TF | PASS |
+| G-01 | SC–SH | CG | TG | PASS |
+| G-02 | SC–SH | CG | TG | PASS |
+| G-03 | SC–SH | CG | TG | PASS |
+| G-04 | SC–SH | CG | TG | PASS |
+| G-05 | SC–SH | CG | TG | PASS |
+| G-06 | SC–SH | CG | TG | PASS |
+| G-07 | SC–SH | CG | TG | PASS |
+| G-08 | SC–SH | CG | TG | PASS |
+| G-09 | SC–SH | CG | TG | PASS |
+| G-10 | SC–SH | CG | TG | PASS |
+| G-11 | SC–SH | CG | TG | PASS |
+| G-12 | SC–SH | CG | TG | PASS |
+| G-13 | SC–SH | CG | TG | PASS |
+| G-14 | SC–SH | CG | TG | PASS |
+| G-15 | SC–SH | CG | TG | PASS |
+| G-16 | SC–SH | CG | TG | PASS |
+| G-17 | SC–SH | CG | TG | PASS |
+| G-18 | SC–SH | CG | TG | PASS |
+| G-19 | SC–SH | CG | TG | PASS |
+| G-20 | SC–SH | CG | TG | PASS |
+| G-21 | SC–SH | CG | TG | PASS |
+| G-22 | SC–SH | CG | TG | PASS |
+| G-23 | SC–SH | CG | TG | PASS |
+| G-24 | SC–SH | CG | TG | PASS |
+| G-25 | SC–SH | CG | TG | PASS |
+| G-26 | SC–SH | CG | TG | PASS |
+| G-27 | SC–SH | CG | TG | PASS |
+| H-01 | SC–SH | CH | TH | PASS |
+| H-02 | SC–SH | CH | TH | PASS |
+| H-03 | SC–SH | CH | TH | PASS |
+| H-04 | SC–SH | CH | TH | PASS |
+| H-05 | SC–SH | CH | TH | PASS |
+| H-06 | SC–SH | CH | TH | PASS |
+| H-07 | SC–SH | CH | TH | PASS |
+| H-08 | SC–SH | CH | TH | PASS |
+| H-09 | SC–SH | CH | TH | PASS |
+| H-10 | SC–SH | CH | TH | PASS |
+| H-11 | SC–SH | CH | TH | PASS |
+| H-12 | SC–SH | CH | TH | PASS |
+| H-13 | SC–SH | CH | TH | PASS |
+| H-14 | SC–SH | CH | TH | PASS |
+| H-15 | SC–SH | CH | TH | PASS |
+| H-16 | SC–SH | CH | TH | PASS |
+| H-17 | SC–SH | CH | TH | PASS |
+| H-18 | SC–SH | CH | TH | PASS |
+| H-19 | SC–SH | CH | TH | PASS |
+| H-20 | SC–SH | CH | TH | PASS |
+| H-21 | SC–SH | CH | TH | PASS |
+| H-22 | SC–SH | CH | TH | PASS |
+| H-23 | SC–SH | CH | TH | PASS |
+| H-24 | SC–SH | CH | TH | PASS |
+| H-25 | SC–SH | CH | TH | PASS |
+| H-26 | SC–SH | CH | TH | PASS |
+| H-27 | SC–SH | CH | TH | PASS |
+| H-28 | SC–SH | CH | TH | PASS |
+| H-29 | SC–SH | CH | TH | PASS |
+| H-30 | SC–SH | CH | TH | PASS |
+| H-31 | SC–SH | CH | TH | PASS |
+| H-32 | SC–SH | CH | TH | PASS |
+| I-01 | SI | CI | TI | PASS |
+| I-02 | SI | CI | TI | PASS |
+| I-03 | SI | CI | TI | PASS |
+| I-04 | SI | CI | TI | PASS |
+| I-05 | SI | CI | TI | PASS |
+| I-06 | SI | CI | TI | PASS |
+| I-07 | SI | CI | TI | PASS |
+| I-08 | SI | CI | TI | PASS |
+| I-09 | SI | CI | TI | PASS |
+| I-10 | SI | CI | TI | PASS |
+| I-11 | SI | CI | TI | PASS |
+| I-12 | SI | CI | TI | PASS |
+| I-13 | SI | CI | TI | PASS |
+| I-14 | SI | CI | TI | PASS |
+| I-15 | SI | CI | TI | PASS |
+| I-16 | SI | CI | TI | PASS |
+| I-17 | SI | CI | TI | PASS |
+| I-18 | SI | CI | TI | PASS |
+| I-19 | SI | CI | TI | PASS |
+| I-20 | SI | CI | TI | PASS |
+| I-21 | SI | CI | TI | PASS |
+| I-22 | SI | CI | TI | PASS |
+| I-23 | SI | CI | TI | PASS |
+| I-24 | SI | CI | TI | PASS |
+| I-25 | SI | CI | TI | PASS |
+| I-26 | SI | CI | TI | PASS |
+| I-27 | SI | CI | TI | PASS |
+| J-01 | SJ | CJ | TJ | PASS |
+| J-02 | SJ | CJ | TJ | PASS |
+| J-03 | SJ | CJ | TJ | PASS |
+| J-04 | SJ | CJ | TJ | PASS |
+| J-05 | SJ | CJ | TJ | PASS |
+| J-06 | SJ | CJ | TJ | PASS |
+| J-07 | SJ | CJ | TJ | PASS |
+| J-08 | SJ | CJ | TJ | PASS |
+| J-09 | SJ | CJ | TJ | PASS |
+| J-10 | SJ | CJ | TJ | PASS |
+| J-11 | SJ | CJ | TJ | PASS |
+| J-12 | SJ | CJ | TJ | PASS |
+| J-13 | SJ | CJ | TJ | PASS |
+| J-14 | SJ | CJ | TJ | PASS |
+| J-15 | SJ | CJ | TJ | PASS |
+| J-16 | SJ | CJ | TJ | PASS |
+| J-17 | SJ | CJ | TJ | PASS |
+| J-18 | SJ | CJ | TJ | PASS |
+| J-19 | SJ | CJ | TJ | PASS |
+| J-20 | SJ | CJ | TJ | PASS |
+| J-21 | SJ | CJ | TJ | PASS |
+| J-22 | SJ | CJ | TJ | PASS |
+| J-23 | SJ | CJ | TJ | PASS |
+| J-24 | SJ | CJ | TJ | PASS |
+| K-01 | SK–SM | CK | TK | PASS |
+| K-02 | SK–SM | CK | TK | PASS |
+| K-03 | SK–SM | CK | TK | PASS |
+| K-04 | SK–SM | CK | TK | PASS |
+| K-05 | SK–SM | CK | TK | PASS |
+| K-06 | SK–SM | CK | TK | PASS |
+| K-07 | SK–SM | CK | TK | PASS |
+| K-08 | SK–SM | CK | TK | PASS |
+| K-09 | SK–SM | CK | TK | PASS |
+| K-10 | SK–SM | CK | TK | PASS |
+| K-11 | SK–SM | CK | TK | PASS |
+| K-12 | SK–SM | CK | TK | PASS |
+| K-13 | SK–SM | CK | TK | PASS |
+| K-14 | SK–SM | CK | TK | PASS |
+| K-15 | SK–SM | CK | TK | PASS |
+| K-16 | SK–SM | CK | TK | PASS |
+| K-17 | SK–SM | CK | TK | PASS |
+| K-18 | SK–SM | CK | TK | PASS |
+| K-19 | SK–SM | CK | TK | PASS |
+| K-20 | SK–SM | CK | TK | PASS |
+| K-21 | SK–SM | CK | TK | PASS |
+| K-22 | SK–SM | CK | TK | PASS |
+| K-23 | SK–SM | CK | TK | PASS |
+| K-24 | SK–SM | CK | TK | PASS |
+| K-25 | SK–SM | CK | TK | PASS |
+| K-26 | SK–SM | CK | TK | PASS |
+| K-27 | SK–SM | CK | TK | PASS |
+| K-28 | SK–SM | CK | TK | PASS |
+| K-29 | SK–SM | CK | TK | PASS |
+| K-30 | SK–SM | CK | TK | PASS |
+| L-01 | SK–SM | CL | TL | PASS |
+| L-02 | SK–SM | CL | TL | PASS |
+| L-03 | SK–SM | CL | TL | PASS |
+| L-04 | SK–SM | CL | TL | PASS |
+| L-05 | SK–SM | CL | TL | PASS |
+| L-06 | SK–SM | CL | TL | PASS |
+| L-07 | SK–SM | CL | TL | PASS |
+| L-08 | SK–SM | CL | TL | PASS |
+| L-09 | SK–SM | CL | TL | PASS |
+| L-10 | SK–SM | CL | TL | PASS |
+| L-11 | SK–SM | CL | TL | PASS |
+| L-12 | SK–SM | CL | TL | PASS |
+| L-13 | SK–SM | CL | TL | PASS |
+| L-14 | SK–SM | CL | TL | PASS |
+| L-15 | SK–SM | CL | TL | PASS |
+| L-16 | SK–SM | CL | TL | PASS |
+| M-01 | SK–SM | CM | TM | PASS |
+| M-02 | SK–SM | CM | TM | PASS |
+| M-03 | SK–SM | CM | TM | PASS |
+| M-04 | SK–SM | CM | TM | PASS |
+| M-05 | SK–SM | CM | TM | PASS |
+| M-06 | SK–SM | CM | TM | PASS |
+| M-07 | SK–SM | CM | TM | PASS |
+| M-08 | SK–SM | CM | TM | PASS |
+| M-09 | SK–SM | CM | TM | PASS |
+| M-10 | SK–SM | CM | TM | PASS |
+| M-11 | SK–SM | CM | TM | PASS |
+| M-12 | SK–SM | CM | TM | PASS |
+| M-13 | SK–SM | CM | TM | PASS |
+| M-14 | SK–SM | CM | TM | PASS |
+| M-15 | SK–SM | CM | TM | PASS |
+| M-16 | SK–SM | CM | TM | PASS |
+| M-17 | SK–SM | CM | TM | PASS |
+| M-18 | SK–SM | CM | TM | PASS |
+| N-01 | SN–SR | CN | TN | PASS |
+| N-02 | SN–SR | CN | TN | PASS |
+| N-03 | SN–SR | CN | TN | PASS |
+| N-04 | SN–SR | CN | TN | PASS |
+| N-05 | SN–SR | CN | TN | PASS |
+| N-06 | SN–SR | CN | TN | PASS |
+| N-07 | SN–SR | CN | TN | PASS |
+| N-08 | SN–SR | CN | TN | PASS |
+| N-09 | SN–SR | CN | TN | PASS |
+| N-10 | SN–SR | CN | TN | PASS |
+| N-11 | SN–SR | CN | TN | PASS |
+| N-12 | SN–SR | CN | TN | PASS |
+| N-13 | SN–SR | CN | TN | PASS |
+| N-14 | SN–SR | CN | TN | PASS |
+| N-15 | SN–SR | CN | TN | PASS |
+| N-16 | SN–SR | CN | TN | PASS |
+| N-17 | SN–SR | CN | TN | PASS |
+| N-18 | SN–SR | CN | TN | PASS |
+| N-19 | SN–SR | CN | TN | PASS |
+| N-20 | SN–SR | CN | TN | PASS |
+| O-01 | SN–SR | CO | TO | PASS |
+| O-02 | SN–SR | CO | TO | PASS |
+| O-03 | SN–SR | CO | TO | PASS |
+| O-04 | SN–SR | CO | TO | PASS |
+| O-05 | SN–SR | CO | TO | PASS |
+| O-06 | SN–SR | CO | TO | PASS |
+| O-07 | SN–SR | CO | TO | PASS |
+| O-08 | SN–SR | CO | TO | PASS |
+| O-09 | SN–SR | CO | TO | PASS |
+| O-10 | SN–SR | CO | TO | PASS |
+| O-11 | SN–SR | CO | TO | PASS |
+| O-12 | SN–SR | CO | TO | PASS |
+| O-13 | SN–SR | CO | TO | PASS |
+| O-14 | SN–SR | CO | TO | PASS |
+| O-15 | SN–SR | CO | TO | PASS |
+| O-16 | SN–SR | CO | TO | PASS |
+| O-17 | SN–SR | CO | TO | PASS |
+| O-18 | SN–SR | CO | TO | PASS |
+| O-19 | SN–SR | CO | TO | PASS |
+| O-20 | SN–SR | CO | TO | PASS |
+| O-21 | SN–SR | CO | TO | PASS |
+| O-22 | SN–SR | CO | TO | PASS |
+| O-23 | SN–SR | CO | TO | PASS |
+| O-24 | SN–SR | CO | TO | PASS |
+| O-25 | SN–SR | CO | TO | PASS |
+| P-01 | SN–SR | CP | TP | PASS |
+| P-02 | SN–SR | CP | TP | PASS |
+| P-03 | SN–SR | CP | TP | PASS |
+| P-04 | SN–SR | CP | TP | PASS |
+| P-05 | SN–SR | CP | TP | PASS |
+| P-06 | SN–SR | CP | TP | PASS |
+| P-07 | SN–SR | CP | TP | PASS |
+| P-08 | SN–SR | CP | TP | PASS |
+| P-09 | SN–SR | CP | TP | PASS |
+| P-10 | SN–SR | CP | TP | PASS |
+| P-11 | SN–SR | CP | TP | PASS |
+| P-12 | SN–SR | CP | TP | PASS |
+| P-13 | SN–SR | CP | TP | PASS |
+| P-14 | SN–SR | CP | TP | PASS |
+| P-15 | SN–SR | CP | TP | PASS |
+| P-16 | SN–SR | CP | TP | PASS |
+| P-17 | SN–SR | CP | TP | PASS |
+| P-18 | SN–SR | CP | TP | PASS |
+| P-19 | SN–SR | CP | TP | PASS |
+| P-20 | SN–SR | CP | TP | PASS |
+| P-21 | SN–SR | CP | TP | PASS |
+| P-22 | SN–SR | CP | TP | PASS |
+| P-23 | SN–SR | CP | TP | PASS |
+| P-24 | SN–SR | CP | TP | PASS |
+| P-25 | SN–SR | CP | TP | PASS |
+| P-26 | SN–SR | CP | TP | PASS |
+| P-27 | SN–SR | CP | TP | PASS |
+| P-28 | SN–SR | CP | TP | PASS |
+| Q-01 | SN–SR | CQ | TQ | PASS |
+| Q-02 | SN–SR | CQ | TQ | PASS |
+| Q-03 | SN–SR | CQ | TQ | PASS |
+| Q-04 | SN–SR | CQ | TQ | PASS |
+| Q-05 | SN–SR | CQ | TQ | PASS |
+| Q-06 | SN–SR | CQ | TQ | PASS |
+| Q-07 | SN–SR | CQ | TQ | PASS |
+| Q-08 | SN–SR | CQ | TQ | PASS |
+| Q-09 | SN–SR | CQ | TQ | PASS |
+| Q-10 | SN–SR | CQ | TQ | PASS |
+| Q-11 | SN–SR | CQ | TQ | PASS |
+| R-01 | SN–SR | CR | TR | PASS |
+| R-02 | SN–SR | CR | TR | PASS |
+| R-03 | SN–SR | CR | TR | PASS |
+| R-04 | SN–SR | CR | TR | PASS |
+| R-05 | SN–SR | CR | TR | PASS |
+| R-06 | SN–SR | CR | TR | PASS |
+| R-07 | SN–SR | CR | TR | PASS |
+| R-08 | SN–SR | CR | TR | PASS |
+| R-09 | SN–SR | CR | TR | PASS |
+| R-10 | SN–SR | CR | TR | N/A — PROVISIONAL/UI ONLY |
+| R-11 | SN–SR | CR | TR | N/A — PROVISIONAL/UI ONLY |
+| R-12 | SN–SR | CR | TR | PASS |
+| S-01 | SS–ST | CS | TS | PASS |
+| S-02 | SS–ST | CS | TS | PASS |
+| S-03 | SS–ST | CS | TS | PASS |
+| S-04 | SS–ST | CS | TS | PASS |
+| S-05 | SS–ST | CS | TS | PASS |
+| S-06 | SS–ST | CS | TS | PASS |
+| S-07 | SS–ST | CS | TS | PASS |
+| S-08 | SS–ST | CS | TS | PASS |
+| S-09 | SS–ST | CS | TS | PASS |
+| T-01 | SS–ST | CT | TT | PASS |
+| T-02 | SS–ST | CT | TT | PASS |
+| T-03 | SS–ST | CT | TT | PASS |
+| T-04 | SS–ST | CT | TT | PASS |
+| T-05 | SS–ST | CT | TT | PASS |
+| T-06 | SS–ST | CT | TT | PASS |
+| T-07 | SS–ST | CT | TT | PASS |
+| T-08 | SS–ST | CT | TT | PASS |
+| T-09 | SS–ST | CT | TT | PASS |
+| T-10 | SS–ST | CT | TT | PASS |
+| T-11 | SS–ST | CT | TT | PASS |
+| T-12 | SS–ST | CT | TT | PASS |
+| T-13 | SS–ST | CT | TT | PASS |
+| T-14 | SS–ST | CT | TT | PASS |
+| T-15 | SS–ST | CT | TT | PASS |
+| T-16 | SS–ST | CT | TT | PASS |
+| U-01 | SU | CU | TU | PASS |
+| U-02 | SU | CU | TU | PASS |
+| U-03 | SU | CU | TU | PASS |
+| U-04 | SU | CU | TU | PASS |
+| U-05 | SU | CU | TU | PASS |
+| U-06 | SU | CU | TU | PASS |
+| U-07 | SU | CU | TU | PASS |
+| U-08 | SU | CU | TU | PASS |
+| U-09 | SU | CU | TU | PASS |
+| U-10 | SU | CU | TU | PASS |
+| U-11 | SU | CU | TU | PASS |
+| U-12 | SU | CU | TU | PASS |
+| U-13 | SU | CU | TU | PASS |
+| U-14 | SU | CU | TU | PASS |
+| U-15 | SU | CU | TU | PASS |
+| U-16 | SU | CU | TU | PASS |
+| U-17 | SU | CU | TU | PASS |
+| U-18 | SU | CU | TU | PASS |
+| U-19 | SU | CU | TU | PASS |
+| U-20 | SU | CU | TU | PASS |
+| U-21 | SU | CU | TU | PASS |
+| U-22 | SU | CU | TU | PASS |
+| U-23 | SU | CU | TU | PASS |
+| U-24 | SU | CU | TU | PASS |
+| U-25 | SU | CU | TU | PASS |
+| U-26 | SU | CU | TU | PASS |
+| U-27 | SU | CU | TU | PASS |
+| U-28 | SU | CU | TU | PASS |
+| V-01 | SV | CV | TV | PASS |
+| V-02 | SV | CV | TV | PASS |
+| V-03 | SV | CV | TV | PASS |
+| V-04 | SV | CV | TV | PASS |
+| V-05 | SV | CV | TV | PASS |
+| V-06 | SV | CV | TV | PASS |
+| V-07 | SV | CV | TV | PASS |
+| V-08 | SV | CV | TV | PASS |
+| V-09 | SV | CV | TV | PASS |
+| V-10 | SV | CV | TV | PASS |
+| W-01 | SW | CW | TW | PASS |
+| W-02 | SW | CW | TW | PASS |
+| W-03 | SW | CW | TW | PASS |
+| W-04 | SW | CW | TW | PASS |
+| W-05 | SW | CW | TW | PASS |
+| W-06 | SW | CW | TW | PASS |
+| W-07 | SW | CW | TW | PASS |
+| W-08 | SW | CW | TW | PASS |
+| W-09 | SW | CW | TW | PASS |
+| W-10 | SW | CW | TW | PASS |
+| W-11 | SW | CW | TW | PASS |
+| W-12 | SW | CW | TW | PASS |
+| W-13 | SW | CW | TW | PASS |
+| W-14 | SW | CW | TW | PASS |
+| W-15 | SW | CW | TW | PASS |
+| W-16 | SW | CW | TW | PASS |
+| W-17 | SW | CW | TW | PASS |
+| W-18 | SW | CW | TW | PASS |
+| W-19 | SW | CW | TW | PASS |
+| W-20 | SW | CW | TW | PASS |
+| W-21 | SW | CW | TW | PASS |
+| W-22 | SW | CW | TW | PASS |
+| W-23 | SW | CW | TW | PASS |
+| W-24 | SW | CW | TW | PASS |
+| W-25 | SW | CW | TW | PASS |
+| W-26 | SW | CW | TW | PASS |
+| W-27 | SW | CW | TW | PASS |
+| W-28 | SW | CW | TW | PASS |
+| W-29 | SW | CW | TW | PASS |
+| W-30 | SW | CW | TW | PASS |
+| W-31 | SW | CW | TW | PASS |
+| W-32 | SW | CW | TW | PASS |
+| W-33 | SW | CW | TW | PASS |
+
+### Final totals
+
+| Section | PASS | FINDING | NOT VERIFIED | N/A — PROVISIONAL/UI ONLY |
+|---|---:|---:|---:|---:|
+| A | 9 | 0 | 0 | 0 |
+| B | 27 | 0 | 0 | 0 |
+| C | 19 | 0 | 0 | 0 |
+| D | 14 | 0 | 0 | 0 |
+| E | 21 | 0 | 0 | 0 |
+| F | 19 | 0 | 0 | 0 |
+| G | 27 | 0 | 0 | 0 |
+| H | 32 | 0 | 0 | 0 |
+| I | 27 | 0 | 0 | 0 |
+| J | 24 | 0 | 0 | 0 |
+| K | 30 | 0 | 0 | 0 |
+| L | 16 | 0 | 0 | 0 |
+| M | 18 | 0 | 0 | 0 |
+| N | 20 | 0 | 0 | 0 |
+| O | 25 | 0 | 0 | 0 |
+| P | 28 | 0 | 0 | 0 |
+| Q | 11 | 0 | 0 | 0 |
+| R | 10 | 0 | 0 | 2 |
+| S | 9 | 0 | 0 | 0 |
+| T | 16 | 0 | 0 | 0 |
+| U | 28 | 0 | 0 | 0 |
+| V | 10 | 0 | 0 | 0 |
+| W | 33 | 0 | 0 | 0 |
+| **Total (475 IDs)** | **473** | **0** | **0** | **2** |
+
+### Findings disposition and limitations
+
+- Closed A-05/A-06/A-08 by removing the disconnected legacy WorkingDataset and competing calculation/driver/detail engines; old verifier scripts now test canonical snapshots and assert retired modules are absent.
+- C-19 was an incorrect initial finding: Master Data uses transient sessionStorage, not permanent DB/history/version storage; a fresh isolated browser context opened empty.
+- Closed G-05 with workbook label MAT, and I-13/K-02 by resolving one-sided ADDED/REMOVED identity status separately from calculation confidence.
+- Closed J-23/J-24/S-08/T-04 by ending Selected Comparison when RCA Case workspace or Simulation opens; source fingerprint changes invalidate stale scope.
+- Closed M-16/M-18/T-11/T-15 by clearing handoff context when leaving Simulation or changing product; direct Simulation re-entry showed no unrelated RCA context.
+- Remaining evidence gaps were covered with focused Master Data, Selected Comparison, RCA context, Simulation editability/economics and cross-flow verifiers; the relevant suite passed.
+- Workbook formulas were inspected in generated workbooks and checked by the workbook verifier plus shared-engine truth cases; native Excel calculation was not launched. No finalized item remains NOT VERIFIED.
+- Shift-click and Ctrl-click row selection were exercised in the isolated browser review tab. Ctrl-clicking BOM row 2 after selecting row 1 displayed `2 rows selected`; the temporary selection was cleared afterward. The original user tab was not changed.
+- Full baseline-to-current diff review found all changed paths map to finalized implementation, focused verification, active review guidance, or planning/handoff evidence. No stylesheet, Footer component, package manifest, or lockfile change was present; Footer/frontend styling remains deferred.
+
+### Documentation conflicts and disposition
+
+| Document | Superseded statement | Disposition |
+|---|---|---|
+| docs/testing/REVIEW_FIXTURES.md (corrected) | Previously prescribed one Candidate, downstream Selected Comparison scope, exactly Scenario A/B and pending finalized import/placeholder behavior. | Active instructions now describe one-or-many Candidates, scope boundary, optional Simulation/flexible scenarios and finalized import/Sizing behavior. |
+| docs/SYSTEM_LOGIC_DIAGRAM.md (corrected) | Omitted direct Simulation entry and left the Selected Comparison boundary unstated. | Updated to show standalone Simulation and the RCA/Simulation boundary. |
+| agreements/CANDIDATE_PRIORITIZATION_SPEC.md:418 | Historical requirement says processing Candidates are aggregated by Work Center. | Superseded by current canonical Process/Routing Candidate rule; retained as agreement provenance. |
+| docs/history/COSTBREAKDOWN_REVIEW_CONTEXT_FOR_CODEX.md:1353,1388,1461 | Historical business/OP formulas are marked pending. | Superseded by FINAL_LOGIC_SPEC finalized Selling Price/SG&A/OP rules; retained as archived history. |
+| docs/history/HANDOFF_ARCHIVE_2026-10-05.md:522,532 | Historical checkpoint describes processing Candidates aggregated by Work Center. | Superseded by current canonical Process/Routing Candidate rule; retained as historical record. |
+| docs/PROVISIONAL_IMPLEMENTATION_DECISIONS.md:34-43,52-54 | Old Dashboard rationale mentions unfinalized metrics and an old Work Center override choice. | Entries are explicitly Superseded/provisional; current decisions reflect finalized economics and Work Center edit restrictions. Kept as provenance. |
+
+No finalized requirement remains FINDING or NOT VERIFIED. R-10 and R-11 are N/A only because the frozen checklist makes A/B and multi-scenario UI optional, not required. This audit does not issue independent reviewer approval.
+
+### Verification results
+
+- TypeScript: 60/60 effective PASS; 59 passed through the cached CJS runner and the ESM-only story-view verifier passed through Vite.
+- MJS: 2/2 PASS.
+- npx tsc --noEmit --pretty false: PASS.
+- npm run build: PASS; 2,027 modules transformed. Existing ExcelJS browser externalization warnings remain.
+- Baseline-to-current and final worktree `git diff --check`: PASS after planning/handoff updates; only Git line-ending conversion notices remain.
+- Active-source scan found no superseded Trial/A-B/MatVAR/LBVAR/BDVAR/COGS or Work Center Candidate logic. Generic formatVariance identifiers are false positives for MatVAR.
+- Browser checks used an isolated local review tab with synthetic data; the user original browser tab was not mutated.
+- `npm audit --audit-level=high` reports 5 High findings in the development Tailwind dependency chain and 4 Moderate findings overall. `npm audit --omit=dev --audit-level=high` exits successfully but reports 2 Moderate findings through ExcelJS 4.4.0 → uuid 8.3.2. `npm audit fix --dry-run` indicates its full automatic remediation requires `--force` and proposes a Tailwind major upgrade / ExcelJS downgrade; no dependency changes were made as part of the frozen logic scope. This remains a documented dependency-security limitation, separate from the finalized product-logic checklist.
+- Human visual acceptance remains a later checkpoint under V-10. It is not represented as completed by this logic audit.

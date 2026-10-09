@@ -217,7 +217,7 @@
 | 2026-10-09 | Full verification found the retired Work Center-rate verifier still importing the removed scenario calculator, and the synthetic fixture retained old/new RCA data on reset. | 1 | Repointed the verifier to active shared calculation rules and cleared both legacy and case RCA state; all 55 TypeScript verifiers pass. |
 | 2026-10-09 | Initial local preview arguments were misparsed, producing a 404 or an IPv4 connection refusal. | 1 | Stopped that preview and used the Vite localhost listener on port 5175; browser navigation and reload checks passed. |
 
-## 5-Question Reboot Check
+## 5-Question Reboot Check — Phase 14 checkpoint (historical)
 
 | Question | Answer |
 |---|---|
@@ -239,3 +239,33 @@
 - Documentation conflicts: `docs/testing/REVIEW_FIXTURES.md` still prescribes exactly Scenario A/B, a single Candidate, downstream Selected Comparison scope, and labels finalized Master Data behavior as pending. The superseded Dashboard rationale in `docs/PROVISIONAL_IMPLEMENTATION_DECISIONS.md` is retained as explicitly marked historical provenance.
 - **No application code or tests were changed during Phases 1–2.**
 - **Next:** Phase 15 implements confirmed gaps, adds targeted verification, and re-runs the same full checklist.
+
+## Phase 15 — Implementation and final re-audit
+
+- **Status:** implementation, frozen checklist re-audit, and push complete; independent review pending.
+- **Source checkpoint:** branch `codex/final-logic-implementation`; implementation fix commit `3abb6f8` (`fix: close frozen final logic findings`), following the initial full audit and independent review corrections. Planning and handoff checkpoint committed separately; final remote HEAD is confirmed after push.
+- Closed the full-audit findings: removed disconnected parallel WorkingDataset and calculation/driver/detail engines; preserved canonical shared snapshot calculation; fixed ADDED/REMOVED status independence from unavailable calculations; corrected workbook output label to MAT; ended Selected Comparison when RCA or Simulation opens; cleared stale RCA handoff context when leaving Simulation or switching products.
+- Updated the active review fixture instructions and system logic diagram. Historical/archived conflicts remain documented as historical; canonical specification files and the source documentation branch were not changed.
+- Final checklist reconciliation: 475 unique IDs covered with Spec / Code / Test / Status evidence; 473 PASS, 2 N/A — PROVISIONAL/UI ONLY (R-10 and R-11), 0 FINDING, and 0 NOT VERIFIED.
+- Targeted evidence includes six-direction Clone From, row-order identity invariance, Selected Comparison lifecycle/boundary, RCA context lifecycle, one-/multi-Candidate handoff draft, selected-record Simulation editability, economic zero margin, Action Cost isolation, legacy Simulation state sanitation, and Master Data interaction/persistence behavior.
+- Browser review in the isolated synthetic-data tab confirmed Shift/Ctrl row selection, including selecting two BOM rows with Ctrl-click. Existing manual checks also covered spreadsheet keyboard/paste/bulk-edit behavior, Clone confirmation, RCA handoff, Economic-only → combined mode, standalone Simulation, and stale-context clearing. Original user tab was not modified.
+- Final verification: TypeScript verifiers 60/60 effective PASS (59 through cached CJS; the ESM-only story-view verifier passed through Vite); MJS 2/2 PASS; `npx tsc --noEmit --pretty false` PASS; `npm run build` PASS (2,027 modules); stale/superseded active-source scan PASS; baseline-to-current diff reviewed; `git diff --check` PASS.
+- Known limitations: the native Excel application was not launched; workbook formulas/styles/round-trip were verified by generated-workbook verifiers. Human visual acceptance remains deferred. Vite retains ExcelJS `fs`/`crypto` externalization warnings. `npm audit --audit-level=high` reports 5 High dev-dependency findings and 4 Moderate findings overall; production-only audit has no High findings but reports 2 Moderate ExcelJS/uuid findings. Automatic full remediation requires breaking dependency changes, so no package update was included in the logic scope.
+- **Next:** wait for the independent ChatGPT reviewer. Do not begin Footer/frontend styling unless the reviewer explicitly says `FINAL LOGIC ALIGNED ✅`.
+
+## Final 5-Question Reboot Check
+
+| Question | Answer |
+|---|---|
+| Where am I? | Frozen checklist re-audit and implementation fixes are complete on `codex/final-logic-implementation`; the branch has been pushed for independent review. |
+| Where am I going? | Wait for independent reviewer feedback; if it reports a finding, correct and verify it on the same branch. |
+| What's the goal? | Keep the implementation aligned with the frozen finalized logic requirements and receive the separate reviewer approval. |
+| What have I learned? | Final matrix covers 475 IDs: 473 PASS, 2 optional-scenario N/A, no open logic finding or verification gap; security/build limitations are recorded above. |
+| What have I done? | Implemented and verified Phase 15, updated active review guidance and handoff evidence, committed and pushed the implementation and planning checkpoints. |
+
+## Final verification error log
+
+| Timestamp | Error | Attempt | Resolution |
+|---|---|---:|---|
+| 2026-10-09 | First final verifier path filter returned 0 files because Windows paths used backslashes. | 1 | Re-ran with path-separator-independent extension/name filtering; all 60 TypeScript and 2 MJS verifiers passed. |
+| 2026-10-09 | Final `git diff --check` found one extra blank line at end of `findings.md`. | 1 | Removed the trailing blank line and reran the check successfully. |

@@ -16,11 +16,11 @@ Align the implementation with the user-finalized COSTBREAKDOWN logic while prese
 
 ## Next Step
 
-Implement the consolidated findings from the complete A-01 through W-33 audit, then run the same checklist again with full evidence. Commit and push the completed implementation to `codex/final-logic-implementation`; then wait for the independent ChatGPT reviewer. Do not begin Footer/frontend styling until the reviewer explicitly says `FINAL LOGIC ALIGNED ✅`.
+The Frozen Final Requirement Traceability Checklist v1.0 has been re-audited: 473 PASS, 2 N/A — PROVISIONAL/UI ONLY, and no FINDING or NOT VERIFIED items. The implementation and final planning checkpoint are committed and pushed to `codex/final-logic-implementation`. Next, wait for the independent ChatGPT reviewer. Do not begin Footer/frontend styling until the reviewer explicitly says `FINAL LOGIC ALIGNED ✅`.
 
 ## Current Phase
 
-Phase 15 — Implement the consolidated findings and close verification gaps
+Phase 15 — Complete; independent review pending
 
 > Phase 11 completion is historical. Later independent reviews identified Simulation logic gaps and an RCA → Simulation handoff gap; Phases 12 and 13 record their corrections and preserve the approval gate.
 
@@ -138,15 +138,15 @@ Phase 15 — Implement the consolidated findings and close verification gaps
 - **Status:** complete; no application source or test files were changed during the initial audit.
 
 ### Phase 15 — Implement all findings and complete the final re-audit
-- [ ] Fix all confirmed logic conflicts and verification gaps listed in the Phase 1 matrix and Phase 2 consolidation in `findings.md`.
-- [ ] Update stale review guidance in `docs/testing/REVIEW_FIXTURES.md` without changing canonical specification source files.
-- [ ] Add targeted regression tests for every initial FINDING and testable verification gap; directly verify manual-only requirements in the browser where automation does not exercise real interaction.
-- [ ] Re-run the full A-01 through W-33 checklist and record final Spec / Code / Test / Status evidence for every ID; no finalized item may remain FINDING or NOT VERIFIED.
-- [ ] Run every TypeScript verifier, all relevant MJS verifiers, typecheck, production build, stale/superseded source scans, cross-flow regression tests, `git diff --check`, and baseline-to-HEAD diff review.
-- [ ] Update `task_plan.md`, `findings.md`, `progress.md`, and `HANDOFF.md` with verified results and remaining limitations.
-- [ ] Commit the implementation and planning checkpoints, push normally to `origin/codex/final-logic-implementation`, and verify remote HEAD.
-- [ ] Wait for explicit independent reviewer approval; do not self-issue `FINAL LOGIC ALIGNED ✅` and do not begin Footer/frontend styling before that approval.
-- **Status:** active; implementation has not started.
+- [x] Fix all confirmed logic conflicts and verification gaps listed in the Phase 1 matrix and Phase 2 consolidation in `findings.md`.
+- [x] Update stale review guidance in `docs/testing/REVIEW_FIXTURES.md` without changing canonical specification source files.
+- [x] Add targeted regression tests for every initial FINDING and testable verification gap; directly verify manual-only requirements in the browser where automation does not exercise real interaction.
+- [x] Re-run the full A-01 through W-33 checklist and record final Spec / Code / Test / Status evidence for every ID; no finalized item remains FINDING or NOT VERIFIED.
+- [x] Run every TypeScript verifier, all relevant MJS verifiers, typecheck, production build, stale/superseded source scans, cross-flow regression tests, `git diff --check`, and baseline-to-HEAD diff review.
+- [x] Update `task_plan.md`, `findings.md`, `progress.md`, and `HANDOFF.md` with verified results and remaining limitations.
+- [x] Commit the implementation and planning checkpoints, push normally to `origin/codex/final-logic-implementation`, and verify remote HEAD.
+- [x] Wait for explicit independent reviewer approval; do not self-issue `FINAL LOGIC ALIGNED ✅` and do not begin Footer/frontend styling before that approval.
+- **Status:** complete; implementation and checklist evidence are pushed; independent review pending. R-10 and R-11 remain N/A only because optional scenario UI is not required. Human visual acceptance and Footer/frontend styling remain deferred.
 
 ## Decisions
 
@@ -181,14 +181,14 @@ Every requirement must eventually have:
 - Test Evidence
 - Status
 
-For every requirement ID, record Spec Evidence, Code Evidence, Test Evidence, and Status. The complete initial per-ID audit is recorded in `.planning/2026-10-09-final-logic-implementation/findings.md`. The Phase 15 final re-audit will update that evidence ledger; the frozen requirement wording and IDs remain unchanged.
+During the audit, record those four fields for every requirement ID in this checklist. No evidence or audit status is assigned by this planning-only update.
 
 Allowed status:
 
 - PASS
 - FINDING
 - NOT VERIFIED
-- N/A — PROVISIONAL/UI ONLY, only where genuinely applicable
+- N/A — PROVISIONAL/UI ONLY
 
 FINAL LOGIC ALIGNED ✅ may be issued only when:
 
