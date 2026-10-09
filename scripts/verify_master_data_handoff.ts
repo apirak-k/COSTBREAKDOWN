@@ -111,14 +111,14 @@ const oneNameMissing = evaluateMasterDataHandoff(baseSession, {
   reference: { ...pair.reference, product: { ...product, productName: '', productDescription: '' } },
   current: pair.current
 })
-assert.equal(oneNameMissing.productMismatch, true, 'the default Product Name compares against the other effective name')
-assert.deepEqual(oneNameMissing.warnings, [], 'the default Product Name is not missing')
+assert.equal(oneNameMissing.productMismatch, true, 'a blank Product Name differs from a nonblank effective name')
+assert.deepEqual(oneNameMissing.warnings, [], 'blank Product Name is metadata and is not a required-data warning')
 
 const noProductNames = evaluateMasterDataHandoff(baseSession, {
   reference: { ...pair.reference, product: { ...product, productName: '', productDescription: 'Reference description' } },
   current: { ...pair.current, product: { ...product, productName: '', productDescription: 'Current description' } }
 })
-assert.equal(noProductNames.productMismatch, false, 'blank Product Names both use the effective default Product')
+assert.equal(noProductNames.productMismatch, false, 'two blank Product Names match')
 assert.deepEqual(noProductNames.warnings, [])
 
 const legacyDerived = evaluateMasterDataHandoff({

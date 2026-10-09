@@ -25,8 +25,7 @@ export const CandidatesTable: React.FC<CandidatesTableProps> = ({
     <section aria-labelledby="candidate-table-title">
       <div className="mb-2 flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <h2 id="candidate-table-title" className="font-sans text-sm font-semibold text-slate-950">Ranked findings</h2>
-          <p className="mt-0.5 text-[11px] text-slate-500">Material Gap is the calculated cost difference for the whole BOM record; changed inputs are shown as value details.</p>
+          <h2 id="candidate-table-title" className="font-sans text-sm font-semibold text-slate-950">Candidates · Gap descending</h2>
         </div>
         <p className="text-xs text-slate-500 sm:hidden">Scroll horizontally to view all columns.</p>
       </div>

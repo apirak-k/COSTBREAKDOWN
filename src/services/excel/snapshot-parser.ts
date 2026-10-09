@@ -282,12 +282,12 @@ function productFromSheet(
 
   return {
     product: {
-      productName: productName || 'Product',
+      productName,
       sellingPrice,
       sgaPercent,
       productCode,
       productDescription,
-      uom: uom || 'PC',
+      uom,
       note,
       customer,
       effectiveDate,

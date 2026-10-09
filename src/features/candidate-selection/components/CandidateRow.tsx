@@ -71,18 +71,22 @@ export const CandidateRow: React.FC<CandidateRowProps> = ({
           </div>
           <p className="break-words text-xs font-semibold leading-4 text-slate-950">{candidate.candidateName}</p>
           {candidate.changeDetails && candidate.changeDetails.length > 0 && (
-            <p className="mt-1 break-words text-[11px] leading-4 text-slate-600">
-              <span className="mr-1 font-medium text-slate-700">Changed fields:</span>
-              {candidate.changeDetails.map((detail, index) => (
-                <span key={detail.field}>
-                  {index > 0 && <span aria-hidden="true" className="mx-1.5 text-slate-400">·</span>}
-                  <span className="font-medium">{detail.field}:</span>{' '}
-                  <span className="font-mono tabular-nums">{displayChangeValue(detail.field, detail.reference)}</span>{' '}
-                  <span aria-hidden="true" className="text-slate-400">→</span><span className="sr-only">to</span>{' '}
-                  <span className="font-mono tabular-nums">{displayChangeValue(detail.field, detail.current)}</span>
-                </span>
-              ))}
-            </p>
+            <details className="mt-1">
+              <summary className="min-h-6 cursor-pointer py-0.5 text-[11px] font-medium text-slate-600 hover:text-slate-950 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700">
+                Changed fields ({candidate.changeDetails.length})
+              </summary>
+              <p className="mt-1 break-words text-[11px] leading-4 text-slate-600">
+                {candidate.changeDetails.map((detail, index) => (
+                  <span key={detail.field}>
+                    {index > 0 && <span aria-hidden="true" className="mx-1.5 text-slate-400">·</span>}
+                    <span className="font-medium">{detail.field}:</span>{' '}
+                    <span className="font-mono tabular-nums">{displayChangeValue(detail.field, detail.reference)}</span>{' '}
+                    <span aria-hidden="true" className="text-slate-400">→</span><span className="sr-only">to</span>{' '}
+                    <span className="font-mono tabular-nums">{displayChangeValue(detail.field, detail.current)}</span>
+                  </span>
+                ))}
+              </p>
+            </details>
           )}
           {candidate.processBreakdown && (
             <details className="mt-2 border-t border-slate-200 pt-1.5">

@@ -2,7 +2,6 @@ import React, { useEffect, useMemo, useState } from 'react'
 import type { CandidateRcaDraft, PrioritizationCandidate, RcaCaseRecord } from '../../core'
 import {
   createRcaSimulationHandoffContext,
-  isRcaCaseComplete,
   type RcaSimulationHandoffContext
 } from '../../state/rca-cases'
 
@@ -35,7 +34,7 @@ export const RcaCaseWorkspace: React.FC<RcaCaseWorkspaceProps> = ({
   }, [activeCase?.id, activeCase?.rootCause, activeCase?.action])
 
   const candidateNames = useMemo(() => new Map(candidates.map(candidate => [candidate.candidateKey, candidate.candidateName])), [candidates])
-  const complete = activeCase ? isRcaCaseComplete({ ...activeCase, ...draft }) : false
+  const activeCandidateNames = activeCase?.candidateKeys.map(key => candidateNames.get(key) ?? key) ?? []
 
   const save = () => {
     if (!activeCase) return
@@ -55,11 +54,11 @@ export const RcaCaseWorkspace: React.FC<RcaCaseWorkspaceProps> = ({
   }
 
   return (
-    <section className="space-y-3 border border-slate-300 bg-white p-3" aria-labelledby="rca-case-title">
-      <div className="flex flex-wrap items-start justify-between gap-3 border-b border-slate-200 pb-3">
+    <section className="space-y-3 border-t border-slate-300 bg-white py-3" aria-labelledby="rca-case-title">
+      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 pb-2">
         <div>
           <h2 id="rca-case-title" className="font-sans text-sm font-semibold text-slate-950">RCA Case</h2>
-          <p className="mt-1 text-xs text-slate-600">Record one cause and action for the selected Candidates. Simulation is optional.</p>
+          {activeCandidateNames.length > 0 && <p className="mt-0.5 text-xs text-slate-600">Candidates: {activeCandidateNames.join(' · ')}</p>}
         </div>
         <button type="button" onClick={close} className="min-h-8 border border-slate-300 px-2.5 text-xs font-medium text-slate-700 hover:bg-slate-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700">
           Back to Candidates
@@ -87,11 +86,6 @@ export const RcaCaseWorkspace: React.FC<RcaCaseWorkspaceProps> = ({
               ))}
             </select>
           </label>
-          {activeCase && (
-            <span role="status" className={`pb-2 text-xs font-medium ${complete ? 'text-emerald-800' : 'text-slate-600'}`}>
-              {saved && complete ? 'RCA complete' : 'RCA in progress'}
-            </span>
-          )}
         </div>
       )}
 
@@ -99,17 +93,6 @@ export const RcaCaseWorkspace: React.FC<RcaCaseWorkspaceProps> = ({
         <p className="py-4 text-center text-xs text-slate-600">Select a saved Case to continue.</p>
       ) : (
         <>
-          <div>
-            <h3 className="font-sans text-xs font-semibold text-slate-800">Candidates in this Case</h3>
-            <ul className="mt-1 flex flex-wrap gap-1.5">
-              {activeCase.candidateKeys.map(key => (
-                <li key={key} className="border border-slate-300 bg-slate-50 px-2 py-1 font-mono text-[11px] text-slate-700">
-                  {candidateNames.get(key) ?? key}
-                </li>
-              ))}
-            </ul>
-          </div>
-
           <div className="grid gap-3 md:grid-cols-2">
             <label className="text-xs font-medium text-slate-700">
               Root Cause / Why?
@@ -132,12 +115,12 @@ export const RcaCaseWorkspace: React.FC<RcaCaseWorkspaceProps> = ({
           </div>
 
           <div className="flex flex-wrap items-center justify-between gap-2 border-t border-slate-200 pt-2">
-            <p role="status" className="text-[11px] text-slate-600">{saved ? 'Saved' : 'Unsaved changes'}</p>
+            <p role="status" className={`text-[11px] font-medium ${saved ? 'text-emerald-800' : 'text-slate-600'}`}>{saved ? 'Saved' : 'Draft'}</p>
             <div className="flex flex-wrap gap-2">
-              <button type="button" onClick={save} disabled={saved} className="min-h-9 border border-slate-900 bg-slate-900 px-3 text-xs font-medium text-white hover:bg-slate-700 disabled:cursor-default disabled:border-slate-300 disabled:bg-slate-100 disabled:text-slate-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700">
-                Save RCA
+              <button type="button" onClick={save} disabled={saved} className="min-h-8 border border-slate-300 bg-white px-3 text-xs font-medium text-slate-800 hover:bg-slate-100 disabled:cursor-default disabled:opacity-45 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700">
+                Save
               </button>
-              <button type="button" onClick={proceedToSimulation} className="min-h-9 border border-slate-400 bg-white px-3 text-xs font-medium text-slate-800 hover:bg-slate-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700">
+              <button type="button" onClick={proceedToSimulation} className="min-h-8 border border-slate-300 bg-white px-3 text-xs font-medium text-slate-800 hover:bg-slate-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700">
                 Proceed to Simulation
               </button>
             </div>

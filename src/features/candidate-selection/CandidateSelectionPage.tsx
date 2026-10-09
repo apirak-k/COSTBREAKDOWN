@@ -94,17 +94,17 @@ export const CandidateSelectionPage: React.FC<CandidateSelectionPageProps> = ({ 
   return (
     <div className="space-y-4">
       <PageHeading
-        title="Candidate Prioritization"
-        description="Review cost findings in gap order, then mark whether each is within your control. Rankings guide review; they do not select work automatically."
+        title="Candidate / RCA"
+        description="Rank findings by Gap, then choose Candidate(s) for an RCA Case."
         actions={(
-          <dl className="border-l-2 border-slate-900 py-1 pl-3 sm:min-w-48">
-            <dt className="font-sans text-[11px] font-semibold text-slate-600">{isSelectedComparisonActive ? 'Selected comparison gap' : 'Full comparison gap'}</dt>
-            <dd className={`mt-1 font-mono text-base font-semibold tabular-nums ${
+          <dl className="flex items-baseline gap-2 border-l-2 border-slate-900 py-0.5 pl-3">
+            <dt className="font-sans text-[11px] font-semibold text-slate-600">{isSelectedComparisonActive ? 'Selected Gap' : 'Comparison Gap'}</dt>
+            <dd className={`font-mono text-lg font-semibold tabular-nums ${
               totalGap === null ? 'text-slate-500' : totalGap > 0 ? 'text-rose-700' : totalGap < 0 ? 'text-emerald-700' : 'text-slate-700'
             }`}>
-              {totalGap === null ? '—' : <>{formatVariance(totalGap, 4)} <span className="text-xs font-medium text-slate-600">THB/pc</span></>}
+              {totalGap === null ? '—' : formatVariance(totalGap, 4)}
             </dd>
-            <dd className="mt-0.5 text-xs text-slate-500">{isSelectedComparisonActive ? 'Selected BOM/Routing · all cost elements' : 'Reference vs Current · all cost elements'}</dd>
+            <span className="text-[11px] text-slate-500">THB/pc</span>
           </dl>
         )}
       />
@@ -112,6 +112,26 @@ export const CandidateSelectionPage: React.FC<CandidateSelectionPageProps> = ({ 
       {isSelectedComparisonActive && selectedComparisonSelection && (
         <SelectedComparisonBanner selection={selectedComparisonSelection} onExit={clearSelectedComparison} />
       )}
+
+      <div className="flex items-center gap-1 border-b border-slate-300" role="group" aria-label="Candidate and RCA view">
+        <button
+          type="button"
+          aria-pressed={!showRcaCases}
+          onClick={() => setShowRcaCases(false)}
+          className={`min-h-8 border-b-2 px-3 text-xs font-semibold focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-blue-700 ${!showRcaCases ? 'border-slate-900 text-slate-950' : 'border-transparent text-slate-500 hover:text-slate-900'}`}
+        >
+          Candidates
+        </button>
+        <button
+          type="button"
+          aria-pressed={showRcaCases}
+          onClick={openRcaCases}
+          disabled={rcaCases.length === 0 && !showRcaCases}
+          className={`min-h-8 border-b-2 px-3 text-xs font-semibold focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-blue-700 disabled:cursor-not-allowed disabled:opacity-40 ${showRcaCases ? 'border-slate-900 text-slate-950' : 'border-transparent text-slate-500 hover:text-slate-900'}`}
+        >
+          RCA Cases <span className="ml-1 font-mono tabular-nums">{rcaCases.length}</span>
+        </button>
+      </div>
 
       {showRcaCases ? (
         <RcaCaseWorkspace
@@ -125,29 +145,17 @@ export const CandidateSelectionPage: React.FC<CandidateSelectionPageProps> = ({ 
         />
       ) : (
         <>
-          <section className="flex flex-wrap items-center justify-between gap-2 border border-slate-300 bg-white px-3 py-2.5">
-            <p className="text-xs text-slate-700" aria-live="polite">
-              {selectedCandidateKeys.size} {selectedCandidateKeys.size === 1 ? 'Candidate' : 'Candidates'} selected for RCA
+          <section className="flex flex-wrap items-center justify-end gap-2 border-b border-slate-300 pb-2">
+            <p className="mr-auto text-xs text-slate-700" aria-live="polite">
+              <span className="font-mono font-semibold tabular-nums">{selectedCandidateKeys.size}</span> selected
             </p>
-            <div className="flex flex-wrap gap-2">
-              {rcaCases.length > 0 && (
-                <button type="button" onClick={openRcaCases} className="min-h-9 border border-slate-400 bg-white px-3 text-xs font-medium text-slate-800 hover:bg-slate-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700">
-                  Open RCA Cases <span className="font-mono tabular-nums">({rcaCases.length})</span>
-                </button>
-              )}
-              <button type="button" onClick={startRcaCase} disabled={selectedCandidateKeys.size === 0} className="min-h-9 border border-slate-900 bg-slate-900 px-3 text-xs font-medium text-white hover:bg-slate-700 disabled:cursor-default disabled:border-slate-300 disabled:bg-slate-100 disabled:text-slate-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700">
-                Create RCA Case
-              </button>
-            </div>
+            <button type="button" onClick={startRcaCase} disabled={selectedCandidateKeys.size === 0} className="min-h-8 border border-slate-900 bg-slate-900 px-3 text-xs font-medium text-white hover:bg-slate-700 disabled:cursor-default disabled:border-slate-300 disabled:bg-slate-100 disabled:text-slate-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700">
+              Create RCA Case
+            </button>
           </section>
 
-      <section className="flex flex-col gap-2 border border-slate-300 bg-white px-3 py-2.5 sm:flex-row sm:items-center sm:justify-between" aria-labelledby="candidate-filter-title">
-        <div className="min-w-40">
-          <h2 id="candidate-filter-title" className="font-sans text-sm font-semibold text-slate-950">Comparison status</h2>
-          <p className="mt-0.5 text-[11px] text-slate-600">Highest cost gap first</p>
-        </div>
-
-        <div className="flex flex-wrap items-center gap-2" role="group" aria-label="Filter candidates by status">
+      <div className="flex flex-wrap items-center gap-1.5 border-b border-slate-300 pb-2" role="group" aria-label="Filter candidates by status">
+        <span className="mr-1 text-[11px] font-semibold uppercase tracking-wide text-slate-500">Status</span>
           <button
             type="button"
             aria-pressed={allStatusesSelected}
@@ -175,8 +183,7 @@ export const CandidateSelectionPage: React.FC<CandidateSelectionPageProps> = ({ 
               {option.label} <span className="ml-1 font-mono tabular-nums text-slate-500">({option.count})</span>
             </button>
           ))}
-        </div>
-      </section>
+      </div>
 
       <CandidatesTable
         candidates={visibleCandidates}

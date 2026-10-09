@@ -6,6 +6,8 @@
 
 Candidate Prioritization receives findings from Cost Breakdown across BOM and Process/Routing records. It presents `CHANGED`, `ADDED`, and `REMOVED` Candidates with Reference, Current, and Gap values. Work Center owns rates and provides calculation context, but is never a Candidate. Every Candidate starts marked Controllable; users can sort by Gap descending (highest to lowest) and filter by status. Ranking is strictly advisory and never forces top-rank selection.
 
+The Candidate surface is a compact decision/ranking table: show selection, rank, candidate, status, Reference, Current, Gap, and Controllable up front. Changed-field and process details remain progressive disclosures. The RCA Case is a focused workspace for Candidates, Root Cause / Why?, and Action; Simulation remains optional.
+
 From the candidate pool, the engineer selects **one or multiple Candidates** to create an **RCA Case**. Inside the RCA Case, the engineer investigates and records **Root Cause / Why?** and **Action**. RCA legitimately ends upon recording this analysis. Simulation is optional and independent; RCA provides context, not a scope lock.
 
 ```text

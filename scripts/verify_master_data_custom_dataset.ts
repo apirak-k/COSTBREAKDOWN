@@ -168,7 +168,7 @@ for (const [sourceRole, destinationRole] of cloneDirections) {
 }
 
 const headerSource = readFileSync(resolve(process.cwd(), 'src/features/master-data/components/MasterDataWorkspaceHeader.tsx'), 'utf8')
-assert.match(headerSource, /\/>\s*Clone\s*<\/button>/, 'Master Data uses the finalized Clone action label')
+assert.match(headerSource, /aria-label="Clone"/, 'Master Data exposes the icon-only Clone action with an accessible label')
 assert.match(headerSource, /sourceRole !== role/, 'the currently viewed dataset is never offered as its own source')
 assert.match(headerSource, /onCloneFrom\(sourceRole\)[\s\S]*setCloneMenuOpen\(false\)/, 'choosing a source performs the clone and closes source selection directly')
 

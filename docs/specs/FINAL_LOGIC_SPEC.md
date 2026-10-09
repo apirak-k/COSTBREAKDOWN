@@ -281,7 +281,7 @@ Each dataset has:
 
 - **Save:** Copies viewed dataset's `Working` state into its `Last Saved` state.
 - **Reset:** Restores viewed dataset's `Working` state from its `Last Saved` state.
-- **Export:** Exports viewed dataset's `Last Saved` state to Excel. Unsaved Working edits are not exported.
+- **Export:** Exports viewed dataset's `Last Saved` state to Excel. Working changes that have not been saved are not exported.
 - **Import:** Replaces viewed dataset's `Working` state. Initializes Sizing counts from imported rows.
 - **Clear:** Clears viewed dataset's `Working` state (metadata, rows, Sizing) while retaining `Last Saved`.
 - **Clone:** Generic dataset copy.

@@ -223,6 +223,9 @@ the top of its content scroll area, as required by
   Comparison state recognizable where relevant. Their exact placement,
   wording, and control styling remain reversible UI choices under
   [`CROSS_CUTTING.md`](docs/specs/CROSS_CUTTING.md#shared-status-and-analysis-context).
+- Treat the shared Header as the compact workspace bar: keep page navigation
+  and workflow context there, with contextual icon-only Undo/Redo and Search
+  on Master Data. Search follows the visible Master Data table context.
 - Remove `CB`, `Product Cost Analysis`, and the bottom-left `Workspace` label
   per the confirmed Master Data visual direction. Do not replace them with a
   decorative slogan or redundant branding.
@@ -238,10 +241,9 @@ the top of its content scroll area, as required by
   hover and keyboard-focus states.
 - **Secondary:** white/light surface, slate border, primary text.
 - **Quiet:** text or subtle-surface action for non-primary controls.
-- Keep action sizing compact but operable. Icon-only Undo/Redo controls in
-  Master Data must include accessible names and visible focus, while remaining
-  compact as finalized in [`MASTER_DATA.md`](docs/specs/MASTER_DATA.md#tables-identity-and-spreadsheet-editing)
-  [L77-L79].
+- Keep action sizing compact but operable. Icon-only actions use consistent
+  neutral controls with accessible names, tooltips, and visible focus. Header
+  Undo/Redo/Search appear only in their useful context.
 - Do not use hover as the only way to reveal an action.
 
 ### Panels, summaries, and forms

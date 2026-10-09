@@ -34,8 +34,8 @@ export const DatasetSizingModal: React.FC<DatasetSizingModalProps> = ({
   const [bomCount, setBomCount] = useState<string>(currentSizing.bomCount !== undefined ? String(currentSizing.bomCount) : '')
   const [routingCount, setRoutingCount] = useState<string>(currentSizing.routingCount !== undefined ? String(currentSizing.routingCount) : '')
 
-  const [productName, setProductName] = useState(product.productName || product.productDescription || '')
-  const [uom, setUom] = useState(product.uom || 'PC')
+  const [productName, setProductName] = useState(product.productName || '')
+  const [uom, setUom] = useState(product.uom || '')
   const [sellingPrice, setSellingPrice] = useState(product.sellingPrice == null ? '' : String(product.sellingPrice))
   const [sgaPercent, setSgaPercent] = useState(product.sgaPercent == null ? '' : String(product.sgaPercent))
   const [remark, setRemark] = useState(snapshot.remark || '')
@@ -46,8 +46,8 @@ export const DatasetSizingModal: React.FC<DatasetSizingModalProps> = ({
     setWcCount(currentSizing.wcCount !== undefined ? String(currentSizing.wcCount) : '')
     setBomCount(currentSizing.bomCount !== undefined ? String(currentSizing.bomCount) : '')
     setRoutingCount(currentSizing.routingCount !== undefined ? String(currentSizing.routingCount) : '')
-    setProductName(product.productName || product.productDescription || '')
-    setUom(product.uom || 'PC')
+    setProductName(product.productName || '')
+    setUom(product.uom || '')
     setSellingPrice(product.sellingPrice == null ? '' : String(product.sellingPrice))
     setSgaPercent(product.sgaPercent == null ? '' : String(product.sgaPercent))
     setRemark(snapshot.remark || '')
@@ -72,13 +72,13 @@ export const DatasetSizingModal: React.FC<DatasetSizingModalProps> = ({
       ...product,
       productName: nextProductName,
       productDescription: nextProductName,
-      uom: uom.trim() || 'PC',
+      uom: uom.trim(),
       sellingPrice: parseOptionalNumber(sellingPrice, 'Selling Price'),
       sgaPercent: parseOptionalNumber(sgaPercent, 'SG&A')
     }
     const previousProductFields = {
       productName: product.productName || '',
-      uom: product.uom || 'PC',
+      uom: product.uom || '',
       sellingPrice: product.sellingPrice ?? null,
       sgaPercent: product.sgaPercent ?? null
     }
@@ -96,7 +96,7 @@ export const DatasetSizingModal: React.FC<DatasetSizingModalProps> = ({
       }
       const nextProductFields = {
         productName: nextProduct.productName || '',
-        uom: nextProduct.uom || 'PC',
+        uom: nextProduct.uom || '',
         sellingPrice: nextProduct.sellingPrice ?? null,
         sgaPercent: nextProduct.sgaPercent ?? null
       }

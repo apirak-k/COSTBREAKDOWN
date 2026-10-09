@@ -7,9 +7,11 @@ import { buildMasterDataWarningItems } from '../../features/master-data/prepare-
 
 interface AppLayoutProps {
   children: ReactNode
+  masterDataSearchQuery: string
+  onMasterDataSearchQueryChange: (query: string) => void
 }
 
-export const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
+export const AppLayout: React.FC<AppLayoutProps> = ({ children, masterDataSearchQuery, onMasterDataSearchQueryChange }) => {
   const {
     snapshotPair,
     snapshotComparison,
@@ -36,7 +38,10 @@ export const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
       >
         Skip to main content
       </a>
-      <Navbar />
+      <Navbar
+        masterDataSearchQuery={masterDataSearchQuery}
+        onMasterDataSearchQueryChange={onMasterDataSearchQueryChange}
+      />
       <main
         id="main-content"
         tabIndex={-1}

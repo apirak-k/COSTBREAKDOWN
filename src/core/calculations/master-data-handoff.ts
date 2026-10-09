@@ -51,8 +51,8 @@ export function evaluateMasterDataHandoff(
     }
   })
 
-  const refName = pair.reference.product.productName?.trim() || 'Product'
-  const curName = pair.current.product.productName?.trim() || 'Product'
+  const refName = pair.reference.product.productName?.trim() ?? ''
+  const curName = pair.current.product.productName?.trim() ?? ''
   const productMismatch = normalized(refName) !== normalized(curName)
 
   return {

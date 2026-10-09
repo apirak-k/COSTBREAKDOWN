@@ -1,21 +1,16 @@
 import React, { useEffect, useRef, useState } from 'react'
 import {
   AlertTriangle,
-  CheckCircle2,
   ChevronDown,
   ChevronUp,
   Copy,
   Download,
-  Edit3,
-  Eye,
   Info,
-  Redo2,
   RotateCcw,
   Save,
-  Sliders,
+  Table2,
   Trash2,
   Upload,
-  Undo2,
   X
 } from 'lucide-react'
 import type { MasterDataRole, CostSnapshot, ProductMaster } from '../../../core'
@@ -40,10 +35,6 @@ interface MasterDataWorkspaceHeaderProps {
   onCloneFrom: (sourceRole: MasterDataRole) => void
   onClearDataset: () => void
   handoff: MasterDataHandoffStatus
-  canUndo: boolean
-  canRedo: boolean
-  onUndo: () => void
-  onRedo: () => void
   onOpenImportModal: () => void
   onOpenSizingModal: () => void
   isPrepareDatasetOpen: boolean
@@ -55,7 +46,7 @@ interface MasterDataWorkspaceHeaderProps {
   tableSelector: React.ReactNode
 }
 
-const toolbarButton = 'inline-flex min-h-8 shrink-0 items-center justify-center gap-1 border border-slate-300 bg-white px-1.5 text-[11px] font-medium text-slate-700 transition-colors hover:bg-slate-100 hover:text-slate-950 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700'
+const toolbarButton = 'grid h-8 w-8 shrink-0 place-items-center border border-slate-300 bg-white text-slate-700 transition-colors hover:bg-slate-100 hover:text-slate-950 disabled:cursor-not-allowed disabled:opacity-40 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700'
 const fieldInput = 'mt-1 min-h-9 w-full border-b border-slate-300 bg-transparent px-1 py-1 text-sm text-slate-950 focus:border-blue-700 focus:outline-none'
 
 const roleLabels: Record<MasterDataRole, string> = {
@@ -82,10 +73,6 @@ export const MasterDataWorkspaceHeader: React.FC<MasterDataWorkspaceHeaderProps>
   onCloneFrom,
   onClearDataset,
   handoff,
-  canUndo,
-  canRedo,
-  onUndo,
-  onRedo,
   onOpenImportModal,
   onOpenSizingModal,
   isPrepareDatasetOpen,
@@ -103,6 +90,10 @@ export const MasterDataWorkspaceHeader: React.FC<MasterDataWorkspaceHeaderProps>
 
   const roleLabel = roleLabels[role]
   const isSaved = saveStates[role] === 'Saved'
+
+  useEffect(() => {
+    setCloneMenuOpen(false)
+  }, [role])
 
   useEffect(() => {
     if (isPrepareDatasetOpen) prepareTriggerRef.current?.focus()
@@ -134,14 +125,15 @@ export const MasterDataWorkspaceHeader: React.FC<MasterDataWorkspaceHeaderProps>
     if (!lastSavedSnapshot) return
     const { exportSnapshotToExcel } = await import('../../../services/excel/snapshot-export')
     const blob = await exportSnapshotToExcel(lastSavedSnapshot)
-    const fileProductName = (lastSavedSnapshot.product.productName || 'Product')
-      .replace(/[<>:"/\\|?*\u0000-\u001F]/g, '-').trim() || 'Product'
-    downloadBlob(blob, `Dataset_${fileProductName}_${roleLabel}.xlsx`)
+    const fileProductName = (lastSavedSnapshot.product.productName || '')
+      .replace(/[<>:"/\\|?*\u0000-\u001F]/g, '-').trim()
+    const filenameProductPart = fileProductName ? `_${fileProductName}` : ''
+    downloadBlob(blob, `Dataset${filenameProductPart}_${roleLabel}.xlsx`)
   }
 
   const handleResetDatasetWithConfirm = () => {
     if (!lastSavedSnapshot) return
-    const ok = window.confirm(`Reset ${roleLabel} dataset? Unsaved working changes will be discarded and the dataset will return to its last saved state.`)
+    const ok = window.confirm(`Reset ${roleLabel} dataset? Draft changes will be discarded and it will return to Last Saved.`)
     if (ok) onResetWorkingDataset()
   }
 
@@ -183,7 +175,7 @@ export const MasterDataWorkspaceHeader: React.FC<MasterDataWorkspaceHeaderProps>
             className={'inline-flex min-h-7 items-center gap-1 px-1.5 text-[11px] font-medium transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-blue-700 ' +
               (!isEditMode ? 'bg-slate-900 text-white' : 'text-slate-700 hover:bg-slate-100')}
           >
-            <Eye className="h-3.5 w-3.5" aria-hidden="true" /> View
+            View
           </button>
           <button
             type="button"
@@ -192,29 +184,41 @@ export const MasterDataWorkspaceHeader: React.FC<MasterDataWorkspaceHeaderProps>
             className={'inline-flex min-h-7 items-center gap-1 px-1.5 text-[11px] font-medium transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-blue-700 ' +
               (isEditMode ? 'bg-slate-900 text-white' : 'text-slate-700 hover:bg-slate-100')}
           >
-            <Edit3 className="h-3.5 w-3.5" aria-hidden="true" /> Edit
+            Edit
           </button>
         </div>
 
-        <button type="button" onClick={onOpenSizingModal} className={toolbarButton} title="Configure dataset row starting counts">
-          <Sliders className="h-3.5 w-3.5 text-slate-500" aria-hidden="true" /> Sizing
+        <button type="button" onClick={onOpenSizingModal} className={toolbarButton} title="Sizing" aria-label="Sizing">
+          <Table2 className="h-4 w-4" aria-hidden="true" />
         </button>
-        <button type="button" onClick={onOpenImportModal} className={toolbarButton} title="Import Excel file into selected dataset">
-          <Upload className="h-3.5 w-3.5 text-slate-500" aria-hidden="true" /> Import
+        <button type="button" onClick={onOpenImportModal} className={toolbarButton} title="Import" aria-label="Import">
+          <Upload className="h-4 w-4" aria-hidden="true" />
         </button>
 
-        <div className="relative shrink-0">
+        <div
+          className="relative shrink-0"
+          onPointerEnter={() => setCloneMenuOpen(true)}
+          onPointerLeave={() => setCloneMenuOpen(false)}
+          onFocusCapture={() => setCloneMenuOpen(true)}
+          onBlurCapture={event => {
+            if (!event.currentTarget.contains(event.relatedTarget as Node | null) && !event.currentTarget.matches(':hover')) {
+              setCloneMenuOpen(false)
+            }
+          }}
+        >
           <button
             type="button"
-            onClick={() => setCloneMenuOpen(open => !open)}
+            onClick={() => setCloneMenuOpen(true)}
             aria-expanded={cloneMenuOpen}
+            aria-controls="clone-source-menu"
+            aria-label="Clone"
+            title="Clone from another dataset"
             className={toolbarButton}
           >
-            <Copy className="h-3.5 w-3.5 text-slate-500" aria-hidden="true" /> Clone
+            <Copy className="h-4 w-4" aria-hidden="true" />
           </button>
           {cloneMenuOpen && (
-            <div role="group" aria-label={`Clone ${roleLabel} from`} className="absolute left-0 top-full z-50 mt-1 min-w-36 border border-slate-300 bg-white p-1 shadow-lg">
-              <p className="px-2 py-1 text-[10px] font-semibold uppercase tracking-wide text-slate-500">Select source</p>
+            <div id="clone-source-menu" role="group" aria-label="Clone from another dataset" className="absolute left-0 top-full z-50 min-w-36 border border-slate-300 bg-white p-1 shadow-lg">
               {roles.filter(sourceRole => sourceRole !== role).map(sourceRole => (
                 <button
                   key={sourceRole}
@@ -225,7 +229,7 @@ export const MasterDataWorkspaceHeader: React.FC<MasterDataWorkspaceHeaderProps>
                   }}
                   className="block min-h-8 w-full px-2 text-left text-xs text-slate-800 hover:bg-slate-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-700"
                 >
-                  {roleLabels[sourceRole]}
+                  from {roleLabels[sourceRole]}
                 </button>
               ))}
             </div>
@@ -237,61 +241,40 @@ export const MasterDataWorkspaceHeader: React.FC<MasterDataWorkspaceHeaderProps>
           onClick={handleResetDatasetWithConfirm}
           disabled={!lastSavedSnapshot}
           className={toolbarButton + ' disabled:cursor-not-allowed disabled:opacity-45'}
-          title={lastSavedSnapshot ? `Reset ${roleLabel} Working from Last Saved` : 'No Last Saved state exists for this dataset'}
+          title={lastSavedSnapshot ? 'Reset to Last Saved' : 'No Last Saved state exists'}
+          aria-label="Reset"
         >
-          <RotateCcw className="h-3.5 w-3.5 text-slate-500" aria-hidden="true" /> Reset
+          <RotateCcw className="h-4 w-4" aria-hidden="true" />
         </button>
         <button
           type="button"
           onClick={handleClearDatasetWithConfirm}
-          className="inline-flex min-h-8 shrink-0 items-center justify-center gap-1 border border-rose-300 bg-rose-50 px-1.5 text-[11px] font-medium text-rose-800 transition-colors hover:bg-rose-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-rose-700"
-          title={`Clear ${roleLabel} Working data`}
+          className={toolbarButton}
+          title="Clear Working data"
+          aria-label="Clear"
         >
-          <Trash2 className="h-3.5 w-3.5 text-rose-700" aria-hidden="true" /> Clear
+          <Trash2 className="h-4 w-4" aria-hidden="true" />
         </button>
         <button
           type="button"
           onClick={onSaveWorkingDataset}
           disabled={isSaved}
-          className={toolbarButton + (isSaved
-            ? ' border-slate-200 bg-slate-50 font-medium text-slate-500'
-            : ' border-blue-700 bg-blue-700 font-semibold text-white hover:bg-blue-800 hover:text-white')}
-          title={isSaved ? 'Working matches Last Saved' : `Save ${roleLabel} Working as Last Saved`}
+          className={toolbarButton}
+          title={isSaved ? 'Already Saved' : 'Save Working changes'}
+          aria-label="Save"
         >
-          <Save className="h-3.5 w-3.5" aria-hidden="true" /> Save
+          <Save className="h-4 w-4" aria-hidden="true" />
         </button>
         <button
           type="button"
           onClick={() => { void handleExportDataset() }}
           disabled={!lastSavedSnapshot}
           className={toolbarButton + ' disabled:cursor-not-allowed disabled:opacity-45'}
-          title={lastSavedSnapshot ? 'Export Last Saved dataset to Excel' : 'Save this dataset before exporting'}
+          title={lastSavedSnapshot ? 'Export Last Saved' : 'No Last Saved dataset to export'}
+          aria-label="Export"
         >
-          <Download className="h-3.5 w-3.5 text-slate-500" aria-hidden="true" /> Export
+          <Download className="h-4 w-4" aria-hidden="true" />
         </button>
-
-        <div className="inline-flex shrink-0 items-center gap-0.5 border border-slate-300 bg-white p-0.5" role="group" aria-label="Working edit history">
-          <button
-            type="button"
-            onClick={onUndo}
-            disabled={!canUndo}
-            aria-label="Undo Master Data edit"
-            title="Undo Master Data edit (Ctrl/Cmd+Z)"
-            className="grid h-8 w-8 place-items-center text-slate-700 transition-colors hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-40 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-blue-700"
-          >
-            <Undo2 className="h-4 w-4" aria-hidden="true" />
-          </button>
-          <button
-            type="button"
-            onClick={onRedo}
-            disabled={!canRedo}
-            aria-label="Redo Master Data edit"
-            title="Redo Master Data edit (Ctrl/Cmd+Y or Ctrl/Cmd+Shift+Z)"
-            className="grid h-8 w-8 place-items-center text-slate-700 transition-colors hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-40 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-blue-700"
-          >
-            <Redo2 className="h-4 w-4" aria-hidden="true" />
-          </button>
-        </div>
 
         {tableSelector}
 
@@ -302,12 +285,11 @@ export const MasterDataWorkspaceHeader: React.FC<MasterDataWorkspaceHeaderProps>
             onClick={() => onPrepareDatasetOpenChange(!isPrepareDatasetOpen)}
             aria-expanded={isPrepareDatasetOpen}
             aria-controls="prepare-dataset-panel"
-            className="inline-flex min-h-8 items-center gap-1.5 border border-slate-700 bg-slate-900 px-2 text-xs font-semibold text-white transition-colors hover:bg-slate-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700"
+            className={toolbarButton}
+            aria-label="Prepare Dataset"
+            title="Prepare Dataset"
           >
-            {handoff.datasetsPrepared
-              ? <CheckCircle2 className="h-3.5 w-3.5 text-emerald-300" aria-hidden="true" />
-              : <AlertTriangle className="h-3.5 w-3.5 text-amber-300" aria-hidden="true" />}
-            Prepare Dataset
+            <Info className="h-4 w-4" aria-hidden="true" />
           </button>
 
           {isPrepareDatasetOpen && (
@@ -438,14 +420,14 @@ export const MasterDataWorkspaceHeader: React.FC<MasterDataWorkspaceHeaderProps>
                 <input
                   type="text"
                   aria-label="Product Name"
-                  value={product.productName || 'Product'}
+                  value={product.productName || ''}
                   onChange={event => onUpdateProduct({ ...product, productName: event.target.value, productDescription: event.target.value })}
-                  placeholder="Product"
+                  placeholder=""
                   className={fieldInput}
                 />
               ) : (
-                <span className="block truncate text-xs text-slate-950" title={product.productName || 'Product'}>
-                  {product.productName || 'Product'}
+                <span className="block truncate text-xs text-slate-950" title={product.productName || undefined}>
+                  {product.productName || ''}
                 </span>
               )}
             </dd>
@@ -458,13 +440,13 @@ export const MasterDataWorkspaceHeader: React.FC<MasterDataWorkspaceHeaderProps>
                 <input
                   type="text"
                   aria-label="UOM"
-                  value={product.uom || 'PC'}
+                  value={product.uom || ''}
                   onChange={event => onUpdateProduct({ ...product, uom: event.target.value })}
-                  placeholder="PC"
+                  placeholder=""
                   className={fieldInput + ' font-mono'}
                 />
               ) : (
-                <span className="block font-mono text-xs text-slate-950">{product.uom || 'PC'}</span>
+                <span className="block font-mono text-xs text-slate-950">{product.uom || ''}</span>
               )}
             </dd>
           </div>

@@ -36,6 +36,7 @@ const AppRouter: React.FC = () => {
     productId: string
     context: RcaSimulationHandoffContext
   } | null>(null)
+  const [masterDataSearchQuery, setMasterDataSearchQuery] = useState('')
   const [simulationStatesByProduct, setSimulationStatesByProduct] = useState<Record<string, SimulationWorkspaceState>>(
     () => loadFromSession(STORAGE_KEYS.SIMULATION_STATES, {})
   )
@@ -51,6 +52,10 @@ const AppRouter: React.FC = () => {
   useEffect(() => {
     setSimulationRcaHandoff(previous => retainRcaSimulationHandoff(previous, activeTab, activeProductId))
   }, [activeProductId, activeTab])
+
+  useEffect(() => {
+    document.getElementById('main-content')?.scrollTo({ top: 0, behavior: 'auto' })
+  }, [activeTab])
 
   useEffect(() => {
     if (!storedSimulationState || simulationState === storedSimulationState) return
@@ -123,8 +128,16 @@ const AppRouter: React.FC = () => {
   }
 
   return (
-    <AppLayout>
-      {activeTab === 'master' && <MasterDataPage />}
+    <AppLayout
+      masterDataSearchQuery={masterDataSearchQuery}
+      onMasterDataSearchQueryChange={setMasterDataSearchQuery}
+    >
+      {activeTab === 'master' && (
+        <MasterDataPage
+          searchQuery={masterDataSearchQuery}
+          onSearchQueryChange={setMasterDataSearchQuery}
+        />
+      )}
       {activeTab === 'breakdown' && <CostBreakdownPage />}
       {activeTab === 'candidate' && <CandidateSelectionPage onProceedToSimulation={proceedFromRcaToSimulation} />}
       {activeTab === 'simulation' && (

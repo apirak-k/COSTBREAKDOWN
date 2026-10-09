@@ -36,15 +36,15 @@ working.routing = [
 ]
 
 const effective = normalizeMasterDataSnapshot(working)
-assert.equal(effective.product.productName, 'Product', 'blank Product Name uses the finalized effective default')
-assert.equal(effective.product.uom, 'PC', 'blank UOM uses the finalized effective default')
+assert.equal(effective.product.productName, '', 'blank Product Name remains blank')
+assert.equal(effective.product.uom, '', 'blank UOM remains blank')
 assert.deepEqual(effective.bom.map(row => row.description), ['Steel', 'Material 1', 'Plastic', 'Material 2'],
   'generated BOM identities count generated entries, not physical rows')
 assert.equal(effective.rates[0].workCenterCode, 'Work Center 1')
 assert.equal(effective.routing[0].processName, 'Process 1')
 const retainedMarkers = normalizeMasterDataSnapshot(effective)
 assert.equal(retainedMarkers.bom[1].isGeneratedBusinessIdentity, true, 'generated identity marker survives normal display normalization')
-assert.equal(retainedMarkers.product.productName, 'Product')
+assert.equal(retainedMarkers.product.productName, '')
 const editedGeneratedIdentity = structuredClone(effective)
 editedGeneratedIdentity.bom[1].description = 'Custom Material'
 const explicitIdentity = normalizeMasterDataSnapshot(editedGeneratedIdentity, effective)
@@ -53,7 +53,7 @@ assert.equal(explicitIdentity.bom[1].isGeneratedBusinessIdentity, false)
 assert.equal(normalizeMasterDataSnapshot({
   ...snapshot('different-descriptions'),
   product: { ...snapshot('different-descriptions').product, productDescription: 'Another label' }
-}).product.productName, 'Product', 'legacy Product Description does not replace the effective default Product Name')
+}).product.productName, '', 'legacy Product Description does not fabricate a Product Name')
 
 const duplicateInput = snapshot('duplicates')
 duplicateInput.bom = [
@@ -94,9 +94,9 @@ assert.equal(warningCategories['unresolved-work-center'], 1, 'unavailable Work C
 assert.equal(warningItems.length, 8, 'footer warning total sums affected warning locations, not category count')
 assert.ok(warningItems.every(item => item.role !== 'custom' || item.table !== 'product'))
 
-assert.equal(getDatasetSaveState(effective, undefined), 'Not saved yet')
+assert.equal(getDatasetSaveState(effective, undefined), 'Draft')
 assert.equal(getDatasetSaveState(effective, structuredClone(effective)), 'Saved')
-assert.equal(getDatasetSaveState(effective, { ...structuredClone(effective), remark: 'changed' }), 'Unsaved')
+assert.equal(getDatasetSaveState(effective, { ...structuredClone(effective), remark: 'changed' }), 'Draft')
 
 const pair: SnapshotPair = {
   reference: effective,
@@ -106,7 +106,7 @@ assert.ok(isProductMismatch(pair.reference, pair.current), 'Product Mismatch is 
 assert.equal(isProductMismatch(
   { ...snapshot('blank-reference'), product: { ...snapshot('blank-reference').product, productName: '', productDescription: 'Reference description' } },
   { ...snapshot('blank-current'), product: { ...snapshot('blank-current').product, productName: '', productDescription: 'Current description' } }
-), false, 'blank Product Names both use Product even when legacy descriptions differ')
+), false, 'blank Product Names remain blank even when legacy descriptions differ')
 assert.ok(!warningItems.some(item => item.category === 'product-mismatch'), 'Product Mismatch is not a warning category')
 
 const truncation = snapshot('truncation')

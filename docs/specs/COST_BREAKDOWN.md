@@ -10,6 +10,8 @@ Cost Breakdown starts in Full Comparison. Reference and Current are calculated i
 
 Cost Breakdown answers: *“What changed between Reference and Current, and where does the Standard Cost gap come from?”*
 
+The page presents the result first, then cost-category causes, then record/process and changed-field detail. Keep Snapshot Comparison and Variance Tree from repeating the same result/cause values; selected scope stays available as a compact context control.
+
 Cost Breakdown compares strictly:
 
 $$\text{Reference} \longleftrightarrow \text{Current}$$

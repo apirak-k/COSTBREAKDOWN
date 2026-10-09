@@ -6,6 +6,8 @@
 
 Simulation is a single module comprising two distinct, interoperable dimensions:
 
+The page presents the Reference → Current → Simulated cost story and available result/decision metrics first, followed by economic assumptions, Factors to Simulate, and BOM/Routing parameter detail. Keep the existing cost graph and calculations authoritative; omit unavailable values and do not make economic results an approval gate.
+
 ```text
 SIMULATION
 ├─ Parameter Simulation (What-if engineering cost simulation)

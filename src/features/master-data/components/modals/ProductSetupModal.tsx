@@ -24,7 +24,7 @@ export const ProductSetupModal: React.FC<ProductSetupModalProps> = ({
 
   const [productCode, setProductCode] = useState('')
   const [productDescription, setProductDescription] = useState('')
-  const [uom, setUom] = useState('PC')
+  const [uom, setUom] = useState('')
   const [newUomInput, setNewUomInput] = useState('')
   const [showNewUom, setShowNewUom] = useState(false)
   const [customer, setCustomer] = useState('')
@@ -39,7 +39,7 @@ export const ProductSetupModal: React.FC<ProductSetupModalProps> = ({
       if (mode === 'edit' && activeSession) {
         setProductCode(activeSession.product.productCode || '')
         setProductDescription(activeSession.product.productDescription || '')
-        setUom(activeSession.product.uom || 'PC')
+        setUom(activeSession.product.uom || '')
         setCustomer(activeSession.product.customer || '')
         setEffectiveDate(activeSession.product.effectiveDate || new Date().toISOString().split('T')[0])
         setWcCount(Math.max(1, activeSession.rates.length || 4))
@@ -49,7 +49,7 @@ export const ProductSetupModal: React.FC<ProductSetupModalProps> = ({
         // Create mode defaults
         setProductCode('')
         setProductDescription('')
-        setUom('PC')
+        setUom('')
         setCustomer('')
         setEffectiveDate(new Date().toISOString().split('T')[0])
         setWcCount(4)
@@ -89,7 +89,7 @@ export const ProductSetupModal: React.FC<ProductSetupModalProps> = ({
     const config: ProductSizingConfig = {
       productCode: trimmedCode,
       productDescription: productDescription.trim(),
-      uom: uom || 'PC',
+      uom,
       customer: customer.trim(),
       effectiveDate: effectiveDate || new Date().toISOString().split('T')[0],
       wcCount: Math.min(50, Math.max(1, Number(wcCount))),

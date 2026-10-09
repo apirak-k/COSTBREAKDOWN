@@ -98,21 +98,20 @@ function stableValue(value: unknown): unknown {
   return value
 }
 
-export type MasterDataSaveState = 'Saved' | 'Unsaved' | 'Not saved yet'
+export type MasterDataSaveState = 'Saved' | 'Draft'
 
 export function getDatasetSaveState(working: CostSnapshot, lastSaved?: CostSnapshot): MasterDataSaveState {
-  if (!lastSaved) return 'Not saved yet'
-  return JSON.stringify(stableValue(working)) === JSON.stringify(stableValue(lastSaved)) ? 'Saved' : 'Unsaved'
+  if (!lastSaved) return 'Draft'
+  return JSON.stringify(stableValue(working)) === JSON.stringify(stableValue(lastSaved)) ? 'Saved' : 'Draft'
 }
 
 export function normalizeMasterDataSnapshot(snapshot: CostSnapshot, previous?: CostSnapshot): CostSnapshot {
-  const productName = snapshot.product.productName?.trim() || 'Product'
   return {
     ...snapshot,
     product: {
       ...snapshot.product,
-      productName,
-      uom: snapshot.product.uom?.trim() || 'PC'
+      productName: snapshot.product.productName?.trim() ?? '',
+      uom: snapshot.product.uom?.trim() ?? ''
     },
     rates: normalizeIdentityRows(snapshot.rates, previous?.rates, 'workCenterCode', 'Work Center'),
     bom: normalizeIdentityRows(snapshot.bom, previous?.bom, 'description', 'Material'),
@@ -121,7 +120,7 @@ export function normalizeMasterDataSnapshot(snapshot: CostSnapshot, previous?: C
 }
 
 export function isProductMismatch(reference: CostSnapshot, current: CostSnapshot): boolean {
-  const referenceName = reference.product.productName?.trim() || 'Product'
-  const currentName = current.product.productName?.trim() || 'Product'
+  const referenceName = reference.product.productName?.trim() ?? ''
+  const currentName = current.product.productName?.trim() ?? ''
   return normalized(referenceName) !== normalized(currentName)
 }

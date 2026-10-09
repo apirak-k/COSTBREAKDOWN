@@ -100,9 +100,9 @@ export const seedSnapshotPair: SnapshotPair = migratePairedModelToSnapshots({
 
 export const emptyProductMaster: ProductMaster = {
   productCode: '',
-  productName: 'Product',
+  productName: '',
   productDescription: '',
-  uom: 'PC',
+  uom: '',
   note: '',
   customer: '',
   effectiveDate: ''

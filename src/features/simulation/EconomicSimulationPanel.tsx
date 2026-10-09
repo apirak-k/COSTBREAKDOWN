@@ -10,6 +10,7 @@ interface EconomicSimulationPanelProps {
   result: EconomicSimulationResult
   draft: EconomicSimulationDraft
   hasParameterSimulation: boolean
+  showResults?: boolean
   onUpdate: (field: EconomicSimulationField, value: string) => void
 }
 
@@ -28,6 +29,7 @@ export const EconomicSimulationPanel: React.FC<EconomicSimulationPanelProps> = (
   result,
   draft,
   hasParameterSimulation,
+  showResults = true,
   onUpdate
 }) => {
   const margin = result.economicMarginPerPiece
@@ -36,12 +38,12 @@ export const EconomicSimulationPanel: React.FC<EconomicSimulationPanelProps> = (
   return (
     <section className="border border-slate-300 bg-white" aria-labelledby="economic-simulation-title">
       <div className="border-b border-slate-200 px-3 py-2.5">
-        <h2 id="economic-simulation-title" className="font-sans text-sm font-semibold text-slate-950">Economic Simulation</h2>
-        <p className="mt-0.5 text-[11px] text-slate-600">Estimate break-even independently; parameter edits are optional.</p>
+        <h2 id="economic-simulation-title" className="font-sans text-sm font-semibold text-slate-950">{showResults ? 'Economic Simulation' : 'Economic assumptions'}</h2>
+        {showResults && <p className="mt-0.5 text-[11px] text-slate-600">Set the action cost and evaluation quantity for the break-even estimate.</p>}
       </div>
-      <div className="grid gap-4 p-3 xl:grid-cols-[minmax(0,1fr)_minmax(20rem,0.9fr)]">
+      <div className={`grid gap-4 p-3 ${showResults ? 'xl:grid-cols-[minmax(0,1fr)_minmax(20rem,0.9fr)]' : ''}`}>
         <div>
-          <div className="grid gap-3 sm:grid-cols-2">
+          <div className={`grid gap-3 sm:grid-cols-2 ${showResults ? '' : 'xl:grid-cols-4'}`}>
             {INPUTS.map(({ field, label, unit, placeholder }) => (
               <label key={field} className="block text-xs font-medium text-slate-800">
                 <span className="flex items-baseline justify-between gap-2">
@@ -59,12 +61,12 @@ export const EconomicSimulationPanel: React.FC<EconomicSimulationPanelProps> = (
               </label>
             ))}
           </div>
-          {result.requiredSavingPerPiece === null && (
+          {showResults && result.requiredSavingPerPiece === null && (
             <p className="mt-2 text-[11px] text-slate-500">Enter Action Cost and a positive Evaluation Quantity to calculate break-even.</p>
           )}
         </div>
 
-        <div className={`grid content-start gap-3 ${hasParameterSimulation ? 'sm:grid-cols-2' : ''}`}>
+        {showResults && <div className={`grid content-start gap-3 ${hasParameterSimulation ? 'sm:grid-cols-2' : ''}`}>
           <div className="border-l-2 border-slate-900 bg-slate-50 px-3 py-2">
             <p className="text-[11px] font-semibold text-slate-600">Required Saving / pc</p>
             <p className="mt-1 font-mono text-base font-semibold tabular-nums text-slate-950">
@@ -84,7 +86,7 @@ export const EconomicSimulationPanel: React.FC<EconomicSimulationPanelProps> = (
               </p>
             </div>
           )}
-        </div>
+        </div>}
       </div>
       {warnings.length > 0 && (
         <details className="border-t border-slate-200 px-3 py-2 text-xs text-slate-600">

@@ -60,7 +60,7 @@ export async function parseExcelInputFile(file: File): Promise<ExcelImportResult
     const product: ProductMaster = {
       productCode: str(prodDataRow?.[1]) || str(prodDataRow?.[0]) || 'RGOM-024-01',
       productDescription: str(prodDataRow?.[2]) || 'MEMBRANE SWITCH',
-      uom: str(prodDataRow?.[3]) || 'PC',
+      uom: str(prodDataRow?.[3]),
       customer: str(prodDataRow?.[4]) || 'Cost declare 250331',
       effectiveDate: new Date().toISOString().split('T')[0]
     }

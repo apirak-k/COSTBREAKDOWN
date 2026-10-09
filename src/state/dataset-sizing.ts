@@ -170,12 +170,11 @@ function isBlankRouting(row: SnapshotRoutingStep, snapshot: CostSnapshot): boole
 
 export function hasEnteredMasterData(snapshot: CostSnapshot): boolean {
   const product = snapshot.product
-  const normalizedUom = product.uom?.trim().toUpperCase()
   const hasUserMetadata =
-    Boolean(product.productName?.trim() && product.productName.trim() !== 'Product') ||
+    Boolean(product.productName?.trim()) ||
     product.sellingPrice !== undefined && product.sellingPrice !== null ||
     product.sgaPercent !== undefined && product.sgaPercent !== null ||
-    Boolean(normalizedUom && normalizedUom !== 'PC') ||
+    Boolean(product.uom?.trim()) ||
     !isEmpty(product.productCode) ||
     !isEmpty(product.productDescription) ||
     !isEmpty(product.note) ||

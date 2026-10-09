@@ -1,5 +1,5 @@
-import React, { useCallback, useMemo, useRef, useState } from 'react'
-import { CheckSquare, GripVertical, Plus, Search, Trash2 } from 'lucide-react'
+import React, { useCallback, useMemo, useRef } from 'react'
+import { CheckSquare, GripVertical, Plus, Trash2 } from 'lucide-react'
 import { SnapshotRoutingStep, SnapshotWorkCenterRate } from '../../../core'
 import { useDragSelect } from '../hooks/useDragSelect'
 import { SpreadsheetPasteCell, tableCellKey, useTableKeyboardNav } from '../hooks/useTableKeyboardNav'
@@ -12,6 +12,8 @@ interface RoutingTableProps {
   rates: SnapshotWorkCenterRate[]
   isEditMode?: boolean
   historyScope: string
+  searchQuery?: string
+  onSearchQueryChange?: (query: string) => void
   onUndo: () => void
   onRedo: () => void
   onAddRoutingStep: () => void
@@ -19,6 +21,7 @@ interface RoutingTableProps {
   onDeleteRoutingSteps: (ids: string[]) => void
   onReorderRows: (movingId: string, targetId: string, position: 'before' | 'after', movingIds?: string[]) => void
   warningNavigationTarget?: WarningNavigationTarget
+  onWarningNavigationHandled: (requestId: number) => void
 }
 
 const numberValue = (value: number | null | undefined): string => value === null || value === undefined ? '' : String(value)
@@ -29,24 +32,25 @@ export const RoutingTable: React.FC<RoutingTableProps> = ({
   rates,
   isEditMode = false,
   historyScope,
+  searchQuery = '',
+  onSearchQueryChange = () => undefined,
   onUndo,
   onRedo,
   onAddRoutingStep,
   onUpdateRoutingSteps,
   onDeleteRoutingSteps,
   onReorderRows,
-  warningNavigationTarget
+  warningNavigationTarget,
+  onWarningNavigationHandled
 }) => {
   const tableRef = useRef<HTMLTableElement | null>(null)
-  const [searchTerm, setSearchTerm] = useState('')
-  useWarningNavigationFocus(tableRef, searchTerm, setSearchTerm, warningNavigationTarget)
+  const query = searchQuery.trim().toLocaleLowerCase()
   const duplicateProcessIds = useMemo(() => duplicateIdentityIds(routing, step => step.id, step => step.processName), [routing])
   const placeholderNumbers = useMemo(() => blankIdentityOrdinals(routing, step => step.processName), [routing])
   const knownWorkCenters = useMemo(() => new Set(
     rates.map(rate => rate.workCenterCode.trim().toLocaleLowerCase()).filter(Boolean)
   ), [rates])
 
-  const query = searchTerm.trim().toLocaleLowerCase()
   const filteredRouting = useMemo(() => routing.filter(step =>
     [step.processName, step.workCenterId, step.manning, step.capacity, step.yield, step.note]
       .some(value => String(value ?? '').toLocaleLowerCase().includes(query))
@@ -54,6 +58,7 @@ export const RoutingTable: React.FC<RoutingTableProps> = ({
 
   const {
     selectedIds,
+    setSelectedIds,
     clearSelection,
     startDrag,
     toggleRow,
@@ -64,6 +69,9 @@ export const RoutingTable: React.FC<RoutingTableProps> = ({
     isEditMode,
     selectionScope: historyScope
   })
+
+  const selectWarningRow = useCallback((rowId: string) => setSelectedIds(new Set([rowId])), [setSelectedIds])
+  useWarningNavigationFocus(tableRef, searchQuery, onSearchQueryChange, warningNavigationTarget, selectWarningRow, onWarningNavigationHandled)
 
   const {
     applyCellUpdate,
@@ -129,25 +137,13 @@ export const RoutingTable: React.FC<RoutingTableProps> = ({
 
   return (
     <section aria-label="Routing rows" className="overflow-hidden bg-white select-none">
-      <div className="flex flex-col gap-3 border-b border-slate-300 bg-slate-50 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
-        <div className="relative w-full sm:w-64">
-          <Search className="absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" aria-hidden="true" />
-          <input
-            value={searchTerm}
-            onChange={event => setSearchTerm(event.target.value)}
-            placeholder="Search Routing"
-            aria-label="Search Routing rows"
-            className="min-h-9 w-full border border-slate-300 bg-white py-1 pl-9 pr-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-700"
-          />
+      {isEditMode && (
+        <div className="flex min-h-11 items-center justify-end border-b border-slate-200 bg-white px-3 py-1">
+          <button type="button" onClick={onAddRoutingStep} className="flex min-h-8 items-center justify-center gap-1.5 border border-slate-300 bg-white px-2.5 text-xs font-medium text-slate-800 hover:bg-slate-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700">
+            <Plus className="h-3 w-3" aria-hidden="true" /> Add row
+          </button>
         </div>
-        {isEditMode && (
-          <div className="flex shrink-0 items-center gap-1.5">
-            <button type="button" onClick={onAddRoutingStep} className="flex min-h-9 items-center justify-center gap-1.5 bg-slate-900 px-3 text-sm font-medium text-white hover:bg-slate-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700">
-              <Plus className="h-3 w-3" aria-hidden="true" /> Add row
-            </button>
-          </div>
-        )}
-      </div>
+      )}
 
       {isEditMode && (
         <div className={`flex h-[52px] items-center gap-3 overflow-x-auto border-b px-4 text-xs text-slate-800 ${selectedIds.size > 0 ? 'border-blue-200 bg-blue-50' : 'border-slate-200 bg-slate-50'}`}>
@@ -213,6 +209,7 @@ export const RoutingTable: React.FC<RoutingTableProps> = ({
                 <tr
                   key={step.id}
                   data-master-data-row-id={step.id}
+                  aria-selected={isSelected}
                   tabIndex={-1}
                   onMouseEnter={() => onMouseEnterRow(step.id)}
                   onDragOver={event => { if (isEditMode) event.preventDefault() }}

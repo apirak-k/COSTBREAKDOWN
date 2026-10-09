@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react'
+import React, { useCallback, useEffect, useMemo, useState } from 'react'
 import { useAppStore } from '../../state'
 import type { MasterDataRole } from '../../core'
 import { getDatasetSaveState } from '../../core/utils/master-data-effective'
@@ -13,9 +13,14 @@ import type { WarningNavigationTarget } from './hooks/useWarningNavigationFocus'
 
 type TableSubTab = 'bom' | 'wc' | 'routing'
 
+interface MasterDataPageProps {
+  searchQuery?: string
+  onSearchQueryChange?: (query: string) => void
+}
+
 const roles: MasterDataRole[] = ['reference', 'current', 'custom']
 
-export const MasterDataPage: React.FC = () => {
+export const MasterDataPage: React.FC<MasterDataPageProps> = ({ searchQuery = '', onSearchQueryChange = () => undefined }) => {
   const {
     masterDataSnapshots,
     masterDataUiState,
@@ -26,8 +31,6 @@ export const MasterDataPage: React.FC = () => {
     masterDataSizing,
     masterDataHandoff,
     masterDataPrepareDatasetRequested,
-    canUndoMasterDataEdit,
-    canRedoMasterDataEdit,
     undoMasterDataEdit,
     redoMasterDataEdit,
     setMasterDataRole,
@@ -80,9 +83,14 @@ export const MasterDataPage: React.FC = () => {
 
   const handleWarningNavigation = (item: MasterDataWarningItem) => {
     setMasterDataRole(item.role)
+    updateMasterDataUiState({ type: 'set-mode', mode: 'edit' })
     updateMasterDataUiState({ type: 'set-table-view', tableView: item.table })
     setWarningNavigation(current => ({ ...item, requestId: (current?.requestId ?? 0) + 1 }))
   }
+
+  const handleWarningNavigationHandled = useCallback((requestId: number) => {
+    setWarningNavigation(current => current?.requestId === requestId ? undefined : current)
+  }, [])
 
   const handleLoadMockData = async () => {
     if (!import.meta.env.DEV) return
@@ -109,7 +117,10 @@ export const MasterDataPage: React.FC = () => {
           rates={masterDataSnapshot.rates}
           isEditMode={isEditMode}
           historyScope={masterDataRole}
+          searchQuery={searchQuery}
+          onSearchQueryChange={onSearchQueryChange}
           warningNavigationTarget={warningNavigationTarget}
+          onWarningNavigationHandled={handleWarningNavigationHandled}
           onUndo={undoMasterDataEdit}
           onRedo={redoMasterDataEdit}
           onAddRate={() => addMasterDataWorkCenterRate({
@@ -133,7 +144,10 @@ export const MasterDataPage: React.FC = () => {
           bom={masterDataSnapshot.bom}
           isEditMode={isEditMode}
           historyScope={masterDataRole}
+          searchQuery={searchQuery}
+          onSearchQueryChange={onSearchQueryChange}
           warningNavigationTarget={warningNavigationTarget}
+          onWarningNavigationHandled={handleWarningNavigationHandled}
           onUndo={undoMasterDataEdit}
           onRedo={redoMasterDataEdit}
           onAddBOMItem={() => addMasterDataBOMItem({
@@ -158,7 +172,10 @@ export const MasterDataPage: React.FC = () => {
         rates={masterDataSnapshot.rates}
         isEditMode={isEditMode}
         historyScope={masterDataRole}
+        searchQuery={searchQuery}
+        onSearchQueryChange={onSearchQueryChange}
         warningNavigationTarget={warningNavigationTarget}
+        onWarningNavigationHandled={handleWarningNavigationHandled}
         onUndo={undoMasterDataEdit}
         onRedo={redoMasterDataEdit}
         onAddRoutingStep={() => addMasterDataRoutingStep({
@@ -233,10 +250,6 @@ export const MasterDataPage: React.FC = () => {
         onCloneFrom={cloneMasterDataWorkspace}
         onClearDataset={() => clearMasterDataDataset(masterDataRole)}
         handoff={masterDataHandoff}
-        canUndo={canUndoMasterDataEdit}
-        canRedo={canRedoMasterDataEdit}
-        onUndo={undoMasterDataEdit}
-        onRedo={redoMasterDataEdit}
         onOpenImportModal={() => setImportModalOpen(true)}
         onOpenSizingModal={() => setSizingModalOpen(true)}
         isPrepareDatasetOpen={isPrepareDatasetOpen}

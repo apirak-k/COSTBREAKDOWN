@@ -7,7 +7,7 @@ import { PageHeading } from '../../shared'
 import { EconomicSimulationPanel } from './EconomicSimulationPanel'
 import { SimulationStoryGraph } from './SimulationStoryGraph'
 import { calculateEconomicSimulation, type EconomicSimulationField } from './simulation-economics'
-import type { ParameterSimulationResult, SimulationComparisonRow, SimulationRecordKind } from './simulation-engine'
+import type { SimulationComparisonRow, SimulationRecordKind } from './simulation-engine'
 import { calculateParameterSimulation } from './simulation-engine'
 import type { SimulationFactor, SimulationParameter, SimulationWorkspaceState } from './simulation-state'
 import { SIMULATION_PARAMETERS, simulationFactorId } from './simulation-state'
@@ -56,81 +56,10 @@ function formatParameter(value: number | null, parameter: SimulationParameter): 
     : formatNumber(displayedValue, 4)
 }
 
-function formatCost(value: number | null): string {
-  return value === null || !Number.isFinite(value) ? '—' : formatNumber(value, 4)
-}
-
 function rowStatus(row: SimulationComparisonRow): string {
   if (row.identityIssue === 'ambiguous') return 'Ambiguous identity'
   if (row.identityIssue === 'unmatched') return 'Missing identity'
   return row.status ?? '—'
-}
-
-interface CostSummaryProps {
-  result: ParameterSimulationResult
-}
-
-const CostSummary: React.FC<CostSummaryProps> = ({ result }) => {
-  const lines = [
-    { label: 'Material', current: result.currentCost.material, simulation: result.simulationCost.material },
-    { label: 'Labor', current: result.currentCost.labor, simulation: result.simulationCost.labor },
-    { label: 'Burden', current: result.currentCost.burden, simulation: result.simulationCost.burden },
-    { label: 'Standard Cost', current: result.currentCost.total, simulation: result.simulationCost.total }
-  ]
-  const warnings = result.comparison.warnings.map(warning => warning.message)
-
-  return (
-    <section className="border border-slate-300 bg-white" aria-labelledby="simulation-result-title">
-      <div className="flex flex-wrap items-end justify-between gap-3 border-b border-slate-200 px-3 py-2.5">
-        <div>
-          <h2 id="simulation-result-title" className="font-sans text-sm font-semibold text-slate-950">Current vs SIM</h2>
-          <p className="mt-0.5 text-[11px] text-slate-600">Full snapshot calculation · THB/pc</p>
-        </div>
-        <dl className="border-l-2 border-slate-900 py-0.5 pl-3 text-right">
-          <dt className="font-sans text-[11px] font-semibold text-slate-600">Parameter Saving / pc</dt>
-          <dd className={`mt-0.5 font-mono text-base font-semibold tabular-nums ${result.parameterSavingPerPiece === null ? 'text-slate-500' : result.parameterSavingPerPiece >= 0 ? 'text-emerald-800' : 'text-rose-800'}`}>
-            {result.parameterSavingPerPiece === null ? 'Unavailable' : formatNumber(result.parameterSavingPerPiece, 4)}
-          </dd>
-        </dl>
-      </div>
-      {(result.currentCost.status !== 'complete' || result.simulationCost.status !== 'complete') && (
-        <p role="status" className="border-b border-slate-200 px-3 py-2 text-xs text-amber-800">
-          Saving is unavailable until both Current and SIM Standard Cost can be calculated.
-        </p>
-      )}
-      <details className="px-3 py-2 text-xs text-slate-700">
-        <summary className="cursor-pointer font-medium">Current vs SIM cost detail</summary>
-        <div className="mt-2 overflow-x-auto">
-          <table className="w-full min-w-[440px] text-left text-xs">
-            <thead className="bg-slate-100 text-[11px] font-semibold text-slate-700">
-              <tr>
-                <th scope="col" className="px-3 py-2">Cost element</th>
-                <th scope="col" className="px-3 py-2 text-right">Current</th>
-                <th scope="col" className="px-3 py-2 text-right">SIM</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-200">
-              {lines.map(line => (
-                <tr key={line.label} className={line.label === 'Standard Cost' ? 'font-semibold text-slate-950' : 'text-slate-700'}>
-                  <th scope="row" className="px-3 py-2 text-left">{line.label}</th>
-                  <td className="px-3 py-2 text-right font-mono tabular-nums">{formatCost(line.current)}</td>
-                  <td className="px-3 py-2 text-right font-mono tabular-nums">{formatCost(line.simulation)}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-          {warnings.length > 0 && (
-            <details className="border-t border-slate-200 px-3 py-2 text-xs text-slate-600">
-              <summary className="cursor-pointer font-medium">Calculation notes ({warnings.length})</summary>
-              <ul className="mt-2 list-disc space-y-1 pl-5">
-                {[...new Set(warnings)].map((warning, index) => <li key={`${index}-${warning}`}>{warning}</li>)}
-              </ul>
-            </details>
-          )}
-        </div>
-      </details>
-    </section>
-  )
 }
 
 interface ParameterTableProps {
@@ -328,24 +257,27 @@ export const SimulationPage: React.FC<SimulationPageProps> = ({
     <div className="space-y-4">
       <PageHeading
         title="Simulation"
-        description="Compare a temporary SIM with Current and test selected BOM or process parameters."
+        description="What-if cost evaluation · Reference → Current → Simulated"
         actions={state.snapshot ? (
-          <button type="button" onClick={onReset} className="min-h-9 border border-slate-400 bg-white px-3 text-xs font-medium text-slate-800 hover:bg-slate-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700">
-            Reset SIM
+          <button type="button" onClick={onReset} className="min-h-8 border border-slate-300 bg-white px-3 text-xs font-medium text-slate-800 hover:bg-slate-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700">
+            Reset
           </button>
         ) : undefined}
       />
 
       {rcaContext && (
-        <section className="border border-slate-300 border-l-4 border-l-slate-700 bg-white px-3 py-2.5" aria-label="RCA Case context">
-          <h2 className="font-sans text-xs font-semibold text-slate-900">RCA Case context</h2>
-          <p className="mt-1 text-xs text-slate-700">
-            Case {rcaContext.caseId} · {rcaContext.candidateKeys.length} {rcaContext.candidateKeys.length === 1 ? 'Candidate' : 'Candidates'}
-            {rcaContext.candidateKeys.length > 0 && <> · {rcaContext.candidateKeys.join(', ')}</>}
-          </p>
-          {rcaContext.rootCause.trim() && <p className="mt-1 text-xs text-slate-600">Root Cause / Why?: {rcaContext.rootCause}</p>}
-          {rcaContext.action.trim() && <p className="mt-1 text-xs text-slate-600">Action: {rcaContext.action}</p>}
-          <p className="mt-1 text-[11px] text-slate-600">For a new SIM, Current is the default source; Reference and Custom remain available. RCA context does not restrict Material or Process selection.</p>
+        <section className="flex flex-wrap items-center gap-x-3 gap-y-1 border-b border-slate-300 pb-2 text-xs" aria-label="RCA Case context">
+          <span className="font-semibold text-slate-800">RCA Case {rcaContext.caseId}</span>
+          <span className="text-slate-600">{rcaContext.candidateKeys.length} {rcaContext.candidateKeys.length === 1 ? 'Candidate' : 'Candidates'}{rcaContext.candidateKeys.length > 0 && <> · {rcaContext.candidateKeys.join(', ')}</>}</span>
+          {(rcaContext.rootCause.trim() || rcaContext.action.trim()) && (
+            <details className="ml-auto">
+              <summary className="min-h-7 cursor-pointer text-[11px] font-medium text-slate-600 hover:text-slate-950 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700">RCA notes</summary>
+              <div className="absolute right-4 z-20 mt-1 max-w-lg border border-slate-300 bg-white p-3 text-xs shadow-lg">
+                {rcaContext.rootCause.trim() && <p><span className="font-semibold">Root Cause / Why?</span> · {rcaContext.rootCause}</p>}
+                {rcaContext.action.trim() && <p className="mt-2"><span className="font-semibold">Action</span> · {rcaContext.action}</p>}
+              </div>
+            </details>
+          )}
         </section>
       )}
 
@@ -376,34 +308,32 @@ export const SimulationPage: React.FC<SimulationPageProps> = ({
         </>
       ) : result && economicResult && (
         <>
-          <section className="flex flex-wrap items-baseline gap-x-4 gap-y-2 border border-slate-300 border-l-4 border-l-slate-900 bg-white px-3 py-3" aria-label="Simulation basis">
-            <dl>
-              <dt className="font-sans text-[11px] font-semibold text-slate-600">SIM source</dt>
-              <dd className="mt-0.5 text-sm font-semibold text-slate-950">{sourceLabel}</dd>
-            </dl>
-            <dl>
-              <dt className="font-sans text-[11px] font-semibold text-slate-600">Comparison basis</dt>
-              <dd className="mt-0.5 text-sm font-semibold text-slate-950">Current Working</dd>
-            </dl>
-            <p className="min-w-56 flex-1 text-xs leading-5 text-slate-600">
-              Temporary SIM snapshot · {state.snapshot.bom.length} BOM · {state.snapshot.routing.length} Routing · {state.snapshot.rates.length} Work Centers. Structure is locked; Master Data remains unchanged.
-            </p>
+          <section className="flex flex-wrap items-center gap-x-4 gap-y-1 border-b border-slate-300 pb-2 text-xs" aria-label="Simulation basis">
+            <span><span className="text-slate-500">SIM source</span> <strong className="font-semibold text-slate-900">{sourceLabel}</strong></span>
+            <span><span className="text-slate-500">Compared with</span> <strong className="font-semibold text-slate-900">Current Working</strong></span>
+            <span className="ml-auto text-[11px] text-slate-500">Temporary snapshot · structure locked · Master Data unchanged</span>
           </section>
 
-          <CostSummary result={result} />
+          {story && (
+            <SimulationStoryGraph
+              story={story}
+              parameterSaving={result.parameterSavingPerPiece}
+              requiredSaving={economicResult.requiredSavingPerPiece}
+              economicMargin={economicResult.economicMarginPerPiece}
+              warnings={result.comparison.warnings.map(warning => warning.message)}
+            />
+          )}
 
           <EconomicSimulationPanel
             result={economicResult}
             draft={state.economicInputs}
             hasParameterSimulation
+            showResults={false}
             onUpdate={onUpdateEconomicInput}
           />
 
-          {story && <SimulationStoryGraph story={story} />}
-
-          <section className="border border-slate-300 bg-white p-3" aria-labelledby="simulation-factors-title">
-            <h2 id="simulation-factors-title" className="font-sans text-sm font-semibold text-slate-950">Factors to Simulate</h2>
-            <p className="mt-1 text-xs text-slate-600">Select material or process records to show their editable parameters. Every edit recalculates the full SIM dataset.</p>
+          <section className="border-t border-slate-300 pt-2" aria-labelledby="simulation-factors-title">
+            <h2 id="simulation-factors-title" className="font-sans text-xs font-semibold text-slate-950">Factors to Simulate</h2>
             <div className="mt-2 flex flex-wrap gap-x-4 gap-y-2">
               {selectableFactors.map(({ factor, kind, name }) => (
                 <label key={factor} className="inline-flex min-h-8 items-center gap-2 text-xs text-slate-800">

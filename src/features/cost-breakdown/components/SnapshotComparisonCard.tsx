@@ -1,6 +1,8 @@
 import React from 'react'
 import { formatNumber, formatVariance } from '../../../core'
 import type { CostComparison } from '../../../core'
+import { ALL_COMPARISON_STATUSES, isVisibleInComparisonView } from './comparison-view'
+import type { ComparisonViewMode } from './comparison-view'
 
 export type SnapshotQuality = 'Verified' | 'Estimated' | 'Missing'
 
@@ -52,6 +54,8 @@ export function summarizeSnapshotComparison(comparison: CostComparison, selected
 interface SnapshotComparisonCardProps {
   comparison: CostComparison
   selectedComparison?: boolean
+  comparisonView?: ComparisonViewMode
+  onOpenDetail?: (section: 'bom' | 'processing') => void
 }
 
 const formatCost = (value: number | null): string => value === null ? '—' : formatNumber(value, 4)
@@ -69,7 +73,12 @@ function gapClass(value: number | null): string {
   return value > 0 ? 'text-rose-700' : 'text-emerald-700'
 }
 
-export const SnapshotComparisonCard: React.FC<SnapshotComparisonCardProps> = ({ comparison, selectedComparison = false }) => {
+export const SnapshotComparisonCard: React.FC<SnapshotComparisonCardProps> = ({
+  comparison,
+  selectedComparison = false,
+  comparisonView = ALL_COMPARISON_STATUSES,
+  onOpenDetail = () => undefined
+}) => {
   const summary = summarizeSnapshotComparison(comparison, selectedComparison)
   const warnings = getSnapshotWarnings(comparison, selectedComparison)
   const referenceConversion = addCosts(comparison.referenceCost.labor, comparison.referenceCost.burden)
@@ -83,48 +92,59 @@ export const SnapshotComparisonCard: React.FC<SnapshotComparisonCardProps> = ({ 
   ]
   const discrepancy = comparison.reconciliation?.discrepancy ?? null
   const reconciled = comparison.reconciliation?.reconciled === true
+  const bomCount = comparison.bomFindings.filter(finding => isVisibleInComparisonView(finding, comparisonView)).length
+  const routingCount = comparison.routingFindings.filter(finding => isVisibleInComparisonView(finding, comparisonView)).length
+  const processingCount = comparison.processingFindings.filter(finding => isVisibleInComparisonView(finding, comparisonView)).length
+  const rateCount = comparison.workCenterFindings.filter(finding => isVisibleInComparisonView(finding, comparisonView)).length
 
   return (
     <section aria-labelledby="snapshot-comparison-title" className="overflow-hidden border border-slate-300 bg-white">
-      <div className="flex flex-col gap-3 border-b border-slate-200 bg-slate-50 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h2 id="snapshot-comparison-title" className="font-sans text-sm font-semibold tracking-tight text-slate-950">{selectedComparison ? 'Selected Comparison · Reference vs Current' : 'Reference vs Current'}</h2>
-          <p className="mt-0.5 text-[11px] leading-4 text-slate-600">
-            {selectedComparison
-              ? 'Cost measures use the selected BOM and Routing findings with all Work Center rates as calculation context.'
-              : 'Reference and Current are calculated independently. Gap = Current − Reference.'}
-          </p>
-        </div>
+      <div className="flex items-center justify-between gap-3 border-b border-slate-200 px-3 py-2">
+        <h2 id="snapshot-comparison-title" className="font-sans text-xs font-semibold tracking-tight text-slate-950">Result by cost element</h2>
+        <span className="text-[11px] text-slate-500">{selectedComparison ? 'Selected Comparison' : 'Reference vs Current'} · THB/pc</span>
       </div>
 
       <div className="w-full overflow-x-auto">
-        <table className="w-full min-w-[640px] text-left text-xs">
-          <caption className="sr-only">Reference, Current, and Gap for material, labor, burden, conversion subtotal, and standard cost</caption>
+        <table className="w-full min-w-[760px] text-left text-xs">
+          <caption className="sr-only">Reference, Current, and Gap for each cost element with the matching source records for review</caption>
           <thead>
             <tr className="bg-slate-800 font-semibold text-white">
-              <th scope="col" className="p-2.5">Cost category</th>
-              <th scope="col" className="p-2.5 text-right">Reference (THB/pc)</th>
-              <th scope="col" className="p-2.5 text-right">Current (THB/pc)</th>
-              <th scope="col" className="p-2.5 text-right">Gap (THB/pc)</th>
+              <th scope="col" className="px-3 py-2">Cost category</th>
+              <th scope="col" className="px-3 py-2 text-right">Reference</th>
+              <th scope="col" className="px-3 py-2 text-right">Current</th>
+              <th scope="col" className="px-3 py-2 text-right">Gap</th>
+              <th scope="col" className="px-3 py-2">Source detail</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-200">
             {metrics.map(metric => (
               <tr key={metric.key} className={metric.emphasis ? 'border-t-2 border-slate-400 bg-slate-100 font-bold text-slate-950' : metric.subtotal ? 'bg-slate-50 text-slate-700' : 'bg-white text-slate-800'}>
-                <th scope="row" className={`p-2.5 text-left ${metric.subtotal ? 'font-medium italic' : 'font-semibold'}`}>
-                  {metric.label}{metric.subtotal && <span className="ml-2 font-sans text-[11px] font-normal not-italic text-slate-500">Labor + Burden; subtotal only</span>}
+                <th scope="row" className={`px-3 py-2 text-left ${metric.subtotal ? 'font-medium italic' : 'font-semibold'}`}>
+                  {metric.label}{metric.subtotal && <span className="ml-2 font-sans text-[11px] font-normal not-italic text-slate-500">Labor + Burden</span>}
                 </th>
-                <td className="p-2.5 text-right font-mono tabular-nums">{formatCost(metric.reference)}</td>
-                <td className="p-2.5 text-right font-mono tabular-nums">{formatCost(metric.current)}</td>
-                <td className={`p-2.5 text-right font-mono tabular-nums ${gapClass(metric.gap)}`}>{metric.gap === null ? '—' : formatVariance(metric.gap, 4)}</td>
+                <td className="px-3 py-2 text-right font-mono tabular-nums">{formatCost(metric.reference)}</td>
+                <td className="px-3 py-2 text-right font-mono tabular-nums">{formatCost(metric.current)}</td>
+                <td className={`px-3 py-2 text-right font-mono tabular-nums ${gapClass(metric.gap)}`}>{metric.gap === null ? '—' : formatVariance(metric.gap, 4)}</td>
+                <td className="px-3 py-2 text-[11px] text-slate-600">
+                  {metric.key === 'material' && (
+                    <button type="button" onClick={() => onOpenDetail('bom')} className="min-h-7 text-left font-medium underline decoration-slate-300 underline-offset-2 hover:text-slate-950 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700">
+                      {bomCount} BOM findings · Review
+                    </button>
+                  )}
+                  {metric.key === 'conversion' && (
+                    <button type="button" onClick={() => onOpenDetail('processing')} className="min-h-7 text-left font-medium underline decoration-slate-300 underline-offset-2 hover:text-slate-950 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700">
+                      {routingCount} Routing · {processingCount} process groups · {rateCount} rate findings · Review
+                    </button>
+                  )}
+                  {metric.key === 'total' && <span className="sr-only">Material and processing sources are listed above.</span>}
+                </td>
               </tr>
             ))}
           </tbody>
         </table>
       </div>
 
-      <div className="flex flex-col gap-1 border-t border-slate-200 bg-slate-50 px-4 py-2.5 text-xs sm:flex-row sm:items-center sm:justify-between">
-        <span className="text-slate-600">Material + labor + burden reconcile to Standard Cost Gap; Conversion is a labor + burden subtotal and is not counted again.</span>
+      <div className="flex flex-col gap-1 border-t border-slate-200 bg-slate-50 px-3 py-2 text-[11px] sm:flex-row sm:items-center sm:justify-between">
         <span className={`font-mono font-semibold tabular-nums ${reconciled ? 'text-emerald-800' : 'text-amber-800'}`}>
           {reconciled
             ? discrepancy === null ? 'Balanced' : `${formatNumber(Math.abs(discrepancy), 4)} THB · Balanced`

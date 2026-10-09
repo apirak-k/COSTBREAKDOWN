@@ -8,17 +8,18 @@ export interface WarningNavigationTarget {
 
 export function useWarningNavigationFocus(
   tableRef: RefObject<HTMLTableElement | null>,
-  searchTerm: string,
-  setSearchTerm: (value: string) => void,
-  target: WarningNavigationTarget | undefined
+  searchQuery: string,
+  setSearchQuery: (value: string) => void,
+  target: WarningNavigationTarget | undefined,
+  selectRow: (rowId: string) => void,
+  onNavigationHandled: (requestId: number) => void
 ): void {
   useEffect(() => {
-    if (target) setSearchTerm('')
-  }, [target?.requestId, setSearchTerm])
+    if (target) setSearchQuery('')
+  }, [target?.requestId, setSearchQuery])
 
   useEffect(() => {
-    if (!target || searchTerm) return
-    let removeHighlight: ReturnType<typeof setTimeout> | undefined
+    if (!target || searchQuery) return
     const frame = requestAnimationFrame(() => {
       const table = tableRef.current
       if (!table) return
@@ -29,16 +30,17 @@ export function useWarningNavigationFocus(
         .find(element => element.dataset.gridRowId === target.rowId && element.dataset.gridField === target.field)
       const focusTarget = field ?? row
       focusTarget.scrollIntoView({ block: 'center', behavior: 'smooth' })
+      selectRow(target.rowId)
       focusTarget.focus({ preventScroll: true })
       row.classList.add('outline', 'outline-2', 'outline-amber-500', 'outline-offset-[-2px]')
-      removeHighlight = setTimeout(() => {
+      setTimeout(() => {
         row.classList.remove('outline', 'outline-2', 'outline-amber-500', 'outline-offset-[-2px]')
       }, 1800)
+      onNavigationHandled(target.requestId)
     })
 
     return () => {
       cancelAnimationFrame(frame)
-      if (removeHighlight) clearTimeout(removeHighlight)
     }
-  }, [target, searchTerm, tableRef])
+  }, [target, searchQuery, tableRef, selectRow, onNavigationHandled])
 }

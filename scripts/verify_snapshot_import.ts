@@ -103,9 +103,9 @@ assert.equal(duplicateRoutingRows[1].autoRenamedFrom, 'Cutting')
 assert.notEqual(duplicateRoutingRows[0].id, duplicateRoutingRows[1].id, 'duplicate business keys still need distinct internal row IDs')
 assert.equal(new Set(duplicateRoutingRows.map(row => row.id)).size, 2)
 
-// Blank Product Name uses the finalized effective default without a warning.
+// Blank Product Name and UOM remain blank; imports do not fabricate metadata.
 const startingDataWorkbook = XLSX.utils.book_new()
-XLSX.utils.book_append_sheet(startingDataWorkbook, metaSheet('', 'PC', null, null, 'Starting data with incomplete Product Name'), 'META')
+XLSX.utils.book_append_sheet(startingDataWorkbook, metaSheet('', '', null, null, 'Starting data with blank metadata'), 'META')
 XLSX.utils.book_append_sheet(startingDataWorkbook, tableSheet('WORK_CENTER', ['WC', 'Labor', 'Burden', 'Note']), 'WORK_CENTER')
 XLSX.utils.book_append_sheet(startingDataWorkbook, tableSheet('BOM', ['Name', 'Usage', 'Unit', 'Price', 'Loss', 'Note']), 'BOM')
 XLSX.utils.book_append_sheet(startingDataWorkbook, tableSheet('ROUTING', ['Process', 'WC', 'Manning', 'Cap', 'Yield', 'Note']), 'ROUTING')
@@ -115,8 +115,8 @@ const startingDataResult = parseSnapshotWorkbookData(
 )
 assert.equal(startingDataResult.success, true, startingDataResult.message)
 assert.equal(startingDataResult.format, 'canonical')
-assert.equal(startingDataResult.snapshot?.product.productName, 'Product')
-assert.equal(startingDataResult.snapshot?.product.uom, 'PC')
+assert.equal(startingDataResult.snapshot?.product.productName, '')
+assert.equal(startingDataResult.snapshot?.product.uom, '')
 assert.equal(startingDataResult.warnings?.some(warning => warning.toLowerCase().includes('missing product name')), false)
 
 const horizontalMetaWorkbook = XLSX.utils.book_new()

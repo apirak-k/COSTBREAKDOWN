@@ -30,7 +30,19 @@ function formatMetricValue(key: MetricKey, value: number | null): string {
     : formatted
 }
 
-export function SimulationStoryGraph({ story }: { story: ScenarioStory }) {
+interface SimulationStoryGraphProps {
+  story: ScenarioStory
+  parameterSaving: number | null
+  requiredSaving: number | null
+  economicMargin: number | null
+  warnings?: string[]
+}
+
+function formatResult(value: number | null): string {
+  return value === null || !Number.isFinite(value) ? 'Unavailable' : formatNumber(value, 4)
+}
+
+export function SimulationStoryGraph({ story, parameterSaving, requiredSaving, economicMargin, warnings = [] }: SimulationStoryGraphProps) {
   const states = [
     { key: 'reference', label: 'Reference', values: story.reference, x: 160 },
     { key: 'current', label: 'Current', values: story.current, x: 350 },
@@ -59,14 +71,10 @@ export function SimulationStoryGraph({ story }: { story: ScenarioStory }) {
   return (
     <figure aria-labelledby="simulation-story-title" className="border border-slate-300 bg-white px-3 py-3">
       <div className="border-b border-slate-200 pb-2">
-        <p className="font-sans text-[11px] font-semibold text-slate-500">Cost story</p>
-        <h2 id="simulation-story-title" className="mt-0.5 text-xs font-semibold text-slate-900">Reference → Current → Simulated</h2>
+        <h2 id="simulation-story-title" className="text-sm font-semibold text-slate-900">Reference → Current → Simulated</h2>
+        <p className="mt-0.5 text-[11px] text-slate-500">Standard Cost · THB/pc</p>
       </div>
-      <div className="grid grid-cols-1 gap-2 border-b border-slate-200 py-2 text-[11px] sm:grid-cols-2">
-        <p><span className="font-semibold text-slate-900">Reference → Current</span><br /><span className="text-slate-600">Gap 1 = Current − Reference</span></p>
-        <p><span className="font-semibold text-slate-900">Current → Simulated</span><br /><span className="text-slate-600">Gap 2 = Simulated − Current</span></p>
-      </div>
-      <div className="grid grid-cols-1 gap-3 xl:grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)] xl:items-start">
+      <div className="grid grid-cols-1 gap-3 py-2 xl:grid-cols-[minmax(0,1.2fr)_minmax(18rem,0.8fr)] xl:items-start">
         <div className="min-w-0">
           <svg
             role="img"
@@ -125,7 +133,34 @@ export function SimulationStoryGraph({ story }: { story: ScenarioStory }) {
             <li className="inline-flex items-center gap-1.5"><i className="h-0.5 w-4 bg-blue-700" />Selling Price</li>
           </ul>
         </div>
-        <div className="min-w-0 overflow-x-auto">
+        <section aria-label="Simulation decision metrics" className="grid content-start gap-2 sm:grid-cols-2">
+          <div className="border-l-2 border-slate-900 bg-slate-50 px-3 py-2 sm:col-span-2">
+            <p className="text-[11px] font-semibold text-slate-600">Current → SIM Standard Cost</p>
+            <p className="mt-0.5 font-mono text-sm font-semibold tabular-nums text-slate-950">
+              {formatResult(story.current.standardCost)} <span className="text-slate-400">→</span> {formatResult(story.simulated.standardCost)} <span className="text-[10px] font-normal text-slate-500">THB/pc</span>
+            </p>
+          </div>
+          {[
+            { label: 'Parameter Saving / pc', value: parameterSaving },
+            { label: 'Required Saving / pc', value: requiredSaving },
+            { label: 'Economic Margin / pc', value: economicMargin },
+            { label: 'Selling Price · Current → SIM', value: null, comparison: `${formatMetricValue('sellingPrice', story.current.sellingPrice)} → ${formatMetricValue('sellingPrice', story.simulated.sellingPrice)}` },
+            { label: 'SG&A / pc · Current → SIM', value: null, comparison: `${formatMetricValue('sgaAmountPerPiece', story.current.sgaAmountPerPiece)} → ${formatMetricValue('sgaAmountPerPiece', story.simulated.sgaAmountPerPiece)}` },
+            { label: 'OP / pc · Current → SIM', value: null, comparison: `${formatMetricValue('operatingProfitPerPiece', story.current.operatingProfitPerPiece)} → ${formatMetricValue('operatingProfitPerPiece', story.simulated.operatingProfitPerPiece)}` }
+          ].map(metric => (
+            <dl key={metric.label} className="border-t border-slate-200 px-1 pt-1.5">
+              <dt className="text-[10px] font-semibold text-slate-600">{metric.label}</dt>
+              <dd className="mt-0.5 font-mono text-xs font-semibold tabular-nums text-slate-900">
+                {'comparison' in metric ? metric.comparison : formatResult(metric.value)}
+                {'comparison' in metric && ['Selling Price · Current → SIM', 'SG&A / pc · Current → SIM', 'OP / pc · Current → SIM'].includes(metric.label) && <span className="ml-1 text-[10px] font-normal text-slate-500">THB/pc</span>}
+              </dd>
+            </dl>
+          ))}
+        </section>
+      </div>
+      <details className="border-t border-slate-200 pt-2">
+        <summary className="min-h-7 cursor-pointer text-xs font-medium text-slate-700 hover:text-slate-950 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700">Cost values and signed gaps</summary>
+        <div className="mt-2 overflow-x-auto">
           <table className="w-full min-w-[680px] text-[11px]">
             <thead>
               <tr className="border-b border-slate-300 text-left font-mono uppercase text-slate-600">
@@ -151,9 +186,15 @@ export function SimulationStoryGraph({ story }: { story: ScenarioStory }) {
             </tbody>
           </table>
         </div>
-      </div>
-      <figcaption className="mt-2 text-[11px] leading-4 text-slate-600">
-        Gap 2 is signed Simulated − Current; a negative Standard Cost movement means cost decreased. Negative OP remains visible as an operating loss.
+        {warnings.length > 0 && (
+          <div className="mt-2 border-t border-slate-200 pt-2 text-xs text-slate-600">
+            <p className="font-medium">Calculation notes</p>
+            <ul className="mt-1 list-disc space-y-1 pl-5">{[...new Set(warnings)].map(warning => <li key={warning}>{warning}</li>)}</ul>
+          </div>
+        )}
+      </details>
+      <figcaption className="mt-1 text-[10px] leading-4 text-slate-500">
+        Gap 1 = Current − Reference. Gap 2 = Simulated − Current. Negative OP is an operating loss.
       </figcaption>
     </figure>
   )

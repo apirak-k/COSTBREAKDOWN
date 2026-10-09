@@ -113,7 +113,7 @@ try {
   assert.equal(roundTripResult.snapshot.rates[0].workCenterCode, 'WC-1', 'approved Work Center identity must stay intact when imported')
 
   const candidateSummaryMarkup = renderToStaticMarkup(React.createElement(CandidateSelectionPage))
-  const comparisonSummary = candidateSummaryMarkup.match(/<dt[^>]*>(?:Full|Selected) comparison gap<\/dt><dd[^>]*>([\s\S]*?)<\/dd>/i)?.[1]
+  const comparisonSummary = candidateSummaryMarkup.match(/<dt[^>]*>(?:Comparison|Selected) Gap<\/dt><dd[^>]*>([\s\S]*?)<\/dd>/i)?.[1]
   assert.equal(comparisonSummary, '—', 'the exact comparison total must remain unavailable when reconciliation has no total')
   const candidateSubtotalMarkup = renderToStaticMarkup(React.createElement(CandidatesTable, {
     candidates: [comparisonGapCandidate],
@@ -300,6 +300,7 @@ try {
       elementGaps: { material: 0, labor: 0, burden: 0 },
       bomFindings: [],
       routingFindings: [],
+      processingFindings: [],
       workCenterFindings: [],
       warnings,
       reconciliation: { reconciled: true }

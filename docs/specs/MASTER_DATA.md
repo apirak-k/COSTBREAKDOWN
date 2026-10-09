@@ -6,7 +6,7 @@
 
 Opening a fresh session goes directly to an empty workspace with three independent datasets: **Reference**, **Current**, and **Custom**. There is no startup wizard or separate Product selector. The first time the user enters Master Data in a session, the default table view is **All Tables**, displaying BOM → Work Centers → Routing vertically. Users prepare independent datasets in that workspace, with Product Name stored as each dataset's metadata.
 
-Each dataset has an in-session `Working` copy and one `Last Saved` copy; Save, Reset, Import, Clear, Clone, and Export act on the dataset being viewed. Sizing edits that side's metadata and exact row counts, and generates the agreed Excel template. Once Working datasets have sufficient information, Reference and Current can be compared in Cost Breakdown without saving, exporting, or activating them. The tables are presented in BOM → Work Centers → Routing order, but users may prepare the data in any order. Matching uses business identity rather than row position. The toolbar and metadata stay together at the top of the content area, and the footer stays at the bottom of the app frame. Warnings inform the user without cluttering table rows or blocking normal navigation. Current toolbar, preparation, status, warning, mock, and action-dialog behavior is detailed in [`MASTER_DATA_TOOLBAR_PREPARE_UX.md`](MASTER_DATA_TOOLBAR_PREPARE_UX.md).
+Each dataset has an in-session `Working` copy and one `Last Saved` copy; Save, Reset, Import, Clear, Clone, and Export act on the dataset being viewed. Sizing edits that side's metadata and exact row counts, and generates the agreed Excel template. Once Working datasets have sufficient information, Reference and Current can be compared in Cost Breakdown without saving, exporting, or activating them. The tables are presented in BOM → Work Centers → Routing order, but users may prepare the data in any order. Matching uses business identity rather than row position. The compact toolbar and metadata stay together above the tables, and the footer stays at the bottom of the app frame. Warnings inform the user without cluttering table rows or blocking normal navigation. Current shared-header, toolbar, preparation, status, warning, mock, and action-dialog behavior is detailed in [`MASTER_DATA_TOOLBAR_PREPARE_UX.md`](MASTER_DATA_TOOLBAR_PREPARE_UX.md).
 
 ## Purpose and Authority
 
@@ -37,7 +37,7 @@ Each dataset has two distinct states:
 Actions act on the currently viewed dataset:
 - **Save:** Replaces only the viewed dataset's `Last Saved` state with its current `Working` state.
 - **Reset:** Restores only the viewed dataset's `Working` state from its `Last Saved` state.
-- **Export:** Exports only the viewed dataset's `Last Saved` state to Excel. Unsaved Working edits are not exported.
+- **Export:** Exports only the viewed dataset's `Last Saved` state to Excel. Working changes that have not been saved are not exported.
 - **Import:** Replaces only the viewed dataset's `Working` state. Import initializes the viewed dataset's Sizing counts from the imported row counts. Does not automatically overwrite `Last Saved`.
 - **Clear:** Clears only the viewed dataset's `Working` state (metadata, remark, table rows, and Sizing values); retains `Last Saved` and leaves other datasets untouched.
 
@@ -77,7 +77,7 @@ Rules for Clone:
 The page supports:
 - Dataset selection: `Reference`, `Current`, or `Custom`.
 - Mode toggle: `View Mode` (read-only) / `Edit Mode` (interactive editing).
-- Dataset action toolbar: `Sizing`, `Import`, `Clone`, `Reset`, `Clear`, `Save`, `Export`.
+- Dataset action toolbar: icon-only `Sizing`, `Import`, `Clone`, `Reset`, `Clear`, `Save`, `Export`, and `Prepare Dataset` controls with accessible labels/tooltips. Dataset, View/Edit, and table selectors remain text controls.
 - Table navigation: `BOM`, `Work Centers`, `Routing`, `All` (`All` remains the first-session default).
 - Metadata bar: Product summary and dataset remarks.
 
@@ -93,7 +93,7 @@ Dataset metadata is independent for each dataset:
 | SG&A | SG&A percent of Selling Price (%) | Independent per dataset |
 | Dataset Remark | Dataset-level annotation remark | Independent per dataset |
 
-Product Name and UOM have effective defaults `Product` and `PC`, respectively; these values are not missing. UOM is free text. Selling Price and SG&A keep their existing missing-value semantics; Dataset Remark may be blank. Do not add Product Code, Product Description, or Product Note. If effective Reference and Current Product Names differ, show `Product Mismatch` as a non-blocking comparison status, not a warning. It does not block or confirm CBD entry.
+Product Name and UOM remain blank until entered; do not fabricate `Product` or `PC` in display, save, or export. UOM is free text. Selling Price and SG&A keep their existing missing-value semantics; Dataset Remark may be blank. Do not add Product Code, Product Description, or Product Note. If effective Reference and Current Product Names differ, show `Product Mismatch` as a non-blocking comparison status, not a warning. It does not block or confirm CBD entry.
 
 ## Sizing and Templates
 
@@ -115,7 +115,7 @@ The canonical Master Data workbook contains exactly four sheets in order:
 4. `ROUTING`
 
 There is no separate calculation sheet.
-- **`META`:** Contains key-value metadata inputs (Product Name, UOM, Selling Price, SG&A %, Dataset Remark) and Excel formula outputs for MAT, Labor, Burden, Standard Cost, SG&A Amount, and OP. Effective Product/UOM defaults and generated identities are exported as their effective values. The workbook stores SG&A as the app's percentage points (8 means 8%), so the formula divides the entered value by 100. Negative OP remains valid.
+- **`META`:** Contains key-value metadata inputs (Product Name, UOM, Selling Price, SG&A %, Dataset Remark) and Excel formula outputs for MAT, Labor, Burden, Standard Cost, SG&A Amount, and OP. Blank Product Name/UOM remain blank in the workbook; generated row identities are exported as their effective values. The workbook stores SG&A as the app's percentage points (8 means 8%), so the formula divides the entered value by 100. Negative OP remains valid.
 - Calculated META cells are Excel formulas with Excel cell Notes describing the formula. If an output's required source inputs are incomplete or invalid, its formula displays blank. An explicitly entered zero remains valid. Import reads only the five META inputs and recalculates results through the application engine; formula outputs are never imported as source values.
 - **`BOM`:** `Name | Usage | Unit | Price | Loss | Note`
 - **`WORK_CENTER`:** `WC | Labor | Burden | Note`
@@ -140,7 +140,7 @@ Match records strictly by business identity:
 - Work Centers: `WC`
 - Routing: `Process`
 
-`#` is a left-pinned row number and selection handle, not an identity. Never match records by row order or position. Search is the only Master Data query control; it changes presentation, not dataset contents.
+`#` is a left-pinned row number and selection handle, not an identity. Never match records by row order or position. The contextual Search utility in the shared Header searches the visible Master Data table; `All` applies the query to BOM, Work Centers, and Routing. Search changes presentation, not dataset contents.
 
 ### Spreadsheet Editing
 - View Mode is read-only.
@@ -150,7 +150,7 @@ Match records strictly by business identity:
   - Tab: Move right; Shift+Tab: Move left.
   - Escape: Cancel/exit cell editing where appropriate.
   - Ctrl/Cmd+C & Ctrl/Cmd+V: Clipboard copy/paste (including tabular data from Excel; pasted values map by row and column, and invalid pasted cells are identified locally rather than failing the page).
-  - Ctrl/Cmd+Z: Undo; Ctrl/Cmd+Y or Ctrl/Cmd+Shift+Z: Redo. Page-level Undo/Redo spans Working edits across all Master Data tables.
+  - Ctrl/Cmd+Z: Undo; Ctrl/Cmd+Y or Ctrl/Cmd+Shift+Z: Redo. Header Undo/Redo are contextual to Master Data and span Working edits across all Master Data tables.
   - Same-column bulk edits to selected rows.
 - Selection gestures: Click `#` to select row; drag across row headers or Shift+click for contiguous range; Ctrl/Cmd+click for non-contiguous rows. Keep row selection separate from reordering.
 - Reorder handle: Dedicated control in the rightmost column after Actions. Selected rows move together in source order. Reordering changes Working row order but does not make a business record `CHANGED`.
@@ -158,7 +158,7 @@ Match records strictly by business identity:
 ## Validation and Edge Cases
 
 - Validation is local and non-blocking. Cues appear on affected cells.
-- Warning prose and count badges stay out of table rows; dataset-level warning details appear in Prepare Dataset, and the persistent footer `⚠ N` opens that summary. The count is affected source locations and excludes Product Mismatch.
+- Warning prose and count badges stay out of table rows; dataset-level warning details appear in Prepare Dataset, and the persistent footer `⚠ N` opens that summary. The count is affected source locations and excludes Product Mismatch. Warning navigation switches to the source dataset and table, enters Edit mode, selects and scrolls the row, and focuses/highlights the field when available.
 - Routing `WC` references the Work Center table, and its entry control should help prevent typos.
 - Missing required numeric inputs leave rows marked `MISSING`; they are never replaced with zero. Costs requiring missing inputs remain `unavailable`.
 - Blank placeholder rows from Sizing remain marked missing and are excluded from cost calculations.

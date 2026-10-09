@@ -13,7 +13,7 @@ The active canonical specifications are:
 1. [`specs/FINAL_LOGIC_SPEC.md`](specs/FINAL_LOGIC_SPEC.md) — Master product logic authority, calculation engine, examples, edge cases, and acceptance checklist.
 2. [`specs/CROSS_CUTTING.md`](specs/CROSS_CUTTING.md) — Shared formulas, business identities, comparison statuses, processing aggregation, and system boundaries.
 3. [`specs/MASTER_DATA.md`](specs/MASTER_DATA.md) — Reference, Current, and Custom datasets; Clone semantics; structural editing; Sizing; 4-sheet workbook format; spreadsheet editing.
-   - [`specs/MASTER_DATA_TOOLBAR_PREPARE_UX.md`](specs/MASTER_DATA_TOOLBAR_PREPARE_UX.md) — Current toolbar, preparation/status/warning, mock, and action-confirmation contract for this UX round.
+   - [`specs/MASTER_DATA_TOOLBAR_PREPARE_UX.md`](specs/MASTER_DATA_TOOLBAR_PREPARE_UX.md) — Current shared Header, Master Data toolbar/search/warning, Cost Breakdown, Candidate/RCA, and Simulation presentation contract.
 4. [`specs/COST_BREAKDOWN.md`](specs/COST_BREAKDOWN.md) — Reference vs Current comparison, Full vs Selected Comparison scope, processing drill-down, and Gap reconciliation.
 5. [`specs/CANDIDATE.md`](specs/CANDIDATE.md) — Candidate Prioritization and Multi-Candidate RCA Cases (Root Cause / Why? and Action).
 6. [`specs/SIMULATION.md`](specs/SIMULATION.md) — Parameter Simulation and Economic Simulation dimensions, Start SIM From Ref/Cur/Custom, locked structure, and economic break-even evaluation.
