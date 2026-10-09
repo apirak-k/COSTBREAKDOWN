@@ -5,6 +5,7 @@ import { useDragSelect } from '../hooks/useDragSelect'
 import { SpreadsheetPasteCell, tableCellKey, useTableKeyboardNav } from '../hooks/useTableKeyboardNav'
 import { RowChanges, useSpreadsheetEditing } from '../hooks/useSpreadsheetEditing'
 import { blankIdentityOrdinals, duplicateIdentityIds, hasInvalidNumber } from '../table-validation'
+import { useWarningNavigationFocus, type WarningNavigationTarget } from '../hooks/useWarningNavigationFocus'
 
 interface WorkCenterRatesTableProps {
   rates: SnapshotWorkCenterRate[]
@@ -16,6 +17,7 @@ interface WorkCenterRatesTableProps {
   onUpdateRates: (updates: Array<{ id: string; changes: Partial<Omit<SnapshotWorkCenterRate, 'id' | 'confidence'>> }>) => void
   onDeleteRates: (ids: string[]) => void
   onReorderRows: (movingId: string, targetId: string, position: 'before' | 'after', movingIds?: string[]) => void
+  warningNavigationTarget?: WarningNavigationTarget
 }
 
 const numberValue = (value: number | null): string => value === null ? '' : String(value)
@@ -30,10 +32,12 @@ export const WorkCenterRatesTable: React.FC<WorkCenterRatesTableProps> = ({
   onAddRate,
   onUpdateRates,
   onDeleteRates,
-  onReorderRows
+  onReorderRows,
+  warningNavigationTarget
 }) => {
   const tableRef = useRef<HTMLTableElement | null>(null)
   const [searchTerm, setSearchTerm] = useState('')
+  useWarningNavigationFocus(tableRef, searchTerm, setSearchTerm, warningNavigationTarget)
   const duplicateWcIds = useMemo(() => duplicateIdentityIds(rates, rate => rate.id, rate => rate.workCenterCode), [rates])
   const placeholderNumbers = useMemo(() => blankIdentityOrdinals(rates, rate => rate.workCenterCode), [rates])
 
@@ -197,6 +201,8 @@ export const WorkCenterRatesTable: React.FC<WorkCenterRatesTableProps> = ({
               return (
                 <tr
                   key={rate.id}
+                  data-master-data-row-id={rate.id}
+                  tabIndex={-1}
                   onMouseEnter={() => onMouseEnterRow(rate.id)}
                   onDragOver={event => { if (isEditMode) event.preventDefault() }}
                   onDrop={event => { if (isEditMode) handleRowDrop(event, rate.id) }}

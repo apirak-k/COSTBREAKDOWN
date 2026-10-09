@@ -5,6 +5,7 @@ import { useDragSelect } from '../hooks/useDragSelect'
 import { SpreadsheetPasteCell, tableCellKey, useTableKeyboardNav } from '../hooks/useTableKeyboardNav'
 import { RowChanges, useSpreadsheetEditing } from '../hooks/useSpreadsheetEditing'
 import { blankIdentityOrdinals, duplicateIdentityIds, hasInvalidNumber, parsePercentage } from '../table-validation'
+import { useWarningNavigationFocus, type WarningNavigationTarget } from '../hooks/useWarningNavigationFocus'
 
 interface RoutingTableProps {
   routing: SnapshotRoutingStep[]
@@ -17,6 +18,7 @@ interface RoutingTableProps {
   onUpdateRoutingSteps: (updates: Array<{ id: string; changes: Partial<Omit<SnapshotRoutingStep, 'id' | 'confidence'>> }>) => void
   onDeleteRoutingSteps: (ids: string[]) => void
   onReorderRows: (movingId: string, targetId: string, position: 'before' | 'after', movingIds?: string[]) => void
+  warningNavigationTarget?: WarningNavigationTarget
 }
 
 const numberValue = (value: number | null | undefined): string => value === null || value === undefined ? '' : String(value)
@@ -32,10 +34,12 @@ export const RoutingTable: React.FC<RoutingTableProps> = ({
   onAddRoutingStep,
   onUpdateRoutingSteps,
   onDeleteRoutingSteps,
-  onReorderRows
+  onReorderRows,
+  warningNavigationTarget
 }) => {
   const tableRef = useRef<HTMLTableElement | null>(null)
   const [searchTerm, setSearchTerm] = useState('')
+  useWarningNavigationFocus(tableRef, searchTerm, setSearchTerm, warningNavigationTarget)
   const duplicateProcessIds = useMemo(() => duplicateIdentityIds(routing, step => step.id, step => step.processName), [routing])
   const placeholderNumbers = useMemo(() => blankIdentityOrdinals(routing, step => step.processName), [routing])
   const knownWorkCenters = useMemo(() => new Set(
@@ -196,8 +200,8 @@ export const RoutingTable: React.FC<RoutingTableProps> = ({
               const identityInvalid = !step.processName.trim() || duplicateProcessIds.has(step.id)
               const workCenterInvalid = !step.workCenterId?.trim() || !knownWorkCenters.has(step.workCenterId.trim().toLocaleLowerCase())
               const manningInvalid = step.manning === null || hasInvalidNumber(step.manning)
-              const capacityInvalid = step.capacity === null || hasInvalidNumber(step.capacity)
-              const yieldInvalid = step.yield === null || hasInvalidNumber(step.yield) || step.yield > 1
+              const capacityInvalid = step.capacity === null || hasInvalidNumber(step.capacity) || step.capacity <= 0
+              const yieldInvalid = step.yield === null || hasInvalidNumber(step.yield) || step.yield <= 0 || step.yield > 1
               const rowNumber = routing.findIndex(row => row.id === step.id) + 1
               const placeholderNumber = placeholderNumbers.get(step.id)
               const rowMarkerBackground = isSelected
@@ -208,6 +212,8 @@ export const RoutingTable: React.FC<RoutingTableProps> = ({
               return (
                 <tr
                   key={step.id}
+                  data-master-data-row-id={step.id}
+                  tabIndex={-1}
                   onMouseEnter={() => onMouseEnterRow(step.id)}
                   onDragOver={event => { if (isEditMode) event.preventDefault() }}
                   onDrop={event => { if (isEditMode) handleRowDrop(event, step.id) }}

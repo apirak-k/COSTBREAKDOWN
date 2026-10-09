@@ -13,6 +13,7 @@ import {
   getFieldConfidence,
   migratePairedModelToSnapshots
 } from '../../core'
+import { normalizeMasterDataSnapshot } from '../../core/utils/master-data-effective'
 import { parseExcelInputFile } from './excel-parser'
 
 type CellValue = string | number | boolean | Date | null
@@ -279,16 +280,14 @@ function productFromSheet(
   const sellingPrice = optionalNumberValue(sellingPriceInput, 'Selling Price', rowNumber, warnings)
   const sgaPercent = optionalNumberValue(sgaPercentInput, 'SG&A percentage', rowNumber, warnings)
 
-  if (!productName) warnings.push(`Missing Product Name in ${sheetName}`)
-  if (!uom) warnings.push(`Missing UOM in ${sheetName}`)
   return {
     product: {
-      productName,
+      productName: productName || 'Product',
       sellingPrice,
       sgaPercent,
       productCode,
       productDescription,
-      uom,
+      uom: uom || 'PC',
       note,
       customer,
       effectiveDate,
@@ -327,9 +326,6 @@ function parseWorkCenters(
     const rowNumber = headerIndex + index + 2
     const code = textValue(cell(row, map, ['wc', 'work center code', 'workcentercode', 'work center']))
     const blankIdentityOrdinal = code ? undefined : ++blankIdentityCount
-    if (!code) {
-      warnings.push(`Missing WC at row ${rowNumber}`)
-    }
     const sourceRef = textValue(cell(row, map, ['source ref', 'sourceref', 'source'])) || fallbackSource
     const explicitConfidence = parseConfidence(cell(row, map, ['confidence', 'status']))
     const laborRate = numberValue(cell(row, map, ['labor', 'labor rate', 'laborrate']), 'Labor', rowNumber, warnings)
@@ -385,7 +381,6 @@ function parseBOM(
     const name = textValue(cell(row, map, ['name', 'material name', 'description', 'material description']))
     const blankIdentityOrdinal = name ? undefined : ++blankIdentityCount
     const itemCode = textValue(cell(row, map, ['item code', 'itemcode', 'material code', 'material'])) || name
-    if (!name) warnings.push(`Missing BOM Name at row ${rowNumber}`)
     const sourceRef = textValue(cell(row, map, ['source ref', 'sourceref', 'source'])) || fallbackSource
     const explicitConfidence = parseConfidence(cell(row, map, ['confidence', 'status']))
     const consumption = numberValue(cell(row, map, ['consumption', 'usage', 'quantity']), 'consumption', rowNumber, warnings)
@@ -463,7 +458,6 @@ function parseRouting(
     const capacity = numberValue(cell(row, map, ['capacity', 'cap']), 'capacity', rowNumber, warnings)
     const yieldValue = fractionPercentValue(cell(row, map, ['yield', 'yield rate']), 'yield', rowNumber, warnings)
     const workCenterId = textValue(cell(row, map, ['work center id', 'workcenterid', 'work center code', 'work center', 'wc']))
-    if (!processName) warnings.push(`Missing Process at row ${rowNumber}`)
     if (!workCenterId) warnings.push(`Missing workCenterId at row ${rowNumber}`)
     steps.push({
       id,
@@ -545,7 +539,7 @@ export function parseSnapshotWorkbookData(
   const snapshotId = metaValue(meta, ['snapshot id', 'snapshotid', 'id']) || `${product.productName || 'snapshot'}:${role}`
   const status = parseStatus(metaValue(meta, ['status', 'dataset status']), warnings)
 
-  const snapshot: CostSnapshot = {
+  let snapshot: CostSnapshot = {
     id: snapshotId,
     product,
     effectiveDate,
@@ -567,6 +561,7 @@ export function parseSnapshotWorkbookData(
       warnings.push(`Unknown Work Center "${step.workCenterId}" referenced by Routing ${step.id}`)
     }
   })
+  snapshot = normalizeMasterDataSnapshot(snapshot)
 
   return {
     success: true,
@@ -615,12 +610,13 @@ export async function parseSnapshotExcelInputFile(
     sourceRef: file.name
   })
   const sourceSnapshot = role === 'reference' ? legacyPair.reference : legacyPair.current
-  const snapshot = role === 'custom'
+  const importedSnapshot = role === 'custom'
     ? (() => {
         const { comparisonRole: _comparisonRole, ...customSnapshot } = sourceSnapshot
         return { ...customSnapshot, id: `${sourceSnapshot.id}:custom` }
       })()
     : sourceSnapshot
+  const snapshot = normalizeMasterDataSnapshot(importedSnapshot)
 
   return {
     success: true,

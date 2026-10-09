@@ -77,11 +77,10 @@ const incompleteIdentityResult = parseSnapshotWorkbookData(
 )
 assert.equal(incompleteIdentityResult.success, true, incompleteIdentityResult.message)
 assert.equal(incompleteIdentityResult.snapshot?.rates.length, 1, 'a Work Center row with data but no key must be retained')
-assert.equal(incompleteIdentityResult.snapshot?.rates[0].workCenterCode, '')
-assert.ok(incompleteIdentityResult.warnings?.some(warning => warning.includes('Missing WC')))
+assert.equal(incompleteIdentityResult.snapshot?.rates[0].workCenterCode, 'Work Center 1', 'a blank Work Center key receives its effective generated identity')
 assert.equal(incompleteIdentityResult.snapshot?.bom.length, 1, 'a BOM row with data but no key must be retained')
 assert.equal(incompleteIdentityResult.snapshot?.bom[0].itemCode, '')
-assert.ok(incompleteIdentityResult.warnings?.some(warning => warning.includes('Missing BOM Name')))
+assert.equal(incompleteIdentityResult.snapshot?.bom[0].description, 'Material 1', 'a blank BOM identity receives its effective generated identity')
 
 const duplicateRoutingWorkbook = XLSX.utils.book_new()
 XLSX.utils.book_append_sheet(duplicateRoutingWorkbook, metaSheet('Duplicate Routing Test', 'PC', null, null, ''), 'META')
@@ -98,12 +97,13 @@ const duplicateRoutingResult = parseSnapshotWorkbookData(
 assert.equal(duplicateRoutingResult.success, true, duplicateRoutingResult.message)
 const duplicateRoutingRows = duplicateRoutingResult.snapshot?.routing ?? []
 assert.equal(duplicateRoutingRows.length, 2)
-assert.equal(duplicateRoutingRows[0].processName, duplicateRoutingRows[1].processName)
+assert.equal(duplicateRoutingRows[0].processName, 'Cutting')
+assert.equal(duplicateRoutingRows[1].processName, 'Cutting(1)', 'an imported duplicate identity receives the next suffix')
+assert.equal(duplicateRoutingRows[1].autoRenamedFrom, 'Cutting')
 assert.notEqual(duplicateRoutingRows[0].id, duplicateRoutingRows[1].id, 'duplicate business keys still need distinct internal row IDs')
 assert.equal(new Set(duplicateRoutingRows.map(row => row.id)).size, 2)
 
-// Incomplete canonical Product Name is retained with a non-blocking warning so
-// the user can complete it in the selected Working dataset.
+// Blank Product Name uses the finalized effective default without a warning.
 const startingDataWorkbook = XLSX.utils.book_new()
 XLSX.utils.book_append_sheet(startingDataWorkbook, metaSheet('', 'PC', null, null, 'Starting data with incomplete Product Name'), 'META')
 XLSX.utils.book_append_sheet(startingDataWorkbook, tableSheet('WORK_CENTER', ['WC', 'Labor', 'Burden', 'Note']), 'WORK_CENTER')
@@ -115,11 +115,9 @@ const startingDataResult = parseSnapshotWorkbookData(
 )
 assert.equal(startingDataResult.success, true, startingDataResult.message)
 assert.equal(startingDataResult.format, 'canonical')
-assert.equal(startingDataResult.snapshot?.product.productName, '')
-assert.ok(
-  startingDataResult.warnings?.some(warning => warning.toLowerCase().includes('missing product name')),
-  'Blank Product Name must remain visible as a warning while the starting dataset imports'
-)
+assert.equal(startingDataResult.snapshot?.product.productName, 'Product')
+assert.equal(startingDataResult.snapshot?.product.uom, 'PC')
+assert.equal(startingDataResult.warnings?.some(warning => warning.toLowerCase().includes('missing product name')), false)
 
 const horizontalMetaWorkbook = XLSX.utils.book_new()
 XLSX.utils.book_append_sheet(horizontalMetaWorkbook, sheet([

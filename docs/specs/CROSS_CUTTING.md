@@ -21,7 +21,7 @@ Match comparable records strictly by the approved business identity:
 - Work Center: `WC`
 - Routing: `Process`
 
-Use the comparison statuses `UNCHANGED`, `CHANGED`, `ADDED`, and `REMOVED`. Status describes what changed in the business record; Gap describes the cost direction and magnitude. They are independent. Do not infer a status from Gap or invent a `REPLACE` status. Ambiguous or duplicate identity is a data-quality warning; do not guess. A note-only difference is not a business change.
+Use the comparison statuses `UNCHANGED`, `CHANGED`, `ADDED`, and `REMOVED`. Status describes what changed in the business record; Gap describes the cost direction and magnitude. They are independent. Do not infer a status from Gap or invent a `REPLACE` status. Master Data deterministically suffixes duplicate effective identities from imports, legacy snapshots, direct edits, paste, and bulk updates; each auto-rename is reported as a warning. If raw duplicate identities reach comparison outside that normalization path, do not guess a match. A note-only difference is not a business change.
 
 ## Standard Cost Calculation
 
@@ -115,11 +115,11 @@ $$\text{OP / pc} = \text{Selling Price} - \text{Standard Cost} - \text{SG\&A amo
 
 No dedicated Trial execution, validation, approval, or promotion lifecycle is required.
 - `Custom` in Master Data can store real trial measurements if desired.
-- To promote Custom to Current: View `Current` in Master Data and choose `Clone From Custom`.
+- To use Custom as Current: View `Current` in Master Data, choose `Clone`, then select `Custom` as the source.
 
 ## Warnings and Result Integrity
 
-- Warnings inform and direct; they do not block navigation unless an action is logically impossible.
+- Warnings inform and direct; they do not block navigation unless an action is logically impossible. Master Data warning counts represent distinct affected data locations, not warning categories.
 - Keep validation warnings separate from comparison statuses.
 - Missing required inputs leave calculations unavailable; never substitute zero.
 - On Master Data, preserve cell-level invalid cues and show dataset notices outside tables; keep warning prose, row issue badges, and warning-count footers out of the tables. On Cost Breakdown, remove duplicate top calculation-warning banners and keep details collapsed by default behind `Review warnings (N)`.
@@ -128,7 +128,7 @@ No dedicated Trial execution, validation, approval, or promotion lifecycle is re
 
 `CONFIRMED DIRECTION — USER DECISION`: provide a shared status/context cue that helps users understand what is happening and where to review it. Relevant states include:
 - **`Ready for comparison`:** Both Reference and Current contain sufficient valid data for Cost Breakdown.
-- **`Product Mismatch`:** Reference and Current have different Product Names (informational, non-blocking warning).
+- **`Product Mismatch`:** Reference and Current have different effective Product Names (informational, non-blocking comparison status, not a warning).
 - **`Missing data`:** One or both datasets have incomplete/missing required fields.
 - **`Active Selected Comparison`:** Cost Breakdown or Candidate Ranking is scoped to a selected subset of records; ends when leaving CBD/Candidate scope.
 

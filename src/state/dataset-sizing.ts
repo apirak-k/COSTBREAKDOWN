@@ -92,6 +92,10 @@ function isEmpty(value: string | undefined): boolean {
   return value === undefined || value.trim() === ''
 }
 
+function isBlankOrGeneratedIdentity(row: { isGeneratedBusinessIdentity?: boolean }, value: string | undefined): boolean {
+  return row.isGeneratedBusinessIdentity === true || isEmpty(value)
+}
+
 function hasNoExtraFields(fields?: Record<string, unknown>): boolean {
   return !fields || Object.keys(fields).length === 0
 }
@@ -122,7 +126,7 @@ function isBlankRate(row: SnapshotWorkCenterRate, snapshot: CostSnapshot): boole
   const generatedPlaceholder = row.isGeneratedSizingPlaceholder === true
   const defaultRates = (row.laborRate === null && row.burdenRate === null) ||
     (generatedPlaceholder && row.laborRate === 0 && row.burdenRate === 0)
-  return isGeneratedRow(row, 'rate') && isEmpty(row.workCenterCode) && isEmpty(row.description) &&
+  return isGeneratedRow(row, 'rate') && isBlankOrGeneratedIdentity(row, row.workCenterCode) && isEmpty(row.description) &&
     isEmpty(row.note) &&
     defaultRates &&
     (generatedPlaceholder || isEmpty(row.effectiveDate) || row.effectiveDate === snapshot.product.effectiveDate ||
@@ -137,7 +141,7 @@ function isBlankBom(row: SnapshotBOMItem): boolean {
   const defaultQuantities = (row.consumption === null && row.price === null) ||
     (generatedPlaceholder && row.consumption === 0 && row.price === 0)
   const defaultLoss = row.loss === null || (generatedPlaceholder && row.loss === 0)
-  return isGeneratedRow(row, 'bom') && isEmpty(row.itemCode) && isEmpty(row.description) &&
+  return isGeneratedRow(row, 'bom') && isEmpty(row.itemCode) && isBlankOrGeneratedIdentity(row, row.description) &&
     isEmpty(row.note) &&
     defaultQuantities && row.unit === 'PC' && defaultLoss &&
     (row.sourceRef === undefined || row.sourceRef === 'Direct Input') &&
@@ -153,7 +157,7 @@ function isBlankRouting(row: SnapshotRoutingStep, snapshot: CostSnapshot): boole
   const defaultMetrics = (row.manning === null && row.capacity === null && row.yield === null) ||
     (generatedPlaceholder && row.manning === 0 && row.capacity === 0 && row.yield === 0)
   return isGeneratedRow(row, 'routing') && isEmpty(row.operationCode) &&
-    isEmpty(row.processCode) && isEmpty(row.processName) && isEmpty(row.note) &&
+    isEmpty(row.processCode) && isBlankOrGeneratedIdentity(row, row.processName) && isEmpty(row.note) &&
     (row.sequence === undefined || row.sequence === defaultSequence) &&
     (isEmpty(row.workCenterId) || row.workCenterId === defaultWorkCenter) &&
     defaultMetrics &&
@@ -168,7 +172,7 @@ export function hasEnteredMasterData(snapshot: CostSnapshot): boolean {
   const product = snapshot.product
   const normalizedUom = product.uom?.trim().toUpperCase()
   const hasUserMetadata =
-    !isEmpty(product.productName) ||
+    Boolean(product.productName?.trim() && product.productName.trim() !== 'Product') ||
     product.sellingPrice !== undefined && product.sellingPrice !== null ||
     product.sgaPercent !== undefined && product.sgaPercent !== null ||
     Boolean(normalizedUom && normalizedUom !== 'PC') ||
@@ -211,4 +215,49 @@ export function resizeMasterDataSnapshotForSizing(
     bom: resizeRows(snapshot.bom, sizing.bomCount, factories.bom),
     routing: resizeRows(snapshot.routing, sizing.routingCount, index => factories.routing(index, rates))
   }
+}
+
+function hasAdditionalData(fields?: Record<string, unknown>): boolean {
+  return Object.values(fields ?? {}).some(value => value !== null && value !== undefined && value !== '')
+}
+
+function isPopulatedRow(row: SnapshotBOMItem | SnapshotRoutingStep | SnapshotWorkCenterRate): boolean {
+  if (row.isGeneratedSizingPlaceholder === true) return false
+  if (row.note?.trim() || hasAdditionalData(row.additionalFields)) return true
+
+  if ('consumption' in row) {
+    return (!row.isGeneratedBusinessIdentity && Boolean(row.description.trim())) || Boolean(row.itemCode.trim()) ||
+      row.consumption !== null || row.price !== null || row.loss !== null
+  }
+  if ('workCenterCode' in row) {
+    return (!row.isGeneratedBusinessIdentity && Boolean(row.workCenterCode.trim())) || Boolean(row.description.trim()) ||
+      row.laborRate !== null || row.burdenRate !== null
+  }
+  return (!row.isGeneratedBusinessIdentity && Boolean(row.processName.trim())) || Boolean(row.operationCode?.trim()) ||
+    Boolean(row.processCode?.trim()) || Boolean(row.workCenterId?.trim()) || row.manning !== null ||
+    row.capacity !== null || row.yield !== null
+}
+
+export function getPopulatedRowsRemovedBySizing(snapshot: CostSnapshot, sizing: DatasetSizing): string[] {
+  const removed: string[] = []
+  const tables: Array<{
+    count: number | undefined
+    rows: Array<SnapshotBOMItem | SnapshotRoutingStep | SnapshotWorkCenterRate>
+    identity: (row: SnapshotBOMItem | SnapshotRoutingStep | SnapshotWorkCenterRate) => string
+  }> = [
+    { count: sizing.bomCount, rows: snapshot.bom, identity: row => (row as SnapshotBOMItem).description },
+    { count: sizing.wcCount, rows: snapshot.rates, identity: row => (row as SnapshotWorkCenterRate).workCenterCode },
+    { count: sizing.routingCount, rows: snapshot.routing, identity: row => (row as SnapshotRoutingStep).processName }
+  ]
+
+  tables.forEach(({ count, rows, identity }) => {
+    if (count === undefined) return
+    const target = Math.max(1, Math.floor(count))
+    rows.slice(target).forEach(row => {
+      if (!isPopulatedRow(row)) return
+      const label = identity(row).trim()
+      removed.push(label || row.id)
+    })
+  })
+  return removed
 }

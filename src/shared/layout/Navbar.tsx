@@ -19,9 +19,9 @@ export const Navbar: React.FC = () => {
     masterDataHandoff
   } = useAppStore()
   const currentProduct = snapshotPair.current.product
-  const currentProductName = currentProduct.productName || currentProduct.productDescription || '—'
-  const currentUom = currentProduct.uom || '—'
-  const hasProductMismatch = masterDataHandoff.warnings?.some(warning => warning.startsWith('Product mismatch:')) ?? false
+  const currentProductName = currentProduct.productName?.trim() || 'Product'
+  const currentUom = currentProduct.uom?.trim() || 'PC'
+  const hasProductMismatch = masterDataHandoff.productMismatch
   const missingData = masterDataHandoff.datasetsPrepared && (
     snapshotComparison.totalGap === null || snapshotComparison.warnings.length > 0
   )
@@ -31,7 +31,7 @@ export const Navbar: React.FC = () => {
     missingData,
     datasetsPrepared: masterDataHandoff.datasetsPrepared
   })
-  const statusIsWarning = workflowStatus.destination === 'master'
+  const statusIsWarning = missingData || !masterDataHandoff.datasetsPrepared
 
   return (
     <header className="sticky top-0 z-50 select-none border-b border-slate-800 bg-slate-900 text-white shadow-xs">

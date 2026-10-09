@@ -1,4 +1,4 @@
-import type { ComparisonRole, CostSnapshot, DatasetSizing, MasterDataRole } from '../core/types'
+import type { ComparisonRole, CostSnapshot, DatasetSizing, MasterDataRole, SnapshotPair } from '../core/types'
 import { applySnapshotPairToSession, sessionToSnapshotPair } from '../core'
 import type { ProductSession } from '../core'
 import { markMasterDataChangedForSnapshotPair } from './master-data-revision'
@@ -15,6 +15,9 @@ export interface MasterDataEditHistoryEntry {
   afterSizing?: Record<ComparisonRole, DatasetSizing>
   beforeCustomSizing?: DatasetSizing
   afterCustomSizing?: DatasetSizing
+  /** A single undoable action that replaces both comparison Working snapshots. */
+  beforePair?: SnapshotPair
+  afterPair?: SnapshotPair
 }
 
 export interface MasterDataEditHistory {
@@ -76,6 +79,24 @@ export function applyMasterDataEditHistoryEntry(
   if (session.id !== entry.sessionId) return undefined
 
   const pair = session.snapshotPair ?? sessionToSnapshotPair(session)
+  if (entry.beforePair && entry.afterPair) {
+    const expectedPair = direction === 'undo' ? entry.afterPair : entry.beforePair
+    if (JSON.stringify(pair) !== JSON.stringify(expectedPair)) return undefined
+    const nextPair = direction === 'undo' ? entry.beforePair : entry.afterPair
+    const preparedSnapshotRoles = direction === 'undo' ? entry.beforePrepared : entry.afterPrepared
+    const datasetSizing = direction === 'undo' ? entry.beforeSizing : entry.afterSizing
+    const nextSession = applySnapshotPairToSession({
+      ...session,
+      datasetSizing: datasetSizing ? {
+        reference: { ...(datasetSizing.reference ?? {}) },
+        current: { ...(datasetSizing.current ?? {}) }
+      } : undefined,
+      preparedSnapshotRoles: { ...preparedSnapshotRoles },
+      updatedAt: new Date().toISOString()
+    }, nextPair)
+    return markMasterDataChangedForSnapshotPair(nextSession, pair, nextPair)
+  }
+
   const expected = direction === 'undo' ? entry.after : entry.before
   if (JSON.stringify(getMasterDataSnapshot(session, pair, entry.role)) !== JSON.stringify(expected)) return undefined
 

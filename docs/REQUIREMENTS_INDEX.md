@@ -12,7 +12,8 @@ The active canonical specifications are:
 
 1. [`specs/FINAL_LOGIC_SPEC.md`](specs/FINAL_LOGIC_SPEC.md) — Master product logic authority, calculation engine, examples, edge cases, and acceptance checklist.
 2. [`specs/CROSS_CUTTING.md`](specs/CROSS_CUTTING.md) — Shared formulas, business identities, comparison statuses, processing aggregation, and system boundaries.
-3. [`specs/MASTER_DATA.md`](specs/MASTER_DATA.md) — Reference, Current, and Custom datasets; `Clone From` semantics; structural editing; Sizing; 4-sheet workbook format; spreadsheet editing.
+3. [`specs/MASTER_DATA.md`](specs/MASTER_DATA.md) — Reference, Current, and Custom datasets; Clone semantics; structural editing; Sizing; 4-sheet workbook format; spreadsheet editing.
+   - [`specs/MASTER_DATA_TOOLBAR_PREPARE_UX.md`](specs/MASTER_DATA_TOOLBAR_PREPARE_UX.md) — Current toolbar, preparation/status/warning, mock, and action-confirmation contract for this UX round.
 4. [`specs/COST_BREAKDOWN.md`](specs/COST_BREAKDOWN.md) — Reference vs Current comparison, Full vs Selected Comparison scope, processing drill-down, and Gap reconciliation.
 5. [`specs/CANDIDATE.md`](specs/CANDIDATE.md) — Candidate Prioritization and Multi-Candidate RCA Cases (Root Cause / Why? and Action).
 6. [`specs/SIMULATION.md`](specs/SIMULATION.md) — Parameter Simulation and Economic Simulation dimensions, Start SIM From Ref/Cur/Custom, locked structure, and economic break-even evaluation.
@@ -54,7 +55,7 @@ The latest finalized logic establishes:
 
 1. **Master Data Workspaces:** Three independent datasets (`Reference`, `Current`, `Custom`). `Custom` is a free workspace with no forced semantic meaning (not locked to Trial, Simulation, Proposal, or Future).
 2. **Master Data Owns Structural Changes:** Adding, deleting, resizing, or altering table structures belongs in Master Data / Custom. Simulation cannot alter dataset structure.
-3. **Generic `Clone From` Semantics:** The active viewed dataset is the destination; the user selects the source. E.g. `Custom → Clone From Current` and `Current → Clone From Custom`. No separate promotion workflows.
+3. **Generic Clone Semantics:** The active viewed dataset is the destination; the user selects the source. No separate promotion workflows. The Master Data UX contract defines the toolbar label and interaction.
 4. **Cost Breakdown Scope:** CBD compares strictly `Reference` vs `Current`. `Custom` is not compared directly in CBD.
 5. **Selected Comparison:** A temporary analysis scope/view of selected BOM and Routing findings. It is neither a new dataset nor an RCA Case.
 6. **Multi-Candidate RCA Cases:** One RCA Case can contain one or multiple Candidates. Root Cause / Why? and Action are captured at the RCA Case level.
@@ -69,7 +70,7 @@ The latest finalized logic establishes:
 15. **Combined Feasibility:** Compares Parameter Saving vs Required Saving to calculate Economic Margin. Result is advisory, not an approval gate.
 16. **Flexible Scenario Count:** Exactly Scenario A and B is not a mandatory business requirement.
 17. **Business Formulas:** $\text{SG&A amount} = \text{Selling Price} \times \text{SG\&A \%}$, $\text{OP} = \text{Selling Price} - \text{Standard Cost} - \text{SG\&A amount}$. Negative OP represents operating loss and is valid. MatVAR, LBVAR, and BDVAR remain out of scope.
-18. **Trial Lifecycle Boundary:** No dedicated Trial execution, validation, approval, or promotion lifecycle. Custom can store trial data; promote via `Clone From Custom`.
+18. **Trial Lifecycle Boundary:** No dedicated Trial execution, validation, approval, or promotion lifecycle. Custom can store trial data; to use it as Current, choose `Clone` on Current and select Custom.
 
 ## Reading Order
 

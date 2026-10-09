@@ -5,6 +5,7 @@ import { useDragSelect } from '../hooks/useDragSelect'
 import { SpreadsheetPasteCell, tableCellKey, useTableKeyboardNav } from '../hooks/useTableKeyboardNav'
 import { RowChanges, useSpreadsheetEditing } from '../hooks/useSpreadsheetEditing'
 import { blankIdentityOrdinals, duplicateIdentityIds, hasInvalidNumber, parsePercentage } from '../table-validation'
+import { useWarningNavigationFocus, type WarningNavigationTarget } from '../hooks/useWarningNavigationFocus'
 
 interface BOMTableProps {
   bom: SnapshotBOMItem[]
@@ -16,6 +17,7 @@ interface BOMTableProps {
   onUpdateBOMItems: (updates: Array<{ id: string; changes: Partial<Omit<SnapshotBOMItem, 'id' | 'confidence'>> }>) => void
   onDeleteBOMItems: (ids: string[]) => void
   onReorderRows: (movingId: string, targetId: string, position: 'before' | 'after', movingIds?: string[]) => void
+  warningNavigationTarget?: WarningNavigationTarget
 }
 
 const numberValue = (value: number | null): string => value === null ? '' : String(value)
@@ -31,10 +33,12 @@ export const BOMTable: React.FC<BOMTableProps> = ({
   onAddBOMItem,
   onUpdateBOMItems,
   onDeleteBOMItems,
-  onReorderRows
+  onReorderRows,
+  warningNavigationTarget
 }) => {
   const tableRef = useRef<HTMLTableElement | null>(null)
   const [searchTerm, setSearchTerm] = useState('')
+  useWarningNavigationFocus(tableRef, searchTerm, setSearchTerm, warningNavigationTarget)
   const duplicateNameIds = useMemo(() => duplicateIdentityIds(bom, item => item.id, item => item.description), [bom])
   const placeholderNumbers = useMemo(() => blankIdentityOrdinals(bom, item => item.description), [bom])
 
@@ -203,6 +207,8 @@ export const BOMTable: React.FC<BOMTableProps> = ({
               return (
                 <tr
                   key={item.id}
+                  data-master-data-row-id={item.id}
+                  tabIndex={-1}
                   onMouseEnter={() => onMouseEnterRow(item.id)}
                   onDragOver={event => { if (isEditMode) event.preventDefault() }}
                   onDrop={event => { if (isEditMode) handleRowDrop(event, item.id) }}

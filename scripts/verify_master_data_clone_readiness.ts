@@ -3,6 +3,7 @@ import { getSnapshotRoleReadiness } from '../src/core/calculations/master-data-h
 import type { CostSnapshot, SnapshotBOMItem, SnapshotRoutingStep, SnapshotWorkCenterRate } from '../src/core/types/snapshot.types.ts'
 import { createEmptySnapshotPair } from '../src/state/seed-data.ts'
 import { hasEnteredMasterData } from '../src/state/dataset-sizing.ts'
+import { normalizeMasterDataSnapshot } from '../src/core/utils/master-data-effective.ts'
 
 const emptyPair = createEmptySnapshotPair('clone-readiness-verification')
 const blankSnapshot = emptyPair.current
@@ -96,6 +97,11 @@ assert.equal(
   hasEnteredMasterData(placeholdersOnlySnapshot),
   false,
   'untouched generated Sizing placeholders alone do not make the dataset Clone-ready'
+)
+assert.equal(
+  hasEnteredMasterData(normalizeMasterDataSnapshot(placeholdersOnlySnapshot)),
+  false,
+  'effective generated business identities do not make untouched Sizing placeholders Clone-ready'
 )
 
 assert.equal(

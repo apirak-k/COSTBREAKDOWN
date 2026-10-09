@@ -4,6 +4,7 @@ import { applySnapshotPairToSession, getSnapshotRoleReadiness, sessionToSnapshot
 import { emptyProductMaster } from './seed-data'
 import { hasEnteredMasterData } from './dataset-sizing'
 import { markMasterDataChangedForSnapshotPair } from './master-data-revision'
+import { normalizeMasterDataSnapshot } from '../core/utils/master-data-effective'
 
 export function cloneCostSnapshot(snapshot: CostSnapshot): CostSnapshot {
   return JSON.parse(JSON.stringify(snapshot)) as CostSnapshot
@@ -103,9 +104,10 @@ export function getMasterDataSnapshot(
   pair: SnapshotPair,
   role: MasterDataRole
 ): CostSnapshot {
-  return role === 'custom'
+  const snapshot = role === 'custom'
     ? session.customMasterData ?? createEmptyCustomMasterData(session.id)
     : pair[role]
+  return normalizeMasterDataSnapshot(snapshot)
 }
 
 export function getMasterDataSizing(

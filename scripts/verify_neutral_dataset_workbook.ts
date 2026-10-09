@@ -365,8 +365,8 @@ async function verify(): Promise<void> {
   )
   assert.equal(sizedRoundTrip.snapshot?.bom[1].consumption, null)
   assert.equal(sizedRoundTrip.snapshot?.bom[1].loss, null, 'blank numeric fields stay blank on round-trip')
-  assert.equal(sizedRoundTrip.snapshot?.bom[1].id, 'bom-placeholder-1')
-  assert.equal(sizedRoundTrip.snapshot?.bom[2].id, 'bom-placeholder-2')
+  assert.equal(sizedRoundTrip.snapshot?.bom[1].description, 'Material 1', 'generated BOM identities export as effective names')
+  assert.equal(sizedRoundTrip.snapshot?.bom[2].description, 'Material 2', 'generated BOM numbering is preserved through export/import')
   assert.equal(calculateSnapshotCost(sizedRoundTrip.snapshot!).status, 'missing')
 
   const incomplete: CostSnapshot = {

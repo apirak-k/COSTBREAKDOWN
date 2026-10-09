@@ -3,6 +3,7 @@ import { X, Sliders, Check, FileSpreadsheet } from 'lucide-react'
 import { MasterDataRole, CostSnapshot, DatasetSizing, ProductMaster } from '../../../core'
 import { DATASET_SIZING_LIMITS } from '../../../core/utils/sizing'
 import { hasDatasetMetadataChanged, hasDatasetSizingChanged, parseDatasetSizingCounts } from '../dataset-sizing-form'
+import { getPopulatedRowsRemovedBySizing } from '../../../state/dataset-sizing'
 import { downloadBlob } from '../../../services/excel/export'
 import { useDialogFocus } from '../use-dialog-focus'
 
@@ -87,6 +88,12 @@ export const DatasetSizingModal: React.FC<DatasetSizingModalProps> = ({
   const handleApply = () => {
     try {
       const { nextSizing, nextProduct, previousProductFields } = buildSizingDraft()
+      const removedData = getPopulatedRowsRemovedBySizing(snapshot, nextSizing)
+      if (removedData.length > 0) {
+        const removedPreview = removedData.slice(0, 3).join(', ')
+        const remainingCount = removedData.length > 3 ? ` and ${removedData.length - 3} more` : ''
+        if (!window.confirm(`Reduce ${roleLabel} dataset size? Populated data will be removed: ${removedPreview}${remainingCount}.`)) return
+      }
       const nextProductFields = {
         productName: nextProduct.productName || '',
         uom: nextProduct.uom || 'PC',

@@ -180,7 +180,7 @@ as appropriate for the UI. Exact A/B is not a mandatory business constraint.
 
 No special Trial lifecycle (such as `Scenario → Trial → Approve → Promote`) is required:
 - `Custom` in Master Data may be used to store and maintain real trial data.
-- If trial data in Custom is decided to become the new operational Current baseline, the user navigates to Master Data, views `Current`, and selects `Clone From Custom`.
+- If trial data in Custom is decided to become the new operational Current baseline, the user navigates to Master Data, views `Current`, chooses `Clone`, and selects `Custom` as the source.
 
 ---
 

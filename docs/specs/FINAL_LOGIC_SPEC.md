@@ -56,7 +56,7 @@ This document explicitly supersedes older behavior in the following areas:
 
 - **Master Data supports Reference, Current, and Custom:** `Custom` is a free dataset workspace with no hard-coded semantic meaning (not locked to Trial, Simulation, Proposal, or Future).
 - **Master Data owns structural changes:** Adding, removing, resizing, or altering dataset structure belongs in Master Data / Custom, not in Simulation.
-- **`Clone From` action semantics:** The active dataset is the destination; the user selects the source dataset (e.g. `Custom → Clone From Current`, `Current → Clone From Custom`). No special promotion workflow.
+- **Clone action semantics:** The active dataset is the destination; the user selects the source dataset. No special promotion workflow.
 - **Cost Breakdown (CBD) remains Reference vs Current only:** Custom is not a direct CBD comparison state.
 - **Selected Comparison is analysis scope/view only:** It is neither a new dataset nor an RCA Case.
 - **One RCA Case supports 1 or Many Candidates:** One real-world root cause may explain multiple comparison findings (e.g., QA1 REMOVED, QA1.1 ADDED, QA1.2 ADDED can be analyzed in one RCA Case).
@@ -72,7 +72,7 @@ This document explicitly supersedes older behavior in the following areas:
 - **Economic Simulation uses Action Cost and Evaluation Quantity:** Core formula is `Required Saving / pc = Action Cost / Evaluation Quantity`. It does not contain a duplicate parameter editor.
 - **Economics is separate from Standard Cost:** Action Cost must NOT automatically alter MAT, LB, BD, or Standard Cost.
 - **Economic result is advisory:** A scenario below break-even remains visible and selectable. The system informs; the engineer decides.
-- **No special Trial lifecycle:** Custom may hold trial data if the user wants; if it becomes Current, use `Current → Clone From Custom`.
+- **No special Trial lifecycle:** Custom may hold trial data if the user wants; to use it as Current, open Current, choose `Clone`, and select Custom.
 - **MatVAR, LBVAR, and BDVAR remain out of scope.**
 
 ---
@@ -124,7 +124,7 @@ PARAMETER SIMULATION        ECONOMIC SIMULATION
 
 | Area | Question it answers | Core Responsibility |
 |---|---|---|
-| Master Data | “What data state do I have?” | Prepare Reference, Current, and Custom snapshots; own structural edits and Sizing; generic `Clone From`. |
+| Master Data | “What data state do I have?” | Prepare Reference, Current, and Custom snapshots; own structural edits and Sizing; generic Clone. |
 | CBD | “What is different between Reference and Current?” | Compare Reference vs Current; show Standard Cost gaps by MAT/LB/BD/Conversion; support Full and Selected Comparison views. |
 | Candidate / Ranking | “Which differences matter?” | Prioritize findings based on record-level Gap and controllability; advisory ranking. |
 | RCA | “Why did it happen and what action should be taken?” | Group 1 or many Candidates into an RCA Case; record Root Cause / Why? and Action; optional handoff to Simulation. |
@@ -168,7 +168,7 @@ Never match by:
 - legacy Operation Code or Sequence,
 - guessed positional correspondence.
 
-Duplicate or missing identity values produce data-quality warnings. The system must never guess a match.
+Duplicate identities introduced through Master Data edits are deterministically suffixed to keep effective identities unique and produce a review warning. Duplicates that remain in imported or legacy data produce data-quality warnings; the system must never guess a match.
 
 ## 2.3 Comparison Statuses
 
@@ -284,13 +284,13 @@ Each dataset has:
 - **Export:** Exports viewed dataset's `Last Saved` state to Excel. Unsaved Working edits are not exported.
 - **Import:** Replaces viewed dataset's `Working` state. Initializes Sizing counts from imported rows.
 - **Clear:** Clears viewed dataset's `Working` state (metadata, rows, Sizing) while retaining `Last Saved`.
-- **Clone From:** Generic dataset copy.
+- **Clone:** Generic dataset copy.
   - Active viewed dataset = Destination.
   - User chooses Source dataset (`Reference`, `Current`, or `Custom`).
   - Destination readiness is recalculated from copied content.
-  - Confirmation required if destination already contains populated data.
+  - Selecting the source performs the copy without a second replacement confirmation.
   - Never mutates `Last Saved`.
-  - No special promotion workflow (to promote Custom to Current, open Current and select `Clone From Custom`).
+  - No special promotion workflow (to use Custom as Current, open Current, choose `Clone`, and select Custom).
 
 ## 3.3 Master Data Owns Structural Changes
 
@@ -552,11 +552,11 @@ $$\text{OP (Operating Profit) / pc} = \text{Selling Price} - \text{Standard Cost
 
 # 8. Worked Concrete Examples
 
-### Example 1: Master Data `Clone From`
+### Example 1: Master Data Clone
 1. Engineer opens `Custom`.
-2. Selects `Clone From Current`. Current dataset is copied into Custom.
+2. Chooses `Clone` and selects Current as the source. Current dataset is copied into Custom.
 3. In Custom, engineer deletes process `Welding` and adds process `Laser Cutting`.
-4. If this configuration is later approved for operations: Engineer opens `Current` and selects `Clone From Custom`.
+4. If this configuration is later approved for operations: Engineer opens `Current`, chooses `Clone`, and selects Custom as the source.
 
 ### Example 2: CBD Comparison Findings
 ```text
@@ -638,7 +638,7 @@ Combined Result:
 # 9. Edge Cases and Integrity Rules
 
 ## 9.1 Data Quality and Matching
-- **Duplicate Identity:** If two BOM rows share the same `Name`, or two Routing rows share the same `Process`, issue a warning and mark matching unavailable. Never guess by row position.
+- **Duplicate Identity:** Master Data edits auto-rename new duplicate business identities with the next available suffix and report the change as a warning. If duplicate identities remain in imported or legacy snapshots, warn and mark affected matching unavailable. Never guess by row position.
 - **Missing Required Input:** If Usage, Price, Manning, Capacity, or Yield is missing, mark cost unavailable. Never replace with zero.
 - **Explicit Zero:** An explicit zero is valid where logically permitted (e.g. Loss = 0).
 
@@ -673,7 +673,7 @@ The following older rules are **explicitly superseded** and must not be reintrod
 5. **Structural editing inside Simulation:** Superseded. Structure is locked in SIM; structural edits happen in Master Data / Custom.
 6. **Work Center rates editable in Simulation:** Superseded. Rates are not SIM-editable; change them in Master Data / Custom.
 7. **Economics folded into MAT/LB/BD/Standard Cost:** Superseded. Standard Cost and Economics are separate dimensions.
-8. **Special Trial lifecycle (Trial → Approve → Promote):** Superseded. Custom may store trial data; promote via `Clone From Custom`.
+8. **Special Trial lifecycle (Trial → Approve → Promote):** Superseded. Custom may store trial data; choose `Clone` on Current and select Custom as the source.
 9. **Duplicate RCA Note system:** Superseded. Existing Master Data annotations remain separate.
 10. **MatVAR / LBVAR / BDVAR:** Superseded and removed from current scope.
 
@@ -685,7 +685,7 @@ The following older rules are **explicitly superseded** and must not be reintrod
 - [ ] Reference, Current, and Custom exist and share the same canonical schema.
 - [ ] Custom has no hard-coded semantic meaning.
 - [ ] Structural editing (add/remove/sizing) belongs in Master Data / Custom.
-- [ ] `Clone From` semantics: active dataset is destination, user chooses source.
+- [ ] Clone semantics: active dataset is destination, user chooses source.
 - [ ] User can clone Current → Custom, Reference → Custom, Custom → Current.
 - [ ] Sizing and Excel template generation preserved.
 - [ ] 4-sheet workbook format (`META`, `BOM`, `WORK_CENTER`, `ROUTING`) preserved with yellow editable cells.
@@ -747,7 +747,7 @@ Allowed statuses: `TODO`, `IN PROGRESS`, `IMPLEMENTED`, `VERIFIED`, `BLOCKED —
 ### Phase 1 — Documentation Alignment
 - [x] Migrate `FINAL_LOGIC_SPEC.md` to latest finalized logic.
 - [x] Update `REQUIREMENTS_INDEX.md`.
-- [x] Update `MASTER_DATA.md` (Ref / Cur / Custom, Clone From).
+- [x] Update `MASTER_DATA.md` (Ref / Cur / Custom, Clone).
 - [x] Update `COST_BREAKDOWN.md` (Ref vs Cur, Selected scope).
 - [x] Update `CANDIDATE.md` (Candidate + Multi-Candidate RCA).
 - [x] Rename/rewrite `RCA_SIMULATION.md` → `SIMULATION.md` (Parameter + Economic).

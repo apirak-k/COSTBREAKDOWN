@@ -12,7 +12,7 @@ import {
 function snapshot(id: string): CostSnapshot {
   return {
     id,
-    product: { productCode: '', productDescription: '', productName: '', uom: '', customer: '', effectiveDate: '' },
+    product: { productCode: '', productDescription: '', productName: 'Product', uom: 'PC', customer: '', effectiveDate: '' },
     effectiveDate: '',
     sourceRef: 'history-verifier',
     status: 'draft',
@@ -109,5 +109,25 @@ const staleSession = {
   snapshotPair: { reference: beforeReference, current: snapshot('unexpected') }
 }
 assert.equal(applyMasterDataEditHistoryEntry(staleSession, sessionEntry, 'undo'), undefined, 'Stale history never overwrites a newer Working snapshot')
+
+const mockAfterPair = { reference: snapshot('mock-reference'), current: snapshot('mock-current') }
+const mockEntry = {
+  ...edit('session-a', 'current', afterCurrent.id, mockAfterPair.current.id),
+  beforePair: { reference: beforeReference, current: afterCurrent },
+  afterPair: mockAfterPair,
+  beforePrepared: { reference: true, current: true },
+  afterPrepared: { reference: true, current: true },
+  beforeSizing: { reference: { bomCount: 1 }, current: { bomCount: 2 } },
+  afterSizing: { reference: { bomCount: 4 }, current: { bomCount: 5 } }
+}
+const mockSession = { ...session, snapshotPair: mockAfterPair }
+const undoMock = applyMasterDataEditHistoryEntry(mockSession, mockEntry, 'undo')
+assert.ok(undoMock, 'Undo applies the mock pair as one ordinary history entry')
+assert.deepEqual(undoMock.snapshotPair, mockEntry.beforePair, 'Undo restores both mock-loaded Working snapshots together')
+assert.equal(undoMock.lastSavedMasterData?.current?.snapshot.id, lastSavedCurrent.id, 'mock Undo leaves Last Saved untouched')
+const redoMock = applyMasterDataEditHistoryEntry(undoMock, mockEntry, 'redo')
+assert.ok(redoMock, 'Redo reapplies the mock pair after Undo')
+assert.deepEqual(redoMock.snapshotPair, mockAfterPair, 'Redo restores the mock Working pair')
+assert.equal(redoMock.lastSavedMasterData?.current?.snapshot.id, lastSavedCurrent.id, 'mock Redo leaves Last Saved untouched')
 
 console.log('Master Data page-level edit history verification passed')

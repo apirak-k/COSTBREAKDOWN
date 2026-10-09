@@ -19,6 +19,10 @@ export interface FieldEvidence {
 
 export interface SnapshotBOMItem {
   id: string
+  /** Marks a user-visible effective identity derived from a blank business key. */
+  isGeneratedBusinessIdentity?: boolean
+  /** Original duplicate identity replaced with a deterministic unique suffix. */
+  autoRenamedFrom?: string
   /** Identifies an untouched row allocated by dataset sizing. */
   isGeneratedSizingPlaceholder?: boolean
   itemCode: string
@@ -36,6 +40,8 @@ export interface SnapshotBOMItem {
 
 export interface SnapshotRoutingStep {
   id: string
+  isGeneratedBusinessIdentity?: boolean
+  autoRenamedFrom?: string
   /** Identifies an untouched row allocated by dataset sizing. */
   isGeneratedSizingPlaceholder?: boolean
   operationCode?: string
@@ -54,6 +60,8 @@ export interface SnapshotRoutingStep {
 
 export interface SnapshotWorkCenterRate {
   id: string
+  isGeneratedBusinessIdentity?: boolean
+  autoRenamedFrom?: string
   /** Identifies an untouched row allocated by dataset sizing. */
   isGeneratedSizingPlaceholder?: boolean
   workCenterCode: string

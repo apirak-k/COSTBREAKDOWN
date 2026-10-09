@@ -6,7 +6,7 @@
 
 Opening a fresh session goes directly to an empty workspace with three independent datasets: **Reference**, **Current**, and **Custom**. There is no startup wizard or separate Product selector. The first time the user enters Master Data in a session, the default table view is **All Tables**, displaying BOM → Work Centers → Routing vertically. Users prepare independent datasets in that workspace, with Product Name stored as each dataset's metadata.
 
-Each dataset has an in-session `Working` copy and one `Last Saved` copy; Save, Reset, Import, Clear, Clone From, and Export act on the dataset being viewed. Sizing edits that side's metadata and exact row counts, and generates the agreed Excel template. Once Working datasets have sufficient information, Reference and Current can be compared in Cost Breakdown without saving, exporting, or activating them. The tables are presented in BOM → Work Centers → Routing order, but users may prepare the data in any order. Matching uses business identity rather than row position. The toolbar and metadata stay together at the top of the content area, and the footer stays at the bottom of the app frame. Warnings inform the user without cluttering table rows or blocking normal navigation.
+Each dataset has an in-session `Working` copy and one `Last Saved` copy; Save, Reset, Import, Clear, Clone, and Export act on the dataset being viewed. Sizing edits that side's metadata and exact row counts, and generates the agreed Excel template. Once Working datasets have sufficient information, Reference and Current can be compared in Cost Breakdown without saving, exporting, or activating them. The tables are presented in BOM → Work Centers → Routing order, but users may prepare the data in any order. Matching uses business identity rather than row position. The toolbar and metadata stay together at the top of the content area, and the footer stays at the bottom of the app frame. Warnings inform the user without cluttering table rows or blocking normal navigation. Current toolbar, preparation, status, warning, mock, and action-dialog behavior is detailed in [`MASTER_DATA_TOOLBAR_PREPARE_UX.md`](MASTER_DATA_TOOLBAR_PREPARE_UX.md).
 
 ## Purpose and Authority
 
@@ -51,34 +51,34 @@ All structural changes to datasets belong strictly in Master Data:
 
 Simulation does not support structural edits. If the user wants to test a structural change, they prepare it in Master Data (typically in `Custom`), and then start Simulation from that dataset.
 
-## Generic `Clone From` Semantics
+## Generic Clone Semantics
 
-Dataset copying uses unified **`Clone From`** semantics:
+Dataset copying uses unified **Clone** semantics:
 
 > **The currently viewed dataset is the Destination. The user chooses the Source dataset.**
 
 Examples:
-- **`Custom → Clone From Current`:**
-  The user views `Custom`, clicks `Clone From`, and selects `Current`. Current's Working state is copied into Custom.
-- **`Current → Clone From Custom`:**
-  The user views `Current`, clicks `Clone From`, and selects `Custom`. Custom's Working state is copied into Current.
-- **`Custom → Clone From Reference`:**
-  The user views `Custom`, clicks `Clone From`, and selects `Reference`. Reference's Working state is copied into Custom.
+- **`Custom` destination, `Current` source:**
+  The user views `Custom`, clicks `Clone`, and selects `Current`. Current's Working state is copied into Custom.
+- **`Current` destination, `Custom` source:**
+  The user views `Current`, clicks `Clone`, and selects `Custom`. Custom's Working state is copied into Current.
+- **`Custom` destination, `Reference` source:**
+  The user views `Custom`, clicks `Clone`, and selects `Reference`. Reference's Working state is copied into Custom.
 
-Rules for Clone From:
-- Clone From copies the selected source dataset's `Working` state into the viewed dataset's `Working` state.
+Rules for Clone:
+- Clone copies the selected source dataset's `Working` state into the viewed dataset's `Working` state.
 - It never overwrites the destination's `Last Saved` state.
-- If the destination already contains populated data, the system requires explicit user confirmation before replacing it.
+- Selecting the source performs the copy; there is no second replacement confirmation.
 - Destination readiness (Prepared / Needs input) is recalculated from the copied content, not blindly copied from the source flag.
-- **No special promotion workflows:** The application does not require separate actions like *Promote Trial*, *Approve Trial*, or *Set Scenario as Current*. If the user decides a Custom configuration should become the new operational Current, they simply view `Current` and execute `Clone From Custom`.
+- **No special promotion workflows:** The application does not require separate actions like *Promote Trial*, *Approve Trial*, or *Set Scenario as Current*. If the user decides a Custom configuration should become the new operational Current, they simply view `Current` and clone from `Custom`.
 
 ## Page Structure and Metadata
 
 The page supports:
 - Dataset selection: `Reference`, `Current`, or `Custom`.
 - Mode toggle: `View Mode` (read-only) / `Edit Mode` (interactive editing).
-- Dataset action toolbar: `Save`, `Reset`, `Clear`, `Clone From`, `Import`, `Export`, `Sizing`.
-- Table navigation: `All Tables` (default on first session entry), `Work Centers`, `BOM`, `Routing`.
+- Dataset action toolbar: `Sizing`, `Import`, `Clone`, `Reset`, `Clear`, `Save`, `Export`.
+- Table navigation: `BOM`, `Work Centers`, `Routing`, `All` (`All` remains the first-session default).
 - Metadata bar: Product summary and dataset remarks.
 
 Preserve the selected dataset, mode, and table view during same-session navigation.
@@ -93,16 +93,16 @@ Dataset metadata is independent for each dataset:
 | SG&A | SG&A percent of Selling Price (%) | Independent per dataset |
 | Dataset Remark | Dataset-level annotation remark | Independent per dataset |
 
-Do not add Product Code, Product Description, or Product Note. If Reference and Current have different Product Names, display a non-blocking Product Mismatch warning in CBD.
+Product Name and UOM have effective defaults `Product` and `PC`, respectively; these values are not missing. UOM is free text. Selling Price and SG&A keep their existing missing-value semantics; Dataset Remark may be blank. Do not add Product Code, Product Description, or Product Note. If effective Reference and Current Product Names differ, show `Product Mismatch` as a non-blocking comparison status, not a warning. It does not block or confirm CBD entry.
 
 ## Sizing and Templates
 
 - Sizing edits the viewed dataset's metadata and exact row counts for BOM, Work Centers, and Routing (minimum 1 each). On a fresh workspace its row counts are unset.
 - Applying a count sets that table to exactly that many rows:
   - Increasing the count appends blank rows with placeholder numbers.
-  - Decreasing the count removes rows from the end; populated rows removed during truncation are lost.
+  - Decreasing the count removes rows from the end; confirm only when populated data will be removed. Removing only blank trailing rows needs no confirmation.
   - Direct row additions and deletions keep that section's configured count synchronized; deleting all rows leaves the count unset.
-- A blank identity shows its placeholder ordinal, counted only among blank identities and independent of the `#` display row number; this ordinal is not a business identity and does not make the row complete.
+- Blank business identities use effective names: `Material N`, `Work Center N`, and `Process N`. `N` counts currently blank/generated identities within that table, not physical row numbers. These effective names can be used, saved, and exported, and are reported as warnings until the user supplies an identity.
 - **Download Template:** Located inside Sizing. Generates the canonical Excel workbook matching the viewed dataset's configured row counts.
 - **Import Initialization:** When an Excel workbook is imported into the viewed dataset, its Sizing row counts are initialized to the imported row counts.
 
@@ -115,7 +115,7 @@ The canonical Master Data workbook contains exactly four sheets in order:
 4. `ROUTING`
 
 There is no separate calculation sheet.
-- **`META`:** Contains key-value metadata inputs (Product Name, UOM, Selling Price, SG&A %, Dataset Remark) and Excel formula outputs for MAT, Labor, Burden, Standard Cost, SG&A Amount, and OP. The workbook stores SG&A as the app's percentage points (8 means 8%), so the formula divides the entered value by 100. Negative OP remains valid.
+- **`META`:** Contains key-value metadata inputs (Product Name, UOM, Selling Price, SG&A %, Dataset Remark) and Excel formula outputs for MAT, Labor, Burden, Standard Cost, SG&A Amount, and OP. Effective Product/UOM defaults and generated identities are exported as their effective values. The workbook stores SG&A as the app's percentage points (8 means 8%), so the formula divides the entered value by 100. Negative OP remains valid.
 - Calculated META cells are Excel formulas with Excel cell Notes describing the formula. If an output's required source inputs are incomplete or invalid, its formula displays blank. An explicitly entered zero remains valid. Import reads only the five META inputs and recalculates results through the application engine; formula outputs are never imported as source values.
 - **`BOM`:** `Name | Usage | Unit | Price | Loss | Note`
 - **`WORK_CENTER`:** `WC | Labor | Burden | Note`
@@ -158,12 +158,12 @@ Match records strictly by business identity:
 ## Validation and Edge Cases
 
 - Validation is local and non-blocking. Cues appear on affected cells.
-- Warning prose and count badges stay out of table rows; dataset-level notices appear outside the tables.
+- Warning prose and count badges stay out of table rows; dataset-level warning details appear in Prepare Dataset, and the persistent footer `⚠ N` opens that summary. The count is affected source locations and excludes Product Mismatch.
 - Routing `WC` references the Work Center table, and its entry control should help prevent typos.
 - Missing required numeric inputs leave rows marked `MISSING`; they are never replaced with zero. Costs requiring missing inputs remain `unavailable`.
 - Blank placeholder rows from Sizing remain marked missing and are excluded from cost calculations.
-- The existing confirmation before Clear and the disabled Reset/Export controls before a selected-side `Last Saved` state are reversible interface choices, not additional user requirements; their current provenance is recorded in [`PROVISIONAL_IMPLEMENTATION_DECISIONS.md`](../PROVISIONAL_IMPLEMENTATION_DECISIONS.md). The exact placement of Reference and Current totals and compact Undo/Redo controls, colors, typography, spacing, and status presentation are ordinary visual choices. Follow the confirmed visual direction and record unfinalized implementation choices as provisional; they do not block implementation. Human visual acceptance remains a later review checkpoint.
+- Reset and Clear remain confirmation-protected; Reset is disabled when no Last Saved state exists. Export remains unavailable without Last Saved. Clone source selection does not have a second replacement confirmation. Warning presence does not add confirmations to Save, Export, or CBD navigation. The exact compact spacing and responsive wrapping may follow the new UX contract; human visual acceptance remains a later review checkpoint.
 
 ## Traceability
 
-Primary detailed source: [finalized Master Data source specification](../history/MASTER_DATA_SPEC_2026-10-05.md), [the review context's later decisions](../history/COSTBREAKDOWN_REVIEW_CONTEXT_FOR_CODEX.md), and its §79 latest Master Data addendum. The older [Master Data agreement](../../agreements/MASTER_DATA_FLOW_SPEC.md) remains evidence for compatible flow decisions; its earlier schema, workbook, export, and identity details were superseded by the later Master Data source. The explicit workbook decision on 2026-10-07 supersedes the separate calculation view and finalizes the four-sheet structure and META formulas above. The generic `Clone From` semantics across Reference, Current, and Custom are finalized in [`FINAL_LOGIC_SPEC.md`](FINAL_LOGIC_SPEC.md).
+Primary detailed source: [finalized Master Data source specification](../history/MASTER_DATA_SPEC_2026-10-05.md), [the review context's later decisions](../history/COSTBREAKDOWN_REVIEW_CONTEXT_FOR_CODEX.md), and its §79 latest Master Data addendum. The older [Master Data agreement](../../agreements/MASTER_DATA_FLOW_SPEC.md) remains evidence for compatible flow decisions; its earlier schema, workbook, export, and identity details were superseded by the later Master Data source. The explicit workbook decision on 2026-10-07 supersedes the separate calculation view and finalizes the four-sheet structure and META formulas above. The generic destination/source Clone semantics across Reference, Current, and Custom are finalized in [`FINAL_LOGIC_SPEC.md`](FINAL_LOGIC_SPEC.md); this round's toolbar and warning behavior is finalized in [`MASTER_DATA_TOOLBAR_PREPARE_UX.md`](MASTER_DATA_TOOLBAR_PREPARE_UX.md).

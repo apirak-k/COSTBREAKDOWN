@@ -80,19 +80,26 @@ const vite = await createServer({
 const noOp = () => {}
 const makeStore = (uiState = { role: 'current', mode: 'view', tableView: 'all' }) => {
   const snapshot = fixtureSnapshot(uiState.role)
+  const snapshots = {
+    reference: fixtureSnapshot('reference'),
+    current: fixtureSnapshot('current'),
+    custom: fixtureSnapshot('custom')
+  }
   return {
-    uomList: ['PC'],
-    isDevelopmentReviewFixture: false,
+    masterDataSnapshots: snapshots,
     masterDataRole: uiState.role,
     masterDataSnapshot: snapshot,
     masterDataLastSavedSnapshot: undefined,
+    masterDataLastSavedSnapshots: {},
     masterDataSizing: {},
+    masterDataPrepareDatasetRequested: false,
     masterDataHandoff: {
       datasetsPrepared: false,
       referenceReady: false,
       currentReady: false,
       issues: [],
-      warnings: []
+      warnings: [],
+      productMismatch: false
     },
     masterDataUiState: uiState,
     canUndoMasterDataEdit: false,
@@ -101,12 +108,12 @@ const makeStore = (uiState = { role: 'current', mode: 'view', tableView: 'all' }
     redoMasterDataEdit: noOp,
     setMasterDataRole: noOp,
     updateMasterDataUiState: noOp,
+    requestMasterDataPrepareDataset: noOp,
+    consumeMasterDataPrepareDatasetRequest: noOp,
     saveMasterDataWorkingDataset: noOp,
     resetMasterDataWorkingDataset: noOp,
-    loadDevelopmentReviewFixture: noOp,
-    returnFromDevelopmentReviewFixture: noOp,
-    cloneReferenceToCurrent: noOp,
-    cloneCurrentToReference: noOp,
+    loadDevelopmentMockData: noOp,
+    cloneMasterDataWorkspace: noOp,
     clearMasterDataDataset: noOp,
     updateMasterDataDatasetSizing: noOp,
     updateMasterDataProduct: noOp,
@@ -152,7 +159,7 @@ try {
   const defaultMarkup = await renderMasterDataPage(INITIAL_MASTER_DATA_UI_STATE)
   assert.equal(pressedButton(defaultMarkup, 'Current'), true, 'a fresh application session starts on Current')
   assert.equal(pressedButton(defaultMarkup, 'View'), true, 'a fresh application session starts in View mode')
-  assert.equal(pressedButton(defaultMarkup, 'All tables'), true, 'Master Data first opens with All Tables selected')
+  assert.equal(pressedButton(defaultMarkup, 'All'), true, 'Master Data first opens with All selected')
   assert.equal((defaultMarkup.match(/aria-label="Undo Master Data edit"/g) ?? []).length, 1, 'All Tables renders one page-level Undo control')
   assert.equal((defaultMarkup.match(/aria-label="Redo Master Data edit"/g) ?? []).length, 1, 'All Tables renders one page-level Redo control')
   assert.match(defaultMarkup, /role="group" aria-label="Working edit history"/, 'Undo/Redo controls have one shared accessible group')
@@ -214,14 +221,14 @@ try {
   assert.equal(pressedButton(returnedPageMarkup, 'Reference'), true, 'a remounted page reflects the retained dataset side')
   assert.equal(pressedButton(returnedPageMarkup, 'Edit'), true, 'a remounted page reflects the retained mode')
   assert.equal(pressedButton(returnedPageMarkup, 'Routing'), true, 'a remounted page reflects the retained table view')
-  assert.equal(pressedButton(returnedPageMarkup, 'All tables'), false, 'the retained Routing view does not revert to All Tables')
+  assert.equal(pressedButton(returnedPageMarkup, 'All'), false, 'the retained Routing view does not revert to All')
   assert.match(returnedPageMarkup, /aria-label="Process Routing table"/, 'the selected Routing view remains the only table region')
   assert.equal((returnedPageMarkup.match(/aria-label="Undo Master Data edit"/g) ?? []).length, 1, 'a single-table view still renders one page-level Undo control')
 
   const freshAppSessionMarkup = await renderMasterDataPage(INITIAL_MASTER_DATA_UI_STATE)
   assert.equal(pressedButton(freshAppSessionMarkup, 'Current'), true, 'a fresh app session does not inherit Reference selection')
   assert.equal(pressedButton(freshAppSessionMarkup, 'View'), true, 'a fresh app session does not inherit Edit mode')
-  assert.equal(pressedButton(freshAppSessionMarkup, 'All tables'), true, 'a fresh app session returns to All Tables')
+  assert.equal(pressedButton(freshAppSessionMarkup, 'All'), true, 'a fresh app session returns to All')
 
   const { makeEmptySession } = await vite.ssrLoadModule('/src/state/store.tsx')
   const businessSession = makeEmptySession('master-data-ui-state-test')
@@ -236,6 +243,11 @@ try {
   const bomSource = readFileSync(resolve(process.cwd(), 'src/features/master-data/components/BOMTable.tsx'), 'utf8')
   const routingSource = readFileSync(resolve(process.cwd(), 'src/features/master-data/components/RoutingTable.tsx'), 'utf8')
   const headerSource = readFileSync(resolve(process.cwd(), 'src/features/master-data/components/MasterDataWorkspaceHeader.tsx'), 'utf8')
+  const pageSource = readFileSync(resolve(process.cwd(), 'src/features/master-data/MasterDataPage.tsx'), 'utf8')
+  const warningFocusSource = readFileSync(resolve(process.cwd(), 'src/features/master-data/hooks/useWarningNavigationFocus.ts'), 'utf8')
+  const footerSource = readFileSync(resolve(process.cwd(), 'src/shared/layout/AppLayout.tsx'), 'utf8')
+  const navbarSource = readFileSync(resolve(process.cwd(), 'src/shared/layout/Navbar.tsx'), 'utf8')
+  const sizingModalSource = readFileSync(resolve(process.cwd(), 'src/features/master-data/components/DatasetSizingModal.tsx'), 'utf8')
   const storeSource = readFileSync(resolve(process.cwd(), 'src/state/store.tsx'), 'utf8')
   const storageSource = readFileSync(resolve(process.cwd(), 'src/services/storage/session-storage.ts'), 'utf8')
 
@@ -254,22 +266,59 @@ try {
   assert.match(bomSource, /dataTransfer\.setData\('application\/x-costbreakdown-row-ids'/, 'selected rows are carried as a group for reorder')
   assert.match(bomSource, /<th scope="col"[^>]*>Actions<\/th>[\s\S]*aria-label="Reorder rows"/, 'the reorder handle column is separate and rightmost after Actions')
   assert.match(routingSource, /not in WC table|knownWorkCenters/, 'Routing WC input keeps unknown values visible for typo correction')
-  assert.match(headerSource, />Clone From</, 'Clone From uses the generic action wording')
-  assert.match(headerSource, /sourceRole !== role/, 'Clone From excludes the viewed dataset as its own source')
+  assert.match(headerSource, /\/>\s*Clone\s*<\/button>/, 'Clone uses the finalized toolbar label')
+  assert.match(headerSource, /sourceRole !== role/, 'Clone excludes the viewed dataset as its own source')
+  const cloneActionSource = headerSource.slice(headerSource.indexOf('onCloneFrom(sourceRole)') - 120, headerSource.indexOf('onCloneFrom(sourceRole)') + 100)
+  assert.doesNotMatch(cloneActionSource, /confirm\(/, 'choosing a Clone source does not ask for a second confirmation')
+  assert.equal((headerSource.match(/window\.confirm\(/g) ?? []).length, 2, 'only Reset and Clear use toolbar confirmations')
+  assert.match(headerSource, /Reset \$\{roleLabel\} dataset\? Unsaved working changes will be discarded[\s\S]*onResetWorkingDataset\(\)/, 'Reset confirmation describes restoring Last Saved')
+  assert.match(headerSource, /Clear \$\{roleLabel\} dataset\? Current working data will be cleared\. The last saved dataset will remain available\.[\s\S]*onClearDataset\(\)/, 'Clear confirmation preserves Last Saved')
+  assert.match(sizingModalSource, /if \(removedData\.length > 0\)[\s\S]*window\.confirm\(/, 'Sizing confirms only when populated data will be removed')
+  assert.match(headerSource, /onClick=\{\(\) => onPrepareDatasetOpenChange\(!isPrepareDatasetOpen\)\}/, 'Prepare Dataset trigger toggles the popover')
+  assert.match(headerSource, /if \(isPrepareDatasetOpen\) prepareTriggerRef\.current\?\.focus\(\)/, 'opening Prepare Dataset from the footer moves keyboard focus to its trigger')
+  assert.match(headerSource, /onPrepareDatasetOpenChange\(false\)[\s\S]*prepareTriggerRef\.current\?\.focus\(\)/, 'Escape and the close button return focus to the Prepare Dataset trigger')
+  assert.match(headerSource, /addEventListener\('pointerdown'/, 'clicking outside closes the Prepare Dataset popover')
+  assert.match(headerSource, /event\.key === 'Escape'[\s\S]*onPrepareDatasetOpenChange\(false\)/, 'Escape closes the Prepare Dataset popover')
+  assert.match(headerSource, /state === 'Saved' \? 'bg-emerald-400' : 'bg-slate-400'/, 'save dots encode Saved green and unsaved states gray')
+  assert.match(headerSource, /aria-label=\{`\$\{roleLabels\[datasetRole\]\} — \$\{state\}`\}/, 'dataset save state is accessible independently from active styling')
+  assert.match(headerSource, /\{roleLabels\[datasetRole\]\}[\s\S]*bg-emerald-400/, 'active selection and save-state dot use separate styles')
+  assert.ok(headerSource.indexOf('Prepare Dataset\n          </button>') > headerSource.indexOf('{tableSelector}'), 'Prepare Dataset follows the table selector at the toolbar right edge')
+  assert.match(headerSource, /group\.items\.length === 1[\s\S]*onNavigateWarning\(group\.items\[0\]\)/, 'one warning location navigates directly')
+  assert.match(headerSource, /setExpandedWarningCategory\(expanded \? null : group\.category\)/, 'multiple warning locations expand progressively')
+  assert.match(pageSource, /setMasterDataRole\(item\.role\)[\s\S]*tableView: item\.table/, 'warning navigation selects the affected dataset and table')
+  assert.match(warningFocusSource, /setSearchTerm\(''\)[\s\S]*scrollIntoView[\s\S]*focusTarget\.focus/, 'warning navigation clears filters and scrolls/focuses the source')
+  assert.match(footerSource, /buildMasterDataWarningItems\(masterDataSnapshots\)\.length/, 'footer total uses affected warning-item count')
+  assert.match(footerSource, /aria-label=\{`Open Prepare Dataset:/, 'footer warning count has an accessible action label')
+  assert.match(footerSource, /onClick=\{requestMasterDataPrepareDataset\}/, 'footer warning indicator opens Prepare Dataset')
+  assert.match(footerSource, /<AlertTriangle[\s\S]*\{warningCount\}/, 'footer always renders only the warning icon and count, including zero')
+  assert.match(navbarSource, /hasProductMismatch = masterDataHandoff\.productMismatch/, 'global workflow status reads Product Mismatch as status')
+  assert.match(navbarSource, /statusIsWarning = missingData \|\| !masterDataHandoff\.datasetsPrepared/, 'Product Mismatch alone does not receive warning styling')
+  assert.match(navbarSource, /currentProductName = currentProduct\.productName\?\.trim\(\) \|\| 'Product'/, 'global metadata display uses the effective Product default')
+  assert.match(navbarSource, /currentUom = currentProduct\.uom\?\.trim\(\) \|\| 'PC'/, 'global metadata display uses the effective PC default')
+  assert.match(headerSource, /type="text"[\s\S]*aria-label="UOM"[\s\S]*onUpdateProduct\(\{ \.\.\.product, uom: event\.target\.value \}\)/, 'UOM is editable as free text')
+  assert.match(headerSource, /xl:grid-cols-\[3fr_1fr_2fr_1fr_4fr\]/, 'metadata widths are stable and follow the requested relative sizing')
+  assert.match(storeSource, /normalizeMasterDataSnapshot\(mutate\(currentDataset\), currentDataset\)/, 'all dataset edit paths normalize identities, including direct edit, paste, and bulk updates')
+  assert.match(pageSource, /Load Mock Data/, 'Master Data exposes one consolidated mock action')
+  assert.doesNotMatch(pageSource, /Load complete review mock|Load data-quality mock|Return to working session|window\.confirm/, 'mock loading is immediate and has no session-return UI or confirmation')
+  const tableSelectorSource = pageSource.slice(pageSource.indexOf('const tableSections'), pageSource.indexOf('return (\n    <div className="w-full space-y-4">'))
+  assert.equal((tableSelectorSource.match(/w-24/g) ?? []).length, 2, 'the mapped table controls and All share the same fixed width')
+  assert.match(tableSelectorSource, /navLabel: 'BOM'[\s\S]*navLabel: 'Work Centers'[\s\S]*navLabel: 'Routing'[\s\S]*>\s*All\s*</, 'table selector order is BOM, Work Centers, Routing, All')
   assert.match(headerSource, /Export Last Saved dataset to Excel/, 'Export is explicitly bound to Last Saved data')
   assert.match(headerSource, /exportSnapshotToExcel\(lastSavedSnapshot\)/, 'Export passes the Last Saved snapshot to the workbook generator')
   const snapshotImportFlow = storeSource.slice(
     storeSource.indexOf('const importSnapshotFromExcel'),
-    storeSource.indexOf('const loadDevelopmentReviewFixture')
+    storeSource.indexOf('const loadDevelopmentMockData')
   )
   assert.ok(snapshotImportFlow.includes('...source'), 'Import replaces Working data within the existing session')
   assert.ok(snapshotImportFlow.includes('importSnapshotForRole(existingPair, source.datasetSizing, result.role, result.snapshot)'), 'Reference/Current import replaces only the selected Working side')
-  assert.ok(snapshotImportFlow.includes('customMasterData: imported.snapshot') && snapshotImportFlow.includes('customDatasetSizing: imported.sizing'), 'Custom import replaces only Custom Working data')
+  assert.ok(snapshotImportFlow.includes('customMasterData: normalizeMasterDataSnapshot(imported.snapshot)') && snapshotImportFlow.includes('customDatasetSizing: imported.sizing'), 'Custom import replaces only Custom Working data after identity normalization')
   assert.doesNotMatch(snapshotImportFlow, /lastSavedMasterData|customLastSavedMasterData/, 'Import never overwrites any dataset Last Saved state')
   assert.match(storeSource, /saveMasterDataWorkingDataset\s*=\s*\(role: MasterDataRole\)[\s\S]*lastSavedMasterData:[\s\S]*\[role\]: saved/, 'Save writes a Last Saved copy only for the viewed dataset')
   assert.match(storeSource, /resetMasterDataWorkingDataset\s*=\s*\(role: MasterDataRole\)[\s\S]*getLastSavedMasterData\(session, role\)/, 'Reset reads only the viewed dataset Last Saved state')
   assert.match(storageSource, /sessionStorage\.getItem[\s\S]*sessionStorage\.setItem/, 'in-session data is held in browser session storage')
   assert.doesNotMatch(storageSource, /localStorage|indexedDB/, 'Master Data does not use permanent browser storage')
+  assert.doesNotMatch(storeSource, /DevelopmentReviewFixture|returnFromDevelopmentReviewFixture/, 'no separate review session is stored')
+  assert.match(storeSource, /recordMasterDataPairWorkingEdit\(source, updated\)/, 'mock load is recorded in the ordinary shared undo/redo history')
 
   console.log('✓ Fresh Master Data view selects Current, View, and All Tables')
   console.log('✓ All Tables renders BOM, Work Centers, and Routing in the required order')

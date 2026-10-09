@@ -2,6 +2,7 @@ import assert from 'node:assert/strict'
 import { evaluateMasterDataHandoff } from '../src/core/calculations/master-data-handoff.ts'
 
 const product = {
+  productName: 'Demo',
   productCode: 'P-001',
   productDescription: 'Demo',
   uom: 'PC',
@@ -85,51 +86,40 @@ const productCodeOnlyMismatch = evaluateMasterDataHandoff(baseSession, {
   current: { ...pair.current, product: { ...product, productCode: 'P-999' } }
 })
 assert.equal(productCodeOnlyMismatch.datasetsPrepared, true)
+assert.equal(productCodeOnlyMismatch.productMismatch, false)
 assert.deepEqual(productCodeOnlyMismatch.issues, [])
-assert.deepEqual(
-  productCodeOnlyMismatch.warnings?.filter(warning => warning.includes('Product mismatch')),
-  [],
-  'Product Code differences alone do not trigger the Product Name mismatch warning'
-)
+assert.deepEqual(productCodeOnlyMismatch.warnings, [], 'Product Code differences alone do not create data warnings')
 
 const productNameMismatch = evaluateMasterDataHandoff(baseSession, {
   ...pair,
-  current: { ...pair.current, product: { ...product, productCode: 'P-001', productDescription: 'Different Demo' } }
+  current: { ...pair.current, product: { ...product, productCode: 'P-001', productName: 'Different Demo', productDescription: 'Different Demo' } }
 })
 assert.equal(productNameMismatch.datasetsPrepared, true)
+assert.equal(productNameMismatch.productMismatch, true)
 assert.deepEqual(productNameMismatch.issues, [])
-assert.deepEqual(
-  productNameMismatch.warnings?.filter(warning => warning.includes('Product mismatch')),
-  ['Product mismatch: Reference is "Demo" while Current is "Different Demo".']
-)
+assert.deepEqual(productNameMismatch.warnings, [], 'Product Mismatch is reported as status, not warning')
 
 const differentNamesSameCode = evaluateMasterDataHandoff(baseSession, {
   ...pair,
-  reference: { ...pair.reference, product: { ...product, productCode: 'SAME', productDescription: 'Reference product' } },
-  current: { ...pair.current, product: { ...product, productCode: 'SAME', productDescription: 'Current product' } }
+  reference: { ...pair.reference, product: { ...product, productCode: 'SAME', productName: 'Reference product' } },
+  current: { ...pair.current, product: { ...product, productCode: 'SAME', productName: 'Current product' } }
 })
-assert.deepEqual(
-  differentNamesSameCode.warnings?.filter(warning => warning.includes('Product mismatch')),
-  ['Product mismatch: Reference is "Reference product" while Current is "Current product".'],
-  'Product Name differences trigger a warning even when Product Codes match'
-)
+assert.equal(differentNamesSameCode.productMismatch, true, 'Product Name differences remain visible with matching Product Codes')
+assert.deepEqual(differentNamesSameCode.warnings, [])
 
 const oneNameMissing = evaluateMasterDataHandoff(baseSession, {
-  reference: { ...pair.reference, product: { ...product, productDescription: '' } },
+  reference: { ...pair.reference, product: { ...product, productName: '', productDescription: '' } },
   current: pair.current
 })
-assert.deepEqual(oneNameMissing.warnings?.filter(warning => warning.includes('Product mismatch')), [])
-assert.ok(oneNameMissing.warnings?.includes('Reference Product Name is not specified.'))
+assert.equal(oneNameMissing.productMismatch, true, 'the default Product Name compares against the other effective name')
+assert.deepEqual(oneNameMissing.warnings, [], 'the default Product Name is not missing')
 
 const noProductNames = evaluateMasterDataHandoff(baseSession, {
-  reference: { ...pair.reference, product: { ...product, productDescription: '' } },
-  current: { ...pair.current, product: { ...product, productDescription: '' } }
+  reference: { ...pair.reference, product: { ...product, productName: '', productDescription: 'Reference description' } },
+  current: { ...pair.current, product: { ...product, productName: '', productDescription: 'Current description' } }
 })
-assert.deepEqual(noProductNames.warnings?.filter(warning => warning.includes('Product mismatch')), [])
-assert.deepEqual(noProductNames.warnings, [
-  'Reference Product Name is not specified.',
-  'Current Product Name is not specified.'
-])
+assert.equal(noProductNames.productMismatch, false, 'blank Product Names both use the effective default Product')
+assert.deepEqual(noProductNames.warnings, [])
 
 const legacyDerived = evaluateMasterDataHandoff({
   product,

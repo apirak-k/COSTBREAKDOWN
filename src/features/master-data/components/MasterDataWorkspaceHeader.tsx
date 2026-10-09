@@ -1,35 +1,38 @@
-import React, { useState } from 'react'
+import React, { useEffect, useRef, useState } from 'react'
 import {
+  AlertTriangle,
+  CheckCircle2,
+  ChevronDown,
+  ChevronUp,
   Copy,
   Download,
+  Edit3,
   Eye,
+  Info,
+  Redo2,
+  RotateCcw,
+  Save,
   Sliders,
   Trash2,
   Upload,
-  Save,
-  RotateCcw,
-  X,
-  CheckCircle2,
-  AlertTriangle,
-  Info,
-  Edit3,
-  Redo2,
-  Undo2
+  Undo2,
+  X
 } from 'lucide-react'
-import { MasterDataRole, CostSnapshot, ProductMaster } from '../../../core'
-import { MasterDataHandoffStatus } from '../../../core/calculations/master-data-handoff'
+import type { MasterDataRole, CostSnapshot, ProductMaster } from '../../../core'
+import type { MasterDataHandoffStatus } from '../../../core/calculations/master-data-handoff'
+import type { MasterDataSaveState } from '../../../core/utils/master-data-effective'
 import { downloadBlob } from '../../../services/excel/export'
-import { hasEnteredMasterData } from '../../../state/dataset-sizing'
+import type { MasterDataWarningGroup, MasterDataWarningItem } from '../prepare-dataset'
 
 interface MasterDataWorkspaceHeaderProps {
   product: ProductMaster
   snapshot: CostSnapshot
   lastSavedSnapshot?: CostSnapshot
+  saveStates: Record<MasterDataRole, MasterDataSaveState>
   role: MasterDataRole
   onRoleChange: (role: MasterDataRole) => void
   onSaveWorkingDataset: () => void
   onResetWorkingDataset: () => void
-  uomList: string[]
   isEditMode: boolean
   onToggleEditMode: (edit: boolean) => void
   onUpdateProduct: (product: ProductMaster) => void
@@ -43,22 +46,35 @@ interface MasterDataWorkspaceHeaderProps {
   onRedo: () => void
   onOpenImportModal: () => void
   onOpenSizingModal: () => void
-  developmentAction?: React.ReactNode
+  isPrepareDatasetOpen: boolean
+  onPrepareDatasetOpenChange: (open: boolean) => void
+  warningGroups: MasterDataWarningGroup[]
+  warningCount: number
+  onNavigateWarning: (item: MasterDataWarningItem) => void
+  mockAction?: React.ReactNode
   tableSelector: React.ReactNode
 }
 
 const toolbarButton = 'inline-flex min-h-8 shrink-0 items-center justify-center gap-1 border border-slate-300 bg-white px-1.5 text-[11px] font-medium text-slate-700 transition-colors hover:bg-slate-100 hover:text-slate-950 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700'
 const fieldInput = 'mt-1 min-h-9 w-full border-b border-slate-300 bg-transparent px-1 py-1 text-sm text-slate-950 focus:border-blue-700 focus:outline-none'
 
+const roleLabels: Record<MasterDataRole, string> = {
+  reference: 'Reference',
+  current: 'Current',
+  custom: 'Custom'
+}
+
+const roles: MasterDataRole[] = ['reference', 'current', 'custom']
+
 export const MasterDataWorkspaceHeader: React.FC<MasterDataWorkspaceHeaderProps> = ({
   product,
   snapshot,
   lastSavedSnapshot,
+  saveStates,
   role,
   onRoleChange,
   onSaveWorkingDataset,
   onResetWorkingDataset,
-  uomList,
   isEditMode,
   onToggleEditMode,
   onUpdateProduct,
@@ -72,170 +88,93 @@ export const MasterDataWorkspaceHeader: React.FC<MasterDataWorkspaceHeaderProps>
   onRedo,
   onOpenImportModal,
   onOpenSizingModal,
-  developmentAction,
+  isPrepareDatasetOpen,
+  onPrepareDatasetOpenChange,
+  warningGroups,
+  warningCount,
+  onNavigateWarning,
+  mockAction,
   tableSelector
 }) => {
-  const [showReadinessPopover, setShowReadinessPopover] = useState(false)
-  const roleLabel = role === 'reference' ? 'Reference' : role === 'current' ? 'Current' : 'Custom'
+  const [cloneMenuOpen, setCloneMenuOpen] = useState(false)
+  const [expandedWarningCategory, setExpandedWarningCategory] = useState<string | null>(null)
+  const prepareRegionRef = useRef<HTMLDivElement>(null)
+  const prepareTriggerRef = useRef<HTMLButtonElement>(null)
+
+  const roleLabel = roleLabels[role]
+  const isSaved = saveStates[role] === 'Saved'
+
+  useEffect(() => {
+    if (isPrepareDatasetOpen) prepareTriggerRef.current?.focus()
+  }, [isPrepareDatasetOpen])
+
+  useEffect(() => {
+    if (!isPrepareDatasetOpen) return
+    const handlePointerDown = (event: PointerEvent) => {
+      if (!prepareRegionRef.current?.contains(event.target as Node)) {
+        onPrepareDatasetOpenChange(false)
+      }
+    }
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        event.preventDefault()
+        onPrepareDatasetOpenChange(false)
+        prepareTriggerRef.current?.focus()
+      }
+    }
+    document.addEventListener('pointerdown', handlePointerDown)
+    document.addEventListener('keydown', handleKeyDown)
+    return () => {
+      document.removeEventListener('pointerdown', handlePointerDown)
+      document.removeEventListener('keydown', handleKeyDown)
+    }
+  }, [isPrepareDatasetOpen, onPrepareDatasetOpenChange])
 
   const handleExportDataset = async () => {
     if (!lastSavedSnapshot) return
     const { exportSnapshotToExcel } = await import('../../../services/excel/snapshot-export')
     const blob = await exportSnapshotToExcel(lastSavedSnapshot)
-    const savedProductName = lastSavedSnapshot.product.productName || lastSavedSnapshot.product.productDescription || 'PRODUCT'
-    const fileProductName = savedProductName.replace(/[<>:"/\\|?*\u0000-\u001F]/g, '-').trim() || 'PRODUCT'
+    const fileProductName = (lastSavedSnapshot.product.productName || 'Product')
+      .replace(/[<>:"/\\|?*\u0000-\u001F]/g, '-').trim() || 'Product'
     downloadBlob(blob, `Dataset_${fileProductName}_${roleLabel}.xlsx`)
-  }
-
-  const isCurrent = role === 'current'
-  const isReference = role === 'reference'
-  const masterDataRoles: MasterDataRole[] = ['reference', 'current', 'custom']
-
-  const handleCloneFrom = (sourceRole: MasterDataRole) => {
-    if (sourceRole === role) return
-    if (hasEnteredMasterData(snapshot) && !window.confirm(
-      `Replace ${roleLabel} Working with ${sourceRole} data? Last Saved will remain unchanged.`
-    )) return
-    onCloneFrom(sourceRole)
-  }
-
-  const handleClearDatasetWithConfirm = () => {
-    const ok = window.confirm('Clear all data on ' + roleLabel + '? Remark, Product, Work Centers, BOM, Routing, and row setup for ' + roleLabel + ' will be reset.')
-    if (!ok) return
-    onClearDataset()
   }
 
   const handleResetDatasetWithConfirm = () => {
     if (!lastSavedSnapshot) return
-    const ok = window.confirm(`Reset ${roleLabel} Working to its Last Saved copy? Unsaved changes on this side will be lost.`)
-    if (!ok) return
-    onResetWorkingDataset()
+    const ok = window.confirm(`Reset ${roleLabel} dataset? Unsaved working changes will be discarded and the dataset will return to its last saved state.`)
+    if (ok) onResetWorkingDataset()
+  }
+
+  const handleClearDatasetWithConfirm = () => {
+    const ok = window.confirm(`Clear ${roleLabel} dataset? Current working data will be cleared. The last saved dataset will remain available.`)
+    if (ok) onClearDataset()
   }
 
   return (
     <section className="sticky top-0 z-40 overflow-visible border border-slate-300 bg-white" aria-label="Working dataset controls">
       <div role="toolbar" aria-label="Dataset and table actions" className="flex flex-wrap items-center gap-1 border-b border-slate-300 bg-white px-1.5 py-1">
-      <div className="contents">
-        <div className="contents">
-          <div className="inline-flex shrink-0 border border-slate-300 bg-white p-0.5" role="group" aria-label="Master Data workspace">
-            <button
-              type="button"
-              aria-pressed={isReference}
-              onClick={() => onRoleChange('reference')}
-              className={'flex min-h-8 items-center px-2 text-xs font-medium transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-blue-700 ' +
-                (isReference ? 'bg-slate-900 text-white' : 'text-slate-700 hover:bg-slate-100 hover:text-slate-950')}
-            >
-              Reference
-            </button>
-            <button
-              type="button"
-              aria-pressed={isCurrent}
-              onClick={() => onRoleChange('current')}
-              className={'flex min-h-8 items-center px-2 text-xs font-medium transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700 ' +
-                (isCurrent ? 'bg-slate-900 text-white' : 'text-slate-700 hover:bg-slate-100 hover:text-slate-950')}
-            >
-              Current
-            </button>
-            <button
-              type="button"
-              aria-pressed={role === 'custom'}
-              onClick={() => onRoleChange('custom')}
-              className={'flex min-h-8 items-center px-2 text-xs font-medium transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700 ' +
-                (role === 'custom' ? 'bg-slate-900 text-white' : 'text-slate-700 hover:bg-slate-100 hover:text-slate-950')}
-            >
-              Custom
-            </button>
-          </div>
+        <div className="inline-flex shrink-0 border border-slate-300 bg-white p-0.5" role="group" aria-label="Master Data workspace">
+          {roles.map(datasetRole => {
+            const selected = role === datasetRole
+            const state = saveStates[datasetRole]
+            return (
+              <button
+                key={datasetRole}
+                type="button"
+                aria-pressed={selected}
+                aria-label={`${roleLabels[datasetRole]} — ${state}`}
+                title={state}
+                onClick={() => onRoleChange(datasetRole)}
+                className={'flex min-h-8 items-center gap-1.5 px-2 text-xs font-medium transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-blue-700 ' +
+                  (selected ? 'bg-slate-900 text-white' : 'text-slate-700 hover:bg-slate-100 hover:text-slate-950')}
+              >
+                {roleLabels[datasetRole]}
+                <span aria-hidden="true" className={`h-1.5 w-1.5 rounded-full ${state === 'Saved' ? 'bg-emerald-400' : 'bg-slate-400'}`} />
+              </button>
+            )
+          })}
         </div>
 
-        <div className="relative order-10 flex shrink-0 items-center">
-          <button
-            type="button"
-            onClick={() => setShowReadinessPopover(!showReadinessPopover)}
-            aria-expanded={showReadinessPopover}
-            aria-controls="dataset-readiness-panel"
-            aria-label={(handoff.datasetsPrepared ? 'Datasets prepared' : 'Datasets need input') + ' — view preparation status'}
-            className={'inline-flex h-8 w-8 items-center justify-center border transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700 ' +
-              (handoff.datasetsPrepared
-                ? 'border-blue-300 bg-blue-50 text-slate-900 hover:bg-blue-100'
-                : 'border-amber-300 bg-amber-50 text-slate-900 hover:bg-amber-100')}
-            title="Click to view readiness status details"
-          >
-            {handoff.datasetsPrepared
-              ? <CheckCircle2 className="h-4 w-4 text-blue-700" aria-hidden="true" />
-              : <AlertTriangle className="h-4 w-4 text-amber-700" aria-hidden="true" />}
-          </button>
-
-          {showReadinessPopover && (
-            <div
-              id="dataset-readiness-panel"
-              role="region"
-              aria-label="Dataset preparation status"
-              className="absolute right-0 top-full z-50 mt-2 w-[min(22rem,calc(100vw-2rem))] border border-slate-300 bg-white p-4 text-sm text-slate-800 shadow-lg"
-            >
-              <div className="flex items-center justify-between gap-3 border-b border-slate-200 pb-2">
-                <h2 className="flex items-center gap-2 text-sm font-semibold text-slate-950">
-                  <Info aria-hidden="true" className="h-4 w-4 text-slate-500" />
-                  Dataset preparation
-                </h2>
-                <button
-                  type="button"
-                  onClick={() => setShowReadinessPopover(false)}
-                  aria-label="Close dataset preparation status"
-                  className="grid h-9 w-9 place-items-center text-slate-600 transition-colors hover:bg-slate-100 hover:text-slate-950 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700"
-                >
-                  <X aria-hidden="true" className="h-4 w-4" />
-                </button>
-              </div>
-
-              <dl className="mt-3 space-y-2">
-                <div className="flex items-center justify-between gap-3">
-                  <dt className="text-slate-600">Reference</dt>
-                  <dd className={'font-medium ' + (handoff.referenceReady ? 'text-blue-800' : 'text-amber-800')}>
-                    {handoff.referenceReady ? 'Prepared' : 'Needs input'}
-                  </dd>
-                </div>
-                <div className="flex items-center justify-between gap-3">
-                  <dt className="text-slate-600">Current</dt>
-                  <dd className={'font-medium ' + (handoff.currentReady ? 'text-blue-800' : 'text-amber-800')}>
-                    {handoff.currentReady ? 'Prepared' : 'Needs input'}
-                  </dd>
-                </div>
-              </dl>
-
-              <p className="mt-3 border-t border-slate-200 pt-3 text-xs leading-5 text-slate-600">
-                Preparation shows whether each side has been entered or imported. Missing cost inputs remain visible on Cost Breakdown and do not block navigation.
-              </p>
-
-              {handoff.issues.length > 0 && (
-                <div className="mt-3 border-t border-slate-200 pt-3">
-                  <h3 className="text-xs font-semibold text-rose-800">Preparation notes</h3>
-                  <ul className="mt-1 list-disc space-y-1 pl-4 text-xs text-rose-800">
-                    {handoff.issues.map(issue => <li key={issue}>{issue}</li>)}
-                  </ul>
-                </div>
-              )}
-
-              {handoff.warnings && handoff.warnings.length > 0 && (
-                <div className="mt-3 border-t border-slate-200 pt-3">
-                  <h3 className="text-xs font-semibold text-amber-800">Notices</h3>
-                  <ul className="mt-1 list-disc space-y-1 pl-4 text-xs text-amber-800">
-                    {handoff.warnings.map(warning => <li key={warning}>{warning}</li>)}
-                  </ul>
-                </div>
-              )}
-
-              {developmentAction && (
-                <div className="mt-3 border-t border-slate-200 pt-3">
-                  {developmentAction}
-                </div>
-              )}
-            </div>
-          )}
-        </div>
-      </div>
-
-      <div className="contents">
         <div className="inline-flex shrink-0 border border-slate-300 bg-white p-0.5" role="group" aria-label="View or edit dataset">
           <button
             type="button"
@@ -244,8 +183,7 @@ export const MasterDataWorkspaceHeader: React.FC<MasterDataWorkspaceHeaderProps>
             className={'inline-flex min-h-7 items-center gap-1 px-1.5 text-[11px] font-medium transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-blue-700 ' +
               (!isEditMode ? 'bg-slate-900 text-white' : 'text-slate-700 hover:bg-slate-100')}
           >
-            <Eye className="h-3.5 w-3.5" aria-hidden="true" />
-            View
+            <Eye className="h-3.5 w-3.5" aria-hidden="true" /> View
           </button>
           <button
             type="button"
@@ -254,83 +192,82 @@ export const MasterDataWorkspaceHeader: React.FC<MasterDataWorkspaceHeaderProps>
             className={'inline-flex min-h-7 items-center gap-1 px-1.5 text-[11px] font-medium transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-blue-700 ' +
               (isEditMode ? 'bg-slate-900 text-white' : 'text-slate-700 hover:bg-slate-100')}
           >
-            <Edit3 className="h-3.5 w-3.5" aria-hidden="true" />
-            Edit
+            <Edit3 className="h-3.5 w-3.5" aria-hidden="true" /> Edit
           </button>
         </div>
 
         <button type="button" onClick={onOpenSizingModal} className={toolbarButton} title="Configure dataset row starting counts">
-          <Sliders className="h-3.5 w-3.5 text-slate-500" aria-hidden="true" />
-          Sizing
+          <Sliders className="h-3.5 w-3.5 text-slate-500" aria-hidden="true" /> Sizing
+        </button>
+        <button type="button" onClick={onOpenImportModal} className={toolbarButton} title="Import Excel file into selected dataset">
+          <Upload className="h-3.5 w-3.5 text-slate-500" aria-hidden="true" /> Import
         </button>
 
-        <div className="inline-flex divide-x divide-slate-300 border border-slate-300 bg-white">
-          <button type="button" onClick={onOpenImportModal} className={toolbarButton + ' border-0'} title="Import Excel file into selected dataset">
-            <Upload className="h-3.5 w-3.5 text-slate-500" aria-hidden="true" />
-            Import
-          </button>
+        <div className="relative shrink-0">
           <button
             type="button"
-            onClick={handleExportDataset}
-            disabled={!lastSavedSnapshot}
-            className={toolbarButton + ' border-0 disabled:cursor-not-allowed disabled:opacity-45 cursor-pointer'}
-            title={lastSavedSnapshot ? 'Export Last Saved dataset to Excel' : 'Save this dataset before exporting'}
+            onClick={() => setCloneMenuOpen(open => !open)}
+            aria-expanded={cloneMenuOpen}
+            className={toolbarButton}
           >
-            <Download className="h-3.5 w-3.5 text-slate-500" aria-hidden="true" />
-            Export
+            <Copy className="h-3.5 w-3.5 text-slate-500" aria-hidden="true" /> Clone
           </button>
+          {cloneMenuOpen && (
+            <div role="group" aria-label={`Clone ${roleLabel} from`} className="absolute left-0 top-full z-50 mt-1 min-w-36 border border-slate-300 bg-white p-1 shadow-lg">
+              <p className="px-2 py-1 text-[10px] font-semibold uppercase tracking-wide text-slate-500">Select source</p>
+              {roles.filter(sourceRole => sourceRole !== role).map(sourceRole => (
+                <button
+                  key={sourceRole}
+                  type="button"
+                  onClick={() => {
+                    onCloneFrom(sourceRole)
+                    setCloneMenuOpen(false)
+                  }}
+                  className="block min-h-8 w-full px-2 text-left text-xs text-slate-800 hover:bg-slate-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-700"
+                >
+                  {roleLabels[sourceRole]}
+                </button>
+              ))}
+            </div>
+          )}
         </div>
-
-        <label className="inline-flex min-h-8 shrink-0 items-center gap-1 border border-slate-300 bg-white px-1.5 text-[11px] font-medium text-slate-700 focus-within:outline focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-blue-700">
-          <Copy className="h-3.5 w-3.5 text-slate-500" aria-hidden="true" />
-          <span>Clone From</span>
-          <select
-            aria-label={`Clone ${roleLabel} from`}
-            value=""
-            onChange={event => {
-              const sourceRole = event.target.value as MasterDataRole
-              if (sourceRole) handleCloneFrom(sourceRole)
-            }}
-            className="min-h-7 max-w-32 border-0 bg-transparent pl-0.5 text-[11px] font-medium text-slate-700 focus:outline-none"
-          >
-            <option value="" disabled>Select source</option>
-            {masterDataRoles.filter(sourceRole => sourceRole !== role).map(sourceRole => (
-              <option key={sourceRole} value={sourceRole}>
-                {sourceRole === 'reference' ? 'Reference' : sourceRole === 'current' ? 'Current' : 'Custom'}
-              </option>
-            ))}
-          </select>
-        </label>
 
         <button
           type="button"
           onClick={handleResetDatasetWithConfirm}
           disabled={!lastSavedSnapshot}
-          className={toolbarButton + ' disabled:cursor-not-allowed disabled:opacity-45 cursor-pointer'}
-          title={lastSavedSnapshot ? 'Reset selected Working dataset from Last Saved' : 'No Last Saved state exists for this dataset'}
+          className={toolbarButton + ' disabled:cursor-not-allowed disabled:opacity-45'}
+          title={lastSavedSnapshot ? `Reset ${roleLabel} Working from Last Saved` : 'No Last Saved state exists for this dataset'}
         >
-          <RotateCcw className="h-3.5 w-3.5" aria-hidden="true" />
-          Reset
+          <RotateCcw className="h-3.5 w-3.5 text-slate-500" aria-hidden="true" /> Reset
         </button>
-
         <button
           type="button"
           onClick={handleClearDatasetWithConfirm}
           className="inline-flex min-h-8 shrink-0 items-center justify-center gap-1 border border-rose-300 bg-rose-50 px-1.5 text-[11px] font-medium text-rose-800 transition-colors hover:bg-rose-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-rose-700"
-          title={'Clear all data on ' + roleLabel}
+          title={`Clear ${roleLabel} Working data`}
         >
-          <Trash2 className="h-3.5 w-3.5 text-rose-700" aria-hidden="true" />
-          Clear
+          <Trash2 className="h-3.5 w-3.5 text-rose-700" aria-hidden="true" /> Clear
         </button>
-
         <button
           type="button"
           onClick={onSaveWorkingDataset}
-          className={toolbarButton + ' border-blue-300 bg-blue-50 font-semibold text-blue-800 hover:bg-blue-100 hover:text-blue-950'}
-          title={`Save ${roleLabel} Working as Last Saved`}
+          disabled={isSaved}
+          className={toolbarButton + (isSaved
+            ? ' border-slate-200 bg-slate-50 font-medium text-slate-500'
+            : ' border-blue-700 bg-blue-700 font-semibold text-white hover:bg-blue-800 hover:text-white')}
+          title={isSaved ? 'Working matches Last Saved' : `Save ${roleLabel} Working as Last Saved`}
         >
-          <Save className="h-3.5 w-3.5" aria-hidden="true" />
-          Save
+          <Save className="h-3.5 w-3.5" aria-hidden="true" /> Save
+        </button>
+        <button
+          type="button"
+          onClick={() => { void handleExportDataset() }}
+          disabled={!lastSavedSnapshot}
+          className={toolbarButton + ' disabled:cursor-not-allowed disabled:opacity-45'}
+          title={lastSavedSnapshot ? 'Export Last Saved dataset to Excel' : 'Save this dataset before exporting'}
+        >
+          <Download className="h-3.5 w-3.5 text-slate-500" aria-hidden="true" /> Export
         </button>
 
         <div className="inline-flex shrink-0 items-center gap-0.5 border border-slate-300 bg-white p-0.5" role="group" aria-label="Working edit history">
@@ -356,14 +293,144 @@ export const MasterDataWorkspaceHeader: React.FC<MasterDataWorkspaceHeaderProps>
           </button>
         </div>
 
-        <div className="ml-auto order-20 flex shrink-0 items-center">
-          {tableSelector}
+        {tableSelector}
+
+        <div ref={prepareRegionRef} className="relative ml-auto flex shrink-0 items-center">
+          <button
+            ref={prepareTriggerRef}
+            type="button"
+            onClick={() => onPrepareDatasetOpenChange(!isPrepareDatasetOpen)}
+            aria-expanded={isPrepareDatasetOpen}
+            aria-controls="prepare-dataset-panel"
+            className="inline-flex min-h-8 items-center gap-1.5 border border-slate-700 bg-slate-900 px-2 text-xs font-semibold text-white transition-colors hover:bg-slate-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700"
+          >
+            {handoff.datasetsPrepared
+              ? <CheckCircle2 className="h-3.5 w-3.5 text-emerald-300" aria-hidden="true" />
+              : <AlertTriangle className="h-3.5 w-3.5 text-amber-300" aria-hidden="true" />}
+            Prepare Dataset
+          </button>
+
+          {isPrepareDatasetOpen && (
+            <div
+              id="prepare-dataset-panel"
+              role="region"
+              aria-label="Prepare Dataset status and warnings"
+              className="absolute right-0 top-full z-50 mt-1 w-[min(30rem,calc(100vw-2rem))] border border-slate-300 bg-white p-3 text-sm text-slate-800 shadow-lg"
+            >
+              <div className="flex items-center justify-between gap-3 border-b border-slate-200 pb-2">
+                <h2 id="prepare-dataset-heading" className="flex items-center gap-2 text-sm font-semibold text-slate-950">
+                  <Info aria-hidden="true" className="h-4 w-4 text-slate-500" /> Prepare Dataset
+                </h2>
+                <button
+                  type="button"
+                  onClick={() => {
+                    onPrepareDatasetOpenChange(false)
+                    prepareTriggerRef.current?.focus()
+                  }}
+                  aria-label="Close Prepare Dataset"
+                  className="grid h-7 w-7 place-items-center text-slate-600 transition-colors hover:bg-slate-100 hover:text-slate-950 focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-700"
+                >
+                  <X aria-hidden="true" className="h-4 w-4" />
+                </button>
+              </div>
+
+              <div className="grid grid-cols-1 gap-x-4 border-b border-slate-200 py-2 sm:grid-cols-3" role="group" aria-label="Dataset save and preparation status">
+                {roles.map(datasetRole => {
+                  const saveState = saveStates[datasetRole]
+                  const ready = datasetRole === 'reference' ? handoff.referenceReady
+                    : datasetRole === 'current' ? handoff.currentReady : undefined
+                  return (
+                    <div key={datasetRole} className="flex flex-col gap-1 py-1">
+                      <span className="text-[11px] font-semibold text-slate-700">{roleLabels[datasetRole]}</span>
+                      <span className="inline-flex items-center gap-1.5 text-xs">
+                        <span aria-hidden="true" className={`h-1.5 w-1.5 rounded-full ${saveState === 'Saved' ? 'bg-emerald-600' : 'bg-slate-400'}`} />
+                        <span>{saveState}</span>
+                      </span>
+                      {ready !== undefined && (
+                        <span className={'text-xs ' + (ready ? 'text-emerald-800' : 'text-amber-800')}>
+                          {ready ? 'Prepared' : 'Needs input'}
+                        </span>
+                      )}
+                    </div>
+                  )
+                })}
+              </div>
+
+              {handoff.productMismatch && (
+                <div className="flex items-center justify-between gap-3 border-b border-slate-200 py-2 text-xs">
+                  <span className="font-medium text-slate-600">Comparison</span>
+                  <span className="font-semibold text-slate-800">Product Mismatch</span>
+                </div>
+              )}
+
+              <div className="pt-2">
+                <h3 className="mb-1 flex items-center gap-1.5 text-xs font-semibold text-amber-800">
+                  <AlertTriangle className="h-3.5 w-3.5" aria-hidden="true" /> Warnings {warningCount}
+                </h3>
+                {warningGroups.length === 0 ? (
+                  <p className="py-1 text-xs text-slate-500">No warnings.</p>
+                ) : (
+                  <ul className="divide-y divide-slate-100">
+                    {warningGroups.map(group => {
+                      const expanded = expandedWarningCategory === group.category
+                      const direct = group.items.length === 1
+                      return (
+                        <li key={group.category}>
+                          <button
+                            type="button"
+                            aria-expanded={!direct ? expanded : undefined}
+                            onClick={() => {
+                              if (direct) {
+                                onNavigateWarning(group.items[0])
+                                onPrepareDatasetOpenChange(false)
+                              } else {
+                                setExpandedWarningCategory(expanded ? null : group.category)
+                              }
+                            }}
+                            className="flex min-h-8 w-full items-center gap-2 py-1 text-left text-xs text-slate-800 hover:bg-slate-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-700"
+                          >
+                            <span className="w-6 shrink-0 text-right font-mono tabular-nums text-slate-600">{group.items.length}</span>
+                            <span className="min-w-0 flex-1">{group.label}</span>
+                            {direct
+                              ? <span className="w-4" aria-hidden="true" />
+                              : expanded
+                                ? <ChevronUp className="h-3.5 w-3.5 text-slate-500" aria-hidden="true" />
+                                : <ChevronDown className="h-3.5 w-3.5 text-slate-500" aria-hidden="true" />}
+                          </button>
+                          {expanded && !direct && (
+                            <ul className="mb-1 ml-8 border-l border-slate-200 pl-2">
+                              {group.items.map(item => (
+                                <li key={item.id}>
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      onNavigateWarning(item)
+                                      onPrepareDatasetOpenChange(false)
+                                    }}
+                                    className="min-h-7 w-full px-1 py-1 text-left text-[11px] text-slate-700 hover:bg-slate-50 hover:text-slate-950 focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-700"
+                                  >
+                                    {item.label}
+                                  </button>
+                                </li>
+                              ))}
+                            </ul>
+                          )}
+                        </li>
+                      )
+                    })}
+                  </ul>
+                )}
+              </div>
+
+              {mockAction && <div className="mt-2 border-t border-slate-200 pt-2">{mockAction}</div>}
+            </div>
+          )}
         </div>
-      </div>
+
       </div>
 
       <div className="px-1.5 py-2">
-        <dl className="grid min-w-0 grid-cols-1 gap-x-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
+        <dl className="grid min-w-0 grid-cols-1 gap-x-4 sm:grid-cols-2 xl:grid-cols-[3fr_1fr_2fr_1fr_4fr]">
           <div className="min-w-0 border-t border-slate-300 py-2">
             <dt className="font-sans text-[11px] font-medium tracking-wide text-slate-600">Product Name</dt>
             <dd className="mt-1 min-w-0">
@@ -371,14 +438,14 @@ export const MasterDataWorkspaceHeader: React.FC<MasterDataWorkspaceHeaderProps>
                 <input
                   type="text"
                   aria-label="Product Name"
-                  value={product.productName || product.productDescription || ''}
+                  value={product.productName || 'Product'}
                   onChange={event => onUpdateProduct({ ...product, productName: event.target.value, productDescription: event.target.value })}
-                  placeholder="Product Name"
+                  placeholder="Product"
                   className={fieldInput}
                 />
               ) : (
-                <span className="block truncate text-xs text-slate-950" title={product.productName || product.productDescription}>
-                  {product.productName || product.productDescription || '—'}
+                <span className="block truncate text-xs text-slate-950" title={product.productName || 'Product'}>
+                  {product.productName || 'Product'}
                 </span>
               )}
             </dd>
@@ -388,16 +455,16 @@ export const MasterDataWorkspaceHeader: React.FC<MasterDataWorkspaceHeaderProps>
             <dt className="font-sans text-[11px] font-medium tracking-wide text-slate-600">UOM</dt>
             <dd className="mt-1 min-w-0">
               {isEditMode ? (
-                <select
+                <input
+                  type="text"
                   aria-label="UOM"
-                  value={product.uom}
+                  value={product.uom || 'PC'}
                   onChange={event => onUpdateProduct({ ...product, uom: event.target.value })}
-                  className={fieldInput + ' cursor-pointer font-mono'}
-                >
-                  {uomList.map(unit => <option key={unit} value={unit}>{unit}</option>)}
-                </select>
+                  placeholder="PC"
+                  className={fieldInput + ' font-mono'}
+                />
               ) : (
-                <span className="block font-mono text-xs text-slate-950">{product.uom || '—'}</span>
+                <span className="block font-mono text-xs text-slate-950">{product.uom || 'PC'}</span>
               )}
             </dd>
           </div>
@@ -443,14 +510,14 @@ export const MasterDataWorkspaceHeader: React.FC<MasterDataWorkspaceHeaderProps>
           </div>
 
           <div className="min-w-0 border-t border-slate-300 py-2">
-            <dt className="font-sans text-[11px] font-medium tracking-wide text-slate-600">Dataset remark</dt>
+            <dt className="font-sans text-[11px] font-medium tracking-wide text-slate-600">Dataset Remark</dt>
             <dd className="mt-1 min-w-0">
               {isEditMode ? (
                 <input
                   type="text"
                   value={snapshot.remark || ''}
                   onChange={event => onUpdateRemark(event.target.value)}
-                  aria-label="Dataset remark"
+                  aria-label="Dataset Remark"
                   className={fieldInput}
                 />
               ) : (
@@ -459,7 +526,6 @@ export const MasterDataWorkspaceHeader: React.FC<MasterDataWorkspaceHeaderProps>
             </dd>
           </div>
         </dl>
-
       </div>
     </section>
   )

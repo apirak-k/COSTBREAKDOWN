@@ -6,6 +6,7 @@ export interface MasterDataHandoffStatus {
   datasetsPrepared: boolean
   issues: string[]
   warnings?: string[]
+  productMismatch: boolean
 }
 
 const roleLabels = {
@@ -33,7 +34,7 @@ function normalized(value: string | undefined): string {
 }
 
 /**
- * Reports which sides have been prepared and warns about a Product mismatch.
+ * Reports which sides have been prepared and exposes Product Mismatch as status.
  * Preparation is informational; missing inputs remain visible in Cost Breakdown.
  */
 export function evaluateMasterDataHandoff(
@@ -42,33 +43,24 @@ export function evaluateMasterDataHandoff(
 ): MasterDataHandoffStatus {
   const readiness = getSnapshotRoleReadiness(session)
   const issues: string[] = []
-  const warnings: string[] = []
 
   ;(['reference', 'current'] as const).forEach(role => {
     const label = roleLabels[role]
-    const snapshotName = (pair[role].product.productName || pair[role].product.productDescription).trim()
-
     if (!readiness[role]) {
       issues.push(`${label} dataset is not prepared yet.`)
     }
-
-    if (!snapshotName) {
-      warnings.push(`${label} Product Name is not specified.`)
-    }
   })
 
-  const refName = (pair.reference.product.productName || pair.reference.product.productDescription).trim()
-  const curName = (pair.current.product.productName || pair.current.product.productDescription).trim()
-
-  if (refName && curName && normalized(refName) !== normalized(curName)) {
-    warnings.push(`Product mismatch: Reference is "${refName}" while Current is "${curName}".`)
-  }
+  const refName = pair.reference.product.productName?.trim() || 'Product'
+  const curName = pair.current.product.productName?.trim() || 'Product'
+  const productMismatch = normalized(refName) !== normalized(curName)
 
   return {
     referenceReady: readiness.reference,
     currentReady: readiness.current,
     datasetsPrepared: issues.length === 0,
     issues,
-    warnings
+    warnings: [],
+    productMismatch
   }
 }

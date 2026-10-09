@@ -102,13 +102,13 @@ Do not promote an entry to a user decision based on implementation, test results
 - **Review trigger:** human visual acceptance, responsive review, or accessibility/usability findings.
 - **Related contract:** [`MASTER_DATA.md`](specs/MASTER_DATA.md#page-structure-and-metadata) and [`design.md`](../design.md).
 
-### P-010 — Determine Clone readiness from copied content under `Clone From`
+### P-010 — Determine Clone readiness from copied content
 
 - **Status:** `PROVISIONAL — AI CHOICE`
-- **Choice:** when executing `Clone From` (copying the chosen source Working state into the destination viewed Working state), mark the destination Prepared when it contains entered/imported metadata or business rows; ignore untouched generated Sizing placeholders and generated defaults alone. The destination status is recalculated from the copied snapshot and does not inherit the source readiness flag.
+- **Choice:** when executing `Clone` (copying the chosen source Working state into the destination viewed Working state), mark the destination Prepared when it contains entered/imported metadata or business rows; ignore untouched generated Sizing placeholders and generated defaults alone. The destination status is recalculated from the copied snapshot and does not inherit the source readiness flag.
 - **Why:** the user finalized that Clone must copy regardless of the source's readiness status and adopted the recommendation to recalculate destination readiness from the copied data.
 - **Must preserve:** Clone is never gated by source readiness; copies all source Working content and Sizing; does not overwrite destination Last Saved or mutate the source; does not alter calculation, comparison, or cost semantics.
-- **Reversible:** the readiness content-detection criterion can change if the user clarifies what should count as prepared; the generic `Clone From` behavior remains user-finalized.
+- **Reversible:** the readiness content-detection criterion can change if the user clarifies what should count as prepared; the generic Clone source/destination behavior remains user-finalized.
 - **Review trigger:** a later explicit user decision about readiness, or evidence that metadata/record detection mislabels a copied dataset.
 - **Related contract:** [`MASTER_DATA.md`](specs/MASTER_DATA.md#generic-clone-from-semantics).
 
@@ -135,7 +135,7 @@ Do not promote an entry to a user decision based on implementation, test results
 ## Product Decisions Are Complete (0 Pending Decisions)
 
 All product requirements and lifecycle boundaries are complete under the finalized authority chain:
-- **Master Data:** Reference, Current, and Custom datasets; `Clone From` semantics; structural changes owned by Master Data / Custom; exact Sizing row counts, truncation, blank row semantics, and Excel round-trip behavior.
+- **Master Data:** Reference, Current, and Custom datasets; Clone semantics; structural changes owned by Master Data / Custom; exact Sizing row counts, truncation, blank row semantics, and Excel round-trip behavior.
 - **CBD:** Compares Reference vs Current only; Full and Selected Comparison scopes; Process/Routing as processing Candidate; Work Center as calculation context.
 - **Candidate & RCA:** One RCA Case supports 1 or multiple Candidates; Root Cause / Why? and Action recorded at RCA Case level; RCA legitimately completes upon recording root cause and action; no duplicate RCA Note system.
 - **Simulation:** Parameter Simulation and Economic Simulation; Start SIM From Reference, Current, or Custom; structure locked in SIM; Factors to Simulate for editing visibility with live full-dataset recalculation; BOM and Routing parameters editable; Work Center rates not editable in SIM; Economic Simulation uses Action Cost and Evaluation Quantity; economics separate from Standard Cost (not folded into MAT/LB/BD); advisory feasibility result; flexible scenario count.

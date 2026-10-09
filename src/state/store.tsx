@@ -47,19 +47,15 @@ import {
   setMasterDataSnapshot
 } from './master-data-datasets'
 import { markMasterDataChanged, markMasterDataChangedForSnapshotPair } from './master-data-revision'
+import { normalizeMasterDataSnapshot } from '../core/utils/master-data-effective'
 import {
   createMasterDataEditHistory,
   recordMasterDataEdit,
   undoMasterDataEdit as takeMasterDataUndo,
   redoMasterDataEdit as takeMasterDataRedo,
   applyMasterDataEditHistoryEntry as restoreMasterDataEditHistoryEntry,
-  type MasterDataEditHistory,
   type MasterDataEditHistoryEntry
 } from './master-data-edit-history'
-import {
-  DEVELOPMENT_REVIEW_FIXTURE_ID,
-  resetDevelopmentReviewFixtureSession
-} from './development-review-fixture'
 import {
   INITIAL_MASTER_DATA_UI_STATE,
   reduceMasterDataUiState,
@@ -80,36 +76,42 @@ import {
 
 export const DEFAULT_UOMS = ['PC', 'SET', 'PANEL', 'GM', 'KG', 'SM', 'M', 'RL', 'L', 'BOX', 'TRAY']
 
-const DEVELOPMENT_REVIEW_RETURN_ID_KEY = 'cost_breakdown_dev_review_return_id'
-
 interface StoredSelectedComparison extends SelectedComparisonSelection {
   sourceFingerprint: string
+}
+
+function normalizeSnapshotPair(pair: SnapshotPair): SnapshotPair {
+  return {
+    reference: normalizeMasterDataSnapshot(pair.reference),
+    current: normalizeMasterDataSnapshot(pair.current)
+  }
 }
 
 function withSnapshotPair(session: ProductSession, explicitPair?: SnapshotPair): ProductSession {
   if (explicitPair) {
     return initializeCustomMasterData({
       ...session,
-      snapshotPair: explicitPair,
+      snapshotPair: normalizeSnapshotPair(explicitPair),
       snapshotPairMode: 'independent'
     })
   }
 
   if (session.snapshotPairMode === 'independent' && session.snapshotPair) {
     // Keep independent snapshots canonical; legacy fields are only a projection here.
-    return initializeCustomMasterData(applySnapshotPairToSession(session, session.snapshotPair))
+    return initializeCustomMasterData(applySnapshotPairToSession(session, normalizeSnapshotPair(session.snapshotPair)))
   }
 
   return initializeCustomMasterData({
     ...session,
-    snapshotPair: sessionToSnapshotPair(session),
+    snapshotPair: normalizeSnapshotPair(sessionToSnapshotPair(session)),
     snapshotPairMode: 'derived'
   })
 }
 
 function applyMasterDataSnapshotPair(session: ProductSession, pair: SnapshotPair): ProductSession {
-  const previousPair = session.snapshotPair ?? sessionToSnapshotPair(session)
-  return markMasterDataChangedForSnapshotPair(applySnapshotPairToSession(session, pair), previousPair, pair)
+  const previousPair = normalizeSnapshotPair(session.snapshotPair ?? sessionToSnapshotPair(session))
+  const nextPair = normalizeSnapshotPair(pair)
+  return markMasterDataChangedForSnapshotPair(applySnapshotPairToSession(session, nextPair), previousPair, nextPair)
 }
 
 function isMissingValue(value: unknown): boolean {
@@ -262,13 +264,16 @@ interface AppContextType {
   masterDataRole: MasterDataRole
   masterDataSnapshot: CostSnapshot
   masterDataLastSavedSnapshot?: CostSnapshot
+  masterDataLastSavedSnapshots: Partial<Record<MasterDataRole, CostSnapshot>>
   masterDataSizing: import('../core/types').DatasetSizing
-  isDevelopmentReviewFixture: boolean
+  masterDataPrepareDatasetRequested: boolean
   activeTab: ActiveTab
   uomList: string[]
 
   // Navigation
   setActiveTab: (tab: ActiveTab) => void
+  requestMasterDataPrepareDataset: () => void
+  consumeMasterDataPrepareDatasetRequest: () => void
 
   // Product session management
   createProductWithSizing: (config: ProductSizingConfig) => void
@@ -332,8 +337,7 @@ interface AppContextType {
   saveRcaCase: (id: string, draft: CandidateRcaDraft) => void
   importFromExcel: (result: ExcelImportResult) => void
   importSnapshotFromExcel: (result: SnapshotImportResult) => void
-  loadDevelopmentReviewFixture: (pair: SnapshotPair) => void
-  returnFromDevelopmentReviewFixture: () => void
+  loadDevelopmentMockData: (pair: SnapshotPair) => void
   resetToDefault: () => void
 
   clearAllData: () => void
@@ -396,6 +400,31 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     setMasterDataHistoryRevision(revision => revision + 1)
   }
 
+  const recordMasterDataPairWorkingEdit = (before: ProductSession, after: ProductSession) => {
+    const beforePair = normalizeSnapshotPair(before.snapshotPair ?? sessionToSnapshotPair(before))
+    const afterPair = normalizeSnapshotPair(after.snapshotPair ?? sessionToSnapshotPair(after))
+    const entry: MasterDataEditHistoryEntry = {
+      sessionId: before.id,
+      role: 'current',
+      before: cloneCostSnapshot(beforePair.current),
+      after: cloneCostSnapshot(afterPair.current),
+      beforePrepared: { ...getSnapshotRoleReadiness(before) },
+      afterPrepared: { ...getSnapshotRoleReadiness(after) },
+      beforeSizing: copyDatasetSizing(before.datasetSizing),
+      afterSizing: copyDatasetSizing(after.datasetSizing),
+      beforePair: {
+        reference: cloneCostSnapshot(beforePair.reference),
+        current: cloneCostSnapshot(beforePair.current)
+      },
+      afterPair: {
+        reference: cloneCostSnapshot(afterPair.reference),
+        current: cloneCostSnapshot(afterPair.current)
+      }
+    }
+    masterDataHistoryRef.current = recordMasterDataEdit(masterDataHistoryRef.current, entry)
+    setMasterDataHistoryRevision(revision => revision + 1)
+  }
+
   const [activeProductId, setActiveProductId] = useState<string>(() =>
     loadFromSession(STORAGE_KEYS.ACTIVE_ID, 'ps-empty-default')
   )
@@ -409,24 +438,10 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   )
 
   const [selectedComparisonScope, setSelectedComparisonScope] = useState<StoredSelectedComparison | null>(null)
-  const developmentReviewReturnStateRef = useRef<{
-    productId: string
-    history: MasterDataEditHistory
-    selectedComparisonScope: StoredSelectedComparison | null
-  } | null>(null)
-  const restoreDevelopmentReviewHistoryForProductIdRef = useRef<string | null>(null)
+  const [masterDataPrepareDatasetRequested, setMasterDataPrepareDatasetRequested] = useState(false)
 
   useEffect(() => {
-    const restoreForProductId = restoreDevelopmentReviewHistoryForProductIdRef.current
-    const returnState = developmentReviewReturnStateRef.current
-    if (restoreForProductId === activeProductId && returnState?.productId === activeProductId) {
-      masterDataHistoryRef.current = returnState.history
-      developmentReviewReturnStateRef.current = null
-      restoreDevelopmentReviewHistoryForProductIdRef.current = null
-    } else {
-      masterDataHistoryRef.current = createMasterDataEditHistory()
-    }
-    setMasterDataHistoryRevision(revision => revision + 1)
+    clearMasterDataEditHistory()
   }, [activeProductId])
 
   // Sync to sessionStorage
@@ -439,6 +454,12 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     setActiveTabState(tab)
     saveToSession(STORAGE_KEYS.ACTIVE_TAB, tab)
   }
+
+  const requestMasterDataPrepareDataset = () => {
+    setActiveTab('master')
+    setMasterDataPrepareDatasetRequested(true)
+  }
+  const consumeMasterDataPrepareDatasetRequest = () => setMasterDataPrepareDatasetRequested(false)
 
 
   const addUOM = (newUOM: string) => {
@@ -528,8 +549,17 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     custom: getMasterDataSnapshot(activeSession, snapshotPair, 'custom')
   }
   const masterDataLastSavedSnapshot = getLastSavedMasterData(activeSession, masterDataRole)?.snapshot
+  const masterDataLastSavedSnapshots: Partial<Record<MasterDataRole, CostSnapshot>> = {
+    reference: getLastSavedMasterData(activeSession, 'reference')?.snapshot,
+    current: getLastSavedMasterData(activeSession, 'current')?.snapshot,
+    custom: getLastSavedMasterData(activeSession, 'custom')?.snapshot
+  }
+  ;(['reference', 'current', 'custom'] as const).forEach(role => {
+    if (masterDataLastSavedSnapshots[role]) {
+      masterDataLastSavedSnapshots[role] = normalizeMasterDataSnapshot(masterDataLastSavedSnapshots[role]!)
+    }
+  })
   const masterDataSizing = getMasterDataSizing(activeSession, masterDataSnapshot, masterDataRole)
-  const isDevelopmentReviewFixture = activeProductId === DEVELOPMENT_REVIEW_FIXTURE_ID
 
   // Product Session Actions
   const createProductWithSizing = (config: ProductSizingConfig) => {
@@ -820,7 +850,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const pair = session.snapshotPair ?? sessionToSnapshotPair(session)
     const readiness = getSnapshotRoleReadiness(session)
     const currentDataset = getMasterDataSnapshot(session, pair, role)
-    let nextDataset = mutate(currentDataset)
+    let nextDataset = normalizeMasterDataSnapshot(mutate(currentDataset), currentDataset)
     if (role === 'custom' && nextDataset.comparisonRole) {
       const { comparisonRole: _comparisonRole, ...customDataset } = nextDataset
       nextDataset = customDataset
@@ -916,7 +946,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       ...existingRoleSizing,
       ...sizing
     }
-    const updatedSnapshot = resizeMasterDataSnapshotForSizing(currentDataset, nextRoleSizing, {
+    const resizedSnapshot = resizeMasterDataSnapshotForSizing(currentDataset, nextRoleSizing, {
         rate: (idx): SnapshotWorkCenterRate => ({
           id: `rate-size-${Date.now()}-${idx}`,
           isGeneratedSizingPlaceholder: true,
@@ -966,6 +996,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
           }
         })
     })
+    const updatedSnapshot = normalizeMasterDataSnapshot(resizedSnapshot, currentDataset)
     if (role === 'custom') {
       const updated = {
         ...session,
@@ -1281,7 +1312,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       const imported = importSnapshotForCustom(result.snapshot)
       const updated = {
         ...source,
-        customMasterData: imported.snapshot,
+        customMasterData: normalizeMasterDataSnapshot(imported.snapshot),
         customDatasetSizing: imported.sizing,
         updatedAt: now
       }
@@ -1313,53 +1344,26 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     setActiveTab('master')
   }
 
-  const loadDevelopmentReviewFixture = (pair: SnapshotPair) => {
+  const loadDevelopmentMockData = (pair: SnapshotPair) => {
     if (!import.meta.env.DEV) return
-
-    if (!isDevelopmentReviewFixture && !sessionStorage.getItem(DEVELOPMENT_REVIEW_RETURN_ID_KEY)) {
-      sessionStorage.setItem(DEVELOPMENT_REVIEW_RETURN_ID_KEY, activeProductId)
-      developmentReviewReturnStateRef.current = {
-        productId: activeProductId,
-        history: masterDataHistoryRef.current,
-        selectedComparisonScope
-      }
-    }
-
-    const source = productSessions.find(session => session.id === DEVELOPMENT_REVIEW_FIXTURE_ID) ??
-      makeEmptySession(DEVELOPMENT_REVIEW_FIXTURE_ID)
+    const source = activeSession
+    const beforePair = normalizeSnapshotPair(source.snapshotPair ?? sessionToSnapshotPair(source))
+    const nextPair = normalizeSnapshotPair(pair)
+    if (JSON.stringify(beforePair) === JSON.stringify(nextPair)) return
     const now = new Date().toISOString()
-    const updated = resetDevelopmentReviewFixtureSession(source, pair, now)
-
-    clearMasterDataEditHistory()
+    const updated = applyMasterDataSnapshotPair({
+      ...source,
+      datasetSizing: {
+        reference: { ...(nextPair.reference.sizing ?? { wcCount: nextPair.reference.rates.length, bomCount: nextPair.reference.bom.length, routingCount: nextPair.reference.routing.length }) },
+        current: { ...(nextPair.current.sizing ?? { wcCount: nextPair.current.rates.length, bomCount: nextPair.current.bom.length, routingCount: nextPair.current.routing.length }) }
+      },
+      preparedSnapshotRoles: { ...getSnapshotRoleReadiness(source), reference: true, current: true },
+      updatedAt: now
+    }, nextPair)
     setSelectedComparisonScope(null)
-    setProductSessions(prev => prev.some(session => session.id === source.id)
-      ? prev.map(session => session.id === source.id ? updated : session)
-      : [...prev, updated])
-    setActiveProductId(DEVELOPMENT_REVIEW_FIXTURE_ID)
+    setProductSessions(previous => previous.map(session => session.id === source.id ? updated : session))
+    recordMasterDataPairWorkingEdit(source, updated)
     setActiveTab('master')
-  }
-
-  const returnFromDevelopmentReviewFixture = () => {
-    if (!import.meta.env.DEV) return
-
-    const previousId = sessionStorage.getItem(DEVELOPMENT_REVIEW_RETURN_ID_KEY)
-    sessionStorage.removeItem(DEVELOPMENT_REVIEW_RETURN_ID_KEY)
-    if (previousId && productSessions.some(session => session.id === previousId)) {
-      const returnState = developmentReviewReturnStateRef.current
-      restoreDevelopmentReviewHistoryForProductIdRef.current = returnState?.productId === previousId
-        ? previousId
-        : null
-      setSelectedComparisonScope(returnState?.productId === previousId
-        ? returnState.selectedComparisonScope
-        : null)
-      setActiveProductId(previousId)
-      setActiveTab('master')
-    } else {
-      developmentReviewReturnStateRef.current = null
-      restoreDevelopmentReviewHistoryForProductIdRef.current = null
-      setSelectedComparisonScope(null)
-      clearMasterDataEditHistory()
-    }
   }
 
   const resetToDefault = () => {
@@ -1422,11 +1426,14 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       masterDataRole,
       masterDataSnapshot,
       masterDataLastSavedSnapshot,
+      masterDataLastSavedSnapshots,
       masterDataSizing,
-      isDevelopmentReviewFixture,
+      masterDataPrepareDatasetRequested,
       activeTab,
       uomList,
       setActiveTab,
+      requestMasterDataPrepareDataset,
+      consumeMasterDataPrepareDatasetRequest,
       createProductWithSizing,
       updateProductSizing,
       switchProduct,
@@ -1482,8 +1489,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       saveRcaCase,
       importFromExcel,
       importSnapshotFromExcel,
-      loadDevelopmentReviewFixture,
-      returnFromDevelopmentReviewFixture,
+      loadDevelopmentMockData,
       resetToDefault,
       clearAllData
     }}>

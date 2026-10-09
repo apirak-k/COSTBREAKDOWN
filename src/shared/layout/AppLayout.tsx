@@ -2,13 +2,23 @@ import React, { ReactNode } from 'react'
 import { Navbar } from './Navbar'
 import { useAppStore } from '../../state'
 import { formatVariance } from '../../core'
+import { AlertTriangle } from 'lucide-react'
+import { buildMasterDataWarningItems } from '../../features/master-data/prepare-dataset'
 
 interface AppLayoutProps {
   children: ReactNode
 }
 
 export const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
-  const { snapshotPair, snapshotComparison, masterDataHandoff, isSelectedComparisonActive } = useAppStore()
+  const {
+    snapshotPair,
+    snapshotComparison,
+    masterDataHandoff,
+    masterDataSnapshots,
+    requestMasterDataPrepareDataset,
+    isSelectedComparisonActive
+  } = useAppStore()
+  const warningCount = buildMasterDataWarningItems(masterDataSnapshots).length
   const totalGap = snapshotComparison.totalGap
   const gapTextClass = totalGap === null
     ? 'text-slate-400'
@@ -61,6 +71,16 @@ export const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
               </span>
               <span className="ml-1 text-slate-500">THB/pc</span>
             </span>
+            <button
+              type="button"
+              onClick={requestMasterDataPrepareDataset}
+              aria-label={`Open Prepare Dataset: ${warningCount} warnings`}
+              title="Open Prepare Dataset"
+              className="inline-flex min-h-7 items-center gap-1 px-1 text-amber-300 transition-colors hover:text-amber-200 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-300"
+            >
+              <AlertTriangle className="h-3.5 w-3.5" aria-hidden="true" />
+              <span className="font-mono tabular-nums">{warningCount}</span>
+            </button>
           </div>
         </div>
       </footer>

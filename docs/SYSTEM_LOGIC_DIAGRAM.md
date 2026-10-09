@@ -14,7 +14,7 @@ MASTER DATA
   └─ Custom:    Metadata / BOM / Work Center / Routing
        (Free workspace: structural changes, sizing, alternatives, trial data)
   │
-  ├─ Clone From: Destination = Active dataset; Source = chosen dataset
+  ├─ Clone: Destination = Active dataset; Source = chosen dataset
   │
   ▼
 VALIDATE & CALCULATE DATASETS INDEPENDENTLY
@@ -91,7 +91,7 @@ flowchart TD
     master --> curData["CURRENT snapshot<br/>Metadata · BOM · WC · Routing"]
     master --> customData["CUSTOM snapshot (Free workspace)<br/>Structural edits · Sizing · Alternatives"]
 
-    master --> cloneAction["Clone From Action<br/>Destination = Active Dataset<br/>Source = Reference, Current, or Custom"]
+    master --> cloneAction["Clone Action<br/>Destination = Active Dataset<br/>Source = Reference, Current, or Custom"]
 
     refData --> refValidate["Validate Reference"]
     curData --> curValidate["Validate Current"]
@@ -142,7 +142,7 @@ flowchart TD
 
 ## Key Architectural Principles
 
-1. **Master Data Workspaces & Structural Ownership:** Master Data manages `Reference`, `Current`, and `Custom`. All structural additions, deletions, and sizing changes occur in Master Data / Custom. Datasets copy via `Clone From`.
+1. **Master Data Workspaces & Structural Ownership:** Master Data manages `Reference`, `Current`, and `Custom`. All structural additions, deletions, and sizing changes occur in Master Data / Custom. Datasets copy via `Clone`.
 2. **CBD Scope:** Cost Breakdown compares `Reference` vs `Current` only. `Custom` is never compared directly in CBD.
 3. **Selected Comparison Boundary:** Selected Comparison shapes the Candidate pool only. It ends when an RCA Case workspace or Simulation opens; downstream flows may retain origin context but never an active scope.
 4. **Multi-Candidate RCA:** One RCA Case supports one or multiple Candidates to account for complex multi-row engineering changes. RCA completes upon recording Root Cause and Action.
