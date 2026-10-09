@@ -1,7 +1,18 @@
 # Operational Task Ledger — Master Data Refresh and Selected Comparison
 
-> Operational history only; this is not a product requirement source or authorization for new feature work. Current behavior is consolidated under [`docs/specs/`](../docs/specs/); the original agreements remain valid evidence for finalized decisions unless a later explicit user decision supersedes them. Per-topic implementation/verification status is maintained only in [`source-crosswalk-80.md`](source-crosswalk-80.md).
-> **Final Logic supersession:** This task ledger records earlier implementation work. Its Work Center Candidate, Selected Scope through RCA/Simulation, Scenario A/B/C, economics-outside-Standard-Cost, and pending Selling Price/SG&A/OP statements are historical checkpoints only and are superseded by [`docs/specs/FINAL_LOGIC_SPEC.md`](../docs/specs/FINAL_LOGIC_SPEC.md). Do not treat those old tasks or checkboxes as current behavior or proof of conformance. Compatible Master Data, UX/UI, editing, keyboard, navigation, and workbook requirements remain valid.
+> **HISTORICAL OPERATIONAL TASK LEDGER — NOT CURRENT STATUS OR A WORK QUEUE.**
+> All phases, gates, tasks, and checkboxes below—including the earlier final integration
+> gate—preserve historical implementation evidence. Its status counts,
+> unchecked/OPEN/PARTIAL items, old `src/features/rca-simulation` paths, Work Center
+> Candidate behavior, Selected Comparison continuing through RCA/Simulation, combined
+> RCA/Simulation page, Trial lifecycle, and A/B-era flow are historical checkpoints.
+> Do not treat them as current behavior, conformance evidence, or new work
+> authorization; do not reopen old items automatically. Current completion status is
+> governed by the frozen 475-ID audit in
+> [`.planning/2026-10-09-final-logic-implementation/`](../.planning/2026-10-09-final-logic-implementation/)
+> and its [task plan](../.planning/2026-10-09-final-logic-implementation/task_plan.md).
+> Canonical product behavior is in [`docs/REQUIREMENTS_INDEX.md`](../docs/REQUIREMENTS_INDEX.md)
+> and [`docs/specs/`](../docs/specs/).
 
 ## Recorded Plan Revision — 2026-10-05
 

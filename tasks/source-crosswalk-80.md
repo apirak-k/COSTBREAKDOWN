@@ -1,5 +1,14 @@
 # 80-Topic Source Crosswalk
 
+> **HISTORICAL IMPLEMENTATION / VERIFICATION LEDGER — NOT CURRENT STATUS OR A WORK QUEUE.**
+> Counts, OPEN/PARTIAL rows, paths, and behavior checkpoints below record earlier audits
+> and implementation periods. This includes the old Work Center Candidate interpretation,
+> Selected Comparison continuing downstream, combined RCA/Simulation and Trial paths,
+> and A/B-era flow. Preserve these entries as historical evidence; do not reopen or
+> convert them into current work automatically. Current completion status is governed by
+> the frozen 475-ID audit in [`.planning/2026-10-09-final-logic-implementation/`](../.planning/2026-10-09-final-logic-implementation/)
+> and its [task plan](../.planning/2026-10-09-final-logic-implementation/task_plan.md).
+
 **Updated:** 2026-10-07
 
 **Role:** Traceability and status ledger only. This file is not a source of product requirements and is not an 80-feature implementation backlog.

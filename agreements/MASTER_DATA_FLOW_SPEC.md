@@ -1,6 +1,16 @@
 # Master Data Page — Agreed Flow and Behavior
 
-> EARLIER MASTER DATA DECISION SOURCE — Compatible finalized workflow decisions remain valid unless explicitly superseded. The later finalized Master Data source changes specific fields/identities, workbook shape, and export semantics; see `docs/REQUIREMENTS_INDEX.md` and `docs/specs/MASTER_DATA.md`. Do not treat the whole agreement as obsolete or infer that an omitted decision is `PENDING/TBD`.
+> **HISTORICAL MASTER DATA DECISION RECORD — PRESERVED FOR PROVENANCE, NOT CURRENT IMPLEMENTATION INSTRUCTIONS.**
+> This agreement describes a Reference/Current-only workspace and contains an older five-sheet workbook
+> schema, Routing identity by `Operation Code`, two-way Copy Reference/Current behavior, and
+> export-latest-Working semantics. Those conflicting behaviors are superseded and must **not** be
+> implemented: current Master Data has Reference, Current, and Custom; Routing identity is `Process`;
+> the workbook has four sheets; Clone From is generic; and Export uses Last Saved. Compatible workflow
+> decisions remain valid. Use
+> [`docs/REQUIREMENTS_INDEX.md`](../docs/REQUIREMENTS_INDEX.md),
+> [`docs/specs/FINAL_LOGIC_SPEC.md`](../docs/specs/FINAL_LOGIC_SPEC.md), and
+> [`docs/specs/MASTER_DATA.md`](../docs/specs/MASTER_DATA.md). The original body below is retained
+> as historical evidence.
 
 ## 1. Purpose
 

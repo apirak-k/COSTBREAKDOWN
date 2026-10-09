@@ -1,6 +1,14 @@
 # COSTBREAKDOWN — Comparison Principles
 
-> COMPARISON DECISION SOURCE — The agreed comparison rules here remain valid unless a later explicit user decision supersedes a specific behavior. A missing rule in `docs/specs/` is a migration gap, not by itself an open decision. This source contains an older Routing identity; the later approved identity is Routing `Process` as recorded in the current Master Data source and index.
+> **HISTORICAL COMPARISON DECISION RECORD — PRESERVED FOR PROVENANCE, NOT CURRENT IMPLEMENTATION INSTRUCTIONS.**
+> Compatible comparison principles remain valid, but this source's Routing identity by `Operation Code`
+> is superseded; current Routing identity is `Process`. Any other content that conflicts with the current
+> comparison or Candidate behavior must **not** be implemented. Use
+> [`docs/REQUIREMENTS_INDEX.md`](../docs/REQUIREMENTS_INDEX.md),
+> [`docs/specs/FINAL_LOGIC_SPEC.md`](../docs/specs/FINAL_LOGIC_SPEC.md),
+> [`docs/specs/COST_BREAKDOWN.md`](../docs/specs/COST_BREAKDOWN.md), and
+> [`docs/specs/CANDIDATE.md`](../docs/specs/CANDIDATE.md). The original body below is retained as
+> historical evidence.
 
 **Status:** Working Specification  
 **Scope:** Comparison logic only  

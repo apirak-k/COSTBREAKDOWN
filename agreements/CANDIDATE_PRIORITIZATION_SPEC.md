@@ -1,6 +1,13 @@
 # Candidate Prioritization Specification
 
-> FINALIZED DECISION RECORD — The finalized Candidate behavior in this agreement remains valid unless a later explicit user decision supersedes that specific behavior. If a decision is missing from `docs/specs/`, treat it as a migration gap, not `PENDING/TBD`. See `docs/REQUIREMENTS_INDEX.md` for source precedence.
+> **HISTORICAL DECISION RECORD — PRESERVED FOR PROVENANCE, NOT CURRENT IMPLEMENTATION INSTRUCTIONS.**
+> The older Work Center aggregation-as-Candidate model and the instruction to defer Candidate
+> selection for RCA are superseded. Current Candidates are BOM Material records and Routing
+> Process records; the user selects one or more Candidates for an RCA Case. Conflicting content
+> below must **not** be implemented. Use [`docs/REQUIREMENTS_INDEX.md`](../docs/REQUIREMENTS_INDEX.md),
+> [`docs/specs/FINAL_LOGIC_SPEC.md`](../docs/specs/FINAL_LOGIC_SPEC.md), and
+> [`docs/specs/CANDIDATE.md`](../docs/specs/CANDIDATE.md). The original body is retained as
+> historical evidence.
 
 **Status:** Finalized concept / behavior specification  
 **Scope:** Candidate Prioritization page only  

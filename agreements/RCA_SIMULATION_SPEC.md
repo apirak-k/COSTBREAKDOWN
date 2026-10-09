@@ -1,6 +1,14 @@
 # RCA & Simulation Specification
 
-> FINALIZED DECISION RECORD — The finalized RCA & Simulation behavior in this agreement remains valid unless a later explicit user decision supersedes that specific behavior. If a decision is missing from `docs/specs/`, treat it as a migration gap, not `PENDING/TBD`. See `docs/REQUIREMENTS_INDEX.md` for source precedence.
+> **HISTORICAL DECISION RECORD — PRESERVED FOR PROVENANCE, NOT CURRENT IMPLEMENTATION INSTRUCTIONS.**
+> This agreement describes a combined RCA & Simulation page, Candidate selection inside that page,
+> optional Root Cause/Action, mandatory Scenario A/B/C architecture, and a Trial handoff. Those
+> conflicting behaviors are superseded and must **not** be implemented. Use
+> [`docs/REQUIREMENTS_INDEX.md`](../docs/REQUIREMENTS_INDEX.md),
+> [`docs/specs/FINAL_LOGIC_SPEC.md`](../docs/specs/FINAL_LOGIC_SPEC.md),
+> [`docs/specs/CANDIDATE.md`](../docs/specs/CANDIDATE.md), and
+> [`docs/specs/SIMULATION.md`](../docs/specs/SIMULATION.md). The original body below is retained
+> as historical evidence.
 
 **Status:** Finalized concept / behavior specification  
 **Scope:** RCA & Simulation page only  

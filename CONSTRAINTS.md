@@ -12,13 +12,17 @@ The behavior contract is in the canonical specs indexed by docs/REQUIREMENTS_IND
 
 ## Scope boundaries
 
-- Follow the current Candidate/RCA (`docs/specs/CANDIDATE.md`) and Simulation (`docs/specs/SIMULATION.md`) specs. Where they say `PENDING/TBD`, do not infer behavior from the existing pages.
-- Master Data's agreed structural layout is in `docs/specs/MASTER_DATA.md`; other exact page layouts remain pending where the canonical specs say so.
+- Follow `docs/REQUIREMENTS_INDEX.md`, `docs/specs/FINAL_LOGIC_SPEC.md`, and the relevant current page specs. Older agreements and task records are provenance; do not implement content that conflicts with the current canonical specs.
+- Do not infer formulas or behaviors for metrics classified as OUT OF SCOPE. Preserve compatible finalized UI/interaction requirements; a later human visual review is a UI acceptance checkpoint, not an unresolved business requirement.
 
 ## Verification
 
-- Run npm run build for implementation changes.
-- Run npm run excel and relevant formula-parity checks when calculation or workbook behavior changes.
+- Run relevant canonical `scripts/verify_*` verifiers for the behavior being changed.
+- Run `npx tsc --noEmit --pretty false`, `npm run build`, and `git diff --check` for implementation changes.
 - Check comparison boundaries, missing values, zero values, added and removed records, ambiguous identities, and scenario isolation when those paths change.
+- `npm run excel` is specialized legacy model generation plus its verifier,
+  not canonical workbook verification. It can generate old operational-looking
+  workbook artifacts; run it only when specifically working on those legacy
+  model files.
 - Keep execution evidence distinct from human acceptance.
 - Do not add dependencies or test infrastructure without a concrete need.

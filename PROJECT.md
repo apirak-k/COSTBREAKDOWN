@@ -1,21 +1,37 @@
 # Project Context — Cost Breakdown
 
-> Current product behavior is defined by the canonical specifications listed in docs/REQUIREMENTS_INDEX.md. This file records implementation context and must not override those specifications.
+> Current product behavior is defined by the canonical specifications listed in
+> `docs/REQUIREMENTS_INDEX.md`. This file records implementation context and
+> must not override those specifications.
 
-## Product flow
+## Current architecture
 
-The agreed flow is:
+- **Master Data** prepares independent Reference, Current, and Custom datasets.
+- **Cost Breakdown (CBD)** compares Reference with Current. Custom is a
+  Master Data workspace, not a CBD comparison side.
+- **Candidate Prioritization** ranks eligible material (BOM) and processing
+  (Routing Process) findings from the active comparison scope.
+- **RCA Case** groups one or more selected Candidates and records Root Cause
+  and Action at Case level. RCA is complete without Simulation.
+- **Simulation** is an independent module that can be opened directly. The
+  user may also choose an optional RCA → Simulation handoff; the Case supplies
+  context and does not lock Simulation scope.
+- There is **no Trial lifecycle**.
 
-Master Data → Cost Breakdown / Comparison → Candidate Prioritization → RCA & Simulation → Trial.
-
-Product logic is governed by `docs/specs/FINAL_LOGIC_SPEC.md`; compatible page-specific requirements remain in the other canonical specs under `docs/specs/`. Final Logic supersedes older sources only where product logic conflicts. Compatible finalized decisions from agreements remain valid; only genuinely pending items in the canonical specs remain open.
+Product logic is governed by `docs/specs/FINAL_LOGIC_SPEC.md` and the
+compatible page-specific requirements listed in `docs/REQUIREMENTS_INDEX.md`.
+Final Logic supersedes older sources only where product logic conflicts;
+compatible finalized requirements remain valid. This file is implementation
+context, not a requirements authority.
 
 ## Application structure
 
 - Runtime and language: TypeScript, React 18, and Vite.
 - UI: Tailwind CSS and shared components.
 - Application entry: `src/main.tsx` and `src/App.tsx`.
-- Feature pages and feature-owned UI: `src/features/` (`master-data`, `cost-breakdown`, `candidate-selection`, and `rca-simulation`).
+- Active feature pages and feature-owned UI: `src/features/`
+  (`master-data`, `cost-breakdown`, `candidate-selection`, `rca`, and
+  `simulation`).
 - Domain types, calculations, and data migrations: `src/core/`.
 - Application state and dataset operations: `src/state/`.
 - Excel and browser-session storage integrations: `src/services/`.
@@ -26,9 +42,12 @@ Product logic is governed by `docs/specs/FINAL_LOGIC_SPEC.md`; compatible page-s
 
 ## Implementation context
 
-The code was developed under earlier specifications that used Product selection, dataset lifecycle states, and other behaviors that differ from the current user decisions. The 2026-09-23 handoff recorded role-aware Master Data work and downstream compatibility behavior under that earlier contract.
-
-Treat the existing implementation as a starting point to inspect against the current source decisions and consolidated specs. Do not treat earlier task completion, build output, or browser walkthroughs as acceptance of behavior.
+The active feature folders reflect the current Master Data, CBD, Candidate/RCA
+Case, and Simulation architecture. Older task records and agreement files
+preserve their original decisions as history; use the current canonical specs
+to resolve conflicts. Existing code, prior task completion, build output, and
+browser walkthroughs are implementation or verification evidence, not
+requirements authority or human acceptance.
 
 ## Calculation references
 

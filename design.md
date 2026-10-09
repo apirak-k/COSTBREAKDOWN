@@ -4,9 +4,10 @@
 > This file describes visual presentation; product behavior remains defined by
 > `docs/specs/`.
 
-**Implementation target:** the current working branch. At the time of this
-document's inspection, that was `codex/costbreakdown-spec-source`. Continue UI
-work on the current branch; do not switch to or merge `feature/taste-frontend-ui`.
+**Implementation target:** the active COSTBREAKDOWN implementation selected by
+the current task. This design contract is branch-agnostic. Keep
+`feature/taste-frontend-ui` as a read-only visual reference; do not switch to or
+merge it as the implementation target.
 
 **Read-only visual reference:** `feature/taste-frontend-ui` at
 `f873540a6fa2bd1564c070a1164f457857762752`. It is a visual/design-language
@@ -72,9 +73,9 @@ requirements:
   collapsed disclosure [`COST_BREAKDOWN.md`:L31-L50;
   `CROSS_CUTTING.md`:L64-L68].
 - Follow the finalized Selling Price, SG&A, and OP formulas in
-  [`FINAL_LOGIC_SPEC.md`](docs/specs/FINAL_LOGIC_SPEC.md). Keep only genuinely
-  pending business metrics explicitly unavailable; never fill a visual slot
-  with guessed values [`CROSS_CUTTING.md`](docs/specs/CROSS_CUTTING.md).
+  [`FINAL_LOGIC_SPEC.md`](docs/specs/FINAL_LOGIC_SPEC.md). Metrics classified as
+  OUT OF SCOPE remain unavailable and must not be implied; never fill a visual
+  slot with guessed values [`CROSS_CUTTING.md`](docs/specs/CROSS_CUTTING.md).
 - For a material finding, show the record-level comparison Gap and the changed
   inputs as Reference → Current details. Do not attach invented THB effects to
   Price, Usage, Loss, or another individual factor; do not repeat the whole
@@ -279,20 +280,22 @@ the top of its content scroll area, as required by
 
 ### Simulation, Candidate, and RCA presentation
 
-- **Simulation result overview:** integrate the live executive Result → Cause
-  → Detail view with Simulation. Do not add a separate Dashboard workflow or
-  repeat details available in Cost Breakdown and Candidate Prioritization.
-  Preserve the confirmed chart visual direction and keep genuinely pending
-  business metrics unavailable.
+- **Simulation result overview:** integrate the live Result → Cause → Detail
+  view with Simulation. Do not add a separate Dashboard workflow or repeat
+  details available in Cost Breakdown and Candidate Prioritization. Preserve
+  the confirmed chart visual direction, show finalized metrics when their
+  inputs permit, and omit metrics classified as OUT OF SCOPE.
 - **Candidate — PROVISIONAL — AI CHOICE:** a material finding may be displayed
   as one record-level monetary item with changed input details nested beneath
   it. This presentation is reversible; keep each changed factor visible as
   Reference → Current and never repeat the record Gap as a factor-level THB
   effect. Follow [`CANDIDATE.md`](docs/specs/CANDIDATE.md) for the actual
   finding/ranking behavior.
-- **RCA & Simulation:** visually distinguish Candidate findings, the multi-candidate RCA Case area, and Parameter/Economic Simulation dimensions. Do
-  not use the design to imply that a scenario is approved, promoted, or sent to
-  Trial automatically [`CANDIDATE.md`](docs/specs/CANDIDATE.md) and [`SIMULATION.md`](docs/specs/SIMULATION.md).
+- **Candidate, RCA Case, and Simulation:** visually distinguish Candidate
+  findings, the multi-candidate RCA Case area, and Parameter/Economic
+  Simulation dimensions. Do not imply scenario approval, promotion, or a Trial
+  lifecycle [`CANDIDATE.md`](docs/specs/CANDIDATE.md) and
+  [`SIMULATION.md`](docs/specs/SIMULATION.md).
 
 ### Responsive behavior and interaction
 
@@ -324,8 +327,9 @@ the top of its content scroll area, as required by
 5. Preserve honest calculation states, identity, comparison, selection,
    dataset, and scenario semantics while changing presentation. A visual slot
    does not authorize an invented formula, field attribution, persistence
-   rule, destructive action, or Trial workflow.
+   rule, destructive action, or approval/promotion lifecycle.
 6. Verify actual contrast, keyboard focus, reduced-motion behavior, and
    responsive table alignment during the UI pass. This document was created
    from source inspection; browser screenshot review and human visual
-   acceptance are still pending.
+   acceptance remain a later UI review checkpoint, not an unresolved business
+   requirement.
