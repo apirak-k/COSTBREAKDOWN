@@ -10,6 +10,7 @@ import {
 } from './features'
 import {
   createEmptySimulationState,
+  prepareSimulationForRcaHandoff,
   reconcileSimulationState,
   retainSimulationStatesForProducts,
   setSimulationEconomicInput,
@@ -20,7 +21,7 @@ import {
 import { updateSimulationParameter } from './features/simulation/simulation-engine'
 import type { SimulationFactor, SimulationParameter } from './features/simulation/simulation-state'
 import type { EconomicSimulationField } from './features/simulation/simulation-economics'
-import type { RcaSimulationHandoffContext } from './state/rca-cases'
+import { retainRcaSimulationHandoff, type RcaSimulationHandoffContext } from './state/rca-cases'
 import { loadFromSession, saveToSession, STORAGE_KEYS } from './services/storage'
 
 const AppRouter: React.FC = () => {
@@ -43,15 +44,13 @@ const AppRouter: React.FC = () => {
     () => reconcileSimulationState(storedSimulationState, masterDataSnapshots),
     [masterDataSnapshots, storedSimulationState]
   )
-  const simulationRcaContext = simulationRcaHandoff?.productId === activeProductId
+  const simulationRcaContext = activeTab === 'simulation' && simulationRcaHandoff?.productId === activeProductId
     ? simulationRcaHandoff.context
     : null
 
   useEffect(() => {
-    if (simulationRcaHandoff && (activeTab !== 'simulation' || simulationRcaHandoff.productId !== activeProductId)) {
-      setSimulationRcaHandoff(null)
-    }
-  }, [activeProductId, activeTab, simulationRcaHandoff])
+    setSimulationRcaHandoff(previous => retainRcaSimulationHandoff(previous, activeTab, activeProductId))
+  }, [activeProductId, activeTab])
 
   useEffect(() => {
     if (!storedSimulationState || simulationState === storedSimulationState) return
@@ -115,6 +114,10 @@ const AppRouter: React.FC = () => {
   }
 
   const proceedFromRcaToSimulation = (context: RcaSimulationHandoffContext) => {
+    setSimulationStatesByProduct(previous => ({
+      ...previous,
+      [activeProductId]: prepareSimulationForRcaHandoff(previous[activeProductId], masterDataSnapshots)
+    }))
     setSimulationRcaHandoff({ productId: activeProductId, context })
     setActiveTab('simulation')
   }

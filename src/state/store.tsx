@@ -33,6 +33,7 @@ import {
 import { createSelectedSnapshotPair, getCanonicalComparisonStatus, getComparisonFindingKey } from '../core'
 import type { MasterDataHandoffStatus } from '../core'
 import { hasEnteredMasterData, importSnapshotForCustom, importSnapshotForRole, markSizingPlaceholderEdited, resizeMasterDataSnapshotForSizing, synchronizeDatasetSizingToRows } from './dataset-sizing'
+import { normalizeActiveTab, type ActiveTab } from './active-tab'
 import { clearMasterDataDatasetState } from './clear-master-data-dataset'
 import { moveSnapshotRows } from './master-data-row-order'
 import { createRcaCaseForCandidates, migrateLegacyCandidateRcaRecords, saveRcaCaseRecord as updateRcaCaseRecord } from './rca-cases'
@@ -231,13 +232,6 @@ export function makeSeedSession(): ProductSession {
     createdAt: now,
     updatedAt: now
   }, seedSnapshotPair)
-}
-
-type ActiveTab = 'master' | 'breakdown' | 'candidate' | 'simulation'
-
-function normalizeActiveTab(value: unknown): ActiveTab {
-  if (value === 'dashboard' || value === 'rca') return 'simulation'
-  return value === 'breakdown' || value === 'candidate' || value === 'simulation' ? value : 'master'
 }
 
 interface AppContextType {

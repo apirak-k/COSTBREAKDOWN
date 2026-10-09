@@ -113,6 +113,14 @@ export function reconcileSimulationState(
   return factorsUnchanged && inputsUnchanged ? state : { ...state, selectedFactors, economicInputs }
 }
 
+export function prepareSimulationForRcaHandoff(
+  state: SimulationWorkspaceState | undefined,
+  sources: SimulationSources
+): SimulationWorkspaceState {
+  const current = reconcileSimulationState(state, sources)
+  return { ...createEmptySimulationState(), economicInputs: { ...current.economicInputs } }
+}
+
 export function setSimulationFactors(
   state: SimulationWorkspaceState,
   factors: SimulationFactor[]

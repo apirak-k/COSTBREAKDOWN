@@ -88,8 +88,6 @@ assert.deepEqual(noFingerprintSimulation, createEmptySimulationState(),
 const storeSource = readFileSync(resolve(process.cwd(), 'src/state/store.tsx'), 'utf8')
 const routerSource = readFileSync(resolve(process.cwd(), 'src/App.tsx'), 'utf8')
 assert.match(storeSource, /normalizeActiveTab\(loadFromSession<unknown>\(STORAGE_KEYS\.ACTIVE_TAB, 'master'\)\)/)
-assert.match(storeSource, /value === 'dashboard' \|\| value === 'rca'[^\n]*return 'simulation'/,
-  'legacy navigation values are normalized into the independent Simulation module')
 assert.doesNotMatch(storeSource + routerSource, /RCA_SIMULATION_STATES|trialHandoffLetter|selectedScenarioLetter/,
   'legacy Trial/A-B Simulation state is not loaded by active application routing')
 

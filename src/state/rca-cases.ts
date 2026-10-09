@@ -1,8 +1,17 @@
 import type { CandidateRcaDraft, ProductSession, RcaCaseRecord } from '../core/types/product.types'
+import type { ActiveTab } from './active-tab'
 
 export interface RcaSimulationHandoffContext extends CandidateRcaDraft {
   caseId: string
   candidateKeys: string[]
+}
+
+export function retainRcaSimulationHandoff<T extends { productId: string }>(
+  handoff: T | null,
+  activeTab: ActiveTab,
+  activeProductId: string
+): T | null {
+  return handoff && (activeTab !== 'simulation' || handoff.productId !== activeProductId) ? null : handoff
 }
 
 export function createRcaSimulationHandoffContext(
