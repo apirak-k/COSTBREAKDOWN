@@ -96,7 +96,7 @@ const incompleteFinding = incompleteComparison.bomFindings.find(row => row.curre
 assert.ok(incompleteFinding)
 assert.equal(incompleteFinding.matchStatus, 'matched')
 assert.equal(incompleteFinding.confidence, 'missing')
-assert.equal(getCanonicalComparisonStatus(incompleteFinding), null)
+assert.equal(getCanonicalComparisonStatus(incompleteFinding), 'CHANGED', 'changed inputs keep structural status when required cost is unavailable')
 assert.equal(incompleteFinding.costEffect?.gap.total, null)
 assert.equal(incompleteComparison.currentCost.total, null)
 
