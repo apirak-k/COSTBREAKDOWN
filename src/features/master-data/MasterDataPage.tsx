@@ -94,10 +94,12 @@ export const MasterDataPage: React.FC<MasterDataPageProps> = ({ searchQuery = ''
     getDatasetSaveState(masterDataSnapshots[role], masterDataLastSavedSnapshots[role])
   ])) as Record<MasterDataRole, ReturnType<typeof getDatasetSaveState>>, [masterDataSnapshots, masterDataLastSavedSnapshots])
 
-  const handleWarningNavigation = (item: MasterDataQualityItem) => {
+  const handleWarningNavigation = (item: MasterDataQualityItem, preserveAllView = false) => {
     setMasterDataRole(item.role)
     updateMasterDataUiState({ type: 'set-mode', mode: 'edit' })
-    updateMasterDataUiState({ type: 'set-table-view', tableView: item.table })
+    if (!preserveAllView || !isAllTablesVisible) {
+      updateMasterDataUiState({ type: 'set-table-view', tableView: item.table })
+    }
     setWarningNavigation(current => ({ ...item, requestId: (current?.requestId ?? 0) + 1 }))
   }
 
@@ -140,7 +142,7 @@ export const MasterDataPage: React.FC<MasterDataPageProps> = ({ searchQuery = ''
     const tableChromeProps = {
       warningCount: tableWarnings.length,
       blockerItems: tableBlockers,
-      onNavigateBlocker: handleWarningNavigation
+      onNavigateBlocker: (item: MasterDataQualityItem) => handleWarningNavigation(item, true)
     }
     if (table === 'wc') {
       return (
@@ -307,36 +309,35 @@ export const MasterDataPage: React.FC<MasterDataPageProps> = ({ searchQuery = ''
         onSearchQueryChange={onSearchQueryChange}
       />
 
-      <section className="overflow-hidden border border-slate-300 bg-white" aria-label="Working dataset tables">
-        <div
-          id="master-data-table-panel"
-          role="region"
-          aria-label={isAllTablesVisible ? 'All dataset tables' : `${activeSection?.label ?? 'Dataset'} table`}
-        >
-          {isAllTablesVisible
-            ? tableSections.map(section => (
-              <section
-                key={section.key}
-                id={section.id}
-                tabIndex={-1}
-                aria-label={section.label}
-                className="scroll-mt-20 border-b border-slate-300 last:border-b-0 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-blue-700"
-              >
-                {renderTable(section.key)}
-              </section>
-            ))
-            : activeSection && (
-              <section
-                id={activeSection.id}
-                tabIndex={-1}
-                aria-label={activeSection.label}
-                className="scroll-mt-20 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-blue-700"
-              >
-                {renderTable(activeSection.key)}
-              </section>
-            )}
-        </div>
-      </section>
+      <div
+        id="master-data-table-panel"
+        role="region"
+        aria-label={isAllTablesVisible ? 'All dataset tables' : `${activeSection?.label ?? 'Dataset'} table`}
+        className={isAllTablesVisible ? 'space-y-3' : ''}
+      >
+        {isAllTablesVisible
+          ? tableSections.map(section => (
+            <section
+              key={section.key}
+              id={section.id}
+              tabIndex={-1}
+              aria-label={section.label}
+              className="scroll-mt-20 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-blue-700"
+            >
+              {renderTable(section.key)}
+            </section>
+          ))
+          : activeSection && (
+            <section
+              id={activeSection.id}
+              tabIndex={-1}
+              aria-label={activeSection.label}
+              className="scroll-mt-20 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-blue-700"
+            >
+              {renderTable(activeSection.key)}
+            </section>
+          )}
+      </div>
 
       <ExcelImportModal
         isOpen={importModalOpen}

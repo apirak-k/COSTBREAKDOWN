@@ -1,17 +1,19 @@
 import React, { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import {
   AlertTriangle,
+  ArrowUpFromLine,
   CircleX,
   ChevronDown,
   ChevronRight,
   Copy,
-  Download,
+  Eye,
+  FileSpreadsheet,
+  Pencil,
   RotateCcw,
   Save,
   Search,
   Table2,
   Trash2,
-  Upload,
   X
 } from 'lucide-react'
 import { createPortal } from 'react-dom'
@@ -119,13 +121,11 @@ export const MasterDataWorkspaceHeader: React.FC<MasterDataWorkspaceHeaderProps>
   const [cloneMenuOpen, setCloneMenuOpen] = useState(false)
   const [expandedWarningCategory, setExpandedWarningCategory] = useState<string | null>(null)
   const [expandedBlockerCategory, setExpandedBlockerCategory] = useState<string | null>(null)
-  const [warningRoleFilter, setWarningRoleFilter] = useState<MasterDataRole | null>(null)
-  const [blockerRoleFilter, setBlockerRoleFilter] = useState<MasterDataRole | null>(null)
+  const [datasetRoleFilter, setDatasetRoleFilter] = useState<MasterDataRole | null>(null)
   const [prepareDatasetMaxHeight, setPrepareDatasetMaxHeight] = useState<number | null>(null)
   const preparePanelRef = useRef<HTMLDivElement>(null)
   const cloneContainerRef = useRef<HTMLDivElement>(null)
   const cloneTriggerRef = useRef<HTMLButtonElement>(null)
-  const suppressCloneFocusOpenRef = useRef(false)
 
   const roleLabel = roleLabels[role]
   const isSaved = saveStates[role] === 'Saved'
@@ -133,17 +133,17 @@ export const MasterDataWorkspaceHeader: React.FC<MasterDataWorkspaceHeaderProps>
   const datasetsReady = areMasterDataDatasetsReady(handoff, blockerItems)
   const datasetWarningCounts = countMasterDataWarningsByRole(allWarningItems)
   const datasetBlockerCounts = countMasterDataQualityByRole(blockerItems)
-  const visibleWarningGroups = (warningRoleFilter
-    ? warningGroups.map(group => ({ ...group, items: group.items.filter(item => item.role === warningRoleFilter) }))
+  const visibleWarningGroups = (datasetRoleFilter
+    ? warningGroups.map(group => ({ ...group, items: group.items.filter(item => item.role === datasetRoleFilter) }))
     : warningGroups).filter(group => group.items.length > 0)
-  const visibleBlockerGroups = (blockerRoleFilter
-    ? blockerGroups.map(group => ({ ...group, items: group.items.filter(item => item.role === blockerRoleFilter) }))
+  const visibleBlockerGroups = (datasetRoleFilter
+    ? blockerGroups.map(group => ({ ...group, items: group.items.filter(item => item.role === datasetRoleFilter) }))
     : blockerGroups).filter(group => group.items.length > 0)
-  const visibleWarningCount = warningRoleFilter
-    ? datasetWarningCounts[warningRoleFilter]
+  const visibleWarningCount = datasetRoleFilter
+    ? datasetWarningCounts[datasetRoleFilter]
     : warningCount
-  const visibleBlockerCount = blockerRoleFilter
-    ? datasetBlockerCounts[blockerRoleFilter]
+  const visibleBlockerCount = datasetRoleFilter
+    ? datasetBlockerCounts[datasetRoleFilter]
     : blockerCount
   const searchPlaceholder = tableView === 'all'
     ? 'Search all tables...'
@@ -174,11 +174,9 @@ export const MasterDataWorkspaceHeader: React.FC<MasterDataWorkspaceHeaderProps>
   const renderIssueSection = (kind: 'warning' | 'blocker') => {
     const isWarning = kind === 'warning'
     const groups = isWarning ? visibleWarningGroups : visibleBlockerGroups
-    const roleFilter = isWarning ? warningRoleFilter : blockerRoleFilter
     const visibleCount = isWarning ? visibleWarningCount : visibleBlockerCount
     const heading = isWarning ? warningHeadingLabel : blockerHeadingLabel
     const expandedCategory = isWarning ? expandedWarningCategory : expandedBlockerCategory
-    const setRoleFilter = isWarning ? setWarningRoleFilter : setBlockerRoleFilter
     const setExpandedCategory = isWarning ? setExpandedWarningCategory : setExpandedBlockerCategory
 
     return (
@@ -187,14 +185,14 @@ export const MasterDataWorkspaceHeader: React.FC<MasterDataWorkspaceHeaderProps>
           <h3 id={`prepare-dataset-${kind}-heading`} className="truncate text-xs font-semibold text-slate-800">{heading}</h3>
           <button
             type="button"
-            disabled={!roleFilter}
             aria-label={`Show all ${isWarning ? 'warnings' : 'blockers'}, ${visibleCount} currently shown`}
+            aria-pressed={!datasetRoleFilter}
             title={`Show all ${isWarning ? 'warnings' : 'blockers'}`}
             onClick={() => {
-              setRoleFilter(null)
+              setDatasetRoleFilter(null)
               setExpandedCategory(null)
             }}
-            className="h-6 text-right text-xs font-medium text-slate-600 hover:text-slate-950 disabled:cursor-default disabled:text-slate-400 focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-700"
+            className={`h-7 rounded-sm px-1 text-right text-xs font-medium focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-700 ${datasetRoleFilter ? 'text-slate-600 hover:bg-slate-50 hover:text-slate-950' : 'bg-slate-100 text-slate-800'}`}
           >
             All
           </button>
@@ -204,7 +202,6 @@ export const MasterDataWorkspaceHeader: React.FC<MasterDataWorkspaceHeaderProps>
             {groups.map(group => {
               const expanded = expandedCategory === group.category
               const items = group.items
-              const canExpand = items.length > 1
               const label = group.category === 'missing-value'
                 ? <>{group.label}<span aria-hidden="true" className="ml-1 font-bold text-rose-600">*</span></>
                 : group.label
@@ -212,27 +209,20 @@ export const MasterDataWorkspaceHeader: React.FC<MasterDataWorkspaceHeaderProps>
                 <li key={group.category}>
                   <button
                     type="button"
-                    aria-expanded={canExpand ? expanded : undefined}
-                    onClick={() => {
-                      if (items.length === 1) {
-                        onNavigateWarning(items[0])
-                        onPrepareDatasetOpenChange(false)
-                      } else {
-                        setExpandedCategory(expanded ? null : group.category)
-                      }
-                    }}
-                    className={`grid min-h-8 w-full grid-cols-[minmax(0,1fr)_2rem_1.5rem] items-center gap-2 py-1 pl-3 text-left text-xs text-slate-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-700 ${expanded ? 'bg-slate-100' : 'hover:bg-slate-50'}`}
+                    aria-expanded={expanded}
+                    onClick={() => setExpandedCategory(expanded ? null : group.category)}
+                    className={`grid min-h-7 w-full grid-cols-[minmax(0,1fr)_2rem_1.5rem] items-center gap-2 py-0.5 pl-3 text-left text-xs text-slate-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-700 ${expanded ? 'bg-slate-100' : 'hover:bg-slate-50'}`}
                   >
                     <span className="min-w-0 truncate">{label}</span>
-                    <span className={`w-full text-right font-mono tabular-nums ${isWarning ? 'text-amber-800' : 'text-rose-700'}`}>{items.length}</span>
+                    <span className="w-full text-right font-mono tabular-nums text-slate-600">{items.length}</span>
                     <span className="grid h-6 w-6 place-items-center" aria-hidden="true">
-                      {canExpand && (expanded
+                      {expanded
                         ? <ChevronDown className="h-3.5 w-3.5 text-slate-500" />
-                        : <ChevronRight className="h-3.5 w-3.5 text-slate-500" />)}
+                        : <ChevronRight className="h-3.5 w-3.5 text-slate-500" />}
                     </span>
                   </button>
-                  {expanded && canExpand && (
-                    <ul className="mb-1 ml-8 max-h-36 overflow-y-auto overscroll-contain border-l border-slate-200 pl-2">
+                  {expanded && (
+                    <ul className="mb-1 ml-8 border-l border-slate-200 pl-2">
                       {items.map(item => (
                         <li key={item.id}>
                           <button
@@ -271,9 +261,7 @@ export const MasterDataWorkspaceHeader: React.FC<MasterDataWorkspaceHeaderProps>
       if (event.key !== 'Escape') return
       event.preventDefault()
       setCloneMenuOpen(false)
-      suppressCloneFocusOpenRef.current = true
       cloneTriggerRef.current?.focus()
-      suppressCloneFocusOpenRef.current = false
     }
     document.addEventListener('pointerdown', handlePointerDown)
     document.addEventListener('keydown', handleKeyDown)
@@ -285,8 +273,7 @@ export const MasterDataWorkspaceHeader: React.FC<MasterDataWorkspaceHeaderProps>
 
   useEffect(() => {
     if (!prepareDatasetRequestMode) return
-    setWarningRoleFilter(null)
-    setBlockerRoleFilter(null)
+    setDatasetRoleFilter(null)
     setExpandedWarningCategory(null)
     setExpandedBlockerCategory(null)
   }, [prepareDatasetRequestMode])
@@ -410,45 +397,37 @@ export const MasterDataWorkspaceHeader: React.FC<MasterDataWorkspaceHeaderProps>
           })}
         </div>
 
-        <div className="relative inline-grid h-8 w-16 shrink-0 grid-cols-2 overflow-hidden border border-slate-300 bg-white" role="group" aria-label="View or edit dataset">
-          <span
-            aria-hidden="true"
-            className={`pointer-events-none absolute inset-y-0 left-0 w-1/2 bg-slate-900 transition-transform duration-150 ease-out ${isEditMode ? 'translate-x-full' : ''}`}
-          />
-          <button
-            type="button"
-            aria-pressed={!isEditMode}
-            aria-label="View"
-            title="View"
-            onClick={() => onToggleEditMode(false)}
-            className={`relative z-10 h-full min-w-0 text-[11px] font-medium transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-blue-700 ${!isEditMode ? 'text-white' : 'text-slate-700 hover:bg-slate-100'}`}
-          >
-            View
-          </button>
-          <button
-            type="button"
-            aria-pressed={isEditMode}
-            aria-label="Edit"
-            title="Edit"
-            onClick={() => onToggleEditMode(true)}
-            className={`relative z-10 h-full min-w-0 text-[11px] font-medium transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700 ${isEditMode ? 'text-white' : 'text-slate-700 hover:bg-slate-100'}`}
-          >
-            Edit
-          </button>
-        </div>
+        <button
+          type="button"
+          aria-pressed={!isEditMode}
+          aria-label="View"
+          title="View"
+          onClick={() => onToggleEditMode(false)}
+          className={`${toolbarButton} ${!isEditMode ? 'bg-slate-900 text-white hover:bg-slate-800 hover:text-white' : ''}`}
+        >
+          <Eye className="h-4 w-4" aria-hidden="true" />
+        </button>
+        <button
+          type="button"
+          aria-pressed={isEditMode}
+          aria-label="Edit"
+          title="Edit"
+          onClick={() => onToggleEditMode(true)}
+          className={`${toolbarButton} ${isEditMode ? 'bg-slate-900 text-white hover:bg-slate-800 hover:text-white' : ''}`}
+        >
+          <Pencil className="h-4 w-4" aria-hidden="true" />
+        </button>
 
         <div className="inline-flex shrink-0 items-center gap-1" role="group" aria-label="Master Data actions">
           <button type="button" onClick={onOpenSizingModal} className={toolbarButton} title="Sizing" aria-label="Sizing">
             <Table2 className="h-4 w-4" aria-hidden="true" />
           </button>
           <button type="button" onClick={onOpenImportModal} className={toolbarButton} title="Import" aria-label="Import">
-            <Upload className="h-4 w-4" aria-hidden="true" />
+            <FileSpreadsheet className="h-4 w-4" aria-hidden="true" />
           </button>
           <div
             ref={cloneContainerRef}
             className="relative shrink-0"
-            onMouseEnter={() => setCloneMenuOpen(true)}
-            onMouseLeave={() => setCloneMenuOpen(false)}
             onBlurCapture={event => {
               if (!event.currentTarget.contains(event.relatedTarget as Node | null)) setCloneMenuOpen(false)
             }}
@@ -456,8 +435,7 @@ export const MasterDataWorkspaceHeader: React.FC<MasterDataWorkspaceHeaderProps>
             <button
               ref={cloneTriggerRef}
               type="button"
-              onClick={() => setCloneMenuOpen(true)}
-              onFocus={() => { if (!suppressCloneFocusOpenRef.current) setCloneMenuOpen(true) }}
+              onClick={() => setCloneMenuOpen(open => !open)}
               aria-expanded={cloneMenuOpen}
               aria-haspopup="menu"
               aria-controls="clone-source-menu"
@@ -530,7 +508,7 @@ export const MasterDataWorkspaceHeader: React.FC<MasterDataWorkspaceHeaderProps>
             title={lastSavedSnapshot ? 'Export Last Saved' : 'No Last Saved dataset to export'}
             aria-label="Export"
           >
-            <Download className="h-4 w-4" aria-hidden="true" />
+            <ArrowUpFromLine className="h-4 w-4" aria-hidden="true" />
           </button>
         </div>
 
@@ -550,17 +528,17 @@ export const MasterDataWorkspaceHeader: React.FC<MasterDataWorkspaceHeaderProps>
 
         {isPrepareDatasetOpen && preparePortalRoot && createPortal(
           <div
-              ref={preparePanelRef}
-              id="prepare-dataset-panel"
-              role="region"
-              aria-label="Prepare Dataset status and warnings"
-              style={prepareDatasetMaxHeight === null ? undefined : {
-                maxHeight: `${prepareDatasetMaxHeight}px`,
-                ...(hasExpandedIssueCategory ? { height: `${prepareDatasetMaxHeight}px` } : {})
-              }}
-              className="flex max-h-[min(30rem,calc(100dvh-6rem))] w-[min(20rem,calc(100vw-2rem))] min-h-0 select-text flex-col overflow-hidden border border-slate-300 bg-white p-3 text-sm text-slate-800 shadow-lg"
-            >
-              <div className="flex min-h-8 shrink-0 items-center gap-1 min-[360px]:gap-2.5 sm:gap-3 border-b border-slate-200 pb-1">
+            ref={preparePanelRef}
+            id="prepare-dataset-panel"
+            role="region"
+            aria-label="Prepare Dataset status and warnings"
+            style={prepareDatasetMaxHeight === null ? undefined : {
+              maxHeight: `${prepareDatasetMaxHeight}px`,
+              ...(hasExpandedIssueCategory ? { height: `${prepareDatasetMaxHeight}px` } : {})
+            }}
+            className="flex max-h-[min(30rem,calc(100dvh-6rem))] w-[min(20rem,calc(100vw-2rem))] min-h-0 select-text flex-col overflow-hidden border border-slate-300 bg-white p-2 text-sm text-slate-800 shadow-lg"
+          >
+              <div className="flex min-h-8 shrink-0 items-center gap-1 border-b border-slate-200 pb-0.5 min-[360px]:gap-2 sm:gap-2.5">
                 <h2 id="prepare-dataset-heading" className="shrink-0 text-xs font-semibold text-slate-700">
                   Dataset
                 </h2>
@@ -574,10 +552,10 @@ export const MasterDataWorkspaceHeader: React.FC<MasterDataWorkspaceHeaderProps>
                 </span>
                 <span
                   aria-label={`Product ${comparisonStatus}`}
-                  className={`inline-flex min-h-7 items-center gap-1.5 whitespace-nowrap text-xs font-medium ${handoff.productMismatch ? 'text-orange-700' : 'text-emerald-700'}`}
+                  className={`inline-flex min-h-7 items-center gap-1.5 whitespace-nowrap text-xs font-medium ${handoff.productMismatch ? 'text-violet-700' : 'text-emerald-700'}`}
                 >
-                    <span aria-hidden="true" className={`h-2 w-2 shrink-0 rounded-full ${handoff.productMismatch ? 'bg-orange-500' : 'bg-emerald-600'}`} />
-                    Product {comparisonStatus}
+                  <span aria-hidden="true" className={`h-2 w-2 shrink-0 rounded-full ${handoff.productMismatch ? 'bg-violet-500' : 'bg-emerald-600'}`} />
+                  Product {comparisonStatus}
                 </span>
                 <button
                   type="button"
@@ -589,49 +567,50 @@ export const MasterDataWorkspaceHeader: React.FC<MasterDataWorkspaceHeaderProps>
                 </button>
               </div>
 
-              <div role="group" aria-label="Dataset save states, warning counts, and blocker counts" className="grid shrink-0 grid-cols-1 divide-y divide-slate-100 border-b border-slate-200 py-1">
+              <div role="group" aria-label="Dataset filters, save states, warning counts, and blocker counts" className="grid shrink-0 grid-cols-1 divide-y divide-slate-100 border-b border-slate-200 py-0.5">
                 {roles.map(datasetRole => {
                   const saveState = saveStates[datasetRole]
                   const datasetWarningCount = datasetWarningCounts[datasetRole]
                   const datasetBlockerCount = datasetBlockerCounts[datasetRole]
+                  const isFiltered = datasetRoleFilter === datasetRole
                   return (
-                    <div key={datasetRole} className={`grid h-8 w-full ${datasetSummaryColumns} items-center gap-2 rounded-sm`}>
+                    <button
+                      key={datasetRole}
+                      type="button"
+                      aria-label={`Filter warnings and blockers to ${roleLabels[datasetRole]}: ${saveState}, ${datasetWarningCount} warnings, ${datasetBlockerCount} blockers`}
+                      aria-pressed={isFiltered}
+                      title={`Filter warnings and blockers to ${roleLabels[datasetRole]}`}
+                      onClick={() => {
+                        setDatasetRoleFilter(current => current === datasetRole ? null : datasetRole)
+                        setExpandedWarningCategory(null)
+                        setExpandedBlockerCategory(null)
+                      }}
+                      className={`grid h-8 w-full ${datasetSummaryColumns} items-center gap-2 rounded-sm text-left transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-700 ${isFiltered ? 'bg-slate-100' : 'hover:bg-slate-50'}`}
+                    >
                       <span className="min-w-0 truncate pl-3 text-[11px] font-semibold text-slate-700">{roleLabels[datasetRole]}</span>
                       <span className="inline-flex min-w-0 items-center gap-1.5 whitespace-nowrap text-xs">
                         <span aria-hidden="true" className={datasetSaveStateDotClass(saveState, 'h-2 w-2')} />
                         <span>{saveState}</span>
                       </span>
-                      <button
-                        type="button"
-                        aria-label={`Filter warnings to ${roleLabels[datasetRole]}: ${datasetWarningCount}`}
-                        aria-pressed={warningRoleFilter === datasetRole}
-                        title={`Filter warnings to ${roleLabels[datasetRole]}`}
-                        onClick={() => { setWarningRoleFilter(datasetRole); setExpandedWarningCategory(null) }}
-                        className={`inline-flex h-7 items-center justify-end gap-1 rounded-sm px-1 font-mono text-xs tabular-nums focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-700 ${datasetWarningCount > 0 ? 'text-amber-800 hover:bg-amber-50' : 'text-slate-400 hover:bg-slate-50'} ${warningRoleFilter === datasetRole ? 'bg-slate-100' : ''}`}
-                      >
-                        <AlertTriangle className="h-3 w-3" aria-hidden="true" />{datasetWarningCount}
-                      </button>
-                      <button
-                        type="button"
-                        aria-label={`Filter blockers to ${roleLabels[datasetRole]}: ${datasetBlockerCount}`}
-                        aria-pressed={blockerRoleFilter === datasetRole}
-                        title={`Filter blockers to ${roleLabels[datasetRole]}`}
-                        onClick={() => { setBlockerRoleFilter(datasetRole); setExpandedBlockerCategory(null) }}
-                        className={`inline-flex h-7 items-center justify-end gap-1 rounded-sm px-1 font-mono text-xs tabular-nums focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-700 ${datasetBlockerCount > 0 ? 'text-rose-700 hover:bg-rose-50' : 'text-slate-400 hover:bg-slate-50'} ${blockerRoleFilter === datasetRole ? 'bg-slate-100' : ''}`}
-                      >
-                        <CircleX className="h-3 w-3" aria-hidden="true" />{datasetBlockerCount}
-                      </button>
-                    </div>
+                      <span className="inline-flex min-w-0 items-center justify-end gap-1 font-mono text-xs tabular-nums text-slate-600">
+                        <AlertTriangle className={`h-3 w-3 ${datasetWarningCount > 0 ? 'text-amber-700' : 'text-slate-400'}`} aria-hidden="true" />
+                        {datasetWarningCount}
+                      </span>
+                      <span className="inline-flex min-w-0 items-center justify-end gap-1 font-mono text-xs tabular-nums text-slate-600">
+                        <CircleX className={`h-3 w-3 ${datasetBlockerCount > 0 ? 'text-rose-700' : 'text-slate-400'}`} aria-hidden="true" />
+                        {datasetBlockerCount}
+                      </span>
+                    </button>
                   )
                 })}
               </div>
 
-              <div className={`flex min-h-0 ${hasExpandedIssueCategory ? 'flex-1' : 'shrink-0'} flex-col gap-1 pt-1`}>
+              <div className="flex min-h-0 flex-1 flex-col gap-0.5 overflow-y-auto overscroll-contain pt-0.5">
                 {renderIssueSection('warning')}
                 {renderIssueSection('blocker')}
               </div>
 
-              {mockAction && <div className="mt-auto shrink-0 border-t border-slate-200 pt-2">{mockAction}</div>}
+              {mockAction && <div className="mt-1 shrink-0 border-t border-slate-200 pt-1">{mockAction}</div>}
           </div>,
           preparePortalRoot
         )}

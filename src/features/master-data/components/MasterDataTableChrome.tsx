@@ -61,8 +61,8 @@ export const MasterDataTableFooter: React.FC<MasterDataTableFooterProps> = ({
     <span className="flex min-w-0 items-center justify-end gap-1.5 whitespace-nowrap tabular-nums">
       <span>{warningCount} {warningCount === 1 ? 'warning' : 'warnings'}</span>
       <span aria-hidden="true" className="text-slate-400">·</span>
-      <span className="inline-flex items-center gap-1 text-rose-700" aria-label={`${blockerCount} blockers`}>
-        <CircleX className="h-3 w-3" aria-hidden="true" /> {blockerCount}
+      <span className="inline-flex items-center gap-1 text-slate-500" aria-label={`${blockerCount} blockers`}>
+        <CircleX className="h-3 w-3 text-rose-500" aria-hidden="true" /> {blockerCount}
       </span>
     </span>
   </footer>

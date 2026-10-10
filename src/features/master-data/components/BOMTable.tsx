@@ -152,7 +152,7 @@ export const BOMTable: React.FC<BOMTableProps> = ({
   }
 
   return (
-    <section aria-label="Bill of Materials rows" className="overflow-hidden bg-white select-none">
+    <section aria-label="Bill of Materials rows" className="overflow-hidden border border-slate-300 bg-white select-none">
       <MasterDataTableHeader title="Bill of Materials" blockerCount={blockerItems.length} isEditMode={isEditMode} onNextBlocker={handleNextBlocker} onAddRow={onAddBOMItem} />
 
       <div className="overflow-x-auto">
@@ -164,7 +164,7 @@ export const BOMTable: React.FC<BOMTableProps> = ({
           <thead className="sticky top-0 z-30 border-y-2 border-slate-400 bg-slate-100 text-[11px] font-semibold uppercase tracking-wide text-slate-800">
             <tr>
               <th scope="col" className="sticky left-0 z-40 w-12 bg-slate-100 p-0 text-center">
-                <button type="button" onClick={() => toggleAll(!allVisibleSelected)} disabled={filteredBOM.length === 0} aria-pressed={allVisibleSelected} aria-label={allVisibleSelected ? 'Clear selection for visible BOM rows' : 'Select all visible BOM rows'} title={allVisibleSelected ? 'Clear visible selection' : 'Select visible rows'} className="h-9 w-full text-[11px] hover:bg-slate-200 disabled:cursor-default disabled:text-slate-400 focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-700">#</button>
+                <button type="button" onClick={() => toggleAll(!allVisibleSelected)} disabled={filteredBOM.length === 0} aria-pressed={allVisibleSelected} aria-label={allVisibleSelected ? 'Clear selection for visible BOM rows' : 'Select all visible BOM rows'} title={allVisibleSelected ? 'Clear visible selection' : 'Select visible rows'} className={`h-9 w-full text-[11px] focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-700 ${allVisibleSelected ? 'bg-blue-100 text-blue-900' : 'text-slate-700 hover:bg-slate-200'} disabled:cursor-default disabled:text-slate-400`}>#</button>
               </th>
               <th scope="col" className="px-2 py-2 text-left">Material</th>
               <th scope="col" className="px-2 py-2 text-right">Usage</th>

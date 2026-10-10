@@ -209,13 +209,6 @@ export const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
               id="footer-dataset-status-tooltip"
               content={(
                 <span className="grid grid-cols-[minmax(0,1fr)_auto] gap-x-3 gap-y-1">
-                  {datasetReadiness.map(({ label, ready }) => (
-                    <React.Fragment key={label}>
-                      <span>{label}</span>
-                      <span>{ready ? 'Ready' : 'Incomplete'}</span>
-                    </React.Fragment>
-                  ))}
-                  <span className="col-span-2 my-0.5 border-t border-slate-200" />
                   {datasetReadiness.map(({ label, blockerCount }) => (
                     <React.Fragment key={`${label}-blockers`}>
                       <span>{label}</span>
@@ -255,9 +248,9 @@ export const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
                 tabIndex={0}
                 aria-describedby="footer-product-status-tooltip"
                 aria-label={`Product ${masterDataHandoff.productMismatch ? 'Mismatch' : 'Match'}`}
-                className={`inline-flex min-h-7 cursor-default select-none items-center gap-1.5 whitespace-nowrap rounded-sm font-semibold focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-300 ${masterDataHandoff.productMismatch ? 'text-orange-300' : 'text-emerald-300'}`}
+                className={`inline-flex min-h-7 cursor-default select-none items-center gap-1.5 whitespace-nowrap rounded-sm font-semibold focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-300 ${masterDataHandoff.productMismatch ? 'text-violet-300' : 'text-emerald-300'}`}
               >
-                <span aria-hidden="true" className={`h-1.5 w-1.5 rounded-full ${masterDataHandoff.productMismatch ? 'bg-orange-400' : 'bg-emerald-400'}`} />
+                <span aria-hidden="true" className={`h-1.5 w-1.5 rounded-full ${masterDataHandoff.productMismatch ? 'bg-violet-400' : 'bg-emerald-400'}`} />
                 Product {masterDataHandoff.productMismatch ? 'Mismatch' : 'Match'}
               </span>
             </FooterTooltip>
