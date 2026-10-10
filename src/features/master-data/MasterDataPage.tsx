@@ -93,21 +93,33 @@ export const MasterDataPage: React.FC<MasterDataPageProps> = ({ searchQuery = ''
     setWarningNavigation(current => current?.requestId === requestId ? undefined : current)
   }, [])
 
-  const handleLoadMockData = async () => {
+  const handleLoadMockData = async (fixture: 'complete' | 'incomplete') => {
     if (!import.meta.env.DEV) return
     const fixtures = await import('./fixtures/synthetic-review-data')
-    loadDevelopmentMockData(fixtures.createSyntheticDataQualitySnapshotPair())
+    loadDevelopmentMockData(fixture === 'complete'
+      ? fixtures.createCompleteMasterDataMockPair()
+      : fixtures.createIncompleteMasterDataMockPair())
     setMasterDataRole('current')
   }
 
   const developmentAction = import.meta.env.DEV ? (
-    <button
-      type="button"
-      onClick={() => { void handleLoadMockData() }}
-      className="min-h-8 border border-slate-300 bg-white px-2 text-[11px] font-medium text-slate-700 transition-colors hover:bg-slate-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700"
-    >
-      Load Mock Data
-    </button>
+    <div role="group" aria-label="Development mock datasets" className="flex items-center justify-end gap-2 text-[11px]">
+      <button
+        type="button"
+        onClick={() => { void handleLoadMockData('complete') }}
+        className="min-h-7 px-1.5 font-medium text-slate-600 transition-colors hover:text-slate-950 focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-700"
+      >
+        Complete Mock
+      </button>
+      <span aria-hidden="true" className="text-slate-300">|</span>
+      <button
+        type="button"
+        onClick={() => { void handleLoadMockData('incomplete') }}
+        className="min-h-7 px-1.5 font-medium text-slate-600 transition-colors hover:text-slate-950 focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-700"
+      >
+        Incomplete Mock
+      </button>
+    </div>
   ) : undefined
 
   const renderTable = (table: TableSubTab) => {
@@ -265,6 +277,8 @@ export const MasterDataPage: React.FC<MasterDataPageProps> = ({ searchQuery = ''
         onNavigateWarning={handleWarningNavigation}
         mockAction={developmentAction}
         tableSelector={tableSelector}
+        searchQuery={searchQuery}
+        onSearchQueryChange={onSearchQueryChange}
       />
 
       <section className="overflow-hidden border border-slate-300 bg-white" aria-label="Working dataset tables">

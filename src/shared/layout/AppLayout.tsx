@@ -7,11 +7,9 @@ import { areMasterDataDatasetsReady, buildMasterDataWarningItems } from '../../f
 
 interface AppLayoutProps {
   children: ReactNode
-  masterDataSearchQuery: string
-  onMasterDataSearchQueryChange: (query: string) => void
 }
 
-export const AppLayout: React.FC<AppLayoutProps> = ({ children, masterDataSearchQuery, onMasterDataSearchQueryChange }) => {
+export const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
   const {
     snapshotPair,
     fullSnapshotComparison,
@@ -44,16 +42,13 @@ export const AppLayout: React.FC<AppLayoutProps> = ({ children, masterDataSearch
       >
         Skip to main content
       </a>
-      <Navbar
-        masterDataSearchQuery={masterDataSearchQuery}
-        onMasterDataSearchQueryChange={onMasterDataSearchQueryChange}
-      />
+      <Navbar />
       <main
         id="main-content"
         tabIndex={-1}
-        className="app-workspace-frame min-h-0 min-w-0 flex-1 overflow-y-auto py-3"
+        className="min-h-0 min-w-0 flex-1 overflow-y-auto py-3"
       >
-        {children}
+        <div className="app-workspace-frame">{children}</div>
       </main>
       <footer aria-label="Dataset and comparison status" className="w-full shrink-0 border-t border-slate-800 bg-slate-900 py-2 font-sans text-[11px] text-slate-400">
         <div className="app-workspace-frame flex flex-wrap items-center justify-between gap-x-5 gap-y-1.5 xl:flex-nowrap">

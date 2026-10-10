@@ -227,15 +227,13 @@ scroll area, as required by
   [`CROSS_CUTTING.md`](docs/specs/CROSS_CUTTING.md#shared-status-and-analysis-context)
   where the latest explicit page contract does not define them.
 - Treat the shared Header as one compact workspace bar with three desktop zones:
-  Undo, Redo, `COSTBREAKDOWN`, and safely resolved Product (Unit) context at
-  the left; centered Master Data / Cost Breakdown / Candidate / Simulation
-  navigation; and the permanent `Search data...` field plus a final icon-only
-  Info control for Prepare Dataset at the right. Reflow below desktop widths.
-  Do not place workflow status, a workflow CTA, warning text, or additional navigation
-  in the Header. Undo and Redo stay visible but are enabled only on Master Data
-  when the existing history allows them. Search stays visible, filters the
-  visible Master Data table context, and remains disabled on pages without
-  finalized search behavior.
+  `COSTBREAKDOWN` and safely resolved Product (Unit) context at the left;
+  centered Master Data / Cost Breakdown / Candidate / Simulation navigation;
+  and Undo, Redo, then an icon-only Info control for Prepare Dataset at the
+  right. Reflow below desktop widths. Do not place Search, workflow status, a
+  workflow CTA, warning text, or additional navigation in the Header. Undo and
+  Redo stay visible but are enabled only on Master Data when the existing
+  history allows them. Keep Search local to the Master Data toolbar.
 - Remove `CB`, `Product Cost Analysis`, and the bottom-left `Workspace` label
   per the confirmed Master Data visual direction. Do not replace them with a
   decorative slogan or redundant branding.
@@ -251,8 +249,8 @@ scroll area, as required by
 - **Quiet:** text or subtle-surface action for non-primary controls.
 - Keep action sizing compact but operable. Icon-only actions use consistent
   neutral controls with accessible names, tooltips, and visible focus. Header
-  Undo/Redo/Search stay visible; Undo/Redo are enabled only for available
-  Master Data history and Search is enabled only for Master Data.
+  Undo/Redo stay visible and are enabled only for available Master Data
+  history. Master Data Search stays near the table controls it filters.
 - Do not use hover as the only way to reveal an action.
 
 ### Panels, summaries, and forms

@@ -140,7 +140,7 @@ Match records strictly by business identity:
 - Work Centers: `WC`
 - Routing: `Process`
 
-`#` is a left-pinned row number and selection handle, not an identity. Never match records by row order or position. The contextual Search utility in the shared Header searches the visible Master Data table; `All` applies the query to BOM, Work Centers, and Routing. Search changes presentation, not dataset contents.
+`#` is a left-pinned row number and selection handle, not an identity. Never match records by row order or position. The local Search control in the Master Data toolbar searches the visible table; `All` applies the existing query to BOM, Work Centers, and Routing. Search changes presentation, not dataset contents. It is not a global Header utility.
 
 ### Spreadsheet Editing
 - View Mode is read-only.

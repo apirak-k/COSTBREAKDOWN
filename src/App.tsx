@@ -128,10 +128,7 @@ const AppRouter: React.FC = () => {
   }
 
   return (
-    <AppLayout
-      masterDataSearchQuery={masterDataSearchQuery}
-      onMasterDataSearchQueryChange={setMasterDataSearchQuery}
-    >
+    <AppLayout>
       {activeTab === 'master' && (
         <MasterDataPage
           searchQuery={masterDataSearchQuery}

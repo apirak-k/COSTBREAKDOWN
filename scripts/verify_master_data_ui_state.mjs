@@ -167,7 +167,7 @@ const renderAppLayout = async storeOverrides => {
   const { AppLayout } = await vite.ssrLoadModule('/src/shared/layout/AppLayout.tsx')
   return renderToStaticMarkup(React.createElement(
     AppLayout,
-    { masterDataSearchQuery: '', onMasterDataSearchQueryChange: noOp },
+    {},
     React.createElement('div', null, 'Workspace content')
   ))
 }
@@ -440,23 +440,38 @@ try {
   assert.doesNotMatch(headerSource, /\(\{comparisonStatus\}\)/, 'Match or Mismatch is not presented in parentheses')
   assert.match(headerSource, /const \[comparisonDetailsOpen, setComparisonDetailsOpen\] = useState\(false\)/, 'comparison details are collapsed by default')
   assert.match(headerSource, /onClick=\{\(\) => setComparisonDetailsOpen\(open => !open\)\}/, 'Match or Mismatch opens and closes comparison details')
-  assert.match(headerSource, /grid-cols-\[minmax\(0,1fr\)_auto_1\.75rem\]/, 'the title row allocates space to title, readiness, and close control')
+  assert.match(headerSource, /Prepare Dataset[\s\S]*datasetsReady \? 'Ready' : 'Incomplete'[\s\S]*ml-auto/, 'Ready/Incomplete follows the title and Close remains at the far edge')
   assert.match(headerSource, /datasetsReady \? 'Ready' : 'Incomplete'/, 'Prepare Dataset title row shows shared Ready/Incomplete state')
-  const prepareTitleRow = headerSource.slice(headerSource.indexOf('grid-cols-[minmax(0,1fr)_auto_1.75rem]'), headerSource.indexOf('onClick={() => setComparisonDetailsOpen'))
+  const prepareTitleRow = headerSource.slice(headerSource.indexOf('Prepare Dataset'), headerSource.indexOf('onClick={() => setComparisonDetailsOpen'))
   assert.doesNotMatch(prepareTitleRow, /comparisonStatus|ChevronRight|ChevronDown/, 'Product Match/Mismatch is not beside the Prepare Dataset title')
+  assert.doesNotMatch(prepareTitleRow, /bg-emerald-600|bg-amber-500|rounded-full/, 'Readiness in the title has no status dot')
   assert.match(headerSource, /className={`flex min-h-8 w-full items-center justify-between[\s\S]*Product \{comparisonStatus\}[\s\S]*ChevronRight/, 'Product Match/Mismatch is a separate full-width expandable row')
   assert.ok(/aria-label="Compared product identities"/.test(headerSource)
     && /productIdentity\(comparisonProducts\.reference\)/.test(headerSource)
     && /productIdentity\(comparisonProducts\.current\)/.test(headerSource)
     && /details\.uom\?\.trim\(\)/.test(headerSource), 'comparison details expose Reference and Current product name and UOM')
-  assert.match(headerSource, /max-h-\[calc\(100dvh-6rem\)\][\s\S]*overflow-y-auto/, 'the popover bounds its height and scrolls warning categories internally')
+  assert.match(headerSource, /max-h-\[calc\(100dvh-6rem\)\] w-\[min\(28rem,calc\(100vw-2rem\)\)\][\s\S]*overflow-hidden/, 'the popover stays narrow and viewport-bounded')
+  assert.match(headerSource, /grid min-h-9 grid-cols-\[minmax\(0,1fr\)_auto_auto\]/, 'Reference, Current, and Custom use separate aligned dataset rows')
+  assert.match(headerSource, /aria-label="Dataset save states and warning counts"/, 'dataset row summary has an accessible label')
+  assert.doesNotMatch(headerSource, /sm:grid-cols-3/, 'dataset summaries never become a horizontal three-column strip')
   const { MASTER_DATA_WARNING_CATEGORY_DEFINITIONS } = await vite.ssrLoadModule('/src/features/master-data/prepare-dataset.ts')
   assert.deepEqual(MASTER_DATA_WARNING_CATEGORY_DEFINITIONS.map(({ category }) => category), [
     'generated-identity', 'missing-value', 'auto-renamed-duplicate'
   ], 'Prepare Dataset defines exactly the three user-facing warning categories')
   const warningCategoryRenderSource = headerSource.slice(headerSource.indexOf('{visibleWarningGroups.map'), headerSource.indexOf('{mockAction &&'))
   assert.match(warningCategoryRenderSource, /grid-cols-\[minmax\(0,1fr\)_2rem_1rem\][\s\S]*\{group\.label\}[\s\S]*\{groupCount\}[\s\S]*ChevronRight/, 'warning category layout is label, fixed count, fixed far-right chevron')
-  assert.match(warningCategoryRenderSource, /const disabled = groupCount === 0[\s\S]*aria-expanded=\{disabled \? undefined : expanded\}[\s\S]*if \(!disabled\)[\s\S]*setExpandedWarningCategory\(expanded \? null : group\.category\)/, 'zero rows disable and every positive category count toggles expansion')
+  const zeroCategoryRowSource = warningCategoryRenderSource.slice(
+    warningCategoryRenderSource.indexOf('{disabled ? ('),
+    warningCategoryRenderSource.indexOf(') : (')
+  )
+  const positiveCategoryRowSource = warningCategoryRenderSource.slice(
+    warningCategoryRenderSource.indexOf(') : ('),
+    warningCategoryRenderSource.indexOf('{expanded && groupCount > 0')
+  )
+  assert.match(zeroCategoryRowSource, /text-slate-800[\s\S]*group\.label/, 'zero-count warning label keeps normal contrast')
+  assert.match(zeroCategoryRowSource, /text-slate-400">0/, 'only the zero count is muted')
+  assert.doesNotMatch(zeroCategoryRowSource, /<button|hover:|cursor-|Chevron/, 'zero-count warning rows have no interaction or chevron affordance')
+  assert.match(positiveCategoryRowSource, /<button[\s\S]*aria-expanded=\{expanded\}[\s\S]*setExpandedWarningCategory\(expanded \? null : group\.category\)[\s\S]*ChevronRight/, 'every positive category row toggles a compact detail list')
   assert.match(warningCategoryRenderSource, /expanded && groupCount > 0[\s\S]*group\.items\.map\(item =>/, 'an expanded category renders actual warning items even when its count is one')
   assert.doesNotMatch(warningCategoryRenderSource, /const direct|onNavigateWarning\(group\.items\[0\]\)/, 'category rows never navigate directly')
   const actualWarningItemSource = warningCategoryRenderSource.slice(warningCategoryRenderSource.indexOf('group.items.map(item =>'))
@@ -465,7 +480,8 @@ try {
   assert.match(prepareDatasetSource, /if \(row\.confidence\?\.\[field\]\?\.quality === 'invalid'\) return/, 'invalid legacy values do not become Missing required value warnings')
   assert.doesNotMatch(prepareDatasetSource, /invalid-value|unresolved-work-center|Invalid value|Unresolved Work Center/, 'invalid and unresolved values are not Prepare Dataset categories')
   assert.match(prepareDatasetSource, /if \(!workCenterId\)[\s\S]*'missing-value'/, 'blank Routing Work Center is Missing required value')
-  assert.match(headerSource, /const disabled = groupCount === 0[\s\S]*disabled=\{disabled\}/, 'zero-count warning categories remain visible and disabled')
+  const warningsHeadingSource = headerSource.slice(headerSource.indexOf('<h3 className="text-xs font-semibold text-slate-800">'), headerSource.indexOf('<ul aria-label="Warning categories"'))
+  assert.doesNotMatch(warningsHeadingSource, /AlertTriangle|<AlertTriangle/, 'Warnings heading has no warning icon')
   assert.match(headerSource, /min-h-0 flex-1 divide-y divide-slate-100 overflow-y-auto/, 'warning categories scroll inside the bounded popover')
   assert.match(headerSource, /setWarningRoleFilter\(datasetRole\)[\s\S]*setWarningRoleFilter\(null\)/, 'dataset warning counts filter categories and All clears the filter')
   assert.match(headerSource, /setExpandedWarningCategory\(expanded \? null : group\.category\)/, 'multiple warning locations expand progressively')
@@ -492,7 +508,8 @@ try {
   assert.match(footerSource, /totalGap !== null && Number\.isFinite\(totalGap\)/, 'unavailable or non-finite Net Gap remains neutral')
   assert.match(footerSource, /totalGap > 0[\s\S]*text-rose-300[\s\S]*totalGap < 0[\s\S]*text-emerald-300[\s\S]*text-slate-300/, 'Net Gap colors are positive rose, negative emerald, and zero neutral')
   assert.match(readyFooterMarkup, /<div class="flex h-dvh min-h-0 w-full flex-col overflow-hidden/, 'app shell fills the viewport and contains scrolling')
-  assert.match(readyFooterMarkup, /<main id="main-content" tabindex="-1" class="app-workspace-frame min-h-0 min-w-0 flex-1 overflow-y-auto py-3">/, 'Main is the flexible vertical scroll area')
+  assert.match(readyFooterMarkup, /<main id="main-content" tabindex="-1" class="min-h-0 min-w-0 flex-1 overflow-y-auto py-3"><div class="app-workspace-frame">/, 'full-width Main owns scrolling and the shared frame stays inside it')
+  assert.doesNotMatch(footerSource.match(/<main[\s\S]*?className="([^"]+)"/)?.[1] ?? '', /app-workspace-frame/, 'the scroll container itself is not constrained to the centered frame')
   assert.match(readyFooterMarkup, /<footer aria-label="Dataset and comparison status" class="w-full shrink-0/, 'Footer remains in the shell flow without using fixed positioning')
   assert.doesNotMatch(footerSource.match(/<div className="flex h-dvh[^\"]*"/)?.[0] ?? '', /fixed/, 'Footer layout does not use a fixed overlay')
   assert.match(navbarSource, /className="app-workspace-frame"/, 'Header content shares the centered workspace frame')
@@ -505,26 +522,25 @@ try {
   assert.match(navbarSource, /const navItems = \[[\s\S]*\{ id: 'master', label: 'Master Data' \}[\s\S]*\{ id: 'breakdown', label: 'Cost Breakdown' \}[\s\S]*\{ id: 'candidate', label: 'Candidate' \}[\s\S]*\{ id: 'simulation', label: 'Simulation' \}[\s\S]*\] as const/, 'Global Header navigation contains the four exact primary labels in order')
   assert.doesNotMatch(navbarSource, /Candidate \/ RCA|workflowStatus|Ready|Not Ready|Selected Comparison|Missing data/, 'Global Header omits workflow guidance and uses Candidate wording')
   const headerOrder = [
-    navbarSource.indexOf('aria-label="Page edit tools"'),
     navbarSource.indexOf('>COSTBREAKDOWN</span>'),
     navbarSource.indexOf('<nav aria-label="Main navigation"'),
-    navbarSource.indexOf('role="search"'),
+    navbarSource.indexOf('aria-label="Workspace utilities"'),
+    navbarSource.indexOf('aria-label="Undo"'),
+    navbarSource.indexOf('aria-label="Redo"'),
     navbarSource.indexOf('aria-label="Prepare Dataset"')
   ]
-  assert.ok(headerOrder.every((position, index) => position >= 0 && (index === 0 || position > headerOrder[index - 1])), 'Header regions render left utilities/context, centered navigation, then right Search/Info')
+  assert.ok(headerOrder.every((position, index) => position >= 0 && (index === 0 || position > headerOrder[index - 1])), 'Header renders brand/context left, navigation centered, then Undo/Redo/Info at right')
   assert.match(navbarSource, /lg:grid-cols-\[minmax\(0,1fr\)_auto_minmax\(0,1fr\)\][\s\S]*justify-center/, 'desktop Header centers navigation between left and right zones')
   assert.match(navbarSource, /text-sm font-semibold tracking-wide text-slate-100/, 'COSTBREAKDOWN uses text-sm branding')
-  assert.doesNotMatch(navbarSource, /disabled:cursor-not-allowed/, 'disabled Header Undo, Redo, and Search use the normal cursor')
+  assert.doesNotMatch(navbarSource, /Search|role="search"|disabled:cursor-not-allowed/, 'Header has no Search or prohibited disabled cursor')
   assert.match(navbarSource, /disabled=\{!isMasterData \|\| !canUndoMasterDataEdit\}/, 'Undo stays visible and is disabled outside Master Data or without history')
   assert.match(navbarSource, /disabled=\{!isMasterData \|\| !canRedoMasterDataEdit\}/, 'Redo stays visible and is disabled outside Master Data or without redo history')
-  assert.match(navbarSource, /type="search"[\s\S]*aria-label="Search data"[\s\S]*disabled=\{!isMasterData\}[\s\S]*placeholder="Search data\.\.\."/, 'the permanent Search data field is enabled only where search is implemented')
-  assert.match(navbarSource, /onMasterDataSearchQueryChange\(event\.target\.value\)/, 'Header Search updates the existing Master Data table query')
-  assert.doesNotMatch(navbarSource, /searchOpen|searchRegionRef|aria-expanded/, 'Header Search is an inline field rather than a popup')
   assert.match(navbarSource, /onClick=\{\(\) => requestMasterDataPrepareDataset\(\)\}[\s\S]*aria-label="Prepare Dataset"[\s\S]*title="Prepare Dataset"[\s\S]*<Info/, 'the final Header control is an Info icon that opens Prepare Dataset')
-  assert.match(navbarSource, /flex min-w-0 flex-wrap items-center justify-center[\s\S]*sm:col-span-2[\s\S]*lg:col-start-2/, 'Header navigation can wrap on narrow widths and stays in the centered desktop zone')
+  assert.match(navbarSource, /col-span-2 row-start-2 flex min-w-0 flex-wrap items-center justify-center[\s\S]*lg:col-start-2/, 'Header navigation can wrap on narrow widths and stays in the centered desktop zone')
+  assert.match(headerSource, /type="search"[\s\S]*aria-label="Search Master Data"[\s\S]*value=\{searchQuery\}[\s\S]*onSearchQueryChange\(event\.target\.value\)/, 'the existing search query is exposed locally in the Master Data toolbar')
   assert.doesNotMatch(bomSource, /aria-label="Search BOM"|placeholder="Search BOM/, 'BOM no longer renders a per-table search box')
   assert.doesNotMatch(routingSource, /aria-label="Search Routing"|placeholder="Search Routing/, 'Routing no longer renders a per-table search box')
-  assert.match(pageSource, /searchQuery=\{searchQuery\}[\s\S]*onSearchQueryChange=\{onSearchQueryChange\}/, 'the shared Header query flows into Master Data tables')
+  assert.match(pageSource, /searchQuery=\{searchQuery\}[\s\S]*onSearchQueryChange=\{onSearchQueryChange\}/, 'the same Master Data query flows to the toolbar and existing tables')
   assert.match(headerSource, /type="text"[\s\S]*aria-label="UOM"[\s\S]*onUpdateProduct\(\{ \.\.\.product, uom: event\.target\.value \}\)/, 'UOM is editable as free text')
   assert.match(headerSource, /xl:grid-cols-\[3fr_1fr_2fr_1fr_4fr\]/, 'metadata widths are stable and follow the requested relative sizing')
   assert.match(storeSource, /normalizeMasterDataSnapshot\(mutate\(currentDataset\), currentDataset\)/, 'all dataset edit paths normalize identities, including direct edit, paste, and bulk updates')
@@ -537,7 +553,8 @@ try {
   assert.match(snapshotParserSource, /canonicalResult\.success \|\| canonicalResult\.format === 'canonical'/, 'validation-rejected canonical workbooks cannot fall through to legacy import parsing')
   assert.match(importDropzoneSource, /type: 'error',[\s\S]*text: result\.message,[\s\S]*details: result\.warnings/, 'Import rejection shows the existing validation details')
   assert.match(validationSource, /field === 'capacity' \|\| field === 'yield'[\s\S]*value <= 0[\s\S]*field === 'yield' && value > 1/, 'ingress validation reuses the existing positive Capacity and bounded Yield rules')
-  assert.match(pageSource, /Load Mock Data/, 'Master Data exposes one consolidated mock action')
+  assert.match(pageSource, /Complete Mock[\s\S]*Incomplete Mock/, 'Master Data exposes direct Complete Mock and Incomplete Mock actions')
+  assert.doesNotMatch(pageSource, /Load Mock Data|window\.confirm\(`(?:Complete|Incomplete) Mock/, 'mock fixtures load without a generic action label or confirmation')
   assert.match(appSource, /getElementById\('main-content'\)\?\.scrollTo\(\{ top: 0, behavior: 'auto' \}\)[\s\S]*\[activeTab\]/, 'changing pages resets the shared content viewport to its heading')
   assert.doesNotMatch(pageSource, /Load complete review mock|Load data-quality mock|Return to working session|window\.confirm/, 'mock loading is immediate and has no session-return UI or confirmation')
   const tableSelectorSource = pageSource.slice(pageSource.indexOf('const tableSections'), pageSource.indexOf('return (\n    <div className="w-full space-y-4">'))

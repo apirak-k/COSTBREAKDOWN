@@ -157,30 +157,39 @@ export function createSyntheticReviewSnapshotPair(): SnapshotPair {
   }
 }
 
+/** Complete happy-path fixture used by the Prepare Dataset development action. */
+export function createCompleteMasterDataMockPair(): SnapshotPair {
+  return createSyntheticReviewSnapshotPair()
+}
+
 /**
- * Intentionally incomplete data for reviewing warnings and unavailable results.
- * It does not define behavior for blank Sizing rows or blank user-owned rows.
+ * Exhaustive, deterministic Prepare Dataset fixture. It covers three generated
+ * identities, nine missing values, and three duplicate identities. All other
+ * entered numeric values and Work Center references remain valid.
  */
-export function createSyntheticDataQualitySnapshotPair(): SnapshotPair {
-  return {
-    reference: snapshot('synthetic-quality-reference', 'reference', [
-      rate('synthetic-quality-rate-ref', 'WC-VALID', 100, 50)
-    ], [
-      bom('synthetic-quality-priced-ref', 'MAT-PRICE', 1, 20, 0.02),
-      bom('synthetic-quality-duplicate-ref', 'MAT-DUPLICATE', 1, 5, 0.02)
-    ], [
-      routing('synthetic-quality-route-ref', 'VALID PROCESS', 'WC-VALID', 1, 100, 0.98)
-    ], 'Synthetic Quality Review'),
-    current: snapshot('synthetic-quality-current', 'current', [
-      rate('synthetic-quality-rate-current', 'WC-VALID', 100, 50),
-      rate('synthetic-quality-rate-unpriced', 'WC-MISSING', null, null)
-    ], [
-      bom('synthetic-quality-priced-current', 'MAT-PRICE', 1, null, 0.02),
-      bom('synthetic-quality-duplicate-current-a', 'MAT-DUPLICATE', 1, 5, 0.02),
-      bom('synthetic-quality-duplicate-current-b', 'MAT-DUPLICATE', 2, 5, 0.02)
-    ], [
-      routing('synthetic-quality-route-current', 'VALID PROCESS', 'WC-VALID', 1, 100, 0.98),
-      routing('synthetic-quality-missing-rate', 'PROCESS WITH MISSING RATES', 'WC-MISSING', 1, 50, 0.95)
-    ], 'Synthetic Quality Review Variant')
-  }
+export function createIncompleteMasterDataMockPair(): SnapshotPair {
+  const reference = snapshot('synthetic-quality-reference', 'reference', [
+    rate('synthetic-quality-rate-ref', 'WC-QUALITY', 100, 50)
+  ], [
+    bom('synthetic-quality-missing-ref', 'MAT-MISSING', null, null, null)
+  ], [
+    routing('synthetic-quality-route-ref', 'VALID PROCESS', 'WC-QUALITY', 1, 100, 0.98)
+  ], 'Synthetic Quality Review')
+
+  const current = snapshot('synthetic-quality-current', 'current', [
+    rate('synthetic-quality-rate-duplicate-a', 'WC-DUPLICATE', 100, 50),
+    rate('synthetic-quality-rate-duplicate-b', 'WC-DUPLICATE', 100, 50),
+    rate('synthetic-quality-rate-generated', '', null, null)
+  ], [
+    bom('synthetic-quality-bom-generated', '', 1, 5, 0.02),
+    bom('synthetic-quality-bom-duplicate-a', 'MAT-DUPLICATE', 1, 5, 0.02),
+    bom('synthetic-quality-bom-duplicate-b', 'MAT-DUPLICATE', 2, 5, 0.02)
+  ], [
+    routing('synthetic-quality-route-generated', '', '', null, null, null),
+    routing('synthetic-quality-route-duplicate-a', 'DUPLICATE PROCESS', 'WC-DUPLICATE', 1, 100, 0.98),
+    routing('synthetic-quality-route-duplicate-b', 'DUPLICATE PROCESS', 'WC-DUPLICATE', 1, 100, 0.98)
+  ], 'Synthetic Quality Review Variant')
+  current.product.uom = 'KG'
+
+  return { reference, current }
 }

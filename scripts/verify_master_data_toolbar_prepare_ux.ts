@@ -136,8 +136,16 @@ const pair: SnapshotPair = {
 assert.ok(isProductMismatch(pair.reference, pair.current), 'Product Mismatch is derivable as comparison status outside warning items')
 assert.ok(isProductMismatch(
   pair.reference,
-  { ...pair.current, product: { ...pair.current.product, productName: '', uom: 'KG' } }
-), 'UOM differences create Product Mismatch when Product Names match')
+  { ...pair.current, product: { ...pair.reference.product, productName: 'Product A', uom: 'KG' } }
+), 'same Product Name with a different UOM creates Product Mismatch')
+assert.ok(isProductMismatch(
+  { ...pair.reference, product: { ...pair.reference.product, productName: 'Product A', uom: 'PC' } },
+  { ...pair.current, product: { ...pair.current.product, productName: 'Product B', uom: 'PC' } }
+), 'different Product Names with the same UOM create Product Mismatch')
+assert.equal(isProductMismatch(
+  { ...pair.reference, product: { ...pair.reference.product, productName: 'Product A', uom: 'PC' } },
+  { ...pair.current, product: { ...pair.current.product, productName: 'Product A', uom: 'PC' } }
+), false, 'exact Product Name and UOM match')
 assert.equal(isProductMismatch(
   { ...pair.reference, product: { ...pair.reference.product, productName: ' Demo ', uom: ' PC ' } },
   { ...pair.current, product: { ...pair.current.product, productName: 'demo', uom: 'pc' } }
@@ -147,6 +155,12 @@ assert.equal(isProductMismatch(
   { ...snapshot('blank-current'), product: { ...snapshot('blank-current').product, productName: '', productDescription: 'Current description' } }
 ), false, 'blank Product Names remain blank even when legacy descriptions differ')
 assert.ok(!warningItems.some(item => item.category === 'product-mismatch'), 'Product Mismatch is not a warning category')
+const productMismatchOnlyWarnings = buildMasterDataWarningItems({
+  reference: { ...snapshot('product-reference'), product: { ...snapshot('product-reference').product, productName: 'Product A', uom: 'PC' } },
+  current: { ...snapshot('product-current'), product: { ...snapshot('product-current').product, productName: 'Product B', uom: 'KG' } },
+  custom: snapshot('product-custom')
+})
+assert.equal(productMismatchOnlyWarnings.length, 0, 'Product Name and UOM mismatch do not add warning items')
 
 const customMissingWarnings = buildMasterDataWarningItems({
   reference: snapshot('ready-reference'),

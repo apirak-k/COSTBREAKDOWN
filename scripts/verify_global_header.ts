@@ -36,22 +36,25 @@ assert.equal(
 const navbar = readFileSync(resolve(process.cwd(), 'src/shared/layout/Navbar.tsx'), 'utf8')
 assert.match(navbar, /COSTBREAKDOWN/)
 assert.match(navbar, /text-sm font-semibold tracking-wide text-slate-100/)
-assert.match(navbar, /placeholder="Search data\.\.\."/)
 assert.match(navbar, /aria-current=\{isActive \? 'page' : undefined\}/)
 assert.match(navbar, /requestMasterDataPrepareDataset/)
 assert.match(navbar, /lg:grid-cols-\[minmax\(0,1fr\)_auto_minmax\(0,1fr\)\]/)
-assert.match(navbar, /Main navigation[\s\S]*justify-center[\s\S]*role="search"[\s\S]*aria-label="Prepare Dataset"/)
+assert.match(navbar, /Main navigation[\s\S]*justify-center[\s\S]*aria-label="Workspace utilities"[\s\S]*aria-label="Undo"[\s\S]*aria-label="Redo"[\s\S]*aria-label="Prepare Dataset"/)
+assert.doesNotMatch(navbar, /role="search"|Search data|Search,/)
 assert.doesNotMatch(navbar, /disabled:cursor-not-allowed/)
 assert.doesNotMatch(navbar, /resolveWorkflowStatus|Candidate \/ RCA|workflowStatus|Selected Comparison/)
+assert.equal((navbar.match(/label: '(?:Master Data|Cost Breakdown|Candidate|Simulation)'/g) ?? []).length, 4,
+  'Global Header exposes exactly four primary navigation tabs')
 
 const headerZones = [
-  navbar.indexOf('aria-label="Page edit tools"'),
   navbar.indexOf('>COSTBREAKDOWN</span>'),
   navbar.indexOf('<nav aria-label="Main navigation"'),
-  navbar.indexOf('role="search"'),
+  navbar.indexOf('aria-label="Workspace utilities"'),
+  navbar.indexOf('aria-label="Undo"'),
+  navbar.indexOf('aria-label="Redo"'),
   navbar.indexOf('aria-label="Prepare Dataset"')
 ]
 assert.ok(headerZones.every((position, index) => position >= 0 && (index === 0 || position > headerZones[index - 1])),
-  'desktop Header regions follow left utilities, centered navigation, and right search/info order')
+  'Header keeps brand/context left, navigation centered, and Undo/Redo immediately before Info on the right')
 
 console.log('Global Header contract verification passed')

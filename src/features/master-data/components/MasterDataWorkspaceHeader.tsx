@@ -8,6 +8,7 @@ import {
   Info,
   RotateCcw,
   Save,
+  Search,
   Table2,
   Trash2,
   Upload,
@@ -51,6 +52,8 @@ interface MasterDataWorkspaceHeaderProps {
   onNavigateWarning: (item: MasterDataWarningItem) => void
   mockAction?: React.ReactNode
   tableSelector: React.ReactNode
+  searchQuery: string
+  onSearchQueryChange: (query: string) => void
 }
 
 const toolbarButton = 'grid h-8 w-8 shrink-0 place-items-center border border-slate-300 bg-white text-slate-700 transition-colors hover:bg-slate-100 hover:text-slate-950 disabled:cursor-not-allowed disabled:opacity-40 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700'
@@ -90,7 +93,9 @@ export const MasterDataWorkspaceHeader: React.FC<MasterDataWorkspaceHeaderProps>
   warningCount,
   onNavigateWarning,
   mockAction,
-  tableSelector
+  tableSelector,
+  searchQuery,
+  onSearchQueryChange
 }) => {
   const [cloneMenuOpen, setCloneMenuOpen] = useState(false)
   const [expandedWarningCategory, setExpandedWarningCategory] = useState<string | null>(null)
@@ -311,7 +316,19 @@ export const MasterDataWorkspaceHeader: React.FC<MasterDataWorkspaceHeaderProps>
 
         {tableSelector}
 
-        <div ref={prepareRegionRef} className="relative ml-auto flex shrink-0 items-center">
+        <div role="search" className="relative ml-auto w-40 shrink-0 sm:w-48">
+          <Search aria-hidden="true" className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" />
+          <input
+            type="search"
+            aria-label="Search Master Data"
+            value={searchQuery}
+            onChange={event => onSearchQueryChange(event.target.value)}
+            placeholder="Search…"
+            className="h-8 w-full border border-slate-300 bg-white pl-8 pr-2 text-xs text-slate-900 placeholder:text-slate-500 focus:border-blue-700 focus:outline-none focus:ring-1 focus:ring-blue-700"
+          />
+        </div>
+
+        <div ref={prepareRegionRef} className="relative flex shrink-0 items-center">
           <button
             ref={prepareTriggerRef}
             type="button"
@@ -330,18 +347,17 @@ export const MasterDataWorkspaceHeader: React.FC<MasterDataWorkspaceHeaderProps>
               id="prepare-dataset-panel"
               role="region"
               aria-label="Prepare Dataset status and warnings"
-              className="absolute right-0 top-full z-50 mt-1 flex max-h-[calc(100dvh-6rem)] w-[min(32rem,calc(100vw-2rem))] flex-col overflow-hidden border border-slate-300 bg-white p-3 text-sm text-slate-800 shadow-lg"
+              className="absolute right-0 top-full z-50 mt-1 flex max-h-[calc(100dvh-6rem)] w-[min(28rem,calc(100vw-2rem))] flex-col overflow-hidden border border-slate-300 bg-white p-3 text-sm text-slate-800 shadow-lg"
             >
-              <div className="grid grid-cols-[minmax(0,1fr)_auto_1.75rem] items-center gap-2 border-b border-slate-200 pb-2">
-                <h2 id="prepare-dataset-heading" className="min-w-0 truncate text-sm font-semibold text-slate-950">
+              <div className="flex min-h-8 items-center gap-2 border-b border-slate-200 pb-2">
+                <h2 id="prepare-dataset-heading" className="shrink-0 text-sm font-semibold text-slate-950">
                   Prepare Dataset
                 </h2>
                 <span
                   aria-label={`Datasets ${datasetsReady ? 'Ready' : 'Incomplete'}`}
                   title={datasetsReady ? 'Reference and Current are ready' : 'Reference or Current needs input'}
-                  className={`inline-flex items-center gap-1.5 whitespace-nowrap text-xs font-semibold ${datasetsReady ? 'text-emerald-700' : 'text-amber-700'}`}
+                  className={`whitespace-nowrap text-xs font-semibold ${datasetsReady ? 'text-emerald-700' : 'text-amber-700'}`}
                 >
-                  <span aria-hidden="true" className={`h-1.5 w-1.5 rounded-full ${datasetsReady ? 'bg-emerald-600' : 'bg-amber-500'}`} />
                   {datasetsReady ? 'Ready' : 'Incomplete'}
                 </span>
                 <button
@@ -351,7 +367,7 @@ export const MasterDataWorkspaceHeader: React.FC<MasterDataWorkspaceHeaderProps>
                     prepareTriggerRef.current?.focus()
                   }}
                   aria-label="Close Prepare Dataset"
-                  className="grid h-7 w-7 place-items-center text-slate-600 transition-colors hover:bg-slate-100 hover:text-slate-950 focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-700"
+                  className="ml-auto grid h-7 w-7 place-items-center text-slate-600 transition-colors hover:bg-slate-100 hover:text-slate-950 focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-700"
                 >
                   <X aria-hidden="true" className="h-4 w-4" />
                 </button>
@@ -388,19 +404,21 @@ export const MasterDataWorkspaceHeader: React.FC<MasterDataWorkspaceHeaderProps>
                 </dd>
               </dl>
 
-              <dl className="grid grid-cols-1 gap-x-2 border-b border-slate-200 py-2 sm:grid-cols-3" aria-label="Dataset save states and warning counts">
+              <dl className="grid grid-cols-1 divide-y divide-slate-100 border-b border-slate-200 py-1" aria-label="Dataset save states and warning counts">
                 {roles.map(datasetRole => {
                   const saveState = saveStates[datasetRole]
                   const datasetWarningCount = datasetWarningCounts[datasetRole]
                   const isFiltered = warningRoleFilter === datasetRole
                   return (
-                    <div key={datasetRole} className="flex min-h-8 items-center justify-between gap-2 py-1">
+                    <div key={datasetRole} className="grid min-h-9 grid-cols-[minmax(0,1fr)_auto_auto] items-center gap-3 py-1">
                       <dt className="shrink-0 text-[11px] font-semibold text-slate-700">{roleLabels[datasetRole]}</dt>
-                      <dd className="flex min-w-0 items-center gap-2">
+                      <dd className="flex min-w-0 items-center">
                         <span className="inline-flex shrink-0 items-center gap-1.5 text-xs">
                           <span aria-hidden="true" className={`h-1.5 w-1.5 rounded-full ${saveState === 'Saved' ? 'bg-emerald-600' : 'bg-slate-400'}`} />
                           <span>{saveState}</span>
                         </span>
+                      </dd>
+                      <dd>
                         <button
                           type="button"
                           disabled={datasetWarningCount === 0}
@@ -416,7 +434,7 @@ export const MasterDataWorkspaceHeader: React.FC<MasterDataWorkspaceHeaderProps>
                             setExpandedWarningCategory(null)
                           }}
                           className={`inline-flex min-h-7 shrink-0 items-center gap-1 rounded-sm px-1 font-mono text-xs tabular-nums focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-700 ${datasetWarningCount === 0
-                            ? 'cursor-not-allowed text-slate-400'
+                            ? 'text-slate-400'
                             : isFiltered
                               ? 'bg-amber-50 text-amber-900'
                               : 'text-amber-800 hover:bg-amber-50'}`}
@@ -432,12 +450,11 @@ export const MasterDataWorkspaceHeader: React.FC<MasterDataWorkspaceHeaderProps>
 
               <div className="flex min-h-0 flex-1 flex-col pt-2">
                 <div className="mb-1 flex shrink-0 items-center justify-between gap-3">
-                  <h3 className="flex items-center gap-1.5 text-xs font-semibold text-amber-800">
-                    <AlertTriangle className="h-3.5 w-3.5" aria-hidden="true" />
-                    <span>Warnings</span>
+                  <h3 className="text-xs font-semibold text-slate-800">
+                    Warnings{' '}
                     {warningRoleFilter
                       ? <span className="font-normal">· {roleLabels[warningRoleFilter]} {visibleWarningCount}</span>
-                      : <span>{visibleWarningCount}</span>}
+                      : visibleWarningCount}
                   </h3>
                   {warningRoleFilter && (
                     <button
@@ -459,25 +476,28 @@ export const MasterDataWorkspaceHeader: React.FC<MasterDataWorkspaceHeaderProps>
                       const disabled = groupCount === 0
                       return (
                         <li key={group.category}>
-                          <button
-                            type="button"
-                            disabled={disabled}
-                            aria-expanded={disabled ? undefined : expanded}
-                            onClick={() => {
-                              if (!disabled) {
-                                setExpandedWarningCategory(expanded ? null : group.category)
-                              }
-                            }}
-                            className={`grid min-h-8 w-full grid-cols-[minmax(0,1fr)_2rem_1rem] items-center gap-2 py-1 text-left text-xs focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-700 ${disabled ? 'cursor-not-allowed text-slate-400' : 'text-slate-800 hover:bg-slate-50'}`}
-                          >
-                            <span className="min-w-0 truncate">{group.label}</span>
-                            <span className={`w-8 text-right font-mono tabular-nums ${disabled ? 'text-slate-400' : 'text-slate-600'}`}>{groupCount}</span>
-                            <span className="grid w-4 place-items-center" aria-hidden="true">
-                              {disabled ? null : expanded
-                                ? <ChevronDown className="h-3.5 w-3.5 text-slate-500" />
-                                : <ChevronRight className="h-3.5 w-3.5 text-slate-500" />}
-                            </span>
-                          </button>
+                          {disabled ? (
+                            <div className="grid min-h-8 w-full grid-cols-[minmax(0,1fr)_2rem_1rem] items-center gap-2 py-1 text-left text-xs">
+                              <span className="min-w-0 truncate text-slate-800">{group.label}</span>
+                              <span className="w-8 text-right font-mono tabular-nums text-slate-400">0</span>
+                              <span aria-hidden="true" />
+                            </div>
+                          ) : (
+                            <button
+                              type="button"
+                              aria-expanded={expanded}
+                              onClick={() => setExpandedWarningCategory(expanded ? null : group.category)}
+                              className="grid min-h-8 w-full grid-cols-[minmax(0,1fr)_2rem_1rem] items-center gap-2 py-1 text-left text-xs text-slate-800 hover:bg-slate-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-700"
+                            >
+                              <span className="min-w-0 truncate">{group.label}</span>
+                              <span className="w-8 text-right font-mono tabular-nums text-slate-600">{groupCount}</span>
+                              <span className="grid w-4 place-items-center" aria-hidden="true">
+                                {expanded
+                                  ? <ChevronDown className="h-3.5 w-3.5 text-slate-500" />
+                                  : <ChevronRight className="h-3.5 w-3.5 text-slate-500" />}
+                              </span>
+                            </button>
+                          )}
                           {expanded && groupCount > 0 && (
                             <ul className="mb-1 ml-8 border-l border-slate-200 pl-2">
                               {group.items.map(item => (
