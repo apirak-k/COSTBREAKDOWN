@@ -18,6 +18,7 @@ import type { MasterDataHandoffStatus } from '../../../core/calculations/master-
 import type { MasterDataSaveState } from '../../../core/utils/master-data-effective'
 import { downloadBlob } from '../../../services/excel/export'
 import {
+  areMasterDataDatasetsReady,
   countMasterDataWarningsByRole,
   type MasterDataWarningGroup,
   type MasterDataWarningItem
@@ -101,6 +102,7 @@ export const MasterDataWorkspaceHeader: React.FC<MasterDataWorkspaceHeaderProps>
   const roleLabel = roleLabels[role]
   const isSaved = saveStates[role] === 'Saved'
   const allWarningItems = warningGroups.flatMap(group => group.items)
+  const datasetsReady = areMasterDataDatasetsReady(handoff, allWarningItems)
   const datasetWarningCounts = countMasterDataWarningsByRole(allWarningItems)
   const visibleWarningGroups = warningRoleFilter
     ? warningGroups.map(group => ({ ...group, items: group.items.filter(item => item.role === warningRoleFilter) }))
@@ -330,25 +332,18 @@ export const MasterDataWorkspaceHeader: React.FC<MasterDataWorkspaceHeaderProps>
               aria-label="Prepare Dataset status and warnings"
               className="absolute right-0 top-full z-50 mt-1 flex max-h-[calc(100dvh-6rem)] w-[min(32rem,calc(100vw-2rem))] flex-col overflow-hidden border border-slate-300 bg-white p-3 text-sm text-slate-800 shadow-lg"
             >
-              <div className="grid grid-cols-[minmax(0,1fr)_6.5rem_1.75rem] items-center gap-2 border-b border-slate-200 pb-2">
-                <h2 id="prepare-dataset-heading" className="flex min-w-0 items-center gap-2 text-sm font-semibold text-slate-950">
-                  <Info aria-hidden="true" className="h-4 w-4 text-slate-500" />
-                  <span className="truncate">Prepare Dataset</span>
+              <div className="grid grid-cols-[minmax(0,1fr)_auto_1.75rem] items-center gap-2 border-b border-slate-200 pb-2">
+                <h2 id="prepare-dataset-heading" className="min-w-0 truncate text-sm font-semibold text-slate-950">
+                  Prepare Dataset
                 </h2>
-                <button
-                  type="button"
-                  onClick={() => setComparisonDetailsOpen(open => !open)}
-                  aria-label={`Comparison status: ${comparisonStatus}. Show compared product identities`}
-                  aria-expanded={comparisonDetailsOpen}
-                  aria-controls="prepare-dataset-identity-details"
-                  title="Inspect compared product identities"
-                  className="grid h-7 w-full grid-cols-[minmax(0,1fr)_1rem] items-center gap-1 rounded-sm px-1 text-xs font-normal text-slate-600 hover:bg-slate-50 hover:text-slate-950 focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-700"
+                <span
+                  aria-label={`Datasets ${datasetsReady ? 'Ready' : 'Incomplete'}`}
+                  title={datasetsReady ? 'Reference and Current are ready' : 'Reference or Current needs input'}
+                  className={`inline-flex items-center gap-1.5 whitespace-nowrap text-xs font-semibold ${datasetsReady ? 'text-emerald-700' : 'text-amber-700'}`}
                 >
-                  <span className="justify-self-end">{comparisonStatus}</span>
-                  {comparisonDetailsOpen
-                    ? <ChevronDown aria-hidden="true" className="h-3.5 w-3.5" />
-                    : <ChevronRight aria-hidden="true" className="h-3.5 w-3.5" />}
-                </button>
+                  <span aria-hidden="true" className={`h-1.5 w-1.5 rounded-full ${datasetsReady ? 'bg-emerald-600' : 'bg-amber-500'}`} />
+                  {datasetsReady ? 'Ready' : 'Incomplete'}
+                </span>
                 <button
                   type="button"
                   onClick={() => {
@@ -361,6 +356,21 @@ export const MasterDataWorkspaceHeader: React.FC<MasterDataWorkspaceHeaderProps>
                   <X aria-hidden="true" className="h-4 w-4" />
                 </button>
               </div>
+
+              <button
+                type="button"
+                onClick={() => setComparisonDetailsOpen(open => !open)}
+                aria-label={`Product ${comparisonStatus}. ${comparisonDetailsOpen ? 'Hide' : 'Show'} compared product identities`}
+                aria-expanded={comparisonDetailsOpen}
+                aria-controls="prepare-dataset-identity-details"
+                title="Inspect compared product identities"
+                className={`flex min-h-8 w-full items-center justify-between gap-2 border-b border-slate-200 py-1.5 text-left text-xs font-semibold focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-blue-700 ${handoff.productMismatch ? 'text-amber-700 hover:bg-amber-50' : 'text-emerald-700 hover:bg-emerald-50'}`}
+              >
+                <span>Product {comparisonStatus}</span>
+                {comparisonDetailsOpen
+                  ? <ChevronDown aria-hidden="true" className="h-3.5 w-3.5 shrink-0" />
+                  : <ChevronRight aria-hidden="true" className="h-3.5 w-3.5 shrink-0" />}
+              </button>
 
               <dl
                 id="prepare-dataset-identity-details"

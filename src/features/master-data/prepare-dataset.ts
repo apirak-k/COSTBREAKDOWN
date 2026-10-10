@@ -1,4 +1,5 @@
 import type { CostSnapshot, MasterDataRole } from '../../core/types'
+import type { MasterDataHandoffStatus } from '../../core/calculations/master-data-handoff'
 import { normalizeMasterDataSnapshot } from '../../core/utils/master-data-effective'
 
 export type MasterDataWarningCategory =
@@ -22,6 +23,16 @@ export interface MasterDataWarningGroup {
   category: MasterDataWarningCategory
   label: string
   items: MasterDataWarningItem[]
+}
+
+export function areMasterDataDatasetsReady(
+  handoff: Pick<MasterDataHandoffStatus, 'referenceReady' | 'currentReady' | 'datasetsPrepared'>,
+  warningItems: readonly MasterDataWarningItem[]
+): boolean {
+  return handoff.referenceReady
+    && handoff.currentReady
+    && handoff.datasetsPrepared
+    && !warningItems.some(item => item.category === 'missing-value' && item.role !== 'custom')
 }
 
 export const MASTER_DATA_WARNING_CATEGORY_DEFINITIONS: ReadonlyArray<{

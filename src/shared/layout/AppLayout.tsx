@@ -3,7 +3,7 @@ import { Navbar } from './Navbar'
 import { useAppStore } from '../../state'
 import { formatNumber } from '../../core'
 import { AlertTriangle } from 'lucide-react'
-import { buildMasterDataWarningItems } from '../../features/master-data/prepare-dataset'
+import { areMasterDataDatasetsReady, buildMasterDataWarningItems } from '../../features/master-data/prepare-dataset'
 
 interface AppLayoutProps {
   children: ReactNode
@@ -21,10 +21,7 @@ export const AppLayout: React.FC<AppLayoutProps> = ({ children, masterDataSearch
   } = useAppStore()
   const warningItems = buildMasterDataWarningItems(masterDataSnapshots)
   const warningCount = warningItems.length
-  const hasMissingReferenceOrCurrentValue = warningItems.some(item =>
-    item.category === 'missing-value' && item.role !== 'custom'
-  )
-  const datasetsReady = masterDataHandoff.datasetsPrepared && !hasMissingReferenceOrCurrentValue
+  const datasetsReady = areMasterDataDatasetsReady(masterDataHandoff, warningItems)
   const referenceStandardCost = fullSnapshotComparison.referenceCost.total
   const currentStandardCost = fullSnapshotComparison.currentCost.total
   const totalGap = fullSnapshotComparison.totalGap
@@ -40,7 +37,7 @@ export const AppLayout: React.FC<AppLayoutProps> = ({ children, masterDataSearch
         : 'text-slate-300'
 
   return (
-    <div className="min-h-dvh w-full bg-slate-100/70 text-slate-900 flex flex-col font-sans text-[13px] antialiased">
+    <div className="flex h-dvh min-h-0 w-full flex-col overflow-hidden bg-slate-100/70 font-sans text-[13px] text-slate-900 antialiased">
       <a
         href="#main-content"
         className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-[100] focus:rounded-md focus:bg-white focus:px-4 focus:py-3 focus:font-medium focus:text-slate-900 focus:shadow-lg"
@@ -54,11 +51,11 @@ export const AppLayout: React.FC<AppLayoutProps> = ({ children, masterDataSearch
       <main
         id="main-content"
         tabIndex={-1}
-        className="app-workspace-frame min-w-0 flex-1 py-3"
+        className="app-workspace-frame min-h-0 min-w-0 flex-1 overflow-y-auto py-3"
       >
         {children}
       </main>
-      <footer aria-label="Dataset and comparison status" className="mt-auto w-full border-t border-slate-800 bg-slate-900 py-2 font-sans text-[11px] text-slate-400">
+      <footer aria-label="Dataset and comparison status" className="w-full shrink-0 border-t border-slate-800 bg-slate-900 py-2 font-sans text-[11px] text-slate-400">
         <div className="app-workspace-frame flex flex-wrap items-center justify-between gap-x-5 gap-y-1.5 xl:flex-nowrap">
           <div role="group" aria-label="Reference and Current dataset structure" className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1 tabular-nums">
             <span aria-label={`Reference dataset: ${snapshotPair.reference.bom.length} BOM items, ${snapshotPair.reference.rates.length} work centers, ${snapshotPair.reference.routing.length} routing operations`} className="whitespace-nowrap">
@@ -74,7 +71,7 @@ export const AppLayout: React.FC<AppLayoutProps> = ({ children, masterDataSearch
           <div role="group" aria-label="Dataset readiness, product comparison, and warnings" className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1">
             <span className="flex items-center gap-1.5 whitespace-nowrap">
               <span aria-hidden="true" className={`h-1.5 w-1.5 rounded-full ${datasetsReady ? 'bg-emerald-400' : 'bg-amber-400'}`} />
-              <span className={datasetsReady ? 'text-emerald-300' : 'text-amber-300'}>
+              <span className={`font-semibold ${datasetsReady ? 'text-emerald-300' : 'text-amber-300'}`}>
                 {datasetsReady ? 'Datasets Ready' : 'Datasets Incomplete'}
               </span>
             </span>
@@ -84,8 +81,9 @@ export const AppLayout: React.FC<AppLayoutProps> = ({ children, masterDataSearch
               onClick={() => requestMasterDataPrepareDataset('comparison')}
               aria-label={`Open Prepare Dataset comparison details: Product ${masterDataHandoff.productMismatch ? 'Mismatch' : 'Match'}`}
               title="Open Prepare Dataset comparison details"
-              className="min-h-7 whitespace-nowrap text-slate-300 transition-colors hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-300"
+              className={`inline-flex min-h-7 items-center gap-1.5 whitespace-nowrap font-semibold transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-300 ${masterDataHandoff.productMismatch ? 'text-amber-300 hover:text-amber-200' : 'text-emerald-300 hover:text-emerald-200'}`}
             >
+              <span aria-hidden="true" className={`h-1.5 w-1.5 rounded-full ${masterDataHandoff.productMismatch ? 'bg-amber-400' : 'bg-emerald-400'}`} />
               Product {masterDataHandoff.productMismatch ? 'Mismatch' : 'Match'}
             </button>
             <span aria-hidden="true" className="text-slate-700">|</span>

@@ -1,3 +1,5 @@
+import { isProductIdentityMismatch } from '../../core/utils/master-data-effective'
+
 export interface HeaderProductContextSource {
   productName?: string | null
   uom?: string | null
@@ -13,7 +15,7 @@ export function resolveHeaderProductContext(
   const currentUom = current.uom?.trim() ?? ''
 
   if (!referenceName || !currentName || !referenceUom || !currentUom) return 'Product (Unit)'
-  if (referenceName !== currentName || referenceUom !== currentUom) return 'Product (Unit)'
+  if (isProductIdentityMismatch(reference, current)) return 'Product (Unit)'
 
   return `${referenceName} (${referenceUom})`
 }

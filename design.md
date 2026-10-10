@@ -206,9 +206,11 @@ when the app frame has usable width.
 - **Elevation:** use a thin border as the default separation. Reserve a small
   shadow for overlays and floating menus; do not put a shadow on every card.
 
-Keep the app header and footer in the shared frame while the main workspace
-scrolls. Master Data's selected-dataset toolbar and metadata stay together at
-the top of its content scroll area, as required by
+The app uses a viewport-height shell: Header at the top, an internally scrolling
+Main region, and a non-overlay Footer locked to the bottom. Header, Main, and
+Footer content share the centered `max-w-[1440px]` frame. Master Data's
+selected-dataset toolbar and metadata stay together at the top of its content
+scroll area, as required by
 [`MASTER_DATA.md`](docs/specs/MASTER_DATA.md#page-structure-and-metadata)
 [L28-L30]. Keep the footer visually quiet and do not label it `Workspace`.
 
@@ -224,11 +226,12 @@ the top of its content scroll area, as required by
   Their placement, wording, and control styling remain governed by
   [`CROSS_CUTTING.md`](docs/specs/CROSS_CUTTING.md#shared-status-and-analysis-context)
   where the latest explicit page contract does not define them.
-- Treat the shared Header as one compact workspace bar. Its desktop order is
-  Undo, Redo, `COSTBREAKDOWN`, safely resolved Product (Unit) context, the
-  permanent `Search data...` field, Master Data / Cost Breakdown / Candidate /
-  Simulation, and a final icon-only Info control for Prepare Dataset. Do not
-  place workflow status, a workflow CTA, warning text, or additional navigation
+- Treat the shared Header as one compact workspace bar with three desktop zones:
+  Undo, Redo, `COSTBREAKDOWN`, and safely resolved Product (Unit) context at
+  the left; centered Master Data / Cost Breakdown / Candidate / Simulation
+  navigation; and the permanent `Search data...` field plus a final icon-only
+  Info control for Prepare Dataset at the right. Reflow below desktop widths.
+  Do not place workflow status, a workflow CTA, warning text, or additional navigation
   in the Header. Undo and Redo stay visible but are enabled only on Master Data
   when the existing history allows them. Search stays visible, filters the
   visible Master Data table context, and remains disabled on pages without
@@ -236,11 +239,9 @@ the top of its content scroll area, as required by
 - Remove `CB`, `Product Cost Analysis`, and the bottom-left `Workspace` label
   per the confirmed Master Data visual direction. Do not replace them with a
   decorative slogan or redundant branding.
-- Keep the footer behavior and placement already specified for the application
-  frame; this design contract does not add footer messages or behavior. The
-  Reference/Current totals must be visible somewhere useful. A shared summary
-  area is one provisional placement option, but its exact location remains
-  open.
+- Keep the Footer at the bottom of the viewport without overlaying Main content.
+  Its compact status and Reference/Current totals stay inside the same centered
+  frame; the dark Footer background spans the viewport width.
 
 ### Buttons
 

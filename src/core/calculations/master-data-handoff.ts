@@ -1,4 +1,5 @@
 import type { ProductSession, SnapshotPair, SnapshotRoleReadiness } from '../types'
+import { isProductIdentityMismatch } from '../utils/master-data-effective'
 
 export interface MasterDataHandoffStatus {
   referenceReady: boolean
@@ -29,10 +30,6 @@ export function getSnapshotRoleReadiness(
   }
 }
 
-function normalized(value: string | undefined): string {
-  return value?.trim().toLowerCase() ?? ''
-}
-
 /**
  * Reports which sides have been prepared and exposes Product Mismatch as status.
  * Preparation is informational; missing inputs remain visible in Cost Breakdown.
@@ -51,9 +48,7 @@ export function evaluateMasterDataHandoff(
     }
   })
 
-  const refName = pair.reference.product.productName?.trim() ?? ''
-  const curName = pair.current.product.productName?.trim() ?? ''
-  const productMismatch = normalized(refName) !== normalized(curName)
+  const productMismatch = isProductIdentityMismatch(pair.reference.product, pair.current.product)
 
   return {
     referenceReady: readiness.reference,

@@ -119,8 +119,14 @@ export function normalizeMasterDataSnapshot(snapshot: CostSnapshot, previous?: C
   }
 }
 
+export function isProductIdentityMismatch(
+  reference: { productName?: string | null; uom?: string | null },
+  current: { productName?: string | null; uom?: string | null }
+): boolean {
+  return normalized(reference.productName ?? '') !== normalized(current.productName ?? '')
+    || normalized(reference.uom ?? '') !== normalized(current.uom ?? '')
+}
+
 export function isProductMismatch(reference: CostSnapshot, current: CostSnapshot): boolean {
-  const referenceName = reference.product.productName?.trim() ?? ''
-  const currentName = current.product.productName?.trim() ?? ''
-  return normalized(referenceName) !== normalized(currentName)
+  return isProductIdentityMismatch(reference.product, current.product)
 }

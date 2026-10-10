@@ -90,6 +90,19 @@ assert.equal(productCodeOnlyMismatch.productMismatch, false)
 assert.deepEqual(productCodeOnlyMismatch.issues, [])
 assert.deepEqual(productCodeOnlyMismatch.warnings, [], 'Product Code differences alone do not create data warnings')
 
+const productUomMismatch = evaluateMasterDataHandoff(baseSession, {
+  ...pair,
+  current: { ...pair.current, product: { ...product, uom: 'KG' } }
+})
+assert.equal(productUomMismatch.productMismatch, true, 'UOM differences create Product Mismatch even when Product Name matches')
+
+const normalizedProductMatch = evaluateMasterDataHandoff(baseSession, {
+  ...pair,
+  reference: { ...pair.reference, product: { ...product, productName: ' Demo ', uom: ' PC ' } },
+  current: { ...pair.current, product: { ...product, productName: 'demo', uom: 'pc' } }
+})
+assert.equal(normalizedProductMatch.productMismatch, false, 'Product Name and UOM comparison trims and normalizes case')
+
 const productNameMismatch = evaluateMasterDataHandoff(baseSession, {
   ...pair,
   current: { ...pair.current, product: { ...product, productCode: 'P-001', productName: 'Different Demo', productDescription: 'Different Demo' } }

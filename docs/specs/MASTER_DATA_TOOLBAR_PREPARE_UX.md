@@ -10,7 +10,7 @@ It does not change finalized calculations, Candidate generation, RCA data semant
 
 ## Finalized UX Decisions
 
-- The shared Header is one compact workspace bar. Its desktop order is Undo, Redo, `COSTBREAKDOWN`, safely resolved Product (Unit) context, the permanent `Search data...` field, Master Data / Cost Breakdown / Candidate / Simulation, and a final icon-only Info control for Prepare Dataset. Do not show workflow status, a workflow CTA, warning text, or additional navigation in the Header.
+- The shared Header is one compact workspace bar with three desktop zones: Undo, Redo, `COSTBREAKDOWN`, and safely resolved Product (Unit) context at the left; centered Master Data / Cost Breakdown / Candidate / Simulation navigation; and the permanent `Search data...` field plus a final icon-only Info control for Prepare Dataset at the right. Smaller widths may reflow. Do not show workflow status, a workflow CTA, warning text, or additional navigation in the Header.
 - Undo and Redo remain visible and use the existing Master Data history; they are enabled only on Master Data when the corresponding history action exists, and disabled on other pages. Search remains visible but is enabled only on Master Data, where it filters the currently visible table context; other page search semantics are not finalized.
 - On normal desktop widths, Master Data keeps Reference / Current / Custom, View / Edit, actions, BOM / Work Centers / Routing / All, and far-right Prepare Dataset at one compact toolbar level. Narrow widths may wrap.
 - Master Data toolbar selectors remain text controls. Sizing, Import, Clone, Reset, Clear, Save, Export, and Prepare Dataset are icon-only, neutral, consistently sized actions with tooltips. Prepare Dataset uses Info. Save does not receive a special color treatment.
@@ -21,12 +21,13 @@ It does not change finalized calculations, Candidate generation, RCA data semant
 - Header Search is a permanent inline `Search data...` field. It filters BOM, Work Centers, or Routing for the selected view; `All` applies the same query across all visible tables. It is disabled outside Master Data until those pages have finalized search behavior. The embedded per-table Search boxes are removed.
 - Clone opens a source flyout on hover, focus, or click; the flyout excludes the destination, stays open while moving between trigger and menu, closes when the pointer leaves both, and supports keyboard selection. Choosing a source clones immediately without a second confirmation.
 - Prepare Dataset is a compact toggleable popover. It closes from its trigger, outside click, Escape, or its close button. Reference / Current / Custom summaries show save state and a per-dataset warning count; rows are horizontal on desktop and responsive on small screens. Do not show Prepared / Needs input in those rows or explain that Custom is unused by CBD.
-- Place `Match` / `Mismatch` beside the Prepare Dataset title as an interactive status, without parentheses. Keep a fixed-width chevron slot so Match and Mismatch align; details start collapsed and show Reference and Current Product Name/UOM when opened. It does not change warning counts. Do not add a separate Comparison section.
+- The Prepare Dataset title row shows `Prepare Dataset`, `Ready` / `Incomplete`, and Close. A separate full-width `Product Match` / `Product Mismatch` row follows immediately; its chevron expands/collapses Reference and Current Product Name/UOM details. Product status does not change warning counts. Do not add a separate Comparison section.
+- Ready requires Reference and Current readiness plus no Missing required value warnings in Reference or Current. Custom does not affect readiness. Use this same readiness derivation in the Footer and Prepare Dataset title row; do not show readiness on individual dataset rows.
 - Status describes context/state; Warning identifies data to review. Product Mismatch is a non-blocking comparison status, excluded from warning categories and counts, and never triggers a CBD confirmation or blocker.
 - Prepare Dataset exposes exactly three warning categories: Generated identity, Missing required value, and Auto-renamed duplicate. Invalid numeric values and nonblank unavailable Routing Work Center references are rejected at normal edit/import ingress; they are not warning categories. Blank required Work Center is Missing required value. Counts represent affected source items/locations, not categories, and do not double-count a condition at one location.
 - Always show Reference / Current / Custom warning counts. Clicking a non-zero dataset count filters the category list to that dataset; `All` restores the combined list. Do not repeat dataset counts inside category rows.
 - Always show exactly three warning category rows, including zero-count categories. A zero row is disabled, muted, and has no chevron. Positive rows use a stable label / fixed count / fixed far-right chevron layout and always expand or collapse, including when count is one. Each expanded actual warning item is the final action: it navigates directly to the source and has no chevron or other expansion/navigation indicator. Bound the popover height and scroll its warning list internally. Navigation activates the dataset and table, switches to Edit, selects and scrolls the row, and focuses/highlights the field when practical. Warning presence never blocks normal application use.
-- The shared Footer is a compact three-group summary: Reference/Current structure in BOM / WC / RTG order; Reference+Current readiness, clickable Product Match/Mismatch, and clickable `⚠ N`; then full Reference/Current Standard Cost and full Net Gap. Custom is omitted from structure/readiness, but its warning items remain in the warning total. Product Mismatch and readiness are not warning items.
+- The shared Footer is a compact three-group summary: Reference/Current structure in BOM / WC / RTG order; Reference+Current readiness, clickable Product Match/Mismatch, and clickable `⚠ N`; then full Reference/Current Standard Cost and full Net Gap. Both statuses have a dot, semibold text, and semantic color; Product Match/Mismatch has no chevron. Custom is omitted from structure/readiness, but its warning items remain in the warning total. Product Mismatch and readiness are not warning items.
 - Blank BOM, Work Center, and Routing identities have usable effective identities `Material N`, `Work Center N`, and `Process N`. `N` is the ordinal among currently blank/generated identities in that table, not the physical row number. Generated identities may be saved and exported, appear in warnings, and do not block workflow.
 - Duplicate effective identities are auto-renamed to the next available deterministic suffix, such as `mat0.3a`, `mat0.3a(1)`, `mat0.3a(2)`. Apply the rule to direct entry, paste, bulk edits, and other applicable input paths. Report each correction as a warning without a modal. Existing imported/legacy ambiguous data must not cause the comparison engine to guess a match.
 - Missing required values make only affected and dependent results Unavailable and appear in the warning list. Invalid numeric values are rejected at edit/import ingress; unavailable nonblank Routing Work Center references are rejected at edit/import ingress. Existing persisted invalid data remains Unavailable with local invalid-cell cues, but neither invalid values nor unresolved Work Centers appear as Prepare Dataset warning categories. Never replace missing values with zero. A valid zero remains valid where formulas permit it.
@@ -38,7 +39,7 @@ It does not change finalized calculations, Candidate generation, RCA data semant
 - Candidate / RCA uses a compact decision table with key candidate values visible and changed/process details disclosed on demand. The RCA Case focuses on Candidates, Root Cause / Why?, and Action; Simulation is optional. RCA save state uses Saved / Draft.
 - Simulation leads with Reference → Current → Simulated, cost story, and available result/decision metrics, followed by economic assumptions, Factors to Simulate, and parameter details. Preserve the current graph and formulas; economic evaluation remains advisory.
 - The shared Footer wraps its three logical groups on narrow screens and remains one row on normal desktop widths. Its warning indicator always shows `⚠ N`, including zero, and opens Prepare Dataset with all warning roles visible. Product Match/Mismatch opens Prepare Dataset with comparison details expanded and no warning filter. Full Reference/Current costs and Net Gap do not follow Selected Comparison scope.
-- Header, Main, and Footer share one wide centered frame. The app shell uses document-owned vertical scrolling: the Footer rests at the viewport bottom on short pages and follows all content on long pages.
+- Header, Main, and Footer content share the centered `max-w-[1440px]` frame with `px-3 sm:px-4 lg:px-6`; Header/Footer backgrounds span the viewport. The app shell is `h-dvh min-h-0 flex flex-col overflow-hidden`; Main owns vertical scrolling and Footer stays at the viewport bottom without overlaying content.
 - Prepare Dataset and footer warning navigation do not add a global blocker or a CBD confirmation. No global page redesign beyond the Header workspace utilities is included.
 
 ## Status Model
@@ -47,7 +48,7 @@ It does not change finalized calculations, Candidate generation, RCA data semant
 |---|---|---|
 | Dataset save state | Saved / Draft | Saved means Working matches Last Saved. Draft means it differs or has never been saved. |
 | Preparation | Prepared / Needs input | Existing readiness semantics are preserved, but these labels are not shown in the Prepare Dataset dataset rows. |
-| Comparison | Product Mismatch | Effective Reference and Current Product Names differ. Informational and non-blocking. |
+| Comparison | Product Match / Product Mismatch | Match requires normalized Reference and Current Product Name and UOM to agree; otherwise Mismatch. Informational and non-blocking. |
 
 Save-state dots are separate from selected-dataset styling. Preparation status and warning count are also separate concepts.
 
@@ -113,6 +114,9 @@ Missing required numeric inputs produce Unavailable affected results and Missing
 - [x] Table selector order is BOM / Work Centers / Routing / All.
 - [x] Table selector buttons use equal fixed sizing.
 - [x] Prepare Dataset remains far right and uses an Info icon.
+- [x] Header has left utilities/product context, centered navigation, and right Search/Info zones on desktop; smaller widths reflow.
+- [x] `COSTBREAKDOWN` uses approximately `text-sm`; disabled Undo, Redo, and Search use reduced opacity without `cursor-not-allowed`.
+- [x] Header Product context shows Name (UOM) only when normalized Name and UOM match; otherwise it stays neutral as `Product (Unit)`.
 - [x] Undo / Redo stay visible in the shared Header and are enabled only for available Master Data history; Search stays visible and is enabled only on Master Data.
 - [x] Header Search filters the selected table and all visible tables in All view.
 - [x] Per-table Search controls are removed.
@@ -130,8 +134,11 @@ Missing required numeric inputs produce Unavailable affected results and Missing
 - [x] Dataset rows do not show Prepared / Needs input readiness.
 - [x] Per-dataset warning counts are shown and are independent of save states.
 - [x] Clicking a non-zero dataset warning count filters the category rows; `All` restores the combined view.
-- [x] Match / Mismatch appears beside the title without parentheses, is interactive, and does not change warning counts.
-- [x] Match / Mismatch details start collapsed; the chevron stays in a fixed-width slot.
+- [x] Ready / Incomplete appears in the Prepare Dataset title row.
+- [x] Product Match / Mismatch is on its own full-width row below the title and expands/collapses identity details.
+- [x] Product Match / Mismatch uses normalized Product Name and UOM comparison.
+- [x] Product Match / Mismatch details start collapsed.
+- [x] Prepare Dataset and Footer use the same readiness derivation; Custom does not affect readiness.
 - [ ] Compared Reference / Current Product Name and UOM details are compact; there is no separate Comparison section (requires visual acceptance).
 - [x] Unnecessary Custom/CBD explanation is removed.
 - [x] Product Mismatch is Status.
@@ -156,17 +163,18 @@ Missing required numeric inputs produce Unavailable affected results and Missing
 
 ### Footer
 - [x] Reference and Current structure counts use BOM / WC / RTG order; Custom is omitted.
-- [x] Readiness is limited to Reference and Current and uses `Datasets Ready` / `Datasets Incomplete`.
-- [x] Product Match/Mismatch is a separate clickable status and opens expanded comparison details.
+- [x] Readiness is limited to Reference and Current and uses `Datasets Ready` / `Datasets Incomplete` with a dot, semibold text, and semantic color.
+- [x] Product Match/Mismatch compares normalized Product Name and UOM, and uses the same handoff status in Footer and Prepare Dataset.
+- [x] Product Match/Mismatch is a separate clickable status with a dot, semibold text, and semantic color; it has no chevron and opens expanded comparison details.
 - [x] `⚠ 0` remains visible; `⚠ N` uses affected warning-item count and excludes Product Mismatch/readiness.
 - [x] Clicking `⚠ N` requests Prepare Dataset with all warning roles visible.
 - [x] Full Reference/Current Standard Cost and Net Gap remain independent from Selected Comparison.
 - [x] Unavailable Standard Cost/Net Gap displays `—`; no zero is fabricated.
 - [x] Net Gap is Current minus Reference; only the number uses positive/negative semantic color.
-- [x] Header, Main, and Footer align to the same centered wide frame.
-- [ ] Short pages place the Footer at viewport bottom; long pages place it after content in document flow.
+- [x] Header, Main, and Footer align to the same centered `max-w-[1440px]` frame.
+- [x] Short and long pages keep Footer at the viewport bottom while Main scrolls internally without overlap.
 - [ ] Footer groups wrap cleanly on narrow screens and fit one row on normal desktop widths.
-- [ ] Product Match/Mismatch compares Product Name and UOM. Current handoff status compares Product Name only; kept unchanged because this task prohibits changing its business semantics.
+- [x] Product Match/Mismatch consistently compares normalized Product Name and UOM in the handoff, shared utility, Header context, Footer, and Prepare Dataset.
 
 ### Generated identities
 - [x] Blank BOM identities display/use Material N.

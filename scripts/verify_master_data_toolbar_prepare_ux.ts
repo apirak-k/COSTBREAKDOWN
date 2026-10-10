@@ -12,6 +12,7 @@ import {
 } from '../src/core/utils/master-data-validation'
 import {
   buildMasterDataWarningItems,
+  areMasterDataDatasetsReady,
   countMasterDataWarningsByRole,
   groupMasterDataWarnings,
   MASTER_DATA_WARNING_CATEGORY_DEFINITIONS
@@ -133,11 +134,32 @@ const pair: SnapshotPair = {
   current: { ...normalizeMasterDataSnapshot(quality), product: { ...quality.product, productName: 'Different product' } }
 }
 assert.ok(isProductMismatch(pair.reference, pair.current), 'Product Mismatch is derivable as comparison status outside warning items')
+assert.ok(isProductMismatch(
+  pair.reference,
+  { ...pair.current, product: { ...pair.current.product, productName: '', uom: 'KG' } }
+), 'UOM differences create Product Mismatch when Product Names match')
+assert.equal(isProductMismatch(
+  { ...pair.reference, product: { ...pair.reference.product, productName: ' Demo ', uom: ' PC ' } },
+  { ...pair.current, product: { ...pair.current.product, productName: 'demo', uom: 'pc' } }
+), false, 'Product Name and UOM comparison trims and normalizes case')
 assert.equal(isProductMismatch(
   { ...snapshot('blank-reference'), product: { ...snapshot('blank-reference').product, productName: '', productDescription: 'Reference description' } },
   { ...snapshot('blank-current'), product: { ...snapshot('blank-current').product, productName: '', productDescription: 'Current description' } }
 ), false, 'blank Product Names remain blank even when legacy descriptions differ')
 assert.ok(!warningItems.some(item => item.category === 'product-mismatch'), 'Product Mismatch is not a warning category')
+
+const customMissingWarnings = buildMasterDataWarningItems({
+  reference: snapshot('ready-reference'),
+  current: snapshot('ready-current'),
+  custom: quality
+})
+const readyHandoff = { datasetsPrepared: true, referenceReady: true, currentReady: true }
+assert.equal(areMasterDataDatasetsReady(readyHandoff, customMissingWarnings), true,
+  'Custom missing values do not affect Reference/Current readiness')
+assert.equal(areMasterDataDatasetsReady(readyHandoff, warningItems), false,
+  'Reference or Current missing required values make shared readiness incomplete')
+assert.equal(areMasterDataDatasetsReady({ ...readyHandoff, currentReady: false }, []), false,
+  'shared readiness requires both existing dataset readiness states')
 
 const validationBase = snapshot('validation-base')
 validationBase.rates = [{ id: 'wc-valid', workCenterCode: 'WC-1', description: '', laborRate: 1, burdenRate: 1, effectiveDate: '', confidence: {} }]

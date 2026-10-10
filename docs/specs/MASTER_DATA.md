@@ -93,7 +93,7 @@ Dataset metadata is independent for each dataset:
 | SG&A | SG&A percent of Selling Price (%) | Independent per dataset |
 | Dataset Remark | Dataset-level annotation remark | Independent per dataset |
 
-Product Name and UOM remain blank until entered; do not fabricate `Product` or `PC` in display, save, or export. UOM is free text. Selling Price and SG&A keep their existing missing-value semantics; Dataset Remark may be blank. Do not add Product Code, Product Description, or Product Note. If effective Reference and Current Product Names differ, show `Product Mismatch` as a non-blocking comparison status, not a warning. It does not block or confirm CBD entry.
+Product Name and UOM remain blank until entered; do not fabricate `Product` or `PC` in display, save, or export. UOM is free text. Selling Price and SG&A keep their existing missing-value semantics; Dataset Remark may be blank. Do not add Product Code, Product Description, or Product Note. If effective Reference and Current Product Name or UOM differ after trimming and case normalization, show `Product Mismatch` as a non-blocking comparison status, not a warning. It does not block or confirm CBD entry.
 
 ## Sizing and Templates
 

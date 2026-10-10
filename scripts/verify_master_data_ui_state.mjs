@@ -203,7 +203,9 @@ try {
   assert.match(footerMarkup, /REF[\s\S]*BOM 0 · WC 0 · RTG 0[\s\S]*CUR[\s\S]*BOM 0 · WC 0 · RTG 0/, 'Footer renders Reference and Current structural counts in BOM/WC/RTG order')
   assert.doesNotMatch(footerMarkup, /Custom/, 'Footer does not include Custom in structural summaries')
   assert.match(footerMarkup, /Datasets Ready/, 'missing values in Custom do not change Reference/Current readiness')
+  assert.match(footerMarkup, /rounded-full bg-emerald-400"><\/span><span class="font-semibold text-emerald-300">Datasets Ready/, 'Footer readiness has a green dot and semibold green text')
   assert.match(footerMarkup, /Product Mismatch/, 'Footer renders the existing Product Mismatch status independently')
+  assert.match(footerMarkup, /rounded-full bg-amber-400"><\/span>Product Mismatch/, 'Footer Product Mismatch has an amber dot and no chevron')
   assert.match(footerMarkup, /<span class="font-mono tabular-nums">1<\/span>/, 'Footer warning total includes affected warning items across datasets')
   assert.ok(footerMarkup.indexOf('REF STD') < footerMarkup.indexOf('CUR STD')
     && footerMarkup.indexOf('CUR STD') < footerMarkup.indexOf('NET GAP'), 'Footer cost summary orders Reference, Current, then Net Gap')
@@ -236,7 +238,8 @@ try {
       productMismatch: false
     }
   })
-  assert.match(incompleteFooterMarkup.slice(incompleteFooterMarkup.indexOf('<footer')), /Datasets Incomplete/, 'a Reference missing required value makes Footer readiness incomplete')
+  const incompleteFooter = incompleteFooterMarkup.slice(incompleteFooterMarkup.indexOf('<footer'))
+  assert.match(incompleteFooter, /rounded-full bg-amber-400"><\/span><span class="font-semibold text-amber-300">Datasets Incomplete/, 'a Reference missing required value makes Footer readiness incomplete with an amber dot and text')
 
   const zeroWarningFooterMarkup = await renderAppLayout({
     masterDataHandoff: {
@@ -251,6 +254,19 @@ try {
   const zeroWarningFooter = zeroWarningFooterMarkup.slice(zeroWarningFooterMarkup.indexOf('<footer'))
   assert.match(zeroWarningFooter, /<span class="font-mono tabular-nums">0<\/span>/, 'Footer keeps the zero-warning indicator visible')
   assert.match(zeroWarningFooter, /Product Mismatch[\s\S]*<span class="font-mono tabular-nums">0<\/span>/, 'Product Mismatch does not add to the Footer warning total')
+
+  const matchingFooterMarkup = await renderAppLayout({
+    masterDataHandoff: {
+      datasetsPrepared: true,
+      referenceReady: true,
+      currentReady: true,
+      issues: [],
+      warnings: [],
+      productMismatch: false
+    }
+  })
+  const matchingFooter = matchingFooterMarkup.slice(matchingFooterMarkup.indexOf('<footer'))
+  assert.match(matchingFooter, /text-emerald-300 hover:text-emerald-200[\s\S]*rounded-full bg-emerald-400"><\/span>Product Match/, 'Footer Product Match has a green dot and semibold green text')
 
   const negativeGapMarkup = await renderAppLayout({
     fullSnapshotComparison: {
@@ -424,7 +440,11 @@ try {
   assert.doesNotMatch(headerSource, /\(\{comparisonStatus\}\)/, 'Match or Mismatch is not presented in parentheses')
   assert.match(headerSource, /const \[comparisonDetailsOpen, setComparisonDetailsOpen\] = useState\(false\)/, 'comparison details are collapsed by default')
   assert.match(headerSource, /onClick=\{\(\) => setComparisonDetailsOpen\(open => !open\)\}/, 'Match or Mismatch opens and closes comparison details')
-  assert.match(headerSource, /grid-cols-\[minmax\(0,1fr\)_6\.5rem_1\.75rem\][\s\S]*grid-cols-\[minmax\(0,1fr\)_1rem\]/, 'comparison status and its chevron occupy fixed layout slots')
+  assert.match(headerSource, /grid-cols-\[minmax\(0,1fr\)_auto_1\.75rem\]/, 'the title row allocates space to title, readiness, and close control')
+  assert.match(headerSource, /datasetsReady \? 'Ready' : 'Incomplete'/, 'Prepare Dataset title row shows shared Ready/Incomplete state')
+  const prepareTitleRow = headerSource.slice(headerSource.indexOf('grid-cols-[minmax(0,1fr)_auto_1.75rem]'), headerSource.indexOf('onClick={() => setComparisonDetailsOpen'))
+  assert.doesNotMatch(prepareTitleRow, /comparisonStatus|ChevronRight|ChevronDown/, 'Product Match/Mismatch is not beside the Prepare Dataset title')
+  assert.match(headerSource, /className={`flex min-h-8 w-full items-center justify-between[\s\S]*Product \{comparisonStatus\}[\s\S]*ChevronRight/, 'Product Match/Mismatch is a separate full-width expandable row')
   assert.ok(/aria-label="Compared product identities"/.test(headerSource)
     && /productIdentity\(comparisonProducts\.reference\)/.test(headerSource)
     && /productIdentity\(comparisonProducts\.current\)/.test(headerSource)
@@ -454,12 +474,15 @@ try {
   assert.match(pageSource, /handleWarningNavigationHandled[\s\S]*current\?\.requestId === requestId \? undefined : current/, 'warning navigation consumes the completed request')
   assert.match(warningFocusSource, /setSearchQuery\(''\)[\s\S]*scrollIntoView[\s\S]*selectRow\(target\.rowId\)[\s\S]*focusTarget\.focus[\s\S]*onNavigationHandled\(target\.requestId\)/, 'warning navigation clears filters, selects the row, scrolls, focuses the source, and consumes its target')
   assert.match(footerSource, /const warningItems = buildMasterDataWarningItems\(masterDataSnapshots\)[\s\S]*const warningCount = warningItems\.length/, 'footer total uses affected warning-item count')
-  assert.match(footerSource, /category === 'missing-value' && item\.role !== 'custom'/, 'footer readiness only considers missing required values from Reference and Current')
-  assert.match(footerSource, /masterDataHandoff\.datasetsPrepared && !hasMissingReferenceOrCurrentValue/, 'footer readiness also requires the existing Reference and Current handoff status')
+  assert.match(footerSource, /areMasterDataDatasetsReady\(masterDataHandoff, warningItems\)/, 'Footer uses the shared Reference/Current readiness derivation')
   assert.match(footerSource, /Datasets Ready[\s\S]*Datasets Incomplete/, 'footer uses the finalized compact readiness wording')
   assert.match(footerSource, /BOM \{snapshotPair\.reference\.bom\.length\} · WC \{snapshotPair\.reference\.rates\.length\} · RTG \{snapshotPair\.reference\.routing\.length\}/, 'Reference structural counts use BOM, WC, RTG order')
   assert.match(footerSource, /BOM \{snapshotPair\.current\.bom\.length\} · WC \{snapshotPair\.current\.rates\.length\} · RTG \{snapshotPair\.current\.routing\.length\}/, 'Current structural counts use BOM, WC, RTG order')
   assert.match(footerSource, /onClick=\{\(\) => requestMasterDataPrepareDataset\('comparison'\)\}[\s\S]*Product \{masterDataHandoff\.productMismatch \? 'Mismatch' : 'Match'\}/, 'Product Match/Mismatch opens Prepare Dataset comparison details')
+  assert.match(footerSource, /masterDataHandoff\.productMismatch \? 'bg-amber-400' : 'bg-emerald-400'/, 'Footer Product Match/Mismatch uses an amber/green dot')
+  assert.match(footerSource, /masterDataHandoff\.productMismatch \? 'text-amber-300 hover:text-amber-200' : 'text-emerald-300 hover:text-emerald-200'/, 'Footer Product Match/Mismatch uses semibold semantic text color')
+  const productStatusButton = footerSource.slice(footerSource.indexOf("requestMasterDataPrepareDataset('comparison')"), footerSource.indexOf("requestMasterDataPrepareDataset('all-warnings')"))
+  assert.doesNotMatch(productStatusButton, /Chevron|ChevronRight|ChevronDown/, 'Footer Product Match/Mismatch has no chevron')
   assert.match(footerSource, /onClick=\{\(\) => requestMasterDataPrepareDataset\('all-warnings'\)\}[\s\S]*\{warningCount\}/, 'footer warning count opens Prepare Dataset with all warning roles')
   assert.match(footerSource, /aria-label=\{`Open Prepare Dataset showing all \$\{warningCount\} warnings`\}/, 'footer warning count has an accessible action label')
   assert.match(footerSource, /fullSnapshotComparison\.referenceCost\.total[\s\S]*fullSnapshotComparison\.currentCost\.total[\s\S]*fullSnapshotComparison\.totalGap/, 'footer uses full Reference/Current Standard Costs and their full net gap')
@@ -468,13 +491,12 @@ try {
   assert.match(footerSource, /value === null \|\| !Number\.isFinite\(value\) \? '—'/, 'unavailable Standard Cost remains a dash rather than fabricated zero')
   assert.match(footerSource, /totalGap !== null && Number\.isFinite\(totalGap\)/, 'unavailable or non-finite Net Gap remains neutral')
   assert.match(footerSource, /totalGap > 0[\s\S]*text-rose-300[\s\S]*totalGap < 0[\s\S]*text-emerald-300[\s\S]*text-slate-300/, 'Net Gap colors are positive rose, negative emerald, and zero neutral')
-  assert.match(footerSource, /min-h-dvh[\s\S]*flex flex-col/, 'app shell uses a minimum viewport height in normal document flow')
-  assert.doesNotMatch(footerSource.match(/<div className="min-h-dvh[^\"]*"/)?.[0] ?? '', /(?:^|\s)h-dvh|overflow-hidden/, 'app shell no longer clips the viewport or pins the footer')
-  assert.match(footerSource, /<main[\s\S]*className="app-workspace-frame min-w-0 flex-1 py-3"/, 'Main grows for short pages without creating an isolated scroll container')
-  assert.doesNotMatch(footerSource.match(/<main[\s\S]*?>/)?.[0] ?? '', /overflow-y-auto/, 'Main leaves vertical scrolling to the document')
-  assert.match(footerSource, /<footer[\s\S]*mt-auto w-full[\s\S]*<div className="app-workspace-frame/, 'Footer stays in normal flow and shares the workspace frame')
+  assert.match(readyFooterMarkup, /<div class="flex h-dvh min-h-0 w-full flex-col overflow-hidden/, 'app shell fills the viewport and contains scrolling')
+  assert.match(readyFooterMarkup, /<main id="main-content" tabindex="-1" class="app-workspace-frame min-h-0 min-w-0 flex-1 overflow-y-auto py-3">/, 'Main is the flexible vertical scroll area')
+  assert.match(readyFooterMarkup, /<footer aria-label="Dataset and comparison status" class="w-full shrink-0/, 'Footer remains in the shell flow without using fixed positioning')
+  assert.doesNotMatch(footerSource.match(/<div className="flex h-dvh[^\"]*"/)?.[0] ?? '', /fixed/, 'Footer layout does not use a fixed overlay')
   assert.match(navbarSource, /className="app-workspace-frame"/, 'Header content shares the centered workspace frame')
-  assert.match(globalCssSource, /\.app-workspace-frame[\s\S]*max-w-\[1920px\][\s\S]*px-3 sm:px-4 lg:px-6/, 'Header, Main, and Footer use one shared wide frame rule')
+  assert.match(globalCssSource, /\.app-workspace-frame[\s\S]*max-w-\[1440px\][\s\S]*px-3 sm:px-4 lg:px-6/, 'Header, Main, and Footer use one bounded shared frame rule')
   assert.match(footerSource, /className="app-workspace-frame flex flex-wrap[\s\S]*xl:flex-nowrap/, 'footer groups wrap responsively and share one compact desktop row')
   assert.match(headerSource, /if \(!prepareDatasetRequestMode\) return[\s\S]*setWarningRoleFilter\(null\)[\s\S]*setExpandedWarningCategory\(null\)[\s\S]*setComparisonDetailsOpen\(prepareDatasetRequestMode === 'comparison'\)/, 'comparison requests expand comparison details without retaining a warning filter')
   assert.match(storeSource, /requestMasterDataPrepareDataset = \(mode\?: 'comparison' \| 'all-warnings'\)[\s\S]*setActiveTab\('master'\)[\s\S]*setMasterDataPrepareDatasetRequestMode\(mode \?\? null\)[\s\S]*setMasterDataPrepareDatasetRequested\(true\)/, 'Footer requests switch to Master Data and carry the selected Prepare Dataset view')
@@ -485,18 +507,21 @@ try {
   const headerOrder = [
     navbarSource.indexOf('aria-label="Page edit tools"'),
     navbarSource.indexOf('>COSTBREAKDOWN</span>'),
-    navbarSource.indexOf('role="search"'),
     navbarSource.indexOf('<nav aria-label="Main navigation"'),
+    navbarSource.indexOf('role="search"'),
     navbarSource.indexOf('aria-label="Prepare Dataset"')
   ]
-  assert.ok(headerOrder.every((position, index) => position >= 0 && (index === 0 || position > headerOrder[index - 1])), 'Header regions render Undo/Redo, identity, Search, navigation, then dataset info')
+  assert.ok(headerOrder.every((position, index) => position >= 0 && (index === 0 || position > headerOrder[index - 1])), 'Header regions render left utilities/context, centered navigation, then right Search/Info')
+  assert.match(navbarSource, /lg:grid-cols-\[minmax\(0,1fr\)_auto_minmax\(0,1fr\)\][\s\S]*justify-center/, 'desktop Header centers navigation between left and right zones')
+  assert.match(navbarSource, /text-sm font-semibold tracking-wide text-slate-100/, 'COSTBREAKDOWN uses text-sm branding')
+  assert.doesNotMatch(navbarSource, /disabled:cursor-not-allowed/, 'disabled Header Undo, Redo, and Search use the normal cursor')
   assert.match(navbarSource, /disabled=\{!isMasterData \|\| !canUndoMasterDataEdit\}/, 'Undo stays visible and is disabled outside Master Data or without history')
   assert.match(navbarSource, /disabled=\{!isMasterData \|\| !canRedoMasterDataEdit\}/, 'Redo stays visible and is disabled outside Master Data or without redo history')
   assert.match(navbarSource, /type="search"[\s\S]*aria-label="Search data"[\s\S]*disabled=\{!isMasterData\}[\s\S]*placeholder="Search data\.\.\."/, 'the permanent Search data field is enabled only where search is implemented')
   assert.match(navbarSource, /onMasterDataSearchQueryChange\(event\.target\.value\)/, 'Header Search updates the existing Master Data table query')
   assert.doesNotMatch(navbarSource, /searchOpen|searchRegionRef|aria-expanded/, 'Header Search is an inline field rather than a popup')
   assert.match(navbarSource, /onClick=\{\(\) => requestMasterDataPrepareDataset\(\)\}[\s\S]*aria-label="Prepare Dataset"[\s\S]*title="Prepare Dataset"[\s\S]*<Info/, 'the final Header control is an Info icon that opens Prepare Dataset')
-  assert.match(navbarSource, /lg:flex-nowrap[\s\S]*overflow-x-auto/, 'Header stays on one row on desktop while navigation scrolls on narrow widths')
+  assert.match(navbarSource, /flex min-w-0 flex-wrap items-center justify-center[\s\S]*sm:col-span-2[\s\S]*lg:col-start-2/, 'Header navigation can wrap on narrow widths and stays in the centered desktop zone')
   assert.doesNotMatch(bomSource, /aria-label="Search BOM"|placeholder="Search BOM/, 'BOM no longer renders a per-table search box')
   assert.doesNotMatch(routingSource, /aria-label="Search Routing"|placeholder="Search Routing/, 'Routing no longer renders a per-table search box')
   assert.match(pageSource, /searchQuery=\{searchQuery\}[\s\S]*onSearchQueryChange=\{onSearchQueryChange\}/, 'the shared Header query flows into Master Data tables')

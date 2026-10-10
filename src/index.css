@@ -4,7 +4,7 @@
 
 @layer components {
   .app-workspace-frame {
-    @apply mx-auto w-full max-w-[1920px] px-3 sm:px-4 lg:px-6;
+    @apply mx-auto w-full max-w-[1440px] px-3 sm:px-4 lg:px-6;
   }
 }
 

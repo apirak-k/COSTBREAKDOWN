@@ -126,11 +126,11 @@ No dedicated Trial execution, validation, approval, or promotion lifecycle is re
 
 ## Shared Status and Analysis Context
 
-The global Footer is a compact three-group workspace summary: Reference/Current structure counts (BOM / WC / RTG), Reference+Current readiness, Product Match/Mismatch, all-dataset warning-item count, and full Reference/Current Standard Cost plus Net Gap. Selected Comparison does not change those full snapshot costs. Footer status/warning actions open the corresponding Prepare Dataset view. Header, Main, and Footer use the same centered wide frame; the document owns vertical scrolling so the Footer follows long page content and rests at the viewport bottom on short pages.
+The global Footer is a compact three-group workspace summary: Reference/Current structure counts (BOM / WC / RTG), Reference+Current readiness, Product Match/Mismatch, all-dataset warning-item count, and full Reference/Current Standard Cost plus Net Gap. Both readiness and product statuses use a dot and semantic text color; Product status remains clickable without a chevron. Selected Comparison does not change those full snapshot costs. Footer status/warning actions open the corresponding Prepare Dataset view. The viewport shell keeps Header at the top, Main in its own vertical scroll area, and Footer at the bottom without overlaying Main. Header, Main, and Footer content share the centered `max-w-[1440px]` frame while the Header/Footer backgrounds span the viewport.
 
 `CONFIRMED DIRECTION — USER DECISION`: provide a shared status/context cue that helps users understand what is happening and where to review it. Relevant states include:
 - **`Ready for comparison`:** Both Reference and Current contain sufficient valid data for Cost Breakdown.
-- **`Product Mismatch`:** Reference and Current have different effective Product Names (informational, non-blocking comparison status, not a warning).
+- **`Product Mismatch`:** Reference and Current differ in effective Product Name or UOM after trimming and case normalization (informational, non-blocking comparison status, not a warning).
 - **`Missing data`:** One or both datasets have incomplete/missing required fields.
 - **`Active Selected Comparison`:** Cost Breakdown or Candidate Ranking is scoped to a selected subset of records; ends when leaving CBD/Candidate scope.
 
