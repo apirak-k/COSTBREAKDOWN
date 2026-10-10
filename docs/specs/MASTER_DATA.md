@@ -77,7 +77,7 @@ Rules for Clone:
 The page supports:
 - Dataset selection: `Reference`, `Current`, or `Custom`.
 - Mode toggle: `View Mode` (read-only) / `Edit Mode` (interactive editing).
-- Dataset action toolbar: icon-only `Sizing`, `Import`, `Clone`, `Reset`, `Clear`, `Save`, `Export`, and `Prepare Dataset` controls with accessible labels/tooltips. Dataset, View/Edit, and table selectors remain text controls.
+- Dataset action toolbar: icon-only `Sizing`, `Import`, `Clone`, `Reset`, `Clear`, `Save`, and `Export` controls with accessible labels/tooltips. Dataset, View/Edit, and table selectors remain text controls. Prepare Dataset opens only from the global Header Info control; no duplicate toolbar trigger is shown.
 - Table navigation: `BOM`, `Work Centers`, `Routing`, `All` (`All` remains the first-session default).
 - Metadata bar: Product summary and dataset remarks.
 

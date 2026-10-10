@@ -1,4 +1,4 @@
-import React from 'react'
+import React, { useEffect, useRef } from 'react'
 import { Info, Redo2, Undo2 } from 'lucide-react'
 import { useAppStore } from '../../state'
 import { resolveHeaderProductContext } from './header-product-context'
@@ -21,14 +21,23 @@ export const Navbar: React.FC = () => {
     canRedoMasterDataEdit,
     undoMasterDataEdit,
     redoMasterDataEdit,
-    requestMasterDataPrepareDataset
+    masterDataPrepareDatasetOpen,
+    masterDataPrepareDatasetRequested,
+    toggleMasterDataPrepareDataset
   } = useAppStore()
+  const prepareDatasetTriggerRef = useRef<HTMLButtonElement>(null)
 
   const isMasterData = activeTab === 'master'
   const productContext = resolveHeaderProductContext(
     snapshotPair.reference.product,
     snapshotPair.current.product
   )
+
+  useEffect(() => {
+    if (masterDataPrepareDatasetOpen || masterDataPrepareDatasetRequested) {
+      prepareDatasetTriggerRef.current?.focus()
+    }
+  }, [masterDataPrepareDatasetOpen, masterDataPrepareDatasetRequested])
 
   return (
     <header className="sticky top-0 z-50 select-none border-b border-slate-800 bg-slate-900 text-white shadow-xs">
@@ -89,15 +98,25 @@ export const Navbar: React.FC = () => {
             >
               <Redo2 className="h-4 w-4" aria-hidden="true" />
             </button>
-            <button
-              type="button"
-              onClick={() => requestMasterDataPrepareDataset()}
-              aria-label="Prepare Dataset"
-              title="Prepare Dataset"
-              className={utilityButton}
-            >
-              <Info className="h-4 w-4" aria-hidden="true" />
-            </button>
+            <div className="relative flex shrink-0 items-center">
+              <button
+                ref={prepareDatasetTriggerRef}
+                id="header-prepare-dataset-trigger"
+                type="button"
+                onClick={toggleMasterDataPrepareDataset}
+                aria-expanded={masterDataPrepareDatasetOpen}
+                aria-controls="prepare-dataset-panel"
+                aria-label="Prepare Dataset"
+                title="Prepare Dataset"
+                className={utilityButton}
+              >
+                <Info className="h-4 w-4" aria-hidden="true" />
+              </button>
+              <div
+                id="header-prepare-dataset-portal-root"
+                className="absolute right-0 top-full z-[60] mt-1"
+              />
+            </div>
           </div>
         </div>
       </div>

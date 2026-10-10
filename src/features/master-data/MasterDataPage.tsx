@@ -30,6 +30,8 @@ export const MasterDataPage: React.FC<MasterDataPageProps> = ({ searchQuery = ''
     masterDataLastSavedSnapshots,
     masterDataSizing,
     masterDataHandoff,
+    masterDataPrepareDatasetOpen,
+    setMasterDataPrepareDatasetOpen,
     masterDataPrepareDatasetRequested,
     masterDataPrepareDatasetRequestMode,
     undoMasterDataEdit,
@@ -61,14 +63,13 @@ export const MasterDataPage: React.FC<MasterDataPageProps> = ({ searchQuery = ''
 
   const [importModalOpen, setImportModalOpen] = useState(false)
   const [sizingModalOpen, setSizingModalOpen] = useState(false)
-  const [isPrepareDatasetOpen, setIsPrepareDatasetOpen] = useState(false)
   const [warningNavigation, setWarningNavigation] = useState<(WarningNavigationTarget & MasterDataWarningItem) | undefined>()
 
   useEffect(() => {
     if (!masterDataPrepareDatasetRequested) return
-    setIsPrepareDatasetOpen(true)
+    setMasterDataPrepareDatasetOpen(true)
     consumeMasterDataPrepareDatasetRequest()
-  }, [masterDataPrepareDatasetRequested, consumeMasterDataPrepareDatasetRequest])
+  }, [masterDataPrepareDatasetRequested, setMasterDataPrepareDatasetOpen, consumeMasterDataPrepareDatasetRequest])
 
   const isEditMode = masterDataUiState.mode === 'edit'
   const isAllTablesVisible = masterDataUiState.tableView === 'all'
@@ -264,8 +265,8 @@ export const MasterDataPage: React.FC<MasterDataPageProps> = ({ searchQuery = ''
         handoff={masterDataHandoff}
         onOpenImportModal={() => setImportModalOpen(true)}
         onOpenSizingModal={() => setSizingModalOpen(true)}
-        isPrepareDatasetOpen={isPrepareDatasetOpen}
-        onPrepareDatasetOpenChange={setIsPrepareDatasetOpen}
+        isPrepareDatasetOpen={masterDataPrepareDatasetOpen}
+        onPrepareDatasetOpenChange={setMasterDataPrepareDatasetOpen}
         prepareDatasetRequestMode={masterDataPrepareDatasetRequestMode}
         warningGroups={warningGroups}
         warningCount={warningItems.length}

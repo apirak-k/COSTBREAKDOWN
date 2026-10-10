@@ -78,19 +78,15 @@ type IdentityRow = {
   confidence?: Record<string, { quality?: string }>
 }
 
-function getIdentity(row: IdentityRow, field: string): string {
-  return String((row as unknown as Record<string, unknown>)[field] ?? '')
-}
-
 function warningItem(
   role: MasterDataRole,
   table: MasterDataWarningTable,
   rowId: string,
   field: string,
   category: MasterDataWarningCategory,
-  description: string
+  rowNumber: number
 ): MasterDataWarningItem {
-  const label = `${roleLabels[role]} · ${tableLabels[table]} · ${description}`
+  const label = `${roleLabels[role]} · ${tableLabels[table]} · Row ${rowNumber} · ${fieldLabels[field] ?? field}`
   return { id: `${role}.${table}.${rowId}.${field}.${category}`, role, table, rowId, field, category, label }
 }
 
@@ -99,12 +95,13 @@ function addNumericWarnings(
   role: MasterDataRole,
   table: MasterDataWarningTable,
   row: IdentityRow,
+  rowNumber: number,
   field: string,
   value: unknown
 ): void {
   if (row.confidence?.[field]?.quality === 'invalid') return
   if (value === null || value === undefined || value === '') {
-    result.push(warningItem(role, table, row.id, field, 'missing-value', `${getIdentity(row, table === 'bom' ? 'description' : table === 'wc' ? 'workCenterCode' : 'processName')} · ${fieldLabels[field]}`))
+    result.push(warningItem(role, table, row.id, field, 'missing-value', rowNumber))
   }
 }
 
@@ -116,45 +113,45 @@ export function buildMasterDataWarningItems(
   ;(['reference', 'current', 'custom'] as const).forEach(role => {
     const snapshot = normalizeMasterDataSnapshot(snapshots[role])
 
-    snapshot.bom.forEach(row => {
-      const identity = row.description.trim()
+    snapshot.bom.forEach((row, index) => {
+      const rowNumber = index + 1
       if (row.isGeneratedBusinessIdentity) {
-        warnings.push(warningItem(role, 'bom', row.id, 'description', 'generated-identity', identity))
+        warnings.push(warningItem(role, 'bom', row.id, 'description', 'generated-identity', rowNumber))
       }
       if (row.autoRenamedFrom) {
-        warnings.push(warningItem(role, 'bom', row.id, 'description', 'auto-renamed-duplicate', identity))
+        warnings.push(warningItem(role, 'bom', row.id, 'description', 'auto-renamed-duplicate', rowNumber))
       }
-      addNumericWarnings(warnings, role, 'bom', row, 'consumption', row.consumption)
-      addNumericWarnings(warnings, role, 'bom', row, 'price', row.price)
-      addNumericWarnings(warnings, role, 'bom', row, 'loss', row.loss)
+      addNumericWarnings(warnings, role, 'bom', row, rowNumber, 'consumption', row.consumption)
+      addNumericWarnings(warnings, role, 'bom', row, rowNumber, 'price', row.price)
+      addNumericWarnings(warnings, role, 'bom', row, rowNumber, 'loss', row.loss)
     })
 
-    snapshot.rates.forEach(row => {
-      const identity = row.workCenterCode.trim()
+    snapshot.rates.forEach((row, index) => {
+      const rowNumber = index + 1
       if (row.isGeneratedBusinessIdentity) {
-        warnings.push(warningItem(role, 'wc', row.id, 'workCenterCode', 'generated-identity', identity))
+        warnings.push(warningItem(role, 'wc', row.id, 'workCenterCode', 'generated-identity', rowNumber))
       }
       if (row.autoRenamedFrom) {
-        warnings.push(warningItem(role, 'wc', row.id, 'workCenterCode', 'auto-renamed-duplicate', identity))
+        warnings.push(warningItem(role, 'wc', row.id, 'workCenterCode', 'auto-renamed-duplicate', rowNumber))
       }
-      addNumericWarnings(warnings, role, 'wc', row, 'laborRate', row.laborRate)
-      addNumericWarnings(warnings, role, 'wc', row, 'burdenRate', row.burdenRate)
+      addNumericWarnings(warnings, role, 'wc', row, rowNumber, 'laborRate', row.laborRate)
+      addNumericWarnings(warnings, role, 'wc', row, rowNumber, 'burdenRate', row.burdenRate)
     })
 
-    snapshot.routing.forEach(row => {
-      const identity = row.processName.trim()
+    snapshot.routing.forEach((row, index) => {
+      const rowNumber = index + 1
       if (row.isGeneratedBusinessIdentity) {
-        warnings.push(warningItem(role, 'routing', row.id, 'processName', 'generated-identity', identity))
+        warnings.push(warningItem(role, 'routing', row.id, 'processName', 'generated-identity', rowNumber))
       }
       if (row.autoRenamedFrom) {
-        warnings.push(warningItem(role, 'routing', row.id, 'processName', 'auto-renamed-duplicate', identity))
+        warnings.push(warningItem(role, 'routing', row.id, 'processName', 'auto-renamed-duplicate', rowNumber))
       }
-      addNumericWarnings(warnings, role, 'routing', row, 'manning', row.manning)
-      addNumericWarnings(warnings, role, 'routing', row, 'capacity', row.capacity)
-      addNumericWarnings(warnings, role, 'routing', row, 'yield', row.yield)
+      addNumericWarnings(warnings, role, 'routing', row, rowNumber, 'manning', row.manning)
+      addNumericWarnings(warnings, role, 'routing', row, rowNumber, 'capacity', row.capacity)
+      addNumericWarnings(warnings, role, 'routing', row, rowNumber, 'yield', row.yield)
       const workCenterId = row.workCenterId?.trim()
       if (!workCenterId) {
-        warnings.push(warningItem(role, 'routing', row.id, 'workCenterId', 'missing-value', `${identity} · Work Center`))
+        warnings.push(warningItem(role, 'routing', row.id, 'workCenterId', 'missing-value', rowNumber))
       }
     })
   })

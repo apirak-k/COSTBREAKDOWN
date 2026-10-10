@@ -210,8 +210,8 @@ export const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
                 aria-label={`Datasets ${datasetsReady ? 'Ready' : 'Incomplete'}`}
                 className="flex min-h-7 cursor-default select-none items-center gap-1.5 whitespace-nowrap rounded-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-300"
               >
-                <span aria-hidden="true" className={`h-1.5 w-1.5 rounded-full ${datasetsReady ? 'bg-blue-400' : 'bg-amber-400'}`} />
-                <span className={`font-semibold ${datasetsReady ? 'text-blue-300' : 'text-amber-300'}`}>
+                <span aria-hidden="true" className={`h-1.5 w-1.5 rounded-full ${datasetsReady ? 'bg-blue-400' : 'bg-rose-400'}`} />
+                <span className={`font-semibold ${datasetsReady ? 'text-blue-300' : 'text-rose-300'}`}>
                   Datasets {datasetsReady ? 'Ready' : 'Incomplete'}
                 </span>
               </span>
@@ -258,9 +258,9 @@ export const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
                 onClick={() => requestMasterDataPrepareDataset('all-warnings')}
                 aria-describedby={warningBreakdown.length > 0 ? 'footer-warning-tooltip' : undefined}
                 aria-label={`Open Prepare Dataset showing all ${warningCount} warnings`}
-                className="inline-flex min-h-7 cursor-pointer items-center gap-1 whitespace-nowrap rounded-sm text-amber-300 transition-colors hover:text-amber-200 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-300"
+                className={`inline-flex min-h-7 cursor-pointer items-center gap-1 whitespace-nowrap rounded-sm transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-300 ${warningCount > 0 ? 'text-amber-300 hover:text-amber-200' : 'text-slate-400 hover:text-slate-300'}`}
               >
-                <AlertTriangle className="h-3.5 w-3.5" aria-hidden="true" />
+                <AlertTriangle className={`h-3.5 w-3.5 ${warningCount > 0 ? 'text-amber-300' : 'text-slate-400'}`} aria-hidden="true" />
                 <span className="font-mono tabular-nums">{warningCount}</span>
               </button>
             </FooterTooltip>

@@ -273,6 +273,8 @@ interface AppContextType {
   masterDataLastSavedSnapshot?: CostSnapshot
   masterDataLastSavedSnapshots: Partial<Record<MasterDataRole, CostSnapshot>>
   masterDataSizing: import('../core/types').DatasetSizing
+  masterDataPrepareDatasetOpen: boolean
+  setMasterDataPrepareDatasetOpen: React.Dispatch<React.SetStateAction<boolean>>
   masterDataPrepareDatasetRequested: boolean
   masterDataPrepareDatasetRequestMode: 'all-warnings' | null
   activeTab: ActiveTab
@@ -280,6 +282,7 @@ interface AppContextType {
 
   // Navigation
   setActiveTab: (tab: ActiveTab) => void
+  toggleMasterDataPrepareDataset: () => void
   requestMasterDataPrepareDataset: (mode?: 'all-warnings') => void
   consumeMasterDataPrepareDatasetRequest: () => void
 
@@ -450,6 +453,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   )
 
   const [selectedComparisonScope, setSelectedComparisonScope] = useState<StoredSelectedComparison | null>(null)
+  const [masterDataPrepareDatasetOpen, setMasterDataPrepareDatasetOpen] = useState(false)
   const [masterDataPrepareDatasetRequested, setMasterDataPrepareDatasetRequested] = useState(false)
   const [masterDataPrepareDatasetRequestMode, setMasterDataPrepareDatasetRequestMode] = useState<'all-warnings' | null>(null)
 
@@ -464,12 +468,22 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
   const setActiveTab = (tab: ActiveTab) => {
     if (tab === 'simulation') setSelectedComparisonScope(null)
+    if (tab !== 'master') setMasterDataPrepareDatasetOpen(false)
     setActiveTabState(tab)
     saveToSession(STORAGE_KEYS.ACTIVE_TAB, tab)
   }
 
+  const toggleMasterDataPrepareDataset = () => {
+    const wasOnMasterData = activeTab === 'master'
+    setActiveTab('master')
+    setMasterDataPrepareDatasetRequestMode(null)
+    setMasterDataPrepareDatasetRequested(false)
+    setMasterDataPrepareDatasetOpen(current => wasOnMasterData ? !current : true)
+  }
+
   const requestMasterDataPrepareDataset = (mode?: 'all-warnings') => {
     setActiveTab('master')
+    setMasterDataPrepareDatasetOpen(true)
     setMasterDataPrepareDatasetRequestMode(mode ?? null)
     setMasterDataPrepareDatasetRequested(true)
   }
@@ -1457,11 +1471,14 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       masterDataLastSavedSnapshot,
       masterDataLastSavedSnapshots,
       masterDataSizing,
+      masterDataPrepareDatasetOpen,
+      setMasterDataPrepareDatasetOpen,
       masterDataPrepareDatasetRequested,
       masterDataPrepareDatasetRequestMode,
       activeTab,
       uomList,
       setActiveTab,
+      toggleMasterDataPrepareDataset,
       requestMasterDataPrepareDataset,
       consumeMasterDataPrepareDatasetRequest,
       createProductWithSizing,

@@ -5,7 +5,6 @@ import {
   ChevronRight,
   Copy,
   Download,
-  Info,
   RotateCcw,
   Save,
   Search,
@@ -14,6 +13,7 @@ import {
   Upload,
   X
 } from 'lucide-react'
+import { createPortal } from 'react-dom'
 import { formatNumber } from '../../../core'
 import type { MasterDataRole, CostSnapshot, ProductMaster } from '../../../core'
 import type { MasterDataHandoffStatus } from '../../../core/calculations/master-data-handoff'
@@ -103,8 +103,7 @@ export const MasterDataWorkspaceHeader: React.FC<MasterDataWorkspaceHeaderProps>
   const [expandedWarningCategory, setExpandedWarningCategory] = useState<string | null>(null)
   const [warningRoleFilter, setWarningRoleFilter] = useState<MasterDataRole | null>(null)
   const [prepareDatasetMaxHeight, setPrepareDatasetMaxHeight] = useState<number | null>(null)
-  const prepareRegionRef = useRef<HTMLDivElement>(null)
-  const prepareTriggerRef = useRef<HTMLButtonElement>(null)
+  const preparePanelRef = useRef<HTMLDivElement>(null)
 
   const roleLabel = roleLabels[role]
   const isSaved = saveStates[role] === 'Saved'
@@ -121,14 +120,18 @@ export const MasterDataWorkspaceHeader: React.FC<MasterDataWorkspaceHeaderProps>
   const hasExpandedWarningCategory = visibleWarningGroups.some(
     group => group.category === expandedWarningCategory && group.items.length > 0
   )
+  const preparePortalRoot = typeof document === 'undefined'
+    ? null
+    : document.getElementById('header-prepare-dataset-portal-root')
+
+  const closePrepareDatasetAndRestoreFocus = () => {
+    onPrepareDatasetOpenChange(false)
+    document.getElementById('header-prepare-dataset-trigger')?.focus()
+  }
 
   useEffect(() => {
     setCloneMenuOpen(false)
   }, [role])
-
-  useEffect(() => {
-    if (isPrepareDatasetOpen) prepareTriggerRef.current?.focus()
-  }, [isPrepareDatasetOpen])
 
   useEffect(() => {
     if (!prepareDatasetRequestMode) return
@@ -142,9 +145,9 @@ export const MasterDataWorkspaceHeader: React.FC<MasterDataWorkspaceHeaderProps>
       return
     }
 
-    const main = prepareRegionRef.current?.closest('main')
+    const main = document.querySelector('main')
     const updatePanelHeight = () => {
-      const triggerBottom = prepareTriggerRef.current?.getBoundingClientRect().bottom
+      const triggerBottom = document.getElementById('header-prepare-dataset-trigger')?.getBoundingClientRect().bottom
       const mainBottom = main?.getBoundingClientRect().bottom
       if (triggerBottom == null || mainBottom == null) return
       const availableHeight = Math.floor(mainBottom - triggerBottom - 8)
@@ -153,25 +156,24 @@ export const MasterDataWorkspaceHeader: React.FC<MasterDataWorkspaceHeaderProps>
 
     updatePanelHeight()
     window.addEventListener('resize', updatePanelHeight)
-    main?.addEventListener('scroll', updatePanelHeight, { passive: true })
     return () => {
       window.removeEventListener('resize', updatePanelHeight)
-      main?.removeEventListener('scroll', updatePanelHeight)
     }
   }, [hasExpandedWarningCategory, isPrepareDatasetOpen])
 
   useEffect(() => {
     if (!isPrepareDatasetOpen) return
     const handlePointerDown = (event: PointerEvent) => {
-      if (!prepareRegionRef.current?.contains(event.target as Node)) {
-        onPrepareDatasetOpenChange(false)
-      }
+      const target = event.target as Node
+      const trigger = document.getElementById('header-prepare-dataset-trigger')
+      if (preparePanelRef.current?.contains(target) || trigger?.contains(target)) return
+      onPrepareDatasetOpenChange(false)
     }
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === 'Escape') {
         event.preventDefault()
         onPrepareDatasetOpenChange(false)
-        prepareTriggerRef.current?.focus()
+        document.getElementById('header-prepare-dataset-trigger')?.focus()
       }
     }
     document.addEventListener('pointerdown', handlePointerDown)
@@ -351,22 +353,9 @@ export const MasterDataWorkspaceHeader: React.FC<MasterDataWorkspaceHeaderProps>
           />
         </div>
 
-        <div ref={prepareRegionRef} className="relative flex shrink-0 items-center">
-          <button
-            ref={prepareTriggerRef}
-            type="button"
-            onClick={() => onPrepareDatasetOpenChange(!isPrepareDatasetOpen)}
-            aria-expanded={isPrepareDatasetOpen}
-            aria-controls="prepare-dataset-panel"
-            className={toolbarButton}
-            aria-label="Prepare Dataset"
-            title="Prepare Dataset"
-          >
-            <Info className="h-4 w-4" aria-hidden="true" />
-          </button>
-
-          {isPrepareDatasetOpen && (
-            <div
+        {isPrepareDatasetOpen && preparePortalRoot && createPortal(
+          <div
+              ref={preparePanelRef}
               id="prepare-dataset-panel"
               role="region"
               aria-label="Prepare Dataset status and warnings"
@@ -374,7 +363,7 @@ export const MasterDataWorkspaceHeader: React.FC<MasterDataWorkspaceHeaderProps>
                 maxHeight: `${prepareDatasetMaxHeight}px`,
                 ...(hasExpandedWarningCategory ? { height: `${prepareDatasetMaxHeight}px` } : {})
               }}
-              className="absolute right-0 top-full z-50 mt-1 flex max-h-[min(30rem,calc(100dvh-6rem))] w-[min(21rem,calc(100vw-2rem))] min-h-0 flex-col overflow-hidden border border-slate-300 bg-white p-3 text-sm text-slate-800 shadow-lg"
+              className="flex max-h-[min(30rem,calc(100dvh-6rem))] w-[min(21rem,calc(100vw-2rem))] min-h-0 select-text flex-col overflow-hidden border border-slate-300 bg-white p-3 text-sm text-slate-800 shadow-lg"
             >
               <div className="flex min-h-8 shrink-0 items-center gap-3 border-b border-slate-200 pb-1">
                 <h2 id="prepare-dataset-heading" className="shrink-0 text-xs font-semibold text-slate-700">
@@ -383,9 +372,9 @@ export const MasterDataWorkspaceHeader: React.FC<MasterDataWorkspaceHeaderProps>
                 <span
                   aria-label={`Dataset ${datasetsReady ? 'Ready' : 'Incomplete'}`}
                   title={datasetsReady ? 'Reference and Current are ready' : 'Reference or Current needs input'}
-                  className={`inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap text-xs font-medium ${datasetsReady ? 'text-blue-700' : 'text-amber-700'}`}
+                  className={`inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap text-xs font-medium ${datasetsReady ? 'text-blue-700' : 'text-rose-700'}`}
                 >
-                  <span aria-hidden="true" className={`h-1.5 w-1.5 rounded-full ${datasetsReady ? 'bg-blue-600' : 'bg-amber-500'}`} />
+                  <span aria-hidden="true" className={`h-1.5 w-1.5 rounded-full ${datasetsReady ? 'bg-blue-600' : 'bg-rose-500'}`} />
                   {datasetsReady ? 'Ready' : 'Incomplete'}
                 </span>
                 <span
@@ -397,10 +386,7 @@ export const MasterDataWorkspaceHeader: React.FC<MasterDataWorkspaceHeaderProps>
                 </span>
                 <button
                   type="button"
-                  onClick={() => {
-                    onPrepareDatasetOpenChange(false)
-                    prepareTriggerRef.current?.focus()
-                  }}
+                  onClick={closePrepareDatasetAndRestoreFocus}
                   aria-label="Close Prepare Dataset"
                   className="ml-auto grid h-7 w-7 shrink-0 place-items-center text-slate-600 transition-colors hover:bg-slate-100 hover:text-slate-950 focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-700"
                 >
@@ -415,7 +401,7 @@ export const MasterDataWorkspaceHeader: React.FC<MasterDataWorkspaceHeaderProps>
                   const isFiltered = warningRoleFilter === datasetRole
                   const rowContents = (
                     <>
-                      <span className="min-w-0 truncate text-[11px] font-semibold text-slate-700">{roleLabels[datasetRole]}</span>
+                      <span className="min-w-0 truncate pl-3 text-[11px] font-semibold text-slate-700">{roleLabels[datasetRole]}</span>
                       <span className="inline-flex min-w-0 items-center gap-1.5 whitespace-nowrap text-xs">
                         <span aria-hidden="true" className={`h-1.5 w-1.5 shrink-0 rounded-full ${saveState === 'Saved' ? 'bg-emerald-600' : 'bg-slate-400'}`} />
                         <span>{saveState}</span>
@@ -456,25 +442,28 @@ export const MasterDataWorkspaceHeader: React.FC<MasterDataWorkspaceHeaderProps>
               </div>
 
               <div className={`flex min-h-0 ${hasExpandedWarningCategory ? 'flex-1' : 'shrink-0'} flex-col pt-1`}>
-                {warningRoleFilter ? (
-                  <button
-                    type="button"
-                    aria-label="Show all warning items"
-                    title="Show all warning items"
-                    onClick={() => {
-                      setWarningRoleFilter(null)
-                      setExpandedWarningCategory(null)
-                    }}
-                    className={`mb-1 grid h-7 w-full shrink-0 ${warningCategoryColumns} items-center gap-2 rounded-sm text-left text-xs text-slate-800 hover:bg-slate-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-700`}
-                  >
-                    <span className="col-span-4 min-w-0 truncate font-semibold">Warnings · {roleLabels[warningRoleFilter]} {visibleWarningCount}</span>
-                    <span className="text-right text-xs font-medium text-slate-600">All</span>
-                  </button>
-                ) : (
-                  <div className={`mb-1 grid h-7 shrink-0 ${warningCategoryColumns} items-center gap-2`}>
-                    <h3 className="col-span-4 min-w-0 truncate text-xs font-semibold text-slate-800">Warnings {visibleWarningCount}</h3>
-                  </div>
-                )}
+                <div className={`mb-1 grid h-7 shrink-0 ${warningCategoryColumns} items-center gap-2`}>
+                  <h3 id="prepare-dataset-warning-heading" className="col-span-3 min-w-0 truncate text-xs font-semibold text-slate-800">
+                    Warnings{warningRoleFilter ? ` · ${roleLabels[warningRoleFilter]}` : ''} {visibleWarningCount}
+                  </h3>
+                  {warningRoleFilter ? (
+                    <button
+                      type="button"
+                      aria-label="Show all warning items"
+                      title="Show all warning items"
+                      onClick={() => {
+                        setWarningRoleFilter(null)
+                        setExpandedWarningCategory(null)
+                      }}
+                      className="w-full rounded-sm px-1 text-right text-xs font-medium text-slate-600 transition-colors hover:bg-slate-100 hover:text-slate-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-700"
+                    >
+                      All
+                    </button>
+                  ) : (
+                    <span aria-label="Showing all warning items" className="w-full text-right text-xs font-medium text-slate-500">All</span>
+                  )}
+                  <span className="h-6 w-6" aria-hidden="true" />
+                </div>
                 <ul aria-label="Warning categories" className={`${hasExpandedWarningCategory ? 'flex min-h-0 flex-1 flex-col' : 'shrink-0'} divide-y divide-slate-100`}>
                   {visibleWarningGroups.map(group => {
                     const expanded = expandedWarningCategory === group.category
@@ -484,7 +473,7 @@ export const MasterDataWorkspaceHeader: React.FC<MasterDataWorkspaceHeaderProps>
                       <li key={group.category} className={expanded ? 'flex min-h-0 flex-1 flex-col' : undefined}>
                         {disabled ? (
                           <div className={`grid min-h-8 w-full ${warningCategoryColumns} items-center gap-2 py-1 text-left text-xs`}>
-                            <span className="col-span-2 min-w-0 truncate text-slate-800">{group.label}</span>
+                            <span className="col-span-2 min-w-0 truncate pl-3 text-slate-800">{group.label}</span>
                             <span className="h-3 w-5" aria-hidden="true" />
                             <span className="w-full text-right font-mono tabular-nums text-slate-400">0</span>
                             <span className="h-6 w-6" aria-hidden="true" />
@@ -496,7 +485,7 @@ export const MasterDataWorkspaceHeader: React.FC<MasterDataWorkspaceHeaderProps>
                             onClick={() => setExpandedWarningCategory(expanded ? null : group.category)}
                             className={`grid min-h-8 w-full shrink-0 ${warningCategoryColumns} items-center gap-2 py-1 text-left text-xs text-slate-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-700 ${expanded ? 'bg-slate-100' : 'hover:bg-slate-50'}`}
                           >
-                            <span className="col-span-2 min-w-0 truncate">{group.label}</span>
+                            <span className="col-span-2 min-w-0 truncate pl-3">{group.label}</span>
                             <span className="h-3 w-5" aria-hidden="true" />
                             <span className="w-full text-right font-mono tabular-nums text-slate-600">{groupCount}</span>
                             <span className="grid h-6 w-6 place-items-center" aria-hidden="true">
@@ -531,9 +520,9 @@ export const MasterDataWorkspaceHeader: React.FC<MasterDataWorkspaceHeaderProps>
               </div>
 
               {mockAction && <div className="mt-auto shrink-0 border-t border-slate-200 pt-2">{mockAction}</div>}
-            </div>
-          )}
-        </div>
+          </div>,
+          preparePortalRoot
+        )}
 
       </div>
 
