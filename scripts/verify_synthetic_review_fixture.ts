@@ -2,7 +2,14 @@ import assert from 'node:assert/strict'
 import { calculateSnapshotCost, compareSnapshots } from '../src/core'
 import { getCanonicalComparisonStatus } from '../src/core/calculations/comparison-status'
 import { isProductMismatch, normalizeMasterDataSnapshot } from '../src/core/utils/master-data-effective'
-import { buildMasterDataWarningItems, countMasterDataWarningsByRole, MASTER_DATA_WARNING_CATEGORY_DEFINITIONS } from '../src/features/master-data/prepare-dataset'
+import {
+  buildMasterDataBlockerItems,
+  buildMasterDataWarningItems,
+  countMasterDataQualityByRole,
+  countMasterDataWarningsByRole,
+  MASTER_DATA_BLOCKER_CATEGORY_DEFINITIONS,
+  MASTER_DATA_WARNING_CATEGORY_DEFINITIONS
+} from '../src/features/master-data/prepare-dataset'
 import {
   createCompleteMasterDataMockPair,
   createIncompleteMasterDataMockPair,
@@ -48,7 +55,13 @@ const completeWarnings = buildMasterDataWarningItems({
   current: normalizeMasterDataSnapshot(completePair.current),
   custom: normalizeMasterDataSnapshot(completePair.current)
 })
+const completeBlockers = buildMasterDataBlockerItems({
+  reference: normalizeMasterDataSnapshot(completePair.reference),
+  current: normalizeMasterDataSnapshot(completePair.current),
+  custom: normalizeMasterDataSnapshot(completePair.current)
+})
 assert.equal(completeWarnings.length, 0, 'Complete Mock has no warning locations')
+assert.equal(completeBlockers.length, 0, 'Complete Mock has no blocker locations')
 
 const qualityPair = createIncompleteMasterDataMockPair()
 const qualityComparison = compareSnapshots(qualityPair.reference, qualityPair.current)
@@ -70,22 +83,34 @@ assert.deepEqual(loadedPair.current.bom.map(row => row.description), ['Material 
 assert.equal(loadedPair.current.rates.filter(row => row.autoRenamedFrom).length, 1, 'Work Center duplicate is auto-renamed once')
 assert.equal(loadedPair.current.routing.filter(row => row.autoRenamedFrom).length, 1, 'Routing duplicate is auto-renamed once')
 const mockWarnings = buildMasterDataWarningItems({ ...loadedPair, custom: normalizeMasterDataSnapshot(completePair.current) })
+const mockBlockers = buildMasterDataBlockerItems({ ...loadedPair, custom: normalizeMasterDataSnapshot(completePair.current) })
 const warningCounts = mockWarnings.reduce<Record<string, number>>((counts, item) => {
   counts[item.category] = (counts[item.category] ?? 0) + 1
   return counts
 }, {})
 assert.deepEqual(warningCounts, {
   'generated-identity': 3,
-  'missing-value': 9,
   'auto-renamed-duplicate': 3
-}, 'Incomplete Mock covers exactly three generated identities, nine missing values, and three duplicates')
-assert.equal(mockWarnings.length, 15, 'Product Mismatch is excluded from the 15 warning items')
-assert.deepEqual(countMasterDataWarningsByRole(mockWarnings), { reference: 3, current: 12, custom: 0 },
-  'Incomplete Mock warning counts are deterministic by dataset')
+}, 'Incomplete Mock warnings contain exactly three generated identities and three duplicates')
+assert.equal(mockWarnings.length, 6, 'the warning total excludes missing-value blockers')
+assert.deepEqual(countMasterDataWarningsByRole(mockWarnings), { reference: 0, current: 6, custom: 0 },
+  'Incomplete Mock warning counts are deterministic and isolated by dataset')
+assert.deepEqual(countMasterDataQualityByRole(mockBlockers), { reference: 3, current: 6, custom: 0 },
+  'Incomplete Mock has three Reference and six Current blockers')
+assert.deepEqual(mockBlockers.reduce<Record<string, number>>((counts, item) => {
+  counts[item.category] = (counts[item.category] ?? 0) + 1
+  return counts
+}, {}), { 'missing-value': 9 }, 'Incomplete Mock covers exactly nine missing required values')
+assert.equal(mockWarnings.length + mockBlockers.length, 15, 'the Incomplete Mock has 15 affected locations across both types')
 assert.deepEqual(MASTER_DATA_WARNING_CATEGORY_DEFINITIONS.map(definition => definition.category), [
-  'generated-identity', 'missing-value', 'auto-renamed-duplicate'
-], 'Prepare Dataset exposes exactly three warning categories')
+  'generated-identity', 'auto-renamed-duplicate'
+], 'Prepare Dataset exposes exactly two non-blocking warning categories')
+assert.deepEqual(MASTER_DATA_BLOCKER_CATEGORY_DEFINITIONS.map(definition => definition.category), [
+  'missing-value'
+], 'Prepare Dataset exposes Missing required value only as a blocker')
 assert.ok(mockWarnings.every(item => MASTER_DATA_WARNING_CATEGORY_DEFINITIONS.some(definition => definition.category === item.category)),
   'mock warnings use only canonical visible categories')
+assert.ok(mockBlockers.every(item => MASTER_DATA_BLOCKER_CATEGORY_DEFINITIONS.some(definition => definition.category === item.category)),
+  'mock blockers use only the canonical blocker category')
 
 console.log('Complete and Incomplete Mock fixtures cover calculable states, exact warning counts, Product Mismatch, and generated identities.')

@@ -8,8 +8,15 @@ import { DatasetSizingModal } from './components/DatasetSizingModal'
 import { WorkCenterRatesTable } from './components/WorkCenterRatesTable'
 import { BOMTable } from './components/BOMTable'
 import { RoutingTable } from './components/RoutingTable'
-import { buildMasterDataWarningItems, groupMasterDataWarnings, type MasterDataWarningItem } from './prepare-dataset'
+import {
+  buildMasterDataBlockerItems,
+  buildMasterDataWarningItems,
+  groupMasterDataBlockers,
+  groupMasterDataWarnings,
+  type MasterDataQualityItem
+} from './prepare-dataset'
 import type { WarningNavigationTarget } from './hooks/useWarningNavigationFocus'
+import { hasEnteredMasterData } from '../../state/dataset-sizing'
 
 type TableSubTab = 'bom' | 'wc' | 'routing'
 
@@ -30,6 +37,7 @@ export const MasterDataPage: React.FC<MasterDataPageProps> = ({ searchQuery = ''
     masterDataLastSavedSnapshots,
     masterDataSizing,
     masterDataHandoff,
+    importSnapshotFromExcel,
     masterDataPrepareDatasetOpen,
     setMasterDataPrepareDatasetOpen,
     masterDataPrepareDatasetRequested,
@@ -63,7 +71,8 @@ export const MasterDataPage: React.FC<MasterDataPageProps> = ({ searchQuery = ''
 
   const [importModalOpen, setImportModalOpen] = useState(false)
   const [sizingModalOpen, setSizingModalOpen] = useState(false)
-  const [warningNavigation, setWarningNavigation] = useState<(WarningNavigationTarget & MasterDataWarningItem) | undefined>()
+  const [showWarningHighlights, setShowWarningHighlights] = useState(true)
+  const [warningNavigation, setWarningNavigation] = useState<(WarningNavigationTarget & MasterDataQualityItem) | undefined>()
 
   useEffect(() => {
     if (!masterDataPrepareDatasetRequested) return
@@ -77,13 +86,15 @@ export const MasterDataPage: React.FC<MasterDataPageProps> = ({ searchQuery = ''
   const product = masterDataSnapshot.product
 
   const warningItems = useMemo(() => buildMasterDataWarningItems(masterDataSnapshots), [masterDataSnapshots])
+  const blockerItems = useMemo(() => buildMasterDataBlockerItems(masterDataSnapshots), [masterDataSnapshots])
   const warningGroups = useMemo(() => groupMasterDataWarnings(warningItems), [warningItems])
+  const blockerGroups = useMemo(() => groupMasterDataBlockers(blockerItems), [blockerItems])
   const saveStates = useMemo(() => Object.fromEntries(roles.map(role => [
     role,
     getDatasetSaveState(masterDataSnapshots[role], masterDataLastSavedSnapshots[role])
   ])) as Record<MasterDataRole, ReturnType<typeof getDatasetSaveState>>, [masterDataSnapshots, masterDataLastSavedSnapshots])
 
-  const handleWarningNavigation = (item: MasterDataWarningItem) => {
+  const handleWarningNavigation = (item: MasterDataQualityItem) => {
     setMasterDataRole(item.role)
     updateMasterDataUiState({ type: 'set-mode', mode: 'edit' })
     updateMasterDataUiState({ type: 'set-table-view', tableView: item.table })
@@ -124,6 +135,13 @@ export const MasterDataPage: React.FC<MasterDataPageProps> = ({ searchQuery = ''
 
   const renderTable = (table: TableSubTab) => {
     const warningNavigationTarget = warningNavigation?.table === table ? warningNavigation : undefined
+    const tableWarnings = warningItems.filter(item => item.role === masterDataRole && item.table === table)
+    const tableBlockers = blockerItems.filter(item => item.role === masterDataRole && item.table === table)
+    const tableChromeProps = {
+      warningCount: tableWarnings.length,
+      blockerItems: tableBlockers,
+      onNavigateBlocker: handleWarningNavigation
+    }
     if (table === 'wc') {
       return (
         <WorkCenterRatesTable
@@ -132,6 +150,8 @@ export const MasterDataPage: React.FC<MasterDataPageProps> = ({ searchQuery = ''
           historyScope={masterDataRole}
           searchQuery={searchQuery}
           onSearchQueryChange={onSearchQueryChange}
+          showWarningHighlights={showWarningHighlights}
+          {...tableChromeProps}
           warningNavigationTarget={warningNavigationTarget}
           onWarningNavigationHandled={handleWarningNavigationHandled}
           onUndo={undoMasterDataEdit}
@@ -159,6 +179,8 @@ export const MasterDataPage: React.FC<MasterDataPageProps> = ({ searchQuery = ''
           historyScope={masterDataRole}
           searchQuery={searchQuery}
           onSearchQueryChange={onSearchQueryChange}
+          showWarningHighlights={showWarningHighlights}
+          {...tableChromeProps}
           warningNavigationTarget={warningNavigationTarget}
           onWarningNavigationHandled={handleWarningNavigationHandled}
           onUndo={undoMasterDataEdit}
@@ -187,6 +209,8 @@ export const MasterDataPage: React.FC<MasterDataPageProps> = ({ searchQuery = ''
         historyScope={masterDataRole}
         searchQuery={searchQuery}
         onSearchQueryChange={onSearchQueryChange}
+        showWarningHighlights={showWarningHighlights}
+        {...tableChromeProps}
         warningNavigationTarget={warningNavigationTarget}
         onWarningNavigationHandled={handleWarningNavigationHandled}
         onUndo={undoMasterDataEdit}
@@ -209,13 +233,13 @@ export const MasterDataPage: React.FC<MasterDataPageProps> = ({ searchQuery = ''
   }
 
   const tableSections = [
-    { key: 'bom' as const, id: 'master-data-table-bom', label: 'BOM', navLabel: 'BOM' },
+    { key: 'bom' as const, id: 'master-data-table-bom', label: 'Bill of Materials', navLabel: 'BOM' },
     { key: 'wc' as const, id: 'master-data-table-wc', label: 'Work Centers', navLabel: 'Work Centers' },
-    { key: 'routing' as const, id: 'master-data-table-routing', label: 'Process Routing', navLabel: 'Routing' }
+    { key: 'routing' as const, id: 'master-data-table-routing', label: 'Routing', navLabel: 'Routing' }
   ]
   const activeSection = tableSections.find(section => section.key === activeTableTab)
   const tableSelector = (
-    <div className="grid w-64 shrink-0 grid-cols-4 items-stretch border border-slate-300 bg-white p-0.5 sm:w-96" role="group" aria-label="Master Data table section">
+    <div className="grid w-72 shrink-0 grid-cols-4 items-stretch border border-slate-300 bg-white p-0.5" role="group" aria-label="Master Data table section">
       {tableSections.map(section => {
         const isActive = !isAllTablesVisible && activeTableTab === section.key
         return (
@@ -225,7 +249,7 @@ export const MasterDataPage: React.FC<MasterDataPageProps> = ({ searchQuery = ''
             aria-pressed={isActive}
             aria-controls="master-data-table-panel"
             onClick={() => updateMasterDataUiState({ type: 'set-table-view', tableView: section.key })}
-            className={'inline-flex min-h-8 w-full items-center justify-center border-r border-slate-200 px-1 text-[11px] font-medium transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-blue-700 sm:min-h-7 ' +
+            className={'inline-flex min-h-8 w-full items-center justify-center border-r border-slate-200 px-0.5 text-[10px] font-medium transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-blue-700 ' +
               (isActive ? 'bg-slate-900 text-white' : 'text-slate-700 hover:bg-slate-100 hover:text-slate-950')}
           >
             {section.navLabel}
@@ -237,7 +261,7 @@ export const MasterDataPage: React.FC<MasterDataPageProps> = ({ searchQuery = ''
         aria-pressed={isAllTablesVisible}
         aria-controls="master-data-table-panel"
         onClick={() => updateMasterDataUiState({ type: 'set-table-view', tableView: 'all' })}
-        className={'inline-flex min-h-8 w-full items-center justify-center px-1 text-[11px] font-medium transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-blue-700 sm:min-h-7 ' +
+        className={'inline-flex min-h-8 w-full items-center justify-center px-0.5 text-[10px] font-medium transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-blue-700 ' +
           (isAllTablesVisible ? 'bg-slate-900 text-white' : 'text-slate-700 hover:bg-slate-100 hover:text-slate-950')}
       >
         All
@@ -246,7 +270,7 @@ export const MasterDataPage: React.FC<MasterDataPageProps> = ({ searchQuery = ''
   )
 
   return (
-    <div className="w-full space-y-4">
+    <div className="w-full space-y-2">
       <MasterDataWorkspaceHeader
         product={product}
         snapshot={masterDataSnapshot}
@@ -270,9 +294,15 @@ export const MasterDataPage: React.FC<MasterDataPageProps> = ({ searchQuery = ''
         prepareDatasetRequestMode={masterDataPrepareDatasetRequestMode}
         warningGroups={warningGroups}
         warningCount={warningItems.length}
+        blockerGroups={blockerGroups}
+        blockerItems={blockerItems}
+        blockerCount={blockerItems.length}
         onNavigateWarning={handleWarningNavigation}
         mockAction={developmentAction}
         tableSelector={tableSelector}
+        tableView={masterDataUiState.tableView}
+        showWarningHighlights={showWarningHighlights}
+        onWarningHighlightsChange={setShowWarningHighlights}
         searchQuery={searchQuery}
         onSearchQueryChange={onSearchQueryChange}
       />
@@ -289,12 +319,9 @@ export const MasterDataPage: React.FC<MasterDataPageProps> = ({ searchQuery = ''
                 key={section.key}
                 id={section.id}
                 tabIndex={-1}
-                aria-labelledby={section.id + '-heading'}
+                aria-label={section.label}
                 className="scroll-mt-20 border-b border-slate-300 last:border-b-0 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-blue-700"
               >
-                <header className="border-b border-slate-200 bg-white px-4 py-2.5">
-                  <h3 id={section.id + '-heading'} className="font-sans text-sm font-semibold text-slate-900">{section.label}</h3>
-                </header>
                 {renderTable(section.key)}
               </section>
             ))
@@ -302,19 +329,22 @@ export const MasterDataPage: React.FC<MasterDataPageProps> = ({ searchQuery = ''
               <section
                 id={activeSection.id}
                 tabIndex={-1}
-                aria-labelledby={activeSection.id + '-heading'}
+                aria-label={activeSection.label}
                 className="scroll-mt-20 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-blue-700"
               >
-                <header className="border-b border-slate-200 bg-white px-4 py-2.5">
-                  <h3 id={activeSection.id + '-heading'} className="font-sans text-sm font-semibold text-slate-900">{activeSection.label}</h3>
-                </header>
                 {renderTable(activeSection.key)}
               </section>
             )}
         </div>
       </section>
 
-      <ExcelImportModal isOpen={importModalOpen} onClose={() => setImportModalOpen(false)} importRole={masterDataRole} />
+      <ExcelImportModal
+        isOpen={importModalOpen}
+        onClose={() => setImportModalOpen(false)}
+        importRole={masterDataRole}
+        hasWorkingData={hasEnteredMasterData(masterDataSnapshot)}
+        onImport={importSnapshotFromExcel}
+      />
       <DatasetSizingModal
         isOpen={sizingModalOpen}
         onClose={() => setSizingModalOpen(false)}

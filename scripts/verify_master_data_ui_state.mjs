@@ -33,15 +33,15 @@ const fixtureSnapshot = role => ({
 const componentStubs = new Map([
   ['\0master-data-ui-verifier-bom', `
     import React from 'react'
-    export const BOMTable = () => React.createElement('div', { role: 'table', 'aria-label': 'BOM data' }, 'BOM data')
+    export const BOMTable = () => React.createElement('div', { role: 'table', 'aria-label': 'BOM data' }, React.createElement('h3', null, 'Bill of Materials'), 'BOM data')
   `],
   ['\0master-data-ui-verifier-work-centers', `
     import React from 'react'
-    export const WorkCenterRatesTable = () => React.createElement('div', { role: 'table', 'aria-label': 'Work Centers data' }, 'Work Centers data')
+    export const WorkCenterRatesTable = () => React.createElement('div', { role: 'table', 'aria-label': 'Work Centers data' }, React.createElement('h3', null, 'Work Centers'), 'Work Centers data')
   `],
   ['\0master-data-ui-verifier-routing', `
     import React from 'react'
-    export const RoutingTable = () => React.createElement('div', { role: 'table', 'aria-label': 'Routing data' }, 'Routing data')
+    export const RoutingTable = () => React.createElement('div', { role: 'table', 'aria-label': 'Routing data' }, React.createElement('h3', null, 'Routing'), 'Routing data')
   `],
   ['\0master-data-ui-verifier-import-modal', `export const ExcelImportModal = () => null`],
   ['\0master-data-ui-verifier-sizing-modal', `export const DatasetSizingModal = () => null`]
@@ -82,6 +82,7 @@ const vite = await createServer({
 })
 
 const noOp = () => {}
+const headerSource = readFileSync(resolve(process.cwd(), 'src/features/master-data/components/MasterDataWorkspaceHeader.tsx'), 'utf8')
 const makeStore = (uiState = { role: 'current', mode: 'view', tableView: 'all' }, storeOverrides = {}) => {
   const snapshot = fixtureSnapshot(uiState.role)
   const snapshots = {
@@ -151,13 +152,17 @@ const makeStore = (uiState = { role: 'current', mode: 'view', tableView: 'all' }
 
 const pressedButton = (markup, label) => {
   const buttons = [...markup.matchAll(/<button\b([^>]*)>([\s\S]*?)<\/button>/g)]
-  const match = buttons.find(([, , content]) => content.replace(/<[^>]*>/g, '').replace(/\s+/g, ' ').trim().toLowerCase() === label.toLowerCase())
+  const match = buttons.find(([, attributes, content]) => {
+    const ariaLabel = attributes.match(/\baria-label="([^"]+)"/)?.[1]
+    const text = content.replace(/<[^>]*>/g, '').replace(/\s+/g, ' ').trim()
+    return ariaLabel === label || ariaLabel?.startsWith(`${label} —`) || text.toLowerCase() === label.toLowerCase()
+  })
   assert.ok(match, `Expected an accessible button named "${label}"`)
   return /\baria-pressed="true"/.test(match[1])
 }
 
-const renderMasterDataPage = async uiState => {
-  globalThis.__MASTER_DATA_UI_TEST_STORE__ = makeStore(uiState)
+const renderMasterDataPage = async (uiState, storeOverrides = {}) => {
+  globalThis.__MASTER_DATA_UI_TEST_STORE__ = makeStore(uiState, storeOverrides)
   const { MasterDataPage } = await vite.ssrLoadModule('/src/features/master-data/MasterDataPage.tsx')
   return renderToStaticMarkup(React.createElement(MasterDataPage))
 }
@@ -218,13 +223,13 @@ try {
   assert.match(footerMarkup, /id="footer-dataset-status-tooltip" role="tooltip"[\s\S]*Reference[\s\S]*Ready[\s\S]*Current[\s\S]*Ready/, 'dataset status tooltip shows only Reference and Current readiness without a heading')
   assert.doesNotMatch(footerMarkup.match(/id="footer-dataset-status-tooltip"[\s\S]*?<\/span>/)?.[0] ?? '', /Custom/, 'dataset readiness tooltip omits Custom')
   assert.match(footerMarkup, /Product Mismatch/, 'Footer renders the existing Product Mismatch status independently')
-  assert.match(footerMarkup, /class="inline-flex min-h-7 cursor-default select-none items-center gap-1\.5 whitespace-nowrap rounded-sm font-semibold[^\"]*text-violet-300"><span aria-hidden="true" class="h-1\.5 w-1\.5 rounded-full bg-violet-400"><\/span>Product Mismatch/, 'Footer Product Mismatch uses violet text and dot')
+  assert.match(footerMarkup, /class="inline-flex min-h-7 cursor-default select-none items-center gap-1\.5 whitespace-nowrap rounded-sm font-semibold[^\"]*text-orange-300"><span aria-hidden="true" class="h-1\.5 w-1\.5 rounded-full bg-orange-400"><\/span>Product Mismatch/, 'Footer Product Mismatch uses orange text and dot')
   assert.match(footerMarkup, /footer-product-status-tooltip[\s\S]*Reference[\s\S]*Master Data UI fixture \(PC\)[\s\S]*Current[\s\S]*Master Data UI fixture \(PC\)/, 'Product tooltip names both datasets and their Product Name/UOM without defaults or a heading')
   const footerProductStatus = footerMarkup.slice(footerMarkup.indexOf('aria-label="Product Mismatch"') - 40, footerMarkup.indexOf('aria-label="Product Mismatch"') + 180)
   assert.doesNotMatch(footerProductStatus, /<button|onClick/, 'Footer Product status is informational and not clickable')
-  assert.match(footerMarkup, /<span class="font-mono tabular-nums">1<\/span>/, 'Footer warning total includes affected warning items across datasets')
-  assert.match(footerMarkup, /Missing required value[\s\S]*<span class="text-right font-mono tabular-nums">1<\/span>/, 'Footer warning tooltip shows the non-zero category breakdown without a heading or total')
-  assert.doesNotMatch(footerMarkup.match(/id="footer-warning-tooltip"[\s\S]*?<\/span>/)?.[0] ?? '', /Generated identity|Auto-renamed duplicate/, 'Footer warning tooltip omits zero-count categories')
+  assert.match(footerMarkup, /aria-label="Open Prepare Dataset showing all 0 warnings"/, 'Footer warning total excludes Custom blockers and keeps the zero-count action available')
+  assert.doesNotMatch(footerMarkup.slice(footerMarkup.indexOf('id="footer-warning-tooltip"'), footerMarkup.indexOf('aria-label="Open Prepare Dataset showing all 0 warnings"')), /Missing required value/, 'Footer warning tooltip excludes blockers')
+  assert.match(footerMarkup, /footer-dataset-status-tooltip[\s\S]*Reference[\s\S]*lucide-circle-x[\s\S]* 0[\s\S]*Current[\s\S]*lucide-circle-x[\s\S]* 0/, 'Ready tooltip keeps Reference and Current blocker counts separate from warnings')
   assert.ok(footerMarkup.indexOf('REF STD') < footerMarkup.indexOf('CUR STD')
     && footerMarkup.indexOf('CUR STD') < footerMarkup.indexOf('NET GAP'), 'Footer cost summary orders Reference, Current, then Net Gap')
   assert.match(footerMarkup, /REF STD<\/span>120[\s\S]*CUR STD<\/span>125\.5[\s\S]*NET GAP<\/span><span class="font-semibold text-rose-300">\+5\.5<\/span><\/span><span class="ml-2 max-\[359px\]:basis-full max-\[359px\]:ml-0 max-\[359px\]:text-right cursor-default select-none font-sans font-bold text-slate-300">\(THB\/PC\)<\/span>/, 'Footer shared unit matches the cost-label emphasis and remains 20px away without a separator')
@@ -352,11 +357,54 @@ try {
   assert.equal(pressedButton(defaultMarkup, 'Current'), true, 'a fresh application session starts on Current')
   assert.equal(pressedButton(defaultMarkup, 'View'), true, 'a fresh application session starts in View mode')
   assert.equal(pressedButton(defaultMarkup, 'All'), true, 'Master Data first opens with All selected')
+  const toolbarControlOrder = [
+    'aria-label="Master Data workspace"',
+    'aria-label="View or edit dataset"',
+    'aria-label="Master Data actions"',
+    'role="search" class="relative ml-auto h-8 w-48 min-w-48 max-w-48 shrink-0"',
+    'aria-label="Master Data table section"'
+  ].map(marker => defaultMarkup.indexOf(marker))
+  assert.ok(toolbarControlOrder.every((position, index) => position >= 0 && (index === 0 || position > toolbarControlOrder[index - 1])),
+    'toolbar renders Dataset → View/Edit → tools → fixed Search → Table selector')
+  const toolbarActionStart = headerSource.indexOf('aria-label="Master Data actions"')
+  const toolbarActionEnd = headerSource.indexOf('<div role="search"', toolbarActionStart)
+  const toolbarActionSource = headerSource.slice(toolbarActionStart, toolbarActionEnd)
+  assert.doesNotMatch(toolbarActionSource, /border-l|border-r/, 'Master Data toolbar actions have no vertical separators')
+  const toolbarButtons = [...defaultMarkup.matchAll(/<button\b([^>]*)>([\s\S]*?)<\/button>/g)]
+  for (const [label, active] of [['View', true], ['Edit', false]]) {
+    const button = toolbarButtons.find(([, attributes]) => attributes.match(/\baria-label="([^"]+)"/)?.[1] === label)
+    assert.ok(button, `${label} mode has a labelled button`)
+    assert.match(button[1], new RegExp(`title="${label}"`), `${label} mode has a tooltip`)
+    assert.equal(/aria-pressed="true"/.test(button[1]), active, `${label} mode exposes its selected state`)
+    assert.match(button[1], /relative z-10 h-full min-w-0/, `${label} stays inside the shared sliding tab track`)
+    assert.match(button[1], active ? /text-white/ : /text-slate-700/, `${label} text follows its selected state`)
+    assert.equal(button[2].trim(), label, `${label} remains visible as tab text`)
+  }
+  const searchViewCases = [
+    ['bom', 'Search BOM...'],
+    ['wc', 'Search Work Centers...'],
+    ['routing', 'Search Routing...'],
+    ['all', 'Search all tables...']
+  ]
+  const searchViewMarkups = []
+  for (const [tableView] of searchViewCases) {
+    searchViewMarkups.push(await renderMasterDataPage({ ...INITIAL_MASTER_DATA_UI_STATE, tableView }))
+  }
+  searchViewCases.forEach(([, placeholder], index) => {
+    assert.match(searchViewMarkups[index], new RegExp(`placeholder="${placeholder.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}"`),
+      `${placeholder} matches its active table context`)
+  })
+  const searchWidths = searchViewMarkups.map(markup => markup.match(/<div role="search" class="([^"]+)">/)?.[1])
+  assert.deepEqual(searchWidths, Array(4).fill('relative ml-auto h-8 w-48 min-w-48 max-w-48 shrink-0'),
+    'Search stays at the same fixed width and toolbar position across all table placeholders')
+  const searchPositions = searchViewMarkups.map(markup => markup.indexOf('role="search" class="relative ml-auto h-8 w-48 min-w-48 max-w-48 shrink-0"'))
+  assert.equal(new Set(searchPositions).size, 1, 'table view changes do not move the Search control')
+  assert.match(headerSource, /placeholder=\{searchPlaceholder\}[\s\S]*className="h-8 w-full min-w-0/, 'placeholder changes cannot size the fixed Search input')
   assert.match(defaultMarkup, /id="master-data-table-panel" role="region" aria-label="All dataset tables"/, 'All Tables exposes one semantic region containing all dataset tables')
   const tableSections = [
-    ['master-data-table-bom', 'BOM'],
+    ['master-data-table-bom', 'Bill of Materials'],
     ['master-data-table-wc', 'Work Centers'],
-    ['master-data-table-routing', 'Process Routing']
+    ['master-data-table-routing', 'Routing']
   ].map(([sectionId, expectedHeading]) => {
     const sectionStart = defaultMarkup.indexOf(`id="${sectionId}"`)
     assert.notEqual(sectionStart, -1, `All Tables includes the ${expectedHeading} section`)
@@ -368,7 +416,7 @@ try {
       heading: headingMarkup.replace(/<[^>]*>/g, '').replace(/\s+/g, ' ').trim()
     }
   })
-  assert.deepEqual(tableSections.map(section => section.heading), ['BOM', 'Work Centers', 'Process Routing'], 'All Tables keeps the vertical BOM → Work Centers → Routing heading order')
+  assert.deepEqual(tableSections.map(section => section.heading), ['Bill of Materials', 'Work Centers', 'Routing'], 'All Tables keeps the vertical BOM → Work Centers → Routing heading order')
   assert.ok(tableSections[0].position < tableSections[1].position && tableSections[1].position < tableSections[2].position, 'All Tables places BOM before Work Centers before Routing in document order')
 
   const sessionStorageWrites = []
@@ -408,7 +456,7 @@ try {
   assert.equal(pressedButton(returnedPageMarkup, 'Edit'), true, 'a remounted page reflects the retained mode')
   assert.equal(pressedButton(returnedPageMarkup, 'Routing'), true, 'a remounted page reflects the retained table view')
   assert.equal(pressedButton(returnedPageMarkup, 'All'), false, 'the retained Routing view does not revert to All')
-  assert.match(returnedPageMarkup, /aria-label="Process Routing table"/, 'the selected Routing view remains the only table region')
+  assert.match(returnedPageMarkup, /aria-label="Routing table"/, 'the selected Routing view remains the only table region')
 
   const freshAppSessionMarkup = await renderMasterDataPage(INITIAL_MASTER_DATA_UI_STATE)
   assert.equal(pressedButton(freshAppSessionMarkup, 'Current'), true, 'a fresh app session does not inherit Reference selection')
@@ -428,20 +476,21 @@ try {
   const bomSource = readFileSync(resolve(process.cwd(), 'src/features/master-data/components/BOMTable.tsx'), 'utf8')
   const wcSource = readFileSync(resolve(process.cwd(), 'src/features/master-data/components/WorkCenterRatesTable.tsx'), 'utf8')
   const routingSource = readFileSync(resolve(process.cwd(), 'src/features/master-data/components/RoutingTable.tsx'), 'utf8')
-  const headerSource = readFileSync(resolve(process.cwd(), 'src/features/master-data/components/MasterDataWorkspaceHeader.tsx'), 'utf8')
   const pageSource = readFileSync(resolve(process.cwd(), 'src/features/master-data/MasterDataPage.tsx'), 'utf8')
+  const masterDataDatasetSource = readFileSync(resolve(process.cwd(), 'src/state/master-data-datasets.ts'), 'utf8')
   const warningFocusSource = readFileSync(resolve(process.cwd(), 'src/features/master-data/hooks/useWarningNavigationFocus.ts'), 'utf8')
   const footerSource = readFileSync(resolve(process.cwd(), 'src/shared/layout/AppLayout.tsx'), 'utf8')
   assert.match(footerSource, /gap-x-3 gap-y-1 font-mono tabular-nums[\s\S]*NET GAP[\s\S]*<span className="ml-2 max-\[359px\]:basis-full max-\[359px\]:ml-0 max-\[359px\]:text-right cursor-default select-none font-sans font-bold text-slate-300">\(THB\/\{costUnit\}\)<\/span>/, 'the shared Footer unit matches the cost-label emphasis, has 20px separation, then moves below 360px')
   assert.match(footerSource, /Reference and Current dataset structure" className="flex min-w-0 flex-wrap cursor-default select-none/, 'Footer dataset counts use the default cursor and cannot be selected')
   assert.match(footerSource, /Dataset readiness, product comparison, and warnings" className="flex min-w-0 flex-wrap cursor-default select-none/, 'Footer separators and display-only summary use the default cursor')
   assert.match(footerSource, /Full Reference and Current standard costs and net gap in THB\/\$\{costUnit\}`\} className="flex min-w-0 flex-wrap cursor-default select-none/, 'Footer costs and shared unit use the default cursor and cannot be selected')
-  assert.match(footerSource, /className="flex h-dvh min-h-0 w-full flex-col overflow-hidden[\s\S]*className="min-h-0 min-w-0 flex-1 overflow-y-auto py-3/, 'the fixed shell clips outer overflow and Main owns page scrolling')
+  assert.match(footerSource, /className="flex h-dvh min-h-0 w-full flex-col overflow-hidden[\s\S]*className=\{`min-h-0 min-w-0 flex-1 overflow-y-auto \$\{activeTab === 'master' \? 'pt-0 pb-3' : 'py-3'\}`\}/, 'the fixed shell clips outer overflow and removes only Master Data top spacing')
   assert.match(footerSource, /normalizeProductIdentityValue\(referenceUom\) === normalizeProductIdentityValue\(currentUom\)[\s\S]*\? referenceUom[\s\S]*: 'Unit'/, 'Footer unit uses normalized shared UOM or the neutral Unit fallback')
   const globalCssSource = readFileSync(resolve(process.cwd(), 'src/index.css'), 'utf8')
   const navbarSource = readFileSync(resolve(process.cwd(), 'src/shared/layout/Navbar.tsx'), 'utf8')
   const appSource = readFileSync(resolve(process.cwd(), 'src/App.tsx'), 'utf8')
   const sizingModalSource = readFileSync(resolve(process.cwd(), 'src/features/master-data/components/DatasetSizingModal.tsx'), 'utf8')
+  const importModalSource = readFileSync(resolve(process.cwd(), 'src/features/master-data/components/ExcelImportModal.tsx'), 'utf8')
   const storeSource = readFileSync(resolve(process.cwd(), 'src/state/store.tsx'), 'utf8')
   const developmentMockSource = readFileSync(resolve(process.cwd(), 'src/state/development-mock-data.ts'), 'utf8')
   const prepareDatasetSource = readFileSync(resolve(process.cwd(), 'src/features/master-data/prepare-dataset.ts'), 'utf8')
@@ -463,24 +512,25 @@ try {
   assert.match(rowSelectionSource, /onMouseEnterRow/, 'dragging across row headers extends row selection')
   assert.match(spreadsheetEditingSource, /selectedIds\.has\(id\) \? \[\.\.\.selectedIds\]/, 'editing a selected row applies a same-column change to selected rows')
   assert.match(bomSource, /dataTransfer\.setData\('application\/x-costbreakdown-row-ids'/, 'selected rows are carried as a group for reorder')
-  assert.match(bomSource, /<th scope="col"[^>]*>Actions<\/th>[\s\S]*aria-label="Reorder rows"/, 'the reorder handle column is separate and rightmost after Actions')
+  assert.match(bomSource, /<th scope="col"[^>]*>Actions<\/th>[\s\S]*aria-label=\{`Reorder BOM row/, 'Trash and Grip reorder controls share the single rightmost Actions column')
   assert.match(routingSource, /not in WC table|knownWorkCenters/, 'Routing WC input keeps unknown values visible for typo correction')
   assert.match(headerSource, /aria-label="Clone"[\s\S]*title="Clone from another dataset"/, 'Clone is icon-only with an accessible label and tooltip')
   const mockActionSource = pageSource.slice(pageSource.indexOf('const developmentAction'), pageSource.indexOf('const renderTable'))
   assert.match(mockActionSource, /grid w-full grid-cols-2 divide-x[\s\S]*Complete Mock[\s\S]*Incomplete Mock/, 'development mock actions use equal two-column widths')
   assert.match(mockActionSource, /w-full px-1\.5 text-center[\s\S]*w-full px-1\.5 text-center/, 'both mock labels are centered in full-width buttons')
   assert.doesNotMatch(mockActionSource, /aria-haspopup|window\.confirm|>\|</, 'mock actions have no dropdown or confirmation')
-  assert.match(headerSource, /onClick=\{\(\) => setCloneMenuOpen\(true\)\}/, 'clicking Clone opens its source flyout without toggling it closed')
-  assert.match(headerSource, /id="clone-source-menu" role="group"[\s\S]*top-full z-50 min-w-36/, 'Clone source choices remain keyboard reachable without a pointer gap')
-  assert.match(headerSource, /onPointerLeave=\{\(\) => setCloneMenuOpen\(false\)\}/, 'Clone closes when the pointer leaves its trigger and flyout')
-  assert.match(headerSource, /onFocusCapture=\{\(\) => setCloneMenuOpen\(true\)\}/, 'keyboard focus can open Clone without hover')
-  assert.match(headerSource, /event\.relatedTarget as Node \| null\)[\s\S]*event\.currentTarget\.matches\(':hover'\)/, 'Clone remains open while the pointer stays within its trigger or flyout')
+  assert.match(headerSource, /onClick=\{\(\) => setCloneMenuOpen\(true\)\}/, 'clicking Clone opens its source flyout without conflicting with hover')
+  assert.match(headerSource, /id="clone-source-menu" role="menu" aria-label="Clone source"[\s\S]*top-full z-50 min-w-36[\s\S]*from \{roleLabels\[sourceRole\]\}/, 'Clone source choices are a compact accessible flyout')
+  assert.match(headerSource, /const handlePointerDown = \(event: PointerEvent\) => \{\s*if \(!cloneContainerRef\.current\?\.contains\(event\.target as Node\)\) setCloneMenuOpen\(false\)/, 'Clone closes when clicking outside the trigger and popover')
+  assert.match(headerSource, /event\.key !== 'Escape'[\s\S]*setCloneMenuOpen\(false\)[\s\S]*cloneTriggerRef\.current\?\.focus\(\)/, 'Escape closes Clone and returns focus to its trigger')
+  assert.match(headerSource, /onMouseEnter=\{\(\) => setCloneMenuOpen\(true\)\}[\s\S]*onMouseLeave=\{\(\) => setCloneMenuOpen\(false\)\}/, 'Clone hover flyout remains open between trigger and menu then dismisses on pointer leave')
+  assert.match(headerSource, /onFocus=\{\(\) => \{ if \(!suppressCloneFocusOpenRef\.current\) setCloneMenuOpen\(true\) \}\}/, 'Clone flyout is available from keyboard focus')
   assert.match(headerSource, /sourceRole !== role/, 'Clone excludes the viewed dataset as its own source')
   const cloneActionSource = headerSource.slice(headerSource.indexOf('onCloneFrom(sourceRole)') - 120, headerSource.indexOf('onCloneFrom(sourceRole)') + 100)
   assert.doesNotMatch(cloneActionSource, /confirm\(/, 'choosing a Clone source does not ask for a second confirmation')
-  assert.equal((headerSource.match(/window\.confirm\(/g) ?? []).length, 2, 'only Reset and Clear use toolbar confirmations')
-  assert.match(headerSource, /Reset \$\{roleLabel\} dataset\? Draft changes will be discarded[\s\S]*onResetWorkingDataset\(\)/, 'Reset confirmation describes restoring Last Saved using Draft terminology')
-  assert.match(headerSource, /Clear \$\{roleLabel\} dataset\? Current working data will be cleared\. The last saved dataset will remain available\.[\s\S]*onClearDataset\(\)/, 'Clear confirmation preserves Last Saved')
+  assert.equal((headerSource.match(/window\.confirm\(/g) ?? []).length, 0, 'Reset and Clear have no browser confirmation')
+  assert.match(headerSource, /const handleResetDataset = \(\) => \{\s*if \(lastSavedSnapshot\) onResetWorkingDataset\(\)/, 'Reset immediately delegates to the history-backed Working reset')
+  assert.match(headerSource, /onClick=\{onClearDataset\}/, 'Clear immediately delegates to the history-backed Working clear')
   assert.match(sizingModalSource, /if \(removedData\.length > 0\)[\s\S]*window\.confirm\(/, 'Sizing confirms only when populated data will be removed')
   assert.match(navbarSource, /id="header-prepare-dataset-trigger"[\s\S]*onClick=\{toggleMasterDataPrepareDataset\}[\s\S]*aria-expanded=\{masterDataPrepareDatasetOpen\}[\s\S]*aria-controls="prepare-dataset-panel"/, 'Header Info is the accessible Prepare Dataset toggle and controls the shared panel')
   assert.match(navbarSource, /id="header-prepare-dataset-portal-root"/, 'the shared popover portal is hosted beside the Header Info control')
@@ -492,11 +542,14 @@ try {
   assert.match(storeSource, /toggleMasterDataPrepareDataset = \(\) => \{[\s\S]*setActiveTab\('master'\)[\s\S]*setMasterDataPrepareDatasetOpen\(current => wasOnMasterData \? !current : true\)/, 'Header Info toggles on Master Data and opens when navigating there')
   assert.match(storeSource, /requestMasterDataPrepareDataset = \(mode\?: 'all-warnings'\)[\s\S]*setActiveTab\('master'\)[\s\S]*setMasterDataPrepareDatasetOpen\(true\)[\s\S]*setMasterDataPrepareDatasetRequestMode\(mode \?\? null\)/, 'Footer requests force the same Header-owned panel open with the requested warning mode')
   assert.match(headerSource, /closePrepareDatasetAndRestoreFocus = \(\) => \{[\s\S]*onPrepareDatasetOpenChange\(false\)[\s\S]*document\.getElementById\('header-prepare-dataset-trigger'\)\?\.focus\(\)/, 'the panel Close action returns focus to Header Info')
-  const pointerDownHandler = headerSource.slice(headerSource.indexOf('const handlePointerDown'), headerSource.indexOf('const handleKeyDown'))
+  const prepareOutsideEffect = headerSource.indexOf('if (!isPrepareDatasetOpen)')
+  const preparePointerStart = headerSource.indexOf('const handlePointerDown', prepareOutsideEffect)
+  const pointerDownHandler = headerSource.slice(preparePointerStart, headerSource.indexOf('const handleKeyDown', preparePointerStart))
   assert.match(pointerDownHandler, /preparePanelRef\.current\?\.contains\(target\) \|\| trigger\?\.contains\(target\)/, 'outside-click handling treats Header Info and the panel as inside')
   assert.match(pointerDownHandler, /onPrepareDatasetOpenChange\(false\)/, 'outside clicks close the Prepare Dataset panel')
   assert.doesNotMatch(pointerDownHandler, /\.focus\(/, 'outside clicks do not steal focus from the clicked control')
-  const escapeHandler = headerSource.slice(headerSource.indexOf('const handleKeyDown'), headerSource.indexOf("document.addEventListener('pointerdown'"))
+  const prepareEscapeStart = headerSource.indexOf('const handleKeyDown', preparePointerStart)
+  const escapeHandler = headerSource.slice(prepareEscapeStart, headerSource.indexOf("document.addEventListener('pointerdown'", prepareEscapeStart))
   assert.match(escapeHandler, /event\.key === 'Escape'[\s\S]*onPrepareDatasetOpenChange\(false\)[\s\S]*document\.getElementById\('header-prepare-dataset-trigger'\)\?\.focus\(\)/, 'Escape closes the panel and restores focus to Header Info')
   assert.match(headerSource, /addEventListener\('pointerdown'/, 'the popover listens for outside pointer clicks')
   assert.match(navbarSource, /aria-expanded=\{masterDataPrepareDatasetOpen\}/, 'Header Info exposes the live popover expanded state')
@@ -509,11 +562,7 @@ try {
   assert.doesNotMatch(headerSource, /prepareRegionRef|prepareTriggerRef/, 'the toolbar does not own a local Prepare Dataset trigger or anchor')
   assert.doesNotMatch(headerSource, /Prepared|Needs input/, 'Prepare Dataset dataset summaries do not show readiness labels')
   assert.match(headerSource, /datasetWarningCounts\[datasetRole\][\s\S]*>\s*\{datasetWarningCount\}/, 'each dataset summary shows its independent warning count')
-  const datasetRowSource = headerSource.slice(headerSource.indexOf('const rowContents = ('), headerSource.indexOf('const rowClassName ='))
-  assert.match(datasetRowSource, /<span className="min-w-0 truncate pl-3[^\"]*">\{roleLabels\[datasetRole\]\}<\/span>/, 'dataset child label alone is indented by 12px')
-  assert.match(headerSource, /rowClassName = `grid h-8 w-full \$\{datasetSummaryColumns\}/, 'dataset indentation leaves shared icon and count tracks aligned')
-  assert.match(headerSource, /<span className="grid h-7 w-5 place-items-center" aria-hidden="true">\s*<AlertTriangle className=\{`h-3 w-3 \$\{datasetWarningCount > 0 \? 'text-amber-800' : 'text-slate-400'\}`\}/, 'dataset warning icon is vertically centered in a fixed cell and muted when count is zero')
-  assert.match(headerSource, /datasetSummaryColumns = 'grid-cols-\[minmax\(0,1fr\)_5rem_1\.25rem_2rem_1\.5rem\]'/, 'dataset summary tracks align dataset, save state, warning icon, count, and reserved affordance')
+  assert.match(headerSource, /min-w-0 truncate pl-3 text-\[11px\] font-semibold text-slate-700/, 'Prepare Dataset child labels remain slightly indented')
   assert.match(headerSource, /comparisonStatus = handoff\.productMismatch \? 'Mismatch' : 'Match'/, 'Match or Mismatch is derived from the comparison status')
   assert.doesNotMatch(headerSource, /\(\{comparisonStatus\}\)/, 'Match or Mismatch is not presented in parentheses')
   assert.doesNotMatch(headerSource, /productDetailsOpen|setProductDetailsOpen|Compared product identities|decoration-dotted/, 'Prepare Dataset Product status has no interactive detail popover')
@@ -525,99 +574,122 @@ try {
   assert.doesNotMatch(prepareTopRow, /Chevron/, 'top status summary does not show a Product status chevron')
   assert.match(prepareTopRow, /className=\{`h-2 w-2 shrink-0 rounded-full \$\{datasetsReady \? 'bg-blue-600' : 'bg-rose-500'\}`\}/, 'Ready and Incomplete dots are 8px and retain blue/rose semantics')
   assert.match(prepareTopRow, /datasetsReady \? 'text-blue-700' : 'text-rose-700'/, 'readiness text is blue for Ready and muted rose for Incomplete')
-  assert.match(prepareTopRow, /className=\{`h-2 w-2 shrink-0 rounded-full \$\{handoff\.productMismatch \? 'bg-violet-500' : 'bg-emerald-600'\}`\}/, 'Product Match and Mismatch dots are 8px and retain green/violet semantics')
-  assert.match(prepareProductStatus, /handoff\.productMismatch \? 'text-violet-700' : 'text-emerald-700'/, 'Prepare Dataset Product Mismatch text uses violet')
+  assert.match(prepareTopRow, /className=\{`h-2 w-2 shrink-0 rounded-full \$\{handoff\.productMismatch \? 'bg-orange-500' : 'bg-emerald-600'\}`\}/, 'Product Match and Mismatch dots are 8px and retain green/orange semantics')
+  assert.match(prepareProductStatus, /handoff\.productMismatch \? 'text-orange-700' : 'text-emerald-700'/, 'Prepare Dataset Product Mismatch text uses orange')
   assert.match(prepareTopRow, /gap-1 min-\[360px\]:gap-2\.5 sm:gap-3/, 'Prepare Dataset top statuses reduce spacing only at narrow widths')
   assert.doesNotMatch(headerSource, /comparisonProducts|prepare-dataset-identity-details/, 'Prepare Dataset does not retain the superseded Product mini-popover')
   assert.match(headerSource, /max-h-\[min\(30rem,calc\(100dvh-6rem\)\)\] w-\[min\(20rem,calc\(100vw-2rem\)\)\][\s\S]*overflow-hidden/, 'the popover is 20rem wide on desktop and viewport-clamped')
   assert.match(headerSource, /const availableHeight = Math\.floor\(mainBottom - triggerBottom - 8\)[\s\S]*Math\.min\(480, availableHeight\)/, 'smaller viewports clamp the panel to the remaining visible Main area')
-  assert.match(headerSource, /maxHeight: `\$\{prepareDatasetMaxHeight\}px`[\s\S]*hasExpandedWarningCategory \? \{ height: `\$\{prepareDatasetMaxHeight\}px` \} : \{\}/, 'collapsed popover height follows content while expanded warnings use available height')
-  assert.match(headerSource, /const datasetSummaryColumns = 'grid-cols-\[minmax\(0,1fr\)_5rem_1\.25rem_2rem_1\.5rem\]'/, 'dataset summary tracks align label, save state, warning icon, count, and reserved affordance')
-  assert.match(headerSource, /const warningCategoryColumns = datasetSummaryColumns/, 'warning category counts align with dataset warning-count columns')
-  assert.match(headerSource, /aria-label="Dataset save states and warning counts"/, 'dataset row summary has an accessible label')
+  assert.match(headerSource, /maxHeight: `\$\{prepareDatasetMaxHeight\}px`[\s\S]*hasExpandedIssueCategory \? \{ height: `\$\{prepareDatasetMaxHeight\}px` \} : \{\}/, 'collapsed popover height follows content while expanded Warning or Blocker details use available height')
+  assert.match(headerSource, /const datasetSummaryColumns = 'grid-cols-\[minmax\(0,1fr\)_5rem_3\.5rem_3\.5rem\]'/, 'dataset summary tracks align dataset, save state, warning icon/count, and blocker icon/count')
+  assert.match(headerSource, /aria-label="Dataset save states, warning counts, and blocker counts"/, 'dataset row summary has an accessible label for both issue types')
   assert.doesNotMatch(headerSource, /sm:grid-cols-3/, 'dataset summaries never become a horizontal three-column strip')
-  const { MASTER_DATA_WARNING_CATEGORY_DEFINITIONS, buildMasterDataWarningItems } = await vite.ssrLoadModule('/src/features/master-data/prepare-dataset.ts')
+  const {
+    MASTER_DATA_WARNING_CATEGORY_DEFINITIONS,
+    MASTER_DATA_BLOCKER_CATEGORY_DEFINITIONS,
+    buildMasterDataWarningItems,
+    buildMasterDataBlockerItems,
+    groupMasterDataWarnings,
+    groupMasterDataBlockers,
+    areMasterDataDatasetsReady,
+    countMasterDataWarningsByRole,
+    countMasterDataQualityByRole
+  } = await vite.ssrLoadModule('/src/features/master-data/prepare-dataset.ts')
   assert.deepEqual(MASTER_DATA_WARNING_CATEGORY_DEFINITIONS.map(({ category }) => category), [
-    'generated-identity', 'missing-value', 'auto-renamed-duplicate'
-  ], 'Prepare Dataset defines exactly the three user-facing warning categories')
+    'generated-identity', 'auto-renamed-duplicate'
+  ], 'Warnings contain only generated identity and auto-renamed duplicate')
+  assert.deepEqual(MASTER_DATA_BLOCKER_CATEGORY_DEFINITIONS.map(({ category }) => category), ['missing-value'], 'Missing required value is a separate Blocker category')
   const warningSnapshots = {
     reference: fixtureSnapshot('reference'),
     current: fixtureSnapshot('current'),
     custom: {
       ...customMissingSnapshot,
       bom: [
-        { id: 'custom-earlier-row', description: 'Earlier Material', consumption: 1, price: 1, loss: 0, confidence: {} },
-        ...customMissingSnapshot.bom
+        { id: 'custom-earlier-row', description: 'Steel', consumption: 1, price: 1, loss: 0, confidence: {} },
+        { ...customMissingSnapshot.bom[0], isGeneratedBusinessIdentity: true },
+        { id: 'custom-duplicate-row', description: 'mat0.3a(1)', autoRenamedFrom: 'mat0.3a', consumption: 1, price: 1, loss: 0, confidence: {} }
       ]
     }
   }
-  const missingUsageWarning = buildMasterDataWarningItems(warningSnapshots)
+  const testWarnings = buildMasterDataWarningItems(warningSnapshots)
+  const testBlockers = buildMasterDataBlockerItems(warningSnapshots)
+  const missingUsageBlocker = testBlockers
     .find(item => item.rowId === 'custom-missing-usage' && item.field === 'consumption')
-  assert.ok(missingUsageWarning, 'the fixture exposes its stable missing Usage source item')
-  assert.equal(missingUsageWarning.label, 'Custom · BOM · Row 2 · Usage', 'warning details show the dataset, table, current display row, and field')
-  assert.equal(missingUsageWarning.rowId, 'custom-missing-usage', 'warning display numbering does not replace the stable source row identity')
+  assert.ok(missingUsageBlocker, 'a missing required Usage value creates a Blocker source item')
+  assert.equal(missingUsageBlocker.label, 'Custom · Bill of Materials · Row 2 · Usage', 'Blocker details show dataset, full table title, display row, and field')
+  assert.equal(missingUsageBlocker.rowId, 'custom-missing-usage', 'display numbering does not replace stable source row identity')
+  assert.equal(testWarnings.length, 2, 'one generated identity and one auto-renamed duplicate count as warnings')
+  assert.equal(testBlockers.length, 1, 'the missing Usage source is counted separately as a Blocker')
+  assert.deepEqual(countMasterDataWarningsByRole(testWarnings), { reference: 0, current: 0, custom: 2 }, 'warning counts are role-specific and exclude blockers')
+  assert.deepEqual(countMasterDataQualityByRole(testBlockers), { reference: 0, current: 0, custom: 1 }, 'blocker counts are role-specific')
+  assert.deepEqual(groupMasterDataWarnings(testWarnings).map(group => group.items.length), [1, 1], 'warning groups contain only the two warning categories')
+  assert.deepEqual(groupMasterDataBlockers(testBlockers).map(group => group.items.length), [1], 'the separate blocker group contains the missing value')
+  const readyStatus = { referenceReady: true, currentReady: true, datasetsPrepared: true }
+  assert.equal(areMasterDataDatasetsReady(readyStatus, []), true, 'prepared Reference and Current are Ready when there are no blockers')
+  assert.equal(areMasterDataDatasetsReady(readyStatus, testBlockers), true, 'Custom blockers do not affect global readiness')
+  assert.equal(areMasterDataDatasetsReady(readyStatus, [{ ...missingUsageBlocker, role: 'reference' }]), false, 'a Reference blocker makes global readiness Incomplete')
+  const generatedOnlySnapshots = { ...warningSnapshots, custom: { ...warningSnapshots.custom, bom: warningSnapshots.custom.bom.map(row => ({ ...row, consumption: 1 })) } }
+  assert.equal(areMasterDataDatasetsReady(readyStatus, buildMasterDataBlockerItems(generatedOnlySnapshots)), true, 'Warnings alone do not make datasets Incomplete')
   const reorderedWarningSnapshots = {
     ...warningSnapshots,
     custom: { ...warningSnapshots.custom, bom: [...warningSnapshots.custom.bom].reverse() }
   }
-  const reorderedMissingUsageWarning = buildMasterDataWarningItems(reorderedWarningSnapshots)
+  const reorderedMissingUsageBlocker = buildMasterDataBlockerItems(reorderedWarningSnapshots)
     .find(item => item.rowId === 'custom-missing-usage' && item.field === 'consumption')
-  assert.equal(reorderedMissingUsageWarning?.label, 'Custom · BOM · Row 1 · Usage', 'warning display row follows the current table order after reorder')
-  assert.equal(reorderedMissingUsageWarning?.rowId, missingUsageWarning.rowId, 'reordering keeps navigation bound to the same stable rowId')
-  const warningCategoryRenderSource = headerSource.slice(headerSource.indexOf('{visibleWarningGroups.map'), headerSource.indexOf('{mockAction &&'))
-  assert.match(warningCategoryRenderSource, /warningCategoryColumns[\s\S]*\{group\.label\}[\s\S]*\{groupCount\}[\s\S]*ChevronRight/, 'warning category layout is label, fixed count, fixed far-right chevron')
-  assert.match(warningCategoryRenderSource, /<span className="col-span-2 min-w-0 truncate pl-3[^\"]*">\{group\.label\}<\/span>/, 'warning category child label alone is indented by 12px')
-  assert.match(warningCategoryRenderSource, /warningCategoryColumns[\s\S]*pl-3[\s\S]*\{groupCount\}[\s\S]*ChevronRight/, 'category indentation preserves the shared count and chevron tracks')
-  const zeroCategoryRowSource = warningCategoryRenderSource.slice(
-    warningCategoryRenderSource.indexOf('{disabled ? ('),
-    warningCategoryRenderSource.indexOf(') : (')
-  )
-  const positiveCategoryRowSource = warningCategoryRenderSource.slice(
-    warningCategoryRenderSource.indexOf(') : ('),
-    warningCategoryRenderSource.indexOf('{expanded && groupCount > 0')
-  )
-  assert.match(zeroCategoryRowSource, /text-slate-800[\s\S]*group\.label/, 'zero-count warning label keeps normal contrast')
-  assert.match(zeroCategoryRowSource, /text-slate-400">0/, 'only the zero count is muted')
-  assert.doesNotMatch(zeroCategoryRowSource, /<button|hover:|cursor-|Chevron/, 'zero-count warning rows have no interaction or chevron affordance')
-  assert.match(positiveCategoryRowSource, /<button[\s\S]*aria-expanded=\{expanded\}[\s\S]*setExpandedWarningCategory\(expanded \? null : group\.category\)[\s\S]*ChevronRight/, 'every positive category row toggles a compact detail list')
-  assert.match(warningCategoryRenderSource, /expanded && groupCount > 0[\s\S]*group\.items\.map\(item =>/, 'an expanded category renders actual warning items even when its count is one')
-  assert.doesNotMatch(warningCategoryRenderSource, /const direct|onNavigateWarning\(group\.items\[0\]\)/, 'category rows never navigate directly')
-  const actualWarningItemSource = warningCategoryRenderSource.slice(warningCategoryRenderSource.indexOf('group.items.map(item =>'))
-  assert.match(actualWarningItemSource, /onNavigateWarning\(item\)/, 'each actual warning item directly invokes source navigation')
-  assert.doesNotMatch(actualWarningItemSource, /ChevronRight|ChevronDown|ChevronUp|›|aria-expanded/, 'actual warning items have no chevron, arrow, or nested expansion')
-  assert.match(prepareDatasetSource, /if \(row\.confidence\?\.\[field\]\?\.quality === 'invalid'\) return/, 'invalid legacy values do not become Missing required value warnings')
-  assert.doesNotMatch(prepareDatasetSource, /invalid-value|unresolved-work-center|Invalid value|Unresolved Work Center/, 'invalid and unresolved values are not Prepare Dataset categories')
-  assert.match(prepareDatasetSource, /if \(!workCenterId\)[\s\S]*'missing-value'/, 'blank Routing Work Center is Missing required value')
-  const warningsHeadingStart = headerSource.lastIndexOf('{warningRoleFilter ? (', headerSource.indexOf('<h3 id="prepare-dataset-warning-heading"'))
-  const warningsHeadingSource = headerSource.slice(warningsHeadingStart, headerSource.indexOf('<ul aria-label="Warning categories"', warningsHeadingStart))
-  assert.doesNotMatch(warningsHeadingSource, /AlertTriangle|<AlertTriangle/, 'Warnings heading has no warning icon')
-  assert.match(warningsHeadingSource, /warningCategoryColumns[\s\S]*<h3[^>]*className="col-span-3[\s\S]*All[\s\S]*<span className="h-6 w-6" aria-hidden="true" \/>/, 'All-mode Warnings heading keeps All in the shared count column and reserves the chevron column blank')
-  assert.match(warningsHeadingSource, /warningRoleFilter \? \([\s\S]*<button[\s\S]*aria-label=\{`Show all warning items, \$\{visibleWarningCount\} currently shown`\}[\s\S]*setWarningRoleFilter\(null\)[\s\S]*setExpandedWarningCategory\(null\)[\s\S]*>\s*\{warningHeadingLabel\}[\s\S]*>All<\/span>[\s\S]*\) : \([\s\S]*<span aria-label="Showing all warning items"[^>]*>All<\/span>/, 'the entire filtered Warnings row resets to All and collapses open categories; All mode stays static')
-  assert.match(warningsHeadingSource, /mb-1 grid h-7 w-full shrink-0[\s\S]*hover:bg-slate-50 focus-visible:outline/, 'the filtered Warnings row itself is the full-width pointer and keyboard target')
-  assert.doesNotMatch(warningsHeadingSource, /Chevron/, 'the All control does not use a chevron affordance')
-  assert.match(headerSource, /max-h-36 flex-1 overflow-y-auto overscroll-contain/, 'only the expanded warning item list scrolls, bounded to 144px')
-  assert.doesNotMatch(headerSource.match(/<ul aria-label="Warning categories"[^>]*className="([^"]+)"/)?.[1] ?? '', /overflow-y-auto/, 'collapsed category rows do not reserve a scroll viewport')
-  assert.match(headerSource, /expanded \? 'flex min-h-0 flex-1 flex-col' : undefined/, 'only the expanded category retains flexible space and keeps its row visible')
-  assert.match(headerSource, /expanded \? 'bg-slate-100' : 'hover:bg-slate-50'/, 'expanded category uses a quiet neutral background')
-  const mockActionPosition = headerSource.indexOf('{mockAction &&')
-  assert.ok(mockActionPosition > headerSource.lastIndexOf('</ul>', mockActionPosition), 'mock actions stay in a fixed footer outside the warning scroller')
-  assert.match(headerSource, /className="mt-auto shrink-0 border-t border-slate-200 pt-2"/, 'mock actions remain at the fixed bottom row when warnings are collapsed')
-  assert.match(headerSource, /<span className="grid h-7 w-5 place-items-center" aria-hidden="true">[\s\S]*<AlertTriangle className=\{`h-3 w-3 \$\{datasetWarningCount > 0 \? 'text-amber-800' : 'text-slate-400'\}`\}/, 'warning icon is centered inside its own fixed track')
-  const warningIconCellSource = headerSource.match(/<span className="grid h-7 w-5 place-items-center"[\s\S]*?<\/span>/)?.[0] ?? ''
-  assert.doesNotMatch(warningIconCellSource, /translate-[xy]-/, 'warning icon alignment uses grid rather than visual translation')
-  assert.match(headerSource, /<AlertTriangle className=\{`h-3 w-3 \$\{datasetWarningCount > 0 \? 'text-amber-800' : 'text-slate-400'\}`\}[\s\S]*datasetWarningCount > 0 \? 'text-amber-800' : 'text-slate-400'/, 'warning icon and count remain in separate aligned tracks, with zero shown in gray')
-  assert.match(headerSource, /setWarningRoleFilter\(datasetRole\)[\s\S]*setWarningRoleFilter\(null\)/, 'dataset warning counts filter categories and the filtered All control clears the filter')
-  assert.match(headerSource, /setExpandedWarningCategory\(expanded \? null : group\.category\)/, 'multiple warning locations expand progressively')
+  assert.equal(reorderedMissingUsageBlocker?.label, 'Custom · Bill of Materials · Row 2 · Usage', 'source row label follows the current display order while retaining the same stable rowId')
+  const issueSectionSource = headerSource.slice(headerSource.indexOf('const renderIssueSection'), headerSource.indexOf('useSafeLayoutEffect(() =>'))
+  assert.match(headerSource, /renderIssueSection\('warning'\)[\s\S]*renderIssueSection\('blocker'\)[\s\S]*mockAction/, 'Prepare Dataset orders Warnings, Blockers, then the two mock controls')
+  assert.match(headerSource, /warningHeadingLabel[\s\S]*visibleWarningCount[\s\S]*blockerHeadingLabel[\s\S]*visibleBlockerCount/, 'Warning and Blocker headings maintain separate totals')
+  assert.match(headerSource, /setWarningRoleFilter\(datasetRole\)[\s\S]*setBlockerRoleFilter\(datasetRole\)/, 'dataset Warning and Blocker filters are independent')
+  assert.match(issueSectionSource, /setRoleFilter\(null\)[\s\S]*setExpandedCategory\(null\)[\s\S]*All/, 'each section All action clears only its own filter and expansion')
+  assert.match(issueSectionSource, /aria-label=\{isWarning \? 'Warning categories' : 'Blocker categories'\}/, 'Warning and Blocker lists remain separate semantic sections')
+  assert.match(issueSectionSource, /grid min-h-8 w-full grid-cols-\[minmax\(0,1fr\)_2rem_1\.5rem\][\s\S]*pl-3/, 'category rows stay indented with aligned count and chevron tracks')
+  assert.match(issueSectionSource, /const canExpand = items\.length > 1[\s\S]*items\.length === 1[\s\S]*onNavigateWarning\(items\[0\]\)/, 'a single issue navigates directly; only multiple locations expand')
+  assert.match(issueSectionSource, /group\.label\}<span aria-hidden="true" className="ml-1 font-bold text-rose-600">\*<\/span>/, 'Missing required value shows its red star after the category label')
+  const actualIssueRows = issueSectionSource.slice(issueSectionSource.indexOf('{items.map(item =>'))
+  assert.match(actualIssueRows, /onNavigateWarning\(item\)/, 'each expanded Warning or Blocker location directly navigates to its source')
+  assert.doesNotMatch(actualIssueRows, /ChevronRight|ChevronDown|ChevronUp|›|aria-expanded/, 'actual issue locations have no navigation chevron or nested expansion')
+  assert.match(prepareDatasetSource, /if \(row\.confidence\?\.\[field\]\?\.quality === 'invalid'\) return/, 'invalid legacy values are not mislabeled as Missing required value')
+  assert.match(prepareDatasetSource, /if \(!workCenterId \|\| !knownWorkCenters\.has\(workCenterId\.toLocaleLowerCase\(\)\)\)[\s\S]*'missing-value'/, 'blank or unresolved Routing Work Center is a Blocker')
+  assert.match(headerSource, /className="mt-auto shrink-0 border-t border-slate-200 pt-2"/, 'Complete Mock and Incomplete Mock remain in a compact fixed row below both sections')
+  assert.match(pageSource, /grid w-full grid-cols-2 divide-x[\s\S]*Complete Mock[\s\S]*Incomplete Mock/, 'both development mock actions remain visible as equal controls')
+  assert.match(issueSectionSource, /isWarning \? 'text-amber-800' : 'text-rose-700'/, 'Warnings use amber and Blockers use rose/red')
+  assert.match(pageSource, /setMasterDataRole\(item\.role\)[\s\S]*tableView: item\.table/, 'warning/blocker navigation selects the source dataset and table')
+  assert.match(pageSource, /updateMasterDataUiState\(\{ type: 'set-mode', mode: 'edit' \}\)[\s\S]*tableView: item\.table/, 'warning/blocker navigation switches to Edit mode')
+  assert.match(pageSource, /handleWarningNavigationHandled[\s\S]*current\?\.requestId === requestId \? undefined : current/, 'warning/blocker navigation consumes the completed request')
+  assert.match(warningFocusSource, /setSearchQuery\(''\)[\s\S]*scrollIntoView[\s\S]*selectRow\(target\.rowId\)[\s\S]*focusTarget\.focus[\s\S]*onNavigationHandled\(target\.requestId\)/, 'warning/blocker navigation clears Search, selects and scrolls the source row, focuses its field, then consumes the target')
+  const { updateVisibleRowSelection } = await vite.ssrLoadModule('/src/features/master-data/hooks/useDragSelect.ts')
+  const visibleSelection = updateVisibleRowSelection(new Set(['hidden', 'visible-a']), ['visible-a', 'visible-b'], true)
+  assert.deepEqual([...visibleSelection], ['hidden', 'visible-a', 'visible-b'], 'Select All adds visible rows while preserving hidden selected rows')
+  const clearedVisibleSelection = updateVisibleRowSelection(visibleSelection, ['visible-a', 'visible-b'], false)
+  assert.deepEqual([...clearedVisibleSelection], ['hidden'], 'Clear All removes only visible rows and preserves hidden selections')
+  assert.match(rowSelectionSource, /const toggleAll = useCallback\(\(checked: boolean\) => \{[\s\S]*items\.map\(getItemId\)[\s\S]*updateVisibleRowSelection/, 'table header selection is limited to currently filtered rows')
+  assert.match(rowSelectionSource, /selectionScope\]\)/, 'row selection resets only when its dataset scope changes, not on View/Edit mode')
+  for (const [tableSource, tableLabel] of [[bomSource, 'BOM'], [wcSource, 'Work Centers'], [routingSource, 'Routing']]) {
+    assert.match(tableSource, /onMouseDown=\{event => startDrag\(/, tableLabel + ' row selection works in View and Edit')
+    assert.match(tableSource, /aria-label=\{allVisibleSelected \? 'Clear selection for visible .* rows' : 'Select all visible .* rows'\}/, tableLabel + ' # header toggles visible selection')
+    assert.match(tableSource, /const idsToDelete = selectedIds\.has\([\w.]+\) \? \[\.\.\.selectedIds\] : \[[\w.]+\]/, tableLabel + ' Trash deletes selected rows as a group or only the clicked unselected row')
+    assert.match(tableSource, /<th scope="col" className="w-20[^"]*">Actions<\/th>[\s\S]*aria-label=\{[^}]*Reorder/, tableLabel + ' keeps Trash and Grip within one Actions column')
+    assert.match(tableSource, /blockerIndexRef\.current % blockerItems\.length[\s\S]*blockerIndexRef\.current = \(blockerIndexRef\.current \+ 1\) % blockerItems\.length/, tableLabel + ' blocker navigation wraps cyclically')
+    assert.match(tableSource, /<MasterDataTableHeader title=/, tableLabel + ' has a table-level blocker navigator and Add Row control')
+    assert.match(tableSource, /isSelected \? 'text-slate-700' : 'text-slate-400'/, tableLabel + ' Grip handle is stronger for a selected row and muted otherwise')
+    assert.match(tableSource, /<MasterDataTableFooter rowCount=/, tableLabel + ' keeps an always-visible row/warning/blocker footer')
+    assert.match(tableSource, /overflow-x-auto/, tableLabel + ' can scroll horizontally when needed')
+    assert.doesNotMatch(tableSource, /overflow-y-auto|max-h-\d/, tableLabel + ' does not create its own vertical scroll region')
+  }
+  assert.match(bomSource, /<th scope="col" className="px-2 py-2 text-left">Material<\/th>[\s\S]*Usage[\s\S]*Unit[\s\S]*Price[\s\S]*Loss[\s\S]*Note/, 'BOM uses the full Material label and approved column order')
+  assert.match(wcSource, /Work Center[\s\S]*Labor Rate[\s\S]*Burden Rate[\s\S]*Note/, 'Work Centers uses full professional labels')
+  assert.match(routingSource, /Process[\s\S]*Work Center[\s\S]*Manning[\s\S]*Capacity[\s\S]*Yield[\s\S]*Note/, 'Routing uses full professional labels')
   assert.match(pageSource, /setMasterDataRole\(item\.role\)[\s\S]*tableView: item\.table/, 'warning navigation selects the affected dataset and table')
   assert.match(pageSource, /updateMasterDataUiState\(\{ type: 'set-mode', mode: 'edit' \}\)[\s\S]*tableView: item\.table/, 'warning navigation switches to Edit and the affected table')
   assert.match(pageSource, /handleWarningNavigationHandled[\s\S]*current\?\.requestId === requestId \? undefined : current/, 'warning navigation consumes the completed request')
   assert.match(warningFocusSource, /setSearchQuery\(''\)[\s\S]*scrollIntoView[\s\S]*selectRow\(target\.rowId\)[\s\S]*focusTarget\.focus[\s\S]*onNavigationHandled\(target\.requestId\)/, 'warning navigation clears filters, selects the row, scrolls, focuses the source, and consumes its target')
   assert.match(footerSource, /const warningItems = buildMasterDataWarningItems\(masterDataSnapshots\)[\s\S]*const warningCount = warningItems\.length/, 'footer total uses affected warning-item count')
-  assert.match(footerSource, /areMasterDataDatasetsReady\(masterDataHandoff, warningItems\)/, 'Footer uses the shared Reference/Current readiness derivation')
+  assert.match(footerSource, /const blockerItems = buildMasterDataBlockerItems\(masterDataSnapshots\)[\s\S]*const warningCount = warningItems\.length[\s\S]*areMasterDataDatasetsReady\(masterDataHandoff, blockerItems\)/, 'Footer derives readiness from blockers while the warning total excludes them')
   assert.match(footerSource, /Datasets \{datasetsReady \? 'Ready' : 'Incomplete'\}/, 'footer uses the finalized compact readiness wording')
   assert.match(footerSource, /BOM \{snapshotPair\.reference\.bom\.length\} · WC \{snapshotPair\.reference\.rates\.length\} · RTG \{snapshotPair\.reference\.routing\.length\}/, 'Reference structural counts use BOM, WC, RTG order')
   assert.match(footerSource, /BOM \{snapshotPair\.current\.bom\.length\} · WC \{snapshotPair\.current\.rates\.length\} · RTG \{snapshotPair\.current\.routing\.length\}/, 'Current structural counts use BOM, WC, RTG order')
-  assert.match(footerSource, /id="footer-dataset-status-tooltip"[\s\S]*datasetReadiness\.map[\s\S]*ready \? 'Ready' : 'Incomplete'/, 'Footer dataset status tooltip lists only Reference and Current statuses without a title')
+  assert.match(footerSource, /id="footer-dataset-status-tooltip"[\s\S]*datasetReadiness\.map[\s\S]*ready \? 'Ready' : 'Incomplete'[\s\S]*datasetReadiness\.map\(\(\{ label, blockerCount \}\)[\s\S]*CircleX[\s\S]*blockerCount/, 'Footer status tooltip separately shows Reference and Current blocker counts')
   assert.match(footerSource, /id="footer-product-status-tooltip"[\s\S]*snapshotPair\.reference\.product\.productName[\s\S]*snapshotPair\.reference\.product\.uom[\s\S]*snapshotPair\.current\.product\.productName[\s\S]*snapshotPair\.current\.product\.uom/, 'Footer Product tooltip shows Reference and Current Product Name/UOM without a title')
   const productStatusMarkupSource = footerSource.slice(footerSource.indexOf('aria-label={`Product ${masterDataHandoff.productMismatch'), footerSource.indexOf('id="footer-warning-tooltip"'))
   assert.doesNotMatch(productStatusMarkupSource, /<button|onClick=|requestMasterDataPrepareDataset/, 'Product Match/Mismatch is display-only in the Footer')
@@ -628,9 +700,9 @@ try {
   assert.match(footerSource, /id="footer-warning-tooltip"[\s\S]*warningBreakdown\.map/, 'Footer warning tooltip lists the filtered warning breakdown without a heading or total')
   assert.doesNotMatch(footerSource.slice(footerSource.indexOf('id="footer-warning-tooltip"'), footerSource.indexOf('aria-label={`Open Prepare Dataset showing')), /title=|Warnings|warningCount/, 'Footer warning tooltip contains only the non-zero warning categories')
   assert.match(footerSource, /id="footer-warning-tooltip"[\s\S]*align="right"/, 'Footer warning tooltip aligns to the right edge')
-  assert.match(footerSource, /masterDataHandoff\.productMismatch \? 'bg-violet-400' : 'bg-emerald-400'/, 'Footer Product Match/Mismatch uses a violet/green dot')
-  assert.match(footerSource, /masterDataHandoff\.productMismatch \? 'text-violet-300' : 'text-emerald-300'/, 'Footer Product Match/Mismatch uses violet/green semantic text without hover affordance')
-  assert.match(footerSource, /warningCount > 0 \? 'text-amber-300 hover:text-amber-200' : 'text-slate-400 hover:text-slate-300'/, 'Footer warning color remains amber and visually distinct from violet Product Mismatch')
+  assert.match(footerSource, /masterDataHandoff\.productMismatch \? 'bg-orange-400' : 'bg-emerald-400'/, 'Footer Product Match/Mismatch uses orange/green dots')
+  assert.match(footerSource, /masterDataHandoff\.productMismatch \? 'text-orange-300' : 'text-emerald-300'/, 'Footer Product Match/Mismatch uses orange/green semantic text without hover affordance')
+  assert.match(footerSource, /warningCount > 0 \? 'text-amber-300 hover:text-amber-200' : 'text-slate-400 hover:text-slate-300'/, 'Footer warning color remains amber and visually distinct from orange Product Mismatch')
   assert.doesNotMatch(footerSource.slice(footerSource.indexOf('footer-product-status-tooltip'), footerSource.indexOf('footer-warning-tooltip')), /Chevron|ChevronRight|ChevronDown/, 'Footer Product tooltip has no chevron')
   assert.match(footerSource, /onClick=\{\(\) => requestMasterDataPrepareDataset\('all-warnings'\)\}[\s\S]*\{warningCount\}/, 'footer warning count opens Prepare Dataset with all warning roles')
   assert.match(footerSource, /aria-label=\{`Open Prepare Dataset showing all \$\{warningCount\} warnings`\}/, 'footer warning count has an accessible action label')
@@ -641,8 +713,8 @@ try {
   assert.match(footerSource, /totalGap !== null && Number\.isFinite\(totalGap\)/, 'unavailable or non-finite Net Gap remains neutral')
   assert.match(footerSource, /totalGap > 0[\s\S]*text-rose-300[\s\S]*totalGap < 0[\s\S]*text-emerald-300[\s\S]*text-slate-300/, 'Net Gap colors are positive rose, negative emerald, and zero neutral')
   assert.match(readyFooterMarkup, /<div class="flex h-dvh min-h-0 w-full flex-col overflow-hidden/, 'app shell fills the viewport and contains scrolling')
-  assert.match(readyFooterMarkup, /<main id="main-content" tabindex="-1" class="min-h-0 min-w-0 flex-1 overflow-y-auto py-3"><div class="app-workspace-frame">/, 'full-width Main owns scrolling and the shared frame stays inside it')
-  assert.doesNotMatch(footerSource.match(/<main[\s\S]*?className="([^"]+)"/)?.[1] ?? '', /app-workspace-frame/, 'the scroll container itself is not constrained to the centered frame')
+  assert.match(readyFooterMarkup, /<main id="main-content" tabindex="-1" class="min-h-0 min-w-0 flex-1 overflow-y-auto pt-0 pb-3"><div class="app-workspace-frame">/, 'full-width Main owns scrolling and removes the Master Data toolbar gap')
+  assert.doesNotMatch(footerSource.match(/<main[\s\S]*?className=\{([^}]*)\}/)?.[1] ?? '', /app-workspace-frame/, 'the scroll container itself is not constrained to the centered frame')
   assert.match(readyFooterMarkup, /<footer aria-label="Dataset and comparison status" class="w-full shrink-0/, 'Footer remains in the shell flow without using fixed positioning')
   assert.doesNotMatch(footerSource.match(/<div className="flex h-dvh[^\"]*"/)?.[0] ?? '', /fixed/, 'Footer layout does not use a fixed overlay')
   assert.match(navbarSource, /className="app-workspace-frame"/, 'Header content shares the centered workspace frame')
@@ -672,11 +744,33 @@ try {
   assert.match(navbarSource, /onClick=\{toggleMasterDataPrepareDataset\}[\s\S]*aria-label="Prepare Dataset"[\s\S]*title="Prepare Dataset"[\s\S]*<Info/, 'the final Header control is an Info icon that toggles Prepare Dataset')
   assert.match(navbarSource, /col-span-2 row-start-2 flex min-w-0 flex-wrap items-center justify-center[\s\S]*lg:col-start-2/, 'Header navigation can wrap on narrow widths and stays in the centered desktop zone')
   assert.match(headerSource, /type="search"[\s\S]*aria-label="Search Master Data"[\s\S]*value=\{searchQuery\}[\s\S]*onSearchQueryChange\(event\.target\.value\)/, 'the existing search query is exposed locally in the Master Data toolbar')
+  assert.match(headerSource, /tableView === 'all'[\s\S]*'Search all tables\.\.\.'[\s\S]*tableView === 'wc'[\s\S]*'Search Work Centers\.\.\.'[\s\S]*tableView === 'routing'[\s\S]*'Search Routing\.\.\.'[\s\S]*'Search BOM\.\.\.'/,
+    'Search placeholder follows the active table view')
+  assert.match(headerSource, /role="search" className="relative ml-auto h-8 w-48 min-w-48 max-w-48 shrink-0"/,
+    'Search has a fixed 192px width that cannot change with its placeholder')
+  assert.match(headerSource, /className="flex flex-wrap items-center gap-1\.5[\s\S]*xl:flex-nowrap"/,
+    'toolbar keeps its action and selector groups together on desktop')
+  assert.match(headerSource, /relative inline-grid h-8 w-16 shrink-0 grid-cols-2[\s\S]*aria-label="View or edit dataset"/, 'View/Edit use two 32px square tabs matching toolbar action buttons')
+  assert.match(headerSource, /pointer-events-none absolute inset-y-0 left-0 w-1\/2 bg-slate-900 transition-transform duration-150[\s\S]*isEditMode \? 'translate-x-full'/, 'the selected View/Edit tab uses one shared sliding indicator')
+  assert.match(headerSource, /aria-pressed=\{!isEditMode\}[\s\S]*aria-label="View"[\s\S]*>\s*View\s*<\/button>/, 'View remains a labeled accessible mode tab')
+  assert.match(headerSource, /aria-pressed=\{isEditMode\}[\s\S]*aria-label="Edit"[\s\S]*>\s*Edit\s*<\/button>/, 'Edit remains a labeled accessible mode tab')
+  assert.match(headerSource, /const datasetSaveStateDotClass = \(state: MasterDataSaveState, size = 'h-1\.5 w-1\.5'\)/, 'dataset save-state dots retain their existing size')
+  assert.match(headerSource, /aria-pressed=\{showWarningHighlights\}[\s\S]*Hide warning highlights[\s\S]*Show warning highlights[\s\S]*!<\/span>[\s\S]*rotate-\[-45deg\]/,
+    'warning visibility uses an accessible toggle and a diagonal slash when hidden')
+  assert.match(headerSource, /onMouseEnter=\{\(\) => setCloneMenuOpen\(true\)\}[\s\S]*onMouseLeave=\{\(\) => setCloneMenuOpen\(false\)\}[\s\S]*onFocus=\{\(\) => \{ if \(!suppressCloneFocusOpenRef.current\) setCloneMenuOpen\(true\) \}\}/,
+    'Clone opens on hover or keyboard focus and dismisses when the pointer leaves the trigger/menu')
+  assert.match(headerSource, /roles\.filter\(sourceRole => sourceRole !== role\)[\s\S]*from \{roleLabels\[sourceRole\]\}/,
+    'Clone presents concise source options while excluding the destination')
   assert.doesNotMatch(bomSource, /aria-label="Search BOM"|placeholder="Search BOM/, 'BOM no longer renders a per-table search box')
   assert.doesNotMatch(routingSource, /aria-label="Search Routing"|placeholder="Search Routing/, 'Routing no longer renders a per-table search box')
   assert.match(pageSource, /searchQuery=\{searchQuery\}[\s\S]*onSearchQueryChange=\{onSearchQueryChange\}/, 'the same Master Data query flows to the toolbar and existing tables')
   assert.match(headerSource, /type="text"[\s\S]*aria-label="UOM"[\s\S]*onUpdateProduct\(\{ \.\.\.product, uom: event\.target\.value \}\)/, 'UOM is editable as free text')
-  assert.match(headerSource, /xl:grid-cols-\[3fr_1fr_2fr_1fr_4fr\]/, 'metadata widths are stable and follow the requested relative sizing')
+  assert.match(headerSource, /xl:grid-cols-\[minmax\(0,3fr\)_minmax\(0,1fr\)_minmax\(0,2fr\)_minmax\(0,1fr\)_minmax\(0,4fr\)\]/,
+    'inline metadata widths remain stable and follow the requested relative sizing')
+  assert.match(headerSource, /Product Name :[\s\S]*UOM :[\s\S]*Selling Price \(THB\) :[\s\S]*SG&amp;A \(%\) :[\s\S]*Remark :/,
+    'metadata uses compact inline label-value pairs without a heading')
+  assert.doesNotMatch(headerSource, /<h[1-6][^>]*>Metadata<\/h[1-6]>/, 'metadata has no redundant section heading')
+  assert.match(headerSource, /placeholder=\{searchPlaceholder\}/, 'Search uses a table-aware placeholder independent of its fixed wrapper width')
   assert.match(storeSource, /normalizeMasterDataSnapshot\(mutate\(currentDataset\), currentDataset\)/, 'all dataset edit paths normalize identities, including direct edit, paste, and bulk updates')
   assert.match(storeSource, /isMasterDataSnapshotChangeValid\(currentDataset, nextDataset\)/, 'direct edits and spreadsheet paste reject newly invalid or unresolved values at the Working boundary')
   assert.match(storeSource, /filterInvalidMasterDataNumericChanges\(changes\)/, 'mixed spreadsheet pastes preserve valid cells while rejecting invalid numeric cells')
@@ -685,14 +779,38 @@ try {
   assert.match(developmentMockSource, /getMasterDataSnapshotValidationErrors\(nextPair\.reference\)[\s\S]*getMasterDataSnapshotValidationErrors\(nextPair\.current\)/, 'development mock data also passes the ordinary Working data validation boundary')
   assert.match(snapshotParserSource, /getMasterDataSnapshotValidationErrors\(snapshot\)[\s\S]*success: false[\s\S]*format: 'canonical'/, 'canonical imports reject invalid numeric values and unavailable nonblank Routing Work Centers')
   assert.match(snapshotParserSource, /canonicalResult\.success \|\| canonicalResult\.format === 'canonical'/, 'validation-rejected canonical workbooks cannot fall through to legacy import parsing')
-  assert.match(importDropzoneSource, /type: 'error',[\s\S]*text: result\.message,[\s\S]*details: result\.warnings/, 'Import rejection shows the existing validation details')
+  assert.match(importDropzoneSource, /onParsed\(await parseSnapshotExcelInputFile\(file, importRole, \{ allowLegacy: false \}\)\)/,
+    'Import parses and validates a workbook before passing it back to the modal')
+  assert.doesNotMatch(importDropzoneSource, /importSnapshotFromExcel|useAppStore/, 'file selection does not mutate Working data')
+  assert.match(importModalSource, /canImport = !isParsing && parsedImport\?\.success === true[\s\S]*onImport\(parsedImport\)/,
+    'Working data changes only after the explicit Import action')
+  assert.match(importModalSource, /hasWorkingData && parsedImport\?\.success[\s\S]*This will replace \{targetLabel\} Working data\. Last Saved remains unchanged\./,
+    'replacement context appears only for a populated Working dataset')
+  assert.doesNotMatch(importModalSource, /window\.confirm|Import will replace.*\n.*confirm/i, 'Import has no second confirmation')
+  assert.match(sizingModalSource, /max-w-3xl[\s\S]*aria-label="Dataset metadata"[\s\S]*aria-label="Dataset row counts"/,
+    'Sizing presents Dataset metadata and row counts in one compact centered dialog')
+  assert.match(sizingModalSource, /value=\{productName\}[\s\S]*value=\{uom\}[\s\S]*value=\{sellingPrice\}[\s\S]*value=\{sgaPercent\}[\s\S]*value=\{remark\}/,
+    'Sizing retains all local metadata draft fields')
+  assert.match(sizingModalSource, /buildSizingDraft\(\)[\s\S]*getPopulatedRowsRemovedBySizing\(snapshot, nextSizing\)[\s\S]*onSaveSizing\(nextSizing\)[\s\S]*onClose\(\)/,
+    'Sizing still validates its draft, protects populated truncation, and applies only on Apply')
+  assert.match(sizingModalSource, /const templateSnapshot = \{ \.\.\.snapshot, product: nextProduct, remark, sizing: nextSizing \}/,
+    'Download Template uses the uncommitted dialog draft')
+  assert.match(sizingModalSource, /Download Template[\s\S]*min-h-8[\s\S]*Apply Sizing/, 'Download Template stays secondary to the compact Apply action')
+  assert.match(importDropzoneSource, /role="group"[\s\S]*Drop an Excel file here[\s\S]*Choose another file|Browse/,
+    'Import starts with a compact accessible dropzone and a visible file chooser')
+  assert.match(importModalSource, /getImportErrorSummary\(parsedImport\.message\)/,
+    'Import errors are summarized for the user rather than exposing raw parser messages')
+  assert.match(importModalSource, /parsedImport\.snapshot\.bom\.length[\s\S]*parsedImport\.snapshot\.rates\.length[\s\S]*parsedImport\.snapshot\.routing\.length/,
+    'valid Import state shows concise BOM, Work Center, and Routing counts')
+  assert.match(importModalSource, /hasWorkingData && parsedImport\?\.success[\s\S]*This will replace \{targetLabel\} Working data\. Last Saved remains unchanged\./,
+    'replacement context is concise and appears only after a valid workbook is ready')
   assert.match(validationSource, /field === 'capacity' \|\| field === 'yield'[\s\S]*value <= 0[\s\S]*field === 'yield' && value > 1/, 'ingress validation reuses the existing positive Capacity and bounded Yield rules')
   assert.match(pageSource, /Complete Mock[\s\S]*Incomplete Mock/, 'Master Data exposes direct Complete Mock and Incomplete Mock actions')
   assert.doesNotMatch(pageSource, /Load Mock Data|window\.confirm\(`(?:Complete|Incomplete) Mock/, 'mock fixtures load without a generic action label or confirmation')
   assert.match(appSource, /getElementById\('main-content'\)\?\.scrollTo\(\{ top: 0, behavior: 'auto' \}\)[\s\S]*\[activeTab\]/, 'changing pages resets the shared content viewport to its heading')
   assert.doesNotMatch(pageSource, /Load complete review mock|Load data-quality mock|Return to working session|window\.confirm/, 'mock loading is immediate and has no session-return UI or confirmation')
-  const tableSelectorSource = pageSource.slice(pageSource.indexOf('const tableSections'), pageSource.indexOf('return (\n    <div className="w-full space-y-4">'))
-  assert.match(tableSelectorSource, /grid w-64 shrink-0 grid-cols-4 items-stretch[\s\S]*sm:w-96/, 'table selector keeps four equal columns and a compact fixed width on narrow screens')
+  const tableSelectorSource = pageSource.slice(pageSource.indexOf('const tableSections'), pageSource.indexOf('return (\n    <div className="w-full space-y-2">'))
+  assert.match(tableSelectorSource, /grid w-72 shrink-0 grid-cols-4 items-stretch/, 'table selector keeps four equal columns at a stable width')
   assert.equal((tableSelectorSource.match(/min-h-8 w-full/g) ?? []).length, 2, 'the mapped table controls and All share the same responsive fixed sizing')
   assert.doesNotMatch(bomSource + wcSource + routingSource, /max-h-\[520px\]/, 'Master Data tables grow with page content instead of creating nested vertical scrollers')
   assert.match(bomSource, /className="overflow-x-auto"/)
@@ -701,6 +819,62 @@ try {
   assert.match(tableSelectorSource, /navLabel: 'BOM'[\s\S]*navLabel: 'Work Centers'[\s\S]*navLabel: 'Routing'[\s\S]*>\s*All\s*</, 'table selector order is BOM, Work Centers, Routing, All')
   assert.match(headerSource, /title=\{lastSavedSnapshot \? 'Export Last Saved'/, 'Export tooltip states it uses Last Saved data')
   assert.match(headerSource, /exportSnapshotToExcel\(lastSavedSnapshot\)/, 'Export passes the Last Saved snapshot to the workbook generator')
+  assert.match(headerSource, /const showSaveFilePicker = \(window as SaveFilePickerWindow\)\.showSaveFilePicker[\s\S]*showSaveFilePicker\.call\(window[\s\S]*suggestedName: filename[\s\S]*downloadBlob\(blob, filename\)/,
+    'Export attempts native Save As and falls back to a browser download')
+  const exportHandlerSource = headerSource.slice(headerSource.indexOf('const handleExportDataset'), headerSource.indexOf('const handleResetDataset'))
+  assert.match(exportHandlerSource, /const saveFileHandlePromise = showSaveFilePicker\.call\(window[\s\S]*const handle = await saveFileHandlePromise[\s\S]*await import\('\.\.\/\.\.\/\.\.\/services\/excel\/snapshot-export'\)/,
+    'Export opens Save As directly from the user activation before the asynchronous exporter is loaded')
+  assert.match(headerSource, /disabled=\{!lastSavedSnapshot\}[\s\S]*title=\{lastSavedSnapshot \? 'Export Last Saved' : 'No Last Saved dataset to export'\}/,
+    'Export is disabled only when the active dataset has no Last Saved snapshot')
+  assert.match(storeSource, /const masterDataLastSavedSnapshot = getLastSavedMasterData\(activeSession, masterDataRole\)\?\.snapshot/, 'the active role supplies its own Last Saved snapshot to Export')
+  assert.match(headerSource, /<Download className="h-4 w-4" aria-hidden="true" \/>/, 'Export uses a downward download icon')
+  assert.match(bomSource, /const numericClass = \(invalid: boolean, missing: boolean\) => `[^`]*\$\{invalid \? 'border-amber-600 bg-amber-50'[^`]*\$\{missing \? 'bg-amber-50'/,
+    'BOM blocker cells keep their amber highlight independently of the Warning toggle')
+  assert.match(wcSource, /const numericClass = \(invalid: boolean, missing: boolean\) => `[^`]*\$\{invalid \? 'border-amber-600 bg-amber-50'[^`]*\$\{missing \? 'bg-amber-50'/,
+    'Work Center blocker cells keep their amber highlight independently of the Warning toggle')
+  assert.match(routingSource, /const numericClass = \(invalid: boolean, missing: boolean\) => `[^`]*\$\{invalid \? 'border-amber-600 bg-amber-50'[^`]*\$\{missing \? 'bg-amber-50'/,
+    'Routing blocker cells keep their amber highlight independently of the Warning toggle')
+  assert.match(bomSource + wcSource + routingSource, /identityWarning && showWarningHighlights \? 'bg-amber-50' : ''/, 'Warning identity highlights alone follow the visibility toggle')
+  assert.match(bomSource + wcSource + routingSource, /aria-label="Missing required value" title="Missing required value" className="[^\"]*text-rose-600">\*</, 'red blocker stars remain attached to affected cells')
+  assert.match(routingSource, /workCenterInvalid \? 'bg-amber-50 text-amber-900' : ''[\s\S]*workCenterInvalid \? 'border-amber-600 bg-amber-50'/,
+    'unresolved Work Center blocker highlight remains visible when warning highlights are hidden')
+
+  const savedFixtures = {
+    reference: { ...fixtureSnapshot('reference'), id: 'saved-reference' },
+    current: fixtureSnapshot('current'),
+    custom: { ...fixtureSnapshot('custom'), id: 'saved-custom' }
+  }
+  const { getLastSavedMasterData } = await vite.ssrLoadModule('/src/state/master-data-datasets.ts')
+  const lastSavedSession = {
+    lastSavedMasterData: {
+      reference: { snapshot: savedFixtures.reference },
+      current: { snapshot: savedFixtures.current }
+    },
+    customLastSavedMasterData: { snapshot: savedFixtures.custom }
+  }
+  for (const role of ['reference', 'current', 'custom']) {
+    assert.equal(getLastSavedMasterData(lastSavedSession, role)?.snapshot, savedFixtures[role], `${role} resolves its own Last Saved snapshot`)
+  }
+  assert.equal(getLastSavedMasterData({ ...lastSavedSession, customLastSavedMasterData: undefined }, 'custom'), undefined,
+    'Custom has no export source until it has its own Last Saved snapshot')
+  for (const role of ['reference', 'current', 'custom']) {
+    const lastSaved = role === 'custom' ? undefined : savedFixtures[role]
+    const markup = await renderMasterDataPage(
+      { role, mode: 'view', tableView: 'all' },
+      {
+        masterDataLastSavedSnapshot: lastSaved,
+        masterDataLastSavedSnapshots: lastSaved ? { [role]: lastSaved } : {}
+      }
+    )
+    const exportButton = [...markup.matchAll(/<button\b([^>]*)>([\s\S]*?)<\/button>/g)]
+      .find(([, attributes]) => attributes.match(/\baria-label="([^"]+)"/)?.[1] === 'Export')
+    assert.ok(exportButton, `${role} has an Export control`)
+    assert.equal(/\sdisabled(?:=""|\s|>)/.test(exportButton[1]), !lastSaved,
+      `${role} Export follows the availability of that role's Last Saved snapshot`)
+    if (role === 'reference' && lastSaved) {
+      assert.equal(pressedButton(markup, 'Reference'), true, 'Reference can be Draft while retaining an enabled Last Saved export')
+    }
+  }
   const snapshotImportFlow = storeSource.slice(
     storeSource.indexOf('const importSnapshotFromExcel'),
     storeSource.indexOf('const loadDevelopmentMockData')

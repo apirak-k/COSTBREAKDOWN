@@ -11,9 +11,12 @@ import {
   isMasterDataSnapshotChangeValid
 } from '../src/core/utils/master-data-validation'
 import {
+  buildMasterDataBlockerItems,
   buildMasterDataWarningItems,
   areMasterDataDatasetsReady,
   countMasterDataWarningsByRole,
+  countMasterDataQualityByRole,
+  groupMasterDataBlockers,
   groupMasterDataWarnings,
   MASTER_DATA_WARNING_CATEGORY_DEFINITIONS
 } from '../src/features/master-data/prepare-dataset'
@@ -98,31 +101,36 @@ quality.routing = [
   { id: 'blank-wc', processName: 'Drilling', workCenterId: '', manning: 1, capacity: 100, yield: 1, confidence: {} }
 ]
 const warningItems = buildMasterDataWarningItems({ reference: snapshot('reference'), current: normalizeMasterDataSnapshot(quality), custom: snapshot('custom') })
+const blockerItems = buildMasterDataBlockerItems({ reference: snapshot('reference'), current: normalizeMasterDataSnapshot(quality), custom: snapshot('custom') })
 const warningCategories = warningItems.reduce<Record<string, number>>((totals, warning) => {
   totals[warning.category] = (totals[warning.category] ?? 0) + 1
   return totals
 }, {})
 assert.equal(warningCategories['generated-identity'], 1, 'generated identities are reviewable warning items')
-assert.equal(warningCategories['missing-value'], 5, 'missing required values count by affected field, including a blank Routing Work Center')
 assert.equal(warningCategories['auto-renamed-duplicate'], 1, 'automatic duplicate renames remain reviewable warning items')
-assert.equal(warningItems.length, 7, 'footer warning total sums affected warning locations, not category count')
-assert.deepEqual(Object.keys(warningCategories).sort(), ['auto-renamed-duplicate', 'generated-identity', 'missing-value'].sort(),
-  'Prepare Dataset exposes exactly the three canonical warning categories')
-assert.ok(warningItems.some(item => item.rowId === 'blank-wc' && item.field === 'workCenterId' && item.category === 'missing-value'),
+assert.equal(warningItems.length, 2, 'footer warning total sums only non-blocking identity locations')
+assert.deepEqual(Object.keys(warningCategories).sort(), ['auto-renamed-duplicate', 'generated-identity'].sort(),
+  'Prepare Dataset exposes exactly two canonical warning categories')
+assert.equal(blockerItems.length, 6, 'missing values and unresolved required Work Center references are separate blockers')
+assert.deepEqual(countMasterDataQualityByRole(blockerItems), { reference: 0, current: 6, custom: 0 }, 'blocker counts remain separate by dataset')
+assert.ok(blockerItems.some(item => item.rowId === 'blank-wc' && item.field === 'workCenterId' && item.category === 'missing-value'),
   'a blank required Work Center is reported as Missing required value')
-assert.equal(warningItems.filter(item => item.rowId === 'blank-wc' && item.field === 'workCenterId').length, 1,
+assert.equal(blockerItems.filter(item => item.rowId === 'blank-wc' && item.field === 'workCenterId').length, 1,
   'blank Work Center creates only one Missing required value item')
+assert.equal(warningItems.some(item => item.rowId === 'blank-wc' && item.field === 'workCenterId'), false,
+  'blockers do not also appear in Warnings')
 const warningsByRole = countMasterDataWarningsByRole(warningItems)
-assert.deepEqual(warningsByRole, { reference: 0, current: 7, custom: 0 }, 'dataset counts remain independent')
+assert.deepEqual(warningsByRole, { reference: 0, current: 2, custom: 0 }, 'warning counts remain independent by dataset')
 assert.equal(Object.values(warningsByRole).reduce((total, count) => total + count, 0), warningItems.length,
-  'the per-dataset counts sum to the total without extra warning rows')
+  'per-dataset warning counts sum without double-counting blockers')
 const warningGroups = groupMasterDataWarnings(warningItems)
 assert.deepEqual(warningGroups.map(group => group.category), MASTER_DATA_WARNING_CATEGORY_DEFINITIONS.map(definition => definition.category),
-  'Prepare Dataset keeps all warning category rows present, including zero-count rows')
-assert.deepEqual(groupMasterDataWarnings([]).map(group => group.items.length), [0, 0, 0],
-  'all three warning categories remain present with zero items when there are no warnings')
+  'Prepare Dataset warning groups follow the two non-blocking categories')
+assert.deepEqual(groupMasterDataWarnings([]).map(group => group.items.length), [0, 0],
+  'warning categories have no fake data locations when there are no warnings')
 assert.equal(groupMasterDataWarnings(warningItems.filter(item => item.role === 'reference')).every(group => group.items.length === 0), true,
-  'a dataset filter leaves stable zero-count categories for datasets without warnings')
+  'a dataset filter leaves warning categories empty for datasets without warnings')
+assert.equal(groupMasterDataBlockers(blockerItems).length, 1, 'Blockers use a separate Missing required value category')
 assert.ok(warningItems.every(item => item.role !== 'custom' || item.table !== 'product'))
 
 assert.equal(getDatasetSaveState(effective, undefined), 'Draft')
@@ -162,16 +170,12 @@ const productMismatchOnlyWarnings = buildMasterDataWarningItems({
 })
 assert.equal(productMismatchOnlyWarnings.length, 0, 'Product Name and UOM mismatch do not add warning items')
 
-const customMissingWarnings = buildMasterDataWarningItems({
-  reference: snapshot('ready-reference'),
-  current: snapshot('ready-current'),
-  custom: quality
-})
 const readyHandoff = { datasetsPrepared: true, referenceReady: true, currentReady: true }
-assert.equal(areMasterDataDatasetsReady(readyHandoff, customMissingWarnings), true,
-  'Custom missing values do not affect Reference/Current readiness')
-assert.equal(areMasterDataDatasetsReady(readyHandoff, warningItems), false,
-  'Reference or Current missing required values make shared readiness incomplete')
+const customMissingBlockers = buildMasterDataBlockerItems({ reference: snapshot('ready-reference'), current: snapshot('ready-current'), custom: quality })
+assert.equal(areMasterDataDatasetsReady(readyHandoff, customMissingBlockers), true,
+  'Custom blockers do not affect Reference/Current readiness')
+assert.equal(areMasterDataDatasetsReady(readyHandoff, blockerItems), false,
+  'Reference or Current blockers make shared readiness incomplete')
 assert.equal(areMasterDataDatasetsReady({ ...readyHandoff, currentReady: false }, []), false,
   'shared readiness requires both existing dataset readiness states')
 

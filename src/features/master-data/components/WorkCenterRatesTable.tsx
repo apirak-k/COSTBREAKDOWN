@@ -1,11 +1,13 @@
 import React, { useCallback, useMemo, useRef } from 'react'
-import { CheckSquare, GripVertical, Plus, Trash2 } from 'lucide-react'
+import { GripVertical, Trash2 } from 'lucide-react'
 import { SnapshotWorkCenterRate, formatNumber } from '../../../core'
 import { useDragSelect } from '../hooks/useDragSelect'
 import { SpreadsheetPasteCell, tableCellKey, useTableKeyboardNav } from '../hooks/useTableKeyboardNav'
 import { RowChanges, useSpreadsheetEditing } from '../hooks/useSpreadsheetEditing'
 import { blankIdentityOrdinals, duplicateIdentityIds, hasInvalidNumber } from '../table-validation'
 import { useWarningNavigationFocus, type WarningNavigationTarget } from '../hooks/useWarningNavigationFocus'
+import type { MasterDataBlockerItem } from '../prepare-dataset'
+import { MasterDataTableFooter, MasterDataTableHeader } from './MasterDataTableChrome'
 
 interface WorkCenterRatesTableProps {
   rates: SnapshotWorkCenterRate[]
@@ -13,6 +15,10 @@ interface WorkCenterRatesTableProps {
   historyScope: string
   searchQuery?: string
   onSearchQueryChange?: (query: string) => void
+  showWarningHighlights?: boolean
+  warningCount: number
+  blockerItems: MasterDataBlockerItem[]
+  onNavigateBlocker: (item: MasterDataBlockerItem) => void
   onUndo: () => void
   onRedo: () => void
   onAddRate: () => void
@@ -32,6 +38,10 @@ export const WorkCenterRatesTable: React.FC<WorkCenterRatesTableProps> = ({
   historyScope,
   searchQuery = '',
   onSearchQueryChange = () => undefined,
+  showWarningHighlights = true,
+  warningCount,
+  blockerItems,
+  onNavigateBlocker,
   onUndo,
   onRedo,
   onAddRate,
@@ -42,6 +52,7 @@ export const WorkCenterRatesTable: React.FC<WorkCenterRatesTableProps> = ({
   onWarningNavigationHandled
 }) => {
   const tableRef = useRef<HTMLTableElement | null>(null)
+  const blockerIndexRef = useRef(0)
   const query = searchQuery.trim().toLocaleLowerCase()
   const duplicateWcIds = useMemo(() => duplicateIdentityIds(rates, rate => rate.id, rate => rate.workCenterCode), [rates])
   const placeholderNumbers = useMemo(() => blankIdentityOrdinals(rates, rate => rate.workCenterCode), [rates])
@@ -54,14 +65,13 @@ export const WorkCenterRatesTable: React.FC<WorkCenterRatesTableProps> = ({
   const {
     selectedIds,
     setSelectedIds,
-    clearSelection,
+    toggleAll,
     startDrag,
     toggleRow,
     onMouseEnterRow
   } = useDragSelect({
     items: filteredRates,
     getItemId: rate => rate.id,
-    isEditMode,
     selectionScope: historyScope
   })
 
@@ -98,10 +108,14 @@ export const WorkCenterRatesTable: React.FC<WorkCenterRatesTableProps> = ({
     onRedo
   })
 
-  const handleDeleteSelected = () => {
-    onDeleteRates([...selectedIds])
-    clearSelection()
+  const handleNextBlocker = () => {
+    if (blockerItems.length === 0) return
+    const target = blockerItems[blockerIndexRef.current % blockerItems.length]
+    blockerIndexRef.current = (blockerIndexRef.current + 1) % blockerItems.length
+    onNavigateBlocker(target)
   }
+
+  const allVisibleSelected = filteredRates.length > 0 && filteredRates.every(rate => selectedIds.has(rate.id))
 
   const handleDragStart = (event: React.DragEvent<HTMLButtonElement>, id: string) => {
     event.dataTransfer.setData('text/plain', id)
@@ -129,70 +143,42 @@ export const WorkCenterRatesTable: React.FC<WorkCenterRatesTableProps> = ({
   }
 
   return (
-    <section aria-label="WC rows" className="overflow-hidden bg-white select-none">
-      {isEditMode && (
-        <div className="flex min-h-11 items-center justify-end border-b border-slate-200 bg-white px-3 py-1">
-          <button type="button" onClick={onAddRate} className="flex min-h-8 items-center justify-center gap-1.5 border border-slate-300 bg-white px-2.5 text-xs font-medium text-slate-800 hover:bg-slate-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700">
-            <Plus className="h-3 w-3" aria-hidden="true" /> Add row
-          </button>
-        </div>
-      )}
-
-      {isEditMode && (
-        <div className={`flex h-[52px] items-center gap-3 overflow-x-auto border-b px-4 text-xs text-slate-800 ${selectedIds.size > 0 ? 'border-blue-200 bg-blue-50' : 'border-slate-200 bg-slate-50'}`}>
-          {selectedIds.size > 0 ? (
-            <>
-              <span className="flex shrink-0 items-center gap-1 whitespace-nowrap font-semibold text-slate-900">
-                <CheckSquare className="h-3.5 w-3.5 text-blue-700" aria-hidden="true" />
-                {selectedIds.size} row{selectedIds.size === 1 ? '' : 's'} selected
-              </span>
-              <button
-                type="button"
-                onClick={handleDeleteSelected}
-                className="flex min-h-9 shrink-0 items-center gap-1.5 whitespace-nowrap px-3 text-sm text-rose-800 hover:bg-rose-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-rose-700"
-                title="Delete selected rows"
-              >
-                <Trash2 className="h-3 w-3" aria-hidden="true" /> Delete
-              </button>
-              <button
-                type="button"
-                onClick={clearSelection}
-                className="ml-auto min-h-9 shrink-0 whitespace-nowrap px-3 text-sm text-slate-700 hover:bg-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700"
-              >
-                Cancel
-              </button>
-            </>
-          ) : (
-            <span className="shrink-0 whitespace-nowrap text-slate-500">Select rows by # or drag across the row numbers.</span>
-          )}
-        </div>
-      )}
+    <section aria-label="Work Centers rows" className="overflow-hidden bg-white select-none">
+      <MasterDataTableHeader title="Work Centers" blockerCount={blockerItems.length} isEditMode={isEditMode} onNextBlocker={handleNextBlocker} onAddRow={onAddRate} />
 
       <div className="overflow-x-auto">
-        <table ref={tableRef} className="w-full min-w-[720px] border-collapse text-left text-xs">
+        <table ref={tableRef} className="w-full min-w-[780px] table-fixed border-collapse text-left text-xs">
+          <colgroup>
+            <col className="w-12" /><col className="w-[240px]" /><col className="w-[130px]" />
+            <col className="w-[130px]" /><col /><col className="w-20" />
+          </colgroup>
           <thead className="sticky top-0 z-30 border-y-2 border-slate-400 bg-slate-100 text-[11px] font-semibold uppercase tracking-wide text-slate-800">
             <tr>
-              <th scope="col" className="sticky left-0 z-40 w-12 bg-slate-100 px-2 py-2 text-center">#</th>
-              <th scope="col" className="px-2 py-2">WC</th>
-              <th scope="col" className="px-2 py-2 text-right">Labor</th>
-              <th scope="col" className="px-2 py-2 text-right">Burden</th>
-              <th scope="col" className="px-2 py-2">Note</th>
-              {isEditMode && <th scope="col" className="w-12 px-2 py-2 text-center">Actions</th>}
-              {isEditMode && <th scope="col" className="w-8 px-1 py-2 text-center" aria-label="Reorder rows" />}
+              <th scope="col" className="sticky left-0 z-40 w-12 bg-slate-100 p-0 text-center">
+                <button type="button" onClick={() => toggleAll(!allVisibleSelected)} disabled={filteredRates.length === 0} aria-pressed={allVisibleSelected} aria-label={allVisibleSelected ? 'Clear selection for visible Work Centers rows' : 'Select all visible Work Centers rows'} title={allVisibleSelected ? 'Clear visible selection' : 'Select visible rows'} className="h-9 w-full text-[11px] hover:bg-slate-200 disabled:cursor-default disabled:text-slate-400 focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-700">#</button>
+              </th>
+              <th scope="col" className="px-2 py-2 text-left">Work Center</th>
+              <th scope="col" className="px-2 py-2 text-right">Labor Rate</th>
+              <th scope="col" className="px-2 py-2 text-right">Burden Rate</th>
+              <th scope="col" className="px-2 py-2 text-left">Note</th>
+              <th scope="col" className="w-20 px-1 py-2 text-center">Actions</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-200 text-xs">
             {filteredRates.map(rate => {
               const isSelected = selectedIds.has(rate.id)
               const identityInvalid = !rate.workCenterCode.trim() || duplicateWcIds.has(rate.id)
+              const identityWarning = Boolean(rate.isGeneratedBusinessIdentity || rate.autoRenamedFrom || duplicateWcIds.has(rate.id))
               const laborInvalid = rate.laborRate === null || hasInvalidNumber(rate.laborRate)
               const burdenInvalid = rate.burdenRate === null || hasInvalidNumber(rate.burdenRate)
+              const laborMissing = rate.laborRate === null
+              const burdenMissing = rate.burdenRate === null
               const rowNumber = rates.findIndex(row => row.id === rate.id) + 1
               const placeholderNumber = placeholderNumbers.get(rate.id)
               const rowMarkerBackground = isSelected
                 ? 'bg-blue-50 group-hover:bg-blue-100'
                 : 'bg-white group-hover:bg-slate-50'
-              const numericClass = (invalid: boolean) => `min-h-8 rounded-sm border px-2 text-right text-xs tabular-nums focus:outline-none focus:ring-2 focus:ring-blue-700 ${invalid ? 'border-amber-600 bg-amber-50' : 'border-slate-300 bg-white'}`
+              const numericClass = (invalid: boolean, missing: boolean) => `min-h-8 w-full min-w-0 rounded-sm border px-1.5 text-right text-xs tabular-nums focus:outline-none focus:ring-2 focus:ring-blue-700 ${invalid ? 'border-amber-600 bg-amber-50' : 'border-slate-300 bg-white'} ${missing ? 'bg-amber-50' : ''}`
 
               return (
                 <tr
@@ -203,25 +189,23 @@ export const WorkCenterRatesTable: React.FC<WorkCenterRatesTableProps> = ({
                   onMouseEnter={() => onMouseEnterRow(rate.id)}
                   onDragOver={event => { if (isEditMode) event.preventDefault() }}
                   onDrop={event => { if (isEditMode) handleRowDrop(event, rate.id) }}
-                  className={`group h-9 ${isSelected ? 'border-l-2 border-l-blue-700 bg-blue-50 hover:bg-blue-100' : 'hover:bg-slate-50'}`}
+                  className={`group h-10 ${isSelected ? 'border-l-2 border-l-blue-700 bg-blue-50 hover:bg-blue-100' : 'hover:bg-slate-50'}`}
                 >
                   <th scope="row" className={`sticky left-0 z-20 w-12 px-1.5 py-0.5 text-center font-mono font-normal text-slate-600 ${rowMarkerBackground}`}>
-                    {isEditMode ? (
-                      <button
-                        type="button"
-                        aria-label={`Select WC row ${rowNumber}`}
-                        aria-pressed={isSelected}
-                        onMouseDown={event => startDrag(rate.id, event)}
-                        onClick={event => { if (event.detail === 0) toggleRow(rate.id) }}
-                        className={`min-h-8 min-w-8 rounded-sm px-1 font-mono ${isSelected ? 'bg-blue-700 text-white' : 'text-slate-600 hover:bg-slate-200'} focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700`}
-                      >
-                        {rowNumber}
-                      </button>
-                    ) : rowNumber}
+                    <button
+                      type="button"
+                      aria-label={`Select Work Centers row ${rowNumber}`}
+                      aria-pressed={isSelected}
+                      onMouseDown={event => startDrag(rate.id, event)}
+                      onClick={event => { if (event.detail === 0) toggleRow(rate.id) }}
+                      className={`min-h-8 min-w-8 rounded-sm px-1 font-mono ${isSelected ? 'bg-blue-700 text-white' : 'text-slate-600 hover:bg-slate-200'} focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700`}
+                    >
+                      {rowNumber}
+                    </button>
                   </th>
-                  <td className="px-2 py-0.5 font-mono font-semibold text-slate-950">
+                  <td className={`px-2 py-0.5 font-mono font-semibold text-slate-950 ${identityWarning && showWarningHighlights ? 'bg-amber-50' : ''}`}>
                     {isEditMode ? (
-                      <div className="min-w-[150px]">
+                      <div className="min-w-0">
                         <input
                           value={rate.workCenterCode}
                           placeholder={placeholderNumber === undefined ? undefined : String(placeholderNumber)}
@@ -231,46 +215,52 @@ export const WorkCenterRatesTable: React.FC<WorkCenterRatesTableProps> = ({
                           data-grid-field="workCenterCode"
                           aria-label={`WC for row ${rowNumber}`}
                           aria-invalid={identityInvalid}
-                          className={`min-h-8 w-full rounded-sm border bg-white px-2 text-xs focus:outline-none focus:ring-2 focus:ring-blue-700 ${identityInvalid ? 'border-amber-600' : 'border-slate-300'} ${selectedCellKeys.has(tableCellKey(rate.id, 'workCenterCode')) ? 'ring-2 ring-blue-500 ring-inset' : ''}`}
+                          className={`min-h-8 w-full min-w-0 rounded-sm border px-2 text-xs focus:outline-none focus:ring-2 focus:ring-blue-700 ${identityWarning && showWarningHighlights ? 'border-amber-600 bg-amber-50' : 'border-slate-300 bg-white'} ${selectedCellKeys.has(tableCellKey(rate.id, 'workCenterCode')) ? 'ring-2 ring-blue-500 ring-inset' : ''}`}
                         />
                       </div>
                     ) : (
                       <div>
-                        {rate.workCenterCode || <span className="text-amber-700">{placeholderNumber ?? '—'}</span>}
+                        {rate.workCenterCode || <span className={showWarningHighlights ? 'text-amber-700' : 'text-slate-700'}>{placeholderNumber ?? '—'}</span>}
                       </div>
                     )}
                   </td>
-                  <td className={`px-2 py-0.5 text-right font-mono tabular-nums ${laborInvalid ? 'bg-amber-50/60 text-amber-900' : ''}`}>
+                  <td className={`px-2 py-0.5 text-right font-mono tabular-nums ${laborInvalid ? 'bg-amber-50 text-amber-900' : ''}`}>
                     {isEditMode ? (
-                      <input
-                        type="number"
-                        step="any"
-                        value={numberValue(rate.laborRate)}
-                        onChange={event => applyCellUpdate(rate.id, { laborRate: parseNumber(event.target.value) })}
-                        data-grid-cell="true"
-                        data-grid-row-id={rate.id}
-                        data-grid-field="laborRate"
-                        aria-label={`Labor for ${rate.workCenterCode || `WC row ${rowNumber}`}`}
-                        aria-invalid={laborInvalid}
-                        className={`${numericClass(laborInvalid)} w-28 ${selectedCellKeys.has(tableCellKey(rate.id, 'laborRate')) ? 'ring-2 ring-blue-500 ring-inset' : ''}`}
-                      />
-                    ) : rate.laborRate === null ? <span className="text-amber-700">—</span> : formatNumber(rate.laborRate, 4)}
+                      <div className="flex items-center justify-end gap-1">
+                        <input
+                          type="number"
+                          step="any"
+                          value={numberValue(rate.laborRate)}
+                          onChange={event => applyCellUpdate(rate.id, { laborRate: parseNumber(event.target.value) })}
+                          data-grid-cell="true"
+                          data-grid-row-id={rate.id}
+                          data-grid-field="laborRate"
+                          aria-label={`Labor Rate for ${rate.workCenterCode || `Work Center row ${rowNumber}`}`}
+                          aria-invalid={laborInvalid}
+                          className={`${numericClass(laborInvalid, laborMissing)} ${selectedCellKeys.has(tableCellKey(rate.id, 'laborRate')) ? 'ring-2 ring-blue-500 ring-inset' : ''}`}
+                        />
+                        {laborMissing && <span aria-label="Missing required value" title="Missing required value" className="shrink-0 text-[11px] font-bold text-rose-600">*</span>}
+                      </div>
+                    ) : <>{rate.laborRate === null ? <span className="text-amber-700">—</span> : formatNumber(rate.laborRate, 2)}{laborMissing && <span aria-label="Missing required value" title="Missing required value" className="ml-1 text-[11px] font-bold text-rose-600">*</span>}</>}
                   </td>
-                  <td className={`px-2 py-0.5 text-right font-mono tabular-nums ${burdenInvalid ? 'bg-amber-50/60 text-amber-900' : ''}`}>
+                  <td className={`px-2 py-0.5 text-right font-mono tabular-nums ${burdenInvalid ? 'bg-amber-50 text-amber-900' : ''}`}>
                     {isEditMode ? (
-                      <input
-                        type="number"
-                        step="any"
-                        value={numberValue(rate.burdenRate)}
-                        onChange={event => applyCellUpdate(rate.id, { burdenRate: parseNumber(event.target.value) })}
-                        data-grid-cell="true"
-                        data-grid-row-id={rate.id}
-                        data-grid-field="burdenRate"
-                        aria-label={`Burden for ${rate.workCenterCode || `WC row ${rowNumber}`}`}
-                        aria-invalid={burdenInvalid}
-                        className={`${numericClass(burdenInvalid)} w-28 ${selectedCellKeys.has(tableCellKey(rate.id, 'burdenRate')) ? 'ring-2 ring-blue-500 ring-inset' : ''}`}
-                      />
-                    ) : rate.burdenRate === null ? <span className="text-amber-700">—</span> : formatNumber(rate.burdenRate, 4)}
+                      <div className="flex items-center justify-end gap-1">
+                        <input
+                          type="number"
+                          step="any"
+                          value={numberValue(rate.burdenRate)}
+                          onChange={event => applyCellUpdate(rate.id, { burdenRate: parseNumber(event.target.value) })}
+                          data-grid-cell="true"
+                          data-grid-row-id={rate.id}
+                          data-grid-field="burdenRate"
+                          aria-label={`Burden Rate for ${rate.workCenterCode || `Work Center row ${rowNumber}`}`}
+                          aria-invalid={burdenInvalid}
+                          className={`${numericClass(burdenInvalid, burdenMissing)} ${selectedCellKeys.has(tableCellKey(rate.id, 'burdenRate')) ? 'ring-2 ring-blue-500 ring-inset' : ''}`}
+                        />
+                        {burdenMissing && <span aria-label="Missing required value" title="Missing required value" className="shrink-0 text-[11px] font-bold text-rose-600">*</span>}
+                      </div>
+                    ) : <>{rate.burdenRate === null ? <span className="text-amber-700">—</span> : formatNumber(rate.burdenRate, 2)}{burdenMissing && <span aria-label="Missing required value" title="Missing required value" className="ml-1 text-[11px] font-bold text-rose-600">*</span>}</>}
                   </td>
                   <td className="px-2 py-0.5 font-sans text-slate-600">
                     {isEditMode ? (
@@ -281,62 +271,57 @@ export const WorkCenterRatesTable: React.FC<WorkCenterRatesTableProps> = ({
                         data-grid-row-id={rate.id}
                         data-grid-field="note"
                         aria-label={`Note for ${rate.workCenterCode || `WC row ${rowNumber}`}`}
-                        className={`min-h-8 w-full min-w-[160px] rounded-sm border border-slate-300 bg-white px-2 text-xs focus:outline-none focus:ring-2 focus:ring-blue-700 ${selectedCellKeys.has(tableCellKey(rate.id, 'note')) ? 'ring-2 ring-blue-500 ring-inset' : ''}`}
+                        className={`min-h-8 w-full min-w-0 rounded-sm border border-slate-300 bg-white px-2 text-xs focus:outline-none focus:ring-2 focus:ring-blue-700 ${selectedCellKeys.has(tableCellKey(rate.id, 'note')) ? 'ring-2 ring-blue-500 ring-inset' : ''}`}
                       />
                     ) : rate.note || '—'}
                   </td>
-                  {isEditMode && (
-                    <td className="px-2 py-1 text-center">
+                  <td className={`px-1 py-0.5 text-center ${rowMarkerBackground}`}>
+                    <div className="flex items-center justify-center gap-0.5">
                       <button
                         type="button"
-                        onClick={() => onDeleteRates([rate.id])}
-                        aria-label={`Delete WC row ${rowNumber}`}
-                        className="inline-flex h-9 w-9 items-center justify-center text-slate-600 hover:bg-rose-50 hover:text-rose-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700"
-                        title="Delete row"
+                        disabled={!isEditMode}
+                        onClick={() => {
+                          const idsToDelete = selectedIds.has(rate.id) ? [...selectedIds] : [rate.id]
+                          onDeleteRates(idsToDelete)
+                          setSelectedIds(previous => new Set([...previous].filter(selectedId => !idsToDelete.includes(selectedId))))
+                        }}
+                        aria-label={`Delete Work Centers row ${rowNumber}`}
+                        className="inline-flex h-8 w-8 items-center justify-center text-slate-600 hover:bg-rose-50 hover:text-rose-700 disabled:cursor-not-allowed disabled:opacity-30 focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-700"
+                        title={isEditMode ? (selectedIds.has(rate.id) && selectedIds.size > 1 ? `Delete ${selectedIds.size} selected rows` : 'Delete row') : 'Switch to Edit to delete rows'}
                       >
-                        <Trash2 className="h-3 w-3" aria-hidden="true" />
+                        <Trash2 className="h-3.5 w-3.5" aria-hidden="true" />
                       </button>
-                    </td>
-                  )}
-                  {isEditMode && (
-                    <td className={`w-8 px-1 py-0.5 text-center ${rowMarkerBackground}`}>
                       <button
                         type="button"
-                        draggable
+                        disabled={!isEditMode}
+                        draggable={isEditMode}
                         onDragStart={event => handleDragStart(event, rate.id)}
-                        aria-label={`Drag to reorder WC row ${rowNumber}`}
-                        title="Drag to reorder"
-                        className="inline-flex h-8 w-7 cursor-grab items-center justify-center text-slate-500 hover:bg-slate-200 active:cursor-grabbing"
+                        aria-label={`Reorder Work Centers row ${rowNumber}`}
+                        title={isEditMode ? 'Drag to reorder' : 'Reordering is available in Edit'}
+                        className={`inline-flex h-8 w-7 cursor-grab items-center justify-center ${isSelected ? 'text-slate-700' : 'text-slate-400'} hover:bg-slate-200 hover:text-slate-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-700 active:cursor-grabbing disabled:cursor-not-allowed disabled:opacity-30 group-hover:text-slate-600 group-focus-within:text-slate-700`}
                       >
                         <GripVertical className="h-4 w-4" aria-hidden="true" />
                       </button>
-                    </td>
-                  )}
+                    </div>
+                  </td>
                 </tr>
               )
             })}
             {filteredRates.length === 0 && (
               <tr>
-                <td colSpan={isEditMode ? 7 : 5} className="py-6 text-center font-sans text-slate-500">
-                  <div className="flex flex-col items-center justify-center gap-2">
-                    <p className="text-xs italic text-slate-500">{rates.length === 0 ? 'No WC rows in this dataset yet.' : 'No rows match your search.'}</p>
-                    {isEditMode && rates.length === 0 && (
-                      <button type="button" onClick={onAddRate} className="mt-1 flex min-h-9 items-center gap-1.5 border border-slate-300 bg-white px-3 text-sm font-medium text-slate-800 hover:bg-slate-100">
-                        <Plus className="h-3.5 w-3.5 text-slate-600" aria-hidden="true" /> Add first row
-                      </button>
-                    )}
-                  </div>
+                <td colSpan={6} className="p-0 text-center font-sans text-slate-500">
+                  {rates.length === 0 && isEditMode ? (
+                    <button type="button" onClick={onAddRate} className="min-h-10 w-full px-3 text-xs text-slate-500 hover:bg-slate-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-700">Click to add first row</button>
+                  ) : (
+                    <div role="status" className="min-h-10 px-3 py-3 text-xs text-slate-500">{rates.length === 0 ? 'No rows yet.' : 'No rows match your search.'}</div>
+                  )}
                 </td>
               </tr>
             )}
           </tbody>
         </table>
       </div>
-      {query && (
-        <div role="status" className="border-t border-slate-200 bg-slate-50 px-4 py-2 text-xs text-slate-600">
-          Showing {filteredRates.length} of {rates.length} rows.
-        </div>
-      )}
+      <MasterDataTableFooter rowCount={rates.length} selectedCount={selectedIds.size} warningCount={warningCount} blockerCount={blockerItems.length} />
     </section>
   )
 }

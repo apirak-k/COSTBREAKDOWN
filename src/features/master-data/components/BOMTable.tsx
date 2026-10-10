@@ -1,11 +1,13 @@
 import React, { useCallback, useMemo, useRef } from 'react'
-import { CheckSquare, GripVertical, Plus, Trash2 } from 'lucide-react'
+import { GripVertical, Trash2 } from 'lucide-react'
 import { SnapshotBOMItem, formatNumber, formatPercent } from '../../../core'
 import { useDragSelect } from '../hooks/useDragSelect'
 import { SpreadsheetPasteCell, tableCellKey, useTableKeyboardNav } from '../hooks/useTableKeyboardNav'
 import { RowChanges, useSpreadsheetEditing } from '../hooks/useSpreadsheetEditing'
 import { blankIdentityOrdinals, duplicateIdentityIds, hasInvalidNumber, parsePercentage } from '../table-validation'
 import { useWarningNavigationFocus, type WarningNavigationTarget } from '../hooks/useWarningNavigationFocus'
+import type { MasterDataBlockerItem } from '../prepare-dataset'
+import { MasterDataTableFooter, MasterDataTableHeader } from './MasterDataTableChrome'
 
 interface BOMTableProps {
   bom: SnapshotBOMItem[]
@@ -13,6 +15,10 @@ interface BOMTableProps {
   historyScope: string
   searchQuery?: string
   onSearchQueryChange?: (query: string) => void
+  showWarningHighlights?: boolean
+  warningCount: number
+  blockerItems: MasterDataBlockerItem[]
+  onNavigateBlocker: (item: MasterDataBlockerItem) => void
   onUndo: () => void
   onRedo: () => void
   onAddBOMItem: () => void
@@ -25,7 +31,7 @@ interface BOMTableProps {
 
 const numberValue = (value: number | null): string => value === null ? '' : String(value)
 const parseNumber = (value: string): number | null => value.trim() === '' ? null : Number(value)
-const displayNumber = (value: number | null, digits = 4): string => value === null ? '—' : formatNumber(value, digits)
+const displayNumber = (value: number | null, digits = 2): string => value === null ? '—' : formatNumber(value, digits)
 
 export const BOMTable: React.FC<BOMTableProps> = ({
   bom,
@@ -33,6 +39,10 @@ export const BOMTable: React.FC<BOMTableProps> = ({
   historyScope,
   searchQuery = '',
   onSearchQueryChange = () => undefined,
+  showWarningHighlights = true,
+  warningCount,
+  blockerItems,
+  onNavigateBlocker,
   onUndo,
   onRedo,
   onAddBOMItem,
@@ -43,6 +53,7 @@ export const BOMTable: React.FC<BOMTableProps> = ({
   onWarningNavigationHandled
 }) => {
   const tableRef = useRef<HTMLTableElement | null>(null)
+  const blockerIndexRef = useRef(0)
   const query = searchQuery.trim().toLocaleLowerCase()
   const duplicateNameIds = useMemo(() => duplicateIdentityIds(bom, item => item.id, item => item.description), [bom])
   const placeholderNumbers = useMemo(() => blankIdentityOrdinals(bom, item => item.description), [bom])
@@ -55,14 +66,13 @@ export const BOMTable: React.FC<BOMTableProps> = ({
   const {
     selectedIds,
     setSelectedIds,
-    clearSelection,
+    toggleAll,
     startDrag,
     toggleRow,
     onMouseEnterRow
   } = useDragSelect({
     items: filteredBOM,
     getItemId: item => item.id,
-    isEditMode,
     selectionScope: historyScope
   })
 
@@ -101,10 +111,20 @@ export const BOMTable: React.FC<BOMTableProps> = ({
     onRedo
   })
 
-  const handleDeleteSelected = () => {
-    onDeleteBOMItems([...selectedIds])
-    clearSelection()
+  const handleDeleteRow = (id: string) => {
+    const idsToDelete = selectedIds.has(id) ? [...selectedIds] : [id]
+    onDeleteBOMItems(idsToDelete)
+    setSelectedIds(previous => new Set([...previous].filter(selectedId => !idsToDelete.includes(selectedId))))
   }
+
+  const handleNextBlocker = () => {
+    if (blockerItems.length === 0) return
+    const target = blockerItems[blockerIndexRef.current % blockerItems.length]
+    blockerIndexRef.current = (blockerIndexRef.current + 1) % blockerItems.length
+    onNavigateBlocker(target)
+  }
+
+  const allVisibleSelected = filteredBOM.length > 0 && filteredBOM.every(item => selectedIds.has(item.id))
 
   const handleDragStart = (event: React.DragEvent<HTMLButtonElement>, id: string) => {
     event.dataTransfer.setData('text/plain', id)
@@ -132,73 +152,46 @@ export const BOMTable: React.FC<BOMTableProps> = ({
   }
 
   return (
-    <section aria-label="BOM rows" className="overflow-hidden bg-white select-none">
-      {isEditMode && (
-        <div className="flex min-h-11 items-center justify-end border-b border-slate-200 bg-white px-3 py-1">
-          <button type="button" onClick={onAddBOMItem} className="flex min-h-8 items-center justify-center gap-1.5 border border-slate-300 bg-white px-2.5 text-xs font-medium text-slate-800 hover:bg-slate-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700">
-            <Plus className="h-3 w-3" aria-hidden="true" /> Add row
-          </button>
-        </div>
-      )}
-
-      {isEditMode && (
-        <div className={`flex h-[52px] items-center gap-3 overflow-x-auto border-b px-4 text-xs text-slate-800 ${selectedIds.size > 0 ? 'border-blue-200 bg-blue-50' : 'border-slate-200 bg-slate-50'}`}>
-          {selectedIds.size > 0 ? (
-            <>
-              <span className="flex shrink-0 items-center gap-1 whitespace-nowrap font-semibold text-slate-900">
-                <CheckSquare className="h-3.5 w-3.5 text-blue-700" aria-hidden="true" />
-                {selectedIds.size} row{selectedIds.size === 1 ? '' : 's'} selected
-              </span>
-              <button
-                type="button"
-                onClick={handleDeleteSelected}
-                className="flex min-h-9 shrink-0 items-center gap-1.5 whitespace-nowrap px-3 text-sm text-rose-800 hover:bg-rose-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-rose-700"
-                title="Delete selected rows"
-              >
-                <Trash2 className="h-3 w-3" aria-hidden="true" /> Delete
-              </button>
-              <button
-                type="button"
-                onClick={clearSelection}
-                className="ml-auto min-h-9 shrink-0 whitespace-nowrap px-3 text-sm text-slate-700 hover:bg-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700"
-              >
-                Cancel
-              </button>
-            </>
-          ) : (
-            <span className="shrink-0 whitespace-nowrap text-slate-500">Select rows by # or drag across the row numbers.</span>
-          )}
-        </div>
-      )}
+    <section aria-label="Bill of Materials rows" className="overflow-hidden bg-white select-none">
+      <MasterDataTableHeader title="Bill of Materials" blockerCount={blockerItems.length} isEditMode={isEditMode} onNextBlocker={handleNextBlocker} onAddRow={onAddBOMItem} />
 
       <div className="overflow-x-auto">
-        <table ref={tableRef} className="w-full min-w-[860px] border-collapse text-left text-xs">
+        <table ref={tableRef} className="w-full min-w-[860px] table-fixed border-collapse text-left text-xs">
+          <colgroup>
+            <col className="w-12" /><col className="w-[200px]" /><col className="w-[120px]" /><col className="w-16" />
+            <col className="w-[120px]" /><col className="w-24" /><col /><col className="w-20" />
+          </colgroup>
           <thead className="sticky top-0 z-30 border-y-2 border-slate-400 bg-slate-100 text-[11px] font-semibold uppercase tracking-wide text-slate-800">
             <tr>
-              <th scope="col" className="sticky left-0 z-40 w-12 bg-slate-100 px-2 py-2 text-center">#</th>
-              <th scope="col" className="px-2 py-2">Name</th>
+              <th scope="col" className="sticky left-0 z-40 w-12 bg-slate-100 p-0 text-center">
+                <button type="button" onClick={() => toggleAll(!allVisibleSelected)} disabled={filteredBOM.length === 0} aria-pressed={allVisibleSelected} aria-label={allVisibleSelected ? 'Clear selection for visible BOM rows' : 'Select all visible BOM rows'} title={allVisibleSelected ? 'Clear visible selection' : 'Select visible rows'} className="h-9 w-full text-[11px] hover:bg-slate-200 disabled:cursor-default disabled:text-slate-400 focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-700">#</button>
+              </th>
+              <th scope="col" className="px-2 py-2 text-left">Material</th>
               <th scope="col" className="px-2 py-2 text-right">Usage</th>
-              <th scope="col" className="px-2 py-2">Unit</th>
+              <th scope="col" className="px-2 py-2 text-center">Unit</th>
               <th scope="col" className="px-2 py-2 text-right">Price</th>
               <th scope="col" className="px-2 py-2 text-right">Loss</th>
-              <th scope="col" className="px-2 py-2">Note</th>
-              {isEditMode && <th scope="col" className="w-12 px-2 py-2 text-center">Actions</th>}
-              {isEditMode && <th scope="col" className="w-8 px-1 py-2 text-center" aria-label="Reorder rows" />}
+              <th scope="col" className="px-2 py-2 text-left">Note</th>
+              <th scope="col" className="w-20 px-1 py-2 text-center">Actions</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-200 text-xs">
             {filteredBOM.map(item => {
               const isSelected = selectedIds.has(item.id)
               const identityInvalid = !item.description.trim() || duplicateNameIds.has(item.id)
+              const identityWarning = Boolean(item.isGeneratedBusinessIdentity || item.autoRenamedFrom || duplicateNameIds.has(item.id))
               const consumptionInvalid = item.consumption === null || hasInvalidNumber(item.consumption)
               const priceInvalid = item.price === null || hasInvalidNumber(item.price)
               const lossInvalid = item.loss === null || hasInvalidNumber(item.loss)
+              const consumptionMissing = item.consumption === null
+              const priceMissing = item.price === null
+              const lossMissing = item.loss === null
               const rowNumber = bom.findIndex(row => row.id === item.id) + 1
               const placeholderNumber = placeholderNumbers.get(item.id)
               const rowMarkerBackground = isSelected
                 ? 'bg-blue-50 group-hover:bg-blue-100'
                 : 'bg-white group-hover:bg-slate-50'
-              const numericClass = (invalid: boolean) => `min-h-8 rounded-sm border px-2 text-right text-xs tabular-nums focus:outline-none focus:ring-2 focus:ring-blue-700 ${invalid ? 'border-amber-600 bg-amber-50' : 'border-slate-300 bg-white'}`
+              const numericClass = (invalid: boolean, missing: boolean) => `min-h-8 w-full min-w-0 rounded-sm border px-1.5 text-right text-xs tabular-nums focus:outline-none focus:ring-2 focus:ring-blue-700 ${invalid ? 'border-amber-600 bg-amber-50' : 'border-slate-300 bg-white'} ${missing ? 'bg-amber-50' : ''}`
 
               return (
                 <tr
@@ -209,24 +202,22 @@ export const BOMTable: React.FC<BOMTableProps> = ({
                   onMouseEnter={() => onMouseEnterRow(item.id)}
                   onDragOver={event => { if (isEditMode) event.preventDefault() }}
                   onDrop={event => { if (isEditMode) handleRowDrop(event, item.id) }}
-                  className={`group h-9 ${isSelected ? 'border-l-2 border-l-blue-700 bg-blue-50 hover:bg-blue-100' : 'hover:bg-slate-50'}`}
+                  className={`group h-10 ${isSelected ? 'border-l-2 border-l-blue-700 bg-blue-50 hover:bg-blue-100' : 'hover:bg-slate-50'}`}
                 >
                   <th scope="row" className={`sticky left-0 z-20 w-12 px-1.5 py-0.5 text-center font-mono font-normal text-slate-600 ${rowMarkerBackground}`}>
-                    {isEditMode ? (
-                      <button
-                        type="button"
-                        aria-label={`Select BOM row ${rowNumber}`}
-                        aria-pressed={isSelected}
-                        onMouseDown={event => startDrag(item.id, event)}
-                        onClick={event => { if (event.detail === 0) toggleRow(item.id) }}
-                        className={`min-h-8 min-w-8 rounded-sm px-1 font-mono ${isSelected ? 'bg-blue-700 text-white' : 'text-slate-600 hover:bg-slate-200'} focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700`}
-                      >
-                        {rowNumber}
-                      </button>
-                    ) : rowNumber}
+                    <button
+                      type="button"
+                      aria-label={`Select BOM row ${rowNumber}`}
+                      aria-pressed={isSelected}
+                      onMouseDown={event => startDrag(item.id, event)}
+                      onClick={event => { if (event.detail === 0) toggleRow(item.id) }}
+                      className={`min-h-8 min-w-8 rounded-sm px-1 font-mono ${isSelected ? 'bg-blue-700 text-white' : 'text-slate-600 hover:bg-slate-200'} focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700`}
+                    >
+                      {rowNumber}
+                    </button>
                   </th>
-                  <td className="px-2 py-0.5 font-sans text-slate-800">
-                    <div className="min-w-[170px]">
+                  <td className={`px-2 py-0.5 font-sans text-slate-800 ${identityWarning && showWarningHighlights ? 'bg-amber-50' : ''}`}>
+                    <div className="min-w-0">
                       {isEditMode ? (
                         <input
                           value={item.description}
@@ -237,28 +228,31 @@ export const BOMTable: React.FC<BOMTableProps> = ({
                           data-grid-field="description"
                           aria-label={`Name for BOM row ${rowNumber}`}
                           aria-invalid={identityInvalid}
-                          className={`min-h-8 w-full rounded-sm border bg-white px-2 text-xs focus:outline-none focus:ring-2 focus:ring-blue-700 ${identityInvalid ? 'border-amber-600' : 'border-slate-300'} ${selectedCellKeys.has(tableCellKey(item.id, 'description')) ? 'ring-2 ring-blue-500 ring-inset' : ''}`}
+                          className={`min-h-8 w-full min-w-0 rounded-sm border px-2 text-xs focus:outline-none focus:ring-2 focus:ring-blue-700 ${identityWarning && showWarningHighlights ? 'border-amber-600 bg-amber-50' : 'border-slate-300 bg-white'} ${selectedCellKeys.has(tableCellKey(item.id, 'description')) ? 'ring-2 ring-blue-500 ring-inset' : ''}`}
                         />
-                      ) : item.description || <span className="text-amber-700">{placeholderNumber ?? '—'}</span>}
+                      ) : item.description || <span className={showWarningHighlights ? 'text-amber-700' : 'text-slate-700'}>{placeholderNumber ?? '—'}</span>}
                     </div>
                   </td>
-                  <td className={`px-2 py-0.5 text-right font-mono tabular-nums ${consumptionInvalid ? 'bg-amber-50/60 text-amber-900' : ''}`}>
+                  <td className={`px-2 py-0.5 text-right font-mono tabular-nums ${consumptionInvalid ? 'bg-amber-50 text-amber-900' : ''}`}>
                     {isEditMode ? (
-                      <input
-                        type="number"
-                        step="any"
-                        value={numberValue(item.consumption)}
-                        onChange={event => applyCellUpdate(item.id, { consumption: parseNumber(event.target.value) })}
-                        data-grid-cell="true"
-                        data-grid-row-id={item.id}
-                        data-grid-field="consumption"
-                        aria-label={`Usage for ${item.description || `BOM row ${rowNumber}`}`}
-                        aria-invalid={consumptionInvalid}
-                        className={`${numericClass(consumptionInvalid)} w-28 ${selectedCellKeys.has(tableCellKey(item.id, 'consumption')) ? 'ring-2 ring-blue-500 ring-inset' : ''}`}
-                      />
-                    ) : displayNumber(item.consumption)}
+                      <div className="flex items-center justify-end gap-1">
+                        <input
+                          type="number"
+                          step="any"
+                          value={numberValue(item.consumption)}
+                          onChange={event => applyCellUpdate(item.id, { consumption: parseNumber(event.target.value) })}
+                          data-grid-cell="true"
+                          data-grid-row-id={item.id}
+                          data-grid-field="consumption"
+                          aria-label={`Usage for ${item.description || `BOM row ${rowNumber}`}`}
+                          aria-invalid={consumptionInvalid}
+                          className={`${numericClass(consumptionInvalid, consumptionMissing)} ${selectedCellKeys.has(tableCellKey(item.id, 'consumption')) ? 'ring-2 ring-blue-500 ring-inset' : ''}`}
+                        />
+                        {consumptionMissing && <span aria-label="Missing required value" title="Missing required value" className="shrink-0 text-[11px] font-bold text-rose-600">*</span>}
+                      </div>
+                    ) : <>{displayNumber(item.consumption)}{consumptionMissing && <span aria-label="Missing required value" title="Missing required value" className="ml-1 text-[11px] font-bold text-rose-600">*</span>}</>}
                   </td>
-                  <td className="px-2 py-0.5 font-mono">
+                  <td className="px-2 py-0.5 text-center font-mono">
                     {isEditMode ? (
                       <input
                         value={item.unit}
@@ -272,23 +266,26 @@ export const BOMTable: React.FC<BOMTableProps> = ({
                       />
                     ) : item.unit || <span className="text-amber-700">—</span>}
                   </td>
-                  <td className={`px-2 py-0.5 text-right font-mono tabular-nums ${priceInvalid ? 'bg-amber-50/60 text-amber-900' : ''}`}>
+                  <td className={`px-2 py-0.5 text-right font-mono tabular-nums ${priceInvalid ? 'bg-amber-50 text-amber-900' : ''}`}>
                     {isEditMode ? (
-                      <input
-                        type="number"
-                        step="any"
-                        value={numberValue(item.price)}
-                        onChange={event => applyCellUpdate(item.id, { price: parseNumber(event.target.value) })}
-                        data-grid-cell="true"
-                        data-grid-row-id={item.id}
-                        data-grid-field="price"
-                        aria-label={`Price for ${item.description || `BOM row ${rowNumber}`}`}
-                        aria-invalid={priceInvalid}
-                        className={`${numericClass(priceInvalid)} w-28 ${selectedCellKeys.has(tableCellKey(item.id, 'price')) ? 'ring-2 ring-blue-500 ring-inset' : ''}`}
-                      />
-                    ) : displayNumber(item.price, 2)}
+                      <div className="flex items-center justify-end gap-1">
+                        <input
+                          type="number"
+                          step="any"
+                          value={numberValue(item.price)}
+                          onChange={event => applyCellUpdate(item.id, { price: parseNumber(event.target.value) })}
+                          data-grid-cell="true"
+                          data-grid-row-id={item.id}
+                          data-grid-field="price"
+                          aria-label={`Price for ${item.description || `BOM row ${rowNumber}`}`}
+                          aria-invalid={priceInvalid}
+                          className={`${numericClass(priceInvalid, priceMissing)} ${selectedCellKeys.has(tableCellKey(item.id, 'price')) ? 'ring-2 ring-blue-500 ring-inset' : ''}`}
+                        />
+                        {priceMissing && <span aria-label="Missing required value" title="Missing required value" className="shrink-0 text-[11px] font-bold text-rose-600">*</span>}
+                      </div>
+                    ) : <>{displayNumber(item.price, 2)}{priceMissing && <span aria-label="Missing required value" title="Missing required value" className="ml-1 text-[11px] font-bold text-rose-600">*</span>}</>}
                   </td>
-                  <td className={`px-2 py-0.5 text-right font-mono tabular-nums ${lossInvalid ? 'bg-amber-50/60 text-amber-900' : ''}`}>
+                  <td className={`px-2 py-0.5 text-right font-mono tabular-nums ${lossInvalid ? 'bg-amber-50 text-amber-900' : ''}`}>
                     {isEditMode ? (
                       <div className="flex items-center justify-end gap-1">
                         <input
@@ -304,11 +301,12 @@ export const BOMTable: React.FC<BOMTableProps> = ({
                           data-grid-field="loss"
                           aria-label={`Loss percentage for ${item.description || `BOM row ${rowNumber}`}`}
                           aria-invalid={lossInvalid}
-                          className={`${numericClass(lossInvalid)} w-20 ${selectedCellKeys.has(tableCellKey(item.id, 'loss')) ? 'ring-2 ring-blue-500 ring-inset' : ''}`}
+                          className={`${numericClass(lossInvalid, lossMissing)} ${selectedCellKeys.has(tableCellKey(item.id, 'loss')) ? 'ring-2 ring-blue-500 ring-inset' : ''}`}
                         />
                         <span className="text-slate-400">%</span>
+                        {lossMissing && <span aria-label="Missing required value" title="Missing required value" className="shrink-0 text-[11px] font-bold text-rose-600">*</span>}
                       </div>
-                    ) : item.loss === null ? <span className="text-amber-700">—</span> : formatPercent(item.loss, 2)}
+                    ) : <>{item.loss === null ? <span className="text-amber-700">—</span> : formatPercent(item.loss, 2)}{lossMissing && <span aria-label="Missing required value" title="Missing required value" className="ml-1 text-[11px] font-bold text-rose-600">*</span>}</>}
                   </td>
                   <td className="px-2 py-0.5 font-sans text-slate-600">
                     {isEditMode ? (
@@ -319,62 +317,53 @@ export const BOMTable: React.FC<BOMTableProps> = ({
                         data-grid-row-id={item.id}
                         data-grid-field="note"
                         aria-label={`Note for ${item.description || `BOM row ${rowNumber}`}`}
-                        className={`min-h-8 w-full min-w-[160px] rounded-sm border border-slate-300 bg-white px-2 text-xs focus:outline-none focus:ring-2 focus:ring-blue-700 ${selectedCellKeys.has(tableCellKey(item.id, 'note')) ? 'ring-2 ring-blue-500 ring-inset' : ''}`}
+                        className={`min-h-8 w-full min-w-0 rounded-sm border border-slate-300 bg-white px-2 text-xs focus:outline-none focus:ring-2 focus:ring-blue-700 ${selectedCellKeys.has(tableCellKey(item.id, 'note')) ? 'ring-2 ring-blue-500 ring-inset' : ''}`}
                       />
                     ) : item.note || '—'}
                   </td>
-                  {isEditMode && (
-                    <td className="px-2 py-0.5 text-center">
+                  <td className={`px-1 py-0.5 text-center ${rowMarkerBackground}`}>
+                    <div className="flex items-center justify-center gap-0.5">
                       <button
                         type="button"
-                        onClick={() => onDeleteBOMItems([item.id])}
+                        disabled={!isEditMode}
+                        onClick={() => handleDeleteRow(item.id)}
                         aria-label={`Delete BOM row ${rowNumber}`}
-                        className="inline-flex h-9 w-9 items-center justify-center text-slate-600 hover:bg-rose-50 hover:text-rose-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700"
-                        title="Delete row"
+                        className="inline-flex h-8 w-8 items-center justify-center text-slate-600 hover:bg-rose-50 hover:text-rose-700 disabled:cursor-not-allowed disabled:opacity-30 focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-700"
+                        title={isEditMode ? (selectedIds.has(item.id) && selectedIds.size > 1 ? `Delete ${selectedIds.size} selected rows` : 'Delete row') : 'Switch to Edit to delete rows'}
                       >
-                        <Trash2 className="h-3 w-3" aria-hidden="true" />
+                        <Trash2 className="h-3.5 w-3.5" aria-hidden="true" />
                       </button>
-                    </td>
-                  )}
-                  {isEditMode && (
-                    <td className={`w-8 px-1 py-0.5 text-center ${rowMarkerBackground}`}>
                       <button
                         type="button"
-                        draggable
+                        disabled={!isEditMode}
+                        draggable={isEditMode}
                         onDragStart={event => handleDragStart(event, item.id)}
-                        aria-label={`Drag to reorder BOM row ${rowNumber}`}
-                        title="Drag to reorder"
-                        className="inline-flex h-8 w-7 cursor-grab items-center justify-center text-slate-500 hover:bg-slate-200 active:cursor-grabbing"
+                        aria-label={`Reorder BOM row ${rowNumber}`}
+                        title={isEditMode ? 'Drag to reorder' : 'Reordering is available in Edit'}
+                        className={`inline-flex h-8 w-7 cursor-grab items-center justify-center ${isSelected ? 'text-slate-700' : 'text-slate-400'} hover:bg-slate-200 hover:text-slate-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-700 active:cursor-grabbing disabled:cursor-not-allowed disabled:opacity-30 group-hover:text-slate-600 group-focus-within:text-slate-700`}
                       >
                         <GripVertical className="h-4 w-4" aria-hidden="true" />
                       </button>
-                    </td>
-                  )}
+                    </div>
+                  </td>
                 </tr>
               )
             })}
             {filteredBOM.length === 0 && (
               <tr>
-                <td colSpan={isEditMode ? 9 : 7} className="py-6 text-center font-sans text-slate-500">
-                  <div className="flex flex-col items-center justify-center gap-2">
-                    <p className="text-xs italic text-slate-500">{bom.length === 0 ? 'No BOM rows in this dataset yet.' : 'No rows match your search.'}</p>
-                    {isEditMode && bom.length === 0 && (
-                      <button type="button" onClick={onAddBOMItem} className="mt-1 flex min-h-9 items-center gap-1.5 border border-slate-300 bg-white px-3 text-sm font-medium text-slate-800 hover:bg-slate-100">
-                        <Plus className="h-3.5 w-3.5 text-slate-600" aria-hidden="true" /> Add first row
-                      </button>
-                    )}
-                  </div>
+                <td colSpan={8} className="p-0 text-center font-sans text-slate-500">
+                  {bom.length === 0 && isEditMode ? (
+                    <button type="button" onClick={onAddBOMItem} className="min-h-10 w-full px-3 text-xs text-slate-500 hover:bg-slate-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-700">Click to add first row</button>
+                  ) : (
+                    <div role="status" className="min-h-10 px-3 py-3 text-xs text-slate-500">{bom.length === 0 ? 'No rows yet.' : 'No rows match your search.'}</div>
+                  )}
                 </td>
               </tr>
             )}
           </tbody>
         </table>
       </div>
-      {query && (
-        <div role="status" className="border-t border-slate-200 bg-slate-50 px-4 py-2 text-xs text-slate-600">
-          Showing {filteredBOM.length} of {bom.length} rows.
-        </div>
-      )}
+      <MasterDataTableFooter rowCount={bom.length} selectedCount={selectedIds.size} warningCount={warningCount} blockerCount={blockerItems.length} />
     </section>
   )
 }

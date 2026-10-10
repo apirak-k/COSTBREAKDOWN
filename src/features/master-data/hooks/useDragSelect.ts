@@ -3,8 +3,17 @@ import { useEffect, useRef, useState, useCallback } from 'react'
 interface UseDragSelectOptions<T> {
   items: T[]
   getItemId: (item: T) => string
-  isEditMode: boolean
   selectionScope?: string
+}
+
+export function updateVisibleRowSelection(
+  current: ReadonlySet<string>,
+  visibleIds: readonly string[],
+  selected: boolean
+): Set<string> {
+  const next = new Set(current)
+  visibleIds.forEach(id => selected ? next.add(id) : next.delete(id))
+  return next
 }
 
 /**
@@ -13,13 +22,14 @@ interface UseDragSelectOptions<T> {
  * - Dragging down/up across rows toggles or extends the selection.
  * - Mouse up anywhere ends the drag mode.
  */
-export function useDragSelect<T>({ items, getItemId, isEditMode, selectionScope }: UseDragSelectOptions<T>) {
+export function useDragSelect<T>({ items, getItemId, selectionScope }: UseDragSelectOptions<T>) {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
   const isDraggingRef = useRef(false)
   const selectionAnchorId = useRef<string | null>(null)
 
   const toggleAll = useCallback((checked: boolean) => {
-    setSelectedIds(checked ? new Set(items.map(getItemId)) : new Set())
+    const visibleIds = items.map(getItemId)
+    setSelectedIds(previous => updateVisibleRowSelection(previous, visibleIds, checked))
   }, [items, getItemId])
 
   const clearSelection = useCallback(() => {
@@ -33,18 +43,17 @@ export function useDragSelect<T>({ items, getItemId, isEditMode, selectionScope 
   }, [selectionScope])
 
   const toggleRow = useCallback((id: string) => {
-    if (!isEditMode) return
     setSelectedIds(prev => {
       const next = new Set(prev)
       if (next.has(id)) next.delete(id)
       else next.add(id)
       return next
     })
-  }, [isEditMode])
+  }, [])
 
   const startDrag = useCallback((id: string, e: React.MouseEvent) => {
     // Only primary mouse click
-    if (e.button !== 0 || !isEditMode) return
+    if (e.button !== 0) return
     if (e.shiftKey) {
       isDraggingRef.current = false
       const anchorId = selectionAnchorId.current || id
@@ -73,16 +82,16 @@ export function useDragSelect<T>({ items, getItemId, isEditMode, selectionScope 
 
     isDraggingRef.current = true
     setSelectedIds(new Set([id]))
-  }, [getItemId, isEditMode, items])
+  }, [getItemId, items])
 
   const onMouseEnterRow = useCallback((id: string) => {
-    if (!isDraggingRef.current || !isEditMode) return
+    if (!isDraggingRef.current) return
     setSelectedIds(prev => {
       const next = new Set(prev)
       next.add(id)
       return next
     })
-  }, [isEditMode])
+  }, [])
 
   useEffect(() => {
     const handleMouseUp = () => {

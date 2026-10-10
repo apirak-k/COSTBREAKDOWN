@@ -38,8 +38,8 @@ Actions act on the currently viewed dataset:
 - **Save:** Replaces only the viewed dataset's `Last Saved` state with its current `Working` state.
 - **Reset:** Restores only the viewed dataset's `Working` state from its `Last Saved` state.
 - **Export:** Exports only the viewed dataset's `Last Saved` state to Excel. Working changes that have not been saved are not exported.
-- **Import:** Replaces only the viewed dataset's `Working` state. Import initializes the viewed dataset's Sizing counts from the imported row counts. Does not automatically overwrite `Last Saved`.
-- **Clear:** Clears only the viewed dataset's `Working` state (metadata, remark, table rows, and Sizing values); retains `Last Saved` and leaves other datasets untouched.
+- **Import:** Selecting a file parses and validates without changing `Working`. Only the explicit Import action applies the valid snapshot to the viewed dataset and initializes its Sizing counts from imported row counts. It never overwrites `Last Saved`; canceling the dialog leaves `Working` unchanged.
+- **Clear:** Immediately clears only the viewed dataset's `Working` state (metadata, remark, table rows, and Sizing values); retains `Last Saved` and leaves other datasets untouched. Clear is one Undo/Redo history action.
 
 ## Master Data Owns Structural Changes
 
@@ -76,10 +76,10 @@ Rules for Clone:
 
 The page supports:
 - Dataset selection: `Reference`, `Current`, or `Custom`.
-- Mode toggle: `View Mode` (read-only) / `Edit Mode` (interactive editing).
-- Dataset action toolbar: icon-only `Sizing`, `Import`, `Clone`, `Reset`, `Clear`, `Save`, and `Export` controls with accessible labels/tooltips. Dataset, View/Edit, and table selectors remain text controls. Prepare Dataset opens only from the global Header Info control; no duplicate toolbar trigger is shown.
+- Mode selector: `View` / `Edit` text tabs with one sliding active indicator. The selector is 32px high, matching toolbar action controls; the Reference / Current / Custom save-state dots keep their existing size.
+- Dataset action toolbar order: Dataset selector → sliding View / Edit tabs → icon-only Sizing / Import / Clone / warning toggle / Reset / Clear / Save / Export → fixed 192px local Search → Table selector. Dataset and Table remain text selectors. Tools have no vertical separators. Prepare Dataset opens only from the global Header Info control; no duplicate toolbar trigger is shown.
 - Table navigation: `BOM`, `Work Centers`, `Routing`, `All` (`All` remains the first-session default).
-- Metadata bar: Product summary and dataset remarks.
+- Compact inline metadata below the toolbar: Product Name, UOM, Selling Price (THB), SG&A (%), and Remark. Edit mode changes only value areas to inputs; values remain part of the selected `Working` dataset.
 
 Preserve the selected dataset, mode, and table view during same-session navigation.
 
@@ -93,17 +93,19 @@ Dataset metadata is independent for each dataset:
 | SG&A | SG&A percent of Selling Price (%) | Independent per dataset |
 | Dataset Remark | Dataset-level annotation remark | Independent per dataset |
 
-Product Name and UOM remain blank until entered; do not fabricate `Product` or `PC` in display, save, or export. UOM is free text. Selling Price and SG&A keep their existing missing-value semantics; Dataset Remark may be blank. Do not add Product Code, Product Description, or Product Note. If effective Reference and Current Product Name or UOM differ after trimming and case normalization, show `Product Mismatch` as a non-blocking comparison status, not a warning. It does not block or confirm CBD entry.
+Product Name and UOM remain blank until entered; do not fabricate `Product` or `PC` in display, save, or export. UOM is free text. Selling Price input accepts a number only; THB is fixed and shown by the UI. Selling Price and SG&A keep their existing missing-value semantics; Dataset Remark may be blank. Do not add Product Code, Product Description, or Product Note. If effective Reference and Current Product Name or UOM differ after trimming and case normalization, show `Product Mismatch` as a non-blocking comparison status, not a warning. It does not block or confirm CBD entry.
+
+Metadata appears as compact inline `Label : Value` pairs without a Metadata heading or disabled input boxes in View mode. Field widths remain stable, with Product Name and Remark wider than UOM and SG&A. Metadata in the page and Sizing dialog edit the same selected Working values.
 
 ## Sizing and Templates
 
-- Sizing edits the viewed dataset's metadata and exact row counts for BOM, Work Centers, and Routing (minimum 1 each). On a fresh workspace its row counts are unset.
+- Sizing edits the viewed dataset's metadata and exact row counts for BOM, Work Centers, and Routing (minimum 1 each). Existing rows populate unset sizing fields with their effective current row counts; on a fresh empty workspace counts remain unset. Native number steppers remain available. Keep the dialog compact and centered, with aligned metadata fields and a grouped row-count list; dialog edits remain draft values until Apply.
 - Applying a count sets that table to exactly that many rows:
   - Increasing the count appends blank rows with placeholder numbers.
   - Decreasing the count removes rows from the end; confirm only when populated data will be removed. Removing only blank trailing rows needs no confirmation.
   - Direct row additions and deletions keep that section's configured count synchronized; deleting all rows leaves the count unset.
 - Blank business identities use effective names: `Material N`, `Work Center N`, and `Process N`. `N` counts currently blank/generated identities within that table, not physical row numbers. These effective names can be used, saved, and exported, and are reported as warnings until the user supplies an identity.
-- **Download Template:** Located inside Sizing. Generates the canonical Excel workbook matching the viewed dataset's configured row counts.
+- **Download Template:** Located inside Sizing. Generates a blank canonical Excel structure using the current metadata and row-count values entered in the dialog, including values not yet applied.
 - **Import Initialization:** When an Excel workbook is imported into the viewed dataset, its Sizing row counts are initialized to the imported row counts.
 
 ## Canonical Workbook Format
@@ -140,7 +142,7 @@ Match records strictly by business identity:
 - Work Centers: `WC`
 - Routing: `Process`
 
-`#` is a left-pinned row number and selection handle, not an identity. Never match records by row order or position. The local Search control in the Master Data toolbar searches the visible table; `All` applies the existing query to BOM, Work Centers, and Routing. Search changes presentation, not dataset contents. It is not a global Header utility.
+`#` is a left-pinned row number and selection handle, not an identity. Never match records by row order or position. The local Search control in the Master Data toolbar searches the visible table; `All` applies the existing query to BOM, Work Centers, and Routing. Its placeholders are `Search BOM...`, `Search Work Centers...`, `Search Routing...`, and `Search all tables...`; its desktop width is fixed at 192px and position stays stable as the placeholder or table view changes. Search changes presentation, not dataset contents. It is not a global Header utility.
 
 ### Spreadsheet Editing
 - View Mode is read-only.
@@ -152,17 +154,20 @@ Match records strictly by business identity:
   - Ctrl/Cmd+C & Ctrl/Cmd+V: Clipboard copy/paste (including tabular data from Excel; pasted values map by row and column, and invalid pasted cells are identified locally rather than failing the page).
   - Ctrl/Cmd+Z: Undo; Ctrl/Cmd+Y or Ctrl/Cmd+Shift+Z: Redo. Header Undo/Redo stay visible across pages but are enabled only on Master Data and span Working edits across all Master Data tables.
   - Same-column bulk edits to selected rows.
-- Selection gestures: Click `#` to select row; drag across row headers or Shift+click for contiguous range; Ctrl/Cmd+click for non-contiguous rows. Keep row selection separate from reordering.
-- Reorder handle: Dedicated control in the rightmost column after Actions. Selected rows move together in source order. Reordering changes Working row order but does not make a business record `CHANGED`.
+- Selection gestures: Click `#` to select a row; drag across row headers or Shift+click for a contiguous range; Ctrl/Cmd+click for non-contiguous rows. Selection works in View and Edit, persists when switching between them, and is cleared only when the dataset scope changes or selected rows are removed. The `#` header toggles selection for visible/filtered rows only and preserves selected rows hidden by Search.
+- Actions column: One fixed rightmost `Actions` column contains Trash and GripVertical reorder controls. Clicking Trash on a selected row deletes all selected rows in one history action; clicking Trash on an unselected row deletes only that row. Selected rows move together in source order. Reordering changes Working row order but does not make a business record `CHANGED`.
+- Each table has a compact title/header with its local cyclic Blocker navigator and Add Row control, plus an always-visible footer for row/selection, Warning, and Blocker counts. Add Row stays visible but disabled in View. Empty tables remain compact and can add the first row from the Edit empty body or header control.
+- Table wrappers may scroll horizontally but do not create nested vertical scroll regions; All view uses the page-level scroll for Bill of Materials → Work Centers → Routing.
 
 ## Validation and Edge Cases
 
 - Validation is local and non-blocking. Cues appear on affected cells.
-- Warning prose and count badges stay out of table rows; dataset-level warning details appear in Prepare Dataset, and the persistent footer `⚠ N` opens that summary. The count is affected source locations and excludes Product Mismatch. Warning navigation switches to the source dataset and table, enters Edit mode, selects and scrolls the row, and focuses/highlights the field when available.
+- Warnings are generated identity and auto-renamed duplicate; they are non-blocking, shown in amber, and may be hidden by the Warning visibility toggle. Blockers are missing required values, use an amber affected-cell highlight and red `*`, remain visible when Warning highlights are hidden, and make Reference/Current Incomplete. Custom Blockers appear in Prepare Dataset but do not affect global readiness. The Footer `⚠ N` and its tooltip count/list Warnings only; Ready/Incomplete tooltip separately shows Reference and Current Blocker counts. Product Mismatch remains a separate orange comparison status.
+- Warning prose and issue badges stay out of table rows; dataset-level details appear in Prepare Dataset. The persistent footer `⚠ N` opens that summary. Counts are distinct affected source locations; Blockers and Product Mismatch are excluded from Warning counts. Warning or Blocker navigation switches to the source dataset/table, enters Edit mode, selects and scrolls the row, and focuses/highlights the field when available. Each table's Blocker navigator advances cyclically within that table and clears Search when the next source is filtered out.
 - Routing `WC` references the Work Center table, and its entry control should help prevent typos.
-- Missing required numeric inputs leave rows marked `MISSING`; they are never replaced with zero. Costs requiring missing inputs remain `unavailable`.
+- Missing required numeric inputs are Blockers and leave affected/dependent results `unavailable`; they are never replaced with zero. Costs requiring missing inputs remain `unavailable`.
 - Blank placeholder rows from Sizing remain marked missing and are excluded from cost calculations.
-- Reset and Clear remain confirmation-protected; Reset is disabled when no Last Saved state exists. Export remains unavailable without Last Saved. Clone source selection does not have a second replacement confirmation. Warning presence does not add confirmations to Save, Export, or CBD navigation. The exact compact spacing and responsive wrapping may follow the new UX contract; human visual acceptance remains a later review checkpoint.
+- Reset immediately restores Working from Last Saved and is one Undo/Redo action; it is disabled when no Last Saved state exists. Clear immediately clears Working while preserving Last Saved and is one Undo/Redo action. Neither opens a confirmation. Export is enabled whenever the viewed dataset has Last Saved, independent of Working Draft state, and exports only that Last Saved snapshot. It opens native Save As directly from the user action when supported and retains the browser-download fallback. Clone opens a hover/focus source flyout, excludes the viewed destination, and performs the copy immediately when a source is chosen. Import stages validation until explicit Import. The Warning toggle controls only non-blocking generated-identity and auto-renamed-duplicate cues; missing/invalid required values and unresolved Work Center blocker cues remain visible. Warning data, `aria-invalid`, calculations, Prepare Dataset details, and navigation are unchanged. Warning presence does not add confirmations to Save, Export, or CBD navigation.
 
 ## Traceability
 

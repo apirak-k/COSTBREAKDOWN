@@ -3,10 +3,12 @@ import { Navbar } from './Navbar'
 import { useAppStore } from '../../state'
 import { formatNumber } from '../../core'
 import { normalizeProductIdentityValue } from '../../core/utils/master-data-effective'
-import { AlertTriangle } from 'lucide-react'
+import { AlertTriangle, CircleX } from 'lucide-react'
 import {
   areMasterDataDatasetsReady,
+  buildMasterDataBlockerItems,
   buildMasterDataWarningItems,
+  countMasterDataQualityByRole,
   MASTER_DATA_WARNING_CATEGORY_DEFINITIONS
 } from '../../features/master-data/prepare-dataset'
 
@@ -122,6 +124,7 @@ interface AppLayoutProps {
 
 export const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
   const {
+    activeTab,
     snapshotPair,
     fullSnapshotComparison,
     masterDataHandoff,
@@ -129,7 +132,9 @@ export const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
     requestMasterDataPrepareDataset,
   } = useAppStore()
   const warningItems = buildMasterDataWarningItems(masterDataSnapshots)
+  const blockerItems = buildMasterDataBlockerItems(masterDataSnapshots)
   const warningCount = warningItems.length
+  const blockerCounts = countMasterDataQualityByRole(blockerItems)
   const warningBreakdown = MASTER_DATA_WARNING_CATEGORY_DEFINITIONS
     .map(({ category, label }) => ({
       label,
@@ -139,14 +144,16 @@ export const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
   const datasetReadiness = [
     {
       label: 'Reference',
-      ready: masterDataHandoff.referenceReady && !warningItems.some(item => item.role === 'reference' && item.category === 'missing-value')
+      ready: masterDataHandoff.referenceReady && blockerCounts.reference === 0,
+      blockerCount: blockerCounts.reference
     },
     {
       label: 'Current',
-      ready: masterDataHandoff.currentReady && !warningItems.some(item => item.role === 'current' && item.category === 'missing-value')
+      ready: masterDataHandoff.currentReady && blockerCounts.current === 0,
+      blockerCount: blockerCounts.current
     }
   ]
-  const datasetsReady = areMasterDataDatasetsReady(masterDataHandoff, warningItems)
+  const datasetsReady = areMasterDataDatasetsReady(masterDataHandoff, blockerItems)
   const referenceStandardCost = fullSnapshotComparison.referenceCost.total
   const currentStandardCost = fullSnapshotComparison.currentCost.total
   const totalGap = fullSnapshotComparison.totalGap
@@ -180,7 +187,7 @@ export const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
       <main
         id="main-content"
         tabIndex={-1}
-        className="min-h-0 min-w-0 flex-1 overflow-y-auto py-3"
+        className={`min-h-0 min-w-0 flex-1 overflow-y-auto ${activeTab === 'master' ? 'pt-0 pb-3' : 'py-3'}`}
       >
         <div className="app-workspace-frame">{children}</div>
       </main>
@@ -206,6 +213,15 @@ export const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
                     <React.Fragment key={label}>
                       <span>{label}</span>
                       <span>{ready ? 'Ready' : 'Incomplete'}</span>
+                    </React.Fragment>
+                  ))}
+                  <span className="col-span-2 my-0.5 border-t border-slate-200" />
+                  {datasetReadiness.map(({ label, blockerCount }) => (
+                    <React.Fragment key={`${label}-blockers`}>
+                      <span>{label}</span>
+                      <span className="inline-flex items-center justify-end gap-1 font-mono tabular-nums text-rose-700">
+                        <CircleX className="h-3 w-3" aria-hidden="true" /> {blockerCount}
+                      </span>
                     </React.Fragment>
                   ))}
                 </span>
@@ -239,9 +255,9 @@ export const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
                 tabIndex={0}
                 aria-describedby="footer-product-status-tooltip"
                 aria-label={`Product ${masterDataHandoff.productMismatch ? 'Mismatch' : 'Match'}`}
-                className={`inline-flex min-h-7 cursor-default select-none items-center gap-1.5 whitespace-nowrap rounded-sm font-semibold focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-300 ${masterDataHandoff.productMismatch ? 'text-violet-300' : 'text-emerald-300'}`}
+                className={`inline-flex min-h-7 cursor-default select-none items-center gap-1.5 whitespace-nowrap rounded-sm font-semibold focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-300 ${masterDataHandoff.productMismatch ? 'text-orange-300' : 'text-emerald-300'}`}
               >
-                <span aria-hidden="true" className={`h-1.5 w-1.5 rounded-full ${masterDataHandoff.productMismatch ? 'bg-violet-400' : 'bg-emerald-400'}`} />
+                <span aria-hidden="true" className={`h-1.5 w-1.5 rounded-full ${masterDataHandoff.productMismatch ? 'bg-orange-400' : 'bg-emerald-400'}`} />
                 Product {masterDataHandoff.productMismatch ? 'Mismatch' : 'Match'}
               </span>
             </FooterTooltip>

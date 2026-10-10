@@ -331,8 +331,8 @@ Styling rules:
 - Keyboard navigation: Arrow keys, Enter / Shift+Enter (down/up), Tab / Shift+Tab (right/left), Escape (cancel).
 - Copy / Paste: TSV and multi-cell spreadsheet paste supported.
 - Undo / Redo: Page-level history covering Working edits across all tables.
-- `#` is left-pinned display number and row-selection handle.
-- Reorder handle is in the rightmost column after Actions.
+- `#` is the left-pinned row number/selection handle; its header toggles selection of currently visible rows.
+- Trash and GripVertical reorder controls share one rightmost Actions column. Selected-row reordering keeps source order; see the current table interaction contract in [`MASTER_DATA_TOOLBAR_PREPARE_UX.md`](MASTER_DATA_TOOLBAR_PREPARE_UX.md).
 
 ---
 

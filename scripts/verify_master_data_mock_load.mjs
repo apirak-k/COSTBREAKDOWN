@@ -9,7 +9,7 @@ const vite = await createServer({
 })
 
 try {
-  const [{ createCompleteMasterDataMockPair, createIncompleteMasterDataMockPair }, { replaceDevelopmentMockWorkingState }, { buildMasterDataWarningItems, countMasterDataWarningsByRole, areMasterDataDatasetsReady }, { normalizeMasterDataSnapshot }, { calculateSnapshotCost, evaluateMasterDataHandoff }, { applyMasterDataEditHistoryEntry }, { createEmptyCustomMasterData }] = await Promise.all([
+  const [{ createCompleteMasterDataMockPair, createIncompleteMasterDataMockPair }, { replaceDevelopmentMockWorkingState }, { buildMasterDataWarningItems, buildMasterDataBlockerItems, countMasterDataWarningsByRole, countMasterDataQualityByRole, areMasterDataDatasetsReady }, { normalizeMasterDataSnapshot }, { calculateSnapshotCost, evaluateMasterDataHandoff }, { applyMasterDataEditHistoryEntry }, { createEmptyCustomMasterData }] = await Promise.all([
     vite.ssrLoadModule('/src/features/master-data/fixtures/synthetic-review-data.ts'),
     vite.ssrLoadModule('/src/state/development-mock-data.ts'),
     vite.ssrLoadModule('/src/features/master-data/prepare-dataset.ts'),
@@ -78,18 +78,26 @@ try {
     current: normalizeMasterDataSnapshot(session.snapshotPair.current),
     custom: normalizeMasterDataSnapshot(session.customMasterData)
   })
+  const blockersFor = session => buildMasterDataBlockerItems({
+    reference: normalizeMasterDataSnapshot(session.snapshotPair.reference),
+    current: normalizeMasterDataSnapshot(session.snapshotPair.current),
+    custom: normalizeMasterDataSnapshot(session.customMasterData)
+  })
   const incompleteWarnings = warningsFor(incompleteLoaded)
+  const incompleteBlockers = blockersFor(incompleteLoaded)
   const counts = incompleteWarnings.reduce((result, item) => {
     result[item.category] = (result[item.category] ?? 0) + 1
     return result
   }, {})
   assert.deepEqual(counts, {
     'generated-identity': 3,
-    'missing-value': 9,
     'auto-renamed-duplicate': 3
-  }, 'post-load Incomplete Mock counts are 3 generated, 9 missing, and 3 duplicate')
-  assert.equal(incompleteWarnings.length, 15, 'post-load Incomplete Mock warning total is exactly 15')
-  assert.deepEqual(countMasterDataWarningsByRole(incompleteWarnings), { reference: 3, current: 12, custom: 0 })
+  }, 'post-load Incomplete Mock warnings are 3 generated and 3 duplicate')
+  assert.equal(incompleteWarnings.length, 6, 'post-load Incomplete Mock Warning total excludes blockers')
+  assert.equal(incompleteBlockers.length, 9, 'post-load Incomplete Mock has exactly nine Blockers')
+  assert.equal(incompleteWarnings.length + incompleteBlockers.length, 15, 'post-load Incomplete Mock has 15 affected locations total')
+  assert.deepEqual(countMasterDataWarningsByRole(incompleteWarnings), { reference: 0, current: 6, custom: 0 })
+  assert.deepEqual(countMasterDataQualityByRole(incompleteBlockers), { reference: 3, current: 6, custom: 0 })
   assert.equal(evaluateMasterDataHandoff(incompleteLoaded, incompleteLoaded.snapshotPair).productMismatch, true, 'Product Mismatch remains outside warning totals')
 
   const staleSizingOnlySource = {
@@ -101,7 +109,8 @@ try {
   const sizingOnlyLoaded = replaceDevelopmentMockWorkingState(staleSizingOnlySource, incompletePair, '2026-10-10T00:00:00.500Z')
   assert.ok(sizingOnlyLoaded, 'mock replacement clears stale Custom sizing even when its Working snapshot is already blank')
   assert.deepEqual(sizingOnlyLoaded.customDatasetSizing, {}, 'sizing-only stale placeholders are removed')
-  assert.equal(warningsFor(sizingOnlyLoaded).length, 15, 'sizing-only replacement retains the exact Incomplete Mock warning count')
+  assert.equal(warningsFor(sizingOnlyLoaded).length, 6, 'sizing-only replacement retains the warning count')
+  assert.equal(blockersFor(sizingOnlyLoaded).length, 9, 'sizing-only replacement retains the blocker count')
 
   const historyEntry = {
     sessionId: source.id,
@@ -132,17 +141,19 @@ try {
   assert.equal(completeLoaded.customLastSavedMasterData, source.customLastSavedMasterData, 'Complete Mock preserves Custom Last Saved')
   assert.equal(completeLoaded.lastSavedMasterData, source.lastSavedMasterData, 'Complete Mock preserves Reference and Current Last Saved')
   const completeWarnings = warningsFor(completeLoaded)
+  const completeBlockers = blockersFor(completeLoaded)
   const completeHandoff = evaluateMasterDataHandoff(completeLoaded, completeLoaded.snapshotPair)
   assert.equal(completeWarnings.length, 0, 'post-load Complete Mock has zero warnings')
+  assert.equal(completeBlockers.length, 0, 'post-load Complete Mock has zero blockers')
   assert.deepEqual(countMasterDataWarningsByRole(completeWarnings), { reference: 0, current: 0, custom: 0 })
-  assert.equal(areMasterDataDatasetsReady(completeHandoff, completeWarnings), true, 'post-load Complete Mock is Ready')
+  assert.equal(areMasterDataDatasetsReady(completeHandoff, completeBlockers), true, 'post-load Complete Mock is Ready')
   assert.equal(completeHandoff.productMismatch, false, 'post-load Complete Mock has Product Match')
   assert.notEqual(calculateSnapshotCost(completeLoaded.snapshotPair.reference).total, null, 'Complete Mock Reference cost is calculable')
   assert.notEqual(calculateSnapshotCost(completeLoaded.snapshotPair.current).total, null, 'Complete Mock Current cost is calculable')
 
   await vite.ssrLoadModule('/scripts/verify_master_data_toolbar_prepare_ux.ts')
   await vite.ssrLoadModule('/scripts/verify_synthetic_review_fixture.ts')
-  console.log('Post-load mock Working state is deterministic: Complete = 0 warnings; Incomplete = 3 / 9 / 3 = 15; history restores Custom Working data.')
+  console.log('Post-load mock Working state is deterministic: Complete = 0 warnings / 0 blockers; Incomplete = 6 warnings / 9 blockers; history restores Custom Working data.')
 } finally {
   await vite.close()
 }

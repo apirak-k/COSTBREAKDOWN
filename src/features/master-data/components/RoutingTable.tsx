@@ -1,11 +1,13 @@
 import React, { useCallback, useMemo, useRef } from 'react'
-import { CheckSquare, GripVertical, Plus, Trash2 } from 'lucide-react'
-import { SnapshotRoutingStep, SnapshotWorkCenterRate, formatPercent } from '../../../core'
+import { GripVertical, Trash2 } from 'lucide-react'
+import { SnapshotRoutingStep, SnapshotWorkCenterRate, formatNumber, formatPercent } from '../../../core'
 import { useDragSelect } from '../hooks/useDragSelect'
 import { SpreadsheetPasteCell, tableCellKey, useTableKeyboardNav } from '../hooks/useTableKeyboardNav'
 import { RowChanges, useSpreadsheetEditing } from '../hooks/useSpreadsheetEditing'
 import { blankIdentityOrdinals, duplicateIdentityIds, hasInvalidNumber, parsePercentage } from '../table-validation'
 import { useWarningNavigationFocus, type WarningNavigationTarget } from '../hooks/useWarningNavigationFocus'
+import type { MasterDataBlockerItem } from '../prepare-dataset'
+import { MasterDataTableFooter, MasterDataTableHeader } from './MasterDataTableChrome'
 
 interface RoutingTableProps {
   routing: SnapshotRoutingStep[]
@@ -14,6 +16,10 @@ interface RoutingTableProps {
   historyScope: string
   searchQuery?: string
   onSearchQueryChange?: (query: string) => void
+  showWarningHighlights?: boolean
+  warningCount: number
+  blockerItems: MasterDataBlockerItem[]
+  onNavigateBlocker: (item: MasterDataBlockerItem) => void
   onUndo: () => void
   onRedo: () => void
   onAddRoutingStep: () => void
@@ -34,6 +40,10 @@ export const RoutingTable: React.FC<RoutingTableProps> = ({
   historyScope,
   searchQuery = '',
   onSearchQueryChange = () => undefined,
+  showWarningHighlights = true,
+  warningCount,
+  blockerItems,
+  onNavigateBlocker,
   onUndo,
   onRedo,
   onAddRoutingStep,
@@ -44,6 +54,7 @@ export const RoutingTable: React.FC<RoutingTableProps> = ({
   onWarningNavigationHandled
 }) => {
   const tableRef = useRef<HTMLTableElement | null>(null)
+  const blockerIndexRef = useRef(0)
   const query = searchQuery.trim().toLocaleLowerCase()
   const duplicateProcessIds = useMemo(() => duplicateIdentityIds(routing, step => step.id, step => step.processName), [routing])
   const placeholderNumbers = useMemo(() => blankIdentityOrdinals(routing, step => step.processName), [routing])
@@ -59,14 +70,13 @@ export const RoutingTable: React.FC<RoutingTableProps> = ({
   const {
     selectedIds,
     setSelectedIds,
-    clearSelection,
+    toggleAll,
     startDrag,
     toggleRow,
     onMouseEnterRow
   } = useDragSelect({
     items: filteredRouting,
     getItemId: step => step.id,
-    isEditMode,
     selectionScope: historyScope
   })
 
@@ -105,10 +115,20 @@ export const RoutingTable: React.FC<RoutingTableProps> = ({
     onRedo
   })
 
-  const handleDeleteSelected = () => {
-    onDeleteRoutingSteps([...selectedIds])
-    clearSelection()
+  const handleDeleteRow = (id: string) => {
+    const idsToDelete = selectedIds.has(id) ? [...selectedIds] : [id]
+    onDeleteRoutingSteps(idsToDelete)
+    setSelectedIds(previous => new Set([...previous].filter(selectedId => !idsToDelete.includes(selectedId))))
   }
+
+  const handleNextBlocker = () => {
+    if (blockerItems.length === 0) return
+    const target = blockerItems[blockerIndexRef.current % blockerItems.length]
+    blockerIndexRef.current = (blockerIndexRef.current + 1) % blockerItems.length
+    onNavigateBlocker(target)
+  }
+
+  const allVisibleSelected = filteredRouting.length > 0 && filteredRouting.every(step => selectedIds.has(step.id))
 
   const handleDragStart = (event: React.DragEvent<HTMLButtonElement>, id: string) => {
     event.dataTransfer.setData('text/plain', id)
@@ -137,73 +157,46 @@ export const RoutingTable: React.FC<RoutingTableProps> = ({
 
   return (
     <section aria-label="Routing rows" className="overflow-hidden bg-white select-none">
-      {isEditMode && (
-        <div className="flex min-h-11 items-center justify-end border-b border-slate-200 bg-white px-3 py-1">
-          <button type="button" onClick={onAddRoutingStep} className="flex min-h-8 items-center justify-center gap-1.5 border border-slate-300 bg-white px-2.5 text-xs font-medium text-slate-800 hover:bg-slate-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700">
-            <Plus className="h-3 w-3" aria-hidden="true" /> Add row
-          </button>
-        </div>
-      )}
-
-      {isEditMode && (
-        <div className={`flex h-[52px] items-center gap-3 overflow-x-auto border-b px-4 text-xs text-slate-800 ${selectedIds.size > 0 ? 'border-blue-200 bg-blue-50' : 'border-slate-200 bg-slate-50'}`}>
-          {selectedIds.size > 0 ? (
-            <>
-              <span className="flex shrink-0 items-center gap-1 whitespace-nowrap font-semibold text-slate-900">
-                <CheckSquare className="h-3.5 w-3.5 text-blue-700" aria-hidden="true" />
-                {selectedIds.size} row{selectedIds.size === 1 ? '' : 's'} selected
-              </span>
-              <button
-                type="button"
-                onClick={handleDeleteSelected}
-                className="flex min-h-9 shrink-0 items-center gap-1.5 whitespace-nowrap px-3 text-sm text-rose-800 hover:bg-rose-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-rose-700"
-                title="Delete selected rows"
-              >
-                <Trash2 className="h-3 w-3" aria-hidden="true" /> Delete
-              </button>
-              <button
-                type="button"
-                onClick={clearSelection}
-                className="ml-auto min-h-9 shrink-0 whitespace-nowrap px-3 text-sm text-slate-700 hover:bg-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700"
-              >
-                Cancel
-              </button>
-            </>
-          ) : (
-            <span className="shrink-0 whitespace-nowrap text-slate-500">Select rows by # or drag across the row numbers.</span>
-          )}
-        </div>
-      )}
+      <MasterDataTableHeader title="Routing" blockerCount={blockerItems.length} isEditMode={isEditMode} onNextBlocker={handleNextBlocker} onAddRow={onAddRoutingStep} />
 
       <div className="overflow-x-auto">
-        <table ref={tableRef} className="w-full min-w-[960px] border-collapse text-left text-xs">
+        <table ref={tableRef} className="w-full min-w-[950px] table-fixed border-collapse text-left text-xs">
+          <colgroup>
+            <col className="w-12" /><col className="w-[200px]" /><col className="w-40" />
+            <col className="w-28" /><col className="w-28" /><col className="w-24" /><col /><col className="w-20" />
+          </colgroup>
           <thead className="sticky top-0 z-30 border-y-2 border-slate-400 bg-slate-100 text-[11px] font-semibold uppercase tracking-wide text-slate-800">
             <tr>
-              <th scope="col" className="sticky left-0 z-40 w-12 bg-slate-100 px-2 py-2 text-center">#</th>
-              <th scope="col" className="px-2 py-2">Process</th>
-              <th scope="col" className="px-2 py-2">WC</th>
+              <th scope="col" className="sticky left-0 z-40 w-12 bg-slate-100 p-0 text-center">
+                <button type="button" onClick={() => toggleAll(!allVisibleSelected)} disabled={filteredRouting.length === 0} aria-pressed={allVisibleSelected} aria-label={allVisibleSelected ? 'Clear selection for visible Routing rows' : 'Select all visible Routing rows'} title={allVisibleSelected ? 'Clear visible selection' : 'Select visible rows'} className="h-9 w-full text-[11px] hover:bg-slate-200 disabled:cursor-default disabled:text-slate-400 focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-700">#</button>
+              </th>
+              <th scope="col" className="px-2 py-2 text-left">Process</th>
+              <th scope="col" className="px-2 py-2 text-left">Work Center</th>
               <th scope="col" className="px-2 py-2 text-right">Manning</th>
-              <th scope="col" className="px-2 py-2 text-right">Cap</th>
+              <th scope="col" className="px-2 py-2 text-right">Capacity</th>
               <th scope="col" className="px-2 py-2 text-right">Yield</th>
-              <th scope="col" className="px-2 py-2">Note</th>
-              {isEditMode && <th scope="col" className="w-12 px-2 py-2 text-center">Actions</th>}
-              {isEditMode && <th scope="col" className="w-8 px-1 py-2 text-center" aria-label="Reorder rows" />}
+              <th scope="col" className="px-2 py-2 text-left">Note</th>
+              <th scope="col" className="w-20 px-1 py-2 text-center">Actions</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-200 text-xs">
             {filteredRouting.map(step => {
               const isSelected = selectedIds.has(step.id)
               const identityInvalid = !step.processName.trim() || duplicateProcessIds.has(step.id)
+              const identityWarning = Boolean(step.isGeneratedBusinessIdentity || step.autoRenamedFrom || duplicateProcessIds.has(step.id))
               const workCenterInvalid = !step.workCenterId?.trim() || !knownWorkCenters.has(step.workCenterId.trim().toLocaleLowerCase())
               const manningInvalid = step.manning === null || hasInvalidNumber(step.manning)
               const capacityInvalid = step.capacity === null || hasInvalidNumber(step.capacity) || step.capacity <= 0
               const yieldInvalid = step.yield === null || hasInvalidNumber(step.yield) || step.yield <= 0 || step.yield > 1
+              const manningMissing = step.manning === null
+              const capacityMissing = step.capacity === null
+              const yieldMissing = step.yield === null
               const rowNumber = routing.findIndex(row => row.id === step.id) + 1
               const placeholderNumber = placeholderNumbers.get(step.id)
               const rowMarkerBackground = isSelected
                 ? 'bg-blue-50 group-hover:bg-blue-100'
                 : 'bg-white group-hover:bg-slate-50'
-              const numericClass = (invalid: boolean) => `min-h-8 rounded-sm border px-2 text-right text-xs tabular-nums focus:outline-none focus:ring-2 focus:ring-blue-700 ${invalid ? 'border-amber-600 bg-amber-50' : 'border-slate-300 bg-white'}`
+              const numericClass = (invalid: boolean, missing: boolean) => `min-h-8 w-full min-w-0 rounded-sm border px-1.5 text-right text-xs tabular-nums focus:outline-none focus:ring-2 focus:ring-blue-700 ${invalid ? 'border-amber-600 bg-amber-50' : 'border-slate-300 bg-white'} ${missing ? 'bg-amber-50' : ''}`
 
               return (
                 <tr
@@ -214,24 +207,22 @@ export const RoutingTable: React.FC<RoutingTableProps> = ({
                   onMouseEnter={() => onMouseEnterRow(step.id)}
                   onDragOver={event => { if (isEditMode) event.preventDefault() }}
                   onDrop={event => { if (isEditMode) handleRowDrop(event, step.id) }}
-                  className={`group h-9 ${isSelected ? 'border-l-2 border-l-blue-700 bg-blue-50 hover:bg-blue-100' : 'hover:bg-slate-50'}`}
+                  className={`group h-10 ${isSelected ? 'border-l-2 border-l-blue-700 bg-blue-50 hover:bg-blue-100' : 'hover:bg-slate-50'}`}
                 >
                   <th scope="row" className={`sticky left-0 z-20 w-12 px-1.5 py-0.5 text-center font-mono font-normal text-slate-600 ${rowMarkerBackground}`}>
-                    {isEditMode ? (
-                      <button
-                        type="button"
-                        aria-label={`Select Routing row ${rowNumber}`}
-                        aria-pressed={isSelected}
-                        onMouseDown={event => startDrag(step.id, event)}
-                        onClick={event => { if (event.detail === 0) toggleRow(step.id) }}
-                        className={`min-h-8 min-w-8 rounded-sm px-1 font-mono ${isSelected ? 'bg-blue-700 text-white' : 'text-slate-600 hover:bg-slate-200'} focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700`}
-                      >
-                        {rowNumber}
-                      </button>
-                    ) : rowNumber}
+                    <button
+                      type="button"
+                      aria-label={`Select Routing row ${rowNumber}`}
+                      aria-pressed={isSelected}
+                      onMouseDown={event => startDrag(step.id, event)}
+                      onClick={event => { if (event.detail === 0) toggleRow(step.id) }}
+                      className={`min-h-8 min-w-8 rounded-sm px-1 font-mono ${isSelected ? 'bg-blue-700 text-white' : 'text-slate-600 hover:bg-slate-200'} focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700`}
+                    >
+                      {rowNumber}
+                    </button>
                   </th>
-                  <td className="px-2 py-0.5 font-sans text-slate-800">
-                    <div className="min-w-[170px]">
+                  <td className={`px-2 py-0.5 font-sans text-slate-800 ${identityWarning && showWarningHighlights ? 'bg-amber-50' : ''}`}>
+                    <div className="min-w-0">
                       {isEditMode ? (
                         <input
                           value={step.processName}
@@ -242,39 +233,41 @@ export const RoutingTable: React.FC<RoutingTableProps> = ({
                           data-grid-field="processName"
                           aria-label={`Process for Routing row ${rowNumber}`}
                           aria-invalid={identityInvalid}
-                          className={`min-h-8 w-full rounded-sm border bg-white px-2 text-xs focus:outline-none focus:ring-2 focus:ring-blue-700 ${identityInvalid ? 'border-amber-600' : 'border-slate-300'} ${selectedCellKeys.has(tableCellKey(step.id, 'processName')) ? 'ring-2 ring-blue-500 ring-inset' : ''}`}
+                          className={`min-h-8 w-full min-w-0 rounded-sm border px-2 text-xs focus:outline-none focus:ring-2 focus:ring-blue-700 ${identityWarning && showWarningHighlights ? 'border-amber-600 bg-amber-50' : 'border-slate-300 bg-white'} ${selectedCellKeys.has(tableCellKey(step.id, 'processName')) ? 'ring-2 ring-blue-500 ring-inset' : ''}`}
                         />
-                      ) : step.processName || <span className="text-amber-700">{placeholderNumber ?? '—'}</span>}
+                      ) : step.processName || <span className={showWarningHighlights ? 'text-amber-700' : 'text-slate-700'}>{placeholderNumber ?? '—'}</span>}
                     </div>
                   </td>
-                  <td className="px-2 py-0.5">
+                  <td className={`px-2 py-0.5 ${workCenterInvalid ? 'bg-amber-50 text-amber-900' : ''}`}>
                     {isEditMode ? (
-                      <select
+                      <div className="flex items-center gap-1">
+                        <select
                         value={step.workCenterId || ''}
                         onChange={event => applyCellUpdate(step.id, { workCenterId: event.target.value || undefined })}
                         data-grid-cell="true"
                         data-grid-row-id={step.id}
                         data-grid-field="workCenterId"
-                        aria-label={`WC for Routing row ${rowNumber}`}
+                        aria-label={`Work Center for Routing row ${rowNumber}`}
                         aria-invalid={workCenterInvalid}
-                        className={`min-h-8 w-40 rounded-sm border bg-white px-2 text-xs focus:outline-none focus:ring-2 focus:ring-blue-700 ${workCenterInvalid ? 'border-amber-600' : 'border-slate-300'} ${selectedCellKeys.has(tableCellKey(step.id, 'workCenterId')) ? 'ring-2 ring-blue-500 ring-inset' : ''}`}
+                        className={`min-h-8 w-full min-w-0 rounded-sm border bg-white px-2 text-xs focus:outline-none focus:ring-2 focus:ring-blue-700 ${workCenterInvalid ? 'border-amber-600 bg-amber-50' : 'border-slate-300'} ${selectedCellKeys.has(tableCellKey(step.id, 'workCenterId')) ? 'ring-2 ring-blue-500 ring-inset' : ''}`}
                       >
-                        <option value="">Select WC</option>
+                        <option value="">Select Work Center</option>
                         {step.workCenterId && !knownWorkCenters.has(step.workCenterId.trim().toLocaleLowerCase()) && (
-                          <option value={step.workCenterId}>{step.workCenterId} (not in WC table)</option>
+                          <option value={step.workCenterId}>{step.workCenterId} (not in Work Centers table)</option>
                         )}
                         {rates.map(rate => (
                           <option key={rate.id} value={rate.workCenterCode}>{rate.workCenterCode}</option>
                         ))}
-                      </select>
-                    ) : step.workCenterId ? (
-                      <span className={workCenterInvalid ? 'text-amber-800' : 'text-slate-800'}>
-                        {step.workCenterId}{workCenterInvalid ? ' (not in WC table)' : ''}
-                      </span>
-                    ) : <span className="text-amber-700">—</span>}
+                        </select>
+                        {workCenterInvalid && <span aria-label="Missing required value" title="Missing or unavailable Work Center" className="shrink-0 text-[11px] font-bold text-rose-600">*</span>}
+                      </div>
+                    ) : <span className="inline-flex max-w-full items-center gap-1 truncate">
+                      {step.workCenterId || '—'}{workCenterInvalid && <span aria-label="Missing required value" title="Missing or unavailable Work Center" className="shrink-0 text-[11px] font-bold text-rose-600">*</span>}
+                    </span>}
                   </td>
-                  <td className={`px-2 py-0.5 text-right font-mono tabular-nums ${manningInvalid ? 'bg-amber-50/60 text-amber-900' : ''}`}>
+                  <td className={`px-2 py-0.5 text-right font-mono tabular-nums ${manningInvalid ? 'bg-amber-50 text-amber-900' : ''}`}>
                     {isEditMode ? (
+                      <div className="flex items-center justify-end gap-1">
                       <input
                         type="number"
                         step="any"
@@ -285,12 +278,15 @@ export const RoutingTable: React.FC<RoutingTableProps> = ({
                         data-grid-field="manning"
                         aria-label={`Manning for ${step.processName || `Routing row ${rowNumber}`}`}
                         aria-invalid={manningInvalid}
-                        className={`${numericClass(manningInvalid)} w-24 ${selectedCellKeys.has(tableCellKey(step.id, 'manning')) ? 'ring-2 ring-blue-500 ring-inset' : ''}`}
+                        className={`${numericClass(manningInvalid, manningMissing)} ${selectedCellKeys.has(tableCellKey(step.id, 'manning')) ? 'ring-2 ring-blue-500 ring-inset' : ''}`}
                       />
-                    ) : numberValue(step.manning) || <span className="text-amber-700">—</span>}
+                      {manningMissing && <span aria-label="Missing required value" title="Missing required value" className="shrink-0 text-[11px] font-bold text-rose-600">*</span>}
+                      </div>
+                    ) : <>{step.manning === null ? <span className="text-amber-700">—</span> : formatNumber(step.manning, 2)}{manningMissing && <span aria-label="Missing required value" title="Missing required value" className="ml-1 text-[11px] font-bold text-rose-600">*</span>}</>}
                   </td>
-                  <td className={`px-2 py-0.5 text-right font-mono tabular-nums ${capacityInvalid ? 'bg-amber-50/60 text-amber-900' : ''}`}>
+                  <td className={`px-2 py-0.5 text-right font-mono tabular-nums ${capacityInvalid ? 'bg-amber-50 text-amber-900' : ''}`}>
                     {isEditMode ? (
+                      <div className="flex items-center justify-end gap-1">
                       <input
                         type="number"
                         step="any"
@@ -299,13 +295,15 @@ export const RoutingTable: React.FC<RoutingTableProps> = ({
                         data-grid-cell="true"
                         data-grid-row-id={step.id}
                         data-grid-field="capacity"
-                        aria-label={`Cap for ${step.processName || `Routing row ${rowNumber}`}`}
+                        aria-label={`Capacity for ${step.processName || `Routing row ${rowNumber}`}`}
                         aria-invalid={capacityInvalid}
-                        className={`${numericClass(capacityInvalid)} w-28 ${selectedCellKeys.has(tableCellKey(step.id, 'capacity')) ? 'ring-2 ring-blue-500 ring-inset' : ''}`}
+                        className={`${numericClass(capacityInvalid, capacityMissing)} ${selectedCellKeys.has(tableCellKey(step.id, 'capacity')) ? 'ring-2 ring-blue-500 ring-inset' : ''}`}
                       />
-                    ) : numberValue(step.capacity) || <span className="text-amber-700">—</span>}
+                      {capacityMissing && <span aria-label="Missing required value" title="Missing required value" className="shrink-0 text-[11px] font-bold text-rose-600">*</span>}
+                      </div>
+                    ) : <>{step.capacity === null ? <span className="text-amber-700">—</span> : formatNumber(step.capacity, 2)}{capacityMissing && <span aria-label="Missing required value" title="Missing required value" className="ml-1 text-[11px] font-bold text-rose-600">*</span>}</>}
                   </td>
-                  <td className={`px-2 py-0.5 text-right ${yieldInvalid ? 'bg-amber-50/60 text-amber-900' : ''}`}>
+                  <td className={`px-2 py-0.5 text-right font-mono tabular-nums ${yieldInvalid ? 'bg-amber-50 text-amber-900' : ''}`}>
                     {isEditMode ? (
                       <div className="flex items-center justify-end gap-1">
                         <input
@@ -321,11 +319,12 @@ export const RoutingTable: React.FC<RoutingTableProps> = ({
                           data-grid-field="yield"
                           aria-label={`Yield percentage for ${step.processName || `Routing row ${rowNumber}`}`}
                           aria-invalid={yieldInvalid}
-                          className={`${numericClass(yieldInvalid)} w-20 ${selectedCellKeys.has(tableCellKey(step.id, 'yield')) ? 'ring-2 ring-blue-500 ring-inset' : ''}`}
+                          className={`${numericClass(yieldInvalid, yieldMissing)} ${selectedCellKeys.has(tableCellKey(step.id, 'yield')) ? 'ring-2 ring-blue-500 ring-inset' : ''}`}
                         />
                         <span className="text-slate-400">%</span>
+                        {yieldMissing && <span aria-label="Missing required value" title="Missing required value" className="shrink-0 text-[11px] font-bold text-rose-600">*</span>}
                       </div>
-                    ) : step.yield === null ? <span className="text-amber-700">—</span> : formatPercent(step.yield, 2)}
+                    ) : <>{step.yield === null ? <span className="text-amber-700">—</span> : formatPercent(step.yield, 2)}{yieldMissing && <span aria-label="Missing required value" title="Missing required value" className="ml-1 text-[11px] font-bold text-rose-600">*</span>}</>}
                   </td>
                   <td className="px-2 py-0.5 font-sans text-slate-600">
                     {isEditMode ? (
@@ -336,62 +335,53 @@ export const RoutingTable: React.FC<RoutingTableProps> = ({
                         data-grid-row-id={step.id}
                         data-grid-field="note"
                         aria-label={`Note for ${step.processName || `Routing row ${rowNumber}`}`}
-                        className={`min-h-8 w-full min-w-[160px] rounded-sm border border-slate-300 bg-white px-2 text-xs focus:outline-none focus:ring-2 focus:ring-blue-700 ${selectedCellKeys.has(tableCellKey(step.id, 'note')) ? 'ring-2 ring-blue-500 ring-inset' : ''}`}
+                        className={`min-h-8 w-full min-w-0 rounded-sm border border-slate-300 bg-white px-2 text-xs focus:outline-none focus:ring-2 focus:ring-blue-700 ${selectedCellKeys.has(tableCellKey(step.id, 'note')) ? 'ring-2 ring-blue-500 ring-inset' : ''}`}
                       />
                     ) : step.note || '—'}
                   </td>
-                  {isEditMode && (
-                    <td className="px-2 py-1 text-center">
+                  <td className={`px-1 py-0.5 text-center ${rowMarkerBackground}`}>
+                    <div className="flex items-center justify-center gap-0.5">
                       <button
                         type="button"
-                        onClick={() => onDeleteRoutingSteps([step.id])}
+                        disabled={!isEditMode}
+                        onClick={() => handleDeleteRow(step.id)}
                         aria-label={`Delete Routing row ${rowNumber}`}
-                        className="inline-flex h-9 w-9 items-center justify-center text-slate-600 hover:bg-rose-50 hover:text-rose-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700"
-                        title="Delete row"
+                        className="inline-flex h-8 w-8 items-center justify-center text-slate-600 hover:bg-rose-50 hover:text-rose-700 disabled:cursor-not-allowed disabled:opacity-30 focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-700"
+                        title={isEditMode ? (selectedIds.has(step.id) && selectedIds.size > 1 ? `Delete ${selectedIds.size} selected rows` : 'Delete row') : 'Switch to Edit to delete rows'}
                       >
-                        <Trash2 className="h-3 w-3" aria-hidden="true" />
+                        <Trash2 className="h-3.5 w-3.5" aria-hidden="true" />
                       </button>
-                    </td>
-                  )}
-                  {isEditMode && (
-                    <td className={`w-8 px-1 py-0.5 text-center ${rowMarkerBackground}`}>
                       <button
                         type="button"
-                        draggable
+                        disabled={!isEditMode}
+                        draggable={isEditMode}
                         onDragStart={event => handleDragStart(event, step.id)}
-                        aria-label={`Drag to reorder Routing row ${rowNumber}`}
-                        title="Drag to reorder"
-                        className="inline-flex h-8 w-7 cursor-grab items-center justify-center text-slate-500 hover:bg-slate-200 active:cursor-grabbing"
+                        aria-label={`Reorder Routing row ${rowNumber}`}
+                        title={isEditMode ? 'Drag to reorder' : 'Reordering is available in Edit'}
+                        className={`inline-flex h-8 w-7 cursor-grab items-center justify-center ${isSelected ? 'text-slate-700' : 'text-slate-400'} hover:bg-slate-200 hover:text-slate-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-700 active:cursor-grabbing disabled:cursor-not-allowed disabled:opacity-30 group-hover:text-slate-600 group-focus-within:text-slate-700`}
                       >
                         <GripVertical className="h-4 w-4" aria-hidden="true" />
                       </button>
-                    </td>
-                  )}
+                    </div>
+                  </td>
                 </tr>
               )
             })}
             {filteredRouting.length === 0 && (
               <tr>
-                <td colSpan={isEditMode ? 9 : 7} className="py-6 text-center font-sans text-slate-500">
-                  <div className="flex flex-col items-center justify-center gap-2">
-                    <p className="text-xs italic text-slate-500">{routing.length === 0 ? 'No Routing rows in this dataset yet.' : 'No rows match your search.'}</p>
-                    {isEditMode && routing.length === 0 && (
-                      <button type="button" onClick={onAddRoutingStep} className="mt-1 flex min-h-9 items-center gap-1.5 border border-slate-300 bg-white px-3 text-sm font-medium text-slate-800 hover:bg-slate-100">
-                        <Plus className="h-3.5 w-3.5 text-slate-600" aria-hidden="true" /> Add first row
-                      </button>
-                    )}
-                  </div>
+                <td colSpan={8} className="p-0 text-center font-sans text-slate-500">
+                  {routing.length === 0 && isEditMode ? (
+                    <button type="button" onClick={onAddRoutingStep} className="min-h-10 w-full px-3 text-xs text-slate-500 hover:bg-slate-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-700">Click to add first row</button>
+                  ) : (
+                    <div role="status" className="min-h-10 px-3 py-3 text-xs text-slate-500">{routing.length === 0 ? 'No rows yet.' : 'No rows match your search.'}</div>
+                  )}
                 </td>
               </tr>
             )}
           </tbody>
         </table>
       </div>
-      {query && (
-        <div role="status" className="border-t border-slate-200 bg-slate-50 px-4 py-2 text-xs text-slate-600">
-          Showing {filteredRouting.length} of {routing.length} rows.
-        </div>
-      )}
+      <MasterDataTableFooter rowCount={routing.length} selectedCount={selectedIds.size} warningCount={warningCount} blockerCount={blockerItems.length} />
     </section>
   )
 }

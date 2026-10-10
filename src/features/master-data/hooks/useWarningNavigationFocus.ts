@@ -32,10 +32,6 @@ export function useWarningNavigationFocus(
       focusTarget.scrollIntoView({ block: 'center', behavior: 'smooth' })
       selectRow(target.rowId)
       focusTarget.focus({ preventScroll: true })
-      row.classList.add('outline', 'outline-2', 'outline-amber-500', 'outline-offset-[-2px]')
-      setTimeout(() => {
-        row.classList.remove('outline', 'outline-2', 'outline-amber-500', 'outline-offset-[-2px]')
-      }, 1800)
       onNavigationHandled(target.requestId)
     })
 
