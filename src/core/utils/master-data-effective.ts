@@ -7,7 +7,11 @@ type IdentityRow = {
 }
 
 function normalized(value: string): string {
-  return value.trim().toLocaleLowerCase()
+  return normalizeProductIdentityValue(value)
+}
+
+export function normalizeProductIdentityValue(value: string | null | undefined): string {
+  return (value ?? '').trim().toLocaleLowerCase()
 }
 
 function fieldValue(row: IdentityRow, field: string): unknown {
@@ -123,8 +127,8 @@ export function isProductIdentityMismatch(
   reference: { productName?: string | null; uom?: string | null },
   current: { productName?: string | null; uom?: string | null }
 ): boolean {
-  return normalized(reference.productName ?? '') !== normalized(current.productName ?? '')
-    || normalized(reference.uom ?? '') !== normalized(current.uom ?? '')
+  return normalizeProductIdentityValue(reference.productName) !== normalizeProductIdentityValue(current.productName)
+    || normalizeProductIdentityValue(reference.uom) !== normalizeProductIdentityValue(current.uom)
 }
 
 export function isProductMismatch(reference: CostSnapshot, current: CostSnapshot): boolean {

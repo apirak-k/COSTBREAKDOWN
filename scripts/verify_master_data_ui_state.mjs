@@ -218,7 +218,7 @@ try {
   assert.match(footerMarkup, /id="footer-dataset-status-tooltip" role="tooltip"[\s\S]*Reference[\s\S]*Ready[\s\S]*Current[\s\S]*Ready/, 'dataset status tooltip shows only Reference and Current readiness without a heading')
   assert.doesNotMatch(footerMarkup.match(/id="footer-dataset-status-tooltip"[\s\S]*?<\/span>/)?.[0] ?? '', /Custom/, 'dataset readiness tooltip omits Custom')
   assert.match(footerMarkup, /Product Mismatch/, 'Footer renders the existing Product Mismatch status independently')
-  assert.match(footerMarkup, /rounded-full bg-amber-400"><\/span>Product Mismatch/, 'Footer Product Mismatch has an amber dot')
+  assert.match(footerMarkup, /class="inline-flex min-h-7 cursor-default select-none items-center gap-1\.5 whitespace-nowrap rounded-sm font-semibold[^\"]*text-orange-300"><span aria-hidden="true" class="h-1\.5 w-1\.5 rounded-full bg-orange-400"><\/span>Product Mismatch/, 'Footer Product Mismatch uses orange text and dot')
   assert.match(footerMarkup, /footer-product-status-tooltip[\s\S]*Reference[\s\S]*Master Data UI fixture \(PC\)[\s\S]*Current[\s\S]*Master Data UI fixture \(PC\)/, 'Product tooltip names both datasets and their Product Name/UOM without defaults or a heading')
   const footerProductStatus = footerMarkup.slice(footerMarkup.indexOf('aria-label="Product Mismatch"') - 40, footerMarkup.indexOf('aria-label="Product Mismatch"') + 180)
   assert.doesNotMatch(footerProductStatus, /<button|onClick/, 'Footer Product status is informational and not clickable')
@@ -227,7 +227,30 @@ try {
   assert.doesNotMatch(footerMarkup.match(/id="footer-warning-tooltip"[\s\S]*?<\/span>/)?.[0] ?? '', /Generated identity|Auto-renamed duplicate/, 'Footer warning tooltip omits zero-count categories')
   assert.ok(footerMarkup.indexOf('REF STD') < footerMarkup.indexOf('CUR STD')
     && footerMarkup.indexOf('CUR STD') < footerMarkup.indexOf('NET GAP'), 'Footer cost summary orders Reference, Current, then Net Gap')
-  assert.match(footerMarkup, /REF STD<\/span>120[\s\S]*CUR STD<\/span>125\.5[\s\S]*NET GAP<\/span><span class="font-semibold text-rose-300">\+5\.5/, 'Footer displays compact snapshot costs and full positive Net Gap even with Selected Comparison active')
+  assert.match(footerMarkup, /REF STD<\/span>120[\s\S]*CUR STD<\/span>125\.5[\s\S]*NET GAP<\/span><span class="font-semibold text-rose-300">\+5\.5<\/span><\/span><span class="font-sans text-slate-500">\(THB\/PC\)<\/span>/, 'Footer displays full Net Gap and the shared Reference/Current UOM with no separator')
+  assert.match(footerMarkup, /Full Reference and Current standard costs and net gap in THB\/PC/, 'Footer cost summary exposes the displayed unit to assistive technology')
+  const matchingUomFooter = await renderAppLayout({
+    snapshotPair: {
+      reference: { ...fixtureSnapshot('reference'), product: { ...fixtureProduct, uom: ' kg ' } },
+      current: { ...fixtureSnapshot('current'), product: { ...fixtureProduct, uom: 'KG' } }
+    }
+  })
+  const normalizedUomFooter = matchingUomFooter.slice(matchingUomFooter.indexOf('<footer'))
+  assert.match(normalizedUomFooter, /\(THB\/kg\)/, 'matching UOM values are trimmed and compared case-insensitively while displaying Reference spelling')
+  const differentUomFooter = await renderAppLayout({
+    snapshotPair: {
+      reference: { ...fixtureSnapshot('reference'), product: { ...fixtureProduct, uom: 'kg' } },
+      current: { ...fixtureSnapshot('current'), product: { ...fixtureProduct, uom: 'PC' } }
+    }
+  })
+  assert.match(differentUomFooter, /\(THB\/Unit\)/, 'different Reference and Current UOM values use the neutral Unit label')
+  const blankUomFooter = await renderAppLayout({
+    snapshotPair: {
+      reference: { ...fixtureSnapshot('reference'), product: { ...fixtureProduct, uom: ' ' } },
+      current: { ...fixtureSnapshot('current'), product: { ...fixtureProduct, uom: 'PC' } }
+    }
+  })
+  assert.match(blankUomFooter, /\(THB\/Unit\)/, 'a blank Reference or Current UOM uses the neutral Unit label')
   assert.doesNotMatch(footerMarkup, /SELECTED GAP|-999/, 'Selected Comparison values never leak into the global Footer')
 
   const referenceMissingSnapshot = {
@@ -408,6 +431,8 @@ try {
   const pageSource = readFileSync(resolve(process.cwd(), 'src/features/master-data/MasterDataPage.tsx'), 'utf8')
   const warningFocusSource = readFileSync(resolve(process.cwd(), 'src/features/master-data/hooks/useWarningNavigationFocus.ts'), 'utf8')
   const footerSource = readFileSync(resolve(process.cwd(), 'src/shared/layout/AppLayout.tsx'), 'utf8')
+  assert.match(footerSource, /gap-x-3 gap-y-1 font-mono tabular-nums[\s\S]*NET GAP[\s\S]*\(THB\/\{costUnit\}\)/, 'the muted Footer unit is a separate item with 12px spacing and no pipe separator')
+  assert.match(footerSource, /normalizeProductIdentityValue\(referenceUom\) === normalizeProductIdentityValue\(currentUom\)[\s\S]*\? referenceUom[\s\S]*: 'Unit'/, 'Footer unit uses normalized shared UOM or the neutral Unit fallback')
   const globalCssSource = readFileSync(resolve(process.cwd(), 'src/index.css'), 'utf8')
   const navbarSource = readFileSync(resolve(process.cwd(), 'src/shared/layout/Navbar.tsx'), 'utf8')
   const appSource = readFileSync(resolve(process.cwd(), 'src/App.tsx'), 'utf8')
@@ -470,16 +495,18 @@ try {
   assert.match(escapeHandler, /event\.key === 'Escape'[\s\S]*onPrepareDatasetOpenChange\(false\)[\s\S]*document\.getElementById\('header-prepare-dataset-trigger'\)\?\.focus\(\)/, 'Escape closes the panel and restores focus to Header Info')
   assert.match(headerSource, /addEventListener\('pointerdown'/, 'the popover listens for outside pointer clicks')
   assert.match(navbarSource, /aria-expanded=\{masterDataPrepareDatasetOpen\}/, 'Header Info exposes the live popover expanded state')
-  assert.match(headerSource, /state === 'Saved' \? 'bg-emerald-400' : 'bg-slate-400'/, 'save dots encode Saved green and unsaved states gray')
+  assert.match(headerSource, /datasetSaveStateDotClass\(state\)/, 'dataset selector save dots use the shared state style')
+  assert.match(headerSource, /datasetSaveStateDotClass\(saveState\)/, 'Prepare Dataset save dots use the same shared state style')
+  assert.match(headerSource, /datasetSaveStateDotClass = \(state: MasterDataSaveState\) =>[\s\S]*ring-1 ring-inset ring-slate-500\/60[\s\S]*state === 'Saved' \? 'bg-emerald-500' : 'bg-slate-400'/, 'Saved and Draft dots share a small outlined green/gray treatment')
   assert.match(headerSource, /aria-label=\{`\$\{roleLabels\[datasetRole\]\} — \$\{state\}`\}/, 'dataset save state is accessible independently from active styling')
-  assert.match(headerSource, /\{roleLabels\[datasetRole\]\}[\s\S]*bg-emerald-400/, 'active selection and save-state dot use separate styles')
+  assert.match(headerSource, /\{roleLabels\[datasetRole\]\}[\s\S]*datasetSaveStateDotClass\(state\)/, 'active selection and save-state dot use separate styles')
   assert.doesNotMatch(headerSource, /prepareRegionRef|prepareTriggerRef/, 'the toolbar does not own a local Prepare Dataset trigger or anchor')
   assert.doesNotMatch(headerSource, /Prepared|Needs input/, 'Prepare Dataset dataset summaries do not show readiness labels')
   assert.match(headerSource, /datasetWarningCounts\[datasetRole\][\s\S]*>\s*\{datasetWarningCount\}/, 'each dataset summary shows its independent warning count')
   const datasetRowSource = headerSource.slice(headerSource.indexOf('const rowContents = ('), headerSource.indexOf('const rowClassName ='))
   assert.match(datasetRowSource, /<span className="min-w-0 truncate pl-3[^\"]*">\{roleLabels\[datasetRole\]\}<\/span>/, 'dataset child label alone is indented by 12px')
   assert.match(headerSource, /rowClassName = `grid h-8 w-full \$\{datasetSummaryColumns\}/, 'dataset indentation leaves shared icon and count tracks aligned')
-  assert.match(headerSource, /<AlertTriangle className=\{`h-3 w-3 \$\{datasetWarningCount > 0 \? 'text-amber-800' : 'text-slate-400'\}`\}/, 'dataset rows reserve one warning-icon column and mute the icon when count is zero')
+  assert.match(headerSource, /<AlertTriangle className=\{`h-3 w-3 translate-x-2 \$\{datasetWarningCount > 0 \? 'text-amber-800' : 'text-slate-400'\}`\}/, 'dataset rows reserve one warning-icon column and mute the icon when count is zero')
   assert.match(headerSource, /datasetSummaryColumns = 'grid-cols-\[minmax\(0,1fr\)_5rem_1\.25rem_2rem_1\.5rem\]'/, 'dataset summary tracks align dataset, save state, warning icon, count, and reserved affordance')
   assert.match(headerSource, /comparisonStatus = handoff\.productMismatch \? 'Mismatch' : 'Match'/, 'Match or Mismatch is derived from the comparison status')
   assert.doesNotMatch(headerSource, /\(\{comparisonStatus\}\)/, 'Match or Mismatch is not presented in parentheses')
@@ -492,9 +519,10 @@ try {
   assert.doesNotMatch(prepareTopRow, /Chevron/, 'top status summary does not show a Product status chevron')
   assert.match(prepareTopRow, /datasetsReady \? 'bg-blue-600' : 'bg-rose-500'/, 'readiness includes a blue Ready dot and a muted rose Incomplete dot')
   assert.match(prepareTopRow, /datasetsReady \? 'text-blue-700' : 'text-rose-700'/, 'readiness text is blue for Ready and muted rose for Incomplete')
-  assert.match(prepareTopRow, /handoff\.productMismatch \? 'bg-amber-500' : 'bg-emerald-600'/, 'Product Match/Mismatch includes its semantic status dot')
+  assert.match(prepareTopRow, /handoff\.productMismatch \? 'bg-orange-500' : 'bg-emerald-600'/, 'Product Mismatch uses orange while Product Match remains green')
+  assert.match(prepareProductStatus, /handoff\.productMismatch \? 'text-orange-700' : 'text-emerald-700'/, 'Prepare Dataset Product Mismatch text uses orange')
   assert.doesNotMatch(headerSource, /comparisonProducts|prepare-dataset-identity-details/, 'Prepare Dataset does not retain the superseded Product mini-popover')
-  assert.match(headerSource, /max-h-\[min\(30rem,calc\(100dvh-6rem\)\)\] w-\[min\(21rem,calc\(100vw-2rem\)\)\][\s\S]*overflow-hidden/, 'the popover width is compact and its maximum height is viewport-clamped')
+  assert.match(headerSource, /max-h-\[min\(30rem,calc\(100dvh-6rem\)\)\] w-\[min\(20rem,calc\(100vw-2rem\)\)\][\s\S]*overflow-hidden/, 'the popover is 20rem wide on desktop and viewport-clamped')
   assert.match(headerSource, /const availableHeight = Math\.floor\(mainBottom - triggerBottom - 8\)[\s\S]*Math\.min\(480, availableHeight\)/, 'smaller viewports clamp the panel to the remaining visible Main area')
   assert.match(headerSource, /maxHeight: `\$\{prepareDatasetMaxHeight\}px`[\s\S]*hasExpandedWarningCategory \? \{ height: `\$\{prepareDatasetMaxHeight\}px` \} : \{\}/, 'collapsed popover height follows content while expanded warnings use available height')
   assert.match(headerSource, /const datasetSummaryColumns = 'grid-cols-\[minmax\(0,1fr\)_5rem_1\.25rem_2rem_1\.5rem\]'/, 'dataset summary tracks align label, save state, warning icon, count, and reserved affordance')
@@ -553,11 +581,12 @@ try {
   assert.match(prepareDatasetSource, /if \(row\.confidence\?\.\[field\]\?\.quality === 'invalid'\) return/, 'invalid legacy values do not become Missing required value warnings')
   assert.doesNotMatch(prepareDatasetSource, /invalid-value|unresolved-work-center|Invalid value|Unresolved Work Center/, 'invalid and unresolved values are not Prepare Dataset categories')
   assert.match(prepareDatasetSource, /if \(!workCenterId\)[\s\S]*'missing-value'/, 'blank Routing Work Center is Missing required value')
-  const warningsHeadingStart = headerSource.indexOf('<div className={`mb-1 grid h-7 shrink-0 ${warningCategoryColumns}')
+  const warningsHeadingStart = headerSource.lastIndexOf('{warningRoleFilter ? (', headerSource.indexOf('<h3 id="prepare-dataset-warning-heading"'))
   const warningsHeadingSource = headerSource.slice(warningsHeadingStart, headerSource.indexOf('<ul aria-label="Warning categories"', warningsHeadingStart))
   assert.doesNotMatch(warningsHeadingSource, /AlertTriangle|<AlertTriangle/, 'Warnings heading has no warning icon')
-  assert.match(warningsHeadingSource, /warningCategoryColumns[\s\S]*<h3[^>]*className="col-span-3[\s\S]*All[\s\S]*<span className="h-6 w-6" aria-hidden="true" \/>/, 'Warnings heading keeps All in the shared count column and reserves the chevron column blank')
-  assert.match(warningsHeadingSource, /warningRoleFilter \? \([\s\S]*<button[\s\S]*aria-label="Show all warning items"[\s\S]*setWarningRoleFilter\(null\)[\s\S]*>\s*All\s*<\/button>\s*\) : \([\s\S]*<span aria-label="Showing all warning items"[^>]*>All<\/span>/, 'All stays visible, is actionable only when filtered, and otherwise is display-only')
+  assert.match(warningsHeadingSource, /warningCategoryColumns[\s\S]*<h3[^>]*className="col-span-3[\s\S]*All[\s\S]*<span className="h-6 w-6" aria-hidden="true" \/>/, 'All-mode Warnings heading keeps All in the shared count column and reserves the chevron column blank')
+  assert.match(warningsHeadingSource, /warningRoleFilter \? \([\s\S]*<button[\s\S]*aria-label=\{`Show all warning items, \$\{visibleWarningCount\} currently shown`\}[\s\S]*setWarningRoleFilter\(null\)[\s\S]*setExpandedWarningCategory\(null\)[\s\S]*>\s*\{warningHeadingLabel\}[\s\S]*>All<\/span>[\s\S]*\) : \([\s\S]*<span aria-label="Showing all warning items"[^>]*>All<\/span>/, 'the entire filtered Warnings row resets to All and collapses open categories; All mode stays static')
+  assert.match(warningsHeadingSource, /mb-1 grid h-7 w-full shrink-0[\s\S]*hover:bg-slate-50 focus-visible:outline/, 'the filtered Warnings row itself is the full-width pointer and keyboard target')
   assert.doesNotMatch(warningsHeadingSource, /Chevron/, 'the All control does not use a chevron affordance')
   assert.match(headerSource, /max-h-36 flex-1 overflow-y-auto overscroll-contain/, 'only the expanded warning item list scrolls, bounded to 144px')
   assert.doesNotMatch(headerSource.match(/<ul aria-label="Warning categories"[^>]*className="([^"]+)"/)?.[1] ?? '', /overflow-y-auto/, 'collapsed category rows do not reserve a scroll viewport')
@@ -566,7 +595,8 @@ try {
   const mockActionPosition = headerSource.indexOf('{mockAction &&')
   assert.ok(mockActionPosition > headerSource.lastIndexOf('</ul>', mockActionPosition), 'mock actions stay in a fixed footer outside the warning scroller')
   assert.match(headerSource, /className="mt-auto shrink-0 border-t border-slate-200 pt-2"/, 'mock actions remain at the fixed bottom row when warnings are collapsed')
-  assert.match(headerSource, /<AlertTriangle className=\{`h-3 w-3 \$\{datasetWarningCount > 0 \? 'text-amber-800' : 'text-slate-400'\}`\}[\s\S]*datasetWarningCount > 0 \? 'text-amber-800' : 'text-slate-400'/, 'warning icon and count remain in separate aligned tracks, with zero shown in gray')
+  assert.match(headerSource, /<span className="flex h-7 w-5 justify-end" aria-hidden="true">[\s\S]*<AlertTriangle className=\{`h-3 w-3 translate-x-2 \$\{datasetWarningCount > 0 \? 'text-amber-800' : 'text-slate-400'\}`\}/, 'warning icon is pulled toward the count while remaining in its separate fixed track')
+  assert.match(headerSource, /<AlertTriangle className=\{`h-3 w-3 translate-x-2 \$\{datasetWarningCount > 0 \? 'text-amber-800' : 'text-slate-400'\}`\}[\s\S]*datasetWarningCount > 0 \? 'text-amber-800' : 'text-slate-400'/, 'warning icon and count remain in separate aligned tracks, with zero shown in gray')
   assert.match(headerSource, /setWarningRoleFilter\(datasetRole\)[\s\S]*setWarningRoleFilter\(null\)/, 'dataset warning counts filter categories and the filtered All control clears the filter')
   assert.match(headerSource, /setExpandedWarningCategory\(expanded \? null : group\.category\)/, 'multiple warning locations expand progressively')
   assert.match(pageSource, /setMasterDataRole\(item\.role\)[\s\S]*tableView: item\.table/, 'warning navigation selects the affected dataset and table')
@@ -589,8 +619,9 @@ try {
   assert.match(footerSource, /id="footer-warning-tooltip"[\s\S]*warningBreakdown\.map/, 'Footer warning tooltip lists the filtered warning breakdown without a heading or total')
   assert.doesNotMatch(footerSource.slice(footerSource.indexOf('id="footer-warning-tooltip"'), footerSource.indexOf('aria-label={`Open Prepare Dataset showing')), /title=|Warnings|warningCount/, 'Footer warning tooltip contains only the non-zero warning categories')
   assert.match(footerSource, /id="footer-warning-tooltip"[\s\S]*align="right"/, 'Footer warning tooltip aligns to the right edge')
-  assert.match(footerSource, /masterDataHandoff\.productMismatch \? 'bg-amber-400' : 'bg-emerald-400'/, 'Footer Product Match/Mismatch uses an amber/green dot')
-  assert.match(footerSource, /masterDataHandoff\.productMismatch \? 'text-amber-300' : 'text-emerald-300'/, 'Footer Product Match/Mismatch uses semibold semantic text color without hover affordance')
+  assert.match(footerSource, /masterDataHandoff\.productMismatch \? 'bg-orange-400' : 'bg-emerald-400'/, 'Footer Product Match/Mismatch uses an orange/green dot')
+  assert.match(footerSource, /masterDataHandoff\.productMismatch \? 'text-orange-300' : 'text-emerald-300'/, 'Footer Product Match/Mismatch uses orange/green semantic text without hover affordance')
+  assert.match(footerSource, /warningCount > 0 \? 'text-amber-300 hover:text-amber-200' : 'text-slate-400 hover:text-slate-300'/, 'Footer warning color remains amber and visually distinct from orange Product Mismatch')
   assert.doesNotMatch(footerSource.slice(footerSource.indexOf('footer-product-status-tooltip'), footerSource.indexOf('footer-warning-tooltip')), /Chevron|ChevronRight|ChevronDown/, 'Footer Product tooltip has no chevron')
   assert.match(footerSource, /onClick=\{\(\) => requestMasterDataPrepareDataset\('all-warnings'\)\}[\s\S]*\{warningCount\}/, 'footer warning count opens Prepare Dataset with all warning roles')
   assert.match(footerSource, /aria-label=\{`Open Prepare Dataset showing all \$\{warningCount\} warnings`\}/, 'footer warning count has an accessible action label')

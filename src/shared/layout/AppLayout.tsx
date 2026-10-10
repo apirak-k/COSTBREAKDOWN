@@ -2,6 +2,7 @@ import React, { ReactNode, useCallback, useEffect, useRef, useState } from 'reac
 import { Navbar } from './Navbar'
 import { useAppStore } from '../../state'
 import { formatNumber } from '../../core'
+import { normalizeProductIdentityValue } from '../../core/utils/master-data-effective'
 import { AlertTriangle } from 'lucide-react'
 import {
   areMasterDataDatasetsReady,
@@ -152,6 +153,12 @@ export const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
   const hasNetGap = totalGap !== null && Number.isFinite(totalGap)
   const formatCost = (value: number | null) => value === null || !Number.isFinite(value) ? '—' : formatNumber(value, 4)
   const formattedGap = hasNetGap ? `${totalGap > 0 ? '+' : ''}${formatNumber(totalGap, 4)}` : '—'
+  const referenceUom = snapshotPair.reference.product.uom?.trim() ?? ''
+  const currentUom = snapshotPair.current.product.uom?.trim() ?? ''
+  const costUnit = referenceUom && currentUom
+    && normalizeProductIdentityValue(referenceUom) === normalizeProductIdentityValue(currentUom)
+    ? referenceUom
+    : 'Unit'
   const gapTextClass = !hasNetGap
     ? 'text-slate-500'
     : totalGap > 0
@@ -232,9 +239,9 @@ export const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
                 tabIndex={0}
                 aria-describedby="footer-product-status-tooltip"
                 aria-label={`Product ${masterDataHandoff.productMismatch ? 'Mismatch' : 'Match'}`}
-                className={`inline-flex min-h-7 cursor-default select-none items-center gap-1.5 whitespace-nowrap rounded-sm font-semibold focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-300 ${masterDataHandoff.productMismatch ? 'text-amber-300' : 'text-emerald-300'}`}
+                className={`inline-flex min-h-7 cursor-default select-none items-center gap-1.5 whitespace-nowrap rounded-sm font-semibold focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-300 ${masterDataHandoff.productMismatch ? 'text-orange-300' : 'text-emerald-300'}`}
               >
-                <span aria-hidden="true" className={`h-1.5 w-1.5 rounded-full ${masterDataHandoff.productMismatch ? 'bg-amber-400' : 'bg-emerald-400'}`} />
+                <span aria-hidden="true" className={`h-1.5 w-1.5 rounded-full ${masterDataHandoff.productMismatch ? 'bg-orange-400' : 'bg-emerald-400'}`} />
                 Product {masterDataHandoff.productMismatch ? 'Mismatch' : 'Match'}
               </span>
             </FooterTooltip>
@@ -265,7 +272,7 @@ export const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
               </button>
             </FooterTooltip>
           </div>
-          <div role="group" aria-label="Full Reference and Current standard costs and net gap" className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1 font-mono tabular-nums">
+          <div role="group" aria-label={`Full Reference and Current standard costs and net gap in THB/${costUnit}`} className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1 font-mono tabular-nums">
             <span className="whitespace-nowrap"><span className="mr-1 font-sans font-bold text-slate-300">REF STD</span>{formatCost(referenceStandardCost)}</span>
             <span aria-hidden="true" className="text-slate-700">|</span>
             <span className="whitespace-nowrap"><span className="mr-1 font-sans font-bold text-slate-300">CUR STD</span>{formatCost(currentStandardCost)}</span>
@@ -273,8 +280,8 @@ export const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
             <span className="flex items-center gap-1 whitespace-nowrap">
               <span className="font-sans font-bold text-slate-300">NET GAP</span>
               <span className={`font-semibold ${gapTextClass}`}>{formattedGap}</span>
-              <span className="font-sans text-slate-500">THB/pc</span>
             </span>
+            <span className="font-sans text-slate-500">(THB/{costUnit})</span>
           </div>
         </div>
       </footer>

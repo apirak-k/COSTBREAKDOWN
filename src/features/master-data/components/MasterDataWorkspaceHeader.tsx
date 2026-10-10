@@ -60,6 +60,8 @@ const toolbarButton = 'grid h-8 w-8 shrink-0 place-items-center border border-sl
 const fieldInput = 'mt-1 min-h-9 w-full border-b border-slate-300 bg-transparent px-1 py-1 text-sm text-slate-950 focus:border-blue-700 focus:outline-none'
 const datasetSummaryColumns = 'grid-cols-[minmax(0,1fr)_5rem_1.25rem_2rem_1.5rem]'
 const warningCategoryColumns = datasetSummaryColumns
+const datasetSaveStateDotClass = (state: MasterDataSaveState) =>
+  `h-1.5 w-1.5 shrink-0 rounded-full ring-1 ring-inset ring-slate-500/60 ${state === 'Saved' ? 'bg-emerald-500' : 'bg-slate-400'}`
 const useSafeLayoutEffect = typeof window === 'undefined' ? useEffect : useLayoutEffect
 
 const roleLabels: Record<MasterDataRole, string> = {
@@ -117,6 +119,7 @@ export const MasterDataWorkspaceHeader: React.FC<MasterDataWorkspaceHeaderProps>
     ? datasetWarningCounts[warningRoleFilter]
     : warningCount
   const comparisonStatus = handoff.productMismatch ? 'Mismatch' : 'Match'
+  const warningHeadingLabel = `Warnings${warningRoleFilter ? ` · ${roleLabels[warningRoleFilter]}` : ''} ${visibleWarningCount}`
   const hasExpandedWarningCategory = visibleWarningGroups.some(
     group => group.category === expandedWarningCategory && group.items.length > 0
   )
@@ -224,7 +227,7 @@ export const MasterDataWorkspaceHeader: React.FC<MasterDataWorkspaceHeaderProps>
                   (selected ? 'bg-slate-900 text-white' : 'text-slate-700 hover:bg-slate-100 hover:text-slate-950')}
               >
                 {roleLabels[datasetRole]}
-                <span aria-hidden="true" className={`h-1.5 w-1.5 rounded-full ${state === 'Saved' ? 'bg-emerald-400' : 'bg-slate-400'}`} />
+                <span aria-hidden="true" className={datasetSaveStateDotClass(state)} />
               </button>
             )
           })}
@@ -363,7 +366,7 @@ export const MasterDataWorkspaceHeader: React.FC<MasterDataWorkspaceHeaderProps>
                 maxHeight: `${prepareDatasetMaxHeight}px`,
                 ...(hasExpandedWarningCategory ? { height: `${prepareDatasetMaxHeight}px` } : {})
               }}
-              className="flex max-h-[min(30rem,calc(100dvh-6rem))] w-[min(21rem,calc(100vw-2rem))] min-h-0 select-text flex-col overflow-hidden border border-slate-300 bg-white p-3 text-sm text-slate-800 shadow-lg"
+              className="flex max-h-[min(30rem,calc(100dvh-6rem))] w-[min(20rem,calc(100vw-2rem))] min-h-0 select-text flex-col overflow-hidden border border-slate-300 bg-white p-3 text-sm text-slate-800 shadow-lg"
             >
               <div className="flex min-h-8 shrink-0 items-center gap-3 border-b border-slate-200 pb-1">
                 <h2 id="prepare-dataset-heading" className="shrink-0 text-xs font-semibold text-slate-700">
@@ -379,9 +382,9 @@ export const MasterDataWorkspaceHeader: React.FC<MasterDataWorkspaceHeaderProps>
                 </span>
                 <span
                   aria-label={`Product ${comparisonStatus}`}
-                  className={`inline-flex min-h-7 items-center gap-1.5 whitespace-nowrap text-xs font-medium ${handoff.productMismatch ? 'text-amber-700' : 'text-emerald-700'}`}
+                  className={`inline-flex min-h-7 items-center gap-1.5 whitespace-nowrap text-xs font-medium ${handoff.productMismatch ? 'text-orange-700' : 'text-emerald-700'}`}
                 >
-                    <span aria-hidden="true" className={`h-1.5 w-1.5 rounded-full ${handoff.productMismatch ? 'bg-amber-500' : 'bg-emerald-600'}`} />
+                    <span aria-hidden="true" className={`h-1.5 w-1.5 rounded-full ${handoff.productMismatch ? 'bg-orange-500' : 'bg-emerald-600'}`} />
                     Product {comparisonStatus}
                 </span>
                 <button
@@ -403,11 +406,11 @@ export const MasterDataWorkspaceHeader: React.FC<MasterDataWorkspaceHeaderProps>
                     <>
                       <span className="min-w-0 truncate pl-3 text-[11px] font-semibold text-slate-700">{roleLabels[datasetRole]}</span>
                       <span className="inline-flex min-w-0 items-center gap-1.5 whitespace-nowrap text-xs">
-                        <span aria-hidden="true" className={`h-1.5 w-1.5 shrink-0 rounded-full ${saveState === 'Saved' ? 'bg-emerald-600' : 'bg-slate-400'}`} />
+                        <span aria-hidden="true" className={datasetSaveStateDotClass(saveState)} />
                         <span>{saveState}</span>
                       </span>
-                      <span className="grid h-7 w-5 place-items-center" aria-hidden="true">
-                        <AlertTriangle className={`h-3 w-3 ${datasetWarningCount > 0 ? 'text-amber-800' : 'text-slate-400'}`} />
+                      <span className="flex h-7 w-5 justify-end" aria-hidden="true">
+                        <AlertTriangle className={`h-3 w-3 translate-x-2 ${datasetWarningCount > 0 ? 'text-amber-800' : 'text-slate-400'}`} />
                       </span>
                       <span className={`w-full text-right font-mono text-xs tabular-nums ${datasetWarningCount > 0 ? 'text-amber-800' : 'text-slate-400'}`}>
                         {datasetWarningCount}
@@ -442,28 +445,32 @@ export const MasterDataWorkspaceHeader: React.FC<MasterDataWorkspaceHeaderProps>
               </div>
 
               <div className={`flex min-h-0 ${hasExpandedWarningCategory ? 'flex-1' : 'shrink-0'} flex-col pt-1`}>
-                <div className={`mb-1 grid h-7 shrink-0 ${warningCategoryColumns} items-center gap-2`}>
-                  <h3 id="prepare-dataset-warning-heading" className="col-span-3 min-w-0 truncate text-xs font-semibold text-slate-800">
-                    Warnings{warningRoleFilter ? ` · ${roleLabels[warningRoleFilter]}` : ''} {visibleWarningCount}
-                  </h3>
-                  {warningRoleFilter ? (
-                    <button
-                      type="button"
-                      aria-label="Show all warning items"
-                      title="Show all warning items"
-                      onClick={() => {
-                        setWarningRoleFilter(null)
-                        setExpandedWarningCategory(null)
-                      }}
-                      className="w-full rounded-sm px-1 text-right text-xs font-medium text-slate-600 transition-colors hover:bg-slate-100 hover:text-slate-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-700"
-                    >
-                      All
-                    </button>
-                  ) : (
+                {warningRoleFilter ? (
+                  <button
+                    type="button"
+                    aria-label={`Show all warning items, ${visibleWarningCount} currently shown`}
+                    title="Show all warning items"
+                    onClick={() => {
+                      setWarningRoleFilter(null)
+                      setExpandedWarningCategory(null)
+                    }}
+                    className={`mb-1 grid h-7 w-full shrink-0 ${warningCategoryColumns} items-center gap-2 rounded-sm text-left hover:bg-slate-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-700`}
+                  >
+                    <span id="prepare-dataset-warning-heading" role="heading" aria-level={3} className="col-span-3 min-w-0 truncate text-xs font-semibold text-slate-800">
+                      {warningHeadingLabel}
+                    </span>
+                    <span className="w-full text-right text-xs font-medium text-slate-600">All</span>
+                    <span className="h-6 w-6" aria-hidden="true" />
+                  </button>
+                ) : (
+                  <div className={`mb-1 grid h-7 shrink-0 ${warningCategoryColumns} items-center gap-2`}>
+                    <h3 id="prepare-dataset-warning-heading" className="col-span-3 min-w-0 truncate text-xs font-semibold text-slate-800">
+                      {warningHeadingLabel}
+                    </h3>
                     <span aria-label="Showing all warning items" className="w-full text-right text-xs font-medium text-slate-500">All</span>
-                  )}
-                  <span className="h-6 w-6" aria-hidden="true" />
-                </div>
+                    <span className="h-6 w-6" aria-hidden="true" />
+                  </div>
+                )}
                 <ul aria-label="Warning categories" className={`${hasExpandedWarningCategory ? 'flex min-h-0 flex-1 flex-col' : 'shrink-0'} divide-y divide-slate-100`}>
                   {visibleWarningGroups.map(group => {
                     const expanded = expandedWarningCategory === group.category
