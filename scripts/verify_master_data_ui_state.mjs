@@ -236,7 +236,7 @@ try {
   assert.match(footerMarkup, /footer-dataset-status-tooltip[\s\S]*Reference[\s\S]*lucide-circle-x[\s\S]* 0[\s\S]*Current[\s\S]*lucide-circle-x[\s\S]* 0/, 'Footer readiness tooltip keeps Reference and Current blocker counts separate from warnings')
   assert.ok(footerMarkup.indexOf('REF STD') < footerMarkup.indexOf('CUR STD')
     && footerMarkup.indexOf('CUR STD') < footerMarkup.indexOf('NET GAP'), 'Footer cost summary orders Reference, Current, then Net Gap')
-  assert.match(footerMarkup, /REF STD<\/span>120[\s\S]*CUR STD<\/span>125\.5[\s\S]*NET GAP<\/span><span class="font-semibold text-rose-300">\+5\.5<\/span><\/span><span class="ml-2 max-\[359px\]:basis-full max-\[359px\]:ml-0 max-\[359px\]:text-right cursor-default select-none font-sans font-bold text-slate-300">\(THB\/PC\)<\/span>/, 'Footer shared unit matches the cost-label emphasis and remains 20px away without a separator')
+  assert.match(footerMarkup, /REF STD<\/span>120[\s\S]*CUR STD<\/span>125\.5[\s\S]*NET GAP<\/span><span class="font-semibold text-rose-300">\+5\.5<\/span><\/span><span class="ml-2 max-\[359px\]:basis-full max-\[359px\]:ml-0 max-\[359px\]:text-right cursor-default select-none font-sans font-normal text-slate-400">\(THB\/PC\)<\/span>/, 'Footer unit is normal-weight and muted, remains 20px away without a separator, and preserves narrow wrapping')
   assert.match(footerMarkup, /Full Reference and Current standard costs and net gap in THB\/PC/, 'Footer cost summary exposes the displayed unit to assistive technology')
   const matchingUomFooter = await renderAppLayout({
     snapshotPair: {
@@ -488,7 +488,7 @@ try {
   const masterDataDatasetSource = readFileSync(resolve(process.cwd(), 'src/state/master-data-datasets.ts'), 'utf8')
   const warningFocusSource = readFileSync(resolve(process.cwd(), 'src/features/master-data/hooks/useWarningNavigationFocus.ts'), 'utf8')
   const footerSource = readFileSync(resolve(process.cwd(), 'src/shared/layout/AppLayout.tsx'), 'utf8')
-  assert.match(footerSource, /gap-x-3 gap-y-1 font-mono tabular-nums[\s\S]*NET GAP[\s\S]*<span className="ml-2 max-\[359px\]:basis-full max-\[359px\]:ml-0 max-\[359px\]:text-right cursor-default select-none font-sans font-bold text-slate-300">\(THB\/\{costUnit\}\)<\/span>/, 'the shared Footer unit matches the cost-label emphasis, has 20px separation, then moves below 360px')
+  assert.match(footerSource, /gap-x-3 gap-y-1 font-mono tabular-nums[\s\S]*NET GAP[\s\S]*<span className="ml-2 max-\[359px\]:basis-full max-\[359px\]:ml-0 max-\[359px\]:text-right cursor-default select-none font-sans font-normal text-slate-400">\(THB\/\{costUnit\}\)<\/span>/, 'the shared Footer unit is normal-weight and muted, has 20px separation, then moves below 360px')
   assert.match(footerSource, /Reference and Current dataset structure" className="flex min-w-0 flex-wrap cursor-default select-none/, 'Footer dataset counts use the default cursor and cannot be selected')
   assert.match(footerSource, /Dataset readiness, product comparison, and warnings" className="flex min-w-0 flex-wrap cursor-default select-none/, 'Footer separators and display-only summary use the default cursor')
   assert.match(footerSource, /Full Reference and Current standard costs and net gap in THB\/\$\{costUnit\}`\} className="flex min-w-0 flex-wrap cursor-default select-none/, 'Footer costs and shared unit use the default cursor and cannot be selected')
@@ -653,6 +653,8 @@ try {
   assert.match(headerSource, /warningHeadingLabel[\s\S]*visibleWarningCount[\s\S]*blockerHeadingLabel[\s\S]*visibleBlockerCount/, 'Warning and Blocker headings maintain separate totals')
   const datasetSummarySource = headerSource.slice(headerSource.indexOf('aria-label="Dataset filters, save states, warning counts, and blocker counts"'), headerSource.indexOf('className="flex min-h-0 flex-1 flex-col gap-0.5'))
   assert.match(datasetSummarySource, /aria-pressed=\{isFiltered\}[\s\S]*setDatasetRoleFilter\(current => current === datasetRole \? null : datasetRole\)/, 'one whole dataset row toggles the shared Warning/Blocker filter')
+  assert.match(datasetSummarySource, /setDatasetRoleFilter\(current => current === datasetRole \? null : datasetRole\)\s*setExpandedWarningCategory\(null\)\s*setExpandedBlockerCategory\(null\)/, 'changing or clearing the dataset filter collapses expanded Warning and Blocker categories')
+  assert.match(datasetSummarySource, /const filterAction = isFiltered\s*\? `Clear \$\{roleLabels\[datasetRole\]\} dataset filter`\s*:\s*`Filter warnings and blockers to \$\{roleLabels\[datasetRole\]\}`[\s\S]*aria-label=\{`\$\{filterAction\}: \$\{saveState\}, \$\{datasetWarningCount\} warnings, \$\{datasetBlockerCount\} blockers`\}[\s\S]*title=\{filterAction\}/, 'active dataset row announces that it clears the shared filter, while inactive rows announce filtering')
   assert.equal((datasetSummarySource.match(/<button\b/g) ?? []).length, 1, 'warning and blocker counts are not independent row filter buttons')
   assert.match(datasetSummarySource, /text-slate-600[\s\S]*AlertTriangle[\s\S]*text-amber-700[\s\S]*CircleX[\s\S]*text-rose-700/, 'dataset row counts are neutral while icons retain subtle semantic colors')
   assert.match(issueSectionSource, /aria-pressed=\{!datasetRoleFilter\}[\s\S]*setDatasetRoleFilter\(null\)[\s\S]*All/, 'each section All action resets the shared dataset filter')

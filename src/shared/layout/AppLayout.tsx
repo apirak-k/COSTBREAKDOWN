@@ -290,7 +290,7 @@ export const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
               <span className="font-sans font-bold text-slate-300">NET GAP</span>
               <span className={`font-semibold ${gapTextClass}`}>{formattedGap}</span>
             </span>
-            <span className="ml-2 max-[359px]:basis-full max-[359px]:ml-0 max-[359px]:text-right cursor-default select-none font-sans font-bold text-slate-300">(THB/{costUnit})</span>
+            <span className="ml-2 max-[359px]:basis-full max-[359px]:ml-0 max-[359px]:text-right cursor-default select-none font-sans font-normal text-slate-400">(THB/{costUnit})</span>
           </div>
         </div>
       </footer>

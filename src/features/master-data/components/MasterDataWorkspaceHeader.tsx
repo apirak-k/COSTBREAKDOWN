@@ -573,13 +573,16 @@ export const MasterDataWorkspaceHeader: React.FC<MasterDataWorkspaceHeaderProps>
                   const datasetWarningCount = datasetWarningCounts[datasetRole]
                   const datasetBlockerCount = datasetBlockerCounts[datasetRole]
                   const isFiltered = datasetRoleFilter === datasetRole
+                  const filterAction = isFiltered
+                    ? `Clear ${roleLabels[datasetRole]} dataset filter`
+                    : `Filter warnings and blockers to ${roleLabels[datasetRole]}`
                   return (
                     <button
                       key={datasetRole}
                       type="button"
-                      aria-label={`Filter warnings and blockers to ${roleLabels[datasetRole]}: ${saveState}, ${datasetWarningCount} warnings, ${datasetBlockerCount} blockers`}
+                      aria-label={`${filterAction}: ${saveState}, ${datasetWarningCount} warnings, ${datasetBlockerCount} blockers`}
                       aria-pressed={isFiltered}
-                      title={`Filter warnings and blockers to ${roleLabels[datasetRole]}`}
+                      title={filterAction}
                       onClick={() => {
                         setDatasetRoleFilter(current => current === datasetRole ? null : datasetRole)
                         setExpandedWarningCategory(null)
