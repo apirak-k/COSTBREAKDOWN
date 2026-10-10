@@ -19,7 +19,7 @@ function displayChangeValue(field: string, value: unknown): string {
   if (value === null) return '—'
   if (typeof value === 'string') return value
   if (typeof value === 'number') {
-    return field.trim().toLowerCase() === 'loss' ? formatPercent(value, 1) : formatNumber(value, 4)
+    return field.trim().toLowerCase() === 'loss' ? formatPercent(value, 2) : formatNumber(value, 4)
   }
   if (typeof value === 'boolean') return String(value)
   try {
@@ -112,7 +112,7 @@ export const CandidateRow: React.FC<CandidateRowProps> = ({
                             <p className="font-mono text-[11px] leading-4 text-slate-600">
                               Manning {formatNullable(process.manning, value => formatNumber(value, 2))}
                               {' · '}Capacity {formatNullable(process.capacity, value => formatNumber(value, 2))}
-                              {' · '}Yield {formatNullable(process.yield, value => formatPercent(value, 1))}
+                              {' · '}Yield {formatNullable(process.yield, value => formatPercent(value, 2))}
                             </p>
                             <p className="font-mono text-[11px] leading-4 text-slate-600">
                               Labor {formatNullable(process.laborCost, value => formatNumber(value, 4))}

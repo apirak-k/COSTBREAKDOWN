@@ -229,8 +229,8 @@ export const RoutingDetailedTable: React.FC<RoutingDetailedTableProps> = ({
                 <td className="p-2.5 text-right font-bold text-slate-900 tabular-nums">{formatNullable(current?.manning ?? null, value => formatNumber(value, 1))}</td>
                 <td className="p-2.5 text-right text-slate-500 tabular-nums">{formatNullable(reference?.capacity ?? null, value => formatNumber(value, 0))}</td>
                 <td className="p-2.5 text-right font-bold text-slate-900 tabular-nums">{formatNullable(current?.capacity ?? null, value => formatNumber(value, 0))}</td>
-                <td className="p-2.5 text-right text-slate-500 tabular-nums">{formatNullable(reference?.yield ?? null, value => formatPercent(value, 1))}</td>
-                <td className="p-2.5 text-right font-bold text-slate-900 tabular-nums">{formatNullable(current?.yield ?? null, value => formatPercent(value, 1))}</td>
+                <td className="p-2.5 text-right text-slate-500 tabular-nums">{formatNullable(reference?.yield ?? null, value => formatPercent(value, 2))}</td>
+                <td className="p-2.5 text-right font-bold text-slate-900 tabular-nums">{formatNullable(current?.yield ?? null, value => formatPercent(value, 2))}</td>
                 <td className="p-2.5 text-right text-slate-500 tabular-nums">{formatNullable(row.detail.referenceLaborCost, value => formatNumber(value, 4))}</td>
                 <td className="p-2.5 text-right font-bold text-slate-900 tabular-nums">{formatNullable(row.detail.currentLaborCost, value => formatNumber(value, 4))}</td>
                 <td className={`p-2.5 text-right tabular-nums ${costGapClass(laborGap)}`}>

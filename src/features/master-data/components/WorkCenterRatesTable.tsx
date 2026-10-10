@@ -1,6 +1,6 @@
 import React, { useCallback, useMemo, useRef } from 'react'
 import { CheckSquare, GripVertical, Plus, Trash2 } from 'lucide-react'
-import { SnapshotWorkCenterRate } from '../../../core'
+import { SnapshotWorkCenterRate, formatNumber } from '../../../core'
 import { useDragSelect } from '../hooks/useDragSelect'
 import { SpreadsheetPasteCell, tableCellKey, useTableKeyboardNav } from '../hooks/useTableKeyboardNav'
 import { RowChanges, useSpreadsheetEditing } from '../hooks/useSpreadsheetEditing'
@@ -254,7 +254,7 @@ export const WorkCenterRatesTable: React.FC<WorkCenterRatesTableProps> = ({
                         aria-invalid={laborInvalid}
                         className={`${numericClass(laborInvalid)} w-28 ${selectedCellKeys.has(tableCellKey(rate.id, 'laborRate')) ? 'ring-2 ring-blue-500 ring-inset' : ''}`}
                       />
-                    ) : rate.laborRate === null ? <span className="text-amber-700">—</span> : rate.laborRate.toFixed(4)}
+                    ) : rate.laborRate === null ? <span className="text-amber-700">—</span> : formatNumber(rate.laborRate, 4)}
                   </td>
                   <td className={`px-2 py-0.5 text-right font-mono tabular-nums ${burdenInvalid ? 'bg-amber-50/60 text-amber-900' : ''}`}>
                     {isEditMode ? (
@@ -270,7 +270,7 @@ export const WorkCenterRatesTable: React.FC<WorkCenterRatesTableProps> = ({
                         aria-invalid={burdenInvalid}
                         className={`${numericClass(burdenInvalid)} w-28 ${selectedCellKeys.has(tableCellKey(rate.id, 'burdenRate')) ? 'ring-2 ring-blue-500 ring-inset' : ''}`}
                       />
-                    ) : rate.burdenRate === null ? <span className="text-amber-700">—</span> : rate.burdenRate.toFixed(4)}
+                    ) : rate.burdenRate === null ? <span className="text-amber-700">—</span> : formatNumber(rate.burdenRate, 4)}
                   </td>
                   <td className="px-2 py-0.5 font-sans text-slate-600">
                     {isEditMode ? (

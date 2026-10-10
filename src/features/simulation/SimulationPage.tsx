@@ -52,7 +52,7 @@ function formatParameter(value: number | null, parameter: SimulationParameter): 
   const { displayScale } = PARAMETER_DETAILS[parameter]
   const displayedValue = value * displayScale
   return displayScale === 100
-    ? `${formatNumber(displayedValue, 1)}%`
+    ? `${formatNumber(displayedValue, 2)}%`
     : formatNumber(displayedValue, 4)
 }
 

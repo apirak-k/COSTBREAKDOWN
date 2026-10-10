@@ -230,7 +230,8 @@ scroll area, as required by
   `COSTBREAKDOWN` and safely resolved Product (Unit) context at the left;
   centered Master Data / Cost Breakdown / Candidate / Simulation navigation;
   and Undo, Redo, then an icon-only Info control for Prepare Dataset at the
-  right. Reflow below desktop widths. Do not place Search, workflow status, a
+  right. Give the product name stronger visual weight than its smaller,
+  lighter secondary product context. Reflow below desktop widths. Do not place Search, workflow status, a
   workflow CTA, warning text, or additional navigation in the Header. Undo and
   Redo stay visible but are enabled only on Master Data when the existing
   history allows them. Keep Search local to the Master Data toolbar.
@@ -262,6 +263,10 @@ scroll area, as required by
 - Keep labels adjacent to controls. Use a clear focus ring and a distinct
   invalid-value cue. Keep validation explanation outside dense table rows when
   the spec requires dataset-level notices.
+- Display non-edit numeric values with at most two decimal places and omit
+  unnecessary trailing zeros. Keep calculation and stored input precision
+  unchanged; show non-finite values as unavailable rather than formatting them
+  as zero.
 - Show actual money units next to monetary values. Never style a changed
   Price/Usage/Loss input as a separate monetary contribution unless an
   attribution method is explicitly approved. Changed inputs are explanatory

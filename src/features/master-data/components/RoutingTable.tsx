@@ -1,6 +1,6 @@
 import React, { useCallback, useMemo, useRef } from 'react'
 import { CheckSquare, GripVertical, Plus, Trash2 } from 'lucide-react'
-import { SnapshotRoutingStep, SnapshotWorkCenterRate } from '../../../core'
+import { SnapshotRoutingStep, SnapshotWorkCenterRate, formatPercent } from '../../../core'
 import { useDragSelect } from '../hooks/useDragSelect'
 import { SpreadsheetPasteCell, tableCellKey, useTableKeyboardNav } from '../hooks/useTableKeyboardNav'
 import { RowChanges, useSpreadsheetEditing } from '../hooks/useSpreadsheetEditing'
@@ -325,7 +325,7 @@ export const RoutingTable: React.FC<RoutingTableProps> = ({
                         />
                         <span className="text-slate-400">%</span>
                       </div>
-                    ) : step.yield === null ? <span className="text-amber-700">—</span> : `${(step.yield * 100).toFixed(1)}%`}
+                    ) : step.yield === null ? <span className="text-amber-700">—</span> : formatPercent(step.yield, 2)}
                   </td>
                   <td className="px-2 py-0.5 font-sans text-slate-600">
                     {isEditMode ? (

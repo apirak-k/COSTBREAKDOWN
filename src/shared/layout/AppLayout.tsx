@@ -1,4 +1,4 @@
-import React, { ReactNode, useEffect, useRef, useState } from 'react'
+import React, { ReactNode, useCallback, useEffect, useRef, useState } from 'react'
 import { Navbar } from './Navbar'
 import { useAppStore } from '../../state'
 import { formatNumber } from '../../core'
@@ -11,57 +11,104 @@ import {
 
 interface FooterTooltipProps {
   id: string
-  title: string
   align?: 'left' | 'right'
   children: ReactNode
   content: ReactNode
 }
 
-const FooterTooltip: React.FC<FooterTooltipProps> = ({ id, title, align = 'left', children, content }) => {
-  const [dismissed, setDismissed] = useState(false)
+const FooterTooltip: React.FC<FooterTooltipProps> = ({ id, align = 'left', children, content }) => {
+  const [visible, setVisible] = useState(false)
   const [position, setPosition] = useState<{ left: number; top: number } | null>(null)
   const wrapperRef = useRef<HTMLSpanElement>(null)
-  const positionTooltip = () => {
+  const hoverTimerRef = useRef<number | null>(null)
+  const hoveredRef = useRef(false)
+  const focusedRef = useRef(false)
+  const clearHoverTimer = useCallback(() => {
+    if (hoverTimerRef.current !== null) window.clearTimeout(hoverTimerRef.current)
+    hoverTimerRef.current = null
+  }, [])
+  const positionTooltip = useCallback(() => {
     const wrapperElement = wrapperRef.current
     if (!wrapperElement) return
     const wrapper = wrapperElement.getBoundingClientRect()
     const tooltipElement = wrapperElement.querySelector<HTMLElement>('[role="tooltip"]')
     if (!tooltipElement) return
     const previousDisplay = tooltipElement.style.display
+    const previousVisibility = tooltipElement.style.visibility
     tooltipElement.style.display = 'block'
+    tooltipElement.style.visibility = 'hidden'
     const tooltipRect = tooltipElement.getBoundingClientRect()
     tooltipElement.style.display = previousDisplay
+    tooltipElement.style.visibility = previousVisibility
     const tooltipWidth = tooltipRect.width || Math.min(256, window.innerWidth - 16)
     const tooltipHeight = tooltipRect.height
     const preferredLeft = align === 'right' ? wrapper.right - tooltipWidth : wrapper.left
     const left = Math.max(8, Math.min(preferredLeft, window.innerWidth - tooltipWidth - 8))
     const footerTop = wrapperElement.closest('footer')?.getBoundingClientRect().top ?? wrapper.top
     setPosition({ left, top: Math.max(8, footerTop - tooltipHeight - 8) })
-  }
+  }, [align])
 
   useEffect(() => {
-    window.addEventListener('resize', positionTooltip)
-    return () => window.removeEventListener('resize', positionTooltip)
-  }, [align])
+    if (visible) window.addEventListener('resize', positionTooltip)
+    return () => {
+      window.removeEventListener('resize', positionTooltip)
+      clearHoverTimer()
+    }
+  }, [clearHoverTimer, positionTooltip, visible])
+
+  const handlePointerEnter = () => {
+    hoveredRef.current = true
+    clearHoverTimer()
+    hoverTimerRef.current = window.setTimeout(() => {
+      positionTooltip()
+      setVisible(true)
+    }, 275)
+  }
+  const handlePointerLeave = () => {
+    hoveredRef.current = false
+    clearHoverTimer()
+    if (!focusedRef.current) setVisible(false)
+  }
+  const handleFocus = () => {
+    focusedRef.current = true
+    clearHoverTimer()
+    positionTooltip()
+    setVisible(true)
+  }
+  const handleBlur = (event: React.FocusEvent<HTMLSpanElement>) => {
+    if (event.relatedTarget instanceof Node && event.currentTarget.contains(event.relatedTarget)) return
+    focusedRef.current = false
+    if (hoveredRef.current) return
+    clearHoverTimer()
+    setVisible(false)
+  }
+  const handleKeyDown = (event: React.KeyboardEvent<HTMLSpanElement>) => {
+    if (event.key === 'Escape') {
+      clearHoverTimer()
+      focusedRef.current = false
+      setVisible(false)
+    }
+  }
+
+  if (content === null || content === undefined) return <>{children}</>
 
   return (
     <span
       ref={wrapperRef}
       className="group relative inline-flex"
-      onPointerEnter={() => { setDismissed(false); positionTooltip() }}
-      onFocusCapture={() => { setDismissed(false); positionTooltip() }}
-      onKeyDown={event => {
-        if (event.key === 'Escape') setDismissed(true)
-      }}
+      onPointerEnter={handlePointerEnter}
+      onPointerLeave={handlePointerLeave}
+      onFocusCapture={handleFocus}
+      onBlurCapture={handleBlur}
+      onKeyDown={handleKeyDown}
     >
       {children}
       <span
         id={id}
         role="tooltip"
         style={position === null ? undefined : { left: `${position.left}px`, top: `${position.top}px` }}
-        className={`pointer-events-none fixed z-50 hidden w-64 max-w-[calc(100vw-1rem)] border border-slate-300 bg-white p-2 text-xs leading-4 text-slate-800 shadow-md ${dismissed ? '' : 'group-hover:block group-focus-within:block'}`}
+        className={`pointer-events-none fixed z-50 ${visible ? 'block' : 'hidden'} w-max max-w-[min(17.5rem,calc(100vw-1rem))] border border-slate-300 bg-white p-2 text-xs leading-4 text-slate-800 shadow-md`}
       >
-        <span className="mb-1 block font-semibold text-slate-900">{title}</span>
         {content}
       </span>
     </span>
@@ -112,12 +159,7 @@ export const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
       : totalGap < 0
       ? 'text-emerald-300'
       : 'text-slate-300'
-  const productMetadata = (name?: string, uom?: string) => (
-    <span className="min-w-0">
-      <span className="block break-words"><span className="text-slate-500">Product Name</span> {name?.trim() || '—'}</span>
-      <span className="block"><span className="text-slate-500">UOM</span> {uom?.trim() || '—'}</span>
-    </span>
-  )
+  const productIdentity = (name?: string, uom?: string) => `${name?.trim() || '—'} (${uom?.trim() || '—'})`
 
   return (
     <div className="flex h-dvh min-h-0 w-full flex-col overflow-hidden bg-slate-100/70 font-sans text-[13px] text-slate-900 antialiased">
@@ -151,13 +193,12 @@ export const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
           <div role="group" aria-label="Dataset readiness, product comparison, and warnings" className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1">
             <FooterTooltip
               id="footer-dataset-status-tooltip"
-              title="Dataset status"
               content={(
                 <span className="grid grid-cols-[minmax(0,1fr)_auto] gap-x-3 gap-y-1">
                   {datasetReadiness.map(({ label, ready }) => (
                     <React.Fragment key={label}>
                       <span>{label}</span>
-                      <span className={ready ? 'text-emerald-700' : 'text-amber-700'}>{ready ? 'Prepared' : 'Needs input'}</span>
+                      <span>{ready ? 'Ready' : 'Incomplete'}</span>
                     </React.Fragment>
                   ))}
                 </span>
@@ -167,10 +208,10 @@ export const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
                 tabIndex={0}
                 aria-describedby="footer-dataset-status-tooltip"
                 aria-label={`Datasets ${datasetsReady ? 'Ready' : 'Incomplete'}`}
-                className="flex min-h-7 items-center gap-1.5 whitespace-nowrap rounded-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-300"
+                className="flex min-h-7 cursor-default select-none items-center gap-1.5 whitespace-nowrap rounded-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-300"
               >
-                <span aria-hidden="true" className={`h-1.5 w-1.5 rounded-full ${datasetsReady ? 'bg-emerald-400' : 'bg-amber-400'}`} />
-                <span className={`font-semibold ${datasetsReady ? 'text-emerald-300' : 'text-amber-300'}`}>
+                <span aria-hidden="true" className={`h-1.5 w-1.5 rounded-full ${datasetsReady ? 'bg-blue-400' : 'bg-amber-400'}`} />
+                <span className={`font-semibold ${datasetsReady ? 'text-blue-300' : 'text-amber-300'}`}>
                   Datasets {datasetsReady ? 'Ready' : 'Incomplete'}
                 </span>
               </span>
@@ -178,13 +219,12 @@ export const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
             <span aria-hidden="true" className="text-slate-700">|</span>
             <FooterTooltip
               id="footer-product-status-tooltip"
-              title={`Product ${masterDataHandoff.productMismatch ? 'mismatch' : 'match'}`}
               content={(
-                <span className="grid min-w-0 grid-cols-[4.5rem_minmax(0,1fr)] gap-x-2 gap-y-1">
-                  <span className="text-slate-500">Reference</span>
-                  {productMetadata(snapshotPair.reference.product.productName, snapshotPair.reference.product.uom)}
-                  <span className="text-slate-500">Current</span>
-                  {productMetadata(snapshotPair.current.product.productName, snapshotPair.current.product.uom)}
+                <span className="grid min-w-0 grid-cols-[max-content_minmax(0,1fr)] gap-x-2 gap-y-1">
+                  <span className="text-slate-600">Reference</span>
+                  <span className="min-w-0 break-words">{productIdentity(snapshotPair.reference.product.productName, snapshotPair.reference.product.uom)}</span>
+                  <span className="text-slate-600">Current</span>
+                  <span className="min-w-0 break-words">{productIdentity(snapshotPair.current.product.productName, snapshotPair.current.product.uom)}</span>
                 </span>
               )}
             >
@@ -192,7 +232,7 @@ export const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
                 tabIndex={0}
                 aria-describedby="footer-product-status-tooltip"
                 aria-label={`Product ${masterDataHandoff.productMismatch ? 'Mismatch' : 'Match'}`}
-                className={`inline-flex min-h-7 items-center gap-1.5 whitespace-nowrap rounded-sm font-semibold focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-300 ${masterDataHandoff.productMismatch ? 'text-amber-300' : 'text-emerald-300'}`}
+                className={`inline-flex min-h-7 cursor-default select-none items-center gap-1.5 whitespace-nowrap rounded-sm font-semibold focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-300 ${masterDataHandoff.productMismatch ? 'text-amber-300' : 'text-emerald-300'}`}
               >
                 <span aria-hidden="true" className={`h-1.5 w-1.5 rounded-full ${masterDataHandoff.productMismatch ? 'bg-amber-400' : 'bg-emerald-400'}`} />
                 Product {masterDataHandoff.productMismatch ? 'Mismatch' : 'Match'}
@@ -201,7 +241,6 @@ export const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
             <span aria-hidden="true" className="text-slate-700">|</span>
             <FooterTooltip
               id="footer-warning-tooltip"
-              title="Warnings"
               align="right"
               content={warningBreakdown.length > 0 ? (
                 <span className="grid grid-cols-[minmax(0,1fr)_auto] gap-x-3 gap-y-1">
@@ -212,14 +251,14 @@ export const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
                     </React.Fragment>
                   ))}
                 </span>
-              ) : <span>No warning items</span>}
+              ) : null}
             >
               <button
                 type="button"
                 onClick={() => requestMasterDataPrepareDataset('all-warnings')}
-                aria-describedby="footer-warning-tooltip"
+                aria-describedby={warningBreakdown.length > 0 ? 'footer-warning-tooltip' : undefined}
                 aria-label={`Open Prepare Dataset showing all ${warningCount} warnings`}
-                className="inline-flex min-h-7 items-center gap-1 whitespace-nowrap rounded-sm text-amber-300 transition-colors hover:text-amber-200 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-300"
+                className="inline-flex min-h-7 cursor-pointer items-center gap-1 whitespace-nowrap rounded-sm text-amber-300 transition-colors hover:text-amber-200 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-300"
               >
                 <AlertTriangle className="h-3.5 w-3.5" aria-hidden="true" />
                 <span className="font-mono tabular-nums">{warningCount}</span>

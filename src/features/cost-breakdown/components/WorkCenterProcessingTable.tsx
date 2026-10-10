@@ -462,7 +462,7 @@ function RoutingProcessDetailTable({
                   <dl className="grid grid-cols-[max-content_1fr] gap-x-2 gap-y-0.5">
                     <dt className="text-slate-500">Manning</dt><dd>{formatInputPair(row.reference, row.current, 'manning', value => formatNumber(value, 2))}</dd>
                     <dt className="text-slate-500">Capacity</dt><dd>{formatInputPair(row.reference, row.current, 'capacity', value => formatNumber(value, 2))}</dd>
-                    <dt className="text-slate-500">Yield</dt><dd>{formatInputPair(row.reference, row.current, 'yield', value => formatPercent(value, 1))}</dd>
+                    <dt className="text-slate-500">Yield</dt><dd>{formatInputPair(row.reference, row.current, 'yield', value => formatPercent(value, 2))}</dd>
                     <dt className="text-slate-500">Factor</dt><dd>{formatNullable(detail.referenceRuntime, value => formatNumber(value, 6))} → {formatNullable(detail.currentRuntime, value => formatNumber(value, 6))}</dd>
                   </dl>
                 </td>

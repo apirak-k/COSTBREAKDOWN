@@ -76,7 +76,7 @@ try {
     assert.ok(selectedStoryText.includes(label), `the final story must expose ${label}`)
   }
   assert.ok(selectedStoryMarkup.includes('SG&amp;A'), 'the final story must expose SG&A')
-  for (const value of ['10.0000', '2.0000', '3.0000', '15.0000', '25.0000', '12.0000', '16.0000', '95.0000', '100.0000', '-5.0000']) {
+  for (const value of ['10', '2', '3', '15', '25', '12', '16', '95', '100', '-5']) {
     assert.ok(selectedStoryText.includes(value), `the final story must expose the state value ${value}`)
   }
   assert.match(selectedStoryMarkup, /Reference → Current → Simulated/)
@@ -154,8 +154,8 @@ try {
     onToggleControllable() {}
   }))
   const factorCandidateText = visibleText(factorCandidateMarkup)
-  assert.ok(factorCandidateText.includes('Price: 2.0000 → to 3.0000'))
-  assert.ok(factorCandidateText.includes('Loss: 10.0% → to 20.0%'))
+  assert.ok(factorCandidateText.includes('Price: 2 → to 3'))
+  assert.ok(factorCandidateText.includes('Loss: 10% → to 20%'))
 
   assert.deepEqual(formatComparisonFieldDiffs({
     sequence: { reference: 10, current: 20 },
@@ -207,7 +207,7 @@ try {
   assert.ok(routingText.includes('Process Name: Cut → Turn'))
   assert.ok(routingText.includes('Work Center Id: WC-01 → WC-02'))
   assert.match(routingBody, /<td class="p-2\.5 text-slate-500 tabular-nums">10<\/td><td class="p-2\.5 text-right font-bold text-slate-900 tabular-nums">20<\/td>/)
-  assert.match(routingBody, /<td class="p-2\.5 text-right text-slate-500 tabular-nums">1\.0<\/td><td class="p-2\.5 text-right font-bold text-slate-900 tabular-nums">—<\/td>/)
+  assert.match(routingBody, /<td class="p-2\.5 text-right text-slate-500 tabular-nums">1<\/td><td class="p-2\.5 text-right font-bold text-slate-900 tabular-nums">—<\/td>/)
 
   const referenceBOM = {
     id: 'bom-ref', itemCode: 'MAT-01', description: 'Old description',

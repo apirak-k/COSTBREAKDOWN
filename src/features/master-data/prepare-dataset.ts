@@ -122,7 +122,7 @@ export function buildMasterDataWarningItems(
         warnings.push(warningItem(role, 'bom', row.id, 'description', 'generated-identity', identity))
       }
       if (row.autoRenamedFrom) {
-        warnings.push(warningItem(role, 'bom', row.id, 'description', 'auto-renamed-duplicate', `${row.autoRenamedFrom} renamed to ${identity}`))
+        warnings.push(warningItem(role, 'bom', row.id, 'description', 'auto-renamed-duplicate', identity))
       }
       addNumericWarnings(warnings, role, 'bom', row, 'consumption', row.consumption)
       addNumericWarnings(warnings, role, 'bom', row, 'price', row.price)
@@ -135,7 +135,7 @@ export function buildMasterDataWarningItems(
         warnings.push(warningItem(role, 'wc', row.id, 'workCenterCode', 'generated-identity', identity))
       }
       if (row.autoRenamedFrom) {
-        warnings.push(warningItem(role, 'wc', row.id, 'workCenterCode', 'auto-renamed-duplicate', `${row.autoRenamedFrom} renamed to ${identity}`))
+        warnings.push(warningItem(role, 'wc', row.id, 'workCenterCode', 'auto-renamed-duplicate', identity))
       }
       addNumericWarnings(warnings, role, 'wc', row, 'laborRate', row.laborRate)
       addNumericWarnings(warnings, role, 'wc', row, 'burdenRate', row.burdenRate)
@@ -147,7 +147,7 @@ export function buildMasterDataWarningItems(
         warnings.push(warningItem(role, 'routing', row.id, 'processName', 'generated-identity', identity))
       }
       if (row.autoRenamedFrom) {
-        warnings.push(warningItem(role, 'routing', row.id, 'processName', 'auto-renamed-duplicate', `${row.autoRenamedFrom} renamed to ${identity}`))
+        warnings.push(warningItem(role, 'routing', row.id, 'processName', 'auto-renamed-duplicate', identity))
       }
       addNumericWarnings(warnings, role, 'routing', row, 'manning', row.manning)
       addNumericWarnings(warnings, role, 'routing', row, 'capacity', row.capacity)

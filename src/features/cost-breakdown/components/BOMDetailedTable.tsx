@@ -178,8 +178,8 @@ export const BOMDetailedTable: React.FC<BOMDetailedTableProps> = ({
                 <td className="p-2.5 font-sans font-medium text-slate-800 whitespace-nowrap">{current?.unit ?? '—'}</td>
                 <td className="p-2.5 text-right text-slate-500 tabular-nums">{formatNullable(reference?.price ?? null, value => formatNumber(value, 4))}</td>
                 <td className="p-2.5 text-right font-bold text-slate-900 tabular-nums">{formatNullable(current?.price ?? null, value => formatNumber(value, 4))}</td>
-                <td className="p-2.5 text-right text-slate-500 tabular-nums">{formatNullable(reference?.loss ?? null, value => formatPercent(value, 1))}</td>
-                <td className="p-2.5 text-right font-bold text-slate-900 tabular-nums">{formatNullable(current?.loss ?? null, value => formatPercent(value, 1))}</td>
+                <td className="p-2.5 text-right text-slate-500 tabular-nums">{formatNullable(reference?.loss ?? null, value => formatPercent(value, 2))}</td>
+                <td className="p-2.5 text-right font-bold text-slate-900 tabular-nums">{formatNullable(current?.loss ?? null, value => formatPercent(value, 2))}</td>
                 <td className="p-2.5 text-right text-slate-500 tabular-nums">{formatNullable(row.detail.referenceCost, value => formatNumber(value, 4))}</td>
                 <td className="p-2.5 text-right font-bold text-slate-900 tabular-nums">{formatNullable(row.detail.currentCost, value => formatNumber(value, 4))}</td>
                 <td className={`p-2.5 text-right tabular-nums ${row.detail.costGap === null ? 'text-slate-400' : row.detail.costGap > 0 ? 'text-rose-600' : row.detail.costGap < 0 ? 'text-emerald-700' : 'text-slate-400'}`}>

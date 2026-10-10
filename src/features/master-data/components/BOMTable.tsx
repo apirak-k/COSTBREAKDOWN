@@ -1,6 +1,6 @@
 import React, { useCallback, useMemo, useRef } from 'react'
 import { CheckSquare, GripVertical, Plus, Trash2 } from 'lucide-react'
-import { SnapshotBOMItem } from '../../../core'
+import { SnapshotBOMItem, formatNumber, formatPercent } from '../../../core'
 import { useDragSelect } from '../hooks/useDragSelect'
 import { SpreadsheetPasteCell, tableCellKey, useTableKeyboardNav } from '../hooks/useTableKeyboardNav'
 import { RowChanges, useSpreadsheetEditing } from '../hooks/useSpreadsheetEditing'
@@ -25,7 +25,7 @@ interface BOMTableProps {
 
 const numberValue = (value: number | null): string => value === null ? '' : String(value)
 const parseNumber = (value: string): number | null => value.trim() === '' ? null : Number(value)
-const displayNumber = (value: number | null, digits = 4): string => value === null ? '—' : value.toFixed(digits)
+const displayNumber = (value: number | null, digits = 4): string => value === null ? '—' : formatNumber(value, digits)
 
 export const BOMTable: React.FC<BOMTableProps> = ({
   bom,
@@ -308,7 +308,7 @@ export const BOMTable: React.FC<BOMTableProps> = ({
                         />
                         <span className="text-slate-400">%</span>
                       </div>
-                    ) : item.loss === null ? <span className="text-amber-700">—</span> : `${(item.loss * 100).toFixed(1)}%`}
+                    ) : item.loss === null ? <span className="text-amber-700">—</span> : formatPercent(item.loss, 2)}
                   </td>
                   <td className="px-2 py-0.5 font-sans text-slate-600">
                     {isEditMode ? (
