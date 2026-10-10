@@ -44,10 +44,12 @@ import {
   getMasterDataSnapshot,
   initializeCustomMasterData,
   cloneMasterDataDatasetState,
+  createEmptyCustomMasterData,
   setMasterDataSnapshot
 } from './master-data-datasets'
 import { markMasterDataChanged, markMasterDataChangedForSnapshotPair } from './master-data-revision'
 import { normalizeMasterDataSnapshot } from '../core/utils/master-data-effective'
+import { replaceDevelopmentMockWorkingState } from './development-mock-data'
 import {
   filterInvalidMasterDataNumericChanges,
   getMasterDataSnapshotValidationErrors,
@@ -425,7 +427,11 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       afterPair: {
         reference: cloneCostSnapshot(afterPair.reference),
         current: cloneCostSnapshot(afterPair.current)
-      }
+      },
+      beforeCustom: cloneCostSnapshot(before.customMasterData ?? createEmptyCustomMasterData(before.id)),
+      afterCustom: cloneCostSnapshot(after.customMasterData ?? createEmptyCustomMasterData(after.id)),
+      beforeCustomSizing: { ...(before.customDatasetSizing ?? {}) },
+      afterCustomSizing: { ...(after.customDatasetSizing ?? {}) }
     }
     masterDataHistoryRef.current = recordMasterDataEdit(masterDataHistoryRef.current, entry)
     setMasterDataHistoryRevision(revision => revision + 1)
@@ -1381,21 +1387,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const loadDevelopmentMockData = (pair: SnapshotPair) => {
     if (!import.meta.env.DEV) return
     const source = activeSession
-    const beforePair = normalizeSnapshotPair(source.snapshotPair ?? sessionToSnapshotPair(source))
-    const nextPair = normalizeSnapshotPair(pair)
-    if (getMasterDataSnapshotValidationErrors(nextPair.reference).length > 0 ||
-      getMasterDataSnapshotValidationErrors(nextPair.current).length > 0) return
-    if (JSON.stringify(beforePair) === JSON.stringify(nextPair)) return
-    const now = new Date().toISOString()
-    const updated = applyMasterDataSnapshotPair({
-      ...source,
-      datasetSizing: {
-        reference: { ...(nextPair.reference.sizing ?? { wcCount: nextPair.reference.rates.length, bomCount: nextPair.reference.bom.length, routingCount: nextPair.reference.routing.length }) },
-        current: { ...(nextPair.current.sizing ?? { wcCount: nextPair.current.rates.length, bomCount: nextPair.current.bom.length, routingCount: nextPair.current.routing.length }) }
-      },
-      preparedSnapshotRoles: { ...getSnapshotRoleReadiness(source), reference: true, current: true },
-      updatedAt: now
-    }, nextPair)
+    const updated = replaceDevelopmentMockWorkingState(source, pair)
+    if (!updated) return
     setSelectedComparisonScope(null)
     setProductSessions(previous => previous.map(session => session.id === source.id ? updated : session))
     recordMasterDataPairWorkingEdit(source, updated)

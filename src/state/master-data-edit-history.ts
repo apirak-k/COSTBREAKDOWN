@@ -18,6 +18,9 @@ export interface MasterDataEditHistoryEntry {
   /** A single undoable action that replaces both comparison Working snapshots. */
   beforePair?: SnapshotPair
   afterPair?: SnapshotPair
+  /** Development fixture replacement also clears Custom Working data in the same history action. */
+  beforeCustom?: CostSnapshot
+  afterCustom?: CostSnapshot
 }
 
 export interface MasterDataEditHistory {
@@ -82,9 +85,13 @@ export function applyMasterDataEditHistoryEntry(
   if (entry.beforePair && entry.afterPair) {
     const expectedPair = direction === 'undo' ? entry.afterPair : entry.beforePair
     if (JSON.stringify(pair) !== JSON.stringify(expectedPair)) return undefined
+    const expectedCustom = direction === 'undo' ? entry.afterCustom : entry.beforeCustom
+    if (expectedCustom && JSON.stringify(session.customMasterData) !== JSON.stringify(expectedCustom)) return undefined
     const nextPair = direction === 'undo' ? entry.beforePair : entry.afterPair
+    const nextCustom = direction === 'undo' ? entry.beforeCustom : entry.afterCustom
     const preparedSnapshotRoles = direction === 'undo' ? entry.beforePrepared : entry.afterPrepared
     const datasetSizing = direction === 'undo' ? entry.beforeSizing : entry.afterSizing
+    const customDatasetSizing = direction === 'undo' ? entry.beforeCustomSizing : entry.afterCustomSizing
     const nextSession = applySnapshotPairToSession({
       ...session,
       datasetSizing: datasetSizing ? {
@@ -94,7 +101,12 @@ export function applyMasterDataEditHistoryEntry(
       preparedSnapshotRoles: { ...preparedSnapshotRoles },
       updatedAt: new Date().toISOString()
     }, nextPair)
-    return markMasterDataChangedForSnapshotPair(nextSession, pair, nextPair)
+    const updated = markMasterDataChangedForSnapshotPair(nextSession, pair, nextPair)
+    return nextCustom ? {
+      ...updated,
+      customMasterData: nextCustom,
+      customDatasetSizing: { ...(customDatasetSizing ?? {}) }
+    } : updated
   }
 
   const expected = direction === 'undo' ? entry.after : entry.before
