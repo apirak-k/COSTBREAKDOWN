@@ -126,6 +126,8 @@ No dedicated Trial execution, validation, approval, or promotion lifecycle is re
 
 ## Shared Status and Analysis Context
 
+The global Footer is a compact three-group workspace summary: Reference/Current structure counts (BOM / WC / RTG), Reference+Current readiness, Product Match/Mismatch, all-dataset warning-item count, and full Reference/Current Standard Cost plus Net Gap. Selected Comparison does not change those full snapshot costs. Footer status/warning actions open the corresponding Prepare Dataset view. Header, Main, and Footer use the same centered wide frame; the document owns vertical scrolling so the Footer follows long page content and rests at the viewport bottom on short pages.
+
 `CONFIRMED DIRECTION — USER DECISION`: provide a shared status/context cue that helps users understand what is happening and where to review it. Relevant states include:
 - **`Ready for comparison`:** Both Reference and Current contain sufficient valid data for Cost Breakdown.
 - **`Product Mismatch`:** Reference and Current have different effective Product Names (informational, non-blocking comparison status, not a warning).

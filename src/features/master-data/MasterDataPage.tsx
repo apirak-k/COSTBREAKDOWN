@@ -31,6 +31,7 @@ export const MasterDataPage: React.FC<MasterDataPageProps> = ({ searchQuery = ''
     masterDataSizing,
     masterDataHandoff,
     masterDataPrepareDatasetRequested,
+    masterDataPrepareDatasetRequestMode,
     undoMasterDataEdit,
     redoMasterDataEdit,
     setMasterDataRole,
@@ -236,6 +237,10 @@ export const MasterDataPage: React.FC<MasterDataPageProps> = ({ searchQuery = ''
     <div className="w-full space-y-4">
       <MasterDataWorkspaceHeader
         product={product}
+        comparisonProducts={{
+          reference: masterDataSnapshots.reference.product,
+          current: masterDataSnapshots.current.product
+        }}
         snapshot={masterDataSnapshot}
         lastSavedSnapshot={masterDataLastSavedSnapshot}
         saveStates={saveStates}
@@ -254,6 +259,7 @@ export const MasterDataPage: React.FC<MasterDataPageProps> = ({ searchQuery = ''
         onOpenSizingModal={() => setSizingModalOpen(true)}
         isPrepareDatasetOpen={isPrepareDatasetOpen}
         onPrepareDatasetOpenChange={setIsPrepareDatasetOpen}
+        prepareDatasetRequestMode={masterDataPrepareDatasetRequestMode}
         warningGroups={warningGroups}
         warningCount={warningItems.length}
         onNavigateWarning={handleWarningNavigation}

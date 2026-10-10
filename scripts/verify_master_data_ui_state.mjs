@@ -57,7 +57,11 @@ const vite = await createServer({
     enforce: 'pre',
     resolveId(source, importer) {
       const normalizedImporter = importer?.replaceAll('\\', '/') ?? ''
-      if (source === '../../state' && normalizedImporter.endsWith('/src/features/master-data/MasterDataPage.tsx')) {
+      if (source === '../../state' && [
+        '/src/features/master-data/MasterDataPage.tsx',
+        '/src/shared/layout/AppLayout.tsx',
+        '/src/shared/layout/Navbar.tsx'
+      ].some(path => normalizedImporter.endsWith(path))) {
         return '\0master-data-ui-verifier-store'
       }
       if (!normalizedImporter.endsWith('/src/features/master-data/MasterDataPage.tsx')) return null
@@ -78,7 +82,7 @@ const vite = await createServer({
 })
 
 const noOp = () => {}
-const makeStore = (uiState = { role: 'current', mode: 'view', tableView: 'all' }) => {
+const makeStore = (uiState = { role: 'current', mode: 'view', tableView: 'all' }, storeOverrides = {}) => {
   const snapshot = fixtureSnapshot(uiState.role)
   const snapshots = {
     reference: fixtureSnapshot('reference'),
@@ -86,6 +90,16 @@ const makeStore = (uiState = { role: 'current', mode: 'view', tableView: 'all' }
     custom: fixtureSnapshot('custom')
   }
   return {
+    snapshotPair: { reference: snapshots.reference, current: snapshots.current },
+    snapshotComparison: { totalGap: -999 },
+    fullSnapshotComparison: {
+      referenceCost: { total: 120 },
+      currentCost: { total: 125.5 },
+      totalGap: 5.5
+    },
+    activeTab: 'master',
+    setActiveTab: noOp,
+    isSelectedComparisonActive: true,
     masterDataSnapshots: snapshots,
     masterDataRole: uiState.role,
     masterDataSnapshot: snapshot,
@@ -93,6 +107,7 @@ const makeStore = (uiState = { role: 'current', mode: 'view', tableView: 'all' }
     masterDataLastSavedSnapshots: {},
     masterDataSizing: {},
     masterDataPrepareDatasetRequested: false,
+    masterDataPrepareDatasetRequestMode: null,
     masterDataHandoff: {
       datasetsPrepared: false,
       referenceReady: false,
@@ -129,7 +144,8 @@ const makeStore = (uiState = { role: 'current', mode: 'view', tableView: 'all' }
     addMasterDataWorkCenterRate: noOp,
     updateMasterDataWorkCenterRates: noOp,
     deleteMasterDataWorkCenterRates: noOp,
-    reorderMasterDataWorkCenters: noOp
+    reorderMasterDataWorkCenters: noOp,
+    ...storeOverrides
   }
 }
 
@@ -146,7 +162,121 @@ const renderMasterDataPage = async uiState => {
   return renderToStaticMarkup(React.createElement(MasterDataPage))
 }
 
+const renderAppLayout = async storeOverrides => {
+  globalThis.__MASTER_DATA_UI_TEST_STORE__ = makeStore(undefined, storeOverrides)
+  const { AppLayout } = await vite.ssrLoadModule('/src/shared/layout/AppLayout.tsx')
+  return renderToStaticMarkup(React.createElement(
+    AppLayout,
+    { masterDataSearchQuery: '', onMasterDataSearchQueryChange: noOp },
+    React.createElement('div', null, 'Workspace content')
+  ))
+}
+
 try {
+  const customMissingSnapshot = {
+    ...fixtureSnapshot('custom'),
+    bom: [{
+      id: 'custom-missing-usage',
+      description: 'Custom Material',
+      consumption: null,
+      price: 1,
+      loss: 0,
+      confidence: {}
+    }]
+  }
+  const readyFooterMarkup = await renderAppLayout({
+    masterDataSnapshots: {
+      reference: fixtureSnapshot('reference'),
+      current: fixtureSnapshot('current'),
+      custom: customMissingSnapshot
+    },
+    masterDataHandoff: {
+      datasetsPrepared: true,
+      referenceReady: true,
+      currentReady: true,
+      issues: [],
+      warnings: [],
+      productMismatch: true
+    }
+  })
+  const footerMarkup = readyFooterMarkup.slice(readyFooterMarkup.indexOf('<footer'))
+  assert.match(footerMarkup, /REF[\s\S]*BOM 0 · WC 0 · RTG 0[\s\S]*CUR[\s\S]*BOM 0 · WC 0 · RTG 0/, 'Footer renders Reference and Current structural counts in BOM/WC/RTG order')
+  assert.doesNotMatch(footerMarkup, /Custom/, 'Footer does not include Custom in structural summaries')
+  assert.match(footerMarkup, /Datasets Ready/, 'missing values in Custom do not change Reference/Current readiness')
+  assert.match(footerMarkup, /Product Mismatch/, 'Footer renders the existing Product Mismatch status independently')
+  assert.match(footerMarkup, /<span class="font-mono tabular-nums">1<\/span>/, 'Footer warning total includes affected warning items across datasets')
+  assert.ok(footerMarkup.indexOf('REF STD') < footerMarkup.indexOf('CUR STD')
+    && footerMarkup.indexOf('CUR STD') < footerMarkup.indexOf('NET GAP'), 'Footer cost summary orders Reference, Current, then Net Gap')
+  assert.match(footerMarkup, /REF STD<\/span>120\.0000[\s\S]*CUR STD<\/span>125\.5000[\s\S]*NET GAP<\/span><span class="font-semibold text-rose-300">\+5\.5000/, 'Footer displays full snapshot costs and full positive Net Gap even with Selected Comparison active')
+  assert.doesNotMatch(footerMarkup, /SELECTED GAP|-999/, 'Selected Comparison values never leak into the global Footer')
+
+  const referenceMissingSnapshot = {
+    ...fixtureSnapshot('reference'),
+    bom: [{
+      id: 'reference-missing-usage',
+      description: 'Reference Material',
+      consumption: null,
+      price: 1,
+      loss: 0,
+      confidence: {}
+    }]
+  }
+  const incompleteFooterMarkup = await renderAppLayout({
+    masterDataSnapshots: {
+      reference: referenceMissingSnapshot,
+      current: fixtureSnapshot('current'),
+      custom: fixtureSnapshot('custom')
+    },
+    masterDataHandoff: {
+      datasetsPrepared: true,
+      referenceReady: true,
+      currentReady: true,
+      issues: [],
+      warnings: [],
+      productMismatch: false
+    }
+  })
+  assert.match(incompleteFooterMarkup.slice(incompleteFooterMarkup.indexOf('<footer')), /Datasets Incomplete/, 'a Reference missing required value makes Footer readiness incomplete')
+
+  const zeroWarningFooterMarkup = await renderAppLayout({
+    masterDataHandoff: {
+      datasetsPrepared: true,
+      referenceReady: true,
+      currentReady: true,
+      issues: [],
+      warnings: [],
+      productMismatch: true
+    }
+  })
+  const zeroWarningFooter = zeroWarningFooterMarkup.slice(zeroWarningFooterMarkup.indexOf('<footer'))
+  assert.match(zeroWarningFooter, /<span class="font-mono tabular-nums">0<\/span>/, 'Footer keeps the zero-warning indicator visible')
+  assert.match(zeroWarningFooter, /Product Mismatch[\s\S]*<span class="font-mono tabular-nums">0<\/span>/, 'Product Mismatch does not add to the Footer warning total')
+
+  const negativeGapMarkup = await renderAppLayout({
+    fullSnapshotComparison: {
+      referenceCost: { total: 125.5 },
+      currentCost: { total: 120 },
+      totalGap: -5.5
+    }
+  })
+  const zeroGapMarkup = await renderAppLayout({
+    fullSnapshotComparison: {
+      referenceCost: { total: 120 },
+      currentCost: { total: 120 },
+      totalGap: 0
+    }
+  })
+  const unavailableCostMarkup = await renderAppLayout({
+    fullSnapshotComparison: {
+      referenceCost: { total: null },
+      currentCost: { total: 120 },
+      totalGap: null
+    }
+  })
+  assert.match(negativeGapMarkup, /NET GAP<\/span><span class="font-semibold text-emerald-300">-5\.5000/, 'negative Net Gap is emerald')
+  assert.match(zeroGapMarkup, /NET GAP<\/span><span class="font-semibold text-slate-300">0\.0000/, 'zero Net Gap is neutral and stays visible')
+  assert.match(unavailableCostMarkup, /REF STD<\/span>—[\s\S]*NET GAP<\/span><span class="font-semibold text-slate-500">—/, 'unavailable Standard Cost and Net Gap remain dashes')
+
   const { INITIAL_MASTER_DATA_UI_STATE, reduceMasterDataUiState } = await vite.ssrLoadModule(
     '/src/features/master-data/master-data-ui-state.ts'
   )
@@ -239,10 +369,15 @@ try {
   const pageSource = readFileSync(resolve(process.cwd(), 'src/features/master-data/MasterDataPage.tsx'), 'utf8')
   const warningFocusSource = readFileSync(resolve(process.cwd(), 'src/features/master-data/hooks/useWarningNavigationFocus.ts'), 'utf8')
   const footerSource = readFileSync(resolve(process.cwd(), 'src/shared/layout/AppLayout.tsx'), 'utf8')
+  const globalCssSource = readFileSync(resolve(process.cwd(), 'src/index.css'), 'utf8')
   const navbarSource = readFileSync(resolve(process.cwd(), 'src/shared/layout/Navbar.tsx'), 'utf8')
   const appSource = readFileSync(resolve(process.cwd(), 'src/App.tsx'), 'utf8')
   const sizingModalSource = readFileSync(resolve(process.cwd(), 'src/features/master-data/components/DatasetSizingModal.tsx'), 'utf8')
   const storeSource = readFileSync(resolve(process.cwd(), 'src/state/store.tsx'), 'utf8')
+  const prepareDatasetSource = readFileSync(resolve(process.cwd(), 'src/features/master-data/prepare-dataset.ts'), 'utf8')
+  const snapshotParserSource = readFileSync(resolve(process.cwd(), 'src/services/excel/snapshot-parser.ts'), 'utf8')
+  const importDropzoneSource = readFileSync(resolve(process.cwd(), 'src/shared/ui/ExcelUploadDropzone.tsx'), 'utf8')
+  const validationSource = readFileSync(resolve(process.cwd(), 'src/core/utils/master-data-validation.ts'), 'utf8')
   const storageSource = readFileSync(resolve(process.cwd(), 'src/services/storage/session-storage.ts'), 'utf8')
 
   assert.match(keyboardSource, /event\.key === 'Escape'[\s\S]*target\?\.blur\(\)/, 'Escape exits the active cell editor')
@@ -283,32 +418,100 @@ try {
   assert.match(headerSource, /\{roleLabels\[datasetRole\]\}[\s\S]*bg-emerald-400/, 'active selection and save-state dot use separate styles')
   assert.ok(headerSource.indexOf('ref={prepareRegionRef}') > headerSource.indexOf('{tableSelector}'), 'Prepare Dataset follows the table selector at the toolbar right edge')
   assert.match(headerSource, /aria-label="Prepare Dataset"[\s\S]*title="Prepare Dataset"[\s\S]*<Info/, 'Prepare Dataset is icon-only with a concise tooltip')
-  assert.match(headerSource, /group\.items\.length === 1[\s\S]*onNavigateWarning\(group\.items\[0\]\)/, 'one warning location navigates directly')
+  assert.doesNotMatch(headerSource, /Prepared|Needs input/, 'Prepare Dataset dataset summaries do not show readiness labels')
+  assert.match(headerSource, /datasetWarningCounts\[datasetRole\][\s\S]*<span>\{datasetWarningCount\}<\/span>/, 'each dataset summary shows its independent warning count')
+  assert.match(headerSource, /comparisonStatus = handoff\.productMismatch \? 'Mismatch' : 'Match'/, 'Match or Mismatch is derived from the comparison status')
+  assert.doesNotMatch(headerSource, /\(\{comparisonStatus\}\)/, 'Match or Mismatch is not presented in parentheses')
+  assert.match(headerSource, /const \[comparisonDetailsOpen, setComparisonDetailsOpen\] = useState\(false\)/, 'comparison details are collapsed by default')
+  assert.match(headerSource, /onClick=\{\(\) => setComparisonDetailsOpen\(open => !open\)\}/, 'Match or Mismatch opens and closes comparison details')
+  assert.match(headerSource, /grid-cols-\[minmax\(0,1fr\)_6\.5rem_1\.75rem\][\s\S]*grid-cols-\[minmax\(0,1fr\)_1rem\]/, 'comparison status and its chevron occupy fixed layout slots')
+  assert.ok(/aria-label="Compared product identities"/.test(headerSource)
+    && /productIdentity\(comparisonProducts\.reference\)/.test(headerSource)
+    && /productIdentity\(comparisonProducts\.current\)/.test(headerSource)
+    && /details\.uom\?\.trim\(\)/.test(headerSource), 'comparison details expose Reference and Current product name and UOM')
+  assert.match(headerSource, /max-h-\[calc\(100dvh-6rem\)\][\s\S]*overflow-y-auto/, 'the popover bounds its height and scrolls warning categories internally')
+  const { MASTER_DATA_WARNING_CATEGORY_DEFINITIONS } = await vite.ssrLoadModule('/src/features/master-data/prepare-dataset.ts')
+  assert.deepEqual(MASTER_DATA_WARNING_CATEGORY_DEFINITIONS.map(({ category }) => category), [
+    'generated-identity', 'missing-value', 'auto-renamed-duplicate'
+  ], 'Prepare Dataset defines exactly the three user-facing warning categories')
+  const warningCategoryRenderSource = headerSource.slice(headerSource.indexOf('{visibleWarningGroups.map'), headerSource.indexOf('{mockAction &&'))
+  assert.match(warningCategoryRenderSource, /grid-cols-\[minmax\(0,1fr\)_2rem_1rem\][\s\S]*\{group\.label\}[\s\S]*\{groupCount\}[\s\S]*ChevronRight/, 'warning category layout is label, fixed count, fixed far-right chevron')
+  assert.match(warningCategoryRenderSource, /const disabled = groupCount === 0[\s\S]*aria-expanded=\{disabled \? undefined : expanded\}[\s\S]*if \(!disabled\)[\s\S]*setExpandedWarningCategory\(expanded \? null : group\.category\)/, 'zero rows disable and every positive category count toggles expansion')
+  assert.match(warningCategoryRenderSource, /expanded && groupCount > 0[\s\S]*group\.items\.map\(item =>/, 'an expanded category renders actual warning items even when its count is one')
+  assert.doesNotMatch(warningCategoryRenderSource, /const direct|onNavigateWarning\(group\.items\[0\]\)/, 'category rows never navigate directly')
+  const actualWarningItemSource = warningCategoryRenderSource.slice(warningCategoryRenderSource.indexOf('group.items.map(item =>'))
+  assert.match(actualWarningItemSource, /onNavigateWarning\(item\)/, 'each actual warning item directly invokes source navigation')
+  assert.doesNotMatch(actualWarningItemSource, /ChevronRight|ChevronDown|ChevronUp|›|aria-expanded/, 'actual warning items have no chevron, arrow, or nested expansion')
+  assert.match(prepareDatasetSource, /if \(row\.confidence\?\.\[field\]\?\.quality === 'invalid'\) return/, 'invalid legacy values do not become Missing required value warnings')
+  assert.doesNotMatch(prepareDatasetSource, /invalid-value|unresolved-work-center|Invalid value|Unresolved Work Center/, 'invalid and unresolved values are not Prepare Dataset categories')
+  assert.match(prepareDatasetSource, /if \(!workCenterId\)[\s\S]*'missing-value'/, 'blank Routing Work Center is Missing required value')
+  assert.match(headerSource, /const disabled = groupCount === 0[\s\S]*disabled=\{disabled\}/, 'zero-count warning categories remain visible and disabled')
+  assert.match(headerSource, /min-h-0 flex-1 divide-y divide-slate-100 overflow-y-auto/, 'warning categories scroll inside the bounded popover')
+  assert.match(headerSource, /setWarningRoleFilter\(datasetRole\)[\s\S]*setWarningRoleFilter\(null\)/, 'dataset warning counts filter categories and All clears the filter')
   assert.match(headerSource, /setExpandedWarningCategory\(expanded \? null : group\.category\)/, 'multiple warning locations expand progressively')
   assert.match(pageSource, /setMasterDataRole\(item\.role\)[\s\S]*tableView: item\.table/, 'warning navigation selects the affected dataset and table')
   assert.match(pageSource, /updateMasterDataUiState\(\{ type: 'set-mode', mode: 'edit' \}\)[\s\S]*tableView: item\.table/, 'warning navigation switches to Edit and the affected table')
   assert.match(pageSource, /handleWarningNavigationHandled[\s\S]*current\?\.requestId === requestId \? undefined : current/, 'warning navigation consumes the completed request')
   assert.match(warningFocusSource, /setSearchQuery\(''\)[\s\S]*scrollIntoView[\s\S]*selectRow\(target\.rowId\)[\s\S]*focusTarget\.focus[\s\S]*onNavigationHandled\(target\.requestId\)/, 'warning navigation clears filters, selects the row, scrolls, focuses the source, and consumes its target')
-  assert.match(footerSource, /buildMasterDataWarningItems\(masterDataSnapshots\)\.length/, 'footer total uses affected warning-item count')
-  assert.match(footerSource, /aria-label=\{`Open Prepare Dataset:/, 'footer warning count has an accessible action label')
-  assert.match(footerSource, /onClick=\{requestMasterDataPrepareDataset\}/, 'footer warning indicator opens Prepare Dataset')
-  assert.match(footerSource, /<AlertTriangle[\s\S]*\{warningCount\}/, 'footer always renders only the warning icon and count, including zero')
-  assert.match(navbarSource, /hasProductMismatch = masterDataHandoff\.productMismatch/, 'global workflow status reads Product Mismatch as status')
-  assert.match(navbarSource, /statusIsWarning = missingData \|\| !masterDataHandoff\.datasetsPrepared/, 'Product Mismatch alone does not receive warning styling')
-  assert.match(navbarSource, /currentProductName = currentProduct\.productName\?\.trim\(\) \?\? ''/, 'global metadata omits a blank Product Name')
-  assert.match(navbarSource, /currentUom = currentProduct\.uom\?\.trim\(\) \?\? ''/, 'global metadata omits a blank UOM')
-  assert.match(navbarSource, /activeTab === 'master' && \([\s\S]*aria-label="Master Data utilities"/, 'Undo, Redo, and Search are contextual to Master Data')
-  assert.match(navbarSource, /disabled=\{!canUndoMasterDataEdit\}/, 'Header Undo exposes its disabled state')
-  assert.match(navbarSource, /disabled=\{!canRedoMasterDataEdit\}/, 'Header Redo exposes its disabled state')
-  assert.match(navbarSource, /aria-label="Search Master Data tables"[\s\S]*aria-expanded=\{searchOpen\}/, 'Header search is an accessible expanding utility')
-  assert.match(navbarSource, /onMasterDataSearchQueryChange\(event\.target\.value\)/, 'Header search updates the shared visible-table query')
-  assert.match(navbarSource, /searchRegionRef\.current\?\.contains[\s\S]*addEventListener\('pointerdown'/, 'clicking outside Header search dismisses its field')
+  assert.match(footerSource, /const warningItems = buildMasterDataWarningItems\(masterDataSnapshots\)[\s\S]*const warningCount = warningItems\.length/, 'footer total uses affected warning-item count')
+  assert.match(footerSource, /category === 'missing-value' && item\.role !== 'custom'/, 'footer readiness only considers missing required values from Reference and Current')
+  assert.match(footerSource, /masterDataHandoff\.datasetsPrepared && !hasMissingReferenceOrCurrentValue/, 'footer readiness also requires the existing Reference and Current handoff status')
+  assert.match(footerSource, /Datasets Ready[\s\S]*Datasets Incomplete/, 'footer uses the finalized compact readiness wording')
+  assert.match(footerSource, /BOM \{snapshotPair\.reference\.bom\.length\} · WC \{snapshotPair\.reference\.rates\.length\} · RTG \{snapshotPair\.reference\.routing\.length\}/, 'Reference structural counts use BOM, WC, RTG order')
+  assert.match(footerSource, /BOM \{snapshotPair\.current\.bom\.length\} · WC \{snapshotPair\.current\.rates\.length\} · RTG \{snapshotPair\.current\.routing\.length\}/, 'Current structural counts use BOM, WC, RTG order')
+  assert.match(footerSource, /onClick=\{\(\) => requestMasterDataPrepareDataset\('comparison'\)\}[\s\S]*Product \{masterDataHandoff\.productMismatch \? 'Mismatch' : 'Match'\}/, 'Product Match/Mismatch opens Prepare Dataset comparison details')
+  assert.match(footerSource, /onClick=\{\(\) => requestMasterDataPrepareDataset\('all-warnings'\)\}[\s\S]*\{warningCount\}/, 'footer warning count opens Prepare Dataset with all warning roles')
+  assert.match(footerSource, /aria-label=\{`Open Prepare Dataset showing all \$\{warningCount\} warnings`\}/, 'footer warning count has an accessible action label')
+  assert.match(footerSource, /fullSnapshotComparison\.referenceCost\.total[\s\S]*fullSnapshotComparison\.currentCost\.total[\s\S]*fullSnapshotComparison\.totalGap/, 'footer uses full Reference/Current Standard Costs and their full net gap')
+  assert.doesNotMatch(footerSource, /snapshotComparison\.totalGap|isSelectedComparisonActive|SELECTED GAP/, 'footer never switches to a Selected Comparison gap')
+  assert.match(footerSource, /REF STD[\s\S]*CUR STD[\s\S]*NET GAP/, 'footer labels both full Standard Costs and Net Gap')
+  assert.match(footerSource, /value === null \|\| !Number\.isFinite\(value\) \? '—'/, 'unavailable Standard Cost remains a dash rather than fabricated zero')
+  assert.match(footerSource, /totalGap !== null && Number\.isFinite\(totalGap\)/, 'unavailable or non-finite Net Gap remains neutral')
+  assert.match(footerSource, /totalGap > 0[\s\S]*text-rose-300[\s\S]*totalGap < 0[\s\S]*text-emerald-300[\s\S]*text-slate-300/, 'Net Gap colors are positive rose, negative emerald, and zero neutral')
+  assert.match(footerSource, /min-h-dvh[\s\S]*flex flex-col/, 'app shell uses a minimum viewport height in normal document flow')
+  assert.doesNotMatch(footerSource.match(/<div className="min-h-dvh[^\"]*"/)?.[0] ?? '', /(?:^|\s)h-dvh|overflow-hidden/, 'app shell no longer clips the viewport or pins the footer')
+  assert.match(footerSource, /<main[\s\S]*className="app-workspace-frame min-w-0 flex-1 py-3"/, 'Main grows for short pages without creating an isolated scroll container')
+  assert.doesNotMatch(footerSource.match(/<main[\s\S]*?>/)?.[0] ?? '', /overflow-y-auto/, 'Main leaves vertical scrolling to the document')
+  assert.match(footerSource, /<footer[\s\S]*mt-auto w-full[\s\S]*<div className="app-workspace-frame/, 'Footer stays in normal flow and shares the workspace frame')
+  assert.match(navbarSource, /className="app-workspace-frame"/, 'Header content shares the centered workspace frame')
+  assert.match(globalCssSource, /\.app-workspace-frame[\s\S]*max-w-\[1920px\][\s\S]*px-3 sm:px-4 lg:px-6/, 'Header, Main, and Footer use one shared wide frame rule')
+  assert.match(footerSource, /className="app-workspace-frame flex flex-wrap[\s\S]*xl:flex-nowrap/, 'footer groups wrap responsively and share one compact desktop row')
+  assert.match(headerSource, /if \(!prepareDatasetRequestMode\) return[\s\S]*setWarningRoleFilter\(null\)[\s\S]*setExpandedWarningCategory\(null\)[\s\S]*setComparisonDetailsOpen\(prepareDatasetRequestMode === 'comparison'\)/, 'comparison requests expand comparison details without retaining a warning filter')
+  assert.match(storeSource, /requestMasterDataPrepareDataset = \(mode\?: 'comparison' \| 'all-warnings'\)[\s\S]*setActiveTab\('master'\)[\s\S]*setMasterDataPrepareDatasetRequestMode\(mode \?\? null\)[\s\S]*setMasterDataPrepareDatasetRequested\(true\)/, 'Footer requests switch to Master Data and carry the selected Prepare Dataset view')
+  assert.match(pageSource, /if \(!masterDataPrepareDatasetRequested\) return[\s\S]*setIsPrepareDatasetOpen\(true\)[\s\S]*consumeMasterDataPrepareDatasetRequest\(\)/, 'Footer status requests open the Prepare Dataset popover and are consumed')
+  assert.match(pageSource, /prepareDatasetRequestMode=\{masterDataPrepareDatasetRequestMode\}/, 'Prepare Dataset receives the comparison or all-warnings request mode')
+  assert.match(navbarSource, /const navItems = \[[\s\S]*\{ id: 'master', label: 'Master Data' \}[\s\S]*\{ id: 'breakdown', label: 'Cost Breakdown' \}[\s\S]*\{ id: 'candidate', label: 'Candidate' \}[\s\S]*\{ id: 'simulation', label: 'Simulation' \}[\s\S]*\] as const/, 'Global Header navigation contains the four exact primary labels in order')
+  assert.doesNotMatch(navbarSource, /Candidate \/ RCA|workflowStatus|Ready|Not Ready|Selected Comparison|Missing data/, 'Global Header omits workflow guidance and uses Candidate wording')
+  const headerOrder = [
+    navbarSource.indexOf('aria-label="Page edit tools"'),
+    navbarSource.indexOf('>COSTBREAKDOWN</span>'),
+    navbarSource.indexOf('role="search"'),
+    navbarSource.indexOf('<nav aria-label="Main navigation"'),
+    navbarSource.indexOf('aria-label="Prepare Dataset"')
+  ]
+  assert.ok(headerOrder.every((position, index) => position >= 0 && (index === 0 || position > headerOrder[index - 1])), 'Header regions render Undo/Redo, identity, Search, navigation, then dataset info')
+  assert.match(navbarSource, /disabled=\{!isMasterData \|\| !canUndoMasterDataEdit\}/, 'Undo stays visible and is disabled outside Master Data or without history')
+  assert.match(navbarSource, /disabled=\{!isMasterData \|\| !canRedoMasterDataEdit\}/, 'Redo stays visible and is disabled outside Master Data or without redo history')
+  assert.match(navbarSource, /type="search"[\s\S]*aria-label="Search data"[\s\S]*disabled=\{!isMasterData\}[\s\S]*placeholder="Search data\.\.\."/, 'the permanent Search data field is enabled only where search is implemented')
+  assert.match(navbarSource, /onMasterDataSearchQueryChange\(event\.target\.value\)/, 'Header Search updates the existing Master Data table query')
+  assert.doesNotMatch(navbarSource, /searchOpen|searchRegionRef|aria-expanded/, 'Header Search is an inline field rather than a popup')
+  assert.match(navbarSource, /onClick=\{\(\) => requestMasterDataPrepareDataset\(\)\}[\s\S]*aria-label="Prepare Dataset"[\s\S]*title="Prepare Dataset"[\s\S]*<Info/, 'the final Header control is an Info icon that opens Prepare Dataset')
+  assert.match(navbarSource, /lg:flex-nowrap[\s\S]*overflow-x-auto/, 'Header stays on one row on desktop while navigation scrolls on narrow widths')
   assert.doesNotMatch(bomSource, /aria-label="Search BOM"|placeholder="Search BOM/, 'BOM no longer renders a per-table search box')
   assert.doesNotMatch(routingSource, /aria-label="Search Routing"|placeholder="Search Routing/, 'Routing no longer renders a per-table search box')
   assert.match(pageSource, /searchQuery=\{searchQuery\}[\s\S]*onSearchQueryChange=\{onSearchQueryChange\}/, 'the shared Header query flows into Master Data tables')
   assert.match(headerSource, /type="text"[\s\S]*aria-label="UOM"[\s\S]*onUpdateProduct\(\{ \.\.\.product, uom: event\.target\.value \}\)/, 'UOM is editable as free text')
   assert.match(headerSource, /xl:grid-cols-\[3fr_1fr_2fr_1fr_4fr\]/, 'metadata widths are stable and follow the requested relative sizing')
   assert.match(storeSource, /normalizeMasterDataSnapshot\(mutate\(currentDataset\), currentDataset\)/, 'all dataset edit paths normalize identities, including direct edit, paste, and bulk updates')
+  assert.match(storeSource, /isMasterDataSnapshotChangeValid\(currentDataset, nextDataset\)/, 'direct edits and spreadsheet paste reject newly invalid or unresolved values at the Working boundary')
+  assert.match(storeSource, /filterInvalidMasterDataNumericChanges\(changes\)/, 'mixed spreadsheet pastes preserve valid cells while rejecting invalid numeric cells')
+  assert.match(storeSource, /knownWorkCenters\.has\(proposed\.toLocaleLowerCase\(\)\)/, 'Routing edits reject newly entered unavailable Work Centers')
+  assert.match(storeSource, /getMasterDataSnapshotValidationErrors\(result\.snapshot\)/, 'the store rejects invalid or unresolved snapshots before applying an Import result')
+  assert.match(storeSource, /getMasterDataSnapshotValidationErrors\(nextPair\.reference\)[\s\S]*getMasterDataSnapshotValidationErrors\(nextPair\.current\)/, 'development mock data also passes the ordinary Working data validation boundary')
+  assert.match(snapshotParserSource, /getMasterDataSnapshotValidationErrors\(snapshot\)[\s\S]*success: false[\s\S]*format: 'canonical'/, 'canonical imports reject invalid numeric values and unavailable nonblank Routing Work Centers')
+  assert.match(snapshotParserSource, /canonicalResult\.success \|\| canonicalResult\.format === 'canonical'/, 'validation-rejected canonical workbooks cannot fall through to legacy import parsing')
+  assert.match(importDropzoneSource, /type: 'error',[\s\S]*text: result\.message,[\s\S]*details: result\.warnings/, 'Import rejection shows the existing validation details')
+  assert.match(validationSource, /field === 'capacity' \|\| field === 'yield'[\s\S]*value <= 0[\s\S]*field === 'yield' && value > 1/, 'ingress validation reuses the existing positive Capacity and bounded Yield rules')
   assert.match(pageSource, /Load Mock Data/, 'Master Data exposes one consolidated mock action')
   assert.match(appSource, /getElementById\('main-content'\)\?\.scrollTo\(\{ top: 0, behavior: 'auto' \}\)[\s\S]*\[activeTab\]/, 'changing pages resets the shared content viewport to its heading')
   assert.doesNotMatch(pageSource, /Load complete review mock|Load data-quality mock|Return to working session|window\.confirm/, 'mock loading is immediate and has no session-return UI or confirmation')

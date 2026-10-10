@@ -50,8 +50,8 @@ export const AddRoutingModal: React.FC<AddRoutingModalProps> = ({ isOpen, onClos
     if (!operationCode.trim() && !processName.trim()) return setError('Operation Code or Process Name is required.')
     if (seq !== null && (!Number.isFinite(seq) || seq < 0)) return setError('Sequence must be zero or a positive number.')
     if (m !== null && (!Number.isFinite(m) || m < 0)) return setError('Manning must be zero or a positive number.')
-    if (cap !== null && (!Number.isFinite(cap) || cap < 0)) return setError('Capacity must be zero or a positive number.')
-    if (yieldValue !== null && (!Number.isFinite(yieldValue) || yieldValue < 0 || yieldValue > 100)) return setError('Yield must be between 0% and 100%.')
+    if (cap !== null && (!Number.isFinite(cap) || cap <= 0)) return setError('Capacity must be greater than zero.')
+    if (yieldValue !== null && (!Number.isFinite(yieldValue) || yieldValue <= 0 || yieldValue > 100)) return setError('Yield must be greater than 0% and no more than 100%.')
     onSave({
       operationCode: operationCode.trim() || undefined,
       sequence: seq === null ? undefined : seq,

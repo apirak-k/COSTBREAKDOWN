@@ -172,14 +172,15 @@ export function createSyntheticDataQualitySnapshotPair(): SnapshotPair {
       routing('synthetic-quality-route-ref', 'VALID PROCESS', 'WC-VALID', 1, 100, 0.98)
     ], 'Synthetic Quality Review'),
     current: snapshot('synthetic-quality-current', 'current', [
-      rate('synthetic-quality-rate-current', 'WC-VALID', 100, 50)
+      rate('synthetic-quality-rate-current', 'WC-VALID', 100, 50),
+      rate('synthetic-quality-rate-unpriced', 'WC-MISSING', null, null)
     ], [
       bom('synthetic-quality-priced-current', 'MAT-PRICE', 1, null, 0.02),
       bom('synthetic-quality-duplicate-current-a', 'MAT-DUPLICATE', 1, 5, 0.02),
       bom('synthetic-quality-duplicate-current-b', 'MAT-DUPLICATE', 2, 5, 0.02)
     ], [
       routing('synthetic-quality-route-current', 'VALID PROCESS', 'WC-VALID', 1, 100, 0.98),
-      routing('synthetic-quality-missing-rate', 'PROCESS WITHOUT RATE', 'WC-MISSING', 1, 50, 0.95)
+      routing('synthetic-quality-missing-rate', 'PROCESS WITH MISSING RATES', 'WC-MISSING', 1, 50, 0.95)
     ], 'Synthetic Quality Review Variant')
   }
 }

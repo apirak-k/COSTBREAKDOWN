@@ -5,8 +5,6 @@ export type MasterDataWarningCategory =
   | 'generated-identity'
   | 'auto-renamed-duplicate'
   | 'missing-value'
-  | 'invalid-value'
-  | 'unresolved-work-center'
 
 export type MasterDataWarningTable = 'bom' | 'wc' | 'routing'
 
@@ -26,21 +24,14 @@ export interface MasterDataWarningGroup {
   items: MasterDataWarningItem[]
 }
 
-const warningCategoryOrder: MasterDataWarningCategory[] = [
-  'generated-identity',
-  'auto-renamed-duplicate',
-  'missing-value',
-  'invalid-value',
-  'unresolved-work-center'
+export const MASTER_DATA_WARNING_CATEGORY_DEFINITIONS: ReadonlyArray<{
+  category: MasterDataWarningCategory
+  label: string
+}> = [
+  { category: 'generated-identity', label: 'Generated identity' },
+  { category: 'missing-value', label: 'Missing required value' },
+  { category: 'auto-renamed-duplicate', label: 'Auto-renamed duplicate' }
 ]
-
-const warningCategoryLabels: Record<MasterDataWarningCategory, string> = {
-  'generated-identity': 'Generated names',
-  'auto-renamed-duplicate': 'Auto-renamed duplicates',
-  'missing-value': 'Missing parameters',
-  'invalid-value': 'Invalid values',
-  'unresolved-work-center': 'Unavailable Work Center references'
-}
 
 const roleLabels: Record<MasterDataRole, string> = {
   reference: 'Reference',
@@ -76,10 +67,6 @@ type IdentityRow = {
   confidence?: Record<string, { quality?: string }>
 }
 
-function normalized(value: string): string {
-  return value.trim().toLocaleLowerCase()
-}
-
 function getIdentity(row: IdentityRow, field: string): string {
   return String((row as unknown as Record<string, unknown>)[field] ?? '')
 }
@@ -102,18 +89,9 @@ function addNumericWarnings(
   table: MasterDataWarningTable,
   row: IdentityRow,
   field: string,
-  value: unknown,
-  requirePositive = false,
-  max?: number
+  value: unknown
 ): void {
-  const isInvalid = row.confidence?.[field]?.quality === 'invalid' ||
-    (value !== null && value !== undefined && value !== '' &&
-      (typeof value !== 'number' || !Number.isFinite(value) || value < 0 || (requirePositive && value <= 0) || (max !== undefined && typeof value === 'number' && value > max)))
-  if (isInvalid) {
-    result.push(warningItem(role, table, row.id, field, 'invalid-value', `${getIdentity(row, table === 'bom' ? 'description' : table === 'wc' ? 'workCenterCode' : 'processName')} · ${fieldLabels[field]}`))
-    return
-  }
-
+  if (row.confidence?.[field]?.quality === 'invalid') return
   if (value === null || value === undefined || value === '') {
     result.push(warningItem(role, table, row.id, field, 'missing-value', `${getIdentity(row, table === 'bom' ? 'description' : table === 'wc' ? 'workCenterCode' : 'processName')} · ${fieldLabels[field]}`))
   }
@@ -133,7 +111,7 @@ export function buildMasterDataWarningItems(
         warnings.push(warningItem(role, 'bom', row.id, 'description', 'generated-identity', identity))
       }
       if (row.autoRenamedFrom) {
-        warnings.push(warningItem(role, 'bom', row.id, 'description', 'auto-renamed-duplicate', `${row.autoRenamedFrom} → ${identity}`))
+        warnings.push(warningItem(role, 'bom', row.id, 'description', 'auto-renamed-duplicate', `${row.autoRenamedFrom} renamed to ${identity}`))
       }
       addNumericWarnings(warnings, role, 'bom', row, 'consumption', row.consumption)
       addNumericWarnings(warnings, role, 'bom', row, 'price', row.price)
@@ -146,26 +124,26 @@ export function buildMasterDataWarningItems(
         warnings.push(warningItem(role, 'wc', row.id, 'workCenterCode', 'generated-identity', identity))
       }
       if (row.autoRenamedFrom) {
-        warnings.push(warningItem(role, 'wc', row.id, 'workCenterCode', 'auto-renamed-duplicate', `${row.autoRenamedFrom} → ${identity}`))
+        warnings.push(warningItem(role, 'wc', row.id, 'workCenterCode', 'auto-renamed-duplicate', `${row.autoRenamedFrom} renamed to ${identity}`))
       }
       addNumericWarnings(warnings, role, 'wc', row, 'laborRate', row.laborRate)
       addNumericWarnings(warnings, role, 'wc', row, 'burdenRate', row.burdenRate)
     })
 
-    const workCenterIds = new Set(snapshot.rates.map(row => normalized(row.workCenterCode)))
     snapshot.routing.forEach(row => {
       const identity = row.processName.trim()
       if (row.isGeneratedBusinessIdentity) {
         warnings.push(warningItem(role, 'routing', row.id, 'processName', 'generated-identity', identity))
       }
       if (row.autoRenamedFrom) {
-        warnings.push(warningItem(role, 'routing', row.id, 'processName', 'auto-renamed-duplicate', `${row.autoRenamedFrom} → ${identity}`))
+        warnings.push(warningItem(role, 'routing', row.id, 'processName', 'auto-renamed-duplicate', `${row.autoRenamedFrom} renamed to ${identity}`))
       }
       addNumericWarnings(warnings, role, 'routing', row, 'manning', row.manning)
-      addNumericWarnings(warnings, role, 'routing', row, 'capacity', row.capacity, true)
-      addNumericWarnings(warnings, role, 'routing', row, 'yield', row.yield, true, 1)
-      if (!row.workCenterId?.trim() || !workCenterIds.has(normalized(row.workCenterId))) {
-        warnings.push(warningItem(role, 'routing', row.id, 'workCenterId', 'unresolved-work-center', `${identity} · ${row.workCenterId?.trim() || 'Missing Work Center'}`))
+      addNumericWarnings(warnings, role, 'routing', row, 'capacity', row.capacity)
+      addNumericWarnings(warnings, role, 'routing', row, 'yield', row.yield)
+      const workCenterId = row.workCenterId?.trim()
+      if (!workCenterId) {
+        warnings.push(warningItem(role, 'routing', row.id, 'workCenterId', 'missing-value', `${identity} · Work Center`))
       }
     })
   })
@@ -174,8 +152,16 @@ export function buildMasterDataWarningItems(
 }
 
 export function groupMasterDataWarnings(items: MasterDataWarningItem[]): MasterDataWarningGroup[] {
-  return warningCategoryOrder.flatMap(category => {
-    const categoryItems = items.filter(item => item.category === category)
-    return categoryItems.length ? [{ category, label: warningCategoryLabels[category], items: categoryItems }] : []
-  })
+  return MASTER_DATA_WARNING_CATEGORY_DEFINITIONS.map(({ category, label }) => ({
+    category,
+    label,
+    items: items.filter(item => item.category === category)
+  }))
+}
+
+export function countMasterDataWarningsByRole(items: MasterDataWarningItem[]): Record<MasterDataRole, number> {
+  return items.reduce<Record<MasterDataRole, number>>((counts, item) => {
+    counts[item.role] += 1
+    return counts
+  }, { reference: 0, current: 0, custom: 0 })
 }

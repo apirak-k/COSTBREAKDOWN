@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState } from 'react'
 import {
   AlertTriangle,
   ChevronDown,
-  ChevronUp,
+  ChevronRight,
   Copy,
   Download,
   Info,
@@ -17,10 +17,15 @@ import type { MasterDataRole, CostSnapshot, ProductMaster } from '../../../core'
 import type { MasterDataHandoffStatus } from '../../../core/calculations/master-data-handoff'
 import type { MasterDataSaveState } from '../../../core/utils/master-data-effective'
 import { downloadBlob } from '../../../services/excel/export'
-import type { MasterDataWarningGroup, MasterDataWarningItem } from '../prepare-dataset'
+import {
+  countMasterDataWarningsByRole,
+  type MasterDataWarningGroup,
+  type MasterDataWarningItem
+} from '../prepare-dataset'
 
 interface MasterDataWorkspaceHeaderProps {
   product: ProductMaster
+  comparisonProducts: { reference: ProductMaster; current: ProductMaster }
   snapshot: CostSnapshot
   lastSavedSnapshot?: CostSnapshot
   saveStates: Record<MasterDataRole, MasterDataSaveState>
@@ -39,6 +44,7 @@ interface MasterDataWorkspaceHeaderProps {
   onOpenSizingModal: () => void
   isPrepareDatasetOpen: boolean
   onPrepareDatasetOpenChange: (open: boolean) => void
+  prepareDatasetRequestMode: 'comparison' | 'all-warnings' | null
   warningGroups: MasterDataWarningGroup[]
   warningCount: number
   onNavigateWarning: (item: MasterDataWarningItem) => void
@@ -59,6 +65,7 @@ const roles: MasterDataRole[] = ['reference', 'current', 'custom']
 
 export const MasterDataWorkspaceHeader: React.FC<MasterDataWorkspaceHeaderProps> = ({
   product,
+  comparisonProducts,
   snapshot,
   lastSavedSnapshot,
   saveStates,
@@ -77,6 +84,7 @@ export const MasterDataWorkspaceHeader: React.FC<MasterDataWorkspaceHeaderProps>
   onOpenSizingModal,
   isPrepareDatasetOpen,
   onPrepareDatasetOpenChange,
+  prepareDatasetRequestMode,
   warningGroups,
   warningCount,
   onNavigateWarning,
@@ -85,11 +93,27 @@ export const MasterDataWorkspaceHeader: React.FC<MasterDataWorkspaceHeaderProps>
 }) => {
   const [cloneMenuOpen, setCloneMenuOpen] = useState(false)
   const [expandedWarningCategory, setExpandedWarningCategory] = useState<string | null>(null)
+  const [warningRoleFilter, setWarningRoleFilter] = useState<MasterDataRole | null>(null)
+  const [comparisonDetailsOpen, setComparisonDetailsOpen] = useState(false)
   const prepareRegionRef = useRef<HTMLDivElement>(null)
   const prepareTriggerRef = useRef<HTMLButtonElement>(null)
 
   const roleLabel = roleLabels[role]
   const isSaved = saveStates[role] === 'Saved'
+  const allWarningItems = warningGroups.flatMap(group => group.items)
+  const datasetWarningCounts = countMasterDataWarningsByRole(allWarningItems)
+  const visibleWarningGroups = warningRoleFilter
+    ? warningGroups.map(group => ({ ...group, items: group.items.filter(item => item.role === warningRoleFilter) }))
+    : warningGroups
+  const visibleWarningCount = warningRoleFilter
+    ? datasetWarningCounts[warningRoleFilter]
+    : warningCount
+  const comparisonStatus = handoff.productMismatch ? 'Mismatch' : 'Match'
+  const productIdentity = (details: ProductMaster) => {
+    const name = details.productName?.trim() || '—'
+    const uom = details.uom?.trim() || ''
+    return uom ? `${name} (${uom})` : name
+  }
 
   useEffect(() => {
     setCloneMenuOpen(false)
@@ -98,6 +122,13 @@ export const MasterDataWorkspaceHeader: React.FC<MasterDataWorkspaceHeaderProps>
   useEffect(() => {
     if (isPrepareDatasetOpen) prepareTriggerRef.current?.focus()
   }, [isPrepareDatasetOpen])
+
+  useEffect(() => {
+    if (!prepareDatasetRequestMode) return
+    setWarningRoleFilter(null)
+    setExpandedWarningCategory(null)
+    setComparisonDetailsOpen(prepareDatasetRequestMode === 'comparison')
+  }, [prepareDatasetRequestMode])
 
   useEffect(() => {
     if (!isPrepareDatasetOpen) return
@@ -297,12 +328,27 @@ export const MasterDataWorkspaceHeader: React.FC<MasterDataWorkspaceHeaderProps>
               id="prepare-dataset-panel"
               role="region"
               aria-label="Prepare Dataset status and warnings"
-              className="absolute right-0 top-full z-50 mt-1 w-[min(30rem,calc(100vw-2rem))] border border-slate-300 bg-white p-3 text-sm text-slate-800 shadow-lg"
+              className="absolute right-0 top-full z-50 mt-1 flex max-h-[calc(100dvh-6rem)] w-[min(32rem,calc(100vw-2rem))] flex-col overflow-hidden border border-slate-300 bg-white p-3 text-sm text-slate-800 shadow-lg"
             >
-              <div className="flex items-center justify-between gap-3 border-b border-slate-200 pb-2">
-                <h2 id="prepare-dataset-heading" className="flex items-center gap-2 text-sm font-semibold text-slate-950">
-                  <Info aria-hidden="true" className="h-4 w-4 text-slate-500" /> Prepare Dataset
+              <div className="grid grid-cols-[minmax(0,1fr)_6.5rem_1.75rem] items-center gap-2 border-b border-slate-200 pb-2">
+                <h2 id="prepare-dataset-heading" className="flex min-w-0 items-center gap-2 text-sm font-semibold text-slate-950">
+                  <Info aria-hidden="true" className="h-4 w-4 text-slate-500" />
+                  <span className="truncate">Prepare Dataset</span>
                 </h2>
+                <button
+                  type="button"
+                  onClick={() => setComparisonDetailsOpen(open => !open)}
+                  aria-label={`Comparison status: ${comparisonStatus}. Show compared product identities`}
+                  aria-expanded={comparisonDetailsOpen}
+                  aria-controls="prepare-dataset-identity-details"
+                  title="Inspect compared product identities"
+                  className="grid h-7 w-full grid-cols-[minmax(0,1fr)_1rem] items-center gap-1 rounded-sm px-1 text-xs font-normal text-slate-600 hover:bg-slate-50 hover:text-slate-950 focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-700"
+                >
+                  <span className="justify-self-end">{comparisonStatus}</span>
+                  {comparisonDetailsOpen
+                    ? <ChevronDown aria-hidden="true" className="h-3.5 w-3.5" />
+                    : <ChevronRight aria-hidden="true" className="h-3.5 w-3.5" />}
+                </button>
                 <button
                   type="button"
                   onClick={() => {
@@ -316,70 +362,113 @@ export const MasterDataWorkspaceHeader: React.FC<MasterDataWorkspaceHeaderProps>
                 </button>
               </div>
 
-              <div className="grid grid-cols-1 gap-x-4 border-b border-slate-200 py-2 sm:grid-cols-3" role="group" aria-label="Dataset save and preparation status">
+              <dl
+                id="prepare-dataset-identity-details"
+                hidden={!comparisonDetailsOpen}
+                aria-label="Compared product identities"
+                className="grid grid-cols-[5.5rem_minmax(0,1fr)] gap-x-2 border-b border-slate-200 py-2 text-[11px]"
+              >
+                <dt className="text-slate-500">Reference</dt>
+                <dd className="min-w-0 truncate font-medium text-slate-800" title={productIdentity(comparisonProducts.reference)}>
+                  {productIdentity(comparisonProducts.reference)}
+                </dd>
+                <dt className="text-slate-500">Current</dt>
+                <dd className="min-w-0 truncate font-medium text-slate-800" title={productIdentity(comparisonProducts.current)}>
+                  {productIdentity(comparisonProducts.current)}
+                </dd>
+              </dl>
+
+              <dl className="grid grid-cols-1 gap-x-2 border-b border-slate-200 py-2 sm:grid-cols-3" aria-label="Dataset save states and warning counts">
                 {roles.map(datasetRole => {
                   const saveState = saveStates[datasetRole]
-                  const ready = datasetRole === 'reference' ? handoff.referenceReady
-                    : datasetRole === 'current' ? handoff.currentReady : undefined
+                  const datasetWarningCount = datasetWarningCounts[datasetRole]
+                  const isFiltered = warningRoleFilter === datasetRole
                   return (
-                    <div key={datasetRole} className="flex flex-col gap-1 py-1">
-                      <span className="text-[11px] font-semibold text-slate-700">{roleLabels[datasetRole]}</span>
-                      <span className="inline-flex items-center gap-1.5 text-xs">
-                        <span aria-hidden="true" className={`h-1.5 w-1.5 rounded-full ${saveState === 'Saved' ? 'bg-emerald-600' : 'bg-slate-400'}`} />
-                        <span>{saveState}</span>
-                      </span>
-                      {ready !== undefined && (
-                        <span className={'text-xs ' + (ready ? 'text-emerald-800' : 'text-amber-800')}>
-                          {ready ? 'Prepared' : 'Needs input'}
+                    <div key={datasetRole} className="flex min-h-8 items-center justify-between gap-2 py-1">
+                      <dt className="shrink-0 text-[11px] font-semibold text-slate-700">{roleLabels[datasetRole]}</dt>
+                      <dd className="flex min-w-0 items-center gap-2">
+                        <span className="inline-flex shrink-0 items-center gap-1.5 text-xs">
+                          <span aria-hidden="true" className={`h-1.5 w-1.5 rounded-full ${saveState === 'Saved' ? 'bg-emerald-600' : 'bg-slate-400'}`} />
+                          <span>{saveState}</span>
                         </span>
-                      )}
+                        <button
+                          type="button"
+                          disabled={datasetWarningCount === 0}
+                          aria-label={datasetWarningCount === 0
+                            ? `No warnings in ${roleLabels[datasetRole]}`
+                            : `Filter warnings to ${roleLabels[datasetRole]}: ${datasetWarningCount}`}
+                          aria-pressed={isFiltered}
+                          title={datasetWarningCount === 0
+                            ? `No warnings in ${roleLabels[datasetRole]}`
+                            : `Filter warnings to ${roleLabels[datasetRole]}`}
+                          onClick={() => {
+                            setWarningRoleFilter(datasetRole)
+                            setExpandedWarningCategory(null)
+                          }}
+                          className={`inline-flex min-h-7 shrink-0 items-center gap-1 rounded-sm px-1 font-mono text-xs tabular-nums focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-700 ${datasetWarningCount === 0
+                            ? 'cursor-not-allowed text-slate-400'
+                            : isFiltered
+                              ? 'bg-amber-50 text-amber-900'
+                              : 'text-amber-800 hover:bg-amber-50'}`}
+                        >
+                          <AlertTriangle aria-hidden="true" className="h-3 w-3" />
+                          <span>{datasetWarningCount}</span>
+                        </button>
+                      </dd>
                     </div>
                   )
                 })}
-              </div>
+              </dl>
 
-              {handoff.productMismatch && (
-                <div className="flex items-center justify-between gap-3 border-b border-slate-200 py-2 text-xs">
-                  <span className="font-medium text-slate-600">Comparison</span>
-                  <span className="font-semibold text-slate-800">Product Mismatch</span>
+              <div className="flex min-h-0 flex-1 flex-col pt-2">
+                <div className="mb-1 flex shrink-0 items-center justify-between gap-3">
+                  <h3 className="flex items-center gap-1.5 text-xs font-semibold text-amber-800">
+                    <AlertTriangle className="h-3.5 w-3.5" aria-hidden="true" />
+                    <span>Warnings</span>
+                    {warningRoleFilter
+                      ? <span className="font-normal">· {roleLabels[warningRoleFilter]} {visibleWarningCount}</span>
+                      : <span>{visibleWarningCount}</span>}
+                  </h3>
+                  {warningRoleFilter && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setWarningRoleFilter(null)
+                        setExpandedWarningCategory(null)
+                      }}
+                      className="min-h-7 px-1 text-xs font-medium text-slate-600 underline decoration-dotted underline-offset-2 hover:text-slate-950 focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-700"
+                    >
+                      All
+                    </button>
+                  )}
                 </div>
-              )}
-
-              <div className="pt-2">
-                <h3 className="mb-1 flex items-center gap-1.5 text-xs font-semibold text-amber-800">
-                  <AlertTriangle className="h-3.5 w-3.5" aria-hidden="true" /> Warnings {warningCount}
-                </h3>
-                {warningGroups.length === 0 ? (
-                  <p className="py-1 text-xs text-slate-500">No warnings.</p>
-                ) : (
-                  <ul className="divide-y divide-slate-100">
-                    {warningGroups.map(group => {
+                <ul aria-label="Warning categories" className="min-h-0 flex-1 divide-y divide-slate-100 overflow-y-auto overscroll-contain">
+                    {visibleWarningGroups.map(group => {
                       const expanded = expandedWarningCategory === group.category
-                      const direct = group.items.length === 1
+                      const groupCount = group.items.length
+                      const disabled = groupCount === 0
                       return (
                         <li key={group.category}>
                           <button
                             type="button"
-                            aria-expanded={!direct ? expanded : undefined}
+                            disabled={disabled}
+                            aria-expanded={disabled ? undefined : expanded}
                             onClick={() => {
-                              if (direct) {
-                                onNavigateWarning(group.items[0])
-                                onPrepareDatasetOpenChange(false)
-                              } else {
+                              if (!disabled) {
                                 setExpandedWarningCategory(expanded ? null : group.category)
                               }
                             }}
-                            className="flex min-h-8 w-full items-center gap-2 py-1 text-left text-xs text-slate-800 hover:bg-slate-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-700"
+                            className={`grid min-h-8 w-full grid-cols-[minmax(0,1fr)_2rem_1rem] items-center gap-2 py-1 text-left text-xs focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-700 ${disabled ? 'cursor-not-allowed text-slate-400' : 'text-slate-800 hover:bg-slate-50'}`}
                           >
-                            <span className="w-6 shrink-0 text-right font-mono tabular-nums text-slate-600">{group.items.length}</span>
-                            <span className="min-w-0 flex-1">{group.label}</span>
-                            {direct
-                              ? <span className="w-4" aria-hidden="true" />
-                              : expanded
-                                ? <ChevronUp className="h-3.5 w-3.5 text-slate-500" aria-hidden="true" />
-                                : <ChevronDown className="h-3.5 w-3.5 text-slate-500" aria-hidden="true" />}
+                            <span className="min-w-0 truncate">{group.label}</span>
+                            <span className={`w-8 text-right font-mono tabular-nums ${disabled ? 'text-slate-400' : 'text-slate-600'}`}>{groupCount}</span>
+                            <span className="grid w-4 place-items-center" aria-hidden="true">
+                              {disabled ? null : expanded
+                                ? <ChevronDown className="h-3.5 w-3.5 text-slate-500" />
+                                : <ChevronRight className="h-3.5 w-3.5 text-slate-500" />}
+                            </span>
                           </button>
-                          {expanded && !direct && (
+                          {expanded && groupCount > 0 && (
                             <ul className="mb-1 ml-8 border-l border-slate-200 pl-2">
                               {group.items.map(item => (
                                 <li key={item.id}>
@@ -389,9 +478,9 @@ export const MasterDataWorkspaceHeader: React.FC<MasterDataWorkspaceHeaderProps>
                                       onNavigateWarning(item)
                                       onPrepareDatasetOpenChange(false)
                                     }}
-                                    className="min-h-7 w-full px-1 py-1 text-left text-[11px] text-slate-700 hover:bg-slate-50 hover:text-slate-950 focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-700"
+                                    className="flex min-h-7 w-full px-1 py-1 text-left text-[11px] text-slate-700 hover:bg-slate-50 hover:text-slate-950 focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-700"
                                   >
-                                    {item.label}
+                                    <span className="min-w-0 flex-1">{item.label}</span>
                                   </button>
                                 </li>
                               ))}
@@ -400,11 +489,10 @@ export const MasterDataWorkspaceHeader: React.FC<MasterDataWorkspaceHeaderProps>
                         </li>
                       )
                     })}
-                  </ul>
-                )}
+                </ul>
               </div>
 
-              {mockAction && <div className="mt-2 border-t border-slate-200 pt-2">{mockAction}</div>}
+              {mockAction && <div className="mt-2 shrink-0 border-t border-slate-200 pt-2">{mockAction}</div>}
             </div>
           )}
         </div>

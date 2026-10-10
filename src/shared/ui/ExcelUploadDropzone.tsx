@@ -48,7 +48,8 @@ export const ExcelUploadDropzone: React.FC<ExcelUploadDropzoneProps> = ({
       } else {
         setStatusMessage({
           type: 'error',
-          text: result.message
+          text: result.message,
+          details: result.warnings
         })
       }
     } catch (err: unknown) {

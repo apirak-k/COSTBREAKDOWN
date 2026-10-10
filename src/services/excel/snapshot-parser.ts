@@ -14,6 +14,7 @@ import {
   migratePairedModelToSnapshots
 } from '../../core'
 import { normalizeMasterDataSnapshot } from '../../core/utils/master-data-effective'
+import { getMasterDataSnapshotValidationErrors } from '../../core/utils/master-data-validation'
 import { parseExcelInputFile } from './excel-parser'
 
 type CellValue = string | number | boolean | Date | null
@@ -554,14 +555,18 @@ export function parseSnapshotWorkbookData(
     warnings
   }
 
-  const workCenterCodes = new Set(snapshot.rates.map(rate => rate.workCenterCode.trim().toLowerCase()).filter(Boolean))
-  snapshot.routing.forEach(step => {
-    const workCenter = step.workCenterId?.trim().toLowerCase()
-    if (workCenter && !workCenterCodes.has(workCenter)) {
-      warnings.push(`Unknown Work Center "${step.workCenterId}" referenced by Routing ${step.id}`)
-    }
-  })
   snapshot = normalizeMasterDataSnapshot(snapshot)
+
+  const validationErrors = getMasterDataSnapshotValidationErrors(snapshot)
+  if (validationErrors.length > 0) {
+    return {
+      success: false,
+      message: 'Import rejected: correct invalid numeric values and unavailable Routing Work Centers before importing.',
+      format: 'canonical',
+      warnings: [...warnings, ...validationErrors],
+      role
+    }
+  }
 
   return {
     success: true,
@@ -580,7 +585,7 @@ export async function parseSnapshotExcelInputFile(
 ): Promise<SnapshotImportResult> {
   const data = await file.arrayBuffer()
   const canonicalResult = parseSnapshotWorkbookData(data, role)
-  if (canonicalResult.success) return canonicalResult
+  if (canonicalResult.success || canonicalResult.format === 'canonical') return canonicalResult
 
   if (options.allowLegacy === false) return canonicalResult
 
@@ -617,6 +622,16 @@ export async function parseSnapshotExcelInputFile(
       })()
     : sourceSnapshot
   const snapshot = normalizeMasterDataSnapshot(importedSnapshot)
+  const validationErrors = getMasterDataSnapshotValidationErrors(snapshot)
+  if (validationErrors.length > 0) {
+    return {
+      success: false,
+      message: 'Import rejected: correct invalid numeric values and unavailable Routing Work Centers before importing.',
+      format: 'legacy',
+      warnings: [...(legacyResult.warnings ?? []), ...validationErrors],
+      role
+    }
+  }
 
   return {
     success: true,

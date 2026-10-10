@@ -70,7 +70,7 @@ XLSX.utils.book_append_sheet(incompleteIdentityWorkbook, tableSheet('WORK_CENTER
 XLSX.utils.book_append_sheet(incompleteIdentityWorkbook, tableSheet('BOM', ['Name', 'Usage', 'Unit', 'Price', 'Loss', 'Note'],
   ['', 2, 'PC', 10, 0.05, 'Needs a BOM identity']), 'BOM')
 XLSX.utils.book_append_sheet(incompleteIdentityWorkbook, tableSheet('ROUTING', ['Process', 'WC', 'Manning', 'Cap', 'Yield', 'Note'],
-  ['Cutting', 'WC-1', 1, 100, 1, '']), 'ROUTING')
+  ['Cutting', 'Work Center 1', 1, 100, 1, '']), 'ROUTING')
 const incompleteIdentityResult = parseSnapshotWorkbookData(
   XLSX.write(incompleteIdentityWorkbook, { type: 'array', bookType: 'xlsx' }),
   'current'
@@ -183,10 +183,23 @@ XLSX.utils.book_append_sheet(invalidWorkbook, tableSheet('ROUTING', ['Process', 
   ['Unknown WC', 'WC-NOPE', 1, 100, 0.9, '']), 'ROUTING')
 
 const invalidResult = parseSnapshotWorkbookData(XLSX.write(invalidWorkbook, { type: 'array', bookType: 'xlsx' }), 'current')
-assert.equal(invalidResult.success, true)
-assert.equal(invalidResult.snapshot?.rates[0].laborRate, null)
-assert.equal(invalidResult.snapshot?.rates[0].confidence.laborRate.quality, 'invalid')
+assert.equal(invalidResult.success, false, 'invalid numeric values and unavailable Work Center references reject import')
+assert.equal(invalidResult.format, 'canonical', 'a rejected canonical workbook does not become a legacy-import candidate')
+assert.equal(invalidResult.snapshot, undefined, 'rejected input does not expose a snapshot to apply')
+assert.ok(invalidResult.warnings.some(warning => warning.includes('Invalid Labor at row')))
 assert.ok(invalidResult.warnings.some(warning => warning.includes('Unknown Work Center')))
+
+const invalidCapacityWorkbook = XLSX.utils.book_new()
+XLSX.utils.book_append_sheet(invalidCapacityWorkbook, metaSheet('Invalid Capacity', 'PC', null, null, ''), 'META')
+XLSX.utils.book_append_sheet(invalidCapacityWorkbook, tableSheet('WORK_CENTER', ['WC', 'Labor', 'Burden', 'Note'],
+  ['WC-1', 10, 5, 'Cutting']), 'WORK_CENTER')
+XLSX.utils.book_append_sheet(invalidCapacityWorkbook, tableSheet('BOM', ['Name', 'Usage', 'Unit', 'Price', 'Loss', 'Note'],
+  ['Material 1', 1, 'PC', 10, 0, '']), 'BOM')
+XLSX.utils.book_append_sheet(invalidCapacityWorkbook, tableSheet('ROUTING', ['Process', 'WC', 'Manning', 'Cap', 'Yield', 'Note'],
+  ['Cut', 'WC-1', 1, 0, 0.9, '']), 'ROUTING')
+const invalidCapacityResult = parseSnapshotWorkbookData(XLSX.write(invalidCapacityWorkbook, { type: 'array', bookType: 'xlsx' }), 'current')
+assert.equal(invalidCapacityResult.success, false, 'non-positive Capacity is rejected by canonical import validation')
+assert.ok(invalidCapacityResult.warnings.some(warning => warning.includes('capacity')))
 
 const legacyWorkbook = XLSX.utils.book_new()
 XLSX.utils.book_append_sheet(legacyWorkbook, sheet([

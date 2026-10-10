@@ -2,7 +2,7 @@ import assert from 'node:assert/strict'
 import { calculateSnapshotCost, compareSnapshots } from '../src/core'
 import { getCanonicalComparisonStatus } from '../src/core/calculations/comparison-status'
 import { normalizeMasterDataSnapshot } from '../src/core/utils/master-data-effective'
-import { buildMasterDataWarningItems } from '../src/features/master-data/prepare-dataset'
+import { buildMasterDataWarningItems, MASTER_DATA_WARNING_CATEGORY_DEFINITIONS } from '../src/features/master-data/prepare-dataset'
 import {
   createSyntheticDataQualitySnapshotPair,
   createSyntheticReviewSnapshotPair
@@ -57,6 +57,10 @@ assert.ok(loadedPair.current.bom.some(row => row.autoRenamedFrom), 'the mock rec
 const mockWarnings = buildMasterDataWarningItems({ ...loadedPair, custom: normalizeMasterDataSnapshot(qualityPair.current) })
 assert.ok(mockWarnings.some(item => item.category === 'auto-renamed-duplicate'), 'the mock exposes automatic renames as warning items')
 assert.ok(mockWarnings.some(item => item.category === 'missing-value'), 'the mock exposes missing values as warning items')
-assert.ok(mockWarnings.some(item => item.category === 'unresolved-work-center'), 'the mock exposes unresolved Work Center references')
+assert.deepEqual(MASTER_DATA_WARNING_CATEGORY_DEFINITIONS.map(definition => definition.category), [
+  'generated-identity', 'missing-value', 'auto-renamed-duplicate'
+], 'Prepare Dataset exposes exactly three warning categories')
+assert.ok(mockWarnings.every(item => MASTER_DATA_WARNING_CATEGORY_DEFINITIONS.some(definition => definition.category === item.category)),
+  'mock warnings use only canonical visible categories')
 
 console.log('Synthetic fixtures cover comparison states, data quality, effective identities, and ordinary mock warnings.')

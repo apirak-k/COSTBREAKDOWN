@@ -220,12 +220,19 @@ the top of its content scroll area, as required by
   the current page clearly marked. Keep the page navigation usable at narrow
   widths by allowing it to scroll or reflow without covering page content.
 - Keep the confirmed shared workflow status/context and active Selected
-  Comparison state recognizable where relevant. Their exact placement,
-  wording, and control styling remain reversible UI choices under
-  [`CROSS_CUTTING.md`](docs/specs/CROSS_CUTTING.md#shared-status-and-analysis-context).
-- Treat the shared Header as the compact workspace bar: keep page navigation
-  and workflow context there, with contextual icon-only Undo/Redo and Search
-  on Master Data. Search follows the visible Master Data table context.
+  Comparison state recognizable where relevant, outside the Global Header.
+  Their placement, wording, and control styling remain governed by
+  [`CROSS_CUTTING.md`](docs/specs/CROSS_CUTTING.md#shared-status-and-analysis-context)
+  where the latest explicit page contract does not define them.
+- Treat the shared Header as one compact workspace bar. Its desktop order is
+  Undo, Redo, `COSTBREAKDOWN`, safely resolved Product (Unit) context, the
+  permanent `Search data...` field, Master Data / Cost Breakdown / Candidate /
+  Simulation, and a final icon-only Info control for Prepare Dataset. Do not
+  place workflow status, a workflow CTA, warning text, or additional navigation
+  in the Header. Undo and Redo stay visible but are enabled only on Master Data
+  when the existing history allows them. Search stays visible, filters the
+  visible Master Data table context, and remains disabled on pages without
+  finalized search behavior.
 - Remove `CB`, `Product Cost Analysis`, and the bottom-left `Workspace` label
   per the confirmed Master Data visual direction. Do not replace them with a
   decorative slogan or redundant branding.
@@ -243,7 +250,8 @@ the top of its content scroll area, as required by
 - **Quiet:** text or subtle-surface action for non-primary controls.
 - Keep action sizing compact but operable. Icon-only actions use consistent
   neutral controls with accessible names, tooltips, and visible focus. Header
-  Undo/Redo/Search appear only in their useful context.
+  Undo/Redo/Search stay visible; Undo/Redo are enabled only for available
+  Master Data history and Search is enabled only for Master Data.
 - Do not use hover as the only way to reveal an action.
 
 ### Panels, summaries, and forms

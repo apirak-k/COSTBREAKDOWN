@@ -49,6 +49,11 @@ import {
 import { markMasterDataChanged, markMasterDataChangedForSnapshotPair } from './master-data-revision'
 import { normalizeMasterDataSnapshot } from '../core/utils/master-data-effective'
 import {
+  filterInvalidMasterDataNumericChanges,
+  getMasterDataSnapshotValidationErrors,
+  isMasterDataSnapshotChangeValid
+} from '../core/utils/master-data-validation'
+import {
   createMasterDataEditHistory,
   recordMasterDataEdit,
   undoMasterDataEdit as takeMasterDataUndo,
@@ -267,12 +272,13 @@ interface AppContextType {
   masterDataLastSavedSnapshots: Partial<Record<MasterDataRole, CostSnapshot>>
   masterDataSizing: import('../core/types').DatasetSizing
   masterDataPrepareDatasetRequested: boolean
+  masterDataPrepareDatasetRequestMode: 'comparison' | 'all-warnings' | null
   activeTab: ActiveTab
   uomList: string[]
 
   // Navigation
   setActiveTab: (tab: ActiveTab) => void
-  requestMasterDataPrepareDataset: () => void
+  requestMasterDataPrepareDataset: (mode?: 'comparison' | 'all-warnings') => void
   consumeMasterDataPrepareDatasetRequest: () => void
 
   // Product session management
@@ -439,6 +445,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
   const [selectedComparisonScope, setSelectedComparisonScope] = useState<StoredSelectedComparison | null>(null)
   const [masterDataPrepareDatasetRequested, setMasterDataPrepareDatasetRequested] = useState(false)
+  const [masterDataPrepareDatasetRequestMode, setMasterDataPrepareDatasetRequestMode] = useState<'comparison' | 'all-warnings' | null>(null)
 
   useEffect(() => {
     clearMasterDataEditHistory()
@@ -455,11 +462,15 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     saveToSession(STORAGE_KEYS.ACTIVE_TAB, tab)
   }
 
-  const requestMasterDataPrepareDataset = () => {
+  const requestMasterDataPrepareDataset = (mode?: 'comparison' | 'all-warnings') => {
     setActiveTab('master')
+    setMasterDataPrepareDatasetRequestMode(mode ?? null)
     setMasterDataPrepareDatasetRequested(true)
   }
-  const consumeMasterDataPrepareDatasetRequest = () => setMasterDataPrepareDatasetRequested(false)
+  const consumeMasterDataPrepareDatasetRequest = () => {
+    setMasterDataPrepareDatasetRequested(false)
+    setMasterDataPrepareDatasetRequestMode(null)
+  }
 
 
   const addUOM = (newUOM: string) => {
@@ -851,6 +862,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const readiness = getSnapshotRoleReadiness(session)
     const currentDataset = getMasterDataSnapshot(session, pair, role)
     let nextDataset = normalizeMasterDataSnapshot(mutate(currentDataset), currentDataset)
+    if (!isMasterDataSnapshotChangeValid(currentDataset, nextDataset)) return
     if (role === 'custom' && nextDataset.comparisonRole) {
       const { comparisonRole: _comparisonRole, ...customDataset } = nextDataset
       nextDataset = customDataset
@@ -997,6 +1009,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         })
     })
     const updatedSnapshot = normalizeMasterDataSnapshot(resizedSnapshot, currentDataset)
+    if (!isMasterDataSnapshotChangeValid(currentDataset, updatedSnapshot)) return
     if (role === 'custom') {
       const updated = {
         ...session,
@@ -1049,7 +1062,10 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
   const updateMasterDataBOMItems = (updates: Array<{ id: string; changes: Partial<Omit<SnapshotBOMItem, 'id' | 'confidence'>> }>) => {
     const changesById = new Map<string, Partial<Omit<SnapshotBOMItem, 'id' | 'confidence'>>>()
-    updates.forEach(({ id, changes }) => changesById.set(id, { ...changesById.get(id), ...changes }))
+    updates.forEach(({ id, changes }) => changesById.set(id, {
+      ...changesById.get(id),
+      ...filterInvalidMasterDataNumericChanges(changes)
+    }))
     updateMasterDataDataset(dataset => ({
       ...dataset,
       bom: dataset.bom.map(item => {
@@ -1107,8 +1123,22 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   }
 
   const updateMasterDataRoutingSteps = (updates: Array<{ id: string; changes: Partial<Omit<SnapshotRoutingStep, 'id' | 'confidence'>> }>) => {
+    const session = activeSession
+    const pair = session.snapshotPair ?? sessionToSnapshotPair(session)
+    const currentDataset = getMasterDataSnapshot(session, pair, masterDataUiState.role)
+    const knownWorkCenters = new Set(currentDataset.rates.map(rate => rate.workCenterCode.trim().toLocaleLowerCase()).filter(Boolean))
     const changesById = new Map<string, Partial<Omit<SnapshotRoutingStep, 'id' | 'confidence'>>>()
-    updates.forEach(({ id, changes }) => changesById.set(id, { ...changesById.get(id), ...changes }))
+    updates.forEach(({ id, changes }) => {
+      const acceptedChanges = filterInvalidMasterDataNumericChanges(changes)
+      if (Object.prototype.hasOwnProperty.call(changes, 'workCenterId')) {
+        const proposed = String(changes.workCenterId ?? '').trim()
+        const existing = currentDataset.routing.find(step => step.id === id)?.workCenterId?.trim() ?? ''
+        if (proposed && !knownWorkCenters.has(proposed.toLocaleLowerCase()) && proposed.toLocaleLowerCase() !== existing.toLocaleLowerCase()) {
+          delete acceptedChanges.workCenterId
+        }
+      }
+      changesById.set(id, { ...changesById.get(id), ...acceptedChanges })
+    })
     updateMasterDataDataset(dataset => ({
       ...dataset,
       routing: dataset.routing.map(step => {
@@ -1165,7 +1195,10 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
   const updateMasterDataWorkCenterRates = (updates: Array<{ id: string; changes: Partial<Omit<SnapshotWorkCenterRate, 'id' | 'confidence'>> }>) => {
     const changesById = new Map<string, Partial<Omit<SnapshotWorkCenterRate, 'id' | 'confidence'>>>()
-    updates.forEach(({ id, changes }) => changesById.set(id, { ...changesById.get(id), ...changes }))
+    updates.forEach(({ id, changes }) => changesById.set(id, {
+      ...changesById.get(id),
+      ...filterInvalidMasterDataNumericChanges(changes)
+    }))
     updateMasterDataDataset(dataset => ({
       ...dataset,
       rates: dataset.rates.map(rate => {
@@ -1304,6 +1337,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   // Snapshot import keeps Reference and Current as independent datasets.
   const importSnapshotFromExcel = (result: SnapshotImportResult) => {
     if (!result.success || !result.snapshot) return
+    if (getMasterDataSnapshotValidationErrors(result.snapshot).length > 0) return
 
     const source = activeSession
     const existingPair = source.snapshotPair ?? sessionToSnapshotPair(source)
@@ -1349,6 +1383,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const source = activeSession
     const beforePair = normalizeSnapshotPair(source.snapshotPair ?? sessionToSnapshotPair(source))
     const nextPair = normalizeSnapshotPair(pair)
+    if (getMasterDataSnapshotValidationErrors(nextPair.reference).length > 0 ||
+      getMasterDataSnapshotValidationErrors(nextPair.current).length > 0) return
     if (JSON.stringify(beforePair) === JSON.stringify(nextPair)) return
     const now = new Date().toISOString()
     const updated = applyMasterDataSnapshotPair({
@@ -1429,6 +1465,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       masterDataLastSavedSnapshots,
       masterDataSizing,
       masterDataPrepareDatasetRequested,
+      masterDataPrepareDatasetRequestMode,
       activeTab,
       uomList,
       setActiveTab,

@@ -5,7 +5,17 @@ import {
   isProductMismatch,
   normalizeMasterDataSnapshot
 } from '../src/core/utils/master-data-effective'
-import { buildMasterDataWarningItems } from '../src/features/master-data/prepare-dataset'
+import {
+  filterInvalidMasterDataNumericChanges,
+  getMasterDataSnapshotValidationErrors,
+  isMasterDataSnapshotChangeValid
+} from '../src/core/utils/master-data-validation'
+import {
+  buildMasterDataWarningItems,
+  countMasterDataWarningsByRole,
+  groupMasterDataWarnings,
+  MASTER_DATA_WARNING_CATEGORY_DEFINITIONS
+} from '../src/features/master-data/prepare-dataset'
 import { getPopulatedRowsRemovedBySizing } from '../src/state/dataset-sizing'
 
 function snapshot(id: string): CostSnapshot {
@@ -78,20 +88,40 @@ assert.deepEqual(normalizeMasterDataSnapshot(pastedDuplicates).bom.map(row => ro
 const quality = snapshot('quality')
 quality.bom = [
   { id: 'generated', itemCode: '', description: '', consumption: null, unit: 'PC', price: null, loss: null, confidence: {} },
-  { id: 'bad', itemCode: '', description: 'Bad', consumption: -1, unit: 'PC', price: 1, loss: 0, confidence: {} }
+  { id: 'bad', itemCode: '', description: 'Bad', consumption: -1, unit: 'PC', price: 1, loss: 0, confidence: {} },
+  { id: 'renamed', itemCode: '', description: 'mat0.3a(1)', consumption: 1, unit: 'PC', price: 1, loss: 0, confidence: {}, autoRenamedFrom: 'mat0.3a' }
 ]
 quality.rates = [{ id: 'rate', workCenterCode: 'WC-1', description: '', laborRate: null, burdenRate: 0, effectiveDate: '', confidence: {} }]
-quality.routing = [{ id: 'route', processName: 'Cut', workCenterId: 'NO-WC', manning: 1, capacity: 0, yield: 1, confidence: {} }]
+quality.routing = [
+  { id: 'route', processName: 'Cut', workCenterId: 'NO-WC', manning: 1, capacity: 0, yield: 1, confidence: {} },
+  { id: 'blank-wc', processName: 'Drilling', workCenterId: '', manning: 1, capacity: 100, yield: 1, confidence: {} }
+]
 const warningItems = buildMasterDataWarningItems({ reference: snapshot('reference'), current: normalizeMasterDataSnapshot(quality), custom: snapshot('custom') })
 const warningCategories = warningItems.reduce<Record<string, number>>((totals, warning) => {
   totals[warning.category] = (totals[warning.category] ?? 0) + 1
   return totals
 }, {})
 assert.equal(warningCategories['generated-identity'], 1, 'generated identities are reviewable warning items')
-assert.equal(warningCategories['missing-value'], 4, 'missing required numeric values count by affected field')
-assert.equal(warningCategories['invalid-value'], 2, 'invalid negative and non-positive required inputs are counted')
-assert.equal(warningCategories['unresolved-work-center'], 1, 'unavailable Work Center references are counted')
-assert.equal(warningItems.length, 8, 'footer warning total sums affected warning locations, not category count')
+assert.equal(warningCategories['missing-value'], 5, 'missing required values count by affected field, including a blank Routing Work Center')
+assert.equal(warningCategories['auto-renamed-duplicate'], 1, 'automatic duplicate renames remain reviewable warning items')
+assert.equal(warningItems.length, 7, 'footer warning total sums affected warning locations, not category count')
+assert.deepEqual(Object.keys(warningCategories).sort(), ['auto-renamed-duplicate', 'generated-identity', 'missing-value'].sort(),
+  'Prepare Dataset exposes exactly the three canonical warning categories')
+assert.ok(warningItems.some(item => item.rowId === 'blank-wc' && item.field === 'workCenterId' && item.category === 'missing-value'),
+  'a blank required Work Center is reported as Missing required value')
+assert.equal(warningItems.filter(item => item.rowId === 'blank-wc' && item.field === 'workCenterId').length, 1,
+  'blank Work Center creates only one Missing required value item')
+const warningsByRole = countMasterDataWarningsByRole(warningItems)
+assert.deepEqual(warningsByRole, { reference: 0, current: 7, custom: 0 }, 'dataset counts remain independent')
+assert.equal(Object.values(warningsByRole).reduce((total, count) => total + count, 0), warningItems.length,
+  'the per-dataset counts sum to the total without extra warning rows')
+const warningGroups = groupMasterDataWarnings(warningItems)
+assert.deepEqual(warningGroups.map(group => group.category), MASTER_DATA_WARNING_CATEGORY_DEFINITIONS.map(definition => definition.category),
+  'Prepare Dataset keeps all warning category rows present, including zero-count rows')
+assert.deepEqual(groupMasterDataWarnings([]).map(group => group.items.length), [0, 0, 0],
+  'all three warning categories remain present with zero items when there are no warnings')
+assert.equal(groupMasterDataWarnings(warningItems.filter(item => item.role === 'reference')).every(group => group.items.length === 0), true,
+  'a dataset filter leaves stable zero-count categories for datasets without warnings')
 assert.ok(warningItems.every(item => item.role !== 'custom' || item.table !== 'product'))
 
 assert.equal(getDatasetSaveState(effective, undefined), 'Draft')
@@ -108,6 +138,51 @@ assert.equal(isProductMismatch(
   { ...snapshot('blank-current'), product: { ...snapshot('blank-current').product, productName: '', productDescription: 'Current description' } }
 ), false, 'blank Product Names remain blank even when legacy descriptions differ')
 assert.ok(!warningItems.some(item => item.category === 'product-mismatch'), 'Product Mismatch is not a warning category')
+
+const validationBase = snapshot('validation-base')
+validationBase.rates = [{ id: 'wc-valid', workCenterCode: 'WC-1', description: '', laborRate: 1, burdenRate: 1, effectiveDate: '', confidence: {} }]
+validationBase.bom = [{ id: 'bom-valid', itemCode: '', description: 'Material', consumption: 1, unit: 'PC', price: 1, loss: 0, confidence: {} }]
+validationBase.routing = [{ id: 'routing-valid', processName: 'Cut', workCenterId: 'WC-1', manning: 1, capacity: 1, yield: 1, confidence: {} }]
+const invalidNumericChange = structuredClone(validationBase)
+invalidNumericChange.bom[0].consumption = -1
+assert.equal(isMasterDataSnapshotChangeValid(validationBase, invalidNumericChange), false,
+  'normal Working updates reject newly introduced negative numbers')
+assert.deepEqual(filterInvalidMasterDataNumericChanges({ consumption: Number.NaN, note: 'keep this edit' }), { note: 'keep this edit' },
+  'a mixed multi-cell paste can retain valid fields while dropping an invalid numeric cell')
+const invalidCapacityChange = structuredClone(validationBase)
+invalidCapacityChange.routing[0].capacity = 0
+assert.equal(isMasterDataSnapshotChangeValid(validationBase, invalidCapacityChange), false,
+  'normal Working updates reject non-positive Capacity')
+const invalidYieldChange = structuredClone(validationBase)
+invalidYieldChange.routing[0].yield = 1.01
+assert.equal(isMasterDataSnapshotChangeValid(validationBase, invalidYieldChange), false,
+  'normal Working updates reject Yield outside the existing range')
+const unknownWorkCenterChange = structuredClone(validationBase)
+unknownWorkCenterChange.routing[0].workCenterId = 'MISSING-WC'
+assert.equal(isMasterDataSnapshotChangeValid(validationBase, unknownWorkCenterChange), false,
+  'normal Working updates reject newly introduced unavailable Work Center references')
+const renamedReferencedWorkCenter = structuredClone(validationBase)
+renamedReferencedWorkCenter.rates[0].workCenterCode = 'WC-2'
+assert.equal(isMasterDataSnapshotChangeValid(validationBase, renamedReferencedWorkCenter), false,
+  'renaming a referenced Work Center cannot strand a nonblank Routing reference')
+const deletedReferencedWorkCenter = structuredClone(validationBase)
+deletedReferencedWorkCenter.rates = []
+assert.equal(isMasterDataSnapshotChangeValid(validationBase, deletedReferencedWorkCenter), false,
+  'deleting or sizing away a referenced Work Center cannot strand a nonblank Routing reference')
+const blankWorkCenterChange = structuredClone(validationBase)
+blankWorkCenterChange.routing[0].workCenterId = ''
+assert.equal(isMasterDataSnapshotChangeValid(validationBase, blankWorkCenterChange), true,
+  'blank Routing Work Center remains allowed and can be reported as Missing required value')
+assert.ok(getMasterDataSnapshotValidationErrors(invalidYieldChange).some(error => error.includes('yield')),
+  'import validation rejects invalid values before they become Working data')
+assert.ok(getMasterDataSnapshotValidationErrors(unknownWorkCenterChange).some(error => error.includes('Unknown Work Center')),
+  'import validation rejects unavailable nonblank Routing Work Center references')
+const legacyInvalid = structuredClone(invalidNumericChange)
+assert.equal(isMasterDataSnapshotChangeValid(legacyInvalid, { ...structuredClone(legacyInvalid), remark: 'review' }), true,
+  'unrelated edits do not freeze a legacy snapshot that already contains invalid data')
+const legacyUnknownReference = structuredClone(unknownWorkCenterChange)
+assert.equal(isMasterDataSnapshotChangeValid(legacyUnknownReference, { ...structuredClone(legacyUnknownReference), remark: 'review' }), true,
+  'unrelated edits do not freeze a legacy snapshot with a pre-existing unavailable Work Center')
 
 const truncation = snapshot('truncation')
 truncation.bom = [

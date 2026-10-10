@@ -150,7 +150,7 @@ Match records strictly by business identity:
   - Tab: Move right; Shift+Tab: Move left.
   - Escape: Cancel/exit cell editing where appropriate.
   - Ctrl/Cmd+C & Ctrl/Cmd+V: Clipboard copy/paste (including tabular data from Excel; pasted values map by row and column, and invalid pasted cells are identified locally rather than failing the page).
-  - Ctrl/Cmd+Z: Undo; Ctrl/Cmd+Y or Ctrl/Cmd+Shift+Z: Redo. Header Undo/Redo are contextual to Master Data and span Working edits across all Master Data tables.
+  - Ctrl/Cmd+Z: Undo; Ctrl/Cmd+Y or Ctrl/Cmd+Shift+Z: Redo. Header Undo/Redo stay visible across pages but are enabled only on Master Data and span Working edits across all Master Data tables.
   - Same-column bulk edits to selected rows.
 - Selection gestures: Click `#` to select row; drag across row headers or Shift+click for contiguous range; Ctrl/Cmd+click for non-contiguous rows. Keep row selection separate from reordering.
 - Reorder handle: Dedicated control in the rightmost column after Actions. Selected rows move together in source order. Reordering changes Working row order but does not make a business record `CHANGED`.
