@@ -21,26 +21,26 @@ It does not change finalized calculations, Candidate generation, RCA data semant
 - Table-view controls appear in the order BOM / Work Centers / Routing / All, have equal fixed sizing, and remain at toolbar level. Prepare Dataset stays at the toolbar's far right and uses an Info icon.
 - Search is a local Master Data toolbar control using the existing `masterDataSearchQuery` state and filtering behavior. It filters BOM, Work Centers, or Routing for the selected view; `All` applies the same query across all visible tables. Do not show Search in the global Header or invent search behavior for unrelated pages. Keep the existing per-table filtering logic and avoid adding duplicate table search controls.
 - Clone opens a source flyout on hover, focus, or click; the flyout excludes the destination, stays open while moving between trigger and menu, closes when the pointer leaves both, and supports keyboard selection. Choosing a source clones immediately without a second confirmation.
-- Prepare Dataset is a compact, toggleable popover with a fixed desktop rectangle of approximately 24rem × 30rem, clamped to the viewport on smaller screens. Its outer rectangle does not change with warning count, expansion, dataset filter, or Product detail state. The top summary, dataset rows, Warnings heading, and development mock actions remain fixed; only the warning list scrolls. It closes from its trigger, outside click, Escape, or its close button.
-- The fixed top summary reads `Dataset`, then a dotted `Ready` / `Incomplete` status, a clickable dotted `Product Match` / `Product Mismatch` status, and Close at the far edge. Product status has no chevron, border, or filled semantic background. Clicking it opens a floating Reference / Current Product Name and UOM mini-popover; the mini-popover does not affect layout, closes on outside click, Escape, or a second status click, and starts closed when Prepare Dataset opens normally. Footer Product status opens Prepare Dataset with that mini-popover open.
-- Reference / Current / Custom summaries are three separate rows with shared fixed columns for dataset name, save state, and warning count. Counts align right; positive counts show `⚠ N`, while zero is a muted `0` without a warning icon. Do not show Prepared / Needs input in these rows or explain that Custom is unused by CBD.
+- Prepare Dataset is a compact, toggleable popover with a fixed desktop rectangle of approximately 24rem × 30rem, clamped to the viewport on smaller screens. Its outer rectangle does not change with warning count or dataset filter. The top summary, dataset rows, Warnings heading, and development mock actions remain fixed. Collapsed categories do not reserve an empty scroll viewport; only the expanded category's detail list scrolls, capped near 9rem. It closes from its trigger, outside click, Escape, or its close button.
+- The fixed top summary reads `Dataset`, a dotted `Ready` / `Incomplete` status, a dotted display-only `Product Match` / `Product Mismatch` status, and Close at the far edge. Product status has no click affordance, chevron, underline, border, or filled semantic background. Product Name/UOM details are available in the Footer tooltip; there is no Product mini-popover.
+- Reference / Current / Custom summaries are three separate rows with four shared fixed columns: dataset, save state, warning icon, and right-aligned count. A positive warning icon and its count occupy separate tracks; zero leaves the icon track empty and displays a muted `0`. Do not show Prepared / Needs input in these rows or explain that Custom is unused by CBD.
 - Ready requires Reference and Current readiness plus no Missing required value warnings in Reference or Current. Custom does not affect readiness. Use this same readiness derivation in the Footer and the fixed top summary; do not show readiness on individual dataset rows.
 - Status describes context/state; Warning identifies data to review. Product Mismatch is a non-blocking comparison status, excluded from warning categories and counts, and never triggers a CBD confirmation or blocker.
 - Prepare Dataset exposes exactly three warning categories: Generated identity, Missing required value, and Auto-renamed duplicate. Invalid numeric values and nonblank unavailable Routing Work Center references are rejected at normal edit/import ingress; they are not warning categories. Blank required Work Center is Missing required value. Counts represent affected source items/locations, not categories, and do not double-count a condition at one location.
 - Always show Reference / Current / Custom warning counts. Clicking a non-zero dataset count filters the category list to that dataset; `All` restores the combined list. Do not repeat dataset counts inside category rows.
-- The Warnings heading has no warning icon. Always show exactly three warning category rows, including zero-count categories. A zero-count row is static and not interactive: keep its label at normal contrast, mute only the number `0`, and show no hover affordance or chevron. Positive rows use a shared label / fixed count / fixed far-right chevron grid and always expand or collapse, including when count is one. Each expanded actual warning item is the final action: it navigates directly to the source and has no chevron or other expansion/navigation indicator. The fixed warning viewport scrolls internally; the outer panel does not scroll. Navigation activates the dataset and table, switches to Edit, selects and scrolls the row, and focuses/highlights the field when practical. Warning presence never blocks normal application use.
-- The shared Footer is a compact three-group summary: Reference/Current structure in BOM / WC / RTG order; Reference+Current readiness, clickable Product Match/Mismatch, and clickable `⚠ N`; then full Reference/Current Standard Cost and full Net Gap. Both statuses have a dot, semibold text, and semantic color; Product Match/Mismatch has no chevron. Custom is omitted from structure/readiness, but its warning items remain in the warning total. Product Mismatch and readiness are not warning items.
+- The Warnings heading has no warning icon. Always show exactly three warning category rows, including zero-count categories. A zero-count row is static and not interactive: keep its label at normal contrast, mute only the number `0`, and show no hover affordance or chevron. Positive rows use a shared label / fixed count / fixed far-right chevron grid and always expand or collapse, including when count is one. Each expanded actual warning item is the final action: it navigates directly to the source and has no chevron or other expansion/navigation indicator. Only the expanded detail list scrolls; category rows and the Warnings heading stay visible. Navigation activates the dataset and table, switches to Edit, selects and scrolls the row, and focuses/highlights the field when practical. Warning presence never blocks normal application use.
+- The shared Footer is a compact three-group summary: Reference/Current structure in BOM / WC / RTG order; Reference+Current readiness, display-only Product Match/Mismatch, and clickable `⚠ N`; then full Reference/Current Standard Cost and full Net Gap. Both statuses have a dot, semibold text, semantic color, and an upward tooltip on hover/focus. Dataset status tooltip lists only Reference and Current. Product tooltip shows both Product Name/UOM pairs without fabricated defaults. The Warning tooltip lists only non-zero categories; clicking `⚠ N` opens Prepare Dataset with all warning roles visible and no category expanded. Custom is omitted from structure/readiness, but its warning items remain in the warning total. Product Mismatch and readiness are not warning items.
 - Blank BOM, Work Center, and Routing identities have usable effective identities `Material N`, `Work Center N`, and `Process N`. `N` is the ordinal among currently blank/generated identities in that table, not the physical row number. Generated identities may be saved and exported, appear in warnings, and do not block workflow.
 - Duplicate effective identities are auto-renamed to the next available deterministic suffix, such as `mat0.3a`, `mat0.3a(1)`, `mat0.3a(2)`. Apply the rule to direct entry, paste, bulk edits, and other applicable input paths. Report each correction as a warning without a modal. Existing imported/legacy ambiguous data must not cause the comparison engine to guess a match.
 - Missing required values make only affected and dependent results Unavailable and appear in the warning list. Invalid numeric values are rejected at edit/import ingress; unavailable nonblank Routing Work Center references are rejected at edit/import ingress. Existing persisted invalid data remains Unavailable with local invalid-cell cues, but neither invalid values nor unresolved Work Centers appear as Prepare Dataset warning categories. Never replace missing values with zero. A valid zero remains valid where formulas permit it.
-- Development exposes two direct actions, `Complete Mock` and `Incomplete Mock`, on one fixed compact row below the warning viewport. Both load immediately into ordinary Working/history state with no dropdown or confirmation. Loading replaces Reference and Current Working data, clears stale Custom Working rows/sizing that would inflate the fixture warning totals, and preserves every Last Saved dataset. The load is one ordinary undoable history action, including the previous Custom Working state. Complete Mock has matching Product Name/UOM, calculable Reference and Current costs, and zero warnings. Incomplete Mock has three generated identities, nine missing required values, three auto-renamed duplicates, and a Product Mismatch outside the 15-warning total. It does not introduce invalid-number or unresolved nonblank Work Center cases. There is no separate mock session/mode or return action. Reset continues to restore Last Saved.
+- Development exposes two direct actions, `Complete Mock` and `Incomplete Mock`, in equal centered 50/50 columns on one fixed compact row below the warning details. Both load immediately into ordinary Working/history state with no dropdown or confirmation. Loading replaces Reference and Current Working data, clears stale Custom Working rows/sizing that would inflate the fixture warning totals, and preserves every Last Saved dataset. The load is one ordinary undoable history action, including the previous Custom Working state. Complete Mock has matching Product Name/UOM, calculable Reference and Current costs, and zero warnings. Incomplete Mock has three generated identities, nine missing required values, three auto-renamed duplicates, and a Product Mismatch outside the 15-warning total. It does not introduce invalid-number or unresolved nonblank Work Center cases. There is no separate mock session/mode or return action. Reset continues to restore Last Saved.
 - Clone is labeled `Clone`; it selects a source and copies that source's Working data into the viewed destination's Working data. The destination Last Saved is unchanged. Source selection performs the copy without a second replacement confirmation.
 - Reset remains confirmation-protected and restores Working from Last Saved. Clear remains confirmation-protected and clears only the selected Working state. Sizing confirms only a decrease that removes populated data; growth or removal of blank trailing rows does not confirm.
 - Valid Import continues to replace viewed Working data and initialize sizing from imported row counts without overwriting Last Saved. Invalid numeric values and unavailable nonblank Routing Work Center references reject Import. Export continues to export viewed Last Saved. Neither shows warning confirmation.
 - Cost Breakdown shows Total Gap first, then cause categories, followed by BOM/Processing detail; avoid repeating the same values across Snapshot Comparison and Variance Tree. Selected Comparison remains a compact scope control.
 - Candidate / RCA uses a compact decision table with key candidate values visible and changed/process details disclosed on demand. The RCA Case focuses on Candidates, Root Cause / Why?, and Action; Simulation is optional. RCA save state uses Saved / Draft.
 - Simulation leads with Reference → Current → Simulated, cost story, and available result/decision metrics, followed by economic assumptions, Factors to Simulate, and parameter details. Preserve the current graph and formulas; economic evaluation remains advisory.
-- The shared Footer wraps its three logical groups on narrow screens and remains one row on normal desktop widths. Its warning indicator always shows `⚠ N`, including zero, and opens Prepare Dataset with all warning roles visible. Product Match/Mismatch opens Prepare Dataset with the floating identity mini-popover open and no warning filter. Full Reference/Current costs and Net Gap do not follow Selected Comparison scope.
+- The shared Footer wraps its three logical groups on narrow screens and remains one row on normal desktop widths. Its warning indicator always shows `⚠ N`, including zero, and opens Prepare Dataset with all warning roles visible. Product Match/Mismatch remains display-only and opens no panel. Full Reference/Current costs and Net Gap do not follow Selected Comparison scope.
 - Header, Main, and Footer content share the centered `max-w-[1440px]` frame with `px-3 sm:px-4 lg:px-6`; Header/Footer backgrounds span the viewport. The app shell is `h-dvh min-h-0 flex flex-col overflow-hidden`; full-viewport-width Main owns the only page-level vertical scrolling, with the centered frame inside Main, and Footer stays at the viewport bottom without overlaying content.
 - Prepare Dataset and footer warning navigation do not add a global blocker or a CBD confirmation. No global page redesign beyond the Header workspace utilities is included.
 
@@ -58,7 +58,7 @@ Save-state dots are separate from selected-dataset styling. Preparation status a
 
 Each warning item identifies a source dataset, table, record, field when available, category, and a human-readable label. Counts represent distinct affected source locations. Do not count Product Mismatch. Deduplicate repeated descriptions of the same condition at the same location.
 
-Show `Warnings N` across all datasets, or `Warnings · {Dataset} N` while filtered; do not put a warning icon before the heading. The canonical list always contains exactly three rows. A non-zero dataset count filters the section; `All` clears the filter. Category rows use a fixed label / count / chevron grid: count 0 is static with a normal-contrast label, muted number only, and no hover/click/chevron; every positive count expands a compact list of navigable locations. Actual warning items navigate directly and show no chevron or other navigation indicator. Keep the popover height bounded and scroll the warning list internally.
+Show `Warnings N` across all datasets, or `Warnings · {Dataset} N` while filtered; do not put a warning icon before the heading. The canonical list always contains exactly three rows. A non-zero dataset count filters the section; `All` clears the filter. Category rows use a fixed label / count / chevron grid: count 0 is static with a normal-contrast label, muted number only, and no hover/click/chevron; every positive count expands a compact list of navigable locations. Actual warning items navigate directly and show no chevron or other navigation indicator. Keep the popover height bounded; only the expanded detail list scrolls internally, while all category rows and the heading remain visible.
 
 ## Generated and Default Identity Behavior
 
@@ -132,7 +132,7 @@ Missing required numeric inputs produce Unavailable affected results and Missing
 - [x] Metadata fields use stable relative widths.
 
 ### Prepare Dataset
-- [x] Reference / Current / Custom summaries use separate vertical rows at all widths.
+- [x] Reference / Current / Custom each occupy a row at all widths, with their four shared columns aligned.
 - [x] Save states are shown for all datasets.
 - [x] Dataset rows do not show Prepared / Needs input readiness.
 - [x] Per-dataset warning counts are shown and are independent of save states.
@@ -140,26 +140,23 @@ Missing required numeric inputs produce Unavailable affected results and Missing
 - [x] Outer popover rectangle is fixed at approximately 24rem × 30rem and clamps to the viewport.
 - [x] Top row reads Dataset, readiness, Product status, and Close in one compact line.
 - [x] Ready / Incomplete uses a green/amber dot and remains a status, not a warning.
-- [x] Product Match / Mismatch is clickable, has no chevron/border/filled status background, and remains outside the warning count.
-- [x] Product details use a floating mini-popover; opening/closing details does not change panel geometry.
-- [x] Normal Info opening and normal panel reopening keep Product details closed.
-- [x] Footer Product status opens Prepare Dataset with the floating Product details open.
-- [x] Outside click and Escape close Product details; a second Escape closes Prepare Dataset.
-- [x] Reference / Current / Custom save state and warning columns use the same fixed grid.
-- [x] Positive dataset warning counts align right as `⚠ N`; zero uses a muted `0` with no triangle.
-- [x] Warnings heading and `All` control stay fixed while the warning list scrolls.
+- [x] Product Match / Mismatch is display-only, with no chevron, underline, border, or filled status background; it remains outside the warning count.
+- [x] Product Name/UOM details are available through the Footer tooltip; no Product mini-popover remains.
+- [x] Reference / Current / Custom summaries use separate fixed Dataset / Save / warning icon / count columns.
+- [x] Positive dataset warning icons and counts align in their own columns; zero keeps the icon column blank and shows a muted `0`.
+- [x] Warnings heading and `All` control stay fixed; no scroll viewport is reserved while categories are collapsed.
 - [x] Warning category count and chevron columns stay fixed across all three categories.
-- [x] Warning list is the only scrollable panel region; the outer panel never scrolls.
-- [x] Complete Mock / Incomplete Mock action row stays fixed below the warning viewport.
-- [x] Outer panel width/height and all fixed regions remain unchanged in visual cases A–J.
+- [x] Only the expanded category's detail list scrolls; the category row and other category rows remain visible.
+- [x] Complete Mock / Incomplete Mock action row stays fixed below warning details with equal centered 50/50 buttons.
+- [x] Outer panel width/height and all fixed regions remain unchanged in visual cases A–N.
 - [x] Narrow desktop panel fits the viewport without horizontal overflow.
 - [x] Phone-height panel clamps to the remaining Main area so the mock row stays visible above the Footer.
 - [x] Ready / Incomplete and Product Match/Mismatch use the shared handoff state and Product Name/UOM comparison.
-- [x] Product Match / Mismatch is on the Dataset top row and opens floating identity details.
+- [x] Product Match / Mismatch is display-only on the Dataset top row.
 - [x] Product Match / Mismatch uses normalized Product Name and UOM comparison.
-- [x] Product Match / Mismatch details start closed when the panel component mounts.
+- [x] Product Match / Mismatch stays informational when the panel opens.
 - [x] Prepare Dataset and Footer use the same readiness derivation; Custom does not affect readiness.
-- [x] Compared Reference / Current Product Name and UOM details are compact; there is no separate Comparison section.
+- [x] Footer Product tooltip presents Reference / Current Product Name and UOM without a separate comparison popover.
 - [x] Unnecessary Custom/CBD explanation is removed.
 - [x] Product Mismatch is Status.
 - [x] Product Mismatch is excluded from Warning count.
@@ -171,7 +168,7 @@ Missing required numeric inputs produce Unavailable affected results and Missing
 - [x] Category rows align label, fixed count column, and fixed right-side chevron.
 - [x] Actual warning items navigate directly and have no chevron or expansion/navigation indicator.
 - [x] Blank required Routing Work Center is counted as Missing required value.
-- [x] Warning details scroll inside the fixed-size warning viewport without growing the outer panel.
+- [x] Expanded warning details scroll only inside their own bounded list without growing the outer panel.
 - [x] Invalid value and Unresolved Work Center are not Prepare Dataset categories.
 - [x] Invalid numeric values and unavailable nonblank Routing Work Centers are rejected at normal edit/import ingress.
 - [x] Positive warning category rows are the expansion click target, including when count is one.
@@ -185,9 +182,11 @@ Missing required numeric inputs produce Unavailable affected results and Missing
 - [x] Reference and Current structure counts use BOM / WC / RTG order; Custom is omitted.
 - [x] Readiness is limited to Reference and Current and uses `Datasets Ready` / `Datasets Incomplete` with a dot, semibold text, and semantic color.
 - [x] Product Match/Mismatch compares normalized Product Name and UOM, and uses the same handoff status in Footer and Prepare Dataset.
-- [x] Product Match/Mismatch opens the floating identity mini-popover without changing the Prepare Dataset panel size.
+- [x] Dataset status tooltip lists Reference and Current only; it does not change footer layout.
+- [x] Product tooltip lists Reference and Current Product Name/UOM only; Product status is not clickable.
+- [x] Warning tooltip appears above the Footer, shows only non-zero categories, and does not change layout.
 - [x] `⚠ 0` remains visible; `⚠ N` uses affected warning-item count and excludes Product Mismatch/readiness.
-- [x] Clicking `⚠ N` requests Prepare Dataset with all warning roles visible.
+- [x] Clicking `⚠ N` opens Prepare Dataset with all roles visible and no category expanded.
 - [x] Full Reference/Current Standard Cost and Net Gap remain independent from Selected Comparison.
 - [x] Unavailable Standard Cost/Net Gap displays `—`; no zero is fabricated.
 - [x] Net Gap is Current minus Reference; only the number uses positive/negative semantic color.
@@ -257,8 +256,8 @@ Missing required numeric inputs produce Unavailable affected results and Missing
 - [x] No broad Footer redesign.
 - [x] Cost Breakdown, Candidate/RCA, and Simulation receive presentation-only refinements.
 - [x] No finalized cost formulas changed unintentionally.
-- [x] Desktop visual inspection covered the Header, Master Data toolbar, open Prepare Dataset popover, and Footer alignment.
-- [x] Prepare Dataset narrow-desktop panel fit is visually accepted at 1024×768; full-app Footer reflow is still outside this correction.
+- [x] Desktop visual inspection covers the updated Prepare Dataset popover and Footer tooltips (A–N).
+- [x] Prepare Dataset fit and Footer tooltip viewport bounds are browser-checked at 320, 375, 1024, and 1920px widths.
 
 ### Docs
 - [x] MASTER_DATA.md is reconciled with latest decisions.
@@ -268,7 +267,7 @@ Missing required numeric inputs produce Unavailable affected results and Missing
 
 ## Verification Checklist
 
-- [x] Targeted verifiers pass.
+- [x] Targeted verifiers pass (`verify_master_data_ui_state.mjs`, `verify_master_data_mock_load.mjs`).
 - [x] Relevant regression verifiers pass.
 - [x] TypeScript typecheck passes as part of `npm run build`.
 - [x] Lint availability checked; no lint script is configured.
@@ -280,9 +279,27 @@ Missing required numeric inputs produce Unavailable affected results and Missing
 
 ### Verification Notes
 
-- Prepare Dataset visual acceptance used an isolated browser profile at 1920×1080 for A–J. Each state retained a 384×480 outer panel; dataset rows, warning heading/list, and mock actions kept the same bounds, the outer panel had no overflow, and long expanded details scrolled only inside the warning viewport. The 1024×768 panel also stayed within the viewport. At 375×760 it clamped to 343×401 within Main, keeping the fixed mock row above Footer.
-- Footer Product click, normal Info opening, outside click, Product-detail toggle, and one-/two-step Escape behavior were exercised in the isolated browser. Full-app Footer wrapping/long-page scrolling, Clone pointer/keyboard interactions, and warning-focus replay still need browser click-through/visual acceptance.
-- `package.json` currently has no lint or test script. The repository's standalone targeted verifiers were run directly; exact commands are listed in the final work report.
+#### Prepare Dataset / Footer visual acceptance
+
+- [x] A — Complete Mock shows Match/Ready and no warning categories are expanded.
+- [x] B — Incomplete Mock shows Mismatch/Incomplete and the expected non-zero warning groups.
+- [x] C — Collapsed warning categories show no empty scroll viewport.
+- [x] D — Generated identity expansion keeps its category row visible.
+- [x] E — Missing required value details scroll inside the detail list when needed.
+- [x] F — Switching expanded categories keeps only the selected category open.
+- [x] G — One- and two-digit dataset counts align in the same fixed columns.
+- [x] H — Custom zero count has an empty warning-icon cell and a right-aligned `0`.
+- [x] I — Footer Dataset status tooltip opens upward and lists Reference / Current only.
+- [x] J — Footer Product tooltip opens upward and shows each Product Name/UOM without fake defaults.
+- [x] K — Footer Warnings tooltip opens upward and lists non-zero categories only.
+- [x] L — Clicking footer `⚠ N` opens Prepare Dataset in All warnings mode with no category open.
+- [x] M — Filtered `Warnings · Current N` with `All` stays quiet and functional.
+- [x] N — Complete Mock / Incomplete Mock buttons have equal centered 50/50 widths.
+- [x] Footer tooltips remain inside the viewport at desktop, tablet, and narrow widths.
+- [x] Footer Dataset and Product indicators remain informational and do not navigate on click.
+- [x] Escape hides a focused Footer tooltip and still closes the Prepare Dataset popover.
+
+- `package.json` currently has no lint or test script. The repository's standalone targeted verifiers are run directly; exact commands are listed in the final work report.
 
 ## Deferred / Locked for Later
 

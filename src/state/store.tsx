@@ -274,13 +274,13 @@ interface AppContextType {
   masterDataLastSavedSnapshots: Partial<Record<MasterDataRole, CostSnapshot>>
   masterDataSizing: import('../core/types').DatasetSizing
   masterDataPrepareDatasetRequested: boolean
-  masterDataPrepareDatasetRequestMode: 'comparison' | 'all-warnings' | null
+  masterDataPrepareDatasetRequestMode: 'all-warnings' | null
   activeTab: ActiveTab
   uomList: string[]
 
   // Navigation
   setActiveTab: (tab: ActiveTab) => void
-  requestMasterDataPrepareDataset: (mode?: 'comparison' | 'all-warnings') => void
+  requestMasterDataPrepareDataset: (mode?: 'all-warnings') => void
   consumeMasterDataPrepareDatasetRequest: () => void
 
   // Product session management
@@ -451,7 +451,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
   const [selectedComparisonScope, setSelectedComparisonScope] = useState<StoredSelectedComparison | null>(null)
   const [masterDataPrepareDatasetRequested, setMasterDataPrepareDatasetRequested] = useState(false)
-  const [masterDataPrepareDatasetRequestMode, setMasterDataPrepareDatasetRequestMode] = useState<'comparison' | 'all-warnings' | null>(null)
+  const [masterDataPrepareDatasetRequestMode, setMasterDataPrepareDatasetRequestMode] = useState<'all-warnings' | null>(null)
 
   useEffect(() => {
     clearMasterDataEditHistory()
@@ -468,7 +468,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     saveToSession(STORAGE_KEYS.ACTIVE_TAB, tab)
   }
 
-  const requestMasterDataPrepareDataset = (mode?: 'comparison' | 'all-warnings') => {
+  const requestMasterDataPrepareDataset = (mode?: 'all-warnings') => {
     setActiveTab('master')
     setMasterDataPrepareDatasetRequestMode(mode ?? null)
     setMasterDataPrepareDatasetRequested(true)

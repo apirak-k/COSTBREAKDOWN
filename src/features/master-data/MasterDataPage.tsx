@@ -103,19 +103,18 @@ export const MasterDataPage: React.FC<MasterDataPageProps> = ({ searchQuery = ''
   }
 
   const developmentAction = import.meta.env.DEV ? (
-    <div role="group" aria-label="Development mock datasets" className="flex items-center justify-end gap-2 text-[11px]">
+    <div role="group" aria-label="Development mock datasets" className="grid w-full grid-cols-2 divide-x divide-slate-200 text-[11px]">
       <button
         type="button"
         onClick={() => { void handleLoadMockData('complete') }}
-        className="min-h-7 px-1.5 font-medium text-slate-600 transition-colors hover:text-slate-950 focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-700"
+        className="min-h-7 w-full px-1.5 text-center font-medium text-slate-600 transition-colors hover:bg-slate-100 hover:text-slate-950 focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-700"
       >
         Complete Mock
       </button>
-      <span aria-hidden="true" className="text-slate-300">|</span>
       <button
         type="button"
         onClick={() => { void handleLoadMockData('incomplete') }}
-        className="min-h-7 px-1.5 font-medium text-slate-600 transition-colors hover:text-slate-950 focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-700"
+        className="min-h-7 w-full px-1.5 text-center font-medium text-slate-600 transition-colors hover:bg-slate-100 hover:text-slate-950 focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-700"
       >
         Incomplete Mock
       </button>
@@ -249,10 +248,6 @@ export const MasterDataPage: React.FC<MasterDataPageProps> = ({ searchQuery = ''
     <div className="w-full space-y-4">
       <MasterDataWorkspaceHeader
         product={product}
-        comparisonProducts={{
-          reference: masterDataSnapshots.reference.product,
-          current: masterDataSnapshots.current.product
-        }}
         snapshot={masterDataSnapshot}
         lastSavedSnapshot={masterDataLastSavedSnapshot}
         saveStates={saveStates}
