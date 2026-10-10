@@ -21,6 +21,7 @@ import { formatNumber } from '../../../core'
 import type { MasterDataRole, CostSnapshot, ProductMaster } from '../../../core'
 import type { MasterDataHandoffStatus } from '../../../core/calculations/master-data-handoff'
 import type { MasterDataSaveState } from '../../../core/utils/master-data-effective'
+import { resolveProductComparisonDisplayStatus } from '../../../shared/layout/header-product-context'
 import { downloadBlob } from '../../../services/excel/export'
 import {
   areMasterDataDatasetsReady,
@@ -34,6 +35,8 @@ import {
 
 interface MasterDataWorkspaceHeaderProps {
   product: ProductMaster
+  referenceProduct: ProductMaster
+  currentProduct: ProductMaster
   snapshot: CostSnapshot
   lastSavedSnapshot?: CostSnapshot
   saveStates: Record<MasterDataRole, MasterDataSaveState>
@@ -85,6 +88,8 @@ const roles: MasterDataRole[] = ['reference', 'current', 'custom']
 
 export const MasterDataWorkspaceHeader: React.FC<MasterDataWorkspaceHeaderProps> = ({
   product,
+  referenceProduct,
+  currentProduct,
   snapshot,
   lastSavedSnapshot,
   saveStates,
@@ -152,16 +157,26 @@ export const MasterDataWorkspaceHeader: React.FC<MasterDataWorkspaceHeaderProps>
       : tableView === 'routing'
         ? 'Search Routing...'
         : 'Search BOM...'
-  const comparisonStatus = handoff.productMismatch ? 'Mismatch' : 'Match'
+  const productDisplayStatus = resolveProductComparisonDisplayStatus(referenceProduct, currentProduct)
+  const comparisonStatus = productDisplayStatus === 'not-set'
+    ? 'Not Set'
+    : productDisplayStatus === 'mismatch'
+      ? 'Mismatch'
+      : 'Match'
+  const productStatusClass = productDisplayStatus === 'match'
+    ? 'text-emerald-700'
+    : productDisplayStatus === 'mismatch'
+      ? 'text-violet-700'
+      : 'text-slate-600'
+  const productStatusDotClass = productDisplayStatus === 'match'
+    ? 'bg-emerald-600'
+    : productDisplayStatus === 'mismatch'
+      ? 'bg-violet-500'
+      : 'bg-slate-400'
+  const activeDatasetFilterLabel = datasetRoleFilter ? roleLabels[datasetRoleFilter] : 'All'
+  const issueDataMaxHeight = Math.max(0, Math.min(112, Math.floor(((prepareDatasetMaxHeight ?? 480) - 240) / 2)))
   const warningHeadingLabel = `Warnings ${visibleWarningCount}`
   const blockerHeadingLabel = `Blockers ${visibleBlockerCount}`
-  const hasExpandedWarningCategory = visibleWarningGroups.some(
-    group => group.category === expandedWarningCategory && group.items.length > 0
-  )
-  const hasExpandedBlockerCategory = visibleBlockerGroups.some(
-    group => group.category === expandedBlockerCategory && group.items.length > 0
-  )
-  const hasExpandedIssueCategory = hasExpandedWarningCategory || hasExpandedBlockerCategory
   const preparePortalRoot = typeof document === 'undefined'
     ? null
     : document.getElementById('header-prepare-dataset-portal-root')
@@ -174,31 +189,27 @@ export const MasterDataWorkspaceHeader: React.FC<MasterDataWorkspaceHeaderProps>
   const renderIssueSection = (kind: 'warning' | 'blocker') => {
     const isWarning = kind === 'warning'
     const groups = isWarning ? visibleWarningGroups : visibleBlockerGroups
-    const visibleCount = isWarning ? visibleWarningCount : visibleBlockerCount
     const heading = isWarning ? warningHeadingLabel : blockerHeadingLabel
     const expandedCategory = isWarning ? expandedWarningCategory : expandedBlockerCategory
     const setExpandedCategory = isWarning ? setExpandedWarningCategory : setExpandedBlockerCategory
 
     return (
-      <section aria-labelledby={`prepare-dataset-${kind}-heading`} className="shrink-0">
-        <div className="grid h-7 grid-cols-[minmax(0,1fr)_2.5rem] items-center gap-2">
+      <section aria-labelledby={`prepare-dataset-${kind}-heading`} className="flex min-h-0 shrink-0 flex-col">
+        <div className="grid h-6 shrink-0 grid-cols-[minmax(0,1fr)_auto] items-center gap-2">
           <h3 id={`prepare-dataset-${kind}-heading`} className="truncate text-xs font-semibold text-slate-800">{heading}</h3>
-          <button
-            type="button"
-            aria-label={`Show all ${isWarning ? 'warnings' : 'blockers'}, ${visibleCount} currently shown`}
-            aria-pressed={!datasetRoleFilter}
-            title={`Show all ${isWarning ? 'warnings' : 'blockers'}`}
-            onClick={() => {
-              setDatasetRoleFilter(null)
-              setExpandedCategory(null)
-            }}
-            className={`h-7 rounded-sm px-1 text-right text-xs font-medium focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-700 ${datasetRoleFilter ? 'text-slate-600 hover:bg-slate-50 hover:text-slate-950' : 'bg-slate-100 text-slate-800'}`}
-          >
-            All
-          </button>
+          <span aria-label={`Dataset filter: ${activeDatasetFilterLabel}`} title={`Showing ${activeDatasetFilterLabel} dataset`} className="text-right text-[11px] font-medium text-slate-500">
+            {activeDatasetFilterLabel}
+          </span>
         </div>
-        {groups.length > 0 && (
-          <ul aria-label={isWarning ? 'Warning categories' : 'Blocker categories'} className="divide-y divide-slate-100">
+        <div
+          role="region"
+          aria-label={`${isWarning ? 'Warning' : 'Blocker'} data`}
+          tabIndex={0}
+          style={{ maxHeight: `${issueDataMaxHeight}px` }}
+          className="min-h-0 overflow-y-auto overscroll-contain focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-700"
+        >
+          {groups.length > 0 && (
+          <ul aria-label={isWarning ? 'Warning categories' : 'Blocker categories'} className="space-y-0.5">
             {groups.map(group => {
               const expanded = expandedCategory === group.category
               const items = group.items
@@ -243,7 +254,8 @@ export const MasterDataWorkspaceHeader: React.FC<MasterDataWorkspaceHeaderProps>
               )
             })}
           </ul>
-        )}
+          )}
+        </div>
       </section>
     )
   }
@@ -298,7 +310,7 @@ export const MasterDataWorkspaceHeader: React.FC<MasterDataWorkspaceHeaderProps>
     return () => {
       window.removeEventListener('resize', updatePanelHeight)
     }
-  }, [hasExpandedIssueCategory, isPrepareDatasetOpen])
+  }, [isPrepareDatasetOpen])
 
   useEffect(() => {
     if (!isPrepareDatasetOpen) return
@@ -532,11 +544,8 @@ export const MasterDataWorkspaceHeader: React.FC<MasterDataWorkspaceHeaderProps>
             id="prepare-dataset-panel"
             role="region"
             aria-label="Prepare Dataset status and warnings"
-            style={prepareDatasetMaxHeight === null ? undefined : {
-              maxHeight: `${prepareDatasetMaxHeight}px`,
-              ...(hasExpandedIssueCategory ? { height: `${prepareDatasetMaxHeight}px` } : {})
-            }}
-            className="flex max-h-[min(30rem,calc(100dvh-6rem))] w-[min(20rem,calc(100vw-2rem))] min-h-0 select-text flex-col overflow-hidden border border-slate-300 bg-white p-2 text-sm text-slate-800 shadow-lg"
+            style={prepareDatasetMaxHeight === null ? undefined : { maxHeight: `${prepareDatasetMaxHeight}px` }}
+            className="flex max-h-[min(30rem,calc(100dvh-6rem))] w-[min(19rem,calc(100vw-2rem))] min-h-0 select-text flex-col gap-0.5 overflow-hidden border border-slate-300 bg-white p-2 text-sm text-slate-800 shadow-lg"
           >
               <div className="flex min-h-8 shrink-0 items-center gap-1 border-b border-slate-200 pb-0.5 min-[360px]:gap-2 sm:gap-2.5">
                 <h2 id="prepare-dataset-heading" className="shrink-0 text-xs font-semibold text-slate-700">
@@ -552,9 +561,9 @@ export const MasterDataWorkspaceHeader: React.FC<MasterDataWorkspaceHeaderProps>
                 </span>
                 <span
                   aria-label={`Product ${comparisonStatus}`}
-                  className={`inline-flex min-h-7 items-center gap-1.5 whitespace-nowrap text-xs font-medium ${handoff.productMismatch ? 'text-violet-700' : 'text-emerald-700'}`}
+                  className={`inline-flex min-h-7 items-center gap-1.5 whitespace-nowrap text-xs font-medium ${productStatusClass}`}
                 >
-                  <span aria-hidden="true" className={`h-2 w-2 shrink-0 rounded-full ${handoff.productMismatch ? 'bg-violet-500' : 'bg-emerald-600'}`} />
+                  <span aria-hidden="true" className={`h-2 w-2 shrink-0 rounded-full ${productStatusDotClass}`} />
                   Product {comparisonStatus}
                 </span>
                 <button
@@ -588,18 +597,18 @@ export const MasterDataWorkspaceHeader: React.FC<MasterDataWorkspaceHeaderProps>
                         setExpandedWarningCategory(null)
                         setExpandedBlockerCategory(null)
                       }}
-                      className={`grid h-8 w-full ${datasetSummaryColumns} items-center gap-2 rounded-sm text-left transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-700 ${isFiltered ? 'bg-slate-100' : 'hover:bg-slate-50'}`}
+                      className={`grid h-7 w-full ${datasetSummaryColumns} items-center gap-2 rounded-sm pr-2 text-left transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-700 ${isFiltered ? 'bg-slate-100' : 'hover:bg-slate-50'}`}
                     >
                       <span className="min-w-0 truncate pl-3 text-[11px] font-semibold text-slate-700">{roleLabels[datasetRole]}</span>
                       <span className="inline-flex min-w-0 items-center gap-1.5 whitespace-nowrap text-xs">
                         <span aria-hidden="true" className={datasetSaveStateDotClass(saveState, 'h-2 w-2')} />
                         <span>{saveState}</span>
                       </span>
-                      <span className="inline-flex min-w-0 items-center justify-end gap-1 font-mono text-xs tabular-nums text-slate-600">
+                      <span className={`inline-flex min-w-0 items-center justify-end gap-1 font-mono text-xs tabular-nums ${datasetWarningCount > 0 ? 'text-amber-700' : 'text-slate-500'}`}>
                         <AlertTriangle className={`h-3 w-3 ${datasetWarningCount > 0 ? 'text-amber-700' : 'text-slate-400'}`} aria-hidden="true" />
                         {datasetWarningCount}
                       </span>
-                      <span className="inline-flex min-w-0 items-center justify-end gap-1 font-mono text-xs tabular-nums text-slate-600">
+                      <span className={`inline-flex min-w-0 items-center justify-end gap-1 font-mono text-xs tabular-nums ${datasetBlockerCount > 0 ? 'text-rose-700' : 'text-slate-500'}`}>
                         <CircleX className={`h-3 w-3 ${datasetBlockerCount > 0 ? 'text-rose-700' : 'text-slate-400'}`} aria-hidden="true" />
                         {datasetBlockerCount}
                       </span>
@@ -608,7 +617,7 @@ export const MasterDataWorkspaceHeader: React.FC<MasterDataWorkspaceHeaderProps>
                 })}
               </div>
 
-              <div className="flex min-h-0 flex-1 flex-col gap-0.5 overflow-y-auto overscroll-contain pt-0.5">
+              <div className="flex min-h-0 shrink-0 flex-col gap-1 pt-0.5">
                 {renderIssueSection('warning')}
                 {renderIssueSection('blocker')}
               </div>

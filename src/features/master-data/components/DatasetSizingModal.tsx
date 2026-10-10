@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react'
-import { X, Sliders, Check, FileSpreadsheet } from 'lucide-react'
+import { X, Check } from 'lucide-react'
 import { MasterDataRole, CostSnapshot, DatasetSizing, ProductMaster } from '../../../core'
 import { DATASET_SIZING_LIMITS } from '../../../core/utils/sizing'
 import { hasDatasetMetadataChanged, hasDatasetSizingChanged, parseDatasetSizingCounts } from '../dataset-sizing-form'
@@ -139,6 +139,64 @@ export const DatasetSizingModal: React.FC<DatasetSizingModalProps> = ({
     }
   }
 
+  const renderRowCount = (
+    label: string,
+    id: string,
+    value: string,
+    setValue: (value: string) => void,
+    max: number
+  ) => {
+    const trimmed = value.trim()
+    const count = trimmed ? Number(trimmed) : null
+    const isWholeNumber = count === null || Number.isInteger(count)
+    const changeCount = (amount: -1 | 1) => {
+      setSizingError('')
+      if (count === null) {
+        if (amount > 0) setValue('1')
+        return
+      }
+      if (!Number.isInteger(count)) return
+      setValue(String(Math.max(1, Math.min(max, count + amount))))
+    }
+
+    return (
+      <div className="flex min-h-10 items-center justify-between gap-3 py-1 text-xs text-slate-800">
+        <label htmlFor={id}>{label}</label>
+        <div role="group" aria-label={`${label} row count`} className="inline-flex shrink-0 items-center">
+          <button
+            type="button"
+            aria-label={`Decrease ${label} rows`}
+            disabled={count === null || !isWholeNumber || count <= 1}
+            onClick={() => changeCount(-1)}
+            className="grid h-8 w-8 place-items-center border border-slate-300 bg-white text-base leading-none text-slate-700 hover:bg-slate-100 disabled:cursor-not-allowed disabled:text-slate-300 focus-visible:z-10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-700"
+          >
+            <span aria-hidden="true">−</span>
+          </button>
+          <input
+            id={id}
+            type="number"
+            min="1"
+            step="1"
+            max={max}
+            placeholder="Unset"
+            value={value}
+            onChange={event => { setValue(event.target.value); setSizingError('') }}
+            className="h-8 w-16 border-y border-slate-300 bg-white px-1 text-right font-mono text-xs tabular-nums text-slate-900 focus:z-10 focus:outline-none focus:ring-2 focus:ring-blue-700"
+          />
+          <button
+            type="button"
+            aria-label={`Increase ${label} rows`}
+            disabled={!isWholeNumber || (count !== null && count >= max)}
+            onClick={() => changeCount(1)}
+            className="grid h-8 w-8 place-items-center border border-slate-300 bg-white text-base leading-none text-slate-700 hover:bg-slate-100 disabled:cursor-not-allowed disabled:text-slate-300 focus-visible:z-10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-700"
+          >
+            <span aria-hidden="true">+</span>
+          </button>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div
       ref={dialogRef}
@@ -149,12 +207,9 @@ export const DatasetSizingModal: React.FC<DatasetSizingModalProps> = ({
       aria-modal="true"
       aria-labelledby="sizing-modal-title"
     >
-      <div className="my-auto max-h-[calc(100dvh-2rem)] w-full max-w-3xl overflow-y-auto border border-slate-300 bg-white text-slate-900 shadow-xl">
-        <div className="flex items-center justify-between gap-3 border-b border-slate-200 px-4 py-3">
-          <div className="flex items-center gap-2">
-            <Sliders className="h-4 w-4 text-slate-600" aria-hidden="true" />
-            <h3 id="sizing-modal-title" className="text-sm font-semibold">Sizing · {roleLabel}</h3>
-          </div>
+      <div className="my-auto max-h-[calc(100dvh-2rem)] w-full max-w-2xl overflow-y-auto border border-slate-300 bg-white text-slate-900 shadow-xl">
+        <div className="flex items-center justify-between gap-3 border-b border-slate-200 px-3 py-2">
+          <h3 id="sizing-modal-title" className="text-sm font-semibold">Sizing · {roleLabel}</h3>
           <button
             type="button"
             onClick={onClose}
@@ -165,7 +220,7 @@ export const DatasetSizingModal: React.FC<DatasetSizingModalProps> = ({
           </button>
         </div>
 
-        <div className="space-y-3 px-4 py-3">
+        <div className="space-y-2 px-3 py-2">
           <section aria-label="Dataset metadata" className="space-y-2">
             <h4 className="text-[11px] font-semibold uppercase tracking-wide text-slate-600">Dataset</h4>
             <div className="grid grid-cols-1 gap-x-3 gap-y-2 sm:grid-cols-8">
@@ -227,26 +282,16 @@ export const DatasetSizingModal: React.FC<DatasetSizingModalProps> = ({
           <section aria-label="Dataset row counts" className="border-t border-slate-200 pt-2">
             <h4 className="mb-1 text-[11px] font-semibold uppercase tracking-wide text-slate-600">Rows</h4>
             <div className="divide-y divide-slate-100">
-              <label htmlFor="dataset-sizing-bom-rows" className="flex min-h-9 items-center justify-between gap-3 py-1 text-xs text-slate-800">
-                <span>Bill of Materials</span>
-                <input id="dataset-sizing-bom-rows" type="number" min="1" step="1" max={DATASET_SIZING_LIMITS.bomCount} placeholder="Unset" value={bomCount} onChange={event => { setBomCount(event.target.value); setSizingError('') }} className="h-7 w-24 border border-slate-300 bg-white px-2 text-right font-mono text-xs tabular-nums text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-700" />
-              </label>
-              <label htmlFor="dataset-sizing-work-center-rows" className="flex min-h-9 items-center justify-between gap-3 py-1 text-xs text-slate-800">
-                <span>Work Centers</span>
-                <input id="dataset-sizing-work-center-rows" type="number" min="1" step="1" max={DATASET_SIZING_LIMITS.wcCount} placeholder="Unset" value={wcCount} onChange={event => { setWcCount(event.target.value); setSizingError('') }} className="h-7 w-24 border border-slate-300 bg-white px-2 text-right font-mono text-xs tabular-nums text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-700" />
-              </label>
-              <label htmlFor="dataset-sizing-routing-rows" className="flex min-h-9 items-center justify-between gap-3 py-1 text-xs text-slate-800">
-                <span>Routing</span>
-                <input id="dataset-sizing-routing-rows" type="number" min="1" step="1" max={DATASET_SIZING_LIMITS.routingCount} placeholder="Unset" value={routingCount} onChange={event => { setRoutingCount(event.target.value); setSizingError('') }} className="h-7 w-24 border border-slate-300 bg-white px-2 text-right font-mono text-xs tabular-nums text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-700" />
-              </label>
+              {renderRowCount('Bill of Materials', 'dataset-sizing-bom-rows', bomCount, setBomCount, DATASET_SIZING_LIMITS.bomCount)}
+              {renderRowCount('Work Centers', 'dataset-sizing-work-center-rows', wcCount, setWcCount, DATASET_SIZING_LIMITS.wcCount)}
+              {renderRowCount('Routing', 'dataset-sizing-routing-rows', routingCount, setRoutingCount, DATASET_SIZING_LIMITS.routingCount)}
             </div>
           </section>
           {sizingError && <p className="text-sm font-medium text-rose-700" role="alert">{sizingError}</p>}
         </div>
 
-        <div className="flex flex-col gap-2 border-t border-slate-200 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
-          <button type="button" onClick={() => { void handleDownloadTemplate() }} className="inline-flex min-h-8 items-center justify-center gap-1.5 px-2 text-xs font-medium text-slate-600 hover:bg-slate-100 hover:text-slate-950 focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-700">
-            <FileSpreadsheet className="h-4 w-4" aria-hidden="true" />
+        <div className="flex flex-col gap-2 border-t border-slate-200 px-3 py-2 sm:flex-row sm:items-center sm:justify-between">
+          <button type="button" onClick={() => { void handleDownloadTemplate() }} className="inline-flex min-h-8 items-center justify-center px-2 text-xs font-medium text-slate-600 hover:bg-slate-100 hover:text-slate-950 focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-700">
             Download Template
           </button>
           <div className="flex items-center justify-end gap-2">

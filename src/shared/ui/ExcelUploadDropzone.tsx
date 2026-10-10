@@ -25,10 +25,10 @@ export const ExcelUploadDropzone: React.FC<ExcelUploadDropzoneProps> = ({
     onFileSelected(file.name)
     onParsed({ success: false, message: '', role: importRole })
     const extension = file.name.toLocaleLowerCase()
-    if (!extension.endsWith('.xlsx') && !extension.endsWith('.xls')) {
+    if (!extension.endsWith('.xlsx')) {
       onParsed({
         success: false,
-        message: 'Choose an Excel workbook (.xlsx or .xls).',
+        message: 'Choose an Excel workbook (.xlsx).',
         warnings: [],
         role: importRole
       })
@@ -71,7 +71,7 @@ export const ExcelUploadDropzone: React.FC<ExcelUploadDropzoneProps> = ({
       <input
         ref={fileInputRef}
         type="file"
-        accept=".xlsx,.xls"
+        accept=".xlsx"
         className="hidden"
         aria-label="Choose an Excel workbook"
         onChange={event => {
@@ -87,7 +87,7 @@ export const ExcelUploadDropzone: React.FC<ExcelUploadDropzoneProps> = ({
             : <FileSpreadsheet className="h-4 w-4 shrink-0 text-slate-600" aria-hidden="true" />}
           <div className="min-w-0 text-left">
             <p className="text-xs font-medium text-slate-900">{isLoading ? 'Reading workbook…' : 'Drop an Excel file here'}</p>
-            <p className="mt-0.5 text-[11px] text-slate-500">Supported formats: .xlsx, .xls</p>
+            <p className="mt-0.5 text-[11px] text-slate-500">Supported format: .xlsx</p>
           </div>
         </div>
         <button

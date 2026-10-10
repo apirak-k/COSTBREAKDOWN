@@ -275,6 +275,8 @@ export const MasterDataPage: React.FC<MasterDataPageProps> = ({ searchQuery = ''
     <div className="w-full space-y-2">
       <MasterDataWorkspaceHeader
         product={product}
+        referenceProduct={masterDataSnapshots.reference.product}
+        currentProduct={masterDataSnapshots.current.product}
         snapshot={masterDataSnapshot}
         lastSavedSnapshot={masterDataLastSavedSnapshot}
         saveStates={saveStates}

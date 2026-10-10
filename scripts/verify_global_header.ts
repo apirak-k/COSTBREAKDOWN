@@ -1,7 +1,11 @@
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
-import { resolveHeaderProductContext } from '../src/shared/layout/header-product-context'
+import {
+  formatProductIdentityForDisplay,
+  resolveHeaderProductContext,
+  resolveProductComparisonDisplayStatus
+} from '../src/shared/layout/header-product-context'
 
 const matchingReference = { productName: ' RGOM024 ', uom: ' PC ' }
 const matchingCurrent = { productName: 'RGOM024', uom: 'PC' }
@@ -9,13 +13,13 @@ const matchingCurrent = { productName: 'RGOM024', uom: 'PC' }
 assert.equal(resolveHeaderProductContext(matchingReference, matchingCurrent), 'RGOM024 (PC)')
 assert.equal(
   resolveHeaderProductContext(matchingReference, { productName: 'RGOM025', uom: 'PC' }),
-  'Product (Unit)',
-  'a product mismatch uses the neutral header fallback'
+  'Product Mismatch',
+  'a complete product mismatch is named without fabricated identity values'
 )
 assert.equal(
   resolveHeaderProductContext(matchingReference, { productName: 'RGOM024', uom: 'EA' }),
-  'Product (Unit)',
-  'a unit mismatch uses the neutral header fallback'
+  'Product Mismatch',
+  'a complete UOM mismatch is named without fabricated identity values'
 )
 assert.equal(
   resolveHeaderProductContext(matchingReference, { productName: 'rgom024', uom: 'pc' }),
@@ -24,20 +28,25 @@ assert.equal(
 )
 assert.equal(
   resolveHeaderProductContext({ productName: '', uom: 'PC' }, { productName: '', uom: 'PC' }),
-  'Product (Unit)',
+  'Product Not Set',
   'blank metadata never displays a fabricated Product or UOM value'
 )
 assert.equal(
   resolveHeaderProductContext({ productName: 'RGOM024', uom: null }, { productName: 'RGOM024', uom: null }),
-  'Product (Unit)',
+  'Product Not Set',
   'missing UOM uses the neutral header fallback'
 )
+assert.equal(resolveProductComparisonDisplayStatus(matchingReference, matchingCurrent), 'match')
+assert.equal(resolveProductComparisonDisplayStatus(matchingReference, { productName: 'RGOM025', uom: 'PC' }), 'mismatch')
+assert.equal(resolveProductComparisonDisplayStatus({ productName: '', uom: '' }, { productName: '', uom: '' }), 'not-set')
+assert.equal(formatProductIdentityForDisplay({ productName: '', uom: '' }), 'Not set')
+assert.equal(formatProductIdentityForDisplay({ productName: 'RGOM024', uom: null }), 'RGOM024 (UOM not set)')
 
 const navbar = readFileSync(resolve(process.cwd(), 'src/shared/layout/Navbar.tsx'), 'utf8')
 assert.match(navbar, /COSTBREAKDOWN/)
-assert.match(navbar, /text-sm font-semibold tracking-wide text-slate-100/)
+assert.match(navbar, /text-base font-bold tracking-tight text-slate-100/)
 assert.match(navbar, /aria-current=\{isActive \? 'page' : undefined\}/)
-assert.match(navbar, /requestMasterDataPrepareDataset/)
+assert.match(navbar, /toggleMasterDataPrepareDataset/)
 assert.match(navbar, /lg:grid-cols-\[minmax\(0,1fr\)_auto_minmax\(0,1fr\)\]/)
 assert.match(navbar, /Main navigation[\s\S]*justify-center[\s\S]*aria-label="Workspace utilities"[\s\S]*aria-label="Undo"[\s\S]*aria-label="Redo"[\s\S]*aria-label="Prepare Dataset"/)
 assert.doesNotMatch(navbar, /role="search"|Search data|Search,/)

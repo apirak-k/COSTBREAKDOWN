@@ -3,6 +3,7 @@ import { Navbar } from './Navbar'
 import { useAppStore } from '../../state'
 import { formatNumber } from '../../core'
 import { normalizeProductIdentityValue } from '../../core/utils/master-data-effective'
+import { formatProductIdentityForDisplay, resolveProductComparisonDisplayStatus } from './header-product-context'
 import { AlertTriangle, CircleX } from 'lucide-react'
 import {
   areMasterDataDatasetsReady,
@@ -14,7 +15,7 @@ import {
 
 interface FooterTooltipProps {
   id: string
-  align?: 'left' | 'right'
+  align?: 'left' | 'center' | 'right'
   children: ReactNode
   content: ReactNode
 }
@@ -43,9 +44,13 @@ const FooterTooltip: React.FC<FooterTooltipProps> = ({ id, align = 'left', child
     const tooltipRect = tooltipElement.getBoundingClientRect()
     tooltipElement.style.display = previousDisplay
     tooltipElement.style.visibility = previousVisibility
-    const tooltipWidth = tooltipRect.width || Math.min(256, window.innerWidth - 16)
+    const tooltipWidth = tooltipRect.width || Math.min(448, window.innerWidth - 16)
     const tooltipHeight = tooltipRect.height
-    const preferredLeft = align === 'right' ? wrapper.right - tooltipWidth : wrapper.left
+    const preferredLeft = align === 'right'
+      ? wrapper.right - tooltipWidth
+      : align === 'center'
+        ? wrapper.left + (wrapper.width - tooltipWidth) / 2
+        : wrapper.left
     const left = Math.max(8, Math.min(preferredLeft, window.innerWidth - tooltipWidth - 8))
     const footerTop = wrapperElement.closest('footer')?.getBoundingClientRect().top ?? wrapper.top
     setPosition({ left, top: Math.max(8, footerTop - tooltipHeight - 8) })
@@ -110,7 +115,7 @@ const FooterTooltip: React.FC<FooterTooltipProps> = ({ id, align = 'left', child
         id={id}
         role="tooltip"
         style={position === null ? undefined : { left: `${position.left}px`, top: `${position.top}px` }}
-        className={`pointer-events-none fixed z-50 ${visible ? 'block' : 'hidden'} w-max max-w-[min(17.5rem,calc(100vw-1rem))] border border-slate-300 bg-white p-2 text-xs leading-4 text-slate-800 shadow-md`}
+        className={`pointer-events-none fixed z-50 ${visible ? 'block' : 'hidden'} w-max max-w-[min(28rem,calc(100vw-1rem))] border border-slate-300 bg-white p-2 text-xs leading-4 text-slate-800 shadow-md`}
       >
         {content}
       </span>
@@ -154,6 +159,15 @@ export const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
     }
   ]
   const datasetsReady = areMasterDataDatasetsReady(masterDataHandoff, blockerItems)
+  const productDisplayStatus = resolveProductComparisonDisplayStatus(
+    snapshotPair.reference.product,
+    snapshotPair.current.product
+  )
+  const productDisplayLabel = productDisplayStatus === 'not-set'
+    ? 'Product Not Set'
+    : productDisplayStatus === 'mismatch'
+      ? 'Product Mismatch'
+      : 'Product Match'
   const referenceStandardCost = fullSnapshotComparison.referenceCost.total
   const currentStandardCost = fullSnapshotComparison.currentCost.total
   const totalGap = fullSnapshotComparison.totalGap
@@ -162,10 +176,13 @@ export const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
   const formattedGap = hasNetGap ? `${totalGap > 0 ? '+' : ''}${formatNumber(totalGap, 4)}` : '—'
   const referenceUom = snapshotPair.reference.product.uom?.trim() ?? ''
   const currentUom = snapshotPair.current.product.uom?.trim() ?? ''
-  const costUnit = referenceUom && currentUom
-    && normalizeProductIdentityValue(referenceUom) === normalizeProductIdentityValue(currentUom)
-    ? referenceUom
-    : 'Unit'
+  const costUnit = !referenceUom && !currentUom
+    ? 'Unit'
+    : !referenceUom
+      ? currentUom
+      : !currentUom || normalizeProductIdentityValue(referenceUom) === normalizeProductIdentityValue(currentUom)
+        ? referenceUom
+        : 'Unit'
   const gapTextClass = !hasNetGap
     ? 'text-slate-500'
     : totalGap > 0
@@ -173,7 +190,16 @@ export const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
       : totalGap < 0
       ? 'text-emerald-300'
       : 'text-slate-300'
-  const productIdentity = (name?: string, uom?: string) => `${name?.trim() || '—'} (${uom?.trim() || '—'})`
+  const productStatusClass = productDisplayStatus === 'match'
+    ? 'text-emerald-300'
+    : productDisplayStatus === 'mismatch'
+      ? 'text-violet-300'
+      : 'text-slate-300'
+  const productDotClass = productDisplayStatus === 'match'
+    ? 'bg-emerald-400'
+    : productDisplayStatus === 'mismatch'
+      ? 'bg-violet-400'
+      : 'bg-slate-400'
 
   return (
     <div className="flex h-dvh min-h-0 w-full flex-col overflow-hidden bg-slate-100/70 font-sans text-[13px] text-slate-900 antialiased">
@@ -235,23 +261,24 @@ export const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
             <span aria-hidden="true" className="text-slate-700">|</span>
             <FooterTooltip
               id="footer-product-status-tooltip"
+              align="center"
               content={(
-                <span className="grid min-w-0 grid-cols-[max-content_minmax(0,1fr)] gap-x-2 gap-y-1">
+                <span className="grid min-w-0 grid-cols-[max-content_minmax(0,1fr)] gap-x-3 gap-y-1 text-left">
                   <span className="text-slate-600">Reference</span>
-                  <span className="min-w-0 break-words">{productIdentity(snapshotPair.reference.product.productName, snapshotPair.reference.product.uom)}</span>
+                  <span className="min-w-0 break-words">{formatProductIdentityForDisplay(snapshotPair.reference.product)}</span>
                   <span className="text-slate-600">Current</span>
-                  <span className="min-w-0 break-words">{productIdentity(snapshotPair.current.product.productName, snapshotPair.current.product.uom)}</span>
+                  <span className="min-w-0 break-words">{formatProductIdentityForDisplay(snapshotPair.current.product)}</span>
                 </span>
               )}
             >
               <span
                 tabIndex={0}
                 aria-describedby="footer-product-status-tooltip"
-                aria-label={`Product ${masterDataHandoff.productMismatch ? 'Mismatch' : 'Match'}`}
-                className={`inline-flex min-h-7 cursor-default select-none items-center gap-1.5 whitespace-nowrap rounded-sm font-semibold focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-300 ${masterDataHandoff.productMismatch ? 'text-violet-300' : 'text-emerald-300'}`}
+                aria-label={productDisplayLabel}
+                className={`inline-flex min-h-7 cursor-default select-none items-center gap-1.5 whitespace-nowrap rounded-sm font-semibold focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-300 ${productStatusClass}`}
               >
-                <span aria-hidden="true" className={`h-1.5 w-1.5 rounded-full ${masterDataHandoff.productMismatch ? 'bg-violet-400' : 'bg-emerald-400'}`} />
-                Product {masterDataHandoff.productMismatch ? 'Mismatch' : 'Match'}
+                <span aria-hidden="true" className={`h-1.5 w-1.5 rounded-full ${productDotClass}`} />
+                {productDisplayLabel}
               </span>
             </FooterTooltip>
             <span aria-hidden="true" className="text-slate-700">|</span>
@@ -290,7 +317,7 @@ export const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
               <span className="font-sans font-bold text-slate-300">NET GAP</span>
               <span className={`font-semibold ${gapTextClass}`}>{formattedGap}</span>
             </span>
-            <span className="ml-2 max-[359px]:basis-full max-[359px]:ml-0 max-[359px]:text-right cursor-default select-none font-sans font-normal text-slate-400">(THB/{costUnit})</span>
+            <span className="ml-2 max-[359px]:basis-full max-[359px]:ml-0 max-[359px]:text-right cursor-default select-none font-sans font-bold text-slate-300">(THB/{costUnit})</span>
           </div>
         </div>
       </footer>

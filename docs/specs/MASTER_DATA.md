@@ -38,7 +38,7 @@ Actions act on the currently viewed dataset:
 - **Save:** Replaces only the viewed dataset's `Last Saved` state with its current `Working` state.
 - **Reset:** Restores only the viewed dataset's `Working` state from its `Last Saved` state.
 - **Export:** Exports only the viewed dataset's `Last Saved` state to Excel. Working changes that have not been saved are not exported.
-- **Import:** Selecting a file parses and validates without changing `Working`. Only the explicit Import action applies the valid snapshot to the viewed dataset and initializes its Sizing counts from imported row counts. It never overwrites `Last Saved`; canceling the dialog leaves `Working` unchanged.
+- **Import:** The UI accepts `.xlsx` only. Selecting a file parses and validates without changing `Working`. Only the explicit Import action applies the valid snapshot to the viewed dataset and initializes its Sizing counts from imported row counts. It never overwrites `Last Saved`; canceling the dialog leaves `Working` unchanged.
 - **Clear:** Immediately clears only the viewed dataset's `Working` state (metadata, remark, table rows, and Sizing values); retains `Last Saved` and leaves other datasets untouched. Clear is one Undo/Redo history action.
 
 ## Master Data Owns Structural Changes
@@ -93,13 +93,13 @@ Dataset metadata is independent for each dataset:
 | SG&A | SG&A percent of Selling Price (%) | Independent per dataset |
 | Dataset Remark | Dataset-level annotation remark | Independent per dataset |
 
-Product Name and UOM remain blank until entered; do not fabricate `Product` or `PC` in display, save, or export. UOM is free text. Selling Price input accepts a number only; THB is fixed and shown by the UI. Selling Price and SG&A keep their existing missing-value semantics; Dataset Remark may be blank. Do not add Product Code, Product Description, or Product Note. If effective Reference and Current Product Name or UOM differ after trimming and case normalization, show `Product Mismatch` in violet as a non-blocking comparison status, not a warning. It does not block or confirm CBD entry. Product Match remains green; warning emphasis remains amber/yellow.
+Product Name and UOM remain blank until entered; do not fabricate `Product` or `PC` in display, save, or export. UOM is free text. Selling Price input accepts a number only; THB is fixed and shown by the UI. Selling Price and SG&A keep their existing missing-value semantics; Dataset Remark may be blank. Do not add Product Code, Product Description, or Product Note. Product comparison display has three informational states: `Product Match` (green) when both complete identities match after trimming/case normalization; `Product Mismatch` (violet) when both are complete but differ; and `Product Not Set` (neutral) when either side lacks Product Name or UOM. `Product Not Set` changes display only; it does not change handoff mismatch, Warning/Blocker counts, readiness, calculations, or CBD availability. Product Mismatch remains non-blocking and is not a Warning or Blocker. Warning emphasis remains amber/yellow.
 
 Metadata appears as compact inline `Label : Value` pairs without a Metadata heading or disabled input boxes in View mode. Field widths remain stable, with Product Name and Remark wider than UOM and SG&A. Metadata in the page and Sizing dialog edit the same selected Working values.
 
 ## Sizing and Templates
 
-- Sizing edits the viewed dataset's metadata and exact row counts for BOM, Work Centers, and Routing (minimum 1 each). Existing rows populate unset sizing fields with their effective current row counts; on a fresh empty workspace counts remain unset. Native number steppers remain available. Keep the dialog compact and centered, with aligned metadata fields and a grouped row-count list; dialog edits remain draft values until Apply.
+- Sizing edits the viewed dataset's metadata and exact row counts for BOM, Work Centers, and Routing (minimum 1 each). Existing rows populate unset sizing fields with their effective current row counts; on a fresh empty workspace counts remain unset. Keep the dialog compact and centered (about 640–700px), with aligned metadata fields and a grouped row-count list. Row counts remain directly editable numeric inputs with accessible − / + controls; plus on an unset count starts at 1, while an untouched unset count stays unset. The title and Download Template action are text-only. Dialog edits remain draft values until Apply.
 - Applying a count sets that table to exactly that many rows:
   - Increasing the count appends blank rows with placeholder numbers.
   - Decreasing the count removes rows from the end; confirm only when populated data will be removed. Removing only blank trailing rows needs no confirmation.
