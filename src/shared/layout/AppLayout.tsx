@@ -186,7 +186,7 @@ export const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
       </main>
       <footer aria-label="Dataset and comparison status" className="w-full shrink-0 border-t border-slate-800 bg-slate-900 py-2 font-sans text-[11px] text-slate-400">
         <div className="app-workspace-frame flex flex-wrap items-center justify-between gap-x-5 gap-y-1.5 xl:flex-nowrap">
-          <div role="group" aria-label="Reference and Current dataset structure" className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1 tabular-nums">
+          <div role="group" aria-label="Reference and Current dataset structure" className="flex min-w-0 flex-wrap cursor-default select-none items-center gap-x-3 gap-y-1 tabular-nums">
             <span aria-label={`Reference dataset: ${snapshotPair.reference.bom.length} BOM items, ${snapshotPair.reference.rates.length} work centers, ${snapshotPair.reference.routing.length} routing operations`} className="whitespace-nowrap">
               <span className="mr-1 font-bold text-slate-300">REF</span>
               BOM {snapshotPair.reference.bom.length} · WC {snapshotPair.reference.rates.length} · RTG {snapshotPair.reference.routing.length}
@@ -197,7 +197,7 @@ export const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
               BOM {snapshotPair.current.bom.length} · WC {snapshotPair.current.rates.length} · RTG {snapshotPair.current.routing.length}
             </span>
           </div>
-          <div role="group" aria-label="Dataset readiness, product comparison, and warnings" className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1">
+          <div role="group" aria-label="Dataset readiness, product comparison, and warnings" className="flex min-w-0 flex-wrap cursor-default select-none items-center gap-x-3 gap-y-1">
             <FooterTooltip
               id="footer-dataset-status-tooltip"
               content={(
@@ -239,9 +239,9 @@ export const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
                 tabIndex={0}
                 aria-describedby="footer-product-status-tooltip"
                 aria-label={`Product ${masterDataHandoff.productMismatch ? 'Mismatch' : 'Match'}`}
-                className={`inline-flex min-h-7 cursor-default select-none items-center gap-1.5 whitespace-nowrap rounded-sm font-semibold focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-300 ${masterDataHandoff.productMismatch ? 'text-orange-300' : 'text-emerald-300'}`}
+                className={`inline-flex min-h-7 cursor-default select-none items-center gap-1.5 whitespace-nowrap rounded-sm font-semibold focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-300 ${masterDataHandoff.productMismatch ? 'text-violet-300' : 'text-emerald-300'}`}
               >
-                <span aria-hidden="true" className={`h-1.5 w-1.5 rounded-full ${masterDataHandoff.productMismatch ? 'bg-orange-400' : 'bg-emerald-400'}`} />
+                <span aria-hidden="true" className={`h-1.5 w-1.5 rounded-full ${masterDataHandoff.productMismatch ? 'bg-violet-400' : 'bg-emerald-400'}`} />
                 Product {masterDataHandoff.productMismatch ? 'Mismatch' : 'Match'}
               </span>
             </FooterTooltip>
@@ -272,7 +272,7 @@ export const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
               </button>
             </FooterTooltip>
           </div>
-          <div role="group" aria-label={`Full Reference and Current standard costs and net gap in THB/${costUnit}`} className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1 font-mono tabular-nums">
+          <div role="group" aria-label={`Full Reference and Current standard costs and net gap in THB/${costUnit}`} className="flex min-w-0 flex-wrap cursor-default select-none items-center gap-x-3 gap-y-1 font-mono tabular-nums">
             <span className="whitespace-nowrap"><span className="mr-1 font-sans font-bold text-slate-300">REF STD</span>{formatCost(referenceStandardCost)}</span>
             <span aria-hidden="true" className="text-slate-700">|</span>
             <span className="whitespace-nowrap"><span className="mr-1 font-sans font-bold text-slate-300">CUR STD</span>{formatCost(currentStandardCost)}</span>
@@ -281,7 +281,7 @@ export const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
               <span className="font-sans font-bold text-slate-300">NET GAP</span>
               <span className={`font-semibold ${gapTextClass}`}>{formattedGap}</span>
             </span>
-            <span className="font-sans text-slate-500">(THB/{costUnit})</span>
+            <span className="ml-2 max-[359px]:basis-full max-[359px]:ml-0 max-[359px]:text-right cursor-default select-none font-sans text-slate-500">(THB/{costUnit})</span>
           </div>
         </div>
       </footer>

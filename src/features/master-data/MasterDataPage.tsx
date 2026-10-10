@@ -215,7 +215,7 @@ export const MasterDataPage: React.FC<MasterDataPageProps> = ({ searchQuery = ''
   ]
   const activeSection = tableSections.find(section => section.key === activeTableTab)
   const tableSelector = (
-    <div className="flex shrink-0 items-center border border-slate-300 bg-white p-0.5" role="group" aria-label="Master Data table section">
+    <div className="grid w-64 shrink-0 grid-cols-4 items-stretch border border-slate-300 bg-white p-0.5 sm:w-96" role="group" aria-label="Master Data table section">
       {tableSections.map(section => {
         const isActive = !isAllTablesVisible && activeTableTab === section.key
         return (
@@ -225,7 +225,7 @@ export const MasterDataPage: React.FC<MasterDataPageProps> = ({ searchQuery = ''
             aria-pressed={isActive}
             aria-controls="master-data-table-panel"
             onClick={() => updateMasterDataUiState({ type: 'set-table-view', tableView: section.key })}
-            className={'inline-flex min-h-7 w-24 shrink-0 items-center justify-center border-r border-slate-200 px-1 text-[11px] font-medium transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-blue-700 ' +
+            className={'inline-flex min-h-8 w-full items-center justify-center border-r border-slate-200 px-1 text-[11px] font-medium transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-blue-700 sm:min-h-7 ' +
               (isActive ? 'bg-slate-900 text-white' : 'text-slate-700 hover:bg-slate-100 hover:text-slate-950')}
           >
             {section.navLabel}
@@ -237,7 +237,7 @@ export const MasterDataPage: React.FC<MasterDataPageProps> = ({ searchQuery = ''
         aria-pressed={isAllTablesVisible}
         aria-controls="master-data-table-panel"
         onClick={() => updateMasterDataUiState({ type: 'set-table-view', tableView: 'all' })}
-        className={'inline-flex min-h-7 w-24 shrink-0 items-center justify-center px-1 text-[11px] font-medium transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-blue-700 ' +
+        className={'inline-flex min-h-8 w-full items-center justify-center px-1 text-[11px] font-medium transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-blue-700 sm:min-h-7 ' +
           (isAllTablesVisible ? 'bg-slate-900 text-white' : 'text-slate-700 hover:bg-slate-100 hover:text-slate-950')}
       >
         All

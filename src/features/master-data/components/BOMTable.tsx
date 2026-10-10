@@ -171,7 +171,7 @@ export const BOMTable: React.FC<BOMTableProps> = ({
         </div>
       )}
 
-      <div className="max-h-[520px] overflow-x-auto">
+      <div className="overflow-x-auto">
         <table ref={tableRef} className="w-full min-w-[860px] border-collapse text-left text-xs">
           <thead className="sticky top-0 z-30 border-y-2 border-slate-400 bg-slate-100 text-[11px] font-semibold uppercase tracking-wide text-slate-800">
             <tr>
