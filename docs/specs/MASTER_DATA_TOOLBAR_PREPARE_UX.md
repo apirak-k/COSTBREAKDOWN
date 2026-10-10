@@ -293,7 +293,7 @@ Missing required numeric inputs produce Unavailable affected results and Missing
 - [x] `git diff --check` passes.
 - [x] Final diff is manually reviewed against this contract.
 - [x] Unrelated changes are absent.
-- [ ] Changes committed and pushed on `CBD-UXUI` without merging; the delivered worktree is clean.
+- [x] Changes committed and pushed on `CBD-UXUI` without merging; the delivered worktree is clean.
 
 ### Verification Notes
 
