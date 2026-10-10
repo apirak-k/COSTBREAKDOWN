@@ -60,8 +60,8 @@ const toolbarButton = 'grid h-8 w-8 shrink-0 place-items-center border border-sl
 const fieldInput = 'mt-1 min-h-9 w-full border-b border-slate-300 bg-transparent px-1 py-1 text-sm text-slate-950 focus:border-blue-700 focus:outline-none'
 const datasetSummaryColumns = 'grid-cols-[minmax(0,1fr)_5rem_1.25rem_2rem_1.5rem]'
 const warningCategoryColumns = datasetSummaryColumns
-const datasetSaveStateDotClass = (state: MasterDataSaveState) =>
-  `h-1.5 w-1.5 shrink-0 rounded-full ring-[1.5px] ring-inset ring-slate-500/80 ${state === 'Saved' ? 'bg-emerald-500' : 'bg-slate-400'}`
+const datasetSaveStateDotClass = (state: MasterDataSaveState, size = 'h-1.5 w-1.5') =>
+  `${size} shrink-0 rounded-full ring-[1.5px] ring-inset ${state === 'Saved' ? 'bg-emerald-500 ring-emerald-700/70' : 'bg-slate-400 ring-slate-600/70'}`
 const useSafeLayoutEffect = typeof window === 'undefined' ? useEffect : useLayoutEffect
 
 const roleLabels: Record<MasterDataRole, string> = {
@@ -377,14 +377,14 @@ export const MasterDataWorkspaceHeader: React.FC<MasterDataWorkspaceHeaderProps>
                   title={datasetsReady ? 'Reference and Current are ready' : 'Reference or Current needs input'}
                   className={`inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap text-xs font-medium ${datasetsReady ? 'text-blue-700' : 'text-rose-700'}`}
                 >
-                  <span aria-hidden="true" className={`h-1.5 w-1.5 rounded-full ${datasetsReady ? 'bg-blue-600' : 'bg-rose-500'}`} />
+                  <span aria-hidden="true" className={`h-2 w-2 shrink-0 rounded-full ${datasetsReady ? 'bg-blue-600' : 'bg-rose-500'}`} />
                   {datasetsReady ? 'Ready' : 'Incomplete'}
                 </span>
                 <span
                   aria-label={`Product ${comparisonStatus}`}
                   className={`inline-flex min-h-7 items-center gap-1.5 whitespace-nowrap text-xs font-medium ${handoff.productMismatch ? 'text-violet-700' : 'text-emerald-700'}`}
                 >
-                    <span aria-hidden="true" className={`h-1.5 w-1.5 rounded-full ${handoff.productMismatch ? 'bg-violet-500' : 'bg-emerald-600'}`} />
+                    <span aria-hidden="true" className={`h-2 w-2 shrink-0 rounded-full ${handoff.productMismatch ? 'bg-violet-500' : 'bg-emerald-600'}`} />
                     Product {comparisonStatus}
                 </span>
                 <button
@@ -406,7 +406,7 @@ export const MasterDataWorkspaceHeader: React.FC<MasterDataWorkspaceHeaderProps>
                     <>
                       <span className="min-w-0 truncate pl-3 text-[11px] font-semibold text-slate-700">{roleLabels[datasetRole]}</span>
                       <span className="inline-flex min-w-0 items-center gap-1.5 whitespace-nowrap text-xs">
-                        <span aria-hidden="true" className={datasetSaveStateDotClass(saveState)} />
+                        <span aria-hidden="true" className={datasetSaveStateDotClass(saveState, 'h-2 w-2')} />
                         <span>{saveState}</span>
                       </span>
                       <span className="grid h-7 w-5 place-items-center" aria-hidden="true">
