@@ -62,5 +62,9 @@ export function useSpreadsheetEditing<T extends EditableRow>({
     }
   }, [applyCellUpdate, applyChanges])
 
-  return { applyCellUpdate, applyPasteUpdates }
+  const applyCutUpdates = useCallback((updates: RowUpdate<T>[]) => {
+    applyChanges(updates)
+  }, [applyChanges])
+
+  return { applyCellUpdate, applyPasteUpdates, applyCutUpdates }
 }

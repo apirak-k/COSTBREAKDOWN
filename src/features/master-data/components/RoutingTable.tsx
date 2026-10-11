@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo, useRef } from 'react'
+import React, { useCallback, useEffect, useMemo, useRef } from 'react'
 import { GripVertical, Trash2 } from 'lucide-react'
 import { SnapshotRoutingStep, SnapshotWorkCenterRate, formatNumber, formatPercent } from '../../../core'
 import { useDragSelect } from '../hooks/useDragSelect'
@@ -6,8 +6,9 @@ import { SpreadsheetPasteCell, tableCellKey, useTableKeyboardNav } from '../hook
 import { RowChanges, useSpreadsheetEditing } from '../hooks/useSpreadsheetEditing'
 import { blankIdentityOrdinals, duplicateIdentityIds, hasInvalidNumber, parsePercentage } from '../table-validation'
 import { useWarningNavigationFocus, type WarningNavigationTarget } from '../hooks/useWarningNavigationFocus'
-import type { MasterDataBlockerItem } from '../prepare-dataset'
-import { MasterDataTableFooter, MasterDataTableHeader } from './MasterDataTableChrome'
+import type { MasterDataBlockerItem, MasterDataWarningItem } from '../prepare-dataset'
+import { MasterDataTableHeader } from './MasterDataTableChrome'
+import { MasterDataBlockerMarker } from './MasterDataBlockerMarker'
 
 interface RoutingTableProps {
   routing: SnapshotRoutingStep[]
@@ -18,7 +19,9 @@ interface RoutingTableProps {
   onSearchQueryChange?: (query: string) => void
   showWarningHighlights?: boolean
   warningCount: number
+  warningItems: MasterDataWarningItem[]
   blockerItems: MasterDataBlockerItem[]
+  onNavigateWarning: (item: MasterDataWarningItem) => void
   onNavigateBlocker: (item: MasterDataBlockerItem) => void
   onUndo: () => void
   onRedo: () => void
@@ -42,7 +45,9 @@ export const RoutingTable: React.FC<RoutingTableProps> = ({
   onSearchQueryChange = () => undefined,
   showWarningHighlights = true,
   warningCount,
+  warningItems,
   blockerItems,
+  onNavigateWarning,
   onNavigateBlocker,
   onUndo,
   onRedo,
@@ -54,6 +59,7 @@ export const RoutingTable: React.FC<RoutingTableProps> = ({
   onWarningNavigationHandled
 }) => {
   const tableRef = useRef<HTMLTableElement | null>(null)
+  const warningIndexRef = useRef(0)
   const blockerIndexRef = useRef(0)
   const query = searchQuery.trim().toLocaleLowerCase()
   const duplicateProcessIds = useMemo(() => duplicateIdentityIds(routing, step => step.id, step => step.processName), [routing])
@@ -83,9 +89,15 @@ export const RoutingTable: React.FC<RoutingTableProps> = ({
   const selectWarningRow = useCallback((rowId: string) => setSelectedIds(new Set([rowId])), [setSelectedIds])
   useWarningNavigationFocus(tableRef, searchQuery, onSearchQueryChange, warningNavigationTarget, selectWarningRow, onWarningNavigationHandled)
 
+  useEffect(() => {
+    warningIndexRef.current = 0
+    blockerIndexRef.current = 0
+  }, [historyScope, warningItems, blockerItems])
+
   const {
     applyCellUpdate,
-    applyPasteUpdates
+    applyPasteUpdates,
+    applyCutUpdates
   } = useSpreadsheetEditing({
     rows: routing,
     selectedIds,
@@ -107,10 +119,25 @@ export const RoutingTable: React.FC<RoutingTableProps> = ({
     applyPasteUpdates(updates)
   }, [applyPasteUpdates])
 
+  const handleCutCells = useCallback((cells: SpreadsheetPasteCell[]) => {
+    const updates = cells.flatMap(cell => {
+      let changes: RowChanges<SnapshotRoutingStep> | null = null
+      if (cell.field === 'processName') changes = { processName: '' }
+      else if (cell.field === 'workCenterId') changes = { workCenterId: undefined }
+      else if (cell.field === 'manning') changes = { manning: null }
+      else if (cell.field === 'capacity') changes = { capacity: null }
+      else if (cell.field === 'yield') changes = { yield: null }
+      else if (cell.field === 'note') changes = { note: '' }
+      return changes ? [{ id: cell.rowId, changes }] : []
+    })
+    applyCutUpdates(updates)
+  }, [applyCutUpdates])
+
   const { selectedCellKeys } = useTableKeyboardNav({
     tableRef,
     isEditMode,
     onPasteCells: handlePasteCells,
+    onCutCells: handleCutCells,
     onUndo,
     onRedo
   })
@@ -126,6 +153,13 @@ export const RoutingTable: React.FC<RoutingTableProps> = ({
     const target = blockerItems[blockerIndexRef.current % blockerItems.length]
     blockerIndexRef.current = (blockerIndexRef.current + 1) % blockerItems.length
     onNavigateBlocker(target)
+  }
+
+  const handleNextWarning = () => {
+    if (warningItems.length === 0) return
+    const target = warningItems[warningIndexRef.current % warningItems.length]
+    warningIndexRef.current = (warningIndexRef.current + 1) % warningItems.length
+    onNavigateWarning(target)
   }
 
   const allVisibleSelected = filteredRouting.length > 0 && filteredRouting.every(step => selectedIds.has(step.id))
@@ -157,7 +191,7 @@ export const RoutingTable: React.FC<RoutingTableProps> = ({
 
   return (
     <section aria-label="Routing rows" className="overflow-hidden border border-slate-300 bg-white select-none">
-      <MasterDataTableHeader title="Routing" blockerCount={blockerItems.length} isEditMode={isEditMode} onNextBlocker={handleNextBlocker} onAddRow={onAddRoutingStep} />
+      <MasterDataTableHeader title="Routing" rowCount={routing.length} selectedCount={selectedIds.size} warningCount={warningCount} blockerCount={blockerItems.length} isEditMode={isEditMode} onNextWarning={handleNextWarning} onNextBlocker={handleNextBlocker} onAddRow={onAddRoutingStep} />
 
       <div className="overflow-x-auto">
         <table ref={tableRef} className="w-full min-w-[950px] table-fixed border-collapse text-left text-xs">
@@ -171,10 +205,10 @@ export const RoutingTable: React.FC<RoutingTableProps> = ({
                 <button type="button" onClick={() => toggleAll(!allVisibleSelected)} disabled={filteredRouting.length === 0} aria-pressed={allVisibleSelected} aria-label={allVisibleSelected ? 'Clear selection for visible Routing rows' : 'Select all visible Routing rows'} title={allVisibleSelected ? 'Clear visible selection' : 'Select visible rows'} className={`h-9 w-full text-[11px] focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-700 ${allVisibleSelected ? 'bg-blue-100 text-blue-900' : 'text-slate-700 hover:bg-slate-200'} disabled:cursor-default disabled:text-slate-400 disabled:hover:bg-transparent`}>#</button>
               </th>
               <th scope="col" className="px-2 py-2 text-left">Process</th>
-              <th scope="col" className="px-2 py-2 text-left">Work Center</th>
-              <th scope="col" className="px-2 py-2 text-right">Manning</th>
-              <th scope="col" className="px-2 py-2 text-right">Capacity</th>
-              <th scope="col" className="px-2 py-2 text-right">Yield</th>
+              <th scope="col" className="px-2 py-2 text-center">Work Center</th>
+              <th scope="col" className="px-2 py-2 text-center">Manning</th>
+              <th scope="col" className="px-2 py-2 text-center">Capacity</th>
+              <th scope="col" className="px-2 py-2 text-center">Yield</th>
               <th scope="col" className="px-2 py-2 text-left">Note</th>
               <th scope="col" className="w-20 px-1 py-2 text-center">Actions</th>
             </tr>
@@ -196,7 +230,7 @@ export const RoutingTable: React.FC<RoutingTableProps> = ({
               const rowMarkerBackground = isSelected
                 ? 'bg-blue-50 group-hover:bg-blue-100'
                 : 'bg-white group-hover:bg-slate-50'
-              const numericClass = (invalid: boolean, missing: boolean) => `min-h-8 w-full min-w-0 rounded-sm border px-1.5 text-right text-xs tabular-nums focus:outline-none focus:ring-2 focus:ring-blue-700 ${invalid ? 'border-amber-600' : 'border-slate-300'} ${showWarningHighlights && (invalid || missing) ? 'bg-amber-50' : 'bg-white'}`
+              const numericClass = (invalid: boolean, missing: boolean) => `min-h-8 w-full min-w-0 rounded-sm border px-1.5 text-center text-xs tabular-nums focus:outline-none focus:ring-2 focus:ring-blue-700 ${invalid ? 'border-amber-600' : 'border-slate-300'} ${showWarningHighlights && (invalid || missing) ? 'bg-amber-50' : 'bg-white'}`
 
               return (
                 <tr
@@ -238,9 +272,9 @@ export const RoutingTable: React.FC<RoutingTableProps> = ({
                       ) : step.processName || <span className="text-amber-700">{placeholderNumber ?? '—'}</span>}
                     </div>
                   </td>
-                  <td className={`px-2 py-0.5 ${workCenterInvalid ? `${showWarningHighlights ? 'bg-amber-50' : ''} text-amber-900` : ''}`}>
+                  <td className={`relative px-2 py-0.5 text-center ${workCenterInvalid ? `${showWarningHighlights ? 'bg-amber-50' : ''} text-amber-900` : ''}`}>
                     {isEditMode ? (
-                      <div className="flex items-center gap-1">
+                      <div className="relative min-w-0">
                         <select
                         value={step.workCenterId || ''}
                         onChange={event => applyCellUpdate(step.id, { workCenterId: event.target.value || undefined })}
@@ -249,7 +283,7 @@ export const RoutingTable: React.FC<RoutingTableProps> = ({
                         data-grid-field="workCenterId"
                         aria-label={`Work Center for Routing row ${rowNumber}`}
                         aria-invalid={workCenterInvalid}
-                        className={`min-h-8 w-full min-w-0 rounded-sm border px-2 text-xs focus:outline-none focus:ring-2 focus:ring-blue-700 ${workCenterInvalid ? 'border-amber-600' : 'border-slate-300'} ${showWarningHighlights && workCenterInvalid ? 'bg-amber-50' : 'bg-white'} ${selectedCellKeys.has(tableCellKey(step.id, 'workCenterId')) ? 'ring-2 ring-blue-500 ring-inset' : ''}`}
+                        className={`mx-auto block h-8 w-full max-w-36 min-w-0 rounded-sm border px-2 pr-6 text-center text-xs focus:outline-none focus:ring-2 focus:ring-blue-700 ${workCenterInvalid ? 'border-amber-600' : 'border-slate-300'} ${showWarningHighlights && workCenterInvalid ? 'bg-amber-50' : 'bg-white'} ${selectedCellKeys.has(tableCellKey(step.id, 'workCenterId')) ? 'ring-2 ring-blue-500 ring-inset' : ''}`}
                       >
                         <option value="">Select Work Center</option>
                         {step.workCenterId && !knownWorkCenters.has(step.workCenterId.trim().toLocaleLowerCase()) && (
@@ -259,53 +293,57 @@ export const RoutingTable: React.FC<RoutingTableProps> = ({
                           <option key={rate.id} value={rate.workCenterCode}>{rate.workCenterCode}</option>
                         ))}
                         </select>
-                        {workCenterInvalid && <span aria-label="Missing required value" title="Missing or unavailable Work Center" className="shrink-0 text-[11px] font-bold text-rose-600">*</span>}
+                        {workCenterInvalid && <MasterDataBlockerMarker label="Missing or unavailable Work Center" />}
                       </div>
-                    ) : <span className="inline-flex max-w-full items-center gap-1 truncate">
-                      {step.workCenterId || '—'}{workCenterInvalid && <span aria-label="Missing required value" title="Missing or unavailable Work Center" className="shrink-0 text-[11px] font-bold text-rose-600">*</span>}
-                    </span>}
+                    ) : (
+                      <span className="relative inline-block max-w-full truncate border border-slate-200 bg-slate-50 px-1.5 py-0.5 text-[11px] font-medium text-slate-700">
+                        {step.workCenterId || '—'}
+                        {workCenterInvalid && <MasterDataBlockerMarker label="Missing or unavailable Work Center" className="right-0 top-0" />}
+                      </span>
+                    )}
                   </td>
-                  <td className={`px-2 py-0.5 text-right font-mono tabular-nums ${manningInvalid ? `${showWarningHighlights ? 'bg-amber-50' : ''} text-amber-900` : ''}`}>
+                  <td className={`relative px-2 py-0.5 text-center font-mono tabular-nums ${manningInvalid ? `${showWarningHighlights ? 'bg-amber-50' : ''} text-amber-900` : ''}`}>
                     {isEditMode ? (
-                      <div className="flex items-center justify-end gap-1">
-                      <input
-                        type="number"
-                        step="any"
-                        value={numberValue(step.manning)}
-                        onChange={event => applyCellUpdate(step.id, { manning: parseNumber(event.target.value) })}
-                        data-grid-cell="true"
-                        data-grid-row-id={step.id}
-                        data-grid-field="manning"
-                        aria-label={`Manning for ${step.processName || `Routing row ${rowNumber}`}`}
-                        aria-invalid={manningInvalid}
-                        className={`${numericClass(manningInvalid, manningMissing)} ${selectedCellKeys.has(tableCellKey(step.id, 'manning')) ? 'ring-2 ring-blue-500 ring-inset' : ''}`}
-                      />
-                      {manningMissing && <span aria-label="Missing required value" title="Missing required value" className="shrink-0 text-[11px] font-bold text-rose-600">*</span>}
+                      <div className="relative mx-auto w-full max-w-20">
+                        <input
+                          type="number"
+                          step="any"
+                          value={numberValue(step.manning)}
+                          onChange={event => applyCellUpdate(step.id, { manning: parseNumber(event.target.value) })}
+                          data-grid-cell="true"
+                          data-grid-row-id={step.id}
+                          data-grid-field="manning"
+                          aria-label={`Manning for ${step.processName || `Routing row ${rowNumber}`}`}
+                          aria-invalid={manningInvalid}
+                          className={`${numericClass(manningInvalid, manningMissing)} ${selectedCellKeys.has(tableCellKey(step.id, 'manning')) ? 'ring-2 ring-blue-500 ring-inset' : ''}`}
+                        />
+                        {manningMissing && <MasterDataBlockerMarker />}
                       </div>
-                    ) : <>{step.manning === null ? <span className="text-amber-700">—</span> : formatNumber(step.manning, 2)}{manningMissing && <span aria-label="Missing required value" title="Missing required value" className="ml-1 text-[11px] font-bold text-rose-600">*</span>}</>}
+                    ) : <span className="relative inline-block">{step.manning === null ? <span className="text-amber-700">—</span> : formatNumber(step.manning, 2)}{manningMissing && <MasterDataBlockerMarker className="right-0 top-0" />}</span>}
                   </td>
-                  <td className={`px-2 py-0.5 text-right font-mono tabular-nums ${capacityInvalid ? `${showWarningHighlights ? 'bg-amber-50' : ''} text-amber-900` : ''}`}>
+                  <td className={`relative px-2 py-0.5 text-center font-mono tabular-nums ${capacityInvalid ? `${showWarningHighlights ? 'bg-amber-50' : ''} text-amber-900` : ''}`}>
                     {isEditMode ? (
-                      <div className="flex items-center justify-end gap-1">
-                      <input
-                        type="number"
-                        step="any"
-                        value={numberValue(step.capacity)}
-                        onChange={event => applyCellUpdate(step.id, { capacity: parseNumber(event.target.value) })}
-                        data-grid-cell="true"
-                        data-grid-row-id={step.id}
-                        data-grid-field="capacity"
-                        aria-label={`Capacity for ${step.processName || `Routing row ${rowNumber}`}`}
-                        aria-invalid={capacityInvalid}
-                        className={`${numericClass(capacityInvalid, capacityMissing)} ${selectedCellKeys.has(tableCellKey(step.id, 'capacity')) ? 'ring-2 ring-blue-500 ring-inset' : ''}`}
-                      />
-                      {capacityMissing && <span aria-label="Missing required value" title="Missing required value" className="shrink-0 text-[11px] font-bold text-rose-600">*</span>}
+                      <div className="relative mx-auto w-full max-w-24">
+                        <input
+                          type="number"
+                          step="any"
+                          value={numberValue(step.capacity)}
+                          onChange={event => applyCellUpdate(step.id, { capacity: parseNumber(event.target.value) })}
+                          data-grid-cell="true"
+                          data-grid-row-id={step.id}
+                          data-grid-field="capacity"
+                          aria-label={`Capacity for ${step.processName || `Routing row ${rowNumber}`}`}
+                          aria-invalid={capacityInvalid}
+                          className={`${numericClass(capacityInvalid, capacityMissing)} ${selectedCellKeys.has(tableCellKey(step.id, 'capacity')) ? 'ring-2 ring-blue-500 ring-inset' : ''}`}
+                        />
+                        {capacityMissing && <MasterDataBlockerMarker />}
                       </div>
-                    ) : <>{step.capacity === null ? <span className="text-amber-700">—</span> : formatNumber(step.capacity, 2)}{capacityMissing && <span aria-label="Missing required value" title="Missing required value" className="ml-1 text-[11px] font-bold text-rose-600">*</span>}</>}
+                    ) : <span className="relative inline-block">{step.capacity === null ? <span className="text-amber-700">—</span> : formatNumber(step.capacity, 2)}{capacityMissing && <MasterDataBlockerMarker className="right-0 top-0" />}</span>}
                   </td>
-                  <td className={`px-2 py-0.5 text-right font-mono tabular-nums ${yieldInvalid ? `${showWarningHighlights ? 'bg-amber-50' : ''} text-amber-900` : ''}`}>
+                  <td className={`relative px-2 py-0.5 text-center font-mono tabular-nums ${yieldInvalid ? `${showWarningHighlights ? 'bg-amber-50' : ''} text-amber-900` : ''}`}>
                     {isEditMode ? (
-                      <div className="flex items-center justify-end gap-1">
+                      <div className="mx-auto flex w-fit items-center justify-center gap-1">
+                        <div className="relative w-16">
                         <input
                           type="number"
                           step="any"
@@ -321,10 +359,11 @@ export const RoutingTable: React.FC<RoutingTableProps> = ({
                           aria-invalid={yieldInvalid}
                           className={`${numericClass(yieldInvalid, yieldMissing)} ${selectedCellKeys.has(tableCellKey(step.id, 'yield')) ? 'ring-2 ring-blue-500 ring-inset' : ''}`}
                         />
+                          {yieldMissing && <MasterDataBlockerMarker className="right-0 top-0.5" />}
+                        </div>
                         <span className="text-slate-400">%</span>
-                        {yieldMissing && <span aria-label="Missing required value" title="Missing required value" className="shrink-0 text-[11px] font-bold text-rose-600">*</span>}
                       </div>
-                    ) : <>{step.yield === null ? <span className="text-amber-700">—</span> : formatPercent(step.yield, 2)}{yieldMissing && <span aria-label="Missing required value" title="Missing required value" className="ml-1 text-[11px] font-bold text-rose-600">*</span>}</>}
+                    ) : <span className="relative inline-block">{step.yield === null ? <span className="text-amber-700">—</span> : formatPercent(step.yield, 2)}{yieldMissing && <MasterDataBlockerMarker className="right-0 top-0" />}</span>}
                   </td>
                   <td className="px-2 py-0.5 font-sans text-slate-600">
                     {isEditMode ? (
@@ -381,7 +420,6 @@ export const RoutingTable: React.FC<RoutingTableProps> = ({
           </tbody>
         </table>
       </div>
-      <MasterDataTableFooter rowCount={routing.length} selectedCount={selectedIds.size} warningCount={warningCount} blockerCount={blockerItems.length} />
     </section>
   )
 }

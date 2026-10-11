@@ -21,6 +21,8 @@ import {
 import { updateSimulationParameter } from './features/simulation/simulation-engine'
 import type { SimulationFactor, SimulationParameter } from './features/simulation/simulation-state'
 import type { EconomicSimulationField } from './features/simulation/simulation-economics'
+import type { MasterDataQualityItem } from './features/master-data/prepare-dataset'
+import type { WarningNavigationTarget } from './features/master-data/hooks/useWarningNavigationFocus'
 import { retainRcaSimulationHandoff, type RcaSimulationHandoffContext } from './state/rca-cases'
 import { loadFromSession, saveToSession, STORAGE_KEYS } from './services/storage'
 
@@ -32,6 +34,7 @@ const AppRouter: React.FC = () => {
     masterDataSnapshots,
     productSessions
   } = useAppStore()
+  const [prepareDatasetNavigationRequest, setPrepareDatasetNavigationRequest] = useState<(MasterDataQualityItem & WarningNavigationTarget) | undefined>()
   const [simulationRcaHandoff, setSimulationRcaHandoff] = useState<{
     productId: string
     context: RcaSimulationHandoffContext
@@ -48,6 +51,14 @@ const AppRouter: React.FC = () => {
   const simulationRcaContext = activeTab === 'simulation' && simulationRcaHandoff?.productId === activeProductId
     ? simulationRcaHandoff.context
     : null
+
+  const navigateToPrepareDatasetIssue = (item: MasterDataQualityItem) => {
+    setPrepareDatasetNavigationRequest(previous => ({
+      ...item,
+      requestId: (previous?.requestId ?? 0) + 1
+    }))
+    setActiveTab('master')
+  }
 
   useEffect(() => {
     setSimulationRcaHandoff(previous => retainRcaSimulationHandoff(previous, activeTab, activeProductId))
@@ -128,11 +139,13 @@ const AppRouter: React.FC = () => {
   }
 
   return (
-    <AppLayout>
+    <AppLayout onNavigatePrepareDatasetIssue={navigateToPrepareDatasetIssue}>
       {activeTab === 'master' && (
         <MasterDataPage
           searchQuery={masterDataSearchQuery}
           onSearchQueryChange={setMasterDataSearchQuery}
+          prepareDatasetNavigationRequest={prepareDatasetNavigationRequest}
+          onPrepareDatasetNavigationHandled={requestId => setPrepareDatasetNavigationRequest(current => current?.requestId === requestId ? undefined : current)}
         />
       )}
       {activeTab === 'breakdown' && <CostBreakdownPage />}

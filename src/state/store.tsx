@@ -498,7 +498,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
   const toggleMasterDataPrepareDataset = () => {
     clearMasterDataPrepareDatasetHoverTimer()
-    setActiveTab('master')
     setMasterDataPrepareDatasetRequestMode(null)
     setMasterDataPrepareDatasetRequested(false)
     if (masterDataPrepareDatasetPinned) {
@@ -513,7 +512,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const previewMasterDataPrepareDataset = () => {
     clearMasterDataPrepareDatasetHoverTimer()
     if (masterDataPrepareDatasetPinnedRef.current) return
-    setActiveTab('master')
     setMasterDataPrepareDatasetOpen(true)
   }
 
@@ -535,11 +533,10 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
   const requestMasterDataPrepareDataset = (mode?: 'all-warnings') => {
     clearMasterDataPrepareDatasetHoverTimer()
-    if (activeTab === 'master' && masterDataPrepareDatasetOpen) {
+    if (masterDataPrepareDatasetOpen) {
       closeMasterDataPrepareDataset()
       return
     }
-    setActiveTab('master')
     setMasterDataPrepareDatasetPinned(true)
     setMasterDataPrepareDatasetOpen(true)
     setMasterDataPrepareDatasetRequestMode(mode ?? null)

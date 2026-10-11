@@ -205,7 +205,13 @@ function writeTableSheet(
       cell.fill = INPUT_FILL
       cell.font = { name: 'Arial', size: 10, color: { argb: 'FF0F172A' } }
       cell.border = border
-      cell.alignment = { vertical: 'middle', horizontal: 'center' }
+      const headerName = columnNames[column - 1].trim().toLocaleLowerCase()
+      const isNumeric = numericColumns.includes(column) || percentColumns.includes(column)
+      const isShortIdentifier = ['unit', 'uom', 'wc', 'work center'].includes(headerName)
+      cell.alignment = {
+        vertical: 'middle',
+        horizontal: isNumeric ? 'right' : isShortIdentifier ? 'center' : 'left'
+      }
       if (numericColumns.includes(column)) cell.numFmt = '#,##0.00'
       if (percentColumns.includes(column)) cell.numFmt = '0.00%'
     }

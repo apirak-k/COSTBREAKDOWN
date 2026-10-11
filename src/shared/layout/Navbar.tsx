@@ -1,7 +1,8 @@
 import React, { useEffect, useRef } from 'react'
 import { Info, Redo2, Undo2 } from 'lucide-react'
 import { useAppStore } from '../../state'
-import { resolveHeaderProductContext } from './header-product-context'
+import { resolveHeaderProductContext, resolveProductComparisonDisplayStatus } from './header-product-context'
+import { Tooltip } from '../ui/Tooltip'
 
 const navItems = [
   { id: 'master', label: 'Master Data' },
@@ -24,6 +25,7 @@ export const Navbar: React.FC = () => {
     masterDataPrepareDatasetOpen,
     masterDataPrepareDatasetPinned,
     masterDataPrepareDatasetRequested,
+    consumeMasterDataPrepareDatasetRequest,
     toggleMasterDataPrepareDataset,
     previewMasterDataPrepareDataset,
     scheduleDismissMasterDataPrepareDatasetPreview
@@ -35,12 +37,19 @@ export const Navbar: React.FC = () => {
     snapshotPair.reference.product,
     snapshotPair.current.product
   )
+  const productComparisonStatus = resolveProductComparisonDisplayStatus(
+    snapshotPair.reference.product,
+    snapshotPair.current.product
+  )
+  const currentProductName = snapshotPair.current.product.productName?.trim() ?? ''
+  const currentProductUom = snapshotPair.current.product.uom?.trim() ?? ''
 
   useEffect(() => {
     if (masterDataPrepareDatasetRequested) {
       prepareDatasetTriggerRef.current?.focus()
+      consumeMasterDataPrepareDatasetRequest()
     }
-  }, [masterDataPrepareDatasetRequested])
+  }, [masterDataPrepareDatasetRequested, consumeMasterDataPrepareDatasetRequest])
 
   return (
     <header className="sticky top-0 z-50 select-none border-b border-slate-800 bg-slate-900 text-white shadow-xs">
@@ -51,11 +60,19 @@ export const Navbar: React.FC = () => {
               <span className="shrink-0 text-base font-bold tracking-tight text-slate-100">COSTBREAKDOWN</span>
               <span
                 role="group"
-                aria-label={`Product context: ${productContext}`}
-                title={productContext}
-                className="max-w-36 truncate text-[11px] font-normal text-slate-300 sm:max-w-48"
+                aria-label={`Product context: PRODUCT: ${productContext}`}
+                title={`PRODUCT: ${productContext}`}
+                className="inline-flex min-w-0 max-w-48 items-baseline gap-1 truncate text-[11px] font-normal text-slate-300"
               >
-                {productContext}
+                <span className="shrink-0 text-[10px] font-medium tracking-wide text-slate-400">PRODUCT:</span>
+                {productComparisonStatus === 'match' ? (
+                  <>
+                    <span className="truncate font-semibold text-slate-100">{currentProductName}</span>
+                    <span className="shrink-0 text-slate-400">({currentProductUom})</span>
+                  </>
+                ) : (
+                  <span className="truncate font-medium text-slate-200">{productContext}</span>
+                )}
               </span>
             </div>
           </div>
@@ -81,26 +98,28 @@ export const Navbar: React.FC = () => {
           </nav>
 
           <div role="group" aria-label="Workspace utilities" className="flex min-w-0 items-center justify-end gap-0.5 lg:col-start-3 lg:row-start-1">
-            <button
-              type="button"
-              onClick={undoMasterDataEdit}
-              disabled={!isMasterData || !canUndoMasterDataEdit}
-              aria-label="Undo"
-              title="Undo Master Data edit (Ctrl/Cmd+Z)"
-              className={utilityButton}
-            >
-              <Undo2 className="h-4 w-4" aria-hidden="true" />
-            </button>
-            <button
-              type="button"
-              onClick={redoMasterDataEdit}
-              disabled={!isMasterData || !canRedoMasterDataEdit}
-              aria-label="Redo"
-              title="Redo Master Data edit (Ctrl/Cmd+Y or Ctrl/Cmd+Shift+Z)"
-              className={utilityButton}
-            >
-              <Redo2 className="h-4 w-4" aria-hidden="true" />
-            </button>
+            <Tooltip label="Undo · Ctrl/Cmd+Z">
+              <button
+                type="button"
+                onClick={undoMasterDataEdit}
+                disabled={!isMasterData || !canUndoMasterDataEdit}
+                aria-label="Undo"
+                className={utilityButton}
+              >
+                <Undo2 className="h-4 w-4" aria-hidden="true" />
+              </button>
+            </Tooltip>
+            <Tooltip label="Redo · Ctrl/Cmd+Y or Ctrl/Cmd+Shift+Z">
+              <button
+                type="button"
+                onClick={redoMasterDataEdit}
+                disabled={!isMasterData || !canRedoMasterDataEdit}
+                aria-label="Redo"
+                className={utilityButton}
+              >
+                <Redo2 className="h-4 w-4" aria-hidden="true" />
+              </button>
+            </Tooltip>
             <div
               className="relative flex shrink-0 items-center"
               onPointerEnter={previewMasterDataPrepareDataset}
@@ -120,7 +139,6 @@ export const Navbar: React.FC = () => {
                 aria-pressed={masterDataPrepareDatasetPinned}
                 aria-controls="prepare-dataset-panel"
                 aria-label="Prepare Dataset"
-                title="Prepare Dataset"
                 className={utilityButton}
               >
                 <Info className="h-4 w-4" aria-hidden="true" />

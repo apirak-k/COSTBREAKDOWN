@@ -11,8 +11,7 @@ import { RoutingTable } from './components/RoutingTable'
 import {
   buildMasterDataBlockerItems,
   buildMasterDataWarningItems,
-  groupMasterDataBlockers,
-  groupMasterDataWarnings,
+  type MasterDataWarningItem,
   type MasterDataQualityItem
 } from './prepare-dataset'
 import type { WarningNavigationTarget } from './hooks/useWarningNavigationFocus'
@@ -23,11 +22,18 @@ type TableSubTab = 'bom' | 'wc' | 'routing'
 interface MasterDataPageProps {
   searchQuery?: string
   onSearchQueryChange?: (query: string) => void
+  prepareDatasetNavigationRequest?: MasterDataQualityItem & WarningNavigationTarget
+  onPrepareDatasetNavigationHandled?: (requestId: number) => void
 }
 
 const roles: MasterDataRole[] = ['reference', 'current', 'custom']
 
-export const MasterDataPage: React.FC<MasterDataPageProps> = ({ searchQuery = '', onSearchQueryChange = () => undefined }) => {
+export const MasterDataPage: React.FC<MasterDataPageProps> = ({
+  searchQuery = '',
+  onSearchQueryChange = () => undefined,
+  prepareDatasetNavigationRequest,
+  onPrepareDatasetNavigationHandled
+}) => {
   const {
     masterDataSnapshots,
     masterDataUiState,
@@ -36,13 +42,7 @@ export const MasterDataPage: React.FC<MasterDataPageProps> = ({ searchQuery = ''
     masterDataLastSavedSnapshot,
     masterDataLastSavedSnapshots,
     masterDataSizing,
-    masterDataHandoff,
     importSnapshotFromExcel,
-    masterDataPrepareDatasetOpen,
-    setMasterDataPrepareDatasetOpen,
-    closeMasterDataPrepareDataset,
-    masterDataPrepareDatasetRequested,
-    masterDataPrepareDatasetRequestMode,
     undoMasterDataEdit,
     redoMasterDataEdit,
     setMasterDataRole,
@@ -52,8 +52,6 @@ export const MasterDataPage: React.FC<MasterDataPageProps> = ({ searchQuery = ''
     resetMasterDataWorkingDataset,
     resetAllMasterDataWorkingDatasets,
     clearAllMasterDataWorkingDatasets,
-    loadDevelopmentMockData,
-    consumeMasterDataPrepareDatasetRequest,
     cloneMasterDataWorkspace,
     clearMasterDataDataset,
     updateMasterDataDatasetSizing,
@@ -78,12 +76,6 @@ export const MasterDataPage: React.FC<MasterDataPageProps> = ({ searchQuery = ''
   const [showWarningHighlights, setShowWarningHighlights] = useState(true)
   const [warningNavigation, setWarningNavigation] = useState<(WarningNavigationTarget & MasterDataQualityItem) | undefined>()
 
-  useEffect(() => {
-    if (!masterDataPrepareDatasetRequested) return
-    setMasterDataPrepareDatasetOpen(true)
-    consumeMasterDataPrepareDatasetRequest()
-  }, [masterDataPrepareDatasetRequested, setMasterDataPrepareDatasetOpen, consumeMasterDataPrepareDatasetRequest])
-
   const isEditMode = masterDataUiState.mode === 'edit'
   const isAllTablesVisible = masterDataUiState.tableView === 'all'
   const activeTableTab: TableSubTab = masterDataUiState.tableView === 'all' ? 'bom' : masterDataUiState.tableView
@@ -91,8 +83,14 @@ export const MasterDataPage: React.FC<MasterDataPageProps> = ({ searchQuery = ''
 
   const warningItems = useMemo(() => buildMasterDataWarningItems(masterDataSnapshots), [masterDataSnapshots])
   const blockerItems = useMemo(() => buildMasterDataBlockerItems(masterDataSnapshots), [masterDataSnapshots])
-  const warningGroups = useMemo(() => groupMasterDataWarnings(warningItems), [warningItems])
-  const blockerGroups = useMemo(() => groupMasterDataBlockers(blockerItems), [blockerItems])
+  const warningItemsByTable = useMemo(() => Object.fromEntries((['bom', 'wc', 'routing'] as const).map(table => [
+    table,
+    warningItems.filter(item => item.role === masterDataRole && item.table === table)
+  ])) as Record<TableSubTab, MasterDataWarningItem[]>, [masterDataRole, warningItems])
+  const blockerItemsByTable = useMemo(() => Object.fromEntries((['bom', 'wc', 'routing'] as const).map(table => [
+    table,
+    blockerItems.filter(item => item.role === masterDataRole && item.table === table)
+  ])) as Record<TableSubTab, ReturnType<typeof buildMasterDataBlockerItems>>, [blockerItems, masterDataRole])
   const saveStates = useMemo(() => Object.fromEntries(roles.map(role => [
     role,
     getDatasetSaveState(masterDataSnapshots[role], masterDataLastSavedSnapshots[role])
@@ -113,43 +111,27 @@ export const MasterDataPage: React.FC<MasterDataPageProps> = ({ searchQuery = ''
 
   const handleWarningNavigationHandled = useCallback((requestId: number) => {
     setWarningNavigation(current => current?.requestId === requestId ? undefined : current)
-  }, [])
+    if (prepareDatasetNavigationRequest?.requestId === requestId) onPrepareDatasetNavigationHandled?.(requestId)
+  }, [onPrepareDatasetNavigationHandled, prepareDatasetNavigationRequest?.requestId])
 
-  const handleLoadMockData = async (fixture: 'complete' | 'incomplete') => {
-    if (!import.meta.env.DEV) return
-    const fixtures = await import('./fixtures/synthetic-review-data')
-    loadDevelopmentMockData(fixture === 'complete'
-      ? fixtures.createCompleteMasterDataMockPair()
-      : fixtures.createIncompleteMasterDataMockPair())
-    setMasterDataRole('current')
-  }
-
-  const developmentAction = import.meta.env.DEV ? (
-    <div role="group" aria-label="Development mock datasets" className="grid w-full grid-cols-2 divide-x divide-slate-200 text-[11px]">
-      <button
-        type="button"
-        onClick={() => { void handleLoadMockData('complete') }}
-        className="min-h-7 w-full px-1.5 text-center font-medium text-slate-600 transition-colors hover:bg-slate-100 hover:text-slate-950 focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-700"
-      >
-        Complete Mock
-      </button>
-      <button
-        type="button"
-        onClick={() => { void handleLoadMockData('incomplete') }}
-        className="min-h-7 w-full px-1.5 text-center font-medium text-slate-600 transition-colors hover:bg-slate-100 hover:text-slate-950 focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-700"
-      >
-        Incomplete Mock
-      </button>
-    </div>
-  ) : undefined
+  useEffect(() => {
+    const item = prepareDatasetNavigationRequest
+    if (!item) return
+    setMasterDataRole(item.role)
+    updateMasterDataUiState({ type: 'set-mode', mode: 'edit' })
+    updateMasterDataUiState({ type: 'set-table-view', tableView: item.table })
+    setWarningNavigation(item)
+  }, [prepareDatasetNavigationRequest?.requestId, setMasterDataRole, updateMasterDataUiState])
 
   const renderTable = (table: TableSubTab) => {
     const warningNavigationTarget = warningNavigation?.table === table ? warningNavigation : undefined
-    const tableWarnings = warningItems.filter(item => item.role === masterDataRole && item.table === table)
-    const tableBlockers = blockerItems.filter(item => item.role === masterDataRole && item.table === table)
+    const tableWarnings = warningItemsByTable[table]
+    const tableBlockers = blockerItemsByTable[table]
     const tableChromeProps = {
       warningCount: tableWarnings.length,
+      warningItems: tableWarnings,
       blockerItems: tableBlockers,
+      onNavigateWarning: (item: MasterDataWarningItem) => handleWarningNavigation(item, true),
       onNavigateBlocker: (item: MasterDataQualityItem) => handleWarningNavigation(item, true)
     }
     if (table === 'wc') {
@@ -283,8 +265,6 @@ export const MasterDataPage: React.FC<MasterDataPageProps> = ({ searchQuery = ''
     <div className="w-full space-y-2">
       <MasterDataWorkspaceHeader
         product={product}
-        referenceProduct={masterDataSnapshots.reference.product}
-        currentProduct={masterDataSnapshots.current.product}
         snapshot={masterDataSnapshot}
         lastSavedSnapshot={masterDataLastSavedSnapshot}
         saveStates={saveStates}
@@ -302,19 +282,8 @@ export const MasterDataPage: React.FC<MasterDataPageProps> = ({ searchQuery = ''
         onCloneFrom={cloneMasterDataWorkspace}
         onClearDataset={() => clearMasterDataDataset(masterDataRole)}
         onClearAllDatasets={clearAllMasterDataWorkingDatasets}
-        handoff={masterDataHandoff}
         onOpenImportModal={() => setImportModalOpen(true)}
         onOpenSizingModal={() => setSizingModalOpen(true)}
-        isPrepareDatasetOpen={masterDataPrepareDatasetOpen}
-        onClosePrepareDataset={closeMasterDataPrepareDataset}
-        prepareDatasetRequestMode={masterDataPrepareDatasetRequestMode}
-        warningGroups={warningGroups}
-        warningCount={warningItems.length}
-        blockerGroups={blockerGroups}
-        blockerItems={blockerItems}
-        blockerCount={blockerItems.length}
-        onNavigateWarning={handleWarningNavigation}
-        mockAction={developmentAction}
         tableSelector={tableSelector}
         tableView={masterDataUiState.tableView}
         showWarningHighlights={showWarningHighlights}

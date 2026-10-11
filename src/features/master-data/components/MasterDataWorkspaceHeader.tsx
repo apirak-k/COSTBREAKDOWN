@@ -1,9 +1,5 @@
 import React, { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import {
-  AlertTriangle,
-  CircleX,
-  ChevronDown,
-  ChevronRight,
   Copy,
   Eye,
   FileSpreadsheet,
@@ -11,32 +7,19 @@ import {
   RotateCcw,
   Save,
   Search,
-  Upload,
   Table2,
   Trash2,
-  X
+  Upload
 } from 'lucide-react'
-import { createPortal } from 'react-dom'
 import { formatNumber } from '../../../core'
 import type { MasterDataRole, CostSnapshot, ProductMaster } from '../../../core'
-import type { MasterDataHandoffStatus } from '../../../core/calculations/master-data-handoff'
 import type { MasterDataSaveState } from '../../../core/utils/master-data-effective'
-import { resolveProductComparisonDisplayStatus } from '../../../shared/layout/header-product-context'
+import { Tooltip } from '../../../shared/ui/Tooltip'
 import { downloadBlob } from '../../../services/excel/export'
-import {
-  areMasterDataDatasetsReady,
-  countMasterDataWarningsByRole,
-  countMasterDataQualityByRole,
-  type MasterDataBlockerGroup,
-  type MasterDataBlockerItem,
-  type MasterDataWarningGroup,
-  type MasterDataQualityItem
-} from '../prepare-dataset'
+import { hasEnteredMasterData } from '../../../state/dataset-sizing'
 
 interface MasterDataWorkspaceHeaderProps {
   product: ProductMaster
-  referenceProduct: ProductMaster
-  currentProduct: ProductMaster
   snapshot: CostSnapshot
   lastSavedSnapshot?: CostSnapshot
   saveStates: Record<MasterDataRole, MasterDataSaveState>
@@ -54,19 +37,8 @@ interface MasterDataWorkspaceHeaderProps {
   onClearDataset: () => void
   onClearAllDatasets: () => void
   hasLastSavedByRole: Record<MasterDataRole, boolean>
-  handoff: MasterDataHandoffStatus
   onOpenImportModal: () => void
   onOpenSizingModal: () => void
-  isPrepareDatasetOpen: boolean
-  onClosePrepareDataset: () => void
-  prepareDatasetRequestMode: 'all-warnings' | null
-  warningGroups: MasterDataWarningGroup[]
-  warningCount: number
-  blockerGroups: MasterDataBlockerGroup[]
-  blockerCount: number
-  blockerItems: MasterDataBlockerItem[]
-  onNavigateWarning: (item: MasterDataQualityItem) => void
-  mockAction?: React.ReactNode
   tableSelector: React.ReactNode
   tableView: 'bom' | 'wc' | 'routing' | 'all'
   showWarningHighlights: boolean
@@ -77,7 +49,6 @@ interface MasterDataWorkspaceHeaderProps {
 
 const toolbarButton = 'grid h-8 w-8 shrink-0 place-items-center rounded-sm bg-transparent text-slate-700 transition-colors hover:bg-slate-100 hover:text-slate-950 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700 disabled:cursor-default disabled:opacity-40 disabled:hover:bg-transparent disabled:hover:text-slate-700'
 const fieldInput = 'min-h-8 w-full min-w-0 border-b border-slate-300 bg-transparent px-1 py-1 text-xs text-slate-950 focus:border-blue-700 focus:outline-none'
-const datasetSummaryColumns = 'grid-cols-[minmax(0,1fr)_5rem_3.5rem_3.5rem]'
 const datasetSaveStateDotClass = (state: MasterDataSaveState, size = 'h-1.5 w-1.5') =>
   `${size} shrink-0 rounded-full ring-[1.5px] ring-inset ${state === 'Saved' ? 'bg-emerald-500 ring-emerald-700/70' : 'bg-slate-400 ring-slate-600/70'}`
 const useSafeLayoutEffect = typeof window === 'undefined' ? useEffect : useLayoutEffect
@@ -203,31 +174,32 @@ const CurrentAndAllAction: React.FC<CurrentAndAllActionProps> = ({
         if (!event.currentTarget.contains(event.relatedTarget as Node | null)) closeMenu()
       }}
     >
-      <button
-        ref={triggerRef}
-        type="button"
-        aria-label={label}
-        aria-disabled={currentDisabled}
-        aria-expanded={open}
-        aria-controls={menuId}
-        aria-describedby={helpId}
-        aria-keyshortcuts="Alt+ArrowDown"
-        title={`${label} current dataset · Alt+↓ for all datasets`}
-        onClick={() => {
-          if (currentDisabled) return
-          closeMenu()
-          onCurrent()
-        }}
-        onKeyDown={event => {
-          if ((event.altKey && event.key === 'ArrowDown') || (event.shiftKey && event.key === 'F10')) {
-            event.preventDefault()
-            openMenu(true)
-          }
-        }}
-        className={`${toolbarButton} ${currentDisabled ? 'opacity-40 hover:bg-transparent hover:text-slate-700' : ''}`}
-      >
-        {children}
-      </button>
+      <Tooltip label={label}>
+        <button
+          ref={triggerRef}
+          type="button"
+          aria-label={label}
+          aria-disabled={currentDisabled}
+          aria-expanded={open}
+          aria-controls={menuId}
+          aria-describedby={helpId}
+          aria-keyshortcuts="Alt+ArrowDown"
+          onClick={() => {
+            if (currentDisabled) return
+            closeMenu()
+            onCurrent()
+          }}
+          onKeyDown={event => {
+            if ((event.altKey && event.key === 'ArrowDown') || (event.shiftKey && event.key === 'F10')) {
+              event.preventDefault()
+              openMenu(true)
+            }
+          }}
+          className={`${toolbarButton} ${currentDisabled ? 'opacity-40 hover:bg-transparent hover:text-slate-700' : ''}`}
+        >
+          {children}
+        </button>
+      </Tooltip>
       <span id={helpId} className="sr-only">Acts on the current dataset. Hover or press Alt plus Down Arrow to access the all-dataset action.</span>
       <div
         ref={menuRef}
@@ -258,8 +230,6 @@ const CurrentAndAllAction: React.FC<CurrentAndAllActionProps> = ({
 
 export const MasterDataWorkspaceHeader: React.FC<MasterDataWorkspaceHeaderProps> = ({
   product,
-  referenceProduct,
-  currentProduct,
   snapshot,
   lastSavedSnapshot,
   saveStates,
@@ -277,19 +247,8 @@ export const MasterDataWorkspaceHeader: React.FC<MasterDataWorkspaceHeaderProps>
   onCloneFrom,
   onClearDataset,
   onClearAllDatasets,
-  handoff,
   onOpenImportModal,
   onOpenSizingModal,
-  isPrepareDatasetOpen,
-  onClosePrepareDataset,
-  prepareDatasetRequestMode,
-  warningGroups,
-  warningCount,
-  blockerGroups,
-  blockerCount,
-  blockerItems,
-  onNavigateWarning,
-  mockAction,
   tableSelector,
   tableView,
   showWarningHighlights,
@@ -299,36 +258,15 @@ export const MasterDataWorkspaceHeader: React.FC<MasterDataWorkspaceHeaderProps>
 }) => {
   const [cloneMenuOpen, setCloneMenuOpen] = useState(false)
   const [cloneMenuPinned, setCloneMenuPinned] = useState(false)
-  const [expandedWarningCategories, setExpandedWarningCategories] = useState<Set<string>>(() => new Set())
-  const [expandedBlockerCategories, setExpandedBlockerCategories] = useState<Set<string>>(() => new Set())
-  const [datasetRoleFilter, setDatasetRoleFilter] = useState<MasterDataRole | null>(null)
-  const [prepareDatasetMaxHeight, setPrepareDatasetMaxHeight] = useState<number | null>(null)
-  const preparePanelRef = useRef<HTMLDivElement>(null)
   const cloneContainerRef = useRef<HTMLDivElement>(null)
   const cloneTriggerRef = useRef<HTMLButtonElement>(null)
   const cloneMenuRef = useRef<HTMLDivElement>(null)
   const cloneHoverTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const cloneHorizontalOffset = useCenteredPopoverOffset(cloneMenuOpen, cloneMenuRef)
-  const preparePanelHorizontalOffset = useCenteredPopoverOffset(isPrepareDatasetOpen, preparePanelRef)
 
   const roleLabel = roleLabels[role]
   const isSaved = saveStates[role] === 'Saved'
-  const allWarningItems = warningGroups.flatMap(group => group.items)
-  const datasetsReady = areMasterDataDatasetsReady(handoff, blockerItems)
-  const datasetWarningCounts = countMasterDataWarningsByRole(allWarningItems)
-  const datasetBlockerCounts = countMasterDataQualityByRole(blockerItems)
-  const visibleWarningGroups = (datasetRoleFilter
-    ? warningGroups.map(group => ({ ...group, items: group.items.filter(item => item.role === datasetRoleFilter) }))
-    : warningGroups).filter(group => group.items.length > 0)
-  const visibleBlockerGroups = (datasetRoleFilter
-    ? blockerGroups.map(group => ({ ...group, items: group.items.filter(item => item.role === datasetRoleFilter) }))
-    : blockerGroups).filter(group => group.items.length > 0)
-  const visibleWarningCount = datasetRoleFilter
-    ? datasetWarningCounts[datasetRoleFilter]
-    : warningCount
-  const visibleBlockerCount = datasetRoleFilter
-    ? datasetBlockerCounts[datasetRoleFilter]
-    : blockerCount
+  const hasExportableSavedData = Boolean(lastSavedSnapshot && hasEnteredMasterData(lastSavedSnapshot))
   const searchPlaceholder = tableView === 'all'
     ? 'Search all tables'
     : tableView === 'wc'
@@ -336,109 +274,6 @@ export const MasterDataWorkspaceHeader: React.FC<MasterDataWorkspaceHeaderProps>
       : tableView === 'routing'
         ? 'Search Routing'
         : 'Search BOM'
-  const productDisplayStatus = resolveProductComparisonDisplayStatus(referenceProduct, currentProduct)
-  const comparisonStatus = productDisplayStatus === 'not-set'
-    ? 'Not Set'
-    : productDisplayStatus === 'mismatch'
-      ? 'Mismatch'
-      : 'Match'
-  const productStatusClass = productDisplayStatus === 'match'
-    ? 'text-emerald-700'
-    : productDisplayStatus === 'mismatch'
-      ? 'text-violet-700'
-      : 'text-slate-600'
-  const productStatusDotClass = productDisplayStatus === 'match'
-    ? 'bg-emerald-600'
-    : productDisplayStatus === 'mismatch'
-      ? 'bg-violet-500'
-      : 'bg-slate-400'
-  const activeDatasetFilterLabel = datasetRoleFilter ? roleLabels[datasetRoleFilter] : 'All'
-  const warningHeadingLabel = `Warnings ${visibleWarningCount}`
-  const blockerHeadingLabel = `Blockers ${visibleBlockerCount}`
-  const preparePortalRoot = typeof document === 'undefined'
-    ? null
-    : document.getElementById('header-prepare-dataset-portal-root')
-
-  const closePrepareDatasetAndRestoreFocus = () => {
-    onClosePrepareDataset()
-    document.getElementById('header-prepare-dataset-trigger')?.focus()
-  }
-
-  const renderIssueSection = (kind: 'warning' | 'blocker') => {
-    const isWarning = kind === 'warning'
-    const groups = isWarning ? visibleWarningGroups : visibleBlockerGroups
-    const heading = isWarning ? warningHeadingLabel : blockerHeadingLabel
-    const expandedCategories = isWarning ? expandedWarningCategories : expandedBlockerCategories
-    const setExpandedCategories = isWarning ? setExpandedWarningCategories : setExpandedBlockerCategories
-
-    return (
-      <section aria-labelledby={`prepare-dataset-${kind}-heading`} className="flex min-h-0 shrink-0 flex-col">
-        <div className="grid h-6 shrink-0 grid-cols-[minmax(0,1fr)_auto] items-center gap-2">
-          <h3 id={`prepare-dataset-${kind}-heading`} className="truncate text-xs font-semibold text-slate-800">{heading}</h3>
-          <span aria-label={`Dataset filter: ${activeDatasetFilterLabel}`} title={`Showing ${activeDatasetFilterLabel} dataset`} className="text-right text-[11px] font-medium text-slate-500">
-            {activeDatasetFilterLabel}
-          </span>
-        </div>
-        {groups.length > 0 && (
-          <ul aria-label={isWarning ? 'Warning categories' : 'Blocker categories'} className="shrink-0 space-y-0.5">
-            {groups.map(group => {
-              const expanded = expandedCategories.has(group.category)
-              const items = group.items
-              const label = group.category === 'missing-value'
-                ? <>{group.label}<span aria-hidden="true" className="ml-1 font-bold text-rose-600">*</span></>
-                : group.label
-              return (
-                <li key={group.category}>
-                  <button
-                    type="button"
-                    aria-expanded={expanded}
-                    onClick={() => setExpandedCategories(current => {
-                      const next = new Set(current)
-                      if (next.has(group.category)) next.delete(group.category)
-                      else next.add(group.category)
-                      return next
-                    })}
-                    className={`grid min-h-7 w-full grid-cols-[minmax(0,1fr)_2rem_1.5rem] items-center gap-2 py-0.5 pl-3 text-left text-xs text-slate-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-700 ${expanded ? 'bg-slate-100' : 'hover:bg-slate-50'}`}
-                  >
-                    <span className="min-w-0 truncate">{label}</span>
-                    <span className="w-full text-right font-mono tabular-nums text-slate-600">{items.length}</span>
-                    <span className="grid h-6 w-6 place-items-center" aria-hidden="true">
-                      {expanded
-                        ? <ChevronDown className="h-3.5 w-3.5 text-slate-500" />
-                        : <ChevronRight className="h-3.5 w-3.5 text-slate-500" />}
-                    </span>
-                  </button>
-                  {expanded && (
-                    <ul
-                      aria-label={`${group.label} locations`}
-                      tabIndex={0}
-                      style={{ maxHeight: `${Math.min(items.length, 3) * 28}px` }}
-                      className="mb-1 ml-8 min-h-0 overflow-y-auto overscroll-contain border-l border-slate-200 pl-2 focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-700"
-                    >
-                      {items.map(item => (
-                        <li key={item.id}>
-                          <button
-                            type="button"
-                            onClick={() => {
-                              onNavigateWarning(item)
-                              onClosePrepareDataset()
-                            }}
-                            className="flex min-h-7 w-full px-1 py-1 text-left text-[11px] text-slate-700 hover:bg-slate-50 hover:text-slate-950 focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-700"
-                          >
-                            <span className="min-w-0 flex-1">{item.label}</span>
-                          </button>
-                        </li>
-                      ))}
-                    </ul>
-                  )}
-                </li>
-              )
-            })}
-          </ul>
-        )}
-      </section>
-    )
-  }
 
   const clearCloneHoverTimer = () => {
     if (cloneHoverTimerRef.current) clearTimeout(cloneHoverTimerRef.current)
@@ -475,59 +310,6 @@ export const MasterDataWorkspaceHeader: React.FC<MasterDataWorkspaceHeaderProps>
   }, [cloneMenuOpen])
 
   useEffect(() => () => clearCloneHoverTimer(), [])
-
-  useEffect(() => {
-    if (!prepareDatasetRequestMode) return
-    setDatasetRoleFilter(null)
-    setExpandedWarningCategories(new Set())
-    setExpandedBlockerCategories(new Set())
-  }, [prepareDatasetRequestMode])
-
-  useSafeLayoutEffect(() => {
-    if (!isPrepareDatasetOpen) {
-      setPrepareDatasetMaxHeight(null)
-      return
-    }
-
-    const main = document.querySelector('main')
-    const updatePanelHeight = () => {
-      const triggerBottom = document.getElementById('header-prepare-dataset-trigger')?.getBoundingClientRect().bottom
-      const mainBottom = main?.getBoundingClientRect().bottom
-      if (triggerBottom == null || mainBottom == null) return
-      const availableHeight = Math.floor(mainBottom - triggerBottom - 8)
-      setPrepareDatasetMaxHeight(Math.max(0, Math.min(608, availableHeight)))
-    }
-
-    updatePanelHeight()
-    window.addEventListener('resize', updatePanelHeight)
-    return () => {
-      window.removeEventListener('resize', updatePanelHeight)
-    }
-  }, [isPrepareDatasetOpen])
-
-  useEffect(() => {
-    if (!isPrepareDatasetOpen) return
-    const handlePointerDown = (event: PointerEvent) => {
-      const target = event.target as Node
-      const trigger = document.getElementById('header-prepare-dataset-trigger')
-      const footerTrigger = document.getElementById('footer-warning-action')
-      if (preparePanelRef.current?.contains(target) || trigger?.contains(target) || footerTrigger?.contains(target)) return
-      onClosePrepareDataset()
-    }
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') {
-        event.preventDefault()
-        onClosePrepareDataset()
-        document.getElementById('header-prepare-dataset-trigger')?.focus()
-      }
-    }
-    document.addEventListener('pointerdown', handlePointerDown)
-    document.addEventListener('keydown', handleKeyDown)
-    return () => {
-      document.removeEventListener('pointerdown', handlePointerDown)
-      document.removeEventListener('keydown', handleKeyDown)
-    }
-  }, [isPrepareDatasetOpen, onClosePrepareDataset])
 
   const handleExportDataset = async () => {
     if (!lastSavedSnapshot) return
@@ -616,35 +398,41 @@ export const MasterDataWorkspaceHeader: React.FC<MasterDataWorkspaceHeaderProps>
             aria-hidden="true"
             className={`pointer-events-none absolute inset-y-0.5 left-0.5 w-[calc(50%-2px)] bg-slate-900 transition-transform duration-150 ease-out ${isEditMode ? 'translate-x-full' : 'translate-x-0'}`}
           />
-          <button
-            type="button"
-            aria-pressed={!isEditMode}
-            aria-label="View"
-            title="View"
-            onClick={() => onToggleEditMode(false)}
-            className={`relative grid h-6 w-6 place-items-center justify-self-center rounded-sm transition-colors focus-visible:z-10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-700 ${!isEditMode ? 'text-white' : 'text-slate-700 hover:bg-slate-100 hover:text-slate-950'}`}
-          >
-            <Eye className="h-4 w-4" aria-hidden="true" />
-          </button>
-          <button
-            type="button"
-            aria-pressed={isEditMode}
-            aria-label="Edit"
-            title="Edit"
-            onClick={() => onToggleEditMode(true)}
-            className={`relative grid h-6 w-6 place-items-center justify-self-center rounded-sm transition-colors focus-visible:z-10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-700 ${isEditMode ? 'text-white' : 'text-slate-700 hover:bg-slate-100 hover:text-slate-950'}`}
-          >
-            <Pencil className="h-4 w-4" aria-hidden="true" />
-          </button>
+          <Tooltip label="View">
+            <button
+              type="button"
+              aria-pressed={!isEditMode}
+              aria-label="View"
+              onClick={() => onToggleEditMode(false)}
+              className={`relative grid h-6 w-6 place-items-center justify-self-center rounded-sm transition-colors focus-visible:z-10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-700 ${!isEditMode ? 'text-white' : 'text-slate-700 hover:bg-slate-100 hover:text-slate-950'}`}
+            >
+              <Eye className="h-4 w-4" aria-hidden="true" />
+            </button>
+          </Tooltip>
+          <Tooltip label="Edit">
+            <button
+              type="button"
+              aria-pressed={isEditMode}
+              aria-label="Edit"
+              onClick={() => onToggleEditMode(true)}
+              className={`relative grid h-6 w-6 place-items-center justify-self-center rounded-sm transition-colors focus-visible:z-10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-700 ${isEditMode ? 'text-white' : 'text-slate-700 hover:bg-slate-100 hover:text-slate-950'}`}
+            >
+              <Pencil className="h-4 w-4" aria-hidden="true" />
+            </button>
+          </Tooltip>
         </div>
 
         <div className="inline-flex shrink-0 items-center gap-1" role="group" aria-label="Master Data actions">
-          <button type="button" onClick={onOpenSizingModal} className={toolbarButton} title="Sizing" aria-label="Sizing">
-            <Table2 className="h-4 w-4" aria-hidden="true" />
-          </button>
-          <button type="button" onClick={onOpenImportModal} className={toolbarButton} title="Import" aria-label="Import">
-            <FileSpreadsheet className="h-4 w-4" aria-hidden="true" />
-          </button>
+          <Tooltip label="Sizing">
+            <button type="button" onClick={onOpenSizingModal} className={toolbarButton} aria-label="Sizing">
+              <Table2 className="h-4 w-4" aria-hidden="true" />
+            </button>
+          </Tooltip>
+          <Tooltip label="Import">
+            <button type="button" onClick={onOpenImportModal} className={toolbarButton} aria-label="Import">
+              <FileSpreadsheet className="h-4 w-4" aria-hidden="true" />
+            </button>
+          </Tooltip>
           <div
             ref={cloneContainerRef}
             className="relative shrink-0"
@@ -662,26 +450,27 @@ export const MasterDataWorkspaceHeader: React.FC<MasterDataWorkspaceHeaderProps>
               if (!event.currentTarget.contains(event.relatedTarget as Node | null) && !cloneMenuPinned) closeCloneMenu()
             }}
           >
-            <button
-              ref={cloneTriggerRef}
-              type="button"
-              onClick={() => {
-                if (cloneMenuPinned) closeCloneMenu()
-                else {
-                  clearCloneHoverTimer()
-                  setCloneMenuPinned(true)
-                  setCloneMenuOpen(true)
-                }
-              }}
-              aria-expanded={cloneMenuOpen}
-              aria-haspopup="menu"
-              aria-controls="clone-source-menu"
-              aria-label="Clone"
-              title="Clone from another dataset"
-              className={toolbarButton}
-            >
-              <Copy className="h-4 w-4" aria-hidden="true" />
-            </button>
+            <Tooltip label="Clone">
+              <button
+                ref={cloneTriggerRef}
+                type="button"
+                onClick={() => {
+                  if (cloneMenuPinned) closeCloneMenu()
+                  else {
+                    clearCloneHoverTimer()
+                    setCloneMenuPinned(true)
+                    setCloneMenuOpen(true)
+                  }
+                }}
+                aria-expanded={cloneMenuOpen}
+                aria-haspopup="menu"
+                aria-controls="clone-source-menu"
+                aria-label="Clone"
+                className={toolbarButton}
+              >
+                <Copy className="h-4 w-4" aria-hidden="true" />
+              </button>
+            </Tooltip>
             {cloneMenuOpen && (
               <div
                 ref={cloneMenuRef}
@@ -708,19 +497,20 @@ export const MasterDataWorkspaceHeader: React.FC<MasterDataWorkspaceHeaderProps>
               </div>
             )}
           </div>
-          <button
-            type="button"
-            aria-pressed={showWarningHighlights}
-            onClick={() => onWarningHighlightsChange(!showWarningHighlights)}
-            className={toolbarButton}
-            title={showWarningHighlights ? 'Hide warning highlights' : 'Show warning highlights'}
-            aria-label={showWarningHighlights ? 'Hide warning highlights' : 'Show warning highlights'}
-          >
-            <span aria-hidden="true" className="relative grid h-[18px] w-[18px] place-items-center">
-              <span className="font-mono text-base font-bold leading-none">!</span>
-              {!showWarningHighlights && <span className="absolute left-1/2 top-1/2 h-px w-[17px] -translate-x-1/2 -translate-y-1/2 rotate-[-45deg] bg-current" />}
-            </span>
-          </button>
+          <Tooltip label={showWarningHighlights ? 'Hide warning highlights' : 'Show warning highlights'}>
+            <button
+              type="button"
+              aria-pressed={showWarningHighlights}
+              onClick={() => onWarningHighlightsChange(!showWarningHighlights)}
+              className={toolbarButton}
+              aria-label={showWarningHighlights ? 'Hide warning highlights' : 'Show warning highlights'}
+            >
+              <span aria-hidden="true" className="relative grid h-[18px] w-[18px] place-items-center">
+                <span className="font-mono text-base font-bold leading-none">!</span>
+                {!showWarningHighlights && <span className="absolute left-1/2 top-1/2 h-px w-[17px] -translate-x-1/2 -translate-y-1/2 rotate-[-45deg] bg-current" />}
+              </span>
+            </button>
+          </Tooltip>
           <CurrentAndAllAction
             label="Save"
             onCurrent={onSaveWorkingDataset}
@@ -746,16 +536,17 @@ export const MasterDataWorkspaceHeader: React.FC<MasterDataWorkspaceHeaderProps>
           >
             <Trash2 className="h-4 w-4" aria-hidden="true" />
           </CurrentAndAllAction>
-          <button
-            type="button"
-            onClick={() => { void handleExportDataset() }}
-            disabled={!lastSavedSnapshot}
-            className={toolbarButton}
-            title={lastSavedSnapshot ? 'Export Last Saved' : 'No Last Saved dataset to export'}
-            aria-label="Export"
-          >
-            <Upload className="h-4 w-4" aria-hidden="true" />
-          </button>
+          <Tooltip label={hasExportableSavedData ? 'Export Last Saved' : 'No saved table data to export'}>
+            <button
+              type="button"
+              onClick={() => { void handleExportDataset() }}
+              disabled={!hasExportableSavedData}
+              className={toolbarButton}
+              aria-label="Export Last Saved"
+            >
+              <Upload className="h-4 w-4" aria-hidden="true" />
+            </button>
+          </Tooltip>
         </div>
 
         <div role="search" className="relative ml-auto h-8 w-48 min-w-48 max-w-48 shrink-0">
@@ -772,100 +563,11 @@ export const MasterDataWorkspaceHeader: React.FC<MasterDataWorkspaceHeaderProps>
 
         {tableSelector}
 
-        {isPrepareDatasetOpen && preparePortalRoot && createPortal(
-          <div
-            ref={preparePanelRef}
-            id="prepare-dataset-panel"
-            role="region"
-            aria-label="Prepare Dataset status and warnings"
-            style={{ marginLeft: `${preparePanelHorizontalOffset}px`, ...(prepareDatasetMaxHeight === null ? {} : { maxHeight: `${prepareDatasetMaxHeight}px` }) }}
-            className="relative flex max-h-[min(38rem,calc(100dvh-6rem))] w-[min(19rem,calc(100vw-2rem))] min-h-0 select-text flex-col gap-0.5 overflow-hidden border border-slate-300 bg-white p-2 text-sm text-slate-800 shadow-lg"
-          >
-              <div className="flex min-h-8 shrink-0 items-center gap-1 border-b border-slate-200 pb-0.5 min-[360px]:gap-2 sm:gap-2.5">
-                <h2 id="prepare-dataset-heading" className="shrink-0 text-xs font-semibold text-slate-700">
-                  Dataset
-                </h2>
-                <span
-                  aria-label={`Dataset ${datasetsReady ? 'Ready' : 'Incomplete'}`}
-                  title={datasetsReady ? 'Reference and Current are ready' : 'Reference or Current needs input'}
-                  className={`inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap text-xs font-medium ${datasetsReady ? 'text-blue-700' : 'text-rose-700'}`}
-                >
-                  <span aria-hidden="true" className={`h-2 w-2 shrink-0 rounded-full ${datasetsReady ? 'bg-blue-600' : 'bg-rose-500'}`} />
-                  {datasetsReady ? 'Ready' : 'Incomplete'}
-                </span>
-                <span
-                  aria-label={`Product ${comparisonStatus}`}
-                  className={`inline-flex min-h-7 items-center gap-1.5 whitespace-nowrap text-xs font-medium ${productStatusClass}`}
-                >
-                  <span aria-hidden="true" className={`h-2 w-2 shrink-0 rounded-full ${productStatusDotClass}`} />
-                  Product {comparisonStatus}
-                </span>
-                <button
-                  type="button"
-                  onClick={closePrepareDatasetAndRestoreFocus}
-                  aria-label="Close Prepare Dataset"
-                  className="ml-auto grid h-7 w-7 shrink-0 place-items-center text-slate-600 transition-colors hover:bg-slate-100 hover:text-slate-950 focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-700"
-                >
-                  <X aria-hidden="true" className="h-4 w-4" />
-                </button>
-              </div>
-
-              <div role="group" aria-label="Dataset filters, save states, warning counts, and blocker counts" className="grid shrink-0 grid-cols-1 divide-y divide-slate-100 border-b border-slate-200 py-0.5">
-                {roles.map(datasetRole => {
-                  const saveState = saveStates[datasetRole]
-                  const datasetWarningCount = datasetWarningCounts[datasetRole]
-                  const datasetBlockerCount = datasetBlockerCounts[datasetRole]
-                  const isFiltered = datasetRoleFilter === datasetRole
-                  const filterAction = isFiltered
-                    ? `Clear ${roleLabels[datasetRole]} dataset filter`
-                    : `Filter warnings and blockers to ${roleLabels[datasetRole]}`
-                  return (
-                    <button
-                      key={datasetRole}
-                      type="button"
-                      aria-label={`${filterAction}: ${saveState}, ${datasetWarningCount} warnings, ${datasetBlockerCount} blockers`}
-                      aria-pressed={isFiltered}
-                      title={filterAction}
-                      onClick={() => {
-                        setDatasetRoleFilter(current => current === datasetRole ? null : datasetRole)
-                        setExpandedWarningCategories(new Set())
-                        setExpandedBlockerCategories(new Set())
-                      }}
-                      className={`grid h-7 w-full ${datasetSummaryColumns} items-center gap-2 rounded-sm pr-2 text-left transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-700 ${isFiltered ? 'bg-slate-100' : 'hover:bg-slate-50'}`}
-                    >
-                      <span className="min-w-0 truncate pl-3 text-[11px] font-semibold text-slate-700">{roleLabels[datasetRole]}</span>
-                      <span className="inline-flex min-w-0 items-center gap-1.5 whitespace-nowrap text-xs">
-                        <span aria-hidden="true" className={datasetSaveStateDotClass(saveState, 'h-2 w-2')} />
-                        <span>{saveState}</span>
-                      </span>
-                      <span className={`inline-flex min-w-0 items-center justify-end gap-1 font-mono text-xs tabular-nums ${datasetWarningCount > 0 ? 'text-amber-700' : 'text-slate-500'}`}>
-                        <AlertTriangle className={`h-3 w-3 ${datasetWarningCount > 0 ? 'text-amber-700' : 'text-slate-400'}`} aria-hidden="true" />
-                        {datasetWarningCount}
-                      </span>
-                      <span className={`inline-flex min-w-0 items-center justify-end gap-1 font-mono text-xs tabular-nums ${datasetBlockerCount > 0 ? 'text-rose-700' : 'text-slate-500'}`}>
-                        <CircleX className={`h-3 w-3 ${datasetBlockerCount > 0 ? 'text-rose-700' : 'text-slate-400'}`} aria-hidden="true" />
-                        {datasetBlockerCount}
-                      </span>
-                    </button>
-                  )
-                })}
-              </div>
-
-              <div className="flex min-h-0 shrink-0 flex-col gap-1 pt-0.5">
-                {renderIssueSection('warning')}
-                {renderIssueSection('blocker')}
-              </div>
-
-              {mockAction && <div className="mt-1 shrink-0 border-t border-slate-200 pt-1">{mockAction}</div>}
-          </div>,
-          preparePortalRoot
-        )}
-
       </div>
 
       <div className="px-2 py-1.5">
         <dl className="grid min-w-0 grid-cols-1 gap-x-4 gap-y-1 sm:grid-cols-2 xl:grid-cols-[minmax(0,3fr)_minmax(0,1fr)_minmax(0,2fr)_minmax(0,1fr)_minmax(0,4fr)]">
-          <div className={`flex min-w-0 items-center gap-1.5 py-1 ${isEditMode ? 'border-b border-slate-200' : ''}`}>
+          <div className="flex min-h-10 min-w-0 items-center gap-1.5 py-1">
             <dt className="shrink-0 whitespace-nowrap font-sans text-[11px] font-medium tracking-wide text-slate-600">Product Name :</dt>
             <dd className="min-w-0 flex-1">
               {isEditMode ? (
@@ -878,14 +580,14 @@ export const MasterDataWorkspaceHeader: React.FC<MasterDataWorkspaceHeaderProps>
                   className={fieldInput}
                 />
               ) : (
-                <span className="block truncate text-xs text-slate-950" title={product.productName || undefined}>
+                <span className="inline-flex min-h-8 min-w-0 items-center truncate text-xs text-slate-950" title={product.productName || undefined}>
                   {product.productName || ''}
                 </span>
               )}
             </dd>
           </div>
 
-          <div className={`flex min-w-0 items-center gap-1.5 py-1 ${isEditMode ? 'border-b border-slate-200' : ''}`}>
+          <div className="flex min-h-10 min-w-0 items-center gap-1.5 py-1">
             <dt className="shrink-0 whitespace-nowrap font-sans text-[11px] font-medium tracking-wide text-slate-600">UOM :</dt>
             <dd className="min-w-0 flex-1">
               {isEditMode ? (
@@ -898,12 +600,12 @@ export const MasterDataWorkspaceHeader: React.FC<MasterDataWorkspaceHeaderProps>
                   className={fieldInput + ' font-mono'}
                 />
               ) : (
-                <span className="block font-mono text-xs text-slate-950">{product.uom || ''}</span>
+                <span className="inline-flex min-h-8 items-center font-mono text-xs text-slate-950">{product.uom || ''}</span>
               )}
             </dd>
           </div>
 
-          <div className={`flex min-w-0 items-center gap-1.5 py-1 ${isEditMode ? 'border-b border-slate-200' : ''}`}>
+          <div className="flex min-h-10 min-w-0 items-center gap-1.5 py-1">
             <dt className="shrink-0 whitespace-nowrap font-sans text-[11px] font-medium tracking-wide text-slate-600">Selling Price (THB) :</dt>
             <dd className="min-w-0 flex-1">
               {isEditMode ? (
@@ -916,14 +618,14 @@ export const MasterDataWorkspaceHeader: React.FC<MasterDataWorkspaceHeaderProps>
                   className={fieldInput + ' font-mono'}
                 />
               ) : (
-                <span className="block truncate font-mono text-xs text-slate-950">
+                <span className="inline-flex min-h-8 min-w-0 items-center truncate font-mono text-xs text-slate-950">
                   {product.sellingPrice == null ? '' : `${formatNumber(product.sellingPrice)} THB`}
                 </span>
               )}
             </dd>
           </div>
 
-          <div className={`flex min-w-0 items-center gap-1.5 py-1 ${isEditMode ? 'border-b border-slate-200' : ''}`}>
+          <div className="flex min-h-10 min-w-0 items-center gap-1.5 py-1">
             <dt className="shrink-0 whitespace-nowrap font-sans text-[11px] font-medium tracking-wide text-slate-600">SG&amp;A (%) :</dt>
             <dd className="min-w-0 flex-1">
               {isEditMode ? (
@@ -936,14 +638,14 @@ export const MasterDataWorkspaceHeader: React.FC<MasterDataWorkspaceHeaderProps>
                   className={fieldInput + ' font-mono'}
                 />
               ) : (
-                <span className="block truncate font-mono text-xs text-slate-950">
+                <span className="inline-flex min-h-8 min-w-0 items-center truncate font-mono text-xs text-slate-950">
                   {product.sgaPercent == null ? '' : `${formatNumber(product.sgaPercent)}%`}
                 </span>
               )}
             </dd>
           </div>
 
-          <div className={`flex min-w-0 items-center gap-1.5 py-1 ${isEditMode ? 'border-b border-slate-200' : ''}`}>
+          <div className="flex min-h-10 min-w-0 items-center gap-1.5 py-1">
             <dt className="shrink-0 whitespace-nowrap font-sans text-[11px] font-medium tracking-wide text-slate-600">Remark :</dt>
             <dd className="min-w-0 flex-1">
               {isEditMode ? (
@@ -955,7 +657,7 @@ export const MasterDataWorkspaceHeader: React.FC<MasterDataWorkspaceHeaderProps>
                   className={fieldInput}
                 />
               ) : (
-                <span className="block truncate text-xs text-slate-800" title={snapshot.remark || ''}>{snapshot.remark || ''}</span>
+                <span className="inline-flex min-h-8 min-w-0 items-center truncate text-xs text-slate-800" title={snapshot.remark || ''}>{snapshot.remark || ''}</span>
               )}
             </dd>
           </div>

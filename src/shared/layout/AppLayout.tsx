@@ -10,8 +10,15 @@ import {
   buildMasterDataBlockerItems,
   buildMasterDataWarningItems,
   countMasterDataQualityByRole,
+  groupMasterDataBlockers,
+  groupMasterDataWarnings,
   MASTER_DATA_WARNING_CATEGORY_DEFINITIONS
 } from '../../features/master-data/prepare-dataset'
+import { MasterDataPrepareDatasetPopover } from '../../features/master-data/components/MasterDataPrepareDatasetPopover'
+import { getDatasetSaveState } from '../../core/utils/master-data-effective'
+import type { MasterDataQualityItem } from '../../features/master-data/prepare-dataset'
+
+const masterDataRoles = ['reference', 'current', 'custom'] as const
 
 interface FooterTooltipProps {
   id: string
@@ -120,22 +127,36 @@ const FooterTooltip: React.FC<FooterTooltipProps> = ({ id, children, content }) 
 
 interface AppLayoutProps {
   children: ReactNode
+  onNavigatePrepareDatasetIssue?: (item: MasterDataQualityItem) => void
 }
 
-export const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
+export const AppLayout: React.FC<AppLayoutProps> = ({ children, onNavigatePrepareDatasetIssue = () => undefined }) => {
   const {
     activeTab,
     snapshotPair,
     fullSnapshotComparison,
     masterDataHandoff,
     masterDataSnapshots,
+    masterDataLastSavedSnapshots,
     masterDataPrepareDatasetOpen,
+    masterDataPrepareDatasetRequestMode,
+    closeMasterDataPrepareDataset,
     requestMasterDataPrepareDataset,
+    previewMasterDataPrepareDataset,
+    scheduleDismissMasterDataPrepareDatasetPreview,
+    loadDevelopmentMockData,
+    setMasterDataRole
   } = useAppStore()
   const warningItems = buildMasterDataWarningItems(masterDataSnapshots)
   const blockerItems = buildMasterDataBlockerItems(masterDataSnapshots)
   const warningCount = warningItems.length
   const blockerCounts = countMasterDataQualityByRole(blockerItems)
+  const warningGroups = groupMasterDataWarnings(warningItems)
+  const blockerGroups = groupMasterDataBlockers(blockerItems)
+  const saveStates = Object.fromEntries(masterDataRoles.map(role => [
+    role,
+    getDatasetSaveState(masterDataSnapshots[role], masterDataLastSavedSnapshots[role])
+  ])) as Record<(typeof masterDataRoles)[number], ReturnType<typeof getDatasetSaveState>>
   const warningBreakdown = MASTER_DATA_WARNING_CATEGORY_DEFINITIONS
     .map(({ category, label }) => ({
       label,
@@ -164,6 +185,20 @@ export const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
     : productDisplayStatus === 'mismatch'
       ? 'Product Mismatch'
       : 'Product Match'
+  const handleLoadMockData = async (fixture: 'complete' | 'incomplete') => {
+    if (!import.meta.env.DEV) return
+    const fixtures = await import('../../features/master-data/fixtures/synthetic-review-data')
+    loadDevelopmentMockData(fixture === 'complete'
+      ? fixtures.createCompleteMasterDataMockPair()
+      : fixtures.createIncompleteMasterDataMockPair())
+    setMasterDataRole('current')
+  }
+  const mockAction = import.meta.env.DEV ? (
+    <div role="group" aria-label="Development mock datasets" className="grid w-full grid-cols-2 divide-x divide-slate-200 text-[11px]">
+      <button type="button" onClick={() => { void handleLoadMockData('complete') }} className="min-h-7 w-full px-1.5 text-center font-medium text-slate-600 transition-colors hover:bg-slate-100 hover:text-slate-950 focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-700">Complete Mock</button>
+      <button type="button" onClick={() => { void handleLoadMockData('incomplete') }} className="min-h-7 w-full px-1.5 text-center font-medium text-slate-600 transition-colors hover:bg-slate-100 hover:text-slate-950 focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-700">Incomplete Mock</button>
+    </div>
+  ) : undefined
   const referenceStandardCost = fullSnapshotComparison.referenceCost.total
   const currentStandardCost = fullSnapshotComparison.currentCost.total
   const totalGap = fullSnapshotComparison.totalGap
@@ -206,6 +241,23 @@ export const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
         Skip to main content
       </a>
       <Navbar />
+      <MasterDataPrepareDatasetPopover
+        isOpen={masterDataPrepareDatasetOpen}
+        requestMode={masterDataPrepareDatasetRequestMode}
+        onClose={closeMasterDataPrepareDataset}
+        saveStates={saveStates}
+        handoff={masterDataHandoff}
+        productStatus={productDisplayStatus}
+        warningGroups={warningGroups}
+        warningCount={warningCount}
+        blockerGroups={blockerGroups}
+        blockerItems={blockerItems}
+        blockerCount={blockerItems.length}
+        onNavigateIssue={onNavigatePrepareDatasetIssue}
+        onPanelPointerEnter={previewMasterDataPrepareDataset}
+        onPanelPointerLeave={scheduleDismissMasterDataPrepareDatasetPreview}
+        mockAction={mockAction}
+      />
       <main
         id="main-content"
         tabIndex={-1}

@@ -92,9 +92,11 @@ export const ExcelUploadDropzone: React.FC<ExcelUploadDropzoneProps> = ({
           isDragging ? 'border-slate-700 bg-slate-100' : 'border-slate-400 bg-slate-50 hover:border-slate-500 hover:bg-slate-100'
         }`}
       >
-        {isLoading
-          ? <Loader2 className="h-6 w-6 animate-spin text-slate-600" aria-hidden="true" />
-          : <CloudUpload className="h-7 w-7 text-slate-700" aria-hidden="true" />}
+        <span aria-hidden="true" className="grid h-11 w-11 shrink-0 place-items-center border border-slate-300 bg-white text-slate-700">
+          {isLoading
+            ? <Loader2 className="h-5 w-5 animate-spin" />
+            : <CloudUpload className="h-5 w-5" />}
+        </span>
         <span className="text-xs font-medium text-slate-900">{isLoading ? 'Reading workbook…' : hasSelection ? 'Drop another .xlsx workbook or click to replace' : 'Drop an .xlsx workbook here'}</span>
         <span className="text-[11px] text-slate-500">.xlsx files only · Click or drop to select</span>
       </button>

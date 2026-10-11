@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo, useRef } from 'react'
+import React, { useCallback, useEffect, useMemo, useRef } from 'react'
 import { GripVertical, Trash2 } from 'lucide-react'
 import { SnapshotWorkCenterRate, formatNumber } from '../../../core'
 import { useDragSelect } from '../hooks/useDragSelect'
@@ -6,8 +6,9 @@ import { SpreadsheetPasteCell, tableCellKey, useTableKeyboardNav } from '../hook
 import { RowChanges, useSpreadsheetEditing } from '../hooks/useSpreadsheetEditing'
 import { blankIdentityOrdinals, duplicateIdentityIds, hasInvalidNumber } from '../table-validation'
 import { useWarningNavigationFocus, type WarningNavigationTarget } from '../hooks/useWarningNavigationFocus'
-import type { MasterDataBlockerItem } from '../prepare-dataset'
-import { MasterDataTableFooter, MasterDataTableHeader } from './MasterDataTableChrome'
+import type { MasterDataBlockerItem, MasterDataWarningItem } from '../prepare-dataset'
+import { MasterDataTableHeader } from './MasterDataTableChrome'
+import { MasterDataBlockerMarker } from './MasterDataBlockerMarker'
 
 interface WorkCenterRatesTableProps {
   rates: SnapshotWorkCenterRate[]
@@ -17,7 +18,9 @@ interface WorkCenterRatesTableProps {
   onSearchQueryChange?: (query: string) => void
   showWarningHighlights?: boolean
   warningCount: number
+  warningItems: MasterDataWarningItem[]
   blockerItems: MasterDataBlockerItem[]
+  onNavigateWarning: (item: MasterDataWarningItem) => void
   onNavigateBlocker: (item: MasterDataBlockerItem) => void
   onUndo: () => void
   onRedo: () => void
@@ -40,7 +43,9 @@ export const WorkCenterRatesTable: React.FC<WorkCenterRatesTableProps> = ({
   onSearchQueryChange = () => undefined,
   showWarningHighlights = true,
   warningCount,
+  warningItems,
   blockerItems,
+  onNavigateWarning,
   onNavigateBlocker,
   onUndo,
   onRedo,
@@ -52,6 +57,7 @@ export const WorkCenterRatesTable: React.FC<WorkCenterRatesTableProps> = ({
   onWarningNavigationHandled
 }) => {
   const tableRef = useRef<HTMLTableElement | null>(null)
+  const warningIndexRef = useRef(0)
   const blockerIndexRef = useRef(0)
   const query = searchQuery.trim().toLocaleLowerCase()
   const duplicateWcIds = useMemo(() => duplicateIdentityIds(rates, rate => rate.id, rate => rate.workCenterCode), [rates])
@@ -78,9 +84,15 @@ export const WorkCenterRatesTable: React.FC<WorkCenterRatesTableProps> = ({
   const selectWarningRow = useCallback((rowId: string) => setSelectedIds(new Set([rowId])), [setSelectedIds])
   useWarningNavigationFocus(tableRef, searchQuery, onSearchQueryChange, warningNavigationTarget, selectWarningRow, onWarningNavigationHandled)
 
+  useEffect(() => {
+    warningIndexRef.current = 0
+    blockerIndexRef.current = 0
+  }, [historyScope, warningItems, blockerItems])
+
   const {
     applyCellUpdate,
-    applyPasteUpdates
+    applyPasteUpdates,
+    applyCutUpdates
   } = useSpreadsheetEditing({
     rows: rates,
     selectedIds,
@@ -100,10 +112,23 @@ export const WorkCenterRatesTable: React.FC<WorkCenterRatesTableProps> = ({
     applyPasteUpdates(updates)
   }, [applyPasteUpdates])
 
+  const handleCutCells = useCallback((cells: SpreadsheetPasteCell[]) => {
+    const updates = cells.flatMap(cell => {
+      let changes: RowChanges<SnapshotWorkCenterRate> | null = null
+      if (cell.field === 'workCenterCode') changes = { workCenterCode: '' }
+      else if (cell.field === 'laborRate') changes = { laborRate: null }
+      else if (cell.field === 'burdenRate') changes = { burdenRate: null }
+      else if (cell.field === 'note') changes = { note: '' }
+      return changes ? [{ id: cell.rowId, changes }] : []
+    })
+    applyCutUpdates(updates)
+  }, [applyCutUpdates])
+
   const { selectedCellKeys } = useTableKeyboardNav({
     tableRef,
     isEditMode,
     onPasteCells: handlePasteCells,
+    onCutCells: handleCutCells,
     onUndo,
     onRedo
   })
@@ -113,6 +138,13 @@ export const WorkCenterRatesTable: React.FC<WorkCenterRatesTableProps> = ({
     const target = blockerItems[blockerIndexRef.current % blockerItems.length]
     blockerIndexRef.current = (blockerIndexRef.current + 1) % blockerItems.length
     onNavigateBlocker(target)
+  }
+
+  const handleNextWarning = () => {
+    if (warningItems.length === 0) return
+    const target = warningItems[warningIndexRef.current % warningItems.length]
+    warningIndexRef.current = (warningIndexRef.current + 1) % warningItems.length
+    onNavigateWarning(target)
   }
 
   const allVisibleSelected = filteredRates.length > 0 && filteredRates.every(rate => selectedIds.has(rate.id))
@@ -144,7 +176,7 @@ export const WorkCenterRatesTable: React.FC<WorkCenterRatesTableProps> = ({
 
   return (
     <section aria-label="Work Centers rows" className="overflow-hidden border border-slate-300 bg-white select-none">
-      <MasterDataTableHeader title="Work Centers" blockerCount={blockerItems.length} isEditMode={isEditMode} onNextBlocker={handleNextBlocker} onAddRow={onAddRate} />
+      <MasterDataTableHeader title="Work Centers" rowCount={rates.length} selectedCount={selectedIds.size} warningCount={warningCount} blockerCount={blockerItems.length} isEditMode={isEditMode} onNextWarning={handleNextWarning} onNextBlocker={handleNextBlocker} onAddRow={onAddRate} />
 
       <div className="overflow-x-auto">
         <table ref={tableRef} className="w-full min-w-[780px] table-fixed border-collapse text-left text-xs">
@@ -157,9 +189,9 @@ export const WorkCenterRatesTable: React.FC<WorkCenterRatesTableProps> = ({
               <th scope="col" className="sticky left-0 z-40 w-12 bg-slate-100 p-0 text-center">
                 <button type="button" onClick={() => toggleAll(!allVisibleSelected)} disabled={filteredRates.length === 0} aria-pressed={allVisibleSelected} aria-label={allVisibleSelected ? 'Clear selection for visible Work Centers rows' : 'Select all visible Work Centers rows'} title={allVisibleSelected ? 'Clear visible selection' : 'Select visible rows'} className={`h-9 w-full text-[11px] focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-700 ${allVisibleSelected ? 'bg-blue-100 text-blue-900' : 'text-slate-700 hover:bg-slate-200'} disabled:cursor-default disabled:text-slate-400 disabled:hover:bg-transparent`}>#</button>
               </th>
-              <th scope="col" className="px-2 py-2 text-left">Work Center</th>
-              <th scope="col" className="px-2 py-2 text-right">Labor Rate</th>
-              <th scope="col" className="px-2 py-2 text-right">Burden Rate</th>
+              <th scope="col" className="px-2 py-2 text-center">Work Center</th>
+              <th scope="col" className="px-2 py-2 text-center">Labor Rate</th>
+              <th scope="col" className="px-2 py-2 text-center">Burden Rate</th>
               <th scope="col" className="px-2 py-2 text-left">Note</th>
               <th scope="col" className="w-20 px-1 py-2 text-center">Actions</th>
             </tr>
@@ -178,7 +210,7 @@ export const WorkCenterRatesTable: React.FC<WorkCenterRatesTableProps> = ({
               const rowMarkerBackground = isSelected
                 ? 'bg-blue-50 group-hover:bg-blue-100'
                 : 'bg-white group-hover:bg-slate-50'
-              const numericClass = (invalid: boolean, missing: boolean) => `min-h-8 w-full min-w-0 rounded-sm border px-1.5 text-right text-xs tabular-nums focus:outline-none focus:ring-2 focus:ring-blue-700 ${invalid ? 'border-amber-600' : 'border-slate-300'} ${showWarningHighlights && (invalid || missing) ? 'bg-amber-50' : 'bg-white'}`
+              const numericClass = (invalid: boolean, missing: boolean) => `min-h-8 w-full min-w-0 rounded-sm border px-1.5 text-center text-xs tabular-nums focus:outline-none focus:ring-2 focus:ring-blue-700 ${invalid ? 'border-amber-600' : 'border-slate-300'} ${showWarningHighlights && (invalid || missing) ? 'bg-amber-50' : 'bg-white'}`
 
               return (
                 <tr
@@ -203,7 +235,7 @@ export const WorkCenterRatesTable: React.FC<WorkCenterRatesTableProps> = ({
                       {rowNumber}
                     </button>
                   </th>
-                  <td className={`px-2 py-0.5 font-mono font-semibold text-slate-950 ${identityWarning && showWarningHighlights ? 'bg-amber-50' : ''}`}>
+                  <td className={`px-2 py-0.5 text-center font-mono font-semibold text-slate-950 ${identityWarning && showWarningHighlights ? 'bg-amber-50' : ''}`}>
                     {isEditMode ? (
                       <div className="min-w-0">
                         <input
@@ -215,7 +247,7 @@ export const WorkCenterRatesTable: React.FC<WorkCenterRatesTableProps> = ({
                           data-grid-field="workCenterCode"
                           aria-label={`WC for row ${rowNumber}`}
                           aria-invalid={identityInvalid}
-                          className={`min-h-8 w-full min-w-0 rounded-sm border px-2 text-xs focus:outline-none focus:ring-2 focus:ring-blue-700 ${identityWarning ? 'border-amber-600' : 'border-slate-300'} ${identityWarning && showWarningHighlights ? 'bg-amber-50' : 'bg-white'} ${selectedCellKeys.has(tableCellKey(rate.id, 'workCenterCode')) ? 'ring-2 ring-blue-500 ring-inset' : ''}`}
+                          className={`mx-auto block h-8 w-full max-w-40 min-w-0 rounded-sm border px-2 text-center text-xs focus:outline-none focus:ring-2 focus:ring-blue-700 ${identityWarning ? 'border-amber-600' : 'border-slate-300'} ${identityWarning && showWarningHighlights ? 'bg-amber-50' : 'bg-white'} ${selectedCellKeys.has(tableCellKey(rate.id, 'workCenterCode')) ? 'ring-2 ring-blue-500 ring-inset' : ''}`}
                         />
                       </div>
                     ) : (
@@ -224,9 +256,9 @@ export const WorkCenterRatesTable: React.FC<WorkCenterRatesTableProps> = ({
                       </div>
                     )}
                   </td>
-                  <td className={`px-2 py-0.5 text-right font-mono tabular-nums ${laborInvalid ? `${showWarningHighlights ? 'bg-amber-50' : ''} text-amber-900` : ''}`}>
+                  <td className={`relative px-2 py-0.5 text-center font-mono tabular-nums ${laborInvalid ? `${showWarningHighlights ? 'bg-amber-50' : ''} text-amber-900` : ''}`}>
                     {isEditMode ? (
-                      <div className="flex items-center justify-end gap-1">
+                      <div className="relative mx-auto w-full max-w-24">
                         <input
                           type="number"
                           step="any"
@@ -239,13 +271,13 @@ export const WorkCenterRatesTable: React.FC<WorkCenterRatesTableProps> = ({
                           aria-invalid={laborInvalid}
                           className={`${numericClass(laborInvalid, laborMissing)} ${selectedCellKeys.has(tableCellKey(rate.id, 'laborRate')) ? 'ring-2 ring-blue-500 ring-inset' : ''}`}
                         />
-                        {laborMissing && <span aria-label="Missing required value" title="Missing required value" className="shrink-0 text-[11px] font-bold text-rose-600">*</span>}
+                        {laborMissing && <MasterDataBlockerMarker />}
                       </div>
-                    ) : <>{rate.laborRate === null ? <span className="text-amber-700">—</span> : formatNumber(rate.laborRate, 2)}{laborMissing && <span aria-label="Missing required value" title="Missing required value" className="ml-1 text-[11px] font-bold text-rose-600">*</span>}</>}
+                    ) : <span className="relative inline-block">{rate.laborRate === null ? <span className="text-amber-700">—</span> : formatNumber(rate.laborRate, 2)}{laborMissing && <MasterDataBlockerMarker className="right-0 top-0" />}</span>}
                   </td>
-                  <td className={`px-2 py-0.5 text-right font-mono tabular-nums ${burdenInvalid ? `${showWarningHighlights ? 'bg-amber-50' : ''} text-amber-900` : ''}`}>
+                  <td className={`relative px-2 py-0.5 text-center font-mono tabular-nums ${burdenInvalid ? `${showWarningHighlights ? 'bg-amber-50' : ''} text-amber-900` : ''}`}>
                     {isEditMode ? (
-                      <div className="flex items-center justify-end gap-1">
+                      <div className="relative mx-auto w-full max-w-24">
                         <input
                           type="number"
                           step="any"
@@ -258,9 +290,9 @@ export const WorkCenterRatesTable: React.FC<WorkCenterRatesTableProps> = ({
                           aria-invalid={burdenInvalid}
                           className={`${numericClass(burdenInvalid, burdenMissing)} ${selectedCellKeys.has(tableCellKey(rate.id, 'burdenRate')) ? 'ring-2 ring-blue-500 ring-inset' : ''}`}
                         />
-                        {burdenMissing && <span aria-label="Missing required value" title="Missing required value" className="shrink-0 text-[11px] font-bold text-rose-600">*</span>}
+                        {burdenMissing && <MasterDataBlockerMarker />}
                       </div>
-                    ) : <>{rate.burdenRate === null ? <span className="text-amber-700">—</span> : formatNumber(rate.burdenRate, 2)}{burdenMissing && <span aria-label="Missing required value" title="Missing required value" className="ml-1 text-[11px] font-bold text-rose-600">*</span>}</>}
+                    ) : <span className="relative inline-block">{rate.burdenRate === null ? <span className="text-amber-700">—</span> : formatNumber(rate.burdenRate, 2)}{burdenMissing && <MasterDataBlockerMarker className="right-0 top-0" />}</span>}
                   </td>
                   <td className="px-2 py-0.5 font-sans text-slate-600">
                     {isEditMode ? (
@@ -321,7 +353,6 @@ export const WorkCenterRatesTable: React.FC<WorkCenterRatesTableProps> = ({
           </tbody>
         </table>
       </div>
-      <MasterDataTableFooter rowCount={rates.length} selectedCount={selectedIds.size} warningCount={warningCount} blockerCount={blockerItems.length} />
     </section>
   )
 }

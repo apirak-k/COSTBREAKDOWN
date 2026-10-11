@@ -10,6 +10,7 @@ interface UseTableKeyboardNavOptions {
   tableRef: React.RefObject<HTMLTableElement | null>
   isEditMode: boolean
   onPasteCells?: (cells: SpreadsheetPasteCell[]) => void
+  onCutCells?: (cells: SpreadsheetPasteCell[]) => void
   onUndo?: () => void
   onRedo?: () => void
 }
@@ -56,6 +57,7 @@ export function useTableKeyboardNav({
   tableRef,
   isEditMode,
   onPasteCells,
+  onCutCells,
   onUndo,
   onRedo
 }: UseTableKeyboardNavOptions) {
@@ -63,8 +65,8 @@ export function useTableKeyboardNav({
   const selectedCellKeysRef = useRef<Set<string>>(new Set())
   const selectionAnchor = useRef<string | null>(null)
   const isSelectingCells = useRef(false)
-  const handlersRef = useRef({ onPasteCells, onUndo, onRedo })
-  handlersRef.current = { onPasteCells, onUndo, onRedo }
+  const handlersRef = useRef({ onPasteCells, onCutCells, onUndo, onRedo })
+  handlersRef.current = { onPasteCells, onCutCells, onUndo, onRedo }
 
   useEffect(() => {
     if (!isEditMode) {
@@ -256,11 +258,47 @@ export function useTableKeyboardNav({
       }
     }
 
+    const handleCut = (event: ClipboardEvent) => {
+      const target = event.target as HTMLElement | null
+      const activeCell = target?.closest<HTMLElement>('[data-grid-cell="true"]')
+      const callback = handlersRef.current.onCutCells
+      if (!isEditMode || !activeCell || !table.contains(activeCell) || !event.clipboardData || !callback) return
+      if (activeCell instanceof HTMLInputElement && activeCell.type !== 'number' && activeCell.selectionStart !== activeCell.selectionEnd) return
+
+      const matrix = getGridMatrix(table)
+      const activeKey = getCellKey(activeCell)
+      const activePosition = activeKey ? locateCell(matrix, activeKey) : null
+      if (!activePosition) return
+      const selected = selectedCellKeysRef.current
+      const positions: Array<{ row: number; column: number }> = []
+      matrix.forEach((row, rowIndex) => row.forEach((candidate, columnIndex) => {
+        const key = getCellKey(candidate)
+        if (key && selected.has(key)) positions.push({ row: rowIndex, column: columnIndex })
+      }))
+      const selection = positions.length > 1 ? positions : [activePosition]
+      const rowMin = Math.min(...selection.map(position => position.row))
+      const rowMax = Math.max(...selection.map(position => position.row))
+      const columnMin = Math.min(...selection.map(position => position.column))
+      const columnMax = Math.max(...selection.map(position => position.column))
+      const cells = matrix.slice(rowMin, rowMax + 1).map(row => row.slice(columnMin, columnMax + 1))
+      const text = cells.map(row => row.map(cellValue).join('\t')).join('\n')
+      const cutCells = cells.flatMap(row => row.flatMap(candidate => {
+        const { gridRowId, gridField } = candidate.dataset
+        return gridRowId && gridField ? [{ rowId: gridRowId, field: gridField, value: '' }] : []
+      }))
+      if (cutCells.length === 0) return
+
+      event.clipboardData.setData('text/plain', text)
+      event.preventDefault()
+      callback(cutCells)
+    }
+
     table.addEventListener('mousedown', handleMouseDown)
     table.addEventListener('mouseover', handleMouseOver)
     table.addEventListener('keydown', handleKeyDown)
     table.addEventListener('copy', handleCopy)
     table.addEventListener('paste', handlePaste)
+    table.addEventListener('cut', handleCut)
     window.addEventListener('mouseup', handleMouseUp)
     return () => {
       table.removeEventListener('mousedown', handleMouseDown)
@@ -268,6 +306,7 @@ export function useTableKeyboardNav({
       table.removeEventListener('keydown', handleKeyDown)
       table.removeEventListener('copy', handleCopy)
       table.removeEventListener('paste', handlePaste)
+      table.removeEventListener('cut', handleCut)
       window.removeEventListener('mouseup', handleMouseUp)
     }
   }, [isEditMode, tableRef])

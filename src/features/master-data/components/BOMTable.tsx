@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo, useRef } from 'react'
+import React, { useCallback, useEffect, useMemo, useRef } from 'react'
 import { GripVertical, Trash2 } from 'lucide-react'
 import { SnapshotBOMItem, formatNumber, formatPercent } from '../../../core'
 import { useDragSelect } from '../hooks/useDragSelect'
@@ -6,8 +6,9 @@ import { SpreadsheetPasteCell, tableCellKey, useTableKeyboardNav } from '../hook
 import { RowChanges, useSpreadsheetEditing } from '../hooks/useSpreadsheetEditing'
 import { blankIdentityOrdinals, duplicateIdentityIds, hasInvalidNumber, parsePercentage } from '../table-validation'
 import { useWarningNavigationFocus, type WarningNavigationTarget } from '../hooks/useWarningNavigationFocus'
-import type { MasterDataBlockerItem } from '../prepare-dataset'
-import { MasterDataTableFooter, MasterDataTableHeader } from './MasterDataTableChrome'
+import type { MasterDataBlockerItem, MasterDataWarningItem } from '../prepare-dataset'
+import { MasterDataTableHeader } from './MasterDataTableChrome'
+import { MasterDataBlockerMarker } from './MasterDataBlockerMarker'
 
 interface BOMTableProps {
   bom: SnapshotBOMItem[]
@@ -17,7 +18,9 @@ interface BOMTableProps {
   onSearchQueryChange?: (query: string) => void
   showWarningHighlights?: boolean
   warningCount: number
+  warningItems: MasterDataWarningItem[]
   blockerItems: MasterDataBlockerItem[]
+  onNavigateWarning: (item: MasterDataWarningItem) => void
   onNavigateBlocker: (item: MasterDataBlockerItem) => void
   onUndo: () => void
   onRedo: () => void
@@ -41,7 +44,9 @@ export const BOMTable: React.FC<BOMTableProps> = ({
   onSearchQueryChange = () => undefined,
   showWarningHighlights = true,
   warningCount,
+  warningItems,
   blockerItems,
+  onNavigateWarning,
   onNavigateBlocker,
   onUndo,
   onRedo,
@@ -53,6 +58,7 @@ export const BOMTable: React.FC<BOMTableProps> = ({
   onWarningNavigationHandled
 }) => {
   const tableRef = useRef<HTMLTableElement | null>(null)
+  const warningIndexRef = useRef(0)
   const blockerIndexRef = useRef(0)
   const query = searchQuery.trim().toLocaleLowerCase()
   const duplicateNameIds = useMemo(() => duplicateIdentityIds(bom, item => item.id, item => item.description), [bom])
@@ -79,9 +85,15 @@ export const BOMTable: React.FC<BOMTableProps> = ({
   const selectWarningRow = useCallback((rowId: string) => setSelectedIds(new Set([rowId])), [setSelectedIds])
   useWarningNavigationFocus(tableRef, searchQuery, onSearchQueryChange, warningNavigationTarget, selectWarningRow, onWarningNavigationHandled)
 
+  useEffect(() => {
+    warningIndexRef.current = 0
+    blockerIndexRef.current = 0
+  }, [historyScope, warningItems, blockerItems])
+
   const {
     applyCellUpdate,
-    applyPasteUpdates
+    applyPasteUpdates,
+    applyCutUpdates
   } = useSpreadsheetEditing({
     rows: bom,
     selectedIds,
@@ -103,10 +115,25 @@ export const BOMTable: React.FC<BOMTableProps> = ({
     applyPasteUpdates(updates)
   }, [applyPasteUpdates])
 
+  const handleCutCells = useCallback((cells: SpreadsheetPasteCell[]) => {
+    const updates = cells.flatMap(cell => {
+      let changes: RowChanges<SnapshotBOMItem> | null = null
+      if (cell.field === 'description') changes = { description: '' }
+      else if (cell.field === 'consumption') changes = { consumption: null }
+      else if (cell.field === 'unit') changes = { unit: '' }
+      else if (cell.field === 'price') changes = { price: null }
+      else if (cell.field === 'loss') changes = { loss: null }
+      else if (cell.field === 'note') changes = { note: '' }
+      return changes ? [{ id: cell.rowId, changes }] : []
+    })
+    applyCutUpdates(updates)
+  }, [applyCutUpdates])
+
   const { selectedCellKeys } = useTableKeyboardNav({
     tableRef,
     isEditMode,
     onPasteCells: handlePasteCells,
+    onCutCells: handleCutCells,
     onUndo,
     onRedo
   })
@@ -122,6 +149,13 @@ export const BOMTable: React.FC<BOMTableProps> = ({
     const target = blockerItems[blockerIndexRef.current % blockerItems.length]
     blockerIndexRef.current = (blockerIndexRef.current + 1) % blockerItems.length
     onNavigateBlocker(target)
+  }
+
+  const handleNextWarning = () => {
+    if (warningItems.length === 0) return
+    const target = warningItems[warningIndexRef.current % warningItems.length]
+    warningIndexRef.current = (warningIndexRef.current + 1) % warningItems.length
+    onNavigateWarning(target)
   }
 
   const allVisibleSelected = filteredBOM.length > 0 && filteredBOM.every(item => selectedIds.has(item.id))
@@ -153,7 +187,7 @@ export const BOMTable: React.FC<BOMTableProps> = ({
 
   return (
     <section aria-label="Bill of Materials rows" className="overflow-hidden border border-slate-300 bg-white select-none">
-      <MasterDataTableHeader title="Bill of Materials" blockerCount={blockerItems.length} isEditMode={isEditMode} onNextBlocker={handleNextBlocker} onAddRow={onAddBOMItem} />
+      <MasterDataTableHeader title="Bill of Materials" rowCount={bom.length} selectedCount={selectedIds.size} warningCount={warningCount} blockerCount={blockerItems.length} isEditMode={isEditMode} onNextWarning={handleNextWarning} onNextBlocker={handleNextBlocker} onAddRow={onAddBOMItem} />
 
       <div className="overflow-x-auto">
         <table ref={tableRef} className="w-full min-w-[860px] table-fixed border-collapse text-left text-xs">
@@ -167,10 +201,10 @@ export const BOMTable: React.FC<BOMTableProps> = ({
                 <button type="button" onClick={() => toggleAll(!allVisibleSelected)} disabled={filteredBOM.length === 0} aria-pressed={allVisibleSelected} aria-label={allVisibleSelected ? 'Clear selection for visible BOM rows' : 'Select all visible BOM rows'} title={allVisibleSelected ? 'Clear visible selection' : 'Select visible rows'} className={`h-9 w-full text-[11px] focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-700 ${allVisibleSelected ? 'bg-blue-100 text-blue-900' : 'text-slate-700 hover:bg-slate-200'} disabled:cursor-default disabled:text-slate-400 disabled:hover:bg-transparent`}>#</button>
               </th>
               <th scope="col" className="px-2 py-2 text-left">Material</th>
-              <th scope="col" className="px-2 py-2 text-right">Usage</th>
+              <th scope="col" className="px-2 py-2 text-center">Usage</th>
               <th scope="col" className="px-2 py-2 text-center">Unit</th>
-              <th scope="col" className="px-2 py-2 text-right">Price</th>
-              <th scope="col" className="px-2 py-2 text-right">Loss</th>
+              <th scope="col" className="px-2 py-2 text-center">Price</th>
+              <th scope="col" className="px-2 py-2 text-center">Loss</th>
               <th scope="col" className="px-2 py-2 text-left">Note</th>
               <th scope="col" className="w-20 px-1 py-2 text-center">Actions</th>
             </tr>
@@ -191,7 +225,7 @@ export const BOMTable: React.FC<BOMTableProps> = ({
               const rowMarkerBackground = isSelected
                 ? 'bg-blue-50 group-hover:bg-blue-100'
                 : 'bg-white group-hover:bg-slate-50'
-              const numericClass = (invalid: boolean, missing: boolean) => `min-h-8 w-full min-w-0 rounded-sm border px-1.5 text-right text-xs tabular-nums focus:outline-none focus:ring-2 focus:ring-blue-700 ${invalid ? 'border-amber-600' : 'border-slate-300'} ${showWarningHighlights && (invalid || missing) ? 'bg-amber-50' : 'bg-white'}`
+              const numericClass = (invalid: boolean, missing: boolean) => `min-h-8 w-full min-w-0 rounded-sm border px-1.5 text-center text-xs tabular-nums focus:outline-none focus:ring-2 focus:ring-blue-700 ${invalid ? 'border-amber-600' : 'border-slate-300'} ${showWarningHighlights && (invalid || missing) ? 'bg-amber-50' : 'bg-white'}`
 
               return (
                 <tr
@@ -233,9 +267,9 @@ export const BOMTable: React.FC<BOMTableProps> = ({
                       ) : item.description || <span className="text-amber-700">{placeholderNumber ?? '—'}</span>}
                     </div>
                   </td>
-                  <td className={`px-2 py-0.5 text-right font-mono tabular-nums ${consumptionInvalid ? `${showWarningHighlights ? 'bg-amber-50' : ''} text-amber-900` : ''}`}>
+                  <td className={`relative px-2 py-0.5 text-center font-mono tabular-nums ${consumptionInvalid ? `${showWarningHighlights ? 'bg-amber-50' : ''} text-amber-900` : ''}`}>
                     {isEditMode ? (
-                      <div className="flex items-center justify-end gap-1">
+                      <div className="relative mx-auto w-full max-w-20">
                         <input
                           type="number"
                           step="any"
@@ -248,9 +282,9 @@ export const BOMTable: React.FC<BOMTableProps> = ({
                           aria-invalid={consumptionInvalid}
                           className={`${numericClass(consumptionInvalid, consumptionMissing)} ${selectedCellKeys.has(tableCellKey(item.id, 'consumption')) ? 'ring-2 ring-blue-500 ring-inset' : ''}`}
                         />
-                        {consumptionMissing && <span aria-label="Missing required value" title="Missing required value" className="shrink-0 text-[11px] font-bold text-rose-600">*</span>}
+                        {consumptionMissing && <MasterDataBlockerMarker />}
                       </div>
-                    ) : <>{displayNumber(item.consumption)}{consumptionMissing && <span aria-label="Missing required value" title="Missing required value" className="ml-1 text-[11px] font-bold text-rose-600">*</span>}</>}
+                    ) : <span className="relative inline-block">{displayNumber(item.consumption)}{consumptionMissing && <MasterDataBlockerMarker className="right-0 top-0" />}</span>}
                   </td>
                   <td className="px-2 py-0.5 text-center font-mono">
                     {isEditMode ? (
@@ -262,13 +296,13 @@ export const BOMTable: React.FC<BOMTableProps> = ({
                         data-grid-field="unit"
                         aria-label={`Unit for ${item.description || `BOM row ${rowNumber}`}`}
                         aria-invalid={!item.unit.trim()}
-                        className={`min-h-8 w-20 rounded-sm border bg-white px-2 text-xs focus:outline-none focus:ring-2 focus:ring-blue-700 ${!item.unit.trim() ? 'border-amber-600' : 'border-slate-300'} ${selectedCellKeys.has(tableCellKey(item.id, 'unit')) ? 'ring-2 ring-blue-500 ring-inset' : ''}`}
+                        className={`mx-auto block h-8 w-full max-w-12 rounded-sm border bg-white px-1 text-center text-xs focus:outline-none focus:ring-2 focus:ring-blue-700 ${!item.unit.trim() ? 'border-amber-600' : 'border-slate-300'} ${selectedCellKeys.has(tableCellKey(item.id, 'unit')) ? 'ring-2 ring-blue-500 ring-inset' : ''}`}
                       />
                     ) : item.unit || <span className="text-amber-700">—</span>}
                   </td>
-                  <td className={`px-2 py-0.5 text-right font-mono tabular-nums ${priceInvalid ? `${showWarningHighlights ? 'bg-amber-50' : ''} text-amber-900` : ''}`}>
+                  <td className={`relative px-2 py-0.5 text-center font-mono tabular-nums ${priceInvalid ? `${showWarningHighlights ? 'bg-amber-50' : ''} text-amber-900` : ''}`}>
                     {isEditMode ? (
-                      <div className="flex items-center justify-end gap-1">
+                      <div className="relative mx-auto w-full max-w-24">
                         <input
                           type="number"
                           step="any"
@@ -281,13 +315,14 @@ export const BOMTable: React.FC<BOMTableProps> = ({
                           aria-invalid={priceInvalid}
                           className={`${numericClass(priceInvalid, priceMissing)} ${selectedCellKeys.has(tableCellKey(item.id, 'price')) ? 'ring-2 ring-blue-500 ring-inset' : ''}`}
                         />
-                        {priceMissing && <span aria-label="Missing required value" title="Missing required value" className="shrink-0 text-[11px] font-bold text-rose-600">*</span>}
+                        {priceMissing && <MasterDataBlockerMarker />}
                       </div>
-                    ) : <>{displayNumber(item.price, 2)}{priceMissing && <span aria-label="Missing required value" title="Missing required value" className="ml-1 text-[11px] font-bold text-rose-600">*</span>}</>}
+                    ) : <span className="relative inline-block">{displayNumber(item.price, 2)}{priceMissing && <MasterDataBlockerMarker className="right-0 top-0" />}</span>}
                   </td>
-                  <td className={`px-2 py-0.5 text-right font-mono tabular-nums ${lossInvalid ? `${showWarningHighlights ? 'bg-amber-50' : ''} text-amber-900` : ''}`}>
+                  <td className={`relative px-2 py-0.5 text-center font-mono tabular-nums ${lossInvalid ? `${showWarningHighlights ? 'bg-amber-50' : ''} text-amber-900` : ''}`}>
                     {isEditMode ? (
-                      <div className="flex items-center justify-end gap-1">
+                      <div className="mx-auto flex w-fit items-center gap-1">
+                        <div className="relative w-16">
                         <input
                           type="number"
                           step="any"
@@ -303,10 +338,11 @@ export const BOMTable: React.FC<BOMTableProps> = ({
                           aria-invalid={lossInvalid}
                           className={`${numericClass(lossInvalid, lossMissing)} ${selectedCellKeys.has(tableCellKey(item.id, 'loss')) ? 'ring-2 ring-blue-500 ring-inset' : ''}`}
                         />
+                          {lossMissing && <MasterDataBlockerMarker className="right-0 top-0.5" />}
+                        </div>
                         <span className="text-slate-400">%</span>
-                        {lossMissing && <span aria-label="Missing required value" title="Missing required value" className="shrink-0 text-[11px] font-bold text-rose-600">*</span>}
                       </div>
-                    ) : <>{item.loss === null ? <span className="text-amber-700">—</span> : formatPercent(item.loss, 2)}{lossMissing && <span aria-label="Missing required value" title="Missing required value" className="ml-1 text-[11px] font-bold text-rose-600">*</span>}</>}
+                    ) : <span className="relative inline-block">{item.loss === null ? <span className="text-amber-700">—</span> : formatPercent(item.loss, 2)}{lossMissing && <MasterDataBlockerMarker className="right-0 top-0" />}</span>}
                   </td>
                   <td className="px-2 py-0.5 font-sans text-slate-600">
                     {isEditMode ? (
@@ -363,7 +399,6 @@ export const BOMTable: React.FC<BOMTableProps> = ({
           </tbody>
         </table>
       </div>
-      <MasterDataTableFooter rowCount={bom.length} selectedCount={selectedIds.size} warningCount={warningCount} blockerCount={blockerItems.length} />
     </section>
   )
 }
