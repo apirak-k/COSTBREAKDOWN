@@ -213,7 +213,7 @@ export const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
       <main
         id="main-content"
         tabIndex={-1}
-        className={`min-h-0 min-w-0 flex-1 overflow-y-auto ${activeTab === 'master' ? 'pt-0 pb-3' : 'py-3'}`}
+        className={`min-h-0 min-w-0 flex-1 overflow-y-auto ${activeTab === 'master' ? 'pt-0 pb-3 [scrollbar-gutter:stable]' : 'py-3'}`}
       >
         <div className="app-workspace-frame">{children}</div>
       </main>
@@ -317,7 +317,7 @@ export const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
               <span className="font-sans font-bold text-slate-300">NET GAP</span>
               <span className={`font-semibold ${gapTextClass}`}>{formattedGap}</span>
             </span>
-            <span className="ml-2 max-[359px]:basis-full max-[359px]:ml-0 max-[359px]:text-right cursor-default select-none font-sans font-bold text-slate-300">(THB/{costUnit})</span>
+            <span className="ml-2 max-[359px]:basis-full max-[359px]:ml-0 max-[359px]:text-right cursor-default select-none font-sans font-bold text-slate-300">THB/{costUnit}</span>
           </div>
         </div>
       </footer>

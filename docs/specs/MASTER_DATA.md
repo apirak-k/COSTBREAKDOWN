@@ -76,8 +76,9 @@ Rules for Clone:
 
 The page supports:
 - Dataset selection: `Reference`, `Current`, or `Custom`.
-- Mode selector: adjacent icon-only Eye (`View`) and Pencil (`Edit`) buttons, each 32px square to match toolbar utilities. Both remain visible, expose title/aria-label and correct `aria-pressed`, and show the active mode without changing geometry; the Reference / Current / Custom save-state dots keep their existing size.
-- Dataset action toolbar order: Dataset selector → Eye / Pencil mode controls → icon-only Sizing / spreadsheet Import / Clone / warning toggle / Reset / Clear / Save / Export → fixed 192px local Search → Table selector. Dataset and Table remain text selectors. Tools have no vertical separators. Prepare Dataset opens only from the global Header Info control; no duplicate toolbar trigger is shown. Clone opens its source menu only by activation (click, Enter, or Space), not hover or focus alone; Escape closes and restores focus, and selecting a source copies immediately.
+- Mode selector: one compact icon-only segmented control with Eye (`View`) and Pencil (`Edit`) always visible in equal 32px halves. A sliding active thumb distinguishes the selected mode without changing geometry; both choices expose title/aria-label and correct `aria-pressed`. Reference / Current / Custom save-state dots keep their existing size.
+- Dataset action toolbar order: Dataset selector → Eye / Pencil mode control → icon-only Sizing / spreadsheet Import / Clone / warning toggle / Reset / Clear / Save / Export → fixed 192px local Search → Table selector. Dataset and Table remain text selectors with matching height, border, and selected-state styling. Tool icons have no idle borders and retain individual 32px hit areas and existing spacing. Search placeholders are `Search BOM`, `Search Work Centers`, `Search Routing`, and `Search all tables`. Prepare Dataset opens only from the global Header Info control; no duplicate toolbar trigger is shown. Clone opens its source menu only by activation (click, Enter, or Space), not hover or focus alone; options use `From …`, Escape closes and restores focus, and selecting a source copies immediately.
+- Reset, Clear, and Save each keep a single icon. Clicking it acts on the viewed dataset; a delayed hover menu exposes only the corresponding `… all datasets` action. Keyboard users can open that action from the focused control. These compound Working changes use the existing history entry; Save keeps the existing Last Saved lifecycle.
 - Table navigation: `BOM`, `Work Centers`, `Routing`, `All` (`All` remains the first-session default).
 - Compact inline metadata below the toolbar: Product Name, UOM, Selling Price (THB), SG&A (%), and Remark. Edit mode changes only value areas to inputs; values remain part of the selected `Working` dataset.
 
@@ -95,7 +96,7 @@ Dataset metadata is independent for each dataset:
 
 Product Name and UOM remain blank until entered; do not fabricate `Product` or `PC` in display, save, or export. UOM is free text. Selling Price input accepts a number only; THB is fixed and shown by the UI. Selling Price and SG&A keep their existing missing-value semantics; Dataset Remark may be blank. Do not add Product Code, Product Description, or Product Note. Product comparison display has three informational states: `Product Match` (green) when both complete identities match after trimming/case normalization; `Product Mismatch` (violet) when both are complete but differ; and `Product Not Set` (neutral) when either side lacks Product Name or UOM. `Product Not Set` changes display only; it does not change handoff mismatch, Warning/Blocker counts, readiness, calculations, or CBD availability. Product Mismatch remains non-blocking and is not a Warning or Blocker. Warning emphasis remains amber/yellow.
 
-Metadata appears as compact inline `Label : Value` pairs without a Metadata heading or disabled input boxes in View mode. Field widths remain stable, with Product Name and Remark wider than UOM and SG&A. Metadata in the page and Sizing dialog edit the same selected Working values.
+Metadata appears as compact inline `Label : Value` pairs without a Metadata heading, disabled input boxes, or decorative underlines in View mode. Field widths remain stable, with Product Name and Remark wider than UOM and SG&A. Metadata in the page and Sizing dialog edit the same selected Working values.
 
 ## Sizing and Templates
 
@@ -142,7 +143,7 @@ Match records strictly by business identity:
 - Work Centers: `WC`
 - Routing: `Process`
 
-`#` is a left-pinned row number and selection handle, not an identity. Never match records by row order or position. The local Search control in the Master Data toolbar searches the visible table; `All` applies the existing query to BOM, Work Centers, and Routing. Its placeholders are `Search BOM...`, `Search Work Centers...`, `Search Routing...`, and `Search all tables...`; its desktop width is fixed at 192px and position stays stable as the placeholder or table view changes. Search changes presentation, not dataset contents. It is not a global Header utility.
+`#` is a left-pinned row number and selection handle, not an identity. Never match records by row order or position. The local Search control in the Master Data toolbar searches the visible table; `All` applies the existing query to BOM, Work Centers, and Routing. Its placeholders are `Search BOM`, `Search Work Centers`, `Search Routing`, and `Search all tables`; its desktop width is fixed at 192px and position stays stable as the placeholder or table view changes. Search changes presentation, not dataset contents. It is not a global Header utility.
 
 ### Spreadsheet Editing
 - View Mode is read-only.

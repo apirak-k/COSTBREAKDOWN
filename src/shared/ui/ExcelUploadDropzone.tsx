@@ -1,5 +1,5 @@
 import React, { useRef, useState } from 'react'
-import { FileSpreadsheet, Loader2 } from 'lucide-react'
+import { CloudUpload, Loader2 } from 'lucide-react'
 import type { MasterDataRole, SnapshotImportResult } from '../../core'
 
 interface ExcelUploadDropzoneProps {
@@ -20,6 +20,10 @@ export const ExcelUploadDropzone: React.FC<ExcelUploadDropzoneProps> = ({
   const [isDragging, setIsDragging] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
+
+  const openFilePicker = () => {
+    if (!isLoading) fileInputRef.current?.click()
+  }
 
   const handleFileProcess = async (file: File) => {
     onFileSelected(file.name)
@@ -56,49 +60,44 @@ export const ExcelUploadDropzone: React.FC<ExcelUploadDropzoneProps> = ({
     if (file) void handleFileProcess(file)
   }
 
+  const handleDragLeave = (event: React.DragEvent<HTMLButtonElement>) => {
+    if (event.relatedTarget instanceof Node && event.currentTarget.contains(event.relatedTarget)) return
+    setIsDragging(false)
+  }
+
   return (
-    <div
-      role="group"
-      aria-label="Excel workbook file"
-      aria-busy={isLoading}
-      onDragOver={event => { event.preventDefault(); setIsDragging(true) }}
-      onDragLeave={event => { event.preventDefault(); setIsDragging(false) }}
-      onDrop={handleDrop}
-      className={`border border-dashed px-3 py-3 transition-colors ${
-        isDragging ? 'border-slate-700 bg-slate-100' : 'border-slate-300 bg-slate-50'
-      }`}
-    >
+    <div role="group" aria-label="Excel workbook file">
       <input
         ref={fileInputRef}
         type="file"
         accept=".xlsx"
         className="hidden"
-        aria-label="Choose an Excel workbook"
+        aria-label="Choose an .xlsx workbook"
         onChange={event => {
           const file = event.currentTarget.files?.[0]
           event.currentTarget.value = ''
           if (file) void handleFileProcess(file)
         }}
       />
-      <div className="flex min-h-10 items-center justify-between gap-3">
-        <div className="flex min-w-0 items-center gap-3">
-          {isLoading
-            ? <Loader2 className="h-4 w-4 shrink-0 animate-spin text-slate-600" aria-hidden="true" />
-            : <FileSpreadsheet className="h-4 w-4 shrink-0 text-slate-600" aria-hidden="true" />}
-          <div className="min-w-0 text-left">
-            <p className="text-xs font-medium text-slate-900">{isLoading ? 'Reading workbook…' : 'Drop an Excel file here'}</p>
-            <p className="mt-0.5 text-[11px] text-slate-500">Supported format: .xlsx</p>
-          </div>
-        </div>
-        <button
-          type="button"
-          disabled={isLoading}
-          onClick={() => fileInputRef.current?.click()}
-          className="min-h-8 shrink-0 border border-slate-300 bg-white px-3 text-xs font-medium text-slate-700 hover:bg-slate-100 disabled:opacity-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700"
-        >
-          {hasSelection ? 'Choose another file' : 'Browse'}
-        </button>
-      </div>
+      <button
+        type="button"
+        disabled={isLoading}
+        onClick={openFilePicker}
+        onDragOver={event => { event.preventDefault(); setIsDragging(true) }}
+        onDragLeave={handleDragLeave}
+        onDrop={handleDrop}
+        aria-label={hasSelection ? 'Choose another .xlsx workbook' : 'Choose an .xlsx workbook'}
+        aria-busy={isLoading}
+        className={`flex min-h-36 w-full flex-col items-center justify-center gap-2 border border-dashed px-4 py-5 text-center transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700 disabled:cursor-wait disabled:opacity-70 ${
+          isDragging ? 'border-slate-700 bg-slate-100' : 'border-slate-300 bg-slate-50 hover:bg-slate-100'
+        }`}
+      >
+        {isLoading
+          ? <Loader2 className="h-6 w-6 animate-spin text-slate-600" aria-hidden="true" />
+          : <CloudUpload className="h-6 w-6 text-slate-600" aria-hidden="true" />}
+        <span className="text-xs font-medium text-slate-900">{isLoading ? 'Reading workbook…' : hasSelection ? 'Drop another .xlsx workbook or click to replace' : 'Drop an .xlsx workbook here'}</span>
+        <span className="text-[11px] text-slate-500">.xlsx files only · Click or drop to select</span>
+      </button>
     </div>
   )
 }

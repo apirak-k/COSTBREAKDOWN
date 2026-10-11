@@ -304,9 +304,12 @@ interface AppContextType {
   undoMasterDataEdit: () => void
   redoMasterDataEdit: () => void
   saveMasterDataWorkingDataset: (role: MasterDataRole) => void
+  saveAllMasterDataWorkingDatasets: () => void
   resetMasterDataWorkingDataset: (role: MasterDataRole) => void
+  resetAllMasterDataWorkingDatasets: () => void
   cloneMasterDataWorkspace: (sourceRole: MasterDataRole) => void
   clearMasterDataDataset: (role: MasterDataRole) => void
+  clearAllMasterDataWorkingDatasets: () => void
   updateMasterDataDatasetSizing: (role: MasterDataRole, sizing: Partial<import('../core/types').DatasetSizing>) => void
   updateMasterDataProduct: (product: ProductMaster) => void
   updateMasterDataRemark: (remark: string) => void
@@ -814,6 +817,37 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     }))
   }
 
+  const saveAllMasterDataWorkingDatasets = () => {
+    const session = activeSession
+    const pair = session.snapshotPair ?? sessionToSnapshotPair(session)
+    const readiness = getSnapshotRoleReadiness(session)
+    const now = new Date().toISOString()
+    const createSavedDataset = (role: MasterDataRole) => {
+      const snapshot = getMasterDataSnapshot(session, pair, role)
+      return {
+        snapshot: cloneCostSnapshot(snapshot),
+        prepared: role === 'custom' ? hasEnteredMasterData(snapshot) : readiness[role],
+        sizing: { ...getMasterDataSizing(session, snapshot, role) }
+      }
+    }
+
+    const reference = createSavedDataset('reference')
+    const current = createSavedDataset('current')
+    const custom = createSavedDataset('custom')
+    setProductSessions(previous => previous.map(candidate => candidate.id === session.id
+      ? {
+        ...candidate,
+        updatedAt: now,
+        lastSavedMasterData: {
+          ...candidate.lastSavedMasterData,
+          reference,
+          current
+        },
+        customLastSavedMasterData: custom
+      }
+      : candidate))
+  }
+
   const commitMasterDataWorkingSession = (before: ProductSession, after: ProductSession, role: MasterDataRole) => {
     const beforePair = before.snapshotPair ?? sessionToSnapshotPair(before)
     const afterPair = after.snapshotPair ?? sessionToSnapshotPair(after)
@@ -870,6 +904,60 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       updatedAt: now
     }, nextPair)
     commitMasterDataWorkingSession(session, updated, role)
+  }
+
+  const commitMasterDataAllWorkingDatasets = (before: ProductSession, after: ProductSession) => {
+    const getWorkingState = (session: ProductSession) => {
+      const pair = normalizeSnapshotPair(session.snapshotPair ?? sessionToSnapshotPair(session))
+      return {
+        pair,
+        custom: getMasterDataSnapshot(session, pair, 'custom'),
+        prepared: getSnapshotRoleReadiness(session),
+        sizing: session.datasetSizing,
+        customSizing: session.customDatasetSizing
+      }
+    }
+    if (JSON.stringify(getWorkingState(before)) === JSON.stringify(getWorkingState(after))) return
+    setProductSessions(previous => previous.map(candidate => candidate.id === before.id ? after : candidate))
+    // The existing compound history entry already snapshots Reference/Current plus Custom atomically.
+    recordMasterDataPairWorkingEdit(before, after)
+  }
+
+  const resetAllMasterDataWorkingDatasets = () => {
+    const session = activeSession
+    const pair = normalizeSnapshotPair(session.snapshotPair ?? sessionToSnapshotPair(session))
+    const nextPair: SnapshotPair = { ...pair }
+    const nextSizing = {
+      reference: session.datasetSizing?.reference ?? pair.reference.sizing ?? {},
+      current: session.datasetSizing?.current ?? pair.current.sizing ?? {}
+    }
+    const nextPrepared = { ...getSnapshotRoleReadiness(session) }
+    let nextCustom = session.customMasterData ?? createEmptyCustomMasterData(session.id)
+    let nextCustomSizing = session.customDatasetSizing ?? nextCustom.sizing ?? {}
+
+    ;(['reference', 'current', 'custom'] as const).forEach(role => {
+      const saved = getLastSavedMasterData(session, role)
+      if (!saved) return
+      if (role === 'custom') {
+        nextCustom = cloneCostSnapshot(saved.snapshot)
+        nextCustomSizing = { ...(saved.sizing ?? saved.snapshot.sizing ?? {}) }
+        return
+      }
+      nextPair[role] = cloneCostSnapshot(saved.snapshot)
+      nextSizing[role] = { ...(saved.sizing ?? saved.snapshot.sizing ?? {}) }
+      nextPrepared[role] = saved.prepared
+    })
+
+    const now = new Date().toISOString()
+    const updated = applyMasterDataSnapshotPair({
+      ...session,
+      datasetSizing: nextSizing,
+      preparedSnapshotRoles: nextPrepared,
+      customMasterData: nextCustom,
+      customDatasetSizing: { ...nextCustomSizing },
+      updatedAt: now
+    }, nextPair)
+    commitMasterDataAllWorkingDatasets(session, updated)
   }
 
   const updateMasterDataDataset = (
@@ -1061,6 +1149,13 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const session = activeSession
     const updated = clearMasterDataDatasetState(session, role)
     commitMasterDataWorkingSession(session, updated, role)
+  }
+
+  const clearAllMasterDataWorkingDatasets = () => {
+    const session = activeSession
+    const updated = (['reference', 'current', 'custom'] as const)
+      .reduce((working, role) => clearMasterDataDatasetState(working, role), session)
+    commitMasterDataAllWorkingDatasets(session, updated)
   }
 
   const addMasterDataBOMItem = (item: Omit<SnapshotBOMItem, 'id' | 'confidence'>) => {
@@ -1494,9 +1589,12 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       undoMasterDataEdit,
       redoMasterDataEdit,
       saveMasterDataWorkingDataset,
+      saveAllMasterDataWorkingDatasets,
       resetMasterDataWorkingDataset,
+      resetAllMasterDataWorkingDatasets,
       cloneMasterDataWorkspace,
       clearMasterDataDataset,
+      clearAllMasterDataWorkingDatasets,
       updateMasterDataDatasetSizing,
       updateMasterDataProduct,
       updateMasterDataRemark,

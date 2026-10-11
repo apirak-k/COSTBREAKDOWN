@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react'
-import { CheckCircle2, CircleAlert, FileSpreadsheet, X } from 'lucide-react'
+import { CheckCircle2, CircleAlert, X } from 'lucide-react'
 import type { MasterDataRole, SnapshotImportResult } from '../../../core'
 import { ExcelUploadDropzone } from '../../../shared/ui/ExcelUploadDropzone'
 import { useDialogFocus } from '../use-dialog-focus'
@@ -18,7 +18,7 @@ const getImportErrorSummary = (message: string) => {
   if (message.startsWith('Dataset workbook not recognized')) return 'Workbook structure is not supported. Choose a COSTBREAKDOWN dataset workbook.'
   if (message.startsWith('PRODUCT must contain')) return 'Workbook must contain exactly one Product record.'
   if (message.startsWith('Import rejected')) return 'Required values are invalid or a Routing Work Center cannot be resolved.'
-  if (message.startsWith('Choose an Excel workbook')) return 'Choose an Excel workbook (.xlsx or .xls).'
+  if (message.startsWith('Choose an Excel workbook')) return 'Choose an Excel workbook (.xlsx).'
   return 'This workbook could not be read. Check the file and try again.'
 }
 
@@ -64,8 +64,7 @@ export const ExcelImportModal: React.FC<ExcelImportModalProps> = ({
     >
       <div className="my-auto max-h-[calc(100dvh-2rem)] w-full max-w-lg overflow-y-auto border border-slate-300 bg-white text-slate-900 shadow-xl">
         <div className="flex items-center justify-between gap-3 border-b border-slate-200 px-4 py-3">
-          <div className="flex min-w-0 items-center gap-2.5">
-            <FileSpreadsheet className="h-4 w-4 shrink-0 text-slate-600" aria-hidden="true" />
+          <div className="flex min-w-0 items-center">
             <h2 id="import-modal-title" className="truncate text-sm font-semibold">Import Dataset · {targetLabel}</h2>
           </div>
           <button

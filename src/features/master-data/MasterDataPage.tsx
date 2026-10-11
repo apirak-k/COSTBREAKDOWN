@@ -47,7 +47,10 @@ export const MasterDataPage: React.FC<MasterDataPageProps> = ({ searchQuery = ''
     setMasterDataRole,
     updateMasterDataUiState,
     saveMasterDataWorkingDataset,
+    saveAllMasterDataWorkingDatasets,
     resetMasterDataWorkingDataset,
+    resetAllMasterDataWorkingDatasets,
+    clearAllMasterDataWorkingDatasets,
     loadDevelopmentMockData,
     consumeMasterDataPrepareDatasetRequest,
     cloneMasterDataWorkspace,
@@ -93,6 +96,10 @@ export const MasterDataPage: React.FC<MasterDataPageProps> = ({ searchQuery = ''
     role,
     getDatasetSaveState(masterDataSnapshots[role], masterDataLastSavedSnapshots[role])
   ])) as Record<MasterDataRole, ReturnType<typeof getDatasetSaveState>>, [masterDataSnapshots, masterDataLastSavedSnapshots])
+  const hasLastSavedByRole = useMemo(() => Object.fromEntries(roles.map(role => [
+    role,
+    Boolean(masterDataLastSavedSnapshots[role])
+  ])) as Record<MasterDataRole, boolean>, [masterDataLastSavedSnapshots])
 
   const handleWarningNavigation = (item: MasterDataQualityItem, preserveAllView = false) => {
     setMasterDataRole(item.role)
@@ -280,16 +287,20 @@ export const MasterDataPage: React.FC<MasterDataPageProps> = ({ searchQuery = ''
         snapshot={masterDataSnapshot}
         lastSavedSnapshot={masterDataLastSavedSnapshot}
         saveStates={saveStates}
+        hasLastSavedByRole={hasLastSavedByRole}
         role={masterDataRole}
         onRoleChange={setMasterDataRole}
         onSaveWorkingDataset={() => saveMasterDataWorkingDataset(masterDataRole)}
+        onSaveAllWorkingDatasets={saveAllMasterDataWorkingDatasets}
         onResetWorkingDataset={() => resetMasterDataWorkingDataset(masterDataRole)}
+        onResetAllWorkingDatasets={resetAllMasterDataWorkingDatasets}
         isEditMode={isEditMode}
         onToggleEditMode={mode => updateMasterDataUiState({ type: 'set-mode', mode: mode ? 'edit' : 'view' })}
         onUpdateProduct={updateMasterDataProduct}
         onUpdateRemark={updateMasterDataRemark}
         onCloneFrom={cloneMasterDataWorkspace}
         onClearDataset={() => clearMasterDataDataset(masterDataRole)}
+        onClearAllDatasets={clearAllMasterDataWorkingDatasets}
         handoff={masterDataHandoff}
         onOpenImportModal={() => setImportModalOpen(true)}
         onOpenSizingModal={() => setSizingModalOpen(true)}
