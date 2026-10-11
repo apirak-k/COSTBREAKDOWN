@@ -10,32 +10,33 @@ import {
 const matchingReference = { productName: ' RGOM024 ', uom: ' PC ' }
 const matchingCurrent = { productName: 'RGOM024', uom: 'PC' }
 
-assert.equal(resolveHeaderProductContext(matchingReference, matchingCurrent), 'RGOM024 (PC)')
+assert.equal(resolveHeaderProductContext(matchingCurrent), 'RGOM024 (PC)')
 assert.equal(
-  resolveHeaderProductContext(matchingReference, { productName: 'RGOM025', uom: 'PC' }),
-  'Product Mismatch',
-  'a complete product mismatch is named without fabricated identity values'
+  resolveHeaderProductContext({ productName: 'RGOM025', uom: 'PC' }),
+  'RGOM025 (PC)',
+  'the Header shows Current identity even when Reference and Current differ'
 )
 assert.equal(
-  resolveHeaderProductContext(matchingReference, { productName: 'RGOM024', uom: 'EA' }),
-  'Product Mismatch',
-  'a complete UOM mismatch is named without fabricated identity values'
+  resolveHeaderProductContext({ productName: 'RGOM024', uom: 'EA' }),
+  'RGOM024 (EA)',
+  'the Header shows Current UOM even when it differs from Reference'
 )
 assert.equal(
-  resolveHeaderProductContext(matchingReference, { productName: 'rgom024', uom: 'pc' }),
-  'RGOM024 (PC)',
-  'normalized matching product details can safely share the Header context'
+  resolveHeaderProductContext({ productName: 'rgom024', uom: 'pc' }),
+  'rgom024 (pc)',
+  'the Header preserves Current identity text as entered'
 )
 assert.equal(
-  resolveHeaderProductContext({ productName: '', uom: 'PC' }, { productName: '', uom: 'PC' }),
-  'Product Not Set',
-  'blank metadata never displays a fabricated Product or UOM value'
+  resolveHeaderProductContext({ productName: '', uom: 'PC' }),
+  'Product name not set (PC)',
+  'a missing name is described without fabricating a Product value'
 )
 assert.equal(
-  resolveHeaderProductContext({ productName: 'RGOM024', uom: null }, { productName: 'RGOM024', uom: null }),
-  'Product Not Set',
-  'missing UOM uses the neutral header fallback'
+  resolveHeaderProductContext({ productName: 'RGOM024', uom: null }),
+  'RGOM024 (UOM not set)',
+  'a missing UOM is described without fabricating a UOM value'
 )
+assert.equal(resolveHeaderProductContext({ productName: '', uom: '' }), 'Product Not Set')
 assert.equal(resolveProductComparisonDisplayStatus(matchingReference, matchingCurrent), 'match')
 assert.equal(resolveProductComparisonDisplayStatus(matchingReference, { productName: 'RGOM025', uom: 'PC' }), 'mismatch')
 assert.equal(resolveProductComparisonDisplayStatus({ productName: '', uom: '' }, { productName: '', uom: '' }), 'not-set')

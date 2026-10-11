@@ -79,7 +79,7 @@ export const BOMTable: React.FC<BOMTableProps> = ({
     setSelectedIds,
     toggleAll,
     startDrag,
-    toggleRow,
+    handleRowClick,
     onMouseEnterRow
   } = useDragSelect({
     items: filteredBOM,
@@ -214,8 +214,8 @@ export const BOMTable: React.FC<BOMTableProps> = ({
           <thead className="sticky top-0 z-30 border-y-2 border-slate-400 bg-slate-100 text-[11px] font-semibold uppercase tracking-wide text-slate-800">
             <tr>
               <th scope="col" className="sticky left-0 z-40 w-12 bg-slate-100 p-0 text-center">
-                <Tooltip label={allVisibleSelected ? 'Clear visible selection' : 'Select all visible rows'} wrapperClassName="relative flex h-9 w-full">
-                  <button type="button" onClick={() => toggleAll(!allVisibleSelected)} disabled={filteredBOM.length === 0} aria-pressed={allVisibleSelected} aria-label={allVisibleSelected ? 'Clear visible selection for BOM rows' : 'Select all visible BOM rows'} className={`h-9 w-full text-[11px] focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-700 ${allVisibleSelected ? 'bg-blue-100 text-blue-900' : 'text-slate-700 hover:bg-slate-200'} disabled:cursor-default disabled:text-slate-400 disabled:hover:bg-transparent`}>#</button>
+                <Tooltip label={allVisibleSelected ? 'Clear visible selection' : 'Select all visible rows'} wrapperClassName="relative flex h-9 w-full items-center justify-center">
+                  <button type="button" onClick={() => toggleAll(!allVisibleSelected)} disabled={filteredBOM.length === 0} aria-pressed={allVisibleSelected} aria-label={allVisibleSelected ? 'Clear visible selection for BOM rows' : 'Select all visible BOM rows'} className={`grid h-7 w-7 place-items-center rounded-sm text-[11px] focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-700 ${allVisibleSelected ? 'bg-blue-100 text-blue-900' : 'text-slate-700 hover:bg-slate-200'} disabled:cursor-default disabled:text-slate-400 disabled:hover:bg-transparent`}>#</button>
                 </Tooltip>
               </th>
               <th scope="col" className="px-2 py-2 text-left">Material</th>
@@ -244,7 +244,7 @@ export const BOMTable: React.FC<BOMTableProps> = ({
               const deleteTooltip = !isEditMode ? 'Switch to Edit to delete rows' : deleteSelectedGroup ? 'Delete selected rows' : 'Delete row'
               const reorderSelectedGroup = isSelected && selectedIds.size > 1
               const reorderTooltip = !isEditMode ? 'Reordering is available in Edit' : reorderSelectedGroup ? 'Drag selected rows to reorder' : 'Drag to reorder'
-              const numericClass = (invalid: boolean, missing: boolean) => `${masterDataNumericEditorClass} ${invalid ? 'border-amber-600' : ''} ${showWarningHighlights && (invalid || missing) ? masterDataWarningEditorFillClass : ''}`
+              const numericClass = (invalid: boolean, missing: boolean) => `${masterDataNumericEditorClass} ${showWarningHighlights && (invalid || missing) ? 'border-amber-300' : ''} ${showWarningHighlights && (invalid || missing) ? masterDataWarningEditorFillClass : ''}`
 
               return (
                 <tr
@@ -255,16 +255,16 @@ export const BOMTable: React.FC<BOMTableProps> = ({
                   onMouseEnter={() => onMouseEnterRow(item.id)}
                   onDragOver={event => { if (isEditMode) event.preventDefault() }}
                   onDrop={event => { if (isEditMode) handleRowDrop(event, item.id) }}
-                  className="group h-10"
+                  className={`group h-10 transition-colors ${isSelected ? 'bg-blue-100/60 hover:bg-blue-100/80' : 'bg-white hover:bg-slate-50'}`}
                 >
-                  <th scope="row" className="sticky left-0 z-20 w-12 bg-white px-1.5 py-0.5 text-center font-mono font-normal text-slate-600">
+                  <th scope="row" className="sticky left-0 z-20 w-12 bg-transparent px-1.5 py-0.5 text-center font-mono font-normal text-slate-600">
                     <Tooltip label={isSelected ? 'Deselect row' : 'Select row'}>
                       <button
                         type="button"
                         aria-label={`${isSelected ? 'Deselect' : 'Select'} row ${rowNumber}`}
                         aria-pressed={isSelected}
                         onMouseDown={event => startDrag(item.id, event)}
-                        onClick={event => { if (event.detail === 0) toggleRow(item.id) }}
+                        onClick={event => handleRowClick(item.id, event)}
                         className={`min-h-8 min-w-8 rounded-sm px-1 font-mono ${isSelected ? 'bg-blue-700 text-white' : 'text-slate-600 hover:bg-slate-200'} focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700`}
                       >
                         {rowNumber}
@@ -287,10 +287,10 @@ export const BOMTable: React.FC<BOMTableProps> = ({
                           data-grid-field="description"
                           aria-label={`Name for BOM row ${rowNumber}`}
                           aria-invalid={identityInvalid}
-                          className={`${masterDataTextEditorClass} ${identityWarning ? 'border-amber-600' : ''} ${identityWarning && showWarningHighlights ? masterDataWarningEditorFillClass : ''} ${selectedCellKeys.has(tableCellKey(item.id, 'description')) ? 'ring-2 ring-blue-500 ring-inset' : ''}`}
+                          className={`${masterDataTextEditorClass} ${identityWarning && showWarningHighlights ? 'border-amber-300' : ''} ${identityWarning && showWarningHighlights ? masterDataWarningEditorFillClass : ''} ${selectedCellKeys.has(tableCellKey(item.id, 'description')) ? 'ring-2 ring-blue-500 ring-inset' : ''}`}
                         />
                       ) : (
-                        <div className={`flex h-8 w-full min-w-0 items-center rounded-sm border border-transparent px-2 text-xs ${identityWarning && showWarningHighlights ? 'bg-amber-50' : ''}`}>
+                        <div className={`flex h-8 w-full min-w-0 items-center rounded-sm border border-transparent px-2 text-xs ${identityWarning && showWarningHighlights ? 'border-amber-300 bg-amber-50' : ''}`}>
                           {item.description || <span className="text-slate-500">{placeholderNumber === undefined ? '—' : `Material ${placeholderNumber}`}</span>}
                         </div>
                       )}
@@ -313,7 +313,7 @@ export const BOMTable: React.FC<BOMTableProps> = ({
                         />
                         {consumptionMissing && <MasterDataBlockerMarker />}
                       </div>
-                    ) : <span className={`${masterDataNumericDisplaySlotClass} mx-auto w-full max-w-20 ${consumptionInvalid ? 'text-amber-900' : ''} ${consumptionInvalid && showWarningHighlights ? 'bg-amber-50' : ''}`}>{displayNumber(item.consumption)}{consumptionMissing && <MasterDataBlockerMarker />}</span>}
+                    ) : <span className={`${masterDataNumericDisplaySlotClass} mx-auto w-full max-w-20 ${consumptionInvalid && showWarningHighlights ? 'border-amber-300 bg-amber-50 text-amber-900' : ''}`}>{displayNumber(item.consumption)}{consumptionMissing && <MasterDataBlockerMarker />}</span>}
                   </td>
                   <td className="px-2 py-0.5 text-center font-mono">
                     {isEditMode ? (
@@ -325,7 +325,7 @@ export const BOMTable: React.FC<BOMTableProps> = ({
                         data-grid-field="unit"
                         aria-label={`Unit for ${item.description || `BOM row ${rowNumber}`}`}
                         aria-invalid={!item.unit.trim()}
-                        className={`mx-auto block h-8 w-full max-w-12 rounded-sm border border-transparent bg-transparent px-1 text-center text-xs text-slate-900 transition-colors hover:border-slate-200 hover:bg-slate-50 focus:border-blue-700 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-700 ${!item.unit.trim() ? 'border-amber-600' : ''} ${selectedCellKeys.has(tableCellKey(item.id, 'unit')) ? 'ring-2 ring-blue-500 ring-inset' : ''}`}
+                        className={`mx-auto block h-8 w-full max-w-12 rounded-sm border border-transparent bg-transparent px-1 text-center text-xs text-slate-900 transition-colors hover:border-slate-200 hover:bg-slate-50 focus:border-blue-700 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-700 ${!item.unit.trim() && showWarningHighlights ? 'border-amber-300 bg-amber-50' : ''} ${selectedCellKeys.has(tableCellKey(item.id, 'unit')) ? 'ring-2 ring-blue-500 ring-inset' : ''}`}
                       />
                     ) : <span className="mx-auto inline-flex h-8 w-full max-w-12 items-center justify-center rounded-sm border border-transparent px-1 text-center text-xs">{item.unit || <span className="text-amber-700">—</span>}</span>}
                   </td>
@@ -346,7 +346,7 @@ export const BOMTable: React.FC<BOMTableProps> = ({
                         />
                         {priceMissing && <MasterDataBlockerMarker />}
                       </div>
-                    ) : <span className={`${masterDataNumericDisplaySlotClass} mx-auto w-full max-w-24 ${priceInvalid ? 'text-amber-900' : ''} ${priceInvalid && showWarningHighlights ? 'bg-amber-50' : ''}`}>{displayNumber(item.price, 2)}{priceMissing && <MasterDataBlockerMarker />}</span>}
+                    ) : <span className={`${masterDataNumericDisplaySlotClass} mx-auto w-full max-w-24 ${priceInvalid && showWarningHighlights ? 'border-amber-300 bg-amber-50 text-amber-900' : ''}`}>{displayNumber(item.price, 2)}{priceMissing && <MasterDataBlockerMarker />}</span>}
                   </td>
                   <td className="relative px-2 py-0.5 text-center font-mono tabular-nums">
                     {isEditMode ? (
@@ -370,7 +370,7 @@ export const BOMTable: React.FC<BOMTableProps> = ({
                       </div>
                     ) : (
                       <div className="mx-auto flex h-8 w-[76px] items-center gap-1">
-                        <span className={`${masterDataNumericDisplaySlotClass} relative h-8 w-16 px-0 ${lossInvalid ? 'text-amber-900' : ''} ${lossInvalid && showWarningHighlights ? 'bg-amber-50' : ''}`}>
+                        <span className={`${masterDataNumericDisplaySlotClass} relative h-8 w-16 px-0 ${lossInvalid && showWarningHighlights ? 'border-amber-300 bg-amber-50 text-amber-900' : ''}`}>
                           {item.loss === null ? '—' : formatNumber(item.loss * 100, 2)}
                           {lossMissing && <MasterDataBlockerMarker />}
                         </span>

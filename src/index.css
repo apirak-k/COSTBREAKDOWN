@@ -2,6 +2,18 @@
 @tailwind components;
 @tailwind utilities;
 
+@layer base {
+  input::placeholder,
+  textarea::placeholder {
+    color: #94a3b8;
+    font-size: inherit;
+    font-style: normal;
+    font-weight: 400;
+    line-height: inherit;
+    opacity: 1;
+  }
+}
+
 @layer components {
   .app-workspace-frame {
     @apply mx-auto w-full max-w-[1440px] px-3 sm:px-4 lg:px-6;

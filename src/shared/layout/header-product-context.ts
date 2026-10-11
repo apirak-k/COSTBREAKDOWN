@@ -29,15 +29,10 @@ export function formatProductIdentityForDisplay(product: HeaderProductContextSou
 }
 
 export function resolveHeaderProductContext(
-  reference: HeaderProductContextSource,
   current: HeaderProductContextSource
 ): string {
-  const referenceName = reference.productName?.trim() ?? ''
-  const referenceUom = reference.uom?.trim() ?? ''
-
-  const status = resolveProductComparisonDisplayStatus(reference, current)
-  if (status === 'not-set') return 'Product Not Set'
-  if (status === 'mismatch') return 'Product Mismatch'
-
-  return `${referenceName} (${referenceUom})`
+  const productName = current.productName?.trim() ?? ''
+  const uom = current.uom?.trim() ?? ''
+  if (!productName && !uom) return 'Product Not Set'
+  return formatProductIdentityForDisplay(current)
 }

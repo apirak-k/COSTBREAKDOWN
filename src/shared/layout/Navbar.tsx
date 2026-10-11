@@ -1,7 +1,7 @@
 import React, { useEffect, useRef } from 'react'
 import { Info, Redo2, Undo2 } from 'lucide-react'
 import { useAppStore } from '../../state'
-import { resolveHeaderProductContext, resolveProductComparisonDisplayStatus } from './header-product-context'
+import { resolveHeaderProductContext } from './header-product-context'
 import { Tooltip } from '../ui/Tooltip'
 
 const navItems = [
@@ -33,14 +33,7 @@ export const Navbar: React.FC = () => {
   const prepareDatasetTriggerRef = useRef<HTMLButtonElement>(null)
 
   const isMasterData = activeTab === 'master'
-  const productContext = resolveHeaderProductContext(
-    snapshotPair.reference.product,
-    snapshotPair.current.product
-  )
-  const productComparisonStatus = resolveProductComparisonDisplayStatus(
-    snapshotPair.reference.product,
-    snapshotPair.current.product
-  )
+  const productContext = resolveHeaderProductContext(snapshotPair.current.product)
   const currentProductName = snapshotPair.current.product.productName?.trim() ?? ''
   const currentProductUom = snapshotPair.current.product.uom?.trim() ?? ''
 
@@ -62,16 +55,16 @@ export const Navbar: React.FC = () => {
                 role="group"
                 aria-label={`Product context: PRODUCT: ${productContext}`}
                 title={`PRODUCT: ${productContext}`}
-                className="inline-flex min-w-0 max-w-48 items-baseline gap-1 truncate text-[11px] font-normal text-slate-300"
+                className="inline-flex min-w-0 flex-1 items-baseline gap-1 text-[11px] font-normal text-slate-300"
               >
                 <span className="shrink-0 text-[10px] font-medium tracking-wide text-slate-400">PRODUCT:</span>
-                {productComparisonStatus === 'match' ? (
+                {currentProductName ? (
                   <>
-                    <span className="truncate font-semibold text-slate-100">{currentProductName}</span>
-                    <span className="shrink-0 text-slate-400">({currentProductUom})</span>
+                    <span className="min-w-0 truncate font-semibold text-slate-100">{currentProductName}</span>
+                    <span className="shrink-0 text-slate-400">({currentProductUom || 'UOM not set'})</span>
                   </>
                 ) : (
-                  <span className="truncate font-medium text-slate-200">{productContext}</span>
+                  <span className="min-w-0 truncate font-medium text-slate-200">{productContext}</span>
                 )}
               </span>
             </div>
@@ -98,7 +91,7 @@ export const Navbar: React.FC = () => {
           </nav>
 
           <div role="group" aria-label="Workspace utilities" className="flex min-w-0 items-center justify-end gap-0.5 lg:col-start-3 lg:row-start-1">
-            <Tooltip label="Undo · Ctrl/Cmd+Z">
+            <Tooltip label="Undo">
               <button
                 type="button"
                 onClick={undoMasterDataEdit}
@@ -109,7 +102,7 @@ export const Navbar: React.FC = () => {
                 <Undo2 className="h-4 w-4" aria-hidden="true" />
               </button>
             </Tooltip>
-            <Tooltip label="Redo · Ctrl/Cmd+Y or Ctrl/Cmd+Shift+Z">
+            <Tooltip label="Redo">
               <button
                 type="button"
                 onClick={redoMasterDataEdit}

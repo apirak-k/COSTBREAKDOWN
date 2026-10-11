@@ -93,8 +93,8 @@ assert.equal(resolveProductComparisonDisplayStatus({ productName: 'Part A', uom:
 assert.equal(resolveProductComparisonDisplayStatus({ productName: 'Part A', uom: 'PC' }, { productName: 'Part B', uom: 'PC' }), 'mismatch', 'different complete identities resolve to Product Mismatch')
 assert.equal(resolveProductComparisonDisplayStatus({ productName: '', uom: '' }, { productName: '', uom: '' }), 'not-set', 'two incomplete identities resolve to display-only Product Not Set')
 assert.equal(resolveProductComparisonDisplayStatus({ productName: 'Part A', uom: '' }, { productName: 'Part A', uom: 'PC' }), 'not-set', 'a partially entered identity resolves to Product Not Set')
-assert.equal(resolveHeaderProductContext({ productName: 'Part A', uom: 'PC' }, { productName: 'Part B', uom: 'PC' }), 'Product Mismatch')
-assert.equal(resolveHeaderProductContext({ productName: '', uom: '' }, { productName: '', uom: '' }), 'Product Not Set')
+assert.equal(resolveHeaderProductContext({ productName: 'Part B', uom: 'PC' }), 'Part B (PC)', 'Header Product context shows Current identity regardless of comparison status')
+assert.equal(resolveHeaderProductContext({ productName: '', uom: '' }), 'Product Not Set')
 assert.equal(formatProductIdentityForDisplay({ productName: '', uom: '' }), 'Not set')
 assert.equal(formatProductIdentityForDisplay({ productName: '', uom: 'PC' }), 'Product name not set (PC)')
 assert.equal(formatProductIdentityForDisplay({ productName: 'Part A', uom: '' }), 'Part A (UOM not set)')
@@ -529,6 +529,7 @@ try {
 
   const keyboardSource = readFileSync(resolve(process.cwd(), 'src/features/master-data/hooks/useTableKeyboardNav.ts'), 'utf8')
   const rowSelectionSource = readFileSync(resolve(process.cwd(), 'src/features/master-data/hooks/useDragSelect.ts'), 'utf8')
+  const { toggleRowSelection } = await vite.ssrLoadModule('/src/features/master-data/hooks/useDragSelect.ts')
   const spreadsheetEditingSource = readFileSync(resolve(process.cwd(), 'src/features/master-data/hooks/useSpreadsheetEditing.ts'), 'utf8')
   const bomSource = readFileSync(resolve(process.cwd(), 'src/features/master-data/components/BOMTable.tsx'), 'utf8')
   const wcSource = readFileSync(resolve(process.cwd(), 'src/features/master-data/components/WorkCenterRatesTable.tsx'), 'utf8')
@@ -583,6 +584,12 @@ try {
   assert.match(rowSelectionSource, /if \(e\.shiftKey\)/, 'Shift-click selects a contiguous row range')
   assert.match(rowSelectionSource, /e\.ctrlKey \|\| e\.metaKey/, 'Ctrl/Cmd-click toggles a non-contiguous row selection')
   assert.match(rowSelectionSource, /onMouseEnterRow/, 'dragging across row headers extends row selection')
+  const selectedRow = toggleRowSelection(new Set(), 'row-1')
+  assert.deepEqual([...selectedRow], ['row-1'], '# click selection adds a row')
+  assert.deepEqual([...toggleRowSelection(selectedRow, 'row-1')], [], 'clicking a selected # removes the row')
+  assert.match(rowSelectionSource, /handleRowClick = useCallback\(\(id: string, event: React\.MouseEvent<HTMLButtonElement>\) =>[\s\S]*event\.detail === 0[\s\S]*toggleRow\(id\)/, 'keyboard # clicks toggle directly while pointer clicks honor drag suppression')
+  assert.match(rowSelectionSource, /suppressNextClickRef[\s\S]*dragMovedRef/, 'modifier selection and drag selection suppress duplicate pointer clicks')
+  assert.doesNotMatch(rowSelectionSource, /setTimeout\(/, 'click suppression is not cleared by a racing timer')
   assert.match(spreadsheetEditingSource, /selectedIds\.has\(id\) \? \[\.\.\.selectedIds\]/, 'editing a selected row applies a same-column change to selected rows')
   assert.match(bomSource, /dataTransfer\.setData\('application\/x-costbreakdown-row-ids'/, 'selected rows are carried as a group for reorder')
   assert.match(bomSource, /<th scope="col"[^>]*>Actions<\/th>[\s\S]*<Tooltip label=\{reorderTooltip\}>[\s\S]*aria-label=\{!isEditMode \? reorderTooltip/, 'Trash and Grip controls share the single rightmost Actions column and keep action-accurate labels')
@@ -803,6 +810,14 @@ try {
     assert.match(tableSource, /onMouseDown=\{event => startDrag\(/, tableLabel + ' row selection works in View and Edit')
     assert.match(tableSource, /Tooltip label=\{allVisibleSelected \? 'Clear visible selection' : 'Select all visible rows'\}[\s\S]*aria-label=\{allVisibleSelected \? 'Clear visible selection for .* rows' : 'Select all visible .* rows'\}/, tableLabel + ' # header toggles visible selection with action-accurate tooltip and label')
     assert.match(tableSource, /aria-pressed=\{allVisibleSelected\}[\s\S]*allVisibleSelected \? 'bg-blue-100 text-blue-900' : 'text-slate-700 hover:bg-slate-200'/, tableLabel + ' # Select All has a visible pressed state with stable geometry')
+    assert.match(tableSource, /className=\{`grid h-7 w-7 place-items-center rounded-sm/, tableLabel + ' header # has a compact centered hover/focus target')
+    assert.match(tableSource, /onClick=\{event => handleRowClick\([\w.]+\.id, event\)\}/, tableLabel + ' row selection is toggled by its # control')
+    const rowIdIndex = tableSource.indexOf('data-master-data-row-id=')
+    const rowHeaderIndex = tableSource.indexOf('<th scope="row"', rowIdIndex)
+    const rowOpeningTag = tableSource.slice(tableSource.lastIndexOf('<tr', rowIdIndex), rowHeaderIndex)
+    assert.doesNotMatch(rowOpeningTag, /onClick=/, tableLabel + ' row body does not toggle selection')
+    assert.match(tableSource, /aria-selected=\{isSelected\}[\s\S]*isSelected \? 'bg-blue-100\/60 hover:bg-blue-100\/80' : 'bg-white hover:bg-slate-50'/, tableLabel + ' rows distinguish neutral, hover, selected, and selected-hover tint')
+    assert.match(tableSource, /sticky left-0 z-20 w-12 bg-transparent/, tableLabel + ' sticky # cell continues the row tint')
     assert.match(tableSource, /<Tooltip label=\{isSelected \? 'Deselect row' : 'Select row'\}>[\s\S]*aria-label=\{`\$\{isSelected \? 'Deselect' : 'Select'\} row \$\{rowNumber\}`\}/, tableLabel + ' row # tooltip and accessible name describe the current select/deselect action')
     assert.match(tableSource, /const deleteTooltip = !isEditMode \? 'Switch to Edit to delete rows' : deleteSelectedGroup \? 'Delete selected rows' : 'Delete row'/, tableLabel + ' Trash tooltip distinguishes one row from a selected multi-row group')
     assert.match(tableSource, /const reorderTooltip = !isEditMode \? 'Reordering is available in Edit' : reorderSelectedGroup \? 'Drag selected rows to reorder' : 'Drag to reorder'/, tableLabel + ' Grip tooltip distinguishes one row from a selected group')
@@ -831,8 +846,8 @@ try {
   assert.match(routingSource, /Process[\s\S]*Work Center[\s\S]*Manning[\s\S]*Capacity[\s\S]*Yield[\s\S]*Note/, 'Routing uses full professional labels')
   for (const [tableSource, tableLabel, fields] of [
     [bomSource, 'BOM', ['Usage', 'Unit', 'Price', 'Loss']],
-    [wcSource, 'Work Centers', ['Work Center', 'Labor Rate', 'Burden Rate']],
-    [routingSource, 'Routing', ['Work Center', 'Manning', 'Capacity', 'Yield']],
+    [wcSource, 'Work Centers', ['Labor Rate', 'Burden Rate']],
+    [routingSource, 'Routing', ['Manning', 'Capacity', 'Yield']],
   ]) {
     for (const field of fields) {
       assert.match(tableSource, new RegExp(`<th scope="col" className="px-2 py-2 text-center">${field}<\\/th>`), `${tableLabel} ${field} heading is centered`)
@@ -840,6 +855,9 @@ try {
     assert.match(tableSource, /font-mono tabular-nums[^\n]*text-center|text-center font-mono tabular-nums/, `${tableLabel} structured values use centered cells`)
     assert.match(tableSource, /numericClass[\s\S]*text-center/, `${tableLabel} numeric edit controls center their values`)
   }
+  assert.match(bomSource, /<th scope="col" className="px-2 py-2 text-left">Material<\/th>/, 'BOM Material identity header is left aligned')
+  assert.match(wcSource, /<th scope="col" className="px-2 py-2 text-left">Work Center<\/th>/, 'Work Center identity header is left aligned')
+  assert.match(routingSource, /<th scope="col" className="px-2 py-2 text-left">Process<\/th>[\s\S]*<th scope="col" className="px-2 py-2 text-left">Work Center<\/th>/, 'Routing Process and Work Center identity headers are left aligned')
   assert.match(bomSource, /max-w-20[\s\S]*max-w-12[\s\S]*max-w-24[\s\S]*w-16/, 'BOM numeric fields stay compact and centered in wider columns')
   assert.match(wcSource, /max-w-24/, 'Work Center rate controls stay compact within their columns')
   assert.match(routingSource, /max-w-20[\s\S]*max-w-24[\s\S]*w-16/, 'Routing numeric fields stay compact within their columns')
@@ -908,6 +926,12 @@ try {
   assert.match(navbarSource, /lg:grid-cols-\[minmax\(0,1fr\)_auto_minmax\(0,1fr\)\][\s\S]*justify-center/, 'desktop Header centers navigation between left and right zones')
   assert.match(navbarSource, /text-base font-bold tracking-tight text-slate-100/, 'COSTBREAKDOWN leads the Header with larger, bolder branding')
   assert.match(navbarSource, /text-\[11px\] font-normal text-slate-300/, 'product context remains visually secondary to the brand')
+  assert.match(navbarSource, /Tooltip label="Undo"[\s\S]*aria-label="Undo"[\s\S]*Tooltip label="Redo"[\s\S]*aria-label="Redo"/, 'Undo and Redo visible tooltips use only their action names')
+  assert.doesNotMatch(navbarSource, /max-w-48/, 'Product context has no arbitrary early truncation width')
+  assert.match(navbarSource, /PRODUCT:[\s\S]*min-w-0 truncate font-semibold text-slate-100/, 'the Product label is secondary while the full name can use available Header width')
+  assert.match(navbarSource, /resolveHeaderProductContext\(snapshotPair\.current\.product\)/, 'Header Product context always uses the Current identity, including during Product Mismatch')
+  assert.match(navbarSource, /currentProductUom \|\| 'UOM not set'/, 'an empty Current UOM stays truthful instead of receiving a default')
+  assert.match(globalCssSource, /input::placeholder,[\s\S]*textarea::placeholder[\s\S]*color: #94a3b8;[\s\S]*font-size: inherit;[\s\S]*font-style: normal;[\s\S]*font-weight: 400;[\s\S]*line-height: inherit;[\s\S]*opacity: 1;/, 'text placeholders share muted color, regular weight, field sizing, and explicit opacity')
   assert.doesNotMatch(navbarSource, /Search|role="search"|disabled:cursor-not-allowed/, 'Header has no Search or prohibited disabled cursor')
   assert.match(navbarSource, /disabled=\{!isMasterData \|\| !canUndoMasterDataEdit\}/, 'Undo stays visible and is disabled outside Master Data or without history')
   assert.match(navbarSource, /disabled=\{!isMasterData \|\| !canRedoMasterDataEdit\}/, 'Redo stays visible and is disabled outside Master Data or without redo history')
@@ -958,8 +982,9 @@ try {
   assert.match(importModalSource, /hasWorkingData && parsedImport\?\.success[\s\S]*This will replace \{targetLabel\} Working data\. Last Saved remains unchanged\./,
     'replacement context appears only for a populated Working dataset')
   assert.doesNotMatch(importModalSource, /window\.confirm|Import will replace.*\n.*confirm/i, 'Import has no second confirmation')
-  assert.match(sizingModalSource, /max-w-\[40rem\][\s\S]*aria-label="Dataset metadata"[\s\S]*aria-label="Dataset row counts"/,
-    'Sizing presents Dataset metadata and row counts in a narrower compact centered dialog')
+  assert.match(sizingModalSource, /max-w-\[40rem\][\s\S]*aria-label="Dataset metadata"[\s\S]*aria-label="Dataset rows"[\s\S]*>Rows</,
+    'Sizing presents metadata and a concise Rows section in the existing compact centered dialog')
+  assert.doesNotMatch(sizingModalSource, />\s*(Dataset|Row counts)\s*</, 'Sizing has no redundant visible Dataset or Row counts heading')
   assert.match(sizingModalSource, /value=\{productName\}[\s\S]*value=\{uom\}[\s\S]*<NumericInput[\s\S]*value=\{sellingPrice === '' \? null : Number\(sellingPrice\)\}[\s\S]*<NumericInput[\s\S]*value=\{sgaPercent === '' \? null : Number\(sgaPercent\)\}[\s\S]*value=\{remark\}/,
     'Sizing retains local metadata drafts and uses the shared numeric editor for Selling Price and SG&A')
   assert.match(sizingModalSource, /buildSizingDraft\(\)[\s\S]*getPopulatedRowsRemovedBySizing\(snapshot, nextSizing\)[\s\S]*onSaveSizing\(nextSizing\)[\s\S]*onClose\(\)/,
@@ -980,8 +1005,10 @@ try {
   assert.match(sizingModalSource, /DATASET_SIZING_LIMITS\.bomCount[\s\S]*DATASET_SIZING_LIMITS\.wcCount[\s\S]*DATASET_SIZING_LIMITS\.routingCount/,
     'BOM, Work Centers, and Routing controls use their existing maximum limits')
   assert.match(sizingModalSource, /aria-label="Dataset metadata"[\s\S]*sm:grid-cols-3[\s\S]*sm:col-span-3[\s\S]*Product Name[\s\S]*UOM[\s\S]*Selling Price \(THB\)[\s\S]*SG&amp;A \(%\)[\s\S]*sm:col-span-3[\s\S]*Dataset Remark/, 'Sizing metadata follows full-width Product, equal UOM/Price/SG&A, then full-width Remark rows')
-  assert.match(sizingModalSource, /aria-label="Dataset row counts"[\s\S]*grid grid-cols-1 gap-3 sm:grid-cols-3/, 'Sizing row counts remain an equal, compact three-column group')
-  assert.match(sizingModalSource, /const renderRowCount[\s\S]*className="h-8 w-full min-w-0 border border-slate-300 bg-white px-2 text-center/, 'Sizing numeric editors fill each row-count column rather than using a narrow centered width')
+  assert.match(sizingModalSource, /aria-label="Dataset rows"[\s\S]*<h4 className="mb-1 text-left text-xs font-semibold text-slate-700">Rows<\/h4>[\s\S]*grid grid-cols-1 gap-3 sm:grid-cols-3/, 'Sizing Rows remain an equal, compact three-column group')
+  assert.match(sizingModalSource, /const renderRowCount[\s\S]*<label[^>]*text-left[\s\S]*className="h-8 w-full min-w-0 border border-slate-300 bg-white px-2 text-right/, 'Sizing row labels are left aligned and row-count values right aligned')
+  assert.match(sizingModalSource, /Selling Price \(THB\)[\s\S]*className="h-8 w-full min-w-0 border border-slate-300 bg-white px-2 text-right[\s\S]*SG&amp;A \(%\)[\s\S]*className="h-8 w-full min-w-0 border border-slate-300 bg-white px-2 text-right/, 'Selling Price and SG&A values are right aligned')
+  assert.match(sizingModalSource, /Product Name<\/label>[\s\S]*text-left text-xs[\s\S]*UOM<\/label>[\s\S]*text-left font-mono[\s\S]*Dataset Remark<\/label>[\s\S]*text-left text-xs/, 'Sizing text labels and text inputs are left aligned')
   assert.match(sizingModalSource, /<Download className="h-3\.5 w-3\.5" aria-hidden="true" \/>[\s\S]*Download Template/, 'Download Template uses a down-arrow action icon')
   assert.match(sizingModalSource, /border-t border-slate-200 px-3 py-2 sm:flex-row sm:items-center sm:justify-between[\s\S]*Download Template[\s\S]*Apply Sizing/, 'Download Template stays at the lower left, secondary to Apply')
   assert.match(importDropzoneSource, /role="group"[\s\S]*type="button"[\s\S]*onClick=\{openFilePicker\}[\s\S]*onDragOver=\{event => \{ event\.preventDefault\(\); setIsDragging\(true\) \}\}[\s\S]*onDrop=\{handleDrop\}/,
@@ -1042,16 +1069,19 @@ try {
   assert.match(wcSource, /w-full min-w-\[56rem\] table-fixed[\s\S]*<col className="w-12" \/><col \/>[\s\S]*<col className="w-56" \/>/, 'Work Centers fills the shared section width with a flexible identity and fixed Note width')
   assert.match(routingSource, /w-full min-w-\[68rem\] table-fixed[\s\S]*<col className="w-12" \/><col \/>[\s\S]*<col className="w-56" \/>/, 'Routing fills the shared section width with a flexible Process identity and fixed Note width')
   assert.match(bomSource + wcSource + routingSource, /<col className="w-56" \/>/, 'all three tables cap the Note column at a fixed medium width')
-  assert.match(wcSource, /max-w-40 text-center \$\{masterDataTextEditorClass\}/, 'Work Centers Work Center input uses the common 160px editor width')
-  assert.match(routingSource, /<div className="relative mx-auto w-full max-w-40">[\s\S]*<select[\s\S]*block w-full appearance-none pr-10 text-center \$\{masterDataTextEditorClass\}/, 'Routing Work Center select matches the Work Centers editor width through its shared 160px slot')
+  assert.match(wcSource, /<th scope="col" className="px-2 py-2 text-left">Work Center[\s\S]*className=\{`block w-full max-w-40 text-left \$\{masterDataTextEditorClass\}/, 'Work Centers identity header and editor are left aligned at the shared 160px width')
+  assert.match(routingSource, /<th scope="col" className="px-2 py-2 text-left">Work Center[\s\S]*<div className="relative w-full max-w-40">[\s\S]*block w-full appearance-none pr-10 text-left \$\{masterDataTextEditorClass\}/, 'Routing Work Center header, selector, and identifier align left at the shared effective width')
   assert.match(wcSource, /inline-flex max-w-full items-center truncate rounded-sm border px-1\.5 py-0\.5 text-\[11px\] font-mono font-medium/, 'Work Center View identity is a compact neutral identifier tag')
   const allTablesSource = bomSource + wcSource + routingSource
-  assert.doesNotMatch(allTablesSource, /border-l-2 border-l-blue-700|isSelected \? 'bg-blue-50|group-hover:bg-blue-100/, 'selection does not add a blue row border, row wash, or cell wash')
-  assert.match(allTablesSource, /isSelected \? 'bg-blue-700 text-white' : 'text-slate-600 hover:bg-slate-200'/, '# row handles remain the primary selected-row visual')
+  assert.match(allTablesSource, /isSelected \? 'bg-blue-100\/60 hover:bg-blue-100\/80' : 'bg-white hover:bg-slate-50'/, 'selected-row tint spans each row and strengthens on hover')
+  assert.doesNotMatch(allTablesSource, /border-l-2 border-l-blue-700|outline-blue-700[^\n]*<tr/, 'selection adds no blue left border or whole-row outline')
+  assert.match(allTablesSource, /isSelected \? 'bg-blue-700 text-white' : 'text-slate-600 hover:bg-slate-200'/, '# row handles remain the strongest local selection indicator')
+  assert.match(allTablesSource, /ring-2 ring-blue-500 ring-inset/, 'focused cells retain a distinct local ring inside selected rows')
   assert.doesNotMatch(allTablesSource, /<td className=\{`[^`]*bg-amber-50/, 'Warning and Blocker fills are never applied to a full table cell')
   assert.match(fieldStylesSource, /masterDataWarningEditorFillClass = '!bg-amber-50'/, 'Edit warning fills override the transparent idle editor background')
   assert.match(allTablesSource, /identityWarning && showWarningHighlights \? masterDataWarningEditorFillClass : ''/, 'generated identity Edit highlights stay on the actual editor value')
-  assert.match(allTablesSource, /identityWarning && showWarningHighlights \? 'bg-amber-50' : ''/, 'generated identity View highlights stay on the actual display value')
+  assert.match(allTablesSource, /identityWarning && showWarningHighlights \? 'border-amber-300 bg-amber-50' : ''/, 'generated identity View highlight uses a subtle field border and fill when enabled')
+  assert.doesNotMatch(allTablesSource, /invalid \? 'border-amber-600'|identityWarning \? 'border-amber-600'/, 'amber field borders do not remain when Warning Highlight is off')
   assert.match(fieldStylesSource, /masterDataNumericEditorClass[\s\S]*masterDataNumericDisplaySlotClass/, 'View and Edit numeric values share a centered fixed-height field slot')
   assert.match(tableValidationSource, /editableIdentityValue\(value: string, isGeneratedBusinessIdentity\?: boolean\): string \{\s*return isGeneratedBusinessIdentity \? '' : value\s*\}/, 'generated identity editors display an actual empty value while retaining the effective identity')
   assert.match(bomSource + wcSource + routingSource, /editableIdentityValue\([\s\S]*editableIdentityPlaceholder\(/, 'BOM, Work Center, and Process identity editors do not put generated labels in their values')
@@ -1064,7 +1094,7 @@ try {
   assert.match(storeSource, /propagateWorkCenterRenames\(previous, normalizedNext, updates, routingRowIdsByRateId\)/, 'the store atomically applies normalized Work Center rename references')
   assert.match(wcSource, /captureRenameTargets[\s\S]*routing\.filter\(step => step\.workCenterId\?\.trim\(\)\.toLocaleLowerCase\(\) === identity\)[\s\S]*applyWorkCenterCodeUpdate/, 'direct Work Center editing retains the linked Routing rows through empty/intermediate keystrokes')
   assert.match(workCenterRenameSource, /const linkedRoutingIds = explicitTargets \?\? new Set\([\s\S]*previous\.routing[\s\S]*nextRate\.workCenterCode[\s\S]*routing: normalizedNext\.routing\.map/, 'rename propagation updates only linked Routing rows and uses the normalized final identity')
-  assert.match(wcSource, /className=\"flex min-h-8 items-center justify-center\"[\s\S]*border-slate-200 bg-slate-50/, 'Warning and Blocker cues stay on the Work Center tag value, not its cell block')
+  assert.match(wcSource, /className=\"flex min-h-8 items-center justify-start\"[\s\S]*border-slate-200 bg-slate-50/, 'Work Center identity tag stays left aligned within its cell')
   assert.match(allTablesSource, /showWarningHighlights && \(invalid \|\| missing\) \? masterDataWarningEditorFillClass : ''/, 'numeric Warning and Blocker fills use the shared toggle and light editor controls')
   assert.match(blockerMarkerSource, /aria-label=\{label\}[\s\S]*pointer-events-none absolute[\s\S]*text-rose-600[\s\S]*>\s*\*\s*</, 'blocker star remains a small accessible overlay outside field layout')
   assert.match(bomSource + wcSource + routingSource, /<MasterDataBlockerMarker/, 'BOM, Work Centers, and Routing render blocker stars through the shared overlay marker')

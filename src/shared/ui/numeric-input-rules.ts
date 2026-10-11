@@ -13,6 +13,11 @@ export type NumericDraftResult =
   | { kind: 'out-of-domain'; value: number }
   | { kind: 'invalid' }
 
+export interface NumericStepPlace {
+  exponent: number
+  step: number
+}
+
 function precisionOf(domain: NumericInputDomain): number {
   return domain.integer ? 0 : Math.max(0, Math.min(6, Math.trunc(domain.precision ?? 2)))
 }
@@ -75,6 +80,46 @@ function preciseStep(value: number, delta: number, integer: boolean): number {
   return integer ? Math.round(result) : Number(result.toPrecision(12))
 }
 
+export function resolveNumericStepPlace(
+  raw: string,
+  caret: number | null,
+  domain: NumericInputDomain = {}
+): NumericStepPlace {
+  const unitPlace = { exponent: 0, step: 1 }
+  if (caret === null || raw === '') return unitPlace
+
+  const position = Math.max(0, Math.min(raw.length, caret))
+  const activeIndex = /\d/.test(raw[position] ?? '')
+    ? position
+    : position === raw.length && position > 0 && /\d/.test(raw[position - 1])
+      ? position - 1
+      : -1
+  if (activeIndex < 0) return unitPlace
+
+  const decimalIndex = domain.integer ? -1 : raw.indexOf('.')
+  const integerEnd = decimalIndex < 0 ? raw.length : decimalIndex
+  const exponent = activeIndex < integerEnd
+    ? integerEnd - activeIndex - 1
+    : decimalIndex - activeIndex
+  const step = 10 ** exponent
+  return Number.isFinite(step) && step > 0 ? { exponent, step } : unitPlace
+}
+
+export function numericCaretForPlace(raw: string, exponent: number, integer = false): number {
+  const firstDigit = raw.search(/\d/)
+  if (firstDigit < 0) return raw.length
+
+  const decimalIndex = integer ? -1 : raw.indexOf('.')
+  const integerEnd = decimalIndex < 0 ? raw.length : decimalIndex
+  const lastDigit = raw.length - 1 - [...raw].reverse().findIndex(character => /\d/.test(character))
+  const target = exponent >= 0
+    ? integerEnd - exponent - 1
+    : decimalIndex < 0
+      ? lastDigit
+      : decimalIndex - exponent
+  return Math.max(firstDigit, Math.min(lastDigit, target))
+}
+
 /** Returns null when decrementing at the lower boundary intentionally clears the field. */
 export function stepNumericValue(
   current: number | null | undefined,
@@ -82,7 +127,7 @@ export function stepNumericValue(
   step: number,
   domain: NumericInputDomain = {}
 ): number | null {
-  const increment = domain.integer ? 1 : Math.abs(step)
+  const increment = domain.integer ? Math.max(1, Math.round(Math.abs(step))) : Math.abs(step)
   if (!Number.isFinite(increment) || increment <= 0) return current ?? null
   const lower = firstAllowedAtOrAboveMin(domain)
   const upper = firstAllowedAtOrBelowMax(domain)

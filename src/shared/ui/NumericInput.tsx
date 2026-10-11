@@ -1,12 +1,15 @@
 import { ChevronDown, ChevronUp } from 'lucide-react'
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import type { FocusEvent, InputHTMLAttributes, KeyboardEvent } from 'react'
 import {
   formatNumericInputValue,
   isNumericDraftSyntax,
+  numericCaretForPlace,
   parseNumericDraft,
+  resolveNumericStepPlace,
   stepNumericValue,
-  type NumericInputDomain
+  type NumericInputDomain,
+  type NumericStepPlace
 } from './numeric-input-rules'
 
 export interface NumericInputProps extends Omit<InputHTMLAttributes<HTMLInputElement>, 'type' | 'value' | 'onChange' | 'min' | 'max'>, NumericInputDomain {
@@ -14,11 +17,10 @@ export interface NumericInputProps extends Omit<InputHTMLAttributes<HTMLInputEle
   onValueChange: (value: number | null) => void
   allowSubMinimumDraft?: boolean
   reserveMarker?: boolean
-  spinnerStep?: number
-  wheelStep?: number
 }
 
 const defaultInputClassName = 'h-8 w-full min-w-0 font-mono text-xs tabular-nums focus:outline-none'
+const useIsomorphicLayoutEffect = typeof window === 'undefined' ? useEffect : useLayoutEffect
 
 export function NumericInput({
   value,
@@ -31,8 +33,6 @@ export function NumericInput({
   minExclusive,
   allowSubMinimumDraft = false,
   reserveMarker = false,
-  spinnerStep,
-  wheelStep,
   onFocus,
   onBlur,
   onKeyDown,
@@ -41,11 +41,11 @@ export function NumericInput({
   ...inputProps
 }: NumericInputProps) {
   const domain: NumericInputDomain = { integer, precision, min, max, minExclusive }
-  const resolvedSpinnerStep = spinnerStep ?? (integer ? 1 : 1)
-  const resolvedWheelStep = wheelStep ?? (integer ? 1 : 0.01)
   const inputRef = useRef<HTMLInputElement>(null)
   const currentValueRef = useRef(value)
   const onValueChangeRef = useRef(onValueChange)
+  const preservedPlaceRef = useRef<{ raw: string; caret: number; place: NumericStepPlace } | null>(null)
+  const restorePlaceRef = useRef<number | null>(null)
   const [focused, setFocused] = useState(false)
   const [draft, setDraft] = useState(() => formatNumericInputValue(value, domain))
 
@@ -56,14 +56,42 @@ export function NumericInput({
     if (!focused) setDraft(formatNumericInputValue(value, domain))
   }, [focused, value, integer, precision, min, max, minExclusive])
 
-  const applyStep = (direction: 1 | -1, step: number) => {
-    const next = stepNumericValue(currentValueRef.current, direction, step, domain)
+  useIsomorphicLayoutEffect(() => {
+    const exponent = restorePlaceRef.current
+    const input = inputRef.current
+    if (exponent === null || !input || !focused || draft === '') return
+    const caret = numericCaretForPlace(draft, exponent, Boolean(integer))
+    input.setSelectionRange(caret, caret)
+    preservedPlaceRef.current = { raw: draft, caret, place: resolveNumericStepPlace(draft, caret, domain) }
+    restorePlaceRef.current = null
+  }, [draft, focused, integer])
+
+  const applyStep = (direction: 1 | -1) => {
+    const input = inputRef.current
+    const raw = input?.value ?? draft
+    const selectionStart = input?.selectionStart ?? raw.length
+    const selectionEnd = input?.selectionEnd ?? selectionStart
+    const hasSelection = selectionStart !== selectionEnd
+    const preservedPlace = preservedPlaceRef.current
+    const activePlace = !hasSelection && preservedPlace?.raw === raw && preservedPlace.caret === selectionStart
+      ? preservedPlace.place
+      : resolveNumericStepPlace(raw, hasSelection ? null : selectionStart, domain)
+    const next = stepNumericValue(currentValueRef.current, direction, activePlace.step, domain)
     if (next === null) {
+      preservedPlaceRef.current = null
+      restorePlaceRef.current = null
       onValueChangeRef.current(null)
       setDraft('')
     } else {
+      const nextDraft = formatNumericInputValue(next, domain)
+      if (nextDraft === raw) {
+        preservedPlaceRef.current = { raw, caret: selectionStart, place: activePlace }
+        restorePlaceRef.current = null
+      } else {
+        restorePlaceRef.current = activePlace.exponent
+      }
       onValueChangeRef.current(next)
-      setDraft(formatNumericInputValue(next, domain))
+      setDraft(nextDraft)
     }
     inputRef.current?.focus()
   }
@@ -72,6 +100,7 @@ export function NumericInput({
     if (!isNumericDraftSyntax(raw, domain)) return
     const parsed = parseNumericDraft(raw, domain, allowSubMinimumDraft)
     if (parsed.kind === 'invalid' || parsed.kind === 'out-of-domain') return
+    preservedPlaceRef.current = null
     setDraft(raw)
     if (parsed.kind === 'blank') onValueChangeRef.current(null)
     else if (parsed.kind === 'valid') onValueChangeRef.current(parsed.value)
@@ -89,9 +118,10 @@ export function NumericInput({
     if (event.key === 'ArrowUp' || event.key === 'ArrowDown') {
       event.preventDefault()
       event.stopPropagation()
-      applyStep(event.key === 'ArrowUp' ? 1 : -1, resolvedSpinnerStep)
+      applyStep(event.key === 'ArrowUp' ? 1 : -1)
       return
     }
+    preservedPlaceRef.current = null
     onKeyDown?.(event)
   }
 
@@ -106,12 +136,12 @@ export function NumericInput({
     const handleWheel = (event: globalThis.WheelEvent) => {
       if (document.activeElement !== input || event.deltaY === 0) return
       event.preventDefault()
-      applyStep(event.deltaY < 0 ? 1 : -1, resolvedWheelStep)
+      applyStep(event.deltaY < 0 ? 1 : -1)
     }
 
     input.addEventListener('wheel', handleWheel, { passive: false })
     return () => input.removeEventListener('wheel', handleWheel)
-  }, [focused, resolvedWheelStep, domain.integer, domain.precision, domain.min, domain.max, domain.minExclusive])
+  }, [focused, draft, integer, precision, min, max, minExclusive])
 
   return (
     <div className="relative w-full min-w-0">
@@ -126,9 +156,11 @@ export function NumericInput({
         aria-valuenow={valueIsNumeric ? parsedValue.value : undefined}
         value={draft}
         onFocus={event => {
+          preservedPlaceRef.current = null
           setFocused(true)
           onFocus?.(event)
         }}
+        onClick={() => { preservedPlaceRef.current = null }}
         onBlur={handleBlur}
         onKeyDown={handleKeyDown}
         onPaste={event => {
@@ -148,18 +180,18 @@ export function NumericInput({
         }}
         onChange={event => handleChange(event.currentTarget.value)}
         className={`${defaultInputClassName} ${className ?? ''}`.trim()}
-        style={{ ...style, paddingRight: reserveMarker ? '2.25rem' : '1rem' }}
+        style={{ ...style, paddingRight: reserveMarker ? '2rem' : '1.5rem' }}
         data-numeric-editor="true"
       />
       {focused && !inputProps.disabled && !inputProps.readOnly && (
-        <span className={`absolute inset-y-0 ${reserveMarker ? 'right-5' : 'right-0'} flex w-4 flex-col border-l border-slate-200 bg-white`}>
+        <span className={`absolute inset-y-0 ${reserveMarker ? 'right-5' : 'right-1'} flex w-3 flex-col justify-center`}>
           <button
             type="button"
             tabIndex={-1}
             aria-label={`Increase ${label}`}
             onMouseDown={event => event.preventDefault()}
-            onClick={() => applyStep(1, resolvedSpinnerStep)}
-            className="grid min-h-0 flex-1 place-items-center text-slate-500 hover:bg-slate-100 hover:text-slate-900 focus-visible:z-10 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-blue-700"
+            onClick={() => applyStep(1)}
+            className="grid h-3 flex-none place-items-center text-slate-500 hover:text-slate-950 focus-visible:z-10 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-blue-700"
           >
             <ChevronUp className="h-3 w-3" aria-hidden="true" />
           </button>
@@ -168,8 +200,8 @@ export function NumericInput({
             tabIndex={-1}
             aria-label={`Decrease ${label}`}
             onMouseDown={event => event.preventDefault()}
-            onClick={() => applyStep(-1, resolvedSpinnerStep)}
-            className="grid min-h-0 flex-1 place-items-center text-slate-500 hover:bg-slate-100 hover:text-slate-900 focus-visible:z-10 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-blue-700"
+            onClick={() => applyStep(-1)}
+            className="grid h-3 flex-none place-items-center text-slate-500 hover:text-slate-950 focus-visible:z-10 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-blue-700"
           >
             <ChevronDown className="h-3 w-3" aria-hidden="true" />
           </button>

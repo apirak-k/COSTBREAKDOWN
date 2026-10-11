@@ -21,7 +21,14 @@ function sourceFiles(directory) {
 
 try {
   const { formatCurrency, formatNumber, formatParam, formatPercent, formatVariance } = await vite.ssrLoadModule('/src/core/utils/formatters.ts')
-  const { formatNumericInputValue, isNumericDraftSyntax, parseNumericDraft, stepNumericValue } = await vite.ssrLoadModule('/src/shared/ui/numeric-input-rules.ts')
+  const {
+    formatNumericInputValue,
+    isNumericDraftSyntax,
+    numericCaretForPlace,
+    parseNumericDraft,
+    resolveNumericStepPlace,
+    stepNumericValue
+  } = await vite.ssrLoadModule('/src/shared/ui/numeric-input-rules.ts')
   const {
     filterInvalidMasterDataNumericChanges,
     getMasterDataSnapshotValidationErrors,
@@ -67,11 +74,34 @@ try {
   assert.equal(stepNumericValue(12.34, -1, 0.01), 12.33)
   assert.equal(stepNumericValue(3, 1, 1, { integer: true }), 4)
   assert.equal(stepNumericValue(3, -1, 1, { integer: true }), 2)
+  assert.equal(stepNumericValue(25, 1, 10, { integer: true }), 35, 'integer spinner steps preserve the active tens place')
+  assert.equal(stepNumericValue(25, -1, 100, { integer: true }), -75, 'integer spinner steps preserve the active hundreds place')
   assert.equal(stepNumericValue(null, 1, 1, { integer: true, min: 1, max: 200 }), 1)
   assert.equal(stepNumericValue(1, -1, 1, { integer: true, min: 1, max: 200 }), null)
   assert.equal(stepNumericValue(0.25, -1, 1, positiveDecimal), null, 'decrementing across a positive-only lower boundary clears instead of coercing to 0.01')
   assert.equal(stepNumericValue(0.01, -1, 0.01, positiveDecimal), null)
   assert.equal(stepNumericValue(100, 1, 0.01, { min: 0, max: 100 }), 100)
+
+  const decimalDraft = '123.45'
+  assert.deepEqual(resolveNumericStepPlace(decimalDraft, 0), { exponent: 2, step: 100 }, 'caret on the first digit steps by hundreds')
+  assert.deepEqual(resolveNumericStepPlace(decimalDraft, 1), { exponent: 1, step: 10 }, 'caret on the second digit steps by tens')
+  assert.deepEqual(resolveNumericStepPlace(decimalDraft, 2), { exponent: 0, step: 1 }, 'caret on the integer units digit steps by units')
+  assert.deepEqual(resolveNumericStepPlace(decimalDraft, 3), { exponent: 0, step: 1 }, 'caret on the decimal separator falls back to units')
+  assert.deepEqual(resolveNumericStepPlace(decimalDraft, 4), { exponent: -1, step: 0.1 }, 'caret on tenths steps by tenths')
+  assert.deepEqual(resolveNumericStepPlace(decimalDraft, 5), { exponent: -2, step: 0.01 }, 'caret on hundredths steps by hundredths')
+  assert.deepEqual(resolveNumericStepPlace(decimalDraft, 6), { exponent: -2, step: 0.01 }, 'caret after the last decimal digit uses the last digit place')
+  assert.deepEqual(resolveNumericStepPlace(decimalDraft, null), { exponent: 0, step: 1 }, 'a selected range has no single active digit and falls back to units')
+  assert.deepEqual(resolveNumericStepPlace('125', 0, { integer: true }), { exponent: 2, step: 100 })
+  assert.deepEqual(resolveNumericStepPlace('125', 1, { integer: true }), { exponent: 1, step: 10 })
+  assert.deepEqual(resolveNumericStepPlace('125', 2, { integer: true }), { exponent: 0, step: 1 })
+  assert.deepEqual(resolveNumericStepPlace('125', 3, { integer: true }), { exponent: 0, step: 1 })
+  assert.deepEqual(resolveNumericStepPlace('', 0), { exponent: 0, step: 1 }, 'blank input uses the unit-step fallback')
+  assert.deepEqual(resolveNumericStepPlace(decimalDraft, null), { exponent: 0, step: 1 }, 'an unavailable caret uses the unit-step fallback')
+  assert.equal(numericCaretForPlace('109.00', 1), 1, 'caret restoration stays on tens after a new digit is added')
+  assert.equal(numericCaretForPlace('123.45', -2), 5, 'caret restoration maps a decimal place to its new digit')
+  assert.equal(stepNumericValue(190, 1, 100, { integer: true, min: 1, max: 200 }), 200, 'integer active-place increment respects the maximum')
+  assert.equal(stepNumericValue(5, -1, 10, { integer: true, min: 1, max: 200 }), null, 'integer active-place decrement preserves lower-bound clear behavior')
+  assert.equal(stepNumericValue(null, 1, 0.1, positiveDecimal), 0.1, 'blank positive decimals start at the active valid step')
 
   assert.equal(isMasterDataNumericValueValid('loss', 0.123456), true, 'canonical values may keep precision beyond display precision')
   assert.equal(isMasterDataNumericInputValid('loss', 0.1234), true, 'two decimal percentage input maps to four internal decimal places')
@@ -117,6 +147,13 @@ try {
   assert.match(integerMarkup, /type="text"[^>]*inputMode="numeric"[^>]*role="spinbutton"[^>]*value="3"/)
   assert.doesNotMatch(decimalMarkup + integerMarkup, /Increase Price|Decrease Price|Increase Rows|Decrease Rows/, 'focus-only spinners are not shown in the idle editor')
   assert.match(numericInputSource, /parsedPaste\.kind === 'transient'/, 'paste rejects incomplete/zero-prefix drafts instead of bypassing Poka-Yoke')
+  assert.match(numericInputSource, /selectionStart[\s\S]*selectionEnd[\s\S]*hasSelection[\s\S]*resolveNumericStepPlace\(raw, hasSelection \? null : selectionStart, domain\)/, 'a non-collapsed selection falls back to the unit place')
+  assert.match(numericInputSource, /numericCaretForPlace\(draft, exponent, Boolean\(integer\)\)[\s\S]*setSelectionRange\(caret, caret\)/, 'caret returns to the same place after a step changes digit count')
+  assert.match(numericInputSource, /onClick=\{\(\) => applyStep\(1\)\}/)
+  assert.match(numericInputSource, /applyStep\(event\.deltaY < 0 \? 1 : -1\)/, 'focused wheel uses the shared active-place step')
+  assert.match(numericInputSource, /applyStep\(event\.key === 'ArrowUp' \? 1 : -1\)/, 'ArrowUp/Down uses the shared active-place step')
+  assert.doesNotMatch(numericInputSource, /spinnerStep|wheelStep|border-l/, 'no fixed spinner/wheel step props or heavy spinner rail remain')
+  assert.match(numericInputSource, /paddingRight: reserveMarker \? '2rem' : '1\.5rem'/, 'stable text padding protects values and blocker markers from the focused spinner')
 
   const appSources = sourceFiles(resolve(process.cwd(), 'src'))
     .map(path => readFileSync(path, 'utf8'))
