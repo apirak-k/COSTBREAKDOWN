@@ -14,7 +14,7 @@ export const masterDataPercentageShellClass = 'mx-auto flex h-8 w-28 min-w-0 ite
 
 export const masterDataPercentageInputShellClass = 'relative flex h-8 min-w-0 flex-1 items-center rounded-sm border border-transparent transition-colors focus-within:border-transparent focus-within:ring-2 focus-within:ring-blue-700'
 
-export const masterDataPercentageIssueShellClass = 'border-amber-300 bg-amber-50'
+export const masterDataPercentageIssueShellClass = '!border-amber-300 bg-amber-50'
 
 export const masterDataPercentageEditorClass = `${masterDataNumericEditorClass} !border-transparent hover:!border-transparent !bg-transparent hover:!bg-transparent focus:!border-transparent focus:!bg-transparent focus:!ring-0`
 

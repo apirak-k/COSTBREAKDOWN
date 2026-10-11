@@ -655,7 +655,7 @@ try {
   assert.match(headerSource, /const toolbarButton = 'grid h-8 w-8[^']*bg-transparent[^']*hover:bg-slate-100[^']*focus-visible:outline/, 'tool actions have borderless idle styling and retain 32px interaction targets')
   assert.match(headerSource, /<Tooltip label=\{isEditMode \? 'Switch to View' : 'Switch to Edit'\}[\s\S]*<button[\s\S]*role="switch"[\s\S]*<Eye className="h-4 w-4"[\s\S]*<Pencil className="h-4 w-4"/, 'View/Edit use one action-labelled icon-only sliding toggle containing both icons')
   assert.ok(headerSource.includes('w-[calc(50%-2px)] bg-slate-900 transition-transform duration-150 ease-out'), 'the View/Edit selected thumb slides without changing control geometry')
-  assert.match(headerSource, /className="inline-flex h-8 shrink-0 border border-slate-300 bg-white" role="group" aria-label="Master Data workspace"[\s\S]*className=\{'relative flex h-full items-center[\s\S]*absolute inset-0\.5 bg-slate-900/, 'Dataset selector retains 32px geometry and uses an inset active slab')
+  assert.match(headerSource, /className="grid h-8 w-60 shrink-0 grid-cols-3 border border-slate-300 bg-white" role="group" aria-label="Master Data workspace"[\s\S]*className=\{'relative flex h-full w-full min-w-0 items-center justify-center[\s\S]*absolute inset-0\.5 bg-slate-900/, 'Dataset selector keeps equal 32px segments and an inset active slab')
   assert.match(pageSource, /grid h-8 w-72 shrink-0 grid-cols-4 items-stretch border border-slate-300 bg-white[\s\S]*absolute inset-0\.5 bg-slate-900/, 'Table selector keeps equal 32px controls with an inset active slab')
   assert.match(headerSource, /absolute inset-y-0\.5 left-0\.5 w-\[calc\(50%-2px\)\] bg-slate-900/, 'View/Edit uses the same approximately 2px inset active geometry')
   assert.match(headerSource, /wrapperClassName="relative grid h-8 w-16 shrink-0"[\s\S]*className="relative grid h-8 w-16 grid-cols-2/, 'View/Edit remains exactly 64px by 32px with a single stable toggle target')
@@ -981,11 +981,11 @@ try {
   assert.doesNotMatch(routingSource, /aria-label="Search Routing"|placeholder="Search Routing/, 'Routing no longer renders a per-table search box')
   assert.match(pageSource, /searchQuery=\{searchQuery\}[\s\S]*onSearchQueryChange=\{onSearchQueryChange\}/, 'the same Master Data query flows to the toolbar and existing tables')
   assert.match(headerSource, /type="text"[\s\S]*aria-label="UOM"[\s\S]*onUpdateProduct\(\{ \.\.\.product, uom: event\.target\.value \}\)/, 'UOM is editable as free text')
-  assert.match(headerSource, /xl:grid-cols-\[minmax\(0,2fr\)_repeat\(3,minmax\(0,1fr\)\)_minmax\(0,2fr\)\]/,
+  assert.match(headerSource, /lg:grid-cols-\[minmax\(8rem,2fr\)_repeat\(3,minmax\(8rem,1fr\)\)_minmax\(8rem,2fr\)\]/,
     'metadata gives UOM, Selling Price, and SG&A equal tracks while keeping Product and Remark wider')
-  assert.match(headerSource, /Product Name<\/dt>[\s\S]*UOM<\/dt>[\s\S]*Selling Price \(THB\)<\/dt>[\s\S]*SG&amp;A \(%\)<\/dt>[\s\S]*Remark<\/dt>/,
-    'metadata labels align with their stable View/Edit value fields')
-  assert.match(headerSource, /grid min-w-0 grid-cols-\[minmax\(0,1fr\)_auto\] items-center gap-1\.5[\s\S]*<span aria-hidden="true" className="text-xs text-slate-600">%<\/span>/,
+  assert.match(headerSource, /Product Name :<\/dt>[\s\S]*UOM :<\/dt>[\s\S]*Selling Price \(THB\) :<\/dt>[\s\S]*SG&amp;A \(%\) :<\/dt>[\s\S]*Remark :<\/dt>/,
+    'metadata labels stay inline with their values in the stable View/Edit slots')
+  assert.match(headerSource, /grid min-w-0 flex-1 grid-cols-\[minmax\(0,1fr\)_auto\] items-center gap-1[\s\S]*<span aria-hidden="true" className="text-xs text-slate-600">%<\/span>/,
     'metadata SG&A unit remains a sibling to the numeric editor inside its field group')
   assert.doesNotMatch(headerSource, /<h[1-6][^>]*>Metadata<\/h[1-6]>/, 'metadata has no redundant section heading')
   assert.match(headerSource, /placeholder=\{searchPlaceholder\}/, 'Search uses a table-aware placeholder independent of its fixed wrapper width')
@@ -1086,6 +1086,13 @@ try {
   assert.match(tooltipSource, /bounds\.left \+ \(bounds\.width - width\) \/ 2[\s\S]*window\.innerWidth - width - 8[\s\S]*bounds\.top - tooltipBounds\.height - 5[\s\S]*z-\[1000\]/, 'tooltips center above triggers, clamp to viewport, and escape Navbar stacking contexts')
   assert.match(tooltipSource, /cloneElement\(children, \{ 'aria-describedby': describedBy \}\)/, 'portal tooltips preserve aria-describedby on their trigger')
   assert.match(headerSource, /wrapperClassName="relative grid h-8 w-16 shrink-0"[\s\S]*className="relative grid h-8 w-16 grid-cols-2/, 'View/Edit keeps exact 64px by 32px geometry as one toggle target')
+  assert.match(headerSource, /className="grid h-8 w-60 shrink-0 grid-cols-3 border border-slate-300 bg-white" role="group" aria-label="Master Data workspace"[\s\S]*className=\{'relative flex h-full w-full min-w-0 items-center justify-center/, 'Reference, Current, and Custom occupy three equal-width dataset segments')
+  assert.match(headerSource, /selected && <span aria-hidden="true" className="pointer-events-none absolute inset-0\.5 bg-slate-900"/, 'the selected dataset slab remains inset without changing selector geometry')
+  assert.match(headerSource, /grid min-w-0 grid-cols-1 gap-x-3 gap-y-1 sm:grid-cols-2 lg:grid-cols-\[minmax\(8rem,2fr\)_repeat\(3,minmax\(8rem,1fr\)\)_minmax\(8rem,2fr\)\]/, 'desktop metadata uses wide Product/Remark slots and three equal middle slots')
+  assert.equal((headerSource.match(/className="flex min-w-0 items-center gap-1\.5"/g) ?? []).length, 5, 'all five metadata label/value pairs share one inline row geometry')
+  assert.equal((headerSource.match(/<dt className="shrink-0 whitespace-nowrap[^\"]*">[^<]+ :<\/dt>/g) ?? []).length, 5, 'each inline metadata label retains its colon and does not wrap')
+  assert.match(headerSource, /SG&amp;A \(%\) :[\s\S]*className="grid min-w-0 flex-1 grid-cols-\[minmax\(0,1fr\)_auto\] items-center gap-1"[\s\S]*<span aria-hidden="true" className="text-xs text-slate-600">%<\/span>/, 'SG&A percent remains outside its numeric shell in the same metadata slot')
+  assert.match(headerSource, /Selling Price \(THB\) :[\s\S]*formatNumber\(product\.sellingPrice\)\}/, 'Selling Price uses label-supplied THB without a duplicate value suffix')
   assert.match(fieldStylesSource, /h-8 w-full min-w-0 rounded-sm border border-transparent bg-transparent[\s\S]*hover:border-slate-200 hover:bg-slate-50[\s\S]*focus:border-transparent focus:bg-white[\s\S]*focus:ring-2 focus:ring-blue-700/, 'table and metadata editors keep a stable light idle surface with a clear blue focus ring')
   assert.match(tableChromeSource, /<header className="flex min-h-10 flex-wrap items-center justify-between[\s\S]*<h3[^>]*>\{title\}<\/h3>[\s\S]*<div className="flex min-w-0 flex-wrap items-center justify-end/, 'table header title stays left while its status/action group stays right')
   assert.match(tableChromeSource, /w-36 shrink-0 whitespace-nowrap text-right font-mono text-\[10px\] tabular-nums/, 'row and selection totals occupy a fixed tabular status slot')
@@ -1117,6 +1124,7 @@ try {
   assert.doesNotMatch(allTablesSource, /<td className=\{`[^`]*bg-amber-50/, 'issue fill remains field-level, never a whole-cell fill')
   assert.match(fieldStylesSource, /masterDataPercentageShellClass = 'mx-auto flex h-8 w-28 min-w-0 items-center gap-1'/, 'percentage field groups retain one stable owner width')
   assert.match(fieldStylesSource, /masterDataPercentageInputShellClass = 'relative flex h-8 min-w-0 flex-1 items-center rounded-sm border border-transparent[\s\S]*focus-within:ring-2 focus-within:ring-blue-700'/, 'the bordered percentage input shell is separate from its unit suffix')
+  assert.match(fieldStylesSource, /masterDataPercentageIssueShellClass = '!border-amber-300 bg-amber-50'/, 'Loss and Yield issue shells retain their amber border through hover and focus')
   assert.match(bomSource, /className=\{`\$\{masterDataPercentageShellClass\}[\s\S]*<div className=\{`\$\{masterDataPercentageInputShellClass\}[\s\S]*reserveMarker[\s\S]*MasterDataBlockerMarker[\s\S]*<span className="w-3 shrink-0 text-center text-\[11px\] text-slate-400">%<\/span>/, 'BOM Loss places value/spinner/blocker inside the input shell and percent outside it')
   assert.match(routingSource, /className=\{`\$\{masterDataPercentageShellClass\}[\s\S]*<div className=\{`\$\{masterDataPercentageInputShellClass\}[\s\S]*reserveMarker[\s\S]*MasterDataBlockerMarker[\s\S]*<span className="w-3 shrink-0 text-center text-\[11px\] text-slate-400">%<\/span>/, 'Routing Yield places value/spinner/blocker inside the input shell and percent outside it')
   assert.match(routingSource, /ChevronDown className="pointer-events-none absolute right-6[\s\S]*MasterDataBlockerMarker/, 'Routing Work Center keeps dropdown chevron and blocker marker in separate zones')
