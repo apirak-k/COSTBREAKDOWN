@@ -184,7 +184,7 @@ export function NumericInput({
         data-numeric-editor="true"
       />
       {focused && !inputProps.disabled && !inputProps.readOnly && (
-        <span className={`absolute inset-y-0 ${reserveMarker ? 'right-5' : 'right-1'} flex w-3 flex-col justify-center`}>
+        <span className={`absolute inset-y-0 ${reserveMarker ? 'right-4' : 'right-0'} flex w-3 flex-col justify-center`}>
           <button
             type="button"
             tabIndex={-1}

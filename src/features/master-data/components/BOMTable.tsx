@@ -12,7 +12,7 @@ import { MasterDataTableHeader } from './MasterDataTableChrome'
 import { MasterDataBlockerMarker } from './MasterDataBlockerMarker'
 import { Tooltip } from '../../../shared/ui/Tooltip'
 import { NumericInput } from '../../../shared/ui/NumericInput'
-import { masterDataDisplaySlotClass, masterDataNumericDisplaySlotClass, masterDataNumericEditorClass, masterDataTextEditorClass, masterDataWarningEditorFillClass } from './master-data-field-styles'
+import { masterDataDisplaySlotClass, masterDataIssueDisplayClass, masterDataIssueEditorClass, masterDataNumericDisplaySlotClass, masterDataNumericEditorClass, masterDataPercentageDisplayValueClass, masterDataPercentageEditorClass, masterDataPercentageIssueShellClass, masterDataPercentageShellClass, masterDataTextEditorClass } from './master-data-field-styles'
 
 interface BOMTableProps {
   bom: SnapshotBOMItem[]
@@ -208,14 +208,14 @@ export const BOMTable: React.FC<BOMTableProps> = ({
       <div className="overflow-x-auto">
         <table ref={tableRef} className="w-full min-w-[64rem] table-fixed border-collapse text-left text-xs">
           <colgroup>
-            <col className="w-12" /><col /><col className="w-24" /><col className="w-16" />
-            <col className="w-24" /><col className="w-20" /><col className="w-56" /><col className="w-20" />
+            <col className="w-[5%]" /><col className="w-[24%]" /><col className="w-[10%]" /><col className="w-[6%]" />
+            <col className="w-[10%]" /><col className="w-[13%]" /><col className="w-[22.5%]" /><col className="w-[9.5%]" />
           </colgroup>
           <thead className="sticky top-0 z-30 border-y-2 border-slate-400 bg-slate-100 text-[11px] font-semibold uppercase tracking-wide text-slate-800">
             <tr>
               <th scope="col" className="sticky left-0 z-40 w-12 bg-slate-100 p-0 text-center">
                 <Tooltip label={allVisibleSelected ? 'Clear visible selection' : 'Select all visible rows'} wrapperClassName="relative flex h-9 w-full items-center justify-center">
-                  <button type="button" onClick={() => toggleAll(!allVisibleSelected)} disabled={filteredBOM.length === 0} aria-pressed={allVisibleSelected} aria-label={allVisibleSelected ? 'Clear visible selection for BOM rows' : 'Select all visible BOM rows'} className={`grid h-7 w-7 place-items-center rounded-sm text-[11px] focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-700 ${allVisibleSelected ? 'bg-blue-100 text-blue-900' : 'text-slate-700 hover:bg-slate-200'} disabled:cursor-default disabled:text-slate-400 disabled:hover:bg-transparent`}>#</button>
+                  <button type="button" onClick={() => toggleAll(!allVisibleSelected)} disabled={filteredBOM.length === 0} aria-pressed={allVisibleSelected} aria-label={allVisibleSelected ? 'Clear visible selection for BOM rows' : 'Select all visible BOM rows'} className={`grid h-7 w-7 place-items-center rounded-sm text-[11px] focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-700 ${allVisibleSelected ? 'border border-slate-300 bg-slate-100 text-slate-700' : 'text-slate-700 hover:bg-slate-200'} disabled:cursor-default disabled:text-slate-400 disabled:hover:bg-transparent`}>#</button>
                 </Tooltip>
               </th>
               <th scope="col" className="px-2 py-2 text-left">Material</th>
@@ -244,7 +244,7 @@ export const BOMTable: React.FC<BOMTableProps> = ({
               const deleteTooltip = !isEditMode ? 'Switch to Edit to delete rows' : deleteSelectedGroup ? 'Delete selected rows' : 'Delete row'
               const reorderSelectedGroup = isSelected && selectedIds.size > 1
               const reorderTooltip = !isEditMode ? 'Reordering is available in Edit' : reorderSelectedGroup ? 'Drag selected rows to reorder' : 'Drag to reorder'
-              const numericClass = (invalid: boolean, missing: boolean) => `${masterDataNumericEditorClass} ${showWarningHighlights && (invalid || missing) ? 'border-amber-300' : ''} ${showWarningHighlights && (invalid || missing) ? masterDataWarningEditorFillClass : ''}`
+              const numericClass = (invalid: boolean) => `${masterDataNumericEditorClass} ${showWarningHighlights && invalid ? masterDataIssueEditorClass : ''}`
 
               return (
                 <tr
@@ -287,10 +287,10 @@ export const BOMTable: React.FC<BOMTableProps> = ({
                           data-grid-field="description"
                           aria-label={`Name for BOM row ${rowNumber}`}
                           aria-invalid={identityInvalid}
-                          className={`${masterDataTextEditorClass} ${identityWarning && showWarningHighlights ? 'border-amber-300' : ''} ${identityWarning && showWarningHighlights ? masterDataWarningEditorFillClass : ''} ${selectedCellKeys.has(tableCellKey(item.id, 'description')) ? 'ring-2 ring-blue-500 ring-inset' : ''}`}
+                          className={`${masterDataTextEditorClass} ${identityWarning && showWarningHighlights ? masterDataIssueEditorClass : ''} ${selectedCellKeys.has(tableCellKey(item.id, 'description')) ? 'ring-2 ring-blue-500 ring-inset' : ''}`}
                         />
                       ) : (
-                        <div className={`flex h-8 w-full min-w-0 items-center rounded-sm border border-transparent px-2 text-xs ${identityWarning && showWarningHighlights ? 'border-amber-300 bg-amber-50' : ''}`}>
+                        <div className={`flex h-8 w-full min-w-0 items-center rounded-sm border border-transparent px-2 text-xs ${identityWarning && showWarningHighlights ? masterDataIssueDisplayClass : ''}`}>
                           {item.description || <span className="text-slate-500">{placeholderNumber === undefined ? '—' : `Material ${placeholderNumber}`}</span>}
                         </div>
                       )}
@@ -309,11 +309,11 @@ export const BOMTable: React.FC<BOMTableProps> = ({
                           data-grid-field="consumption"
                           aria-label={`Usage for ${item.description || `BOM row ${rowNumber}`}`}
                           aria-invalid={consumptionInvalid}
-                          className={`${numericClass(consumptionInvalid, consumptionMissing)} ${selectedCellKeys.has(tableCellKey(item.id, 'consumption')) ? 'ring-2 ring-blue-500 ring-inset' : ''}`}
+                          className={`${numericClass(consumptionInvalid)} ${selectedCellKeys.has(tableCellKey(item.id, 'consumption')) ? 'ring-2 ring-blue-500 ring-inset' : ''}`}
                         />
                         {consumptionMissing && <MasterDataBlockerMarker />}
                       </div>
-                    ) : <span className={`${masterDataNumericDisplaySlotClass} mx-auto w-full max-w-20 ${consumptionInvalid && showWarningHighlights ? 'border-amber-300 bg-amber-50 text-amber-900' : ''}`}>{displayNumber(item.consumption)}{consumptionMissing && <MasterDataBlockerMarker />}</span>}
+                    ) : <span className={`${masterDataNumericDisplaySlotClass} mx-auto w-full max-w-20 ${consumptionInvalid && showWarningHighlights ? masterDataIssueDisplayClass : ''}`}>{displayNumber(item.consumption)}{consumptionMissing && <MasterDataBlockerMarker />}</span>}
                   </td>
                   <td className="px-2 py-0.5 text-center font-mono">
                     {isEditMode ? (
@@ -325,7 +325,7 @@ export const BOMTable: React.FC<BOMTableProps> = ({
                         data-grid-field="unit"
                         aria-label={`Unit for ${item.description || `BOM row ${rowNumber}`}`}
                         aria-invalid={!item.unit.trim()}
-                        className={`mx-auto block h-8 w-full max-w-12 rounded-sm border border-transparent bg-transparent px-1 text-center text-xs text-slate-900 transition-colors hover:border-slate-200 hover:bg-slate-50 focus:border-blue-700 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-700 ${!item.unit.trim() && showWarningHighlights ? 'border-amber-300 bg-amber-50' : ''} ${selectedCellKeys.has(tableCellKey(item.id, 'unit')) ? 'ring-2 ring-blue-500 ring-inset' : ''}`}
+                        className={`mx-auto block h-8 w-full max-w-12 rounded-sm border border-transparent bg-transparent px-1 text-center text-xs text-slate-900 transition-colors hover:border-slate-200 hover:bg-slate-50 focus:border-blue-700 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-700 ${!item.unit.trim() && showWarningHighlights ? masterDataIssueEditorClass : ''} ${selectedCellKeys.has(tableCellKey(item.id, 'unit')) ? 'ring-2 ring-blue-500 ring-inset' : ''}`}
                       />
                     ) : <span className="mx-auto inline-flex h-8 w-full max-w-12 items-center justify-center rounded-sm border border-transparent px-1 text-center text-xs">{item.unit || <span className="text-amber-700">—</span>}</span>}
                   </td>
@@ -342,39 +342,38 @@ export const BOMTable: React.FC<BOMTableProps> = ({
                           data-grid-field="price"
                           aria-label={`Price for ${item.description || `BOM row ${rowNumber}`}`}
                           aria-invalid={priceInvalid}
-                          className={`${numericClass(priceInvalid, priceMissing)} ${selectedCellKeys.has(tableCellKey(item.id, 'price')) ? 'ring-2 ring-blue-500 ring-inset' : ''}`}
+                          className={`${numericClass(priceInvalid)} ${selectedCellKeys.has(tableCellKey(item.id, 'price')) ? 'ring-2 ring-blue-500 ring-inset' : ''}`}
                         />
                         {priceMissing && <MasterDataBlockerMarker />}
                       </div>
-                    ) : <span className={`${masterDataNumericDisplaySlotClass} mx-auto w-full max-w-24 ${priceInvalid && showWarningHighlights ? 'border-amber-300 bg-amber-50 text-amber-900' : ''}`}>{displayNumber(item.price, 2)}{priceMissing && <MasterDataBlockerMarker />}</span>}
+                    ) : <span className={`${masterDataNumericDisplaySlotClass} mx-auto w-full max-w-24 ${priceInvalid && showWarningHighlights ? masterDataIssueDisplayClass : ''}`}>{displayNumber(item.price, 2)}{priceMissing && <MasterDataBlockerMarker />}</span>}
                   </td>
                   <td className="relative px-2 py-0.5 text-center font-mono tabular-nums">
                     {isEditMode ? (
-                      <div className="mx-auto flex w-fit items-center gap-1">
-                        <div className="relative w-20">
+                      <div className={`${masterDataPercentageShellClass} ${showWarningHighlights && lossInvalid ? masterDataPercentageIssueShellClass : ''} ${selectedCellKeys.has(tableCellKey(item.id, 'loss')) ? 'ring-2 ring-blue-500 ring-inset' : ''}`}>
                         <NumericInput
                           value={item.loss === null ? null : item.loss * 100}
                           onValueChange={value => applyCellUpdate(item.id, { loss: value === null ? null : value / 100 })}
                           min={0}
-                          reserveMarker
                           data-grid-cell="true"
                           data-grid-row-id={item.id}
                           data-grid-field="loss"
                           aria-label={`Loss percentage for ${item.description || `BOM row ${rowNumber}`}`}
                           aria-invalid={lossInvalid}
-                          className={`${numericClass(lossInvalid, lossMissing)} ${selectedCellKeys.has(tableCellKey(item.id, 'loss')) ? 'ring-2 ring-blue-500 ring-inset' : ''}`}
+                          className={masterDataPercentageEditorClass}
                         />
-                          {lossMissing && <MasterDataBlockerMarker />}
-                        </div>
-                        <span className="text-slate-400">%</span>
+                        <span className="text-center text-[11px] text-slate-400">%</span>
+                        <span aria-hidden="true" className="h-full w-3" />
+                        {lossMissing && <MasterDataBlockerMarker />}
                       </div>
                     ) : (
-                      <div className="mx-auto flex h-8 w-[76px] items-center gap-1">
-                        <span className={`${masterDataNumericDisplaySlotClass} relative h-8 w-16 px-0 ${lossInvalid && showWarningHighlights ? 'border-amber-300 bg-amber-50 text-amber-900' : ''}`}>
+                      <div className={`${masterDataPercentageShellClass} ${showWarningHighlights && lossInvalid ? masterDataPercentageIssueShellClass : ''}`}>
+                        <span className={masterDataPercentageDisplayValueClass}>
                           {item.loss === null ? '—' : formatNumber(item.loss * 100, 2)}
-                          {lossMissing && <MasterDataBlockerMarker />}
                         </span>
-                        <span className="text-slate-400">%</span>
+                        <span className="text-center text-[11px] text-slate-400">%</span>
+                        <span aria-hidden="true" className="h-full w-3" />
+                        {lossMissing && <MasterDataBlockerMarker />}
                       </div>
                     )}
                   </td>

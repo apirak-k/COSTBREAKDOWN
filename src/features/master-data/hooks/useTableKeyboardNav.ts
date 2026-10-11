@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { MASTER_DATA_CLEAR_CELL_FOCUS_EVENT } from '../../../shared/ui/transient-interactions'
 
 export interface SpreadsheetPasteCell {
   rowId: string
@@ -69,14 +70,21 @@ export function useTableKeyboardNav({
   handlersRef.current = { onPasteCells, onCutCells, onUndo, onRedo }
 
   useEffect(() => {
-    if (!isEditMode) {
+    const clearCellSelection = () => {
+      selectionAnchor.current = null
+      isSelectingCells.current = false
       selectedCellKeysRef.current = new Set()
-      setSelectedCellKeys(new Set())
-      return
+      setSelectedCellKeys(current => current.size === 0 ? current : new Set())
+    }
+    window.addEventListener(MASTER_DATA_CLEAR_CELL_FOCUS_EVENT, clearCellSelection)
+
+    if (!isEditMode) {
+      clearCellSelection()
+      return () => window.removeEventListener(MASTER_DATA_CLEAR_CELL_FOCUS_EVENT, clearCellSelection)
     }
 
     const table = tableRef.current
-    if (!table) return
+    if (!table) return () => window.removeEventListener(MASTER_DATA_CLEAR_CELL_FOCUS_EVENT, clearCellSelection)
 
     const setRange = (anchorKey: string, targetKey: string) => {
       const matrix = getGridMatrix(table)
@@ -146,15 +154,6 @@ export function useTableKeyboardNav({
       if (isCommand && event.key.toLowerCase() === 'y') {
         event.preventDefault()
         handlersRef.current.onRedo?.()
-        return
-      }
-
-      if (event.key === 'Escape') {
-        target?.blur()
-        selectionAnchor.current = null
-        isSelectingCells.current = false
-        selectedCellKeysRef.current = new Set()
-        setSelectedCellKeys(new Set())
         return
       }
 
@@ -308,6 +307,7 @@ export function useTableKeyboardNav({
       table.removeEventListener('paste', handlePaste)
       table.removeEventListener('cut', handleCut)
       window.removeEventListener('mouseup', handleMouseUp)
+      window.removeEventListener(MASTER_DATA_CLEAR_CELL_FOCUS_EVENT, clearCellSelection)
     }
   }, [isEditMode, tableRef])
 

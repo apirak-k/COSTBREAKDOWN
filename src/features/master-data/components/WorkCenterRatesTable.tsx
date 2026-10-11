@@ -12,7 +12,7 @@ import { MasterDataTableHeader } from './MasterDataTableChrome'
 import { MasterDataBlockerMarker } from './MasterDataBlockerMarker'
 import { Tooltip } from '../../../shared/ui/Tooltip'
 import { NumericInput } from '../../../shared/ui/NumericInput'
-import { masterDataDisplaySlotClass, masterDataNumericDisplaySlotClass, masterDataNumericEditorClass, masterDataTextEditorClass, masterDataWarningEditorFillClass } from './master-data-field-styles'
+import { masterDataDisplaySlotClass, masterDataIssueDisplayClass, masterDataIssueEditorClass, masterDataNumericDisplaySlotClass, masterDataNumericEditorClass, masterDataTextEditorClass } from './master-data-field-styles'
 
 interface WorkCenterRatesTableProps {
   rates: SnapshotWorkCenterRate[]
@@ -228,14 +228,14 @@ export const WorkCenterRatesTable: React.FC<WorkCenterRatesTableProps> = ({
       <div className="overflow-x-auto">
         <table ref={tableRef} className="w-full min-w-[56rem] table-fixed border-collapse text-left text-xs">
           <colgroup>
-            <col className="w-12" /><col /><col className="w-28" />
-            <col className="w-28" /><col className="w-56" /><col className="w-20" />
+            <col className="w-[5.5%]" /><col className="w-[24%]" /><col className="w-[18.5%]" />
+            <col className="w-[18.5%]" /><col className="w-[24%]" /><col className="w-[9.5%]" />
           </colgroup>
           <thead className="sticky top-0 z-30 border-y-2 border-slate-400 bg-slate-100 text-[11px] font-semibold uppercase tracking-wide text-slate-800">
             <tr>
               <th scope="col" className="sticky left-0 z-40 w-12 bg-slate-100 p-0 text-center">
                 <Tooltip label={allVisibleSelected ? 'Clear visible selection' : 'Select all visible rows'} wrapperClassName="relative flex h-9 w-full items-center justify-center">
-                  <button type="button" onClick={() => toggleAll(!allVisibleSelected)} disabled={filteredRates.length === 0} aria-pressed={allVisibleSelected} aria-label={allVisibleSelected ? 'Clear visible selection for Work Centers rows' : 'Select all visible Work Centers rows'} className={`grid h-7 w-7 place-items-center rounded-sm text-[11px] focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-700 ${allVisibleSelected ? 'bg-blue-100 text-blue-900' : 'text-slate-700 hover:bg-slate-200'} disabled:cursor-default disabled:text-slate-400 disabled:hover:bg-transparent`}>#</button>
+                  <button type="button" onClick={() => toggleAll(!allVisibleSelected)} disabled={filteredRates.length === 0} aria-pressed={allVisibleSelected} aria-label={allVisibleSelected ? 'Clear visible selection for Work Centers rows' : 'Select all visible Work Centers rows'} className={`grid h-7 w-7 place-items-center rounded-sm text-[11px] focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-700 ${allVisibleSelected ? 'border border-slate-300 bg-slate-100 text-slate-700' : 'text-slate-700 hover:bg-slate-200'} disabled:cursor-default disabled:text-slate-400 disabled:hover:bg-transparent`}>#</button>
                 </Tooltip>
               </th>
               <th scope="col" className="px-2 py-2 text-left">Work Center</th>
@@ -260,7 +260,7 @@ export const WorkCenterRatesTable: React.FC<WorkCenterRatesTableProps> = ({
               const deleteTooltip = !isEditMode ? 'Switch to Edit to delete rows' : deleteSelectedGroup ? 'Delete selected rows' : 'Delete row'
               const reorderSelectedGroup = isSelected && selectedIds.size > 1
               const reorderTooltip = !isEditMode ? 'Reordering is available in Edit' : reorderSelectedGroup ? 'Drag selected rows to reorder' : 'Drag to reorder'
-              const numericClass = (invalid: boolean, missing: boolean) => `${masterDataNumericEditorClass} ${showWarningHighlights && (invalid || missing) ? 'border-amber-300' : ''} ${showWarningHighlights && (invalid || missing) ? masterDataWarningEditorFillClass : ''}`
+              const numericClass = (invalid: boolean) => `${masterDataNumericEditorClass} ${showWarningHighlights && invalid ? masterDataIssueEditorClass : ''}`
 
               return (
                 <tr
@@ -307,12 +307,12 @@ export const WorkCenterRatesTable: React.FC<WorkCenterRatesTableProps> = ({
                           data-grid-field="workCenterCode"
                           aria-label={`WC for row ${rowNumber}`}
                           aria-invalid={identityInvalid}
-                          className={`block w-full max-w-40 text-left ${masterDataTextEditorClass} ${identityWarning && showWarningHighlights ? 'border-amber-300' : ''} ${identityWarning && showWarningHighlights ? masterDataWarningEditorFillClass : ''} ${selectedCellKeys.has(tableCellKey(rate.id, 'workCenterCode')) ? 'ring-2 ring-blue-500 ring-inset' : ''}`}
+                          className={`block w-full text-left ${masterDataTextEditorClass} ${identityWarning && showWarningHighlights ? masterDataIssueEditorClass : ''} ${selectedCellKeys.has(tableCellKey(rate.id, 'workCenterCode')) ? 'ring-2 ring-blue-500 ring-inset' : ''}`}
                         />
                       </div>
                     ) : (
                       <div className="flex min-h-8 items-center justify-start">
-                        <span className={`inline-flex max-w-full items-center truncate rounded-sm border px-1.5 py-0.5 text-[11px] font-mono font-medium ${identityWarning && showWarningHighlights ? 'border-amber-300 bg-amber-50 text-slate-700' : 'border-slate-200 bg-slate-50 text-slate-700'}`}>
+                        <span className={`inline-flex w-full min-w-0 items-center truncate rounded-sm border px-1.5 py-0.5 text-[11px] font-mono font-medium ${identityWarning && showWarningHighlights ? `${masterDataIssueDisplayClass} text-slate-700` : 'border-slate-200 bg-slate-50 text-slate-700'}`}>
                           {rate.workCenterCode || <span>{placeholderNumber ?? '—'}</span>}
                         </span>
                       </div>
@@ -331,11 +331,11 @@ export const WorkCenterRatesTable: React.FC<WorkCenterRatesTableProps> = ({
                           data-grid-field="laborRate"
                           aria-label={`Labor Rate for ${rate.workCenterCode || `Work Center row ${rowNumber}`}`}
                           aria-invalid={laborInvalid}
-                          className={`${numericClass(laborInvalid, laborMissing)} ${selectedCellKeys.has(tableCellKey(rate.id, 'laborRate')) ? 'ring-2 ring-blue-500 ring-inset' : ''}`}
+                          className={`${numericClass(laborInvalid)} ${selectedCellKeys.has(tableCellKey(rate.id, 'laborRate')) ? 'ring-2 ring-blue-500 ring-inset' : ''}`}
                         />
                         {laborMissing && <MasterDataBlockerMarker />}
                       </div>
-                    ) : <span className={`${masterDataNumericDisplaySlotClass} mx-auto w-full max-w-24 ${laborInvalid && showWarningHighlights ? 'border-amber-300 bg-amber-50 text-amber-900' : ''}`}>{rate.laborRate === null ? '—' : formatNumber(rate.laborRate, 2)}{laborMissing && <MasterDataBlockerMarker />}</span>}
+                    ) : <span className={`${masterDataNumericDisplaySlotClass} mx-auto w-full max-w-24 ${laborInvalid && showWarningHighlights ? masterDataIssueDisplayClass : ''}`}>{rate.laborRate === null ? '—' : formatNumber(rate.laborRate, 2)}{laborMissing && <MasterDataBlockerMarker />}</span>}
                   </td>
                   <td className="relative px-2 py-0.5 text-center font-mono tabular-nums">
                     {isEditMode ? (
@@ -350,11 +350,11 @@ export const WorkCenterRatesTable: React.FC<WorkCenterRatesTableProps> = ({
                           data-grid-field="burdenRate"
                           aria-label={`Burden Rate for ${rate.workCenterCode || `Work Center row ${rowNumber}`}`}
                           aria-invalid={burdenInvalid}
-                          className={`${numericClass(burdenInvalid, burdenMissing)} ${selectedCellKeys.has(tableCellKey(rate.id, 'burdenRate')) ? 'ring-2 ring-blue-500 ring-inset' : ''}`}
+                          className={`${numericClass(burdenInvalid)} ${selectedCellKeys.has(tableCellKey(rate.id, 'burdenRate')) ? 'ring-2 ring-blue-500 ring-inset' : ''}`}
                         />
                         {burdenMissing && <MasterDataBlockerMarker />}
                       </div>
-                    ) : <span className={`${masterDataNumericDisplaySlotClass} mx-auto w-full max-w-24 ${burdenInvalid && showWarningHighlights ? 'border-amber-300 bg-amber-50 text-amber-900' : ''}`}>{rate.burdenRate === null ? '—' : formatNumber(rate.burdenRate, 2)}{burdenMissing && <MasterDataBlockerMarker />}</span>}
+                    ) : <span className={`${masterDataNumericDisplaySlotClass} mx-auto w-full max-w-24 ${burdenInvalid && showWarningHighlights ? masterDataIssueDisplayClass : ''}`}>{rate.burdenRate === null ? '—' : formatNumber(rate.burdenRate, 2)}{burdenMissing && <MasterDataBlockerMarker />}</span>}
                   </td>
                   <td className="px-2 py-0.5 font-sans text-slate-600">
                     {isEditMode ? (

@@ -515,3 +515,33 @@ The cross-page numeric contract is specified in [`CROSS_CUTTING.md`](CROSS_CUTTI
 - [x] Existing domain boundaries remain field-specific: nonnegative Master Data values, positive Capacity/Yield, Yield at most 100%, zero permitted where already valid, and bounded whole-number sizing counts.
 - [x] The numeric rules, formatter, Master Data input filter, and Simulation input guard have targeted automated coverage.
 - [x] Browser review verifies live typing, blanking, focused spinners, focused/unfocused wheel behavior, and Poka-Yoke for Capacity/Yield.
+
+### Follow-up Table Geometry and Dismiss Interaction — 2026-10-11
+
+This correction keeps the current table model and domain behavior. Explicit proportional column widths are shared by each table's header, View value, and Edit control. Identity columns remain bounded; Notes remain medium; numeric columns remain compact. Work Center identity and Routing Work Center controls use compatible widths. Loss and Yield own a stable field shell for the value, `%`, Blocker marker space, and spinner.
+
+Issue styling belongs to the actual field. Warning/Blocker highlight ON uses a pale amber fill and 1px amber border that survives hover. Focus adds a local blue ring/border while retaining the amber fill and Blocker star. Highlight OFF removes both amber cues while the Blocker star stays visible. Row selection remains a separate subtle row tint and strong blue row-number control; the all-visible-selected header `#` uses a compact neutral slate state.
+
+Clear's trigger and `Clear all datasets` menu item use a pale rose background and rose foreground on hover only. Idle styling, ordinary tooltip colors, and the blue keyboard focus ring stay unchanged.
+
+Safe empty-workspace/gutter clicks blur an active editor, clear only temporary spreadsheet cell focus/range, and dismiss transient menus/popovers. Escape closes only the topmost transient layer; with no layer open it blurs a focused field/cell and clears temporary spreadsheet focus/range. These actions do not change row selection, committed data, dataset/table selection, Search, or Saved/Working state and never invoke Undo. Existing dialogs retain their own Escape behavior.
+
+#### Implementation checklist
+
+- [x] BOM, Work Centers, and Routing use coherent bounded column/editor proportions.
+- [x] Work Center identity and Routing Work Center selector have compatible usable widths.
+- [x] Loss and Yield suffix/marker/spinner stay inside a stable field shell in View, Edit, hover, focus, and issue states.
+- [x] Amber issue borders survive hover; focus stays blue while amber fill and Blocker star remain.
+- [x] The all-visible-selected `#` control is neutral slate and weaker than row-number selection.
+- [x] Clear alone receives rose hover styling on both the trigger and all-dataset action.
+- [x] Safe blank-workspace clicks dismiss transient UI and temporary spreadsheet focus without clearing persistent state.
+- [x] Escape closes only the topmost transient layer, then falls back to blurring a field and clearing temporary cell focus/range.
+- [x] Generated effective identities remain present in Export and round-trip coverage.
+
+#### Verification checklist
+
+- [x] Targeted geometry, issue-state, Clear hover, and dismiss verifiers pass.
+- [x] Required regression verifiers and `npm run build` pass; `git diff --check` passes.
+- [x] Browser checks cover 1280px desktop table states, 1024/1920px, and 375/320px horizontal scrolling.
+- [x] Numeric active-place stepping, spinner, caret, wheel, and percentage/blocker coexistence are checked in the browser.
+- [ ] Clear all-datasets menu-item hover still needs direct visual inspection; its rose hover styling is present and checked by the verifier.

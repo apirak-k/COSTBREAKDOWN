@@ -17,6 +17,12 @@ import {
 import { MasterDataPrepareDatasetPopover } from '../../features/master-data/components/MasterDataPrepareDatasetPopover'
 import { getDatasetSaveState } from '../../core/utils/master-data-effective'
 import type { MasterDataQualityItem } from '../../features/master-data/prepare-dataset'
+import {
+  clearTemporarySpreadsheetCellFocus,
+  dismissTopmostTransientInteraction,
+  dismissTransientInteractions,
+  isSafeWorkspaceDismissTarget
+} from '../ui/transient-interactions'
 
 const masterDataRoles = ['reference', 'current', 'custom'] as const
 
@@ -147,6 +153,43 @@ export const AppLayout: React.FC<AppLayoutProps> = ({ children, onNavigatePrepar
     loadDevelopmentMockData,
     setMasterDataRole
   } = useAppStore()
+
+  useEffect(() => {
+    const handleEscape = (event: KeyboardEvent) => {
+      if (event.key !== 'Escape') return
+      if (dismissTopmostTransientInteraction('escape')) {
+        event.preventDefault()
+        event.stopImmediatePropagation()
+        return
+      }
+      if (document.querySelector('[role="dialog"][aria-modal="true"]')) return
+
+      const activeElement = document.activeElement
+      const isFocusedField = activeElement instanceof HTMLElement
+        && activeElement.matches('input,select,textarea,[contenteditable="true"],[data-grid-cell="true"]')
+      if (isFocusedField) {
+        event.preventDefault()
+        event.stopImmediatePropagation()
+        activeElement.blur()
+      }
+      clearTemporarySpreadsheetCellFocus()
+    }
+
+    document.addEventListener('keydown', handleEscape, true)
+    return () => document.removeEventListener('keydown', handleEscape, true)
+  }, [])
+
+  const handleWorkspacePointerDown = useCallback((event: React.PointerEvent<HTMLElement>) => {
+    if (!isSafeWorkspaceDismissTarget(event.target)) return
+    dismissTransientInteractions('workspace')
+    const activeElement = document.activeElement
+    if (activeElement instanceof HTMLElement
+      && activeElement.matches('input,select,textarea,[contenteditable="true"],[data-grid-cell="true"]')) {
+      activeElement.blur()
+    }
+    clearTemporarySpreadsheetCellFocus()
+  }, [])
+
   const warningItems = buildMasterDataWarningItems(masterDataSnapshots)
   const blockerItems = buildMasterDataBlockerItems(masterDataSnapshots)
   const warningCount = warningItems.length
@@ -261,6 +304,7 @@ export const AppLayout: React.FC<AppLayoutProps> = ({ children, onNavigatePrepar
       <main
         id="main-content"
         tabIndex={-1}
+        onPointerDownCapture={handleWorkspacePointerDown}
         className={`min-h-0 min-w-0 flex-1 overflow-y-auto ${activeTab === 'master' ? 'pt-0 pb-3 [scrollbar-gutter:stable]' : 'py-3'}`}
       >
         <div className="app-workspace-frame">{children}</div>

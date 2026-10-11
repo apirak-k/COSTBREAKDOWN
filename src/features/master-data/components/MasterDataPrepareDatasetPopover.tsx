@@ -4,6 +4,7 @@ import { AlertTriangle, ChevronDown, ChevronRight, CircleX, X } from 'lucide-rea
 import type { MasterDataRole } from '../../../core'
 import type { MasterDataHandoffStatus } from '../../../core/calculations/master-data-handoff'
 import type { MasterDataSaveState } from '../../../core/utils/master-data-effective'
+import { useTransientInteraction } from '../../../shared/ui/transient-interactions'
 import {
   areMasterDataDatasetsReady,
   countMasterDataWarningsByRole,
@@ -79,6 +80,11 @@ export const MasterDataPrepareDatasetPopover: React.FC<MasterDataPrepareDatasetP
   const filterLabel = datasetRoleFilter ? roleLabels[datasetRoleFilter] : 'All'
   const datasetsReady = areMasterDataDatasetsReady(handoff, blockerItems)
   const preparePortalRoot = typeof document === 'undefined' ? null : document.getElementById('header-prepare-dataset-portal-root')
+
+  useTransientInteraction(isOpen, reason => {
+    onClose()
+    if (reason === 'escape') document.getElementById('header-prepare-dataset-trigger')?.focus()
+  })
 
   const updateHorizontalOffset = useCallback(() => {
     const rect = panelRef.current?.getBoundingClientRect()
@@ -156,17 +162,9 @@ export const MasterDataPrepareDatasetPopover: React.FC<MasterDataPrepareDatasetP
         || document.getElementById('footer-warning-action')?.contains(target)) return
       onClose()
     }
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key !== 'Escape') return
-      event.preventDefault()
-      onClose()
-      document.getElementById('header-prepare-dataset-trigger')?.focus()
-    }
     document.addEventListener('pointerdown', handlePointerDown)
-    document.addEventListener('keydown', handleKeyDown)
     return () => {
       document.removeEventListener('pointerdown', handlePointerDown)
-      document.removeEventListener('keydown', handleKeyDown)
     }
   }, [isOpen, onClose])
 

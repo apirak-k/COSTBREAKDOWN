@@ -19,6 +19,7 @@ import { NumericInput } from '../../../shared/ui/NumericInput'
 import { masterDataTextEditorClass } from './master-data-field-styles'
 import { downloadBlob } from '../../../services/excel/export'
 import { hasEnteredMasterData } from '../../../state/dataset-sizing'
+import { useTransientInteraction } from '../../../shared/ui/transient-interactions'
 
 interface MasterDataWorkspaceHeaderProps {
   product: ProductMaster
@@ -103,6 +104,7 @@ interface CurrentAndAllActionProps {
   onAll: () => void
   currentDisabled?: boolean
   allDisabled?: boolean
+  destructive?: boolean
   children: React.ReactNode
 }
 
@@ -112,6 +114,7 @@ const CurrentAndAllAction: React.FC<CurrentAndAllActionProps> = ({
   onAll,
   currentDisabled = false,
   allDisabled = false,
+  destructive = false,
   children
 }) => {
   const [open, setOpen] = useState(false)
@@ -139,22 +142,17 @@ const CurrentAndAllAction: React.FC<CurrentAndAllActionProps> = ({
     if (restoreFocus) triggerRef.current?.focus()
   }
 
+  useTransientInteraction(open, reason => closeMenu(reason === 'escape'))
+
   useEffect(() => () => clearHoverTimer(), [])
   useEffect(() => {
     if (!open) return
     const handlePointerDown = (event: PointerEvent) => {
       if (!wrapperRef.current?.contains(event.target as Node)) setOpen(false)
     }
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key !== 'Escape') return
-      event.preventDefault()
-      closeMenu(true)
-    }
     document.addEventListener('pointerdown', handlePointerDown)
-    document.addEventListener('keydown', handleKeyDown)
     return () => {
       document.removeEventListener('pointerdown', handlePointerDown)
-      document.removeEventListener('keydown', handleKeyDown)
     }
   }, [open])
 
@@ -197,7 +195,7 @@ const CurrentAndAllAction: React.FC<CurrentAndAllActionProps> = ({
               openMenu(true)
             }
           }}
-          className={`${toolbarButton} ${currentDisabled ? 'opacity-40 hover:bg-transparent hover:text-slate-700' : ''}`}
+          className={`${toolbarButton} ${destructive && !currentDisabled ? 'hover:!bg-rose-50 hover:!text-rose-700' : ''} ${currentDisabled ? 'opacity-40 hover:bg-transparent hover:text-slate-700' : ''}`}
         >
           {children}
         </button>
@@ -221,7 +219,7 @@ const CurrentAndAllAction: React.FC<CurrentAndAllActionProps> = ({
             closeMenu()
             onAll()
           }}
-          className="block min-h-8 w-full whitespace-nowrap px-2 text-left text-xs text-slate-800 hover:bg-slate-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-700 disabled:cursor-default disabled:opacity-40 disabled:hover:bg-white"
+          className={`block min-h-8 w-full whitespace-nowrap px-2 text-left text-xs text-slate-800 ${destructive ? 'hover:bg-rose-50 hover:text-rose-700' : 'hover:bg-slate-100'} focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-700 disabled:cursor-default disabled:opacity-40 disabled:hover:bg-white`}
         >
           {label} all datasets
         </button>
@@ -280,6 +278,8 @@ export const MasterDataWorkspaceHeader: React.FC<MasterDataWorkspaceHeaderProps>
     if (restoreFocus) cloneTriggerRef.current?.focus()
   }
 
+  useTransientInteraction(cloneMenuOpen, reason => closeCloneMenu(reason === 'escape'))
+
   useEffect(() => {
     closeCloneMenu()
   }, [role])
@@ -289,16 +289,9 @@ export const MasterDataWorkspaceHeader: React.FC<MasterDataWorkspaceHeaderProps>
     const handlePointerDown = (event: PointerEvent) => {
       if (!cloneContainerRef.current?.contains(event.target as Node)) closeCloneMenu()
     }
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key !== 'Escape') return
-      event.preventDefault()
-      closeCloneMenu(true)
-    }
     document.addEventListener('pointerdown', handlePointerDown)
-    document.addEventListener('keydown', handleKeyDown)
     return () => {
       document.removeEventListener('pointerdown', handlePointerDown)
-      document.removeEventListener('keydown', handleKeyDown)
     }
   }, [cloneMenuOpen])
 
@@ -489,6 +482,7 @@ export const MasterDataWorkspaceHeader: React.FC<MasterDataWorkspaceHeaderProps>
             label="Clear"
             onCurrent={onClearDataset}
             onAll={onClearAllDatasets}
+            destructive
           >
             <Trash2 className="h-4 w-4" aria-hidden="true" />
           </CurrentAndAllAction>
