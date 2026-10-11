@@ -61,6 +61,7 @@ export const MasterDataPrepareDatasetPopover: React.FC<MasterDataPrepareDatasetP
   const [expandedBlockerCategories, setExpandedBlockerCategories] = useState<Set<string>>(() => new Set())
   const [datasetRoleFilter, setDatasetRoleFilter] = useState<MasterDataRole | null>(null)
   const [maxHeight, setMaxHeight] = useState<number | null>(null)
+  const [maxVisibleDetailRows, setMaxVisibleDetailRows] = useState(3)
   const panelRef = useRef<HTMLDivElement>(null)
   const [horizontalOffset, setHorizontalOffset] = useState(0)
   const horizontalOffsetRef = useRef(0)
@@ -111,17 +112,40 @@ export const MasterDataPrepareDatasetPopover: React.FC<MasterDataPrepareDatasetP
       setHorizontalOffset(0)
       return
     }
-    const main = document.querySelector('main')
     const updatePanelBounds = () => {
       const triggerBottom = document.getElementById('header-prepare-dataset-trigger')?.getBoundingClientRect().bottom
-      const mainBottom = main?.getBoundingClientRect().bottom
-      if (triggerBottom != null && mainBottom != null) setMaxHeight(Math.max(0, Math.min(608, Math.floor(mainBottom - triggerBottom - 8))))
+      if (triggerBottom != null) setMaxHeight(Math.max(0, Math.min(608, Math.floor(window.innerHeight - triggerBottom - 8))))
       updateHorizontalOffset()
     }
     updatePanelBounds()
+    const layoutFrame = window.requestAnimationFrame(updatePanelBounds)
     window.addEventListener('resize', updatePanelBounds)
-    return () => window.removeEventListener('resize', updatePanelBounds)
+    return () => {
+      window.cancelAnimationFrame(layoutFrame)
+      window.removeEventListener('resize', updatePanelBounds)
+    }
   }, [isOpen, updateHorizontalOffset])
+
+  useSafeLayoutEffect(() => {
+    if (!isOpen) {
+      setMaxVisibleDetailRows(3)
+      return
+    }
+    const panel = panelRef.current
+    if (!panel) return
+    const detailLists = [...panel.querySelectorAll<HTMLElement>('ul[aria-label$="locations"]')]
+    if (detailLists.length === 0) {
+      setMaxVisibleDetailRows(current => current === 3 ? current : 3)
+      return
+    }
+    const visibleDetailHeight = detailLists.reduce((total, list) => total + list.clientHeight, 0)
+    const fixedContentHeight = Math.max(0, panel.scrollHeight - visibleDetailHeight)
+    const triggerBottom = document.getElementById('header-prepare-dataset-trigger')?.getBoundingClientRect().bottom ?? 0
+    const availableHeight = maxHeight ?? Math.min(608, Math.floor(window.innerHeight - triggerBottom - 8))
+    const rowsPerList = Math.floor(Math.max(0, availableHeight - fixedContentHeight) / (detailLists.length * 28))
+    const nextMaxVisibleRows = Math.max(1, Math.min(3, rowsPerList))
+    setMaxVisibleDetailRows(current => current === nextMaxVisibleRows ? current : nextMaxVisibleRows)
+  }, [blockerGroups, expandedBlockerCategories, expandedWarningCategories, isOpen, maxHeight, warningGroups])
 
   useEffect(() => {
     if (!isOpen) return
@@ -190,7 +214,7 @@ export const MasterDataPrepareDatasetPopover: React.FC<MasterDataPrepareDatasetP
                     <ul
                       aria-label={`${group.label} locations`}
                       tabIndex={0}
-                      style={{ maxHeight: `${Math.min(group.items.length, 3) * 28}px` }}
+                      style={{ maxHeight: `${Math.min(group.items.length, maxVisibleDetailRows) * 28}px` }}
                       className="mb-1 ml-8 min-h-0 overflow-y-auto overscroll-contain border-l border-slate-200 pl-2 focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-700"
                     >
                       {group.items.map(item => (
@@ -225,7 +249,7 @@ export const MasterDataPrepareDatasetPopover: React.FC<MasterDataPrepareDatasetP
       aria-label="Prepare Dataset status and warnings"
       onPointerEnter={onPanelPointerEnter}
       onPointerLeave={onPanelPointerLeave}
-      style={{ marginLeft: `${horizontalOffset}px`, ...(maxHeight === null ? {} : { maxHeight: `${maxHeight}px` }) }}
+      style={{ transform: `translateX(${horizontalOffset}px)`, ...(maxHeight === null ? {} : { maxHeight: `${maxHeight}px` }) }}
       className="relative flex max-h-[min(38rem,calc(100dvh-6rem))] w-[min(19rem,calc(100vw-2rem))] min-h-0 select-text flex-col gap-0.5 overflow-hidden border border-slate-300 bg-white p-2 text-sm text-slate-800 shadow-lg"
     >
       <div className="flex min-h-8 shrink-0 items-center gap-1 border-b border-slate-200 pb-0.5 min-[360px]:gap-2 sm:gap-2.5">
@@ -288,7 +312,7 @@ export const MasterDataPrepareDatasetPopover: React.FC<MasterDataPrepareDatasetP
         })}
       </div>
 
-      <div className="flex min-h-0 flex-1 flex-col gap-1 overflow-y-auto overscroll-contain">
+      <div className="flex min-h-0 flex-col gap-1">
         {renderIssueSection('warning')}
         {renderIssueSection('blocker')}
       </div>

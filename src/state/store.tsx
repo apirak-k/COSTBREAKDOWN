@@ -49,6 +49,7 @@ import {
 } from './master-data-datasets'
 import { markMasterDataChanged, markMasterDataChangedForSnapshotPair } from './master-data-revision'
 import { normalizeMasterDataSnapshot } from '../core/utils/master-data-effective'
+import { propagateWorkCenterRenames } from './master-data-work-center-rename'
 import { replaceDevelopmentMockWorkingState } from './development-mock-data'
 import {
   filterInvalidMasterDataNumericChanges,
@@ -330,7 +331,10 @@ interface AppContextType {
   deleteMasterDataRoutingSteps: (ids: string[]) => void
   reorderMasterDataRoutingSteps: (movingId: string, targetId: string, position: 'before' | 'after', movingIds?: string[]) => void
   addMasterDataWorkCenterRate: (rate: Omit<SnapshotWorkCenterRate, 'id' | 'confidence'>) => void
-  updateMasterDataWorkCenterRates: (updates: Array<{ id: string; changes: Partial<Omit<SnapshotWorkCenterRate, 'id' | 'confidence'>> }>) => void
+  updateMasterDataWorkCenterRates: (
+    updates: Array<{ id: string; changes: Partial<Omit<SnapshotWorkCenterRate, 'id' | 'confidence'>> }>,
+    options?: { routingRowIdsByRateId?: Record<string, string[]> }
+  ) => void
   updateMasterDataWorkCenterRate: (id: string, rate: Partial<Omit<SnapshotWorkCenterRate, 'id' | 'confidence'>>) => void
   deleteMasterDataWorkCenterRate: (id: string) => void
   deleteMasterDataWorkCenterRates: (ids: string[]) => void
@@ -1014,7 +1018,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
   const updateMasterDataDataset = (
     mutate: (snapshot: CostSnapshot) => CostSnapshot,
-    sizingField?: keyof DatasetSizing
+    sizingField?: keyof DatasetSizing,
+    finalize?: (previous: CostSnapshot, normalizedNext: CostSnapshot) => CostSnapshot
   ) => {
     const session = activeSession
     const role = masterDataUiState.role
@@ -1022,6 +1027,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const readiness = getSnapshotRoleReadiness(session)
     const currentDataset = getMasterDataSnapshot(session, pair, role)
     let nextDataset = normalizeMasterDataSnapshot(mutate(currentDataset), currentDataset)
+    if (finalize) nextDataset = finalize(currentDataset, nextDataset)
     if (!isMasterDataSnapshotChangeValid(currentDataset, nextDataset)) return
     if (role === 'custom' && nextDataset.comparisonRole) {
       const { comparisonRole: _comparisonRole, ...customDataset } = nextDataset
@@ -1360,7 +1366,10 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     }, 'wcCount')
   }
 
-  const updateMasterDataWorkCenterRates = (updates: Array<{ id: string; changes: Partial<Omit<SnapshotWorkCenterRate, 'id' | 'confidence'>> }>) => {
+  const updateMasterDataWorkCenterRates = (
+    updates: Array<{ id: string; changes: Partial<Omit<SnapshotWorkCenterRate, 'id' | 'confidence'>> }>,
+    options?: { routingRowIdsByRateId?: Record<string, string[]> }
+  ) => {
     const changesById = new Map<string, Partial<Omit<SnapshotWorkCenterRate, 'id' | 'confidence'>>>()
     updates.forEach(({ id, changes }) => changesById.set(id, {
       ...changesById.get(id),
@@ -1382,7 +1391,12 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         const updated = { ...next, sourceRef, confidence }
         return changes.isGeneratedSizingPlaceholder === true ? updated : markSizingPlaceholderEdited(updated)
       })
-    }))
+    }), undefined, (previous, normalizedNext) => {
+      const routingRowIdsByRateId = options?.routingRowIdsByRateId
+        ? new Map(Object.entries(options.routingRowIdsByRateId).map(([id, rowIds]) => [id, new Set(rowIds)]))
+        : undefined
+      return propagateWorkCenterRenames(previous, normalizedNext, updates, routingRowIdsByRateId)
+    })
   }
 
   const updateMasterDataWorkCenterRate = (id: string, changes: Partial<Omit<SnapshotWorkCenterRate, 'id' | 'confidence'>>) => {

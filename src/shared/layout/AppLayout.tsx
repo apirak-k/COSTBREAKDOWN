@@ -286,8 +286,8 @@ export const AppLayout: React.FC<AppLayoutProps> = ({ children, onNavigatePrepar
                   {datasetReadiness.map(({ label, blockerCount }) => (
                     <React.Fragment key={`${label}-blockers`}>
                       <span>{label}</span>
-                      <span className="inline-flex items-center justify-end gap-1 font-mono tabular-nums text-rose-700">
-                        <CircleX className="h-3 w-3" aria-hidden="true" /> {blockerCount}
+                      <span className={`inline-flex items-center justify-end gap-1 font-mono tabular-nums ${blockerCount > 0 ? 'text-rose-700' : 'text-slate-500'}`}>
+                        <CircleX className={`h-3 w-3 ${blockerCount > 0 ? 'text-rose-700' : 'text-slate-400'}`} aria-hidden="true" /> {blockerCount}
                       </span>
                     </React.Fragment>
                   ))}

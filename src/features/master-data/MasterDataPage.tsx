@@ -138,6 +138,7 @@ export const MasterDataPage: React.FC<MasterDataPageProps> = ({
       return (
         <WorkCenterRatesTable
           rates={masterDataSnapshot.rates}
+          routing={masterDataSnapshot.routing}
           isEditMode={isEditMode}
           historyScope={masterDataRole}
           searchQuery={searchQuery}

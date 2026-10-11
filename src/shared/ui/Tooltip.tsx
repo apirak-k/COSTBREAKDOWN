@@ -1,19 +1,22 @@
 import React, { cloneElement, useCallback, useEffect, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 
 interface TooltipProps {
   label: string
   children: React.ReactElement<{ 'aria-describedby'?: string }>
+  wrapperClassName?: string
 }
 
-export const Tooltip: React.FC<TooltipProps> = ({ label, children }) => {
+export const Tooltip: React.FC<TooltipProps> = ({ label, children, wrapperClassName = 'relative inline-flex' }) => {
   const wrapperRef = useRef<HTMLSpanElement>(null)
+  const tooltipRef = useRef<HTMLSpanElement>(null)
   const [visible, setVisible] = useState(false)
   const [position, setPosition] = useState<{ left: number; top: number } | null>(null)
   const tooltipId = React.useId()
 
   const positionTooltip = useCallback(() => {
     const wrapper = wrapperRef.current
-    const tooltip = wrapper?.querySelector<HTMLElement>('[role="tooltip"]')
+    const tooltip = tooltipRef.current
     if (!wrapper || !tooltip) return
     const previousDisplay = tooltip.style.display
     const previousVisibility = tooltip.style.visibility
@@ -25,7 +28,12 @@ export const Tooltip: React.FC<TooltipProps> = ({ label, children }) => {
     tooltip.style.visibility = previousVisibility
     const width = tooltipBounds.width || Math.min(240, window.innerWidth - 16)
     const left = Math.max(8, Math.min(bounds.left + (bounds.width - width) / 2, window.innerWidth - width - 8))
-    setPosition({ left, top: Math.max(8, bounds.top - tooltipBounds.height - 5) })
+    const above = bounds.top - tooltipBounds.height - 5
+    const below = bounds.bottom + 5
+    const top = above >= 8 ? above : below + tooltipBounds.height <= window.innerHeight - 8
+      ? below
+      : Math.max(8, window.innerHeight - tooltipBounds.height - 8)
+    setPosition({ left, top })
   }, [])
 
   useEffect(() => {
@@ -43,7 +51,7 @@ export const Tooltip: React.FC<TooltipProps> = ({ label, children }) => {
   return (
     <span
       ref={wrapperRef}
-      className="relative inline-flex"
+      className={wrapperClassName}
       onPointerEnter={() => { positionTooltip(); setVisible(true) }}
       onPointerLeave={() => setVisible(false)}
       onFocusCapture={() => { positionTooltip(); setVisible(true) }}
@@ -56,14 +64,18 @@ export const Tooltip: React.FC<TooltipProps> = ({ label, children }) => {
       }}
     >
       {cloneElement(children, { 'aria-describedby': describedBy })}
-      <span
-        id={tooltipId}
-        role="tooltip"
-        style={position === null ? undefined : { left: `${position.left}px`, top: `${position.top}px` }}
-        className={`pointer-events-none fixed z-[80] ${visible ? 'block' : 'hidden'} max-w-[calc(100vw-1rem)] border border-slate-700 bg-slate-900 px-2 py-1 text-[11px] leading-4 text-white shadow-md`}
-      >
-        {label}
-      </span>
+      {typeof document !== 'undefined' && createPortal(
+        <span
+          ref={tooltipRef}
+          id={tooltipId}
+          role="tooltip"
+          style={position === null ? { left: '-10000px', top: '0px' } : { left: `${position.left}px`, top: `${position.top}px` }}
+          className={`pointer-events-none fixed z-[1000] ${visible ? 'block' : 'hidden'} max-w-[calc(100vw-1rem)] border border-slate-700 bg-slate-900 px-2 py-1 text-[11px] leading-4 text-white shadow-md`}
+        >
+          {label}
+        </span>,
+        document.body
+      )}
     </span>
   )
 }

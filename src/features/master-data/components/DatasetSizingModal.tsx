@@ -190,8 +190,8 @@ export const DatasetSizingModal: React.FC<DatasetSizingModalProps> = ({
         <div className="space-y-2 px-3 py-2">
           <section aria-label="Dataset metadata" className="space-y-2">
             <h4 className="text-xs font-semibold text-slate-700">Dataset</h4>
-            <div className="grid grid-cols-1 gap-x-3 gap-y-2 sm:grid-cols-8">
-              <div className="sm:col-span-4">
+            <div className="grid grid-cols-1 gap-x-3 gap-y-2 sm:grid-cols-3">
+              <div className="sm:col-span-3">
                 <label htmlFor="dataset-sizing-product-name" className="mb-1 block text-[11px] font-medium text-slate-700">Product Name</label>
                 <input
                   id="dataset-sizing-product-name"
@@ -201,7 +201,7 @@ export const DatasetSizingModal: React.FC<DatasetSizingModalProps> = ({
                   className="h-8 w-full min-w-0 border border-slate-300 bg-white px-2 text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-700"
                 />
               </div>
-              <div className="sm:col-span-1">
+              <div>
                 <label htmlFor="dataset-sizing-uom" className="mb-1 block text-[11px] font-medium text-slate-700">UOM</label>
                 <input
                   id="dataset-sizing-uom"
@@ -211,7 +211,7 @@ export const DatasetSizingModal: React.FC<DatasetSizingModalProps> = ({
                   className="h-8 w-full min-w-0 border border-slate-300 bg-white px-2 font-mono text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-700"
                 />
               </div>
-              <div className="sm:col-span-2">
+              <div>
                 <label htmlFor="dataset-sizing-selling-price" className="mb-1 block text-[11px] font-medium text-slate-700">Selling Price (THB)</label>
                 <input
                   id="dataset-sizing-selling-price"
@@ -222,7 +222,7 @@ export const DatasetSizingModal: React.FC<DatasetSizingModalProps> = ({
                   className="h-8 w-full min-w-0 border border-slate-300 bg-white px-2 font-mono text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-700"
                 />
               </div>
-              <div className="sm:col-span-1">
+              <div>
                 <label htmlFor="dataset-sizing-sga-percent" className="mb-1 block text-[11px] font-medium text-slate-700">SG&amp;A (%)</label>
                 <input
                   id="dataset-sizing-sga-percent"
@@ -233,7 +233,7 @@ export const DatasetSizingModal: React.FC<DatasetSizingModalProps> = ({
                   className="h-8 w-full min-w-0 border border-slate-300 bg-white px-2 font-mono text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-700"
                 />
               </div>
-              <div className="sm:col-span-8">
+              <div className="sm:col-span-3">
                 <label htmlFor="dataset-sizing-dataset-remark" className="mb-1 block text-[11px] font-medium text-slate-700">Dataset Remark</label>
                 <input
                   id="dataset-sizing-dataset-remark"
@@ -248,7 +248,7 @@ export const DatasetSizingModal: React.FC<DatasetSizingModalProps> = ({
 
           <section aria-label="Dataset row counts" className="border-t border-slate-200 pt-2">
             <h4 className="mb-1 text-xs font-semibold text-slate-700">Row counts</h4>
-            <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
               {renderRowCount('Bill of Materials', 'dataset-sizing-bom-rows', bomCount, setBomCount, DATASET_SIZING_LIMITS.bomCount)}
               {renderRowCount('Work Centers', 'dataset-sizing-work-center-rows', wcCount, setWcCount, DATASET_SIZING_LIMITS.wcCount)}
               {renderRowCount('Routing', 'dataset-sizing-routing-rows', routingCount, setRoutingCount, DATASET_SIZING_LIMITS.routingCount)}

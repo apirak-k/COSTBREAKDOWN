@@ -31,6 +31,18 @@ export function blankIdentityOrdinals<T extends { id: string }>(
   return ordinals
 }
 
+export function editableIdentityValue(value: string, isGeneratedBusinessIdentity?: boolean): string {
+  return isGeneratedBusinessIdentity ? '' : value
+}
+
+export function preferIdentityEditorDraft(draftValue: string | undefined, storedValue: string): string {
+  return draftValue === undefined ? storedValue : draftValue
+}
+
+export function editableIdentityPlaceholder(value: string, generatedFallback: string): string | undefined {
+  return value.trim() === '' ? generatedFallback : undefined
+}
+
 export function hasInvalidNumber(value: number | null | undefined): boolean {
   return value !== null && value !== undefined && (!Number.isFinite(value) || value < 0)
 }

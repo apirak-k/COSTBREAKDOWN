@@ -15,6 +15,7 @@ import { formatNumber } from '../../../core'
 import type { MasterDataRole, CostSnapshot, ProductMaster } from '../../../core'
 import type { MasterDataSaveState } from '../../../core/utils/master-data-effective'
 import { Tooltip } from '../../../shared/ui/Tooltip'
+import { masterDataTextEditorClass } from './master-data-field-styles'
 import { downloadBlob } from '../../../services/excel/export'
 import { hasEnteredMasterData } from '../../../state/dataset-sizing'
 
@@ -48,7 +49,7 @@ interface MasterDataWorkspaceHeaderProps {
 }
 
 const toolbarButton = 'grid h-8 w-8 shrink-0 place-items-center rounded-sm bg-transparent text-slate-700 transition-colors hover:bg-slate-100 hover:text-slate-950 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700 disabled:cursor-default disabled:opacity-40 disabled:hover:bg-transparent disabled:hover:text-slate-700'
-const fieldInput = 'min-h-8 w-full min-w-0 border-b border-slate-300 bg-transparent px-1 py-1 text-xs text-slate-950 focus:border-blue-700 focus:outline-none'
+const fieldInput = masterDataTextEditorClass
 const datasetSaveStateDotClass = (state: MasterDataSaveState, size = 'h-1.5 w-1.5') =>
   `${size} shrink-0 rounded-full ring-[1.5px] ring-inset ${state === 'Saved' ? 'bg-emerald-500 ring-emerald-700/70' : 'bg-slate-400 ring-slate-600/70'}`
 const useSafeLayoutEffect = typeof window === 'undefined' ? useEffect : useLayoutEffect
@@ -257,11 +258,9 @@ export const MasterDataWorkspaceHeader: React.FC<MasterDataWorkspaceHeaderProps>
   onSearchQueryChange
 }) => {
   const [cloneMenuOpen, setCloneMenuOpen] = useState(false)
-  const [cloneMenuPinned, setCloneMenuPinned] = useState(false)
   const cloneContainerRef = useRef<HTMLDivElement>(null)
   const cloneTriggerRef = useRef<HTMLButtonElement>(null)
   const cloneMenuRef = useRef<HTMLDivElement>(null)
-  const cloneHoverTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const cloneHorizontalOffset = useCenteredPopoverOffset(cloneMenuOpen, cloneMenuRef)
 
   const roleLabel = roleLabels[role]
@@ -275,15 +274,8 @@ export const MasterDataWorkspaceHeader: React.FC<MasterDataWorkspaceHeaderProps>
         ? 'Search Routing'
         : 'Search BOM'
 
-  const clearCloneHoverTimer = () => {
-    if (cloneHoverTimerRef.current) clearTimeout(cloneHoverTimerRef.current)
-    cloneHoverTimerRef.current = null
-  }
-
   const closeCloneMenu = (restoreFocus = false) => {
-    clearCloneHoverTimer()
     setCloneMenuOpen(false)
-    setCloneMenuPinned(false)
     if (restoreFocus) cloneTriggerRef.current?.focus()
   }
 
@@ -308,8 +300,6 @@ export const MasterDataWorkspaceHeader: React.FC<MasterDataWorkspaceHeaderProps>
       document.removeEventListener('keydown', handleKeyDown)
     }
   }, [cloneMenuOpen])
-
-  useEffect(() => () => clearCloneHoverTimer(), [])
 
   const handleExportDataset = async () => {
     if (!lastSavedSnapshot) return
@@ -392,30 +382,30 @@ export const MasterDataWorkspaceHeader: React.FC<MasterDataWorkspaceHeaderProps>
             if (event.target !== event.currentTarget) return
             onToggleEditMode(!isEditMode)
           }}
-          className="relative grid h-8 w-16 shrink-0 grid-cols-2 items-center border border-slate-300 bg-white p-0"
+          className="relative grid h-8 w-16 shrink-0 grid-cols-2 items-center bg-white p-0 ring-1 ring-inset ring-slate-300"
         >
           <span
             aria-hidden="true"
             className={`pointer-events-none absolute inset-y-0.5 left-0.5 w-[calc(50%-2px)] bg-slate-900 transition-transform duration-150 ease-out ${isEditMode ? 'translate-x-full' : 'translate-x-0'}`}
           />
-          <Tooltip label="View">
+          <Tooltip label="View" wrapperClassName="relative grid h-full w-full place-items-center">
             <button
               type="button"
               aria-pressed={!isEditMode}
               aria-label="View"
               onClick={() => onToggleEditMode(false)}
-              className={`relative grid h-6 w-6 place-items-center justify-self-center rounded-sm transition-colors focus-visible:z-10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-700 ${!isEditMode ? 'text-white' : 'text-slate-700 hover:bg-slate-100 hover:text-slate-950'}`}
+              className={`relative grid h-full w-full place-items-center rounded-sm transition-colors focus-visible:z-10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-700 ${!isEditMode ? 'text-white' : 'text-slate-700 hover:bg-slate-100 hover:text-slate-950'}`}
             >
               <Eye className="h-4 w-4" aria-hidden="true" />
             </button>
           </Tooltip>
-          <Tooltip label="Edit">
+          <Tooltip label="Edit" wrapperClassName="relative grid h-full w-full place-items-center">
             <button
               type="button"
               aria-pressed={isEditMode}
               aria-label="Edit"
               onClick={() => onToggleEditMode(true)}
-              className={`relative grid h-6 w-6 place-items-center justify-self-center rounded-sm transition-colors focus-visible:z-10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-700 ${isEditMode ? 'text-white' : 'text-slate-700 hover:bg-slate-100 hover:text-slate-950'}`}
+              className={`relative grid h-full w-full place-items-center rounded-sm transition-colors focus-visible:z-10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-700 ${isEditMode ? 'text-white' : 'text-slate-700 hover:bg-slate-100 hover:text-slate-950'}`}
             >
               <Pencil className="h-4 w-4" aria-hidden="true" />
             </button>
@@ -436,32 +426,12 @@ export const MasterDataWorkspaceHeader: React.FC<MasterDataWorkspaceHeaderProps>
           <div
             ref={cloneContainerRef}
             className="relative shrink-0"
-            onPointerEnter={() => {
-              clearCloneHoverTimer()
-              if (!cloneMenuPinned) setCloneMenuOpen(true)
-            }}
-            onPointerLeave={() => {
-              clearCloneHoverTimer()
-              if (!cloneMenuPinned) {
-                cloneHoverTimerRef.current = setTimeout(() => setCloneMenuOpen(false), 140)
-              }
-            }}
-            onBlurCapture={event => {
-              if (!event.currentTarget.contains(event.relatedTarget as Node | null) && !cloneMenuPinned) closeCloneMenu()
-            }}
           >
             <Tooltip label="Clone">
               <button
                 ref={cloneTriggerRef}
                 type="button"
-                onClick={() => {
-                  if (cloneMenuPinned) closeCloneMenu()
-                  else {
-                    clearCloneHoverTimer()
-                    setCloneMenuPinned(true)
-                    setCloneMenuOpen(true)
-                  }
-                }}
+                onClick={() => setCloneMenuOpen(open => !open)}
                 aria-expanded={cloneMenuOpen}
                 aria-haspopup="menu"
                 aria-controls="clone-source-menu"
@@ -580,7 +550,7 @@ export const MasterDataWorkspaceHeader: React.FC<MasterDataWorkspaceHeaderProps>
                   className={fieldInput}
                 />
               ) : (
-                <span className="inline-flex min-h-8 min-w-0 items-center truncate text-xs text-slate-950" title={product.productName || undefined}>
+                <span className="flex h-8 w-full min-w-0 items-center truncate rounded-sm border border-transparent px-2 text-xs text-slate-950" title={product.productName || undefined}>
                   {product.productName || ''}
                 </span>
               )}
@@ -600,7 +570,7 @@ export const MasterDataWorkspaceHeader: React.FC<MasterDataWorkspaceHeaderProps>
                   className={fieldInput + ' font-mono'}
                 />
               ) : (
-                <span className="inline-flex min-h-8 items-center font-mono text-xs text-slate-950">{product.uom || ''}</span>
+                <span className="flex h-8 w-full min-w-0 items-center truncate rounded-sm border border-transparent px-2 font-mono text-xs text-slate-950">{product.uom || ''}</span>
               )}
             </dd>
           </div>
@@ -618,7 +588,7 @@ export const MasterDataWorkspaceHeader: React.FC<MasterDataWorkspaceHeaderProps>
                   className={fieldInput + ' font-mono'}
                 />
               ) : (
-                <span className="inline-flex min-h-8 min-w-0 items-center truncate font-mono text-xs text-slate-950">
+                <span className="flex h-8 w-full min-w-0 items-center truncate rounded-sm border border-transparent px-2 font-mono text-xs text-slate-950">
                   {product.sellingPrice == null ? '' : `${formatNumber(product.sellingPrice)} THB`}
                 </span>
               )}
@@ -638,7 +608,7 @@ export const MasterDataWorkspaceHeader: React.FC<MasterDataWorkspaceHeaderProps>
                   className={fieldInput + ' font-mono'}
                 />
               ) : (
-                <span className="inline-flex min-h-8 min-w-0 items-center truncate font-mono text-xs text-slate-950">
+                <span className="flex h-8 w-full min-w-0 items-center truncate rounded-sm border border-transparent px-2 font-mono text-xs text-slate-950">
                   {product.sgaPercent == null ? '' : `${formatNumber(product.sgaPercent)}%`}
                 </span>
               )}
@@ -657,7 +627,7 @@ export const MasterDataWorkspaceHeader: React.FC<MasterDataWorkspaceHeaderProps>
                   className={fieldInput}
                 />
               ) : (
-                <span className="inline-flex min-h-8 min-w-0 items-center truncate text-xs text-slate-800" title={snapshot.remark || ''}>{snapshot.remark || ''}</span>
+                <span className="flex h-8 w-full min-w-0 items-center truncate rounded-sm border border-transparent px-2 text-xs text-slate-800" title={snapshot.remark || ''}>{snapshot.remark || ''}</span>
               )}
             </dd>
           </div>

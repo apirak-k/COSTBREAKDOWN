@@ -1,14 +1,16 @@
 import React, { useCallback, useEffect, useMemo, useRef } from 'react'
 import { GripVertical, Trash2 } from 'lucide-react'
-import { SnapshotBOMItem, formatNumber, formatPercent } from '../../../core'
+import { SnapshotBOMItem, formatNumber } from '../../../core'
 import { useDragSelect } from '../hooks/useDragSelect'
+import { useIdentityEditorDrafts } from '../hooks/useIdentityEditorDrafts'
 import { SpreadsheetPasteCell, tableCellKey, useTableKeyboardNav } from '../hooks/useTableKeyboardNav'
 import { RowChanges, useSpreadsheetEditing } from '../hooks/useSpreadsheetEditing'
-import { blankIdentityOrdinals, duplicateIdentityIds, hasInvalidNumber, parsePercentage } from '../table-validation'
+import { blankIdentityOrdinals, duplicateIdentityIds, editableIdentityPlaceholder, editableIdentityValue, hasInvalidNumber, parsePercentage } from '../table-validation'
 import { useWarningNavigationFocus, type WarningNavigationTarget } from '../hooks/useWarningNavigationFocus'
 import type { MasterDataBlockerItem, MasterDataWarningItem } from '../prepare-dataset'
 import { MasterDataTableHeader } from './MasterDataTableChrome'
 import { MasterDataBlockerMarker } from './MasterDataBlockerMarker'
+import { masterDataDisplaySlotClass, masterDataNumericDisplaySlotClass, masterDataNumericEditorClass, masterDataTextEditorClass, masterDataWarningEditorFillClass } from './master-data-field-styles'
 
 interface BOMTableProps {
   bom: SnapshotBOMItem[]
@@ -63,6 +65,8 @@ export const BOMTable: React.FC<BOMTableProps> = ({
   const query = searchQuery.trim().toLocaleLowerCase()
   const duplicateNameIds = useMemo(() => duplicateIdentityIds(bom, item => item.id, item => item.description), [bom])
   const placeholderNumbers = useMemo(() => blankIdentityOrdinals(bom, item => item.description), [bom])
+  const getIdentityEditorValue = useCallback((item: SnapshotBOMItem) => editableIdentityValue(item.description, item.isGeneratedBusinessIdentity), [])
+  const identityEditorDrafts = useIdentityEditorDrafts(bom, historyScope, getIdentityEditorValue)
 
   const filteredBOM = useMemo(() => bom.filter(item =>
     [item.description, item.consumption, item.unit, item.price, item.loss, item.note]
@@ -113,7 +117,8 @@ export const BOMTable: React.FC<BOMTableProps> = ({
       return changes ? [{ id: cell.rowId, changes }] : []
     })
     applyPasteUpdates(updates)
-  }, [applyPasteUpdates])
+    identityEditorDrafts.clearValues(cells.filter(cell => cell.field === 'description').map(cell => cell.rowId))
+  }, [applyPasteUpdates, identityEditorDrafts.clearValues])
 
   const handleCutCells = useCallback((cells: SpreadsheetPasteCell[]) => {
     const updates = cells.flatMap(cell => {
@@ -127,15 +132,25 @@ export const BOMTable: React.FC<BOMTableProps> = ({
       return changes ? [{ id: cell.rowId, changes }] : []
     })
     applyCutUpdates(updates)
-  }, [applyCutUpdates])
+    identityEditorDrafts.clearValues(cells.filter(cell => cell.field === 'description').map(cell => cell.rowId))
+  }, [applyCutUpdates, identityEditorDrafts.clearValues])
+
+  const handleUndo = useCallback(() => {
+    identityEditorDrafts.clearValues()
+    onUndo()
+  }, [identityEditorDrafts.clearValues, onUndo])
+  const handleRedo = useCallback(() => {
+    identityEditorDrafts.clearValues()
+    onRedo()
+  }, [identityEditorDrafts.clearValues, onRedo])
 
   const { selectedCellKeys } = useTableKeyboardNav({
     tableRef,
     isEditMode,
     onPasteCells: handlePasteCells,
     onCutCells: handleCutCells,
-    onUndo,
-    onRedo
+    onUndo: handleUndo,
+    onRedo: handleRedo
   })
 
   const handleDeleteRow = (id: string) => {
@@ -190,10 +205,10 @@ export const BOMTable: React.FC<BOMTableProps> = ({
       <MasterDataTableHeader title="Bill of Materials" rowCount={bom.length} selectedCount={selectedIds.size} warningCount={warningCount} blockerCount={blockerItems.length} isEditMode={isEditMode} onNextWarning={handleNextWarning} onNextBlocker={handleNextBlocker} onAddRow={onAddBOMItem} />
 
       <div className="overflow-x-auto">
-        <table ref={tableRef} className="w-full min-w-[860px] table-fixed border-collapse text-left text-xs">
+        <table ref={tableRef} className="w-max table-fixed border-collapse text-left text-xs">
           <colgroup>
-            <col className="w-12" /><col className="w-[200px]" /><col className="w-[120px]" /><col className="w-16" />
-            <col className="w-[120px]" /><col className="w-24" /><col /><col className="w-20" />
+            <col className="w-12" /><col className="w-[336px]" /><col className="w-24" /><col className="w-[68px]" />
+            <col className="w-[104px]" /><col className="w-[92px]" /><col className="w-[280px]" /><col className="w-[76px]" />
           </colgroup>
           <thead className="sticky top-0 z-30 border-y-2 border-slate-400 bg-slate-100 text-[11px] font-semibold uppercase tracking-wide text-slate-800">
             <tr>
@@ -222,10 +237,7 @@ export const BOMTable: React.FC<BOMTableProps> = ({
               const lossMissing = item.loss === null
               const rowNumber = bom.findIndex(row => row.id === item.id) + 1
               const placeholderNumber = placeholderNumbers.get(item.id)
-              const rowMarkerBackground = isSelected
-                ? 'bg-blue-50 group-hover:bg-blue-100'
-                : 'bg-white group-hover:bg-slate-50'
-              const numericClass = (invalid: boolean, missing: boolean) => `min-h-8 w-full min-w-0 rounded-sm border px-1.5 text-center text-xs tabular-nums focus:outline-none focus:ring-2 focus:ring-blue-700 ${invalid ? 'border-amber-600' : 'border-slate-300'} ${showWarningHighlights && (invalid || missing) ? 'bg-amber-50' : 'bg-white'}`
+              const numericClass = (invalid: boolean, missing: boolean) => `${masterDataNumericEditorClass} ${invalid ? 'border-amber-600' : ''} ${showWarningHighlights && (invalid || missing) ? masterDataWarningEditorFillClass : ''}`
 
               return (
                 <tr
@@ -236,9 +248,9 @@ export const BOMTable: React.FC<BOMTableProps> = ({
                   onMouseEnter={() => onMouseEnterRow(item.id)}
                   onDragOver={event => { if (isEditMode) event.preventDefault() }}
                   onDrop={event => { if (isEditMode) handleRowDrop(event, item.id) }}
-                  className={`group h-10 ${isSelected ? 'border-l-2 border-l-blue-700 bg-blue-50 hover:bg-blue-100' : 'hover:bg-slate-50'}`}
+                  className="group h-10"
                 >
-                  <th scope="row" className={`sticky left-0 z-20 w-12 px-1.5 py-0.5 text-center font-mono font-normal text-slate-600 ${rowMarkerBackground}`}>
+                  <th scope="row" className="sticky left-0 z-20 w-12 bg-white px-1.5 py-0.5 text-center font-mono font-normal text-slate-600">
                     <button
                       type="button"
                       aria-label={`Select BOM row ${rowNumber}`}
@@ -250,24 +262,32 @@ export const BOMTable: React.FC<BOMTableProps> = ({
                       {rowNumber}
                     </button>
                   </th>
-                  <td className={`px-2 py-0.5 font-sans text-slate-800 ${identityWarning && showWarningHighlights ? 'bg-amber-50' : ''}`}>
+                  <td className="px-2 py-0.5 font-sans text-slate-800">
                     <div className="min-w-0">
                       {isEditMode ? (
                         <input
-                          value={item.description}
-                          placeholder={placeholderNumber === undefined ? undefined : String(placeholderNumber)}
-                          onChange={event => applyCellUpdate(item.id, { description: event.target.value })}
+                          value={identityEditorDrafts.getValue(item)}
+                          placeholder={editableIdentityPlaceholder(editableIdentityValue(item.description, item.isGeneratedBusinessIdentity), item.isGeneratedBusinessIdentity ? item.description : placeholderNumber === undefined ? '' : `Material ${placeholderNumber}`)}
+                          onChange={event => {
+                            identityEditorDrafts.setValue(item.id, event.target.value)
+                            applyCellUpdate(item.id, { description: event.target.value })
+                          }}
+                          onBlur={() => identityEditorDrafts.clearValue(item.id)}
                           data-grid-cell="true"
                           data-grid-row-id={item.id}
                           data-grid-field="description"
                           aria-label={`Name for BOM row ${rowNumber}`}
                           aria-invalid={identityInvalid}
-                          className={`min-h-8 w-full min-w-0 rounded-sm border px-2 text-xs focus:outline-none focus:ring-2 focus:ring-blue-700 ${identityWarning ? 'border-amber-600' : 'border-slate-300'} ${identityWarning && showWarningHighlights ? 'bg-amber-50' : 'bg-white'} ${selectedCellKeys.has(tableCellKey(item.id, 'description')) ? 'ring-2 ring-blue-500 ring-inset' : ''}`}
+                          className={`${masterDataTextEditorClass} ${identityWarning ? 'border-amber-600' : ''} ${identityWarning && showWarningHighlights ? masterDataWarningEditorFillClass : ''} ${selectedCellKeys.has(tableCellKey(item.id, 'description')) ? 'ring-2 ring-blue-500 ring-inset' : ''}`}
                         />
-                      ) : item.description || <span className="text-amber-700">{placeholderNumber ?? '—'}</span>}
+                      ) : (
+                        <div className={`flex h-8 w-full min-w-0 items-center rounded-sm border border-transparent px-2 text-xs ${identityWarning && showWarningHighlights ? 'bg-amber-50' : ''}`}>
+                          {item.description || <span className="text-slate-500">{placeholderNumber === undefined ? '—' : `Material ${placeholderNumber}`}</span>}
+                        </div>
+                      )}
                     </div>
                   </td>
-                  <td className={`relative px-2 py-0.5 text-center font-mono tabular-nums ${consumptionInvalid ? `${showWarningHighlights ? 'bg-amber-50' : ''} text-amber-900` : ''}`}>
+                  <td className="relative px-2 py-0.5 text-center font-mono tabular-nums">
                     {isEditMode ? (
                       <div className="relative mx-auto w-full max-w-20">
                         <input
@@ -284,7 +304,7 @@ export const BOMTable: React.FC<BOMTableProps> = ({
                         />
                         {consumptionMissing && <MasterDataBlockerMarker />}
                       </div>
-                    ) : <span className="relative inline-block">{displayNumber(item.consumption)}{consumptionMissing && <MasterDataBlockerMarker className="right-0 top-0" />}</span>}
+                    ) : <span className={`${masterDataNumericDisplaySlotClass} mx-auto w-full max-w-20 ${consumptionInvalid ? 'text-amber-900' : ''} ${consumptionInvalid && showWarningHighlights ? 'bg-amber-50' : ''}`}>{displayNumber(item.consumption)}{consumptionMissing && <MasterDataBlockerMarker className="right-0 top-0" />}</span>}
                   </td>
                   <td className="px-2 py-0.5 text-center font-mono">
                     {isEditMode ? (
@@ -296,11 +316,11 @@ export const BOMTable: React.FC<BOMTableProps> = ({
                         data-grid-field="unit"
                         aria-label={`Unit for ${item.description || `BOM row ${rowNumber}`}`}
                         aria-invalid={!item.unit.trim()}
-                        className={`mx-auto block h-8 w-full max-w-12 rounded-sm border bg-white px-1 text-center text-xs focus:outline-none focus:ring-2 focus:ring-blue-700 ${!item.unit.trim() ? 'border-amber-600' : 'border-slate-300'} ${selectedCellKeys.has(tableCellKey(item.id, 'unit')) ? 'ring-2 ring-blue-500 ring-inset' : ''}`}
+                        className={`mx-auto block h-8 w-full max-w-12 rounded-sm border border-transparent bg-transparent px-1 text-center text-xs text-slate-900 transition-colors hover:border-slate-200 hover:bg-slate-50 focus:border-blue-700 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-700 ${!item.unit.trim() ? 'border-amber-600' : ''} ${selectedCellKeys.has(tableCellKey(item.id, 'unit')) ? 'ring-2 ring-blue-500 ring-inset' : ''}`}
                       />
-                    ) : item.unit || <span className="text-amber-700">—</span>}
+                    ) : <span className="mx-auto inline-flex h-8 w-full max-w-12 items-center justify-center rounded-sm border border-transparent px-1 text-center text-xs">{item.unit || <span className="text-amber-700">—</span>}</span>}
                   </td>
-                  <td className={`relative px-2 py-0.5 text-center font-mono tabular-nums ${priceInvalid ? `${showWarningHighlights ? 'bg-amber-50' : ''} text-amber-900` : ''}`}>
+                  <td className="relative px-2 py-0.5 text-center font-mono tabular-nums">
                     {isEditMode ? (
                       <div className="relative mx-auto w-full max-w-24">
                         <input
@@ -317,9 +337,9 @@ export const BOMTable: React.FC<BOMTableProps> = ({
                         />
                         {priceMissing && <MasterDataBlockerMarker />}
                       </div>
-                    ) : <span className="relative inline-block">{displayNumber(item.price, 2)}{priceMissing && <MasterDataBlockerMarker className="right-0 top-0" />}</span>}
+                    ) : <span className={`${masterDataNumericDisplaySlotClass} mx-auto w-full max-w-24 ${priceInvalid ? 'text-amber-900' : ''} ${priceInvalid && showWarningHighlights ? 'bg-amber-50' : ''}`}>{displayNumber(item.price, 2)}{priceMissing && <MasterDataBlockerMarker className="right-0 top-0" />}</span>}
                   </td>
-                  <td className={`relative px-2 py-0.5 text-center font-mono tabular-nums ${lossInvalid ? `${showWarningHighlights ? 'bg-amber-50' : ''} text-amber-900` : ''}`}>
+                  <td className="relative px-2 py-0.5 text-center font-mono tabular-nums">
                     {isEditMode ? (
                       <div className="mx-auto flex w-fit items-center gap-1">
                         <div className="relative w-16">
@@ -342,7 +362,15 @@ export const BOMTable: React.FC<BOMTableProps> = ({
                         </div>
                         <span className="text-slate-400">%</span>
                       </div>
-                    ) : <span className="relative inline-block">{item.loss === null ? <span className="text-amber-700">—</span> : formatPercent(item.loss, 2)}{lossMissing && <MasterDataBlockerMarker className="right-0 top-0" />}</span>}
+                    ) : (
+                      <div className="mx-auto flex h-8 w-[76px] items-center gap-1">
+                        <span className={`${masterDataNumericDisplaySlotClass} relative h-8 w-16 px-0 ${lossInvalid ? 'text-amber-900' : ''} ${lossInvalid && showWarningHighlights ? 'bg-amber-50' : ''}`}>
+                          {item.loss === null ? '—' : formatNumber(item.loss * 100, 2)}
+                          {lossMissing && <MasterDataBlockerMarker className="right-0 top-0" />}
+                        </span>
+                        <span className="text-slate-400">%</span>
+                      </div>
+                    )}
                   </td>
                   <td className="px-2 py-0.5 font-sans text-slate-600">
                     {isEditMode ? (
@@ -353,11 +381,11 @@ export const BOMTable: React.FC<BOMTableProps> = ({
                         data-grid-row-id={item.id}
                         data-grid-field="note"
                         aria-label={`Note for ${item.description || `BOM row ${rowNumber}`}`}
-                        className={`min-h-8 w-full min-w-0 rounded-sm border border-slate-300 bg-white px-2 text-xs focus:outline-none focus:ring-2 focus:ring-blue-700 ${selectedCellKeys.has(tableCellKey(item.id, 'note')) ? 'ring-2 ring-blue-500 ring-inset' : ''}`}
+                        className={`${masterDataTextEditorClass} ${selectedCellKeys.has(tableCellKey(item.id, 'note')) ? 'ring-2 ring-blue-500 ring-inset' : ''}`}
                       />
-                    ) : item.note || '—'}
+                    ) : <div className={masterDataDisplaySlotClass}>{item.note || '—'}</div>}
                   </td>
-                  <td className={`px-1 py-0.5 text-center ${rowMarkerBackground}`}>
+                  <td className="px-1 py-0.5 text-center">
                     <div className="flex items-center justify-center gap-0.5">
                       <button
                         type="button"

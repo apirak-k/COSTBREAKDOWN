@@ -1,17 +1,20 @@
 import React, { useCallback, useEffect, useMemo, useRef } from 'react'
 import { GripVertical, Trash2 } from 'lucide-react'
-import { SnapshotWorkCenterRate, formatNumber } from '../../../core'
+import { SnapshotWorkCenterRate, SnapshotRoutingStep, formatNumber } from '../../../core'
 import { useDragSelect } from '../hooks/useDragSelect'
+import { useIdentityEditorDrafts } from '../hooks/useIdentityEditorDrafts'
 import { SpreadsheetPasteCell, tableCellKey, useTableKeyboardNav } from '../hooks/useTableKeyboardNav'
 import { RowChanges, useSpreadsheetEditing } from '../hooks/useSpreadsheetEditing'
-import { blankIdentityOrdinals, duplicateIdentityIds, hasInvalidNumber } from '../table-validation'
+import { blankIdentityOrdinals, duplicateIdentityIds, editableIdentityPlaceholder, editableIdentityValue, hasInvalidNumber } from '../table-validation'
 import { useWarningNavigationFocus, type WarningNavigationTarget } from '../hooks/useWarningNavigationFocus'
 import type { MasterDataBlockerItem, MasterDataWarningItem } from '../prepare-dataset'
 import { MasterDataTableHeader } from './MasterDataTableChrome'
 import { MasterDataBlockerMarker } from './MasterDataBlockerMarker'
+import { masterDataDisplaySlotClass, masterDataNumericDisplaySlotClass, masterDataNumericEditorClass, masterDataTextEditorClass, masterDataWarningEditorFillClass } from './master-data-field-styles'
 
 interface WorkCenterRatesTableProps {
   rates: SnapshotWorkCenterRate[]
+  routing: SnapshotRoutingStep[]
   isEditMode?: boolean
   historyScope: string
   searchQuery?: string
@@ -25,7 +28,10 @@ interface WorkCenterRatesTableProps {
   onUndo: () => void
   onRedo: () => void
   onAddRate: () => void
-  onUpdateRates: (updates: Array<{ id: string; changes: Partial<Omit<SnapshotWorkCenterRate, 'id' | 'confidence'>> }>) => void
+  onUpdateRates: (
+    updates: Array<{ id: string; changes: Partial<Omit<SnapshotWorkCenterRate, 'id' | 'confidence'>> }>,
+    options?: { routingRowIdsByRateId?: Record<string, string[]> }
+  ) => void
   onDeleteRates: (ids: string[]) => void
   onReorderRows: (movingId: string, targetId: string, position: 'before' | 'after', movingIds?: string[]) => void
   warningNavigationTarget?: WarningNavigationTarget
@@ -37,6 +43,7 @@ const parseNumber = (value: string): number | null => value.trim() === '' ? null
 
 export const WorkCenterRatesTable: React.FC<WorkCenterRatesTableProps> = ({
   rates,
+  routing,
   isEditMode = false,
   historyScope,
   searchQuery = '',
@@ -59,9 +66,12 @@ export const WorkCenterRatesTable: React.FC<WorkCenterRatesTableProps> = ({
   const tableRef = useRef<HTMLTableElement | null>(null)
   const warningIndexRef = useRef(0)
   const blockerIndexRef = useRef(0)
+  const renameTargetsRef = useRef(new Map<string, string[]>())
   const query = searchQuery.trim().toLocaleLowerCase()
   const duplicateWcIds = useMemo(() => duplicateIdentityIds(rates, rate => rate.id, rate => rate.workCenterCode), [rates])
   const placeholderNumbers = useMemo(() => blankIdentityOrdinals(rates, rate => rate.workCenterCode), [rates])
+  const getIdentityEditorValue = useCallback((rate: SnapshotWorkCenterRate) => editableIdentityValue(rate.workCenterCode, rate.isGeneratedBusinessIdentity), [])
+  const identityEditorDrafts = useIdentityEditorDrafts(rates, historyScope, getIdentityEditorValue)
 
   const filteredRates = useMemo(() => rates.filter(rate =>
     [rate.workCenterCode, rate.laborRate, rate.burdenRate, rate.note]
@@ -89,6 +99,31 @@ export const WorkCenterRatesTable: React.FC<WorkCenterRatesTableProps> = ({
     blockerIndexRef.current = 0
   }, [historyScope, warningItems, blockerItems])
 
+  useEffect(() => {
+    renameTargetsRef.current.clear()
+  }, [historyScope])
+
+  const captureRenameTargets = useCallback((rateId: string) => {
+    if (renameTargetsRef.current.has(rateId)) return
+    const rate = rates.find(item => item.id === rateId)
+    if (!rate) return
+    const identity = rate.workCenterCode.trim().toLocaleLowerCase()
+    const routingRowIds = identity
+      ? routing.filter(step => step.workCenterId?.trim().toLocaleLowerCase() === identity).map(step => step.id)
+      : []
+    renameTargetsRef.current.set(rateId, routingRowIds)
+  }, [rates, routing])
+
+  const applyWorkCenterCodeUpdate = useCallback((id: string, workCenterCode: string) => {
+    const ids = selectedIds.has(id) ? [...selectedIds] : [id]
+    ids.forEach(captureRenameTargets)
+    const routingRowIdsByRateId = Object.fromEntries(ids.map(rateId => [
+      rateId,
+      renameTargetsRef.current.get(rateId) ?? []
+    ]))
+    onUpdateRates(ids.map(rateId => ({ id: rateId, changes: { workCenterCode } })), { routingRowIdsByRateId })
+  }, [captureRenameTargets, onUpdateRates, selectedIds])
+
   const {
     applyCellUpdate,
     applyPasteUpdates,
@@ -110,7 +145,8 @@ export const WorkCenterRatesTable: React.FC<WorkCenterRatesTableProps> = ({
       return changes ? [{ id: cell.rowId, changes }] : []
     })
     applyPasteUpdates(updates)
-  }, [applyPasteUpdates])
+    identityEditorDrafts.clearValues(cells.filter(cell => cell.field === 'workCenterCode').map(cell => cell.rowId))
+  }, [applyPasteUpdates, identityEditorDrafts.clearValues])
 
   const handleCutCells = useCallback((cells: SpreadsheetPasteCell[]) => {
     const updates = cells.flatMap(cell => {
@@ -122,15 +158,25 @@ export const WorkCenterRatesTable: React.FC<WorkCenterRatesTableProps> = ({
       return changes ? [{ id: cell.rowId, changes }] : []
     })
     applyCutUpdates(updates)
-  }, [applyCutUpdates])
+    identityEditorDrafts.clearValues(cells.filter(cell => cell.field === 'workCenterCode').map(cell => cell.rowId))
+  }, [applyCutUpdates, identityEditorDrafts.clearValues])
+
+  const handleUndo = useCallback(() => {
+    identityEditorDrafts.clearValues()
+    onUndo()
+  }, [identityEditorDrafts.clearValues, onUndo])
+  const handleRedo = useCallback(() => {
+    identityEditorDrafts.clearValues()
+    onRedo()
+  }, [identityEditorDrafts.clearValues, onRedo])
 
   const { selectedCellKeys } = useTableKeyboardNav({
     tableRef,
     isEditMode,
     onPasteCells: handlePasteCells,
     onCutCells: handleCutCells,
-    onUndo,
-    onRedo
+    onUndo: handleUndo,
+    onRedo: handleRedo
   })
 
   const handleNextBlocker = () => {
@@ -179,10 +225,10 @@ export const WorkCenterRatesTable: React.FC<WorkCenterRatesTableProps> = ({
       <MasterDataTableHeader title="Work Centers" rowCount={rates.length} selectedCount={selectedIds.size} warningCount={warningCount} blockerCount={blockerItems.length} isEditMode={isEditMode} onNextWarning={handleNextWarning} onNextBlocker={handleNextBlocker} onAddRow={onAddRate} />
 
       <div className="overflow-x-auto">
-        <table ref={tableRef} className="w-full min-w-[780px] table-fixed border-collapse text-left text-xs">
+        <table ref={tableRef} className="w-max table-fixed border-collapse text-left text-xs">
           <colgroup>
-            <col className="w-12" /><col className="w-[240px]" /><col className="w-[130px]" />
-            <col className="w-[130px]" /><col /><col className="w-20" />
+            <col className="w-12" /><col className="w-[288px]" /><col className="w-[120px]" />
+            <col className="w-[120px]" /><col className="w-[288px]" /><col className="w-[76px]" />
           </colgroup>
           <thead className="sticky top-0 z-30 border-y-2 border-slate-400 bg-slate-100 text-[11px] font-semibold uppercase tracking-wide text-slate-800">
             <tr>
@@ -207,10 +253,7 @@ export const WorkCenterRatesTable: React.FC<WorkCenterRatesTableProps> = ({
               const burdenMissing = rate.burdenRate === null
               const rowNumber = rates.findIndex(row => row.id === rate.id) + 1
               const placeholderNumber = placeholderNumbers.get(rate.id)
-              const rowMarkerBackground = isSelected
-                ? 'bg-blue-50 group-hover:bg-blue-100'
-                : 'bg-white group-hover:bg-slate-50'
-              const numericClass = (invalid: boolean, missing: boolean) => `min-h-8 w-full min-w-0 rounded-sm border px-1.5 text-center text-xs tabular-nums focus:outline-none focus:ring-2 focus:ring-blue-700 ${invalid ? 'border-amber-600' : 'border-slate-300'} ${showWarningHighlights && (invalid || missing) ? 'bg-amber-50' : 'bg-white'}`
+              const numericClass = (invalid: boolean, missing: boolean) => `${masterDataNumericEditorClass} ${invalid ? 'border-amber-600' : ''} ${showWarningHighlights && (invalid || missing) ? masterDataWarningEditorFillClass : ''}`
 
               return (
                 <tr
@@ -221,9 +264,9 @@ export const WorkCenterRatesTable: React.FC<WorkCenterRatesTableProps> = ({
                   onMouseEnter={() => onMouseEnterRow(rate.id)}
                   onDragOver={event => { if (isEditMode) event.preventDefault() }}
                   onDrop={event => { if (isEditMode) handleRowDrop(event, rate.id) }}
-                  className={`group h-10 ${isSelected ? 'border-l-2 border-l-blue-700 bg-blue-50 hover:bg-blue-100' : 'hover:bg-slate-50'}`}
+                  className="group h-10"
                 >
-                  <th scope="row" className={`sticky left-0 z-20 w-12 px-1.5 py-0.5 text-center font-mono font-normal text-slate-600 ${rowMarkerBackground}`}>
+                  <th scope="row" className="sticky left-0 z-20 w-12 bg-white px-1.5 py-0.5 text-center font-mono font-normal text-slate-600">
                     <button
                       type="button"
                       aria-label={`Select Work Centers row ${rowNumber}`}
@@ -235,28 +278,38 @@ export const WorkCenterRatesTable: React.FC<WorkCenterRatesTableProps> = ({
                       {rowNumber}
                     </button>
                   </th>
-                  <td className={`px-2 py-0.5 text-center font-mono font-semibold text-slate-950 ${identityWarning && showWarningHighlights ? 'bg-amber-50' : ''}`}>
+                  <td className="px-2 py-0.5 text-center font-mono font-semibold text-slate-950">
                     {isEditMode ? (
                       <div className="min-w-0">
                         <input
-                          value={rate.workCenterCode}
-                          placeholder={placeholderNumber === undefined ? undefined : String(placeholderNumber)}
-                          onChange={event => applyCellUpdate(rate.id, { workCenterCode: event.target.value })}
+                          value={identityEditorDrafts.getValue(rate)}
+                          placeholder={editableIdentityPlaceholder(editableIdentityValue(rate.workCenterCode, rate.isGeneratedBusinessIdentity), rate.isGeneratedBusinessIdentity ? rate.workCenterCode : placeholderNumber === undefined ? '' : `Work Center ${placeholderNumber}`)}
+                          onFocus={() => captureRenameTargets(rate.id)}
+                          onBlur={() => {
+                            identityEditorDrafts.clearValue(rate.id)
+                            renameTargetsRef.current.delete(rate.id)
+                          }}
+                          onChange={event => {
+                            identityEditorDrafts.setValue(rate.id, event.target.value)
+                            applyWorkCenterCodeUpdate(rate.id, event.target.value)
+                          }}
                           data-grid-cell="true"
                           data-grid-row-id={rate.id}
                           data-grid-field="workCenterCode"
                           aria-label={`WC for row ${rowNumber}`}
                           aria-invalid={identityInvalid}
-                          className={`mx-auto block h-8 w-full max-w-40 min-w-0 rounded-sm border px-2 text-center text-xs focus:outline-none focus:ring-2 focus:ring-blue-700 ${identityWarning ? 'border-amber-600' : 'border-slate-300'} ${identityWarning && showWarningHighlights ? 'bg-amber-50' : 'bg-white'} ${selectedCellKeys.has(tableCellKey(rate.id, 'workCenterCode')) ? 'ring-2 ring-blue-500 ring-inset' : ''}`}
+                          className={`mx-auto block max-w-40 text-center ${masterDataTextEditorClass} ${identityWarning ? 'border-amber-600' : ''} ${identityWarning && showWarningHighlights ? masterDataWarningEditorFillClass : ''} ${selectedCellKeys.has(tableCellKey(rate.id, 'workCenterCode')) ? 'ring-2 ring-blue-500 ring-inset' : ''}`}
                         />
                       </div>
                     ) : (
-                      <div>
-                        {rate.workCenterCode || <span className={showWarningHighlights ? 'text-amber-700' : 'text-slate-700'}>{placeholderNumber ?? '—'}</span>}
+                      <div className="flex min-h-8 items-center justify-center">
+                        <span className={`inline-flex max-w-full items-center truncate rounded-sm border px-1.5 py-0.5 text-[11px] font-mono font-medium ${identityWarning && showWarningHighlights ? 'border-amber-300 bg-amber-50 text-slate-700' : 'border-slate-200 bg-slate-50 text-slate-700'}`}>
+                          {rate.workCenterCode || <span>{placeholderNumber ?? '—'}</span>}
+                        </span>
                       </div>
                     )}
                   </td>
-                  <td className={`relative px-2 py-0.5 text-center font-mono tabular-nums ${laborInvalid ? `${showWarningHighlights ? 'bg-amber-50' : ''} text-amber-900` : ''}`}>
+                  <td className="relative px-2 py-0.5 text-center font-mono tabular-nums">
                     {isEditMode ? (
                       <div className="relative mx-auto w-full max-w-24">
                         <input
@@ -273,9 +326,9 @@ export const WorkCenterRatesTable: React.FC<WorkCenterRatesTableProps> = ({
                         />
                         {laborMissing && <MasterDataBlockerMarker />}
                       </div>
-                    ) : <span className="relative inline-block">{rate.laborRate === null ? <span className="text-amber-700">—</span> : formatNumber(rate.laborRate, 2)}{laborMissing && <MasterDataBlockerMarker className="right-0 top-0" />}</span>}
+                    ) : <span className={`${masterDataNumericDisplaySlotClass} mx-auto w-full max-w-24 ${laborInvalid ? 'text-amber-900' : ''} ${laborInvalid && showWarningHighlights ? 'bg-amber-50' : ''}`}>{rate.laborRate === null ? '—' : formatNumber(rate.laborRate, 2)}{laborMissing && <MasterDataBlockerMarker className="right-0 top-0" />}</span>}
                   </td>
-                  <td className={`relative px-2 py-0.5 text-center font-mono tabular-nums ${burdenInvalid ? `${showWarningHighlights ? 'bg-amber-50' : ''} text-amber-900` : ''}`}>
+                  <td className="relative px-2 py-0.5 text-center font-mono tabular-nums">
                     {isEditMode ? (
                       <div className="relative mx-auto w-full max-w-24">
                         <input
@@ -292,7 +345,7 @@ export const WorkCenterRatesTable: React.FC<WorkCenterRatesTableProps> = ({
                         />
                         {burdenMissing && <MasterDataBlockerMarker />}
                       </div>
-                    ) : <span className="relative inline-block">{rate.burdenRate === null ? <span className="text-amber-700">—</span> : formatNumber(rate.burdenRate, 2)}{burdenMissing && <MasterDataBlockerMarker className="right-0 top-0" />}</span>}
+                    ) : <span className={`${masterDataNumericDisplaySlotClass} mx-auto w-full max-w-24 ${burdenInvalid ? 'text-amber-900' : ''} ${burdenInvalid && showWarningHighlights ? 'bg-amber-50' : ''}`}>{rate.burdenRate === null ? '—' : formatNumber(rate.burdenRate, 2)}{burdenMissing && <MasterDataBlockerMarker className="right-0 top-0" />}</span>}
                   </td>
                   <td className="px-2 py-0.5 font-sans text-slate-600">
                     {isEditMode ? (
@@ -303,11 +356,11 @@ export const WorkCenterRatesTable: React.FC<WorkCenterRatesTableProps> = ({
                         data-grid-row-id={rate.id}
                         data-grid-field="note"
                         aria-label={`Note for ${rate.workCenterCode || `WC row ${rowNumber}`}`}
-                        className={`min-h-8 w-full min-w-0 rounded-sm border border-slate-300 bg-white px-2 text-xs focus:outline-none focus:ring-2 focus:ring-blue-700 ${selectedCellKeys.has(tableCellKey(rate.id, 'note')) ? 'ring-2 ring-blue-500 ring-inset' : ''}`}
+                        className={`${masterDataTextEditorClass} ${selectedCellKeys.has(tableCellKey(rate.id, 'note')) ? 'ring-2 ring-blue-500 ring-inset' : ''}`}
                       />
-                    ) : rate.note || '—'}
+                    ) : <div className={masterDataDisplaySlotClass}>{rate.note || '—'}</div>}
                   </td>
-                  <td className={`px-1 py-0.5 text-center ${rowMarkerBackground}`}>
+                  <td className="px-1 py-0.5 text-center">
                     <div className="flex items-center justify-center gap-0.5">
                       <button
                         type="button"
