@@ -274,6 +274,7 @@ interface AppContextType {
   masterDataLastSavedSnapshots: Partial<Record<MasterDataRole, CostSnapshot>>
   masterDataSizing: import('../core/types').DatasetSizing
   masterDataPrepareDatasetOpen: boolean
+  masterDataPrepareDatasetPinned: boolean
   setMasterDataPrepareDatasetOpen: React.Dispatch<React.SetStateAction<boolean>>
   masterDataPrepareDatasetRequested: boolean
   masterDataPrepareDatasetRequestMode: 'all-warnings' | null
@@ -283,6 +284,9 @@ interface AppContextType {
   // Navigation
   setActiveTab: (tab: ActiveTab) => void
   toggleMasterDataPrepareDataset: () => void
+  previewMasterDataPrepareDataset: () => void
+  scheduleDismissMasterDataPrepareDatasetPreview: () => void
+  closeMasterDataPrepareDataset: () => void
   requestMasterDataPrepareDataset: (mode?: 'all-warnings') => void
   consumeMasterDataPrepareDatasetRequest: () => void
 
@@ -457,8 +461,20 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
   const [selectedComparisonScope, setSelectedComparisonScope] = useState<StoredSelectedComparison | null>(null)
   const [masterDataPrepareDatasetOpen, setMasterDataPrepareDatasetOpen] = useState(false)
+  const [masterDataPrepareDatasetPinned, setMasterDataPrepareDatasetPinnedState] = useState(false)
+  const masterDataPrepareDatasetPinnedRef = useRef(false)
+  const masterDataPrepareDatasetHoverTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const [masterDataPrepareDatasetRequested, setMasterDataPrepareDatasetRequested] = useState(false)
   const [masterDataPrepareDatasetRequestMode, setMasterDataPrepareDatasetRequestMode] = useState<'all-warnings' | null>(null)
+
+  const setMasterDataPrepareDatasetPinned = (pinned: boolean) => {
+    masterDataPrepareDatasetPinnedRef.current = pinned
+    setMasterDataPrepareDatasetPinnedState(pinned)
+  }
+  const clearMasterDataPrepareDatasetHoverTimer = () => {
+    if (masterDataPrepareDatasetHoverTimerRef.current) clearTimeout(masterDataPrepareDatasetHoverTimerRef.current)
+    masterDataPrepareDatasetHoverTimerRef.current = null
+  }
 
   useEffect(() => {
     clearMasterDataEditHistory()
@@ -471,21 +487,60 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
   const setActiveTab = (tab: ActiveTab) => {
     if (tab === 'simulation') setSelectedComparisonScope(null)
-    if (tab !== 'master') setMasterDataPrepareDatasetOpen(false)
+    if (tab !== 'master') {
+      clearMasterDataPrepareDatasetHoverTimer()
+      setMasterDataPrepareDatasetPinned(false)
+      setMasterDataPrepareDatasetOpen(false)
+    }
     setActiveTabState(tab)
     saveToSession(STORAGE_KEYS.ACTIVE_TAB, tab)
   }
 
   const toggleMasterDataPrepareDataset = () => {
-    const wasOnMasterData = activeTab === 'master'
+    clearMasterDataPrepareDatasetHoverTimer()
     setActiveTab('master')
     setMasterDataPrepareDatasetRequestMode(null)
     setMasterDataPrepareDatasetRequested(false)
-    setMasterDataPrepareDatasetOpen(current => wasOnMasterData ? !current : true)
+    if (masterDataPrepareDatasetPinned) {
+      setMasterDataPrepareDatasetPinned(false)
+      setMasterDataPrepareDatasetOpen(false)
+    } else {
+      setMasterDataPrepareDatasetPinned(true)
+      setMasterDataPrepareDatasetOpen(true)
+    }
+  }
+
+  const previewMasterDataPrepareDataset = () => {
+    clearMasterDataPrepareDatasetHoverTimer()
+    if (masterDataPrepareDatasetPinnedRef.current) return
+    setActiveTab('master')
+    setMasterDataPrepareDatasetOpen(true)
+  }
+
+  const scheduleDismissMasterDataPrepareDatasetPreview = () => {
+    clearMasterDataPrepareDatasetHoverTimer()
+    masterDataPrepareDatasetHoverTimerRef.current = setTimeout(() => {
+      masterDataPrepareDatasetHoverTimerRef.current = null
+      if (!masterDataPrepareDatasetPinnedRef.current) setMasterDataPrepareDatasetOpen(false)
+    }, 160)
+  }
+
+  const closeMasterDataPrepareDataset = () => {
+    clearMasterDataPrepareDatasetHoverTimer()
+    setMasterDataPrepareDatasetPinned(false)
+    setMasterDataPrepareDatasetOpen(false)
+    setMasterDataPrepareDatasetRequestMode(null)
+    setMasterDataPrepareDatasetRequested(false)
   }
 
   const requestMasterDataPrepareDataset = (mode?: 'all-warnings') => {
+    clearMasterDataPrepareDatasetHoverTimer()
+    if (activeTab === 'master' && masterDataPrepareDatasetOpen) {
+      closeMasterDataPrepareDataset()
+      return
+    }
     setActiveTab('master')
+    setMasterDataPrepareDatasetPinned(true)
     setMasterDataPrepareDatasetOpen(true)
     setMasterDataPrepareDatasetRequestMode(mode ?? null)
     setMasterDataPrepareDatasetRequested(true)
@@ -1567,6 +1622,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       masterDataLastSavedSnapshots,
       masterDataSizing,
       masterDataPrepareDatasetOpen,
+      masterDataPrepareDatasetPinned,
       setMasterDataPrepareDatasetOpen,
       masterDataPrepareDatasetRequested,
       masterDataPrepareDatasetRequestMode,
@@ -1574,6 +1630,9 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       uomList,
       setActiveTab,
       toggleMasterDataPrepareDataset,
+      previewMasterDataPrepareDataset,
+      scheduleDismissMasterDataPrepareDatasetPreview,
+      closeMasterDataPrepareDataset,
       requestMasterDataPrepareDataset,
       consumeMasterDataPrepareDatasetRequest,
       createProductWithSizing,

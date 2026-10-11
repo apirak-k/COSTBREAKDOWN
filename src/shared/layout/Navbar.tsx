@@ -10,7 +10,7 @@ const navItems = [
   { id: 'simulation', label: 'Simulation' },
 ] as const
 
-const utilityButton = 'grid h-8 w-8 shrink-0 place-items-center text-slate-300 transition-colors hover:bg-slate-800 hover:text-white disabled:opacity-50 disabled:text-slate-600 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-400'
+const utilityButton = 'grid h-8 w-8 shrink-0 place-items-center text-slate-300 transition-colors hover:bg-slate-800 hover:text-white disabled:cursor-default disabled:opacity-50 disabled:text-slate-600 disabled:hover:bg-transparent disabled:hover:text-slate-600 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-400'
 
 export const Navbar: React.FC = () => {
   const {
@@ -22,8 +22,11 @@ export const Navbar: React.FC = () => {
     undoMasterDataEdit,
     redoMasterDataEdit,
     masterDataPrepareDatasetOpen,
+    masterDataPrepareDatasetPinned,
     masterDataPrepareDatasetRequested,
-    toggleMasterDataPrepareDataset
+    toggleMasterDataPrepareDataset,
+    previewMasterDataPrepareDataset,
+    scheduleDismissMasterDataPrepareDatasetPreview
   } = useAppStore()
   const prepareDatasetTriggerRef = useRef<HTMLButtonElement>(null)
 
@@ -34,10 +37,10 @@ export const Navbar: React.FC = () => {
   )
 
   useEffect(() => {
-    if (masterDataPrepareDatasetOpen || masterDataPrepareDatasetRequested) {
+    if (masterDataPrepareDatasetRequested) {
       prepareDatasetTriggerRef.current?.focus()
     }
-  }, [masterDataPrepareDatasetOpen, masterDataPrepareDatasetRequested])
+  }, [masterDataPrepareDatasetRequested])
 
   return (
     <header className="sticky top-0 z-50 select-none border-b border-slate-800 bg-slate-900 text-white shadow-xs">
@@ -98,13 +101,23 @@ export const Navbar: React.FC = () => {
             >
               <Redo2 className="h-4 w-4" aria-hidden="true" />
             </button>
-            <div className="relative flex shrink-0 items-center">
+            <div
+              className="relative flex shrink-0 items-center"
+              onPointerEnter={previewMasterDataPrepareDataset}
+              onPointerLeave={event => {
+                const relatedTarget = event.relatedTarget
+                const panelRoot = document.getElementById('header-prepare-dataset-portal-root')
+                if (relatedTarget instanceof Node && (event.currentTarget.contains(relatedTarget) || panelRoot?.contains(relatedTarget))) return
+                scheduleDismissMasterDataPrepareDatasetPreview()
+              }}
+            >
               <button
                 ref={prepareDatasetTriggerRef}
                 id="header-prepare-dataset-trigger"
                 type="button"
                 onClick={toggleMasterDataPrepareDataset}
                 aria-expanded={masterDataPrepareDatasetOpen}
+                aria-pressed={masterDataPrepareDatasetPinned}
                 aria-controls="prepare-dataset-panel"
                 aria-label="Prepare Dataset"
                 title="Prepare Dataset"
@@ -114,7 +127,7 @@ export const Navbar: React.FC = () => {
               </button>
               <div
                 id="header-prepare-dataset-portal-root"
-                className="absolute right-0 top-full z-[60] mt-1"
+                className="absolute left-1/2 top-full z-[60] w-max -translate-x-1/2 pt-1"
               />
             </div>
           </div>

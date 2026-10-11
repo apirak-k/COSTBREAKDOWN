@@ -88,13 +88,13 @@ export const ExcelUploadDropzone: React.FC<ExcelUploadDropzoneProps> = ({
         onDrop={handleDrop}
         aria-label={hasSelection ? 'Choose another .xlsx workbook' : 'Choose an .xlsx workbook'}
         aria-busy={isLoading}
-        className={`flex min-h-36 w-full flex-col items-center justify-center gap-2 border border-dashed px-4 py-5 text-center transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700 disabled:cursor-wait disabled:opacity-70 ${
-          isDragging ? 'border-slate-700 bg-slate-100' : 'border-slate-300 bg-slate-50 hover:bg-slate-100'
+        className={`flex min-h-36 w-full flex-col items-center justify-center gap-2 border-2 border-dashed px-4 py-5 text-center transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700 disabled:cursor-default disabled:opacity-70 disabled:hover:border-slate-400 disabled:hover:bg-slate-50 ${
+          isDragging ? 'border-slate-700 bg-slate-100' : 'border-slate-400 bg-slate-50 hover:border-slate-500 hover:bg-slate-100'
         }`}
       >
         {isLoading
           ? <Loader2 className="h-6 w-6 animate-spin text-slate-600" aria-hidden="true" />
-          : <CloudUpload className="h-6 w-6 text-slate-600" aria-hidden="true" />}
+          : <CloudUpload className="h-7 w-7 text-slate-700" aria-hidden="true" />}
         <span className="text-xs font-medium text-slate-900">{isLoading ? 'Reading workbook…' : hasSelection ? 'Drop another .xlsx workbook or click to replace' : 'Drop an .xlsx workbook here'}</span>
         <span className="text-[11px] text-slate-500">.xlsx files only · Click or drop to select</span>
       </button>

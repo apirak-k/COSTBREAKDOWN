@@ -194,7 +194,7 @@ export const RoutingDetailedTable: React.FC<RoutingDetailedTableProps> = ({
                       onChange={() => { if (findingKey) onToggleFinding?.(findingKey) }}
                       aria-label={`Include ${processName} in Selected Comparison`}
                       title={canSelectFinding ? 'Include this finding in Selected Comparison' : 'This finding has no comparable business identity'}
-                      className="h-4 w-4 accent-slate-900 disabled:cursor-not-allowed disabled:opacity-30"
+                      className="h-4 w-4 accent-slate-900 disabled:cursor-default disabled:opacity-30"
                     />
                   </td>
                 )}

@@ -25,7 +25,7 @@ export const MasterDataTableHeader: React.FC<MasterDataTableHeaderProps> = ({
         disabled={blockerCount === 0}
         aria-label={blockerCount > 0 ? `Go to next blocker, ${blockerCount} in ${title}` : `No blockers in ${title}`}
         title={blockerCount > 0 ? `Next blocker · ${blockerCount}` : 'No blockers'}
-        className="inline-flex h-7 min-w-9 items-center justify-center gap-1 border border-transparent px-1.5 font-mono text-[11px] tabular-nums text-rose-700 transition-colors hover:bg-rose-50 disabled:cursor-default disabled:text-slate-400 focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-700"
+        className="inline-flex h-7 min-w-9 items-center justify-center gap-1 border border-transparent px-1.5 font-mono text-[11px] tabular-nums text-rose-700 transition-colors hover:bg-rose-50 disabled:cursor-default disabled:text-slate-400 disabled:hover:bg-transparent focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-700"
       >
         <CircleX className="h-3.5 w-3.5" aria-hidden="true" />
         <span>{blockerCount}</span>
@@ -35,7 +35,7 @@ export const MasterDataTableHeader: React.FC<MasterDataTableHeaderProps> = ({
         onClick={onAddRow}
         disabled={!isEditMode}
         title={isEditMode ? `Add row to ${title}` : 'Switch to Edit to add a row'}
-        className="inline-flex h-7 items-center justify-center gap-1 border border-slate-300 bg-white px-2 text-[11px] font-medium text-slate-700 hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-45 focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-700"
+        className="inline-flex h-7 items-center justify-center gap-1 border border-slate-300 bg-white px-2 text-[11px] font-medium text-slate-700 hover:bg-slate-100 disabled:cursor-default disabled:opacity-45 disabled:hover:bg-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-700"
       >
         <Plus className="h-3 w-3" aria-hidden="true" /> Add Row
       </button>

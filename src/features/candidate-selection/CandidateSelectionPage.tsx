@@ -127,7 +127,7 @@ export const CandidateSelectionPage: React.FC<CandidateSelectionPageProps> = ({ 
           aria-pressed={showRcaCases}
           onClick={openRcaCases}
           disabled={rcaCases.length === 0 && !showRcaCases}
-          className={`min-h-8 border-b-2 px-3 text-xs font-semibold focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-blue-700 disabled:cursor-not-allowed disabled:opacity-40 ${showRcaCases ? 'border-slate-900 text-slate-950' : 'border-transparent text-slate-500 hover:text-slate-900'}`}
+          className={`min-h-8 border-b-2 px-3 text-xs font-semibold focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-blue-700 disabled:cursor-default disabled:opacity-40 disabled:hover:text-slate-500 ${showRcaCases ? 'border-slate-900 text-slate-950' : 'border-transparent text-slate-500 hover:text-slate-900'}`}
         >
           RCA Cases <span className="ml-1 font-mono tabular-nums">{rcaCases.length}</span>
         </button>
@@ -149,7 +149,7 @@ export const CandidateSelectionPage: React.FC<CandidateSelectionPageProps> = ({ 
             <p className="mr-auto text-xs text-slate-700" aria-live="polite">
               <span className="font-mono font-semibold tabular-nums">{selectedCandidateKeys.size}</span> selected
             </p>
-            <button type="button" onClick={startRcaCase} disabled={selectedCandidateKeys.size === 0} className="min-h-8 border border-slate-900 bg-slate-900 px-3 text-xs font-medium text-white hover:bg-slate-700 disabled:cursor-default disabled:border-slate-300 disabled:bg-slate-100 disabled:text-slate-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700">
+            <button type="button" onClick={startRcaCase} disabled={selectedCandidateKeys.size === 0} className="min-h-8 border border-slate-900 bg-slate-900 px-3 text-xs font-medium text-white hover:bg-slate-700 disabled:cursor-default disabled:border-slate-300 disabled:bg-slate-100 disabled:text-slate-500 disabled:hover:bg-slate-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700">
               Create RCA Case
             </button>
           </section>

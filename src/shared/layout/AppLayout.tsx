@@ -15,12 +15,11 @@ import {
 
 interface FooterTooltipProps {
   id: string
-  align?: 'left' | 'center' | 'right'
   children: ReactNode
   content: ReactNode
 }
 
-const FooterTooltip: React.FC<FooterTooltipProps> = ({ id, align = 'left', children, content }) => {
+const FooterTooltip: React.FC<FooterTooltipProps> = ({ id, children, content }) => {
   const [visible, setVisible] = useState(false)
   const [position, setPosition] = useState<{ left: number; top: number } | null>(null)
   const wrapperRef = useRef<HTMLSpanElement>(null)
@@ -46,15 +45,11 @@ const FooterTooltip: React.FC<FooterTooltipProps> = ({ id, align = 'left', child
     tooltipElement.style.visibility = previousVisibility
     const tooltipWidth = tooltipRect.width || Math.min(448, window.innerWidth - 16)
     const tooltipHeight = tooltipRect.height
-    const preferredLeft = align === 'right'
-      ? wrapper.right - tooltipWidth
-      : align === 'center'
-        ? wrapper.left + (wrapper.width - tooltipWidth) / 2
-        : wrapper.left
+    const preferredLeft = wrapper.left + (wrapper.width - tooltipWidth) / 2
     const left = Math.max(8, Math.min(preferredLeft, window.innerWidth - tooltipWidth - 8))
     const footerTop = wrapperElement.closest('footer')?.getBoundingClientRect().top ?? wrapper.top
     setPosition({ left, top: Math.max(8, footerTop - tooltipHeight - 8) })
-  }, [align])
+  }, [])
 
   useEffect(() => {
     if (visible) window.addEventListener('resize', positionTooltip)
@@ -134,6 +129,7 @@ export const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
     fullSnapshotComparison,
     masterDataHandoff,
     masterDataSnapshots,
+    masterDataPrepareDatasetOpen,
     requestMasterDataPrepareDataset,
   } = useAppStore()
   const warningItems = buildMasterDataWarningItems(masterDataSnapshots)
@@ -261,7 +257,6 @@ export const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
             <span aria-hidden="true" className="text-slate-700">|</span>
             <FooterTooltip
               id="footer-product-status-tooltip"
-              align="center"
               content={(
                 <span className="grid min-w-0 grid-cols-[max-content_minmax(0,1fr)] gap-x-3 gap-y-1 text-left">
                   <span className="text-slate-600">Reference</span>
@@ -284,7 +279,6 @@ export const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
             <span aria-hidden="true" className="text-slate-700">|</span>
             <FooterTooltip
               id="footer-warning-tooltip"
-              align="right"
               content={warningBreakdown.length > 0 ? (
                 <span className="grid grid-cols-[minmax(0,1fr)_auto] gap-x-3 gap-y-1">
                   {warningBreakdown.map(({ label, count }) => (
@@ -297,10 +291,12 @@ export const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
               ) : null}
             >
               <button
+                id="footer-warning-action"
                 type="button"
                 onClick={() => requestMasterDataPrepareDataset('all-warnings')}
+                aria-expanded={masterDataPrepareDatasetOpen}
                 aria-describedby={warningBreakdown.length > 0 ? 'footer-warning-tooltip' : undefined}
-                aria-label={`Open Prepare Dataset showing all ${warningCount} warnings`}
+                aria-label={`Toggle Prepare Dataset showing ${warningCount} warnings`}
                 className={`inline-flex min-h-7 cursor-pointer items-center gap-1 whitespace-nowrap rounded-sm transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-300 ${warningCount > 0 ? 'text-amber-300 hover:text-amber-200' : 'text-slate-400 hover:text-slate-300'}`}
               >
                 <AlertTriangle className={`h-3.5 w-3.5 ${warningCount > 0 ? 'text-amber-300' : 'text-slate-400'}`} aria-hidden="true" />

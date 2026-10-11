@@ -117,7 +117,7 @@ export const RcaCaseWorkspace: React.FC<RcaCaseWorkspaceProps> = ({
           <div className="flex flex-wrap items-center justify-between gap-2 border-t border-slate-200 pt-2">
             <p role="status" className={`text-[11px] font-medium ${saved ? 'text-emerald-800' : 'text-slate-600'}`}>{saved ? 'Saved' : 'Draft'}</p>
             <div className="flex flex-wrap gap-2">
-              <button type="button" onClick={save} disabled={saved} className="min-h-8 border border-slate-300 bg-white px-3 text-xs font-medium text-slate-800 hover:bg-slate-100 disabled:cursor-default disabled:opacity-45 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700">
+              <button type="button" onClick={save} disabled={saved} className="min-h-8 border border-slate-300 bg-white px-3 text-xs font-medium text-slate-800 hover:bg-slate-100 disabled:cursor-default disabled:opacity-45 disabled:hover:bg-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700">
                 Save
               </button>
               <button type="button" onClick={proceedToSimulation} className="min-h-8 border border-slate-300 bg-white px-3 text-xs font-medium text-slate-800 hover:bg-slate-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700">

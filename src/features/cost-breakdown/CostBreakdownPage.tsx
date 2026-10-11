@@ -115,7 +115,7 @@ export const CostBreakdownPage: React.FC = () => {
         {isSelectingScope ? (
           <div className="ml-auto flex gap-1.5">
             <button type="button" onClick={cancelScopeSelection} className="min-h-8 border border-slate-300 bg-white px-2.5 text-xs text-slate-700 hover:bg-slate-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700">Cancel</button>
-            <button type="button" onClick={applyScopeSelection} disabled={selectedCount === 0} className="min-h-8 bg-slate-900 px-2.5 text-xs font-medium text-white hover:bg-slate-700 disabled:cursor-not-allowed disabled:opacity-40 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700">Apply</button>
+            <button type="button" onClick={applyScopeSelection} disabled={selectedCount === 0} className="min-h-8 bg-slate-900 px-2.5 text-xs font-medium text-white hover:bg-slate-700 disabled:cursor-default disabled:opacity-40 disabled:hover:bg-slate-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700">Apply</button>
           </div>
         ) : isSelectedComparisonActive ? (
           <div className="ml-auto flex gap-1.5">

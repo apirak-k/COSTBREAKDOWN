@@ -164,7 +164,7 @@ export const BOMTable: React.FC<BOMTableProps> = ({
           <thead className="sticky top-0 z-30 border-y-2 border-slate-400 bg-slate-100 text-[11px] font-semibold uppercase tracking-wide text-slate-800">
             <tr>
               <th scope="col" className="sticky left-0 z-40 w-12 bg-slate-100 p-0 text-center">
-                <button type="button" onClick={() => toggleAll(!allVisibleSelected)} disabled={filteredBOM.length === 0} aria-pressed={allVisibleSelected} aria-label={allVisibleSelected ? 'Clear selection for visible BOM rows' : 'Select all visible BOM rows'} title={allVisibleSelected ? 'Clear visible selection' : 'Select visible rows'} className={`h-9 w-full text-[11px] focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-700 ${allVisibleSelected ? 'bg-blue-100 text-blue-900' : 'text-slate-700 hover:bg-slate-200'} disabled:cursor-default disabled:text-slate-400`}>#</button>
+                <button type="button" onClick={() => toggleAll(!allVisibleSelected)} disabled={filteredBOM.length === 0} aria-pressed={allVisibleSelected} aria-label={allVisibleSelected ? 'Clear selection for visible BOM rows' : 'Select all visible BOM rows'} title={allVisibleSelected ? 'Clear visible selection' : 'Select visible rows'} className={`h-9 w-full text-[11px] focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-700 ${allVisibleSelected ? 'bg-blue-100 text-blue-900' : 'text-slate-700 hover:bg-slate-200'} disabled:cursor-default disabled:text-slate-400 disabled:hover:bg-transparent`}>#</button>
               </th>
               <th scope="col" className="px-2 py-2 text-left">Material</th>
               <th scope="col" className="px-2 py-2 text-right">Usage</th>
@@ -191,7 +191,7 @@ export const BOMTable: React.FC<BOMTableProps> = ({
               const rowMarkerBackground = isSelected
                 ? 'bg-blue-50 group-hover:bg-blue-100'
                 : 'bg-white group-hover:bg-slate-50'
-              const numericClass = (invalid: boolean, missing: boolean) => `min-h-8 w-full min-w-0 rounded-sm border px-1.5 text-right text-xs tabular-nums focus:outline-none focus:ring-2 focus:ring-blue-700 ${invalid ? 'border-amber-600 bg-amber-50' : 'border-slate-300 bg-white'} ${missing ? 'bg-amber-50' : ''}`
+              const numericClass = (invalid: boolean, missing: boolean) => `min-h-8 w-full min-w-0 rounded-sm border px-1.5 text-right text-xs tabular-nums focus:outline-none focus:ring-2 focus:ring-blue-700 ${invalid ? 'border-amber-600' : 'border-slate-300'} ${showWarningHighlights && (invalid || missing) ? 'bg-amber-50' : 'bg-white'}`
 
               return (
                 <tr
@@ -228,12 +228,12 @@ export const BOMTable: React.FC<BOMTableProps> = ({
                           data-grid-field="description"
                           aria-label={`Name for BOM row ${rowNumber}`}
                           aria-invalid={identityInvalid}
-                          className={`min-h-8 w-full min-w-0 rounded-sm border px-2 text-xs focus:outline-none focus:ring-2 focus:ring-blue-700 ${identityWarning && showWarningHighlights ? 'border-amber-600 bg-amber-50' : 'border-slate-300 bg-white'} ${selectedCellKeys.has(tableCellKey(item.id, 'description')) ? 'ring-2 ring-blue-500 ring-inset' : ''}`}
+                          className={`min-h-8 w-full min-w-0 rounded-sm border px-2 text-xs focus:outline-none focus:ring-2 focus:ring-blue-700 ${identityWarning ? 'border-amber-600' : 'border-slate-300'} ${identityWarning && showWarningHighlights ? 'bg-amber-50' : 'bg-white'} ${selectedCellKeys.has(tableCellKey(item.id, 'description')) ? 'ring-2 ring-blue-500 ring-inset' : ''}`}
                         />
-                      ) : item.description || <span className={showWarningHighlights ? 'text-amber-700' : 'text-slate-700'}>{placeholderNumber ?? '—'}</span>}
+                      ) : item.description || <span className="text-amber-700">{placeholderNumber ?? '—'}</span>}
                     </div>
                   </td>
-                  <td className={`px-2 py-0.5 text-right font-mono tabular-nums ${consumptionInvalid ? 'bg-amber-50 text-amber-900' : ''}`}>
+                  <td className={`px-2 py-0.5 text-right font-mono tabular-nums ${consumptionInvalid ? `${showWarningHighlights ? 'bg-amber-50' : ''} text-amber-900` : ''}`}>
                     {isEditMode ? (
                       <div className="flex items-center justify-end gap-1">
                         <input
@@ -266,7 +266,7 @@ export const BOMTable: React.FC<BOMTableProps> = ({
                       />
                     ) : item.unit || <span className="text-amber-700">—</span>}
                   </td>
-                  <td className={`px-2 py-0.5 text-right font-mono tabular-nums ${priceInvalid ? 'bg-amber-50 text-amber-900' : ''}`}>
+                  <td className={`px-2 py-0.5 text-right font-mono tabular-nums ${priceInvalid ? `${showWarningHighlights ? 'bg-amber-50' : ''} text-amber-900` : ''}`}>
                     {isEditMode ? (
                       <div className="flex items-center justify-end gap-1">
                         <input
@@ -285,7 +285,7 @@ export const BOMTable: React.FC<BOMTableProps> = ({
                       </div>
                     ) : <>{displayNumber(item.price, 2)}{priceMissing && <span aria-label="Missing required value" title="Missing required value" className="ml-1 text-[11px] font-bold text-rose-600">*</span>}</>}
                   </td>
-                  <td className={`px-2 py-0.5 text-right font-mono tabular-nums ${lossInvalid ? 'bg-amber-50 text-amber-900' : ''}`}>
+                  <td className={`px-2 py-0.5 text-right font-mono tabular-nums ${lossInvalid ? `${showWarningHighlights ? 'bg-amber-50' : ''} text-amber-900` : ''}`}>
                     {isEditMode ? (
                       <div className="flex items-center justify-end gap-1">
                         <input
@@ -328,7 +328,7 @@ export const BOMTable: React.FC<BOMTableProps> = ({
                         disabled={!isEditMode}
                         onClick={() => handleDeleteRow(item.id)}
                         aria-label={`Delete BOM row ${rowNumber}`}
-                        className="inline-flex h-8 w-8 items-center justify-center text-slate-600 hover:bg-rose-50 hover:text-rose-700 disabled:cursor-not-allowed disabled:opacity-30 focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-700"
+                        className="inline-flex h-8 w-8 items-center justify-center text-slate-600 hover:bg-rose-50 hover:text-rose-700 disabled:cursor-default disabled:opacity-30 disabled:hover:bg-transparent disabled:hover:text-slate-600 focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-700"
                         title={isEditMode ? (selectedIds.has(item.id) && selectedIds.size > 1 ? `Delete ${selectedIds.size} selected rows` : 'Delete row') : 'Switch to Edit to delete rows'}
                       >
                         <Trash2 className="h-3.5 w-3.5" aria-hidden="true" />
@@ -340,7 +340,7 @@ export const BOMTable: React.FC<BOMTableProps> = ({
                         onDragStart={event => handleDragStart(event, item.id)}
                         aria-label={`Reorder BOM row ${rowNumber}`}
                         title={isEditMode ? 'Drag to reorder' : 'Reordering is available in Edit'}
-                        className={`inline-flex h-8 w-7 cursor-grab items-center justify-center ${isSelected ? 'text-slate-700' : 'text-slate-400'} hover:bg-slate-200 hover:text-slate-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-700 active:cursor-grabbing disabled:cursor-not-allowed disabled:opacity-30 group-hover:text-slate-600 group-focus-within:text-slate-700`}
+                        className={`inline-flex h-8 w-7 cursor-grab items-center justify-center ${isSelected ? 'text-slate-700' : 'text-slate-400'} hover:bg-slate-200 hover:text-slate-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-700 active:cursor-grabbing disabled:cursor-default disabled:opacity-30 disabled:hover:bg-transparent disabled:hover:text-slate-400 group-hover:text-slate-600 group-focus-within:text-slate-700`}
                       >
                         <GripVertical className="h-4 w-4" aria-hidden="true" />
                       </button>
