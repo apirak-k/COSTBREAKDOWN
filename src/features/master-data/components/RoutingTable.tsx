@@ -12,7 +12,7 @@ import { MasterDataTableHeader } from './MasterDataTableChrome'
 import { MasterDataBlockerMarker } from './MasterDataBlockerMarker'
 import { Tooltip } from '../../../shared/ui/Tooltip'
 import { NumericInput } from '../../../shared/ui/NumericInput'
-import { masterDataDisplaySlotClass, masterDataIssueDisplayClass, masterDataIssueEditorClass, masterDataNumericDisplaySlotClass, masterDataNumericEditorClass, masterDataPercentageDisplayValueClass, masterDataPercentageEditorClass, masterDataPercentageIssueShellClass, masterDataPercentageShellClass, masterDataTextEditorClass } from './master-data-field-styles'
+import { masterDataDisplaySlotClass, masterDataIssueDisplayClass, masterDataIssueEditorClass, masterDataIssuePlaceholderClass, masterDataNumericDisplaySlotClass, masterDataNumericEditorClass, masterDataPercentageDisplayValueClass, masterDataPercentageEditorClass, masterDataPercentageInputShellClass, masterDataPercentageIssueShellClass, masterDataPercentageShellClass, masterDataSpreadsheetSelectionClass, masterDataTextEditorClass } from './master-data-field-styles'
 
 interface RoutingTableProps {
   routing: SnapshotRoutingStep[]
@@ -212,14 +212,14 @@ export const RoutingTable: React.FC<RoutingTableProps> = ({
       <div className="overflow-x-auto">
         <table ref={tableRef} className="w-full min-w-[68rem] table-fixed border-collapse text-left text-xs">
           <colgroup>
-            <col className="w-[4.5%]" /><col className="w-[17%]" /><col className="w-[24%]" />
-            <col className="w-[10%]" /><col className="w-[12%]" /><col className="w-[13%]" /><col className="w-[12.5%]" /><col className="w-[7%]" />
+            <col className="w-[4.5%]" /><col className="w-[22%]" /><col className="w-[22%]" />
+            <col className="w-[9.5%]" /><col className="w-[11.5%]" /><col className="w-[12.5%]" /><col className="w-[11%]" /><col className="w-[7%]" />
           </colgroup>
           <thead className="sticky top-0 z-30 border-y-2 border-slate-400 bg-slate-100 text-[11px] font-semibold uppercase tracking-wide text-slate-800">
             <tr>
               <th scope="col" className="sticky left-0 z-40 w-12 bg-slate-100 p-0 text-center">
                 <Tooltip label={allVisibleSelected ? 'Clear visible selection' : 'Select all visible rows'} wrapperClassName="relative flex h-9 w-full items-center justify-center">
-                  <button type="button" onClick={() => toggleAll(!allVisibleSelected)} disabled={filteredRouting.length === 0} aria-pressed={allVisibleSelected} aria-label={allVisibleSelected ? 'Clear visible selection for Routing rows' : 'Select all visible Routing rows'} className={`grid h-7 w-7 place-items-center rounded-sm text-[11px] focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-700 ${allVisibleSelected ? 'border border-slate-300 bg-slate-100 text-slate-700' : 'text-slate-700 hover:bg-slate-200'} disabled:cursor-default disabled:text-slate-400 disabled:hover:bg-transparent`}>#</button>
+                  <button type="button" onClick={() => toggleAll(!allVisibleSelected)} disabled={filteredRouting.length === 0} aria-pressed={allVisibleSelected} aria-label={allVisibleSelected ? 'Clear visible selection for Routing rows' : 'Select all visible Routing rows'} className={`grid h-7 w-7 place-items-center rounded-sm text-[11px] focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-700 ${allVisibleSelected ? 'border border-slate-800 bg-slate-700 text-white' : 'text-slate-700 hover:bg-slate-200'} disabled:cursor-default disabled:text-slate-400 disabled:hover:bg-transparent`}>#</button>
                 </Tooltip>
               </th>
               <th scope="col" className="px-2 py-2 text-left">Process</th>
@@ -292,7 +292,7 @@ export const RoutingTable: React.FC<RoutingTableProps> = ({
                           data-grid-field="processName"
                           aria-label={`Process for Routing row ${rowNumber}`}
                           aria-invalid={identityInvalid}
-                          className={`${masterDataTextEditorClass} ${identityWarning && showWarningHighlights ? masterDataIssueEditorClass : ''} ${selectedCellKeys.has(tableCellKey(step.id, 'processName')) ? 'ring-2 ring-blue-500 ring-inset' : ''}`}
+                          className={`${masterDataTextEditorClass} ${identityWarning && showWarningHighlights ? `${masterDataIssueEditorClass} ${masterDataIssuePlaceholderClass}` : ''} ${selectedCellKeys.has(tableCellKey(step.id, 'processName')) ? masterDataSpreadsheetSelectionClass : ''}`}
                         />
                       ) : <div className={`flex h-8 w-full min-w-0 items-center rounded-sm border border-transparent px-2 text-xs ${identityWarning && showWarningHighlights ? masterDataIssueDisplayClass : ''}`}>{step.processName || <span className="text-slate-500">{placeholderNumber === undefined ? '—' : `Process ${placeholderNumber}`}</span>}</div>}
                     </div>
@@ -308,7 +308,7 @@ export const RoutingTable: React.FC<RoutingTableProps> = ({
                         data-grid-field="workCenterId"
                         aria-label={`Work Center for Routing row ${rowNumber}`}
                         aria-invalid={workCenterInvalid}
-                        className={`block w-full appearance-none pr-10 text-left ${masterDataTextEditorClass} ${showWarningHighlights && workCenterInvalid ? masterDataIssueEditorClass : ''} ${selectedCellKeys.has(tableCellKey(step.id, 'workCenterId')) ? 'ring-2 ring-blue-500 ring-inset' : ''}`}
+                        className={`block w-full appearance-none pr-10 text-left ${masterDataTextEditorClass} ${showWarningHighlights && workCenterInvalid ? masterDataIssueEditorClass : ''} ${selectedCellKeys.has(tableCellKey(step.id, 'workCenterId')) ? masterDataSpreadsheetSelectionClass : ''}`}
                       >
                         <option value="">Select Work Center</option>
                         {step.workCenterId && !knownWorkCenters.has(step.workCenterId.trim().toLocaleLowerCase()) && (
@@ -343,7 +343,7 @@ export const RoutingTable: React.FC<RoutingTableProps> = ({
                           data-grid-field="manning"
                           aria-label={`Manning for ${step.processName || `Routing row ${rowNumber}`}`}
                           aria-invalid={manningInvalid}
-                          className={`${numericClass(manningInvalid)} ${selectedCellKeys.has(tableCellKey(step.id, 'manning')) ? 'ring-2 ring-blue-500 ring-inset' : ''}`}
+                          className={`${numericClass(manningInvalid)} ${selectedCellKeys.has(tableCellKey(step.id, 'manning')) ? masterDataSpreadsheetSelectionClass : ''}`}
                         />
                         {manningMissing && <MasterDataBlockerMarker />}
                       </div>
@@ -364,7 +364,7 @@ export const RoutingTable: React.FC<RoutingTableProps> = ({
                           data-grid-field="capacity"
                           aria-label={`Capacity for ${step.processName || `Routing row ${rowNumber}`}`}
                           aria-invalid={capacityInvalid}
-                          className={`${numericClass(capacityInvalid)} ${selectedCellKeys.has(tableCellKey(step.id, 'capacity')) ? 'ring-2 ring-blue-500 ring-inset' : ''}`}
+                          className={`${numericClass(capacityInvalid)} ${selectedCellKeys.has(tableCellKey(step.id, 'capacity')) ? masterDataSpreadsheetSelectionClass : ''}`}
                         />
                         {capacityMissing && <MasterDataBlockerMarker />}
                       </div>
@@ -372,33 +372,36 @@ export const RoutingTable: React.FC<RoutingTableProps> = ({
                   </td>
                   <td className="relative px-2 py-0.5 text-center font-mono tabular-nums">
                     {isEditMode ? (
-                      <div className={`${masterDataPercentageShellClass} ${showWarningHighlights && yieldInvalid ? masterDataPercentageIssueShellClass : ''} ${selectedCellKeys.has(tableCellKey(step.id, 'yield')) ? 'ring-2 ring-blue-500 ring-inset' : ''}`}>
-                        <NumericInput
-                          value={step.yield === null ? null : step.yield * 100}
-                          onValueChange={value => applyCellUpdate(step.id, { yield: value === null ? null : value / 100 })}
-                          min={0}
-                          minExclusive
-                          max={100}
-                          allowSubMinimumDraft
-                          data-grid-cell="true"
-                          data-grid-row-id={step.id}
-                          data-grid-field="yield"
-                          aria-label={`Yield percentage for ${step.processName || `Routing row ${rowNumber}`}`}
-                          aria-invalid={yieldInvalid}
-                          className={masterDataPercentageEditorClass}
-                        />
-                        <span className="text-center text-[11px] text-slate-400">%</span>
-                        <span aria-hidden="true" className="h-full w-3" />
-                        {yieldMissing && <MasterDataBlockerMarker />}
+                      <div className={`${masterDataPercentageShellClass} ${selectedCellKeys.has(tableCellKey(step.id, 'yield')) ? masterDataSpreadsheetSelectionClass : ''}`}>
+                        <div className={`${masterDataPercentageInputShellClass} ${showWarningHighlights && yieldInvalid ? masterDataPercentageIssueShellClass : ''}`}>
+                          <NumericInput
+                            value={step.yield === null ? null : step.yield * 100}
+                            onValueChange={value => applyCellUpdate(step.id, { yield: value === null ? null : value / 100 })}
+                            min={0}
+                            minExclusive
+                            max={100}
+                            allowSubMinimumDraft
+                            reserveMarker
+                            data-grid-cell="true"
+                            data-grid-row-id={step.id}
+                            data-grid-field="yield"
+                            aria-label={`Yield percentage for ${step.processName || `Routing row ${rowNumber}`}`}
+                            aria-invalid={yieldInvalid}
+                            className={masterDataPercentageEditorClass}
+                          />
+                          {yieldMissing && <MasterDataBlockerMarker />}
+                        </div>
+                        <span className="w-3 shrink-0 text-center text-[11px] text-slate-400">%</span>
                       </div>
                     ) : (
-                      <div className={`${masterDataPercentageShellClass} ${showWarningHighlights && yieldInvalid ? masterDataPercentageIssueShellClass : ''}`}>
-                        <span className={masterDataPercentageDisplayValueClass}>
-                          {step.yield === null ? '—' : formatNumber(step.yield * 100, 2)}
-                        </span>
-                        <span className="text-center text-[11px] text-slate-400">%</span>
-                        <span aria-hidden="true" className="h-full w-3" />
-                        {yieldMissing && <MasterDataBlockerMarker />}
+                      <div className={masterDataPercentageShellClass}>
+                        <div className={`${masterDataPercentageInputShellClass} ${showWarningHighlights && yieldInvalid ? masterDataPercentageIssueShellClass : ''}`}>
+                          <span className={masterDataPercentageDisplayValueClass}>
+                            {step.yield === null ? '—' : formatNumber(step.yield * 100, 2)}
+                          </span>
+                          {yieldMissing && <MasterDataBlockerMarker />}
+                        </div>
+                        <span className="w-3 shrink-0 text-center text-[11px] text-slate-400">%</span>
                       </div>
                     )}
                   </td>
@@ -411,7 +414,7 @@ export const RoutingTable: React.FC<RoutingTableProps> = ({
                         data-grid-row-id={step.id}
                         data-grid-field="note"
                         aria-label={`Note for ${step.processName || `Routing row ${rowNumber}`}`}
-                        className={`${masterDataTextEditorClass} ${selectedCellKeys.has(tableCellKey(step.id, 'note')) ? 'ring-2 ring-blue-500 ring-inset' : ''}`}
+                        className={`${masterDataTextEditorClass} ${selectedCellKeys.has(tableCellKey(step.id, 'note')) ? masterDataSpreadsheetSelectionClass : ''}`}
                       />
                     ) : <div className={masterDataDisplaySlotClass}>{step.note || '—'}</div>}
                   </td>

@@ -93,17 +93,26 @@ export function useTableKeyboardNav({
       if (!anchor || !target) return
       const rowMin = Math.min(anchor.row, target.row)
       const rowMax = Math.max(anchor.row, target.row)
-      const columnMin = Math.min(anchor.column, target.column)
-      const columnMax = Math.max(anchor.column, target.column)
       const next = new Set<string>()
       for (let row = rowMin; row <= rowMax; row += 1) {
-        for (let column = columnMin; column <= columnMax; column += 1) {
-          const key = getCellKey(matrix[row]?.[column])
-          if (key) next.add(key)
-        }
+        const key = getCellKey(matrix[row]?.[anchor.column])
+        if (key) next.add(key)
       }
       selectedCellKeysRef.current = next
       setSelectedCellKeys(next)
+    }
+
+    const getSelectedPositions = (matrix: GridMatrix) => {
+      const selected = selectedCellKeysRef.current
+      const anchor = selectionAnchor.current ? locateCell(matrix, selectionAnchor.current) : null
+      const positions: Array<{ row: number; column: number }> = []
+      matrix.forEach((row, rowIndex) => row.forEach((candidate, columnIndex) => {
+        const key = getCellKey(candidate)
+        if (key && selected.has(key) && (!anchor || columnIndex === anchor.column)) {
+          positions.push({ row: rowIndex, column: columnIndex })
+        }
+      }))
+      return positions
     }
 
     const handleMouseDown = (event: MouseEvent) => {
@@ -170,7 +179,12 @@ export function useTableKeyboardNav({
         const next = matrix[location.row + rowDelta]?.[location.column + columnDelta]
         if (!next) return
         event.preventDefault()
+        if (columnDelta !== 0) {
+          moveFocus(next)
+          return
+        }
         const anchor = selectionAnchor.current || key
+        selectionAnchor.current = anchor
         const nextKey = getCellKey(next)
         if (!nextKey) return
         setRange(anchor, nextKey)
@@ -196,21 +210,10 @@ export function useTableKeyboardNav({
       const activeCell = target?.closest<HTMLElement>('[data-grid-cell="true"]')
       if (!activeCell || !table.contains(activeCell) || !event.clipboardData) return
       const matrix = getGridMatrix(table)
-      const selected = selectedCellKeysRef.current
-      const positions: Array<{ row: number; column: number }> = []
-      matrix.forEach((row, rowIndex) => row.forEach((candidate, columnIndex) => {
-        const candidateKey = getCellKey(candidate)
-        if (candidateKey && selected.has(candidateKey)) positions.push({ row: rowIndex, column: columnIndex })
-      }))
+      const positions = getSelectedPositions(matrix)
 
       if (positions.length > 1) {
-        const rowMin = Math.min(...positions.map(position => position.row))
-        const rowMax = Math.max(...positions.map(position => position.row))
-        const columnMin = Math.min(...positions.map(position => position.column))
-        const columnMax = Math.max(...positions.map(position => position.column))
-        const text = matrix.slice(rowMin, rowMax + 1).map(row =>
-          row.slice(columnMin, columnMax + 1).map(cellValue).join('\t')
-        ).join('\n')
+        const text = positions.map(position => cellValue(matrix[position.row][position.column])).join('\n')
         event.clipboardData.setData('text/plain', text)
         event.preventDefault()
         return
@@ -233,15 +236,22 @@ export function useTableKeyboardNav({
       if (!start) return
       const clipboardMatrix = parseClipboardMatrix(event.clipboardData.getData('text/plain'))
       const cells: SpreadsheetPasteCell[] = []
-      const selected = selectedCellKeysRef.current
+      const selectedPositions = getSelectedPositions(matrix)
 
-      if (clipboardMatrix.length === 1 && clipboardMatrix[0].length === 1 && selected.size > 1) {
-        matrix.forEach(row => row.forEach(candidate => {
-          const key = getCellKey(candidate)
-          if (!key || !selected.has(key)) return
+      if (clipboardMatrix.length === 1 && clipboardMatrix[0].length === 1 && selectedPositions.length > 1) {
+        selectedPositions.forEach(({ row, column }) => {
+          const candidate = matrix[row][column]
           const { gridRowId, gridField } = candidate.dataset
           if (gridRowId && gridField) cells.push({ rowId: gridRowId, field: gridField, value: clipboardMatrix[0][0] })
-        }))
+        })
+      } else if (clipboardMatrix.length > 1 && clipboardMatrix.every(row => row.length === 1) && selectedPositions.length > 1) {
+        const start = selectedPositions[0]
+        clipboardMatrix.forEach(([value], rowOffset) => {
+          const candidate = matrix[start.row + rowOffset]?.[start.column]
+          if (!candidate) return
+          const { gridRowId, gridField } = candidate.dataset
+          if (gridRowId && gridField) cells.push({ rowId: gridRowId, field: gridField, value })
+        })
       } else {
         clipboardMatrix.forEach((pasteRow, rowOffset) => pasteRow.forEach((value, columnOffset) => {
           const candidate = matrix[start.row + rowOffset]?.[start.column + columnOffset]
@@ -268,23 +278,14 @@ export function useTableKeyboardNav({
       const activeKey = getCellKey(activeCell)
       const activePosition = activeKey ? locateCell(matrix, activeKey) : null
       if (!activePosition) return
-      const selected = selectedCellKeysRef.current
-      const positions: Array<{ row: number; column: number }> = []
-      matrix.forEach((row, rowIndex) => row.forEach((candidate, columnIndex) => {
-        const key = getCellKey(candidate)
-        if (key && selected.has(key)) positions.push({ row: rowIndex, column: columnIndex })
-      }))
+      const positions = getSelectedPositions(matrix)
       const selection = positions.length > 1 ? positions : [activePosition]
-      const rowMin = Math.min(...selection.map(position => position.row))
-      const rowMax = Math.max(...selection.map(position => position.row))
-      const columnMin = Math.min(...selection.map(position => position.column))
-      const columnMax = Math.max(...selection.map(position => position.column))
-      const cells = matrix.slice(rowMin, rowMax + 1).map(row => row.slice(columnMin, columnMax + 1))
-      const text = cells.map(row => row.map(cellValue).join('\t')).join('\n')
-      const cutCells = cells.flatMap(row => row.flatMap(candidate => {
+      const text = selection.map(position => cellValue(matrix[position.row][position.column])).join('\n')
+      const cutCells = selection.flatMap(position => {
+        const candidate = matrix[position.row][position.column]
         const { gridRowId, gridField } = candidate.dataset
         return gridRowId && gridField ? [{ rowId: gridRowId, field: gridField, value: '' }] : []
-      }))
+      })
       if (cutCells.length === 0) return
 
       event.clipboardData.setData('text/plain', text)

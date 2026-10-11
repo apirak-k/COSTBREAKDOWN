@@ -116,6 +116,11 @@ export function NumericInput({
 
   const handleKeyDown = (event: KeyboardEvent<HTMLInputElement>) => {
     if (event.key === 'ArrowUp' || event.key === 'ArrowDown') {
+      if (event.shiftKey && event.currentTarget.dataset.gridCell === 'true') {
+        preservedPlaceRef.current = null
+        onKeyDown?.(event)
+        return
+      }
       event.preventDefault()
       event.stopPropagation()
       applyStep(event.key === 'ArrowUp' ? 1 : -1)

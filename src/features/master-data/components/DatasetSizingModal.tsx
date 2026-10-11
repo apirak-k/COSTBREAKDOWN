@@ -7,6 +7,9 @@ import { hasDatasetMetadataChanged, hasDatasetSizingChanged, parseDatasetSizingC
 import { getPopulatedRowsRemovedBySizing } from '../../../state/dataset-sizing'
 import { downloadBlob } from '../../../services/excel/export'
 import { useDialogFocus } from '../use-dialog-focus'
+import { masterDataTextEditorClass } from './master-data-field-styles'
+
+const metadataNumericEditorClass = `${masterDataTextEditorClass} font-mono tabular-nums text-right`
 
 function currentCount(count: number | undefined, rowCount: number): string {
   if (count !== undefined) return String(count)
@@ -188,9 +191,10 @@ export const DatasetSizingModal: React.FC<DatasetSizingModalProps> = ({
           </button>
         </div>
 
-        <div className="space-y-2 px-3 py-2">
+        <div className="space-y-4 px-3 py-3">
           <section aria-label="Dataset metadata" className="space-y-2">
-            <div className="grid grid-cols-1 gap-x-3 gap-y-2 sm:grid-cols-3">
+            <h4 className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">METADATA</h4>
+            <div className="grid grid-cols-1 gap-x-3 gap-y-3 sm:grid-cols-3">
               <div className="sm:col-span-3">
                 <label htmlFor="dataset-sizing-product-name" className="mb-1 block text-left text-[11px] font-medium text-slate-700">Product Name</label>
                 <input
@@ -198,7 +202,7 @@ export const DatasetSizingModal: React.FC<DatasetSizingModalProps> = ({
                   type="text"
                   value={productName}
                   onChange={event => { setProductName(event.target.value); setSizingError('') }}
-                  className="h-8 w-full min-w-0 border border-slate-300 bg-white px-2 text-left text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-700"
+                  className={masterDataTextEditorClass}
                 />
               </div>
               <div>
@@ -208,7 +212,7 @@ export const DatasetSizingModal: React.FC<DatasetSizingModalProps> = ({
                   type="text"
                   value={uom}
                   onChange={event => { setUom(event.target.value); setSizingError('') }}
-                  className="h-8 w-full min-w-0 border border-slate-300 bg-white px-2 text-left font-mono text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-700"
+                  className={`${masterDataTextEditorClass} font-mono`}
                 />
               </div>
               <div>
@@ -217,17 +221,20 @@ export const DatasetSizingModal: React.FC<DatasetSizingModalProps> = ({
                   id="dataset-sizing-selling-price"
                   value={sellingPrice === '' ? null : Number(sellingPrice)}
                   onValueChange={value => { setSellingPrice(value === null ? '' : String(value)); setSizingError('') }}
-                  className="h-8 w-full min-w-0 border border-slate-300 bg-white px-2 text-right font-mono text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-700"
+                  className={metadataNumericEditorClass}
                 />
               </div>
               <div>
                 <label htmlFor="dataset-sizing-sga-percent" className="mb-1 block text-left text-[11px] font-medium text-slate-700">SG&amp;A (%)</label>
-                <NumericInput
-                  id="dataset-sizing-sga-percent"
-                  value={sgaPercent === '' ? null : Number(sgaPercent)}
-                  onValueChange={value => { setSgaPercent(value === null ? '' : String(value)); setSizingError('') }}
-                  className="h-8 w-full min-w-0 border border-slate-300 bg-white px-2 text-right font-mono text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-700"
-                />
+                <div className="grid min-w-0 grid-cols-[minmax(0,1fr)_auto] items-center gap-1.5">
+                  <NumericInput
+                    id="dataset-sizing-sga-percent"
+                    value={sgaPercent === '' ? null : Number(sgaPercent)}
+                    onValueChange={value => { setSgaPercent(value === null ? '' : String(value)); setSizingError('') }}
+                    className={metadataNumericEditorClass}
+                  />
+                  <span aria-hidden="true" className="text-xs text-slate-600">%</span>
+                </div>
               </div>
               <div className="sm:col-span-3">
                 <label htmlFor="dataset-sizing-dataset-remark" className="mb-1 block text-left text-[11px] font-medium text-slate-700">Dataset Remark</label>
@@ -236,14 +243,14 @@ export const DatasetSizingModal: React.FC<DatasetSizingModalProps> = ({
                   type="text"
                   value={remark}
                   onChange={event => { setRemark(event.target.value); setSizingError('') }}
-                  className="h-8 w-full min-w-0 border border-slate-300 bg-white px-2 text-left text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-700"
+                  className={masterDataTextEditorClass}
                 />
               </div>
             </div>
           </section>
 
-          <section aria-label="Dataset rows" className="border-t border-slate-200 pt-2">
-            <h4 className="mb-1 text-left text-xs font-semibold text-slate-700">Rows</h4>
+          <section aria-label="Dataset rows" className="space-y-2">
+            <h4 className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">TABLE ROWS</h4>
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
               {renderRowCount('Bill of Materials', 'dataset-sizing-bom-rows', bomCount, setBomCount, DATASET_SIZING_LIMITS.bomCount)}
               {renderRowCount('Work Centers', 'dataset-sizing-work-center-rows', wcCount, setWcCount, DATASET_SIZING_LIMITS.wcCount)}

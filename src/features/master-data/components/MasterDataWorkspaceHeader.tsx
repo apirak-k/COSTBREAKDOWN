@@ -359,11 +359,12 @@ export const MasterDataWorkspaceHeader: React.FC<MasterDataWorkspaceHeaderProps>
                 aria-label={`${roleLabels[datasetRole]} — ${state}`}
                 title={state}
                 onClick={() => onRoleChange(datasetRole)}
-                className={'flex h-full items-center gap-1.5 px-2 text-xs font-medium transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-blue-700 ' +
-                  (selected ? 'bg-slate-900 text-white' : 'text-slate-700 hover:bg-slate-100 hover:text-slate-950')}
+                className={'relative flex h-full items-center gap-1.5 px-2 text-xs font-medium transition-colors focus-visible:z-10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-blue-700 ' +
+                  (selected ? 'text-white' : 'text-slate-700 hover:bg-slate-100 hover:text-slate-950')}
               >
-                {roleLabels[datasetRole]}
-                <span aria-hidden="true" className={datasetSaveStateDotClass(state)} />
+                {selected && <span aria-hidden="true" className="pointer-events-none absolute inset-0.5 bg-slate-900" />}
+                <span className="relative z-10">{roleLabels[datasetRole]}</span>
+                <span aria-hidden="true" className={`relative z-10 ${datasetSaveStateDotClass(state)}`} />
               </button>
             )
           })}
@@ -515,11 +516,11 @@ export const MasterDataWorkspaceHeader: React.FC<MasterDataWorkspaceHeaderProps>
 
       </div>
 
-      <div className="px-2 py-1.5">
-        <dl className="grid min-w-0 grid-cols-1 gap-x-4 gap-y-1 sm:grid-cols-2 xl:grid-cols-[minmax(0,3fr)_minmax(0,1fr)_minmax(0,2fr)_minmax(0,1fr)_minmax(0,4fr)]">
-          <div className="flex min-h-10 min-w-0 items-center gap-1.5 py-1">
-            <dt className="shrink-0 whitespace-nowrap font-sans text-[11px] font-medium tracking-wide text-slate-600">Product Name :</dt>
-            <dd className="min-w-0 flex-1">
+      <div className="px-2 py-2">
+        <dl className="grid min-w-0 grid-cols-1 gap-x-3 gap-y-2 sm:grid-cols-2 xl:grid-cols-[minmax(0,2fr)_repeat(3,minmax(0,1fr))_minmax(0,2fr)]">
+          <div className="min-w-0 space-y-1">
+            <dt className="truncate font-sans text-[11px] font-medium tracking-wide text-slate-600">Product Name</dt>
+            <dd className="min-w-0">
               {isEditMode ? (
                 <input
                   type="text"
@@ -537,9 +538,9 @@ export const MasterDataWorkspaceHeader: React.FC<MasterDataWorkspaceHeaderProps>
             </dd>
           </div>
 
-          <div className="flex min-h-10 min-w-0 items-center gap-1.5 py-1">
-            <dt className="shrink-0 whitespace-nowrap font-sans text-[11px] font-medium tracking-wide text-slate-600">UOM :</dt>
-            <dd className="min-w-0 flex-1">
+          <div className="min-w-0 space-y-1">
+            <dt className="truncate font-sans text-[11px] font-medium tracking-wide text-slate-600">UOM</dt>
+            <dd className="min-w-0">
               {isEditMode ? (
                 <input
                   type="text"
@@ -555,45 +556,46 @@ export const MasterDataWorkspaceHeader: React.FC<MasterDataWorkspaceHeaderProps>
             </dd>
           </div>
 
-          <div className="flex min-h-10 min-w-0 items-center gap-1.5 py-1">
-            <dt className="shrink-0 whitespace-nowrap font-sans text-[11px] font-medium tracking-wide text-slate-600">Selling Price (THB) :</dt>
-            <dd className="min-w-0 flex-1">
+          <div className="min-w-0 space-y-1">
+            <dt className="truncate font-sans text-[11px] font-medium tracking-wide text-slate-600">Selling Price (THB)</dt>
+            <dd className="min-w-0">
               {isEditMode ? (
                 <NumericInput
                   value={product.sellingPrice}
                   onValueChange={sellingPrice => onUpdateProduct({ ...product, sellingPrice })}
                   aria-label="Selling Price (THB)"
-                  className={fieldInput + ' font-mono text-center'}
+                  className={fieldInput + ' font-mono tabular-nums text-right'}
                 />
               ) : (
-                <span className="flex h-8 w-full min-w-0 items-center truncate rounded-sm border border-transparent px-2 font-mono text-xs text-slate-950">
+                <span className="flex h-8 w-full min-w-0 items-center justify-end truncate rounded-sm border border-transparent px-2 text-right font-mono text-xs tabular-nums text-slate-950">
                   {product.sellingPrice == null ? '' : `${formatNumber(product.sellingPrice)} THB`}
                 </span>
               )}
             </dd>
           </div>
 
-          <div className="flex min-h-10 min-w-0 items-center gap-1.5 py-1">
-            <dt className="shrink-0 whitespace-nowrap font-sans text-[11px] font-medium tracking-wide text-slate-600">SG&amp;A (%) :</dt>
-            <dd className="min-w-0 flex-1">
+          <div className="min-w-0 space-y-1">
+            <dt className="truncate font-sans text-[11px] font-medium tracking-wide text-slate-600">SG&amp;A (%)</dt>
+            <dd className="grid min-w-0 grid-cols-[minmax(0,1fr)_auto] items-center gap-1.5">
               {isEditMode ? (
                 <NumericInput
                   value={product.sgaPercent}
                   onValueChange={sgaPercent => onUpdateProduct({ ...product, sgaPercent })}
                   aria-label="SG&A (%)"
-                  className={fieldInput + ' font-mono text-center'}
+                  className={fieldInput + ' font-mono tabular-nums text-right'}
                 />
               ) : (
-                <span className="flex h-8 w-full min-w-0 items-center truncate rounded-sm border border-transparent px-2 font-mono text-xs text-slate-950">
-                  {product.sgaPercent == null ? '' : `${formatNumber(product.sgaPercent)}%`}
+                <span className="flex h-8 w-full min-w-0 items-center justify-end truncate rounded-sm border border-transparent px-2 text-right font-mono text-xs tabular-nums text-slate-950">
+                  {product.sgaPercent == null ? '' : formatNumber(product.sgaPercent)}
                 </span>
               )}
+              <span aria-hidden="true" className="text-xs text-slate-600">%</span>
             </dd>
           </div>
 
-          <div className="flex min-h-10 min-w-0 items-center gap-1.5 py-1">
-            <dt className="shrink-0 whitespace-nowrap font-sans text-[11px] font-medium tracking-wide text-slate-600">Remark :</dt>
-            <dd className="min-w-0 flex-1">
+          <div className="min-w-0 space-y-1">
+            <dt className="truncate font-sans text-[11px] font-medium tracking-wide text-slate-600">Remark</dt>
+            <dd className="min-w-0">
               {isEditMode ? (
                 <input
                   type="text"

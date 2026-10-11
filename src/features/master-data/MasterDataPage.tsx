@@ -242,10 +242,11 @@ export const MasterDataPage: React.FC<MasterDataPageProps> = ({
             aria-pressed={isActive}
             aria-controls="master-data-table-panel"
             onClick={() => updateMasterDataUiState({ type: 'set-table-view', tableView: section.key })}
-            className={'inline-flex h-full w-full items-center justify-center border-r border-slate-200 px-0.5 text-[10px] font-medium transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-blue-700 ' +
-              (isActive ? 'bg-slate-900 text-white' : 'text-slate-700 hover:bg-slate-100 hover:text-slate-950')}
+            className={'relative inline-flex h-full w-full items-center justify-center border-r border-slate-200 px-0.5 text-[10px] font-medium transition-colors focus-visible:z-10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-blue-700 ' +
+              (isActive ? 'text-white' : 'text-slate-700 hover:bg-slate-100 hover:text-slate-950')}
           >
-            {section.navLabel}
+            {isActive && <span aria-hidden="true" className="pointer-events-none absolute inset-0.5 bg-slate-900" />}
+            <span className="relative z-10">{section.navLabel}</span>
           </button>
         )
       })}
@@ -254,10 +255,11 @@ export const MasterDataPage: React.FC<MasterDataPageProps> = ({
         aria-pressed={isAllTablesVisible}
         aria-controls="master-data-table-panel"
         onClick={() => updateMasterDataUiState({ type: 'set-table-view', tableView: 'all' })}
-        className={'inline-flex h-full w-full items-center justify-center px-0.5 text-[10px] font-medium transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-blue-700 ' +
-          (isAllTablesVisible ? 'bg-slate-900 text-white' : 'text-slate-700 hover:bg-slate-100 hover:text-slate-950')}
+        className={'relative inline-flex h-full w-full items-center justify-center px-0.5 text-[10px] font-medium transition-colors focus-visible:z-10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-blue-700 ' +
+          (isAllTablesVisible ? 'text-white' : 'text-slate-700 hover:bg-slate-100 hover:text-slate-950')}
       >
-        All
+        {isAllTablesVisible && <span aria-hidden="true" className="pointer-events-none absolute inset-0.5 bg-slate-900" />}
+        <span className="relative z-10">All</span>
       </button>
     </div>
   )
