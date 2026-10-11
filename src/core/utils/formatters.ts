@@ -13,14 +13,16 @@ export function formatCurrency(v: number, dp = 2, suffix = 'THB'): string {
 
 export function formatNumber(v: number, dp = 2): string {
   if (!Number.isFinite(v)) return '—'
+  const digits = displayDigits(dp)
   return v.toLocaleString('en-US', {
-    minimumFractionDigits: 0,
-    maximumFractionDigits: displayDigits(dp)
+    minimumFractionDigits: digits,
+    maximumFractionDigits: digits
   })
 }
 
 export function formatVariance(v: number, dp = 2): string {
-  if (!Number.isFinite(v) || Math.abs(v) < 0.00005) return '—'
+  if (!Number.isFinite(v)) return '—'
+  if (Math.abs(v) < 0.00005) return formatNumber(0, dp)
   const sign = v >= 0 ? '+' : '-'
   return `${sign}${formatNumber(Math.abs(v), dp)}`
 }

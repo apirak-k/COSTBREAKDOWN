@@ -195,8 +195,11 @@ const renderAppLayout = async storeOverrides => {
 try {
   const { formatCurrency, formatNumber, formatPercent, formatVariance } = await vite.ssrLoadModule('/src/core/utils/formatters.ts')
   assert.equal(formatNumber(98.125, 4), '98.13', 'visible numbers cap at two decimals and round at the display boundary')
-  assert.equal(formatNumber(98.1, 4), '98.1', 'visible numbers omit unnecessary trailing zeros')
+  assert.equal(formatNumber(12), '12.00', 'decimal business values use exactly two displayed decimals')
+  assert.equal(formatNumber(98.1, 4), '98.10', 'visible decimal values retain the required trailing zero')
+  assert.equal(formatNumber(3, 0), '3', 'explicitly integral values remain whole numbers')
   assert.equal(formatPercent(0.98125, 4), '98.13%', 'visible percentages use at most two decimals')
+  assert.equal(formatPercent(0.981, 4), '98.10%', 'percentages retain two displayed decimal places')
   assert.equal(formatCurrency(1.256, 4), '1.26 THB', 'visible currency uses at most two decimals')
   assert.equal(formatVariance(-1.256, 4), '-1.26', 'visible variance uses at most two decimals')
   assert.equal(formatNumber(Number.NaN), '—', 'non-finite values do not display as a fabricated zero')
@@ -255,7 +258,7 @@ try {
   assert.match(footerMarkup, /footer-dataset-status-tooltip[\s\S]*Reference[\s\S]*lucide-circle-x[\s\S]* 0[\s\S]*Current[\s\S]*lucide-circle-x[\s\S]* 0/, 'Footer readiness tooltip keeps Reference and Current blocker counts separate from warnings')
   assert.ok(footerMarkup.indexOf('REF STD') < footerMarkup.indexOf('CUR STD')
     && footerMarkup.indexOf('CUR STD') < footerMarkup.indexOf('NET GAP'), 'Footer cost summary orders Reference, Current, then Net Gap')
-  assert.match(footerMarkup, /REF STD<\/span>120[\s\S]*CUR STD<\/span>125\.5[\s\S]*NET GAP<\/span><span class="font-semibold text-rose-300">\+5\.5<\/span><\/span><span class="ml-2 max-\[359px\]:basis-full max-\[359px\]:ml-0 max-\[359px\]:text-right cursor-default select-none font-sans font-bold text-slate-300">THB\/PC<\/span>/, 'Footer unit is bold and secondary, remains 20px away without a separator, and preserves narrow wrapping')
+  assert.match(footerMarkup, /REF STD<\/span>120\.00[\s\S]*CUR STD<\/span>125\.50[\s\S]*NET GAP<\/span><span class="font-semibold text-rose-300">\+5\.50<\/span><\/span><span class="ml-2 max-\[359px\]:basis-full max-\[359px\]:ml-0 max-\[359px\]:text-right cursor-default select-none font-sans font-bold text-slate-300">THB\/PC<\/span>/, 'Footer business values use fixed two decimals while its unit remains bold and secondary')
   assert.match(footerMarkup, /Full Reference and Current standard costs and net gap in THB\/PC/, 'Footer cost summary exposes the displayed unit to assistive technology')
   const matchingUomFooter = await renderAppLayout({
     snapshotPair: {
@@ -392,8 +395,8 @@ try {
       totalGap: null
     }
   })
-  assert.match(negativeGapMarkup, /NET GAP<\/span><span class="font-semibold text-emerald-300">-5\.5/, 'negative Net Gap is emerald and omits unnecessary trailing zeros')
-  assert.match(zeroGapMarkup, /NET GAP<\/span><span class="font-semibold text-slate-300">0</, 'zero Net Gap is neutral and stays visible without forced decimals')
+  assert.match(negativeGapMarkup, /NET GAP<\/span><span class="font-semibold text-emerald-300">-5\.50/, 'negative Net Gap is emerald and uses fixed two decimals')
+  assert.match(zeroGapMarkup, /NET GAP<\/span><span class="font-semibold text-slate-300">0\.00/, 'valid zero Net Gap remains visible with fixed two decimals')
   assert.match(unavailableCostMarkup, /REF STD<\/span>—[\s\S]*NET GAP<\/span><span class="font-semibold text-slate-500">—/, 'unavailable Standard Cost and Net Gap remain dashes')
 
   const { INITIAL_MASTER_DATA_UI_STATE, reduceMasterDataUiState } = await vite.ssrLoadModule(
@@ -407,12 +410,11 @@ try {
 
   const defaultMarkup = await renderMasterDataPage(INITIAL_MASTER_DATA_UI_STATE)
   assert.equal(pressedButton(defaultMarkup, 'Current'), true, 'a fresh application session starts on Current')
-  assert.equal(pressedButton(defaultMarkup, 'View'), true, 'a fresh application session starts in View mode')
+  assert.match(defaultMarkup, /role="switch" aria-checked="false" aria-label="Switch to Edit"/, 'a fresh application session exposes View as the active toggle state and Edit as the next action')
   assert.equal(pressedButton(defaultMarkup, 'All'), true, 'Master Data first opens with All selected')
   const toolbarControlOrder = [
     'aria-label="Master Data workspace"',
-    'aria-label="View"',
-    'aria-label="Edit"',
+    'aria-label="Switch to Edit"',
     'aria-label="Master Data actions"',
     'role="search" class="relative ml-auto h-8 w-48 min-w-48 max-w-48 shrink-0"',
     'aria-label="Master Data table section"'
@@ -423,25 +425,18 @@ try {
   const toolbarActionEnd = headerSource.indexOf('<div role="search"', toolbarActionStart)
   const toolbarActionSource = headerSource.slice(toolbarActionStart, toolbarActionEnd)
   assert.doesNotMatch(toolbarActionSource, /border-l|border-r/, 'Master Data toolbar actions have no vertical separators')
-  const toolbarButtons = [...defaultMarkup.matchAll(/<button\b([^>]*)>([\s\S]*?)<\/button>/g)]
-  for (const [label, active] of [['View', true], ['Edit', false]]) {
-    const button = toolbarButtons.find(([, attributes]) => attributes.match(/\baria-label="([^"]+)"/)?.[1] === label)
-    assert.ok(button, `${label} mode has a labelled button`)
-    assert.match(button[1], /aria-describedby="[^"]+"/, `${label} mode is associated with its custom tooltip`)
-    assert.equal(/aria-pressed="true"/.test(button[1]), active, `${label} mode exposes its selected state`)
-    assert.match(button[1], /relative grid h-full w-full place-items-center/, `${label} fills and centers within its equal segmented-control half`)
-    assert.match(button[1], active ? /text-white/ : /text-slate-700/, `${label} has a clear selected state`)
-    assert.match(button[2], label === 'View' ? /lucide-eye h-4 w-4/ : /lucide-pencil h-4 w-4/, `${label} uses its requested icon`)
-    assert.doesNotMatch(button[2], />\s*(?:View|Edit)\s*</, `${label} has no visible text label`)
-  }
-  assert.match(headerSource, /role="group"\s+aria-label="View and Edit mode"[\s\S]*?className="relative grid h-8 w-16 shrink-0 grid-cols-2[\s\S]*transition-transform duration-150 ease-out[\s\S]*isEditMode \? 'translate-x-full' : 'translate-x-0'/,
-    'View/Edit use one compact icon-only segmented control with a sliding active thumb')
-  assert.match(headerSource, /role="group"[\s\S]*aria-label="View and Edit mode"[\s\S]*onClick=\{event => \{\s*if \(event\.target !== event\.currentTarget\) return\s*onToggleEditMode\(!isEditMode\)\s*\}\}/,
-    'clicking the segmented-control track toggles modes while bubbled segment clicks are ignored')
-  assert.match(headerSource, /aria-label="View"[\s\S]*onClick=\{\(\) => onToggleEditMode\(false\)\}/,
-    'clicking Eye explicitly selects View without relying on the track toggle')
-  assert.match(headerSource, /aria-label="Edit"[\s\S]*onClick=\{\(\) => onToggleEditMode\(true\)\}/,
-    'clicking Pencil explicitly selects Edit without relying on the track toggle')
+  const viewToggle = defaultMarkup.match(/<button\b([^>]*role="switch"[^>]*)>([\s\S]*?)<\/button>/)
+  assert.ok(viewToggle, 'View/Edit is one keyboard-operable segmented toggle containing both icons')
+  assert.match(viewToggle[1], /role="switch" aria-checked="false" aria-label="Switch to Edit"/, 'active View state exposes the next action through its accessible label and checked state')
+  assert.match(viewToggle[1], /aria-describedby="[^"]+"/, 'the View/Edit switch is associated with its shared tooltip')
+  assert.match(viewToggle[2], /lucide-eye h-4 w-4[\s\S]*lucide-pencil h-4 w-4/, 'both state icons stay visible within the one toggle')
+  assert.doesNotMatch(viewToggle[2], />\s*(?:View|Edit)\s*</, 'View/Edit remains icon-only')
+  assert.match(headerSource, /<Tooltip label=\{isEditMode \? 'Switch to View' : 'Switch to Edit'\}[^>]*>[\s\S]*<button[\s\S]*role="switch"[\s\S]*aria-checked=\{isEditMode\}[\s\S]*onClick=\{\(\) => onToggleEditMode\(!isEditMode\)\}/,
+    'the whole segmented control toggles once and its tooltip/accessibility name describes the next action')
+  assert.doesNotMatch(headerSource, /aria-label="View"|aria-label="Edit"|onToggleEditMode\(false\)|onToggleEditMode\(true\)/,
+    'View and Edit icon segments are state indicators, not independent set-mode actions')
+  const editModeMarkup = await renderMasterDataPage({ ...INITIAL_MASTER_DATA_UI_STATE, mode: 'edit' })
+  assert.match(editModeMarkup, /role="switch" aria-checked="true" aria-label="Switch to View"/, 'Edit state exposes View as the next toggle action')
   const searchViewCases = [
     ['bom', 'Search BOM'],
     ['wc', 'Search Work Centers'],
@@ -515,14 +510,14 @@ try {
 
   const returnedPageMarkup = await renderMasterDataPage(appSessionState)
   assert.equal(pressedButton(returnedPageMarkup, 'Reference'), true, 'a remounted page reflects the retained dataset side')
-  assert.equal(pressedButton(returnedPageMarkup, 'Edit'), true, 'a remounted page reflects the retained mode')
+  assert.match(returnedPageMarkup, /role="switch" aria-checked="true" aria-label="Switch to View"/, 'a remounted page reflects the retained Edit mode')
   assert.equal(pressedButton(returnedPageMarkup, 'Routing'), true, 'a remounted page reflects the retained table view')
   assert.equal(pressedButton(returnedPageMarkup, 'All'), false, 'the retained Routing view does not revert to All')
   assert.match(returnedPageMarkup, /aria-label="Routing table"/, 'the selected Routing view remains the only table region')
 
   const freshAppSessionMarkup = await renderMasterDataPage(INITIAL_MASTER_DATA_UI_STATE)
   assert.equal(pressedButton(freshAppSessionMarkup, 'Current'), true, 'a fresh app session does not inherit Reference selection')
-  assert.equal(pressedButton(freshAppSessionMarkup, 'View'), true, 'a fresh app session does not inherit Edit mode')
+  assert.match(freshAppSessionMarkup, /role="switch" aria-checked="false" aria-label="Switch to Edit"/, 'a fresh app session does not inherit Edit mode')
   assert.equal(pressedButton(freshAppSessionMarkup, 'All'), true, 'a fresh app session returns to All')
 
   const { makeEmptySession } = await vite.ssrLoadModule('/src/state/store.tsx')
@@ -590,7 +585,7 @@ try {
   assert.match(rowSelectionSource, /onMouseEnterRow/, 'dragging across row headers extends row selection')
   assert.match(spreadsheetEditingSource, /selectedIds\.has\(id\) \? \[\.\.\.selectedIds\]/, 'editing a selected row applies a same-column change to selected rows')
   assert.match(bomSource, /dataTransfer\.setData\('application\/x-costbreakdown-row-ids'/, 'selected rows are carried as a group for reorder')
-  assert.match(bomSource, /<th scope="col"[^>]*>Actions<\/th>[\s\S]*aria-label=\{`Reorder BOM row/, 'Trash and Grip reorder controls share the single rightmost Actions column')
+  assert.match(bomSource, /<th scope="col"[^>]*>Actions<\/th>[\s\S]*<Tooltip label=\{reorderTooltip\}>[\s\S]*aria-label=\{!isEditMode \? reorderTooltip/, 'Trash and Grip controls share the single rightmost Actions column and keep action-accurate labels')
   assert.match(routingSource, /not in WC table|knownWorkCenters/, 'Routing WC input keeps unknown values visible for typo correction')
   assert.match(headerSource, /<Tooltip label="Clone">[\s\S]*aria-label="Clone"/, 'Clone is icon-only with an accessible label and custom tooltip')
   const mockActionSource = footerSource.slice(footerSource.indexOf('const mockAction'), footerSource.indexOf('const referenceStandardCost'))
@@ -631,12 +626,12 @@ try {
   assert.match(storeSource, /clearAllMasterDataWorkingDatasets = \(\) =>[\s\S]*reduce\(\(working, role\) => clearMasterDataDatasetState\(working, role\), session\)[\s\S]*commitMasterDataAllWorkingDatasets\(session, updated\)/, 'Clear all uses the existing clear semantics across Working datasets as one action')
   assert.match(storeSource, /commitMasterDataAllWorkingDatasets = \(before: ProductSession, after: ProductSession\)[\s\S]*recordMasterDataPairWorkingEdit\(before, after\)/, 'all-dataset Working changes use the existing atomic Undo/Redo history entry')
   assert.match(headerSource, /const toolbarButton = 'grid h-8 w-8[^']*bg-transparent[^']*hover:bg-slate-100[^']*focus-visible:outline/, 'tool actions have borderless idle styling and retain 32px interaction targets')
-  assert.match(headerSource, /<div\s+role="group"\s+aria-label="View and Edit mode"[\s\S]*?<Eye className="h-4 w-4"[\s\S]*?<Pencil className="h-4 w-4"/, 'View/Edit use an icon-only sliding segmented control with both icons present')
+  assert.match(headerSource, /<Tooltip label=\{isEditMode \? 'Switch to View' : 'Switch to Edit'\}[\s\S]*<button[\s\S]*role="switch"[\s\S]*<Eye className="h-4 w-4"[\s\S]*<Pencil className="h-4 w-4"/, 'View/Edit use one action-labelled icon-only sliding toggle containing both icons')
   assert.ok(headerSource.includes('w-[calc(50%-2px)] bg-slate-900 transition-transform duration-150 ease-out'), 'the View/Edit selected thumb slides without changing control geometry')
   assert.match(headerSource, /className="inline-flex h-8 shrink-0 border border-slate-300 bg-white" role="group" aria-label="Master Data workspace"[\s\S]*className=\{'flex h-full items-center/, 'Dataset selector keeps a bordered 32px selector height and existing status dots')
   assert.match(pageSource, /grid h-8 w-72 shrink-0 grid-cols-4 items-stretch[\s\S]*h-full w-full/, 'Table selector uses equal controls with the same 32px height')
-  assert.match(headerSource, /className="relative grid h-8 w-16 shrink-0 grid-cols-2/, 'View/Edit selector has the same 32px height as toolbar utilities')
-  assert.match(headerSource, /<Tooltip label="View" wrapperClassName="relative grid h-full w-full place-items-center">[\s\S]*className=\{`relative grid h-full w-full place-items-center[\s\S]*<Tooltip label="Edit" wrapperClassName="relative grid h-full w-full place-items-center">[\s\S]*className=\{`relative grid h-full w-full place-items-center/, 'Tooltip wrappers fill equal View/Edit segments without shifting either icon')
+  assert.match(headerSource, /wrapperClassName="relative grid h-8 w-16 shrink-0"[\s\S]*className="relative grid h-8 w-16 grid-cols-2/, 'View/Edit remains exactly 64px by 32px with a single stable toggle target')
+  assert.match(headerSource, /<Tooltip label=\{isEditMode \? 'Switch to View' : 'Switch to Edit'\}[\s\S]*role="switch"[\s\S]*aria-checked=\{isEditMode\}/, 'a single tooltip names the action performed by either icon area')
   assert.match(headerSource, /className="inline-flex shrink-0 items-center gap-1" role="group" aria-label="Master Data actions"/, 'action icons remain grouped without changing their 32px targets')
   assert.match(headerSource, /role="search" className="relative ml-auto h-8 w-48 min-w-48 max-w-48 shrink-0"/, 'Search remains exactly 192px wide and 32px high')
   assert.match(sizingModalSource, /if \(removedData\.length > 0\)[\s\S]*window\.confirm\(/, 'Sizing confirms only when populated data will be removed')
@@ -806,11 +801,17 @@ try {
   assert.match(rowSelectionSource, /selectionScope\]\)/, 'row selection resets only when its dataset scope changes, not on View/Edit mode')
   for (const [tableSource, tableLabel] of [[bomSource, 'BOM'], [wcSource, 'Work Centers'], [routingSource, 'Routing']]) {
     assert.match(tableSource, /onMouseDown=\{event => startDrag\(/, tableLabel + ' row selection works in View and Edit')
-    assert.match(tableSource, /aria-label=\{allVisibleSelected \? 'Clear selection for visible .* rows' : 'Select all visible .* rows'\}/, tableLabel + ' # header toggles visible selection')
+    assert.match(tableSource, /Tooltip label=\{allVisibleSelected \? 'Clear visible selection' : 'Select all visible rows'\}[\s\S]*aria-label=\{allVisibleSelected \? 'Clear visible selection for .* rows' : 'Select all visible .* rows'\}/, tableLabel + ' # header toggles visible selection with action-accurate tooltip and label')
     assert.match(tableSource, /aria-pressed=\{allVisibleSelected\}[\s\S]*allVisibleSelected \? 'bg-blue-100 text-blue-900' : 'text-slate-700 hover:bg-slate-200'/, tableLabel + ' # Select All has a visible pressed state with stable geometry')
+    assert.match(tableSource, /<Tooltip label=\{isSelected \? 'Deselect row' : 'Select row'\}>[\s\S]*aria-label=\{`\$\{isSelected \? 'Deselect' : 'Select'\} row \$\{rowNumber\}`\}/, tableLabel + ' row # tooltip and accessible name describe the current select/deselect action')
+    assert.match(tableSource, /const deleteTooltip = !isEditMode \? 'Switch to Edit to delete rows' : deleteSelectedGroup \? 'Delete selected rows' : 'Delete row'/, tableLabel + ' Trash tooltip distinguishes one row from a selected multi-row group')
+    assert.match(tableSource, /const reorderTooltip = !isEditMode \? 'Reordering is available in Edit' : reorderSelectedGroup \? 'Drag selected rows to reorder' : 'Drag to reorder'/, tableLabel + ' Grip tooltip distinguishes one row from a selected group')
+    assert.match(tableSource, /<Tooltip label=\{deleteTooltip\}>[\s\S]*aria-label=\{!isEditMode \? deleteTooltip : deleteSelectedGroup \? 'Delete selected [^']+ rows' : `Delete [^`]+ row \$\{rowNumber\}`\}/, tableLabel + ' Trash has an action-accurate tooltip and contextual accessible name')
+    assert.match(tableSource, /<Tooltip label=\{reorderTooltip\}>[\s\S]*aria-label=\{!isEditMode \? reorderTooltip : reorderSelectedGroup \? 'Drag selected [^']+ rows to reorder' : `Drag [^`]+ row \$\{rowNumber\} to reorder`\}/, tableLabel + ' Grip has an action-accurate tooltip and contextual accessible name')
+    assert.doesNotMatch(tableSource, /<(?:button|input|select)\b[^>]*\s+title=/s, tableLabel + ' row actions use the shared tooltip, not native title popups')
     assert.match(tableSource, /<section aria-label="(?:Bill of Materials|Work Centers|Routing) rows" className="overflow-hidden border border-slate-300 bg-white select-none">/, tableLabel + ' table has its own bounded bordered container')
     assert.match(tableSource, /const idsToDelete = selectedIds\.has\([\w.]+\) \? \[\.\.\.selectedIds\] : \[[\w.]+\]/, tableLabel + ' Trash deletes selected rows as a group or only the clicked unselected row')
-    assert.match(tableSource, /<th scope="col" className="w-20[^"]*">Actions<\/th>[\s\S]*aria-label=\{[^}]*Reorder/, tableLabel + ' keeps Trash and Grip within one Actions column')
+    assert.match(tableSource, /<th scope="col" className="w-20[^"]*">Actions<\/th>[\s\S]*<Tooltip label=\{deleteTooltip\}>[\s\S]*<Tooltip label=\{reorderTooltip\}>[\s\S]*aria-label=\{[^}]*Drag/, tableLabel + ' keeps action-accurate Trash and Grip controls within one Actions column')
     assert.match(tableSource, /blockerIndexRef\.current % blockerItems\.length[\s\S]*blockerIndexRef\.current = \(blockerIndexRef\.current \+ 1\) % blockerItems\.length/, tableLabel + ' blocker navigation wraps cyclically')
     assert.match(tableSource, /warningIndexRef\.current % warningItems\.length[\s\S]*warningIndexRef\.current = \(warningIndexRef\.current \+ 1\) % warningItems\.length/, tableLabel + ' warning navigation wraps cyclically')
     assert.match(tableSource, /<MasterDataTableHeader title=.*warningCount=.*blockerCount=.*onNextWarning=.*onNextBlocker=.*onAddRow=/, tableLabel + ' header contains title, counts, Warning/Blocker jumps, and Add Row')
@@ -919,8 +920,7 @@ try {
     'Search has a fixed 192px width that cannot change with its placeholder')
   assert.match(headerSource, /className="flex flex-wrap items-center gap-1\.5[\s\S]*xl:flex-nowrap"/,
     'toolbar keeps its action and selector groups together on desktop')
-  assert.match(headerSource, /aria-pressed=\{!isEditMode\}[\s\S]*aria-label="View"[\s\S]*<Eye className="h-4 w-4"/, 'View uses an accessible icon-only Eye control')
-  assert.match(headerSource, /aria-pressed=\{isEditMode\}[\s\S]*aria-label="Edit"[\s\S]*<Pencil className="h-4 w-4"/, 'Edit uses an accessible icon-only Pencil control')
+  assert.match(headerSource, /role="switch"[\s\S]*aria-checked=\{isEditMode\}[\s\S]*aria-label=\{isEditMode \? 'Switch to View' : 'Switch to Edit'\}[\s\S]*<Eye className="h-4 w-4"[\s\S]*<Pencil className="h-4 w-4"/, 'one accessible View/Edit switch names its next action and keeps both state icons')
   assert.match(headerSource, /const datasetSaveStateDotClass = \(state: MasterDataSaveState, size = 'h-1\.5 w-1\.5'\)/, 'dataset save-state dots retain their existing size')
   assert.match(headerSource, /aria-pressed=\{showWarningHighlights\}[\s\S]*Hide warning highlights[\s\S]*Show warning highlights[\s\S]*!<\/span>[\s\S]*rotate-\[-45deg\]/,
     'warning visibility uses an accessible toggle and a diagonal slash when hidden')
@@ -960,28 +960,28 @@ try {
   assert.doesNotMatch(importModalSource, /window\.confirm|Import will replace.*\n.*confirm/i, 'Import has no second confirmation')
   assert.match(sizingModalSource, /max-w-\[40rem\][\s\S]*aria-label="Dataset metadata"[\s\S]*aria-label="Dataset row counts"/,
     'Sizing presents Dataset metadata and row counts in a narrower compact centered dialog')
-  assert.match(sizingModalSource, /value=\{productName\}[\s\S]*value=\{uom\}[\s\S]*value=\{sellingPrice\}[\s\S]*value=\{sgaPercent\}[\s\S]*value=\{remark\}/,
-    'Sizing retains all local metadata draft fields')
+  assert.match(sizingModalSource, /value=\{productName\}[\s\S]*value=\{uom\}[\s\S]*<NumericInput[\s\S]*value=\{sellingPrice === '' \? null : Number\(sellingPrice\)\}[\s\S]*<NumericInput[\s\S]*value=\{sgaPercent === '' \? null : Number\(sgaPercent\)\}[\s\S]*value=\{remark\}/,
+    'Sizing retains local metadata drafts and uses the shared numeric editor for Selling Price and SG&A')
   assert.match(sizingModalSource, /buildSizingDraft\(\)[\s\S]*getPopulatedRowsRemovedBySizing\(snapshot, nextSizing\)[\s\S]*onSaveSizing\(nextSizing\)[\s\S]*onClose\(\)/,
     'Sizing still validates its draft, protects populated truncation, and applies only on Apply')
   assert.match(sizingModalSource, /const templateSnapshot = \{ \.\.\.snapshot, product: nextProduct, remark, sizing: nextSizing \}/,
     'Download Template uses the uncommitted dialog draft')
   assert.match(sizingModalSource, /error instanceof RangeError \? error\.message : 'Template could not be generated\. Please try again\.'/,
     'unexpected ExcelJS or Vite failures use concise dialog copy instead of exposing module URLs')
-  assert.match(sizingModalSource, /type="number"[\s\S]*min="1"[\s\S]*max=\{max\}[\s\S]*onChange=\{event => \{ setValue\(event\.target\.value\); setSizingError\(''\) \}\}/,
-    'Sizing row counts remain directly editable numeric inputs with validation bounds')
+  assert.match(sizingModalSource, /<NumericInput[\s\S]*value=\{value === '' \? null : Number\(value\)\}[\s\S]*onValueChange=\{next => \{ setValue\(next === null \? '' : String\(next\)\)[\s\S]*integer[\s\S]*min=\{1\}[\s\S]*max=\{max\}/,
+    'Sizing row counts use the shared integer editor with their existing bounds')
   assert.ok(sizingModalSource.includes('className="grid grid-cols-1 gap-3 sm:grid-cols-3"')
     && sizingModalSource.includes("renderRowCount('Bill of Materials'")
     && sizingModalSource.includes("renderRowCount('Work Centers'")
     && sizingModalSource.includes("renderRowCount('Routing'"),
   'row count controls use three desktop columns in BOM, Work Centers, Routing order')
-  assert.doesNotMatch(sizingModalSource, /Decrease \$\{label\} rows|Increase \$\{label\} rows|changeCount|[−+]/,
-    'Sizing has no custom decrement or increment controls')
+  assert.match(sizingModalSource, /<NumericInput[\s\S]*integer[\s\S]*className="h-8 w-full min-w-0/, 'Sizing row count editors fill their equal columns while retaining shared keyboard and focus-only spinner behavior')
+  assert.match(sizingModalSource, /const renderRowCount[\s\S]*<NumericInput[\s\S]*id=\{id\}[\s\S]*aria-label=\{label\}/, 'Sizing spinner actions use the actual row-count field name instead of the Unset placeholder')
   assert.match(sizingModalSource, /DATASET_SIZING_LIMITS\.bomCount[\s\S]*DATASET_SIZING_LIMITS\.wcCount[\s\S]*DATASET_SIZING_LIMITS\.routingCount/,
     'BOM, Work Centers, and Routing controls use their existing maximum limits')
   assert.match(sizingModalSource, /aria-label="Dataset metadata"[\s\S]*sm:grid-cols-3[\s\S]*sm:col-span-3[\s\S]*Product Name[\s\S]*UOM[\s\S]*Selling Price \(THB\)[\s\S]*SG&amp;A \(%\)[\s\S]*sm:col-span-3[\s\S]*Dataset Remark/, 'Sizing metadata follows full-width Product, equal UOM/Price/SG&A, then full-width Remark rows')
   assert.match(sizingModalSource, /aria-label="Dataset row counts"[\s\S]*grid grid-cols-1 gap-3 sm:grid-cols-3/, 'Sizing row counts remain an equal, compact three-column group')
-  assert.match(sizingModalSource, /const renderRowCount[\s\S]*max-w-36 min-w-0 border border-slate-300 bg-white px-2 text-center/, 'Sizing numeric editors stay compact and centered within each row-count group')
+  assert.match(sizingModalSource, /const renderRowCount[\s\S]*className="h-8 w-full min-w-0 border border-slate-300 bg-white px-2 text-center/, 'Sizing numeric editors fill each row-count column rather than using a narrow centered width')
   assert.match(sizingModalSource, /<Download className="h-3\.5 w-3\.5" aria-hidden="true" \/>[\s\S]*Download Template/, 'Download Template uses a down-arrow action icon')
   assert.match(sizingModalSource, /border-t border-slate-200 px-3 py-2 sm:flex-row sm:items-center sm:justify-between[\s\S]*Download Template[\s\S]*Apply Sizing/, 'Download Template stays at the lower left, secondary to Apply')
   assert.match(importDropzoneSource, /role="group"[\s\S]*type="button"[\s\S]*onClick=\{openFilePicker\}[\s\S]*onDragOver=\{event => \{ event\.preventDefault\(\); setIsDragging\(true\) \}\}[\s\S]*onDrop=\{handleDrop\}/,
@@ -1034,15 +1034,16 @@ try {
   assert.match(tooltipSource, /import \{ createPortal \} from 'react-dom'[\s\S]*createPortal\([\s\S]*document\.body/, 'shared tooltips render in a top-level document portal')
   assert.match(tooltipSource, /bounds\.left \+ \(bounds\.width - width\) \/ 2[\s\S]*window\.innerWidth - width - 8[\s\S]*bounds\.top - tooltipBounds\.height - 5[\s\S]*z-\[1000\]/, 'tooltips center above triggers, clamp to viewport, and escape Navbar stacking contexts')
   assert.match(tooltipSource, /cloneElement\(children, \{ 'aria-describedby': describedBy \}\)/, 'portal tooltips preserve aria-describedby on their trigger')
-  assert.match(headerSource, /className="relative grid h-8 w-16 shrink-0 grid-cols-2[\s\S]*<Tooltip label="View" wrapperClassName="relative grid h-full w-full place-items-center"[\s\S]*<Tooltip label="Edit" wrapperClassName="relative grid h-full w-full place-items-center"/, 'View/Edit keeps exact 64px by 32px outer geometry with equal tooltip-safe halves')
+  assert.match(headerSource, /wrapperClassName="relative grid h-8 w-16 shrink-0"[\s\S]*className="relative grid h-8 w-16 grid-cols-2/, 'View/Edit keeps exact 64px by 32px geometry as one toggle target')
   assert.match(fieldStylesSource, /h-8 w-full min-w-0 rounded-sm border border-transparent bg-transparent[\s\S]*hover:border-slate-200 hover:bg-slate-50[\s\S]*focus:border-blue-700 focus:bg-white/, 'table and metadata editors keep a stable light idle surface with a clear focused state')
-  assert.match(tableChromeSource, /grid-cols-\[11rem_minmax\(0,1fr\)_auto\]/, 'all three table headers reserve one stable title slot before aligned row counts')
-  assert.match(bomSource, /w-max table-fixed[\s\S]*w-\[336px\][\s\S]*w-\[280px\]/, 'BOM table keeps intentional identity and Note widths without stretching the Note column')
-  assert.match(wcSource, /w-max table-fixed[\s\S]*w-\[288px\][\s\S]*w-\[288px\]/, 'Work Center identity and Note columns have explicit engineering widths')
-  assert.match(routingSource, /w-max table-fixed[\s\S]*w-\[288px\][\s\S]*w-\[280px\]/, 'Routing identity and Note columns have explicit engineering widths')
-  assert.doesNotMatch(bomSource + wcSource + routingSource, /<col\s*\/?\s*>/, 'no table leaves Note or another column to consume leftover width')
+  assert.match(tableChromeSource, /<header className="flex min-h-10 flex-wrap items-center justify-between[\s\S]*<h3[^>]*>\{title\}<\/h3>[\s\S]*<div className="flex min-w-0 flex-wrap items-center justify-end/, 'table header title stays left while its status/action group stays right')
+  assert.match(tableChromeSource, /w-36 shrink-0 whitespace-nowrap text-right font-mono text-\[10px\] tabular-nums/, 'row and selection totals occupy a fixed tabular status slot')
+  assert.match(bomSource, /w-full min-w-\[64rem\] table-fixed[\s\S]*<col className="w-12" \/><col \/>[\s\S]*<col className="w-56" \/>/, 'BOM fills the shared section width with a flexible Material identity and fixed Note width')
+  assert.match(wcSource, /w-full min-w-\[56rem\] table-fixed[\s\S]*<col className="w-12" \/><col \/>[\s\S]*<col className="w-56" \/>/, 'Work Centers fills the shared section width with a flexible identity and fixed Note width')
+  assert.match(routingSource, /w-full min-w-\[68rem\] table-fixed[\s\S]*<col className="w-12" \/><col \/>[\s\S]*<col className="w-56" \/>/, 'Routing fills the shared section width with a flexible Process identity and fixed Note width')
+  assert.match(bomSource + wcSource + routingSource, /<col className="w-56" \/>/, 'all three tables cap the Note column at a fixed medium width')
   assert.match(wcSource, /max-w-40 text-center \$\{masterDataTextEditorClass\}/, 'Work Centers Work Center input uses the common 160px editor width')
-  assert.match(routingSource, /max-w-40 pr-6 text-center \$\{masterDataTextEditorClass\}/, 'Routing Work Center select matches the Work Centers editor width')
+  assert.match(routingSource, /<div className="relative mx-auto w-full max-w-40">[\s\S]*<select[\s\S]*block w-full appearance-none pr-10 text-center \$\{masterDataTextEditorClass\}/, 'Routing Work Center select matches the Work Centers editor width through its shared 160px slot')
   assert.match(wcSource, /inline-flex max-w-full items-center truncate rounded-sm border px-1\.5 py-0\.5 text-\[11px\] font-mono font-medium/, 'Work Center View identity is a compact neutral identifier tag')
   const allTablesSource = bomSource + wcSource + routingSource
   assert.doesNotMatch(allTablesSource, /border-l-2 border-l-blue-700|isSelected \? 'bg-blue-50|group-hover:bg-blue-100/, 'selection does not add a blue row border, row wash, or cell wash')
@@ -1069,7 +1070,7 @@ try {
   assert.match(bomSource + wcSource + routingSource, /<MasterDataBlockerMarker/, 'BOM, Work Centers, and Routing render blocker stars through the shared overlay marker')
   assert.doesNotMatch(bomSource + wcSource + routingSource, /pr-(?:3|4|5)(?:\s|`)/, 'blocker markers do not reserve padding that shifts values or narrows their inputs')
   assert.match(fieldStylesSource, /masterDataNumericDisplaySlotClass = 'relative inline-flex h-8 items-center justify-center rounded-sm border border-transparent/, 'View numeric values use a fixed 32px positioned slot aligned with Edit fields for overlay markers')
-  assert.match(bomSource + wcSource + routingSource, /masterDataNumericDisplaySlotClass[\s\S]*MasterDataBlockerMarker className="right-0 top-0"/, 'View-mode blocker stars overlay the shared value slot without affecting its geometry')
+  assert.match(blockerMarkerSource, /className="pointer-events-none absolute right-1 top-1\/2[\s\S]*-translate-y-1\/2/, 'all Blocker stars use a shared right and vertical-center anchor')
   assert.match(routingSource, /workCenterInvalid && showWarningHighlights \? 'border-amber-300 bg-amber-50' : 'border-slate-200 bg-slate-50'/,
     'Routing unresolved Work Center highlights only its neutral identifier tag when enabled')
   assert.doesNotMatch(headerSource + pageSource + bomSource + wcSource + routingSource + navbarSource + footerSource + sizingModalSource + importDropzoneSource, /cursor-not-allowed/,

@@ -263,10 +263,10 @@ scroll area, as required by
 - Keep labels adjacent to controls. Use a clear focus ring and a distinct
   invalid-value cue. Keep validation explanation outside dense table rows when
   the spec requires dataset-level notices.
-- Display non-edit numeric values with at most two decimal places and omit
-  unnecessary trailing zeros. Keep calculation and stored input precision
-  unchanged; show non-finite values as unavailable rather than formatting them
-  as zero.
+- Display decimal business values with exactly two decimal places, including
+  trailing zeros. Keep semantic integers whole. Formatting is presentation
+  only: stored inputs and calculation precision remain unchanged. Show
+  non-finite values as unavailable rather than formatting them as zero.
 - Show actual money units next to monetary values. Never style a changed
   Price/Usage/Loss input as a separate monetary contribution unless an
   attribution method is explicitly approved. Changed inputs are explanatory

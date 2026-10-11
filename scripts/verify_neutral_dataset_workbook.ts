@@ -177,14 +177,21 @@ function assertWorkbookSurface(excel: ExcelJS.Workbook): void {
   assert.equal(routing.getCell('D4').numFmt, '#,##0.00')
   assert.equal(workCenter.getCell('B4').numFmt, '#,##0.00')
   assert.equal(workCenter.getCell('C4').numFmt, '#,##0.00')
-  for (const [sheetName, tableName, columns] of [
-    ['BOM', 'BOMData', 6], ['WORK_CENTER', 'WorkCenterData', 4], ['ROUTING', 'RoutingData', 6]
-  ] as const) {
+  const tableAlignmentExpectations = [
+    ['BOM', 'BOMData', ['left', 'right', 'center', 'right', 'right', 'left']],
+    ['WORK_CENTER', 'WorkCenterData', ['center', 'right', 'right', 'left']],
+    ['ROUTING', 'RoutingData', ['left', 'center', 'right', 'right', 'right', 'left']]
+  ] as const
+  for (const [sheetName, tableName, expectedAlignment] of tableAlignmentExpectations) {
     const rows = tableDataRowCount(excel, sheetName, tableName)
     for (let row = 4; row < 4 + rows; row += 1) {
-      for (let column = 1; column <= columns; column += 1) {
+      for (let column = 1; column <= expectedAlignment.length; column += 1) {
         assert.equal(excel.getWorksheet(sheetName)!.getCell(row, column).fill.fgColor?.argb, INPUT_FILL)
-        assert.equal(excel.getWorksheet(sheetName)!.getCell(row, column).alignment.horizontal, 'center')
+        assert.equal(
+          excel.getWorksheet(sheetName)!.getCell(row, column).alignment.horizontal,
+          expectedAlignment[column - 1],
+          `${sheetName} row ${row} column ${column} uses the documented alignment`
+        )
         assert.equal(excel.getWorksheet(sheetName)!.getCell(row, column).alignment.vertical, 'middle')
       }
     }

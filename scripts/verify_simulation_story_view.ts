@@ -35,7 +35,7 @@ assert.match(markup, /Reference → Current → Simulated/)
 assert.match(markup, /Reference, Current, and Simulated stacked Standard Cost by MAT, LB, and BD, with Selling Price shown as a line\./)
 assert.match(markup, /Gap 1/)
 assert.match(markup, /Gap 2/)
-for (const value of ['10.0000', '2.0000', '3.0000', '15.0000', '25.0000', '12.0000', '16.0000', '95.0000', '100.0000', '-5.0000']) {
+for (const value of ['10.00', '2.00', '3.00', '15.00', '25.00', '12.00', '16.00', '95.00', '100.00', '-5.00']) {
   assert.ok(visibleText.includes(value), `story graph must expose ${value}`)
 }
 assert.ok(visibleText.includes('Operating loss'), 'negative OP remains visible as an operating loss')
@@ -122,7 +122,7 @@ const economicOnlyMarkup = renderToStaticMarkup(React.createElement(SimulationPa
 const economicOnlyText = economicOnlyMarkup.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ')
 assert.ok(economicOnlyText.includes('Economic Simulation'), 'Economic Simulation is available before Parameter SIM starts')
 assert.ok(economicOnlyText.includes('Action Cost') && economicOnlyText.includes('Evaluation Quantity'))
-assert.ok(economicOnlyText.includes('Required Saving / pc') && economicOnlyText.includes('1.0000'), 'economic-only page calculates Action Cost divided by Evaluation Quantity')
+assert.ok(economicOnlyText.includes('Required Saving / pc') && economicOnlyText.includes('1.00'), 'economic-only page calculates Action Cost divided by Evaluation Quantity')
 assert.ok(economicOnlyText.includes('Start SIM From Current'), 'economic-only inputs do not require starting a Parameter SIM')
 assert.ok(!economicOnlyText.includes('Economic Margin / pc'), 'economic-only mode does not show combined-mode margin')
 assert.doesNotMatch(economicOnlyMarkup, /simulation-result-title|simulation-story-title/, 'economic-only mode does not fabricate Parameter results')
@@ -211,6 +211,6 @@ const combinedMarkup = renderToStaticMarkup(React.createElement(SimulationPage, 
 }))
 const combinedText = combinedMarkup.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ')
 assert.ok(combinedText.includes('Parameter Saving / pc'), 'combined mode adds the Parameter Saving output')
-assert.ok(combinedText.includes('Economic Margin / pc') && combinedText.includes('-1.0000'), 'combined mode compares Parameter Saving with Required Saving')
+assert.ok(combinedText.includes('Economic Margin / pc') && combinedText.includes('-1.00'), 'combined mode compares Parameter Saving with Required Saving')
 
 console.log('Simulation story graph verification passed')

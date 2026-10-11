@@ -1,4 +1,5 @@
 import { compareSnapshots, safeAdd } from '../../core'
+import { isMasterDataNumericInputValid, type MasterDataNumericField } from '../../core/utils/master-data-validation'
 import type {
   ComparisonFinding,
   CostComparison,
@@ -97,7 +98,7 @@ export function calculateParameterSimulation(
   }
 }
 
-const PARAMETER_FIELDS: Record<SimulationParameter, { kind: SimulationRecordKind; field: string }> = {
+const PARAMETER_FIELDS: Record<SimulationParameter, { kind: SimulationRecordKind; field: MasterDataNumericField }> = {
   'bom.price': { kind: 'bom', field: 'price' },
   'bom.consumption': { kind: 'bom', field: 'consumption' },
   'bom.loss': { kind: 'bom', field: 'loss' },
@@ -116,7 +117,7 @@ export function updateSimulationParameter(
   const configuration = PARAMETER_FIELDS[parameter]
   if (!configuration || !state.snapshot
     || !state.selectedFactors.includes(simulationFactorId(configuration.kind, simulationRecordId))
-    || (value !== null && !Number.isFinite(value))) return state
+    || (value !== null && !isMasterDataNumericInputValid(configuration.field, value))) return state
 
   const row = calculateParameterSimulation(currentSnapshot, state.snapshot).records
     .find(record => record.kind === configuration.kind && record.simulationRecordId === simulationRecordId)

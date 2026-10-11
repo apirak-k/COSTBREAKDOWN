@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react'
 import { useAppStore } from '../../../../state'
 import { ProductSizingConfig } from '../../../../core'
 import { X, Plus } from 'lucide-react'
+import { NumericInput } from '../../../../shared/ui/NumericInput'
 
 interface ProductSetupModalProps {
   isOpen: boolean
@@ -29,9 +30,9 @@ export const ProductSetupModal: React.FC<ProductSetupModalProps> = ({
   const [showNewUom, setShowNewUom] = useState(false)
   const [customer, setCustomer] = useState('')
   const [effectiveDate, setEffectiveDate] = useState('')
-  const [wcCount, setWcCount] = useState(4)
-  const [bomCount, setBomCount] = useState(16)
-  const [routingCount, setRoutingCount] = useState(39)
+  const [wcCount, setWcCount] = useState('4')
+  const [bomCount, setBomCount] = useState('16')
+  const [routingCount, setRoutingCount] = useState('39')
   const [error, setError] = useState('')
 
   useEffect(() => {
@@ -42,9 +43,9 @@ export const ProductSetupModal: React.FC<ProductSetupModalProps> = ({
         setUom(activeSession.product.uom || '')
         setCustomer(activeSession.product.customer || '')
         setEffectiveDate(activeSession.product.effectiveDate || new Date().toISOString().split('T')[0])
-        setWcCount(Math.max(1, activeSession.rates.length || 4))
-        setBomCount(Math.max(1, activeSession.bom.length || 16))
-        setRoutingCount(Math.max(1, activeSession.routing.length || 39))
+        setWcCount(String(Math.max(1, activeSession.rates.length || 4)))
+        setBomCount(String(Math.max(1, activeSession.bom.length || 16)))
+        setRoutingCount(String(Math.max(1, activeSession.routing.length || 39)))
       } else {
         // Create mode defaults
         setProductCode('')
@@ -52,9 +53,9 @@ export const ProductSetupModal: React.FC<ProductSetupModalProps> = ({
         setUom('')
         setCustomer('')
         setEffectiveDate(new Date().toISOString().split('T')[0])
-        setWcCount(4)
-        setBomCount(16)
-        setRoutingCount(39)
+        setWcCount('4')
+        setBomCount('16')
+        setRoutingCount('39')
       }
       setError('')
       setShowNewUom(false)
@@ -81,7 +82,8 @@ export const ProductSetupModal: React.FC<ProductSetupModalProps> = ({
       return
     }
 
-    if (wcCount < 1 || bomCount < 1 || routingCount < 1) {
+    const counts = [wcCount, bomCount, routingCount].map(value => value.trim() === '' ? 0 : Number(value))
+    if (counts.some(value => !Number.isInteger(value) || value < 1)) {
       setError('Counts must be at least 1.')
       return
     }
@@ -229,13 +231,11 @@ export const ProductSetupModal: React.FC<ProductSetupModalProps> = ({
                 <label className="block text-xs font-semibold text-slate-700 mb-1">
                   Work Centers
                 </label>
-                <input
-                  type="number"
-                  min={1}
-                  max={50}
-                  value={wcCount}
-                  onChange={e => setWcCount(Number(e.target.value))}
-                  className="min-h-10 w-full rounded-sm border border-slate-300 bg-white px-3 py-2 font-mono text-sm font-medium text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-200"
+                  <NumericInput
+                  value={wcCount === '' ? null : Number(wcCount)}
+                  onValueChange={value => setWcCount(value === null ? '' : String(value))}
+                  integer min={1} max={50}
+                  className="h-10 w-full rounded-sm border border-slate-300 bg-white px-3 py-2 text-left text-sm font-medium text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-200"
                   required
                 />
                 <span className="mt-1 block text-xs text-slate-600">Departments</span>
@@ -245,13 +245,11 @@ export const ProductSetupModal: React.FC<ProductSetupModalProps> = ({
                 <label className="block text-xs font-semibold text-slate-700 mb-1">
                   BOM Items
                 </label>
-                <input
-                  type="number"
-                  min={1}
-                  max={200}
-                  value={bomCount}
-                  onChange={e => setBomCount(Number(e.target.value))}
-                  className="min-h-10 w-full rounded-sm border border-slate-300 bg-white px-3 py-2 font-mono text-sm font-medium text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-200"
+                  <NumericInput
+                  value={bomCount === '' ? null : Number(bomCount)}
+                  onValueChange={value => setBomCount(value === null ? '' : String(value))}
+                  integer min={1} max={200}
+                  className="h-10 w-full rounded-sm border border-slate-300 bg-white px-3 py-2 text-left text-sm font-medium text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-200"
                   required
                 />
                 <span className="mt-1 block text-xs text-slate-600">Materials</span>
@@ -261,13 +259,11 @@ export const ProductSetupModal: React.FC<ProductSetupModalProps> = ({
                 <label className="block text-xs font-semibold text-slate-700 mb-1">
                   Routing Steps
                 </label>
-                <input
-                  type="number"
-                  min={1}
-                  max={200}
-                  value={routingCount}
-                  onChange={e => setRoutingCount(Number(e.target.value))}
-                  className="min-h-10 w-full rounded-sm border border-slate-300 bg-white px-3 py-2 font-mono text-sm font-medium text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-200"
+                  <NumericInput
+                  value={routingCount === '' ? null : Number(routingCount)}
+                  onValueChange={value => setRoutingCount(value === null ? '' : String(value))}
+                  integer min={1} max={200}
+                  className="h-10 w-full rounded-sm border border-slate-300 bg-white px-3 py-2 text-left text-sm font-medium text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-200"
                   required
                 />
                 <span className="mt-1 block text-xs text-slate-600">Operations</span>

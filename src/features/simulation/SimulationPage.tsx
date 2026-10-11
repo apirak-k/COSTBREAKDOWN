@@ -4,6 +4,7 @@ import { calculateScenarioBusinessMetrics } from '../../core/calculations/scenar
 import { createScenarioFinancialResult, createScenarioStory } from '../../core/calculations/scenario-story'
 import type { CostSnapshot, MasterDataRole, SnapshotBOMItem, SnapshotRoutingStep } from '../../core/types'
 import { PageHeading } from '../../shared'
+import { NumericInput } from '../../shared/ui/NumericInput'
 import { EconomicSimulationPanel } from './EconomicSimulationPanel'
 import { SimulationStoryGraph } from './SimulationStoryGraph'
 import { calculateEconomicSimulation, type EconomicSimulationField } from './simulation-economics'
@@ -146,21 +147,18 @@ const ParameterTable: React.FC<ParameterTableProps> = ({
                         </td>
                         <td className="px-3 py-2 text-right font-mono tabular-nums text-slate-900">
                           {!simulationRecord ? '—' : editorVisible ? (
-                            <input
-                              type="number"
-                              step="any"
-                              value={simulationValue === null ? '' : String(simulationValue * PARAMETER_DETAILS[parameter].displayScale)}
-                              onChange={event => {
-                                const raw = event.currentTarget.value
-                                if (raw === '') onUpdate(simulationRecord.id, parameter, null)
-                                else {
-                                  const displayedValue = Number(raw)
-                                  if (Number.isFinite(displayedValue)) {
-                                    onUpdate(simulationRecord.id, parameter, displayedValue / PARAMETER_DETAILS[parameter].displayScale)
-                                  }
-                                }
-                              }}
-                              className="min-h-8 w-28 border border-blue-500 bg-white px-2 text-right font-mono text-xs tabular-nums focus:outline-none focus:ring-2 focus:ring-blue-200"
+                            <NumericInput
+                              value={simulationValue === null ? null : simulationValue * PARAMETER_DETAILS[parameter].displayScale}
+                              onValueChange={value => onUpdate(
+                                simulationRecord.id,
+                                parameter,
+                                value === null ? null : value / PARAMETER_DETAILS[parameter].displayScale
+                              )}
+                              min={0}
+                              minExclusive={parameter === 'routing.capacity' || parameter === 'routing.yield'}
+                              max={parameter === 'routing.yield' ? 100 : undefined}
+                              allowSubMinimumDraft={parameter === 'routing.capacity' || parameter === 'routing.yield'}
+                              className="h-8 w-28 border border-blue-500 bg-white px-2 text-right font-mono text-xs tabular-nums focus:outline-none focus:ring-2 focus:ring-blue-200"
                               aria-label={`${row.name} ${field} SIM value`}
                             />
                           ) : formatParameter(simulationValue, parameter)}

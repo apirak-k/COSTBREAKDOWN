@@ -22,8 +22,9 @@ verify('Entering Simulation ends the active Selected Comparison scope', () => {
   assert.match(setActiveTabBody, /tab\s*===\s*'simulation'[\s\S]*setSelectedComparisonScope\(null\)/)
 })
 
-verify('Cost Breakdown explains the RCA/Simulation scope boundary without a one-Candidate gate', () => {
-  assert.match(costBreakdownPage, /It ends when the RCA workspace or Simulation opens/)
+verify('Cost Breakdown presents Selected Comparison as a scope control without a one-Candidate gate', () => {
+  assert.match(costBreakdownPage, /aria-label="Comparison scope"/)
+  assert.match(costBreakdownPage, /Selected Comparison/)
   assert.doesNotMatch(costBreakdownPage, /ends when you choose one Candidate for RCA/)
 })
 
@@ -35,7 +36,7 @@ verify('Creating an RCA Case ends the active Selected Comparison scope', () => {
 const openRcaCasesBody = candidatePage.match(/const openRcaCases = \(\) => \{([\s\S]*?)\n  \}/)?.[1] ?? ''
 verify('Opening an existing RCA Case ends the active Selected Comparison scope', () => {
   assert.match(openRcaCasesBody, /clearSelectedComparison\(\)/)
-  assert.match(candidatePage, /onClick=\{openRcaCases\}[\s\S]*?Open RCA Cases/)
+  assert.match(candidatePage, /onClick=\{openRcaCases\}[\s\S]*?RCA Cases/)
 })
 
 const activeCaseEntryEffect = [...candidatePage.matchAll(/useEffect\(\(\) => \{([\s\S]*?)\}, \[([^\]]*)\]\)/g)]

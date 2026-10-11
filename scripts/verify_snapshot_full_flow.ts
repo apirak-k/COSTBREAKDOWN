@@ -2,18 +2,21 @@ import assert from 'node:assert/strict'
 import { readFile } from 'node:fs/promises'
 import path from 'node:path'
 import ExcelJS from 'exceljs'
-import { compareSnapshots } from '../src/core'
+import { compareSnapshots, type CostSnapshot } from '../src/core'
+import { createSyntheticReviewSnapshotPair } from '../src/features/master-data/fixtures/synthetic-review-data'
 import { parseSnapshotExcelInputFile } from '../src/services/excel/snapshot-parser'
 import { generateSnapshotComparisonExcel } from '../src/services/excel/comparison-export'
+import { exportSnapshotToExcel } from '../src/services/excel/snapshot-export'
 
 const fixture = (name: string): string => path.join(process.cwd(), 'public', name)
 
-async function parseFixture(filePath: string, role: 'reference' | 'current') {
-  const file = new File([await readFile(filePath)], path.basename(filePath))
+async function parseSnapshot(snapshot: CostSnapshot, role: 'reference' | 'current') {
+  const blob = await exportSnapshotToExcel(snapshot)
+  const file = new File([await blob.arrayBuffer()], `${role}-full-flow.xlsx`)
   const result = await parseSnapshotExcelInputFile(file, role)
 
-  assert.equal(result.success, true, `${role} fixture should parse: ${result.message}`)
-  assert.ok(result.snapshot, `${role} fixture should produce a snapshot`)
+  assert.equal(result.success, true, `${role} generated fixture should parse: ${result.message}`)
+  assert.ok(result.snapshot, `${role} generated fixture should produce a snapshot`)
   assert.equal(result.snapshot.comparisonRole, role)
   assert.ok(result.snapshot.bom.length > 0, `${role} snapshot should contain BOM rows`)
   assert.ok(result.snapshot.routing.length > 0, `${role} snapshot should contain routing rows`)
@@ -23,8 +26,18 @@ async function parseFixture(filePath: string, role: 'reference' | 'current') {
 }
 
 async function main(): Promise<void> {
-  const reference = await parseFixture(fixture('CostModel_SYNTHETIC_MOCK_v2.xlsx'), 'reference')
-  const current = await parseFixture(fixture('CostModel_RGOM-024_v2.xlsx'), 'current')
+  const incompleteReferenceFile = new File(
+    [await readFile(fixture('CostModel_SYNTHETIC_MOCK_v2.xlsx'))],
+    'CostModel_SYNTHETIC_MOCK_v2.xlsx'
+  )
+  const incompleteReference = await parseSnapshotExcelInputFile(incompleteReferenceFile, 'reference')
+  assert.equal(incompleteReference.success, false, 'the incomplete public review fixture must be rejected by Import validation')
+  assert.match(incompleteReference.message, /Import rejected/)
+  assert.ok((incompleteReference.warnings ?? []).length > 0, 'rejection should explain the invalid or unavailable source data')
+
+  const pair = createSyntheticReviewSnapshotPair()
+  const reference = await parseSnapshot(pair.reference, 'reference')
+  const current = await parseSnapshot(pair.current, 'current')
   const comparison = compareSnapshots(reference, current)
 
   assert.equal(comparison.referenceSnapshotId, reference.id)

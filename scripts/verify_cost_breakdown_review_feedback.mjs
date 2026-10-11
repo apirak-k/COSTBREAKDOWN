@@ -154,8 +154,8 @@ try {
     onToggleControllable() {}
   }))
   const factorCandidateText = visibleText(factorCandidateMarkup)
-  assert.ok(factorCandidateText.includes('Price: 2 → to 3'))
-  assert.ok(factorCandidateText.includes('Loss: 10% → to 20%'))
+  assert.ok(factorCandidateText.includes('Price: 2.00 → to 3.00'))
+  assert.ok(factorCandidateText.includes('Loss: 10.00% → to 20.00%'))
 
   assert.deepEqual(formatComparisonFieldDiffs({
     sequence: { reference: 10, current: 20 },
@@ -207,7 +207,7 @@ try {
   assert.ok(routingText.includes('Process Name: Cut → Turn'))
   assert.ok(routingText.includes('Work Center Id: WC-01 → WC-02'))
   assert.match(routingBody, /<td class="p-2\.5 text-slate-500 tabular-nums">10<\/td><td class="p-2\.5 text-right font-bold text-slate-900 tabular-nums">20<\/td>/)
-  assert.match(routingBody, /<td class="p-2\.5 text-right text-slate-500 tabular-nums">1<\/td><td class="p-2\.5 text-right font-bold text-slate-900 tabular-nums">—<\/td>/)
+  assert.match(routingBody, /<td class="p-2\.5 text-right text-slate-500 tabular-nums">1\.00<\/td><td class="p-2\.5 text-right font-bold text-slate-900 tabular-nums">—<\/td>/)
 
   const referenceBOM = {
     id: 'bom-ref', itemCode: 'MAT-01', description: 'Old description',
@@ -255,37 +255,47 @@ try {
   assert.ok(workCenterText.includes('Description: Old work center → —'))
   assert.match(workCenterMarkup, /<td class="p-2\.5 font-sans text-slate-700">—<\/td>/)
 
-  const assertMasterDataTableIsQuiet = (markup, reorderLabel) => {
+  const assertMasterDataTableIsQuiet = markup => {
     assert.doesNotMatch(markup, /rows need review|Name is required|Name must be unique|Usage is missing|Unit is missing|Price is missing|Loss is missing|WC is required|Process is required|not in the WC table|Manning is missing|Cap is missing|Yield is missing/)
     assert.ok(markup.includes('aria-invalid="true"'), 'invalid cells stay exposed to assistive technology')
-    assert.ok(markup.includes('border-amber-600 bg-amber-50'), 'invalid cells stay visibly marked')
+    assert.match(markup, /border-amber-600[^\"]*!?bg-amber-50/, 'invalid cells stay visibly marked')
     const headerRow = markup.match(/<thead[^>]*>\s*<tr>([\s\S]*?)<\/tr>/)?.[1] ?? ''
-    assert.match(headerRow, /<th[^>]*class="sticky left-0[^>]*>\#<\/th>/, 'row number must stay pinned at the left')
-    assert.ok(headerRow.lastIndexOf('aria-label="Reorder rows"') > headerRow.lastIndexOf('>Actions</th>'), 'reorder column must be at the far right')
+    assert.match(headerRow, /<th[^>]*class="sticky left-0[^>]*>[\s\S]*?<button[^>]*aria-label="Select all visible [^"]+ rows"[^>]*>\#[\s\S]*?<\/button>/,
+      'the Select All row-number control must stay pinned at the left')
+    assert.match(headerRow, /<th[^>]*>Actions<\/th>$/, 'Actions must remain the rightmost table column')
     const firstBodyRow = markup.match(/<tbody[^>]*>[\s\S]*?<tr[^>]*>([\s\S]*?)<\/tr>/)?.[1] ?? ''
     const cells = [...firstBodyRow.matchAll(/<td\b[^>]*>[\s\S]*?<\/td>/g)].map(match => match[0])
-    assert.ok(cells.at(-1)?.includes(reorderLabel), 'drag handle must be the last row cell')
+    assert.match(cells.at(-1) ?? '', /aria-label="Drag (?:BOM|Work Centers|Routing) row 1 to reorder"/,
+      'accessible drag handle must be in the final row cell')
   }
   const masterDataCallbacks = {
-    onAddBOMItem() {}, onUpdateBOMItem() {}, onDeleteBOMItem() {}, onReorderRows() {},
-    onAddRate() {}, onUpdateRate() {}, onDeleteRate() {},
-    onAddRoutingStep() {}, onUpdateRoutingStep() {}, onDeleteRoutingStep() {}
+    warningCount: 0,
+    warningItems: [],
+    blockerItems: [],
+    onNavigateWarning() {},
+    onNavigateBlocker() {},
+    onWarningNavigationHandled() {},
+    onUndo() {},
+    onRedo() {},
+    onAddBOMItem() {}, onUpdateBOMItems() {}, onDeleteBOMItems() {}, onReorderRows() {},
+    onAddRate() {}, onUpdateRates() {}, onDeleteRates() {},
+    onAddRoutingStep() {}, onUpdateRoutingSteps() {}, onDeleteRoutingSteps() {}
   }
   const bomTableMarkup = renderToStaticMarkup(React.createElement(BOMTable, {
     bom: [{ id: 'bom-invalid', description: '', consumption: null, unit: '', price: null, loss: null, note: '' }],
     isEditMode: true, historyScope: 'review-feedback', ...masterDataCallbacks
   }))
-  assertMasterDataTableIsQuiet(bomTableMarkup, 'Drag to reorder BOM row 1')
+  assertMasterDataTableIsQuiet(bomTableMarkup)
   const workCenterTableMarkup = renderToStaticMarkup(React.createElement(WorkCenterRatesTable, {
     rates: [{ id: 'wc-invalid', workCenterCode: '', laborRate: null, burdenRate: null, note: '' }],
     isEditMode: true, historyScope: 'review-feedback', ...masterDataCallbacks
   }))
-  assertMasterDataTableIsQuiet(workCenterTableMarkup, 'Drag to reorder WC row 1')
+  assertMasterDataTableIsQuiet(workCenterTableMarkup)
   const routingTableMarkup = renderToStaticMarkup(React.createElement(RoutingTable, {
     routing: [{ id: 'routing-invalid', processName: '', workCenterId: 'UNKNOWN', manning: null, capacity: null, yield: null, note: '' }],
     rates: [], isEditMode: true, historyScope: 'review-feedback', ...masterDataCallbacks
   }))
-  assertMasterDataTableIsQuiet(routingTableMarkup, 'Drag to reorder Routing row 1')
+  assertMasterDataTableIsQuiet(routingTableMarkup)
 
   const warnings = Array.from({ length: 5 }, (_, index) => ({
     code: `WARNING-${index + 1}`,

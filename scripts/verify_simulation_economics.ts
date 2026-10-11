@@ -39,7 +39,7 @@ const zeroMarginMarkup = renderToStaticMarkup(React.createElement(EconomicSimula
   hasParameterSimulation: true,
   onUpdate() {}
 }))
-assert.match(zeroMarginMarkup, /0\.0000 <span[^>]*>THB\/pc<\/span>/,
+assert.match(zeroMarginMarkup, /0\.00 <span[^>]*>THB\/pc<\/span>/,
   'the Economic Simulation panel visibly displays a zero Economic Margin')
 
 const belowBreakEven = calculateEconomicSimulation(currentSnapshot, simulationCost, -0.5, draft)

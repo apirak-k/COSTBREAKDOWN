@@ -10,6 +10,8 @@ import { useWarningNavigationFocus, type WarningNavigationTarget } from '../hook
 import type { MasterDataBlockerItem, MasterDataWarningItem } from '../prepare-dataset'
 import { MasterDataTableHeader } from './MasterDataTableChrome'
 import { MasterDataBlockerMarker } from './MasterDataBlockerMarker'
+import { Tooltip } from '../../../shared/ui/Tooltip'
+import { NumericInput } from '../../../shared/ui/NumericInput'
 import { masterDataDisplaySlotClass, masterDataNumericDisplaySlotClass, masterDataNumericEditorClass, masterDataTextEditorClass, masterDataWarningEditorFillClass } from './master-data-field-styles'
 
 interface BOMTableProps {
@@ -34,7 +36,6 @@ interface BOMTableProps {
   onWarningNavigationHandled: (requestId: number) => void
 }
 
-const numberValue = (value: number | null): string => value === null ? '' : String(value)
 const parseNumber = (value: string): number | null => value.trim() === '' ? null : Number(value)
 const displayNumber = (value: number | null, digits = 2): string => value === null ? '—' : formatNumber(value, digits)
 
@@ -205,15 +206,17 @@ export const BOMTable: React.FC<BOMTableProps> = ({
       <MasterDataTableHeader title="Bill of Materials" rowCount={bom.length} selectedCount={selectedIds.size} warningCount={warningCount} blockerCount={blockerItems.length} isEditMode={isEditMode} onNextWarning={handleNextWarning} onNextBlocker={handleNextBlocker} onAddRow={onAddBOMItem} />
 
       <div className="overflow-x-auto">
-        <table ref={tableRef} className="w-max table-fixed border-collapse text-left text-xs">
+        <table ref={tableRef} className="w-full min-w-[64rem] table-fixed border-collapse text-left text-xs">
           <colgroup>
-            <col className="w-12" /><col className="w-[336px]" /><col className="w-24" /><col className="w-[68px]" />
-            <col className="w-[104px]" /><col className="w-[92px]" /><col className="w-[280px]" /><col className="w-[76px]" />
+            <col className="w-12" /><col /><col className="w-24" /><col className="w-16" />
+            <col className="w-24" /><col className="w-20" /><col className="w-56" /><col className="w-20" />
           </colgroup>
           <thead className="sticky top-0 z-30 border-y-2 border-slate-400 bg-slate-100 text-[11px] font-semibold uppercase tracking-wide text-slate-800">
             <tr>
               <th scope="col" className="sticky left-0 z-40 w-12 bg-slate-100 p-0 text-center">
-                <button type="button" onClick={() => toggleAll(!allVisibleSelected)} disabled={filteredBOM.length === 0} aria-pressed={allVisibleSelected} aria-label={allVisibleSelected ? 'Clear selection for visible BOM rows' : 'Select all visible BOM rows'} title={allVisibleSelected ? 'Clear visible selection' : 'Select visible rows'} className={`h-9 w-full text-[11px] focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-700 ${allVisibleSelected ? 'bg-blue-100 text-blue-900' : 'text-slate-700 hover:bg-slate-200'} disabled:cursor-default disabled:text-slate-400 disabled:hover:bg-transparent`}>#</button>
+                <Tooltip label={allVisibleSelected ? 'Clear visible selection' : 'Select all visible rows'} wrapperClassName="relative flex h-9 w-full">
+                  <button type="button" onClick={() => toggleAll(!allVisibleSelected)} disabled={filteredBOM.length === 0} aria-pressed={allVisibleSelected} aria-label={allVisibleSelected ? 'Clear visible selection for BOM rows' : 'Select all visible BOM rows'} className={`h-9 w-full text-[11px] focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-700 ${allVisibleSelected ? 'bg-blue-100 text-blue-900' : 'text-slate-700 hover:bg-slate-200'} disabled:cursor-default disabled:text-slate-400 disabled:hover:bg-transparent`}>#</button>
+                </Tooltip>
               </th>
               <th scope="col" className="px-2 py-2 text-left">Material</th>
               <th scope="col" className="px-2 py-2 text-center">Usage</th>
@@ -237,6 +240,10 @@ export const BOMTable: React.FC<BOMTableProps> = ({
               const lossMissing = item.loss === null
               const rowNumber = bom.findIndex(row => row.id === item.id) + 1
               const placeholderNumber = placeholderNumbers.get(item.id)
+              const deleteSelectedGroup = selectedIds.has(item.id) && selectedIds.size > 1
+              const deleteTooltip = !isEditMode ? 'Switch to Edit to delete rows' : deleteSelectedGroup ? 'Delete selected rows' : 'Delete row'
+              const reorderSelectedGroup = isSelected && selectedIds.size > 1
+              const reorderTooltip = !isEditMode ? 'Reordering is available in Edit' : reorderSelectedGroup ? 'Drag selected rows to reorder' : 'Drag to reorder'
               const numericClass = (invalid: boolean, missing: boolean) => `${masterDataNumericEditorClass} ${invalid ? 'border-amber-600' : ''} ${showWarningHighlights && (invalid || missing) ? masterDataWarningEditorFillClass : ''}`
 
               return (
@@ -251,16 +258,18 @@ export const BOMTable: React.FC<BOMTableProps> = ({
                   className="group h-10"
                 >
                   <th scope="row" className="sticky left-0 z-20 w-12 bg-white px-1.5 py-0.5 text-center font-mono font-normal text-slate-600">
-                    <button
-                      type="button"
-                      aria-label={`Select BOM row ${rowNumber}`}
-                      aria-pressed={isSelected}
-                      onMouseDown={event => startDrag(item.id, event)}
-                      onClick={event => { if (event.detail === 0) toggleRow(item.id) }}
-                      className={`min-h-8 min-w-8 rounded-sm px-1 font-mono ${isSelected ? 'bg-blue-700 text-white' : 'text-slate-600 hover:bg-slate-200'} focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700`}
-                    >
-                      {rowNumber}
-                    </button>
+                    <Tooltip label={isSelected ? 'Deselect row' : 'Select row'}>
+                      <button
+                        type="button"
+                        aria-label={`${isSelected ? 'Deselect' : 'Select'} row ${rowNumber}`}
+                        aria-pressed={isSelected}
+                        onMouseDown={event => startDrag(item.id, event)}
+                        onClick={event => { if (event.detail === 0) toggleRow(item.id) }}
+                        className={`min-h-8 min-w-8 rounded-sm px-1 font-mono ${isSelected ? 'bg-blue-700 text-white' : 'text-slate-600 hover:bg-slate-200'} focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700`}
+                      >
+                        {rowNumber}
+                      </button>
+                    </Tooltip>
                   </th>
                   <td className="px-2 py-0.5 font-sans text-slate-800">
                     <div className="min-w-0">
@@ -290,11 +299,11 @@ export const BOMTable: React.FC<BOMTableProps> = ({
                   <td className="relative px-2 py-0.5 text-center font-mono tabular-nums">
                     {isEditMode ? (
                       <div className="relative mx-auto w-full max-w-20">
-                        <input
-                          type="number"
-                          step="any"
-                          value={numberValue(item.consumption)}
-                          onChange={event => applyCellUpdate(item.id, { consumption: parseNumber(event.target.value) })}
+                        <NumericInput
+                          value={item.consumption}
+                          onValueChange={value => applyCellUpdate(item.id, { consumption: value })}
+                          min={0}
+                          reserveMarker
                           data-grid-cell="true"
                           data-grid-row-id={item.id}
                           data-grid-field="consumption"
@@ -304,7 +313,7 @@ export const BOMTable: React.FC<BOMTableProps> = ({
                         />
                         {consumptionMissing && <MasterDataBlockerMarker />}
                       </div>
-                    ) : <span className={`${masterDataNumericDisplaySlotClass} mx-auto w-full max-w-20 ${consumptionInvalid ? 'text-amber-900' : ''} ${consumptionInvalid && showWarningHighlights ? 'bg-amber-50' : ''}`}>{displayNumber(item.consumption)}{consumptionMissing && <MasterDataBlockerMarker className="right-0 top-0" />}</span>}
+                    ) : <span className={`${masterDataNumericDisplaySlotClass} mx-auto w-full max-w-20 ${consumptionInvalid ? 'text-amber-900' : ''} ${consumptionInvalid && showWarningHighlights ? 'bg-amber-50' : ''}`}>{displayNumber(item.consumption)}{consumptionMissing && <MasterDataBlockerMarker />}</span>}
                   </td>
                   <td className="px-2 py-0.5 text-center font-mono">
                     {isEditMode ? (
@@ -323,11 +332,11 @@ export const BOMTable: React.FC<BOMTableProps> = ({
                   <td className="relative px-2 py-0.5 text-center font-mono tabular-nums">
                     {isEditMode ? (
                       <div className="relative mx-auto w-full max-w-24">
-                        <input
-                          type="number"
-                          step="any"
-                          value={numberValue(item.price)}
-                          onChange={event => applyCellUpdate(item.id, { price: parseNumber(event.target.value) })}
+                        <NumericInput
+                          value={item.price}
+                          onValueChange={value => applyCellUpdate(item.id, { price: value })}
+                          min={0}
+                          reserveMarker
                           data-grid-cell="true"
                           data-grid-row-id={item.id}
                           data-grid-field="price"
@@ -337,20 +346,17 @@ export const BOMTable: React.FC<BOMTableProps> = ({
                         />
                         {priceMissing && <MasterDataBlockerMarker />}
                       </div>
-                    ) : <span className={`${masterDataNumericDisplaySlotClass} mx-auto w-full max-w-24 ${priceInvalid ? 'text-amber-900' : ''} ${priceInvalid && showWarningHighlights ? 'bg-amber-50' : ''}`}>{displayNumber(item.price, 2)}{priceMissing && <MasterDataBlockerMarker className="right-0 top-0" />}</span>}
+                    ) : <span className={`${masterDataNumericDisplaySlotClass} mx-auto w-full max-w-24 ${priceInvalid ? 'text-amber-900' : ''} ${priceInvalid && showWarningHighlights ? 'bg-amber-50' : ''}`}>{displayNumber(item.price, 2)}{priceMissing && <MasterDataBlockerMarker />}</span>}
                   </td>
                   <td className="relative px-2 py-0.5 text-center font-mono tabular-nums">
                     {isEditMode ? (
                       <div className="mx-auto flex w-fit items-center gap-1">
-                        <div className="relative w-16">
-                        <input
-                          type="number"
-                          step="any"
-                          value={item.loss === null ? '' : String(item.loss * 100)}
-                          onChange={event => {
-                            const value = event.target.value.trim()
-                            applyCellUpdate(item.id, { loss: value === '' ? null : Number(value) / 100 })
-                          }}
+                        <div className="relative w-20">
+                        <NumericInput
+                          value={item.loss === null ? null : item.loss * 100}
+                          onValueChange={value => applyCellUpdate(item.id, { loss: value === null ? null : value / 100 })}
+                          min={0}
+                          reserveMarker
                           data-grid-cell="true"
                           data-grid-row-id={item.id}
                           data-grid-field="loss"
@@ -358,7 +364,7 @@ export const BOMTable: React.FC<BOMTableProps> = ({
                           aria-invalid={lossInvalid}
                           className={`${numericClass(lossInvalid, lossMissing)} ${selectedCellKeys.has(tableCellKey(item.id, 'loss')) ? 'ring-2 ring-blue-500 ring-inset' : ''}`}
                         />
-                          {lossMissing && <MasterDataBlockerMarker className="right-0 top-0.5" />}
+                          {lossMissing && <MasterDataBlockerMarker />}
                         </div>
                         <span className="text-slate-400">%</span>
                       </div>
@@ -366,7 +372,7 @@ export const BOMTable: React.FC<BOMTableProps> = ({
                       <div className="mx-auto flex h-8 w-[76px] items-center gap-1">
                         <span className={`${masterDataNumericDisplaySlotClass} relative h-8 w-16 px-0 ${lossInvalid ? 'text-amber-900' : ''} ${lossInvalid && showWarningHighlights ? 'bg-amber-50' : ''}`}>
                           {item.loss === null ? '—' : formatNumber(item.loss * 100, 2)}
-                          {lossMissing && <MasterDataBlockerMarker className="right-0 top-0" />}
+                          {lossMissing && <MasterDataBlockerMarker />}
                         </span>
                         <span className="text-slate-400">%</span>
                       </div>
@@ -387,27 +393,29 @@ export const BOMTable: React.FC<BOMTableProps> = ({
                   </td>
                   <td className="px-1 py-0.5 text-center">
                     <div className="flex items-center justify-center gap-0.5">
-                      <button
-                        type="button"
-                        disabled={!isEditMode}
-                        onClick={() => handleDeleteRow(item.id)}
-                        aria-label={`Delete BOM row ${rowNumber}`}
-                        className="inline-flex h-8 w-8 items-center justify-center text-slate-600 hover:bg-rose-50 hover:text-rose-700 disabled:cursor-default disabled:opacity-30 disabled:hover:bg-transparent disabled:hover:text-slate-600 focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-700"
-                        title={isEditMode ? (selectedIds.has(item.id) && selectedIds.size > 1 ? `Delete ${selectedIds.size} selected rows` : 'Delete row') : 'Switch to Edit to delete rows'}
-                      >
-                        <Trash2 className="h-3.5 w-3.5" aria-hidden="true" />
-                      </button>
-                      <button
-                        type="button"
-                        disabled={!isEditMode}
-                        draggable={isEditMode}
-                        onDragStart={event => handleDragStart(event, item.id)}
-                        aria-label={`Reorder BOM row ${rowNumber}`}
-                        title={isEditMode ? 'Drag to reorder' : 'Reordering is available in Edit'}
-                        className={`inline-flex h-8 w-7 cursor-grab items-center justify-center ${isSelected ? 'text-slate-700' : 'text-slate-400'} hover:bg-slate-200 hover:text-slate-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-700 active:cursor-grabbing disabled:cursor-default disabled:opacity-30 disabled:hover:bg-transparent disabled:hover:text-slate-400 group-hover:text-slate-600 group-focus-within:text-slate-700`}
-                      >
-                        <GripVertical className="h-4 w-4" aria-hidden="true" />
-                      </button>
+                      <Tooltip label={deleteTooltip}>
+                        <button
+                          type="button"
+                          disabled={!isEditMode}
+                          onClick={() => handleDeleteRow(item.id)}
+                          aria-label={!isEditMode ? deleteTooltip : deleteSelectedGroup ? 'Delete selected BOM rows' : `Delete BOM row ${rowNumber}`}
+                          className="inline-flex h-8 w-8 items-center justify-center text-slate-600 hover:bg-rose-50 hover:text-rose-700 disabled:cursor-default disabled:opacity-30 disabled:hover:bg-transparent disabled:hover:text-slate-600 focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-700"
+                        >
+                          <Trash2 className="h-3.5 w-3.5" aria-hidden="true" />
+                        </button>
+                      </Tooltip>
+                      <Tooltip label={reorderTooltip}>
+                        <button
+                          type="button"
+                          disabled={!isEditMode}
+                          draggable={isEditMode}
+                          onDragStart={event => handleDragStart(event, item.id)}
+                          aria-label={!isEditMode ? reorderTooltip : reorderSelectedGroup ? 'Drag selected BOM rows to reorder' : `Drag BOM row ${rowNumber} to reorder`}
+                          className={`inline-flex h-8 w-7 cursor-grab items-center justify-center ${isSelected ? 'text-slate-700' : 'text-slate-400'} hover:bg-slate-200 hover:text-slate-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-700 active:cursor-grabbing disabled:cursor-default disabled:opacity-30 disabled:hover:bg-transparent disabled:hover:text-slate-400 group-hover:text-slate-600 group-focus-within:text-slate-700`}
+                        >
+                          <GripVertical className="h-4 w-4" aria-hidden="true" />
+                        </button>
+                      </Tooltip>
                     </div>
                   </td>
                 </tr>

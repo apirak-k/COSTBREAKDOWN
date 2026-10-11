@@ -15,6 +15,7 @@ import { formatNumber } from '../../../core'
 import type { MasterDataRole, CostSnapshot, ProductMaster } from '../../../core'
 import type { MasterDataSaveState } from '../../../core/utils/master-data-effective'
 import { Tooltip } from '../../../shared/ui/Tooltip'
+import { NumericInput } from '../../../shared/ui/NumericInput'
 import { masterDataTextEditorClass } from './master-data-field-styles'
 import { downloadBlob } from '../../../services/excel/export'
 import { hasEnteredMasterData } from '../../../state/dataset-sizing'
@@ -375,42 +376,27 @@ export const MasterDataWorkspaceHeader: React.FC<MasterDataWorkspaceHeaderProps>
           })}
         </div>
 
-        <div
-          role="group"
-          aria-label="View and Edit mode"
-          onClick={event => {
-            if (event.target !== event.currentTarget) return
-            onToggleEditMode(!isEditMode)
-          }}
-          className="relative grid h-8 w-16 shrink-0 grid-cols-2 items-center bg-white p-0 ring-1 ring-inset ring-slate-300"
-        >
-          <span
-            aria-hidden="true"
-            className={`pointer-events-none absolute inset-y-0.5 left-0.5 w-[calc(50%-2px)] bg-slate-900 transition-transform duration-150 ease-out ${isEditMode ? 'translate-x-full' : 'translate-x-0'}`}
-          />
-          <Tooltip label="View" wrapperClassName="relative grid h-full w-full place-items-center">
-            <button
-              type="button"
-              aria-pressed={!isEditMode}
-              aria-label="View"
-              onClick={() => onToggleEditMode(false)}
-              className={`relative grid h-full w-full place-items-center rounded-sm transition-colors focus-visible:z-10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-700 ${!isEditMode ? 'text-white' : 'text-slate-700 hover:bg-slate-100 hover:text-slate-950'}`}
-            >
-              <Eye className="h-4 w-4" aria-hidden="true" />
-            </button>
-          </Tooltip>
-          <Tooltip label="Edit" wrapperClassName="relative grid h-full w-full place-items-center">
-            <button
-              type="button"
-              aria-pressed={isEditMode}
-              aria-label="Edit"
-              onClick={() => onToggleEditMode(true)}
-              className={`relative grid h-full w-full place-items-center rounded-sm transition-colors focus-visible:z-10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-700 ${isEditMode ? 'text-white' : 'text-slate-700 hover:bg-slate-100 hover:text-slate-950'}`}
-            >
-              <Pencil className="h-4 w-4" aria-hidden="true" />
-            </button>
-          </Tooltip>
-        </div>
+        <Tooltip label={isEditMode ? 'Switch to View' : 'Switch to Edit'} wrapperClassName="relative grid h-8 w-16 shrink-0">
+          <button
+            type="button"
+            role="switch"
+            aria-checked={isEditMode}
+            aria-label={isEditMode ? 'Switch to View' : 'Switch to Edit'}
+            onClick={() => onToggleEditMode(!isEditMode)}
+            className="relative grid h-8 w-16 grid-cols-2 items-center border border-slate-300 bg-white p-0 focus-visible:z-10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-700"
+          >
+            <span
+              aria-hidden="true"
+              className={`pointer-events-none absolute inset-y-0.5 left-0.5 w-[calc(50%-2px)] bg-slate-900 transition-transform duration-150 ease-out ${isEditMode ? 'translate-x-full' : 'translate-x-0'}`}
+            />
+            <span aria-hidden="true" className={`relative z-10 grid h-full w-full place-items-center transition-colors ${!isEditMode ? 'text-white' : 'text-slate-700'}`}>
+              <Eye className="h-4 w-4" />
+            </span>
+            <span aria-hidden="true" className={`relative z-10 grid h-full w-full place-items-center transition-colors ${isEditMode ? 'text-white' : 'text-slate-700'}`}>
+              <Pencil className="h-4 w-4" />
+            </span>
+          </button>
+        </Tooltip>
 
         <div className="inline-flex shrink-0 items-center gap-1" role="group" aria-label="Master Data actions">
           <Tooltip label="Sizing">
@@ -579,13 +565,11 @@ export const MasterDataWorkspaceHeader: React.FC<MasterDataWorkspaceHeaderProps>
             <dt className="shrink-0 whitespace-nowrap font-sans text-[11px] font-medium tracking-wide text-slate-600">Selling Price (THB) :</dt>
             <dd className="min-w-0 flex-1">
               {isEditMode ? (
-                <input
-                  type="number"
-                  step="any"
-                  value={product.sellingPrice ?? ''}
-                  onChange={event => onUpdateProduct({ ...product, sellingPrice: event.target.value === '' ? null : Number(event.target.value) })}
+                <NumericInput
+                  value={product.sellingPrice}
+                  onValueChange={sellingPrice => onUpdateProduct({ ...product, sellingPrice })}
                   aria-label="Selling Price (THB)"
-                  className={fieldInput + ' font-mono'}
+                  className={fieldInput + ' font-mono text-center'}
                 />
               ) : (
                 <span className="flex h-8 w-full min-w-0 items-center truncate rounded-sm border border-transparent px-2 font-mono text-xs text-slate-950">
@@ -599,13 +583,11 @@ export const MasterDataWorkspaceHeader: React.FC<MasterDataWorkspaceHeaderProps>
             <dt className="shrink-0 whitespace-nowrap font-sans text-[11px] font-medium tracking-wide text-slate-600">SG&amp;A (%) :</dt>
             <dd className="min-w-0 flex-1">
               {isEditMode ? (
-                <input
-                  type="number"
-                  step="any"
-                  value={product.sgaPercent ?? ''}
-                  onChange={event => onUpdateProduct({ ...product, sgaPercent: event.target.value === '' ? null : Number(event.target.value) })}
+                <NumericInput
+                  value={product.sgaPercent}
+                  onValueChange={sgaPercent => onUpdateProduct({ ...product, sgaPercent })}
                   aria-label="SG&A (%)"
-                  className={fieldInput + ' font-mono'}
+                  className={fieldInput + ' font-mono text-center'}
                 />
               ) : (
                 <span className="flex h-8 w-full min-w-0 items-center truncate rounded-sm border border-transparent px-2 font-mono text-xs text-slate-950">

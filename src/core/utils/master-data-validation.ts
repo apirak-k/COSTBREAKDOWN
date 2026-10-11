@@ -1,6 +1,7 @@
 import type { CostSnapshot } from '../types'
 
-type NumericField = 'consumption' | 'price' | 'loss' | 'laborRate' | 'burdenRate' | 'manning' | 'capacity' | 'yield'
+export type MasterDataNumericField = 'consumption' | 'price' | 'loss' | 'laborRate' | 'burdenRate' | 'manning' | 'capacity' | 'yield'
+type NumericField = MasterDataNumericField
 const numericFieldNames = new Set<string>(['consumption', 'price', 'loss', 'laborRate', 'burdenRate', 'manning', 'capacity', 'yield'])
 
 interface NumericLocation {
@@ -20,11 +21,24 @@ function isInvalidNumeric(field: NumericField, value: unknown, quality?: string)
   return field === 'yield' && value > 1
 }
 
+export function isMasterDataNumericValueValid(field: MasterDataNumericField, value: unknown): boolean {
+  return !isInvalidNumeric(field, value)
+}
+
+export function isMasterDataNumericInputValid(field: MasterDataNumericField, value: unknown): boolean {
+  if (isInvalidNumeric(field, value)) return false
+  if (value === null || value === undefined) return true
+  if (typeof value !== 'number') return false
+  const displayMultiplier = field === 'loss' || field === 'yield' ? 100 : 1
+  const scaledHundredths = value * displayMultiplier * 100
+  return Math.abs(scaledHundredths - Math.round(scaledHundredths)) < 1e-7
+}
+
 /** Keeps valid cells from a mixed paste while dropping invalid numeric cell edits. */
 export function filterInvalidMasterDataNumericChanges<T extends object>(changes: T): Partial<T> {
   const accepted: Partial<T> = {}
   Object.entries(changes).forEach(([field, value]) => {
-    if (!numericFieldNames.has(field) || !isInvalidNumeric(field as NumericField, value)) {
+    if (!numericFieldNames.has(field) || isMasterDataNumericInputValid(field as NumericField, value)) {
       Object.assign(accepted, { [field]: value })
     }
   })

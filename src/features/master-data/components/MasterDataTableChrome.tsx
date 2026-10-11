@@ -25,10 +25,10 @@ export const MasterDataTableHeader: React.FC<MasterDataTableHeaderProps> = ({
   onNextBlocker,
   onAddRow
 }) => (
-  <header className="grid min-h-10 grid-cols-1 items-center gap-x-2 gap-y-1 border-b border-slate-200 bg-white px-2.5 py-1 sm:grid-cols-[11rem_minmax(0,1fr)_auto]">
+  <header className="flex min-h-10 flex-wrap items-center justify-between gap-x-4 gap-y-1 border-b border-slate-200 bg-white px-2.5 py-1">
     <h3 className="min-w-0 truncate text-xs font-semibold text-slate-800">{title}</h3>
-    <span className="min-w-0 whitespace-nowrap font-mono text-[10px] tabular-nums text-slate-500">{rowCount} rows · {selectedCount} selected</span>
-    <div className="flex min-w-0 items-center justify-end gap-1.5">
+    <div className="flex min-w-0 flex-wrap items-center justify-end gap-1.5">
+      <span className="w-36 shrink-0 whitespace-nowrap text-right font-mono text-[10px] tabular-nums text-slate-500">{rowCount} rows · {selectedCount} selected</span>
       <Tooltip label="Jump to next warning">
         <button
           type="button"

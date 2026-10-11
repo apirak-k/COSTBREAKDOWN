@@ -1,5 +1,6 @@
 import React from 'react'
 import { formatNumber } from '../../core'
+import { NumericInput } from '../../shared/ui/NumericInput'
 import {
   type EconomicSimulationDraft,
   type EconomicSimulationResult,
@@ -14,8 +15,8 @@ interface EconomicSimulationPanelProps {
   onUpdate: (field: EconomicSimulationField, value: string) => void
 }
 
-function formatValue(value: number | null, decimals = 4): string {
-  return value === null || !Number.isFinite(value) ? 'Unavailable' : formatNumber(value, decimals)
+function formatValue(value: number | null): string {
+  return value === null || !Number.isFinite(value) ? 'Unavailable' : formatNumber(value)
 }
 
 const INPUTS: Array<{ field: EconomicSimulationField; label: string; unit: string; placeholder?: string }> = [
@@ -50,13 +51,14 @@ export const EconomicSimulationPanel: React.FC<EconomicSimulationPanelProps> = (
                   <span>{label}</span>
                   <span className="font-normal text-[10px] text-slate-500">{unit}</span>
                 </span>
-                <input
-                  type="number"
-                  step="any"
-                  value={draft[field]}
+                <NumericInput
+                  value={draft[field].trim() === '' ? null : Number(draft[field])}
+                  min={field === 'evaluationQuantity' ? 0 : undefined}
+                  minExclusive={field === 'evaluationQuantity'}
+                  allowSubMinimumDraft={field === 'evaluationQuantity'}
                   placeholder={placeholder}
-                  onChange={event => onUpdate(field, event.currentTarget.value)}
-                  className="mt-1 min-h-9 w-full border border-slate-400 bg-white px-2 font-mono text-xs tabular-nums text-slate-950 focus:border-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-100"
+                  onValueChange={value => onUpdate(field, value === null ? '' : String(value))}
+                  className="mt-1 h-9 w-full border border-slate-400 bg-white px-2 text-right font-mono text-xs tabular-nums text-slate-950 focus:border-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-100"
                 />
               </label>
             ))}

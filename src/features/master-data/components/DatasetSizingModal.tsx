@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { X, Check, Download } from 'lucide-react'
+import { NumericInput } from '../../../shared/ui/NumericInput'
 import { MasterDataRole, CostSnapshot, DatasetSizing, ProductMaster } from '../../../core'
 import { DATASET_SIZING_LIMITS } from '../../../core/utils/sizing'
 import { hasDatasetMetadataChanged, hasDatasetSizingChanged, parseDatasetSizingCounts } from '../dataset-sizing-form'
@@ -149,16 +150,16 @@ export const DatasetSizingModal: React.FC<DatasetSizingModalProps> = ({
     return (
       <div className="min-w-0 space-y-1 text-xs text-slate-800">
         <label htmlFor={id} className="block truncate text-center text-[11px] font-medium text-slate-700">{label}</label>
-        <input
+        <NumericInput
           id={id}
-          type="number"
-          min="1"
-          step="1"
+          aria-label={label}
+          value={value === '' ? null : Number(value)}
+          onValueChange={next => { setValue(next === null ? '' : String(next)); setSizingError('') }}
+          integer
+          min={1}
           max={max}
           placeholder="Unset"
-          value={value}
-          onChange={event => { setValue(event.target.value); setSizingError('') }}
-          className="mx-auto h-8 w-full max-w-36 min-w-0 border border-slate-300 bg-white px-2 text-center font-mono text-xs tabular-nums text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-700"
+          className="h-8 w-full min-w-0 border border-slate-300 bg-white px-2 text-center font-mono text-xs tabular-nums text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-700"
         />
       </div>
     )
@@ -213,23 +214,19 @@ export const DatasetSizingModal: React.FC<DatasetSizingModalProps> = ({
               </div>
               <div>
                 <label htmlFor="dataset-sizing-selling-price" className="mb-1 block text-[11px] font-medium text-slate-700">Selling Price (THB)</label>
-                <input
+                <NumericInput
                   id="dataset-sizing-selling-price"
-                  type="number"
-                  step="any"
-                  value={sellingPrice}
-                  onChange={event => { setSellingPrice(event.target.value); setSizingError('') }}
+                  value={sellingPrice === '' ? null : Number(sellingPrice)}
+                  onValueChange={value => { setSellingPrice(value === null ? '' : String(value)); setSizingError('') }}
                   className="h-8 w-full min-w-0 border border-slate-300 bg-white px-2 font-mono text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-700"
                 />
               </div>
               <div>
                 <label htmlFor="dataset-sizing-sga-percent" className="mb-1 block text-[11px] font-medium text-slate-700">SG&amp;A (%)</label>
-                <input
+                <NumericInput
                   id="dataset-sizing-sga-percent"
-                  type="number"
-                  step="any"
-                  value={sgaPercent}
-                  onChange={event => { setSgaPercent(event.target.value); setSizingError('') }}
+                  value={sgaPercent === '' ? null : Number(sgaPercent)}
+                  onValueChange={value => { setSgaPercent(value === null ? '' : String(value)); setSizingError('') }}
                   className="h-8 w-full min-w-0 border border-slate-300 bg-white px-2 font-mono text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-700"
                 />
               </div>
