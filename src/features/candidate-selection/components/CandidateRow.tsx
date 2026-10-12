@@ -70,11 +70,8 @@ export const CandidateRow: React.FC<CandidateRowProps> = ({
             checked={selectedForRca}
             onChange={event => onToggleRcaSelection(candidate.candidateKey, event.target.checked)}
             className="h-4 w-4 cursor-pointer rounded-sm border-slate-400 accent-slate-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700"
-            aria-label={`Select ${candidate.candidateName} for an RCA Case`}
+            aria-label={`Select ${candidate.candidateName} for the current Candidate group`}
           />
-        </td>
-        <td className="w-14 px-3 py-2 text-center align-top">
-          <span className="font-mono text-[11px] font-medium tabular-nums text-slate-500">{String(candidate.rank).padStart(2, '0')}</span>
         </td>
 
         <td className="min-w-72 px-4 py-2 align-top">
@@ -145,7 +142,7 @@ export const CandidateRow: React.FC<CandidateRowProps> = ({
 
       {expanded && (
         <tr id={detailId} className="bg-slate-50">
-          <td colSpan={8} className="px-4 py-3">
+          <td colSpan={7} className="px-4 py-3">
             <CandidateExpandedDetail candidate={candidate} parameters={parameters} />
           </td>
         </tr>

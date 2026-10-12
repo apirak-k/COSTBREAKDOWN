@@ -53,6 +53,10 @@ export interface RcaCaseRecord extends CandidateRcaDraft {
   updatedAt: string
 }
 
+export interface CurrentRcaWorkspace extends CandidateRcaDraft {
+  candidateKeys: string[]
+}
+
 export interface LastSavedMasterDataDataset {
   snapshot: import('./snapshot.types').CostSnapshot
   prepared: boolean
@@ -78,6 +82,8 @@ export interface ProductSession {
   rcaCases?: Record<string, RcaCaseRecord>
   /** The Case explicitly selected in the Candidate/RCA workflow. */
   activeRcaCaseId?: string
+  /** The current Candidate group and its shared RCA analysis, without case history. */
+  currentRcaWorkspace?: CurrentRcaWorkspace
   /** Session-scoped candidate controllability map, keyed by candidateKey. */
   candidateControllability?: Record<string, boolean>
   status: DatasetStatus

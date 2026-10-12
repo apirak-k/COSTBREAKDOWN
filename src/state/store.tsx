@@ -20,6 +20,7 @@ import {
   FieldEvidence,
   CostComparison,
   CandidateRcaDraft,
+  CurrentRcaWorkspace,
   RcaCaseRecord,
   PrioritizationCandidate,
   buildPrioritizationCandidates,
@@ -36,7 +37,14 @@ import { hasEnteredMasterData, importSnapshotForCustom, importSnapshotForRole, m
 import { normalizeActiveTab, type ActiveTab } from './active-tab'
 import { clearMasterDataDatasetState } from './clear-master-data-dataset'
 import { moveSnapshotRows } from './master-data-row-order'
-import { createRcaCaseForCandidates, migrateLegacyCandidateRcaRecords, saveRcaCaseRecord as updateRcaCaseRecord } from './rca-cases'
+import {
+  createRcaCaseForCandidates,
+  EMPTY_CURRENT_RCA_WORKSPACE,
+  migrateLegacyCandidateRcaRecords,
+  readCurrentRcaWorkspace,
+  saveRcaCaseRecord as updateRcaCaseRecord,
+  writeCurrentRcaWorkspace
+} from './rca-cases'
 import {
   cloneCostSnapshot,
   getLastSavedMasterData,
@@ -259,6 +267,7 @@ interface AppContextType {
   candidates: PrioritizationCandidate[]
   rcaCases: RcaCaseRecord[]
   activeRcaCaseId: string | null
+  currentRcaWorkspace: CurrentRcaWorkspace
   snapshotPair: SnapshotPair
   masterDataSnapshots: Record<MasterDataRole, CostSnapshot>
   snapshotComparison: CostComparison
@@ -355,6 +364,7 @@ interface AppContextType {
   updateWorkCenterRate: (wc: string, rate: Partial<WorkCenterRate>) => void
   deleteWorkCenterRate: (wc: string) => void
   toggleCandidateControllable: (candidateKey: string, nextValue: boolean) => void
+  setCurrentRcaWorkspace: (workspace: CurrentRcaWorkspace) => void
   createRcaCase: (candidateKeys: string[]) => void
   selectRcaCase: (id: string | null) => void
   saveRcaCase: (id: string, draft: CandidateRcaDraft) => void
@@ -593,6 +603,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const activeRcaCaseId = activeSession.activeRcaCaseId && rcaCases.some(record => record.id === activeSession.activeRcaCaseId)
     ? activeSession.activeRcaCaseId
     : null
+  const currentRcaWorkspace = readCurrentRcaWorkspace(activeSession)
   const snapshotPair = activeSession.snapshotPair ?? sessionToSnapshotPair(activeSession)
   const fullSnapshotComparison = compareSnapshots(snapshotPair.reference, snapshotPair.current)
   const snapshotSourceFingerprint = useMemo(() => JSON.stringify([snapshotPair.reference, snapshotPair.current]), [snapshotPair])
@@ -1482,6 +1493,12 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     })
   }
 
+  const setCurrentRcaWorkspace = (workspace: CurrentRcaWorkspace) => {
+    const next = writeCurrentRcaWorkspace(activeSession, workspace, candidates.map(candidate => candidate.candidateKey))
+    if (next === activeSession) return
+    patchActive({ currentRcaWorkspace: next.currentRcaWorkspace })
+  }
+
   const createRcaCase = (candidateKeys: string[]) => {
     const idBase = `rca-${Date.now()}`
     let id = idBase
@@ -1592,6 +1609,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       selectedDriverKeys: [],
       rcaRecords: {},
       candidateRcaRecords: {},
+      currentRcaWorkspace: EMPTY_CURRENT_RCA_WORKSPACE,
       preparedSnapshotRoles: { reference: false, current: false },
       status: 'draft',
       versionLabel: 'Draft',
@@ -1610,6 +1628,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       selectedDriverKeys: [],
       rcaRecords: {},
       candidateRcaRecords: {},
+      currentRcaWorkspace: EMPTY_CURRENT_RCA_WORKSPACE,
       preparedSnapshotRoles: { reference: false, current: false },
       snapshotPair: createEmptySnapshotPair(activeSession.id),
       snapshotPairMode: 'independent'
@@ -1628,6 +1647,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       candidates,
       rcaCases,
       activeRcaCaseId,
+      currentRcaWorkspace,
       snapshotPair,
       masterDataSnapshots,
       snapshotComparison,
@@ -1711,6 +1731,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       updateWorkCenterRate,
       deleteWorkCenterRate,
       toggleCandidateControllable,
+      setCurrentRcaWorkspace,
       createRcaCase,
       selectRcaCase,
       saveRcaCase,

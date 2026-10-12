@@ -49,15 +49,14 @@ export const CandidatesTable: React.FC<CandidatesTableProps> = ({
       <div
         className="overflow-x-auto border-y border-slate-300 bg-white"
         role="region"
-        aria-label="Ranked candidate findings table"
+        aria-label="Candidate findings table"
         tabIndex={0}
       >
-        <table className="w-full min-w-[990px] border-collapse text-left text-xs">
-          <caption className="sr-only">Candidate findings ranked from highest to lowest Cost Gap, with independent RCA Case selection and a human-set controllability flag.</caption>
+        <table className="w-full min-w-[920px] border-collapse text-left text-xs">
+          <caption className="sr-only">Candidate findings ordered by descending Cost Gap, with current Candidate group selection and a human-set controllability flag.</caption>
           <thead>
             <tr className="bg-slate-900 font-semibold text-white">
               <th scope="col" className="w-12 px-3 py-2 text-center">Select</th>
-              <th scope="col" className="w-14 px-3 py-2 text-center">Rank</th>
               <th scope="col" className="min-w-72 px-4 py-2">Candidate / finding</th>
               <th scope="col" className="w-28 px-3 py-2 text-center">Status</th>
               <th scope="col" className="w-36 px-3 py-2 text-right">Reference (THB/pc)</th>
@@ -69,7 +68,7 @@ export const CandidatesTable: React.FC<CandidatesTableProps> = ({
           <tbody className="divide-y divide-slate-200">
             {candidates.length === 0 ? (
               <tr>
-                <td colSpan={8} className="px-4 py-8 text-center text-xs text-slate-600">
+                <td colSpan={7} className="px-4 py-8 text-center text-xs text-slate-600">
                   No candidates in this view.
                 </td>
               </tr>
