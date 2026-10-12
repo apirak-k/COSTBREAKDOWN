@@ -12,7 +12,7 @@ import { MasterDataTableHeader } from './MasterDataTableChrome'
 import { MasterDataBlockerMarker } from './MasterDataBlockerMarker'
 import { Tooltip } from '../../../shared/ui/Tooltip'
 import { NumericInput } from '../../../shared/ui/NumericInput'
-import { masterDataActionsColumnClass, masterDataCellFocusClass, masterDataDisplaySlotClass, masterDataIdentityColumnClass, masterDataIndexColumnClass, masterDataIssueDisplayClass, masterDataIssueEditorClass, masterDataIssuePlaceholderClass, masterDataNoteColumnClass, masterDataNumericDisplaySlotClass, masterDataNumericEditorClass, masterDataPercentageDisplayValueClass, masterDataPercentageEditorClass, masterDataPercentageInputShellClass, masterDataPercentageIssueShellClass, masterDataPercentageShellClass, masterDataSpreadsheetSelectionClass, masterDataTextEditorClass, masterDataUnitColumnClass } from './master-data-field-styles'
+import { masterDataActionsColumnClass, masterDataCellFocusClass, masterDataDisplaySlotClass, masterDataIdentityColumnClass, masterDataIndexColumnClass, masterDataIssueDisplayClass, masterDataIssueEditorClass, masterDataIssuePlaceholderClass, masterDataNoteColumnClass, masterDataNumericDisplaySlotClass, masterDataNumericEditorClass, masterDataPercentageDisplayValueClass, masterDataPercentageEditorClass, masterDataPercentageInputShellClass, masterDataPercentageIssueShellClass, masterDataPercentageShellClass, masterDataSpreadsheetSelectionClass, masterDataTableClass, masterDataTextEditorClass, masterDataUnitColumnClass } from './master-data-field-styles'
 
 interface BOMTableProps {
   bom: SnapshotBOMItem[]
@@ -217,10 +217,10 @@ export const BOMTable: React.FC<BOMTableProps> = ({
       <MasterDataTableHeader title="Bill of Materials" rowCount={bom.length} selectedCount={selectedIds.size} warningCount={warningCount} blockerCount={blockerItems.length} isEditMode={isEditMode} onNextWarning={handleNextWarning} onNextBlocker={handleNextBlocker} onAddRow={onAddBOMItem} />
 
       <div className="overflow-x-auto">
-        <table ref={tableRef} className="w-max min-w-[70rem] table-fixed border-collapse text-left text-xs">
+        <table ref={tableRef} className={masterDataTableClass}>
           <colgroup>
-            <col className={masterDataIndexColumnClass} /><col className={masterDataIdentityColumnClass} /><col className="w-32" /><col className={masterDataUnitColumnClass} />
-            <col className="w-32" /><col className="w-40" /><col className={masterDataNoteColumnClass} /><col className={masterDataActionsColumnClass} />
+            <col className={masterDataIndexColumnClass} /><col className={masterDataIdentityColumnClass} /><col /><col className={masterDataUnitColumnClass} />
+            <col /><col /><col className={masterDataNoteColumnClass} /><col className={masterDataActionsColumnClass} />
           </colgroup>
           <thead className="sticky top-0 z-30 border-y-2 border-slate-400 bg-slate-100 text-[11px] font-semibold uppercase tracking-wide text-slate-800">
             <tr>
@@ -387,8 +387,8 @@ export const BOMTable: React.FC<BOMTableProps> = ({
                         <span className="w-3 shrink-0 text-center text-[11px] text-slate-400">%</span>
                       </div>
                     ) : (
-                      <div data-grid-cell="true" data-grid-row-id={item.id} data-grid-field="loss" tabIndex={viewCellTabIndex(item.id, 'loss')} aria-label={`Loss percentage for ${item.description || `BOM row ${rowNumber}`}`} className={`${masterDataPercentageShellClass} rounded-sm border border-transparent ${masterDataCellFocusClass} ${selectedCellKeys.has(tableCellKey(item.id, 'loss')) ? masterDataSpreadsheetSelectionClass : ''}`}>
-                        <div className={`${masterDataPercentageInputShellClass} ${showWarningHighlights && lossInvalid ? masterDataPercentageIssueShellClass : ''}`}>
+                      <div className={masterDataPercentageShellClass}>
+                        <div data-grid-cell="true" data-grid-row-id={item.id} data-grid-field="loss" tabIndex={viewCellTabIndex(item.id, 'loss')} aria-label={`Loss percentage for ${item.description || `BOM row ${rowNumber}`}`} className={`${masterDataPercentageInputShellClass} ${showWarningHighlights && lossInvalid ? masterDataPercentageIssueShellClass : ''} ${selectedCellKeys.has(tableCellKey(item.id, 'loss')) ? masterDataSpreadsheetSelectionClass : ''}`}>
                           <span className={masterDataPercentageDisplayValueClass}>
                             {item.loss === null ? '—' : formatNumber(item.loss * 100, 2)}
                           </span>

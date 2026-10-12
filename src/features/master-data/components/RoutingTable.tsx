@@ -12,7 +12,7 @@ import { MasterDataTableHeader } from './MasterDataTableChrome'
 import { MasterDataBlockerMarker } from './MasterDataBlockerMarker'
 import { Tooltip } from '../../../shared/ui/Tooltip'
 import { NumericInput } from '../../../shared/ui/NumericInput'
-import { masterDataActionsColumnClass, masterDataCellFocusClass, masterDataDisplaySlotClass, masterDataIdentityColumnClass, masterDataIndexColumnClass, masterDataIssueDisplayClass, masterDataIssueEditorClass, masterDataIssuePlaceholderClass, masterDataNoteColumnClass, masterDataNumericDisplaySlotClass, masterDataNumericEditorClass, masterDataPercentageDisplayValueClass, masterDataPercentageEditorClass, masterDataPercentageInputShellClass, masterDataPercentageIssueShellClass, masterDataPercentageShellClass, masterDataSpreadsheetSelectionClass, masterDataTextEditorClass } from './master-data-field-styles'
+import { masterDataActionsColumnClass, masterDataDisplaySlotClass, masterDataIdentityColumnClass, masterDataIndexColumnClass, masterDataIssueDisplayClass, masterDataIssueEditorClass, masterDataIssuePlaceholderClass, masterDataNoteColumnClass, masterDataNumericDisplaySlotClass, masterDataNumericEditorClass, masterDataPercentageDisplayValueClass, masterDataPercentageEditorClass, masterDataPercentageInputShellClass, masterDataPercentageIssueShellClass, masterDataPercentageShellClass, masterDataSpreadsheetSelectionClass, masterDataTableClass, masterDataTextEditorClass } from './master-data-field-styles'
 
 interface RoutingTableProps {
   routing: SnapshotRoutingStep[]
@@ -221,10 +221,10 @@ export const RoutingTable: React.FC<RoutingTableProps> = ({
       <MasterDataTableHeader title="Routing" rowCount={routing.length} selectedCount={selectedIds.size} warningCount={warningCount} blockerCount={blockerItems.length} isEditMode={isEditMode} onNextWarning={handleNextWarning} onNextBlocker={handleNextBlocker} onAddRow={onAddRoutingStep} />
 
       <div className="overflow-x-auto">
-        <table ref={tableRef} className="w-max min-w-[77rem] table-fixed border-collapse text-left text-xs">
+        <table ref={tableRef} className={masterDataTableClass}>
           <colgroup>
             <col className={masterDataIndexColumnClass} /><col className={masterDataIdentityColumnClass} /><col className={masterDataIdentityColumnClass} />
-            <col className="w-32" /><col className="w-36" /><col className="w-32" /><col className={masterDataNoteColumnClass} /><col className={masterDataActionsColumnClass} />
+            <col /><col /><col /><col className={masterDataNoteColumnClass} /><col className={masterDataActionsColumnClass} />
           </colgroup>
           <thead className="sticky top-0 z-30 border-y-2 border-slate-400 bg-slate-100 text-[11px] font-semibold uppercase tracking-wide text-slate-800">
             <tr>
@@ -405,8 +405,8 @@ export const RoutingTable: React.FC<RoutingTableProps> = ({
                         <span className="w-3 shrink-0 text-center text-[11px] text-slate-400">%</span>
                       </div>
                     ) : (
-                      <div data-grid-cell="true" data-grid-row-id={step.id} data-grid-field="yield" tabIndex={viewCellTabIndex(step.id, 'yield')} aria-label={`Yield percentage for ${step.processName || `Routing row ${rowNumber}`}`} className={`${masterDataPercentageShellClass} rounded-sm border border-transparent ${masterDataCellFocusClass} ${selectedCellKeys.has(tableCellKey(step.id, 'yield')) ? masterDataSpreadsheetSelectionClass : ''}`}>
-                        <div className={`${masterDataPercentageInputShellClass} ${showWarningHighlights && yieldInvalid ? masterDataPercentageIssueShellClass : ''}`}>
+                      <div className={masterDataPercentageShellClass}>
+                        <div data-grid-cell="true" data-grid-row-id={step.id} data-grid-field="yield" tabIndex={viewCellTabIndex(step.id, 'yield')} aria-label={`Yield percentage for ${step.processName || `Routing row ${rowNumber}`}`} className={`${masterDataPercentageInputShellClass} ${showWarningHighlights && yieldInvalid ? masterDataPercentageIssueShellClass : ''} ${selectedCellKeys.has(tableCellKey(step.id, 'yield')) ? masterDataSpreadsheetSelectionClass : ''}`}>
                           <span className={masterDataPercentageDisplayValueClass}>
                             {step.yield === null ? '—' : formatNumber(step.yield * 100, 2)}
                           </span>

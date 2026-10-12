@@ -10,7 +10,8 @@ import { useDialogFocus } from '../use-dialog-focus'
 import { masterDataTextEditorClass } from './master-data-field-styles'
 
 const metadataNumericEditorClass = `${masterDataTextEditorClass} font-mono tabular-nums text-right`
-const metadataInlineLabelClass = 'w-28 shrink-0 whitespace-nowrap text-right text-[11px] font-medium text-slate-700'
+const metadataInlineLabelClass = 'w-28 shrink-0 whitespace-nowrap text-left text-[11px] font-medium text-slate-700'
+const sizingGroupDividerClass = "relative after:absolute after:-right-1.5 after:top-1 after:bottom-1 after:hidden after:w-px after:bg-slate-200 after:content-[''] md:after:block"
 
 function currentCount(count: number | undefined, rowCount: number): string {
   if (count !== undefined) return String(count)
@@ -149,10 +150,11 @@ export const DatasetSizingModal: React.FC<DatasetSizingModalProps> = ({
     id: string,
     value: string,
     setValue: (value: string) => void,
-    max: number
+    max: number,
+    showDivider = false
   ) => {
     return (
-      <div className="flex min-w-0 items-center gap-1.5 text-xs text-slate-800">
+      <div className={`relative flex min-w-0 items-center gap-1.5 text-xs text-slate-800 ${showDivider ? sizingGroupDividerClass : ''}`}>
         <label htmlFor={id} className="shrink-0 whitespace-nowrap text-[11px] font-medium text-slate-700">{label} :</label>
         <div className="min-w-0 flex-1">
           <NumericInput
@@ -164,7 +166,7 @@ export const DatasetSizingModal: React.FC<DatasetSizingModalProps> = ({
             min={1}
             max={max}
             placeholder="Unset"
-            className={`${masterDataTextEditorClass} font-mono tabular-nums text-right`}
+            className={`${masterDataTextEditorClass} font-mono tabular-nums text-right [&+span]:right-1`}
           />
         </div>
       </div>
@@ -210,7 +212,7 @@ export const DatasetSizingModal: React.FC<DatasetSizingModalProps> = ({
                   />
                 </div>
               </div>
-              <div className="flex min-w-0 items-center gap-1.5">
+              <div className={`flex min-w-0 items-center gap-1.5 ${sizingGroupDividerClass}`}>
                 <label htmlFor="dataset-sizing-uom" className={metadataInlineLabelClass}>UOM :</label>
                 <div className="grid min-w-0 flex-1 grid-cols-[minmax(0,1fr)_1rem] items-center gap-1">
                   <input
@@ -223,7 +225,7 @@ export const DatasetSizingModal: React.FC<DatasetSizingModalProps> = ({
                   <span aria-hidden="true" className="w-4" />
                 </div>
               </div>
-              <div className="flex min-w-0 items-center gap-1.5">
+              <div className={`flex min-w-0 items-center gap-1.5 ${sizingGroupDividerClass}`}>
                 <label htmlFor="dataset-sizing-selling-price" className={metadataInlineLabelClass}>Selling Price (THB) :</label>
                 <div className="grid min-w-0 flex-1 grid-cols-[minmax(0,1fr)_1rem] items-center gap-1">
                   <NumericInput
@@ -231,7 +233,7 @@ export const DatasetSizingModal: React.FC<DatasetSizingModalProps> = ({
                     aria-label="Selling Price (THB)"
                     value={sellingPrice === '' ? null : Number(sellingPrice)}
                     onValueChange={value => { setSellingPrice(value === null ? '' : String(value)); setSizingError('') }}
-                    className={metadataNumericEditorClass}
+                    className={`${metadataNumericEditorClass} [&+span]:right-1`}
                   />
                   <span aria-hidden="true" className="w-4" />
                 </div>
@@ -244,7 +246,7 @@ export const DatasetSizingModal: React.FC<DatasetSizingModalProps> = ({
                     aria-label="SG&A"
                     value={sgaPercent === '' ? null : Number(sgaPercent)}
                     onValueChange={value => { setSgaPercent(value === null ? '' : String(value)); setSizingError('') }}
-                    className={metadataNumericEditorClass}
+                    className={`${metadataNumericEditorClass} [&+span]:right-1`}
                   />
                   <span aria-hidden="true" className="w-4 text-center text-xs text-slate-600">%</span>
                 </div>
@@ -267,8 +269,8 @@ export const DatasetSizingModal: React.FC<DatasetSizingModalProps> = ({
           <section aria-label="Dataset rows" className="space-y-2">
             <h4 className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">TABLE ROWS</h4>
             <div className="grid min-w-0 grid-cols-1 gap-x-3 gap-y-2 md:grid-cols-3">
-              {renderRowCount('Bill of Materials', 'dataset-sizing-bom-rows', bomCount, setBomCount, DATASET_SIZING_LIMITS.bomCount)}
-              {renderRowCount('Work Centers', 'dataset-sizing-work-center-rows', wcCount, setWcCount, DATASET_SIZING_LIMITS.wcCount)}
+              {renderRowCount('Bill of Materials', 'dataset-sizing-bom-rows', bomCount, setBomCount, DATASET_SIZING_LIMITS.bomCount, true)}
+              {renderRowCount('Work Centers', 'dataset-sizing-work-center-rows', wcCount, setWcCount, DATASET_SIZING_LIMITS.wcCount, true)}
               {renderRowCount('Routing', 'dataset-sizing-routing-rows', routingCount, setRoutingCount, DATASET_SIZING_LIMITS.routingCount)}
             </div>
           </section>

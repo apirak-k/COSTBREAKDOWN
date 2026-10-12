@@ -1,4 +1,4 @@
-const masterDataFocusClass = 'focus:!outline focus:!outline-2 focus:!outline-blue-700 focus:!outline-offset-[-2px]'
+const masterDataFocusClass = 'focus:!border-transparent focus:!outline focus:!outline-2 focus:!outline-blue-700 focus:!outline-offset-[-2px]'
 
 export const masterDataTextEditorClass = `h-8 w-full min-w-0 rounded-sm border border-transparent bg-transparent px-2 text-xs text-slate-900 transition-colors hover:border-slate-200 hover:bg-slate-50 focus:bg-white ${masterDataFocusClass}`
 
@@ -8,7 +8,7 @@ export const masterDataIssueEditorClass = '!border-amber-300 !bg-amber-50 hover:
 
 export const masterDataIssuePlaceholderClass = 'placeholder:text-slate-500'
 
-export const masterDataSpreadsheetSelectionClass = 'outline outline-1 outline-slate-400 outline-offset-[-1px]'
+export const masterDataSpreadsheetSelectionClass = '!border-transparent hover:!border-transparent outline outline-1 outline-blue-500 outline-offset-[-1px]'
 
 export const masterDataCellFocusClass = masterDataFocusClass
 
@@ -25,9 +25,11 @@ export const masterDataNoteColumnClass = 'w-64'
 
 export const masterDataUnitColumnClass = 'w-24'
 
+export const masterDataTableClass = 'w-full min-w-[77rem] table-fixed border-collapse text-left text-xs'
+
 export const masterDataPercentageShellClass = 'mx-auto flex h-8 w-28 min-w-0 items-center gap-1'
 
-export const masterDataPercentageInputShellClass = 'relative flex h-8 min-w-0 flex-1 items-center rounded-sm border border-transparent transition-colors focus-within:outline focus-within:outline-2 focus-within:outline-blue-700 focus-within:outline-offset-[-2px]'
+export const masterDataPercentageInputShellClass = 'relative flex h-8 min-w-0 flex-1 items-center rounded-sm border border-transparent transition-colors focus-within:!border-transparent focus-within:!outline focus-within:!outline-2 focus-within:!outline-blue-700 focus-within:!outline-offset-[-2px]'
 
 export const masterDataPercentageIssueShellClass = '!border-amber-300 !bg-amber-50'
 

@@ -594,11 +594,16 @@ try {
   assert.match(keyboardSource, /const setContiguousRange = \(anchorKey: string, targetKey: string\)[\s\S]*targetField = target \? matrix\[target\.row\]\[target\.column\]\?\.dataset\.gridField[\s\S]*field !== targetField[\s\S]*matrix\[row\]\?\.find\(cell => cell\.dataset\.gridField === field\)/, 'contiguous cell selection stays within one semantic column')
   assert.doesNotMatch(keyboardSource, /columnMin|columnMax/, 'cell range selection never constructs a multi-column rectangle')
   assert.match(keyboardSource, /const columnDelta = event\.key === 'ArrowLeft'[\s\S]*if \(columnDelta !== 0\) \{\s*moveFocus\(next\)\s*return\s*\}/, 'Shift+Left/Right moves focus without extending a cross-column range')
-  assert.match(keyboardSource, /\(event\.ctrlKey \|\| event\.metaKey\) && selectionField\.current === field[\s\S]*if \(next\.has\(key\)\) next\.delete\(key\)[\s\S]*else next\.add\(key\)/, 'Ctrl/Cmd+Click toggles an individual cell in the same-column selection')
-  assert.match(keyboardSource, /event\.shiftKey[\s\S]*selectionField\.current === field[\s\S]*setContiguousRange\(selectionAnchor\.current, key\)/, 'Shift+Click extends a contiguous range within the existing column scope')
-  assert.match(keyboardSource, /handleMouseOver = \(event: MouseEvent\)[\s\S]*isSelectingCells\.current[\s\S]*setContiguousRange\(selectionAnchor\.current, key\)/, 'vertical mouse drag extends a contiguous selection')
+  assert.match(keyboardSource, /if \(\(ctrlKey \|\| metaKey\) && selectionField\.current === field\)[\s\S]*if \(next\.has\(key\)\) next\.delete\(key\)[\s\S]*else next\.add\(key\)/, 'Ctrl/Cmd+Click toggles an individual cell in the same-column selection')
+  assert.match(keyboardSource, /const applyCellClick = \(key: string, field: string, ctrlKey: boolean, metaKey: boolean, shiftKey: boolean\)[\s\S]*shiftKey[\s\S]*selectionField\.current === field[\s\S]*setContiguousRange\(selectionAnchor\.current, key\)/, 'Shift+Click extends a contiguous range within the existing column scope')
+  assert.match(keyboardSource, /!ctrlKey[\s\S]*!metaKey[\s\S]*!shiftKey[\s\S]*selectionField\.current === field[\s\S]*selectedCellKeysRef\.current\.size > 0[\s\S]*A plain same-column click moves Focus without replacing Cell Selection/, 'plain focus clicks preserve the current same-column cell set')
+  assert.match(keyboardSource, /handlePointerDown = \(event: PointerEvent\)[\s\S]*event\.button !== 0[\s\S]*pendingCellPointer\.current = \{/, 'primary mouse/pen press starts a pending cell gesture without preventing native text focus')
+  assert.match(keyboardSource, /handlePointerMove = \(event: PointerEvent\)[\s\S]*CELL_DRAG_THRESHOLD[\s\S]*deltaY <= deltaX[\s\S]*document\.elementFromPoint[\s\S]*setContiguousRange\(gesture\.anchorKey, key\)/, 'a vertical movement threshold extends drag selection only over hit-tested cells in the starting column')
+  assert.match(keyboardSource, /handlePointerUp = \(event: PointerEvent\)[\s\S]*pendingCellPointer\.current = null[\s\S]*if \(gesture\.dragging\) return[\s\S]*applyCellClick\(key, field, ctrlKey, metaKey, shiftKey\)/, 'pointer release keeps a completed drag range and applies click modifiers only below the movement threshold')
+  assert.match(keyboardSource, /window\.addEventListener\('pointercancel', handlePointerCancel\)[\s\S]*window\.removeEventListener\('pointercancel', handlePointerCancel\)/, 'pointer cancellation is cleaned up without trapping scroll or row reorder input')
+  assert.doesNotMatch(keyboardSource, /handleMouseOver|isSelectingCells/, 'cell dragging no longer relies on native mouseover state')
   assert.match(keyboardSource, /selectionScopeKey !== scopeRef\.current[\s\S]*clearCellSelection\(\)[\s\S]*rowIds[\s\S]*filter\(key => currentIds\.has\(rowIdFromCellKey\(key\)\)\)/, 'dataset changes and removed rows clear or prune temporary cell selection')
-  assert.match(keyboardSource, /handleFocusIn[\s\S]*focusedField\.current && focusedField\.current !== field[\s\S]*clearCellSelection\(\)/, 'focus crossing into a different column clears the prior selection while same-column focus preserves it')
+  assert.match(keyboardSource, /handleFocusIn[\s\S]*focusedField\.current && focusedField\.current !== field[\s\S]*clearCellSelection\(true\)/, 'focus crossing into a different column clears the prior selection while preserving the in-flight pointer gesture')
   assert.match(keyboardSource, /moveFocus = \(cell: GridCell \| undefined\)[\s\S]*focusedField\.current && field && focusedField\.current !== field[\s\S]*clearCellSelection\(\)/, 'keyboard navigation clears selection only when focus changes columns')
   assert.ok(keyboardSource.includes("positions.map(position => cellValue(matrix[position.row][position.column])).join('\\n')"), 'multi-cell copy serializes the selected column in row order with newlines')
   assert.match(keyboardSource, /clipboardMatrix\.length > 1 && clipboardMatrix\.every\(row => row\.length === 1\) && selectedPositions\.length > 1[\s\S]*selectedPositions\.slice\(0, clipboardMatrix\.length\)\.forEach\(\(\{ row, column \}, index\)[\s\S]*clipboardMatrix\[index\]\[0\]/, 'single-column multiline paste maps to selected cells in visual order')
@@ -1043,8 +1048,8 @@ try {
     && sizingModalSource.includes("renderRowCount('Work Centers'")
     && sizingModalSource.includes("renderRowCount('Routing'"),
   'row count controls use aligned three-column boundaries in BOM, Work Centers, Routing order')
-  assert.match(sizingModalSource, /const renderRowCount[\s\S]*<div className="min-w-0 flex-1">[\s\S]*<NumericInput[\s\S]*className=\{`\$\{masterDataTextEditorClass\} font-mono tabular-nums text-right`\}/,
-    'Sizing row-count editors fill their usable column width and share the quiet field style')
+  assert.match(sizingModalSource, /const renderRowCount[\s\S]*<div className="min-w-0 flex-1">[\s\S]*<NumericInput[\s\S]*text-right/,
+    'Sizing row-count editors fill their usable column width and keep values right aligned')
   assert.match(sizingModalSource, /const renderRowCount[\s\S]*<NumericInput[\s\S]*id=\{id\}[\s\S]*aria-label=\{label\}/, 'Sizing spinner actions use the actual row-count field name instead of the Unset placeholder')
   assert.match(sizingModalSource, /DATASET_SIZING_LIMITS\.bomCount[\s\S]*DATASET_SIZING_LIMITS\.wcCount[\s\S]*DATASET_SIZING_LIMITS\.routingCount/,
     'BOM, Work Centers, and Routing controls use their existing maximum limits')
@@ -1055,12 +1060,18 @@ try {
   assert.ok([
     'Selling Price (THB) :',
     'SG&amp;A :',
-    'className={metadataNumericEditorClass}',
+    'metadataNumericEditorClass',
     'grid-cols-[minmax(0,1fr)_1rem]',
     '<span aria-hidden="true" className="w-4 text-center text-xs text-slate-600">%</span>',
   ].every(token => sizingModalSource.includes(token)), 'Selling Price and SG&A share the metadata numeric editor and fixed outside suffix gutter')
   assert.match(sizingModalSource, /UOM :[\s\S]*grid-cols-\[minmax\(0,1fr\)_1rem\][\s\S]*Selling Price \(THB\) :[\s\S]*grid-cols-\[minmax\(0,1fr\)_1rem\][\s\S]*SG&amp;A :[\s\S]*grid-cols-\[minmax\(0,1fr\)_1rem\]/, 'upper metadata editors reserve equal suffix gutters')
   assert.equal((sizingModalSource.match(/className=\{metadataInlineLabelClass\}/g) ?? []).length, 3, 'UOM, Selling Price, and SG&A reserve one shared label track so their input shells stay equal width')
+  assert.match(sizingModalSource, /metadataInlineLabelClass = 'w-28 shrink-0 whitespace-nowrap text-left/, 'Sizing upper labels start at the left edge of their shared stable label track')
+  assert.match(sizingModalSource, /const sizingGroupDividerClass = [\s\S]*after:w-px after:bg-slate-200[\s\S]*md:after:block/, 'Sizing group dividers are subtle, local, and hidden while fields stack')
+  const sizingMetadataSection = sizingModalSource.slice(sizingModalSource.indexOf('aria-label="Dataset metadata"'), sizingModalSource.indexOf('aria-label="Dataset rows"'))
+  assert.equal((sizingMetadataSection.match(/\$\{sizingGroupDividerClass\}/g) ?? []).length, 2, 'upper Sizing dividers separate only the first two metadata groups')
+  assert.ok(sizingModalSource.includes("showDivider ? sizingGroupDividerClass : ''"), 'row-count divider styling is conditional so the final group stays open')
+  assert.match(sizingModalSource, /renderRowCount\('Bill of Materials'[\s\S]*DATASET_SIZING_LIMITS\.bomCount, true\)[\s\S]*renderRowCount\('Work Centers'[\s\S]*DATASET_SIZING_LIMITS\.wcCount, true\)[\s\S]*renderRowCount\('Routing'[\s\S]*DATASET_SIZING_LIMITS\.routingCount\)/, 'row count groups align with the same three columns and do not add a trailing divider')
   assert.equal((sizingModalSource.match(/md:grid-cols-3/g) ?? []).length, 2, 'upper metadata and lower row-count grids share the same responsive three-column geometry')
   assert.match(sizingModalSource, /Product Name :[\s\S]*className=\{masterDataTextEditorClass\}[\s\S]*Dataset Remark :[\s\S]*className=\{masterDataTextEditorClass\}/, 'Sizing text editors use the shared focus family on inline full-width rows')
   assert.match(sizingModalSource, /<Download className="h-3\.5 w-3\.5" aria-hidden="true" \/>[\s\S]*Download Template/, 'Download Template uses a down-arrow action icon')
@@ -1125,7 +1136,7 @@ try {
   assert.equal((headerSource.match(/<dt className="shrink-0 whitespace-nowrap[^\"]*">[^<]+ :<\/dt>/g) ?? []).length, 5, 'each inline metadata label retains its colon and does not wrap')
   assert.match(headerSource, /SG&amp;A :[\s\S]*aria-label="SG&A"[\s\S]*<span aria-hidden="true" className="text-xs text-slate-600">%<\/span>/, 'SG&A label is concise and percent remains outside its numeric shell in the same metadata slot')
   assert.match(headerSource, /Selling Price \(THB\) :[\s\S]*formatNumber\(product\.sellingPrice\)\}/, 'Selling Price uses label-supplied THB without a duplicate value suffix')
-  assert.match(fieldStylesSource, /const masterDataFocusClass = 'focus:!outline focus:!outline-2 focus:!outline-blue-700 focus:!outline-offset-\[-2px\]'/, 'editable controls share a strong blue focus outline inside their stable field bounds')
+  assert.match(fieldStylesSource, /const masterDataFocusClass = 'focus:!border-transparent focus:!outline focus:!outline-2 focus:!outline-blue-700 focus:!outline-offset-\[-2px\]'/, 'editable controls replace their field border with a strong blue focus outline inside stable field bounds')
   assert.match(fieldStylesSource, /masterDataTextEditorClass = `h-8 w-full min-w-0 rounded-sm border border-transparent bg-transparent[\s\S]*hover:border-slate-200 hover:bg-slate-50[\s\S]*\$\{masterDataFocusClass\}`/, 'text fields reserve border geometry for subtle hover and shared strong focus')
   assert.match(fieldStylesSource, /masterDataNumericEditorClass = `h-8 w-full min-w-0 rounded-sm border border-transparent bg-transparent[\s\S]*\$\{masterDataFocusClass\}`/, 'numeric fields share the same focus family without changing their dimensions')
   assert.match(tableChromeSource, /<header className="flex min-h-10 flex-wrap items-center justify-between[\s\S]*<h3[^>]*>\{title\}<\/h3>[\s\S]*<div className="flex min-w-0 flex-wrap items-center justify-end/, 'table header title stays left while its status/action group stays right')
@@ -1138,13 +1149,15 @@ try {
   const wcColumnGroup = getColumnGroup(wcSource)
   const routingColumnGroup = getColumnGroup(routingSource)
   const getColumnSpecs = group => [...group.matchAll(/<col\b[^>]*\/>/g)].map(([tag]) => tag.replace(/\s*\/>/, '/>'))
-  assert.deepEqual(getColumnSpecs(bomColumnGroup), ['<col className={masterDataIndexColumnClass}/>', '<col className={masterDataIdentityColumnClass}/>', '<col className="w-32"/>', '<col className={masterDataUnitColumnClass}/>', '<col className="w-32"/>', '<col className="w-40"/>', '<col className={masterDataNoteColumnClass}/>', '<col className={masterDataActionsColumnClass}/>'], 'BOM uses shared Identity and Note tracks with fixed centered numeric and Unit tracks')
-  assert.deepEqual(getColumnSpecs(wcColumnGroup), ['<col className={masterDataIndexColumnClass}/>', '<col className={masterDataIdentityColumnClass}/>', '<col className="w-56"/>', '<col className="w-56"/>', '<col className={masterDataNoteColumnClass}/>', '<col className={masterDataActionsColumnClass}/>'], 'Work Centers use shared Identity and Note tracks with equal Labor/Burden tracks')
-  assert.deepEqual(getColumnSpecs(routingColumnGroup), ['<col className={masterDataIndexColumnClass}/>', '<col className={masterDataIdentityColumnClass}/>', '<col className={masterDataIdentityColumnClass}/>', '<col className="w-32"/>', '<col className="w-36"/>', '<col className="w-32"/>', '<col className={masterDataNoteColumnClass}/>', '<col className={masterDataActionsColumnClass}/>'], 'Routing uses two shared Identity tracks, shared Note, and centered fixed numeric tracks')
+  assert.deepEqual(getColumnSpecs(bomColumnGroup), ['<col className={masterDataIndexColumnClass}/>', '<col className={masterDataIdentityColumnClass}/>', '<col/>', '<col className={masterDataUnitColumnClass}/>', '<col/>', '<col/>', '<col className={masterDataNoteColumnClass}/>', '<col className={masterDataActionsColumnClass}/>'], 'BOM locks #, Identity, Unit, Note, and Actions while Usage, Price, and Loss absorb the middle width')
+  assert.deepEqual(getColumnSpecs(wcColumnGroup), ['<col className={masterDataIndexColumnClass}/>', '<col className={masterDataIdentityColumnClass}/>', '<col/>', '<col/>', '<col className={masterDataNoteColumnClass}/>', '<col className={masterDataActionsColumnClass}/>'], 'Work Centers lock #, Identity, Note, and Actions while Labor and Burden absorb the middle width')
+  assert.deepEqual(getColumnSpecs(routingColumnGroup), ['<col className={masterDataIndexColumnClass}/>', '<col className={masterDataIdentityColumnClass}/>', '<col className={masterDataIdentityColumnClass}/>', '<col/>', '<col/>', '<col/>', '<col className={masterDataNoteColumnClass}/>', '<col className={masterDataActionsColumnClass}/>'], 'Routing locks #, two Identity tracks, Note, and Actions while Manning, Capacity, and Yield absorb the middle width')
   const sharedIndexColCount = (allTablesSource.match(/<col className=\{masterDataIndexColumnClass\} \/>/g) ?? []).length
   const sharedActionsColCount = (allTablesSource.match(/<col className=\{masterDataActionsColumnClass\} \/>/g) ?? []).length
   assert.equal(sharedIndexColCount, 3, 'all three table colgroups use the shared index width')
   assert.equal(sharedActionsColCount, 3, 'all three table colgroups use the shared Actions width')
+  assert.equal((allTablesSource.match(/className=\{masterDataTableClass\}/g) ?? []).length, 3, 'all tables use one common fixed outer-width policy')
+  assert.match(fieldStylesSource, /masterDataTableClass = 'w-full min-w-\[77rem\] table-fixed border-collapse text-left text-xs'/, 'tables fill a shared desktop panel width while keeping their minimum width inside narrow horizontal scrollers')
   assert.equal((allTablesSource.match(/\$\{masterDataIndexColumnClass\}/g) ?? []).length, 6, 'all three # headers and row handles match their fixed column width')
   assert.equal((allTablesSource.match(/\$\{masterDataActionsColumnClass\}/g) ?? []).length, 6, 'all three Actions headers and cells match their fixed column width')
   assert.match(fieldStylesSource, /masterDataIdentityColumnClass = 'w-56'/, 'all identity columns use one actual shared 14rem width token')
@@ -1164,8 +1177,8 @@ try {
   assert.equal((allTablesSource.match(/aria-pressed=\{allVisibleSelected\}/g) ?? []).length, 3, 'all three # controls expose their pressed state accessibly')
   assert.equal((allTablesSource.match(/border border-slate-800 bg-slate-700 text-white/g) ?? []).length, 3, 'all three # headers use a persistent dark-slate/white pressed state')
   assert.match(allTablesSource, /text-slate-700 hover:bg-slate-200/, 'unpressed # headers remain neutral and visibly interactive on hover')
-  assert.match(fieldStylesSource, /masterDataSpreadsheetSelectionClass = 'outline outline-1 outline-slate-400 outline-offset-\[-1px\]'/, 'cell-range selection uses a subtle neutral outline rather than a second blue focus ring')
-  assert.match(fieldStylesSource, /masterDataFocusClass = 'focus:!outline focus:!outline-2 focus:!outline-blue-700/, 'the focused field keeps a stronger blue treatment than the neutral selected-cell outline')
+  assert.match(fieldStylesSource, /masterDataSpreadsheetSelectionClass = '!border-transparent hover:!border-transparent outline outline-1 outline-blue-500 outline-offset-\[-1px\]'/, 'selected cells replace the issue border with one subtle thin blue perimeter')
+  assert.match(fieldStylesSource, /masterDataFocusClass = 'focus:!border-transparent focus:!outline focus:!outline-2 focus:!outline-blue-700/, 'focus replaces the issue border with one stronger blue perimeter')
   assert.doesNotMatch(allTablesSource, /<td className=\{`[^`]*bg-amber-50/, 'Warning and Blocker fills are never applied to a full table cell')
   assert.match(fieldStylesSource, /masterDataIssueEditorClass = '!border-amber-300 !bg-amber-50 hover:!border-amber-300'/, 'issue editors retain amber fill and border underneath the shared focus outline')
   assert.match(fieldStylesSource, /masterDataIssueDisplayClass = '!border-amber-300 bg-amber-50'/, 'View issue display styling keeps the 1px amber border above the base transparent border and pale amber fill')
@@ -1177,8 +1190,20 @@ try {
   assert.doesNotMatch(allTablesSource, /showWarningHighlights[\s\S]{0,80}border-rose-[0-9]+/, 'Blockers never use a red field border')
   assert.doesNotMatch(allTablesSource, /<td className=\{`[^`]*bg-amber-50/, 'issue fill remains field-level, never a whole-cell fill')
   assert.match(fieldStylesSource, /masterDataPercentageShellClass = 'mx-auto flex h-8 w-28 min-w-0 items-center gap-1'/, 'percentage field groups retain one stable owner width')
-  assert.match(fieldStylesSource, /masterDataPercentageInputShellClass = 'relative flex h-8 min-w-0 flex-1 items-center rounded-sm border border-transparent[\s\S]*focus-within:outline focus-within:outline-2 focus-within:outline-blue-700 focus-within:outline-offset-\[-2px\]'/, 'percentage focus outlines the numeric shell only and stays separate from the suffix')
+  assert.match(fieldStylesSource, /masterDataPercentageInputShellClass = 'relative flex h-8 min-w-0 flex-1 items-center rounded-sm border border-transparent[\s\S]*focus-within:!border-transparent focus-within:!outline focus-within:!outline-2 focus-within:!outline-blue-700 focus-within:!outline-offset-\[-2px\]'/, 'percentage focus replaces the issue border on the value shell and stays separate from the suffix')
   assert.match(fieldStylesSource, /masterDataPercentageIssueShellClass = '!border-amber-300 !bg-amber-50'/, 'Loss and Yield issue shells retain their amber fill/border beneath strong focus')
+  const viewPercentageMarkup = (source, field) => {
+    const fieldIndex = source.indexOf(`data-grid-field="${field}" tabIndex=`)
+    const groupIndex = source.lastIndexOf('className={masterDataPercentageShellClass}', fieldIndex)
+    return source.slice(groupIndex, groupIndex + 1400)
+  }
+  const lossViewMarkup = viewPercentageMarkup(bomSource, 'loss')
+  const yieldViewMarkup = viewPercentageMarkup(routingSource, 'yield')
+  for (const [field, markup] of [['Loss', lossViewMarkup], ['Yield', yieldViewMarkup]]) {
+    assert.match(markup, /className=\{masterDataPercentageShellClass\}>\s*<div data-grid-cell="true"/, `${field} View keeps the percentage group as a layout owner and focuses a separate value shell`)
+    assert.match(markup, /className=\{`\$\{masterDataPercentageInputShellClass\}[\s\S]*masterDataSpreadsheetSelectionClass/, `${field} View places selection and focus on the value shell`)
+    assert.match(markup, /<\/div>\s*<span className="w-3 shrink-0 text-center text-\[11px\] text-slate-400">%<\/span>/, `${field} View keeps the percent suffix outside the value shell perimeter`)
+  }
   assert.ok(bomSource.includes('className={masterDataPercentageShellClass}')
     && bomSource.includes('className={`${masterDataPercentageInputShellClass}')
     && bomSource.includes('reserveMarker')
