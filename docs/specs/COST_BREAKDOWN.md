@@ -4,13 +4,24 @@
 
 ## Final Target State
 
-Cost Breakdown starts in Full Comparison. Reference and Current are calculated independently, then compared using business identities and the four applicable statuses. Gap is always Current minus Reference. Material costs are compared by BOM identity; processing uses each side's Routing and Work Center rates, aggregates by Work Center, and exposes Process as drill-down detail. Users can temporarily select BOM/Routing findings for analysis; while that scope is active, every result shows only the selected-scope Gap. Details explain and reconcile to the total without fabricating missing costs.
+Cost Breakdown starts in Full Comparison. Reference and Current are calculated independently, then compared using business identities and the four applicable statuses. Gap is always Current minus Reference. BOM material and Routing Process records are the primary itemized findings; Work Center totals remain a separate full-snapshot context. Users can temporarily select BOM/Routing findings for analysis; while that scope is active, the comparison summary and itemized findings show only the selected-scope Gap, while Work Center context remains the complete Reference/Current snapshot pair. Details explain and reconcile to the total without fabricating missing costs.
+
+Keep the Comparison scope control as a separate page control above the four main CBD sections. The main sections are:
+1. Standard Cost Summary.
+2. Cost Element Breakdown.
+3. Work Center Net Summary for the complete Reference/Current snapshots.
+4. Itemized Comparison for BOM and RTG records, with expandable record details.
+
+Standard Cost Summary and Cost Element Breakdown remain distinct sections even when they share a desktop row.
+Itemized Comparison supports `ALL`, `BOM`, and `RTG`; BOM and RTG are its primary comparison record types. Work Center is context, not an Itemized record type.
+
+The expanded BOM/RTG record details do not repeat per-record Data quality, REF/CUR quality badges, Confidence labels, or Confidence badges. Underlying validation, warnings, calculations, and reconciliation remain available through their existing review paths.
 
 ## Comparison Scope: Reference vs Current Only
 
 Cost Breakdown answers: *“What changed between Reference and Current, and where does the Standard Cost gap come from?”*
 
-The page presents the result first, then cost-category causes, then record/process and changed-field detail. Keep Snapshot Comparison and Variance Tree from repeating the same result/cause values; selected scope stays available as a compact context control.
+The page presents the cost result and cost-element causes first, then full-snapshot Work Center context, then itemized BOM/RTG records and changed-field detail. Selected scope stays available as a compact context control.
 
 Cost Breakdown compares strictly:
 
@@ -47,23 +58,31 @@ Status and Gap are independent:
 
 Keep unchanged records available in the normal comparison data and for status filtering. The status filter is multi-select (`All`, `Changed`, `Added`, `Removed`, `Unchanged`). `All` selects all statuses and is the default.
 
-## Processing and Drill-Down
+## Processing and Work Center Context
 
 - Calculate processing cost independently on each side using Routing operations and Work Center rates.
+- Routing `Process` is the primary process-level record and finding in Itemized Comparison. Match it by its approved Process identity; its Work Center assignment and the rate from that Work Center on each side are calculation inputs and explanatory details.
+- If a Process moves to another Work Center, retain one matched RTG finding for that Process and classify the changed assignment as `CHANGED`; do not split the move into a removed/added pair. A Work Center rate change can also make an otherwise unchanged Routing record's calculated cost `CHANGED`.
 - Aggregate processing by Work Center, then compare Reference and Current Work Center totals:
   $$\text{WC Net Gap} = \text{Current WC processing total} - \text{Reference WC processing total}$$
-- Routing `Process` remains drill-down detail under Work Center. One-to-one Routing matching is not required to calculate `WC Net Gap`.
+- Work Center processing is separate aggregate context, not a parent for the Process findings and not a Candidate. It always shows the complete Reference and Current snapshots, including while Selected Comparison is active; selected scope does not filter or recalculate this context.
 - Detailed effects reconcile to their parent totals:
   $$\text{Material Gap} + \text{Labor Gap} + \text{Burden Gap} = \text{Total Gap}$$
+  $$\text{Labor Gap} + \text{Burden Gap} = \text{Conversion Gap}$$
   $$\text{Changed effects} + \text{Added effects} + \text{Removed effects} = \text{Parent branch Gap}$$
 - If detail cannot reconcile due to missing/invalid calculation inputs, display an unavailable or validation state instead of guessing.
-- Record-level and Work Center-level gaps are shown with changed inputs as Reference → Current explanatory details. Do not fabricate unsupported per-input monetary attribution in THB.
+- The expanded parameter table uses additive LMDI monetary attribution only for matched `CHANGED` BOM and RTG records. `UNCHANGED`, `ADDED`, and `REMOVED` records do not show Parameter Cost Effect attribution.
+- BOM cost is `Usage × Price × (1 + Loss)`. LMDI allocates the actual BOM record material gap across Usage, Price, and `(1 + Loss)`; display the actual record gap as the Total row.
+- For RTG, `Factor = Manning / (Capacity × Yield)`, `Labor = Factor × Labor Rate`, `Burden = Factor × Burden Rate`, and `Conversion = Labor + Burden`. Calculate additive LMDI independently for Labor and Burden using Manning, inverse Capacity, inverse Yield, and the corresponding Work Center rate; Conversion attribution is the sum of the Labor and Burden effects for each parameter. The RTG Total row uses the actual process Labor, Burden, and Conversion gaps.
+- Do not derive Total rows by summing display-rounded factor effects. In the BOM Total row, `% Parent` is the actual record material gap divided by itself; in each RTG Total group, it is the actual process Labor, Burden, or Conversion gap divided by itself. Each is 100% for a valid nonzero gap. `% Total` is the corresponding actual gap divided by the Standard Cost Gap. A zero or unavailable denominator displays unavailable (`—`). Offset effects may be above 100% or negative while still reconciling to the actual gap.
+- LMDI attribution requires every required input on both sides to be positive and finite. Missing, zero, or non-finite required inputs make that record's Parameter Cost Effect unavailable; do not coerce them to zero. This attribution availability rule does not replace the underlying cost calculation or validation rules.
 
 ## Full Comparison and Selected Comparison
 
 - **Full Comparison:** The default comparison covering all eligible BOM and Routing records.
 - **Selected Comparison:** A temporary analysis scope/view of user-selected BOM and Routing findings:
-  - Work Centers remain complete calculation context.
+  - The Standard Cost Summary, Cost Element Breakdown, and BOM/RTG itemized comparison use only the selected scope and its Gap.
+  - Work Centers remain the complete full-snapshot calculation context, unaffected by the selection.
   - Matched `CHANGED`/`UNCHANGED` findings move as Reference/Current pairs.
   - `ADDED` and `REMOVED` findings are independently selectable.
   - While active, display only the selected findings and **only the selected-scope Gap**. Do not display the Full Gap beside or behind it.
@@ -83,5 +102,5 @@ The findings from CBD (whether Full or Selected) feed into [Candidate Prioritiza
 
 - Validation warnings inform and direct without blocking navigation.
 - Keep comparison statuses separate from data-quality validation warnings.
-- Keep duplicate top calculation warning banners removed; display warnings in a collapsed disclosure labeled `Review warnings (N)`.
+- Keep duplicate top calculation warning banners and the page-level Data quality summary removed; display warnings in a collapsed disclosure labeled `Review warnings (N)`.
 - Preserve the result → cause → detail direction.
