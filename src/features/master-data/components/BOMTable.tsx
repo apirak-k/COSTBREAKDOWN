@@ -12,7 +12,7 @@ import { MasterDataTableHeader } from './MasterDataTableChrome'
 import { MasterDataBlockerMarker } from './MasterDataBlockerMarker'
 import { Tooltip } from '../../../shared/ui/Tooltip'
 import { NumericInput } from '../../../shared/ui/NumericInput'
-import { masterDataDisplaySlotClass, masterDataIssueDisplayClass, masterDataIssueEditorClass, masterDataIssuePlaceholderClass, masterDataNumericDisplaySlotClass, masterDataNumericEditorClass, masterDataPercentageDisplayValueClass, masterDataPercentageEditorClass, masterDataPercentageInputShellClass, masterDataPercentageIssueShellClass, masterDataPercentageShellClass, masterDataSpreadsheetSelectionClass, masterDataTextEditorClass } from './master-data-field-styles'
+import { masterDataActionsColumnClass, masterDataDisplaySlotClass, masterDataIndexColumnClass, masterDataIssueDisplayClass, masterDataIssueEditorClass, masterDataIssuePlaceholderClass, masterDataNumericDisplaySlotClass, masterDataNumericEditorClass, masterDataPercentageDisplayValueClass, masterDataPercentageEditorClass, masterDataPercentageInputShellClass, masterDataPercentageIssueShellClass, masterDataPercentageShellClass, masterDataSpreadsheetSelectionClass, masterDataTextEditorClass } from './master-data-field-styles'
 
 interface BOMTableProps {
   bom: SnapshotBOMItem[]
@@ -208,12 +208,12 @@ export const BOMTable: React.FC<BOMTableProps> = ({
       <div className="overflow-x-auto">
         <table ref={tableRef} className="w-full min-w-[64rem] table-fixed border-collapse text-left text-xs">
           <colgroup>
-            <col className="w-[5%]" /><col className="w-[22%]" /><col className="w-[10%]" /><col className="w-[6%]" />
-            <col className="w-[10%]" /><col className="w-[13%]" /><col className="w-[24.5%]" /><col className="w-[9.5%]" />
+            <col className={masterDataIndexColumnClass} /><col /><col className="w-32" /><col className="w-14" />
+            <col className="w-32" /><col className="w-40" /><col /><col className={masterDataActionsColumnClass} />
           </colgroup>
           <thead className="sticky top-0 z-30 border-y-2 border-slate-400 bg-slate-100 text-[11px] font-semibold uppercase tracking-wide text-slate-800">
             <tr>
-              <th scope="col" className="sticky left-0 z-40 w-12 bg-slate-100 p-0 text-center">
+              <th scope="col" className={`sticky left-0 z-40 ${masterDataIndexColumnClass} bg-slate-100 p-0 text-center`}>
                 <Tooltip label={allVisibleSelected ? 'Clear visible selection' : 'Select all visible rows'} wrapperClassName="relative flex h-9 w-full items-center justify-center">
                   <button type="button" onClick={() => toggleAll(!allVisibleSelected)} disabled={filteredBOM.length === 0} aria-pressed={allVisibleSelected} aria-label={allVisibleSelected ? 'Clear visible selection for BOM rows' : 'Select all visible BOM rows'} className={`grid h-7 w-7 place-items-center rounded-sm text-[11px] focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-700 ${allVisibleSelected ? 'border border-slate-800 bg-slate-700 text-white' : 'text-slate-700 hover:bg-slate-200'} disabled:cursor-default disabled:text-slate-400 disabled:hover:bg-transparent`}>#</button>
                 </Tooltip>
@@ -224,7 +224,7 @@ export const BOMTable: React.FC<BOMTableProps> = ({
               <th scope="col" className="px-2 py-2 text-center">Price</th>
               <th scope="col" className="px-2 py-2 text-center">Loss</th>
               <th scope="col" className="px-2 py-2 text-left">Note</th>
-              <th scope="col" className="w-20 px-1 py-2 text-center">Actions</th>
+              <th scope="col" className={`${masterDataActionsColumnClass} px-1 py-2 text-center`}>Actions</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-200 text-xs">
@@ -257,7 +257,7 @@ export const BOMTable: React.FC<BOMTableProps> = ({
                   onDrop={event => { if (isEditMode) handleRowDrop(event, item.id) }}
                   className={`group h-10 transition-colors ${isSelected ? 'bg-blue-100/60 hover:bg-blue-100/80' : 'bg-white hover:bg-slate-50'}`}
                 >
-                  <th scope="row" className="sticky left-0 z-20 w-12 bg-transparent px-1.5 py-0.5 text-center font-mono font-normal text-slate-600">
+                  <th scope="row" className={`sticky left-0 z-20 ${masterDataIndexColumnClass} bg-transparent px-1.5 py-0.5 text-center font-mono font-normal text-slate-600`}>
                     <Tooltip label={isSelected ? 'Deselect row' : 'Select row'}>
                       <button
                         type="button"
@@ -325,9 +325,9 @@ export const BOMTable: React.FC<BOMTableProps> = ({
                         data-grid-field="unit"
                         aria-label={`Unit for ${item.description || `BOM row ${rowNumber}`}`}
                         aria-invalid={!item.unit.trim()}
-                        className={`mx-auto block h-8 w-full max-w-12 rounded-sm border border-transparent bg-transparent px-1 text-center text-xs text-slate-900 transition-colors hover:border-slate-200 hover:bg-slate-50 focus:border-transparent focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-700 ${!item.unit.trim() && showWarningHighlights ? masterDataIssueEditorClass : ''} ${selectedCellKeys.has(tableCellKey(item.id, 'unit')) ? masterDataSpreadsheetSelectionClass : ''}`}
+                        className={`mx-auto block h-8 w-full max-w-14 rounded-sm border border-transparent bg-transparent px-1 text-center text-xs text-slate-900 transition-colors hover:border-slate-200 hover:bg-slate-50 focus:border-transparent focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-700 ${!item.unit.trim() && showWarningHighlights ? masterDataIssueEditorClass : ''} ${selectedCellKeys.has(tableCellKey(item.id, 'unit')) ? masterDataSpreadsheetSelectionClass : ''}`}
                       />
-                    ) : <span className="mx-auto inline-flex h-8 w-full max-w-12 items-center justify-center rounded-sm border border-transparent px-1 text-center text-xs">{item.unit || <span className="text-amber-700">—</span>}</span>}
+                    ) : <span className={`mx-auto inline-flex h-8 w-full max-w-14 items-center justify-center rounded-sm border border-transparent px-1 text-center text-xs ${!item.unit.trim() && showWarningHighlights ? masterDataIssueDisplayClass : ''}`}>{item.unit || <span className="text-amber-700">—</span>}</span>}
                   </td>
                   <td className="relative px-2 py-0.5 text-center font-mono tabular-nums">
                     {isEditMode ? (
@@ -350,7 +350,7 @@ export const BOMTable: React.FC<BOMTableProps> = ({
                   </td>
                   <td className="relative px-2 py-0.5 text-center font-mono tabular-nums">
                     {isEditMode ? (
-                      <div className={`${masterDataPercentageShellClass} ${selectedCellKeys.has(tableCellKey(item.id, 'loss')) ? masterDataSpreadsheetSelectionClass : ''}`}>
+                      <div className={`${masterDataPercentageShellClass} ${selectedCellKeys.has(tableCellKey(item.id, 'loss')) ? `${masterDataSpreadsheetSelectionClass} focus-within:outline-none` : ''}`}>
                         <div className={`${masterDataPercentageInputShellClass} ${showWarningHighlights && lossInvalid ? masterDataPercentageIssueShellClass : ''}`}>
                           <NumericInput
                             value={item.loss === null ? null : item.loss * 100}
@@ -393,7 +393,7 @@ export const BOMTable: React.FC<BOMTableProps> = ({
                       />
                     ) : <div className={masterDataDisplaySlotClass}>{item.note || '—'}</div>}
                   </td>
-                  <td className="px-1 py-0.5 text-center">
+                  <td className={`${masterDataActionsColumnClass} px-1 py-0.5 text-center`}>
                     <div className="flex items-center justify-center gap-0.5">
                       <Tooltip label={deleteTooltip}>
                         <button

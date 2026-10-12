@@ -52,6 +52,7 @@ interface MasterDataWorkspaceHeaderProps {
 
 const toolbarButton = 'grid h-8 w-8 shrink-0 place-items-center rounded-sm bg-transparent text-slate-700 transition-colors hover:bg-slate-100 hover:text-slate-950 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700 disabled:cursor-default disabled:opacity-40 disabled:hover:bg-transparent disabled:hover:text-slate-700'
 const fieldInput = masterDataTextEditorClass
+const metadataGroupDividerClass = "relative after:absolute after:-right-1.5 after:top-1 after:bottom-1 after:hidden after:w-px after:bg-slate-200 after:content-[''] xl:after:block"
 const datasetSaveStateDotClass = (state: MasterDataSaveState, size = 'h-1.5 w-1.5') =>
   `${size} shrink-0 rounded-full ring-[1.5px] ring-inset ${state === 'Saved' ? 'bg-emerald-500 ring-emerald-700/70' : 'bg-slate-400 ring-slate-600/70'}`
 const useSafeLayoutEffect = typeof window === 'undefined' ? useEffect : useLayoutEffect
@@ -517,8 +518,8 @@ export const MasterDataWorkspaceHeader: React.FC<MasterDataWorkspaceHeaderProps>
       </div>
 
       <div className="px-2 py-1.5">
-        <dl className="grid min-w-0 grid-cols-1 gap-x-3 gap-y-1 sm:grid-cols-2 lg:grid-cols-[minmax(8rem,2fr)_repeat(3,minmax(8rem,1fr))_minmax(8rem,2fr)]">
-          <div className="flex min-w-0 items-center gap-1.5">
+        <dl className="grid min-w-0 grid-cols-1 gap-x-3 gap-y-1 sm:grid-cols-2 xl:grid-cols-[minmax(8rem,2fr)_repeat(3,minmax(8rem,1fr))_minmax(8rem,2fr)]">
+          <div className={`flex min-w-0 items-center gap-1.5 ${metadataGroupDividerClass}`}>
             <dt className="shrink-0 whitespace-nowrap font-sans text-[11px] font-medium tracking-wide text-slate-600">Product Name :</dt>
             <dd className="min-w-0 flex-1">
               {isEditMode ? (
@@ -538,7 +539,7 @@ export const MasterDataWorkspaceHeader: React.FC<MasterDataWorkspaceHeaderProps>
             </dd>
           </div>
 
-          <div className="flex min-w-0 items-center gap-1.5">
+          <div className={`flex min-w-0 items-center gap-1.5 ${metadataGroupDividerClass}`}>
             <dt className="shrink-0 whitespace-nowrap font-sans text-[11px] font-medium tracking-wide text-slate-600">UOM :</dt>
             <dd className="min-w-0 flex-1">
               {isEditMode ? (
@@ -556,7 +557,7 @@ export const MasterDataWorkspaceHeader: React.FC<MasterDataWorkspaceHeaderProps>
             </dd>
           </div>
 
-          <div className="flex min-w-0 items-center gap-1.5">
+          <div className={`flex min-w-0 items-center gap-1.5 ${metadataGroupDividerClass}`}>
             <dt className="shrink-0 whitespace-nowrap font-sans text-[11px] font-medium tracking-wide text-slate-600">Selling Price (THB) :</dt>
             <dd className="min-w-0 flex-1">
               {isEditMode ? (
@@ -574,7 +575,7 @@ export const MasterDataWorkspaceHeader: React.FC<MasterDataWorkspaceHeaderProps>
             </dd>
           </div>
 
-          <div className="flex min-w-0 items-center gap-1.5">
+          <div className={`flex min-w-0 items-center gap-1.5 ${metadataGroupDividerClass}`}>
             <dt className="shrink-0 whitespace-nowrap font-sans text-[11px] font-medium tracking-wide text-slate-600">SG&amp;A (%) :</dt>
             <dd className="grid min-w-0 flex-1 grid-cols-[minmax(0,1fr)_auto] items-center gap-1">
               {isEditMode ? (

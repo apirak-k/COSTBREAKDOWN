@@ -12,7 +12,7 @@ import { MasterDataTableHeader } from './MasterDataTableChrome'
 import { MasterDataBlockerMarker } from './MasterDataBlockerMarker'
 import { Tooltip } from '../../../shared/ui/Tooltip'
 import { NumericInput } from '../../../shared/ui/NumericInput'
-import { masterDataDisplaySlotClass, masterDataIssueDisplayClass, masterDataIssueEditorClass, masterDataIssuePlaceholderClass, masterDataNumericDisplaySlotClass, masterDataNumericEditorClass, masterDataPercentageDisplayValueClass, masterDataPercentageEditorClass, masterDataPercentageInputShellClass, masterDataPercentageIssueShellClass, masterDataPercentageShellClass, masterDataSpreadsheetSelectionClass, masterDataTextEditorClass } from './master-data-field-styles'
+import { masterDataActionsColumnClass, masterDataDisplaySlotClass, masterDataIndexColumnClass, masterDataIssueDisplayClass, masterDataIssueEditorClass, masterDataIssuePlaceholderClass, masterDataNumericDisplaySlotClass, masterDataNumericEditorClass, masterDataPercentageDisplayValueClass, masterDataPercentageEditorClass, masterDataPercentageInputShellClass, masterDataPercentageIssueShellClass, masterDataPercentageShellClass, masterDataSpreadsheetSelectionClass, masterDataTextEditorClass } from './master-data-field-styles'
 
 interface RoutingTableProps {
   routing: SnapshotRoutingStep[]
@@ -212,12 +212,12 @@ export const RoutingTable: React.FC<RoutingTableProps> = ({
       <div className="overflow-x-auto">
         <table ref={tableRef} className="w-full min-w-[68rem] table-fixed border-collapse text-left text-xs">
           <colgroup>
-            <col className="w-[4.5%]" /><col className="w-[22%]" /><col className="w-[22%]" />
-            <col className="w-[9.5%]" /><col className="w-[11.5%]" /><col className="w-[12.5%]" /><col className="w-[11%]" /><col className="w-[7%]" />
+            <col className={masterDataIndexColumnClass} /><col /><col />
+            <col className="w-32" /><col className="w-36" /><col className="w-32" /><col /><col className={masterDataActionsColumnClass} />
           </colgroup>
           <thead className="sticky top-0 z-30 border-y-2 border-slate-400 bg-slate-100 text-[11px] font-semibold uppercase tracking-wide text-slate-800">
             <tr>
-              <th scope="col" className="sticky left-0 z-40 w-12 bg-slate-100 p-0 text-center">
+              <th scope="col" className={`sticky left-0 z-40 ${masterDataIndexColumnClass} bg-slate-100 p-0 text-center`}>
                 <Tooltip label={allVisibleSelected ? 'Clear visible selection' : 'Select all visible rows'} wrapperClassName="relative flex h-9 w-full items-center justify-center">
                   <button type="button" onClick={() => toggleAll(!allVisibleSelected)} disabled={filteredRouting.length === 0} aria-pressed={allVisibleSelected} aria-label={allVisibleSelected ? 'Clear visible selection for Routing rows' : 'Select all visible Routing rows'} className={`grid h-7 w-7 place-items-center rounded-sm text-[11px] focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-700 ${allVisibleSelected ? 'border border-slate-800 bg-slate-700 text-white' : 'text-slate-700 hover:bg-slate-200'} disabled:cursor-default disabled:text-slate-400 disabled:hover:bg-transparent`}>#</button>
                 </Tooltip>
@@ -228,7 +228,7 @@ export const RoutingTable: React.FC<RoutingTableProps> = ({
               <th scope="col" className="px-2 py-2 text-center">Capacity</th>
               <th scope="col" className="px-2 py-2 text-center">Yield</th>
               <th scope="col" className="px-2 py-2 text-left">Note</th>
-              <th scope="col" className="w-20 px-1 py-2 text-center">Actions</th>
+              <th scope="col" className={`${masterDataActionsColumnClass} px-1 py-2 text-center`}>Actions</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-200 text-xs">
@@ -262,7 +262,7 @@ export const RoutingTable: React.FC<RoutingTableProps> = ({
                   onDrop={event => { if (isEditMode) handleRowDrop(event, step.id) }}
                   className={`group h-10 transition-colors ${isSelected ? 'bg-blue-100/60 hover:bg-blue-100/80' : 'bg-white hover:bg-slate-50'}`}
                 >
-                  <th scope="row" className="sticky left-0 z-20 w-12 bg-transparent px-1.5 py-0.5 text-center font-mono font-normal text-slate-600">
+                  <th scope="row" className={`sticky left-0 z-20 ${masterDataIndexColumnClass} bg-transparent px-1.5 py-0.5 text-center font-mono font-normal text-slate-600`}>
                     <Tooltip label={isSelected ? 'Deselect row' : 'Select row'}>
                       <button
                         type="button"
@@ -372,7 +372,7 @@ export const RoutingTable: React.FC<RoutingTableProps> = ({
                   </td>
                   <td className="relative px-2 py-0.5 text-center font-mono tabular-nums">
                     {isEditMode ? (
-                      <div className={`${masterDataPercentageShellClass} ${selectedCellKeys.has(tableCellKey(step.id, 'yield')) ? masterDataSpreadsheetSelectionClass : ''}`}>
+                      <div className={`${masterDataPercentageShellClass} ${selectedCellKeys.has(tableCellKey(step.id, 'yield')) ? `${masterDataSpreadsheetSelectionClass} focus-within:outline-none` : ''}`}>
                         <div className={`${masterDataPercentageInputShellClass} ${showWarningHighlights && yieldInvalid ? masterDataPercentageIssueShellClass : ''}`}>
                           <NumericInput
                             value={step.yield === null ? null : step.yield * 100}
@@ -418,7 +418,7 @@ export const RoutingTable: React.FC<RoutingTableProps> = ({
                       />
                     ) : <div className={masterDataDisplaySlotClass}>{step.note || '—'}</div>}
                   </td>
-                  <td className="px-1 py-0.5 text-center">
+                  <td className={`${masterDataActionsColumnClass} px-1 py-0.5 text-center`}>
                     <div className="flex items-center justify-center gap-0.5">
                       <Tooltip label={deleteTooltip}>
                         <button
