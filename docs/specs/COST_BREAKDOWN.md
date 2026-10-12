@@ -6,11 +6,14 @@
 
 Cost Breakdown starts in Full Comparison. Reference and Current are calculated independently, then compared using business identities and the four applicable statuses. Gap is always Current minus Reference. BOM material and Routing Process records are the primary itemized findings; Work Center totals remain a separate full-snapshot context. Users can temporarily select BOM/Routing findings for analysis; while that scope is active, the comparison summary and itemized findings show only the selected-scope Gap, while Work Center context remains the complete Reference/Current snapshot pair. Details explain and reconcile to the total without fabricating missing costs.
 
-Keep the current four-section page hierarchy and order:
-1. Comparison scope control.
-2. Standard Cost Summary and Cost Element Breakdown.
-3. Work Center processing context for the complete Reference/Current snapshots.
+Keep the Comparison scope control as a separate page control above the four main CBD sections. The main sections are:
+1. Standard Cost Summary.
+2. Cost Element Breakdown.
+3. Work Center Net Summary for the complete Reference/Current snapshots.
 4. Itemized Comparison for BOM and RTG records, with expandable record details.
+
+Standard Cost Summary and Cost Element Breakdown remain distinct sections even when they share a desktop row.
+Itemized Comparison supports `ALL`, `BOM`, and `RTG`; BOM and RTG are its primary comparison record types. Work Center is context, not an Itemized record type.
 
 The expanded BOM/RTG record details do not repeat per-record Data quality, REF/CUR quality badges, Confidence labels, or Confidence badges. Underlying validation, warnings, calculations, and reconciliation remain available through their existing review paths.
 
@@ -55,7 +58,7 @@ Status and Gap are independent:
 
 Keep unchanged records available in the normal comparison data and for status filtering. The status filter is multi-select (`All`, `Changed`, `Added`, `Removed`, `Unchanged`). `All` selects all statuses and is the default.
 
-## Processing and Drill-Down
+## Processing and Work Center Context
 
 - Calculate processing cost independently on each side using Routing operations and Work Center rates.
 - Routing `Process` is the primary process-level record and finding in Itemized Comparison. Match it by its approved Process identity; its Work Center assignment and the rate from that Work Center on each side are calculation inputs and explanatory details.

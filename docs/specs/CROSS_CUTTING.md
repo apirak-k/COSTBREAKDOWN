@@ -45,11 +45,11 @@ If a required input is missing or invalid, Capacity or Yield is non-positive, or
 
 ## Processing Cost and Work Center Comparison
 
-For each dataset, calculate each Routing operation using its referenced Work Center Labor and Burden rates. Aggregate the resulting processing costs by Work Center, then compare Reference and Current processing totals at that Work Center:
+Calculate each Routing operation independently for Reference and Current using that snapshot's referenced Work Center Labor and Burden rates: Reference uses Reference Work Center rates, and Current uses Current Work Center rates. Aggregate each snapshot's resulting processing costs by Work Center, then compare Reference and Current processing totals at that Work Center:
 
 $$\text{WC Net Gap} = \text{Current WC processing total} - \text{Reference WC processing total}$$
 
-Routing `Process` remains drill-down detail under its Work Center in Cost Breakdown. Matching Routing operations one-to-one is not required to calculate the Work Center processing total or `WC Net Gap`. This Work Center aggregation is calculation/context detail and does not create a Work Center Candidate; Candidate Prioritization uses Process/Routing as the processing Candidate. If a Work Center Labor Rate or Burden Rate change causes calculated cost to change for one or more Processes, each affected Process may independently be `CHANGED` and remain the Candidate even when its Routing-owned fields are unchanged. See [Candidate Prioritization](CANDIDATE.md) and the [Work Center rate dependency rule](FINAL_LOGIC_SPEC.md#work-center-rate-dependency).
+Routing `Process` is the primary processing comparison record in Cost Breakdown's Itemized Comparison. Work Center is a separate aggregation/calculation context, not the parent UI hierarchy for Process records and not a Candidate. A Process moving between Work Centers remains one matched Process finding when its approved business identity matches. Matching Routing operations one-to-one is not required to calculate the Work Center processing total or `WC Net Gap`. This Work Center aggregation is calculation/context detail and does not create a Work Center Candidate; Candidate Prioritization uses Process/Routing as the processing Candidate. If a Work Center Labor Rate or Burden Rate change causes calculated cost to change for one or more Processes, each affected Process may independently be `CHANGED` and remain the Candidate even when its Routing-owned fields are unchanged. See [Candidate Prioritization](CANDIDATE.md) and the [Work Center rate dependency rule](FINAL_LOGIC_SPEC.md#work-center-rate-dependency).
 
 ## Full and Selected Comparison
 
