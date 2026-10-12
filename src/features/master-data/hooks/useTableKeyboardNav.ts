@@ -10,6 +10,8 @@ export interface SpreadsheetPasteCell {
 interface UseTableKeyboardNavOptions {
   tableRef: React.RefObject<HTMLTableElement | null>
   isEditMode: boolean
+  selectionScopeKey?: string
+  rowIds?: readonly string[]
   onPasteCells?: (cells: SpreadsheetPasteCell[]) => void
   onCutCells?: (cells: SpreadsheetPasteCell[]) => void
   onUndo?: () => void
@@ -19,7 +21,8 @@ interface UseTableKeyboardNavOptions {
 type GridCell = HTMLElement
 type GridMatrix = GridCell[][]
 
-const cellKey = (rowId: string, field: string) => `${rowId}\u001f${field}`
+const CELL_KEY_SEPARATOR = '\u001f'
+const cellKey = (rowId: string, field: string) => `${rowId}${CELL_KEY_SEPARATOR}${field}`
 export const tableCellKey = cellKey
 
 function getCellKey(cell: GridCell): string | null {
@@ -54,65 +57,137 @@ function parseClipboardMatrix(text: string): string[][] {
   return lines.map(line => line.split('\t'))
 }
 
+function rowIdFromCellKey(key: string): string {
+  return key.slice(0, key.indexOf(CELL_KEY_SEPARATOR))
+}
+
 export function useTableKeyboardNav({
   tableRef,
   isEditMode,
+  selectionScopeKey,
+  rowIds,
   onPasteCells,
   onCutCells,
   onUndo,
   onRedo
 }: UseTableKeyboardNavOptions) {
   const [selectedCellKeys, setSelectedCellKeys] = useState<Set<string>>(new Set())
+  const [focusedCellKey, setFocusedCellKey] = useState<string | null>(null)
   const selectedCellKeysRef = useRef<Set<string>>(new Set())
+  const focusedCellKeyRef = useRef<string | null>(null)
   const selectionAnchor = useRef<string | null>(null)
+  const selectionField = useRef<string | null>(null)
+  const focusedField = useRef<string | null>(null)
   const isSelectingCells = useRef(false)
+  const isEditModeRef = useRef(isEditMode)
   const handlersRef = useRef({ onPasteCells, onCutCells, onUndo, onRedo })
+  const scopeRef = useRef(selectionScopeKey)
+  isEditModeRef.current = isEditMode
   handlersRef.current = { onPasteCells, onCutCells, onUndo, onRedo }
 
   useEffect(() => {
     const clearCellSelection = () => {
       selectionAnchor.current = null
+      selectionField.current = null
+      focusedField.current = null
+      focusedCellKeyRef.current = null
       isSelectingCells.current = false
       selectedCellKeysRef.current = new Set()
       setSelectedCellKeys(current => current.size === 0 ? current : new Set())
+      setFocusedCellKey(null)
+    }
+
+    if (selectionScopeKey !== scopeRef.current) {
+      scopeRef.current = selectionScopeKey
+      clearCellSelection()
+    }
+
+    if (rowIds) {
+      const currentIds = new Set(rowIds)
+      const next = new Set([...selectedCellKeysRef.current].filter(key => currentIds.has(rowIdFromCellKey(key))))
+      if (next.size !== selectedCellKeysRef.current.size) {
+        selectedCellKeysRef.current = next
+        setSelectedCellKeys(next)
+      }
+      if (selectionAnchor.current && !currentIds.has(rowIdFromCellKey(selectionAnchor.current))) {
+        selectionAnchor.current = [...next][0] ?? null
+      }
+      if (next.size === 0) selectionField.current = null
+      if (focusedCellKeyRef.current && !currentIds.has(rowIdFromCellKey(focusedCellKeyRef.current))) {
+        focusedCellKeyRef.current = null
+        setFocusedCellKey(null)
+      }
+    }
+  }, [rowIds, selectionScopeKey])
+
+  useEffect(() => {
+    const clearCellSelection = () => {
+      selectionAnchor.current = null
+      selectionField.current = null
+      focusedField.current = null
+      focusedCellKeyRef.current = null
+      isSelectingCells.current = false
+      selectedCellKeysRef.current = new Set()
+      setSelectedCellKeys(current => current.size === 0 ? current : new Set())
+      setFocusedCellKey(null)
     }
     window.addEventListener(MASTER_DATA_CLEAR_CELL_FOCUS_EVENT, clearCellSelection)
-
-    if (!isEditMode) {
-      clearCellSelection()
-      return () => window.removeEventListener(MASTER_DATA_CLEAR_CELL_FOCUS_EVENT, clearCellSelection)
-    }
 
     const table = tableRef.current
     if (!table) return () => window.removeEventListener(MASTER_DATA_CLEAR_CELL_FOCUS_EVENT, clearCellSelection)
 
-    const setRange = (anchorKey: string, targetKey: string) => {
-      const matrix = getGridMatrix(table)
-      const anchor = locateCell(matrix, anchorKey) || locateCell(matrix, targetKey)
-      const target = locateCell(matrix, targetKey)
-      if (!anchor || !target) return
-      const rowMin = Math.min(anchor.row, target.row)
-      const rowMax = Math.max(anchor.row, target.row)
-      const next = new Set<string>()
-      for (let row = rowMin; row <= rowMax; row += 1) {
-        const key = getCellKey(matrix[row]?.[anchor.column])
-        if (key) next.add(key)
-      }
+    const setSelection = (next: Set<string>) => {
       selectedCellKeysRef.current = next
       setSelectedCellKeys(next)
     }
 
+    const setContiguousRange = (anchorKey: string, targetKey: string) => {
+      const matrix = getGridMatrix(table)
+      const anchor = locateCell(matrix, anchorKey)
+      const target = locateCell(matrix, targetKey)
+      const field = anchor ? matrix[anchor.row][anchor.column]?.dataset.gridField : undefined
+      const targetField = target ? matrix[target.row][target.column]?.dataset.gridField : undefined
+      if (!anchor || !target || !field || field !== targetField) return false
+
+      const rowMin = Math.min(anchor.row, target.row)
+      const rowMax = Math.max(anchor.row, target.row)
+      const next = new Set<string>()
+      for (let row = rowMin; row <= rowMax; row += 1) {
+        const candidate = matrix[row]?.find(cell => cell.dataset.gridField === field)
+        const key = candidate ? getCellKey(candidate) : null
+        if (key) next.add(key)
+      }
+      selectionField.current = field
+      setSelection(next)
+      return true
+    }
+
     const getSelectedPositions = (matrix: GridMatrix) => {
       const selected = selectedCellKeysRef.current
-      const anchor = selectionAnchor.current ? locateCell(matrix, selectionAnchor.current) : null
+      const field = selectionField.current
       const positions: Array<{ row: number; column: number }> = []
+      if (!field) return positions
       matrix.forEach((row, rowIndex) => row.forEach((candidate, columnIndex) => {
         const key = getCellKey(candidate)
-        if (key && selected.has(key) && (!anchor || columnIndex === anchor.column)) {
+        if (key && candidate.dataset.gridField === field && selected.has(key)) {
           positions.push({ row: rowIndex, column: columnIndex })
         }
       }))
       return positions
+    }
+
+    const handleFocusIn = (event: FocusEvent) => {
+      const target = event.target as HTMLElement | null
+      const cell = target?.closest<HTMLElement>('[data-grid-cell="true"]')
+      const field = cell && table.contains(cell) ? cell.dataset.gridField ?? null : null
+      if (!field) return
+      if (focusedField.current && focusedField.current !== field) clearCellSelection()
+      focusedField.current = field
+      const key = cell ? getCellKey(cell) : null
+      if (key) {
+        focusedCellKeyRef.current = key
+        setFocusedCellKey(key)
+      }
     }
 
     const handleMouseDown = (event: MouseEvent) => {
@@ -120,28 +195,60 @@ export function useTableKeyboardNav({
       const target = event.target as HTMLElement | null
       const cell = target?.closest<HTMLElement>('[data-grid-cell="true"]')
       const key = cell ? getCellKey(cell) : null
-      if (!cell || !key || !table.contains(cell)) return
-      selectionAnchor.current = key
-      isSelectingCells.current = true
-      setRange(key, key)
+      const field = cell?.dataset.gridField
+      if (!cell || !key || !field || !table.contains(cell)) return
+
+      if (focusedField.current && focusedField.current !== field) clearCellSelection()
+      focusedField.current = field
+      focusedCellKeyRef.current = key
+      setFocusedCellKey(key)
+
+      if ((event.ctrlKey || event.metaKey) && selectionField.current === field) {
+        const next = new Set(selectedCellKeysRef.current)
+        if (next.has(key)) next.delete(key)
+        else next.add(key)
+        selectionField.current = next.size > 0 ? field : null
+        const remaining = [...next]
+        selectionAnchor.current = next.has(key) ? key : remaining[remaining.length - 1] ?? null
+        isSelectingCells.current = false
+        setSelection(next)
+      } else if (
+        event.shiftKey
+        && selectionField.current === field
+        && selectionAnchor.current
+        && locateCell(getGridMatrix(table), selectionAnchor.current)
+      ) {
+        isSelectingCells.current = false
+        setContiguousRange(selectionAnchor.current, key)
+      } else {
+        selectionAnchor.current = key
+        selectionField.current = field
+        isSelectingCells.current = !(event.ctrlKey || event.metaKey || event.shiftKey)
+        setSelection(new Set([key]))
+      }
     }
 
     const handleMouseOver = (event: MouseEvent) => {
-      if (!isSelectingCells.current || !selectionAnchor.current) return
+      if (!isSelectingCells.current || !selectionAnchor.current || !selectionField.current) return
       const target = event.target as HTMLElement | null
       const cell = target?.closest<HTMLElement>('[data-grid-cell="true"]')
       const key = cell ? getCellKey(cell) : null
-      if (cell && key && table.contains(cell)) setRange(selectionAnchor.current, key)
+      if (cell && key && cell.dataset.gridField === selectionField.current && table.contains(cell)) {
+        setContiguousRange(selectionAnchor.current, key)
+      }
     }
 
     const handleMouseUp = () => { isSelectingCells.current = false }
 
     const moveFocus = (cell: GridCell | undefined) => {
       if (!cell) return false
+      const field = cell.dataset.gridField ?? null
+      if (focusedField.current && field && focusedField.current !== field) clearCellSelection()
+      focusedField.current = field
       const key = getCellKey(cell)
       if (key) {
-        selectionAnchor.current = key
-        setRange(key, key)
+        focusedCellKeyRef.current = key
+        setFocusedCellKey(key)
       }
       cell.focus()
       if (cell instanceof HTMLInputElement && cell.type === 'number') cell.select()
@@ -154,13 +261,13 @@ export function useTableKeyboardNav({
       if (!cell || !table.contains(cell)) return
 
       const isCommand = event.ctrlKey || event.metaKey
-      if (isCommand && event.key.toLowerCase() === 'z') {
+      if (isEditModeRef.current && isCommand && event.key.toLowerCase() === 'z') {
         event.preventDefault()
         if (event.shiftKey) handlersRef.current.onRedo?.()
         else handlersRef.current.onUndo?.()
         return
       }
-      if (isCommand && event.key.toLowerCase() === 'y') {
+      if (isEditModeRef.current && isCommand && event.key.toLowerCase() === 'y') {
         event.preventDefault()
         handlersRef.current.onRedo?.()
         return
@@ -169,7 +276,7 @@ export function useTableKeyboardNav({
       const matrix = getGridMatrix(table)
       const key = getCellKey(cell)
       if (!key) return
-      const location = key ? locateCell(matrix, key) : null
+      const location = locateCell(matrix, key)
       if (!location) return
 
       if (event.shiftKey && event.key.startsWith('Arrow')) {
@@ -183,11 +290,18 @@ export function useTableKeyboardNav({
           moveFocus(next)
           return
         }
-        const anchor = selectionAnchor.current || key
-        selectionAnchor.current = anchor
+        const field = cell.dataset.gridField
         const nextKey = getCellKey(next)
-        if (!nextKey) return
-        setRange(anchor, nextKey)
+        if (!field || !nextKey || next.dataset.gridField !== field) return
+        const anchor = selectionAnchor.current && selectionField.current === field && locateCell(matrix, selectionAnchor.current)
+          ? selectionAnchor.current
+          : key
+        selectionAnchor.current = anchor
+        selectionField.current = field
+        setContiguousRange(anchor, nextKey)
+        focusedField.current = field
+        focusedCellKeyRef.current = nextKey
+        setFocusedCellKey(nextKey)
         next.focus()
         return
       }
@@ -206,13 +320,14 @@ export function useTableKeyboardNav({
     }
 
     const handleCopy = (event: ClipboardEvent) => {
+      if (!isEditModeRef.current) return
       const target = event.target as HTMLElement | null
       const activeCell = target?.closest<HTMLElement>('[data-grid-cell="true"]')
       if (!activeCell || !table.contains(activeCell) || !event.clipboardData) return
       const matrix = getGridMatrix(table)
       const positions = getSelectedPositions(matrix)
-
-      if (positions.length > 1) {
+      const selectionIsActive = positions.length > 0
+      if (selectionIsActive) {
         const text = positions.map(position => cellValue(matrix[position.row][position.column])).join('\n')
         event.clipboardData.setData('text/plain', text)
         event.preventDefault()
@@ -225,6 +340,7 @@ export function useTableKeyboardNav({
     }
 
     const handlePaste = (event: ClipboardEvent) => {
+      if (!isEditModeRef.current) return
       const target = event.target as HTMLElement | null
       const activeCell = target?.closest<HTMLElement>('[data-grid-cell="true"]')
       if (!activeCell || !table.contains(activeCell) || !event.clipboardData) return
@@ -238,19 +354,17 @@ export function useTableKeyboardNav({
       const cells: SpreadsheetPasteCell[] = []
       const selectedPositions = getSelectedPositions(matrix)
 
-      if (clipboardMatrix.length === 1 && clipboardMatrix[0].length === 1 && selectedPositions.length > 1) {
+      if (clipboardMatrix.length === 1 && clipboardMatrix[0].length === 1 && selectedPositions.length > 0) {
         selectedPositions.forEach(({ row, column }) => {
           const candidate = matrix[row][column]
           const { gridRowId, gridField } = candidate.dataset
           if (gridRowId && gridField) cells.push({ rowId: gridRowId, field: gridField, value: clipboardMatrix[0][0] })
         })
       } else if (clipboardMatrix.length > 1 && clipboardMatrix.every(row => row.length === 1) && selectedPositions.length > 1) {
-        const start = selectedPositions[0]
-        clipboardMatrix.forEach(([value], rowOffset) => {
-          const candidate = matrix[start.row + rowOffset]?.[start.column]
-          if (!candidate) return
+        selectedPositions.slice(0, clipboardMatrix.length).forEach(({ row, column }, index) => {
+          const candidate = matrix[row][column]
           const { gridRowId, gridField } = candidate.dataset
-          if (gridRowId && gridField) cells.push({ rowId: gridRowId, field: gridField, value })
+          if (gridRowId && gridField) cells.push({ rowId: gridRowId, field: gridField, value: clipboardMatrix[index][0] })
         })
       } else {
         clipboardMatrix.forEach((pasteRow, rowOffset) => pasteRow.forEach((value, columnOffset) => {
@@ -268,10 +382,11 @@ export function useTableKeyboardNav({
     }
 
     const handleCut = (event: ClipboardEvent) => {
+      if (!isEditModeRef.current) return
       const target = event.target as HTMLElement | null
       const activeCell = target?.closest<HTMLElement>('[data-grid-cell="true"]')
       const callback = handlersRef.current.onCutCells
-      if (!isEditMode || !activeCell || !table.contains(activeCell) || !event.clipboardData || !callback) return
+      if (!activeCell || !table.contains(activeCell) || !event.clipboardData || !callback) return
       if (activeCell instanceof HTMLInputElement && activeCell.type !== 'number' && activeCell.selectionStart !== activeCell.selectionEnd) return
 
       const matrix = getGridMatrix(table)
@@ -279,7 +394,8 @@ export function useTableKeyboardNav({
       const activePosition = activeKey ? locateCell(matrix, activeKey) : null
       if (!activePosition) return
       const positions = getSelectedPositions(matrix)
-      const selection = positions.length > 1 ? positions : [activePosition]
+      const selectionIsActive = positions.length > 0
+      const selection = selectionIsActive ? positions : [activePosition]
       const text = selection.map(position => cellValue(matrix[position.row][position.column])).join('\n')
       const cutCells = selection.flatMap(position => {
         const candidate = matrix[position.row][position.column]
@@ -293,6 +409,7 @@ export function useTableKeyboardNav({
       callback(cutCells)
     }
 
+    table.addEventListener('focusin', handleFocusIn)
     table.addEventListener('mousedown', handleMouseDown)
     table.addEventListener('mouseover', handleMouseOver)
     table.addEventListener('keydown', handleKeyDown)
@@ -301,6 +418,7 @@ export function useTableKeyboardNav({
     table.addEventListener('cut', handleCut)
     window.addEventListener('mouseup', handleMouseUp)
     return () => {
+      table.removeEventListener('focusin', handleFocusIn)
       table.removeEventListener('mousedown', handleMouseDown)
       table.removeEventListener('mouseover', handleMouseOver)
       table.removeEventListener('keydown', handleKeyDown)
@@ -310,7 +428,7 @@ export function useTableKeyboardNav({
       window.removeEventListener('mouseup', handleMouseUp)
       window.removeEventListener(MASTER_DATA_CLEAR_CELL_FOCUS_EVENT, clearCellSelection)
     }
-  }, [isEditMode, tableRef])
+  }, [tableRef])
 
-  return { selectedCellKeys }
+  return { selectedCellKeys, focusedCellKey }
 }

@@ -576,13 +576,13 @@ export const MasterDataWorkspaceHeader: React.FC<MasterDataWorkspaceHeaderProps>
           </div>
 
           <div className={`flex min-w-0 items-center gap-1.5 ${metadataGroupDividerClass}`}>
-            <dt className="shrink-0 whitespace-nowrap font-sans text-[11px] font-medium tracking-wide text-slate-600">SG&amp;A (%) :</dt>
+            <dt className="shrink-0 whitespace-nowrap font-sans text-[11px] font-medium tracking-wide text-slate-600">SG&amp;A :</dt>
             <dd className="grid min-w-0 flex-1 grid-cols-[minmax(0,1fr)_auto] items-center gap-1">
               {isEditMode ? (
                 <NumericInput
                   value={product.sgaPercent}
                   onValueChange={sgaPercent => onUpdateProduct({ ...product, sgaPercent })}
-                  aria-label="SG&A (%)"
+                  aria-label="SG&A"
                   className={fieldInput + ' font-mono tabular-nums text-right'}
                 />
               ) : (

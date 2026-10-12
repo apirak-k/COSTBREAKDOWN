@@ -10,6 +10,7 @@ import { useDialogFocus } from '../use-dialog-focus'
 import { masterDataTextEditorClass } from './master-data-field-styles'
 
 const metadataNumericEditorClass = `${masterDataTextEditorClass} font-mono tabular-nums text-right`
+const metadataInlineLabelClass = 'w-28 shrink-0 whitespace-nowrap text-right text-[11px] font-medium text-slate-700'
 
 function currentCount(count: number | undefined, rowCount: number): string {
   if (count !== undefined) return String(count)
@@ -151,19 +152,21 @@ export const DatasetSizingModal: React.FC<DatasetSizingModalProps> = ({
     max: number
   ) => {
     return (
-      <div className="min-w-0 space-y-1 text-xs text-slate-800">
-        <label htmlFor={id} className="block truncate text-left text-[11px] font-medium text-slate-700">{label}</label>
-        <NumericInput
-          id={id}
-          aria-label={label}
-          value={value === '' ? null : Number(value)}
-          onValueChange={next => { setValue(next === null ? '' : String(next)); setSizingError('') }}
-          integer
-          min={1}
-          max={max}
-          placeholder="Unset"
-          className="h-8 w-full min-w-0 border border-slate-300 bg-white px-2 text-right font-mono text-xs tabular-nums text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-700"
-        />
+      <div className="flex min-w-0 items-center gap-1.5 text-xs text-slate-800">
+        <label htmlFor={id} className="shrink-0 whitespace-nowrap text-[11px] font-medium text-slate-700">{label} :</label>
+        <div className="min-w-0 flex-1">
+          <NumericInput
+            id={id}
+            aria-label={label}
+            value={value === '' ? null : Number(value)}
+            onValueChange={next => { setValue(next === null ? '' : String(next)); setSizingError('') }}
+            integer
+            min={1}
+            max={max}
+            placeholder="Unset"
+            className={`${masterDataTextEditorClass} font-mono tabular-nums text-right`}
+          />
+        </div>
       </div>
     )
   }
@@ -178,7 +181,7 @@ export const DatasetSizingModal: React.FC<DatasetSizingModalProps> = ({
       aria-modal="true"
       aria-labelledby="sizing-modal-title"
     >
-      <div className="my-auto max-h-[calc(100dvh-2rem)] w-full max-w-[40rem] overflow-y-auto border border-slate-300 bg-white text-slate-900 shadow-xl">
+      <div className="my-auto max-h-[calc(100dvh-2rem)] w-full max-w-[48rem] overflow-y-auto border border-slate-300 bg-white text-slate-900 shadow-xl">
         <div className="flex items-center justify-between gap-3 border-b border-slate-200 px-3 py-2">
           <h3 id="sizing-modal-title" className="text-sm font-semibold">Sizing · {roleLabel}</h3>
           <button
@@ -194,64 +197,76 @@ export const DatasetSizingModal: React.FC<DatasetSizingModalProps> = ({
         <div className="space-y-4 px-3 py-3">
           <section aria-label="Dataset metadata" className="space-y-2">
             <h4 className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">METADATA</h4>
-            <div className="grid grid-cols-1 gap-x-3 gap-y-3 sm:grid-cols-3">
-              <div className="sm:col-span-3">
-                <label htmlFor="dataset-sizing-product-name" className="mb-1 block text-left text-[11px] font-medium text-slate-700">Product Name</label>
-                <input
-                  id="dataset-sizing-product-name"
-                  type="text"
-                  value={productName}
-                  onChange={event => { setProductName(event.target.value); setSizingError('') }}
-                  className={masterDataTextEditorClass}
-                />
+            <div className="grid min-w-0 grid-cols-1 gap-x-3 gap-y-2 md:grid-cols-3">
+              <div className="flex min-w-0 items-center gap-1.5 md:col-span-3">
+                <label htmlFor="dataset-sizing-product-name" className="shrink-0 whitespace-nowrap text-[11px] font-medium text-slate-700">Product Name :</label>
+                <div className="min-w-0 flex-1">
+                  <input
+                    id="dataset-sizing-product-name"
+                    type="text"
+                    value={productName}
+                    onChange={event => { setProductName(event.target.value); setSizingError('') }}
+                    className={masterDataTextEditorClass}
+                  />
+                </div>
               </div>
-              <div>
-                <label htmlFor="dataset-sizing-uom" className="mb-1 block text-left text-[11px] font-medium text-slate-700">UOM</label>
-                <input
-                  id="dataset-sizing-uom"
-                  type="text"
-                  value={uom}
-                  onChange={event => { setUom(event.target.value); setSizingError('') }}
-                  className={`${masterDataTextEditorClass} font-mono`}
-                />
+              <div className="flex min-w-0 items-center gap-1.5">
+                <label htmlFor="dataset-sizing-uom" className={metadataInlineLabelClass}>UOM :</label>
+                <div className="grid min-w-0 flex-1 grid-cols-[minmax(0,1fr)_1rem] items-center gap-1">
+                  <input
+                    id="dataset-sizing-uom"
+                    type="text"
+                    value={uom}
+                    onChange={event => { setUom(event.target.value); setSizingError('') }}
+                    className={`${masterDataTextEditorClass} font-mono`}
+                  />
+                  <span aria-hidden="true" className="w-4" />
+                </div>
               </div>
-              <div>
-                <label htmlFor="dataset-sizing-selling-price" className="mb-1 block text-left text-[11px] font-medium text-slate-700">Selling Price (THB)</label>
-                <NumericInput
-                  id="dataset-sizing-selling-price"
-                  value={sellingPrice === '' ? null : Number(sellingPrice)}
-                  onValueChange={value => { setSellingPrice(value === null ? '' : String(value)); setSizingError('') }}
-                  className={metadataNumericEditorClass}
-                />
+              <div className="flex min-w-0 items-center gap-1.5">
+                <label htmlFor="dataset-sizing-selling-price" className={metadataInlineLabelClass}>Selling Price (THB) :</label>
+                <div className="grid min-w-0 flex-1 grid-cols-[minmax(0,1fr)_1rem] items-center gap-1">
+                  <NumericInput
+                    id="dataset-sizing-selling-price"
+                    aria-label="Selling Price (THB)"
+                    value={sellingPrice === '' ? null : Number(sellingPrice)}
+                    onValueChange={value => { setSellingPrice(value === null ? '' : String(value)); setSizingError('') }}
+                    className={metadataNumericEditorClass}
+                  />
+                  <span aria-hidden="true" className="w-4" />
+                </div>
               </div>
-              <div>
-                <label htmlFor="dataset-sizing-sga-percent" className="mb-1 block text-left text-[11px] font-medium text-slate-700">SG&amp;A (%)</label>
-                <div className="grid min-w-0 grid-cols-[minmax(0,1fr)_auto] items-center gap-1.5">
+              <div className="flex min-w-0 items-center gap-1.5">
+                <label htmlFor="dataset-sizing-sga-percent" className={metadataInlineLabelClass}>SG&amp;A :</label>
+                <div className="grid min-w-0 flex-1 grid-cols-[minmax(0,1fr)_1rem] items-center gap-1">
                   <NumericInput
                     id="dataset-sizing-sga-percent"
+                    aria-label="SG&A"
                     value={sgaPercent === '' ? null : Number(sgaPercent)}
                     onValueChange={value => { setSgaPercent(value === null ? '' : String(value)); setSizingError('') }}
                     className={metadataNumericEditorClass}
                   />
-                  <span aria-hidden="true" className="text-xs text-slate-600">%</span>
+                  <span aria-hidden="true" className="w-4 text-center text-xs text-slate-600">%</span>
                 </div>
               </div>
-              <div className="sm:col-span-3">
-                <label htmlFor="dataset-sizing-dataset-remark" className="mb-1 block text-left text-[11px] font-medium text-slate-700">Dataset Remark</label>
-                <input
-                  id="dataset-sizing-dataset-remark"
-                  type="text"
-                  value={remark}
-                  onChange={event => { setRemark(event.target.value); setSizingError('') }}
-                  className={masterDataTextEditorClass}
-                />
+              <div className="flex min-w-0 items-center gap-1.5 md:col-span-3">
+                <label htmlFor="dataset-sizing-dataset-remark" className="shrink-0 whitespace-nowrap text-[11px] font-medium text-slate-700">Dataset Remark :</label>
+                <div className="min-w-0 flex-1">
+                  <input
+                    id="dataset-sizing-dataset-remark"
+                    type="text"
+                    value={remark}
+                    onChange={event => { setRemark(event.target.value); setSizingError('') }}
+                    className={masterDataTextEditorClass}
+                  />
+                </div>
               </div>
             </div>
           </section>
 
           <section aria-label="Dataset rows" className="space-y-2">
             <h4 className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">TABLE ROWS</h4>
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+            <div className="grid min-w-0 grid-cols-1 gap-x-3 gap-y-2 md:grid-cols-3">
               {renderRowCount('Bill of Materials', 'dataset-sizing-bom-rows', bomCount, setBomCount, DATASET_SIZING_LIMITS.bomCount)}
               {renderRowCount('Work Centers', 'dataset-sizing-work-center-rows', wcCount, setWcCount, DATASET_SIZING_LIMITS.wcCount)}
               {renderRowCount('Routing', 'dataset-sizing-routing-rows', routingCount, setRoutingCount, DATASET_SIZING_LIMITS.routingCount)}

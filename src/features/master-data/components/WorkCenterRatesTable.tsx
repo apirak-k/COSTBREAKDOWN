@@ -12,7 +12,7 @@ import { MasterDataTableHeader } from './MasterDataTableChrome'
 import { MasterDataBlockerMarker } from './MasterDataBlockerMarker'
 import { Tooltip } from '../../../shared/ui/Tooltip'
 import { NumericInput } from '../../../shared/ui/NumericInput'
-import { masterDataActionsColumnClass, masterDataDisplaySlotClass, masterDataIndexColumnClass, masterDataIssueDisplayClass, masterDataIssueEditorClass, masterDataIssuePlaceholderClass, masterDataNumericDisplaySlotClass, masterDataNumericEditorClass, masterDataSpreadsheetSelectionClass, masterDataTextEditorClass } from './master-data-field-styles'
+import { masterDataActionsColumnClass, masterDataDisplaySlotClass, masterDataIdentityColumnClass, masterDataIndexColumnClass, masterDataIssueDisplayClass, masterDataIssueEditorClass, masterDataIssuePlaceholderClass, masterDataNoteColumnClass, masterDataNumericDisplaySlotClass, masterDataNumericEditorClass, masterDataSpreadsheetSelectionClass, masterDataTextEditorClass } from './master-data-field-styles'
 
 interface WorkCenterRatesTableProps {
   rates: SnapshotWorkCenterRate[]
@@ -78,6 +78,7 @@ export const WorkCenterRatesTable: React.FC<WorkCenterRatesTableProps> = ({
     [rate.workCenterCode, rate.laborRate, rate.burdenRate, rate.note]
       .some(value => String(value ?? '').toLocaleLowerCase().includes(query))
   ), [rates, query])
+  const cellSelectionRowIds = useMemo(() => rates.map(rate => rate.id), [rates])
 
   const {
     selectedIds,
@@ -171,14 +172,24 @@ export const WorkCenterRatesTable: React.FC<WorkCenterRatesTableProps> = ({
     onRedo()
   }, [identityEditorDrafts.clearValues, onRedo])
 
-  const { selectedCellKeys } = useTableKeyboardNav({
+  const { selectedCellKeys, focusedCellKey } = useTableKeyboardNav({
     tableRef,
     isEditMode,
+    selectionScopeKey: historyScope,
+    rowIds: cellSelectionRowIds,
     onPasteCells: handlePasteCells,
     onCutCells: handleCutCells,
     onUndo: handleUndo,
     onRedo: handleRedo
   })
+  const focusedCellRowId = focusedCellKey?.slice(0, focusedCellKey.indexOf('\u001f'))
+  const focusedCellIsVisible = filteredRates.some(rate => rate.id === focusedCellRowId)
+  const viewCellTabIndex = (rowId: string, field: string) => {
+    const key = tableCellKey(rowId, field)
+    if (focusedCellKey === key) return 0
+    if (focusedCellIsVisible) return -1
+    return rowId === filteredRates[0]?.id && field === 'workCenterCode' ? 0 : -1
+  }
 
   const handleNextBlocker = () => {
     if (blockerItems.length === 0) return
@@ -226,10 +237,10 @@ export const WorkCenterRatesTable: React.FC<WorkCenterRatesTableProps> = ({
       <MasterDataTableHeader title="Work Centers" rowCount={rates.length} selectedCount={selectedIds.size} warningCount={warningCount} blockerCount={blockerItems.length} isEditMode={isEditMode} onNextWarning={handleNextWarning} onNextBlocker={handleNextBlocker} onAddRow={onAddRate} />
 
       <div className="overflow-x-auto">
-        <table ref={tableRef} className="w-full min-w-[56rem] table-fixed border-collapse text-left text-xs">
+        <table ref={tableRef} className="w-max min-w-[66rem] table-fixed border-collapse text-left text-xs">
           <colgroup>
-            <col className={masterDataIndexColumnClass} /><col /><col className="w-56" />
-            <col className="w-56" /><col /><col className={masterDataActionsColumnClass} />
+            <col className={masterDataIndexColumnClass} /><col className={masterDataIdentityColumnClass} /><col className="w-56" />
+            <col className="w-56" /><col className={masterDataNoteColumnClass} /><col className={masterDataActionsColumnClass} />
           </colgroup>
           <thead className="sticky top-0 z-30 border-y-2 border-slate-400 bg-slate-100 text-[11px] font-semibold uppercase tracking-wide text-slate-800">
             <tr>
@@ -287,7 +298,7 @@ export const WorkCenterRatesTable: React.FC<WorkCenterRatesTableProps> = ({
                       </button>
                     </Tooltip>
                   </th>
-                  <td className="px-2 py-0.5 text-left font-mono font-semibold text-slate-950">
+                  <td className="px-2 py-0.5 text-left font-sans text-slate-800">
                     {isEditMode ? (
                       <div className="min-w-0">
                         <input
@@ -312,7 +323,14 @@ export const WorkCenterRatesTable: React.FC<WorkCenterRatesTableProps> = ({
                       </div>
                     ) : (
                       <div className="flex min-h-8 items-center justify-start">
-                        <span className={`inline-flex w-full min-w-0 items-center truncate rounded-sm border px-1.5 py-0.5 text-[11px] font-mono font-medium ${identityWarning && showWarningHighlights ? `${masterDataIssueDisplayClass} text-slate-700` : 'border-slate-200 bg-slate-50 text-slate-700'}`}>
+                        <span
+                          data-grid-cell="true"
+                          data-grid-row-id={rate.id}
+                          data-grid-field="workCenterCode"
+                          tabIndex={viewCellTabIndex(rate.id, 'workCenterCode')}
+                          aria-label={`Work Center identity for row ${rowNumber}`}
+                          className={`${masterDataDisplaySlotClass} truncate font-sans font-normal ${identityWarning && showWarningHighlights ? masterDataIssueDisplayClass : ''} ${selectedCellKeys.has(tableCellKey(rate.id, 'workCenterCode')) ? masterDataSpreadsheetSelectionClass : ''}`}
+                        >
                           {rate.workCenterCode || <span>{placeholderNumber ?? '—'}</span>}
                         </span>
                       </div>
@@ -335,7 +353,7 @@ export const WorkCenterRatesTable: React.FC<WorkCenterRatesTableProps> = ({
                         />
                         {laborMissing && <MasterDataBlockerMarker />}
                       </div>
-                    ) : <span className={`${masterDataNumericDisplaySlotClass} mx-auto w-full max-w-24 ${laborInvalid && showWarningHighlights ? masterDataIssueDisplayClass : ''}`}>{rate.laborRate === null ? '—' : formatNumber(rate.laborRate, 2)}{laborMissing && <MasterDataBlockerMarker />}</span>}
+                    ) : <span data-grid-cell="true" data-grid-row-id={rate.id} data-grid-field="laborRate" tabIndex={viewCellTabIndex(rate.id, 'laborRate')} aria-label={`Labor Rate for ${rate.workCenterCode || `Work Center row ${rowNumber}`}`} className={`${masterDataNumericDisplaySlotClass} mx-auto w-full max-w-24 ${laborInvalid && showWarningHighlights ? masterDataIssueDisplayClass : ''} ${selectedCellKeys.has(tableCellKey(rate.id, 'laborRate')) ? masterDataSpreadsheetSelectionClass : ''}`}>{rate.laborRate === null ? '—' : formatNumber(rate.laborRate, 2)}{laborMissing && <MasterDataBlockerMarker />}</span>}
                   </td>
                   <td className="relative px-2 py-0.5 text-center font-mono tabular-nums">
                     {isEditMode ? (
@@ -354,7 +372,7 @@ export const WorkCenterRatesTable: React.FC<WorkCenterRatesTableProps> = ({
                         />
                         {burdenMissing && <MasterDataBlockerMarker />}
                       </div>
-                    ) : <span className={`${masterDataNumericDisplaySlotClass} mx-auto w-full max-w-24 ${burdenInvalid && showWarningHighlights ? masterDataIssueDisplayClass : ''}`}>{rate.burdenRate === null ? '—' : formatNumber(rate.burdenRate, 2)}{burdenMissing && <MasterDataBlockerMarker />}</span>}
+                    ) : <span data-grid-cell="true" data-grid-row-id={rate.id} data-grid-field="burdenRate" tabIndex={viewCellTabIndex(rate.id, 'burdenRate')} aria-label={`Burden Rate for ${rate.workCenterCode || `Work Center row ${rowNumber}`}`} className={`${masterDataNumericDisplaySlotClass} mx-auto w-full max-w-24 ${burdenInvalid && showWarningHighlights ? masterDataIssueDisplayClass : ''} ${selectedCellKeys.has(tableCellKey(rate.id, 'burdenRate')) ? masterDataSpreadsheetSelectionClass : ''}`}>{rate.burdenRate === null ? '—' : formatNumber(rate.burdenRate, 2)}{burdenMissing && <MasterDataBlockerMarker />}</span>}
                   </td>
                   <td className="px-2 py-0.5 font-sans text-slate-600">
                     {isEditMode ? (
@@ -367,7 +385,7 @@ export const WorkCenterRatesTable: React.FC<WorkCenterRatesTableProps> = ({
                         aria-label={`Note for ${rate.workCenterCode || `WC row ${rowNumber}`}`}
                         className={`${masterDataTextEditorClass} ${selectedCellKeys.has(tableCellKey(rate.id, 'note')) ? masterDataSpreadsheetSelectionClass : ''}`}
                       />
-                    ) : <div className={masterDataDisplaySlotClass}>{rate.note || '—'}</div>}
+                    ) : <div data-grid-cell="true" data-grid-row-id={rate.id} data-grid-field="note" tabIndex={viewCellTabIndex(rate.id, 'note')} aria-label={`Note for ${rate.workCenterCode || `Work Center row ${rowNumber}`}`} className={`${masterDataDisplaySlotClass} ${selectedCellKeys.has(tableCellKey(rate.id, 'note')) ? masterDataSpreadsheetSelectionClass : ''}`}>{rate.note || '—'}</div>}
                   </td>
                   <td className={`${masterDataActionsColumnClass} px-1 py-0.5 text-center`}>
                     <div className="flex items-center justify-center gap-0.5">
