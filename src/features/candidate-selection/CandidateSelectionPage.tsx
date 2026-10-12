@@ -8,6 +8,8 @@ import type { PrioritizationStatus } from '../../core'
 import { PageHeading, SelectedComparisonBanner } from '../../shared'
 import { RcaCaseWorkspace } from '../rca/RcaCaseWorkspace'
 import type { RcaSimulationHandoffContext } from '../../state/rca-cases'
+import { CandidateQuickInfo } from './components/CandidateQuickInfo'
+import { getCandidateViewKey, resolveCandidateParameterData } from './components/candidate-detail-data'
 
 const ALL_CANDIDATE_STATUSES: PrioritizationStatus[] = ['CHANGED', 'ADDED', 'REMOVED']
 
@@ -25,6 +27,7 @@ export const CandidateSelectionPage: React.FC<CandidateSelectionPageProps> = ({ 
     selectRcaCase,
     saveRcaCase,
     snapshotComparison,
+    analysisSnapshotPair,
     isSelectedComparisonActive,
     selectedComparisonSelection,
     clearSelectedComparison,
@@ -32,6 +35,9 @@ export const CandidateSelectionPage: React.FC<CandidateSelectionPageProps> = ({ 
 
   const [statusFilter, setStatusFilter] = useState<CandidateStatusFilter>(ALL_CANDIDATE_STATUSES)
   const [selectedCandidateKeys, setSelectedCandidateKeys] = useState<Set<string>>(() => new Set())
+  const [selectedQuickViewKey, setSelectedQuickViewKey] = useState<string | null>(null)
+  const [hoveredQuickViewKey, setHoveredQuickViewKey] = useState<string | null>(null)
+  const [expandedCandidateKeys, setExpandedCandidateKeys] = useState<Set<string>>(() => new Set())
   const [showRcaCases, setShowRcaCases] = useState(Boolean(activeRcaCaseId))
 
   useEffect(() => {
@@ -46,6 +52,16 @@ export const CandidateSelectionPage: React.FC<CandidateSelectionPageProps> = ({ 
     })
   }, [candidates])
 
+  useEffect(() => {
+    const eligibleViewKeys = new Set(candidates.map(getCandidateViewKey))
+    setSelectedQuickViewKey(current => current && !eligibleViewKeys.has(current) ? null : current)
+    setHoveredQuickViewKey(current => current && !eligibleViewKeys.has(current) ? null : current)
+    setExpandedCandidateKeys(current => {
+      const next = new Set([...current].filter(key => eligibleViewKeys.has(key)))
+      return next.size === current.size ? current : next
+    })
+  }, [candidates])
+
   const toggleCandidateStatus = (status: PrioritizationStatus) => {
     setStatusFilter(current => current.includes(status)
       ? current.filter(selected => selected !== status)
@@ -56,6 +72,11 @@ export const CandidateSelectionPage: React.FC<CandidateSelectionPageProps> = ({ 
     () => filterPrioritizationCandidates(candidates, statusFilter),
     [candidates, statusFilter]
   )
+  const activeQuickViewKey = hoveredQuickViewKey ?? selectedQuickViewKey
+  const activeQuickCandidate = candidates.find(candidate => getCandidateViewKey(candidate) === activeQuickViewKey) ?? null
+  const activeQuickParameters = activeQuickCandidate
+    ? resolveCandidateParameterData(activeQuickCandidate, snapshotComparison, analysisSnapshotPair)
+    : null
 
   const changedCount = useMemo(() => candidates.filter(c => c.status === 'CHANGED').length, [candidates])
   const addedCount = useMemo(() => candidates.filter(c => c.status === 'ADDED').length, [candidates])
@@ -87,37 +108,60 @@ export const CandidateSelectionPage: React.FC<CandidateSelectionPageProps> = ({ 
   }
 
   const openRcaCases = () => {
+    setHoveredQuickViewKey(null)
     clearSelectedComparison()
     setShowRcaCases(true)
   }
 
+  const toggleQuickViewSelection = (quickViewKey: string) => {
+    setSelectedQuickViewKey(current => current === quickViewKey ? null : quickViewKey)
+  }
+
+  const toggleExpandedCandidate = (quickViewKey: string) => {
+    setExpandedCandidateKeys(current => {
+      const next = new Set(current)
+      if (next.has(quickViewKey)) next.delete(quickViewKey)
+      else next.add(quickViewKey)
+      return next
+    })
+  }
+
   return (
     <div className="space-y-4">
-      <PageHeading
-        title="Candidate / RCA"
-        description="Rank findings by Gap, then choose Candidate(s) for an RCA Case."
-        actions={(
-          <dl className="flex items-baseline gap-2 border-l-2 border-slate-900 py-0.5 pl-3">
-            <dt className="font-sans text-[11px] font-semibold text-slate-600">{isSelectedComparisonActive ? 'Selected Gap' : 'Comparison Gap'}</dt>
-            <dd className={`font-mono text-lg font-semibold tabular-nums ${
-              totalGap === null ? 'text-slate-500' : totalGap > 0 ? 'text-rose-700' : totalGap < 0 ? 'text-emerald-700' : 'text-slate-700'
-            }`}>
-              {totalGap === null ? '—' : formatVariance(totalGap, 4)}
-            </dd>
-            <span className="text-[11px] text-slate-500">THB/pc</span>
-          </dl>
-        )}
-      />
+      <section aria-label="Information / Overview" className="space-y-3">
+        <PageHeading
+          title="Candidate / RCA"
+          description="Rank findings by Gap, then choose Candidate(s) for an RCA Case."
+          actions={(
+            <dl className="flex items-baseline gap-2 border-l-2 border-slate-900 py-0.5 pl-3">
+              <dt className="font-sans text-[11px] font-semibold text-slate-600">{isSelectedComparisonActive ? 'Selected Gap' : 'Comparison Gap'}</dt>
+              <dd className={`font-mono text-lg font-semibold tabular-nums ${
+                totalGap === null ? 'text-slate-500' : totalGap > 0 ? 'text-rose-700' : totalGap < 0 ? 'text-emerald-700' : 'text-slate-700'
+              }`}>
+                {totalGap === null ? '—' : formatVariance(totalGap, 4)}
+              </dd>
+              <span className="text-[11px] text-slate-500">THB/pc</span>
+            </dl>
+          )}
+        />
 
-      {isSelectedComparisonActive && selectedComparisonSelection && (
-        <SelectedComparisonBanner selection={selectedComparisonSelection} onExit={clearSelectedComparison} />
-      )}
+        {isSelectedComparisonActive && selectedComparisonSelection && (
+          <SelectedComparisonBanner selection={selectedComparisonSelection} onExit={clearSelectedComparison} />
+        )}
+
+        {!showRcaCases && (
+          <CandidateQuickInfo candidate={activeQuickCandidate} parameters={activeQuickParameters} />
+        )}
+      </section>
 
       <div className="flex items-center gap-1 border-b border-slate-300" role="group" aria-label="Candidate and RCA view">
         <button
           type="button"
           aria-pressed={!showRcaCases}
-          onClick={() => setShowRcaCases(false)}
+          onClick={() => {
+            setHoveredQuickViewKey(null)
+            setShowRcaCases(false)
+          }}
           className={`min-h-8 border-b-2 px-3 text-xs font-semibold focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-blue-700 ${!showRcaCases ? 'border-slate-900 text-slate-950' : 'border-transparent text-slate-500 hover:text-slate-900'}`}
         >
           Candidates
@@ -144,7 +188,7 @@ export const CandidateSelectionPage: React.FC<CandidateSelectionPageProps> = ({ 
           onProceedToSimulation={onProceedToSimulation}
         />
       ) : (
-        <>
+        <section aria-label="Candidate" className="space-y-3">
           <section className="flex flex-wrap items-center justify-end gap-2 border-b border-slate-300 pb-2">
             <p className="mr-auto text-xs text-slate-700" aria-live="polite">
               <span className="font-mono font-semibold tabular-nums">{selectedCandidateKeys.size}</span> selected
@@ -154,45 +198,52 @@ export const CandidateSelectionPage: React.FC<CandidateSelectionPageProps> = ({ 
             </button>
           </section>
 
-      <div className="flex flex-wrap items-center gap-1.5 border-b border-slate-300 pb-2" role="group" aria-label="Filter candidates by status">
-        <span className="mr-1 text-[11px] font-semibold uppercase tracking-wide text-slate-500">Status</span>
-          <button
-            type="button"
-            aria-pressed={allStatusesSelected}
-            onClick={() => setStatusFilter(ALL_CANDIDATE_STATUSES)}
-            className={`min-h-8 border px-2.5 py-1 font-sans text-xs font-medium transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700 ${
-              allStatusesSelected
-                ? 'border-slate-900 bg-slate-900 text-white'
-                : 'border-slate-300 bg-transparent text-slate-700 hover:bg-slate-100'
-            }`}
-          >
-            All <span className={`ml-1 font-mono tabular-nums ${allStatusesSelected ? 'text-slate-300' : 'text-slate-500'}`}>({candidates.length})</span>
-          </button>
-          {statusOptions.map(option => (
+          <div className="flex flex-wrap items-center gap-1.5 border-b border-slate-300 pb-2" role="group" aria-label="Filter candidates by status">
+            <span className="mr-1 text-[11px] font-semibold uppercase tracking-wide text-slate-500">Status</span>
             <button
-              key={option.status}
               type="button"
-              aria-pressed={statusFilter.includes(option.status)}
-              onClick={() => toggleCandidateStatus(option.status)}
+              aria-pressed={allStatusesSelected}
+              onClick={() => setStatusFilter(ALL_CANDIDATE_STATUSES)}
               className={`min-h-8 border px-2.5 py-1 font-sans text-xs font-medium transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700 ${
-                statusFilter.includes(option.status)
-                  ? 'border-slate-500 bg-slate-200 text-slate-950'
+                allStatusesSelected
+                  ? 'border-slate-900 bg-slate-900 text-white'
                   : 'border-slate-300 bg-transparent text-slate-700 hover:bg-slate-100'
               }`}
             >
-              {option.label} <span className="ml-1 font-mono tabular-nums text-slate-500">({option.count})</span>
+              All <span className={`ml-1 font-mono tabular-nums ${allStatusesSelected ? 'text-slate-300' : 'text-slate-500'}`}>({candidates.length})</span>
             </button>
-          ))}
-      </div>
+            {statusOptions.map(option => (
+              <button
+                key={option.status}
+                type="button"
+                aria-pressed={statusFilter.includes(option.status)}
+                onClick={() => toggleCandidateStatus(option.status)}
+                className={`min-h-8 border px-2.5 py-1 font-sans text-xs font-medium transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700 ${
+                  statusFilter.includes(option.status)
+                    ? 'border-slate-500 bg-slate-200 text-slate-950'
+                    : 'border-slate-300 bg-transparent text-slate-700 hover:bg-slate-100'
+                }`}
+              >
+                {option.label} <span className="ml-1 font-mono tabular-nums text-slate-500">({option.count})</span>
+              </button>
+            ))}
+          </div>
 
-      <CandidatesTable
-        candidates={visibleCandidates}
-        selectedCandidateKeys={selectedCandidateKeys}
-        onToggleControllable={toggleCandidateControllable}
-        onToggleRcaSelection={toggleRcaSelection}
-        showVisibleGap={!allStatusesSelected}
-      />
-        </>
+          <CandidatesTable
+            candidates={visibleCandidates}
+            selectedCandidateKeys={selectedCandidateKeys}
+            quickViewSelectedKey={selectedQuickViewKey}
+            expandedCandidateKeys={expandedCandidateKeys}
+            comparison={snapshotComparison}
+            snapshotPair={analysisSnapshotPair}
+            onToggleControllable={toggleCandidateControllable}
+            onToggleRcaSelection={toggleRcaSelection}
+            onHoverQuickView={setHoveredQuickViewKey}
+            onToggleQuickView={toggleQuickViewSelection}
+            onToggleExpanded={toggleExpandedCandidate}
+            showVisibleGap={!allStatusesSelected}
+          />
+        </section>
       )}
     </div>
   )

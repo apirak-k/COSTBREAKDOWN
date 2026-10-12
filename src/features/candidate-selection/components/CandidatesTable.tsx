@@ -1,20 +1,36 @@
 import React from 'react'
 import { PrioritizationCandidate, formatCurrency } from '../../../core'
+import type { CostComparison, SnapshotPair } from '../../../core'
 import { CandidateRow } from './CandidateRow'
+import { getCandidateViewKey, resolveCandidateParameterData } from './candidate-detail-data'
 
 interface CandidatesTableProps {
   candidates: PrioritizationCandidate[]
   selectedCandidateKeys: ReadonlySet<string>
+  quickViewSelectedKey: string | null
+  expandedCandidateKeys: ReadonlySet<string>
+  comparison: CostComparison
+  snapshotPair: SnapshotPair
   onToggleControllable: (candidateKey: string, nextValue: boolean) => void
   onToggleRcaSelection: (candidateKey: string, nextValue: boolean) => void
+  onHoverQuickView: (quickViewKey: string | null) => void
+  onToggleQuickView: (quickViewKey: string) => void
+  onToggleExpanded: (quickViewKey: string) => void
   showVisibleGap: boolean
 }
 
 export const CandidatesTable: React.FC<CandidatesTableProps> = ({
   candidates,
   selectedCandidateKeys,
+  quickViewSelectedKey,
+  expandedCandidateKeys,
+  comparison,
+  snapshotPair,
   onToggleControllable,
   onToggleRcaSelection,
+  onHoverQuickView,
+  onToggleQuickView,
+  onToggleExpanded,
   showVisibleGap
 }) => {
   const totalGap = candidates.length > 0 && candidates.every(candidate => candidate.costGap !== null)
@@ -37,7 +53,7 @@ export const CandidatesTable: React.FC<CandidatesTableProps> = ({
         tabIndex={0}
       >
         <table className="w-full min-w-[990px] border-collapse text-left text-xs">
-          <caption className="sr-only">Candidate findings ranked from highest to lowest cost gap, with independent RCA Case selection and a human-set controllability flag.</caption>
+          <caption className="sr-only">Candidate findings ranked from highest to lowest Cost Gap, with independent RCA Case selection and a human-set controllability flag.</caption>
           <thead>
             <tr className="bg-slate-900 font-semibold text-white">
               <th scope="col" className="w-12 px-3 py-2 text-center">Select</th>
@@ -46,7 +62,7 @@ export const CandidatesTable: React.FC<CandidatesTableProps> = ({
               <th scope="col" className="w-28 px-3 py-2 text-center">Status</th>
               <th scope="col" className="w-36 px-3 py-2 text-right">Reference (THB/pc)</th>
               <th scope="col" className="w-36 px-3 py-2 text-right">Current (THB/pc)</th>
-              <th scope="col" className="w-36 px-3 py-2 text-right">Gap (THB/pc)</th>
+              <th scope="col" className="w-36 px-3 py-2 text-right">Cost Gap (THB/pc)</th>
               <th scope="col" className="w-36 px-3 py-2 text-center">Controllable</th>
             </tr>
           </thead>
@@ -58,15 +74,25 @@ export const CandidatesTable: React.FC<CandidatesTableProps> = ({
                 </td>
               </tr>
             ) : (
-              candidates.map(candidate => (
-                <CandidateRow
-                  key={candidate.candidateKey}
-                  candidate={candidate}
-                  selectedForRca={selectedCandidateKeys.has(candidate.candidateKey)}
-                  onToggleControllable={onToggleControllable}
-                  onToggleRcaSelection={onToggleRcaSelection}
-                />
-              ))
+              candidates.map(candidate => {
+                const quickViewKey = getCandidateViewKey(candidate)
+                return (
+                  <CandidateRow
+                    key={quickViewKey}
+                    candidate={candidate}
+                    quickViewKey={quickViewKey}
+                    parameters={resolveCandidateParameterData(candidate, comparison, snapshotPair)}
+                    selectedForRca={selectedCandidateKeys.has(candidate.candidateKey)}
+                    quickViewSelected={quickViewSelectedKey === quickViewKey}
+                    expanded={expandedCandidateKeys.has(quickViewKey)}
+                    onToggleControllable={onToggleControllable}
+                    onToggleRcaSelection={onToggleRcaSelection}
+                    onHoverQuickView={onHoverQuickView}
+                    onToggleQuickView={onToggleQuickView}
+                    onToggleExpanded={onToggleExpanded}
+                  />
+                )
+              })
             )}
           </tbody>
         </table>
