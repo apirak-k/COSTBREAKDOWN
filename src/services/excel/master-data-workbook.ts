@@ -56,12 +56,13 @@ function ifComplete(conditions: string[], value: string): string {
   return `IFERROR(IF(AND(${conditions.join(',')}),${value},""),"")`
 }
 
-function formulae(): string[] {
+function formulae(normalizedWorkCenterCodes: string): string[] {
   const bom = activeRows('BOMData', headers.bom)
   const routing = activeRows('RoutingData', headers.routing)
-  const wcMatches = 'COUNTIF(WorkCenterData[WC],TRIM(RoutingData[WC]))'
-  const laborRates = 'COUNTIFS(WorkCenterData[WC],TRIM(RoutingData[WC]),WorkCenterData[Labor],">=0")+COUNTIFS(WorkCenterData[WC],TRIM(RoutingData[WC]),WorkCenterData[Labor],"<0")'
-  const burdenRates = 'COUNTIFS(WorkCenterData[WC],TRIM(RoutingData[WC]),WorkCenterData[Burden],">=0")+COUNTIFS(WorkCenterData[WC],TRIM(RoutingData[WC]),WorkCenterData[Burden],"<0")'
+  const normalizedRoutingWorkCenters = 'UPPER(TRIM(RoutingData[WC]))'
+  const wcMatches = `COUNTIF(${normalizedWorkCenterCodes},${normalizedRoutingWorkCenters})`
+  const laborRates = `COUNTIFS(${normalizedWorkCenterCodes},${normalizedRoutingWorkCenters},WorkCenterData[Labor],">=0")+COUNTIFS(${normalizedWorkCenterCodes},${normalizedRoutingWorkCenters},WorkCenterData[Labor],"<0")`
+  const burdenRates = `COUNTIFS(${normalizedWorkCenterCodes},${normalizedRoutingWorkCenters},WorkCenterData[Burden],">=0")+COUNTIFS(${normalizedWorkCenterCodes},${normalizedRoutingWorkCenters},WorkCenterData[Burden],"<0")`
   const routingBase = [
     `SUMPRODUCT(--${routing})>0`,
     noMissingNumbers('RoutingData', routing, 'Manning'),
@@ -83,11 +84,11 @@ function formulae(): string[] {
     ifComplete([
       ...routingBase,
       `SUMPRODUCT(--${routing},--((${laborRates})<>1))=0`
-    ], `SUMPRODUCT(--${routing},IFERROR(RoutingData[Manning]/(RoutingData[Cap]*RoutingData[Yield]),0),SUMIF(WorkCenterData[WC],TRIM(RoutingData[WC]),WorkCenterData[Labor]))`),
+    ], `SUMPRODUCT(--${routing},RoutingData[Manning]/(RoutingData[Cap]*RoutingData[Yield]),SUMIF(${normalizedWorkCenterCodes},${normalizedRoutingWorkCenters},WorkCenterData[Labor]))`),
     ifComplete([
       ...routingBase,
       `SUMPRODUCT(--${routing},--((${burdenRates})<>1))=0`
-    ], `SUMPRODUCT(--${routing},IFERROR(RoutingData[Manning]/(RoutingData[Cap]*RoutingData[Yield]),0),SUMIF(WorkCenterData[WC],TRIM(RoutingData[WC]),WorkCenterData[Burden]))`),
+    ], `SUMPRODUCT(--${routing},RoutingData[Manning]/(RoutingData[Cap]*RoutingData[Yield]),SUMIF(${normalizedWorkCenterCodes},${normalizedRoutingWorkCenters},WorkCenterData[Burden]))`),
     ifComplete(['ISNUMBER(B9)', 'ISNUMBER(B10)', 'ISNUMBER(B11)'], 'SUM(B9:B11)'),
     ifComplete(['ISNUMBER(B5)', 'ISNUMBER(B6)'], 'B5*(B6/100)'),
     ifComplete(['ISNUMBER(B5)', 'ISNUMBER(B12)', 'ISNUMBER(B13)'], 'B5-B12-B13')
@@ -101,7 +102,7 @@ function styleLabel(cell: ExcelJS.Cell): void {
   cell.border = border
 }
 
-function writeMetaSheet(workbook: ExcelJS.Workbook, options: MasterDataWorkbookOptions): void {
+function writeMetaSheet(workbook: ExcelJS.Workbook, options: MasterDataWorkbookOptions, normalizedWorkCenterCodes: string): void {
   const sheet = workbook.addWorksheet('META')
   sheet.columns = [{ width: 24 }, { width: 42 }]
   sheet.getCell('A1').value = 'META DATA'
@@ -139,7 +140,7 @@ function writeMetaSheet(workbook: ExcelJS.Workbook, options: MasterDataWorkbookO
     'SG&A Amount = Selling Price × SG&A %',
     'OP = Selling Price - Standard Cost - SG&A Amount'
   ]
-  formulae().forEach((formula, index) => {
+  formulae(normalizedWorkCenterCodes).forEach((formula, index) => {
     const row = index + 9
     sheet.getCell(row, 1).value = outputLabels[index]
     styleLabel(sheet.getCell(row, 1))
@@ -216,11 +217,22 @@ function writeTableSheet(
       if (percentColumns.includes(column)) cell.numFmt = '0.00%'
     }
   })
+  if (name === 'WORK_CENTER') {
+    const helperColumn = sheet.getColumn(columnNames.length + 1)
+    helperColumn.hidden = true
+    tableRows.forEach((_, index) => {
+      const rowNumber = index + 4
+      sheet.getCell(rowNumber, columnNames.length + 1).value = { formula: `UPPER(TRIM(A${rowNumber}))` }
+    })
+    const lastHelperRow = Math.max(4, tableRows.length + 3)
+    workbook.definedNames.add(`WORK_CENTER!$E$4:$E$${lastHelperRow}`, 'NormalizedWorkCenterCodes')
+  }
   sheet.views = [{ state: 'frozen', ySplit: 3 }]
 }
 
 export function addMasterDataWorkbook(workbook: ExcelJS.Workbook, options: MasterDataWorkbookOptions): void {
-  writeMetaSheet(workbook, options)
+  const normalizedWorkCenterCodes = 'NormalizedWorkCenterCodes'
+  writeMetaSheet(workbook, options, normalizedWorkCenterCodes)
   writeTableSheet(workbook, 'BOM', 'BOMData', headers.bom, options.rows.bom, options.startingRows?.bom ?? 0,
     [36, 16, 12, 16, 14, 48], [2, 4], [5])
   writeTableSheet(workbook, 'WORK_CENTER', 'WorkCenterData', headers.workCenters, options.rows.workCenters, options.startingRows?.workCenters ?? 0,

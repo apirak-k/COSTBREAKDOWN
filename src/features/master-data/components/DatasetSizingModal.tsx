@@ -3,6 +3,7 @@ import { X, Check, Download } from 'lucide-react'
 import { NumericInput } from '../../../shared/ui/NumericInput'
 import { MasterDataRole, CostSnapshot, DatasetSizing, ProductMaster } from '../../../core'
 import { DATASET_SIZING_LIMITS } from '../../../core/utils/sizing'
+import { getMasterDataNumericInputDomain, isMasterDataNumericInputValid } from '../../../core/utils/master-data-validation'
 import { hasDatasetMetadataChanged, hasDatasetSizingChanged, parseDatasetSizingCounts } from '../dataset-sizing-form'
 import { getPopulatedRowsRemovedBySizing } from '../../../state/dataset-sizing'
 import { downloadBlob } from '../../../services/excel/export'
@@ -10,7 +11,7 @@ import { useDialogFocus } from '../use-dialog-focus'
 import { masterDataTextEditorClass } from './master-data-field-styles'
 
 const metadataNumericEditorClass = `${masterDataTextEditorClass} font-mono tabular-nums text-right`
-const metadataInlineLabelClass = 'w-28 shrink-0 whitespace-nowrap text-left text-[11px] font-medium text-slate-700'
+const metadataInlineLabelClass = 'shrink-0 whitespace-nowrap text-left text-[11px] font-medium text-slate-700'
 const sizingGroupDividerClass = "relative after:absolute after:-right-1.5 after:top-1 after:bottom-1 after:hidden after:w-px after:bg-slate-200 after:content-[''] md:after:block"
 
 function currentCount(count: number | undefined, rowCount: number): string {
@@ -71,11 +72,11 @@ export const DatasetSizingModal: React.FC<DatasetSizingModalProps> = ({
 
   const buildSizingDraft = () => {
     const nextSizing = parseDatasetSizingCounts({ wcCount, bomCount, routingCount })
-    const parseOptionalNumber = (value: string, label: string): number | null => {
+    const parseOptionalNumber = (value: string, label: string, field: 'sellingPrice' | 'sgaPercent'): number | null => {
       const trimmed = value.trim()
       if (!trimmed) return null
       const parsed = Number(trimmed)
-      if (!Number.isFinite(parsed)) throw new RangeError(`${label} must be a valid number.`)
+      if (!isMasterDataNumericInputValid(field, parsed)) throw new RangeError(`${label} must be zero or greater.`)
       return parsed
     }
     const nextProductName = productName.trim()
@@ -84,8 +85,8 @@ export const DatasetSizingModal: React.FC<DatasetSizingModalProps> = ({
       productName: nextProductName,
       productDescription: nextProductName,
       uom: uom.trim(),
-      sellingPrice: parseOptionalNumber(sellingPrice, 'Selling Price'),
-      sgaPercent: parseOptionalNumber(sgaPercent, 'SG&A')
+      sellingPrice: parseOptionalNumber(sellingPrice, 'Selling Price', 'sellingPrice'),
+      sgaPercent: parseOptionalNumber(sgaPercent, 'SG&A', 'sgaPercent')
     }
     const previousProductFields = {
       productName: product.productName || '',
@@ -233,6 +234,7 @@ export const DatasetSizingModal: React.FC<DatasetSizingModalProps> = ({
                     aria-label="Selling Price (THB)"
                     value={sellingPrice === '' ? null : Number(sellingPrice)}
                     onValueChange={value => { setSellingPrice(value === null ? '' : String(value)); setSizingError('') }}
+                    {...getMasterDataNumericInputDomain('sellingPrice')}
                     className={`${metadataNumericEditorClass} [&+span]:right-1`}
                   />
                   <span aria-hidden="true" className="w-4" />
@@ -246,6 +248,7 @@ export const DatasetSizingModal: React.FC<DatasetSizingModalProps> = ({
                     aria-label="SG&A"
                     value={sgaPercent === '' ? null : Number(sgaPercent)}
                     onValueChange={value => { setSgaPercent(value === null ? '' : String(value)); setSizingError('') }}
+                    {...getMasterDataNumericInputDomain('sgaPercent')}
                     className={`${metadataNumericEditorClass} [&+span]:right-1`}
                   />
                   <span aria-hidden="true" className="w-4 text-center text-xs text-slate-600">%</span>

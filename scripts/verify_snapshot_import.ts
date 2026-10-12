@@ -187,7 +187,7 @@ assert.equal(invalidResult.success, false, 'invalid numeric values and unavailab
 assert.equal(invalidResult.format, 'canonical', 'a rejected canonical workbook does not become a legacy-import candidate')
 assert.equal(invalidResult.snapshot, undefined, 'rejected input does not expose a snapshot to apply')
 assert.ok(invalidResult.warnings.some(warning => warning.includes('Invalid Labor at row')))
-assert.ok(invalidResult.warnings.some(warning => warning.includes('Unknown Work Center')))
+assert.ok(invalidResult.warnings.some(warning => warning.includes('Unknown Work Center')), JSON.stringify(invalidResult.warnings))
 
 const invalidCapacityWorkbook = XLSX.utils.book_new()
 XLSX.utils.book_append_sheet(invalidCapacityWorkbook, metaSheet('Invalid Capacity', 'PC', null, null, ''), 'META')
@@ -199,7 +199,7 @@ XLSX.utils.book_append_sheet(invalidCapacityWorkbook, tableSheet('ROUTING', ['Pr
   ['Cut', 'WC-1', 1, 0, 0.9, '']), 'ROUTING')
 const invalidCapacityResult = parseSnapshotWorkbookData(XLSX.write(invalidCapacityWorkbook, { type: 'array', bookType: 'xlsx' }), 'current')
 assert.equal(invalidCapacityResult.success, false, 'non-positive Capacity is rejected by canonical import validation')
-assert.ok(invalidCapacityResult.warnings.some(warning => warning.includes('capacity')))
+assert.ok(invalidCapacityResult.warnings.some(warning => /capacity/i.test(warning)), 'canonical import explains invalid Capacity')
 
 const legacyWorkbook = XLSX.utils.book_new()
 XLSX.utils.book_append_sheet(legacyWorkbook, sheet([

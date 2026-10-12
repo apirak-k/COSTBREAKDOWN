@@ -77,6 +77,7 @@ export const MasterDataPrepareDatasetPopover: React.FC<MasterDataPrepareDatasetP
     : blockerGroups).filter(group => group.items.length > 0)
   const visibleWarningCount = datasetRoleFilter ? warningCounts[datasetRoleFilter] : warningCount
   const visibleBlockerCount = datasetRoleFilter ? blockerCounts[datasetRoleFilter] : blockerCount
+  const activeDatasetFilterLabel = datasetRoleFilter ? roleLabels[datasetRoleFilter] : 'All'
   const datasetsReady = areMasterDataDatasetsReady(handoff, blockerItems)
   const preparePortalRoot = typeof document === 'undefined' ? null : document.getElementById('header-prepare-dataset-portal-root')
 
@@ -179,15 +180,9 @@ export const MasterDataPrepareDatasetPopover: React.FC<MasterDataPrepareDatasetP
           <h3 id={`prepare-dataset-${kind}-heading`} className="truncate text-xs font-semibold text-slate-800">
             {isWarning ? 'Warnings' : 'Blockers'} {count}
           </h3>
-          <button
-            type="button"
-            aria-label={`Show all datasets for ${isWarning ? 'Warnings' : 'Blockers'}`}
-            aria-pressed={datasetRoleFilter === null}
-            onClick={resetUiState}
-            className={`grid h-5 min-w-8 place-items-center rounded-sm px-1 text-right text-[11px] font-medium transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-700 ${datasetRoleFilter === null ? 'bg-slate-100 text-slate-600 hover:bg-slate-200' : 'text-slate-600 hover:bg-slate-100'}`}
-          >
-            All
-          </button>
+          <span className="min-w-8 text-right text-[11px] font-medium text-slate-500">
+            {activeDatasetFilterLabel}
+          </span>
         </div>
         {groups.length > 0 && (
           <ul aria-label={isWarning ? 'Warning categories' : 'Blocker categories'} className="shrink-0 space-y-0.5">

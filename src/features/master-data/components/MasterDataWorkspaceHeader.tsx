@@ -14,6 +14,7 @@ import {
 import { formatNumber } from '../../../core'
 import type { MasterDataRole, CostSnapshot, ProductMaster } from '../../../core'
 import type { MasterDataSaveState } from '../../../core/utils/master-data-effective'
+import { getMasterDataNumericInputDomain } from '../../../core/utils/master-data-validation'
 import { Tooltip } from '../../../shared/ui/Tooltip'
 import { NumericInput } from '../../../shared/ui/NumericInput'
 import { masterDataTextEditorClass } from './master-data-field-styles'
@@ -564,6 +565,7 @@ export const MasterDataWorkspaceHeader: React.FC<MasterDataWorkspaceHeaderProps>
                 <NumericInput
                   value={product.sellingPrice}
                   onValueChange={sellingPrice => onUpdateProduct({ ...product, sellingPrice })}
+                  {...getMasterDataNumericInputDomain('sellingPrice')}
                   aria-label="Selling Price (THB)"
                   className={fieldInput + ' font-mono tabular-nums text-right'}
                 />
@@ -582,6 +584,7 @@ export const MasterDataWorkspaceHeader: React.FC<MasterDataWorkspaceHeaderProps>
                 <NumericInput
                   value={product.sgaPercent}
                   onValueChange={sgaPercent => onUpdateProduct({ ...product, sgaPercent })}
+                  {...getMasterDataNumericInputDomain('sgaPercent')}
                   aria-label="SG&A"
                   className={fieldInput + ' font-mono tabular-nums text-right'}
                 />

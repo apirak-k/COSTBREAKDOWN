@@ -190,7 +190,11 @@ async function runTests() {
   assert.equal(styledExport.getWorksheet('WORK_CENTER')?.getTable('WorkCenterData').table.tableRef, 'A3:D5')
   assert.equal(styledExport.getWorksheet('BOM')?.getTable('BOMData').table.tableRef, 'A3:F5')
   assert.equal(styledExport.getWorksheet('ROUTING')?.getTable('RoutingData').table.tableRef, 'A3:F5')
-  assert.deepEqual(workCenterRows[2], ['WC', 'Labor', 'Burden', 'Note'])
+  assert.deepEqual(workCenterRows[2].slice(0, 4), ['WC', 'Labor', 'Burden', 'Note'])
+  assert.equal(styledExport.getWorksheet('WORK_CENTER')?.getColumn(5).hidden, true,
+    'the formula-only normalized Work Center helper column remains hidden')
+  assert.equal(styledExport.getWorksheet('WORK_CENTER')?.getCell('E3').value, null,
+    'the normalized Work Center helper does not add a visible schema header')
   assert.deepEqual(bomRows[2], ['Name', 'Usage', 'Unit', 'Price', 'Loss', 'Note'])
   assert.deepEqual(routingRows[2], ['Process', 'WC', 'Manning', 'Cap', 'Yield', 'Note'])
   console.log('✓ Export workbook uses the current four-sheet Master Data schema and omits unsupported custom/lifecycle fields')

@@ -1,24 +1,56 @@
 import type { CostSnapshot } from '../types'
 
-export type MasterDataNumericField = 'consumption' | 'price' | 'loss' | 'laborRate' | 'burdenRate' | 'manning' | 'capacity' | 'yield'
-type NumericField = MasterDataNumericField
-const numericFieldNames = new Set<string>(['consumption', 'price', 'loss', 'laborRate', 'burdenRate', 'manning', 'capacity', 'yield'])
+export type MasterDataNumericField =
+  | 'sellingPrice'
+  | 'sgaPercent'
+  | 'consumption'
+  | 'price'
+  | 'loss'
+  | 'laborRate'
+  | 'burdenRate'
+  | 'manning'
+  | 'capacity'
+  | 'yield'
+
+interface NumericDomain {
+  min: number
+  max?: number
+  minExclusive?: boolean
+}
+
+/** Canonical stored-value domains for all numeric Master Data fields. */
+export const MASTER_DATA_NUMERIC_DOMAINS: Record<MasterDataNumericField, NumericDomain> = {
+  sellingPrice: { min: 0 },
+  sgaPercent: { min: 0 },
+  consumption: { min: 0 },
+  price: { min: 0 },
+  loss: { min: 0, max: 1 },
+  laborRate: { min: 0 },
+  burdenRate: { min: 0 },
+  manning: { min: 0 },
+  capacity: { min: 0, minExclusive: true },
+  yield: { min: 0, max: 1, minExclusive: true }
+}
+
+const numericFieldNames = new Set<string>(Object.keys(MASTER_DATA_NUMERIC_DOMAINS))
 
 interface NumericLocation {
   key: string
-  field: NumericField
+  field: MasterDataNumericField
   value: unknown
   quality?: string
   table: string
   identity: string
 }
 
-function isInvalidNumeric(field: NumericField, value: unknown, quality?: string): boolean {
+function isInvalidNumeric(field: MasterDataNumericField, value: unknown, quality?: string): boolean {
   if (quality === 'invalid') return true
   if (value === null || value === undefined || value === '') return false
-  if (typeof value !== 'number' || !Number.isFinite(value) || value < 0) return true
-  if ((field === 'capacity' || field === 'yield') && value <= 0) return true
-  return field === 'yield' && value > 1
+  if (typeof value !== 'number' || !Number.isFinite(value)) return true
+
+  const domain = MASTER_DATA_NUMERIC_DOMAINS[field]
+  if (domain.minExclusive ? value <= domain.min : value < domain.min) return true
+  return domain.max !== undefined && value > domain.max
 }
 
 export function isMasterDataNumericValueValid(field: MasterDataNumericField, value: unknown): boolean {
@@ -34,11 +66,25 @@ export function isMasterDataNumericInputValid(field: MasterDataNumericField, val
   return Math.abs(scaledHundredths - Math.round(scaledHundredths)) < 1e-7
 }
 
+/** Input constraints use the same canonical domain, converting fractional percent fields for their UI. */
+export function getMasterDataNumericInputDomain(
+  field: MasterDataNumericField,
+  percentageDisplay = false
+): { min: number; max?: number; minExclusive?: boolean } {
+  const domain = MASTER_DATA_NUMERIC_DOMAINS[field]
+  const multiplier = percentageDisplay ? 100 : 1
+  return {
+    min: domain.min * multiplier,
+    ...(domain.max === undefined ? {} : { max: domain.max * multiplier }),
+    ...(domain.minExclusive ? { minExclusive: true } : {})
+  }
+}
+
 /** Keeps valid cells from a mixed paste while dropping invalid numeric cell edits. */
 export function filterInvalidMasterDataNumericChanges<T extends object>(changes: T): Partial<T> {
   const accepted: Partial<T> = {}
   Object.entries(changes).forEach(([field, value]) => {
-    if (!numericFieldNames.has(field) || isMasterDataNumericInputValid(field as NumericField, value)) {
+    if (!numericFieldNames.has(field) || isMasterDataNumericInputValid(field as MasterDataNumericField, value)) {
       Object.assign(accepted, { [field]: value })
     }
   })
@@ -47,6 +93,13 @@ export function filterInvalidMasterDataNumericChanges<T extends object>(changes:
 
 function numericLocations(snapshot: CostSnapshot): NumericLocation[] {
   return [
+    ...(['sellingPrice', 'sgaPercent'] as const).map(field => ({
+      key: `product.${field}`,
+      field,
+      value: snapshot.product[field],
+      table: 'Metadata',
+      identity: field === 'sellingPrice' ? 'Selling Price' : 'SG&A %'
+    })),
     ...snapshot.bom.flatMap(row => (['consumption', 'price', 'loss'] as const).map(field => ({
       key: `bom.${row.id}.${field}`,
       field,
@@ -94,9 +147,21 @@ function unresolvedWorkCenterReferences(snapshot: CostSnapshot): Map<string, str
 
 /** Returns import-facing issues that must be rejected before a snapshot becomes Working data. */
 export function getMasterDataSnapshotValidationErrors(snapshot: CostSnapshot): string[] {
+  const fieldLabels: Record<MasterDataNumericField, string> = {
+    sellingPrice: 'Selling Price',
+    sgaPercent: 'SG&A %',
+    consumption: 'Usage',
+    price: 'Price',
+    loss: 'Loss',
+    laborRate: 'Labor Rate',
+    burdenRate: 'Burden Rate',
+    manning: 'Manning',
+    capacity: 'Capacity',
+    yield: 'Yield'
+  }
   const errors = numericLocations(snapshot)
     .filter(location => isInvalidNumeric(location.field, location.value, location.quality))
-    .map(location => `Invalid ${location.field} in ${location.table} · ${location.identity}.`)
+    .map(location => `Invalid ${fieldLabels[location.field]} in ${location.table} · ${location.identity}.`)
 
   unresolvedWorkCenterReferences(snapshot).forEach((workCenter, rowId) => {
     const step = snapshot.routing.find(candidate => candidate.id === rowId)

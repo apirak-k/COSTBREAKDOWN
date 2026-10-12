@@ -122,6 +122,16 @@ export const Navbar: React.FC = () => {
                 if (relatedTarget instanceof Node && (event.currentTarget.contains(relatedTarget) || panelRoot?.contains(relatedTarget))) return
                 scheduleDismissMasterDataPrepareDatasetPreview()
               }}
+              onFocusCapture={event => {
+                const relatedTarget = event.relatedTarget
+                if (relatedTarget instanceof Node && event.currentTarget.contains(relatedTarget)) return
+                previewMasterDataPrepareDataset()
+              }}
+              onBlurCapture={event => {
+                const relatedTarget = event.relatedTarget
+                if (relatedTarget instanceof Node && event.currentTarget.contains(relatedTarget)) return
+                scheduleDismissMasterDataPrepareDatasetPreview()
+              }}
             >
               <button
                 ref={prepareDatasetTriggerRef}

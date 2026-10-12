@@ -699,6 +699,16 @@ try {
   assert.match(storeSource, /previewMasterDataPrepareDataset = \(\) => \{[\s\S]*setMasterDataPrepareDatasetOpen\(true\)/, 'Info hover opens the shared panel without selecting Master Data')
   assert.match(navbarSource, /onPointerEnter=\{previewMasterDataPrepareDataset\}[\s\S]*panelRoot\?\.contains\(relatedTarget\)[\s\S]*scheduleDismissMasterDataPrepareDatasetPreview\(\)/, 'Info hover keeps the preview open while pointer travels into the shared panel')
   assert.match(preparePopoverSource, /onPointerEnter=\{onPanelPointerEnter\}[\s\S]*onPointerLeave=\{onPanelPointerLeave\}/, 'leaving the preview panel schedules dismissal')
+  assert.match(footerSource, /onPanelPointerEnter=\{previewMasterDataPrepareDataset\}[\s\S]*onPanelPointerLeave=\{scheduleDismissMasterDataPrepareDatasetPreview\}/,
+    'the portaled Prepare Dataset panel feeds pointer entry and exit into the shared preview lifecycle')
+  const previewDismissSource = storeSource.slice(
+    storeSource.indexOf('const scheduleDismissMasterDataPrepareDatasetPreview'),
+    storeSource.indexOf('const closeMasterDataPrepareDataset')
+  )
+  assert.match(previewDismissSource, /const pointerWithin = Boolean\(interactionBoundary\?\.matches\(':hover'\) \|\| panel\?\.matches\(':hover'\)\)/,
+    'preview dismissal recognizes the pointer over either the Header trigger or its portaled panel')
+  assert.match(previewDismissSource, /const focusWithin = Boolean\([\s\S]*interactionBoundary\?\.contains\(activeElement\)[\s\S]*panel\?\.contains\(activeElement\)[\s\S]*\)[\s\S]*if \(!focusWithin && !pointerWithin\) setMasterDataPrepareDatasetOpen\(false\)/,
+    'the preview closes only after focus and pointer have both left the trigger and portaled panel')
   assert.match(navbarSource, /onPointerEnter=\{previewMasterDataPrepareDataset\}[\s\S]*onPointerLeave=\{event => \{[\s\S]*relatedTarget instanceof Node[\s\S]*panelRoot\?\.contains\(relatedTarget\)[\s\S]*scheduleDismissMasterDataPrepareDatasetPreview\(\)[\s\S]*aria-pressed=\{masterDataPrepareDatasetPinned\}/, 'Header Info previews on hover, preserves pointer movement into its portal, dismisses after leaving, and exposes the pinned state')
   assert.match(storeSource, /requestMasterDataPrepareDataset = \(mode\?: 'all-warnings'\)[\s\S]*if \(masterDataPrepareDatasetOpen\)[\s\S]*closeMasterDataPrepareDataset\(\)[\s\S]*setMasterDataPrepareDatasetOpen\(true\)[\s\S]*setMasterDataPrepareDatasetRequestMode\(mode \?\? null\)/, 'Footer warning action toggles the shared panel without navigating')
   assert.match(preparePopoverSource, /onClick=\{\(\) => \{ onClose\(\); document\.getElementById\('header-prepare-dataset-trigger'\)\?\.focus\(\) \}\}/, 'the panel Close action returns focus to Header Info')
@@ -741,6 +751,8 @@ try {
   assert.match(preparePopoverSource, /const datasetSummaryColumns = 'grid-cols-\[minmax\(0,1fr\)_5rem_3\.5rem_3\.5rem\]'/, 'dataset summary tracks align dataset, save state, warning icon/count, and blocker icon/count')
   assert.match(preparePopoverSource, /aria-label="Dataset filters, save states, warning counts, and blocker counts"/, 'dataset row summary has an accessible label for its shared filter and issue counts')
   assert.match(preparePopoverSource, /setDatasetRoleFilter\(current => current === datasetRole \? null : datasetRole\)/, 'clicking the active dataset summary row toggles back to all datasets')
+  assert.match(preparePopoverSource, /visibleWarningGroups = \(datasetRoleFilter[\s\S]*item\.role === datasetRoleFilter[\s\S]*visibleBlockerGroups = \(datasetRoleFilter[\s\S]*item\.role === datasetRoleFilter/, 'one active dataset selection filters both Warning and Blocker detail locations')
+  assert.match(preparePopoverSource, /visibleWarningCount = datasetRoleFilter \? warningCounts\[datasetRoleFilter\] : warningCount[\s\S]*visibleBlockerCount = datasetRoleFilter \? blockerCounts\[datasetRoleFilter\] : blockerCount/, 'the same dataset selection scopes both issue-section totals')
   assert.doesNotMatch(preparePopoverSource, /sm:grid-cols-3/, 'dataset summaries never become a horizontal three-column strip')
   const {
     MASTER_DATA_WARNING_CATEGORY_DEFINITIONS,
@@ -814,8 +826,14 @@ try {
   assert.match(datasetSummarySource, /setExpandedWarningCategories\(new Set\(\)\)[\s\S]*setExpandedBlockerCategories\(new Set\(\)\)/, 'changing or clearing the dataset filter collapses expanded Warning and Blocker categories')
   assert.equal((datasetSummarySource.match(/<button\b/g) ?? []).length, 1, 'warning and blocker counts are not independent row filter buttons')
   assert.match(datasetSummarySource, /warningCountForRole > 0 \? 'text-amber-700' : 'text-slate-500'[\s\S]*blockerCountForRole > 0 \? 'text-rose-700' : 'text-slate-500'/, 'top summary counts use Warning amber and Blocker rose only when nonzero')
-  assert.match(issueSectionSource, /<button\s+type="button"\s+aria-label=\{`Show all datasets for \$\{isWarning \? 'Warnings' : 'Blockers'\}`\}\s+aria-pressed=\{datasetRoleFilter === null\}\s+onClick=\{resetUiState\}[\s\S]*>\s*All\s*<\/button>/, 'each issue heading keeps an accessible, always-enabled All control for the shared dataset filter')
-  assert.doesNotMatch(issueSectionSource, /aria-disabled=\{true\}|disabled=\{datasetRoleFilter === null\}/, 'All remains usable when already selected')
+  const issueHeadingSource = issueSectionSource.slice(issueSectionSource.indexOf('<div className="grid h-6'), issueSectionSource.indexOf('{groups.length > 0'))
+  assert.match(preparePopoverSource, /activeDatasetFilterLabel = datasetRoleFilter \? roleLabels\[datasetRoleFilter\] : 'All'/, 'one shared context label resolves to All or the full active dataset name')
+  assert.equal((issueHeadingSource.match(/<span[^>]*>\s*\{activeDatasetFilterLabel\}\s*<\/span>/g) ?? []).length, 1,
+    'the shared Warning/Blocker heading template shows the active dataset context label as plain text')
+  assert.doesNotMatch(issueHeadingSource, /<button|aria-pressed|aria-label|bg-|hover:/, 'issue-heading dataset context is plain text without a control or pill treatment')
+  assert.equal((datasetSummarySource.match(/aria-pressed=\{active\}/g) ?? []).length, 1, 'only the whole dataset summary row exposes the active filter control state')
+  assert.match(datasetSummarySource, /onClick=\{\(\) => \{\s*setDatasetRoleFilter\(current => current === datasetRole \? null : datasetRole\)/, 'clicking the same active dataset row clears the one shared filter back to All')
+  assert.doesNotMatch(issueHeadingSource, /resetUiState|setDatasetRoleFilter|onClick/, 'section-heading context cannot independently change the shared filter')
   assert.match(issueSectionSource, /aria-label=\{isWarning \? 'Warning categories' : 'Blocker categories'\}[\s\S]*className="shrink-0 space-y-0\.5"/, 'Warning and Blocker category rows stay outside their detail scroll regions')
   assert.ok(issueSectionSource.includes('Math.min(group.items.length, maxVisibleDetailRows) * 28') && issueSectionSource.includes('overflow-y-auto'), 'only each expanded category detail list scrolls within its viewport-aware row bound')
   assert.match(preparePopoverSource, /visibleDetailHeight[\s\S]*panel\.scrollHeight - visibleDetailHeight[\s\S]*availableHeight - fixedContentHeight[\s\S]*detailLists\.length \* 28[\s\S]*Math\.max\(1, Math\.min\(3, rowsPerList\)\)/, 'visible detail rows adapt to preserve fixed headings, categories, and Mock controls in short viewports')
@@ -1008,6 +1026,15 @@ try {
   assert.doesNotMatch(routingSource, /aria-label="Search Routing"|placeholder="Search Routing/, 'Routing no longer renders a per-table search box')
   assert.match(pageSource, /searchQuery=\{searchQuery\}[\s\S]*onSearchQueryChange=\{onSearchQueryChange\}/, 'the same Master Data query flows to the toolbar and existing tables')
   assert.match(headerSource, /type="text"[\s\S]*aria-label="UOM"[\s\S]*onUpdateProduct\(\{ \.\.\.product, uom: event\.target\.value \}\)/, 'UOM is editable as free text')
+  const sellingPriceInputSource = headerSource.slice(headerSource.indexOf('value={product.sellingPrice}'), headerSource.indexOf('aria-label="Selling Price (THB)"'))
+  const sgaInputSource = headerSource.slice(headerSource.indexOf('value={product.sgaPercent}'), headerSource.indexOf('aria-label="SG&A"'))
+  assert.match(sellingPriceInputSource, /\.\.\.getMasterDataNumericInputDomain\('sellingPrice'\)/, 'Selling Price editor uses the canonical numeric domain')
+  assert.match(sgaInputSource, /\.\.\.getMasterDataNumericInputDomain\('sgaPercent'\)/, 'SG&A editor uses the canonical numeric domain')
+  const metadataNumericDomains = validationSource.slice(validationSource.indexOf('sellingPrice:'), validationSource.indexOf('consumption:'))
+  assert.match(metadataNumericDomains, /sellingPrice:\s*\{ min: 0 \}/, 'Selling Price rejects negatives while allowing zero')
+  assert.match(metadataNumericDomains, /sgaPercent:\s*\{ min: 0 \}/, 'SG&A rejects negatives while allowing zero')
+  assert.doesNotMatch(metadataNumericDomains, /sgaPercent:[^\n]*max:/, 'SG&A has no artificial 100% input ceiling')
+  assert.match(numericInputSource, /precision = 2/, 'metadata numeric editors use the shared two-decimal input precision by default')
   assert.match(headerSource, /xl:grid-cols-\[minmax\(8rem,2fr\)_repeat\(3,minmax\(8rem,1fr\)\)_minmax\(8rem,2fr\)\]/,
     'metadata gives UOM, Selling Price, and SG&A equal tracks while keeping Product and Remark wider')
   assert.match(headerSource, /Product Name :<\/dt>[\s\S]*UOM :<\/dt>[\s\S]*Selling Price \(THB\) :<\/dt>[\s\S]*SG&amp;A :<\/dt>[\s\S]*Remark :<\/dt>/,
@@ -1026,7 +1053,7 @@ try {
   assert.match(snapshotParserSource, /canonicalResult\.success \|\| canonicalResult\.format === 'canonical'/, 'validation-rejected canonical workbooks cannot fall through to legacy import parsing')
   assert.match(masterDataWorkbookSource, /const outputLabels = \['MAT', 'LABOR', 'BURDEN', 'STANDARD COST', 'SG&A AMOUNT', 'OP'\]/, 'the workbook verifier protects all six canonical META result labels')
   assert.match(masterDataWorkbookSource, /ifComplete\(\[[\s\S]*noMissingNumbers\('BOMData', bom, 'Usage'\)[\s\S]*noMissingNumbers\('BOMData', bom, 'Price'\)[\s\S]*noMissingNumbers\('BOMData', bom, 'Loss'\)[\s\S]*ifComplete\(\[[\s\S]*\.\.\.routingBase[\s\S]*Labor[\s\S]*ifComplete\(\[[\s\S]*\.\.\.routingBase[\s\S]*Burden[\s\S]*ifComplete\(\['ISNUMBER\(B9\)', 'ISNUMBER\(B10\)', 'ISNUMBER\(B11\)'\][\s\S]*ifComplete\(\['ISNUMBER\(B5\)', 'ISNUMBER\(B6\)'\][\s\S]*ifComplete\(\['ISNUMBER\(B5\)', 'ISNUMBER\(B12\)', 'ISNUMBER\(B13\)'\]/, 'each canonical META output remains independently guarded by its own required dependencies')
-  assert.match(masterDataWorkbookSource, /writeMetaSheet\(workbook, options\)[\s\S]*writeTableSheet\(workbook, 'BOM'[\s\S]*writeTableSheet\(workbook, 'WORK_CENTER'[\s\S]*writeTableSheet\(workbook, 'ROUTING'/, 'workbook sheet order remains META, BOM, WORK_CENTER, ROUTING')
+  assert.match(masterDataWorkbookSource, /writeMetaSheet\(workbook, options, normalizedWorkCenterCodes\)[\s\S]*writeTableSheet\(workbook, 'BOM'[\s\S]*writeTableSheet\(workbook, 'WORK_CENTER'[\s\S]*writeTableSheet\(workbook, 'ROUTING'/, 'workbook sheet order remains META, BOM, WORK_CENTER, ROUTING')
   assert.match(importDropzoneSource, /onParsed\(await parseSnapshotExcelInputFile\(file, importRole, \{ allowLegacy: false \}\)\)/,
     'Import parses and validates a workbook before passing it back to the modal')
   assert.doesNotMatch(importDropzoneSource, /importSnapshotFromExcel|useAppStore/, 'file selection does not mutate Working data')
@@ -1070,8 +1097,11 @@ try {
     '<span aria-hidden="true" className="w-4 text-center text-xs text-slate-600">%</span>',
   ].every(token => sizingModalSource.includes(token)), 'Selling Price and SG&A share the metadata numeric editor and fixed outside suffix gutter')
   assert.match(sizingModalSource, /UOM :[\s\S]*grid-cols-\[minmax\(0,1fr\)_1rem\][\s\S]*Selling Price \(THB\) :[\s\S]*grid-cols-\[minmax\(0,1fr\)_1rem\][\s\S]*SG&amp;A :[\s\S]*grid-cols-\[minmax\(0,1fr\)_1rem\]/, 'upper metadata editors reserve equal suffix gutters')
-  assert.equal((sizingModalSource.match(/className=\{metadataInlineLabelClass\}/g) ?? []).length, 3, 'UOM, Selling Price, and SG&A reserve one shared label track so their input shells stay equal width')
-  assert.match(sizingModalSource, /metadataInlineLabelClass = 'w-28 shrink-0 whitespace-nowrap text-left/, 'Sizing upper labels start at the left edge of their shared stable label track')
+  assert.equal((sizingModalSource.match(/className=\{metadataInlineLabelClass\}/g) ?? []).length, 3, 'UOM, Selling Price, and SG&A use natural-width labels in their equal outer columns')
+  assert.match(sizingModalSource, /metadataInlineLabelClass = 'shrink-0 whitespace-nowrap text-left/, 'Sizing upper labels use natural width without a fixed label track')
+  assert.doesNotMatch(sizingModalSource, /metadataInlineLabelClass = '[^']*(?:w-\d+|min-w-\d+)/, 'Sizing upper labels do not reserve a fixed width')
+  assert.equal((sizingModalSource.match(/className="grid min-w-0 flex-1 grid-cols-\[minmax\(0,1fr\)_1rem\] items-center gap-1"/g) ?? []).length, 3,
+    'each UOM, Selling Price, and SG&A editor fills the remaining width of its equal outer column')
   assert.match(sizingModalSource, /const sizingGroupDividerClass = [\s\S]*after:w-px after:bg-slate-200[\s\S]*md:after:block/, 'Sizing group dividers are subtle, local, and hidden while fields stack')
   const sizingMetadataSection = sizingModalSource.slice(sizingModalSource.indexOf('aria-label="Dataset metadata"'), sizingModalSource.indexOf('aria-label="Dataset rows"'))
   assert.equal((sizingMetadataSection.match(/\$\{sizingGroupDividerClass\}/g) ?? []).length, 2, 'upper Sizing dividers separate only the first two metadata groups')
@@ -1100,7 +1130,8 @@ try {
     'valid Import state shows concise BOM, Work Center, and Routing counts')
   assert.match(importModalSource, /hasWorkingData && parsedImport\?\.success[\s\S]*This will replace \{targetLabel\} Working data\. Last Saved remains unchanged\./,
     'replacement context is concise and appears only after a valid workbook is ready')
-  assert.match(validationSource, /field === 'capacity' \|\| field === 'yield'[\s\S]*value <= 0[\s\S]*field === 'yield' && value > 1/, 'ingress validation reuses the existing positive Capacity and bounded Yield rules')
+  assert.match(validationSource, /capacity:\s*\{ min: 0, minExclusive: true \}[\s\S]*yield:\s*\{ min: 0, max: 1, minExclusive: true \}/, 'canonical numeric domains keep Capacity positive and Yield positive and bounded at 100%')
+  assert.match(validationSource, /domain\.minExclusive \? value <= domain\.min : value < domain\.min[\s\S]*domain\.max !== undefined && value > domain\.max/, 'ingress validation applies each canonical minimum and optional maximum')
   assert.match(footerSource, /Complete Mock[\s\S]*Incomplete Mock/, 'the shared Prepare Dataset panel exposes direct Complete Mock and Incomplete Mock actions')
   assert.doesNotMatch(pageSource, /Load Mock Data|window\.confirm\(`(?:Complete|Incomplete) Mock/, 'mock fixtures load without a generic action label or confirmation')
   assert.match(appSource, /getElementById\('main-content'\)\?\.scrollTo\(\{ top: 0, behavior: 'auto' \}\)[\s\S]*\[activeTab\]/, 'changing pages resets the shared content viewport to its heading')
@@ -1234,15 +1265,25 @@ try {
   assert.match(wcSource, /captureRenameTargets[\s\S]*routing\.filter\(step => step\.workCenterId\?\.trim\(\)\.toLocaleLowerCase\(\) === identity\)[\s\S]*applyWorkCenterCodeUpdate/, 'direct Work Center editing retains the linked Routing rows through empty/intermediate keystrokes')
   assert.match(workCenterRenameSource, /const linkedRoutingIds = explicitTargets \?\? new Set\([\s\S]*previous\.routing[\s\S]*nextRate\.workCenterCode[\s\S]*routing: normalizedNext\.routing\.map/, 'rename propagation updates only linked Routing rows and uses the normalized final identity')
   assert.match(wcSource, /className=\"flex min-h-8 items-center justify-start\"[\s\S]*font-sans font-normal/, 'Work Center identity stays left aligned and uses the common normal-weight typography')
-  assert.match(allTablesSource, /const numericClass = \(invalid: boolean, blocker: boolean\) => `\$\{masterDataNumericEditorClass\} \$\{blocker \|\| \(showWarningHighlights && invalid\) \? masterDataIssueEditorClass : ''\}`/, 'numeric Blocker styling remains amber independently of the Warning highlight toggle')
-  assert.match(bomSource + wcSource + routingSource, /Missing \|\| \([^\n]+Invalid && showWarningHighlights\)/i, 'View numeric Blocker fills remain visible when Warning highlights are off')
+  for (const [tableLabel, tableSource] of [['BOM', bomSource], ['Work Centers', wcSource], ['Routing', routingSource]]) {
+    assert.match(tableSource, /const numericClass = \(invalid: boolean, blocker: boolean\) => `\$\{masterDataNumericEditorClass\} \$\{showWarningHighlights && \(blocker \|\| invalid\) \? masterDataIssueEditorClass : ''\}`/,
+      `${tableLabel} edit-field Warning and Blocker highlights both follow the visibility toggle`)
+    assert.doesNotMatch(tableSource, /\w+Missing \|\| \([^\n]+Invalid && showWarningHighlights\)/i,
+      `${tableLabel} View Blockers do not retain amber fill when Warning highlights are hidden`)
+    assert.match(tableSource, /showWarningHighlights && \(\w+Missing \|\| \w+Invalid\) \? masterDataIssueDisplayClass : ''/,
+      `${tableLabel} View Warning and Blocker styling is gated together by the shared highlight toggle`)
+    assert.match(tableSource, /\{\w+Missing && <MasterDataBlockerMarker/,
+      `${tableLabel} Blocker star remains rendered independently from the highlight toggle`)
+  }
   assert.match(blockerMarkerSource, /aria-label=\{label\}[\s\S]*pointer-events-none absolute[\s\S]*text-rose-600[\s\S]*>\s*\*\s*</, 'blocker star remains a small accessible overlay outside field layout')
   assert.match(bomSource + wcSource + routingSource, /<MasterDataBlockerMarker/, 'BOM, Work Centers, and Routing render blocker stars through the shared overlay marker')
   assert.doesNotMatch(bomSource + wcSource + routingSource, /pr-(?:3|4|5)(?:\s|`)/, 'blocker markers do not reserve padding that shifts values or narrows their inputs')
   assert.match(fieldStylesSource, /masterDataNumericDisplaySlotClass = `relative flex h-8 w-full min-w-0 items-center justify-center rounded-sm border border-transparent[\s\S]*\$\{masterDataCellFocusClass\}`/, 'View numeric values use a full-width shared 32px field with the same Focus treatment as Edit')
   assert.match(blockerMarkerSource, /className="pointer-events-none absolute right-1 top-1\/2[\s\S]*-translate-y-1\/2/, 'all Blocker stars use a shared right and vertical-center anchor')
-  assert.match(routingSource, /workCenterInvalid \? masterDataIssueDisplayClass : ''/,
-    'Routing missing or unresolved Work Center keeps its Blocker cue independently of Warning highlights')
+  assert.match(routingSource, /showWarningHighlights && workCenterInvalid \? 'text-amber-900' : ''[\s\S]*showWarningHighlights && workCenterInvalid \? masterDataIssueDisplayClass : ''/,
+    'Routing missing or unresolved Work Center hides both amber text and fill when highlights are off')
+  assert.match(routingSource, /workCenterInvalid && <MasterDataBlockerMarker/,
+    'Routing missing or unresolved Work Center keeps its Blocker marker independently of highlights')
   assert.doesNotMatch(headerSource + pageSource + bomSource + wcSource + routingSource + navbarSource + footerSource + sizingModalSource + importDropzoneSource, /cursor-not-allowed/,
     'Master Data and shared workspace controls never use the prohibited disabled cursor')
   assert.doesNotMatch(appSourceFiles, /cursor-not-allowed/, 'no app source file uses the prohibited disabled cursor')

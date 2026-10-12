@@ -93,6 +93,16 @@ assert.equal(explicitZero.burden, 0)
 assert.equal(explicitZero.total, 0)
 assert.equal(explicitZero.status, 'complete')
 
+const zeroPrice = calculateSnapshotCost(snapshot({
+  id: 'zero-price',
+  bom: [bom('zero-price-mat', 0, 2)],
+  routing: [route({ manning: 0 })],
+  rates: [rate()]
+}))
+assert.equal(zeroPrice.material, 0, 'an explicitly entered zero Price remains a valid calculation input')
+assert.equal(zeroPrice.total, 0)
+assert.equal(zeroPrice.status, 'complete')
+
 const tinyPositive = snapshot({
   id: 'tiny-positive',
   routing: [route({ capacity: 1e-12 })],
@@ -103,6 +113,12 @@ assert.equal(tinyCost.labor, 1, 'a valid small denominator must keep its actual 
 const tinyDetail = calculateSnapshotRoutingDetail({ current: tinyPositive.routing[0] }, [], tinyPositive.rates)
 assert.equal(tinyDetail.currentRuntime, 1e12)
 assert.equal(tinyDetail.currentLaborCost, 1)
+const tinyPositiveYield = snapshot({
+  id: 'tiny-positive-yield',
+  routing: [route({ capacity: 1, yield: 1e-12 })],
+  rates: [rate({ laborRate: 1e-12 })]
+})
+assert.equal(calculateSnapshotCost(tinyPositiveYield).labor, 1, 'a positive subnormal-domain Yield is not rejected by an arbitrary threshold when its result remains finite')
 for (const invalidRoute of [
   route({ capacity: 0 }),
   route({ yield: 0 }),

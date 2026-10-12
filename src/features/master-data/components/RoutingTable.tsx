@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef } from 'react'
 import { ChevronDown, GripVertical, Trash2 } from 'lucide-react'
 import { SnapshotRoutingStep, SnapshotWorkCenterRate, formatNumber } from '../../../core'
+import { getMasterDataNumericInputDomain } from '../../../core/utils/master-data-validation'
 import { useDragSelect } from '../hooks/useDragSelect'
 import { useIdentityEditorDrafts } from '../hooks/useIdentityEditorDrafts'
 import { SpreadsheetPasteCell, tableCellKey, useTableKeyboardNav } from '../hooks/useTableKeyboardNav'
@@ -269,7 +270,7 @@ export const RoutingTable: React.FC<RoutingTableProps> = ({
               const deleteTooltip = !isEditMode ? 'Switch to Edit to delete rows' : deleteSelectedGroup ? 'Delete selected rows' : 'Delete row'
               const reorderSelectedGroup = isSelected && selectedIds.size > 1
               const reorderTooltip = !isEditMode ? 'Reordering is available in Edit' : reorderSelectedGroup ? 'Drag selected rows to reorder' : 'Drag to reorder'
-              const numericClass = (invalid: boolean, blocker: boolean) => `${masterDataNumericEditorClass} ${blocker || (showWarningHighlights && invalid) ? masterDataIssueEditorClass : ''}`
+              const numericClass = (invalid: boolean, blocker: boolean) => `${masterDataNumericEditorClass} ${showWarningHighlights && (blocker || invalid) ? masterDataIssueEditorClass : ''}`
 
               return (
                 <tr
@@ -328,7 +329,7 @@ export const RoutingTable: React.FC<RoutingTableProps> = ({
                         data-grid-field="workCenterId"
                         aria-label={`Work Center for Routing row ${rowNumber}`}
                         aria-invalid={workCenterInvalid}
-                        className={`block w-full appearance-none pr-10 text-left ${masterDataTextEditorClass} ${workCenterInvalid ? masterDataIssueEditorClass : ''} ${selectedCellKeys.has(tableCellKey(step.id, 'workCenterId')) ? masterDataSpreadsheetSelectionClass : ''}`}
+                        className={`block w-full appearance-none pr-10 text-left ${masterDataTextEditorClass} ${showWarningHighlights && workCenterInvalid ? masterDataIssueEditorClass : ''} ${selectedCellKeys.has(tableCellKey(step.id, 'workCenterId')) ? masterDataSpreadsheetSelectionClass : ''}`}
                       >
                         <option value="">Select Work Center</option>
                         {step.workCenterId && !knownWorkCenters.has(step.workCenterId.trim().toLocaleLowerCase()) && (
@@ -343,7 +344,7 @@ export const RoutingTable: React.FC<RoutingTableProps> = ({
                       </div>
                     ) : (
                       <div className="relative flex h-8 w-full items-center justify-start">
-                        <span data-grid-cell="true" data-grid-row-id={step.id} data-grid-field="workCenterId" tabIndex={viewCellTabIndex(step.id, 'workCenterId')} aria-label={`Work Center identity for Routing row ${rowNumber}`} className={`${masterDataDisplaySlotClass} truncate ${workCenterInvalid ? 'pr-8 text-amber-900' : ''} ${workCenterInvalid ? masterDataIssueDisplayClass : ''} ${selectedCellKeys.has(tableCellKey(step.id, 'workCenterId')) ? masterDataSpreadsheetSelectionClass : ''}`}>
+                        <span data-grid-cell="true" data-grid-row-id={step.id} data-grid-field="workCenterId" tabIndex={viewCellTabIndex(step.id, 'workCenterId')} aria-label={`Work Center identity for Routing row ${rowNumber}`} className={`${masterDataDisplaySlotClass} truncate ${workCenterInvalid ? 'pr-8' : ''} ${showWarningHighlights && workCenterInvalid ? 'text-amber-900' : ''} ${showWarningHighlights && workCenterInvalid ? masterDataIssueDisplayClass : ''} ${selectedCellKeys.has(tableCellKey(step.id, 'workCenterId')) ? masterDataSpreadsheetSelectionClass : ''}`}>
                           {step.workCenterId || (workCenterInvalid ? 'Unavailable' : '—')}
                         </span>
                         {workCenterInvalid && <MasterDataBlockerMarker label="Missing or unavailable Work Center" />}
@@ -356,7 +357,7 @@ export const RoutingTable: React.FC<RoutingTableProps> = ({
                         <NumericInput
                           value={step.manning}
                           onValueChange={value => applyCellUpdate(step.id, { manning: value })}
-                          min={0}
+                          {...getMasterDataNumericInputDomain('manning')}
                           reserveMarker
                           data-grid-cell="true"
                           data-grid-row-id={step.id}
@@ -367,7 +368,7 @@ export const RoutingTable: React.FC<RoutingTableProps> = ({
                         />
                         {manningMissing && <MasterDataBlockerMarker />}
                       </div>
-                    ) : <span data-grid-cell="true" data-grid-row-id={step.id} data-grid-field="manning" tabIndex={viewCellTabIndex(step.id, 'manning')} aria-label={`Manning for ${step.processName || `Routing row ${rowNumber}`}`} className={`${masterDataNumericDisplaySlotClass} mx-auto w-full max-w-20 ${manningMissing || (manningInvalid && showWarningHighlights) ? masterDataIssueDisplayClass : ''} ${selectedCellKeys.has(tableCellKey(step.id, 'manning')) ? masterDataSpreadsheetSelectionClass : ''}`}>{step.manning === null ? '—' : formatNumber(step.manning, 2)}{manningMissing && <MasterDataBlockerMarker />}</span>}
+                    ) : <span data-grid-cell="true" data-grid-row-id={step.id} data-grid-field="manning" tabIndex={viewCellTabIndex(step.id, 'manning')} aria-label={`Manning for ${step.processName || `Routing row ${rowNumber}`}`} className={`${masterDataNumericDisplaySlotClass} mx-auto w-full max-w-20 ${showWarningHighlights && (manningMissing || manningInvalid) ? masterDataIssueDisplayClass : ''} ${selectedCellKeys.has(tableCellKey(step.id, 'manning')) ? masterDataSpreadsheetSelectionClass : ''}`}>{step.manning === null ? '—' : formatNumber(step.manning, 2)}{manningMissing && <MasterDataBlockerMarker />}</span>}
                   </td>
                   <td className="relative px-2 py-0.5 text-center font-mono tabular-nums">
                     {isEditMode ? (
@@ -375,8 +376,7 @@ export const RoutingTable: React.FC<RoutingTableProps> = ({
                         <NumericInput
                           value={step.capacity}
                           onValueChange={value => applyCellUpdate(step.id, { capacity: value })}
-                          min={0}
-                          minExclusive
+                          {...getMasterDataNumericInputDomain('capacity')}
                           allowSubMinimumDraft
                           reserveMarker
                           data-grid-cell="true"
@@ -388,7 +388,7 @@ export const RoutingTable: React.FC<RoutingTableProps> = ({
                         />
                         {capacityMissing && <MasterDataBlockerMarker />}
                       </div>
-                    ) : <span data-grid-cell="true" data-grid-row-id={step.id} data-grid-field="capacity" tabIndex={viewCellTabIndex(step.id, 'capacity')} aria-label={`Capacity for ${step.processName || `Routing row ${rowNumber}`}`} className={`${masterDataNumericDisplaySlotClass} mx-auto w-full max-w-24 ${capacityMissing || (capacityInvalid && showWarningHighlights) ? masterDataIssueDisplayClass : ''} ${selectedCellKeys.has(tableCellKey(step.id, 'capacity')) ? masterDataSpreadsheetSelectionClass : ''}`}>{step.capacity === null ? '—' : formatNumber(step.capacity, 2)}{capacityMissing && <MasterDataBlockerMarker />}</span>}
+                    ) : <span data-grid-cell="true" data-grid-row-id={step.id} data-grid-field="capacity" tabIndex={viewCellTabIndex(step.id, 'capacity')} aria-label={`Capacity for ${step.processName || `Routing row ${rowNumber}`}`} className={`${masterDataNumericDisplaySlotClass} mx-auto w-full max-w-24 ${showWarningHighlights && (capacityMissing || capacityInvalid) ? masterDataIssueDisplayClass : ''} ${selectedCellKeys.has(tableCellKey(step.id, 'capacity')) ? masterDataSpreadsheetSelectionClass : ''}`}>{step.capacity === null ? '—' : formatNumber(step.capacity, 2)}{capacityMissing && <MasterDataBlockerMarker />}</span>}
                   </td>
                   <td className="relative px-2 py-0.5 text-center font-mono tabular-nums">
                     {isEditMode ? (
@@ -397,9 +397,7 @@ export const RoutingTable: React.FC<RoutingTableProps> = ({
                           <NumericInput
                             value={step.yield === null ? null : step.yield * 100}
                             onValueChange={value => applyCellUpdate(step.id, { yield: value === null ? null : value / 100 })}
-                            min={0}
-                            minExclusive
-                            max={100}
+                            {...getMasterDataNumericInputDomain('yield', true)}
                             allowSubMinimumDraft
                             reserveMarker
                             data-grid-cell="true"
@@ -415,7 +413,7 @@ export const RoutingTable: React.FC<RoutingTableProps> = ({
                       </div>
                     ) : (
                       <div className={masterDataPercentageShellClass}>
-                        <span data-grid-cell="true" data-grid-row-id={step.id} data-grid-field="yield" tabIndex={viewCellTabIndex(step.id, 'yield')} aria-label={`Yield percentage for ${step.processName || `Routing row ${rowNumber}`}`} className={`${masterDataNumericDisplaySlotClass} flex-1 ${yieldMissing || (showWarningHighlights && yieldInvalid) ? masterDataIssueDisplayClass : ''} ${selectedCellKeys.has(tableCellKey(step.id, 'yield')) ? masterDataSpreadsheetSelectionClass : ''}`}>
+                        <span data-grid-cell="true" data-grid-row-id={step.id} data-grid-field="yield" tabIndex={viewCellTabIndex(step.id, 'yield')} aria-label={`Yield percentage for ${step.processName || `Routing row ${rowNumber}`}`} className={`${masterDataNumericDisplaySlotClass} flex-1 ${showWarningHighlights && (yieldMissing || yieldInvalid) ? masterDataIssueDisplayClass : ''} ${selectedCellKeys.has(tableCellKey(step.id, 'yield')) ? masterDataSpreadsheetSelectionClass : ''}`}>
                           {step.yield === null ? '—' : formatNumber(step.yield * 100, 2)}
                           {yieldMissing && <MasterDataBlockerMarker />}
                         </span>

@@ -49,6 +49,7 @@ import {
 } from './master-data-datasets'
 import { markMasterDataChanged, markMasterDataChangedForSnapshotPair } from './master-data-revision'
 import { normalizeMasterDataSnapshot } from '../core/utils/master-data-effective'
+import { assertDatasetSizingCounts } from '../core/utils/sizing'
 import { propagateWorkCenterRenames } from './master-data-work-center-rename'
 import { replaceDevelopmentMockWorkingState } from './development-mock-data'
 import {
@@ -523,7 +524,17 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     clearMasterDataPrepareDatasetHoverTimer()
     masterDataPrepareDatasetHoverTimerRef.current = setTimeout(() => {
       masterDataPrepareDatasetHoverTimerRef.current = null
-      if (!masterDataPrepareDatasetPinnedRef.current) setMasterDataPrepareDatasetOpen(false)
+      if (masterDataPrepareDatasetPinnedRef.current) return
+      const trigger = typeof document === 'undefined' ? null : document.getElementById('header-prepare-dataset-trigger')
+      const interactionBoundary = trigger?.parentElement
+      const panel = typeof document === 'undefined' ? null : document.getElementById('prepare-dataset-panel')
+      const activeElement = typeof document === 'undefined' ? null : document.activeElement
+      const focusWithin = Boolean(
+        (activeElement && interactionBoundary?.contains(activeElement))
+        || (activeElement && panel?.contains(activeElement))
+      )
+      const pointerWithin = Boolean(interactionBoundary?.matches(':hover') || panel?.matches(':hover'))
+      if (!focusWithin && !pointerWithin) setMasterDataPrepareDatasetOpen(false)
     }, 160)
   }
 
@@ -1116,6 +1127,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   }
 
   const updateMasterDataDatasetSizing = (role: MasterDataRole, sizing: Partial<DatasetSizing>) => {
+    assertDatasetSizingCounts(sizing)
     const session = activeSession
     const pair = session.snapshotPair ?? sessionToSnapshotPair(session)
     const currentDataset = getMasterDataSnapshot(session, pair, role)

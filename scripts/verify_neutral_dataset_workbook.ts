@@ -1,4 +1,9 @@
 import assert from 'node:assert/strict'
+import { execFile } from 'node:child_process'
+import { mkdtemp, rm, writeFile } from 'node:fs/promises'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
+import { promisify } from 'node:util'
 import ExcelJS from 'exceljs'
 import * as XLSX from 'xlsx'
 import { calculateScenarioBusinessMetrics } from '../src/core/calculations/scenario-business.ts'
@@ -22,6 +27,45 @@ const FORMULA_NOTES = [
   'SG&A Amount = Selling Price × SG&A %',
   'OP = Selling Price - Standard Cost - SG&A Amount'
 ]
+
+const execFileAsync = promisify(execFile)
+const EXCEL_COM_RECALC_SCRIPT = String.raw`param([Parameter(Mandatory=$true)][string]$WorkbookPath)
+$ErrorActionPreference = 'Stop'
+$excel = $null
+$workbook = $null
+$meta = $null
+try {
+  try {
+    $excel = New-Object -ComObject Excel.Application
+  } catch {
+    [Console]::Out.WriteLine((@{ status = 'environment-blocked'; reason = $_.Exception.Message } | ConvertTo-Json -Compress))
+    return
+  }
+
+  $excel.Visible = $false
+  $excel.DisplayAlerts = $false
+  $excel.AutomationSecurity = 3
+  $workbook = $excel.Workbooks.Open($WorkbookPath, 0, $true)
+  $workbook.ForceFullCalculation = $true
+  $excel.CalculateFullRebuild()
+  $meta = $workbook.Worksheets.Item('META')
+
+  $values = [ordered]@{}
+  foreach ($row in 9..14) {
+    $values["B$row"] = $meta.Cells.Item($row, 2).Value2
+  }
+  [Console]::Out.WriteLine((@{ status = 'recalculated'; values = $values } | ConvertTo-Json -Depth 5 -Compress))
+} finally {
+  if ($workbook -ne $null) { $workbook.Close($false) }
+  if ($excel -ne $null) { $excel.Quit() }
+  foreach ($comObject in @($meta, $workbook, $excel)) {
+    if ($comObject -ne $null -and [System.Runtime.InteropServices.Marshal]::IsComObject($comObject)) {
+      [void][System.Runtime.InteropServices.Marshal]::FinalReleaseComObject($comObject)
+    }
+  }
+  [GC]::Collect()
+  [GC]::WaitForPendingFinalizers()
+}`
 
 const workbook = XLSX.utils.book_new()
 const addSheet = (name: string, rows: (string | number | null)[][]) => {
@@ -88,6 +132,31 @@ assert.ok(
   'negative OP remains valid'
 )
 
+const excelCalculationFixture: CostSnapshot = {
+  ...imported.snapshot,
+  id: 'excel-com-calculation-fixture',
+  product: {
+    ...imported.snapshot.product,
+    productName: 'Excel COM Calculation Fixture',
+    uom: 'PC',
+    sellingPrice: 150,
+    sgaPercent: 12
+  },
+  bom: [
+    { ...imported.snapshot.bom[0], id: 'bom-film', description: 'Film', consumption: 2, unit: 'KG', price: 10, loss: 0.1 },
+    { ...imported.snapshot.bom[0], id: 'bom-resin', description: 'Resin', consumption: 0.5, unit: 'KG', price: 20, loss: 0.05 }
+  ],
+  rates: [
+    { ...imported.snapshot.rates[0], id: 'wc-cut', workCenterCode: ' WC-1 ', laborRate: 100, burdenRate: 30 },
+    { ...imported.snapshot.rates[0], id: 'wc-assembly', workCenterCode: 'wc-2  ', laborRate: 80, burdenRate: 20 }
+  ],
+  routing: [
+    { ...imported.snapshot.routing[0], id: 'route-cut-1', processName: 'Cut 1', workCenterId: 'WC-1', manning: 2, capacity: 50, yield: 1 },
+    { ...imported.snapshot.routing[0], id: 'route-cut-2', processName: 'Cut 2', workCenterId: 'WC-1', manning: 1, capacity: 25, yield: 0.95 },
+    { ...imported.snapshot.routing[0], id: 'route-assembly', processName: 'Assembly', workCenterId: ' wc-2 ', manning: 1.5, capacity: 40, yield: 1 }
+  ]
+}
+
 function loadExcel(blob: Blob): Promise<ExcelJS.Workbook> {
   const result = new ExcelJS.Workbook()
   return blob.arrayBuffer().then(bytes => result.xlsx.load(Buffer.from(bytes)).then(() => result))
@@ -95,6 +164,44 @@ function loadExcel(blob: Blob): Promise<ExcelJS.Workbook> {
 
 function formulaAt(sheet: ExcelJS.Worksheet, address: string): string {
   return (sheet.getCell(address).value as { formula?: string } | null)?.formula ?? ''
+}
+
+type ExcelComEvaluation =
+  | { status: 'recalculated'; values: Record<string, unknown> }
+  | { status: 'environment-blocked'; reason: string }
+
+async function evaluateWorkbookWithExcelCom(blob: Blob): Promise<ExcelComEvaluation> {
+  const temporaryDirectory = await mkdtemp(join(tmpdir(), 'costbreakdown-excel-verifier-'))
+  const workbookPath = join(temporaryDirectory, 'export.xlsx')
+  const scriptPath = join(temporaryDirectory, 'recalculate.ps1')
+  try {
+    await writeFile(workbookPath, Buffer.from(await blob.arrayBuffer()))
+    await writeFile(scriptPath, EXCEL_COM_RECALC_SCRIPT, 'utf8')
+
+    let stdout: string
+    try {
+      const result = await execFileAsync('powershell.exe', [
+        '-NoLogo', '-NoProfile', '-NonInteractive', '-STA', '-ExecutionPolicy', 'Bypass',
+        '-File', scriptPath, '-WorkbookPath', workbookPath
+      ], { encoding: 'utf8', windowsHide: true, timeout: 60_000, maxBuffer: 1024 * 1024 })
+      stdout = result.stdout
+    } catch (error) {
+      if (typeof error === 'object' && error !== null && 'code' in error && error.code === 'ENOENT') {
+        return { status: 'environment-blocked', reason: 'Windows PowerShell is unavailable.' }
+      }
+      throw error
+    }
+
+    const outputLines = stdout.trim().split(/\r?\n/).filter(Boolean)
+    const jsonLine = outputLines[outputLines.length - 1]
+    assert.ok(jsonLine, 'Excel COM recalculation emits a structured result')
+    const result = JSON.parse(jsonLine) as ExcelComEvaluation
+    assert.ok(result.status === 'recalculated' || result.status === 'environment-blocked',
+      `Excel COM recalculation reports a recognized status: ${jsonLine}`)
+    return result
+  } finally {
+    await rm(temporaryDirectory, { recursive: true, force: true })
+  }
 }
 
 function visibleText(sheet: ExcelJS.Worksheet): string[] {
@@ -166,6 +273,12 @@ function assertWorkbookSurface(excel: ExcelJS.Workbook): void {
   const bom = excel.getWorksheet('BOM')!
   const workCenter = excel.getWorksheet('WORK_CENTER')!
   const routing = excel.getWorksheet('ROUTING')!
+  assert.equal(workCenter.getColumn(5).hidden, true, 'the normalized Work Center helper remains hidden')
+  const workCenterRowCount = tableDataRowCount(excel, 'WORK_CENTER', 'WorkCenterData')
+  for (let row = 4; row < 4 + workCenterRowCount; row += 1) {
+    assert.equal(formulaAt(workCenter, `E${row}`), `UPPER(TRIM(A${row}))`,
+      `hidden normalized Work Center key follows source row ${row}`)
+  }
   assert.deepEqual(bom.getRow(3).values.slice(1), ['Name', 'Usage', 'Unit', 'Price', 'Loss', 'Note'])
   assert.deepEqual(workCenter.getRow(3).values.slice(1), ['WC', 'Labor', 'Burden', 'Note'])
   assert.deepEqual(routing.getRow(3).values.slice(1), ['Process', 'WC', 'Manning', 'Cap', 'Yield', 'Note'])
@@ -203,6 +316,10 @@ function assertWorkbookSurface(excel: ExcelJS.Workbook): void {
   assert.match(formulas[1], /RoutingData\[Manning\].*RoutingData\[Cap\].*RoutingData\[Yield\]/)
   assert.match(formulas[1], /WorkCenterData\[Labor\].*SUMIF/)
   assert.match(formulas[2], /WorkCenterData\[Burden\].*SUMIF/)
+  assert.match(formulas[1], /NormalizedWorkCenterCodes.*UPPER\(TRIM\(RoutingData\[WC\]\)\)/,
+    'Labor matches trimmed and case-normalized source and Routing keys')
+  assert.match(formulas[2], /NormalizedWorkCenterCodes.*UPPER\(TRIM\(RoutingData\[WC\]\)\)/,
+    'Burden matches trimmed and case-normalized source and Routing keys')
   assert.match(formulas[3], /B9.*B10.*B11/)
   assert.match(formulas[4], /B5.*B6.*\/100/)
   assert.match(formulas[5], /B5.*B12.*B13/)
@@ -244,6 +361,41 @@ async function verify(): Promise<void> {
   assert.equal(roundTrip.snapshot.rates[0].note, imported.snapshot!.rates[0].note)
   assert.equal(roundTrip.snapshot.routing[0].note, imported.snapshot!.routing[0].note)
 
+  const calculationWorkbook = await exportSnapshotToExcel(excelCalculationFixture)
+  const excelEvaluation = await evaluateWorkbookWithExcelCom(calculationWorkbook)
+  if (excelEvaluation.status === 'environment-blocked') {
+    console.error(`ENVIRONMENT-BLOCKED: Excel COM runtime calculation was not verified: ${excelEvaluation.reason}`)
+    process.exitCode = 2
+  } else {
+    const runtimeCost = calculateSnapshotCost(excelCalculationFixture)
+    assert.equal(runtimeCost.status, 'complete', 'the multi-row Excel fixture has complete canonical inputs')
+    const runtimeBusiness = calculateScenarioBusinessMetrics({
+      sellingPrice: excelCalculationFixture.product.sellingPrice ?? null,
+      sgaPercent: excelCalculationFixture.product.sgaPercent ?? null
+    }, runtimeCost.total)
+    const expectedMetaResults = [
+      ['MAT', runtimeCost.material],
+      ['LABOR', runtimeCost.labor],
+      ['BURDEN', runtimeCost.burden],
+      ['STANDARD COST', runtimeCost.total],
+      ['SG&A AMOUNT', runtimeBusiness.sgaAmountPerPiece],
+      ['OP', runtimeBusiness.operatingProfitPerPiece]
+    ] as const
+    for (const [index, [label, expected]] of expectedMetaResults.entries()) {
+      const address = `B${index + 9}`
+      const actual = excelEvaluation.values[address]
+      assert.equal(typeof actual, 'number', `Excel-calculated META ${label} at ${address} is numeric (Excel returned ${String(actual)})`)
+      assert.ok(Number.isFinite(actual), `Excel-calculated META ${label} at ${address} is finite`)
+      assert.ok(Math.abs((actual as number) - (expected ?? Number.NaN)) <= 1e-8 * Math.max(1, Math.abs(expected ?? 0)),
+        `Excel-calculated META ${label} at ${address} matches the canonical application calculation`)
+    }
+    const calculationExport = await loadExcel(calculationWorkbook)
+    assert.equal(calculationExport.getWorksheet('WORK_CENTER')!.getCell('A4').value, ' WC-1 ',
+      'calculation helper does not rewrite the exported Work Center identity')
+    assert.equal(calculationExport.getWorksheet('WORK_CENTER')!.getCell('A5').value, 'wc-2  ',
+      'calculation helper does not rewrite case or whitespace in exported identities')
+  }
+
   const emptyExport = await exportSnapshotToExcel({
     ...imported.snapshot!,
     bom: [],
@@ -278,7 +430,11 @@ async function verify(): Promise<void> {
   ] as const) {
     assert.equal(tableDataRowCount(template, sheetName, tableName), count)
     for (let row = 4; row < 4 + count; row += 1) {
-      assert.ok(template.getWorksheet(sheetName)!.getRow(row).values.slice(1).every(value => value === null || value === undefined || value === ''))
+      const visibleColumns = template.getWorksheet(sheetName)!.getRow(row).values.slice(
+        1,
+        sheetName === 'WORK_CENTER' ? 5 : undefined
+      )
+      assert.ok(visibleColumns.every(value => value === null || value === undefined || value === ''))
     }
   }
 
@@ -383,7 +539,11 @@ async function verify(): Promise<void> {
   assert.equal(calculateSnapshotCost(incomplete).material, null, 'the application engine keeps incomplete material cost unavailable')
   assert.equal(calculateSnapshotCost(incomplete).total, null)
 
-  console.log('Neutral Master Data workbook verification passed.')
+  if (process.exitCode === 2) {
+    console.log('Neutral Master Data workbook structural checks passed; Excel COM runtime calculation is environment-blocked.')
+  } else {
+    console.log('Neutral Master Data workbook verification passed, including Excel COM runtime calculation.')
+  }
 }
 
 verify().catch(error => {

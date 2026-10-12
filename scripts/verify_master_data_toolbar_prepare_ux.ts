@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict'
-import type { CostSnapshot, SnapshotPair } from '../src/core/types'
+import type { CostSnapshot, DatasetSizing, SnapshotPair } from '../src/core/types'
 import {
   getDatasetSaveState,
   isProductMismatch,
@@ -8,6 +8,7 @@ import {
 import {
   filterInvalidMasterDataNumericChanges,
   getMasterDataSnapshotValidationErrors,
+  isMasterDataNumericInputValid,
   isMasterDataSnapshotChangeValid
 } from '../src/core/utils/master-data-validation'
 import {
@@ -21,6 +22,8 @@ import {
   MASTER_DATA_WARNING_CATEGORY_DEFINITIONS
 } from '../src/features/master-data/prepare-dataset'
 import { getPopulatedRowsRemovedBySizing } from '../src/state/dataset-sizing'
+import { assertDatasetSizingCounts, DATASET_SIZING_LIMITS } from '../src/core/utils/sizing'
+import { parseNumericDraft } from '../src/shared/ui/numeric-input-rules'
 
 function snapshot(id: string): CostSnapshot {
   return {
@@ -179,16 +182,133 @@ assert.equal(areMasterDataDatasetsReady(readyHandoff, blockerItems), false,
 assert.equal(areMasterDataDatasetsReady({ ...readyHandoff, currentReady: false }, []), false,
   'shared readiness requires both existing dataset readiness states')
 
+for (const [field, maximum] of Object.entries(DATASET_SIZING_LIMITS) as [keyof DatasetSizing, number][]) {
+  assert.throws(() => assertDatasetSizingCounts({ [field]: 0 }), RangeError,
+    `${field} rejects an explicit zero count`)
+  assert.doesNotThrow(() => assertDatasetSizingCounts({ [field]: 1 }),
+    `${field} accepts the minimum configured count`)
+  assert.doesNotThrow(() => assertDatasetSizingCounts({ [field]: maximum }),
+    `${field} accepts its configured maximum ${maximum}`)
+  assert.throws(() => assertDatasetSizingCounts({ [field]: maximum + 1 }), RangeError,
+    `${field} rejects one above its configured maximum`)
+  assert.throws(() => assertDatasetSizingCounts({ [field]: 1.5 }), RangeError,
+    `${field} rejects fractional row counts`)
+
+  const omittedSizing: DatasetSizing = {}
+  assert.doesNotThrow(() => assertDatasetSizingCounts(omittedSizing),
+    `${field} remains unset when omitted`)
+  assert.equal(Object.prototype.hasOwnProperty.call(omittedSizing, field), false,
+    `${field} is not materialized when omitted`)
+  const undefinedSizing = { [field]: undefined } as DatasetSizing
+  assert.doesNotThrow(() => assertDatasetSizingCounts(undefinedSizing),
+    `${field} accepts an explicitly undefined/unset count`)
+  assert.equal(undefinedSizing[field], undefined,
+    `${field} remains unset after validation`)
+}
+
 const validationBase = snapshot('validation-base')
 validationBase.rates = [{ id: 'wc-valid', workCenterCode: 'WC-1', description: '', laborRate: 1, burdenRate: 1, effectiveDate: '', confidence: {} }]
 validationBase.bom = [{ id: 'bom-valid', itemCode: '', description: 'Material', consumption: 1, unit: 'PC', price: 1, loss: 0, confidence: {} }]
 validationBase.routing = [{ id: 'routing-valid', processName: 'Cut', workCenterId: 'WC-1', manning: 1, capacity: 1, yield: 1, confidence: {} }]
+const metadataNumericDomain = { min: 0, precision: 2 }
+for (const field of ['Selling Price', 'SG&A'] as const) {
+  assert.equal(parseNumericDraft('0', metadataNumericDomain).kind, 'valid', `${field} accepts zero`)
+  assert.equal(parseNumericDraft('0.01', metadataNumericDomain).kind, 'valid', `${field} accepts the editor's 0.01 precision boundary`)
+  assert.equal(parseNumericDraft('0.001', metadataNumericDomain).kind, 'invalid', `${field} rejects precision beyond the editor's two decimals`)
+  assert.notEqual(parseNumericDraft('-0.01', metadataNumericDomain).kind, 'valid', `${field} rejects negative input`)
+  assert.equal(parseNumericDraft('NaN', metadataNumericDomain).kind, 'invalid', `${field} rejects NaN input`)
+  assert.equal(parseNumericDraft('Infinity', metadataNumericDomain).kind, 'invalid', `${field} rejects Infinity input`)
+}
+assert.equal(parseNumericDraft('100', metadataNumericDomain).kind, 'valid', 'SG&A accepts 100%')
+assert.equal(parseNumericDraft('100.01', metadataNumericDomain).kind, 'valid', 'SG&A does not invent a 100% maximum')
+
+for (const field of ['sellingPrice', 'sgaPercent'] as const) {
+  const negativeMetadata = structuredClone(validationBase)
+  negativeMetadata.product[field] = -0.01
+  assert.equal(isMasterDataSnapshotChangeValid(validationBase, negativeMetadata), false,
+    `the central Working state-change guard rejects negative ${field}`)
+}
+const nullableMetadataBefore = structuredClone(validationBase)
+nullableMetadataBefore.product.sellingPrice = 123.45
+nullableMetadataBefore.product.sgaPercent = 8
+const nullableMetadataAfter = structuredClone(nullableMetadataBefore)
+nullableMetadataAfter.product.sellingPrice = null
+nullableMetadataAfter.product.sgaPercent = null
+assert.equal(isMasterDataSnapshotChangeValid(nullableMetadataBefore, nullableMetadataAfter), true,
+  'the central Working state-change guard preserves nullable blank Selling Price and SG&A metadata')
+
+const scalarNumericFields = ['sellingPrice', 'sgaPercent', 'consumption', 'price', 'laborRate', 'burdenRate', 'manning'] as const
+for (const field of scalarNumericFields) {
+  assert.equal(isMasterDataNumericInputValid(field, 0), true, `${field} accepts an explicitly entered zero`)
+  assert.equal(isMasterDataNumericInputValid(field, 0.01), true, `${field} accepts its two-decimal display boundary`)
+  assert.equal(isMasterDataNumericInputValid(field, 0.001), false, `${field} rejects precision that cannot be represented by its editor`)
+  assert.equal(isMasterDataNumericInputValid(field, -0.01), false, `${field} rejects negative values`)
+  assert.equal(isMasterDataNumericInputValid(field, Number.NaN), false, `${field} rejects NaN`)
+  assert.equal(isMasterDataNumericInputValid(field, Number.POSITIVE_INFINITY), false, `${field} rejects Infinity`)
+  assert.equal(isMasterDataNumericInputValid(field, '1.00'), false, `${field} rejects numeric strings at the typed-value boundary`)
+}
+assert.equal(isMasterDataNumericInputValid('sgaPercent', 100), true, 'SG&A accepts 100%')
+assert.equal(isMasterDataNumericInputValid('sgaPercent', 100.01), true, 'SG&A accepts values above 100% without an invented ceiling')
+assert.equal(isMasterDataNumericInputValid('capacity', 0.01), true, 'Capacity accepts a positive two-decimal boundary')
+assert.equal(isMasterDataNumericInputValid('capacity', 0), false, 'Capacity rejects zero')
+assert.equal(isMasterDataNumericInputValid('capacity', 0.001), false, 'Capacity rejects unsupported decimal precision')
+assert.equal(isMasterDataNumericInputValid('loss', 0), true, 'Loss accepts zero')
+assert.equal(isMasterDataNumericInputValid('loss', 0.0001), true, 'Loss accepts the 0.01 percentage-point input step')
+assert.equal(isMasterDataNumericInputValid('loss', 0.00001), false, 'Loss rejects values finer than its displayed percentage step')
+assert.equal(isMasterDataNumericInputValid('yield', 0.0001), true, 'Yield accepts the smallest positive 0.01 percentage-point step')
+assert.equal(isMasterDataNumericInputValid('yield', 1), true, 'Yield accepts the inclusive 100% boundary')
+assert.equal(isMasterDataNumericInputValid('yield', 0), false, 'Yield rejects zero')
+assert.equal(isMasterDataNumericInputValid('yield', 1.0001), false, 'Yield rejects values above 100%')
+assert.equal(isMasterDataNumericInputValid('yield', 0.00001), false, 'Yield rejects values finer than its displayed percentage step')
+
+const domainFieldCases = [
+  { label: 'Usage', apply: (target: CostSnapshot, value: number) => { target.bom[0].consumption = value } },
+  { label: 'Price', apply: (target: CostSnapshot, value: number) => { target.bom[0].price = value } },
+  { label: 'Loss', apply: (target: CostSnapshot, value: number) => { target.bom[0].loss = value } },
+  { label: 'Labor Rate', apply: (target: CostSnapshot, value: number) => { target.rates[0].laborRate = value } },
+  { label: 'Burden Rate', apply: (target: CostSnapshot, value: number) => { target.rates[0].burdenRate = value } },
+  { label: 'Manning', apply: (target: CostSnapshot, value: number) => { target.routing[0].manning = value } },
+  { label: 'Capacity', apply: (target: CostSnapshot, value: number) => { target.routing[0].capacity = value } },
+  { label: 'Yield', apply: (target: CostSnapshot, value: number) => { target.routing[0].yield = value } }
+] as const
+for (const { label, apply } of domainFieldCases) {
+  for (const invalidValue of [Number.NaN, Number.POSITIVE_INFINITY, -0.01]) {
+    const changed = structuredClone(validationBase)
+    apply(changed, invalidValue)
+    assert.equal(isMasterDataSnapshotChangeValid(validationBase, changed), false, `${label} Working ingress rejects ${String(invalidValue)}`)
+    assert.ok(getMasterDataSnapshotValidationErrors(changed).length > 0, `${label} import validation reports ${String(invalidValue)}`)
+  }
+}
+for (const [field, apply] of [
+  ['Capacity', (target: CostSnapshot) => { target.routing[0].capacity = 0 }],
+  ['Yield', (target: CostSnapshot) => { target.routing[0].yield = 0 }],
+  ['Yield', (target: CostSnapshot) => { target.routing[0].yield = 1.01 }]
+] as const) {
+  const changed = structuredClone(validationBase)
+  apply(changed)
+  assert.equal(isMasterDataSnapshotChangeValid(validationBase, changed), false, `${field} Working ingress rejects its invalid domain boundary`)
+  assert.ok(getMasterDataSnapshotValidationErrors(changed).length > 0, `${field} import validation reports its invalid domain boundary`)
+}
+for (const [field, apply] of [
+  ['Usage', (target: CostSnapshot) => { target.bom[0].consumption = 0 }],
+  ['Price', (target: CostSnapshot) => { target.bom[0].price = 0 }],
+  ['Loss', (target: CostSnapshot) => { target.bom[0].loss = 0 }],
+  ['Labor Rate', (target: CostSnapshot) => { target.rates[0].laborRate = 0 }],
+  ['Burden Rate', (target: CostSnapshot) => { target.rates[0].burdenRate = 0 }],
+  ['Manning', (target: CostSnapshot) => { target.routing[0].manning = 0 }]
+] as const) {
+  const changed = structuredClone(validationBase)
+  apply(changed)
+  assert.equal(isMasterDataSnapshotChangeValid(validationBase, changed), true, `${field} Working ingress accepts a valid zero`)
+  assert.deepEqual(getMasterDataSnapshotValidationErrors(changed), [], `${field} import validation accepts a valid zero`)
+}
+
 const invalidNumericChange = structuredClone(validationBase)
 invalidNumericChange.bom[0].consumption = -1
 assert.equal(isMasterDataSnapshotChangeValid(validationBase, invalidNumericChange), false,
   'normal Working updates reject newly introduced negative numbers')
-assert.deepEqual(filterInvalidMasterDataNumericChanges({ consumption: Number.NaN, note: 'keep this edit' }), { note: 'keep this edit' },
-  'a mixed multi-cell paste can retain valid fields while dropping an invalid numeric cell')
+assert.deepEqual(filterInvalidMasterDataNumericChanges({ consumption: Number.NaN, price: 0.001, note: 'keep this edit' }), { note: 'keep this edit' },
+  'a mixed multi-cell paste drops non-finite and unsupported-precision numeric fields while retaining the valid text edit')
 const invalidCapacityChange = structuredClone(validationBase)
 invalidCapacityChange.routing[0].capacity = 0
 assert.equal(isMasterDataSnapshotChangeValid(validationBase, invalidCapacityChange), false,
@@ -213,7 +333,7 @@ const blankWorkCenterChange = structuredClone(validationBase)
 blankWorkCenterChange.routing[0].workCenterId = ''
 assert.equal(isMasterDataSnapshotChangeValid(validationBase, blankWorkCenterChange), true,
   'blank Routing Work Center remains allowed and can be reported as Missing required value')
-assert.ok(getMasterDataSnapshotValidationErrors(invalidYieldChange).some(error => error.includes('yield')),
+assert.ok(getMasterDataSnapshotValidationErrors(invalidYieldChange).some(error => /yield/i.test(error)),
   'import validation rejects invalid values before they become Working data')
 assert.ok(getMasterDataSnapshotValidationErrors(unknownWorkCenterChange).some(error => error.includes('Unknown Work Center')),
   'import validation rejects unavailable nonblank Routing Work Center references')
