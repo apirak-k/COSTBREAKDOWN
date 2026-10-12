@@ -4,48 +4,6 @@ import type { CostComparison } from '../../../core'
 import { ALL_COMPARISON_STATUSES, isVisibleInComparisonView } from './comparison-view'
 import type { ComparisonViewMode } from './comparison-view'
 
-export type SnapshotQuality = 'Verified' | 'Estimated' | 'Missing'
-
-export interface SnapshotComparisonSummary {
-  quality: SnapshotQuality
-  missingCount: number
-  estimatedCount: number
-  warningCount: number
-  matchedCount: number
-  reviewCount: number
-}
-
-function getSnapshotWarnings(comparison: CostComparison) {
-  return comparison.warnings
-}
-
-export function summarizeSnapshotComparison(comparison: CostComparison, _selectedComparison = false): SnapshotComparisonSummary {
-  const findings = [
-    ...comparison.bomFindings,
-    ...comparison.routingFindings
-  ]
-  const warnings = getSnapshotWarnings(comparison)
-  const missingCount = findings.filter(finding => finding.confidence === 'missing').length
-  const estimatedCount = findings.filter(finding => finding.confidence === 'estimated').length
-  const matchedCount = findings.filter(finding => finding.matchStatus === 'matched').length
-  const reviewCount = findings.filter(finding => finding.matchStatus === 'ambiguous' || finding.matchStatus === 'unmatched' || finding.reviewRequired).length
-  const hasMissingCost = comparison.referenceCost.status === 'missing' || comparison.currentCost.status === 'missing'
-  const hasEstimatedCost = comparison.referenceCost.status === 'estimated' || comparison.currentCost.status === 'estimated'
-
-  return {
-    quality: hasMissingCost || missingCount > 0
-      ? 'Missing'
-      : hasEstimatedCost || estimatedCount > 0
-      ? 'Estimated'
-      : 'Verified',
-    missingCount,
-    estimatedCount,
-    warningCount: warnings.length,
-    matchedCount,
-    reviewCount
-  }
-}
-
 interface SnapshotComparisonCardProps {
   comparison: CostComparison
   selectedComparison?: boolean
@@ -88,8 +46,7 @@ export const SnapshotComparisonCard: React.FC<SnapshotComparisonCardProps> = ({
   comparisonView = ALL_COMPARISON_STATUSES,
   onOpenDetail = () => undefined
 }) => {
-  const summary = summarizeSnapshotComparison(comparison)
-  const warnings = getSnapshotWarnings(comparison)
+  const warnings = comparison.warnings
   const standardCostGap = comparison.totalGap
   const referenceConversion = addCosts(comparison.referenceCost.labor, comparison.referenceCost.burden)
   const currentConversion = addCosts(comparison.currentCost.labor, comparison.currentCost.burden)
@@ -175,17 +132,16 @@ export const SnapshotComparisonCard: React.FC<SnapshotComparisonCardProps> = ({
         </div>
       </section>
 
-      <div className="lg:col-span-2 flex flex-col gap-1 border border-slate-200 bg-slate-50 px-3 py-2 text-[11px] sm:flex-row sm:items-center sm:justify-between">
-        <span className="text-slate-700">Data quality: {summary.quality} · {summary.matchedCount} matched · {summary.reviewCount} review · {summary.missingCount} missing · {summary.estimatedCount} estimated</span>
-        {warnings.length > 0 && (
+      {warnings.length > 0 && (
+        <div className="lg:col-span-2 flex flex-col gap-1 border border-slate-200 bg-slate-50 px-3 py-2 text-[11px] sm:flex-row sm:items-center sm:justify-between">
           <details className="sm:ml-auto">
-            <summary className="cursor-pointer font-semibold text-amber-950 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700">Review warnings ({summary.warningCount})</summary>
+            <summary className="cursor-pointer font-semibold text-amber-950 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700">Review warnings ({warnings.length})</summary>
             <ul className="mt-2 space-y-1 border-t border-amber-200 pt-2 text-xs leading-5 text-amber-950">
               {warnings.map((warning, index) => <li key={`${warning.code}-${warning.referenceId ?? warning.currentId ?? index}`}>{warning.message}</li>)}
             </ul>
           </details>
-        )}
-      </div>
+        </div>
+      )}
     </div>
   )
 }

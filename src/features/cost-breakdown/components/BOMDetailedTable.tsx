@@ -9,9 +9,7 @@ import {
   getComparisonFindingKey
 } from '../../../core'
 import type { ComparisonFinding, ComparisonStatus, SnapshotBOMItem } from '../../../core'
-import { ConfidenceBadge } from '../../../shared/ui/ConfidenceBadge'
 import { ComparisonFieldDetails } from './ComparisonFieldDetails'
-import { DataQualityPairBadge } from './DataQualityPairBadge'
 
 export interface BOMItemizedRow {
   key: string
@@ -35,8 +33,8 @@ export function getBOMComparisonLabel(finding: ComparisonFinding): ComparisonSta
   return getComparisonStatusLabels(finding)[0] ?? null
 }
 
-function ratio(numerator: number, denominator: number | null): string {
-  return !Number.isFinite(numerator) || denominator === null || !Number.isFinite(denominator) || denominator === 0
+function ratio(numerator: number | null, denominator: number | null): string {
+  return numerator === null || !Number.isFinite(numerator) || denominator === null || !Number.isFinite(denominator) || denominator === 0
     ? '—'
     : formatPercent(numerator / denominator, 2)
 }
@@ -111,13 +109,6 @@ export function BOMRecordDetails({ row, standardCostGap }: BOMRecordDetailsProps
 
   return (
     <div className="space-y-3">
-      <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-[11px]">
-        <span className="font-semibold text-slate-600">Data quality</span>
-        <DataQualityPairBadge reference={reference} current={current} />
-        <span className="font-semibold text-slate-600">Confidence</span>
-        <ConfidenceBadge status={finding?.confidence ?? 'missing'} showLabel />
-      </div>
-
       <div className="overflow-x-auto">
         <table className="w-full min-w-[540px] text-left text-xs">
           <caption className="sr-only">BOM parameters by Reference and Current</caption>
@@ -152,6 +143,7 @@ export function BOMRecordDetails({ row, standardCostGap }: BOMRecordDetailsProps
                 <thead><tr className="bg-slate-100 font-semibold text-slate-700"><th scope="col" className="px-2.5 py-1.5">Parameter</th><th scope="col" className="px-2.5 py-1.5 text-right">Effect · THB/pc</th><th scope="col" className="px-2.5 py-1.5 text-right">% Parent</th><th scope="col" className="px-2.5 py-1.5 text-right">% Total</th></tr></thead>
                 <tbody className="divide-y divide-slate-200 font-mono tabular-nums">
                   {effectRows.map(item => <tr key={item.label}><th scope="row" className="px-2.5 py-1.5 font-sans font-medium text-slate-700">{item.label}</th><td className="px-2.5 py-1.5 text-right">{formatVariance(item.value, 4)}</td><td className="px-2.5 py-1.5 text-right">{ratio(item.value, row.gap)}</td><td className="px-2.5 py-1.5 text-right">{ratio(item.value, standardCostGap)}</td></tr>)}
+                  <tr className="bg-slate-50 font-semibold"><th scope="row" className="px-2.5 py-1.5 font-sans text-slate-800">Total</th><td className="px-2.5 py-1.5 text-right">{formatNullable(row.gap, value => formatVariance(value, 4))}</td><td className="px-2.5 py-1.5 text-right">{ratio(row.gap, row.gap)}</td><td className="px-2.5 py-1.5 text-right">{ratio(row.gap, standardCostGap)}</td></tr>
                 </tbody>
               </table>
             </div>

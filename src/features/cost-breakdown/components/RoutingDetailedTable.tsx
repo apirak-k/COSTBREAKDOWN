@@ -9,10 +9,7 @@ import {
   getComparisonFindingKey
 } from '../../../core'
 import type { ComparisonFinding, ComparisonStatus, SnapshotRoutingStep, SnapshotWorkCenterRate } from '../../../core'
-import { ConfidenceBadge } from '../../../shared/ui/ConfidenceBadge'
 import { ComparisonFieldDetails } from './ComparisonFieldDetails'
-import { DataQualityPairBadge } from './DataQualityPairBadge'
-import { getRoutingDataQuality } from './data-quality'
 
 export interface RoutingItemizedRow {
   key: string
@@ -180,18 +177,6 @@ export function RoutingRecordDetails({ row, referenceRates, currentRates, standa
 
   return (
     <div className="space-y-3">
-      <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-[11px]">
-        <span className="font-semibold text-slate-600">Data quality</span>
-        <DataQualityPairBadge
-          reference={reference}
-          current={current}
-          referenceQualityOverride={getRoutingDataQuality(reference, referenceRates)}
-          currentQualityOverride={getRoutingDataQuality(current, currentRates)}
-        />
-        <span className="font-semibold text-slate-600">Confidence</span>
-        <ConfidenceBadge status={finding?.confidence ?? 'missing'} showLabel />
-      </div>
-
       <div className="overflow-x-auto">
         <table className="w-full min-w-[620px] text-left text-xs">
           <caption className="sr-only">Routing parameters and snapshot-specific Work Center rates</caption>
@@ -234,6 +219,7 @@ export function RoutingRecordDetails({ row, referenceRates, currentRates, standa
                 <thead><tr className="bg-slate-100 font-semibold text-slate-700"><th scope="col" rowSpan={2} className="px-2 py-1.5">Factor</th><th scope="colgroup" colSpan={3} className="border-l border-slate-300 px-2 py-1.5 text-center">Labor</th><th scope="colgroup" colSpan={3} className="border-l border-slate-300 px-2 py-1.5 text-center">Burden</th><th scope="colgroup" colSpan={3} className="border-l border-slate-300 px-2 py-1.5 text-center">Conversion</th></tr><tr className="bg-slate-100 font-medium text-slate-600"><th scope="col" className="border-l border-slate-300 px-2 py-1">Effect</th><th scope="col" className="px-2 py-1">% Parent</th><th scope="col" className="px-2 py-1">% Total</th><th scope="col" className="border-l border-slate-300 px-2 py-1">Effect</th><th scope="col" className="px-2 py-1">% Parent</th><th scope="col" className="px-2 py-1">% Total</th><th scope="col" className="border-l border-slate-300 px-2 py-1">Effect</th><th scope="col" className="px-2 py-1">% Parent</th><th scope="col" className="px-2 py-1">% Total</th></tr></thead>
                 <tbody className="divide-y divide-slate-200 font-mono tabular-nums">
                   {rows.map(item => <tr key={item.key}><th scope="row" className="px-2 py-1.5 font-sans font-medium text-slate-700">{item.label}</th><EffectCells value={item.labor} parentGap={row.laborGap} standardCostGap={standardCostGap} /><EffectCells value={item.burden} parentGap={row.burdenGap} standardCostGap={standardCostGap} /><EffectCells value={item.conversion} parentGap={row.conversionGap} standardCostGap={standardCostGap} /></tr>)}
+                  <tr className="bg-slate-50 font-semibold"><th scope="row" className="px-2 py-1.5 font-sans text-slate-800">Total</th><EffectCells value={row.laborGap} parentGap={row.laborGap} standardCostGap={standardCostGap} /><EffectCells value={row.burdenGap} parentGap={row.burdenGap} standardCostGap={standardCostGap} /><EffectCells value={row.conversionGap} parentGap={row.conversionGap} standardCostGap={standardCostGap} /></tr>
                 </tbody>
               </table>
             </div>
@@ -248,6 +234,6 @@ function CostRow({ label, reference, current, gap, standardCostGap, parentGap }:
   return <tr><th scope="row" className="px-2 py-1.5 font-sans font-medium text-slate-700">{label}</th><td className="px-2 py-1.5 text-right">{formatNullable(reference, value => formatNumber(value, 4))}</td><td className="px-2 py-1.5 text-right">{formatNullable(current, value => formatNumber(value, 4))}</td><td className="px-2 py-1.5 text-right">{formatNullable(gap, value => formatVariance(value, 4))}</td><td className="px-2 py-1.5 text-right">{ratio(gap, standardCostGap)}</td><td className="px-2 py-1.5 text-right">{ratio(gap, parentGap)}</td></tr>
 }
 
-function EffectCells({ value, parentGap, standardCostGap }: { value: number; parentGap: number | null; standardCostGap: number | null }) {
-  return <><td className="border-l border-slate-200 px-2 py-1.5 text-right">{formatVariance(value, 4)}</td><td className="px-2 py-1.5 text-right">{ratio(value, parentGap)}</td><td className="px-2 py-1.5 text-right">{ratio(value, standardCostGap)}</td></>
+function EffectCells({ value, parentGap, standardCostGap }: { value: number | null; parentGap: number | null; standardCostGap: number | null }) {
+  return <><td className="border-l border-slate-200 px-2 py-1.5 text-right">{formatNullable(value, item => formatVariance(item, 4))}</td><td className="px-2 py-1.5 text-right">{ratio(value, parentGap)}</td><td className="px-2 py-1.5 text-right">{ratio(value, standardCostGap)}</td></>
 }
