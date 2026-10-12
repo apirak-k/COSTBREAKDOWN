@@ -44,6 +44,8 @@ export function NumericInput({
   const inputRef = useRef<HTMLInputElement>(null)
   const currentValueRef = useRef(value)
   const onValueChangeRef = useRef(onValueChange)
+  const previousValueRef = useRef(value)
+  const previousFormattedValueRef = useRef(formatNumericInputValue(value, domain))
   const preservedPlaceRef = useRef<{ raw: string; caret: number; place: NumericStepPlace } | null>(null)
   const restorePlaceRef = useRef<number | null>(null)
   const [focused, setFocused] = useState(false)
@@ -53,8 +55,19 @@ export function NumericInput({
   onValueChangeRef.current = onValueChange
 
   useEffect(() => {
-    if (!focused) setDraft(formatNumericInputValue(value, domain))
-  }, [focused, value, integer, precision, min, max, minExclusive])
+    const formattedValue = formatNumericInputValue(value, domain)
+    const valueChanged = !Object.is(previousValueRef.current, value)
+
+    // Clipboard edits update the parent value without going through this input's
+    // onChange handler. Keep the focused editor in sync when it still shows the
+    // previous committed value, while preserving an in-progress numeric draft.
+    if (!focused || (valueChanged && draft === previousFormattedValueRef.current)) {
+      setDraft(formattedValue)
+    }
+
+    previousValueRef.current = value
+    previousFormattedValueRef.current = formattedValue
+  }, [draft, focused, value, integer, precision, min, max, minExclusive])
 
   useIsomorphicLayoutEffect(() => {
     const exponent = restorePlaceRef.current

@@ -75,6 +75,7 @@ export const MasterDataPage: React.FC<MasterDataPageProps> = ({
   const [sizingModalOpen, setSizingModalOpen] = useState(false)
   const [showWarningHighlights, setShowWarningHighlights] = useState(true)
   const [warningNavigation, setWarningNavigation] = useState<(WarningNavigationTarget & MasterDataQualityItem) | undefined>()
+  const [activeCellSelectionOwnerKey, setActiveCellSelectionOwnerKey] = useState<string | null>(null)
 
   const isEditMode = masterDataUiState.mode === 'edit'
   const isAllTablesVisible = masterDataUiState.tableView === 'all'
@@ -124,6 +125,12 @@ export const MasterDataPage: React.FC<MasterDataPageProps> = ({
   }, [prepareDatasetNavigationRequest?.requestId, setMasterDataRole, updateMasterDataUiState])
 
   const renderTable = (table: TableSubTab) => {
+    const selectionOwnerScopeKey = `${masterDataRole}:${table}`
+    const cellSelectionOwnerProps = {
+      selectionOwnerScopeKey,
+      activeSelectionOwnerKey: activeCellSelectionOwnerKey,
+      onCellInteraction: (field: string) => setActiveCellSelectionOwnerKey(`${selectionOwnerScopeKey}:${field}`)
+    }
     const warningNavigationTarget = warningNavigation?.table === table ? warningNavigation : undefined
     const tableWarnings = warningItemsByTable[table]
     const tableBlockers = blockerItemsByTable[table]
@@ -141,6 +148,7 @@ export const MasterDataPage: React.FC<MasterDataPageProps> = ({
           routing={masterDataSnapshot.routing}
           isEditMode={isEditMode}
           historyScope={masterDataRole}
+          {...cellSelectionOwnerProps}
           searchQuery={searchQuery}
           onSearchQueryChange={onSearchQueryChange}
           showWarningHighlights={showWarningHighlights}
@@ -170,6 +178,7 @@ export const MasterDataPage: React.FC<MasterDataPageProps> = ({
           bom={masterDataSnapshot.bom}
           isEditMode={isEditMode}
           historyScope={masterDataRole}
+          {...cellSelectionOwnerProps}
           searchQuery={searchQuery}
           onSearchQueryChange={onSearchQueryChange}
           showWarningHighlights={showWarningHighlights}
@@ -200,6 +209,7 @@ export const MasterDataPage: React.FC<MasterDataPageProps> = ({
         rates={masterDataSnapshot.rates}
         isEditMode={isEditMode}
         historyScope={masterDataRole}
+        {...cellSelectionOwnerProps}
         searchQuery={searchQuery}
         onSearchQueryChange={onSearchQueryChange}
         showWarningHighlights={showWarningHighlights}

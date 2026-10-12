@@ -29,14 +29,6 @@ export const masterDataTableClass = 'w-full min-w-[77rem] table-fixed border-col
 
 export const masterDataPercentageShellClass = 'mx-auto flex h-8 w-28 min-w-0 items-center gap-1'
 
-export const masterDataPercentageInputShellClass = 'relative flex h-8 min-w-0 flex-1 items-center rounded-sm border border-transparent transition-colors focus-within:!border-transparent focus-within:!outline focus-within:!outline-2 focus-within:!outline-blue-700 focus-within:!outline-offset-[-2px]'
-
-export const masterDataPercentageIssueShellClass = '!border-amber-300 !bg-amber-50'
-
-export const masterDataPercentageEditorClass = `${masterDataNumericEditorClass} !border-transparent hover:!border-transparent !bg-transparent hover:!bg-transparent focus:!bg-transparent focus:!outline-none focus:!ring-0`
-
-export const masterDataPercentageDisplayValueClass = 'flex h-full min-w-0 items-center justify-center rounded-sm px-1 font-mono text-xs tabular-nums text-slate-900'
-
 export const masterDataDisplaySlotClass = `flex h-8 w-full min-w-0 items-center rounded-sm border border-transparent px-2 text-xs text-slate-900 ${masterDataCellFocusClass}`
 
-export const masterDataNumericDisplaySlotClass = `relative inline-flex h-8 items-center justify-center rounded-sm border border-transparent px-1.5 font-mono text-xs tabular-nums text-slate-900 ${masterDataCellFocusClass}`
+export const masterDataNumericDisplaySlotClass = `relative flex h-8 w-full min-w-0 items-center justify-center rounded-sm border border-transparent px-1.5 font-mono text-xs tabular-nums text-slate-900 ${masterDataCellFocusClass}`

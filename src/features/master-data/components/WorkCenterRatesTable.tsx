@@ -19,6 +19,9 @@ interface WorkCenterRatesTableProps {
   routing: SnapshotRoutingStep[]
   isEditMode?: boolean
   historyScope: string
+  selectionOwnerScopeKey: string
+  activeSelectionOwnerKey: string | null
+  onCellInteraction: (field: string) => void
   searchQuery?: string
   onSearchQueryChange?: (query: string) => void
   showWarningHighlights?: boolean
@@ -47,6 +50,9 @@ export const WorkCenterRatesTable: React.FC<WorkCenterRatesTableProps> = ({
   routing,
   isEditMode = false,
   historyScope,
+  selectionOwnerScopeKey,
+  activeSelectionOwnerKey,
+  onCellInteraction,
   searchQuery = '',
   onSearchQueryChange = () => undefined,
   showWarningHighlights = true,
@@ -176,6 +182,9 @@ export const WorkCenterRatesTable: React.FC<WorkCenterRatesTableProps> = ({
     tableRef,
     isEditMode,
     selectionScopeKey: historyScope,
+    selectionOwnerScopeKey,
+    activeSelectionOwnerKey,
+    onCellInteraction,
     rowIds: cellSelectionRowIds,
     onPasteCells: handlePasteCells,
     onCutCells: handleCutCells,
@@ -271,7 +280,7 @@ export const WorkCenterRatesTable: React.FC<WorkCenterRatesTableProps> = ({
               const deleteTooltip = !isEditMode ? 'Switch to Edit to delete rows' : deleteSelectedGroup ? 'Delete selected rows' : 'Delete row'
               const reorderSelectedGroup = isSelected && selectedIds.size > 1
               const reorderTooltip = !isEditMode ? 'Reordering is available in Edit' : reorderSelectedGroup ? 'Drag selected rows to reorder' : 'Drag to reorder'
-              const numericClass = (invalid: boolean) => `${masterDataNumericEditorClass} ${showWarningHighlights && invalid ? masterDataIssueEditorClass : ''}`
+              const numericClass = (invalid: boolean, blocker: boolean) => `${masterDataNumericEditorClass} ${blocker || (showWarningHighlights && invalid) ? masterDataIssueEditorClass : ''}`
 
               return (
                 <tr
@@ -349,11 +358,11 @@ export const WorkCenterRatesTable: React.FC<WorkCenterRatesTableProps> = ({
                           data-grid-field="laborRate"
                           aria-label={`Labor Rate for ${rate.workCenterCode || `Work Center row ${rowNumber}`}`}
                           aria-invalid={laborInvalid}
-                          className={`${numericClass(laborInvalid)} ${selectedCellKeys.has(tableCellKey(rate.id, 'laborRate')) ? masterDataSpreadsheetSelectionClass : ''}`}
+                          className={`${numericClass(laborInvalid, laborMissing)} ${selectedCellKeys.has(tableCellKey(rate.id, 'laborRate')) ? masterDataSpreadsheetSelectionClass : ''}`}
                         />
                         {laborMissing && <MasterDataBlockerMarker />}
                       </div>
-                    ) : <span data-grid-cell="true" data-grid-row-id={rate.id} data-grid-field="laborRate" tabIndex={viewCellTabIndex(rate.id, 'laborRate')} aria-label={`Labor Rate for ${rate.workCenterCode || `Work Center row ${rowNumber}`}`} className={`${masterDataNumericDisplaySlotClass} mx-auto w-full max-w-24 ${laborInvalid && showWarningHighlights ? masterDataIssueDisplayClass : ''} ${selectedCellKeys.has(tableCellKey(rate.id, 'laborRate')) ? masterDataSpreadsheetSelectionClass : ''}`}>{rate.laborRate === null ? '—' : formatNumber(rate.laborRate, 2)}{laborMissing && <MasterDataBlockerMarker />}</span>}
+                    ) : <span data-grid-cell="true" data-grid-row-id={rate.id} data-grid-field="laborRate" tabIndex={viewCellTabIndex(rate.id, 'laborRate')} aria-label={`Labor Rate for ${rate.workCenterCode || `Work Center row ${rowNumber}`}`} className={`${masterDataNumericDisplaySlotClass} mx-auto w-full max-w-24 ${laborMissing || (laborInvalid && showWarningHighlights) ? masterDataIssueDisplayClass : ''} ${selectedCellKeys.has(tableCellKey(rate.id, 'laborRate')) ? masterDataSpreadsheetSelectionClass : ''}`}>{rate.laborRate === null ? '—' : formatNumber(rate.laborRate, 2)}{laborMissing && <MasterDataBlockerMarker />}</span>}
                   </td>
                   <td className="relative px-2 py-0.5 text-center font-mono tabular-nums">
                     {isEditMode ? (
@@ -368,11 +377,11 @@ export const WorkCenterRatesTable: React.FC<WorkCenterRatesTableProps> = ({
                           data-grid-field="burdenRate"
                           aria-label={`Burden Rate for ${rate.workCenterCode || `Work Center row ${rowNumber}`}`}
                           aria-invalid={burdenInvalid}
-                          className={`${numericClass(burdenInvalid)} ${selectedCellKeys.has(tableCellKey(rate.id, 'burdenRate')) ? masterDataSpreadsheetSelectionClass : ''}`}
+                          className={`${numericClass(burdenInvalid, burdenMissing)} ${selectedCellKeys.has(tableCellKey(rate.id, 'burdenRate')) ? masterDataSpreadsheetSelectionClass : ''}`}
                         />
                         {burdenMissing && <MasterDataBlockerMarker />}
                       </div>
-                    ) : <span data-grid-cell="true" data-grid-row-id={rate.id} data-grid-field="burdenRate" tabIndex={viewCellTabIndex(rate.id, 'burdenRate')} aria-label={`Burden Rate for ${rate.workCenterCode || `Work Center row ${rowNumber}`}`} className={`${masterDataNumericDisplaySlotClass} mx-auto w-full max-w-24 ${burdenInvalid && showWarningHighlights ? masterDataIssueDisplayClass : ''} ${selectedCellKeys.has(tableCellKey(rate.id, 'burdenRate')) ? masterDataSpreadsheetSelectionClass : ''}`}>{rate.burdenRate === null ? '—' : formatNumber(rate.burdenRate, 2)}{burdenMissing && <MasterDataBlockerMarker />}</span>}
+                    ) : <span data-grid-cell="true" data-grid-row-id={rate.id} data-grid-field="burdenRate" tabIndex={viewCellTabIndex(rate.id, 'burdenRate')} aria-label={`Burden Rate for ${rate.workCenterCode || `Work Center row ${rowNumber}`}`} className={`${masterDataNumericDisplaySlotClass} mx-auto w-full max-w-24 ${burdenMissing || (burdenInvalid && showWarningHighlights) ? masterDataIssueDisplayClass : ''} ${selectedCellKeys.has(tableCellKey(rate.id, 'burdenRate')) ? masterDataSpreadsheetSelectionClass : ''}`}>{rate.burdenRate === null ? '—' : formatNumber(rate.burdenRate, 2)}{burdenMissing && <MasterDataBlockerMarker />}</span>}
                   </td>
                   <td className="px-2 py-0.5 font-sans text-slate-600">
                     {isEditMode ? (
