@@ -46,7 +46,6 @@ export const SnapshotComparisonCard: React.FC<SnapshotComparisonCardProps> = ({
   comparisonView = ALL_COMPARISON_STATUSES,
   onOpenDetail = () => undefined
 }) => {
-  const warnings = comparison.warnings
   const standardCostGap = comparison.totalGap
   const referenceConversion = addCosts(comparison.referenceCost.labor, comparison.referenceCost.burden)
   const currentConversion = addCosts(comparison.currentCost.labor, comparison.currentCost.burden)
@@ -56,8 +55,6 @@ export const SnapshotComparisonCard: React.FC<SnapshotComparisonCardProps> = ({
   const burdenGap = comparison.elementGaps.burden
   const bomCount = comparison.bomFindings.filter(finding => isVisibleInComparisonView(finding, comparisonView)).length
   const routingCount = comparison.routingFindings.filter(finding => isVisibleInComparisonView(finding, comparisonView)).length
-  const discrepancy = comparison.reconciliation?.discrepancy ?? null
-  const standardBalanced = comparison.reconciliation?.reconciled ?? null
   const combinedElementGap = laborGap === null || burdenGap === null ? null : safeAdd(laborGap, burdenGap)
   const conversionBalanced = laborGap === null || burdenGap === null || conversionGap === null
     ? null
@@ -82,13 +79,6 @@ export const SnapshotComparisonCard: React.FC<SnapshotComparisonCardProps> = ({
             <thead><tr className="bg-slate-800 font-semibold text-white"><th scope="col" className="px-2.5 py-2">Cost</th><th scope="col" className="px-2.5 py-2 text-right">REF</th><th scope="col" className="px-2.5 py-2 text-right">CUR</th><th scope="col" className="px-2.5 py-2 text-right">Gap</th><th scope="col" className="px-2.5 py-2 text-right">Gap %</th></tr></thead>
             <tbody><tr className="bg-slate-100 font-semibold text-slate-950"><th scope="row" className="px-2.5 py-3">Standard Cost</th><td className="px-2.5 py-3 text-right font-mono tabular-nums">{formatCost(comparison.referenceCost.total)}</td><td className="px-2.5 py-3 text-right font-mono tabular-nums">{formatCost(comparison.currentCost.total)}</td><td className={`px-2.5 py-3 text-right font-mono tabular-nums ${gapClass(standardCostGap)}`}>{standardCostGap === null ? '—' : formatVariance(standardCostGap, 4)}</td><td className="px-2.5 py-3 text-right font-mono tabular-nums">{formatRatio(standardCostGap, comparison.referenceCost.total)}</td></tr></tbody>
           </table>
-        </div>
-        <div className="flex flex-wrap items-center gap-2 border-t border-slate-200 px-3 py-2 text-[11px]">
-          <span className="text-slate-600">Standard Cost reconciliation</span>
-          <span className={`inline-flex rounded-sm border px-1.5 py-0.5 font-semibold ${balanceClass(standardBalanced)}`}>
-            {standardBalanced === true ? 'Balanced' : standardBalanced === false ? 'Needs review' : 'Unavailable'}
-          </span>
-          {discrepancy !== null && <span className="font-mono tabular-nums text-slate-600">{formatNumber(Math.abs(discrepancy), 4)} THB</span>}
         </div>
       </section>
 
@@ -132,16 +122,6 @@ export const SnapshotComparisonCard: React.FC<SnapshotComparisonCardProps> = ({
         </div>
       </section>
 
-      {warnings.length > 0 && (
-        <div className="lg:col-span-2 flex flex-col gap-1 border border-slate-200 bg-slate-50 px-3 py-2 text-[11px] sm:flex-row sm:items-center sm:justify-between">
-          <details className="sm:ml-auto">
-            <summary className="cursor-pointer font-semibold text-amber-950 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700">Review warnings ({warnings.length})</summary>
-            <ul className="mt-2 space-y-1 border-t border-amber-200 pt-2 text-xs leading-5 text-amber-950">
-              {warnings.map((warning, index) => <li key={`${warning.code}-${warning.referenceId ?? warning.currentId ?? index}`}>{warning.message}</li>)}
-            </ul>
-          </details>
-        </div>
-      )}
     </div>
   )
 }

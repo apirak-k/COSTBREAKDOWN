@@ -20,9 +20,10 @@ try {
   const { SnapshotComparisonCard } = await vite.ssrLoadModule('/src/features/cost-breakdown/components/SnapshotComparisonCard.tsx')
   const markup = renderToStaticMarkup(React.createElement(SnapshotComparisonCard, { comparison }))
   assert.doesNotMatch(markup, /Data quality:/, 'the page-level Data quality summary is absent')
-  assert.match(markup, /Review warnings \(1\)/, 'warning disclosure retains its count')
-  assert.match(markup, /Missing rate remains reviewable/, 'warning detail remains available')
-  assert.match(markup, /Standard Cost reconciliation/)
+  assert.doesNotMatch(markup, /Review warnings|Missing rate remains reviewable/, 'comparison warnings are not displayed in the summary')
+  assert.doesNotMatch(markup, /Standard Cost reconciliation/, 'Standard Cost reconciliation UI is absent')
+  assert.match(markup, /Labor \+ Burden = Conversion/, 'Conversion balance information remains visible')
+  assert.match(markup, /Balanced/, 'Conversion balance state remains visible')
   const selectedMarkup = renderToStaticMarkup(React.createElement(SnapshotComparisonCard, {
     comparison, selectedComparison: true
   }))

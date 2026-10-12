@@ -290,8 +290,7 @@ try {
     comparison: warningComparison
   }))
   assert.doesNotMatch(warningMarkup, /Data quality:/, 'page-level Data quality summary must be removed')
-  assert.match(warningMarkup, /Review warnings \(1\)/, 'Review warnings must remain available')
-  assert.match(warningMarkup, /Fixture warning remains reviewable/)
+  assert.doesNotMatch(warningMarkup, /Review warnings|Fixture warning remains reviewable/, 'comparison warnings are not presented in the Cost Breakdown summary')
 
   assert.ok(routingComparison.processingFindings.length > 0,
     'the full comparison fixture must have Work Center processing context')
