@@ -103,6 +103,45 @@ assert.equal(zeroPrice.material, 0, 'an explicitly entered zero Price remains a 
 assert.equal(zeroPrice.total, 0)
 assert.equal(zeroPrice.status, 'complete')
 
+for (const [id, item] of [
+  ['negative-usage', { ...bom('negative-usage', 10, -1) }],
+  ['negative-price', { ...bom('negative-price', -10, 1) }],
+  ['loss-over-domain', { ...bom('loss-over-domain', 10), loss: 1.01 }]
+] as const) {
+  const result = calculateSnapshotCost(snapshot({ id, bom: [item] }))
+  assert.equal(result.material, null, `${id} must not produce a plausible material cost`)
+  assert.equal(result.total, null)
+}
+
+for (const [id, invalidRoute, invalidRate] of [
+  ['negative-manning', route({ manning: -1 }), rate()],
+  ['zero-capacity', route({ capacity: 0 }), rate()],
+  ['negative-capacity', route({ capacity: -1 }), rate()],
+  ['yield-over-domain', route({ yield: 1.01 }), rate()],
+  ['negative-labor-rate', route(), rate({ laborRate: -1 })],
+  ['negative-burden-rate', route(), rate({ burdenRate: -1 })]
+] as const) {
+  const result = calculateSnapshotCost(snapshot({ id, routing: [invalidRoute], rates: [invalidRate] }))
+  assert.equal(result.total, null, `${id} must not contribute a result outside its stored domain`)
+  assert.equal(result.status, 'missing')
+}
+
+const invalidLaborOnly = calculateSnapshotCost(snapshot({
+  id: 'invalid-labor-only',
+  routing: [route()],
+  rates: [rate({ laborRate: -1, burdenRate: 20 })]
+}))
+assert.equal(invalidLaborOnly.labor, null, 'negative Labor Rate makes Labor unavailable')
+assert.equal(invalidLaborOnly.burden, 20, 'an invalid Labor Rate does not invalidate the independent valid Burden result')
+
+const invalidBurdenOnly = calculateSnapshotCost(snapshot({
+  id: 'invalid-burden-only',
+  routing: [route()],
+  rates: [rate({ laborRate: 10, burdenRate: -1 })]
+}))
+assert.equal(invalidBurdenOnly.labor, 10, 'an invalid Burden Rate does not invalidate the independent valid Labor result')
+assert.equal(invalidBurdenOnly.burden, null, 'negative Burden Rate makes Burden unavailable')
+
 const tinyPositive = snapshot({
   id: 'tiny-positive',
   routing: [route({ capacity: 1e-12 })],

@@ -24,6 +24,7 @@ import {
 import { getPopulatedRowsRemovedBySizing } from '../src/state/dataset-sizing'
 import { assertDatasetSizingCounts, DATASET_SIZING_LIMITS } from '../src/core/utils/sizing'
 import { parseNumericDraft } from '../src/shared/ui/numeric-input-rules'
+import { hasInvalidNumber } from '../src/features/master-data/table-validation'
 
 function snapshot(id: string): CostSnapshot {
   return {
@@ -261,6 +262,17 @@ assert.equal(isMasterDataNumericInputValid('yield', 0), false, 'Yield rejects ze
 assert.equal(isMasterDataNumericInputValid('yield', 1.0001), false, 'Yield rejects values above 100%')
 assert.equal(isMasterDataNumericInputValid('yield', 0.00001), false, 'Yield rejects values finer than its displayed percentage step')
 
+assert.equal(hasInvalidNumber('loss', 1.2), true, 'local Loss state follows the stored-value maximum')
+assert.equal(hasInvalidNumber('yield', 1.2), true, 'local Yield state follows the stored-value maximum')
+assert.equal(hasInvalidNumber('capacity', 0), true, 'local Capacity state follows its exclusive minimum')
+assert.equal(hasInvalidNumber('capacity', -1), true, 'negative Capacity remains locally invalid')
+assert.equal(hasInvalidNumber('laborRate', -0.01), true, 'local Labor Rate state follows its nonnegative domain')
+assert.equal(hasInvalidNumber('burdenRate', -0.01), true, 'local Burden Rate state follows its nonnegative domain')
+assert.equal(hasInvalidNumber('sellingPrice', -0.01), true, 'legacy negative Selling Price is locally classified invalid')
+assert.equal(hasInvalidNumber('sgaPercent', -0.01), true, 'legacy negative SG&A is locally classified invalid')
+assert.equal(hasInvalidNumber('sellingPrice', null), false, 'blank optional metadata is not classified as an invalid number')
+assert.equal(hasInvalidNumber('capacity', null), false, 'missing required Capacity remains distinct from invalid numeric data')
+
 const domainFieldCases = [
   { label: 'Usage', apply: (target: CostSnapshot, value: number) => { target.bom[0].consumption = value } },
   { label: 'Price', apply: (target: CostSnapshot, value: number) => { target.bom[0].price = value } },
@@ -340,6 +352,23 @@ assert.ok(getMasterDataSnapshotValidationErrors(unknownWorkCenterChange).some(er
 const legacyInvalid = structuredClone(invalidNumericChange)
 assert.equal(isMasterDataSnapshotChangeValid(legacyInvalid, { ...structuredClone(legacyInvalid), remark: 'review' }), true,
   'unrelated edits do not freeze a legacy snapshot that already contains invalid data')
+const legacyStoredDomainInvalid = structuredClone(validationBase)
+legacyStoredDomainInvalid.product.sellingPrice = -1
+legacyStoredDomainInvalid.product.sgaPercent = -1
+legacyStoredDomainInvalid.bom[0].loss = 1.2
+legacyStoredDomainInvalid.rates[0].laborRate = -1
+legacyStoredDomainInvalid.rates[0].burdenRate = -1
+legacyStoredDomainInvalid.routing[0].capacity = 0
+legacyStoredDomainInvalid.routing[0].yield = 1.2
+assert.equal(isMasterDataSnapshotChangeValid(legacyStoredDomainInvalid, { ...structuredClone(legacyStoredDomainInvalid), remark: 'review' }), true,
+  'unrelated edits remain allowed when legacy stored-domain invalid values are unchanged')
+assert.deepEqual(buildMasterDataBlockerItems({ reference: snapshot('reference'), current: legacyStoredDomainInvalid, custom: snapshot('custom') }), [],
+  'legacy invalid numbers remain distinct from Missing required value blockers')
+const missingCapacity = structuredClone(validationBase)
+missingCapacity.routing[0].capacity = null
+assert.ok(buildMasterDataBlockerItems({ reference: snapshot('reference'), current: missingCapacity, custom: snapshot('custom') })
+  .some(item => item.role === 'current' && item.field === 'capacity' && item.category === 'missing-value'),
+  'missing required Capacity remains a Missing required value blocker')
 const legacyUnknownReference = structuredClone(unknownWorkCenterChange)
 assert.equal(isMasterDataSnapshotChangeValid(legacyUnknownReference, { ...structuredClone(legacyUnknownReference), remark: 'review' }), true,
   'unrelated edits do not freeze a legacy snapshot with a pre-existing unavailable Work Center')

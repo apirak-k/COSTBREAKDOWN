@@ -1,9 +1,19 @@
 import { safeAdd, safeDivide, safeMultiply } from '../utils/guards'
 import { CostSnapshot, SnapshotCost, SnapshotWorkCenterRate } from '../types'
+import { isMasterDataNumericValueValid, type MasterDataNumericField } from '../utils/master-data-validation'
 
-function finiteValue(value: number | null, label: string, warnings: Set<string>): number | null {
-  if (value === null || !Number.isFinite(value)) {
+function validValue(
+  value: number | null,
+  field: MasterDataNumericField,
+  label: string,
+  warnings: Set<string>
+): number | null {
+  if (value == null) {
     warnings.add(`Missing or invalid ${label}`)
+    return null
+  }
+  if (!isMasterDataNumericValueValid(field, value)) {
+    warnings.add(`Invalid ${label}`)
     return null
   }
   return value
@@ -45,9 +55,9 @@ export function calculateSnapshotCost(snapshot: CostSnapshot): SnapshotCost {
   let materialKnown = bom.length > 0
   if (!materialKnown) warnings.add('Missing BOM data. No BOM rows found')
   bom.forEach(item => {
-    const consumption = finiteValue(item.consumption, `BOM ${item.id} consumption`, warnings)
-    const price = finiteValue(item.price, `BOM ${item.id} price`, warnings)
-    const loss = finiteValue(item.loss, `BOM ${item.id} loss`, warnings)
+    const consumption = validValue(item.consumption, 'consumption', `BOM ${item.id} consumption`, warnings)
+    const price = validValue(item.price, 'price', `BOM ${item.id} price`, warnings)
+    const loss = validValue(item.loss, 'loss', `BOM ${item.id} loss`, warnings)
     if (consumption === null || price === null || loss === null) {
       materialKnown = false
       return
@@ -71,9 +81,9 @@ export function calculateSnapshotCost(snapshot: CostSnapshot): SnapshotCost {
   if (routing.length === 0) warnings.add('Missing routing data. No Routing rows found')
 
   for (const step of routing) {
-    const manning = finiteValue(step.manning, `Routing ${step.id} manning`, warnings)
-    const capacity = finiteValue(step.capacity, `Routing ${step.id} capacity`, warnings)
-    const yieldValue = finiteValue(step.yield, `Routing ${step.id} yield`, warnings)
+    const manning = validValue(step.manning, 'manning', `Routing ${step.id} manning`, warnings)
+    const capacity = validValue(step.capacity, 'capacity', `Routing ${step.id} capacity`, warnings)
+    const yieldValue = validValue(step.yield, 'yield', `Routing ${step.id} yield`, warnings)
     const rate = step.workCenterId ? rates.get(normalizeKey(step.workCenterId)) : undefined
 
     if (!rate) {
@@ -81,15 +91,6 @@ export function calculateSnapshotCost(snapshot: CostSnapshot): SnapshotCost {
     }
 
     if (manning === null || capacity === null || yieldValue === null) {
-      laborKnown = false
-      burdenKnown = false
-      continue
-    }
-
-    if (capacity <= 0) warnings.add(`Invalid Routing ${step.id} capacity`)
-    if (yieldValue <= 0) warnings.add(`Invalid Routing ${step.id} yield`)
-
-    if (capacity <= 0 || yieldValue <= 0) {
       laborKnown = false
       burdenKnown = false
       continue
@@ -104,8 +105,8 @@ export function calculateSnapshotCost(snapshot: CostSnapshot): SnapshotCost {
       continue
     }
 
-    const laborRate = finiteValue(rate?.laborRate ?? null, `Work Center ${step.workCenterId ?? 'unknown'} labor rate`, warnings)
-    const burdenRate = finiteValue(rate?.burdenRate ?? null, `Work Center ${step.workCenterId ?? 'unknown'} burden rate`, warnings)
+    const laborRate = validValue(rate?.laborRate ?? null, 'laborRate', `Work Center ${step.workCenterId ?? 'unknown'} labor rate`, warnings)
+    const burdenRate = validValue(rate?.burdenRate ?? null, 'burdenRate', `Work Center ${step.workCenterId ?? 'unknown'} burden rate`, warnings)
 
     if (laborRate === null) {
       laborKnown = false

@@ -1,12 +1,30 @@
 import { ScenarioBusinessInputs, ScenarioBusinessResult } from '../types'
+import { isMasterDataNumericValueValid } from '../utils/master-data-validation'
 
 function finiteValue(value: number | null, label: string, warnings: string[]): number | null {
-  if (value === null) {
+  if (value == null) {
     warnings.push(`${label} is unavailable.`)
     return null
   }
   if (!Number.isFinite(value)) {
     warnings.push(`${label} must be a finite number.`)
+    return null
+  }
+  return value
+}
+
+function storedValue(
+  value: number | null,
+  field: 'sellingPrice' | 'sgaPercent',
+  label: string,
+  warnings: string[]
+): number | null {
+  if (value == null) {
+    warnings.push(`${label} is unavailable.`)
+    return null
+  }
+  if (!isMasterDataNumericValueValid(field, value)) {
+    warnings.push(`${label} is invalid.`)
     return null
   }
   return value
@@ -26,8 +44,8 @@ export function calculateScenarioBusinessMetrics(
   standardCostPerPiece: number | null
 ): ScenarioBusinessResult {
   const warnings: string[] = []
-  const sellingPrice = finiteValue(inputs.sellingPrice, 'Selling Price', warnings)
-  const sgaPercent = finiteValue(inputs.sgaPercent, 'SG&A %', warnings)
+  const sellingPrice = storedValue(inputs.sellingPrice, 'sellingPrice', 'Selling Price', warnings)
+  const sgaPercent = storedValue(inputs.sgaPercent, 'sgaPercent', 'SG&A %', warnings)
   const standardCost = finiteValue(standardCostPerPiece, 'Standard Cost', warnings)
   const sgaAmountPerPiece = sellingPrice !== null && sgaPercent !== null
     ? finiteResult(sellingPrice * (sgaPercent / 100), 'SG&A amount / pc', warnings)

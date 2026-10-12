@@ -1052,7 +1052,18 @@ try {
   assert.match(snapshotParserSource, /getMasterDataSnapshotValidationErrors\(snapshot\)[\s\S]*success: false[\s\S]*format: 'canonical'/, 'canonical imports reject invalid numeric values and unavailable nonblank Routing Work Centers')
   assert.match(snapshotParserSource, /canonicalResult\.success \|\| canonicalResult\.format === 'canonical'/, 'validation-rejected canonical workbooks cannot fall through to legacy import parsing')
   assert.match(masterDataWorkbookSource, /const outputLabels = \['MAT', 'LABOR', 'BURDEN', 'STANDARD COST', 'SG&A AMOUNT', 'OP'\]/, 'the workbook verifier protects all six canonical META result labels')
-  assert.match(masterDataWorkbookSource, /ifComplete\(\[[\s\S]*noMissingNumbers\('BOMData', bom, 'Usage'\)[\s\S]*noMissingNumbers\('BOMData', bom, 'Price'\)[\s\S]*noMissingNumbers\('BOMData', bom, 'Loss'\)[\s\S]*ifComplete\(\[[\s\S]*\.\.\.routingBase[\s\S]*Labor[\s\S]*ifComplete\(\[[\s\S]*\.\.\.routingBase[\s\S]*Burden[\s\S]*ifComplete\(\['ISNUMBER\(B9\)', 'ISNUMBER\(B10\)', 'ISNUMBER\(B11\)'\][\s\S]*ifComplete\(\['ISNUMBER\(B5\)', 'ISNUMBER\(B6\)'\][\s\S]*ifComplete\(\['ISNUMBER\(B5\)', 'ISNUMBER\(B12\)', 'ISNUMBER\(B13\)'\]/, 'each canonical META output remains independently guarded by its own required dependencies')
+  const workbookFormulaSource = masterDataWorkbookSource.slice(masterDataWorkbookSource.indexOf('function formulae('), masterDataWorkbookSource.indexOf('function styleLabel'))
+  assert.equal((workbookFormulaSource.match(/\bifComplete\(/g) ?? []).length, 6, 'each canonical META output remains independently guarded')
+  assert.match(masterDataWorkbookSource, /const domain = MASTER_DATA_NUMERIC_DOMAINS\[field\]/, 'Excel guards derive stored-value bounds from the canonical domain map')
+  assert.ok([
+    "noOutOfDomainNumbers('BOMData', bom, 'Usage', 'consumption')",
+    "noOutOfDomainNumbers('BOMData', bom, 'Price', 'price')",
+    "noOutOfDomainNumbers('BOMData', bom, 'Loss', 'loss')",
+    "noOutOfDomainNumbers('RoutingData', routing, 'Manning', 'manning')",
+    "noOutOfDomainNumbers('RoutingData', routing, 'Cap', 'capacity')",
+    "noOutOfDomainNumbers('RoutingData', routing, 'Yield', 'yield')"
+  ].every(guard => masterDataWorkbookSource.includes(guard)),
+    'Excel guards cover every numeric BOM and Routing field with canonical stored-value domains')
   assert.match(masterDataWorkbookSource, /writeMetaSheet\(workbook, options, normalizedWorkCenterCodes\)[\s\S]*writeTableSheet\(workbook, 'BOM'[\s\S]*writeTableSheet\(workbook, 'WORK_CENTER'[\s\S]*writeTableSheet\(workbook, 'ROUTING'/, 'workbook sheet order remains META, BOM, WORK_CENTER, ROUTING')
   assert.match(importDropzoneSource, /onParsed\(await parseSnapshotExcelInputFile\(file, importRole, \{ allowLegacy: false \}\)\)/,
     'Import parses and validates a workbook before passing it back to the modal')

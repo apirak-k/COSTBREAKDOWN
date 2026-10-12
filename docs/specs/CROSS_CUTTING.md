@@ -43,6 +43,8 @@ $$\text{Standard Cost} = \text{Direct Material} + \text{Labor} + \text{Burden} =
 
 If a required input is missing or invalid, Capacity or Yield is non-positive, or a Work Center reference is missing/duplicated, keep the affected result **unavailable** and explain the issue. Do not silently substitute zero or another plausible value. An explicitly entered zero is valid where logically permitted.
 
+Existing invalid legacy numeric values may remain visible and editable for correction, but invalid values are never used as valid calculation inputs. Affected and dependent results remain unavailable until the values are corrected.
+
 ## Processing Cost and Work Center Comparison
 
 For each dataset, calculate each Routing operation using its referenced Work Center Labor and Burden rates. Aggregate the resulting processing costs by Work Center, then compare Reference and Current processing totals at that Work Center:

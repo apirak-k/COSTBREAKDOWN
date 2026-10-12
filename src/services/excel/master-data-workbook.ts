@@ -1,5 +1,6 @@
 import type ExcelJS from 'exceljs'
 import type { ProductMaster } from '../../core'
+import { MASTER_DATA_NUMERIC_DOMAINS, type MasterDataNumericField } from '../../core/utils/master-data-validation'
 
 type CellRow = (string | number | null)[]
 
@@ -52,6 +53,48 @@ function noMissingNumbers(table: string, mask: string, column: string): string {
   return `SUMPRODUCT(--${mask},--(ISNUMBER(${table}[${column}])=FALSE))=0`
 }
 
+function noOutOfDomainNumbers(
+  table: string,
+  mask: string,
+  column: string,
+  field: MasterDataNumericField
+): string[] {
+  const values = `${table}[${column}]`
+  const domain = MASTER_DATA_NUMERIC_DOMAINS[field]
+  const conditions = [
+    `SUMPRODUCT(--${mask},--(${values}${domain.minExclusive ? '<=' : '<'}${domain.min}))=0`
+  ]
+  if (domain.max !== undefined) {
+    conditions.push(`SUMPRODUCT(--${mask},--(${values}>${domain.max}))=0`)
+  }
+  return conditions
+}
+
+function numericCellConditions(cell: string, field: MasterDataNumericField): string[] {
+  const domain = MASTER_DATA_NUMERIC_DOMAINS[field]
+  return [
+    `ISNUMBER(${cell})`,
+    `${cell}${domain.minExclusive ? '>' : '>='}${domain.min}`,
+    ...(domain.max === undefined ? [] : [`${cell}<=${domain.max}`])
+  ]
+}
+
+function validRateCount(
+  normalizedWorkCenterCodes: string,
+  normalizedRoutingWorkCenters: string,
+  column: 'Labor' | 'Burden',
+  field: 'laborRate' | 'burdenRate'
+): string {
+  const rateValues = `WorkCenterData[${column}]`
+  const domain = MASTER_DATA_NUMERIC_DOMAINS[field]
+  const criteria = [
+    `"${domain.minExclusive ? '>' : '>='}${domain.min}"`,
+    ...(domain.max === undefined ? [] : [`"<=${domain.max}"`])
+  ]
+  return `COUNTIFS(${normalizedWorkCenterCodes},${normalizedRoutingWorkCenters},${criteria
+    .map(value => `${rateValues},${value}`).join(',')})`
+}
+
 function ifComplete(conditions: string[], value: string): string {
   return `IFERROR(IF(AND(${conditions.join(',')}),${value},""),"")`
 }
@@ -61,16 +104,17 @@ function formulae(normalizedWorkCenterCodes: string): string[] {
   const routing = activeRows('RoutingData', headers.routing)
   const normalizedRoutingWorkCenters = 'UPPER(TRIM(RoutingData[WC]))'
   const wcMatches = `COUNTIF(${normalizedWorkCenterCodes},${normalizedRoutingWorkCenters})`
-  const laborRates = `COUNTIFS(${normalizedWorkCenterCodes},${normalizedRoutingWorkCenters},WorkCenterData[Labor],">=0")+COUNTIFS(${normalizedWorkCenterCodes},${normalizedRoutingWorkCenters},WorkCenterData[Labor],"<0")`
-  const burdenRates = `COUNTIFS(${normalizedWorkCenterCodes},${normalizedRoutingWorkCenters},WorkCenterData[Burden],">=0")+COUNTIFS(${normalizedWorkCenterCodes},${normalizedRoutingWorkCenters},WorkCenterData[Burden],"<0")`
+  const laborRates = validRateCount(normalizedWorkCenterCodes, normalizedRoutingWorkCenters, 'Labor', 'laborRate')
+  const burdenRates = validRateCount(normalizedWorkCenterCodes, normalizedRoutingWorkCenters, 'Burden', 'burdenRate')
   const routingBase = [
     `SUMPRODUCT(--${routing})>0`,
     noMissingNumbers('RoutingData', routing, 'Manning'),
+    ...noOutOfDomainNumbers('RoutingData', routing, 'Manning', 'manning'),
     noMissingNumbers('RoutingData', routing, 'Cap'),
+    ...noOutOfDomainNumbers('RoutingData', routing, 'Cap', 'capacity'),
     noMissingNumbers('RoutingData', routing, 'Yield'),
+    ...noOutOfDomainNumbers('RoutingData', routing, 'Yield', 'yield'),
     `SUMPRODUCT(--${routing},--(RoutingData[WC]=""))=0`,
-    `SUMPRODUCT(--${routing},--(RoutingData[Cap]<=0))=0`,
-    `SUMPRODUCT(--${routing},--(RoutingData[Yield]<=0))=0`,
     `SUMPRODUCT(--${routing},--(${wcMatches}<>1))=0`
   ]
 
@@ -78,8 +122,11 @@ function formulae(normalizedWorkCenterCodes: string): string[] {
     ifComplete([
       `SUMPRODUCT(--${bom})>0`,
       noMissingNumbers('BOMData', bom, 'Usage'),
+      ...noOutOfDomainNumbers('BOMData', bom, 'Usage', 'consumption'),
       noMissingNumbers('BOMData', bom, 'Price'),
-      noMissingNumbers('BOMData', bom, 'Loss')
+      ...noOutOfDomainNumbers('BOMData', bom, 'Price', 'price'),
+      noMissingNumbers('BOMData', bom, 'Loss'),
+      ...noOutOfDomainNumbers('BOMData', bom, 'Loss', 'loss')
     ], `SUMPRODUCT(--${bom},BOMData[Usage],BOMData[Price],1+BOMData[Loss])`),
     ifComplete([
       ...routingBase,
@@ -90,7 +137,10 @@ function formulae(normalizedWorkCenterCodes: string): string[] {
       `SUMPRODUCT(--${routing},--((${burdenRates})<>1))=0`
     ], `SUMPRODUCT(--${routing},RoutingData[Manning]/(RoutingData[Cap]*RoutingData[Yield]),SUMIF(${normalizedWorkCenterCodes},${normalizedRoutingWorkCenters},WorkCenterData[Burden]))`),
     ifComplete(['ISNUMBER(B9)', 'ISNUMBER(B10)', 'ISNUMBER(B11)'], 'SUM(B9:B11)'),
-    ifComplete(['ISNUMBER(B5)', 'ISNUMBER(B6)'], 'B5*(B6/100)'),
+    ifComplete([
+      ...numericCellConditions('B5', 'sellingPrice'),
+      ...numericCellConditions('B6', 'sgaPercent')
+    ], 'B5*(B6/100)'),
     ifComplete(['ISNUMBER(B5)', 'ISNUMBER(B12)', 'ISNUMBER(B13)'], 'B5-B12-B13')
   ]
 }

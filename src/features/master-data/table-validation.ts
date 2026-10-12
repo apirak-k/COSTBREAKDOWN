@@ -1,3 +1,5 @@
+import { isMasterDataNumericValueValid, type MasterDataNumericField } from '../../core/utils/master-data-validation'
+
 export function duplicateIdentityIds<T>(
   items: readonly T[],
   getId: (item: T) => string,
@@ -43,8 +45,8 @@ export function editableIdentityPlaceholder(value: string, generatedFallback: st
   return value.trim() === '' ? generatedFallback : undefined
 }
 
-export function hasInvalidNumber(value: number | null | undefined): boolean {
-  return value !== null && value !== undefined && (!Number.isFinite(value) || value < 0)
+export function hasInvalidNumber(field: MasterDataNumericField, value: number | null | undefined): boolean {
+  return !isMasterDataNumericValueValid(field, value)
 }
 
 export function parsePercentage(value: string): number | null {

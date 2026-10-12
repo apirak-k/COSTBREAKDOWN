@@ -1,5 +1,6 @@
 import { SnapshotBOMItem } from '../types'
 import { safeAdd, safeMultiply } from '../utils/guards'
+import { isMasterDataNumericValueValid } from '../utils/master-data-validation'
 
 export interface SnapshotBOMPair {
   reference?: SnapshotBOMItem
@@ -15,9 +16,9 @@ export interface SnapshotBOMDetail {
 
 function costOf(item: SnapshotBOMItem | undefined): number | null {
   if (!item
-    || item.consumption === null || !Number.isFinite(item.consumption)
-    || item.price === null || !Number.isFinite(item.price)
-    || item.loss === null || !Number.isFinite(item.loss)) return null
+    || item.consumption == null || !isMasterDataNumericValueValid('consumption', item.consumption)
+    || item.price == null || !isMasterDataNumericValueValid('price', item.price)
+    || item.loss == null || !isMasterDataNumericValueValid('loss', item.loss)) return null
   const lossFactor = safeAdd(1, item.loss)
   return lossFactor === null ? null : safeMultiply(item.consumption, item.price, lossFactor)
 }

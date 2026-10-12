@@ -253,12 +253,12 @@ export const BOMTable: React.FC<BOMTableProps> = ({
               const isSelected = selectedIds.has(item.id)
               const identityInvalid = !item.description.trim() || duplicateNameIds.has(item.id)
               const identityWarning = Boolean(item.isGeneratedBusinessIdentity || item.autoRenamedFrom || duplicateNameIds.has(item.id))
-              const consumptionInvalid = item.consumption === null || hasInvalidNumber(item.consumption)
-              const priceInvalid = item.price === null || hasInvalidNumber(item.price)
-              const lossInvalid = item.loss === null || hasInvalidNumber(item.loss)
               const consumptionMissing = item.consumption === null
               const priceMissing = item.price === null
               const lossMissing = item.loss === null
+              const consumptionInvalid = hasInvalidNumber('consumption', item.consumption)
+              const priceInvalid = hasInvalidNumber('price', item.price)
+              const lossInvalid = hasInvalidNumber('loss', item.loss)
               const rowNumber = bom.findIndex(row => row.id === item.id) + 1
               const placeholderNumber = placeholderNumbers.get(item.id)
               const deleteSelectedGroup = selectedIds.has(item.id) && selectedIds.size > 1
@@ -329,7 +329,7 @@ export const BOMTable: React.FC<BOMTableProps> = ({
                           data-grid-row-id={item.id}
                           data-grid-field="consumption"
                           aria-label={`Usage for ${item.description || `BOM row ${rowNumber}`}`}
-                          aria-invalid={consumptionInvalid}
+                          aria-invalid={consumptionMissing || consumptionInvalid}
                           className={`${numericClass(consumptionInvalid, consumptionMissing)} ${selectedCellKeys.has(tableCellKey(item.id, 'consumption')) ? masterDataSpreadsheetSelectionClass : ''}`}
                         />
                         {consumptionMissing && <MasterDataBlockerMarker />}
@@ -369,7 +369,7 @@ export const BOMTable: React.FC<BOMTableProps> = ({
                           data-grid-row-id={item.id}
                           data-grid-field="price"
                           aria-label={`Price for ${item.description || `BOM row ${rowNumber}`}`}
-                          aria-invalid={priceInvalid}
+                          aria-invalid={priceMissing || priceInvalid}
                           className={`${numericClass(priceInvalid, priceMissing)} ${selectedCellKeys.has(tableCellKey(item.id, 'price')) ? masterDataSpreadsheetSelectionClass : ''}`}
                         />
                         {priceMissing && <MasterDataBlockerMarker />}
@@ -389,7 +389,7 @@ export const BOMTable: React.FC<BOMTableProps> = ({
                             data-grid-row-id={item.id}
                             data-grid-field="loss"
                             aria-label={`Loss percentage for ${item.description || `BOM row ${rowNumber}`}`}
-                            aria-invalid={lossInvalid}
+                            aria-invalid={lossMissing || lossInvalid}
                             className={`${numericClass(lossInvalid, lossMissing)} ${selectedCellKeys.has(tableCellKey(item.id, 'loss')) ? masterDataSpreadsheetSelectionClass : ''}`}
                           />
                           {lossMissing && <MasterDataBlockerMarker />}

@@ -1,5 +1,6 @@
 import { SnapshotRoutingStep, SnapshotWorkCenterRate } from '../types'
 import { safeAdd, safeDivide, safeMultiply } from '../utils/guards'
+import { isMasterDataNumericValueValid } from '../utils/master-data-validation'
 
 export interface SnapshotRoutingPair {
   reference?: SnapshotRoutingStep
@@ -32,13 +33,9 @@ function normalizeKey(value: string | undefined): string {
 
 function calculateSide(step: SnapshotRoutingStep | undefined, rates: SnapshotWorkCenterRate[]): SideCalculation {
   if (!step
-    || step.manning === null || !Number.isFinite(step.manning)
-    || step.capacity === null || !Number.isFinite(step.capacity)
-    || step.yield === null || !Number.isFinite(step.yield)) {
-    return { runtime: null, laborCost: null, burdenCost: null, total: null }
-  }
-
-  if (step.capacity <= 0 || step.yield <= 0) {
+    || step.manning == null || !isMasterDataNumericValueValid('manning', step.manning)
+    || step.capacity == null || !isMasterDataNumericValueValid('capacity', step.capacity)
+    || step.yield == null || !isMasterDataNumericValueValid('yield', step.yield)) {
     return { runtime: null, laborCost: null, burdenCost: null, total: null }
   }
 
@@ -52,10 +49,10 @@ function calculateSide(step: SnapshotRoutingStep | undefined, rates: SnapshotWor
     ? rates.filter(candidate => normalizeKey(candidate.workCenterCode) === normalizeKey(step.workCenterId))
     : []
   const rate = matchingRates.length === 1 ? matchingRates[0] : undefined
-  const laborCost = rate?.laborRate === null || rate?.laborRate === undefined || !Number.isFinite(rate.laborRate)
+  const laborCost = rate?.laborRate == null || !isMasterDataNumericValueValid('laborRate', rate.laborRate)
     ? null
     : safeMultiply(runtime, rate.laborRate)
-  const burdenCost = rate?.burdenRate === null || rate?.burdenRate === undefined || !Number.isFinite(rate.burdenRate)
+  const burdenCost = rate?.burdenRate == null || !isMasterDataNumericValueValid('burdenRate', rate.burdenRate)
     ? null
     : safeMultiply(runtime, rate.burdenRate)
   const total = laborCost === null || burdenCost === null ? null : safeAdd(laborCost, burdenCost)

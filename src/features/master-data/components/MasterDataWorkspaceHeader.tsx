@@ -17,7 +17,8 @@ import type { MasterDataSaveState } from '../../../core/utils/master-data-effect
 import { getMasterDataNumericInputDomain } from '../../../core/utils/master-data-validation'
 import { Tooltip } from '../../../shared/ui/Tooltip'
 import { NumericInput } from '../../../shared/ui/NumericInput'
-import { masterDataTextEditorClass } from './master-data-field-styles'
+import { masterDataIssueDisplayClass, masterDataIssueEditorClass, masterDataTextEditorClass } from './master-data-field-styles'
+import { hasInvalidNumber } from '../table-validation'
 import { downloadBlob } from '../../../services/excel/export'
 import { hasEnteredMasterData } from '../../../state/dataset-sizing'
 import { useTransientInteraction } from '../../../shared/ui/transient-interactions'
@@ -267,6 +268,8 @@ export const MasterDataWorkspaceHeader: React.FC<MasterDataWorkspaceHeaderProps>
   const roleLabel = roleLabels[role]
   const isSaved = saveStates[role] === 'Saved'
   const hasExportableSavedData = Boolean(lastSavedSnapshot && hasEnteredMasterData(lastSavedSnapshot))
+  const sellingPriceInvalid = hasInvalidNumber('sellingPrice', product.sellingPrice)
+  const sgaPercentInvalid = hasInvalidNumber('sgaPercent', product.sgaPercent)
   const searchPlaceholder = tableView === 'all'
     ? 'Search all tables'
     : tableView === 'wc'
@@ -567,10 +570,11 @@ export const MasterDataWorkspaceHeader: React.FC<MasterDataWorkspaceHeaderProps>
                   onValueChange={sellingPrice => onUpdateProduct({ ...product, sellingPrice })}
                   {...getMasterDataNumericInputDomain('sellingPrice')}
                   aria-label="Selling Price (THB)"
-                  className={fieldInput + ' font-mono tabular-nums text-right'}
+                  aria-invalid={sellingPriceInvalid}
+                  className={`${fieldInput} font-mono tabular-nums text-right ${showWarningHighlights && sellingPriceInvalid ? masterDataIssueEditorClass : ''}`}
                 />
               ) : (
-                <span className="flex h-8 w-full min-w-0 items-center justify-end truncate rounded-sm border border-transparent px-2 text-right font-mono text-xs tabular-nums text-slate-950">
+                <span aria-invalid={sellingPriceInvalid} className={`flex h-8 w-full min-w-0 items-center justify-end truncate rounded-sm border border-transparent px-2 text-right font-mono text-xs tabular-nums text-slate-950 ${showWarningHighlights && sellingPriceInvalid ? masterDataIssueDisplayClass : ''}`}>
                   {product.sellingPrice == null ? '' : formatNumber(product.sellingPrice)}
                 </span>
               )}
@@ -586,10 +590,11 @@ export const MasterDataWorkspaceHeader: React.FC<MasterDataWorkspaceHeaderProps>
                   onValueChange={sgaPercent => onUpdateProduct({ ...product, sgaPercent })}
                   {...getMasterDataNumericInputDomain('sgaPercent')}
                   aria-label="SG&A"
-                  className={fieldInput + ' font-mono tabular-nums text-right'}
+                  aria-invalid={sgaPercentInvalid}
+                  className={`${fieldInput} font-mono tabular-nums text-right ${showWarningHighlights && sgaPercentInvalid ? masterDataIssueEditorClass : ''}`}
                 />
               ) : (
-                <span className="flex h-8 w-full min-w-0 items-center justify-end truncate rounded-sm border border-transparent px-2 text-right font-mono text-xs tabular-nums text-slate-950">
+                <span aria-invalid={sgaPercentInvalid} className={`flex h-8 w-full min-w-0 items-center justify-end truncate rounded-sm border border-transparent px-2 text-right font-mono text-xs tabular-nums text-slate-950 ${showWarningHighlights && sgaPercentInvalid ? masterDataIssueDisplayClass : ''}`}>
                   {product.sgaPercent == null ? '' : formatNumber(product.sgaPercent)}
                 </span>
               )}

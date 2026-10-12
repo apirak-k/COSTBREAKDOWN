@@ -271,10 +271,10 @@ export const WorkCenterRatesTable: React.FC<WorkCenterRatesTableProps> = ({
               const isSelected = selectedIds.has(rate.id)
               const identityInvalid = !rate.workCenterCode.trim() || duplicateWcIds.has(rate.id)
               const identityWarning = Boolean(rate.isGeneratedBusinessIdentity || rate.autoRenamedFrom || duplicateWcIds.has(rate.id))
-              const laborInvalid = rate.laborRate === null || hasInvalidNumber(rate.laborRate)
-              const burdenInvalid = rate.burdenRate === null || hasInvalidNumber(rate.burdenRate)
               const laborMissing = rate.laborRate === null
               const burdenMissing = rate.burdenRate === null
+              const laborInvalid = hasInvalidNumber('laborRate', rate.laborRate)
+              const burdenInvalid = hasInvalidNumber('burdenRate', rate.burdenRate)
               const rowNumber = rates.findIndex(row => row.id === rate.id) + 1
               const placeholderNumber = placeholderNumbers.get(rate.id)
               const deleteSelectedGroup = selectedIds.has(rate.id) && selectedIds.size > 1
@@ -358,7 +358,7 @@ export const WorkCenterRatesTable: React.FC<WorkCenterRatesTableProps> = ({
                           data-grid-row-id={rate.id}
                           data-grid-field="laborRate"
                           aria-label={`Labor Rate for ${rate.workCenterCode || `Work Center row ${rowNumber}`}`}
-                          aria-invalid={laborInvalid}
+                          aria-invalid={laborMissing || laborInvalid}
                           className={`${numericClass(laborInvalid, laborMissing)} ${selectedCellKeys.has(tableCellKey(rate.id, 'laborRate')) ? masterDataSpreadsheetSelectionClass : ''}`}
                         />
                         {laborMissing && <MasterDataBlockerMarker />}
@@ -377,7 +377,7 @@ export const WorkCenterRatesTable: React.FC<WorkCenterRatesTableProps> = ({
                           data-grid-row-id={rate.id}
                           data-grid-field="burdenRate"
                           aria-label={`Burden Rate for ${rate.workCenterCode || `Work Center row ${rowNumber}`}`}
-                          aria-invalid={burdenInvalid}
+                          aria-invalid={burdenMissing || burdenInvalid}
                           className={`${numericClass(burdenInvalid, burdenMissing)} ${selectedCellKeys.has(tableCellKey(rate.id, 'burdenRate')) ? masterDataSpreadsheetSelectionClass : ''}`}
                         />
                         {burdenMissing && <MasterDataBlockerMarker />}

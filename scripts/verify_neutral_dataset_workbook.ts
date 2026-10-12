@@ -45,16 +45,72 @@ try {
   $excel.Visible = $false
   $excel.DisplayAlerts = $false
   $excel.AutomationSecurity = 3
-  $workbook = $excel.Workbooks.Open($WorkbookPath, 0, $true)
+  $workbook = $excel.Workbooks.Open($WorkbookPath, 0, $false)
   $workbook.ForceFullCalculation = $true
   $excel.CalculateFullRebuild()
   $meta = $workbook.Worksheets.Item('META')
 
-  $values = [ordered]@{}
-  foreach ($row in 9..14) {
-    $values["B$row"] = $meta.Cells.Item($row, 2).Value2
+  $caseResults = [ordered]@{}
+  function Read-MetaResults {
+    $results = [ordered]@{}
+    foreach ($row in 9..14) {
+      $value = $script:meta.Cells.Item($row, 2).Value2
+      if ($value -is [string] -and $value.Length -eq 0) { $value = $null }
+      $results["B$row"] = $value
+    }
+    return $results
   }
-  [Console]::Out.WriteLine((@{ status = 'recalculated'; values = $values } | ConvertTo-Json -Depth 5 -Compress))
+
+  function Capture-Scenario([string]$Name, [string]$SheetName, [int]$Row, [int]$Column, [double]$Value) {
+    $cell = $script:workbook.Worksheets.Item($SheetName).Cells.Item($Row, $Column)
+    $original = $cell.Value2
+    $cell.Value2 = $Value
+    $script:excel.CalculateFullRebuild()
+    $script:caseResults[$Name] = Read-MetaResults
+    $cell.Value2 = $original
+    $script:excel.CalculateFullRebuild()
+  }
+
+  function Capture-ZeroMinimumInputs {
+    $zeroCells = @(
+      @{ Sheet = 'BOM'; Row = 4; Column = 2 },
+      @{ Sheet = 'BOM'; Row = 4; Column = 4 },
+      @{ Sheet = 'BOM'; Row = 4; Column = 5 },
+      @{ Sheet = 'WORK_CENTER'; Row = 4; Column = 2 },
+      @{ Sheet = 'WORK_CENTER'; Row = 4; Column = 3 },
+      @{ Sheet = 'ROUTING'; Row = 4; Column = 3 },
+      @{ Sheet = 'META'; Row = 5; Column = 2 },
+      @{ Sheet = 'META'; Row = 6; Column = 2 }
+    )
+    $originals = @()
+    foreach ($spec in $zeroCells) {
+      $cell = $script:workbook.Worksheets.Item($spec.Sheet).Cells.Item($spec.Row, $spec.Column)
+      $originals += [PSCustomObject]@{ Cell = $cell; Value = $cell.Value2 }
+      $cell.Value2 = 0
+    }
+    $script:excel.CalculateFullRebuild()
+    $script:caseResults['zeroInclusiveInputs'] = Read-MetaResults
+    foreach ($original in $originals) { $original.Cell.Value2 = $original.Value }
+    $script:excel.CalculateFullRebuild()
+  }
+
+  $caseResults['valid'] = Read-MetaResults
+  Capture-Scenario 'lossAt100' 'BOM' 4 5 1
+  Capture-Scenario 'negativeUsage' 'BOM' 4 2 -1
+  Capture-Scenario 'negativeMaterialPrice' 'BOM' 4 4 -1
+  Capture-Scenario 'lossAbove100' 'BOM' 4 5 1.2
+  Capture-Scenario 'zeroCapacity' 'ROUTING' 4 4 0
+  Capture-Scenario 'negativeCapacity' 'ROUTING' 4 4 -1
+  Capture-Scenario 'zeroYield' 'ROUTING' 4 5 0
+  Capture-Scenario 'yieldAbove100' 'ROUTING' 4 5 1.2
+  Capture-Scenario 'negativeLaborRate' 'WORK_CENTER' 4 2 -1
+  Capture-Scenario 'negativeBurdenRate' 'WORK_CENTER' 4 3 -1
+  Capture-Scenario 'negativeManning' 'ROUTING' 4 3 -1
+  Capture-Scenario 'negativeSellingPrice' 'META' 5 2 -1
+  Capture-Scenario 'negativeSgaPercent' 'META' 6 2 -1
+  Capture-Scenario 'sgaAbove100' 'META' 6 2 120
+  Capture-ZeroMinimumInputs
+  [Console]::Out.WriteLine((@{ status = 'recalculated'; values = $caseResults['valid']; cases = $caseResults } | ConvertTo-Json -Depth 10 -Compress))
 } finally {
   if ($workbook -ne $null) { $workbook.Close($false) }
   if ($excel -ne $null) { $excel.Quit() }
@@ -167,7 +223,7 @@ function formulaAt(sheet: ExcelJS.Worksheet, address: string): string {
 }
 
 type ExcelComEvaluation =
-  | { status: 'recalculated'; values: Record<string, unknown> }
+  | { status: 'recalculated'; values: Record<string, unknown>; cases: Record<string, Record<string, unknown>> }
   | { status: 'environment-blocked'; reason: string }
 
 async function evaluateWorkbookWithExcelCom(blob: Blob): Promise<ExcelComEvaluation> {
@@ -389,6 +445,58 @@ async function verify(): Promise<void> {
       assert.ok(Math.abs((actual as number) - (expected ?? Number.NaN)) <= 1e-8 * Math.max(1, Math.abs(expected ?? 0)),
         `Excel-calculated META ${label} at ${address} matches the canonical application calculation`)
     }
+
+    const blankOutputsByScenario: Record<string, string[]> = {
+      negativeUsage: ['B9', 'B12', 'B14'],
+      negativeMaterialPrice: ['B9', 'B12', 'B14'],
+      lossAbove100: ['B9', 'B12', 'B14'],
+      zeroCapacity: ['B10', 'B11', 'B12', 'B14'],
+      negativeCapacity: ['B10', 'B11', 'B12', 'B14'],
+      zeroYield: ['B10', 'B11', 'B12', 'B14'],
+      yieldAbove100: ['B10', 'B11', 'B12', 'B14'],
+      negativeLaborRate: ['B10', 'B12', 'B14'],
+      negativeBurdenRate: ['B11', 'B12', 'B14'],
+      negativeManning: ['B10', 'B11', 'B12', 'B14'],
+      negativeSellingPrice: ['B13', 'B14'],
+      negativeSgaPercent: ['B13', 'B14']
+    }
+    const numericOutputsByScenario: Record<string, string[]> = {
+      lossAt100: ['B9', 'B10', 'B11', 'B12', 'B13', 'B14'],
+      negativeUsage: ['B10', 'B11', 'B13'],
+      negativeMaterialPrice: ['B10', 'B11', 'B13'],
+      lossAbove100: ['B10', 'B11', 'B13'],
+      zeroCapacity: ['B9', 'B13'],
+      negativeCapacity: ['B9', 'B13'],
+      zeroYield: ['B9', 'B13'],
+      yieldAbove100: ['B9', 'B13'],
+      negativeLaborRate: ['B9', 'B11', 'B13'],
+      negativeBurdenRate: ['B9', 'B10', 'B13'],
+      negativeManning: ['B9', 'B13'],
+      negativeSellingPrice: ['B9', 'B10', 'B11', 'B12'],
+      negativeSgaPercent: ['B9', 'B10', 'B11', 'B12'],
+      sgaAbove100: ['B9', 'B10', 'B11', 'B12', 'B13', 'B14'],
+      zeroInclusiveInputs: ['B9', 'B10', 'B11', 'B12', 'B13', 'B14']
+    }
+    for (const [scenario, addresses] of Object.entries(blankOutputsByScenario)) {
+      for (const address of addresses) {
+        assert.equal(excelEvaluation.cases[scenario]?.[address], null,
+          `Excel leaves META ${address} blank for legacy invalid ${scenario} data`)
+      }
+    }
+    for (const [scenario, addresses] of Object.entries(numericOutputsByScenario)) {
+      for (const address of addresses) {
+        const actual = excelEvaluation.cases[scenario]?.[address]
+        assert.equal(typeof actual, 'number', `Excel keeps META ${address} available for ${scenario}`)
+        assert.ok(Number.isFinite(actual), `Excel META ${address} is finite for ${scenario}`)
+      }
+    }
+    assert.equal(excelEvaluation.cases.sgaAbove100?.B13, 180,
+      'SG&A percentages above 100 remain valid and calculate as entered')
+    assert.ok(Math.abs((excelEvaluation.cases.sgaAbove100?.B14 as number) - (150 - runtimeCost.total! - 180)) < 1e-8,
+      'OP remains available with SG&A percentages above 100')
+    assert.equal(excelEvaluation.cases.zeroInclusiveInputs?.B13, 0,
+      'zero is retained for fields whose canonical numeric domains include zero')
+
     const calculationExport = await loadExcel(calculationWorkbook)
     assert.equal(calculationExport.getWorksheet('WORK_CENTER')!.getCell('A4').value, ' WC-1 ',
       'calculation helper does not rewrite the exported Work Center identity')

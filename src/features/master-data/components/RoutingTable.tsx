@@ -258,12 +258,12 @@ export const RoutingTable: React.FC<RoutingTableProps> = ({
               const identityInvalid = !step.processName.trim() || duplicateProcessIds.has(step.id)
               const identityWarning = Boolean(step.isGeneratedBusinessIdentity || step.autoRenamedFrom || duplicateProcessIds.has(step.id))
               const workCenterInvalid = !step.workCenterId?.trim() || !knownWorkCenters.has(step.workCenterId.trim().toLocaleLowerCase())
-              const manningInvalid = step.manning === null || hasInvalidNumber(step.manning)
-              const capacityInvalid = step.capacity === null || hasInvalidNumber(step.capacity) || step.capacity <= 0
-              const yieldInvalid = step.yield === null || hasInvalidNumber(step.yield) || step.yield <= 0 || step.yield > 1
               const manningMissing = step.manning === null
               const capacityMissing = step.capacity === null
               const yieldMissing = step.yield === null
+              const manningInvalid = hasInvalidNumber('manning', step.manning)
+              const capacityInvalid = hasInvalidNumber('capacity', step.capacity)
+              const yieldInvalid = hasInvalidNumber('yield', step.yield)
               const rowNumber = routing.findIndex(row => row.id === step.id) + 1
               const placeholderNumber = placeholderNumbers.get(step.id)
               const deleteSelectedGroup = selectedIds.has(step.id) && selectedIds.size > 1
@@ -363,7 +363,7 @@ export const RoutingTable: React.FC<RoutingTableProps> = ({
                           data-grid-row-id={step.id}
                           data-grid-field="manning"
                           aria-label={`Manning for ${step.processName || `Routing row ${rowNumber}`}`}
-                          aria-invalid={manningInvalid}
+                          aria-invalid={manningMissing || manningInvalid}
                           className={`${numericClass(manningInvalid, manningMissing)} ${selectedCellKeys.has(tableCellKey(step.id, 'manning')) ? masterDataSpreadsheetSelectionClass : ''}`}
                         />
                         {manningMissing && <MasterDataBlockerMarker />}
@@ -383,7 +383,7 @@ export const RoutingTable: React.FC<RoutingTableProps> = ({
                           data-grid-row-id={step.id}
                           data-grid-field="capacity"
                           aria-label={`Capacity for ${step.processName || `Routing row ${rowNumber}`}`}
-                          aria-invalid={capacityInvalid}
+                          aria-invalid={capacityMissing || capacityInvalid}
                           className={`${numericClass(capacityInvalid, capacityMissing)} ${selectedCellKeys.has(tableCellKey(step.id, 'capacity')) ? masterDataSpreadsheetSelectionClass : ''}`}
                         />
                         {capacityMissing && <MasterDataBlockerMarker />}
@@ -404,7 +404,7 @@ export const RoutingTable: React.FC<RoutingTableProps> = ({
                             data-grid-row-id={step.id}
                             data-grid-field="yield"
                             aria-label={`Yield percentage for ${step.processName || `Routing row ${rowNumber}`}`}
-                            aria-invalid={yieldInvalid}
+                            aria-invalid={yieldMissing || yieldInvalid}
                             className={`${numericClass(yieldInvalid, yieldMissing)} ${selectedCellKeys.has(tableCellKey(step.id, 'yield')) ? masterDataSpreadsheetSelectionClass : ''}`}
                           />
                           {yieldMissing && <MasterDataBlockerMarker />}
