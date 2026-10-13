@@ -1,30 +1,34 @@
-# Current Handoff — Final Logic Implementation
+# Current Handoff — Cost Breakdown Integration
 
-**Updated:** 2026-10-09
-**Checkpoint:** Final Logic implementation independently approved; documentation guidance cleanup only
+**Updated:** 2026-10-13
+**Current checkpoint:** Cost Breakdown integration; Master Data is closed and frozen.
 
-## Active Checkpoint
+## Active Integration Checkpoint
 
 - **Repository:** `apirak-k/COSTBREAKDOWN`
-- **Implementation branch:** `codex/final-logic-implementation`
-- **Remote target:** `origin/codex/final-logic-implementation`
-- **Worktree:** `.worktrees/codex-final-logic-implementation`
-- **Independent review correction base:** `4a1968db841d97ff8d6c44b3aadf929f73e01be1`.
-- **Latest application source commit:** `15379d92a2815fa6bea89f2b9cad56ec29347148` (`fix: reset Parameter SIM on RCA handoff`).
-- **Full implementation baseline:** `665099b71319ec98c537a0859336dc01b9acc118`.
-- **Status:** The user reports that the Final Logic implementation at
-  `9c25906435ed14eee6b67692e3bfd8d1a43695de` is independently approved. The
-  complete Frozen Final Requirement Traceability Checklist v1.0 audit and
-  implementation re-audit are recorded in
-  `.planning/2026-10-09-final-logic-implementation/findings.md`. All 475 IDs
-  retain explicit Spec / Code / Test / Status evidence: 473 PASS, 2 N/A —
-  PROVISIONAL/UI ONLY (R-10 and R-11), 0 open FINDING, and 0 NOT VERIFIED after
-  the two latest review corrections. The documentation source branch was not
-  modified. Footer/frontend styling remains a separate task and was not started
-  in this documentation batch.
-- **Delivery target:** `codex/final-logic-implementation` → `origin/codex/final-logic-implementation`.
+- **Active branch:** `codex/cbd-candidate-integration`
+- **Integration HEAD before this documentation-only cleanup:** `687a509112b1c4dfe6b69defde0cc2aead8f8ec6` (`Merge Candidate and RCA work`, 2026-10-12).
+- **Remote tracking ref:** `origin/codex/cbd-candidate-integration`.
+- **Master Data:** CLOSED / frozen baseline for UX and behavior. Do not redesign or change it unless a concrete regression or dependency is later proven.
+- **Current active development focus:** Cost Breakdown (CBD). Continue CBD UX/UI work from this integration checkpoint; proposed redesign details remain undecided and do not belong in canonical specifications yet.
+- **Integration state:** The branch contains merged Master Data, Cost Breakdown, and Candidate/RCA work. This merge state does not by itself establish final user acceptance of Candidate/RCA or the whole application.
+- **Verification state:** No full re-audit of the post-merge integration HEAD is recorded here. The 2026-10-09 475-ID audit below is historical verification evidence for its earlier Final Logic checkpoint only.
+- **Local worktree note:** At this cleanup's inspection, `vite.config.ts` had a pre-existing unstaged change. This documentation cleanup leaves it untouched.
 
-## Frozen Checklist Completion Evidence
+## Historical Final Logic Checklist Evidence — 2026-10-09
+
+The following evidence belongs to the earlier `codex/final-logic-implementation` checkpoint. It is retained for traceability and does not prove that the current post-merge integration branch has re-passed these checks.
+
+- **Historical repository:** `apirak-k/COSTBREAKDOWN`
+- **Historical implementation branch / delivery target:** `codex/final-logic-implementation` → `origin/codex/final-logic-implementation`.
+- **Historical worktree:** `.worktrees/codex-final-logic-implementation`.
+- **Independent review correction base:** `4a1968db841d97ff8d6c44b3aadf929f73e01be1`.
+- **Latest application source commit in that checkpoint:** `15379d92a2815fa6bea89f2b9cad56ec29347148` (`fix: reset Parameter SIM on RCA handoff`).
+- **Full implementation baseline:** `665099b71319ec98c537a0859336dc01b9acc118`.
+- **User-reported approval:** The user reported that Final Logic implementation commit `9c25906435ed14eee6b67692e3bfd8d1a43695de` was independently approved at that time.
+- The Frozen Final Requirement Traceability Checklist v1.0 and implementation re-audit are recorded in `.planning/2026-10-09-final-logic-implementation/findings.md`. That audit reported 473 PASS, 2 N/A — PROVISIONAL/UI ONLY (R-10 and R-11), 0 open FINDING, and 0 NOT VERIFIED for its checkpoint.
+
+## Historical Frozen Checklist Completion Evidence
 
 - All initially confirmed implementation findings and applicable evidence gaps were addressed. The complete per-ID final matrix is in `findings.md`; the frozen requirement wording and IDs in `task_plan.md` are unchanged.
 - The active review fixture and system logic diagram were corrected. Superseded agreement/history documents remain retained and are called out in the audit ledger rather than rewritten as current requirements.
@@ -41,7 +45,7 @@ This section records the earlier review loop and remains historical implementati
 3. **RCA Case can proceed to Simulation.** The active Case ID, Candidate keys, and latest Root Cause/Action draft are carried into Simulation. RCA remains complete without Simulation, and no completion gate is added. For a new SIM after this handoff, Current is the first/default source choice while Reference and Custom stay available. Candidate context does not lock or preselect Factors; all Material and Process records remain selectable.
 4. **RCA handoff always starts a fresh Parameter SIM state.** An explicit handoff now clears any pre-existing Current, Reference, or Custom Parameter snapshot, selected Factors, source, fingerprint, and start time rather than reusing them. Reconciled Economic inputs are preserved. The legacy `activeTab='rca'` value now returns to the Candidate/RCA workflow; `dashboard` still maps to Simulation.
 
-## Verification
+## Historical Verification
 
 - All 62 TypeScript verifiers pass effectively; 60 use the cached CJS runner and two SSR verifiers pass through Vite. Both MJS verifiers pass (2/2).
 - `npx tsc --noEmit --pretty false` passes. `npm run build` passes with 2,028 modules transformed. The build continues to report ExcelJS browser externalization warnings for `fs`, `crypto`, and `fast-csv`.
@@ -51,7 +55,7 @@ This section records the earlier review loop and remains historical implementati
 - Isolated browser checks confirmed Master Data editing/navigation/paste/bulk actions and Shift/Ctrl row selection; one-/multi-Candidate RCA handoff; Current-first with Reference/Custom available; additional Factor selection; Economic-only inputs before Parameter SIM and their persistence into combined mode; direct Simulation without stale RCA context.
 - Phase 16 targeted regressions directly exercise resetting pre-existing Current/Reference/Custom Parameter SIM states before RCA handoff, clearing old Factors, retaining Economic inputs, showing Current first with Reference/Custom available, unrestricted Material/Process Factor selection, RCA-context expiry, and legacy active-tab migration. The exact old-SIM→RCA→Proceed integration was not separately clicked through in a browser during this correction batch.
 
-## Remaining Verification Limits and Build Notes
+## Historical Verification Limits and Build Notes
 
 - Native Excel was not launched; generated workbook formulas, notes, styles, and round-trip behavior were checked by the workbook verifiers. Human visual acceptance remains a later checkpoint and was not represented as complete.
 - Phase 16 exercised the handoff state transition and server-rendered controls; no browser click-through of each old-SIM source sequence was performed in this correction batch.
@@ -59,7 +63,9 @@ This section records the earlier review loop and remains historical implementati
 - `npm audit --audit-level=high` reports 5 High development-dependency findings and 4 Moderate findings overall. The production-only audit has no High findings but reports 2 Moderate ExcelJS/uuid findings. npm's full automatic remediation proposes breaking dependency changes, so no dependency update was included in the frozen logic scope.
 - The worktree contains an unrelated untracked `src/graphify-out/` directory generated by tooling. It was preserved and excluded from commits.
 
-## Finalized Logic Preserved
+## Final Logic Baseline Summary
+
+This summary describes the finalized logic baseline represented by the historical audit above. The current canonical product specifications remain the authority for behavior.
 
 1. **Master Data:** Reference, Current, and independent Custom workspaces. The active dataset is the destination for Clone From; structural edits stay in Master Data.
 2. **Cost Breakdown:** Reference vs Current only. Selected Comparison remains a temporary analysis scope and does not carry into Simulation.
@@ -69,7 +75,7 @@ This section records the earlier review loop and remains historical implementati
 6. **Business formulas:** SG&A amount = Selling Price × SG&A%; OP = Selling Price − Standard Cost − SG&A amount. Negative OP remains visible. The Reference → Current → Simulated graph stays active and shows adjacent signed gaps.
 7. **Superseded workflows:** Scenario A/B is not mandatory. The dedicated Trial lifecycle and old combined A/B simulation flow are retired; Custom remains a general-purpose workspace.
 
-## Implementation Commit Map
+## Historical Implementation Commit Map
 
 - `19303af` — Custom workspace state
 - `b2b4be3` — Custom Master Data actions and isolation
@@ -87,6 +93,6 @@ This section records the earlier review loop and remains historical implementati
 - `3abb6f8` — Close frozen final logic audit findings; add regression evidence and remove disconnected competing state/engines
 - `15379d9` — Fresh Parameter SIM reset on RCA handoff and legacy active-tab migration
 
-## Next Step
+## Current Work Focus
 
-This documentation cleanup is separate from the independently approved Final Logic implementation. Footer/frontend styling remains for a later, separate task; do not mix it into this documentation batch.
+Continue Cost Breakdown UX/UI work on the current integration branch. Record a proposed new CBD direction in canonical requirements only after an explicit user decision.

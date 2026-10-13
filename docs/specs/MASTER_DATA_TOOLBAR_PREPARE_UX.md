@@ -1,6 +1,6 @@
 # Master Data Toolbar and Engineering Workspace UX Contract
 
-**Status:** Current user-directed UX contract for branch `CBD-UXUI`, including the latest 2026-10-12 correction pass. This contract supersedes conflicting earlier presentation decisions. Finalized business behavior remains authoritative unless a decision below explicitly changes the presentation.
+**Status:** Accepted shared UX contract carried into the current integration branch, including the latest 2026-10-12 correction pass. This contract supersedes conflicting earlier presentation decisions. Finalized business behavior remains authoritative unless a decision below explicitly changes the presentation.
 
 ## Scope
 

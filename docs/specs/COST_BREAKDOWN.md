@@ -102,5 +102,6 @@ The findings from CBD (whether Full or Selected) feed into [Candidate Prioritiza
 
 - Validation warnings inform and direct without blocking navigation.
 - Keep comparison statuses separate from data-quality validation warnings.
-- Keep duplicate top calculation warning banners and the page-level Data quality summary removed; display warnings in a collapsed disclosure labeled `Review warnings (N)`.
+- Do not add duplicate top calculation-warning banners, a page-level Data Quality summary, or a separate Warning/Blocker disclosure in CBD. Warnings and blockers remain accessible through the shared Header Info (`I`) → Prepare Dataset path.
+- This presentation boundary does not change validation or calculation behavior. Keep Confidence and data-quality badges out of CBD details as specified above.
 - Preserve the result → cause → detail direction.
