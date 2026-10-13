@@ -1,20 +1,21 @@
-# Current Handoff — Cost Breakdown Integration
+# Current Handoff — Cost Breakdown UX/UI Redesign
 
 **Updated:** 2026-10-13
-**Current checkpoint:** Cost Breakdown integration; Master Data is closed and frozen.
+**Checkpoint:** CBD UX/UI redesign implemented, verified, committed, and pushed. Master Data remains closed and frozen.
 
-## Active Integration Checkpoint
+## Active CBD Checkpoint
 
 - **Repository:** `apirak-k/COSTBREAKDOWN`
-- **Active branch:** `codex/cbd-candidate-integration`
-- **Application source baseline:** `687a509112b1c4dfe6b69defde0cc2aead8f8ec6` (`Merge Candidate and RCA work`, 2026-10-12).
-- **Current integration HEAD (documentation-only):** `dbaa53f637b486ac9bac7a329859a4e9c353784a` (`docs: sync integration handoff and specs`, 2026-10-13); this documentation commit does not change the application source baseline above.
-- **Remote tracking ref:** `origin/codex/cbd-candidate-integration`.
+- **Branch / remote:** `codex/cbd-candidate-integration` → `origin/codex/cbd-candidate-integration`
+- **CBD implementation commit:** `9f4908d68532f6012c7b153f6dbd01b09a2a412b` (`feat(cbd): finalize candidate comparison UX`); pushed successfully. This HANDOFF update follows that implementation commit.
+- **Branch synchronization:** Fast-forwarded from `687a509112b1c4dfe6b69defde0cc2aead8f8ec6` to remote commit `19c4a60e49abf6d7adaab73cca017c3a2c33b025`, then pushed the CBD commit. No merge commit was created.
+- **Implementation:** CBD page composition, direct Candidate selection, single Standard Cost Gap bar, compact full-snapshot Overview and Work Center context, finalized BOM/RTG row and detail presentation, responsive scrolling, and synchronized specifications/design documentation.
+- **Calculation boundary:** Existing formulas and matching/business logic were preserved. No unrelated page or business logic was changed.
+- **Verification:** `npm run build`, the CBD parameter-cost-effect verifier, nine TypeScript self-checks, browser interaction checks at desktop and narrow mobile sizes, and `git diff --check` passed. The build retains existing Vite ExcelJS browser-externalization warnings for `fs` and `crypto`.
+- **Checklist:** `tasks/cbd-ux-ui-implementation-checklist.md` records the completed implementation checklist and evidence.
+- **Remaining review:** Human visual acceptance of the pushed page remains with the user; no known implementation blocker is recorded.
 - **Master Data:** CLOSED / frozen baseline for UX and behavior. Do not redesign or change it unless a concrete regression or dependency is later proven.
-- **Current active development focus:** Cost Breakdown (CBD). Continue CBD UX/UI work from this integration checkpoint; proposed redesign details remain undecided and do not belong in canonical specifications yet.
-- **Integration state:** The branch contains merged Master Data, Cost Breakdown, and Candidate/RCA work. This merge state does not by itself establish final user acceptance of Candidate/RCA or the whole application.
-- **Verification state:** No full re-audit of the post-merge integration HEAD is recorded here. The 2026-10-09 475-ID audit below is historical verification evidence for its earlier Final Logic checkpoint only.
-- **Local worktree note:** At this cleanup's inspection, `vite.config.ts` had a pre-existing unstaged change. This documentation cleanup leaves it untouched.
+- **Current worktree:** The implementation and Handoff changes are the only changes in this worktree; verify branch status before starting new work.
 
 ## Historical Final Logic Checklist Evidence — 2026-10-09
 
@@ -96,4 +97,4 @@ This summary describes the finalized logic baseline represented by the historica
 
 ## Current Work Focus
 
-Continue Cost Breakdown UX/UI work on the current integration branch. Record a proposed new CBD direction in canonical requirements only after an explicit user decision.
+The CBD UX/UI redesign is delivered on `codex/cbd-candidate-integration`. Review the pushed diff and collect any user-requested visual corrections before making further changes. Keep Master Data frozen and preserve the finalized CBD behavior documented in `docs/specs/COST_BREAKDOWN.md`.
