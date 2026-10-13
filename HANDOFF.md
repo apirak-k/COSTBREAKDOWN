@@ -1,21 +1,24 @@
-# Current Handoff — Cost Breakdown UX/UI Redesign
+# Current Handoff — CBD Corrective Round
 
-**Updated:** 2026-10-13
-**Checkpoint:** CBD UX/UI redesign implemented, verified, committed, and pushed. Master Data remains closed and frozen.
+**Updated:** 2026-10-14
+**Checkpoint:** Corrective implementation and local verification are complete. The implementation is committed as `8b48e85d32a150db0ff66c672036d24881de2ceb`; this handoff update is included in the user-authorized branch delivery.
 
-## Active CBD Checkpoint
+## Active CBD Corrective Round
 
 - **Repository:** `apirak-k/COSTBREAKDOWN`
-- **Branch / remote:** `codex/cbd-candidate-integration` → `origin/codex/cbd-candidate-integration`
-- **CBD implementation commit:** `9f4908d68532f6012c7b153f6dbd01b09a2a412b` (`feat(cbd): finalize candidate comparison UX`); pushed successfully. This HANDOFF update follows that implementation commit.
-- **Branch synchronization:** Fast-forwarded from `687a509112b1c4dfe6b69defde0cc2aead8f8ec6` to remote commit `19c4a60e49abf6d7adaab73cca017c3a2c33b025`, then pushed the CBD commit. No merge commit was created.
-- **Implementation:** CBD page composition, direct Candidate selection, single Standard Cost Gap bar, compact full-snapshot Overview and Work Center context, finalized BOM/RTG row and detail presentation, responsive scrolling, and synchronized specifications/design documentation.
-- **Calculation boundary:** Existing formulas and matching/business logic were preserved. No unrelated page or business logic was changed.
-- **Verification:** `npm run build`, the CBD parameter-cost-effect verifier, nine TypeScript self-checks, browser interaction checks at desktop and narrow mobile sizes, and `git diff --check` passed. The build retains existing Vite ExcelJS browser-externalization warnings for `fs` and `crypto`.
-- **Checklist:** `tasks/cbd-ux-ui-implementation-checklist.md` records the completed implementation checklist and evidence.
-- **Remaining review:** Human visual acceptance of the pushed page remains with the user; no known implementation blocker is recorded.
-- **Master Data:** CLOSED / frozen baseline for UX and behavior. Do not redesign or change it unless a concrete regression or dependency is later proven.
-- **Current worktree:** The implementation and Handoff changes are the only changes in this worktree; verify branch status before starting new work.
+- **Branch:** `codex/cbd-candidate-integration`
+- **Starting HEAD:** `28d8f59b7a1235d4a88ef6303c5167c98c43de37`.
+- **Implementation commit:** `8b48e85d32a150db0ff66c672036d24881de2ceb` (`fix(cbd): correct layout and signed gap chart`). The HANDOFF delivery record is committed immediately after it on the same branch.
+- **Implementation:** Removed the redundant CBD page heading; kept one subheader Gap chart with proportional same-sign segments and an honest signed waterfall for offsets; made the full-snapshot Standard Cost and Work Center panels compact and side-by-side with one whole-region collapse control; retained Candidate as the only CBD vertical scroll owner; aligned BOM and RTG changed details as REF / CUR / EFFECT rows; kept RTG Work Center and rate explanation secondary.
+- **Scroll root cause and correction:** The previous shell let both CBD `main` and Candidate workspace scroll vertically, while the CBD workspace frame lacked a constrained flex/min-height chain. This allowed nested page scroll and could let the shell's Footer appear detached from the viewport. CBD `main` is now a non-scrolling flex region, its workspace frame is a constrained column, and Candidate owns vertical scrolling. The application root/body suppress document-level scrolling; other route mains retain `overflow-y-auto`. Navbar is protected from flex shrinking; Footer remains `shrink-0`.
+- **Calculation boundary:** Existing formulas, matching/status behavior, LMDI attribution, selected-comparison state, and downstream Candidate/RCA compatibility were preserved. No unrelated product page or business logic was changed.
+- **Specifications:** `docs/specs/COST_BREAKDOWN.md` and the CBD section in `design.md` describe the corrected UI. `FINAL_LOGIC_SPEC.md` was not rewritten.
+- **Checklist:** `tasks/cbd-ux-ui-implementation-checklist.md` is the corrective-round checklist. New requirements started unchecked; only verified items were checked with evidence. Browser zoom and visual review of a full signed-offset fixture remain marked NEEDS HUMAN REVIEW.
+- **Secondbrain workflow:** Updated the existing canonical `secondbrain/WORKFLOW.md` in the private DEV checkout at `C:\Users\Boom\.codex\worktrees\skill-link-ownership-dev\Human-AI-Working-Standard`. It records the ChatGPT audit → Codex round → next-prompt cycle and treats mid-round decisions as next-round agreements by default. This private DEV edit is unstaged and uncommitted.
+- **Verification:** `npm run build`, the CBD parameter-effect verifier including proportional and signed-offset assertions, ten CBD/selected-comparison/reconciliation TypeScript self-checks, browser checks at desktop, laptop, and narrow/mobile sizes, and `git diff --check` are recorded in the checklist. Build output still includes existing Vite ExcelJS `fs` / `crypto` browser-externalization warnings.
+- **Browser limitations:** No zoom control is exposed by the browser viewport tool. The +9 / -4 / +2 offset case with selected +10 was asserted in the signed chart render, but a browser-rendered full-offset fixture was not available; those visual checks remain open for human review.
+- **Master Data:** CLOSED / frozen baseline for UX and behavior. Only its existing main-region scroll behavior was checked while verifying the shared shell.
+- **Delivery boundary:** The user explicitly authorized committing and pushing this corrective round on 2026-10-14. Keep delivery on `codex/cbd-candidate-integration`; do not merge, rebase, or force-push.
 
 ## Historical Final Logic Checklist Evidence — 2026-10-09
 
@@ -97,4 +100,4 @@ This summary describes the finalized logic baseline represented by the historica
 
 ## Current Work Focus
 
-The CBD UX/UI redesign is delivered on `codex/cbd-candidate-integration`. Review the pushed diff and collect any user-requested visual corrections before making further changes. Keep Master Data frozen and preserve the finalized CBD behavior documented in `docs/specs/COST_BREAKDOWN.md`.
+The CBD corrective round is delivered from `codex/cbd-candidate-integration`. The implementation commit is `8b48e85d32a150db0ff66c672036d24881de2ceb`; the HANDOFF delivery record follows it on the same branch. Address any human visual-review findings as the next bounded corrective round, and keep Master Data frozen.
