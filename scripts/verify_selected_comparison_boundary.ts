@@ -10,10 +10,10 @@ const failures: string[] = []
 function verify(name: string, assertion: () => void) {
   try {
     assertion()
-    console.log(`PASS ${name}`)
+    console.log('PASS ' + name)
   } catch (error) {
     failures.push(name)
-    console.log(`FAIL ${name}: ${error instanceof Error ? error.message : String(error)}`)
+    console.log('FAIL ' + name + ': ' + (error instanceof Error ? error.message : String(error)))
   }
 }
 
@@ -22,31 +22,22 @@ verify('Entering Simulation ends the active Selected Comparison scope', () => {
   assert.match(setActiveTabBody, /tab\s*===\s*'simulation'[\s\S]*setSelectedComparisonScope\(null\)/)
 })
 
-verify('Cost Breakdown presents Selected Comparison as a scope control without a one-Candidate gate', () => {
-  assert.match(costBreakdownPage, /aria-label="Comparison scope"/)
-  assert.match(costBreakdownPage, /Selected Comparison/)
-  assert.doesNotMatch(costBreakdownPage, /ends when you choose one Candidate for RCA/)
+verify('Cost Breakdown directly applies Candidate selection and keeps full context visible', () => {
+  assert.match(costBreakdownPage, /aria-label="Candidate type filter"/)
+  assert.match(costBreakdownPage, /aria-label="Standard Cost Gap"/)
+  assert.match(costBreakdownPage, /comparison=\{fullSnapshotComparison\}/)
+  assert.match(costBreakdownPage, /onToggleFinding=\{toggleFinding\}/)
+  assert.match(costBreakdownPage, /applySelectedComparison\(nextSelection\)/)
+  assert.match(costBreakdownPage, /clearSelectedComparison\(\)/)
+  assert.doesNotMatch(costBreakdownPage, /Select scope|Edit scope|Full Comparison|>Apply<|>Cancel</)
 })
 
-const startRcaBody = candidatePage.match(/const startRcaCase = \(\) => \{([\s\S]*?)\n  \}/)?.[1] ?? ''
-verify('Creating an RCA Case ends the active Selected Comparison scope', () => {
-  assert.match(startRcaBody, /clearSelectedComparison\(\)/)
-})
-
-const openRcaCasesBody = candidatePage.match(/const openRcaCases = \(\) => \{([\s\S]*?)\n  \}/)?.[1] ?? ''
-verify('Opening an existing RCA Case ends the active Selected Comparison scope', () => {
-  assert.match(openRcaCasesBody, /clearSelectedComparison\(\)/)
-  assert.match(candidatePage, /onClick=\{openRcaCases\}[\s\S]*?RCA Cases/)
-})
-
-const activeCaseEntryEffect = [...candidatePage.matchAll(/useEffect\(\(\) => \{([\s\S]*?)\}, \[([^\]]*)\]\)/g)]
-  .find(([, body, dependencies]) => /showRcaCases/.test(dependencies) && /clearSelectedComparison\(\)/.test(body))
-verify('Automatically reopening the active RCA Case ends any active Selected Comparison scope', () => {
-  assert(activeCaseEntryEffect, 'an RCA Case visibility effect clears the scope when an active Case reopens')
+verify('Candidate page still lets a user clear the active Selected Comparison scope', () => {
+  assert.match(candidatePage, /onExit=\{clearSelectedComparison\}/)
 })
 
 if (failures.length > 0) {
-  throw new Error(`${failures.length} Selected Comparison boundary verification(s) failed`)
+  throw new Error(failures.length + ' Selected Comparison boundary verification(s) failed')
 }
 
-console.log('Selected Comparison RCA/Simulation boundary verification passed')
+console.log('Selected Comparison CBD/Candidate/Simulation boundary verification passed')

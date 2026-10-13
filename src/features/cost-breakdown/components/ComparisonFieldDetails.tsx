@@ -4,10 +4,12 @@ import { formatComparisonFieldDiffs } from './comparison-field-details'
 interface ComparisonFieldDetailsProps {
   finding?: ComparisonFinding
   fieldLabelOverrides?: Record<string, string>
+  hiddenFields?: readonly string[]
 }
 
-export function ComparisonFieldDetails({ finding, fieldLabelOverrides }: ComparisonFieldDetailsProps) {
-  const changes = formatComparisonFieldDiffs(finding?.fieldDiffs ?? {}, fieldLabelOverrides)
+export function ComparisonFieldDetails({ finding, fieldLabelOverrides, hiddenFields = [] }: ComparisonFieldDetailsProps) {
+  const hidden = new Set(hiddenFields)
+  const changes = formatComparisonFieldDiffs(finding?.fieldDiffs ?? {}, fieldLabelOverrides).filter(change => !hidden.has(change.field))
   if (changes.length === 0) return null
 
   return (

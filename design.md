@@ -68,10 +68,11 @@ requirements:
   stacked vertical cost chart with Selling Price as a line. The current
   Reference/Current data does not provide monthly history, and formulas remain
   governed by [`CROSS_CUTTING.md`](docs/specs/CROSS_CUTTING.md).
-- Keep Cost Breakdown's path from total Gap through category and BOM/Work
-  Center/Process detail to changed fields, and keep `Review warnings (N)` as a
-  collapsed disclosure [`COST_BREAKDOWN.md`:L31-L50;
-  `CROSS_CUTTING.md`:L64-L68].
+- Keep Cost Breakdown's path from the full Standard Cost Gap through
+  Material/Labor/Burden, full-snapshot Work Center context, and BOM/RTG
+  Candidates. The single Gap Bar highlights selected contribution in place;
+  `#` toggles Candidate selection immediately. Keep the Overview and Work
+  Center values on the full snapshots [`COST_BREAKDOWN.md`](docs/specs/COST_BREAKDOWN.md).
 - Follow the finalized Selling Price, SG&A, and OP formulas in
   [`FINAL_LOGIC_SPEC.md`](docs/specs/FINAL_LOGIC_SPEC.md). Metrics classified as
   OUT OF SCOPE remain unavailable and must not be implied; never fill a visual

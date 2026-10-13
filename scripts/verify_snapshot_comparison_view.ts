@@ -22,12 +22,16 @@ try {
   assert.doesNotMatch(markup, /Data quality:/, 'the page-level Data quality summary is absent')
   assert.doesNotMatch(markup, /Review warnings|Missing rate remains reviewable/, 'comparison warnings are not displayed in the summary')
   assert.doesNotMatch(markup, /Standard Cost reconciliation/, 'Standard Cost reconciliation UI is absent')
-  assert.match(markup, /Labor \+ Burden = Conversion/, 'Conversion balance information remains visible')
-  assert.match(markup, /Balanced/, 'Conversion balance state remains visible')
+  assert.match(markup, /Standard Cost Overview/)
+  for (const row of ['Material', 'Labor', 'Burden', 'Standard Cost']) assert.match(markup, new RegExp(row))
+  for (const column of ['REF', 'CUR', 'Gap']) assert.match(markup, new RegExp('>' + column + '<'))
+  assert.doesNotMatch(markup, /Conversion|% Parent|%Parent|Labor \+ Burden|Balanced|Review/,
+    'the overview omits Conversion subtotal, reconciliation, parent percentages, and review links')
   const selectedMarkup = renderToStaticMarkup(React.createElement(SnapshotComparisonCard, {
     comparison, selectedComparison: true
   }))
-  assert.match(selectedMarkup, /Selected Comparison/)
+  assert.match(selectedMarkup, /Full Reference \/ Current snapshot/)
+  assert.doesNotMatch(selectedMarkup, /Selected Comparison/)
 } finally {
   await vite.close()
 }

@@ -31,10 +31,6 @@ interface RoutingRecordDetailsProps {
   row: RoutingItemizedRow
   referenceRates: SnapshotWorkCenterRate[]
   currentRates: SnapshotWorkCenterRate[]
-  standardCostGap: number | null
-  laborGap: number | null
-  burdenGap: number | null
-  conversionGap: number | null
 }
 
 const formatNullable = (value: number | null | undefined, format: (value: number) => string) =>
@@ -52,12 +48,6 @@ function matchingRate(step: SnapshotRoutingStep | undefined, rates: SnapshotWork
   if (!step?.workCenterId) return undefined
   const matches = rates.filter(rate => normalized(rate.workCenterCode) === normalized(step.workCenterId))
   return matches.length === 1 ? matches[0] : undefined
-}
-
-function ratio(numerator: number | null, denominator: number | null): string {
-  return numerator === null || denominator === null || !Number.isFinite(numerator) || !Number.isFinite(denominator) || denominator === 0
-    ? '—'
-    : formatPercent(numerator / denominator, 2)
 }
 
 function comparisonValues(
@@ -150,14 +140,14 @@ function effectInput(step: SnapshotRoutingStep | undefined, rate: SnapshotWorkCe
 }
 
 const FACTORS = [
-  { key: 'manning', label: 'Manning' },
-  { key: 'capacity', label: 'Capacity' },
-  { key: 'yield', label: 'Yield' },
-  { key: 'laborRate', label: 'Labor Rate' },
-  { key: 'burdenRate', label: 'Burden Rate' }
+  { key: 'manning', label: 'Manning', format: (value: number) => formatNumber(value, 4) },
+  { key: 'capacity', label: 'Capacity', format: (value: number) => formatNumber(value, 4) },
+  { key: 'yield', label: 'Yield', format: (value: number) => formatPercent(value, 2) },
+  { key: 'laborRate', label: 'Labor Rate', format: (value: number) => formatNumber(value, 4) },
+  { key: 'burdenRate', label: 'Burden Rate', format: (value: number) => formatNumber(value, 4) }
 ] as const
 
-export function RoutingRecordDetails({ row, referenceRates, currentRates, standardCostGap, laborGap, burdenGap, conversionGap }: RoutingRecordDetailsProps) {
+export function RoutingRecordDetails({ row, referenceRates, currentRates }: RoutingRecordDetailsProps) {
   const { reference, current, finding } = row
   const referenceRate = matchingRate(reference, referenceRates)
   const currentRate = matchingRate(current, currentRates)
@@ -166,74 +156,47 @@ export function RoutingRecordDetails({ row, referenceRates, currentRates, standa
   const effect = isMatchedChange
     ? calculateRoutingParameterCostEffects(effectInput(reference, referenceRate), effectInput(current, currentRate))
     : null
-  const rows = effect?.status === 'available' ? FACTORS.map(({ key, label }) => ({
-    key,
-    label,
-    labor: effect.effects.labor[key],
-    burden: effect.effects.burden[key],
-    conversion: effect.effects.conversion[key]
-  })) : []
-  const conversionGapValue = row.conversionGap
+  const parameterValues = {
+    manning: { reference: reference?.manning ?? null, current: current?.manning ?? null },
+    capacity: { reference: reference?.capacity ?? null, current: current?.capacity ?? null },
+    yield: { reference: reference?.yield ?? null, current: current?.yield ?? null },
+    laborRate: { reference: referenceRate?.laborRate ?? null, current: currentRate?.laborRate ?? null },
+    burdenRate: { reference: referenceRate?.burdenRate ?? null, current: currentRate?.burdenRate ?? null }
+  }
 
   return (
     <div className="space-y-3">
+      {(reference?.workCenterId || current?.workCenterId) && <div className="flex flex-wrap gap-x-4 gap-y-1 text-[11px] text-slate-600">
+        <span>REF Work Center <strong className="font-mono text-slate-800">{reference?.workCenterId || '—'}</strong></span>
+        <span>CUR Work Center <strong className="font-mono text-slate-800">{current?.workCenterId || '—'}</strong></span>
+      </div>}
       <div className="overflow-x-auto">
-        <table className="w-full min-w-[620px] text-left text-xs">
-          <caption className="sr-only">Routing parameters and snapshot-specific Work Center rates</caption>
-          <thead><tr className="bg-slate-100 text-[11px] font-semibold text-slate-700"><th scope="col" className="px-2.5 py-1.5">Parameter</th><th scope="col" className="px-2.5 py-1.5 text-right">Reference</th><th scope="col" className="px-2.5 py-1.5 text-right">Current</th></tr></thead>
+        <table className="w-full min-w-[680px] text-left text-xs">
+          <caption className="sr-only">Changed Routing parameter and Work Center rate values with Reference, Current, and conversion cost effect</caption>
+          <thead><tr className="bg-slate-100 text-[11px] font-semibold text-slate-700"><th scope="col" className="px-2.5 py-1.5">Parameter</th><th scope="col" className="px-2.5 py-1.5 text-right">REF</th><th scope="col" className="px-2.5 py-1.5 text-right">CUR</th><th scope="col" className="px-2.5 py-1.5 text-right">EFFECT · THB/pc</th></tr></thead>
           <tbody className="divide-y divide-slate-200 font-mono tabular-nums">
-            <tr><th scope="row" className="px-2.5 py-1.5 font-sans font-medium text-slate-700">Work Center</th><td className="px-2.5 py-1.5 text-right">{reference?.workCenterId || '—'}</td><td className="px-2.5 py-1.5 text-right">{current?.workCenterId || '—'}</td></tr>
-            <tr><th scope="row" className="px-2.5 py-1.5 font-sans font-medium text-slate-700">Manning</th><td className="px-2.5 py-1.5 text-right">{formatNullable(reference?.manning, value => formatNumber(value, 4))}</td><td className="px-2.5 py-1.5 text-right">{formatNullable(current?.manning, value => formatNumber(value, 4))}</td></tr>
-            <tr><th scope="row" className="px-2.5 py-1.5 font-sans font-medium text-slate-700">Capacity</th><td className="px-2.5 py-1.5 text-right">{formatNullable(reference?.capacity, value => formatNumber(value, 4))}</td><td className="px-2.5 py-1.5 text-right">{formatNullable(current?.capacity, value => formatNumber(value, 4))}</td></tr>
-            <tr><th scope="row" className="px-2.5 py-1.5 font-sans font-medium text-slate-700">Yield</th><td className="px-2.5 py-1.5 text-right">{formatNullable(reference?.yield, value => formatPercent(value, 2))}</td><td className="px-2.5 py-1.5 text-right">{formatNullable(current?.yield, value => formatPercent(value, 2))}</td></tr>
-            <tr><th scope="row" className="px-2.5 py-1.5 font-sans font-medium text-slate-700">Labor Rate</th><td className="px-2.5 py-1.5 text-right">{formatNullable(referenceRate?.laborRate, value => formatNumber(value, 4))}</td><td className="px-2.5 py-1.5 text-right">{formatNullable(currentRate?.laborRate, value => formatNumber(value, 4))}</td></tr>
-            <tr><th scope="row" className="px-2.5 py-1.5 font-sans font-medium text-slate-700">Burden Rate</th><td className="px-2.5 py-1.5 text-right">{formatNullable(referenceRate?.burdenRate, value => formatNumber(value, 4))}</td><td className="px-2.5 py-1.5 text-right">{formatNullable(currentRate?.burdenRate, value => formatNumber(value, 4))}</td></tr>
+            {FACTORS.map(({ key, label, format }) => {
+              const values = parameterValues[key]
+              const value = effect?.status === 'available' ? effect.effects.conversion[key] : null
+              return <tr key={key}>
+                <th scope="row" className="px-2.5 py-1.5 text-left font-sans font-medium text-slate-700">{label}</th>
+                <td className="px-2.5 py-1.5 text-right">{formatNullable(values.reference, format)}</td>
+                <td className="px-2.5 py-1.5 text-right">{formatNullable(values.current, format)}</td>
+                <td className="px-2.5 py-1.5 text-right">{formatNullable(value, amount => formatVariance(amount, 4))}</td>
+              </tr>
+            })}
+            <tr className="bg-slate-50 font-semibold">
+              <th scope="row" className="px-2.5 py-1.5 text-left font-sans text-slate-800">Cost Gap</th>
+              <td className="px-2.5 py-1.5 text-right">{formatNullable(row.referenceConversion, value => formatNumber(value, 4))}</td>
+              <td className="px-2.5 py-1.5 text-right">{formatNullable(row.currentConversion, value => formatNumber(value, 4))}</td>
+              <td className="px-2.5 py-1.5 text-right">{formatNullable(row.conversionGap, value => formatVariance(value, 4))}</td>
+            </tr>
           </tbody>
         </table>
       </div>
 
-      <div className="overflow-x-auto">
-        <table className="w-full min-w-[900px] text-left text-[11px]">
-          <caption className="sr-only">Reference, Current, and gap for labor, burden, and conversion with total and parent percentages</caption>
-          <thead><tr className="bg-slate-100 font-semibold text-slate-700"><th scope="col" className="px-2 py-1.5">Cost element</th><th scope="col" className="px-2 py-1.5 text-right">Reference</th><th scope="col" className="px-2 py-1.5 text-right">Current</th><th scope="col" className="px-2 py-1.5 text-right">Gap</th><th scope="col" className="px-2 py-1.5 text-right">% Total</th><th scope="col" className="px-2 py-1.5 text-right">% Parent</th></tr></thead>
-          <tbody className="divide-y divide-slate-200 font-mono tabular-nums">
-            <CostRow label="Labor" reference={row.referenceLaborCost} current={row.currentLaborCost} gap={row.laborGap} standardCostGap={standardCostGap} parentGap={laborGap} />
-            <CostRow label="Burden" reference={row.referenceBurdenCost} current={row.currentBurdenCost} gap={row.burdenGap} standardCostGap={standardCostGap} parentGap={burdenGap} />
-            <CostRow label="Conversion" reference={row.referenceConversion} current={row.currentConversion} gap={conversionGapValue} standardCostGap={standardCostGap} parentGap={conversionGap} />
-          </tbody>
-        </table>
-      </div>
-
+      <p className="text-[11px] text-slate-500">EFFECT uses the existing Routing cost calculation. A dash means the value is unavailable.</p>
       {finding && <ComparisonFieldDetails finding={finding} fieldLabelOverrides={{ processName: 'Process', workCenterId: 'Work Center' }} />}
-
-      {isMatchedChange && (
-        <section aria-label="Routing Parameter Cost Effect" className="border-t border-slate-200 pt-2">
-          <div className="mb-1.5 flex flex-wrap items-baseline gap-x-2">
-            <h4 className="text-xs font-semibold text-slate-900">Parameter Cost Effect</h4>
-            <span className="text-[11px] text-slate-500">Calculated using LMDI</span>
-          </div>
-          {effect?.status === 'available' ? (
-            <div className="overflow-x-auto">
-              <table className="w-full min-w-[1120px] text-left text-[11px]">
-                <caption className="sr-only">Labor, burden, and conversion parameter effects by factor</caption>
-                <thead><tr className="bg-slate-100 font-semibold text-slate-700"><th scope="col" rowSpan={2} className="px-2 py-1.5">Factor</th><th scope="colgroup" colSpan={3} className="border-l border-slate-300 px-2 py-1.5 text-center">Labor</th><th scope="colgroup" colSpan={3} className="border-l border-slate-300 px-2 py-1.5 text-center">Burden</th><th scope="colgroup" colSpan={3} className="border-l border-slate-300 px-2 py-1.5 text-center">Conversion</th></tr><tr className="bg-slate-100 font-medium text-slate-600"><th scope="col" className="border-l border-slate-300 px-2 py-1">Effect</th><th scope="col" className="px-2 py-1">% Parent</th><th scope="col" className="px-2 py-1">% Total</th><th scope="col" className="border-l border-slate-300 px-2 py-1">Effect</th><th scope="col" className="px-2 py-1">% Parent</th><th scope="col" className="px-2 py-1">% Total</th><th scope="col" className="border-l border-slate-300 px-2 py-1">Effect</th><th scope="col" className="px-2 py-1">% Parent</th><th scope="col" className="px-2 py-1">% Total</th></tr></thead>
-                <tbody className="divide-y divide-slate-200 font-mono tabular-nums">
-                  {rows.map(item => <tr key={item.key}><th scope="row" className="px-2 py-1.5 font-sans font-medium text-slate-700">{item.label}</th><EffectCells value={item.labor} parentGap={row.laborGap} standardCostGap={standardCostGap} /><EffectCells value={item.burden} parentGap={row.burdenGap} standardCostGap={standardCostGap} /><EffectCells value={item.conversion} parentGap={row.conversionGap} standardCostGap={standardCostGap} /></tr>)}
-                  <tr className="bg-slate-50 font-semibold"><th scope="row" className="px-2 py-1.5 font-sans text-slate-800">Total</th><EffectCells value={row.laborGap} parentGap={row.laborGap} standardCostGap={standardCostGap} /><EffectCells value={row.burdenGap} parentGap={row.burdenGap} standardCostGap={standardCostGap} /><EffectCells value={row.conversionGap} parentGap={row.conversionGap} standardCostGap={standardCostGap} /></tr>
-                </tbody>
-              </table>
-            </div>
-          ) : <p className="text-xs text-slate-600">Unavailable</p>}
-        </section>
-      )}
     </div>
   )
-}
-
-function CostRow({ label, reference, current, gap, standardCostGap, parentGap }: { label: string; reference: number | null; current: number | null; gap: number | null; standardCostGap: number | null; parentGap: number | null }) {
-  return <tr><th scope="row" className="px-2 py-1.5 font-sans font-medium text-slate-700">{label}</th><td className="px-2 py-1.5 text-right">{formatNullable(reference, value => formatNumber(value, 4))}</td><td className="px-2 py-1.5 text-right">{formatNullable(current, value => formatNumber(value, 4))}</td><td className="px-2 py-1.5 text-right">{formatNullable(gap, value => formatVariance(value, 4))}</td><td className="px-2 py-1.5 text-right">{ratio(gap, standardCostGap)}</td><td className="px-2 py-1.5 text-right">{ratio(gap, parentGap)}</td></tr>
-}
-
-function EffectCells({ value, parentGap, standardCostGap }: { value: number | null; parentGap: number | null; standardCostGap: number | null }) {
-  return <><td className="border-l border-slate-200 px-2 py-1.5 text-right">{formatNullable(value, item => formatVariance(item, 4))}</td><td className="px-2 py-1.5 text-right">{ratio(value, parentGap)}</td><td className="px-2 py-1.5 text-right">{ratio(value, standardCostGap)}</td></>
 }

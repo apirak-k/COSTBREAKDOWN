@@ -23,7 +23,6 @@ export interface BOMItemizedRow {
 
 interface BOMRecordDetailsProps {
   row: BOMItemizedRow
-  standardCostGap: number | null
 }
 
 const formatNullable = (value: number | null | undefined, format: (value: number) => string) =>
@@ -31,12 +30,6 @@ const formatNullable = (value: number | null | undefined, format: (value: number
 
 export function getBOMComparisonLabel(finding: ComparisonFinding): ComparisonStatus | null {
   return getComparisonStatusLabels(finding)[0] ?? null
-}
-
-function ratio(numerator: number | null, denominator: number | null): string {
-  return numerator === null || !Number.isFinite(numerator) || denominator === null || !Number.isFinite(denominator) || denominator === 0
-    ? '—'
-    : formatPercent(numerator / denominator, 2)
 }
 
 function comparisonValues(finding: ComparisonFinding | undefined, reference?: SnapshotBOMItem, current?: SnapshotBOMItem) {
@@ -89,7 +82,7 @@ export function buildBOMItemizedRows(
   return [...currentRows, ...referenceOnlyRows]
 }
 
-export function BOMRecordDetails({ row, standardCostGap }: BOMRecordDetailsProps) {
+export function BOMRecordDetails({ row }: BOMRecordDetailsProps) {
   const { reference, current, finding } = row
   const status = getCanonicalComparisonStatus(finding)
   const isMatchedChange = finding?.matchStatus === 'matched' && status === 'CHANGED'
@@ -99,57 +92,45 @@ export function BOMRecordDetails({ row, standardCostGap }: BOMRecordDetailsProps
         { usage: current?.consumption ?? null, price: current?.price ?? null, loss: current?.loss ?? null }
       )
     : null
-  const effectRows = effect?.status === 'available'
-    ? [
-        { label: 'Usage', value: effect.effects.usage },
-        { label: 'Price', value: effect.effects.price },
-        { label: 'Loss', value: effect.effects.loss }
-      ]
-    : []
+  const effects = effect?.status === 'available' ? effect.effects : null
+  const effectRows = [
+    { label: 'Usage', reference: reference?.consumption ?? null, current: current?.consumption ?? null, effect: effects?.usage ?? null, format: (value: number) => formatNumber(value, 4) },
+    { label: 'Price', reference: reference?.price ?? null, current: current?.price ?? null, effect: effects?.price ?? null, format: (value: number) => formatNumber(value, 4) },
+    { label: 'Loss', reference: reference?.loss ?? null, current: current?.loss ?? null, effect: effects?.loss ?? null, format: (value: number) => formatPercent(value, 2) }
+  ]
 
   return (
     <div className="space-y-3">
       <div className="overflow-x-auto">
-        <table className="w-full min-w-[540px] text-left text-xs">
-          <caption className="sr-only">BOM parameters by Reference and Current</caption>
+        <table className="w-full min-w-[620px] text-left text-xs">
+          <caption className="sr-only">Changed BOM parameter values and cost effects aligned by parameter</caption>
           <thead>
             <tr className="bg-slate-100 text-[11px] font-semibold text-slate-700">
               <th scope="col" className="px-2.5 py-1.5">Parameter</th>
-              <th scope="col" className="px-2.5 py-1.5 text-right">Reference</th>
-              <th scope="col" className="px-2.5 py-1.5 text-right">Current</th>
+              <th scope="col" className="px-2.5 py-1.5 text-right">REF</th>
+              <th scope="col" className="px-2.5 py-1.5 text-right">CUR</th>
+              <th scope="col" className="px-2.5 py-1.5 text-right">EFFECT · THB/pc</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-200 font-mono tabular-nums">
-            <tr><th scope="row" className="px-2.5 py-1.5 font-sans font-medium text-slate-700">Usage</th><td className="px-2.5 py-1.5 text-right">{formatNullable(reference?.consumption, value => formatNumber(value, 4))}</td><td className="px-2.5 py-1.5 text-right">{formatNullable(current?.consumption, value => formatNumber(value, 4))}</td></tr>
-            <tr><th scope="row" className="px-2.5 py-1.5 font-sans font-medium text-slate-700">Unit</th><td className="px-2.5 py-1.5 text-right">{reference?.unit || '—'}</td><td className="px-2.5 py-1.5 text-right">{current?.unit || '—'}</td></tr>
-            <tr><th scope="row" className="px-2.5 py-1.5 font-sans font-medium text-slate-700">Price</th><td className="px-2.5 py-1.5 text-right">{formatNullable(reference?.price, value => formatNumber(value, 4))}</td><td className="px-2.5 py-1.5 text-right">{formatNullable(current?.price, value => formatNumber(value, 4))}</td></tr>
-            <tr><th scope="row" className="px-2.5 py-1.5 font-sans font-medium text-slate-700">Loss</th><td className="px-2.5 py-1.5 text-right">{formatNullable(reference?.loss, value => formatPercent(value, 2))}</td><td className="px-2.5 py-1.5 text-right">{formatNullable(current?.loss, value => formatPercent(value, 2))}</td></tr>
+            {effectRows.map(item => <tr key={item.label}>
+              <th scope="row" className="px-2.5 py-1.5 text-left font-sans font-medium text-slate-700">{item.label}</th>
+              <td className="px-2.5 py-1.5 text-right">{formatNullable(item.reference, item.format)}</td>
+              <td className="px-2.5 py-1.5 text-right">{formatNullable(item.current, item.format)}</td>
+              <td className="px-2.5 py-1.5 text-right">{item.effect === null ? '—' : formatVariance(item.effect, 4)}</td>
+            </tr>)}
+            <tr className="bg-slate-50 font-semibold">
+              <th scope="row" className="px-2.5 py-1.5 text-left font-sans text-slate-800">Cost Gap</th>
+              <td className="px-2.5 py-1.5 text-right">{formatNullable(row.referenceCost, value => formatNumber(value, 4))}</td>
+              <td className="px-2.5 py-1.5 text-right">{formatNullable(row.currentCost, value => formatNumber(value, 4))}</td>
+              <td className="px-2.5 py-1.5 text-right">{formatNullable(row.gap, value => formatVariance(value, 4))}</td>
+            </tr>
           </tbody>
         </table>
       </div>
 
-      {finding && <ComparisonFieldDetails finding={finding} fieldLabelOverrides={{ description: 'Name' }} />}
+      {finding && <ComparisonFieldDetails finding={finding} fieldLabelOverrides={{ description: 'Name' }} hiddenFields={['unit']} />}
 
-      {isMatchedChange && (
-        <section aria-label="BOM Parameter Cost Effect" className="border-t border-slate-200 pt-2">
-          <div className="mb-1.5 flex flex-wrap items-baseline gap-x-2">
-            <h4 className="text-xs font-semibold text-slate-900">Parameter Cost Effect</h4>
-            <span className="text-[11px] text-slate-500">Calculated using LMDI</span>
-          </div>
-          {effect?.status === 'available' ? (
-            <div className="overflow-x-auto">
-              <table className="w-full min-w-[520px] text-left text-[11px]">
-                <caption className="sr-only">BOM cost effect by parameter</caption>
-                <thead><tr className="bg-slate-100 font-semibold text-slate-700"><th scope="col" className="px-2.5 py-1.5">Parameter</th><th scope="col" className="px-2.5 py-1.5 text-right">Effect · THB/pc</th><th scope="col" className="px-2.5 py-1.5 text-right">% Parent</th><th scope="col" className="px-2.5 py-1.5 text-right">% Total</th></tr></thead>
-                <tbody className="divide-y divide-slate-200 font-mono tabular-nums">
-                  {effectRows.map(item => <tr key={item.label}><th scope="row" className="px-2.5 py-1.5 font-sans font-medium text-slate-700">{item.label}</th><td className="px-2.5 py-1.5 text-right">{formatVariance(item.value, 4)}</td><td className="px-2.5 py-1.5 text-right">{ratio(item.value, row.gap)}</td><td className="px-2.5 py-1.5 text-right">{ratio(item.value, standardCostGap)}</td></tr>)}
-                  <tr className="bg-slate-50 font-semibold"><th scope="row" className="px-2.5 py-1.5 font-sans text-slate-800">Total</th><td className="px-2.5 py-1.5 text-right">{formatNullable(row.gap, value => formatVariance(value, 4))}</td><td className="px-2.5 py-1.5 text-right">{ratio(row.gap, row.gap)}</td><td className="px-2.5 py-1.5 text-right">{ratio(row.gap, standardCostGap)}</td></tr>
-                </tbody>
-              </table>
-            </div>
-          ) : <p className="text-xs text-slate-600">Unavailable</p>}
-        </section>
-      )}
     </div>
   )
 }

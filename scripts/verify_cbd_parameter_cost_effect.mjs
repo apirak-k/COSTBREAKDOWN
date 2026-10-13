@@ -31,14 +31,14 @@ const assertClose = (actual, expected, message = `${actual} is not close to ${ex
 }
 const sum = values => values.reduce((total, value) => total + value, 0)
 
-function findTotalRow(markup, caption) {
+function findCostGapRow(markup, caption) {
   const tables = [...markup.matchAll(/<table\b[\s\S]*?<\/table>/g)]
   const table = tables.find(match => match[0].includes(caption))?.[0]
   assert.ok(table, `expected table caption ${caption}`)
   const rows = [...table.matchAll(/<tr\b[\s\S]*?<\/tr>/g)].map(match => match[0])
-  const totalRow = rows.find(row => /<th[^>]*>Total<\/th>/.test(row))
-  assert.ok(totalRow, `expected a Total row in ${caption}`)
-  return [...totalRow.matchAll(/<td[^>]*>([\s\S]*?)<\/td>/g)].map(match => match[1])
+  const costGapRow = rows.find(row => /<th[^>]*>Cost Gap<\/th>/.test(row))
+  assert.ok(costGapRow, `expected a Cost Gap row in ${caption}`)
+  return [...costGapRow.matchAll(/<td[^>]*>([\s\S]*?)<\/td>/g)].map(match => visibleText(match[1]))
 }
 
 function costSnapshot(id, { bom = [], routing = [], rates = [] } = {}) {
@@ -80,15 +80,15 @@ function rate(id, workCenterCode, laborRate, burdenRate) {
   }
 }
 
-function renderBOM(module, comparison, reference, current, standardCostGap = comparison.totalGap) {
+function renderBOM(module, comparison, reference, current) {
   const rows = module.buildBOMItemizedRows(reference.bom, current.bom, comparison.bomFindings)
   assert.equal(rows.length, comparison.bomFindings.length)
   return renderToStaticMarkup(React.createElement(module.BOMRecordDetails, {
-    row: rows[0], standardCostGap
+    row: rows[0]
   }))
 }
 
-function renderRouting(module, comparison, reference, current, standardCostGap = comparison.totalGap) {
+function renderRouting(module, comparison, reference, current) {
   const rows = module.buildRoutingItemizedRows(
     reference.routing, current.routing, comparison.routingFindings,
     reference.rates, current.rates
@@ -98,23 +98,31 @@ function renderRouting(module, comparison, reference, current, standardCostGap =
   return renderToStaticMarkup(React.createElement(module.RoutingRecordDetails, {
     row,
     referenceRates: reference.rates,
-    currentRates: current.rates,
-    standardCostGap,
-    laborGap: comparison.elementGaps.labor,
-    burdenGap: comparison.elementGaps.burden,
-    conversionGap: comparison.elementGaps.labor === null || comparison.elementGaps.burden === null
-      ? null : comparison.elementGaps.labor + comparison.elementGaps.burden
+    currentRates: current.rates
+  }))
+}
+
+function renderItemized(module, comparison, reference, current, typeTab = 'bom') {
+  return renderToStaticMarkup(React.createElement(module.ItemizedComparisonTable, {
+    comparison,
+    pair: { reference, current },
+    typeTab,
+    viewMode: ['UNCHANGED', 'CHANGED', 'ADDED', 'REMOVED'],
+    selectedBOMKeys: new Set(),
+    selectedRoutingKeys: new Set(),
+    onToggleFinding() {}
   }))
 }
 
 try {
-  const [effects, comparisonCore, comparisonStatus, bomView, routingView, snapshotView] = await Promise.all([
+  const [effects, comparisonCore, comparisonStatus, bomView, routingView, snapshotView, itemizedView] = await Promise.all([
     vite.ssrLoadModule('/src/core/calculations/parameter-cost-effect.ts'),
     vite.ssrLoadModule('/src/core/calculations/snapshot-comparison.ts'),
     vite.ssrLoadModule('/src/core/calculations/comparison-status.ts'),
     vite.ssrLoadModule('/src/features/cost-breakdown/components/BOMDetailedTable.tsx'),
     vite.ssrLoadModule('/src/features/cost-breakdown/components/RoutingDetailedTable.tsx'),
-    vite.ssrLoadModule('/src/features/cost-breakdown/components/SnapshotComparisonCard.tsx')
+    vite.ssrLoadModule('/src/features/cost-breakdown/components/SnapshotComparisonCard.tsx'),
+    vite.ssrLoadModule('/src/features/cost-breakdown/components/ItemizedComparisonTable.tsx')
   ])
 
   const bomReference = { usage: 1, price: 10, loss: 0.1 }
@@ -204,15 +212,28 @@ try {
   const bomRefSnapshot = costSnapshot('reference', { bom: [bom('bom-ref')] })
   const bomCurSnapshot = costSnapshot('current', { bom: [bom('bom-cur', { usage: 2, price: 6 })] })
   const bomComparison = comparisonCore.compareSnapshots(bomRefSnapshot, bomCurSnapshot)
+  const bomComparisonForDisplay = { ...bomComparison, totalGap: 2.2 }
   assert.equal(bomComparison.bomFindings.length, 1)
   assert.equal(bomComparison.bomFindings[0].matchStatus, 'matched')
-  const bomMarkup = renderBOM(bomView, bomComparison, bomRefSnapshot, bomCurSnapshot, 2.2)
+  const bomMarkup = renderBOM(bomView, bomComparison, bomRefSnapshot, bomCurSnapshot)
   const bomText = visibleText(bomMarkup)
   assert.doesNotMatch(bomText, /Data quality|Confidence|(?:^|\s)Ref:|(?:^|\s)Current:|\b(?:Verified|Estimated|Missing|Need Review)\b/,
     'expanded BOM record must omit quality and confidence badges')
-  assert.match(bomMarkup, /aria-label="BOM Parameter Cost Effect"/)
-  const bomTotals = findTotalRow(bomMarkup, 'BOM cost effect by parameter')
-  assert.deepEqual(bomTotals, ['+2.20', '100.00%', '100.00%'], 'BOM Total must use the actual record gap and full-comparison gap')
+  assert.match(bomMarkup, /<th[^>]*>REF<\/th>/)
+  assert.match(bomMarkup, /<th[^>]*>CUR<\/th>/)
+  assert.match(bomMarkup, /<th[^>]*>EFFECT · THB\/pc<\/th>/)
+  assert.doesNotMatch(bomMarkup, /\bUnit\b|% Parent|%Parent/)
+  const bomTotals = findCostGapRow(bomMarkup, 'Changed BOM parameter values and cost effects aligned by parameter')
+  assert.deepEqual(bomTotals, ['11.00', '13.20', '+2.20'], 'BOM REF/CUR/EFFECT detail must use the existing material-cost results')
+  const bomCandidateMarkup = renderItemized(itemizedView, bomComparisonForDisplay, bomRefSnapshot, bomCurSnapshot)
+  assert.match(bomCandidateMarkup, /Bill of Material/)
+  assert.match(bomCandidateMarkup, /Usage/)
+  assert.match(bomCandidateMarkup, /Price/)
+  assert.match(bomCandidateMarkup, /Loss/)
+  assert.match(bomCandidateMarkup, /100\.00%/)
+  assert.doesNotMatch(bomCandidateMarkup, /\bUnit\b|% Parent|%Parent/)
+  const overContributionMarkup = renderItemized(itemizedView, { ...bomComparisonForDisplay, totalGap: 1 }, bomRefSnapshot, bomCurSnapshot)
+  assert.match(overContributionMarkup, /220\.00%/, 'Candidate contribution above 100 percent remains visible without clamping')
 
   const routingRefSnapshot = costSnapshot('reference', {
     routing: [route('route-ref', 'WC-REF')],
@@ -223,27 +244,34 @@ try {
     rates: [rate('rate-cur', 'WC-CUR', 20, 7)]
   })
   const routingComparison = comparisonCore.compareSnapshots(routingRefSnapshot, routingCurSnapshot)
+  const routingComparisonForDisplay = { ...routingComparison, totalGap: 1.2 }
   assert.equal(routingComparison.routingFindings.length, 1, 'a Work Center move remains one Process/Routing record')
   assert.equal(routingComparison.routingFindings[0].matchStatus, 'matched')
   assert.equal(comparisonStatus.getCanonicalComparisonStatus(routingComparison.routingFindings[0]), 'CHANGED')
-  const routingMarkup = renderRouting(routingView, routingComparison, routingRefSnapshot, routingCurSnapshot, 1.2)
+  const routingMarkup = renderRouting(routingView, routingComparison, routingRefSnapshot, routingCurSnapshot)
   const routingText = visibleText(routingMarkup)
   assert.doesNotMatch(routingText, /Data quality|Confidence|(?:^|\s)Ref:|(?:^|\s)Current:|\b(?:Verified|Estimated|Missing|Need Review)\b/,
     'expanded Routing record must omit quality and confidence badges')
   assert.match(routingText, /WC-REF/)
   assert.match(routingText, /WC-CUR/)
-  const routingTotals = findTotalRow(routingMarkup, 'Labor, burden, and conversion parameter effects by factor')
-  assert.deepEqual(routingTotals, [
-    '+1.00', '100.00%', '83.33%',
-    '+0.20', '100.00%', '16.67%',
-    '+1.20', '100.00%', '100.00%'
-  ], 'Routing Total must use actual Labor, Burden, and Conversion gaps')
+  assert.match(routingMarkup, /<th[^>]*>REF<\/th>/)
+  assert.match(routingMarkup, /<th[^>]*>CUR<\/th>/)
+  assert.match(routingMarkup, /<th[^>]*>EFFECT · THB\/pc<\/th>/)
+  assert.doesNotMatch(routingMarkup, /% Parent|%Parent|Labor Gap|Burden Gap|Conversion Gap/)
+  const routingTotals = findCostGapRow(routingMarkup, 'Changed Routing parameter and Work Center rate values')
+  assert.deepEqual(routingTotals, ['1.50', '2.70', '+1.20'], 'Routing detail must reconcile to the existing conversion gap')
+  const routingCandidateMarkup = renderItemized(itemizedView, routingComparisonForDisplay, routingRefSnapshot, routingCurSnapshot, 'rtg')
+  assert.match(routingCandidateMarkup, /Routing/)
+  assert.match(routingCandidateMarkup, /Manning/)
+  assert.match(routingCandidateMarkup, /Capacity/)
+  assert.match(routingCandidateMarkup, /Yield/)
+  assert.doesNotMatch(routingCandidateMarkup, /Labor Gap|Burden Gap|Conversion Gap|% Parent|%Parent/)
 
   const statusCases = [
-    { name: 'CHANGED', reference: [bom('status-ref')], current: [bom('status-cur', { price: 11 })], expected: true },
-    { name: 'UNCHANGED', reference: [bom('status-ref')], current: [bom('status-cur')], expected: false },
-    { name: 'ADDED', reference: [], current: [bom('status-cur')], expected: false },
-    { name: 'REMOVED', reference: [bom('status-ref')], current: [], expected: false }
+    { name: 'CHANGED', reference: [bom('status-ref')], current: [bom('status-cur', { price: 11 })], expandable: true },
+    { name: 'UNCHANGED', reference: [bom('status-ref')], current: [bom('status-cur')], expandable: false },
+    { name: 'ADDED', reference: [], current: [bom('status-cur')], expandable: false },
+    { name: 'REMOVED', reference: [bom('status-ref')], current: [], expandable: false }
   ]
   for (const testCase of statusCases) {
     const reference = costSnapshot('reference', { bom: testCase.reference })
@@ -252,17 +280,17 @@ try {
     const finding = comparison.bomFindings[0]
     assert.equal(comparisonStatus.getCanonicalComparisonStatus(finding),
       testCase.name, `fixture must represent ${testCase.name}`)
-    const markup = renderBOM(bomView, comparison, reference, current)
-    assert.equal(markup.includes('aria-label="BOM Parameter Cost Effect"'), testCase.expected,
-      `Parameter Cost Effect visibility must be gated by CHANGED status (${testCase.name})`)
+    const markup = renderItemized(itemizedView, comparison, reference, current)
+    assert.equal(markup.includes('aria-label="Expand details for Material"'), testCase.expandable,
+      `BOM detail expansion must be gated by CHANGED status (${testCase.name})`)
   }
 
   const rateRef = rate('rate-ref', 'WC-1', 10, 5)
   const routeStatusCases = [
-    { name: 'CHANGED', reference: [route('route-ref')], current: [route('route-cur', 'WC-1', { manning: 2 })], expected: true },
-    { name: 'UNCHANGED', reference: [route('route-ref')], current: [route('route-cur')], expected: false },
-    { name: 'ADDED', reference: [], current: [route('route-cur')], expected: false },
-    { name: 'REMOVED', reference: [route('route-ref')], current: [], expected: false }
+    { name: 'CHANGED', reference: [route('route-ref')], current: [route('route-cur', 'WC-1', { manning: 2 })], expandable: true },
+    { name: 'UNCHANGED', reference: [route('route-ref')], current: [route('route-cur')], expandable: false },
+    { name: 'ADDED', reference: [], current: [route('route-cur')], expandable: false },
+    { name: 'REMOVED', reference: [route('route-ref')], current: [], expandable: false }
   ]
   for (const testCase of routeStatusCases) {
     const reference = costSnapshot('reference', {
@@ -277,9 +305,9 @@ try {
     const finding = comparison.routingFindings[0]
     assert.equal(comparisonStatus.getCanonicalComparisonStatus(finding), testCase.name,
       `Routing fixture must represent ${testCase.name}`)
-    const markup = renderRouting(routingView, comparison, reference, current)
-    assert.equal(markup.includes('aria-label="Routing Parameter Cost Effect"'), testCase.expected,
-      `Routing Parameter Cost Effect visibility must be gated by CHANGED status (${testCase.name})`)
+    const markup = renderItemized(itemizedView, comparison, reference, current, 'rtg')
+    assert.equal(markup.includes('aria-label="Expand details for Cutting"'), testCase.expandable,
+      `RTG detail expansion must be gated by CHANGED status (${testCase.name})`)
   }
 
   const warningComparison = {
@@ -291,15 +319,23 @@ try {
   }))
   assert.doesNotMatch(warningMarkup, /Data quality:/, 'page-level Data quality summary must be removed')
   assert.doesNotMatch(warningMarkup, /Review warnings|Fixture warning remains reviewable/, 'comparison warnings are not presented in the Cost Breakdown summary')
+  assert.match(warningMarkup, /Standard Cost Overview/)
+  assert.doesNotMatch(warningMarkup, /Conversion|Labor \+ Burden|% Parent|%Parent|Review/,
+    'the fixed overview omits the obsolete Conversion subtotal, reconciliation, and review UI')
 
   assert.ok(routingComparison.processingFindings.length > 0,
     'the full comparison fixture must have Work Center processing context')
   globalThis.__CBD_PARAMETER_TEST_STATE__ = {
-    snapshotComparison: { ...routingComparison, processingFindings: [] },
-    fullSnapshotComparison: routingComparison,
+    snapshotComparison: {
+    ...routingComparisonForDisplay,
+      elementGaps: { material: 0, labor: 0.15, burden: 0.1 },
+      totalGap: 0.25,
+      processingFindings: []
+    },
+    fullSnapshotComparison: routingComparisonForDisplay,
     snapshotPair: { reference: routingRefSnapshot, current: routingCurSnapshot },
     analysisSnapshotPair: { reference: routingRefSnapshot, current: routingCurSnapshot },
-    selectedComparisonSelection: { bomFindingKeys: [], routingFindingKeys: [] },
+    selectedComparisonSelection: { bomFindingKeys: ['selected-bom-key'], routingFindingKeys: [] },
     isSelectedComparisonActive: true,
     applySelectedComparison() {},
     clearSelectedComparison() {}
@@ -308,11 +344,19 @@ try {
     const { CostBreakdownPage } = await vite.ssrLoadModule('/src/features/cost-breakdown/CostBreakdownPage.tsx')
     const pageMarkup = renderToStaticMarkup(React.createElement(CostBreakdownPage))
     const pageText = visibleText(pageMarkup)
-    assert.match(pageText, /Selected Comparison/)
-    assert.match(pageText, /Work Center Net Summary/)
-    assert.match(pageText, /Full Reference \/ Current snapshot pair/)
+    assert.match(pageText, /Standard Cost Gap/)
+    assert.match(pageText, /Full \+1\.20/)
+    assert.match(pageText, /Selected \+0\.25/)
+    assert.match(pageText, /Work Center Context/)
+    assert.match(pageText, /Full snapshot · Conversion Cost/)
     assert.match(pageText, /WC-REF/)
     assert.match(pageText, /WC-CUR/)
+    assert.equal([...pageMarkup.matchAll(/One segmented gap bar/g)].length, 1,
+      'the subheader must render one full-baseline Gap Bar with the Selected contribution inside it')
+    assert.match(pageMarkup, /aria-label="Candidate type filter"/)
+    assert.match(pageMarkup, /aria-label="Status filter dropdown"/)
+    assert.match(pageMarkup, /type="checkbox"/)
+    assert.doesNotMatch(pageText, /Select scope|Edit scope|Full Comparison/)
   } finally {
     delete globalThis.__CBD_PARAMETER_TEST_STATE__
   }
