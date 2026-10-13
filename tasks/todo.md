@@ -7,24 +7,27 @@
 > Candidate behavior, Selected Comparison continuing through RCA/Simulation, combined
 > RCA/Simulation page, Trial lifecycle, and A/B-era flow are historical checkpoints.
 > Do not treat them as current behavior, conformance evidence, or new work
-> authorization; do not reopen old items automatically. Current completion status is
-> governed by the frozen 475-ID audit in
+> authorization; do not reopen old items automatically. The frozen 475-ID audit in
 > [`.planning/2026-10-09-final-logic-implementation/`](../.planning/2026-10-09-final-logic-implementation/)
-> and its [task plan](../.planning/2026-10-09-final-logic-implementation/task_plan.md).
+> and its [task plan](../.planning/2026-10-09-final-logic-implementation/task_plan.md)
+> are historical evidence for that earlier Final Logic checkpoint only. They do not
+> establish current completion status or verify the post-merge integration branch. No
+> full post-merge integration re-audit is recorded here; see [`HANDOFF.md`](../HANDOFF.md)
+> for the active branch and current checkpoint.
 > Canonical product behavior is in [`docs/REQUIREMENTS_INDEX.md`](../docs/REQUIREMENTS_INDEX.md)
 > and [`docs/specs/`](../docs/specs/).
 
 ## Recorded Plan Revision — 2026-10-05
 
-## Current Progress Snapshot — 2026-10-05
+## Historical Progress Snapshot — 2026-10-05
 
-- Current source-reconciliation checkpoint and resume instructions are in `HANDOFF.md`.
-- This file preserves historical task-level implementation and verification notes. Canonical behavior is consolidated in `docs/specs/`; original decision status and provenance remain in the source agreements. The 80-topic implementation/verification status is only in `source-crosswalk-80.md`.
+- Current integration checkpoint and resume instructions are in `HANDOFF.md`.
+- This file preserves historical task-level implementation and verification notes. Canonical behavior is consolidated in `docs/specs/`; original decision status and provenance remain in the source agreements. The historical 80-topic implementation/verification ledger is in `source-crosswalk-80.md`.
 - Automated evidence and human acceptance remain separate; do not treat the historical task checklist as new feature authorization.
 
-### Final integration gate
+### Historical Final Integration Gate — Status at the Time
 
-Per-topic PASS/PARTIAL/OPEN/DEFERRED/RECORDED status and the exact next actions are maintained only in [`source-crosswalk-80.md`](source-crosswalk-80.md). Use this final gate for the integrated closeout, not as a second item-by-item status list.
+Per-topic status and next actions for that earlier closeout are recorded in [`source-crosswalk-80.md`](source-crosswalk-80.md). These checkboxes are historical evidence, not current integration verification or a current work queue.
 
 - [x] Run the final focused verifiers and production build on the current implementation checkpoint; see the verification record under Task 8.
 - [ ] Complete browser-only interactions still open or partial in the crosswalk, then record human UX acceptance separately from automated evidence.
@@ -200,7 +203,7 @@ Per-topic PASS/PARTIAL/OPEN/DEFERRED/RECORDED status and the exact next actions 
 
 Tasks are ordered by dependency. Keep each implementation slice focused and leave the application buildable before moving to the next task.
 
-> Status note: the checkboxes below record the evidence available when each earlier task was closed. A later user-requested audit found Comparison gaps despite those checkboxes. See the current Agreement re-audit at the end; it supersedes the overall completion claim until its remaining items are closed.
+> Status note: the checkboxes below record the evidence available when each earlier task was closed. A later user-requested audit found Comparison gaps despite those checkboxes. See the 2026-09-28 Agreement re-audit at the end; it supersedes the earlier overall completion claim for that historical review period.
 
 ## Phase 1 — Temporary Reference/Current Workspace
 
@@ -550,14 +553,14 @@ Tasks are ordered by dependency. Keep each implementation slice focused and leav
 
 **Estimated scope:** Medium.
 
-### Checkpoint: Complete at the earlier implementation review (superseded by current re-audit below)
+### Checkpoint: Complete at the earlier implementation review (superseded by the 2026-09-28 re-audit below)
 
 - [x] Implementation acceptance criteria are satisfied, the application builds, and the integrated flow has been reviewed.
 - [x] Automated verification is recorded separately from human acceptance.
 - [ ] Human acceptance has been recorded as accepted.
 - [x] HAWS dependency audit has zero High/Critical vulnerabilities.
 
-## Current Agreement Re-audit — 2026-09-28
+## Historical Agreement Re-audit — 2026-09-28
 
 This section records the 2026-09-28 implementation audit and its evidence only. The current source order is in `docs/REQUIREMENTS_INDEX.md`; a later correction preserves previously finalized agreement decisions unless a later explicit user decision supersedes them. These historical checkboxes do not replace source reconciliation or authorize new feature work.
 

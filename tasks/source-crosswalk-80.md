@@ -5,9 +5,12 @@
 > and implementation periods. This includes the old Work Center Candidate interpretation,
 > Selected Comparison continuing downstream, combined RCA/Simulation and Trial paths,
 > and A/B-era flow. Preserve these entries as historical evidence; do not reopen or
-> convert them into current work automatically. Current completion status is governed by
-> the frozen 475-ID audit in [`.planning/2026-10-09-final-logic-implementation/`](../.planning/2026-10-09-final-logic-implementation/)
-> and its [task plan](../.planning/2026-10-09-final-logic-implementation/task_plan.md).
+> convert them into current work automatically. The frozen 475-ID audit in
+> [`.planning/2026-10-09-final-logic-implementation/`](../.planning/2026-10-09-final-logic-implementation/)
+> is historical evidence for its earlier Final Logic checkpoint only; it is not current
+> completion status or verification of the post-merge integration branch. No full
+> post-merge integration re-audit is recorded here. See [`HANDOFF.md`](../HANDOFF.md)
+> for the active branch and current checkpoint.
 
 **Updated:** 2026-10-07
 
@@ -15,9 +18,9 @@
 
 **Sources:** [COSTBREAKDOWN review](https://chatgpt.com/share/6ac1e3f9-b5e0-83ec-b2ac-b6ce7da95726), [80-topic follow-up](https://chatgpt.com/s/t_6ac26aba193481918961c062fca76357), original agreements, dated Master Data/review-context sources (including review-context §§79–80), later explicit user decisions, canonical specs under [docs/specs/](../docs/specs/), and relevant commits.
 
-**Evidence limitation:** This ledger reconciles repository source records, user corrections, commit chronology, and the current implementation audit. The original shared ChatGPT URLs could not be retrieved through the web reader; local agreements/source documents and explicit user instructions remain the evidence for those decisions. Current implementation status is refreshed for affected topics using the 2026-10-07 430-item re-audit and isolated runtime verification. Human acceptance remains separate.
+**Evidence limitation:** This ledger reconciles repository source records, user corrections, commit chronology, and historical implementation audits. The original shared ChatGPT URLs could not be retrieved through the web reader; local agreements/source documents and explicit user instructions remain the evidence for those decisions. For affected topics, the latest implementation evidence recorded here is the 2026-10-07 430-item re-audit and isolated runtime verification; it is historical and does not verify the post-merge integration branch. Human acceptance remains separate.
 
-**Final Logic reconciliation:** `docs/specs/FINAL_LOGIC_SPEC.md` governs conflicting product logic. The implementation is complete for the finalized behaviors. The 430-item audit records 430 PASS, 0 PARTIAL, 0 FAIL, and 0 NOT VERIFIED. The user clarified that entering one economic effect twice is incorrect scenario input; the app warns against repeating costs already modeled in BOM/Routing/WC inputs, while the engine composes categorized economics once and does not subtract it again. The product does not infer semantic duplicates. Current 80-topic status counts below are 65 PASS, 6 PARTIAL, 2 OPEN, 0 FAIL, 2 DEFERRED, 4 RECORDED, and 1 OUT OF SCOPE. Historical checkpoint wording is retained only where explicitly identified as history.
+**Final Logic reconciliation:** `docs/specs/FINAL_LOGIC_SPEC.md` governs conflicting product logic. At the 2026-10-07 checkpoint, the 430-item audit recorded 430 PASS, 0 PARTIAL, 0 FAIL, and 0 NOT VERIFIED; this is historical evidence and does not verify the post-merge integration branch. The user clarified that entering one economic effect twice is incorrect scenario input; the app warns against repeating costs already modeled in BOM/Routing/WC inputs, while the engine composes categorized economics once and does not subtract it again. The product does not infer semantic duplicates. The 80-topic counts below are this ledger's 2026-10-07 snapshot: 65 PASS, 6 PARTIAL, 2 OPEN, 0 FAIL, 2 DEFERRED, 4 RECORDED, and 1 OUT OF SCOPE.
 
 ## Reconciliation classes
 
@@ -28,7 +31,7 @@
 - DEFERRED and RECORDED — future scope or process context, not an implementation failure.
 - OUT OF SCOPE — a later explicit user decision removed the item from current scope; it is neither TBD nor deferred.
 
-Implementation status and verification status are separate. Current status reflects the cited evidence, including the 2026-10-07 isolated browser replay and full checklist audit; human UX acceptance remains separate.
+Implementation status and verification status are separate. The statuses below reflect evidence recorded through the 2026-10-07 isolated browser replay and full checklist audit; they are not verification status for the current integration branch. Human UX acceptance remains separate.
 
 ## Topics 1–20
 
@@ -156,14 +159,14 @@ Implementation status and verification status are separate. Current status refle
 | `54a7115` | Synthetic regression check | Verifies WC-rate-only cost movement marks the affected Process Candidate CHANGED. |
 | `f5d6ff6` | Runtime-discovered cleanup | Separates A/B graph value labels under negative OP and clarifies when Selected Scope ends. |
 
-The 80 rows retain the original decisions and now reflect current implementation evidence for affected topics. Unmodified historical verification descriptions remain dated. The full 430-item result is in the linked Final Logic re-audit.
+The 80 rows retain the original decisions and reflect implementation evidence recorded for affected topics through 2026-10-07. Unmodified historical verification descriptions remain dated. The full 430-item result is in the linked Final Logic re-audit; neither that audit nor the later 475-ID audit verifies the current integration branch.
 
 ## Audit result
 
 - Topics present exactly once: **80/80**.
-- Current status counts: **65 PASS, 6 PARTIAL, 2 OPEN, 0 FAIL, 2 DEFERRED, 4 RECORDED, 1 OUT OF SCOPE**.
+- Historical status counts in this 2026-10-07 ledger snapshot: **65 PASS, 6 PARTIAL, 2 OPEN, 0 FAIL, 2 DEFERRED, 4 RECORDED, 1 OUT OF SCOPE**.
 - The prior 2026-10-05 ledger count was **55 PASS, 8 PARTIAL, 2 OPEN, 12 DEFERRED, 2 RECORDED, 1 OUT OF SCOPE**; it is a historical checkpoint and was reconciled where later decisions changed behavior.
-- Current implementation evidence was refreshed in the 2026-10-07 Final Logic re-audit and isolated browser replay; P-01 remains the only partial implementation item.
+- Implementation evidence was last refreshed in the 2026-10-07 Final Logic re-audit and isolated browser replay; P-01 was recorded as the only partial implementation item at that checkpoint.
 - Human visual acceptance remains separate from implementation verification.
 - The current migration-protection rule is in `docs/REQUIREMENTS_INDEX.md`; specs consolidate user-readable behavior, and this ledger remains traceability/status only.
 
@@ -175,7 +178,7 @@ The 80 rows retain the original decisions and now reflect current implementation
 - `npm audit` was run. A non-breaking `npm audit fix` updated `brace-expansion` and `source-map-js`; **5 high and 4 moderate** advisories remain in transitive Tailwind/ExcelJS dependencies. The available suggested force fix crosses major versions and was not applied.
 - This aggregate verification note is a historical checkpoint and does not establish conformance to the subsequently finalized logic.
 
-## Current implementation verification checkpoint — 2026-10-07
+## Historical implementation verification checkpoint — 2026-10-07
 
 - Final Logic audit: **424 PASS, 6 PARTIAL, 0 FAIL, 0 NOT VERIFIED** across all 430 checklist rows.
 - All 49 TypeScript verification scripts and both MJS verifiers passed; `test_comprehensive_audit.js` passed 31/31 checks; both v2 Excel model workbooks passed; the targeted graph regression verifier passed.

@@ -7,7 +7,8 @@
 
 - **Repository:** `apirak-k/COSTBREAKDOWN`
 - **Active branch:** `codex/cbd-candidate-integration`
-- **Integration HEAD before this documentation-only cleanup:** `687a509112b1c4dfe6b69defde0cc2aead8f8ec6` (`Merge Candidate and RCA work`, 2026-10-12).
+- **Application source baseline:** `687a509112b1c4dfe6b69defde0cc2aead8f8ec6` (`Merge Candidate and RCA work`, 2026-10-12).
+- **Current integration HEAD (documentation-only):** `dbaa53f637b486ac9bac7a329859a4e9c353784a` (`docs: sync integration handoff and specs`, 2026-10-13); this documentation commit does not change the application source baseline above.
 - **Remote tracking ref:** `origin/codex/cbd-candidate-integration`.
 - **Master Data:** CLOSED / frozen baseline for UX and behavior. Do not redesign or change it unless a concrete regression or dependency is later proven.
 - **Current active development focus:** Cost Breakdown (CBD). Continue CBD UX/UI work from this integration checkpoint; proposed redesign details remain undecided and do not belong in canonical specifications yet.
