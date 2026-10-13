@@ -93,38 +93,34 @@ export function BOMRecordDetails({ row }: BOMRecordDetailsProps) {
       )
     : null
   const effects = effect?.status === 'available' ? effect.effects : null
-  const effectRows = [
-    { label: 'Usage', reference: reference?.consumption ?? null, current: current?.consumption ?? null, effect: effects?.usage ?? null, format: (value: number) => formatNumber(value, 4) },
-    { label: 'Price', reference: reference?.price ?? null, current: current?.price ?? null, effect: effects?.price ?? null, format: (value: number) => formatNumber(value, 4) },
-    { label: 'Loss', reference: reference?.loss ?? null, current: current?.loss ?? null, effect: effects?.loss ?? null, format: (value: number) => formatPercent(value, 2) }
+  const parameterRows = [
+    { label: 'REF', usage: reference?.consumption ?? null, price: reference?.price ?? null, loss: reference?.loss ?? null, cost: row.referenceCost },
+    { label: 'CUR', usage: current?.consumption ?? null, price: current?.price ?? null, loss: current?.loss ?? null, cost: row.currentCost },
+    { label: 'EFFECT', usage: effects?.usage ?? null, price: effects?.price ?? null, loss: effects?.loss ?? null, cost: row.gap, effect: true }
   ]
 
   return (
     <div className="space-y-3">
       <div className="overflow-x-auto">
         <table className="w-full min-w-[620px] text-left text-xs">
-          <caption className="sr-only">Changed BOM parameter values and cost effects aligned by parameter</caption>
+          <caption className="sr-only">Changed BOM REF, CUR, and EFFECT values by Usage, Price, Loss, and Cost Gap</caption>
           <thead>
             <tr className="bg-slate-100 text-[11px] font-semibold text-slate-700">
-              <th scope="col" className="px-2.5 py-1.5">Parameter</th>
-              <th scope="col" className="px-2.5 py-1.5 text-right">REF</th>
-              <th scope="col" className="px-2.5 py-1.5 text-right">CUR</th>
-              <th scope="col" className="px-2.5 py-1.5 text-right">EFFECT · THB/pc</th>
+              <th scope="col" className="px-2.5 py-1.5">Comparison</th>
+              <th scope="col" className="px-2.5 py-1.5 text-right">Usage</th>
+              <th scope="col" className="px-2.5 py-1.5 text-right">Price</th>
+              <th scope="col" className="px-2.5 py-1.5 text-right">Loss</th>
+              <th scope="col" className="px-2.5 py-1.5 text-right">Cost Gap · THB/pc</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-200 font-mono tabular-nums">
-            {effectRows.map(item => <tr key={item.label}>
-              <th scope="row" className="px-2.5 py-1.5 text-left font-sans font-medium text-slate-700">{item.label}</th>
-              <td className="px-2.5 py-1.5 text-right">{formatNullable(item.reference, item.format)}</td>
-              <td className="px-2.5 py-1.5 text-right">{formatNullable(item.current, item.format)}</td>
-              <td className="px-2.5 py-1.5 text-right">{item.effect === null ? '—' : formatVariance(item.effect, 4)}</td>
+            {parameterRows.map(item => <tr key={item.label} className={item.effect ? 'bg-slate-50 font-semibold' : ''}>
+              <th scope="row" className="px-2.5 py-1.5 text-left font-sans text-slate-800">{item.label}</th>
+              <td className="px-2.5 py-1.5 text-right">{item.effect ? formatNullable(item.usage, value => formatVariance(value, 4)) : formatNullable(item.usage, value => formatNumber(value, 4))}</td>
+              <td className="px-2.5 py-1.5 text-right">{item.effect ? formatNullable(item.price, value => formatVariance(value, 4)) : formatNullable(item.price, value => formatNumber(value, 4))}</td>
+              <td className="px-2.5 py-1.5 text-right">{item.effect ? formatNullable(item.loss, value => formatVariance(value, 4)) : formatNullable(item.loss, value => formatPercent(value, 2))}</td>
+              <td className="px-2.5 py-1.5 text-right">{item.effect ? formatNullable(item.cost, value => formatVariance(value, 4)) : formatNullable(item.cost, value => formatNumber(value, 4))}</td>
             </tr>)}
-            <tr className="bg-slate-50 font-semibold">
-              <th scope="row" className="px-2.5 py-1.5 text-left font-sans text-slate-800">Cost Gap</th>
-              <td className="px-2.5 py-1.5 text-right">{formatNullable(row.referenceCost, value => formatNumber(value, 4))}</td>
-              <td className="px-2.5 py-1.5 text-right">{formatNullable(row.currentCost, value => formatNumber(value, 4))}</td>
-              <td className="px-2.5 py-1.5 text-right">{formatNullable(row.gap, value => formatVariance(value, 4))}</td>
-            </tr>
           </tbody>
         </table>
       </div>

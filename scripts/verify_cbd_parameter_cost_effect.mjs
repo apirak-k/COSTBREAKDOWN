@@ -31,14 +31,26 @@ const assertClose = (actual, expected, message = `${actual} is not close to ${ex
 }
 const sum = values => values.reduce((total, value) => total + value, 0)
 
-function findCostGapRow(markup, caption) {
+function findDetailTable(markup, caption) {
   const tables = [...markup.matchAll(/<table\b[\s\S]*?<\/table>/g)]
   const table = tables.find(match => match[0].includes(caption))?.[0]
   assert.ok(table, `expected table caption ${caption}`)
+  return table
+}
+
+function detailHeaders(markup, caption) {
+  const table = findDetailTable(markup, caption)
+  const header = table.match(/<thead\b[\s\S]*?<tr\b[\s\S]*?<\/tr>/)?.[0]
+  assert.ok(header, `expected table headings in ${caption}`)
+  return [...header.matchAll(/<th[^>]*>([\s\S]*?)<\/th>/g)].map(match => visibleText(match[1]))
+}
+
+function detailRow(markup, caption, label) {
+  const table = findDetailTable(markup, caption)
   const rows = [...table.matchAll(/<tr\b[\s\S]*?<\/tr>/g)].map(match => match[0])
-  const costGapRow = rows.find(row => /<th[^>]*>Cost Gap<\/th>/.test(row))
-  assert.ok(costGapRow, `expected a Cost Gap row in ${caption}`)
-  return [...costGapRow.matchAll(/<td[^>]*>([\s\S]*?)<\/td>/g)].map(match => visibleText(match[1]))
+  const row = rows.find(candidate => new RegExp(`<th[^>]*>${label}<\\/th>`).test(candidate))
+  assert.ok(row, `expected a ${label} row in ${caption}`)
+  return [...row.matchAll(/<td[^>]*>([\s\S]*?)<\/td>/g)].map(match => visibleText(match[1]))
 }
 
 function costSnapshot(id, { bom = [], routing = [], rates = [] } = {}) {
@@ -115,10 +127,11 @@ function renderItemized(module, comparison, reference, current, typeTab = 'bom')
 }
 
 try {
-  const [effects, comparisonCore, comparisonStatus, bomView, routingView, snapshotView, itemizedView] = await Promise.all([
+  const [effects, comparisonCore, comparisonStatus, formatters, bomView, routingView, snapshotView, itemizedView] = await Promise.all([
     vite.ssrLoadModule('/src/core/calculations/parameter-cost-effect.ts'),
     vite.ssrLoadModule('/src/core/calculations/snapshot-comparison.ts'),
     vite.ssrLoadModule('/src/core/calculations/comparison-status.ts'),
+    vite.ssrLoadModule('/src/core/utils/formatters.ts'),
     vite.ssrLoadModule('/src/features/cost-breakdown/components/BOMDetailedTable.tsx'),
     vite.ssrLoadModule('/src/features/cost-breakdown/components/RoutingDetailedTable.tsx'),
     vite.ssrLoadModule('/src/features/cost-breakdown/components/SnapshotComparisonCard.tsx'),
@@ -219,12 +232,20 @@ try {
   const bomText = visibleText(bomMarkup)
   assert.doesNotMatch(bomText, /Data quality|Confidence|(?:^|\s)Ref:|(?:^|\s)Current:|\b(?:Verified|Estimated|Missing|Need Review)\b/,
     'expanded BOM record must omit quality and confidence badges')
-  assert.match(bomMarkup, /<th[^>]*>REF<\/th>/)
-  assert.match(bomMarkup, /<th[^>]*>CUR<\/th>/)
-  assert.match(bomMarkup, /<th[^>]*>EFFECT · THB\/pc<\/th>/)
+  const bomCaption = 'Changed BOM REF, CUR, and EFFECT values by Usage, Price, Loss, and Cost Gap'
+  assert.deepEqual(detailHeaders(bomMarkup, bomCaption), ['Comparison', 'Usage', 'Price', 'Loss', 'Cost Gap · THB/pc'])
+  assert.deepEqual(detailRow(bomMarkup, bomCaption, 'REF'), [
+    formatters.formatNumber(1, 4), formatters.formatNumber(10, 4), formatters.formatPercent(0.1, 2), formatters.formatNumber(11, 4)
+  ], 'BOM REF row must carry actual reference parameters and cost')
+  assert.deepEqual(detailRow(bomMarkup, bomCaption, 'CUR'), [
+    formatters.formatNumber(2, 4), formatters.formatNumber(6, 4), formatters.formatPercent(0.1, 2), formatters.formatNumber(13.2, 4)
+  ], 'BOM CUR row must carry actual current parameters and cost')
+  assert.deepEqual(detailRow(bomMarkup, bomCaption, 'EFFECT'), [
+    formatters.formatVariance(bomPositive.effects.usage, 4), formatters.formatVariance(bomPositive.effects.price, 4),
+    formatters.formatVariance(bomPositive.effects.loss, 4), formatters.formatVariance(2.2, 4)
+  ], 'BOM EFFECT row must preserve LMDI parameter effects and the actual material cost gap')
   assert.doesNotMatch(bomMarkup, /\bUnit\b|% Parent|%Parent/)
-  const bomTotals = findCostGapRow(bomMarkup, 'Changed BOM parameter values and cost effects aligned by parameter')
-  assert.deepEqual(bomTotals, ['11.00', '13.20', '+2.20'], 'BOM REF/CUR/EFFECT detail must use the existing material-cost results')
+  assert.doesNotMatch(findDetailTable(bomMarkup, bomCaption), /<th[^>]*>Parameter<\/th>/)
   const bomCandidateMarkup = renderItemized(itemizedView, bomComparisonForDisplay, bomRefSnapshot, bomCurSnapshot)
   assert.match(bomCandidateMarkup, /Bill of Material/)
   assert.match(bomCandidateMarkup, /Usage/)
@@ -254,12 +275,27 @@ try {
     'expanded Routing record must omit quality and confidence badges')
   assert.match(routingText, /WC-REF/)
   assert.match(routingText, /WC-CUR/)
-  assert.match(routingMarkup, /<th[^>]*>REF<\/th>/)
-  assert.match(routingMarkup, /<th[^>]*>CUR<\/th>/)
-  assert.match(routingMarkup, /<th[^>]*>EFFECT · THB\/pc<\/th>/)
+  const routingCaption = 'Changed Routing REF, CUR, and EFFECT values by Manning, Capacity, Yield, and Cost Gap'
+  assert.deepEqual(detailHeaders(routingMarkup, routingCaption), ['Comparison', 'Manning', 'Capacity', 'Yield', 'Cost Gap · THB/pc'])
+  assert.deepEqual(detailRow(routingMarkup, routingCaption, 'REF'), [
+    formatters.formatNumber(1, 4), formatters.formatNumber(10, 4), formatters.formatPercent(1, 2), formatters.formatNumber(1.5, 4)
+  ], 'Routing REF row must carry the reference operating parameters and conversion cost')
+  assert.deepEqual(detailRow(routingMarkup, routingCaption, 'CUR'), [
+    formatters.formatNumber(1, 4), formatters.formatNumber(10, 4), formatters.formatPercent(1, 2), formatters.formatNumber(2.7, 4)
+  ], 'Routing CUR row must carry the current operating parameters and conversion cost')
+  assert.deepEqual(detailRow(routingMarkup, routingCaption, 'EFFECT'), [
+    formatters.formatVariance(rateChanged.effects.conversion.manning, 4),
+    formatters.formatVariance(rateChanged.effects.conversion.capacity, 4),
+    formatters.formatVariance(rateChanged.effects.conversion.yield, 4),
+    formatters.formatVariance(1.2, 4)
+  ], 'Routing EFFECT row must keep primary operating-factor effects and the actual conversion gap')
   assert.doesNotMatch(routingMarkup, /% Parent|%Parent|Labor Gap|Burden Gap|Conversion Gap/)
-  const routingTotals = findCostGapRow(routingMarkup, 'Changed Routing parameter and Work Center rate values')
-  assert.deepEqual(routingTotals, ['1.50', '2.70', '+1.20'], 'Routing detail must reconcile to the existing conversion gap')
+  assert.doesNotMatch(findDetailTable(routingMarkup, routingCaption), /<th[^>]*>Labor Rate<\/th>|<th[^>]*>Burden Rate<\/th>/)
+  assert.doesNotMatch(findDetailTable(routingMarkup, routingCaption), /<th[^>]*>Work Center<\/th>/)
+  assert.ok(routingText.includes(`Labor Rate ${formatters.formatNumber(10, 4)} → ${formatters.formatNumber(20, 4)} Effect ${formatters.formatVariance(rateChanged.effects.conversion.laborRate, 4)}`),
+    'Routing Labor Rate and its existing conversion effect stay in secondary context')
+  assert.ok(routingText.includes(`Burden Rate ${formatters.formatNumber(5, 4)} → ${formatters.formatNumber(7, 4)} Effect ${formatters.formatVariance(rateChanged.effects.conversion.burdenRate, 4)}`),
+    'Routing Burden Rate and its existing conversion effect stay in secondary context')
   const routingCandidateMarkup = renderItemized(itemizedView, routingComparisonForDisplay, routingRefSnapshot, routingCurSnapshot, 'rtg')
   assert.match(routingCandidateMarkup, /Routing/)
   assert.match(routingCandidateMarkup, /Manning/)
@@ -335,24 +371,66 @@ try {
     fullSnapshotComparison: routingComparisonForDisplay,
     snapshotPair: { reference: routingRefSnapshot, current: routingCurSnapshot },
     analysisSnapshotPair: { reference: routingRefSnapshot, current: routingCurSnapshot },
-    selectedComparisonSelection: { bomFindingKeys: ['selected-bom-key'], routingFindingKeys: [] },
+    selectedComparisonSelection: { bomFindingKeys: [], routingFindingKeys: [JSON.stringify(['routing', 'route-ref', 'route-cur'])] },
     isSelectedComparisonActive: true,
     applySelectedComparison() {},
     clearSelectedComparison() {}
   }
   try {
-    const { CostBreakdownPage } = await vite.ssrLoadModule('/src/features/cost-breakdown/CostBreakdownPage.tsx')
+    const { CostBreakdownPage, GapContributionChart } = await vite.ssrLoadModule('/src/features/cost-breakdown/CostBreakdownPage.tsx')
+    const chartSegments = [
+      { key: 'material', label: 'Material', full: 9.31, selected: 3, color: '#0369a1', selectedColor: '#075985' },
+      { key: 'labor', label: 'Labor', full: 4.42, selected: 0, color: '#b45309', selectedColor: '#92400e' },
+      { key: 'burden', label: 'Burden', full: 2.32, selected: 1, color: '#6d28d9', selectedColor: '#5b21b6' }
+    ]
+    const proportionalChart = renderToStaticMarkup(React.createElement(GapContributionChart, {
+      segments: chartSegments, fullTotal: 16.05, selectedTotal: 4, selectedActive: true
+    }))
+    assert.match(proportionalChart, /data-gap-chart-mode="proportional"/)
+    const proportionalRects = [...proportionalChart.matchAll(/<rect\b[^>]*>/g)].map(([rect]) => rect)
+    const contributionWidth = color => {
+      const rect = proportionalRects.find(candidate => candidate.includes(`fill="${color}"`) && candidate.includes('fill-opacity="0.38"'))
+      assert.ok(rect, `expected a proportional full-contribution segment for ${color}`)
+      return Number(rect.match(/\bwidth="([\d.]+)"/)?.[1])
+    }
+    assertClose(contributionWidth('#0369a1') / 1000, 9.31 / 16.05, 'Material width must reflect its share of the full gap')
+    assertClose(contributionWidth('#b45309') / 1000, 4.42 / 16.05, 'Labor width must reflect its share of the full gap')
+    assertClose(contributionWidth('#6d28d9') / 1000, 2.32 / 16.05, 'Burden width must reflect its share of the full gap')
+    assert.ok(proportionalChart.includes(`Selected Material ${formatters.formatVariance(3, 4)}`))
+
+    const signedOffsetChart = renderToStaticMarkup(React.createElement(GapContributionChart, {
+      segments: [
+        { key: 'material', label: 'Material', full: 9, selected: 10, color: '#0369a1', selectedColor: '#075985' },
+        { key: 'labor', label: 'Labor', full: -4, selected: 0, color: '#b45309', selectedColor: '#92400e' },
+        { key: 'burden', label: 'Burden', full: 2, selected: 0, color: '#6d28d9', selectedColor: '#5b21b6' }
+      ], fullTotal: 7, selectedTotal: 10, selectedActive: true
+    }))
+    assert.match(signedOffsetChart, /data-gap-chart-mode="signed"/,
+      'opposite-sign component gaps and a selected component above the net must use the signed chart')
+    assert.ok(signedOffsetChart.includes([
+      `Full Standard Cost Gap ${formatters.formatVariance(7, 4)}`,
+      `Full Material ${formatters.formatVariance(9, 4)}`,
+      `Full Labor ${formatters.formatVariance(-4, 4)}`,
+      `Full Burden ${formatters.formatVariance(2, 4)}`
+    ].join('; ')))
+    assert.ok(signedOffsetChart.includes(`Selected Material ${formatters.formatVariance(10, 4)}`))
+    assert.match(signedOffsetChart, /stroke-dasharray="2 2"/,
+      'the offset chart must retain a visible shared zero baseline')
+    assert.match(signedOffsetChart, /stroke-dasharray="4 2"/,
+      'selected contribution beyond the full Material segment must remain visible as an outlined marker')
     const pageMarkup = renderToStaticMarkup(React.createElement(CostBreakdownPage))
     const pageText = visibleText(pageMarkup)
     assert.match(pageText, /Standard Cost Gap/)
     assert.match(pageText, /Full \+1\.20/)
-    assert.match(pageText, /Selected \+0\.25/)
+    assert.match(pageText, /Selected \+1\.20/)
     assert.match(pageText, /Work Center Context/)
     assert.match(pageText, /Full snapshot · Conversion Cost/)
     assert.match(pageText, /WC-REF/)
     assert.match(pageText, /WC-CUR/)
-    assert.equal([...pageMarkup.matchAll(/One segmented gap bar/g)].length, 1,
+    assert.equal([...pageMarkup.matchAll(/data-gap-chart-mode=/g)].length, 1,
       'the subheader must render one full-baseline Gap Bar with the Selected contribution inside it')
+    assert.match(pageMarkup, /data-gap-chart-mode="unavailable"/,
+      'unavailable full component gaps remain unavailable instead of being treated as zero')
     assert.match(pageMarkup, /aria-label="Candidate type filter"/)
     assert.match(pageMarkup, /aria-label="Status filter dropdown"/)
     assert.match(pageMarkup, /type="checkbox"/)

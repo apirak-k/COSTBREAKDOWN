@@ -45,7 +45,7 @@ export const Navbar: React.FC = () => {
   }, [masterDataPrepareDatasetRequested, consumeMasterDataPrepareDatasetRequest])
 
   return (
-    <header className="sticky top-0 z-50 select-none border-b border-slate-800 bg-slate-900 text-white shadow-xs">
+    <header className="sticky top-0 z-50 shrink-0 select-none border-b border-slate-800 bg-slate-900 text-white shadow-xs">
       <div className="app-workspace-frame">
         <div className="grid min-h-12 grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 gap-y-1.5 py-2 lg:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] lg:py-0">
           <div className="flex min-w-0 items-center gap-2.5">

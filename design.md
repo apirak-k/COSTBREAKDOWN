@@ -73,6 +73,16 @@ requirements:
   Candidates. The single Gap Bar highlights selected contribution in place;
   `#` toggles Candidate selection immediately. Keep the Overview and Work
   Center values on the full snapshots [`COST_BREAKDOWN.md`](docs/specs/COST_BREAKDOWN.md).
+- The CBD Gap Bar uses contribution-proportional segments when component gaps
+  share a sign; offsetting gaps use one signed zero-baseline chart. Keep selected
+  contributions inside that same chart. The Fixed Overview is side-by-side and
+  has one whole-region collapse control, expanded by default. Candidate owns
+  the CBD vertical scroll area; its tables may scroll horizontally inside their
+  own bounds.
+- CBD changed BOM detail aligns REF / CUR / EFFECT rows with Usage / Price / Loss
+  / Cost Gap columns. Changed RTG detail aligns REF / CUR / EFFECT rows with
+  Manning / Capacity / Yield / Cost Gap columns; Work Center and rate context
+  stay secondary. Do not add Unit, `% Parent`, or RTG LB/BD/CONV main columns.
 - Follow the finalized Selling Price, SG&A, and OP formulas in
   [`FINAL_LOGIC_SPEC.md`](docs/specs/FINAL_LOGIC_SPEC.md). Metrics classified as
   OUT OF SCOPE remain unavailable and must not be implied; never fill a visual
@@ -207,9 +217,11 @@ when the app frame has usable width.
 - **Elevation:** use a thin border as the default separation. Reserve a small
   shadow for overlays and floating menus; do not put a shadow on every card.
 
-The app uses a viewport-height shell: Header at the top, an internally scrolling
-Main region, and a non-overlay Footer locked to the bottom. Header, Main, and
-Footer content share the centered `max-w-[1440px]` frame. Master Data's
+The app uses a viewport-height shell: Header at the top, a Main region, and a
+non-overlay Footer locked to the bottom. Standard pages keep their existing
+Main scroll behavior. CBD is the specific exception: Main does not vertically
+scroll, and the Candidate workspace owns CBD's vertical scroll. Header, Main,
+and Footer content share the centered `max-w-[1440px]` frame. Master Data's
 selected-dataset toolbar and metadata stay together at the top of its content
 scroll area, as required by
 [`MASTER_DATA.md`](docs/specs/MASTER_DATA.md#page-structure-and-metadata)

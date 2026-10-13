@@ -24,12 +24,12 @@ export const SnapshotComparisonCard: React.FC<SnapshotComparisonCardProps> = ({ 
   ]
 
   return (
-    <section aria-labelledby="standard-cost-overview-title" className="overflow-hidden border border-slate-300 bg-white">
+    <section aria-labelledby="standard-cost-overview-title" className="min-w-0 overflow-hidden border border-slate-300 bg-white">
       <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 border-b border-slate-200 px-3 py-2">
         <h2 id="standard-cost-overview-title" className="font-sans text-xs font-semibold tracking-tight text-slate-950">Standard Cost Overview</h2>
         <span className="text-[11px] text-slate-500">Full Reference / Current snapshot · THB/pc</span>
       </div>
-      <div className="w-full overflow-x-auto">
+      <div className="w-full min-w-0 overflow-x-auto">
         <table className="w-full min-w-[520px] text-left text-xs">
           <caption className="sr-only">Full snapshot Material, Labor, Burden, and Standard Cost values for Reference, Current, and Gap</caption>
           <thead><tr className="bg-slate-800 font-semibold text-white"><th scope="col" className="px-3 py-2">Cost element</th><th scope="col" className="px-3 py-2 text-right">REF</th><th scope="col" className="px-3 py-2 text-right">CUR</th><th scope="col" className="px-3 py-2 text-right">Gap</th></tr></thead>

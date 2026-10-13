@@ -38,12 +38,12 @@ export const WorkCenterProcessingTable: React.FC<WorkCenterProcessingTableProps>
   const totalGap = sumWhenComplete(findings.map(finding => finding.costEffect.gap.total))
 
   return (
-    <section aria-labelledby="work-center-context-title" className="overflow-hidden border border-slate-300 bg-white">
+    <section aria-labelledby="work-center-context-title" className="min-w-0 overflow-hidden border border-slate-300 bg-white">
       <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 border-b border-slate-200 px-3 py-2">
         <h2 id="work-center-context-title" className="font-sans text-xs font-semibold tracking-tight text-slate-950">Work Center Context</h2>
         <span className="text-[11px] text-slate-500">Full snapshot · Conversion Cost · THB/pc</span>
       </div>
-      <div className="w-full overflow-x-auto">
+      <div className="w-full min-w-0 overflow-x-auto">
         <table className="w-full min-w-[560px] text-left text-xs">
           <caption className="sr-only">Full-snapshot Conversion Cost by Work Center for Reference, Current, and Gap</caption>
           <thead><tr className="bg-slate-800 font-semibold text-white">

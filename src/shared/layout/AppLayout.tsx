@@ -218,6 +218,7 @@ export const AppLayout: React.FC<AppLayoutProps> = ({ children, onNavigatePrepar
       blockerCount: blockerCounts.current
     }
   ]
+  const isCostBreakdown = activeTab === 'breakdown'
   const datasetsReady = areMasterDataDatasetsReady(masterDataHandoff, blockerItems)
   const productDisplayStatus = resolveProductComparisonDisplayStatus(
     snapshotPair.reference.product,
@@ -305,9 +306,11 @@ export const AppLayout: React.FC<AppLayoutProps> = ({ children, onNavigatePrepar
         id="main-content"
         tabIndex={-1}
         onPointerDownCapture={handleWorkspacePointerDown}
-        className={`min-h-0 min-w-0 flex-1 overflow-y-auto ${activeTab === 'master' ? 'pt-0 pb-3 [scrollbar-gutter:stable]' : 'py-3'} ${activeTab === 'breakdown' ? 'overscroll-x-contain' : ''}`}
+        className={isCostBreakdown
+          ? 'flex min-h-0 min-w-0 flex-1 overflow-hidden'
+          : `min-h-0 min-w-0 flex-1 overflow-y-auto ${activeTab === 'master' ? 'pt-0 pb-3 [scrollbar-gutter:stable]' : 'py-3'}`}
       >
-        <div className="app-workspace-frame">{children}</div>
+        <div className={`app-workspace-frame ${isCostBreakdown ? 'flex h-full min-h-0 min-w-0 flex-col' : ''}`}>{children}</div>
       </main>
       <footer aria-label="Dataset and comparison status" className="w-full shrink-0 border-t border-slate-800 bg-slate-900 py-2 font-sans text-[11px] text-slate-400">
         <div className="app-workspace-frame flex flex-wrap items-center justify-between gap-x-5 gap-y-1.5 xl:flex-nowrap">

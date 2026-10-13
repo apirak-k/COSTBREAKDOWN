@@ -1,192 +1,229 @@
-IMPLEMENTATION CHECKLIST
+# CBD Corrective Round Checklist
+
+Branch: `codex/cbd-candidate-integration`  |  Starting HEAD: `28d8f59b7a1235d4a88ef6303c5167c98c43de37`
 ==================================================
-
-Create or update a CBD-specific checklist file under `tasks/`
-to record implementation evidence.
-
-Suggested file:
-tasks/cbd-ux-ui-implementation-checklist.md
-
-Start every requirement as [x].
-Only change it to [x] AFTER it is implemented AND verified.
-
-Use this checklist:
 
 PRE-FLIGHT
 [x] Confirmed branch is codex/cbd-candidate-integration
-[x] Inspected git status and preserved unrelated existing changes
-[x] Read AGENTS.md and relevant CBD specs
-[x] Inspected latest CBD implementation before editing
-[x] Inspected Master Data only as a layout/interaction reference
+[x] Confirmed starting HEAD/state
+[x] Confirmed no unexpected local modifications
+[x] Read current CBD spec/docs
+[x] Inspected actual current CBD source
+[x] Inspected AppLayout scroll/footer structure
+[x] Located existing Secondbrain workflow source or explicitly reported that none is available
 
-SCOPE SAFETY
-[x] Changes are limited to CBD and directly required CBD state/docs
-[x] Master Data behavior was not modified
-[x] Candidate/RCA page was not modified
-[x] Ranking was not modified
-[x] Simulation was not modified
-[x] Shared shell/header/footer was not redesigned
-[x] Business formulas/matching logic remain unchanged
+REGRESSION SAFETY
+[x] No Master Data redesign
+[x] No Candidate/RCA redesign
+[x] No Ranking changes
+[x] No Simulation changes
+[x] No business formula change
+[x] No matching-identity change
+[x] No LMDI rewrite
+[x] Existing direct # Candidate selection preserved
+[x] Existing selection/filter persistence preserved
+[x] Work Center remains full-snapshot context
 
-SUBHEADER
-[x] Old Select Scope workflow removed
-[x] No Select Scope button
-[x] No Apply button
-[x] No Cancel selection button
-[x] No Edit Scope button
-[x] No Full Comparison mode button
-[x] One and only one Standard Cost Gap Bar exists
-[x] Gap Bar is split into Material / Labor / Burden
-[x] Full Standard Cost Gap remains the baseline
-[x] Selected scope highlights contribution inside the same bar
-[x] ALL / BOM / RTG control implemented
-[x] Status dropdown implemented
-[x] Status filtering does not destroy selected scope
+CBD TOP AREA
+[x] Redundant PageHeading removed
+[x] "Reference vs Current · Gap..." description removed
+[x] Subheader begins directly below Global Header
+[x] No unnecessary top vertical gap
+[x] Subheader contains Gap Bar
+[x] Subheader contains ALL/BOM/RTG
+[x] Subheader contains Status dropdown
+[x] No Comparison Mode
+[x] No Select Scope / Apply / Cancel / Edit Scope
+[x] "No Candidates selected" text removed
+[x] No second selected-scope bar added
 
-FIXED STANDARD COST
-[x] Standard Cost overview is compact
-[x] Material REF / CUR / Gap shown
-[x] Labor REF / CUR / Gap shown
-[x] Burden REF / CUR / Gap shown
-[x] Standard Cost REF / CUR / Gap shown
-[x] % Parent removed
-[x] Obsolete reconciliation/balanced presentation removed
-[x] No duplicate review links remain
+GAP BAR
+[x] Exactly one Standard Cost Gap chart exists
+[x] Material / Labor / Burden are not equal fixed thirds
+[x] Normal same-sign segment widths reflect actual Gap contribution
+[x] Example +9.31 / +4.42 / +2.32 does not render as equal thirds
+[x] Selected scope highlights contribution in the same chart
+[x] Non-selected contribution remains visible
+[x] No second Full/Selected chart
+[x] Negative contributions preserve sign
+[ ] NEEDS HUMAN REVIEW — SSR fixture covers +9 / -4 / +2; a browser-rendered full offset case was unavailable.
+[ ] NEEDS HUMAN REVIEW — SSR fixture asserts selected +10 against +9 / -4 / +2; inspect this chart in a browser fixture.
+[x] No per-segment independent normalization
+[x] Numeric values remain accessible
 
-WORK CENTER CONTEXT
-[x] Work Center still uses fullSnapshotComparison context
-[x] Work Center does not change with selected scope
-[x] Work Center is not selectable
-[x] Work Center is not a Candidate
-[x] Work Center REF Conversion is correct
-[x] Work Center CUR Conversion is correct
-[x] Work Center Gap is CUR - REF
-[x] Compact WC | REF | CUR | Gap presentation implemented
-[x] Total row/summary reconciles with total Conversion when data is available
-[x] No unapproved new LB / BD / CONV column redesign was added
+FIXED OVERVIEW
+[x] Standard Cost and Work Center are side-by-side on desktop
+[x] Standard Cost remains REF / CUR / Gap
+[x] Work Center remains WC / REF / CUR / Gap
+[x] Work Center Total remains available
+[x] Work Center still uses full snapshot
+[x] Fixed Overview is compact
+[x] Fixed Overview does not dominate the viewport
+[x] Candidate rows remain meaningfully visible when overview is expanded
 
-DIRECT SCOPE SELECTION
-[x] Candidate # is the direct selection affordance
-[x] No checkbox/Include selection mode remains
-[x] Selecting one row immediately updates selected scope
-[x] Selecting multiple rows creates a multi-Candidate scope
-[x] Deselecting a row immediately updates selected scope
-[x] Deselecting all rows returns naturally to Full scope
-[x] Selected rows have a clear visible state
-[x] Selection is not communicated by color alone
-[x] Filtering does not silently clear hidden selected rows
-[x] Existing selected-comparison state/model was reused where practical
-
-BOM MAIN TABLE
-[x] BOM header is exactly based on:
-    # | Bill of Material | Status | Usage | Price | Loss | Cost Gap | % Total | ▼
-[x] Unit is not shown in the CBD Candidate table
-[x] CHANGED Usage displays delta
-[x] CHANGED Price displays delta
-[x] CHANGED Loss displays delta
-[x] BOM Cost Gap is Material Cost Gap
-[x] BOM % Total uses FULL Standard Cost Gap
-[x] ADDED does not fabricate a missing REF delta
-[x] REMOVED does not fabricate a missing CUR delta
-[x] Signed gaps preserved
-[x] UNCHANGED remains filterable/available
+FIXED OVERVIEW COLLAPSE
+[x] One collapse control controls the whole overview
+[x] Standard Cost does not have a separate collapse state
+[x] Work Center does not have a separate collapse state
+[x] Default state is expanded
+[x] Collapse frees vertical space for Candidates
+[x] Expand restores same data
+[x] Collapse does not modify scope
+[x] Collapse does not modify filters
+[x] Collapse does not modify calculations
+[x] aria-expanded is correct
+[x] Keyboard operation works
 
 BOM EXPANSION
-[x] Only CHANGED gets Parameter Effect expansion
-[x] Expansion uses REF / CUR / EFFECT rows
-[x] Expansion aligns Usage / Price / Loss / Cost Gap
+[x] Main BOM schema remains unchanged
+[x] CHANGED-only expansion preserved
+[x] REF is a row
+[x] CUR is a row
+[x] EFFECT is a row
+[x] Usage is a column
+[x] Price is a column
+[x] Loss is a column
+[x] Cost Gap is a column
+[x] No generic primary Parameter column
 [x] REF values are actual REF values
 [x] CUR values are actual CUR values
-[x] EFFECT uses existing LMDI result
-[x] EFFECT total reconciles with BOM Cost Gap when available
-[x] Unavailable attribution remains unavailable, not fabricated
-[x] ADDED has no fake effect expansion
-[x] REMOVED has no fake effect expansion
-[x] % Parent removed from BOM detail
-
-RTG MAIN TABLE
-[x] RTG header is exactly based on:
-    # | Routing | Status | Manning | Capacity | Yield | Cost Gap | % Total | ▼
-[x] Work Center is NOT a main-table column
-[x] Labor Rate is NOT a main-table column
-[x] Burden Rate is NOT a main-table column
-[x] Labor is NOT a main-table column
-[x] Burden is NOT a main-table column
-[x] Conversion is NOT added as a separate main-table column
-[x] CHANGED Manning displays delta
-[x] CHANGED Capacity displays delta
-[x] CHANGED Yield displays delta
-[x] RTG Cost Gap equals Conversion Gap
-[x] RTG % Total uses FULL Standard Cost Gap
-[x] ADDED does not fabricate missing REF values
-[x] REMOVED does not fabricate missing CUR values
+[x] EFFECT uses existing LMDI
+[x] EFFECT Cost Gap is actual BOM Material Gap
+[x] Unit remains omitted
+[x] Unavailable effects remain —
 
 RTG EXPANSION
-[x] Only CHANGED gets Parameter Effect expansion
-[x] Primary expansion uses REF / CUR / EFFECT rows
-[x] Primary rows align Manning / Capacity / Yield / Cost Gap
-[x] REF cost corresponds to REF Routing Conversion
-[x] CUR cost corresponds to CUR Routing Conversion
-[x] EFFECT Cost Gap equals actual Routing Conversion Gap
-[x] Existing Manning/Capacity/Yield effect logic preserved
-[x] Existing Work Center rate-effect logic preserved
-[x] WC/rate context is shown compactly in expanded detail when required
-[x] No WC/rate context was promoted into new main-table columns
-[x] Effect reconciliation remains correct when attribution is available
-[x] % Parent removed from RTG detail
+[x] Main RTG schema remains unchanged
+[x] CHANGED-only expansion preserved
+[x] REF is a row
+[x] CUR is a row
+[x] EFFECT is a row
+[x] Manning is a column
+[x] Capacity is a column
+[x] Yield is a column
+[x] Cost Gap is a column
+[x] No generic primary Parameter column
+[x] Labor Rate removed from primary parameter table
+[x] Burden Rate removed from primary parameter table
+[x] Work Center not promoted to primary column
+[x] Existing WC/rate calculation preserved
+[x] WC movement appears as compact secondary context when applicable
+[x] Labor Rate context appears only secondarily when applicable
+[x] Burden Rate context appears only secondarily when applicable
+[x] Effect reconciliation remains correct
+[x] No LB/BD/CONV main columns added
 
-PERCENTAGE RULE
-[x] % Total uses Candidate Cost Gap / FULL Standard Cost Gap
-[x] % Total can display negative values
-[x] % Total can display values above 100%
-[x] Zero/unavailable denominator displays —
-[x] % Parent is no longer shown anywhere in the CBD UI
+SCROLL / FOOTER
+[x] Pre-existing Footer bug root cause identified
+[x] CBD has one intentional vertical scroll owner
+[x] AppLayout main and Candidate do not both vertically scroll for CBD
+[x] Candidate workspace owns CBD scrolling if using the preferred architecture
+[x] Other pages retain their existing scroll behavior
+[x] Footer remains at bottom of app shell
+[x] Footer never overlaps CBD
+[x] Footer does not float upward with empty canvas beneath
+[x] No duplicate vertical scrollbar
+[x] No body scrollbar appears accidentally
+[x] Collapse/expand does not break Footer
+[x] Resize does not break Footer
+[ ] NEEDS HUMAN REVIEW — viewport tooling supports size changes but exposes no browser zoom control.
+[x] Horizontal Candidate table scrolling remains local
 
-VISUAL / UX
-[x] Fixed overview does not consume excessive vertical space
-[x] Candidate area remains the primary scrollable workspace
-[x] Selected row styling is visually clear
-[x] Gap Bar highlight is understandable without opening details
-[x] No unnecessary new cards/sections were introduced
-[x] Narrow-screen overflow remains usable
-[x] Keyboard interaction works
-[x] Focus states remain visible
-[x] Expand controls expose correct accessibility state
+CANDIDATE WORKSPACE
+[x] Candidate area is the primary workspace
+[x] Useful Candidate rows visible with overview expanded on desktop
+[x] Collapse significantly increases Candidate workspace height
+[x] Direct # selection still works
+[x] One selection works
+[x] Multiple selection works
+[x] Hidden selection survives filters
+[x] Deselect-all returns Full
+[x] Selected styling remains clear and not color-only
+
+SECONDBRAIN WORKFLOW
+[x] Existing canonical Secondbrain workflow location identified
+[x] Prompt → Implement → Audit → Next Prompt cycle documented
+[x] Mid-implementation new decisions documented as next-round agreements by default
+[x] Audit is documented as mandatory before next prompt
+[x] Next prompt is documented to include audit + new agreements + new checklist
+[x] No competing duplicate workflow document created
 
 DOCUMENTATION
-[x] COST_BREAKDOWN.md updated to latest CBD presentation decisions
-[x] Old explicit Select/Edit/Apply comparison-mode UX removed from docs
-[x] One-bar Full Gap + selected-highlight behavior documented
-[x] Direct # Candidate selection documented
-[x] % Parent removal documented
-[x] BOM/RTG Candidate schemas documented
-[x] Deferred LB/BD/CONV RTG idea is NOT written as a requirement
-[x] No unrelated spec was rewritten
+[x] COST_BREAKDOWN.md matches actual corrected CBD UX
+[x] design.md CBD section matches corrected layout
+[x] No stale equal-width/equal-column Gap Bar implication remains
+[x] Side-by-side Overview documented
+[x] Whole-overview collapse documented
+[x] Single CBD scroll ownership documented where appropriate
+[x] BOM expansion orientation documented
+[x] RTG expansion orientation documented
+[x] LB/BD/CONV remains explicitly deferred
+[x] FINAL_LOGIC_SPEC business formulas not rewritten
+[x] HANDOFF updated if used by current repository workflow
 
 VERIFICATION
-[x] `npm run build` passes
-[x] Existing relevant verification scripts/tests were run if available
-[x] No new TypeScript errors
-[x] No obvious console/runtime errors in CBD
-[x] Full state manually checked
-[x] BOM-only filter manually checked
-[x] RTG-only filter manually checked
-[x] Status filter manually checked
-[x] One selected Candidate manually checked
-[x] Multiple selected Candidates manually checked
-[x] Deselect-all → Full manually checked
-[x] CHANGED BOM expansion manually checked
-[x] CHANGED RTG expansion manually checked
-[x] ADDED row manually checked
-[x] REMOVED row manually checked
-[x] Work Center confirmed unchanged while scope changes
-[x] Gap Bar confirmed to remain one bar while scope changes
-IMPLEMENTATION EVIDENCE
-- Branch: codex/cbd-candidate-integration
-- HEAD remains 687a509112b1c4dfe6b69defde0cc2aead8f8ec6; no commit or push was made.
-- The target worktree was clean before edits. Pre-existing untracked files in the separate root checkout were left untouched.
-- npm run build passed. Vite still reports its existing ExcelJS fs/crypto externalization warnings.
-- CBD self-checks passed: verify_cbd_parameter_cost_effect.mjs, verify_selected_comparison_lifecycle.ts, verify_snapshot_bom_detail.ts, verify_snapshot_routing_detail.ts, verify_bom_comparison_view.ts, verify_routing_comparison_view.ts, verify_work_center_comparison_view.ts, verify_comparison_reconciliation.ts, verify_selected_comparison_boundary.ts, and verify_snapshot_comparison_view.ts.
-- Browser checks passed at 1440x1000 and 390x844 for Full/Selected state, type/status filters, selection preservation, deselect-all, BOM/RTG details, Added/Removed values, keyboard/focus behavior, Work Center stability, single Gap Bar, and narrow-table scrolling.
-- A CBD-only overscroll containment class on the shared main scroller prevents horizontal gestures outside tables from shifting the whole page; horizontal table scrollers remain usable.
-- git diff --check passed. No calculation formulas or matching logic were changed.
+[x] npm run build passes
+[x] Relevant CBD verification scripts pass
+[x] Selected comparison verification passes
+[x] Reconciliation verification passes
+[x] git diff --check passes
+[x] Desktop browser check completed
+[x] 1366×768-like browser check completed
+[x] Narrow/mobile browser check completed
+[x] Full state checked
+[x] Selected state checked
+[x] Overview collapse checked
+[x] BOM expansion checked
+[x] RTG expansion checked
+[x] Added row checked
+[x] Removed row checked
+[x] Work Center stability checked
+[x] Footer checked at top of Candidate scroll
+[x] Footer checked at bottom of Candidate scroll
+[x] Double-scroll absence checked
+[x] Gap Bar proportional case checked
+[ ] NEEDS HUMAN REVIEW — selected negative overlay was checked in browser; the full signed-offset fixture was asserted in SSR only.
+
+==================================================
+
+## IMPLEMENTATION EVIDENCE
+
+The checked items above are backed by the evidence below. Any visual item that could not be genuinely confirmed stays [ ] NEEDS HUMAN REVIEW.
+
+### Preflight and regression safety
+- Target worktree: E:\COSTBREAKDOWN\.worktrees\CBD-CANDIDATE-INTEGRATION.
+- Branch: codex/cbd-candidate-integration. Starting HEAD and current local HEAD: 28d8f59b7a1235d4a88ef6303c5167c98c43de37. Worktree was clean before edits and tracked origin/codex/cbd-candidate-integration.
+- No Master Data, Candidate/RCA, Ranking, or Simulation source changed. No calculation, identity, canonical status, LMDI, or Selected Comparison state code changed.
+- Master Data main remained overflow-y:auto and scrolled 340 px at 1366×768 while Footer bottom stayed at 768 px. Candidate and Simulation routes retain main overflow-y:auto.
+- Reviewed CBD source, app layout, both detail tables, overview tables, relevant selected-comparison usage, specs, and design.
+
+### CBD UI and calculation evidence
+- Changed files: CostBreakdownPage.tsx, SnapshotComparisonCard.tsx, WorkCenterProcessingTable.tsx, BOMDetailedTable.tsx, and RoutingDetailedTable.tsx.
+- Browser checks confirmed no redundant heading, one chart, subheader filters, side-by-side Overview panels, and visible Candidate content with Overview expanded.
+- At 1366×768, browser-measured chart shares were Material 58.0%, Labor 27.6%, Burden 14.4% for +9.31 / +4.42 / +2.32. MAT-A selected +4.20 in the same chart; MAT-REMOVED showed a signed selected -6.12 against the positive full gap. Selection persisted through type/status filters and multiple selection; deselect-all returned to Full.
+- Overview collapse/expand was keyboard-tested with Space. aria-expanded changed true → false → true. Type/status filters, chart values, and full-snapshot Work Center rows stayed unchanged. At 390×844, collapsing while Candidates were scrolled grew the workspace from 125 px to 438 px while Footer remained at 844 px and document scroll stayed zero.
+- BOM and RTG changed details showed REF / CUR / EFFECT rows. BOM values reconciled to +4.20. RTG OP-MANNING reconciled to +2.30, including secondary Labor Rate +0.19 and Burden Rate +0.09 context. Added/Removed values and unavailable effects were checked in self-checks/rendered accessibility state.
+- Work Center stayed at REF 19.86 / CUR 26.60 / Gap +6.74 while Candidate scope changed.
+
+### Scroll ownership and responsive evidence
+- Changed files: AppLayout.tsx, Navbar.tsx, index.css, and CostBreakdownPage.tsx.
+- Root cause: CBD main and Candidate both previously had vertical auto-scroll, without a constrained CBD flex/min-height chain.
+- Final CBD ownership: main is overflow-hidden; the constrained workspace frame is a flex column; Candidate workspace is the only vertical scroller. html/body suppress document-level scroll. Footer remains shrink-0 and Navbar is protected from flex shrinking. Other route mains retain overflow-y:auto.
+- Browser sizes: 1440×1000, 1366×768, and 390×844. Candidate scrolling reached its bottom while Footer stayed at the viewport bottom. Collapse/expand while scrolled and local horizontal scrolling in Overview/Candidate tables were checked.
+- Wide table contents make document scrollWidth larger than viewport in narrow mode, but document scrollLeft stayed 0 and horizontal movement remained in the table container. Browser zoom was unavailable.
+
+### Documentation and Secondbrain
+- Repo docs: docs/specs/COST_BREAKDOWN.md, design.md, HANDOFF.md, and this checklist. FINAL_LOGIC_SPEC.md was not changed.
+- Existing canonical workflow: secondbrain/WORKFLOW.md in private DEV checkout C:\Users\Boom\.codex\worktrees\skill-link-ownership-dev\Human-AI-Working-Standard. It now documents Discuss/Close → Prompt → Current Codex Round → Audit → Next Prompt, with mid-round decisions saved for the next round by default. DEV checkout is on branch dev at 3acdc3da885021c68440c511c0c5e5e1e63216a1; only that file is modified, unstaged and uncommitted.
+- No duplicate workflow document was created.
+
+### Commands and verification
+- npm run build — PASS; tsc -b and Vite build, 2049 modules. Existing Vite ExcelJS fs/crypto browser-externalization warnings remain.
+- node scripts/verify_cbd_parameter_cost_effect.mjs — PASS; includes proportional +9.31 / +4.42 / +2.32 and signed +9 / -4 / +2 with selected +10.
+- Ten Vite SSR TypeScript checks — PASS: CBD view, selected-comparison lifecycle/boundary, reconciliation, BOM/RTG comparison views, snapshot comparison/detail views, and Work Center view.
+- git diff --check — PASS.
+- Previously attempted out-of-scope Candidate checks verify_candidate_selection_view.mjs and verify_cost_breakdown_review_feedback.mjs failed because the existing CandidateSelectionPage fixture expects an obsolete Information/Overview label and omits currentRcaWorkspace. Candidate/RCA files were not changed.
+- No commit or push was performed.
+
+### Remaining human review
+- The unchecked NEEDS HUMAN REVIEW items above cover browser inspection of a full opposite-sign chart, a component-over-net selected marker, and browser zoom. Static signed-chart assertions pass, but they do not replace visual acceptance.
