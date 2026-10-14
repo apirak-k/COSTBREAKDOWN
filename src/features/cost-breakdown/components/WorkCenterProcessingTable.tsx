@@ -59,23 +59,20 @@ export const WorkCenterProcessingTable: React.FC<WorkCenterProcessingTableProps>
   const totalPercentage = totalGap === null ? null : safeDivide(totalGap, totalReference ?? Number.NaN)
 
   return (
-    <section aria-label="Work Center comparison" className="flex h-44 min-h-0 min-w-0 flex-col overflow-hidden border border-slate-300 bg-white">
-      <div className="shrink-0 overflow-x-auto">
-        <table className="w-full min-w-[500px] table-fixed text-left text-xs">
+    <section aria-label="Work Center" className="flex h-44 min-h-0 min-w-0 flex-col overflow-hidden border border-slate-300 bg-white">
+      <div data-wc-scroll-body="true" className="min-h-0 flex-1 overflow-auto [scrollbar-gutter:stable]">
+        <table className="h-full w-full min-w-[500px] table-fixed border-separate border-spacing-0 text-left text-xs">
           {columnWidths}
-          <thead><tr className="bg-slate-800 font-semibold text-white">
-            <th scope="col" className="px-2 py-1.5">WC</th>
-            <th scope="col" className="px-2 py-1.5 text-right">REF</th>
-            <th scope="col" className="px-2 py-1.5 text-right">CUR</th>
-            <th scope="col" className="px-2 py-1.5 text-right">GAP</th>
-            <th scope="col" className="px-2 py-1.5 text-right">%GAP</th>
-          </tr></thead>
-        </table>
-      </div>
-      <div data-wc-scroll-body="true" className="min-h-0 flex-1 overflow-y-auto overflow-x-auto">
-        <table className="w-full min-w-[500px] table-fixed text-left text-xs">
-          {columnWidths}
-          <caption className="sr-only">Conversion Cost by Work Center for Reference, Current, Gap, and percentage of total Conversion Gap</caption>
+          <caption className="sr-only">Work Center conversion cost for Reference, Current, Gap, and percentage of total Conversion Gap</caption>
+          <thead className="sticky top-0 z-10">
+            <tr className="bg-slate-800 font-semibold text-white">
+              <th scope="col" className="px-2 py-1.5 text-left">Work Center</th>
+              <th scope="col" className="px-2 py-1.5 text-right">REF</th>
+              <th scope="col" className="px-2 py-1.5 text-right">CUR</th>
+              <th scope="col" className="px-2 py-1.5 text-right">GAP</th>
+              <th scope="col" className="px-2 py-1.5 text-right">%GAP</th>
+            </tr>
+          </thead>
           <tbody className="divide-y divide-slate-100 font-mono tabular-nums">
             {rows.length === 0 ? <tr><td colSpan={5} className="px-2 py-3 text-center font-sans italic text-slate-500">No Work Center data.</td></tr> : rows.map(({ finding, gap, percentage }) => {
               const label = finding.workCenterCode
@@ -88,12 +85,7 @@ export const WorkCenterProcessingTable: React.FC<WorkCenterProcessingTableProps>
               </tr>
             })}
           </tbody>
-        </table>
-      </div>
-      <div className="shrink-0 border-t-2 border-slate-300 bg-slate-100 overflow-x-auto">
-        <table className="w-full min-w-[500px] table-fixed text-left text-xs">
-          {columnWidths}
-          <tfoot className="font-semibold font-mono tabular-nums">
+          <tfoot className="sticky bottom-0 z-10 border-t-2 border-slate-300 bg-slate-100 font-semibold font-mono tabular-nums">
             <tr>
               <th scope="row" className="px-2 py-1.5 text-left font-sans text-slate-950">Total</th>
               <td className="px-2 py-1.5 text-right text-slate-700">{formatNullable(totalReference)}</td>

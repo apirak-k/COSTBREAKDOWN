@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict'
+import { readFileSync } from 'node:fs'
 import React from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { createServer } from 'vite'
@@ -40,7 +41,7 @@ function detailRow(markup, label) {
 
 function candidateMainRow(markup, identityHeader, identity, status) {
   const rows = [...markup.matchAll(/<tr\b[\s\S]*?<\/tr>/g)].map(match => match[0])
-  const row = rows.find(candidate => candidate.includes(`aria-label="${identityHeader}: ${identity}; status ${status};`))
+  const row = rows.find(candidate => candidate.includes(`aria-label="${identityHeader}: ${identity}; status ${status}`))
   assert.ok(row, `expected the ${identityHeader} main row for ${identity}`)
   return row
 }
@@ -123,7 +124,7 @@ function renderItemized(module, comparison, reference, current, typeTab = 'bom')
 }
 
 try {
-  const [effects, comparisonCore, comparisonStatus, formatters, bomView, routingView, snapshotView, wcView, itemizedView] = await Promise.all([
+  const [effects, comparisonCore, comparisonStatus, formatters, bomView, routingView, snapshotView, wcView, itemizedView, candidateView] = await Promise.all([
     vite.ssrLoadModule('/src/core/calculations/parameter-cost-effect.ts'),
     vite.ssrLoadModule('/src/core/calculations/snapshot-comparison.ts'),
     vite.ssrLoadModule('/src/core/calculations/comparison-status.ts'),
@@ -132,7 +133,8 @@ try {
     vite.ssrLoadModule('/src/features/cost-breakdown/components/RoutingDetailedTable.tsx'),
     vite.ssrLoadModule('/src/features/cost-breakdown/components/SnapshotComparisonCard.tsx'),
     vite.ssrLoadModule('/src/features/cost-breakdown/components/WorkCenterProcessingTable.tsx'),
-    vite.ssrLoadModule('/src/features/cost-breakdown/components/ItemizedComparisonTable.tsx')
+    vite.ssrLoadModule('/src/features/cost-breakdown/components/ItemizedComparisonTable.tsx'),
+    vite.ssrLoadModule('/src/features/cost-breakdown/components/CandidateFindingsTable.tsx')
   ])
 
   const bomReference = { usage: 1, price: 10, loss: 0.1 }
@@ -229,16 +231,21 @@ try {
   const bomText = visibleText(bomMarkup)
   assert.doesNotMatch(bomText, /Data quality|Confidence|(?:^|\s)Ref:|(?:^|\s)Current:|\b(?:Verified|Estimated|Missing|Need Review)\b/,
     'expanded BOM record must omit quality and confidence badges')
-  assert.deepEqual(detailRow(bomMarkup, 'REF').slice(3, 7), [
+  assert.deepEqual(detailRow(bomMarkup, 'Reference').slice(3, 7), [
     formatters.formatNumber(1, 4), formatters.formatNumber(10, 4), formatters.formatPercent(0.1, 2), formatters.formatNumber(11, 4)
-  ], 'BOM REF row must carry actual reference parameters and cost in the shared parent grid')
-  assert.deepEqual(detailRow(bomMarkup, 'CUR').slice(3, 7), [
+  ], 'BOM Reference row must carry actual reference parameters and cost in the shared parent grid')
+  assert.deepEqual(detailRow(bomMarkup, 'Current').slice(3, 7), [
     formatters.formatNumber(2, 4), formatters.formatNumber(6, 4), formatters.formatPercent(0.1, 2), formatters.formatNumber(13.2, 4)
-  ], 'BOM CUR row must carry actual current parameters and cost in the shared parent grid')
-  assert.deepEqual(detailRow(bomMarkup, 'EFFECT').slice(3, 7), [
+  ], 'BOM Current row must carry actual current parameters and cost in the shared parent grid')
+  assert.deepEqual(detailRow(bomMarkup, 'Cost Effect').slice(3, 7), [
     formatters.formatVariance(bomPositive.effects.usage, 4), formatters.formatVariance(bomPositive.effects.price, 4),
     formatters.formatVariance(bomPositive.effects.loss, 4), formatters.formatVariance(2.2, 4)
-  ], 'BOM EFFECT row must preserve LMDI parameter effects and the same actual material gap as the main row')
+  ], 'BOM Cost Effect row must preserve LMDI parameter effects and the same actual material gap as the main row')
+  assert.match(bomMarkup, /border-l-2 border-slate-300/, 'BOM details have a restrained parent-row grouping accent')
+  assert.match(bomMarkup, /border-t border-slate-200 bg-slate-50\/80[\s\S]*border-b border-slate-200 bg-slate-100 font-semibold/,
+    'BOM detail styling groups the rows and emphasizes Cost Effect')
+  assert.doesNotMatch(bomMarkup, /<th[^>]*>REF<\/th>|<th[^>]*>CUR<\/th>|<th[^>]*>EFFECT<\/th>/,
+    'detail labels use full Reference, Current, and Cost Effect names')
   assert.doesNotMatch(bomMarkup, /\bUnit\b|% Parent|%Parent/)
   assert.doesNotMatch(bomMarkup, /Changed fields|<table\b|Root Cause|\bAction\b|Controllable/,
     'BOM detail is not an independent nested table and has no duplicated/RCA fields')
@@ -285,18 +292,18 @@ try {
   const routingText = visibleText(routingMarkup)
   assert.doesNotMatch(routingText, /Data quality|Confidence|(?:^|\s)Ref:|(?:^|\s)Current:|\b(?:Verified|Estimated|Missing|Need Review)\b/,
     'expanded Routing record must omit quality and confidence badges')
-  assert.deepEqual(detailRow(routingMarkup, 'REF').slice(3, 7), [
+  assert.deepEqual(detailRow(routingMarkup, 'Reference').slice(3, 7), [
     formatters.formatNumber(1, 4), formatters.formatNumber(10, 4), formatters.formatPercent(1, 2), formatters.formatNumber(1.5, 4)
-  ], 'Routing REF row must carry the reference operating parameters and conversion cost in the shared parent grid')
-  assert.deepEqual(detailRow(routingMarkup, 'CUR').slice(3, 7), [
+  ], 'Routing Reference row must carry the reference operating parameters and conversion cost in the shared parent grid')
+  assert.deepEqual(detailRow(routingMarkup, 'Current').slice(3, 7), [
     formatters.formatNumber(1, 4), formatters.formatNumber(10, 4), formatters.formatPercent(1, 2), formatters.formatNumber(2.7, 4)
-  ], 'Routing CUR row must carry the current operating parameters and conversion cost in the shared parent grid')
-  assert.deepEqual(detailRow(routingMarkup, 'EFFECT').slice(3, 7), [
+  ], 'Routing Current row must carry the current operating parameters and conversion cost in the shared parent grid')
+  assert.deepEqual(detailRow(routingMarkup, 'Cost Effect').slice(3, 7), [
     formatters.formatVariance(rateChanged.effects.conversion.manning, 4),
     formatters.formatVariance(rateChanged.effects.conversion.capacity, 4),
     formatters.formatVariance(rateChanged.effects.conversion.yield, 4),
     formatters.formatVariance(1.2, 4)
-  ], 'Routing EFFECT row must keep primary operating-factor effects and the same actual conversion gap as the main row')
+  ], 'Routing Cost Effect row must keep primary operating-factor effects and the same actual conversion gap as the main row')
   assert.doesNotMatch(routingMarkup, /% Parent|%Parent|Labor Gap|Burden Gap|Conversion Gap|Changed fields|Root Cause|\bAction\b|Controllable/)
   assert.doesNotMatch(routingMarkup, /Labor Rate|Burden Rate|Work Center/,
     'routing rate and Work Center context are not promoted into parameter detail columns')
@@ -336,11 +343,16 @@ try {
     assert.equal(comparisonStatus.getCanonicalComparisonStatus(finding),
       testCase.name, `fixture must represent ${testCase.name}`)
     const markup = renderItemized(itemizedView, comparison, reference, current)
-    assert.equal(markup.includes('aria-label="Expand details for Material"'), true,
-      `BOM detail remains expandable for ${testCase.name}; absent-side values use em dashes`)
+    const mainRow = candidateMainRow(markup, 'Bill of Material', 'Material', testCase.name)
+    assert.equal(mainRow.includes('aria-expanded="false"'), testCase.expandable,
+      `only CHANGED BOM rows expose a collapsed Detail state (${testCase.name})`)
+    assert.equal(/lucide-chevron-(?:right|down)/.test(mainRow), testCase.expandable,
+      `only CHANGED BOM rows show the chevron (${testCase.name})`)
+    if (!testCase.expandable) assert.doesNotMatch(mainRow, /activate to (?:expand|collapse) detail/,
+      `${testCase.name} BOM rows do not claim to expand`)
     const detailMarkup = renderBOM(bomView, comparison, reference, current)
-    if (testCase.name === 'ADDED') assert.match(detailMarkup, /<th[^>]*>REF<\/th>[\s\S]*?—/)
-    if (testCase.name === 'REMOVED') assert.match(detailMarkup, /<th[^>]*>CUR<\/th>[\s\S]*?—/)
+    if (testCase.name === 'ADDED') assert.match(detailMarkup, /<th[^>]*>Reference<\/th>[\s\S]*?—/)
+    if (testCase.name === 'REMOVED') assert.match(detailMarkup, /<th[^>]*>Current<\/th>[\s\S]*?—/)
   }
 
   const rateRef = rate('rate-ref', 'WC-1', 10, 5)
@@ -364,8 +376,11 @@ try {
     assert.equal(comparisonStatus.getCanonicalComparisonStatus(finding), testCase.name,
       `Routing fixture must represent ${testCase.name}`)
     const markup = renderItemized(itemizedView, comparison, reference, current, 'rtg')
-    assert.equal(markup.includes('aria-label="Expand details for Cutting"'), true,
-      `Routing detail remains expandable for ${testCase.name}; absent-side values use em dashes`)
+    const mainRow = candidateMainRow(markup, 'Routing', 'Cutting', testCase.name)
+    assert.equal(mainRow.includes('aria-expanded="false"'), testCase.expandable,
+      `only CHANGED Routing rows expose a collapsed Detail state (${testCase.name})`)
+    assert.equal(/lucide-chevron-(?:right|down)/.test(mainRow), testCase.expandable,
+      `only CHANGED Routing rows show the chevron (${testCase.name})`)
   }
 
   const warningComparison = {
@@ -381,10 +396,10 @@ try {
   }))
   assert.doesNotMatch(warningMarkup, /Data quality:/, 'page-level Data quality summary must be removed')
   assert.doesNotMatch(warningMarkup, /Review warnings|Fixture warning remains reviewable/, 'comparison warnings are not presented in the Cost Breakdown summary')
-  assert.match(warningMarkup, /aria-label="Cost comparison"/)
-  assert.match(warningMarkup, /<th scope="col"[^>]*>Cost<\/th>[\s\S]*>REF<\/th>[\s\S]*>CUR<\/th>[\s\S]*>GAP<\/th>[\s\S]*>%GAP<\/th>/)
+  assert.match(warningMarkup, /aria-label="Cost Breakdown"/)
+  assert.match(warningMarkup, /<th scope="col"[^>]*>Cost Breakdown<\/th>[\s\S]*>REF<\/th>[\s\S]*>CUR<\/th>[\s\S]*>GAP<\/span>[\s\S]*>%GAP<\/th>/)
   assert.deepEqual([...warningMarkup.matchAll(/<tr\b/g)].length, 5, 'Cost has exactly a header, three element rows, and a footer')
-  assert.match(warningMarkup, />MAT<\/th>[\s\S]*>LB<\/th>[\s\S]*>BD<\/th>[\s\S]*>STD Cost<\/th>/)
+  assert.match(warningMarkup, />Material<\/th>[\s\S]*>Labor<\/th>[\s\S]*>Burden<\/th>[\s\S]*>Standard Cost<\/th>/)
   assert.doesNotMatch(warningMarkup, /Standard Cost Overview|Material color legend|Selected REF|Selected CUR/,
     'Cost stays compact and has no duplicate legend or Selected dataset columns')
   assert.ok(warningMarkup.includes('100.00%'), 'MAT %GAP uses element Gap divided by Standard Cost Gap')
@@ -418,12 +433,35 @@ try {
   const wcMarkup = renderToStaticMarkup(React.createElement(wcView.WorkCenterProcessingTable, {
     comparison: wcComparison,
   }))
-  assert.match(wcMarkup, /data-wc-scroll-body="true" class="min-h-0 flex-1 overflow-y-auto/, 'only the WC body owns the vertical scroller')
-  assert.match(wcMarkup, />WC<\/th>[\s\S]*>REF<\/th>[\s\S]*>CUR<\/th>[\s\S]*>GAP<\/th>[\s\S]*>%GAP<\/th>/)
+  assert.match(wcMarkup, /data-wc-scroll-body="true" class="min-h-0 flex-1 overflow-auto \[scrollbar-gutter:stable\]"/, 'one shared WC table viewport owns scrolling')
+  assert.match(wcMarkup, />Work Center<\/th>[\s\S]*>REF<\/th>[\s\S]*>CUR<\/th>[\s\S]*>GAP<\/th>[\s\S]*>%GAP<\/th>/)
+  assert.equal([...wcMarkup.matchAll(/<table\b/g)].length, 1, 'WC header, body, and footer share identical table geometry')
+  assert.match(wcMarkup, /<thead class="sticky top-0 z-10">[\s\S]*?<tfoot class="sticky bottom-0 z-10/,
+    'WC header and footer stay fixed on the shared column grid')
   assert.doesNotMatch(wcMarkup, /Selected|selected/i, 'WC has no Selected header, value, tooltip, or accessible text')
   assert.match(wcMarkup, /<th scope="row"[^>]*>Total<\/th>/, 'WC footer remains present outside the scrolling body')
   assert.match(visibleText(wcMarkup), /Total.*%/, 'WC footer visibly identifies its percentage as Total')
   assert.doesNotMatch(wcMarkup, /<th scope="row"[^>]*>[\s\S]*·/, 'WC identity does not repeat a verbose description')
+
+  let expanded = candidateView.toggleCandidateDetail(new Set(), 'bom', 'A')
+  expanded = candidateView.toggleCandidateDetail(expanded, 'bom', 'B')
+  expanded = candidateView.toggleCandidateDetail(expanded, 'routing', 'A')
+  assert.equal(expanded.size, 3, 'BOM and Routing Details, including multiple rows, stay open together')
+  expanded = candidateView.toggleCandidateDetail(expanded, 'bom', 'A')
+  assert.equal(expanded.has(candidateView.candidateDetailKey('bom', 'A')), false)
+  assert.equal(expanded.has(candidateView.candidateDetailKey('bom', 'B')), true, 'closing one row leaves other Details open')
+  assert.equal(expanded.has(candidateView.candidateDetailKey('routing', 'A')), true, 'a Routing Detail remains open when a BOM Detail closes')
+  const itemizedSource = readFileSync(new URL('../src/features/cost-breakdown/components/ItemizedComparisonTable.tsx', import.meta.url), 'utf8')
+  assert.match(itemizedSource, /setManualOrders\(\{ bom: null, routing: null \}\)\s*setExpandedRows\(new Set\(\)\)\s*\}, \[sortMode, sortResetToken\]/,
+    'both sort reapply and sort-mode changes reset manual order and every expanded Detail')
+
+  const candidateSource = readFileSync(new URL('../src/features/cost-breakdown/components/CandidateFindingsTable.tsx', import.meta.url), 'utf8')
+  assert.match(candidateSource, /const canExpand = status === 'CHANGED'\s+const isExpanded = canExpand && expandedRows\.has/,
+    'even stale expansion state cannot show Details for a non-CHANGED finding')
+  assert.match(candidateSource, /h-8 w-8 shrink-0 items-center justify-center rounded-sm p-0 font-mono[^']*tabular-nums/,
+    'Candidate row numbers use a fixed square with tabular numerals')
+  assert.doesNotMatch(candidateSource, /✓|aria-label=\{`\$\{isExpanded \? 'Collapse' : 'Expand'\}/,
+    'Candidate selector has no checkmark and chevron is not an independent button')
 
   assert.ok(routingComparison.processingFindings.length > 0,
     'the full comparison fixture must have Work Center processing context')
@@ -530,19 +568,24 @@ try {
     assert.match(pageText, /Standard Cost Gap \+1\.20/)
     assert.doesNotMatch(pageText, /Full \+1\.20|Selected \+1\.20/)
     assert.match(pageText, /\|Gap\| High → Low/)
-    assert.match(pageText, /STD Cost/)
+    assert.match(pageText, /Standard Cost/)
     assert.match(pageText, /BOM \(0\)/)
     assert.match(pageText, /RTG \(1\)/)
     assert.match(pageText, /ALL \(1\)/, 'ALL count is the sum of BOM and Routing findings')
-    assert.match(pageMarkup, /aria-label="Work Center comparison"/)
+    assert.match(pageMarkup, /aria-label="Work Center"/)
     assert.match(pageText, /WC-REF/)
     assert.match(pageText, /WC-CUR/)
     const subheader = pageMarkup.match(/<header aria-label="Cost Breakdown subheader"[\s\S]*?<\/header>/)?.[0]
     assert.ok(subheader, 'the subheader remains a distinct fixed row')
+    assert.match(subheader, /class="shrink-0 overflow-x-auto border border-slate-300 bg-white"/,
+      'CBD subheader uses the same quiet border and white framing as the Master Data toolbar')
+    assert.match(subheader, /flex min-w-\[1000px\] flex-nowrap items-center gap-1\.5 px-1\.5 py-1/,
+      'CBD controls use compact Master Data toolbar spacing in one row')
     const subheaderText = visibleText(subheader)
-    const orderedLabels = ['Standard Cost Gap', 'MAT', 'LB', 'BD', 'BOM', 'RTG', 'ALL', 'Status (All)', '|Gap| High → Low']
+    const orderedLabels = ['Standard Cost Gap', 'MAT', 'LB', 'BD', 'BOM', 'RTG', 'ALL', 'Status', '|Gap| High → Low']
     const labelPositions = orderedLabels.map(label => subheaderText.indexOf(label))
-    assert.ok(labelPositions.every(position => position >= 0), 'the subheader exposes every finalized control and chart label')
+    assert.ok(labelPositions.every(position => position >= 0),
+      `the subheader exposes every finalized control and chart label: ${JSON.stringify(orderedLabels)} in ${subheaderText}`)
     assert.deepEqual(labelPositions, [...labelPositions].sort((left, right) => left - right),
       'the single subheader row follows the finalized left-to-right order')
     assert.doesNotMatch(subheader, /<text\b/, 'the bar contains no MAT/LB/BD text labels')
@@ -553,9 +596,9 @@ try {
     assert.match(subheader, /aria-expanded="true"/)
     assert.match(pageMarkup, /id="cost-breakdown-overview-panels" class="[^\"]*grid[^\"]*"/,
       'Cost and Work Center panels remain visible by default below the subheader')
-    assert.match(pageMarkup, /aria-label="Cost comparison" class="h-44/)
-    assert.match(pageMarkup, /aria-label="Work Center comparison" class="flex h-44/)
-    assert.match(pageMarkup, /data-wc-scroll-body="true" class="min-h-0 flex-1 overflow-y-auto/)
+    assert.match(pageMarkup, /aria-label="Cost Breakdown" class="h-44/)
+    assert.match(pageMarkup, /aria-label="Work Center" class="flex h-44/)
+    assert.match(pageMarkup, /data-wc-scroll-body="true" class="min-h-0 flex-1 overflow-auto \[scrollbar-gutter:stable\]/)
     assert.match(pageMarkup, /aria-label="Deselect Routing finding Cutting"/,
       'CBD finding selection remains available in the Candidates table')
     assert.equal([...pageMarkup.matchAll(/data-gap-chart-mode=/g)].length, 1,
@@ -567,6 +610,15 @@ try {
     assert.match(pageMarkup, /aria-label="Reapply sort: \|Gap\| High → Low"/)
     assert.match(pageMarkup, /aria-label="Choose sort mode; current mode \|Gap\| High → Low"/)
     assert.doesNotMatch(pageMarkup, /<details\b/, 'Status and Sort are overlay popovers, not in-flow details')
+    assert.ok([...subheader.matchAll(/lucide lucide-chevron-down/g)].length >= 3,
+      'Status and Sort dropdowns have visible chevrons alongside Collapse')
+    assert.doesNotMatch(subheader, /▾/, 'dropdown affordances do not rely on a text triangle')
+    assert.match(subheader, /w-\[5ch\] text-left font-mono tabular-nums/,
+      'Status count and All reserve one fixed-width slot')
+    assert.match(subheader, /aria-haspopup="dialog"/, 'Status and Sort remain overlay popovers')
+    assert.doesNotMatch(pageMarkup, /<h2[^>]*>Candidates<\/h2>|status view ·/,
+      'the redundant Candidate heading and status/sort subtitle are removed')
+    assert.match(pageMarkup, /class="space-y-3"/, 'BOM and Routing tables have a restrained vertical gap')
     assert.doesNotMatch(pageText, /Select scope|Edit scope|Full Comparison/)
   } finally {
     delete globalThis.__CBD_PARAMETER_TEST_STATE__

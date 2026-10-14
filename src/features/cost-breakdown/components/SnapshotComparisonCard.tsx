@@ -10,7 +10,7 @@ interface SnapshotComparisonCardProps {
 }
 
 type CostRow = {
-  label: 'MAT' | 'LB' | 'BD' | 'STD Cost'
+  label: 'Material' | 'Labor' | 'Burden' | 'Standard Cost'
   tooltipLabel: string
   reference: number | null
   current: number | null
@@ -28,7 +28,7 @@ function renderGap(value: number | null, selectedValue: number | null, selectedA
   if (selectedActive) tooltipLines.push(`Selected (${formatGap(selectedValue)})`)
   return (
     <Tooltip label={tooltipLines.join('\n')} wrapperClassName="flex w-full justify-end">
-      <span tabIndex={0} aria-label={`${tooltipLabel} Gap ${formatGap(value)}${selectedActive ? `; Selected (${formatGap(selectedValue)})` : ''}`} className="grid w-full grid-cols-[minmax(0,1fr)_5.5em] items-baseline gap-x-1 whitespace-nowrap font-mono tabular-nums">
+      <span tabIndex={0} aria-label={`${tooltipLabel} Gap ${formatGap(value)}${selectedActive ? `; Selected (${formatGap(selectedValue)})` : ''}`} className="grid w-full grid-cols-[minmax(0,1fr)_66px] items-baseline gap-x-1 whitespace-nowrap font-mono tabular-nums">
         <span data-gap-slot="full" className={`text-right ${value === null ? 'text-slate-400' : getVarianceClass(value)}`}>{formatGap(value)}</span>
         <span data-gap-slot="selected" aria-hidden={!selectedActive} className={`text-right text-[10px] font-normal text-slate-500 ${selectedActive ? '' : 'invisible'}`}>{selectedActive ? `(${formatGap(selectedValue)})` : '(0.00)'}</span>
       </span>
@@ -47,7 +47,7 @@ export const SnapshotComparisonCard: React.FC<SnapshotComparisonCardProps> = ({
     : null
   const rows: CostRow[] = [
     {
-      label: 'MAT', tooltipLabel: 'Material',
+      label: 'Material', tooltipLabel: 'Material',
       reference: comparison.referenceCost.material,
       current: comparison.currentCost.material,
       gap: comparison.elementGaps.material,
@@ -57,7 +57,7 @@ export const SnapshotComparisonCard: React.FC<SnapshotComparisonCardProps> = ({
         : safeDivide(comparison.elementGaps.material, comparison.totalGap ?? Number.NaN)
     },
     {
-      label: 'LB', tooltipLabel: 'Labor',
+      label: 'Labor', tooltipLabel: 'Labor',
       reference: comparison.referenceCost.labor,
       current: comparison.currentCost.labor,
       gap: comparison.elementGaps.labor,
@@ -67,7 +67,7 @@ export const SnapshotComparisonCard: React.FC<SnapshotComparisonCardProps> = ({
         : safeDivide(comparison.elementGaps.labor, comparison.totalGap ?? Number.NaN)
     },
     {
-      label: 'BD', tooltipLabel: 'Burden',
+      label: 'Burden', tooltipLabel: 'Burden',
       reference: comparison.referenceCost.burden,
       current: comparison.currentCost.burden,
       gap: comparison.elementGaps.burden,
@@ -77,7 +77,7 @@ export const SnapshotComparisonCard: React.FC<SnapshotComparisonCardProps> = ({
         : safeDivide(comparison.elementGaps.burden, comparison.totalGap ?? Number.NaN)
     },
     {
-      label: 'STD Cost', tooltipLabel: 'Standard Cost',
+      label: 'Standard Cost', tooltipLabel: 'Standard Cost',
       reference: comparison.referenceCost.total,
       current: comparison.currentCost.total,
       gap: comparison.totalGap,
@@ -90,17 +90,17 @@ export const SnapshotComparisonCard: React.FC<SnapshotComparisonCardProps> = ({
   ]
 
   return (
-    <section aria-label="Cost comparison" className="h-44 min-w-0 overflow-hidden border border-slate-300 bg-white">
+    <section aria-label="Cost Breakdown" className="h-44 min-w-0 overflow-hidden border border-slate-300 bg-white">
       <div className="h-full w-full overflow-x-auto">
         <table className="h-full w-full min-w-[560px] table-fixed text-left text-xs">
-          <caption className="sr-only">Cost comparison for Reference, Current, Gap, and Gap percentage</caption>
+          <caption className="sr-only">Cost Breakdown for Reference, Current, Gap, and Gap percentage</caption>
           <colgroup><col className="w-[28%]" /><col className="w-[16%]" /><col className="w-[16%]" /><col className="w-[26%]" /><col className="w-[14%]" /></colgroup>
           <thead>
             <tr className="bg-slate-800 font-semibold text-white">
-              <th scope="col" className="px-2 py-1.5">Cost</th>
+              <th scope="col" className="px-2 py-1.5">Cost Breakdown</th>
               <th scope="col" className="px-2 py-1.5 text-right">REF</th>
               <th scope="col" className="px-2 py-1.5 text-right">CUR</th>
-              <th scope="col" className="px-2 py-1.5 text-right">GAP{selectedActive && <span className="ml-1 text-[10px] font-normal text-slate-300">(Selected)</span>}</th>
+              <th scope="col" className="px-2 py-1.5"><span className="grid w-full grid-cols-[minmax(0,1fr)_66px] items-baseline gap-x-1 font-mono tabular-nums"><span data-gap-header-slot="full" className="text-right">GAP</span><span data-gap-header-slot="selected" aria-hidden={!selectedActive} className={`text-right text-[10px] font-normal text-slate-300 ${selectedActive ? '' : 'invisible'}`}>&nbsp;(Selected)</span></span></th>
               <th scope="col" className="px-2 py-1.5 text-right">%GAP</th>
             </tr>
           </thead>

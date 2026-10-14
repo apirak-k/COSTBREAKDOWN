@@ -15,7 +15,9 @@ import {
   getComparisonStatusControlLabel,
   getComparisonSortLabel,
   getSelectedComparisonContribution,
-  isVisibleInComparisonView
+  isOnlyComparisonStatus,
+  isVisibleInComparisonView,
+  toggleComparisonStatus
 } from './components/comparison-view'
 import type { ComparisonSortMode, ComparisonViewMode } from './components/comparison-view'
 import { formatVariance, getVarianceClass } from '../../core'
@@ -230,8 +232,8 @@ export const CostBreakdownPage: React.FC = () => {
 
   return (
     <div className="flex h-full min-h-0 min-w-0 flex-col gap-2">
-      <header aria-label="Cost Breakdown subheader" className="shrink-0 overflow-x-auto border-b border-slate-300 bg-slate-50 py-1.5" tabIndex={0}>
-        <div className="flex min-w-[1000px] flex-nowrap items-center gap-2" role="group" aria-label="Cost Breakdown controls">
+      <header aria-label="Cost Breakdown subheader" className="shrink-0 overflow-x-auto border border-slate-300 bg-white" tabIndex={0}>
+        <div className="flex min-w-[1000px] flex-nowrap items-center gap-1.5 px-1.5 py-1" role="group" aria-label="Cost Breakdown controls">
           <div
             aria-label={`Standard Cost Gap ${fullSnapshotComparison.totalGap === null ? 'unavailable' : formatVariance(fullSnapshotComparison.totalGap, 2)} THB/pc; Gap = CUR − REF`}
             title="Full snapshot · THB/pc · Gap = CUR − REF"
@@ -280,7 +282,7 @@ export const CostBreakdownPage: React.FC = () => {
 
           <CostBreakdownPopover
             label={`Status filter, ${statusControlLabel}`}
-            trigger={<span className="whitespace-nowrap">{statusControlLabel}</span>}
+            trigger={<span className="inline-flex items-baseline whitespace-nowrap"><span>Status</span><span aria-hidden="true" className="ml-1 inline-block w-[5ch] text-left font-mono tabular-nums">({areAllComparisonStatusesSelected(comparisonView) ? 'All' : comparisonView.length})</span></span>}
             panelClassName="w-44"
           >
             {close => <div aria-label="Filter by comparison status">
@@ -294,11 +296,14 @@ export const CostBreakdownPage: React.FC = () => {
                 <input
                   type="checkbox"
                   checked={comparisonView.includes(option.value)}
-                  onChange={() => setComparisonView(current => current.includes(option.value) ? current.filter(status => status !== option.value) : [...current, option.value])}
-                  className="h-3.5 w-3.5 accent-slate-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700"
+                  disabled={isOnlyComparisonStatus(comparisonView, option.value)}
+                  title={isOnlyComparisonStatus(comparisonView, option.value) ? 'At least one status must remain selected' : undefined}
+                  onChange={() => setComparisonView(current => toggleComparisonStatus(current, option.value))}
+                  className="h-3.5 w-3.5 accent-slate-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700 disabled:opacity-70"
                 />
                 <span>{option.label}</span>
               </label>)}
+              {comparisonView.length === 1 && <p role="note" className="mt-1 border-t border-slate-200 px-2 pt-2 text-[10px] text-slate-500">At least one status must remain selected.</p>}
             </div>}
           </CostBreakdownPopover>
 

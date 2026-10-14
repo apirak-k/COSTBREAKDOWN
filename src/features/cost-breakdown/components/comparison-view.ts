@@ -117,6 +117,19 @@ export function isOnlyComparisonStatus(
   return selectedStatuses.length === 1 && selectedStatuses[0] === status
 }
 
+/** Toggle one status while preserving the finalized at-least-one-selected invariant. */
+export function toggleComparisonStatus(
+  selectedStatuses: readonly ComparisonStatus[],
+  status: ComparisonStatus
+): ComparisonViewMode {
+  if (selectedStatuses.includes(status)) {
+    return selectedStatuses.length <= 1
+      ? [...selectedStatuses]
+      : selectedStatuses.filter(selected => selected !== status)
+  }
+  return [...selectedStatuses, status]
+}
+
 export function isVisibleInComparisonView(
   finding: ComparisonFinding | undefined,
   selectedStatuses: ComparisonViewMode

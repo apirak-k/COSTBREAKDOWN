@@ -22,9 +22,9 @@ try {
   assert.doesNotMatch(markup, /Data quality:/, 'the page-level Data quality summary is absent')
   assert.doesNotMatch(markup, /Review warnings|Missing rate remains reviewable/, 'comparison warnings are not displayed in the summary')
   assert.doesNotMatch(markup, /Standard Cost reconciliation/, 'Standard Cost reconciliation UI is absent')
-  assert.match(markup, /aria-label="Cost comparison"/)
-  assert.match(markup, /<th scope="col"[^>]*>Cost<\/th>[\s\S]*>REF<\/th>[\s\S]*>CUR<\/th>[\s\S]*>GAP<\/th>[\s\S]*>%GAP<\/th>/)
-  assert.match(markup, />MAT<\/th>[\s\S]*>LB<\/th>[\s\S]*>BD<\/th>[\s\S]*>STD Cost<\/th>/)
+  assert.match(markup, /aria-label="Cost Breakdown"/)
+  assert.match(markup, /<th scope="col"[^>]*>Cost Breakdown<\/th>[\s\S]*>REF<\/th>[\s\S]*>CUR<\/th>[\s\S]*>GAP<\/span>[\s\S]*>%GAP<\/th>/)
+  assert.match(markup, />Material<\/th>[\s\S]*>Labor<\/th>[\s\S]*>Burden<\/th>[\s\S]*>Standard Cost<\/th>/)
   assert.equal([...markup.matchAll(/<tr\b/g)].length, 5, 'Cost has exactly a header, three component rows, and a footer')
   assert.match(markup, /50\.00%[\s\S]*25\.00%[\s\S]*25\.00%[\s\S]*15\.38%/,
     'component %GAP and footer %Total retain their finalized denominators')

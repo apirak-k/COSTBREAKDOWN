@@ -1,8 +1,6 @@
 import React, { useEffect, useState } from 'react'
 import type { ComparisonFinding, CostComparison, SnapshotPair } from '../../../core'
 import {
-  getComparisonSortLabel,
-  getComparisonViewLabel,
   isVisibleInComparisonView,
   sortComparisonRows
 } from './comparison-view'
@@ -11,7 +9,7 @@ import { buildBOMItemizedRows } from './BOMDetailedTable'
 import type { BOMItemizedRow } from './BOMDetailedTable'
 import { buildRoutingItemizedRows } from './RoutingDetailedTable'
 import type { RoutingItemizedRow } from './RoutingDetailedTable'
-import { CandidateFindingsTable } from './CandidateFindingsTable'
+import { CandidateFindingsTable, toggleCandidateDetail } from './CandidateFindingsTable'
 import type { CandidateTableRow, CandidateTableType } from './CandidateFindingsTable'
 
 export type ItemizedTypeTab = 'all' | 'bom' | 'rtg'
@@ -100,22 +98,19 @@ export const ItemizedComparisonTable: React.FC<ItemizedComparisonTableProps> = (
   onToggleFinding,
   onSetFindingSelection
 }) => {
-  const [expandedRow, setExpandedRow] = useState<string | null>(null)
+  const [expandedRows, setExpandedRows] = useState<Set<string>>(() => new Set())
   const [manualOrders, setManualOrders] = useState<Record<CandidateTableType, ManualOrder | null>>({ bom: null, routing: null })
   const { bom, routing } = toRows(comparison, pair)
   const visibleBOMRows = sortComparisonRows(bom.filter(row => isVisibleInComparisonView(row.finding, viewMode)), sortMode)
   const visibleRoutingRows = sortComparisonRows(routing.filter(row => isVisibleInComparisonView(row.finding, viewMode)), sortMode)
   const displayedBOMRows = applyManualOrder(visibleBOMRows, manualOrders.bom, sortMode, sortResetToken)
   const displayedRoutingRows = applyManualOrder(visibleRoutingRows, manualOrders.routing, sortMode, sortResetToken)
-  const visibleRows = typeTab === 'bom'
-    ? displayedBOMRows
-    : typeTab === 'rtg' ? displayedRoutingRows : [...displayedBOMRows, ...displayedRoutingRows]
-  const totalRows = visibleRows.length
   const selectedBOM = selectedBOMKeys ?? new Set<string>()
   const selectedRouting = selectedRoutingKeys ?? new Set<string>()
 
   useEffect(() => {
     setManualOrders({ bom: null, routing: null })
+    setExpandedRows(new Set())
   }, [sortMode, sortResetToken])
 
   const setManualOrder = (type: CandidateTableType, keys: string[]) => {
@@ -125,8 +120,8 @@ export const ItemizedComparisonTable: React.FC<ItemizedComparisonTableProps> = (
     }))
   }
 
-  const toggleExpanded = (rowKey: string) => {
-    setExpandedRow(current => current === rowKey ? null : rowKey)
+  const toggleExpanded = (type: CandidateTableType, rowKey: string) => {
+    setExpandedRows(current => toggleCandidateDetail(current, type, rowKey))
   }
 
   const asCandidateRows = (rows: ItemizedRow[]): CandidateTableRow[] => rows.map(row => ({
@@ -139,19 +134,14 @@ export const ItemizedComparisonTable: React.FC<ItemizedComparisonTableProps> = (
   }))
 
   return (
-    <section aria-labelledby="itemized-comparison-title" className="overflow-hidden rounded-md border border-slate-200 bg-white">
-      <div className="border-b border-slate-200 bg-slate-50 px-3 py-3">
-        <h2 id="itemized-comparison-title" tabIndex={-1} className="font-sans text-sm font-semibold text-slate-950 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700">Candidates</h2>
-        <p className="mt-0.5 text-[11px] text-slate-500">{getComparisonViewLabel(viewMode)} status view · {totalRows} shown · {getComparisonSortLabel(sortMode)}</p>
-      </div>
-
+    <section aria-label="Candidate findings" className="space-y-3">
       {typeTab !== 'rtg' && <CandidateFindingsTable
         type="bom"
         rows={asCandidateRows(displayedBOMRows)}
         selectedKeys={selectedBOM}
         totalGap={comparison.totalGap}
         pair={pair}
-        expandedRow={expandedRow}
+        expandedRows={expandedRows}
         onToggleExpanded={toggleExpanded}
         onToggleFinding={onToggleFinding}
         onSetFindingSelection={onSetFindingSelection}
@@ -164,7 +154,7 @@ export const ItemizedComparisonTable: React.FC<ItemizedComparisonTableProps> = (
         selectedKeys={selectedRouting}
         totalGap={comparison.totalGap}
         pair={pair}
-        expandedRow={expandedRow}
+        expandedRows={expandedRows}
         onToggleExpanded={toggleExpanded}
         onToggleFinding={onToggleFinding}
         onSetFindingSelection={onSetFindingSelection}

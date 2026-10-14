@@ -32,14 +32,30 @@ interface CandidateFindingsTableProps {
   selectedKeys: ReadonlySet<string>
   totalGap: number | null
   pair: SnapshotPair
-  expandedRow: string | null
-  onToggleExpanded: (rowKey: string) => void
+  expandedRows: ReadonlySet<string>
+  onToggleExpanded: (type: CandidateTableType, rowKey: string) => void
   onToggleFinding?: (type: CandidateTableType, key: string) => void
   onSetFindingSelection?: (type: CandidateTableType, nextKeys: ReadonlySet<string>) => void
   onManualOrderChange: (keys: string[]) => void
 }
 
 const CANDIDATE_COLUMN_WIDTHS = ['4%', '23%', '10%', '11%', '11%', '11%', '12%', '8%', '5%', '5%']
+
+export function candidateDetailKey(type: CandidateTableType, rowKey: string): string {
+  return `${type}:${rowKey}`
+}
+
+export function toggleCandidateDetail(
+  expandedRows: ReadonlySet<string>,
+  type: CandidateTableType,
+  rowKey: string
+): Set<string> {
+  const key = candidateDetailKey(type, rowKey)
+  const next = new Set(expandedRows)
+  if (next.has(key)) next.delete(key)
+  else next.add(key)
+  return next
+}
 
 function findingKey(type: CandidateTableType, finding: ComparisonFinding | undefined): string | null {
   return finding ? getComparisonFindingKey(type, finding) : null
@@ -95,7 +111,7 @@ export const CandidateFindingsTable: React.FC<CandidateFindingsTableProps> = ({
   selectedKeys,
   totalGap,
   pair,
-  expandedRow,
+  expandedRows,
   onToggleExpanded,
   onToggleFinding,
   onSetFindingSelection,
@@ -105,6 +121,7 @@ export const CandidateFindingsTable: React.FC<CandidateFindingsTableProps> = ({
   const selectionDragRef = useRef({ active: false, anchorKey: null as string | null, target: false, moved: false })
   const selectionAnchorRef = useRef<string | null>(null)
   const suppressNextSelectionClickRef = useRef(false)
+  const suppressNextRowClickRef = useRef(false)
   const reorderSourceRef = useRef<string | null>(null)
   const reorderLastTargetRef = useRef<string | null>(null)
   const isBOM = type === 'bom'
@@ -120,6 +137,7 @@ export const CandidateFindingsTable: React.FC<CandidateFindingsTableProps> = ({
     const handleMouseUp = () => {
       const drag = selectionDragRef.current
       if (drag.active && drag.moved) suppressNextSelectionClickRef.current = true
+      if (reorderSourceRef.current && reorderLastTargetRef.current) suppressNextRowClickRef.current = true
       drag.active = false
       drag.anchorKey = null
       drag.moved = false
@@ -206,10 +224,10 @@ export const CandidateFindingsTable: React.FC<CandidateFindingsTableProps> = ({
 
   const emptyMessage = isBOM ? 'No Bill of Material findings match this filter.' : 'No Routing findings match this filter.'
 
-  return <div className="overflow-x-auto border-b border-slate-200 last:border-b-0">
+  return <div className="overflow-x-auto border border-slate-200">
     <table className="w-full min-w-[1100px] table-fixed text-left text-xs">
       <colgroup>{CANDIDATE_COLUMN_WIDTHS.map((width, index) => <col key={index} style={{ width }} />)}</colgroup>
-      <caption className="sr-only">{identityHeader} Candidate findings. Activate a row to show REF, CUR, and EFFECT detail.</caption>
+      <caption className="sr-only">{identityHeader} Candidate findings. CHANGED rows can expand Reference, Current, and Cost Effect detail.</caption>
       <thead>
         <tr className="bg-slate-800 font-semibold text-white">
           <th scope="col" className="px-1 py-2 text-center">
@@ -221,7 +239,7 @@ export const CandidateFindingsTable: React.FC<CandidateFindingsTableProps> = ({
               aria-label={allVisibleSelected ? `Deselect all visible ${identityHeader} findings` : `Select all visible ${identityHeader} findings`}
               disabled={visibleKeys.length === 0}
               onClick={handleHeaderSelection}
-              className={`inline-flex h-7 min-w-7 items-center justify-center rounded-sm px-1 text-[11px] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white disabled:cursor-default disabled:opacity-40 ${allVisibleSelected ? 'bg-blue-700 text-white' : someVisibleSelected ? 'bg-slate-600 text-white' : 'text-white hover:bg-slate-700'}`}
+              className={`inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-sm p-0 text-[11px] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-white disabled:cursor-default disabled:opacity-40 ${allVisibleSelected ? 'bg-slate-600 text-white' : someVisibleSelected ? 'bg-slate-700 text-white ring-1 ring-inset ring-slate-500' : 'bg-transparent text-white hover:bg-slate-700'}`}
             >#</button>
           </th>
           <th scope="col" className="overflow-hidden px-2.5 py-2">{identityHeader}</th>
@@ -240,28 +258,38 @@ export const CandidateFindingsTable: React.FC<CandidateFindingsTableProps> = ({
             const key = findingKey(type, row.finding)
             const status = getCanonicalComparisonStatus(row.finding)
             const selected = key ? selectedKeys.has(key) : false
-            const isExpanded = expandedRow === row.key
+            const canExpand = status === 'CHANGED'
+            const isExpanded = canExpand && expandedRows.has(candidateDetailKey(type, row.key))
             const detailId = 'candidate-detail-' + encodeURIComponent(row.key)
             const [firstParameter, secondParameter, thirdParameter] = parameterValues(row)
             const rowType = type
             return <React.Fragment key={row.key}>
               <tr
                 aria-selected={selected}
-                aria-expanded={isExpanded}
-                aria-label={`${identityHeader}: ${row.label}; status ${status ?? 'unavailable'}; activate to ${isExpanded ? 'collapse' : 'expand'} detail`}
-                tabIndex={0}
-                onClick={() => onToggleExpanded(row.key)}
+                aria-expanded={canExpand ? isExpanded : undefined}
+                aria-controls={canExpand && isExpanded ? detailId : undefined}
+                aria-label={canExpand
+                  ? `${identityHeader}: ${row.label}; status ${status}; activate to ${isExpanded ? 'collapse' : 'expand'} detail`
+                  : `${identityHeader}: ${row.label}; status ${status ?? 'unavailable'}`}
+                tabIndex={canExpand ? 0 : -1}
+                onClick={() => {
+                  if (suppressNextRowClickRef.current) {
+                    suppressNextRowClickRef.current = false
+                    return
+                  }
+                  if (canExpand) onToggleExpanded(type, row.key)
+                }}
                 onMouseEnter={event => {
                   if (reorderSourceRef.current) {
                     reorderBefore(row.key, event.clientY, event.currentTarget.getBoundingClientRect())
                   }
                 }}
                 onKeyDown={event => {
-                  if (event.target !== event.currentTarget || (event.key !== 'Enter' && event.key !== ' ')) return
+                  if (!canExpand || event.target !== event.currentTarget || (event.key !== 'Enter' && event.key !== ' ')) return
                   event.preventDefault()
-                  onToggleExpanded(row.key)
+                  onToggleExpanded(type, row.key)
                 }}
-                className={`${selected ? 'bg-blue-50' : 'bg-white'} cursor-pointer hover:bg-slate-50/70 focus-visible:outline focus-visible:outline-2 focus-visible:outline-inset focus-visible:outline-blue-700`}
+                className={`${selected ? 'bg-blue-100/60 hover:bg-blue-100/80' : 'bg-white hover:bg-slate-50'} ${canExpand ? 'cursor-pointer' : 'cursor-default'} focus-visible:outline focus-visible:outline-2 focus-visible:outline-inset focus-visible:outline-blue-700`}
               >
                 <td className="px-1 py-2 text-center" onClick={event => event.stopPropagation()}>
                   <button
@@ -283,9 +311,9 @@ export const CandidateFindingsTable: React.FC<CandidateFindingsTableProps> = ({
                       toggleOne(key)
                     }}
                     className={selected
-                      ? 'inline-flex h-7 min-w-7 items-center justify-center rounded-sm border border-blue-800 bg-blue-800 px-1.5 text-[11px] font-semibold text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700'
-                      : 'inline-flex h-7 min-w-7 items-center justify-center rounded-sm border border-slate-300 bg-white px-1.5 text-[11px] font-semibold text-slate-700 hover:bg-slate-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700 disabled:cursor-default disabled:opacity-40'}
-                  >{index + 1}{selected && <span className="ml-1" aria-hidden="true">✓</span>}</button>
+                      ? 'inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-sm p-0 font-mono text-[11px] font-semibold tabular-nums text-white bg-blue-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700'
+                      : 'inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-sm p-0 font-mono text-[11px] font-semibold tabular-nums text-slate-600 hover:bg-slate-200 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700 disabled:cursor-default disabled:opacity-40'}
+                  >{index + 1}</button>
                 </td>
                 <th scope="row" className="max-w-0 overflow-hidden px-2.5 py-2 text-left font-sans font-medium text-slate-900">
                   <span className="block truncate whitespace-nowrap" title={row.label}>{row.label}</span>
@@ -309,19 +337,15 @@ export const CandidateFindingsTable: React.FC<CandidateFindingsTableProps> = ({
                         reorderLastTargetRef.current = null
                       }
                     }}
-                    onClick={event => event.stopPropagation()}
+                    onClick={event => {
+                      event.stopPropagation()
+                      if (suppressNextRowClickRef.current) suppressNextRowClickRef.current = false
+                    }}
                     className="inline-flex h-7 w-7 cursor-grab select-none items-center justify-center rounded-sm text-slate-500 hover:bg-slate-100 active:cursor-grabbing focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700"
                   ><GripVertical aria-hidden="true" className="h-4 w-4" /></button>
                 </td>
-                <td className="px-1 py-2 text-center" onClick={event => event.stopPropagation()}>
-                  <button
-                    type="button"
-                    aria-expanded={isExpanded}
-                    aria-controls={isExpanded ? detailId : undefined}
-                    aria-label={`${isExpanded ? 'Collapse' : 'Expand'} details for ${row.label}`}
-                    onClick={() => onToggleExpanded(row.key)}
-                    className="inline-flex h-7 w-7 items-center justify-center rounded-sm text-slate-500 hover:bg-slate-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700"
-                  >{isExpanded ? <ChevronDown aria-hidden="true" className="h-3.5 w-3.5" /> : <ChevronRight aria-hidden="true" className="h-3.5 w-3.5" />}</button>
+                <td className="px-1 py-2 text-center">
+                  {canExpand && <span aria-hidden="true" className="pointer-events-none inline-flex h-7 w-7 items-center justify-center text-slate-500">{isExpanded ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5" />}</span>}
                 </td>
               </tr>
               {isExpanded && (rowType === 'bom'

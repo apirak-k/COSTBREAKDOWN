@@ -156,21 +156,21 @@ export function RoutingRecordDetails({ row, referenceRates, currentRates, detail
   const conversionEffects = effect?.status === 'available' ? effect.effects.conversion : null
   const parameterRows = [
     {
-      label: 'REF',
+      label: 'Reference',
       manning: reference?.manning ?? null,
       capacity: reference?.capacity ?? null,
       yield: reference?.yield ?? null,
       cost: reference ? row.referenceConversion : null
     },
     {
-      label: 'CUR',
+      label: 'Current',
       manning: current?.manning ?? null,
       capacity: current?.capacity ?? null,
       yield: current?.yield ?? null,
       cost: current ? row.currentConversion : null
     },
     {
-      label: 'EFFECT',
+      label: 'Cost Effect',
       manning: conversionEffects?.manning ?? null,
       capacity: conversionEffects?.capacity ?? null,
       yield: conversionEffects?.yield ?? null,
@@ -183,10 +183,10 @@ export function RoutingRecordDetails({ row, referenceRates, currentRates, detail
     {parameterRows.map((item, index) => <tr
       key={item.label}
       id={index === 0 ? detailId : undefined}
-      className={item.effect ? 'bg-slate-50 font-semibold' : 'bg-slate-50/70'}
+      className={item.effect ? 'border-b border-slate-200 bg-slate-100 font-semibold' : index === 0 ? 'border-t border-slate-200 bg-slate-50/80' : 'bg-slate-50/80'}
     >
       <td aria-hidden="true" className="px-2 py-1.5" />
-      <th scope="row" className="truncate px-2.5 py-1.5 text-left font-sans font-medium text-slate-700">{item.label}</th>
+      <th scope="row" className="truncate border-l-2 border-slate-300 px-2.5 py-1.5 text-left font-sans font-medium text-slate-700">{item.label}</th>
       <td aria-hidden="true" className="px-2.5 py-1.5" />
       <td className="px-2.5 py-1.5 text-right">{item.effect ? formatNullable(item.manning, value => formatVariance(value, 4)) : formatNullable(item.manning, value => formatNumber(value, 4))}</td>
       <td className="px-2.5 py-1.5 text-right">{item.effect ? formatNullable(item.capacity, value => formatVariance(value, 4)) : formatNullable(item.capacity, value => formatNumber(value, 4))}</td>

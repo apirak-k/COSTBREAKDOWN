@@ -269,15 +269,23 @@ try {
   assert.ok(costFullTable && costSelectedTable, 'expected Cost comparison tables in Full and Selected mode')
   const costFullHeaders = tableHeaderLabels(costFullTable)
   const costSelectedHeaders = tableHeaderLabels(costSelectedTable)
-  assert.deepEqual(costFullHeaders, ['Cost', 'REF', 'CUR', 'GAP', '%GAP'])
-  assert.deepEqual(costSelectedHeaders, ['Cost', 'REF', 'CUR', 'GAP (Selected)', '%GAP'])
+  assert.deepEqual(costFullHeaders, ['Cost Breakdown', 'REF', 'CUR', 'GAP (Selected)', '%GAP'])
+  assert.deepEqual(costSelectedHeaders, ['Cost Breakdown', 'REF', 'CUR', 'GAP (Selected)', '%GAP'])
   assert.equal(costSelectedHeaders.length, 5, 'Selected must not become a standalone Cost column')
   assert.equal(tableRows(costFullTable).length, 5, 'Cost must have one header, three element rows, and one footer row')
   assert.equal(tableRows(costSelectedTable).length, 5, 'Selected mode must preserve the same five-row Cost structure')
-  assert.deepEqual(tableRows(costSelectedTable).map(rowHeader).filter(Boolean), ['MAT', 'LB', 'BD', 'STD Cost'])
+  assert.deepEqual(tableRows(costSelectedTable).map(rowHeader).filter(Boolean), ['Material', 'Labor', 'Burden', 'Standard Cost'])
   assert.doesNotMatch(costSelectedTable, /Cost element color legend/i, 'Cost must not repeat the Subheader legend')
+  const costFullGapHeader = costFullTable.match(/<span data-gap-header-slot="full"[^>]*>/)?.[0]
+  const costSelectedGapHeader = costSelectedTable.match(/<span data-gap-header-slot="full"[^>]*>/)?.[0]
+  assert.ok(costFullGapHeader && costSelectedGapHeader)
+  assert.equal(costFullGapHeader, costSelectedGapHeader, 'GAP header remains aligned to the fixed Full Gap slot')
+  assert.equal((costFullTable.match(/grid-cols-\[minmax\(0,1fr\)_66px\]/g) ?? []).length, 5, 'Cost header and all four GAP cells share the same fixed Selected slot width')
+  assert.equal((costSelectedTable.match(/grid-cols-\[minmax\(0,1fr\)_66px\]/g) ?? []).length, 5, 'Selected mode preserves the shared fixed GAP slot width')
+  assert.match(costFullTable, /data-gap-header-slot="selected" aria-hidden="true"[^>]*invisible/)
+  assert.match(costSelectedTable, /data-gap-header-slot="selected" aria-hidden="false"/)
 
-  for (const label of ['MAT', 'LB', 'BD', 'STD Cost']) {
+  for (const label of ['Material', 'Labor', 'Burden', 'Standard Cost']) {
     const fullRow = rowFor(costFullTable, label)
     const selectedRow = rowFor(costSelectedTable, label)
     const fullSlot = gapSlot(fullRow, 'selected')
@@ -293,9 +301,9 @@ try {
   }
 
   const expectedCostRows = [
-    ['MAT', fullComparison.elementGaps.material, selectedContribution.elementGaps.material],
-    ['LB', fullComparison.elementGaps.labor, selectedContribution.elementGaps.labor],
-    ['BD', fullComparison.elementGaps.burden, selectedContribution.elementGaps.burden]
+    ['Material', fullComparison.elementGaps.material, selectedContribution.elementGaps.material],
+    ['Labor', fullComparison.elementGaps.labor, selectedContribution.elementGaps.labor],
+    ['Burden', fullComparison.elementGaps.burden, selectedContribution.elementGaps.burden]
   ] as const
   for (const [label, fullGap, selectedGap] of expectedCostRows) {
     const fullRow = rowFor(costFullTable, label)
@@ -306,8 +314,8 @@ try {
     assert.equal(gapSlot(selectedRow, 'selected').text, '(' + formatters.formatVariance(selectedGap!, 2) + ')', label + ' Selected value stays in parentheses inside GAP')
   }
 
-  const fullTotalRow = rowFor(costFullTable, 'STD Cost')
-  const selectedTotalRow = rowFor(costSelectedTable, 'STD Cost')
+  const fullTotalRow = rowFor(costFullTable, 'Standard Cost')
+  const selectedTotalRow = rowFor(costSelectedTable, 'Standard Cost')
   const fullTotalValues = tableCells(fullTotalRow)
   assert.equal(fullTotalValues[3], formatters.formatPercent(guards.safeDivide(fullComparison.totalGap!, fullComparison.referenceCost.total!)!, 2) + ' Total', 'STD Cost %Total must be Gap divided by REF Standard Cost')
   const expectedSelectedTotal = selectedContribution.elementGaps.material! + selectedContribution.elementGaps.labor! + selectedContribution.elementGaps.burden!
@@ -321,10 +329,10 @@ try {
   } as never))
   assert.doesNotMatch(wcMarkup, /Selected/i, 'Work Center output must not expose Selected text in visible text, titles, or aria attributes')
   const wcTables = [...wcMarkup.matchAll(/<table\b[\s\S]*?<\/table>/g)].map(match => match[0])
-  assert.equal(wcTables.length, 3, 'Work Center should keep separate header, scrolling body, and footer tables')
-  assert.deepEqual(tableHeaderLabels(wcTables[0]), ['WC', 'REF', 'CUR', 'GAP', '%GAP'])
+  assert.equal(wcTables.length, 1, 'Work Center header, scroll body, and footer share one table grid')
+  assert.deepEqual(tableHeaderLabels(wcTables[0]), ['Work Center', 'REF', 'CUR', 'GAP', '%GAP'])
   assert.doesNotMatch(wcTables[0], /GAP \(Selected\)/)
-  const wcRow = rowFor(wcTables[1], 'WC-CUT')
+  const wcRow = rowFor(wcTables[0], 'WC-CUT')
   assert.deepEqual(tableCells(wcRow), [
     formatters.formatNumber(fullComparison.processingFindings[0].costEffect.reference.total!, 2),
     formatters.formatNumber(fullComparison.processingFindings[0].costEffect.current.total!, 2),
@@ -336,8 +344,8 @@ try {
   ], 'WC row must use the existing Conversion Cost values and % of total WC Gap')
   assert.doesNotMatch(wcMarkup, /Cutting synthetic work center/, 'WC table must not repeat the verbose synthetic description')
 
-  const wcSection = wcMarkup.match(/<section\b[^>]*aria-label="Work Center comparison"[^>]*>/)?.[0]
-  const costSection = costFullMarkup.match(/<section\b[^>]*aria-label="Cost comparison"[^>]*>/)?.[0]
+  const wcSection = wcMarkup.match(/<section\b[^>]*aria-label="Work Center"[^>]*>/)?.[0]
+  const costSection = costFullMarkup.match(/<section\b[^>]*aria-label="Cost Breakdown"[^>]*>/)?.[0]
   assert.ok(wcSection && costSection, 'expected Cost and Work Center sections')
   assert.match(costSection, /\bh-44\b/)
   assert.match(wcSection, /\bh-44\b/, 'WC outer height must match Cost')
@@ -345,11 +353,14 @@ try {
   assert.ok(scrollBody, 'expected a dedicated WC scrolling body')
   assert.match(scrollBody[1], /\bmin-h-0\b/)
   assert.match(scrollBody[1], /\bflex-1\b/)
-  assert.match(scrollBody[1], /\boverflow-y-auto\b/)
-  assert.equal([...wcMarkup.matchAll(/overflow-y-auto/g)].length, 1, 'only the WC body may scroll vertically')
-  assert.match(wcMarkup, /<div class="shrink-0 overflow-x-auto">[\s\S]*?<thead>/, 'WC header must remain fixed outside the scrolling body')
-  assert.match(wcMarkup, /<div class="shrink-0 border-t-2[\s\S]*?<tfoot\b/, 'WC Total footer must remain fixed outside the scrolling body')
-  const wcFooterRow = rowFor(wcTables[2], 'Total')
+  assert.match(scrollBody[1], /\boverflow-auto\b/)
+  assert.match(scrollBody[1], /scrollbar-gutter:stable/)
+  assert.equal([...wcMarkup.matchAll(/overflow-auto/g)].length, 1, 'the shared WC table owns one scroll viewport')
+  assert.match(wcMarkup, /<thead class="sticky top-0 z-10">[\s\S]*?Work Center[\s\S]*?REF[\s\S]*?CUR[\s\S]*?GAP[\s\S]*?%GAP/,
+    'WC header stays sticky on the shared table grid')
+  assert.match(wcMarkup, /<tfoot class="sticky bottom-0 z-10[\s\S]*?<th scope="row"[^>]*>Total/,
+    'WC Total stays sticky on the shared table grid')
+  const wcFooterRow = rowFor(wcTables[0], 'Total')
   const wcFooterValues = tableCells(wcFooterRow)
   const totalWcReference = guards.safeAdd(fullComparison.referenceCost.labor!, fullComparison.referenceCost.burden!)!
   const totalWcCurrent = guards.safeAdd(fullComparison.currentCost.labor!, fullComparison.currentCost.burden!)!

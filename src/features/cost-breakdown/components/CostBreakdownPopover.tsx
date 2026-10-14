@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
+import { ChevronDown } from 'lucide-react'
 
 interface CostBreakdownPopoverProps {
   label: string
@@ -83,7 +84,7 @@ export const CostBreakdownPopover: React.FC<CostBreakdownPopoverProps> = ({ labe
         className={`inline-flex min-h-8 shrink-0 items-center gap-1.5 rounded-sm border border-slate-300 bg-white px-2 text-xs font-medium text-slate-700 hover:bg-slate-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700 ${buttonClassName}`}
       >
         {trigger}
-        <span aria-hidden="true" className="text-[10px] text-slate-500">▾</span>
+        <ChevronDown aria-hidden="true" className="h-3.5 w-3.5 shrink-0 text-slate-600" />
       </button>
       {open && typeof document !== 'undefined' && createPortal(
         <div
