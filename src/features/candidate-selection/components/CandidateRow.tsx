@@ -12,7 +12,6 @@ interface CandidateRowProps {
   expanded: boolean
   onToggleControllable: (candidateKey: string, nextValue: boolean) => void
   onToggleRcaSelection: (candidateKey: string, nextValue: boolean) => void
-  onHoverQuickView: (quickViewKey: string | null) => void
   onToggleQuickView: (quickViewKey: string) => void
   onToggleExpanded: (quickViewKey: string) => void
 }
@@ -42,7 +41,6 @@ export const CandidateRow: React.FC<CandidateRowProps> = ({
   expanded,
   onToggleControllable,
   onToggleRcaSelection,
-  onHoverQuickView,
   onToggleQuickView,
   onToggleExpanded
 }) => {
@@ -59,8 +57,6 @@ export const CandidateRow: React.FC<CandidateRowProps> = ({
   return (
     <>
       <tr
-        onMouseEnter={() => onHoverQuickView(quickViewKey)}
-        onMouseLeave={() => onHoverQuickView(null)}
         onClick={handleRowClick}
         className={`cursor-pointer transition-colors ${quickViewSelected ? 'bg-blue-50' : !candidate.controllable ? 'bg-slate-50 text-slate-600' : 'hover:bg-slate-50/70'}`}
       >

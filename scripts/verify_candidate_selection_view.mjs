@@ -96,7 +96,6 @@ try {
     expanded: true,
     onToggleControllable() {},
     onToggleRcaSelection() {},
-    onHoverQuickView() {},
     onToggleQuickView() {},
     onToggleExpanded() {}
   }))
@@ -107,15 +106,17 @@ try {
 
   const pageSource = await readFile('src/features/candidate-selection/CandidateSelectionPage.tsx', 'utf8')
   const rowSource = await readFile('src/features/candidate-selection/components/CandidateRow.tsx', 'utf8')
-  assert.match(pageSource, /aria-label="Information \/ Overview"/, 'overview remains one of the two page zones')
-  assert.match(pageSource, /aria-label="Candidate"/, 'the Candidate list remains the other page zone')
-  assert.match(pageSource, /<CandidateQuickInfo/, 'Candidate quick information stays inside the overview')
-  assert.match(pageSource, /<CandidatesTable/, 'the Candidate list stays inside the Candidate zone')
-  assert.match(pageSource, /useState<string \| null>\(null\)/, 'quick-view selection starts empty')
-  assert.match(pageSource, /hoveredQuickViewKey \?\? selectedQuickViewKey/, 'hover preview remains separate from persistent selection')
+  assert.match(pageSource, /<CandidateQuickInfo candidate=\{activeQuickCandidate\} parameters=\{activeQuickParameters\} \/>/, 'Candidate quick information remains in the page')
+  assert.match(pageSource, /<section className="space-y-3" aria-labelledby="candidate-selection-title">/, 'the Candidate list remains in its labeled section')
+  assert.match(pageSource, /<CandidatesTable/, 'the Candidate table remains in the page')
+  assert.match(pageSource, /const \[selectedQuickViewKey, setSelectedQuickViewKey\] = useState<string \| null>\(null\)/, 'quick-view selection starts empty')
+  assert.match(pageSource, /getCandidateViewKey\(candidate\) === selectedQuickViewKey/, 'quick information is driven by explicit selection')
+  assert.doesNotMatch(pageSource, /hoveredQuickViewKey|onHoverQuickView/, 'the page has no hover-driven quick-view state')
   assert.match(pageSource, /const \[expandedCandidateKeys, setExpandedCandidateKeys\] = useState<Set<string>>\(\(\) => new Set\(\)\)/, 'expansion starts empty and is independent')
-  assert.match(rowSource, /onMouseEnter=/, 'row hover previews a Candidate')
-  assert.match(rowSource, /onMouseLeave=/, 'row preview clears when hover ends')
+  assert.match(rowSource, /onClick=\{handleRowClick\}/, 'clicking a Candidate row selects its quick information')
+  assert.match(rowSource, /onClick=\{\(\) => onToggleQuickView\(quickViewKey\)\}/, 'clicking the Candidate name selects its quick information')
+  assert.match(rowSource, /hover:bg-slate-50\/70/, 'rows retain normal visual hover feedback')
+  assert.doesNotMatch(rowSource, /onMouseEnter=|onMouseLeave=/, 'row hover does not change quick information')
 
   console.log('Candidate selection view checks passed.')
 } finally {

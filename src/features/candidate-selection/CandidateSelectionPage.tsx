@@ -32,7 +32,6 @@ export const CandidateSelectionPage: React.FC<CandidateSelectionPageProps> = () 
 
   const [statusFilter, setStatusFilter] = useState<CandidateStatusFilter>(ALL_CANDIDATE_STATUSES)
   const [selectedQuickViewKey, setSelectedQuickViewKey] = useState<string | null>(null)
-  const [hoveredQuickViewKey, setHoveredQuickViewKey] = useState<string | null>(null)
   const [expandedCandidateKeys, setExpandedCandidateKeys] = useState<Set<string>>(() => new Set())
   const candidateKeys = useMemo(() => new Set(candidates.map(candidate => candidate.candidateKey)), [candidates])
   const selectedCandidateKeys = useMemo(
@@ -48,7 +47,6 @@ export const CandidateSelectionPage: React.FC<CandidateSelectionPageProps> = () 
   useEffect(() => {
     const eligibleViewKeys = new Set(candidates.map(getCandidateViewKey))
     setSelectedQuickViewKey(current => current && !eligibleViewKeys.has(current) ? null : current)
-    setHoveredQuickViewKey(current => current && !eligibleViewKeys.has(current) ? null : current)
     setExpandedCandidateKeys(current => {
       const next = new Set([...current].filter(key => eligibleViewKeys.has(key)))
       return next.size === current.size ? current : next
@@ -65,8 +63,7 @@ export const CandidateSelectionPage: React.FC<CandidateSelectionPageProps> = () 
     () => filterPrioritizationCandidates(candidates, statusFilter),
     [candidates, statusFilter]
   )
-  const activeQuickViewKey = hoveredQuickViewKey ?? selectedQuickViewKey
-  const activeQuickCandidate = candidates.find(candidate => getCandidateViewKey(candidate) === activeQuickViewKey) ?? null
+  const activeQuickCandidate = candidates.find(candidate => getCandidateViewKey(candidate) === selectedQuickViewKey) ?? null
   const activeQuickParameters = activeQuickCandidate
     ? resolveCandidateParameterData(activeQuickCandidate, snapshotComparison, analysisSnapshotPair)
     : null
@@ -179,7 +176,6 @@ export const CandidateSelectionPage: React.FC<CandidateSelectionPageProps> = () 
           snapshotPair={analysisSnapshotPair}
           onToggleControllable={toggleCandidateControllable}
           onToggleRcaSelection={toggleRcaSelection}
-          onHoverQuickView={setHoveredQuickViewKey}
           onToggleQuickView={toggleQuickViewSelection}
           onToggleExpanded={toggleExpandedCandidate}
           showVisibleGap={!allStatusesSelected}

@@ -13,7 +13,6 @@ interface CandidatesTableProps {
   snapshotPair: SnapshotPair
   onToggleControllable: (candidateKey: string, nextValue: boolean) => void
   onToggleRcaSelection: (candidateKey: string, nextValue: boolean) => void
-  onHoverQuickView: (quickViewKey: string | null) => void
   onToggleQuickView: (quickViewKey: string) => void
   onToggleExpanded: (quickViewKey: string) => void
   showVisibleGap: boolean
@@ -28,7 +27,6 @@ export const CandidatesTable: React.FC<CandidatesTableProps> = ({
   snapshotPair,
   onToggleControllable,
   onToggleRcaSelection,
-  onHoverQuickView,
   onToggleQuickView,
   onToggleExpanded,
   showVisibleGap
@@ -86,7 +84,6 @@ export const CandidatesTable: React.FC<CandidatesTableProps> = ({
                     expanded={expandedCandidateKeys.has(quickViewKey)}
                     onToggleControllable={onToggleControllable}
                     onToggleRcaSelection={onToggleRcaSelection}
-                    onHoverQuickView={onHoverQuickView}
                     onToggleQuickView={onToggleQuickView}
                     onToggleExpanded={onToggleExpanded}
                   />
