@@ -120,9 +120,16 @@ function rowFor(markup: string, label: string): string {
 }
 
 function gapSlot(row: string, kind: 'full' | 'selected') {
-  const match = row.match(new RegExp('<span data-gap-slot="' + kind + '"(?: aria-hidden="(true|false)")? class="([^"]*)">([^<]*)<\\/span>'))
+  const match = row.match(new RegExp('<span data-gap-slot="' + kind + '"(?: aria-hidden="(true|false)")? class="([^"]*)">'))
   assert.ok(match, 'expected ' + kind + ' gap slot')
-  return { ariaHidden: match[1] ?? null, className: match[2], text: visibleText(match[3]) }
+  if (kind === 'full') {
+    const text = row.match(/<span data-gap-slot="full"[^>]*>([^<]*)<\/span>/)?.[1] ?? ''
+    return { ariaHidden: match[1] ?? null, className: match[2], text: visibleText(text) }
+  }
+  const parts = [...row.matchAll(/<span data-selected-gap-part="(open|value|close)"[^>]*>([^<]*)<\/span>/g)]
+  assert.equal(parts.length, 3, 'Selected value uses separate opening, number, and closing slots')
+  assert.deepEqual(parts.map(part => part[1]), ['open', 'value', 'close'])
+  return { ariaHidden: match[1] ?? null, className: match[2], text: parts.map(part => visibleText(part[2])).join('') }
 }
 
 function tableHeaderLabels(markup: string): string[] {
@@ -298,6 +305,8 @@ try {
       fullSlot.className.split(/\s+/).filter(Boolean).filter(token => token !== 'invisible').sort().join(' '),
       'Selected slot layout classes must remain stable for ' + label
     )
+    assert.match(selectedSlot.className, /w-\[66px\].*grid-cols-\[1ch_minmax\(0,1fr\)_1ch\].*tabular-nums/,
+      'Selected punctuation and numeric value use a fixed aligned grid for ' + label)
   }
 
   const expectedCostRows = [

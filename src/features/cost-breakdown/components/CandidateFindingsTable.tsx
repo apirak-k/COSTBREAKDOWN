@@ -1,6 +1,7 @@
 import React, { useEffect, useRef } from 'react'
 import { ChevronDown, ChevronRight, GripVertical } from 'lucide-react'
 import {
+  formatNumber,
   formatPercent,
   formatVariance,
   getCanonicalComparisonStatus,
@@ -88,20 +89,31 @@ function candidatePercent(gap: number | null, totalGap: number | null): string {
     : formatPercent(gap / totalGap, 2)
 }
 
-function parameterValues(row: CandidateTableRow): [string, string, string] {
+function parameterValue(value: number | null | undefined, percent = false): string {
+  if (value === null || value === undefined || !Number.isFinite(value)) return '—'
+  return percent ? formatPercent(value, 2) : formatNumber(value, 4)
+}
+
+function parameterValues(row: CandidateTableRow, status: ComparisonStatus | null): [string, string, string] {
+  const display = (reference: number | null | undefined, current: number | null | undefined, percent = false) => {
+    if (status === 'ADDED') return parameterValue(current, percent)
+    if (status === 'REMOVED') return parameterValue(reference, percent)
+    return parameterGap(reference, current, percent)
+  }
+
   if (row.type === 'BOM') {
     const detail = row.detail as BOMItemizedRow
     return [
-      parameterGap(detail.reference?.consumption, detail.current?.consumption),
-      parameterGap(detail.reference?.price, detail.current?.price),
-      parameterGap(detail.reference?.loss, detail.current?.loss, true)
+      display(detail.reference?.consumption, detail.current?.consumption),
+      display(detail.reference?.price, detail.current?.price),
+      display(detail.reference?.loss, detail.current?.loss, true)
     ]
   }
   const detail = row.detail as RoutingItemizedRow
   return [
-    parameterGap(detail.reference?.manning, detail.current?.manning),
-    parameterGap(detail.reference?.capacity, detail.current?.capacity),
-    parameterGap(detail.reference?.yield, detail.current?.yield, true)
+    display(detail.reference?.manning, detail.current?.manning),
+    display(detail.reference?.capacity, detail.current?.capacity),
+    display(detail.reference?.yield, detail.current?.yield, true)
   ]
 }
 
@@ -227,7 +239,7 @@ export const CandidateFindingsTable: React.FC<CandidateFindingsTableProps> = ({
   return <div className="overflow-x-auto border border-slate-200">
     <table className="w-full min-w-[1100px] table-fixed text-left text-xs">
       <colgroup>{CANDIDATE_COLUMN_WIDTHS.map((width, index) => <col key={index} style={{ width }} />)}</colgroup>
-      <caption className="sr-only">{identityHeader} Candidate findings. CHANGED rows can expand Reference, Current, and Cost Effect detail.</caption>
+      <caption className="sr-only">{identityHeader} Candidate findings. CHANGED rows can expand Reference, Current, and {type === 'bom' ? 'Cost Effect' : 'Parameter Effect and Rate Effect'} detail.</caption>
       <thead>
         <tr className="bg-slate-800 font-semibold text-white">
           <th scope="col" className="px-1 py-2 text-center">
@@ -261,7 +273,7 @@ export const CandidateFindingsTable: React.FC<CandidateFindingsTableProps> = ({
             const canExpand = status === 'CHANGED'
             const isExpanded = canExpand && expandedRows.has(candidateDetailKey(type, row.key))
             const detailId = 'candidate-detail-' + encodeURIComponent(row.key)
-            const [firstParameter, secondParameter, thirdParameter] = parameterValues(row)
+            const [firstParameter, secondParameter, thirdParameter] = parameterValues(row, status)
             const rowType = type
             return <React.Fragment key={row.key}>
               <tr

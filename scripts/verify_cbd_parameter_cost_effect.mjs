@@ -275,6 +275,35 @@ try {
   const overContributionMarkup = renderItemized(itemizedView, { ...bomComparisonForDisplay, totalGap: 1 }, bomRefSnapshot, bomCurSnapshot)
   assert.match(overContributionMarkup, /220\.00%/, 'Candidate contribution above 100 percent remains visible without clamping')
 
+  const addedBOMReference = costSnapshot('reference')
+  const addedBOMCurrent = costSnapshot('current', {
+    bom: [bom('added-bom', { usage: 1.5, price: 7, loss: 0.02 })]
+  })
+  const addedBOMComparison = comparisonCore.compareSnapshots(addedBOMReference, addedBOMCurrent)
+  const addedBOMMarkup = renderItemized(itemizedView, addedBOMComparison, addedBOMReference, addedBOMCurrent)
+  assert.deepEqual(gridCellText(candidateMainRow(addedBOMMarkup, 'Bill of Material', 'Material', 'ADDED')).slice(3, 6), [
+    formatters.formatNumber(1.5, 4), formatters.formatNumber(7, 4), formatters.formatPercent(0.02, 2)
+  ], 'ADDED BOM parameters show actual Current-side values')
+
+  const removedBOMReference = costSnapshot('reference', {
+    bom: [bom('removed-bom', { usage: 2.5, price: 9, loss: 0.08 })]
+  })
+  const removedBOMCurrent = costSnapshot('current')
+  const removedBOMComparison = comparisonCore.compareSnapshots(removedBOMReference, removedBOMCurrent)
+  const removedBOMMarkup = renderItemized(itemizedView, removedBOMComparison, removedBOMReference, removedBOMCurrent)
+  assert.deepEqual(gridCellText(candidateMainRow(removedBOMMarkup, 'Bill of Material', 'Material', 'REMOVED')).slice(3, 6), [
+    formatters.formatNumber(2.5, 4), formatters.formatNumber(9, 4), formatters.formatPercent(0.08, 2)
+  ], 'REMOVED BOM parameters show actual Reference-side values')
+
+  const missingAddedBOMCurrent = costSnapshot('current', {
+    bom: [bom('added-bom-missing', { usage: null, price: 7, loss: 0.02 })]
+  })
+  const missingAddedBOMComparison = comparisonCore.compareSnapshots(addedBOMReference, missingAddedBOMCurrent)
+  const missingAddedBOMMarkup = renderItemized(itemizedView, missingAddedBOMComparison, addedBOMReference, missingAddedBOMCurrent)
+  assert.deepEqual(gridCellText(candidateMainRow(missingAddedBOMMarkup, 'Bill of Material', 'Material', 'ADDED')).slice(3, 6), [
+    '—', formatters.formatNumber(7, 4), formatters.formatPercent(0.02, 2)
+  ], 'a genuinely missing Current-side BOM parameter remains unavailable')
+
   const routingRefSnapshot = costSnapshot('reference', {
     routing: [route('route-ref', 'WC-REF')],
     rates: [rate('rate-ref', 'WC-REF', 10, 5)]
@@ -298,12 +327,28 @@ try {
   assert.deepEqual(detailRow(routingMarkup, 'Current').slice(3, 7), [
     formatters.formatNumber(1, 4), formatters.formatNumber(10, 4), formatters.formatPercent(1, 2), formatters.formatNumber(2.7, 4)
   ], 'Routing Current row must carry the current operating parameters and conversion cost in the shared parent grid')
-  assert.deepEqual(detailRow(routingMarkup, 'Cost Effect').slice(3, 7), [
+  const routingParameterEffectGap = sum([
+    rateChanged.effects.conversion.manning,
+    rateChanged.effects.conversion.capacity,
+    rateChanged.effects.conversion.yield
+  ])
+  const routingRateEffectGap = sum([
+    rateChanged.effects.conversion.laborRate,
+    rateChanged.effects.conversion.burdenRate
+  ])
+  assert.deepEqual(detailRow(routingMarkup, 'Parameter Effect').slice(3, 7), [
     formatters.formatVariance(rateChanged.effects.conversion.manning, 4),
     formatters.formatVariance(rateChanged.effects.conversion.capacity, 4),
     formatters.formatVariance(rateChanged.effects.conversion.yield, 4),
-    formatters.formatVariance(1.2, 4)
-  ], 'Routing Cost Effect row must keep primary operating-factor effects and the same actual conversion gap as the main row')
+    formatters.formatVariance(routingParameterEffectGap, 4)
+  ], 'Routing Parameter Effect Gap is the unrounded sum of the visible operating-parameter effects')
+  assert.deepEqual(detailRow(routingMarkup, 'Rate Effect').slice(3, 7), [
+    '—', '—', '—', formatters.formatVariance(routingRateEffectGap, 4)
+  ], 'Routing Rate Effect contains only the unrounded Labor and Burden rate effects')
+  assertClose(routingParameterEffectGap + routingRateEffectGap, 1.2,
+    'Routing Parameter Effect plus Rate Effect reconciles to the Candidate Main Gap')
+  assert.doesNotMatch(routingMarkup, /Total Effect|<th[^>]*>Cost Effect<\/th>/,
+    'Routing details do not add a Total Effect row')
   assert.doesNotMatch(routingMarkup, /% Parent|%Parent|Labor Gap|Burden Gap|Conversion Gap|Changed fields|Root Cause|\bAction\b|Controllable/)
   assert.doesNotMatch(routingMarkup, /Labor Rate|Burden Rate|Work Center/,
     'routing rate and Work Center context are not promoted into parameter detail columns')
@@ -316,6 +361,61 @@ try {
   const routingMainCells = gridCellText(candidateMainRow(routingCandidateMarkup, 'Routing', 'Cutting', 'CHANGED'))
   assert.equal(routingMainCells[6], formatters.formatVariance(1.2, 4),
     'Routing Main Gap remains its Candidate Conversion Cost Gap')
+
+  const routingCombinedCurrent = costSnapshot('current', {
+    routing: [route('route-cur', 'WC-CUR', { manning: 2 })],
+    rates: [rate('rate-cur', 'WC-CUR', 20, 7)]
+  })
+  const routingCombinedComparison = comparisonCore.compareSnapshots(routingRefSnapshot, routingCombinedCurrent)
+  const routingCombinedFinding = routingCombinedComparison.routingFindings[0]
+  const routingCombinedEffect = effects.calculateRoutingParameterCostEffects(
+    { manning: 1, capacity: 10, yield: 1, laborRate: 10, burdenRate: 5 },
+    { manning: 2, capacity: 10, yield: 1, laborRate: 20, burdenRate: 7 }
+  )
+  assert.equal(routingCombinedEffect.status, 'available')
+  const combinedParameterEffectGap = sum([
+    routingCombinedEffect.effects.conversion.manning,
+    routingCombinedEffect.effects.conversion.capacity,
+    routingCombinedEffect.effects.conversion.yield
+  ])
+  const combinedRateEffectGap = sum([
+    routingCombinedEffect.effects.conversion.laborRate,
+    routingCombinedEffect.effects.conversion.burdenRate
+  ])
+  assertClose(combinedParameterEffectGap + combinedRateEffectGap, routingCombinedFinding.costEffect.gap.total,
+    'Routing parameter and rate detail values reconcile to the existing combined Candidate Gap')
+  const routingCombinedMarkup = renderRouting(routingView, routingCombinedComparison, routingRefSnapshot, routingCombinedCurrent)
+  assert.equal(detailRow(routingCombinedMarkup, 'Parameter Effect')[6], formatters.formatVariance(combinedParameterEffectGap, 4))
+  assert.equal(detailRow(routingCombinedMarkup, 'Rate Effect')[6], formatters.formatVariance(combinedRateEffectGap, 4))
+
+  const addedRoutingReference = costSnapshot('reference')
+  const addedRoutingCurrent = costSnapshot('current', {
+    routing: [route('added-route', 'WC-1', { manning: 3, capacity: 12, yield: 0.9 })]
+  })
+  const addedRoutingComparison = comparisonCore.compareSnapshots(addedRoutingReference, addedRoutingCurrent)
+  const addedRoutingMarkup = renderItemized(itemizedView, addedRoutingComparison, addedRoutingReference, addedRoutingCurrent, 'rtg')
+  assert.deepEqual(gridCellText(candidateMainRow(addedRoutingMarkup, 'Routing', 'Cutting', 'ADDED')).slice(3, 6), [
+    formatters.formatNumber(3, 4), formatters.formatNumber(12, 4), formatters.formatPercent(0.9, 2)
+  ], 'ADDED Routing parameters show actual Current-side values')
+
+  const removedRoutingReference = costSnapshot('reference', {
+    routing: [route('removed-route', 'WC-1', { manning: 4, capacity: 20, yield: 0.95 })]
+  })
+  const removedRoutingCurrent = costSnapshot('current')
+  const removedRoutingComparison = comparisonCore.compareSnapshots(removedRoutingReference, removedRoutingCurrent)
+  const removedRoutingMarkup = renderItemized(itemizedView, removedRoutingComparison, removedRoutingReference, removedRoutingCurrent, 'rtg')
+  assert.deepEqual(gridCellText(candidateMainRow(removedRoutingMarkup, 'Routing', 'Cutting', 'REMOVED')).slice(3, 6), [
+    formatters.formatNumber(4, 4), formatters.formatNumber(20, 4), formatters.formatPercent(0.95, 2)
+  ], 'REMOVED Routing parameters show actual Reference-side values')
+
+  const missingAddedRoutingCurrent = costSnapshot('current', {
+    routing: [route('added-route-missing', 'WC-1', { manning: 3, capacity: null, yield: 0.9 })]
+  })
+  const missingAddedRoutingComparison = comparisonCore.compareSnapshots(addedRoutingReference, missingAddedRoutingCurrent)
+  const missingAddedRoutingMarkup = renderItemized(itemizedView, missingAddedRoutingComparison, addedRoutingReference, missingAddedRoutingCurrent, 'rtg')
+  assert.deepEqual(gridCellText(candidateMainRow(missingAddedRoutingMarkup, 'Routing', 'Cutting', 'ADDED')).slice(3, 6), [
+    formatters.formatNumber(3, 4), '—', formatters.formatPercent(0.9, 2)
+  ], 'a genuinely missing Current-side Routing parameter remains unavailable')
 
   const bomTablesInAll = [...renderItemized(itemizedView, {
     ...bomComparisonForDisplay,
@@ -417,8 +517,8 @@ try {
     selectedActive: true
   }))
   assert.match(selectedCostMarkup, /GAP[\s\S]*\(Selected\)/, 'Selected Comparison is secondary in the GAP header')
-  assert.match(visibleText(selectedCostMarkup), /\+2\.20 \(\+0\.50\)/, 'Selected contribution is muted and parenthesized beside full Gap')
-  assert.match(visibleText(selectedCostMarkup), /\(0\.00\)/, 'a real selected zero is shown as (0.00)')
+  assert.match(visibleText(selectedCostMarkup), /\+2\.20\s+\(\s*\+0\.50\s*\)/, 'Selected contribution is muted and parenthesized in the fixed secondary slot beside full Gap')
+  assert.match(visibleText(selectedCostMarkup), /\(\s*0\.00\s*\)/, 'a real selected zero is shown as (0.00) in the fixed secondary slot')
   assert.doesNotMatch(selectedCostMarkup, /<th[^>]*>Selected<\/th>/, 'Selected is not a separate Cost column')
   const fullGapSlot = warningMarkup.match(/<span data-gap-slot="full"[^>]*>/)?.[0]
   const selectedGapFullSlot = selectedCostMarkup.match(/<span data-gap-slot="full"[^>]*>/)?.[0]
@@ -428,6 +528,12 @@ try {
     'Cost reserves the secondary Selected slot before selection')
   assert.match(selectedCostMarkup, /data-gap-slot="selected" aria-hidden="false"/,
     'Selected becomes visible inside its reserved secondary slot')
+  assert.equal([...selectedCostMarkup.matchAll(/data-selected-gap-part="(?:open|value|close)"/g)].length, 12,
+    'all four Cost rows split Selected values into fixed opening, number, and closing slots')
+  assert.match(selectedCostMarkup, /data-gap-slot="selected"[^>]*class="[^"]*w-\[66px\][^"]*grid-cols-\[1ch_minmax\(0,1fr\)_1ch\][^"]*tabular-nums/,
+    'Selected parentheses and tabular number share a fixed three-part grid')
+  assert.match(selectedCostMarkup, /data-selected-gap-part="open">\(<\/span><span data-selected-gap-part="value"[^>]*>\+0\.50<\/span><span data-selected-gap-part="close">\)<\/span>/,
+    'Selected value uses separate aligned opening parenthesis, number, and closing parenthesis nodes')
 
   const wcComparison = routingComparisonForDisplay
   const wcMarkup = renderToStaticMarkup(React.createElement(wcView.WorkCenterProcessingTable, {
@@ -492,6 +598,10 @@ try {
     }))
     assert.match(proportionalChart, /data-gap-chart-mode="proportional"/)
     assert.doesNotMatch(proportionalChart, /<text\b/, 'MAT/LB/BD labels live in the Subheader legend, not inside the bar')
+    const chartContainerClass = proportionalChart.match(/<div role="img"[^>]*class="([^"]*)"/)?.[1]
+    assert.ok(chartContainerClass)
+    assert.doesNotMatch(chartContainerClass, /\bborder\b|bg-slate-100/,
+      'the Subheader owns the boundary and the Gap Bar has no redundant inner frame')
     assert.match(proportionalChart, /Material Gap \+9\.31\nSelected \(\+4\.20\)/, 'Selected chart tooltip has exactly two concise lines')
     assert.match(proportionalChart, /Labor Gap \+4\.42\nSelected \(0\.00\)/, 'Selected zero remains explicit in its element tooltip')
     const proportionalRects = [...proportionalChart.matchAll(/<rect\b[^>]*>/g)].map(([rect]) => rect)
@@ -581,6 +691,10 @@ try {
       'CBD subheader uses the same quiet border and white framing as the Master Data toolbar')
     assert.match(subheader, /flex min-w-\[1000px\] flex-nowrap items-center gap-1\.5 px-1\.5 py-1/,
       'CBD controls use compact Master Data toolbar spacing in one row')
+    assert.doesNotMatch(subheader, /w-\[204px\]|w-\[142px\]/,
+      'the Standard Cost Gap and legend use their content width instead of leaving a fixed dead-space gap')
+    assert.match(subheader, /data-gap-chart-wrapper="true" class="min-w-\[140px\] flex-1"/,
+      'the Gap Bar flexes into the space freed by the natural-width left-side information')
     const subheaderText = visibleText(subheader)
     const orderedLabels = ['Standard Cost Gap', 'MAT', 'LB', 'BD', 'BOM', 'RTG', 'ALL', 'Status', '|Gap| High → Low']
     const labelPositions = orderedLabels.map(label => subheaderText.indexOf(label))
@@ -616,6 +730,21 @@ try {
     assert.match(subheader, /w-\[5ch\] text-left font-mono tabular-nums/,
       'Status count and All reserve one fixed-width slot')
     assert.match(subheader, /aria-haspopup="dialog"/, 'Status and Sort remain overlay popovers')
+    const sortGroup = subheader.match(/<div role="group" aria-label="Sort findings; current mode \|Gap\| High → Low" class="([^"]*)">([\s\S]*?)<\/div>/)
+    assert.ok(sortGroup, 'Sort is one grouped split control')
+    assert.match(sortGroup[1], /inline-flex h-8 shrink-0 overflow-hidden rounded-sm border border-slate-300 bg-white/,
+      'the Sort split control has one shared frame and stable dimensions')
+    const sortMainButton = sortGroup[2].match(/<button type="button" aria-label="Reapply sort:[^>]*class="([^"]*)"/)
+    const sortArrowButton = sortGroup[2].match(/<button type="button" aria-label="Choose sort mode;[^>]*class="([^"]*)"/)
+    assert.ok(sortMainButton && sortArrowButton)
+    assert.doesNotMatch(sortMainButton[1], /\bborder\b/, 'Sort main segment does not draw a second outer border')
+    assert.match(sortArrowButton[1], /border-l border-slate-300/, 'Sort menu arrow uses the single internal divider')
+    assert.doesNotMatch(sortArrowButton[1], /border-r|border-y/, 'Sort menu arrow does not add a duplicate outer edge')
+    const pageSource = readFileSync(new URL('../src/features/cost-breakdown/CostBreakdownPage.tsx', import.meta.url), 'utf8')
+    assert.match(pageSource, /onClick=\{\(\) => setSortResetToken\(token => token \+ 1\)\}/,
+      'the main Sort segment reapplies the selected sort')
+    assert.match(pageSource, /onChange=\{\(\) => \{ setSortMode\(option\.value\); setSortResetToken\(token => token \+ 1\); close\(\) \}\}/,
+      'choosing a sort mode applies it, clears Details through the reset token, and closes the overlay')
     assert.doesNotMatch(pageMarkup, /<h2[^>]*>Candidates<\/h2>|status view ·/,
       'the redundant Candidate heading and status/sort subtitle are removed')
     assert.match(pageMarkup, /class="space-y-3"/, 'BOM and Routing tables have a restrained vertical gap')

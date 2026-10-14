@@ -6,7 +6,8 @@ import {
   formatVariance,
   getCanonicalComparisonStatus,
   getComparisonStatusLabels,
-  getComparisonFindingKey
+  getComparisonFindingKey,
+  safeAdd
 } from '../../../core'
 import type { ComparisonFinding, ComparisonStatus, SnapshotRoutingStep, SnapshotWorkCenterRate } from '../../../core'
 
@@ -154,6 +155,12 @@ export function RoutingRecordDetails({ row, referenceRates, currentRates, detail
     ? calculateRoutingParameterCostEffects(effectInput(reference, referenceRate), effectInput(current, currentRate))
     : null
   const conversionEffects = effect?.status === 'available' ? effect.effects.conversion : null
+  const parameterEffectGap = conversionEffects
+    ? safeAdd(conversionEffects.manning, conversionEffects.capacity, conversionEffects.yield)
+    : null
+  const rateEffectGap = conversionEffects
+    ? safeAdd(conversionEffects.laborRate, conversionEffects.burdenRate)
+    : null
   const parameterRows = [
     {
       label: 'Reference',
@@ -170,11 +177,20 @@ export function RoutingRecordDetails({ row, referenceRates, currentRates, detail
       cost: current ? row.currentConversion : null
     },
     {
-      label: 'Cost Effect',
+      label: 'Parameter Effect',
       manning: conversionEffects?.manning ?? null,
       capacity: conversionEffects?.capacity ?? null,
       yield: conversionEffects?.yield ?? null,
-      cost: row.conversionGap,
+      cost: parameterEffectGap,
+      effect: true,
+      emphasis: true
+    },
+    {
+      label: 'Rate Effect',
+      manning: null,
+      capacity: null,
+      yield: null,
+      cost: rateEffectGap,
       effect: true
     }
   ]
@@ -183,7 +199,7 @@ export function RoutingRecordDetails({ row, referenceRates, currentRates, detail
     {parameterRows.map((item, index) => <tr
       key={item.label}
       id={index === 0 ? detailId : undefined}
-      className={item.effect ? 'border-b border-slate-200 bg-slate-100 font-semibold' : index === 0 ? 'border-t border-slate-200 bg-slate-50/80' : 'bg-slate-50/80'}
+      className={item.emphasis ? 'border-b border-slate-200 bg-slate-100 font-semibold' : item.effect ? 'border-b border-slate-200 bg-slate-50 font-medium' : index === 0 ? 'border-t border-slate-200 bg-slate-50/80' : 'bg-slate-50/80'}
     >
       <td aria-hidden="true" className="px-2 py-1.5" />
       <th scope="row" className="truncate border-l-2 border-slate-300 px-2.5 py-1.5 text-left font-sans font-medium text-slate-700">{item.label}</th>

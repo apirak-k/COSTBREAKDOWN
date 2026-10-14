@@ -152,7 +152,7 @@ export function GapContributionChart({ segments, fullTotal, selectedTotal, selec
       aria-label={accessibleLabel}
       data-gap-chart-mode={mode}
       data-selected-mode={selectedActive ? 'active' : 'inactive'}
-      className="h-8 w-full overflow-hidden border border-slate-300 bg-slate-100"
+      className="h-8 w-full overflow-hidden"
     >
       <svg aria-hidden="true" viewBox={`0 0 ${width} 32`} preserveAspectRatio="none" className="block h-full w-full">
         <defs>
@@ -237,7 +237,7 @@ export const CostBreakdownPage: React.FC = () => {
           <div
             aria-label={`Standard Cost Gap ${fullSnapshotComparison.totalGap === null ? 'unavailable' : formatVariance(fullSnapshotComparison.totalGap, 2)} THB/pc; Gap = CUR − REF`}
             title="Full snapshot · THB/pc · Gap = CUR − REF"
-            className="flex w-[204px] shrink-0 items-baseline gap-1.5 whitespace-nowrap px-1 text-xs"
+            className="flex shrink-0 items-baseline gap-1.5 whitespace-nowrap text-xs"
           >
             <span className="font-semibold text-slate-800">Standard Cost Gap</span>
             <span className={`font-mono tabular-nums ${fullSnapshotComparison.totalGap === null ? 'text-slate-400' : getVarianceClass(fullSnapshotComparison.totalGap)}`}>
@@ -245,7 +245,7 @@ export const CostBreakdownPage: React.FC = () => {
             </span>
           </div>
 
-          <div role="group" aria-label="Cost element color legend" className="flex w-[142px] shrink-0 items-center justify-center gap-2 whitespace-nowrap text-[10px] font-medium text-slate-600">
+          <div role="group" aria-label="Cost element color legend" className="flex shrink-0 items-center gap-2 whitespace-nowrap text-[10px] font-medium text-slate-600">
             {[
               { label: 'MAT', color: '#0369a1' },
               { label: 'LB', color: '#b45309' },
@@ -256,7 +256,7 @@ export const CostBreakdownPage: React.FC = () => {
             </span>)}
           </div>
 
-          <div className="min-w-[140px] flex-1">
+          <div data-gap-chart-wrapper="true" className="min-w-[140px] flex-1">
             <GapContributionChart
               segments={gapSegments}
               fullTotal={fullSnapshotComparison.totalGap}
@@ -307,15 +307,15 @@ export const CostBreakdownPage: React.FC = () => {
             </div>}
           </CostBreakdownPopover>
 
-          <div role="group" aria-label={`Sort findings; current mode ${sortLabel}`} className="inline-flex shrink-0 overflow-hidden rounded-sm">
-            <button type="button" aria-label={`Reapply sort: ${sortLabel}`} title={`Reapply ${sortLabel} and restore sorted order`} onClick={() => setSortResetToken(token => token + 1)} className="inline-flex min-h-8 items-center border border-slate-300 bg-white px-2 text-xs font-medium text-slate-700 hover:bg-slate-100 focus-visible:z-10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-blue-700">
+          <div role="group" aria-label={`Sort findings; current mode ${sortLabel}`} className="inline-flex h-8 shrink-0 overflow-hidden rounded-sm border border-slate-300 bg-white">
+            <button type="button" aria-label={`Reapply sort: ${sortLabel}`} title={`Reapply ${sortLabel} and restore sorted order`} onClick={() => setSortResetToken(token => token + 1)} className="inline-flex h-full min-h-8 items-center bg-white px-2 text-xs font-medium text-slate-700 hover:bg-slate-100 focus-visible:z-10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-blue-700">
               {sortLabel}
             </button>
             <CostBreakdownPopover
               label={`Choose sort mode; current mode ${sortLabel}`}
               trigger={<span className="sr-only">Sort options</span>}
               panelClassName="w-48"
-              buttonClassName="w-8 rounded-l-none border-l-0 px-0"
+              buttonClassName="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-none border-l border-slate-300 bg-white p-0 text-xs font-medium text-slate-700 hover:bg-slate-100 focus-visible:z-10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-blue-700"
             >
             {close => <fieldset aria-label="Sort findings" className="space-y-0.5">
               {COMPARISON_SORT_OPTIONS.map(option => <label key={option.value} className="flex cursor-pointer items-center gap-2 rounded-sm px-2 py-1.5 text-xs text-slate-700 hover:bg-slate-50">

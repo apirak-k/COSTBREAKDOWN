@@ -30,7 +30,11 @@ function renderGap(value: number | null, selectedValue: number | null, selectedA
     <Tooltip label={tooltipLines.join('\n')} wrapperClassName="flex w-full justify-end">
       <span tabIndex={0} aria-label={`${tooltipLabel} Gap ${formatGap(value)}${selectedActive ? `; Selected (${formatGap(selectedValue)})` : ''}`} className="grid w-full grid-cols-[minmax(0,1fr)_66px] items-baseline gap-x-1 whitespace-nowrap font-mono tabular-nums">
         <span data-gap-slot="full" className={`text-right ${value === null ? 'text-slate-400' : getVarianceClass(value)}`}>{formatGap(value)}</span>
-        <span data-gap-slot="selected" aria-hidden={!selectedActive} className={`text-right text-[10px] font-normal text-slate-500 ${selectedActive ? '' : 'invisible'}`}>{selectedActive ? `(${formatGap(selectedValue)})` : '(0.00)'}</span>
+        <span data-gap-slot="selected" aria-hidden={!selectedActive} className={`grid w-[66px] grid-cols-[1ch_minmax(0,1fr)_1ch] items-baseline text-[10px] font-normal text-slate-500 tabular-nums ${selectedActive ? '' : 'invisible'}`}>
+          <span data-selected-gap-part="open">(</span>
+          <span data-selected-gap-part="value" className="min-w-0 text-right">{selectedActive ? formatGap(selectedValue) : '0.00'}</span>
+          <span data-selected-gap-part="close">)</span>
+        </span>
       </span>
     </Tooltip>
   )
