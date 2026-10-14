@@ -7,6 +7,7 @@ import type { ItemizedTypeTab } from './components/ItemizedComparisonTable'
 import { SnapshotComparisonCard } from './components/SnapshotComparisonCard'
 import { WorkCenterProcessingTable } from './components/WorkCenterProcessingTable'
 import { CostBreakdownPopover } from './components/CostBreakdownPopover'
+import { COST_ELEMENT_COLORS } from './components/cost-element-colors'
 import {
   ALL_COMPARISON_STATUSES,
   areAllComparisonStatusesSelected,
@@ -194,9 +195,9 @@ export const CostBreakdownPage: React.FC = () => {
     ? { ...snapshotComparison, ...selectedContribution }
     : snapshotComparison
   const gapSegments: GapSegment[] = [
-    { key: 'material', label: 'Material', full: fullSnapshotComparison.elementGaps.material, selected: selectedContribution?.elementGaps.material ?? null, color: '#0369a1' },
-    { key: 'labor', label: 'Labor', full: fullSnapshotComparison.elementGaps.labor, selected: selectedContribution?.elementGaps.labor ?? null, color: '#b45309' },
-    { key: 'burden', label: 'Burden', full: fullSnapshotComparison.elementGaps.burden, selected: selectedContribution?.elementGaps.burden ?? null, color: '#6d28d9' }
+    { key: 'material', label: 'Material', full: fullSnapshotComparison.elementGaps.material, selected: selectedContribution?.elementGaps.material ?? null, color: COST_ELEMENT_COLORS.material },
+    { key: 'labor', label: 'Labor', full: fullSnapshotComparison.elementGaps.labor, selected: selectedContribution?.elementGaps.labor ?? null, color: COST_ELEMENT_COLORS.labor },
+    { key: 'burden', label: 'Burden', full: fullSnapshotComparison.elementGaps.burden, selected: selectedContribution?.elementGaps.burden ?? null, color: COST_ELEMENT_COLORS.burden }
   ]
 
   const toggleFinding = (type: 'bom' | 'routing', findingKey: string) => {
@@ -247,9 +248,9 @@ export const CostBreakdownPage: React.FC = () => {
 
           <div role="group" aria-label="Cost element color legend" className="flex shrink-0 items-center gap-2 whitespace-nowrap text-[10px] font-medium text-slate-600">
             {[
-              { label: 'MAT', color: '#0369a1' },
-              { label: 'LB', color: '#b45309' },
-              { label: 'BD', color: '#6d28d9' }
+              { label: 'MAT', color: COST_ELEMENT_COLORS.material },
+              { label: 'LB', color: COST_ELEMENT_COLORS.labor },
+              { label: 'BD', color: COST_ELEMENT_COLORS.burden }
             ].map(item => <span key={item.label} className="inline-flex items-center gap-1">
               <span aria-hidden="true" className="h-2.5 w-2.5" style={{ backgroundColor: item.color }} />
               {item.label}

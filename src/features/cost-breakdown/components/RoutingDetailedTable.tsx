@@ -7,7 +7,8 @@ import {
   getCanonicalComparisonStatus,
   getComparisonStatusLabels,
   getComparisonFindingKey,
-  safeAdd
+  resolveSnapshotRoutingRate,
+  isMasterDataNumericValueValid
 } from '../../../core'
 import type { ComparisonFinding, ComparisonStatus, SnapshotRoutingStep, SnapshotWorkCenterRate } from '../../../core'
 
@@ -39,16 +40,6 @@ const formatNullable = (value: number | null | undefined, format: (value: number
 
 export function getRoutingComparisonLabels(finding: ComparisonFinding): ComparisonStatus[] {
   return getComparisonStatusLabels(finding)
-}
-
-function normalized(value: string | undefined): string {
-  return value?.trim().toLocaleLowerCase() ?? ''
-}
-
-function matchingRate(step: SnapshotRoutingStep | undefined, rates: SnapshotWorkCenterRate[]): SnapshotWorkCenterRate | undefined {
-  if (!step?.workCenterId) return undefined
-  const matches = rates.filter(rate => normalized(rate.workCenterCode) === normalized(step.workCenterId))
-  return matches.length === 1 ? matches[0] : undefined
 }
 
 function comparisonValues(
@@ -140,75 +131,110 @@ function effectInput(step: SnapshotRoutingStep | undefined, rate: SnapshotWorkCe
   }
 }
 
+function validFactorValue(
+  field: 'manning' | 'capacity' | 'yield' | 'laborRate' | 'burdenRate',
+  value: number | null | undefined
+): number | null {
+  return value !== null && value !== undefined && Number.isFinite(value) && isMasterDataNumericValueValid(field, value)
+    ? value
+    : null
+}
+
+function formatReferenceCurrent(
+  field: 'manning' | 'capacity' | 'yield' | 'laborRate' | 'burdenRate',
+  reference: number | null | undefined,
+  current: number | null | undefined,
+  format: (value: number) => string
+): string {
+  const referenceValue = validFactorValue(field, reference)
+  const currentValue = validFactorValue(field, current)
+  if (referenceValue === null || currentValue === null) return '—'
+  if (referenceValue === currentValue) return format(referenceValue)
+  return `${format(referenceValue)} → ${format(currentValue)}`
+}
+
 /**
- * Emits aligned Routing parameter and rate effect rows into the Candidate table.
- * Their Gap subtotals reconcile to the parent Candidate Main Gap.
+ * Emits the Reference → Current and combined additive LMDI attribution rows
+ * directly into the Candidate table's shared column grid.
  */
 export function RoutingRecordDetails({ row, referenceRates, currentRates, detailId }: RoutingRecordDetailsProps) {
   const { reference, current, finding } = row
-  const referenceRate = matchingRate(reference, referenceRates)
-  const currentRate = matchingRate(current, currentRates)
+  const referenceRate = resolveSnapshotRoutingRate(reference, referenceRates)
+  const currentRate = resolveSnapshotRoutingRate(current, currentRates)
   const status = getCanonicalComparisonStatus(finding)
   const isMatchedChange = finding?.matchStatus === 'matched' && status === 'CHANGED'
   const effect = isMatchedChange
     ? calculateRoutingParameterCostEffects(effectInput(reference, referenceRate), effectInput(current, currentRate))
     : null
   const conversionEffects = effect?.status === 'available' ? effect.effects.conversion : null
-  const parameterEffectGap = conversionEffects
-    ? safeAdd(conversionEffects.manning, conversionEffects.capacity, conversionEffects.yield)
-    : null
-  const rateEffectGap = conversionEffects
-    ? safeAdd(conversionEffects.laborRate, conversionEffects.burdenRate)
-    : null
-  const parameterRows = [
+  const parameterValues = [
     {
-      label: 'Reference',
-      manning: reference?.manning ?? null,
-      capacity: reference?.capacity ?? null,
-      yield: reference?.yield ?? null,
-      cost: reference ? row.referenceConversion : null
+      field: 'manning' as const,
+      reference: reference?.manning,
+      current: current?.manning,
+      effect: conversionEffects?.manning,
+      format: (value: number) => formatNumber(value, 4),
+      effectFormat: (value: number) => formatVariance(value, 4)
     },
     {
-      label: 'Current',
-      manning: current?.manning ?? null,
-      capacity: current?.capacity ?? null,
-      yield: current?.yield ?? null,
-      cost: current ? row.currentConversion : null
+      field: 'capacity' as const,
+      reference: reference?.capacity,
+      current: current?.capacity,
+      effect: conversionEffects?.capacity,
+      format: (value: number) => formatNumber(value, 4),
+      effectFormat: (value: number) => formatVariance(value, 4)
     },
     {
-      label: 'Parameter Effect',
-      manning: conversionEffects?.manning ?? null,
-      capacity: conversionEffects?.capacity ?? null,
-      yield: conversionEffects?.yield ?? null,
-      cost: parameterEffectGap,
-      effect: true
+      field: 'yield' as const,
+      reference: reference?.yield,
+      current: current?.yield,
+      effect: conversionEffects?.yield,
+      format: (value: number) => formatPercent(value, 2),
+      effectFormat: (value: number) => formatVariance(value, 4)
     },
     {
-      label: 'Rate Effect',
-      manning: null,
-      capacity: null,
-      yield: null,
-      cost: rateEffectGap,
-      effect: true
+      field: 'laborRate' as const,
+      reference: referenceRate?.laborRate,
+      current: currentRate?.laborRate,
+      effect: conversionEffects?.laborRate,
+      format: (value: number) => formatNumber(value, 4),
+      effectFormat: (value: number) => formatVariance(value, 4)
+    },
+    {
+      field: 'burdenRate' as const,
+      reference: referenceRate?.burdenRate,
+      current: currentRate?.burdenRate,
+      effect: conversionEffects?.burdenRate,
+      format: (value: number) => formatNumber(value, 4),
+      effectFormat: (value: number) => formatVariance(value, 4)
     }
   ]
 
+  const renderDetailRow = (label: string, effectRow: boolean, id?: string) => <tr
+    key={label}
+    id={id}
+    className={effectRow
+      ? 'border-b border-slate-200 bg-white font-bold text-slate-950'
+      : 'border-t border-slate-200 bg-white font-normal text-slate-600'}
+  >
+    <td aria-hidden="true" className="px-1 py-1.5" />
+    <th scope="row" className={`truncate border-l-2 border-slate-300 px-2.5 py-1.5 text-left font-sans ${effectRow ? 'font-bold' : 'font-normal'}`}>{label}</th>
+    <td aria-hidden="true" className="px-2 py-1.5" />
+    {parameterValues.map(item => <td key={item.field} className="px-2 py-1.5 text-right">
+      {effectRow
+        ? formatNullable(item.effect ?? null, item.effectFormat)
+        : formatReferenceCurrent(item.field, item.reference, item.current, item.format)}
+    </td>)}
+    <td className={`px-2 py-1.5 text-right ${effectRow ? 'font-mono tabular-nums' : ''}`}>
+      {effectRow ? formatNullable(row.conversionGap, value => formatVariance(value, 4)) : ''}
+    </td>
+    <td aria-hidden="true" className="px-2 py-1.5" />
+    <td aria-hidden="true" className="px-1 py-1.5" />
+    <td aria-hidden="true" className="px-1 py-1.5" />
+  </tr>
+
   return <>
-    {parameterRows.map((item, index) => <tr
-      key={item.label}
-      id={index === 0 ? detailId : undefined}
-      className={item.effect ? 'border-b border-slate-200 bg-slate-100 font-semibold' : index === 0 ? 'border-t border-slate-200 bg-slate-50/80' : 'bg-slate-50/80'}
-    >
-      <td aria-hidden="true" className="px-2 py-1.5" />
-      <th scope="row" className={`truncate border-l-2 border-slate-300 px-2.5 py-1.5 text-left font-sans ${item.effect ? 'font-semibold text-slate-950' : 'font-medium text-slate-700'}`}>{item.label}</th>
-      <td aria-hidden="true" className="px-2.5 py-1.5" />
-      <td className="px-2.5 py-1.5 text-right">{item.effect ? formatNullable(item.manning, value => formatVariance(value, 4)) : formatNullable(item.manning, value => formatNumber(value, 4))}</td>
-      <td className="px-2.5 py-1.5 text-right">{item.effect ? formatNullable(item.capacity, value => formatVariance(value, 4)) : formatNullable(item.capacity, value => formatNumber(value, 4))}</td>
-      <td className="px-2.5 py-1.5 text-right">{item.effect ? formatNullable(item.yield, value => formatVariance(value, 4)) : formatNullable(item.yield, value => formatPercent(value, 2))}</td>
-      <td className="px-2.5 py-1.5 text-right">{item.effect ? formatNullable(item.cost, value => formatVariance(value, 4)) : formatNullable(item.cost, value => formatNumber(value, 4))}</td>
-      <td aria-hidden="true" className="px-2.5 py-1.5" />
-      <td aria-hidden="true" className="px-1 py-1.5" />
-      <td aria-hidden="true" className="px-1 py-1.5" />
-    </tr>)}
+    {renderDetailRow('Reference → Current', false, detailId)}
+    {renderDetailRow('Parameter Cost Effect', true)}
   </>
 }

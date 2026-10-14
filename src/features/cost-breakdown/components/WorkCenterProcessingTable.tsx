@@ -33,7 +33,7 @@ function conversionTotal(labor: number | null, burden: number | null): number | 
   return safeAdd(labor ?? Number.NaN, burden ?? Number.NaN)
 }
 
-const columnWidths = <colgroup><col className="w-[32%]" /><col className="w-[17%]" /><col className="w-[17%]" /><col className="w-[20%]" /><col className="w-[14%]" /></colgroup>
+const columnWidths = <colgroup><col className="w-[24%]" /><col className="w-[19%]" /><col className="w-[19%]" /><col className="w-[20%]" /><col className="w-[18%]" /></colgroup>
 
 export const WorkCenterProcessingTable: React.FC<WorkCenterProcessingTableProps> = ({ comparison }) => {
   const rows: WorkCenterRow[] = comparison.processingFindings

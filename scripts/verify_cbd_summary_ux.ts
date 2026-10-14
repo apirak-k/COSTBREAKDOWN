@@ -139,7 +139,7 @@ function tableHeaderLabels(markup: string): string[] {
 }
 
 try {
-  const [page, snapshotView, wcView, comparisonCore, selectedCore, comparisonView, formatters, guards] = await Promise.all([
+  const [page, snapshotView, wcView, comparisonCore, selectedCore, comparisonView, formatters, guards, palette] = await Promise.all([
     vite.ssrLoadModule('/src/features/cost-breakdown/CostBreakdownPage.tsx'),
     vite.ssrLoadModule('/src/features/cost-breakdown/components/SnapshotComparisonCard.tsx'),
     vite.ssrLoadModule('/src/features/cost-breakdown/components/WorkCenterProcessingTable.tsx'),
@@ -147,13 +147,17 @@ try {
     vite.ssrLoadModule('/src/core/calculations/selected-comparison.ts'),
     vite.ssrLoadModule('/src/features/cost-breakdown/components/comparison-view.ts'),
     vite.ssrLoadModule('/src/core/utils/formatters.ts'),
-    vite.ssrLoadModule('/src/core/utils/guards.ts')
+    vite.ssrLoadModule('/src/core/utils/guards.ts'),
+    vite.ssrLoadModule('/src/features/cost-breakdown/components/cost-element-colors.ts')
   ])
 
+  assert.deepEqual(palette.COST_ELEMENT_COLORS, {
+    material: '#4F7CAC', labor: '#D89B45', burden: '#8067B7', standardCost: '#334155'
+  }, 'CBD charts, legend, and Standard Cost use one shared element palette')
   const fullSegments = [
-    { key: 'material', label: 'Material', full: 9.31, selected: null, color: '#0369a1' },
-    { key: 'labor', label: 'Labor', full: 4.42, selected: null, color: '#b45309' },
-    { key: 'burden', label: 'Burden', full: 2.32, selected: null, color: '#6d28d8' }
+    { key: 'material', label: 'Material', full: 9.31, selected: null, color: palette.COST_ELEMENT_COLORS.material },
+    { key: 'labor', label: 'Labor', full: 4.42, selected: null, color: palette.COST_ELEMENT_COLORS.labor },
+    { key: 'burden', label: 'Burden', full: 2.32, selected: null, color: palette.COST_ELEMENT_COLORS.burden }
   ]
   const fullChart = renderToStaticMarkup(React.createElement(page.GapContributionChart, {
     segments: fullSegments,
@@ -175,9 +179,9 @@ try {
   }
 
   const selectedSegments = [
-    { key: 'material', label: 'Material', full: 9.31, selected: 4.20, color: '#0369a1' },
-    { key: 'labor', label: 'Labor', full: 4.42, selected: -1.20, color: '#b45309' },
-    { key: 'burden', label: 'Burden', full: 2.32, selected: 0, color: '#6d28d8' }
+    { key: 'material', label: 'Material', full: 9.31, selected: 4.20, color: palette.COST_ELEMENT_COLORS.material },
+    { key: 'labor', label: 'Labor', full: 4.42, selected: -1.20, color: palette.COST_ELEMENT_COLORS.labor },
+    { key: 'burden', label: 'Burden', full: 2.32, selected: 0, color: palette.COST_ELEMENT_COLORS.burden }
   ]
   const selectedChart = renderToStaticMarkup(React.createElement(page.GapContributionChart, {
     segments: selectedSegments,
@@ -278,6 +282,12 @@ try {
   const costSelectedHeaders = tableHeaderLabels(costSelectedTable)
   assert.deepEqual(costFullHeaders, ['Cost Breakdown', 'REF', 'CUR', 'GAP (Selected)', '%GAP'])
   assert.deepEqual(costSelectedHeaders, ['Cost Breakdown', 'REF', 'CUR', 'GAP (Selected)', '%GAP'])
+  for (const label of ['REF', 'CUR', '%GAP']) {
+    assert.match(costFullTable, new RegExp(`<th scope="col" class="px-2 py-1\\.5 text-right">${label}</th>`),
+      `Cost ${label} header must share the right edge used by its numeric values`)
+  }
+  assert.match(costFullTable, /<span data-gap-header-slot="full" class="text-right">GAP<\/span>/,
+    'Cost GAP header must align to the Full Gap value slot')
   assert.equal(costSelectedHeaders.length, 5, 'Selected must not become a standalone Cost column')
   assert.equal(tableRows(costFullTable).length, 5, 'Cost must have one header, three element rows, and one footer row')
   assert.equal(tableRows(costSelectedTable).length, 5, 'Selected mode must preserve the same five-row Cost structure')
@@ -287,8 +297,8 @@ try {
   const costSelectedGapHeader = costSelectedTable.match(/<span data-gap-header-slot="full"[^>]*>/)?.[0]
   assert.ok(costFullGapHeader && costSelectedGapHeader)
   assert.equal(costFullGapHeader, costSelectedGapHeader, 'GAP header remains aligned to the fixed Full Gap slot')
-  assert.equal((costFullTable.match(/grid-cols-\[minmax\(0,1fr\)_54px\]/g) ?? []).length, 5, 'Cost header and all four GAP cells share the same fixed Selected slot width')
-  assert.equal((costSelectedTable.match(/grid-cols-\[minmax\(0,1fr\)_54px\]/g) ?? []).length, 5, 'Selected mode preserves the shared fixed GAP slot width')
+  assert.equal((costFullTable.match(/grid-cols-\[minmax\(0,1fr\)_max-content\]/g) ?? []).length, 5, 'Cost header and all four GAP cells share the Selected slot grid')
+  assert.equal((costSelectedTable.match(/grid-cols-\[minmax\(0,1fr\)_max-content\]/g) ?? []).length, 5, 'Selected mode preserves the shared GAP slot grid')
   assert.match(costFullTable, /data-gap-header-slot="selected" aria-hidden="true"[^>]*invisible/)
   assert.match(costSelectedTable, /data-gap-header-slot="selected" aria-hidden="false"/)
 
@@ -305,8 +315,8 @@ try {
       fullSlot.className.split(/\s+/).filter(Boolean).filter(token => token !== 'invisible').sort().join(' '),
       'Selected slot layout classes must remain stable for ' + label
     )
-    assert.match(selectedSlot.className, /w-\[54px\].*grid-cols-\[1ch_minmax\(0,1fr\)_1ch\].*tabular-nums/,
-      'Selected punctuation and numeric value use a fixed aligned grid for ' + label)
+    assert.match(selectedSlot.className, /w-max.*min-w-\[9ch\].*grid-cols-\[1ch_minmax\(7ch,max-content\)_1ch\].*tabular-nums/,
+      'Selected punctuation and numeric value use compact fixed ch slots with max-content fallback for ' + label)
   }
 
   const expectedCostRows = [
@@ -340,6 +350,10 @@ try {
   const wcTables = [...wcMarkup.matchAll(/<table\b[\s\S]*?<\/table>/g)].map(match => match[0])
   assert.equal(wcTables.length, 1, 'Work Center header, scroll body, and footer share one table grid')
   assert.deepEqual(tableHeaderLabels(wcTables[0]), ['Work Center', 'REF', 'CUR', 'GAP', '%GAP'])
+  for (const label of ['REF', 'CUR', 'GAP', '%GAP']) {
+    assert.match(wcTables[0], new RegExp(`<th scope="col" class="px-2 py-1\\.5 text-right">${label}</th>`),
+      `Work Center ${label} header must share the right edge used by its numeric values`)
+  }
   assert.doesNotMatch(wcTables[0], /GAP \(Selected\)/)
   const wcRow = rowFor(wcTables[0], 'WC-CUT')
   assert.deepEqual(tableCells(wcRow), [

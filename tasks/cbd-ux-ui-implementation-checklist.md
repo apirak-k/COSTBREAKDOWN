@@ -1,5 +1,57 @@
 # CBD Corrective Round Checklist
 
+## Latest CBD UX Refinement — 2026-10-15
+
+This addendum is the current UX authority for this uncommitted pass, starting
+from `f7d060f517995edde576356e7839f6cb3ac073c5`. The historical checkbox and
+evidence sections below record the earlier pass and do not override these
+updated decisions.
+
+[x] Candidate parameter headers show `Δ Usage / Δ Price / Δ Loss` and
+    `Δ Manning / Δ Capacity / Δ Yield / Δ LB Rate / Δ BD Rate`.
+[x] ADDED main values come from Current and are prefixed `CUR`; REMOVED main
+    values come from Reference and are prefixed `REF`; genuinely unavailable
+    present-side values stay `—`.
+[x] BOM CHANGED detail is exactly `Reference → Current` and `Parameter Cost
+    Effect`, using existing BOM LMDI effects.
+[x] Routing resolves Reference and Current Work Center rates independently;
+    its CHANGED detail is exactly `Reference → Current` and `Parameter Cost
+    Effect`, with all five existing LMDI factors and the Candidate Gap.
+[x] BOM and Routing use their own factor-count grids at the same table width;
+    `#`, identity, Status, Gap, `%GAP`, reorder, and detail axes align, while
+    each Detail remains on its parent table's exact grid. Candidate reorder
+    uses pointer capture and releases state on pointer up, cancellation, or
+    capture loss.
+[x] Cost and Work Center summary columns use balanced widths; the Selected
+    value has a compact, stable parenthesis/number/parenthesis layout with a
+    content-size fallback. Existing Gap formulas and full-vs-selected scope
+    remain unchanged.
+[x] Gap Bar segments, MAT/LB/BD legend, and Standard Cost label use the single
+    shared palette. The chart still has exactly three cost-element segments.
+[x] `COST_BREAKDOWN.md` and the directly conflicting CBD portion of `design.md`
+    now describe the current detail rows, factors, and availability behavior.
+[x] Browser review at 1920×920 used the canonical workbook in an isolated app
+    origin. Changed BOM Price and the Cutting Work Center Labor Rate; verified
+    Reference → Current values, five Routing factors, and the Parameter Cost
+    Effect Gap matching the Candidate Gap. Selecting BOM and Routing findings
+    showed aligned Selected slots in Cost only; WC remained Full Comparison.
+[x] Focused CBD parameter/summary/sort/view checks, reconciliation,
+    unavailable-side, Work Center, Selected boundary/lifecycle, Candidate
+    prioritization, drag selection, Master Data UI/toolbar, active-tab, and
+    Simulation compatibility verifiers passed.
+[x] `npm run build` passed; only the existing ExcelJS/fast-csv browser
+    externalization warnings for `fs` and `crypto` appeared.
+[x] `git diff --check` passed. Changes remain uncommitted and unpushed.
+
+## Candidate table alignment follow-up — 2026-10-15
+
+[x] BOM now shares the RTG `#`, identity, and Status widths; its three
+    parameter columns use the same combined width as RTG's five parameter
+    columns, so Gap and trailing controls align. Both tables use a 1400px
+    minimum width to preserve those shared axes.
+[x] The CBD parameter verifier checks the shared leading/trailing axes,
+    equal parameter-group width, and table width.
+
 Branch: `codex/cbd-candidate-integration`  |  Starting HEAD: `28d8f59b7a1235d4a88ef6303c5167c98c43de37`
 ==================================================
 

@@ -79,10 +79,14 @@ requirements:
   has one whole-region collapse control, expanded by default. Candidate owns
   the CBD vertical scroll area; its tables may scroll horizontally inside their
   own bounds.
-- CBD changed BOM detail aligns REF / CUR / EFFECT rows with Usage / Price / Loss
-  / Cost Gap columns. Changed RTG detail aligns REF / CUR / EFFECT rows with
-  Manning / Capacity / Yield / Cost Gap columns; Work Center and rate context
-  stay secondary. Do not add Unit, `% Parent`, or RTG LB/BD/CONV main columns.
+- CBD CHANGED BOM detail uses Reference → Current and Parameter Cost Effect
+  rows aligned with `Δ Usage` / `Δ Price` / `Δ Loss` / Gap. CHANGED RTG main
+  rows also expose `Δ LB Rate` and `Δ BD Rate`, resolved per snapshot through
+  the Routing step's uniquely matched Work Center. RTG detail uses Reference →
+  Current and Parameter Cost Effect rows aligned across Manning, Capacity,
+  Yield, LB Rate, BD Rate, and Gap; all five existing additive LMDI effects
+  reconcile to the main Candidate Gap. Do not add Unit, `% Parent`, a separate
+  Rate Effect/Total Effect row, or a fourth cost-element chart segment.
 - Follow the finalized Selling Price, SG&A, and OP formulas in
   [`FINAL_LOGIC_SPEC.md`](docs/specs/FINAL_LOGIC_SPEC.md). Metrics classified as
   OUT OF SCOPE remain unavailable and must not be implied; never fill a visual

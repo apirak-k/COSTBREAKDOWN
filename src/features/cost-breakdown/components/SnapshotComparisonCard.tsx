@@ -2,6 +2,7 @@ import React from 'react'
 import { formatNumber, formatPercent, formatVariance, getVarianceClass, safeAdd, safeDivide } from '../../../core'
 import type { CostComparison } from '../../../core'
 import { Tooltip } from '../../../shared/ui/Tooltip'
+import { COST_ELEMENT_COLORS } from './cost-element-colors'
 
 interface SnapshotComparisonCardProps {
   comparison: CostComparison
@@ -28,9 +29,9 @@ function renderGap(value: number | null, selectedValue: number | null, selectedA
   if (selectedActive) tooltipLines.push(`Selected (${formatGap(selectedValue)})`)
   return (
     <Tooltip label={tooltipLines.join('\n')} wrapperClassName="flex w-full justify-end">
-      <span tabIndex={0} aria-label={`${tooltipLabel} Gap ${formatGap(value)}${selectedActive ? `; Selected (${formatGap(selectedValue)})` : ''}`} className="grid w-full grid-cols-[minmax(0,1fr)_54px] items-baseline gap-x-1 whitespace-nowrap font-mono tabular-nums">
+      <span tabIndex={0} aria-label={`${tooltipLabel} Gap ${formatGap(value)}${selectedActive ? `; Selected (${formatGap(selectedValue)})` : ''}`} className="grid w-full grid-cols-[minmax(0,1fr)_max-content] items-baseline gap-x-1 whitespace-nowrap font-mono tabular-nums">
         <span data-gap-slot="full" className={`text-right ${value === null ? 'text-slate-400' : getVarianceClass(value)}`}>{formatGap(value)}</span>
-        <span data-gap-slot="selected" aria-hidden={!selectedActive} className={`grid w-[54px] grid-cols-[1ch_minmax(0,1fr)_1ch] items-baseline text-[10px] font-normal text-slate-500 tabular-nums ${selectedActive ? '' : 'invisible'}`}>
+        <span data-gap-slot="selected" aria-hidden={!selectedActive} className={`grid w-max min-w-[9ch] grid-cols-[1ch_minmax(7ch,max-content)_1ch] items-baseline text-[10px] font-normal text-slate-500 tabular-nums ${selectedActive ? '' : 'invisible'}`}>
           <span data-selected-gap-part="open">(</span>
           <span data-selected-gap-part="value" className="min-w-0 text-right">{selectedActive ? formatGap(selectedValue) : '0.00'}</span>
           <span data-selected-gap-part="close">)</span>
@@ -98,19 +99,19 @@ export const SnapshotComparisonCard: React.FC<SnapshotComparisonCardProps> = ({
       <div className="h-full w-full overflow-x-auto">
         <table className="h-full w-full min-w-[560px] table-fixed text-left text-xs">
           <caption className="sr-only">Cost Breakdown for Reference, Current, Gap, and Gap percentage</caption>
-          <colgroup><col className="w-[28%]" /><col className="w-[16%]" /><col className="w-[16%]" /><col className="w-[26%]" /><col className="w-[14%]" /></colgroup>
+          <colgroup><col className="w-[20%]" /><col className="w-[18%]" /><col className="w-[18%]" /><col className="w-[26%]" /><col className="w-[18%]" /></colgroup>
           <thead>
             <tr className="bg-slate-800 font-semibold text-white">
               <th scope="col" className="px-2 py-1.5">Cost Breakdown</th>
               <th scope="col" className="px-2 py-1.5 text-right">REF</th>
               <th scope="col" className="px-2 py-1.5 text-right">CUR</th>
-              <th scope="col" className="px-2 py-1.5"><span className="grid w-full grid-cols-[minmax(0,1fr)_54px] items-baseline gap-x-1 font-mono tabular-nums"><span data-gap-header-slot="full" className="text-right">GAP</span><span data-gap-header-slot="selected" aria-hidden={!selectedActive} className={`w-[54px] text-right font-sans text-[9px] font-normal text-slate-300 ${selectedActive ? '' : 'invisible'}`}>&nbsp;(Selected)</span></span></th>
+              <th scope="col" className="px-2 py-1.5"><span className="grid w-full grid-cols-[minmax(0,1fr)_max-content] items-baseline gap-x-1 font-mono tabular-nums"><span data-gap-header-slot="full" className="text-right">GAP</span><span data-gap-header-slot="selected" aria-hidden={!selectedActive} className={`w-max min-w-[9ch] whitespace-nowrap text-center font-sans text-[9px] font-normal text-slate-300 ${selectedActive ? '' : 'invisible'}`}>(Selected)</span></span></th>
               <th scope="col" className="px-2 py-1.5 text-right">%GAP</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100 font-mono tabular-nums">
             {rows.slice(0, 3).map(row => <tr key={row.label}>
-              <th scope="row" className="px-2 py-1.5 text-left font-sans font-medium text-slate-700">{row.label}</th>
+              <th scope="row" style={row.total ? { color: COST_ELEMENT_COLORS.standardCost } : undefined} className="px-2 py-1.5 text-left font-sans font-medium text-slate-700">{row.label}</th>
               <td className="px-2 py-1.5 text-right text-slate-600">{formatCost(row.reference)}</td>
               <td className="px-2 py-1.5 text-right text-slate-900">{formatCost(row.current)}</td>
               <td className="px-2 py-1.5 text-right">{renderGap(row.gap, row.selectedGap, selectedActive, row.tooltipLabel)}</td>
@@ -119,7 +120,7 @@ export const SnapshotComparisonCard: React.FC<SnapshotComparisonCardProps> = ({
           </tbody>
           <tfoot className="border-t-2 border-slate-300 bg-slate-100 font-semibold font-mono tabular-nums">
             {rows.slice(3).map(row => <tr key={row.label}>
-              <th scope="row" className="px-2 py-1.5 text-left font-sans text-slate-950">{row.label}</th>
+              <th scope="row" style={{ color: COST_ELEMENT_COLORS.standardCost }} className="px-2 py-1.5 text-left font-sans">{row.label}</th>
               <td className="px-2 py-1.5 text-right text-slate-700">{formatCost(row.reference)}</td>
               <td className="px-2 py-1.5 text-right text-slate-950">{formatCost(row.current)}</td>
               <td className="px-2 py-1.5 text-right">{renderGap(row.gap, row.selectedGap, selectedActive, row.tooltipLabel)}</td>

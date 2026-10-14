@@ -31,6 +31,16 @@ function normalizeKey(value: string | undefined): string {
   return value?.trim().toLowerCase() ?? ''
 }
 
+/** Resolves a Routing step's Work Center only when its snapshot-side identity is unique. */
+export function resolveSnapshotRoutingRate(
+  step: SnapshotRoutingStep | undefined,
+  rates: SnapshotWorkCenterRate[]
+): SnapshotWorkCenterRate | undefined {
+  if (!step?.workCenterId) return undefined
+  const matchingRates = rates.filter(rate => normalizeKey(rate.workCenterCode) === normalizeKey(step.workCenterId))
+  return matchingRates.length === 1 ? matchingRates[0] : undefined
+}
+
 function calculateSide(step: SnapshotRoutingStep | undefined, rates: SnapshotWorkCenterRate[]): SideCalculation {
   if (!step
     || step.manning == null || !isMasterDataNumericValueValid('manning', step.manning)
@@ -45,10 +55,7 @@ function calculateSide(step: SnapshotRoutingStep | undefined, rates: SnapshotWor
     return { runtime: null, laborCost: null, burdenCost: null, total: null }
   }
 
-  const matchingRates = step.workCenterId
-    ? rates.filter(candidate => normalizeKey(candidate.workCenterCode) === normalizeKey(step.workCenterId))
-    : []
-  const rate = matchingRates.length === 1 ? matchingRates[0] : undefined
+  const rate = resolveSnapshotRoutingRate(step, rates)
   const laborCost = rate?.laborRate == null || !isMasterDataNumericValueValid('laborRate', rate.laborRate)
     ? null
     : safeMultiply(runtime, rate.laborRate)

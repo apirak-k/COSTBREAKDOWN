@@ -6,7 +6,8 @@ import {
   formatVariance,
   getCanonicalComparisonStatus,
   getComparisonStatusLabels,
-  getComparisonFindingKey
+  getComparisonFindingKey,
+  isMasterDataNumericValueValid
 } from '../../../core'
 import type { ComparisonFinding, ComparisonStatus, SnapshotBOMItem } from '../../../core'
 
@@ -27,6 +28,25 @@ interface BOMRecordDetailsProps {
 
 const formatNullable = (value: number | null | undefined, format: (value: number) => string) =>
   value === null || value === undefined ? '—' : format(value)
+
+function validFactorValue(field: 'consumption' | 'price' | 'loss', value: number | null | undefined): number | null {
+  return value !== null && value !== undefined && Number.isFinite(value) && isMasterDataNumericValueValid(field, value)
+    ? value
+    : null
+}
+
+function formatReferenceCurrent(
+  field: 'consumption' | 'price' | 'loss',
+  reference: number | null | undefined,
+  current: number | null | undefined,
+  format: (value: number) => string
+): string {
+  const referenceValue = validFactorValue(field, reference)
+  const currentValue = validFactorValue(field, current)
+  if (referenceValue === null || currentValue === null) return '—'
+  if (referenceValue === currentValue) return format(referenceValue)
+  return `${format(referenceValue)} → ${format(currentValue)}`
+}
 
 export function getBOMComparisonLabel(finding: ComparisonFinding): ComparisonStatus | null {
   return getComparisonStatusLabels(finding)[0] ?? null
@@ -97,47 +117,55 @@ export function BOMRecordDetails({ row, detailId }: BOMRecordDetailsProps) {
       )
     : null
   const effects = effect?.status === 'available' ? effect.effects : null
-  const parameterRows = [
+  const parameterValues = [
     {
-      label: 'Reference',
-      usage: reference?.consumption ?? null,
-      price: reference?.price ?? null,
-      loss: reference?.loss ?? null,
-      cost: reference ? row.referenceCost : null
+      field: 'consumption' as const,
+      reference: reference?.consumption,
+      current: current?.consumption,
+      effect: effects?.usage,
+      format: (value: number) => formatNumber(value, 4)
     },
     {
-      label: 'Current',
-      usage: current?.consumption ?? null,
-      price: current?.price ?? null,
-      loss: current?.loss ?? null,
-      cost: current ? row.currentCost : null
+      field: 'price' as const,
+      reference: reference?.price,
+      current: current?.price,
+      effect: effects?.price,
+      format: (value: number) => formatNumber(value, 4)
     },
     {
-      label: 'Parameter Effect',
-      usage: effects?.usage ?? null,
-      price: effects?.price ?? null,
-      loss: effects?.loss ?? null,
-      cost: row.gap,
-      effect: true
+      field: 'loss' as const,
+      reference: reference?.loss,
+      current: current?.loss,
+      effect: effects?.loss,
+      format: (value: number) => formatPercent(value, 2)
     }
   ]
 
+  const renderDetailRow = (label: string, effectRow: boolean, id?: string) => <tr
+    key={label}
+    id={id}
+    className={effectRow
+      ? 'border-b border-slate-200 bg-white font-bold text-slate-950'
+      : 'border-t border-slate-200 bg-white font-normal text-slate-600'}
+  >
+    <td aria-hidden="true" className="px-1 py-1.5" />
+    <th scope="row" className={`truncate border-l-2 border-slate-300 px-2.5 py-1.5 text-left font-sans ${effectRow ? 'font-bold' : 'font-normal'}`}>{label}</th>
+    <td aria-hidden="true" className="px-2 py-1.5" />
+    {parameterValues.map(item => <td key={item.field} className="px-2 py-1.5 text-right">
+      {effectRow
+        ? formatNullable(item.effect ?? null, value => formatVariance(value, 4))
+        : formatReferenceCurrent(item.field, item.reference, item.current, item.format)}
+    </td>)}
+    <td className={`px-2 py-1.5 text-right ${effectRow ? 'font-mono tabular-nums' : ''}`}>
+      {effectRow ? formatNullable(row.gap, value => formatVariance(value, 4)) : ''}
+    </td>
+    <td aria-hidden="true" className="px-2 py-1.5" />
+    <td aria-hidden="true" className="px-1 py-1.5" />
+    <td aria-hidden="true" className="px-1 py-1.5" />
+  </tr>
+
   return <>
-    {parameterRows.map((item, index) => <tr
-      key={item.label}
-      id={index === 0 ? detailId : undefined}
-      className={item.effect ? 'border-b border-slate-200 bg-slate-100 font-semibold' : index === 0 ? 'border-t border-slate-200 bg-slate-50/80' : 'bg-slate-50/80'}
-    >
-      <td aria-hidden="true" className="px-2 py-1.5" />
-      <th scope="row" className={`truncate border-l-2 border-slate-300 px-2.5 py-1.5 text-left font-sans ${item.effect ? 'font-semibold text-slate-950' : 'font-medium text-slate-700'}`}>{item.label}</th>
-      <td aria-hidden="true" className="px-2.5 py-1.5" />
-      <td className="px-2.5 py-1.5 text-right">{item.effect ? formatNullable(item.usage, value => formatVariance(value, 4)) : formatNullable(item.usage, value => formatNumber(value, 4))}</td>
-      <td className="px-2.5 py-1.5 text-right">{item.effect ? formatNullable(item.price, value => formatVariance(value, 4)) : formatNullable(item.price, value => formatNumber(value, 4))}</td>
-      <td className="px-2.5 py-1.5 text-right">{item.effect ? formatNullable(item.loss, value => formatVariance(value, 4)) : formatNullable(item.loss, value => formatPercent(value, 2))}</td>
-      <td className="px-2.5 py-1.5 text-right">{item.effect ? formatNullable(item.cost, value => formatVariance(value, 4)) : formatNullable(item.cost, value => formatNumber(value, 4))}</td>
-      <td aria-hidden="true" className="px-2.5 py-1.5" />
-      <td aria-hidden="true" className="px-1 py-1.5" />
-      <td aria-hidden="true" className="px-1 py-1.5" />
-    </tr>)}
+    {renderDetailRow('Reference → Current', false, detailId)}
+    {renderDetailRow('Parameter Cost Effect', true)}
   </>
 }
