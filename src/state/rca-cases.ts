@@ -1,34 +1,5 @@
-import type { CandidateRcaDraft, CurrentRcaWorkspace, ProductSession, RcaCaseRecord } from '../core/types/product.types'
+import type { CandidateRcaDraft, ProductSession, RcaCaseRecord } from '../core/types/product.types'
 import type { ActiveTab } from './active-tab'
-
-export const EMPTY_CURRENT_RCA_WORKSPACE: CurrentRcaWorkspace = {
-  candidateKeys: [],
-  rootCause: '',
-  action: ''
-}
-
-export function readCurrentRcaWorkspace(session: ProductSession): CurrentRcaWorkspace {
-  if (session.currentRcaWorkspace) return session.currentRcaWorkspace
-  const activeCase = session.activeRcaCaseId ? session.rcaCases?.[session.activeRcaCaseId] : undefined
-  return activeCase ?? EMPTY_CURRENT_RCA_WORKSPACE
-}
-
-export function writeCurrentRcaWorkspace(
-  session: ProductSession,
-  workspace: CurrentRcaWorkspace,
-  eligibleCandidateKeys: string[]
-): ProductSession {
-  const eligible = new Set(eligibleCandidateKeys)
-  const candidateKeys = [...new Set(workspace.candidateKeys)].filter(key => eligible.has(key))
-  const current = session.currentRcaWorkspace
-  if (current
-    && current.candidateKeys.length === candidateKeys.length
-    && current.candidateKeys.every((key, index) => key === candidateKeys[index])
-    && current.rootCause === workspace.rootCause
-    && current.action === workspace.action) return session
-
-  return { ...session, currentRcaWorkspace: { ...workspace, candidateKeys } }
-}
 
 export interface RcaSimulationHandoffContext extends CandidateRcaDraft {
   caseId: string

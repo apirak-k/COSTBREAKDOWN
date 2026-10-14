@@ -1,5 +1,9 @@
 import assert from 'node:assert/strict'
-import { isVisibleInComparisonView } from '../src/features/cost-breakdown/components/comparison-view.ts'
+import { createServer } from 'vite'
+
+const vite = await createServer({ server: { middlewareMode: true }, appType: 'custom', logLevel: 'error' })
+try {
+const { isVisibleInComparisonView } = await vite.ssrLoadModule('/src/features/cost-breakdown/components/comparison-view.ts')
 
 const unchanged = {
   matchStatus: 'matched' as const,
@@ -25,3 +29,6 @@ assert.equal(isVisibleInComparisonView({ ...unchanged, matchStatus: 'added' }, [
 assert.equal(isVisibleInComparisonView({ ...unchanged, matchStatus: 'added' }, ['ADDED']), true)
 
 console.log('Cost Breakdown view verification passed.')
+} finally {
+  await vite.close()
+}

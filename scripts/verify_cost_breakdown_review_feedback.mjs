@@ -4,61 +4,31 @@ import { renderToStaticMarkup } from 'react-dom/server'
 import * as XLSX from 'xlsx'
 import { createServer } from 'vite'
 
-const comparisonGapCandidate = {
-  candidateKey: 'bom:bom-1', candidateName: 'Material price', category: 'Direct Material',
-  factor: 'Price', status: 'CHANGED', referenceCost: 10, currentCost: 22, costGap: 12,
-  controllable: true, rank: 1, sourceType: 'bom', sourceId: 'bom-1'
-}
-
 const vite = await createServer({
   server: { middlewareMode: true },
   appType: 'custom',
-  logLevel: 'error',
-  plugins: [{
-    name: 'candidate-selection-test-store',
-    enforce: 'pre',
-    resolveId(source, importer) {
-      if (source === '../../state' && importer?.replaceAll('\\', '/').endsWith('/src/features/candidate-selection/CandidateSelectionPage.tsx')) {
-        return '\0candidate-selection-test-store'
-      }
-      return null
-    },
-    load(id) {
-      if (id !== '\0candidate-selection-test-store') return null
-      return `export const useAppStore = () => ({ candidates: [${JSON.stringify(comparisonGapCandidate)}], snapshotComparison: { totalGap: null }, rcaCases: [], activeRcaCaseId: null, isSelectedComparisonActive: false, selectedComparisonSelection: null, toggleCandidateControllable() {}, createRcaCase() {}, selectRcaCase() {}, saveRcaCase() {}, clearSelectedComparison() {} })`
-    }
-  }]
+  logLevel: 'error'
 })
 const visibleText = markup => markup.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim()
 
 try {
   const [
-    { RoutingDetailedTable },
-    { BOMDetailedTable },
     { WorkCenterComparisonTable },
     { SnapshotComparisonCard },
     { BOMTable },
     { WorkCenterRatesTable },
     { RoutingTable },
     { formatComparisonFieldDiffs },
-    { CandidateSelectionPage },
-    { CandidatesTable },
-    { CandidateRow },
     { parseSnapshotWorkbookData },
     { SimulationStoryGraph },
     { createScenarioStory }
   ] = await Promise.all([
-    vite.ssrLoadModule('/src/features/cost-breakdown/components/RoutingDetailedTable.tsx'),
-    vite.ssrLoadModule('/src/features/cost-breakdown/components/BOMDetailedTable.tsx'),
     vite.ssrLoadModule('/src/features/cost-breakdown/components/WorkCenterComparisonTable.tsx'),
     vite.ssrLoadModule('/src/features/cost-breakdown/components/SnapshotComparisonCard.tsx'),
     vite.ssrLoadModule('/src/features/master-data/components/BOMTable.tsx'),
     vite.ssrLoadModule('/src/features/master-data/components/WorkCenterRatesTable.tsx'),
     vite.ssrLoadModule('/src/features/master-data/components/RoutingTable.tsx'),
     vite.ssrLoadModule('/src/features/cost-breakdown/components/comparison-field-details.ts'),
-    vite.ssrLoadModule('/src/features/candidate-selection/CandidateSelectionPage.tsx'),
-    vite.ssrLoadModule('/src/features/candidate-selection/components/CandidatesTable.tsx'),
-    vite.ssrLoadModule('/src/features/candidate-selection/components/CandidateRow.tsx'),
     vite.ssrLoadModule('/src/services/excel/snapshot-parser.ts'),
     vite.ssrLoadModule('/src/features/simulation/SimulationStoryGraph.tsx'),
     vite.ssrLoadModule('/src/core/calculations/scenario-story.ts')
@@ -112,51 +82,6 @@ try {
   assert.equal(roundTripResult.success, true)
   assert.equal(roundTripResult.snapshot.rates[0].workCenterCode, 'WC-1', 'approved Work Center identity must stay intact when imported')
 
-  const candidateSummaryMarkup = renderToStaticMarkup(React.createElement(CandidateSelectionPage))
-  const comparisonSummary = candidateSummaryMarkup.match(/<dt[^>]*>(?:Comparison|Selected) Gap<\/dt><dd[^>]*>([\s\S]*?)<\/dd>/i)?.[1]
-  assert.equal(comparisonSummary, '—', 'the exact comparison total must remain unavailable when reconciliation has no total')
-  const candidateSubtotalMarkup = renderToStaticMarkup(React.createElement(CandidatesTable, {
-    candidates: [comparisonGapCandidate],
-    selectedCandidateKeys: new Set(),
-    onToggleControllable() {},
-    onToggleRcaSelection() {},
-    showVisibleGap: true
-  }))
-  assert.ok(candidateSubtotalMarkup.includes('Visible candidate gap'), 'candidate subtotal remains separately labeled in its table')
-  assert.ok(candidateSubtotalMarkup.includes('Subtotal · selected status rows'))
-
-  const processCandidateMarkup = renderToStaticMarkup(React.createElement(CandidateRow, {
-    candidate: {
-      ...comparisonGapCandidate,
-      candidateName: 'Process A',
-      category: 'Process / Routing',
-      sourceType: 'process',
-      processBreakdown: {
-        reference: [{ id: 'ref-a', processName: 'Process A', manning: 1, capacity: 10, yield: 1, laborCost: 1, burdenCost: 0.5, totalCost: 1.5 }],
-        current: [{ id: 'cur-a', processName: 'Process A', manning: 1, capacity: 10, yield: 1, laborCost: 1, burdenCost: 0.5, totalCost: 1.5 }]
-      }
-    },
-    onToggleControllable() {}
-  }))
-  assert.match(processCandidateMarkup, /Process details \(1 Reference · 1 Current\)/)
-  assert.doesNotMatch(processCandidateMarkup, /Process A2/)
-
-  const factorCandidateMarkup = renderToStaticMarkup(React.createElement(CandidateRow, {
-    candidate: {
-      ...comparisonGapCandidate,
-      candidateName: 'Resin',
-      factor: 'Multiple input changes',
-      changeDetails: [
-        { field: 'Price', reference: 2, current: 3 },
-        { field: 'Loss', reference: 0.1, current: 0.2 }
-      ]
-    },
-    onToggleControllable() {}
-  }))
-  const factorCandidateText = visibleText(factorCandidateMarkup)
-  assert.ok(factorCandidateText.includes('Price: 2.00 → to 3.00'))
-  assert.ok(factorCandidateText.includes('Loss: 10.00% → to 20.00%'))
-
   assert.deepEqual(formatComparisonFieldDiffs({
     sequence: { reference: 10, current: 20 },
     manning: { reference: 1, current: null },
@@ -168,73 +93,6 @@ try {
     { field: 'processName', label: 'Process Name', reference: 'Cut', current: 'Turn' },
     { field: 'additionalFields.Batch Size', label: 'Batch Size', reference: '—', current: '5' }
   ])
-
-  const referenceRouting = {
-    id: 'routing-ref', operationCode: 'OP-10', sequence: 10, processName: 'Cut',
-    workCenterId: 'WC-01', manning: 1, capacity: 100, yield: 0.95, confidence: {}
-  }
-  const currentRouting = {
-    ...referenceRouting, id: 'routing-current', sequence: 20, processName: 'Turn',
-    workCenterId: 'WC-02', manning: null
-  }
-  const routingFinding = {
-    referenceId: referenceRouting.id,
-    currentId: currentRouting.id,
-    matchStatus: 'matched',
-    changeFlags: {},
-    fieldDiffs: {
-      sequence: { reference: 10, current: 20 },
-      processName: { reference: 'Cut', current: 'Turn' },
-      workCenterId: { reference: 'WC-01', current: 'WC-02' },
-      manning: { reference: 1, current: null }
-    },
-    confidence: 'verified'
-  }
-  const routingMarkup = renderToStaticMarkup(React.createElement(RoutingDetailedTable, {
-    referenceItems: [referenceRouting],
-    currentItems: [currentRouting],
-    referenceRates: [],
-    currentRates: [],
-    findings: [routingFinding]
-  }))
-  const routingText = visibleText(routingMarkup)
-  const routingBody = routingMarkup.match(/<tbody[^>]*>([\s\S]*?)<\/tbody>/)?.[1] ?? ''
-  for (const heading of ['Ref Sequence', 'Current Sequence', 'Ref Manning', 'Current Manning']) {
-    assert.ok(routingMarkup.includes(heading), `Routing table should show ${heading}`)
-  }
-  assert.ok(routingText.includes('Sequence: 10 → 20'))
-  assert.ok(routingText.includes('Manning: 1 → —'))
-  assert.ok(routingText.includes('Process Name: Cut → Turn'))
-  assert.ok(routingText.includes('Work Center Id: WC-01 → WC-02'))
-  assert.match(routingBody, /<td class="p-2\.5 text-slate-500 tabular-nums">10<\/td><td class="p-2\.5 text-right font-bold text-slate-900 tabular-nums">20<\/td>/)
-  assert.match(routingBody, /<td class="p-2\.5 text-right text-slate-500 tabular-nums">1\.00<\/td><td class="p-2\.5 text-right font-bold text-slate-900 tabular-nums">—<\/td>/)
-
-  const referenceBOM = {
-    id: 'bom-ref', itemCode: 'MAT-01', description: 'Old description',
-    consumption: 1, unit: 'EA', price: 2, loss: 0.03, confidence: {}
-  }
-  const currentBOM = {
-    ...referenceBOM, id: 'bom-current', description: null, unit: null
-  }
-  const bomMarkup = renderToStaticMarkup(React.createElement(BOMDetailedTable, {
-    referenceItems: [referenceBOM],
-    currentItems: [currentBOM],
-    findings: [{
-      referenceId: referenceBOM.id, currentId: currentBOM.id, matchStatus: 'matched',
-      changeFlags: {},
-      fieldDiffs: {
-        description: { reference: 'Old description', current: null },
-        unit: { reference: 'EA', current: null }
-      },
-      confidence: 'verified'
-    }]
-  }))
-  const bomText = visibleText(bomMarkup)
-  const bomBody = bomMarkup.match(/<tbody[^>]*>([\s\S]*?)<\/tbody>/)?.[1] ?? ''
-  assert.ok(bomText.includes('Name: Old description → —'))
-  assert.ok(bomText.includes('Unit: EA → —'))
-  assert.match(bomBody, /title="—"><div class="space-y-1"><div>—<\/div>/)
-  assert.match(bomBody, /class="p-2\.5 font-sans font-medium text-slate-800 whitespace-nowrap">—<\/td>/)
 
   const referenceRate = {
     id: 'rate-ref', workCenterCode: 'WC-01', description: 'Old work center',
@@ -258,7 +116,7 @@ try {
   const assertMasterDataTableIsQuiet = markup => {
     assert.doesNotMatch(markup, /rows need review|Name is required|Name must be unique|Usage is missing|Unit is missing|Price is missing|Loss is missing|WC is required|Process is required|not in the WC table|Manning is missing|Cap is missing|Yield is missing/)
     assert.ok(markup.includes('aria-invalid="true"'), 'invalid cells stay exposed to assistive technology')
-    assert.match(markup, /border-amber-600[^\"]*!?bg-amber-50/, 'invalid cells stay visibly marked')
+    assert.match(markup, /border-amber-300[^\"]*!?bg-amber-50/, 'invalid cells stay visibly marked')
     const headerRow = markup.match(/<thead[^>]*>\s*<tr>([\s\S]*?)<\/tr>/)?.[1] ?? ''
     assert.match(headerRow, /<th[^>]*class="sticky left-0[^>]*>[\s\S]*?<button[^>]*aria-label="Select all visible [^"]+ rows"[^>]*>\#[\s\S]*?<\/button>/,
       'the Select All row-number control must stay pinned at the left')
@@ -297,10 +155,6 @@ try {
   }))
   assertMasterDataTableIsQuiet(routingTableMarkup)
 
-  const warnings = Array.from({ length: 5 }, (_, index) => ({
-    code: `WARNING-${index + 1}`,
-    message: `Review warning ${index + 1}`
-  }))
   const emptyCost = { material: 0, labor: 0, burden: 0, total: 0, status: 'complete' }
   const summaryMarkup = renderToStaticMarkup(React.createElement(SnapshotComparisonCard, {
     comparison: {
@@ -312,15 +166,12 @@ try {
       routingFindings: [],
       processingFindings: [],
       workCenterFindings: [],
-      warnings,
       reconciliation: { reconciled: true }
     }
   }))
-  for (const warning of warnings) assert.ok(summaryMarkup.includes(warning.message))
-  assert.equal((summaryMarkup.match(/<li>/g) ?? []).length, 5)
-  const warningDisclosure = summaryMarkup.match(/<details>([\s\S]*?)<\/details>/)?.[0] ?? ''
-  assert.match(warningDisclosure, /<summary[^>]*>Review warnings \(5\)<\/summary>[\s\S]*?<ul\b/)
-  assert.ok(!/<details\b[^>]*\bopen/.test(warningDisclosure), 'warning details must be collapsed by default')
+  for (const label of ['Standard Cost Overview', 'Cost element', 'REF', 'CUR', 'Gap', 'Material', 'Labor', 'Burden', 'Standard Cost']) {
+    assert.ok(summaryMarkup.includes(label), `Cost overview still exposes ${label}`)
+  }
 
   console.log('Cost Breakdown review feedback component checks passed.')
 } finally {

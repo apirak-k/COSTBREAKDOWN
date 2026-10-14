@@ -1,15 +1,12 @@
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
-import {
-  compareSnapshots,
-  createSelectedSnapshotPair,
-  getComparisonFindingKey,
-  type CostSnapshot,
-  type SnapshotBOMItem,
-  type SnapshotRoutingStep,
-  type SnapshotWorkCenterRate
-} from '../src/core'
+import { createServer } from 'vite'
+import type { CostSnapshot, SnapshotBOMItem, SnapshotRoutingStep, SnapshotWorkCenterRate } from '../src/core/types.ts'
+
+const vite = await createServer({ server: { middlewareMode: true }, appType: 'custom', logLevel: 'error' })
+try {
+const { compareSnapshots, createSelectedSnapshotPair, getComparisonFindingKey } = await vite.ssrLoadModule('/src/core/index.ts')
 
 const product = { productCode: 'SELECTED-SCOPE', productDescription: 'Fixture', uom: 'PC', customer: '', effectiveDate: '' }
 const bom = (id: string, name: string, price: number): SnapshotBOMItem => ({
@@ -81,18 +78,20 @@ assert.match(store, /useState<StoredSelectedComparison \| null>\(null\)/,
   'Selected Comparison starts as temporary in-memory scope with Full Comparison as default')
 assert.match(store, /selectedComparisonScope\?\.sourceFingerprint === snapshotSourceFingerprint/,
   'a Ref/Cur Working source change makes Selected Comparison inactive')
-assert.match(store, /tab === 'simulation'\) setSelectedComparisonScope\(null\)/,
-  'entering Simulation ends active scope')
+  assert.match(store, /tab === 'simulation'\) setSelectedComparisonScope\(null\)/,
+    'opening Simulation ends active scope')
 assert.doesNotMatch(store, /saveToSession\([^\n]*selectedComparisonScope|STORAGE_KEYS\.[^\n]*SELECTED_COMPARISON/,
   'Selected Comparison is not stored or versioned')
 const storeFiles = [
   'src/features/cost-breakdown/CostBreakdownPage.tsx',
-  'src/features/candidate-selection/CandidateSelectionPage.tsx',
   'src/features/simulation/SimulationPage.tsx'
 ].map(path => readFileSync(resolve(process.cwd(), path), 'utf8')).join('\n')
-assert.match(storeFiles, /clearSelectedComparison\(\)/, 'RCA entry clears active scope while preserving selected Candidate identities')
+assert.match(storeFiles, /clearSelectedComparison\(\)/, 'deselecting the final finding clears active scope')
 assert.doesNotMatch(storeFiles, /Selected Comparison is a dataset|selected-scope dataset/i)
 assert.doesNotMatch(store + storeFiles, /comparison-export|exportSelectedComparison/i,
   'Selected Comparison is not wired into export')
 
 console.log('Selected Comparison lifecycle verification passed')
+} finally {
+  await vite.close()
+}

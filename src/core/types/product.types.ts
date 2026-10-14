@@ -72,19 +72,19 @@ export interface ProductSession {
   routing: RoutingStep[]
   /** Persisted driver annotations are keyed by CostDriver.driverKey, not display rank. */
   savedDrivers: CostDriver[]
-  /** @deprecated Retained to preserve older session data; active RCA selects candidates on the RCA page. */
+  /** @deprecated Retained only for compatibility with older saved sessions. */
   selectedDriverKeys?: string[]
   /** @deprecated Retained only for older driver-level RCA note compatibility; active RCA Cases use rcaCases. */
   rcaRecords?: Record<string, DriverRcaRecord>
   /** @deprecated Migrated into rcaCases; retained for older saved session compatibility. */
   candidateRcaRecords?: Record<string, CandidateRcaRecord>
-  /** RCA Cases group one or more Candidates under one Root Cause and Action. */
+  /** Legacy RCA Case records retained so existing saved sessions remain readable. */
   rcaCases?: Record<string, RcaCaseRecord>
-  /** The Case explicitly selected in the Candidate/RCA workflow. */
+  /** Legacy active Case selection retained so existing browser sessions remain readable. */
   activeRcaCaseId?: string
-  /** The current Candidate group and its shared RCA analysis, without case history. */
+  /** Legacy Candidate/RCA workspace retained so existing browser sessions remain readable. */
   currentRcaWorkspace?: CurrentRcaWorkspace
-  /** Session-scoped candidate controllability map, keyed by candidateKey. */
+  /** Legacy Candidate page flags retained so existing browser sessions remain readable. */
   candidateControllability?: Record<string, boolean>
   status: DatasetStatus
   versionLabel?: string

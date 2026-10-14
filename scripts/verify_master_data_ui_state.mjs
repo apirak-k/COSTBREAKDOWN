@@ -552,7 +552,9 @@ try {
   assert.match(footerSource, /Reference and Current dataset structure" className="flex min-w-0 flex-wrap cursor-default select-none/, 'Footer dataset counts use the default cursor and cannot be selected')
   assert.match(footerSource, /Dataset readiness, product comparison, and warnings" className="flex min-w-0 flex-wrap cursor-default select-none/, 'Footer separators and display-only summary use the default cursor')
   assert.match(footerSource, /Full Reference and Current standard costs and net gap in THB\/\$\{costUnit\}`\} className="flex min-w-0 flex-wrap cursor-default select-none/, 'Footer costs and shared unit use the default cursor and cannot be selected')
-  assert.match(footerSource, /className="flex h-dvh min-h-0 w-full flex-col overflow-hidden[\s\S]*className=\{`min-h-0 min-w-0 flex-1 overflow-y-auto \$\{activeTab === 'master' \? 'pt-0 pb-3 \[scrollbar-gutter:stable\]' : 'py-3'\}`\}/, 'the fixed shell clips outer overflow, removes Master Data top spacing, and stabilizes its Search layout')
+  assert.match(footerSource, /className="flex h-dvh min-h-0 w-full flex-col overflow-hidden/)
+  assert.match(footerSource, /id="main-content"[\s\S]*activeTab === 'master' \? 'pt-0 pb-3 \[scrollbar-gutter:stable\]' : 'py-3'/,
+    'the fixed shell clips outer overflow, removes Master Data top spacing, and stabilizes its Search layout')
   assert.match(footerSource, /!referenceUom && !currentUom[\s\S]*!referenceUom[\s\S]*currentUom[\s\S]*normalizeProductIdentityValue\(referenceUom\) === normalizeProductIdentityValue\(currentUom\)[\s\S]*\? referenceUom[\s\S]*: 'Unit'/, 'Footer unit chooses the sole nonblank UOM, matching Reference spelling, or Unit for blank/conflicting values')
   const globalCssSource = readFileSync(resolve(process.cwd(), 'src/index.css'), 'utf8')
   const navbarSource = readFileSync(resolve(process.cwd(), 'src/shared/layout/Navbar.tsx'), 'utf8')
@@ -967,7 +969,7 @@ try {
   assert.match(footerSource, /totalGap !== null && Number\.isFinite\(totalGap\)/, 'unavailable or non-finite Net Gap remains neutral')
   assert.match(footerSource, /totalGap > 0[\s\S]*text-rose-300[\s\S]*totalGap < 0[\s\S]*text-emerald-300[\s\S]*text-slate-300/, 'Net Gap colors are positive rose, negative emerald, and zero neutral')
   assert.match(readyFooterMarkup, /<div class="flex h-dvh min-h-0 w-full flex-col overflow-hidden/, 'app shell fills the viewport and contains scrolling')
-  assert.match(readyFooterMarkup, /<main id="main-content" tabindex="-1" class="min-h-0 min-w-0 flex-1 overflow-y-auto pt-0 pb-3 \[scrollbar-gutter:stable\]"><div class="app-workspace-frame">/, 'full-width Master Data Main owns scrolling, removes the toolbar gap, and reserves a stable scrollbar gutter')
+  assert.match(readyFooterMarkup, /<main id="main-content" tabindex="-1" class="min-h-0 min-w-0 flex-1 overflow-y-auto pt-0 pb-3 \[scrollbar-gutter:stable\]"><div class="app-workspace-frame ?">/, 'full-width Master Data Main owns scrolling, removes the toolbar gap, and reserves a stable scrollbar gutter')
   assert.doesNotMatch(footerSource.match(/<main[\s\S]*?className=\{([^}]*)\}/)?.[1] ?? '', /app-workspace-frame/, 'the scroll container itself is not constrained to the centered frame')
   assert.match(readyFooterMarkup, /<footer aria-label="Dataset and comparison status" class="w-full shrink-0/, 'Footer remains in the shell flow without using fixed positioning')
   assert.doesNotMatch(footerSource.match(/<div className="flex h-dvh[^\"]*"/)?.[0] ?? '', /fixed/, 'Footer layout does not use a fixed overlay')
@@ -978,7 +980,7 @@ try {
   assert.doesNotMatch(footerPrepareRequestSource, /setActiveTab\(/, 'Footer warning requests open Prepare Dataset without navigating away from the current page')
   assert.match(footerSource, /requestMode=\{masterDataPrepareDatasetRequestMode\}/, 'the shared Prepare Dataset panel receives the Footer request mode')
   assert.match(preparePopoverSource, /if \(requestMode\) resetUiState\(\)/, 'Footer all-warning requests clear panel-only filters and expanded categories')
-  assert.match(navbarSource, /const navItems = \[[\s\S]*\{ id: 'master', label: 'Master Data' \}[\s\S]*\{ id: 'breakdown', label: 'Cost Breakdown' \}[\s\S]*\{ id: 'candidate', label: 'Candidate' \}[\s\S]*\{ id: 'simulation', label: 'Simulation' \}[\s\S]*\] as const/, 'Global Header navigation contains the four exact primary labels in order')
+  assert.match(navbarSource, /const navItems = \[[\s\S]*\{ id: 'master', label: 'Master Data' \}[\s\S]*\{ id: 'breakdown', label: 'Cost Breakdown' \}[\s\S]*\{ id: 'simulation', label: 'Simulation' \}[\s\S]*\] as const/, 'Global Header navigation contains only Master Data, Cost Breakdown, and Simulation in order')
   assert.doesNotMatch(navbarSource, /Candidate \/ RCA|workflowStatus|Ready|Not Ready|Selected Comparison|Missing data/, 'Global Header omits workflow guidance and uses Candidate wording')
   const headerOrder = [
     navbarSource.indexOf('>COSTBREAKDOWN</span>'),

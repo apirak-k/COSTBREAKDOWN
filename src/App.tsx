@@ -5,12 +5,10 @@ import { AppLayout } from './shared'
 import {
   MasterDataPage,
   CostBreakdownPage,
-  CandidateSelectionPage,
   SimulationPage
 } from './features'
 import {
   createEmptySimulationState,
-  prepareSimulationForRcaHandoff,
   reconcileSimulationState,
   retainSimulationStatesForProducts,
   setSimulationEconomicInput,
@@ -23,7 +21,6 @@ import type { SimulationFactor, SimulationParameter } from './features/simulatio
 import type { EconomicSimulationField } from './features/simulation/simulation-economics'
 import type { MasterDataQualityItem } from './features/master-data/prepare-dataset'
 import type { WarningNavigationTarget } from './features/master-data/hooks/useWarningNavigationFocus'
-import { retainRcaSimulationHandoff, type RcaSimulationHandoffContext } from './state/rca-cases'
 import { loadFromSession, saveToSession, STORAGE_KEYS } from './services/storage'
 
 const AppRouter: React.FC = () => {
@@ -35,10 +32,6 @@ const AppRouter: React.FC = () => {
     productSessions
   } = useAppStore()
   const [prepareDatasetNavigationRequest, setPrepareDatasetNavigationRequest] = useState<(MasterDataQualityItem & WarningNavigationTarget) | undefined>()
-  const [simulationRcaHandoff, setSimulationRcaHandoff] = useState<{
-    productId: string
-    context: RcaSimulationHandoffContext
-  } | null>(null)
   const [masterDataSearchQuery, setMasterDataSearchQuery] = useState('')
   const [simulationStatesByProduct, setSimulationStatesByProduct] = useState<Record<string, SimulationWorkspaceState>>(
     () => loadFromSession(STORAGE_KEYS.SIMULATION_STATES, {})
@@ -48,10 +41,6 @@ const AppRouter: React.FC = () => {
     () => reconcileSimulationState(storedSimulationState, masterDataSnapshots),
     [masterDataSnapshots, storedSimulationState]
   )
-  const simulationRcaContext = activeTab === 'simulation' && simulationRcaHandoff?.productId === activeProductId
-    ? simulationRcaHandoff.context
-    : null
-
   const navigateToPrepareDatasetIssue = (item: MasterDataQualityItem) => {
     setPrepareDatasetNavigationRequest(previous => ({
       ...item,
@@ -59,10 +48,6 @@ const AppRouter: React.FC = () => {
     }))
     setActiveTab('master')
   }
-
-  useEffect(() => {
-    setSimulationRcaHandoff(previous => retainRcaSimulationHandoff(previous, activeTab, activeProductId))
-  }, [activeProductId, activeTab])
 
   useEffect(() => {
     document.getElementById('main-content')?.scrollTo({ top: 0, behavior: 'auto' })
@@ -129,15 +114,6 @@ const AppRouter: React.FC = () => {
     ))
   }
 
-  const proceedFromRcaToSimulation = (context: RcaSimulationHandoffContext) => {
-    setSimulationStatesByProduct(previous => ({
-      ...previous,
-      [activeProductId]: prepareSimulationForRcaHandoff(previous[activeProductId], masterDataSnapshots)
-    }))
-    setSimulationRcaHandoff({ productId: activeProductId, context })
-    setActiveTab('simulation')
-  }
-
   return (
     <AppLayout onNavigatePrepareDatasetIssue={navigateToPrepareDatasetIssue}>
       {activeTab === 'master' && (
@@ -149,13 +125,11 @@ const AppRouter: React.FC = () => {
         />
       )}
       {activeTab === 'breakdown' && <CostBreakdownPage />}
-      {activeTab === 'candidate' && <CandidateSelectionPage onProceedToSimulation={proceedFromRcaToSimulation} />}
       {activeTab === 'simulation' && (
         <SimulationPage
           state={simulationState}
           referenceSnapshot={masterDataSnapshots.reference}
           currentSnapshot={masterDataSnapshots.current}
-          rcaContext={simulationRcaContext}
           onStartFrom={startFrom}
           onReset={resetSimulation}
           onSelectFactors={selectSimulationFactors}

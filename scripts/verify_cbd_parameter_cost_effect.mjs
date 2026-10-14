@@ -387,6 +387,9 @@ try {
       segments: chartSegments, fullTotal: 16.05, selectedTotal: 4, selectedActive: true
     }))
     assert.match(proportionalChart, /data-gap-chart-mode="proportional"/)
+    for (const label of ['MAT', 'LB', 'BD']) {
+      assert.ok(proportionalChart.includes(`>${label}</text>`), `${label} is labeled inside the continuous bar`)
+    }
     const proportionalRects = [...proportionalChart.matchAll(/<rect\b[^>]*>/g)].map(([rect]) => rect)
     const contributionWidth = color => {
       const rect = proportionalRects.find(candidate => candidate.includes(`fill="${color}"`) && candidate.includes('fill-opacity="0.38"'))
@@ -420,13 +423,30 @@ try {
       'selected contribution beyond the full Material segment must remain visible as an outlined marker')
     const pageMarkup = renderToStaticMarkup(React.createElement(CostBreakdownPage))
     const pageText = visibleText(pageMarkup)
-    assert.match(pageText, /Standard Cost Gap/)
-    assert.match(pageText, /Full \+1\.20/)
-    assert.match(pageText, /Selected \+1\.20/)
+    assert.match(pageText, /Standard Cost Gap \+1\.20/)
+    assert.doesNotMatch(pageText, /Full \+1\.20|Selected \+1\.20/)
+    assert.match(pageText, /Absolute Cost Gap · High → Low/)
     assert.match(pageText, /Work Center Context/)
     assert.match(pageText, /Full snapshot · Conversion Cost/)
     assert.match(pageText, /WC-REF/)
     assert.match(pageText, /WC-CUR/)
+    const subheader = pageMarkup.match(/<header aria-label="Cost Breakdown subheader"[\s\S]*?<\/header>/)?.[0]
+    assert.ok(subheader, 'the subheader remains a distinct fixed row')
+    const subheaderText = visibleText(subheader)
+    const orderedLabels = ['Standard Cost Gap', 'MAT', 'LB', 'BD', 'ALL', 'BOM', 'RTG', 'Status', 'Sort', 'Absolute Cost Gap · High → Low', 'Collapse']
+    const labelPositions = orderedLabels.map(label => subheaderText.indexOf(label))
+    assert.ok(labelPositions.every(position => position >= 0), 'the subheader exposes every finalized control and chart label')
+    assert.deepEqual(labelPositions, [...labelPositions].sort((left, right) => left - right),
+      'the single subheader row follows the finalized left-to-right order')
+    assert.doesNotMatch(subheaderText, /Full Material|Selected Material|Full Labor|Selected Labor|Full Burden|Selected Burden/,
+      'per-element numeric blocks are removed from the subheader')
+    assert.match(subheader, /aria-controls="cost-breakdown-overview-panels"/,
+      'the far-right collapse control targets only Cost and Work Center overview panels')
+    assert.match(subheader, /aria-expanded="true"/)
+    assert.match(pageMarkup, /id="cost-breakdown-overview-panels" class="[^\"]*grid[^\"]*"/,
+      'Cost and Work Center panels remain visible by default below the subheader')
+    assert.match(pageMarkup, /aria-label="Deselect Candidate Cutting"/,
+      'CBD finding selection remains available in the Candidates table')
     assert.equal([...pageMarkup.matchAll(/data-gap-chart-mode=/g)].length, 1,
       'the subheader must render one full-baseline Gap Bar with the Selected contribution inside it')
     assert.match(pageMarkup, /data-gap-chart-mode="unavailable"/,

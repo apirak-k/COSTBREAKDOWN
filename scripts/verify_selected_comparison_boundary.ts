@@ -3,7 +3,6 @@ import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 
 const store = readFileSync(resolve(process.cwd(), 'src/state/store.tsx'), 'utf8')
-const candidatePage = readFileSync(resolve(process.cwd(), 'src/features/candidate-selection/CandidateSelectionPage.tsx'), 'utf8')
 const costBreakdownPage = readFileSync(resolve(process.cwd(), 'src/features/cost-breakdown/CostBreakdownPage.tsx'), 'utf8')
 
 const failures: string[] = []
@@ -18,13 +17,13 @@ function verify(name: string, assertion: () => void) {
 }
 
 const setActiveTabBody = store.match(/const setActiveTab = \(tab: ActiveTab\) => \{([\s\S]*?)\n  \}/)?.[1] ?? ''
-verify('Entering Simulation ends the active Selected Comparison scope', () => {
+verify('Opening Simulation ends the active Selected Comparison scope', () => {
   assert.match(setActiveTabBody, /tab\s*===\s*'simulation'[\s\S]*setSelectedComparisonScope\(null\)/)
 })
 
-verify('Cost Breakdown directly applies Candidate selection and keeps full context visible', () => {
+verify('Cost Breakdown directly applies Candidate selection and keeps the full comparison available', () => {
   assert.match(costBreakdownPage, /aria-label="Candidate type filter"/)
-  assert.match(costBreakdownPage, /aria-label="Standard Cost Gap"/)
+  assert.match(costBreakdownPage, /<span className="font-semibold text-slate-800">Standard Cost Gap<\/span>/)
   assert.match(costBreakdownPage, /comparison=\{fullSnapshotComparison\}/)
   assert.match(costBreakdownPage, /onToggleFinding=\{toggleFinding\}/)
   assert.match(costBreakdownPage, /applySelectedComparison\(nextSelection\)/)
@@ -32,12 +31,14 @@ verify('Cost Breakdown directly applies Candidate selection and keeps full conte
   assert.doesNotMatch(costBreakdownPage, /Select scope|Edit scope|Full Comparison|>Apply<|>Cancel</)
 })
 
-verify('Candidate page still lets a user clear the active Selected Comparison scope', () => {
-  assert.match(candidatePage, /onExit=\{clearSelectedComparison\}/)
+verify('Cost Breakdown preserves Candidate row selection and clears an empty scope', () => {
+  assert.match(costBreakdownPage, /aria-label="Candidate type filter"/)
+  assert.match(costBreakdownPage, /onToggleFinding=\{toggleFinding\}/)
+  assert.match(costBreakdownPage, /clearSelectedComparison\(\)/)
 })
 
 if (failures.length > 0) {
   throw new Error(failures.length + ' Selected Comparison boundary verification(s) failed')
 }
 
-console.log('Selected Comparison CBD/Candidate/Simulation boundary verification passed')
+console.log('Selected Comparison CBD/Simulation boundary verification passed')

@@ -7,7 +7,6 @@ import { Tooltip } from '../ui/Tooltip'
 const navItems = [
   { id: 'master', label: 'Master Data' },
   { id: 'breakdown', label: 'Cost Breakdown' },
-  { id: 'candidate', label: 'Candidate' },
   { id: 'simulation', label: 'Simulation' },
 ] as const
 

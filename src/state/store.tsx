@@ -19,11 +19,6 @@ import {
   SelectedComparisonSelection,
   FieldEvidence,
   CostComparison,
-  CandidateRcaDraft,
-  CurrentRcaWorkspace,
-  RcaCaseRecord,
-  PrioritizationCandidate,
-  buildPrioritizationCandidates,
   compareSnapshots,
   sessionToSnapshotPair,
   applySnapshotPairToSession,
@@ -37,14 +32,7 @@ import { hasEnteredMasterData, importSnapshotForCustom, importSnapshotForRole, m
 import { normalizeActiveTab, type ActiveTab } from './active-tab'
 import { clearMasterDataDatasetState } from './clear-master-data-dataset'
 import { moveSnapshotRows } from './master-data-row-order'
-import {
-  createRcaCaseForCandidates,
-  EMPTY_CURRENT_RCA_WORKSPACE,
-  migrateLegacyCandidateRcaRecords,
-  readCurrentRcaWorkspace,
-  saveRcaCaseRecord as updateRcaCaseRecord,
-  writeCurrentRcaWorkspace
-} from './rca-cases'
+import { migrateLegacyCandidateRcaRecords } from './rca-cases'
 import {
   cloneCostSnapshot,
   getLastSavedMasterData,
@@ -264,10 +252,6 @@ interface AppContextType {
   rates: WorkCenterRate[]
   bom: BOMItem[]
   routing: RoutingStep[]
-  candidates: PrioritizationCandidate[]
-  rcaCases: RcaCaseRecord[]
-  activeRcaCaseId: string | null
-  currentRcaWorkspace: CurrentRcaWorkspace
   snapshotPair: SnapshotPair
   masterDataSnapshots: Record<MasterDataRole, CostSnapshot>
   snapshotComparison: CostComparison
@@ -363,11 +347,6 @@ interface AppContextType {
   addWorkCenterRate: (rate: Omit<WorkCenterRate, 'id'>) => void
   updateWorkCenterRate: (wc: string, rate: Partial<WorkCenterRate>) => void
   deleteWorkCenterRate: (wc: string) => void
-  toggleCandidateControllable: (candidateKey: string, nextValue: boolean) => void
-  setCurrentRcaWorkspace: (workspace: CurrentRcaWorkspace) => void
-  createRcaCase: (candidateKeys: string[]) => void
-  selectRcaCase: (id: string | null) => void
-  saveRcaCase: (id: string, draft: CandidateRcaDraft) => void
   importFromExcel: (result: ExcelImportResult) => void
   importSnapshotFromExcel: (result: SnapshotImportResult) => void
   loadDevelopmentMockData: (pair: SnapshotPair) => void
@@ -599,11 +578,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     )
   }
 
-  const rcaCases = Object.values(activeSession.rcaCases ?? {})
-  const activeRcaCaseId = activeSession.activeRcaCaseId && rcaCases.some(record => record.id === activeSession.activeRcaCaseId)
-    ? activeSession.activeRcaCaseId
-    : null
-  const currentRcaWorkspace = readCurrentRcaWorkspace(activeSession)
   const snapshotPair = activeSession.snapshotPair ?? sessionToSnapshotPair(activeSession)
   const fullSnapshotComparison = compareSnapshots(snapshotPair.reference, snapshotPair.current)
   const snapshotSourceFingerprint = useMemo(() => JSON.stringify([snapshotPair.reference, snapshotPair.current]), [snapshotPair])
@@ -645,13 +619,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   }
 
   const clearSelectedComparison = () => setSelectedComparisonScope(null)
-  const candidateControllability = activeSession.candidateControllability ?? {}
-  const candidates = buildPrioritizationCandidates(
-    snapshotComparison,
-    analysisSnapshotPair.reference,
-    analysisSnapshotPair.current,
-    candidateControllability
-  )
   const masterDataHandoff = evaluateMasterDataHandoff(activeSession, snapshotPair)
   const masterDataRole = masterDataUiState.role
   const masterDataSnapshot = getMasterDataSnapshot(activeSession, snapshotPair, masterDataRole)
@@ -1483,42 +1450,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     patchActive({ rates: rates.filter(r => r.wc !== wc) })
   }
 
-  const toggleCandidateControllable = (candidateKey: string, nextValue: boolean) => {
-    const existing = activeSession.candidateControllability ?? {}
-    patchActive({
-      candidateControllability: {
-        ...existing,
-        [candidateKey]: nextValue
-      }
-    })
-  }
-
-  const setCurrentRcaWorkspace = (workspace: CurrentRcaWorkspace) => {
-    const next = writeCurrentRcaWorkspace(activeSession, workspace, candidates.map(candidate => candidate.candidateKey))
-    if (next === activeSession) return
-    patchActive({ currentRcaWorkspace: next.currentRcaWorkspace })
-  }
-
-  const createRcaCase = (candidateKeys: string[]) => {
-    const idBase = `rca-${Date.now()}`
-    let id = idBase
-    let suffix = 1
-    while (activeSession.rcaCases?.[id]) id = `${idBase}-${suffix++}`
-    const next = createRcaCaseForCandidates(activeSession, candidates.map(candidate => candidate.candidateKey), candidateKeys, id)
-    patchActive({ rcaCases: next.rcaCases, activeRcaCaseId: next.activeRcaCaseId })
-  }
-
-  const selectRcaCase = (id: string | null) => {
-    if (id !== null && !activeSession.rcaCases?.[id]) return
-    patchActive({ activeRcaCaseId: id ?? undefined })
-  }
-
-  const saveRcaCase = (id: string, draft: CandidateRcaDraft) => {
-    const next = updateRcaCaseRecord(activeSession, id, draft)
-    if (next === activeSession) return
-    patchActive({ rcaCases: next.rcaCases })
-  }
-
   // Import creates a new DRAFT session per Section 7
   const importFromExcel = (result: ExcelImportResult) => {
     if (!result.success) return
@@ -1609,7 +1540,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       selectedDriverKeys: [],
       rcaRecords: {},
       candidateRcaRecords: {},
-      currentRcaWorkspace: EMPTY_CURRENT_RCA_WORKSPACE,
       preparedSnapshotRoles: { reference: false, current: false },
       status: 'draft',
       versionLabel: 'Draft',
@@ -1628,7 +1558,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       selectedDriverKeys: [],
       rcaRecords: {},
       candidateRcaRecords: {},
-      currentRcaWorkspace: EMPTY_CURRENT_RCA_WORKSPACE,
       preparedSnapshotRoles: { reference: false, current: false },
       snapshotPair: createEmptySnapshotPair(activeSession.id),
       snapshotPairMode: 'independent'
@@ -1644,10 +1573,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       rates,
       bom,
       routing,
-      candidates,
-      rcaCases,
-      activeRcaCaseId,
-      currentRcaWorkspace,
       snapshotPair,
       masterDataSnapshots,
       snapshotComparison,
@@ -1730,11 +1655,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       addWorkCenterRate,
       updateWorkCenterRate,
       deleteWorkCenterRate,
-      toggleCandidateControllable,
-      setCurrentRcaWorkspace,
-      createRcaCase,
-      selectRcaCase,
-      saveRcaCase,
       importFromExcel,
       importSnapshotFromExcel,
       loadDevelopmentMockData,

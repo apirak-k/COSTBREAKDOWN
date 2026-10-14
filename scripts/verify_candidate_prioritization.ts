@@ -1,12 +1,16 @@
 import assert from 'node:assert/strict'
-import {
-  CostSnapshot,
+import { createServer } from 'vite'
+import type { CostSnapshot } from '../src/core/types.ts'
+
+const vite = await createServer({ server: { middlewareMode: true }, appType: 'custom', logLevel: 'error' })
+try {
+const {
   compareSnapshots,
   buildMaterialCandidates,
   buildProcessingCandidates,
   buildPrioritizationCandidates,
   filterPrioritizationCandidates
-} from '../src/core'
+} = await vite.ssrLoadModule('/src/core/index.ts')
 
 console.log('--- Verifying Phase 3: Tasks 11, 12, 13 (Candidate Prioritization) ---')
 
@@ -489,3 +493,6 @@ assert.equal(movedCandidates[0].candidateKey, 'process:move process')
 assert.equal(movedCandidates[0].status, 'CHANGED')
 
 console.log('All Phase 3 candidate prioritization checks passed successfully!')
+} finally {
+  await vite.close()
+}

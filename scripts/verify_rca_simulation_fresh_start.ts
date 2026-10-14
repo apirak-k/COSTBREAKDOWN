@@ -3,18 +3,22 @@ import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import React from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
+import { createServer } from 'vite'
 import type { CostSnapshot, MasterDataRole, SnapshotBOMItem, SnapshotRoutingStep, SnapshotWorkCenterRate } from '../src/core/types'
-import { SimulationPage } from '../src/features/simulation/SimulationPage.tsx'
-import {
+import type { SimulationWorkspaceState } from '../src/features/simulation/simulation-state.ts'
+import type { RcaSimulationHandoffContext } from '../src/state/rca-cases.ts'
+
+const vite = await createServer({ server: { middlewareMode: true }, appType: 'custom', logLevel: 'error' })
+try {
+const { SimulationPage } = await vite.ssrLoadModule('/src/features/simulation/SimulationPage.tsx')
+const {
   prepareSimulationForRcaHandoff,
   setSimulationEconomicInput,
   setSimulationFactors,
   simulationFactorId,
   startSimulationFrom
-} from '../src/features/simulation/simulation-state.ts'
-import type { SimulationWorkspaceState } from '../src/features/simulation/simulation-state.ts'
-import { retainRcaSimulationHandoff } from '../src/state/rca-cases.ts'
-import type { RcaSimulationHandoffContext } from '../src/state/rca-cases.ts'
+} = await vite.ssrLoadModule('/src/features/simulation/simulation-state.ts')
+const { retainRcaSimulationHandoff } = await vite.ssrLoadModule('/src/state/rca-cases.ts')
 
 function material(id: string, name: string, price: number): SnapshotBOMItem {
   return { id, itemCode: name, description: name, consumption: 1, unit: 'PC', price, loss: 0, confidence: {} }
@@ -143,7 +147,7 @@ for (const factor of [
 const scopedHandoff = { productId: 'product-1', context: rcaContext }
 assert.strictEqual(retainRcaSimulationHandoff(scopedHandoff, 'simulation', 'product-1'), scopedHandoff,
   'RCA context remains available while its product is in Simulation')
-const afterLeavingSimulation = retainRcaSimulationHandoff(scopedHandoff, 'candidate', 'product-1')
+const afterLeavingSimulation = retainRcaSimulationHandoff(scopedHandoff, 'breakdown', 'product-1')
 assert.equal(afterLeavingSimulation, null, 'leaving Simulation expires RCA-only context')
 assert.equal(retainRcaSimulationHandoff(afterLeavingSimulation, 'simulation', 'product-1'), null,
   'a later direct Simulation entry cannot inherit stale RCA-only context')
@@ -151,9 +155,12 @@ assert.equal(retainRcaSimulationHandoff(scopedHandoff, 'simulation', 'product-2'
   'switching products while Simulation is active clears the previous product RCA context')
 
 const appSource = readFileSync(resolve(process.cwd(), 'src/App.tsx'), 'utf8')
-assert.match(appSource, /prepareSimulationForRcaHandoff\(/,
-  'the App handoff route uses the tested fresh Parameter-SIM transition')
-assert.match(appSource, /retainRcaSimulationHandoff\(/,
-  'the App lifecycle uses the tested RCA-context expiry transition')
+assert.doesNotMatch(appSource, /prepareSimulationForRcaHandoff|retainRcaSimulationHandoff|simulationRcaHandoff|rcaContext=/,
+  'App no longer creates a Candidate/RCA Simulation handoff')
+assert.match(appSource, /activeTab === 'simulation'[\s\S]*?<SimulationPage/,
+  'Simulation remains available directly through normal product navigation')
 
-console.log('RCA-to-Simulation fresh-start behavioral verification passed')
+console.log('Legacy RCA Simulation compatibility and direct-navigation verification passed')
+} finally {
+  await vite.close()
+}

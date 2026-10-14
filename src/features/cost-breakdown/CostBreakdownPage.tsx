@@ -18,6 +18,11 @@ const statusOptions: Array<{ value: ComparisonStatus; label: string }> = [
   { value: 'UNCHANGED', label: 'Unchanged' }
 ]
 
+const currentSortMode = {
+  id: 'absolute-cost-gap-desc',
+  label: 'Absolute Cost Gap · High → Low'
+} as const
+
 interface GapSegment {
   key: 'material' | 'labor' | 'burden'
   label: string
@@ -107,6 +112,7 @@ export function GapContributionChart({ segments, fullTotal, selectedTotal, selec
       return result
     })
     : []
+  const shortLabels: Record<GapSegment['key'], string> = { material: 'MAT', labor: 'LB', burden: 'BD' }
   const valueLabel = (value: number | null) => isAvailableGap(value) ? formatVariance(value, 4) : 'unavailable'
   const accessibleLabel = [
     `Full Standard Cost Gap ${valueLabel(fullTotal)}`,
@@ -149,6 +155,35 @@ export function GapContributionChart({ segments, fullTotal, selectedTotal, selec
             </g>
           })}
         </>}
+        {segments.map((segment, index) => {
+          const proportionalSegment = proportionalSegments[index]
+          const signedSegment = fullPath[index]
+          const x = mode === 'proportional' && proportionalSegment
+            ? proportionalSegment.x + proportionalSegment.width / 2
+            : mode === 'signed' && signedSegment
+              ? scaleSignedValue((signedSegment.start + signedSegment.end) / 2)
+              : width * (index + 0.5) / segments.length
+          const selectedUnderLabel = mode === 'proportional'
+            && proportionalSegment?.selectedWidth > 0
+            && proportionalSegment.selectedWidth >= proportionalSegment.width / 2
+          return (
+            <text
+              key={`label-${segment.key}`}
+              x={x}
+              y="21"
+              textAnchor="middle"
+              fontSize="12"
+              fontWeight="700"
+              fill={selectedUnderLabel ? '#ffffff' : '#0f172a'}
+              stroke={selectedUnderLabel ? '#0f172a' : '#ffffff'}
+              strokeWidth="3"
+              strokeLinejoin="round"
+              paintOrder="stroke"
+            >
+              {shortLabels[segment.key]}
+            </text>
+          )
+        })}
       </svg>
     </div>
   )
@@ -207,20 +242,39 @@ export const CostBreakdownPage: React.FC = () => {
 
   return (
     <div className="flex h-full min-h-0 min-w-0 flex-col gap-2">
-      <header aria-label="Cost Breakdown subheader" className="shrink-0 space-y-1.5 border-b border-slate-300 bg-slate-50 pb-2">
-        <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
-          <div className="flex flex-wrap items-center gap-1" role="group" aria-label="Candidate type filter">
+      <header aria-label="Cost Breakdown subheader" className="shrink-0 overflow-x-auto border-b border-slate-300 bg-slate-50 pb-2" tabIndex={0}>
+        <div className="flex min-w-[900px] flex-nowrap items-center gap-2" role="group" aria-label="Cost Breakdown controls">
+          <div
+            aria-label={`Standard Cost Gap ${fullSnapshotComparison.totalGap === null ? 'unavailable' : formatVariance(fullSnapshotComparison.totalGap, 4)} THB/pc; Gap = CUR − REF`}
+            title="Full snapshot · THB/pc · Gap = CUR − REF"
+            className="flex shrink-0 items-baseline gap-1.5 whitespace-nowrap px-1 text-xs"
+          >
+            <span className="font-semibold text-slate-800">Standard Cost Gap</span>
+            <span className="font-mono font-semibold tabular-nums text-slate-900">{fullSnapshotComparison.totalGap === null ? '—' : formatVariance(fullSnapshotComparison.totalGap, 4)}</span>
+          </div>
+
+          <div className="min-w-[140px] flex-1">
+            <GapContributionChart
+              segments={gapSegments}
+              fullTotal={fullSnapshotComparison.totalGap}
+              selectedTotal={selectedTotalGap}
+              selectedActive={isSelectedComparisonActive}
+            />
+          </div>
+
+          <div className="flex shrink-0 items-center gap-1" role="group" aria-label="Candidate type filter">
             {(['all', 'bom', 'rtg'] as const).map(tab => (
               <button key={tab} type="button" aria-pressed={typeTab === tab} onClick={() => setTypeTab(tab)} className={`min-h-8 rounded-sm border px-2.5 text-xs font-semibold focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700 ${typeTab === tab ? 'border-slate-900 bg-slate-900 text-white' : 'border-slate-300 bg-white text-slate-700 hover:bg-slate-100'}`}>
                 {tab.toUpperCase()}
               </button>
             ))}
           </div>
-          <details aria-label="Status filter dropdown" className="relative">
+
+          <details aria-label="Status filter dropdown" className="shrink-0">
             <summary className="flex min-h-8 cursor-pointer list-none items-center gap-2 rounded-sm border border-slate-300 bg-white px-2 text-xs font-medium text-slate-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700">
-              Status <span className="max-w-36 truncate font-normal text-slate-600">{getComparisonViewLabel(comparisonView)}</span><span aria-hidden="true" className="text-[10px] text-slate-500">▾</span>
+              Status <span className="max-w-28 truncate font-normal text-slate-600">{getComparisonViewLabel(comparisonView)}</span><span aria-hidden="true" className="text-[10px] text-slate-500">▾</span>
             </summary>
-            <div className="absolute right-0 top-full z-30 mt-1 min-w-44 rounded-sm border border-slate-300 bg-white p-2 shadow-lg">
+            <div className="mt-1 min-w-44 rounded-sm border border-slate-300 bg-white p-2 shadow-lg">
               <button type="button" aria-pressed={areAllComparisonStatusesSelected(comparisonView)} onClick={() => setComparisonView(ALL_COMPARISON_STATUSES)} className="mb-1 w-full rounded-sm px-2 py-1.5 text-left text-xs font-semibold text-slate-800 hover:bg-slate-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-700">All statuses</button>
               {statusOptions.map(option => <label key={option.value} className="flex cursor-pointer items-center gap-2 rounded-sm px-2 py-1.5 text-xs text-slate-700 hover:bg-slate-50">
                 <input type="checkbox" checked={comparisonView.includes(option.value)} onChange={() => setComparisonView(current => current.includes(option.value) ? current.filter(status => status !== option.value) : [...current, option.value])} className="h-3.5 w-3.5 accent-slate-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700" />
@@ -228,53 +282,36 @@ export const CostBreakdownPage: React.FC = () => {
               </label>)}
             </div>
           </details>
-        </div>
 
-        <section aria-label="Standard Cost Gap" className="space-y-1.5">
-          <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
-            <h2 className="text-xs font-semibold text-slate-800">Standard Cost Gap</h2>
-            <div className="flex flex-wrap items-baseline gap-x-4 gap-y-1 font-mono text-xs tabular-nums">
-              <span className="font-semibold text-slate-900">Full {fullSnapshotComparison.totalGap === null ? '—' : formatVariance(fullSnapshotComparison.totalGap, 4)}</span>
-              {isSelectedComparisonActive && <span className="text-blue-900">Selected {selectedTotalGap === null ? '—' : formatVariance(selectedTotalGap, 4)}</span>}
-              <span className="font-sans text-[10px] text-slate-500">THB/pc · Gap = CUR − REF</span>
+          <details aria-label="Sort findings" className="shrink-0">
+            <summary title={currentSortMode.label} className="flex min-h-8 cursor-pointer list-none items-center gap-2 rounded-sm border border-slate-300 bg-white px-2 text-xs font-medium text-slate-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700">
+              Sort <span className="max-w-48 truncate font-normal text-slate-600">{currentSortMode.label}</span><span aria-hidden="true" className="text-[10px] text-slate-500">▾</span>
+            </summary>
+            <div className="mt-1 min-w-52 rounded-sm border border-slate-300 bg-white p-2 shadow-lg">
+              <p className="px-2 py-1 text-[10px] font-semibold uppercase tracking-wide text-slate-500">Current mode</p>
+              <p role="status" className="px-2 py-1.5 text-xs font-medium text-slate-800">{currentSortMode.label}</p>
             </div>
-          </div>
-          <GapContributionChart
-            segments={gapSegments}
-            fullTotal={fullSnapshotComparison.totalGap}
-            selectedTotal={selectedTotalGap}
-            selectedActive={isSelectedComparisonActive}
-          />
-          <div className="grid grid-cols-3 gap-2 text-[10px] text-slate-600">
-            {gapSegments.map(segment => <div key={segment.key} className="min-w-0">
-              <p className="font-sans font-semibold text-slate-700">{segment.label}</p>
-              <p className="font-mono tabular-nums">Full {segment.full === null ? '—' : formatVariance(segment.full, 4)}</p>
-              {isSelectedComparisonActive && <p className="font-mono tabular-nums text-blue-900">Selected {segment.selected === null ? '—' : formatVariance(segment.selected, 4)}</p>}
-            </div>)}
-          </div>
-        </section>
-      </header>
+          </details>
 
-      <section aria-labelledby="cost-breakdown-overview-title" className="shrink-0 min-w-0">
-        <div className="flex min-h-8 flex-wrap items-center justify-between gap-2">
-          <h2 id="cost-breakdown-overview-title" className="text-xs font-semibold text-slate-800">Fixed Overview</h2>
           <button
             type="button"
             aria-expanded={isOverviewExpanded}
             aria-controls="cost-breakdown-overview-panels"
-            aria-label={`${isOverviewExpanded ? 'Collapse' : 'Expand'} Fixed Overview`}
+            aria-label={`${isOverviewExpanded ? 'Collapse' : 'Expand'} Cost and Work Center sections`}
+            title={`${isOverviewExpanded ? 'Collapse' : 'Expand'} Cost and Work Center sections`}
             onClick={() => setIsOverviewExpanded(expanded => !expanded)}
-            className="inline-flex min-h-8 items-center gap-1 rounded-sm border border-slate-300 bg-white px-2 text-xs font-medium text-slate-700 hover:bg-slate-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700"
+            className="inline-flex min-h-8 shrink-0 items-center gap-1 rounded-sm border border-slate-300 bg-white px-2 text-xs font-medium text-slate-700 hover:bg-slate-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700"
           >
             {isOverviewExpanded ? <ChevronDown aria-hidden="true" className="h-3.5 w-3.5" /> : <ChevronRight aria-hidden="true" className="h-3.5 w-3.5" />}
             {isOverviewExpanded ? 'Collapse' : 'Expand'}
           </button>
         </div>
-        <div id="cost-breakdown-overview-panels" className={isOverviewExpanded ? 'mt-1.5 grid min-w-0 grid-cols-2 gap-2' : 'hidden'}>
-          <SnapshotComparisonCard comparison={fullSnapshotComparison} />
-          <WorkCenterProcessingTable findings={fullSnapshotComparison.processingFindings} />
-        </div>
-      </section>
+      </header>
+
+      <div id="cost-breakdown-overview-panels" className={isOverviewExpanded ? 'shrink-0 grid min-w-0 grid-cols-2 gap-2' : 'hidden'}>
+        <SnapshotComparisonCard comparison={fullSnapshotComparison} />
+        <WorkCenterProcessingTable findings={fullSnapshotComparison.processingFindings} />
+      </div>
 
       <div role="region" aria-label="Candidate workspace" tabIndex={0} className="min-h-0 min-w-0 flex-1 overflow-y-auto focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-blue-700">
         <ItemizedComparisonTable
