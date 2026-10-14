@@ -1,99 +1,94 @@
-import React from 'react'
 import { formatNumber } from '../../core'
 import { NumericInput } from '../../shared/ui/NumericInput'
-import {
-  type EconomicSimulationDraft,
-  type EconomicSimulationResult,
-  type EconomicSimulationField
-} from './simulation-economics'
+import type { EconomicSimulationDraft, EconomicSimulationResult, EconomicSimulationField } from './simulation-economics'
 
 interface EconomicSimulationPanelProps {
   result: EconomicSimulationResult
   draft: EconomicSimulationDraft
-  hasParameterSimulation: boolean
-  showResults?: boolean
   onUpdate: (field: EconomicSimulationField, value: string) => void
 }
 
-function formatValue(value: number | null): string {
-  return value === null || !Number.isFinite(value) ? 'Unavailable' : formatNumber(value)
-}
-
-const INPUTS: Array<{ field: EconomicSimulationField; label: string; unit: string; placeholder?: string }> = [
-  { field: 'actionCost', label: 'Action Cost', unit: 'THB' },
-  { field: 'evaluationQuantity', label: 'Evaluation Quantity', unit: 'pcs' },
-  { field: 'sellingPriceOverride', label: 'Selling Price override', unit: 'THB/pc', placeholder: 'Use Current' },
-  { field: 'sgaPercentOverride', label: 'SG&A override', unit: '%', placeholder: 'Use Current' }
+const INPUTS: Array<{
+  field: EconomicSimulationField
+  label: string
+  unit: string
+  precision: number
+  integer?: boolean
+  placeholder?: string
+  minExclusive?: boolean
+}> = [
+  { field: 'fixedActionCost', label: 'Fixed Action Cost', unit: 'THB', precision: 2 },
+  { field: 'variableActionCostPerPiece', label: 'Variable Action Cost / pc', unit: 'THB/pc', precision: 2 },
+  { field: 'batchSize', label: 'Batch Size', unit: 'pcs', precision: 0, integer: true },
+  { field: 'sellingPriceOverride', label: 'Selling Price', unit: 'THB/pc', precision: 2, placeholder: 'Current' },
+  { field: 'sgaPercentOverride', label: 'SG&A', unit: '%', precision: 2, placeholder: 'Current' }
 ]
 
-export const EconomicSimulationPanel: React.FC<EconomicSimulationPanelProps> = ({
-  result,
-  draft,
-  hasParameterSimulation,
-  showResults = true,
-  onUpdate
-}) => {
+function formatValue(value: number | null): string {
+  return value === null || !Number.isFinite(value) ? '—' : formatNumber(value, 2)
+}
+
+export function EconomicSimulationPanel({ result, draft, onUpdate }: EconomicSimulationPanelProps) {
   const margin = result.economicMarginPerPiece
-  const warnings = result.warnings.filter(warning => /finite number|greater than zero|could not be calculated/i.test(warning))
+  const outputs = [
+    { label: 'Fixed Cost / pc', value: result.fixedCostPerPiece, className: 'text-slate-900' },
+    { label: 'Required Saving / pc', value: result.requiredSavingPerPiece, className: 'text-slate-900' },
+    { label: 'Parameter Saving / pc', value: result.parameterSavingPerPiece, className: 'text-slate-900' },
+    {
+      label: 'Economic Margin / pc',
+      value: margin,
+      className: margin === null ? 'text-slate-500' : margin >= 0 ? 'text-emerald-800' : 'text-rose-800'
+    },
+    { label: 'SG&A / pc', value: result.sgaPerPiece, className: 'text-slate-900' },
+    {
+      label: 'OP / pc',
+      value: result.operatingProfitPerPiece,
+      className: result.operatingProfitPerPiece === null ? 'text-slate-500' : result.operatingProfitPerPiece >= 0 ? 'text-emerald-800' : 'text-rose-800'
+    }
+  ]
 
   return (
-    <section className="border border-slate-300 bg-white" aria-labelledby="economic-simulation-title">
-      <div className="border-b border-slate-200 px-3 py-2.5">
-        <h2 id="economic-simulation-title" className="font-sans text-sm font-semibold text-slate-950">{showResults ? 'Economic Simulation' : 'Economic assumptions'}</h2>
-        {showResults && <p className="mt-0.5 text-[11px] text-slate-600">Set the action cost and evaluation quantity for the break-even estimate.</p>}
+    <section className="min-w-0 border border-slate-300 bg-white px-3 py-2.5" aria-labelledby="economic-simulation-title">
+      <div className="flex items-baseline justify-between gap-2 border-b border-slate-200 pb-1.5">
+        <h2 id="economic-simulation-title" className="text-xs font-semibold text-slate-900">Economic</h2>
+        <span className="text-[10px] text-slate-500">Separate from Standard Cost</span>
       </div>
-      <div className={`grid gap-4 p-3 ${showResults ? 'xl:grid-cols-[minmax(0,1fr)_minmax(20rem,0.9fr)]' : ''}`}>
-        <div>
-          <div className={`grid gap-3 sm:grid-cols-2 ${showResults ? '' : 'xl:grid-cols-4'}`}>
-            {INPUTS.map(({ field, label, unit, placeholder }) => (
-              <label key={field} className="block text-xs font-medium text-slate-800">
-                <span className="flex items-baseline justify-between gap-2">
-                  <span>{label}</span>
-                  <span className="font-normal text-[10px] text-slate-500">{unit}</span>
-                </span>
-                <NumericInput
-                  value={draft[field].trim() === '' ? null : Number(draft[field])}
-                  min={field === 'evaluationQuantity' ? 0 : undefined}
-                  minExclusive={field === 'evaluationQuantity'}
-                  allowSubMinimumDraft={field === 'evaluationQuantity'}
-                  placeholder={placeholder}
-                  onValueChange={value => onUpdate(field, value === null ? '' : String(value))}
-                  className="mt-1 h-9 w-full border border-slate-400 bg-white px-2 text-right font-mono text-xs tabular-nums text-slate-950 focus:border-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-100"
-                />
-              </label>
-            ))}
-          </div>
-          {showResults && result.requiredSavingPerPiece === null && (
-            <p className="mt-2 text-[11px] text-slate-500">Enter Action Cost and a positive Evaluation Quantity to calculate break-even.</p>
-          )}
-        </div>
 
-        {showResults && <div className={`grid content-start gap-3 ${hasParameterSimulation ? 'sm:grid-cols-2' : ''}`}>
-          <div className="border-l-2 border-slate-900 bg-slate-50 px-3 py-2">
-            <p className="text-[11px] font-semibold text-slate-600">Required Saving / pc</p>
-            <p className="mt-1 font-mono text-base font-semibold tabular-nums text-slate-950">
-              {formatValue(result.requiredSavingPerPiece)} <span className="text-[11px] font-normal text-slate-500">THB/pc</span>
-            </p>
-          </div>
-          {hasParameterSimulation && (
-            <div className={`border-l-2 px-3 py-2 ${margin === null ? 'border-slate-300 bg-slate-50' : margin >= 0 ? 'border-emerald-700 bg-emerald-50' : 'border-rose-700 bg-rose-50'}`}>
-              <p className="text-[11px] font-semibold text-slate-600">Economic Margin / pc</p>
-              <p className={`mt-1 font-mono text-base font-semibold tabular-nums ${margin === null ? 'text-slate-500' : margin >= 0 ? 'text-emerald-900' : 'text-rose-900'}`}>
-                {formatValue(margin)} <span className="text-[11px] font-normal text-slate-500">THB/pc</span>
-              </p>
-              <p className="mt-1 text-[10px] text-slate-600">
-                {margin === null
-                  ? result.parameterSavingPerPiece === null ? 'Needs an available Parameter Saving.' : 'Enter valid economic inputs.'
-                  : margin >= 0 ? 'At or above break-even.' : 'Below break-even.'}
-              </p>
-            </div>
-          )}
-        </div>}
+      <div className="mt-2 grid grid-cols-2 gap-x-3 gap-y-1.5">
+        {INPUTS.map(({ field, label, unit, precision, integer, placeholder, minExclusive }) => (
+          <label key={field} className="block min-w-0 text-[10px] font-medium text-slate-700">
+            <span className="flex min-w-0 items-baseline justify-between gap-1">
+              <span className="truncate">{label}</span>
+              <span className="shrink-0 font-normal text-slate-500">{unit}</span>
+            </span>
+            <NumericInput
+              value={draft[field].trim() === '' ? null : Number(draft[field])}
+              precision={precision}
+              integer={integer}
+              min={0}
+              minExclusive={minExclusive}
+              allowSubMinimumDraft={minExclusive}
+              placeholder={placeholder}
+              onValueChange={value => onUpdate(field, value === null ? '' : String(value))}
+              className="mt-0.5 h-7 w-full border border-slate-300 bg-white px-1.5 text-right text-[11px] text-slate-950 focus:border-blue-700 focus:outline-none focus:ring-1 focus:ring-blue-100"
+            />
+          </label>
+        ))}
       </div>
-      {warnings.length > 0 && (
-        <details className="border-t border-slate-200 px-3 py-2 text-xs text-slate-600">
-          <summary className="cursor-pointer font-medium">Calculation notes ({warnings.length})</summary>
-          <ul className="mt-2 list-disc space-y-1 pl-5">{warnings.map(warning => <li key={warning}>{warning}</li>)}</ul>
+
+      <div className="mt-2 grid grid-cols-2 gap-x-3 gap-y-1 border-t border-slate-200 pt-2 sm:grid-cols-3">
+        {outputs.map(({ label, value, className }) => (
+          <div key={label} className="flex min-w-0 items-baseline justify-between gap-2 py-0.5">
+            <span className="truncate text-[10px] text-slate-600">{label}</span>
+            <span className={`shrink-0 font-mono text-[11px] font-semibold tabular-nums ${className}`}>{formatValue(value)}</span>
+          </div>
+        ))}
+      </div>
+
+      {result.warnings.length > 0 && (
+        <details className="mt-1 border-t border-slate-100 pt-1 text-[10px] text-slate-600">
+          <summary className="cursor-pointer font-medium">Calculation notes ({result.warnings.length})</summary>
+          <ul className="mt-1 list-disc space-y-0.5 pl-4">{result.warnings.map(warning => <li key={warning}>{warning}</li>)}</ul>
         </details>
       )}
     </section>

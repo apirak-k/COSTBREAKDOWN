@@ -1,200 +1,321 @@
+import { useEffect, useMemo, useState } from 'react'
+import type { KeyboardEvent, PointerEvent } from 'react'
 import { formatNumber } from '../../core'
 import type { ScenarioFinancialResult, ScenarioStory } from '../../core/types'
 
 type MetricKey = keyof ScenarioFinancialResult
+type CostPartKey = 'material' | 'labor' | 'burden'
 
-const METRICS: Array<{ key: MetricKey; label: string }> = [
-  { key: 'material', label: 'MAT' },
-  { key: 'labor', label: 'LB' },
-  { key: 'burden', label: 'BD' },
-  { key: 'standardCost', label: 'Standard Cost' },
-  { key: 'sgaAmountPerPiece', label: 'SG&A' },
-  { key: 'operatingProfitPerPiece', label: 'OP' },
-  { key: 'sellingPrice', label: 'Selling Price' }
-]
-
-const COST_PARTS = [
-  { key: 'material', label: 'MAT', color: '#5b91c8' },
-  { key: 'labor', label: 'LB', color: '#e6b422' },
-  { key: 'burden', label: 'BD', color: '#55964b' }
-] as const
-
-function formatValue(value: number | null, digits = 4): string {
-  return value === null || !Number.isFinite(value) ? '—' : formatNumber(value, digits)
+interface ChartPart {
+  key: MetricKey
+  label: string
+  color: string
+  highlight: CostPartKey | null
 }
 
-function formatMetricValue(key: MetricKey, value: number | null): string {
-  const formatted = formatValue(value)
-  return key === 'operatingProfitPerPiece' && value !== null && Number.isFinite(value) && value < 0
-    ? `${formatted} · Operating loss`
-    : formatted
+const COST_PARTS: ChartPart[] = [
+  { key: 'material', label: 'MAT', color: '#5b91c8', highlight: 'material' },
+  { key: 'labor', label: 'LB', color: '#e6b422', highlight: 'labor' },
+  { key: 'burden', label: 'BD', color: '#55964b', highlight: 'burden' }
+]
+
+const STATE_PARTS: ChartPart[] = [
+  ...COST_PARTS,
+  { key: 'sgaAmountPerPiece', label: 'SG&A', color: '#94a3b8', highlight: null },
+  { key: 'operatingProfitPerPiece', label: 'OP', color: '#8b73ad', highlight: null }
+]
+
+const STATE_LAYOUT = [
+  { key: 'reference', label: 'REF', description: 'Reference', x: 180 },
+  { key: 'current', label: 'CUR', description: 'Current', x: 430 },
+  { key: 'simulated', label: 'SIM', description: 'Simulated', x: 680 }
+] as const
+
+function formatValue(value: number | null): string {
+  return value === null || !Number.isFinite(value) ? '—' : formatNumber(value, 2)
+}
+
+function signed(value: number | null): string {
+  if (value === null || !Number.isFinite(value)) return '—'
+  return `${value > 0 ? '+' : ''}${formatNumber(value, 2)}`
+}
+
+function stackExtent(values: Array<number | null>): { positive: number; negative: number } {
+  let positive = 0
+  let negative = 0
+  values.forEach(value => {
+    if (value === null || !Number.isFinite(value)) return
+    if (value >= 0) positive += value
+    else negative += value
+  })
+  return { positive, negative }
+}
+
+function finiteRangeValues(values: Array<number | null | undefined>): number[] {
+  return values.filter((value): value is number => value !== null && value !== undefined && Number.isFinite(value))
 }
 
 interface SimulationStoryGraphProps {
   story: ScenarioStory
-  parameterSaving: number | null
-  requiredSaving: number | null
-  economicMargin: number | null
-  warnings?: string[]
+  highlightedParts?: Partial<Record<CostPartKey, boolean>>
 }
 
-function formatResult(value: number | null): string {
-  return value === null || !Number.isFinite(value) ? 'Unavailable' : formatNumber(value, 4)
-}
-
-export function SimulationStoryGraph({ story, parameterSaving, requiredSaving, economicMargin, warnings = [] }: SimulationStoryGraphProps) {
-  const states = [
-    { key: 'reference', label: 'Reference', values: story.reference, x: 160 },
-    { key: 'current', label: 'Current', values: story.current, x: 350 },
-    { key: 'simulated', label: 'Simulated', values: story.simulated, x: 540 }
-  ] as const
-  const plot = { top: 24, bottom: 204 }
-  const rangeValues = states.flatMap(state => {
-    const components = COST_PARTS.map(part => state.values[part.key])
-    if (components.some(value => value === null || !Number.isFinite(value))) return [state.values.sellingPrice]
-    const positive = components.filter((value): value is number => value !== null && value > 0).reduce((sum, value) => sum + value, 0)
-    const negative = components.filter((value): value is number => value !== null && value < 0).reduce((sum, value) => sum + value, 0)
-    return [positive, negative, state.values.sellingPrice]
-  }).filter((value): value is number => value !== null && Number.isFinite(value))
-  let minimum = Math.min(0, ...rangeValues)
-  let maximum = Math.max(0, ...rangeValues)
-  if (minimum === maximum) maximum = minimum + 1
-  const y = (value: number) => plot.top + ((maximum - value) / (maximum - minimum)) * (plot.bottom - plot.top)
+export function SimulationStoryGraph({ story, highlightedParts = {} }: SimulationStoryGraphProps) {
+  const stateValues = useMemo(() => STATE_LAYOUT.map(state => ({
+    ...state,
+    values: story[state.key]
+  })), [story])
+  const gapValues = useMemo(() => [
+    { key: 'gap1', label: 'GAP 1', description: 'CUR − REF', x: 305, values: story.gap1 },
+    { key: 'gap2', label: 'GAP 2', description: 'SIM − CUR', x: 555, values: story.gap2 }
+  ], [story])
+  const rangeValues = useMemo(() => {
+    const extents = [
+      ...stateValues.map(state => stackExtent(STATE_PARTS.map(part => state.values[part.key]))),
+      ...gapValues.map(gap => stackExtent(COST_PARTS.map(part => gap.values[part.key])))
+    ]
+    return finiteRangeValues([
+      ...extents.flatMap(extent => [extent.positive, extent.negative]),
+      ...stateValues.flatMap(state => [state.values.standardCost, state.values.sellingPrice]),
+      ...gapValues.map(gap => gap.values.standardCost)
+    ])
+  }, [gapValues, stateValues])
+  const plot = { left: 120, right: 752, top: 38, bottom: 272 }
+  const rawMinimum = Math.min(0, ...rangeValues)
+  const rawMaximum = Math.max(0, ...rangeValues)
+  const rawSpan = rawMaximum - rawMinimum || 1
+  const minimum = rawMinimum - rawSpan * 0.1
+  const maximum = rawMaximum + rawSpan * 0.1
+  const span = maximum - minimum
+  const clamp = (value: number, low: number, high: number) => Math.min(high, Math.max(low, value))
+  const y = (value: number) => plot.top + ((maximum - value) / span) * (plot.bottom - plot.top)
   const zeroY = y(0)
-  const pricePoints = states.flatMap(state => state.values.sellingPrice === null || !Number.isFinite(state.values.sellingPrice)
+  const importantLevels = finiteRangeValues([
+    0,
+    ...stateValues.flatMap(state => [state.values.standardCost, state.values.sellingPrice])
+  ]).filter(value => value >= minimum && value <= maximum)
+  const snapLevel = (value: number) => {
+    const threshold = span * 0.008
+    const nearest = importantLevels.reduce<number | null>((best, level) =>
+      best === null || Math.abs(level - value) < Math.abs(best - value) ? level : best, null)
+    return nearest !== null && Math.abs(nearest - value) <= threshold ? nearest : value
+  }
+
+  const [manualRulerLevel, setManualRulerLevel] = useState<number | null>(null)
+  const [rulerFocused, setRulerFocused] = useState(false)
+  const rulerLevel = manualRulerLevel ?? story.current.standardCost ?? 0
+  const rulerY = y(rulerLevel)
+  useEffect(() => {
+    if (manualRulerLevel === null) return
+    const clamped = clamp(manualRulerLevel, minimum, maximum)
+    if (clamped !== manualRulerLevel) setManualRulerLevel(clamped)
+  }, [manualRulerLevel, maximum, minimum])
+
+  const updateRulerFromPointer = (event: PointerEvent<SVGGElement>) => {
+    const bounds = event.currentTarget.ownerSVGElement?.getBoundingClientRect()
+    if (!bounds || bounds.height === 0) return
+    const svgY = ((event.clientY - bounds.top) / bounds.height) * 332
+    const ratio = clamp((svgY - plot.top) / (plot.bottom - plot.top), 0, 1)
+    setManualRulerLevel(snapLevel(maximum - ratio * span))
+  }
+  const handleRulerKeyDown = (event: KeyboardEvent<SVGGElement>) => {
+    const step = span / 100
+    const keySteps: Record<string, number> = {
+      ArrowUp: step,
+      ArrowRight: step,
+      ArrowDown: -step,
+      ArrowLeft: -step,
+      PageUp: step * 10,
+      PageDown: -step * 10
+    }
+    if (event.key === 'Home') {
+      event.preventDefault()
+      setManualRulerLevel(minimum)
+    } else if (event.key === 'End') {
+      event.preventDefault()
+      setManualRulerLevel(maximum)
+    } else if (keySteps[event.key] !== undefined) {
+      event.preventDefault()
+      setManualRulerLevel(snapLevel(clamp(rulerLevel + keySteps[event.key], minimum, maximum)))
+    }
+  }
+
+  const pricePoints = stateValues.flatMap(state => state.values.sellingPrice === null || !Number.isFinite(state.values.sellingPrice)
     ? []
-    : [{ x: state.x, y: y(state.values.sellingPrice), value: state.values.sellingPrice, label: state.label }])
-  const priceLine = pricePoints.length > 1
-    ? pricePoints.map((point, index) => `${index === 0 ? 'M' : 'L'} ${point.x} ${point.y}`).join(' ')
-    : null
+    : [{ x: state.x, y: y(state.values.sellingPrice), value: state.values.sellingPrice, label: state.description }])
+  const priceLines = stateValues.slice(0, -1).flatMap((state, index) => {
+    const nextState = stateValues[index + 1]
+    const first = state.values.sellingPrice
+    const second = nextState.values.sellingPrice
+    if (first === null || second === null || !Number.isFinite(first) || !Number.isFinite(second)) return []
+    return [`M ${state.x} ${y(first)} L ${nextState.x} ${y(second)}`]
+  })
 
   return (
     <figure aria-labelledby="simulation-story-title" className="border border-slate-300 bg-white px-3 py-3">
-      <div className="border-b border-slate-200 pb-2">
-        <h2 id="simulation-story-title" className="text-sm font-semibold text-slate-900">Reference → Current → Simulated</h2>
-        <p className="mt-0.5 text-[11px] text-slate-500">Standard Cost · THB/pc</p>
+      <div className="flex flex-wrap items-baseline justify-between gap-2 border-b border-slate-200 pb-2">
+        <div>
+          <h2 id="simulation-story-title" className="text-sm font-semibold text-slate-900">Simulation Cost Graph</h2>
+          <p className="mt-0.5 text-[11px] text-slate-500">REF → GAP 1 → CUR → GAP 2 → SIM · THB/pc</p>
+        </div>
+        <p className="text-[11px] text-slate-500">Standard Cost = MAT + LB + BD · Selling Price shown separately</p>
       </div>
-      <div className="grid grid-cols-1 gap-3 py-2 xl:grid-cols-[minmax(0,1.2fr)_minmax(18rem,0.8fr)] xl:items-start">
-        <div className="min-w-0">
-          <svg
-            role="img"
-            aria-label="Reference, Current, and Simulated stacked Standard Cost by MAT, LB, and BD, with Selling Price shown as a line."
-            viewBox="0 0 700 246"
-            className="mt-2 block w-full"
-          >
-            <title>Reference to Current to Simulated cost composition</title>
-            {[0, 1, 2, 3, 4].map(step => {
-              const value = minimum + ((maximum - minimum) * step) / 4
-              const lineY = y(value)
-              return (
-                <g key={step}>
-                  <line x1="55" x2="650" y1={lineY} y2={lineY} stroke={step === 2 ? '#94a3b8' : '#e2e8f0'} strokeWidth="1" />
-                  <text x="48" y={lineY + 3} textAnchor="end" fill="#64748b" fontSize="9" fontFamily="ui-monospace, monospace">{formatNumber(value, 2)}</text>
-                </g>
-              )
-            })}
-            {states.map(state => {
-              const values = COST_PARTS.map(part => state.values[part.key])
-              const complete = values.every(value => value !== null && Number.isFinite(value))
-              let positiveBase = 0
-              let negativeBase = 0
-              return (
-                <g key={state.key}>
-                  {complete ? COST_PARTS.map(part => {
-                    const value = state.values[part.key]
-                    if (value === null) return null
-                    const before = value >= 0 ? positiveBase : negativeBase
-                    const after = before + value
-                    if (value >= 0) positiveBase = after
-                    else negativeBase = after
-                    const top = Math.min(y(before), y(after))
-                    const height = Math.abs(y(before) - y(after))
-                    return <rect key={part.key} x={state.x - 29} y={top} width="58" height={Math.max(height, 1)} fill={part.color}><title>{`${state.label} ${part.label}: ${formatValue(value)} THB/pc`}</title></rect>
-                  }) : <text x={state.x} y={zeroY - 8} textAnchor="middle" fill="#92400e" fontSize="9">Cost unavailable</text>}
-                  {complete && state.values.standardCost !== null && Number.isFinite(state.values.standardCost) && (
-                    <text x={state.x} y={y(state.values.standardCost) - 7} textAnchor="middle" fill="#0f172a" fontSize="9" fontWeight="700" fontFamily="ui-monospace, monospace">
-                      {`STD ${formatValue(state.values.standardCost)}`}
-                    </text>
-                  )}
-                  <text x={state.x} y="228" textAnchor="middle" fill="#334155" fontSize="10" fontWeight="600">{state.label}</text>
-                </g>
-              )
-            })}
-            {priceLine && <path d={priceLine} fill="none" stroke="#1d4ed8" strokeWidth="2" />}
-            {pricePoints.map(point => (
-              <g key={point.label}>
-                <circle cx={point.x} cy={point.y} r="3.5" fill="#1d4ed8" stroke="white" strokeWidth="1" />
-                <title>{`${point.label} Selling Price: ${formatValue(point.value)} THB/pc`}</title>
+
+      <div className="min-w-0">
+        <svg
+          aria-labelledby="simulation-story-svg-title simulation-story-svg-description"
+          viewBox="0 0 820 332"
+          preserveAspectRatio="none"
+          className="mt-1 block h-[250px] w-full sm:h-auto"
+          style={{ touchAction: 'pan-x' }}
+        >
+          <title id="simulation-story-svg-title">Simulation cost result graph</title>
+          <desc id="simulation-story-svg-description">Reference, Current, and SIM stacked costs show MAT, LB, BD, SG&A, and OP. Gap 1 is Current minus Reference. Gap 2 is SIM minus Current. Negative components extend below zero. Selling Price is a separate line. Drag or use the keyboard on the ruler for visual comparison only.</desc>
+
+          {[0, 1, 2, 3, 4].map(step => {
+            const value = minimum + (span * step) / 4
+            const lineY = y(value)
+            return (
+              <g key={step}>
+                <line x1={plot.left} x2={plot.right} y1={lineY} y2={lineY} stroke={Math.abs(value) < span * 0.0001 ? '#64748b' : '#e2e8f0'} strokeWidth={Math.abs(value) < span * 0.0001 ? 1.4 : 1} />
+                <text x="110" y={lineY + 3} textAnchor="end" fill="#64748b" fontSize="9px" fontFamily="ui-monospace, monospace">{formatNumber(value, 2)}</text>
               </g>
-            ))}
-          </svg>
-          <ul aria-label="Simulation story graph legend" className="flex flex-wrap gap-x-4 gap-y-1 border-t border-slate-200 pt-2 text-[11px] text-slate-600">
-            {COST_PARTS.map(part => <li key={part.key} className="inline-flex items-center gap-1.5"><i className="h-2.5 w-2.5" style={{ backgroundColor: part.color }} />{part.label}</li>)}
-            <li className="inline-flex items-center gap-1.5"><i className="h-0.5 w-4 bg-blue-700" />Selling Price</li>
-          </ul>
-        </div>
-        <section aria-label="Simulation decision metrics" className="grid content-start gap-2 sm:grid-cols-2">
-          <div className="border-l-2 border-slate-900 bg-slate-50 px-3 py-2 sm:col-span-2">
-            <p className="text-[11px] font-semibold text-slate-600">Current → SIM Standard Cost</p>
-            <p className="mt-0.5 font-mono text-sm font-semibold tabular-nums text-slate-950">
-              {formatResult(story.current.standardCost)} <span className="text-slate-400">→</span> {formatResult(story.simulated.standardCost)} <span className="text-[10px] font-normal text-slate-500">THB/pc</span>
-            </p>
-          </div>
-          {[
-            { label: 'Parameter Saving / pc', value: parameterSaving },
-            { label: 'Required Saving / pc', value: requiredSaving },
-            { label: 'Economic Margin / pc', value: economicMargin },
-            { label: 'Selling Price · Current → SIM', value: null, comparison: `${formatMetricValue('sellingPrice', story.current.sellingPrice)} → ${formatMetricValue('sellingPrice', story.simulated.sellingPrice)}` },
-            { label: 'SG&A / pc · Current → SIM', value: null, comparison: `${formatMetricValue('sgaAmountPerPiece', story.current.sgaAmountPerPiece)} → ${formatMetricValue('sgaAmountPerPiece', story.simulated.sgaAmountPerPiece)}` },
-            { label: 'OP / pc · Current → SIM', value: null, comparison: `${formatMetricValue('operatingProfitPerPiece', story.current.operatingProfitPerPiece)} → ${formatMetricValue('operatingProfitPerPiece', story.simulated.operatingProfitPerPiece)}` }
-          ].map(metric => (
-            <dl key={metric.label} className="border-t border-slate-200 px-1 pt-1.5">
-              <dt className="text-[10px] font-semibold text-slate-600">{metric.label}</dt>
-              <dd className="mt-0.5 font-mono text-xs font-semibold tabular-nums text-slate-900">
-                {'comparison' in metric ? metric.comparison : formatResult(metric.value)}
-                {'comparison' in metric && ['Selling Price · Current → SIM', 'SG&A / pc · Current → SIM', 'OP / pc · Current → SIM'].includes(metric.label) && <span className="ml-1 text-[10px] font-normal text-slate-500">THB/pc</span>}
-              </dd>
-            </dl>
+            )
+          })}
+          <line x1={plot.left} x2={plot.right} y1={zeroY} y2={zeroY} stroke="#64748b" strokeWidth="1.4" />
+          <text x="15" y="22" fill="#64748b" fontSize="9px" fontFamily="ui-monospace, monospace">THB/pc</text>
+
+          {stateValues.map(state => {
+            let positiveBase = 0
+            let negativeBase = 0
+            return (
+              <g key={state.key}>
+                {STATE_PARTS.map(part => {
+                  const value = state.values[part.key]
+                  if (value === null || !Number.isFinite(value) || value === 0) return null
+                  const before = value > 0 ? positiveBase : negativeBase
+                  const after = before + value
+                  if (value > 0) positiveBase = after
+                  else negativeBase = after
+                  const highlighted = Boolean(part.highlight && highlightedParts[part.highlight])
+                  return (
+                    <rect
+                      key={part.key}
+                      x={state.x - 27}
+                      y={Math.min(y(before), y(after))}
+                      width="54"
+                      height={Math.max(Math.abs(y(before) - y(after)), 1)}
+                      fill={part.color}
+                      stroke={highlighted ? '#0f172a' : 'none'}
+                      strokeWidth={highlighted ? 2 : 0}
+                    >
+                      <title>{`${state.description} ${part.label}: ${formatValue(value)} THB/pc`}</title>
+                    </rect>
+                  )
+                })}
+                <text x={state.x} y={clamp(y(state.values.standardCost ?? 0) + 13, plot.top + 12, plot.bottom - 2)} textAnchor="middle" fill="#0f172a" fontSize="9px" fontWeight="700" fontFamily="ui-monospace, monospace">
+                  {`STD ${formatValue(state.values.standardCost)}`}
+                </text>
+                <text x={state.x} y="306" textAnchor="middle" fill="#0f172a" fontSize="11px" fontWeight="700" fontFamily="ui-monospace, monospace">{state.label}</text>
+                <text className="hidden sm:inline" x={state.x} y="320" textAnchor="middle" fill="#64748b" fontSize="9px">{state.description}</text>
+              </g>
+            )
+          })}
+
+          {gapValues.map(gap => {
+            let positiveBase = 0
+            let negativeBase = 0
+            return (
+              <g key={gap.key}>
+                {COST_PARTS.map(part => {
+                  const value = gap.values[part.key]
+                  if (value === null || !Number.isFinite(value) || value === 0) return null
+                  const before = value > 0 ? positiveBase : negativeBase
+                  const after = before + value
+                  if (value > 0) positiveBase = after
+                  else negativeBase = after
+                  const highlightKey = part.highlight
+                  const highlighted = Boolean(highlightKey && highlightedParts[highlightKey])
+                  return (
+                    <rect
+                      key={part.key}
+                      x={gap.x - 25}
+                      y={Math.min(y(before), y(after))}
+                      width="50"
+                      height={Math.max(Math.abs(y(before) - y(after)), 1)}
+                      fill={part.color}
+                      fillOpacity="0.86"
+                      stroke={highlighted ? '#0f172a' : 'none'}
+                      strokeWidth={highlighted ? 2 : 0}
+                    >
+                      <title>{`${gap.label} ${part.label} Gap: ${signed(value)} THB/pc`}</title>
+                    </rect>
+                  )
+                })}
+                <text x={gap.x} y={clamp(y(gap.values.standardCost ?? 0) - 8, plot.top + 10, plot.bottom - 1)} textAnchor="middle" fill="#0f172a" fontSize="9px" fontWeight="700" fontFamily="ui-monospace, monospace">
+                  {`SC ${signed(gap.values.standardCost)}`}
+                </text>
+                <text x={gap.x} y="306" textAnchor="middle" fill="#0f172a" fontSize="11px" fontWeight="700" fontFamily="ui-monospace, monospace">{gap.label}</text>
+                <text className="hidden sm:inline" x={gap.x} y="320" textAnchor="middle" fill="#64748b" fontSize="9px">{gap.description}</text>
+              </g>
+            )
+          })}
+
+          {priceLines.map((path, index) => <path key={index} d={path} fill="none" stroke="#1d4ed8" strokeWidth="2" />)}
+          {pricePoints.map(point => (
+            <g key={point.label}>
+              <circle cx={point.x} cy={point.y} r="3.5" fill="#1d4ed8" stroke="white" strokeWidth="1" />
+              <text x={point.x} y={clamp(point.y - 9, plot.top + 9, plot.bottom - 3)} textAnchor="middle" fill="#1d4ed8" fontSize="9px" fontWeight="700" fontFamily="ui-monospace, monospace">{`SP ${formatValue(point.value)}`}</text>
+              <title>{`${point.label} Selling Price: ${formatValue(point.value)} THB/pc`}</title>
+            </g>
           ))}
-        </section>
+
+          <g
+            role="slider"
+            tabIndex={0}
+            aria-label="Visual comparison ruler"
+            aria-orientation="vertical"
+            aria-valuemin={minimum}
+            aria-valuemax={maximum}
+            aria-valuenow={rulerLevel}
+            aria-valuetext={`${formatValue(rulerLevel)} THB per piece`}
+            onPointerDown={event => {
+              if (event.button !== 0) return
+              event.currentTarget.setPointerCapture(event.pointerId)
+              updateRulerFromPointer(event)
+            }}
+            onPointerMove={event => { if (event.buttons !== 0) updateRulerFromPointer(event) }}
+            onPointerUp={event => {
+              updateRulerFromPointer(event)
+              if (event.currentTarget.hasPointerCapture(event.pointerId)) event.currentTarget.releasePointerCapture(event.pointerId)
+            }}
+            onKeyDown={handleRulerKeyDown}
+            onFocus={() => setRulerFocused(true)}
+            onBlur={() => setRulerFocused(false)}
+            className="cursor-ns-resize touch-none focus-visible:outline-none"
+          >
+            <title>Drag vertically to compare cost levels. This guide does not change data.</title>
+            <line x1={plot.left} x2={plot.right} y1={rulerY} y2={rulerY} stroke={rulerFocused ? '#2563eb' : '#64748b'} strokeWidth={rulerFocused ? 2 : 1.25} strokeDasharray="5 4" opacity="0.9" pointerEvents="none" />
+            <line x1={plot.left} x2={plot.right} y1={rulerY} y2={rulerY} stroke="transparent" strokeWidth="16" pointerEvents="stroke" />
+            {rulerFocused && <line x1={plot.left} x2={plot.right} y1={rulerY - 5} y2={rulerY - 5} stroke="#2563eb" strokeWidth="1" opacity="0.45" pointerEvents="none" />}
+            <rect x="662" y={rulerY - 13} width="90" height="16" fill="white" fillOpacity="0.94" pointerEvents="none" />
+            <text x="748" y={rulerY - 2} textAnchor="end" fill={rulerFocused ? '#1d4ed8' : '#475569'} fontSize="9px" fontWeight="700" fontFamily="ui-monospace, monospace" pointerEvents="none">{`RULER ${formatValue(rulerLevel)}`}</text>
+            <rect x={plot.left} y={rulerY - 8} width={plot.right - plot.left} height="16" fill="transparent" pointerEvents="all" />
+          </g>
+        </svg>
       </div>
-      <details className="border-t border-slate-200 pt-2">
-        <summary className="min-h-7 cursor-pointer text-xs font-medium text-slate-700 hover:text-slate-950 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700">Cost values and signed gaps</summary>
-        <div className="mt-2 overflow-x-auto">
-          <table className="w-full min-w-[680px] text-[11px]">
-            <thead>
-              <tr className="border-b border-slate-300 text-left font-mono uppercase text-slate-600">
-                <th scope="col" className="py-2 pr-2">THB/pc</th>
-                <th scope="col" className="px-2 py-2 text-right">Reference</th>
-                <th scope="col" className="px-2 py-2 text-right">Current</th>
-                <th scope="col" className="px-2 py-2 text-right">Simulated</th>
-                <th scope="col" className="px-2 py-2 text-right">Gap 1<br />Current − Reference</th>
-                <th scope="col" className="py-2 pl-2 text-right">Gap 2<br />Simulated − Current</th>
-              </tr>
-            </thead>
-            <tbody>
-              {METRICS.map(({ key, label }) => (
-                <tr key={key} className="border-b border-slate-100 last:border-0">
-                  <th scope="row" className="py-1.5 pr-2 text-left font-medium text-slate-700">{label}</th>
-                  <td className="px-2 py-1.5 text-right font-mono tabular-nums">{formatMetricValue(key, story.reference[key])}</td>
-                  <td className="px-2 py-1.5 text-right font-mono tabular-nums">{formatMetricValue(key, story.current[key])}</td>
-                  <td className="px-2 py-1.5 text-right font-mono tabular-nums">{formatMetricValue(key, story.simulated[key])}</td>
-                  <td className="px-2 py-1.5 text-right font-mono tabular-nums">{formatValue(story.gap1[key])}</td>
-                  <td className="py-1.5 pl-2 text-right font-mono tabular-nums">{formatValue(story.gap2[key])}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-        {warnings.length > 0 && (
-          <div className="mt-2 border-t border-slate-200 pt-2 text-xs text-slate-600">
-            <p className="font-medium">Calculation notes</p>
-            <ul className="mt-1 list-disc space-y-1 pl-5">{[...new Set(warnings)].map(warning => <li key={warning}>{warning}</li>)}</ul>
-          </div>
-        )}
-      </details>
+
+      <ul aria-label="Simulation graph legend" className="flex flex-wrap gap-x-4 gap-y-1 border-t border-slate-200 pt-2 text-[11px] text-slate-600">
+        {STATE_PARTS.map(part => (
+          <li key={part.key} className={`inline-flex items-center gap-1.5 ${part.highlight && highlightedParts[part.highlight] ? 'font-semibold text-slate-950' : ''}`}>
+            <i className="h-2.5 w-2.5" style={{ backgroundColor: part.color }} />{part.label}
+          </li>
+        ))}
+        <li className="inline-flex items-center gap-1.5"><i className="h-0.5 w-4 bg-blue-700" />Selling Price</li>
+        <li className="inline-flex items-center gap-1.5"><i className="h-0.5 w-4 border-t border-dashed border-slate-600" />Ruler · visual only</li>
+      </ul>
       <figcaption className="mt-1 text-[10px] leading-4 text-slate-500">
-        Gap 1 = Current − Reference. Gap 2 = Simulated − Current. Negative OP is an operating loss.
+        Gap 1 = Current − Reference. Gap 2 = SIM − Current. Each gap total is MAT + LB + BD; negative OP remains below zero.
       </figcaption>
     </figure>
   )

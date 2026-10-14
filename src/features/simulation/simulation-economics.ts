@@ -2,8 +2,9 @@ import { calculateScenarioBusinessMetrics } from '../../core/calculations/scenar
 import type { CostSnapshot, ScenarioBusinessResult, SnapshotCost } from '../../core/types'
 
 export interface EconomicSimulationDraft {
-  actionCost: string
-  evaluationQuantity: string
+  fixedActionCost: string
+  variableActionCostPerPiece: string
+  batchSize: string
   sellingPriceOverride: string
   sgaPercentOverride: string
 }
@@ -11,18 +12,22 @@ export interface EconomicSimulationDraft {
 export type EconomicSimulationField = keyof EconomicSimulationDraft
 
 export interface EconomicSimulationResult {
-  actionCost: number | null
-  evaluationQuantity: number | null
+  fixedActionCost: number | null
+  variableActionCostPerPiece: number | null
+  batchSize: number | null
+  fixedCostPerPiece: number | null
   requiredSavingPerPiece: number | null
   parameterSavingPerPiece: number | null
   economicMarginPerPiece: number | null
   simulationStandardCost: number | null
+  sgaPerPiece: number | null
+  operatingProfitPerPiece: number | null
   business: ScenarioBusinessResult
   warnings: string[]
 }
 
 export function createEconomicSimulationDraft(): EconomicSimulationDraft {
-  return { actionCost: '', evaluationQuantity: '', sellingPriceOverride: '', sgaPercentOverride: '' }
+  return { fixedActionCost: '', variableActionCostPerPiece: '', batchSize: '', sellingPriceOverride: '', sgaPercentOverride: '' }
 }
 
 export function updateEconomicSimulationDraft(
@@ -40,6 +45,10 @@ function parseInput(raw: string, label: string, warnings: string[]): number | nu
     warnings.push(`${label} must be a finite number.`)
     return null
   }
+  if (value < 0) {
+    warnings.push(`${label} must be zero or greater.`)
+    return null
+  }
   return value
 }
 
@@ -48,6 +57,10 @@ function parseOverride(raw: string, currentValue: number | null | undefined, lab
   const value = Number(raw)
   if (!Number.isFinite(value)) {
     warnings.push(`${label} override must be a finite number.`)
+    return null
+  }
+  if (value < 0) {
+    warnings.push(`${label} override must be zero or greater.`)
     return null
   }
   return value
@@ -68,16 +81,20 @@ export function calculateEconomicSimulation(
   draft: EconomicSimulationDraft
 ): EconomicSimulationResult {
   const warnings: string[] = []
-  const actionCost = parseInput(draft.actionCost, 'Action Cost', warnings)
-  const evaluationQuantity = parseInput(draft.evaluationQuantity, 'Evaluation Quantity', warnings)
-  const validQuantity = evaluationQuantity !== null && evaluationQuantity > 0
+  const fixedActionCost = parseInput(draft.fixedActionCost, 'Fixed Action Cost', warnings)
+  const variableActionCostPerPiece = parseInput(draft.variableActionCostPerPiece, 'Variable Action Cost / pc', warnings)
+  const batchSize = parseInput(draft.batchSize, 'Batch Size', warnings)
+  const validQuantity = batchSize !== null && batchSize > 0
 
-  if (evaluationQuantity !== null && !validQuantity) {
-    warnings.push('Evaluation Quantity must be greater than zero for division.')
+  if (batchSize !== null && !validQuantity) {
+    warnings.push('Batch Size must be greater than zero for division.')
   }
 
-  const requiredSavingPerPiece = actionCost !== null && validQuantity
-    ? finiteResult(actionCost / evaluationQuantity, 'Required Saving / pc', warnings)
+  const fixedCostPerPiece = fixedActionCost !== null && batchSize !== null && batchSize > 0
+    ? finiteResult(fixedActionCost / batchSize, 'Fixed Cost / pc', warnings)
+    : null
+  const requiredSavingPerPiece = fixedCostPerPiece !== null && variableActionCostPerPiece !== null
+    ? finiteResult(fixedCostPerPiece + variableActionCostPerPiece, 'Required Saving / pc', warnings)
     : null
   const parameterSaving = parameterSavingPerPiece !== null && Number.isFinite(parameterSavingPerPiece)
     ? parameterSavingPerPiece
@@ -111,12 +128,16 @@ export function calculateEconomicSimulation(
   const business = calculateScenarioBusinessMetrics({ sellingPrice, sgaPercent }, simulationStandardCost)
 
   return {
-    actionCost,
-    evaluationQuantity,
+    fixedActionCost,
+    variableActionCostPerPiece,
+    batchSize,
+    fixedCostPerPiece,
     requiredSavingPerPiece,
     parameterSavingPerPiece: parameterSaving,
     economicMarginPerPiece,
     simulationStandardCost,
+    sgaPerPiece: business.sgaAmountPerPiece,
+    operatingProfitPerPiece: business.operatingProfitPerPiece,
     business,
     warnings: [...new Set([...warnings, ...business.warnings])]
   }

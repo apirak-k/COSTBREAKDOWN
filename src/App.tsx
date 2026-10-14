@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react'
-import type { MasterDataRole } from './core/types'
+import type { CostSnapshot, MasterDataRole } from './core/types'
 import { AppProvider, useAppStore } from './state'
 import { AppLayout } from './shared'
 import {
@@ -8,16 +8,14 @@ import {
   SimulationPage
 } from './features'
 import {
-  createEmptySimulationState,
   reconcileSimulationState,
   retainSimulationStatesForProducts,
   setSimulationEconomicInput,
-  setSimulationFactors,
   startSimulationFrom,
   type SimulationWorkspaceState
 } from './features/simulation/simulation-state'
 import { updateSimulationParameter } from './features/simulation/simulation-engine'
-import type { SimulationFactor, SimulationParameter } from './features/simulation/simulation-state'
+import type { SimulationParameter } from './features/simulation/simulation-state'
 import type { EconomicSimulationField } from './features/simulation/simulation-economics'
 import type { MasterDataQualityItem } from './features/master-data/prepare-dataset'
 import type { WarningNavigationTarget } from './features/master-data/hooks/useWarningNavigationFocus'
@@ -29,7 +27,8 @@ const AppRouter: React.FC = () => {
     activeProductId,
     setActiveTab,
     masterDataSnapshots,
-    productSessions
+    productSessions,
+    sendSimulationSnapshotToMasterData
   } = useAppStore()
   const [prepareDatasetNavigationRequest, setPrepareDatasetNavigationRequest] = useState<(MasterDataQualityItem & WarningNavigationTarget) | undefined>()
   const [masterDataSearchQuery, setMasterDataSearchQuery] = useState('')
@@ -37,9 +36,15 @@ const AppRouter: React.FC = () => {
     () => loadFromSession(STORAGE_KEYS.SIMULATION_STATES, {})
   )
   const storedSimulationState = simulationStatesByProduct[activeProductId]
-  const simulationState = useMemo(
+  const reconciledSimulationState = useMemo(
     () => reconcileSimulationState(storedSimulationState, masterDataSnapshots),
     [masterDataSnapshots, storedSimulationState]
+  )
+  const simulationState = useMemo(
+    () => activeTab === 'simulation' && !reconciledSimulationState.snapshot
+      ? startSimulationFrom('current', masterDataSnapshots, undefined, reconciledSimulationState.economicInputs)
+      : reconciledSimulationState,
+    [activeTab, masterDataSnapshots, reconciledSimulationState]
   )
   const navigateToPrepareDatasetIssue = (item: MasterDataQualityItem) => {
     setPrepareDatasetNavigationRequest(previous => ({
@@ -54,11 +59,11 @@ const AppRouter: React.FC = () => {
   }, [activeTab])
 
   useEffect(() => {
-    if (!storedSimulationState || simulationState === storedSimulationState) return
+    if ((!storedSimulationState && activeTab !== 'simulation') || simulationState === storedSimulationState) return
     setSimulationStatesByProduct(previous => previous[activeProductId] === storedSimulationState
       ? { ...previous, [activeProductId]: simulationState }
       : previous)
-  }, [activeProductId, simulationState, storedSimulationState])
+  }, [activeProductId, activeTab, simulationState, storedSimulationState])
 
   useEffect(() => {
     const liveProductIds = new Set(productSessions.map(session => session.id))
@@ -79,13 +84,6 @@ const AppRouter: React.FC = () => {
     })
   }
 
-  const resetSimulation = () => {
-    setSimulationStatesByProduct(previous => ({
-      ...previous,
-      [activeProductId]: createEmptySimulationState()
-    }))
-  }
-
   const updateSimulationState = (update: (state: SimulationWorkspaceState) => SimulationWorkspaceState) => {
     setSimulationStatesByProduct(previous => {
       const stored = previous[activeProductId]
@@ -94,10 +92,6 @@ const AppRouter: React.FC = () => {
       if (next === current && stored === current) return previous
       return { ...previous, [activeProductId]: next }
     })
-  }
-
-  const selectSimulationFactors = (factors: SimulationFactor[]) => {
-    updateSimulationState(state => setSimulationFactors(state, factors))
   }
 
   const updateEconomicInput = (field: EconomicSimulationField, value: string) => {
@@ -127,12 +121,12 @@ const AppRouter: React.FC = () => {
       {activeTab === 'breakdown' && <CostBreakdownPage />}
       {activeTab === 'simulation' && (
         <SimulationPage
+          key={activeProductId}
           state={simulationState}
           referenceSnapshot={masterDataSnapshots.reference}
           currentSnapshot={masterDataSnapshots.current}
-          onStartFrom={startFrom}
-          onReset={resetSimulation}
-          onSelectFactors={selectSimulationFactors}
+          onCloneSource={startFrom}
+          onSendTo={(role: MasterDataRole, snapshot: CostSnapshot) => sendSimulationSnapshotToMasterData(role, snapshot)}
           onUpdateParameter={updateParameter}
           onUpdateEconomicInput={updateEconomicInput}
         />

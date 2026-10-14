@@ -1,171 +1,401 @@
-import React, { useMemo } from 'react'
-import { compareSnapshots, formatNumber } from '../../core'
-import { calculateScenarioBusinessMetrics } from '../../core/calculations/scenario-business'
-import { createScenarioFinancialResult, createScenarioStory } from '../../core/calculations/scenario-story'
-import type { CostSnapshot, MasterDataRole, SnapshotBOMItem, SnapshotRoutingStep } from '../../core/types'
+import React, { useEffect, useMemo, useRef, useState } from 'react'
+import { ChevronDown, ChevronRight } from 'lucide-react'
+import { compareSnapshots, formatNumber, safeAdd } from '../../core'
+import {
+  calculateMultiplicativeCostAttribution,
+  calculateScenarioBusinessMetrics,
+  calculateSnapshotBOMDetail,
+  calculateSnapshotRoutingDetail,
+  createScenarioFinancialResult,
+  createScenarioStory
+} from '../../core/calculations'
+import type {
+  CostSnapshot,
+  MasterDataRole,
+  ScenarioStory,
+  SnapshotCost
+} from '../../core/types'
 import { PageHeading } from '../../shared'
 import { NumericInput } from '../../shared/ui/NumericInput'
+import { useTransientInteraction } from '../../shared/ui/transient-interactions'
 import { EconomicSimulationPanel } from './EconomicSimulationPanel'
 import { SimulationStoryGraph } from './SimulationStoryGraph'
 import { calculateEconomicSimulation, type EconomicSimulationField } from './simulation-economics'
 import type { SimulationComparisonRow, SimulationRecordKind } from './simulation-engine'
 import { calculateParameterSimulation } from './simulation-engine'
-import type { SimulationFactor, SimulationParameter, SimulationWorkspaceState } from './simulation-state'
-import { SIMULATION_PARAMETERS, simulationFactorId } from './simulation-state'
-import type { RcaSimulationHandoffContext } from '../../state/rca-cases'
+import type { SimulationParameter, SimulationWorkspaceState } from './simulation-state'
 
 interface SimulationPageProps {
   state: SimulationWorkspaceState
   referenceSnapshot: CostSnapshot
   currentSnapshot: CostSnapshot
-  rcaContext?: RcaSimulationHandoffContext | null
-  onStartFrom: (role: MasterDataRole) => void
-  onReset: () => void
-  onSelectFactors: (factors: SimulationFactor[]) => void
+  onCloneSource: (role: MasterDataRole) => void
+  onSendTo: (role: MasterDataRole, snapshot: CostSnapshot) => void
   onUpdateParameter: (recordId: string, parameter: SimulationParameter, value: number | null) => void
   onUpdateEconomicInput: (field: EconomicSimulationField, value: string) => void
 }
 
-const SOURCES: Array<{ role: MasterDataRole; label: string }> = [
+const ROLES: Array<{ role: MasterDataRole; label: string }> = [
   { role: 'reference', label: 'Reference' },
   { role: 'current', label: 'Current' },
   { role: 'custom', label: 'Custom' }
 ]
 
-function sourceChoicesForRcaHandoff() {
-  return [
-    ...SOURCES.filter(source => source.role === 'current'),
-    ...SOURCES.filter(source => source.role !== 'current')
-  ]
+const BOM_PARAMETERS = [
+  { parameter: 'bom.price', field: 'price', label: 'Price', precision: 2, scale: 1, effectKey: 'price' },
+  { parameter: 'bom.consumption', field: 'consumption', label: 'Usage', precision: 4, scale: 1, effectKey: 'usage' },
+  { parameter: 'bom.loss', field: 'loss', label: 'Loss', precision: 2, scale: 100, effectKey: 'loss' }
+] as const
+
+const RTG_PARAMETERS = [
+  { parameter: 'routing.manning', field: 'manning', label: 'Manning', precision: 2, scale: 1, effectKey: 'manning' },
+  { parameter: 'routing.capacity', field: 'capacity', label: 'Capacity', precision: 4, scale: 1, effectKey: 'capacity' },
+  { parameter: 'routing.yield', field: 'yield', label: 'Yield', precision: 2, scale: 100, effectKey: 'yield' }
+] as const
+
+type EffectValues = ReturnType<typeof calculateMultiplicativeCostAttribution>
+
+function displayMoney(value: number | null): string {
+  return value === null || !Number.isFinite(value) ? '—' : formatNumber(value, 2)
 }
 
-const PARAMETER_DETAILS: Record<SimulationParameter, { label: string; kind: SimulationRecordKind; displayScale: number }> = {
-  'bom.price': { label: 'Price', kind: 'bom', displayScale: 1 },
-  'bom.consumption': { label: 'Usage', kind: 'bom', displayScale: 1 },
-  'bom.loss': { label: 'Loss', kind: 'bom', displayScale: 100 },
-  'routing.manning': { label: 'Manning', kind: 'routing', displayScale: 1 },
-  'routing.capacity': { label: 'Capacity', kind: 'routing', displayScale: 1 },
-  'routing.yield': { label: 'Yield', kind: 'routing', displayScale: 100 }
+function displayShare(value: number | null | undefined): string {
+  return value === null || value === undefined || !Number.isFinite(value) ? '—' : `${formatNumber(value, 2)}%`
 }
 
-function formatParameter(value: number | null, parameter: SimulationParameter): string {
+function displayParameter(value: number | null, parameter: typeof BOM_PARAMETERS[number] | typeof RTG_PARAMETERS[number]): string {
   if (value === null || !Number.isFinite(value)) return '—'
-  const { displayScale } = PARAMETER_DETAILS[parameter]
-  const displayedValue = value * displayScale
-  return displayScale === 100
-    ? `${formatNumber(displayedValue, 2)}%`
-    : formatNumber(displayedValue, 4)
+  const displayValue = value * parameter.scale
+  return `${formatNumber(displayValue, parameter.precision)}${parameter.scale === 100 ? '%' : ''}`
 }
 
-function rowStatus(row: SimulationComparisonRow): string {
-  if (row.identityIssue === 'ambiguous') return 'Ambiguous identity'
-  if (row.identityIssue === 'unmatched') return 'Missing identity'
-  return row.status ?? '—'
+function singleRecord<T extends { id: string }>(records: T[], id: string | undefined): T | undefined {
+  if (!id) return undefined
+  const matches = records.filter(record => record.id === id)
+  return matches.length === 1 ? matches[0] : undefined
 }
 
-interface ParameterTableProps {
-  kind: SimulationRecordKind
-  rows: SimulationComparisonRow[]
-  currentSnapshot: CostSnapshot
+function rowStatusText(row: SimulationComparisonRow): string {
+  if (row.identityIssue === 'ambiguous') return 'Ambiguous identity · protected'
+  if (row.identityIssue === 'unmatched') return 'Missing identity · protected'
+  if (row.status === 'ADDED') return 'Added in SIM'
+  if (row.status === 'REMOVED') return 'Removed from SIM'
+  if (row.status === 'CHANGED') return 'Changed'
+  if (row.status === 'UNCHANGED') return 'Unchanged'
+  return 'Attribution unavailable'
+}
+
+function rowIsMatched(row: SimulationComparisonRow): boolean {
+  return row.identityIssue === null && (row.status === 'CHANGED' || row.status === 'UNCHANGED')
+}
+
+function bomAttribution(
+  row: SimulationComparisonRow,
+  currentSnapshot: CostSnapshot,
   simulationSnapshot: CostSnapshot
-  selectedFactors: SimulationFactor[]
-  onUpdate: (recordId: string, parameter: SimulationParameter, value: number | null) => void
+): { simCost: number | null; effects: EffectValues } {
+  const empty: EffectValues = { totalEffect: null, effects: null, shares: null }
+  const simRecord = singleRecord(simulationSnapshot.bom, row.simulationRecordId)
+  if (!simRecord) return { simCost: null, effects: empty }
+  const simCost = calculateSnapshotBOMDetail({ current: simRecord }).currentCost
+  if (!rowIsMatched(row)) return { simCost, effects: empty }
+  const currentRecord = singleRecord(currentSnapshot.bom, row.currentRecordId)
+  if (!currentRecord) return { simCost, effects: empty }
+  const pair = calculateSnapshotBOMDetail({ reference: currentRecord, current: simRecord })
+  const hasInputs = [currentRecord.price, simRecord.price, currentRecord.consumption, simRecord.consumption, currentRecord.loss, simRecord.loss]
+    .every(value => value !== null && Number.isFinite(value))
+  if (!hasInputs) return { simCost, effects: empty }
+  const attribution = calculateMultiplicativeCostAttribution(pair.referenceCost, pair.currentCost, [
+    { key: 'price', baseline: currentRecord.price!, target: simRecord.price! },
+    { key: 'usage', baseline: currentRecord.consumption!, target: simRecord.consumption! },
+    { key: 'loss', baseline: 1 + currentRecord.loss!, target: 1 + simRecord.loss! }
+  ])
+  return { simCost, effects: attribution }
 }
 
-const ParameterTable: React.FC<ParameterTableProps> = ({
+function normalizeKey(value: string | undefined): string {
+  return value?.trim().toLowerCase() ?? ''
+}
+
+function routingAttribution(
+  row: SimulationComparisonRow,
+  currentSnapshot: CostSnapshot,
+  simulationSnapshot: CostSnapshot
+): { simCost: number | null; effects: EffectValues } {
+  const empty: EffectValues = { totalEffect: null, effects: null, shares: null }
+  const simRecord = singleRecord(simulationSnapshot.routing, row.simulationRecordId)
+  if (!simRecord) return { simCost: null, effects: empty }
+  const simOnly = calculateSnapshotRoutingDetail({ current: simRecord }, currentSnapshot.rates, currentSnapshot.rates)
+  const simCost = simOnly.currentTotal
+  if (!rowIsMatched(row)) return { simCost, effects: empty }
+  const currentRecord = singleRecord(currentSnapshot.routing, row.currentRecordId)
+  if (!currentRecord || normalizeKey(currentRecord.workCenterId) !== normalizeKey(simRecord.workCenterId)) {
+    return { simCost, effects: empty }
+  }
+  const pair = calculateSnapshotRoutingDetail(
+    { reference: currentRecord, current: simRecord },
+    currentSnapshot.rates,
+    currentSnapshot.rates
+  )
+  const hasInputs = [currentRecord.manning, simRecord.manning, currentRecord.capacity, simRecord.capacity, currentRecord.yield, simRecord.yield]
+    .every(value => value !== null && Number.isFinite(value))
+  if (!hasInputs || currentRecord.capacity! <= 0 || simRecord.capacity! <= 0 || currentRecord.yield! <= 0 || simRecord.yield! <= 0) {
+    return { simCost, effects: empty }
+  }
+  const attribution = calculateMultiplicativeCostAttribution(pair.referenceTotal, pair.currentTotal, [
+    { key: 'manning', baseline: currentRecord.manning!, target: simRecord.manning! },
+    { key: 'capacity', baseline: 1 / currentRecord.capacity!, target: 1 / simRecord.capacity! },
+    { key: 'yield', baseline: 1 / currentRecord.yield!, target: 1 / simRecord.yield! }
+  ])
+  return { simCost, effects: attribution }
+}
+
+function RoleActionMenu({
+  label,
+  onSelect
+}: {
+  label: 'Clone from' | 'Send to'
+  onSelect: (role: MasterDataRole) => void
+}) {
+  const [open, setOpen] = useState(false)
+  const rootRef = useRef<HTMLDivElement>(null)
+  const triggerRef = useRef<HTMLButtonElement>(null)
+  const menuId = `simulation-${label.toLowerCase().replace(' ', '-')}-menu`
+  const close = (restoreFocus = false) => {
+    setOpen(false)
+    if (restoreFocus) triggerRef.current?.focus()
+  }
+
+  useTransientInteraction(open, reason => close(reason === 'escape'))
+  useEffect(() => {
+    if (!open) return
+    const onPointerDown = (event: PointerEvent) => {
+      if (!rootRef.current?.contains(event.target as Node)) close()
+    }
+    document.addEventListener('pointerdown', onPointerDown)
+    return () => document.removeEventListener('pointerdown', onPointerDown)
+  }, [open])
+
+  return (
+    <div ref={rootRef} className="relative">
+      <button
+        ref={triggerRef}
+        type="button"
+        aria-haspopup="menu"
+        aria-expanded={open}
+        aria-controls={menuId}
+        onClick={() => setOpen(value => !value)}
+        className="inline-flex min-h-8 items-center gap-2 border border-slate-400 bg-white px-2.5 text-xs font-medium text-slate-800 hover:bg-slate-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700"
+      >
+        {label}<ChevronDown aria-hidden="true" className="h-3.5 w-3.5" />
+      </button>
+      {open && (
+        <div id={menuId} role="menu" aria-label={label} className="absolute right-0 top-full z-50 mt-1 min-w-36 border border-slate-300 bg-white p-1 shadow-lg">
+          {ROLES.map(({ role, label: roleLabel }) => (
+            <button
+              key={role}
+              type="button"
+              role="menuitem"
+              onClick={() => { onSelect(role); close() }}
+              className="block min-h-8 w-full px-2 text-left text-xs text-slate-800 hover:bg-slate-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-700"
+            >
+              {roleLabel}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
+function EffectCell({ amount, share }: { amount: number | null | undefined; share: number | null | undefined }) {
+  return (
+    <td className="px-2 py-1.5 text-right font-mono tabular-nums text-slate-700">
+      <span className="block">{displayMoney(amount ?? null)}</span>
+      <span className="block text-[10px] text-slate-500">{displayShare(share)}</span>
+    </td>
+  )
+}
+
+function SimulationParameterTable({
   kind,
   rows,
   currentSnapshot,
   simulationSnapshot,
-  selectedFactors,
   onUpdate
-}) => {
-  const parameters = SIMULATION_PARAMETERS.filter(parameter => PARAMETER_DETAILS[parameter].kind === kind)
-  const currentRows = kind === 'bom' ? currentSnapshot.bom : currentSnapshot.routing
-  const simulationRows = kind === 'bom' ? simulationSnapshot.bom : simulationSnapshot.routing
-  const title = kind === 'bom' ? 'BOM' : 'Process Routing'
+}: {
+  kind: SimulationRecordKind
+  rows: SimulationComparisonRow[]
+  currentSnapshot: CostSnapshot
+  simulationSnapshot: CostSnapshot
+  onUpdate: (recordId: string, parameter: SimulationParameter, value: number | null) => void
+}) {
+  const isBOM = kind === 'bom'
+  const title = isBOM ? 'BOM' : 'RTG'
+  const parameters = isBOM ? BOM_PARAMETERS : RTG_PARAMETERS
+  const [expandedRows, setExpandedRows] = useState<Set<string>>(() => new Set())
+  const records: Array<{ id: string }> = isBOM ? simulationSnapshot.bom : simulationSnapshot.routing
+  const tableRows = rows.filter(row => row.kind === kind)
 
   return (
-    <section className="border border-slate-300 bg-white" aria-labelledby={`${kind}-simulation-title`}>
-      <div className="border-b border-slate-200 px-3 py-2">
-        <h3 id={`${kind}-simulation-title`} className="font-sans text-xs font-semibold text-slate-950">{title}</h3>
+    <section className="min-w-0 border border-slate-300 bg-white" aria-labelledby={`${kind}-simulation-title`}>
+      <div className="flex items-baseline justify-between gap-2 border-b border-slate-200 px-3 py-2">
+        <h2 id={`${kind}-simulation-title`} className="text-xs font-semibold text-slate-900">{title} Simulation</h2>
+        <span className="text-[10px] text-slate-500">Adjust SIM parameters · structure locked</span>
       </div>
-      <div className="overflow-x-auto">
-        <table className="w-full min-w-[860px] border-collapse text-left text-xs">
-          <caption className="sr-only">{title} values and identity-aware status in Current compared with SIM.</caption>
-          <thead className="bg-slate-900 text-[11px] font-semibold text-white">
+      <div className="max-h-[34rem] overflow-auto">
+        <table className={`w-full border-collapse text-xs ${isBOM ? 'min-w-[650px]' : 'min-w-[730px]'}`}>
+          <caption className="sr-only">SIM {isBOM ? 'BOM' : 'Routing'} values with expandable Current to SIM parameter cost effects.</caption>
+          <thead className="sticky top-0 z-10 bg-slate-900 text-[10px] font-semibold text-white">
             <tr>
-              <th scope="col" className="min-w-48 px-3 py-2">{kind === 'bom' ? 'Material' : 'Process'}</th>
-              <th scope="col" className="w-32 px-3 py-2">Status</th>
-              {parameters.map(parameter => (
-                <React.Fragment key={parameter}>
-                  <th scope="col" className="min-w-28 px-3 py-2 text-right">{PARAMETER_DETAILS[parameter].label} · Current</th>
-                  <th scope="col" className="min-w-32 px-3 py-2 text-right">{PARAMETER_DETAILS[parameter].label} · SIM</th>
-                </React.Fragment>
-              ))}
+              <th scope="col" className="w-10 px-2 py-2 text-right">#</th>
+              <th scope="col" className="min-w-32 px-2 py-2 text-left">{isBOM ? 'BOM' : 'RTG'}</th>
+              {parameters.map(parameter => <th key={parameter.parameter} scope="col" className="min-w-24 px-2 py-2 text-right">{parameter.label}</th>)}
+              <th scope="col" className="min-w-28 px-2 py-2 text-right">{isBOM ? 'Material Cost' : 'Conversion Cost'}</th>
+              <th scope="col" className="w-10 px-1 py-2"><span className="sr-only">Expand effects</span></th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-slate-200">
-            {rows.length === 0 ? (
-              <tr><td colSpan={2 + parameters.length * 2} className="px-3 py-5 text-center text-xs text-slate-600">No {title} records.</td></tr>
-            ) : rows.map((row, rowIndex) => {
-              const currentRecord = row.currentRecordId
-                ? currentRows.find(record => record.id === row.currentRecordId)
-                : undefined
-              const simulationRecord = row.simulationRecordId
-                ? simulationRows.find(record => record.id === row.simulationRecordId)
-                : undefined
-              const canEdit = row.status !== null && row.status !== 'REMOVED' && row.identityIssue === null && Boolean(row.simulationRecordId)
+          <tbody className="divide-y divide-slate-200 bg-white">
+            {tableRows.length === 0 && <tr><td colSpan={7} className="px-3 py-6 text-center text-xs text-slate-500">No {title} rows.</td></tr>}
+            {tableRows.map((row, index) => {
+              const key = `${row.currentRecordId ?? 'missing'}:${row.simulationRecordId ?? 'missing'}:${index}`
+              const expanded = expandedRows.has(key)
+              const simulationRecord = singleRecord(records, row.simulationRecordId)
+              const canEdit = Boolean(simulationRecord && row.status && row.status !== 'REMOVED' && !row.identityIssue)
+              const analysis = isBOM
+                ? bomAttribution(row, currentSnapshot, simulationSnapshot)
+                : routingAttribution(row, currentSnapshot, simulationSnapshot)
+              const status = rowStatusText(row)
+              const detailParameters = parameters.map(parameter => ({
+                ...parameter,
+                amount: analysis.effects.effects?.[parameter.effectKey] ?? null,
+                share: analysis.effects.shares?.[parameter.effectKey] ?? null
+              }))
 
               return (
-                <tr key={`${row.currentRecordId ?? '—'}:${row.simulationRecordId ?? '—'}:${rowIndex}`} className="align-top hover:bg-slate-50/60">
-                  <th scope="row" className="px-3 py-2 text-left font-medium text-slate-900">
-                    <span className="break-words">{row.name}</span>
-                    {kind === 'bom' && (simulationRecord as SnapshotBOMItem | undefined)?.unit && (
-                      <span className="mt-0.5 block font-normal text-[10px] text-slate-500">{(simulationRecord as SnapshotBOMItem).unit}</span>
-                    )}
-                    {kind === 'routing' && (simulationRecord as SnapshotRoutingStep | undefined)?.workCenterId && (
-                      <span className="mt-0.5 block font-normal text-[10px] text-slate-500">WC {(simulationRecord as SnapshotRoutingStep).workCenterId}</span>
-                    )}
-                  </th>
-                  <td className="px-3 py-2">
-                    <span className={`inline-flex border px-1.5 py-0.5 text-[10px] font-mono font-semibold ${row.status === 'CHANGED' ? 'border-amber-300 bg-amber-50 text-amber-800' : row.status === 'ADDED' ? 'border-blue-300 bg-blue-50 text-blue-800' : row.status === 'REMOVED' ? 'border-rose-300 bg-rose-50 text-rose-800' : row.status === 'UNCHANGED' ? 'border-slate-200 bg-slate-50 text-slate-600' : 'border-slate-300 bg-slate-100 text-slate-700'}`}>
-                      {rowStatus(row)}
-                    </span>
-                  </td>
-                  {parameters.map(parameter => {
-                    const field = PARAMETER_DETAILS[parameter].label.toLocaleLowerCase()
-                    const currentValue = currentRecord ? (currentRecord as unknown as Record<string, number | null>)[PARAMETER_FIELDS[parameter]] ?? null : null
-                    const simulationValue = simulationRecord ? (simulationRecord as unknown as Record<string, number | null>)[PARAMETER_FIELDS[parameter]] ?? null : null
-                    const factor = simulationRecord ? simulationFactorId(kind, simulationRecord.id) : null
-                    const editorVisible = factor !== null && selectedFactors.includes(factor) && canEdit
-
-                    return (
-                      <React.Fragment key={parameter}>
-                        <td className="px-3 py-2 text-right font-mono tabular-nums text-slate-600">
-                          {currentRecord ? formatParameter(currentValue, parameter) : '—'}
-                        </td>
-                        <td className="px-3 py-2 text-right font-mono tabular-nums text-slate-900">
-                          {!simulationRecord ? '—' : editorVisible ? (
+                <React.Fragment key={key}>
+                  <tr className="hover:bg-slate-50/70">
+                    <td className="px-2 py-2 text-right font-mono text-[10px] tabular-nums text-slate-500">{index + 1}</td>
+                    <th scope="row" className="px-2 py-2 text-left font-medium text-slate-900">
+                      <span className="block break-words">{row.name}</span>
+                      <span className={`mt-0.5 block text-[9px] font-normal ${row.identityIssue ? 'text-amber-800' : 'text-slate-500'}`}>{status}</span>
+                    </th>
+                    {parameters.map(parameter => {
+                      const recordValue = simulationRecord
+                        ? (simulationRecord as unknown as Record<string, number | null>)[parameter.field] ?? null
+                        : null
+                      const value = recordValue === null ? null : recordValue * parameter.scale
+                      return (
+                        <td key={parameter.parameter} className="px-2 py-1.5 text-right">
+                          {!simulationRecord ? '—' : canEdit ? (
                             <NumericInput
-                              value={simulationValue === null ? null : simulationValue * PARAMETER_DETAILS[parameter].displayScale}
-                              onValueChange={value => onUpdate(
-                                simulationRecord.id,
-                                parameter,
-                                value === null ? null : value / PARAMETER_DETAILS[parameter].displayScale
-                              )}
+                              value={value}
+                              precision={parameter.precision}
                               min={0}
-                              minExclusive={parameter === 'routing.capacity' || parameter === 'routing.yield'}
-                              max={parameter === 'routing.yield' ? 100 : undefined}
-                              allowSubMinimumDraft={parameter === 'routing.capacity' || parameter === 'routing.yield'}
-                              className="h-8 w-28 border border-blue-500 bg-white px-2 text-right font-mono text-xs tabular-nums focus:outline-none focus:ring-2 focus:ring-blue-200"
-                              aria-label={`${row.name} ${field} SIM value`}
+                              minExclusive={parameter.parameter === 'routing.capacity' || parameter.parameter === 'routing.yield'}
+                              max={parameter.parameter === 'routing.yield' ? 100 : undefined}
+                              allowSubMinimumDraft={parameter.parameter === 'routing.capacity' || parameter.parameter === 'routing.yield'}
+                              onValueChange={next => onUpdate(
+                                simulationRecord.id,
+                                parameter.parameter,
+                                next === null ? null : next / parameter.scale
+                              )}
+                              className="h-7 w-full min-w-20 border border-slate-300 bg-white px-1.5 text-right text-[11px] focus:border-blue-700 focus:outline-none focus:ring-1 focus:ring-blue-100"
+                              aria-label={`${row.name} ${parameter.label} in SIM`}
                             />
-                          ) : formatParameter(simulationValue, parameter)}
+                          ) : displayParameter(recordValue, parameter)}
                         </td>
-                      </React.Fragment>
-                    )
-                  })}
+                      )
+                    })}
+                    <td className="px-2 py-2 text-right font-mono text-xs tabular-nums text-slate-900">{displayMoney(analysis.simCost)}</td>
+                    <td className="px-1 py-1 text-center">
+                      <button
+                        type="button"
+                        aria-expanded={expanded}
+                        aria-label={`${expanded ? 'Hide' : 'Show'} ${row.name} parameter cost effect`}
+                        onClick={() => setExpandedRows(previous => {
+                          const next = new Set(previous)
+                          if (next.has(key)) next.delete(key)
+                          else next.add(key)
+                          return next
+                        })}
+                        className="grid h-7 w-7 place-items-center text-slate-600 hover:bg-slate-100 hover:text-slate-950 focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-700"
+                      >
+                        {expanded ? <ChevronDown aria-hidden="true" className="h-4 w-4" /> : <ChevronRight aria-hidden="true" className="h-4 w-4" />}
+                      </button>
+                    </td>
+                  </tr>
+                  {expanded && (
+                    <tr className="bg-slate-50/80">
+                      <th scope="row" colSpan={2} className="px-3 py-2 text-left text-[10px] font-semibold text-slate-700">
+                        Parameter Cost Effect
+                        {analysis.effects.effects === null && (
+                          <span className="mt-0.5 block font-normal text-slate-500">
+                            {isBOM
+                              ? 'Unavailable for unmatched rows or invalid inputs.'
+                              : 'Unavailable when identity, inputs, or Work Center context cannot be reconciled.'}
+                          </span>
+                        )}
+                      </th>
+                      {detailParameters.map(parameter => <EffectCell key={parameter.parameter} amount={parameter.amount} share={parameter.share} />)}
+                      <EffectCell amount={analysis.effects.totalEffect} share={analysis.effects.totalEffect === null ? null : analysis.effects.totalEffect === 0 ? null : 100} />
+                      <td className="px-1 py-1" aria-hidden="true" />
+                    </tr>
+                  )}
+                </React.Fragment>
+              )
+            })}
+          </tbody>
+        </table>
+      </div>
+      <p className="border-t border-slate-200 px-3 py-1.5 text-[10px] text-slate-500">
+        {isBOM ? 'Material Cost = Usage × Price × (1 + Loss).' : 'Conversion Cost uses Current Work Center rates; rates are fixed in Simulation.'}
+        {' '}Effects compare Current → SIM.
+      </p>
+    </section>
+  )
+}
+
+function ResultPanel({ currentCost, simulationCost }: { currentCost: SnapshotCost; simulationCost: SnapshotCost }) {
+  const currentConversion = currentCost.labor === null || currentCost.burden === null ? null : safeAdd(currentCost.labor, currentCost.burden)
+  const simulationConversion = simulationCost.labor === null || simulationCost.burden === null ? null : safeAdd(simulationCost.labor, simulationCost.burden)
+  const rows = [
+    { label: 'Material Cost', current: currentCost.material, sim: simulationCost.material },
+    { label: 'Labor Cost', current: currentCost.labor, sim: simulationCost.labor },
+    { label: 'Burden Cost', current: currentCost.burden, sim: simulationCost.burden },
+    { label: 'Conversion Cost', current: currentConversion, sim: simulationConversion },
+    { label: 'Standard Cost', current: currentCost.total, sim: simulationCost.total, total: true }
+  ]
+
+  return (
+    <section className="min-w-0 border border-slate-300 bg-white px-3 py-2.5" aria-labelledby="simulation-result-title">
+      <div className="flex items-baseline justify-between border-b border-slate-200 pb-1.5">
+        <h2 id="simulation-result-title" className="text-xs font-semibold text-slate-900">Result</h2>
+        <span className="text-[10px] text-slate-500">Current → SIM · THB/pc</span>
+      </div>
+      <div className="mt-1 overflow-x-auto">
+        <table className="w-full min-w-[390px] text-[10px]">
+          <thead className="text-[9px] text-slate-500">
+            <tr>
+              <th scope="col" className="py-1 text-left font-medium">Cost</th>
+              <th scope="col" className="px-1 py-1 text-right font-medium">Current</th>
+              <th scope="col" className="px-1 py-1 text-right font-medium">SIM</th>
+              <th scope="col" className="px-1 py-1 text-right font-medium">Change</th>
+              <th scope="col" className="py-1 text-right font-medium">%</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-slate-100">
+            {rows.map(row => {
+              const change = row.current === null || row.sim === null ? null : safeAdd(row.sim, -row.current)
+              const rawPercent = change === null || row.current === null || row.current === 0 ? null : change / row.current * 100
+              const percent = rawPercent !== null && Number.isFinite(rawPercent) ? rawPercent : null
+              return (
+                <tr key={row.label} className={row.total ? 'border-t border-slate-300 font-semibold text-slate-950' : 'text-slate-700'}>
+                  <th scope="row" className="py-1.5 text-left">{row.label}</th>
+                  <td className="px-1 py-1.5 text-right font-mono tabular-nums">{displayMoney(row.current)}</td>
+                  <td className="px-1 py-1.5 text-right font-mono tabular-nums">{displayMoney(row.sim)}</td>
+                  <td className="px-1 py-1.5 text-right font-mono tabular-nums">{displayMoney(change)}</td>
+                  <td className="py-1.5 text-right font-mono tabular-nums">{displayShare(percent)}</td>
                 </tr>
               )
             })}
@@ -176,200 +406,113 @@ const ParameterTable: React.FC<ParameterTableProps> = ({
   )
 }
 
-const PARAMETER_FIELDS: Record<SimulationParameter, string> = {
-  'bom.price': 'price',
-  'bom.consumption': 'consumption',
-  'bom.loss': 'loss',
-  'routing.manning': 'manning',
-  'routing.capacity': 'capacity',
-  'routing.yield': 'yield'
+function createStory(
+  referenceSnapshot: CostSnapshot,
+  currentSnapshot: CostSnapshot,
+  comparison: ReturnType<typeof compareSnapshots>,
+  simulationCost: SnapshotCost,
+  economicResult: ReturnType<typeof calculateEconomicSimulation>
+): ScenarioStory {
+  const referenceBusiness = calculateScenarioBusinessMetrics({
+    sellingPrice: referenceSnapshot.product.sellingPrice ?? null,
+    sgaPercent: referenceSnapshot.product.sgaPercent ?? null
+  }, comparison.referenceCost.total)
+  const currentBusiness = calculateScenarioBusinessMetrics({
+    sellingPrice: currentSnapshot.product.sellingPrice ?? null,
+    sgaPercent: currentSnapshot.product.sgaPercent ?? null
+  }, comparison.currentCost.total)
+  return createScenarioStory(
+    createScenarioFinancialResult(comparison.referenceCost, referenceBusiness),
+    createScenarioFinancialResult(comparison.currentCost, currentBusiness),
+    createScenarioFinancialResult(simulationCost, economicResult.business)
+  )
 }
 
 export const SimulationPage: React.FC<SimulationPageProps> = ({
   state,
   referenceSnapshot,
   currentSnapshot,
-  rcaContext = null,
-  onStartFrom,
-  onReset,
-  onSelectFactors,
+  onCloneSource,
+  onSendTo,
   onUpdateParameter,
   onUpdateEconomicInput
 }) => {
-  const sourceLabel = SOURCES.find(source => source.role === state.sourceRole)?.label
-  const startSources = rcaContext ? sourceChoicesForRcaHandoff() : SOURCES
+  const [transferMessage, setTransferMessage] = useState('')
+  const simulationSnapshot = state.snapshot
   const result = useMemo(
-    () => state.snapshot ? calculateParameterSimulation(currentSnapshot, state.snapshot) : null,
-    [currentSnapshot, state.snapshot]
+    () => simulationSnapshot ? calculateParameterSimulation(currentSnapshot, simulationSnapshot) : null,
+    [currentSnapshot, simulationSnapshot]
   )
   const referenceCurrent = useMemo(
     () => compareSnapshots(referenceSnapshot, currentSnapshot),
     [referenceSnapshot, currentSnapshot]
   )
   const economicResult = useMemo(
-    () => calculateEconomicSimulation(
-      currentSnapshot,
-      result?.simulationCost ?? null,
-      result?.parameterSavingPerPiece ?? null,
-      state.economicInputs
-    ),
+    () => calculateEconomicSimulation(currentSnapshot, result?.simulationCost ?? null, result?.parameterSavingPerPiece ?? null, state.economicInputs),
     [currentSnapshot, result, state.economicInputs]
   )
-  const story = useMemo(() => {
-    if (!result || !economicResult) return null
-    const referenceBusiness = calculateScenarioBusinessMetrics({
-      sellingPrice: referenceSnapshot.product.sellingPrice ?? null,
-      sgaPercent: referenceSnapshot.product.sgaPercent ?? null
-    }, referenceCurrent.referenceCost.total)
-    const currentBusiness = calculateScenarioBusinessMetrics({
-      sellingPrice: currentSnapshot.product.sellingPrice ?? null,
-      sgaPercent: currentSnapshot.product.sgaPercent ?? null
-    }, referenceCurrent.currentCost.total)
-    return createScenarioStory(
-      createScenarioFinancialResult(referenceCurrent.referenceCost, referenceBusiness),
-      createScenarioFinancialResult(referenceCurrent.currentCost, currentBusiness),
-      createScenarioFinancialResult(result.simulationCost, economicResult.business)
-    )
-  }, [currentSnapshot, economicResult, referenceCurrent, referenceSnapshot, result])
-  const bomRows = result?.records.filter(row => row.kind === 'bom') ?? []
-  const routingRows = result?.records.filter(row => row.kind === 'routing') ?? []
-  const selectableFactors = useMemo(() => {
-    const seen = new Set<SimulationFactor>()
-    return (result?.records ?? []).flatMap(row => {
-      if (!row.simulationRecordId || !row.status || row.status === 'REMOVED' || row.identityIssue) return []
-      const factor = simulationFactorId(row.kind, row.simulationRecordId)
-      if (seen.has(factor)) return []
-      seen.add(factor)
-      return [{ factor, kind: row.kind, name: row.name }]
-    })
-  }, [result])
+  const story = useMemo(
+    () => result && economicResult
+      ? createStory(referenceSnapshot, currentSnapshot, referenceCurrent, result.simulationCost, economicResult)
+      : null,
+    [currentSnapshot, economicResult, referenceCurrent, referenceSnapshot, result]
+  )
 
-  const toggleFactor = (factor: SimulationFactor, selected: boolean) => {
-    const next = new Set(state.selectedFactors)
-    if (selected) next.add(factor)
-    else next.delete(factor)
-    onSelectFactors([...next])
+  if (!simulationSnapshot || !result || !economicResult || !story) {
+    return <div role="status" className="py-8 text-sm text-slate-600">Simulation is initializing from Current.</div>
   }
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-3">
       <PageHeading
         title="Simulation"
-        description="What-if cost evaluation · Reference → Current → Simulated"
-        actions={state.snapshot ? (
-          <button type="button" onClick={onReset} className="min-h-8 border border-slate-300 bg-white px-3 text-xs font-medium text-slate-800 hover:bg-slate-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700">
-            Reset
-          </button>
-        ) : undefined}
+        description="Adjust SIM parameters and review the live Current → SIM result."
+        actions={(
+          <div className="flex items-center gap-2">
+            <RoleActionMenu
+              label="Clone from"
+              onSelect={role => {
+                onCloneSource(role)
+                setTransferMessage(`SIM refreshed from ${ROLES.find(item => item.role === role)?.label ?? 'dataset'}.`)
+              }}
+            />
+            <RoleActionMenu
+              label="Send to"
+              onSelect={role => {
+                onSendTo(role, simulationSnapshot)
+                setTransferMessage(`${ROLES.find(item => item.role === role)?.label ?? 'Master Data'} Working dataset updated from SIM.`)
+              }}
+            />
+          </div>
+        )}
       />
 
-      {rcaContext && (
-        <section className="flex flex-wrap items-center gap-x-3 gap-y-1 border-b border-slate-300 pb-2 text-xs" aria-label="RCA Case context">
-          <span className="font-semibold text-slate-800">RCA Case {rcaContext.caseId}</span>
-          <span className="text-slate-600">{rcaContext.candidateKeys.length} {rcaContext.candidateKeys.length === 1 ? 'Candidate' : 'Candidates'}{rcaContext.candidateKeys.length > 0 && <> · {rcaContext.candidateKeys.join(', ')}</>}</span>
-          {(rcaContext.rootCause.trim() || rcaContext.action.trim()) && (
-            <details className="ml-auto">
-              <summary className="min-h-7 cursor-pointer text-[11px] font-medium text-slate-600 hover:text-slate-950 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700">RCA notes</summary>
-              <div className="absolute right-4 z-20 mt-1 max-w-lg border border-slate-300 bg-white p-3 text-xs shadow-lg">
-                {rcaContext.rootCause.trim() && <p><span className="font-semibold">Root Cause / Why?</span> · {rcaContext.rootCause}</p>}
-                {rcaContext.action.trim() && <p className="mt-2"><span className="font-semibold">Action</span> · {rcaContext.action}</p>}
-              </div>
-            </details>
-          )}
-        </section>
-      )}
+      {transferMessage && <p role="status" className="-mt-2 text-right text-[10px] text-emerald-800">{transferMessage}</p>}
 
-      {!state.snapshot ? (
-        <>
-          <section className="border border-slate-300 bg-white p-3" aria-labelledby="simulation-start-title">
-            <h2 id="simulation-start-title" className="font-sans text-sm font-semibold text-slate-950">Start SIM From</h2>
-            <p className="mt-1 text-xs text-slate-600">SIM uses an isolated copy. Changes here do not update any Master Data workspace.</p>
-            <div className="mt-3 flex flex-wrap gap-2">
-              {startSources.map(source => (
-                <button
-                  key={source.role}
-                  type="button"
-                  onClick={() => onStartFrom(source.role)}
-                  className="min-h-9 border border-slate-900 bg-slate-900 px-3 text-xs font-medium text-white hover:bg-slate-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700"
-                >
-                  Start SIM From {source.label}
-                </button>
-              ))}
-            </div>
-          </section>
-          <EconomicSimulationPanel
-            result={economicResult}
-            draft={state.economicInputs}
-            hasParameterSimulation={false}
-            onUpdate={onUpdateEconomicInput}
-          />
-        </>
-      ) : result && economicResult && (
-        <>
-          <section className="flex flex-wrap items-center gap-x-4 gap-y-1 border-b border-slate-300 pb-2 text-xs" aria-label="Simulation basis">
-            <span><span className="text-slate-500">SIM source</span> <strong className="font-semibold text-slate-900">{sourceLabel}</strong></span>
-            <span><span className="text-slate-500">Compared with</span> <strong className="font-semibold text-slate-900">Current Working</strong></span>
-            <span className="ml-auto text-[11px] text-slate-500">Temporary snapshot · structure locked · Master Data unchanged</span>
-          </section>
+      <div className="grid min-w-0 gap-3 xl:grid-cols-[minmax(0,1.45fr)_minmax(370px,1fr)]">
+        <SimulationStoryGraph story={story} />
+        <div className="grid content-start gap-3">
+          <ResultPanel currentCost={result.currentCost} simulationCost={result.simulationCost} />
+          <EconomicSimulationPanel result={economicResult} draft={state.economicInputs} onUpdate={onUpdateEconomicInput} />
+        </div>
+      </div>
 
-          {story && (
-            <SimulationStoryGraph
-              story={story}
-              parameterSaving={result.parameterSavingPerPiece}
-              requiredSaving={economicResult.requiredSavingPerPiece}
-              economicMargin={economicResult.economicMarginPerPiece}
-              warnings={result.comparison.warnings.map(warning => warning.message)}
-            />
-          )}
-
-          <EconomicSimulationPanel
-            result={economicResult}
-            draft={state.economicInputs}
-            hasParameterSimulation
-            showResults={false}
-            onUpdate={onUpdateEconomicInput}
-          />
-
-          <section className="border-t border-slate-300 pt-2" aria-labelledby="simulation-factors-title">
-            <h2 id="simulation-factors-title" className="font-sans text-xs font-semibold text-slate-950">Factors to Simulate</h2>
-            <div className="mt-2 flex flex-wrap gap-x-4 gap-y-2">
-              {selectableFactors.map(({ factor, kind, name }) => (
-                <label key={factor} className="inline-flex min-h-8 items-center gap-2 text-xs text-slate-800">
-                  <input
-                    type="checkbox"
-                    checked={state.selectedFactors.includes(factor)}
-                    onChange={event => toggleFactor(factor, event.target.checked)}
-                    aria-label={`Select ${kind === 'bom' ? 'Material' : 'Process'} factor ${name}`}
-                    className="h-4 w-4 accent-slate-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700"
-                  />
-                  <span>{kind === 'bom' ? 'Material' : 'Process'} · {name}</span>
-                </label>
-              ))}
-            </div>
-            {state.selectedFactors.length === 0 && selectableFactors.length > 0 && (
-              <p className="mt-2 text-[11px] text-slate-500">Select one or more records to show their editable SIM values.</p>
-            )}
-            {selectableFactors.length === 0 && <p className="mt-2 text-[11px] text-slate-500">No editable SIM records are available to select.</p>}
-          </section>
-
-          <ParameterTable
-            kind="bom"
-            rows={bomRows}
-            currentSnapshot={currentSnapshot}
-            simulationSnapshot={state.snapshot}
-            selectedFactors={state.selectedFactors}
-            onUpdate={onUpdateParameter}
-          />
-          <ParameterTable
-            kind="routing"
-            rows={routingRows}
-            currentSnapshot={currentSnapshot}
-            simulationSnapshot={state.snapshot}
-            selectedFactors={state.selectedFactors}
-            onUpdate={onUpdateParameter}
-          />
-        </>
-      )}
+      <div className="grid min-w-0 gap-3 xl:grid-cols-2">
+        <SimulationParameterTable
+          kind="bom"
+          rows={result.records}
+          currentSnapshot={currentSnapshot}
+          simulationSnapshot={simulationSnapshot}
+          onUpdate={onUpdateParameter}
+        />
+        <SimulationParameterTable
+          kind="routing"
+          rows={result.records}
+          currentSnapshot={currentSnapshot}
+          simulationSnapshot={simulationSnapshot}
+          onUpdate={onUpdateParameter}
+        />
+      </div>
     </div>
   )
 }
