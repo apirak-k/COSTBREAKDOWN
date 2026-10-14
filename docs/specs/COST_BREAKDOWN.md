@@ -4,25 +4,27 @@
 
 ## Final Target State
 
-Cost Breakdown compares the complete Reference and Current snapshots using approved business identities and the four applicable statuses. Gap is always Current minus Reference. BOM material and Routing Process records are the Candidates; Work Center totals remain full-snapshot context. The page has a Subheader, a full-snapshot Overview, and a Candidate Area.
+Cost Breakdown compares the complete Reference and Current snapshots using approved business identities and the four applicable statuses. Gap is always Current minus Reference. BOM material and Routing Process records are the Candidates/findings; Work Center totals remain full-snapshot calculation context. The visible upper structure is Subheader, Cost, and WC, followed by the existing findings tables. Collapse hides only Cost and WC.
 
-The Global Header already identifies the page, so Cost Breakdown does not render another page heading or `Reference vs Current` title. Its compact Subheader begins directly below the Global Header and contains one Standard Cost Gap chart, `ALL` / `BOM` / `RTG` Candidate filters, and a Status dropdown. The full Standard Cost Gap remains the chart baseline. In a same-sign case, Material, Labor, and Burden widths reflect their contribution magnitudes; in an offset case, use one signed zero-baseline chart. When Candidates are selected, show their real signed contribution within that same chart. Do not add a second selected-scope chart.
+The compact one-row Subheader contains the signed Standard Cost Gap, the MAT/LB/BD color legend, one continuous Gap Bar, equal-width `BOM (n)` / `RTG (n)` / `ALL (n)` filters, a Status count control, the selected Gap sort mode, and an icon-only Cost/WC collapse control. Type counts reflect current findings under the active status filter; ALL is BOM plus Routing. Sort modes are Gap High → Low, Gap Low → High, and |Gap| High → Low (default), with unavailable gaps last and BOM/RTG sorted separately. Drag reorder is temporary; the current sort button restores the selected sorted mode and the adjacent dropdown selects a mode. The full Standard Cost Gap remains the chart baseline. In a same-sign case, Material, Labor, and Burden widths reflect their contribution magnitudes; in an offset case, retain the single signed zero-baseline chart. Selected net magnitude is overlaid only within its owning element segment. Status and Sort options overlay the page and do not change Subheader height.
 
-The Fixed Overview always shows full-snapshot Material, Labor, Burden, and Standard Cost with REF / CUR / Gap alongside Work Center / REF / CUR / Gap for Conversion Cost and a Total when available. The two panels are side-by-side. One accessible control collapses or expands the whole Overview; it is expanded by default. The panels never follow Candidate selection.
+The Cost block has a header, MAT/LB/BD rows, and an `STD Cost` footer, with REF / CUR / GAP / %GAP. Selected values appear only as secondary parenthesized values in the Cost GAP cell; the cell reserves the same two value slots in Full and Selected modes. MAT/LB/BD `%GAP` is element Gap divided by Standard Cost Gap; the footer is visibly identified as `%Total` and uses Standard Cost Gap divided by REF Standard Cost. The adjacent WC block shows full-snapshot REF / CUR / GAP / %GAP only, with a visibly identified `%Total` footer. WC stays the Cost height; only its body scrolls when needed.
+
+The Candidate area remains the page's findings workspace. In `ALL`, exactly two actual tables appear in order: Bill of Material, then Routing, with no separate BOM/RTG headings. Both tables share the same column grid. Their main rows show parameter gaps, Candidate Cost Gap, and `%GAP`; the latter is Candidate Cost Gap divided by full Standard Cost Gap, preserving signed values and values above 100%. Status uses colored text without a badge background. The `#` column selects findings; the second-last handle reorders only visible rows temporarily; ordinary row cells toggle aligned REF / CUR / EFFECT details. The EFFECT Gap cell equals the main Candidate Cost Gap. Missing or invalid calculation inputs remain unavailable and are never fabricated.
 
 The Candidate area is the only vertical scroll owner on the CBD page. The shared shell's main region does not also scroll vertically for CBD; the Global Header and Footer stay in the viewport shell. Other pages keep their existing main-region scroll behavior. Wide tables keep horizontal scrolling inside their own table region.
 
-Candidate selection is immediate from the `#` column. Selecting or deselecting a row updates the existing Selected Comparison state; deselecting all returns to Full state. Status and type filters do not remove hidden selections. The chart's selected element values sum the existing selected-finding cost effects; an element with no selected findings contributes zero, while an unavailable selected effect remains unavailable. Candidate `% Total` always uses Candidate Cost Gap divided by the full Standard Cost Gap. Preserve signed values and values above 100%; a zero or unavailable denominator displays `—`.
+Candidate selection is immediate from the `#` column. Selecting or deselecting a row updates the existing temporary Selected Comparison scope; deselecting the final selected finding returns to Full Comparison. Status and type filters do not remove hidden selections. The chart's selected element values sum existing selected-finding cost effects; an element with no selected findings contributes zero, while an unavailable selected effect remains unavailable. Candidate `%GAP` always uses Candidate Cost Gap divided by the full Standard Cost Gap. Preserve signed values and values above 100%; a zero or unavailable denominator displays `—`.
 
-The BOM Candidate schema is `# | Bill of Material | Status | Usage | Price | Loss | Cost Gap | % Total | ▼`. The RTG Candidate schema is `# | Routing | Status | Manning | Capacity | Yield | Cost Gap | % Total | ▼`. Changed rows show deltas; Added rows show current-side values; Removed rows show reference-side values. BOM does not display Unit. Only Changed rows expand to aligned REF / CUR / EFFECT details. `% Parent` is not shown anywhere in the CBD UI.
+The findings table schemas are `# | Bill of Material/Routing | Status | 3 parameters | Gap | %GAP | reorder | chevron`; BOM uses Usage / Price / Loss and RTG uses Manning / Capacity / Yield. The same column grid is used by both tables. Main parameter cells show parameter gaps according to existing comparison behavior. BOM does not display Unit. Detail rows are REF / CUR / EFFECT in the same grid; a nonexistent ADDED/REMOVED side displays `—`, not fabricated `0.00`. `% Parent` is not shown anywhere in the CBD UI.
 
-The expanded BOM/RTG details do not repeat per-record Data quality, REF/CUR quality badges, Confidence labels, or Confidence badges. Missing or invalid calculation inputs remain unavailable and are never fabricated.
+The expanded BOM/RTG details do not repeat Candidate identity, Status, selection, reorder controls, RCA content, per-record Data quality, REF/CUR quality badges, Confidence labels, or Confidence badges. Missing or invalid calculation inputs remain unavailable and are never fabricated.
 
 ## Comparison Scope: Reference vs Current Only
 
 Cost Breakdown answers: *“What changed between Reference and Current, and where does the Standard Cost gap come from?”*
 
-The page presents the full cost result and cost-element causes in the Subheader and the Fixed Overview, then BOM/RTG Candidates and changed-field detail. Candidate selection changes the selected contribution highlight while the full comparison remains visible.
+The page presents the full cost result and cost-element causes in the Subheader and Cost/WC blocks, then BOM/RTG findings and their details. Candidate selection changes the selected contribution overlay while the full comparison remains visible.
 
 Cost Breakdown compares strictly:
 
@@ -66,32 +68,29 @@ Keep unchanged records available in the normal comparison data and for status fi
 - If a Process moves to another Work Center, retain one matched RTG finding for that Process and classify the changed assignment as `CHANGED`; do not split the move into a removed/added pair. A Work Center rate change can also make an otherwise unchanged Routing record's calculated cost `CHANGED`.
 - Aggregate processing by Work Center, then compare Reference and Current Work Center totals:
   $$\text{WC Net Gap} = \text{Current WC processing total} - \text{Reference WC processing total}$$
-- Work Center processing is separate aggregate context, not a parent for the Process findings and not a Candidate. Display the full-snapshot Conversion Cost as Work Center / REF / CUR / Gap, with a compact Total when available. Candidate selection does not filter or recalculate this context.
+- Work Center processing is separate aggregate context, not a parent for the Process findings and not a Candidate. Display full-snapshot Conversion Cost by Work Center / REF / CUR / Gap, with a compact Total when available. Candidate selection does not filter or recalculate this context.
 - Detailed effects reconcile to their parent totals:
   $$\text{Material Gap} + \text{Labor Gap} + \text{Burden Gap} = \text{Total Gap}$$
   $$\text{Labor Gap} + \text{Burden Gap} = \text{Conversion Gap}$$
   $$\text{Changed effects} + \text{Added effects} + \text{Removed effects} = \text{Parent branch Gap}$$
 - If detail cannot reconcile due to missing/invalid calculation inputs, display an unavailable or validation state instead of guessing.
-- The expanded parameter detail uses the existing additive LMDI monetary attribution only for matched `CHANGED` BOM and RTG records. `UNCHANGED`, `ADDED`, and `REMOVED` rows do not expand.
-- Expanded BOM detail uses REF / CUR / EFFECT as rows and Usage / Price / Loss / Cost Gap as columns. BOM cost is `Usage × Price × (1 + Loss)`. LMDI allocates the actual BOM record material gap across Usage, Price, and `(1 + Loss)`. The EFFECT row ends with the actual record Cost Gap; do not derive it by summing display-rounded factor effects. Unit is omitted.
-- Expanded RTG detail uses REF / CUR / EFFECT as rows and Manning / Capacity / Yield / Cost Gap as columns. For RTG, `Factor = Manning / (Capacity × Yield)`, `Labor = Factor × Labor Rate`, `Burden = Factor × Burden Rate`, and `Conversion = Labor + Burden`. Calculate additive LMDI independently for Labor and Burden using Manning, inverse Capacity, inverse Yield, and the corresponding Work Center rate; Conversion attribution is the sum of the Labor and Burden effects for each parameter. The EFFECT row ends with the actual process Conversion Gap. Work Center assignment and Labor / Burden Rate changes remain secondary context below the table when needed; they are not promoted to primary columns. Any proposed LB / BD / CONV main columns remain deferred.
-- Candidate `% Total` is the actual Candidate Cost Gap divided by the full Standard Cost Gap. A zero or unavailable denominator displays unavailable (`—`). Signed contributions, including negative values and values above 100%, remain visible. The CBD UI does not display `% Parent`.
+- Expanded parameter details use the existing additive LMDI monetary attribution for matched `CHANGED` BOM and RTG records; other statuses keep their existing one-sided or unavailable values without invented attribution.
+- Expanded BOM detail uses REF / CUR / EFFECT as rows and Usage / Price / Loss / Gap as columns. BOM cost is `Usage × Price × (1 + Loss)`. LMDI allocates the actual BOM record material gap across Usage, Price, and `(1 + Loss)`. The EFFECT row Gap is the actual record Candidate Cost Gap; do not derive it by summing display-rounded factor effects. Unit is omitted.
+- Expanded RTG detail uses REF / CUR / EFFECT as rows and Manning / Capacity / Yield / Gap as columns. For RTG, `Factor = Manning / (Capacity × Yield)`, `Labor = Factor × Labor Rate`, `Burden = Factor × Burden Rate`, and `Conversion = Labor + Burden`. Calculate additive LMDI independently for Labor and Burden using Manning, inverse Capacity, inverse Yield, and the corresponding Work Center rate; Conversion attribution is the sum of the Labor and Burden effects for each parameter. The EFFECT row Gap is the actual process Candidate Cost Gap. Work Center assignment and Labor / Burden Rate changes remain calculation context and are not promoted to parameter columns.
+- Candidate `%GAP` is the actual Candidate Cost Gap divided by the full Standard Cost Gap. A zero or unavailable denominator displays unavailable (`—`). Signed contributions, including negative values and values above 100%, remain visible. The CBD UI does not display `% Parent`.
 - LMDI attribution requires every required input on both sides to be positive and finite. Missing, zero, or non-finite required inputs make that record's Parameter Cost Effect unavailable; do not coerce them to zero. This attribution availability rule does not replace the underlying cost calculation or validation rules.
 
 ## Full State and Selected Candidates
 
 - Full state is the default comparison covering the complete Reference and Current snapshots.
 - Selecting a BOM or RTG Candidate immediately adds it to the temporary Selected Comparison scope; matched `CHANGED` / `UNCHANGED` findings move as Reference / Current pairs, while `ADDED` and `REMOVED` findings are independently selectable.
-- The full Standard Cost Gap, full Overview, full Candidate rows, and full Work Center context stay visible. The selected scope is highlighted within the single Gap Bar and can continue to feed the existing Candidate / RCA context.
+- The full Standard Cost Gap, full Cost/WC blocks, full finding rows, and full Work Center context stay visible. The selected scope is overlaid within the single Gap Bar and appears as secondary information only in Cost.
 - Deselecting all Candidates returns to Full state. Type and Status filters do not remove selected findings that are temporarily hidden.
 - Selected Comparison does not mutate, save, or export either source dataset. It is an analysis scope, not a dataset and not an RCA Case.
 
-## Candidate and RCA Boundary
+## Candidate and Simulation Boundary
 
-The findings from CBD (whether Full or Selected) feed into [Candidate Prioritization and RCA](CANDIDATE.md).
-- One RCA Case may contain one or multiple Candidates.
-- RCA ends at Root Cause / Why? and Action.
-- Simulation is optional and independent; it may start from Reference, Current, or Custom, and compares Current vs SIM.
+Candidate/finding analysis remains inside CBD; there is no standalone Candidate, Ranking, or RCA page in the current visible product. Legacy RCA domain/session compatibility is documented separately and is not an active CBD workflow. Simulation remains directly accessible as a separate What-If analysis and may start from Reference, Current, or Custom, comparing Current vs SIM.
 
 ## Warnings and Presentation Boundaries
 

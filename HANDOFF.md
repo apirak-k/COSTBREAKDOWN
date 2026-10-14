@@ -1,22 +1,22 @@
-# Current Handoff — CBD Overview UX Refinement
+# Current Handoff — CBD Candidate and Overview UX Corrections
 
 **Updated:** 2026-10-14
-**Checkpoint:** The bounded CBD overview pass is implemented and verified from starting HEAD `97fe2e36edc4fbea6aea7d2f8b315da50b6b5138`. The user authorized commit and push to the same integration branch after final review.
+**Checkpoint:** This bounded correction pass starts from `45cc1c1be2e2d62e2f03ed31c4e4095891a5fd33` (`feat(cbd): refine gap overview cost and work center UX`). Work is being completed on the existing integration branch; the user authorized a commit and push after review.
 
-## Active CBD Overview UX Pass
+## Active CBD Candidate UX Pass
 
 - **Repository:** `apirak-k/COSTBREAKDOWN`
 - **Worktree:** `.worktrees/CBD-CANDIDATE-INTEGRATION`
 - **Branch:** `codex/cbd-candidate-integration`
-- **Starting HEAD:** `97fe2e36edc4fbea6aea7d2f8b315da50b6b5138` (`feat(cbd): retire candidate stage and consolidate subheader`).
-- **Product flow:** Master Data → Cost Breakdown → Simulation. Candidate/findings and Selected Comparison remain inside CBD; no standalone Candidate or RCA page is part of the current product.
-- **Subheader:** One desktop row contains signed Standard Cost Gap, MAT/LB/BD swatch legend, one continuous Gap Bar, BOM / RTG / ALL segmented filter, compact Status count, the three finalized Gap sort modes, and icon-only Cost/WC collapse. Status and Sort popovers are portaled overlays.
-- **Selected Gap:** Element states are independent and local to MAT, LB, or BD. Positive nets highlight, negative nets use same-color hatching, and true zero nets remain Normal. Displayed selected element values reuse existing BOM finding effects and selected Work Center processing findings; this covers one-sided Added/Removed selections without changing snapshot formulas or missing-value behavior in the calculation engine.
-- **Cost and WC:** Cost is Header + MAT/LB/BD + STD Cost footer. WC mirrors the fixed height with compact code identities, a fixed header/footer, and a body-only scroller. Selected values remain parenthesized inside GAP; no Selected snapshot columns were introduced.
-- **Master Data:** Only the compact table selector labels are BOM / WC / RTG. Detailed titles and table behavior are unchanged.
-- **Specification:** `docs/specs/FINAL_LOGIC_SPEC.md` describes the visible Master Data → CBD → Simulation flow and marks retained Candidate/RCA rules as legacy session compatibility.
-- **Verification:** `npm run build`, focused CBD/Selected Comparison/Cost/WC/sort/status/Master Data/navigation/migration/Simulation compatibility verifiers, `git diff --check`, and 1920px browser checks passed. Browser checks covered Status/Sort overlays, all three filters and sort modes, Selected positive/negative/zero displays, independent MAT/LB/BD hatching, Collapse, direct Simulation, Master Data labels, and WC overflow scrolling with fixed header/footer. The disposable Complete Mock fixture was restored afterward.
-- **Build note:** Vite still reports the existing ExcelJS browser-externalization warnings for `fs`, `crypto`, and `@fast-csv`.
+- **Product flow:** Master Data → Cost Breakdown → Simulation. Candidate/finding analysis and Selected Comparison remain inside CBD. No standalone Candidate, Ranking, or RCA page is part of the current product.
+- **Overview corrections:** Keep the one-row Subheader, one signed Gap Bar, MAT/LB/BD legend, equal-width BOM / RTG / ALL counts, Status count overlay, three Gap sorts, and icon-only Cost/WC collapse. The selected overlay is bounded to its own element segment and sized by its selected net magnitude.
+- **Cost and WC:** Cost reserves stable Full and Selected slots inside GAP and labels the footer percentage `%Total`. WC contains no Selected content, remains the Cost height, and scrolls only its body.
+- **Candidate tables:** ALL shows separate Bill of Material and Routing tables on one shared grid. Main rows show parameter gaps, Candidate Cost Gap, and `%GAP`; REF / CUR / EFFECT details share the grid. Selection remains type-local and shared across filters. Reordering is temporary visible order and sort controls restore or replace the active sort.
+- **Master Data:** Compact selector labels are BOM / WC / RTG. Reverse drag from selected rows deselects the traversed range; normal Edit mode remains available.
+- **Documentation:** `FINAL_LOGIC_SPEC.md` already states the current visible flow and labels RCA domain/session material as legacy. `COST_BREAKDOWN.md`, `CANDIDATE.md`, `MASTER_DATA.md`, and this handoff are updated only where they describe the current UX or compatibility boundary.
+- **Browser evidence:** At 1920×920, the Subheader is one row; Status and Sort menus overlay without moving Cost/WC; the three type segments have equal width and counts 6 / 10 / 16; selected MAT +7.07, LB -1.82, and BD -0.91 render independently; Cost shows secondary selected values and WC does not; Cost/WC remain aligned; Status (0) is preserved; Collapse hides only Cost/WC; Candidate inline EFFECT Gap matches its main Gap. Candidate and Master Data reverse drag work. Dragging the Candidate reorder handle changes visible order, and clicking the current sort restores sorted order. Direct Simulation navigation works. The disposable Complete Mock fixture was cleared from the isolated preview origin; the user's browser origin was not modified.
+- **Verification status:** Focused CBD summary, Candidate, row drag, cost sort/view/reconciliation, snapshot comparison, Selected Comparison boundary/lifecycle, Candidate prioritization, Master Data UI, Work Center, active-tab migration, standalone Candidate/RCA removal, and Simulation compatibility verifiers pass. `npm run build` and `git diff --check` pass. The isolated browser pass is complete. Final diff review, commit, and push remain.
+- **Build note:** Existing Vite ExcelJS browser-externalization warnings for `fs`, `crypto`, and `@fast-csv` are known and should be reported, not remediated as unrelated dependency work.
 - **Delivery boundary:** Commit and push only to `codex/cbd-candidate-integration`; do not merge or force-push. Preserve the unrelated untracked `tasks/master-data-cbd-final-audit.md`.
 
 ## Historical Final Logic Checklist Evidence — 2026-10-09

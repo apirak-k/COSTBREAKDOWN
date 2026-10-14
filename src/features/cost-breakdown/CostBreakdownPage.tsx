@@ -14,7 +14,8 @@ import {
   DEFAULT_COMPARISON_SORT_MODE,
   getComparisonStatusControlLabel,
   getComparisonSortLabel,
-  getSelectedComparisonContribution
+  getSelectedComparisonContribution,
+  isVisibleInComparisonView
 } from './components/comparison-view'
 import type { ComparisonSortMode, ComparisonViewMode } from './components/comparison-view'
 import { formatVariance, getVarianceClass } from '../../core'
@@ -37,6 +38,12 @@ interface GapSegment {
 
 function isAvailableGap(value: number | null | undefined): value is number {
   return value !== null && value !== undefined && Number.isFinite(value)
+}
+
+function selectedSegmentWidth(full: number | null, selected: number | null, width: number): number {
+  if (!isAvailableGap(full) || !isAvailableGap(selected) || selected === 0 || full === 0 || width <= 0) return 0
+  const ratio = Math.min(1, Math.abs(selected) / Math.abs(full))
+  return Number.isFinite(ratio) ? Math.min(width, Math.max(1, width * ratio)) : 0
 }
 
 function getWaterfallSegments(values: number[]) {
@@ -89,8 +96,8 @@ export function GapContributionChart({ segments, fullTotal, selectedTotal, selec
       return result
     })
     : []
-  const valueLabel = (value: number | null) => isAvailableGap(value) ? formatVariance(value, 2) : 'unavailable'
-  const selectedText = (value: number | null) => isAvailableGap(value) ? `Selected (${valueLabel(value)})` : 'Selected (unavailable)'
+  const valueLabel = (value: number | null) => isAvailableGap(value) ? formatVariance(value, 2) : '—'
+  const selectedText = (value: number | null) => `Selected (${valueLabel(value)})`
   const accessibleLabel = [
     `Full Standard Cost Gap ${valueLabel(fullTotal)}`,
     ...segments.map(segment => `Full ${segment.label} Gap ${valueLabel(segment.full)}`),
@@ -122,19 +129,18 @@ export function GapContributionChart({ segments, fullTotal, selectedTotal, selec
       x = index * width / segments.length
       segmentWidth = width / segments.length
     }
-    const visibleWidth = segmentWidth === 0 && selectedState !== 'normal' ? 4 : segmentWidth
-    const y = selectedState === 'normal' ? 7 : 5
-    const height = selectedState === 'normal' ? 18 : 22
+    const selectedWidth = selectedSegmentWidth(segment.full, segment.selected, segmentWidth)
+    const selectedX = segment.full !== null && segment.full < 0 ? x + segmentWidth - selectedWidth : x
     const tooltip = [`${segment.label} Gap ${valueLabel(segment.full)}`]
     if (selectedActive) tooltip.push(selectedText(segment.selected))
 
-    return <g key={segment.key} data-gap-element={segment.key} data-selected-state={selectedState}>
+    return <g key={segment.key} data-gap-element={segment.key} data-selected-state={selectedState} data-segment-width={segmentWidth} data-selected-width={selectedWidth}>
       <title>{tooltip.join('\n')}</title>
-      {mode === 'proportional' && visibleWidth > 0 && <rect x={x} y="7" width={visibleWidth} height="18" fill={segment.color} fillOpacity="0.32" />}
-      {mode === 'signed' && segmentWidth > 0 && <rect x={x} y="7" width={segmentWidth} height="18" fill={segment.color} fillOpacity="0.42" />}
-      {mode === 'unavailable' && visibleWidth > 0 && <rect x={x} y="7" width={visibleWidth} height="18" fill={segment.color} fillOpacity="0.2" />}
-      {selectedState === 'highlight' && visibleWidth > 0 && <rect x={x} y={y} width={visibleWidth} height={height} fill={segment.color} fillOpacity="0.96" />}
-      {selectedState === 'remove' && visibleWidth > 0 && <rect x={x} y={y} width={visibleWidth} height={height} fill={`url(#${chartId}-remove-${segment.key})`} />}
+      {mode === 'proportional' && segmentWidth > 0 && <rect data-full-gap-segment="true" x={x} y="7" width={segmentWidth} height="18" fill={segment.color} fillOpacity="0.64" />}
+      {mode === 'signed' && segmentWidth > 0 && <rect data-full-gap-segment="true" x={x} y="7" width={segmentWidth} height="18" fill={segment.color} fillOpacity="0.64" />}
+      {mode === 'unavailable' && segmentWidth > 0 && <rect data-full-gap-segment="true" x={x} y="7" width={segmentWidth} height="18" fill={segment.color} fillOpacity="0.42" />}
+      {selectedState === 'highlight' && selectedWidth > 0 && <rect data-selected-overlay="highlight" x={selectedX} y="5" width={selectedWidth} height="22" fill={segment.color} fillOpacity="0.98" />}
+      {selectedState === 'remove' && selectedWidth > 0 && <rect data-selected-overlay="remove" x={selectedX} y="5" width={selectedWidth} height="22" fill={`url(#${chartId}-remove-${segment.key})`} />}
     </g>
   }
 
@@ -174,6 +180,7 @@ export const CostBreakdownPage: React.FC = () => {
   const [typeTab, setTypeTab] = useState<ItemizedTypeTab>('all')
   const [comparisonView, setComparisonView] = useState<ComparisonViewMode>(ALL_COMPARISON_STATUSES)
   const [sortMode, setSortMode] = useState<ComparisonSortMode>(DEFAULT_COMPARISON_SORT_MODE)
+  const [sortResetToken, setSortResetToken] = useState(0)
   const [isOverviewExpanded, setIsOverviewExpanded] = useState(true)
 
   const selectedBOMKeys = new Set(selectedComparisonSelection?.bomFindingKeys ?? [])
@@ -208,6 +215,18 @@ export const CostBreakdownPage: React.FC = () => {
 
   const statusControlLabel = getComparisonStatusControlLabel(comparisonView)
   const sortLabel = getComparisonSortLabel(sortMode)
+  const bomCount = fullSnapshotComparison.bomFindings.filter(finding => isVisibleInComparisonView(finding, comparisonView)).length
+  const routingCount = fullSnapshotComparison.routingFindings.filter(finding => isVisibleInComparisonView(finding, comparisonView)).length
+  const typeCounts: Record<ItemizedTypeTab, number> = { bom: bomCount, rtg: routingCount, all: bomCount + routingCount }
+
+  const setFindingSelection = (type: 'bom' | 'routing', nextKeys: ReadonlySet<string>) => {
+    const current = selectedComparisonSelection ?? { bomFindingKeys: [], routingFindingKeys: [] }
+    const nextSelection = type === 'bom'
+      ? { ...current, bomFindingKeys: [...nextKeys] }
+      : { ...current, routingFindingKeys: [...nextKeys] }
+    if (nextSelection.bomFindingKeys.length === 0 && nextSelection.routingFindingKeys.length === 0) clearSelectedComparison()
+    else applySelectedComparison(nextSelection)
+  }
 
   return (
     <div className="flex h-full min-h-0 min-w-0 flex-col gap-2">
@@ -244,16 +263,17 @@ export const CostBreakdownPage: React.FC = () => {
             />
           </div>
 
-          <div className="inline-flex shrink-0 overflow-hidden rounded-sm border border-slate-300 bg-white" role="group" aria-label="Finding type filter">
+          <div className="inline-flex h-8 w-[264px] shrink-0 overflow-hidden rounded-sm border border-slate-300 bg-white" role="group" aria-label="Finding type filter">
             {(['bom', 'rtg', 'all'] as const).map((tab, index) => (
               <button
                 key={tab}
                 type="button"
                 aria-pressed={typeTab === tab}
                 onClick={() => setTypeTab(tab)}
-                className={`min-h-8 px-2.5 text-xs font-semibold focus-visible:z-10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-blue-700 ${index > 0 ? 'border-l border-slate-300' : ''} ${typeTab === tab ? 'bg-slate-800 text-white' : 'text-slate-700 hover:bg-slate-100'}`}
+                className={`flex min-w-0 flex-1 basis-0 items-center justify-center gap-1 whitespace-nowrap px-1 text-xs font-semibold focus-visible:z-10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-blue-700 ${index > 0 ? 'border-l border-slate-300' : ''} ${typeTab === tab ? 'bg-slate-800 text-white' : 'text-slate-700 hover:bg-slate-100'}`}
               >
-                {tab.toUpperCase()}
+                <span>{tab.toUpperCase()}</span>
+                <span className="w-[5ch] text-right font-mono tabular-nums">({typeCounts[tab]})</span>
               </button>
             ))}
           </div>
@@ -282,11 +302,16 @@ export const CostBreakdownPage: React.FC = () => {
             </div>}
           </CostBreakdownPopover>
 
-          <CostBreakdownPopover
-            label={`Sort findings, ${sortLabel}`}
-            trigger={<span className="whitespace-nowrap">{sortLabel}</span>}
-            panelClassName="w-48"
-          >
+          <div role="group" aria-label={`Sort findings; current mode ${sortLabel}`} className="inline-flex shrink-0 overflow-hidden rounded-sm">
+            <button type="button" aria-label={`Reapply sort: ${sortLabel}`} title={`Reapply ${sortLabel} and restore sorted order`} onClick={() => setSortResetToken(token => token + 1)} className="inline-flex min-h-8 items-center border border-slate-300 bg-white px-2 text-xs font-medium text-slate-700 hover:bg-slate-100 focus-visible:z-10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-blue-700">
+              {sortLabel}
+            </button>
+            <CostBreakdownPopover
+              label={`Choose sort mode; current mode ${sortLabel}`}
+              trigger={<span className="sr-only">Sort options</span>}
+              panelClassName="w-48"
+              buttonClassName="w-8 rounded-l-none border-l-0 px-0"
+            >
             {close => <fieldset aria-label="Sort findings" className="space-y-0.5">
               {COMPARISON_SORT_OPTIONS.map(option => <label key={option.value} className="flex cursor-pointer items-center gap-2 rounded-sm px-2 py-1.5 text-xs text-slate-700 hover:bg-slate-50">
                 <input
@@ -294,13 +319,14 @@ export const CostBreakdownPage: React.FC = () => {
                   name="cost-breakdown-sort-mode"
                   value={option.value}
                   checked={sortMode === option.value}
-                  onChange={() => { setSortMode(option.value); close() }}
+                  onChange={() => { setSortMode(option.value); setSortResetToken(token => token + 1); close() }}
                   className="h-3.5 w-3.5 accent-slate-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700"
                 />
                 <span>{option.label}</span>
               </label>)}
             </fieldset>}
-          </CostBreakdownPopover>
+            </CostBreakdownPopover>
+          </div>
 
           <button
             type="button"
@@ -318,7 +344,7 @@ export const CostBreakdownPage: React.FC = () => {
 
       <div id="cost-breakdown-overview-panels" className={isOverviewExpanded ? 'shrink-0 grid h-44 min-w-0 grid-cols-2 items-stretch gap-2' : 'hidden'}>
         <SnapshotComparisonCard comparison={fullSnapshotComparison} selectedComparison={selectedDisplayComparison} selectedActive={isSelectedComparisonActive} />
-        <WorkCenterProcessingTable comparison={fullSnapshotComparison} selectedComparison={selectedDisplayComparison} selectedActive={isSelectedComparisonActive} />
+        <WorkCenterProcessingTable comparison={fullSnapshotComparison} />
       </div>
 
       <div role="region" aria-label="Candidate workspace" tabIndex={0} className="min-h-0 min-w-0 flex-1 overflow-y-auto focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-blue-700">
@@ -328,9 +354,11 @@ export const CostBreakdownPage: React.FC = () => {
           typeTab={typeTab}
           viewMode={comparisonView}
           sortMode={sortMode}
+          sortResetToken={sortResetToken}
           selectedBOMKeys={selectedBOMKeys}
           selectedRoutingKeys={selectedRoutingKeys}
           onToggleFinding={toggleFinding}
+          onSetFindingSelection={setFindingSelection}
         />
       </div>
     </div>

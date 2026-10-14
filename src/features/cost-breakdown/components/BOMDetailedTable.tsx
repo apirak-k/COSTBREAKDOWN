@@ -9,7 +9,6 @@ import {
   getComparisonFindingKey
 } from '../../../core'
 import type { ComparisonFinding, ComparisonStatus, SnapshotBOMItem } from '../../../core'
-import { ComparisonFieldDetails } from './ComparisonFieldDetails'
 
 export interface BOMItemizedRow {
   key: string
@@ -23,6 +22,7 @@ export interface BOMItemizedRow {
 
 interface BOMRecordDetailsProps {
   row: BOMItemizedRow
+  detailId?: string
 }
 
 const formatNullable = (value: number | null | undefined, format: (value: number) => string) =>
@@ -82,7 +82,11 @@ export function buildBOMItemizedRows(
   return [...currentRows, ...referenceOnlyRows]
 }
 
-export function BOMRecordDetails({ row }: BOMRecordDetailsProps) {
+/**
+ * Emits detail lines into the Candidate table's existing tbody. Keeping these
+ * as rows (instead of a nested table) preserves the parent's shared column grid.
+ */
+export function BOMRecordDetails({ row, detailId }: BOMRecordDetailsProps) {
   const { reference, current, finding } = row
   const status = getCanonicalComparisonStatus(finding)
   const isMatchedChange = finding?.matchStatus === 'matched' && status === 'CHANGED'
@@ -94,39 +98,46 @@ export function BOMRecordDetails({ row }: BOMRecordDetailsProps) {
     : null
   const effects = effect?.status === 'available' ? effect.effects : null
   const parameterRows = [
-    { label: 'REF', usage: reference?.consumption ?? null, price: reference?.price ?? null, loss: reference?.loss ?? null, cost: row.referenceCost },
-    { label: 'CUR', usage: current?.consumption ?? null, price: current?.price ?? null, loss: current?.loss ?? null, cost: row.currentCost },
-    { label: 'EFFECT', usage: effects?.usage ?? null, price: effects?.price ?? null, loss: effects?.loss ?? null, cost: row.gap, effect: true }
+    {
+      label: 'REF',
+      usage: reference?.consumption ?? null,
+      price: reference?.price ?? null,
+      loss: reference?.loss ?? null,
+      cost: reference ? row.referenceCost : null
+    },
+    {
+      label: 'CUR',
+      usage: current?.consumption ?? null,
+      price: current?.price ?? null,
+      loss: current?.loss ?? null,
+      cost: current ? row.currentCost : null
+    },
+    {
+      label: 'EFFECT',
+      usage: effects?.usage ?? null,
+      price: effects?.price ?? null,
+      loss: effects?.loss ?? null,
+      cost: row.gap,
+      effect: true
+    }
   ]
 
-  return (
-    <div className="space-y-3">
-      <div className="overflow-x-auto">
-        <table className="w-full min-w-[620px] text-left text-xs">
-          <caption className="sr-only">Changed BOM REF, CUR, and EFFECT values by Usage, Price, Loss, and Cost Gap</caption>
-          <thead>
-            <tr className="bg-slate-100 text-[11px] font-semibold text-slate-700">
-              <th scope="col" className="px-2.5 py-1.5">Comparison</th>
-              <th scope="col" className="px-2.5 py-1.5 text-right">Usage</th>
-              <th scope="col" className="px-2.5 py-1.5 text-right">Price</th>
-              <th scope="col" className="px-2.5 py-1.5 text-right">Loss</th>
-              <th scope="col" className="px-2.5 py-1.5 text-right">Cost Gap · THB/pc</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-slate-200 font-mono tabular-nums">
-            {parameterRows.map(item => <tr key={item.label} className={item.effect ? 'bg-slate-50 font-semibold' : ''}>
-              <th scope="row" className="px-2.5 py-1.5 text-left font-sans text-slate-800">{item.label}</th>
-              <td className="px-2.5 py-1.5 text-right">{item.effect ? formatNullable(item.usage, value => formatVariance(value, 4)) : formatNullable(item.usage, value => formatNumber(value, 4))}</td>
-              <td className="px-2.5 py-1.5 text-right">{item.effect ? formatNullable(item.price, value => formatVariance(value, 4)) : formatNullable(item.price, value => formatNumber(value, 4))}</td>
-              <td className="px-2.5 py-1.5 text-right">{item.effect ? formatNullable(item.loss, value => formatVariance(value, 4)) : formatNullable(item.loss, value => formatPercent(value, 2))}</td>
-              <td className="px-2.5 py-1.5 text-right">{item.effect ? formatNullable(item.cost, value => formatVariance(value, 4)) : formatNullable(item.cost, value => formatNumber(value, 4))}</td>
-            </tr>)}
-          </tbody>
-        </table>
-      </div>
-
-      {finding && <ComparisonFieldDetails finding={finding} fieldLabelOverrides={{ description: 'Name' }} hiddenFields={['unit']} />}
-
-    </div>
-  )
+  return <>
+    {parameterRows.map((item, index) => <tr
+      key={item.label}
+      id={index === 0 ? detailId : undefined}
+      className={item.effect ? 'bg-slate-50 font-semibold' : 'bg-slate-50/70'}
+    >
+      <td aria-hidden="true" className="px-2 py-1.5" />
+      <th scope="row" className="truncate px-2.5 py-1.5 text-left font-sans font-medium text-slate-700">{item.label}</th>
+      <td aria-hidden="true" className="px-2.5 py-1.5" />
+      <td className="px-2.5 py-1.5 text-right">{item.effect ? formatNullable(item.usage, value => formatVariance(value, 4)) : formatNullable(item.usage, value => formatNumber(value, 4))}</td>
+      <td className="px-2.5 py-1.5 text-right">{item.effect ? formatNullable(item.price, value => formatVariance(value, 4)) : formatNullable(item.price, value => formatNumber(value, 4))}</td>
+      <td className="px-2.5 py-1.5 text-right">{item.effect ? formatNullable(item.loss, value => formatVariance(value, 4)) : formatNullable(item.loss, value => formatPercent(value, 2))}</td>
+      <td className="px-2.5 py-1.5 text-right">{item.effect ? formatNullable(item.cost, value => formatVariance(value, 4)) : formatNullable(item.cost, value => formatNumber(value, 4))}</td>
+      <td aria-hidden="true" className="px-2.5 py-1.5" />
+      <td aria-hidden="true" className="px-1 py-1.5" />
+      <td aria-hidden="true" className="px-1 py-1.5" />
+    </tr>)}
+  </>
 }

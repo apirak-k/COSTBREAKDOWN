@@ -5,6 +5,7 @@ interface CostBreakdownPopoverProps {
   label: string
   trigger: React.ReactNode
   panelClassName: string
+  buttonClassName?: string
   children: (close: () => void) => React.ReactNode
 }
 
@@ -13,7 +14,7 @@ interface PopoverPosition {
   top: number
 }
 
-export const CostBreakdownPopover: React.FC<CostBreakdownPopoverProps> = ({ label, trigger, panelClassName, children }) => {
+export const CostBreakdownPopover: React.FC<CostBreakdownPopoverProps> = ({ label, trigger, panelClassName, buttonClassName = '', children }) => {
   const triggerRef = useRef<HTMLButtonElement>(null)
   const panelRef = useRef<HTMLDivElement>(null)
   const [open, setOpen] = useState(false)
@@ -79,7 +80,7 @@ export const CostBreakdownPopover: React.FC<CostBreakdownPopoverProps> = ({ labe
         aria-haspopup="dialog"
         title={label}
         onClick={() => setOpen(current => !current)}
-        className="inline-flex min-h-8 shrink-0 items-center gap-1.5 rounded-sm border border-slate-300 bg-white px-2 text-xs font-medium text-slate-700 hover:bg-slate-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700"
+        className={`inline-flex min-h-8 shrink-0 items-center gap-1.5 rounded-sm border border-slate-300 bg-white px-2 text-xs font-medium text-slate-700 hover:bg-slate-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700 ${buttonClassName}`}
       >
         {trigger}
         <span aria-hidden="true" className="text-[10px] text-slate-500">▾</span>

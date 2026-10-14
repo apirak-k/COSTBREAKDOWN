@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, useCallback } from 'react'
+import { applyRowDragSelection } from '../../../shared/selection/row-drag-selection'
 
 interface UseDragSelectOptions<T> {
   items: T[]
@@ -11,9 +12,7 @@ export function updateVisibleRowSelection(
   visibleIds: readonly string[],
   selected: boolean
 ): Set<string> {
-  const next = new Set(current)
-  visibleIds.forEach(id => selected ? next.add(id) : next.delete(id))
-  return next
+  return applyRowDragSelection(current, visibleIds, selected)
 }
 
 export function toggleRowSelection(current: ReadonlySet<string>, id: string): Set<string> {
@@ -34,6 +33,7 @@ export function useDragSelect<T>({ items, getItemId, selectionScope }: UseDragSe
   const isDraggingRef = useRef(false)
   const selectionAnchorId = useRef<string | null>(null)
   const pointerDownId = useRef<string | null>(null)
+  const dragSelectionTargetRef = useRef<boolean | null>(null)
   const dragMovedRef = useRef(false)
   const suppressNextClickRef = useRef(false)
 
@@ -51,6 +51,7 @@ export function useDragSelect<T>({ items, getItemId, selectionScope }: UseDragSe
     isDraggingRef.current = false
     selectionAnchorId.current = null
     pointerDownId.current = null
+    dragSelectionTargetRef.current = null
     dragMovedRef.current = false
     suppressNextClickRef.current = false
   }, [selectionScope])
@@ -84,6 +85,7 @@ export function useDragSelect<T>({ items, getItemId, selectionScope }: UseDragSe
     if (e.shiftKey) {
       isDraggingRef.current = false
       pointerDownId.current = null
+      dragSelectionTargetRef.current = null
       dragMovedRef.current = false
       suppressNextClickRef.current = true
       const anchorId = selectionAnchorId.current || id
@@ -102,6 +104,7 @@ export function useDragSelect<T>({ items, getItemId, selectionScope }: UseDragSe
     if (e.ctrlKey || e.metaKey) {
       isDraggingRef.current = false
       pointerDownId.current = null
+      dragSelectionTargetRef.current = null
       dragMovedRef.current = false
       suppressNextClickRef.current = true
       setSelectedIds(prev => {
@@ -116,20 +119,25 @@ export function useDragSelect<T>({ items, getItemId, selectionScope }: UseDragSe
     suppressNextClickRef.current = false
     dragMovedRef.current = false
     pointerDownId.current = id
+    dragSelectionTargetRef.current = !selectedIds.has(id)
     isDraggingRef.current = true
-  }, [getItemId, items])
+  }, [getItemId, items, selectedIds])
 
   const onMouseEnterRow = useCallback((id: string) => {
     const anchorId = pointerDownId.current
-    if (!isDraggingRef.current || !anchorId || id === anchorId) return
-    const alreadyMoved = dragMovedRef.current
+    const selected = dragSelectionTargetRef.current
+    if (!isDraggingRef.current || !anchorId || selected === null || id === anchorId) return
     dragMovedRef.current = true
-    setSelectedIds(prev => {
-      const next = alreadyMoved ? new Set(prev) : new Set([anchorId])
-      next.add(id)
-      return next
-    })
-  }, [])
+    const anchorIndex = items.findIndex(item => getItemId(item) === anchorId)
+    const targetIndex = items.findIndex(item => getItemId(item) === id)
+    const traversedIds = anchorIndex < 0 || targetIndex < 0
+      ? [id]
+      : items
+        .slice(Math.min(anchorIndex, targetIndex), Math.max(anchorIndex, targetIndex) + 1)
+        .map(getItemId)
+
+    setSelectedIds(previous => applyRowDragSelection(previous, traversedIds, selected))
+  }, [getItemId, items])
 
   useEffect(() => {
     const handleMouseUp = () => {

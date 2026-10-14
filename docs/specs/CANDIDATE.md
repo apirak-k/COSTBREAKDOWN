@@ -1,27 +1,8 @@
-# Candidate Prioritization and RCA Specification
+# Candidate and RCA Domain Compatibility
 
-**Status:** Candidate and Root Cause Analysis (RCA) behavior is `FINALIZED — USER DECISION`. Its row grouping and visual presentation choices (such as P-001) follow [`design.md`](../../design.md) and [`PROVISIONAL_IMPLEMENTATION_DECISIONS.md`](../PROVISIONAL_IMPLEMENTATION_DECISIONS.md); human visual acceptance remains a review checkpoint.
+**Status:** This is a legacy domain/session compatibility reference, not the current visible UX specification. The standalone Candidate/Ranking and RCA product stages have been retired. Current Candidate/finding inspection and selection remain inside Cost Breakdown; the visible flow is Master Data → Cost Breakdown → Simulation. Use [`COST_BREAKDOWN.md`](COST_BREAKDOWN.md) for the current finding-table UX and [`FINAL_LOGIC_SPEC.md`](FINAL_LOGIC_SPEC.md) for business logic.
 
-## Final Target State
-
-Candidate Prioritization receives findings from Cost Breakdown across BOM and Process/Routing records. It presents `CHANGED`, `ADDED`, and `REMOVED` Candidates with Reference, Current, and Gap values. Work Center owns rates and provides calculation context, but is never a Candidate. Every Candidate starts marked Controllable; users can sort by Gap descending (highest to lowest) and filter by status. Ranking is strictly advisory and never forces top-rank selection.
-
-The Candidate surface is a compact decision/ranking table: show selection, rank, candidate, status, Reference, Current, Gap, and Controllable up front. Changed-field and process details remain progressive disclosures. The RCA Case is a focused workspace for Candidates, Root Cause / Why?, and Action; Simulation remains optional.
-
-From the candidate pool, the engineer selects **one or multiple Candidates** to create an **RCA Case**. Inside the RCA Case, the engineer investigates and records **Root Cause / Why?** and **Action**. RCA legitimately ends upon recording this analysis. Simulation is optional and independent; RCA provides context, not a scope lock.
-
-```text
-CBD Findings
-    ↓
-Candidate / Ranking
-    ↓
-Select 1 or Many Candidates
-    ↓
-RCA Case
-    ├─ Root Cause / Why?
-    ├─ Action
-    └─ END RCA (RCA is complete here)
-```
+The historical RCA rules below are retained only where needed to interpret existing domain or session data. They do not authorize a Candidate page, Ranking page, RCA workspace, Root Cause / Why? or Action fields in CBD, or a new CBD-to-Simulation handoff.
 
 ## Candidate Source and Scope
 

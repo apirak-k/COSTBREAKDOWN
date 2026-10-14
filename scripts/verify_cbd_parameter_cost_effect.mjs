@@ -31,26 +31,22 @@ const assertClose = (actual, expected, message = `${actual} is not close to ${ex
 }
 const sum = values => values.reduce((total, value) => total + value, 0)
 
-function findDetailTable(markup, caption) {
-  const tables = [...markup.matchAll(/<table\b[\s\S]*?<\/table>/g)]
-  const table = tables.find(match => match[0].includes(caption))?.[0]
-  assert.ok(table, `expected table caption ${caption}`)
-  return table
-}
-
-function detailHeaders(markup, caption) {
-  const table = findDetailTable(markup, caption)
-  const header = table.match(/<thead\b[\s\S]*?<tr\b[\s\S]*?<\/tr>/)?.[0]
-  assert.ok(header, `expected table headings in ${caption}`)
-  return [...header.matchAll(/<th[^>]*>([\s\S]*?)<\/th>/g)].map(match => visibleText(match[1]))
-}
-
-function detailRow(markup, caption, label) {
-  const table = findDetailTable(markup, caption)
-  const rows = [...table.matchAll(/<tr\b[\s\S]*?<\/tr>/g)].map(match => match[0])
+function detailRow(markup, label) {
+  const rows = [...markup.matchAll(/<tr\b[\s\S]*?<\/tr>/g)].map(match => match[0])
   const row = rows.find(candidate => new RegExp(`<th[^>]*>${label}<\\/th>`).test(candidate))
-  assert.ok(row, `expected a ${label} row in ${caption}`)
-  return [...row.matchAll(/<td[^>]*>([\s\S]*?)<\/td>/g)].map(match => visibleText(match[1]))
+  assert.ok(row, `expected a ${label} row`)
+  return [...row.matchAll(/<(?:td|th)[^>]*>([\s\S]*?)<\/(?:td|th)>/g)].map(match => visibleText(match[1]))
+}
+
+function candidateMainRow(markup, identityHeader, identity, status) {
+  const rows = [...markup.matchAll(/<tr\b[\s\S]*?<\/tr>/g)].map(match => match[0])
+  const row = rows.find(candidate => candidate.includes(`aria-label="${identityHeader}: ${identity}; status ${status};`))
+  assert.ok(row, `expected the ${identityHeader} main row for ${identity}`)
+  return row
+}
+
+function gridCellText(row) {
+  return [...row.matchAll(/<(?:td|th)[^>]*>([\s\S]*?)<\/(?:td|th)>/g)].map(match => visibleText(match[1]))
 }
 
 function costSnapshot(id, { bom = [], routing = [], rates = [] } = {}) {
@@ -233,26 +229,41 @@ try {
   const bomText = visibleText(bomMarkup)
   assert.doesNotMatch(bomText, /Data quality|Confidence|(?:^|\s)Ref:|(?:^|\s)Current:|\b(?:Verified|Estimated|Missing|Need Review)\b/,
     'expanded BOM record must omit quality and confidence badges')
-  const bomCaption = 'Changed BOM REF, CUR, and EFFECT values by Usage, Price, Loss, and Cost Gap'
-  assert.deepEqual(detailHeaders(bomMarkup, bomCaption), ['Comparison', 'Usage', 'Price', 'Loss', 'Cost Gap · THB/pc'])
-  assert.deepEqual(detailRow(bomMarkup, bomCaption, 'REF'), [
+  assert.deepEqual(detailRow(bomMarkup, 'REF').slice(3, 7), [
     formatters.formatNumber(1, 4), formatters.formatNumber(10, 4), formatters.formatPercent(0.1, 2), formatters.formatNumber(11, 4)
-  ], 'BOM REF row must carry actual reference parameters and cost')
-  assert.deepEqual(detailRow(bomMarkup, bomCaption, 'CUR'), [
+  ], 'BOM REF row must carry actual reference parameters and cost in the shared parent grid')
+  assert.deepEqual(detailRow(bomMarkup, 'CUR').slice(3, 7), [
     formatters.formatNumber(2, 4), formatters.formatNumber(6, 4), formatters.formatPercent(0.1, 2), formatters.formatNumber(13.2, 4)
-  ], 'BOM CUR row must carry actual current parameters and cost')
-  assert.deepEqual(detailRow(bomMarkup, bomCaption, 'EFFECT'), [
+  ], 'BOM CUR row must carry actual current parameters and cost in the shared parent grid')
+  assert.deepEqual(detailRow(bomMarkup, 'EFFECT').slice(3, 7), [
     formatters.formatVariance(bomPositive.effects.usage, 4), formatters.formatVariance(bomPositive.effects.price, 4),
     formatters.formatVariance(bomPositive.effects.loss, 4), formatters.formatVariance(2.2, 4)
-  ], 'BOM EFFECT row must preserve LMDI parameter effects and the actual material cost gap')
+  ], 'BOM EFFECT row must preserve LMDI parameter effects and the same actual material gap as the main row')
   assert.doesNotMatch(bomMarkup, /\bUnit\b|% Parent|%Parent/)
-  assert.doesNotMatch(findDetailTable(bomMarkup, bomCaption), /<th[^>]*>Parameter<\/th>/)
+  assert.doesNotMatch(bomMarkup, /Changed fields|<table\b|Root Cause|\bAction\b|Controllable/,
+    'BOM detail is not an independent nested table and has no duplicated/RCA fields')
   const bomCandidateMarkup = renderItemized(itemizedView, bomComparisonForDisplay, bomRefSnapshot, bomCurSnapshot)
+  const bomTable = bomCandidateMarkup.match(/<table\b[\s\S]*?<\/table>/)?.[0]
+  assert.ok(bomTable, 'BOM Candidates render as one actual table')
+  const bomHeader = bomTable.match(/<thead\b[\s\S]*?<tr\b[\s\S]*?<\/tr>/)?.[0]
+  assert.ok(bomHeader)
+  assert.deepEqual([...bomHeader.matchAll(/<th[^>]*>([\s\S]*?)<\/th>/g)].map(match => visibleText(match[1])),
+    ['#', 'Bill of Material', 'Status', 'Usage', 'Price', 'Loss', 'Gap', '%GAP', 'Reorder', 'Details'],
+    'BOM main row uses the finalized shared column schema')
+  assert.match(bomTable, /<colgroup>[\s\S]*?<\/colgroup>/)
   assert.match(bomCandidateMarkup, /Bill of Material/)
   assert.match(bomCandidateMarkup, /Usage/)
   assert.match(bomCandidateMarkup, /Price/)
   assert.match(bomCandidateMarkup, /Loss/)
   assert.match(bomCandidateMarkup, /100\.00%/)
+  const bomMainCells = gridCellText(candidateMainRow(bomCandidateMarkup, 'Bill of Material', 'Material', 'CHANGED'))
+  assert.deepEqual(bomMainCells.slice(3, 8), [
+    formatters.formatVariance(1, 4), formatters.formatVariance(-4, 4), formatters.formatPercent(0, 2),
+    formatters.formatVariance(2.2, 4), '100.00%'
+  ], 'BOM main cells show parameter gaps separately from Candidate Cost Gap and its Standard Cost percentage')
+  assert.match(candidateMainRow(bomCandidateMarkup, 'Bill of Material', 'Material', 'CHANGED'), /text-amber-700/)
+  assert.doesNotMatch(candidateMainRow(bomCandidateMarkup, 'Bill of Material', 'Material', 'CHANGED'), /rounded-full|bg-amber/,
+    'status is colored text without pill or badge background styling')
   assert.doesNotMatch(bomCandidateMarkup, /\bUnit\b|% Parent|%Parent/)
   const overContributionMarkup = renderItemized(itemizedView, { ...bomComparisonForDisplay, totalGap: 1 }, bomRefSnapshot, bomCurSnapshot)
   assert.match(overContributionMarkup, /220\.00%/, 'Candidate contribution above 100 percent remains visible without clamping')
@@ -274,35 +285,42 @@ try {
   const routingText = visibleText(routingMarkup)
   assert.doesNotMatch(routingText, /Data quality|Confidence|(?:^|\s)Ref:|(?:^|\s)Current:|\b(?:Verified|Estimated|Missing|Need Review)\b/,
     'expanded Routing record must omit quality and confidence badges')
-  assert.match(routingText, /WC-REF/)
-  assert.match(routingText, /WC-CUR/)
-  const routingCaption = 'Changed Routing REF, CUR, and EFFECT values by Manning, Capacity, Yield, and Cost Gap'
-  assert.deepEqual(detailHeaders(routingMarkup, routingCaption), ['Comparison', 'Manning', 'Capacity', 'Yield', 'Cost Gap · THB/pc'])
-  assert.deepEqual(detailRow(routingMarkup, routingCaption, 'REF'), [
+  assert.deepEqual(detailRow(routingMarkup, 'REF').slice(3, 7), [
     formatters.formatNumber(1, 4), formatters.formatNumber(10, 4), formatters.formatPercent(1, 2), formatters.formatNumber(1.5, 4)
-  ], 'Routing REF row must carry the reference operating parameters and conversion cost')
-  assert.deepEqual(detailRow(routingMarkup, routingCaption, 'CUR'), [
+  ], 'Routing REF row must carry the reference operating parameters and conversion cost in the shared parent grid')
+  assert.deepEqual(detailRow(routingMarkup, 'CUR').slice(3, 7), [
     formatters.formatNumber(1, 4), formatters.formatNumber(10, 4), formatters.formatPercent(1, 2), formatters.formatNumber(2.7, 4)
-  ], 'Routing CUR row must carry the current operating parameters and conversion cost')
-  assert.deepEqual(detailRow(routingMarkup, routingCaption, 'EFFECT'), [
+  ], 'Routing CUR row must carry the current operating parameters and conversion cost in the shared parent grid')
+  assert.deepEqual(detailRow(routingMarkup, 'EFFECT').slice(3, 7), [
     formatters.formatVariance(rateChanged.effects.conversion.manning, 4),
     formatters.formatVariance(rateChanged.effects.conversion.capacity, 4),
     formatters.formatVariance(rateChanged.effects.conversion.yield, 4),
     formatters.formatVariance(1.2, 4)
-  ], 'Routing EFFECT row must keep primary operating-factor effects and the actual conversion gap')
-  assert.doesNotMatch(routingMarkup, /% Parent|%Parent|Labor Gap|Burden Gap|Conversion Gap/)
-  assert.doesNotMatch(findDetailTable(routingMarkup, routingCaption), /<th[^>]*>Labor Rate<\/th>|<th[^>]*>Burden Rate<\/th>/)
-  assert.doesNotMatch(findDetailTable(routingMarkup, routingCaption), /<th[^>]*>Work Center<\/th>/)
-  assert.ok(routingText.includes(`Labor Rate ${formatters.formatNumber(10, 4)} → ${formatters.formatNumber(20, 4)} Effect ${formatters.formatVariance(rateChanged.effects.conversion.laborRate, 4)}`),
-    'Routing Labor Rate and its existing conversion effect stay in secondary context')
-  assert.ok(routingText.includes(`Burden Rate ${formatters.formatNumber(5, 4)} → ${formatters.formatNumber(7, 4)} Effect ${formatters.formatVariance(rateChanged.effects.conversion.burdenRate, 4)}`),
-    'Routing Burden Rate and its existing conversion effect stay in secondary context')
+  ], 'Routing EFFECT row must keep primary operating-factor effects and the same actual conversion gap as the main row')
+  assert.doesNotMatch(routingMarkup, /% Parent|%Parent|Labor Gap|Burden Gap|Conversion Gap|Changed fields|Root Cause|\bAction\b|Controllable/)
+  assert.doesNotMatch(routingMarkup, /Labor Rate|Burden Rate|Work Center/,
+    'routing rate and Work Center context are not promoted into parameter detail columns')
   const routingCandidateMarkup = renderItemized(itemizedView, routingComparisonForDisplay, routingRefSnapshot, routingCurSnapshot, 'rtg')
   assert.match(routingCandidateMarkup, /Routing/)
   assert.match(routingCandidateMarkup, /Manning/)
   assert.match(routingCandidateMarkup, /Capacity/)
   assert.match(routingCandidateMarkup, /Yield/)
   assert.doesNotMatch(routingCandidateMarkup, /Labor Gap|Burden Gap|Conversion Gap|% Parent|%Parent/)
+  const routingMainCells = gridCellText(candidateMainRow(routingCandidateMarkup, 'Routing', 'Cutting', 'CHANGED'))
+  assert.equal(routingMainCells[6], formatters.formatVariance(1.2, 4),
+    'Routing Main Gap remains its Candidate Conversion Cost Gap')
+
+  const bomTablesInAll = [...renderItemized(itemizedView, {
+    ...bomComparisonForDisplay,
+    routingFindings: routingComparison.routingFindings
+  }, bomRefSnapshot, bomCurSnapshot, 'all').matchAll(/<table\b[\s\S]*?<\/table>/g)]
+  assert.equal(bomTablesInAll.length, 2, 'ALL renders exactly the BOM table followed by the Routing table')
+  const allTableMarkup = bomTablesInAll.map(match => match[0])
+  assert.ok(allTableMarkup[0].includes('Bill of Material') && allTableMarkup[1].includes('Routing'),
+    'ALL keeps BOM first and Routing immediately below without merging their rows')
+  const allColumnWidths = allTableMarkup.map(table => table.match(/<colgroup>([\s\S]*?)<\/colgroup>/)?.[1])
+  assert.ok(allColumnWidths[0] && allColumnWidths[1])
+  assert.equal(allColumnWidths[0], allColumnWidths[1], 'BOM and Routing use the same corresponding column widths')
 
   const statusCases = [
     { name: 'CHANGED', reference: [bom('status-ref')], current: [bom('status-cur', { price: 11 })], expandable: true },
@@ -318,8 +336,11 @@ try {
     assert.equal(comparisonStatus.getCanonicalComparisonStatus(finding),
       testCase.name, `fixture must represent ${testCase.name}`)
     const markup = renderItemized(itemizedView, comparison, reference, current)
-    assert.equal(markup.includes('aria-label="Expand details for Material"'), testCase.expandable,
-      `BOM detail expansion must be gated by CHANGED status (${testCase.name})`)
+    assert.equal(markup.includes('aria-label="Expand details for Material"'), true,
+      `BOM detail remains expandable for ${testCase.name}; absent-side values use em dashes`)
+    const detailMarkup = renderBOM(bomView, comparison, reference, current)
+    if (testCase.name === 'ADDED') assert.match(detailMarkup, /<th[^>]*>REF<\/th>[\s\S]*?—/)
+    if (testCase.name === 'REMOVED') assert.match(detailMarkup, /<th[^>]*>CUR<\/th>[\s\S]*?—/)
   }
 
   const rateRef = rate('rate-ref', 'WC-1', 10, 5)
@@ -343,8 +364,8 @@ try {
     assert.equal(comparisonStatus.getCanonicalComparisonStatus(finding), testCase.name,
       `Routing fixture must represent ${testCase.name}`)
     const markup = renderItemized(itemizedView, comparison, reference, current, 'rtg')
-    assert.equal(markup.includes('aria-label="Expand details for Cutting"'), testCase.expandable,
-      `RTG detail expansion must be gated by CHANGED status (${testCase.name})`)
+    assert.equal(markup.includes('aria-label="Expand details for Cutting"'), true,
+      `Routing detail remains expandable for ${testCase.name}; absent-side values use em dashes`)
   }
 
   const warningComparison = {
@@ -368,6 +389,7 @@ try {
     'Cost stays compact and has no duplicate legend or Selected dataset columns')
   assert.ok(warningMarkup.includes('100.00%'), 'MAT %GAP uses element Gap divided by Standard Cost Gap')
   assert.ok(warningMarkup.includes('20.00%'), 'STD Cost %Total uses Standard Cost Gap divided by REF Standard Cost')
+  assert.match(visibleText(warningMarkup), /20\.00% Total/, 'STD Cost footer identifies its percentage as %Total')
 
   const selectedCostComparison = {
     ...warningComparison,
@@ -383,22 +405,24 @@ try {
   assert.match(visibleText(selectedCostMarkup), /\+2\.20 \(\+0\.50\)/, 'Selected contribution is muted and parenthesized beside full Gap')
   assert.match(visibleText(selectedCostMarkup), /\(0\.00\)/, 'a real selected zero is shown as (0.00)')
   assert.doesNotMatch(selectedCostMarkup, /<th[^>]*>Selected<\/th>/, 'Selected is not a separate Cost column')
+  const fullGapSlot = warningMarkup.match(/<span data-gap-slot="full"[^>]*>/)?.[0]
+  const selectedGapFullSlot = selectedCostMarkup.match(/<span data-gap-slot="full"[^>]*>/)?.[0]
+  assert.ok(fullGapSlot && selectedGapFullSlot)
+  assert.equal(fullGapSlot, selectedGapFullSlot, 'Cost Full Gap keeps the same reserved grid slot when Selected activates')
+  assert.match(warningMarkup, /data-gap-slot="selected" aria-hidden="true"[^>]*invisible/,
+    'Cost reserves the secondary Selected slot before selection')
+  assert.match(selectedCostMarkup, /data-gap-slot="selected" aria-hidden="false"/,
+    'Selected becomes visible inside its reserved secondary slot')
 
   const wcComparison = routingComparisonForDisplay
-  const selectedWcComparison = {
-    ...wcComparison,
-    elementGaps: { ...wcComparison.elementGaps, labor: 0, burden: 0 },
-    processingFindings: []
-  }
   const wcMarkup = renderToStaticMarkup(React.createElement(wcView.WorkCenterProcessingTable, {
     comparison: wcComparison,
-    selectedComparison: selectedWcComparison,
-    selectedActive: true
   }))
   assert.match(wcMarkup, /data-wc-scroll-body="true" class="min-h-0 flex-1 overflow-y-auto/, 'only the WC body owns the vertical scroller')
-  assert.match(wcMarkup, />WC<\/th>[\s\S]*>REF<\/th>[\s\S]*>CUR<\/th>[\s\S]*GAP[\s\S]*\(Selected\)[\s\S]*>%GAP<\/th>/)
-  assert.match(wcMarkup, /\(0\.00\)/, 'a Work Center with no selected routing contribution displays selected zero')
+  assert.match(wcMarkup, />WC<\/th>[\s\S]*>REF<\/th>[\s\S]*>CUR<\/th>[\s\S]*>GAP<\/th>[\s\S]*>%GAP<\/th>/)
+  assert.doesNotMatch(wcMarkup, /Selected|selected/i, 'WC has no Selected header, value, tooltip, or accessible text')
   assert.match(wcMarkup, /<th scope="row"[^>]*>Total<\/th>/, 'WC footer remains present outside the scrolling body')
+  assert.match(visibleText(wcMarkup), /Total.*%/, 'WC footer visibly identifies its percentage as Total')
   assert.doesNotMatch(wcMarkup, /<th scope="row"[^>]*>[\s\S]*·/, 'WC identity does not repeat a verbose description')
 
   assert.ok(routingComparison.processingFindings.length > 0,
@@ -421,7 +445,7 @@ try {
   try {
     const { CostBreakdownPage, GapContributionChart } = await vite.ssrLoadModule('/src/features/cost-breakdown/CostBreakdownPage.tsx')
     const chartSegments = [
-      { key: 'material', label: 'Material', full: 9.31, selected: 3, color: '#0369a1', selectedColor: '#075985' },
+      { key: 'material', label: 'Material', full: 9.31, selected: 4.2, color: '#0369a1', selectedColor: '#075985' },
       { key: 'labor', label: 'Labor', full: 4.42, selected: 0, color: '#b45309', selectedColor: '#92400e' },
       { key: 'burden', label: 'Burden', full: 2.32, selected: 1, color: '#6d28d9', selectedColor: '#5b21b6' }
     ]
@@ -430,18 +454,33 @@ try {
     }))
     assert.match(proportionalChart, /data-gap-chart-mode="proportional"/)
     assert.doesNotMatch(proportionalChart, /<text\b/, 'MAT/LB/BD labels live in the Subheader legend, not inside the bar')
-    assert.match(proportionalChart, /Material Gap \+9\.31\nSelected \(\+3\.00\)/, 'Selected chart tooltip has exactly two concise lines')
+    assert.match(proportionalChart, /Material Gap \+9\.31\nSelected \(\+4\.20\)/, 'Selected chart tooltip has exactly two concise lines')
     assert.match(proportionalChart, /Labor Gap \+4\.42\nSelected \(0\.00\)/, 'Selected zero remains explicit in its element tooltip')
     const proportionalRects = [...proportionalChart.matchAll(/<rect\b[^>]*>/g)].map(([rect]) => rect)
     const contributionWidth = color => {
-      const rect = proportionalRects.find(candidate => candidate.includes(`fill="${color}"`) && candidate.includes('fill-opacity="0.32"'))
+      const rect = proportionalRects.find(candidate => candidate.includes(`fill="${color}"`) && candidate.includes('fill-opacity="0.64"'))
       assert.ok(rect, `expected a proportional full-contribution segment for ${color}`)
       return Number(rect.match(/\bwidth="([\d.]+)"/)?.[1])
     }
     assertClose(contributionWidth('#0369a1') / 1000, 9.31 / 16.05, 'Material width must reflect its share of the full gap')
     assertClose(contributionWidth('#b45309') / 1000, 4.42 / 16.05, 'Labor width must reflect its share of the full gap')
     assertClose(contributionWidth('#6d28d9') / 1000, 2.32 / 16.05, 'Burden width must reflect its share of the full gap')
-    assert.ok(proportionalChart.includes(`Selected Material Gap ${formatters.formatVariance(3, 2)}`))
+    const materialGroup = proportionalChart.match(/<g data-gap-element="material" data-selected-state="highlight"[^>]*>([\s\S]*?)<\/g>/)?.[0]
+    assert.ok(materialGroup, 'selected Material remains a local element overlay')
+    const materialSegment = materialGroup.match(/<rect data-full-gap-segment="true" x="([\d.]+)" y="7" width="([\d.]+)" height="18"[^>]*>/)
+    const materialOverlay = materialGroup.match(/<rect data-selected-overlay="highlight" x="([\d.]+)" y="5" width="([\d.]+)" height="22"[^>]*>/)
+    assert.ok(materialSegment && materialOverlay, 'full and selected Material portions render in the same owning segment')
+    const fullMaterialX = Number(materialSegment[1])
+    const fullMaterialWidth = Number(materialSegment[2])
+    const selectedMaterialX = Number(materialOverlay[1])
+    const selectedMaterialWidth = Number(materialOverlay[2])
+    assert.ok(selectedMaterialWidth > 0 && selectedMaterialWidth < fullMaterialWidth,
+      'Selected +4.20 inside Full +9.31 occupies only a partial highlight')
+    assertClose(selectedMaterialWidth / fullMaterialWidth, 4.2 / 9.31,
+      'Material Selected visual magnitude follows its absolute ratio to the owning Full element')
+    assert.ok(selectedMaterialX >= fullMaterialX && selectedMaterialX + selectedMaterialWidth <= fullMaterialX + fullMaterialWidth,
+      'the selected overlay remains bounded within its owning segment')
+    assert.ok(proportionalChart.includes(`Selected Material Gap ${formatters.formatVariance(4.2, 2)}`))
 
     const fullOnlyChart = renderToStaticMarkup(React.createElement(GapContributionChart, {
       segments: chartSegments.map(segment => ({ ...segment, selected: null })), fullTotal: 16.05, selectedTotal: null, selectedActive: false
@@ -470,11 +509,18 @@ try {
     assert.match(signedOffsetChart, /data-gap-element="material" data-selected-state="highlight"/)
     assert.match(signedOffsetChart, /data-gap-element="labor" data-selected-state="remove"/)
     assert.match(signedOffsetChart, /data-gap-element="burden" data-selected-state="normal"/)
-    const laborGroup = signedOffsetChart.match(/<g data-gap-element="labor" data-selected-state="remove">([\s\S]*?)<\/g>/)?.[1]
-    const laborHatch = laborGroup?.match(/<rect x="([\d.]+)" y="5" width="([\d.]+)" height="22" fill="url\(/)
-    assert.ok(laborHatch, 'negative Selected treatment is drawn inside the owning Labor segment')
-    assert.ok(Number(laborHatch[1]) > 100 && Number(laborHatch[2]) > 100,
-      'negative Labor Selected treatment stays at Labor’s signed segment instead of rebasing to the far left')
+    const laborGroup = signedOffsetChart.match(/<g data-gap-element="labor" data-selected-state="remove"[^>]*>([\s\S]*?)<\/g>/)?.[1]
+    const laborFull = laborGroup?.match(/<rect data-full-gap-segment="true" x="([\d.]+)" y="7" width="([\d.]+)" height="18"[^>]*>/)
+    const laborHatch = laborGroup?.match(/<rect data-selected-overlay="remove" x="([\d.]+)" y="5" width="([\d.]+)" height="22" fill="url\(/)
+    assert.ok(laborFull && laborHatch, 'negative Selected treatment is drawn inside the owning Labor segment')
+    assert.ok(Number(laborHatch[1]) >= Number(laborFull[1])
+      && Number(laborHatch[1]) + Number(laborHatch[2]) <= Number(laborFull[1]) + Number(laborFull[2]),
+      'negative Labor Selected treatment stays bounded by Labor’s signed segment instead of rebasing to global zero')
+    assertClose(Number(laborHatch[2]) / Number(laborFull[2]), 1.2 / 4,
+      'negative Selected hatch size reflects its own magnitude inside Labor')
+    const zeroBurdenGroup = signedOffsetChart.match(/<g data-gap-element="burden" data-selected-state="normal"[^>]*>([\s\S]*?)<\/g>/)?.[1]
+    assert.doesNotMatch(zeroBurdenGroup ?? '', /data-selected-overlay=/,
+      'Selected net zero leaves the element Normal with no Selected overlay')
     assert.match(signedOffsetChart, /stroke-dasharray="2 2"/,
       'the signed full-gap chart keeps its shared zero baseline')
     assert.match(signedOffsetChart, /patternTransform="rotate\(45\)"/, 'negative Selected net uses a same-color hatch treatment')
@@ -485,6 +531,9 @@ try {
     assert.doesNotMatch(pageText, /Full \+1\.20|Selected \+1\.20/)
     assert.match(pageText, /\|Gap\| High → Low/)
     assert.match(pageText, /STD Cost/)
+    assert.match(pageText, /BOM \(0\)/)
+    assert.match(pageText, /RTG \(1\)/)
+    assert.match(pageText, /ALL \(1\)/, 'ALL count is the sum of BOM and Routing findings')
     assert.match(pageMarkup, /aria-label="Work Center comparison"/)
     assert.match(pageText, /WC-REF/)
     assert.match(pageText, /WC-CUR/)
@@ -507,7 +556,7 @@ try {
     assert.match(pageMarkup, /aria-label="Cost comparison" class="h-44/)
     assert.match(pageMarkup, /aria-label="Work Center comparison" class="flex h-44/)
     assert.match(pageMarkup, /data-wc-scroll-body="true" class="min-h-0 flex-1 overflow-y-auto/)
-    assert.match(pageMarkup, /aria-label="Deselect Candidate Cutting"/,
+    assert.match(pageMarkup, /aria-label="Deselect Routing finding Cutting"/,
       'CBD finding selection remains available in the Candidates table')
     assert.equal([...pageMarkup.matchAll(/data-gap-chart-mode=/g)].length, 1,
       'the subheader must render one full-baseline Gap Bar with the Selected contribution inside it')
@@ -515,7 +564,8 @@ try {
       'unavailable full component gaps remain unavailable instead of being treated as zero')
     assert.match(pageMarkup, /aria-label="Finding type filter"/)
     assert.match(pageMarkup, /aria-label="Status filter, Status \(All\)"/)
-    assert.match(pageMarkup, /aria-label="Sort findings, \|Gap\| High → Low"/)
+    assert.match(pageMarkup, /aria-label="Reapply sort: \|Gap\| High → Low"/)
+    assert.match(pageMarkup, /aria-label="Choose sort mode; current mode \|Gap\| High → Low"/)
     assert.doesNotMatch(pageMarkup, /<details\b/, 'Status and Sort are overlay popovers, not in-flow details')
     assert.doesNotMatch(pageText, /Select scope|Edit scope|Full Comparison/)
   } finally {

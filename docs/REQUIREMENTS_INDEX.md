@@ -13,9 +13,9 @@ The active canonical specifications are:
 1. [`specs/FINAL_LOGIC_SPEC.md`](specs/FINAL_LOGIC_SPEC.md) — Master product logic authority, calculation engine, examples, edge cases, and acceptance checklist.
 2. [`specs/CROSS_CUTTING.md`](specs/CROSS_CUTTING.md) — Shared formulas, business identities, comparison statuses, processing aggregation, and system boundaries.
 3. [`specs/MASTER_DATA.md`](specs/MASTER_DATA.md) — Reference, Current, and Custom datasets; Clone semantics; structural editing; Sizing; 4-sheet workbook format; spreadsheet editing.
-   - [`specs/MASTER_DATA_TOOLBAR_PREPARE_UX.md`](specs/MASTER_DATA_TOOLBAR_PREPARE_UX.md) — Accepted shared Header, Master Data toolbar/search/warning review, Cost Breakdown, Candidate/RCA, and Simulation presentation contract carried into the current integration branch.
+   - [`specs/MASTER_DATA_TOOLBAR_PREPARE_UX.md`](specs/MASTER_DATA_TOOLBAR_PREPARE_UX.md) — Historical accepted shared Header and toolbar presentation source. Its Cost Breakdown and Candidate/RCA portions are superseded by the current `COST_BREAKDOWN.md` and `FINAL_LOGIC_SPEC.md`.
 4. [`specs/COST_BREAKDOWN.md`](specs/COST_BREAKDOWN.md) — Reference vs Current comparison, Full vs Selected Comparison scope, processing drill-down, and Gap reconciliation.
-5. [`specs/CANDIDATE.md`](specs/CANDIDATE.md) — Candidate Prioritization and Multi-Candidate RCA Cases (Root Cause / Why? and Action).
+5. [`specs/CANDIDATE.md`](specs/CANDIDATE.md) — Legacy Candidate/RCA domain and session compatibility only; current finding UX is in [`specs/COST_BREAKDOWN.md`](specs/COST_BREAKDOWN.md). It does not define a visible standalone product stage.
 6. [`specs/SIMULATION.md`](specs/SIMULATION.md) — Parameter Simulation and Economic Simulation dimensions, Start SIM From Ref/Cur/Custom, locked structure, and economic break-even evaluation.
 
 Supporting architecture and design documents:
@@ -58,8 +58,8 @@ The latest finalized logic establishes:
 3. **Generic Clone Semantics:** The active viewed dataset is the destination; the user selects the source. No separate promotion workflows. The Master Data UX contract defines the toolbar label and interaction.
 4. **Cost Breakdown Scope:** CBD compares strictly `Reference` vs `Current`. `Custom` is not compared directly in CBD.
 5. **Selected Comparison:** A temporary analysis scope/view of selected BOM and Routing findings. It is neither a new dataset nor an RCA Case.
-6. **Multi-Candidate RCA Cases:** One RCA Case can contain one or multiple Candidates. Root Cause / Why? and Action are captured at the RCA Case level.
-7. **RCA Ends at Root Cause + Action:** RCA legitimately completes upon recording root causes and actions. Simulation is optional; Trial is not required.
+6. **Legacy RCA session compatibility:** Existing RCA case data may represent one or multiple Candidates and retain Root Cause / Why? and Action at the case level. This is not a current visible product stage.
+7. **Legacy RCA completion semantics:** Historical sessions retain their Root Cause + Action completion meaning; the current product flow is Master Data → Cost Breakdown → Simulation, with no standalone RCA page.
 8. **No Duplicate RCA Notes:** Existing Master Data annotations (`Note`, `META.Dataset Remark`) remain separate; no duplicate RCA Note system is created.
 9. **Simulation Architecture:** Single module with two dimensions: Parameter Simulation and Economic Simulation. Can be used Parameter-only, Economic-only, or combined.
 10. **Start SIM From:** Can start from `Reference`, `Current`, or `Custom`. Structure is locked once inside SIM.

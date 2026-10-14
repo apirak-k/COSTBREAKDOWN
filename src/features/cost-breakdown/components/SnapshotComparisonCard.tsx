@@ -27,10 +27,10 @@ function renderGap(value: number | null, selectedValue: number | null, selectedA
   const tooltipLines = [`${tooltipLabel} Gap ${formatGap(value)}`]
   if (selectedActive) tooltipLines.push(`Selected (${formatGap(selectedValue)})`)
   return (
-    <Tooltip label={tooltipLines.join('\n')} wrapperClassName="inline-flex justify-end">
-      <span tabIndex={0} aria-label={`${tooltipLabel} Gap ${formatGap(value)}${selectedActive ? `; Selected (${formatGap(selectedValue)})` : ''}`} className="inline-flex items-baseline gap-1 whitespace-nowrap">
-        <span className={value === null ? 'text-slate-400' : getVarianceClass(value)}>{formatGap(value)}</span>
-        {selectedActive && <span className="text-[10px] font-normal text-slate-500">({formatGap(selectedValue)})</span>}
+    <Tooltip label={tooltipLines.join('\n')} wrapperClassName="flex w-full justify-end">
+      <span tabIndex={0} aria-label={`${tooltipLabel} Gap ${formatGap(value)}${selectedActive ? `; Selected (${formatGap(selectedValue)})` : ''}`} className="grid w-full grid-cols-[minmax(0,1fr)_5.5em] items-baseline gap-x-1 whitespace-nowrap font-mono tabular-nums">
+        <span data-gap-slot="full" className={`text-right ${value === null ? 'text-slate-400' : getVarianceClass(value)}`}>{formatGap(value)}</span>
+        <span data-gap-slot="selected" aria-hidden={!selectedActive} className={`text-right text-[10px] font-normal text-slate-500 ${selectedActive ? '' : 'invisible'}`}>{selectedActive ? `(${formatGap(selectedValue)})` : '(0.00)'}</span>
       </span>
     </Tooltip>
   )
@@ -92,9 +92,9 @@ export const SnapshotComparisonCard: React.FC<SnapshotComparisonCardProps> = ({
   return (
     <section aria-label="Cost comparison" className="h-44 min-w-0 overflow-hidden border border-slate-300 bg-white">
       <div className="h-full w-full overflow-x-auto">
-        <table className="h-full w-full min-w-[480px] table-fixed text-left text-xs">
+        <table className="h-full w-full min-w-[560px] table-fixed text-left text-xs">
           <caption className="sr-only">Cost comparison for Reference, Current, Gap, and Gap percentage</caption>
-          <colgroup><col className="w-[30%]" /><col className="w-[17.5%]" /><col className="w-[17.5%]" /><col className="w-[21%]" /><col className="w-[14%]" /></colgroup>
+          <colgroup><col className="w-[28%]" /><col className="w-[16%]" /><col className="w-[16%]" /><col className="w-[26%]" /><col className="w-[14%]" /></colgroup>
           <thead>
             <tr className="bg-slate-800 font-semibold text-white">
               <th scope="col" className="px-2 py-1.5">Cost</th>
@@ -119,7 +119,7 @@ export const SnapshotComparisonCard: React.FC<SnapshotComparisonCardProps> = ({
               <td className="px-2 py-1.5 text-right text-slate-700">{formatCost(row.reference)}</td>
               <td className="px-2 py-1.5 text-right text-slate-950">{formatCost(row.current)}</td>
               <td className="px-2 py-1.5 text-right">{renderGap(row.gap, row.selectedGap, selectedActive, row.tooltipLabel)}</td>
-              <td className="px-2 py-1.5 text-right text-slate-700">{row.percentage === null ? '—' : formatPercent(row.percentage, 2)}</td>
+              <td className="px-2 py-1.5 text-right text-slate-700 whitespace-nowrap">{row.percentage === null ? <span aria-label="Total percentage unavailable">— <span className="text-[9px] text-slate-500">Total</span></span> : <span aria-label={`${formatPercent(row.percentage, 2)} Total`}>{formatPercent(row.percentage, 2)} <span className="text-[9px] font-semibold text-slate-500">Total</span></span>}</td>
             </tr>)}
           </tfoot>
         </table>
