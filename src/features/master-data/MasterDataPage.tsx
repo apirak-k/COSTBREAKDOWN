@@ -237,8 +237,8 @@ export const MasterDataPage: React.FC<MasterDataPageProps> = ({
 
   const tableSections = [
     { key: 'bom' as const, id: 'master-data-table-bom', label: 'Bill of Materials', navLabel: 'BOM' },
-    { key: 'wc' as const, id: 'master-data-table-wc', label: 'Work Centers', navLabel: 'Work Centers' },
-    { key: 'routing' as const, id: 'master-data-table-routing', label: 'Routing', navLabel: 'Routing' }
+    { key: 'wc' as const, id: 'master-data-table-wc', label: 'Work Centers', navLabel: 'WC' },
+    { key: 'routing' as const, id: 'master-data-table-routing', label: 'Routing', navLabel: 'RTG' }
   ]
   const activeSection = tableSections.find(section => section.key === activeTableTab)
   const tableSelector = (

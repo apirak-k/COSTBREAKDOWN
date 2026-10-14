@@ -7,6 +7,7 @@ import type { CostSnapshot, SnapshotBOMItem, SnapshotRoutingStep, SnapshotWorkCe
 const vite = await createServer({ server: { middlewareMode: true }, appType: 'custom', logLevel: 'error' })
 try {
 const { compareSnapshots, createSelectedSnapshotPair, getComparisonFindingKey } = await vite.ssrLoadModule('/src/core/index.ts')
+const { getSelectedComparisonContribution } = await vite.ssrLoadModule('/src/features/cost-breakdown/components/comparison-view.ts')
 
 const product = { productCode: 'SELECTED-SCOPE', productDescription: 'Fixture', uom: 'PC', customer: '', effectiveDate: '' }
 const bom = (id: string, name: string, price: number): SnapshotBOMItem => ({
@@ -68,6 +69,76 @@ const selectedComparison = compareSnapshots(selectedPair.reference, selectedPair
 assert.equal(selectedComparison.totalGap, selectedComparison.currentCost.total! - selectedComparison.referenceCost.total!)
 assert.notEqual(selectedComparison.totalGap, comparison.totalGap,
   'selected scope reports its own Gap while Full Comparison remains independently available')
+
+const addedBomSelection = {
+  bomFindingKeys: [getComparisonFindingKey('bom', comparison.bomFindings.find(finding => finding.currentId === 'cur-added')!)],
+  routingFindingKeys: []
+}
+const addedBomPair = createSelectedSnapshotPair({ reference, current }, comparison, addedBomSelection)
+const addedBomComparison = compareSnapshots(addedBomPair.reference, addedBomPair.current)
+const addedBomContribution = getSelectedComparisonContribution(comparison, addedBomComparison, addedBomSelection)
+assert.equal(addedBomComparison.elementGaps.material, null,
+  'the existing selected snapshot comparison keeps its established missing-side behavior')
+assert.deepEqual(addedBomContribution, {
+  elementGaps: { material: 6, labor: 0, burden: 0 },
+  totalGap: 6
+}, 'Selected Comparison surfaces an Added BOM contribution and real zero for unselected conversion elements')
+
+const removedBomSelection = {
+  bomFindingKeys: [getComparisonFindingKey('bom', comparison.bomFindings.find(finding => finding.referenceId === 'ref-removed')!)],
+  routingFindingKeys: []
+}
+const removedBomPair = createSelectedSnapshotPair({ reference, current }, comparison, removedBomSelection)
+const removedBomComparison = compareSnapshots(removedBomPair.reference, removedBomPair.current)
+assert.deepEqual(getSelectedComparisonContribution(comparison, removedBomComparison, removedBomSelection).elementGaps,
+  { material: -4, labor: 0, burden: 0 }, 'a Removed BOM stays a signed negative Selected Material contribution')
+
+const addedRoutingSelection = {
+  bomFindingKeys: [],
+  routingFindingKeys: [getComparisonFindingKey('routing', comparison.routingFindings.find(finding => finding.currentId === 'cur-process-added')!)]
+}
+const addedRoutingPair = createSelectedSnapshotPair({ reference, current }, comparison, addedRoutingSelection)
+const addedRoutingComparison = compareSnapshots(addedRoutingPair.reference, addedRoutingPair.current)
+const addedRoutingContribution = getSelectedComparisonContribution(comparison, addedRoutingComparison, addedRoutingSelection)
+assert.deepEqual(addedRoutingContribution, {
+  elementGaps: { material: 0, labor: 2.5, burden: 0.5 },
+  totalGap: 3
+}, 'selected WC processing supplies signed element contributions when the selected reference side is empty')
+
+for (const branch of ['labor', 'burden'] as const) {
+  const selectedWorkCenterGap = selectedComparison.processingFindings.reduce<number | null>(
+    (sum, finding) => sum === null || finding.costEffect.gap[branch] === null
+      ? null
+      : sum + finding.costEffect.gap[branch]!,
+    0
+  )
+  assert(selectedWorkCenterGap !== null && selectedComparison.elementGaps[branch] !== null
+    && Math.abs(selectedWorkCenterGap - selectedComparison.elementGaps[branch]!) < 0.0001,
+  `selected Work Center ${branch} contributions reconcile to Selected Comparison`)
+}
+const selectedWorkCenterTotal = selectedComparison.processingFindings.reduce<number | null>(
+  (sum, finding) => sum === null || finding.costEffect.gap.total === null
+    ? null
+    : sum + finding.costEffect.gap.total,
+  0
+)
+const selectedConversionGap = selectedComparison.elementGaps.labor === null || selectedComparison.elementGaps.burden === null
+  ? null
+  : selectedComparison.elementGaps.labor + selectedComparison.elementGaps.burden
+assert(selectedWorkCenterTotal !== null && selectedConversionGap !== null
+  && Math.abs(selectedWorkCenterTotal - selectedConversionGap) < 0.0001,
+'selected Work Center total reconciles to selected Labor + Burden')
+
+const oneRoutingSelection = {
+  bomFindingKeys: [],
+  routingFindingKeys: [getComparisonFindingKey('routing', comparison.routingFindings.find(finding => finding.currentId === 'cur-process-a')!)]
+}
+const oneRoutingPair = createSelectedSnapshotPair({ reference, current }, comparison, oneRoutingSelection)
+const oneRoutingComparison = compareSnapshots(oneRoutingPair.reference, oneRoutingPair.current)
+assert(oneRoutingComparison.processingFindings.some(finding => finding.workCenterCode === 'WC-1'),
+  'selected routing keeps existing Work Center aggregation for the selected process')
+assert(!oneRoutingComparison.processingFindings.some(finding => finding.workCenterCode === 'WC-2'),
+  'an unselected Work Center has no selected processing finding and therefore a real selected net of zero')
 const emptySelection = createSelectedSnapshotPair({ reference, current }, comparison, { bomFindingKeys: [], routingFindingKeys: [] })
 assert.deepEqual(emptySelection.reference.bom, [])
 assert.deepEqual(emptySelection.current.routing, [])

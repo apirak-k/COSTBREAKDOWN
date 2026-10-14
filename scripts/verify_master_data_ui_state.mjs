@@ -511,7 +511,7 @@ try {
   const returnedPageMarkup = await renderMasterDataPage(appSessionState)
   assert.equal(pressedButton(returnedPageMarkup, 'Reference'), true, 'a remounted page reflects the retained dataset side')
   assert.match(returnedPageMarkup, /role="switch" aria-checked="true" aria-label="Switch to View"/, 'a remounted page reflects the retained Edit mode')
-  assert.equal(pressedButton(returnedPageMarkup, 'Routing'), true, 'a remounted page reflects the retained table view')
+  assert.equal(pressedButton(returnedPageMarkup, 'RTG'), true, 'a remounted page reflects the retained table view')
   assert.equal(pressedButton(returnedPageMarkup, 'All'), false, 'the retained Routing view does not revert to All')
   assert.match(returnedPageMarkup, /aria-label="Routing table"/, 'the selected Routing view remains the only table region')
 
@@ -1156,7 +1156,7 @@ try {
   assert.match(bomSource, /className="overflow-x-auto"/)
   assert.match(wcSource, /className="overflow-x-auto"/)
   assert.match(routingSource, /className="overflow-x-auto"/)
-  assert.match(tableSelectorSource, /navLabel: 'BOM'[\s\S]*navLabel: 'Work Centers'[\s\S]*navLabel: 'Routing'[\s\S]*>\s*All\s*</, 'table selector order is BOM, Work Centers, Routing, All')
+  assert.match(tableSelectorSource, /navLabel: 'BOM'[\s\S]*navLabel: 'WC'[\s\S]*navLabel: 'RTG'[\s\S]*>\s*All\s*</, 'compact table selector order is BOM, WC, RTG, All')
   assert.match(pageSource, /className=\{isAllTablesVisible \? 'space-y-3' : ''\}[\s\S]*tableSections\.map\(section => \([\s\S]*<section[\s\S]*aria-label=\{section\.label\}[\s\S]*\{renderTable\(section\.key\)\}/, 'All view separates BOM, Work Centers, and Routing into distinct bordered table sections')
   assert.match(pageSource, /onNavigateBlocker: \(item: MasterDataQualityItem\) => handleWarningNavigation\(item, true\)/, 'each table-local Blocker navigator requests All-view preservation')
   assert.match(pageSource, /if \(!preserveAllView \|\| !isAllTablesVisible\)[\s\S]*tableView: item\.table/, 'local Blocker navigation stays in All while warning details can switch tables')

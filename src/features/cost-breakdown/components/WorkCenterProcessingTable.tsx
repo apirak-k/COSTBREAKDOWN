@@ -1,78 +1,133 @@
 import React from 'react'
-import { formatNumber, formatVariance, safeAdd } from '../../../core'
-import type { WorkCenterProcessingFinding } from '../../../core'
+import { formatNumber, formatPercent, formatVariance, getVarianceClass, safeAdd, safeDivide } from '../../../core'
+import type { CostComparison, WorkCenterProcessingFinding } from '../../../core'
+import { Tooltip } from '../../../shared/ui/Tooltip'
 
 interface WorkCenterProcessingTableProps {
-  findings: WorkCenterProcessingFinding[]
+  comparison: CostComparison
+  selectedComparison?: CostComparison | null
+  selectedActive?: boolean
+}
+
+interface WorkCenterRow {
+  finding: WorkCenterProcessingFinding
+  gap: number | null
+  selectedGap: number | null
+  percentage: number | null
 }
 
 function formatNullable(value: number | null): string {
-  return value === null ? '—' : formatNumber(value, 4)
+  return value === null ? '—' : formatNumber(value, 2)
 }
 
-function gapClass(value: number | null): string {
-  if (value === null || !Number.isFinite(value) || Math.abs(value) < 0.00005) return 'text-slate-500'
-  return value > 0 ? 'text-rose-700' : 'text-emerald-700'
+function formatGap(value: number | null): string {
+  return value === null ? '—' : formatVariance(value, 2)
 }
 
-function sumWhenComplete(values: Array<number | null>): number | null {
-  if (values.length === 0) return null
-  const completeValues = values.filter((value): value is number => value !== null && Number.isFinite(value))
-  if (completeValues.length !== values.length) return null
-  return completeValues.reduce<number | null>((total, value) => total === null ? null : safeAdd(total, value), 0)
+function normalizedWorkCenterCode(code: string): string {
+  return code.trim().toLocaleLowerCase()
 }
 
-export const WorkCenterProcessingTable: React.FC<WorkCenterProcessingTableProps> = ({ findings }) => {
-  const rows = findings
-    .map(finding => ({
-      finding,
-      conversionGap: finding.costEffect.gap.total
-    }))
-    .sort((left, right) => {
-      if (left.conversionGap === null) return right.conversionGap === null ? 0 : 1
-      if (right.conversionGap === null) return -1
-      return Math.abs(right.conversionGap) - Math.abs(left.conversionGap)
+function renderGap(value: number | null, selectedValue: number | null, selectedActive: boolean, label: string): React.ReactNode {
+  const tooltipLines = [`${label} Gap ${formatGap(value)}`]
+  if (selectedActive) tooltipLines.push(`Selected (${formatGap(selectedValue)})`)
+  return (
+    <Tooltip label={tooltipLines.join('\n')} wrapperClassName="inline-flex justify-end">
+      <span tabIndex={0} aria-label={`${label} Gap ${formatGap(value)}${selectedActive ? `; Selected (${formatGap(selectedValue)})` : ''}`} className="inline-flex items-baseline gap-1 whitespace-nowrap">
+        <span className={value === null ? 'text-slate-400' : getVarianceClass(value)}>{formatGap(value)}</span>
+        {selectedActive && <span className="text-[10px] font-normal text-slate-500">({formatGap(selectedValue)})</span>}
+      </span>
+    </Tooltip>
+  )
+}
+
+function conversionTotal(labor: number | null, burden: number | null): number | null {
+  return safeAdd(labor ?? Number.NaN, burden ?? Number.NaN)
+}
+
+const columnWidths = <colgroup><col className="w-[32%]" /><col className="w-[17%]" /><col className="w-[17%]" /><col className="w-[20%]" /><col className="w-[14%]" /></colgroup>
+
+export const WorkCenterProcessingTable: React.FC<WorkCenterProcessingTableProps> = ({
+  comparison,
+  selectedComparison = null,
+  selectedActive = false
+}) => {
+  const selectedByCode = new Map(
+    (selectedActive ? selectedComparison?.processingFindings ?? [] : [])
+      .map(finding => [normalizedWorkCenterCode(finding.workCenterCode), finding] as const)
+  )
+  const rows: WorkCenterRow[] = comparison.processingFindings
+    .map(finding => {
+      const selectedFinding = selectedByCode.get(normalizedWorkCenterCode(finding.workCenterCode))
+      const gap = finding.costEffect.gap.total
+      return {
+        finding,
+        gap,
+        selectedGap: selectedActive ? (selectedFinding ? selectedFinding.costEffect.gap.total : 0) : null,
+        percentage: gap === null ? null : safeDivide(gap, comparison.elementGaps.labor === null || comparison.elementGaps.burden === null
+          ? Number.NaN
+          : safeAdd(comparison.elementGaps.labor, comparison.elementGaps.burden) ?? Number.NaN)
+      }
     })
-  const totalReference = sumWhenComplete(findings.map(finding => finding.costEffect.reference.total))
-  const totalCurrent = sumWhenComplete(findings.map(finding => finding.costEffect.current.total))
-  const totalGap = sumWhenComplete(findings.map(finding => finding.costEffect.gap.total))
+    .sort((left, right) => {
+      if (left.gap === null) return right.gap === null ? left.finding.workCenterCode.localeCompare(right.finding.workCenterCode) : 1
+      if (right.gap === null) return -1
+      return Math.abs(right.gap) - Math.abs(left.gap) || left.finding.workCenterCode.localeCompare(right.finding.workCenterCode)
+    })
+
+  const totalReference = conversionTotal(comparison.referenceCost.labor, comparison.referenceCost.burden)
+  const totalCurrent = conversionTotal(comparison.currentCost.labor, comparison.currentCost.burden)
+  const totalGap = conversionTotal(comparison.elementGaps.labor, comparison.elementGaps.burden)
+  const selectedTotalGap = selectedActive && selectedComparison
+    ? conversionTotal(selectedComparison.elementGaps.labor, selectedComparison.elementGaps.burden)
+    : null
+  const totalPercentage = totalGap === null ? null : safeDivide(totalGap, totalReference ?? Number.NaN)
+  const activeGapLabel = selectedActive ? <>GAP <span className="text-[10px] font-normal text-slate-300">(Selected)</span></> : 'GAP'
 
   return (
-    <section aria-labelledby="work-center-context-title" className="min-w-0 overflow-hidden border border-slate-300 bg-white">
-      <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 border-b border-slate-200 px-3 py-2">
-        <h2 id="work-center-context-title" className="font-sans text-xs font-semibold tracking-tight text-slate-950">Work Center Context</h2>
-        <span className="text-[11px] text-slate-500">Full snapshot · Conversion Cost · THB/pc</span>
-      </div>
-      <div className="w-full min-w-0 overflow-x-auto">
-        <table className="w-full min-w-[560px] text-left text-xs">
-          <caption className="sr-only">Full-snapshot Conversion Cost by Work Center for Reference, Current, and Gap</caption>
+    <section aria-label="Work Center comparison" className="flex h-44 min-h-0 min-w-0 flex-col overflow-hidden border border-slate-300 bg-white">
+      <div className="shrink-0 overflow-x-auto">
+        <table className="w-full min-w-[500px] table-fixed text-left text-xs">
+          {columnWidths}
           <thead><tr className="bg-slate-800 font-semibold text-white">
-            <th scope="col" className="px-3 py-2">Work Center</th>
-            <th scope="col" className="px-3 py-2 text-right">REF</th>
-            <th scope="col" className="px-3 py-2 text-right">CUR</th>
-            <th scope="col" className="px-3 py-2 text-right">Gap</th>
+            <th scope="col" className="px-2 py-1.5">WC</th>
+            <th scope="col" className="px-2 py-1.5 text-right">REF</th>
+            <th scope="col" className="px-2 py-1.5 text-right">CUR</th>
+            <th scope="col" className="px-2 py-1.5 text-right">{activeGapLabel}</th>
+            <th scope="col" className="px-2 py-1.5 text-right">%GAP</th>
           </tr></thead>
+        </table>
+      </div>
+      <div data-wc-scroll-body="true" className="min-h-0 flex-1 overflow-y-auto overflow-x-auto">
+        <table className="w-full min-w-[500px] table-fixed text-left text-xs">
+          {columnWidths}
+          <caption className="sr-only">Conversion Cost by Work Center for Reference, Current, Gap, and percentage of total Conversion Gap</caption>
           <tbody className="divide-y divide-slate-100 font-mono tabular-nums">
-            {rows.length === 0 ? (
-              <tr><td colSpan={4} className="px-3 py-6 text-center font-sans italic text-slate-500">No Work Center processing data.</td></tr>
-            ) : <>
-              {rows.map(({ finding, conversionGap }) => <tr key={finding.sourceId} className="hover:bg-slate-50/70">
-                <th scope="row" className="px-3 py-2 text-left font-sans font-medium text-slate-800">
-                  <span>{finding.workCenterCode}</span>
-                  {finding.workCenterDescription && finding.workCenterDescription.trim().toLocaleLowerCase() !== finding.workCenterCode.trim().toLocaleLowerCase() && <span className="ml-2 font-normal text-slate-500">{finding.workCenterDescription}</span>}
-                </th>
-                <td className="px-3 py-2 text-right text-slate-600">{formatNullable(finding.costEffect.reference.total)}</td>
-                <td className="px-3 py-2 text-right text-slate-900">{formatNullable(finding.costEffect.current.total)}</td>
-                <td className={gapClass(conversionGap)}>{conversionGap === null ? '—' : formatVariance(conversionGap, 4)}</td>
-              </tr>)}
-              <tr className="border-t-2 border-slate-300 bg-slate-100 font-semibold">
-                <th scope="row" className="px-3 py-2 text-left font-sans text-slate-950">Total</th>
-                <td className="px-3 py-2 text-right">{formatNullable(totalReference)}</td>
-                <td className="px-3 py-2 text-right">{formatNullable(totalCurrent)}</td>
-                <td className={gapClass(totalGap)}>{totalGap === null ? '—' : formatVariance(totalGap, 4)}</td>
+            {rows.length === 0 ? <tr><td colSpan={5} className="px-2 py-3 text-center font-sans italic text-slate-500">No Work Center data.</td></tr> : rows.map(({ finding, gap, selectedGap, percentage }) => {
+              const label = finding.workCenterCode
+              return <tr key={finding.sourceId} className="hover:bg-slate-50/70">
+                <th scope="row" className="truncate px-2 py-1.5 text-left font-sans font-medium text-slate-800" title={label}>{label}</th>
+                <td className="px-2 py-1.5 text-right text-slate-600">{formatNullable(finding.costEffect.reference.total)}</td>
+                <td className="px-2 py-1.5 text-right text-slate-900">{formatNullable(finding.costEffect.current.total)}</td>
+                <td className="px-2 py-1.5 text-right">{renderGap(gap, selectedGap, selectedActive, `${label}`)}</td>
+                <td className="px-2 py-1.5 text-right text-slate-600">{percentage === null ? '—' : formatPercent(percentage, 2)}</td>
               </tr>
-            </>}
+            })}
           </tbody>
+        </table>
+      </div>
+      <div className="shrink-0 border-t-2 border-slate-300 bg-slate-100 overflow-x-auto">
+        <table className="w-full min-w-[500px] table-fixed text-left text-xs">
+          {columnWidths}
+          <tfoot className="font-semibold font-mono tabular-nums">
+            <tr>
+              <th scope="row" className="px-2 py-1.5 text-left font-sans text-slate-950">Total</th>
+              <td className="px-2 py-1.5 text-right text-slate-700">{formatNullable(totalReference)}</td>
+              <td className="px-2 py-1.5 text-right text-slate-950">{formatNullable(totalCurrent)}</td>
+              <td className="px-2 py-1.5 text-right">{renderGap(totalGap, selectedTotalGap, selectedActive, 'Total')}</td>
+              <td className="px-2 py-1.5 text-right text-slate-700">{totalPercentage === null ? '—' : formatPercent(totalPercentage, 2)}</td>
+            </tr>
+          </tfoot>
         </table>
       </div>
     </section>

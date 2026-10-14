@@ -1,8 +1,8 @@
 import React, { useState } from 'react'
 import { formatNumber, formatPercent, formatVariance, getCanonicalComparisonStatus, getComparisonFindingKey } from '../../../core'
 import type { ComparisonFinding, ComparisonStatus, CostComparison, SnapshotPair } from '../../../core'
-import { getComparisonViewLabel, isVisibleInComparisonView } from './comparison-view'
-import type { ComparisonViewMode } from './comparison-view'
+import { getComparisonSortLabel, getComparisonViewLabel, isVisibleInComparisonView, sortComparisonRows } from './comparison-view'
+import type { ComparisonSortMode, ComparisonViewMode } from './comparison-view'
 import { buildBOMItemizedRows, BOMRecordDetails } from './BOMDetailedTable'
 import type { BOMItemizedRow } from './BOMDetailedTable'
 import { buildRoutingItemizedRows, RoutingRecordDetails } from './RoutingDetailedTable'
@@ -16,6 +16,7 @@ interface ItemizedComparisonTableProps {
   pair: SnapshotPair
   typeTab: ItemizedTypeTab
   viewMode: ComparisonViewMode
+  sortMode: ComparisonSortMode
   selectedBOMKeys?: Set<string>
   selectedRoutingKeys?: Set<string>
   onToggleFinding?: (type: 'bom' | 'routing', key: string) => void
@@ -101,28 +102,20 @@ function toRows(comparison: CostComparison, pair: SnapshotPair): { bom: Itemized
   return { bom, routing }
 }
 
-function sortRows(rows: ItemizedRow[]): ItemizedRow[] {
-  return [...rows].sort((left, right) => {
-    if (left.gap === null) return right.gap === null ? left.key.localeCompare(right.key) : 1
-    if (right.gap === null) return -1
-    const magnitude = Math.abs(right.gap) - Math.abs(left.gap)
-    return magnitude || left.key.localeCompare(right.key)
-  })
-}
-
 export const ItemizedComparisonTable: React.FC<ItemizedComparisonTableProps> = ({
   comparison,
   pair,
   typeTab,
   viewMode,
+  sortMode,
   selectedBOMKeys,
   selectedRoutingKeys,
   onToggleFinding
 }) => {
   const [expandedRow, setExpandedRow] = useState<string | null>(null)
   const { bom, routing } = toRows(comparison, pair)
-  const visibleBOMRows = sortRows(bom.filter(row => isVisibleInComparisonView(row.finding, viewMode)))
-  const visibleRoutingRows = sortRows(routing.filter(row => isVisibleInComparisonView(row.finding, viewMode)))
+  const visibleBOMRows = sortComparisonRows(bom.filter(row => isVisibleInComparisonView(row.finding, viewMode)), sortMode)
+  const visibleRoutingRows = sortComparisonRows(routing.filter(row => isVisibleInComparisonView(row.finding, viewMode)), sortMode)
   const visibleRows = typeTab === 'bom'
     ? visibleBOMRows
     : typeTab === 'rtg' ? visibleRoutingRows : [...visibleBOMRows, ...visibleRoutingRows]
@@ -162,7 +155,7 @@ export const ItemizedComparisonTable: React.FC<ItemizedComparisonTableProps> = (
     <section aria-labelledby="itemized-comparison-title" className="overflow-hidden rounded-md border border-slate-200 bg-white">
       <div className="border-b border-slate-200 bg-slate-50 px-3 py-3">
         <h2 id="itemized-comparison-title" tabIndex={-1} className="font-sans text-sm font-semibold text-slate-950 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700">Candidates</h2>
-        <p className="mt-0.5 text-[11px] text-slate-500">{getComparisonViewLabel(viewMode)} status view · {totalRows} shown · sorted by absolute Cost Gap</p>
+        <p className="mt-0.5 text-[11px] text-slate-500">{getComparisonViewLabel(viewMode)} status view · {totalRows} shown · {getComparisonSortLabel(sortMode)}</p>
       </div>
 
       {typeTab !== 'rtg' && <div className="border-b border-slate-200">

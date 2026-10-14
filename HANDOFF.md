@@ -1,24 +1,23 @@
-# Current Handoff — CBD Corrective Round
+# Current Handoff — CBD Overview UX Refinement
 
 **Updated:** 2026-10-14
-**Checkpoint:** Corrective implementation and local verification are complete. The implementation is committed as `8b48e85d32a150db0ff66c672036d24881de2ceb`; this handoff update is included in the user-authorized branch delivery.
+**Checkpoint:** The bounded CBD overview pass is implemented and verified from starting HEAD `97fe2e36edc4fbea6aea7d2f8b315da50b6b5138`. The user authorized commit and push to the same integration branch after final review.
 
-## Active CBD Corrective Round
+## Active CBD Overview UX Pass
 
 - **Repository:** `apirak-k/COSTBREAKDOWN`
+- **Worktree:** `.worktrees/CBD-CANDIDATE-INTEGRATION`
 - **Branch:** `codex/cbd-candidate-integration`
-- **Starting HEAD:** `28d8f59b7a1235d4a88ef6303c5167c98c43de37`.
-- **Implementation commit:** `8b48e85d32a150db0ff66c672036d24881de2ceb` (`fix(cbd): correct layout and signed gap chart`). The HANDOFF delivery record is committed immediately after it on the same branch.
-- **Implementation:** Removed the redundant CBD page heading; kept one subheader Gap chart with proportional same-sign segments and an honest signed waterfall for offsets; made the full-snapshot Standard Cost and Work Center panels compact and side-by-side with one whole-region collapse control; retained Candidate as the only CBD vertical scroll owner; aligned BOM and RTG changed details as REF / CUR / EFFECT rows; kept RTG Work Center and rate explanation secondary.
-- **Scroll root cause and correction:** The previous shell let both CBD `main` and Candidate workspace scroll vertically, while the CBD workspace frame lacked a constrained flex/min-height chain. This allowed nested page scroll and could let the shell's Footer appear detached from the viewport. CBD `main` is now a non-scrolling flex region, its workspace frame is a constrained column, and Candidate owns vertical scrolling. The application root/body suppress document-level scrolling; other route mains retain `overflow-y-auto`. Navbar is protected from flex shrinking; Footer remains `shrink-0`.
-- **Calculation boundary:** Existing formulas, matching/status behavior, LMDI attribution, selected-comparison state, and downstream Candidate/RCA compatibility were preserved. No unrelated product page or business logic was changed.
-- **Specifications:** `docs/specs/COST_BREAKDOWN.md` and the CBD section in `design.md` describe the corrected UI. `FINAL_LOGIC_SPEC.md` was not rewritten.
-- **Checklist:** `tasks/cbd-ux-ui-implementation-checklist.md` is the corrective-round checklist. New requirements started unchecked; only verified items were checked with evidence. Browser zoom and visual review of a full signed-offset fixture remain marked NEEDS HUMAN REVIEW.
-- **Secondbrain workflow:** Updated the existing canonical `secondbrain/WORKFLOW.md` in the private DEV checkout at `C:\Users\Boom\.codex\worktrees\skill-link-ownership-dev\Human-AI-Working-Standard`. It records the ChatGPT audit → Codex round → next-prompt cycle and treats mid-round decisions as next-round agreements by default. This private DEV edit is unstaged and uncommitted.
-- **Verification:** `npm run build`, the CBD parameter-effect verifier including proportional and signed-offset assertions, ten CBD/selected-comparison/reconciliation TypeScript self-checks, browser checks at desktop, laptop, and narrow/mobile sizes, and `git diff --check` are recorded in the checklist. Build output still includes existing Vite ExcelJS `fs` / `crypto` browser-externalization warnings.
-- **Browser limitations:** No zoom control is exposed by the browser viewport tool. The +9 / -4 / +2 offset case with selected +10 was asserted in the signed chart render, but a browser-rendered full-offset fixture was not available; those visual checks remain open for human review.
-- **Master Data:** CLOSED / frozen baseline for UX and behavior. Only its existing main-region scroll behavior was checked while verifying the shared shell.
-- **Delivery boundary:** The user explicitly authorized committing and pushing this corrective round on 2026-10-14. Keep delivery on `codex/cbd-candidate-integration`; do not merge, rebase, or force-push.
+- **Starting HEAD:** `97fe2e36edc4fbea6aea7d2f8b315da50b6b5138` (`feat(cbd): retire candidate stage and consolidate subheader`).
+- **Product flow:** Master Data → Cost Breakdown → Simulation. Candidate/findings and Selected Comparison remain inside CBD; no standalone Candidate or RCA page is part of the current product.
+- **Subheader:** One desktop row contains signed Standard Cost Gap, MAT/LB/BD swatch legend, one continuous Gap Bar, BOM / RTG / ALL segmented filter, compact Status count, the three finalized Gap sort modes, and icon-only Cost/WC collapse. Status and Sort popovers are portaled overlays.
+- **Selected Gap:** Element states are independent and local to MAT, LB, or BD. Positive nets highlight, negative nets use same-color hatching, and true zero nets remain Normal. Displayed selected element values reuse existing BOM finding effects and selected Work Center processing findings; this covers one-sided Added/Removed selections without changing snapshot formulas or missing-value behavior in the calculation engine.
+- **Cost and WC:** Cost is Header + MAT/LB/BD + STD Cost footer. WC mirrors the fixed height with compact code identities, a fixed header/footer, and a body-only scroller. Selected values remain parenthesized inside GAP; no Selected snapshot columns were introduced.
+- **Master Data:** Only the compact table selector labels are BOM / WC / RTG. Detailed titles and table behavior are unchanged.
+- **Specification:** `docs/specs/FINAL_LOGIC_SPEC.md` describes the visible Master Data → CBD → Simulation flow and marks retained Candidate/RCA rules as legacy session compatibility.
+- **Verification:** `npm run build`, focused CBD/Selected Comparison/Cost/WC/sort/status/Master Data/navigation/migration/Simulation compatibility verifiers, `git diff --check`, and 1920px browser checks passed. Browser checks covered Status/Sort overlays, all three filters and sort modes, Selected positive/negative/zero displays, independent MAT/LB/BD hatching, Collapse, direct Simulation, Master Data labels, and WC overflow scrolling with fixed header/footer. The disposable Complete Mock fixture was restored afterward.
+- **Build note:** Vite still reports the existing ExcelJS browser-externalization warnings for `fs`, `crypto`, and `@fast-csv`.
+- **Delivery boundary:** Commit and push only to `codex/cbd-candidate-integration`; do not merge or force-push. Preserve the unrelated untracked `tasks/master-data-cbd-final-audit.md`.
 
 ## Historical Final Logic Checklist Evidence — 2026-10-09
 
@@ -68,7 +67,7 @@ This section records the earlier review loop and remains historical implementati
 - `npm audit --audit-level=high` reports 5 High development-dependency findings and 4 Moderate findings overall. The production-only audit has no High findings but reports 2 Moderate ExcelJS/uuid findings. npm's full automatic remediation proposes breaking dependency changes, so no dependency update was included in the frozen logic scope.
 - The worktree contains an unrelated untracked `src/graphify-out/` directory generated by tooling. It was preserved and excluded from commits.
 
-## Final Logic Baseline Summary
+## Historical Final Logic Baseline Summary
 
 This summary describes the finalized logic baseline represented by the historical audit above. The current canonical product specifications remain the authority for behavior.
 
@@ -100,4 +99,4 @@ This summary describes the finalized logic baseline represented by the historica
 
 ## Current Work Focus
 
-The CBD corrective round is delivered from `codex/cbd-candidate-integration`. The implementation commit is `8b48e85d32a150db0ff66c672036d24881de2ceb`; the HANDOFF delivery record follows it on the same branch. Address any human visual-review findings as the next bounded corrective round, and keep Master Data frozen.
+The CBD overview UX refinement is the active bounded pass on `codex/cbd-candidate-integration`, starting at `97fe2e36edc4fbea6aea7d2f8b315da50b6b5138`. The latest delivery report and Git HEAD on that branch are authoritative for its commit and push status. Address any external-audit findings as a separate bounded pass.

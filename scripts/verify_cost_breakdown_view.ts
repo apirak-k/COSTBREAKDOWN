@@ -3,7 +3,7 @@ import { createServer } from 'vite'
 
 const vite = await createServer({ server: { middlewareMode: true }, appType: 'custom', logLevel: 'error' })
 try {
-const { isVisibleInComparisonView } = await vite.ssrLoadModule('/src/features/cost-breakdown/components/comparison-view.ts')
+const { getComparisonStatusControlLabel, isVisibleInComparisonView } = await vite.ssrLoadModule('/src/features/cost-breakdown/components/comparison-view.ts')
 
 const unchanged = {
   matchStatus: 'matched' as const,
@@ -27,6 +27,9 @@ assert.equal(isVisibleInComparisonView(modified, ['CHANGED', 'ADDED']), true)
 assert.equal(isVisibleInComparisonView(modified, []), false)
 assert.equal(isVisibleInComparisonView({ ...unchanged, matchStatus: 'added' }, ['CHANGED']), false)
 assert.equal(isVisibleInComparisonView({ ...unchanged, matchStatus: 'added' }, ['ADDED']), true)
+assert.equal(getComparisonStatusControlLabel(allStatuses), 'Status (All)')
+assert.equal(getComparisonStatusControlLabel(['CHANGED', 'REMOVED']), 'Status (2)')
+assert.equal(getComparisonStatusControlLabel([]), 'Status (0)', 'zero selected statuses remain an explicit empty filter')
 
 console.log('Cost Breakdown view verification passed.')
 } finally {

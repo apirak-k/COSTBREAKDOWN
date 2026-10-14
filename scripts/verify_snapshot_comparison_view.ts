@@ -22,16 +22,23 @@ try {
   assert.doesNotMatch(markup, /Data quality:/, 'the page-level Data quality summary is absent')
   assert.doesNotMatch(markup, /Review warnings|Missing rate remains reviewable/, 'comparison warnings are not displayed in the summary')
   assert.doesNotMatch(markup, /Standard Cost reconciliation/, 'Standard Cost reconciliation UI is absent')
-  assert.match(markup, /Standard Cost Overview/)
-  for (const row of ['Material', 'Labor', 'Burden', 'Standard Cost']) assert.match(markup, new RegExp(row))
-  for (const column of ['REF', 'CUR', 'Gap']) assert.match(markup, new RegExp('>' + column + '<'))
-  assert.doesNotMatch(markup, /Conversion|% Parent|%Parent|Labor \+ Burden|Balanced|Review/,
-    'the overview omits Conversion subtotal, reconciliation, parent percentages, and review links')
+  assert.match(markup, /aria-label="Cost comparison"/)
+  assert.match(markup, /<th scope="col"[^>]*>Cost<\/th>[\s\S]*>REF<\/th>[\s\S]*>CUR<\/th>[\s\S]*>GAP<\/th>[\s\S]*>%GAP<\/th>/)
+  assert.match(markup, />MAT<\/th>[\s\S]*>LB<\/th>[\s\S]*>BD<\/th>[\s\S]*>STD Cost<\/th>/)
+  assert.equal([...markup.matchAll(/<tr\b/g)].length, 5, 'Cost has exactly a header, three component rows, and a footer')
+  assert.match(markup, /50\.00%[\s\S]*25\.00%[\s\S]*25\.00%[\s\S]*15\.38%/,
+    'component %GAP and footer %Total retain their finalized denominators')
+  assert.doesNotMatch(markup, /Standard Cost Overview|Selected REF|Selected CUR|% Parent|%Parent|Balanced|Review/,
+    'the compact table omits obsolete headings, selected dataset columns, and review UI')
   const selectedMarkup = renderToStaticMarkup(React.createElement(SnapshotComparisonCard, {
-    comparison, selectedComparison: true
+    comparison,
+    selectedComparison: { ...comparison, elementGaps: { material: 0.5, labor: 0, burden: 0 }, totalGap: 0.5 },
+    selectedActive: true
   }))
-  assert.match(selectedMarkup, /Full Reference \/ Current snapshot/)
-  assert.doesNotMatch(selectedMarkup, /Selected Comparison/)
+  assert.match(selectedMarkup, /GAP[\s\S]*\(Selected\)/)
+  assert.match(selectedMarkup, /\(\+0\.50\)/)
+  assert.match(selectedMarkup, /\(0\.00\)/)
+  assert.doesNotMatch(selectedMarkup, /<th[^>]*>Selected<\/th>/, 'Selected remains secondary inside the Gap column')
 } finally {
   await vite.close()
 }

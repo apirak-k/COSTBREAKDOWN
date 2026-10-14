@@ -70,7 +70,7 @@ export const Tooltip: React.FC<TooltipProps> = ({ label, children, wrapperClassN
           id={tooltipId}
           role="tooltip"
           style={position === null ? { left: '-10000px', top: '0px' } : { left: `${position.left}px`, top: `${position.top}px` }}
-          className={`pointer-events-none fixed z-[1000] ${visible ? 'block' : 'hidden'} max-w-[calc(100vw-1rem)] border border-slate-700 bg-slate-900 px-2 py-1 text-[11px] leading-4 text-white shadow-md`}
+          className={`pointer-events-none fixed z-[1000] ${visible ? 'block' : 'hidden'} max-w-[calc(100vw-1rem)] whitespace-pre-line border border-slate-700 bg-slate-900 px-2 py-1 text-[11px] leading-4 text-white shadow-md`}
         >
           {label}
         </span>,

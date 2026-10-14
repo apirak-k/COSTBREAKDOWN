@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useId, useState } from 'react'
 import { ChevronDown, ChevronRight } from 'lucide-react'
 import { useAppStore } from '../../state'
 
@@ -6,10 +6,19 @@ import { ItemizedComparisonTable } from './components/ItemizedComparisonTable'
 import type { ItemizedTypeTab } from './components/ItemizedComparisonTable'
 import { SnapshotComparisonCard } from './components/SnapshotComparisonCard'
 import { WorkCenterProcessingTable } from './components/WorkCenterProcessingTable'
-import { ALL_COMPARISON_STATUSES, areAllComparisonStatusesSelected, getComparisonViewLabel } from './components/comparison-view'
-import type { ComparisonViewMode } from './components/comparison-view'
-import { formatVariance, getComparisonFindingKey, safeAdd } from '../../core'
-import type { ComparisonFinding, ComparisonStatus } from '../../core'
+import { CostBreakdownPopover } from './components/CostBreakdownPopover'
+import {
+  ALL_COMPARISON_STATUSES,
+  areAllComparisonStatusesSelected,
+  COMPARISON_SORT_OPTIONS,
+  DEFAULT_COMPARISON_SORT_MODE,
+  getComparisonStatusControlLabel,
+  getComparisonSortLabel,
+  getSelectedComparisonContribution
+} from './components/comparison-view'
+import type { ComparisonSortMode, ComparisonViewMode } from './components/comparison-view'
+import { formatVariance, getVarianceClass } from '../../core'
+import type { ComparisonStatus } from '../../core'
 
 const statusOptions: Array<{ value: ComparisonStatus; label: string }> = [
   { value: 'CHANGED', label: 'Changed' },
@@ -18,18 +27,12 @@ const statusOptions: Array<{ value: ComparisonStatus; label: string }> = [
   { value: 'UNCHANGED', label: 'Unchanged' }
 ]
 
-const currentSortMode = {
-  id: 'absolute-cost-gap-desc',
-  label: 'Absolute Cost Gap · High → Low'
-} as const
-
 interface GapSegment {
   key: 'material' | 'labor' | 'burden'
-  label: string
+  label: 'Material' | 'Labor' | 'Burden'
   full: number | null
   selected: number | null
   color: string
-  selectedColor: string
 }
 
 function isAvailableGap(value: number | null | undefined): value is number {
@@ -49,18 +52,6 @@ function hasSingleSign(values: number[]): boolean {
   return new Set(values.filter(value => value !== 0).map(value => Math.sign(value))).size <= 1
 }
 
-function sumSelectedFindingGaps(findings: ComparisonFinding[], element: 'material' | 'labor' | 'burden'): number | null {
-  let total = 0
-  for (const finding of findings) {
-    const value = finding.costEffect?.gap[element]
-    if (!isAvailableGap(value)) return null
-    const nextTotal = safeAdd(total, value)
-    if (nextTotal === null) return null
-    total = nextTotal
-  }
-  return total
-}
-
 interface GapContributionChartProps {
   segments: GapSegment[]
   fullTotal: number | null
@@ -70,27 +61,14 @@ interface GapContributionChartProps {
 
 export function GapContributionChart({ segments, fullTotal, selectedTotal, selectedActive }: GapContributionChartProps) {
   const width = 1000
+  const chartId = useId().replace(/:/g, '')
   const fullValues = segments.map(segment => segment.full)
-  const selectedValues = segments.map(segment => segment.selected)
   const fullAvailable = fullValues.every(isAvailableGap)
-  const selectedAvailable = selectedValues.every(isAvailableGap)
   const fullNumbers = fullValues.filter(isAvailableGap)
-  const selectedNumbers = selectedValues.filter(isAvailableGap)
-  const selectedFitsProportional = selectedActive && selectedAvailable && segments.every(({ full, selected }) => {
-    if (!isAvailableGap(full) || !isAvailableGap(selected)) return false
-    return selected === 0 || (full !== 0 && Math.sign(full) === Math.sign(selected) && Math.abs(selected) <= Math.abs(full))
-  })
   const proportional = fullAvailable && hasSingleSign(fullNumbers)
-    && (!selectedActive || !selectedAvailable || selectedFitsProportional)
   const mode = !fullAvailable ? 'unavailable' : proportional ? 'proportional' : 'signed'
-  const drawSelected = selectedActive && selectedAvailable
   const fullPath = fullAvailable ? getWaterfallSegments(fullNumbers) : []
-  const selectedPath = drawSelected ? getWaterfallSegments(selectedNumbers) : []
-  const chartPoints = [
-    0,
-    ...fullPath.flatMap(segment => [segment.start, segment.end]),
-    ...selectedPath.flatMap(segment => [segment.start, segment.end])
-  ]
+  const chartPoints = [0, ...fullPath.flatMap(segment => [segment.start, segment.end])]
   const chartMin = Math.min(...chartPoints)
   const chartMax = Math.max(...chartPoints)
   const chartRange = chartMax - chartMin
@@ -101,89 +79,83 @@ export function GapContributionChart({ segments, fullTotal, selectedTotal, selec
   const zeroX = scaleSignedValue(0)
   const fullMagnitude = fullAvailable ? fullNumbers.reduce((total, value) => total + Math.abs(value), 0) : 0
   let proportionalCursor = 0
-  const proportionalSegments = proportional && fullMagnitude > 0
+  const proportionalSegments = proportional
     ? segments.map(segment => {
-      const segmentWidth = isAvailableGap(segment.full) ? Math.abs(segment.full) / fullMagnitude * width : 0
-      const selectedWidth = drawSelected && isAvailableGap(segment.selected)
-        ? Math.abs(segment.selected) / fullMagnitude * width
-        : 0
-      const result = { ...segment, x: proportionalCursor, width: segmentWidth, selectedWidth }
+      const segmentWidth = fullMagnitude > 0
+        ? (isAvailableGap(segment.full) ? Math.abs(segment.full) / fullMagnitude * width : 0)
+        : width / segments.length
+      const result = { ...segment, x: proportionalCursor, width: segmentWidth }
       proportionalCursor += segmentWidth
       return result
     })
     : []
-  const shortLabels: Record<GapSegment['key'], string> = { material: 'MAT', labor: 'LB', burden: 'BD' }
-  const valueLabel = (value: number | null) => isAvailableGap(value) ? formatVariance(value, 4) : 'unavailable'
+  const valueLabel = (value: number | null) => isAvailableGap(value) ? formatVariance(value, 2) : 'unavailable'
+  const selectedText = (value: number | null) => isAvailableGap(value) ? `Selected (${valueLabel(value)})` : 'Selected (unavailable)'
   const accessibleLabel = [
     `Full Standard Cost Gap ${valueLabel(fullTotal)}`,
-    ...segments.map(segment => `Full ${segment.label} ${valueLabel(segment.full)}`),
+    ...segments.map(segment => `Full ${segment.label} Gap ${valueLabel(segment.full)}`),
     selectedActive ? `Selected Standard Cost Gap ${valueLabel(selectedTotal)}` : '',
-    ...(selectedActive ? segments.map(segment => `Selected ${segment.label} ${valueLabel(segment.selected)}`) : []),
-    selectedActive && !selectedAvailable ? 'Selected overlay is unavailable because one or more component values are unavailable' : '',
-    mode === 'signed' ? 'Signed waterfall uses a shared zero baseline; selected contributions are outlined in the same chart' : ''
+    ...(selectedActive ? segments.map(segment => `Selected ${segment.label} Gap ${valueLabel(segment.selected)}`) : [])
   ].filter(Boolean).join('; ')
+
+  const selectedTreatment = (segment: GapSegment): 'normal' | 'highlight' | 'remove' => {
+    if (!selectedActive || !isAvailableGap(segment.selected) || segment.selected === 0) return 'normal'
+    return segment.selected > 0 ? 'highlight' : 'remove'
+  }
+
+  const renderSegment = (segment: GapSegment, index: number) => {
+    const selectedState = selectedTreatment(segment)
+    let x = 0
+    let segmentWidth = 0
+    if (mode === 'proportional') {
+      const proportionalSegment = proportionalSegments[index]
+      x = proportionalSegment.x
+      segmentWidth = proportionalSegment.width
+    } else if (mode === 'signed') {
+      const pathSegment = fullPath[index]
+      const startX = scaleSignedValue(pathSegment.start)
+      const endX = scaleSignedValue(pathSegment.end)
+      x = Math.min(startX, endX)
+      segmentWidth = Math.abs(endX - startX)
+      if (segmentWidth === 0 && selectedState !== 'normal') x = Math.max(0, Math.min(width - 4, endX - 2))
+    } else {
+      x = index * width / segments.length
+      segmentWidth = width / segments.length
+    }
+    const visibleWidth = segmentWidth === 0 && selectedState !== 'normal' ? 4 : segmentWidth
+    const y = selectedState === 'normal' ? 7 : 5
+    const height = selectedState === 'normal' ? 18 : 22
+    const tooltip = [`${segment.label} Gap ${valueLabel(segment.full)}`]
+    if (selectedActive) tooltip.push(selectedText(segment.selected))
+
+    return <g key={segment.key} data-gap-element={segment.key} data-selected-state={selectedState}>
+      <title>{tooltip.join('\n')}</title>
+      {mode === 'proportional' && visibleWidth > 0 && <rect x={x} y="7" width={visibleWidth} height="18" fill={segment.color} fillOpacity="0.32" />}
+      {mode === 'signed' && segmentWidth > 0 && <rect x={x} y="7" width={segmentWidth} height="18" fill={segment.color} fillOpacity="0.42" />}
+      {mode === 'unavailable' && visibleWidth > 0 && <rect x={x} y="7" width={visibleWidth} height="18" fill={segment.color} fillOpacity="0.2" />}
+      {selectedState === 'highlight' && visibleWidth > 0 && <rect x={x} y={y} width={visibleWidth} height={height} fill={segment.color} fillOpacity="0.96" />}
+      {selectedState === 'remove' && visibleWidth > 0 && <rect x={x} y={y} width={visibleWidth} height={height} fill={`url(#${chartId}-remove-${segment.key})`} />}
+    </g>
+  }
 
   return (
     <div
       role="img"
       aria-label={accessibleLabel}
       data-gap-chart-mode={mode}
+      data-selected-mode={selectedActive ? 'active' : 'inactive'}
       className="h-8 w-full overflow-hidden border border-slate-300 bg-slate-100"
     >
       <svg aria-hidden="true" viewBox={`0 0 ${width} 32`} preserveAspectRatio="none" className="block h-full w-full">
-        {mode === 'proportional' && fullMagnitude > 0 && proportionalSegments.map(segment => <g key={segment.key}>
-          <rect x={segment.x} y="7" width={segment.width} height="18" fill={segment.color} fillOpacity="0.38" />
-          {segment.selectedWidth > 0 && <rect x={segment.x} y="7" width={segment.selectedWidth} height="18" fill={segment.selectedColor} />}
-          {segment.x > 0 && <line x1={segment.x} y1="4" x2={segment.x} y2="28" stroke="white" strokeWidth="2" />}
-        </g>)}
-        {mode === 'proportional' && fullMagnitude === 0 && <line x1={width / 2} y1="3" x2={width / 2} y2="29" stroke="#475569" strokeDasharray="3 3" />}
-        {mode === 'signed' && <>
-          <line x1={zeroX} y1="2" x2={zeroX} y2="30" stroke="#0f172a" strokeDasharray="2 2" />
-          {segments.map((segment, index) => {
-            const pathSegment = fullPath[index]
-            const x1 = scaleSignedValue(pathSegment.start)
-            const x2 = scaleSignedValue(pathSegment.end)
-            return <rect key={`full-${segment.key}`} x={Math.min(x1, x2)} y="7" width={Math.abs(x2 - x1)} height="18" fill={segment.color} fillOpacity="0.48" />
-          })}
-          {drawSelected && segments.map((segment, index) => {
-            const pathSegment = selectedPath[index]
-            const x1 = scaleSignedValue(pathSegment.start)
-            const x2 = scaleSignedValue(pathSegment.end)
-            return pathSegment.start === pathSegment.end ? null : <g key={`selected-${segment.key}`}>
-              <rect x={Math.min(x1, x2)} y="5" width={Math.abs(x2 - x1)} height="22" fill="none" stroke={segment.selectedColor} strokeWidth="2" strokeDasharray="4 2" />
-              <line x1={x2} y1="3" x2={x2} y2="29" stroke={segment.selectedColor} strokeWidth="2" strokeDasharray="2 2" />
-            </g>
-          })}
-        </>}
-        {segments.map((segment, index) => {
-          const proportionalSegment = proportionalSegments[index]
-          const signedSegment = fullPath[index]
-          const x = mode === 'proportional' && proportionalSegment
-            ? proportionalSegment.x + proportionalSegment.width / 2
-            : mode === 'signed' && signedSegment
-              ? scaleSignedValue((signedSegment.start + signedSegment.end) / 2)
-              : width * (index + 0.5) / segments.length
-          const selectedUnderLabel = mode === 'proportional'
-            && proportionalSegment?.selectedWidth > 0
-            && proportionalSegment.selectedWidth >= proportionalSegment.width / 2
-          return (
-            <text
-              key={`label-${segment.key}`}
-              x={x}
-              y="21"
-              textAnchor="middle"
-              fontSize="12"
-              fontWeight="700"
-              fill={selectedUnderLabel ? '#ffffff' : '#0f172a'}
-              stroke={selectedUnderLabel ? '#0f172a' : '#ffffff'}
-              strokeWidth="3"
-              strokeLinejoin="round"
-              paintOrder="stroke"
-            >
-              {shortLabels[segment.key]}
-            </text>
-          )
-        })}
+        <defs>
+          {segments.map(segment => <pattern key={segment.key} id={`${chartId}-remove-${segment.key}`} width="8" height="8" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
+            <rect width="8" height="8" fill={segment.color} fillOpacity="0.12" />
+            <path d="M 0 0 V 8" stroke={segment.color} strokeWidth="3" strokeOpacity="0.85" />
+          </pattern>)}
+        </defs>
+        {mode === 'signed' && <line x1={zeroX} y1="2" x2={zeroX} y2="30" stroke="#0f172a" strokeDasharray="2 2" />}
+        {segments.map(renderSegment)}
+        {mode === 'proportional' && proportionalSegments.slice(1).map(segment => <line key={`divider-${segment.key}`} x1={segment.x} y1="4" x2={segment.x} y2="28" stroke="white" strokeWidth="2" />)}
       </svg>
     </div>
   )
@@ -192,6 +164,7 @@ export function GapContributionChart({ segments, fullTotal, selectedTotal, selec
 export const CostBreakdownPage: React.FC = () => {
   const {
     fullSnapshotComparison,
+    snapshotComparison,
     snapshotPair,
     selectedComparisonSelection,
     isSelectedComparisonActive,
@@ -200,28 +173,21 @@ export const CostBreakdownPage: React.FC = () => {
   } = useAppStore()
   const [typeTab, setTypeTab] = useState<ItemizedTypeTab>('all')
   const [comparisonView, setComparisonView] = useState<ComparisonViewMode>(ALL_COMPARISON_STATUSES)
+  const [sortMode, setSortMode] = useState<ComparisonSortMode>(DEFAULT_COMPARISON_SORT_MODE)
   const [isOverviewExpanded, setIsOverviewExpanded] = useState(true)
 
   const selectedBOMKeys = new Set(selectedComparisonSelection?.bomFindingKeys ?? [])
   const selectedRoutingKeys = new Set(selectedComparisonSelection?.routingFindingKeys ?? [])
-  const selectedFindings = isSelectedComparisonActive
-    ? [
-        ...fullSnapshotComparison.bomFindings.filter(finding => selectedBOMKeys.has(getComparisonFindingKey('bom', finding))),
-        ...fullSnapshotComparison.routingFindings.filter(finding => selectedRoutingKeys.has(getComparisonFindingKey('routing', finding)))
-      ]
-    : []
-  const selectedElementGaps = {
-    material: sumSelectedFindingGaps(selectedFindings, 'material'),
-    labor: sumSelectedFindingGaps(selectedFindings, 'labor'),
-    burden: sumSelectedFindingGaps(selectedFindings, 'burden')
-  }
-  const selectedTotalGap = [selectedElementGaps.material, selectedElementGaps.labor, selectedElementGaps.burden].every(isAvailableGap)
-    ? safeAdd(selectedElementGaps.material as number, selectedElementGaps.labor as number, selectedElementGaps.burden as number)
+  const selectedContribution = isSelectedComparisonActive && selectedComparisonSelection
+    ? getSelectedComparisonContribution(fullSnapshotComparison, snapshotComparison, selectedComparisonSelection)
     : null
-  const gapSegments = [
-    { key: 'material' as const, label: 'Material', full: fullSnapshotComparison.elementGaps.material, selected: selectedElementGaps.material, color: '#0369a1', selectedColor: '#075985' },
-    { key: 'labor' as const, label: 'Labor', full: fullSnapshotComparison.elementGaps.labor, selected: selectedElementGaps.labor, color: '#b45309', selectedColor: '#92400e' },
-    { key: 'burden' as const, label: 'Burden', full: fullSnapshotComparison.elementGaps.burden, selected: selectedElementGaps.burden, color: '#6d28d9', selectedColor: '#5b21b6' }
+  const selectedDisplayComparison = selectedContribution
+    ? { ...snapshotComparison, ...selectedContribution }
+    : snapshotComparison
+  const gapSegments: GapSegment[] = [
+    { key: 'material', label: 'Material', full: fullSnapshotComparison.elementGaps.material, selected: selectedContribution?.elementGaps.material ?? null, color: '#0369a1' },
+    { key: 'labor', label: 'Labor', full: fullSnapshotComparison.elementGaps.labor, selected: selectedContribution?.elementGaps.labor ?? null, color: '#b45309' },
+    { key: 'burden', label: 'Burden', full: fullSnapshotComparison.elementGaps.burden, selected: selectedContribution?.elementGaps.burden ?? null, color: '#6d28d9' }
   ]
 
   const toggleFinding = (type: 'bom' | 'routing', findingKey: string) => {
@@ -240,58 +206,101 @@ export const CostBreakdownPage: React.FC = () => {
     }
   }
 
+  const statusControlLabel = getComparisonStatusControlLabel(comparisonView)
+  const sortLabel = getComparisonSortLabel(sortMode)
+
   return (
     <div className="flex h-full min-h-0 min-w-0 flex-col gap-2">
-      <header aria-label="Cost Breakdown subheader" className="shrink-0 overflow-x-auto border-b border-slate-300 bg-slate-50 pb-2" tabIndex={0}>
-        <div className="flex min-w-[900px] flex-nowrap items-center gap-2" role="group" aria-label="Cost Breakdown controls">
+      <header aria-label="Cost Breakdown subheader" className="shrink-0 overflow-x-auto border-b border-slate-300 bg-slate-50 py-1.5" tabIndex={0}>
+        <div className="flex min-w-[1000px] flex-nowrap items-center gap-2" role="group" aria-label="Cost Breakdown controls">
           <div
-            aria-label={`Standard Cost Gap ${fullSnapshotComparison.totalGap === null ? 'unavailable' : formatVariance(fullSnapshotComparison.totalGap, 4)} THB/pc; Gap = CUR − REF`}
+            aria-label={`Standard Cost Gap ${fullSnapshotComparison.totalGap === null ? 'unavailable' : formatVariance(fullSnapshotComparison.totalGap, 2)} THB/pc; Gap = CUR − REF`}
             title="Full snapshot · THB/pc · Gap = CUR − REF"
-            className="flex shrink-0 items-baseline gap-1.5 whitespace-nowrap px-1 text-xs"
+            className="flex w-[204px] shrink-0 items-baseline gap-1.5 whitespace-nowrap px-1 text-xs"
           >
             <span className="font-semibold text-slate-800">Standard Cost Gap</span>
-            <span className="font-mono font-semibold tabular-nums text-slate-900">{fullSnapshotComparison.totalGap === null ? '—' : formatVariance(fullSnapshotComparison.totalGap, 4)}</span>
+            <span className={`font-mono tabular-nums ${fullSnapshotComparison.totalGap === null ? 'text-slate-400' : getVarianceClass(fullSnapshotComparison.totalGap)}`}>
+              {fullSnapshotComparison.totalGap === null ? '—' : formatVariance(fullSnapshotComparison.totalGap, 2)}
+            </span>
+          </div>
+
+          <div role="group" aria-label="Cost element color legend" className="flex w-[142px] shrink-0 items-center justify-center gap-2 whitespace-nowrap text-[10px] font-medium text-slate-600">
+            {[
+              { label: 'MAT', color: '#0369a1' },
+              { label: 'LB', color: '#b45309' },
+              { label: 'BD', color: '#6d28d9' }
+            ].map(item => <span key={item.label} className="inline-flex items-center gap-1">
+              <span aria-hidden="true" className="h-2.5 w-2.5" style={{ backgroundColor: item.color }} />
+              {item.label}
+            </span>)}
           </div>
 
           <div className="min-w-[140px] flex-1">
             <GapContributionChart
               segments={gapSegments}
               fullTotal={fullSnapshotComparison.totalGap}
-              selectedTotal={selectedTotalGap}
+              selectedTotal={selectedContribution?.totalGap ?? null}
               selectedActive={isSelectedComparisonActive}
             />
           </div>
 
-          <div className="flex shrink-0 items-center gap-1" role="group" aria-label="Candidate type filter">
-            {(['all', 'bom', 'rtg'] as const).map(tab => (
-              <button key={tab} type="button" aria-pressed={typeTab === tab} onClick={() => setTypeTab(tab)} className={`min-h-8 rounded-sm border px-2.5 text-xs font-semibold focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700 ${typeTab === tab ? 'border-slate-900 bg-slate-900 text-white' : 'border-slate-300 bg-white text-slate-700 hover:bg-slate-100'}`}>
+          <div className="inline-flex shrink-0 overflow-hidden rounded-sm border border-slate-300 bg-white" role="group" aria-label="Finding type filter">
+            {(['bom', 'rtg', 'all'] as const).map((tab, index) => (
+              <button
+                key={tab}
+                type="button"
+                aria-pressed={typeTab === tab}
+                onClick={() => setTypeTab(tab)}
+                className={`min-h-8 px-2.5 text-xs font-semibold focus-visible:z-10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-blue-700 ${index > 0 ? 'border-l border-slate-300' : ''} ${typeTab === tab ? 'bg-slate-800 text-white' : 'text-slate-700 hover:bg-slate-100'}`}
+              >
                 {tab.toUpperCase()}
               </button>
             ))}
           </div>
 
-          <details aria-label="Status filter dropdown" className="shrink-0">
-            <summary className="flex min-h-8 cursor-pointer list-none items-center gap-2 rounded-sm border border-slate-300 bg-white px-2 text-xs font-medium text-slate-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700">
-              Status <span className="max-w-28 truncate font-normal text-slate-600">{getComparisonViewLabel(comparisonView)}</span><span aria-hidden="true" className="text-[10px] text-slate-500">▾</span>
-            </summary>
-            <div className="mt-1 min-w-44 rounded-sm border border-slate-300 bg-white p-2 shadow-lg">
-              <button type="button" aria-pressed={areAllComparisonStatusesSelected(comparisonView)} onClick={() => setComparisonView(ALL_COMPARISON_STATUSES)} className="mb-1 w-full rounded-sm px-2 py-1.5 text-left text-xs font-semibold text-slate-800 hover:bg-slate-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-700">All statuses</button>
+          <CostBreakdownPopover
+            label={`Status filter, ${statusControlLabel}`}
+            trigger={<span className="whitespace-nowrap">{statusControlLabel}</span>}
+            panelClassName="w-44"
+          >
+            {close => <div aria-label="Filter by comparison status">
+              <button
+                type="button"
+                aria-pressed={areAllComparisonStatusesSelected(comparisonView)}
+                onClick={() => { setComparisonView(ALL_COMPARISON_STATUSES); close() }}
+                className="mb-1 w-full rounded-sm px-2 py-1.5 text-left text-xs font-semibold text-slate-800 hover:bg-slate-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-700"
+              >All statuses</button>
               {statusOptions.map(option => <label key={option.value} className="flex cursor-pointer items-center gap-2 rounded-sm px-2 py-1.5 text-xs text-slate-700 hover:bg-slate-50">
-                <input type="checkbox" checked={comparisonView.includes(option.value)} onChange={() => setComparisonView(current => current.includes(option.value) ? current.filter(status => status !== option.value) : [...current, option.value])} className="h-3.5 w-3.5 accent-slate-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700" />
+                <input
+                  type="checkbox"
+                  checked={comparisonView.includes(option.value)}
+                  onChange={() => setComparisonView(current => current.includes(option.value) ? current.filter(status => status !== option.value) : [...current, option.value])}
+                  className="h-3.5 w-3.5 accent-slate-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700"
+                />
                 <span>{option.label}</span>
               </label>)}
-            </div>
-          </details>
+            </div>}
+          </CostBreakdownPopover>
 
-          <details aria-label="Sort findings" className="shrink-0">
-            <summary title={currentSortMode.label} className="flex min-h-8 cursor-pointer list-none items-center gap-2 rounded-sm border border-slate-300 bg-white px-2 text-xs font-medium text-slate-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700">
-              Sort <span className="max-w-48 truncate font-normal text-slate-600">{currentSortMode.label}</span><span aria-hidden="true" className="text-[10px] text-slate-500">▾</span>
-            </summary>
-            <div className="mt-1 min-w-52 rounded-sm border border-slate-300 bg-white p-2 shadow-lg">
-              <p className="px-2 py-1 text-[10px] font-semibold uppercase tracking-wide text-slate-500">Current mode</p>
-              <p role="status" className="px-2 py-1.5 text-xs font-medium text-slate-800">{currentSortMode.label}</p>
-            </div>
-          </details>
+          <CostBreakdownPopover
+            label={`Sort findings, ${sortLabel}`}
+            trigger={<span className="whitespace-nowrap">{sortLabel}</span>}
+            panelClassName="w-48"
+          >
+            {close => <fieldset aria-label="Sort findings" className="space-y-0.5">
+              {COMPARISON_SORT_OPTIONS.map(option => <label key={option.value} className="flex cursor-pointer items-center gap-2 rounded-sm px-2 py-1.5 text-xs text-slate-700 hover:bg-slate-50">
+                <input
+                  type="radio"
+                  name="cost-breakdown-sort-mode"
+                  value={option.value}
+                  checked={sortMode === option.value}
+                  onChange={() => { setSortMode(option.value); close() }}
+                  className="h-3.5 w-3.5 accent-slate-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700"
+                />
+                <span>{option.label}</span>
+              </label>)}
+            </fieldset>}
+          </CostBreakdownPopover>
 
           <button
             type="button"
@@ -300,17 +309,16 @@ export const CostBreakdownPage: React.FC = () => {
             aria-label={`${isOverviewExpanded ? 'Collapse' : 'Expand'} Cost and Work Center sections`}
             title={`${isOverviewExpanded ? 'Collapse' : 'Expand'} Cost and Work Center sections`}
             onClick={() => setIsOverviewExpanded(expanded => !expanded)}
-            className="inline-flex min-h-8 shrink-0 items-center gap-1 rounded-sm border border-slate-300 bg-white px-2 text-xs font-medium text-slate-700 hover:bg-slate-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700"
+            className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-sm border border-slate-300 bg-white text-slate-700 hover:bg-slate-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700"
           >
             {isOverviewExpanded ? <ChevronDown aria-hidden="true" className="h-3.5 w-3.5" /> : <ChevronRight aria-hidden="true" className="h-3.5 w-3.5" />}
-            {isOverviewExpanded ? 'Collapse' : 'Expand'}
           </button>
         </div>
       </header>
 
-      <div id="cost-breakdown-overview-panels" className={isOverviewExpanded ? 'shrink-0 grid min-w-0 grid-cols-2 gap-2' : 'hidden'}>
-        <SnapshotComparisonCard comparison={fullSnapshotComparison} />
-        <WorkCenterProcessingTable findings={fullSnapshotComparison.processingFindings} />
+      <div id="cost-breakdown-overview-panels" className={isOverviewExpanded ? 'shrink-0 grid h-44 min-w-0 grid-cols-2 items-stretch gap-2' : 'hidden'}>
+        <SnapshotComparisonCard comparison={fullSnapshotComparison} selectedComparison={selectedDisplayComparison} selectedActive={isSelectedComparisonActive} />
+        <WorkCenterProcessingTable comparison={fullSnapshotComparison} selectedComparison={selectedDisplayComparison} selectedActive={isSelectedComparisonActive} />
       </div>
 
       <div role="region" aria-label="Candidate workspace" tabIndex={0} className="min-h-0 min-w-0 flex-1 overflow-y-auto focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-blue-700">
@@ -319,6 +327,7 @@ export const CostBreakdownPage: React.FC = () => {
           pair={snapshotPair}
           typeTab={typeTab}
           viewMode={comparisonView}
+          sortMode={sortMode}
           selectedBOMKeys={selectedBOMKeys}
           selectedRoutingKeys={selectedRoutingKeys}
           onToggleFinding={toggleFinding}

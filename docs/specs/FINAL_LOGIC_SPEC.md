@@ -58,12 +58,12 @@ This document explicitly supersedes older behavior in the following areas:
 - **Master Data owns structural changes:** Adding, removing, resizing, or altering dataset structure belongs in Master Data / Custom, not in Simulation.
 - **Clone action semantics:** The active dataset is the destination; the user selects the source dataset. No special promotion workflow.
 - **Cost Breakdown (CBD) remains Reference vs Current only:** Custom is not a direct CBD comparison state.
-- **Selected Comparison is analysis scope/view only:** It is neither a new dataset nor an RCA Case.
-- **One RCA Case supports 1 or Many Candidates:** One real-world root cause may explain multiple comparison findings (e.g., QA1 REMOVED, QA1.1 ADDED, QA1.2 ADDED can be analyzed in one RCA Case).
-- **RCA ends at Root Cause + Action:** RCA does not require mandatory Simulation, Trial, or approval.
+- **Selected Comparison is analysis scope/view only:** It is neither a new dataset nor a persistent case.
+- **Candidate findings belong inside CBD:** Findings may still be called Candidates, but there is no standalone Candidate or RCA page in the current product flow.
+- **Legacy RCA/session compatibility:** Existing RCA case data may retain its historical domain rules; it is not an active visible product stage.
 - **No new RCA Note system:** Existing Master Data Note/Remark behavior remains separate; do not create duplicate RCA Note/Candidate Note workflows.
 - **Simulation is one module with two dimensions:** Parameter Simulation and Economic Simulation. They may be used independently or combined.
-- **Start SIM From Reference, Current, or Custom:** Current is a natural default when entering from an RCA Case, but is not the only valid starting baseline.
+- **Start SIM From Reference, Current, or Custom:** Current is a natural default, but is not the only valid starting baseline.
 - **SIM structure is locked:** Once a dataset enters Simulation, rows cannot be added, removed, or resized. Structural changes must be prepared in Master Data / Custom first.
 - **Parameter Simulation comparison basis is Current vs SIM:** Editability depends on record status: CHANGED, UNCHANGED, and ADDED are visible and editable; REMOVED remains visible (affecting comparison) but is not editable.
 - **"Factors to Simulate" / "Selected Factors":** The user selects which factors to edit. Selected Factors control UI editing visibility, NOT calculation scope; the entire SIM dataset recalculates.
@@ -79,45 +79,24 @@ This document explicitly supersedes older behavior in the following areas:
 
 # 1. End-to-End Product Flow
 
-The finalized product flow is:
+The current visible product flow is:
 
 ```text
 MASTER DATA
-    ├─ Reference
-    ├─ Current
-    └─ Custom (Free workspace for structural edits, alternatives, trial data)
+  (Reference / Current / Custom)
           │
           ▼
-         CBD (Reference vs Current)
-          ├─ Full Comparison
-          └─ Selected Comparison (temporary analysis scope)
-                  │
-                  ▼
-         Candidate / Ranking
-                  │
-                  ▼
-         Select 1 or Many Candidates
-                  │
-                  ▼
-              RCA Case
-                  ├─ Root Cause / Why?
-                  ├─ Action
-                  └─ END RCA (RCA is complete here)
-
-────────────────── OPTIONAL ──────────────────
-
-              SIMULATION
-    ┌─────────────┬─────────────┐
-    ▼                           ▼
-PARAMETER SIMULATION        ECONOMIC SIMULATION
-  ├─ Start From Ref/Cur/Custom ├─ Action Cost
-  ├─ Structure locked          ├─ Evaluation Quantity
-  ├─ Select Factors to edit    └─ Required Saving / pc
-  ├─ Live full-dataset recalc        │
-  └─ Current vs SIM comparison       ▼
-            │               If both are used:
-            └───────────────► Parameter Saving / pc vs Required Saving / pc
-                              (Economic Margin)
+COST BREAKDOWN (Reference vs Current)
+  ├─ Compare full data
+  ├─ Filter and sort findings
+  ├─ Inspect details
+  ├─ Select 1 or many findings
+  └─ Selected Comparison (temporary analysis scope)
+          │
+          ▼
+SIMULATION (separate What-If analysis)
+  ├─ Parameter Simulation
+  └─ Economic Simulation
 ```
 
 ### 1.1 Core page responsibilities
@@ -125,9 +104,7 @@ PARAMETER SIMULATION        ECONOMIC SIMULATION
 | Area | Question it answers | Core Responsibility |
 |---|---|---|
 | Master Data | “What data state do I have?” | Prepare Reference, Current, and Custom snapshots; own structural edits and Sizing; generic Clone. |
-| CBD | “What is different between Reference and Current?” | Compare Reference vs Current; show Standard Cost gaps by MAT/LB/BD/Conversion; support Full and Selected Comparison views. |
-| Candidate / Ranking | “Which differences matter?” | Prioritize findings based on record-level Gap and controllability; advisory ranking. |
-| RCA | “Why did it happen and what action should be taken?” | Group 1 or many Candidates into an RCA Case; record Root Cause / Why? and Action; optional handoff to Simulation. |
+| CBD | “What changed between Reference and Current, and which findings should I inspect?” | Compare Reference vs Current; show Standard Cost gaps by MAT/LB/BD/Conversion; filter, sort, inspect, select findings, and support Full and Selected Comparison views. There is no standalone Candidate or RCA page. |
 | Parameter Simulation | “If these parameters had these values, what would the cost become?” | Temporary what-if analysis; locked structure; live recalculation of full SIM dataset against Current. |
 | Economic Simulation | “How much must the action save per piece to break even?” | Calculate `Required Saving / pc = Action Cost / Evaluation Quantity`; evaluate economic feasibility without altering Standard Cost. |
 
@@ -358,13 +335,15 @@ Custom is **never** a direct comparison state in CBD. To compare Custom, clone i
   - Does not mutate source datasets.
   - Clearing scope or changing source datasets restores Full Comparison.
 
-## 4.3 Candidate Boundary
+## 4.3 Finding and Selected Comparison Boundary
 
-Selected Comparison may constrain the pool of findings shown on Candidate / Ranking. However, Selected Comparison does not lock or dictate what happens in RCA or Simulation.
+Candidate is a name that may be used for a CBD finding. Finding analysis stays inside CBD: filter, sort/prioritize, inspect details, select one or many findings, and review Selected Comparison. There is no standalone Candidate or RCA page in the current product. Selected Comparison does not change Reference or Current datasets or redefine Simulation scope. Simulation remains a separate What-If analysis module.
 
 ---
 
-# 5. Candidate Prioritization and RCA Logic
+# 5. Legacy Candidate and RCA Domain / Session Compatibility
+
+This section documents retained legacy domain and session compatibility rules only. It does not describe a current visible product stage or authorize a Candidate page, RCA page, RCA workspace, or CBD Root Cause / Action fields. Current CBD finding analysis is defined in Section 4.
 
 ## 5.1 Candidate Pool and Advisory Ranking
 
@@ -419,12 +398,12 @@ $$\text{Candidate(s)} + \text{Root Cause / Why?} + \text{Action}$$
 - Approval/promotion is **not required**.
 - The business workflow can legitimately end here.
 
-## 5.5 RCA to Simulation Relationship
+## 5.5 Legacy RCA to Simulation Session Context
 
-If the user chooses to open Simulation from an RCA Case:
-- The RCA Case provides **context**, not a hard scope constraint.
-- Default starting dataset naturally defaults to `Current` (when analyzing a Ref-vs-Cur RCA Case), but the user can change it.
-- Relevant factors may be highlighted/preselected, but the engineer **must be allowed to select additional factors**.
+Older saved sessions may contain RCA context associated with Simulation. That compatibility context:
+- Provides **context**, not a hard scope constraint.
+- Does not create a current visible RCA → Simulation route.
+- Does not change the normal directly accessible Simulation flow or constrain its analysis.
 
 ---
 
@@ -567,7 +546,7 @@ MAT-Bolt (1 THB)    MAT-Bolt (1 THB)   UNCHANGED    0.00 THB/pc
 MAT-Washer          —                  REMOVED     -0.20 THB/pc
 ```
 
-### Example 3: Multi-Candidate RCA
+### Example 3: Legacy RCA Session Data (not current product flow)
 ```text
 Comparison finds:
 - QA1: REMOVED (Reference 5 THB)
@@ -647,7 +626,7 @@ Combined Result:
 - `ADDED` and `REMOVED` rows correctly calculate against an absent-side zero.
 - Selected Comparison must never mutate the underlying Reference or Current datasets.
 
-## 9.3 RCA Integrity
+## 9.3 Legacy RCA Session Integrity
 - An RCA Case can hold 1 Candidate or many Candidates.
 - Ranking is advisory; rank #1 is never forced.
 - RCA completion does not depend on Simulation or Trial.
@@ -667,7 +646,7 @@ Combined Result:
 The following older rules are **explicitly superseded** and must not be reintroduced:
 
 1. **Exactly one Candidate per RCA:** Superseded. An RCA Case may contain 1 or multiple Candidates.
-2. **Mandatory RCA → Simulation:** Superseded. RCA ends at Root Cause + Action. Simulation is optional.
+2. **Mandatory RCA → Simulation:** Superseded. Legacy RCA session data is not a current visible product stage or required Simulation handoff.
 3. **Simulation always has exactly Scenario A and B:** Superseded. Exact A/B is not mandatory.
 4. **Simulation baseline is always Current:** Superseded. SIM can start from Reference, Current, or Custom.
 5. **Structural editing inside Simulation:** Superseded. Structure is locked in SIM; structural edits happen in Master Data / Custom.
@@ -676,6 +655,7 @@ The following older rules are **explicitly superseded** and must not be reintrod
 8. **Special Trial lifecycle (Trial → Approve → Promote):** Superseded. Custom may store trial data; choose `Clone` on Current and select Custom as the source.
 9. **Duplicate RCA Note system:** Superseded. Existing Master Data annotations remain separate.
 10. **MatVAR / LBVAR / BDVAR:** Superseded and removed from current scope.
+11. **Standalone Candidate / RCA stage:** Retired. Candidate findings remain inside CBD; the current visible flow is Master Data → Cost Breakdown → Simulation.
 
 ---
 
@@ -696,17 +676,9 @@ The following older rules are **explicitly superseded** and must not be reintrod
 - [ ] Exactly four statuses: `UNCHANGED`, `CHANGED`, `ADDED`, `REMOVED`.
 - [ ] $\text{Gap} = \text{Current} - \text{Reference}$.
 - [ ] Full Comparison and Selected Comparison supported.
-- [ ] Selected Comparison is analysis scope only, not a dataset or RCA Case.
-
-### Candidate / RCA
-- [ ] Candidate pool derives from active CBD comparison scope.
-- [ ] Ranking is advisory; no automatic top-rank selection.
-- [ ] Processing Candidate identity is `Process / Routing` (WC is context, not candidate).
-- [ ] One RCA Case supports 1 Candidate or multiple Candidates.
-- [ ] Root Cause / Why? and Action recorded at RCA Case level.
-- [ ] No duplicate RCA Note system.
-- [ ] RCA is complete upon recording Root Cause + Action; Simulation is optional.
-- [ ] RCA context does not restrict user from simulating additional factors.
+- [ ] CBD findings may be referred to as Candidates; filtering, sorting, detail inspection, row selection, and Selected Comparison remain inside CBD.
+- [ ] There is no standalone Candidate or RCA page in the current visible product flow.
+- [ ] Selected Comparison is temporary analysis scope only, not a dataset or persistent case.
 
 ### Simulation (Parameter & Economic)
 - [ ] Simulation includes Parameter Simulation and Economic Simulation.

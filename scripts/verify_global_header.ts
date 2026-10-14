@@ -5,7 +5,7 @@ import {
   formatProductIdentityForDisplay,
   resolveHeaderProductContext,
   resolveProductComparisonDisplayStatus
-} from '../src/shared/layout/header-product-context'
+} from '../src/shared/layout/header-product-context.ts'
 
 const matchingReference = { productName: ' RGOM024 ', uom: ' PC ' }
 const matchingCurrent = { productName: 'RGOM024', uom: 'PC' }
@@ -53,8 +53,8 @@ assert.match(navbar, /Main navigation[\s\S]*justify-center[\s\S]*aria-label="Wor
 assert.doesNotMatch(navbar, /role="search"|Search data|Search,/)
 assert.doesNotMatch(navbar, /disabled:cursor-not-allowed/)
 assert.doesNotMatch(navbar, /resolveWorkflowStatus|Candidate \/ RCA|workflowStatus|Selected Comparison/)
-assert.equal((navbar.match(/label: '(?:Master Data|Cost Breakdown|Candidate|Simulation)'/g) ?? []).length, 4,
-  'Global Header exposes exactly four primary navigation tabs')
+assert.equal((navbar.match(/label: '(?:Master Data|Cost Breakdown|Simulation)'/g) ?? []).length, 3,
+  'Global Header exposes exactly three primary navigation tabs')
 
 const headerZones = [
   navbar.indexOf('>COSTBREAKDOWN</span>'),

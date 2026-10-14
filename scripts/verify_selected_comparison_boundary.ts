@@ -22,7 +22,7 @@ verify('Opening Simulation ends the active Selected Comparison scope', () => {
 })
 
 verify('Cost Breakdown directly applies Candidate selection and keeps the full comparison available', () => {
-  assert.match(costBreakdownPage, /aria-label="Candidate type filter"/)
+  assert.match(costBreakdownPage, /aria-label="Finding type filter"/)
   assert.match(costBreakdownPage, /<span className="font-semibold text-slate-800">Standard Cost Gap<\/span>/)
   assert.match(costBreakdownPage, /comparison=\{fullSnapshotComparison\}/)
   assert.match(costBreakdownPage, /onToggleFinding=\{toggleFinding\}/)
@@ -32,7 +32,7 @@ verify('Cost Breakdown directly applies Candidate selection and keeps the full c
 })
 
 verify('Cost Breakdown preserves Candidate row selection and clears an empty scope', () => {
-  assert.match(costBreakdownPage, /aria-label="Candidate type filter"/)
+  assert.match(costBreakdownPage, /aria-label="Finding type filter"/)
   assert.match(costBreakdownPage, /onToggleFinding=\{toggleFinding\}/)
   assert.match(costBreakdownPage, /clearSelectedComparison\(\)/)
 })

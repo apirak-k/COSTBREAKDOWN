@@ -127,7 +127,7 @@ function renderItemized(module, comparison, reference, current, typeTab = 'bom')
 }
 
 try {
-  const [effects, comparisonCore, comparisonStatus, formatters, bomView, routingView, snapshotView, itemizedView] = await Promise.all([
+  const [effects, comparisonCore, comparisonStatus, formatters, bomView, routingView, snapshotView, wcView, itemizedView] = await Promise.all([
     vite.ssrLoadModule('/src/core/calculations/parameter-cost-effect.ts'),
     vite.ssrLoadModule('/src/core/calculations/snapshot-comparison.ts'),
     vite.ssrLoadModule('/src/core/calculations/comparison-status.ts'),
@@ -135,6 +135,7 @@ try {
     vite.ssrLoadModule('/src/features/cost-breakdown/components/BOMDetailedTable.tsx'),
     vite.ssrLoadModule('/src/features/cost-breakdown/components/RoutingDetailedTable.tsx'),
     vite.ssrLoadModule('/src/features/cost-breakdown/components/SnapshotComparisonCard.tsx'),
+    vite.ssrLoadModule('/src/features/cost-breakdown/components/WorkCenterProcessingTable.tsx'),
     vite.ssrLoadModule('/src/features/cost-breakdown/components/ItemizedComparisonTable.tsx')
   ])
 
@@ -348,6 +349,10 @@ try {
 
   const warningComparison = {
     ...bomComparison,
+    referenceCost: { ...bomComparison.referenceCost, labor: 0, burden: 0, total: 11 },
+    currentCost: { ...bomComparison.currentCost, labor: 0, burden: 0, total: 13.2 },
+    elementGaps: { ...bomComparison.elementGaps, material: 2.2, labor: 0, burden: 0 },
+    totalGap: 2.2,
     warnings: [{ code: 'FIXTURE_WARNING', message: 'Fixture warning remains reviewable' }]
   }
   const warningMarkup = renderToStaticMarkup(React.createElement(snapshotView.SnapshotComparisonCard, {
@@ -355,9 +360,46 @@ try {
   }))
   assert.doesNotMatch(warningMarkup, /Data quality:/, 'page-level Data quality summary must be removed')
   assert.doesNotMatch(warningMarkup, /Review warnings|Fixture warning remains reviewable/, 'comparison warnings are not presented in the Cost Breakdown summary')
-  assert.match(warningMarkup, /Standard Cost Overview/)
-  assert.doesNotMatch(warningMarkup, /Conversion|Labor \+ Burden|% Parent|%Parent|Review/,
-    'the fixed overview omits the obsolete Conversion subtotal, reconciliation, and review UI')
+  assert.match(warningMarkup, /aria-label="Cost comparison"/)
+  assert.match(warningMarkup, /<th scope="col"[^>]*>Cost<\/th>[\s\S]*>REF<\/th>[\s\S]*>CUR<\/th>[\s\S]*>GAP<\/th>[\s\S]*>%GAP<\/th>/)
+  assert.deepEqual([...warningMarkup.matchAll(/<tr\b/g)].length, 5, 'Cost has exactly a header, three element rows, and a footer')
+  assert.match(warningMarkup, />MAT<\/th>[\s\S]*>LB<\/th>[\s\S]*>BD<\/th>[\s\S]*>STD Cost<\/th>/)
+  assert.doesNotMatch(warningMarkup, /Standard Cost Overview|Material color legend|Selected REF|Selected CUR/,
+    'Cost stays compact and has no duplicate legend or Selected dataset columns')
+  assert.ok(warningMarkup.includes('100.00%'), 'MAT %GAP uses element Gap divided by Standard Cost Gap')
+  assert.ok(warningMarkup.includes('20.00%'), 'STD Cost %Total uses Standard Cost Gap divided by REF Standard Cost')
+
+  const selectedCostComparison = {
+    ...warningComparison,
+    elementGaps: { material: 0.5, labor: 0, burden: 0 },
+    totalGap: 0.5
+  }
+  const selectedCostMarkup = renderToStaticMarkup(React.createElement(snapshotView.SnapshotComparisonCard, {
+    comparison: warningComparison,
+    selectedComparison: selectedCostComparison,
+    selectedActive: true
+  }))
+  assert.match(selectedCostMarkup, /GAP[\s\S]*\(Selected\)/, 'Selected Comparison is secondary in the GAP header')
+  assert.match(visibleText(selectedCostMarkup), /\+2\.20 \(\+0\.50\)/, 'Selected contribution is muted and parenthesized beside full Gap')
+  assert.match(visibleText(selectedCostMarkup), /\(0\.00\)/, 'a real selected zero is shown as (0.00)')
+  assert.doesNotMatch(selectedCostMarkup, /<th[^>]*>Selected<\/th>/, 'Selected is not a separate Cost column')
+
+  const wcComparison = routingComparisonForDisplay
+  const selectedWcComparison = {
+    ...wcComparison,
+    elementGaps: { ...wcComparison.elementGaps, labor: 0, burden: 0 },
+    processingFindings: []
+  }
+  const wcMarkup = renderToStaticMarkup(React.createElement(wcView.WorkCenterProcessingTable, {
+    comparison: wcComparison,
+    selectedComparison: selectedWcComparison,
+    selectedActive: true
+  }))
+  assert.match(wcMarkup, /data-wc-scroll-body="true" class="min-h-0 flex-1 overflow-y-auto/, 'only the WC body owns the vertical scroller')
+  assert.match(wcMarkup, />WC<\/th>[\s\S]*>REF<\/th>[\s\S]*>CUR<\/th>[\s\S]*GAP[\s\S]*\(Selected\)[\s\S]*>%GAP<\/th>/)
+  assert.match(wcMarkup, /\(0\.00\)/, 'a Work Center with no selected routing contribution displays selected zero')
+  assert.match(wcMarkup, /<th scope="row"[^>]*>Total<\/th>/, 'WC footer remains present outside the scrolling body')
+  assert.doesNotMatch(wcMarkup, /<th scope="row"[^>]*>[\s\S]*·/, 'WC identity does not repeat a verbose description')
 
   assert.ok(routingComparison.processingFindings.length > 0,
     'the full comparison fixture must have Work Center processing context')
@@ -387,73 +429,94 @@ try {
       segments: chartSegments, fullTotal: 16.05, selectedTotal: 4, selectedActive: true
     }))
     assert.match(proportionalChart, /data-gap-chart-mode="proportional"/)
-    for (const label of ['MAT', 'LB', 'BD']) {
-      assert.ok(proportionalChart.includes(`>${label}</text>`), `${label} is labeled inside the continuous bar`)
-    }
+    assert.doesNotMatch(proportionalChart, /<text\b/, 'MAT/LB/BD labels live in the Subheader legend, not inside the bar')
+    assert.match(proportionalChart, /Material Gap \+9\.31\nSelected \(\+3\.00\)/, 'Selected chart tooltip has exactly two concise lines')
+    assert.match(proportionalChart, /Labor Gap \+4\.42\nSelected \(0\.00\)/, 'Selected zero remains explicit in its element tooltip')
     const proportionalRects = [...proportionalChart.matchAll(/<rect\b[^>]*>/g)].map(([rect]) => rect)
     const contributionWidth = color => {
-      const rect = proportionalRects.find(candidate => candidate.includes(`fill="${color}"`) && candidate.includes('fill-opacity="0.38"'))
+      const rect = proportionalRects.find(candidate => candidate.includes(`fill="${color}"`) && candidate.includes('fill-opacity="0.32"'))
       assert.ok(rect, `expected a proportional full-contribution segment for ${color}`)
       return Number(rect.match(/\bwidth="([\d.]+)"/)?.[1])
     }
     assertClose(contributionWidth('#0369a1') / 1000, 9.31 / 16.05, 'Material width must reflect its share of the full gap')
     assertClose(contributionWidth('#b45309') / 1000, 4.42 / 16.05, 'Labor width must reflect its share of the full gap')
     assertClose(contributionWidth('#6d28d9') / 1000, 2.32 / 16.05, 'Burden width must reflect its share of the full gap')
-    assert.ok(proportionalChart.includes(`Selected Material ${formatters.formatVariance(3, 4)}`))
+    assert.ok(proportionalChart.includes(`Selected Material Gap ${formatters.formatVariance(3, 2)}`))
+
+    const fullOnlyChart = renderToStaticMarkup(React.createElement(GapContributionChart, {
+      segments: chartSegments.map(segment => ({ ...segment, selected: null })), fullTotal: 16.05, selectedTotal: null, selectedActive: false
+    }))
+    assert.match(fullOnlyChart, /Material Gap \+9\.31/)
+    assert.doesNotMatch(fullOnlyChart, /Selected \(/, 'Full mode tooltip stays on one line')
 
     const signedOffsetChart = renderToStaticMarkup(React.createElement(GapContributionChart, {
       segments: [
-        { key: 'material', label: 'Material', full: 9, selected: 10, color: '#0369a1', selectedColor: '#075985' },
-        { key: 'labor', label: 'Labor', full: -4, selected: 0, color: '#b45309', selectedColor: '#92400e' },
-        { key: 'burden', label: 'Burden', full: 2, selected: 0, color: '#6d28d9', selectedColor: '#5b21b6' }
+        { key: 'material', label: 'Material', full: 9, selected: 10, color: '#0369a1' },
+        { key: 'labor', label: 'Labor', full: -4, selected: -1.2, color: '#b45309' },
+        { key: 'burden', label: 'Burden', full: 2, selected: 0, color: '#6d28d9' }
       ], fullTotal: 7, selectedTotal: 10, selectedActive: true
     }))
     assert.match(signedOffsetChart, /data-gap-chart-mode="signed"/,
-      'opposite-sign component gaps and a selected component above the net must use the signed chart')
+      'opposite-sign full component gaps preserve the signed chart')
     assert.ok(signedOffsetChart.includes([
       `Full Standard Cost Gap ${formatters.formatVariance(7, 4)}`,
-      `Full Material ${formatters.formatVariance(9, 4)}`,
-      `Full Labor ${formatters.formatVariance(-4, 4)}`,
-      `Full Burden ${formatters.formatVariance(2, 4)}`
+      `Full Material Gap ${formatters.formatVariance(9, 2)}`,
+      `Full Labor Gap ${formatters.formatVariance(-4, 2)}`,
+      `Full Burden Gap ${formatters.formatVariance(2, 2)}`
     ].join('; ')))
-    assert.ok(signedOffsetChart.includes(`Selected Material ${formatters.formatVariance(10, 4)}`))
+    assert.ok(signedOffsetChart.includes(`Selected Material Gap ${formatters.formatVariance(10, 2)}`))
+    assert.ok(signedOffsetChart.includes('Selected Labor Gap -1.20'))
+    assert.ok(signedOffsetChart.includes('Selected Burden Gap 0.00'))
+    assert.match(signedOffsetChart, /data-gap-element="material" data-selected-state="highlight"/)
+    assert.match(signedOffsetChart, /data-gap-element="labor" data-selected-state="remove"/)
+    assert.match(signedOffsetChart, /data-gap-element="burden" data-selected-state="normal"/)
+    const laborGroup = signedOffsetChart.match(/<g data-gap-element="labor" data-selected-state="remove">([\s\S]*?)<\/g>/)?.[1]
+    const laborHatch = laborGroup?.match(/<rect x="([\d.]+)" y="5" width="([\d.]+)" height="22" fill="url\(/)
+    assert.ok(laborHatch, 'negative Selected treatment is drawn inside the owning Labor segment')
+    assert.ok(Number(laborHatch[1]) > 100 && Number(laborHatch[2]) > 100,
+      'negative Labor Selected treatment stays at Labor’s signed segment instead of rebasing to the far left')
     assert.match(signedOffsetChart, /stroke-dasharray="2 2"/,
-      'the offset chart must retain a visible shared zero baseline')
-    assert.match(signedOffsetChart, /stroke-dasharray="4 2"/,
-      'selected contribution beyond the full Material segment must remain visible as an outlined marker')
+      'the signed full-gap chart keeps its shared zero baseline')
+    assert.match(signedOffsetChart, /patternTransform="rotate\(45\)"/, 'negative Selected net uses a same-color hatch treatment')
+    assert.match(signedOffsetChart, /Selected \(-1\.20\)/, 'negative Selected amount remains exact in the tooltip')
     const pageMarkup = renderToStaticMarkup(React.createElement(CostBreakdownPage))
     const pageText = visibleText(pageMarkup)
     assert.match(pageText, /Standard Cost Gap \+1\.20/)
     assert.doesNotMatch(pageText, /Full \+1\.20|Selected \+1\.20/)
-    assert.match(pageText, /Absolute Cost Gap · High → Low/)
-    assert.match(pageText, /Work Center Context/)
-    assert.match(pageText, /Full snapshot · Conversion Cost/)
+    assert.match(pageText, /\|Gap\| High → Low/)
+    assert.match(pageText, /STD Cost/)
+    assert.match(pageMarkup, /aria-label="Work Center comparison"/)
     assert.match(pageText, /WC-REF/)
     assert.match(pageText, /WC-CUR/)
     const subheader = pageMarkup.match(/<header aria-label="Cost Breakdown subheader"[\s\S]*?<\/header>/)?.[0]
     assert.ok(subheader, 'the subheader remains a distinct fixed row')
     const subheaderText = visibleText(subheader)
-    const orderedLabels = ['Standard Cost Gap', 'MAT', 'LB', 'BD', 'ALL', 'BOM', 'RTG', 'Status', 'Sort', 'Absolute Cost Gap · High → Low', 'Collapse']
+    const orderedLabels = ['Standard Cost Gap', 'MAT', 'LB', 'BD', 'BOM', 'RTG', 'ALL', 'Status (All)', '|Gap| High → Low']
     const labelPositions = orderedLabels.map(label => subheaderText.indexOf(label))
     assert.ok(labelPositions.every(position => position >= 0), 'the subheader exposes every finalized control and chart label')
     assert.deepEqual(labelPositions, [...labelPositions].sort((left, right) => left - right),
       'the single subheader row follows the finalized left-to-right order')
-    assert.doesNotMatch(subheaderText, /Full Material|Selected Material|Full Labor|Selected Labor|Full Burden|Selected Burden/,
-      'per-element numeric blocks are removed from the subheader')
-    assert.match(subheader, /aria-controls="cost-breakdown-overview-panels"/,
-      'the far-right collapse control targets only Cost and Work Center overview panels')
+    assert.doesNotMatch(subheader, /<text\b/, 'the bar contains no MAT/LB/BD text labels')
+    const collapseButton = subheader.match(/<button[^>]*aria-controls="cost-breakdown-overview-panels"[^>]*>[\s\S]*?<\/button>/)?.[0]
+    assert.ok(collapseButton)
+    assert.match(collapseButton, /aria-label="Collapse Cost and Work Center sections"/)
+    assert.equal(visibleText(collapseButton), '', 'Collapse is icon-only')
     assert.match(subheader, /aria-expanded="true"/)
     assert.match(pageMarkup, /id="cost-breakdown-overview-panels" class="[^\"]*grid[^\"]*"/,
       'Cost and Work Center panels remain visible by default below the subheader')
+    assert.match(pageMarkup, /aria-label="Cost comparison" class="h-44/)
+    assert.match(pageMarkup, /aria-label="Work Center comparison" class="flex h-44/)
+    assert.match(pageMarkup, /data-wc-scroll-body="true" class="min-h-0 flex-1 overflow-y-auto/)
     assert.match(pageMarkup, /aria-label="Deselect Candidate Cutting"/,
       'CBD finding selection remains available in the Candidates table')
     assert.equal([...pageMarkup.matchAll(/data-gap-chart-mode=/g)].length, 1,
       'the subheader must render one full-baseline Gap Bar with the Selected contribution inside it')
     assert.match(pageMarkup, /data-gap-chart-mode="unavailable"/,
       'unavailable full component gaps remain unavailable instead of being treated as zero')
-    assert.match(pageMarkup, /aria-label="Candidate type filter"/)
-    assert.match(pageMarkup, /aria-label="Status filter dropdown"/)
-    assert.match(pageMarkup, /type="checkbox"/)
+    assert.match(pageMarkup, /aria-label="Finding type filter"/)
+    assert.match(pageMarkup, /aria-label="Status filter, Status \(All\)"/)
+    assert.match(pageMarkup, /aria-label="Sort findings, \|Gap\| High → Low"/)
+    assert.doesNotMatch(pageMarkup, /<details\b/, 'Status and Sort are overlay popovers, not in-flow details')
     assert.doesNotMatch(pageText, /Select scope|Edit scope|Full Comparison/)
   } finally {
     delete globalThis.__CBD_PARAMETER_TEST_STATE__
