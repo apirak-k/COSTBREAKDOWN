@@ -32,11 +32,15 @@ const assertClose = (actual, expected, message = `${actual} is not close to ${ex
 }
 const sum = values => values.reduce((total, value) => total + value, 0)
 
-function detailRow(markup, label) {
+function detailRowMarkup(markup, label) {
   const rows = [...markup.matchAll(/<tr\b[\s\S]*?<\/tr>/g)].map(match => match[0])
   const row = rows.find(candidate => new RegExp(`<th[^>]*>${label}<\\/th>`).test(candidate))
   assert.ok(row, `expected a ${label} row`)
-  return [...row.matchAll(/<(?:td|th)[^>]*>([\s\S]*?)<\/(?:td|th)>/g)].map(match => visibleText(match[1]))
+  return row
+}
+
+function detailRow(markup, label) {
+  return [...detailRowMarkup(markup, label).matchAll(/<(?:td|th)[^>]*>([\s\S]*?)<\/(?:td|th)>/g)].map(match => visibleText(match[1]))
 }
 
 function candidateMainRow(markup, identityHeader, identity, status) {
@@ -237,15 +241,17 @@ try {
   assert.deepEqual(detailRow(bomMarkup, 'Current').slice(3, 7), [
     formatters.formatNumber(2, 4), formatters.formatNumber(6, 4), formatters.formatPercent(0.1, 2), formatters.formatNumber(13.2, 4)
   ], 'BOM Current row must carry actual current parameters and cost in the shared parent grid')
-  assert.deepEqual(detailRow(bomMarkup, 'Cost Effect').slice(3, 7), [
+  assert.deepEqual(detailRow(bomMarkup, 'Parameter Effect').slice(3, 7), [
     formatters.formatVariance(bomPositive.effects.usage, 4), formatters.formatVariance(bomPositive.effects.price, 4),
     formatters.formatVariance(bomPositive.effects.loss, 4), formatters.formatVariance(2.2, 4)
-  ], 'BOM Cost Effect row must preserve LMDI parameter effects and the same actual material gap as the main row')
+  ], 'BOM Parameter Effect row must preserve LMDI parameter effects and the same actual material gap as the main row')
   assert.match(bomMarkup, /border-l-2 border-slate-300/, 'BOM details have a restrained parent-row grouping accent')
   assert.match(bomMarkup, /border-t border-slate-200 bg-slate-50\/80[\s\S]*border-b border-slate-200 bg-slate-100 font-semibold/,
-    'BOM detail styling groups the rows and emphasizes Cost Effect')
+    'BOM detail styling groups the rows and emphasizes Parameter Effect')
+  assert.match(detailRowMarkup(bomMarkup, 'Parameter Effect'), /font-semibold/)
+  assert.doesNotMatch(bomMarkup, /<th[^>]*>Cost Effect<\/th>/, 'BOM uses Parameter Effect as its visible effect-row label')
   assert.doesNotMatch(bomMarkup, /<th[^>]*>REF<\/th>|<th[^>]*>CUR<\/th>|<th[^>]*>EFFECT<\/th>/,
-    'detail labels use full Reference, Current, and Cost Effect names')
+    'detail labels use full Reference, Current, and Parameter Effect names')
   assert.doesNotMatch(bomMarkup, /\bUnit\b|% Parent|%Parent/)
   assert.doesNotMatch(bomMarkup, /Changed fields|<table\b|Root Cause|\bAction\b|Controllable/,
     'BOM detail is not an independent nested table and has no duplicated/RCA fields')
@@ -282,7 +288,7 @@ try {
   const addedBOMComparison = comparisonCore.compareSnapshots(addedBOMReference, addedBOMCurrent)
   const addedBOMMarkup = renderItemized(itemizedView, addedBOMComparison, addedBOMReference, addedBOMCurrent)
   assert.deepEqual(gridCellText(candidateMainRow(addedBOMMarkup, 'Bill of Material', 'Material', 'ADDED')).slice(3, 6), [
-    formatters.formatNumber(1.5, 4), formatters.formatNumber(7, 4), formatters.formatPercent(0.02, 2)
+    `CUR ${formatters.formatNumber(1.5, 4)}`, `CUR ${formatters.formatNumber(7, 4)}`, `CUR ${formatters.formatPercent(0.02, 2)}`
   ], 'ADDED BOM parameters show actual Current-side values')
 
   const removedBOMReference = costSnapshot('reference', {
@@ -292,7 +298,7 @@ try {
   const removedBOMComparison = comparisonCore.compareSnapshots(removedBOMReference, removedBOMCurrent)
   const removedBOMMarkup = renderItemized(itemizedView, removedBOMComparison, removedBOMReference, removedBOMCurrent)
   assert.deepEqual(gridCellText(candidateMainRow(removedBOMMarkup, 'Bill of Material', 'Material', 'REMOVED')).slice(3, 6), [
-    formatters.formatNumber(2.5, 4), formatters.formatNumber(9, 4), formatters.formatPercent(0.08, 2)
+    `REF ${formatters.formatNumber(2.5, 4)}`, `REF ${formatters.formatNumber(9, 4)}`, `REF ${formatters.formatPercent(0.08, 2)}`
   ], 'REMOVED BOM parameters show actual Reference-side values')
 
   const missingAddedBOMCurrent = costSnapshot('current', {
@@ -301,7 +307,7 @@ try {
   const missingAddedBOMComparison = comparisonCore.compareSnapshots(addedBOMReference, missingAddedBOMCurrent)
   const missingAddedBOMMarkup = renderItemized(itemizedView, missingAddedBOMComparison, addedBOMReference, missingAddedBOMCurrent)
   assert.deepEqual(gridCellText(candidateMainRow(missingAddedBOMMarkup, 'Bill of Material', 'Material', 'ADDED')).slice(3, 6), [
-    '—', formatters.formatNumber(7, 4), formatters.formatPercent(0.02, 2)
+    '—', `CUR ${formatters.formatNumber(7, 4)}`, `CUR ${formatters.formatPercent(0.02, 2)}`
   ], 'a genuinely missing Current-side BOM parameter remains unavailable')
 
   const routingRefSnapshot = costSnapshot('reference', {
@@ -345,6 +351,12 @@ try {
   assert.deepEqual(detailRow(routingMarkup, 'Rate Effect').slice(3, 7), [
     '—', '—', '—', formatters.formatVariance(routingRateEffectGap, 4)
   ], 'Routing Rate Effect contains only the unrounded Labor and Burden rate effects')
+  const routingParameterRowMarkup = detailRowMarkup(routingMarkup, 'Parameter Effect')
+  const routingRateRowMarkup = detailRowMarkup(routingMarkup, 'Rate Effect')
+  assert.equal(routingParameterRowMarkup.match(/class="([^"]*)"/)?.[1], routingRateRowMarkup.match(/class="([^"]*)"/)?.[1],
+    'Routing Parameter Effect and Rate Effect rows use the same emphasis and background')
+  assert.match(routingParameterRowMarkup, /font-semibold/)
+  assert.match(routingRateRowMarkup, /font-semibold/)
   assertClose(routingParameterEffectGap + routingRateEffectGap, 1.2,
     'Routing Parameter Effect plus Rate Effect reconciles to the Candidate Main Gap')
   assert.doesNotMatch(routingMarkup, /Total Effect|<th[^>]*>Cost Effect<\/th>/,
@@ -395,7 +407,7 @@ try {
   const addedRoutingComparison = comparisonCore.compareSnapshots(addedRoutingReference, addedRoutingCurrent)
   const addedRoutingMarkup = renderItemized(itemizedView, addedRoutingComparison, addedRoutingReference, addedRoutingCurrent, 'rtg')
   assert.deepEqual(gridCellText(candidateMainRow(addedRoutingMarkup, 'Routing', 'Cutting', 'ADDED')).slice(3, 6), [
-    formatters.formatNumber(3, 4), formatters.formatNumber(12, 4), formatters.formatPercent(0.9, 2)
+    `CUR ${formatters.formatNumber(3, 4)}`, `CUR ${formatters.formatNumber(12, 4)}`, `CUR ${formatters.formatPercent(0.9, 2)}`
   ], 'ADDED Routing parameters show actual Current-side values')
 
   const removedRoutingReference = costSnapshot('reference', {
@@ -405,7 +417,7 @@ try {
   const removedRoutingComparison = comparisonCore.compareSnapshots(removedRoutingReference, removedRoutingCurrent)
   const removedRoutingMarkup = renderItemized(itemizedView, removedRoutingComparison, removedRoutingReference, removedRoutingCurrent, 'rtg')
   assert.deepEqual(gridCellText(candidateMainRow(removedRoutingMarkup, 'Routing', 'Cutting', 'REMOVED')).slice(3, 6), [
-    formatters.formatNumber(4, 4), formatters.formatNumber(20, 4), formatters.formatPercent(0.95, 2)
+    `REF ${formatters.formatNumber(4, 4)}`, `REF ${formatters.formatNumber(20, 4)}`, `REF ${formatters.formatPercent(0.95, 2)}`
   ], 'REMOVED Routing parameters show actual Reference-side values')
 
   const missingAddedRoutingCurrent = costSnapshot('current', {
@@ -414,7 +426,7 @@ try {
   const missingAddedRoutingComparison = comparisonCore.compareSnapshots(addedRoutingReference, missingAddedRoutingCurrent)
   const missingAddedRoutingMarkup = renderItemized(itemizedView, missingAddedRoutingComparison, addedRoutingReference, missingAddedRoutingCurrent, 'rtg')
   assert.deepEqual(gridCellText(candidateMainRow(missingAddedRoutingMarkup, 'Routing', 'Cutting', 'ADDED')).slice(3, 6), [
-    formatters.formatNumber(3, 4), '—', formatters.formatPercent(0.9, 2)
+    `CUR ${formatters.formatNumber(3, 4)}`, '—', `CUR ${formatters.formatPercent(0.9, 2)}`
   ], 'a genuinely missing Current-side Routing parameter remains unavailable')
 
   const bomTablesInAll = [...renderItemized(itemizedView, {
@@ -530,8 +542,9 @@ try {
     'Selected becomes visible inside its reserved secondary slot')
   assert.equal([...selectedCostMarkup.matchAll(/data-selected-gap-part="(?:open|value|close)"/g)].length, 12,
     'all four Cost rows split Selected values into fixed opening, number, and closing slots')
-  assert.match(selectedCostMarkup, /data-gap-slot="selected"[^>]*class="[^"]*w-\[66px\][^"]*grid-cols-\[1ch_minmax\(0,1fr\)_1ch\][^"]*tabular-nums/,
+  assert.match(selectedCostMarkup, /data-gap-slot="selected"[^>]*class="[^"]*w-\[54px\][^"]*grid-cols-\[1ch_minmax\(0,1fr\)_1ch\][^"]*tabular-nums/,
     'Selected parentheses and tabular number share a fixed three-part grid')
+  assert.doesNotMatch(selectedCostMarkup, /w-\[66px\]/, 'the Selected slot no longer retains the old oversized width')
   assert.match(selectedCostMarkup, /data-selected-gap-part="open">\(<\/span><span data-selected-gap-part="value"[^>]*>\+0\.50<\/span><span data-selected-gap-part="close">\)<\/span>/,
     'Selected value uses separate aligned opening parenthesis, number, and closing parenthesis nodes')
 
@@ -560,6 +573,28 @@ try {
   const itemizedSource = readFileSync(new URL('../src/features/cost-breakdown/components/ItemizedComparisonTable.tsx', import.meta.url), 'utf8')
   assert.match(itemizedSource, /setManualOrders\(\{ bom: null, routing: null \}\)\s*setExpandedRows\(new Set\(\)\)\s*\}, \[sortMode, sortResetToken\]/,
     'both sort reapply and sort-mode changes reset manual order and every expanded Detail')
+  assert.match(itemizedSource, /const handlePointerDown = \(event: PointerEvent\)[\s\S]*?candidateRegionRef\.current\?\.contains\(event\.target\)[\s\S]*?setExpandedRows\(new Set\(\)\)[\s\S]*?document\.addEventListener\('pointerdown', handlePointerDown\)/,
+    'outside pointerdown collapses all Candidate Details while interactions inside the Candidate region are ignored')
+  assert.match(itemizedSource, /const handleKeyDown = \(event: KeyboardEvent\)[\s\S]*?event\.key === 'Escape'\) setExpandedRows\(new Set\(\)\)[\s\S]*?document\.addEventListener\('keydown', handleKeyDown\)/,
+    'Escape collapses all Candidate Details')
+
+  const pageSource = readFileSync(new URL('../src/features/cost-breakdown/CostBreakdownPage.tsx', import.meta.url), 'utf8')
+  const sortMenuSource = pageSource.match(/label=\{`Choose sort mode[\s\S]*?<\/CostBreakdownPopover>/)?.[0]
+  assert.ok(sortMenuSource, 'Sort options use the shared overlay component')
+  assert.match(sortMenuSource, /COMPARISON_SORT_OPTIONS\.map\(option => <button/,
+    'Sort dropdown renders only the three shared comparison sort options as plain buttons')
+  assert.doesNotMatch(sortMenuSource, /type="radio"|checked=|aria-checked|aria-pressed|<svg|✓|Check|Circle/,
+    'Sort dropdown has no persistent selection indicator')
+
+  const popoverSource = readFileSync(new URL('../src/features/cost-breakdown/components/CostBreakdownPopover.tsx', import.meta.url), 'utf8')
+  assert.match(popoverSource, /document\.addEventListener\('pointerdown'/, 'temporary CBD popovers dismiss on outside pointerdown')
+  assert.match(popoverSource, /event\.key === 'Escape'/, 'temporary CBD popovers dismiss on Escape')
+  assert.match(popoverSource, /activeCBDPopoverDismiss/, 'opening one temporary popover dismisses the previous popover')
+  const dismissBody = popoverSource.match(/const dismissWithoutFocus = useCallback\(\(\) => \{([\s\S]*?)\}, \[\]\)/)?.[1]
+  assert.ok(dismissBody)
+  assert.match(dismissBody, /setOpen\(false\)/)
+  assert.doesNotMatch(dismissBody, /setComparisonView|setSortMode|setSortResetToken|applySelectedComparison|clearSelectedComparison/,
+    'outside/Escape dismissal closes the temporary overlay without changing its value or Selected Comparison')
 
   const candidateSource = readFileSync(new URL('../src/features/cost-breakdown/components/CandidateFindingsTable.tsx', import.meta.url), 'utf8')
   assert.match(candidateSource, /const canExpand = status === 'CHANGED'\s+const isExpanded = canExpand && expandedRows\.has/,
@@ -743,7 +778,7 @@ try {
     const pageSource = readFileSync(new URL('../src/features/cost-breakdown/CostBreakdownPage.tsx', import.meta.url), 'utf8')
     assert.match(pageSource, /onClick=\{\(\) => setSortResetToken\(token => token \+ 1\)\}/,
       'the main Sort segment reapplies the selected sort')
-    assert.match(pageSource, /onChange=\{\(\) => \{ setSortMode\(option\.value\); setSortResetToken\(token => token \+ 1\); close\(\) \}\}/,
+    assert.match(pageSource, /onClick=\{\(\) => \{ setSortMode\(option\.value\); setSortResetToken\(token => token \+ 1\); close\(\) \}\}/,
       'choosing a sort mode applies it, clears Details through the reset token, and closes the overlay')
     assert.doesNotMatch(pageMarkup, /<h2[^>]*>Candidates<\/h2>|status view ·/,
       'the redundant Candidate heading and status/sort subtitle are removed')

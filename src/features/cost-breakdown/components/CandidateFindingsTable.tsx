@@ -239,7 +239,7 @@ export const CandidateFindingsTable: React.FC<CandidateFindingsTableProps> = ({
   return <div className="overflow-x-auto border border-slate-200">
     <table className="w-full min-w-[1100px] table-fixed text-left text-xs">
       <colgroup>{CANDIDATE_COLUMN_WIDTHS.map((width, index) => <col key={index} style={{ width }} />)}</colgroup>
-      <caption className="sr-only">{identityHeader} Candidate findings. CHANGED rows can expand Reference, Current, and {type === 'bom' ? 'Cost Effect' : 'Parameter Effect and Rate Effect'} detail.</caption>
+      <caption className="sr-only">{identityHeader} Candidate findings. CHANGED rows can expand Reference, Current, and {type === 'bom' ? 'Parameter Effect' : 'Parameter Effect and Rate Effect'} detail.</caption>
       <thead>
         <tr className="bg-slate-800 font-semibold text-white">
           <th scope="col" className="px-1 py-2 text-center">
@@ -274,6 +274,8 @@ export const CandidateFindingsTable: React.FC<CandidateFindingsTableProps> = ({
             const isExpanded = canExpand && expandedRows.has(candidateDetailKey(type, row.key))
             const detailId = 'candidate-detail-' + encodeURIComponent(row.key)
             const [firstParameter, secondParameter, thirdParameter] = parameterValues(row, status)
+            const sideLabel = status === 'ADDED' ? 'CUR' : status === 'REMOVED' ? 'REF' : null
+            const renderParameter = (value: string) => <>{sideLabel && value !== '—' && <span className="mr-1 font-sans text-[9px] font-medium text-slate-500">{sideLabel}</span>}{value}</>
             const rowType = type
             return <React.Fragment key={row.key}>
               <tr
@@ -331,9 +333,9 @@ export const CandidateFindingsTable: React.FC<CandidateFindingsTableProps> = ({
                   <span className="block truncate whitespace-nowrap" title={row.label}>{row.label}</span>
                 </th>
                 <td className={`px-2.5 py-2 text-left font-sans text-[10px] font-bold ${statusTextClass(status)}`}>{status ?? '—'}</td>
-                <td className="px-2.5 py-2 text-right">{firstParameter}</td>
-                <td className="px-2.5 py-2 text-right">{secondParameter}</td>
-                <td className="px-2.5 py-2 text-right">{thirdParameter}</td>
+                <td className="px-2.5 py-2 text-right">{renderParameter(firstParameter)}</td>
+                <td className="px-2.5 py-2 text-right">{renderParameter(secondParameter)}</td>
+                <td className="px-2.5 py-2 text-right">{renderParameter(thirdParameter)}</td>
                 <td className={`px-2.5 py-2 text-right ${gapTextClass(row.gap)}`}>{row.gap === null ? '—' : formatVariance(row.gap, 4)}</td>
                 <td className="px-2.5 py-2 text-right text-slate-700">{candidatePercent(row.gap, totalGap)}</td>
                 <td className="px-1 py-2 text-center" onClick={event => event.stopPropagation()}>

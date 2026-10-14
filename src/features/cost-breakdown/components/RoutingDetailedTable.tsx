@@ -141,9 +141,8 @@ function effectInput(step: SnapshotRoutingStep | undefined, rate: SnapshotWorkCe
 }
 
 /**
- * Emits detail lines into the Candidate table's existing tbody. Routing rate
- * attribution remains in the calculation helper, while the visible grid stays
- * on Manning, Capacity, Yield, and the total Candidate Gap.
+ * Emits aligned Routing parameter and rate effect rows into the Candidate table.
+ * Their Gap subtotals reconcile to the parent Candidate Main Gap.
  */
 export function RoutingRecordDetails({ row, referenceRates, currentRates, detailId }: RoutingRecordDetailsProps) {
   const { reference, current, finding } = row
@@ -182,8 +181,7 @@ export function RoutingRecordDetails({ row, referenceRates, currentRates, detail
       capacity: conversionEffects?.capacity ?? null,
       yield: conversionEffects?.yield ?? null,
       cost: parameterEffectGap,
-      effect: true,
-      emphasis: true
+      effect: true
     },
     {
       label: 'Rate Effect',
@@ -199,10 +197,10 @@ export function RoutingRecordDetails({ row, referenceRates, currentRates, detail
     {parameterRows.map((item, index) => <tr
       key={item.label}
       id={index === 0 ? detailId : undefined}
-      className={item.emphasis ? 'border-b border-slate-200 bg-slate-100 font-semibold' : item.effect ? 'border-b border-slate-200 bg-slate-50 font-medium' : index === 0 ? 'border-t border-slate-200 bg-slate-50/80' : 'bg-slate-50/80'}
+      className={item.effect ? 'border-b border-slate-200 bg-slate-100 font-semibold' : index === 0 ? 'border-t border-slate-200 bg-slate-50/80' : 'bg-slate-50/80'}
     >
       <td aria-hidden="true" className="px-2 py-1.5" />
-      <th scope="row" className="truncate border-l-2 border-slate-300 px-2.5 py-1.5 text-left font-sans font-medium text-slate-700">{item.label}</th>
+      <th scope="row" className={`truncate border-l-2 border-slate-300 px-2.5 py-1.5 text-left font-sans ${item.effect ? 'font-semibold text-slate-950' : 'font-medium text-slate-700'}`}>{item.label}</th>
       <td aria-hidden="true" className="px-2.5 py-1.5" />
       <td className="px-2.5 py-1.5 text-right">{item.effect ? formatNullable(item.manning, value => formatVariance(value, 4)) : formatNullable(item.manning, value => formatNumber(value, 4))}</td>
       <td className="px-2.5 py-1.5 text-right">{item.effect ? formatNullable(item.capacity, value => formatVariance(value, 4)) : formatNullable(item.capacity, value => formatNumber(value, 4))}</td>

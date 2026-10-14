@@ -287,8 +287,8 @@ try {
   const costSelectedGapHeader = costSelectedTable.match(/<span data-gap-header-slot="full"[^>]*>/)?.[0]
   assert.ok(costFullGapHeader && costSelectedGapHeader)
   assert.equal(costFullGapHeader, costSelectedGapHeader, 'GAP header remains aligned to the fixed Full Gap slot')
-  assert.equal((costFullTable.match(/grid-cols-\[minmax\(0,1fr\)_66px\]/g) ?? []).length, 5, 'Cost header and all four GAP cells share the same fixed Selected slot width')
-  assert.equal((costSelectedTable.match(/grid-cols-\[minmax\(0,1fr\)_66px\]/g) ?? []).length, 5, 'Selected mode preserves the shared fixed GAP slot width')
+  assert.equal((costFullTable.match(/grid-cols-\[minmax\(0,1fr\)_54px\]/g) ?? []).length, 5, 'Cost header and all four GAP cells share the same fixed Selected slot width')
+  assert.equal((costSelectedTable.match(/grid-cols-\[minmax\(0,1fr\)_54px\]/g) ?? []).length, 5, 'Selected mode preserves the shared fixed GAP slot width')
   assert.match(costFullTable, /data-gap-header-slot="selected" aria-hidden="true"[^>]*invisible/)
   assert.match(costSelectedTable, /data-gap-header-slot="selected" aria-hidden="false"/)
 
@@ -305,7 +305,7 @@ try {
       fullSlot.className.split(/\s+/).filter(Boolean).filter(token => token !== 'invisible').sort().join(' '),
       'Selected slot layout classes must remain stable for ' + label
     )
-    assert.match(selectedSlot.className, /w-\[66px\].*grid-cols-\[1ch_minmax\(0,1fr\)_1ch\].*tabular-nums/,
+    assert.match(selectedSlot.className, /w-\[54px\].*grid-cols-\[1ch_minmax\(0,1fr\)_1ch\].*tabular-nums/,
       'Selected punctuation and numeric value use a fixed aligned grid for ' + label)
   }
 

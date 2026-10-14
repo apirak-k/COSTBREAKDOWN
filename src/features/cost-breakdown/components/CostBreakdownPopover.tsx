@@ -15,18 +15,36 @@ interface PopoverPosition {
   top: number
 }
 
+let activeCBDPopoverDismiss: { owner: symbol; dismiss: () => void } | null = null
+
 export const CostBreakdownPopover: React.FC<CostBreakdownPopoverProps> = ({ label, trigger, panelClassName, buttonClassName, children }) => {
   const triggerRef = useRef<HTMLButtonElement>(null)
   const panelRef = useRef<HTMLDivElement>(null)
+  const owner = useRef(Symbol('cbd-popover'))
   const [open, setOpen] = useState(false)
   const [position, setPosition] = useState<PopoverPosition | null>(null)
   const popoverId = React.useId()
   const triggerClassName = buttonClassName ?? 'inline-flex min-h-8 shrink-0 items-center gap-1.5 rounded-sm border border-slate-300 bg-white px-2 text-xs font-medium text-slate-700 hover:bg-slate-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700'
 
-  const close = useCallback(() => {
+  const dismissWithoutFocus = useCallback(() => {
     setOpen(false)
-    requestAnimationFrame(() => triggerRef.current?.focus())
+    if (activeCBDPopoverDismiss?.owner === owner.current) activeCBDPopoverDismiss = null
   }, [])
+
+  const close = useCallback(() => {
+    dismissWithoutFocus()
+    requestAnimationFrame(() => triggerRef.current?.focus())
+  }, [dismissWithoutFocus])
+
+  const toggleOpen = () => {
+    if (open) {
+      dismissWithoutFocus()
+      return
+    }
+    activeCBDPopoverDismiss?.dismiss()
+    activeCBDPopoverDismiss = { owner: owner.current, dismiss: dismissWithoutFocus }
+    setOpen(true)
+  }
 
   const positionPanel = useCallback(() => {
     const triggerElement = triggerRef.current
@@ -54,7 +72,7 @@ export const CostBreakdownPopover: React.FC<CostBreakdownPopoverProps> = ({ labe
       const target = event.target
       if (!(target instanceof Node)) return
       if (triggerRef.current?.contains(target) || panelRef.current?.contains(target)) return
-      setOpen(false)
+      dismissWithoutFocus()
     }
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === 'Escape') close()
@@ -69,7 +87,11 @@ export const CostBreakdownPopover: React.FC<CostBreakdownPopoverProps> = ({ labe
       window.removeEventListener('resize', positionPanel)
       window.removeEventListener('scroll', positionPanel, true)
     }
-  }, [close, open, positionPanel])
+  }, [close, dismissWithoutFocus, open, positionPanel])
+
+  useEffect(() => () => {
+    if (activeCBDPopoverDismiss?.owner === owner.current) activeCBDPopoverDismiss = null
+  }, [])
 
   return (
     <>
@@ -81,7 +103,7 @@ export const CostBreakdownPopover: React.FC<CostBreakdownPopoverProps> = ({ labe
         aria-controls={popoverId}
         aria-haspopup="dialog"
         title={label}
-        onClick={() => setOpen(current => !current)}
+        onClick={toggleOpen}
         className={triggerClassName}
       >
         {trigger}

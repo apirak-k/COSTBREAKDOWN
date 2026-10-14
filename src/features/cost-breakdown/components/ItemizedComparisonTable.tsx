@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useRef, useState } from 'react'
 import type { ComparisonFinding, CostComparison, SnapshotPair } from '../../../core'
 import {
   isVisibleInComparisonView,
@@ -98,6 +98,7 @@ export const ItemizedComparisonTable: React.FC<ItemizedComparisonTableProps> = (
   onToggleFinding,
   onSetFindingSelection
 }) => {
+  const candidateRegionRef = useRef<HTMLElement>(null)
   const [expandedRows, setExpandedRows] = useState<Set<string>>(() => new Set())
   const [manualOrders, setManualOrders] = useState<Record<CandidateTableType, ManualOrder | null>>({ bom: null, routing: null })
   const { bom, routing } = toRows(comparison, pair)
@@ -112,6 +113,25 @@ export const ItemizedComparisonTable: React.FC<ItemizedComparisonTableProps> = (
     setManualOrders({ bom: null, routing: null })
     setExpandedRows(new Set())
   }, [sortMode, sortResetToken])
+
+  useEffect(() => {
+    if (expandedRows.size === 0) return
+
+    const handlePointerDown = (event: PointerEvent) => {
+      if (event.target instanceof Node && candidateRegionRef.current?.contains(event.target)) return
+      setExpandedRows(new Set())
+    }
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setExpandedRows(new Set())
+    }
+
+    document.addEventListener('pointerdown', handlePointerDown)
+    document.addEventListener('keydown', handleKeyDown)
+    return () => {
+      document.removeEventListener('pointerdown', handlePointerDown)
+      document.removeEventListener('keydown', handleKeyDown)
+    }
+  }, [expandedRows.size])
 
   const setManualOrder = (type: CandidateTableType, keys: string[]) => {
     setManualOrders(previous => ({
@@ -134,7 +154,7 @@ export const ItemizedComparisonTable: React.FC<ItemizedComparisonTableProps> = (
   }))
 
   return (
-    <section aria-label="Candidate findings" className="space-y-3">
+    <section ref={candidateRegionRef} aria-label="Candidate findings" className="space-y-3">
       {typeTab !== 'rtg' && <CandidateFindingsTable
         type="bom"
         rows={asCandidateRows(displayedBOMRows)}

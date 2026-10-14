@@ -28,9 +28,9 @@ function renderGap(value: number | null, selectedValue: number | null, selectedA
   if (selectedActive) tooltipLines.push(`Selected (${formatGap(selectedValue)})`)
   return (
     <Tooltip label={tooltipLines.join('\n')} wrapperClassName="flex w-full justify-end">
-      <span tabIndex={0} aria-label={`${tooltipLabel} Gap ${formatGap(value)}${selectedActive ? `; Selected (${formatGap(selectedValue)})` : ''}`} className="grid w-full grid-cols-[minmax(0,1fr)_66px] items-baseline gap-x-1 whitespace-nowrap font-mono tabular-nums">
+      <span tabIndex={0} aria-label={`${tooltipLabel} Gap ${formatGap(value)}${selectedActive ? `; Selected (${formatGap(selectedValue)})` : ''}`} className="grid w-full grid-cols-[minmax(0,1fr)_54px] items-baseline gap-x-1 whitespace-nowrap font-mono tabular-nums">
         <span data-gap-slot="full" className={`text-right ${value === null ? 'text-slate-400' : getVarianceClass(value)}`}>{formatGap(value)}</span>
-        <span data-gap-slot="selected" aria-hidden={!selectedActive} className={`grid w-[66px] grid-cols-[1ch_minmax(0,1fr)_1ch] items-baseline text-[10px] font-normal text-slate-500 tabular-nums ${selectedActive ? '' : 'invisible'}`}>
+        <span data-gap-slot="selected" aria-hidden={!selectedActive} className={`grid w-[54px] grid-cols-[1ch_minmax(0,1fr)_1ch] items-baseline text-[10px] font-normal text-slate-500 tabular-nums ${selectedActive ? '' : 'invisible'}`}>
           <span data-selected-gap-part="open">(</span>
           <span data-selected-gap-part="value" className="min-w-0 text-right">{selectedActive ? formatGap(selectedValue) : '0.00'}</span>
           <span data-selected-gap-part="close">)</span>
@@ -104,7 +104,7 @@ export const SnapshotComparisonCard: React.FC<SnapshotComparisonCardProps> = ({
               <th scope="col" className="px-2 py-1.5">Cost Breakdown</th>
               <th scope="col" className="px-2 py-1.5 text-right">REF</th>
               <th scope="col" className="px-2 py-1.5 text-right">CUR</th>
-              <th scope="col" className="px-2 py-1.5"><span className="grid w-full grid-cols-[minmax(0,1fr)_66px] items-baseline gap-x-1 font-mono tabular-nums"><span data-gap-header-slot="full" className="text-right">GAP</span><span data-gap-header-slot="selected" aria-hidden={!selectedActive} className={`text-right text-[10px] font-normal text-slate-300 ${selectedActive ? '' : 'invisible'}`}>&nbsp;(Selected)</span></span></th>
+              <th scope="col" className="px-2 py-1.5"><span className="grid w-full grid-cols-[minmax(0,1fr)_54px] items-baseline gap-x-1 font-mono tabular-nums"><span data-gap-header-slot="full" className="text-right">GAP</span><span data-gap-header-slot="selected" aria-hidden={!selectedActive} className={`w-[54px] text-right font-sans text-[9px] font-normal text-slate-300 ${selectedActive ? '' : 'invisible'}`}>&nbsp;(Selected)</span></span></th>
               <th scope="col" className="px-2 py-1.5 text-right">%GAP</th>
             </tr>
           </thead>

@@ -169,8 +169,8 @@ try {
       reconciliation: { reconciled: true }
     }
   }))
-  for (const label of ['Standard Cost Overview', 'Cost element', 'REF', 'CUR', 'Gap', 'Material', 'Labor', 'Burden', 'Standard Cost']) {
-    assert.ok(summaryMarkup.includes(label), `Cost overview still exposes ${label}`)
+  for (const label of ['Cost Breakdown', 'REF', 'CUR', 'GAP', '%GAP', 'Material', 'Labor', 'Burden', 'Standard Cost']) {
+    assert.ok(summaryMarkup.includes(label), `Cost Breakdown still exposes ${label}`)
   }
 
   console.log('Cost Breakdown review feedback component checks passed.')
