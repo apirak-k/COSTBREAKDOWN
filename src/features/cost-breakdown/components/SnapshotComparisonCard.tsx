@@ -32,7 +32,7 @@ function renderGap(value: number | null, selectedValue: number | null, selectedA
     <Tooltip label={tooltipLines.join('\n')} wrapperClassName="flex w-full justify-end">
       <span tabIndex={0} aria-label={`${tooltipLabel} Gap ${formatGap(value)}${selectedActive ? `; Selected ${formatGap(selectedValue)}` : ''}`} className="grid w-full grid-cols-[minmax(0,1fr)_9ch] items-baseline whitespace-nowrap font-mono tabular-nums">
         <span data-gap-slot="full" className={`text-right ${value === null ? 'text-slate-400' : getVarianceClass(value)}`}>{formatGap(value)}</span>
-        <span data-gap-slot="selected" aria-hidden={!selectedActive} className={`w-[9ch] text-right text-[10px] font-normal text-slate-500 tabular-nums ${selectedActive ? '' : 'invisible'}`}>
+        <span data-gap-slot="selected" aria-hidden={!selectedActive} className={`w-[9ch] text-left text-[10px] font-normal text-slate-500 tabular-nums ${selectedActive ? '' : 'invisible'}`}>
           {selectedActive ? formatGap(selectedValue) : '0.00'}
         </span>
       </span>
@@ -104,7 +104,7 @@ export const SnapshotComparisonCard: React.FC<SnapshotComparisonCardProps> = ({
               <th scope="col" className="px-2 py-1.5">Cost Element</th>
               <th scope="col" className="px-2 py-1.5 text-right">REF</th>
               <th scope="col" className="px-2 py-1.5 text-right">CUR</th>
-              <th scope="col" className="px-2 py-1.5"><span className="grid w-full grid-cols-[minmax(0,1fr)_9ch] items-baseline font-mono text-[12px] tabular-nums"><span data-gap-header-slot="full" className="text-right text-[11px]">GAP</span><span data-gap-header-slot="selected" aria-hidden={!selectedActive} className={`w-[9ch] whitespace-nowrap text-right text-[10px] font-normal text-slate-300 ${selectedActive ? '' : 'invisible'}`}>Selected</span></span></th>
+              <th scope="col" className="px-2 py-1.5"><span className="grid w-full grid-cols-[minmax(0,1fr)_9ch] items-baseline font-mono text-[12px] tabular-nums"><span data-gap-header-slot="full" className="text-right text-[11px]">GAP</span><span data-gap-header-slot="selected" aria-hidden={!selectedActive} className={`w-[9ch] whitespace-nowrap text-left text-[10px] font-normal text-slate-300 ${selectedActive ? '' : 'invisible'}`}>Selected</span></span></th>
               <th scope="col" className="px-2 py-1.5 text-right">%GAP</th>
             </tr>
           </thead>
