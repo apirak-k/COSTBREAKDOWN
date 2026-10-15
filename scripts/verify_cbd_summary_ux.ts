@@ -361,6 +361,8 @@ try {
   assert.doesNotMatch(activeSelectedHeader[1], /invisible/, 'active Selected header is visible')
   assert.match(selectedHeaderSlot, /w-\[9ch\].*text-right.*font-normal.*text-slate-300/,
     'Selected header uses a fixed-width, right-aligned, secondary neutral style')
+  assert.match(selectedHeaderSlot, /relative left-2/,
+    'Only the Selected header receives the small rightward alignment adjustment')
   assert.doesNotMatch(selectedHeaderSlot, /text-(rose|red|green|emerald)-|font-(bold|semibold)/,
     'Selected header does not use sign colors or bold emphasis')
   assert.equal((costFullTable.match(/grid-cols-\[minmax\(0,1fr\)_9ch\]/g) ?? []).length, 5, 'Cost header and all four GAP cells share fixed Full/Selected slots')
@@ -387,6 +389,8 @@ try {
     )
     assert.match(selectedSlot.className, /w-\[9ch\].*text-right.*text-\[10px\].*font-normal.*text-slate-500.*tabular-nums/,
       'Selected uses a stable, right-aligned, secondary neutral slot for ' + label)
+    assert.doesNotMatch(selectedSlot.className, /relative|left-2/,
+      'Selected numeric values keep their existing position for ' + label)
     assert.doesNotMatch(selectedSlot.className, /text-(rose|red|green|emerald)-|font-(bold|semibold)/,
       'Selected stays neutral and subordinate for ' + label)
   }
