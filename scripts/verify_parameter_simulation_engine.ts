@@ -1,152 +1,148 @@
 import assert from 'node:assert/strict'
 import type { CostSnapshot, MasterDataRole, SnapshotBOMItem, SnapshotRoutingStep, SnapshotWorkCenterRate } from '../src/core/types'
-import {
-  calculateParameterSimulation,
-  updateSimulationParameter
-} from '../src/features/simulation/simulation-engine.ts'
-import {
-  reconcileSimulationState,
-  setSimulationFactors,
-  simulationFactorId,
-  SIMULATION_PARAMETERS,
-  startSimulationFrom
-} from '../src/features/simulation/simulation-state.ts'
+import { calculateMultiplicativeCostAttribution } from '../src/core/calculations/multiplicative-cost-attribution.ts'
+import { calculateParameterSimulation, updateSimulationParameter } from '../src/features/simulation/simulation-engine.ts'
+import { reconcileSimulationState, SIMULATION_PARAMETERS, startSimulationFrom } from '../src/features/simulation/simulation-state.ts'
 
-function bom(id: string, name: string, price: number | null, usage = 1): SnapshotBOMItem {
-  return { id, itemCode: name, description: name, consumption: usage, unit: 'PC', price, loss: 0, confidence: {} }
+const assertClose = (actual: number | null | undefined, expected: number, label: string) =>
+  assert.ok(actual !== null && actual !== undefined && Math.abs(actual - expected) < 1e-9,
+    `${label}: expected ${expected}, received ${String(actual)}`)
+
+function bom(id: string, name: string, price: number | null, usage = 1, loss = 0): SnapshotBOMItem {
+  return { id, itemCode: name, description: name, consumption: usage, unit: 'PC', price, loss, confidence: {} }
 }
 
-function route(id: string, name: string, wc: string, manning: number): SnapshotRoutingStep {
-  return { id, processName: name, workCenterId: wc, manning, capacity: 1, yield: 1, confidence: {} }
+function route(id: string, name: string, wc: string, manning: number, capacity = 100, yieldRate = 1): SnapshotRoutingStep {
+  return { id, processName: name, workCenterId: wc, manning, capacity, yield: yieldRate, confidence: {} }
 }
 
 function rate(id: string, wc: string, laborRate: number, burdenRate: number): SnapshotWorkCenterRate {
   return { id, workCenterCode: wc, description: wc, laborRate, burdenRate, effectiveDate: '', confidence: {} }
 }
 
-function snapshot(id: string, bomRows: SnapshotBOMItem[], routes: SnapshotRoutingStep[]): CostSnapshot {
+function snapshot(
+  id: string,
+  bomRows: SnapshotBOMItem[],
+  routes: SnapshotRoutingStep[],
+  rates = [rate(`${id}-wc1`, 'WC1', 100, 50), rate(`${id}-wc2`, 'WC2', 10, 5)]
+): CostSnapshot {
   return {
     id,
     product: { productCode: 'P-1', productDescription: 'Test', uom: 'PC', customer: '', effectiveDate: '' },
-    effectiveDate: '',
-    sourceRef: id,
-    status: 'draft',
-    rates: [rate(`${id}-wc1`, 'WC1', 10, 2), rate(`${id}-wc2`, 'WC2', 5, 1)],
-    bom: bomRows,
-    routing: routes
+    effectiveDate: '', sourceRef: id, status: 'draft', rates, bom: bomRows, routing: routes
   }
 }
 
-const current = snapshot('Current', [
-  bom('current-a', 'MAT-A', 10),
-  bom('current-stable', 'MAT-STABLE', 3),
-  bom('current-removed', 'MAT-REMOVED', 2)
-], [
-  route('current-assembly', 'Assembly', 'WC1', 1),
-  route('current-inspect', 'Inspect', 'WC2', 1)
+const current = snapshot('Current', [bom('current-steel', 'Steel', 10, 2, 0.05)], [
+  route('current-cut', 'Cut', 'WC1', 1), route('current-form', 'Form', 'WC2', 1)
 ])
-const custom = snapshot('Custom', [
-  bom('custom-a', 'MAT-A', 12),
-  bom('custom-stable', 'MAT-STABLE', 3),
-  bom('custom-added', 'MAT-ADDED', 1, 2)
-], [
-  route('custom-assembly', 'Assembly', 'WC1', 2),
-  route('custom-polish', 'Polish', 'WC2', 1)
+const reference = snapshot('Reference', [bom('ref-steel', 'Steel', 10, 2, 0.05)], [
+  route('ref-cut', 'Cut', 'WC1', 1), route('ref-form', 'Form', 'WC2', 1)
 ])
-const sources: Record<MasterDataRole, CostSnapshot> = { reference: current, current, custom }
-const state = startSimulationFrom('custom', sources)
-assert.ok(state.snapshot)
+const custom = snapshot('Custom', [bom('custom-steel', 'Steel', 10, 2, 0.05)], [
+  route('custom-cut', 'Cut', 'WC1', 1), route('custom-form', 'Form', 'WC2', 1)
+])
+const sources: Record<MasterDataRole, CostSnapshot> = { reference, current, custom }
+const state = startSimulationFrom('current', sources)
 assert.deepEqual(SIMULATION_PARAMETERS, [
-  'bom.price', 'bom.consumption', 'bom.loss',
-  'routing.manning', 'routing.capacity', 'routing.yield'
-], 'Only finalized BOM and Routing parameters are editable')
-const result = calculateParameterSimulation(current, state.snapshot)
-assert.equal(result.currentCost.total, 33)
-assert.equal(result.simulationCost.total, 47)
-assert.equal(result.parameterSavingPerPiece, -14, 'Negative parameter savings remain visible')
+  'bom.price', 'bom.consumption', 'bom.loss', 'routing.manning', 'routing.capacity', 'routing.yield'
+], 'only direct BOM and Routing parameters are represented')
+assert.equal(state.snapshot?.rates[0]?.laborRate, 100)
 
-const row = (kind: 'bom' | 'routing', name: string) => result.records.find(record => record.kind === kind && record.name === name)
-assert.equal(row('bom', 'MAT-A')?.status, 'CHANGED')
-assert.equal(row('bom', 'MAT-STABLE')?.status, 'UNCHANGED')
-assert.equal(row('bom', 'MAT-ADDED')?.status, 'ADDED')
-assert.equal(row('bom', 'MAT-REMOVED')?.status, 'REMOVED')
-assert.equal(row('bom', 'MAT-REMOVED')?.simulationRecordId, undefined, 'REMOVED has no SIM-side record')
-assert.equal(row('routing', 'Assembly')?.status, 'CHANGED')
-assert.equal(row('routing', 'Polish')?.status, 'ADDED')
-assert.equal(row('routing', 'Inspect')?.status, 'REMOVED')
+const unchanged = calculateParameterSimulation(current, state.snapshot!)
+assertClose(unchanged.currentCost.total, 22.65, 'Current Standard Cost')
+assertClose(unchanged.simulationCost.total, 22.65, 'SIM Standard Cost')
+assert.equal(unchanged.parameterSavingPerPiece, 0, 'Current → SIM saving is zero when no values change')
+assertClose(unchanged.simulationCost.total! - unchanged.currentCost.total!, 0, 'Result Change is SIM - Current')
 
-const blockedWithoutFactor = updateSimulationParameter(state, current, 'custom-a', 'bom.price', 5)
-assert.strictEqual(blockedWithoutFactor, state, 'Parameters cannot change until their factor is selected')
-const materialA = simulationFactorId('bom', 'custom-a')
-const processAssembly = simulationFactorId('routing', 'custom-assembly')
-const selectedMaterial = setSimulationFactors(state, [materialA, materialA, simulationFactorId('bom', 'missing')])
-assert.deepEqual(selectedMaterial.selectedFactors, [materialA], 'selection contains eligible SIM records, deduplicated by record')
-const changedPrice = updateSimulationParameter(selectedMaterial, current, 'custom-a', 'bom.price', 5)
-assert.equal(changedPrice.snapshot?.bom.find(item => item.id === 'custom-a')?.price, 5)
-assert.equal(calculateParameterSimulation(current, changedPrice.snapshot!).parameterSavingPerPiece, -7)
-const clearedPrice = updateSimulationParameter(selectedMaterial, current, 'custom-a', 'bom.price', null)
-assert.equal(clearedPrice.snapshot?.bom.find(item => item.id === 'custom-a')?.price, null, 'Clearing a SIM input preserves missing as null')
-assert.equal(calculateParameterSimulation(current, clearedPrice.snapshot!).parameterSavingPerPiece, null)
-assert.strictEqual(updateSimulationParameter(selectedMaterial, current, 'custom-removed', 'bom.price', 1), selectedMaterial, 'REMOVED rows cannot be edited')
-assert.strictEqual(updateSimulationParameter(selectedMaterial, current, 'custom-stable', 'bom.price', 1), selectedMaterial, 'Unselected material records cannot be edited')
-assert.strictEqual(updateSimulationParameter(selectedMaterial, current, 'custom-assembly', 'routing.manning', 1), selectedMaterial, 'Unselected process records cannot be edited')
-assert.strictEqual(updateSimulationParameter(selectedMaterial, current, 'custom-a', 'bom.price', Number.NaN), selectedMaterial, 'Non-finite parameter values are rejected')
+const changedPrice = updateSimulationParameter(state, current, 'current-steel', 'bom.price', 12)
+assert.equal(changedPrice.snapshot?.bom[0]?.price, 12)
+const priceResult = calculateParameterSimulation(current, changedPrice.snapshot!)
+assert.equal(priceResult.currentCost.material, 21)
+assertClose(priceResult.simulationCost.material, 25.2, 'SIM Material Cost')
+assertClose(priceResult.simulationCost.material! - priceResult.currentCost.material!, 4.2, 'BOM Price change')
+assertClose(priceResult.parameterSavingPerPiece, -4.2, 'Parameter Saving uses Current - SIM, the inverse of Result Change')
+const priceAttribution = calculateMultiplicativeCostAttribution(21, 25.2, [
+  { key: 'price', baseline: 10, target: 12 },
+  { key: 'usage', baseline: 2, target: 2 },
+  { key: 'loss', baseline: 1.05, target: 1.05 }
+])
+assertClose(priceAttribution.effects?.price, 4.2, 'Price attribution')
+assertClose(priceAttribution.effects?.usage, 0, 'Usage attribution')
+assertClose(priceAttribution.effects?.loss, 0, 'Loss attribution')
+assertClose(priceAttribution.totalEffect, 4.2, 'Total BOM effect')
+assert.ok(Math.abs(Object.values(priceAttribution.effects ?? {}).reduce((sum, value) => sum + value, 0) - 4.2) < 1e-9,
+  'BOM price attribution reconciles to SIM Material Cost - Current Material Cost')
 
-const selectedUnchanged = setSimulationFactors(state, [simulationFactorId('bom', 'custom-stable')])
-const editedUnchanged = updateSimulationParameter(selectedUnchanged, current, 'custom-stable', 'bom.price', 4)
-assert.equal(editedUnchanged.snapshot?.bom.find(item => item.id === 'custom-stable')?.price, 4,
-  'a selected UNCHANGED record remains editable')
-assert.equal(calculateParameterSimulation(current, editedUnchanged.snapshot!).parameterSavingPerPiece, -15,
-  'editing an UNCHANGED record recalculates the complete SIM snapshot')
+const changedManning = updateSimulationParameter(state, current, 'current-cut', 'routing.manning', 0.8)
+const routeResult = calculateParameterSimulation(current, changedManning.snapshot!)
+assertClose(routeResult.currentCost.labor, 1.1, 'Current Labor')
+assertClose(routeResult.currentCost.burden, 0.55, 'Current Burden')
+assertClose(routeResult.simulationCost.labor, 0.9, 'SIM Labor')
+assertClose(routeResult.simulationCost.burden, 0.45, 'SIM Burden')
+assertClose(routeResult.currentCost.total! - routeResult.simulationCost.total!, 0.3, 'Routing Manning effect')
+const routingAttribution = calculateMultiplicativeCostAttribution(1.5, 1.2, [
+  { key: 'manning', baseline: 1, target: 0.8 },
+  { key: 'capacity', baseline: 1 / 100, target: 1 / 100 },
+  { key: 'yield', baseline: 1 / 1, target: 1 / 1 }
+])
+assert.ok(Math.abs(routingAttribution.totalEffect! + 0.3) < 1e-9)
+assert.ok(Math.abs(Object.values(routingAttribution.effects ?? {}).reduce((sum, value) => sum + value, 0) + 0.3) < 1e-9,
+  'Routing parameter attribution reconciles to SIM Conversion Cost - Current Conversion Cost')
 
-const selectedAdded = setSimulationFactors(state, [simulationFactorId('bom', 'custom-added')])
-const editedAdded = updateSimulationParameter(selectedAdded, current, 'custom-added', 'bom.price', 2)
-assert.equal(editedAdded.snapshot?.bom.find(item => item.id === 'custom-added')?.price, 2,
-  'a selected ADDED record remains editable')
-assert.equal(calculateParameterSimulation(current, editedAdded.snapshot!).parameterSavingPerPiece, -16,
-  'editing an ADDED record recalculates the complete SIM snapshot and retains signed saving')
-
-const changedConsumption = updateSimulationParameter(
-  selectedMaterial, current, 'custom-a', 'bom.consumption', 2
-)
-assert.equal(changedConsumption.snapshot?.bom.find(item => item.id === 'custom-a')?.consumption, 2)
-const changedLoss = updateSimulationParameter(
-  selectedMaterial, current, 'custom-a', 'bom.loss', 0.1
-)
-assert.equal(changedLoss.snapshot?.bom.find(item => item.id === 'custom-a')?.loss, 0.1)
-const changedCapacity = updateSimulationParameter(
-  setSimulationFactors(state, [processAssembly]), current, 'custom-assembly', 'routing.capacity', 2
-)
-assert.equal(changedCapacity.snapshot?.routing.find(step => step.id === 'custom-assembly')?.capacity, 2)
-const changedYield = updateSimulationParameter(
-  setSimulationFactors(state, [processAssembly]), current, 'custom-assembly', 'routing.yield', 0.9
-)
-assert.equal(changedYield.snapshot?.routing.find(step => step.id === 'custom-assembly')?.yield, 0.9)
-
-const selectedBoth = setSimulationFactors(changedPrice, [materialA, processAssembly])
-const changedRoute = updateSimulationParameter(selectedBoth, current, 'custom-assembly', 'routing.manning', 1)
-assert.equal(changedRoute.snapshot?.routing.find(step => step.id === 'custom-assembly')?.manning, 1)
-assert.equal(calculateParameterSimulation(current, changedRoute.snapshot!).parameterSavingPerPiece, 5, 'Changing Routing recalculates full-snapshot cost')
-assert.deepEqual(state.snapshot, custom, 'Simulation calculations and edits leave Custom Working unchanged')
-
-const legacySelectedParameters = {
-  ...state,
-  selectedFactors: ['bom.price', 'routing.manning'] as unknown as string[]
+for (const [parameter, invalid] of [
+  ['bom.price', -1], ['bom.price', Infinity], ['bom.price', NaN],
+  ['bom.consumption', -0.1], ['bom.loss', -0.01], ['bom.loss', 1.0001],
+  ['routing.manning', -1], ['routing.manning', Infinity],
+  ['routing.capacity', 0], ['routing.capacity', -1],
+  ['routing.yield', 0], ['routing.yield', 1.0001]
+] as const) {
+  const recordId = parameter.startsWith('bom.') ? 'current-steel' : 'current-cut'
+  assert.strictEqual(updateSimulationParameter(state, current, recordId, parameter, invalid), state,
+    `${parameter} rejects ${String(invalid)} at the calculation/state boundary`)
 }
-assert.deepEqual(
-  reconcileSimulationState(legacySelectedParameters, sources).selectedFactors,
-  [],
-  'legacy parameter-type selections do not become record selections'
-)
+assert.strictEqual(updateSimulationParameter(state, current, 'current-cut', 'routing.capacity', 0), state,
+  'Capacity zero is rejected')
+const cleared = updateSimulationParameter(state, current, 'current-steel', 'bom.price', null)
+assert.equal(cleared.snapshot?.bom[0]?.price, null, 'blank remains unavailable and is never replaced with zero')
+assert.equal(calculateParameterSimulation(current, cleared.snapshot!).simulationCost.total, null,
+  'missing required inputs make the cost unavailable')
 
-const incompleteCurrent = snapshot('Incomplete', [bom('bad-material', 'MAT-A', null)], [])
-const incompleteResult = calculateParameterSimulation(incompleteCurrent, state.snapshot)
-assert.equal(incompleteResult.currentCost.total, null)
-assert.equal(incompleteResult.parameterSavingPerPiece, null, 'Missing cost inputs are unavailable, not zero')
+const structuralCustom = snapshot('Custom-structure', [
+  bom('custom-steel', 'Steel', 10, 2, 0.05)
+], [
+  route('custom-cut', 'Cut', 'WC1', 1),
+  route('custom-polish', 'Polish', 'WC2', 1)
+], [rate('custom-rate', 'WC1', 999, 999), rate('custom-rate-2', 'WC2', 888, 888)])
+const structuralSim = startSimulationFrom('custom', { ...sources, custom: structuralCustom })
+assert.equal(structuralSim.snapshot?.rates[0]?.laborRate, 100, 'Custom clone rates are replaced with Current rates')
+assert.equal(structuralSim.snapshot?.routing.length, 2, 'Custom clone preserves its chosen structure')
+const structuralResult = calculateParameterSimulation(current, structuralSim.snapshot!)
+const row = (name: string) => structuralResult.records.find(record => record.kind === 'routing' && record.name === name)
+assert.equal(row('Cut')?.status, 'UNCHANGED')
+assert.equal(row('Polish')?.status, 'ADDED')
+assert.ok(structuralResult.records.some(record => record.kind === 'routing' && record.name === 'Form' && record.status === 'REMOVED'))
+assert.equal(row('Polish')?.identityIssue, null)
+assert.ok(structuralResult.records.some(record => record.kind === 'routing' && record.name === 'Cut'),
+  'identity matching remains business-key based rather than depending on array position')
 
-const duplicateCurrent = snapshot('Duplicate', [bom('duplicate-a', 'MAT-A', 10), bom('duplicate-a2', 'MAT-A', 10)], [])
-const ambiguousResult = calculateParameterSimulation(duplicateCurrent, state.snapshot)
-assert.ok(ambiguousResult.records.some(record => record.identityIssue === 'ambiguous'))
-assert.strictEqual(updateSimulationParameter(state, duplicateCurrent, 'custom-a', 'bom.price', 1), state, 'Ambiguous identity is not guessed')
+const removedCustom = snapshot('Custom-without-form', [], [route('custom-cut', 'Cut', 'WC1', 1)])
+const removedSim = startSimulationFrom('custom', { ...sources, custom: removedCustom })
+const removedResult = calculateParameterSimulation(current, removedSim.snapshot!)
+assert.ok(removedResult.records.some(record => record.kind === 'routing' && record.name === 'Form' && record.status === 'REMOVED'
+  && record.simulationRecordId === undefined), 'a Current-only route is visible as REMOVED and has no editable SIM record')
 
-console.log('Parameter Simulation engine verification passed')
+const duplicateCurrent = snapshot('Duplicate', [bom('dup-a', 'Steel', 10), bom('dup-b', 'Steel', 10)], [])
+const duplicateResult = calculateParameterSimulation(duplicateCurrent, structuralSim.snapshot!)
+assert.ok(duplicateResult.records.some(record => record.identityIssue === 'ambiguous'))
+assert.strictEqual(updateSimulationParameter(structuralSim, duplicateCurrent, 'custom-steel', 'bom.price', 1), structuralSim,
+  'ambiguous identity is protected and never guessed')
+
+const migrated = reconcileSimulationState({
+  ...state,
+  selectedFactors: ['bom.price']
+} as typeof state, sources)
+assert.equal('selectedFactors' in migrated, false, 'legacy selectedFactors are removed safely')
+assert.equal('selectedFactors' in state, false, 'new state has no Factors to Simulate selector state')
+
+console.log('Parameter Simulation engine, validation, structural status, and cost-effect verification passed')

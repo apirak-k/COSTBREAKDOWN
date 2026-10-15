@@ -1,6 +1,7 @@
 import type { CostSnapshot, MasterDataRole } from '../../core/types'
 import {
   createEconomicSimulationDraft,
+  isEconomicSimulationInputValid,
   updateEconomicSimulationDraft,
   type EconomicSimulationDraft,
   type EconomicSimulationField
@@ -71,16 +72,19 @@ export function reconcileSimulationState(
     actionCost?: unknown
     evaluationQuantity?: unknown
   }
+  const economicValue = (field: EconomicSimulationField, currentValue: unknown, legacyValue?: unknown) => {
+    const value = typeof currentValue === 'string'
+      ? currentValue
+      : typeof legacyValue === 'string' ? legacyValue : ''
+    if (!isEconomicSimulationInputValid(field, value)) return ''
+    return value.trim() === '' ? '' : value
+  }
   const economicInputs: EconomicSimulationDraft = {
-    fixedActionCost: typeof storedInputs?.fixedActionCost === 'string'
-      ? storedInputs.fixedActionCost
-      : typeof storedInputs?.actionCost === 'string' ? storedInputs.actionCost : '',
-    variableActionCostPerPiece: typeof storedInputs?.variableActionCostPerPiece === 'string' ? storedInputs.variableActionCostPerPiece : '',
-    batchSize: typeof storedInputs?.batchSize === 'string'
-      ? storedInputs.batchSize
-      : typeof storedInputs?.evaluationQuantity === 'string' ? storedInputs.evaluationQuantity : '',
-    sellingPriceOverride: typeof storedInputs?.sellingPriceOverride === 'string' ? storedInputs.sellingPriceOverride : '',
-    sgaPercentOverride: typeof storedInputs?.sgaPercentOverride === 'string' ? storedInputs.sgaPercentOverride : ''
+    fixedActionCost: economicValue('fixedActionCost', storedInputs?.fixedActionCost, storedInputs?.actionCost),
+    variableActionCostPerPiece: economicValue('variableActionCostPerPiece', storedInputs?.variableActionCostPerPiece),
+    batchSize: economicValue('batchSize', storedInputs?.batchSize, storedInputs?.evaluationQuantity),
+    sellingPriceOverride: economicValue('sellingPriceOverride', storedInputs?.sellingPriceOverride),
+    sgaPercentOverride: economicValue('sgaPercentOverride', storedInputs?.sgaPercentOverride)
   }
 
   if (!state.sourceRole && !state.snapshot && !state.basisFingerprint && !state.startedAt) {

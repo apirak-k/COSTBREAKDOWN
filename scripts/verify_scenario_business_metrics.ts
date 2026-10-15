@@ -24,13 +24,17 @@ const missingStandardCost = calculateScenarioBusinessMetrics({ sellingPrice: 150
 assert.equal(missingStandardCost.sgaAmountPerPiece, 15, 'SG&A is independent of Standard Cost availability')
 assert.equal(missingStandardCost.operatingProfitPerPiece, null)
 
-const overflow = calculateScenarioBusinessMetrics({ sellingPrice: Number.MAX_VALUE, sgaPercent: 200 }, 1)
-assert.equal(overflow.sgaAmountPerPiece, null, 'non-finite formula results stay unavailable')
-assert.equal(overflow.operatingProfitPerPiece, null)
+const overflow = calculateScenarioBusinessMetrics({ sellingPrice: Number.MAX_VALUE, sgaPercent: 100 }, Number.MAX_VALUE)
+assert.equal(overflow.sgaAmountPerPiece, Number.MAX_VALUE, '100% SG&A remains inside the numeric domain')
+assert.equal(overflow.operatingProfitPerPiece, -Number.MAX_VALUE, 'finite negative OP remains valid at the numeric boundary')
 
-const highSga = calculateScenarioBusinessMetrics({ sellingPrice: 100, sgaPercent: 150 }, 20)
-assert.equal(highSga.sgaAmountPerPiece, 150, 'SG&A above 100% is a valid stored value')
-assert.equal(highSga.operatingProfitPerPiece, -70)
+const highSga = calculateScenarioBusinessMetrics({ sellingPrice: 100, sgaPercent: 100 }, 20)
+assert.equal(highSga.sgaAmountPerPiece, 100, 'the 100% SG&A boundary remains valid')
+assert.equal(highSga.operatingProfitPerPiece, -20)
+const overSga = calculateScenarioBusinessMetrics({ sellingPrice: 100, sgaPercent: 101 }, 20)
+assert.equal(overSga.sgaPercent, null, 'SG&A above 100% is rejected by the shared domain')
+assert.equal(overSga.sgaAmountPerPiece, null)
+assert.equal(overSga.operatingProfitPerPiece, null)
 
 for (const invalidInputs of [
   { sellingPrice: -1, sgaPercent: 10 },

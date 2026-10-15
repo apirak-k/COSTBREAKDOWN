@@ -1,151 +1,93 @@
 # COSTBREAKDOWN System Logic Diagram
 
-> This document visualizes the finalized COSTBREAKDOWN system logic defined in [`docs/specs/FINAL_LOGIC_SPEC.md`](specs/FINAL_LOGIC_SPEC.md). It does not introduce new behavior and is not a separate source of truth.
+> Current visible product flow and simulation behavior. The canonical requirements are in [`docs/specs/FINAL_LOGIC_SPEC.md`](specs/FINAL_LOGIC_SPEC.md) and [`docs/specs/SIMULATION.md`](specs/SIMULATION.md).
 
-## Simple text flow
+## Current visible page flow
 
 ```text
-START
-  │
-  ▼
 MASTER DATA
-  ├─ Reference: Metadata / BOM / Work Center / Routing
-  ├─ Current:   Metadata / BOM / Work Center / Routing
-  └─ Custom:    Metadata / BOM / Work Center / Routing
-       (Free workspace: structural changes, sizing, alternatives, trial data)
-  │
-  ├─ Clone: Destination = Active dataset; Source = chosen dataset
-  │
-  ▼
-VALIDATE & CALCULATE DATASETS INDEPENDENTLY
-  ├─ Valid inputs → calculate using shared Standard Cost engine
-  └─ Missing/invalid inputs → mark affected results unavailable (never substitute 0)
-  │
-  ▼
-STANDARD COST ENGINE (Shared)
-  ├─ MAT = Σ(Usage × Price × (1 + Loss))
-  ├─ Routing Factor = Manning / (Capacity × Yield)
-  ├─ LB = Routing Factor × Labor Rate
-  ├─ BD = Routing Factor × Burden Rate
-  ├─ Conversion = LB + BD
-  └─ Standard Cost = MAT + LB + BD = MAT + Conversion
-  │
-  ▼
-CBD — COST BREAKDOWN (Reference vs Current only)
-  ├─ Match by business identity: BOM Name / WC / Process
-  ├─ Comparison statuses: UNCHANGED / CHANGED / ADDED / REMOVED
-  ├─ Gap = Current - Reference
-  │
-  ├─ Mode A: Full Comparison (default)
-  └─ Mode B: Selected Comparison (temporary analysis scope; shows selected Gap only)
-  │
-  ▼
-CANDIDATE PRIORITIZATION / RANKING
-  ├─ Candidate pool from Full or Selected scope
-  ├─ Candidates: BOM (material records) and Process / Routing (processing records)
-  ├─ Work Center is calculation/rate context, never a Candidate
-  ├─ Gap descending (highest to lowest; advisory ranking; no auto-selection)
-  └─ Controllable flag (human judgment, default true)
-  │
-  ▼
-RCA CASE — SELECT 1 OR MANY CANDIDATES
-  ├─ Select 1 or Multiple Candidates into one RCA Case
-  ├─ Root Cause / Why? (Case-level operational diagnosis)
-  ├─ Action (Case-level countermeasure)
-  └─ END RCA (RCA legitimately completes here)
-  │
-────────────────── OPTIONAL ──────────────────
-  │
-  ▼
-SIMULATION MODULE (Two Interoperable Dimensions)
-  (May also be opened directly without an RCA Case)
-  │
-  ├─────────────────────────────┬─────────────────────────────┐
-  ▼                             ▼                             ▼
-PARAMETER ONLY                ECONOMIC ONLY                 COMBINED
-  │                             │                             │
-  ├─ Start SIM From:            ├─ Action Cost (THB)          ├─ Both dimensions
-  │    Reference, Current,      ├─ Evaluation Quantity (pcs)  │    executed
-  │    or Custom                └─ Required Saving / pc =     │
-  ├─ Structure locked (no adds/      Action Cost / Quantity   ├─ Parameter Saving =
-  │    deletions/resizing)                                    │    Current STD - SIM STD
-  ├─ Current vs SIM comparison                                ├─ Required Saving =
-  │    CHANGED/UNCHANGED/ADDED:                               │    Action Cost / Qty
-  │      visible & editable                                   │
-  │    REMOVED:                                               └─ Economic Margin =
-  │      visible, NOT editable                                     Parameter Saving -
-  ├─ Select Factors to Simulate                                    Required Saving
-  │    (editing visibility only)                                   (Advisory; not an
-  ├─ Live full-dataset recalculate                                 approval gate)
-  ├─ BOM: Price, Usage, Loss
-  ├─ Routing: Manning, Cap, Yield
-  └─ WC Rates: NOT SIM-editable
+(Reference / Current / Custom; Working and Last Saved)
+        │
+        ▼
+COST BREAKDOWN
+(Reference vs Current; Full or Selected Comparison)
+        │
+        ▼
+SIMULATION
+(Current → SIM analysis; ready-to-work page)
 ```
 
-## Detailed Flow
+Candidate findings and Selected Comparison remain within Cost Breakdown. There are exactly three visible top-level pages. Historical Candidate/RCA records are not a visible workflow stage.
+
+## Shared dataset calculation
+
+```text
+BOM Material Cost = Usage × Price × (1 + Loss)
+Routing Factor    = Manning / (Capacity × Yield)
+Labor             = Routing Factor × Work Center Labor Rate
+Burden            = Routing Factor × Work Center Burden Rate
+Conversion        = Labor + Burden
+Standard Cost     = Material + Labor + Burden
+```
+
+All dataset calculations use the shared Standard Cost engine. Missing or invalid required values make affected results unavailable; they are not replaced with zero. Comparisons may use zero only for a genuinely absent side of an ADDED/REMOVED record.
+
+## Simulation lifecycle and data flow
 
 ```mermaid
 flowchart TD
-    start([START]) --> master["MASTER DATA"]
-    master --> refData["REFERENCE snapshot<br/>Metadata · BOM · WC · Routing"]
-    master --> curData["CURRENT snapshot<br/>Metadata · BOM · WC · Routing"]
-    master --> customData["CUSTOM snapshot (Free workspace)<br/>Structural edits · Sizing · Alternatives"]
+    master["MASTER DATA<br/>Reference · Current · Custom<br/>Working / Last Saved"] --> cbd["COST BREAKDOWN<br/>Reference vs Current<br/>Full / Selected Comparison"]
+    cbd --> sim["SIMULATION<br/>Automatically initializes from Current when needed"]
 
-    master --> cloneAction["Clone Action<br/>Destination = Active Dataset<br/>Source = Reference, Current, or Custom"]
+    ref["Reference"] --> clone["Clone from<br/>Reference · Current · Custom"]
+    cur["Current"] --> clone
+    custom["Custom"] --> clone
+    clone --> snapshot["Temporary SIM snapshot<br/>structure from selected source<br/>Work Center rates from Current"]
+    sim --> snapshot
 
-    refData --> refValidate["Validate Reference"]
-    curData --> curValidate["Validate Current"]
-    customData --> customValidate["Validate Custom"]
+    snapshot --> edits["Direct validated edits<br/>BOM: Price · Usage · Loss<br/>Routing: Manning · Capacity · Yield<br/>WC rates locked"]
+    edits --> engine["Shared Standard Cost engine"]
+    cur --> compare["Current → SIM result<br/>Result Change = SIM − Current<br/>Parameter Saving = Current − SIM"]
+    engine --> compare
 
-    refValidate --> refCalc["Calculate Reference independently"]
-    curValidate --> curCalc["Calculate Current independently"]
-    customValidate --> customCalc["Calculate Custom independently"]
+    cur --> story["REF → GAP 1 → CUR → GAP 2 → SIM<br/>GAP 1 = Current − Reference<br/>GAP 2 = SIM − Current"]
+    ref --> story
+    compare --> story
 
-    costEngine["SHARED STANDARD COST ENGINE<br/>MAT = Σ(Usage × Price × (1 + Loss))<br/>Routing Factor = Manning ÷ (Capacity × Yield)<br/>LB = Routing Factor × Labor Rate<br/>BD = Routing Factor × Burden Rate<br/>Conversion = LB + BD<br/>Standard Cost = MAT + LB + BD"]
-    costEngine -.-> refCalc
-    costEngine -.-> curCalc
-    costEngine -.-> customCalc
+    engine --> effects["Parameter Cost Effect<br/>BOM: Price · Usage · Loss<br/>Routing: Manning · Capacity · Yield<br/>Effects reconcile to SIM − Current"]
 
-    refCalc --> cbd["CBD — COST BREAKDOWN<br/>Reference vs Current ONLY<br/>Match by Business Identity: Name · WC · Process<br/>Statuses: UNCHANGED · CHANGED · ADDED · REMOVED<br/>Gap = Current − Reference"]
-    curCalc --> cbd
+    econ["Economic inputs<br/>Fixed Action Cost · Variable Action Cost / pc<br/>Batch Size · Selling Price · SG&A %"] --> econCalc["Fixed Cost / pc = Fixed Action Cost / Batch Size<br/>Required Saving = Fixed Cost / pc + Variable Cost / pc<br/>Parameter Saving = Current SC − SIM SC<br/>Economic Margin = Parameter Saving − Required Saving<br/>SG&A / pc = Selling Price × SG&A rate<br/>OP / pc = Selling Price − SIM SC − SG&A / pc"]
+    compare --> econCalc
 
-    cbd --> comparisonChoice{"Comparison Scope?"}
-    comparisonChoice -->|Full Comparison| fullPool["Full Candidate Pool"]
-    comparisonChoice -->|Selected Comparison| selectedScope["SELECTED COMPARISON<br/>Temporary analysis scope<br/>Shows only Selected Gap<br/>Ends at RCA or Simulation entry"]
-    selectedScope --> scopedPool["Scoped Candidate Pool"]
-
-    fullPool --> ranking["CANDIDATE RANKING<br/>BOM & Process/Routing Candidates<br/>Advisory ranking by Gap · Controllable flag"]
-    scopedPool --> ranking
-
-    ranking --> selectCandidates["Select 1 or Many Candidates"]
-    selectCandidates --> rcaCase["RCA CASE<br/>One Case can hold 1 or Multiple Candidates<br/>Analyze joint structural changes (e.g. QA1 → QA1.1 + QA1.2)"]
-    rcaCase --> rcaAnalysis["Record Root Cause / Why? and Action"]
-    rcaAnalysis --> endRCA["END RCA<br/>RCA legitimately completes here"]
-
-    endRCA --> simChoice{"Proceed optionally from this RCA Case?"}
-    simChoice -->|No| finish([FINISH])
-    simChoice -->|Yes · carry Case context; Current first| simModule["SIMULATION MODULE"]
-    start -.->|Open Simulation independently| simModule
-
-    simModule --> simMode{"Select Simulation Mode"}
-
-    simMode -->|Parameter Simulation| paramSim["PARAMETER SIMULATION<br/>Start SIM From: Reference, Current, or Custom<br/>Structure is LOCKED (no adds/removes/resizing)<br/>Select Factors to Simulate (controls editing UI)<br/>Live Recalculation of entire SIM dataset<br/>BOM: Price · Usage · Loss<br/>Routing: Manning · Cap · Yield<br/>WC Rates: NOT SIM-editable<br/>Comparison basis: Current vs SIM"]
-
-    simMode -->|Economic Simulation| econSim["ECONOMIC SIMULATION<br/>Inputs: Action Cost (THB) & Evaluation Quantity (pcs)<br/>Required Saving / pc = Action Cost ÷ Quantity<br/>Does NOT alter MAT, LB, BD, or Standard Cost"]
-
-    simMode -->|Combined Simulation| combinedSim["COMBINED EVALUATION<br/>Parameter Saving / pc = Current STD − SIM STD<br/>Required Saving / pc = Action Cost ÷ Quantity<br/>Economic Margin = Parameter Saving − Required Saving<br/>Advisory outcome: below break-even remains visible"]
-
-    paramSim --> finish
-    econSim --> finish
-    combinedSim --> finish
+    snapshot --> send["Send to<br/>Reference · Current · Custom Working"]
+    send --> target["Whole SIM snapshot + Current rates + reconciled sizing<br/>Last Saved is preserved"]
 ```
 
-## Key Architectural Principles
+### Lifecycle rules
 
-1. **Master Data Workspaces & Structural Ownership:** Master Data manages `Reference`, `Current`, and `Custom`. All structural additions, deletions, and sizing changes occur in Master Data / Custom. Datasets copy via `Clone`.
-2. **CBD Scope:** Cost Breakdown compares `Reference` vs `Current` only. `Custom` is never compared directly in CBD.
-3. **Selected Comparison Boundary:** Selected Comparison shapes the Candidate pool only. It ends when an RCA Case workspace or Simulation opens; downstream flows may retain origin context but never an active scope.
-4. **Multi-Candidate RCA:** One RCA Case supports one or multiple Candidates to account for complex multi-row engineering changes. RCA completes upon recording Root Cause and Action.
-5. **Simulation Independence & Two Dimensions:** Simulation is an optional sandbox with Parameter Simulation (what-if cost calculation) and Economic Simulation (break-even feasibility).
-6. **SIM Comparison & Editability:** Parameter Simulation compares `Current vs SIM`. `CHANGED`, `UNCHANGED`, and `ADDED` records are editable; `REMOVED` records remain visible but non-editable.
-7. **Economic Separation:** Economic Action Cost is never folded into MAT, LB, BD, or Standard Cost.
+- On entry, if SIM is missing or stale, create it from the latest Current. Keep valid economic draft inputs when reconciling.
+- `Clone from` explicitly replaces the temporary SIM snapshot with Reference, Current, or Custom structure/parameters. SIM Work Center rates always use Current rates. The analytical baseline remains Current → SIM.
+- A Current change invalidates/reconciles SIM. A Reference-only or Custom-only change does not reset an existing SIM.
+- Simulation structure is locked. Structural changes are made in Master Data / Custom and brought into SIM through `Clone from Custom`.
+- `Send to` copies the whole SIM snapshot, including Current-rate context and reconciled sizing, only into the selected target Working dataset. It never silently overwrites Last Saved. Sending to Current triggers baseline reconciliation; sending to Reference or Custom does not by itself reset SIM.
+- State is isolated per product. Deleted/non-live products do not retain active Simulation state.
+
+### Identity, statuses, and validation
+
+- Match BOM, Work Center, and Routing by canonical business identity, never row position.
+- `UNCHANGED`, `CHANGED`, and `ADDED` are visible/editable when a SIM record exists. `REMOVED` is visible but protected. Missing or ambiguous identity is protected without guessed edits or fabricated attribution.
+- Price, Usage, Manning, fixed/variable costs, and Selling Price are nonnegative. Loss and SG&A are 0–100%. Yield is greater than 0% through 100%. Capacity and Batch Size are positive; Batch Size is an integer.
+- Invalid inputs are rejected at the input and logic boundaries. No silent clamping or invalid-to-zero conversion. Missing inputs may remain unavailable.
+- Negative gaps, Result Change, Parameter Saving, Economic Margin, and OP are valid analytical outcomes.
+
+## Graph meaning
+
+- Dataset bars show MAT, LB, BD, SG&A, and OP as separate series. Standard Cost means MAT + LB + BD.
+- GAP 1 and GAP 2 contain signed MAT/LB/BD components only. Positive is above zero; negative is below zero.
+- Selling Price is a separate line/marker. SG&A and OP are not part of Standard Cost or gap bars. Negative OP is shown below zero.
+- The draggable THB/pc ruler is a visual aid only; it cannot modify datasets, inputs, or calculations.
+- BOM and RTG tables and the full page do not horizontally scroll. Tables may scroll vertically and reflow at narrower widths.
+
+## Legacy session compatibility (not visible product flow)
+
+Older saved sessions may contain Candidate/RCA case records or RCA-associated Simulation context. Compatibility migration may preserve historical case-domain data where needed. It does not restore standalone Candidate/RCA pages, an RCA handoff, or an active Simulation context strip.

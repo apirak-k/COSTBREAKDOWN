@@ -1,4 +1,5 @@
 import { calculateScenarioBusinessMetrics } from '../../core/calculations/scenario-business'
+import { isMasterDataNumericValueValid } from '../../core/utils/master-data-validation'
 import type { CostSnapshot, ScenarioBusinessResult, SnapshotCost } from '../../core/types'
 
 export interface EconomicSimulationDraft {
@@ -30,37 +31,68 @@ export function createEconomicSimulationDraft(): EconomicSimulationDraft {
   return { fixedActionCost: '', variableActionCostPerPiece: '', batchSize: '', sellingPriceOverride: '', sgaPercentOverride: '' }
 }
 
+export function isEconomicSimulationInputValid(field: EconomicSimulationField, raw: string): boolean {
+  if (raw.trim() === '') return true
+  const value = Number(raw)
+  if (!Number.isFinite(value)) return false
+  const normalized = raw.trim()
+  const isInteger = field === 'batchSize'
+  if (!(isInteger ? /^\d+$/.test(normalized) : /^\d+(?:\.\d{1,2})?$/.test(normalized))) return false
+  if (field === 'batchSize') return value > 0 && Number.isInteger(value)
+  if (field === 'sgaPercentOverride') return isMasterDataNumericValueValid('sgaPercent', value)
+  if (field === 'sellingPriceOverride') return isMasterDataNumericValueValid('sellingPrice', value)
+  return value >= 0
+}
+
 export function updateEconomicSimulationDraft(
   draft: EconomicSimulationDraft,
   field: EconomicSimulationField,
   value: string
 ): EconomicSimulationDraft {
-  return draft[field] === value ? draft : { ...draft, [field]: value }
+  if (!isEconomicSimulationInputValid(field, value) || draft[field] === value) return draft
+  return { ...draft, [field]: value }
 }
 
-function parseInput(raw: string, label: string, warnings: string[]): number | null {
+function parseInput(
+  raw: string,
+  field: EconomicSimulationField,
+  label: string,
+  warnings: string[]
+): number | null {
   if (!raw.trim()) return null
   const value = Number(raw)
   if (!Number.isFinite(value)) {
     warnings.push(`${label} must be a finite number.`)
     return null
   }
-  if (value < 0) {
-    warnings.push(`${label} must be zero or greater.`)
+  if (!isEconomicSimulationInputValid(field, raw)) {
+    warnings.push(field === 'batchSize'
+      ? `${label} must be a positive whole number.`
+      : field === 'sgaPercentOverride'
+        ? `${label} must be between 0% and 100%.`
+        : `${label} must be zero or greater and use at most two decimal places.`)
     return null
   }
   return value
 }
 
-function parseOverride(raw: string, currentValue: number | null | undefined, label: string, warnings: string[]): number | null {
+function parseOverride(
+  raw: string,
+  currentValue: number | null | undefined,
+  field: 'sellingPriceOverride' | 'sgaPercentOverride',
+  label: string,
+  warnings: string[]
+): number | null {
   if (!raw.trim()) return currentValue ?? null
   const value = Number(raw)
   if (!Number.isFinite(value)) {
     warnings.push(`${label} override must be a finite number.`)
     return null
   }
-  if (value < 0) {
-    warnings.push(`${label} override must be zero or greater.`)
+  if (!isEconomicSimulationInputValid(field, raw)) {
+    warnings.push(field === 'sgaPercentOverride'
+      ? `${label} override must be between 0% and 100%.`
+      : `${label} override must be zero or greater and use at most two decimal places.`)
     return null
   }
   return value
@@ -81,15 +113,9 @@ export function calculateEconomicSimulation(
   draft: EconomicSimulationDraft
 ): EconomicSimulationResult {
   const warnings: string[] = []
-  const fixedActionCost = parseInput(draft.fixedActionCost, 'Fixed Action Cost', warnings)
-  const variableActionCostPerPiece = parseInput(draft.variableActionCostPerPiece, 'Variable Action Cost / pc', warnings)
-  const batchSize = parseInput(draft.batchSize, 'Batch Size', warnings)
-  const validQuantity = batchSize !== null && batchSize > 0
-
-  if (batchSize !== null && !validQuantity) {
-    warnings.push('Batch Size must be greater than zero for division.')
-  }
-
+  const fixedActionCost = parseInput(draft.fixedActionCost, 'fixedActionCost', 'Fixed Action Cost', warnings)
+  const variableActionCostPerPiece = parseInput(draft.variableActionCostPerPiece, 'variableActionCostPerPiece', 'Variable Action Cost / pc', warnings)
+  const batchSize = parseInput(draft.batchSize, 'batchSize', 'Batch Size', warnings)
   const fixedCostPerPiece = fixedActionCost !== null && batchSize !== null && batchSize > 0
     ? finiteResult(fixedActionCost / batchSize, 'Fixed Cost / pc', warnings)
     : null
@@ -109,12 +135,14 @@ export function calculateEconomicSimulation(
   const sellingPrice = parseOverride(
     draft.sellingPriceOverride,
     currentSnapshot.product.sellingPrice,
+    'sellingPriceOverride',
     'Selling Price',
     warnings
   )
   const sgaPercent = parseOverride(
     draft.sgaPercentOverride,
     currentSnapshot.product.sgaPercent,
+    'sgaPercentOverride',
     'SG&A %',
     warnings
   )

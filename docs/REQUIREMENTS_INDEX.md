@@ -16,7 +16,7 @@ The active canonical specifications are:
    - [`specs/MASTER_DATA_TOOLBAR_PREPARE_UX.md`](specs/MASTER_DATA_TOOLBAR_PREPARE_UX.md) — Historical accepted shared Header and toolbar presentation source. Its Cost Breakdown and Candidate/RCA portions are superseded by the current `COST_BREAKDOWN.md` and `FINAL_LOGIC_SPEC.md`.
 4. [`specs/COST_BREAKDOWN.md`](specs/COST_BREAKDOWN.md) — Reference vs Current comparison, Full vs Selected Comparison scope, processing drill-down, and Gap reconciliation.
 5. [`specs/CANDIDATE.md`](specs/CANDIDATE.md) — Legacy Candidate/RCA domain and session compatibility only; current finding UX is in [`specs/COST_BREAKDOWN.md`](specs/COST_BREAKDOWN.md). It does not define a visible standalone product stage.
-6. [`specs/SIMULATION.md`](specs/SIMULATION.md) — Parameter Simulation and Economic Simulation dimensions, Start SIM From Ref/Cur/Custom, locked structure, and economic break-even evaluation.
+6. [`specs/SIMULATION.md`](specs/SIMULATION.md) — Current → SIM lifecycle, Clone from / Send to, locked structure, validated direct parameter editing, Result, cost effect, graph, and finalized economics.
 
 Supporting architecture and design documents:
 - [`SYSTEM_LOGIC_DIAGRAM.md`](SYSTEM_LOGIC_DIAGRAM.md) — Visual workflow diagrams (Mermaid and text).
@@ -61,16 +61,17 @@ The latest finalized logic establishes:
 6. **Legacy RCA session compatibility:** Existing RCA case data may represent one or multiple Candidates and retain Root Cause / Why? and Action at the case level. This is not a current visible product stage.
 7. **Legacy RCA completion semantics:** Historical sessions retain their Root Cause + Action completion meaning; the current product flow is Master Data → Cost Breakdown → Simulation, with no standalone RCA page.
 8. **No Duplicate RCA Notes:** Existing Master Data annotations (`Note`, `META.Dataset Remark`) remain separate; no duplicate RCA Note system is created.
-9. **Simulation Architecture:** Single module with two dimensions: Parameter Simulation and Economic Simulation. Can be used Parameter-only, Economic-only, or combined.
-10. **Start SIM From:** Can start from `Reference`, `Current`, or `Custom`. Structure is locked once inside SIM.
-11. **Parameter Simulation Comparison:** Primary comparison is `Current vs SIM`. CHANGED, UNCHANGED, and ADDED are visible and editable; REMOVED is visible (affects Gap) but disabled from editing.
-12. **Factors to Simulate:** Users select factors for editing visibility; the full SIM dataset recalculates live through the shared cost engine.
-13. **SIM-Editable Inputs:** BOM (Price, Usage, Loss), Routing (Manning, Capacity, Yield). Work Center rates are **not** SIM-editable.
-14. **Economic Simulation:** $\text{Required Saving / pc} = \frac{\text{Action Cost}}{\text{Evaluation Quantity}}$. Action Cost is **not** folded into Standard Cost.
-15. **Combined Feasibility:** Compares Parameter Saving vs Required Saving to calculate Economic Margin. Result is advisory, not an approval gate.
-16. **Flexible Scenario Count:** Exactly Scenario A and B is not a mandatory business requirement.
-17. **Business Formulas:** $\text{SG&A amount} = \text{Selling Price} \times \text{SG\&A \%}$, $\text{OP} = \text{Selling Price} - \text{Standard Cost} - \text{SG\&A amount}$. Negative OP represents operating loss and is valid. MatVAR, LBVAR, and BDVAR remain out of scope.
-18. **Trial Lifecycle Boundary:** No dedicated Trial execution, validation, approval, or promotion lifecycle. Custom can store trial data; to use it as Current, choose `Clone` on Current and select Custom.
+9. **Simulation Architecture:** A missing or stale SIM initializes from Current immediately. The analytical baseline is always Current → SIM, regardless of Clone source.
+10. **Clone from / Send to:** Clone from Reference, Current, or Custom into isolated SIM, then use Current Work Center rates. Send the whole SIM snapshot, including Current-rate context and structure, into the target Working dataset; do not overwrite Last Saved. Current changes reconcile SIM; Reference/Custom changes alone do not.
+11. **Parameter Simulation Comparison:** Match by business identity, never row position. CHANGED, UNCHANGED, and ADDED are visible/editable when a SIM row exists; REMOVED is visible and protected. Ambiguous identity is protected.
+12. **Direct Parameter Editing:** No Factors selector. BOM Price/Usage/Loss and Routing Manning/Capacity/Yield are directly editable within validated domains. Work Center rates remain locked to Current.
+13. **Result and Cost Effect:** Result Change is SIM − Current; Parameter Saving is Current − SIM. BOM and Routing effects reconcile to their cost deltas. Show absolute THB/pc effects, with 100% only on an available non-zero total.
+14. **Economic Simulation:** Fixed Action Cost, Variable Action Cost / pc, positive integer Batch Size, Selling Price, and SG&A use `Fixed Cost / pc = Fixed Action Cost / Batch Size` and `Required Saving / pc = Fixed Cost / pc + Variable Action Cost / pc`. Economics never enters Standard Cost.
+15. **Combined Feasibility:** `Economic Margin = Parameter Saving − Required Saving`; negative margin and negative OP remain visible. Results are advisory, not an approval gate.
+16. **Validation and Layout:** Percentage inputs are limited to 0–100% except Yield, which is greater than 0% and at most 100%. BOM/RTG have no horizontal scroll; the page has no horizontal overflow.
+17. **Flexible Scenario Count:** Exactly Scenario A and B is not a mandatory business requirement.
+18. **Business Formulas:** SG&A / pc = Selling Price × (SG&A % / 100); OP / pc = Selling Price − SIM Standard Cost − SG&A / pc. Negative OP is valid. MatVAR, LBVAR, and BDVAR remain out of scope.
+19. **Trial Lifecycle Boundary:** No dedicated Trial execution, validation, approval, or promotion lifecycle. Custom can store trial data; to copy it into Current, choose `Clone` on Current and select Custom.
 
 ## Reading Order
 

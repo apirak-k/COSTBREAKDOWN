@@ -16,12 +16,14 @@ const INPUTS: Array<{
   integer?: boolean
   placeholder?: string
   minExclusive?: boolean
+  min?: number
+  max?: number
 }> = [
   { field: 'fixedActionCost', label: 'Fixed Action Cost', unit: 'THB', precision: 2 },
   { field: 'variableActionCostPerPiece', label: 'Variable Action Cost / pc', unit: 'THB/pc', precision: 2 },
-  { field: 'batchSize', label: 'Batch Size', unit: 'pcs', precision: 0, integer: true },
+  { field: 'batchSize', label: 'Batch Size', unit: 'pcs', precision: 0, integer: true, min: 1 },
   { field: 'sellingPriceOverride', label: 'Selling Price', unit: 'THB/pc', precision: 2, placeholder: 'Current' },
-  { field: 'sgaPercentOverride', label: 'SG&A', unit: '%', precision: 2, placeholder: 'Current' }
+  { field: 'sgaPercentOverride', label: 'SG&A', unit: '%', precision: 2, placeholder: 'Current', max: 100 }
 ]
 
 function formatValue(value: number | null): string {
@@ -55,7 +57,7 @@ export function EconomicSimulationPanel({ result, draft, onUpdate }: EconomicSim
       </div>
 
       <div className="mt-2 grid grid-cols-2 gap-x-3 gap-y-1.5">
-        {INPUTS.map(({ field, label, unit, precision, integer, placeholder, minExclusive }) => (
+        {INPUTS.map(({ field, label, unit, precision, integer, placeholder, minExclusive, min, max }) => (
           <label key={field} className="block min-w-0 text-[10px] font-medium text-slate-700">
             <span className="flex min-w-0 items-baseline justify-between gap-1">
               <span className="truncate">{label}</span>
@@ -65,7 +67,8 @@ export function EconomicSimulationPanel({ result, draft, onUpdate }: EconomicSim
               value={draft[field].trim() === '' ? null : Number(draft[field])}
               precision={precision}
               integer={integer}
-              min={0}
+              min={min ?? 0}
+              max={max}
               minExclusive={minExclusive}
               allowSubMinimumDraft={minExclusive}
               placeholder={placeholder}

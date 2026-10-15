@@ -1,12 +1,12 @@
 # Cross-Cutting Product Rules
 
-**Status:** Comparison, calculation, Candidate/RCA, Simulation architecture, and Selling Price/SG&A/OP rules are `FINALIZED — USER DECISION`. [`FINAL_LOGIC_SPEC.md`](FINAL_LOGIC_SPEC.md) is the latest authority for product logic; this and page-specific specs retain compatible requirements, calculations, and UX/UI rules. Visual outcomes follow [`design.md`](../../design.md) and [`PROVISIONAL_IMPLEMENTATION_DECISIONS.md`](../PROVISIONAL_IMPLEMENTATION_DECISIONS.md).
+**Status:** Comparison, calculation, legacy Candidate/RCA domain compatibility, Simulation architecture, and Selling Price/SG&A/OP rules are `FINALIZED — USER DECISION`. [`FINAL_LOGIC_SPEC.md`](FINAL_LOGIC_SPEC.md) is the latest authority for product logic; this and page-specific specs retain compatible requirements, calculations, and UX/UI rules. Visual outcomes follow [`design.md`](../../design.md) and [`PROVISIONAL_IMPLEMENTATION_DECISIONS.md`](../PROVISIONAL_IMPLEMENTATION_DECISIONS.md).
 
 ## Final Target State
 
-Calculate datasets independently from their own data, then compare calculated results strictly by business identity. Use $\text{Gap} = \text{Current} - \text{Reference}$ (or $\text{Saving} = \text{Current} - \text{SIM}$ in Parameter Simulation); never pair by row position or convert missing required inputs to zero.
+The current visible page flow is **Master Data → Cost Breakdown → Simulation**. Calculate datasets independently, then compare results strictly by business identity. Use $\text{Gap} = \text{Current} - \text{Reference}$ in CBD and $\text{Parameter Saving} = \text{Current} - \text{SIM}$ in Simulation; never pair by row position or convert missing required inputs to zero.
 
-Routing operations use their Work Center's rates; Cost Breakdown may aggregate processing cost by Work Center for context, while the processing Candidate is always Process/Routing. Full Comparison is the default. Selected Comparison is an optional temporary analysis scope, leaving source datasets intact and showing only its selected-scope Gap. It may constrain Candidate Ranking; Candidates are grouped into an RCA Case (which supports 1 or many Candidates) to determine Root Cause and Action. RCA legitimately ends there. Simulation is optional, operates in Parameter and Economic dimensions, can start from Reference, Current, or Custom, and compares Current vs SIM with locked structure.
+Routing operations use their Work Center's rates; Cost Breakdown may aggregate processing cost by Work Center for context, while each processing finding is a Process/Routing record. Full Comparison is the default. Selected Comparison is a temporary CBD-only analysis view that leaves source datasets intact and shows only its selected-scope Gap. It does not create a Candidate/RCA page or pass scope/context into Simulation. Legacy Candidate/RCA records may remain for saved-session compatibility only. Simulation is directly accessible, opens ready to work, and always analyzes Current → SIM with locked structure.
 
 ## Source Authority
 
@@ -60,21 +60,23 @@ Routing `Process` is the primary processing comparison record in Cost Breakdown'
 - For a matched `CHANGED` or `UNCHANGED` finding, select/exclude the Reference and Current pair together. `ADDED` and `REMOVED` findings are independently selectable.
 - Selected mode recalculates from the selected scope and shows **only the selected-scope Gap**. Do not show the Full Gap beside or behind it.
 - The scope is analysis state, not a dataset edit. It is not included in Save, export, or version history and does not persist across application restart.
-- Selected scope may constrain Candidate Ranking. An RCA Case may be created from selected candidates; RCA completion or opening Simulation does not lock Simulation to that scope.
+- Selected Comparison exists only inside CBD. Leaving CBD or changing Reference/Current data clears the scope; Simulation is independent and always compares Current → SIM.
 - Cancellation, or an actual change to Reference or Current source data, clears the selection and returns to Full Comparison immediately.
 
-## Candidate and Multi-Candidate RCA
+## Legacy Candidate and Multi-Candidate RCA Session Domain
+
+The following domain rules describe compatible historical RCA session data only. They are not current visible screens or workflow stages.
 
 - Candidate pool derives from Full or Selected CBD scope.
 - Ranking is an advisory prioritization aid; the system never forces rank #1.
 - One RCA Case may contain **one or multiple Candidates**.
 - Root Cause / Why? and Action are captured at the RCA Case level.
 - No new RCA Note system is created.
-- **RCA legitimately ends upon recording Root Cause and Action.** Simulation is optional.
+- **Legacy RCA sessions** retain their historical Root Cause + Action completion semantics. They do not define a current visible workflow or gate Simulation.
 
-## Simulation Architecture: Parameter & Economic Dimensions
+## Simulation Architecture: Current → SIM and Separate Economics
 
-Simulation is a single module with two dimensions:
+Simulation is the third current visible page. It opens with a usable workspace and keeps engineering cost and economic evaluation separate:
 ```text
 SIMULATION
 ├─ Parameter Simulation
@@ -82,19 +84,23 @@ SIMULATION
 ```
 
 1. **Parameter Simulation:**
-   - Evaluates what-if product costs under entered parameters.
-   - May start from `Reference`, `Current`, or `Custom`.
-   - **Structure is locked (Zero structural edits):** Cannot add/remove/resize records in SIM. Master Data Sizing owns all structural changes; structural edits belong in Master Data / Custom first.
-   - Primary comparison basis is always **Current vs SIM**.
-   - Statuses in SIM: `CHANGED`, `UNCHANGED`, and `ADDED` are visible and parameter-editable; `REMOVED` is visible (affecting Gap) but not editable.
-   - **Factors to Simulate:** Users select multiple factors for editing visibility; the entire SIM dataset recalculates live.
-   - SIM-editable parameters: Strictly physical BOM (`Price`, `Usage`, `Loss`) and Routing (`Manning`, `Capacity`, `Yield`). Work Center rates are **not** SIM-editable.
-   - **Selling Price and SG&A %:** Economic/commercial parameters overridden at scenario metadata level, NOT parameter factor inputs. They affect SG&A Amount and OP, not Standard Cost.
+   - A missing or stale SIM initializes automatically from the latest Current. There is no Start SIM landing screen.
+   - `Clone from` explicitly copies Reference, Current, or Custom structure/parameters into SIM. SIM Work Center rates always come from Current; analysis always remains Current → SIM.
+   - A Current change invalidates/reconciles SIM. Reference-only and Custom-only changes preserve it unless explicitly cloned.
+   - `Send to` copies the whole SIM snapshot, Current-rate context, and reconciled sizing into only the selected Reference/Current/Custom Working dataset; Last Saved is not silently replaced.
+   - **Structure is locked:** No add/delete/resize/reorder that changes the dataset definition. Structural changes belong in Master Data / Custom before Clone.
+   - Match BOM, Work Center, and Routing by business identity, never row position. `CHANGED`, `UNCHANGED`, and `ADDED` records with a SIM row are editable; `REMOVED` is visible and protected. Ambiguous identity is protected.
+   - There is **no Factors to Simulate selector**. Direct edits are BOM (`Price`, `Usage`, `Loss`) and Routing (`Manning`, `Capacity`, `Yield`). Work Center rates are not editable and remain from Current.
+   - Valid edits recalculate the full SIM through the shared Standard Cost engine. Missing/invalid required inputs remain unavailable.
 
 2. **Economic Simulation:**
-   - Evaluates investment feasibility: $\text{Required Saving / pc} = \frac{\text{Action Cost}}{\text{Evaluation Quantity}}$.
-   - **Economics is separate from Standard Cost:** Action Cost must **NOT** be folded into MAT, LB, BD, or Standard Cost.
-   - No duplicate parameter editor inside Economic Simulation.
+   - Inputs: Fixed Action Cost, Variable Action Cost / pc, positive integer Batch Size, Selling Price override, and SG&A % override. Blank commercial overrides use Current values.
+   - Fixed Cost / pc = Fixed Action Cost / Batch Size.
+   - Required Saving / pc = Fixed Cost / pc + Variable Action Cost / pc.
+   - Parameter Saving / pc = Current Standard Cost − SIM Standard Cost.
+   - Economic Margin / pc = Parameter Saving / pc − Required Saving / pc.
+   - SG&A / pc = Selling Price × (SG&A % / 100); OP / pc = Selling Price − SIM Standard Cost − SG&A / pc.
+   - **Economics is separate from Standard Cost:** Economic inputs never alter MAT, LB, BD, Conversion, or Standard Cost. Negative Economic Margin and OP remain valid and visible.
 
 3. **Combined Evaluation:**
    - Compares $\text{Parameter Saving / pc}$ vs $\text{Required Saving / pc}$ to determine $\text{Economic Margin}$.
@@ -105,12 +111,12 @@ SIMULATION
 
 Preserve finalized business formulas:
 
-$$\text{SG&A amount / pc} = \text{Selling Price} \times \text{SG\&A \%}$$
+$$\text{SG&A amount / pc} = \text{Selling Price} \times \frac{\text{SG\&A \%}}{100}$$
 
-$$\text{OP / pc} = \text{Selling Price} - \text{Standard Cost} - \text{SG\&A amount}$$
+$$\text{OP / pc} = \text{Selling Price} - \text{SIM Standard Cost} - \text{SG\&A amount / pc}$$
 
 - OP can be positive, zero, or negative. Negative OP represents an operating loss and must remain visibly displayed.
-- Selling Price and SG&A % can be overridden in simulation scenarios.
+- Selling Price and SG&A % can be overridden in the Simulation Economic panel.
 - Other financial metrics (COGS, GP, GP Margin, OP Margin, Sales, historical time-series) and MatVAR/LBVAR/BDVAR are **OUT OF SCOPE**.
 
 ## Trial Lifecycle Boundary
@@ -151,18 +157,18 @@ The global Footer is a compact three-group workspace summary: Reference/Current 
 - **`Ready for comparison`:** Both Reference and Current contain sufficient valid data for Cost Breakdown.
 - **`Product Mismatch`:** The existing handoff comparison remains based on effective Product Name/UOM after trimming and case normalization (informational, non-blocking status, not a Warning or Blocker). For UI display, show `Product Mismatch` only when both sides have a complete Product Name and UOM; otherwise show neutral `Product Not Set` without changing the handoff boolean.
 - **`Missing data`:** One or both datasets have incomplete/missing required fields.
-- **`Active Selected Comparison`:** Cost Breakdown or Candidate Ranking is scoped to a selected subset of records; ends when leaving CBD/Candidate scope.
+- **`Active Selected Comparison`:** Cost Breakdown is scoped to selected records; the scope ends on leaving CBD or changing its Reference/Current source data.
 
 When a state has a useful review destination, provide a convenient link or action to that page. Status is informational and normally does not block navigation; disable only an operation that is logically impossible.
 
 Master Data dataset save state has two user-facing values: `Saved` when Working matches Last Saved, and `Draft` when it differs or has never been saved. Do not fabricate Product Name `Product` or UOM `PC`; blank metadata stays blank through display and export. Header Undo/Redo are contextual to Master Data in the right utility group before Info. Search stays local to the Master Data toolbar and filters its current table view. See [`MASTER_DATA_TOOLBAR_PREPARE_UX.md`](MASTER_DATA_TOOLBAR_PREPARE_UX.md) for the current interface contract.
 
-Keep an active Selected Comparison recognizable while it applies in Cost Breakdown and scoped Candidate Ranking. At RCA entry or when opening Simulation, the scope ends; subsequent RCA/Simulation may retain the selected Candidate's origin as context, but must not show or apply an active Selected Scope. Exact placement, wording, and control styling while the scope is active remain reversible UI choices; this direction does not require a specific persistent status-bar layout.
+Keep an active Selected Comparison recognizable only while it applies inside Cost Breakdown. It ends when leaving CBD or changing its Reference/Current source data. Simulation does not retain Candidate origin context or apply a selected CBD scope.
 
 ## Product Boundaries and Scope
 
 ### Additional Business Metrics Scope
-The finalized current result/economics scope focuses strictly on Selling Price, MAT, LB, BD, Standard Cost, SG&A, and OP. Additional business metrics (such as COGS, GP, GP Margin, OP Margin, Sales, historical monthly metrics, and Volume beyond the finalized Evaluation Quantity usage) are **OUT OF SCOPE**. Do not invent formulas or requirements for these items.
+The finalized current result/economics scope focuses strictly on Selling Price, MAT, LB, BD, Standard Cost, SG&A, and OP. Additional business metrics (such as COGS, GP, GP Margin, OP Margin, Sales, and historical monthly metrics) are **OUT OF SCOPE**. Do not invent formulas or requirements for these items.
 
 Discussion formulas preserved for historical context only (not implemented system formulas):
 - `COGS = Material + Processing`
@@ -181,4 +187,4 @@ Final visual acceptance after applying the provisional visual contract has not b
 
 ## Traceability
 
-Key sources are [`agreements/COSTBREAKDOWN_COMPARISON_PRINCIPLES.md`](../../agreements/COSTBREAKDOWN_COMPARISON_PRINCIPLES.md), the finalized [Master Data source specification](../history/MASTER_DATA_SPEC_2026-10-05.md), the later [review-context decisions](../history/COSTBREAKDOWN_REVIEW_CONTEXT_FOR_CODEX.md), and the user-directed workbook update recorded in commit `5a08907`. The 80-topic crosswalk links implementation and verification evidence without changing these requirements. The consolidated business logic across datasets, Multi-Candidate RCA, and Simulation dimensions is finalized in [`FINAL_LOGIC_SPEC.md`](FINAL_LOGIC_SPEC.md).
+Key sources are [`agreements/COSTBREAKDOWN_COMPARISON_PRINCIPLES.md`](../../agreements/COSTBREAKDOWN_COMPARISON_PRINCIPLES.md), the finalized [Master Data source specification](../history/MASTER_DATA_SPEC_2026-10-05.md), the later [review-context decisions](../history/COSTBREAKDOWN_REVIEW_CONTEXT_FOR_CODEX.md), and the user-directed workbook update recorded in commit `5a08907`. The 80-topic crosswalk links implementation and verification evidence without changing these requirements. The consolidated current page flow and Simulation rules, plus retained legacy RCA session semantics, are finalized in [`FINAL_LOGIC_SPEC.md`](FINAL_LOGIC_SPEC.md).

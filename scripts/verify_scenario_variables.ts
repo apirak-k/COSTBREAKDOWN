@@ -14,23 +14,25 @@ const simulationCost: SnapshotCost = {
   snapshotId: 'sim', material: 50, labor: 30, burden: 20, total: 100, status: 'complete', warnings: []
 }
 let draft = createEconomicSimulationDraft()
-draft = updateEconomicSimulationDraft(draft, 'actionCost', '20000')
-draft = updateEconomicSimulationDraft(draft, 'evaluationQuantity', '10000')
+draft = updateEconomicSimulationDraft(draft, 'fixedActionCost', '20000')
+draft = updateEconomicSimulationDraft(draft, 'variableActionCostPerPiece', '1')
+draft = updateEconomicSimulationDraft(draft, 'batchSize', '10000')
 const result = calculateEconomicSimulation(current, simulationCost, 5, draft)
 
-assert.equal(result.requiredSavingPerPiece, 2)
-assert.equal(result.economicMarginPerPiece, 3)
+assert.equal(result.fixedCostPerPiece, 2)
+assert.equal(result.requiredSavingPerPiece, 3)
+assert.equal(result.economicMarginPerPiece, 2)
 assert.equal(result.simulationStandardCost, 100, 'economic inputs do not enter Standard Cost')
 assert.equal(result.business.sgaAmountPerPiece, 10)
 assert.equal(result.business.operatingProfitPerPiece, -10, 'negative OP remains valid')
 
 const invalid = calculateEconomicSimulation(current, simulationCost, 5, {
   ...draft,
-  evaluationQuantity: '0'
+  batchSize: '0'
 })
 assert.equal(invalid.requiredSavingPerPiece, null)
 assert.equal(invalid.economicMarginPerPiece, null)
-assert.ok(invalid.warnings.some(warning => warning.includes('greater than zero')))
+assert.ok(invalid.warnings.some(warning => warning.includes('Batch Size')))
 assert.equal(invalid.simulationStandardCost, 100)
 
 console.log('Independent economic variables verification passed')

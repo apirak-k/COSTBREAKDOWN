@@ -15,7 +15,6 @@ import type {
   ScenarioStory,
   SnapshotCost
 } from '../../core/types'
-import { PageHeading } from '../../shared'
 import { NumericInput } from '../../shared/ui/NumericInput'
 import { useTransientInteraction } from '../../shared/ui/transient-interactions'
 import { EconomicSimulationPanel } from './EconomicSimulationPanel'
@@ -30,7 +29,7 @@ interface SimulationPageProps {
   referenceSnapshot: CostSnapshot
   currentSnapshot: CostSnapshot
   onCloneSource: (role: MasterDataRole) => void
-  onSendTo: (role: MasterDataRole, snapshot: CostSnapshot) => void
+  onSendTo: (role: MasterDataRole, snapshot: CostSnapshot) => boolean
   onUpdateParameter: (recordId: string, parameter: SimulationParameter, value: number | null) => void
   onUpdateEconomicInput: (field: EconomicSimulationField, value: string) => void
 }
@@ -160,6 +159,7 @@ function RoleActionMenu({
   const [open, setOpen] = useState(false)
   const rootRef = useRef<HTMLDivElement>(null)
   const triggerRef = useRef<HTMLButtonElement>(null)
+  const menuItemRefs = useRef<Array<HTMLButtonElement | null>>([])
   const menuId = `simulation-${label.toLowerCase().replace(' ', '-')}-menu`
   const close = (restoreFocus = false) => {
     setOpen(false)
@@ -169,6 +169,7 @@ function RoleActionMenu({
   useTransientInteraction(open, reason => close(reason === 'escape'))
   useEffect(() => {
     if (!open) return
+    menuItemRefs.current[0]?.focus()
     const onPointerDown = (event: PointerEvent) => {
       if (!rootRef.current?.contains(event.target as Node)) close()
     }
@@ -185,17 +186,45 @@ function RoleActionMenu({
         aria-expanded={open}
         aria-controls={menuId}
         onClick={() => setOpen(value => !value)}
-        className="inline-flex min-h-8 items-center gap-2 border border-slate-400 bg-white px-2.5 text-xs font-medium text-slate-800 hover:bg-slate-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700"
+        className="inline-flex min-h-7 items-center gap-1.5 border border-slate-400 bg-white px-2 text-[11px] font-medium text-slate-800 hover:bg-slate-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700"
       >
         {label}<ChevronDown aria-hidden="true" className="h-3.5 w-3.5" />
       </button>
       {open && (
-        <div id={menuId} role="menu" aria-label={label} className="absolute right-0 top-full z-50 mt-1 min-w-36 border border-slate-300 bg-white p-1 shadow-lg">
-          {ROLES.map(({ role, label: roleLabel }) => (
+        <div
+          id={menuId}
+          role="menu"
+          aria-label={label}
+          onKeyDown={event => {
+            if (event.key === 'Escape') {
+              event.preventDefault()
+              close(true)
+              return
+            }
+            if (event.key === 'Tab') {
+              close()
+              return
+            }
+            const activeIndex = menuItemRefs.current.findIndex(item => item === document.activeElement)
+            const nextIndex = event.key === 'ArrowDown'
+              ? (activeIndex + 1) % ROLES.length
+              : event.key === 'ArrowUp'
+                ? (activeIndex - 1 + ROLES.length) % ROLES.length
+                : event.key === 'Home' ? 0 : event.key === 'End' ? ROLES.length - 1 : null
+            if (nextIndex !== null) {
+              event.preventDefault()
+              menuItemRefs.current[nextIndex]?.focus()
+            }
+          }}
+          className="absolute right-0 top-full z-50 mt-1 min-w-36 border border-slate-300 bg-white p-1 shadow-lg"
+        >
+          {ROLES.map(({ role, label: roleLabel }, index) => (
             <button
               key={role}
+              ref={element => { menuItemRefs.current[index] = element }}
               type="button"
               role="menuitem"
+              tabIndex={-1}
               onClick={() => { onSelect(role); close() }}
               className="block min-h-8 w-full px-2 text-left text-xs text-slate-800 hover:bg-slate-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-700"
             >
@@ -208,11 +237,17 @@ function RoleActionMenu({
   )
 }
 
-function EffectCell({ amount, share }: { amount: number | null | undefined; share: number | null | undefined }) {
+function EffectCell({ amount, share, showShare = false, label }: {
+  amount: number | null | undefined
+  share?: number | null
+  showShare?: boolean
+  label?: string
+}) {
   return (
     <td className="px-2 py-1.5 text-right font-mono tabular-nums text-slate-700">
+      {label && <span className="block text-[9px] font-sans text-slate-500">{label}</span>}
       <span className="block">{displayMoney(amount ?? null)}</span>
-      <span className="block text-[10px] text-slate-500">{displayShare(share)}</span>
+      {showShare && <span className="block text-[10px] text-slate-500">{displayShare(share)}</span>}
     </td>
   )
 }
@@ -243,16 +278,25 @@ function SimulationParameterTable({
         <h2 id={`${kind}-simulation-title`} className="text-xs font-semibold text-slate-900">{title} Simulation</h2>
         <span className="text-[10px] text-slate-500">Adjust SIM parameters · structure locked</span>
       </div>
-      <div className="max-h-[34rem] overflow-auto">
-        <table className={`w-full border-collapse text-xs ${isBOM ? 'min-w-[650px]' : 'min-w-[730px]'}`}>
+      <div className="max-h-[34rem] overflow-y-auto overflow-x-hidden">
+        <table className="hidden w-full table-fixed border-collapse text-[11px] md:table">
           <caption className="sr-only">SIM {isBOM ? 'BOM' : 'Routing'} values with expandable Current to SIM parameter cost effects.</caption>
+          <colgroup>
+            <col className="w-[5%]" />
+            <col className="w-[24%]" />
+            <col className="w-[12%]" />
+            <col className="w-[12%]" />
+            <col className="w-[12%]" />
+            <col className="w-[25%]" />
+            <col className="w-[10%]" />
+          </colgroup>
           <thead className="sticky top-0 z-10 bg-slate-900 text-[10px] font-semibold text-white">
             <tr>
-              <th scope="col" className="w-10 px-2 py-2 text-right">#</th>
-              <th scope="col" className="min-w-32 px-2 py-2 text-left">{isBOM ? 'BOM' : 'RTG'}</th>
-              {parameters.map(parameter => <th key={parameter.parameter} scope="col" className="min-w-24 px-2 py-2 text-right">{parameter.label}</th>)}
-              <th scope="col" className="min-w-28 px-2 py-2 text-right">{isBOM ? 'Material Cost' : 'Conversion Cost'}</th>
-              <th scope="col" className="w-10 px-1 py-2"><span className="sr-only">Expand effects</span></th>
+              <th scope="col" className="px-1 py-2 text-right">#</th>
+              <th scope="col" className="px-1 py-2 text-left">{isBOM ? 'BOM' : 'RTG'}</th>
+              {parameters.map(parameter => <th key={parameter.parameter} scope="col" className="px-0.5 py-2 text-right">{parameter.label}</th>)}
+              <th scope="col" className="px-1 py-2 text-right">{isBOM ? 'Material Cost' : 'Conversion Cost'}</th>
+              <th scope="col" className="px-0.5 py-2"><span className="sr-only">Expand effects</span></th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-200 bg-white">
@@ -268,8 +312,7 @@ function SimulationParameterTable({
               const status = rowStatusText(row)
               const detailParameters = parameters.map(parameter => ({
                 ...parameter,
-                amount: analysis.effects.effects?.[parameter.effectKey] ?? null,
-                share: analysis.effects.shares?.[parameter.effectKey] ?? null
+                amount: analysis.effects.effects?.[parameter.effectKey] ?? null
               }))
 
               return (
@@ -286,21 +329,21 @@ function SimulationParameterTable({
                         : null
                       const value = recordValue === null ? null : recordValue * parameter.scale
                       return (
-                        <td key={parameter.parameter} className="px-2 py-1.5 text-right">
+                        <td key={parameter.parameter} className="px-1 py-1.5 text-right">
                           {!simulationRecord ? '—' : canEdit ? (
                             <NumericInput
                               value={value}
                               precision={parameter.precision}
                               min={0}
                               minExclusive={parameter.parameter === 'routing.capacity' || parameter.parameter === 'routing.yield'}
-                              max={parameter.parameter === 'routing.yield' ? 100 : undefined}
+                              max={parameter.parameter === 'routing.yield' || parameter.parameter === 'bom.loss' ? 100 : undefined}
                               allowSubMinimumDraft={parameter.parameter === 'routing.capacity' || parameter.parameter === 'routing.yield'}
                               onValueChange={next => onUpdate(
                                 simulationRecord.id,
                                 parameter.parameter,
                                 next === null ? null : next / parameter.scale
                               )}
-                              className="h-7 w-full min-w-20 border border-slate-300 bg-white px-1.5 text-right text-[11px] focus:border-blue-700 focus:outline-none focus:ring-1 focus:ring-blue-100"
+                              className="h-7 w-full min-w-0 border border-slate-300 bg-white px-0.5 text-right text-[10px] focus:border-blue-700 focus:outline-none focus:ring-1 focus:ring-blue-100"
                               aria-label={`${row.name} ${parameter.label} in SIM`}
                             />
                           ) : displayParameter(recordValue, parameter)}
@@ -337,8 +380,13 @@ function SimulationParameterTable({
                           </span>
                         )}
                       </th>
-                      {detailParameters.map(parameter => <EffectCell key={parameter.parameter} amount={parameter.amount} share={parameter.share} />)}
-                      <EffectCell amount={analysis.effects.totalEffect} share={analysis.effects.totalEffect === null ? null : analysis.effects.totalEffect === 0 ? null : 100} />
+                      {detailParameters.map(parameter => <EffectCell key={parameter.parameter} amount={parameter.amount} />)}
+                      <EffectCell
+                        label="Total"
+                        amount={analysis.effects.effects === null ? null : analysis.effects.totalEffect}
+                        share={analysis.effects.effects !== null && analysis.effects.totalEffect !== null && analysis.effects.totalEffect !== 0 ? 100 : null}
+                        showShare
+                      />
                       <td className="px-1 py-1" aria-hidden="true" />
                     </tr>
                   )}
@@ -348,6 +396,93 @@ function SimulationParameterTable({
           </tbody>
         </table>
       </div>
+      <div className="max-h-[34rem] overflow-y-auto md:hidden">
+        {tableRows.length === 0 && <p className="px-3 py-6 text-center text-xs text-slate-500">No {title} rows.</p>}
+        {tableRows.map((row, index) => {
+          const key = `${row.currentRecordId ?? 'missing'}:${row.simulationRecordId ?? 'missing'}:${index}`
+          const expanded = expandedRows.has(key)
+          const simulationRecord = singleRecord(records, row.simulationRecordId)
+          const canEdit = Boolean(simulationRecord && row.status && row.status !== 'REMOVED' && !row.identityIssue)
+          const analysis = isBOM
+            ? bomAttribution(row, currentSnapshot, simulationSnapshot)
+            : routingAttribution(row, currentSnapshot, simulationSnapshot)
+          return (
+            <article key={key} className="border-b border-slate-200 px-3 py-2.5 last:border-b-0">
+              <div className="flex min-w-0 items-start gap-2">
+                <span className="pt-0.5 font-mono text-[10px] text-slate-500">{index + 1}</span>
+                <div className="min-w-0 flex-1">
+                  <h3 className="break-words text-xs font-medium text-slate-900">{row.name}</h3>
+                  <p className={`mt-0.5 text-[9px] ${row.identityIssue ? 'text-amber-800' : 'text-slate-500'}`}>{rowStatusText(row)}</p>
+                </div>
+                <span className="shrink-0 pt-0.5 text-right font-mono text-[11px] tabular-nums text-slate-900">{displayMoney(analysis.simCost)}</span>
+                <button
+                  type="button"
+                  aria-expanded={expanded}
+                  aria-label={`${expanded ? 'Hide' : 'Show'} ${row.name} parameter cost effect`}
+                  onClick={() => setExpandedRows(previous => {
+                    const next = new Set(previous)
+                    if (next.has(key)) next.delete(key)
+                    else next.add(key)
+                    return next
+                  })}
+                  className="grid h-7 w-7 shrink-0 place-items-center text-slate-600 hover:bg-slate-100 hover:text-slate-950 focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-700"
+                >
+                  {expanded ? <ChevronDown aria-hidden="true" className="h-4 w-4" /> : <ChevronRight aria-hidden="true" className="h-4 w-4" />}
+                </button>
+              </div>
+              <div className="mt-2 grid grid-cols-2 gap-x-3 gap-y-2">
+                {parameters.map(parameter => {
+                  const recordValue = simulationRecord
+                    ? (simulationRecord as unknown as Record<string, number | null>)[parameter.field] ?? null
+                    : null
+                  const value = recordValue === null ? null : recordValue * parameter.scale
+                  return (
+                    <label key={parameter.parameter} className="block min-w-0 text-[10px] font-medium text-slate-600">
+                      <span>{parameter.label}</span>
+                      {!simulationRecord ? <span className="mt-0.5 block font-mono text-slate-700">—</span> : canEdit ? (
+                        <NumericInput
+                          value={value}
+                          precision={parameter.precision}
+                          min={0}
+                          minExclusive={parameter.parameter === 'routing.capacity' || parameter.parameter === 'routing.yield'}
+                          max={parameter.parameter === 'routing.yield' || parameter.parameter === 'bom.loss' ? 100 : undefined}
+                          allowSubMinimumDraft={parameter.parameter === 'routing.capacity' || parameter.parameter === 'routing.yield'}
+                          onValueChange={next => onUpdate(simulationRecord.id, parameter.parameter, next === null ? null : next / parameter.scale)}
+                          className="mt-0.5 h-8 w-full min-w-0 border border-slate-300 bg-white px-1.5 text-right text-xs focus:border-blue-700 focus:outline-none focus:ring-1 focus:ring-blue-100"
+                          aria-label={`${row.name} ${parameter.label} in SIM`}
+                        />
+                      ) : <span className="mt-0.5 block font-mono text-slate-700">{displayParameter(recordValue, parameter)}</span>}
+                    </label>
+                  )
+                })}
+              </div>
+              {expanded && (
+                <div className="mt-2 border-t border-slate-200 pt-2">
+                  <p className="text-[10px] font-semibold text-slate-700">Parameter Cost Effect</p>
+                  {analysis.effects.effects === null ? (
+                    <p className="mt-0.5 text-[10px] text-slate-500">Unavailable for unmatched rows, invalid inputs, or unreconciled Work Center context.</p>
+                  ) : (
+                    <dl className="mt-1 grid grid-cols-2 gap-x-3 gap-y-1 text-[10px]">
+                      {parameters.map(parameter => (
+                        <div key={parameter.parameter} className="flex justify-between gap-2">
+                          <dt className="text-slate-600">{parameter.label}</dt>
+                          <dd className="font-mono tabular-nums text-slate-800">{displayMoney(analysis.effects.effects?.[parameter.effectKey] ?? null)}</dd>
+                        </div>
+                      ))}
+                      <div className="flex justify-between gap-2 border-t border-slate-200 pt-1 font-semibold">
+                        <dt className="text-slate-700">Total</dt>
+                        <dd className="text-right font-mono tabular-nums text-slate-900">
+                          {displayMoney(analysis.effects.totalEffect)}{analysis.effects.totalEffect !== null && analysis.effects.totalEffect !== 0 ? ' · 100%' : ' · —'}
+                        </dd>
+                      </div>
+                    </dl>
+                  )}
+                </div>
+              )}
+            </article>
+          )
+        })}
+      </div>
       <p className="border-t border-slate-200 px-3 py-1.5 text-[10px] text-slate-500">
         {isBOM ? 'Material Cost = Usage × Price × (1 + Loss).' : 'Conversion Cost uses Current Work Center rates; rates are fixed in Simulation.'}
         {' '}Effects compare Current → SIM.
@@ -356,7 +491,19 @@ function SimulationParameterTable({
   )
 }
 
-function ResultPanel({ currentCost, simulationCost }: { currentCost: SnapshotCost; simulationCost: SnapshotCost }) {
+function ResultPanel({
+  currentCost,
+  simulationCost,
+  actions,
+  transferMessage,
+  transferError
+}: {
+  currentCost: SnapshotCost
+  simulationCost: SnapshotCost
+  actions: React.ReactNode
+  transferMessage: string
+  transferError: boolean
+}) {
   const currentConversion = currentCost.labor === null || currentCost.burden === null ? null : safeAdd(currentCost.labor, currentCost.burden)
   const simulationConversion = simulationCost.labor === null || simulationCost.burden === null ? null : safeAdd(simulationCost.labor, simulationCost.burden)
   const rows = [
@@ -369,12 +516,18 @@ function ResultPanel({ currentCost, simulationCost }: { currentCost: SnapshotCos
 
   return (
     <section className="min-w-0 border border-slate-300 bg-white px-3 py-2.5" aria-labelledby="simulation-result-title">
-      <div className="flex items-baseline justify-between border-b border-slate-200 pb-1.5">
-        <h2 id="simulation-result-title" className="text-xs font-semibold text-slate-900">Result</h2>
-        <span className="text-[10px] text-slate-500">Current → SIM · THB/pc</span>
+      <div className="border-b border-slate-200 pb-1.5">
+        <div className="flex min-w-0 flex-wrap items-center justify-between gap-1.5">
+          <h2 id="simulation-result-title" className="text-xs font-semibold text-slate-900">Result</h2>
+          <div className="flex items-center gap-1.5">{actions}</div>
+        </div>
+        <div className="mt-0.5 flex min-w-0 flex-wrap items-baseline justify-between gap-x-2">
+          <span className="text-[10px] text-slate-500">Current → SIM · THB/pc</span>
+          {transferMessage && <span role="status" className={`text-[10px] ${transferError ? 'text-rose-800' : 'text-emerald-800'}`}>{transferMessage}</span>}
+        </div>
       </div>
-      <div className="mt-1 overflow-x-auto">
-        <table className="w-full min-w-[390px] text-[10px]">
+      <div className="mt-1 min-w-0">
+        <table className="w-full table-fixed text-[10px]">
           <thead className="text-[9px] text-slate-500">
             <tr>
               <th scope="col" className="py-1 text-left font-medium">Cost</th>
@@ -438,6 +591,7 @@ export const SimulationPage: React.FC<SimulationPageProps> = ({
   onUpdateEconomicInput
 }) => {
   const [transferMessage, setTransferMessage] = useState('')
+  const [transferError, setTransferError] = useState(false)
   const simulationSnapshot = state.snapshot
   const result = useMemo(
     () => simulationSnapshot ? calculateParameterSimulation(currentSnapshot, simulationSnapshot) : null,
@@ -462,37 +616,41 @@ export const SimulationPage: React.FC<SimulationPageProps> = ({
     return <div role="status" className="py-8 text-sm text-slate-600">Simulation is initializing from Current.</div>
   }
 
-  return (
-    <div className="space-y-3">
-      <PageHeading
-        title="Simulation"
-        description="Adjust SIM parameters and review the live Current → SIM result."
-        actions={(
-          <div className="flex items-center gap-2">
-            <RoleActionMenu
-              label="Clone from"
-              onSelect={role => {
-                onCloneSource(role)
-                setTransferMessage(`SIM refreshed from ${ROLES.find(item => item.role === role)?.label ?? 'dataset'}.`)
-              }}
-            />
-            <RoleActionMenu
-              label="Send to"
-              onSelect={role => {
-                onSendTo(role, simulationSnapshot)
-                setTransferMessage(`${ROLES.find(item => item.role === role)?.label ?? 'Master Data'} Working dataset updated from SIM.`)
-              }}
-            />
-          </div>
-        )}
+  const actionMenus = (
+    <>
+      <RoleActionMenu
+        label="Clone from"
+        onSelect={role => {
+          onCloneSource(role)
+          setTransferError(false)
+          setTransferMessage(`SIM cloned from ${ROLES.find(item => item.role === role)?.label ?? 'dataset'}.`)
+        }}
       />
+      <RoleActionMenu
+        label="Send to"
+        onSelect={role => {
+          const sent = onSendTo(role, simulationSnapshot)
+          setTransferError(!sent)
+          setTransferMessage(sent
+            ? `SIM sent to ${ROLES.find(item => item.role === role)?.label ?? 'dataset'} Working.`
+            : 'Send blocked by Master Data validation.')
+        }}
+      />
+    </>
+  )
 
-      {transferMessage && <p role="status" className="-mt-2 text-right text-[10px] text-emerald-800">{transferMessage}</p>}
-
+  return (
+    <div className="min-w-0 space-y-3">
       <div className="grid min-w-0 gap-3 xl:grid-cols-[minmax(0,1.45fr)_minmax(370px,1fr)]">
         <SimulationStoryGraph story={story} />
         <div className="grid content-start gap-3">
-          <ResultPanel currentCost={result.currentCost} simulationCost={result.simulationCost} />
+          <ResultPanel
+            currentCost={result.currentCost}
+            simulationCost={result.simulationCost}
+            actions={actionMenus}
+            transferMessage={transferMessage}
+            transferError={transferError}
+          />
           <EconomicSimulationPanel result={economicResult} draft={state.economicInputs} onUpdate={onUpdateEconomicInput} />
         </div>
       </div>

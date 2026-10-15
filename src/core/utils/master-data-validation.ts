@@ -21,7 +21,7 @@ interface NumericDomain {
 /** Canonical stored-value domains for all numeric Master Data fields. */
 export const MASTER_DATA_NUMERIC_DOMAINS: Record<MasterDataNumericField, NumericDomain> = {
   sellingPrice: { min: 0 },
-  sgaPercent: { min: 0 },
+  sgaPercent: { min: 0, max: 100 },
   consumption: { min: 0 },
   price: { min: 0 },
   loss: { min: 0, max: 1 },

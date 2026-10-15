@@ -62,15 +62,17 @@ This document explicitly supersedes older behavior in the following areas:
 - **Candidate findings belong inside CBD:** Findings may still be called Candidates, but there is no standalone Candidate or RCA page in the current product flow.
 - **Legacy RCA/session compatibility:** Existing RCA case data may retain its historical domain rules; it is not an active visible product stage.
 - **No new RCA Note system:** Existing Master Data Note/Remark behavior remains separate; do not create duplicate RCA Note/Candidate Note workflows.
-- **Simulation is one module with two dimensions:** Parameter Simulation and Economic Simulation. They may be used independently or combined.
-- **Start SIM From Reference, Current, or Custom:** Current is a natural default, but is not the only valid starting baseline.
+- **Simulation initializes from Current:** A missing or stale SIM is recreated from the latest Current. `Clone from` may explicitly copy Reference, Current, or Custom into the temporary SIM snapshot, but the analytical baseline remains Current → SIM.
 - **SIM structure is locked:** Once a dataset enters Simulation, rows cannot be added, removed, or resized. Structural changes must be prepared in Master Data / Custom first.
 - **Parameter Simulation comparison basis is Current vs SIM:** Editability depends on record status: CHANGED, UNCHANGED, and ADDED are visible and editable; REMOVED remains visible (affecting comparison) but is not editable.
-- **"Factors to Simulate" / "Selected Factors":** The user selects which factors to edit. Selected Factors control UI editing visibility, NOT calculation scope; the entire SIM dataset recalculates.
+- **Direct parameter editing:** There is no Factors to Simulate selector. Eligible BOM and Routing parameters are edited directly; Work Center rates are locked to Current.
 - **SIM-editable parameters are finalized:** BOM (Price, Usage/Consumption, Loss) and Routing (Manning, Capacity, Yield). Work Center Labor Rate and Burden Rate are NOT SIM-editable (change them in Master Data / Custom).
 - **Scenario count is flexible:** Exactly Scenario A and Scenario B is not a mandatory business requirement.
-- **Economic Simulation uses Action Cost and Evaluation Quantity:** Core formula is `Required Saving / pc = Action Cost / Evaluation Quantity`. It does not contain a duplicate parameter editor.
-- **Economics is separate from Standard Cost:** Action Cost must NOT automatically alter MAT, LB, BD, or Standard Cost.
+- **Economic Simulation uses implementation inputs:** Fixed Action Cost, Variable Action Cost / pc, positive integer Batch Size, Selling Price override, and SG&A % override. Required Saving / pc is Fixed Action Cost / Batch Size + Variable Action Cost / pc.
+- **Economics is separate from Standard Cost:** Economic inputs do NOT alter MAT, LB, BD, Conversion, or Standard Cost.
+- **Simulation sends explicitly to Master Data Working data:** `Send to` copies the whole SIM snapshot, including Current Work Center rates and reconciled sizing, into only the chosen target Working dataset; Last Saved is not silently overwritten.
+- **Simulation input domains are enforced at entry and calculation boundaries:** costs, prices, usage and manning are nonnegative; Loss and SG&A are 0–100%; Yield is greater than 0% and at most 100%; Capacity and Batch Size are positive; Batch Size is an integer. Missing required values stay unavailable.
+- **Simulation display contract:** Result Change and GAP 2 are SIM − Current, Parameter Saving is Current − SIM, and graph gaps are signed. BOM/RTG tables and the page must not introduce horizontal scrolling.
 - **Economic result is advisory:** A scenario below break-even remains visible and selectable. The system informs; the engineer decides.
 - **No special Trial lifecycle:** Custom may hold trial data if the user wants; to use it as Current, open Current, choose `Clone`, and select Custom.
 - **MatVAR, LBVAR, and BDVAR remain out of scope.**
@@ -106,7 +108,7 @@ SIMULATION (separate What-If analysis)
 | Master Data | “What data state do I have?” | Prepare Reference, Current, and Custom snapshots; own structural edits and Sizing; generic Clone. |
 | CBD | “What changed between Reference and Current, and which findings should I inspect?” | Compare Reference vs Current; show Standard Cost gaps by MAT/LB/BD/Conversion; filter, sort, inspect, select findings, and support Full and Selected Comparison views. There is no standalone Candidate or RCA page. |
 | Parameter Simulation | “If these parameters had these values, what would the cost become?” | Temporary what-if analysis; locked structure; live recalculation of full SIM dataset against Current. |
-| Economic Simulation | “How much must the action save per piece to break even?” | Calculate `Required Saving / pc = Action Cost / Evaluation Quantity`; evaluate economic feasibility without altering Standard Cost. |
+| Economic Simulation | “How do implementation costs and commercial assumptions affect per-piece economics?” | Calculate Fixed Cost / pc, Required Saving / pc, Parameter Saving, Economic Margin, SG&A / pc, and OP / pc without altering Standard Cost. |
 
 ---
 
@@ -388,9 +390,9 @@ RCA Case:
 - Do not require duplicate Root Cause / Action fields for every individual Candidate in the same case.
 - No new RCA Note system is created. Existing Master Data Note/Remark annotations remain separate.
 
-## 5.4 RCA Ends at Root Cause + Action
+## 5.4 Legacy RCA Completion Semantics
 
-RCA is complete when the engineer has identified:
+This historical domain rule applies only to existing RCA session data; RCA is not a current visible product stage. In a compatible legacy RCA record, completion meant the engineer had identified:
 $$\text{Candidate(s)} + \text{Root Cause / Why?} + \text{Action}$$
 
 - Simulation is **optional**.
@@ -398,18 +400,18 @@ $$\text{Candidate(s)} + \text{Root Cause / Why?} + \text{Action}$$
 - Approval/promotion is **not required**.
 - The business workflow can legitimately end here.
 
-## 5.5 Legacy RCA to Simulation Session Context
+## 5.5 Legacy RCA Session Compatibility
 
-Older saved sessions may contain RCA context associated with Simulation. That compatibility context:
-- Provides **context**, not a hard scope constraint.
-- Does not create a current visible RCA → Simulation route.
-- Does not change the normal directly accessible Simulation flow or constrain its analysis.
+Older saved sessions may contain RCA data or Simulation context. Migration may retain compatible historical RCA domain records, but this is legacy session compatibility only:
+- There is no active RCA-to-Simulation handoff.
+- The current visible page flow is Master Data → Cost Breakdown → Simulation.
+- Legacy RCA data does not constrain Simulation state, scope, or initialization.
 
 ---
 
 # 6. Simulation Logic
 
-Simulation is one module containing two dimensions:
+Simulation is one directly accessible working page with two separate analytical dimensions:
 
 ```text
 SIMULATION
@@ -417,29 +419,25 @@ SIMULATION
 └─ Economic Simulation
 ```
 
-Usage modes:
-1. **Parameter only**
-2. **Economic only**
-3. **Parameter + Economic combined**
+The page opens ready to work. If no valid SIM exists, it initializes from Current automatically; there is no start landing screen. Parameter cost and economic calculations remain separate even when shown together.
 
 ## 6.1 Parameter Simulation
 
 Parameter Simulation answers: *“If these parameters had these values, what would the resulting cost be?”*
 
-### Start SIM From
-Simulation may start from:
-- `Reference`
-- `Current`
-- `Custom`
+### Current Baseline and Clone from
+The analytical comparison is always `Current → SIM`. `Clone from` has exactly three sources: Reference, Current, and Custom. Choosing one copies that dataset's structure and parameter values into the isolated temporary SIM snapshot, while replacing its Work Center rates with Current rates. Clone source is provenance/starting content, not the analytical baseline. SIM edits never silently mutate Master Data.
 
-The chosen dataset is copied into a temporary, isolated SIM working state. SIM changes never silently mutate Master Data.
+If Current changes after SIM creation, the SIM becomes stale and is deterministically recreated from the new Current when Simulation is active. Valid economic draft inputs are preserved where possible. Reference-only or Custom-only changes do not reset SIM; they affect it only when explicitly cloned.
+
+`Send to` explicitly copies the whole SIM snapshot, its Current-rate context, and reconciled sizing into Reference, Current, or Custom Working data. It does not overwrite Last Saved. Sending to Current changes the analytical baseline and triggers reconciliation; sending to Reference or Custom does not by itself reset SIM.
 
 ### Structure Is Locked
 Once a dataset enters Simulation:
 - **Structure and size are strictly locked.**
 - SIM cannot add records, remove records, resize tables, or split/merge rows.
 - If structural changes are required:
-  $$\text{Master Data} \rightarrow \text{Custom} \rightarrow \text{Structural edits} \rightarrow \text{Start SIM From Custom}$$
+  $$\text{Master Data} \rightarrow \text{Custom} \rightarrow \text{Structural edits} \rightarrow \text{Clone from Custom}$$
 
 ### Comparison Basis: Current vs SIM
 Primary comparison in Parameter Simulation is always:
@@ -457,36 +455,62 @@ Even if SIM started from Reference or Custom, comparing against Current allows e
 | `ADDED` | Yes | Yes | Record exists in SIM (introduced via Custom) |
 | `REMOVED` | Yes | **No** | Record does not exist in SIM; affects Gap only |
 
-### Factors to Simulate
-- The user may select multiple **Factors to Simulate** (e.g. Process A, Material X).
-- Selected Factors control **editing controls visibility**, NOT calculation scope.
-- When an input changes, the **full SIM dataset recalculates** through the shared cost engine.
+### Identity, Status, and Editing
+Match records by canonical business identity (BOM material/name identity, Work Center identity, Routing Process identity), never by row position. Missing, duplicate, or ambiguous identity protects affected records from guessed editing or attribution.
+
+| Status in Current vs SIM | Visible | Editable | Record location |
+|---|---|---|---|
+| `UNCHANGED` | Yes | Yes | Exists in Current and SIM |
+| `CHANGED` | Yes | Yes | Exists in Current and SIM |
+| `ADDED` | Yes | Yes | Exists in SIM only |
+| `REMOVED` | Yes | No | Exists in Current only |
+
+Ambiguous or unsafe matches remain protected and do not receive fabricated attribution. Every valid input change recalculates the full SIM dataset through the shared Standard Cost engine.
 
 ### Finalized SIM-Editable Parameters
 - **BOM:** `Price` (THB), `Usage / Consumption`, `Loss` (%)
 - **Routing:** `Manning`, `Capacity`, `Yield` (%)
 - **Work Center Rates:** `Labor Rate` and `Burden Rate` are rates owned by Master Data and are **NOT SIM-editable** (modify them in Master Data / Custom).
 - **Zero Structural Edits:** Simulation contains zero structural editing capabilities (cannot add/delete rows or change row counts). Master Data Sizing owns all structural changes.
-- **Selling Price and SG&A % Placement:** Selling Price and SG&A % are economic/commercial parameters and may be overridden in Scenario metadata (see Section 7), NOT as BOM or Routing parameter factor inputs. They determine SG&A Amount and OP, and do not alter Standard Cost (MAT, LB, BD).
+- **Selling Price and SG&A % Placement:** Selling Price and SG&A % are economic/commercial parameters and may be overridden in the Simulation Economic panel (see Section 7), NOT as BOM or Routing parameter inputs. They determine SG&A Amount and OP, and do not alter Standard Cost (MAT, LB, BD).
 
-### Live Recalculation
-Parameter edits immediately update:
-$$\text{SIM MAT / LB / BD / Conversion} \longrightarrow \text{SIM Standard Cost} \longrightarrow \text{Saving vs Current} (\text{Current} - \text{SIM})$$
+### Shared Cost Formulas and Result
+- BOM Material Cost = Usage × Price × (1 + Loss)
+- Routing Factor = Manning / (Capacity × Yield)
+- Labor = Routing Factor × Current Labor Rate; Burden = Routing Factor × Current Burden Rate
+- Conversion = Labor + Burden
+- Standard Cost = Material + Labor + Burden
+- Result Change = SIM − Current; Result % = (Change / Current) × 100, or unavailable when Current is zero/unavailable.
+- Missing or invalid required values make the result unavailable. Zero is not substituted for missing inputs. Genuine ADDED/REMOVED comparison sides may use zero only for the absent side.
+
+### Parameter Cost Effect
+BOM change is attributed to Price, Usage, and Loss; Routing Conversion change is attributed to Manning, Capacity, and Yield, always using Current Work Center rates on both sides. Effects must reconcile to SIM − Current within floating-point tolerance. Display absolute THB/pc parameter effects only. Show `100%` only beside an available, non-zero total; otherwise show `—`. Added/removed, ambiguous, missing, invalid, or unreconciled effects are unavailable.
+
+### Story Graph
+The exact story is `REF → GAP 1 → CUR → GAP 2 → SIM`. GAP 1 = Current − Reference; GAP 2 = SIM − Current. Dataset bars show MAT, LB, BD, SG&A, and OP separately; Standard Cost is MAT + LB + BD only. Gap bars contain signed MAT/LB/BD differences only. Selling Price is a separate marker. Negative OP is valid. The draggable THB/pc ruler is visual-only and cannot change data or calculations.
 
 ## 6.2 Economic Simulation
 
-Economic Simulation answers: *“Given the Action Cost and Evaluation Quantity, how much saving per piece is required to break even?”*
+Economic Simulation evaluates implementation costs and commercial outcomes separately from engineering Standard Cost.
 
 ### Inputs
-1. **Action Cost:** Total implementation / capital cost (THB).
-2. **Evaluation Quantity:** Evaluation volume / batch (pieces).
+1. Fixed Action Cost (THB)
+2. Variable Action Cost / pc (THB/pc)
+3. Batch Size (positive integer pieces)
+4. Selling Price override (blank uses Current Selling Price)
+5. SG&A % override (blank uses Current SG&A %)
 
 ### Core Formula
-$$\text{Required Saving / pc} = \frac{\text{Action Cost}}{\text{Evaluation Quantity}}$$
+$$\text{Fixed Cost / pc} = \frac{\text{Fixed Action Cost}}{\text{Batch Size}}$$
+$$\text{Required Saving / pc} = \text{Fixed Cost / pc} + \text{Variable Action Cost / pc}$$
+$$\text{Parameter Saving / pc} = \text{Current Standard Cost} - \text{SIM Standard Cost}$$
+$$\text{Economic Margin / pc} = \text{Parameter Saving / pc} - \text{Required Saving / pc}$$
+$$\text{SG\&A / pc} = \text{Selling Price} \times \frac{\text{SG\&A \%}}{100}$$
+$$\text{OP / pc} = \text{Selling Price} - \text{SIM Standard Cost} - \text{SG\&A / pc}$$
 
 ### Principles
-- Economic Simulation does **not** contain a duplicate parameter editor.
-- **Action Cost is NOT folded into Standard Cost:** Do not allocate Action Cost into MAT, LB, BD, or Standard Cost.
+- Negative Economic Margin and negative OP are valid and remain visible.
+- **Economic inputs are NOT folded into Standard Cost:** they do not alter MAT, LB, BD, Conversion, or Standard Cost.
 - Standard Cost (engineering/physics) and Economic threshold (financial feasibility) are **two separate dimensions**.
 
 ## 6.3 Combined Evaluation (Parameter + Economic)
@@ -495,12 +519,11 @@ When both dimensions are used together, the system compares outputs:
 
 $$\text{Parameter Saving / pc} = \text{Current Standard Cost} - \text{SIM Standard Cost}$$
 
-$$\text{Required Saving / pc} = \frac{\text{Action Cost}}{\text{Evaluation Quantity}}$$
+$$\text{Required Saving / pc} = \frac{\text{Fixed Action Cost}}{\text{Batch Size}} + \text{Variable Action Cost / pc}$$
 
 $$\text{Economic Margin} = \text{Parameter Saving / pc} - \text{Required Saving / pc}$$
 
-- If $\text{Economic Margin} \ge 0$: Scenario exceeds break-even threshold.
-- If $\text{Economic Margin} < 0$: Scenario is below break-even threshold.
+- Negative margin means required savings exceed modeled parameter savings; it remains advisory and visible.
 
 ### Advisory Outcome
 The economic result is **advisory / informational**, NOT an approval gate.
@@ -508,7 +531,7 @@ The economic result is **advisory / informational**, NOT an approval gate.
 - The system informs; the engineer decides.
 
 ### Avoid Double-Counting
-If a cost effect is already modeled in Parameter Simulation (e.g. Manning 2 → 3), do not enter that same labor cost again as Action Cost.
+If a cost effect is already modeled in Parameter Simulation (e.g. Manning 2 → 3), do not enter that same recurring effect again as Variable Action Cost / pc.
 
 ## 6.4 Scenario Count Flexibility
 Exact Scenario A and Scenario B is **not a mandatory business requirement**. The system may support single scenarios, A/B comparisons, or multiple scenarios without being constrained to a fixed pair.
@@ -519,12 +542,12 @@ Exact Scenario A and Scenario B is **not a mandatory business requirement**. The
 
 Preserve compatible finalized business formulas:
 
-$$\text{SG&A amount / pc} = \text{Selling Price} \times \text{SG\&A \%}$$
+$$\text{SG&A amount / pc} = \text{Selling Price} \times \frac{\text{SG\&A \%}}{100}$$
 
-$$\text{OP (Operating Profit) / pc} = \text{Selling Price} - \text{Standard Cost} - \text{SG\&A amount}$$
+$$\text{OP (Operating Profit) / pc} = \text{Selling Price} - \text{SIM Standard Cost} - \text{SG\&A amount / pc}$$
 
 - **Negative OP is valid:** Represents an operating loss. Must remain clearly displayed and never clamped or converted to unavailable.
-- Selling Price and SG&A % may be overridden in simulation scenarios.
+- Selling Price and SG&A % may be overridden in the Simulation Economic panel.
 - Other financial metrics (COGS, GP, GP Margin, Volume history, MatVAR, LBVAR, BDVAR) remain out of current scope.
 
 ---
@@ -558,17 +581,15 @@ Root Cause: Line rebalancing split inspection into mechanical (QA1.1) and optica
 Action: Benchmark cycle time of optical inspection.
 ```
 
-### Example 4: Parameter Simulation with Live Recalculation
+### Example 4: Current → SIM Parameter Simulation
 ```text
 Current:
-  Routing: Assembly (Manning=2, Cap=100, Yield=95%) → Standard Cost = 10.00 THB/pc
+  Standard Cost = 100.00 THB/pc
 
-Start SIM From Current:
-  User selects Assembly as Factor to Simulate.
-  Edits Manning: 2 → 1.
-  Live calculation recalculates entire SIM dataset:
-  SIM Standard Cost = 7.00 THB/pc.
-  Parameter Saving = 3.00 THB/pc.
+Clone from Current, then edit a valid parameter:
+  SIM Standard Cost = 90.00 THB/pc
+  GAP 2 / Result Change = SIM − Current = −10.00 THB/pc
+  Parameter Saving = Current − SIM = +10.00 THB/pc
 ```
 
 ### Example 5: Custom Structural Difference in SIM
@@ -576,7 +597,7 @@ Start SIM From Current:
 Current Routing: [Cut, Form]
 Custom Routing:  [Cut, Form, Polish]
 
-Start SIM From Custom:
+Clone from Custom:
 Current vs SIM comparison:
 - Cut: UNCHANGED (editable in SIM)
 - Form: UNCHANGED (editable in SIM)
@@ -587,11 +608,12 @@ If Custom omitted `Form`:
 
 ### Example 6: Economic-Only Evaluation
 ```text
-Action Cost = 100,000 THB
-Evaluation Quantity = 100,000 pcs
+Fixed Action Cost = 1,000 THB
+Variable Action Cost / pc = 1.00 THB/pc
+Batch Size = 100 pcs
 
-Required Saving = 100,000 / 100,000 = 1.00 THB/pc.
-(No parameter changes or BOM edits required).
+Fixed Cost / pc = 1,000 / 100 = 10.00 THB/pc
+Required Saving / pc = 10.00 + 1.00 = 11.00 THB/pc.
 ```
 
 ### Example 7: Combined Parameter + Economic Evaluation
@@ -602,14 +624,30 @@ Parameter Simulation:
   Parameter Saving      = 1.50 THB/pc
 
 Economic Simulation:
-  JIG Action Cost     = 100,000 THB
-  Evaluation Quantity = 100,000 pcs
-  Required Saving     = 1.00 THB/pc
+  Fixed Action Cost = 1,000 THB
+  Variable Action Cost / pc = 1.00 THB/pc
+  Batch Size = 100 pcs
+  Required Saving = 11.00 THB/pc
 
 Combined Result:
   Parameter Saving: 1.50 THB/pc
-  Required Saving:  1.00 THB/pc
-  Economic Margin:  +0.50 THB/pc (Above break-even threshold)
+  Required Saving: 11.00 THB/pc
+  Economic Margin: −9.50 THB/pc (valid advisory result)
+```
+
+### Example 8: Cost Effect and Commercial Outputs
+```text
+BOM Current: Price 10 × Usage 2 × (1 + Loss 5%) = 21.00 THB/pc
+BOM SIM:     Price 12 × Usage 2 × (1 + Loss 5%) = 25.20 THB/pc
+Price effect +4.20; Usage 0.00; Loss 0.00; Total +4.20 THB/pc
+
+Routing Current: Manning 1 / (Capacity 100 × Yield 100%) = 0.01
+Current rates: Labor 100, Burden 50 → Conversion 1.50 THB/pc
+Routing SIM: Manning 0.8 / (100 × 100%) = 0.008
+→ Conversion 1.20 THB/pc; change and attributed effects = −0.30 THB/pc
+
+Selling Price 80; SIM Standard Cost 90; SG&A 10%
+SG&A / pc = 8; OP / pc = 80 − 90 − 8 = −18 THB/pc (valid)
 ```
 
 ---
@@ -634,10 +672,12 @@ Combined Result:
 ## 9.4 Simulation Integrity
 - Structure is locked: SIM cannot add or delete rows.
 - Current vs SIM handles ADDED (editable) and REMOVED (visible, disabled).
-- Selected Factors only filter edit controls; the full SIM dataset recalculates.
+- Records match by business identity, never row position; unsafe/ambiguous identity is protected.
+- Clone source changes only on explicit user action; Reference/Custom changes alone do not reset SIM. Current changes invalidate/reconcile SIM against the new baseline.
 - Work Center rates are not editable in SIM.
-- Action Cost is never added into MAT, LB, BD, or Standard Cost.
-- Below-break-even economic results remain visible and selectable.
+- Economic inputs are never added into MAT, LB, BD, Conversion, or Standard Cost.
+- Negative economic margin and OP remain visible; economic results are advisory.
+- Invalid inputs are rejected at UI and logic boundaries; missing required values remain unavailable.
 
 ---
 
@@ -648,10 +688,10 @@ The following older rules are **explicitly superseded** and must not be reintrod
 1. **Exactly one Candidate per RCA:** Superseded. An RCA Case may contain 1 or multiple Candidates.
 2. **Mandatory RCA → Simulation:** Superseded. Legacy RCA session data is not a current visible product stage or required Simulation handoff.
 3. **Simulation always has exactly Scenario A and B:** Superseded. Exact A/B is not mandatory.
-4. **Simulation baseline is always Current:** Superseded. SIM can start from Reference, Current, or Custom.
+4. **Clone source defines the analytical baseline:** Superseded. Reference/Current/Custom may be explicit Clone sources, while analysis is always Current → SIM.
 5. **Structural editing inside Simulation:** Superseded. Structure is locked in SIM; structural edits happen in Master Data / Custom.
 6. **Work Center rates editable in Simulation:** Superseded. Rates are not SIM-editable; change them in Master Data / Custom.
-7. **Economics folded into MAT/LB/BD/Standard Cost:** Superseded. Standard Cost and Economics are separate dimensions.
+7. **Old Action Cost / Evaluation Quantity economics:** Superseded by Fixed Action Cost, Variable Action Cost / pc, Batch Size, Selling Price, and SG&A inputs. Economic outputs stay separate from Standard Cost.
 8. **Special Trial lifecycle (Trial → Approve → Promote):** Superseded. Custom may store trial data; choose `Clone` on Current and select Custom as the source.
 9. **Duplicate RCA Note system:** Superseded. Existing Master Data annotations remain separate.
 10. **MatVAR / LBVAR / BDVAR:** Superseded and removed from current scope.
@@ -681,19 +721,26 @@ The following older rules are **explicitly superseded** and must not be reintrod
 - [ ] Selected Comparison is temporary analysis scope only, not a dataset or persistent case.
 
 ### Simulation (Parameter & Economic)
-- [ ] Simulation includes Parameter Simulation and Economic Simulation.
-- [ ] May start from Reference, Current, or Custom.
-- [ ] Dataset structure is locked upon entering Simulation.
-- [ ] Multiple Factors to Simulate can be selected for editing.
-- [ ] Editing factors triggers live recalculation of the entire SIM dataset.
-- [ ] Editable parameters: BOM (Price, Usage, Loss), Routing (Manning, Cap, Yield).
-- [ ] WC Labor and Burden rates are NOT editable in SIM.
-- [ ] Current vs SIM comparison correctly handles CHANGED, UNCHANGED, ADDED (editable), and REMOVED (visible, disabled).
-- [ ] Economic Simulation calculates $\text{Required Saving / pc} = \frac{\text{Action Cost}}{\text{Evaluation Quantity}}$.
-- [ ] Economic Action Cost is NOT folded into MAT, LB, BD, or Standard Cost.
-- [ ] Combined mode compares Parameter Saving vs Required Saving to show Economic Margin.
-- [ ] Economic results are advisory, not an approval gate.
-- [ ] Exactly A/B scenario count is not mandatory.
+- [x] Simulation includes Parameter Simulation and Economic Simulation.
+- [x] Opens ready to work and auto-initializes missing/stale SIM from Current.
+- [x] Clone from Reference/Current/Custom changes SIM snapshot; analytical comparison stays Current → SIM.
+- [x] Reference/Custom changes alone preserve SIM; Current changes invalidate/reconcile it.
+- [x] Send to Reference/Current/Custom updates only target Working data and preserves whole SIM snapshot, Current rates, and sizing.
+- [x] Dataset structure is locked upon entering Simulation.
+- [x] BOM and Routing parameters are edited directly and valid changes recalculate the full SIM dataset.
+- [x] Editable parameters: BOM (Price, Usage, Loss), Routing (Manning, Cap, Yield).
+- [x] WC Labor and Burden rates are NOT editable in SIM.
+- [x] Current vs SIM comparison correctly handles CHANGED, UNCHANGED, ADDED (editable), and REMOVED (visible, disabled).
+- [x] Result Change is SIM − Current; Parameter Saving is Current − SIM; result percentages are unavailable when Current is zero/unavailable.
+- [x] BOM/RTG Parameter Cost Effect reconciles to its respective cost delta and shows absolute effects only.
+- [x] Economic formulas use Fixed Cost / pc = Fixed Action Cost / Batch Size and Required Saving = Fixed Cost / pc + Variable Action Cost / pc.
+- [x] SG&A / pc = Selling Price × SG&A % / 100; OP / pc = Selling Price − SIM Standard Cost − SG&A / pc.
+- [x] Economic inputs do NOT alter MAT, LB, BD, Conversion, or Standard Cost.
+- [x] Economic results are advisory, not an approval gate.
+- [x] Input domains are validated in both UI and logic; invalid values never become zero and negative analytic outputs remain valid.
+- [x] Story graph is REF → GAP 1 → CUR → GAP 2 → SIM with signed engineering-only gaps and separate Selling Price / economic series.
+- [x] BOM/RTG and page have no horizontal overflow; tables may scroll vertically or reflow responsively.
+- [x] Exactly A/B scenario count is not mandatory.
 
 ### Shared & Integrity
 - [ ] One shared calculation engine for all features.

@@ -249,7 +249,7 @@ for (const field of scalarNumericFields) {
   assert.equal(isMasterDataNumericInputValid(field, '1.00'), false, `${field} rejects numeric strings at the typed-value boundary`)
 }
 assert.equal(isMasterDataNumericInputValid('sgaPercent', 100), true, 'SG&A accepts 100%')
-assert.equal(isMasterDataNumericInputValid('sgaPercent', 100.01), true, 'SG&A accepts values above 100% without an invented ceiling')
+assert.equal(isMasterDataNumericInputValid('sgaPercent', 100.01), false, 'SG&A rejects values above 100%')
 assert.equal(isMasterDataNumericInputValid('capacity', 0.01), true, 'Capacity accepts a positive two-decimal boundary')
 assert.equal(isMasterDataNumericInputValid('capacity', 0), false, 'Capacity rejects zero')
 assert.equal(isMasterDataNumericInputValid('capacity', 0.001), false, 'Capacity rejects unsupported decimal precision')

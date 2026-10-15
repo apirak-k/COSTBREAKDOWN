@@ -1,21 +1,54 @@
-# Current Handoff — CBD Candidate UX Corrections
+# Current Handoff — Simulation Finalization
 
-**Updated:** 2026-10-14
-**Previous completed baseline:** `5caa4d3d3b6708815e5f99394c956764a19698b8` (`feat(cbd): finalize overview and candidate comparison UX`), parent `45cc1c1be2e2d62e2f03ed31c4e4095891a5fd33`.
+**Updated:** 2026-10-15
 
-## Active CBD Candidate UX Pass
+**Repository:** `apirak-k/COSTBREAKDOWN`
 
-- **Repository:** `apirak-k/COSTBREAKDOWN`
-- **Worktree / branch:** `.worktrees/CBD-CANDIDATE-INTEGRATION` / `codex/cbd-candidate-integration`
-- **Product flow:** Master Data → Cost Breakdown → Simulation. Candidate/finding analysis and Selected Comparison remain inside CBD. No standalone Candidate, Ranking, or RCA page is part of the current product.
-- **Subheader and filters:** The one-row Subheader uses the Master Data toolbar framing. Status has a fixed-width `(1)` / `(2)` / `(3)` / `(All)` slot and prevents deselecting the final status. Status and Sort menus overlay the page; Sort remains a split reapply button plus a separate menu with exactly three modes.
-- **Cost and WC:** Cost uses full row labels and a fixed 66 px Selected slot inside GAP. The GAP heading, Full values, and Selected slot share stable geometry. WC contains no Selected data; one table/colgroup aligns its header, scrolling body, and footer, with a stable scrollbar gutter and pinned header/footer.
-- **Candidate tables:** The visible Candidates heading/subtitle is removed. ALL shows separate Bill of Material and Routing tables with a gap between them. Only CHANGED rows expand. Multiple details can stay open across either table, and any sort action closes details while preserving selection. Details use Reference / Current / Cost Effect in the main table grid.
-- **Selection and reorder:** Candidate row numbers are fixed 32×32 squares without checkmarks and use the Master Data selected treatment. Dragging from an unselected row selects the traversed range; dragging from a selected row deselects it. Reorder changes only the temporary visible order; reapplying the current sort restores sorted order.
-- **Business behavior:** Calculation, matching, Selected Comparison lifecycle, Simulation, and Master Data editing logic were not redesigned. No active product-flow documentation needed changes in this pass.
-- **Browser evidence:** The isolated Complete Mock preview was checked at 1920×920. Status and Sort did not change Subheader or overview geometry; Status labels stayed in a 108.30 px control; BOM / RTG / ALL counts were 6 / 10 / 16. Positive MAT +4.20 of Full +9.31 rendered as a partial overlay; negative MAT -6.12 stayed hatched inside MAT. Cost showed Selected values and WC had no Selected text. Header/body/footer Cost slots aligned at the same x/width, and WC scrolling moved its body while header/footer remained fixed. Multiple BOM and Routing details stayed open together; sort closed them. Candidate and Master Data drag selection and reverse deselection worked; manual reorder changed visible order and the current sort restored it. The fixture was loaded only on `127.0.0.1:5174`; the user's `localhost:5176` origin was not changed.
-- **Verification:** CBD summary, Candidate detail, sort/view, row drag, Selected Comparison boundary/lifecycle, Candidate prioritization, Master Data UI, Work Center, navigation/migration, standalone Candidate/RCA removal, and Simulation compatibility verifiers passed. `npm run build` and `git diff --check` passed. Build emitted existing ExcelJS browser-externalization warnings for `fs`, `crypto`, and `@fast-csv`; no dependency remediation was included.
-- **Delivery:** This correction is recorded in commit `fix(cbd): align candidate interactions and comparison layout` on `codex/cbd-candidate-integration`, pushed to `origin/codex/cbd-candidate-integration`. Check the branch HEAD for the commit SHA. The branch was not merged. Preserve the unrelated untracked `tasks/master-data-cbd-final-audit.md`.
+**Worktree / branch:** `.worktrees/CBD-CANDIDATE-INTEGRATION` / `codex/cbd-candidate-integration`
+
+**Starting baseline:** `e46a08d15a50195c4274ea6f3be19f6c32cfd52b` (`chore: checkpoint partial Simulation integration`), parent `4601b3666a81399543488d550f14f7a3ad09be43`.
+
+**Primary implementation commit:** to be recorded after commit; the following handoff checkpoint will contain its SHA.
+**Push status:** pending final commit and remote equality check.
+
+## Current Product Flow
+
+The visible product has exactly three top-level pages: Master Data → Cost Breakdown → Simulation. Finding analysis remains inside Cost Breakdown. Legacy Candidate/RCA domain data is retained only where needed for saved-session compatibility; there is no active RCA-to-Simulation handoff or Simulation context strip.
+
+## Simulation Finalization
+
+- **Logic/state:** Simulation opens ready to work and initializes an absent or stale SIM from Current. The analytical baseline is always Current → SIM. Current changes invalidate/reconcile the snapshot; Reference- or Custom-only changes preserve it. Economic drafts are retained when valid. State is scoped per product, and deleted products are pruned.
+- **Clone/Send integration:** `Clone from` copies Reference, Current, or Custom structure and parameters into SIM, then applies Current Work Center rates. `Send to` copies the full SIM snapshot, structure, and Current-rate context to only the chosen Reference/Current/Custom Working dataset, reconciles sizing, and records through Master Data Working history without overwriting Last Saved. Reference/Custom sends preserve the SIM baseline; Current sends cause Current-baseline reconciliation.
+- **Parameter/result logic:** Structure and Work Center rates are locked. BOM Price/Usage/Loss and Routing Manning/Capacity/Yield are directly editable. Identity-based statuses protect removed/ambiguous records. The shared Standard Cost engine remains in use. Result Change/GAP 2 are SIM − Current; Parameter Saving is Current − SIM. BOM and Routing attribution uses the existing multiplicative attribution helper, displays absolute THB/pc effects, and reconciles to the cost delta.
+- **Economics/validation:** Fixed Cost / pc = Fixed Action Cost / Batch Size; Required Saving / pc = Fixed Cost / pc + Variable Action Cost / pc; Parameter Saving / pc = Current SC − SIM SC; Economic Margin / pc = Parameter Saving − Required Saving; SG&A / pc = Selling Price × SG&A % / 100; OP / pc = Selling Price − SIM SC − SG&A / pc. Economics remains separate from engineering cost. Negative Economic Margin and OP are allowed. UI and logic boundaries reject invalid, non-finite, negative, out-of-domain, or zero-batch inputs without clamping or replacing missing values with zero. Shared SG&A range is 0–100%.
+- **UI/layout:** Removed the large Simulation heading; placed compact Clone from / Send to controls in the Result header. Kept the REF → GAP 1 → CUR → GAP 2 → SIM graph, Result, Economic, BOM, and RTG. BOM/RTG tables fit their panels without horizontal scrolling, use internal vertical scrolling, and reflow to editable cards on narrow screens. No active RCA UI was restored.
+
+## Documentation Updated
+
+- `docs/specs/SIMULATION.md` — current lifecycle, validation, results, cost effects, economics, graph, and layout.
+- `docs/specs/FINAL_LOGIC_SPEC.md`, `docs/REQUIREMENTS_INDEX.md`, and `docs/specs/CROSS_CUTTING.md` — corrected current Simulation rules and legacy RCA boundaries.
+- `docs/SYSTEM_LOGIC_DIAGRAM.md` — current three-page flow and finalized formulas.
+- `docs/PROVISIONAL_IMPLEMENTATION_DECISIONS.md` — distinguishes explicit user decisions from reversible presentation details.
+- `docs/specs/CANDIDATE.md`, `docs/specs/COST_BREAKDOWN.md`, and `docs/specs/MASTER_DATA_TOOLBAR_PREPARE_UX.md` — clarified current page boundaries and legacy compatibility.
+
+## Verification Evidence
+
+- **Simulation:** PASS — `verify_simulation_workspace.ts`, `verify_simulation_context.ts`, `verify_parameter_simulation_engine.ts`, `verify_simulation_economics.ts`, `verify_simulation_story_view.ts`.
+- **Legacy RCA/session compatibility:** PASS — `verify_rca_case_domain.ts`, `verify_rca_handoff.ts`, `verify_rca_simulation_context_lifecycle.ts`, `verify_rca_simulation_fresh_start.ts`, `verify_legacy_active_tab_migration.ts`.
+- **Master Data/shared numeric:** PASS — `verify_master_data_toolbar_prepare_ux.ts`, `verify_master_data_edit_history.ts`, `verify_master_data_custom_dataset.ts`, `verify_master_data_clone_readiness.ts`, `verify_master_data_ui_state.mjs`, `verify_numeric_input.mjs`, `verify_numeric_integrity.ts`, `verify_master_data_handoff.ts`, `verify_master_data_clear_dataset.ts`.
+- **CBD/shared business metrics:** PASS — `verify_scenario_business_metrics.ts`, `verify_scenario_cost_overrides.ts`, `verify_scenario_draft.ts`, `verify_scenario_variables.ts`, `verify_cost_breakdown_view.ts`, `verify_cost_breakdown_sort.ts`, `verify_cbd_summary_ux.ts`, `verify_cbd_parameter_cost_effect.mjs`.
+- **Build:** PASS — `npm run build` (`tsc -b && vite build`, 2,043 modules). Existing ExcelJS browser-externalization warnings for `fs` and `crypto` remain.
+- **Diff sanity:** `git diff --check` passed after the final whitespace correction.
+- **Browser:** PASS — isolated test origin at 1920×920, 1440×900, 900×900, and 390×844. Populated flow verified Clone from Custom, Current-rate lock, editable ADDED row, BOM cost-effect reconciliation (+4.20), rejected invalid inputs, negative Economic Margin/OP, Send to Reference/Custom/Current Working side effects, and preservation of valid economic drafts after Current reconciliation. At desktop, page/table client widths matched scroll widths, BOM and RTG had no horizontal scrollbar; 16 routing rows scrolled vertically under a sticky header. Mobile retained all editable fields in cards. No Candidate/RCA navigation appeared. Test data stayed on the isolated `127.0.0.1:5197` origin.
+
+## Regression, Audit, and Delivery Status
+
+- **Master Data regression:** PASS — three datasets, Working/history, Custom isolation, sizing, clone/handoff, and numeric behavior verifiers passed.
+- **CBD regression:** PASS — summary, view/sort, parameter cost effect, scenario business metrics, and shared parameter calculation verifiers passed.
+- **Navigation/session migration:** PASS — exact current flow and legacy active-tab/session migration verifiers passed.
+- **Security audit:** `npm audit --audit-level=high` reports 5 High and 4 Moderate development-dependency findings; `npm audit --omit=dev --audit-level=high` reports 0 High/Critical and 2 Moderate. `npm audit fix --dry-run` indicates the available High fix requires the breaking Tailwind 4 upgrade. No unrelated dependency changes were made.
+- **Unrelated user file:** Preserve the untracked `tasks/master-data-cbd-final-audit.md`; it was not edited, moved, staged, or committed.
+- **Delivery:** The requested primary commit message is `feat(simulation): finalize Current-to-SIM workflow and UX`. Record its SHA after commit in the next handoff checkpoint. Push only to `origin/codex/cbd-candidate-integration`, then fetch and confirm local/remote equality. No branch switch, force push, or merge to main.
 
 ## Historical Final Logic Checklist Evidence — 2026-10-09
 

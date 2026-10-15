@@ -152,7 +152,7 @@ export function SimulationStoryGraph({ story, highlightedParts = {} }: Simulatio
   })
 
   return (
-    <figure aria-labelledby="simulation-story-title" className="border border-slate-300 bg-white px-3 py-3">
+    <figure aria-labelledby="simulation-story-title" className="min-w-0 border border-slate-300 bg-white px-3 py-3">
       <div className="flex flex-wrap items-baseline justify-between gap-2 border-b border-slate-200 pb-2">
         <div>
           <h2 id="simulation-story-title" className="text-sm font-semibold text-slate-900">Simulation Cost Graph</h2>

@@ -83,7 +83,7 @@ RCA Case:
 - Do not require duplicate Root Cause / Action fields for each individual candidate in the case.
 - **No new RCA Note system:** Do not create duplicate RCA Note, Candidate Note, or Bulk Note features. Existing Master Data annotations (`Note` and `META.Dataset Remark`) remain separate.
 
-## RCA Completion Boundary
+## Legacy RCA Completion Boundary
 
 RCA is complete when the engineer records:
 $$\text{Candidate(s)} + \text{Root Cause / Why?} + \text{Action}$$
@@ -91,13 +91,14 @@ $$\text{Candidate(s)} + \text{Root Cause / Why?} + \text{Action}$$
 - **Simulation is optional:** The engineer may complete RCA and end the workflow without running a Simulation.
 - **Trial execution is not mandatory:** The RCA Case does not require a formal Trial or approval workflow to be closed.
 
-## Handoff from RCA to Simulation
+## Retired RCA-to-Simulation Workflow (historical compatibility only)
 
-If the user chooses to proceed from RCA into Simulation:
-- The RCA Case provides **context**, not a hard scope lock.
-- **Start SIM From:** When launching from a Ref-vs-Cur RCA Case, the starting dataset naturally defaults to `Current`, but the engineer may start from `Reference` or `Custom`.
-- **Factors to Simulate:** Candidates from the RCA Case may be preselected or highlighted in Simulation. However, **the engineer must be allowed to select additional factors** to simulate (e.g. secondary processes or materials influenced by the action).
+Older saved sessions or task records may describe an RCA-to-Simulation handoff. That workflow is retired and does not define current navigation or Simulation behavior:
+- There is no visible RCA page, active RCA handoff, Candidate context strip, or Factors to Simulate selector.
+- Current visible flow is Master Data → Cost Breakdown → Simulation.
+- Simulation initializes from Current when needed; Clone from Reference/Current/Custom is an explicit starting-snapshot choice, and analysis always remains Current → SIM.
+- Legacy RCA domain/session records may remain only where migration requires them.
 
 ## Traceability
 
-The Candidate foundation derives from [`agreements/CANDIDATE_PRIORITIZATION_SPEC.md`](../../agreements/CANDIDATE_PRIORITIZATION_SPEC.md). The multi-candidate RCA Case model, optional Simulation boundary, and absence of duplicate note systems are finalized in [`FINAL_LOGIC_SPEC.md`](FINAL_LOGIC_SPEC.md).
+The Candidate foundation derives from [`agreements/CANDIDATE_PRIORITIZATION_SPEC.md`](../../agreements/CANDIDATE_PRIORITIZATION_SPEC.md). Retained multi-candidate RCA session semantics and the current page flow/Simulation contract are distinguished in [`FINAL_LOGIC_SPEC.md`](FINAL_LOGIC_SPEC.md).

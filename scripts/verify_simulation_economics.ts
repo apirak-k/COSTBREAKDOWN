@@ -10,97 +10,107 @@ import {
 } from '../src/features/simulation/simulation-economics.ts'
 
 const currentSnapshot = {
-  product: { sellingPrice: 150, sgaPercent: 10 }
+  product: { sellingPrice: 120, sgaPercent: 10 }
 } as CostSnapshot
 const simulationCost: SnapshotCost = {
-  snapshotId: 'sim', material: 95, labor: 0, burden: 0, total: 95, status: 'complete', warnings: []
+  snapshotId: 'sim', material: 90, labor: 0, burden: 0, total: 90, status: 'complete', warnings: []
 }
-const draft = updateEconomicSimulationDraft(
-  updateEconomicSimulationDraft(createEconomicSimulationDraft(), 'actionCost', '100000'),
-  'evaluationQuantity',
-  '100000'
+const atCurrent = (fields: Record<string, string>) => Object.entries(fields).reduce(
+  (draft, [field, value]) => updateEconomicSimulationDraft(draft, field as keyof typeof draft, value),
+  createEconomicSimulationDraft()
 )
 
-const combined = calculateEconomicSimulation(currentSnapshot, simulationCost, 1.5, draft)
-assert.equal(combined.requiredSavingPerPiece, 1)
-assert.equal(combined.parameterSavingPerPiece, 1.5)
-assert.equal(combined.economicMarginPerPiece, 0.5)
-assert.equal(combined.business.sellingPrice, 150)
-assert.equal(combined.business.sgaPercent, 10)
-assert.equal(combined.business.sgaAmountPerPiece, 15)
-assert.equal(combined.business.operatingProfitPerPiece, 40)
-assert.equal(combined.simulationStandardCost, 95, 'Action Cost never changes Standard Cost')
+const marginDraft = atCurrent({ fixedActionCost: '1000', variableActionCostPerPiece: '1', batchSize: '100' })
+const margin = calculateEconomicSimulation(currentSnapshot, simulationCost, 10, marginDraft)
+assert.equal(margin.fixedCostPerPiece, 10, 'Fixed Cost / pc = Fixed Action Cost / Batch Size')
+assert.equal(margin.requiredSavingPerPiece, 11, 'Required Saving / pc includes fixed and variable cost')
+assert.equal(margin.parameterSavingPerPiece, 10, 'Parameter Saving remains Current SC - SIM SC')
+assert.equal(margin.economicMarginPerPiece, -1, 'negative Economic Margin is valid')
+assert.equal(margin.simulationStandardCost, 90, 'economic inputs never change Standard Cost')
 
-const atBreakEven = calculateEconomicSimulation(currentSnapshot, simulationCost, 1, draft)
-assert.equal(atBreakEven.economicMarginPerPiece, 0, 'exact break-even remains a valid numeric zero')
-const zeroMarginMarkup = renderToStaticMarkup(React.createElement(EconomicSimulationPanel, {
-  result: atBreakEven,
-  draft,
-  hasParameterSimulation: true,
+const positiveOPDraft = atCurrent({ sellingPriceOverride: '120', sgaPercentOverride: '10' })
+const positiveOP = calculateEconomicSimulation(currentSnapshot, simulationCost, null, positiveOPDraft)
+assert.equal(positiveOP.sgaPerPiece, 12, 'SG&A / pc = Selling Price × SG&A rate')
+assert.equal(positiveOP.operatingProfitPerPiece, 18, 'OP / pc = Selling Price - SIM SC - SG&A / pc')
+
+const negativeOPDraft = atCurrent({ sellingPriceOverride: '80', sgaPercentOverride: '10' })
+const negativeOP = calculateEconomicSimulation(currentSnapshot, simulationCost, null, negativeOPDraft)
+assert.equal(negativeOP.sgaPerPiece, 8)
+assert.equal(negativeOP.operatingProfitPerPiece, -18, 'negative OP remains a valid visible output')
+
+const fallbackDraft = atCurrent({ fixedActionCost: '0', variableActionCostPerPiece: '0', batchSize: '1' })
+const fallback = calculateEconomicSimulation(currentSnapshot, simulationCost, 0, fallbackDraft)
+assert.equal(fallback.business.sellingPrice, 120, 'blank Selling Price override uses Current')
+assert.equal(fallback.business.sgaPercent, 10, 'blank SG&A override uses Current')
+assert.equal(fallback.economicMarginPerPiece, 0, 'zero Parameter Saving and zero Required Saving yield a valid 0% result')
+
+const panelMarkup = renderToStaticMarkup(React.createElement(EconomicSimulationPanel, {
+  result: positiveOP,
+  draft: positiveOPDraft,
   onUpdate() {}
 }))
-assert.match(zeroMarginMarkup, /0\.00 <span[^>]*>THB\/pc<\/span>/,
-  'the Economic Simulation panel visibly displays a zero Economic Margin')
+assert.match(panelMarkup, /inputMode="numeric"[^>]*aria-valuemin="1"/,
+  'Batch Size UI boundary rejects zero and retains whole-piece input')
+assert.match(panelMarkup, /aria-valuemin="0" aria-valuemax="100"/,
+  'SG&A UI boundary caps the percentage at 100')
 
-const belowBreakEven = calculateEconomicSimulation(currentSnapshot, simulationCost, -0.5, draft)
-assert.equal(belowBreakEven.economicMarginPerPiece, -1.5, 'negative margins remain numeric and visible')
-
-const economicOnly = calculateEconomicSimulation(currentSnapshot, null, null, draft)
-assert.equal(economicOnly.requiredSavingPerPiece, 1, 'economic-only mode does not require parameter edits')
-assert.equal(economicOnly.economicMarginPerPiece, null, 'combined margin needs an available Parameter Saving')
-assert.equal(economicOnly.business.sgaAmountPerPiece, 15)
-assert.equal(economicOnly.business.operatingProfitPerPiece, null, 'OP remains unavailable without a SIM Standard Cost')
-
-const overridden = updateEconomicSimulationDraft(
-  updateEconomicSimulationDraft(draft, 'sellingPriceOverride', '100'),
-  'sgaPercentOverride',
-  '10'
-)
-const operatingLoss = calculateEconomicSimulation(currentSnapshot, simulationCost, null, overridden)
-assert.equal(operatingLoss.business.operatingProfitPerPiece, -5, 'negative OP is a valid result')
-
-const missingActionCost = updateEconomicSimulationDraft(draft, 'actionCost', '')
-const missing = calculateEconomicSimulation(currentSnapshot, simulationCost, 1.5, missingActionCost)
-assert.equal(missing.requiredSavingPerPiece, null)
-assert.equal(missing.economicMarginPerPiece, null)
-
-for (const quantity of ['0', '-1']) {
-  const invalidQuantity = updateEconomicSimulationDraft(draft, 'evaluationQuantity', quantity)
-  const result = calculateEconomicSimulation(currentSnapshot, simulationCost, 1.5, invalidQuantity)
-  assert.equal(result.requiredSavingPerPiece, null)
-  assert.equal(result.economicMarginPerPiece, null)
-  assert.ok(result.warnings.some(warning => warning.includes('Evaluation Quantity')))
+for (const [field, value] of [
+  ['fixedActionCost', '-1'],
+  ['variableActionCostPerPiece', '-1'],
+  ['batchSize', '0'],
+  ['batchSize', '-1'],
+  ['batchSize', '1.5'],
+  ['sellingPriceOverride', '-1'],
+  ['sellingPriceOverride', 'Infinity'],
+  ['sellingPriceOverride', 'NaN'],
+  ['sgaPercentOverride', '-1'],
+  ['sgaPercentOverride', '100.01'],
+  ['sgaPercentOverride', '120'],
+  ['fixedActionCost', 'Infinity'],
+  ['variableActionCostPerPiece', 'NaN']
+] as const) {
+  const unchanged = updateEconomicSimulationDraft(marginDraft, field, value)
+  assert.strictEqual(unchanged, marginDraft, `${field} rejects ${value} without replacing the last valid draft`)
 }
 
-const invalidActionCost = updateEconomicSimulationDraft(draft, 'actionCost', 'Infinity')
-const invalidAction = calculateEconomicSimulation(currentSnapshot, simulationCost, 1.5, invalidActionCost)
-assert.equal(invalidAction.requiredSavingPerPiece, null)
-assert.ok(invalidAction.warnings.some(warning => warning.includes('Action Cost') && warning.includes('finite')))
+for (const batchSize of ['0', '-1', '1.5', 'Infinity', 'NaN']) {
+  const invalid = calculateEconomicSimulation(currentSnapshot, simulationCost, 10, {
+    ...marginDraft,
+    batchSize
+  })
+  assert.equal(invalid.batchSize, null, `invalid Batch Size ${batchSize} is unavailable`)
+  assert.equal(invalid.fixedCostPerPiece, null)
+  assert.equal(invalid.requiredSavingPerPiece, null)
+  assert.equal(invalid.economicMarginPerPiece, null)
+  assert.ok(invalid.warnings.some(warning => warning.includes('Batch Size')))
+}
 
-const invalidOverride = updateEconomicSimulationDraft(draft, 'sellingPriceOverride', 'Infinity')
-const invalidCommercial = calculateEconomicSimulation(currentSnapshot, simulationCost, 1.5, invalidOverride)
-assert.equal(invalidCommercial.business.sellingPrice, null, 'invalid override does not silently fall back to Current')
-assert.equal(invalidCommercial.business.sgaPercent, 10, 'blank SG&A override uses Current')
-assert.ok(invalidCommercial.warnings.some(warning => warning.includes('Selling Price')))
+for (const sga of ['-5', '101', '120', 'Infinity', 'NaN']) {
+  const invalid = calculateEconomicSimulation(currentSnapshot, simulationCost, null, {
+    ...positiveOPDraft,
+    sgaPercentOverride: sga
+  })
+  assert.equal(invalid.business.sgaPercent, null, `invalid SG&A ${sga} is not silently replaced by Current`)
+  assert.equal(invalid.business.sgaAmountPerPiece, null)
+  assert.equal(invalid.business.operatingProfitPerPiece, null)
+  assert.ok(invalid.warnings.some(warning => warning.includes('SG&A')))
+}
 
-const overflow = updateEconomicSimulationDraft(
-  updateEconomicSimulationDraft(draft, 'actionCost', '1e308'),
-  'evaluationQuantity',
-  '0.000001'
-)
-assert.equal(calculateEconomicSimulation(currentSnapshot, simulationCost, 1, overflow).requiredSavingPerPiece, null)
+for (const invalid of [
+  { ...marginDraft, fixedActionCost: '-1' },
+  { ...marginDraft, variableActionCostPerPiece: 'Infinity' },
+  { ...marginDraft, batchSize: '0' }
+]) {
+  const calculated = calculateEconomicSimulation(currentSnapshot, simulationCost, 10, invalid)
+  assert.equal(calculated.requiredSavingPerPiece, null, 'invalid stored values are rejected again at calculation boundary')
+}
 
-const invalidStandardCost = calculateEconomicSimulation(
-  currentSnapshot,
-  { ...simulationCost, total: Number.POSITIVE_INFINITY },
-  1,
-  draft
-)
-assert.equal(invalidStandardCost.simulationStandardCost, null)
-assert.ok(invalidStandardCost.warnings.some(warning => warning.includes('SIM Standard Cost') && warning.includes('finite')))
+const unavailableCurrentSga = calculateEconomicSimulation({ product: { sellingPrice: 120, sgaPercent: 101 } } as CostSnapshot,
+  simulationCost, null, createEconomicSimulationDraft())
+assert.equal(unavailableCurrentSga.business.sgaPercent, null, 'invalid Current SG&A remains unavailable')
 
-const updatedDraft = updateEconomicSimulationDraft(draft, 'actionCost', '200000')
-assert.equal(draft.actionCost, '100000', 'draft edits do not mutate the existing draft')
-assert.equal(updatedDraft.actionCost, '200000')
+const updatedDraft = updateEconomicSimulationDraft(marginDraft, 'fixedActionCost', '2000')
+assert.equal(marginDraft.fixedActionCost, '1000', 'draft edits do not mutate existing state')
+assert.equal(updatedDraft.fixedActionCost, '2000')
 
-console.log('Independent Simulation economics verification passed')
+console.log('Current Simulation economics verification passed')

@@ -307,7 +307,7 @@ interface AppContextType {
   resetMasterDataWorkingDataset: (role: MasterDataRole) => void
   resetAllMasterDataWorkingDatasets: () => void
   cloneMasterDataWorkspace: (sourceRole: MasterDataRole) => void
-  sendSimulationSnapshotToMasterData: (role: MasterDataRole, snapshot: CostSnapshot) => void
+  sendSimulationSnapshotToMasterData: (role: MasterDataRole, snapshot: CostSnapshot) => boolean
   clearMasterDataDataset: (role: MasterDataRole) => void
   clearAllMasterDataWorkingDatasets: () => void
   updateMasterDataDatasetSizing: (role: MasterDataRole, sizing: Partial<import('../core/types').DatasetSizing>) => void
@@ -1124,6 +1124,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       ...(role === 'custom' ? {} : { comparisonRole: role }),
       sizing
     }, currentDataset)
+    if (!isMasterDataSnapshotChangeValid(currentDataset, nextDataset)) return false
     if (role === 'custom') {
       const updated = {
         ...setMasterDataSnapshot(session, pair, role, nextDataset),
@@ -1131,7 +1132,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         updatedAt: new Date().toISOString()
       }
       commitMasterDataWorkingSession(session, updated, role)
-      return
+      return true
     }
 
     const nextPair = { ...pair, [role]: nextDataset }
@@ -1148,6 +1149,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       updatedAt: new Date().toISOString()
     }, nextPair)
     commitMasterDataWorkingSession(session, markMasterDataChangedForSnapshotPair(updated, pair, nextPair), role)
+    return true
   }
 
   const updateMasterDataDatasetSizing = (role: MasterDataRole, sizing: Partial<DatasetSizing>) => {

@@ -1034,8 +1034,7 @@ try {
   assert.match(sgaInputSource, /\.\.\.getMasterDataNumericInputDomain\('sgaPercent'\)/, 'SG&A editor uses the canonical numeric domain')
   const metadataNumericDomains = validationSource.slice(validationSource.indexOf('sellingPrice:'), validationSource.indexOf('consumption:'))
   assert.match(metadataNumericDomains, /sellingPrice:\s*\{ min: 0 \}/, 'Selling Price rejects negatives while allowing zero')
-  assert.match(metadataNumericDomains, /sgaPercent:\s*\{ min: 0 \}/, 'SG&A rejects negatives while allowing zero')
-  assert.doesNotMatch(metadataNumericDomains, /sgaPercent:[^\n]*max:/, 'SG&A has no artificial 100% input ceiling')
+  assert.match(metadataNumericDomains, /sgaPercent:\s*\{ min: 0, max: 100 \}/, 'SG&A uses the canonical 0% to 100% domain')
   assert.match(numericInputSource, /precision = 2/, 'metadata numeric editors use the shared two-decimal input precision by default')
   assert.match(headerSource, /xl:grid-cols-\[minmax\(8rem,2fr\)_repeat\(3,minmax\(8rem,1fr\)\)_minmax\(8rem,2fr\)\]/,
     'metadata gives UOM, Selling Price, and SG&A equal tracks while keeping Product and Remark wider')
