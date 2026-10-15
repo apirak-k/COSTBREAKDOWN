@@ -136,9 +136,10 @@ interface AppLayoutProps {
   onNavigatePrepareDatasetIssue?: (item: MasterDataQualityItem) => void
   cbdReorderUndoRedo?: CBDReorderUndoRedo
   simulationUndoRedo?: SimulationUndoRedo
+  simulationReset?: () => void
 }
 
-export const AppLayout: React.FC<AppLayoutProps> = ({ children, onNavigatePrepareDatasetIssue = () => undefined, cbdReorderUndoRedo, simulationUndoRedo }) => {
+export const AppLayout: React.FC<AppLayoutProps> = ({ children, onNavigatePrepareDatasetIssue = () => undefined, cbdReorderUndoRedo, simulationUndoRedo, simulationReset }) => {
   const {
     activeTab,
     snapshotPair,
@@ -287,7 +288,7 @@ export const AppLayout: React.FC<AppLayoutProps> = ({ children, onNavigatePrepar
       >
         Skip to main content
       </a>
-      <Navbar cbdReorderUndoRedo={cbdReorderUndoRedo} simulationUndoRedo={simulationUndoRedo} />
+      <Navbar cbdReorderUndoRedo={cbdReorderUndoRedo} simulationUndoRedo={simulationUndoRedo} simulationReset={simulationReset} />
       <MasterDataPrepareDatasetPopover
         isOpen={masterDataPrepareDatasetOpen}
         requestMode={masterDataPrepareDatasetRequestMode}

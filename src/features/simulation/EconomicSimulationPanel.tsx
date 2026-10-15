@@ -120,15 +120,21 @@ function BreakEvenGraph({
   }
 
   return (
-    <figure aria-labelledby="break-even-graph-title" className="mt-1 border-t border-slate-200 pt-1">
-      <figcaption id="break-even-graph-title" className="mb-0.5 text-[10px] font-semibold text-slate-700">Break-even Graph</figcaption>
+    <figure aria-labelledby="break-even-graph-title" className="mt-1 border-t border-slate-200 pt-1 xl:mt-0 xl:pt-0">
+      <figcaption id="break-even-graph-title" className="mb-0.5 flex min-w-0 items-center justify-between gap-1 text-[10px] font-semibold text-slate-700 xl:mb-0">
+        <span>Break-even Graph</span>
+        <span role="group" aria-label="Break-even graph legend" className="flex shrink-0 items-center gap-1.5 text-[9px] font-normal text-slate-600">
+          <span role="img" aria-label="Cumulative Parameter Saving" className="inline-flex items-center gap-1 whitespace-nowrap"><i aria-hidden="true" className="h-0.5 w-3 bg-blue-600" />Saving</span>
+          <span role="img" aria-label="Total Action Cost" className="inline-flex items-center gap-1 whitespace-nowrap"><i aria-hidden="true" className="h-0.5 w-3 bg-orange-700" />Action Cost</span>
+        </span>
+      </figcaption>
       <svg
         role="group"
         aria-labelledby="break-even-graph-title"
         aria-describedby="break-even-graph-description"
         viewBox={`0 0 ${width} ${height}`}
         preserveAspectRatio="none"
-        className="block h-[112px] w-full"
+        className="block h-[112px] w-full xl:h-[88px]"
       >
         <title>Break-even graph</title>
         <desc id="break-even-graph-description">Cumulative Parameter Saving compared with Total Action Cost by production quantity. The vertical Batch Size marker is draggable and keyboard accessible.</desc>
@@ -197,10 +203,6 @@ function BreakEvenGraph({
         <text x={plot.left} y={height - 3} fill="#64748b" fontSize="8">Quantity ({unit})</text>
         <text x={plot.left} y={plot.top - 3} fill="#64748b" fontSize="8">THB</text>
       </svg>
-      <div className="flex flex-wrap gap-x-3 text-[9px] text-slate-600" aria-label="Break-even graph legend">
-        <span className="inline-flex items-center gap-1"><i aria-hidden="true" className="h-0.5 w-3 bg-blue-600" />Cumulative Parameter Saving</span>
-        <span className="inline-flex items-center gap-1"><i aria-hidden="true" className="h-0.5 w-3 bg-orange-700" />Total Action Cost</span>
-      </div>
     </figure>
   )
 }
@@ -256,13 +258,13 @@ export function EconomicSimulationPanel({ result, draft, currentSnapshot, unit, 
   return (
     <div data-safe-workspace-interaction="true" className="min-w-0 border border-slate-300 bg-white" aria-label="Economic and Business">
       <div className="grid min-w-0 lg:grid-cols-[minmax(0,1.3fr)_minmax(0,.9fr)]">
-        <section className="min-w-0 px-2.5 py-1.5 lg:border-r lg:border-slate-200" aria-labelledby="economic-simulation-title">
-          <h2 id="economic-simulation-title" className="border-b border-slate-200 pb-1 text-xs font-semibold text-slate-900">Economic</h2>
-          <div className="mt-1 grid grid-cols-1 gap-x-2 gap-y-1.5 sm:grid-cols-3">
+        <section className="min-w-0 px-2.5 py-1.5 xl:py-1 lg:border-r lg:border-slate-200" aria-labelledby="economic-simulation-title">
+          <h2 id="economic-simulation-title" className="border-b border-slate-200 pb-1 text-xs font-semibold text-slate-900 xl:pb-0.5">Economic</h2>
+          <div className="mt-1 grid min-w-0 grid-cols-3 gap-x-1.5">
             {inputs.slice(0, 3).map(({ field, label, unit: fieldUnit, precision, integer, placeholder, min, max }) => (
-              <label key={field} className="flex min-w-0 items-center gap-1 text-[9px] font-medium text-slate-700">
-                <span className="min-w-0 flex-1 leading-3">{label}<span className="ml-1 font-normal text-slate-500">{fieldUnit}</span></span>
-                <span className="w-[5.25rem] shrink-0">
+              <label key={field} className="flex min-w-0 flex-col gap-0.5 text-[9px] font-medium text-slate-700">
+                <span className="min-h-6 leading-3">{label}<span className="ml-1 font-normal text-slate-500">{fieldUnit}</span></span>
+                <span className="w-full min-w-0">
                   <SimulationHistoryInputBoundary onBegin={onBeginEdit} onCommit={onCommitEdit}>
                     <NumericInput
                       value={effectiveInputValue(field, draft, currentSnapshot)}
@@ -273,7 +275,7 @@ export function EconomicSimulationPanel({ result, draft, currentSnapshot, unit, 
                       placeholder={placeholder}
                       onValueChange={value => onUpdate(field, value === null ? '' : String(value))}
                       aria-label={label}
-                      className="h-7 w-full border border-slate-300 bg-white px-1.5 text-right text-[11px] text-slate-950 focus:border-blue-700 focus:ring-1 focus:ring-blue-100"
+                      className="h-7 w-full border border-slate-300 bg-white px-1.5 text-right text-[11px] text-slate-950 focus:border-blue-700 focus:ring-1 focus:ring-blue-100 xl:h-6"
                     />
                   </SimulationHistoryInputBoundary>
                 </span>
@@ -282,7 +284,7 @@ export function EconomicSimulationPanel({ result, draft, currentSnapshot, unit, 
           </div>
           <div className="mt-1 grid grid-cols-1 gap-x-3 gap-y-0 border-t border-slate-200 pt-0.5 sm:grid-cols-2">
             {economicOutputs.map(({ label, formula, value, className }) => (
-              <div key={label} className="flex min-w-0 items-baseline justify-between gap-1 py-0.5" title={formula}>
+              <div key={label} className="flex min-w-0 items-baseline justify-between gap-1 py-0.5 xl:py-0" title={formula}>
                 <span className="truncate text-[9px] text-slate-600">{label}</span>
                 <span className={`shrink-0 font-mono text-[10px] font-semibold tabular-nums ${className}`}>{formatValue(value)}<span className="ml-0.5 text-[8px] font-normal text-slate-500">THB/{normalizedUnit}</span></span>
               </div>
@@ -299,8 +301,8 @@ export function EconomicSimulationPanel({ result, draft, currentSnapshot, unit, 
           </SimulationHistoryInputBoundary>
         </section>
 
-        <section className="min-w-0 border-t border-slate-200 px-2.5 py-1.5 lg:border-t-0" aria-labelledby="simulation-business-title">
-          <h2 id="simulation-business-title" className="border-b border-slate-200 pb-1 text-xs font-semibold text-slate-900">Business</h2>
+        <section className="min-w-0 border-t border-slate-200 px-2.5 py-1.5 xl:py-1 lg:border-t-0" aria-labelledby="simulation-business-title">
+          <h2 id="simulation-business-title" className="border-b border-slate-200 pb-1 text-xs font-semibold text-slate-900 xl:pb-0.5">Business</h2>
           <div className="mt-1 grid grid-cols-1 gap-1 sm:grid-cols-2 lg:grid-cols-1">
             {inputs.slice(3).map(({ field, label, unit: fieldUnit, precision, placeholder, min, max }) => (
               <label key={field} className="flex min-w-0 items-center justify-between gap-2 text-[9px] font-medium text-slate-700">
@@ -324,7 +326,7 @@ export function EconomicSimulationPanel({ result, draft, currentSnapshot, unit, 
           </div>
           <div className="mt-1 border-t border-slate-200 pt-1">
             {businessOutputs.map(({ label, value, className }) => (
-              <div key={label} className="flex min-w-0 items-baseline justify-between gap-1 py-0.5">
+              <div key={label} className="flex min-w-0 items-baseline justify-between gap-1 py-0.5 xl:py-0">
                 <span className="truncate text-[9px] text-slate-600">{label}</span>
                 <span className={`shrink-0 font-mono text-[10px] font-semibold tabular-nums ${className}`}>{formatValue(value)}<span className="ml-0.5 text-[8px] font-normal text-slate-500">THB/{normalizedUnit}</span></span>
               </div>

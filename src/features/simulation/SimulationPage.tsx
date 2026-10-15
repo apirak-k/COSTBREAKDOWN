@@ -34,7 +34,6 @@ interface SimulationPageProps {
   currentSnapshot: CostSnapshot
   onCloneSource: (role: MasterDataRole) => void
   onSendTo: (role: MasterDataRole, snapshot: CostSnapshot) => boolean
-  onResetParameters: () => void
   onUpdateParameter: (recordId: string, parameter: SimulationParameter, value: number | null) => void
   onToggleWorkingTarget: (kind: 'bom' | 'routing', recordId: string) => void
   onUpdateEconomicInput: (field: EconomicSimulationField, value: string) => void
@@ -687,7 +686,7 @@ function ResultPanel({
   ))
 
   return (
-    <section data-safe-workspace-interaction="true" className="min-w-0 border border-slate-300 bg-white px-3 py-2" aria-labelledby="simulation-result-title">
+    <section data-safe-workspace-interaction="true" className="min-w-0 border border-slate-300 bg-white px-3 py-2 xl:px-2 xl:py-1" aria-labelledby="simulation-result-title">
       <div className="border-b border-slate-200 pb-1.5">
         <div className="flex min-w-0 flex-wrap items-center justify-between gap-1.5">
           <h2 id="simulation-result-title" className="text-xs font-semibold text-slate-900">Result</h2>
@@ -699,7 +698,7 @@ function ResultPanel({
         </div>
       </div>
       <div className="mt-1 min-w-0">
-        <table className="w-full table-fixed text-[10px] leading-3">
+        <table className="w-full table-fixed text-[10px] leading-3 xl:leading-[11px]">
           <colgroup>
             <col className="w-[34%]" />
             <col className="w-[15%]" />
@@ -710,10 +709,10 @@ function ResultPanel({
           <thead className="text-[9px] text-slate-500">
             <tr>
               <th scope="col" className="whitespace-nowrap py-0.5 text-left font-medium"><span className="sr-only">Cost or business outcome</span></th>
-              <th scope="col" className="whitespace-nowrap px-0.5 py-0.5 text-right font-medium">Current</th>
-              <th scope="col" className="whitespace-nowrap px-0.5 py-0.5 text-right font-medium">SIM</th>
-              <th scope="col" className="whitespace-nowrap px-0.5 py-0.5 text-right font-medium">Change</th>
-              <th scope="col" className="py-0.5 text-right font-medium">%</th>
+              <th scope="col" className="whitespace-nowrap px-0.5 py-0.5 text-right font-medium xl:py-0">Current</th>
+              <th scope="col" className="whitespace-nowrap px-0.5 py-0.5 text-right font-medium xl:py-0">SIM</th>
+              <th scope="col" className="whitespace-nowrap px-0.5 py-0.5 text-right font-medium xl:py-0">Change</th>
+              <th scope="col" className="py-0.5 text-right font-medium xl:py-0">%</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100">
@@ -757,7 +756,6 @@ export const SimulationPage: React.FC<SimulationPageProps> = ({
   currentSnapshot,
   onCloneSource,
   onSendTo,
-  onResetParameters,
   onUpdateParameter,
   onToggleWorkingTarget,
   onUpdateEconomicInput,
@@ -794,15 +792,6 @@ export const SimulationPage: React.FC<SimulationPageProps> = ({
 
   const actionMenus = (
     <>
-      <button
-        type="button"
-        onClick={() => {
-          onResetParameters()
-          setTransferError(false)
-          setTransferMessage('SIM reset.')
-        }}
-        className="inline-flex min-h-7 items-center border border-slate-400 bg-white px-2 text-[11px] font-medium text-slate-800 hover:bg-slate-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700"
-      >Reset</button>
       <RoleActionMenu
         label="Clone from"
         onSelect={role => {
@@ -826,9 +815,9 @@ export const SimulationPage: React.FC<SimulationPageProps> = ({
 
   return (
     <div className="min-w-0 space-y-3 xl:flex xl:h-full xl:min-h-0 xl:flex-col xl:gap-2 xl:space-y-0 xl:overflow-hidden">
-      <div className="grid min-w-0 gap-2 xl:min-h-0 xl:flex-[1.8] xl:grid-cols-[minmax(0,2fr)_minmax(0,1fr)] xl:grid-rows-1">
+      <div className="grid min-w-0 gap-2 xl:min-h-0 xl:flex-[2.6] xl:grid-cols-[minmax(0,2fr)_minmax(0,1fr)] xl:grid-rows-1">
         <SimulationStoryGraph story={story} unit={unit} />
-        <div className="grid content-start gap-2 xl:h-full xl:min-h-0 xl:grid-rows-[minmax(0,1.3fr)_minmax(0,1fr)]">
+        <div className="grid content-start gap-2 xl:h-full xl:min-h-0 xl:grid-rows-[minmax(0,0.9fr)_minmax(0,1.1fr)]">
           <ResultPanel
             currentCost={result.currentCost}
             simulationCost={result.simulationCost}

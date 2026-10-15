@@ -1,5 +1,5 @@
 import React, { useEffect, useRef } from 'react'
-import { Info, Redo2, Undo2 } from 'lucide-react'
+import { Info, Redo2, RotateCcw, Undo2 } from 'lucide-react'
 import { useAppStore } from '../../state'
 import { resolveHeaderProductContext } from './header-product-context'
 import { Tooltip } from '../ui/Tooltip'
@@ -29,9 +29,10 @@ export interface SimulationUndoRedo {
 interface NavbarProps {
   cbdReorderUndoRedo?: CBDReorderUndoRedo
   simulationUndoRedo?: SimulationUndoRedo
+  simulationReset?: () => void
 }
 
-export const Navbar: React.FC<NavbarProps> = ({ cbdReorderUndoRedo, simulationUndoRedo }) => {
+export const Navbar: React.FC<NavbarProps> = ({ cbdReorderUndoRedo, simulationUndoRedo, simulationReset }) => {
   const {
     activeTab,
     setActiveTab,
@@ -153,6 +154,18 @@ export const Navbar: React.FC<NavbarProps> = ({ cbdReorderUndoRedo, simulationUn
                 <Redo2 className="h-4 w-4" aria-hidden="true" />
               </button>
             </Tooltip>
+            {isSimulation && simulationReset && (
+              <Tooltip label="Reset Simulation">
+                <button
+                  type="button"
+                  onClick={simulationReset}
+                  aria-label="Reset Simulation"
+                  className={utilityButton}
+                >
+                  <RotateCcw className="h-4 w-4" aria-hidden="true" />
+                </button>
+              </Tooltip>
+            )}
             <div
               className="relative flex shrink-0 items-center"
               onPointerEnter={previewMasterDataPrepareDataset}
