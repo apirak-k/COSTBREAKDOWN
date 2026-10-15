@@ -76,10 +76,11 @@ requirements:
 - The CBD Gap Bar uses contribution-proportional segments when component gaps
   share a sign; offsetting gaps use one signed zero-baseline chart. Keep selected
   contributions inside that same chart. The Fixed Overview is side-by-side and
-  has one whole-region collapse control, expanded by default. On desktop, the
-  Subheader and equal-height bounded Cost Element / Work Center overview stay
-  fixed in the CBD workspace; Candidate Findings owns the remaining vertical
-  scroll and Work Center rows may scroll inside their bounded panel. Narrow
+  has one whole-region collapse control, expanded by default. On desktop, Main
+  is the single primary CBD vertical scroll owner. The Subheader and equal-height
+  bounded Cost Element / Work Center overview stay sticky together at the top of
+  Main; Candidate Findings remains normal-flow content and Work Center rows may
+  scroll inside their bounded panel. Narrow
   layouts may use natural page scrolling and local horizontal table fallback.
 - CBD CHANGED BOM detail uses Reference → Current and Parameter Cost Effect
   rows aligned with `Δ Usage` / `Δ Price` / `Δ Loss` / Gap. CHANGED RTG main
@@ -240,13 +241,14 @@ when the app frame has usable width.
 The app uses a viewport-height shell: Header at the top, a Main region, and a
 non-overlay Footer locked to the bottom. Normal pages use Main as the natural
 page-level vertical scroll owner where applicable. Desktop Cost Breakdown uses
-Main as its vertical scroll owner: its Subheader and bounded Cost Element /
-Work Center overview stay in normal flow above Candidate Findings, which does
-not add a nested vertical scroller. Work Center rows may scroll inside their
-bounded panel while the header and Total remain outside the scroll body on the
-same grid. Desktop Simulation is fixed within the shared shell, and only its
-BOM and RTG bodies scroll vertically. Narrow CBD and Simulation layouts may use
-natural page scrolling.
+Main as its single primary vertical scroll owner: its Subheader and bounded Cost
+Element / Work Center overview stay sticky together at the top of Main while
+Candidate Findings remains normal-flow content without a nested vertical
+scroller. Work Center rows may scroll inside their bounded panel while the
+header and Total remain outside the scroll body on the same grid. Desktop
+Simulation is fixed within the shared shell, and only its BOM and RTG bodies
+scroll vertically. Narrow CBD and Simulation layouts may use natural page
+scrolling.
 Header, Main, and Footer content share the centered `max-w-[1440px]`
 frame. Master Data's
 selected-dataset toolbar and metadata stay together at the top of its content

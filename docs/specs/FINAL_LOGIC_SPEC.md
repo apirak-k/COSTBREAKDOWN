@@ -332,7 +332,7 @@ Custom is **never** a direct comparison state in CBD. To compare Custom, clone i
 - **Full Comparison:** Evaluates all eligible BOM and Routing records.
 - **Selected Comparison:** Temporary analysis scope/view of selected BOM and Routing findings.
   - Retains complete Work Center rates for calculation context.
-  - Selected Gap includes only selected items.
+  - The secondary Selected Gap includes only selected items; the full comparison remains visible and primary.
   - It is **not** a new dataset, **not** a persistent state, and **not** an RCA Case.
   - Does not mutate source datasets.
   - Clearing scope or changing source datasets restores Full Comparison.
