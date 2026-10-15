@@ -13,7 +13,7 @@ interface VarianceTreeCardProps {
   onOpenDetail: (section: CostDetailSection) => void
 }
 
-const formatGap = (value: number | null): string => value === null ? '—' : formatVariance(value, 4)
+const formatGap = (value: number | null): string => value === null ? '—' : formatVariance(value, 2)
 
 function gapClass(value: number | null): string {
   if (value === null || Math.abs(value) < 0.00005) return 'text-slate-500'

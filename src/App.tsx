@@ -111,7 +111,7 @@ const AppRouter: React.FC = () => {
   }
 
   const toggleWorkingTarget = (kind: 'bom' | 'routing', recordId: string) => {
-    updateSimulationState(state => toggleSimulationWorkingTarget(state, kind, recordId))
+    updateSimulationState(state => toggleSimulationWorkingTarget(state, masterDataSnapshots.current, kind, recordId))
   }
 
   return (

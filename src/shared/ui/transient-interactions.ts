@@ -56,7 +56,10 @@ const safeWorkspaceInteractiveTargets = [
   '[role="button"]',
   '[role="menuitem"]',
   '[role="dialog"]',
+  '[role="slider"]',
+  '[role="tooltip"]',
   '[data-grid-cell="true"]',
+  '[data-safe-workspace-interaction="true"]',
   '[contenteditable="true"]'
 ].join(',')
 

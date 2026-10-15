@@ -21,7 +21,7 @@ When Simulation opens without a valid workspace, initialize SIM from the current
 
 The compact **Clone from ▾** menu has exactly three sources: Reference, Current, and Custom. Selecting one copies that dataset’s metadata, BOM, Routing, and structure into the isolated SIM snapshot. SIM Work Center rates are then replaced with Current Work Center rates. The selected source is starting content and provenance only: every analysis remains Current → SIM.
 
-Every explicit clone establishes the parameter **Reset** baseline. Reset restores editable Simulation parameters to that copied snapshot; it does not follow later changes to the source dataset, alter source data, or reset Economic inputs. It preserves the current locked Work Center rate context. Re-cloning replaces the prior Reset baseline.
+Every explicit clone establishes a new **Reset** baseline for editable BOM/RTG parameters and all five Economic inputs. Reset restores those values to the clone/start snapshot and Economic draft, preserves the live Current Work Center rates and Simulation-local selection, and never changes a source dataset. Blank Selling Price and SG&A overrides continue to use Current; the UI displays the valid Current values directly when available. Fixed Action Cost, Variable Action Cost / pc, and Batch Size remain blank when their baseline is blank. Re-cloning replaces both Reset baselines.
 
 Changing Reference or Custom alone does not reset SIM. If Current changes, the saved SIM is stale because both the comparison baseline and rate context changed. Reconcile it, then initialize from the new Current when Simulation is active. Preserve valid Economic draft inputs where possible.
 
@@ -50,7 +50,7 @@ Match by canonical business identity, never row position: BOM material identity,
 | `REMOVED` | Yes | No; the record exists only in Current |
 | Ambiguous / unmatched | Where applicable | No |
 
-There is no **Factors to Simulate** workflow. The user may mark editable BOM and Routing records in Simulation's own compact working selection, add or remove targets there, and edit supported fields directly. This selection is per product, starts empty after a clone, and is only a worklist: every record in the full SIM snapshot remains in the cost calculation. Reset restores parameter values and preserves the worklist. CBD Selected Comparison, filters, and sorting are not transferred to SIM, and Simulation does not mutate CBD selection.
+There is no **Factors to Simulate** workflow. The `#` column is Simulation's local row selector: the header button selects or clears visible eligible rows, and each eligible row's number is its square selection button. There is no separate Select column or checkbox. Selected rows rise to the top in stable source order for viewing; the SIM snapshot order and full-snapshot calculation scope never change. Protected, unmatched, ambiguous, and REMOVED rows cannot be selected. Reset restores parameter and Economic baselines while preserving the worklist. CBD Selected Comparison, filters, and sorting are not transferred to SIM, and Simulation does not mutate CBD selection.
 
 ### 2.2 Editable inputs and validation
 
@@ -84,7 +84,7 @@ Standard Cost = Direct Material + Labor + Burden
 
 Missing or invalid required values make the corresponding result unavailable. Do not substitute zero. Negative analytical differences are valid.
 
-The Result panel is engineering cost only and uses `Cost | Current | SIM | Change | %` with rows Material Cost, Labor Cost, Burden Cost, Conversion Cost, and Standard Cost:
+The Result panel is engineering cost only and uses `Cost | Current | SIM | Change | %` with rows Material Cost, Labor Cost, Burden Cost, Conversion Cost, and Standard Cost. Change and % are red when cost rises, green when it falls, neutral at zero, and gray when unavailable:
 
 ```text
 Change = SIM − Current
@@ -101,8 +101,9 @@ Each BOM and Routing row can expand a compact **Parameter Cost Effect** detail. 
 - Routing attributes Conversion Cost change to Manning, Capacity, and Yield.
 - Routing uses Current Work Center rates on both sides; there is no Rate Effect.
 - Effects must reconcile to `SIM row cost − Current row cost` within floating-point tolerance.
-- Per-parameter percentages are not displayed. Only the Total may show `100%`, only when attribution is available and non-zero. A zero total or unavailable attribution shows `—` for the percentage.
+- Display signed THB/pc effects under their matching parameter columns and one compact numeric Total. Do not display effect percentages.
 - Added/Removed rows, ambiguous identity, missing required values, invalid math, or unreconciled Work Center context have unavailable attribution (`—`) with a concise explanation.
+- REMOVED, ambiguous, and unmatched rows may expand to show why the effect is unavailable; they remain protected and cannot be edited or selected.
 
 ## 4. Economic Simulation
 
@@ -127,6 +128,8 @@ OP / pc = Selling Price − SIM Standard Cost − SG&A / pc
 
 Negative Economic Margin and negative Operating Profit are valid outputs and remain visible. Zero Batch Size, negative/non-finite inputs, and SG&A above 100% are rejected/unavailable; they are never converted to zero.
 
+The Economic panel keeps the five inputs and six calculated outputs with formula tooltips. It has no persistent Calculation Notes area. Continuous values display to two decimals; Batch Size remains an integer. Current fallback Selling Price and SG&A values appear in their fields while blank overrides retain fallback semantics.
+
 ## 5. Graph story
 
 The story order and signs are fixed:
@@ -139,20 +142,20 @@ Result Change = SIM − Current
 Parameter Saving = Current − SIM
 ```
 
-REF, CUR, and SIM may show MAT, LB, BD, SG&A, and OP. Standard Cost remains MAT + LB + BD; SG&A and OP are separate business values. Selling Price is a separate line/marker. GAP 1 and GAP 2 contain only signed MAT, LB, and BD effects, with the Standard Cost gap labelled clearly. Positive values extend above zero; negative values extend below zero. The graph supports negative OP.
+REF, CUR, and SIM may show MAT, LB, BD, SG&A, and OP. Standard Cost remains MAT + LB + BD; SG&A and OP are separate business values. Selling Price is a separate line/marker. GAP 1 and GAP 2 contain only signed MAT, LB, and BD effects, with their total shown as a number only at the bar end; the `REF`, `GAP 1`, `CUR`, `GAP 2`, and `SIM` names appear below the bars. Positive values extend above zero; negative values extend below zero. The graph supports negative OP.
 
-Use the shared CBD cost colors exactly: MAT `#4F7CAC`, LB `#D89B45`, and BD `#8067B7`. SG&A is neutral gray; positive OP is green, negative OP red, and zero OP neutral. Selling Price is a separate reference line. Label signed totals `GAP 1 +…` and `GAP 2 −…`; do not prefix gap values with `SC` or `Total`.
+Use a slightly softened graph fill of the same shared CBD semantic colors: MAT `#4F7CAC`, LB `#D89B45`, and BD `#8067B7`. Do not lighten the CBD palette itself. SG&A is neutral gray; positive OP is green, negative OP red, and zero OP neutral. Selling Price is a separate reference line. Bar-end labels contain only the numeric total (for example `+16.05` or `-5.00`); do not prefix with `SC`, `STD`, `Total`, or a bar name.
 
-The draggable THB/pc ruler is visual only. It cannot change data, draft inputs, or calculations, and its visual layer must not cover bars, values, or GAP labels. Keep keyboard access and allow subtle snapping to zero, Standard Cost, or Selling Price levels.
+The draggable THB/pc ruler is visual only. It cannot change data, draft inputs, or calculations. Draw its line in front of the bars while keeping the ruler value tag clear of numeric bar labels. Keep pointer capture, keyboard access, and subtle snapping to zero, Standard Cost, or Selling Price levels.
 
 ## 6. Page layout and navigation
 
 - Remove the large Simulation PageHeading/title block; begin with working content.
 - Desktop Simulation is a fixed workspace inside the shared application shell: the page does not vertically scroll, and only the BOM and RTG table bodies scroll vertically. At narrow responsive sizes, panels stack and natural page scrolling is allowed so all controls remain reachable.
-- Desktop: wider graph at upper left; Result and Economic stacked at upper right; BOM and RTG tables below in two columns.
+- Desktop: Graph occupies about two-thirds of the upper row; Result and Economic share the remaining third. BOM and RTG are equal-width panels in the lower row. Keep all five regions visible together and use the shell's available height; only BOM and RTG table bodies scroll vertically.
 - Keep exactly two separate compact controls, **Clone from ▾** and **Send to ▾**, in the Result action line. Keep transfer feedback compact and menus keyboard accessible.
-- Expandable BOM/RTG rows highlight and toggle from safe row whitespace, Enter, or Space; nested editors and controls do not toggle the row. The chevron indicates expanded state and is not a separate primary action.
-- BOM/RTG checkboxes manage only Simulation's per-product working selection; protected or removed rows cannot be selected, and the selection never limits calculation scope.
+- Expandable BOM/RTG rows highlight and toggle from safe row whitespace, Enter, or Space; nested editors and controls do not toggle the row. The chevron indicates expanded state and is not a separate primary action. Clicking safe blank workspace dismisses open menus and effect details without changing committed values or selection.
+- The `#` row-number controls manage only Simulation's per-product working selection; selected rows appear first without structural reordering. Protected or removed rows cannot be selected, and the selection never limits calculation scope.
 - BOM and RTG must not have horizontal scrollbars. Keep vertical internal scrolling and usable sticky table headers. Use fixed/proportional columns and a responsive reflow/card presentation at narrow widths while preserving every editable field. No add/delete/resize/split/merge/reorder or Work Center-rate editing controls are available in Simulation; structural alternatives are prepared in Master Data / Custom.
 - The page must not have horizontal overflow. Stack the major panels on narrow screens.
 - The visible product navigation contains only Master Data, Cost Breakdown, and Simulation. No RCA context strip or visible Candidate/RCA-to-Simulation handoff appears.

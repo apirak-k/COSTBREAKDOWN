@@ -156,20 +156,19 @@ export function SimulationStoryGraph({ story, highlightedParts = {} }: Simulatio
   })
 
   return (
-    <figure aria-labelledby="simulation-story-title" className="min-w-0 border border-slate-300 bg-white px-2.5 py-2.5">
+    <figure aria-labelledby="simulation-story-title" className="min-w-0 border border-slate-300 bg-white px-2.5 py-2.5 xl:flex xl:min-h-0 xl:flex-col">
       <div className="flex flex-wrap items-baseline justify-between gap-2 border-b border-slate-200 pb-1.5">
         <div>
           <h2 id="simulation-story-title" className="text-xs font-semibold text-slate-900">Graph</h2>
-          <p className="mt-0.5 text-[11px] text-slate-500">REF → GAP 1 → CUR → GAP 2 → SIM · THB/pc</p>
         </div>
       </div>
 
-      <div className="min-w-0">
+      <div className="min-w-0 xl:min-h-0 xl:flex-1">
         <svg
           aria-labelledby="simulation-story-svg-title simulation-story-svg-description"
           viewBox="0 0 820 332"
           preserveAspectRatio="none"
-          className="mt-1 block h-[250px] w-full sm:h-auto"
+          className="mt-1 block h-[250px] w-full sm:h-auto xl:h-full"
           style={{ touchAction: 'pan-x' }}
         >
           <title id="simulation-story-svg-title">Simulation cost result graph</title>
@@ -187,10 +186,6 @@ export function SimulationStoryGraph({ story, highlightedParts = {} }: Simulatio
           })}
           <line x1={plot.left} x2={plot.right} y1={zeroY} y2={zeroY} stroke="#64748b" strokeWidth="1.4" />
           <text x="15" y="22" fill="#64748b" fontSize="9px" fontFamily="ui-monospace, monospace">THB/pc</text>
-
-          <line x1={plot.left} x2={plot.right} y1={rulerY} y2={rulerY} stroke={rulerFocused ? '#2563eb' : '#475569'} strokeWidth="1.25" strokeDasharray="4 5" opacity="0.58" pointerEvents="none" />
-          <rect x="690" y="8" width="122" height="18" fill="white" fillOpacity="0.95" stroke={rulerFocused ? '#2563eb' : '#cbd5e1'} strokeWidth="0.8" pointerEvents="none" />
-          <text x="806" y="20" textAnchor="end" fill={rulerFocused ? '#1d4ed8' : '#475569'} fontSize="9px" fontWeight="700" fontFamily="ui-monospace, monospace" pointerEvents="none">{`RULER ${formatValue(rulerLevel)}`}</text>
 
           {stateValues.map(state => {
             let positiveBase = 0
@@ -215,6 +210,7 @@ export function SimulationStoryGraph({ story, highlightedParts = {} }: Simulatio
                       fill={part.key === 'operatingProfitPerPiece'
                         ? value > 0 ? OPERATING_PROFIT_POSITIVE : value < 0 ? OPERATING_PROFIT_NEGATIVE : '#94a3b8'
                         : part.color}
+                      fillOpacity={part.key === 'operatingProfitPerPiece' ? 1 : 0.86}
                       stroke={highlighted ? '#0f172a' : 'none'}
                       strokeWidth={highlighted ? 2 : 0}
                     >
@@ -222,10 +218,6 @@ export function SimulationStoryGraph({ story, highlightedParts = {} }: Simulatio
                     </rect>
                   )
                 })}
-                <text x={state.x} y={clamp(y(state.values.standardCost ?? 0) + 13, plot.top + 12, plot.bottom - 2)} textAnchor="middle" fill="#0f172a" fontSize="9px" fontWeight="700" fontFamily="ui-monospace, monospace">
-                  {`STD ${formatValue(state.values.standardCost)}`}
-                </text>
-                <text x={state.x} y="306" textAnchor="middle" fill="#0f172a" fontSize="11px" fontWeight="700" fontFamily="ui-monospace, monospace">{state.label}</text>
               </g>
             )
           })}
@@ -260,10 +252,6 @@ export function SimulationStoryGraph({ story, highlightedParts = {} }: Simulatio
                     </rect>
                   )
                 })}
-                <text x={gap.x} y={clamp(y(gap.values.standardCost ?? 0) - 8, plot.top + 10, plot.bottom - 1)} textAnchor="middle" fill="#0f172a" fontSize="9px" fontWeight="700" fontFamily="ui-monospace, monospace">
-                  {`${gap.label} ${signed(gap.values.standardCost)}`}
-                </text>
-                <text x={gap.x} y="306" textAnchor="middle" fill="#0f172a" fontSize="11px" fontWeight="700" fontFamily="ui-monospace, monospace">{gap.label}</text>
               </g>
             )
           })}
@@ -274,6 +262,27 @@ export function SimulationStoryGraph({ story, highlightedParts = {} }: Simulatio
               <circle cx={point.x} cy={point.y} r="3.5" fill="#1d4ed8" stroke="white" strokeWidth="1" />
               <text x={point.x} y={clamp(point.y - 9, plot.top + 9, plot.bottom - 3)} textAnchor="middle" fill="#1d4ed8" fontSize="9px" fontWeight="700" fontFamily="ui-monospace, monospace">{`SP ${formatValue(point.value)}`}</text>
               <title>{`${point.label} Selling Price: ${formatValue(point.value)} THB/pc`}</title>
+            </g>
+          ))}
+
+          <line x1={plot.left} x2={plot.right} y1={rulerY} y2={rulerY} stroke={rulerFocused ? '#2563eb' : '#475569'} strokeWidth="1.25" strokeDasharray="4 5" opacity="0.72" pointerEvents="none" />
+          <rect x="690" y="8" width="122" height="18" fill="white" fillOpacity="0.95" stroke={rulerFocused ? '#2563eb' : '#cbd5e1'} strokeWidth="0.8" pointerEvents="none" />
+          <text x="806" y="20" textAnchor="end" fill={rulerFocused ? '#1d4ed8' : '#475569'} fontSize="9px" fontWeight="700" fontFamily="ui-monospace, monospace" pointerEvents="none">{`RULER ${formatValue(rulerLevel)}`}</text>
+
+          {stateValues.map(state => (
+            <g key={`${state.key}-labels`}>
+              <text x={state.x} y={clamp(y(state.values.standardCost ?? 0) + 13, plot.top + 12, plot.bottom - 2)} textAnchor="middle" fill="#0f172a" fontSize="9px" fontWeight="700" fontFamily="ui-monospace, monospace">
+                {formatValue(state.values.standardCost)}
+              </text>
+              <text x={state.x} y="306" textAnchor="middle" fill="#0f172a" fontSize="11px" fontWeight="700" fontFamily="ui-monospace, monospace">{state.label}</text>
+            </g>
+          ))}
+          {gapValues.map(gap => (
+            <g key={`${gap.key}-labels`}>
+              <text x={gap.x} y={clamp(y(gap.values.standardCost ?? 0) - 8, plot.top + 10, plot.bottom - 1)} textAnchor="middle" fill="#0f172a" fontSize="9px" fontWeight="700" fontFamily="ui-monospace, monospace">
+                {signed(gap.values.standardCost)}
+              </text>
+              <text x={gap.x} y="306" textAnchor="middle" fill="#0f172a" fontSize="11px" fontWeight="700" fontFamily="ui-monospace, monospace">{gap.label}</text>
             </g>
           ))}
 

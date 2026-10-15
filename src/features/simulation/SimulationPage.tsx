@@ -61,14 +61,25 @@ function displayMoney(value: number | null): string {
   return value === null || !Number.isFinite(value) ? '—' : formatNumber(value, 2)
 }
 
-function displayShare(value: number | null | undefined): string {
-  return value === null || value === undefined || !Number.isFinite(value) ? '—' : `${formatNumber(value, 2)}%`
+function displayEffect(value: number | null | undefined): string {
+  if (value === null || value === undefined || !Number.isFinite(value)) return '—'
+  return `${value >= 0 ? '+' : ''}${formatNumber(value, 2)}`
+}
+
+function displayResultDelta(value: number | null): string {
+  if (value === null || !Number.isFinite(value)) return '—'
+  return `${value > 0 ? '+' : ''}${formatNumber(value, 2)}`
+}
+
+function resultChangeClass(value: number | null): string {
+  if (value === null || !Number.isFinite(value)) return 'text-slate-400'
+  return value > 0 ? 'text-rose-700' : value < 0 ? 'text-emerald-700' : 'text-slate-700'
 }
 
 function displayParameter(value: number | null, parameter: typeof BOM_PARAMETERS[number] | typeof RTG_PARAMETERS[number]): string {
   if (value === null || !Number.isFinite(value)) return '—'
   const displayValue = value * parameter.scale
-  return `${formatNumber(displayValue, parameter.precision)}${parameter.scale === 100 ? '%' : ''}`
+  return `${formatNumber(displayValue, 2)}${parameter.scale === 100 ? '%' : ''}`
 }
 
 function isInteractiveTarget(target: EventTarget | null): boolean {
@@ -94,6 +105,18 @@ function rowStatusText(row: SimulationComparisonRow): string {
 
 function rowIsMatched(row: SimulationComparisonRow): boolean {
   return row.identityIssue === null && (row.status === 'CHANGED' || row.status === 'UNCHANGED')
+}
+
+function rowIsSelectable(row: SimulationComparisonRow): boolean {
+  return row.identityIssue === null && (row.status === 'CHANGED' || row.status === 'UNCHANGED' || row.status === 'ADDED')
+}
+
+function effectUnavailableReason(row: SimulationComparisonRow): string {
+  if (row.identityIssue === 'ambiguous') return 'Business identity cannot be matched safely.'
+  if (row.identityIssue === 'unmatched') return 'Business identity is missing or unmatched.'
+  if (row.status === 'ADDED') return 'The row exists only in SIM.'
+  if (row.status === 'REMOVED') return 'The row exists only in Current.'
+  return 'Required inputs or Work Center context are unavailable.'
 }
 
 function bomAttribution(
@@ -245,18 +268,11 @@ function RoleActionMenu({
   )
 }
 
-function EffectCell({ amount, share, showShare = false, label }: {
+function EffectCell({ amount }: {
   amount: number | null | undefined
-  share?: number | null
-  showShare?: boolean
-  label?: string
 }) {
   return (
-    <td className="px-2 py-1.5 text-right font-mono tabular-nums text-slate-700">
-      {label && <span className="block text-[9px] font-sans text-slate-500">{label}</span>}
-      <span className="block">{displayMoney(amount ?? null)}</span>
-      {showShare && <span className="block text-[10px] text-slate-500">{displayShare(share)}</span>}
-    </td>
+    <td className="whitespace-nowrap px-1 py-1.5 text-right font-mono tabular-nums text-slate-700">{displayEffect(amount)}</td>
   )
 }
 
@@ -282,33 +298,57 @@ function SimulationParameterTable({
   const parameters = isBOM ? BOM_PARAMETERS : RTG_PARAMETERS
   const [expandedRows, setExpandedRows] = useState<Set<string>>(() => new Set())
   const records: Array<{ id: string }> = isBOM ? simulationSnapshot.bom : simulationSnapshot.routing
-  const tableRows = rows.filter(row => row.kind === kind)
-  const selectedCount = tableRows.reduce((count, row) => {
+  const tableRows = rows.filter(row => row.kind === kind).map((row, sourceIndex) => ({ row, sourceIndex }))
+  const selectedKeys = new Set(workingSelection)
+  const isSelectedRow = (row: SimulationComparisonRow) => Boolean(
+    row.simulationRecordId && rowIsSelectable(row) && selectedKeys.has(simulationWorkingTargetKey(kind, row.simulationRecordId))
+  )
+  const visibleRows = [...tableRows].sort((left, right) => Number(isSelectedRow(right.row)) - Number(isSelectedRow(left.row)) || left.sourceIndex - right.sourceIndex)
+  const selectableRecordIds = tableRows.flatMap(({ row }) => {
     const record = singleRecord(records, row.simulationRecordId)
-    return count + (record && workingSelection.includes(simulationWorkingTargetKey(kind, record.id)) ? 1 : 0)
-  }, 0)
+    return record && rowIsSelectable(row) ? [record.id] : []
+  })
+  const allVisibleSelected = selectableRecordIds.length > 0 && selectableRecordIds.every(id => selectedKeys.has(simulationWorkingTargetKey(kind, id)))
+  const selectedCount = selectableRecordIds.filter(id => selectedKeys.has(simulationWorkingTargetKey(kind, id))).length
+  const toggleAllVisible = () => {
+    const select = !allVisibleSelected
+    for (const id of selectableRecordIds) {
+      const isSelected = selectedKeys.has(simulationWorkingTargetKey(kind, id))
+      if (isSelected !== select) onToggleWorkingTarget(kind, id)
+    }
+  }
+  useTransientInteraction(expandedRows.size > 0, () => setExpandedRows(new Set()))
 
   return (
     <section className="min-w-0 border border-slate-300 bg-white xl:flex xl:min-h-0 xl:flex-col xl:overflow-hidden" aria-labelledby={`${kind}-simulation-title`}>
       <div className="flex items-baseline justify-between gap-2 border-b border-slate-200 px-3 py-2">
         <h2 id={`${kind}-simulation-title`} className="text-xs font-semibold text-slate-900">{title}</h2>
-        <span className="text-[10px] text-slate-500">{selectedCount} selected · structure locked</span>
+        <span className="text-[10px] text-slate-500">{selectedCount} selected</span>
       </div>
       <div className="overflow-x-hidden md:overflow-y-visible xl:min-h-0 xl:flex-1 xl:overflow-y-auto">
         <table className="hidden w-full table-fixed border-collapse text-[11px] md:table">
-          <caption className="sr-only">Select editable {isBOM ? 'BOM' : 'Routing'} records for local Simulation work. Selection does not limit the full Simulation calculation.</caption>
+          <caption className="sr-only">Select eligible {isBOM ? 'BOM' : 'Routing'} records for local Simulation work. Selection does not limit the full Simulation calculation.</caption>
           <colgroup>
-            <col className="w-[8%]" />
-            <col className="w-[22%]" />
-            <col className="w-[12%]" />
-            <col className="w-[12%]" />
-            <col className="w-[12%]" />
-            <col className="w-[24%]" />
-            <col className="w-[10%]" />
+            <col className="w-[7%]" />
+            <col className="w-[25%]" />
+            <col className="w-[15%]" />
+            <col className="w-[15%]" />
+            <col className="w-[15%]" />
+            <col className="w-[18%]" />
+            <col className="w-[5%]" />
           </colgroup>
           <thead className="sticky top-0 z-10 bg-slate-900 text-[10px] font-semibold text-white">
             <tr>
-              <th scope="col" className="px-1 py-2 text-center">Select</th>
+              <th scope="col" className="px-0.5 py-1 text-center">
+                <button
+                  type="button"
+                  aria-pressed={allVisibleSelected}
+                  aria-label={allVisibleSelected ? `Clear visible ${title} selection` : `Select all visible eligible ${title} rows`}
+                  disabled={selectableRecordIds.length === 0}
+                  onClick={toggleAllVisible}
+                  className={`grid h-7 w-7 place-items-center rounded-sm text-[11px] focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-300 ${allVisibleSelected ? 'border border-slate-300 bg-slate-700 text-white' : 'text-white hover:bg-slate-700'} disabled:cursor-default disabled:text-slate-400 disabled:hover:bg-transparent`}
+                >#</button>
+              </th>
               <th scope="col" className="px-1 py-2 text-left">{isBOM ? 'BOM' : 'RTG'}</th>
               {parameters.map(parameter => <th key={parameter.parameter} scope="col" className="px-0.5 py-2 text-right">{parameter.label}</th>)}
               <th scope="col" className="px-1 py-2 text-right">{isBOM ? 'Material Cost' : 'Conversion Cost'}</th>
@@ -316,14 +356,14 @@ function SimulationParameterTable({
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-200 bg-white">
-            {tableRows.length === 0 && <tr><td colSpan={7} className="px-3 py-6 text-center text-xs text-slate-500">No {title} rows.</td></tr>}
-            {tableRows.map((row, index) => {
-              const key = `${row.currentRecordId ?? 'missing'}:${row.simulationRecordId ?? 'missing'}:${index}`
+            {visibleRows.length === 0 && <tr><td colSpan={7} className="px-3 py-6 text-center text-xs text-slate-500">No {title} rows.</td></tr>}
+            {visibleRows.map(({ row, sourceIndex }) => {
+              const key = `${row.currentRecordId ?? 'missing'}:${row.simulationRecordId ?? 'missing'}:${sourceIndex}`
               const expanded = expandedRows.has(key)
               const simulationRecord = singleRecord(records, row.simulationRecordId)
-              const canEdit = Boolean(simulationRecord && row.status && row.status !== 'REMOVED' && !row.identityIssue)
-              const selected = Boolean(simulationRecord && workingSelection.includes(simulationWorkingTargetKey(kind, simulationRecord.id)))
-              const canExpand = Boolean(row.status)
+              const canEdit = Boolean(simulationRecord && rowIsSelectable(row))
+              const selected = isSelectedRow(row)
+              const canExpand = true
               const analysis = isBOM
                 ? bomAttribution(row, currentSnapshot, simulationSnapshot)
                 : routingAttribution(row, currentSnapshot, simulationSnapshot)
@@ -357,20 +397,17 @@ function SimulationParameterTable({
                     }}
                     className={`${selected ? 'bg-blue-50' : ''} hover:bg-slate-50/70 focus-visible:outline focus-visible:outline-2 focus-visible:outline-inset focus-visible:outline-blue-700 ${canExpand ? 'cursor-pointer' : ''}`}
                   >
-                    <td className="px-1 py-2 text-center">
+                    <th scope="row" className="px-0.5 py-1 text-center font-normal">
                       {canEdit && simulationRecord ? (
-                        <label className="inline-flex min-h-7 items-center justify-center gap-1 rounded-sm px-0.5 focus-within:outline focus-within:outline-2 focus-within:outline-blue-700">
-                          <input
-                            type="checkbox"
-                            checked={selected}
-                            onChange={() => onToggleWorkingTarget(kind, simulationRecord.id)}
-                            className="h-3.5 w-3.5 accent-blue-700"
-                            aria-label={`Select ${row.name} for local Simulation work`}
-                          />
-                          <span className="font-mono text-[9px] tabular-nums text-slate-500">{index + 1}</span>
-                        </label>
-                      ) : <span className="font-mono text-[10px] tabular-nums text-slate-500">{index + 1}</span>}
-                    </td>
+                        <button
+                          type="button"
+                          aria-label={`${selected ? 'Deselect' : 'Select'} ${title} row ${sourceIndex + 1}: ${row.name}`}
+                          aria-pressed={selected}
+                          onClick={() => onToggleWorkingTarget(kind, simulationRecord.id)}
+                          className={`min-h-7 min-w-7 rounded-sm px-1 font-mono text-[10px] ${selected ? 'bg-blue-700 text-white' : 'text-slate-600 hover:bg-slate-200'} focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700`}
+                        >{sourceIndex + 1}</button>
+                      ) : <span className="font-mono text-[10px] tabular-nums text-slate-500">{sourceIndex + 1}</span>}
+                    </th>
                     <th scope="row" className="px-2 py-2 text-left font-medium text-slate-900">
                       <span className="block break-words">{row.name}</span>
                       <span className={`mt-0.5 block text-[9px] font-normal ${row.identityIssue ? 'text-amber-800' : 'text-slate-500'}`}>{status}</span>
@@ -381,23 +418,25 @@ function SimulationParameterTable({
                         : null
                       const value = recordValue === null ? null : recordValue * parameter.scale
                       return (
-                        <td key={parameter.parameter} className="px-1 py-1.5 text-right">
+                        <td key={parameter.parameter} className="px-1 py-1 text-right">
                           {!simulationRecord ? '—' : canEdit ? (
-                            <NumericInput
-                              value={value}
-                              precision={parameter.precision}
-                              min={0}
-                              minExclusive={parameter.parameter === 'routing.capacity' || parameter.parameter === 'routing.yield'}
-                              max={parameter.parameter === 'routing.yield' || parameter.parameter === 'bom.loss' ? 100 : undefined}
-                              allowSubMinimumDraft={parameter.parameter === 'routing.capacity' || parameter.parameter === 'routing.yield'}
-                              onValueChange={next => onUpdate(
-                                simulationRecord.id,
-                                parameter.parameter,
-                                next === null ? null : next / parameter.scale
-                              )}
-                              className="h-7 w-full min-w-0 border border-slate-300 bg-white px-0.5 text-right text-[10px] focus:border-blue-700 focus:outline-none focus:ring-1 focus:ring-blue-100"
-                              aria-label={`${row.name} ${parameter.label} in SIM`}
-                            />
+                            <div className="mx-auto min-w-0">
+                              <NumericInput
+                                value={value}
+                                precision={parameter.precision}
+                                min={0}
+                                minExclusive={parameter.parameter === 'routing.capacity' || parameter.parameter === 'routing.yield'}
+                                max={parameter.parameter === 'routing.yield' || parameter.parameter === 'bom.loss' ? 100 : undefined}
+                                allowSubMinimumDraft={parameter.parameter === 'routing.capacity' || parameter.parameter === 'routing.yield'}
+                                onValueChange={next => onUpdate(
+                                  simulationRecord.id,
+                                  parameter.parameter,
+                                  next === null ? null : next / parameter.scale
+                                )}
+                                className="h-7 w-full min-w-0 border border-slate-300 bg-white px-0.5 text-right text-[10px] focus:border-blue-700 focus:outline-none focus:ring-1 focus:ring-blue-100"
+                                aria-label={`${row.name} ${parameter.label} in SIM`}
+                              />
+                            </div>
                           ) : displayParameter(recordValue, parameter)}
                         </td>
                       )
@@ -408,24 +447,17 @@ function SimulationParameterTable({
                     </td>
                   </tr>
                   {expanded && (
-                    <tr id={`${kind}-effect-${encodeURIComponent(key)}`} className="bg-slate-50/80">
+                    <tr id={`${kind}-effect-${encodeURIComponent(key)}`} data-safe-workspace-interaction="true" className="bg-slate-50/80">
                       <th scope="row" colSpan={2} className="px-3 py-2 text-left text-[10px] font-semibold text-slate-700">
-                        Parameter Cost Effect <span className="font-normal text-slate-500">· CUR → SIM</span>
+                        <span className="whitespace-nowrap">Parameter Cost Effect</span>
                         {analysis.effects.effects === null && (
-                          <span className="mt-0.5 block font-normal text-slate-500">
-                            {isBOM
-                              ? 'Unavailable for unmatched rows or invalid inputs.'
-                              : 'Unavailable when identity, inputs, or Work Center context cannot be reconciled.'}
-                          </span>
+                          <span className="ml-2 font-normal text-slate-500">Unavailable · {effectUnavailableReason(row)}</span>
                         )}
                       </th>
                       {detailParameters.map(parameter => <EffectCell key={parameter.parameter} amount={parameter.amount} />)}
-                      <EffectCell
-                        label="Total"
-                        amount={analysis.effects.effects === null ? null : analysis.effects.totalEffect}
-                        share={analysis.effects.effects !== null && analysis.effects.totalEffect !== null && analysis.effects.totalEffect !== 0 ? 100 : null}
-                        showShare
-                      />
+                      <td className="whitespace-nowrap px-1 py-1.5 text-right font-mono text-[10px] font-semibold tabular-nums text-slate-900">
+                        {analysis.effects.totalEffect === null ? '—' : `${displayEffect(analysis.effects.totalEffect)} Total`}
+                      </td>
                       <td className="px-1 py-1" aria-hidden="true" />
                     </tr>
                   )}
@@ -436,14 +468,25 @@ function SimulationParameterTable({
         </table>
       </div>
       <div className="md:hidden">
-        {tableRows.length === 0 && <p className="px-3 py-6 text-center text-xs text-slate-500">No {title} rows.</p>}
-        {tableRows.map((row, index) => {
-          const key = `${row.currentRecordId ?? 'missing'}:${row.simulationRecordId ?? 'missing'}:${index}`
+        <div className="flex min-h-9 items-center gap-2 border-b border-slate-200 bg-slate-50 px-3">
+          <button
+            type="button"
+            aria-pressed={allVisibleSelected}
+            aria-label={allVisibleSelected ? `Clear visible ${title} selection` : `Select all visible eligible ${title} rows`}
+            disabled={selectableRecordIds.length === 0}
+            onClick={toggleAllVisible}
+            className={`grid h-7 w-7 place-items-center rounded-sm text-[11px] focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-700 ${allVisibleSelected ? 'border border-slate-800 bg-slate-700 text-white' : 'text-slate-700 hover:bg-slate-200'} disabled:cursor-default disabled:text-slate-400 disabled:hover:bg-transparent`}
+          >#</button>
+          <span className="text-[10px] font-semibold text-slate-600">{title}</span>
+        </div>
+        {visibleRows.length === 0 && <p className="px-3 py-6 text-center text-xs text-slate-500">No {title} rows.</p>}
+        {visibleRows.map(({ row, sourceIndex }) => {
+          const key = `${row.currentRecordId ?? 'missing'}:${row.simulationRecordId ?? 'missing'}:${sourceIndex}`
           const expanded = expandedRows.has(key)
           const simulationRecord = singleRecord(records, row.simulationRecordId)
-          const canEdit = Boolean(simulationRecord && row.status && row.status !== 'REMOVED' && !row.identityIssue)
-          const selected = Boolean(simulationRecord && workingSelection.includes(simulationWorkingTargetKey(kind, simulationRecord.id)))
-          const canExpand = Boolean(row.status)
+          const canEdit = Boolean(simulationRecord && rowIsSelectable(row))
+          const selected = isSelectedRow(row)
+          const canExpand = true
           const detailId = `${kind}-mobile-effect-${encodeURIComponent(key)}`
           const toggleExpanded = () => setExpandedRows(previous => {
             const next = new Set(previous)
@@ -473,18 +516,15 @@ function SimulationParameterTable({
               className={`border-b border-slate-200 px-3 py-2.5 last:border-b-0 ${selected ? 'bg-blue-50' : ''} ${canExpand ? 'cursor-pointer hover:bg-slate-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-inset focus-visible:outline-blue-700' : ''}`}
             >
               <div className="flex min-w-0 items-start gap-2">
-                <span className="flex shrink-0 items-start gap-1 pt-0.5">
-                  {canEdit && simulationRecord && (
-                    <input
-                      type="checkbox"
-                      checked={selected}
-                      onChange={() => onToggleWorkingTarget(kind, simulationRecord.id)}
-                      className="h-3.5 w-3.5 accent-blue-700"
-                      aria-label={`Select ${row.name} for local Simulation work`}
-                    />
-                  )}
-                  <span className="font-mono text-[10px] text-slate-500">{index + 1}</span>
-                </span>
+                {canEdit && simulationRecord ? (
+                  <button
+                    type="button"
+                    aria-label={`${selected ? 'Deselect' : 'Select'} ${title} row ${sourceIndex + 1}: ${row.name}`}
+                    aria-pressed={selected}
+                    onClick={() => onToggleWorkingTarget(kind, simulationRecord.id)}
+                    className={`min-h-7 min-w-7 shrink-0 rounded-sm px-1 font-mono text-[10px] ${selected ? 'bg-blue-700 text-white' : 'text-slate-600 hover:bg-slate-200'} focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700`}
+                  >{sourceIndex + 1}</button>
+                ) : <span className="min-w-7 pt-1 text-center font-mono text-[10px] text-slate-500">{sourceIndex + 1}</span>}
                 <div className="min-w-0 flex-1">
                   <h3 className="break-words text-xs font-medium text-slate-900">{row.name}</h3>
                   <p className={`mt-0.5 text-[9px] ${row.identityIssue ? 'text-amber-800' : 'text-slate-500'}`}>{rowStatusText(row)}</p>
@@ -519,23 +559,21 @@ function SimulationParameterTable({
                 })}
               </div>
               {expanded && (
-                <div id={detailId} className="mt-2 border-t border-slate-200 pt-2">
-                  <p className="text-[10px] font-semibold text-slate-700">Parameter Cost Effect <span className="font-normal text-slate-500">· CUR → SIM</span></p>
-                  {analysis.effects.effects === null && <p className="mt-0.5 text-[10px] text-slate-500">Unavailable for unmatched rows, invalid inputs, or unreconciled Work Center context.</p>}
-                  <dl className="mt-1 grid grid-cols-2 gap-x-3 gap-y-1 text-[10px]">
+                <div id={detailId} data-safe-workspace-interaction="true" className="mt-2 border-t border-slate-200 pt-2">
+                  {analysis.effects.effects === null && (
+                    <p className="mb-1 text-[10px] text-slate-500">Unavailable · {effectUnavailableReason(row)}</p>
+                  )}
+                  <div className="grid grid-cols-[minmax(4.5rem,1.2fr)_repeat(3,minmax(2.25rem,0.8fr))_minmax(4.5rem,1.2fr)] items-center gap-1 text-[9px]">
+                    <span className="font-semibold text-slate-700">Effect</span>
                     {parameters.map(parameter => (
-                      <div key={parameter.parameter} className="flex justify-between gap-2">
-                        <dt className="text-slate-600">{parameter.label}</dt>
-                        <dd className="font-mono tabular-nums text-slate-800">{displayMoney(analysis.effects.effects?.[parameter.effectKey] ?? null)}</dd>
-                      </div>
+                      <span key={parameter.parameter} title={parameter.label} className="text-right font-mono tabular-nums text-slate-700">
+                        {displayEffect(analysis.effects.effects?.[parameter.effectKey])}
+                      </span>
                     ))}
-                    <div className="flex justify-between gap-2 border-t border-slate-200 pt-1 font-semibold">
-                      <dt className="text-slate-700">Total</dt>
-                      <dd className="text-right font-mono tabular-nums text-slate-900">
-                        {displayMoney(analysis.effects.totalEffect)}{analysis.effects.effects === null || analysis.effects.totalEffect === null || analysis.effects.totalEffect === 0 ? ' · —' : ' · 100%'}
-                      </dd>
-                    </div>
-                  </dl>
+                    <span className="whitespace-nowrap text-right font-mono font-semibold tabular-nums text-slate-900">
+                      {analysis.effects.totalEffect === null ? '— Total' : `${displayEffect(analysis.effects.totalEffect)} Total`}
+                    </span>
+                  </div>
                 </div>
               )}
             </article>
@@ -570,7 +608,7 @@ function ResultPanel({
   ]
 
   return (
-    <section className="min-w-0 border border-slate-300 bg-white px-3 py-2.5" aria-labelledby="simulation-result-title">
+    <section data-safe-workspace-interaction="true" className="min-w-0 border border-slate-300 bg-white px-3 py-2" aria-labelledby="simulation-result-title">
       <div className="border-b border-slate-200 pb-1.5">
         <div className="flex min-w-0 flex-wrap items-center justify-between gap-1.5">
           <h2 id="simulation-result-title" className="text-xs font-semibold text-slate-900">Result</h2>
@@ -583,12 +621,19 @@ function ResultPanel({
       </div>
       <div className="mt-1 min-w-0">
         <table className="w-full table-fixed text-[10px]">
+          <colgroup>
+            <col className="w-[34%]" />
+            <col className="w-[15%]" />
+            <col className="w-[15%]" />
+            <col className="w-[22%]" />
+            <col className="w-[14%]" />
+          </colgroup>
           <thead className="text-[9px] text-slate-500">
             <tr>
-              <th scope="col" className="py-1 text-left font-medium">Cost</th>
-              <th scope="col" className="px-1 py-1 text-right font-medium">Current</th>
-              <th scope="col" className="px-1 py-1 text-right font-medium">SIM</th>
-              <th scope="col" className="px-1 py-1 text-right font-medium">Change</th>
+              <th scope="col" className="whitespace-nowrap py-1 text-left font-medium">Cost</th>
+              <th scope="col" className="whitespace-nowrap px-0.5 py-1 text-right font-medium">Current</th>
+              <th scope="col" className="whitespace-nowrap px-0.5 py-1 text-right font-medium">SIM</th>
+              <th scope="col" className="whitespace-nowrap px-0.5 py-1 text-right font-medium">Change</th>
               <th scope="col" className="py-1 text-right font-medium">%</th>
             </tr>
           </thead>
@@ -599,11 +644,15 @@ function ResultPanel({
               const percent = rawPercent !== null && Number.isFinite(rawPercent) ? rawPercent : null
               return (
                 <tr key={row.label} className={row.total ? 'border-t border-slate-300 font-semibold text-slate-950' : 'text-slate-700'}>
-                  <th scope="row" className="py-1.5 text-left">{row.label}</th>
-                  <td className="px-1 py-1.5 text-right font-mono tabular-nums">{displayMoney(row.current)}</td>
-                  <td className="px-1 py-1.5 text-right font-mono tabular-nums">{displayMoney(row.sim)}</td>
-                  <td className="px-1 py-1.5 text-right font-mono tabular-nums">{displayMoney(change)}</td>
-                  <td className="py-1.5 text-right font-mono tabular-nums">{displayShare(percent)}</td>
+                  <th scope="row" className="whitespace-nowrap py-1.5 text-left">{row.label}</th>
+                  <td className="whitespace-nowrap px-0.5 py-1.5 text-right font-mono tabular-nums">{displayMoney(row.current)}</td>
+                  <td className="whitespace-nowrap px-0.5 py-1.5 text-right font-mono tabular-nums">{displayMoney(row.sim)}</td>
+                  <td className={`px-1 py-1.5 text-right font-mono tabular-nums ${resultChangeClass(change)}`}>
+                    {displayResultDelta(change)}
+                  </td>
+                  <td className={`py-1.5 text-right font-mono tabular-nums ${resultChangeClass(percent)}`}>
+                    {percent === null ? '—' : `${displayResultDelta(percent)}%`}
+                  </td>
                 </tr>
               )
             })}
@@ -681,7 +730,7 @@ export const SimulationPage: React.FC<SimulationPageProps> = ({
         onClick={() => {
           onResetParameters()
           setTransferError(false)
-          setTransferMessage('SIM parameters reset.')
+          setTransferMessage('SIM reset.')
         }}
         className="inline-flex min-h-7 items-center border border-slate-400 bg-white px-2 text-[11px] font-medium text-slate-800 hover:bg-slate-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700"
       >Reset</button>
@@ -708,9 +757,9 @@ export const SimulationPage: React.FC<SimulationPageProps> = ({
 
   return (
     <div className="min-w-0 space-y-3 xl:flex xl:h-full xl:min-h-0 xl:flex-col xl:gap-2 xl:space-y-0 xl:overflow-hidden">
-      <div className="grid min-w-0 gap-3 xl:min-h-0 xl:flex-[1.5] xl:grid-cols-[minmax(0,1.45fr)_minmax(370px,1fr)] xl:grid-rows-1">
+      <div className="grid min-w-0 gap-2 xl:min-h-0 xl:flex-[1.8] xl:grid-cols-[minmax(0,2fr)_minmax(0,1fr)] xl:grid-rows-1">
         <SimulationStoryGraph story={story} />
-        <div className="grid content-start gap-3 xl:h-full xl:min-h-0 xl:grid-rows-[minmax(0,1.1fr)_minmax(0,0.9fr)] xl:gap-2">
+        <div className="grid content-start gap-2 xl:h-full xl:min-h-0 xl:grid-rows-[minmax(0,1.3fr)_minmax(0,1fr)]">
           <ResultPanel
             currentCost={result.currentCost}
             simulationCost={result.simulationCost}
@@ -718,11 +767,11 @@ export const SimulationPage: React.FC<SimulationPageProps> = ({
             transferMessage={transferMessage}
             transferError={transferError}
           />
-          <EconomicSimulationPanel result={economicResult} draft={state.economicInputs} onUpdate={onUpdateEconomicInput} />
+          <EconomicSimulationPanel result={economicResult} draft={state.economicInputs} currentSnapshot={currentSnapshot} onUpdate={onUpdateEconomicInput} />
         </div>
       </div>
 
-      <div className="grid min-w-0 gap-3 xl:min-h-0 xl:flex-1 xl:grid-cols-2 xl:grid-rows-[minmax(0,1fr)]">
+      <div className="grid min-w-0 gap-2 xl:min-h-0 xl:flex-1 xl:grid-cols-2 xl:grid-rows-[minmax(0,1fr)]">
         <SimulationParameterTable
           kind="bom"
           rows={result.records}

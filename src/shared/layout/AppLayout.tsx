@@ -248,8 +248,8 @@ export const AppLayout: React.FC<AppLayoutProps> = ({ children, onNavigatePrepar
   const currentStandardCost = fullSnapshotComparison.currentCost.total
   const totalGap = fullSnapshotComparison.totalGap
   const hasNetGap = totalGap !== null && Number.isFinite(totalGap)
-  const formatCost = (value: number | null) => value === null || !Number.isFinite(value) ? '—' : formatNumber(value, 4)
-  const formattedGap = hasNetGap ? `${totalGap > 0 ? '+' : ''}${formatNumber(totalGap, 4)}` : '—'
+  const formatCost = (value: number | null) => value === null || !Number.isFinite(value) ? '—' : formatNumber(value, 2)
+  const formattedGap = hasNetGap ? `${totalGap > 0 ? '+' : ''}${formatNumber(totalGap, 2)}` : '—'
   const referenceUom = snapshotPair.reference.product.uom?.trim() ?? ''
   const currentUom = snapshotPair.current.product.uom?.trim() ?? ''
   const costUnit = !referenceUom && !currentUom

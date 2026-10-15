@@ -43,8 +43,8 @@ interface CandidateFindingsTableProps {
   onManualOrderChange: (keys: string[]) => void
 }
 
-const BOM_COLUMN_WIDTHS = ['4%', '26%', '8%', '11.6666666667%', '11.6666666667%', '11.6666666667%', '12%', '7%', '4%', '4%']
-const ROUTING_COLUMN_WIDTHS = ['4%', '26%', '8%', '7%', '7%', '7%', '7%', '7%', '12%', '7%', '4%', '4%']
+const BOM_COLUMN_WIDTHS = ['4%', '23%', '7%', '13%', '13%', '13%', '12%', '7%', '4%', '4%']
+const ROUTING_COLUMN_WIDTHS = ['4%', '23%', '7%', '7.8%', '7.8%', '7.8%', '7.8%', '7.8%', '12%', '7%', '4%', '4%']
 
 export function reorderCandidateRowKeys(
   keys: readonly string[],
@@ -110,7 +110,7 @@ function candidatePercent(gap: number | null, totalGap: number | null): string {
 function formatParameterValue(field: MasterDataNumericField, value: number | null | undefined): string {
   const available = validParameter(field, value)
   if (available === null) return '—'
-  return field === 'loss' || field === 'yield' ? formatPercent(available, 2) : formatNumber(available, 4)
+  return field === 'loss' || field === 'yield' ? formatPercent(available, 2) : formatNumber(available, 2)
 }
 
 function parameterDelta(field: MasterDataNumericField, reference: number | null | undefined, current: number | null | undefined): string {
@@ -119,7 +119,7 @@ function parameterDelta(field: MasterDataNumericField, reference: number | null 
   if (referenceValue === null || currentValue === null) return '—'
   const difference = currentValue - referenceValue
   if (!Number.isFinite(difference)) return '—'
-  return field === 'loss' || field === 'yield' ? formatPercent(difference, 2) : formatVariance(difference, 4)
+  return field === 'loss' || field === 'yield' ? formatPercent(difference, 2) : formatVariance(difference, 2)
 }
 
 interface DisplayParameter {
@@ -381,7 +381,7 @@ export const CandidateFindingsTable: React.FC<CandidateFindingsTableProps> = ({
                 </th>
                 <td className={`whitespace-nowrap px-1 py-2 text-left font-sans text-[10px] font-bold ${statusTextClass(status)}`}>{status ?? '—'}</td>
                 {parameters.map(parameter => <td key={parameter.field} className="whitespace-nowrap px-1 py-2 text-right">{renderParameter(parameter)}</td>)}
-                <td className={`whitespace-nowrap px-1 py-2 text-right ${gapTextClass(row.gap)}`}>{row.gap === null ? '—' : formatVariance(row.gap, 4)}</td>
+                <td className={`whitespace-nowrap px-1 py-2 text-right ${gapTextClass(row.gap)}`}>{row.gap === null ? '—' : formatVariance(row.gap, 2)}</td>
                 <td className="whitespace-nowrap px-1 py-2 text-right text-slate-700">{candidatePercent(row.gap, totalGap)}</td>
                 <td className="px-1 py-2 text-center" onClick={event => event.stopPropagation()}>
                   <button

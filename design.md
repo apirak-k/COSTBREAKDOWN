@@ -129,14 +129,14 @@ human visual review.
 
 ### Simulation storytelling graph
 
-The left-side stacked bar and Selling Price line are confirmed visual direction.
-The finalized five-step story is REF → GAP 1 → CUR → GAP 2 → SIM. Reuse the
-Cost Breakdown colors: MAT `#4F7CAC`, LB `#D89B45`, and BD `#8067B7`. Gap bars
-show signed engineering cost components; SG&A and OP remain separate on
-snapshot bars. Numeric scale, incomplete input handling, and responsive
-geometry are `PROVISIONAL — AI CHOICE`;
-the superseded two-state dashboard chart remains provenance in
-[`PROVISIONAL_IMPLEMENTATION_DECISIONS.md`](docs/PROVISIONAL_IMPLEMENTATION_DECISIONS.md#p-011--adapt-the-left-side-dashboard-chart-to-the-available-snapshots).
+The left-side stacked bar and separate Selling Price line are confirmed visual
+direction. The finalized five-step story is REF → GAP 1 → CUR → GAP 2 → SIM.
+Reuse the Cost Breakdown colors: MAT `#4F7CAC`, LB `#D89B45`, and BD `#8067B7`,
+with slightly softened graph-only fills. Gap bars show signed engineering cost
+components; SG&A and OP remain separate on snapshot bars. Total labels above
+the bars contain only the numeric value; the five state names appear below the
+bars. Draw the visual-only ruler line in front of the bars while keeping its
+value tag and total labels readable. Negative OP remains visible below zero.
 Use only settled Material, Labor, and Burden calculations. Do not add excluded
 variance categories or guessed business measures. Do not present snapshots as a
 monthly trend.
@@ -149,6 +149,16 @@ against Current. Keep supporting detail available on demand, show Selling
 Price, SG&A, and OP when inputs permit, and preserve negative OP as a loss.
 Avoid repeating finding details already available inside Cost Breakdown. Do
 not add invented financial values or historical periods.
+
+Simulation is a fixed desktop workspace with Graph, Result, and Economic above
+equal-width BOM and RTG panels; only the BOM and RTG table bodies scroll
+vertically. Narrow layouts stack and use natural page scrolling. The `#`
+column's row number is the local selection control, and selected rows appear
+first through view ordering only; calculation always uses the full SIM
+snapshot. Each Clone establishes the Reset baseline for both editable SIM
+parameters and Economic inputs. Result Change and percent use red for cost
+increases, green for decreases, neutral for zero, and gray when unavailable.
+The Economic panel keeps formula tooltips and has no visible Calculation Notes.
 
 ## 2. Color Palette & Semantic Tokens
 

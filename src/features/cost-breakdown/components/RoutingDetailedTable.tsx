@@ -173,16 +173,16 @@ export function RoutingRecordDetails({ row, referenceRates, currentRates, detail
       reference: reference?.manning,
       current: current?.manning,
       effect: conversionEffects?.manning,
-      format: (value: number) => formatNumber(value, 4),
-      effectFormat: (value: number) => formatVariance(value, 4)
+      format: (value: number) => formatNumber(value, 2),
+      effectFormat: (value: number) => formatVariance(value, 2)
     },
     {
       field: 'capacity' as const,
       reference: reference?.capacity,
       current: current?.capacity,
       effect: conversionEffects?.capacity,
-      format: (value: number) => formatNumber(value, 4),
-      effectFormat: (value: number) => formatVariance(value, 4)
+      format: (value: number) => formatNumber(value, 2),
+      effectFormat: (value: number) => formatVariance(value, 2)
     },
     {
       field: 'yield' as const,
@@ -190,23 +190,23 @@ export function RoutingRecordDetails({ row, referenceRates, currentRates, detail
       current: current?.yield,
       effect: conversionEffects?.yield,
       format: (value: number) => formatPercent(value, 2),
-      effectFormat: (value: number) => formatVariance(value, 4)
+      effectFormat: (value: number) => formatVariance(value, 2)
     },
     {
       field: 'laborRate' as const,
       reference: referenceRate?.laborRate,
       current: currentRate?.laborRate,
       effect: conversionEffects?.laborRate,
-      format: (value: number) => formatNumber(value, 4),
-      effectFormat: (value: number) => formatVariance(value, 4)
+      format: (value: number) => formatNumber(value, 2),
+      effectFormat: (value: number) => formatVariance(value, 2)
     },
     {
       field: 'burdenRate' as const,
       reference: referenceRate?.burdenRate,
       current: currentRate?.burdenRate,
       effect: conversionEffects?.burdenRate,
-      format: (value: number) => formatNumber(value, 4),
-      effectFormat: (value: number) => formatVariance(value, 4)
+      format: (value: number) => formatNumber(value, 2),
+      effectFormat: (value: number) => formatVariance(value, 2)
     }
   ]
 
@@ -220,13 +220,13 @@ export function RoutingRecordDetails({ row, referenceRates, currentRates, detail
     <td aria-hidden="true" className="px-1 py-1.5" />
     <th scope="row" className={`truncate border-l-2 border-slate-300 px-2.5 py-1.5 text-left font-sans ${effectRow ? 'font-bold' : 'font-normal'}`}>{label}</th>
     <td aria-hidden="true" className="px-2 py-1.5" />
-    {parameterValues.map(item => <td key={item.field} className="px-2 py-1.5 text-right">
+    {parameterValues.map(item => <td key={item.field} className="whitespace-nowrap px-1 py-1.5 text-right">
       {effectRow
         ? formatNullable(item.effect ?? null, item.effectFormat)
         : formatReferenceCurrent(item.field, item.reference, item.current, item.format)}
     </td>)}
-    <td className={`px-2 py-1.5 text-right ${effectRow ? 'font-mono tabular-nums' : ''}`}>
-      {effectRow ? formatNullable(row.conversionGap, value => formatVariance(value, 4)) : ''}
+    <td className={`whitespace-nowrap px-1 py-1.5 text-right ${effectRow ? 'font-mono tabular-nums' : ''}`}>
+      {effectRow ? formatNullable(row.conversionGap, value => formatVariance(value, 2)) : ''}
     </td>
     <td aria-hidden="true" className="px-2 py-1.5" />
     <td aria-hidden="true" className="px-1 py-1.5" />

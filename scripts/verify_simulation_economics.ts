@@ -65,6 +65,7 @@ assert.equal(fallback.economicMarginPerPiece, 0, 'zero Parameter Saving and zero
 const panelMarkup = renderToStaticMarkup(React.createElement(EconomicSimulationPanel, {
   result: positiveOP,
   draft: positiveOPDraft,
+  currentSnapshot,
   onUpdate() {}
 }))
 assert.match(panelMarkup, /inputMode="numeric"[^>]*aria-valuemin="1"/,
@@ -81,6 +82,7 @@ const formulaTooltips = [
   'Selling Price − SIM Standard Cost − SG&A / pc'
 ]
 const panelSource = readFileSync(resolve(process.cwd(), 'src/features/simulation/EconomicSimulationPanel.tsx'), 'utf8')
+assert.doesNotMatch(panelMarkup, /Calculation notes/, 'Calculation Notes are absent from the Economic panel')
 for (const formula of formulaTooltips) {
   assert.ok(panelSource.includes(formula), `Economic output retains its exact Tooltip label: ${formula}`)
 }
@@ -91,6 +93,7 @@ const negativeSaving = calculateEconomicSimulation(currentSnapshot, simulationCo
 const renderPanel = (result: ReturnType<typeof calculateEconomicSimulation>) => renderToStaticMarkup(React.createElement(EconomicSimulationPanel, {
   result,
   draft: marginDraft,
+  currentSnapshot,
   onUpdate() {}
 }))
 const positiveSavingMarkup = renderPanel(positiveSaving)
@@ -104,6 +107,14 @@ assert.match(parameterSavingValueClass(positiveSavingMarkup), /text-emerald-800/
   'positive Parameter Saving uses a favorable green sign color')
 assert.match(parameterSavingValueClass(negativeSavingMarkup), /text-rose-800/,
   'negative Parameter Saving uses an unfavorable red sign color')
+const fallbackPanelMarkup = renderToStaticMarkup(React.createElement(EconomicSimulationPanel, {
+  result: fallback,
+  draft: fallbackDraft,
+  currentSnapshot,
+  onUpdate() {}
+}))
+assert.match(fallbackPanelMarkup, /value="120\.00"/, 'blank Selling Price override displays the actual Current fallback value')
+assert.match(fallbackPanelMarkup, /value="10\.00"/, 'blank SG&A override displays the actual Current percentage')
 
 for (const [field, value] of [
   ['fixedActionCost', '-1'],

@@ -18,7 +18,7 @@ try {
   const { SimulationStoryGraph } = await vite.ssrLoadModule('/src/features/simulation/SimulationStoryGraph.tsx')
   const { SimulationPage } = await vite.ssrLoadModule('/src/features/simulation/SimulationPage.tsx')
   const { simulationWorkingTargetKey, startSimulationFrom } = await vite.ssrLoadModule('/src/features/simulation/simulation-state.ts')
-  const { calculateParameterSimulation } = await vite.ssrLoadModule('/src/features/simulation/simulation-engine.ts')
+  const { calculateParameterSimulation, updateSimulationParameter } = await vite.ssrLoadModule('/src/features/simulation/simulation-engine.ts')
 
   const cost = (snapshotId: string, material: number, labor: number, burden: number): SnapshotCost => ({
     snapshotId, material, labor, burden, total: material + labor + burden, status: 'complete', warnings: []
@@ -35,12 +35,26 @@ try {
   const graphMarkup = renderToStaticMarkup(React.createElement(SimulationStoryGraph, { story }))
   const graphSource = readFileSync(resolve(process.cwd(), 'src/features/simulation/SimulationStoryGraph.tsx'), 'utf8')
   const graphText = graphMarkup.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ')
-  assert.match(graphMarkup, /REF → GAP 1 → CUR → GAP 2 → SIM/)
-  assert.match(graphMarkup, /GAP 1 \+10\.00/, 'GAP 1 uses the compact signed Standard Cost change')
-  assert.match(graphMarkup, /GAP 2 -5\.00/, 'GAP 2 uses the compact signed Standard Cost change')
+  const svgTextLabels = [...graphMarkup.matchAll(/<text\b[^>]*>([\s\S]*?)<\/text>/g)]
+    .map(match => match[1].replace(/<[^>]*>/g, '').replace(/&amp;/g, '&').trim())
+  const expectedBarTotals = new Map([['180', '90.00'], ['305', '+10.00'], ['430', '100.00'], ['555', '-5.00'], ['680', '95.00']])
+  const barTopLabels = [...graphMarkup.matchAll(/<text x="(180|305|430|555|680)" y="([^"]+)"[^>]*>([\s\S]*?)<\/text>/g)]
+    .filter(match => {
+      const label = match[3].replace(/<[^>]*>/g, '').trim()
+      return match[2] !== '306' && /^[+-]?\d+\.\d{2}$/.test(label)
+    })
+    .map(match => [Number(match[1]), match[3].replace(/<[^>]*>/g, '').trim()] as const)
+    .sort((left, right) => left[0] - right[0])
+  assert.deepEqual(barTopLabels, [...expectedBarTotals].map(([x, label]) => [Number(x), label]),
+    'REF/GAP1/CUR/GAP2/SIM bar ends show numeric totals only, in graph order')
+  assert.equal(svgTextLabels.filter(label => ['REF', 'GAP 1', 'CUR', 'GAP 2', 'SIM'].includes(label)).length, 5,
+    'the five bar names remain distinct from their numeric totals')
   assert.match(graphMarkup, /GAP 1 MAT Gap: \+5\.00/)
   assert.match(graphMarkup, /GAP 2 MAT Gap: -3\.00/)
   assert.doesNotMatch(graphMarkup, /\bSC [+-]\d/, 'gap labels do not use the ambiguous SC +/- notation')
+  const firstBarIndex = graphMarkup.indexOf('fill-opacity="0.86"')
+  const rulerLineIndex = graphMarkup.indexOf('stroke-dasharray="4 5"')
+  assert.ok(firstBarIndex >= 0 && rulerLineIndex > firstBarIndex, 'the visible ruler line is drawn in front of the bars')
   for (const [part, color] of [['MAT', '#4F7CAC'], ['LB', '#D89B45'], ['BD', '#8067B7']]) {
     assert.ok(graphMarkup.includes(`fill="${color}"`), `${part} uses the exact CBD palette color in the graph bars`)
     assert.ok(graphMarkup.includes(`background-color:${color}`), `${part} uses the exact CBD palette color in the legend`)
@@ -52,7 +66,7 @@ try {
   assert.match(graphSource, /onPointerMove=/, 'the visual ruler still responds to pointer movement')
   assert.match(graphSource, /onPointerUp=/, 'the visual ruler still responds to pointer release')
   assert.match(graphSource, /onPointerCancel=/, 'the visual ruler releases pointer capture on cancellation')
-  assert.match(graphMarkup, /STD \d+\.\d{2}/, 'the compact graph retains each Standard Cost total')
+  assert.match(graphMarkup, /fill-opacity="0.86"/, 'dataset bar fills use a softened but distinct treatment')
   assert.match(graphMarkup, /Selling Price<\/li>/, 'Selling Price remains a separate graph line')
   assert.ok(graphMarkup.includes('fill="#15803d"'), 'positive OP uses its green sign color')
   assert.doesNotMatch(graphMarkup, /GAP [12] (?:SG&A|OP|Selling Price) Gap:/,
@@ -109,6 +123,7 @@ try {
     'the UI explains that local row selection does not filter calculation')
   assert.match(pageMarkup, /Current → SIM/)
   assert.ok(pageText.includes('0.00%'), 'no-change Result percentage renders as 0.00%')
+  assert.doesNotMatch(pageMarkup, /Calculation notes/, 'Calculation Notes are removed from the Economic UI')
   assert.doesNotMatch(pageMarkup, /<h1[^>]*>Simulation<\/h1>|Adjust SIM parameters and review the live/,
     'the large Simulation PageHeading is removed')
   assert.doesNotMatch(pageMarkup, /Factors to Simulate|Select .* factor/,
@@ -122,7 +137,7 @@ try {
   assert.ok(materialNameIndex >= 0, 'the test row is present in the rendered table')
   const selectedPageMarkup = renderToStaticMarkup(React.createElement(SimulationPage, {
     state,
-    workingSelection: [simulationWorkingTargetKey('bom', currentSnapshot.bom[0].id)],
+    workingSelection: [simulationWorkingTargetKey('bom', currentSnapshot.bom[1].id)],
     referenceSnapshot,
     currentSnapshot,
     onCloneSource() {},
@@ -132,9 +147,41 @@ try {
     onUpdateParameter() {},
     onUpdateEconomicInput() {}
   }))
-  assert.match(selectedPageMarkup, /1 selected · structure locked/,
+  assert.match(selectedPageMarkup, /1 selected/,
     'the selected BOM is reflected in the local working count')
-  assert.ok(selectedPageMarkup.includes('checked=""'), 'the selected BOM has a checked selection control')
+  assert.match(selectedPageMarkup, /aria-label="Deselect BOM row 2: Second material"[^>]*aria-pressed="true"/,
+    'the row number itself becomes the blue selected control')
+  assert.doesNotMatch(selectedPageMarkup, /type="checkbox"|>Select<\/th>/,
+    'Simulation has no separate Select column or checkbox')
+  assert.ok(selectedPageMarkup.indexOf('Second material') < selectedPageMarkup.indexOf('A deliberately long stainless steel material description'),
+    'selected rows are presented before unselected rows without changing the underlying snapshot')
+  assert.deepEqual(state.snapshot!.bom.map(row => row.id), currentSnapshot.bom.map(row => row.id),
+    'selected-first presentation does not mutate source snapshot order')
+  const renderStandardCostChangeCells = (price: number) => {
+    const changed = updateSimulationParameter(state, currentSnapshot, currentSnapshot.bom[0].id, 'bom.price', price)
+    const markup = renderToStaticMarkup(React.createElement(SimulationPage, {
+      state: changed,
+      workingSelection: changed.workingSelection,
+      referenceSnapshot,
+      currentSnapshot,
+      onCloneSource() {}, onSendTo() { return true }, onResetParameters() {}, onToggleWorkingTarget() {}, onUpdateParameter() {}, onUpdateEconomicInput() {}
+    }))
+    const resultPanel = markup.match(/<section[^>]*aria-labelledby="simulation-result-title"[\s\S]*?<\/section>/)?.[0] ?? ''
+    const standardCostRow = [...resultPanel.matchAll(/<tr[^>]*>([\s\S]*?)<\/tr>/g)]
+      .find(match => match[1].includes('Standard Cost'))?.[1] ?? ''
+    return [...standardCostRow.matchAll(/<td class="([^"]*)">([\s\S]*?)<\/td>/g)]
+      .map(match => ({ className: match[1], text: match[2].replace(/<[^>]*>/g, '').trim() }))
+  }
+  const increasedCostCells = renderStandardCostChangeCells(13)
+  assert.equal(increasedCostCells[2]?.text, '+2.10')
+  assert.match(increasedCostCells[2]?.className ?? '', /text-rose-700/)
+  assert.equal(increasedCostCells[3]?.text, '+7.07%')
+  assert.match(increasedCostCells[3]?.className ?? '', /text-rose-700/)
+  const decreasedCostCells = renderStandardCostChangeCells(11)
+  assert.equal(decreasedCostCells[2]?.text, '-2.10')
+  assert.match(decreasedCostCells[2]?.className ?? '', /text-emerald-700/)
+  assert.equal(decreasedCostCells[3]?.text, '-7.07%')
+  assert.match(decreasedCostCells[3]?.className ?? '', /text-emerald-700/)
   const materialRowStart = pageMarkup.lastIndexOf('<tr', materialNameIndex)
   assert.ok(materialRowStart >= 0, 'the test material belongs to a rendered table row')
   const materialRowStartTag = pageMarkup.slice(materialRowStart, pageMarkup.indexOf('>', materialRowStart))
@@ -168,7 +215,7 @@ try {
   assert.match(rowHandlerSource, /event\.key\s*!==\s*['"] ['"]/, 'Space is accepted by the row activation guard')
   assert.match(rowHandlerSource, /isInteractiveTarget\(event\.target\)/,
     'editing inputs and nested controls keep their own click behavior')
-  const mobileRowsStart = pageSource.indexOf('tableRows.map((row, index) => {', pageSource.indexOf('tableRows.map((row, index) => {') + 1)
+  const mobileRowsStart = pageSource.indexOf('visibleRows.map(({ row, sourceIndex }) => {', pageSource.indexOf('visibleRows.map(({ row, sourceIndex }) => {') + 1)
   assert.ok(mobileRowsStart >= 0, 'a separate mobile card row template remains available')
   const mobileArticleStart = pageSource.indexOf('<article', mobileRowsStart)
   const mobileRowHandlerSource = pageSource.slice(mobileArticleStart, pageSource.indexOf('</article>', mobileArticleStart))
@@ -202,10 +249,13 @@ try {
   const protectedText = protectedMarkup.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ')
   assert.doesNotMatch(protectedText, /Parameter Cost Effect/, 'the compact detail remains collapsed until requested')
   assert.doesNotMatch(protectedMarkup, /100\.00%/, 'per-parameter attribution shares are not presented')
+  assert.doesNotMatch(protectedMarkup, /type="checkbox"|aria-label="Select BOM row/, 'ambiguous rows are not selectable')
+  assert.match(pageSource, /const canExpand = true/, 'protected rows can expand even without a status')
+  assert.match(pageSource, /Business identity cannot be matched safely/, 'expanded protected rows explain why effect is unavailable')
   assert.match(pageSource, /\{expanded && \(/, 'Parameter Cost Effect appears only after expanding the row')
   assert.match(pageSource, /Parameter Cost Effect/, 'the expandable row contains the effect detail')
-  assert.match(pageSource, /analysis\.effects\.effects === null \? null : analysis\.effects\.totalEffect/,
-    'unavailable attribution does not fabricate a total amount or percentage')
+  assert.match(pageSource, /analysis\.effects\.totalEffect === null \? '—' : `\$\{displayEffect\(analysis\.effects\.totalEffect\)\} Total`/,
+    'unavailable attribution does not fabricate a total amount')
   assert.doesNotMatch(pageSource, /analysis\.effects\.shares\?\./, 'per-factor share percentages are removed from the presentation')
 
   console.log('Simulation story graph and page contract verification passed')
