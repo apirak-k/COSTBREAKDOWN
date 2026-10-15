@@ -16,6 +16,8 @@ export interface NumericInputProps extends Omit<InputHTMLAttributes<HTMLInputEle
   value: number | null | undefined
   onValueChange: (value: number | null) => void
   allowSubMinimumDraft?: boolean
+  stopAtMinimum?: boolean
+  minimumDisplayPrecision?: number
   reserveMarker?: boolean
 }
 
@@ -32,6 +34,8 @@ export function NumericInput({
   max,
   minExclusive,
   allowSubMinimumDraft = false,
+  stopAtMinimum = false,
+  minimumDisplayPrecision,
   reserveMarker = false,
   onFocus,
   onBlur,
@@ -46,7 +50,7 @@ export function NumericInput({
   const currentValueRef = useRef(value)
   const onValueChangeRef = useRef(onValueChange)
   const previousValueRef = useRef(value)
-  const previousFormattedValueRef = useRef(formatNumericInputValue(value, domain))
+  const previousFormattedValueRef = useRef(formatNumericInputValue(value, domain, minimumDisplayPrecision))
   const preservedPlaceRef = useRef<{ raw: string; caret: number; place: NumericStepPlace } | null>(null)
   const restorePlaceRef = useRef<number | null>(null)
   const repeatPointerIdRef = useRef<number | null>(null)
@@ -55,7 +59,7 @@ export function NumericInput({
   const lastPointerUpRef = useRef(0)
   const canStepRef = useRef(!inputProps.disabled && !inputProps.readOnly)
   const [focused, setFocused] = useState(false)
-  const [draft, setDraft] = useState(() => formatNumericInputValue(value, domain))
+  const [draft, setDraft] = useState(() => formatNumericInputValue(value, domain, minimumDisplayPrecision))
 
   currentValueRef.current = value
   onValueChangeRef.current = onValueChange
@@ -128,7 +132,7 @@ export function NumericInput({
   }, [inputProps.disabled, inputProps.readOnly])
 
   useEffect(() => {
-    const formattedValue = formatNumericInputValue(value, domain)
+    const formattedValue = formatNumericInputValue(value, domain, minimumDisplayPrecision)
     const valueChanged = !Object.is(previousValueRef.current, value)
 
     // Clipboard edits update the parent value without going through this input's
@@ -140,7 +144,7 @@ export function NumericInput({
 
     previousValueRef.current = value
     previousFormattedValueRef.current = formattedValue
-  }, [draft, focused, value, integer, precision, min, max, minExclusive])
+  }, [draft, focused, value, integer, precision, min, max, minExclusive, minimumDisplayPrecision])
 
   useIsomorphicLayoutEffect(() => {
     const exponent = restorePlaceRef.current
@@ -163,14 +167,14 @@ export function NumericInput({
     const activePlace = !hasSelection && preservedPlace?.raw === raw && preservedPlace.caret === selectionStart
       ? preservedPlace.place
       : resolveNumericStepPlace(raw, hasSelection ? null : selectionStart, domain)
-    const next = stepNumericValue(currentValueRef.current, direction, activePlace.step, domain)
+    const next = stepNumericValue(currentValueRef.current, direction, activePlace.step, domain, { stopAtMinimum })
     if (next === null) {
       preservedPlaceRef.current = null
       restorePlaceRef.current = null
       onValueChangeRef.current(null)
       setDraft('')
     } else {
-      const nextDraft = formatNumericInputValue(next, domain)
+      const nextDraft = formatNumericInputValue(next, domain, minimumDisplayPrecision)
       if (nextDraft === raw) {
         preservedPlaceRef.current = { raw, caret: selectionStart, place: activePlace }
         restorePlaceRef.current = null
@@ -198,7 +202,7 @@ export function NumericInput({
     setFocused(false)
     const parsed = parseNumericDraft(draft, domain, allowSubMinimumDraft)
     if (parsed.kind === 'blank') onValueChangeRef.current(null)
-    setDraft(formatNumericInputValue(currentValueRef.current, domain))
+    setDraft(formatNumericInputValue(currentValueRef.current, domain, minimumDisplayPrecision))
     onBlur?.(event)
   }
 

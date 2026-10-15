@@ -67,7 +67,7 @@ function firstAllowedAtOrAboveMin(domain: NumericInputDomain): number | undefine
   if (domain.min === undefined) return undefined
   if (!domain.minExclusive) return domain.integer ? Math.ceil(domain.min) : domain.min
   if (domain.integer) return Math.floor(domain.min) + 1
-  return domain.min + (10 ** -precisionOf(domain))
+  return Number((domain.min + (10 ** -precisionOf(domain))).toFixed(precisionOf(domain)))
 }
 
 function firstAllowedAtOrBelowMax(domain: NumericInputDomain): number | undefined {
@@ -125,7 +125,8 @@ export function stepNumericValue(
   current: number | null | undefined,
   direction: 1 | -1,
   step: number,
-  domain: NumericInputDomain = {}
+  domain: NumericInputDomain = {},
+  options: { stopAtMinimum?: boolean } = {}
 ): number | null {
   const increment = domain.integer ? Math.max(1, Math.round(Math.abs(step))) : Math.abs(step)
   if (!Number.isFinite(increment) || increment <= 0) return current ?? null
@@ -146,18 +147,22 @@ export function stepNumericValue(
   const candidate = preciseStep(current, direction * increment, Boolean(domain.integer))
   if (isNumericValueAllowed(candidate, domain)) return candidate
 
-  if (direction < 0 && lower !== undefined && current <= lower + 1e-10) return null
-  if (direction < 0 && lower !== undefined && candidate < lower) return null
+  if (direction < 0 && lower !== undefined && current <= lower + 1e-10) return options.stopAtMinimum ? current : null
+  if (direction < 0 && lower !== undefined && candidate < lower) return options.stopAtMinimum ? lower : null
   if (candidate > (upper ?? Number.POSITIVE_INFINITY) && upper !== undefined) return upper
   return current
 }
 
 export function formatNumericInputValue(
   value: number | null | undefined,
-  domain: NumericInputDomain = {}
+  domain: NumericInputDomain = {},
+  minimumDisplayPrecision?: number
 ): string {
   if (value === null || value === undefined || !Number.isFinite(value)) return ''
   if (domain.integer) return String(Math.round(value))
   // `precision` limits the editable draft; display continuous values consistently.
+  if (minimumDisplayPrecision !== undefined && value !== 0 && Number(value.toFixed(2)) === 0) {
+    return value.toFixed(Math.max(2, Math.min(6, Math.trunc(minimumDisplayPrecision))))
+  }
   return value.toFixed(2)
 }

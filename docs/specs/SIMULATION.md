@@ -52,6 +52,8 @@ Match by canonical business identity, never row position: BOM material identity,
 
 There is no **Factors to Simulate** workflow. The `#` column is Simulation's local row selector: the header button selects or clears visible eligible rows, and each eligible row's number is its square selection button. There is no separate Select column or checkbox. Selected rows rise to the top in stable source order for viewing; the SIM snapshot order and full-snapshot calculation scope never change. Protected, unmatched, ambiguous, and REMOVED rows cannot be selected. Reset restores parameter and Economic baselines while preserving the worklist. CBD Selected Comparison, filters, and sorting are not transferred to SIM, and Simulation does not mutate CBD selection.
 
+The desktop Simulation BOM table columns are `# | Bill of Materials | Status | Price | Usage | Loss | Material Cost | Expand`; RTG columns are `# | Routing Process | Status | Manning | Capacity | Yield | Conversion Cost | Expand`. These column headers are the table identity; there are no separate BOM/RTG title or selected-count strips. Status uses the authoritative row match state in its own column. The `#` remains the original row number after selected-first presentation. Selection is a local working/focus aid: it never filters a calculation and is not required before editing. Narrow cards keep row number, identity, explicitly labeled Status, all three parameters, calculated cost, and the same effect toggle.
+
 ### 2.2 Editable inputs and validation
 
 UI controls and state/calculation boundaries both enforce the domains below. Reject invalid input and retain the previous committed valid value. Never silently clamp or turn invalid or missing input into zero.
@@ -67,6 +69,8 @@ UI controls and state/calculation boundaries both enforce the domains below. Rej
 | Work Center Labor/Burden Rate | read-only in SIM; always from Current |
 
 Blank/null may remain unavailable where the data model allows it. A missing required input makes its result unavailable; it is not a structural zero. ADDED/REMOVED comparison sides may use zero only because one side is structurally absent.
+
+In Simulation, Capacity and Yield spinner decrement stops at the smallest positive value representable by that input's precision; it does not clear the field or commit zero. A typed zero may remain a temporary draft while editing, but never replaces the last committed valid value.
 
 ### 2.3 Shared Standard Cost and result
 
@@ -104,6 +108,7 @@ Each BOM and Routing row can expand a compact **Parameter Cost Effect** detail. 
 - Display signed THB/pc effects under their matching parameter columns and one compact numeric Total. Do not display effect percentages.
 - Added/Removed rows, ambiguous identity, missing required values, invalid math, or unreconciled Work Center context have unavailable attribution (`—`) with a concise explanation.
 - REMOVED, ambiguous, and unmatched rows may expand to show why the effect is unavailable; they remain protected and cannot be edited or selected.
+- A dedicated semantic expand button toggles each row's details open and closed, exposes its expanded state and detail relationship, and supports Enter/Space. Clicking safe row whitespace and using row Enter/Space may also toggle; outside dismissal is optional and never required to collapse.
 
 ## 4. Economic and Business Analysis
 
@@ -180,7 +185,7 @@ The draggable THB/pc ruler is visual only. It cannot change data, draft inputs, 
 - Desktop Simulation is a fixed workspace inside the shared application shell: the page does not vertically scroll, and only the BOM and RTG table bodies scroll vertically. At narrow responsive sizes, panels stack and natural page scrolling is allowed so all controls remain reachable.
 - Desktop: Graph occupies about two-thirds of the upper row; Result and Economic share the remaining third. BOM and RTG are equal-width panels in the lower row. Keep all five regions visible together and use the shell's available height; only BOM and RTG table bodies scroll vertically.
 - Keep exactly two separate compact controls, **Clone from ▾** and **Send to ▾**, in the Result action line. Keep transfer feedback compact and menus keyboard accessible.
-- Expandable BOM/RTG rows highlight and toggle from safe row whitespace, Enter, or Space; nested editors and controls do not toggle the row. The chevron indicates expanded state and is not a separate primary action. Clicking safe blank workspace dismisses open menus and effect details without changing committed values or selection.
+- BOM/RTG have no separate title/count bars; their headers name **Bill of Materials** and **Routing Process**, Status is a dedicated column, and desktop table bodies own internal vertical scrolling under an opaque sticky header. The `#` header and row numbers share a centered column while row numbers preserve original identity after selected-first presentation. The dedicated chevron button is a true open/close toggle with `aria-expanded`, `aria-controls`, an accessible action name, and keyboard activation. Safe row whitespace and row Enter/Space may also toggle; nested editors and controls do not. Clicking safe blank workspace may dismiss expanded details, but the same button always collapses them.
 - The `#` row-number controls manage only Simulation's per-product working selection; selected rows appear first without structural reordering. Protected or removed rows cannot be selected, and the selection never limits calculation scope.
 - BOM and RTG must not have horizontal scrollbars. Keep vertical internal scrolling and usable sticky table headers. Use fixed/proportional columns and a responsive reflow/card presentation at narrow widths while preserving every editable field. No add/delete/resize/split/merge/reorder or Work Center-rate editing controls are available in Simulation; structural alternatives are prepared in Master Data / Custom.
 - The page must not have horizontal overflow. Stack the major panels on narrow screens.

@@ -52,6 +52,9 @@ try {
   assert.equal(formatNumericInputValue(12.5), '12.50')
   assert.equal(formatNumericInputValue(12.3456, { precision: 4 }), '12.35', 'display remains two decimal places with a higher-precision input domain')
   assert.equal(formatNumericInputValue(0.123456, { precision: 4 }), '0.12', 'higher internal precision is not shown as extra display decimals')
+  assert.equal(formatNumericInputValue(0.0001, { precision: 4 }, 4), '0.0001', 'Simulation Capacity minimum stays visibly positive')
+  assert.equal(formatNumericInputValue(0.25, { precision: 4 }, 4), '0.25', 'minimum display precision does not pad ordinary values')
+  assert.equal(formatNumericInputValue(0.0001, { precision: 4 }), '0.00', 'other NumericInput users keep the existing display rule')
   assert.equal(formatNumericInputValue(3, { integer: true }), '3')
 
   assert.equal(isNumericDraftSyntax('12.34'), true)
@@ -84,6 +87,14 @@ try {
   assert.equal(stepNumericValue(1, -1, 1, { integer: true, min: 1, max: 200 }), null)
   assert.equal(stepNumericValue(0.25, -1, 1, positiveDecimal), null, 'decrementing across a positive-only lower boundary clears instead of coercing to 0.01')
   assert.equal(stepNumericValue(0.01, -1, 0.01, positiveDecimal), null)
+  assert.equal(stepNumericValue(0.0001, -1, 0.0001, { ...positiveDecimal, precision: 4 }, { stopAtMinimum: true }), 0.0001,
+    'Simulation spinner stays at Capacity’s smallest representable positive value')
+  assert.equal(stepNumericValue(0.0002, -1, 1, { ...positiveDecimal, precision: 4 }, { stopAtMinimum: true }), 0.0001,
+    'Simulation spinner clamps a large decrement at the smallest valid positive Capacity')
+  assert.equal(stepNumericValue(0.01, -1, 1, { ...positiveDecimal, precision: 2 }, { stopAtMinimum: true }), 0.01,
+    'Simulation Yield spinner stays at its smallest valid displayed percentage')
+  assert.equal(stepNumericValue(null, -1, 0.01, { ...positiveDecimal, precision: 2 }, { stopAtMinimum: true }), null,
+    'an unavailable positive-only value remains unavailable when decreasing')
   assert.equal(stepNumericValue(100, 1, 0.01, { min: 0, max: 100 }), 100)
 
   const decimalDraft = '123.45'

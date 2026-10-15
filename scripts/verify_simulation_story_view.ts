@@ -117,9 +117,12 @@ try {
   assert.match(pageMarkup, /Send to/)
   assert.match(pageMarkup, /Result/)
   assert.match(pageMarkup, /Economic/)
-  assert.match(pageMarkup, />BOM</, 'the BOM editor uses the compact section label')
-  assert.match(pageMarkup, />RTG</, 'the routing editor uses the compact section label')
-  assert.match(pageMarkup, /Selection does not limit the full Simulation calculation/,
+  assert.match(pageMarkup, /Bill of Materials/, 'the BOM table uses its full identity')
+  assert.match(pageMarkup, /Routing Process/, 'the RTG table uses its full identity')
+  assert.equal([...pageMarkup.matchAll(/<th scope="col"[^>]*>Status<\/th>/g)].length, 2,
+    'BOM and RTG each expose Status as a dedicated table column')
+  assert.doesNotMatch(pageMarkup, /0 selected|1 selected|2 selected/, 'separate table title/count bars are removed')
+  assert.match(pageMarkup, /Selection is a local working aid and does not limit the full Simulation calculation/,
     'the UI explains that local row selection does not filter calculation')
   assert.match(pageMarkup, /Current → SIM/)
   assert.ok(pageText.includes('0.00%'), 'no-change Result percentage renders as 0.00%')
@@ -131,6 +134,8 @@ try {
   assert.doesNotMatch(pageMarkup, /min-w-\[(?:390|650|730)px\]|overflow-x-auto/,
     'Result, BOM, and RTG do not force a horizontal scroll area')
   assert.match(pageMarkup, /table-fixed/, 'the parameter table fits its panel with fixed layout')
+  assert.match(pageMarkup, /<td class="break-words px-1 py-2 text-\[9px\] leading-3 text-slate-600">Unchanged<\/td>/,
+    'desktop status is a separate cell rather than secondary text under row identity')
   assert.match(pageMarkup, /aria-label="A deliberately long stainless steel material description for wrapping Price in SIM"/,
     'editable fields remain labelled for long material names')
   const materialNameIndex = pageMarkup.indexOf('A deliberately long stainless steel material description for wrapping')
@@ -147,10 +152,9 @@ try {
     onUpdateParameter() {},
     onUpdateEconomicInput() {}
   }))
-  assert.match(selectedPageMarkup, /1 selected/,
-    'the selected BOM is reflected in the local working count')
   assert.match(selectedPageMarkup, /aria-label="Deselect BOM row 2: Second material"[^>]*aria-pressed="true"/,
     'the row number itself becomes the blue selected control')
+  assert.doesNotMatch(selectedPageMarkup, /1 selected/, 'selection does not reintroduce a selected-count strip')
   assert.doesNotMatch(selectedPageMarkup, /type="checkbox"|>Select<\/th>/,
     'Simulation has no separate Select column or checkbox')
   assert.ok(selectedPageMarkup.indexOf('Second material') < selectedPageMarkup.indexOf('A deliberately long stainless steel material description'),
@@ -243,11 +247,17 @@ try {
     onCloneSource() {}, onSendTo() { return true }, onResetParameters() {}, onToggleWorkingTarget() {}, onUpdateParameter() {}, onUpdateEconomicInput() {}
   }))
   assert.match(protectedMarkup, /Ambiguous identity · protected/)
-  assert.match(protectedMarkup, /aria-label="BOM: .* activate to expand Parameter Cost Effect"/,
+  assert.match(protectedMarkup, /aria-label="Bill of Materials: .* activate to expand Parameter Cost Effect"/,
     'the ambiguous row exposes its full-row expansion name')
+  assert.match(protectedMarkup, /aria-label="Expand Parameter Cost Effect for A deliberately long stainless steel material description for wrapping" aria-expanded="false"/,
+    'the protected row has a real accessible expand button')
+  assert.match(pageSource, /aria-expanded=\{expanded\}[\s\S]*?aria-controls=\{expanded \? detailId : undefined\}[\s\S]*?event\.stopPropagation\(\); toggleExpanded\(\)/,
+    'the same dedicated button toggles details without bubbling into the row action')
+  assert.match(pageSource, /<th scope="row" colSpan=\{3\}/,
+    'the detail label spans row number, identity, and Status so effects remain under parameters')
   assert.match(protectedMarkup, /aria-expanded="false"/)
-  const protectedText = protectedMarkup.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ')
-  assert.doesNotMatch(protectedText, /Parameter Cost Effect/, 'the compact detail remains collapsed until requested')
+  assert.doesNotMatch(protectedMarkup, /<h4[^>]*>Parameter Cost Effect<\/h4>/,
+    'the Parameter Cost Effect detail remains collapsed until requested')
   assert.doesNotMatch(protectedMarkup, /100\.00%/, 'per-parameter attribution shares are not presented')
   assert.doesNotMatch(protectedMarkup, /type="checkbox"|aria-label="Select BOM row/, 'ambiguous rows are not selectable')
   assert.match(pageSource, /const canExpand = true/, 'protected rows can expand even without a status')
