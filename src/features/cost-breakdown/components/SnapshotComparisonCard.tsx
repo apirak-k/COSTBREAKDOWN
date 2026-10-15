@@ -3,7 +3,20 @@ import { formatNumber, formatPercent, formatVariance, getVarianceClass, safeAdd,
 import type { CostComparison } from '../../../core'
 import { Tooltip } from '../../../shared/ui/Tooltip'
 import { COST_ELEMENT_COLORS } from './cost-element-colors'
-import { CBD_SUMMARY_FOOTER_LABEL_CLASS, CBD_SUMMARY_FOOTER_ROW_CLASS, CBD_SUMMARY_FOOTER_VALUE_CLASS } from './summary-table-styles'
+import {
+  CBD_SUMMARY_BODY_GROUP_CLASS,
+  CBD_SUMMARY_BODY_LABEL_CLASS,
+  CBD_SUMMARY_BODY_ROW_CLASS,
+  CBD_SUMMARY_BODY_VALUE_CLASS,
+  CBD_SUMMARY_FOOTER_LABEL_CLASS,
+  CBD_SUMMARY_FOOTER_ROW_CLASS,
+  CBD_SUMMARY_FOOTER_VALUE_CLASS,
+  CBD_SUMMARY_HEADER_CELL_CLASS,
+  CBD_SUMMARY_HEADER_LABEL_CLASS,
+  CBD_SUMMARY_HEADER_ROW_CLASS,
+  CBD_SUMMARY_HEADER_CELL_STYLE,
+  CBD_SUMMARY_HEADER_VALUE_CLASS
+} from './summary-table-styles'
 
 interface SnapshotComparisonCardProps {
   comparison: CostComparison
@@ -94,36 +107,36 @@ export const SnapshotComparisonCard: React.FC<SnapshotComparisonCardProps> = ({
   ]
 
   return (
-    <section aria-label="Cost Element" className="min-w-0 overflow-hidden border border-slate-300 bg-white lg:h-full">
+    <section aria-label="Cost Element" data-cbd-overview-panel="cost" className="min-w-0 overflow-hidden bg-white lg:h-full">
       <div className="w-full overflow-x-auto lg:h-full">
-        <table className="w-full min-w-[480px] table-fixed text-left text-xs lg:h-full">
+        <table className="w-full min-w-[480px] table-fixed text-left text-xs leading-4 lg:h-full">
           <caption className="sr-only">Cost Element for Reference, Current, Gap, and Gap percentage</caption>
           <colgroup><col className="w-[20%]" /><col className="w-[18%]" /><col className="w-[18%]" /><col className="w-[26%]" /><col className="w-[18%]" /></colgroup>
           <thead>
-            <tr className="bg-slate-800 font-semibold text-white">
-              <th scope="col" className="px-2 py-1.5">Cost Element</th>
-              <th scope="col" className="px-2 py-1.5 text-right">REF</th>
-              <th scope="col" className="px-2 py-1.5 text-right">CUR</th>
-              <th scope="col" className="px-2 py-1.5"><span className="grid w-full grid-cols-[minmax(0,1fr)_9ch] items-baseline font-mono text-[12px] tabular-nums"><span data-gap-header-slot="full" className="text-right text-[11px]">GAP</span><span data-gap-header-slot="selected" aria-hidden={!selectedActive} className={`relative left-4 w-[9ch] whitespace-nowrap text-right text-[10px] font-normal text-slate-300 ${selectedActive ? '' : 'invisible'}`}>Selected</span></span></th>
-              <th scope="col" className="px-2 py-1.5 text-right">%GAP</th>
+            <tr className={CBD_SUMMARY_HEADER_ROW_CLASS}>
+              <th scope="col" style={CBD_SUMMARY_HEADER_CELL_STYLE} className={`${CBD_SUMMARY_HEADER_CELL_CLASS} ${CBD_SUMMARY_HEADER_LABEL_CLASS}`}>Cost Element</th>
+              <th scope="col" style={CBD_SUMMARY_HEADER_CELL_STYLE} className={`${CBD_SUMMARY_HEADER_CELL_CLASS} ${CBD_SUMMARY_HEADER_VALUE_CLASS}`}>REF</th>
+              <th scope="col" style={CBD_SUMMARY_HEADER_CELL_STYLE} className={`${CBD_SUMMARY_HEADER_CELL_CLASS} ${CBD_SUMMARY_HEADER_VALUE_CLASS}`}>CUR</th>
+              <th scope="col" style={CBD_SUMMARY_HEADER_CELL_STYLE} className={CBD_SUMMARY_HEADER_CELL_CLASS}><span className="grid w-full grid-cols-[minmax(0,1fr)_9ch] items-baseline font-mono text-[11px] leading-4 tabular-nums"><span data-gap-header-slot="full" className="text-right text-[11px] leading-4">GAP</span><span data-gap-header-slot="selected" aria-hidden={!selectedActive} className={`relative left-4 w-[9ch] whitespace-nowrap text-right text-[10px] leading-4 font-normal text-slate-300 ${selectedActive ? '' : 'invisible'}`}>Selected</span></span></th>
+              <th scope="col" style={CBD_SUMMARY_HEADER_CELL_STYLE} className={`${CBD_SUMMARY_HEADER_CELL_CLASS} ${CBD_SUMMARY_HEADER_VALUE_CLASS} pr-4`}>%GAP</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-slate-100 font-mono tabular-nums">
-            {rows.slice(0, 3).map(row => <tr key={row.label}>
-              <th scope="row" style={row.total ? { color: COST_ELEMENT_COLORS.standardCost } : undefined} className="px-2 py-1.5 text-left font-sans font-medium text-slate-700">{row.label}</th>
-              <td className="px-2 py-1.5 text-right text-slate-600">{formatCost(row.reference)}</td>
-              <td className="px-2 py-1.5 text-right text-slate-900">{formatCost(row.current)}</td>
-              <td className="px-2 py-1.5 text-right">{renderGap(row.gap, row.selectedGap, selectedActive, row.tooltipLabel)}</td>
-              <td className="px-2 py-1.5 text-right text-slate-600">{row.percentage === null ? '—' : formatPercent(row.percentage, 2)}</td>
+          <tbody className={CBD_SUMMARY_BODY_GROUP_CLASS}>
+            {rows.slice(0, 3).map(row => <tr key={row.label} className={CBD_SUMMARY_BODY_ROW_CLASS}>
+              <th scope="row" style={row.total ? { color: COST_ELEMENT_COLORS.standardCost } : undefined} className={CBD_SUMMARY_BODY_LABEL_CLASS}>{row.label}</th>
+              <td className={`${CBD_SUMMARY_BODY_VALUE_CLASS} text-slate-600`}>{formatCost(row.reference)}</td>
+              <td className={`${CBD_SUMMARY_BODY_VALUE_CLASS} text-slate-900`}>{formatCost(row.current)}</td>
+              <td className={CBD_SUMMARY_BODY_VALUE_CLASS}>{renderGap(row.gap, row.selectedGap, selectedActive, row.tooltipLabel)}</td>
+              <td className={`${CBD_SUMMARY_BODY_VALUE_CLASS} pr-4 text-slate-600`}>{row.percentage === null ? '—' : formatPercent(row.percentage, 2)}</td>
             </tr>)}
           </tbody>
-          <tfoot className={CBD_SUMMARY_FOOTER_ROW_CLASS}>
-            {rows.slice(3).map(row => <tr key={row.label}>
+          <tfoot>
+            {rows.slice(3).map(row => <tr key={row.label} className={CBD_SUMMARY_FOOTER_ROW_CLASS}>
               <th scope="row" style={{ color: COST_ELEMENT_COLORS.standardCost }} className={`${CBD_SUMMARY_FOOTER_LABEL_CLASS} text-slate-950`}>{row.label}</th>
               <td className={`${CBD_SUMMARY_FOOTER_VALUE_CLASS} text-slate-700`}>{formatCost(row.reference)}</td>
               <td className={`${CBD_SUMMARY_FOOTER_VALUE_CLASS} text-slate-950`}>{formatCost(row.current)}</td>
               <td className={CBD_SUMMARY_FOOTER_VALUE_CLASS}>{renderGap(row.gap, row.selectedGap, selectedActive, row.tooltipLabel)}</td>
-              <td className={`${CBD_SUMMARY_FOOTER_VALUE_CLASS} whitespace-nowrap text-slate-700`}>{row.percentage === null ? <span aria-label="Total percentage unavailable">— <span className="text-[9px] text-slate-500">Total</span></span> : <span aria-label={`${formatPercent(row.percentage, 2)} Total`}>{formatPercent(row.percentage, 2)} <span className="text-[9px] font-semibold text-slate-500">Total</span></span>}</td>
+              <td className={`${CBD_SUMMARY_FOOTER_VALUE_CLASS} pr-4 whitespace-nowrap text-slate-700`}>{row.percentage === null ? <span aria-label="Total percentage unavailable">— <span className="text-[9px] text-slate-500">Total</span></span> : <span aria-label={`${formatPercent(row.percentage, 2)} Total`}>{formatPercent(row.percentage, 2)} <span className="text-[9px] font-semibold text-slate-500">Total</span></span>}</td>
             </tr>)}
           </tfoot>
         </table>

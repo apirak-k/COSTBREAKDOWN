@@ -2,7 +2,21 @@ import React from 'react'
 import { formatNumber, formatPercent, formatVariance, getVarianceClass, safeAdd, safeDivide } from '../../../core'
 import type { CostComparison, WorkCenterProcessingFinding } from '../../../core'
 import { Tooltip } from '../../../shared/ui/Tooltip'
-import { CBD_SUMMARY_FOOTER_LABEL_CLASS, CBD_SUMMARY_FOOTER_ROW_CLASS, CBD_SUMMARY_FOOTER_VALUE_CLASS } from './summary-table-styles'
+import {
+  CBD_SUMMARY_BODY_GROUP_CLASS,
+  CBD_SUMMARY_BODY_LABEL_CLASS,
+  CBD_SUMMARY_BODY_ROW_CLASS,
+  CBD_SUMMARY_BODY_VALUE_CLASS,
+  CBD_WC_BODY_SCROLL_REGION,
+  CBD_SUMMARY_FOOTER_LABEL_CLASS,
+  CBD_SUMMARY_FOOTER_ROW_CLASS,
+  CBD_SUMMARY_FOOTER_VALUE_CLASS,
+  CBD_SUMMARY_HEADER_CELL_CLASS,
+  CBD_SUMMARY_HEADER_CELL_STYLE,
+  CBD_SUMMARY_HEADER_LABEL_CLASS,
+  CBD_SUMMARY_HEADER_ROW_CLASS,
+  CBD_SUMMARY_HEADER_VALUE_CLASS
+} from './summary-table-styles'
 
 interface WorkCenterProcessingTableProps {
   comparison: CostComparison
@@ -34,9 +48,25 @@ function conversionTotal(labor: number | null, burden: number | null): number | 
   return safeAdd(labor ?? Number.NaN, burden ?? Number.NaN)
 }
 
-const rowColumns = 'grid grid-cols-[24%_19%_19%_20%_18%] items-center'
+const rowColumns = 'grid grid-cols-[24%_19%_19%_20%_18%] items-center lg:col-span-full'
+const scrollBodyRowStyle: React.CSSProperties = { width: 'calc(100% + var(--cbd-wc-scrollbar-width, 0px))' }
 
 export const WorkCenterProcessingTable: React.FC<WorkCenterProcessingTableProps> = ({ comparison }) => {
+  const scrollBodyRef = React.useRef<HTMLDivElement>(null)
+  React.useEffect(() => {
+    const body = scrollBodyRef.current
+    if (!body) return
+
+    const updateScrollbarWidth = () => {
+      body.style.setProperty('--cbd-wc-scrollbar-width', `${body.offsetWidth - body.clientWidth}px`)
+    }
+
+    updateScrollbarWidth()
+    const observer = new ResizeObserver(updateScrollbarWidth)
+    observer.observe(body)
+    return () => observer.disconnect()
+  }, [])
+
   const rows: WorkCenterRow[] = comparison.processingFindings
     .map(finding => {
       const gap = finding.costEffect.gap.total
@@ -60,36 +90,36 @@ export const WorkCenterProcessingTable: React.FC<WorkCenterProcessingTableProps>
   const totalPercentage = totalGap === null ? null : safeDivide(totalGap, totalReference ?? Number.NaN)
 
   return (
-    <section aria-label="Work Center" className="min-w-0 overflow-x-auto border border-slate-300 bg-white lg:h-full lg:overflow-hidden">
-      <div role="table" aria-label="Work Center conversion cost for Reference, Current, Gap, and percentage of total Conversion Gap" aria-colcount={5} className="min-w-[520px] text-xs leading-4 lg:grid lg:h-full lg:min-w-0 lg:grid-rows-[auto_minmax(0,1fr)_auto]">
-        <div role="rowgroup" className="bg-slate-800 pr-0 lg:pr-[6px]">
-          <div role="row" className={`${rowColumns} bg-slate-800 font-semibold text-white`}>
-            <div role="columnheader" className="px-2 py-1.5 text-left">Work Center</div>
-            <div role="columnheader" className="px-2 py-1.5 text-right">REF</div>
-            <div role="columnheader" className="px-2 py-1.5 text-right">CUR</div>
-            <div role="columnheader" className="px-2 py-1.5 text-right">GAP</div>
-            <div role="columnheader" className="px-2 py-1.5 text-right">%GAP</div>
+    <section aria-label="Work Center" data-cbd-overview-panel="work-center" className="min-w-0 overflow-x-auto bg-white lg:h-full lg:overflow-hidden">
+      <div role="table" aria-label="Work Center conversion cost for Reference, Current, Gap, and percentage of total Conversion Gap" aria-colcount={5} className="min-w-[520px] text-xs leading-4 lg:grid lg:h-full lg:min-w-0 lg:grid-cols-[24%_19%_19%_20%_18%] lg:grid-rows-[auto_minmax(0,1fr)_auto]">
+        <div role="rowgroup" className="bg-slate-800 lg:col-span-full lg:row-start-1 lg:grid lg:grid-cols-[subgrid] lg:overflow-hidden">
+          <div role="row" className={`${rowColumns} ${CBD_SUMMARY_HEADER_ROW_CLASS}`}>
+            <div role="columnheader" style={CBD_SUMMARY_HEADER_CELL_STYLE} className={`${CBD_SUMMARY_HEADER_CELL_CLASS} ${CBD_SUMMARY_HEADER_LABEL_CLASS}`}>Work Center</div>
+            <div role="columnheader" style={CBD_SUMMARY_HEADER_CELL_STYLE} className={`${CBD_SUMMARY_HEADER_CELL_CLASS} ${CBD_SUMMARY_HEADER_VALUE_CLASS}`}>REF</div>
+            <div role="columnheader" style={CBD_SUMMARY_HEADER_CELL_STYLE} className={`${CBD_SUMMARY_HEADER_CELL_CLASS} ${CBD_SUMMARY_HEADER_VALUE_CLASS}`}>CUR</div>
+            <div role="columnheader" style={CBD_SUMMARY_HEADER_CELL_STYLE} className={`${CBD_SUMMARY_HEADER_CELL_CLASS} ${CBD_SUMMARY_HEADER_VALUE_CLASS}`}>GAP</div>
+            <div role="columnheader" style={CBD_SUMMARY_HEADER_CELL_STYLE} className={`${CBD_SUMMARY_HEADER_CELL_CLASS} ${CBD_SUMMARY_HEADER_VALUE_CLASS} pr-4`}>%GAP</div>
           </div>
         </div>
-        <div role="rowgroup" data-wc-scroll-body="true" className="min-h-0 overflow-visible lg:overflow-x-hidden lg:overflow-y-auto [scrollbar-gutter:stable]">
-          {rows.length === 0 ? <div role="row" className={rowColumns}><div role="cell" aria-colspan={5} className="col-span-5 px-2 py-3 text-center italic text-slate-500">No Work Center data.</div></div> : rows.map(({ finding, gap, percentage }) => {
+        <div ref={scrollBodyRef} role="rowgroup" data-wc-scroll-body="true" className={`${CBD_SUMMARY_BODY_GROUP_CLASS} ${CBD_WC_BODY_SCROLL_REGION}`}>
+          {rows.length === 0 ? <div role="row" style={scrollBodyRowStyle} className={rowColumns}><div role="cell" aria-colspan={5} className="col-span-5 px-2 py-3 text-center italic text-slate-500">No Work Center data.</div></div> : rows.map(({ finding, gap, percentage }) => {
             const label = finding.workCenterCode
-            return <div role="row" key={finding.sourceId} className={`${rowColumns} divide-x-0 border-b border-slate-100 font-mono tabular-nums hover:bg-slate-50/70`}>
-              <div role="rowheader" className="truncate px-2 py-1.5 text-left font-sans font-medium text-slate-800" title={label}>{label}</div>
-              <div role="cell" className="px-2 py-1.5 text-right text-slate-600">{formatNullable(finding.costEffect.reference.total)}</div>
-              <div role="cell" className="px-2 py-1.5 text-right text-slate-900">{formatNullable(finding.costEffect.current.total)}</div>
-              <div role="cell" className="px-2 py-1.5 text-right">{renderGap(gap, label)}</div>
-              <div role="cell" className="px-2 py-1.5 text-right text-slate-600">{percentage === null ? '—' : formatPercent(percentage, 2)}</div>
+            return <div role="row" key={finding.sourceId} style={scrollBodyRowStyle} className={`${rowColumns} ${CBD_SUMMARY_BODY_ROW_CLASS}`}>
+              <div role="rowheader" className={`${CBD_SUMMARY_BODY_LABEL_CLASS} truncate`} title={label}>{label}</div>
+              <div role="cell" className={`${CBD_SUMMARY_BODY_VALUE_CLASS} text-slate-600`}>{formatNullable(finding.costEffect.reference.total)}</div>
+              <div role="cell" className={`${CBD_SUMMARY_BODY_VALUE_CLASS} text-slate-900`}>{formatNullable(finding.costEffect.current.total)}</div>
+              <div role="cell" className={CBD_SUMMARY_BODY_VALUE_CLASS}>{renderGap(gap, label)}</div>
+              <div role="cell" className={`${CBD_SUMMARY_BODY_VALUE_CLASS} pr-4 text-slate-600`}>{percentage === null ? '—' : formatPercent(percentage, 2)}</div>
             </div>
           })}
         </div>
-        <div role="rowgroup" className="bg-slate-100 pr-0 lg:pr-[6px]">
-          <div role="row" className={`${rowColumns} h-[30px] ${CBD_SUMMARY_FOOTER_ROW_CLASS}`}>
+        <div role="rowgroup" className="bg-slate-100 lg:col-span-full lg:row-start-3 lg:grid lg:grid-cols-[subgrid] lg:overflow-hidden">
+          <div role="row" className={`${rowColumns} ${CBD_SUMMARY_FOOTER_ROW_CLASS}`}>
             <div role="rowheader" className={`${CBD_SUMMARY_FOOTER_LABEL_CLASS} text-slate-950`}>Total</div>
             <div role="cell" className={`${CBD_SUMMARY_FOOTER_VALUE_CLASS} text-slate-700`}>{formatNullable(totalReference)}</div>
             <div role="cell" className={`${CBD_SUMMARY_FOOTER_VALUE_CLASS} text-slate-950`}>{formatNullable(totalCurrent)}</div>
             <div role="cell" className={CBD_SUMMARY_FOOTER_VALUE_CLASS}>{renderGap(totalGap, 'Total')}</div>
-            <div role="cell" className={`${CBD_SUMMARY_FOOTER_VALUE_CLASS} whitespace-nowrap text-slate-700`}>{totalPercentage === null ? <span aria-label="Total percentage unavailable">— <span className="text-[9px] text-slate-500">Total</span></span> : <span aria-label={`${formatPercent(totalPercentage, 2)} Total`}>{formatPercent(totalPercentage, 2)} <span className="text-[9px] font-semibold text-slate-500">Total</span></span>}</div>
+            <div role="cell" className={`${CBD_SUMMARY_FOOTER_VALUE_CLASS} pr-4 whitespace-nowrap text-slate-700`}>{totalPercentage === null ? <span aria-label="Total percentage unavailable">— <span className="text-[9px] text-slate-500">Total</span></span> : <span aria-label={`${formatPercent(totalPercentage, 2)} Total`}>{formatPercent(totalPercentage, 2)} <span className="text-[9px] font-semibold text-slate-500">Total</span></span>}</div>
           </div>
         </div>
       </div>

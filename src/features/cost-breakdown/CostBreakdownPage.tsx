@@ -1,5 +1,4 @@
 import React, { useId, useState } from 'react'
-import { ChevronDown, ChevronRight } from 'lucide-react'
 import { useAppStore } from '../../state'
 
 import { ItemizedComparisonTable } from './components/ItemizedComparisonTable'
@@ -192,6 +191,10 @@ export const CostBreakdownPage: React.FC<CostBreakdownPageProps> = ({ manualOrde
   const [sortMode, setSortMode] = useState<ComparisonSortMode>(DEFAULT_COMPARISON_SORT_MODE)
   const [sortResetToken, setSortResetToken] = useState(0)
   const [isOverviewExpanded, setIsOverviewExpanded] = useState(true)
+  const toggleOverview = () => setIsOverviewExpanded(expanded => !expanded)
+  const toggleOverviewFromBlank = (event: React.MouseEvent<HTMLElement>) => {
+    if (event.target === event.currentTarget) toggleOverview()
+  }
 
   const selectedBOMKeys = new Set(selectedComparisonSelection?.bomFindingKeys ?? [])
   const selectedRoutingKeys = new Set(selectedComparisonSelection?.routingFindingKeys ?? [])
@@ -241,8 +244,8 @@ export const CostBreakdownPage: React.FC<CostBreakdownPageProps> = ({ manualOrde
   return (
     <div className="flex min-h-full min-w-0 flex-col overflow-x-clip">
       <div data-cbd-sticky-shell="true" className="flex shrink-0 flex-col gap-2 pb-2 lg:sticky lg:top-0 lg:z-30 lg:bg-white">
-      <header aria-label="Cost Breakdown subheader" className="shrink-0 overflow-x-auto border border-slate-300 bg-white" tabIndex={0}>
-        <div className="flex min-w-[1000px] flex-nowrap items-center gap-1.5 px-1.5 py-1" role="group" aria-label="Cost Breakdown controls">
+      <header aria-label="Cost Breakdown subheader" data-cbd-overview-click-area="true" onClick={toggleOverviewFromBlank} className="shrink-0 overflow-x-auto border border-slate-300 bg-white" tabIndex={0}>
+        <div data-cbd-overview-click-area="true" onClick={toggleOverviewFromBlank} className="flex min-w-[1000px] flex-nowrap items-center gap-1.5 px-1.5 py-1" role="group" aria-label="Cost Breakdown controls">
           <div
             aria-label={`Standard Cost Gap ${fullSnapshotComparison.totalGap === null ? 'unavailable' : formatVariance(fullSnapshotComparison.totalGap, 2)} THB/pc; Gap = CUR − REF`}
             title="Full snapshot · THB/pc · Gap = CUR − REF"
@@ -343,17 +346,22 @@ export const CostBreakdownPage: React.FC<CostBreakdownPageProps> = ({ manualOrde
             aria-controls="cost-breakdown-overview-panels"
             aria-label={`${isOverviewExpanded ? 'Collapse' : 'Expand'} Cost Element and Work Center sections`}
             title={`${isOverviewExpanded ? 'Collapse' : 'Expand'} Cost Element and Work Center sections`}
-            onClick={() => setIsOverviewExpanded(expanded => !expanded)}
-            className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-sm border border-slate-300 bg-white text-slate-700 hover:bg-slate-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700"
+            onClick={toggleOverview}
+            className="inline-flex h-8 w-8 shrink-0 items-center justify-center bg-transparent p-0 text-slate-700 hover:text-slate-950 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700"
           >
-            {isOverviewExpanded ? <ChevronDown aria-hidden="true" className="h-3.5 w-3.5" /> : <ChevronRight aria-hidden="true" className="h-3.5 w-3.5" />}
+            <span data-cbd-overview-indicator="true" aria-hidden="true" className={`block h-0 w-0 border-x-[5px] border-t-[7px] border-x-transparent border-t-slate-700 transition-transform ${isOverviewExpanded ? '' : '-rotate-90'}`} />
           </button>
         </div>
       </header>
 
-      <div id="cost-breakdown-overview-panels" className={isOverviewExpanded ? 'grid min-w-0 grid-cols-1 items-stretch gap-2 lg:h-44 lg:shrink-0 lg:grid-cols-2' : 'hidden'}>
-        <SnapshotComparisonCard comparison={fullSnapshotComparison} selectedComparison={selectedDisplayComparison} selectedActive={isSelectedComparisonActive} />
-        <WorkCenterProcessingTable comparison={fullSnapshotComparison} />
+      <div id="cost-breakdown-overview-panels" data-cbd-overview-pair="true" data-cbd-overview-columns="equal" className={isOverviewExpanded ? 'grid min-w-0 grid-cols-1 grid-rows-[auto_1px_auto] items-stretch overflow-hidden border border-slate-300 bg-white lg:h-44 lg:shrink-0 lg:grid-cols-[minmax(0,1fr)_1px_minmax(0,1fr)] lg:grid-rows-1' : 'hidden'}>
+        <div className="min-w-0 lg:col-start-1 lg:row-start-1">
+          <SnapshotComparisonCard comparison={fullSnapshotComparison} selectedComparison={selectedDisplayComparison} selectedActive={isSelectedComparisonActive} />
+        </div>
+        <div data-cbd-overview-divider="true" aria-hidden="true" className="h-px w-full bg-slate-300 lg:col-start-2 lg:row-start-1 lg:h-full lg:w-px" />
+        <div className="min-w-0 lg:col-start-3 lg:row-start-1">
+          <WorkCenterProcessingTable comparison={fullSnapshotComparison} />
+        </div>
       </div>
       </div>
 

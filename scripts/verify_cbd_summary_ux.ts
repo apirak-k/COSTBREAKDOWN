@@ -186,8 +186,48 @@ function tableHeaderLabels(markup: string): string[] {
   return [...header.matchAll(/<th\b[^>]*>([\s\S]*?)<\/th>/g)].map(match => visibleText(match[1]))
 }
 
+function importedSummaryStyleNames(source: string): Set<string> {
+  const imported = source.match(/import\s*\{([^}]*)\}\s*from\s*['"]\.\/summary-table-styles['"]/)
+  assert.ok(imported, 'each summary must import its visual contract from summary-table-styles')
+  return new Set(imported[1].split(',').map(binding => binding.trim().split(/\s+as\s+/)[0]).filter(Boolean))
+}
+
+function emittedClassNames(markup: string): Set<string> {
+  return new Set([...markup.matchAll(/\bclass="([^"]*)"/g)].flatMap(([, value]) => value.split(/\s+/).filter(Boolean)))
+}
+
+function assertSharedSummaryStyleContract(
+  styles: Record<string, unknown>,
+  costSource: string,
+  wcSource: string,
+  costMarkup: string,
+  wcMarkup: string
+): void {
+  const styleNames = Object.keys(styles).filter(name => /(?:HEADER|BODY|FOOTER)/.test(name) && /CLASS$/.test(name))
+  for (const section of ['HEADER', 'BODY', 'FOOTER']) {
+    assert.ok(styleNames.some(name => name.includes(section)), `shared summary contract exports ${section.toLowerCase()} styles`)
+  }
+
+  const costImports = importedSummaryStyleNames(costSource)
+  const wcImports = importedSummaryStyleNames(wcSource)
+  const costCode = costSource.replace(/import\s*\{[^}]*\}\s*from\s*['"]\.\/summary-table-styles['"];?/, '')
+  const wcCode = wcSource.replace(/import\s*\{[^}]*\}\s*from\s*['"]\.\/summary-table-styles['"];?/, '')
+  const costClasses = emittedClassNames(costMarkup)
+  const wcClasses = emittedClassNames(wcMarkup)
+
+  for (const name of styleNames) {
+    assert.ok(costImports.has(name) && wcImports.has(name), `${name} is imported by both summary consumers`)
+    assert.match(costCode, new RegExp(`\\b${name}\\b`), `${name} is used by Cost Element`)
+    assert.match(wcCode, new RegExp(`\\b${name}\\b`), `${name} is used by Work Center`)
+    for (const token of String(styles[name]).split(/\s+/).filter(Boolean)) {
+      assert.ok(costClasses.has(token), `Cost Element emits shared ${name} class ${token}`)
+      assert.ok(wcClasses.has(token), `Work Center emits shared ${name} class ${token}`)
+    }
+  }
+}
+
 try {
-  const [page, snapshotView, wcView, comparisonCore, selectedCore, comparisonView, formatters, guards, palette] = await Promise.all([
+  const [page, snapshotView, wcView, comparisonCore, selectedCore, comparisonView, formatters, guards, palette, summaryStyles] = await Promise.all([
     vite.ssrLoadModule('/src/features/cost-breakdown/CostBreakdownPage.tsx'),
     vite.ssrLoadModule('/src/features/cost-breakdown/components/SnapshotComparisonCard.tsx'),
     vite.ssrLoadModule('/src/features/cost-breakdown/components/WorkCenterProcessingTable.tsx'),
@@ -196,7 +236,8 @@ try {
     vite.ssrLoadModule('/src/features/cost-breakdown/components/comparison-view.ts'),
     vite.ssrLoadModule('/src/core/utils/formatters.ts'),
     vite.ssrLoadModule('/src/core/utils/guards.ts'),
-    vite.ssrLoadModule('/src/features/cost-breakdown/components/cost-element-colors.ts')
+    vite.ssrLoadModule('/src/features/cost-breakdown/components/cost-element-colors.ts'),
+    vite.ssrLoadModule('/src/features/cost-breakdown/components/summary-table-styles.ts')
   ])
 
   assert.deepEqual(palette.COST_ELEMENT_COLORS, {
@@ -332,11 +373,9 @@ try {
   assert.deepEqual(costSelectedHeaders, ['Cost Element', 'REF', 'CUR', 'GAP Selected', '%GAP'])
   assert.match(costFullMarkup, /<section aria-label="Cost Element"[\s\S]*?<caption class="sr-only">Cost Element/,
     'the summary table uses the Cost Element name for its accessible section and caption')
-  for (const label of ['REF', 'CUR', '%GAP']) {
-    assert.match(costFullTable, new RegExp(`<th scope="col" class="px-2 py-1\\.5 text-right">${label}</th>`),
-      `Cost ${label} header must share the right edge used by its numeric values`)
-  }
-  assert.match(costFullTable, /<span data-gap-header-slot="full" class="text-right text-\[11px\]">GAP<\/span>/,
+  assert.deepEqual(costFullHeaders, ['Cost Element', 'REF', 'CUR', 'GAP Selected', '%GAP'],
+    'Cost keeps the finalized column order and Selected remains within GAP')
+  assert.match(costFullTable, /<span data-gap-header-slot="full"[^>]*>GAP<\/span>/,
     'Cost GAP header must align to the Full Gap value slot')
   assert.equal(costSelectedHeaders.length, 5, 'Selected must not become a standalone Cost column')
   assert.equal(tableRows(costFullTable).length, 5, 'Cost must have one header, three element rows, and one footer row')
@@ -422,6 +461,9 @@ try {
     selectedComparison: selectedDisplayComparison,
     selectedActive: true
   } as never))
+  const costSummarySource = readFileSync(new URL('../src/features/cost-breakdown/components/SnapshotComparisonCard.tsx', import.meta.url), 'utf8')
+  const wcSummarySource = readFileSync(new URL('../src/features/cost-breakdown/components/WorkCenterProcessingTable.tsx', import.meta.url), 'utf8')
+  assertSharedSummaryStyleContract(summaryStyles, costSummarySource, wcSummarySource, costFullMarkup, wcMarkup)
   assert.doesNotMatch(wcMarkup, /Selected/i, 'Work Center output must not expose Selected text in visible text, titles, or aria attributes')
   const wcTableStart = wcMarkup.indexOf('<div role="table"')
   assert.ok(wcTableStart >= 0, 'Work Center exposes one accessible table grid')
@@ -433,14 +475,17 @@ try {
   const wcScrollBodyStart = wcTable.indexOf('data-wc-scroll-body="true"')
   assert.ok(wcScrollBodyStart > wcTable.indexOf('role="columnheader"') && wcScrollBodyStart < wcTable.indexOf('role="rowheader"'),
     'only Work Center data rows sit inside the scroll body')
-  assert.match(wcTable, /data-wc-scroll-body="true"[^>]*class="min-h-0 overflow-visible lg:overflow-x-hidden lg:overflow-y-auto \[scrollbar-gutter:stable\]"/,
+  assert.match(wcTable, /data-wc-scroll-body="true"[^>]*class="[^"]*overflow-y-auto/,
     'the Work Center body is the only internal vertical scroller')
-  assert.match(wcTable, /role="table"[^>]*class="min-w-\[520px\] text-xs leading-4/,
-    'Work Center uses the same compact typography and line height as Cost Element')
-  assert.match(wcTable, /role="rowgroup" class="bg-slate-800 pr-0 lg:pr-\[6px\]"><div role="row" class="grid grid-cols-\[24%_19%_19%_20%_18%\][\s\S]*?role="columnheader"[\s\S]*?%GAP/,
-    'Work Center header columns share the row grid and its scrollbar gutter is painted with the header color')
-  assert.match(wcTable, /role="rowgroup" class="bg-slate-100 pr-0 lg:pr-\[6px\]"><div role="row" class="grid grid-cols-\[24%_19%_19%_20%_18%\][\s\S]*?role="rowheader"[^>]*>Total/,
-    'Work Center Total shares the row grid and its scrollbar gutter is painted with the footer color')
+  assert.doesNotMatch(wcMarkup + wcSummarySource, /h-\[30px\]|pr-\[6px\]|scrollbar-gutter:\s*stable/,
+    'Work Center does not override the shared footer rhythm or compensate for its scrollbar with fake width')
+  const wcBodyMarker = wcTable.indexOf('data-wc-scroll-body="true"')
+  const wcBodyStart = wcTable.lastIndexOf('<div', wcBodyMarker)
+  const wcBody = extractElement(wcTable, wcBodyStart, 'div')
+  const wcBodyEnd = wcBodyStart + wcBody.length
+  const footerGroupStart = wcTable.indexOf('<div role="rowgroup"', wcBodyEnd)
+  assert.ok(wcTable.indexOf('role="columnheader"') < wcBodyStart && footerGroupStart >= wcBodyEnd,
+    'the WC header and footer stay outside the actual body scroller')
   assert.doesNotMatch(wcTable, /GAP \(Selected\)/)
   const wcRow = wcRows.find(row => roleRowHeader(row) === 'WC-CUT')
   assert.ok(wcRow)
@@ -458,10 +503,11 @@ try {
   const wcSection = wcMarkup.match(/<section\b[^>]*aria-label="Work Center"[^>]*>/)?.[0]
   const costSection = costFullMarkup.match(/<section\b[^>]*aria-label="Cost Element"[^>]*>/)?.[0]
   assert.ok(wcSection && costSection, 'expected Cost and Work Center sections')
-  assert.match(costSection, /lg:h-full/, 'Cost Element fills the bounded overview height')
-  assert.match(wcSection, /lg:h-full lg:overflow-hidden/,
-    'Work Center shares the bounded Cost Element height')
-  assert.match(wcMarkup, /data-wc-scroll-body="true"[^>]*class="min-h-0 overflow-visible lg:overflow-x-hidden lg:overflow-y-auto/,
+  assert.match(costSection, /data-cbd-overview-panel="cost"/,
+    'Cost Element participates in the paired bounded overview')
+  assert.match(wcSection, /data-cbd-overview-panel="work-center"/,
+    'Work Center participates in the paired bounded overview')
+  assert.match(wcMarkup, /data-wc-scroll-body="true"[^>]*class="[^"]*overflow-y-auto/,
     'Work Center rows own bounded internal vertical scrolling on desktop')
   const wcFooterRow = wcRows.find(row => roleRowHeader(row) === 'Total')
   assert.ok(wcFooterRow)
@@ -481,28 +527,42 @@ try {
   const candidateTableSource = readFileSync(new URL('../src/features/cost-breakdown/components/CandidateFindingsTable.tsx', import.meta.url), 'utf8')
   const pageRootClass = pageSource.match(/return \(\s*<div className="([^"]+)"/s)?.[1]
   const stickyShellOpen = pageSource.indexOf('<div data-cbd-sticky-shell="true"')
-  const stickyShellSource = stickyShellOpen >= 0 ? extractElement(pageSource, stickyShellOpen, 'div') : ''
-  const overviewClass = pageSource.match(/<div id="cost-breakdown-overview-panels" className=\{isOverviewExpanded \? '([^']+)'/)?.[1]
+  const stickyShellClass = stickyShellOpen >= 0
+    ? pageSource.slice(stickyShellOpen).match(/^<div[^>]*className="([^"]+)"/)?.[1]
+    : undefined
+  const overviewClass = pageSource.match(/<div id="cost-breakdown-overview-panels"[^>]*className=\{isOverviewExpanded \? '([^']+)'/)?.[1]
   const candidateRegionClass = pageSource.match(/<div role="region" aria-label="Candidate workspace" tabIndex=\{0\} className="([^"]+)"/)?.[1]
-  assert.ok(pageRootClass && stickyShellSource && overviewClass && candidateRegionClass,
-    'expected CBD workspace, sticky upper shell, bounded overview, and natural-flow Candidate region')
+  assert.ok(pageRootClass && stickyShellClass && overviewClass && candidateRegionClass,
+    'expected CBD workspace, sticky upper shell, bounded overview, and normal-flow Candidate region')
   assert.match(pageRootClass, /flex min-h-full min-w-0 flex-col[\s\S]*overflow-x-clip/,
     'CBD content grows naturally inside the shared Main scroll area')
   assert.doesNotMatch(pageRootClass, /overflow-y-auto|overflow-y-scroll|overflow-auto/,
     'CBD page content does not add a nested vertical scroll owner')
-  assert.match(overviewClass, /lg:h-44[\s\S]*lg:shrink-0[\s\S]*lg:grid-cols-2/,
-    'Cost Element and Work Center use one bounded, side-by-side desktop overview height')
-  assert.match(stickyShellSource.match(/<div[^>]*className="([^"]+)"/)?.[1] ?? '', /lg:sticky[^\"]*lg:top-0/,
-    'Subheader and Cost Element / Work Center overview stay together at the top of CBD Main while it scrolls')
-  assert.ok(stickyShellSource.indexOf('Cost Breakdown subheader') >= 0
-    && stickyShellSource.indexOf('cost-breakdown-overview-panels') > stickyShellSource.indexOf('Cost Breakdown subheader')
-    && !stickyShellSource.includes('Candidate workspace'),
+  assert.match(overviewClass, /lg:h-44[\s\S]*lg:shrink-0[\s\S]*lg:grid-cols-\[minmax\(0,1fr\)_1px_minmax\(0,1fr\)\]/,
+    'Cost Element and Work Center use one bounded, equal-width overview with a center divider')
+  assert.match(pageSource, /data-cbd-overview-pair="true"\s+data-cbd-overview-columns="equal"[\s\S]*data-cbd-overview-divider="true"/,
+    'the paired summary panels expose equal-width and divider semantics')
+  assert.match(costSection, /lg:h-full/)
+  assert.match(wcSection, /lg:h-full/)
+  assert.match(stickyShellClass, /lg:sticky[^\"]*lg:top-0/,
+    'Subheader and Cost Element / Work Center overview stay sticky at the top of CBD Main while it scrolls')
+  const subheaderIndex = pageSource.indexOf('Cost Breakdown subheader')
+  const overviewIndex = pageSource.indexOf('<div id="cost-breakdown-overview-panels"')
+  const candidateIndex = pageSource.indexOf('aria-label="Candidate workspace"')
+  assert.ok(subheaderIndex >= stickyShellOpen
+    && overviewIndex > subheaderIndex
+    && candidateIndex > overviewIndex
+    && /\n      <\/div>\n      <\/div>\n\n      <div role="region" aria-label="Candidate workspace"/.test(pageSource.slice(overviewIndex, candidateIndex + 100)),
   'only the Subheader and summary belong to the sticky shell; Candidate remains Main content')
   assert.doesNotMatch(candidateRegionClass, /overflow-y-auto|overflow-y-scroll|overflow-auto|flex-1|min-h-0/,
-    'Candidate Findings remains natural flow and does not independently scroll')
+    'Candidate Findings stays in normal flow and does not take a second vertical scroll owner')
   const appLayoutSource = readFileSync(new URL('../src/shared/layout/AppLayout.tsx', import.meta.url), 'utf8')
   assert.match(appLayoutSource, /className=\{isCostBreakdown\s*\?\s*'[^']*overflow-y-auto[^']*'\s*:/,
-    'shared Main owns CBD vertical scrolling')
+    'shared Main remains the CBD page-level vertical scroll owner')
+  assert.match(pageSource, /aria-expanded=\{isOverviewExpanded\}[\s\S]*aria-controls="cost-breakdown-overview-panels"[\s\S]*aria-label=\{`\$\{isOverviewExpanded \? 'Collapse' : 'Expand'\} Cost Element and Work Center sections`\}/,
+    'overview disclosure has an accessible name, expanded state, and controlled panel reference')
+  assert.match(pageSource, /data-cbd-overview-indicator="true"/,
+    'overview disclosure retains a visible state indicator')
   assert.match(candidateRegionClass, /max-lg:\[contain:paint\]/,
     'narrow Candidate table overflow stays local rather than widening the document or Main')
   assert.doesNotMatch(appLayoutSource, /isCostBreakdown[\s\S]*?overflow-y-auto[^']*lg:overflow-y-hidden/,

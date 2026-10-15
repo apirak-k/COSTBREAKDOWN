@@ -130,6 +130,19 @@ function renderItemized(module, comparison, reference, current, typeTab = 'bom')
   }))
 }
 
+function extractElement(markup, start, tag) {
+  const tokens = new RegExp('<' + tag + '\\b[^>]*>|</' + tag + '>', 'g')
+  tokens.lastIndex = start
+  let depth = 0
+  let match
+  while ((match = tokens.exec(markup))) {
+    if (match[0].startsWith('</' + tag)) depth -= 1
+    else depth += 1
+    if (depth === 0) return markup.slice(start, tokens.lastIndex)
+  }
+  assert.fail('expected a complete ' + tag + ' element')
+}
+
 try {
   const [effects, comparisonCore, comparisonStatus, formatters, bomView, routingView, snapshotView, wcView, itemizedView, candidateView] = await Promise.all([
     vite.ssrLoadModule('/src/core/calculations/parameter-cost-effect.ts'),
@@ -557,22 +570,34 @@ try {
   const wcMarkup = renderToStaticMarkup(React.createElement(wcView.WorkCenterProcessingTable, {
     comparison: wcComparison,
   }))
-  assert.match(wcMarkup, /<section aria-label="Work Center" class="[^"]*lg:h-full[^"]*lg:overflow-hidden/,
-    'Work Center uses the same bounded overview height as Cost Element')
-  assert.match(wcMarkup, /data-wc-scroll-body="true"[^>]*class="min-h-0 overflow-visible lg:overflow-x-hidden lg:overflow-y-auto \[scrollbar-gutter:stable\]"/,
-    'Work Center rows alone scroll internally inside their bounded desktop panel')
+  assert.match(wcMarkup, /<section aria-label="Work Center"[^>]*data-cbd-overview-panel="work-center"/,
+    'Work Center participates in the paired overview')
+  assert.match(wcMarkup, /data-wc-scroll-body="true"[^>]*class="[^"]*overflow-y-auto/,
+    'Work Center data rows alone use the internal vertical scroll region')
+  assert.match(wcMarkup, /style="width:calc\(100% \+ var\(--cbd-wc-scrollbar-width, 0px\)\)"/,
+    'Work Center body rows preserve full-width column tracks around the scrollbar')
+  const wcSource = readFileSync(new URL('../src/features/cost-breakdown/components/WorkCenterProcessingTable.tsx', import.meta.url), 'utf8')
+  assert.match(wcSource, /body\.style\.setProperty\('--cbd-wc-scrollbar-width', `\$\{body\.offsetWidth - body\.clientWidth\}px`\)/,
+    'Work Center measures scrollbar width rather than hardcoding header/footer compensation')
+  assert.doesNotMatch(wcMarkup, /h-\[30px\]|pr-\[6px\]|scrollbar-gutter:\s*stable/,
+    'Work Center has no private footer height or painted scrollbar-gutter compensation')
+  const wcTableStart = wcMarkup.indexOf('<div role="table"')
+  assert.ok(wcTableStart >= 0)
+  const wcTable = extractElement(wcMarkup, wcTableStart, 'div')
+  const wcBodyMarker = wcTable.indexOf('data-wc-scroll-body="true"')
+  assert.ok(wcBodyMarker >= 0)
+  const wcBodyStart = wcTable.lastIndexOf('<div', wcBodyMarker)
+  const wcBody = extractElement(wcTable, wcBodyStart, 'div')
+  const wcBodyEnd = wcBodyStart + wcBody.length
+  const wcFooterGroup = wcTable.indexOf('<div role="rowgroup"', wcBodyEnd)
+  assert.ok(wcTable.indexOf('role="columnheader"') < wcBodyStart && wcFooterGroup >= wcBodyEnd,
+    'the header and Total footer are outside the body scroller')
   assert.deepEqual([...wcMarkup.matchAll(/role="columnheader"[^>]*>([^<]*)<\/div>/g)].map(([, label]) => label),
     ['Work Center', 'REF', 'CUR', 'GAP', '%GAP'])
   assert.equal([...wcMarkup.matchAll(/role="rowgroup"/g)].length, 3,
     'WC header, body, and footer remain separate aligned grid sections')
-  assert.match(wcMarkup, /role="rowgroup" class="bg-slate-800 pr-0 lg:pr-\[6px\]"><div role="row" class="grid grid-cols-\[24%_19%_19%_20%_18%\][\s\S]*?role="columnheader"[\s\S]*?%GAP/,
-    'WC header stays outside the scrolling body, uses the common row grid, and paints its scrollbar gutter')
-  assert.match(wcMarkup, /role="rowgroup" class="bg-slate-100 pr-0 lg:pr-\[6px\]"><div role="row" class="grid grid-cols-\[24%_19%_19%_20%_18%\][\s\S]*?role="rowheader"[^>]*>Total/,
-    'WC Total stays outside the scrolling body, uses the common row grid, and paints its scrollbar gutter')
-  assert.match(wcMarkup, /data-wc-scroll-body="true"[\s\S]*?role="rowgroup" class="bg-slate-100 pr-0 lg:pr-\[6px\]"[\s\S]*?>Total/,
-    'fixed header and Total remain visible while only the row body scrolls')
   assert.doesNotMatch(wcMarkup, /Selected|selected/i, 'WC has no Selected header, value, tooltip, or accessible text')
-  assert.match(wcMarkup, /role="rowgroup" class="bg-slate-100 pr-0 lg:pr-\[6px\]"><div role="row" class="grid grid-cols-\[24%_19%_19%_20%_18%\][\s\S]*?<div role="rowheader"[^>]*>Total<\/div>/,
+  assert.ok([...wcMarkup.matchAll(/role="rowheader"[^>]*>Total<\/div>/g)].length === 1,
     'WC footer remains present outside the scrolling body')
   assert.match(visibleText(wcMarkup), /Total.*%/, 'WC footer visibly identifies its percentage as Total')
   assert.doesNotMatch(wcMarkup, /<th scope="row"[^>]*>[\s\S]*·/, 'WC identity does not repeat a verbose description')
@@ -801,9 +826,25 @@ try {
     assert.ok(collapseButton)
     assert.match(collapseButton, /aria-label="Collapse Cost Element and Work Center sections"/)
     assert.equal(visibleText(collapseButton), '', 'Collapse is icon-only')
+    assert.match(collapseButton, /aria-expanded="true"/)
+    assert.match(collapseButton, /data-cbd-overview-indicator="true"/,
+      'the disclosure uses a dedicated plain triangle indicator')
+    const collapseClass = collapseButton.match(/\bclass="([^"]*)"/)?.[1] ?? ''
+    assert.doesNotMatch(collapseClass, /\bborder\b|bg-white|rounded/,
+      'the disclosure indicator has no boxed button chrome')
     assert.match(subheader, /aria-expanded="true"/)
-    assert.match(pageMarkup, /id="cost-breakdown-overview-panels" class="[^"]*lg:h-44[^"]*lg:shrink-0[^"]*lg:grid-cols-2/,
-      'Cost Element and Work Center panels remain bounded and side-by-side on desktop')
+    assert.match(subheader, /data-cbd-overview-click-area="true"/,
+      'safe empty subheader space participates in the same overview disclosure')
+    assert.equal([...pageMarkup.matchAll(/data-cbd-overview-pair="true"/g)].length, 1,
+      'Cost Element and Work Center share one paired overview frame')
+    assert.match(pageMarkup, /data-cbd-overview-pair="true"[^>]*data-cbd-overview-columns="equal"/,
+      'the overview layout explicitly uses equal Cost Element and Work Center columns')
+    assert.equal([...pageMarkup.matchAll(/data-cbd-overview-divider="true"/g)].length, 1,
+      'the paired overview uses one center divider')
+    const overviewPairIndex = pageMarkup.indexOf('data-cbd-overview-pair="true"')
+    const overviewPair = extractElement(pageMarkup, pageMarkup.lastIndexOf('<div', overviewPairIndex), 'div')
+    assert.ok(overviewPair.includes('aria-label="Cost Element"') && overviewPair.includes('aria-label="Work Center"'),
+      'the paired frame contains both equal summary peers')
   const pageRootClass = pageMarkup.match(/^<div[^>]*class="([^"]+)"/)?.[1]
   const candidateRegionClass = pageMarkup.match(/<div role="region" aria-label="Candidate workspace" tabindex="0" class="([^"]+)"/)?.[1]
   assert.ok(pageRootClass && candidateRegionClass)
@@ -818,11 +859,11 @@ try {
   assert.ok(pageMarkup.indexOf('aria-label="Cost Breakdown subheader"') < pageMarkup.indexOf('id="cost-breakdown-overview-panels"')
     && pageMarkup.indexOf('id="cost-breakdown-overview-panels"') < pageMarkup.indexOf('aria-label="Candidate workspace"'),
   'the sticky shell contains the Subheader and summary above the normal-flow Candidate region')
-  assert.match(pageMarkup, /aria-label="Cost Element" class="[^"]*lg:h-full/,
+  assert.match(pageMarkup, /aria-label="Cost Element"[^>]*data-cbd-overview-panel="cost"/,
     'Cost Element fills the bounded overview height')
-  assert.match(pageMarkup, /aria-label="Work Center" class="[^"]*lg:h-full lg:overflow-hidden/,
+  assert.match(pageMarkup, /aria-label="Work Center"[^>]*data-cbd-overview-panel="work-center"/,
     'Work Center matches the bounded Cost Element height')
-  assert.match(pageMarkup, /data-wc-scroll-body="true"[^>]*class="min-h-0 overflow-visible lg:overflow-x-hidden lg:overflow-y-auto/,
+  assert.match(pageMarkup, /data-wc-scroll-body="true"[^>]*class="[^"]*overflow-y-auto/,
     'Work Center row body scrolls internally while its aligned header/footer stay outside the body')
   assert.doesNotMatch(candidateRegionClass, /overflow-y-auto|overflow-y-scroll|overflow-auto|flex-1|min-h-0/,
     'Candidate remains natural flow without a competing vertical scroller')
@@ -844,8 +885,8 @@ try {
     assert.match(pageMarkup, /aria-label="Reapply sort: \|Gap\| High → Low"/)
     assert.match(pageMarkup, /aria-label="Choose sort mode; current mode \|Gap\| High → Low"/)
     assert.doesNotMatch(pageMarkup, /<details\b/, 'Status and Sort are overlay popovers, not in-flow details')
-    assert.ok([...subheader.matchAll(/lucide lucide-chevron-down/g)].length >= 3,
-      'Status and Sort dropdowns have visible chevrons alongside Collapse')
+    assert.ok([...subheader.matchAll(/lucide lucide-chevron-down/g)].length >= 2,
+      'Status and Sort dropdowns retain visible chevrons')
     assert.doesNotMatch(subheader, /▾/, 'dropdown affordances do not rely on a text triangle')
     assert.match(subheader, /w-\[5ch\] text-left font-mono tabular-nums/,
       'Status count and All reserve one fixed-width slot')
