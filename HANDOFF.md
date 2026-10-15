@@ -1,4 +1,4 @@
-# Current Handoff — CBD Final Regression Recovery / UX Closure
+# Current Handoff — CBD Interaction and Scroll Correction
 
 **Updated:** 2026-10-15
 
@@ -6,35 +6,47 @@
 
 **Worktree / branch:** `.worktrees/CBD-CANDIDATE-INTEGRATION` / `codex/cbd-candidate-integration`
 
-**Starting baseline:** `d2654b58f0495a1f40f71de89a002fc3d2d8c1fc`; fetched `origin/codex/cbd-candidate-integration` matched before implementation.
+**Starting baseline:** `3a7ec570d276996ca3ec44e3944a2e068c02099f`; fetched `origin/codex/cbd-candidate-integration` matched before this pass.
 
-**Implementation commit:** `c0079c4` (`fix(cbd): restore finalized Cost Breakdown workspace`).
+**Implementation commit:** `f68caab` (`fix(cbd): restore finalized Cost Breakdown workspace`).
 
 ## Current Product Flow
 
 The visible product remains exactly three top-level pages: Master Data → Cost Breakdown → Simulation. Candidate/finding analysis and Selected Comparison remain inside Cost Breakdown. Simulation has no CBD selection handoff or shared selected state.
 
-## CBD Closure
+## CBD Contract and Changes
 
 - The page remains **Cost Breakdown**; its upper summary table is named **Cost Element**.
-- On desktop, the CBD Subheader and equal-height, bounded Cost Element / Work Center panels stay within the shell. Candidate Findings owns the remaining vertical scroll. Work Center rows scroll inside its panel while the table header and Total remain visible on the same aligned grid.
-- Selected Comparison remains a temporary CBD-local analysis scope. The summary uses a fixed aligned `GAP | Selected` pair; Selected values are direct signed numbers in neutral secondary styling, without parentheses or red/green semantics.
-- Candidate columns retain the recent compact Status / readable parameter balance. Reference → Current pairs remain on one line where the panel can reasonably fit them. Drag affordance follows the Master Data GripVertical pattern, while reorder remains temporary presentation order and reapplying Sort restores sorted order.
-- Narrow screens stack the summary and use natural page scrolling. Candidate BOM/RTG tables may scroll horizontally within their own wrappers when their readable column tracks do not fit.
-- CBD formulas, source snapshots, status/filter/sort semantics, selected-finding lifecycle, and Candidate calculations were not changed. No Simulation implementation or Master Data business logic changed.
+- On desktop, the global Header and Footer stay outside the scrollable workspace. The shared Main owns CBD vertical scrolling. The Subheader, bounded Cost Element / Work Center overview, and naturally flowing Candidate tables move within Main; Candidate has no nested vertical scroll region.
+- Cost Element and Work Center are equal-height overview peers. Work Center header and Total remain outside its aligned, independently scrolling row body. Selected is hidden while inactive; when active, its neutral values share a fixed-width slot aligned with the header and do not move GAP, REF, CUR, or %GAP.
+- Candidate reorder remains a view-only operation. Selected rows move together within their own table, preserving their relative order and selection. The header Undo/Redo controls use one chronological BOM/Routing history; sort changes and Reapply Sort restore sorted order and clear both history stacks.
+- The Candidate drag payload now uses the same `application/x-costbreakdown-row-ids` format as Master Data. The pure reorder/history verifier passes. The available CUA coordinate drag did not trigger a reorder for BOM or Routing after this final payload alignment, so direct drag UI behavior is **NOT VERIFIED** and this pass must not be called closed.
+- Narrow screens stack the summary and use natural Main scrolling. BOM/Routing tables and the Work Center panel retain local horizontal overflow where their readable tracks do not fit.
+- CBD formulas, Reference/Current snapshots, Candidate identity, filter/sort meanings, Selected Comparison calculations, and source dataset order are unchanged. No Simulation files, formulas, behavior, or Master Data business logic were changed.
+
+## Browser Evidence
+
+The populated synthetic fixture contains six BOM findings, ten Routing findings, and five Work Center findings. It was loaded only in the local preview at `127.0.0.1:5189`; the unrelated untracked `tasks/master-data-cbd-final-audit.md` was preserved.
+
+- At 1920×920: Main is 826/826px client/content height; Cost Element and Work Center are both 176px high. Work Center body is 113px client / 163px content high, so its 50px overflow is internal. Candidate remains natural flow.
+- At 1440×900: Main is 806/806px; both summary panels are 176px high; Work Center body is 113/163px.
+- At 1366×768: Main is 674px client / 769px content high and scrolls 95px. Header/Footer remain at the shell edges. The Candidate content moves with Main; the table itself has no vertical scroll region.
+- At 1512×982: Main is 888/888px; both summary panels remain 176px high; Work Center body remains 113/163px.
+- At 900×900: overview panels stack; Main is 737/989px; Candidate Routing table uses a local 860px client / 1260px content width.
+- At 390×844: panels stack; Main is 658/1001px. Main width is 384/384px and body width is 390/390px; BOM/Routing tables and Work Center use local horizontal overflow. `window.scrollX` stays 0 and HTML/body hide page-level horizontal overflow.
+- Scrolling the Work Center body changed its own scrollTop while Main and overview positions stayed fixed. Scrolling Candidate at 1366×768 changed Main scrollTop to 95 while the global Header/Footer stayed fixed. Selected header and all four body slots measured x=760.39px / 49.47px wide at 1920px; hiding Selected left the Cost Element column positions unchanged.
+- Candidate drag, cross-table browser Undo/Redo, and selected-group pointer drag were not verified after the final payload change because CUA drag produced no DOM order change. Do not treat source or unit tests as a substitute for this interaction check.
 
 ## Documentation and Verification
 
-- `docs/specs/COST_BREAKDOWN.md`, `docs/specs/CROSS_CUTTING.md`, and `design.md` now describe the bounded desktop CBD layout and neutral Selected presentation.
-- `scripts/verify_cbd_summary_ux.ts` now requires Cost Element naming, stable Selected slots, bounded equal-height summaries, Work Center body scrolling, and Candidate-owned desktop scrolling. `scripts/verify_cbd_parameter_cost_effect.mjs` retains calculation coverage and expects the responsive local table-scroll fallback.
-- `npm.cmd run build`, the CBD summary / parameter effect / view / sort / Candidate / Selected boundary and lifecycle verifiers, Master Data UI state and row-drag verifiers, and `git diff --check` passed. Build emitted the existing ExcelJS browser externalization warnings for `fs`, `crypto`, and `@fast-csv`.
-- Populated local browser fixture: 16 Candidate findings, multiple BOM/Routing rows, and five Work Centers. At 1920×920, 1440×900, and 1366×768, document and Main scroll heights matched their viewport/workspace; Cost Element and Work Center each measured 176px high, and WC body measured 174px client / 197px scroll. Candidate region independently overflowed (886px content at 1366×768, 886px at 1440×900, and 886px at 1920×920 with current detail state). Scrolling Candidate left Subheader/summary/Footer in place; scrolling WC changed only its own scroll position and kept header/Total visible. Sparse and populated WC fixtures both kept the summary panels at equal height.
-- At 900×900 and 390×844, panels stacked and Main allowed natural vertical scrolling. Candidate tables used local 1040px BOM / 1260px Routing presentation tracks to preserve legibility. A horizontal scroll attempt at the page stayed at `scrollX=0`; local table/toolbar scrolling remains available. The raw document `scrollWidth` includes nested responsive scrollport extents and is not used as the page-scroll owner measurement.
-- Browser interactions verified Selected on/off alignment and neutral display, hidden selection retained across filters, whole-row Candidate details and outside-click dismissal, drag reorder and Sort restoration, unchanged Master Data BOM order after CBD reorder, and overview collapse/expand. No production fixture or source data was changed.
+- `docs/specs/COST_BREAKDOWN.md`, `docs/specs/CROSS_CUTTING.md`, and `design.md` describe Main-owned CBD scrolling, bounded equal-height summaries, body-only WC scrolling, stable Selected slots, and shared reorder history.
+- Exact verifier commands passed: `node --experimental-strip-types scripts/verify_cbd_summary_ux.ts`; `node scripts/verify_cbd_parameter_cost_effect.mjs`; `node --experimental-strip-types scripts/verify_cbd_reorder_history.ts`; `node --experimental-strip-types scripts/verify_cost_breakdown_sort.ts`; `node --experimental-strip-types scripts/verify_cost_breakdown_view.ts`; `node --experimental-strip-types scripts/verify_selected_comparison_boundary.ts`; `node --experimental-strip-types scripts/verify_selected_comparison_lifecycle.ts`; `node --experimental-strip-types scripts/verify_row_drag_selection.ts`; `node scripts/verify_master_data_ui_state.mjs`.
+- The Global Header verifier passed through Vite SSR using `node --input-type=module -e "import { createServer } from 'vite'; const vite = await createServer({ optimizeDeps: { noDiscovery: true, entries: [] }, server: { middlewareMode: true }, appType: 'custom', logLevel: 'error' }); try { await vite.ssrLoadModule('/scripts/verify_global_header.ts') } finally { await vite.close() }`.
+- `npm.cmd run build` passed with the existing ExcelJS browser externalization warnings for `fs`, `crypto`, and `@fast-csv`. `git diff --check` passed before staging and on the staged implementation diff. The working tree still contains the unrelated untracked audit file; it remains unstaged and untouched.
 
 ## Delivery Status
 
-The implementation commit is `c0079c4`; this handoff follow-up records its populated-browser verification and corrected current status. Delivery target is `origin/codex/cbd-candidate-integration`. The unrelated untracked `tasks/master-data-cbd-final-audit.md` remains untouched and excluded. No branch switch, reset, merge, package/dependency change, or formula change was made.
+Implementation commit `f68caab` is created. The handoff update is recorded in a separate documentation commit; both commits target `origin/codex/cbd-candidate-integration`. No reset, branch switch, merge, force push, dependency change, or formula change was made. Because direct drag UI and browser Undo/Redo remain unverified, the CBD closure condition is not satisfied and this pass must not be reported as closed.
 ## Historical Final Logic Checklist Evidence — 2026-10-09
 
 The following evidence belongs to the earlier `codex/final-logic-implementation` checkpoint. It is retained for traceability and does not prove that the current post-merge integration branch has re-passed these checks.
