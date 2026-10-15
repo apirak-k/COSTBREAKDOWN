@@ -777,6 +777,8 @@ export const SimulationPage: React.FC<SimulationPageProps> = ({
     return <div role="status" className="py-8 text-sm text-slate-600">Simulation is initializing from Current.</div>
   }
 
+  const unit = resolveSimulationCostUnit(referenceSnapshot, currentSnapshot)
+
   const actionMenus = (
     <>
       <button
@@ -812,14 +814,14 @@ export const SimulationPage: React.FC<SimulationPageProps> = ({
   return (
     <div className="min-w-0 space-y-3 xl:flex xl:h-full xl:min-h-0 xl:flex-col xl:gap-2 xl:space-y-0 xl:overflow-hidden">
       <div className="grid min-w-0 gap-2 xl:min-h-0 xl:flex-[1.8] xl:grid-cols-[minmax(0,2fr)_minmax(0,1fr)] xl:grid-rows-1">
-        <SimulationStoryGraph story={story} />
+        <SimulationStoryGraph story={story} unit={unit} />
         <div className="grid content-start gap-2 xl:h-full xl:min-h-0 xl:grid-rows-[minmax(0,1.3fr)_minmax(0,1fr)]">
           <ResultPanel
             currentCost={result.currentCost}
             simulationCost={result.simulationCost}
             currentFinancial={story.current}
             simulationFinancial={story.simulated}
-            unit={resolveSimulationCostUnit(referenceSnapshot, currentSnapshot)}
+            unit={unit}
             actions={actionMenus}
             transferMessage={transferMessage}
             transferError={transferError}
@@ -828,7 +830,7 @@ export const SimulationPage: React.FC<SimulationPageProps> = ({
             result={economicResult}
             draft={state.economicInputs}
             currentSnapshot={currentSnapshot}
-            unit={resolveSimulationCostUnit(referenceSnapshot, currentSnapshot)}
+            unit={unit}
             onUpdate={onUpdateEconomicInput}
           />
         </div>

@@ -180,11 +180,13 @@ Result Change = SIM − Current
 Parameter Saving = Current − SIM
 ```
 
-REF, CUR, and SIM may show MAT, LB, BD, SG&A, and OP. Standard Cost remains MAT + LB + BD; SG&A and OP are separate business values. Selling Price is a separate line/marker. GAP 1 and GAP 2 contain only signed MAT, LB, and BD effects, with their total shown as a number only at the bar end; the `REF`, `GAP 1`, `CUR`, `GAP 2`, and `SIM` names appear below the bars. Positive values extend above zero; negative values extend below zero. The graph supports negative OP.
+The graph title is **Simulation Parameter Cost Effect**. REF, CUR, and SIM may show MAT, LB, BD, SG&A, and OP. Standard Cost remains MAT + LB + BD; SG&A and OP are separate business values. Selling Price is a separate line/marker with numeric-only visible labels. GAP 1 and GAP 2 contain only signed MAT, LB, and BD effects, with their total shown as a number only at the bar end; the `REF`, `GAP 1`, `CUR`, `GAP 2`, and `SIM` names appear below the bars. Positive values extend above zero; negative values extend below zero. The graph supports negative OP.
 
 Use a slightly softened graph fill of the same shared CBD semantic colors: MAT `#4F7CAC`, LB `#D89B45`, and BD `#8067B7`. Do not lighten the CBD palette itself. SG&A is neutral gray; positive OP is green, negative OP red, and zero OP neutral. Selling Price is a separate reference line. Bar-end labels contain only the numeric total (for example `+16.05` or `-5.00`); do not prefix with `SC`, `STD`, `Total`, or a bar name.
 
-The draggable THB/pc ruler is visual only. It cannot change data, draft inputs, or calculations. Draw its line in front of the bars while keeping the ruler value tag clear of numeric bar labels. Keep pointer capture, keyboard access, and subtle snapping to zero, Standard Cost, or Selling Price levels.
+The Y-axis, graph tooltips, and ruler accessibility text use the resolved product UOM (`THB/<UOM>`). Graph tooltips identify the state or gap, metric, value, and unit. The visible legend stays below the graph with independently toggleable MAT, LB, BD, SG&A, OP+, OP−, Selling Price, and Ruler controls. All controls start on; turning one off fades but retains its legend entry and hides only that graph visual. The scale remains based on the complete story while toggles are used.
+
+The draggable ruler is visual only. It cannot change data, draft inputs, or calculations. Draw a thin dashed line in front of the bars with a numeric-only value at its right end. Use a local 8–12px pointer target centered on the line, pointer capture, vertical-only drag, Arrow Up/Down, Page Up/Down, Home, End, and subtle snapping to zero, Standard Cost, or Selling Price levels. Do not use a full-plot transparent interaction layer or a separate ruler box/label.
 
 ## 6. Page layout and navigation
 

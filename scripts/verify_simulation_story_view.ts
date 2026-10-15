@@ -32,51 +32,99 @@ try {
   const story = createScenarioStory(financial(reference, 120, 8), financial(current, 120, 10), financial(sim, 120, 10))
   assert.equal(story.gap1.standardCost, 10, 'GAP 1 is Current - Reference')
   assert.equal(story.gap2.standardCost, -5, 'GAP 2 is SIM - Current and may be negative')
-  const graphMarkup = renderToStaticMarkup(React.createElement(SimulationStoryGraph, { story }))
+  const graphMarkup = renderToStaticMarkup(React.createElement(SimulationStoryGraph, { story, unit: 'PC' }))
   const graphSource = readFileSync(resolve(process.cwd(), 'src/features/simulation/SimulationStoryGraph.tsx'), 'utf8')
   const graphText = graphMarkup.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ')
   const svgTextLabels = [...graphMarkup.matchAll(/<text\b[^>]*>([\s\S]*?)<\/text>/g)]
     .map(match => match[1].replace(/<[^>]*>/g, '').replace(/&amp;/g, '&').trim())
   const expectedBarTotals = new Map([['180', '90.00'], ['305', '+10.00'], ['430', '100.00'], ['555', '-5.00'], ['680', '95.00']])
+  const expectedBarTotalValues = new Set(expectedBarTotals.values())
   const barTopLabels = [...graphMarkup.matchAll(/<text x="(180|305|430|555|680)" y="([^"]+)"[^>]*>([\s\S]*?)<\/text>/g)]
     .filter(match => {
       const label = match[3].replace(/<[^>]*>/g, '').trim()
-      return match[2] !== '306' && /^[+-]?\d+\.\d{2}$/.test(label)
+      return match[2] !== '306' && expectedBarTotalValues.has(label)
     })
     .map(match => [Number(match[1]), match[3].replace(/<[^>]*>/g, '').trim()] as const)
     .sort((left, right) => left[0] - right[0])
   assert.deepEqual(barTopLabels, [...expectedBarTotals].map(([x, label]) => [Number(x), label]),
     'REF/GAP1/CUR/GAP2/SIM bar ends show numeric totals only, in graph order')
-  assert.equal(svgTextLabels.filter(label => ['REF', 'GAP 1', 'CUR', 'GAP 2', 'SIM'].includes(label)).length, 5,
-    'the five bar names remain distinct from their numeric totals')
-  assert.match(graphMarkup, /GAP 1 MAT Gap: \+5\.00/)
-  assert.match(graphMarkup, /GAP 2 MAT Gap: -3\.00/)
+  assert.deepEqual(svgTextLabels.filter(label => ['REF', 'GAP 1', 'CUR', 'GAP 2', 'SIM'].includes(label)),
+    ['REF', 'GAP 1', 'CUR', 'GAP 2', 'SIM'], 'the five category labels follow the fixed graph story')
+  assert.match(graphMarkup, /GAP 1 Material Gap: \+5\.00 THB\/PC/)
+  assert.match(graphMarkup, /GAP 2 Material Gap: -3\.00 THB\/PC/)
   assert.doesNotMatch(graphMarkup, /\bSC [+-]\d/, 'gap labels do not use the ambiguous SC +/- notation')
-  const firstBarIndex = graphMarkup.indexOf('fill-opacity="0.86"')
+  const firstBarIndex = graphMarkup.indexOf('fill-opacity="0.8"')
   const rulerLineIndex = graphMarkup.indexOf('stroke-dasharray="4 5"')
   assert.ok(firstBarIndex >= 0 && rulerLineIndex > firstBarIndex, 'the visible ruler line is drawn in front of the bars')
   for (const [part, color] of [['MAT', '#4F7CAC'], ['LB', '#D89B45'], ['BD', '#8067B7']]) {
     assert.ok(graphMarkup.includes(`fill="${color}"`), `${part} uses the exact CBD palette color in the graph bars`)
     assert.ok(graphMarkup.includes(`background-color:${color}`), `${part} uses the exact CBD palette color in the legend`)
   }
-  assert.match(graphMarkup, /role="slider"[^>]*aria-label="Visual comparison ruler"/)
-  assert.match(graphMarkup, /aria-valuetext="[^\"]+ THB per piece"/)
+  assert.match(graphMarkup, /Simulation Parameter Cost Effect/)
+  assert.match(graphMarkup, />THB\/PC<\/text>/, 'the axis uses the resolved UOM')
+  assert.match(graphMarkup, /role="slider"[^>]*aria-label="Simulation comparison ruler"[^>]*aria-orientation="vertical"/)
+  assert.match(graphMarkup, /aria-valuetext="[^\"]+ THB\/PC"/)
+  assert.match(graphSource, /data-ruler-value="true" x=\{plot\.right \+ 7\}/, 'the ruler value sits at the line end without a label')
   assert.match(graphSource, /onKeyDown=\{handleRulerKeyDown\}/, 'the visual ruler remains keyboard operable')
   assert.match(graphSource, /onPointerDown=/, 'the visual ruler still responds to pointer start')
   assert.match(graphSource, /onPointerMove=/, 'the visual ruler still responds to pointer movement')
   assert.match(graphSource, /onPointerUp=/, 'the visual ruler still responds to pointer release')
   assert.match(graphSource, /onPointerCancel=/, 'the visual ruler releases pointer capture on cancellation')
-  assert.match(graphMarkup, /fill-opacity="0.86"/, 'dataset bar fills use a softened but distinct treatment')
-  assert.match(graphMarkup, /Selling Price<\/li>/, 'Selling Price remains a separate graph line')
+  assert.match(graphMarkup, /fill-opacity="0.8"/, 'dataset bar fills use a softened but distinct treatment')
+  assert.match(graphMarkup, /Selling Price<\/span>/, 'Selling Price remains a separate graph legend item')
+  assert.match(graphMarkup, /aria-pressed="true"/)
+  assert.equal([...graphMarkup.matchAll(/aria-pressed="true"/g)].length, 8, 'all eight legend items are on by default')
+  assert.match(graphSource, /opacity-40/, 'an OFF legend item stays rendered in a faded state')
+  assert.match(graphMarkup, /OP\+/)
+  assert.match(graphMarkup, /OP−/)
+  assert.doesNotMatch(graphMarkup, />SP\s+\d/, 'Selling Price labels do not use the SP prefix')
+  assert.doesNotMatch(graphSource, /highlightedParts|highlighted\s*\?/, 'graph bars have no parameter-selection highlight')
+  assert.doesNotMatch(graphSource, /fill="transparent"[^>]*width=\{plot\.right - plot\.left\}[^>]*height=\{plot\.bottom - plot\.top\}/,
+    'the ruler does not use a full-plot transparent overlay')
+  assert.match(graphSource, /y=\{rulerY - 5\} width=\{plot\.right - plot\.left\} height="10" fill="transparent" pointerEvents="all"/,
+    'the ruler uses a local 10px hit target centered on the line')
+  assert.doesNotMatch(graphMarkup, /RULER\s+\d/, 'the ruler has no redundant label or box')
+  assert.match(graphMarkup, /data-axis-tick="0"/)
+  assert.doesNotMatch(graphSource, /THB\/pc|THB\/Unit/, 'the graph does not hard-code a UOM')
+  const scaleCalculation = graphSource.slice(graphSource.indexOf('const rangeValues = useMemo'), graphSource.indexOf('const plot ='))
+  assert.doesNotMatch(scaleCalculation, /visibleLegend/, 'the Y scale uses full story data, independent of visibility toggles')
+  assert.equal(graphMarkup.match(/<text x="305"[^>]*fill="([^\"]+)"[^>]*>\+10\.00<\/text>/)?.[1], '#be123c',
+    'positive cost gap total is unfavorable red')
+  assert.equal(graphMarkup.match(/<text x="555"[^>]*fill="([^\"]+)"[^>]*>-5\.00<\/text>/)?.[1], '#15803d',
+    'negative cost gap total is favorable green')
   assert.ok(graphMarkup.includes('fill="#15803d"'), 'positive OP uses its green sign color')
   assert.doesNotMatch(graphMarkup, /GAP [12] (?:SG&A|OP|Selling Price) Gap:/,
     'gap bars only contain MAT, LB, and BD')
   assert.ok(graphMarkup.includes('SG&amp;A') && graphText.includes('OP'), 'dataset bars and legend retain the separate economic values')
 
+  const tooltipReference = cost('tooltip-ref', 60, 20, 10)
+  const tooltipCurrent = cost('tooltip-cur', 65, 22, 15)
+  const tooltipSim = cost('tooltip-sim', 62, 19, 13)
+  const tooltipStory = createScenarioStory(
+    financial(tooltipReference, 120, 8), financial(tooltipCurrent, 120, 10), financial(tooltipSim, 120, 10)
+  )
+  const tooltipMarkup = renderToStaticMarkup(React.createElement(SimulationStoryGraph, { story: tooltipStory, unit: 'KG' }))
+  for (const tooltip of [
+    'Reference Material: 60.00 THB/KG', 'Reference Labor: 20.00 THB/KG', 'Reference Burden: 10.00 THB/KG',
+    'Reference SG&amp;A: 9.60 THB/KG', 'Reference Operating Profit: 20.40 THB/KG',
+    'Current Material: 65.00 THB/KG', 'Current Labor: 22.00 THB/KG', 'Current Burden: 15.00 THB/KG',
+    'Current SG&amp;A: 12.00 THB/KG', 'Current Operating Profit: 6.00 THB/KG',
+    'Simulated Material: 62.00 THB/KG', 'Simulated Labor: 19.00 THB/KG', 'Simulated Burden: 13.00 THB/KG',
+    'Simulated SG&amp;A: 12.00 THB/KG', 'Simulated Operating Profit: 14.00 THB/KG',
+    'GAP 1 Material Gap: +5.00 THB/KG', 'GAP 1 Labor Gap: +2.00 THB/KG', 'GAP 1 Burden Gap: +5.00 THB/KG',
+    'GAP 2 Material Gap: -3.00 THB/KG', 'GAP 2 Labor Gap: -3.00 THB/KG', 'GAP 2 Burden Gap: -2.00 THB/KG',
+    'Reference Selling Price: 120.00 THB/KG', 'Current Selling Price: 120.00 THB/KG', 'Simulated Selling Price: 120.00 THB/KG'
+  ]) assert.ok(tooltipMarkup.includes(tooltip), `graph tooltip identifies its series and resolved unit: ${tooltip}`)
+  assert.match(tooltipMarkup, />THB\/KG<\/text>/, 'the Y axis uses a different product UOM dynamically')
+
+  const zeroGapStory = createScenarioStory(financial(reference, 120, 10), financial(current, 120, 10), financial(current, 120, 10))
+  const zeroGapMarkup = renderToStaticMarkup(React.createElement(SimulationStoryGraph, { story: zeroGapStory, unit: 'PC' }))
+  assert.match(zeroGapMarkup, /<text x="555"[^>]*fill="#475569"[^>]*>0\.00<\/text>/, 'zero gap totals remain neutral')
+
   const negativeOPStory = createScenarioStory(financial(reference, 120, 10), financial(current, 120, 10), financial(cost('loss', 90, 0, 0), 80, 10))
   assert.equal(negativeOPStory.simulated.operatingProfitPerPiece, -18, 'negative OP remains a valid story value')
-  const negativeOPMarkup = renderToStaticMarkup(React.createElement(SimulationStoryGraph, { story: negativeOPStory }))
-  assert.match(negativeOPMarkup, /Simulated OP: -18\.00 THB\/pc/)
+  const negativeOPMarkup = renderToStaticMarkup(React.createElement(SimulationStoryGraph, { story: negativeOPStory, unit: 'PC' }))
+  assert.match(negativeOPMarkup, /Simulated Operating Profit: -18\.00 THB\/PC/)
   assert.ok(negativeOPMarkup.includes('fill="#be123c"'), 'negative OP uses its red sign color')
 
   const makeSnapshot = (id: string, price: number, referencePrice: number): CostSnapshot => ({
