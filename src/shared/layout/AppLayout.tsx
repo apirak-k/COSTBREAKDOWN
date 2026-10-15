@@ -308,10 +308,10 @@ export const AppLayout: React.FC<AppLayoutProps> = ({ children, onNavigatePrepar
         tabIndex={-1}
         onPointerDownCapture={handleWorkspacePointerDown}
         className={isCostBreakdown
-          ? 'min-h-0 min-w-0 flex-1 overflow-x-hidden overflow-y-auto [scrollbar-gutter:stable]'
+          ? 'min-h-0 min-w-0 flex-1 overflow-x-hidden overflow-y-auto [scrollbar-gutter:stable] lg:overflow-y-hidden'
           : `min-h-0 min-w-0 flex-1 overflow-y-auto ${activeTab === 'master' ? 'pt-0 pb-3 [scrollbar-gutter:stable]' : 'py-3'} ${isSimulation ? 'xl:flex xl:overflow-hidden xl:py-0' : ''}`}
       >
-        <div className={`app-workspace-frame ${isCostBreakdown ? 'min-h-full min-w-0' : isSimulation ? 'xl:flex xl:h-full xl:min-h-0 xl:min-w-0 xl:flex-col' : ''}`}>{children}</div>
+        <div className={`app-workspace-frame ${isCostBreakdown ? 'min-h-full min-w-0 lg:h-full lg:min-h-0' : isSimulation ? 'xl:flex xl:h-full xl:min-h-0 xl:min-w-0 xl:flex-col' : ''}`}>{children}</div>
       </main>
       <footer aria-label="Dataset and comparison status" className="w-full shrink-0 border-t border-slate-800 bg-slate-900 py-2 font-sans text-[11px] text-slate-400">
         <div className="app-workspace-frame flex flex-wrap items-center justify-between gap-x-5 gap-y-1.5 xl:flex-nowrap">

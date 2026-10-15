@@ -13,6 +13,7 @@ import {
 import type { MasterDataNumericField } from '../../../core'
 import type { ComparisonFinding, ComparisonStatus } from '../../../core'
 import { applyRowDragSelection } from '../../../shared/selection/row-drag-selection'
+import { Tooltip } from '../../../shared/ui/Tooltip'
 import type { BOMItemizedRow } from './BOMDetailedTable'
 import { BOMRecordDetails } from './BOMDetailedTable'
 import type { RoutingItemizedRow } from './RoutingDetailedTable'
@@ -289,7 +290,7 @@ export const CandidateFindingsTable: React.FC<CandidateFindingsTableProps> = ({
   const emptyMessage = isBOM ? 'No Bill of Material findings match this filter.' : 'No Routing findings match this filter.'
 
   return <div className="overflow-x-auto border border-slate-200">
-    <table className="w-full min-w-0 table-fixed text-left text-[10px]">
+    <table className={`w-full ${isBOM ? 'min-w-[1040px]' : 'min-w-[1260px]'} table-fixed text-left text-[10px]`}>
       <colgroup>{columnWidths.map((width, index) => <col key={index} style={{ width }} />)}</colgroup>
       <caption className="sr-only">{identityHeader} Candidate findings. Main parameter columns show deltas; CHANGED rows expand Reference → Current and Parameter Cost Effect details.</caption>
       <thead>
@@ -350,7 +351,7 @@ export const CandidateFindingsTable: React.FC<CandidateFindingsTableProps> = ({
                   event.preventDefault()
                   onToggleExpanded(type, row.key)
                 }}
-                className={`${selected ? 'bg-blue-100/60 hover:bg-blue-100/80' : 'bg-white hover:bg-slate-50'} ${canExpand ? 'cursor-pointer' : 'cursor-default'} focus-visible:outline focus-visible:outline-2 focus-visible:outline-inset focus-visible:outline-blue-700`}
+                className={`group ${selected ? 'bg-blue-100/60 hover:bg-blue-100/80' : 'bg-white hover:bg-slate-50'} ${canExpand ? 'cursor-pointer' : 'cursor-default'} focus-visible:outline focus-visible:outline-2 focus-visible:outline-inset focus-visible:outline-blue-700`}
               >
                 <td className="px-1 py-2 text-center" onClick={event => event.stopPropagation()}>
                   <button
@@ -384,45 +385,46 @@ export const CandidateFindingsTable: React.FC<CandidateFindingsTableProps> = ({
                 <td className={`whitespace-nowrap px-1 py-2 text-right ${gapTextClass(row.gap)}`}>{row.gap === null ? '—' : formatVariance(row.gap, 2)}</td>
                 <td className="whitespace-nowrap px-1 py-2 text-right text-slate-700">{candidatePercent(row.gap, totalGap)}</td>
                 <td className="px-1 py-2 text-center" onClick={event => event.stopPropagation()}>
-                  <button
-                    type="button"
-                    draggable={false}
-                    aria-label={`Drag to reorder ${identityHeader} finding ${row.label}`}
-                    title="Drag to arrange visible findings"
-                    onPointerDown={event => {
-                      event.stopPropagation()
-                      if (event.button !== 0) return
-                      reorderDragRef.current = {
-                        pointerId: event.pointerId,
-                        sourceKey: row.key,
-                        startX: event.clientX,
-                        startY: event.clientY,
-                        started: false,
-                        didReorder: false
-                      }
-                      event.currentTarget.setPointerCapture(event.pointerId)
-                    }}
-                    onPointerMove={event => {
-                      const drag = reorderDragRef.current
-                      if (!drag || drag.pointerId !== event.pointerId) return
-                      if (!drag.started && Math.hypot(event.clientX - drag.startX, event.clientY - drag.startY) < 3) return
-                      if (!drag.started) {
-                        drag.started = true
-                        setDraggingKey(row.key)
-                      }
-                      const target = document.elementFromPoint(event.clientX, event.clientY)?.closest<HTMLTableRowElement>('tr[data-candidate-reorder-row]')
-                      const targetKey = target?.dataset.candidateReorderRow
-                      if (target && targetKey) reorderBefore(targetKey, event.clientY, target.getBoundingClientRect())
-                    }}
-                    onPointerUp={event => finishReorder(event.pointerId)}
-                    onPointerCancel={event => finishReorder(event.pointerId)}
-                    onLostPointerCapture={() => finishReorder()}
-                    onClick={event => {
-                      event.stopPropagation()
-                      if (suppressNextRowClickRef.current) suppressNextRowClickRef.current = false
-                    }}
-                    className={`inline-flex h-7 w-7 shrink-0 select-none touch-none items-center justify-center rounded-sm text-slate-500 hover:bg-slate-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700 ${draggingKey === row.key ? 'cursor-grabbing' : 'cursor-grab'}`}
-                  ><GripVertical aria-hidden="true" className="h-4 w-4" /></button>
+                  <Tooltip label="Drag to arrange visible findings">
+                    <button
+                      type="button"
+                      draggable={false}
+                      aria-label={`Drag to reorder ${identityHeader} finding ${row.label}`}
+                      onPointerDown={event => {
+                        event.stopPropagation()
+                        if (event.button !== 0) return
+                        reorderDragRef.current = {
+                          pointerId: event.pointerId,
+                          sourceKey: row.key,
+                          startX: event.clientX,
+                          startY: event.clientY,
+                          started: false,
+                          didReorder: false
+                        }
+                        event.currentTarget.setPointerCapture(event.pointerId)
+                      }}
+                      onPointerMove={event => {
+                        const drag = reorderDragRef.current
+                        if (!drag || drag.pointerId !== event.pointerId) return
+                        if (!drag.started && Math.hypot(event.clientX - drag.startX, event.clientY - drag.startY) < 3) return
+                        if (!drag.started) {
+                          drag.started = true
+                          setDraggingKey(row.key)
+                        }
+                        const target = document.elementFromPoint(event.clientX, event.clientY)?.closest<HTMLTableRowElement>('tr[data-candidate-reorder-row]')
+                        const targetKey = target?.dataset.candidateReorderRow
+                        if (target && targetKey) reorderBefore(targetKey, event.clientY, target.getBoundingClientRect())
+                      }}
+                      onPointerUp={event => finishReorder(event.pointerId)}
+                      onPointerCancel={event => finishReorder(event.pointerId)}
+                      onLostPointerCapture={() => finishReorder()}
+                      onClick={event => {
+                        event.stopPropagation()
+                        if (suppressNextRowClickRef.current) suppressNextRowClickRef.current = false
+                      }}
+                      className={`inline-flex h-8 w-7 shrink-0 select-none touch-none items-center justify-center rounded-sm ${selected ? 'text-slate-700' : 'text-slate-400'} hover:bg-slate-200 hover:text-slate-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-700 active:cursor-grabbing disabled:cursor-default disabled:opacity-30 group-hover:text-slate-600 group-focus-within:text-slate-700 ${draggingKey === row.key ? 'cursor-grabbing' : 'cursor-grab'}`}
+                    ><GripVertical aria-hidden="true" className="h-4 w-4" /></button>
+                  </Tooltip>
                 </td>
                 <td className="px-1 py-2 text-center">
                   {canExpand && <span aria-hidden="true" className="pointer-events-none inline-flex h-7 w-7 items-center justify-center text-slate-500">{isExpanded ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5" />}</span>}

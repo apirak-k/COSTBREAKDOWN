@@ -76,10 +76,11 @@ requirements:
 - The CBD Gap Bar uses contribution-proportional segments when component gaps
   share a sign; offsetting gaps use one signed zero-baseline chart. Keep selected
   contributions inside that same chart. The Fixed Overview is side-by-side and
-  has one whole-region collapse control, expanded by default. The shared Main
-  region owns CBD's page-level vertical scroll, while Candidate and Work Center
-  content grows naturally. Fit tables at ordinary desktop widths when
-  practical; narrow layouts may scroll horizontally within a table.
+  has one whole-region collapse control, expanded by default. On desktop, the
+  Subheader and equal-height bounded Cost Element / Work Center overview stay
+  fixed in the CBD workspace; Candidate Findings owns the remaining vertical
+  scroll and Work Center rows may scroll inside their bounded panel. Narrow
+  layouts may use natural page scrolling and local horizontal table fallback.
 - CBD CHANGED BOM detail uses Reference → Current and Parameter Cost Effect
   rows aligned with `Δ Usage` / `Δ Price` / `Δ Loss` / Gap. CHANGED RTG main
   rows also expose `Δ LB Rate` and `Δ BD Rate`, resolved per snapshot through
@@ -237,11 +238,14 @@ when the app frame has usable width.
   shadow for overlays and floating menus; do not put a shadow on every card.
 
 The app uses a viewport-height shell: Header at the top, a Main region, and a
-non-overlay Footer locked to the bottom. Standard pages, including Cost
-Breakdown, use Main as the page-level vertical scroll owner. Desktop Simulation
-is the exception: it is fixed within the shared shell, and only its BOM and RTG
-bodies scroll vertically. Narrow Simulation layouts may use natural page
-scrolling. Header, Main, and Footer content share the centered `max-w-[1440px]`
+non-overlay Footer locked to the bottom. Normal pages use Main as the natural
+page-level vertical scroll owner where applicable. Desktop Cost Breakdown is
+an exception: its Subheader and bounded Cost Element / Work Center overview
+stay fixed, Candidate Findings owns the remaining vertical scroll, and Work
+Center rows may scroll within their bounded panel. Desktop Simulation is also
+fixed within the shared shell, and only its BOM and RTG bodies scroll
+vertically. Narrow CBD and Simulation layouts may use natural page scrolling.
+Header, Main, and Footer content share the centered `max-w-[1440px]`
 frame. Master Data's
 selected-dataset toolbar and metadata stay together at the top of its content
 scroll area, as required by

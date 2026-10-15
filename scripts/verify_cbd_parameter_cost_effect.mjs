@@ -503,8 +503,9 @@ try {
   }))
   assert.doesNotMatch(warningMarkup, /Data quality:/, 'page-level Data quality summary must be removed')
   assert.doesNotMatch(warningMarkup, /Review warnings|Fixture warning remains reviewable/, 'comparison warnings are not presented in the Cost Breakdown summary')
-  assert.match(warningMarkup, /aria-label="Cost Breakdown"/)
-  assert.match(warningMarkup, /<th scope="col"[^>]*>Cost Breakdown<\/th>[\s\S]*>REF<\/th>[\s\S]*>CUR<\/th>[\s\S]*>GAP<\/span>[\s\S]*>%GAP<\/th>/)
+  assert.match(warningMarkup, /aria-label="Cost Element"/)
+  assert.match(warningMarkup, /<caption class="sr-only">Cost Element/)
+  assert.match(warningMarkup, /<th scope="col"[^>]*>Cost Element<\/th>[\s\S]*>REF<\/th>[\s\S]*>CUR<\/th>[\s\S]*>GAP<\/span>[\s\S]*>Selected<\/span>[\s\S]*>%GAP<\/th>/)
   assert.deepEqual([...warningMarkup.matchAll(/<tr\b/g)].length, 5, 'Cost has exactly a header, three element rows, and a footer')
   assert.match(warningMarkup, />Material<\/th>[\s\S]*>Labor<\/th>[\s\S]*>Burden<\/th>[\s\S]*>Standard Cost<\/th>/)
   assert.doesNotMatch(warningMarkup, /Standard Cost Overview|Material color legend|Selected REF|Selected CUR/,
@@ -523,9 +524,12 @@ try {
     selectedComparison: selectedCostComparison,
     selectedActive: true
   }))
-  assert.match(selectedCostMarkup, /GAP[\s\S]*\(Selected\)/, 'Selected Comparison is secondary in the GAP header')
-  assert.match(visibleText(selectedCostMarkup), /\+2\.20\s+\(\s*\+0\.50\s*\)/, 'Selected contribution is muted and parenthesized in the fixed secondary slot beside full Gap')
-  assert.match(visibleText(selectedCostMarkup), /\(\s*0\.00\s*\)/, 'a real selected zero is shown as (0.00) in the fixed secondary slot')
+  assert.match(selectedCostMarkup, /GAP[\s\S]*>Selected<\/span>/, 'Selected Comparison is a plain secondary GAP header slot')
+  assert.match(visibleText(selectedCostMarkup), /\+2\.20\s+\+0\.50/, 'Selected contribution is muted in the fixed secondary slot beside full Gap')
+  assert.match(visibleText(selectedCostMarkup), /Labor\s+0\.00\s+0\.00\s+0\.00\s+0\.00/,
+    'a real selected zero is shown directly in the fixed secondary slot')
+  assert.doesNotMatch(selectedCostMarkup, /\(Selected\)|Selected \([+-]?\d|data-gap-slot="selected"[^>]*>\s*\([+-]?\d/,
+    'Selected header and values have no surrounding parentheses')
   assert.doesNotMatch(selectedCostMarkup, /<th[^>]*>Selected<\/th>/, 'Selected is not a separate Cost column')
   const fullGapSlot = warningMarkup.match(/<span data-gap-slot="full"[^>]*>/)?.[0]
   const selectedGapFullSlot = selectedCostMarkup.match(/<span data-gap-slot="full"[^>]*>/)?.[0]
@@ -535,21 +539,25 @@ try {
     'Cost reserves the secondary Selected slot before selection')
   assert.match(selectedCostMarkup, /data-gap-slot="selected" aria-hidden="false"/,
     'Selected becomes visible inside its reserved secondary slot')
-  assert.equal([...selectedCostMarkup.matchAll(/data-selected-gap-part="(?:open|value|close)"/g)].length, 12,
-    'all four Cost rows split Selected values into fixed opening, number, and closing slots')
-  assert.match(selectedCostMarkup, /data-gap-slot="selected"[^>]*class="[^"]*w-max min-w-\[9ch\][^"]*grid-cols-\[1ch_minmax\(7ch,max-content\)_1ch\][^"]*tabular-nums/,
-    'Selected uses compact ch-based parentheses and a tabular numeric slot with max-content fallback')
+  assert.equal([...selectedCostMarkup.matchAll(/data-selected-gap-part="(?:open|value|close)"/g)].length, 0,
+    'Selected values use plain numeric text without punctuation nodes')
+  assert.match(selectedCostMarkup, /data-gap-slot="selected"[^>]*class="[^"]*w-\[9ch\][^"]*text-right[^"]*text-\[10px\][^"]*font-normal[^"]*text-slate-500[^"]*tabular-nums/,
+    'Selected uses a fixed-width, right-aligned, tabular, neutral secondary slot')
+  assert.doesNotMatch(selectedCostMarkup, /data-gap-slot="selected"[^>]*class="[^"]*text-(?:rose|red|green|emerald)-|data-gap-slot="selected"[^>]*class="[^"]*font-(?:bold|semibold)/,
+    'Selected has no semantic red/green color or bold emphasis')
   assert.doesNotMatch(selectedCostMarkup, /data-gap-slot="selected"[^>]*class="[^"]*w-\[\d+px\]/,
     'Selected no longer depends on a magic fixed pixel width')
-  assert.match(selectedCostMarkup, /data-selected-gap-part="open">\(<\/span><span data-selected-gap-part="value"[^>]*>\+0\.50<\/span><span data-selected-gap-part="close">\)<\/span>/,
-    'Selected value uses separate aligned opening parenthesis, number, and closing parenthesis nodes')
+  assert.match(selectedCostMarkup, /data-gap-slot="selected"[^>]*aria-hidden="false"[^>]*class="[^"]*">\+0\.50<\/span>/,
+    'Selected value is displayed directly in its aligned fixed secondary slot')
 
   const wcComparison = routingComparisonForDisplay
   const wcMarkup = renderToStaticMarkup(React.createElement(wcView.WorkCenterProcessingTable, {
     comparison: wcComparison,
   }))
-  assert.match(wcMarkup, /<section aria-label="Work Center" class="min-w-0 border/, 'Work Center summary grows to its table content')
-  assert.doesNotMatch(wcMarkup, /data-wc-scroll-body|overflow-auto/, 'Work Center rows use natural page scrolling')
+  assert.match(wcMarkup, /<section aria-label="Work Center" class="[^"]*lg:flex[^"]*lg:h-full[^"]*lg:min-h-0[^"]*lg:flex-col/,
+    'Work Center uses the same bounded overview height as Cost Element')
+  assert.match(wcMarkup, /data-wc-scroll-body="true"[^>]*class="[^"]*lg:min-h-0[^"]*lg:flex-1[^"]*lg:overflow-y-auto/,
+    'Work Center rows scroll internally inside their bounded desktop panel')
   assert.match(wcMarkup, />Work Center<\/th>[\s\S]*>REF<\/th>[\s\S]*>CUR<\/th>[\s\S]*>GAP<\/th>[\s\S]*>%GAP<\/th>/)
   assert.equal([...wcMarkup.matchAll(/<table\b/g)].length, 1, 'WC header, body, and footer share identical table geometry')
   assert.match(wcMarkup, /<thead class="sticky top-0 z-10">[\s\S]*?<tfoot class="sticky bottom-0 z-10/,
@@ -615,8 +623,8 @@ try {
   const routingParameterWidth = routingGrid.slice(3, -4).reduce((sum, width) => sum + width, 0)
   assert.ok(Math.abs(bomParameterWidth - routingParameterWidth) < 1e-8,
     'BOM and Routing parameter groups occupy the same total width')
-  assert.match(candidateSource, /<table className="w-full min-w-0 table-fixed/,
-    'BOM and Routing tables fit their panel width at ordinary desktop sizes')
+  assert.match(candidateSource, /<div className="overflow-x-auto border border-slate-200">[\s\S]*<table className=\{`w-full \$\{isBOM \? 'min-w-\[1040px\]' : 'min-w-\[1260px\]'\} table-fixed/,
+    'BOM and Routing tables keep a local responsive fallback with enough minimum width to avoid narrow-column collisions')
   assert.match(candidateSource, /const canExpand = status === 'CHANGED'\s+const isExpanded = canExpand && expandedRows\.has/,
     'even stale expansion state cannot show Details for a non-CHANGED finding')
   assert.match(candidateSource, /h-8 w-8 shrink-0 items-center justify-center rounded-sm p-0 font-mono[^']*tabular-nums/,
@@ -672,8 +680,8 @@ try {
     assert.ok(chartContainerClass)
     assert.doesNotMatch(chartContainerClass, /\bborder\b|bg-slate-100/,
       'the Subheader owns the boundary and the Gap Bar has no redundant inner frame')
-    assert.match(proportionalChart, /Material Gap \+9\.31\nSelected \(\+4\.20\)/, 'Selected chart tooltip has exactly two concise lines')
-    assert.match(proportionalChart, /Labor Gap \+4\.42\nSelected \(0\.00\)/, 'Selected zero remains explicit in its element tooltip')
+    assert.match(proportionalChart, /Material Gap \+9\.31\nSelected \+4\.20/, 'Selected chart tooltip has two concise lines with a direct numeric value')
+    assert.match(proportionalChart, /Labor Gap \+4\.42\nSelected 0\.00/, 'Selected zero remains explicit in its element tooltip')
     const proportionalRects = [...proportionalChart.matchAll(/<rect\b[^>]*>/g)].map(([rect]) => rect)
     const contributionWidth = color => {
       const rect = proportionalRects.find(candidate => candidate.includes(`fill="${color}"`) && candidate.includes('fill-opacity="0.64"'))
@@ -742,7 +750,7 @@ try {
     assert.match(signedOffsetChart, /stroke-dasharray="2 2"/,
       'the signed full-gap chart keeps its shared zero baseline')
     assert.match(signedOffsetChart, /patternTransform="rotate\(45\)"/, 'negative Selected net uses a same-color hatch treatment')
-    assert.match(signedOffsetChart, /Selected \(-1\.20\)/, 'negative Selected amount remains exact in the tooltip')
+    assert.match(signedOffsetChart, /Selected -1\.20/, 'negative Selected amount remains exact and unparenthesized in the tooltip')
     const pageMarkup = renderToStaticMarkup(React.createElement(CostBreakdownPage))
     const pageText = visibleText(pageMarkup)
     assert.match(pageText, /Standard Cost Gap \+1\.20/)
@@ -775,14 +783,30 @@ try {
     assert.doesNotMatch(subheader, /<text\b/, 'the bar contains no MAT/LB/BD text labels')
     const collapseButton = subheader.match(/<button[^>]*aria-controls="cost-breakdown-overview-panels"[^>]*>[\s\S]*?<\/button>/)?.[0]
     assert.ok(collapseButton)
-    assert.match(collapseButton, /aria-label="Collapse Cost and Work Center sections"/)
+    assert.match(collapseButton, /aria-label="Collapse Cost Element and Work Center sections"/)
     assert.equal(visibleText(collapseButton), '', 'Collapse is icon-only')
     assert.match(subheader, /aria-expanded="true"/)
-    assert.match(pageMarkup, /id="cost-breakdown-overview-panels" class="[^\"]*grid[^\"]*"/,
-      'Cost and Work Center panels remain visible by default below the subheader')
-  assert.match(pageMarkup, /aria-label="Cost Breakdown" class="min-w-0 overflow-hidden/)
-  assert.match(pageMarkup, /aria-label="Work Center" class="min-w-0 border/)
-  assert.doesNotMatch(pageMarkup, /data-wc-scroll-body|overflow-auto/, 'normal CBD content does not add nested vertical scroll regions')
+    assert.match(pageMarkup, /id="cost-breakdown-overview-panels" class="[^"]*lg:h-44[^"]*lg:shrink-0[^"]*lg:grid-cols-2/,
+      'Cost Element and Work Center panels remain bounded and side-by-side on desktop')
+  const pageRootClass = pageMarkup.match(/^<div[^>]*class="([^"]+)"/)?.[1]
+  const candidateRegionClass = pageMarkup.match(/<div role="region" aria-label="Candidate workspace" tabindex="0" class="([^"]+)"/)?.[1]
+  assert.ok(pageRootClass && candidateRegionClass)
+  assert.match(pageRootClass, /lg:h-full[^"]*lg:min-h-0[^"]*lg:overflow-hidden/,
+    'CBD workspace is bounded by the application shell and clips its own overflow')
+  assert.doesNotMatch(pageRootClass, /overflow-y-auto|overflow-auto/, 'CBD root is not a competing page-level vertical scroll owner')
+  assert.match(pageMarkup, /aria-label="Cost Element" class="[^"]*lg:h-full/,
+    'Cost Element fills the bounded overview height')
+  assert.match(pageMarkup, /aria-label="Work Center" class="[^"]*lg:h-full/,
+    'Work Center matches the bounded Cost Element height')
+  assert.match(pageMarkup, /data-wc-scroll-body="true"[^>]*class="[^"]*lg:min-h-0[^"]*lg:flex-1[^"]*lg:overflow-y-auto/,
+    'Work Center row body scrolls internally while its shared-grid header/footer stay sticky')
+  assert.match(candidateRegionClass, /lg:min-h-0[^"]*lg:flex-1[^"]*lg:overflow-y-auto/,
+    'Candidate owns remaining CBD desktop vertical scroll')
+  const appLayoutSource = readFileSync(new URL('../src/shared/layout/AppLayout.tsx', import.meta.url), 'utf8')
+  assert.match(appLayoutSource, /const isCostBreakdown = activeTab === 'breakdown'[\s\S]*className=\{isCostBreakdown[\s\S]*overflow-y-auto[\s\S]*lg:overflow-y-hidden/,
+    'the shared Main permits narrow-layout fallback scrolling but stops owning desktop CBD vertical scrolling')
+  assert.match(appLayoutSource, /app-workspace-frame \$\{isCostBreakdown \? 'min-h-full min-w-0 lg:h-full lg:min-h-0'/,
+    'the CBD workspace receives the bounded desktop shell height')
     assert.match(pageMarkup, /aria-label="Deselect Routing finding Cutting"/,
       'CBD finding selection remains available in the Candidates table')
     assert.equal([...pageMarkup.matchAll(/data-gap-chart-mode=/g)].length, 1,

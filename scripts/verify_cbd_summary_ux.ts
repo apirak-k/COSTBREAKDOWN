@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict'
+import { readFileSync } from 'node:fs'
 import React from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { createServer } from 'vite'
@@ -120,16 +121,9 @@ function rowFor(markup: string, label: string): string {
 }
 
 function gapSlot(row: string, kind: 'full' | 'selected') {
-  const match = row.match(new RegExp('<span data-gap-slot="' + kind + '"(?: aria-hidden="(true|false)")? class="([^"]*)">'))
+  const match = row.match(new RegExp('<span data-gap-slot="' + kind + '"(?: aria-hidden="(true|false)")? class="([^"]*)">([\\s\\S]*?)<\\/span>'))
   assert.ok(match, 'expected ' + kind + ' gap slot')
-  if (kind === 'full') {
-    const text = row.match(/<span data-gap-slot="full"[^>]*>([^<]*)<\/span>/)?.[1] ?? ''
-    return { ariaHidden: match[1] ?? null, className: match[2], text: visibleText(text) }
-  }
-  const parts = [...row.matchAll(/<span data-selected-gap-part="(open|value|close)"[^>]*>([^<]*)<\/span>/g)]
-  assert.equal(parts.length, 3, 'Selected value uses separate opening, number, and closing slots')
-  assert.deepEqual(parts.map(part => part[1]), ['open', 'value', 'close'])
-  return { ariaHidden: match[1] ?? null, className: match[2], text: parts.map(part => visibleText(part[2])).join('') }
+  return { ariaHidden: match[1] ?? null, className: match[2], text: visibleText(match[3]) }
 }
 
 function tableHeaderLabels(markup: string): string[] {
@@ -206,14 +200,14 @@ try {
   const materialOverlay = materialGroup.match(/<rect\b[^>]*data-selected-overlay="highlight"[^>]*>/)
   assert.ok(materialOverlay, 'positive MAT Selected contribution must have a highlight overlay')
   assert.equal(attrNumber(materialOverlay[0], 'fill-opacity'), 0.98)
-  assert.equal(titleText(materialGroup), 'Material Gap +9.31\nSelected (+4.20)')
+  assert.equal(titleText(materialGroup), 'Material Gap +9.31\nSelected +4.20')
   assert.equal(titleText(materialGroup).split('\n').length, 2, 'Selected tooltip must be two lines')
 
   const laborGroup = chartGroup(selectedSvg, 'labor')
   assert.equal(laborGroup.match(/data-selected-state="([^"]+)"/)?.[1], 'remove')
   const laborOverlay = laborGroup.match(/<rect\b[^>]*data-selected-overlay="remove"[^>]*>/)
   assert.ok(laborOverlay, 'negative Labor Selected contribution must have a remove overlay')
-  assert.equal(titleText(laborGroup), 'Labor Gap +4.42\nSelected (-1.20)')
+  assert.equal(titleText(laborGroup), 'Labor Gap +4.42\nSelected -1.20')
   const laborFullRect = laborGroup.match(/<rect\b[^>]*data-full-gap-segment="true"[^>]*>/)
   assert.ok(laborFullRect, 'expected the Full Labor segment rectangle')
   const laborX = attrNumber(laborFullRect[0], 'x')
@@ -229,7 +223,7 @@ try {
   assert.equal(burdenGroup.match(/data-selected-state="([^"]+)"/)?.[1], 'normal', 'zero Selected net must remain Normal')
   assert.equal(attrNumber(burdenGroup, 'data-selected-width'), 0)
   assert.doesNotMatch(burdenGroup, /data-selected-overlay=/, 'zero Selected net must not draw an overlay')
-  assert.equal(titleText(burdenGroup), 'Burden Gap +2.32\nSelected (0.00)')
+  assert.equal(titleText(burdenGroup), 'Burden Gap +2.32\nSelected 0.00')
   assert.equal(titleText(burdenGroup).split('\n').length, 2, 'active zero Selected tooltip must retain the two-line Selected form')
   assert.match(selectedChart, /aria-label="[^"]*Full Material Gap \+9\.31[^"]*Selected Material Gap \+4\.20[^"]*Selected Labor Gap -1\.20[^"]*Selected Burden Gap 0\.00/)
 
@@ -280,13 +274,15 @@ try {
   assert.ok(costFullTable && costSelectedTable, 'expected Cost comparison tables in Full and Selected mode')
   const costFullHeaders = tableHeaderLabels(costFullTable)
   const costSelectedHeaders = tableHeaderLabels(costSelectedTable)
-  assert.deepEqual(costFullHeaders, ['Cost Breakdown', 'REF', 'CUR', 'GAP (Selected)', '%GAP'])
-  assert.deepEqual(costSelectedHeaders, ['Cost Breakdown', 'REF', 'CUR', 'GAP (Selected)', '%GAP'])
+  assert.deepEqual(costFullHeaders, ['Cost Element', 'REF', 'CUR', 'GAP Selected', '%GAP'])
+  assert.deepEqual(costSelectedHeaders, ['Cost Element', 'REF', 'CUR', 'GAP Selected', '%GAP'])
+  assert.match(costFullMarkup, /<section aria-label="Cost Element"[\s\S]*?<caption class="sr-only">Cost Element/,
+    'the summary table uses the Cost Element name for its accessible section and caption')
   for (const label of ['REF', 'CUR', '%GAP']) {
     assert.match(costFullTable, new RegExp(`<th scope="col" class="px-2 py-1\\.5 text-right">${label}</th>`),
       `Cost ${label} header must share the right edge used by its numeric values`)
   }
-  assert.match(costFullTable, /<span data-gap-header-slot="full" class="text-right">GAP<\/span>/,
+  assert.match(costFullTable, /<span data-gap-header-slot="full" class="text-right text-\[11px\]">GAP<\/span>/,
     'Cost GAP header must align to the Full Gap value slot')
   assert.equal(costSelectedHeaders.length, 5, 'Selected must not become a standalone Cost column')
   assert.equal(tableRows(costFullTable).length, 5, 'Cost must have one header, three element rows, and one footer row')
@@ -297,10 +293,22 @@ try {
   const costSelectedGapHeader = costSelectedTable.match(/<span data-gap-header-slot="full"[^>]*>/)?.[0]
   assert.ok(costFullGapHeader && costSelectedGapHeader)
   assert.equal(costFullGapHeader, costSelectedGapHeader, 'GAP header remains aligned to the fixed Full Gap slot')
-  assert.equal((costFullTable.match(/grid-cols-\[minmax\(0,1fr\)_max-content\]/g) ?? []).length, 5, 'Cost header and all four GAP cells share the Selected slot grid')
-  assert.equal((costSelectedTable.match(/grid-cols-\[minmax\(0,1fr\)_max-content\]/g) ?? []).length, 5, 'Selected mode preserves the shared GAP slot grid')
-  assert.match(costFullTable, /data-gap-header-slot="selected" aria-hidden="true"[^>]*invisible/)
-  assert.match(costSelectedTable, /data-gap-header-slot="selected" aria-hidden="false"/)
+  const selectedHeaderSlot = costSelectedTable.match(/<span data-gap-header-slot="selected" class="([^"]*)">Selected<\/span>/)?.[1]
+  const fullSelectedHeaderSlot = costFullTable.match(/<span data-gap-header-slot="selected" class="([^"]*)">Selected<\/span>/)?.[1]
+  assert.ok(selectedHeaderSlot && fullSelectedHeaderSlot, 'Selected header remains present in both modes')
+  assert.equal(selectedHeaderSlot, fullSelectedHeaderSlot, 'Selected header width and alignment remain fixed when selection toggles')
+  assert.match(selectedHeaderSlot, /w-\[9ch\].*text-right.*font-normal.*text-slate-300/,
+    'Selected header uses a fixed-width, right-aligned, secondary neutral style')
+  assert.doesNotMatch(selectedHeaderSlot, /text-(rose|red|green|emerald)-|font-(bold|semibold)/,
+    'Selected header does not use sign colors or bold emphasis')
+  assert.equal((costFullTable.match(/grid-cols-\[minmax\(0,1fr\)_9ch\]/g) ?? []).length, 5, 'Cost header and all four GAP cells share fixed Full/Selected slots')
+  assert.equal((costSelectedTable.match(/grid-cols-\[minmax\(0,1fr\)_9ch\]/g) ?? []).length, 5, 'Selected mode preserves the shared GAP slot grid')
+  assert.match(costFullTable, /data-gap-header-slot="selected"[^>]*>Selected<\/span>/)
+  assert.match(costSelectedTable, /data-gap-header-slot="selected"[^>]*>Selected<\/span>/)
+  assert.match(costFullTable, /data-gap-header-slot="selected"[^>]*>Selected<\/span>/,
+    'Selected header uses the plain label without parentheses')
+  assert.doesNotMatch(costSelectedTable, /\(Selected\)|Selected \([+-]?\d/,
+    'Selected values are never parenthesized')
 
   for (const label of ['Material', 'Labor', 'Burden', 'Standard Cost']) {
     const fullRow = rowFor(costFullTable, label)
@@ -308,15 +316,17 @@ try {
     const fullSlot = gapSlot(fullRow, 'selected')
     const selectedSlot = gapSlot(selectedRow, 'selected')
     assert.equal(fullSlot.ariaHidden, 'true', 'Full mode Selected slot must be visually hidden for ' + label)
-    assert.equal(fullSlot.text, '(0.00)', 'stable Full-mode Selected slot must reserve the zero display')
+    assert.equal(fullSlot.text, '0.00', 'stable Full-mode Selected slot reserves the plain zero display')
     assert.equal(selectedSlot.ariaHidden, 'false', 'Selected mode slot must be exposed for ' + label)
     assert.equal(
       selectedSlot.className.split(/\s+/).filter(Boolean).filter(token => token !== 'invisible').sort().join(' '),
       fullSlot.className.split(/\s+/).filter(Boolean).filter(token => token !== 'invisible').sort().join(' '),
       'Selected slot layout classes must remain stable for ' + label
     )
-    assert.match(selectedSlot.className, /w-max.*min-w-\[9ch\].*grid-cols-\[1ch_minmax\(7ch,max-content\)_1ch\].*tabular-nums/,
-      'Selected punctuation and numeric value use compact fixed ch slots with max-content fallback for ' + label)
+    assert.match(selectedSlot.className, /w-\[9ch\].*text-right.*text-\[10px\].*font-normal.*text-slate-500.*tabular-nums/,
+      'Selected uses a stable, right-aligned, secondary neutral slot for ' + label)
+    assert.doesNotMatch(selectedSlot.className, /text-(rose|red|green|emerald)-|font-(bold|semibold)/,
+      'Selected stays neutral and subordinate for ' + label)
   }
 
   const expectedCostRows = [
@@ -330,7 +340,7 @@ try {
     const fullValues = tableCells(fullRow)
     assert.equal(fullValues[3], fullGap === null ? '—' : formatters.formatPercent(guards.safeDivide(fullGap, fullComparison.totalGap)!, 2), label + ' %GAP must be its share of Standard Cost Gap')
     assert.equal(gapSlot(selectedRow, 'full').text, formatters.formatVariance(fullGap!, 2), label + ' Full Gap remains primary')
-    assert.equal(gapSlot(selectedRow, 'selected').text, '(' + formatters.formatVariance(selectedGap!, 2) + ')', label + ' Selected value stays in parentheses inside GAP')
+    assert.equal(gapSlot(selectedRow, 'selected').text, formatters.formatVariance(selectedGap!, 2), label + ' Selected value is plain numeric text in its stable secondary slot')
   }
 
   const fullTotalRow = rowFor(costFullTable, 'Standard Cost')
@@ -338,7 +348,7 @@ try {
   const fullTotalValues = tableCells(fullTotalRow)
   assert.equal(fullTotalValues[3], formatters.formatPercent(guards.safeDivide(fullComparison.totalGap!, fullComparison.referenceCost.total!)!, 2) + ' Total', 'STD Cost %Total must be Gap divided by REF Standard Cost')
   const expectedSelectedTotal = selectedContribution.elementGaps.material! + selectedContribution.elementGaps.labor! + selectedContribution.elementGaps.burden!
-  assert.equal(gapSlot(selectedTotalRow, 'selected').text, '(' + formatters.formatVariance(expectedSelectedTotal, 2) + ')', 'STD Cost Selected Gap must equal Selected MAT + LB + BD')
+  assert.equal(gapSlot(selectedTotalRow, 'selected').text, formatters.formatVariance(expectedSelectedTotal, 2), 'STD Cost Selected Gap must equal Selected MAT + LB + BD')
   assert.match(selectedTotalRow, />Total<\/span>/, 'Cost footer percentage must visibly identify Total')
 
   const wcMarkup = renderToStaticMarkup(React.createElement(wcView.WorkCenterProcessingTable, {
@@ -368,12 +378,13 @@ try {
   assert.doesNotMatch(wcMarkup, /Cutting synthetic work center/, 'WC table must not repeat the verbose synthetic description')
 
   const wcSection = wcMarkup.match(/<section\b[^>]*aria-label="Work Center"[^>]*>/)?.[0]
-  const costSection = costFullMarkup.match(/<section\b[^>]*aria-label="Cost Breakdown"[^>]*>/)?.[0]
+  const costSection = costFullMarkup.match(/<section\b[^>]*aria-label="Cost Element"[^>]*>/)?.[0]
   assert.ok(wcSection && costSection, 'expected Cost and Work Center sections')
-  assert.doesNotMatch(costSection, /\bh-44\b/, 'Cost summary height follows its table content')
-  assert.doesNotMatch(wcSection, /\bh-44\b/, 'WC summary height follows its table content')
-  assert.match(wcMarkup, /<section aria-label="Work Center" class="min-w-0 border/)
-  assert.doesNotMatch(wcMarkup, /data-wc-scroll-body|overflow-auto/, 'Work Center rows use natural page scrolling')
+  assert.match(costSection, /lg:h-full/, 'Cost Element fills the bounded overview height')
+  assert.match(wcSection, /lg:flex lg:h-full lg:min-h-0 lg:flex-col/,
+    'Work Center shares the bounded Cost Element height and owns an internal flex column')
+  assert.match(wcMarkup, /data-wc-scroll-body="true"[^>]*class="[^"]*overflow-x-auto[^"]*lg:min-h-0[^"]*lg:flex-1[^"]*lg:overflow-y-auto/,
+    'Work Center rows own bounded internal vertical scrolling on desktop')
   assert.match(wcMarkup, /<thead class="sticky top-0 z-10">[\s\S]*?Work Center[\s\S]*?REF[\s\S]*?CUR[\s\S]*?GAP[\s\S]*?%GAP/,
     'WC header stays sticky on the shared table grid')
   assert.match(wcMarkup, /<tfoot class="sticky bottom-0 z-10[\s\S]*?<th scope="row"[^>]*>Total/,
@@ -391,10 +402,32 @@ try {
   assert.equal(wcFooterValues[3], formatters.formatPercent(guards.safeDivide(totalWcGap, totalWcReference)!, 2) + ' Total')
   assert.match(wcFooterRow, />Total<\/span>/, 'WC footer percentage must visibly identify Total')
 
+  const pageSource = readFileSync(new URL('../src/features/cost-breakdown/CostBreakdownPage.tsx', import.meta.url), 'utf8')
+  const candidateTableSource = readFileSync(new URL('../src/features/cost-breakdown/components/CandidateFindingsTable.tsx', import.meta.url), 'utf8')
+  const pageRootClass = pageSource.match(/return \(\s*<div className="([^"]+)"/s)?.[1]
+  const overviewClass = pageSource.match(/<div id="cost-breakdown-overview-panels" className=\{isOverviewExpanded \? '([^']+)'/)?.[1]
+  const candidateRegionClass = pageSource.match(/<div role="region" aria-label="Candidate workspace" tabIndex=\{0\} className="([^"]+)"/)?.[1]
+  assert.ok(pageRootClass && overviewClass && candidateRegionClass,
+    'expected CBD workspace, bounded overview, and Candidate scroll ownership classes')
+  assert.match(pageRootClass, /lg:h-full[\s\S]*lg:min-h-0[\s\S]*lg:overflow-hidden/,
+    'CBD workspace is constrained to the available desktop shell height and clips its overflow')
+  assert.doesNotMatch(pageRootClass, /lg:overflow-y-auto|lg:overflow-auto/,
+    'CBD root does not become a competing page-level vertical scroll owner')
+  assert.match(overviewClass, /lg:h-44[\s\S]*lg:shrink-0[\s\S]*lg:grid-cols-2/,
+    'Cost Element and Work Center use one bounded, side-by-side desktop overview height')
+  assert.match(candidateRegionClass, /lg:min-h-0[\s\S]*lg:flex-1[\s\S]*lg:overflow-y-auto/,
+    'Candidate workspace receives and internally scrolls the remaining desktop height')
+  assert.doesNotMatch(candidateRegionClass, /overflow-x-auto/, 'Candidate region owns vertical scroll without forcing horizontal scrolling')
+  assert.match(pageRootClass, /overflow-x-clip/, 'CBD clips narrow responsive overflow at its page workspace')
+  assert.match(candidateTableSource, /<div className="overflow-x-auto border border-slate-200">[\s\S]*<table className=\{`w-full \$\{isBOM \? 'min-w-\[1040px\]' : 'min-w-\[1260px\]'\} table-fixed/,
+    'narrow Candidate tables keep their own local horizontal fallback and enough width to avoid column collisions')
+
   console.log('PASS: CBD summary UX verifier (Gap Bar, Cost, Work Center)')
   console.log('PASS: proportional Selected overlay, per-element Normal/Highlight/Remove, accessible titles')
   console.log('PASS: Cost row/slot structure and MAT/LB/BD plus STD Cost formulas')
-  console.log('PASS: Work Center has no Selected UI, reconciles Conversion totals, and uses natural page scrolling')
+  console.log('PASS: Cost Element uses stable neutral Selected slots without parentheses')
+  console.log('PASS: Work Center is bounded with internal row scrolling and sticky header/footer')
+  console.log('PASS: CBD Candidate owns desktop vertical scrolling; summary calculations reconcile')
 } finally {
   await vite.close()
 }

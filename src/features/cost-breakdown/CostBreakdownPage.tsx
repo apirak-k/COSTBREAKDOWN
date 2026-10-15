@@ -100,7 +100,7 @@ export function GapContributionChart({ segments, fullTotal, selectedTotal, selec
     })
     : []
   const valueLabel = (value: number | null) => isAvailableGap(value) ? formatVariance(value, 2) : '—'
-  const selectedText = (value: number | null) => `Selected (${valueLabel(value)})`
+  const selectedText = (value: number | null) => `Selected ${valueLabel(value)}`
   const accessibleLabel = [
     `Full Standard Cost Gap ${valueLabel(fullTotal)}`,
     ...segments.map(segment => `Full ${segment.label} Gap ${valueLabel(segment.full)}`),
@@ -232,7 +232,7 @@ export const CostBreakdownPage: React.FC = () => {
   }
 
   return (
-    <div className="flex min-h-full min-w-0 flex-col gap-2">
+    <div className="flex min-h-full min-w-0 flex-col gap-2 overflow-x-clip lg:h-full lg:min-h-0 lg:overflow-hidden">
       <header aria-label="Cost Breakdown subheader" className="shrink-0 overflow-x-auto border border-slate-300 bg-white" tabIndex={0}>
         <div className="flex min-w-[1000px] flex-nowrap items-center gap-1.5 px-1.5 py-1" role="group" aria-label="Cost Breakdown controls">
           <div
@@ -333,8 +333,8 @@ export const CostBreakdownPage: React.FC = () => {
             type="button"
             aria-expanded={isOverviewExpanded}
             aria-controls="cost-breakdown-overview-panels"
-            aria-label={`${isOverviewExpanded ? 'Collapse' : 'Expand'} Cost and Work Center sections`}
-            title={`${isOverviewExpanded ? 'Collapse' : 'Expand'} Cost and Work Center sections`}
+            aria-label={`${isOverviewExpanded ? 'Collapse' : 'Expand'} Cost Element and Work Center sections`}
+            title={`${isOverviewExpanded ? 'Collapse' : 'Expand'} Cost Element and Work Center sections`}
             onClick={() => setIsOverviewExpanded(expanded => !expanded)}
             className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-sm border border-slate-300 bg-white text-slate-700 hover:bg-slate-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700"
           >
@@ -343,12 +343,12 @@ export const CostBreakdownPage: React.FC = () => {
         </div>
       </header>
 
-      <div id="cost-breakdown-overview-panels" className={isOverviewExpanded ? 'shrink-0 grid min-w-0 grid-cols-1 items-stretch gap-2 lg:grid-cols-2' : 'hidden'}>
+      <div id="cost-breakdown-overview-panels" className={isOverviewExpanded ? 'grid min-w-0 grid-cols-1 items-stretch gap-2 lg:h-44 lg:shrink-0 lg:grid-cols-2' : 'hidden'}>
         <SnapshotComparisonCard comparison={fullSnapshotComparison} selectedComparison={selectedDisplayComparison} selectedActive={isSelectedComparisonActive} />
         <WorkCenterProcessingTable comparison={fullSnapshotComparison} />
       </div>
 
-      <div role="region" aria-label="Candidate workspace" tabIndex={0} className="min-w-0 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-blue-700">
+      <div role="region" aria-label="Candidate workspace" tabIndex={0} className="min-w-0 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-blue-700 lg:min-h-0 lg:flex-1 lg:overflow-y-auto">
         <ItemizedComparisonTable
           comparison={fullSnapshotComparison}
           pair={snapshotPair}

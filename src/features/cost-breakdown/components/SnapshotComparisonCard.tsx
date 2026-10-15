@@ -26,15 +26,13 @@ const formatGap = (value: number | null): string => value === null ? '—' : for
 
 function renderGap(value: number | null, selectedValue: number | null, selectedActive: boolean, tooltipLabel: string): React.ReactNode {
   const tooltipLines = [`${tooltipLabel} Gap ${formatGap(value)}`]
-  if (selectedActive) tooltipLines.push(`Selected (${formatGap(selectedValue)})`)
+  if (selectedActive) tooltipLines.push(`Selected ${formatGap(selectedValue)}`)
   return (
     <Tooltip label={tooltipLines.join('\n')} wrapperClassName="flex w-full justify-end">
-      <span tabIndex={0} aria-label={`${tooltipLabel} Gap ${formatGap(value)}${selectedActive ? `; Selected (${formatGap(selectedValue)})` : ''}`} className="grid w-full grid-cols-[minmax(0,1fr)_max-content] items-baseline gap-x-1 whitespace-nowrap font-mono tabular-nums">
+      <span tabIndex={0} aria-label={`${tooltipLabel} Gap ${formatGap(value)}${selectedActive ? `; Selected ${formatGap(selectedValue)}` : ''}`} className="grid w-full grid-cols-[minmax(0,1fr)_9ch] items-baseline whitespace-nowrap font-mono tabular-nums">
         <span data-gap-slot="full" className={`text-right ${value === null ? 'text-slate-400' : getVarianceClass(value)}`}>{formatGap(value)}</span>
-        <span data-gap-slot="selected" aria-hidden={!selectedActive} className={`grid w-max min-w-[9ch] grid-cols-[1ch_minmax(7ch,max-content)_1ch] items-baseline text-[10px] font-normal text-slate-500 tabular-nums ${selectedActive ? '' : 'invisible'}`}>
-          <span data-selected-gap-part="open">(</span>
-          <span data-selected-gap-part="value" className="min-w-0 text-right">{selectedActive ? formatGap(selectedValue) : '0.00'}</span>
-          <span data-selected-gap-part="close">)</span>
+        <span data-gap-slot="selected" aria-hidden={!selectedActive} className={`w-[9ch] text-right text-[10px] font-normal text-slate-500 tabular-nums ${selectedActive ? '' : 'invisible'}`}>
+          {selectedActive ? formatGap(selectedValue) : '0.00'}
         </span>
       </span>
     </Tooltip>
@@ -95,17 +93,17 @@ export const SnapshotComparisonCard: React.FC<SnapshotComparisonCardProps> = ({
   ]
 
   return (
-    <section aria-label="Cost Breakdown" className="min-w-0 overflow-hidden border border-slate-300 bg-white">
-      <div className="w-full overflow-x-auto">
-        <table className="w-full min-w-[480px] table-fixed text-left text-xs">
-          <caption className="sr-only">Cost Breakdown for Reference, Current, Gap, and Gap percentage</caption>
+    <section aria-label="Cost Element" className="min-w-0 overflow-hidden border border-slate-300 bg-white lg:h-full">
+      <div className="w-full overflow-x-auto lg:h-full">
+        <table className="w-full min-w-[480px] table-fixed text-left text-xs lg:h-full">
+          <caption className="sr-only">Cost Element for Reference, Current, Gap, and Gap percentage</caption>
           <colgroup><col className="w-[20%]" /><col className="w-[18%]" /><col className="w-[18%]" /><col className="w-[26%]" /><col className="w-[18%]" /></colgroup>
           <thead>
             <tr className="bg-slate-800 font-semibold text-white">
-              <th scope="col" className="px-2 py-1.5">Cost Breakdown</th>
+              <th scope="col" className="px-2 py-1.5">Cost Element</th>
               <th scope="col" className="px-2 py-1.5 text-right">REF</th>
               <th scope="col" className="px-2 py-1.5 text-right">CUR</th>
-              <th scope="col" className="px-2 py-1.5"><span className="grid w-full grid-cols-[minmax(0,1fr)_max-content] items-baseline gap-x-1 font-mono tabular-nums"><span data-gap-header-slot="full" className="text-right">GAP</span><span data-gap-header-slot="selected" aria-hidden={!selectedActive} className={`w-max min-w-[9ch] whitespace-nowrap text-center font-sans text-[9px] font-normal text-slate-300 ${selectedActive ? '' : 'invisible'}`}>(Selected)</span></span></th>
+              <th scope="col" className="px-2 py-1.5"><span className="grid w-full grid-cols-[minmax(0,1fr)_9ch] items-baseline font-mono text-[12px] tabular-nums"><span data-gap-header-slot="full" className="text-right text-[11px]">GAP</span><span data-gap-header-slot="selected" className="w-[9ch] whitespace-nowrap text-right text-[10px] font-normal text-slate-300">Selected</span></span></th>
               <th scope="col" className="px-2 py-1.5 text-right">%GAP</th>
             </tr>
           </thead>

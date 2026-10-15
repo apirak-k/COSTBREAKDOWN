@@ -59,9 +59,9 @@ export const WorkCenterProcessingTable: React.FC<WorkCenterProcessingTableProps>
   const totalPercentage = totalGap === null ? null : safeDivide(totalGap, totalReference ?? Number.NaN)
 
   return (
-    <section aria-label="Work Center" className="min-w-0 border border-slate-300 bg-white">
-      <div className="w-full overflow-x-auto">
-        <table className="w-full table-fixed border-separate border-spacing-0 text-left text-xs">
+    <section aria-label="Work Center" className="min-w-0 border border-slate-300 bg-white lg:flex lg:h-full lg:min-h-0 lg:flex-col">
+      <div data-wc-scroll-body="true" className="w-full overflow-x-auto lg:min-h-0 lg:flex-1 lg:overflow-y-auto [scrollbar-gutter:stable]">
+        <table className="w-full table-fixed border-separate border-spacing-0 text-left text-xs lg:h-full">
           {columnWidths}
           <caption className="sr-only">Work Center conversion cost for Reference, Current, Gap, and percentage of total Conversion Gap</caption>
           <thead className="sticky top-0 z-10">
