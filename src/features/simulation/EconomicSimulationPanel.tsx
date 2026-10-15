@@ -3,6 +3,7 @@ import type { KeyboardEvent, PointerEvent } from 'react'
 import { formatNumber } from '../../core'
 import type { CostSnapshot } from '../../core/types'
 import { NumericInput } from '../../shared/ui/NumericInput'
+import { SimulationHistoryInputBoundary } from './SimulationHistoryInputBoundary'
 import type { EconomicSimulationDraft, EconomicSimulationResult, EconomicSimulationField } from './simulation-economics'
 
 interface EconomicSimulationPanelProps {
@@ -11,6 +12,8 @@ interface EconomicSimulationPanelProps {
   currentSnapshot: CostSnapshot
   unit: string
   onUpdate: (field: EconomicSimulationField, value: string) => void
+  onBeginEdit: () => void
+  onCommitEdit: () => void
 }
 
 function formatValue(value: number | null): string {
@@ -202,7 +205,7 @@ function BreakEvenGraph({
   )
 }
 
-export function EconomicSimulationPanel({ result, draft, currentSnapshot, unit, onUpdate }: EconomicSimulationPanelProps) {
+export function EconomicSimulationPanel({ result, draft, currentSnapshot, unit, onUpdate, onBeginEdit, onCommitEdit }: EconomicSimulationPanelProps) {
   const normalizedUnit = unit.trim() || 'Unit'
   const inputs: Array<{
     field: EconomicSimulationField
@@ -260,17 +263,19 @@ export function EconomicSimulationPanel({ result, draft, currentSnapshot, unit, 
               <label key={field} className="flex min-w-0 items-center gap-1 text-[9px] font-medium text-slate-700">
                 <span className="min-w-0 flex-1 leading-3">{label}<span className="ml-1 font-normal text-slate-500">{fieldUnit}</span></span>
                 <span className="w-[5.25rem] shrink-0">
-                  <NumericInput
-                    value={effectiveInputValue(field, draft, currentSnapshot)}
-                    precision={precision}
-                    integer={integer}
-                    min={min}
-                    max={max}
-                    placeholder={placeholder}
-                    onValueChange={value => onUpdate(field, value === null ? '' : String(value))}
-                    aria-label={label}
-                    className="h-7 w-full border border-slate-300 bg-white px-1.5 text-right text-[11px] text-slate-950 focus:border-blue-700 focus:ring-1 focus:ring-blue-100"
-                  />
+                  <SimulationHistoryInputBoundary onBegin={onBeginEdit} onCommit={onCommitEdit}>
+                    <NumericInput
+                      value={effectiveInputValue(field, draft, currentSnapshot)}
+                      precision={precision}
+                      integer={integer}
+                      min={min}
+                      max={max}
+                      placeholder={placeholder}
+                      onValueChange={value => onUpdate(field, value === null ? '' : String(value))}
+                      aria-label={label}
+                      className="h-7 w-full border border-slate-300 bg-white px-1.5 text-right text-[11px] text-slate-950 focus:border-blue-700 focus:ring-1 focus:ring-blue-100"
+                    />
+                  </SimulationHistoryInputBoundary>
                 </span>
               </label>
             ))}
@@ -289,7 +294,9 @@ export function EconomicSimulationPanel({ result, draft, currentSnapshot, unit, 
               </span>
             </div>
           </div>
-          <BreakEvenGraph result={result} unit={normalizedUnit} onBatchSizeChange={value => onUpdate('batchSize', value)} />
+          <SimulationHistoryInputBoundary onBegin={onBeginEdit} onCommit={onCommitEdit}>
+            <BreakEvenGraph result={result} unit={normalizedUnit} onBatchSizeChange={value => onUpdate('batchSize', value)} />
+          </SimulationHistoryInputBoundary>
         </section>
 
         <section className="min-w-0 border-t border-slate-200 px-2.5 py-1.5 lg:border-t-0" aria-labelledby="simulation-business-title">
@@ -299,16 +306,18 @@ export function EconomicSimulationPanel({ result, draft, currentSnapshot, unit, 
               <label key={field} className="flex min-w-0 items-center justify-between gap-2 text-[9px] font-medium text-slate-700">
                 <span>{label}<span className="ml-1 font-normal text-slate-500">{fieldUnit}</span></span>
                 <span className="w-[5.25rem] shrink-0">
-                  <NumericInput
-                    value={effectiveInputValue(field, draft, currentSnapshot)}
-                    precision={precision}
-                    min={min}
-                    max={max}
-                    placeholder={placeholder}
-                    onValueChange={value => onUpdate(field, value === null ? '' : String(value))}
-                    aria-label={label}
-                    className="h-7 w-full border border-slate-300 bg-white px-1.5 text-right text-[11px] text-slate-950 focus:border-blue-700 focus:ring-1 focus:ring-blue-100"
-                  />
+                  <SimulationHistoryInputBoundary onBegin={onBeginEdit} onCommit={onCommitEdit}>
+                    <NumericInput
+                      value={effectiveInputValue(field, draft, currentSnapshot)}
+                      precision={precision}
+                      min={min}
+                      max={max}
+                      placeholder={placeholder}
+                      onValueChange={value => onUpdate(field, value === null ? '' : String(value))}
+                      aria-label={label}
+                      className="h-7 w-full border border-slate-300 bg-white px-1.5 text-right text-[11px] text-slate-950 focus:border-blue-700 focus:ring-1 focus:ring-blue-100"
+                    />
+                  </SimulationHistoryInputBoundary>
                 </span>
               </label>
             ))}

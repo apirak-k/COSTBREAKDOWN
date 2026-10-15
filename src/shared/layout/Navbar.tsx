@@ -19,11 +19,19 @@ export interface CBDReorderUndoRedo {
   redo: () => void
 }
 
-interface NavbarProps {
-  cbdReorderUndoRedo?: CBDReorderUndoRedo
+export interface SimulationUndoRedo {
+  canUndo: boolean
+  canRedo: boolean
+  undo: () => void
+  redo: () => void
 }
 
-export const Navbar: React.FC<NavbarProps> = ({ cbdReorderUndoRedo }) => {
+interface NavbarProps {
+  cbdReorderUndoRedo?: CBDReorderUndoRedo
+  simulationUndoRedo?: SimulationUndoRedo
+}
+
+export const Navbar: React.FC<NavbarProps> = ({ cbdReorderUndoRedo, simulationUndoRedo }) => {
   const {
     activeTab,
     setActiveTab,
@@ -44,10 +52,27 @@ export const Navbar: React.FC<NavbarProps> = ({ cbdReorderUndoRedo }) => {
 
   const isMasterData = activeTab === 'master'
   const isCostBreakdown = activeTab === 'breakdown'
-  const canUndo = isMasterData ? canUndoMasterDataEdit : isCostBreakdown && Boolean(cbdReorderUndoRedo?.canUndo)
-  const canRedo = isMasterData ? canRedoMasterDataEdit : isCostBreakdown && Boolean(cbdReorderUndoRedo?.canRedo)
-  const handleUndo = () => isMasterData ? undoMasterDataEdit() : isCostBreakdown ? cbdReorderUndoRedo?.undo() : undefined
-  const handleRedo = () => isMasterData ? redoMasterDataEdit() : isCostBreakdown ? cbdReorderUndoRedo?.redo() : undefined
+  const isSimulation = activeTab === 'simulation'
+  const canUndo = isMasterData
+    ? canUndoMasterDataEdit
+    : isCostBreakdown
+      ? Boolean(cbdReorderUndoRedo?.canUndo)
+      : isSimulation && Boolean(simulationUndoRedo?.canUndo)
+  const canRedo = isMasterData
+    ? canRedoMasterDataEdit
+    : isCostBreakdown
+      ? Boolean(cbdReorderUndoRedo?.canRedo)
+      : isSimulation && Boolean(simulationUndoRedo?.canRedo)
+  const handleUndo = () => isMasterData
+    ? undoMasterDataEdit()
+    : isCostBreakdown
+      ? cbdReorderUndoRedo?.undo()
+      : isSimulation ? simulationUndoRedo?.undo() : undefined
+  const handleRedo = () => isMasterData
+    ? redoMasterDataEdit()
+    : isCostBreakdown
+      ? cbdReorderUndoRedo?.redo()
+      : isSimulation ? simulationUndoRedo?.redo() : undefined
   const productContext = resolveHeaderProductContext(snapshotPair.current.product)
   const currentProductName = snapshotPair.current.product.productName?.trim() ?? ''
   const currentProductUom = snapshotPair.current.product.uom?.trim() ?? ''

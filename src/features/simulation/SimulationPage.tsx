@@ -20,6 +20,7 @@ import { NumericInput } from '../../shared/ui/NumericInput'
 import { useTransientInteraction } from '../../shared/ui/transient-interactions'
 import { normalizeProductIdentityValue } from '../../core/utils/master-data-effective'
 import { EconomicSimulationPanel } from './EconomicSimulationPanel'
+import { SimulationHistoryInputBoundary } from './SimulationHistoryInputBoundary'
 import { SimulationStoryGraph } from './SimulationStoryGraph'
 import { calculateEconomicSimulation, type EconomicSimulationField } from './simulation-economics'
 import type { SimulationComparisonRow, SimulationRecordKind } from './simulation-engine'
@@ -37,6 +38,8 @@ interface SimulationPageProps {
   onUpdateParameter: (recordId: string, parameter: SimulationParameter, value: number | null) => void
   onToggleWorkingTarget: (kind: 'bom' | 'routing', recordId: string) => void
   onUpdateEconomicInput: (field: EconomicSimulationField, value: string) => void
+  onBeginEdit: () => void
+  onCommitEdit: () => void
 }
 
 const ROLES: Array<{ role: MasterDataRole; label: string }> = [
@@ -298,7 +301,9 @@ function SimulationParameterTable({
   simulationSnapshot,
   workingSelection,
   onToggleWorkingTarget,
-  onUpdate
+  onUpdate,
+  onBeginEdit,
+  onCommitEdit
 }: {
   kind: SimulationRecordKind
   rows: SimulationComparisonRow[]
@@ -307,6 +312,8 @@ function SimulationParameterTable({
   workingSelection: string[]
   onToggleWorkingTarget: (kind: 'bom' | 'routing', recordId: string) => void
   onUpdate: (recordId: string, parameter: SimulationParameter, value: number | null) => void
+  onBeginEdit: () => void
+  onCommitEdit: () => void
 }) {
   const isBOM = kind === 'bom'
   const shortTitle = isBOM ? 'BOM' : 'RTG'
@@ -434,23 +441,25 @@ function SimulationParameterTable({
                         <td key={parameter.parameter} className="py-1 pl-1 pr-1 text-right">
                           {!simulationRecord ? '—' : canEdit ? (
                             <div className="min-w-0">
-                              <NumericInput
-                                value={value}
-                                precision={parameter.precision}
-                                min={0}
-                                minExclusive={parameter.parameter === 'routing.capacity' || parameter.parameter === 'routing.yield'}
-                                max={parameter.parameter === 'routing.yield' || parameter.parameter === 'bom.loss' ? 100 : undefined}
-                                allowSubMinimumDraft={parameter.parameter === 'routing.capacity' || parameter.parameter === 'routing.yield'}
-                                stopAtMinimum={parameter.parameter === 'routing.capacity' || parameter.parameter === 'routing.yield'}
-                                minimumDisplayPrecision={parameter.parameter === 'routing.capacity' ? 4 : undefined}
-                                onValueChange={next => onUpdate(
-                                  simulationRecord.id,
-                                  parameter.parameter,
-                                  next === null ? null : next / parameter.scale
-                                )}
-                                className="h-8 w-full min-w-0 rounded-sm border border-transparent bg-transparent px-1.5 text-right font-mono text-xs tabular-nums text-slate-900 transition-colors hover:border-slate-200 hover:bg-slate-50 focus:!border-transparent focus:bg-white focus:!outline focus:!outline-2 focus:!outline-blue-700 focus:!outline-offset-[-2px]"
-                                aria-label={`${row.name} ${parameter.label} in SIM`}
-                              />
+                              <SimulationHistoryInputBoundary onBegin={onBeginEdit} onCommit={onCommitEdit}>
+                                <NumericInput
+                                  value={value}
+                                  precision={parameter.precision}
+                                  min={0}
+                                  minExclusive={parameter.parameter === 'routing.capacity' || parameter.parameter === 'routing.yield'}
+                                  max={parameter.parameter === 'routing.yield' || parameter.parameter === 'bom.loss' ? 100 : undefined}
+                                  allowSubMinimumDraft={parameter.parameter === 'routing.capacity' || parameter.parameter === 'routing.yield'}
+                                  stopAtMinimum={parameter.parameter === 'routing.capacity' || parameter.parameter === 'routing.yield'}
+                                  minimumDisplayPrecision={parameter.parameter === 'routing.capacity' ? 4 : undefined}
+                                  onValueChange={next => onUpdate(
+                                    simulationRecord.id,
+                                    parameter.parameter,
+                                    next === null ? null : next / parameter.scale
+                                  )}
+                                  className="h-8 w-full min-w-0 rounded-sm border border-transparent bg-transparent px-1.5 text-right font-mono text-xs tabular-nums text-slate-900 transition-colors hover:border-slate-200 hover:bg-slate-50 focus:!border-transparent focus:bg-white focus:!outline focus:!outline-2 focus:!outline-blue-700 focus:!outline-offset-[-2px]"
+                                  aria-label={`${row.name} ${parameter.label} in SIM`}
+                                />
+                              </SimulationHistoryInputBoundary>
                             </div>
                           ) : displayParameter(recordValue, parameter)}
                         </td>
@@ -572,19 +581,21 @@ function SimulationParameterTable({
                     <label key={parameter.parameter} className="block min-w-0 text-[10px] font-medium text-slate-600">
                       <span>{parameter.label}</span>
                       {!simulationRecord ? <span className="mt-0.5 block font-mono text-slate-700">—</span> : canEdit ? (
-                        <NumericInput
-                          value={value}
-                          precision={parameter.precision}
-                          min={0}
-                          minExclusive={parameter.parameter === 'routing.capacity' || parameter.parameter === 'routing.yield'}
-                          max={parameter.parameter === 'routing.yield' || parameter.parameter === 'bom.loss' ? 100 : undefined}
-                          allowSubMinimumDraft={parameter.parameter === 'routing.capacity' || parameter.parameter === 'routing.yield'}
-                          stopAtMinimum={parameter.parameter === 'routing.capacity' || parameter.parameter === 'routing.yield'}
-                          minimumDisplayPrecision={parameter.parameter === 'routing.capacity' ? 4 : undefined}
-                          onValueChange={next => onUpdate(simulationRecord.id, parameter.parameter, next === null ? null : next / parameter.scale)}
-                          className="mt-0.5 h-8 w-full min-w-0 rounded-sm border border-transparent bg-transparent px-1.5 text-right font-mono text-xs tabular-nums text-slate-900 transition-colors hover:border-slate-200 hover:bg-slate-50 focus:!border-transparent focus:bg-white focus:!outline focus:!outline-2 focus:!outline-blue-700 focus:!outline-offset-[-2px]"
-                          aria-label={`${row.name} ${parameter.label} in SIM`}
-                        />
+                        <SimulationHistoryInputBoundary onBegin={onBeginEdit} onCommit={onCommitEdit}>
+                          <NumericInput
+                            value={value}
+                            precision={parameter.precision}
+                            min={0}
+                            minExclusive={parameter.parameter === 'routing.capacity' || parameter.parameter === 'routing.yield'}
+                            max={parameter.parameter === 'routing.yield' || parameter.parameter === 'bom.loss' ? 100 : undefined}
+                            allowSubMinimumDraft={parameter.parameter === 'routing.capacity' || parameter.parameter === 'routing.yield'}
+                            stopAtMinimum={parameter.parameter === 'routing.capacity' || parameter.parameter === 'routing.yield'}
+                            minimumDisplayPrecision={parameter.parameter === 'routing.capacity' ? 4 : undefined}
+                            onValueChange={next => onUpdate(simulationRecord.id, parameter.parameter, next === null ? null : next / parameter.scale)}
+                            className="mt-0.5 h-8 w-full min-w-0 rounded-sm border border-transparent bg-transparent px-1.5 text-right font-mono text-xs tabular-nums text-slate-900 transition-colors hover:border-slate-200 hover:bg-slate-50 focus:!border-transparent focus:bg-white focus:!outline focus:!outline-2 focus:!outline-blue-700 focus:!outline-offset-[-2px]"
+                            aria-label={`${row.name} ${parameter.label} in SIM`}
+                          />
+                        </SimulationHistoryInputBoundary>
                       ) : <span className="mt-0.5 block font-mono text-slate-700">{displayParameter(recordValue, parameter)}</span>}
                     </label>
                   )
@@ -749,7 +760,9 @@ export const SimulationPage: React.FC<SimulationPageProps> = ({
   onResetParameters,
   onUpdateParameter,
   onToggleWorkingTarget,
-  onUpdateEconomicInput
+  onUpdateEconomicInput,
+  onBeginEdit,
+  onCommitEdit
 }) => {
   const [transferMessage, setTransferMessage] = useState('')
   const [transferError, setTransferError] = useState(false)
@@ -832,6 +845,8 @@ export const SimulationPage: React.FC<SimulationPageProps> = ({
             currentSnapshot={currentSnapshot}
             unit={unit}
             onUpdate={onUpdateEconomicInput}
+            onBeginEdit={onBeginEdit}
+            onCommitEdit={onCommitEdit}
           />
         </div>
       </div>
@@ -845,6 +860,8 @@ export const SimulationPage: React.FC<SimulationPageProps> = ({
           workingSelection={workingSelection}
           onToggleWorkingTarget={onToggleWorkingTarget}
           onUpdate={onUpdateParameter}
+          onBeginEdit={onBeginEdit}
+          onCommitEdit={onCommitEdit}
         />
         <SimulationParameterTable
           kind="routing"
@@ -854,6 +871,8 @@ export const SimulationPage: React.FC<SimulationPageProps> = ({
           workingSelection={workingSelection}
           onToggleWorkingTarget={onToggleWorkingTarget}
           onUpdate={onUpdateParameter}
+          onBeginEdit={onBeginEdit}
+          onCommitEdit={onCommitEdit}
         />
       </div>
     </div>

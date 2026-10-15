@@ -1,5 +1,5 @@
 import React, { ReactNode, useCallback, useEffect, useRef, useState } from 'react'
-import { Navbar, type CBDReorderUndoRedo } from './Navbar'
+import { Navbar, type CBDReorderUndoRedo, type SimulationUndoRedo } from './Navbar'
 import { useAppStore } from '../../state'
 import { formatNumber } from '../../core'
 import { normalizeProductIdentityValue } from '../../core/utils/master-data-effective'
@@ -135,9 +135,10 @@ interface AppLayoutProps {
   children: ReactNode
   onNavigatePrepareDatasetIssue?: (item: MasterDataQualityItem) => void
   cbdReorderUndoRedo?: CBDReorderUndoRedo
+  simulationUndoRedo?: SimulationUndoRedo
 }
 
-export const AppLayout: React.FC<AppLayoutProps> = ({ children, onNavigatePrepareDatasetIssue = () => undefined, cbdReorderUndoRedo }) => {
+export const AppLayout: React.FC<AppLayoutProps> = ({ children, onNavigatePrepareDatasetIssue = () => undefined, cbdReorderUndoRedo, simulationUndoRedo }) => {
   const {
     activeTab,
     snapshotPair,
@@ -286,7 +287,7 @@ export const AppLayout: React.FC<AppLayoutProps> = ({ children, onNavigatePrepar
       >
         Skip to main content
       </a>
-      <Navbar cbdReorderUndoRedo={cbdReorderUndoRedo} />
+      <Navbar cbdReorderUndoRedo={cbdReorderUndoRedo} simulationUndoRedo={simulationUndoRedo} />
       <MasterDataPrepareDatasetPopover
         isOpen={masterDataPrepareDatasetOpen}
         requestMode={masterDataPrepareDatasetRequestMode}

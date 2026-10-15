@@ -231,3 +231,13 @@ Reject Loss `-1%` or `101%`; Yield `0%` or `101%`; SG&A `-5%` or `101%`; negativ
 ### Custom structure
 
 Current Routing `[Cut, Form]`, Custom Routing `[Cut, Form, Polish]`, then Clone from Custom: Cut/Form match by identity; Polish is ADDED and editable; Current Work Center rates still apply. If Custom omits Form, Form remains visible as REMOVED and is not editable.
+
+## 8. Simulation Undo / Redo
+
+Simulation uses one chronological history for committed BOM Price/Usage/Loss, RTG Manning/Capacity/Yield, Economic inputs, Business overrides, and Reset. Undo reverses actions in order; Redo reapplies them, and a new edit after Undo clears Redo. Clone starts a new baseline and clears both stacks. Send to Master Data is excluded.
+
+History is scoped to the active product and Current basis. A Current-basis change invalidates stale entries. Each entry stores only authoritative editable values keyed by stable Simulation record IDs and the Economic draft; rates, derived results, selection, expansion, focus, scroll, graph legend/ruler state, and transient invalid drafts are excluded. Applying an entry preserves Simulation-local selection and the live Current Work Center rate context, then recalculates all derived values.
+
+Typing is grouped into one committed edit per focused control. Spinner repeats and Batch Size graph dragging each form one action for the complete pointer gesture. Rejected or no-op values add no history entry. Reset is one action across all editable parameters and Economic/Business inputs and preserves view state.
+
+Simulation history is ephemeral for the current app session and remains separate from Master Data dataset-edit history and CBD Candidate reorder history.
