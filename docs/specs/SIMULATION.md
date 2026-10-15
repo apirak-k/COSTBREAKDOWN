@@ -88,14 +88,21 @@ Standard Cost = Direct Material + Labor + Burden
 
 Missing or invalid required values make the corresponding result unavailable. Do not substitute zero. Negative analytical differences are valid.
 
-The Result panel is engineering cost only and uses `Cost | Current | SIM | Change | %` with rows Material Cost, Labor Cost, Burden Cost, Conversion Cost, and Standard Cost. Change and % are red when cost rises, green when it falls, neutral at zero, and gray when unavailable:
+The Result panel remains a read-only `Current → SIM` comparison and contains two sections in this order:
+
+1. **Cost / Unit** — `Cost | Current | SIM | Change | %`, with Material Cost, Labor Cost, Burden Cost, Conversion Cost, and Standard Cost.
+2. **Business Outcome / Unit** — Selling Price, monetary SG&A, and Operating Profit, using the same Current, SIM, Change, and % columns.
+
+The panel uses the authoritative Current and SIM cost calculations and business metrics. Selling Price and SG&A overrides use the effective Simulation values; blank overrides fall back to Current. Business Outcome does not enter GAP 1 / GAP 2 or Action Break-even. A lower cost is favorable (green) and a higher cost is unfavorable (red). Operating Profit uses the opposite direction: an increase is favorable (green), a decrease is unfavorable (red). Selling Price and SG&A comparisons use neutral change styling. Standard Cost is the emphasized total row within Cost / Unit.
+
+For every row:
 
 ```text
 Change = SIM − Current
 % = (Change / Current) × 100
 ```
 
-Show `—` when Current is unavailable or zero for the percentage. Never show Infinity, -Infinity, or NaN. Economic metrics stay outside Result.
+Show `—` when either value is unavailable, or Current is unavailable or zero for the percentage. Never show Infinity, -Infinity, or NaN. Monetary values and percentages show exactly two decimals. The Result currency-per-unit context uses the resolved product UOM (falling back to `Unit` when the Reference and Current UOMs conflict). Result is read-only and derives its displayed values from the cost engine and shared business-metric helper; it owns no persisted state.
 
 ## 3. Parameter Cost Effect
 
@@ -197,7 +204,7 @@ Legacy RCA case/session migration may remain for old saved data. It is compatibi
 
 ### No change
 
-Current SC `100`, SIM SC `100`: GAP 2 `0`, Parameter Saving `0`, Result Change `0`, Result `%` `0%`.
+Current SC `100`, SIM SC `100`: GAP 2 `0`, Parameter Saving `0`, Result Change `0.00`, Result `%` `0.00%`.
 
 ### BOM Price
 

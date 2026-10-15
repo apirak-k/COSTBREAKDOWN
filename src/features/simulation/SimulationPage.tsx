@@ -12,6 +12,7 @@ import {
 import type {
   CostSnapshot,
   MasterDataRole,
+  ScenarioFinancialResult,
   ScenarioStory,
   SnapshotCost
 } from '../../core/types'
@@ -72,9 +73,13 @@ function displayResultDelta(value: number | null): string {
   return `${value > 0 ? '+' : ''}${formatNumber(value, 2)}`
 }
 
-function resultChangeClass(value: number | null): string {
+type ResultSemantic = 'cost' | 'neutral' | 'profit'
+
+function resultChangeClass(value: number | null, semantic: ResultSemantic): string {
   if (value === null || !Number.isFinite(value)) return 'text-slate-400'
-  return value > 0 ? 'text-rose-700' : value < 0 ? 'text-emerald-700' : 'text-slate-700'
+  if (value === 0 || semantic === 'neutral') return 'text-slate-700'
+  const favorable = semantic === 'cost' ? value < 0 : value > 0
+  return favorable ? 'text-emerald-700' : 'text-rose-700'
 }
 
 function displayParameter(value: number | null, parameter: typeof BOM_PARAMETERS[number] | typeof RTG_PARAMETERS[number]): string {
@@ -616,12 +621,18 @@ function SimulationParameterTable({
 function ResultPanel({
   currentCost,
   simulationCost,
+  currentFinancial,
+  simulationFinancial,
+  unit,
   actions,
   transferMessage,
   transferError
 }: {
   currentCost: SnapshotCost
   simulationCost: SnapshotCost
+  currentFinancial: ScenarioFinancialResult
+  simulationFinancial: ScenarioFinancialResult
+  unit: string
   actions: React.ReactNode
   transferMessage: string
   transferError: boolean
@@ -629,12 +640,40 @@ function ResultPanel({
   const currentConversion = currentCost.labor === null || currentCost.burden === null ? null : safeAdd(currentCost.labor, currentCost.burden)
   const simulationConversion = simulationCost.labor === null || simulationCost.burden === null ? null : safeAdd(simulationCost.labor, simulationCost.burden)
   const rows = [
-    { label: 'Material Cost', current: currentCost.material, sim: simulationCost.material },
-    { label: 'Labor Cost', current: currentCost.labor, sim: simulationCost.labor },
-    { label: 'Burden Cost', current: currentCost.burden, sim: simulationCost.burden },
-    { label: 'Conversion Cost', current: currentConversion, sim: simulationConversion },
-    { label: 'Standard Cost', current: currentCost.total, sim: simulationCost.total, total: true }
+    { label: 'Material Cost', current: currentCost.material, sim: simulationCost.material, semantic: 'cost' as const },
+    { label: 'Labor Cost', current: currentCost.labor, sim: simulationCost.labor, semantic: 'cost' as const },
+    { label: 'Burden Cost', current: currentCost.burden, sim: simulationCost.burden, semantic: 'cost' as const },
+    { label: 'Conversion Cost', current: currentConversion, sim: simulationConversion, semantic: 'cost' as const },
+    { label: 'Standard Cost', current: currentCost.total, sim: simulationCost.total, semantic: 'cost' as const, total: true }
   ]
+  const businessRows = [
+    { label: 'Selling Price', current: currentFinancial.sellingPrice, sim: simulationFinancial.sellingPrice, semantic: 'neutral' as const },
+    { label: 'SG&A', current: currentFinancial.sgaAmountPerPiece, sim: simulationFinancial.sgaAmountPerPiece, semantic: 'neutral' as const },
+    { label: 'Operating Profit', current: currentFinancial.operatingProfitPerPiece, sim: simulationFinancial.operatingProfitPerPiece, semantic: 'profit' as const }
+  ]
+  const formatRows = (items: typeof rows | typeof businessRows) => items.map(row => {
+    const current = row.current !== null && Number.isFinite(row.current) ? row.current : null
+    const sim = row.sim !== null && Number.isFinite(row.sim) ? row.sim : null
+    const change = current === null || sim === null ? null : safeAdd(sim, -current)
+    const rawPercent = change === null || current === null || current === 0 ? null : change / current * 100
+    const percent = rawPercent !== null && Number.isFinite(rawPercent) ? rawPercent : null
+    return { ...row, current, sim, change, percent }
+  })
+  const costRows = formatRows(rows)
+  const formattedBusinessRows = formatRows(businessRows)
+  const renderRows = (items: typeof costRows | typeof formattedBusinessRows) => items.map(row => (
+    <tr key={row.label} className={'total' in row && row.total ? 'border-t border-slate-300 font-semibold text-slate-950' : 'text-slate-700'}>
+      <th scope="row" className="whitespace-nowrap py-0 text-left">{row.label}</th>
+      <td className="whitespace-nowrap px-0.5 py-0 text-right font-mono tabular-nums">{displayMoney(row.current)}</td>
+      <td className="whitespace-nowrap px-0.5 py-0 text-right font-mono tabular-nums">{displayMoney(row.sim)}</td>
+      <td className={`px-1 py-0 text-right font-mono tabular-nums ${resultChangeClass(row.change, row.semantic)}`}>
+        {displayResultDelta(row.change)}
+      </td>
+      <td className={`py-0 text-right font-mono tabular-nums ${resultChangeClass(row.percent === null ? null : row.change, row.semantic)}`}>
+        {row.percent === null ? '—' : `${displayResultDelta(row.percent)}%`}
+      </td>
+    </tr>
+  ))
 
   return (
     <section data-safe-workspace-interaction="true" className="min-w-0 border border-slate-300 bg-white px-3 py-2" aria-labelledby="simulation-result-title">
@@ -644,12 +683,12 @@ function ResultPanel({
           <div className="flex items-center gap-1.5">{actions}</div>
         </div>
         <div className="mt-0.5 flex min-w-0 flex-wrap items-baseline justify-between gap-x-2">
-          <span className="text-[10px] text-slate-500">Current → SIM · THB/pc</span>
+          <span className="text-[10px] text-slate-500">Current → SIM · THB/{unit}</span>
           {transferMessage && <span role="status" className={`text-[10px] ${transferError ? 'text-rose-800' : 'text-emerald-800'}`}>{transferMessage}</span>}
         </div>
       </div>
       <div className="mt-1 min-w-0">
-        <table className="w-full table-fixed text-[10px]">
+        <table className="w-full table-fixed text-[10px] leading-3">
           <colgroup>
             <col className="w-[34%]" />
             <col className="w-[15%]" />
@@ -659,32 +698,18 @@ function ResultPanel({
           </colgroup>
           <thead className="text-[9px] text-slate-500">
             <tr>
-              <th scope="col" className="whitespace-nowrap py-1 text-left font-medium">Cost</th>
-              <th scope="col" className="whitespace-nowrap px-0.5 py-1 text-right font-medium">Current</th>
-              <th scope="col" className="whitespace-nowrap px-0.5 py-1 text-right font-medium">SIM</th>
-              <th scope="col" className="whitespace-nowrap px-0.5 py-1 text-right font-medium">Change</th>
-              <th scope="col" className="py-1 text-right font-medium">%</th>
+              <th scope="col" className="whitespace-nowrap py-0.5 text-left font-medium"><span className="sr-only">Cost or business outcome</span></th>
+              <th scope="col" className="whitespace-nowrap px-0.5 py-0.5 text-right font-medium">Current</th>
+              <th scope="col" className="whitespace-nowrap px-0.5 py-0.5 text-right font-medium">SIM</th>
+              <th scope="col" className="whitespace-nowrap px-0.5 py-0.5 text-right font-medium">Change</th>
+              <th scope="col" className="py-0.5 text-right font-medium">%</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100">
-            {rows.map(row => {
-              const change = row.current === null || row.sim === null ? null : safeAdd(row.sim, -row.current)
-              const rawPercent = change === null || row.current === null || row.current === 0 ? null : change / row.current * 100
-              const percent = rawPercent !== null && Number.isFinite(rawPercent) ? rawPercent : null
-              return (
-                <tr key={row.label} className={row.total ? 'border-t border-slate-300 font-semibold text-slate-950' : 'text-slate-700'}>
-                  <th scope="row" className="whitespace-nowrap py-1.5 text-left">{row.label}</th>
-                  <td className="whitespace-nowrap px-0.5 py-1.5 text-right font-mono tabular-nums">{displayMoney(row.current)}</td>
-                  <td className="whitespace-nowrap px-0.5 py-1.5 text-right font-mono tabular-nums">{displayMoney(row.sim)}</td>
-                  <td className={`px-1 py-1.5 text-right font-mono tabular-nums ${resultChangeClass(change)}`}>
-                    {displayResultDelta(change)}
-                  </td>
-                  <td className={`py-1.5 text-right font-mono tabular-nums ${resultChangeClass(percent)}`}>
-                    {percent === null ? '—' : `${displayResultDelta(percent)}%`}
-                  </td>
-                </tr>
-              )
-            })}
+            <tr><th scope="rowgroup" colSpan={5} className="border-b border-slate-200 py-0.5 text-left text-[9px] font-semibold text-slate-700">Cost / Unit</th></tr>
+            {renderRows(costRows)}
+            <tr><th scope="rowgroup" colSpan={5} className="border-b border-t border-slate-200 py-0.5 text-left text-[9px] font-semibold text-slate-700">Business Outcome / Unit</th></tr>
+            {renderRows(formattedBusinessRows)}
           </tbody>
         </table>
       </div>
@@ -792,6 +817,9 @@ export const SimulationPage: React.FC<SimulationPageProps> = ({
           <ResultPanel
             currentCost={result.currentCost}
             simulationCost={result.simulationCost}
+            currentFinancial={story.current}
+            simulationFinancial={story.simulated}
+            unit={resolveSimulationCostUnit(referenceSnapshot, currentSnapshot)}
             actions={actionMenus}
             transferMessage={transferMessage}
             transferError={transferError}
