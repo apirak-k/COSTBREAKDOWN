@@ -538,12 +538,24 @@ try {
     'CBD content grows naturally inside the shared Main scroll area')
   assert.doesNotMatch(pageRootClass, /overflow-y-auto|overflow-y-scroll|overflow-auto/,
     'CBD page content does not add a nested vertical scroll owner')
-  assert.match(overviewClass, /lg:h-44[\s\S]*lg:shrink-0[\s\S]*lg:grid-cols-\[minmax\(0,1fr\)_1px_minmax\(0,1fr\)\]/,
-    'Cost Element and Work Center use one bounded, equal-width overview with a center divider')
-  assert.match(pageSource, /data-cbd-overview-pair="true"\s+data-cbd-overview-columns="equal"[\s\S]*data-cbd-overview-divider="true"/,
-    'the paired summary panels expose equal-width and divider semantics')
-  assert.match(costSection, /lg:h-full/)
-  assert.match(wcSection, /lg:h-full/)
+  assert.doesNotMatch(pageSource, /data-cbd-overview-divider|grid-cols-\[[^\]]*_1px_|grid-rows-\[[^\]]*_1px_/,
+    'independent summary boxes must not regress to a center-divider architecture')
+  assert.match(overviewClass, /items-stretch[\s\S]*lg:shrink-0/,
+    'the shared overview stretches its independently bounded desktop boxes equally')
+  assert.match(overviewClass, /lg:grid-cols-2|lg:grid-cols-\[repeat\(2,minmax\(0,1fr\)\)\]/,
+    'the shared overview uses two equal desktop columns')
+  assert.match(overviewClass, /(?:^|\s)(?:lg:)?gap-(?:[1-9]\d*(?:\.\d+)?|px)(?:\s|$)/,
+    'the independent summary boxes have an intentional nonzero gap')
+  assert.match(overviewClass, /\bbg-\S+/,
+    'one shared overview background visually groups the separate boxes')
+  for (const section of [costSection, wcSection]) {
+    assert.match(section, /(?:^|\s)border(?:\s|$)/,
+      'each summary box has its own complete border')
+  }
+  const costDesktopHeight = costSection.match(/\blg:h-[^\s"]+/)?.[0]
+  const wcDesktopHeight = wcSection.match(/\blg:h-[^\s"]+/)?.[0]
+  assert.ok(costDesktopHeight, 'Cost Element has an explicit bounded desktop height')
+  assert.equal(wcDesktopHeight, costDesktopHeight, 'both summary boxes consume the same desktop height standard')
   assert.match(stickyShellClass, /lg:sticky[^\"]*lg:top-0/,
     'Subheader and Cost Element / Work Center overview stay sticky at the top of CBD Main while it scrolls')
   const subheaderIndex = pageSource.indexOf('Cost Breakdown subheader')

@@ -6,6 +6,7 @@ import type { ItemizedTypeTab } from './components/ItemizedComparisonTable'
 import { SnapshotComparisonCard } from './components/SnapshotComparisonCard'
 import { WorkCenterProcessingTable } from './components/WorkCenterProcessingTable'
 import { CostBreakdownPopover } from './components/CostBreakdownPopover'
+import { ComparisonStatusOptions } from './components/ComparisonStatusOptions'
 import { COST_ELEMENT_COLORS } from './components/cost-element-colors'
 import {
   ALL_COMPARISON_STATUSES,
@@ -15,13 +16,10 @@ import {
   getComparisonStatusControlLabel,
   getComparisonSortLabel,
   getSelectedComparisonContribution,
-  isOnlyComparisonStatus,
-  isVisibleInComparisonView,
-  toggleComparisonStatus
+  isVisibleInComparisonView
 } from './components/comparison-view'
 import type { ComparisonSortMode, ComparisonViewMode } from './components/comparison-view'
 import { formatVariance, getVarianceClass } from '../../core'
-import type { ComparisonStatus } from '../../core'
 import type { CandidateManualOrders, CandidateTableType } from './candidate-reorder-history'
 
 interface CostBreakdownPageProps {
@@ -29,13 +27,6 @@ interface CostBreakdownPageProps {
   onManualOrderChange: (type: CandidateTableType, keys: string[]) => void
   onResetManualOrderHistory: () => void
 }
-
-const statusOptions: Array<{ value: ComparisonStatus; label: string }> = [
-  { value: 'CHANGED', label: 'Changed' },
-  { value: 'ADDED', label: 'Added' },
-  { value: 'REMOVED', label: 'Removed' },
-  { value: 'UNCHANGED', label: 'Unchanged' }
-]
 
 interface GapSegment {
   key: 'material' | 'labor' | 'burden'
@@ -192,9 +183,6 @@ export const CostBreakdownPage: React.FC<CostBreakdownPageProps> = ({ manualOrde
   const [sortResetToken, setSortResetToken] = useState(0)
   const [isOverviewExpanded, setIsOverviewExpanded] = useState(true)
   const toggleOverview = () => setIsOverviewExpanded(expanded => !expanded)
-  const toggleOverviewFromBlank = (event: React.MouseEvent<HTMLElement>) => {
-    if (event.target === event.currentTarget) toggleOverview()
-  }
 
   const selectedBOMKeys = new Set(selectedComparisonSelection?.bomFindingKeys ?? [])
   const selectedRoutingKeys = new Set(selectedComparisonSelection?.routingFindingKeys ?? [])
@@ -243,9 +231,9 @@ export const CostBreakdownPage: React.FC<CostBreakdownPageProps> = ({ manualOrde
 
   return (
     <div className="flex min-h-full min-w-0 flex-col overflow-x-clip">
-      <div data-cbd-sticky-shell="true" className="flex shrink-0 flex-col gap-2 pb-2 lg:sticky lg:top-0 lg:z-30 lg:bg-white">
-      <header aria-label="Cost Breakdown subheader" data-cbd-overview-click-area="true" onClick={toggleOverviewFromBlank} className="shrink-0 overflow-x-auto border border-slate-300 bg-white" tabIndex={0}>
-        <div data-cbd-overview-click-area="true" onClick={toggleOverviewFromBlank} className="flex min-w-[1000px] flex-nowrap items-center gap-1.5 px-1.5 py-1" role="group" aria-label="Cost Breakdown controls">
+      <div data-cbd-sticky-shell="true" className="flex shrink-0 flex-col pb-2 lg:sticky lg:top-0 lg:z-30 lg:bg-white">
+      <header aria-label="Cost Breakdown subheader" className="shrink-0 overflow-x-auto border border-slate-300 bg-white">
+        <div className="flex min-w-[1000px] flex-nowrap items-center gap-1.5 px-1.5 py-1" role="group" aria-label="Cost Breakdown controls">
           <div
             aria-label={`Standard Cost Gap ${fullSnapshotComparison.totalGap === null ? 'unavailable' : formatVariance(fullSnapshotComparison.totalGap, 2)} THB/pc; Gap = CUR − REF`}
             title="Full snapshot · THB/pc · Gap = CUR − REF"
@@ -294,51 +282,27 @@ export const CostBreakdownPage: React.FC<CostBreakdownPageProps> = ({ manualOrde
 
           <CostBreakdownPopover
             label={`Status filter, ${statusControlLabel}`}
-            trigger={<span className="inline-flex items-baseline whitespace-nowrap"><span>Status</span><span aria-hidden="true" className="ml-1 inline-block w-[5ch] text-left font-mono tabular-nums">({areAllComparisonStatusesSelected(comparisonView) ? 'All' : comparisonView.length})</span></span>}
-            panelClassName="w-44"
+            trigger={<span className="inline-flex items-center whitespace-nowrap"><span>Status</span><span aria-hidden="true" className="ml-1 inline-block w-[5ch] text-left font-mono tabular-nums">({areAllComparisonStatusesSelected(comparisonView) ? 'All' : comparisonView.length})</span></span>}
+            panelClassName="w-max min-w-32"
           >
-            {close => <div aria-label="Filter by comparison status">
-              <button
-                type="button"
-                aria-pressed={areAllComparisonStatusesSelected(comparisonView)}
-                onClick={() => { setComparisonView(ALL_COMPARISON_STATUSES); close() }}
-                className="mb-1 w-full rounded-sm px-2 py-1.5 text-left text-xs font-semibold text-slate-800 hover:bg-slate-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-700"
-              >All statuses</button>
-              {statusOptions.map(option => <label key={option.value} className="flex cursor-pointer items-center gap-2 rounded-sm px-2 py-1.5 text-xs text-slate-700 hover:bg-slate-50">
-                <input
-                  type="checkbox"
-                  checked={comparisonView.includes(option.value)}
-                  disabled={isOnlyComparisonStatus(comparisonView, option.value)}
-                  title={isOnlyComparisonStatus(comparisonView, option.value) ? 'At least one status must remain selected' : undefined}
-                  onChange={() => setComparisonView(current => toggleComparisonStatus(current, option.value))}
-                  className="h-3.5 w-3.5 accent-slate-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700 disabled:opacity-70"
-                />
-                <span>{option.label}</span>
-              </label>)}
-              {comparisonView.length === 1 && <p role="note" className="mt-1 border-t border-slate-200 px-2 pt-2 text-[10px] text-slate-500">At least one status must remain selected.</p>}
-            </div>}
+            {() => <ComparisonStatusOptions selected={comparisonView} onChange={setComparisonView} />}
           </CostBreakdownPopover>
 
-          <div role="group" aria-label={`Sort findings; current mode ${sortLabel}`} className="inline-flex h-8 shrink-0 overflow-hidden rounded-sm border border-slate-300 bg-white">
-            <button type="button" aria-label={`Reapply sort: ${sortLabel}`} title={`Reapply ${sortLabel} and restore sorted order`} onClick={() => { onResetManualOrderHistory(); setSortResetToken(token => token + 1) }} className="inline-flex h-full min-h-8 items-center bg-white px-2 text-xs font-medium text-slate-700 hover:bg-slate-100 focus-visible:z-10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-blue-700">
-              {sortLabel}
-            </button>
-            <CostBreakdownPopover
-              label={`Choose sort mode; current mode ${sortLabel}`}
-              trigger={null}
-              panelClassName="w-48"
-              buttonClassName="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-none border-l border-slate-300 bg-white p-0 text-xs font-medium text-slate-700 hover:bg-slate-100 focus-visible:z-10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-blue-700"
-            >
-            {close => <div role="group" aria-label="Sort findings" className="space-y-0.5">
+          <CostBreakdownPopover
+            label={`Sort findings; current mode ${sortLabel}`}
+            trigger={<span className="whitespace-nowrap">{sortLabel}</span>}
+            panelClassName="w-max min-w-36"
+          >
+            {close => <div role="group" aria-label="Sort findings" className="flex flex-col">
               {COMPARISON_SORT_OPTIONS.map(option => <button
                 key={option.value}
                 type="button"
+                aria-pressed={sortMode === option.value}
                 onClick={() => { setSortMode(option.value); onResetManualOrderHistory(); setSortResetToken(token => token + 1); close() }}
-                className="block w-full rounded-sm px-2 py-1.5 text-left text-xs text-slate-700 hover:bg-slate-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-700"
+                className={`block w-full rounded-sm px-2 py-1 text-left text-xs text-slate-700 hover:bg-slate-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-700 ${sortMode === option.value ? 'bg-slate-100 font-semibold' : ''}`}
               >{option.label}</button>)}
             </div>}
-            </CostBreakdownPopover>
-          </div>
+          </CostBreakdownPopover>
 
           <button
             type="button"
@@ -347,19 +311,18 @@ export const CostBreakdownPage: React.FC<CostBreakdownPageProps> = ({ manualOrde
             aria-label={`${isOverviewExpanded ? 'Collapse' : 'Expand'} Cost Element and Work Center sections`}
             title={`${isOverviewExpanded ? 'Collapse' : 'Expand'} Cost Element and Work Center sections`}
             onClick={toggleOverview}
-            className="inline-flex h-8 w-8 shrink-0 items-center justify-center bg-transparent p-0 text-slate-700 hover:text-slate-950 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700"
+            className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-sm border border-slate-300 bg-white p-0 text-slate-700 hover:bg-slate-100 hover:text-slate-950 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700"
           >
             <span data-cbd-overview-indicator="true" aria-hidden="true" className={`block h-0 w-0 border-x-[5px] border-t-[7px] border-x-transparent border-t-slate-700 transition-transform ${isOverviewExpanded ? '' : '-rotate-90'}`} />
           </button>
         </div>
       </header>
 
-      <div id="cost-breakdown-overview-panels" data-cbd-overview-pair="true" data-cbd-overview-columns="equal" className={isOverviewExpanded ? 'grid min-w-0 grid-cols-1 grid-rows-[auto_1px_auto] items-stretch overflow-hidden border border-slate-300 bg-white lg:h-44 lg:shrink-0 lg:grid-cols-[minmax(0,1fr)_1px_minmax(0,1fr)] lg:grid-rows-1' : 'hidden'}>
-        <div className="min-w-0 lg:col-start-1 lg:row-start-1">
+      <div id="cost-breakdown-overview-panels" data-cbd-overview-pair="true" data-cbd-overview-columns="equal" className={isOverviewExpanded ? 'grid min-w-0 grid-cols-1 items-stretch gap-2 border-x border-b border-slate-300 bg-slate-50 p-2 lg:shrink-0 lg:grid-cols-2' : 'hidden'}>
+        <div className="min-w-0">
           <SnapshotComparisonCard comparison={fullSnapshotComparison} selectedComparison={selectedDisplayComparison} selectedActive={isSelectedComparisonActive} />
         </div>
-        <div data-cbd-overview-divider="true" aria-hidden="true" className="h-px w-full bg-slate-300 lg:col-start-2 lg:row-start-1 lg:h-full lg:w-px" />
-        <div className="min-w-0 lg:col-start-3 lg:row-start-1">
+        <div className="min-w-0">
           <WorkCenterProcessingTable comparison={fullSnapshotComparison} />
         </div>
       </div>

@@ -3,6 +3,11 @@ import { formatNumber, formatPercent, formatVariance, getVarianceClass, safeAdd,
 import type { CostComparison, WorkCenterProcessingFinding } from '../../../core'
 import { Tooltip } from '../../../shared/ui/Tooltip'
 import {
+  CBD_SUMMARY_PANEL_CLASS,
+  CBD_SUMMARY_TABLE_CLASS,
+  CBD_SUMMARY_ROW_CLASS,
+  CBD_SUMMARY_HEADER_GROUP_CLASS,
+  CBD_SUMMARY_FOOTER_GROUP_CLASS,
   CBD_SUMMARY_BODY_GROUP_CLASS,
   CBD_SUMMARY_BODY_LABEL_CLASS,
   CBD_SUMMARY_BODY_ROW_CLASS,
@@ -48,8 +53,9 @@ function conversionTotal(labor: number | null, burden: number | null): number | 
   return safeAdd(labor ?? Number.NaN, burden ?? Number.NaN)
 }
 
-const rowColumns = 'grid grid-cols-[24%_19%_19%_20%_18%] items-center lg:col-span-full'
-const scrollBodyRowStyle: React.CSSProperties = { width: 'calc(100% + var(--cbd-wc-scrollbar-width, 0px))' }
+const rowColumns = CBD_SUMMARY_ROW_CLASS
+// Align fixed rows to the body's real content width, without hiding cells under its scrollbar.
+const fixedRowStyle: React.CSSProperties = { width: 'calc(100% - var(--cbd-wc-scrollbar-width, 0px))' }
 
 export const WorkCenterProcessingTable: React.FC<WorkCenterProcessingTableProps> = ({ comparison }) => {
   const scrollBodyRef = React.useRef<HTMLDivElement>(null)
@@ -58,7 +64,7 @@ export const WorkCenterProcessingTable: React.FC<WorkCenterProcessingTableProps>
     if (!body) return
 
     const updateScrollbarWidth = () => {
-      body.style.setProperty('--cbd-wc-scrollbar-width', `${body.offsetWidth - body.clientWidth}px`)
+      body.parentElement?.style.setProperty('--cbd-wc-scrollbar-width', `${body.offsetWidth - body.clientWidth}px`)
     }
 
     updateScrollbarWidth()
@@ -90,10 +96,10 @@ export const WorkCenterProcessingTable: React.FC<WorkCenterProcessingTableProps>
   const totalPercentage = totalGap === null ? null : safeDivide(totalGap, totalReference ?? Number.NaN)
 
   return (
-    <section aria-label="Work Center" data-cbd-overview-panel="work-center" className="min-w-0 overflow-x-auto bg-white lg:h-full lg:overflow-hidden">
-      <div role="table" aria-label="Work Center conversion cost for Reference, Current, Gap, and percentage of total Conversion Gap" aria-colcount={5} className="min-w-[520px] text-xs leading-4 lg:grid lg:h-full lg:min-w-0 lg:grid-cols-[24%_19%_19%_20%_18%] lg:grid-rows-[auto_minmax(0,1fr)_auto]">
-        <div role="rowgroup" className="bg-slate-800 lg:col-span-full lg:row-start-1 lg:grid lg:grid-cols-[subgrid] lg:overflow-hidden">
-          <div role="row" className={`${rowColumns} ${CBD_SUMMARY_HEADER_ROW_CLASS}`}>
+    <section aria-label="Work Center" data-cbd-overview-panel="work-center" className={CBD_SUMMARY_PANEL_CLASS}>
+      <div role="table" aria-label="Work Center conversion cost for Reference, Current, Gap, and percentage of total Conversion Gap" aria-colcount={5} style={{ '--cbd-summary-columns': '24% 19% 19% 20% 18%' } as React.CSSProperties} className={CBD_SUMMARY_TABLE_CLASS}>
+        <div role="rowgroup" data-cbd-summary-header="true" className={CBD_SUMMARY_HEADER_GROUP_CLASS}>
+          <div role="row" style={fixedRowStyle} className={`${rowColumns} ${CBD_SUMMARY_HEADER_ROW_CLASS}`}>
             <div role="columnheader" style={CBD_SUMMARY_HEADER_CELL_STYLE} className={`${CBD_SUMMARY_HEADER_CELL_CLASS} ${CBD_SUMMARY_HEADER_LABEL_CLASS}`}>Work Center</div>
             <div role="columnheader" style={CBD_SUMMARY_HEADER_CELL_STYLE} className={`${CBD_SUMMARY_HEADER_CELL_CLASS} ${CBD_SUMMARY_HEADER_VALUE_CLASS}`}>REF</div>
             <div role="columnheader" style={CBD_SUMMARY_HEADER_CELL_STYLE} className={`${CBD_SUMMARY_HEADER_CELL_CLASS} ${CBD_SUMMARY_HEADER_VALUE_CLASS}`}>CUR</div>
@@ -101,10 +107,10 @@ export const WorkCenterProcessingTable: React.FC<WorkCenterProcessingTableProps>
             <div role="columnheader" style={CBD_SUMMARY_HEADER_CELL_STYLE} className={`${CBD_SUMMARY_HEADER_CELL_CLASS} ${CBD_SUMMARY_HEADER_VALUE_CLASS} pr-4`}>%GAP</div>
           </div>
         </div>
-        <div ref={scrollBodyRef} role="rowgroup" data-wc-scroll-body="true" className={`${CBD_SUMMARY_BODY_GROUP_CLASS} ${CBD_WC_BODY_SCROLL_REGION}`}>
-          {rows.length === 0 ? <div role="row" style={scrollBodyRowStyle} className={rowColumns}><div role="cell" aria-colspan={5} className="col-span-5 px-2 py-3 text-center italic text-slate-500">No Work Center data.</div></div> : rows.map(({ finding, gap, percentage }) => {
+        <div ref={scrollBodyRef} role="rowgroup" data-wc-scroll-body="true" data-cbd-summary-body="true" className={`${CBD_SUMMARY_BODY_GROUP_CLASS} ${CBD_WC_BODY_SCROLL_REGION}`}>
+          {rows.length === 0 ? <div role="row" className={rowColumns}><div role="cell" aria-colspan={5} className="col-span-5 px-2 py-3 text-center italic text-slate-500">No Work Center data.</div></div> : rows.map(({ finding, gap, percentage }) => {
             const label = finding.workCenterCode
-            return <div role="row" key={finding.sourceId} style={scrollBodyRowStyle} className={`${rowColumns} ${CBD_SUMMARY_BODY_ROW_CLASS}`}>
+            return <div role="row" key={finding.sourceId} className={`${rowColumns} ${CBD_SUMMARY_BODY_ROW_CLASS}`}>
               <div role="rowheader" className={`${CBD_SUMMARY_BODY_LABEL_CLASS} truncate`} title={label}>{label}</div>
               <div role="cell" className={`${CBD_SUMMARY_BODY_VALUE_CLASS} text-slate-600`}>{formatNullable(finding.costEffect.reference.total)}</div>
               <div role="cell" className={`${CBD_SUMMARY_BODY_VALUE_CLASS} text-slate-900`}>{formatNullable(finding.costEffect.current.total)}</div>
@@ -113,8 +119,8 @@ export const WorkCenterProcessingTable: React.FC<WorkCenterProcessingTableProps>
             </div>
           })}
         </div>
-        <div role="rowgroup" className="bg-slate-100 lg:col-span-full lg:row-start-3 lg:grid lg:grid-cols-[subgrid] lg:overflow-hidden">
-          <div role="row" className={`${rowColumns} ${CBD_SUMMARY_FOOTER_ROW_CLASS}`}>
+        <div role="rowgroup" data-cbd-summary-footer="true" className={CBD_SUMMARY_FOOTER_GROUP_CLASS}>
+          <div role="row" style={fixedRowStyle} className={`${rowColumns} ${CBD_SUMMARY_FOOTER_ROW_CLASS}`}>
             <div role="rowheader" className={`${CBD_SUMMARY_FOOTER_LABEL_CLASS} text-slate-950`}>Total</div>
             <div role="cell" className={`${CBD_SUMMARY_FOOTER_VALUE_CLASS} text-slate-700`}>{formatNullable(totalReference)}</div>
             <div role="cell" className={`${CBD_SUMMARY_FOOTER_VALUE_CLASS} text-slate-950`}>{formatNullable(totalCurrent)}</div>

@@ -574,12 +574,8 @@ try {
     'Work Center participates in the paired overview')
   assert.match(wcMarkup, /data-wc-scroll-body="true"[^>]*class="[^"]*overflow-y-auto/,
     'Work Center data rows alone use the internal vertical scroll region')
-  assert.match(wcMarkup, /style="width:calc\(100% \+ var\(--cbd-wc-scrollbar-width, 0px\)\)"/,
-    'Work Center body rows preserve full-width column tracks around the scrollbar')
   const wcSource = readFileSync(new URL('../src/features/cost-breakdown/components/WorkCenterProcessingTable.tsx', import.meta.url), 'utf8')
-  assert.match(wcSource, /body\.style\.setProperty\('--cbd-wc-scrollbar-width', `\$\{body\.offsetWidth - body\.clientWidth\}px`\)/,
-    'Work Center measures scrollbar width rather than hardcoding header/footer compensation')
-  assert.doesNotMatch(wcMarkup, /h-\[30px\]|pr-\[6px\]|scrollbar-gutter:\s*stable/,
+  assert.doesNotMatch(wcMarkup + wcSource, /h-\[30px\]|pr-\[6px\]|scrollbar-gutter:\s*stable/,
     'Work Center has no private footer height or painted scrollbar-gutter compensation')
   const wcTableStart = wcMarkup.indexOf('<div role="table"')
   assert.ok(wcTableStart >= 0)
@@ -627,22 +623,47 @@ try {
     'Escape collapses all Candidate Details')
 
   const pageSource = readFileSync(new URL('../src/features/cost-breakdown/CostBreakdownPage.tsx', import.meta.url), 'utf8')
-  const sortMenuSource = pageSource.match(/label=\{`Choose sort mode[\s\S]*?<\/CostBreakdownPopover>/)?.[0]
+  const sortMenuSource = pageSource.match(/label=\{`Sort findings; current mode[\s\S]*?<\/CostBreakdownPopover>/)?.[0]
   assert.ok(sortMenuSource, 'Sort options use the shared overlay component')
   assert.match(sortMenuSource, /COMPARISON_SORT_OPTIONS\.map\(option => <button/,
     'Sort dropdown renders only the three shared comparison sort options as plain buttons')
-  assert.doesNotMatch(sortMenuSource, /type="radio"|checked=|aria-checked|aria-pressed|<svg|✓|Check|Circle/,
-    'Sort dropdown has no persistent selection indicator')
+  assert.match(sortMenuSource, /aria-pressed=\{sortMode === option\.value\}/,
+    'the current Sort option is explicitly represented for assistive technology')
+  assert.doesNotMatch(sortMenuSource, /<h[1-6]\b|<footer\b/,
+    'Sort contains only its compact choices without a title or footer')
 
   const popoverSource = readFileSync(new URL('../src/features/cost-breakdown/components/CostBreakdownPopover.tsx', import.meta.url), 'utf8')
   assert.match(popoverSource, /document\.addEventListener\('pointerdown'/, 'temporary CBD popovers dismiss on outside pointerdown')
-  assert.match(popoverSource, /event\.key === 'Escape'/, 'temporary CBD popovers dismiss on Escape')
+  assert.match(popoverSource, /useTransientInteraction\(open,[\s\S]*reason === 'escape'\) close\(\)/,
+    'CBD popovers reuse shared transient Escape dismissal and restore trigger focus')
   assert.match(popoverSource, /activeCBDPopoverDismiss/, 'opening one temporary popover dismisses the previous popover')
-  const dismissBody = popoverSource.match(/const dismissWithoutFocus = useCallback\(\(\) => \{([\s\S]*?)\}, \[\]\)/)?.[1]
+  const dismissBody = popoverSource.match(/const dismissWithoutFocus = useCallback\(\(\) => \{([\s\S]*?)\}, \[[^\]]*\]\)/)?.[1]
   assert.ok(dismissBody)
   assert.match(dismissBody, /setOpen\(false\)/)
   assert.doesNotMatch(dismissBody, /setComparisonView|setSortMode|setSortResetToken|applySelectedComparison|clearSelectedComparison/,
     'outside/Escape dismissal closes the temporary overlay without changing its value or Selected Comparison')
+  const { applyStatusDragSelection } = await vite.ssrLoadModule('/src/features/cost-breakdown/components/status-drag-selection.ts')
+  const { ComparisonStatusOptions } = await vite.ssrLoadModule('/src/features/cost-breakdown/components/ComparisonStatusOptions.tsx')
+  const allStatuses = ['CHANGED', 'ADDED', 'REMOVED', 'UNCHANGED']
+  const selectThree = applyStatusDragSelection(['UNCHANGED'], ['CHANGED', 'ADDED', 'REMOVED'], true)
+  assert.deepEqual(new Set(selectThree), new Set(allStatuses), 'drag from an unchecked status selects all three crossed rows')
+  assert.deepEqual(applyStatusDragSelection(selectThree, ['CHANGED', 'ADDED', 'CHANGED'], true), selectThree,
+    'select mode remains idempotent when the pointer crosses a row again')
+  const deselectThree = applyStatusDragSelection(allStatuses, ['CHANGED', 'ADDED', 'REMOVED'], false)
+  assert.deepEqual(deselectThree, ['UNCHANGED'], 'drag from a checked status deselects every crossed row')
+  assert.deepEqual(applyStatusDragSelection(deselectThree, ['UNCHANGED'], false), ['UNCHANGED'],
+    'drag cannot deselect the final remaining status')
+  assert.deepEqual(applyStatusDragSelection(allStatuses, ['CHANGED', 'ADDED', 'CHANGED'], false), ['REMOVED', 'UNCHANGED'],
+    'revisiting a row does not select it again in deselect mode')
+  assert.equal(applyStatusDragSelection(allStatuses, allStatuses, false).length, 1,
+    'a drag crossing every status still preserves one selected status')
+  for (const selected of [allStatuses, ['UNCHANGED']]) {
+    const statusMarkup = renderToStaticMarkup(React.createElement(ComparisonStatusOptions, { selected, onChange() {} }))
+    assert.equal([...statusMarkup.matchAll(/type="checkbox"/g)].length, 4, 'the compact Status menu has exactly four accessible checkboxes')
+    assert.equal([...statusMarkup.matchAll(/checked=""/g)].length, selected.length, 'checkbox state reflects selected statuses')
+    assert.equal(visibleText(statusMarkup), 'Changed Added Removed Unchanged', 'Status has no heading, footer or explanatory copy')
+    assert.match(statusMarkup, /select-none/, 'Status suppresses text selection during pointer drag')
+  }
 
   const candidateSource = readFileSync(new URL('../src/features/cost-breakdown/components/CandidateFindingsTable.tsx', import.meta.url), 'utf8')
   const readCandidateGrid = name => {
@@ -828,19 +849,23 @@ try {
     assert.equal(visibleText(collapseButton), '', 'Collapse is icon-only')
     assert.match(collapseButton, /aria-expanded="true"/)
     assert.match(collapseButton, /data-cbd-overview-indicator="true"/,
-      'the disclosure uses a dedicated plain triangle indicator')
+      'the disclosure uses a dedicated visible direction indicator')
     const collapseClass = collapseButton.match(/\bclass="([^"]*)"/)?.[1] ?? ''
-    assert.doesNotMatch(collapseClass, /\bborder\b|bg-white|rounded/,
-      'the disclosure indicator has no boxed button chrome')
+    assert.match(collapseClass, /\bborder\b/,
+      'the disclosure is a boxed button with a visible boundary')
+    assert.match(collapseClass, /\bbg-\S+/,
+      'the disclosure has an explicit button background')
+    assert.match(collapseClass, /focus-visible:/,
+      'the disclosure retains a keyboard focus indicator')
     assert.match(subheader, /aria-expanded="true"/)
-    assert.match(subheader, /data-cbd-overview-click-area="true"/,
-      'safe empty subheader space participates in the same overview disclosure')
+    assert.doesNotMatch(subheader, /data-cbd-overview-click-area/,
+      'blank subheader space does not collapse the overview')
     assert.equal([...pageMarkup.matchAll(/data-cbd-overview-pair="true"/g)].length, 1,
       'Cost Element and Work Center share one paired overview frame')
     assert.match(pageMarkup, /data-cbd-overview-pair="true"[^>]*data-cbd-overview-columns="equal"/,
       'the overview layout explicitly uses equal Cost Element and Work Center columns')
-    assert.equal([...pageMarkup.matchAll(/data-cbd-overview-divider="true"/g)].length, 1,
-      'the paired overview uses one center divider')
+    assert.doesNotMatch(pageMarkup, /data-cbd-overview-divider|grid-cols-\[[^\]]*_1px_/,
+      'the independent summary boxes do not use a center-divider architecture')
     const overviewPairIndex = pageMarkup.indexOf('data-cbd-overview-pair="true"')
     const overviewPair = extractElement(pageMarkup, pageMarkup.lastIndexOf('<div', overviewPairIndex), 'div')
     assert.ok(overviewPair.includes('aria-label="Cost Element"') && overviewPair.includes('aria-label="Work Center"'),
@@ -882,30 +907,44 @@ try {
       'unavailable full component gaps remain unavailable instead of being treated as zero')
     assert.match(pageMarkup, /aria-label="Finding type filter"/)
     assert.match(pageMarkup, /aria-label="Status filter, Status \(All\)"/)
-    assert.match(pageMarkup, /aria-label="Reapply sort: \|Gap\| High → Low"/)
-    assert.match(pageMarkup, /aria-label="Choose sort mode; current mode \|Gap\| High → Low"/)
     assert.doesNotMatch(pageMarkup, /<details\b/, 'Status and Sort are overlay popovers, not in-flow details')
-    assert.ok([...subheader.matchAll(/lucide lucide-chevron-down/g)].length >= 2,
-      'Status and Sort dropdowns retain visible chevrons')
+    const popoverTriggers = [...subheader.matchAll(/<button type="button" aria-label="(?:Status filter, Status \(All\)|Sort findings; current mode \|Gap\| High → Low)"([^>]*)>([\s\S]*?)<\/button>/g)]
+    assert.equal(popoverTriggers.length, 2, 'Status and Sort each expose exactly one trigger button')
+    for (const [, attributes, content] of popoverTriggers) {
+      assert.match(attributes, /aria-haspopup="dialog"/, 'each toolbar-style trigger opens its own options popup')
+      assert.match(content, /lucide lucide-chevron-down/, 'each single trigger contains its visible Chevron')
+    }
+    const sortTrigger = popoverTriggers.find(([match]) => match.includes('Sort findings'))
+    assert.ok(sortTrigger)
+    assert.match(sortTrigger[2], /\|Gap\| High → Low/, 'the current Sort mode is part of the single trigger')
+    assert.doesNotMatch(subheader, /aria-label="Reapply sort:|aria-label="Choose sort mode; current mode|Sort findings; current mode[^>]*class="inline-flex h-8 shrink-0 overflow-hidden/,
+      'Sort has no separate Reapply segment, Chevron button, or split-control frame')
     assert.doesNotMatch(subheader, /▾/, 'dropdown affordances do not rely on a text triangle')
     assert.match(subheader, /w-\[5ch\] text-left font-mono tabular-nums/,
       'Status count and All reserve one fixed-width slot')
     assert.match(subheader, /aria-haspopup="dialog"/, 'Status and Sort remain overlay popovers')
-    const sortGroup = subheader.match(/<div role="group" aria-label="Sort findings; current mode \|Gap\| High → Low" class="([^"]*)">([\s\S]*?)<\/div>/)
-    assert.ok(sortGroup, 'Sort is one grouped split control')
-    assert.match(sortGroup[1], /inline-flex h-8 shrink-0 overflow-hidden rounded-sm border border-slate-300 bg-white/,
-      'the Sort split control has one shared frame and stable dimensions')
-    const sortMainButton = sortGroup[2].match(/<button type="button" aria-label="Reapply sort:[^>]*class="([^"]*)"/)
-    const sortArrowButton = sortGroup[2].match(/<button type="button" aria-label="Choose sort mode;[^>]*class="([^"]*)"/)
-    assert.ok(sortMainButton && sortArrowButton)
-    assert.doesNotMatch(sortMainButton[1], /\bborder\b/, 'Sort main segment does not draw a second outer border')
-    assert.match(sortArrowButton[1], /border-l border-slate-300/, 'Sort menu arrow uses the single internal divider')
-    assert.doesNotMatch(sortArrowButton[1], /border-r|border-y/, 'Sort menu arrow does not add a duplicate outer edge')
     const pageSource = readFileSync(new URL('../src/features/cost-breakdown/CostBreakdownPage.tsx', import.meta.url), 'utf8')
-    assert.match(pageSource, /onClick=\{\(\) => \{ onResetManualOrderHistory\(\); setSortResetToken\(token => token \+ 1\) \}\}/,
-      'the main Sort segment restores sorted order and resets both reorder history stacks')
+    assert.doesNotMatch(pageSource, /All statuses|At least one status must remain selected|toggleOverviewFromBlank|data-cbd-overview-click-area/,
+      'Status contains only compact status choices and blank subheader space never toggles the overview')
+    assert.match(pageSource, /panelClassName="w-max min-w-32"/, 'Status popup sizes to its compact four-option content')
+    assert.match(pageSource, /panelClassName="w-max min-w-36"/, 'Sort popup sizes to its compact three-option content')
+    assert.match(pageSource, /label=\{`Sort findings; current mode \$\{sortLabel\}`\}[\s\S]*?trigger=\{<span className="whitespace-nowrap">\{sortLabel\}<\/span>\}/,
+      'the current sort label and Chevron share one toolbar-style trigger')
+    assert.doesNotMatch(pageSource, /leadingAction=|buttonClassName=|aria-label=\{`Reapply sort:/,
+      'Sort does not render the obsolete split Reapply button')
     assert.match(pageSource, /onClick=\{\(\) => \{ setSortMode\(option\.value\); onResetManualOrderHistory\(\); setSortResetToken\(token => token \+ 1\); close\(\) \}\}/,
-      'choosing a sort mode resets reorder history, clears Details through the reset token, and closes the overlay')
+      'choosing any sort mode, including the current one, reapplies sorting, clears reorder history and Details, and closes the overlay')
+    const popoverSource = readFileSync(new URL('../src/features/cost-breakdown/components/CostBreakdownPopover.tsx', import.meta.url), 'utf8')
+    assert.match(popoverSource, /import \{ Tooltip \} from '\.\.\/\.\.\/\.\.\/shared\/ui\/Tooltip'/,
+      'Status and Sort reuse the shared Master Data toolbar Tooltip')
+    assert.match(popoverSource, /setTimeout\(preview, 120\)/, 'toolbar hover preview keeps Master Data timing')
+    assert.match(popoverSource, /\}, 150\)/, 'toolbar menu leaves use Master Data travel grace')
+    assert.match(popoverSource, /const centeredLeft = triggerBounds\.left \+ \(triggerBounds\.width - panelWidth\) \/ 2[\s\S]*const left = Math\.max\(8, Math\.min\(centeredLeft, window\.innerWidth - panelWidth - 8\)\)/,
+      'Status and Sort popups center on their trigger while staying within viewport bounds')
+    assert.match(popoverSource, /const below = triggerBounds\.bottom \+ 4/,
+      'Status and Sort popups open below the trigger')
+    assert.match(popoverSource, /useTransientInteraction\(open,[\s\S]*reason === 'escape'[\s\S]*close\(\)/,
+      'Escape dismissal uses the shared transient interaction and restores trigger focus')
     assert.doesNotMatch(pageMarkup, /<h2[^>]*>Candidates<\/h2>|status view ·/,
       'the redundant Candidate heading and status/sort subtitle are removed')
     assert.match(pageMarkup, /class="space-y-3"/, 'BOM and Routing tables have a restrained vertical gap')

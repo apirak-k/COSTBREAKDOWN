@@ -4,6 +4,11 @@ import type { CostComparison } from '../../../core'
 import { Tooltip } from '../../../shared/ui/Tooltip'
 import { COST_ELEMENT_COLORS } from './cost-element-colors'
 import {
+  CBD_SUMMARY_PANEL_CLASS,
+  CBD_SUMMARY_TABLE_CLASS,
+  CBD_SUMMARY_ROW_CLASS,
+  CBD_SUMMARY_HEADER_GROUP_CLASS,
+  CBD_SUMMARY_FOOTER_GROUP_CLASS,
   CBD_SUMMARY_BODY_GROUP_CLASS,
   CBD_SUMMARY_BODY_LABEL_CLASS,
   CBD_SUMMARY_BODY_ROW_CLASS,
@@ -107,13 +112,12 @@ export const SnapshotComparisonCard: React.FC<SnapshotComparisonCardProps> = ({
   ]
 
   return (
-    <section aria-label="Cost Element" data-cbd-overview-panel="cost" className="min-w-0 overflow-hidden bg-white lg:h-full">
-      <div className="w-full overflow-x-auto lg:h-full">
-        <table className="w-full min-w-[480px] table-fixed text-left text-xs leading-4 lg:h-full">
+    <section aria-label="Cost Element" data-cbd-overview-panel="cost" className={CBD_SUMMARY_PANEL_CLASS}>
+      <div>
+        <table role="table" style={{ '--cbd-summary-columns': '20% 18% 18% 26% 18%' } as React.CSSProperties} className={CBD_SUMMARY_TABLE_CLASS}>
           <caption className="sr-only">Cost Element for Reference, Current, Gap, and Gap percentage</caption>
-          <colgroup><col className="w-[20%]" /><col className="w-[18%]" /><col className="w-[18%]" /><col className="w-[26%]" /><col className="w-[18%]" /></colgroup>
-          <thead>
-            <tr className={CBD_SUMMARY_HEADER_ROW_CLASS}>
+          <thead data-cbd-summary-header="true" className={CBD_SUMMARY_HEADER_GROUP_CLASS}>
+            <tr className={`${CBD_SUMMARY_ROW_CLASS} ${CBD_SUMMARY_HEADER_ROW_CLASS}`}>
               <th scope="col" style={CBD_SUMMARY_HEADER_CELL_STYLE} className={`${CBD_SUMMARY_HEADER_CELL_CLASS} ${CBD_SUMMARY_HEADER_LABEL_CLASS}`}>Cost Element</th>
               <th scope="col" style={CBD_SUMMARY_HEADER_CELL_STYLE} className={`${CBD_SUMMARY_HEADER_CELL_CLASS} ${CBD_SUMMARY_HEADER_VALUE_CLASS}`}>REF</th>
               <th scope="col" style={CBD_SUMMARY_HEADER_CELL_STYLE} className={`${CBD_SUMMARY_HEADER_CELL_CLASS} ${CBD_SUMMARY_HEADER_VALUE_CLASS}`}>CUR</th>
@@ -121,8 +125,8 @@ export const SnapshotComparisonCard: React.FC<SnapshotComparisonCardProps> = ({
               <th scope="col" style={CBD_SUMMARY_HEADER_CELL_STYLE} className={`${CBD_SUMMARY_HEADER_CELL_CLASS} ${CBD_SUMMARY_HEADER_VALUE_CLASS} pr-4`}>%GAP</th>
             </tr>
           </thead>
-          <tbody className={CBD_SUMMARY_BODY_GROUP_CLASS}>
-            {rows.slice(0, 3).map(row => <tr key={row.label} className={CBD_SUMMARY_BODY_ROW_CLASS}>
+          <tbody data-cbd-summary-body="true" className={CBD_SUMMARY_BODY_GROUP_CLASS}>
+            {rows.slice(0, 3).map(row => <tr key={row.label} className={`${CBD_SUMMARY_ROW_CLASS} ${CBD_SUMMARY_BODY_ROW_CLASS}`}>
               <th scope="row" style={row.total ? { color: COST_ELEMENT_COLORS.standardCost } : undefined} className={CBD_SUMMARY_BODY_LABEL_CLASS}>{row.label}</th>
               <td className={`${CBD_SUMMARY_BODY_VALUE_CLASS} text-slate-600`}>{formatCost(row.reference)}</td>
               <td className={`${CBD_SUMMARY_BODY_VALUE_CLASS} text-slate-900`}>{formatCost(row.current)}</td>
@@ -130,8 +134,8 @@ export const SnapshotComparisonCard: React.FC<SnapshotComparisonCardProps> = ({
               <td className={`${CBD_SUMMARY_BODY_VALUE_CLASS} pr-4 text-slate-600`}>{row.percentage === null ? '—' : formatPercent(row.percentage, 2)}</td>
             </tr>)}
           </tbody>
-          <tfoot>
-            {rows.slice(3).map(row => <tr key={row.label} className={CBD_SUMMARY_FOOTER_ROW_CLASS}>
+          <tfoot data-cbd-summary-footer="true" className={CBD_SUMMARY_FOOTER_GROUP_CLASS}>
+            {rows.slice(3).map(row => <tr key={row.label} className={`${CBD_SUMMARY_ROW_CLASS} ${CBD_SUMMARY_FOOTER_ROW_CLASS}`}>
               <th scope="row" style={{ color: COST_ELEMENT_COLORS.standardCost }} className={`${CBD_SUMMARY_FOOTER_LABEL_CLASS} text-slate-950`}>{row.label}</th>
               <td className={`${CBD_SUMMARY_FOOTER_VALUE_CLASS} text-slate-700`}>{formatCost(row.reference)}</td>
               <td className={`${CBD_SUMMARY_FOOTER_VALUE_CLASS} text-slate-950`}>{formatCost(row.current)}</td>
