@@ -8,8 +8,9 @@
 
 **Starting baseline:** `e46a08d15a50195c4274ea6f3be19f6c32cfd52b` (`chore: checkpoint partial Simulation integration`), parent `4601b3666a81399543488d550f14f7a3ad09be43`.
 
-**Primary implementation commit:** to be recorded after commit; the following handoff checkpoint will contain its SHA.
-**Push status:** pending final commit and remote equality check.
+**Primary implementation/finalization commit:** `b220aa936ec4e1df9e4116e64dc3dc8e6bff5dcf` (`feat(simulation): finalize Current-to-SIM workflow and UX`).
+
+**Push target/status:** pushed to `origin/codex/cbd-candidate-integration`; local and remote matched at the primary commit SHA after push. This handoff checkpoint is a follow-up documentation commit on the same branch.
 
 ## Current Product Flow
 
@@ -48,7 +49,7 @@ The visible product has exactly three top-level pages: Master Data → Cost Brea
 - **Navigation/session migration:** PASS — exact current flow and legacy active-tab/session migration verifiers passed.
 - **Security audit:** `npm audit --audit-level=high` reports 5 High and 4 Moderate development-dependency findings; `npm audit --omit=dev --audit-level=high` reports 0 High/Critical and 2 Moderate. `npm audit fix --dry-run` indicates the available High fix requires the breaking Tailwind 4 upgrade. No unrelated dependency changes were made.
 - **Unrelated user file:** Preserve the untracked `tasks/master-data-cbd-final-audit.md`; it was not edited, moved, staged, or committed.
-- **Delivery:** The requested primary commit message is `feat(simulation): finalize Current-to-SIM workflow and UX`. Record its SHA after commit in the next handoff checkpoint. Push only to `origin/codex/cbd-candidate-integration`, then fetch and confirm local/remote equality. No branch switch, force push, or merge to main.
+- **Delivery:** Primary finalization commit `b220aa936ec4e1df9e4116e64dc3dc8e6bff5dcf` was pushed to `origin/codex/cbd-candidate-integration` and verified equal to the remote at that point. This handoff update is committed and pushed as a documentation-only follow-up on the same branch. No branch switch, force push, or merge to main.
 
 ## Historical Final Logic Checklist Evidence — 2026-10-09
 
