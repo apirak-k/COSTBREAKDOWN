@@ -61,8 +61,8 @@ export const WorkCenterProcessingTable: React.FC<WorkCenterProcessingTableProps>
 
   return (
     <section aria-label="Work Center" className="min-w-0 overflow-x-auto border border-slate-300 bg-white lg:h-full lg:overflow-hidden">
-      <div role="table" aria-label="Work Center conversion cost for Reference, Current, Gap, and percentage of total Conversion Gap" aria-colcount={5} className="min-w-[520px] lg:grid lg:h-full lg:min-w-0 lg:grid-rows-[auto_minmax(0,1fr)_auto]">
-        <div role="rowgroup" className="pr-0 lg:pr-[6px]">
+      <div role="table" aria-label="Work Center conversion cost for Reference, Current, Gap, and percentage of total Conversion Gap" aria-colcount={5} className="min-w-[520px] text-xs leading-4 lg:grid lg:h-full lg:min-w-0 lg:grid-rows-[auto_minmax(0,1fr)_auto]">
+        <div role="rowgroup" className="bg-slate-800 pr-0 lg:pr-[6px]">
           <div role="row" className={`${rowColumns} bg-slate-800 font-semibold text-white`}>
             <div role="columnheader" className="px-2 py-1.5 text-left">Work Center</div>
             <div role="columnheader" className="px-2 py-1.5 text-right">REF</div>
@@ -83,7 +83,7 @@ export const WorkCenterProcessingTable: React.FC<WorkCenterProcessingTableProps>
             </div>
           })}
         </div>
-        <div role="rowgroup" className="pr-0 lg:pr-[6px]">
+        <div role="rowgroup" className="bg-slate-100 pr-0 lg:pr-[6px]">
           <div role="row" className={`${rowColumns} h-[30px] ${CBD_SUMMARY_FOOTER_ROW_CLASS}`}>
             <div role="rowheader" className={`${CBD_SUMMARY_FOOTER_LABEL_CLASS} text-slate-950`}>Total</div>
             <div role="cell" className={`${CBD_SUMMARY_FOOTER_VALUE_CLASS} text-slate-700`}>{formatNullable(totalReference)}</div>

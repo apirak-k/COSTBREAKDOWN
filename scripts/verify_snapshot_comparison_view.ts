@@ -22,8 +22,8 @@ try {
   assert.doesNotMatch(markup, /Data quality:/, 'the page-level Data quality summary is absent')
   assert.doesNotMatch(markup, /Review warnings|Missing rate remains reviewable/, 'comparison warnings are not displayed in the summary')
   assert.doesNotMatch(markup, /Standard Cost reconciliation/, 'Standard Cost reconciliation UI is absent')
-  assert.match(markup, /aria-label="Cost Breakdown"/)
-  assert.match(markup, /<th scope="col"[^>]*>Cost Breakdown<\/th>[\s\S]*>REF<\/th>[\s\S]*>CUR<\/th>[\s\S]*>GAP<\/span>[\s\S]*>%GAP<\/th>/)
+  assert.match(markup, /aria-label="Cost Element"/)
+  assert.match(markup, /<th scope="col"[^>]*>Cost Element<\/th>[\s\S]*>REF<\/th>[\s\S]*>CUR<\/th>[\s\S]*>GAP<\/span>[\s\S]*>Selected<\/span>[\s\S]*>%GAP<\/th>/)
   assert.match(markup, />Material<\/th>[\s\S]*>Labor<\/th>[\s\S]*>Burden<\/th>[\s\S]*>Standard Cost<\/th>/)
   assert.equal([...markup.matchAll(/<tr\b/g)].length, 5, 'Cost has exactly a header, three component rows, and a footer')
   assert.match(markup, /50\.00%[\s\S]*25\.00%[\s\S]*25\.00%[\s\S]*15\.38%/,
@@ -35,9 +35,10 @@ try {
     selectedComparison: { ...comparison, elementGaps: { material: 0.5, labor: 0, burden: 0 }, totalGap: 0.5 },
     selectedActive: true
   }))
-  assert.match(selectedMarkup, /GAP[\s\S]*\(Selected\)/)
-  assert.match(selectedMarkup, /\(\+0\.50\)/)
-  assert.match(selectedMarkup, /\(0\.00\)/)
+  assert.match(selectedMarkup, /data-gap-header-slot="selected"[^>]*>Selected<\/span>/)
+  assert.match(selectedMarkup, /data-gap-slot="selected"[^>]*>\+0\.50<\/span>/)
+  assert.match(selectedMarkup, /data-gap-slot="selected"[^>]*>0\.00<\/span>/)
+  assert.doesNotMatch(selectedMarkup, /\(Selected\)|>\(\+0\.50\)<|>\(0\.00\)</)
   assert.doesNotMatch(selectedMarkup, /<th[^>]*>Selected<\/th>/, 'Selected remains secondary inside the Gap column')
 } finally {
   await vite.close()

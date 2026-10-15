@@ -361,8 +361,8 @@ try {
   assert.doesNotMatch(activeSelectedHeader[1], /invisible/, 'active Selected header is visible')
   assert.match(selectedHeaderSlot, /w-\[9ch\].*text-right.*font-normal.*text-slate-300/,
     'Selected header uses a fixed-width, right-aligned, secondary neutral style')
-  assert.match(selectedHeaderSlot, /relative left-2/,
-    'Only the Selected header receives the small rightward alignment adjustment')
+  assert.match(selectedHeaderSlot, /relative left-4/,
+    'Only the Selected header shifts right to align its text start with the existing Selected values')
   assert.doesNotMatch(selectedHeaderSlot, /text-(rose|red|green|emerald)-|font-(bold|semibold)/,
     'Selected header does not use sign colors or bold emphasis')
   assert.equal((costFullTable.match(/grid-cols-\[minmax\(0,1fr\)_9ch\]/g) ?? []).length, 5, 'Cost header and all four GAP cells share fixed Full/Selected slots')
@@ -435,10 +435,12 @@ try {
     'only Work Center data rows sit inside the scroll body')
   assert.match(wcTable, /data-wc-scroll-body="true"[^>]*class="min-h-0 overflow-visible lg:overflow-x-hidden lg:overflow-y-auto \[scrollbar-gutter:stable\]"/,
     'the Work Center body is the only internal vertical scroller')
-  assert.match(wcTable, /role="rowgroup" class="pr-0 lg:pr-\[6px\]"><div role="row" class="grid grid-cols-\[24%_19%_19%_20%_18%\][\s\S]*?role="columnheader"[\s\S]*?%GAP/,
-    'Work Center header columns use the shared row grid and stay outside the scrolling body')
-  assert.match(wcTable, /role="rowgroup" class="pr-0 lg:pr-\[6px\]"><div role="row" class="grid grid-cols-\[24%_19%_19%_20%_18%\][\s\S]*?role="rowheader"[^>]*>Total/,
-    'Work Center Total uses the same grid and remains outside the scrolling body')
+  assert.match(wcTable, /role="table"[^>]*class="min-w-\[520px\] text-xs leading-4/,
+    'Work Center uses the same compact typography and line height as Cost Element')
+  assert.match(wcTable, /role="rowgroup" class="bg-slate-800 pr-0 lg:pr-\[6px\]"><div role="row" class="grid grid-cols-\[24%_19%_19%_20%_18%\][\s\S]*?role="columnheader"[\s\S]*?%GAP/,
+    'Work Center header columns share the row grid and its scrollbar gutter is painted with the header color')
+  assert.match(wcTable, /role="rowgroup" class="bg-slate-100 pr-0 lg:pr-\[6px\]"><div role="row" class="grid grid-cols-\[24%_19%_19%_20%_18%\][\s\S]*?role="rowheader"[^>]*>Total/,
+    'Work Center Total shares the row grid and its scrollbar gutter is painted with the footer color')
   assert.doesNotMatch(wcTable, /GAP \(Selected\)/)
   const wcRow = wcRows.find(row => roleRowHeader(row) === 'WC-CUT')
   assert.ok(wcRow)
@@ -478,21 +480,31 @@ try {
   const pageSource = readFileSync(new URL('../src/features/cost-breakdown/CostBreakdownPage.tsx', import.meta.url), 'utf8')
   const candidateTableSource = readFileSync(new URL('../src/features/cost-breakdown/components/CandidateFindingsTable.tsx', import.meta.url), 'utf8')
   const pageRootClass = pageSource.match(/return \(\s*<div className="([^"]+)"/s)?.[1]
+  const stickyShellOpen = pageSource.indexOf('<div data-cbd-sticky-shell="true"')
+  const stickyShellSource = stickyShellOpen >= 0 ? extractElement(pageSource, stickyShellOpen, 'div') : ''
   const overviewClass = pageSource.match(/<div id="cost-breakdown-overview-panels" className=\{isOverviewExpanded \? '([^']+)'/)?.[1]
   const candidateRegionClass = pageSource.match(/<div role="region" aria-label="Candidate workspace" tabIndex=\{0\} className="([^"]+)"/)?.[1]
-  assert.ok(pageRootClass && overviewClass && candidateRegionClass,
-    'expected CBD workspace, bounded overview, and natural-flow Candidate region')
+  assert.ok(pageRootClass && stickyShellSource && overviewClass && candidateRegionClass,
+    'expected CBD workspace, sticky upper shell, bounded overview, and natural-flow Candidate region')
   assert.match(pageRootClass, /flex min-h-full min-w-0 flex-col[\s\S]*overflow-x-clip/,
     'CBD content grows naturally inside the shared Main scroll area')
   assert.doesNotMatch(pageRootClass, /overflow-y-auto|overflow-y-scroll|overflow-auto/,
     'CBD page content does not add a nested vertical scroll owner')
   assert.match(overviewClass, /lg:h-44[\s\S]*lg:shrink-0[\s\S]*lg:grid-cols-2/,
     'Cost Element and Work Center use one bounded, side-by-side desktop overview height')
+  assert.match(stickyShellSource.match(/<div[^>]*className="([^"]+)"/)?.[1] ?? '', /lg:sticky[^\"]*lg:top-0/,
+    'Subheader and Cost Element / Work Center overview stay together at the top of CBD Main while it scrolls')
+  assert.ok(stickyShellSource.indexOf('Cost Breakdown subheader') >= 0
+    && stickyShellSource.indexOf('cost-breakdown-overview-panels') > stickyShellSource.indexOf('Cost Breakdown subheader')
+    && !stickyShellSource.includes('Candidate workspace'),
+  'only the Subheader and summary belong to the sticky shell; Candidate remains Main content')
   assert.doesNotMatch(candidateRegionClass, /overflow-y-auto|overflow-y-scroll|overflow-auto|flex-1|min-h-0/,
     'Candidate Findings remains natural flow and does not independently scroll')
   const appLayoutSource = readFileSync(new URL('../src/shared/layout/AppLayout.tsx', import.meta.url), 'utf8')
   assert.match(appLayoutSource, /className=\{isCostBreakdown\s*\?\s*'[^']*overflow-y-auto[^']*'\s*:/,
     'shared Main owns CBD vertical scrolling')
+  assert.match(candidateRegionClass, /max-lg:\[contain:paint\]/,
+    'narrow Candidate table overflow stays local rather than widening the document or Main')
   assert.doesNotMatch(appLayoutSource, /isCostBreakdown[\s\S]*?overflow-y-auto[^']*lg:overflow-y-hidden/,
     'CBD Main remains a vertical scroll owner at desktop widths')
   assert.match(candidateTableSource, /<div className="overflow-x-auto border border-slate-200">[\s\S]*<table className=\{`w-full \$\{isBOM \? 'min-w-\[1040px\]' : 'min-w-\[1260px\]'\} table-fixed/,
@@ -503,7 +515,7 @@ try {
   console.log('PASS: Cost row/slot structure and MAT/LB/BD plus STD Cost formulas')
   console.log('PASS: Cost Element uses stable neutral Selected slots without parentheses')
   console.log('PASS: Work Center is bounded with body-only scrolling and fixed aligned header/footer')
-  console.log('PASS: shared Main owns CBD vertical scrolling; Candidate remains natural flow; summary calculations reconcile')
+  console.log('PASS: shared Main owns CBD vertical scrolling; Subheader/summary stay sticky; Candidate remains natural flow; summary calculations reconcile')
 } finally {
   await vite.close()
 }

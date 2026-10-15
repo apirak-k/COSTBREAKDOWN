@@ -565,14 +565,14 @@ try {
     ['Work Center', 'REF', 'CUR', 'GAP', '%GAP'])
   assert.equal([...wcMarkup.matchAll(/role="rowgroup"/g)].length, 3,
     'WC header, body, and footer remain separate aligned grid sections')
-  assert.match(wcMarkup, /role="rowgroup" class="pr-0 lg:pr-\[6px\]"><div role="row" class="grid grid-cols-\[24%_19%_19%_20%_18%\][\s\S]*?role="columnheader"[\s\S]*?%GAP/,
-    'WC header stays outside the scrolling body and uses the common row grid')
-  assert.match(wcMarkup, /role="rowgroup" class="pr-0 lg:pr-\[6px\]"><div role="row" class="grid grid-cols-\[24%_19%_19%_20%_18%\][\s\S]*?role="rowheader"[^>]*>Total/,
-    'WC Total stays outside the scrolling body and uses the common row grid')
-  assert.match(wcMarkup, /data-wc-scroll-body="true"[\s\S]*?role="rowgroup" class="pr-0 lg:pr-\[6px\]"[\s\S]*?>Total/,
+  assert.match(wcMarkup, /role="rowgroup" class="bg-slate-800 pr-0 lg:pr-\[6px\]"><div role="row" class="grid grid-cols-\[24%_19%_19%_20%_18%\][\s\S]*?role="columnheader"[\s\S]*?%GAP/,
+    'WC header stays outside the scrolling body, uses the common row grid, and paints its scrollbar gutter')
+  assert.match(wcMarkup, /role="rowgroup" class="bg-slate-100 pr-0 lg:pr-\[6px\]"><div role="row" class="grid grid-cols-\[24%_19%_19%_20%_18%\][\s\S]*?role="rowheader"[^>]*>Total/,
+    'WC Total stays outside the scrolling body, uses the common row grid, and paints its scrollbar gutter')
+  assert.match(wcMarkup, /data-wc-scroll-body="true"[\s\S]*?role="rowgroup" class="bg-slate-100 pr-0 lg:pr-\[6px\]"[\s\S]*?>Total/,
     'fixed header and Total remain visible while only the row body scrolls')
   assert.doesNotMatch(wcMarkup, /Selected|selected/i, 'WC has no Selected header, value, tooltip, or accessible text')
-  assert.match(wcMarkup, /role="rowgroup" class="pr-0 lg:pr-\[6px\]"><div role="row" class="grid grid-cols-\[24%_19%_19%_20%_18%\][\s\S]*?<div role="rowheader"[^>]*>Total<\/div>/,
+  assert.match(wcMarkup, /role="rowgroup" class="bg-slate-100 pr-0 lg:pr-\[6px\]"><div role="row" class="grid grid-cols-\[24%_19%_19%_20%_18%\][\s\S]*?<div role="rowheader"[^>]*>Total<\/div>/,
     'WC footer remains present outside the scrolling body')
   assert.match(visibleText(wcMarkup), /Total.*%/, 'WC footer visibly identifies its percentage as Total')
   assert.doesNotMatch(wcMarkup, /<th scope="row"[^>]*>[\s\S]*·/, 'WC identity does not repeat a verbose description')
@@ -811,6 +811,13 @@ try {
     'CBD content grows naturally within the shared Main scroll area')
   assert.doesNotMatch(pageRootClass, /overflow-y-auto|overflow-y-scroll|overflow-auto/,
     'CBD page content does not add a nested vertical scroll owner')
+  const stickyShellClass = pageMarkup.match(/data-cbd-sticky-shell="true" class="([^"]+)"/)?.[1]
+  assert.ok(stickyShellClass)
+  assert.match(stickyShellClass, /lg:sticky[^\"]*lg:top-0/,
+    'Subheader and overview remain stuck to the top of Main while it scrolls')
+  assert.ok(pageMarkup.indexOf('aria-label="Cost Breakdown subheader"') < pageMarkup.indexOf('id="cost-breakdown-overview-panels"')
+    && pageMarkup.indexOf('id="cost-breakdown-overview-panels"') < pageMarkup.indexOf('aria-label="Candidate workspace"'),
+  'the sticky shell contains the Subheader and summary above the normal-flow Candidate region')
   assert.match(pageMarkup, /aria-label="Cost Element" class="[^"]*lg:h-full/,
     'Cost Element fills the bounded overview height')
   assert.match(pageMarkup, /aria-label="Work Center" class="[^"]*lg:h-full lg:overflow-hidden/,

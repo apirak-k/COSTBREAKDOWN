@@ -239,7 +239,8 @@ export const CostBreakdownPage: React.FC<CostBreakdownPageProps> = ({ manualOrde
   }
 
   return (
-    <div className="flex min-h-full min-w-0 flex-col gap-2 overflow-x-clip">
+    <div className="flex min-h-full min-w-0 flex-col overflow-x-clip">
+      <div data-cbd-sticky-shell="true" className="flex shrink-0 flex-col gap-2 pb-2 lg:sticky lg:top-0 lg:z-30 lg:bg-white">
       <header aria-label="Cost Breakdown subheader" className="shrink-0 overflow-x-auto border border-slate-300 bg-white" tabIndex={0}>
         <div className="flex min-w-[1000px] flex-nowrap items-center gap-1.5 px-1.5 py-1" role="group" aria-label="Cost Breakdown controls">
           <div
@@ -354,8 +355,9 @@ export const CostBreakdownPage: React.FC<CostBreakdownPageProps> = ({ manualOrde
         <SnapshotComparisonCard comparison={fullSnapshotComparison} selectedComparison={selectedDisplayComparison} selectedActive={isSelectedComparisonActive} />
         <WorkCenterProcessingTable comparison={fullSnapshotComparison} />
       </div>
+      </div>
 
-      <div role="region" aria-label="Candidate workspace" tabIndex={0} className="min-w-0 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-blue-700">
+      <div role="region" aria-label="Candidate workspace" tabIndex={0} className="min-w-0 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-blue-700 max-lg:[contain:paint]">
         <ItemizedComparisonTable
           comparison={fullSnapshotComparison}
           pair={snapshotPair}
