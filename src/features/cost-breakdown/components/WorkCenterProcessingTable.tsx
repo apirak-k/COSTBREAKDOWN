@@ -2,6 +2,7 @@ import React from 'react'
 import { formatNumber, formatPercent, formatVariance, getVarianceClass, safeAdd, safeDivide } from '../../../core'
 import type { CostComparison, WorkCenterProcessingFinding } from '../../../core'
 import { Tooltip } from '../../../shared/ui/Tooltip'
+import { CBD_SUMMARY_FOOTER_LABEL_CLASS, CBD_SUMMARY_FOOTER_ROW_CLASS, CBD_SUMMARY_FOOTER_VALUE_CLASS } from './summary-table-styles'
 
 interface WorkCenterProcessingTableProps {
   comparison: CostComparison
@@ -33,7 +34,7 @@ function conversionTotal(labor: number | null, burden: number | null): number | 
   return safeAdd(labor ?? Number.NaN, burden ?? Number.NaN)
 }
 
-const columnWidths = <colgroup><col className="w-[24%]" /><col className="w-[19%]" /><col className="w-[19%]" /><col className="w-[20%]" /><col className="w-[18%]" /></colgroup>
+const rowColumns = 'grid grid-cols-[24%_19%_19%_20%_18%] items-center'
 
 export const WorkCenterProcessingTable: React.FC<WorkCenterProcessingTableProps> = ({ comparison }) => {
   const rows: WorkCenterRow[] = comparison.processingFindings
@@ -59,42 +60,38 @@ export const WorkCenterProcessingTable: React.FC<WorkCenterProcessingTableProps>
   const totalPercentage = totalGap === null ? null : safeDivide(totalGap, totalReference ?? Number.NaN)
 
   return (
-    <section aria-label="Work Center" className="min-w-0 border border-slate-300 bg-white lg:flex lg:h-full lg:min-h-0 lg:flex-col">
-      <div data-wc-scroll-body="true" className="w-full overflow-x-auto lg:min-h-0 lg:flex-1 lg:overflow-y-auto [scrollbar-gutter:stable]">
-        <table className="w-full table-fixed border-separate border-spacing-0 text-left text-xs lg:h-full">
-          {columnWidths}
-          <caption className="sr-only">Work Center conversion cost for Reference, Current, Gap, and percentage of total Conversion Gap</caption>
-          <thead className="sticky top-0 z-10">
-            <tr className="bg-slate-800 font-semibold text-white">
-              <th scope="col" className="px-2 py-1.5 text-left">Work Center</th>
-              <th scope="col" className="px-2 py-1.5 text-right">REF</th>
-              <th scope="col" className="px-2 py-1.5 text-right">CUR</th>
-              <th scope="col" className="px-2 py-1.5 text-right">GAP</th>
-              <th scope="col" className="px-2 py-1.5 text-right">%GAP</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-slate-100 font-mono tabular-nums">
-            {rows.length === 0 ? <tr><td colSpan={5} className="px-2 py-3 text-center font-sans italic text-slate-500">No Work Center data.</td></tr> : rows.map(({ finding, gap, percentage }) => {
-              const label = finding.workCenterCode
-              return <tr key={finding.sourceId} className="hover:bg-slate-50/70">
-                <th scope="row" className="truncate px-2 py-1.5 text-left font-sans font-medium text-slate-800" title={label}>{label}</th>
-                <td className="px-2 py-1.5 text-right text-slate-600">{formatNullable(finding.costEffect.reference.total)}</td>
-                <td className="px-2 py-1.5 text-right text-slate-900">{formatNullable(finding.costEffect.current.total)}</td>
-                <td className="px-2 py-1.5 text-right">{renderGap(gap, `${label}`)}</td>
-                <td className="px-2 py-1.5 text-right text-slate-600">{percentage === null ? '—' : formatPercent(percentage, 2)}</td>
-              </tr>
-            })}
-          </tbody>
-          <tfoot className="sticky bottom-0 z-10 border-t-2 border-slate-300 bg-slate-100 font-semibold font-mono tabular-nums">
-            <tr>
-              <th scope="row" className="px-2 py-1.5 text-left font-sans text-slate-950">Total</th>
-              <td className="px-2 py-1.5 text-right text-slate-700">{formatNullable(totalReference)}</td>
-              <td className="px-2 py-1.5 text-right text-slate-950">{formatNullable(totalCurrent)}</td>
-              <td className="px-2 py-1.5 text-right">{renderGap(totalGap, 'Total')}</td>
-              <td className="px-2 py-1.5 text-right text-slate-700 whitespace-nowrap">{totalPercentage === null ? <span aria-label="Total percentage unavailable">— <span className="text-[9px] text-slate-500">Total</span></span> : <span aria-label={`${formatPercent(totalPercentage, 2)} Total`}>{formatPercent(totalPercentage, 2)} <span className="text-[9px] font-semibold text-slate-500">Total</span></span>}</td>
-            </tr>
-          </tfoot>
-        </table>
+    <section aria-label="Work Center" className="min-w-0 overflow-x-auto border border-slate-300 bg-white lg:h-full lg:overflow-hidden">
+      <div role="table" aria-label="Work Center conversion cost for Reference, Current, Gap, and percentage of total Conversion Gap" aria-colcount={5} className="min-w-[520px] lg:grid lg:h-full lg:min-w-0 lg:grid-rows-[auto_minmax(0,1fr)_auto]">
+        <div role="rowgroup" className="pr-0 lg:pr-[6px]">
+          <div role="row" className={`${rowColumns} bg-slate-800 font-semibold text-white`}>
+            <div role="columnheader" className="px-2 py-1.5 text-left">Work Center</div>
+            <div role="columnheader" className="px-2 py-1.5 text-right">REF</div>
+            <div role="columnheader" className="px-2 py-1.5 text-right">CUR</div>
+            <div role="columnheader" className="px-2 py-1.5 text-right">GAP</div>
+            <div role="columnheader" className="px-2 py-1.5 text-right">%GAP</div>
+          </div>
+        </div>
+        <div role="rowgroup" data-wc-scroll-body="true" className="min-h-0 overflow-visible lg:overflow-x-hidden lg:overflow-y-auto [scrollbar-gutter:stable]">
+          {rows.length === 0 ? <div role="row" className={rowColumns}><div role="cell" aria-colspan={5} className="col-span-5 px-2 py-3 text-center italic text-slate-500">No Work Center data.</div></div> : rows.map(({ finding, gap, percentage }) => {
+            const label = finding.workCenterCode
+            return <div role="row" key={finding.sourceId} className={`${rowColumns} divide-x-0 border-b border-slate-100 font-mono tabular-nums hover:bg-slate-50/70`}>
+              <div role="rowheader" className="truncate px-2 py-1.5 text-left font-sans font-medium text-slate-800" title={label}>{label}</div>
+              <div role="cell" className="px-2 py-1.5 text-right text-slate-600">{formatNullable(finding.costEffect.reference.total)}</div>
+              <div role="cell" className="px-2 py-1.5 text-right text-slate-900">{formatNullable(finding.costEffect.current.total)}</div>
+              <div role="cell" className="px-2 py-1.5 text-right">{renderGap(gap, label)}</div>
+              <div role="cell" className="px-2 py-1.5 text-right text-slate-600">{percentage === null ? '—' : formatPercent(percentage, 2)}</div>
+            </div>
+          })}
+        </div>
+        <div role="rowgroup" className="pr-0 lg:pr-[6px]">
+          <div role="row" className={`${rowColumns} h-[30px] ${CBD_SUMMARY_FOOTER_ROW_CLASS}`}>
+            <div role="rowheader" className={`${CBD_SUMMARY_FOOTER_LABEL_CLASS} text-slate-950`}>Total</div>
+            <div role="cell" className={`${CBD_SUMMARY_FOOTER_VALUE_CLASS} text-slate-700`}>{formatNullable(totalReference)}</div>
+            <div role="cell" className={`${CBD_SUMMARY_FOOTER_VALUE_CLASS} text-slate-950`}>{formatNullable(totalCurrent)}</div>
+            <div role="cell" className={CBD_SUMMARY_FOOTER_VALUE_CLASS}>{renderGap(totalGap, 'Total')}</div>
+            <div role="cell" className={`${CBD_SUMMARY_FOOTER_VALUE_CLASS} whitespace-nowrap text-slate-700`}>{totalPercentage === null ? <span aria-label="Total percentage unavailable">— <span className="text-[9px] text-slate-500">Total</span></span> : <span aria-label={`${formatPercent(totalPercentage, 2)} Total`}>{formatPercent(totalPercentage, 2)} <span className="text-[9px] font-semibold text-slate-500">Total</span></span>}</div>
+          </div>
+        </div>
       </div>
     </section>
   )

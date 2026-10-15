@@ -3,6 +3,7 @@ import { formatNumber, formatPercent, formatVariance, getVarianceClass, safeAdd,
 import type { CostComparison } from '../../../core'
 import { Tooltip } from '../../../shared/ui/Tooltip'
 import { COST_ELEMENT_COLORS } from './cost-element-colors'
+import { CBD_SUMMARY_FOOTER_LABEL_CLASS, CBD_SUMMARY_FOOTER_ROW_CLASS, CBD_SUMMARY_FOOTER_VALUE_CLASS } from './summary-table-styles'
 
 interface SnapshotComparisonCardProps {
   comparison: CostComparison
@@ -103,7 +104,7 @@ export const SnapshotComparisonCard: React.FC<SnapshotComparisonCardProps> = ({
               <th scope="col" className="px-2 py-1.5">Cost Element</th>
               <th scope="col" className="px-2 py-1.5 text-right">REF</th>
               <th scope="col" className="px-2 py-1.5 text-right">CUR</th>
-              <th scope="col" className="px-2 py-1.5"><span className="grid w-full grid-cols-[minmax(0,1fr)_9ch] items-baseline font-mono text-[12px] tabular-nums"><span data-gap-header-slot="full" className="text-right text-[11px]">GAP</span><span data-gap-header-slot="selected" className="w-[9ch] whitespace-nowrap text-right text-[10px] font-normal text-slate-300">Selected</span></span></th>
+              <th scope="col" className="px-2 py-1.5"><span className="grid w-full grid-cols-[minmax(0,1fr)_9ch] items-baseline font-mono text-[12px] tabular-nums"><span data-gap-header-slot="full" className="text-right text-[11px]">GAP</span><span data-gap-header-slot="selected" aria-hidden={!selectedActive} className={`w-[9ch] whitespace-nowrap text-right text-[10px] font-normal text-slate-300 ${selectedActive ? '' : 'invisible'}`}>Selected</span></span></th>
               <th scope="col" className="px-2 py-1.5 text-right">%GAP</th>
             </tr>
           </thead>
@@ -116,13 +117,13 @@ export const SnapshotComparisonCard: React.FC<SnapshotComparisonCardProps> = ({
               <td className="px-2 py-1.5 text-right text-slate-600">{row.percentage === null ? '—' : formatPercent(row.percentage, 2)}</td>
             </tr>)}
           </tbody>
-          <tfoot className="border-t-2 border-slate-300 bg-slate-100 font-semibold font-mono tabular-nums">
+          <tfoot className={CBD_SUMMARY_FOOTER_ROW_CLASS}>
             {rows.slice(3).map(row => <tr key={row.label}>
-              <th scope="row" style={{ color: COST_ELEMENT_COLORS.standardCost }} className="px-2 py-1.5 text-left font-sans">{row.label}</th>
-              <td className="px-2 py-1.5 text-right text-slate-700">{formatCost(row.reference)}</td>
-              <td className="px-2 py-1.5 text-right text-slate-950">{formatCost(row.current)}</td>
-              <td className="px-2 py-1.5 text-right">{renderGap(row.gap, row.selectedGap, selectedActive, row.tooltipLabel)}</td>
-              <td className="px-2 py-1.5 text-right text-slate-700 whitespace-nowrap">{row.percentage === null ? <span aria-label="Total percentage unavailable">— <span className="text-[9px] text-slate-500">Total</span></span> : <span aria-label={`${formatPercent(row.percentage, 2)} Total`}>{formatPercent(row.percentage, 2)} <span className="text-[9px] font-semibold text-slate-500">Total</span></span>}</td>
+              <th scope="row" style={{ color: COST_ELEMENT_COLORS.standardCost }} className={`${CBD_SUMMARY_FOOTER_LABEL_CLASS} text-slate-950`}>{row.label}</th>
+              <td className={`${CBD_SUMMARY_FOOTER_VALUE_CLASS} text-slate-700`}>{formatCost(row.reference)}</td>
+              <td className={`${CBD_SUMMARY_FOOTER_VALUE_CLASS} text-slate-950`}>{formatCost(row.current)}</td>
+              <td className={CBD_SUMMARY_FOOTER_VALUE_CLASS}>{renderGap(row.gap, row.selectedGap, selectedActive, row.tooltipLabel)}</td>
+              <td className={`${CBD_SUMMARY_FOOTER_VALUE_CLASS} whitespace-nowrap text-slate-700`}>{row.percentage === null ? <span aria-label="Total percentage unavailable">— <span className="text-[9px] text-slate-500">Total</span></span> : <span aria-label={`${formatPercent(row.percentage, 2)} Total`}>{formatPercent(row.percentage, 2)} <span className="text-[9px] font-semibold text-slate-500">Total</span></span>}</td>
             </tr>)}
           </tfoot>
         </table>

@@ -23,6 +23,13 @@ import {
 import type { ComparisonSortMode, ComparisonViewMode } from './components/comparison-view'
 import { formatVariance, getVarianceClass } from '../../core'
 import type { ComparisonStatus } from '../../core'
+import type { CandidateManualOrders, CandidateTableType } from './candidate-reorder-history'
+
+interface CostBreakdownPageProps {
+  manualOrders: CandidateManualOrders
+  onManualOrderChange: (type: CandidateTableType, keys: string[]) => void
+  onResetManualOrderHistory: () => void
+}
 
 const statusOptions: Array<{ value: ComparisonStatus; label: string }> = [
   { value: 'CHANGED', label: 'Changed' },
@@ -170,7 +177,7 @@ export function GapContributionChart({ segments, fullTotal, selectedTotal, selec
   )
 }
 
-export const CostBreakdownPage: React.FC = () => {
+export const CostBreakdownPage: React.FC<CostBreakdownPageProps> = ({ manualOrders, onManualOrderChange, onResetManualOrderHistory }) => {
   const {
     fullSnapshotComparison,
     snapshotComparison,
@@ -232,7 +239,7 @@ export const CostBreakdownPage: React.FC = () => {
   }
 
   return (
-    <div className="flex min-h-full min-w-0 flex-col gap-2 overflow-x-clip lg:h-full lg:min-h-0 lg:overflow-hidden">
+    <div className="flex min-h-full min-w-0 flex-col gap-2 overflow-x-clip">
       <header aria-label="Cost Breakdown subheader" className="shrink-0 overflow-x-auto border border-slate-300 bg-white" tabIndex={0}>
         <div className="flex min-w-[1000px] flex-nowrap items-center gap-1.5 px-1.5 py-1" role="group" aria-label="Cost Breakdown controls">
           <div
@@ -309,7 +316,7 @@ export const CostBreakdownPage: React.FC = () => {
           </CostBreakdownPopover>
 
           <div role="group" aria-label={`Sort findings; current mode ${sortLabel}`} className="inline-flex h-8 shrink-0 overflow-hidden rounded-sm border border-slate-300 bg-white">
-            <button type="button" aria-label={`Reapply sort: ${sortLabel}`} title={`Reapply ${sortLabel} and restore sorted order`} onClick={() => setSortResetToken(token => token + 1)} className="inline-flex h-full min-h-8 items-center bg-white px-2 text-xs font-medium text-slate-700 hover:bg-slate-100 focus-visible:z-10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-blue-700">
+            <button type="button" aria-label={`Reapply sort: ${sortLabel}`} title={`Reapply ${sortLabel} and restore sorted order`} onClick={() => { onResetManualOrderHistory(); setSortResetToken(token => token + 1) }} className="inline-flex h-full min-h-8 items-center bg-white px-2 text-xs font-medium text-slate-700 hover:bg-slate-100 focus-visible:z-10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-blue-700">
               {sortLabel}
             </button>
             <CostBreakdownPopover
@@ -322,7 +329,7 @@ export const CostBreakdownPage: React.FC = () => {
               {COMPARISON_SORT_OPTIONS.map(option => <button
                 key={option.value}
                 type="button"
-                onClick={() => { setSortMode(option.value); setSortResetToken(token => token + 1); close() }}
+                onClick={() => { setSortMode(option.value); onResetManualOrderHistory(); setSortResetToken(token => token + 1); close() }}
                 className="block w-full rounded-sm px-2 py-1.5 text-left text-xs text-slate-700 hover:bg-slate-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-700"
               >{option.label}</button>)}
             </div>}
@@ -348,7 +355,7 @@ export const CostBreakdownPage: React.FC = () => {
         <WorkCenterProcessingTable comparison={fullSnapshotComparison} />
       </div>
 
-      <div role="region" aria-label="Candidate workspace" tabIndex={0} className="min-w-0 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-blue-700 lg:min-h-0 lg:flex-1 lg:overflow-y-auto">
+      <div role="region" aria-label="Candidate workspace" tabIndex={0} className="min-w-0 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-blue-700">
         <ItemizedComparisonTable
           comparison={fullSnapshotComparison}
           pair={snapshotPair}
@@ -358,6 +365,9 @@ export const CostBreakdownPage: React.FC = () => {
           sortResetToken={sortResetToken}
           selectedBOMKeys={selectedBOMKeys}
           selectedRoutingKeys={selectedRoutingKeys}
+          manualOrders={manualOrders}
+          onManualOrderChange={onManualOrderChange}
+          onResetManualOrderHistory={onResetManualOrderHistory}
           onToggleFinding={toggleFinding}
           onSetFindingSelection={setFindingSelection}
         />

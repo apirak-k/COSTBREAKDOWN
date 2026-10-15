@@ -123,6 +123,9 @@ function renderItemized(module, comparison, reference, current, typeTab = 'bom')
     viewMode: ['UNCHANGED', 'CHANGED', 'ADDED', 'REMOVED'],
     selectedBOMKeys: new Set(),
     selectedRoutingKeys: new Set(),
+    manualOrders: { bom: null, routing: null },
+    onManualOrderChange() {},
+    onResetManualOrderHistory() {},
     onToggleFinding() {}
   }))
 }
@@ -554,16 +557,23 @@ try {
   const wcMarkup = renderToStaticMarkup(React.createElement(wcView.WorkCenterProcessingTable, {
     comparison: wcComparison,
   }))
-  assert.match(wcMarkup, /<section aria-label="Work Center" class="[^"]*lg:flex[^"]*lg:h-full[^"]*lg:min-h-0[^"]*lg:flex-col/,
+  assert.match(wcMarkup, /<section aria-label="Work Center" class="[^"]*lg:h-full[^"]*lg:overflow-hidden/,
     'Work Center uses the same bounded overview height as Cost Element')
-  assert.match(wcMarkup, /data-wc-scroll-body="true"[^>]*class="[^"]*lg:min-h-0[^"]*lg:flex-1[^"]*lg:overflow-y-auto/,
-    'Work Center rows scroll internally inside their bounded desktop panel')
-  assert.match(wcMarkup, />Work Center<\/th>[\s\S]*>REF<\/th>[\s\S]*>CUR<\/th>[\s\S]*>GAP<\/th>[\s\S]*>%GAP<\/th>/)
-  assert.equal([...wcMarkup.matchAll(/<table\b/g)].length, 1, 'WC header, body, and footer share identical table geometry')
-  assert.match(wcMarkup, /<thead class="sticky top-0 z-10">[\s\S]*?<tfoot class="sticky bottom-0 z-10/,
-    'WC header and footer stay fixed on the shared column grid')
+  assert.match(wcMarkup, /data-wc-scroll-body="true"[^>]*class="min-h-0 overflow-visible lg:overflow-x-hidden lg:overflow-y-auto \[scrollbar-gutter:stable\]"/,
+    'Work Center rows alone scroll internally inside their bounded desktop panel')
+  assert.deepEqual([...wcMarkup.matchAll(/role="columnheader"[^>]*>([^<]*)<\/div>/g)].map(([, label]) => label),
+    ['Work Center', 'REF', 'CUR', 'GAP', '%GAP'])
+  assert.equal([...wcMarkup.matchAll(/role="rowgroup"/g)].length, 3,
+    'WC header, body, and footer remain separate aligned grid sections')
+  assert.match(wcMarkup, /role="rowgroup" class="pr-0 lg:pr-\[6px\]"><div role="row" class="grid grid-cols-\[24%_19%_19%_20%_18%\][\s\S]*?role="columnheader"[\s\S]*?%GAP/,
+    'WC header stays outside the scrolling body and uses the common row grid')
+  assert.match(wcMarkup, /role="rowgroup" class="pr-0 lg:pr-\[6px\]"><div role="row" class="grid grid-cols-\[24%_19%_19%_20%_18%\][\s\S]*?role="rowheader"[^>]*>Total/,
+    'WC Total stays outside the scrolling body and uses the common row grid')
+  assert.match(wcMarkup, /data-wc-scroll-body="true"[\s\S]*?role="rowgroup" class="pr-0 lg:pr-\[6px\]"[\s\S]*?>Total/,
+    'fixed header and Total remain visible while only the row body scrolls')
   assert.doesNotMatch(wcMarkup, /Selected|selected/i, 'WC has no Selected header, value, tooltip, or accessible text')
-  assert.match(wcMarkup, /<th scope="row"[^>]*>Total<\/th>/, 'WC footer remains present outside the scrolling body')
+  assert.match(wcMarkup, /role="rowgroup" class="pr-0 lg:pr-\[6px\]"><div role="row" class="grid grid-cols-\[24%_19%_19%_20%_18%\][\s\S]*?<div role="rowheader"[^>]*>Total<\/div>/,
+    'WC footer remains present outside the scrolling body')
   assert.match(visibleText(wcMarkup), /Total.*%/, 'WC footer visibly identifies its percentage as Total')
   assert.doesNotMatch(wcMarkup, /<th scope="row"[^>]*>[\s\S]*·/, 'WC identity does not repeat a verbose description')
 
@@ -576,14 +586,16 @@ try {
   assert.equal(expanded.has(candidateView.candidateDetailKey('bom', 'B')), true, 'closing one row leaves other Details open')
   assert.equal(expanded.has(candidateView.candidateDetailKey('routing', 'A')), true, 'a Routing Detail remains open when a BOM Detail closes')
   assert.deepEqual(candidateView.reorderCandidateRowKeys(['A', 'B', 'C'], 'A', 'C', true), ['B', 'C', 'A'],
-    'pointer reorder moves a row below its target')
+    'HTML drag reorder moves a row below its target')
   assert.deepEqual(candidateView.reorderCandidateRowKeys(['A', 'B', 'C'], 'C', 'A', false), ['C', 'A', 'B'],
-    'pointer reorder moves a row above its target')
+    'HTML drag reorder moves a row above its target')
   assert.deepEqual(candidateView.reorderCandidateRowKeys(['A', 'B', 'C'], 'missing', 'B', true), ['A', 'B', 'C'],
-    'pointer reorder safely ignores stale or unavailable row keys')
+    'HTML drag reorder safely ignores stale or unavailable row keys')
+  assert.deepEqual(candidateView.reorderCandidateRowKeys(['A', 'B', 'C', 'D', 'E'], 'C', 'E', true, ['B', 'C']), ['A', 'D', 'E', 'B', 'C'],
+    'selected BOM or Routing rows move together and preserve their relative order')
   const itemizedSource = readFileSync(new URL('../src/features/cost-breakdown/components/ItemizedComparisonTable.tsx', import.meta.url), 'utf8')
-  assert.match(itemizedSource, /setManualOrders\(\{ bom: null, routing: null \}\)\s*setExpandedRows\(new Set\(\)\)\s*\}, \[sortMode, sortResetToken\]/,
-    'both sort reapply and sort-mode changes reset manual order and every expanded Detail')
+  assert.match(itemizedSource, /previous\.sortMode === sortMode && previous\.sortResetToken === sortResetToken\) return[\s\S]*sortStateRef\.current = \{ sortMode, sortResetToken \}[\s\S]*onResetManualOrderHistory\(\)[\s\S]*setExpandedRows\(new Set\(\)\)/,
+    'Sort mode changes and reapply reset the shared manual reorder history and every expanded Detail')
   assert.match(itemizedSource, /const handlePointerDown = \(event: PointerEvent\)[\s\S]*?candidateRegionRef\.current\?\.contains\(event\.target\)[\s\S]*?setExpandedRows\(new Set\(\)\)[\s\S]*?document\.addEventListener\('pointerdown', handlePointerDown\)/,
     'outside pointerdown collapses all Candidate Details while interactions inside the Candidate region are ignored')
   assert.match(itemizedSource, /const handleKeyDown = \(event: KeyboardEvent\)[\s\S]*?event\.key === 'Escape'\) setExpandedRows\(new Set\(\)\)[\s\S]*?document\.addEventListener\('keydown', handleKeyDown\)/,
@@ -631,16 +643,16 @@ try {
     'Candidate row numbers use a fixed square with tabular numerals')
   assert.doesNotMatch(candidateSource, /✓|aria-label=\{`\$\{isExpanded \? 'Collapse' : 'Expand'\}/,
     'Candidate selector has no checkmark and chevron is not an independent button')
-  const reorderButton = candidateSource.match(/aria-label=\{`Drag to reorder[\s\S]*?<\/button>/)?.[0]
+  const reorderButton = candidateSource.match(/<button\s+type="button"\s+draggable[\s\S]*?<\/button>/)?.[0]
   assert.ok(reorderButton, 'each Candidate row has a dedicated reorder handle')
-  assert.match(reorderButton, /onPointerDown=[\s\S]*?setPointerCapture/,
-    'reorder begins with captured pointer state')
-  assert.match(reorderButton, /onPointerMove=[\s\S]*?elementFromPoint[\s\S]*?data-candidate-reorder-row/,
-    'captured pointer movement finds the visible row under the pointer')
-  assert.match(reorderButton, /onPointerUp=[\s\S]*?onPointerCancel=[\s\S]*?onLostPointerCapture=/,
-    'reorder state is cleaned up on pointer release, cancellation, and lost capture')
-  assert.doesNotMatch(reorderButton, /onMouseEnter|onMouseMove/,
-    'reorder does not depend on fragile mouse-enter transitions')
+  assert.match(reorderButton, /draggable[\s\S]*onDragStart=\{event => startReorder\(event, row, key\)\}[\s\S]*onDragEnd=\{finishReorder\}/,
+    'Master Data-style drag handle starts an HTML drag and always clears transient drag state')
+  assert.match(candidateSource, /const previewDrop = \(event: React\.DragEvent<HTMLTableRowElement>[\s\S]*?event\.preventDefault\(\)[\s\S]*?getBoundingClientRect\(\)/,
+    'drag-over only previews a before/after drop position')
+  assert.match(candidateSource, /const dropOnRow = \(event: React\.DragEvent<HTMLTableRowElement>[\s\S]*?reorderCandidateRowKeys\([\s\S]*?onManualOrderChange\(nextKeys\)[\s\S]*?finishReorder\(\)/,
+    'the completed drop commits one view-only reorder and then clears drag state')
+  assert.doesNotMatch(candidateSource, /onPointerMove|setPointerCapture|elementFromPoint/,
+    'CBD reorder does not continuously commit on pointer movement')
   assert.match(candidateSource, /const ROUTING_COLUMN_WIDTHS = \[[^\]]+\]/,
     'the five-factor Routing table has a dedicated shared width grid for main and detail rows')
 
@@ -751,7 +763,11 @@ try {
       'the signed full-gap chart keeps its shared zero baseline')
     assert.match(signedOffsetChart, /patternTransform="rotate\(45\)"/, 'negative Selected net uses a same-color hatch treatment')
     assert.match(signedOffsetChart, /Selected -1\.20/, 'negative Selected amount remains exact and unparenthesized in the tooltip')
-    const pageMarkup = renderToStaticMarkup(React.createElement(CostBreakdownPage))
+    const pageMarkup = renderToStaticMarkup(React.createElement(CostBreakdownPage, {
+      manualOrders: { bom: null, routing: null },
+      onManualOrderChange() {},
+      onResetManualOrderHistory() {}
+    }))
     const pageText = visibleText(pageMarkup)
     assert.match(pageText, /Standard Cost Gap \+1\.20/)
     assert.doesNotMatch(pageText, /Full \+1\.20|Selected \+1\.20/)
@@ -791,22 +807,25 @@ try {
   const pageRootClass = pageMarkup.match(/^<div[^>]*class="([^"]+)"/)?.[1]
   const candidateRegionClass = pageMarkup.match(/<div role="region" aria-label="Candidate workspace" tabindex="0" class="([^"]+)"/)?.[1]
   assert.ok(pageRootClass && candidateRegionClass)
-  assert.match(pageRootClass, /lg:h-full[^"]*lg:min-h-0[^"]*lg:overflow-hidden/,
-    'CBD workspace is bounded by the application shell and clips its own overflow')
-  assert.doesNotMatch(pageRootClass, /overflow-y-auto|overflow-auto/, 'CBD root is not a competing page-level vertical scroll owner')
+  assert.match(pageRootClass, /flex min-h-full min-w-0 flex-col[^"]*overflow-x-clip/,
+    'CBD content grows naturally within the shared Main scroll area')
+  assert.doesNotMatch(pageRootClass, /overflow-y-auto|overflow-y-scroll|overflow-auto/,
+    'CBD page content does not add a nested vertical scroll owner')
   assert.match(pageMarkup, /aria-label="Cost Element" class="[^"]*lg:h-full/,
     'Cost Element fills the bounded overview height')
-  assert.match(pageMarkup, /aria-label="Work Center" class="[^"]*lg:h-full/,
+  assert.match(pageMarkup, /aria-label="Work Center" class="[^"]*lg:h-full lg:overflow-hidden/,
     'Work Center matches the bounded Cost Element height')
-  assert.match(pageMarkup, /data-wc-scroll-body="true"[^>]*class="[^"]*lg:min-h-0[^"]*lg:flex-1[^"]*lg:overflow-y-auto/,
-    'Work Center row body scrolls internally while its shared-grid header/footer stay sticky')
-  assert.match(candidateRegionClass, /lg:min-h-0[^"]*lg:flex-1[^"]*lg:overflow-y-auto/,
-    'Candidate owns remaining CBD desktop vertical scroll')
+  assert.match(pageMarkup, /data-wc-scroll-body="true"[^>]*class="min-h-0 overflow-visible lg:overflow-x-hidden lg:overflow-y-auto/,
+    'Work Center row body scrolls internally while its aligned header/footer stay outside the body')
+  assert.doesNotMatch(candidateRegionClass, /overflow-y-auto|overflow-y-scroll|overflow-auto|flex-1|min-h-0/,
+    'Candidate remains natural flow without a competing vertical scroller')
   const appLayoutSource = readFileSync(new URL('../src/shared/layout/AppLayout.tsx', import.meta.url), 'utf8')
-  assert.match(appLayoutSource, /const isCostBreakdown = activeTab === 'breakdown'[\s\S]*className=\{isCostBreakdown[\s\S]*overflow-y-auto[\s\S]*lg:overflow-y-hidden/,
-    'the shared Main permits narrow-layout fallback scrolling but stops owning desktop CBD vertical scrolling')
-  assert.match(appLayoutSource, /app-workspace-frame \$\{isCostBreakdown \? 'min-h-full min-w-0 lg:h-full lg:min-h-0'/,
-    'the CBD workspace receives the bounded desktop shell height')
+  assert.match(appLayoutSource, /className=\{isCostBreakdown\s*\?\s*'[^']*overflow-y-auto[^']*'\s*:/,
+    'the shared Main owns CBD vertical scrolling')
+  assert.doesNotMatch(appLayoutSource, /isCostBreakdown[\s\S]*?overflow-y-auto[^']*lg:overflow-y-hidden/,
+    'CBD Main remains the vertical scroll owner at desktop widths')
+  assert.match(appLayoutSource, /app-workspace-frame \$\{isCostBreakdown \? 'min-h-full min-w-0'/,
+    'the CBD workspace grows naturally inside the bounded shared shell')
     assert.match(pageMarkup, /aria-label="Deselect Routing finding Cutting"/,
       'CBD finding selection remains available in the Candidates table')
     assert.equal([...pageMarkup.matchAll(/data-gap-chart-mode=/g)].length, 1,
@@ -835,10 +854,10 @@ try {
     assert.match(sortArrowButton[1], /border-l border-slate-300/, 'Sort menu arrow uses the single internal divider')
     assert.doesNotMatch(sortArrowButton[1], /border-r|border-y/, 'Sort menu arrow does not add a duplicate outer edge')
     const pageSource = readFileSync(new URL('../src/features/cost-breakdown/CostBreakdownPage.tsx', import.meta.url), 'utf8')
-    assert.match(pageSource, /onClick=\{\(\) => setSortResetToken\(token => token \+ 1\)\}/,
-      'the main Sort segment reapplies the selected sort')
-    assert.match(pageSource, /onClick=\{\(\) => \{ setSortMode\(option\.value\); setSortResetToken\(token => token \+ 1\); close\(\) \}\}/,
-      'choosing a sort mode applies it, clears Details through the reset token, and closes the overlay')
+    assert.match(pageSource, /onClick=\{\(\) => \{ onResetManualOrderHistory\(\); setSortResetToken\(token => token \+ 1\) \}\}/,
+      'the main Sort segment restores sorted order and resets both reorder history stacks')
+    assert.match(pageSource, /onClick=\{\(\) => \{ setSortMode\(option\.value\); onResetManualOrderHistory\(\); setSortResetToken\(token => token \+ 1\); close\(\) \}\}/,
+      'choosing a sort mode resets reorder history, clears Details through the reset token, and closes the overlay')
     assert.doesNotMatch(pageMarkup, /<h2[^>]*>Candidates<\/h2>|status view ·/,
       'the redundant Candidate heading and status/sort subtitle are removed')
     assert.match(pageMarkup, /class="space-y-3"/, 'BOM and Routing tables have a restrained vertical gap')

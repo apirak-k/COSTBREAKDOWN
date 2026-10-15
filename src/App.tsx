@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react'
+import React, { useEffect, useMemo, useRef, useState } from 'react'
 import type { CostSnapshot, MasterDataRole } from './core/types'
 import { AppProvider, useAppStore } from './state'
 import { AppLayout } from './shared'
@@ -22,6 +22,14 @@ import type { EconomicSimulationField } from './features/simulation/simulation-e
 import type { MasterDataQualityItem } from './features/master-data/prepare-dataset'
 import type { WarningNavigationTarget } from './features/master-data/hooks/useWarningNavigationFocus'
 import { loadFromSession, saveToSession, STORAGE_KEYS } from './services/storage'
+import {
+  createCandidateReorderHistory,
+  recordCandidateReorder,
+  redoCandidateReorder,
+  resetCandidateReorderHistory,
+  undoCandidateReorder,
+  type CandidateTableType
+} from './features/cost-breakdown/candidate-reorder-history'
 
 const AppRouter: React.FC = () => {
   const {
@@ -37,6 +45,8 @@ const AppRouter: React.FC = () => {
   const [simulationStatesByProduct, setSimulationStatesByProduct] = useState<Record<string, SimulationWorkspaceState>>(
     () => loadFromSession(STORAGE_KEYS.SIMULATION_STATES, {})
   )
+  const [candidateReorderHistory, setCandidateReorderHistory] = useState(createCandidateReorderHistory)
+  const lastCandidateHistoryContextRef = useRef({ activeProductId, activeTab })
   const storedSimulationState = simulationStatesByProduct[activeProductId]
   const reconciledSimulationState = useMemo(
     () => reconcileSimulationState(storedSimulationState, masterDataSnapshots),
@@ -59,6 +69,14 @@ const AppRouter: React.FC = () => {
   useEffect(() => {
     document.getElementById('main-content')?.scrollTo({ top: 0, behavior: 'auto' })
   }, [activeTab])
+
+  useEffect(() => {
+    const previous = lastCandidateHistoryContextRef.current
+    if (previous.activeProductId !== activeProductId || (previous.activeTab === 'breakdown' && activeTab !== 'breakdown')) {
+      setCandidateReorderHistory(resetCandidateReorderHistory())
+    }
+    lastCandidateHistoryContextRef.current = { activeProductId, activeTab }
+  }, [activeProductId, activeTab])
 
   useEffect(() => {
     if ((!storedSimulationState && activeTab !== 'simulation') || simulationState === storedSimulationState) return
@@ -114,8 +132,21 @@ const AppRouter: React.FC = () => {
     updateSimulationState(state => toggleSimulationWorkingTarget(state, masterDataSnapshots.current, kind, recordId))
   }
 
+  const setCandidateManualOrder = (type: CandidateTableType, keys: string[]) => {
+    setCandidateReorderHistory(history => recordCandidateReorder(history, type, keys))
+  }
+  const resetCandidateManualOrderHistory = () => setCandidateReorderHistory(resetCandidateReorderHistory())
+
   return (
-    <AppLayout onNavigatePrepareDatasetIssue={navigateToPrepareDatasetIssue}>
+    <AppLayout
+      onNavigatePrepareDatasetIssue={navigateToPrepareDatasetIssue}
+      cbdReorderUndoRedo={{
+        canUndo: candidateReorderHistory.undo.length > 0,
+        canRedo: candidateReorderHistory.redo.length > 0,
+        undo: () => setCandidateReorderHistory(undoCandidateReorder),
+        redo: () => setCandidateReorderHistory(redoCandidateReorder)
+      }}
+    >
       {activeTab === 'master' && (
         <MasterDataPage
           searchQuery={masterDataSearchQuery}
@@ -124,7 +155,11 @@ const AppRouter: React.FC = () => {
           onPrepareDatasetNavigationHandled={requestId => setPrepareDatasetNavigationRequest(current => current?.requestId === requestId ? undefined : current)}
         />
       )}
-      {activeTab === 'breakdown' && <CostBreakdownPage />}
+      {activeTab === 'breakdown' && <CostBreakdownPage
+        manualOrders={candidateReorderHistory.manualOrders}
+        onManualOrderChange={setCandidateManualOrder}
+        onResetManualOrderHistory={resetCandidateManualOrderHistory}
+      />}
       {activeTab === 'simulation' && (
         <SimulationPage
           key={activeProductId}

@@ -239,12 +239,14 @@ when the app frame has usable width.
 
 The app uses a viewport-height shell: Header at the top, a Main region, and a
 non-overlay Footer locked to the bottom. Normal pages use Main as the natural
-page-level vertical scroll owner where applicable. Desktop Cost Breakdown is
-an exception: its Subheader and bounded Cost Element / Work Center overview
-stay fixed, Candidate Findings owns the remaining vertical scroll, and Work
-Center rows may scroll within their bounded panel. Desktop Simulation is also
-fixed within the shared shell, and only its BOM and RTG bodies scroll
-vertically. Narrow CBD and Simulation layouts may use natural page scrolling.
+page-level vertical scroll owner where applicable. Desktop Cost Breakdown uses
+Main as its vertical scroll owner: its Subheader and bounded Cost Element /
+Work Center overview stay in normal flow above Candidate Findings, which does
+not add a nested vertical scroller. Work Center rows may scroll inside their
+bounded panel while the header and Total remain outside the scroll body on the
+same grid. Desktop Simulation is fixed within the shared shell, and only its
+BOM and RTG bodies scroll vertically. Narrow CBD and Simulation layouts may use
+natural page scrolling.
 Header, Main, and Footer content share the centered `max-w-[1440px]`
 frame. Master Data's
 selected-dataset toolbar and metadata stay together at the top of its content
@@ -271,8 +273,10 @@ scroll area, as required by
   right. Give the product name stronger visual weight than its smaller,
   lighter secondary product context. Reflow below desktop widths. Do not place Search, workflow status, a
   workflow CTA, warning text, or additional navigation in the Header. Undo and
-  Redo stay visible but are enabled only on Master Data when the existing
-  history allows them. Keep Search local to the Master Data toolbar.
+  Redo stay visible and follow page context: Master Data uses its existing edit
+  history, Cost Breakdown uses the shared Candidate reorder history, and
+  Simulation keeps both controls disabled. Keep Search local to the Master
+  Data toolbar.
 - Remove `CB`, `Product Cost Analysis`, and the bottom-left `Workspace` label
   per the confirmed Master Data visual direction. Do not replace them with a
   decorative slogan or redundant branding.
@@ -288,7 +292,7 @@ scroll area, as required by
 - **Quiet:** text or subtle-surface action for non-primary controls.
 - Keep action sizing compact but operable. Icon-only actions use consistent
   neutral controls with accessible names, tooltips, and visible focus. Header
-  Undo/Redo stay visible and are enabled only for available Master Data
+  Undo/Redo stay visible and are enabled only for the active page's available
   history. Master Data Search stays near the table controls it filters.
 - Do not use hover as the only way to reveal an action.
 

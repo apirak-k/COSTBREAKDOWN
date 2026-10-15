@@ -19,8 +19,10 @@ import { BOMRecordDetails } from './BOMDetailedTable'
 import type { RoutingItemizedRow } from './RoutingDetailedTable'
 import { RoutingRecordDetails } from './RoutingDetailedTable'
 import type { SnapshotPair } from '../../../core'
+import { reorderCandidateRowKeys } from '../candidate-reorder-history'
+import type { CandidateTableType } from '../candidate-reorder-history'
 
-export type CandidateTableType = 'bom' | 'routing'
+export { reorderCandidateRowKeys } from '../candidate-reorder-history'
 
 export interface CandidateTableRow {
   key: string
@@ -44,24 +46,30 @@ interface CandidateFindingsTableProps {
   onManualOrderChange: (keys: string[]) => void
 }
 
+interface CandidateReorderDrag {
+  sourceKey: string
+  movingKeys: string[]
+}
+
+function readReorderDrag(dataTransfer: DataTransfer, fallback: CandidateReorderDrag | null): CandidateReorderDrag | null {
+  if (fallback) return fallback
+  const sourceKey = dataTransfer.getData('text/plain')
+  if (!sourceKey) return null
+  let movingKeys = [sourceKey]
+  try {
+    const parsedKeys: unknown = JSON.parse(dataTransfer.getData('application/x-costbreakdown-row-ids'))
+    if (Array.isArray(parsedKeys)) {
+      const validKeys = parsedKeys.filter((key): key is string => typeof key === 'string')
+      if (validKeys.includes(sourceKey)) movingKeys = validKeys
+    }
+  } catch {
+    // Keep single-row dragging available when group data is unavailable.
+  }
+  return { sourceKey, movingKeys }
+}
+
 const BOM_COLUMN_WIDTHS = ['4%', '23%', '7%', '13%', '13%', '13%', '12%', '7%', '4%', '4%']
 const ROUTING_COLUMN_WIDTHS = ['4%', '23%', '7%', '7.8%', '7.8%', '7.8%', '7.8%', '7.8%', '12%', '7%', '4%', '4%']
-
-export function reorderCandidateRowKeys(
-  keys: readonly string[],
-  sourceKey: string,
-  targetKey: string,
-  insertAfterTarget: boolean
-): string[] {
-  const sourceIndex = keys.indexOf(sourceKey)
-  const targetIndex = keys.indexOf(targetKey)
-  if (sourceIndex < 0 || targetIndex < 0 || sourceKey === targetKey) return [...keys]
-  const next = [...keys]
-  next.splice(sourceIndex, 1)
-  const targetIndexAfterRemoval = next.indexOf(targetKey)
-  next.splice(targetIndexAfterRemoval + (insertAfterTarget ? 1 : 0), 0, sourceKey)
-  return next
-}
 
 export function candidateDetailKey(type: CandidateTableType, rowKey: string): string {
   return `${type}:${rowKey}`
@@ -173,15 +181,9 @@ export const CandidateFindingsTable: React.FC<CandidateFindingsTableProps> = ({
   const selectionAnchorRef = useRef<string | null>(null)
   const suppressNextSelectionClickRef = useRef(false)
   const suppressNextRowClickRef = useRef(false)
-  const reorderDragRef = useRef<{
-    pointerId: number
-    sourceKey: string
-    startX: number
-    startY: number
-    started: boolean
-    didReorder: boolean
-  } | null>(null)
-  const [draggingKey, setDraggingKey] = useState<string | null>(null)
+  const reorderDragRef = useRef<CandidateReorderDrag | null>(null)
+  const [draggingKeys, setDraggingKeys] = useState<ReadonlySet<string>>(() => new Set())
+  const [dropTarget, setDropTarget] = useState<{ key: string; after: boolean } | null>(null)
   const isBOM = type === 'bom'
   const identityHeader = isBOM ? 'Bill of Material' : 'Routing'
   const parameterHeaders = isBOM
@@ -264,27 +266,49 @@ export const CandidateFindingsTable: React.FC<CandidateFindingsTableProps> = ({
     applySelection(applyRowDragSelection(selectedKeys, traversedKeys, drag.target))
   }
 
-  const reorderBefore = (targetKey: string, clientY: number, targetRect: DOMRect) => {
-    const drag = reorderDragRef.current
-    if (!drag || drag.sourceKey === targetKey) return
-    const orderedKeys = rows.map(row => row.key)
-    const nextKeys = reorderCandidateRowKeys(
-      orderedKeys,
-      drag.sourceKey,
-      targetKey,
-      clientY > targetRect.top + targetRect.height / 2
-    )
-    if (nextKeys.every((key, index) => key === orderedKeys[index])) return
-    drag.didReorder = true
-    onManualOrderChange(nextKeys)
+  const startReorder = (event: React.DragEvent<HTMLButtonElement>, row: CandidateTableRow, key: string | null) => {
+    const movingKeys = key && selectedKeys.has(key)
+      ? rows.filter(candidate => {
+        const candidateKey = findingKey(type, candidate.finding)
+        return candidateKey !== null && selectedKeys.has(candidateKey)
+      }).map(candidate => candidate.key)
+      : [row.key]
+    reorderDragRef.current = { sourceKey: row.key, movingKeys }
+    setDraggingKeys(new Set(movingKeys))
+    setDropTarget(null)
+    event.dataTransfer.setData('text/plain', row.key)
+    event.dataTransfer.setData('application/x-costbreakdown-row-ids', JSON.stringify(movingKeys))
+    event.dataTransfer.effectAllowed = 'move'
   }
 
-  const finishReorder = (pointerId?: number) => {
-    const drag = reorderDragRef.current
-    if (!drag || (pointerId !== undefined && drag.pointerId !== pointerId)) return
-    if (drag.didReorder) suppressNextRowClickRef.current = true
+  const previewDrop = (event: React.DragEvent<HTMLTableRowElement>, targetKey: string) => {
+    const drag = readReorderDrag(event.dataTransfer, reorderDragRef.current)
+    if (!drag || drag.movingKeys.includes(targetKey)) return
+    event.preventDefault()
+    event.dataTransfer.dropEffect = 'move'
+    const after = event.clientY >= event.currentTarget.getBoundingClientRect().top + event.currentTarget.getBoundingClientRect().height / 2
+    setDropTarget(current => current?.key === targetKey && current.after === after ? current : { key: targetKey, after })
+  }
+
+  const dropOnRow = (event: React.DragEvent<HTMLTableRowElement>, targetKey: string) => {
+    const drag = readReorderDrag(event.dataTransfer, reorderDragRef.current)
+    if (!drag || drag.movingKeys.includes(targetKey)) return
+    event.preventDefault()
+    const bounds = event.currentTarget.getBoundingClientRect()
+    const after = event.clientY >= bounds.top + bounds.height / 2
+    const orderedKeys = rows.map(row => row.key)
+    const nextKeys = reorderCandidateRowKeys(orderedKeys, drag.sourceKey, targetKey, after, drag.movingKeys)
+    if (nextKeys.some((key, index) => key !== orderedKeys[index])) {
+      onManualOrderChange(nextKeys)
+      suppressNextRowClickRef.current = true
+    }
+    finishReorder()
+  }
+
+  const finishReorder = () => {
     reorderDragRef.current = null
-    setDraggingKey(null)
+    setDraggingKeys(new Set())
+    setDropTarget(null)
   }
 
   const emptyMessage = isBOM ? 'No Bill of Material findings match this filter.' : 'No Routing findings match this filter.'
@@ -351,7 +375,9 @@ export const CandidateFindingsTable: React.FC<CandidateFindingsTableProps> = ({
                   event.preventDefault()
                   onToggleExpanded(type, row.key)
                 }}
-                className={`group ${selected ? 'bg-blue-100/60 hover:bg-blue-100/80' : 'bg-white hover:bg-slate-50'} ${canExpand ? 'cursor-pointer' : 'cursor-default'} focus-visible:outline focus-visible:outline-2 focus-visible:outline-inset focus-visible:outline-blue-700`}
+                onDragOver={event => previewDrop(event, row.key)}
+                onDrop={event => dropOnRow(event, row.key)}
+                className={`group ${selected ? 'bg-blue-100/60 hover:bg-blue-100/80' : 'bg-white hover:bg-slate-50'} ${canExpand ? 'cursor-pointer' : 'cursor-default'} ${dropTarget?.key === row.key ? dropTarget.after ? 'border-b-2 border-blue-500' : 'border-t-2 border-blue-500' : ''} focus-visible:outline focus-visible:outline-2 focus-visible:outline-inset focus-visible:outline-blue-700`}
               >
                 <td className="px-1 py-2 text-center" onClick={event => event.stopPropagation()}>
                   <button
@@ -385,44 +411,19 @@ export const CandidateFindingsTable: React.FC<CandidateFindingsTableProps> = ({
                 <td className={`whitespace-nowrap px-1 py-2 text-right ${gapTextClass(row.gap)}`}>{row.gap === null ? '—' : formatVariance(row.gap, 2)}</td>
                 <td className="whitespace-nowrap px-1 py-2 text-right text-slate-700">{candidatePercent(row.gap, totalGap)}</td>
                 <td className="px-1 py-2 text-center" onClick={event => event.stopPropagation()}>
-                  <Tooltip label="Drag to arrange visible findings">
+                  <Tooltip label={selected && selectedVisibleCount > 1 ? `Drag selected ${isBOM ? 'BOM' : 'Routing'} findings to reorder` : 'Drag to reorder'}>
                     <button
                       type="button"
-                      draggable={false}
-                      aria-label={`Drag to reorder ${identityHeader} finding ${row.label}`}
-                      onPointerDown={event => {
-                        event.stopPropagation()
-                        if (event.button !== 0) return
-                        reorderDragRef.current = {
-                          pointerId: event.pointerId,
-                          sourceKey: row.key,
-                          startX: event.clientX,
-                          startY: event.clientY,
-                          started: false,
-                          didReorder: false
-                        }
-                        event.currentTarget.setPointerCapture(event.pointerId)
-                      }}
-                      onPointerMove={event => {
-                        const drag = reorderDragRef.current
-                        if (!drag || drag.pointerId !== event.pointerId) return
-                        if (!drag.started && Math.hypot(event.clientX - drag.startX, event.clientY - drag.startY) < 3) return
-                        if (!drag.started) {
-                          drag.started = true
-                          setDraggingKey(row.key)
-                        }
-                        const target = document.elementFromPoint(event.clientX, event.clientY)?.closest<HTMLTableRowElement>('tr[data-candidate-reorder-row]')
-                        const targetKey = target?.dataset.candidateReorderRow
-                        if (target && targetKey) reorderBefore(targetKey, event.clientY, target.getBoundingClientRect())
-                      }}
-                      onPointerUp={event => finishReorder(event.pointerId)}
-                      onPointerCancel={event => finishReorder(event.pointerId)}
-                      onLostPointerCapture={() => finishReorder()}
+                      draggable
+                      aria-label={selected && selectedVisibleCount > 1
+                        ? `Drag selected ${isBOM ? 'BOM' : 'Routing'} findings to reorder`
+                        : `Drag ${isBOM ? 'BOM' : 'Routing'} finding ${row.label} to reorder`}
+                      onDragStart={event => startReorder(event, row, key)}
+                      onDragEnd={finishReorder}
                       onClick={event => {
                         event.stopPropagation()
-                        if (suppressNextRowClickRef.current) suppressNextRowClickRef.current = false
                       }}
-                      className={`inline-flex h-8 w-7 shrink-0 select-none touch-none items-center justify-center rounded-sm ${selected ? 'text-slate-700' : 'text-slate-400'} hover:bg-slate-200 hover:text-slate-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-700 active:cursor-grabbing disabled:cursor-default disabled:opacity-30 group-hover:text-slate-600 group-focus-within:text-slate-700 ${draggingKey === row.key ? 'cursor-grabbing' : 'cursor-grab'}`}
+                      className={`inline-flex h-8 w-7 shrink-0 cursor-grab select-none items-center justify-center rounded-sm ${selected ? 'text-slate-700' : 'text-slate-400'} hover:bg-slate-200 hover:text-slate-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-700 active:cursor-grabbing group-hover:text-slate-600 group-focus-within:text-slate-700 ${draggingKeys.has(row.key) ? 'cursor-grabbing' : ''}`}
                     ><GripVertical aria-hidden="true" className="h-4 w-4" /></button>
                   </Tooltip>
                 </td>

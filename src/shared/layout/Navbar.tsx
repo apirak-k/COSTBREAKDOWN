@@ -12,7 +12,18 @@ const navItems = [
 
 const utilityButton = 'grid h-8 w-8 shrink-0 place-items-center text-slate-300 transition-colors hover:bg-slate-800 hover:text-white disabled:cursor-default disabled:opacity-50 disabled:text-slate-600 disabled:hover:bg-transparent disabled:hover:text-slate-600 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-400'
 
-export const Navbar: React.FC = () => {
+export interface CBDReorderUndoRedo {
+  canUndo: boolean
+  canRedo: boolean
+  undo: () => void
+  redo: () => void
+}
+
+interface NavbarProps {
+  cbdReorderUndoRedo?: CBDReorderUndoRedo
+}
+
+export const Navbar: React.FC<NavbarProps> = ({ cbdReorderUndoRedo }) => {
   const {
     activeTab,
     setActiveTab,
@@ -32,6 +43,11 @@ export const Navbar: React.FC = () => {
   const prepareDatasetTriggerRef = useRef<HTMLButtonElement>(null)
 
   const isMasterData = activeTab === 'master'
+  const isCostBreakdown = activeTab === 'breakdown'
+  const canUndo = isMasterData ? canUndoMasterDataEdit : isCostBreakdown && Boolean(cbdReorderUndoRedo?.canUndo)
+  const canRedo = isMasterData ? canRedoMasterDataEdit : isCostBreakdown && Boolean(cbdReorderUndoRedo?.canRedo)
+  const handleUndo = () => isMasterData ? undoMasterDataEdit() : isCostBreakdown ? cbdReorderUndoRedo?.undo() : undefined
+  const handleRedo = () => isMasterData ? redoMasterDataEdit() : isCostBreakdown ? cbdReorderUndoRedo?.redo() : undefined
   const productContext = resolveHeaderProductContext(snapshotPair.current.product)
   const currentProductName = snapshotPair.current.product.productName?.trim() ?? ''
   const currentProductUom = snapshotPair.current.product.uom?.trim() ?? ''
@@ -93,8 +109,8 @@ export const Navbar: React.FC = () => {
             <Tooltip label="Undo">
               <button
                 type="button"
-                onClick={undoMasterDataEdit}
-                disabled={!isMasterData || !canUndoMasterDataEdit}
+                onClick={handleUndo}
+                disabled={!canUndo}
                 aria-label="Undo"
                 className={utilityButton}
               >
@@ -104,8 +120,8 @@ export const Navbar: React.FC = () => {
             <Tooltip label="Redo">
               <button
                 type="button"
-                onClick={redoMasterDataEdit}
-                disabled={!isMasterData || !canRedoMasterDataEdit}
+                onClick={handleRedo}
+                disabled={!canRedo}
                 aria-label="Redo"
                 className={utilityButton}
               >

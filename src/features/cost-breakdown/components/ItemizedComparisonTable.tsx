@@ -10,7 +10,8 @@ import type { BOMItemizedRow } from './BOMDetailedTable'
 import { buildRoutingItemizedRows } from './RoutingDetailedTable'
 import type { RoutingItemizedRow } from './RoutingDetailedTable'
 import { CandidateFindingsTable, toggleCandidateDetail } from './CandidateFindingsTable'
-import type { CandidateTableRow, CandidateTableType } from './CandidateFindingsTable'
+import type { CandidateTableRow } from './CandidateFindingsTable'
+import type { CandidateTableType } from '../candidate-reorder-history'
 
 export type ItemizedTypeTab = 'all' | 'bom' | 'rtg'
 
@@ -23,14 +24,11 @@ interface ItemizedComparisonTableProps {
   sortResetToken?: number
   selectedBOMKeys?: Set<string>
   selectedRoutingKeys?: Set<string>
+  manualOrders: import('../candidate-reorder-history').CandidateManualOrders
+  onManualOrderChange: (type: CandidateTableType, keys: string[]) => void
+  onResetManualOrderHistory: () => void
   onToggleFinding?: (type: 'bom' | 'routing', key: string) => void
   onSetFindingSelection?: (type: CandidateTableType, nextKeys: ReadonlySet<string>) => void
-}
-
-interface ManualOrder {
-  sortMode: ComparisonSortMode
-  resetToken: number
-  keys: string[]
 }
 
 interface ItemizedRow {
@@ -68,10 +66,10 @@ function toRows(comparison: CostComparison, pair: SnapshotPair): { bom: Itemized
   return { bom, routing }
 }
 
-function applyManualOrder(rows: CandidateTableRow[], order: ManualOrder | null, mode: ComparisonSortMode, resetToken: number): CandidateTableRow[] {
-  if (!order || order.sortMode !== mode || order.resetToken !== resetToken) return rows
+function applyManualOrder(rows: CandidateTableRow[], order: string[] | null): CandidateTableRow[] {
+  if (!order) return rows
   const rowByKey = new Map(rows.map(row => [row.key, row]))
-  const result = order.keys.flatMap(key => {
+  const result = order.flatMap(key => {
     const row = rowByKey.get(key)
     if (!row) return []
     rowByKey.delete(key)
@@ -95,24 +93,30 @@ export const ItemizedComparisonTable: React.FC<ItemizedComparisonTableProps> = (
   sortResetToken = 0,
   selectedBOMKeys,
   selectedRoutingKeys,
+  manualOrders,
+  onManualOrderChange,
+  onResetManualOrderHistory,
   onToggleFinding,
   onSetFindingSelection
 }) => {
   const candidateRegionRef = useRef<HTMLElement>(null)
+  const sortStateRef = useRef({ sortMode, sortResetToken })
   const [expandedRows, setExpandedRows] = useState<Set<string>>(() => new Set())
-  const [manualOrders, setManualOrders] = useState<Record<CandidateTableType, ManualOrder | null>>({ bom: null, routing: null })
   const { bom, routing } = toRows(comparison, pair)
   const visibleBOMRows = sortComparisonRows(bom.filter(row => isVisibleInComparisonView(row.finding, viewMode)), sortMode)
   const visibleRoutingRows = sortComparisonRows(routing.filter(row => isVisibleInComparisonView(row.finding, viewMode)), sortMode)
-  const displayedBOMRows = applyManualOrder(visibleBOMRows, manualOrders.bom, sortMode, sortResetToken)
-  const displayedRoutingRows = applyManualOrder(visibleRoutingRows, manualOrders.routing, sortMode, sortResetToken)
+  const displayedBOMRows = applyManualOrder(visibleBOMRows, manualOrders.bom)
+  const displayedRoutingRows = applyManualOrder(visibleRoutingRows, manualOrders.routing)
   const selectedBOM = selectedBOMKeys ?? new Set<string>()
   const selectedRouting = selectedRoutingKeys ?? new Set<string>()
 
   useEffect(() => {
-    setManualOrders({ bom: null, routing: null })
+    const previous = sortStateRef.current
+    if (previous.sortMode === sortMode && previous.sortResetToken === sortResetToken) return
+    sortStateRef.current = { sortMode, sortResetToken }
+    onResetManualOrderHistory()
     setExpandedRows(new Set())
-  }, [sortMode, sortResetToken])
+  }, [sortMode, sortResetToken, onResetManualOrderHistory])
 
   useEffect(() => {
     if (expandedRows.size === 0) return
@@ -132,13 +136,6 @@ export const ItemizedComparisonTable: React.FC<ItemizedComparisonTableProps> = (
       document.removeEventListener('keydown', handleKeyDown)
     }
   }, [expandedRows.size])
-
-  const setManualOrder = (type: CandidateTableType, keys: string[]) => {
-    setManualOrders(previous => ({
-      ...previous,
-      [type]: { sortMode, resetToken: sortResetToken, keys }
-    }))
-  }
 
   const toggleExpanded = (type: CandidateTableType, rowKey: string) => {
     setExpandedRows(current => toggleCandidateDetail(current, type, rowKey))
@@ -165,7 +162,7 @@ export const ItemizedComparisonTable: React.FC<ItemizedComparisonTableProps> = (
         onToggleExpanded={toggleExpanded}
         onToggleFinding={onToggleFinding}
         onSetFindingSelection={onSetFindingSelection}
-        onManualOrderChange={keys => setManualOrder('bom', keys)}
+        onManualOrderChange={keys => onManualOrderChange('bom', keys)}
       />}
 
       {typeTab !== 'bom' && <CandidateFindingsTable
@@ -178,7 +175,7 @@ export const ItemizedComparisonTable: React.FC<ItemizedComparisonTableProps> = (
         onToggleExpanded={toggleExpanded}
         onToggleFinding={onToggleFinding}
         onSetFindingSelection={onSetFindingSelection}
-        onManualOrderChange={keys => setManualOrder('routing', keys)}
+        onManualOrderChange={keys => onManualOrderChange('routing', keys)}
       />}
     </section>
   )

@@ -114,6 +114,60 @@ function tableCells(row: string): string[] {
   return [...row.matchAll(/<td\b[^>]*>([\s\S]*?)<\/td>/g)].map(match => visibleText(match[1]))
 }
 
+function extractElement(markup: string, start: number, tag: string): string {
+  const tokens = new RegExp(`<${tag}\\b[^>]*>|<\\/${tag}>`, 'g')
+  tokens.lastIndex = start
+  let depth = 0
+  let match: RegExpExecArray | null
+  while ((match = tokens.exec(markup))) {
+    if (match[0].startsWith(`</${tag}`)) depth -= 1
+    else depth += 1
+    if (depth === 0) return markup.slice(start, tokens.lastIndex)
+  }
+  assert.fail('expected a complete ' + tag + ' element')
+}
+
+function roleRows(markup: string): string[] {
+  const rows: string[] = []
+  const starts = /<div role="row"(?:\s|>)/g
+  let match: RegExpExecArray | null
+  while ((match = starts.exec(markup))) {
+    const row = extractElement(markup, match.index, 'div')
+    rows.push(row)
+    starts.lastIndex = match.index + row.length
+  }
+  return rows
+}
+
+function roleRowHeader(row: string): string | null {
+  const match = row.match(/<div role="rowheader"[^>]*>([\s\S]*?)<\/div>/)
+  return match ? visibleText(match[1]) : null
+}
+
+function roleRowCells(row: string): string[] {
+  const cells: string[] = []
+  const starts = /<div role="cell"/g
+  let match: RegExpExecArray | null
+  while ((match = starts.exec(row))) {
+    const cell = extractElement(row, match.index, 'div')
+    cells.push(visibleText(cell.replace(/^<div[^>]*>|<\/div>$/g, '')))
+    starts.lastIndex = match.index + cell.length
+  }
+  return cells
+}
+
+function roleRowHeaders(row: string): string[] {
+  const cells: string[] = []
+  const starts = /<div role="columnheader"/g
+  let match: RegExpExecArray | null
+  while ((match = starts.exec(row))) {
+    const cell = extractElement(row, match.index, 'div')
+    cells.push(visibleText(cell.replace(/^<div[^>]*>|<\/div>$/g, '')))
+    starts.lastIndex = match.index + cell.length
+  }
+  return cells
+}
+
 function rowFor(markup: string, label: string): string {
   const row = tableRows(markup).find(candidate => rowHeader(candidate) === label)
   assert.ok(row, 'expected table row ' + label)
@@ -293,20 +347,28 @@ try {
   const costSelectedGapHeader = costSelectedTable.match(/<span data-gap-header-slot="full"[^>]*>/)?.[0]
   assert.ok(costFullGapHeader && costSelectedGapHeader)
   assert.equal(costFullGapHeader, costSelectedGapHeader, 'GAP header remains aligned to the fixed Full Gap slot')
-  const selectedHeaderSlot = costSelectedTable.match(/<span data-gap-header-slot="selected" class="([^"]*)">Selected<\/span>/)?.[1]
-  const fullSelectedHeaderSlot = costFullTable.match(/<span data-gap-header-slot="selected" class="([^"]*)">Selected<\/span>/)?.[1]
-  assert.ok(selectedHeaderSlot && fullSelectedHeaderSlot, 'Selected header remains present in both modes')
-  assert.equal(selectedHeaderSlot, fullSelectedHeaderSlot, 'Selected header width and alignment remain fixed when selection toggles')
+  const selectedHeaderSlot = costSelectedTable.match(/<span data-gap-header-slot="selected" aria-hidden="false" class="([^"]*)">Selected<\/span>/)?.[1]
+  const fullSelectedHeader = costFullTable.match(/<span data-gap-header-slot="selected" aria-hidden="true" class="([^"]*)">Selected<\/span>/)
+  const activeSelectedHeader = costSelectedTable.match(/<span data-gap-header-slot="selected" aria-hidden="false" class="([^"]*)">Selected<\/span>/)
+  assert.ok(selectedHeaderSlot && fullSelectedHeader && activeSelectedHeader, 'Selected header keeps a stable sub-slot in both modes')
+  const fullSelectedHeaderSlot = fullSelectedHeader[1]
+  assert.equal(
+    selectedHeaderSlot.split(/\s+/).filter(token => token !== 'invisible').join(' '),
+    activeSelectedHeader[1].split(/\s+/).filter(token => token !== 'invisible').join(' '),
+    'Selected header width and alignment remain fixed when selection toggles'
+  )
+  assert.match(fullSelectedHeaderSlot, /invisible/, 'inactive Selected header is not visibly rendered')
+  assert.doesNotMatch(activeSelectedHeader[1], /invisible/, 'active Selected header is visible')
   assert.match(selectedHeaderSlot, /w-\[9ch\].*text-right.*font-normal.*text-slate-300/,
     'Selected header uses a fixed-width, right-aligned, secondary neutral style')
   assert.doesNotMatch(selectedHeaderSlot, /text-(rose|red|green|emerald)-|font-(bold|semibold)/,
     'Selected header does not use sign colors or bold emphasis')
   assert.equal((costFullTable.match(/grid-cols-\[minmax\(0,1fr\)_9ch\]/g) ?? []).length, 5, 'Cost header and all four GAP cells share fixed Full/Selected slots')
   assert.equal((costSelectedTable.match(/grid-cols-\[minmax\(0,1fr\)_9ch\]/g) ?? []).length, 5, 'Selected mode preserves the shared GAP slot grid')
-  assert.match(costFullTable, /data-gap-header-slot="selected"[^>]*>Selected<\/span>/)
-  assert.match(costSelectedTable, /data-gap-header-slot="selected"[^>]*>Selected<\/span>/)
-  assert.match(costFullTable, /data-gap-header-slot="selected"[^>]*>Selected<\/span>/,
-    'Selected header uses the plain label without parentheses')
+  assert.match(costFullTable, /data-gap-header-slot="selected" aria-hidden="true"[^>]*>Selected<\/span>/,
+    'inactive Selected header reserves its slot while staying visually and accessibly hidden')
+  assert.match(costSelectedTable, /data-gap-header-slot="selected" aria-hidden="false"[^>]*>Selected<\/span>/,
+    'active Selected header uses the plain label without parentheses')
   assert.doesNotMatch(costSelectedTable, /\(Selected\)|Selected \([+-]?\d/,
     'Selected values are never parenthesized')
 
@@ -357,16 +419,26 @@ try {
     selectedActive: true
   } as never))
   assert.doesNotMatch(wcMarkup, /Selected/i, 'Work Center output must not expose Selected text in visible text, titles, or aria attributes')
-  const wcTables = [...wcMarkup.matchAll(/<table\b[\s\S]*?<\/table>/g)].map(match => match[0])
-  assert.equal(wcTables.length, 1, 'Work Center header, scroll body, and footer share one table grid')
-  assert.deepEqual(tableHeaderLabels(wcTables[0]), ['Work Center', 'REF', 'CUR', 'GAP', '%GAP'])
-  for (const label of ['REF', 'CUR', 'GAP', '%GAP']) {
-    assert.match(wcTables[0], new RegExp(`<th scope="col" class="px-2 py-1\\.5 text-right">${label}</th>`),
-      `Work Center ${label} header must share the right edge used by its numeric values`)
-  }
-  assert.doesNotMatch(wcTables[0], /GAP \(Selected\)/)
-  const wcRow = rowFor(wcTables[0], 'WC-CUT')
-  assert.deepEqual(tableCells(wcRow), [
+  const wcTableStart = wcMarkup.indexOf('<div role="table"')
+  assert.ok(wcTableStart >= 0, 'Work Center exposes one accessible table grid')
+  const wcTable = extractElement(wcMarkup, wcTableStart, 'div')
+  const wcRows = roleRows(wcTable)
+  assert.deepEqual(roleRowHeaders(wcRows[0]), ['Work Center', 'REF', 'CUR', 'GAP', '%GAP'])
+  assert.equal((wcTable.match(/role="rowgroup"/g) ?? []).length, 3,
+    'Work Center uses matching header, independently scrollable body, and fixed footer rowgroups')
+  const wcScrollBodyStart = wcTable.indexOf('data-wc-scroll-body="true"')
+  assert.ok(wcScrollBodyStart > wcTable.indexOf('role="columnheader"') && wcScrollBodyStart < wcTable.indexOf('role="rowheader"'),
+    'only Work Center data rows sit inside the scroll body')
+  assert.match(wcTable, /data-wc-scroll-body="true"[^>]*class="min-h-0 overflow-visible lg:overflow-x-hidden lg:overflow-y-auto \[scrollbar-gutter:stable\]"/,
+    'the Work Center body is the only internal vertical scroller')
+  assert.match(wcTable, /role="rowgroup" class="pr-0 lg:pr-\[6px\]"><div role="row" class="grid grid-cols-\[24%_19%_19%_20%_18%\][\s\S]*?role="columnheader"[\s\S]*?%GAP/,
+    'Work Center header columns use the shared row grid and stay outside the scrolling body')
+  assert.match(wcTable, /role="rowgroup" class="pr-0 lg:pr-\[6px\]"><div role="row" class="grid grid-cols-\[24%_19%_19%_20%_18%\][\s\S]*?role="rowheader"[^>]*>Total/,
+    'Work Center Total uses the same grid and remains outside the scrolling body')
+  assert.doesNotMatch(wcTable, /GAP \(Selected\)/)
+  const wcRow = wcRows.find(row => roleRowHeader(row) === 'WC-CUT')
+  assert.ok(wcRow)
+  assert.deepEqual(roleRowCells(wcRow), [
     formatters.formatNumber(fullComparison.processingFindings[0].costEffect.reference.total!, 2),
     formatters.formatNumber(fullComparison.processingFindings[0].costEffect.current.total!, 2),
     formatters.formatVariance(fullComparison.processingFindings[0].costEffect.gap.total!, 2),
@@ -381,16 +453,13 @@ try {
   const costSection = costFullMarkup.match(/<section\b[^>]*aria-label="Cost Element"[^>]*>/)?.[0]
   assert.ok(wcSection && costSection, 'expected Cost and Work Center sections')
   assert.match(costSection, /lg:h-full/, 'Cost Element fills the bounded overview height')
-  assert.match(wcSection, /lg:flex lg:h-full lg:min-h-0 lg:flex-col/,
-    'Work Center shares the bounded Cost Element height and owns an internal flex column')
-  assert.match(wcMarkup, /data-wc-scroll-body="true"[^>]*class="[^"]*overflow-x-auto[^"]*lg:min-h-0[^"]*lg:flex-1[^"]*lg:overflow-y-auto/,
+  assert.match(wcSection, /lg:h-full lg:overflow-hidden/,
+    'Work Center shares the bounded Cost Element height')
+  assert.match(wcMarkup, /data-wc-scroll-body="true"[^>]*class="min-h-0 overflow-visible lg:overflow-x-hidden lg:overflow-y-auto/,
     'Work Center rows own bounded internal vertical scrolling on desktop')
-  assert.match(wcMarkup, /<thead class="sticky top-0 z-10">[\s\S]*?Work Center[\s\S]*?REF[\s\S]*?CUR[\s\S]*?GAP[\s\S]*?%GAP/,
-    'WC header stays sticky on the shared table grid')
-  assert.match(wcMarkup, /<tfoot class="sticky bottom-0 z-10[\s\S]*?<th scope="row"[^>]*>Total/,
-    'WC Total stays sticky on the shared table grid')
-  const wcFooterRow = rowFor(wcTables[0], 'Total')
-  const wcFooterValues = tableCells(wcFooterRow)
+  const wcFooterRow = wcRows.find(row => roleRowHeader(row) === 'Total')
+  assert.ok(wcFooterRow)
+  const wcFooterValues = roleRowCells(wcFooterRow)
   const totalWcReference = guards.safeAdd(fullComparison.referenceCost.labor!, fullComparison.referenceCost.burden!)!
   const totalWcCurrent = guards.safeAdd(fullComparison.currentCost.labor!, fullComparison.currentCost.burden!)!
   const totalWcGap = guards.safeAdd(fullComparison.elementGaps.labor!, fullComparison.elementGaps.burden!)!
@@ -408,17 +477,20 @@ try {
   const overviewClass = pageSource.match(/<div id="cost-breakdown-overview-panels" className=\{isOverviewExpanded \? '([^']+)'/)?.[1]
   const candidateRegionClass = pageSource.match(/<div role="region" aria-label="Candidate workspace" tabIndex=\{0\} className="([^"]+)"/)?.[1]
   assert.ok(pageRootClass && overviewClass && candidateRegionClass,
-    'expected CBD workspace, bounded overview, and Candidate scroll ownership classes')
-  assert.match(pageRootClass, /lg:h-full[\s\S]*lg:min-h-0[\s\S]*lg:overflow-hidden/,
-    'CBD workspace is constrained to the available desktop shell height and clips its overflow')
-  assert.doesNotMatch(pageRootClass, /lg:overflow-y-auto|lg:overflow-auto/,
-    'CBD root does not become a competing page-level vertical scroll owner')
+    'expected CBD workspace, bounded overview, and natural-flow Candidate region')
+  assert.match(pageRootClass, /flex min-h-full min-w-0 flex-col[\s\S]*overflow-x-clip/,
+    'CBD content grows naturally inside the shared Main scroll area')
+  assert.doesNotMatch(pageRootClass, /overflow-y-auto|overflow-y-scroll|overflow-auto/,
+    'CBD page content does not add a nested vertical scroll owner')
   assert.match(overviewClass, /lg:h-44[\s\S]*lg:shrink-0[\s\S]*lg:grid-cols-2/,
     'Cost Element and Work Center use one bounded, side-by-side desktop overview height')
-  assert.match(candidateRegionClass, /lg:min-h-0[\s\S]*lg:flex-1[\s\S]*lg:overflow-y-auto/,
-    'Candidate workspace receives and internally scrolls the remaining desktop height')
-  assert.doesNotMatch(candidateRegionClass, /overflow-x-auto/, 'Candidate region owns vertical scroll without forcing horizontal scrolling')
-  assert.match(pageRootClass, /overflow-x-clip/, 'CBD clips narrow responsive overflow at its page workspace')
+  assert.doesNotMatch(candidateRegionClass, /overflow-y-auto|overflow-y-scroll|overflow-auto|flex-1|min-h-0/,
+    'Candidate Findings remains natural flow and does not independently scroll')
+  const appLayoutSource = readFileSync(new URL('../src/shared/layout/AppLayout.tsx', import.meta.url), 'utf8')
+  assert.match(appLayoutSource, /className=\{isCostBreakdown\s*\?\s*'[^']*overflow-y-auto[^']*'\s*:/,
+    'shared Main owns CBD vertical scrolling')
+  assert.doesNotMatch(appLayoutSource, /isCostBreakdown[\s\S]*?overflow-y-auto[^']*lg:overflow-y-hidden/,
+    'CBD Main remains a vertical scroll owner at desktop widths')
   assert.match(candidateTableSource, /<div className="overflow-x-auto border border-slate-200">[\s\S]*<table className=\{`w-full \$\{isBOM \? 'min-w-\[1040px\]' : 'min-w-\[1260px\]'\} table-fixed/,
     'narrow Candidate tables keep their own local horizontal fallback and enough width to avoid column collisions')
 
@@ -426,8 +498,8 @@ try {
   console.log('PASS: proportional Selected overlay, per-element Normal/Highlight/Remove, accessible titles')
   console.log('PASS: Cost row/slot structure and MAT/LB/BD plus STD Cost formulas')
   console.log('PASS: Cost Element uses stable neutral Selected slots without parentheses')
-  console.log('PASS: Work Center is bounded with internal row scrolling and sticky header/footer')
-  console.log('PASS: CBD Candidate owns desktop vertical scrolling; summary calculations reconcile')
+  console.log('PASS: Work Center is bounded with body-only scrolling and fixed aligned header/footer')
+  console.log('PASS: shared Main owns CBD vertical scrolling; Candidate remains natural flow; summary calculations reconcile')
 } finally {
   await vite.close()
 }
