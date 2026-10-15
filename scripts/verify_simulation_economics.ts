@@ -1,13 +1,31 @@
 import assert from 'node:assert/strict'
+import { readFileSync } from 'node:fs'
+import { resolve } from 'node:path'
 import React from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
+import { createServer } from 'vite'
 import type { CostSnapshot, SnapshotCost } from '../src/core/types'
-import { EconomicSimulationPanel } from '../src/features/simulation/EconomicSimulationPanel'
-import {
-  calculateEconomicSimulation,
-  createEconomicSimulationDraft,
-  updateEconomicSimulationDraft
-} from '../src/features/simulation/simulation-economics.ts'
+
+const loadSimulationModules = async () => {
+  const vite = await createServer({
+    server: { middlewareMode: true, hmr: false },
+    appType: 'custom',
+    logLevel: 'error',
+    optimizeDeps: { noDiscovery: true, entries: [] }
+  })
+  try {
+    return await Promise.all([
+      vite.ssrLoadModule('/src/features/simulation/EconomicSimulationPanel.tsx'),
+      vite.ssrLoadModule('/src/features/simulation/simulation-economics.ts')
+    ])
+  } finally {
+    await vite.close()
+  }
+}
+
+const [panelModule, economicsModule] = await loadSimulationModules()
+const { EconomicSimulationPanel } = panelModule
+const { calculateEconomicSimulation, createEconomicSimulationDraft, updateEconomicSimulationDraft } = economicsModule
 
 const currentSnapshot = {
   product: { sellingPrice: 120, sgaPercent: 10 }
@@ -53,6 +71,39 @@ assert.match(panelMarkup, /inputMode="numeric"[^>]*aria-valuemin="1"/,
   'Batch Size UI boundary rejects zero and retains whole-piece input')
 assert.match(panelMarkup, /aria-valuemin="0" aria-valuemax="100"/,
   'SG&A UI boundary caps the percentage at 100')
+
+const formulaTooltips = [
+  'Fixed Action Cost ÷ Batch Size',
+  'Fixed Cost / pc + Variable Action Cost / pc',
+  'Current Standard Cost − SIM Standard Cost',
+  'Parameter Saving / pc − Required Saving / pc',
+  'Selling Price × SG&A %',
+  'Selling Price − SIM Standard Cost − SG&A / pc'
+]
+const panelSource = readFileSync(resolve(process.cwd(), 'src/features/simulation/EconomicSimulationPanel.tsx'), 'utf8')
+for (const formula of formulaTooltips) {
+  assert.ok(panelSource.includes(formula), `Economic output retains its exact Tooltip label: ${formula}`)
+}
+assert.match(panelSource, /<Tooltip label=\{formula\}/, 'each exact formula string is wired to the shared accessible Tooltip')
+
+const positiveSaving = calculateEconomicSimulation(currentSnapshot, simulationCost, 10, marginDraft)
+const negativeSaving = calculateEconomicSimulation(currentSnapshot, simulationCost, -10, marginDraft)
+const renderPanel = (result: ReturnType<typeof calculateEconomicSimulation>) => renderToStaticMarkup(React.createElement(EconomicSimulationPanel, {
+  result,
+  draft: marginDraft,
+  onUpdate() {}
+}))
+const positiveSavingMarkup = renderPanel(positiveSaving)
+const negativeSavingMarkup = renderPanel(negativeSaving)
+const parameterSavingValueClass = (markup: string): string => {
+  const labelIndex = markup.indexOf('>Parameter Saving / pc</span>')
+  const outputEnd = labelIndex < 0 ? -1 : markup.indexOf('</div>', labelIndex)
+  return outputEnd < 0 ? '' : markup.slice(labelIndex, outputEnd)
+}
+assert.match(parameterSavingValueClass(positiveSavingMarkup), /text-emerald-800/,
+  'positive Parameter Saving uses a favorable green sign color')
+assert.match(parameterSavingValueClass(negativeSavingMarkup), /text-rose-800/,
+  'negative Parameter Saving uses an unfavorable red sign color')
 
 for (const [field, value] of [
   ['fixedActionCost', '-1'],

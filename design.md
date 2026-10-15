@@ -76,9 +76,10 @@ requirements:
 - The CBD Gap Bar uses contribution-proportional segments when component gaps
   share a sign; offsetting gaps use one signed zero-baseline chart. Keep selected
   contributions inside that same chart. The Fixed Overview is side-by-side and
-  has one whole-region collapse control, expanded by default. Candidate owns
-  the CBD vertical scroll area; its tables may scroll horizontally inside their
-  own bounds.
+  has one whole-region collapse control, expanded by default. The shared Main
+  region owns CBD's page-level vertical scroll, while Candidate and Work Center
+  content grows naturally. Fit tables at ordinary desktop widths when
+  practical; narrow layouts may scroll horizontally within a table.
 - CBD CHANGED BOM detail uses Reference → Current and Parameter Cost Effect
   rows aligned with `Δ Usage` / `Δ Price` / `Δ Loss` / Gap. CHANGED RTG main
   rows also expose `Δ LB Rate` and `Δ BD Rate`, resolved per snapshot through
@@ -95,10 +96,11 @@ requirements:
   inputs as Reference → Current details. Do not attach invented THB effects to
   Price, Usage, Loss, or another individual factor; do not repeat the whole
   material Gap beside each factor [`CANDIDATE.md`:L13-L22].
-- An RCA Case is formed from human-selected Candidate(s) (1 or multiple) and
-  completes with Root Cause / Why? and Action; Simulation is optional and
-  independent. Do not use visual emphasis or default selection to imply an
-  automatic RCA target [`CANDIDATE.md`](docs/specs/CANDIDATE.md) and [`SIMULATION.md`](docs/specs/SIMULATION.md).
+- Candidate findings remain inside Cost Breakdown. Legacy RCA session data may
+  be retained for compatibility, but RCA is not a visible page or a stage in
+  the current workflow. Simulation is independently available from the three-
+  page navigation [`CANDIDATE.md`](docs/specs/CANDIDATE.md) and
+  [`SIMULATION.md`](docs/specs/SIMULATION.md).
 
 ### Shared page composition — PROVISIONAL — AI CHOICE
 
@@ -128,9 +130,11 @@ human visual review.
 ### Simulation storytelling graph
 
 The left-side stacked bar and Selling Price line are confirmed visual direction.
-The finalized three-state story adapts that direction to Reference → Current →
-Simulated after a scenario is selected. Component colors, numeric scale,
-incomplete input handling, and responsive geometry are `PROVISIONAL — AI CHOICE`;
+The finalized five-step story is REF → GAP 1 → CUR → GAP 2 → SIM. Reuse the
+Cost Breakdown colors: MAT `#4F7CAC`, LB `#D89B45`, and BD `#8067B7`. Gap bars
+show signed engineering cost components; SG&A and OP remain separate on
+snapshot bars. Numeric scale, incomplete input handling, and responsive
+geometry are `PROVISIONAL — AI CHOICE`;
 the superseded two-state dashboard chart remains provenance in
 [`PROVISIONAL_IMPLEMENTATION_DECISIONS.md`](docs/PROVISIONAL_IMPLEMENTATION_DECISIONS.md#p-011--adapt-the-left-side-dashboard-chart-to-the-available-snapshots).
 Use only settled Material, Labor, and Burden calculations. Do not add excluded
@@ -139,11 +143,12 @@ monthly trend.
 
 ### Simulation story order
 
-Use the finalized flow: Simulation supports flexible scenario evaluation (single scenario, A/B comparison, or multiple scenarios; exact A/B is not mandatory). When a scenario is viewed or selected, show it as Simulated in the Reference → Current → Simulated story. Keep
-supporting detail available on demand, show finalized Selling Price, SG&A, and
-OP when inputs permit, and preserve negative OP as a loss. Avoid repeating
-candidate details already available in Cost Breakdown and Candidate
-Prioritization. Do not add invented financial values or historical periods.
+Use the finalized flow: REF → GAP 1 → CUR → GAP 2 → SIM. Simulation is a single
+working snapshot cloned from Reference, Current, or Custom and always compared
+against Current. Keep supporting detail available on demand, show Selling
+Price, SG&A, and OP when inputs permit, and preserve negative OP as a loss.
+Avoid repeating finding details already available inside Cost Breakdown. Do
+not add invented financial values or historical periods.
 
 ## 2. Color Palette & Semantic Tokens
 
@@ -222,10 +227,12 @@ when the app frame has usable width.
   shadow for overlays and floating menus; do not put a shadow on every card.
 
 The app uses a viewport-height shell: Header at the top, a Main region, and a
-non-overlay Footer locked to the bottom. Standard pages keep their existing
-Main scroll behavior. CBD is the specific exception: Main does not vertically
-scroll, and the Candidate workspace owns CBD's vertical scroll. Header, Main,
-and Footer content share the centered `max-w-[1440px]` frame. Master Data's
+non-overlay Footer locked to the bottom. Standard pages, including Cost
+Breakdown, use Main as the page-level vertical scroll owner. Desktop Simulation
+is the exception: it is fixed within the shared shell, and only its BOM and RTG
+bodies scroll vertically. Narrow Simulation layouts may use natural page
+scrolling. Header, Main, and Footer content share the centered `max-w-[1440px]`
+frame. Master Data's
 selected-dataset toolbar and metadata stay together at the top of its content
 scroll area, as required by
 [`MASTER_DATA.md`](docs/specs/MASTER_DATA.md#page-structure-and-metadata)
@@ -245,7 +252,7 @@ scroll area, as required by
   where the latest explicit page contract does not define them.
 - Treat the shared Header as one compact workspace bar with three desktop zones:
   `COSTBREAKDOWN` and safely resolved Product (Unit) context at the left;
-  centered Master Data / Cost Breakdown / Candidate / Simulation navigation;
+  centered Master Data / Cost Breakdown / Simulation navigation;
   and Undo, Redo, then an icon-only Info control for Prepare Dataset at the
   right. Give the product name stronger visual weight than its smaller,
   lighter secondary product context. Reflow below desktop widths. Do not place Search, workflow status, a
@@ -309,31 +316,31 @@ scroll area, as required by
   convention from Excel. That convention is for workbook presentation only
   [`MASTER_DATA.md`:L63-L63].
 
-### Simulation, Candidate, and RCA presentation
+### Simulation and Cost Breakdown findings presentation
 
-- **Simulation result overview:** integrate the live Result → Cause → Detail
-  view with Simulation. Do not add a separate Dashboard workflow or repeat
-  details available in Cost Breakdown and Candidate Prioritization. Preserve
-  the confirmed chart visual direction, show finalized metrics when their
-  inputs permit, and omit metrics classified as OUT OF SCOPE.
+- **Simulation result overview:** keep the live graph, Current → SIM Result,
+  Economic outputs, and direct parameter editing in Simulation. Do not add a
+  separate Dashboard workflow or repeat findings already available inside
+  Cost Breakdown. Preserve the confirmed chart direction, show finalized
+  metrics when inputs permit, and omit metrics classified as OUT OF SCOPE.
 - **Candidate — PROVISIONAL — AI CHOICE:** a material finding may be displayed
   as one record-level monetary item with changed input details nested beneath
   it. This presentation is reversible; keep each changed factor visible as
   Reference → Current and never repeat the record Gap as a factor-level THB
   effect. Follow [`CANDIDATE.md`](docs/specs/CANDIDATE.md) for the actual
   finding/ranking behavior.
-- **Candidate, RCA Case, and Simulation:** visually distinguish Candidate
-  findings, the multi-candidate RCA Case area, and Parameter/Economic
-  Simulation dimensions. Do not imply scenario approval, promotion, or a Trial
-  lifecycle [`CANDIDATE.md`](docs/specs/CANDIDATE.md) and
+- Candidate selection stays within Cost Breakdown. Do not transfer CBD
+  Selected Comparison into Simulation. Do not show an RCA handoff, approval,
+  promotion, or Trial lifecycle [`CANDIDATE.md`](docs/specs/CANDIDATE.md) and
   [`SIMULATION.md`](docs/specs/SIMULATION.md).
 
 ### Responsive behavior and interaction
 
 - Use fluid layout for phone, tablet, and desktop widths. Do not introduce a
   fixed-width page or require a wide viewport for navigation.
-- At narrow widths, stack the page context and controls, allow navigation to
-  reflow or scroll, and keep table horizontal scroll local to the table.
+- At narrow widths, stack the page context and controls and allow navigation to
+  reflow or scroll. Simulation may use natural page scrolling; its BOM/RTG
+  tables must still fit without horizontal scrolling.
 - Keep essential actions visible or reachable by keyboard; include semantic
   labels, visible focus, and accessible status text.
 - Use motion only to acknowledge an explicit interaction. Respect

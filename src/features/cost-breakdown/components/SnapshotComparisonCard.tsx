@@ -95,9 +95,9 @@ export const SnapshotComparisonCard: React.FC<SnapshotComparisonCardProps> = ({
   ]
 
   return (
-    <section aria-label="Cost Breakdown" className="h-44 min-w-0 overflow-hidden border border-slate-300 bg-white">
-      <div className="h-full w-full overflow-x-auto">
-        <table className="h-full w-full min-w-[560px] table-fixed text-left text-xs">
+    <section aria-label="Cost Breakdown" className="min-w-0 overflow-hidden border border-slate-300 bg-white">
+      <div className="w-full overflow-x-auto">
+        <table className="w-full min-w-[480px] table-fixed text-left text-xs">
           <caption className="sr-only">Cost Breakdown for Reference, Current, Gap, and Gap percentage</caption>
           <colgroup><col className="w-[20%]" /><col className="w-[18%]" /><col className="w-[18%]" /><col className="w-[26%]" /><col className="w-[18%]" /></colgroup>
           <thead>

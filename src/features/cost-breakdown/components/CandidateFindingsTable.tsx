@@ -43,8 +43,8 @@ interface CandidateFindingsTableProps {
   onManualOrderChange: (keys: string[]) => void
 }
 
-const BOM_COLUMN_WIDTHS = ['4%', '25%', '8%', '11.6666667%', '11.6666667%', '11.6666666%', '12%', '8%', '4%', '4%']
-const ROUTING_COLUMN_WIDTHS = ['4%', '25%', '8%', '7%', '7%', '7%', '7%', '7%', '12%', '8%', '4%', '4%']
+const BOM_COLUMN_WIDTHS = ['4%', '26%', '8%', '11.6666666667%', '11.6666666667%', '11.6666666667%', '12%', '7%', '4%', '4%']
+const ROUTING_COLUMN_WIDTHS = ['4%', '26%', '8%', '7%', '7%', '7%', '7%', '7%', '12%', '7%', '4%', '4%']
 
 export function reorderCandidateRowKeys(
   keys: readonly string[],
@@ -289,7 +289,7 @@ export const CandidateFindingsTable: React.FC<CandidateFindingsTableProps> = ({
   const emptyMessage = isBOM ? 'No Bill of Material findings match this filter.' : 'No Routing findings match this filter.'
 
   return <div className="overflow-x-auto border border-slate-200">
-    <table className="w-full min-w-[1400px] table-fixed text-left text-xs">
+    <table className="w-full min-w-0 table-fixed text-left text-[10px]">
       <colgroup>{columnWidths.map((width, index) => <col key={index} style={{ width }} />)}</colgroup>
       <caption className="sr-only">{identityHeader} Candidate findings. Main parameter columns show deltas; CHANGED rows expand Reference → Current and Parameter Cost Effect details.</caption>
       <thead>
@@ -307,10 +307,10 @@ export const CandidateFindingsTable: React.FC<CandidateFindingsTableProps> = ({
             >#</button>
           </th>
           <th scope="col" className="overflow-hidden px-2.5 py-2">{identityHeader}</th>
-          <th scope="col" className="px-2.5 py-2 text-left">Status</th>
-          {parameterHeaders.map(header => <th key={header} scope="col" className="px-2.5 py-2 text-right">{header}</th>)}
-          <th scope="col" className="px-2.5 py-2 text-right">Gap</th>
-          <th scope="col" className="px-2.5 py-2 text-right">%GAP</th>
+          <th scope="col" className="whitespace-nowrap px-1 py-2 text-left">Status</th>
+          {parameterHeaders.map(header => <th key={header} scope="col" className="whitespace-nowrap px-1 py-2 text-right">{header}</th>)}
+          <th scope="col" className="whitespace-nowrap px-1 py-2 text-right">Gap</th>
+          <th scope="col" className="whitespace-nowrap px-1 py-2 text-right">%GAP</th>
           <th scope="col" className="px-1 py-2 text-center"><span className="sr-only">Reorder</span></th>
           <th scope="col" className="px-1 py-2 text-center"><span className="sr-only">Details</span></th>
         </tr>
@@ -379,10 +379,10 @@ export const CandidateFindingsTable: React.FC<CandidateFindingsTableProps> = ({
                 <th scope="row" className="max-w-0 overflow-hidden px-2.5 py-2 text-left font-sans font-medium text-slate-900">
                   <span className="block truncate whitespace-nowrap" title={row.label}>{row.label}</span>
                 </th>
-                <td className={`px-2.5 py-2 text-left font-sans text-[10px] font-bold ${statusTextClass(status)}`}>{status ?? '—'}</td>
-                {parameters.map(parameter => <td key={parameter.field} className="px-2.5 py-2 text-right">{renderParameter(parameter)}</td>)}
-                <td className={`px-2.5 py-2 text-right ${gapTextClass(row.gap)}`}>{row.gap === null ? '—' : formatVariance(row.gap, 4)}</td>
-                <td className="px-2.5 py-2 text-right text-slate-700">{candidatePercent(row.gap, totalGap)}</td>
+                <td className={`whitespace-nowrap px-1 py-2 text-left font-sans text-[10px] font-bold ${statusTextClass(status)}`}>{status ?? '—'}</td>
+                {parameters.map(parameter => <td key={parameter.field} className="whitespace-nowrap px-1 py-2 text-right">{renderParameter(parameter)}</td>)}
+                <td className={`whitespace-nowrap px-1 py-2 text-right ${gapTextClass(row.gap)}`}>{row.gap === null ? '—' : formatVariance(row.gap, 4)}</td>
+                <td className="whitespace-nowrap px-1 py-2 text-right text-slate-700">{candidatePercent(row.gap, totalGap)}</td>
                 <td className="px-1 py-2 text-center" onClick={event => event.stopPropagation()}>
                   <button
                     type="button"

@@ -370,15 +370,10 @@ try {
   const wcSection = wcMarkup.match(/<section\b[^>]*aria-label="Work Center"[^>]*>/)?.[0]
   const costSection = costFullMarkup.match(/<section\b[^>]*aria-label="Cost Breakdown"[^>]*>/)?.[0]
   assert.ok(wcSection && costSection, 'expected Cost and Work Center sections')
-  assert.match(costSection, /\bh-44\b/)
-  assert.match(wcSection, /\bh-44\b/, 'WC outer height must match Cost')
-  const scrollBody = wcMarkup.match(/<div data-wc-scroll-body="true" class="([^"]*)">/)
-  assert.ok(scrollBody, 'expected a dedicated WC scrolling body')
-  assert.match(scrollBody[1], /\bmin-h-0\b/)
-  assert.match(scrollBody[1], /\bflex-1\b/)
-  assert.match(scrollBody[1], /\boverflow-auto\b/)
-  assert.match(scrollBody[1], /scrollbar-gutter:stable/)
-  assert.equal([...wcMarkup.matchAll(/overflow-auto/g)].length, 1, 'the shared WC table owns one scroll viewport')
+  assert.doesNotMatch(costSection, /\bh-44\b/, 'Cost summary height follows its table content')
+  assert.doesNotMatch(wcSection, /\bh-44\b/, 'WC summary height follows its table content')
+  assert.match(wcMarkup, /<section aria-label="Work Center" class="min-w-0 border/)
+  assert.doesNotMatch(wcMarkup, /data-wc-scroll-body|overflow-auto/, 'Work Center rows use natural page scrolling')
   assert.match(wcMarkup, /<thead class="sticky top-0 z-10">[\s\S]*?Work Center[\s\S]*?REF[\s\S]*?CUR[\s\S]*?GAP[\s\S]*?%GAP/,
     'WC header stays sticky on the shared table grid')
   assert.match(wcMarkup, /<tfoot class="sticky bottom-0 z-10[\s\S]*?<th scope="row"[^>]*>Total/,
@@ -399,7 +394,7 @@ try {
   console.log('PASS: CBD summary UX verifier (Gap Bar, Cost, Work Center)')
   console.log('PASS: proportional Selected overlay, per-element Normal/Highlight/Remove, accessible titles')
   console.log('PASS: Cost row/slot structure and MAT/LB/BD plus STD Cost formulas')
-  console.log('PASS: Work Center has no Selected UI, reconciles Conversion totals, and scrolls only its body')
+  console.log('PASS: Work Center has no Selected UI, reconciles Conversion totals, and uses natural page scrolling')
 } finally {
   await vite.close()
 }

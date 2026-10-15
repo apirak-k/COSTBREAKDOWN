@@ -1,6 +1,6 @@
 import { ChevronDown, ChevronUp } from 'lucide-react'
-import { useEffect, useLayoutEffect, useRef, useState } from 'react'
-import type { FocusEvent, InputHTMLAttributes, KeyboardEvent } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
+import type { FocusEvent, InputHTMLAttributes, KeyboardEvent, PointerEvent as ReactPointerEvent } from 'react'
 import {
   formatNumericInputValue,
   isNumericDraftSyntax,
@@ -42,17 +42,90 @@ export function NumericInput({
 }: NumericInputProps) {
   const domain: NumericInputDomain = { integer, precision, min, max, minExclusive }
   const inputRef = useRef<HTMLInputElement>(null)
+  const wrapperRef = useRef<HTMLDivElement>(null)
   const currentValueRef = useRef(value)
   const onValueChangeRef = useRef(onValueChange)
   const previousValueRef = useRef(value)
   const previousFormattedValueRef = useRef(formatNumericInputValue(value, domain))
   const preservedPlaceRef = useRef<{ raw: string; caret: number; place: NumericStepPlace } | null>(null)
   const restorePlaceRef = useRef<number | null>(null)
+  const repeatPointerIdRef = useRef<number | null>(null)
+  const repeatDelayRef = useRef<number | null>(null)
+  const repeatIntervalRef = useRef<number | null>(null)
+  const lastPointerUpRef = useRef(0)
+  const canStepRef = useRef(!inputProps.disabled && !inputProps.readOnly)
   const [focused, setFocused] = useState(false)
   const [draft, setDraft] = useState(() => formatNumericInputValue(value, domain))
 
   currentValueRef.current = value
   onValueChangeRef.current = onValueChange
+  canStepRef.current = !inputProps.disabled && !inputProps.readOnly
+
+  const stopArrowRepeat = useCallback((pointerId?: number) => {
+    if (pointerId !== undefined && repeatPointerIdRef.current !== pointerId) return
+    if (repeatDelayRef.current !== null) window.clearTimeout(repeatDelayRef.current)
+    if (repeatIntervalRef.current !== null) window.clearInterval(repeatIntervalRef.current)
+    repeatDelayRef.current = null
+    repeatIntervalRef.current = null
+    repeatPointerIdRef.current = null
+  }, [])
+
+  const startArrowRepeat = (direction: 1 | -1, event: ReactPointerEvent<HTMLButtonElement>) => {
+    if (event.button !== 0 || !canStepRef.current) return
+    event.preventDefault()
+    stopArrowRepeat()
+    inputRef.current?.focus()
+    repeatPointerIdRef.current = event.pointerId
+    applyStep(direction)
+    repeatDelayRef.current = window.setTimeout(() => {
+      if (repeatPointerIdRef.current !== event.pointerId || !canStepRef.current || document.activeElement !== inputRef.current) {
+        stopArrowRepeat(event.pointerId)
+        return
+      }
+      repeatIntervalRef.current = window.setInterval(() => {
+        if (repeatPointerIdRef.current !== event.pointerId || !canStepRef.current || document.activeElement !== inputRef.current) {
+          stopArrowRepeat(event.pointerId)
+          return
+        }
+        applyStep(direction)
+      }, 100)
+    }, 450)
+  }
+
+  useEffect(() => {
+    const handlePointerUp = (event: globalThis.PointerEvent) => {
+      lastPointerUpRef.current = Date.now()
+      stopArrowRepeat(event.pointerId)
+    }
+    const handlePointerCancel = (event: globalThis.PointerEvent) => stopArrowRepeat(event.pointerId)
+    const handleExternalPointerDown = (event: globalThis.PointerEvent) => {
+      if (repeatPointerIdRef.current !== null && !wrapperRef.current?.contains(event.target as Node)) {
+        stopArrowRepeat()
+      }
+    }
+    const handleWindowBlur = () => stopArrowRepeat()
+    const handleVisibilityChange = () => {
+      if (document.visibilityState !== 'visible') stopArrowRepeat()
+    }
+
+    window.addEventListener('pointerup', handlePointerUp, true)
+    window.addEventListener('pointercancel', handlePointerCancel, true)
+    window.addEventListener('blur', handleWindowBlur)
+    document.addEventListener('pointerdown', handleExternalPointerDown, true)
+    document.addEventListener('visibilitychange', handleVisibilityChange)
+    return () => {
+      window.removeEventListener('pointerup', handlePointerUp, true)
+      window.removeEventListener('pointercancel', handlePointerCancel, true)
+      window.removeEventListener('blur', handleWindowBlur)
+      document.removeEventListener('pointerdown', handleExternalPointerDown, true)
+      document.removeEventListener('visibilitychange', handleVisibilityChange)
+      stopArrowRepeat()
+    }
+  }, [])
+
+  useEffect(() => {
+    if (!canStepRef.current) stopArrowRepeat()
+  }, [inputProps.disabled, inputProps.readOnly])
 
   useEffect(() => {
     const formattedValue = formatNumericInputValue(value, domain)
@@ -80,6 +153,7 @@ export function NumericInput({
   }, [draft, focused, integer])
 
   const applyStep = (direction: 1 | -1) => {
+    if (!canStepRef.current) return
     const input = inputRef.current
     const raw = input?.value ?? draft
     const selectionStart = input?.selectionStart ?? raw.length
@@ -120,6 +194,7 @@ export function NumericInput({
   }
 
   const handleBlur = (event: FocusEvent<HTMLInputElement>) => {
+    stopArrowRepeat()
     setFocused(false)
     const parsed = parseNumericDraft(draft, domain, allowSubMinimumDraft)
     if (parsed.kind === 'blank') onValueChangeRef.current(null)
@@ -129,6 +204,10 @@ export function NumericInput({
 
   const handleKeyDown = (event: KeyboardEvent<HTMLInputElement>) => {
     if (event.key === 'ArrowUp' || event.key === 'ArrowDown') {
+      if (!canStepRef.current) {
+        onKeyDown?.(event)
+        return
+      }
       if (event.shiftKey && event.currentTarget.dataset.gridCell === 'true') {
         preservedPlaceRef.current = null
         onKeyDown?.(event)
@@ -152,7 +231,7 @@ export function NumericInput({
     if (!input || !focused) return
 
     const handleWheel = (event: globalThis.WheelEvent) => {
-      if (document.activeElement !== input || event.deltaY === 0) return
+      if (document.activeElement !== input || event.deltaY === 0 || !canStepRef.current) return
       event.preventDefault()
       applyStep(event.deltaY < 0 ? 1 : -1)
     }
@@ -162,7 +241,7 @@ export function NumericInput({
   }, [focused, draft, integer, precision, min, max, minExclusive])
 
   return (
-    <div className="relative w-full min-w-0">
+    <div ref={wrapperRef} className="relative w-full min-w-0">
       <input
         {...inputProps}
         ref={inputRef}
@@ -198,18 +277,24 @@ export function NumericInput({
         }}
         onChange={event => handleChange(event.currentTarget.value)}
         className={`${defaultInputClassName} ${className ?? ''}`.trim()}
-        style={{ ...style, paddingRight: reserveMarker ? '2rem' : '1.5rem' }}
+        style={{ ...style, paddingRight: reserveMarker ? '2.5rem' : '1.75rem' }}
         data-numeric-editor="true"
       />
       {focused && !inputProps.disabled && !inputProps.readOnly && (
-        <span className={`absolute inset-y-0 ${reserveMarker ? 'right-4' : 'right-0'} flex w-3 flex-col justify-center`}>
+        <span data-numeric-stepper="true" className={`absolute inset-y-0 ${reserveMarker ? 'right-5' : 'right-1'} flex w-3 flex-col justify-center`}>
           <button
             type="button"
             tabIndex={-1}
             aria-label={`Increase ${label}`}
-            onMouseDown={event => event.preventDefault()}
-            onClick={() => applyStep(1)}
-            className="grid h-3 flex-none place-items-center text-slate-500 hover:text-slate-950 focus-visible:z-10 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-blue-700"
+            onPointerDown={event => startArrowRepeat(1, event)}
+            onPointerUp={event => stopArrowRepeat(event.pointerId)}
+            onPointerCancel={event => stopArrowRepeat(event.pointerId)}
+            onPointerLeave={event => stopArrowRepeat(event.pointerId)}
+            onClick={event => {
+              if (event.detail > 0 && Date.now() - lastPointerUpRef.current < 800) return
+              applyStep(1)
+            }}
+            className="grid h-3 flex-none touch-none place-items-center text-slate-500 hover:text-slate-950 focus-visible:z-10 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-blue-700"
           >
             <ChevronUp className="h-3 w-3" aria-hidden="true" />
           </button>
@@ -217,9 +302,15 @@ export function NumericInput({
             type="button"
             tabIndex={-1}
             aria-label={`Decrease ${label}`}
-            onMouseDown={event => event.preventDefault()}
-            onClick={() => applyStep(-1)}
-            className="grid h-3 flex-none place-items-center text-slate-500 hover:text-slate-950 focus-visible:z-10 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-blue-700"
+            onPointerDown={event => startArrowRepeat(-1, event)}
+            onPointerUp={event => stopArrowRepeat(event.pointerId)}
+            onPointerCancel={event => stopArrowRepeat(event.pointerId)}
+            onPointerLeave={event => stopArrowRepeat(event.pointerId)}
+            onClick={event => {
+              if (event.detail > 0 && Date.now() - lastPointerUpRef.current < 800) return
+              applyStep(-1)
+            }}
+            className="grid h-3 flex-none touch-none place-items-center text-slate-500 hover:text-slate-950 focus-visible:z-10 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-blue-700"
           >
             <ChevronDown className="h-3 w-3" aria-hidden="true" />
           </button>

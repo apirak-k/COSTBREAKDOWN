@@ -158,5 +158,6 @@ export function formatNumericInputValue(
 ): string {
   if (value === null || value === undefined || !Number.isFinite(value)) return ''
   if (domain.integer) return String(Math.round(value))
-  return value.toFixed(precisionOf(domain))
+  // `precision` limits the editable draft; display continuous values consistently.
+  return value.toFixed(2)
 }

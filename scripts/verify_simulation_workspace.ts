@@ -6,9 +6,13 @@ import {
   createEmptySimulationState,
   reconcileSimulationState,
   retainSimulationStatesForProducts,
+  resetSimulationParameters,
+  simulationWorkingTargetKey,
   setSimulationEconomicInput,
-  startSimulationFrom
+  startSimulationFrom,
+  toggleSimulationWorkingTarget
 } from '../src/features/simulation/simulation-state.ts'
+import { calculateParameterSimulation, updateSimulationParameter } from '../src/features/simulation/simulation-engine.ts'
 
 function snapshot(id: string, price: number, laborRate: number): CostSnapshot {
   return {
@@ -18,8 +22,14 @@ function snapshot(id: string, price: number, laborRate: number): CostSnapshot {
     sourceRef: id,
     status: 'draft',
     rates: [{ id: `rate-${id}`, workCenterCode: 'WC-1', description: 'WC-1', laborRate, burdenRate: 5, effectiveDate: '', confidence: {} }],
-    bom: [{ id: `bom-${id}`, itemCode: 'MAT-1', description: 'Test material', consumption: 1, unit: 'PC', price, loss: 0, confidence: {} }],
-    routing: []
+    bom: [
+      { id: `bom-${id}`, itemCode: 'MAT-1', description: 'Test material', consumption: 1, unit: 'PC', price, loss: 0, confidence: {} },
+      { id: `bom-extra-${id}`, itemCode: 'MAT-2', description: 'Second material', consumption: 2, unit: 'PC', price: 3, loss: 0, confidence: {} }
+    ],
+    routing: [{
+      id: `route-${id}`, processName: 'Assembly', workCenterId: 'WC-1', manning: 1,
+      capacity: 10, yield: 1, confidence: {}
+    }]
   }
 }
 
@@ -99,6 +109,96 @@ assert.equal(customSim.snapshot?.bom[0]?.price, 14)
 assert.equal(customSim.snapshot?.rates[0]?.laborRate, 20)
 const currentSim = startSimulationFrom('current', initial)
 assert.equal(currentSim.snapshot?.bom[0]?.price, 12)
+assert.deepEqual(currentSim.workingSelection, [], 'Current clone starts with no selected working rows')
+assert.deepEqual(currentSim.resetBaselineSnapshot, currentSim.snapshot, 'Current clone captures the initial SIM parameters as its reset baseline')
+assert.notStrictEqual(currentSim.resetBaselineSnapshot, currentSim.snapshot, 'the reset baseline is isolated from live SIM edits')
+assert.notStrictEqual(currentSim.resetBaselineSnapshot?.bom[0], currentSim.snapshot?.bom[0])
+
+const currentCalculation = calculateParameterSimulation(initial.current, currentSim.snapshot!)
+assert.equal(currentCalculation.records.filter(row => row.kind === 'bom').length, 2)
+assert.equal(currentCalculation.records.filter(row => row.kind === 'routing').length, 1)
+const selectedCurrentSim = toggleSimulationWorkingTarget(currentSim, 'bom', currentSim.snapshot!.bom[0].id)
+const bomSelectionKey = simulationWorkingTargetKey('bom', currentSim.snapshot!.bom[0].id)
+assert.deepEqual(selectedCurrentSim.workingSelection, [bomSelectionKey], 'BOM selection uses a kind-qualified record key')
+assert.strictEqual(selectedCurrentSim.snapshot, currentSim.snapshot, 'selecting a working row does not clone or edit the SIM snapshot')
+assert.strictEqual(selectedCurrentSim.resetBaselineSnapshot, currentSim.resetBaselineSnapshot, 'selection does not alter the Reset baseline')
+assert.equal(selectedCurrentSim.basisFingerprint, currentSim.basisFingerprint, 'selection does not change the Current source fingerprint')
+assert.strictEqual(reconcileSimulationState(selectedCurrentSim, initial), selectedCurrentSim,
+  'reconciliation keeps valid selection without invalidating or rewriting the source basis')
+assert.strictEqual(toggleSimulationWorkingTarget(selectedCurrentSim, 'bom', 'not-in-sim'), selectedCurrentSim,
+  'an unknown record cannot enter the working selection')
+const selectedBOMAndRouting = toggleSimulationWorkingTarget(selectedCurrentSim, 'routing', currentSim.snapshot!.routing[0].id)
+const routingSelectionKey = simulationWorkingTargetKey('routing', currentSim.snapshot!.routing[0].id)
+assert.deepEqual(selectedBOMAndRouting.workingSelection, [bomSelectionKey, routingSelectionKey],
+  'routing selection remains distinct from BOM selection for the same workspace')
+const selectedCalculation = calculateParameterSimulation(initial.current, selectedBOMAndRouting.snapshot!)
+assert.equal(selectedCalculation.records.length, 3, 'selecting one BOM and one RTG row does not filter the full calculation')
+assert.deepEqual(selectedCalculation.records, currentCalculation.records, 'all BOM and RTG rows remain in the comparison after selection')
+assert.deepEqual(selectedCalculation.simulationCost, currentCalculation.simulationCost,
+  'working selection has no effect on calculated SIM cost')
+const invalidSelection = reconcileSimulationState({
+  ...selectedBOMAndRouting,
+  workingSelection: [...selectedBOMAndRouting.workingSelection, 'bom:missing-record']
+}, initial)
+assert.deepEqual(invalidSelection.workingSelection, selectedBOMAndRouting.workingSelection,
+  'source reconciliation prunes stale working-record keys while retaining valid ones')
+assert.strictEqual(reconcileSimulationState(selectedBOMAndRouting, changedReferenceSources), selectedBOMAndRouting,
+  'Reference changes preserve Current basis and local selection')
+assert.strictEqual(reconcileSimulationState(selectedBOMAndRouting, changedCustomSources), selectedBOMAndRouting,
+  'Custom changes preserve Current basis and local selection')
+const currentInvalidatesSelection = reconcileSimulationState(selectedBOMAndRouting, sources(10, 13))
+assert.equal(currentInvalidatesSelection.snapshot, null, 'a Current change invalidates the prior SIM even when rows are selected')
+assert.deepEqual(currentInvalidatesSelection.workingSelection, [], 'Current invalidation clears stale working selection')
+
+const editedCurrentSim = updateSimulationParameter(
+  selectedBOMAndRouting,
+  initial.current,
+  currentSim.snapshot!.bom[0].id,
+  'bom.price',
+  7.5
+)
+assert.equal(editedCurrentSim.snapshot?.bom[0]?.price, 7.5, 'a direct parameter edit changes only the live SIM snapshot')
+assert.equal(editedCurrentSim.resetBaselineSnapshot?.bom[0]?.price, 12, 'direct edits do not replace the reset baseline')
+assert.deepEqual(editedCurrentSim.workingSelection, selectedBOMAndRouting.workingSelection,
+  'direct parameter edits preserve the local working selection')
+assert.equal(initial.current.bom[0].price, 12, 'direct parameter edits do not mutate the Current source')
+
+const editedWithEconomicInputs = setSimulationEconomicInput(
+  setSimulationEconomicInput(editedCurrentSim, 'fixedActionCost', '500'),
+  'batchSize',
+  '25'
+)
+const resetCurrentSim = resetSimulationParameters(editedWithEconomicInputs)
+assert.deepEqual(resetCurrentSim.snapshot, currentSim.resetBaselineSnapshot, 'Reset restores every live parameter to the clone-time baseline')
+assert.notStrictEqual(resetCurrentSim.snapshot, resetCurrentSim.resetBaselineSnapshot, 'reset returns a mutable SIM copy separate from the saved baseline')
+assert.deepEqual(resetCurrentSim.economicInputs, editedWithEconomicInputs.economicInputs, 'Reset leaves Economic inputs unchanged')
+assert.strictEqual(resetCurrentSim.resetBaselineSnapshot, editedWithEconomicInputs.resetBaselineSnapshot, 'Reset keeps the current clone baseline')
+assert.deepEqual(resetCurrentSim.workingSelection, editedWithEconomicInputs.workingSelection,
+  'Reset restores parameters but retains the local working selection')
+assert.equal(initial.current.bom[0].price, 12, 'reset never writes parameter values back to Current')
+assert.strictEqual(resetSimulationParameters(currentSim), currentSim, 'Reset is an identity operation when no parameters changed')
+
+const reclonedAfterEdit = startSimulationFrom('custom', initial, '2026-10-09T02:05:00.000Z', editedWithEconomicInputs.economicInputs)
+assert.equal(reclonedAfterEdit.snapshot?.bom[0]?.price, 14, 're-cloning replaces the edited SIM values with the selected source')
+assert.deepEqual(reclonedAfterEdit.resetBaselineSnapshot, reclonedAfterEdit.snapshot, 're-clone captures a new reset baseline')
+assert.notDeepEqual(reclonedAfterEdit.resetBaselineSnapshot, currentSim.resetBaselineSnapshot, 're-clone replaces the prior baseline')
+assert.deepEqual(reclonedAfterEdit.economicInputs, editedWithEconomicInputs.economicInputs, 're-cloning keeps Economic inputs')
+assert.deepEqual(reclonedAfterEdit.workingSelection, [], 're-cloning clears the previous source selection')
+assert.equal(reclonedAfterEdit.snapshot?.rates[0]?.laborRate, 20, 're-clone still uses the current Work Center rates')
+
+const { resetBaselineSnapshot: _legacyBaseline, ...legacyWithoutBaseline } = editedWithEconomicInputs
+const migratedBaselineState = reconcileSimulationState(legacyWithoutBaseline as typeof editedWithEconomicInputs, initial)
+assert.deepEqual(migratedBaselineState.snapshot, editedWithEconomicInputs.snapshot, 'legacy SIM parameters are preserved during baseline migration')
+assert.deepEqual(migratedBaselineState.resetBaselineSnapshot, editedWithEconomicInputs.snapshot,
+  'a legacy workspace without a baseline adopts its existing SIM snapshot as the reset baseline')
+assert.notStrictEqual(migratedBaselineState.resetBaselineSnapshot, migratedBaselineState.snapshot,
+  'migrated baseline is copied so later direct edits cannot mutate it')
+assert.strictEqual(resetSimulationParameters(migratedBaselineState), migratedBaselineState,
+  'Reset after legacy migration preserves parameters when the adopted baseline is already current')
+assert.equal(initial.custom.bom[0].price, 14, 'Current and Custom source snapshots remain unchanged after editing, resetting, and re-cloning')
+const { workingSelection: _legacySelection, ...legacyStateWithoutSelection } = selectedBOMAndRouting
+const migratedSelectionState = reconcileSimulationState(legacyStateWithoutSelection as typeof selectedBOMAndRouting, initial)
+assert.deepEqual(migratedSelectionState.workingSelection, [], 'legacy workspaces without selection migrate to an empty selection')
 
 for (const [field, invalid] of [
   ['fixedActionCost', '-1'],
@@ -124,9 +224,12 @@ assert.deepEqual(incompleteStoredSimulation, createEmptySimulationState(), 'a le
 const noFingerprintSimulation = reconcileSimulationState({ ...currentSim, basisFingerprint: null }, initial)
 assert.deepEqual(noFingerprintSimulation, createEmptySimulationState(), 'a legacy SIM with no Current basis is discarded')
 
-const productStates = { p1: currentSim, p2: startSimulationFrom('reference', initial) }
-assert.deepEqual(Object.keys(retainSimulationStatesForProducts(productStates, new Set(['p1']))), ['p1'],
+const productStates = { p1: selectedBOMAndRouting, p2: startSimulationFrom('reference', initial) }
+assert.deepEqual(productStates.p2.workingSelection, [], 'each product has an independent local working selection')
+const retainedProductStates = retainSimulationStatesForProducts(productStates, new Set(['p1']))
+assert.deepEqual(Object.keys(retainedProductStates), ['p1'],
   'deleted products do not retain active Simulation state')
+assert.strictEqual(retainedProductStates.p1, selectedBOMAndRouting, 'a retained product keeps its own selected rows')
 
 const storeSource = readFileSync(resolve(process.cwd(), 'src/state/store.tsx'), 'utf8')
 const routerSource = readFileSync(resolve(process.cwd(), 'src/App.tsx'), 'utf8')

@@ -232,7 +232,7 @@ export const CostBreakdownPage: React.FC = () => {
   }
 
   return (
-    <div className="flex h-full min-h-0 min-w-0 flex-col gap-2">
+    <div className="flex min-h-full min-w-0 flex-col gap-2">
       <header aria-label="Cost Breakdown subheader" className="shrink-0 overflow-x-auto border border-slate-300 bg-white" tabIndex={0}>
         <div className="flex min-w-[1000px] flex-nowrap items-center gap-1.5 px-1.5 py-1" role="group" aria-label="Cost Breakdown controls">
           <div
@@ -314,7 +314,7 @@ export const CostBreakdownPage: React.FC = () => {
             </button>
             <CostBreakdownPopover
               label={`Choose sort mode; current mode ${sortLabel}`}
-              trigger={<span className="sr-only">Sort options</span>}
+              trigger={null}
               panelClassName="w-48"
               buttonClassName="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-none border-l border-slate-300 bg-white p-0 text-xs font-medium text-slate-700 hover:bg-slate-100 focus-visible:z-10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-blue-700"
             >
@@ -343,12 +343,12 @@ export const CostBreakdownPage: React.FC = () => {
         </div>
       </header>
 
-      <div id="cost-breakdown-overview-panels" className={isOverviewExpanded ? 'shrink-0 grid h-44 min-w-0 grid-cols-2 items-stretch gap-2' : 'hidden'}>
+      <div id="cost-breakdown-overview-panels" className={isOverviewExpanded ? 'shrink-0 grid min-w-0 grid-cols-1 items-stretch gap-2 lg:grid-cols-2' : 'hidden'}>
         <SnapshotComparisonCard comparison={fullSnapshotComparison} selectedComparison={selectedDisplayComparison} selectedActive={isSelectedComparisonActive} />
         <WorkCenterProcessingTable comparison={fullSnapshotComparison} />
       </div>
 
-      <div role="region" aria-label="Candidate workspace" tabIndex={0} className="min-h-0 min-w-0 flex-1 overflow-y-auto focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-blue-700">
+      <div role="region" aria-label="Candidate workspace" tabIndex={0} className="min-w-0 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-blue-700">
         <ItemizedComparisonTable
           comparison={fullSnapshotComparison}
           pair={snapshotPair}

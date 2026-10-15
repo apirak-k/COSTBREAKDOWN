@@ -19,8 +19,10 @@ export interface SimulationWorkspaceState {
   sourceRole: MasterDataRole | null
   basisFingerprint: string | null
   snapshot: CostSnapshot | null
+  resetBaselineSnapshot: CostSnapshot | null
   startedAt: string | null
   economicInputs: EconomicSimulationDraft
+  workingSelection: string[]
 }
 
 const MASTER_DATA_ROLES: MasterDataRole[] = ['reference', 'current', 'custom']
@@ -30,8 +32,10 @@ export function createEmptySimulationState(): SimulationWorkspaceState {
     sourceRole: null,
     basisFingerprint: null,
     snapshot: null,
+    resetBaselineSnapshot: null,
     startedAt: null,
-    economicInputs: createEconomicSimulationDraft()
+    economicInputs: createEconomicSimulationDraft(),
+    workingSelection: []
   }
 }
 
@@ -53,9 +57,35 @@ export function startSimulationFrom(
     sourceRole,
     basisFingerprint: simulationBasisFingerprint(sourceRole, sources),
     snapshot,
+    resetBaselineSnapshot: structuredClone(snapshot),
     startedAt: now,
-    economicInputs: { ...economicInputs }
+    economicInputs: { ...economicInputs },
+    workingSelection: []
   }
+}
+
+export function simulationWorkingTargetKey(kind: 'bom' | 'routing', recordId: string): string {
+  return `${kind}:${recordId}`
+}
+
+export function toggleSimulationWorkingTarget(
+  state: SimulationWorkspaceState,
+  kind: 'bom' | 'routing',
+  recordId: string
+): SimulationWorkspaceState {
+  if (!state.snapshot || !recordId) return state
+  const records = kind === 'bom' ? state.snapshot.bom : state.snapshot.routing
+  if (records.filter(record => record.id === recordId).length !== 1) return state
+
+  const targetKey = simulationWorkingTargetKey(kind, recordId)
+  const selection = new Set(state.workingSelection)
+  if (selection.has(targetKey)) selection.delete(targetKey)
+  else selection.add(targetKey)
+  const workingSelection = [...selection]
+  return workingSelection.length === state.workingSelection.length
+    && workingSelection.every((value, index) => value === state.workingSelection[index])
+    ? state
+    : { ...state, workingSelection }
 }
 
 export function reconcileSimulationState(
@@ -64,8 +94,10 @@ export function reconcileSimulationState(
 ): SimulationWorkspaceState {
   if (!state) return createEmptySimulationState()
 
-  const persistedState = state as SimulationWorkspaceState & { selectedFactors?: unknown }
+  const persistedState = state as SimulationWorkspaceState & { selectedFactors?: unknown; workingSelection?: unknown }
   const hasLegacyFactors = Object.prototype.hasOwnProperty.call(persistedState, 'selectedFactors')
+  const hasResetBaseline = Object.prototype.hasOwnProperty.call(persistedState, 'resetBaselineSnapshot')
+  const hasWorkingSelection = Array.isArray(persistedState.workingSelection)
   const stateWithoutLegacyFactors = { ...persistedState }
   delete stateWithoutLegacyFactors.selectedFactors
   const storedInputs = state.economicInputs as Partial<EconomicSimulationDraft> & {
@@ -86,13 +118,16 @@ export function reconcileSimulationState(
     sellingPriceOverride: economicValue('sellingPriceOverride', storedInputs?.sellingPriceOverride),
     sgaPercentOverride: economicValue('sgaPercentOverride', storedInputs?.sgaPercentOverride)
   }
+  const workingSelection = Array.isArray(persistedState.workingSelection)
+    ? [...new Set(persistedState.workingSelection.filter((value): value is string => typeof value === 'string'))]
+    : []
 
   if (!state.sourceRole && !state.snapshot && !state.basisFingerprint && !state.startedAt) {
     const inputsUnchanged = Object.keys(economicInputs).every(key =>
       economicInputs[key as EconomicSimulationField] === storedInputs?.[key as EconomicSimulationField])
-    return !hasLegacyFactors && inputsUnchanged
+    return !hasLegacyFactors && hasResetBaseline && hasWorkingSelection && workingSelection.length === 0 && inputsUnchanged
       ? state
-      : { ...createEmptySimulationState(), economicInputs }
+      : { ...createEmptySimulationState(), economicInputs, workingSelection: [] }
   }
   if (!state.sourceRole || !MASTER_DATA_ROLES.includes(state.sourceRole) || !state.snapshot || !state.basisFingerprint) {
     return { ...createEmptySimulationState(), economicInputs }
@@ -105,11 +140,33 @@ export function reconcileSimulationState(
     : JSON.stringify(state.snapshot.rates) === JSON.stringify(sources.current.rates)
       ? state.snapshot
       : { ...state.snapshot, rates: structuredClone(sources.current.rates) }
+  const resetBaselineSnapshot = state.resetBaselineSnapshot
+    ? state.resetBaselineSnapshot.rates === sources.current.rates
+      ? state.resetBaselineSnapshot
+      : JSON.stringify(state.resetBaselineSnapshot.rates) === JSON.stringify(sources.current.rates)
+        ? state.resetBaselineSnapshot
+        : { ...state.resetBaselineSnapshot, rates: structuredClone(sources.current.rates) }
+    : structuredClone(snapshot)
+  const validTargetKeys = new Set([
+    ...snapshot.bom.map(record => simulationWorkingTargetKey('bom', record.id)),
+    ...snapshot.routing.map(record => simulationWorkingTargetKey('routing', record.id))
+  ])
+  const normalizedWorkingSelection = workingSelection.filter(key => validTargetKeys.has(key))
   const inputsUnchanged = Object.keys(economicInputs).every(key =>
     economicInputs[key as EconomicSimulationField] === storedInputs?.[key as EconomicSimulationField])
-  return !hasLegacyFactors && inputsUnchanged && snapshot === state.snapshot
+  return !hasLegacyFactors && hasResetBaseline && hasWorkingSelection && inputsUnchanged && snapshot === state.snapshot && resetBaselineSnapshot === state.resetBaselineSnapshot
+    && normalizedWorkingSelection.length === workingSelection.length
     ? state
-    : { ...stateWithoutLegacyFactors, snapshot, economicInputs }
+    : { ...stateWithoutLegacyFactors, snapshot, resetBaselineSnapshot, economicInputs, workingSelection: normalizedWorkingSelection }
+}
+
+export function resetSimulationParameters(state: SimulationWorkspaceState): SimulationWorkspaceState {
+  if (!state.snapshot || !state.resetBaselineSnapshot) return state
+  if (JSON.stringify(state.snapshot) === JSON.stringify(state.resetBaselineSnapshot)) return state
+  const snapshot = structuredClone(state.resetBaselineSnapshot)
+  // Parameter Reset must not roll the locked WC rates back from the live Current context.
+  snapshot.rates = structuredClone(state.snapshot.rates)
+  return { ...state, snapshot }
 }
 
 export function setSimulationEconomicInput(

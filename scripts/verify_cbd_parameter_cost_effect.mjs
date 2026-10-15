@@ -548,7 +548,8 @@ try {
   const wcMarkup = renderToStaticMarkup(React.createElement(wcView.WorkCenterProcessingTable, {
     comparison: wcComparison,
   }))
-  assert.match(wcMarkup, /data-wc-scroll-body="true" class="min-h-0 flex-1 overflow-auto \[scrollbar-gutter:stable\]"/, 'one shared WC table viewport owns scrolling')
+  assert.match(wcMarkup, /<section aria-label="Work Center" class="min-w-0 border/, 'Work Center summary grows to its table content')
+  assert.doesNotMatch(wcMarkup, /data-wc-scroll-body|overflow-auto/, 'Work Center rows use natural page scrolling')
   assert.match(wcMarkup, />Work Center<\/th>[\s\S]*>REF<\/th>[\s\S]*>CUR<\/th>[\s\S]*>GAP<\/th>[\s\S]*>%GAP<\/th>/)
   assert.equal([...wcMarkup.matchAll(/<table\b/g)].length, 1, 'WC header, body, and footer share identical table geometry')
   assert.match(wcMarkup, /<thead class="sticky top-0 z-10">[\s\S]*?<tfoot class="sticky bottom-0 z-10/,
@@ -614,8 +615,8 @@ try {
   const routingParameterWidth = routingGrid.slice(3, -4).reduce((sum, width) => sum + width, 0)
   assert.ok(Math.abs(bomParameterWidth - routingParameterWidth) < 1e-8,
     'BOM and Routing parameter groups occupy the same total width')
-  assert.match(candidateSource, /<table className="w-full min-w-\[1400px\] table-fixed/,
-    'BOM and Routing use the same table width so shared columns remain vertically aligned')
+  assert.match(candidateSource, /<table className="w-full min-w-0 table-fixed/,
+    'BOM and Routing tables fit their panel width at ordinary desktop sizes')
   assert.match(candidateSource, /const canExpand = status === 'CHANGED'\s+const isExpanded = canExpand && expandedRows\.has/,
     'even stale expansion state cannot show Details for a non-CHANGED finding')
   assert.match(candidateSource, /h-8 w-8 shrink-0 items-center justify-center rounded-sm p-0 font-mono[^']*tabular-nums/,
@@ -779,9 +780,9 @@ try {
     assert.match(subheader, /aria-expanded="true"/)
     assert.match(pageMarkup, /id="cost-breakdown-overview-panels" class="[^\"]*grid[^\"]*"/,
       'Cost and Work Center panels remain visible by default below the subheader')
-    assert.match(pageMarkup, /aria-label="Cost Breakdown" class="h-44/)
-    assert.match(pageMarkup, /aria-label="Work Center" class="flex h-44/)
-    assert.match(pageMarkup, /data-wc-scroll-body="true" class="min-h-0 flex-1 overflow-auto \[scrollbar-gutter:stable\]/)
+  assert.match(pageMarkup, /aria-label="Cost Breakdown" class="min-w-0 overflow-hidden/)
+  assert.match(pageMarkup, /aria-label="Work Center" class="min-w-0 border/)
+  assert.doesNotMatch(pageMarkup, /data-wc-scroll-body|overflow-auto/, 'normal CBD content does not add nested vertical scroll regions')
     assert.match(pageMarkup, /aria-label="Deselect Routing finding Cutting"/,
       'CBD finding selection remains available in the Candidates table')
     assert.equal([...pageMarkup.matchAll(/data-gap-chart-mode=/g)].length, 1,

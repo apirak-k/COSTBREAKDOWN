@@ -9,9 +9,11 @@ import {
 } from './features'
 import {
   reconcileSimulationState,
+  resetSimulationParameters,
   retainSimulationStatesForProducts,
   setSimulationEconomicInput,
   startSimulationFrom,
+  toggleSimulationWorkingTarget,
   type SimulationWorkspaceState
 } from './features/simulation/simulation-state'
 import { updateSimulationParameter } from './features/simulation/simulation-engine'
@@ -108,6 +110,10 @@ const AppRouter: React.FC = () => {
     ))
   }
 
+  const toggleWorkingTarget = (kind: 'bom' | 'routing', recordId: string) => {
+    updateSimulationState(state => toggleSimulationWorkingTarget(state, kind, recordId))
+  }
+
   return (
     <AppLayout onNavigatePrepareDatasetIssue={navigateToPrepareDatasetIssue}>
       {activeTab === 'master' && (
@@ -123,11 +129,14 @@ const AppRouter: React.FC = () => {
         <SimulationPage
           key={activeProductId}
           state={simulationState}
+          workingSelection={simulationState.workingSelection}
           referenceSnapshot={masterDataSnapshots.reference}
           currentSnapshot={masterDataSnapshots.current}
           onCloneSource={startFrom}
+          onResetParameters={() => updateSimulationState(resetSimulationParameters)}
           onSendTo={(role: MasterDataRole, snapshot: CostSnapshot) => sendSimulationSnapshotToMasterData(role, snapshot)}
           onUpdateParameter={updateParameter}
+          onToggleWorkingTarget={toggleWorkingTarget}
           onUpdateEconomicInput={updateEconomicInput}
         />
       )}

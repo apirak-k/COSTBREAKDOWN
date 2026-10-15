@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import type { KeyboardEvent, PointerEvent } from 'react'
 import { formatNumber } from '../../core'
 import type { ScenarioFinancialResult, ScenarioStory } from '../../core/types'
+import { COST_ELEMENT_COLORS } from '../cost-breakdown/components/cost-element-colors'
 
 type MetricKey = keyof ScenarioFinancialResult
 type CostPartKey = 'material' | 'labor' | 'burden'
@@ -14,15 +15,18 @@ interface ChartPart {
 }
 
 const COST_PARTS: ChartPart[] = [
-  { key: 'material', label: 'MAT', color: '#5b91c8', highlight: 'material' },
-  { key: 'labor', label: 'LB', color: '#e6b422', highlight: 'labor' },
-  { key: 'burden', label: 'BD', color: '#55964b', highlight: 'burden' }
+  { key: 'material', label: 'MAT', color: COST_ELEMENT_COLORS.material, highlight: 'material' },
+  { key: 'labor', label: 'LB', color: COST_ELEMENT_COLORS.labor, highlight: 'labor' },
+  { key: 'burden', label: 'BD', color: COST_ELEMENT_COLORS.burden, highlight: 'burden' }
 ]
+
+const OPERATING_PROFIT_POSITIVE = '#15803d'
+const OPERATING_PROFIT_NEGATIVE = '#be123c'
 
 const STATE_PARTS: ChartPart[] = [
   ...COST_PARTS,
   { key: 'sgaAmountPerPiece', label: 'SG&A', color: '#94a3b8', highlight: null },
-  { key: 'operatingProfitPerPiece', label: 'OP', color: '#8b73ad', highlight: null }
+  { key: 'operatingProfitPerPiece', label: 'OP', color: OPERATING_PROFIT_POSITIVE, highlight: null }
 ]
 
 const STATE_LAYOUT = [
@@ -152,13 +156,12 @@ export function SimulationStoryGraph({ story, highlightedParts = {} }: Simulatio
   })
 
   return (
-    <figure aria-labelledby="simulation-story-title" className="min-w-0 border border-slate-300 bg-white px-3 py-3">
-      <div className="flex flex-wrap items-baseline justify-between gap-2 border-b border-slate-200 pb-2">
+    <figure aria-labelledby="simulation-story-title" className="min-w-0 border border-slate-300 bg-white px-2.5 py-2.5">
+      <div className="flex flex-wrap items-baseline justify-between gap-2 border-b border-slate-200 pb-1.5">
         <div>
-          <h2 id="simulation-story-title" className="text-sm font-semibold text-slate-900">Simulation Cost Graph</h2>
+          <h2 id="simulation-story-title" className="text-xs font-semibold text-slate-900">Graph</h2>
           <p className="mt-0.5 text-[11px] text-slate-500">REF → GAP 1 → CUR → GAP 2 → SIM · THB/pc</p>
         </div>
-        <p className="text-[11px] text-slate-500">Standard Cost = MAT + LB + BD · Selling Price shown separately</p>
       </div>
 
       <div className="min-w-0">
@@ -170,7 +173,7 @@ export function SimulationStoryGraph({ story, highlightedParts = {} }: Simulatio
           style={{ touchAction: 'pan-x' }}
         >
           <title id="simulation-story-svg-title">Simulation cost result graph</title>
-          <desc id="simulation-story-svg-description">Reference, Current, and SIM stacked costs show MAT, LB, BD, SG&A, and OP. Gap 1 is Current minus Reference. Gap 2 is SIM minus Current. Negative components extend below zero. Selling Price is a separate line. Drag or use the keyboard on the ruler for visual comparison only.</desc>
+          <desc id="simulation-story-svg-description">Reference, Current, and SIM stacked costs show MAT, LB, BD, SG&A, and OP. Gap 1 is Current minus Reference. Gap 2 is SIM minus Current. Negative components extend below zero. Selling Price is a separate line. Drag vertically or use arrow, page, Home, and End keys on the horizontal ruler for visual comparison only.</desc>
 
           {[0, 1, 2, 3, 4].map(step => {
             const value = minimum + (span * step) / 4
@@ -184,6 +187,10 @@ export function SimulationStoryGraph({ story, highlightedParts = {} }: Simulatio
           })}
           <line x1={plot.left} x2={plot.right} y1={zeroY} y2={zeroY} stroke="#64748b" strokeWidth="1.4" />
           <text x="15" y="22" fill="#64748b" fontSize="9px" fontFamily="ui-monospace, monospace">THB/pc</text>
+
+          <line x1={plot.left} x2={plot.right} y1={rulerY} y2={rulerY} stroke={rulerFocused ? '#2563eb' : '#475569'} strokeWidth="1.25" strokeDasharray="4 5" opacity="0.58" pointerEvents="none" />
+          <rect x="690" y="8" width="122" height="18" fill="white" fillOpacity="0.95" stroke={rulerFocused ? '#2563eb' : '#cbd5e1'} strokeWidth="0.8" pointerEvents="none" />
+          <text x="806" y="20" textAnchor="end" fill={rulerFocused ? '#1d4ed8' : '#475569'} fontSize="9px" fontWeight="700" fontFamily="ui-monospace, monospace" pointerEvents="none">{`RULER ${formatValue(rulerLevel)}`}</text>
 
           {stateValues.map(state => {
             let positiveBase = 0
@@ -205,7 +212,9 @@ export function SimulationStoryGraph({ story, highlightedParts = {} }: Simulatio
                       y={Math.min(y(before), y(after))}
                       width="54"
                       height={Math.max(Math.abs(y(before) - y(after)), 1)}
-                      fill={part.color}
+                      fill={part.key === 'operatingProfitPerPiece'
+                        ? value > 0 ? OPERATING_PROFIT_POSITIVE : value < 0 ? OPERATING_PROFIT_NEGATIVE : '#94a3b8'
+                        : part.color}
                       stroke={highlighted ? '#0f172a' : 'none'}
                       strokeWidth={highlighted ? 2 : 0}
                     >
@@ -217,7 +226,6 @@ export function SimulationStoryGraph({ story, highlightedParts = {} }: Simulatio
                   {`STD ${formatValue(state.values.standardCost)}`}
                 </text>
                 <text x={state.x} y="306" textAnchor="middle" fill="#0f172a" fontSize="11px" fontWeight="700" fontFamily="ui-monospace, monospace">{state.label}</text>
-                <text className="hidden sm:inline" x={state.x} y="320" textAnchor="middle" fill="#64748b" fontSize="9px">{state.description}</text>
               </g>
             )
           })}
@@ -253,10 +261,9 @@ export function SimulationStoryGraph({ story, highlightedParts = {} }: Simulatio
                   )
                 })}
                 <text x={gap.x} y={clamp(y(gap.values.standardCost ?? 0) - 8, plot.top + 10, plot.bottom - 1)} textAnchor="middle" fill="#0f172a" fontSize="9px" fontWeight="700" fontFamily="ui-monospace, monospace">
-                  {`SC ${signed(gap.values.standardCost)}`}
+                  {`${gap.label} ${signed(gap.values.standardCost)}`}
                 </text>
                 <text x={gap.x} y="306" textAnchor="middle" fill="#0f172a" fontSize="11px" fontWeight="700" fontFamily="ui-monospace, monospace">{gap.label}</text>
-                <text className="hidden sm:inline" x={gap.x} y="320" textAnchor="middle" fill="#64748b" fontSize="9px">{gap.description}</text>
               </g>
             )
           })}
@@ -289,34 +296,31 @@ export function SimulationStoryGraph({ story, highlightedParts = {} }: Simulatio
               updateRulerFromPointer(event)
               if (event.currentTarget.hasPointerCapture(event.pointerId)) event.currentTarget.releasePointerCapture(event.pointerId)
             }}
+            onPointerCancel={event => {
+              if (event.currentTarget.hasPointerCapture(event.pointerId)) event.currentTarget.releasePointerCapture(event.pointerId)
+            }}
             onKeyDown={handleRulerKeyDown}
             onFocus={() => setRulerFocused(true)}
             onBlur={() => setRulerFocused(false)}
             className="cursor-ns-resize touch-none focus-visible:outline-none"
           >
             <title>Drag vertically to compare cost levels. This guide does not change data.</title>
-            <line x1={plot.left} x2={plot.right} y1={rulerY} y2={rulerY} stroke={rulerFocused ? '#2563eb' : '#64748b'} strokeWidth={rulerFocused ? 2 : 1.25} strokeDasharray="5 4" opacity="0.9" pointerEvents="none" />
-            <line x1={plot.left} x2={plot.right} y1={rulerY} y2={rulerY} stroke="transparent" strokeWidth="16" pointerEvents="stroke" />
-            {rulerFocused && <line x1={plot.left} x2={plot.right} y1={rulerY - 5} y2={rulerY - 5} stroke="#2563eb" strokeWidth="1" opacity="0.45" pointerEvents="none" />}
-            <rect x="662" y={rulerY - 13} width="90" height="16" fill="white" fillOpacity="0.94" pointerEvents="none" />
-            <text x="748" y={rulerY - 2} textAnchor="end" fill={rulerFocused ? '#1d4ed8' : '#475569'} fontSize="9px" fontWeight="700" fontFamily="ui-monospace, monospace" pointerEvents="none">{`RULER ${formatValue(rulerLevel)}`}</text>
-            <rect x={plot.left} y={rulerY - 8} width={plot.right - plot.left} height="16" fill="transparent" pointerEvents="all" />
+            <rect x={plot.left} y={plot.top} width={plot.right - plot.left} height={plot.bottom - plot.top} fill="transparent" pointerEvents="all" />
           </g>
         </svg>
       </div>
 
       <ul aria-label="Simulation graph legend" className="flex flex-wrap gap-x-4 gap-y-1 border-t border-slate-200 pt-2 text-[11px] text-slate-600">
-        {STATE_PARTS.map(part => (
+        {STATE_PARTS.filter(part => part.key !== 'operatingProfitPerPiece').map(part => (
           <li key={part.key} className={`inline-flex items-center gap-1.5 ${part.highlight && highlightedParts[part.highlight] ? 'font-semibold text-slate-950' : ''}`}>
             <i className="h-2.5 w-2.5" style={{ backgroundColor: part.color }} />{part.label}
           </li>
         ))}
+        <li className="inline-flex items-center gap-1.5"><i className="h-2.5 w-2.5" style={{ backgroundColor: OPERATING_PROFIT_POSITIVE }} />OP +</li>
+        <li className="inline-flex items-center gap-1.5"><i className="h-2.5 w-2.5" style={{ backgroundColor: OPERATING_PROFIT_NEGATIVE }} />OP −</li>
         <li className="inline-flex items-center gap-1.5"><i className="h-0.5 w-4 bg-blue-700" />Selling Price</li>
-        <li className="inline-flex items-center gap-1.5"><i className="h-0.5 w-4 border-t border-dashed border-slate-600" />Ruler · visual only</li>
+        <li className="inline-flex items-center gap-1.5"><i className="h-0.5 w-4 border-t border-dashed border-slate-600" />Ruler</li>
       </ul>
-      <figcaption className="mt-1 text-[10px] leading-4 text-slate-500">
-        Gap 1 = Current − Reference. Gap 2 = SIM − Current. Each gap total is MAT + LB + BD; negative OP remains below zero.
-      </figcaption>
     </figure>
   )
 }
