@@ -20,6 +20,9 @@ export interface EconomicSimulationResult {
   requiredSavingPerPiece: number | null
   parameterSavingPerPiece: number | null
   economicMarginPerPiece: number | null
+  breakEvenQuantity: number | null
+  preciseBreakEvenQuantity: number | null
+  breakEvenNotAchievable: boolean
   simulationStandardCost: number | null
   sgaPerPiece: number | null
   operatingProfitPerPiece: number | null
@@ -131,6 +134,28 @@ export function calculateEconomicSimulation(
   const economicMarginPerPiece = parameterSaving !== null && requiredSavingPerPiece !== null
     ? finiteResult(parameterSaving - requiredSavingPerPiece, 'Economic Margin / pc', warnings)
     : null
+  const netSavingPerPiece = parameterSaving !== null && variableActionCostPerPiece !== null
+    ? finiteResult(parameterSaving - variableActionCostPerPiece, 'Net Saving / pc', warnings)
+    : null
+  let preciseBreakEvenQuantity: number | null = null
+  let breakEvenQuantity: number | null = null
+  let breakEvenNotAchievable = false
+  if (fixedActionCost !== null && netSavingPerPiece !== null) {
+    if (netSavingPerPiece <= 0) {
+      breakEvenNotAchievable = true
+    } else {
+      preciseBreakEvenQuantity = finiteResult(fixedActionCost / netSavingPerPiece, 'Break-even Quantity', warnings)
+      if (preciseBreakEvenQuantity !== null) {
+        const roundingTolerance = Number.EPSILON * Math.max(1, Math.abs(preciseBreakEvenQuantity)) * 4
+        const roundedQuantity = Math.ceil(preciseBreakEvenQuantity - roundingTolerance)
+        if (Number.isSafeInteger(roundedQuantity)) breakEvenQuantity = roundedQuantity === 0 ? 0 : roundedQuantity
+        else {
+          preciseBreakEvenQuantity = null
+          warnings.push('Break-even Quantity exceeds the supported whole-quantity range.')
+        }
+      }
+    }
+  }
 
   const sellingPrice = parseOverride(
     draft.sellingPriceOverride,
@@ -163,6 +188,9 @@ export function calculateEconomicSimulation(
     requiredSavingPerPiece,
     parameterSavingPerPiece: parameterSaving,
     economicMarginPerPiece,
+    breakEvenQuantity,
+    preciseBreakEvenQuantity,
+    breakEvenNotAchievable,
     simulationStandardCost,
     sgaPerPiece: business.sgaAmountPerPiece,
     operatingProfitPerPiece: business.operatingProfitPerPiece,

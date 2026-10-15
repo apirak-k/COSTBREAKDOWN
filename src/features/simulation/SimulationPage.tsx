@@ -17,6 +17,7 @@ import type {
 } from '../../core/types'
 import { NumericInput } from '../../shared/ui/NumericInput'
 import { useTransientInteraction } from '../../shared/ui/transient-interactions'
+import { normalizeProductIdentityValue } from '../../core/utils/master-data-effective'
 import { EconomicSimulationPanel } from './EconomicSimulationPanel'
 import { SimulationStoryGraph } from './SimulationStoryGraph'
 import { calculateEconomicSimulation, type EconomicSimulationField } from './simulation-economics'
@@ -145,6 +146,15 @@ function bomAttribution(
 
 function normalizeKey(value: string | undefined): string {
   return value?.trim().toLowerCase() ?? ''
+}
+
+function resolveSimulationCostUnit(referenceSnapshot: CostSnapshot, currentSnapshot: CostSnapshot): string {
+  const referenceUnit = referenceSnapshot.product.uom?.trim() ?? ''
+  const currentUnit = currentSnapshot.product.uom?.trim() ?? ''
+  if (!referenceUnit && !currentUnit) return 'Unit'
+  if (!referenceUnit) return currentUnit
+  if (!currentUnit || normalizeProductIdentityValue(referenceUnit) === normalizeProductIdentityValue(currentUnit)) return referenceUnit
+  return 'Unit'
 }
 
 function routingAttribution(
@@ -767,7 +777,13 @@ export const SimulationPage: React.FC<SimulationPageProps> = ({
             transferMessage={transferMessage}
             transferError={transferError}
           />
-          <EconomicSimulationPanel result={economicResult} draft={state.economicInputs} currentSnapshot={currentSnapshot} onUpdate={onUpdateEconomicInput} />
+          <EconomicSimulationPanel
+            result={economicResult}
+            draft={state.economicInputs}
+            currentSnapshot={currentSnapshot}
+            unit={resolveSimulationCostUnit(referenceSnapshot, currentSnapshot)}
+            onUpdate={onUpdateEconomicInput}
+          />
         </div>
       </div>
 

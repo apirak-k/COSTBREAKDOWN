@@ -491,27 +491,33 @@ The exact story is `REF → GAP 1 → CUR → GAP 2 → SIM`. GAP 1 = Current �
 
 ## 6.2 Economic Simulation
 
-Economic Simulation evaluates implementation costs and commercial outcomes separately from engineering Standard Cost.
+Economic evaluates action cost and savings; Business evaluates commercial outcomes. These remain separate from engineering Standard Cost and from one another.
 
-### Inputs
-1. Fixed Action Cost (THB)
-2. Variable Action Cost / pc (THB/pc)
-3. Batch Size (positive integer pieces)
-4. Selling Price override (blank uses Current Selling Price)
-5. SG&A % override (blank uses Current SG&A %)
+### Economic inputs and formulas
+- Fixed Action Cost: finite and `>= 0`.
+- Batch Size: positive whole production quantity in the product UOM.
+- Variable Action Cost / Unit: finite and `>= 0`.
+- Parameter Saving / Unit = Current Standard Cost − SIM Standard Cost.
+- Required Saving / Unit = (Fixed Action Cost / Batch Size) + Variable Action Cost / Unit.
+- Economic Margin / Unit = Parameter Saving / Unit − Required Saving / Unit.
+- Break-even Quantity = Fixed Action Cost / (Parameter Saving / Unit − Variable Action Cost / Unit).
 
-### Core Formula
-$$\text{Fixed Cost / pc} = \frac{\text{Fixed Action Cost}}{\text{Batch Size}}$$
-$$\text{Required Saving / pc} = \text{Fixed Cost / pc} + \text{Variable Action Cost / pc}$$
-$$\text{Parameter Saving / pc} = \text{Current Standard Cost} - \text{SIM Standard Cost}$$
-$$\text{Economic Margin / pc} = \text{Parameter Saving / pc} - \text{Required Saving / pc}$$
-$$\text{SG\&A / pc} = \text{Selling Price} \times \frac{\text{SG\&A \%}}{100}$$
-$$\text{OP / pc} = \text{Selling Price} - \text{SIM Standard Cost} - \text{SG\&A / pc}$$
+Batch Size changes Required Saving and Economic Margin, but does not change Break-even Quantity. If Parameter Saving / Unit is less than or equal to Variable Action Cost / Unit, positive-quantity break-even is not achievable. A zero Fixed Action Cost with positive net saving has a valid zero Break-even Quantity. Missing required inputs remain unavailable, never fake zero. Whole-unit production Break-even is displayed as the ceiling of the precise internal result so the displayed quantity reaches or exceeds break-even.
+
+The graph uses Cumulative Parameter Saving(Q) = Parameter Saving / Unit × Q and Total Action Cost(Q) = Fixed Action Cost + Variable Action Cost / Unit × Q. Its intersection is derived from the same precise Break-even calculation. Selling Price and SG&A do not participate in these formulas.
+
+### Business assumptions and formulas
+- Selling Price override: finite and `>= 0`; blank falls back to Current Selling Price.
+- SG&A override: `0–100%` inclusive; blank falls back to Current SG&A %.
+- SIM Standard Cost comes from the authoritative Simulation cost engine.
+- SG&A / Unit = Effective Selling Price × Effective SG&A % / 100.
+- Operating Profit / Unit = Effective Selling Price − SIM Standard Cost − SG&A / Unit.
 
 ### Principles
-- Negative Economic Margin and negative OP are valid and remain visible.
-- **Economic inputs are NOT folded into Standard Cost:** they do not alter MAT, LB, BD, Conversion, or Standard Cost.
-- Standard Cost (engineering/physics) and Economic threshold (financial feasibility) are **two separate dimensions**.
+- Negative Economic Margin and negative Operating Profit are valid and remain visible; zero is neutral.
+- **Economic and Business inputs are NOT folded into Standard Cost:** they do not alter MAT, LB, BD, Conversion, or Standard Cost.
+- Business outputs do not alter Parameter Saving, Required Saving, Economic Margin, Break-even Quantity, or Break-even graph geometry.
+- Standard Cost (engineering/physics), Action Economics, and Business outcome are separate dimensions.
 
 ## 6.3 Combined Evaluation (Parameter + Economic)
 

@@ -105,30 +105,56 @@ Each BOM and Routing row can expand a compact **Parameter Cost Effect** detail. 
 - Added/Removed rows, ambiguous identity, missing required values, invalid math, or unreconciled Work Center context have unavailable attribution (`—`) with a concise explanation.
 - REMOVED, ambiguous, and unmatched rows may expand to show why the effect is unavailable; they remain protected and cannot be edited or selected.
 
-## 4. Economic Simulation
+## 4. Economic and Business Analysis
 
-Economic assumptions form a separate dimension and never change MAT, Labor, Burden, Conversion, or Standard Cost. They are advisory and never an approval gate.
+Economic and Business are two visually separate zones over the same SIM snapshot. Economic inputs do not change MAT, Labor, Burden, Conversion, or Standard Cost. Business assumptions do not enter the Action Break-even formula. Both are advisory and never an approval gate.
 
-Inputs:
+### Economic inputs and outputs
+
+Editable Action Economics inputs:
 
 1. Fixed Action Cost (THB), finite and `>= 0`.
-2. Variable Action Cost / pc (THB/pc), finite and `>= 0`.
-3. Batch Size (pcs), a positive integer.
-4. Selling Price override, finite and `>= 0`; blank uses Current Selling Price.
-5. SG&A override, `0–100%` inclusive; blank uses Current SG&A.
+2. Batch Size, a positive whole production quantity in the product UOM.
+3. Variable Action Cost / Unit (THB per product UOM), finite and `>= 0`.
+
+Calculated, read-only outputs:
 
 ```text
-Fixed Cost / pc = Fixed Action Cost / Batch Size
-Required Saving / pc = Fixed Cost / pc + Variable Action Cost / pc
-Parameter Saving / pc = Current Standard Cost − SIM Standard Cost
-Economic Margin / pc = Parameter Saving / pc − Required Saving / pc
-SG&A / pc = Selling Price × (SG&A % / 100)
-OP / pc = Selling Price − SIM Standard Cost − SG&A / pc
+Parameter Saving / Unit = Current Standard Cost − SIM Standard Cost
+Required Saving / Unit = (Fixed Action Cost / Batch Size) + Variable Action Cost / Unit
+Economic Margin / Unit = Parameter Saving / Unit − Required Saving / Unit
+Break-even Quantity = Fixed Action Cost / (Parameter Saving / Unit − Variable Action Cost / Unit)
 ```
 
-Negative Economic Margin and negative Operating Profit are valid outputs and remain visible. Zero Batch Size, negative/non-finite inputs, and SG&A above 100% are rejected/unavailable; they are never converted to zero.
+Batch Size spreads Fixed Action Cost when calculating Required Saving and Economic Margin. It is the planned production quantity and does not define or change Break-even Quantity.
 
-The Economic panel keeps the five inputs and six calculated outputs with formula tooltips. It has no persistent Calculation Notes area. Continuous values display to two decimals; Batch Size remains an integer. Current fallback Selling Price and SG&A values appear in their fields while blank overrides retain fallback semantics.
+If `Parameter Saving / Unit <= Variable Action Cost / Unit`, positive-quantity break-even is not achievable. If Fixed Action Cost is zero and net saving is positive, Break-even Quantity is zero. Break-even is calculated independently of Batch Size. Missing required source values remain unavailable; never substitute zero. For whole-unit production, display the smallest whole quantity that reaches break-even (ceiling) while retaining the precise internal intersection for the graph.
+
+The Break-even graph uses:
+
+```text
+Cumulative Parameter Saving(Q) = Parameter Saving / Unit × Q
+Total Action Cost(Q) = Fixed Action Cost + Variable Action Cost / Unit × Q
+```
+
+The lines share the same Break-even calculation as the numeric result. Batch Size is the graph's only draggable value and stays synchronized with its NumericInput. The graph uses the product's resolved UOM; when Reference and Current UOMs are both present but differ, use the existing shared display convention `Unit`.
+
+### Business assumptions and outputs
+
+Editable assumptions:
+
+1. Selling Price override, finite and `>= 0`; blank uses Current Selling Price.
+2. SG&A % override, `0–100%` inclusive; blank uses Current SG&A %.
+
+Calculated, read-only outputs:
+
+```text
+SIM Standard Cost = authoritative SIM cost-engine total
+SG&A / Unit = Effective Selling Price × Effective SG&A % / 100
+Operating Profit / Unit = Effective Selling Price − SIM Standard Cost − SG&A / Unit
+```
+
+Changing Selling Price or SG&A changes Business outputs only; it does not alter Parameter Saving, Required Saving, Economic Margin, Break-even Quantity, or Break-even graph geometry. Negative Economic Margin and Operating Profit are valid. Positive/negative outputs use favorable/unfavorable semantics, while zero is neutral. Continuous monetary values display to two decimals; Batch Size and whole-quantity Break-even display as integers.
 
 ## 5. Graph story
 
