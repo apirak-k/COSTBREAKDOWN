@@ -8,7 +8,7 @@
 
 **Starting baseline:** `ada53611823eb89a3e7f45d987c7c97b9dbe1f3b` (also the fetched `origin/codex/cbd-candidate-integration` HEAD before edits).
 
-**Delivery:** Implementation, final commit SHA, and push verification are recorded after the completed delivery below. The unrelated untracked `tasks/master-data-cbd-final-audit.md` was preserved and excluded.
+**Implementation commit:** `9bf0aef93510c3e53664a7a7539183cba29e011c` (`feat(ux): refine CBD and Simulation workspace`). The unrelated untracked `tasks/master-data-cbd-final-audit.md` was preserved and excluded.
 
 ## Current Product Flow
 
@@ -38,7 +38,7 @@ The visible product remains exactly three top-level pages: Master Data → Cost 
 
 ## Delivery Status
 
-The implementation and documentation changes are being committed and pushed to `origin/codex/cbd-candidate-integration` after final review. No branch switch, reset, force push, merge, package/dependency change, or change to the unrelated audit file was made.
+The implementation commit was pushed to `origin/codex/cbd-candidate-integration`, and local HEAD matched the remote at `9bf0aef93510c3e53664a7a7539183cba29e011c`. This handoff update is a documentation-only follow-up on the same branch; its final push and local/remote equality are verified after this commit. No branch switch, reset, force push, merge, package/dependency change, or change to the unrelated audit file was made.
 ## Historical Final Logic Checklist Evidence — 2026-10-09
 
 The following evidence belongs to the earlier `codex/final-logic-implementation` checkpoint. It is retained for traceability and does not prove that the current post-merge integration branch has re-passed these checks.
