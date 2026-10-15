@@ -1,4 +1,4 @@
-# Current Handoff — CBD and Simulation UX Refinement
+# Current Handoff — CBD and Simulation UX Correction / Polish
 
 **Updated:** 2026-10-15
 
@@ -6,39 +6,41 @@
 
 **Worktree / branch:** `.worktrees/CBD-CANDIDATE-INTEGRATION` / `codex/cbd-candidate-integration`
 
-**Starting baseline:** `ada53611823eb89a3e7f45d987c7c97b9dbe1f3b` (also the fetched `origin/codex/cbd-candidate-integration` HEAD before edits).
+**Starting baseline:** `23a9a5a4a644cae0bead68dae5d07d32f34d94ff`; fetched `origin/codex/cbd-candidate-integration` matched before implementation.
 
-**Implementation commit:** `9bf0aef93510c3e53664a7a7539183cba29e011c` (`feat(ux): refine CBD and Simulation workspace`). The unrelated untracked `tasks/master-data-cbd-final-audit.md` was preserved and excluded.
+**Implementation commit:** `d0cd515e06d66f23d9052e0a23f2e237bb6795a6` (`fix(ux): tighten CBD and Simulation workspace`). The unrelated untracked `tasks/master-data-cbd-final-audit.md` remains untouched and excluded.
 
 ## Current Product Flow
 
 The visible product remains exactly three top-level pages: Master Data → Cost Breakdown → Simulation. Candidate/finding analysis and Selected Comparison remain inside Cost Breakdown. Simulation has no CBD selection handoff or shared selected state.
 
-## CBD and Simulation UX Refinement
+## Correction / Polish Delivery
 
-- **CBD layout:** Rebalanced the itemized BOM/routing and Work Center tables for readable desktop fit. Cost Breakdown uses natural page-level vertical scrolling; its tables only use horizontal overflow as a narrow-screen fallback where needed. Full Comparison, Selected Comparison, filters, sorting, findings, and calculations remain in CBD.
-- **Simulation choice and lifecycle:** Simulation owns a per-product local working selection and does not read or mutate CBD Selected Comparison. Clone from Reference / Current / Custom remains available; Current Work Center rates stay authoritative. Each explicit clone establishes the parameter Reset baseline. Reset restores that cloned parameter snapshot without resetting Economic draft fields or source datasets.
-- **Simulation workspace:** Desktop uses a fixed workspace with Graph, Result, Economic, and compact controls above BOM/RTG; only the BOM and RTG table regions scroll vertically. Responsive layouts stack and allow natural page scrolling, with editable mobile cards. No Candidate/RCA page or handoff was restored.
-- **Simulation rows and graph:** BOM/RTG statuses are visible; expandable rows toggle via whole-row click and Enter/Space, while nested controls remain independent. Graph reuses exact CBD MAT/LB/BD colors, labels gaps explicitly, colors OP by sign, and retains the visual-only ruler without placing it over key graph content.
-- **Numeric and Economic UX:** Shared NumericInput displays continuous values to two decimals, keeps integer domains intact, offsets spinner controls from the edge, and implements repeat-on-hold with cleanup. Economic outputs have formula tooltips; Parameter Saving uses positive/negative/neutral colors. No calculation rounding was added.
-- **Business logic:** Existing formulas, Current → SIM result, GAP signs, input validation, full-snapshot calculation, Current rate authority, Send-to behavior, and structure lock were preserved.
+- **CBD:** Rebalanced existing BOM/Routing table columns, kept Status compact, widened parameter tracks, kept Reference → Current parameter values on one line where practical, and changed continuous displayed gaps/values to two decimals. CBD comparison, filters, sort, selected findings, and calculations were not changed.
+- **Simulation selection:** Replaced the separate row checkbox with the `#` row-number control and header select/clear action. Selected rows move to the top of the view in stable order while the SIM snapshot order and full-snapshot calculation remain unchanged. State-level validation and reconciliation reject/prune removed, ambiguous, unmatched, and unknown targets.
+- **Reset / clone:** Each clone/start captures both the SIM parameter snapshot and Economic draft as a Reset baseline. Reset restores both while retaining the Current Work Center rate context, local selection, and source datasets. Blank Selling Price and SG&A overrides visibly resolve to valid Current values while keeping blank fallback semantics.
+- **Workspace / transient UI:** Desktop Simulation uses a roughly 2:1 Graph-to-Result/Economic upper row and equal-width BOM/RTG lower panels. The shell's main area is fixed at desktop; only BOM/RTG table bodies own internal vertical scrolling. Narrow layouts stack and scroll naturally. Blank workspace clicks close Clone/Send menus and effect disclosures without changing selection or values.
+- **Graph / Result / Economic:** Graph uses a slightly softened fill of the same CBD MAT/LB/BD colors, draws the ruler line over bars, and shows numeric-only bar totals with state names below. Result Change and % are red for cost increases, green for decreases, neutral at zero, and gray when unavailable. Economic Calculation Notes were removed; formula tooltips and Parameter Saving sign colors remain.
+- **Parameter Cost Effect:** Effects remain aligned under parameter columns; the numeric Total remains and effect percentages are removed. Protected and removed rows can expand to explain unavailable attribution but cannot be edited or selected.
+- **Numeric display:** Continuous visible values use two decimals while higher stored/input precision remains intact where already supported. No calculation formula or calculation precision was changed.
 
 ## Documentation
 
-- `docs/specs/SIMULATION.md` — CBD/SIM separation, local choices, clone/reset baseline, workspace behavior, graph, economics, and no structural edit contract.
-- `docs/specs/CROSS_CUTTING.md` — shared numeric presentation and normal page scrolling rules.
-- `docs/specs/COST_BREAKDOWN.md` — Selected Comparison remains CBD-only and table layout behavior.
-- `design.md` — updated shared layout and interaction notes.
+- `docs/specs/SIMULATION.md` — Reset includes Economic inputs; graph labels/ruler; `#` selector, selected-first view order, protected rows, compact effects, and desktop workspace.
+- `docs/specs/CROSS_CUTTING.md` — two-decimal display guidance and Simulation's higher-precision Usage/Capacity input exception.
+- `docs/specs/COST_BREAKDOWN.md` — compact Status, wider parameter presentation, and one-line Reference → Current display.
+- `design.md` — graph, workspace, selection, Reset, and result color decisions.
 
 ## Verification Evidence
 
-- **Automated:** Simulation workspace/context, parameter engine, economics, story graph, numeric rules/integrity, CBD view/sort/summary/cost effect, Selected Comparison boundary/lifecycle, Master Data UI/lifecycle/clone/sizing, business metrics, and navigation/session migration verifiers passed. `npm run build` and `git diff --check` were rerun before delivery. See the delivery report for exact commands and outcomes.
-- **Browser:** Isolated Vite test origin only; the user's existing app tab was not modified. Checked Simulation at 1920×920 and 1366×768 with document/page dimensions matching the viewport and BOM/RTG tables fitting their panels; 1440×900 and 900×900 workspace checks also passed. At 390×844 the document width matched 390px, responsive cards were used, and natural scrolling kept content reachable. CBD checked at 1440px and 900px widths; its tables fit and the page scrolls naturally. Row expansion, child input interaction, keyboard toggling, Reset, clone baselines, economic tooltip, local selection isolation, and representative Simulation calculations were checked. Spinner press-and-hold repeat remains **NOT VERIFIED** because the browser driver produced inconsistent hold gestures; source timer cleanup and click/keyboard stepping were checked.
-- **Known build note:** Build output contains existing ExcelJS browser-externalization warnings for `fs`, `crypto`, and `fast-csv`; no dependency or security cleanup was performed.
+- **Build:** `npm run build` passed (`tsc -b && vite build`, 2,043 modules). Vite emitted the existing ExcelJS browser-externalization warnings for `fs`, `crypto`, and `@fast-csv`; the build completed successfully.
+- **Automated:** The Vite SSR verifier suite passed for Simulation workspace, graph/story, economics, parameter engine, context, numeric integrity, CBD view/sort/summary, candidate prioritization, Selected Comparison boundary/lifecycle, Master Data toolbar/custom dataset/clone readiness, and legacy tab migration. The MJS verifiers for CBD parameter cost effect, shared NumericInput, and Master Data UI state passed. `git diff --check` passed before the implementation commit.
+- **Browser — isolated local Vite origin:** At 1920×920, 1440×900, and 1366×768, document/body dimensions matched the viewport and `main` dimensions matched its scroll dimensions. At 1366×768, Graph measured about 873×428px; Result 437×237px; Economic 437×183px; BOM and RTG were each 655px wide and 238px tall. BOM/RTG scroll bodies had matching client/scroll widths (653px) and computed vertical `overflow-y:auto`. At 1920×920 and 1440×900, BOM and RTG panel widths also matched (692px); both table bodies had no horizontal overflow. At 900×900 and 390×844, panels stacked, the main area allowed natural vertical scrolling, and document width matched viewport width. Clone from and Send to menus both closed after clicking blank workspace; Result/Economic remained present and local selection indicators remained unchanged. Browser console had no errors.
+- **Browser limitation:** The isolated app had an empty dataset. Therefore populated long-table internal scrolling, actual row selector/expansion clicks, ruler motion with real bars, and Reset against populated data were not visually exercised in the browser. The matching state/render verifiers cover selection guards, selected-first order, Reset/re-clone baselines, graph labels/layer order, and result colors. Press-and-hold repetition was source-checked but not manually verified in this browser run.
 
 ## Delivery Status
 
-The implementation commit was pushed to `origin/codex/cbd-candidate-integration`, and local HEAD matched the remote at `9bf0aef93510c3e53664a7a7539183cba29e011c`. This handoff update is a documentation-only follow-up on the same branch; its final push and local/remote equality are verified after this commit. No branch switch, reset, force push, merge, package/dependency change, or change to the unrelated audit file was made.
+The implementation commit is `d0cd515e06d66f23d9052e0a23f2e237bb6795a6`. The documentation handoff follow-up and push are completed on `codex/cbd-candidate-integration`; final local and remote branch heads were checked to match after delivery. No branch switch, reset, force push, merge, package/dependency change, or change to the unrelated audit file was made.
 ## Historical Final Logic Checklist Evidence — 2026-10-09
 
 The following evidence belongs to the earlier `codex/final-logic-implementation` checkpoint. It is retained for traceability and does not prove that the current post-merge integration branch has re-passed these checks.
