@@ -219,7 +219,7 @@ export function SimulationStoryGraph({ story, unit }: SimulationStoryGraphProps)
           viewBox="0 0 820 332"
           preserveAspectRatio="none"
           className="mt-1 block h-[250px] w-full sm:h-auto xl:h-full"
-          style={{ touchAction: 'pan-x' }}
+          style={{ touchAction: 'pan-y' }}
         >
           <title id="simulation-story-svg-title">Simulation Parameter Cost Effect</title>
           <desc id="simulation-story-svg-description">Reference, Current, and SIM state bars show MAT, LB, BD, SG&A, and Operating Profit. GAP 1 is Current minus Reference. GAP 2 is SIM minus Current and show MAT, LB, and BD only. Negative values extend below zero. Selling Price is a separate line. Drag the dashed ruler vertically or use Arrow Up, Arrow Down, Page Up, Page Down, Home, and End keys. Legend buttons hide or show graph series without changing calculations.</desc>

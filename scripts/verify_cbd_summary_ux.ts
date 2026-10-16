@@ -564,7 +564,7 @@ try {
   assert.ok(subheaderIndex >= stickyShellOpen
     && overviewIndex > subheaderIndex
     && candidateIndex > overviewIndex
-    && /\n      <\/div>\n      <\/div>\n\n      <div role="region" aria-label="Candidate workspace"/.test(pageSource.slice(overviewIndex, candidateIndex + 100)),
+    && /\r?\n      <\/div>\r?\n      <\/div>\r?\n\r?\n      <div role="region" aria-label="Candidate workspace"/.test(pageSource.slice(overviewIndex, candidateIndex + 100)),
   'only the Subheader and summary belong to the sticky shell; Candidate remains Main content')
   assert.doesNotMatch(candidateRegionClass, /overflow-y-auto|overflow-y-scroll|overflow-auto|flex-1|min-h-0/,
     'Candidate Findings stays in normal flow and does not take a second vertical scroll owner')

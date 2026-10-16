@@ -1,4 +1,61 @@
-# Current Handoff — CBD Sticky Summary and Selection Alignment
+# Current Handoff — Simulation Pre-layout Functional Correction
+
+**Updated:** 2026-10-16
+
+**Repository / worktree:** apirak-k/COSTBREAKDOWN / `.worktrees/SIMULATION-FINALIZED`.
+
+**Branch:** `logic/simulation-finalized-implementation` (user-renamed remote; local branch renamed and upstream corrected). Starting local and remote HEAD: `4932e8386aaf4e0c9f6ebc0c90eafd7f559fda7b`.
+
+**Status:** Corrections implemented; confirm commit/push from live Git and the final delivery report. Functional closure remains pending direct touch-swipe verification. Do not start the separate large Simulation UI/Layout polish pass automatically.
+
+## Changes and preserved boundaries
+
+- Simulation selection updates use functional per-product state, so select-all does not overwrite preceding toggles. Existing displayed numbers and selected-first ordering are preserved. Header controls expose false/mixed/true checkbox state; row controls toggle stable records.
+- Number controls share the header axis. Individual opaque sticky header cells own the boundary above scrolling body rows. Parameter Cost Effect labels align with row names on desktop and mobile; parameter/value column geometry is unchanged.
+- Normal editable Status is CHANGED/UNCHANGED against the start/clone/reset parameter baseline, independent of the Current-to-SIM comparison used for calculations. Compact bold amber/slate styling matches CBD. Structural/protected matching is retained safely.
+- Persistent Clone/Send/Reset messages and obsolete local feedback state are removed. Existing data-layer Send validation remains intact as an invariant safeguard.
+- Only the two CBD Status/Gap Sort popover Tooltip wrappers were removed; their filtering/sorting, hover/click menus, and keyboard handlers remain.
+- Ordinary story graph space uses pan-y; the narrow ruler retains touch-none and pointer capture. Overall panel composition, proportions, formulas, NumericInput, Master Data implementation, and CBD business logic were not changed.
+- SIMULATION.md records the latest supplied corrections, including dynamic resolved UOM. Stale verifier assertions were updated for the current contract; CBD source matching now accepts CRLF, and Master Data checks distinguish the onUndo identifier from simulationUndoRedo.
+
+## Browser evidence
+
+Isolated in-app browser at `http://127.0.0.1:5176/`, using the development Complete Mock (five BOM rows, seven Routing rows) and valid temporary edits. No real workbook or user dataset was used. Temporary viewport overrides, tab, and dev server were cleaned up.
+
+- Viewed 1920x920, 1440x900, 1366x768, 900x900, and 390x844. No Simulation document/table horizontal overflow. Header/number center error measured 0px. Desktop expanded label text starts exactly matched identity text; mobile both started at x=61px.
+- BOM/RTG middle-row selection, repeat deselection, stable selected-first identity, false/mixed/true headers, mouse select-all, Space deselect-all, and Enter select-all passed. Individual selection also passed at 900px and 390px.
+- Viewed opaque headers during top/first movement/middle/bottom scroll, including selected-first and expanded details. At 1366px, first movement was 8px; intermediate/bottom states reached 46px and 112px/192px. At 1920px and 1440px, both tables also retained clear headers through scrolling.
+- BOM/RTG edits produced CHANGED; Undo and Reset restored UNCHANGED. One Undo after Reset restored both edited BOM parameters together. Typed Capacity=0 retained the authoritative 100. Clone Reference/Current/Custom worked; clone baselines started UNCHANGED even when different from Current.
+- Send Custom updated Working, Master Data Undo restored empty Custom, Redo restored the sent data. Send Reference left Current and SIM intact. Send Current updated Working and recreated SIM with UNCHANGED values while retaining Economic inputs. No persistent action status text appeared.
+- CBD Status filtering hid/restored CHANGED findings; Gap Low-to-High sorted correctly. Both popovers opened without tooltips. Actual Candidate drag onto a row body reordered findings; Undo restored order and Redo reapplied it. Master Data BOM row selection and Working history passed. Navigation remained exactly three pages.
+- Economics example: Saving 2.10, Required Saving 2.20, Margin -0.10, Break-even 53 PC; Result/GAP 2 were -2.10. No NaN/Infinity was rendered.
+- At 390x844, wheel scrolling over ordinary graph space moved Main from 0 to 295px. Ruler pointer drag changed its value from 80.13 to 167.42; ArrowDown changed it to 164.37. MAT legend toggled off/on and hidden series count became zero. Computed graph/ruler touch-action values were pan-y/none.
+- **NOT VERIFIED:** actual finger/touch-swipe page scrolling and touch-origin ruler drag. Available browser capabilities expose viewport sizing and mouse/pointer input, not touch-swipe emulation. Pointer/wheel evidence is not claimed as a physical touch PASS. Therefore PRE-LAYOUT FUNCTIONAL CORRECTION is not yet CLOSED.
+
+## Automated verification
+
+Final runs passed:
+
+```text
+node --experimental-strip-types scripts/verify_simulation_corrections.ts
+node --experimental-strip-types scripts/verify_simulation_history.ts
+node --experimental-strip-types scripts/verify_simulation_story_view.ts
+node --experimental-strip-types scripts/verify_simulation_result.ts
+node --experimental-strip-types scripts/verify_simulation_economics.ts
+node scripts/verify_simulation_regression.mjs
+node --experimental-strip-types scripts/verify_cbd_reorder_history.ts
+node --experimental-strip-types scripts/verify_cost_breakdown_sort.ts
+node --experimental-strip-types scripts/verify_cbd_summary_ux.ts
+node scripts/verify_master_data_ui_state.mjs
+npm.cmd run build
+git diff --check
+```
+
+The regression runner executes Simulation workspace/context/engine, Master Data edit history, and Global Header suites through Vite SSR. There is no dedicated package.json lint/test command.
+
+Warnings: Node experimental type stripping; existing ExcelJS fs/crypto browser externalization; Vite >500KB chunk warning; Git LF-to-CRLF notice. `npm.cmd audit --audit-level=high` returned 5 High/4 Moderate existing findings; `npm.cmd audit --omit=dev --audit-level=high` returned zero High and two Moderate production findings. Dependencies were not changed.
+
+# Historical Handoff — CBD Sticky Summary and Selection Alignment
 
 **Updated:** 2026-10-15
 

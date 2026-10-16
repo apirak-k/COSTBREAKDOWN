@@ -245,7 +245,13 @@ const AppRouter: React.FC = () => {
   }
 
   const toggleWorkingTarget = (kind: 'bom' | 'routing', recordId: string) => {
-    updateSimulationState(state => toggleSimulationWorkingTarget(state, masterDataSnapshots.current, kind, recordId))
+    setSimulationStatesByProduct(previous => {
+      const current = previous[activeProductId]
+        ? reconcileSimulationState(previous[activeProductId], masterDataSnapshots)
+        : simulationState
+      const next = toggleSimulationWorkingTarget(current, masterDataSnapshots.current, kind, recordId)
+      return next === current ? previous : { ...previous, [activeProductId]: next }
+    })
   }
 
   const setCandidateManualOrder = (type: CandidateTableType, keys: string[]) => {

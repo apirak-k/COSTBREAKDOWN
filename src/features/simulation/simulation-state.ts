@@ -72,6 +72,23 @@ export function simulationWorkingTargetKey(kind: 'bom' | 'routing', recordId: st
   return `${kind}:${recordId}`
 }
 
+export function simulationParameterStatus(
+  kind: 'bom' | 'routing',
+  recordId: string,
+  snapshot: CostSnapshot,
+  baseline: CostSnapshot | null
+): 'CHANGED' | 'UNCHANGED' | null {
+  const records = kind === 'bom' ? snapshot.bom : snapshot.routing
+  const baselineRecords = kind === 'bom' ? baseline?.bom : baseline?.routing
+  const matches = records.filter(record => record.id === recordId)
+  const baselineMatches = baselineRecords?.filter(record => record.id === recordId) ?? []
+  if (matches.length !== 1 || baselineMatches.length !== 1) return null
+  const fields = kind === 'bom' ? ['price', 'consumption', 'loss'] as const : ['manning', 'capacity', 'yield'] as const
+  return fields.every(field =>
+    matches[0][field as keyof typeof matches[0]] === baselineMatches[0][field as keyof typeof baselineMatches[0]])
+    ? 'UNCHANGED' : 'CHANGED'
+}
+
 export function toggleSimulationWorkingTarget(
   state: SimulationWorkspaceState,
   currentSnapshot: CostSnapshot,

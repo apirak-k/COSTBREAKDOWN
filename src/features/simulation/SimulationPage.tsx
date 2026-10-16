@@ -25,7 +25,7 @@ import { SimulationStoryGraph } from './SimulationStoryGraph'
 import { calculateEconomicSimulation, type EconomicSimulationField } from './simulation-economics'
 import type { SimulationComparisonRow, SimulationRecordKind } from './simulation-engine'
 import { calculateParameterSimulation } from './simulation-engine'
-import { simulationWorkingTargetKey, type SimulationParameter, type SimulationWorkspaceState } from './simulation-state'
+import { simulationParameterStatus, simulationWorkingTargetKey, type SimulationParameter, type SimulationWorkspaceState } from './simulation-state'
 
 interface SimulationPageProps {
   state: SimulationWorkspaceState
@@ -101,14 +101,14 @@ function singleRecord<T extends { id: string }>(records: T[], id: string | undef
   return matches.length === 1 ? matches[0] : undefined
 }
 
-function rowStatusText(row: SimulationComparisonRow): string {
+function rowStatusText(row: SimulationComparisonRow, parameterStatus: 'CHANGED' | 'UNCHANGED' | null): string {
   if (row.identityIssue === 'ambiguous') return 'Ambiguous identity · protected'
   if (row.identityIssue === 'unmatched') return 'Missing identity · protected'
-  if (row.status === 'ADDED') return 'Added in SIM'
-  if (row.status === 'REMOVED') return 'Removed from SIM'
-  if (row.status === 'CHANGED') return 'Changed'
-  if (row.status === 'UNCHANGED') return 'Unchanged'
-  return 'Attribution unavailable'
+  return parameterStatus ?? '—'
+}
+
+function statusTextClass(status: string): string {
+  return `font-sans text-[10px] font-bold ${status === 'CHANGED' ? 'text-amber-700' : 'text-slate-500'}`
 }
 
 function rowIsMatched(row: SimulationComparisonRow): boolean {
@@ -298,6 +298,7 @@ function SimulationParameterTable({
   rows,
   currentSnapshot,
   simulationSnapshot,
+  baselineSnapshot,
   workingSelection,
   onToggleWorkingTarget,
   onUpdate,
@@ -308,6 +309,7 @@ function SimulationParameterTable({
   rows: SimulationComparisonRow[]
   currentSnapshot: CostSnapshot
   simulationSnapshot: CostSnapshot
+  baselineSnapshot: CostSnapshot | null
   workingSelection: string[]
   onToggleWorkingTarget: (kind: 'bom' | 'routing', recordId: string) => void
   onUpdate: (recordId: string, parameter: SimulationParameter, value: number | null) => void
@@ -331,6 +333,7 @@ function SimulationParameterTable({
     return record && rowIsSelectable(row) ? [record.id] : []
   })
   const allVisibleSelected = selectableRecordIds.length > 0 && selectableRecordIds.every(id => selectedKeys.has(simulationWorkingTargetKey(kind, id)))
+  const someVisibleSelected = !allVisibleSelected && selectableRecordIds.some(id => selectedKeys.has(simulationWorkingTargetKey(kind, id)))
   const toggleAllVisible = () => {
     const select = !allVisibleSelected
     for (const id of selectableRecordIds) {
@@ -355,16 +358,17 @@ function SimulationParameterTable({
             <col className="w-[17%]" />
             <col className="w-[5.5%]" />
           </colgroup>
-          <thead className="sticky top-0 z-30 bg-slate-900 text-[10px] font-semibold text-white">
+          <thead className="text-[10px] font-semibold text-white [&_th]:sticky [&_th]:top-0 [&_th]:z-30 [&_th]:bg-slate-900 [&_th]:shadow-[inset_0_-1px_0_#334155]">
             <tr>
               <th scope="col" className="p-0 text-center">
                 <button
                   type="button"
-                  aria-pressed={allVisibleSelected}
+                  role="checkbox"
+                  aria-checked={someVisibleSelected ? 'mixed' : allVisibleSelected}
                   aria-label={allVisibleSelected ? `Clear visible ${tableIdentity} selection` : `Select all visible eligible ${tableIdentity} rows`}
                   disabled={selectableRecordIds.length === 0}
                   onClick={toggleAllVisible}
-                  className={`grid h-7 w-7 place-items-center rounded-sm text-[11px] focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-300 ${allVisibleSelected ? 'border border-slate-300 bg-slate-700 text-white' : 'text-white hover:bg-slate-700'} disabled:cursor-default disabled:text-slate-400 disabled:hover:bg-transparent`}
+                  className={`mx-auto grid h-7 w-7 place-items-center rounded-sm text-[11px] focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-300 ${allVisibleSelected ? 'border border-slate-300 bg-slate-700 text-white' : someVisibleSelected ? 'bg-slate-700 text-white ring-1 ring-inset ring-slate-500' : 'text-white hover:bg-slate-700'} disabled:cursor-default disabled:text-slate-400 disabled:hover:bg-transparent`}
                 >#</button>
               </th>
               <th scope="col" className="px-2 py-2 text-left">{tableIdentity}</th>
@@ -387,7 +391,7 @@ function SimulationParameterTable({
               const analysis = isBOM
                 ? bomAttribution(row, currentSnapshot, simulationSnapshot)
                 : routingAttribution(row, currentSnapshot, simulationSnapshot)
-              const status = rowStatusText(row)
+              const status = rowStatusText(row, canEdit && simulationRecord ? simulationParameterStatus(kind, simulationRecord.id, simulationSnapshot, baselineSnapshot) : null)
               const toggleExpanded = () => setExpandedRows(previous => {
                 const next = new Set(previous)
                 if (next.has(key)) next.delete(key)
@@ -424,13 +428,13 @@ function SimulationParameterTable({
                           type="button"
                           aria-label={`${selected ? 'Deselect' : 'Select'} ${shortTitle} row ${sourceIndex + 1}: ${row.name}`}
                           aria-pressed={selected}
-                          onClick={() => onToggleWorkingTarget(kind, simulationRecord.id)}
-                          className={`min-h-7 min-w-7 rounded-sm px-1 font-mono text-[10px] ${selected ? 'bg-blue-700 text-white' : 'text-slate-600 hover:bg-slate-200'} focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700`}
+                          onClick={event => { event.stopPropagation(); onToggleWorkingTarget(kind, simulationRecord.id) }}
+                          className={`inline-grid h-7 min-w-7 place-items-center rounded-sm px-1 font-mono text-[10px] ${selected ? 'bg-blue-700 text-white' : 'text-slate-600 hover:bg-slate-200'} focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700`}
                         >{sourceIndex + 1}</button>
                       ) : <span className="font-mono text-[10px] tabular-nums text-slate-500">{sourceIndex + 1}</span>}
                     </td>
                     <th scope="row" className="break-words px-2 py-2 text-left font-medium text-slate-900">{row.name}</th>
-                    <td className={`break-words px-1 py-2 text-[9px] leading-3 ${row.identityIssue ? 'text-amber-800' : 'text-slate-600'}`}>{status}</td>
+                    <td className={`${row.identityIssue ? 'break-words' : 'whitespace-nowrap'} px-1 py-2 leading-3 ${statusTextClass(status)}`}>{status}</td>
                     {parameters.map(parameter => {
                       const recordValue = simulationRecord
                         ? (simulationRecord as unknown as Record<string, number | null>)[parameter.field] ?? null
@@ -480,7 +484,8 @@ function SimulationParameterTable({
                   </tr>
                   {expanded && (
                     <tr id={detailId} data-safe-workspace-interaction="true" className="bg-slate-50/80">
-                      <th scope="row" colSpan={3} className="px-3 py-2 text-left text-[10px] font-semibold text-slate-700">
+                      <td aria-hidden="true" />
+                      <th scope="row" colSpan={2} className="px-2 py-2 text-left text-[10px] font-semibold text-slate-700">
                         <span className="whitespace-nowrap">Parameter Cost Effect</span>
                         {analysis.effects.effects === null && (
                           <span className="ml-2 font-normal text-slate-500">Unavailable · {effectUnavailableReason(row)}</span>
@@ -506,6 +511,7 @@ function SimulationParameterTable({
           const expanded = expandedRows.has(key)
           const simulationRecord = singleRecord(records, row.simulationRecordId)
           const canEdit = Boolean(simulationRecord && rowIsSelectable(row))
+          const status = rowStatusText(row, canEdit && simulationRecord ? simulationParameterStatus(kind, simulationRecord.id, simulationSnapshot, baselineSnapshot) : null)
           const selected = isSelectedRow(row)
           const canExpand = true
           const detailId = `${kind}-mobile-effect-${encodeURIComponent(key)}`
@@ -523,7 +529,7 @@ function SimulationParameterTable({
               key={key}
               aria-expanded={canExpand ? expanded : undefined}
               aria-controls={canExpand && expanded ? detailId : undefined}
-              aria-label={canExpand ? `${tableIdentity}: ${row.name}; ${rowStatusText(row)}; activate to ${expanded ? 'collapse' : 'expand'} Parameter Cost Effect` : undefined}
+              aria-label={canExpand ? `${tableIdentity}: ${row.name}; ${status}; activate to ${expanded ? 'collapse' : 'expand'} Parameter Cost Effect` : undefined}
               tabIndex={canExpand ? 0 : undefined}
               onClick={event => {
                 if (!canExpand || isInteractiveTarget(event.target)) return
@@ -542,7 +548,7 @@ function SimulationParameterTable({
                     type="button"
                     aria-label={`${selected ? 'Deselect' : 'Select'} ${shortTitle} row ${sourceIndex + 1}: ${row.name}`}
                     aria-pressed={selected}
-                    onClick={() => onToggleWorkingTarget(kind, simulationRecord.id)}
+                    onClick={event => { event.stopPropagation(); onToggleWorkingTarget(kind, simulationRecord.id) }}
                     className={`min-h-7 min-w-7 shrink-0 rounded-sm px-1 font-mono text-[10px] ${selected ? 'bg-blue-700 text-white' : 'text-slate-600 hover:bg-slate-200'} focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700`}
                   >{sourceIndex + 1}</button>
                 ) : <span className="min-w-7 pt-1 text-center font-mono text-[10px] text-slate-500">{sourceIndex + 1}</span>}
@@ -563,7 +569,7 @@ function SimulationParameterTable({
               <dl className="mt-2 grid grid-cols-2 gap-x-3 gap-y-1 text-[10px]">
                 <div className="min-w-0">
                   <dt className="text-slate-500">Status</dt>
-                  <dd className={`break-words ${row.identityIssue ? 'text-amber-800' : 'text-slate-700'}`}>{rowStatusText(row)}</dd>
+                  <dd className={`break-words ${statusTextClass(status)}`}>{status}</dd>
                 </div>
                 <div className="min-w-0 text-right">
                   <dt className="text-slate-500">{isBOM ? 'Material Cost' : 'Conversion Cost'}</dt>
@@ -602,7 +608,7 @@ function SimulationParameterTable({
               </div>
               {expanded && (
                 <div id={detailId} data-safe-workspace-interaction="true" className="mt-2 border-t border-slate-200 pt-2">
-                  <h4 className="mb-1 text-[10px] font-semibold text-slate-700">Parameter Cost Effect</h4>
+                  <h4 className="mb-1 ml-9 text-[10px] font-semibold text-slate-700">Parameter Cost Effect</h4>
                   {analysis.effects.effects === null && (
                     <p className="mb-1 text-[10px] text-slate-500">Unavailable · {effectUnavailableReason(row)}</p>
                   )}
@@ -634,9 +640,7 @@ function ResultPanel({
   currentFinancial,
   simulationFinancial,
   unit,
-  actions,
-  transferMessage,
-  transferError
+  actions
 }: {
   currentCost: SnapshotCost
   simulationCost: SnapshotCost
@@ -644,8 +648,6 @@ function ResultPanel({
   simulationFinancial: ScenarioFinancialResult
   unit: string
   actions: React.ReactNode
-  transferMessage: string
-  transferError: boolean
 }) {
   const currentConversion = currentCost.labor === null || currentCost.burden === null ? null : safeAdd(currentCost.labor, currentCost.burden)
   const simulationConversion = simulationCost.labor === null || simulationCost.burden === null ? null : safeAdd(simulationCost.labor, simulationCost.burden)
@@ -694,7 +696,6 @@ function ResultPanel({
         </div>
         <div className="mt-0.5 flex min-w-0 flex-wrap items-baseline justify-between gap-x-2">
           <span className="text-[10px] text-slate-500">Current → SIM · THB/{unit}</span>
-          {transferMessage && <span role="status" className={`text-[10px] ${transferError ? 'text-rose-800' : 'text-emerald-800'}`}>{transferMessage}</span>}
         </div>
       </div>
       <div className="mt-1 min-w-0">
@@ -762,8 +763,6 @@ export const SimulationPage: React.FC<SimulationPageProps> = ({
   onBeginEdit,
   onCommitEdit
 }) => {
-  const [transferMessage, setTransferMessage] = useState('')
-  const [transferError, setTransferError] = useState(false)
   const simulationSnapshot = state.snapshot
   const result = useMemo(
     () => simulationSnapshot ? calculateParameterSimulation(currentSnapshot, simulationSnapshot) : null,
@@ -794,21 +793,11 @@ export const SimulationPage: React.FC<SimulationPageProps> = ({
     <>
       <RoleActionMenu
         label="Clone from"
-        onSelect={role => {
-          onCloneSource(role)
-          setTransferError(false)
-          setTransferMessage(`SIM cloned from ${ROLES.find(item => item.role === role)?.label ?? 'dataset'}.`)
-        }}
+        onSelect={onCloneSource}
       />
       <RoleActionMenu
         label="Send to"
-        onSelect={role => {
-          const sent = onSendTo(role, simulationSnapshot)
-          setTransferError(!sent)
-          setTransferMessage(sent
-            ? `SIM sent to ${ROLES.find(item => item.role === role)?.label ?? 'dataset'} Working.`
-            : 'Send blocked by Master Data validation.')
-        }}
+        onSelect={role => { onSendTo(role, simulationSnapshot) }}
       />
     </>
   )
@@ -825,8 +814,6 @@ export const SimulationPage: React.FC<SimulationPageProps> = ({
             simulationFinancial={story.simulated}
             unit={unit}
             actions={actionMenus}
-            transferMessage={transferMessage}
-            transferError={transferError}
           />
           <EconomicSimulationPanel
             result={economicResult}
@@ -846,6 +833,7 @@ export const SimulationPage: React.FC<SimulationPageProps> = ({
           rows={result.records}
           currentSnapshot={currentSnapshot}
           simulationSnapshot={simulationSnapshot}
+          baselineSnapshot={state.resetBaselineSnapshot}
           workingSelection={workingSelection}
           onToggleWorkingTarget={onToggleWorkingTarget}
           onUpdate={onUpdateParameter}
@@ -857,6 +845,7 @@ export const SimulationPage: React.FC<SimulationPageProps> = ({
           rows={result.records}
           currentSnapshot={currentSnapshot}
           simulationSnapshot={simulationSnapshot}
+          baselineSnapshot={state.resetBaselineSnapshot}
           workingSelection={workingSelection}
           onToggleWorkingTarget={onToggleWorkingTarget}
           onUpdate={onUpdateParameter}

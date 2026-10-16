@@ -2,7 +2,6 @@ import React, { useCallback, useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { ChevronDown } from 'lucide-react'
 import { useTransientInteraction } from '../../../shared/ui/transient-interactions'
-import { Tooltip } from '../../../shared/ui/Tooltip'
 
 interface CostBreakdownPopoverProps {
   label: string
@@ -129,7 +128,6 @@ export const CostBreakdownPopover: React.FC<CostBreakdownPopoverProps> = ({ labe
 
   return (
     <div ref={boundaryRef} className="inline-flex shrink-0" onPointerEnter={scheduleOpen} onPointerLeave={scheduleDismiss} onFocusCapture={clearHoverTimer} onBlurCapture={scheduleDismiss}>
-      <Tooltip label={label}>
         <button
           ref={triggerRef}
           type="button"
@@ -153,7 +151,6 @@ export const CostBreakdownPopover: React.FC<CostBreakdownPopoverProps> = ({ labe
           {trigger}
           <ChevronDown aria-hidden="true" className="h-3.5 w-3.5 shrink-0 self-center text-slate-600" />
         </button>
-      </Tooltip>
       {open && typeof document !== 'undefined' && createPortal(
         <div
           ref={panelRef}

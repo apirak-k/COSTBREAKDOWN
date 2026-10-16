@@ -182,7 +182,7 @@ try {
   assert.doesNotMatch(pageMarkup, /min-w-\[(?:390|650|730)px\]|overflow-x-auto/,
     'Result, BOM, and RTG do not force a horizontal scroll area')
   assert.match(pageMarkup, /table-fixed/, 'the parameter table fits its panel with fixed layout')
-  assert.match(pageMarkup, /<td class="break-words px-1 py-2 text-\[9px\] leading-3 text-slate-600">Unchanged<\/td>/,
+  assert.match(pageMarkup, /<td class="whitespace-nowrap px-1 py-2 leading-3 font-sans text-\[10px\] font-bold text-slate-500">UNCHANGED<\/td>/,
     'desktop status is a separate cell rather than secondary text under row identity')
   assert.match(pageMarkup, /aria-label="A deliberately long stainless steel material description for wrapping Price in SIM"/,
     'editable fields remain labelled for long material names')
@@ -252,11 +252,9 @@ try {
   assert.ok(sendToMenuSource.length > 0, 'the Send to role menu is wired in the Simulation actions')
   assert.match(sendToMenuSource, /onSendTo\(role, simulationSnapshot\)/,
     'Send to passes the selected role and current SIM snapshot to its integration callback')
-  assert.match(sendToMenuSource, /SIM sent to .* Working\./,
-    'a successful transfer reports the selected Master Data Working dataset')
-  assert.match(sendToMenuSource, /Send blocked by Master Data validation\./,
-    'a rejected transfer reports Master Data validation feedback')
-  const rowTemplateStart = pageSource.indexOf('const status = rowStatusText(row)')
+  assert.doesNotMatch(pageSource, /transferMessage|transferError|SIM sent to|Send blocked by Master Data validation/,
+    'Send keeps defensive validation without persistent Result feedback')
+  const rowTemplateStart = pageSource.indexOf('const status = rowStatusText(row,')
   assert.ok(rowTemplateStart >= 0, 'the Simulation parameter row template remains identifiable')
   const rowOpeningStart = pageSource.indexOf('<tr', rowTemplateStart)
   assert.ok(rowOpeningStart >= 0, 'the parameter row uses a table row element')
@@ -301,8 +299,8 @@ try {
     'the protected row has a real accessible expand button')
   assert.match(pageSource, /aria-expanded=\{expanded\}[\s\S]*?aria-controls=\{expanded \? detailId : undefined\}[\s\S]*?event\.stopPropagation\(\); toggleExpanded\(\)/,
     'the same dedicated button toggles details without bubbling into the row action')
-  assert.match(pageSource, /<th scope="row" colSpan=\{3\}/,
-    'the detail label spans row number, identity, and Status so effects remain under parameters')
+  assert.match(pageSource, /<td aria-hidden="true" \/>[\s\S]*?<th scope="row" colSpan=\{2\}/,
+    'the empty number cell precedes the identity-aligned label while effects remain under parameters')
   assert.match(protectedMarkup, /aria-expanded="false"/)
   assert.doesNotMatch(protectedMarkup, /<h4[^>]*>Parameter Cost Effect<\/h4>/,
     'the Parameter Cost Effect detail remains collapsed until requested')

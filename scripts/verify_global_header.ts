@@ -55,14 +55,14 @@ assert.doesNotMatch(navbar, /disabled:cursor-not-allowed/)
 assert.doesNotMatch(navbar, /resolveWorkflowStatus|Candidate \/ RCA|workflowStatus|Selected Comparison/)
 assert.equal((navbar.match(/label: '(?:Master Data|Cost Breakdown|Simulation)'/g) ?? []).length, 3,
   'Global Header exposes exactly three primary navigation tabs')
-assert.match(navbar, /const canUndo = isMasterData \? canUndoMasterDataEdit : isCostBreakdown && Boolean\(cbdReorderUndoRedo\?\.canUndo\)/,
-  'Undo availability follows Master Data history on Master Data and Candidate reorder history on CBD')
-assert.match(navbar, /const canRedo = isMasterData \? canRedoMasterDataEdit : isCostBreakdown && Boolean\(cbdReorderUndoRedo\?\.canRedo\)/,
-  'Redo availability follows Master Data history on Master Data and Candidate reorder history on CBD')
+assert.match(navbar, /const canUndo = isMasterData\s*\? canUndoMasterDataEdit\s*: isCostBreakdown\s*\? Boolean\(cbdReorderUndoRedo\?\.canUndo\)\s*: isSimulation && Boolean\(simulationUndoRedo\?\.canUndo\)/,
+  'Undo availability follows the active Master Data, CBD, or Simulation history')
+assert.match(navbar, /const canRedo = isMasterData\s*\? canRedoMasterDataEdit\s*: isCostBreakdown\s*\? Boolean\(cbdReorderUndoRedo\?\.canRedo\)\s*: isSimulation && Boolean\(simulationUndoRedo\?\.canRedo\)/,
+  'Redo availability follows the active Master Data, CBD, or Simulation history')
 assert.match(navbar, /onClick=\{handleUndo\}[\s\S]*disabled=\{!canUndo\}/)
 assert.match(navbar, /onClick=\{handleRedo\}[\s\S]*disabled=\{!canRedo\}/)
-assert.match(navbar, /const handleUndo = \(\) => isMasterData \? undoMasterDataEdit\(\) : isCostBreakdown \? cbdReorderUndoRedo\?\.undo\(\) : undefined/,
-  'Header leaves Simulation Undo disabled and does not invent Simulation history')
+assert.match(navbar, /const handleUndo = \(\) => isMasterData\s*\? undoMasterDataEdit\(\)\s*: isCostBreakdown\s*\? cbdReorderUndoRedo\?\.undo\(\)\s*: isSimulation \? simulationUndoRedo\?\.undo\(\) : undefined/,
+  'Header routes Undo to the independent active-page history')
 
 const headerZones = [
   navbar.indexOf('>COSTBREAKDOWN</span>'),
