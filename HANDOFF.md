@@ -1,4 +1,29 @@
-# Current Handoff — Simulation Pre-layout Functional Correction
+# Current Simulation Timeline — 2026-10-16
+
+## A. Pre-layout large correction
+- Commit: 62608b5e65ab37217afca955be8c1b8bc01483f1
+- Status: IMPLEMENTED + PUSHED; previous verification mostly PASS.
+- NOT VERIFIED: physical finger/touch page swipe; physical touch-origin ruler drag.
+
+## B. BOM / RTG refinement
+- Commit: ae502d8278289f0d647b940f043c312821d643a9
+- Status: IMPLEMENTED + PUSHED; AWAITING SEPARATE USER/VISUAL AUDIT. Not CLOSED.
+- Scope: row expand/collapse and chevrons; drag select/deselect from #; stable selected-first identity; Total formatting/alignment.
+- Audit still needs to confirm sticky header behavior and Material Cost / Conversion Cost alignment.
+
+## C. Graph requirement discussion
+- Status: REQUIREMENT CLOSED / FINALIZED.
+- Legend is a graph-view filter only; it does not change Result or underlying Simulation data.
+
+## D. Graph implementation
+- Starting commit: ae502d8278289f0d647b940f043c312821d643a9.
+- Status: IMPLEMENTED + PUSHED; AWAITING GRAPH AUDIT. Do not mark CLOSED until the separate audit/review.
+
+## E. Current next steps
+1. Separately audit BOM / RTG refinement.
+2. Separately audit Graph.
+3. Decide closure/status for each area only after its audit.
+# Historical Handoff — Simulation Pre-layout Functional Correction
 
 **Updated:** 2026-10-16
 
