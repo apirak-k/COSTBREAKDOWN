@@ -17,6 +17,7 @@ import type {
   SnapshotCost
 } from '../../core/types'
 import { NumericInput } from '../../shared/ui/NumericInput'
+import { applyRowDragSelection } from '../../shared/selection/row-drag-selection'
 import { useTransientInteraction } from '../../shared/ui/transient-interactions'
 import { normalizeProductIdentityValue } from '../../core/utils/master-data-effective'
 import { EconomicSimulationPanel } from './EconomicSimulationPanel'
@@ -293,6 +294,20 @@ function EffectCell({ amount }: {
   )
 }
 
+interface SimulationSelectionTarget {
+  key: string
+  recordId: string
+}
+
+interface SimulationSelectionDrag {
+  anchorKey: string
+  targets: SimulationSelectionTarget[]
+  rowKeys: string[]
+  initialSelection: Set<string>
+  selected: boolean
+  moved: boolean
+}
+
 function SimulationParameterTable({
   kind,
   rows,
@@ -321,17 +336,29 @@ function SimulationParameterTable({
   const tableIdentity = isBOM ? 'Bill of Materials' : 'Routing Process'
   const parameters = isBOM ? BOM_PARAMETERS : RTG_PARAMETERS
   const [expandedRows, setExpandedRows] = useState<Set<string>>(() => new Set())
+  const [dragRowOrder, setDragRowOrder] = useState<string[] | null>(null)
+  const selectionDragRef = useRef<SimulationSelectionDrag | null>(null)
+  const suppressSelectionClickRef = useRef(false)
   const records: Array<{ id: string }> = isBOM ? simulationSnapshot.bom : simulationSnapshot.routing
   const tableRows = rows.filter(row => row.kind === kind).map((row, sourceIndex) => ({ row, sourceIndex }))
   const selectedKeys = new Set(workingSelection)
+  const getRowKey = (row: SimulationComparisonRow, sourceIndex: number) => `${row.currentRecordId ?? 'missing'}:${row.simulationRecordId ?? 'missing'}:${sourceIndex}`
   const isSelectedRow = (row: SimulationComparisonRow) => Boolean(
     row.simulationRecordId && rowIsSelectable(row) && selectedKeys.has(simulationWorkingTargetKey(kind, row.simulationRecordId))
   )
-  const visibleRows = [...tableRows].sort((left, right) => Number(isSelectedRow(right.row)) - Number(isSelectedRow(left.row)) || left.sourceIndex - right.sourceIndex)
-  const selectableRecordIds = tableRows.flatMap(({ row }) => {
+  const selectedFirstRows = [...tableRows].sort((left, right) => Number(isSelectedRow(right.row)) - Number(isSelectedRow(left.row)) || left.sourceIndex - right.sourceIndex)
+  const dragRowIndexes = new Map((dragRowOrder ?? []).map((key, index) => [key, index]))
+  const visibleRows = dragRowOrder
+    ? [...tableRows].sort((left, right) => (dragRowIndexes.get(getRowKey(left.row, left.sourceIndex)) ?? Number.MAX_SAFE_INTEGER)
+      - (dragRowIndexes.get(getRowKey(right.row, right.sourceIndex)) ?? Number.MAX_SAFE_INTEGER) || left.sourceIndex - right.sourceIndex)
+    : selectedFirstRows
+  const selectableTargets = tableRows.flatMap(({ row }) => {
     const record = singleRecord(records, row.simulationRecordId)
-    return record && rowIsSelectable(row) ? [record.id] : []
+    return record && rowIsSelectable(row)
+      ? [{ key: simulationWorkingTargetKey(kind, record.id), recordId: record.id }]
+      : []
   })
+  const selectableRecordIds = selectableTargets.map(target => target.recordId)
   const allVisibleSelected = selectableRecordIds.length > 0 && selectableRecordIds.every(id => selectedKeys.has(simulationWorkingTargetKey(kind, id)))
   const someVisibleSelected = !allVisibleSelected && selectableRecordIds.some(id => selectedKeys.has(simulationWorkingTargetKey(kind, id)))
   const toggleAllVisible = () => {
@@ -341,7 +368,69 @@ function SimulationParameterTable({
       if (isSelected !== select) onToggleWorkingTarget(kind, id)
     }
   }
-  useTransientInteraction(expandedRows.size > 0, () => setExpandedRows(new Set()))
+
+  const startSelectionDrag = (recordId: string, event: React.MouseEvent<HTMLButtonElement>) => {
+    if (event.button !== 0) return
+    const anchorKey = simulationWorkingTargetKey(kind, recordId)
+    const targetsByKey = new Map(selectableTargets.map(target => [target.key, target]))
+    const targets = visibleRows.flatMap(({ row }) => {
+      if (!row.simulationRecordId || !rowIsSelectable(row)) return []
+      const record = singleRecord(records, row.simulationRecordId)
+      const target = record ? targetsByKey.get(simulationWorkingTargetKey(kind, record.id)) : undefined
+      return target ? [target] : []
+    })
+    if (!targets.some(target => target.key === anchorKey)) return
+
+    suppressSelectionClickRef.current = false
+    selectionDragRef.current = {
+      anchorKey,
+      targets,
+      rowKeys: visibleRows.map(({ row, sourceIndex }) => getRowKey(row, sourceIndex)),
+      initialSelection: new Set(workingSelection),
+      selected: !selectedKeys.has(anchorKey),
+      moved: false
+    }
+    setDragRowOrder(selectionDragRef.current.rowKeys)
+  }
+
+  const extendSelectionDrag = (recordId: string) => {
+    const drag = selectionDragRef.current
+    if (!drag) return
+    const targetKey = simulationWorkingTargetKey(kind, recordId)
+    if (targetKey === drag.anchorKey) return
+    const anchorIndex = drag.targets.findIndex(target => target.key === drag.anchorKey)
+    const targetIndex = drag.targets.findIndex(target => target.key === targetKey)
+    if (anchorIndex < 0 || targetIndex < 0) return
+
+    drag.moved = true
+    const traversedTargets = drag.targets.slice(Math.min(anchorIndex, targetIndex), Math.max(anchorIndex, targetIndex) + 1)
+    const desiredSelection = applyRowDragSelection(
+      drag.initialSelection,
+      traversedTargets.map(target => target.key),
+      drag.selected
+    )
+    for (const target of drag.targets) {
+      if (selectedKeys.has(target.key) !== desiredSelection.has(target.key)) {
+        onToggleWorkingTarget(kind, target.recordId)
+      }
+    }
+  }
+
+  useEffect(() => {
+    const finishSelectionDrag = () => {
+      const drag = selectionDragRef.current
+      if (!drag) return
+      if (drag.moved) suppressSelectionClickRef.current = true
+      selectionDragRef.current = null
+      setDragRowOrder(null)
+    }
+    window.addEventListener('mouseup', finishSelectionDrag)
+    window.addEventListener('blur', finishSelectionDrag)
+    return () => {
+      window.removeEventListener('mouseup', finishSelectionDrag)
+      window.removeEventListener('blur', finishSelectionDrag)
+    }
+  }, [])
 
   return (
     <section data-simulation-table={kind} className="min-w-0 border border-slate-300 bg-white xl:flex xl:min-h-0 xl:flex-col xl:overflow-hidden" aria-label={tableIdentity}>
@@ -374,14 +463,14 @@ function SimulationParameterTable({
               <th scope="col" className="px-2 py-2 text-left">{tableIdentity}</th>
               <th scope="col" className="px-1 py-2 text-left">Status</th>
               {parameters.map(parameter => <th key={parameter.parameter} scope="col" className="py-2 pl-1 pr-8 text-right">{parameter.label}</th>)}
-              <th scope="col" className="py-2 pl-1 pr-2 text-right">{isBOM ? 'Material Cost' : 'Conversion Cost'}</th>
+              <th scope="col" className="py-2 pl-1 pr-6 text-right">{isBOM ? 'Material Cost' : 'Conversion Cost'}</th>
               <th scope="col" className="px-0.5 py-2"><span className="sr-only">Expand Parameter Cost Effect</span></th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-200 bg-white">
             {visibleRows.length === 0 && <tr><td colSpan={8} className="px-3 py-6 text-center text-xs text-slate-500">No {tableIdentity} rows.</td></tr>}
             {visibleRows.map(({ row, sourceIndex }) => {
-              const key = `${row.currentRecordId ?? 'missing'}:${row.simulationRecordId ?? 'missing'}:${sourceIndex}`
+              const key = getRowKey(row, sourceIndex)
               const detailId = `${kind}-effect-${encodeURIComponent(key)}`
               const expanded = expandedRows.has(key)
               const simulationRecord = singleRecord(records, row.simulationRecordId)
@@ -428,7 +517,21 @@ function SimulationParameterTable({
                           type="button"
                           aria-label={`${selected ? 'Deselect' : 'Select'} ${shortTitle} row ${sourceIndex + 1}: ${row.name}`}
                           aria-pressed={selected}
-                          onClick={event => { event.stopPropagation(); onToggleWorkingTarget(kind, simulationRecord.id) }}
+                          onMouseDown={event => { event.stopPropagation(); startSelectionDrag(simulationRecord.id, event) }}
+                          onMouseEnter={() => extendSelectionDrag(simulationRecord.id)}
+                          onClick={event => {
+                            event.stopPropagation()
+                            if (event.detail === 0) {
+                              suppressSelectionClickRef.current = false
+                              onToggleWorkingTarget(kind, simulationRecord.id)
+                              return
+                            }
+                            if (suppressSelectionClickRef.current) {
+                              suppressSelectionClickRef.current = false
+                              return
+                            }
+                            onToggleWorkingTarget(kind, simulationRecord.id)
+                          }}
                           className={`inline-grid h-7 min-w-7 place-items-center rounded-sm px-1 font-mono text-[10px] ${selected ? 'bg-blue-700 text-white' : 'text-slate-600 hover:bg-slate-200'} focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700`}
                         >{sourceIndex + 1}</button>
                       ) : <span className="font-mono text-[10px] tabular-nums text-slate-500">{sourceIndex + 1}</span>}
@@ -468,17 +571,12 @@ function SimulationParameterTable({
                         </td>
                       )
                     })}
-                    <td className="py-2 pl-1 pr-2 text-right font-mono text-xs tabular-nums text-slate-900">{displayMoney(analysis.simCost)}</td>
+                    <td className="py-2 pl-1 pr-6 text-right font-mono text-xs tabular-nums text-slate-900">{displayMoney(analysis.simCost)}</td>
                     <td className="px-0.5 py-1 text-center">
                       {canExpand && (
-                        <button
-                          type="button"
-                          aria-label={`${expanded ? 'Collapse' : 'Expand'} Parameter Cost Effect for ${row.name}`}
-                          aria-expanded={expanded}
-                          aria-controls={expanded ? detailId : undefined}
-                          onClick={event => { event.stopPropagation(); toggleExpanded() }}
-                          className="inline-grid h-7 w-7 place-items-center rounded-sm text-slate-600 hover:bg-slate-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-blue-700"
-                        >{expanded ? <ChevronDown aria-hidden="true" className="h-4 w-4" /> : <ChevronRight aria-hidden="true" className="h-4 w-4" />}</button>
+                        <span aria-hidden="true" className="inline-grid h-7 w-7 place-items-center text-slate-600">
+                          {expanded ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+                        </span>
                       )}
                     </td>
                   </tr>
@@ -492,8 +590,11 @@ function SimulationParameterTable({
                         )}
                       </th>
                       {detailParameters.map(parameter => <EffectCell key={parameter.parameter} amount={parameter.amount} />)}
-                      <td className="whitespace-nowrap py-1.5 pl-1 pr-2 text-right font-mono text-[10px] font-semibold tabular-nums text-slate-900">
-                        {analysis.effects.totalEffect === null ? '—' : `${displayEffect(analysis.effects.totalEffect)} Total`}
+                      <td className="whitespace-nowrap py-1.5 pl-1 pr-6 text-right text-[10px] font-semibold text-slate-900">
+                        <span className="grid grid-cols-[1fr_auto] items-center gap-1">
+                          <span className="text-right">Total</span>
+                          <span className="min-w-[5ch] text-right font-mono tabular-nums">{displayEffect(analysis.effects.totalEffect)}</span>
+                        </span>
                       </td>
                       <td className="px-0.5 py-1" aria-hidden="true" />
                     </tr>
@@ -507,7 +608,7 @@ function SimulationParameterTable({
       <div className="md:hidden">
         {visibleRows.length === 0 && <p className="px-3 py-6 text-center text-xs text-slate-500">No {tableIdentity} rows.</p>}
         {visibleRows.map(({ row, sourceIndex }) => {
-          const key = `${row.currentRecordId ?? 'missing'}:${row.simulationRecordId ?? 'missing'}:${sourceIndex}`
+          const key = getRowKey(row, sourceIndex)
           const expanded = expandedRows.has(key)
           const simulationRecord = singleRecord(records, row.simulationRecordId)
           const canEdit = Boolean(simulationRecord && rowIsSelectable(row))
@@ -548,7 +649,21 @@ function SimulationParameterTable({
                     type="button"
                     aria-label={`${selected ? 'Deselect' : 'Select'} ${shortTitle} row ${sourceIndex + 1}: ${row.name}`}
                     aria-pressed={selected}
-                    onClick={event => { event.stopPropagation(); onToggleWorkingTarget(kind, simulationRecord.id) }}
+                    onMouseDown={event => { event.stopPropagation(); startSelectionDrag(simulationRecord.id, event) }}
+                    onMouseEnter={() => extendSelectionDrag(simulationRecord.id)}
+                    onClick={event => {
+                      event.stopPropagation()
+                      if (event.detail === 0) {
+                        suppressSelectionClickRef.current = false
+                        onToggleWorkingTarget(kind, simulationRecord.id)
+                        return
+                      }
+                      if (suppressSelectionClickRef.current) {
+                        suppressSelectionClickRef.current = false
+                        return
+                      }
+                      onToggleWorkingTarget(kind, simulationRecord.id)
+                    }}
                     className={`min-h-7 min-w-7 shrink-0 rounded-sm px-1 font-mono text-[10px] ${selected ? 'bg-blue-700 text-white' : 'text-slate-600 hover:bg-slate-200'} focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700`}
                   >{sourceIndex + 1}</button>
                 ) : <span className="min-w-7 pt-1 text-center font-mono text-[10px] text-slate-500">{sourceIndex + 1}</span>}
@@ -556,14 +671,9 @@ function SimulationParameterTable({
                   <h3 className="break-words text-xs font-medium text-slate-900">{row.name}</h3>
                 </div>
                 {canExpand && (
-                  <button
-                    type="button"
-                    aria-label={`${expanded ? 'Collapse' : 'Expand'} Parameter Cost Effect for ${row.name}`}
-                    aria-expanded={expanded}
-                    aria-controls={expanded ? detailId : undefined}
-                    onClick={event => { event.stopPropagation(); toggleExpanded() }}
-                    className="grid h-7 w-7 shrink-0 place-items-center rounded-sm text-slate-600 hover:bg-slate-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-blue-700"
-                  >{expanded ? <ChevronDown aria-hidden="true" className="h-4 w-4" /> : <ChevronRight aria-hidden="true" className="h-4 w-4" />}</button>
+                  <span aria-hidden="true" className="grid h-7 w-7 shrink-0 place-items-center text-slate-600">
+                    {expanded ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+                  </span>
                 )}
               </div>
               <dl className="mt-2 grid grid-cols-2 gap-x-3 gap-y-1 text-[10px]">
