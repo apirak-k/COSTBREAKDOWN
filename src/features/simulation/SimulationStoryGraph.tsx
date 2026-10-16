@@ -19,7 +19,6 @@ interface LegendItem {
   key: LegendKey
   label: string
   color: string
-  sample: 'box' | 'line' | 'dashed'
 }
 
 const COST_PARTS: ChartPart[] = [
@@ -41,14 +40,14 @@ const STATE_PARTS: ChartPart[] = [
 ]
 
 const LEGEND_ITEMS: LegendItem[] = [
-  { key: 'material', label: 'Material', color: COST_ELEMENT_COLORS.material, sample: 'box' },
-  { key: 'labor', label: 'Labor', color: COST_ELEMENT_COLORS.labor, sample: 'box' },
-  { key: 'burden', label: 'Burden', color: COST_ELEMENT_COLORS.burden, sample: 'box' },
-  { key: 'sga', label: 'SG&A', color: SGA_COLOR, sample: 'box' },
-  { key: 'opPositive', label: 'Profit +', color: OPERATING_PROFIT_POSITIVE, sample: 'box' },
-  { key: 'opNegative', label: 'Profit −', color: OPERATING_PROFIT_NEGATIVE, sample: 'box' },
-  { key: 'sellingPrice', label: 'Selling Price', color: SELLING_PRICE_COLOR, sample: 'line' },
-  { key: 'ruler', label: 'Ruler', color: RULER_COLOR, sample: 'dashed' }
+  { key: 'material', label: 'Material', color: COST_ELEMENT_COLORS.material },
+  { key: 'labor', label: 'Labor', color: COST_ELEMENT_COLORS.labor },
+  { key: 'burden', label: 'Burden', color: COST_ELEMENT_COLORS.burden },
+  { key: 'sga', label: 'SG&A', color: SGA_COLOR },
+  { key: 'opPositive', label: 'Profit +', color: OPERATING_PROFIT_POSITIVE },
+  { key: 'opNegative', label: 'Profit −', color: OPERATING_PROFIT_NEGATIVE },
+  { key: 'sellingPrice', label: 'Selling Price', color: SELLING_PRICE_COLOR },
+  { key: 'ruler', label: 'Ruler', color: RULER_COLOR }
 ]
 
 const DEFAULT_LEGEND_VISIBILITY: Record<LegendKey, boolean> = {
@@ -65,7 +64,7 @@ const DEFAULT_LEGEND_VISIBILITY: Record<LegendKey, boolean> = {
 const STATE_LAYOUT = [
   { key: 'reference', label: 'REF', description: 'Reference', x: 180 },
   { key: 'current', label: 'CUR', description: 'Current', x: 430 },
-  { key: 'simulated', label: 'SIM', description: 'Simulated', x: 680 }
+  { key: 'simulated', label: 'SIM', description: 'Simulation', x: 680 }
 ] as const
 
 interface SimulationStoryGraphProps {
@@ -84,6 +83,38 @@ function signed(value: number | null): string {
 
 function finiteRangeValues(values: Array<number | null | undefined>): number[] {
   return values.filter((value): value is number => value !== null && value !== undefined && Number.isFinite(value))
+}
+
+function niceStep(roughStep: number): number {
+  const magnitude = 10 ** Math.floor(Math.log10(roughStep))
+  const fraction = roughStep / magnitude
+  const niceFraction = [1, 2, 2.5, 5, 10].reduce((best, candidate) =>
+    Math.abs(candidate - fraction) < Math.abs(best - fraction) ? candidate : best, 1)
+  return niceFraction * magnitude
+}
+
+function axisPrecision(step: number): number {
+  if (step >= 1) return Number.isInteger(step) ? 0 : 1
+  let precision = 2
+  while (precision < 6 && Math.abs(step * 10 ** precision - Math.round(step * 10 ** precision)) > 1e-8) precision += 1
+  return precision
+}
+
+export function buildGraphScale(values: Array<number | null | undefined>) {
+  const finiteValues = finiteRangeValues(values)
+  const rawMinimum = Math.min(0, ...finiteValues)
+  const rawMaximum = Math.max(0, ...finiteValues)
+  if (rawMinimum === 0 && rawMaximum === 0) return { minimum: -1, maximum: 1, step: 0.5 }
+
+  const padding = (rawMaximum - rawMinimum) * 0.1
+  const paddedMinimum = rawMinimum < 0 ? rawMinimum - padding : 0
+  const paddedMaximum = rawMaximum > 0 ? rawMaximum + padding : 0
+  const step = niceStep((paddedMaximum - paddedMinimum) / 5)
+  return {
+    minimum: Math.floor(paddedMinimum / step) * step,
+    maximum: Math.ceil(paddedMaximum / step) * step,
+    step
+  }
 }
 
 interface VisibleStackSegment {
@@ -142,6 +173,13 @@ export function buildVisibleStack(
   return { segments, positive, negative, total: unavailable ? null : total }
 }
 
+export function buildVisibleStandardCost(
+  values: ScenarioFinancialResult,
+  visible: Record<LegendKey, boolean>
+): number | null {
+  return buildVisibleStack(values, COST_PARTS, visible).total
+}
+
 function gapTotalColor(value: number | null): string {
   if (value === null || !Number.isFinite(value)) return '#94a3b8'
   if (value > 0) return '#be123c'
@@ -164,44 +202,41 @@ export function SimulationStoryGraph({ story, unit }: SimulationStoryGraphProps)
     ...state,
     stack: buildVisibleStack(state.values, STATE_PARTS, visibleLegend)
   })), [stateValues, visibleLegend])
+  const standardCostValues = useMemo(() => stateValues.map(state => ({
+    ...state,
+    value: buildVisibleStandardCost(state.values, visibleLegend)
+  })), [stateValues, visibleLegend])
   const gapStacks = useMemo(() => gapValues.map(gap => ({
     ...gap,
     stack: buildVisibleStack(gap.values, COST_PARTS, visibleLegend)
   })), [gapValues, visibleLegend])
   const categoryLabels = [
-    { key: 'reference', label: 'REF', description: 'Visible graph value', x: 180, value: stateStacks[0].stack.total, isGap: false },
-    { key: 'gap1', label: 'GAP 1', description: gapStacks[0].description, x: 305, value: gapStacks[0].stack.total, isGap: true },
-    { key: 'current', label: 'CUR', description: 'Visible graph value', x: 430, value: stateStacks[1].stack.total, isGap: false },
-    { key: 'gap2', label: 'GAP 2', description: gapStacks[1].description, x: 555, value: gapStacks[1].stack.total, isGap: true },
-    { key: 'simulated', label: 'SIM', description: 'Visible graph value', x: 680, value: stateStacks[2].stack.total, isGap: false }
+    { key: 'reference', label: 'REF', description: 'Reference Cost Structure', x: 180, isGap: false as const },
+    { key: 'gap1', label: 'GAP 1', description: gapStacks[0].description, x: 305, value: gapStacks[0].stack.total, isGap: true as const },
+    { key: 'current', label: 'CUR', description: 'Current Cost Structure', x: 430, isGap: false as const },
+    { key: 'gap2', label: 'GAP 2', description: gapStacks[1].description, x: 555, value: gapStacks[1].stack.total, isGap: true as const },
+    { key: 'simulated', label: 'SIM', description: 'Simulation Cost Structure', x: 680, isGap: false as const }
   ]
   const rangeValues = useMemo(() => {
     return finiteRangeValues([
       ...stateStacks.flatMap(state => [state.stack.positive, state.stack.negative]),
       ...gapStacks.flatMap(gap => [gap.stack.positive, gap.stack.negative]),
+      ...standardCostValues.map(state => state.value),
       ...(visibleLegend.sellingPrice ? stateValues.map(state => state.values.sellingPrice) : []),
-      ...(COST_PARTS.every(part => part.legendKey !== null && visibleLegend[part.legendKey])
-        ? stateValues.map(state => state.values.standardCost)
-        : [])
     ])
-  }, [gapStacks, stateStacks, stateValues, visibleLegend])
+  }, [gapStacks, standardCostValues, stateStacks, stateValues, visibleLegend])
   const plot = { left: 120, right: 752, top: 38, bottom: 272 }
-  const rawMinimum = Math.min(0, ...rangeValues)
-  const rawMaximum = Math.max(0, ...rangeValues)
-  const rawSpan = rawMaximum - rawMinimum || 1
-  const minimum = rawMinimum - rawSpan * 0.1
-  const maximum = rawMaximum + rawSpan * 0.1
+  const { minimum, maximum, step: axisStep } = buildGraphScale(rangeValues)
   const span = maximum - minimum
   const clamp = (value: number, low: number, high: number) => Math.min(high, Math.max(low, value))
   const y = (value: number) => plot.top + ((maximum - value) / span) * (plot.bottom - plot.top)
-  const zeroY = y(0)
+  const axisTickPrecision = axisPrecision(axisStep)
+  const axisTicks = Array.from({ length: Math.round(span / axisStep) + 1 }, (_, index) => minimum + axisStep * index)
   const importantLevels = finiteRangeValues([
     0,
     ...stateStacks.flatMap(state => [state.stack.positive, state.stack.negative]),
     ...gapStacks.flatMap(gap => [gap.stack.positive, gap.stack.negative]),
-    ...(COST_PARTS.every(part => part.legendKey !== null && visibleLegend[part.legendKey])
-      ? stateValues.map(state => state.values.standardCost)
-      : []),
+    ...standardCostValues.map(state => state.value),
     ...(visibleLegend.sellingPrice ? stateValues.map(state => state.values.sellingPrice) : [])
   ]).filter(value => value >= minimum && value <= maximum)
   const snapLevel = (value: number) => {
@@ -274,20 +309,21 @@ export function SimulationStoryGraph({ story, unit }: SimulationStoryGraphProps)
           style={{ touchAction: 'pan-y' }}
         >
           <title id="simulation-story-svg-title">Simulation Cost Structure</title>
-          <desc id="simulation-story-svg-description">REF, CUR, and SIM show the visible cost structure. GAP 1 is Current minus Reference; GAP 2 is Simulation minus Current. Legend filters this graph view only and does not change calculations or Simulation data. Selling Price is a separate overlay. The ruler is a comparison guide controlled by dragging or the Arrow, Page, Home, and End keys.</desc>
+          <desc id="simulation-story-svg-description">REF, CUR, and SIM show visible Material, Labor, Burden, SG&amp;A, and sign-matched Profit. Standard Cost is visible Material plus Labor plus Burden. GAP 1 is Current minus Reference; GAP 2 is Simulation minus Current. Legend filters change this graph view only, not Result or source data. Selling Price is separate, and the ruler is a comparison guide.</desc>
 
-          {[0, 1, 2, 3, 4].map(step => {
-            const value = minimum + (span * step) / 4
+          {axisTicks.map((value, index) => {
             const lineY = y(value)
+            const isZero = Math.abs(value) < axisStep * 0.0001
             return (
-              <g key={step}>
-                <line x1={plot.left} x2={plot.right} y1={lineY} y2={lineY} stroke={Math.abs(value) < span * 0.0001 ? '#64748b' : '#e2e8f0'} strokeWidth={Math.abs(value) < span * 0.0001 ? 1.4 : 1} />
-                <text data-axis-tick={step} x="110" y={lineY + 3} textAnchor="end" fill="#64748b" fontSize="9px" fontFamily="ui-monospace, monospace">{formatNumber(value, 2)}</text>
+              <g key={index}>
+                <line x1={plot.left} x2={plot.right} y1={lineY} y2={lineY} stroke={isZero ? '#94a3b8' : '#e2e8f0'} strokeWidth={isZero ? 1.2 : 1} />
+                <line x1={plot.left - 3} x2={plot.left + 3} y1={lineY} y2={lineY} stroke="#64748b" strokeWidth="1" />
+                <text data-axis-tick={index} x="110" y={lineY + 3} textAnchor="end" fill="#64748b" fontSize="9px" fontFamily="ui-monospace, monospace">{formatNumber(value, axisTickPrecision)}</text>
               </g>
             )
           })}
-          <line x1={plot.left} x2={plot.right} y1={zeroY} y2={zeroY} stroke="#64748b" strokeWidth="1.4" />
-          <text x="24" y="155" transform="rotate(-90 24 155)" textAnchor="middle" fill="#64748b" fontSize="9px" fontFamily="ui-monospace, monospace">{`THB/${unit}`}</text>
+          <line data-y-axis="true" x1={plot.left} x2={plot.left} y1={plot.top} y2={plot.bottom} stroke="#64748b" strokeWidth="1.4" />
+          <text data-y-axis-unit="true" x="72" y={(plot.top + plot.bottom) / 2} transform={`rotate(-90 72 ${(plot.top + plot.bottom) / 2})`} textAnchor="middle" fill="#475569" fontSize="10px" fontWeight="600" fontFamily="ui-monospace, monospace">{`THB/${unit}`}</text>
 
           {stateStacks.map(state => {
             return (
@@ -305,21 +341,30 @@ export function SimulationStoryGraph({ story, unit }: SimulationStoryGraphProps)
                       width="54"
                       height={Math.max(Math.abs(y(before) - y(after)), 1)}
                       fill={color}
-                      fillOpacity={part.key === 'operatingProfitPerPiece' ? 0.72 : 0.68}
                       stroke="none"
                     >
                       <title>{`${state.description} ${part.tooltipLabel}: ${formatValue(value)} THB/${unit}`}</title>
                     </rect>
                   )
                 })}
-                {COST_PARTS.every(part => part.legendKey !== null && visibleLegend[part.legendKey]) &&
-                  state.values.standardCost !== null && Number.isFinite(state.values.standardCost) && (
-                    <line data-graph-standard-cost="true" x1={state.x - 27} x2={state.x + 27}
-                      y1={y(state.values.standardCost)} y2={y(state.values.standardCost)}
-                      stroke={COST_ELEMENT_COLORS.standardCost} strokeWidth="1.2">
-                      <title>Standard Cost</title>
-                    </line>
-                  )}
+                {standardCostValues.filter(value => value.key === state.key).map(({ value }) => {
+                  if (value === null) return null
+                  const boundaryY = y(value)
+                  const tooltip = `${state.description} Standard Cost · ${formatValue(value)} THB/${unit}`
+                  return (
+                    <g key="standard-cost">
+                      <line data-graph-standard-cost={state.key} x1={state.x - 27} x2={state.x + 27}
+                        y1={boundaryY} y2={boundaryY} stroke={COST_ELEMENT_COLORS.standardCost} strokeWidth="1.2">
+                        <title>{tooltip}</title>
+                      </line>
+                      <text data-graph-standard-cost-value={state.key} x={state.x + 31} y={clamp(boundaryY + 3, plot.top + 10, plot.bottom - 1)}
+                        textAnchor="start" fill={COST_ELEMENT_COLORS.standardCost} fontSize="9px" fontWeight="700" fontFamily="ui-monospace, monospace">
+                        <title>{tooltip}</title>
+                        {formatValue(value)}
+                      </text>
+                    </g>
+                  )
+                })}
               </g>
             )
           })}
@@ -337,7 +382,6 @@ export function SimulationStoryGraph({ story, unit }: SimulationStoryGraphProps)
                       width="50"
                       height={Math.max(Math.abs(y(before) - y(after)), 1)}
                       fill={part.color}
-                      fillOpacity="0.68"
                       stroke="none"
                     >
                       <title>{`${gap.label} · ${gap.description} · ${part.tooltipLabel} Gap: ${signed(value)} THB/${unit}`}</title>
@@ -356,14 +400,13 @@ export function SimulationStoryGraph({ story, unit }: SimulationStoryGraphProps)
           {pricePoints.map(point => (
             <g key={point.label} data-graph-series="sellingPrice">
               <circle cx={point.x} cy={point.y} r="3.5" fill={SELLING_PRICE_COLOR} stroke="white" strokeWidth="1" />
-              <text x={point.x} y={clamp(point.y - 9, plot.top + 9, plot.bottom - 3)} textAnchor="middle" fill={SELLING_PRICE_COLOR} fontSize="9px" fontWeight="700" fontFamily="ui-monospace, monospace">{formatValue(point.value)}</text>
               <title>{`${point.label} Selling Price: ${formatValue(point.value)} THB/${unit}`}</title>
             </g>
           ))}
 
           {visibleLegend.ruler && (
             <>
-              <line data-ruler-line="true" x1={plot.left} x2={plot.right} y1={rulerY} y2={rulerY} stroke={RULER_COLOR} strokeWidth="1.4" strokeDasharray="4 5" opacity="0.92" pointerEvents="none" />
+              <line data-ruler-line="true" x1={plot.left} x2={plot.right} y1={rulerY} y2={rulerY} stroke={RULER_COLOR} strokeWidth="1.4" strokeDasharray="4 5" pointerEvents="none" />
               <text data-ruler-value="true" x={plot.right + 7} y={clamp(rulerY - 3, plot.top + 10, plot.bottom - 1)} textAnchor="start" fill={RULER_COLOR} fontSize="9px" fontWeight="600" fontFamily="ui-monospace, monospace" pointerEvents="none">{formatValue(rulerLevel)}</text>
               <g
                 role="slider"
@@ -388,7 +431,8 @@ export function SimulationStoryGraph({ story, unit }: SimulationStoryGraphProps)
                   if (event.currentTarget.hasPointerCapture(event.pointerId)) event.currentTarget.releasePointerCapture(event.pointerId)
                 }}
                 onKeyDown={handleRulerKeyDown}
-                className="cursor-ns-resize touch-none focus-visible:outline-none"
+                className="cursor-ns-resize touch-none outline-none focus:outline-none focus-visible:outline-none"
+                style={{ outline: 'none' }}
               >
                 <title>Drag near the dashed ruler line to compare cost levels. This guide does not change data.</title>
                 <rect x={plot.left} y={rulerY - 5} width={plot.right - plot.left} height="10" fill="transparent" pointerEvents="all" />
@@ -398,11 +442,16 @@ export function SimulationStoryGraph({ story, unit }: SimulationStoryGraphProps)
 
           {categoryLabels.map(category => (
             <g key={`${category.key}-labels`}>
-              <text data-graph-total={category.key} x={category.x} y={clamp(y(category.value ?? 0) + (category.isGap ? -8 : 13), plot.top + 10, plot.bottom - 1)} textAnchor="middle" fill={category.isGap ? gapTotalColor(category.value) : COST_ELEMENT_COLORS.standardCost} fontSize="9px" fontWeight="700" fontFamily="ui-monospace, monospace">
+              {category.isGap && (
+                <text data-graph-total={category.key} x={category.x} y={clamp(y(category.value ?? 0) + (category.value !== null && category.value < 0 ? 8 : -8), plot.top + 10, plot.bottom - 1)} textAnchor="middle" fill={gapTotalColor(category.value)} fontSize="9px" fontWeight="700" fontFamily="ui-monospace, monospace">
+                  <title>{category.description}</title>
+                  {signed(category.value)}
+                </text>
+              )}
+              <text x={category.x} y="306" textAnchor="middle" fill="#0f172a" fontSize="11px" fontWeight="700" fontFamily="ui-monospace, monospace">
                 <title>{category.description}</title>
-                {category.isGap ? signed(category.value) : formatValue(category.value)}
+                {category.label}
               </text>
-              <text x={category.x} y="306" textAnchor="middle" fill="#0f172a" fontSize="11px" fontWeight="700" fontFamily="ui-monospace, monospace">{category.label}</text>
             </g>
           ))}
         </svg>
@@ -421,13 +470,7 @@ export function SimulationStoryGraph({ story, unit }: SimulationStoryGraphProps)
                 onClick={() => setVisibleLegend(current => ({ ...current, [item.key]: !current[item.key] }))}
                 className={`inline-flex min-h-6 items-center gap-1.5 rounded-sm px-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-blue-700 ${isVisible ? 'text-slate-700' : 'text-slate-500'}`}
               >
-                {item.sample === 'box' ? (
-                  <span aria-hidden="true" className="inline-block h-2.5 w-2.5 shrink-0" style={{ backgroundColor: item.color }} />
-                ) : item.sample === 'line' ? (
-                  <span aria-hidden="true" className="inline-block w-4 shrink-0 border-t-2" style={{ borderColor: item.color }} />
-                ) : (
-                  <span aria-hidden="true" className="inline-block w-4 shrink-0 border-t border-dashed" style={{ borderColor: item.color }} />
-                )}
+                <span aria-hidden="true" className="inline-block h-2.5 w-2.5 shrink-0 border" style={{ backgroundColor: isVisible ? item.color : 'transparent', borderColor: item.color }} />
                 <span>{item.label}</span>
               </button>
             </li>
