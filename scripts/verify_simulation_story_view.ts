@@ -17,8 +17,20 @@ try {
   const { createScenarioFinancialResult, createScenarioStory } = await vite.ssrLoadModule('/src/core/calculations/scenario-story.ts')
   const { SimulationStoryGraph, buildVisibleStack } = await vite.ssrLoadModule('/src/features/simulation/SimulationStoryGraph.tsx')
   const { SimulationPage } = await vite.ssrLoadModule('/src/features/simulation/SimulationPage.tsx')
+  const { parameterEffectPresentation } = await vite.ssrLoadModule('/src/features/simulation/parameter-effect-presentation.ts')
   const { simulationWorkingTargetKey, startSimulationFrom } = await vite.ssrLoadModule('/src/features/simulation/simulation-state.ts')
   const { calculateParameterSimulation, updateSimulationParameter } = await vite.ssrLoadModule('/src/features/simulation/simulation-engine.ts')
+
+  assert.deepEqual(parameterEffectPresentation(2.35), { text: '+2.35', className: 'text-emerald-700' },
+    'positive parameter effects show an explicit plus sign and green styling')
+  assert.deepEqual(parameterEffectPresentation(-1.2), { text: '-1.20', className: 'text-rose-700' },
+    'negative parameter effects show a minus sign and red styling')
+  assert.deepEqual(parameterEffectPresentation(0), { text: '0.00', className: 'text-slate-700' },
+    'zero parameter effects are neutral and never receive a plus sign')
+  assert.deepEqual(parameterEffectPresentation(-0.001), { text: '0.00', className: 'text-slate-700' },
+    'values that round to zero remain neutral and do not show negative zero')
+  assert.deepEqual(parameterEffectPresentation(null), { text: '—', className: 'text-slate-400' },
+    'unavailable parameter effects remain unavailable rather than becoming zero')
 
   const cost = (snapshotId: string, material: number, labor: number, burden: number): SnapshotCost => ({
     snapshotId, material, labor, burden, total: material + labor + burden, status: 'complete', warnings: []
@@ -237,8 +249,8 @@ try {
   assert.match(pageMarkup, /Economic/)
   assert.match(pageMarkup, /Bill of Materials/, 'the BOM table uses its full identity')
   assert.match(pageMarkup, /Routing Process/, 'the RTG table uses its full identity')
-  assert.equal([...pageMarkup.matchAll(/<th scope="col"[^>]*>Status<\/th>/g)].length, 2,
-    'BOM and RTG each expose Status as a dedicated table column')
+  assert.equal([...pageMarkup.matchAll(/<th scope="col"[^>]*>Status<\/th>/g)].length, 4,
+    'BOM and RTG expose visible and screen-reader table headers while keeping a separate visual header')
   assert.doesNotMatch(pageMarkup, /0 selected|1 selected|2 selected/, 'separate table title/count bars are removed')
   assert.match(pageMarkup, /Selection is a local working aid and does not limit the full Simulation calculation/,
     'the UI explains that local row selection does not filter calculation')
@@ -252,6 +264,16 @@ try {
   assert.doesNotMatch(pageMarkup, /min-w-\[(?:390|650|730)px\]|overflow-x-auto/,
     'Result, BOM, and RTG do not force a horizontal scroll area')
   assert.match(pageMarkup, /table-fixed/, 'the parameter table fits its panel with fixed layout')
+  assert.equal([...pageMarkup.matchAll(/<div class="hidden md:block xl:shrink-0 xl:overflow-x-hidden xl:overflow-y-hidden xl:\[scrollbar-gutter:stable\]">/g)].length, 2,
+    'BOM and RTG render a separate non-scrolling visual header')
+  assert.equal([...pageMarkup.matchAll(/<div class="overflow-x-hidden md:overflow-y-visible xl:min-h-0 xl:flex-1 xl:overflow-y-auto xl:\[scrollbar-gutter:stable\]">/g)].length, 2,
+    'only the BOM and RTG table body wrappers own vertical scrolling')
+  assert.equal([...pageMarkup.matchAll(/<table role="presentation"/g)].length, 2,
+    'the visual header table does not duplicate table semantics')
+  assert.equal([...pageMarkup.matchAll(/<col style="width:14\.5%"\/>/g)].length, 12,
+    'the separate BOM and RTG header and body tables share the same parameter column geometry')
+  assert.equal([...pageMarkup.matchAll(/relative left-4 inline-block/g)].length, 2,
+    'only the Material Cost and Conversion Cost header labels shift toward their existing value axes')
   assert.match(pageMarkup, /<td class="whitespace-nowrap px-1 py-2 leading-3 font-sans text-\[10px\] font-bold text-slate-500">UNCHANGED<\/td>/,
     'desktop status is a separate cell rather than secondary text under row identity')
   assert.match(pageMarkup, /aria-label="A deliberately long stainless steel material description for wrapping Price in SIM"/,
@@ -335,6 +357,16 @@ try {
   assert.match(rowHandlerSource, /event\.key\s*!==\s*['"] ['"]/, 'Space is accepted by the row activation guard')
   assert.match(rowHandlerSource, /isInteractiveTarget\(event\.target\)/,
     'editing inputs and nested controls keep their own click behavior')
+  assert.match(pageSource, /\[data-safe-workspace-interaction="true"\]/,
+    'clicking inside an expanded detail does not bubble into its parent row toggle')
+  assert.match(rowHandlerSource, /aria-expanded=\{canExpand \? expanded : undefined\}/,
+    'the row exposes its expanded state to assistive technology')
+  assert.match(rowHandlerSource, /onClick=\{event => \{[\s\S]*?toggleExpanded\(\)/,
+    'safe row clicks toggle the expanded detail')
+  assert.match(rowHandlerSource, /event\.key !== 'Enter' && event\.key !== ' '/,
+    'the row itself responds to both Enter and Space')
+  assert.match(rowHandlerSource, /<span aria-hidden="true" className="inline-grid h-7 w-7 place-items-center text-slate-600">/,
+    'the Chevron remains a decorative indicator rather than a duplicate button')
   const mobileRowsStart = pageSource.indexOf('visibleRows.map(({ row, sourceIndex }) => {', pageSource.indexOf('visibleRows.map(({ row, sourceIndex }) => {') + 1)
   assert.ok(mobileRowsStart >= 0, 'a separate mobile card row template remains available')
   const mobileArticleStart = pageSource.indexOf('<article', mobileRowsStart)
@@ -365,10 +397,14 @@ try {
   assert.match(protectedMarkup, /Ambiguous identity · protected/)
   assert.match(protectedMarkup, /aria-label="Bill of Materials: .* activate to expand Parameter Cost Effect"/,
     'the ambiguous row exposes its full-row expansion name')
-  assert.match(protectedMarkup, /aria-label="Expand Parameter Cost Effect for A deliberately long stainless steel material description for wrapping" aria-expanded="false"/,
-    'the protected row has a real accessible expand button')
-  assert.match(pageSource, /aria-expanded=\{expanded\}[\s\S]*?aria-controls=\{expanded \? detailId : undefined\}[\s\S]*?event\.stopPropagation\(\); toggleExpanded\(\)/,
-    'the same dedicated button toggles details without bubbling into the row action')
+  const protectedRowStart = protectedMarkup.indexOf('<tr aria-selected="false"')
+  const protectedRowTag = protectedMarkup.slice(protectedRowStart, protectedMarkup.indexOf('>', protectedRowStart))
+  assert.match(protectedRowTag, /aria-label="Bill of Materials: .* activate to expand Parameter Cost Effect"/,
+    'the protected row itself exposes its expansion action')
+  assert.match(protectedRowTag, /tabindex="0"/, 'the protected row is keyboard reachable')
+  assert.match(protectedRowTag, /aria-expanded="false"/, 'the protected row exposes its collapsed state')
+  assert.doesNotMatch(protectedMarkup, /<button[^>]*aria-label="Expand Parameter Cost Effect for/,
+    'the Chevron does not create a second independent expand button')
   assert.match(pageSource, /<td aria-hidden="true" \/>[\s\S]*?<th scope="row" colSpan=\{2\}/,
     'the empty number cell precedes the identity-aligned label while effects remain under parameters')
   assert.match(protectedMarkup, /aria-expanded="false"/)
@@ -380,8 +416,22 @@ try {
   assert.match(pageSource, /Business identity cannot be matched safely/, 'expanded protected rows explain why effect is unavailable')
   assert.match(pageSource, /\{expanded && \(/, 'Parameter Cost Effect appears only after expanding the row')
   assert.match(pageSource, /Parameter Cost Effect/, 'the expandable row contains the effect detail')
-  assert.match(pageSource, /analysis\.effects\.totalEffect === null \? '—' : `\$\{displayEffect\(analysis\.effects\.totalEffect\)\} Total`/,
-    'unavailable attribution does not fabricate a total amount')
+  assert.match(pageSource, /const totalEffect = parameterEffectPresentation\(analysis\.effects\.totalEffect\)/,
+    'the expanded Total uses the signed presentation helper')
+  assert.match(pageSource, /aria-label=\{`Total \$\{totalEffect\.text\}`\}/,
+    'the expanded Total accessible name includes its signed value')
+  assert.match(pageSource, /useTransientInteraction\(expandedRows\.size > 0, \(\) => setExpandedRows\(new Set\(\)\)\)/,
+    'expanded details register with the shared transient workspace-dismiss system')
+  assert.match(pageSource, /<tr id=\{detailId\} data-safe-workspace-interaction="true"/,
+    'the expanded detail itself is protected from workspace dismissal')
+  assert.match(pageSource, /<th scope="row" colSpan=\{2\} className="border-l-2 border-slate-300[^\"]*">[\s\S]*?Parameter Cost Effect/,
+    'the desktop hierarchy guide is on the label cell while effect cells remain separate')
+  assert.match(pageSource, /className="whitespace-nowrap py-1\.5 pl-1 pr-8 text-right font-mono tabular-nums"/,
+    'parameter effect numeric cells keep their existing column alignment')
+  assert.match(pageSource, /<td className="py-2 pl-1 pr-6 text-right font-mono text-xs tabular-nums text-slate-900">\{displayMoney\(analysis\.simCost\)\}<\/td>/,
+    'the Material Cost and Conversion Cost values keep their existing numeric axis')
+  assert.match(pageSource, /className="whitespace-nowrap py-1\.5 pl-1 pr-6 text-right text-\[10px\] font-semibold"/,
+    'the expanded Total keeps the same numeric padding as its cost value')
   assert.doesNotMatch(pageSource, /analysis\.effects\.shares\?\./, 'per-factor share percentages are removed from the presentation')
 
   console.log('Simulation story graph and page contract verification passed')

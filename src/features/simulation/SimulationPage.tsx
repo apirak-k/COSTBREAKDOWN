@@ -20,6 +20,7 @@ import { NumericInput } from '../../shared/ui/NumericInput'
 import { applyRowDragSelection } from '../../shared/selection/row-drag-selection'
 import { useTransientInteraction } from '../../shared/ui/transient-interactions'
 import { normalizeProductIdentityValue } from '../../core/utils/master-data-effective'
+import { parameterEffectPresentation } from './parameter-effect-presentation'
 import { EconomicSimulationPanel } from './EconomicSimulationPanel'
 import { SimulationHistoryInputBoundary } from './SimulationHistoryInputBoundary'
 import { SimulationStoryGraph } from './SimulationStoryGraph'
@@ -66,11 +67,6 @@ function displayMoney(value: number | null): string {
   return value === null || !Number.isFinite(value) ? '—' : formatNumber(value, 2)
 }
 
-function displayEffect(value: number | null | undefined): string {
-  if (value === null || value === undefined || !Number.isFinite(value)) return '—'
-  return `${value >= 0 ? '+' : ''}${formatNumber(value, 2)}`
-}
-
 function displayResultDelta(value: number | null): string {
   if (value === null || !Number.isFinite(value)) return '—'
   return `${value > 0 ? '+' : ''}${formatNumber(value, 2)}`
@@ -93,7 +89,7 @@ function displayParameter(value: number | null, parameter: typeof BOM_PARAMETERS
 
 function isInteractiveTarget(target: EventTarget | null): boolean {
   return target instanceof Element
-    && target.closest('input, button, select, textarea, label, summary, a[href], [role="button"], [role="menuitem"], [contenteditable="true"]') !== null
+    && target.closest('input, button, select, textarea, label, summary, a[href], [role="button"], [role="menuitem"], [contenteditable="true"], [data-safe-workspace-interaction="true"]') !== null
 }
 
 function singleRecord<T extends { id: string }>(records: T[], id: string | undefined): T | undefined {
@@ -289,8 +285,11 @@ function RoleActionMenu({
 function EffectCell({ amount }: {
   amount: number | null | undefined
 }) {
+  const effect = parameterEffectPresentation(amount)
   return (
-    <td className="whitespace-nowrap py-1.5 pl-1 pr-8 text-right font-mono tabular-nums text-slate-700">{displayEffect(amount)}</td>
+    <td className="whitespace-nowrap py-1.5 pl-1 pr-8 text-right font-mono tabular-nums">
+      <span className={effect.className}>{effect.text}</span>
+    </td>
   )
 }
 
@@ -335,7 +334,15 @@ function SimulationParameterTable({
   const shortTitle = isBOM ? 'BOM' : 'RTG'
   const tableIdentity = isBOM ? 'Bill of Materials' : 'Routing Process'
   const parameters = isBOM ? BOM_PARAMETERS : RTG_PARAMETERS
+  const renderColumnGroup = () => (
+    <colgroup>
+      {['6%', '18%', '10%', '14.5%', '14.5%', '14.5%', '17%', '5.5%'].map((width, index) => (
+        <col key={index} style={{ width }} />
+      ))}
+    </colgroup>
+  )
   const [expandedRows, setExpandedRows] = useState<Set<string>>(() => new Set())
+  useTransientInteraction(expandedRows.size > 0, () => setExpandedRows(new Set()))
   const [dragRowOrder, setDragRowOrder] = useState<string[] | null>(null)
   const selectionDragRef = useRef<SimulationSelectionDrag | null>(null)
   const suppressSelectionClickRef = useRef(false)
@@ -434,20 +441,10 @@ function SimulationParameterTable({
 
   return (
     <section data-simulation-table={kind} className="min-w-0 border border-slate-300 bg-white xl:flex xl:min-h-0 xl:flex-col xl:overflow-hidden" aria-label={tableIdentity}>
-      <div className="overflow-x-hidden md:overflow-y-visible xl:min-h-0 xl:flex-1 xl:overflow-y-auto">
-        <table className="hidden w-full table-fixed border-separate border-spacing-0 text-[11px] md:table">
-          <caption className="sr-only">{tableIdentity} Simulation parameters. Selection is a local working aid and does not limit the full Simulation calculation.</caption>
-          <colgroup>
-            <col className="w-[6%]" />
-            <col className="w-[18%]" />
-            <col className="w-[10%]" />
-            <col className="w-[14.5%]" />
-            <col className="w-[14.5%]" />
-            <col className="w-[14.5%]" />
-            <col className="w-[17%]" />
-            <col className="w-[5.5%]" />
-          </colgroup>
-          <thead className="text-[10px] font-semibold text-white [&_th]:sticky [&_th]:top-0 [&_th]:z-30 [&_th]:bg-slate-900 [&_th]:shadow-[inset_0_-1px_0_#334155]">
+      <div className="hidden md:block xl:shrink-0 xl:overflow-x-hidden xl:overflow-y-hidden xl:[scrollbar-gutter:stable]">
+        <table role="presentation" className="w-full table-fixed border-separate border-spacing-0 text-[11px]">
+          {renderColumnGroup()}
+          <thead className="text-[10px] font-semibold text-white [&_th]:bg-slate-900 [&_th]:shadow-[inset_0_-1px_0_#334155]">
             <tr>
               <th scope="col" className="p-0 text-center">
                 <button
@@ -463,8 +460,24 @@ function SimulationParameterTable({
               <th scope="col" className="px-2 py-2 text-left">{tableIdentity}</th>
               <th scope="col" className="px-1 py-2 text-left">Status</th>
               {parameters.map(parameter => <th key={parameter.parameter} scope="col" className="py-2 pl-1 pr-8 text-right">{parameter.label}</th>)}
-              <th scope="col" className="py-2 pl-1 pr-6 text-right">{isBOM ? 'Material Cost' : 'Conversion Cost'}</th>
+              <th scope="col" className="py-2 pl-1 pr-6 text-right"><span className="relative left-4 inline-block">{isBOM ? 'Material Cost' : 'Conversion Cost'}</span></th>
               <th scope="col" className="px-0.5 py-2"><span className="sr-only">Expand Parameter Cost Effect</span></th>
+            </tr>
+          </thead>
+        </table>
+      </div>
+      <div className="overflow-x-hidden md:overflow-y-visible xl:min-h-0 xl:flex-1 xl:overflow-y-auto xl:[scrollbar-gutter:stable]">
+        <table className="hidden w-full table-fixed border-separate border-spacing-0 text-[11px] md:table">
+          <caption className="sr-only">{tableIdentity} Simulation parameters. Selection is a local working aid and does not limit the full Simulation calculation.</caption>
+          {renderColumnGroup()}
+          <thead className="sr-only">
+            <tr>
+              <th scope="col">#</th>
+              <th scope="col">{tableIdentity}</th>
+              <th scope="col">Status</th>
+              {parameters.map(parameter => <th key={parameter.parameter} scope="col">{parameter.label}</th>)}
+              <th scope="col">{isBOM ? 'Material Cost' : 'Conversion Cost'}</th>
+              <th scope="col">Expand Parameter Cost Effect</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-200 bg-white">
@@ -491,6 +504,7 @@ function SimulationParameterTable({
                 ...parameter,
                 amount: analysis.effects.effects?.[parameter.effectKey] ?? null
               }))
+              const totalEffect = parameterEffectPresentation(analysis.effects.totalEffect)
 
               return (
                 <React.Fragment key={key}>
@@ -583,17 +597,17 @@ function SimulationParameterTable({
                   {expanded && (
                     <tr id={detailId} data-safe-workspace-interaction="true" className="bg-slate-50/80">
                       <td aria-hidden="true" />
-                      <th scope="row" colSpan={2} className="px-2 py-2 text-left text-[10px] font-semibold text-slate-700">
+                      <th scope="row" colSpan={2} className="border-l-2 border-slate-300 py-2 pl-3 pr-2 text-left text-[10px] font-semibold text-slate-700">
                         <span className="whitespace-nowrap">Parameter Cost Effect</span>
                         {analysis.effects.effects === null && (
                           <span className="ml-2 font-normal text-slate-500">Unavailable · {effectUnavailableReason(row)}</span>
                         )}
                       </th>
                       {detailParameters.map(parameter => <EffectCell key={parameter.parameter} amount={parameter.amount} />)}
-                      <td className="whitespace-nowrap py-1.5 pl-1 pr-6 text-right text-[10px] font-semibold text-slate-900">
+                      <td aria-label={`Total ${totalEffect.text}`} className="whitespace-nowrap py-1.5 pl-1 pr-6 text-right text-[10px] font-semibold">
                         <span className="grid grid-cols-[1fr_auto] items-center gap-1">
-                          <span className="text-right">Total</span>
-                          <span className="min-w-[5ch] text-right font-mono tabular-nums">{displayEffect(analysis.effects.totalEffect)}</span>
+                          <span className="text-right text-slate-700">Total{' '}</span>
+                          <span className={`min-w-[5ch] text-right font-mono tabular-nums ${totalEffect.className}`}>{totalEffect.text}</span>
                         </span>
                       </td>
                       <td className="px-0.5 py-1" aria-hidden="true" />
@@ -625,6 +639,7 @@ function SimulationParameterTable({
           const analysis = isBOM
             ? bomAttribution(row, currentSnapshot, simulationSnapshot)
             : routingAttribution(row, currentSnapshot, simulationSnapshot)
+          const totalEffect = parameterEffectPresentation(analysis.effects.totalEffect)
           return (
             <article
               key={key}
@@ -718,20 +733,23 @@ function SimulationParameterTable({
               </div>
               {expanded && (
                 <div id={detailId} data-safe-workspace-interaction="true" className="mt-2 border-t border-slate-200 pt-2">
-                  <h4 className="mb-1 ml-9 text-[10px] font-semibold text-slate-700">Parameter Cost Effect</h4>
+                  <h4 className="mb-1 ml-9 border-l-2 border-slate-300 pl-2 text-[10px] font-semibold text-slate-700">Parameter Cost Effect</h4>
                   {analysis.effects.effects === null && (
                     <p className="mb-1 text-[10px] text-slate-500">Unavailable · {effectUnavailableReason(row)}</p>
                   )}
                   <dl className="grid grid-cols-2 gap-x-3 gap-y-1 text-[9px]">
-                    {parameters.map(parameter => (
-                      <div key={parameter.parameter} className="flex min-w-0 items-baseline justify-between gap-2">
-                        <dt className="text-slate-600">{parameter.label} effect</dt>
-                        <dd className="shrink-0 font-mono tabular-nums text-slate-800">{displayEffect(analysis.effects.effects?.[parameter.effectKey])}</dd>
-                      </div>
-                    ))}
+                    {parameters.map(parameter => {
+                      const effect = parameterEffectPresentation(analysis.effects.effects?.[parameter.effectKey])
+                      return (
+                        <div key={parameter.parameter} className="flex min-w-0 items-baseline justify-between gap-2">
+                          <dt className="text-slate-600">{parameter.label} effect</dt>
+                          <dd className={`shrink-0 font-mono tabular-nums ${effect.className}`}>{effect.text}</dd>
+                        </div>
+                      )
+                    })}
                     <div className="flex min-w-0 items-baseline justify-between gap-2 border-t border-slate-200 pt-1 font-semibold">
                       <dt className="text-slate-700">Total</dt>
-                      <dd className="shrink-0 font-mono tabular-nums text-slate-900">{displayEffect(analysis.effects.totalEffect)}</dd>
+                      <dd className={`shrink-0 font-mono tabular-nums ${totalEffect.className}`}>{totalEffect.text}</dd>
                     </div>
                   </dl>
                 </div>
