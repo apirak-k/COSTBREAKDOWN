@@ -1,7 +1,7 @@
 # Simulation BOM / RTG — Final UX Requirements
 
 **Status:** Requirement CLOSED / Finalized  
-**Implementation status:** Not closed until implementation + browser re-audit pass  
+**Implementation status:** Five corrections implemented; 46 browser checks PASS at tested sizes (2026-10-17). NOT CLOSED pending original MacBook Neo viewport/zoom verification; see HANDOFF.md
 **Scope:** Simulation page — BOM and RTG tables only
 
 ---
@@ -23,6 +23,7 @@ The goal of this round is to finish the table experience without reopening busin
 - Parameter Cost Effect expanded detail presentation
 - Material Cost / Conversion Cost header alignment
 - Body-only table scrolling and fixed/opaque headers
+- Minimum decrement protection within the existing numeric domains
 - Signed effect formatting and coloring
 - Safe outside-dismiss behavior
 - Existing selection and drag-selection behavior preservation
@@ -49,7 +50,7 @@ Do **not** change:
 
 ## 3.1 Safe row-area toggle
 
-A normal, non-interactive area of a BOM or RTG row may toggle the row's `Parameter Cost Effect` detail.
+Every normal, non-interactive area of a BOM or RTG row must toggle the row's `Parameter Cost Effect` detail: Material / Routing Process text, Status, calculated cost, blank whitespace, row padding, and chevron area.
 
 Expected behavior:
 
@@ -104,9 +105,9 @@ approximately border-l-2 / slate-like neutral tone
 
 It must remain visually light; do not turn the detail into a heavy card.
 
-## 4.2 Move only the label
+## 4.2 Move only the hierarchy guide and label
 
-Move only the text label:
+Move the subtle vertical hierarchy guide and text label together:
 
 ```text
 Parameter Cost Effect
@@ -198,7 +199,7 @@ Apply the same alignment language to `Conversion Cost`.
 
 ## 5.3 Consistency rule
 
-`Material Cost` and `Conversion Cost` should visually behave as the same kind of right-side numeric column.
+`Material Cost` and `Conversion Cost` must stay on one line in desktop table headers and visually behave as the same kind of right-side numeric column. Preserve usable input widths, numeric axes, and no horizontal scrollbar; use local sizing only if necessary.
 
 Do not solve the header-label issue by disturbing already-correct numeric alignment.
 
@@ -224,6 +225,8 @@ Only the body should vertically scroll.
 
 The header must:
 
+- occupy the complete panel width, including the area above the body's scrollbar gutter, without a missing right-edge strip
+- keep header columns aligned with the body while only the body owns vertical scrolling
 - stay fully visible
 - stay fully opaque
 - remain visually above all normal rows
@@ -431,6 +434,8 @@ Preserve:
 - full Simulation snapshot calculation scope
 
 Selection must never redefine calculation scope.
+
+Spinner, keyboard, and wheel decrement stop at zero for Price, Usage, Loss, and Manning, at `0.0001` for four-decimal Capacity, and at `0.01%` for two-decimal percentage Yield. Repeated decrement never clears a valid value or enters an unavailable calculation. Loss remains at most `100%`; Yield remains greater than zero and at most `100%`. Temporary typed blank, incomplete, or invalid drafts never replace the last authoritative valid value; leaving the editor restores it.
 
 ---
 

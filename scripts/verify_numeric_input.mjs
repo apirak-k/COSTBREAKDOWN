@@ -97,6 +97,22 @@ try {
     'an unavailable positive-only value remains unavailable when decreasing')
   assert.equal(stepNumericValue(100, 1, 0.01, { min: 0, max: 100 }), 100)
 
+  for (const [parameter, domain, minimum] of [
+    ['Price', { min: 0, precision: 2 }, 0],
+    ['Usage', { min: 0, precision: 4 }, 0],
+    ['Loss', { min: 0, max: 100, precision: 2 }, 0],
+    ['Manning', { min: 0, precision: 2 }, 0],
+    ['Capacity', { min: 0, minExclusive: true, precision: 4 }, 0.0001],
+    ['Yield', { min: 0, minExclusive: true, max: 100, precision: 2 }, 0.01]
+  ]) {
+    let value = minimum + 0.02
+    for (let count = 0; count < 10; count += 1) {
+      value = stepNumericValue(value, -1, 0.01, domain, { stopAtMinimum: true })
+      assert.ok(value !== null && value >= minimum, `${parameter} repeated decrement remains calculable`)
+    }
+    assert.equal(value, minimum, `${parameter} repeated decrement stops at its valid minimum`)
+  }
+
   const decimalDraft = '123.45'
   assert.deepEqual(resolveNumericStepPlace(decimalDraft, 0), { exponent: 2, step: 100 }, 'caret on the first digit steps by hundreds')
   assert.deepEqual(resolveNumericStepPlace(decimalDraft, 1), { exponent: 1, step: 10 }, 'caret on the second digit steps by tens')

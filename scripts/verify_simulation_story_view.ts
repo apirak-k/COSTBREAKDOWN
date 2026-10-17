@@ -301,8 +301,12 @@ try {
   assert.doesNotMatch(pageMarkup, /min-w-\[(?:390|650|730)px\]|overflow-x-auto/,
     'Result, BOM, and RTG do not force a horizontal scroll area')
   assert.match(pageMarkup, /table-fixed/, 'the parameter table fits its panel with fixed layout')
-  assert.equal([...pageMarkup.matchAll(/<div class="hidden md:block xl:shrink-0 xl:overflow-x-hidden xl:overflow-y-hidden xl:\[scrollbar-gutter:stable\]">/g)].length, 2,
+  assert.equal([...pageMarkup.matchAll(/<div class="hidden md:flex xl:shrink-0">/g)].length, 2,
     'BOM and RTG render a separate non-scrolling visual header')
+  assert.equal([...pageMarkup.matchAll(/aria-hidden="true" class="shrink-0 bg-slate-900 shadow-\[inset_0_-1px_0_#334155\]" style="width:0"/g)].length, 2,
+    'each header has its own measured gutter cell outside the table column geometry')
+  assert.equal([...pageMarkup.matchAll(/inline-block whitespace-nowrap">(?:Material Cost|Conversion Cost)<\/span>/g)].length, 2,
+    'both desktop cost headers remain on one line')
   assert.equal([...pageMarkup.matchAll(/<div class="overflow-x-hidden md:overflow-y-visible xl:min-h-0 xl:flex-1 xl:overflow-y-auto xl:\[scrollbar-gutter:stable\]">/g)].length, 2,
     'only the BOM and RTG table body wrappers own vertical scrolling')
   assert.equal([...pageMarkup.matchAll(/<table role="presentation"/g)].length, 2,
@@ -392,7 +396,7 @@ try {
   assert.match(rowHandlerSource, /onKeyDown=\{/, 'the row action has a keyboard handler')
   assert.match(rowHandlerSource, /event\.key\s*!==\s*['"]Enter['"]/, 'Enter is accepted by the row activation guard')
   assert.match(rowHandlerSource, /event\.key\s*!==\s*['"] ['"]/, 'Space is accepted by the row activation guard')
-  assert.match(rowHandlerSource, /isInteractiveTarget\(event\.target\)/,
+  assert.match(rowHandlerSource, /isInteractiveTarget\(event\.target, event\.currentTarget\)/,
     'editing inputs and nested controls keep their own click behavior')
   assert.match(pageSource, /\[data-safe-workspace-interaction="true"\]/,
     'clicking inside an expanded detail does not bubble into its parent row toggle')
@@ -434,7 +438,7 @@ try {
   assert.match(protectedMarkup, /Ambiguous identity · protected/)
   assert.match(protectedMarkup, /aria-label="Bill of Materials: .* activate to expand Parameter Cost Effect"/,
     'the ambiguous row exposes its full-row expansion name')
-  const protectedRowStart = protectedMarkup.indexOf('<tr aria-selected="false"')
+  const protectedRowStart = protectedMarkup.indexOf('<tr data-safe-workspace-interaction="true" aria-selected="false"')
   const protectedRowTag = protectedMarkup.slice(protectedRowStart, protectedMarkup.indexOf('>', protectedRowStart))
   assert.match(protectedRowTag, /aria-label="Bill of Materials: .* activate to expand Parameter Cost Effect"/,
     'the protected row itself exposes its expansion action')
@@ -461,8 +465,8 @@ try {
     'expanded details register with the shared transient workspace-dismiss system')
   assert.match(pageSource, /<tr id=\{detailId\} data-safe-workspace-interaction="true"/,
     'the expanded detail itself is protected from workspace dismissal')
-  assert.match(pageSource, /<th scope="row" colSpan=\{2\} className="border-l-2 border-slate-300[^\"]*">[\s\S]*?Parameter Cost Effect/,
-    'the desktop hierarchy guide is on the label cell while effect cells remain separate')
+  assert.match(pageSource, /<th scope="row" colSpan=\{2\}[^>]*>\s*<span className="ml-2 inline-block whitespace-nowrap border-l-2 border-slate-300 pl-3">Parameter Cost Effect/,
+    'the hierarchy guide and label are indented within their cell while effect cells remain separate')
   assert.match(pageSource, /className="whitespace-nowrap py-1\.5 pl-1 pr-8 text-right font-mono tabular-nums"/,
     'parameter effect numeric cells keep their existing column alignment')
   assert.match(pageSource, /<td className="py-2 pl-1 pr-6 text-right font-mono text-xs tabular-nums text-slate-900">\{displayMoney\(analysis\.simCost\)\}<\/td>/,

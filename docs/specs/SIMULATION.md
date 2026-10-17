@@ -66,7 +66,7 @@ UI controls and state/calculation boundaries both enforce the domains below. Rej
 
 Blank/null may remain unavailable where the data model allows it. A missing required input makes its result unavailable; it is not a structural zero. ADDED/REMOVED comparison sides may use zero only because one side is structurally absent.
 
-In Simulation, Capacity and Yield spinner decrement stops at the smallest positive value representable by that input's precision; it does not clear the field or commit zero. A typed zero may remain a temporary draft while editing, but never replaces the last committed valid value.
+In Simulation, spinner, keyboard, and wheel decrement stop at the lowest valid value: zero for Price, Usage, Loss, and Manning; `0.0001` for Capacity (four-decimal input precision); and `0.01%` for Yield (two-decimal percentage precision). Repeated decrement never clears a valid field or makes its calculation unavailable. Blank, incomplete, or invalid typed drafts never replace the previous authoritative valid value; leaving the editor restores that value. This protection is local to Simulation and does not change other pages' numeric-input behavior.
 
 ### 2.3 Shared Standard Cost and result
 
@@ -102,16 +102,17 @@ Show `—` when either value is unavailable, or Current is unavailable or zero f
 
 ## 3. Parameter Cost Effect
 
-Each BOM and Routing row can expand a compact **Parameter Cost Effect** detail. Its label starts on the same horizontal axis as the Material/Process name. Use the existing multiplicative attribution helper and show absolute `THB/<resolved UOM>` effects only (for example THB/PC or THB/SET; fallback THB/Unit).
+Each BOM and Routing row can expand a compact **Parameter Cost Effect** detail. Its subtle vertical hierarchy guide and label are indented to the right of the parent Material/Process name. Only this hierarchy presentation moves; parameter effect values and Total retain their existing numeric axes. Use the existing multiplicative attribution helper and show absolute `THB/<resolved UOM>` effects only (for example THB/PC or THB/SET; fallback THB/Unit).
 
 - BOM attributes Material Cost change to Price, Usage, and Loss.
 - Routing attributes Conversion Cost change to Manning, Capacity, and Yield.
 - Routing uses Current Work Center rates on both sides; there is no Rate Effect.
 - Effects must reconcile to `SIM row cost − Current row cost` within floating-point tolerance.
-- Display signed effects in `THB/<resolved UOM>` under their matching parameter columns and one compact numeric Total. Do not display effect percentages.
+- Display signed effects in `THB/<resolved UOM>` under their matching parameter columns and one compact numeric Total under Material Cost / Conversion Cost. Positive values use a `+` sign and green; negative values use a minus sign and red; rounded zero is neutral `0.00`, never `+0.00`. The Total label stays neutral. Do not display effect percentages.
 - Added/Removed rows, ambiguous identity, missing required values, invalid math, or unreconciled Work Center context have unavailable attribution (`—`) with a concise explanation.
 - REMOVED, ambiguous, and unmatched rows may expand to show why the effect is unavailable; they remain protected and cannot be edited or selected.
-- A dedicated semantic expand button toggles each row's details open and closed, exposes its expanded state and detail relationship, and supports Enter/Space. Clicking safe row whitespace and using row Enter/Space may also toggle; outside dismissal is optional and never required to collapse.
+- Every safe non-interactive part of a row toggles its details: Material/Process name, Status, calculated cost, whitespace, padding, and chevron area. The chevron indicates the same row state; it has no independent expansion state. The focusable row exposes its expanded state and detail relationship; Enter/Space toggle only when the row itself is focused. NumericInput, the entire `#` selection area, drag selection, nested controls, and expanded detail interactions do not toggle the row.
+- Clicking genuinely safe blank workspace outside the rows dismisses expanded details. Editors, selection controls, and detail content retain their own interaction. Clicking a safe area of row B while row A is expanded must execute B's toggle without the outside-dismiss handler swallowing the click.
 
 ## 4. Economic and Business Analysis
 
@@ -192,7 +193,7 @@ Ordinary graph space allows natural vertical page scrolling on touch layouts. On
 - Desktop Simulation is a fixed workspace inside the shared application shell: the page does not vertically scroll, and only the BOM and RTG table bodies scroll vertically. At narrow responsive sizes, panels stack and natural page scrolling is allowed so all controls remain reachable.
 - Desktop: Graph occupies about two-thirds of the upper row; Result and Economic share the remaining third. BOM and RTG are equal-width panels in the lower row. Keep all five regions visible together and use the shell's available height; only BOM and RTG table bodies scroll vertically.
 - Keep exactly two separate compact controls, **Clone from ▾** and **Send to ▾**, in the Result action line. Menus remain keyboard accessible. Clone, Send, and Reset produce no persistent inline Result/workspace feedback, including no routine "Send blocked" message.
-- BOM/RTG have no separate title/count bars; their headers name **Bill of Materials** and **Routing Process**, Status is a dedicated column, and desktop table bodies own internal vertical scrolling under an opaque sticky header. The `#` header and row numbers share a centered column while row numbers preserve original identity after selected-first presentation. The dedicated chevron button is a true open/close toggle with `aria-expanded`, `aria-controls`, an accessible action name, and keyboard activation. Safe row whitespace and row Enter/Space may also toggle; nested editors and controls do not. Clicking safe blank workspace may dismiss expanded details, but the same button always collapses them.
+- BOM/RTG have no separate title/count bars; their headers name **Bill of Materials** and **Routing Process**, and Status is a dedicated column. Each opaque header stays outside the vertically scrollable body and fills the complete panel width, including the space above the body's scrollbar gutter. Header/body columns remain aligned; the header has no vertical scroll owner. **Material Cost** and **Conversion Cost** stay on one line at desktop table sizes without moving their numeric axes or narrowing usable inputs. The `#` header and row numbers share a centered column while row numbers preserve original identity after selected-first presentation. Safe-row expansion, chevron state, keyboard behavior, and safe outside dismissal follow section 3.
 - The `#` row-number controls manage only Simulation's per-product working selection; selected rows appear first without structural reordering. Protected or removed rows cannot be selected, and the selection never limits calculation scope.
 - BOM and RTG must not have horizontal scrollbars. Keep vertical internal scrolling and usable sticky table headers. Use fixed/proportional columns and a responsive reflow/card presentation at narrow widths while preserving every editable field. No add/delete/resize/split/merge/reorder or Work Center-rate editing controls are available in Simulation; structural alternatives are prepared in Master Data / Custom.
 - The page must not have horizontal overflow. Stack the major panels on narrow screens.

@@ -1,3 +1,39 @@
+# Current Handoff — Simulation BOM / RTG refinement — 2026-10-17
+
+- Repository: `/Users/bubu/COSTBREAKDOWN`, `apirak-k/COSTBREAKDOWN`.
+- Branch: `logic/simulation-finalized-implementation`. Fetched starting local/remote HEAD: `a782d95cd5ee2825570049d7ef1b890637dbd3e1`.
+- Implementation: all five requested corrections implemented and verified at the tested browser sizes; one focused local commit accompanies this handoff. **Not pushed.**
+- Closure: **NOT CLOSED** pending reproduction at the user's original MacBook Neo browser viewport/zoom. The user identified the device but did not supply browser width/zoom. Do not turn tested viewport evidence into a claim about that exact setup.
+
+## Changes
+
+- Header owns its full panel width and a measured gutter cell; its fixed column geometry matches the scrollable body. Only the body scrolls vertically on desktop. Cost headings use nowrap without changing the existing numeric axes or global workspace width.
+- All six Simulation parameter editors use the existing minimum-stop behavior: Price/Usage/Loss/Manning stop at zero, Capacity at `0.0001`, Yield at `0.01%`. Blank/incomplete/invalid drafts retain the authoritative value; shared NumericInput implementation is unchanged.
+- Safe row clicks (name, Status, cost, whitespace/padding, chevron) toggle the same expansion state. Interactive checks stop at the row boundary; # cells, inputs, detail content, and drag selection remain isolated. Row Enter/Space remain supported.
+- Hierarchy guide and label move right; effect/Total cells retain their columns. Signed formatting and neutral Total label remain intact.
+- Synchronized `docs/specs/SIMULATION.md` and `docs/161069/Simulation_BOM_RTG_Final_Requirements.md` with these explicit user decisions. No Graph, formula, Result, Economic, lifecycle, Master Data, or CBD implementation changes.
+
+## Verification evidence
+
+- `npm run build` PASS (TypeScript project compile + production Vite build).
+- PASS: `node scripts/verify_numeric_input.mjs`, `node scripts/verify_simulation_regression.mjs`, and `node --experimental-strip-types scripts/verify_{simulation_corrections,simulation_story_view,simulation_result,simulation_economics,simulation_history,row_drag_selection}.ts` (each script executed separately).
+- `git diff --check` PASS. Final source diff reviewed for scope and data hygiene.
+- Isolated installed Google Chrome on macOS with synthetic Complete Mock: **46 browser checks PASS** across main (35), supplemental (7), and laptop geometry (4) scripts.
+- Tested 1440×900, 1366×900, 1366×768, 1280×800, 1204×753, 1024×900, and 390×844. Header/body column differences were 0px; actual desktop scrollbar gutter was 6px. At 1280, inputs were 79.58px wide and cost headings stayed on one line. No horizontal overflow; 390px cards remained usable. Body scrolling left headers fixed (BOM49px / RTG129px scroll at 1366×768).
+- Actual pointer/keyboard checks: all safe hit areas; input/#/drag exclusion; Enter/Space; stable selected-first numbering; header none/mixed/all; drag select/deselect; row A→B; safe outside dismiss; protected/unmatched rows; full calculation scope retained. All six keyboard/stepper minima passed. Invalid blank/`-`/`.` drafts and Capacity/Yield zero drafts retained positive row costs (25.20 / 1.68). Effect axes, hierarchy indentation, positive/negative/zero formatting, neutral Total label, Graph rendering, and no page exceptions passed.
+- Local evidence (outside Git): `/Users/bubu/.codex/visualizations/2026/10/17/01a1493d-d084-7b01-9cb1-385ce1297a44/simulation-bom-rtg/` contains scripts, JSON results, and desktop/mobile screenshots.
+
+## Limits and next action
+
+- **NOT VERIFIED:** original MacBook Neo viewport/zoom/browser reproduction; Safari/Firefox; physical touch and screen-reader behavior; exhaustive Graph and Clone/Send/Reset browser interactions. Focused lifecycle, Result, Economic, and history regression suites passed; these implementations were not edited.
+- Build/browser checks used the pre-existing local `vite.config.ts` alias changes. That unrelated file was preserved (SHA-1 `9ea2d4bb29769c4e741a20e3dbbcdf2170bf3bca`) and excluded from this commit; a pristine checkout without those local aliases was not separately verified.
+- Existing audit findings: full `npm audit --audit-level=high` FAIL (5 High / 4 Moderate, existing development dependency chain); production `npm audit --omit=dev --audit-level=high` PASS (zero High/Critical, 2 Moderate). Dependencies were not changed. Existing ExcelJS browser externalization and large-chunk build warnings remain.
+- Finish the exact-device visual check before declaring BOM/RTG CLOSED. After BOM/RTG closes, the next intended Simulation task is **Graph final audit**; do not start it automatically.
+
+---
+
+The following sections are historical checkpoints and do not supersede the current handoff above.
+
 # Current Simulation Timeline — 2026-10-16
 
 ## A. Pre-layout large correction
