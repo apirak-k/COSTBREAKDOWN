@@ -74,6 +74,18 @@ assertClose(priceAttribution.totalEffect, 4.2, 'Total BOM effect')
 assert.ok(Math.abs(Object.values(priceAttribution.effects ?? {}).reduce((sum, value) => sum + value, 0) - 4.2) < 1e-9,
   'BOM price attribution reconciles to SIM Material Cost - Current Material Cost')
 
+const zeroMaterialAttribution = calculateMultiplicativeCostAttribution(25.2, 0, [
+  { key: 'price', baseline: 12, target: 12 },
+  { key: 'usage', baseline: 2, target: 0 },
+  { key: 'loss', baseline: 1.05, target: 2 }
+])
+assertClose(zeroMaterialAttribution.effects?.price, 0, 'zero-boundary Price effect')
+assertClose(zeroMaterialAttribution.effects?.usage, -36.6, 'zero-boundary Usage effect')
+assertClose(zeroMaterialAttribution.effects?.loss, 11.4, 'zero-boundary Loss effect')
+assertClose(zeroMaterialAttribution.totalEffect, -25.2, 'zero-boundary Material Cost total effect')
+assert.ok(Math.abs(Object.values(zeroMaterialAttribution.effects ?? {}).reduce((sum, value) => sum + value, 0) + 25.2) < 1e-9,
+  'zero-boundary parameter effects reconcile to SIM Material Cost - Current Material Cost')
+
 const changedManning = updateSimulationParameter(state, current, 'current-cut', 'routing.manning', 0.8)
 const routeResult = calculateParameterSimulation(current, changedManning.snapshot!)
 assertClose(routeResult.currentCost.labor, 1.1, 'Current Labor')

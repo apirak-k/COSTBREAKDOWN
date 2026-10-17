@@ -305,6 +305,8 @@ negative → Total -1.20
 zero     → Total 0.00
 ```
 
+When valid parameter changes take a row cost to or from zero, allocate the interaction effect evenly across parameter-change orders so parameter effects still reconcile to Total.
+
 Reaching a valid minimum by decrement is silent: a normal calculable row must not show an unavailable or minimum warning. Keep legitimate explanations for protected, unmatched, or genuinely unavailable rows.
 
 ## 8.1 Critical zero rule

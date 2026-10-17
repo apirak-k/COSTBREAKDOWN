@@ -22,7 +22,7 @@
 
 - **FAIL — combined extreme minima:** setting Routing Manning to `0`, Capacity to `0.0001`, and Yield to `0.01%` together produces very large opposing Effect values that overlap in the detail row. At Capacity minimum, the existing Result panel also overflows with large valid derived values. Formula, attribution, Result, and Economic changes were expressly out of scope and remain untouched.
 - **NOT VERIFIED:** physical MacBook Neo viewport/zoom, Safari/Firefox, physical touch, and screen-reader behavior.
-- Existing zero-boundary attribution work and its test/docs remain uncommitted in the worktree and are excluded from this focused follow-up commit. The unrelated pre-existing `vite.config.ts` change is also preserved and excluded.
+- Zero-boundary attribution is tracked in a separate follow-up commit with regression coverage; it changes Parameter Cost Effect values only, not the main BOM/RTG row-cost calculation. The unrelated `vite.config.ts` change remains local; a build using the remote Vite config also passed.
 - Existing audit findings remain as recorded in the prior checkpoint: full audit has development dependency findings; production audit previously had zero High/Critical findings. Dependencies were not changed or re-audited.
 - Build retains existing ExcelJS browser-externalization and large-chunk warnings. Do not start the separate Graph audit automatically.
 

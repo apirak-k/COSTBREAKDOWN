@@ -20,6 +20,50 @@ function logMean(baseline: number, target: number): number | null {
   return Number.isFinite(result) ? result : null
 }
 
+function zeroBoundaryEffects(
+  baselineCost: number,
+  targetCost: number,
+  factors: readonly MultiplicativeCostFactor[]
+): number[] | null {
+  if (factors.some(factor => factor.baseline < 0 || factor.target < 0)) return null
+  const product = (values: number[]) => values.reduce((total, value) => total * value, 1)
+  const baselineValues = factors.map(factor => factor.baseline)
+  const targetValues = factors.map(factor => factor.target)
+  const baselineProduct = product(baselineValues)
+  const targetProduct = product(targetValues)
+  const multiplier = baselineProduct > 0
+    ? baselineCost / baselineProduct
+    : targetProduct > 0 ? targetCost / targetProduct : null
+  if (multiplier === null || !Number.isFinite(multiplier) || multiplier < 0) return null
+  const matchesCost = (actual: number, expected: number) =>
+    Number.isFinite(actual) && Math.abs(actual - expected) <= 1e-9 * Math.max(1, Math.abs(expected))
+  if (!matchesCost(multiplier * baselineProduct, baselineCost)
+    || !matchesCost(multiplier * targetProduct, targetCost)) return null
+
+  const changed = factors.flatMap((factor, index) => factor.baseline === factor.target ? [] : [index])
+  const effects = factors.map(() => 0)
+  let permutations = 0
+  const applyOrders = (order: number[], remaining: number[]) => {
+    if (remaining.length === 0) {
+      const values = [...baselineValues]
+      let previousCost = baselineCost
+      for (const index of order) {
+        values[index] = factors[index].target
+        const nextCost = multiplier * product(values)
+        effects[index] += nextCost - previousCost
+        previousCost = nextCost
+      }
+      permutations += 1
+      return
+    }
+    remaining.forEach((index, position) => {
+      applyOrders([...order, index], [...remaining.slice(0, position), ...remaining.slice(position + 1)])
+    })
+  }
+  applyOrders([], changed)
+  return permutations === 0 ? effects : effects.map(effect => effect / permutations)
+}
+
 /** Additive LMDI for a cost represented by a fixed multiplier and multiplicative factors. */
 export function calculateMultiplicativeCostAttribution(
   baselineCost: number | null,
@@ -53,8 +97,13 @@ export function calculateMultiplicativeCostAttribution(
       && (baselineCost === 0
         ? factors[index].baseline === 0 && factors[index].target > 0
         : factors[index].baseline > 0 && factors[index].target === 0)
-    if (!singleZeroTransition) return { totalEffect, effects: null, shares: null }
-    values = factors.map((_, factorIndex) => factorIndex === index ? totalEffect : 0)
+    if (singleZeroTransition) {
+      values = factors.map((_, factorIndex) => factorIndex === index ? totalEffect : 0)
+    } else {
+      const fallback = zeroBoundaryEffects(baselineCost, targetCost, factors)
+      if (fallback === null) return { totalEffect, effects: null, shares: null }
+      values = fallback
+    }
   }
 
   if (values.some(value => !Number.isFinite(value))) return { totalEffect, effects: null, shares: null }
