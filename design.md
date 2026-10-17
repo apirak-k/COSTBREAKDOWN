@@ -133,8 +133,8 @@ human visual review.
 
 The left-side stacked bar and separate Selling Price line are confirmed visual
 direction. The finalized five-step story is REF → GAP 1 → CUR → GAP 2 → SIM.
-Reuse the Cost Breakdown colors: MAT `#4F7CAC`, LB `#D89B45`, and BD `#8067B7`,
-with slightly softened graph-only fills. Gap bars show signed engineering cost
+Reuse the shared Cost Breakdown colors: MAT `#6F99C6`, LB `#E5B46A`, and BD `#9A82C6`.
+Gap bars show signed engineering cost
 components; SG&A and OP remain separate on snapshot bars. Total labels above
 the bars contain only the numeric value; the five state names appear below the
 bars. Draw the visual-only ruler line in front of the bars while keeping its

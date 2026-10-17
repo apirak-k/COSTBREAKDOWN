@@ -1,6 +1,6 @@
 export const COST_ELEMENT_COLORS = {
-  material: '#4F7CAC',
-  labor: '#D89B45',
-  burden: '#8067B7',
+  material: '#6f99c6',
+  labor: '#e5b46a',
+  burden: '#9a82c6',
   standardCost: '#334155'
 } as const

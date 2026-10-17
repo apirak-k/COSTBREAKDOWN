@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import type { KeyboardEvent, PointerEvent } from 'react'
+import type { FocusEvent, KeyboardEvent, PointerEvent } from 'react'
 import { formatNumber } from '../../core'
 import type { ScenarioFinancialResult, ScenarioStory } from '../../core/types'
 import { COST_ELEMENT_COLORS } from '../cost-breakdown/components/cost-element-colors'
@@ -19,6 +19,7 @@ interface LegendItem {
   key: LegendKey
   label: string
   color: string
+  marker: 'square' | 'sellingPrice' | 'ruler'
 }
 
 const COST_PARTS: ChartPart[] = [
@@ -27,11 +28,11 @@ const COST_PARTS: ChartPart[] = [
   { key: 'burden', legendKey: 'burden', tooltipLabel: 'Burden', color: COST_ELEMENT_COLORS.burden }
 ]
 
-const OPERATING_PROFIT_POSITIVE = '#15803d'
-const OPERATING_PROFIT_NEGATIVE = '#be5673'
+const OPERATING_PROFIT_POSITIVE = '#4b9164'
+const OPERATING_PROFIT_NEGATIVE = '#cc7489'
 const SELLING_PRICE_COLOR = '#1d4ed8'
 const RULER_COLOR = COST_ELEMENT_COLORS.standardCost
-const SGA_COLOR = '#a8b4c2'
+const SGA_COLOR = '#b8c2ce'
 
 const STATE_PARTS: ChartPart[] = [
   ...COST_PARTS,
@@ -40,14 +41,14 @@ const STATE_PARTS: ChartPart[] = [
 ]
 
 const LEGEND_ITEMS: LegendItem[] = [
-  { key: 'material', label: 'Material', color: COST_ELEMENT_COLORS.material },
-  { key: 'labor', label: 'Labor', color: COST_ELEMENT_COLORS.labor },
-  { key: 'burden', label: 'Burden', color: COST_ELEMENT_COLORS.burden },
-  { key: 'sga', label: 'SG&A', color: SGA_COLOR },
-  { key: 'opPositive', label: 'Profit +', color: OPERATING_PROFIT_POSITIVE },
-  { key: 'opNegative', label: 'Profit −', color: OPERATING_PROFIT_NEGATIVE },
-  { key: 'sellingPrice', label: 'Selling Price', color: SELLING_PRICE_COLOR },
-  { key: 'ruler', label: 'Ruler', color: RULER_COLOR }
+  { key: 'material', label: 'Material', color: COST_ELEMENT_COLORS.material, marker: 'square' },
+  { key: 'labor', label: 'Labor', color: COST_ELEMENT_COLORS.labor, marker: 'square' },
+  { key: 'burden', label: 'Burden', color: COST_ELEMENT_COLORS.burden, marker: 'square' },
+  { key: 'sga', label: 'SG&A', color: SGA_COLOR, marker: 'square' },
+  { key: 'opPositive', label: 'Profit +', color: OPERATING_PROFIT_POSITIVE, marker: 'square' },
+  { key: 'opNegative', label: 'Profit −', color: OPERATING_PROFIT_NEGATIVE, marker: 'square' },
+  { key: 'sellingPrice', label: 'Selling Price', color: SELLING_PRICE_COLOR, marker: 'sellingPrice' },
+  { key: 'ruler', label: 'Ruler', color: RULER_COLOR, marker: 'ruler' }
 ]
 
 const DEFAULT_LEGEND_VISIBILITY: Record<LegendKey, boolean> = {
@@ -70,6 +71,13 @@ const STATE_LAYOUT = [
 interface SimulationStoryGraphProps {
   story: ScenarioStory
   unit: string
+}
+
+interface ActiveGraphTooltip {
+  text: string
+  x: number
+  y: number
+  maxWidth: number
 }
 
 function formatValue(value: number | null): string {
@@ -187,9 +195,14 @@ function gapTotalColor(value: number | null): string {
   return '#475569'
 }
 
+function isGraphTooltipTarget(target: EventTarget | null): boolean {
+  return target instanceof Element && target.closest('[data-graph-tooltip]') !== null
+}
+
 export function SimulationStoryGraph({ story, unit }: SimulationStoryGraphProps) {
   const [visibleLegend, setVisibleLegend] = useState(DEFAULT_LEGEND_VISIBILITY)
   const [manualRulerLevel, setManualRulerLevel] = useState<number | null>(null)
+  const [activeTooltip, setActiveTooltip] = useState<ActiveGraphTooltip | null>(null)
   const stateValues = useMemo(() => STATE_LAYOUT.map(state => ({
     ...state,
     values: story[state.key]
@@ -202,10 +215,10 @@ export function SimulationStoryGraph({ story, unit }: SimulationStoryGraphProps)
     ...state,
     stack: buildVisibleStack(state.values, STATE_PARTS, visibleLegend)
   })), [stateValues, visibleLegend])
-  const standardCostValues = useMemo(() => stateValues.map(state => ({
-    ...state,
-    value: buildVisibleStandardCost(state.values, visibleLegend)
-  })), [stateValues, visibleLegend])
+  const standardCostValues = useMemo(() => stateValues.map(state => {
+    const stack = buildVisibleStack(state.values, COST_PARTS, visibleLegend)
+    return { ...state, stack, value: stack.total }
+  }), [stateValues, visibleLegend])
   const gapStacks = useMemo(() => gapValues.map(gap => ({
     ...gap,
     stack: buildVisibleStack(gap.values, COST_PARTS, visibleLegend)
@@ -234,8 +247,8 @@ export function SimulationStoryGraph({ story, unit }: SimulationStoryGraphProps)
   const axisTicks = Array.from({ length: Math.round(span / axisStep) + 1 }, (_, index) => minimum + axisStep * index)
   const importantLevels = finiteRangeValues([
     0,
-    ...stateStacks.flatMap(state => [state.stack.positive, state.stack.negative]),
-    ...gapStacks.flatMap(gap => [gap.stack.positive, gap.stack.negative]),
+    ...stateStacks.flatMap(state => state.stack.segments.flatMap(segment => [segment.before, segment.after])),
+    ...gapStacks.flatMap(gap => gap.stack.segments.flatMap(segment => [segment.before, segment.after])),
     ...standardCostValues.map(state => state.value),
     ...(visibleLegend.sellingPrice ? stateValues.map(state => state.values.sellingPrice) : [])
   ]).filter(value => value >= minimum && value <= maximum)
@@ -248,11 +261,43 @@ export function SimulationStoryGraph({ story, unit }: SimulationStoryGraphProps)
 
   const rulerLevel = clamp(manualRulerLevel ?? story.current.standardCost ?? 0, minimum, maximum)
   const rulerY = y(rulerLevel)
+  const showTooltipAt = (target: SVGElement, text: string, clientX?: number, clientY?: number) => {
+    const host = target.ownerSVGElement?.parentElement
+    if (!host) return
+    const hostBounds = host.getBoundingClientRect()
+    if (hostBounds.width === 0 || hostBounds.height === 0) return
+    const elementBounds = target.getBoundingClientRect()
+    const pointerX = clientX ?? elementBounds.left + elementBounds.width / 2
+    const pointerY = clientY ?? elementBounds.top + elementBounds.height / 2
+    const maxWidth = Math.max(0, Math.min(220, hostBounds.width - 16))
+    setActiveTooltip({
+      text,
+      x: clamp(pointerX - hostBounds.left + 10, 8, Math.max(8, hostBounds.width - maxWidth - 8)),
+      y: clamp(pointerY - hostBounds.top + 10, 8, Math.max(8, hostBounds.height - 54)),
+      maxWidth
+    })
+  }
+  const tooltipProps = (text: string) => ({
+    'data-graph-tooltip': 'true',
+    tabIndex: 0,
+    role: 'img' as const,
+    'aria-label': text,
+    className: 'cursor-help focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-700',
+    onPointerEnter: (event: PointerEvent<SVGElement>) => showTooltipAt(event.currentTarget, text, event.clientX, event.clientY),
+    onPointerLeave: (event: PointerEvent<SVGElement>) => {
+      if (!isGraphTooltipTarget(event.relatedTarget)) setActiveTooltip(null)
+    },
+    onFocus: (event: FocusEvent<SVGElement>) => showTooltipAt(event.currentTarget, text),
+    onBlur: (event: FocusEvent<SVGElement>) => {
+      if (!isGraphTooltipTarget(event.relatedTarget)) setActiveTooltip(null)
+    }
+  })
   useEffect(() => {
     if (manualRulerLevel === null) return
     const clamped = clamp(manualRulerLevel, minimum, maximum)
     if (clamped !== manualRulerLevel) setManualRulerLevel(clamped)
   }, [manualRulerLevel, maximum, minimum])
+  useEffect(() => setActiveTooltip(null), [visibleLegend])
 
   const updateRulerFromPointer = (event: PointerEvent<SVGGElement>) => {
     const bounds = event.currentTarget.ownerSVGElement?.getBoundingClientRect()
@@ -291,24 +336,68 @@ export function SimulationStoryGraph({ story, unit }: SimulationStoryGraphProps)
     const first = state.values.sellingPrice
     const second = nextState.values.sellingPrice
     if (first === null || second === null || !Number.isFinite(first) || !Number.isFinite(second)) return []
-    return [{ path: `M ${state.x} ${y(first)} L ${nextState.x} ${y(second)}`, label: `${state.description} to ${nextState.description}` }]
+    return [{
+      path: `M ${state.x} ${y(first)} L ${nextState.x} ${y(second)}`,
+      label: `${state.description} to ${nextState.description}`,
+      tooltip: `${state.label} to ${nextState.label} Selling Price: ${formatValue(first)} to ${formatValue(second)} THB/${unit}`
+    }]
   }) : []
 
   return (
     <figure aria-labelledby="simulation-story-title" className="min-w-0 border border-slate-300 bg-white px-2.5 py-2.5 xl:flex xl:min-h-0 xl:flex-col">
-      <div className="flex flex-wrap items-baseline justify-between gap-2 border-b border-slate-200 pb-1.5">
+      <div className="flex flex-col gap-1.5 border-b border-slate-200 pb-1.5 min-[720px]:flex-row min-[720px]:items-center min-[720px]:justify-between">
         <h2 id="simulation-story-title" className="text-xs font-semibold text-slate-900">Simulation Cost Structure</h2>
+        <ul aria-label="Simulation graph legend" className="flex flex-wrap gap-x-2.5 gap-y-1 border-t border-slate-200 pt-1.5 text-[11px] lg:border-l lg:border-t-0 lg:pl-2.5 lg:pt-0">
+          {LEGEND_ITEMS.map(item => {
+            const isVisible = visibleLegend[item.key]
+            return (
+              <li key={item.key}>
+                <button
+                  type="button"
+                  aria-label={item.label}
+                  aria-pressed={isVisible}
+                  onClick={() => setVisibleLegend(current => ({ ...current, [item.key]: !current[item.key] }))}
+                  className={`inline-flex min-h-6 items-center gap-1.5 rounded-sm px-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-blue-700 ${isVisible ? 'text-slate-700' : 'text-slate-500'}`}
+                >
+                  {item.marker === 'square' ? (
+                    <span
+                      aria-hidden="true"
+                      className={`inline-block h-2.5 w-2.5 shrink-0 ${isVisible ? 'border' : 'border-2'}`}
+                      style={{ backgroundColor: isVisible ? item.color : 'transparent', borderColor: isVisible ? item.color : '#64748b' }}
+                    />
+                  ) : (
+                    <span aria-hidden="true" className="relative inline-flex h-2.5 w-4 shrink-0 items-center justify-center">
+                      {item.marker === 'sellingPrice' ? (
+                        <>
+                          <span className="absolute inset-x-0 top-1/2 border-t-2 border-solid" style={{ borderColor: isVisible ? item.color : '#64748b' }} />
+                          <span className="relative h-2 w-2 rounded-full border border-white" style={{ backgroundColor: isVisible ? item.color : '#64748b' }} />
+                        </>
+                      ) : (
+                        <span className="w-full border-t-2 border-dashed" style={{ borderColor: isVisible ? item.color : '#64748b' }} />
+                      )}
+                    </span>
+                  )}
+                  <span>{item.label}</span>
+                </button>
+              </li>
+            )
+          })}
+        </ul>
       </div>
 
-      <div className="min-w-0 xl:min-h-0 xl:flex-1">
+      <div
+        data-graph-tooltip-host="true"
+        className="relative min-w-0 xl:min-h-0 xl:flex-1"
+        onPointerLeave={() => setActiveTooltip(null)}
+      >
         <svg
-          aria-labelledby="simulation-story-svg-title simulation-story-svg-description"
+          aria-labelledby="simulation-story-title"
+          aria-describedby="simulation-story-svg-description"
           viewBox="0 0 820 332"
-          preserveAspectRatio="none"
-          className="mt-1 block h-[250px] w-full sm:h-auto xl:h-full"
+          preserveAspectRatio="xMidYMid meet"
+          className="simulation-story-chart mt-1 block h-[250px] w-full sm:h-auto xl:h-full"
           style={{ touchAction: 'pan-y' }}
         >
-          <title id="simulation-story-svg-title">Simulation Cost Structure</title>
           <desc id="simulation-story-svg-description">REF, CUR, and SIM show visible Material, Labor, Burden, SG&amp;A, and sign-matched Profit. Standard Cost is visible Material plus Labor plus Burden. GAP 1 is Current minus Reference; GAP 2 is Simulation minus Current. Legend filters change this graph view only, not Result or source data. Selling Price is separate, and the ruler is a comparison guide.</desc>
 
           {axisTicks.map((value, index) => {
@@ -323,7 +412,7 @@ export function SimulationStoryGraph({ story, unit }: SimulationStoryGraphProps)
             )
           })}
           <line data-y-axis="true" x1={plot.left} x2={plot.left} y1={plot.top} y2={plot.bottom} stroke="#64748b" strokeWidth="1.4" />
-          <text data-y-axis-unit="true" x="72" y={(plot.top + plot.bottom) / 2} transform={`rotate(-90 72 ${(plot.top + plot.bottom) / 2})`} textAnchor="middle" fill="#475569" fontSize="10px" fontWeight="600" fontFamily="ui-monospace, monospace">{`THB/${unit}`}</text>
+          <text data-y-axis-unit="true" aria-label={`Y-axis units: THB/${unit}`} x="58" y={(plot.top + plot.bottom) / 2} transform={`rotate(-90 58 ${(plot.top + plot.bottom) / 2})`} textAnchor="middle" fill="#334155" fontSize="11px" fontWeight="700" fontFamily="ui-monospace, monospace">{`THB/${unit}`}</text>
 
           {stateStacks.map(state => {
             return (
@@ -332,8 +421,10 @@ export function SimulationStoryGraph({ story, unit }: SimulationStoryGraphProps)
                   const color = part.key === 'operatingProfitPerPiece'
                     ? value > 0 ? OPERATING_PROFIT_POSITIVE : OPERATING_PROFIT_NEGATIVE
                     : part.color
+                  const tooltip = `${state.description} ${part.tooltipLabel}: ${formatValue(value)} THB/${unit}`
                   return (
                     <rect
+                      {...tooltipProps(tooltip)}
                       key={part.key}
                       data-graph-part={part.key}
                       x={state.x - 27}
@@ -342,24 +433,30 @@ export function SimulationStoryGraph({ story, unit }: SimulationStoryGraphProps)
                       height={Math.max(Math.abs(y(before) - y(after)), 1)}
                       fill={color}
                       stroke="none"
-                    >
-                      <title>{`${state.description} ${part.tooltipLabel}: ${formatValue(value)} THB/${unit}`}</title>
-                    </rect>
+                    />
                   )
                 })}
-                {standardCostValues.filter(value => value.key === state.key).map(({ value }) => {
+                {standardCostValues.filter(value => value.key === state.key).map(({ value, stack }) => {
                   if (value === null) return null
                   const boundaryY = y(value)
                   const tooltip = `${state.description} Standard Cost · ${formatValue(value)} THB/${unit}`
                   return (
-                    <g key="standard-cost">
+                    <g {...tooltipProps(tooltip)} key="standard-cost">
+                      <rect
+                        aria-hidden="true"
+                        x={state.x - 30}
+                        y={Math.min(y(stack.positive), y(stack.negative))}
+                        width="60"
+                        height={Math.max(Math.abs(y(stack.positive) - y(stack.negative)), 1)}
+                        fill="none"
+                        stroke={COST_ELEMENT_COLORS.standardCost}
+                        strokeWidth="1"
+                        pointerEvents="none"
+                      />
                       <line data-graph-standard-cost={state.key} x1={state.x - 27} x2={state.x + 27}
-                        y1={boundaryY} y2={boundaryY} stroke={COST_ELEMENT_COLORS.standardCost} strokeWidth="1.2">
-                        <title>{tooltip}</title>
-                      </line>
+                        y1={boundaryY} y2={boundaryY} stroke={COST_ELEMENT_COLORS.standardCost} strokeWidth="1.2" />
                       <text data-graph-standard-cost-value={state.key} x={state.x + 31} y={clamp(boundaryY + 3, plot.top + 10, plot.bottom - 1)}
                         textAnchor="start" fill={COST_ELEMENT_COLORS.standardCost} fontSize="9px" fontWeight="700" fontFamily="ui-monospace, monospace">
-                        <title>{tooltip}</title>
                         {formatValue(value)}
                       </text>
                     </g>
@@ -373,8 +470,10 @@ export function SimulationStoryGraph({ story, unit }: SimulationStoryGraphProps)
             return (
               <g key={gap.key} data-graph-gap={gap.key}>
                 {gap.stack.segments.map(({ part, value, before, after }) => {
+                  const tooltip = `${gap.label} · ${gap.description} · ${part.tooltipLabel} Gap: ${signed(value)} THB/${unit}`
                   return (
                     <rect
+                      {...tooltipProps(tooltip)}
                       key={part.key}
                       data-graph-part={part.key}
                       x={gap.x - 25}
@@ -383,9 +482,7 @@ export function SimulationStoryGraph({ story, unit }: SimulationStoryGraphProps)
                       height={Math.max(Math.abs(y(before) - y(after)), 1)}
                       fill={part.color}
                       stroke="none"
-                    >
-                      <title>{`${gap.label} · ${gap.description} · ${part.tooltipLabel} Gap: ${signed(value)} THB/${unit}`}</title>
-                    </rect>
+                    />
                   )
                 })}
               </g>
@@ -393,16 +490,20 @@ export function SimulationStoryGraph({ story, unit }: SimulationStoryGraphProps)
           })}
 
           {priceLines.map(line => (
-            <path key={line.label} d={line.path} fill="none" stroke={SELLING_PRICE_COLOR} strokeWidth="2">
-              <title>{`${line.label} Selling Price line · THB/${unit}`}</title>
-            </path>
-          ))}
-          {pricePoints.map(point => (
-            <g key={point.label} data-graph-series="sellingPrice">
-              <circle cx={point.x} cy={point.y} r="3.5" fill={SELLING_PRICE_COLOR} stroke="white" strokeWidth="1" />
-              <title>{`${point.label} Selling Price: ${formatValue(point.value)} THB/${unit}`}</title>
+            <g {...tooltipProps(line.tooltip)} key={line.label}>
+              <path d={line.path} fill="none" stroke={SELLING_PRICE_COLOR} strokeWidth="2" pointerEvents="none" />
+              <path d={line.path} fill="none" stroke="transparent" strokeWidth="12" pointerEvents="stroke" />
             </g>
           ))}
+          {pricePoints.map(point => {
+            const tooltip = `${point.label} Selling Price: ${formatValue(point.value)} THB/${unit}`
+            return (
+              <g {...tooltipProps(tooltip)} key={point.label} data-graph-series="sellingPrice">
+                <circle cx={point.x} cy={point.y} r="3.5" fill={SELLING_PRICE_COLOR} stroke="white" strokeWidth="1" pointerEvents="none" />
+                <circle cx={point.x} cy={point.y} r="8" fill="transparent" pointerEvents="all" />
+              </g>
+            )
+          })}
 
           {visibleLegend.ruler && (
             <>
@@ -434,7 +535,6 @@ export function SimulationStoryGraph({ story, unit }: SimulationStoryGraphProps)
                 className="cursor-ns-resize touch-none outline-none focus:outline-none focus-visible:outline-none"
                 style={{ outline: 'none' }}
               >
-                <title>Drag near the dashed ruler line to compare cost levels. This guide does not change data.</title>
                 <rect x={plot.left} y={rulerY - 5} width={plot.right - plot.left} height="10" fill="transparent" pointerEvents="all" />
               </g>
             </>
@@ -443,40 +543,26 @@ export function SimulationStoryGraph({ story, unit }: SimulationStoryGraphProps)
           {categoryLabels.map(category => (
             <g key={`${category.key}-labels`}>
               {category.isGap && (
-                <text data-graph-total={category.key} x={category.x} y={clamp(y(category.value ?? 0) + (category.value !== null && category.value < 0 ? 8 : -8), plot.top + 10, plot.bottom - 1)} textAnchor="middle" fill={gapTotalColor(category.value)} fontSize="9px" fontWeight="700" fontFamily="ui-monospace, monospace">
-                  <title>{category.description}</title>
+                <text {...tooltipProps(`${category.description} total: ${signed(category.value ?? null)} THB/${unit}`)} data-graph-total={category.key} x={category.x} y={clamp(y(category.value ?? 0) + (category.value !== null && category.value < 0 ? 8 : -8), plot.top + 10, plot.bottom - 1)} textAnchor="middle" fill={gapTotalColor(category.value)} fontSize="9px" fontWeight="700" fontFamily="ui-monospace, monospace">
                   {signed(category.value)}
                 </text>
               )}
               <text x={category.x} y="306" textAnchor="middle" fill="#0f172a" fontSize="11px" fontWeight="700" fontFamily="ui-monospace, monospace">
-                <title>{category.description}</title>
                 {category.label}
               </text>
             </g>
           ))}
         </svg>
+        {activeTooltip && (
+          <div
+            aria-hidden="true"
+            className="pointer-events-none absolute z-20 rounded-sm border border-slate-700 bg-slate-900 px-2 py-1 text-[11px] leading-4 text-white shadow-sm"
+            style={{ left: activeTooltip.x, top: activeTooltip.y, maxWidth: activeTooltip.maxWidth }}
+          >
+            {activeTooltip.text}
+          </div>
+        )}
       </div>
-
-      <ul aria-label="Simulation graph legend" className="flex flex-wrap gap-x-2.5 gap-y-1 border-t border-slate-200 pt-2 text-[11px]">
-        {LEGEND_ITEMS.map(item => {
-          const isVisible = visibleLegend[item.key]
-          return (
-            <li key={item.key}>
-              <button
-                type="button"
-                aria-label={item.label}
-                aria-pressed={isVisible}
-                title={`${isVisible ? 'Hide' : 'Show'} ${item.label}`}
-                onClick={() => setVisibleLegend(current => ({ ...current, [item.key]: !current[item.key] }))}
-                className={`inline-flex min-h-6 items-center gap-1.5 rounded-sm px-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-blue-700 ${isVisible ? 'text-slate-700' : 'text-slate-500'}`}
-              >
-                <span aria-hidden="true" className="inline-block h-2.5 w-2.5 shrink-0 border" style={{ backgroundColor: isVisible ? item.color : 'transparent', borderColor: item.color }} />
-                <span>{item.label}</span>
-              </button>
-            </li>
-          )
-        })}
-      </ul>
     </figure>
   )
 }

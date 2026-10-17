@@ -1,7 +1,7 @@
 # Simulation Graph — Final Requirements
 
 **Status:** Requirement CLOSED / Finalized  
-**Implementation status:** Not closed until implementation + browser re-audit pass  
+**Implementation status:** Implemented; Chrome responsive browser verification PASS at 1440×900, 1280×900, 768×900, and 390×844 (2026-10-17). Physical MacBook Neo display scaling, touch, and screen-reader behavior remain NOT VERIFIED; see HANDOFF.md.
 **Primary concept:** `Simulation Cost Structure`
 
 ---
@@ -61,6 +61,8 @@ The title must be exactly:
 Simulation Cost Structure
 ```
 
+In the graph header, keep the title on the left and place the legend after a subtle vertical divider when they fit on one row. On narrower headers, allow the legend to wrap and remove the divider when it no longer separates side-by-side content naturally.
+
 ---
 
 # 4. Graph Structure
@@ -116,8 +118,11 @@ Preferred final placement:
 Important:
 
 - the Standard Cost value is associated with the top of the Material/Labor/Burden portion
+- the visible Material/Labor/Burden region is grouped with a subtle neutral/slate outline, following the currently visible contributors
+- the outline is not filled and is not another cost segment
 - SG&A / Profit may continue visually above it
 - do not add an unnecessary heavy black divider merely to represent Standard Cost
+- do not make the group outline compete with the ruler
 - Standard Cost text/value styling should follow the Cost Breakdown Standard Cost visual language
 
 ## 5.3 State-specific tooltip
@@ -210,6 +215,8 @@ Selling Price
 Ruler
 ```
 
+Use square swatches for the six stacked bar series. Show Selling Price as a solid line with a centered circular marker; show the Ruler as a dashed line without a marker. Do not use square swatches for either line series.
+
 ---
 
 # 8. Legend ON / OFF Visual State
@@ -242,6 +249,7 @@ Requirements:
 
 - ON vs OFF must be obvious at a glance
 - OFF text must remain readable
+- OFF square outlines and line samples must remain clearly visible in muted neutral colors
 - do not fade the entire item to near-invisibility
 - do not make OFF look permanently disabled/unusable
 
@@ -383,6 +391,8 @@ Concept:
    0 ───┼────────────
 ```
 
+Verify this visually in a real browser at desktop, laptop, narrow, and small/mobile widths; the presence of a matching text node alone is not sufficient evidence.
+
 ---
 
 # 14. Auto-Fit / Dynamic Graph Scale
@@ -453,9 +463,9 @@ Material / Labor / Burden follow the Cost Breakdown visual language.
 Known CBD palette reference:
 
 ```text
-Material: #4F7CAC
-Labor:    #D89B45
-Burden:   #8067B7
+Material: #6F99C6
+Labor:    #E5B46A
+Burden:   #9A82C6
 Standard Cost visual language: #334155
 ```
 
@@ -532,6 +542,8 @@ Preserve:
 - narrow/local interaction ownership
 - gentle snapping
 
+Snap softly to every visible cost-stack boundary in REF / CUR / SIM (zero, each visible Material/Labor/Burden cumulative boundary, visible Standard Cost, SG&A end, Profit end), visible Selling Price, and applicable GAP boundaries. The ruler remains freely movable between boundaries and snaps only when close; do not turn it into discrete steps.
+
 Do not create a full-plot transparent interaction layer.
 
 ## 16.4 Ruler value on the right
@@ -559,6 +571,8 @@ The value follows the ruler position.
 Tooltips must be **short, specific, and useful**.
 
 Do not write long explanatory paragraphs.
+
+Use a controlled tooltip for graph data that appears immediately on hover or keyboard focus and disappears immediately on leave/blur. Keep it stable while the pointer moves between adjacent graph segments. Remove native SVG `<title>` tooltips from data elements and do not show a tooltip over blank graph space. Preserve the graph name and description for assistive technology with ARIA or equivalent hidden accessible content.
 
 ## 17.1 State labels
 
@@ -614,6 +628,11 @@ Requirements:
 - labels do not collide unnecessarily
 - legend remains usable
 - graph does not depend on a fixed pixel width
+- Selling Price marker remains circular, lines and text do not visibly distort, the grouped Standard Cost outline remains aligned, and no horizontal overflow appears
+
+Retain the current SVG viewBox scaling unless browser inspection shows actual visible distortion. Verify the rendered UI at desktop-wide, laptop, narrow, and small/mobile widths.
+
+Chrome inspection found visible circle and text distortion with the previous non-uniform scaling. The graph now preserves its aspect ratio, uses intrinsic SVG height below 640px, and slightly enlarges SVG text on small screens. Re-check these behaviors in the browser after future changes.
 
 This responsive behavior is separate from the **data-driven Y-axis auto-fit** requirement in Section 14.
 
@@ -691,6 +710,7 @@ Y-axis auto-fits to the remaining visible values
 - [ ] Gap 2 formula remains Simulation − Current
 - [ ] Gap bars retain Material/Labor/Burden contribution colors
 - [ ] REF/CUR/SIM show Standard Cost at the MAT+LB+BD boundary
+- [ ] visible MAT/LB/BD region has a neutral outline without an added fill/segment
 - [ ] Reference Standard Cost tooltip is correct
 - [ ] Current Standard Cost tooltip is correct
 - [ ] Simulation Standard Cost tooltip is correct
@@ -705,6 +725,10 @@ Y-axis auto-fits to the remaining visible values
 - [ ] Legend labels are full names
 - [ ] ON vs OFF legend state is immediately distinguishable
 - [ ] OFF text remains readable
+- [ ] OFF square and line samples remain clearly visible
+- [ ] Selling Price legend uses a solid line with a centered circle
+- [ ] Ruler legend uses a dashed line without a marker
+- [ ] Legend is in the graph header with a responsive title divider
 - [ ] Profit + only controls positive Profit
 - [ ] Profit − only controls negative Profit
 - [ ] Actual Profit sign is preserved
@@ -713,6 +737,7 @@ Y-axis auto-fits to the remaining visible values
 - [ ] Selling Price influences scale only while visible
 - [ ] Y-axis line is visibly present
 - [ ] Y-axis UOM resolves dynamically as THB/<unit>
+- [ ] Y-axis unit is visually associated with the axis at multiple browser widths
 - [ ] Graph auto-fits to currently visible values
 - [ ] Hide Selling Price causes range to refit when appropriate
 - [ ] Legend changes cause range to refit
@@ -726,8 +751,13 @@ Y-axis auto-fits to the remaining visible values
 - [ ] Ruler keeps pointer drag
 - [ ] Ruler keeps keyboard interaction
 - [ ] Ruler value is visible on the right and follows the ruler
+- [ ] Ruler softly snaps to every visible stack boundary and remains free-moving between boundaries
 - [ ] Tooltip wording remains concise
+- [ ] Data tooltips appear immediately on hover/focus and disappear on leave/blur
+- [ ] Blank SVG space shows no native Simulation Cost Structure tooltip
 - [ ] Graph remains responsive to container width
+- [ ] Selling Price circle, graph geometry, and text remain undistorted across tested widths
+- [ ] No horizontal overflow appears across tested widths
 - [ ] No Graph interaction changes business data
 
 ---

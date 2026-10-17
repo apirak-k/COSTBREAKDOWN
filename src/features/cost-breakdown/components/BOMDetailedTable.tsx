@@ -149,7 +149,7 @@ export function BOMRecordDetails({ row, detailId }: BOMRecordDetailsProps) {
       : 'border-t border-slate-200 bg-white font-normal text-slate-600'}
   >
     <td aria-hidden="true" className="px-1 py-1.5" />
-    <th scope="row" className={`truncate border-l-2 border-slate-300 px-2.5 py-1.5 text-left font-sans ${effectRow ? 'font-bold' : 'font-normal'}`}>{label}</th>
+    <th scope="row" className={`truncate px-2.5 py-1.5 text-left font-sans ${effectRow ? 'font-bold' : 'font-normal'}`}><span className="ml-2 inline-block whitespace-nowrap border-l-2 border-slate-300 pl-3">{label}</span></th>
     <td aria-hidden="true" className="px-2 py-1.5" />
     {parameterValues.map(item => <td key={item.field} className="whitespace-nowrap px-1 py-1.5 text-right">
       {effectRow

@@ -2,6 +2,16 @@
 @tailwind components;
 @tailwind utilities;
 
+@media (max-width: 639px) {
+  .simulation-story-chart {
+    height: auto;
+  }
+
+  .simulation-story-chart text {
+    font-size: 16px !important;
+  }
+}
+
 @layer base {
   input::placeholder,
   textarea::placeholder {

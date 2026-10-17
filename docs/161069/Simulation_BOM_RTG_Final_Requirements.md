@@ -320,8 +320,8 @@ Total +0.00
 ## 8.2 Color behavior
 
 - `Total` label remains neutral
-- positive numeric value → green
-- negative numeric value → red
+- positive numeric value → red
+- negative numeric value → green
 - zero numeric value → neutral
 
 ## 8.3 Alignment
@@ -511,8 +511,8 @@ Verify **BOM and RTG separately**.
 - [ ] Header remains fully opaque
 - [ ] Normal rows never draw over header
 - [ ] Expanded rows never draw over header
-- [ ] Positive effect displays `+` and green
-- [ ] Negative effect displays `-` and red
+- [ ] Positive effect displays `+` and red
+- [ ] Negative effect displays `-` and green
 - [ ] Zero displays `0.00` with neutral color
 - [ ] Zero never displays `+0.00`
 - [ ] `Total` label remains neutral

@@ -241,7 +241,7 @@ try {
   ])
 
   assert.deepEqual(palette.COST_ELEMENT_COLORS, {
-    material: '#4F7CAC', labor: '#D89B45', burden: '#8067B7', standardCost: '#334155'
+    material: '#6f99c6', labor: '#e5b46a', burden: '#9a82c6', standardCost: '#334155'
   }, 'CBD charts, legend, and Standard Cost use one shared element palette')
   const fullSegments = [
     { key: 'material', label: 'Material', full: 9.31, selected: null, color: palette.COST_ELEMENT_COLORS.material },
@@ -558,6 +558,16 @@ try {
   assert.equal(wcDesktopHeight, costDesktopHeight, 'both summary boxes consume the same desktop height standard')
   assert.match(stickyShellClass, /lg:sticky[^\"]*lg:top-0/,
     'Subheader and Cost Element / Work Center overview stay sticky at the top of CBD Main while it scrolls')
+  assert.match(stickyShellClass, /(?:^|\s)pb-2(?:\s|$)/,
+    'the existing gap below the sticky top area remains in place')
+  assert.match(stickyShellClass, /(?:^|\s)lg:bg-slate-100\/70(?:\s|$)/,
+    'the sticky gap uses the surrounding workspace background')
+  assert.doesNotMatch(stickyShellClass, /lg:bg-white/,
+    'the sticky gap does not create a white strip against the workspace')
+  const costGapLegendClass = pageSource.match(/<div role="group" aria-label="Cost element color legend" className="([^"]+)"/)?.[1]
+  assert.ok(costGapLegendClass, 'Standard Cost Gap has its compact MAT/LB/BD legend')
+  assert.match(costGapLegendClass, /(?:^|\s)border-l border-slate-300 pl-2(?:\s|$)/,
+    'the Cost Gap legend uses a subtle divider and spacing after its title/value')
   const subheaderIndex = pageSource.indexOf('Cost Breakdown subheader')
   const overviewIndex = pageSource.indexOf('<div id="cost-breakdown-overview-panels"')
   const candidateIndex = pageSource.indexOf('aria-label="Candidate workspace"')
@@ -569,6 +579,8 @@ try {
   assert.doesNotMatch(candidateRegionClass, /overflow-y-auto|overflow-y-scroll|overflow-auto|flex-1|min-h-0/,
     'Candidate Findings stays in normal flow and does not take a second vertical scroll owner')
   const appLayoutSource = readFileSync(new URL('../src/shared/layout/AppLayout.tsx', import.meta.url), 'utf8')
+  assert.match(appLayoutSource, /bg-slate-100\/70/,
+    'the sticky gap matches the surrounding application workspace background')
   assert.match(appLayoutSource, /className=\{isCostBreakdown\s*\?\s*'[^']*overflow-y-auto[^']*'\s*:/,
     'shared Main remains the CBD page-level vertical scroll owner')
   assert.match(pageSource, /aria-expanded=\{isOverviewExpanded\}[\s\S]*aria-controls="cost-breakdown-overview-panels"[\s\S]*aria-label=\{`\$\{isOverviewExpanded \? 'Collapse' : 'Expand'\} Cost Element and Work Center sections`\}/,

@@ -46,11 +46,11 @@ try {
   assert.equal(story.gap2.standardCost, -5, 'GAP 2 is SIM - Current and may be negative')
 
   const graphParts = [
-    { key: 'material', legendKey: 'material', tooltipLabel: 'Material', color: '#4F7CAC' },
-    { key: 'labor', legendKey: 'labor', tooltipLabel: 'Labor', color: '#D89B45' },
-    { key: 'burden', legendKey: 'burden', tooltipLabel: 'Burden', color: '#8067B7' },
-    { key: 'sgaAmountPerPiece', legendKey: 'sga', tooltipLabel: 'SG&A', color: '#a8b4c2' },
-    { key: 'operatingProfitPerPiece', legendKey: null, tooltipLabel: 'Operating Profit', color: '#15803d' }
+    { key: 'material', legendKey: 'material', tooltipLabel: 'Material', color: '#6f99c6' },
+    { key: 'labor', legendKey: 'labor', tooltipLabel: 'Labor', color: '#e5b46a' },
+    { key: 'burden', legendKey: 'burden', tooltipLabel: 'Burden', color: '#9a82c6' },
+    { key: 'sgaAmountPerPiece', legendKey: 'sga', tooltipLabel: 'SG&A', color: '#b8c2ce' },
+    { key: 'operatingProfitPerPiece', legendKey: null, tooltipLabel: 'Operating Profit', color: '#4b9164' }
   ]
   const allLegendVisible = {
     material: true, labor: true, burden: true, sga: true,
@@ -117,7 +117,6 @@ try {
   const graphMarkup = renderToStaticMarkup(React.createElement(SimulationStoryGraph, { story, unit: 'PC' }))
   assert.equal(JSON.stringify(story), storyBeforeRender, 'rendering the graph does not mutate ScenarioStory')
   const graphSource = readFileSync(resolve(process.cwd(), 'src/features/simulation/SimulationStoryGraph.tsx'), 'utf8')
-  const graphText = graphMarkup.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ')
   const svgTextLabels = [...graphMarkup.matchAll(/<text\b[^>]*>([\s\S]*?)<\/text>/g)]
     .map(match => match[1].replace(/<title>[\s\S]*?<\/title>/g, '').replace(/<[^>]*>/g, '').replace(/&amp;/g, '&').trim())
   const gapTotalLabels = [...graphMarkup.matchAll(/<text\b[^>]*data-graph-total="(gap1|gap2)"[^>]*>([\s\S]*?)<\/text>/g)]
@@ -135,33 +134,41 @@ try {
   assert.match(graphMarkup, /GAP 1 · Current − Reference · Material Gap: \+5\.00 THB\/PC/)
   assert.match(graphMarkup, /GAP 2 · Simulation − Current · Material Gap: -3\.00 THB\/PC/)
   assert.doesNotMatch(graphMarkup, /\bSC [+-]\d/, 'gap labels do not use the ambiguous SC +/- notation')
-  const firstBarIndex = graphMarkup.indexOf('fill="#4F7CAC"')
+  const firstBarIndex = graphMarkup.indexOf('fill="#6f99c6"')
   const rulerLineIndex = graphMarkup.indexOf('stroke-dasharray="4 5"')
   assert.ok(firstBarIndex >= 0 && rulerLineIndex > firstBarIndex, 'the visible ruler line is drawn in front of the bars')
-  for (const [part, color] of [['MAT', '#4F7CAC'], ['LB', '#D89B45'], ['BD', '#8067B7']]) {
+  for (const [part, color] of [['MAT', '#6f99c6'], ['LB', '#e5b46a'], ['BD', '#9a82c6']]) {
     assert.ok(graphMarkup.includes(`fill="${color}"`), `${part} uses the exact CBD palette color in the graph bars`)
     assert.ok(graphMarkup.includes(`background-color:${color}`), `${part} uses the exact CBD palette color in the legend`)
   }
   assert.match(graphMarkup, /Simulation Cost Structure/)
-  assert.match(graphMarkup, /id="simulation-story-svg-title">Simulation Cost Structure<\/title>/)
+  assert.match(graphMarkup, /<figure aria-labelledby="simulation-story-title"/,
+    'the graph figure has an accessible name from its visible heading')
+  assert.match(graphMarkup, /<svg aria-labelledby="simulation-story-title" aria-describedby="simulation-story-svg-description"/,
+    'the SVG retains both its accessible name and description')
+  assert.match(graphMarkup, /preserveAspectRatio="xMidYMid meet"/,
+    'the responsive graph preserves circular markers and undistorted text and lines')
+  assert.doesNotMatch(graphMarkup, /<title\b|\stitle=/, 'graph elements do not expose native hover tooltips')
+  assert.match(graphMarkup, /<h2 id="simulation-story-title"[^>]*>Simulation Cost Structure<\/h2>[\s\S]*?<ul aria-label="Simulation graph legend"/,
+    'the graph title and legend share the header area')
   assert.match(graphMarkup, /GAP 1 is Current minus Reference; GAP 2 is Simulation minus Current/)
   assert.match(graphMarkup, /Legend filters change this graph view only, not Result or source data/)
   assert.match(graphMarkup, /data-y-axis="true"/, 'the graph renders a visible Y-axis line')
   assert.match(graphMarkup, /data-y-axis-unit="true"[^>]*>THB\/PC<\/text>/, 'the dynamic UOM is attached to the Y axis')
-  assert.match(graphMarkup, /rotate\(-90 72 155\).*THB\/PC/, 'the unit label sits alongside the Y-axis')
+  assert.match(graphMarkup, /rotate\(-90 58 155\).*THB\/PC/, 'the unit label sits alongside the Y-axis')
   for (const [state, value, tooltip] of [
     ['reference', '90.00', 'Reference Standard Cost · 90.00 THB/PC'],
     ['current', '100.00', 'Current Standard Cost · 100.00 THB/PC'],
     ['simulated', '95.00', 'Simulation Standard Cost · 95.00 THB/PC']
   ]) {
     assert.match(graphMarkup, new RegExp(`data-graph-standard-cost="${state}"`), `${state} Standard Cost boundary remains visible`)
-    assert.ok(graphMarkup.includes(tooltip), `${state} Standard Cost tooltip uses its visible value and UOM`)
+    assert.ok(graphMarkup.includes(`aria-label="${tooltip}"`), `${state} Standard Cost tooltip uses its visible value and UOM`)
     assert.ok(standardCostLabels.some(([labelState, labelValue]) => labelState === state && labelValue === value),
       `${state} Standard Cost value is displayed`)
   }
-  for (const tooltip of ['Reference Cost Structure', 'Current Cost Structure', 'Simulation Cost Structure', 'Current − Reference', 'Simulation − Current']) {
-    assert.ok(graphMarkup.includes(`<title>${tooltip}</title>`), `state/gap label tooltip is concise: ${tooltip}`)
-  }
+  assert.match(graphMarkup, /aria-label="Reference Material: 60\.00 THB\/PC"/)
+  assert.match(graphMarkup, /aria-label="GAP 1 · Current − Reference · Material Gap: \+5\.00 THB\/PC"/)
+  assert.match(graphMarkup, /fill="none" stroke="#334155" stroke-width="1"/, 'Standard Cost uses a neutral outline without another fill')
   assert.match(graphMarkup, /role="slider"[^>]*aria-label="Simulation comparison ruler"[^>]*aria-orientation="vertical"/)
   assert.match(graphMarkup, /aria-valuetext="[^\"]+ THB\/PC"/)
   assert.match(graphSource, /data-ruler-value="true" x=\{plot\.right \+ 7\}/, 'the ruler value sits at the line end without a label')
@@ -184,9 +191,15 @@ try {
     assert.ok(legendMarkup.includes(`aria-label="${label}"`), `the visible Legend uses the full ${label} label`)
   }
   assert.match(graphSource, /text-slate-500/, 'an OFF legend item remains readable while looking disabled')
-  assert.match(graphSource, /backgroundColor: isVisible \? item\.color : 'transparent'/,
-    'ON legend indicators are filled and OFF indicators are outlined')
-  assert.doesNotMatch(graphSource, /opacity-40/, 'an OFF legend item is not faded to near-invisibility')
+  assert.match(graphSource, /isVisible \? 'border' : 'border-2'/,
+    'OFF square indicators keep a clearly visible solid outline')
+  assert.match(graphSource, /isVisible \? item\.color : '#64748b'/,
+    'OFF line indicators switch to a visible muted neutral color')
+  assert.doesNotMatch(graphSource, /opacity-40|>OFF</, 'an OFF legend item remains visible without fading or an extra badge')
+  assert.match(graphSource, /marker: 'sellingPrice'/)
+  assert.match(graphSource, /marker: 'ruler'/)
+  assert.match(graphSource, /border-t-2 border-solid/)
+  assert.match(graphSource, /border-t-2 border-dashed/)
   assert.doesNotMatch(legendMarkup, /aria-label="(?:MAT|LB|BD|OP[+−])"/)
   assert.doesNotMatch(graphMarkup, />SP\s+\d/, 'Selling Price labels do not use the SP prefix')
   assert.doesNotMatch(graphSource, /highlightedParts|highlighted\s*\?/, 'graph bars have no parameter-selection highlight')
@@ -204,10 +217,11 @@ try {
   const gap2TotalTag = graphMarkup.match(/<text\b[^>]*data-graph-total="gap2"[^>]*>/)?.[0] ?? ''
   assert.match(gap1TotalTag, /fill="#be123c"/, 'positive cost gap total is unfavorable red')
   assert.match(gap2TotalTag, /fill="#15803d"/, 'negative cost gap total is favorable green')
-  assert.ok(graphMarkup.includes('fill="#15803d"'), 'positive Profit uses its green sign color')
+  assert.ok(graphMarkup.includes('fill="#4b9164"'), 'positive Profit uses its green sign color')
   assert.doesNotMatch(graphMarkup, /GAP [12] (?:SG&A|OP|Selling Price) Gap:/,
     'gap bars only contain MAT, LB, and BD')
-  assert.ok(graphMarkup.includes('SG&amp;A') && graphText.includes('Operating Profit'), 'dataset bars and legend retain the separate economic values')
+  assert.ok(graphMarkup.includes('SG&amp;A') && graphMarkup.includes('Operating Profit:'),
+    'dataset bars and accessible data labels retain the separate economic values')
   assert.doesNotMatch(graphMarkup, /<text\b[^>]*>120\.00<\/text>/,
     'Selling Price is not duplicated as floating numbers above the state bars')
 
@@ -235,13 +249,13 @@ try {
   const zeroGapMarkup = renderToStaticMarkup(React.createElement(SimulationStoryGraph, { story: zeroGapStory, unit: 'PC' }))
   const zeroGapTotalTag = zeroGapMarkup.match(/<text\b[^>]*data-graph-total="gap2"[^>]*>/)?.[0] ?? ''
   assert.match(zeroGapTotalTag, /fill="#475569"/, 'zero gap totals remain neutral')
-  assert.match(zeroGapMarkup, /data-graph-total="gap2"[^>]*><title>Simulation − Current<\/title>0\.00/)
+  assert.match(zeroGapTotalTag, /aria-label="Simulation − Current total: 0\.00 THB\/PC"/)
 
   const negativeOPStory = createScenarioStory(financial(reference, 120, 10), financial(current, 120, 10), financial(cost('loss', 90, 0, 0), 80, 10))
   assert.equal(negativeOPStory.simulated.operatingProfitPerPiece, -18, 'negative OP remains a valid story value')
   const negativeOPMarkup = renderToStaticMarkup(React.createElement(SimulationStoryGraph, { story: negativeOPStory, unit: 'PC' }))
   assert.match(negativeOPMarkup, /Simulation Operating Profit: -18\.00 THB\/PC/)
-  assert.ok(negativeOPMarkup.includes('fill="#be5673"'), 'negative Profit uses its softer red sign color')
+  assert.ok(negativeOPMarkup.includes('fill="#cc7489"'), 'negative Profit uses its softer red sign color')
 
   if (process.argv.includes('--graph-only')) {
     console.log('Simulation cost structure graph verification passed')

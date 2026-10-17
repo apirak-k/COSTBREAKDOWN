@@ -39,22 +39,26 @@ try {
   const storySimulated = { material: 60, labor: 20, burden: 15, standardCost: 95, sgaAmountPerPiece: 10, operatingProfitPerPiece: -5, sellingPrice: 100 }
   const finalStory = createScenarioStory(storyReference, storyCurrent, storySimulated)
   const selectedStoryMarkup = renderToStaticMarkup(React.createElement(SimulationStoryGraph, {
-    story: finalStory
+    story: finalStory,
+    unit: 'PC'
   }))
   const selectedStoryText = visibleText(selectedStoryMarkup)
-  for (const label of ['MAT', 'LB', 'BD', 'Standard Cost', 'OP', 'Selling Price']) {
-    assert.ok(selectedStoryText.includes(label), `the final story must expose ${label}`)
+  const selectedStoryLegend = selectedStoryMarkup.match(/<ul aria-label="Simulation graph legend"[\s\S]*?<\/ul>/)?.[0] ?? ''
+  for (const label of ['Material', 'Labor', 'Burden', 'SG&amp;A', 'Profit +', 'Profit −', 'Selling Price', 'Ruler']) {
+    assert.ok(selectedStoryLegend.includes(`aria-label="${label}"`), `the final graph legend must expose ${label}`)
   }
-  assert.ok(selectedStoryMarkup.includes('SG&amp;A'), 'the final story must expose SG&A')
-  for (const value of ['10', '2', '3', '15', '25', '12', '16', '95', '100', '-5']) {
-    assert.ok(selectedStoryText.includes(value), `the final story must expose the state value ${value}`)
-  }
-  assert.match(selectedStoryMarkup, /Reference → Current → Simulated/)
-  assert.match(selectedStoryMarkup, /Gap 1<br\/?>Current − Reference/)
-  assert.match(selectedStoryMarkup, /Gap 2<br\/?>Simulated − Current/)
-  assert.equal((selectedStoryMarkup.match(/Gap [12]<br/g) ?? []).length, 2, 'the selected story has exactly two adjacent gaps')
-  assert.match(selectedStoryMarkup, /Simulated − Current/)
-  assert.match(selectedStoryMarkup, /Operating loss/)
+  const graphCategoryLabels = [...selectedStoryMarkup.matchAll(/<text\b[^>]*>([\s\S]*?)<\/text>/g)]
+    .map(match => visibleText(match[1]))
+    .filter(label => ['REF', 'GAP 1', 'CUR', 'GAP 2', 'SIM'].includes(label))
+  assert.deepEqual(graphCategoryLabels, ['REF', 'GAP 1', 'CUR', 'GAP 2', 'SIM'],
+    'the final story preserves REF → GAP 1 → CUR → GAP 2 → SIM')
+  assert.match(selectedStoryMarkup, /GAP 1 · Current − Reference · Material Gap: \+2\.00 THB\/PC/)
+  assert.match(selectedStoryMarkup, /GAP 2 · Simulation − Current · Material Gap: \+48\.00 THB\/PC/)
+  assert.match(selectedStoryMarkup, /data-graph-standard-cost-value="reference"[^>]*>15\.00/)
+  assert.match(selectedStoryMarkup, /data-graph-standard-cost-value="current"[^>]*>16\.00/)
+  assert.match(selectedStoryMarkup, /data-graph-standard-cost-value="simulated"[^>]*>95\.00/)
+  assert.match(selectedStoryMarkup, /aria-label="Simulation Operating Profit: -5\.00 THB\/PC"/)
+  assert.ok(selectedStoryText.includes('Simulation Cost Structure'))
   assert.doesNotMatch(selectedStoryMarkup, /Scenario A|Scenario B|Trial/)
   assert.doesNotMatch(selectedStoryMarkup, /Simulated − Reference|Reference − Simulated|Gross Profit|GP Margin|OP Margin/)
   const blankWorkCenterWorkbook = XLSX.utils.book_new()
@@ -169,8 +173,8 @@ try {
       reconciliation: { reconciled: true }
     }
   }))
-  for (const label of ['Cost Breakdown', 'REF', 'CUR', 'GAP', '%GAP', 'Material', 'Labor', 'Burden', 'Standard Cost']) {
-    assert.ok(summaryMarkup.includes(label), `Cost Breakdown still exposes ${label}`)
+  for (const label of ['Cost Element', 'REF', 'CUR', 'GAP', '%GAP', 'Material', 'Labor', 'Burden', 'Standard Cost']) {
+    assert.ok(summaryMarkup.includes(label), `the Cost Element summary still exposes ${label}`)
   }
 
   console.log('Cost Breakdown review feedback component checks passed.')

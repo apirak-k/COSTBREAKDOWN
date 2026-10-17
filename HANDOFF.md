@@ -1,30 +1,35 @@
 # Current Handoff — Simulation BOM / RTG follow-up — 2026-10-17
 
 - Repository: `/Users/bubu/COSTBREAKDOWN`, `apirak-k/COSTBREAKDOWN`.
-- Branch: `logic/simulation-finalized-implementation`. Fetched remote HEAD: `a782d95cd5ee2825570049d7ef1b890637dbd3e1`. Starting local HEAD: `e7bec147fed4c0fc6081f0d02105dc8db5233f38`. Final local follow-up commit SHA is included in the completion report. **Not pushed.**
-- Scope: the three requested refinements are implemented. Closure remains **NOT CLOSED** because a combined extreme Routing minimum state still overflows effect values, and the original MacBook Neo viewport/zoom remains unknown.
+- Branch: `logic/simulation-finalized-implementation`. Starting local HEAD and fetched `origin/logic/simulation-finalized-implementation` HEAD: `348f445076c9554dd646ef36258a1231f488d867` for both. The final local commit SHA is in the completion report. **Not pushed.**
+- Pre-existing local change: `vite.config.ts` was modified before this round. It is unrelated, must remain untouched, and is excluded from the task commit.
+- Scope: finish Simulation Graph presentation requirements A1–A10 and Cost Breakdown visual consistency fixes B1–B3. No formulas, financial calculations, GAP semantics, Simulation semantics, selection/reordering behavior, or numeric precision policy are in scope.
 
 ## Changes
 
-- Parameter Cost Effect and Total now use red for positive cost changes, green for negative cost changes, and neutral for zero. Number signs and precision are unchanged.
-- Valid minimum decrement remains unchanged and silent for calculable rows. Legitimate unavailable explanations remain visible for protected/unmatched or genuinely unavailable rows.
-- All six desktop and mobile Simulation parameter editors share a 6px left inset. Their right edges, numeric axes, and table column percentages remain in place; `NumericInput` itself is unchanged.
-- Graph, Result, Economic calculations, formulas, lifecycle behavior, and shared input logic were not edited in this follow-up.
+- Simulation Graph uses the lighter shared Material/Labor/Burden palette, outlines visible Standard Cost contributors as a group, and retains soft snapping to visible cost boundaries.
+- Legend marks match their graph items, OFF states remain visible, and the legend sits in the graph header with responsive wrapping. Y-axis UOM stays attached to the axis.
+- Data tooltips use immediate custom interaction; blank graph space has no native tooltip, while accessible graph naming remains.
+- Cost Breakdown adds a divider after Standard Cost Gap, gives the existing sticky-shell spacing the workspace background, and indents BOM/RTG child labels with the accepted Simulation hierarchy style without shifting numeric columns.
+- Relevant specs, palette references, and focused verification scripts are synchronized. The combined RTG extreme-value overlap remains deferred by request.
 
 ## Verification
 
-- PASS: `npm run build`, `node scripts/verify_numeric_input.mjs`, `node scripts/verify_simulation_regression.mjs`, `node --experimental-strip-types scripts/verify_simulation_story_view.ts`, `node --experimental-strip-types scripts/verify_simulation_corrections.ts`, `node --experimental-strip-types scripts/verify_simulation_history.ts`, `node --experimental-strip-types scripts/verify_row_drag_selection.ts`, `node --experimental-strip-types scripts/verify_simulation_result.ts`, `node --experimental-strip-types scripts/verify_simulation_economics.ts`, and `git diff --check`.
-- PASS: browser regression script — 35 checks for row interactions, selection, drag, minimum stop, effect alignment, Graph smoke, mobile overflow, and runtime errors. Laptop geometry script — 4 checks at 1204×753 and 1280×800.
-- PASS: 20 focused Chrome checks at 1440, 1366, 1280, 1204, 1024, and 390px. All six input boxes have a 6px left inset, retain their right edges, remain consistent, and cause no horizontal scrolling. Positive/negative/zero colors and signs pass for BOM and Routing. Each of the six minima was tested individually: effect detail stayed 31px high without an unavailable/minimum warning, and protected rows retained their legitimate explanation.
-- Browser evidence (synthetic Complete Mock): `/Users/bubu/.codex/visualizations/2026/10/17/01a1493d-d084-7b01-9cb1-385ce1297a44/simulation-bom-rtg/followup/`.
+- **PASS — build:** `npm run build` (TypeScript and Vite production build).
+- **PASS — Graph:** `node --experimental-strip-types scripts/verify_simulation_story_view.ts`; `node scripts/verify_simulation_regression.mjs`.
+- **PASS — Cost Breakdown:** `node --experimental-strip-types scripts/verify_cbd_summary_ux.ts`, `node scripts/verify_cbd_parameter_cost_effect.mjs`, `node --experimental-strip-types scripts/verify_cost_breakdown_view.ts`, `node --experimental-strip-types scripts/verify_cost_breakdown_sort.ts`, `node --experimental-strip-types scripts/verify_cbd_reorder_history.ts`, `node --experimental-strip-types scripts/verify_row_drag_selection.ts`, and `node scripts/verify_cost_breakdown_review_feedback.mjs`.
+- **PASS — diff:** `git diff --check`.
+- **PASS — Chrome responsive browser check:** 1440×900, 1280×900, 768×900, and 390×844. The SVG scale is uniform at each tested size; Selling Price circle width/height ratio measured 1.0000 (within 0.00002), page width did not overflow, and `THB/PC` remained attached to the Y axis. The graph header kept title/legend together and removed the divider when stacked.
+- **PASS — Graph interactions:** custom data tooltip appeared in 33–43 ms; moving to blank graph space cleared it. Standard Cost outline remained visible for REF/CUR/SIM and followed visible contributors after Material was filtered off. Selling Price OFF removed its markers and muted its line sample. Ruler moved near a visible Standard Cost boundary and snapped to it; a separate move to 117.00 remained free between boundaries. Keyboard Home/ArrowUp/End/PageDown produced `0` / `3` / `300` / `270` on the fixture scale.
+- **PASS — Cost Breakdown browser check at 1280×900 and 390×844:** Standard Cost Gap has a 1px divider, sticky shell retains its 8px gap with the workspace background, and there was no horizontal page overflow. Expanded child label began 18px to the right of its parent label while all measured numeric-column left edges remained unchanged.
+- Browser screenshots (synthetic Complete Mock): `/Users/bubu/.codex/visualizations/2026/10/17/01a1493d-d084-7b01-9cb1-385ce1297a44/simulation-bom-rtg/followup/`.
+- Build still reports existing ExcelJS browser-externalization and large-chunk warnings. The review-feedback verifier emits existing React SSR `useLayoutEffect` warnings but exits successfully.
 
-## Known failures and limits
+## Deferred items and limits
 
-- **FAIL — combined extreme minima:** setting Routing Manning to `0`, Capacity to `0.0001`, and Yield to `0.01%` together produces very large opposing Effect values that overlap in the detail row. At Capacity minimum, the existing Result panel also overflows with large valid derived values. Formula, attribution, Result, and Economic changes were expressly out of scope and remain untouched.
-- **NOT VERIFIED:** physical MacBook Neo viewport/zoom, Safari/Firefox, physical touch, and screen-reader behavior.
-- Zero-boundary attribution is tracked in a separate follow-up commit with regression coverage; it changes Parameter Cost Effect values only, not the main BOM/RTG row-cost calculation. The unrelated `vite.config.ts` change remains local; a build using the remote Vite config also passed.
-- Existing audit findings remain as recorded in the prior checkpoint: full audit has development dependency findings; production audit previously had zero High/Critical findings. Dependencies were not changed or re-audited.
-- Build retains existing ExcelJS browser-externalization and large-chunk warnings. Do not start the separate Graph audit automatically.
+- **DEFERRED:** combined Routing minima Manning=`0`, Capacity=`0.0001`, Yield=`0.01%` can produce long valid Parameter Cost Effect values that overlap. This round must not add truncation, scientific notation, or a new precision policy.
+- **NOT VERIFIED:** the user's physical MacBook Neo display scaling/zoom, touch behavior, screen-reader behavior, and browsers other than the tested Chrome environment.
+- Keep historical checkpoints below for context; this current section supersedes their status for the active round.
 
 ---
 

@@ -34,7 +34,8 @@ const sum = values => values.reduce((total, value) => total + value, 0)
 
 function detailRowMarkup(markup, label) {
   const rows = [...markup.matchAll(/<tr\b[\s\S]*?<\/tr>/g)].map(match => match[0])
-  const row = rows.find(candidate => new RegExp(`<th[^>]*>${label}<\\/th>`).test(candidate))
+  const row = rows.find(candidate => [...candidate.matchAll(/<th[^>]*>([\s\S]*?)<\/th>/g)]
+    .some(match => visibleText(match[1]) === label))
   assert.ok(row, `expected a ${label} row`)
   return row
 }
@@ -261,7 +262,8 @@ try {
     formatters.formatVariance(bomPositive.effects.usage, 4), formatters.formatVariance(bomPositive.effects.price, 4),
     formatters.formatVariance(bomPositive.effects.loss, 4), formatters.formatVariance(2.2, 4)
   ], 'BOM Parameter Cost Effect row reuses LMDI and carries the same actual material gap as the main row')
-  assert.match(bomMarkup, /border-l-2 border-slate-300/, 'BOM details have a restrained parent-row grouping accent')
+  assert.match(bomMarkup, /<span class="ml-2 inline-block whitespace-nowrap border-l-2 border-slate-300 pl-3">/,
+    'BOM detail identity is inset under its parent row with the shared hierarchy guide')
   assert.match(bomMarkup, /border-t border-slate-200 bg-white[\s\S]*border-b border-slate-200 bg-white font-bold/,
     'BOM detail is one white group with a stronger Parameter Cost Effect row')
   assert.match(detailRowMarkup(bomMarkup, 'Parameter Cost Effect'), /font-bold/)
@@ -358,6 +360,8 @@ try {
   ], 'Routing Parameter Cost Effect exposes all five existing LMDI factors and the actual Candidate Gap')
   const routingEffectRowMarkup = detailRowMarkup(routingMarkup, 'Parameter Cost Effect')
   assert.match(routingEffectRowMarkup, /font-bold/)
+  assert.match(routingMarkup, /<span class="ml-2 inline-block whitespace-nowrap border-l-2 border-slate-300 pl-3">/,
+    'Routing detail identity is inset under its parent row with the shared hierarchy guide')
   assertClose(routingParameterEffectGap, 1.2,
     'the unrounded five-factor Routing Parameter Cost Effect reconciles to the Candidate Main Gap')
   assert.doesNotMatch(routingMarkup, /Total Effect|<th[^>]*>Cost Effect<\/th>/,
@@ -722,7 +726,7 @@ try {
   try {
     const { CostBreakdownPage, GapContributionChart } = await vite.ssrLoadModule('/src/features/cost-breakdown/CostBreakdownPage.tsx')
     assert.deepEqual(COST_ELEMENT_COLORS, {
-      material: '#4F7CAC', labor: '#D89B45', burden: '#8067B7', standardCost: '#334155'
+      material: '#6f99c6', labor: '#e5b46a', burden: '#9a82c6', standardCost: '#334155'
     }, 'all CBD Cost element colors come from the finalized shared palette')
     const chartSegments = [
       { key: 'material', label: 'Material', full: 9.31, selected: 4.2, color: COST_ELEMENT_COLORS.material },
@@ -827,6 +831,10 @@ try {
     assert.match(pageText, /WC-CUR/)
     const subheader = pageMarkup.match(/<header aria-label="Cost Breakdown subheader"[\s\S]*?<\/header>/)?.[0]
     assert.ok(subheader, 'the subheader remains a distinct fixed row')
+    const gapLegendClass = subheader.match(/<div role="group" aria-label="Cost element color legend" class="([^"]+)"/)?.[1]
+    assert.ok(gapLegendClass)
+    assert.match(gapLegendClass, /(?:^|\s)border-l border-slate-300 pl-2(?:\s|$)/,
+      'Standard Cost Gap title/value is separated from MAT/LB/BD by a subtle divider')
     assert.match(subheader, /class="shrink-0 overflow-x-auto border border-slate-300 bg-white"/,
       'CBD subheader uses the same quiet border and white framing as the Master Data toolbar')
     assert.match(subheader, /flex min-w-\[1000px\] flex-nowrap items-center gap-1\.5 px-1\.5 py-1/,
@@ -879,6 +887,10 @@ try {
     'CBD page content does not add a nested vertical scroll owner')
   const stickyShellClass = pageMarkup.match(/data-cbd-sticky-shell="true" class="([^"]+)"/)?.[1]
   assert.ok(stickyShellClass)
+  assert.match(stickyShellClass, /(?:^|\s)pb-2(?:\s|$)/,
+    'the existing spacing below the sticky CBD top area remains intact')
+  assert.match(stickyShellClass, /(?:^|\s)lg:bg-slate-100\/70(?:\s|$)/,
+    'the sticky-area gap blends into the surrounding workspace background')
   assert.match(stickyShellClass, /lg:sticky[^\"]*lg:top-0/,
     'Subheader and overview remain stuck to the top of Main while it scrolls')
   assert.ok(pageMarkup.indexOf('aria-label="Cost Breakdown subheader"') < pageMarkup.indexOf('id="cost-breakdown-overview-panels"')
@@ -935,8 +947,10 @@ try {
     assert.match(pageSource, /onClick=\{\(\) => \{ setSortMode\(option\.value\); onResetManualOrderHistory\(\); setSortResetToken\(token => token \+ 1\); close\(\) \}\}/,
       'choosing any sort mode, including the current one, reapplies sorting, clears reorder history and Details, and closes the overlay')
     const popoverSource = readFileSync(new URL('../src/features/cost-breakdown/components/CostBreakdownPopover.tsx', import.meta.url), 'utf8')
-    assert.match(popoverSource, /import \{ Tooltip \} from '\.\.\/\.\.\/\.\.\/shared\/ui\/Tooltip'/,
-      'Status and Sort reuse the shared Master Data toolbar Tooltip')
+    assert.match(popoverSource, /import \{ useTransientInteraction \} from '\.\.\/\.\.\/\.\.\/shared\/ui\/transient-interactions'/,
+      'Status and Sort reuse the shared transient-interaction handling')
+    assert.match(popoverSource, /aria-haspopup="dialog"/,
+      'Status and Sort expose their options as dialogs from one toolbar trigger')
     assert.match(popoverSource, /setTimeout\(preview, 120\)/, 'toolbar hover preview keeps Master Data timing')
     assert.match(popoverSource, /\}, 150\)/, 'toolbar menu leaves use Master Data travel grace')
     assert.match(popoverSource, /const centeredLeft = triggerBounds\.left \+ \(triggerBounds\.width - panelWidth\) \/ 2[\s\S]*const left = Math\.max\(8, Math\.min\(centeredLeft, window\.innerWidth - panelWidth - 8\)\)/,
