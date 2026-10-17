@@ -39,7 +39,6 @@ export const MasterDataPage: React.FC<MasterDataPageProps> = ({
     masterDataUiState,
     masterDataRole,
     masterDataSnapshot,
-    masterDataLastSavedSnapshot,
     masterDataLastSavedSnapshots,
     masterDataSizing,
     importSnapshotFromExcel,
@@ -96,11 +95,6 @@ export const MasterDataPage: React.FC<MasterDataPageProps> = ({
     role,
     getDatasetSaveState(masterDataSnapshots[role], masterDataLastSavedSnapshots[role])
   ])) as Record<MasterDataRole, ReturnType<typeof getDatasetSaveState>>, [masterDataSnapshots, masterDataLastSavedSnapshots])
-  const hasLastSavedByRole = useMemo(() => Object.fromEntries(roles.map(role => [
-    role,
-    Boolean(masterDataLastSavedSnapshots[role])
-  ])) as Record<MasterDataRole, boolean>, [masterDataLastSavedSnapshots])
-
   const handleWarningNavigation = (item: MasterDataQualityItem, preserveAllView = false) => {
     setMasterDataRole(item.role)
     updateMasterDataUiState({ type: 'set-mode', mode: 'edit' })
@@ -279,9 +273,7 @@ export const MasterDataPage: React.FC<MasterDataPageProps> = ({
       <MasterDataWorkspaceHeader
         product={product}
         snapshot={masterDataSnapshot}
-        lastSavedSnapshot={masterDataLastSavedSnapshot}
         saveStates={saveStates}
-        hasLastSavedByRole={hasLastSavedByRole}
         role={masterDataRole}
         onRoleChange={setMasterDataRole}
         onSaveWorkingDataset={() => saveMasterDataWorkingDataset(masterDataRole)}

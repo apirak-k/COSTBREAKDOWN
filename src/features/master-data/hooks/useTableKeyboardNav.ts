@@ -71,7 +71,7 @@ function cellValue(cell: GridCell): string {
 
 function parseClipboardMatrix(text: string): string[][] {
   const lines = text.replace(/\r\n?/g, '\n').split('\n')
-  if (lines.length > 1 && lines[lines.length - 1] === '') lines.pop()
+  while (lines.length > 0 && lines[lines.length - 1] === '') lines.pop()
   return lines.map(line => line.split('\t'))
 }
 
@@ -615,19 +615,13 @@ export function useTableKeyboardNav({
       if (!start) return
       const clipboardMatrix = parseClipboardMatrix(event.clipboardData.getData('text/plain'))
       const cells: SpreadsheetPasteCell[] = []
-      const selectedPositions = getSelectedPositions(matrix)
 
-      if (clipboardMatrix.length === 1 && clipboardMatrix[0].length === 1 && selectedPositions.length >= 2) {
-        selectedPositions.forEach(({ row, column }) => {
-          const candidate = matrix[row][column]
+      if (clipboardMatrix.length > 1 && clipboardMatrix.every(row => row.length === 1)) {
+        clipboardMatrix.forEach(([value], rowOffset) => {
+          const candidate = matrix[start.row + rowOffset]?.[start.column]
+          if (!candidate) return
           const { gridRowId, gridField } = candidate.dataset
-          if (gridRowId && gridField) cells.push({ rowId: gridRowId, field: gridField, value: clipboardMatrix[0][0] })
-        })
-      } else if (clipboardMatrix.length > 1 && clipboardMatrix.every(row => row.length === 1) && selectedPositions.length > 1) {
-        selectedPositions.slice(0, clipboardMatrix.length).forEach(({ row, column }, index) => {
-          const candidate = matrix[row][column]
-          const { gridRowId, gridField } = candidate.dataset
-          if (gridRowId && gridField) cells.push({ rowId: gridRowId, field: gridField, value: clipboardMatrix[index][0] })
+          if (gridRowId && gridField) cells.push({ rowId: gridRowId, field: gridField, value })
         })
       } else {
         clipboardMatrix.forEach((pasteRow, rowOffset) => pasteRow.forEach((value, columnOffset) => {

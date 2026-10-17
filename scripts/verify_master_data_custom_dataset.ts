@@ -63,12 +63,22 @@ assert.equal(updated.customMasterData?.product.productCode, 'CUSTOM-001')
 const lastSaved = { snapshot: snapshot('custom-saved'), prepared: true, sizing: { bomCount: 4 } }
 const savedCustomSession: ProductSession = {
   ...updated,
+  customMasterData: {
+    ...updated.customMasterData!,
+    sizing: { bomCount: 4 },
+    bom: [{
+      id: 'custom-bom-1', itemCode: 'MAT-CUSTOM', description: 'Custom material', consumption: 1,
+      unit: 'PC', price: 10, loss: 0, confidence: {}
+    }]
+  },
   customLastSavedMasterData: lastSaved,
   customDatasetSizing: { bomCount: 4 }
 }
 const clearedCustom = clearMasterDataDatasetState(savedCustomSession, 'custom')
-assert.equal(clearedCustom.customMasterData?.bom.length, 0, 'Clear removes only Custom Working rows')
-assert.deepEqual(clearedCustom.customDatasetSizing, {}, 'Clear resets only Custom sizing')
+assert.equal(clearedCustom.customMasterData?.bom.length, 1, 'Clear preserves Custom Working row count')
+assert.equal(clearedCustom.customMasterData?.bom[0].id, 'custom-bom-1', 'Clear preserves Custom Working row identity')
+assert.equal(clearedCustom.customMasterData?.bom[0].itemCode, '', 'Clear blanks Custom Working row values')
+assert.deepEqual(clearedCustom.customDatasetSizing, { bomCount: 4 }, 'Clear preserves Custom sizing')
 assert.strictEqual(clearedCustom.customLastSavedMasterData, lastSaved, 'Clear retains Custom Last Saved')
 assert.strictEqual(clearedCustom.snapshotPair?.reference, reference)
 assert.strictEqual(clearedCustom.snapshotPair?.current, current)

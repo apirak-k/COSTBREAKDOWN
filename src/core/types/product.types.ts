@@ -108,6 +108,8 @@ export interface ProductSession {
   lastSavedMasterData?: Partial<Record<import('./snapshot.types').ComparisonRole, LastSavedMasterDataDataset>>
   /** Custom's Last Saved state is isolated from the CBD Reference/Current pair. */
   customLastSavedMasterData?: LastSavedMasterDataDataset
+  /** Initial Working reset targets for each dataset role, captured when the workbook is opened or a dataset is loaded. */
+  initialMasterDataBaseline?: Partial<Record<import('./snapshot.types').MasterDataRole, LastSavedMasterDataDataset>>
 }
 
 import { WorkCenterRate, BOMItem, RoutingStep, CostDriver, DriverRcaRecord } from './cost.types'

@@ -74,13 +74,10 @@ Do not promote an entry to a user decision based on implementation, test results
 
 ### P-007 — Reset and Export presentation before Last Saved exists
 
-- **Status:** `PROVISIONAL — AI CHOICE`
-- **Choice:** disable Reset and Export when the viewed dataset has no `Last Saved` dataset, and provide a short title explaining that Reset has no saved state to restore or that the user must Save before Export.
-- **Why:** both actions lack a valid source in that state, so disabling them avoids a no-op while keeping the reason discoverable.
-- **Must preserve:** Reset acts only on the viewed dataset's Working state and uses that dataset's Last Saved snapshot; Export reads only that dataset's Last Saved snapshot. This presentation does not create Save requirements for comparison or change dataset lifecycle.
-- **Reversible:** button availability and explanatory copy can change after user feedback while keeping the finalized Reset/Export data sources intact.
-- **Review trigger:** explicit user feedback or an accessibility/usability finding.
-- **Related contract:** [`MASTER_DATA.md`](specs/MASTER_DATA.md#dataset-lifecycle).
+- **Status:** `SUPERSEDED — USER DECISION (2026-10-17)`
+- **Earlier AI choice:** Disable Reset and Export when the viewed dataset has no `Last Saved` dataset, and explain why through a tooltip.
+- **Final decision:** Master Data toolbar actions stay enabled and visually active regardless of dataset state. Reset restores the latest `Last Saved` snapshot when one exists, otherwise the initial `Working` reset baseline. Export always exports the current `Working` snapshot, including unsaved edits.
+- **Authority:** [`MASTER_DATA.md`](specs/MASTER_DATA.md#session-lifecycle) and [`MASTER_DATA_TOOLBAR_PREPARE_UX.md`](specs/MASTER_DATA_TOOLBAR_PREPARE_UX.md#master-data-interaction-and-dataset-correction--2026-10-17).
 
 ### P-008 — Confirm Master Data Clear
 

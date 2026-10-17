@@ -254,15 +254,16 @@ Reference | Current | Custom
 Each dataset has:
 - In-session `Working` state.
 - In-session `Last Saved` state.
+- An initial `Working` reset baseline captured when that dataset is opened or loaded.
 - State does not persist across application restarts; closing the session resets the workspace.
 
 ## 3.2 Dataset Actions
 
 - **Save:** Copies viewed dataset's `Working` state into its `Last Saved` state.
-- **Reset:** Restores viewed dataset's `Working` state from its `Last Saved` state.
-- **Export:** Exports viewed dataset's `Last Saved` state to Excel. Working changes that have not been saved are not exported.
+- **Reset:** Restores viewed dataset's `Working` state from its latest `Last Saved` state when one exists; otherwise restores its initial `Working` reset baseline. Reset is always available. Reset All applies the same rule independently to each dataset.
+- **Export:** Exports the viewed dataset's current `Working` state to Excel, including unsaved edits. Export is always available.
 - **Import:** Replaces viewed dataset's `Working` state. Initializes Sizing counts from imported rows.
-- **Clear:** Clears viewed dataset's `Working` state (metadata, rows, Sizing) while retaining `Last Saved`.
+- **Clear:** Clears editable values and metadata in the viewed dataset's `Working` state while preserving every table row, row order, supported row identity, columns, structural fields, and Sizing counts. It retains `Last Saved` and remains undoable; Reset restores the applicable reset baseline.
 - **Clone:** Generic dataset copy.
   - Active viewed dataset = Destination.
   - User chooses Source dataset (`Reference`, `Current`, or `Custom`).
@@ -278,6 +279,8 @@ All structural changes belong in Master Data:
 - Deleting rows,
 - Sizing table row counts,
 - Reordering rows.
+
+Clear Dataset clears row values without deleting, compacting, recreating, or reindexing rows. A newline-separated single-column paste fills consecutive rows in that same column from the focused cell without requiring Block Action; pasted values continue through the existing validation and numeric parsing paths.
 
 Custom is the recommended workspace when the user wants to experiment with structural differences without mutating Reference or Current.
 

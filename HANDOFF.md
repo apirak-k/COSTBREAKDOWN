@@ -1,4 +1,41 @@
-# Current Handoff — Simulation Graph / CBD final visual cleanup — 2026-10-17
+# Current Handoff — Master Data toolbar and editing interactions — 2026-10-17
+
+- Repository: `/Users/bubu/COSTBREAKDOWN`, `apirak-k/COSTBREAKDOWN`.
+- Branch: `logic/simulation-finalized-implementation`.
+- Starting local HEAD: `f53c363f5e6b49ba5832ad095eceb56a7c6a7f81`.
+- Fetched remote HEAD: `26560a41392b6b3d5c3023d56aeda8415b684144`. The branch already had one unpublished local commit at the start of this round; keep it and do not push.
+- Final local commit: the single focused commit at `HEAD` for this round; its exact SHA is reported in the completion message. **NOT PUSHED.**
+- Pre-existing local change: `vite.config.ts` remains untouched and excluded from this task's commit.
+- Scope: Master Data Clone interaction, toolbar availability, Reset baselines, current Working export, value-only Clear, direct vertical spreadsheet paste, and matching specs/verifiers. No Simulation, Cost Breakdown, formulas, or import/export file format changes.
+
+## Changes
+
+- Clone is one trigger-plus-menu hover region with delayed hover opening/closing, click pinning, Escape/outside/trigger dismissal, keyboard activation, and source-selection dismissal. Copy semantics remain unchanged.
+- Master Data toolbar actions have no dataset-state `disabled`, `aria-disabled`, faded state, or not-allowed cursor. Clean Save and no-save Reset remain invokable.
+- Each dataset records an initial Working reset baseline when created or loaded. Reset prefers that baseline until a Last Saved snapshot exists, then uses the latest Last Saved snapshot. History restores baseline changes with the Working snapshot.
+- Export serializes current Working values, including unsaved changes.
+- Clear blanks editable metadata and row values while preserving row arrays, IDs/order, columns, required Routing sequence, and Sizing counts; Last Saved remains intact.
+- Newline-separated single-column paste starts at the focused cell and moves down the same column without requiring Block Action or selecting rows. A one-value paste changes only the focused cell, even with a range selected. Trailing empty lines are ignored; parsing and validation paths remain active.
+- Updated the Master Data canonical spec, toolbar checklist, focused UI/clear/paste verifiers, and this handoff. The older custom-dataset clear assertion was updated to preserve row structure and sizing.
+
+## Verification
+
+- **PASS — build:** `npm run build` (existing ExcelJS browser-externalization and >500 KB chunk warnings remain).
+- **PASS — Master Data UI:** `node scripts/verify_master_data_ui_state.mjs`.
+- **PASS — Master Data mock fixtures:** `node scripts/verify_master_data_mock_load.mjs`.
+- **PASS — Vite SSR focused verifiers:** `verify_master_data_clear_dataset.ts`, `verify_master_data_spreadsheet_batch.ts`, `verify_master_data_clone_readiness.ts`, `verify_master_data_custom_dataset.ts`, `verify_master_data_edit_history.ts`, `verify_master_data_handoff.ts`, `verify_master_data_rename_and_empty_edit.ts`, `verify_master_data_row_order.ts`, and `verify_master_data_toolbar_prepare_ux.ts`.
+- **PASS — browser, isolated headless Chrome:** rendered Master Data at 1440×900 and 390×844. Clone hover/pointer-transfer/leave, pin, trigger/outside/Escape, Space activation, and source selection passed. Toolbar states/actions, clean Save, no-save Reset, latest-saved Reset, Clear preservation and Clear → Reset passed. Export fallback workbook contained unsaved Price `16.00` while the last saved value was `14.00`. Single-cell paste (including with a cell range selected) changed only the focused cell; vertical multi-row paste, trailing newline handling, row-selection independence, and numeric validation passed through the rendered table's paste handler. Document width stayed at the viewport width; no browser runtime errors were observed.
+- **NOT VERIFIED — browser input:** OS-level Ctrl+V / Cmd+V delivery did not produce a native paste event through headless CDP. The focused-cell paste event path was verified directly in the rendered browser. Native Save As was not available for end-to-end selection in headless Chrome; the browser-download fallback passed.
+- **PASS — `git diff --check`.**
+
+## Remaining limits
+
+- Human acceptance is still pending. The narrow screenshot shows the existing table-local horizontal scroll area while the document itself remains within 390px; this round did not change table layout.
+- The isolated browser profile and temporary downloaded workbook were used only for verification; they are not repository data.
+
+---
+
+# Historical Handoff — Simulation Graph / CBD final visual cleanup — 2026-10-17
 
 - Repository: `/Users/bubu/COSTBREAKDOWN`, `apirak-k/COSTBREAKDOWN`.
 - Branch: `logic/simulation-finalized-implementation`. Starting local HEAD, fetched remote HEAD, and verified `origin/logic/simulation-finalized-implementation` all matched at `26560a41392b6b3d5c3023d56aeda8415b684144`.

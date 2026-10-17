@@ -6,51 +6,81 @@ import {
 import type { CostSnapshot, MasterDataRole, ProductSession } from '../core'
 import { emptyProductMaster } from './seed-data'
 import { markMasterDataChanged } from './master-data-revision'
+import { getMasterDataSnapshot } from './master-data-datasets'
+
+function clearSnapshotValues(snapshot: CostSnapshot, role: MasterDataRole): CostSnapshot {
+  return {
+    ...snapshot,
+    product: { ...emptyProductMaster },
+    effectiveDate: '',
+    sourceRef: '',
+    ...(role === 'custom' ? { comparisonRole: undefined } : { comparisonRole: role }),
+    remark: '',
+    rates: snapshot.rates.map(({ isGeneratedBusinessIdentity: _generated, autoRenamedFrom: _renamed, ...row }) => ({
+      ...row,
+      workCenterCode: '',
+      description: '',
+      laborRate: null,
+      burdenRate: null,
+      effectiveDate: '',
+      note: undefined,
+      sourceRef: undefined,
+      confidence: {},
+      additionalFields: undefined
+    })),
+    bom: snapshot.bom.map(({ isGeneratedBusinessIdentity: _generated, autoRenamedFrom: _renamed, ...row }) => ({
+      ...row,
+      itemCode: '',
+      description: '',
+      consumption: null,
+      unit: '',
+      price: null,
+      loss: null,
+      note: undefined,
+      sourceRef: undefined,
+      confidence: {},
+      additionalFields: undefined
+    })),
+    routing: snapshot.routing.map(({ isGeneratedBusinessIdentity: _generated, autoRenamedFrom: _renamed, ...row }) => ({
+      ...row,
+      operationCode: undefined,
+      processCode: undefined,
+      processName: '',
+      workCenterId: undefined,
+      manning: null,
+      capacity: null,
+      yield: null,
+      note: undefined,
+      sourceRef: undefined,
+      confidence: {},
+      additionalFields: undefined
+    })),
+    additionalFields: undefined,
+    warnings: undefined
+  }
+}
 
 export function clearMasterDataDatasetState(session: ProductSession, role: MasterDataRole): ProductSession {
   const pair = session.snapshotPair ?? sessionToSnapshotPair(session)
-  const emptySnapshot: CostSnapshot = {
-    id: `${session.id}:${role}`,
-    product: { ...emptyProductMaster },
-    effectiveDate: '',
-    sourceRef: `Empty dataset (${role})`,
-    ...(role === 'custom' ? {} : { comparisonRole: role }),
-    status: 'draft',
-    remark: '',
-    rates: [],
-    bom: [],
-    routing: [],
-    sizing: undefined
-  }
+  const clearedSnapshot = clearSnapshotValues(getMasterDataSnapshot(session, pair, role), role)
   if (role === 'custom') {
-    return {
+    return markMasterDataChanged({
       ...session,
-      customMasterData: emptySnapshot,
-      customDatasetSizing: {},
+      customMasterData: clearedSnapshot,
       updatedAt: new Date().toISOString()
-    }
-  }
-  const nextPair = {
-    ...pair,
-    [role]: emptySnapshot
-  }
-  const nextSizing = {
-    reference: session.datasetSizing?.reference ?? {},
-    current: session.datasetSizing?.current ?? {},
-    [role]: {}
+    })
   }
 
-  const updated = markMasterDataChanged(applySnapshotPairToSession({
+  const nextPair = { ...pair, [role]: clearedSnapshot }
+  const updated = applySnapshotPairToSession({
     ...session,
-    datasetSizing: nextSizing,
     preparedSnapshotRoles: {
       ...getSnapshotRoleReadiness(session),
       [role]: false
     },
     updatedAt: new Date().toISOString()
-  }, nextPair))
-
-  // The legacy session projection represents Current. Do not let Reference's
-  // fallback Product repopulate a Current dataset that was explicitly cleared.
-  return role === 'current' ? { ...updated, product: { ...emptyProductMaster } } : updated
+  }, nextPair)
+  const marked = markMasterDataChanged(updated)
+  // Current's legacy product projection otherwise falls back to Reference metadata.
+  return role === 'current' ? { ...marked, product: { ...emptyProductMaster } } : marked
 }

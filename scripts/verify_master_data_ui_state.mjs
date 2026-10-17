@@ -176,6 +176,13 @@ const pressedButton = (markup, label) => {
   return /\baria-pressed="true"/.test(match[1])
 }
 
+const buttonAttributes = (markup, label) => {
+  const match = [...markup.matchAll(/<button\b([^>]*)>([\s\S]*?)<\/button>/g)]
+    .find(([, attributes]) => attributes.match(/\baria-label="([^"]+)"/)?.[1] === label)
+  assert.ok(match, `Expected toolbar button "${label}"`)
+  return match[1]
+}
+
 const renderMasterDataPage = async (uiState, storeOverrides = {}) => {
   globalThis.__MASTER_DATA_UI_TEST_STORE__ = makeStore(uiState, storeOverrides)
   const { MasterDataPage } = await vite.ssrLoadModule('/src/features/master-data/MasterDataPage.tsx')
@@ -593,6 +600,26 @@ try {
   assert.match(keyboardSource, /event\.key\.toLowerCase\(\) === 'y'[\s\S]*onRedo/, 'Ctrl/Cmd+Y invokes page-level Redo')
   assert.match(keyboardSource, /handleCopy[\s\S]*setData\('text\/plain'/, 'copy writes the selected spreadsheet cells as tabular text')
   assert.match(keyboardSource, /handlePaste[\s\S]*clipboardMatrix\.forEach/, 'paste maps tabular clipboard cells into the visible grid')
+  const clipboardParserSource = keyboardSource.slice(keyboardSource.indexOf('function parseClipboardMatrix'), keyboardSource.indexOf('function rowIdFromCellKey'))
+  assert.match(clipboardParserSource, /text\.replace\(\/\\r\\n\?\/g, '\\n'\)/,
+    'spreadsheet paste normalizes Windows and classic Mac line endings')
+  assert.match(clipboardParserSource, /while \(lines\.length > 0 && lines\[lines\.length - 1\] === ''\) lines\.pop\(\)|\.replace\(\/\\n\+\$\/[^)]*\)/,
+    'paste trims every trailing newline without introducing empty rows')
+  const pasteHandlerSource = keyboardSource.slice(keyboardSource.indexOf('const handlePaste ='), keyboardSource.indexOf('const handleCut ='))
+  assert.match(pasteHandlerSource, /const activeCell = target\?\.closest<HTMLElement>\('\[data-grid-cell="true"\]'\)[\s\S]*const startKey = getCellKey\(activeCell\)[\s\S]*locateCell\(matrix, startKey\)/,
+    'paste starts from the focused cell and does not require a Block Action selection')
+  assert.match(pasteHandlerSource, /if \(clipboardMatrix\.length > 1 && clipboardMatrix\.every\(row => row\.length === 1\)\) \{\s*clipboardMatrix\.forEach\(\(\[value\], rowOffset\) => \{\s*const candidate = matrix\[start\.row \+ rowOffset\]\?\.\[start\.column\]/,
+    'focused single-column multiline paste fills consecutive existing cells downward in the same column')
+  assert.doesNotMatch(pasteHandlerSource, /selectedPositions/,
+    'single-value paste always targets only the focused cell, even when a cell range is selected')
+  assert.match(pasteHandlerSource, /clipboardMatrix\.forEach\(\(pasteRow, rowOffset\)[\s\S]*columnOffset/,
+    'existing safe tab-separated multi-column paste mapping remains available')
+  assert.match(bomSource, /const handlePasteCells = useCallback[\s\S]*parseNumber\(cell\.value\)[\s\S]*applyPasteUpdates\(updates\)/,
+    'BOM paste keeps numeric parsing and uses the shared Working update path')
+  assert.match(wcSource, /const handlePasteCells = useCallback[\s\S]*parseNumber\(cell\.value\)[\s\S]*applyPasteUpdates\(updates\)/,
+    'Work Center paste keeps numeric parsing and uses the shared Working update path')
+  assert.match(routingSource, /const handlePasteCells = useCallback[\s\S]*parseNumber\(cell\.value\)[\s\S]*parsePercentage\(cell\.value\)[\s\S]*applyPasteUpdates\(updates\)/,
+    'Routing paste keeps numeric/percentage parsing and uses the shared Working update path')
   assert.match(keyboardSource, /const setContiguousRange = \(anchorKey: string, targetKey: string\)[\s\S]*targetField = target \? matrix\[target\.row\]\[target\.column\]\?\.dataset\.gridField[\s\S]*field !== targetField[\s\S]*matrix\[row\]\?\.find\(cell => cell\.dataset\.gridField === field\)/, 'contiguous cell selection stays within one semantic column')
   assert.doesNotMatch(keyboardSource, /columnMin|columnMax/, 'cell range selection never constructs a multi-column rectangle')
   assert.match(keyboardSource, /const columnDelta = event\.key === 'ArrowLeft'[\s\S]*if \(columnDelta !== 0\) \{\s*moveFocus\(next\)\s*return\s*\}/, 'Shift+Left/Right moves focus without extending a cross-column range')
@@ -611,8 +638,11 @@ try {
   assert.match(keyboardSource, /handleFocusIn[\s\S]*focusedField\.current && focusedField\.current !== field[\s\S]*clearCellSelection\(true\)/, 'focus crossing into a different column clears the prior selection while preserving the in-flight pointer gesture')
   assert.match(keyboardSource, /moveFocus = \(cell: GridCell \| undefined\)[\s\S]*focusedField\.current && field && focusedField\.current !== field[\s\S]*clearCellSelection\(\)/, 'keyboard navigation clears selection only when focus changes columns')
   assert.ok(keyboardSource.includes("positions.map(position => cellValue(matrix[position.row][position.column])).join('\\n')"), 'multi-cell copy serializes the selected column in row order with newlines')
-  assert.match(keyboardSource, /clipboardMatrix\.length > 1 && clipboardMatrix\.every\(row => row\.length === 1\) && selectedPositions\.length > 1[\s\S]*selectedPositions\.slice\(0, clipboardMatrix\.length\)\.forEach\(\(\{ row, column \}, index\)[\s\S]*clipboardMatrix\[index\]\[0\]/, 'single-column multiline paste maps to selected cells in visual order')
-  assert.match(keyboardSource, /clipboardMatrix\.length === 1 && clipboardMatrix\[0\]\.length === 1 && selectedPositions\.length >= 2[\s\S]*selectedPositions\.forEach/, 'one clipboard value applies only to a real multi-cell selection')
+  assert.match(keyboardSource, /clipboardMatrix\.length > 1 && clipboardMatrix\.every\(row => row\.length === 1\)[\s\S]*const candidate = matrix\[start\.row \+ rowOffset\]\?\.\[start\.column\]/,
+    'single-column multiline paste maps downward from the focused cell without requiring a Block Action selection')
+  assert.match(keyboardSource, /clipboardMatrix\.forEach\(\(pasteRow, rowOffset\) => pasteRow\.forEach\(\(value, columnOffset\)[\s\S]*const candidate = matrix\[start\.row \+ rowOffset\]\?\.\[start\.column \+ columnOffset\]/,
+    'tab-separated two-dimensional paste retains its existing row-and-column mapping')
+  assert.doesNotMatch(pasteHandlerSource, /selectedPositions/, 'single-value paste never expands to a cell selection')
   assert.match(keyboardSource, /const selection = selectionIsActive \? positions : \[activePosition\][\s\S]*const text = selection\.map\(position => cellValue[\s\S]*const cutCells = selection\.flatMap/, 'Cut clears exactly the selected cells, or the focused cell when no selection exists')
   assert.match(keyboardSource, /const handleCopy = \(event: ClipboardEvent\) => \{\s*if \(!isEditModeRef\.current\) return/, 'View mode disables Copy while preserving informational selection')
   assert.match(keyboardSource, /const handlePaste = \(event: ClipboardEvent\) => \{\s*if \(!isEditModeRef\.current\) return/, 'View mode disables Paste while preserving informational selection')
@@ -637,26 +667,37 @@ try {
   assert.match(mockActionSource, /grid w-full grid-cols-2 divide-x[\s\S]*Complete Mock[\s\S]*Incomplete Mock/, 'development mock actions use equal two-column widths')
   assert.match(mockActionSource, /w-full px-1\.5 text-center[\s\S]*w-full px-1\.5 text-center/, 'both mock labels are centered in full-width buttons')
   assert.doesNotMatch(mockActionSource, /aria-haspopup|window\.confirm|>\|</, 'mock actions have no dropdown or confirmation')
-  assert.doesNotMatch(headerSource, /cloneMenuPinned|cloneHoverTimerRef|onPointerEnter=\{\(\) => \{[\s\S]*setCloneMenuOpen/, 'Clone never opens from hover')
-  assert.ok(headerSource.includes('id="clone-source-menu"')
-    && headerSource.includes('left-1/2 top-full z-50 mt-1 min-w-36 -translate-x-1/2')
-    && headerSource.includes('From {roleLabels[sourceRole]}'), 'Clone source choices are centered below the trigger with concise labels')
-  assert.match(headerSource, /const handlePointerDown = \(event: PointerEvent\) => \{\s*if \(!cloneContainerRef\.current\?\.contains\(event\.target as Node\)\) closeCloneMenu\(\)/, 'Clone closes when clicking outside the trigger and popover')
-  assert.match(headerSource, /useTransientInteraction\(cloneMenuOpen, reason => closeCloneMenu\(reason === 'escape'\)\)/, 'Clone participates in shared topmost Escape dismissal')
-  assert.match(headerSource, /if \(restoreFocus\) cloneTriggerRef\.current\?\.focus\(\)/, 'Escape restores focus to the Clone trigger')
-  const cloneTriggerSource = headerSource.slice(headerSource.indexOf('ref={cloneTriggerRef}'), headerSource.indexOf('{cloneMenuOpen &&'))
-  assert.doesNotMatch(cloneTriggerSource, /onFocus=/, 'Clone does not open from keyboard focus alone')
-  assert.match(cloneTriggerSource, /onClick=\{\(\) => setCloneMenuOpen\(open => !open\)\}[\s\S]*aria-expanded=\{cloneMenuOpen\}[\s\S]*aria-haspopup="menu"/,
-    'Clone opens and closes only through explicit click or native keyboard activation')
-  assert.doesNotMatch(cloneTriggerSource, /onFocus=/, 'Clone does not open from focus alone')
-  assert.match(headerSource, /useEffect\(\(\) => \{\s*closeCloneMenu\(\)\s*\}, \[role\]\)/, 'changing active destination closes the Clone flyout')
-  assert.match(headerSource, /sourceRole !== role/, 'Clone excludes the viewed dataset as its own source')
-  const cloneActionSource = headerSource.slice(headerSource.indexOf('onCloneFrom(sourceRole)') - 120, headerSource.indexOf('onCloneFrom(sourceRole)') + 100)
-  assert.doesNotMatch(cloneActionSource, /confirm\(/, 'choosing a Clone source does not ask for a second confirmation')
+  const cloneRegionStart = headerSource.indexOf('ref={cloneContainerRef}')
+  const cloneRegionEnd = headerSource.indexOf('<Tooltip label={showWarningHighlights', cloneRegionStart)
+  const cloneRegionSource = headerSource.slice(cloneRegionStart, cloneRegionEnd)
+  const cloneTriggerSource = cloneRegionSource.slice(cloneRegionSource.indexOf('ref={cloneTriggerRef}'), cloneRegionSource.indexOf('{cloneMenuOpen &&'))
+  assert.match(cloneRegionSource, /onMouseEnter=\{\(\) => \{[\s\S]*if \(!cloneMenuPinned\) cloneHoverTimerRef\.current = setTimeout\(\(\) => setCloneMenuOpen\(true\), 120\)/,
+    'hovering the Clone trigger opens the menu after a delay only when it is not pinned')
+  assert.match(cloneRegionSource, /onMouseLeave=\{\(\) => \{[\s\S]*if \(!cloneMenuPinned\) cloneHoverTimerRef\.current = setTimeout\([\s\S]*closeCloneMenu\(\)/,
+    'a hover-open Clone menu closes after leaving the full trigger-plus-menu region')
+  assert.match(cloneRegionSource, /id="clone-source-menu"[\s\S]*role="menu"[\s\S]*onMouseEnter=\{clearCloneHoverTimer\}/,
+    'the Clone menu is inside the shared hover region and entering it cancels the leave timer')
+  assert.match(cloneRegionSource, /roles\.filter\(sourceRole => sourceRole !== role\)[\s\S]*role="menuitem"[\s\S]*From \{roleLabels\[sourceRole\]\}/,
+    'Clone offers concise source choices and omits the viewed destination')
+  assert.match(cloneRegionSource, /onCloneFrom\(sourceRole\)[\s\S]*closeCloneMenu\(\)/,
+    'choosing a Clone source invokes the existing action and closes the dropdown')
+  assert.match(headerSource, /const toggleCloneMenu = \(\) => \{[\s\S]*if \(cloneMenuPinned\) \{[\s\S]*closeCloneMenu\(\)[\s\S]*return[\s\S]*setCloneMenuPinned\(true\)[\s\S]*setCloneMenuOpen\(true\)/,
+    'click toggles a pinned Clone menu, including when first opening a hover-open menu')
+  assert.match(cloneRegionSource, /if \(!cloneMenuPinned\) cloneHoverTimerRef\.current = setTimeout\(\(\) => \{[\s\S]*closeCloneMenu\(\)/,
+    'a pinned Clone menu stays open when the pointer leaves the region')
+  assert.match(headerSource, /const closeCloneMenu = \(restoreFocus = false\) => \{[\s\S]*setCloneMenuOpen\(false\)[\s\S]*setCloneMenuPinned\(false\)[\s\S]*if \(restoreFocus\) cloneTriggerRef\.current\?\.focus\(\)/,
+    'closing Clone clears its pinned state and Escape can restore trigger focus')
+  assert.match(headerSource, /const handlePointerDown = \(event: PointerEvent\) => \{\s*if \(!cloneContainerRef\.current\?\.contains\(event\.target as Node\)\) closeCloneMenu\(\)/,
+    'clicking outside the Clone trigger and popover closes the menu')
+  assert.match(headerSource, /useTransientInteraction\(cloneMenuOpen, reason => closeCloneMenu\(reason === 'escape'\)\)/,
+    'Escape closes Clone through shared topmost transient dismissal')
+  assert.match(cloneTriggerSource, /type="button"[\s\S]*onClick=\{toggleCloneMenu\}[\s\S]*aria-expanded=\{cloneMenuOpen\}[\s\S]*aria-haspopup="menu"[\s\S]*aria-controls="clone-source-menu"[\s\S]*aria-label="Clone"/,
+    'the keyboard-operable Clone trigger retains its menu relationship and accessible state')
+  assert.match(headerSource, /useEffect\(\(\) => \{\s*closeCloneMenu\(\)\s*\}, \[role\]\)/, 'changing active destination closes the Clone dropdown')
   assert.equal((headerSource.match(/window\.confirm\(/g) ?? []).length, 0, 'Reset and Clear have no browser confirmation')
-  assert.match(headerSource, /const handleResetDataset = \(\) => \{\s*if \(lastSavedSnapshot\) onResetWorkingDataset\(\)/, 'Reset immediately delegates to the history-backed Working reset')
+  assert.doesNotMatch(headerSource, /currentDisabled|allDisabled/, 'Save, Reset, and Clear do not disable either dataset action based on state')
   const currentAndAllActionSource = headerSource.slice(headerSource.indexOf('const CurrentAndAllAction'), headerSource.indexOf('export const MasterDataWorkspaceHeader'))
-  assert.match(currentAndAllActionSource, /onClick=\{\(\) => \{\s*if \(currentDisabled\) return\s*closeMenu\(\)\s*onCurrent\(\)/, 'the primary action click continues to affect only the currently viewed dataset')
+  assert.match(currentAndAllActionSource, /onClick=\{\(\) => \{\s*closeMenu\(\)\s*onCurrent\(\)/, 'the primary Save/Reset/Clear action is always invokable for the viewed dataset')
   assert.match(currentAndAllActionSource, /onClick=\{\(\) => \{\s*closeMenu\(\)\s*onAll\(\)/, 'the secondary menu has one direct all-dataset action')
   assert.match(currentAndAllActionSource, /onMouseEnter=\{\(\) => \{[\s\S]*setTimeout\(\(\) => setOpen\(true\), 120\)/, 'all-dataset action menus open after a short hover delay')
   assert.match(currentAndAllActionSource, /onMouseLeave=\{\(\) => \{[\s\S]*setTimeout\(\(\) => \{[\s\S]*\}, 150\)/, 'all-dataset action menus remain open long enough to move the pointer into them')
@@ -664,16 +705,25 @@ try {
   assert.match(currentAndAllActionSource, /Acts on the current dataset\. Hover or press Alt plus Down Arrow to access the all-dataset action\./, 'the hover-only secondary action is also discoverable to assistive technology')
   assert.match(currentAndAllActionSource, /destructive \? 'hover:bg-rose-50 hover:text-rose-700' : 'hover:bg-slate-100'/, 'Clear all-dataset action uses rose hover while other menus stay neutral')
   assert.match(headerSource, /destructive \? 'hover:bg-rose-50 hover:text-rose-700' : 'hover:bg-slate-100'[\s\S]*label="Clear"[\s\S]*destructive/, 'only Clear opts into destructive hover styling for its trigger and menu action')
+  const toolbarSource = headerSource.slice(headerSource.indexOf('<div role="toolbar"'), headerSource.indexOf('<div role="search"'))
+  const toolbarButtonStyle = headerSource.match(/const toolbarButton = '([^']+)'/)?.[1] ?? ''
+  assert.ok(toolbarSource.length > 0, 'the Master Data toolbar source is available for state-independence checks')
+  assert.doesNotMatch(toolbarSource, /\bdisabled\s*=|disabled:(?:opacity|cursor)|cursor-not-allowed/,
+    'no Master Data toolbar control has state-dependent disabled attributes or styling')
+  assert.doesNotMatch(toolbarButtonStyle, /disabled:/, 'toolbar action icons never fade or disable through state styles')
+  assert.doesNotMatch(currentAndAllActionSource, /currentDisabled|allDisabled|\bdisabled\s*=/,
+    'Save, Reset, and Clear never disable their current or all-dataset action')
   assert.match(numericInputSource, /reserveMarker \? 'right-5' : 'right-1'/, 'focused spinner arrows sit slightly inset and just before a reserved Blocker marker zone')
   assert.match(numericInputSource, /paddingRight: reserveMarker \? '2\.5rem' : '1\.75rem'/, 'spinner positioning reserves text space for the inset arrows and Blocker marker')
   assert.match(numericInputSource, /previousValueRef[\s\S]*previousFormattedValueRef[\s\S]*valueChanged && draft === previousFormattedValueRef\.current/, 'focused numeric editors sync external Cut/Paste/Undo changes when no newer draft is being typed')
   assert.match(numericInputSource, /event\.shiftKey && event\.currentTarget\.dataset\.gridCell === 'true'[\s\S]*onKeyDown\?\.\(event\)/, 'Shift+ArrowUp/Down in spreadsheet numeric cells reaches vertical range selection without stepping the value')
-  assert.match(headerSource, /label="Save"[\s\S]*onCurrent=\{onSaveWorkingDataset\}[\s\S]*onAll=\{onSaveAllWorkingDatasets\}[\s\S]*label="Reset"[\s\S]*onCurrent=\{handleResetDataset\}[\s\S]*onAll=\{onResetAllWorkingDatasets\}[\s\S]*label="Clear"[\s\S]*onCurrent=\{onClearDataset\}[\s\S]*onAll=\{onClearAllDatasets\}/, 'Save, Reset, and Clear expose current and all-dataset actions in the agreed order')
+  assert.match(headerSource, /label="Save"[\s\S]*onCurrent=\{onSaveWorkingDataset\}[\s\S]*onAll=\{onSaveAllWorkingDatasets\}[\s\S]*label="Reset"[\s\S]*onCurrent=\{onResetWorkingDataset\}[\s\S]*onAll=\{onResetAllWorkingDatasets\}[\s\S]*label="Clear"[\s\S]*onCurrent=\{onClearDataset\}[\s\S]*onAll=\{onClearAllDatasets\}/, 'Save, Reset, and Clear expose current and all-dataset actions in the agreed order')
   assert.doesNotMatch(currentAndAllActionSource, /Chevron|Save Current|Reset Current|Clear Current/, 'action triggers have no visible chevrons or redundant current-dataset menu entries')
   const saveAllSource = storeSource.slice(storeSource.indexOf('const saveAllMasterDataWorkingDatasets'), storeSource.indexOf('const commitMasterDataWorkingSession'))
   assert.match(saveAllSource, /const reference = createSavedDataset\('reference'\)[\s\S]*const current = createSavedDataset\('current'\)[\s\S]*const custom = createSavedDataset\('custom'\)/, 'Save all reads each dataset from its current Working snapshot')
   assert.match(saveAllSource, /lastSavedMasterData:\s*\{[\s\S]*reference,[\s\S]*current[\s\S]*customLastSavedMasterData: custom/, 'Save all writes Reference, Current, and Custom snapshots to their matching Last Saved slots')
-  assert.match(storeSource, /resetAllMasterDataWorkingDatasets = \(\) =>[\s\S]*getLastSavedMasterData\(session, role\)[\s\S]*commitMasterDataAllWorkingDatasets\(session, updated\)/, 'Reset all restores available Last Saved datasets as one working-state action')
+  assert.match(storeSource, /resetAllMasterDataWorkingDatasets = \(\) =>[\s\S]*getMasterDataResetBaseline\(session, role\)[\s\S]*commitMasterDataAllWorkingDatasets\(session, updated\)/,
+    'Reset all restores each dataset from its saved or initial baseline in one Working-state action')
   assert.match(storeSource, /clearAllMasterDataWorkingDatasets = \(\) =>[\s\S]*reduce\(\(working, role\) => clearMasterDataDatasetState\(working, role\), session\)[\s\S]*commitMasterDataAllWorkingDatasets\(session, updated\)/, 'Clear all uses the existing clear semantics across Working datasets as one action')
   assert.match(storeSource, /commitMasterDataAllWorkingDatasets = \(before: ProductSession, after: ProductSession\)[\s\S]*recordMasterDataPairWorkingEdit\(before, after\)/, 'all-dataset Working changes use the existing atomic Undo/Redo history entry')
   assert.match(headerSource, /const toolbarButton = 'grid h-8 w-8[^']*bg-transparent[^']*hover:bg-slate-100[^']*focus-visible:outline/, 'tool actions have borderless idle styling and retain 32px interaction targets')
@@ -1022,10 +1072,8 @@ try {
     'warning visibility uses an accessible toggle and a diagonal slash when hidden')
   assert.match(headerSource, /left-1\/2 top-1\/2 h-px w-\[17px\] -translate-x-1\/2 -translate-y-1\/2 rotate-\[-45deg\]/,
     'the hidden Warning slash is a centered one-pixel diagonal with no geometry change')
-  assert.doesNotMatch(headerSource, /cloneMenuPinned|cloneHoverTimerRef|onPointerEnter=\{\(\) => \{[\s\S]*setCloneMenuOpen/,
-    'Clone is click-only and has no hover or focus opening behavior')
-  assert.doesNotMatch(headerSource.slice(headerSource.indexOf('ref={cloneTriggerRef}'), headerSource.indexOf('{cloneMenuOpen &&')), /onFocus=/,
-    'Clone does not open by focus alone')
+  assert.match(headerSource, /cloneMenuPinned[\s\S]*cloneHoverTimerRef/,
+    'Clone records whether click pinned the menu so pointer leave affects hover-open menus only')
   assert.match(headerSource, /roles\.filter\(sourceRole => sourceRole !== role\)[\s\S]*From \{roleLabels\[sourceRole\]\}/,
     'Clone presents concise source options while excluding the destination')
   assert.doesNotMatch(bomSource, /aria-label="Search BOM"|placeholder="Search BOM/, 'BOM no longer renders a per-table search box')
@@ -1163,17 +1211,20 @@ try {
   assert.match(pageSource, /className=\{isAllTablesVisible \? 'space-y-3' : ''\}[\s\S]*tableSections\.map\(section => \([\s\S]*<section[\s\S]*aria-label=\{section\.label\}[\s\S]*\{renderTable\(section\.key\)\}/, 'All view separates BOM, Work Centers, and Routing into distinct bordered table sections')
   assert.match(pageSource, /onNavigateBlocker: \(item: MasterDataQualityItem\) => handleWarningNavigation\(item, true\)/, 'each table-local Blocker navigator requests All-view preservation')
   assert.match(pageSource, /if \(!preserveAllView \|\| !isAllTablesVisible\)[\s\S]*tableView: item\.table/, 'local Blocker navigation stays in All while warning details can switch tables')
-  assert.match(headerSource, /<Tooltip label=\{hasExportableSavedData \? 'Export Last Saved' : 'No saved table data to export'\}>/, 'Export custom tooltip states it uses Last Saved data')
-  assert.match(headerSource, /exportSnapshotToExcel\(lastSavedSnapshot\)/, 'Export passes the Last Saved snapshot to the workbook generator')
+  assert.match(headerSource, /<Tooltip label="Export">[\s\S]*aria-label="Export"/, 'Export uses the current-dataset action name in its tooltip and accessible label')
   assert.match(headerSource, /const showSaveFilePicker = \(window as SaveFilePickerWindow\)\.showSaveFilePicker[\s\S]*showSaveFilePicker\.call\(window[\s\S]*suggestedName: filename[\s\S]*downloadBlob\(blob, filename\)/,
     'Export attempts native Save As and falls back to a browser download')
-  const exportHandlerSource = headerSource.slice(headerSource.indexOf('const handleExportDataset'), headerSource.indexOf('const handleResetDataset'))
+  const exportHandlerSource = headerSource.slice(headerSource.indexOf('const handleExportDataset'), headerSource.indexOf('return (\n    <section'))
   assert.match(exportHandlerSource, /const saveFileHandlePromise = showSaveFilePicker\.call\(window[\s\S]*const handle = await saveFileHandlePromise[\s\S]*await import\('\.\.\/\.\.\/\.\.\/services\/excel\/snapshot-export'\)/,
     'Export opens Save As directly from the user activation before the asynchronous exporter is loaded')
-  assert.match(headerSource, /const hasExportableSavedData = Boolean\(lastSavedSnapshot && hasEnteredMasterData\(lastSavedSnapshot\)\)[\s\S]*disabled=\{!hasExportableSavedData\}/,
-    'Export is disabled only when the active Last Saved snapshot has no exportable data')
-  assert.match(storeSource, /const masterDataLastSavedSnapshot = getLastSavedMasterData\(activeSession, masterDataRole\)\?\.snapshot/, 'the active role supplies its own Last Saved snapshot to Export')
-  assert.match(headerSource, /onClick=\{\(\) => \{ void handleExportDataset\(\) \}\}[\s\S]*<Upload className="h-4 w-4" aria-hidden="true" \/>/, 'Export uses an upward arrow from a tray/box')
+  assert.match(exportHandlerSource, /exportSnapshotToExcel\(snapshot\)/,
+    'Export serializes the active Working snapshot, including unsaved values')
+  assert.doesNotMatch(exportHandlerSource, /lastSavedSnapshot|hasExportableSavedData|hasEnteredMasterData|if \(!snapshot\) return/,
+    'Export does not gate invocation or read from the Last Saved snapshot')
+  assert.match(storeSource, /const masterDataSnapshot = getMasterDataSnapshot\(activeSession, snapshotPair, masterDataRole\)/,
+    'the selected dataset Working snapshot supplies the header Export action')
+  assert.match(headerSource, /onClick=\{\(\) => \{ void handleExportDataset\(\) \}\}[\s\S]*aria-label="Export"[\s\S]*<Upload className="h-4 w-4" aria-hidden="true" \/>/,
+    'Export uses the existing workbook action from its always-available toolbar control')
   assert.match(headerSource, /onClick=\{onOpenImportModal\}[\s\S]*<FileSpreadsheet className="h-4 w-4" aria-hidden="true" \/>/, 'Import uses a spreadsheet/file icon')
   assert.match(tooltipSource, /import \{ createPortal \} from 'react-dom'[\s\S]*createPortal\([\s\S]*document\.body/, 'shared tooltips render in a top-level document portal')
   assert.match(tooltipSource, /bounds\.left \+ \(bounds\.width - width\) \/ 2[\s\S]*window\.innerWidth - width - 8[\s\S]*bounds\.top - tooltipBounds\.height - 5[\s\S]*z-\[1000\]/, 'tooltips center above triggers, clamp to viewport, and escape Navbar stacking contexts')
@@ -1309,7 +1360,7 @@ try {
     current: fixtureSnapshot('current'),
     custom: { ...fixtureSnapshot('custom'), id: 'saved-custom' }
   }
-  const { getLastSavedMasterData } = await vite.ssrLoadModule('/src/state/master-data-datasets.ts')
+  const { getLastSavedMasterData, getMasterDataResetBaseline } = await vite.ssrLoadModule('/src/state/master-data-datasets.ts')
   const lastSavedSession = {
     lastSavedMasterData: {
       reference: { snapshot: savedFixtures.reference },
@@ -1320,24 +1371,79 @@ try {
   for (const role of ['reference', 'current', 'custom']) {
     assert.equal(getLastSavedMasterData(lastSavedSession, role)?.snapshot, savedFixtures[role], `${role} resolves its own Last Saved snapshot`)
   }
-  assert.equal(getLastSavedMasterData({ ...lastSavedSession, customLastSavedMasterData: undefined }, 'custom'), undefined,
-    'Custom has no export source until it has its own Last Saved snapshot')
+  const initialFixtures = Object.fromEntries(['reference', 'current', 'custom'].map(role => [role, {
+    ...fixtureSnapshot(role),
+    id: `initial-${role}`,
+    product: { ...fixtureProduct, productName: `Initial ${role}` }
+  }]))
+  const initialMasterDataBaseline = Object.fromEntries(['reference', 'current', 'custom'].map(role => [role, {
+    snapshot: initialFixtures[role],
+    prepared: false,
+    sizing: {}
+  }]))
+  const noSaveResetSession = { initialMasterDataBaseline }
   for (const role of ['reference', 'current', 'custom']) {
-    const lastSaved = role === 'custom' ? undefined : savedFixtures[role]
-    const markup = await renderMasterDataPage(
-      { role, mode: 'view', tableView: 'all' },
+    assert.deepEqual(getMasterDataResetBaseline(noSaveResetSession, role)?.snapshot, initialFixtures[role],
+      `${role} Reset uses the initial Working baseline before its first Save`)
+    assert.deepEqual(getMasterDataResetBaseline({ ...lastSavedSession, initialMasterDataBaseline }, role)?.snapshot, savedFixtures[role],
+      `${role} Reset prefers the latest saved snapshot when one exists`)
+  }
+  assert.equal(getLastSavedMasterData({ ...lastSavedSession, customLastSavedMasterData: undefined }, 'custom'), undefined,
+    'Custom Last Saved state remains independent from the Reference/Current saved records')
+  for (const role of ['reference', 'current', 'custom']) {
+    const scenarios = [
+      { name: 'empty before first Save', snapshot: fixtureSnapshot(role), lastSaved: undefined },
       {
-        masterDataLastSavedSnapshot: lastSaved,
-        masterDataLastSavedSnapshots: lastSaved ? { [role]: lastSaved } : {}
+        name: 'unsaved Working edits',
+        snapshot: {
+          ...fixtureSnapshot(role),
+          product: { ...fixtureProduct, productName: `Unsaved ${role}` },
+          bom: [{ id: `working-${role}`, itemCode: 'MAT-1', description: 'MAT-1', consumption: 1, unit: 'PC', price: 12, loss: 0, confidence: {} }]
+        },
+        lastSaved: undefined
+      },
+      {
+        name: 'Working edits after Save',
+        snapshot: {
+          ...fixtureSnapshot(role),
+          product: { ...fixtureProduct, productName: `Edited ${role}` },
+          bom: [{ id: `working-${role}`, itemCode: 'MAT-1', description: 'MAT-1', consumption: 1, unit: 'PC', price: 12, loss: 0, confidence: {} }]
+        },
+        lastSaved: savedFixtures[role]
       }
-    )
-    const exportButton = [...markup.matchAll(/<button\b([^>]*)>([\s\S]*?)<\/button>/g)]
-      .find(([, attributes]) => attributes.match(/\baria-label="([^"]+)"/)?.[1] === 'Export Last Saved')
-    assert.ok(exportButton, `${role} has an Export control`)
-    assert.equal(/\sdisabled(?:=""|\s|>)/.test(exportButton[1]), !lastSaved,
-      `${role} Export follows the availability of that role's Last Saved snapshot`)
-    if (role === 'reference' && lastSaved) {
-      assert.equal(pressedButton(markup, 'Reference'), true, 'Reference can be Draft while retaining an enabled Last Saved export')
+    ]
+    for (const scenario of scenarios) {
+      const markup = await renderMasterDataPage(
+        { role, mode: 'edit', tableView: 'all' },
+        {
+          masterDataSnapshot: scenario.snapshot,
+          masterDataLastSavedSnapshot: scenario.lastSaved,
+          masterDataLastSavedSnapshots: scenario.lastSaved ? { [role]: scenario.lastSaved } : {}
+        }
+      )
+      const toolbarStart = markup.indexOf('<div role="toolbar" aria-label="Dataset and table actions"')
+      const toolbarEnd = markup.indexOf('<div role="search"', toolbarStart)
+      assert.ok(toolbarStart >= 0 && toolbarEnd > toolbarStart, `${role} ${scenario.name} renders the Master Data toolbar`)
+      const toolbarMarkup = markup.slice(toolbarStart, toolbarEnd)
+      const toolbarButtons = [...toolbarMarkup.matchAll(/<button\b([^>]*)>/g)]
+      assert.ok(toolbarButtons.length > 0, `${role} ${scenario.name} renders toolbar actions`)
+      for (const [, attributes] of toolbarButtons) {
+        assert.doesNotMatch(attributes, /\sdisabled(?:=""|\s|>)/,
+          `${role} ${scenario.name} has no disabled toolbar buttons`)
+        assert.doesNotMatch(attributes, /opacity-40|cursor-not-allowed/,
+          `${role} ${scenario.name} has no visually disabled toolbar buttons`)
+      }
+      for (const action of ['Sizing', 'Import', 'Clone', 'Save', 'Reset', 'Clear', 'Export']) {
+        const attributes = buttonAttributes(toolbarMarkup, action)
+        assert.doesNotMatch(attributes, /\sdisabled(?:=""|\s|>)/,
+          `${role} ${scenario.name} keeps ${action} available`)
+      }
+      assert.match(toolbarMarkup, /aria-label="(?:Hide|Show) warning highlights"/,
+        `${role} ${scenario.name} keeps the Review action available`)
+      assert.match(toolbarMarkup, /aria-label="Switch to (?:Edit|View)"/,
+        `${role} ${scenario.name} keeps the mode action available`)
+      assert.match(markup, /type="search"[^>]*aria-label="Search Master Data"/,
+        `${role} ${scenario.name} keeps Search available`)
     }
   }
   const snapshotImportFlow = storeSource.slice(
@@ -1349,7 +1455,8 @@ try {
   assert.ok(snapshotImportFlow.includes('customMasterData: normalizeMasterDataSnapshot(imported.snapshot)') && snapshotImportFlow.includes('customDatasetSizing: imported.sizing'), 'Custom import replaces only Custom Working data after identity normalization')
   assert.doesNotMatch(snapshotImportFlow, /lastSavedMasterData|customLastSavedMasterData/, 'Import never overwrites any dataset Last Saved state')
   assert.match(storeSource, /saveMasterDataWorkingDataset\s*=\s*\(role: MasterDataRole\)[\s\S]*lastSavedMasterData:[\s\S]*\[role\]: saved/, 'Save writes a Last Saved copy only for the viewed dataset')
-  assert.match(storeSource, /resetMasterDataWorkingDataset\s*=\s*\(role: MasterDataRole\)[\s\S]*getLastSavedMasterData\(session, role\)/, 'Reset reads only the viewed dataset Last Saved state')
+  assert.match(storeSource, /resetMasterDataWorkingDataset\s*=\s*\(role: MasterDataRole\)[\s\S]*getMasterDataResetBaseline\(session, role\)/,
+    'Reset resolves a baseline for the viewed dataset whether saved or not')
   assert.match(storageSource, /sessionStorage\.getItem[\s\S]*sessionStorage\.setItem/, 'in-session data is held in browser session storage')
   assert.doesNotMatch(storageSource, /localStorage|indexedDB/, 'Master Data does not use permanent browser storage')
   assert.doesNotMatch(storeSource, /DevelopmentReviewFixture|returnFromDevelopmentReviewFixture/, 'no separate review session is stored')

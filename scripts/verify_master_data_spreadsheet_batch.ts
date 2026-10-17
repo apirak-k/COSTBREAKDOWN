@@ -11,7 +11,8 @@ interface TestRow {
 const rows: TestRow[] = [
   { id: 'row-a', value: '', isGeneratedSizingPlaceholder: true },
   { id: 'row-b', value: 'old-b' },
-  { id: 'row-c', value: 'old-c' }
+  { id: 'row-c', value: 'old-c' },
+  { id: 'row-d', value: 'old-d' }
 ]
 const batch = prepareSpreadsheetBatch(rows, [
   { id: 'row-a', changes: { value: 'new-a' } },
@@ -28,5 +29,23 @@ assert.deepEqual(batch.find(update => update.id === 'row-a')?.changes, {
 }, 'Pasted cells for one row are combined and editing a generated slot marks it as user-edited')
 assert.deepEqual(batch.find(update => update.id === 'row-b')?.changes, { value: 'new-b' })
 assert.equal(rows[0].isGeneratedSizingPlaceholder, true, 'Preparing an edit does not mutate the source row')
+
+const focusedColumnPaste = prepareSpreadsheetBatch(rows, [
+  { id: 'row-b', changes: { value: '10.50' } },
+  { id: 'row-c', changes: { value: '12.00' } },
+  { id: 'row-d', changes: { value: '8.75' } }
+])
+assert.deepEqual(focusedColumnPaste, [
+  { id: 'row-b', changes: { value: '10.50' } },
+  { id: 'row-c', changes: { value: '12.00' } },
+  { id: 'row-d', changes: { value: '8.75' } }
+], 'focused-cell vertical paste applies each line to its consecutive existing row in one column')
+assert.equal(rows.length, 4, 'a multi-row paste updates Working rows without changing table structure')
+
+const focusedSingleCellPaste = prepareSpreadsheetBatch(rows, [
+  { id: 'row-c', changes: { value: 'single value' } }
+])
+assert.deepEqual(focusedSingleCellPaste, [{ id: 'row-c', changes: { value: 'single value' } }],
+  'single-cell paste updates only the focused row')
 
 console.log('Master Data spreadsheet batch verification passed')

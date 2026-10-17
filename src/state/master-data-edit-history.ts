@@ -15,6 +15,8 @@ export interface MasterDataEditHistoryEntry {
   afterSizing?: Record<ComparisonRole, DatasetSizing>
   beforeCustomSizing?: DatasetSizing
   afterCustomSizing?: DatasetSizing
+  beforeInitialMasterDataBaseline?: ProductSession['initialMasterDataBaseline']
+  afterInitialMasterDataBaseline?: ProductSession['initialMasterDataBaseline']
   /** A single undoable action that replaces both comparison Working snapshots. */
   beforePair?: SnapshotPair
   afterPair?: SnapshotPair
@@ -92,8 +94,12 @@ export function applyMasterDataEditHistoryEntry(
     const preparedSnapshotRoles = direction === 'undo' ? entry.beforePrepared : entry.afterPrepared
     const datasetSizing = direction === 'undo' ? entry.beforeSizing : entry.afterSizing
     const customDatasetSizing = direction === 'undo' ? entry.beforeCustomSizing : entry.afterCustomSizing
+    const initialMasterDataBaseline = direction === 'undo'
+      ? entry.beforeInitialMasterDataBaseline
+      : entry.afterInitialMasterDataBaseline
     const nextSession = applySnapshotPairToSession({
       ...session,
+      ...(initialMasterDataBaseline ? { initialMasterDataBaseline } : {}),
       datasetSizing: datasetSizing ? {
         reference: { ...(datasetSizing.reference ?? {}) },
         current: { ...(datasetSizing.current ?? {}) }
@@ -116,9 +122,13 @@ export function applyMasterDataEditHistoryEntry(
   const preparedSnapshotRoles = direction === 'undo' ? entry.beforePrepared : entry.afterPrepared
   const datasetSizing = direction === 'undo' ? entry.beforeSizing : entry.afterSizing
   const customDatasetSizing = direction === 'undo' ? entry.beforeCustomSizing : entry.afterCustomSizing
+  const initialMasterDataBaseline = direction === 'undo'
+    ? entry.beforeInitialMasterDataBaseline
+    : entry.afterInitialMasterDataBaseline
   if (entry.role === 'custom') {
     return {
       ...session,
+      ...(initialMasterDataBaseline ? { initialMasterDataBaseline } : {}),
       customMasterData: snapshot,
       customDatasetSizing: customDatasetSizing ? { ...customDatasetSizing } : {},
       updatedAt: new Date().toISOString()
@@ -130,6 +140,7 @@ export function applyMasterDataEditHistoryEntry(
   }
   const nextSession = applySnapshotPairToSession({
     ...session,
+    ...(initialMasterDataBaseline ? { initialMasterDataBaseline } : {}),
     datasetSizing: datasetSizing ? {
       reference: { ...(datasetSizing.reference ?? {}) },
       current: { ...(datasetSizing.current ?? {}) }

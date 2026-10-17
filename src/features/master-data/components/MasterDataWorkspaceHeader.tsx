@@ -20,13 +20,11 @@ import { NumericInput } from '../../../shared/ui/NumericInput'
 import { masterDataIssueDisplayClass, masterDataIssueEditorClass, masterDataTextEditorClass } from './master-data-field-styles'
 import { hasInvalidNumber } from '../table-validation'
 import { downloadBlob } from '../../../services/excel/export'
-import { hasEnteredMasterData } from '../../../state/dataset-sizing'
 import { useTransientInteraction } from '../../../shared/ui/transient-interactions'
 
 interface MasterDataWorkspaceHeaderProps {
   product: ProductMaster
   snapshot: CostSnapshot
-  lastSavedSnapshot?: CostSnapshot
   saveStates: Record<MasterDataRole, MasterDataSaveState>
   role: MasterDataRole
   onRoleChange: (role: MasterDataRole) => void
@@ -41,7 +39,6 @@ interface MasterDataWorkspaceHeaderProps {
   onCloneFrom: (sourceRole: MasterDataRole) => void
   onClearDataset: () => void
   onClearAllDatasets: () => void
-  hasLastSavedByRole: Record<MasterDataRole, boolean>
   onOpenImportModal: () => void
   onOpenSizingModal: () => void
   tableSelector: React.ReactNode
@@ -52,7 +49,7 @@ interface MasterDataWorkspaceHeaderProps {
   onSearchQueryChange: (query: string) => void
 }
 
-const toolbarButton = 'grid h-8 w-8 shrink-0 place-items-center rounded-sm bg-transparent text-slate-700 transition-colors hover:bg-slate-100 hover:text-slate-950 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700 disabled:cursor-default disabled:opacity-40 disabled:hover:bg-transparent disabled:hover:text-slate-700'
+const toolbarButton = 'grid h-8 w-8 shrink-0 place-items-center rounded-sm bg-transparent text-slate-700 transition-colors hover:bg-slate-100 hover:text-slate-950 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700'
 const fieldInput = masterDataTextEditorClass
 const metadataGroupDividerClass = "relative after:absolute after:-right-1.5 after:top-1 after:bottom-1 after:hidden after:w-px after:bg-slate-200 after:content-[''] xl:after:block"
 const datasetSaveStateDotClass = (state: MasterDataSaveState, size = 'h-1.5 w-1.5') =>
@@ -105,8 +102,6 @@ interface CurrentAndAllActionProps {
   label: string
   onCurrent: () => void
   onAll: () => void
-  currentDisabled?: boolean
-  allDisabled?: boolean
   destructive?: boolean
   children: React.ReactNode
 }
@@ -115,8 +110,6 @@ const CurrentAndAllAction: React.FC<CurrentAndAllActionProps> = ({
   label,
   onCurrent,
   onAll,
-  currentDisabled = false,
-  allDisabled = false,
   destructive = false,
   children
 }) => {
@@ -182,13 +175,11 @@ const CurrentAndAllAction: React.FC<CurrentAndAllActionProps> = ({
           ref={triggerRef}
           type="button"
           aria-label={label}
-          aria-disabled={currentDisabled}
           aria-expanded={open}
           aria-controls={menuId}
           aria-describedby={helpId}
           aria-keyshortcuts="Alt+ArrowDown"
           onClick={() => {
-            if (currentDisabled) return
             closeMenu()
             onCurrent()
           }}
@@ -198,7 +189,7 @@ const CurrentAndAllAction: React.FC<CurrentAndAllActionProps> = ({
               openMenu(true)
             }
           }}
-          className={`${toolbarButton} ${destructive && !currentDisabled ? 'hover:!bg-rose-50 hover:!text-rose-700' : ''} ${currentDisabled ? 'opacity-40 hover:bg-transparent hover:text-slate-700' : ''}`}
+          className={`${toolbarButton} ${destructive ? 'hover:!bg-rose-50 hover:!text-rose-700' : ''}`}
         >
           {children}
         </button>
@@ -217,12 +208,11 @@ const CurrentAndAllAction: React.FC<CurrentAndAllActionProps> = ({
         <button
           ref={allActionRef}
           type="button"
-          disabled={allDisabled}
           onClick={() => {
             closeMenu()
             onAll()
           }}
-          className={`block min-h-8 w-full whitespace-nowrap px-2 text-left text-xs text-slate-800 ${destructive ? 'hover:bg-rose-50 hover:text-rose-700' : 'hover:bg-slate-100'} focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-700 disabled:cursor-default disabled:opacity-40 disabled:hover:bg-white`}
+          className={`block min-h-8 w-full whitespace-nowrap px-2 text-left text-xs text-slate-800 ${destructive ? 'hover:bg-rose-50 hover:text-rose-700' : 'hover:bg-slate-100'} focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-700`}
         >
           {label} all datasets
         </button>
@@ -234,9 +224,7 @@ const CurrentAndAllAction: React.FC<CurrentAndAllActionProps> = ({
 export const MasterDataWorkspaceHeader: React.FC<MasterDataWorkspaceHeaderProps> = ({
   product,
   snapshot,
-  lastSavedSnapshot,
   saveStates,
-  hasLastSavedByRole,
   role,
   onRoleChange,
   onSaveWorkingDataset,
@@ -260,14 +248,14 @@ export const MasterDataWorkspaceHeader: React.FC<MasterDataWorkspaceHeaderProps>
   onSearchQueryChange
 }) => {
   const [cloneMenuOpen, setCloneMenuOpen] = useState(false)
+  const [cloneMenuPinned, setCloneMenuPinned] = useState(false)
   const cloneContainerRef = useRef<HTMLDivElement>(null)
   const cloneTriggerRef = useRef<HTMLButtonElement>(null)
   const cloneMenuRef = useRef<HTMLDivElement>(null)
+  const cloneHoverTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const cloneHorizontalOffset = useCenteredPopoverOffset(cloneMenuOpen, cloneMenuRef)
 
   const roleLabel = roleLabels[role]
-  const isSaved = saveStates[role] === 'Saved'
-  const hasExportableSavedData = Boolean(lastSavedSnapshot && hasEnteredMasterData(lastSavedSnapshot))
   const sellingPriceInvalid = hasInvalidNumber('sellingPrice', product.sellingPrice)
   const sgaPercentInvalid = hasInvalidNumber('sgaPercent', product.sgaPercent)
   const searchPlaceholder = tableView === 'all'
@@ -278,12 +266,31 @@ export const MasterDataWorkspaceHeader: React.FC<MasterDataWorkspaceHeaderProps>
         ? 'Search Routing'
         : 'Search BOM'
 
+  const clearCloneHoverTimer = () => {
+    if (cloneHoverTimerRef.current) clearTimeout(cloneHoverTimerRef.current)
+    cloneHoverTimerRef.current = null
+  }
+
   const closeCloneMenu = (restoreFocus = false) => {
+    clearCloneHoverTimer()
     setCloneMenuOpen(false)
+    setCloneMenuPinned(false)
     if (restoreFocus) cloneTriggerRef.current?.focus()
   }
 
+  const toggleCloneMenu = () => {
+    clearCloneHoverTimer()
+    if (cloneMenuPinned) {
+      closeCloneMenu()
+      return
+    }
+    setCloneMenuPinned(true)
+    setCloneMenuOpen(true)
+  }
+
   useTransientInteraction(cloneMenuOpen, reason => closeCloneMenu(reason === 'escape'))
+
+  useEffect(() => () => clearCloneHoverTimer(), [])
 
   useEffect(() => {
     closeCloneMenu()
@@ -301,8 +308,7 @@ export const MasterDataWorkspaceHeader: React.FC<MasterDataWorkspaceHeaderProps>
   }, [cloneMenuOpen])
 
   const handleExportDataset = async () => {
-    if (!lastSavedSnapshot) return
-    const fileProductName = (lastSavedSnapshot.product.productName || '')
+    const fileProductName = (snapshot.product.productName || '')
       .replace(/[<>:"/\\|?*\u0000-\u001F]/g, '-').trim()
     const filenameProductPart = fileProductName ? `_${fileProductName}` : ''
     const filename = `Dataset${filenameProductPart}_${roleLabel}.xlsx`
@@ -318,7 +324,7 @@ export const MasterDataWorkspaceHeader: React.FC<MasterDataWorkspaceHeaderProps>
     const showSaveFilePicker = (window as SaveFilePickerWindow).showSaveFilePicker
     if (!showSaveFilePicker) {
       const { exportSnapshotToExcel } = await import('../../../services/excel/snapshot-export')
-      const blob = await exportSnapshotToExcel(lastSavedSnapshot)
+      const blob = await exportSnapshotToExcel(snapshot)
       downloadBlob(blob, filename)
       return
     }
@@ -331,7 +337,7 @@ export const MasterDataWorkspaceHeader: React.FC<MasterDataWorkspaceHeaderProps>
       })
       const handle = await saveFileHandlePromise
       const { exportSnapshotToExcel } = await import('../../../services/excel/snapshot-export')
-      blob = await exportSnapshotToExcel(lastSavedSnapshot)
+      blob = await exportSnapshotToExcel(snapshot)
       const writable = await handle.createWritable()
       await writable.write(blob)
       await writable.close()
@@ -339,14 +345,10 @@ export const MasterDataWorkspaceHeader: React.FC<MasterDataWorkspaceHeaderProps>
       if (error instanceof DOMException && error.name === 'AbortError') return
       if (!blob) {
         const { exportSnapshotToExcel } = await import('../../../services/excel/snapshot-export')
-        blob = await exportSnapshotToExcel(lastSavedSnapshot)
+        blob = await exportSnapshotToExcel(snapshot)
       }
       downloadBlob(blob, filename)
     }
-  }
-
-  const handleResetDataset = () => {
-    if (lastSavedSnapshot) onResetWorkingDataset()
   }
 
   return (
@@ -411,12 +413,25 @@ export const MasterDataWorkspaceHeader: React.FC<MasterDataWorkspaceHeaderProps>
           <div
             ref={cloneContainerRef}
             className="relative shrink-0"
+            onMouseEnter={() => {
+              clearCloneHoverTimer()
+              if (!cloneMenuPinned) cloneHoverTimerRef.current = setTimeout(() => setCloneMenuOpen(true), 120)
+            }}
+            onMouseLeave={() => {
+              clearCloneHoverTimer()
+              if (!cloneMenuPinned) cloneHoverTimerRef.current = setTimeout(() => {
+                if (!cloneContainerRef.current?.contains(document.activeElement)) closeCloneMenu()
+              }, 150)
+            }}
+            onBlurCapture={event => {
+              if (!event.currentTarget.contains(event.relatedTarget as Node | null)) closeCloneMenu()
+            }}
           >
             <Tooltip label="Clone">
               <button
                 ref={cloneTriggerRef}
                 type="button"
-                onClick={() => setCloneMenuOpen(open => !open)}
+                onClick={toggleCloneMenu}
                 aria-expanded={cloneMenuOpen}
                 aria-haspopup="menu"
                 aria-controls="clone-source-menu"
@@ -434,6 +449,7 @@ export const MasterDataWorkspaceHeader: React.FC<MasterDataWorkspaceHeaderProps>
                 aria-label="Clone source"
                 style={{ marginLeft: `${cloneHorizontalOffset}px` }}
                 className="absolute left-1/2 top-full z-50 mt-1 min-w-36 -translate-x-1/2 border border-slate-300 bg-white p-1 shadow-lg"
+                onMouseEnter={clearCloneHoverTimer}
               >
                 {roles.filter(sourceRole => sourceRole !== role).map(sourceRole => (
                   <button
@@ -470,17 +486,13 @@ export const MasterDataWorkspaceHeader: React.FC<MasterDataWorkspaceHeaderProps>
             label="Save"
             onCurrent={onSaveWorkingDataset}
             onAll={onSaveAllWorkingDatasets}
-            currentDisabled={isSaved}
-            allDisabled={Object.values(saveStates).every(state => state === 'Saved')}
           >
             <Save className="h-4 w-4" aria-hidden="true" />
           </CurrentAndAllAction>
           <CurrentAndAllAction
             label="Reset"
-            onCurrent={handleResetDataset}
+            onCurrent={onResetWorkingDataset}
             onAll={onResetAllWorkingDatasets}
-            currentDisabled={!lastSavedSnapshot}
-            allDisabled={!Object.values(hasLastSavedByRole).some(Boolean)}
           >
             <RotateCcw className="h-4 w-4" aria-hidden="true" />
           </CurrentAndAllAction>
@@ -492,13 +504,12 @@ export const MasterDataWorkspaceHeader: React.FC<MasterDataWorkspaceHeaderProps>
           >
             <Trash2 className="h-4 w-4" aria-hidden="true" />
           </CurrentAndAllAction>
-          <Tooltip label={hasExportableSavedData ? 'Export Last Saved' : 'No saved table data to export'}>
+          <Tooltip label="Export">
             <button
               type="button"
               onClick={() => { void handleExportDataset() }}
-              disabled={!hasExportableSavedData}
               className={toolbarButton}
-              aria-label="Export Last Saved"
+              aria-label="Export"
             >
               <Upload className="h-4 w-4" aria-hidden="true" />
             </button>

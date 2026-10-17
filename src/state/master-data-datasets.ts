@@ -41,12 +41,12 @@ export function cloneMasterDataDatasetState(
   const copied = cloneMasterDataSnapshotForRole(sourceSnapshot, sourceRole, destinationRole, sourceSizing)
 
   if (destinationRole === 'custom') {
-    return {
+    return setMasterDataInitialResetBaseline({
       ...session,
       customMasterData: copied,
       customDatasetSizing: { ...sourceSizing },
       updatedAt: now
-    }
+    }, destinationRole)
   }
 
   const nextPair = { ...pair, [destinationRole]: copied }
@@ -64,7 +64,7 @@ export function cloneMasterDataDatasetState(
     },
     updatedAt: now
   }, nextPair)
-  return markMasterDataChangedForSnapshotPair(nextSession, pair, nextPair)
+  return setMasterDataInitialResetBaseline(markMasterDataChangedForSnapshotPair(nextSession, pair, nextPair), destinationRole)
 }
 
 export function createEmptyCustomMasterData(sessionId: string): CostSnapshot {
@@ -127,6 +127,55 @@ export function getLastSavedMasterData(
   return role === 'custom'
     ? session.customLastSavedMasterData
     : session.lastSavedMasterData?.[role]
+}
+
+function createMasterDataBaseline(session: ProductSession, role: MasterDataRole): LastSavedMasterDataDataset {
+  const pair = session.snapshotPair ?? sessionToSnapshotPair(session)
+  const snapshot = getMasterDataSnapshot(session, pair, role)
+  return {
+    snapshot: cloneCostSnapshot(snapshot),
+    prepared: role === 'custom' ? hasEnteredMasterData(snapshot) : getSnapshotRoleReadiness(session)[role],
+    sizing: { ...getMasterDataSizing(session, snapshot, role) }
+  }
+}
+
+export function initializeMasterDataResetBaselines(session: ProductSession): ProductSession {
+  const baseline = { ...(session.initialMasterDataBaseline ?? {}) }
+  let changed = false
+  ;(['reference', 'current', 'custom'] as const).forEach(role => {
+    if (baseline[role]) return
+    baseline[role] = createMasterDataBaseline(session, role)
+    changed = true
+  })
+  return changed ? { ...session, initialMasterDataBaseline: baseline } : session
+}
+
+export function setMasterDataInitialResetBaseline(session: ProductSession, role: MasterDataRole): ProductSession {
+  return {
+    ...session,
+    initialMasterDataBaseline: {
+      ...(session.initialMasterDataBaseline ?? {}),
+      [role]: createMasterDataBaseline(session, role)
+    }
+  }
+}
+
+export function setAllMasterDataInitialResetBaselines(session: ProductSession): ProductSession {
+  return {
+    ...session,
+    initialMasterDataBaseline: {
+      reference: createMasterDataBaseline(session, 'reference'),
+      current: createMasterDataBaseline(session, 'current'),
+      custom: createMasterDataBaseline(session, 'custom')
+    }
+  }
+}
+
+export function getMasterDataResetBaseline(
+  session: ProductSession,
+  role: MasterDataRole
+): LastSavedMasterDataDataset | undefined {
+  return getLastSavedMasterData(session, role) ?? session.initialMasterDataBaseline?.[role]
 }
 
 export function setMasterDataSnapshot(

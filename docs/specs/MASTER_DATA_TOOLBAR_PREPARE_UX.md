@@ -1,26 +1,26 @@
 # Master Data Toolbar and Engineering Workspace UX Contract
 
-**Status:** Accepted shared UX contract carried into the current integration branch, including the latest 2026-10-12 correction pass. This contract supersedes conflicting earlier presentation decisions. Finalized business behavior remains authoritative unless a decision below explicitly changes the presentation.
+**Status:** Accepted shared UX contract, updated with the finalized Master Data interaction and dataset corrections from 2026-10-17. These latest Master Data requirements supersede conflicting earlier behavior in this document.
 
 ## Scope
 
 This contract records the accepted workspace UX direction across the shared Header, Master Data toolbar/search/metadata and warning navigation, Cost Breakdown hierarchy, legacy Candidate/RCA session compatibility, and Simulation workspace. The latest correction pass also refines Header brand hierarchy, Prepare Dataset sizing/alignment, Footer tooltip behavior, visible numeric precision, and Master Data Toolbar/Metadata interactions.
 
-It does not change finalized calculations, CBD finding semantics, legacy RCA session data, Simulation logic, Master Data lifecycle, or Export's Last Saved source. It allows small table interaction changes required for shared search and warning navigation, without replacing the current table implementation.
+It does not change finalized calculations, CBD finding semantics, legacy RCA session data, or Simulation logic. The 2026-10-17 Master Data correction finalizes Reset, Export, Clear, Clone, toolbar availability, and vertical paste behavior without changing table calculation or validation rules.
 
 ## Finalized UX Decisions
 
 - The shared Header is one compact workspace bar with three desktop zones: `COSTBREAKDOWN` and truthful Current Product context at the left; centered Master Data / Cost Breakdown / Simulation navigation; and Undo, Redo, then the final icon-only Info control for Prepare Dataset at the right. Candidate findings stay inside Cost Breakdown and do not add a navigation item. It displays the Current Product Name prominently and Current UOM in secondary text regardless of Reference comparison status; blank metadata stays blank or is labeled as not set without inventing values. Product Match/Mismatch status remains in Prepare Dataset and Footer. Smaller widths may reflow or truncate only when space is genuinely constrained. Do not show Search, workflow status, a workflow CTA, warning text, or additional navigation in the Header.
 - The shared Header's left zone contains only `COSTBREAKDOWN` and truthful Product context; it never fabricates Product Name or UOM. The brand is visually prominent (about 16px and bold); the `PRODUCT:` prefix and UOM are secondary to the Product Name. Its center contains exactly four page-navigation tabs. Its right utility zone contains Undo, Redo, then Info in that order; it contains no Search.
 - Undo and Redo remain visible in the right utility zone and use the existing Master Data history. They are enabled only on Master Data when the corresponding history action exists, disabled elsewhere, and use muted opacity with the normal cursor.
-- On desktop, the Master Data toolbar order is Dataset → icon-only Eye/Pencil segmented mode control → Sizing → Import → Clone → Warning → Save → Reset → Clear → Export → fixed Search → Table. Each selector and tool target is 32px high; keep one compact row where width permits and preserve the order when groups wrap. The Master Data toolbar has no Prepare Dataset Info control.
-- Dataset and Table selectors remain text controls with matching height, border weight, vertical alignment, and selected-state styling. Dataset uses three equal fixed-width segments; Table uses four equal fixed-width controls. Their active dark-slate slabs inset approximately 2px within the selector shell, matching View/Edit. View/Edit is one 64×32px icon-only sliding switch containing Eye and Pencil state indicators. Clicking anywhere in the switch or pressing Enter/Space toggles exactly once; its dynamic tooltip/accessibility label names the next action (`Switch to Edit` / `Switch to View`) and `aria-checked` reports current state. The Reference / Current / Custom save-state dots keep their existing size. Sizing, spreadsheet Import, Clone, Warning highlights, Save, Reset, Clear, and Export are icon-only, neutral actions with tooltips, borderless idle styling, separate 32px hit areas, and no vertical separators. Import uses FileSpreadsheet; Export uses an upward arrow from a tray/box. Save does not receive a special color treatment. Reset/Clear/Save click applies to the viewed dataset, while a delayed hover menu exposes only the matching all-dataset action; keyboard users can reach that action. Disabled controls use a neutral cursor and muted appearance without disabled hover emphasis. The global Header Info control is the sole Prepare Dataset entry point.
+- On desktop, the Master Data toolbar order is Dataset → icon-only Eye/Pencil segmented mode control → Sizing → Import → Clone → Warning → Save → Reset → Clear → Export → fixed Search → Table. Each selector and tool target is 32px high; keep one compact row where width permits and preserve the order when groups wrap. The Master Data toolbar has no Prepare Dataset Info control, and its actions remain enabled and visually active regardless of dataset state.
+- Dataset and Table selectors remain text controls with matching height, border weight, vertical alignment, and selected-state styling. Dataset uses three equal fixed-width segments; Table uses four equal fixed-width controls. Their active dark-slate slabs inset approximately 2px within the selector shell, matching View/Edit. View/Edit is one 64×32px icon-only sliding switch containing Eye and Pencil state indicators. Clicking anywhere in the switch or pressing Enter/Space toggles exactly once; its dynamic tooltip/accessibility label names the next action (`Switch to Edit` / `Switch to View`) and `aria-checked` reports current state. The Reference / Current / Custom save-state dots keep their existing size. Sizing, spreadsheet Import, Clone, Warning highlights, Save, Reset, Clear, and Export are icon-only, neutral actions with tooltips, borderless idle styling, separate 32px hit areas, and no vertical separators. Import uses FileSpreadsheet; Export uses an upward arrow from a tray/box. Save does not receive a special color treatment. Reset/Clear/Save click applies to the viewed dataset, while a delayed hover menu exposes only the matching all-dataset action; keyboard users can reach that action. No Master Data toolbar action is disabled, faded, or given a not-allowed cursor because of dataset state. The global Header Info control is the sole Prepare Dataset entry point.
 - Dataset selection styling and save-state dots are independent. The only user-facing save states are `Saved` (green) and `Draft` (neutral gray). Draft means Working differs from Last Saved or no Last Saved exists. Save state is derived from snapshots, not a manual flag.
-- Save stays visible and is enabled when Working is Draft. Save copies the viewed Working state to that dataset's Last Saved state.
+- Save stays visible and invokable in every state. Save copies the viewed Working state to that dataset's Last Saved state, including when Working is already clean.
 - Product Name and UOM remain blank unless entered; do not synthesize `Product` or `PC` in the UI, Save, or Export. UOM is free text. Selling Price and SG&A keep their existing missing-value semantics; Dataset Remark may be blank. Page metadata is one compact horizontal row on desktop, with each `Label : Value` pair inline and no Metadata heading or disabled fields in View mode. Edit mode replaces only values with inputs while preserving the same five outer slots, label positions, and row height. Product Name and Remark are wide; UOM, Selling Price, and SG&A have equal effective widths. Product Name, UOM, and Remark values are left aligned; Selling Price and SG&A values are right aligned. Selling Price accepts a numeric value only; `(THB)` in its label supplies the unit, without a duplicate suffix on the displayed value. SG&A `%` is outside the input shell but remains inside its field group. Narrower screens may wrap field groups while keeping each label and value inline. Sizing uses inline `Label : Input` rows, with full-width Product/Remark fields and three aligned metadata and row-count columns.
 - Table-view controls appear in the order BOM / Work Centers / Routing / All, have equal fixed sizing, and remain at toolbar level. Prepare Dataset opens from the global Header Info control only.
 - Search is a local Master Data toolbar control using the existing `masterDataSearchQuery` state and filtering behavior. It filters BOM, Work Centers, or Routing for the selected view; `All` applies the same query across all visible tables. Placeholders are `Search BOM`, `Search Work Centers`, `Search Routing`, and `Search all tables`, without ellipses. Keep a fixed 192px desktop width and position so placeholder changes do not move adjacent controls or change wrapping. Do not show Search in the global Header or invent search behavior for unrelated pages. Keep existing filtering logic.
-- Clone is click-only. Hover and focus never open its flyout; click or Enter/Space toggles it. Outside click, Escape, or changing destination closes it; Escape restores focus. Choosing a source clones immediately without a second confirmation. The flyout excludes the destination and labels choices `From Reference`, `From Current`, or `From Custom`.
+- Clone opens by hover after a short delay and by click/keyboard activation. Trigger and dropdown share one hover region; leaving the whole region closes a hover-only menu. Clicking pins it until trigger click, outside click, or Escape. Escape restores focus. Choosing a source clones immediately without a second confirmation. The flyout excludes the destination and labels choices `From Reference`, `From Current`, or `From Custom`.
 - Warning highlights use one toolbar `!` toggle, default ON. ON shows an uncrossed `!`; OFF shows the same symbol crossed by a diagonal slash, with the same button dimensions and correct `aria-pressed`/accessible labels. Turning it off removes amber field fills from both Warning and Blocker locations. Blocker markers and semantics remain: red `*`, validation, `aria-invalid`, counts, readiness, Prepare Dataset details, and navigation. Do not add warning icons to rows or cells.
 - Prepare Dataset is a compact, shared-shell popover, about 19rem wide, anchored below and centered on the global Header Info control. Hover/focus previews it; click pins it; clicking the trigger again, outside click, Escape, or X closes it. Pointer/focus movement from trigger to panel keeps it open; an unpinned preview closes only after both interaction areas are left. Opening, previewing, closing, and the Footer `⚠ N` action do not navigate away from the current page. Clicking the Footer action toggles this same panel and opens it with the All dataset filter when closed. Every real close resets the shared dataset filter and expanded categories. Keep the panel viewport-clamped. Warning and Blocker headings and category rows stay fixed, and each expanded category has an independent detail scroller with a maximum of three 28px rows: one/two locations keep natural one/two-row height, while longer lists scroll within three rows. Multiple categories may stay expanded. Dataset rows and Mock controls stay outside detail scrollers, with Mock controls structurally fixed below the issue sections. Toolbar popovers center below their trigger and clamp horizontally.
 - The top summary reads `Dataset`, a dotted `Ready` / `Incomplete` status, a dotted display-only `Product Match` / `Product Mismatch` / `Product Not Set` status, and Close at the far edge. Ready is blue, Incomplete muted rose/red, Product Match green, Product Mismatch violet, and Product Not Set neutral slate. Product status has no click affordance, chevron, underline, border, or filled semantic background. Product Name/UOM details are available in the Footer tooltip; there is no Product mini-popover. Warning emphasis remains amber/yellow.
@@ -34,10 +34,10 @@ It does not change finalized calculations, CBD finding semantics, legacy RCA ses
 - Blank BOM, Work Center, and Routing identities have usable effective identities `Material N`, `Work Center N`, and `Process N`. `N` is the ordinal among currently blank/generated identities in that table, not the physical row number. Generated identities remain marked as generated in saved snapshots and export as effective names such as `Material 1`; their Edit values remain blank and show the effective name only as placeholder text. They appear in warnings and do not block workflow.
 - Duplicate effective identities are auto-renamed to the next available deterministic suffix, such as `mat0.3a`, `mat0.3a(1)`, `mat0.3a(2)`. Apply the rule to direct entry, paste, bulk edits, and other applicable input paths. Report each correction as a warning without a modal. Existing imported/legacy ambiguous data must not cause the comparison engine to guess a match.
 - Missing required values make only affected and dependent results Unavailable and appear in the Blockers section. Invalid numeric values and newly entered unresolved nonblank Routing Work Center references are rejected at edit/import ingress. Existing persisted invalid numeric values remain Unavailable with local invalid-cell cues but are not categorized as Warning or Blocker; existing unresolved required Work Center references remain Unavailable and appear under Missing required value Blockers. Never replace missing values with zero. A valid zero remains valid where formulas permit it.
-- Development exposes two direct actions, `Complete Mock` and `Incomplete Mock`, in equal centered 50/50 columns on one fixed compact row below Warnings and Blockers. Both load immediately into ordinary Working/history state with no dropdown or confirmation. Loading replaces Reference and Current Working data, clears stale Custom Working rows/sizing that would inflate fixture issue totals, and preserves every Last Saved dataset. The load is one ordinary undoable history action, including the previous Custom Working state. Complete Mock has matching Product Name/UOM, calculable Reference and Current costs, and zero Warnings/Blockers. Incomplete Mock has 3 Generated identity + 3 Auto-renamed duplicate = 6 Warnings and 9 Missing required value Blockers, 15 affected locations total; Product Mismatch is a separate status. It does not introduce invalid-number or unresolved nonblank Work Center cases. There is no separate mock session/mode or return action. Reset continues to restore Last Saved.
+- Development exposes two direct actions, `Complete Mock` and `Incomplete Mock`, in equal centered 50/50 columns on one fixed compact row below Warnings and Blockers. Both load immediately into ordinary Working/history state with no dropdown or confirmation. Loading replaces Reference and Current Working data, clears stale Custom Working rows/sizing that would inflate fixture issue totals, and preserves every Last Saved dataset. The load is one ordinary undoable history action, including the previous Custom Working state. Complete Mock has matching Product Name/UOM, calculable Reference and Current costs, and zero Warnings/Blockers. Incomplete Mock has 3 Generated identity + 3 Auto-renamed duplicate = 6 Warnings and 9 Missing required value Blockers, 15 affected locations total; Product Mismatch is a separate status. It does not introduce invalid-number or unresolved nonblank Work Center cases. There is no separate mock session/mode or return action. Reset uses Last Saved when present and the initial Working baseline otherwise.
 - Clone is labeled `Clone`; it selects a source and copies that source's Working data into the viewed destination's Working data. The destination Last Saved is unchanged. Source selection performs the copy without a second replacement confirmation.
-- Reset immediately restores Working from Last Saved as one Undo/Redo action; it is disabled without Last Saved. Clear immediately clears only Working, preserves Last Saved, and is one Undo/Redo action. Neither uses a confirmation. Sizing remains a compact centered dialog (about 768px maximum). Product Name and Dataset Remark each use a full-width inline `Label : Input` row. UOM, Selling Price (THB), and SG&A use three equal outer columns with inline labels and editors; Bill of Materials, Work Centers, and Routing use the same three column boundaries directly below. Labels use their natural content width and each editor fills the remaining usable width in its own column, so editor widths may differ. SG&A is labelled `SG&A`; `%` stays outside its input shell in a fixed suffix gutter, with accepted gutters preserved for UOM and Selling Price. Sizing editors share a transparent idle border, subtle hover affordance, and strong blue focus without changing geometry. Text values are left aligned and numeric values are right aligned. The dialog uses quiet uppercase `METADATA` and `TABLE ROWS` section headings with whitespace, no divider, and no visible Dataset subheading. Numeric metadata and row counts use the shared text-based numeric editor; row counts remain whole numbers and bounded by their existing limits. Focused spinner, ArrowUp/Down, and wheel use the caret's active place value; when no digit is active, they use the unit step (1 for integer fields and 1.00 for decimal fields). Unfocused wheel input scrolls the page. Unset counts stay unset until edited. Draft values stay local until Apply, and Download Template creates a real `.xlsx` using the current dialog draft with a Download icon in the bottom-left action area. Only populated-data truncation confirms.
-- Import remains staged and accepts `.xlsx` only: selection validates without mutation; only the explicit Import button replaces viewed Working and initializes sizing from imported row counts. The compact dropzone and valid/invalid summaries keep the target and row counts easy to scan without exposing parser/debug text. Cancel, Escape, outside click, and X close without importing. Invalid numeric values and unavailable Routing Work Center references reject Import. Export remains available only when the active dataset's Last Saved snapshot contains exportable data; warnings, blockers, readiness, Product status, and Working Draft state do not gate it. Export always uses Last Saved. Native Save As is invoked directly from the click before asynchronous workbook generation when supported; browser-download fallback remains available. Neither shows warning confirmation.
+- Reset always immediately restores Working from Last Saved when present, otherwise from the initial Working baseline; it remains one Undo/Redo action. Clear immediately blanks editable values and metadata while preserving rows, order, supported identity, columns, structural fields, and Sizing counts; it preserves Last Saved and is one Undo/Redo action. Neither uses a confirmation. Sizing remains a compact centered dialog (about 768px maximum). Product Name and Dataset Remark each use a full-width inline `Label : Input` row. UOM, Selling Price (THB), and SG&A use three equal outer columns with inline labels and editors; Bill of Materials, Work Centers, and Routing use the same three column boundaries directly below. Labels use their natural content width and each editor fills the remaining usable width in its own column, so editor widths may differ. SG&A is labelled `SG&A`; `%` stays outside its input shell in a fixed suffix gutter, with accepted gutters preserved for UOM and Selling Price. Sizing editors share a transparent idle border, subtle hover affordance, and strong blue focus without changing geometry. Text values are left aligned and numeric values are right aligned. The dialog uses quiet uppercase `METADATA` and `TABLE ROWS` section headings with whitespace, no divider, and no visible Dataset subheading. Numeric metadata and row counts use the shared text-based numeric editor; row counts remain whole numbers and bounded by their existing limits. Focused spinner, ArrowUp/Down, and wheel use the caret's active place value; when no digit is active, they use the unit step (1 for integer fields and 1.00 for decimal fields). Unfocused wheel input scrolls the page. Unset counts stay unset until edited. Draft values stay local until Apply, and Download Template creates a real `.xlsx` using the current dialog draft with a Download icon in the bottom-left action area. Only populated-data truncation confirms.
+- Import remains staged and accepts `.xlsx` only: selection validates without mutation; only the explicit Import button replaces viewed Working and initializes sizing from imported row counts. The compact dropzone and valid/invalid summaries keep the target and row counts easy to scan without exposing parser/debug text. Cancel, Escape, outside click, and X close without importing. Invalid numeric values and unavailable Routing Work Center references reject Import. Export is always available and exports the current Working snapshot, including unsaved changes. Native Save As is invoked directly from the click before asynchronous workbook generation when supported; browser-download fallback remains available. Neither shows warning confirmation.
 - Cost Breakdown shows Total Gap first, then cause categories, followed by BOM/Processing detail; avoid repeating the same values across Snapshot Comparison and Variance Tree. Selected Comparison remains a compact scope control.
 - Candidate/finding inspection and selection remain inside Cost Breakdown; there is no visible Candidate/Ranking/RCA page or active RCA workflow.
 - Simulation opens ready to work from Current when needed. It shows the REF → GAP 1 → CUR → GAP 2 → SIM graph, Current → SIM result, separate Economic inputs, and directly editable BOM/RTG parameters. Keep compact Clone from / Send to controls; there is no Factors selector, editable Work Center rate, or horizontal BOM/RTG scroll.
@@ -66,7 +66,7 @@ Show `Warnings N` and `Blockers N` in separate sections. Dataset summary rows to
 
 Product Name and UOM remain blank until supplied. Blank table identities use their generated effective names. Generated numbering counts blank/generated identity entries in table order, independently for BOM, Work Centers, and Routing. Example: `Steel`, blank, `Plastic`, blank becomes `Steel`, `Material 1`, `Plastic`, `Material 2`.
 
-Generated values must be consistent in display, ordinary dataset use, Save, and Last Saved export. A generated-name warning remains visible to make the implicit identity reviewable. Identity generation must not silently write a physical row number as the business identity.
+Generated values must be consistent in display, ordinary dataset use, Save, and current Working export. A generated-name warning remains visible to make the implicit identity reviewable. Identity generation must not silently write a physical row number as the business identity.
 
 ## Duplicate Identity Behavior
 
@@ -78,7 +78,7 @@ Missing required numeric inputs produce Unavailable affected results and Missing
 
 ## Mock Behavior
 
-`Complete Mock` and `Incomplete Mock` load deterministic Reference/Current sample pairs into the active product's ordinary Working snapshots and select Current for review. They clear stale Custom Working rows/sizing that would inflate the fixture totals while preserving all Last Saved snapshots. Complete Mock is Ready/Match with zero Warnings and Blockers; Incomplete Mock is Incomplete/Mismatch with 3 Generated identity + 3 Auto-renamed duplicate = 6 Warnings and 9 Missing required value Blockers, 15 affected locations total. The pair load is one undoable history action, including the previous Custom Working state, and later edits use the same Undo / Redo history. There is no mock-only session, mode, preserved real session, return-to-session action, or mock-specific reset behavior. Reset returns the viewed dataset's Working state to that dataset's Last Saved snapshot.
+`Complete Mock` and `Incomplete Mock` load deterministic Reference/Current sample pairs into the active product's ordinary Working snapshots and select Current for review. They clear stale Custom Working rows/sizing that would inflate the fixture totals while preserving all Last Saved snapshots. Complete Mock is Ready/Match with zero Warnings and Blockers; Incomplete Mock is Incomplete/Mismatch with 3 Generated identity + 3 Auto-renamed duplicate = 6 Warnings and 9 Missing required value Blockers, 15 affected locations total. The pair load is one undoable history action, including the previous Custom Working state, and later edits use the same Undo / Redo history. There is no mock-only session, mode, preserved real session, return-to-session action, or mock-specific reset behavior. Reset returns Working to Last Saved when present, otherwise to the initial Working baseline.
 
 ## Action and Dialog Behavior
 
@@ -86,11 +86,11 @@ Missing required numeric inputs produce Unavailable affected results and Missing
 |---|---|
 | Save | Save Working to Last Saved without a warning confirmation. |
 | Clone | Choose source; immediately copy source Working to viewed destination Working; preserve destination Last Saved. |
-| Reset | Immediately restore Last Saved as one Undo/Redo action. Disabled if no Last Saved exists. |
-| Clear | Immediately clear selected Working as one Undo/Redo action; preserve Last Saved. |
+| Reset | Always invoke; restore Last Saved when present, otherwise the initial Working baseline. One Undo/Redo action. |
+| Clear | Immediately blank editable values while preserving rows and Sizing; preserve Last Saved. One Undo/Redo action. |
 | Sizing | Keep Dataset metadata and Rows in one compact centered dialog at about 768px maximum. Product Name and Dataset Remark use full-width inline label/input rows; UOM, Selling Price, SG&A and the three row-count fields use matching aligned three-column geometry. Use the shared text-based editor with existing bounds, stable idle/hover/focus states, focused-input-only spinner/wheel adjustment, and current dialog values for Download Template. Confirm only populated-data truncation at Apply. |
 | Import | Use a compact dropzone and concise valid/invalid summary. Parse and validate on file selection without mutation; apply only on the explicit Import button. Cancel, Escape, outside click, and X leave Working unchanged. |
-| Export | Export the active dataset's Last Saved snapshot only when it contains exportable data, including while Working is Draft. Warnings, blockers, readiness, and Product status do not disable it. Open native Save As before asynchronous workbook generation when supported; preserve the browser-download fallback. No warning confirmation. |
+| Export | Always export the active dataset's current Working snapshot, including unsaved edits. Open native Save As before asynchronous workbook generation when supported; preserve the browser-download fallback. No warning confirmation. |
 | Complete Mock / Incomplete Mock | Load the selected fixture immediately; no dropdown or confirmation. |
 | CBD entry/navigation | Never blocked or confirmed by warnings or Product Mismatch. |
 
@@ -102,7 +102,7 @@ Missing required numeric inputs produce Unavailable affected results and Missing
 4. **Single issue:** one affected Missing required value category still expands; the revealed location navigates directly to its source field.
 5. **Multiple issues:** three missing parameters expand into three Blocker locations; selecting one targets its source.
 6. **Duplicate entry:** with `mat0.3a` and `mat0.3a(1)` already present, a new `mat0.3a` becomes `mat0.3a(2)` and creates one auto-rename warning.
-7. **Reset after mock:** mock load and subsequent edits are ordinary Working changes; Reset restores the existing Last Saved snapshot.
+7. **Reset after mock:** mock load and subsequent edits are ordinary Working changes; Reset restores Last Saved when present, otherwise the initial Working baseline.
 8. **Mock fixture totals:** Complete Mock has zero Warnings and Blockers. Incomplete Mock has 3 Generated identity + 3 Auto-renamed duplicate = 6 Warnings and 9 Missing required value Blockers, 15 affected locations total. Its Product Mismatch is a separate status.
 
 ## Implementation Checklist
@@ -113,7 +113,7 @@ Missing required numeric inputs produce Unavailable affected results and Missing
 - [x] Saved uses a green dot.
 - [x] Draft uses a neutral gray dot, including when no Last Saved snapshot exists.
 - [x] Active-tab styling is distinct from save state.
-- [x] Save stays neutral and is enabled for Draft state.
+- [x] Save stays neutral and remains invokable in every dataset state.
 - [x] Toolbar order is Dataset → icon-only Eye/Pencil → Tools → fixed Search → Table at the far right.
 - [x] All toolbar actions use neutral icon-only controls with tooltips and borderless idle styling, retaining individual 32×32px targets and existing spacing; Import uses FileSpreadsheet and Export uses SquareArrowOutUpRight.
 - [x] View and Edit are always-visible icon-only Eye/Pencil segments within one 64×32px sliding control, with equal halves, distinct active styling, correct title/aria-label/aria-pressed, and stable geometry; dataset save-state dots keep their existing size.
@@ -128,14 +128,14 @@ Missing required numeric inputs produce Unavailable affected results and Missing
 - [x] Search is local to Master Data and keeps the existing selected-table / All filtering behavior.
 - [x] Search placeholders are `Search BOM` / `Search Work Centers` / `Search Routing` / `Search all tables`, without ellipses, and share a fixed 192px desktop width and stable toolbar position.
 - [x] Per-table Search controls are removed.
-- [x] Clone source flyout opens only on click/Enter/Space activation; hover and focus alone do not open it. It excludes the destination, uses `From …` capitalization, closes outside/on Escape, restores focus on Escape, and clones immediately.
+- [x] Clone source flyout opens by hover and click/keyboard activation, remains open when moving between trigger and menu, closes after leaving the whole region unless pinned, and closes on trigger click/outside click/Escape when pinned. It excludes the destination and clones immediately.
 - [x] Reset, Clear, and Save keep one icon each: click acts on the viewed dataset; a delayed hover menu exposes only the matching `… all datasets` action, with an accessible keyboard route and no confirmation.
 - [x] Dataset selector uses three equal fixed-width segments; Table selector uses four equal fixed-width controls. Both groups share control height, border weight, selected-state language, and vertical alignment.
 - [x] Warning toggle uses an uncrossed/crossed `!` state; OFF removes amber fills from Warning and Blocker fields while preserving Blocker stars and semantics.
 - [x] Toolbar actions contain no vertical separators.
 - [x] Search remains 192px and in the same position for BOM / Work Centers / Routing / All.
 - [x] View and Edit have accessible labels/titles and correct pressed states with no visible text labels.
-- [x] Clone opens only on click/Enter/Space; hover and focus alone do not open it.
+- [x] Clone opens on hover or click/keyboard activation and keeps the trigger plus dropdown as one hover region.
 - [x] Clone Escape closes the menu and restores focus to the trigger.
 
 ### Metadata
@@ -304,21 +304,21 @@ Missing required numeric inputs produce Unavailable affected results and Missing
 - [x] No Mock Session remains.
 - [x] No Mock Mode remains.
 - [x] No Return to working session remains.
-- [x] Reset restores Last Saved after mock load.
+- [x] Reset after mock load restores Last Saved when present, otherwise the mock Working baseline.
 
 ### Actions
 - [x] Clone source selection works.
 - [x] Clone has no second confirmation.
-- [x] Export is enabled only when the active dataset has exportable Last Saved data, even if Working is Draft; Warning/Blocker/readiness/Product states do not gate it.
+- [x] Export is always available and uses current Working values, including unsaved edits.
 - [ ] Native Save As opens directly from the Export user action before asynchronous workbook generation; browser fallback remains available.
-- [x] Reset is immediate, restores Last Saved, and remains one Undo/Redo action.
-- [x] Clear is immediate, preserves Last Saved, and remains one Undo/Redo action.
+- [x] Reset is immediate, uses Last Saved or initial Working baseline, and remains one Undo/Redo action.
+- [x] Clear is immediate, preserves row structure and Last Saved, and remains one Undo/Redo action.
 - [x] Sizing confirms only destructive populated truncation.
 - [x] Sizing defaults unset counts from existing rows and downloads a blank template from current dialog values.
 - [x] Sizing dialog presents aligned metadata and row-count controls in a compact centered layout; draft values remain local until Apply.
 - [x] Import does not mutate until the explicit Import action; cancel paths leave Working unchanged.
 - [x] Import dialog provides a compact dropzone and concise valid/invalid summary while preserving staged validation.
-- [x] Export uses Last Saved and attempts native Save As with a browser-download fallback.
+- [x] Export uses current Working and attempts native Save As with a browser-download fallback.
 - [x] Save has no warning confirmation.
 - [x] Export has no warning confirmation.
 - [x] CBD entry has no warning confirmation.
@@ -472,14 +472,55 @@ This addendum supersedes earlier presentation details in this document where the
 - [x] Dataset selector has three equal fixed-width segments; Table selector has four equal fixed-width controls. Both share border, height, alignment, and selected-state treatment.
 - [x] Toolbar utility icons have no idle border and retain separate 32px targets and existing spacing.
 - [x] Warning visibility uses the same centered `!` geometry with a clean slash when off.
-- [x] Export uses an outward arrow-from-box icon and still exports only Last Saved.
-- [x] Clone source labels use `From Reference`, `From Current`, and `From Custom` and preserve activation-only behavior.
+- [x] Export uses an outward arrow-from-box icon and exports current Working.
+- [x] Clone source labels use `From Reference`, `From Current`, and `From Custom`; hover, click-pinning, outside click, Escape, and selection dismissal follow the latest contract.
 - [x] Search placeholders omit ellipses and remain fixed-width and fixed-position.
 - [x] Reset/Clear/Save primary click acts on the viewed dataset; each hover menu has only the matching all-dataset action, and keyboard users can reach it.
 - [x] All-dataset Reset/Clear use one ordinary compound Working history edit; Save retains the existing Last Saved lifecycle.
 - [x] View and Edit metadata use the same stable field slots as table editing; idle editors remain visually light, with clearer hover and focus treatment.
 - [x] Footer shows bold-secondary `THB/UOM` without parentheses or a pipe; UOM resolution is unchanged.
 - [x] Import title has no decorative icon; the full taller dashed dropzone is clickable, keyboard-accessible, and accepts `.xlsx` only.
+
+## Master Data Interaction and Dataset Correction — 2026-10-17
+
+These requirements supersede older Clone, toolbar-availability, Reset, Export, Clear, and clipboard statements above.
+
+### Finalized contract
+
+- [x] Clone opens by hover.
+- [x] The Clone menu stays open while the pointer is over the trigger or dropdown.
+- [x] A hover-open Clone menu closes after the pointer leaves the whole region.
+- [x] Clicking Clone pins the dropdown open.
+- [x] A pinned dropdown closes on trigger click, outside click, or Escape.
+- [x] Selecting a Clone source applies the existing copy and closes the menu.
+- [x] Every Master Data toolbar action stays enabled and visually active regardless of dataset state.
+- [x] Save remains invokable while Working is clean.
+- [x] Reset always has a baseline: Last Saved when present, otherwise the initial Working baseline.
+- [x] Reset before the first Save restores the initial dataset state.
+- [x] Reset after Save restores the latest saved state.
+- [x] Export is always invokable and uses current Working values, including unsaved edits.
+- [x] Clear blanks editable values while preserving rows, row order, supported row identities, columns, required structural fields, and Sizing counts.
+- [x] Clear preserves the row structure and does not behave like Delete Row.
+- [x] Clear followed by Reset restores the applicable pre-Clear reset baseline when Clear was not saved.
+- [x] Newline-separated single-column paste fills consecutive rows from the focused cell without requiring Block Action or row selection.
+- [x] A one-value paste changes only the focused cell, even when a cell range is selected; trailing newlines do not create extra values.
+- [x] Pasted values use existing parsing and validation paths; existing safe tabbed clipboard behavior is retained.
+
+### Browser verification checklist
+
+- [x] Clone hover opens, remains open during trigger-to-menu pointer transfer, and closes after leaving the whole region.
+- [x] Click pins Clone; pointer leave keeps it open; trigger click, outside click, and Escape dismiss it.
+- [x] Clone can be opened by keyboard Space; Escape restores focus to the trigger.
+- [x] Selecting a Clone source closes the menu after copying.
+- [x] Toolbar actions remain enabled and active-looking in empty and populated dataset states; toolbar actions and selectors can be invoked.
+- [x] Clean Save, no-save Reset to initial Working, and post-Save Reset to the latest saved values work in the rendered browser.
+- [x] Export downloaded a workbook containing the current unsaved Working value; the headless browser used the download fallback.
+- [x] Clear kept row count, identity/order, and columns, blanked editable values, and did not show the empty-table state.
+- [x] Clear followed by Reset restored the saved reset baseline.
+- [x] Single-cell and vertical multi-row paste events updated only the focused column, without Block Action or selected rows; trailing newlines were ignored.
+- [x] Invalid negative Price values were rejected while valid numeric pasted values were applied.
+- [x] At 1440×900 and 390×844, the document stayed within the viewport width and the browser emitted no runtime errors.
+- [ ] OS-level Ctrl+V / Cmd+V shortcut delivery was not verified: headless CDP input did not emit a native paste event. The rendered table paste handler was exercised with focused-cell ClipboardEvents.
 - [x] Import remains staged until the explicit Import action; no second confirmation appears.
 - [x] Prepare Dataset section headings and all category labels remain outside scrolling regions; each expanded category owns a separate auto-height, max-bounded detail scroller.
 - [x] Prepare Dataset has no shared Warning/Blocker scroll region; only an expanded category's own detail list scrolls, and Mock controls remain below both sections.

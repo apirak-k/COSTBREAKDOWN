@@ -41,6 +41,10 @@ import {
   initializeCustomMasterData,
   cloneMasterDataDatasetState,
   createEmptyCustomMasterData,
+  getMasterDataResetBaseline,
+  initializeMasterDataResetBaselines,
+  setAllMasterDataInitialResetBaselines,
+  setMasterDataInitialResetBaseline,
   setMasterDataSnapshot
 } from './master-data-datasets'
 import { markMasterDataChanged, markMasterDataChangedForSnapshotPair } from './master-data-revision'
@@ -94,23 +98,23 @@ function normalizeSnapshotPair(pair: SnapshotPair): SnapshotPair {
 
 function withSnapshotPair(session: ProductSession, explicitPair?: SnapshotPair): ProductSession {
   if (explicitPair) {
-    return initializeCustomMasterData({
+    return initializeMasterDataResetBaselines(initializeCustomMasterData({
       ...session,
       snapshotPair: normalizeSnapshotPair(explicitPair),
       snapshotPairMode: 'independent'
-    })
+    }))
   }
 
   if (session.snapshotPairMode === 'independent' && session.snapshotPair) {
     // Keep independent snapshots canonical; legacy fields are only a projection here.
-    return initializeCustomMasterData(applySnapshotPairToSession(session, normalizeSnapshotPair(session.snapshotPair)))
+    return initializeMasterDataResetBaselines(initializeCustomMasterData(applySnapshotPairToSession(session, normalizeSnapshotPair(session.snapshotPair))))
   }
 
-  return initializeCustomMasterData({
+  return initializeMasterDataResetBaselines(initializeCustomMasterData({
     ...session,
     snapshotPair: normalizeSnapshotPair(sessionToSnapshotPair(session)),
     snapshotPairMode: 'derived'
-  })
+  }))
 }
 
 function applyMasterDataSnapshotPair(session: ProductSession, pair: SnapshotPair): ProductSession {
@@ -394,6 +398,13 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     reference: { ...(sizing.reference ?? {}) },
     current: { ...(sizing.current ?? {}) }
   } : undefined
+  const copyMasterDataBaselines = (baselines: ProductSession['initialMasterDataBaseline']) => baselines
+    ? Object.fromEntries(Object.entries(baselines).map(([role, baseline]) => [role, baseline ? {
+      ...baseline,
+      snapshot: cloneCostSnapshot(baseline.snapshot),
+      sizing: { ...(baseline.sizing ?? {}) }
+    } : baseline])) as ProductSession['initialMasterDataBaseline']
+    : undefined
   const recordMasterDataWorkingEdit = (before: ProductSession, after: ProductSession, role: MasterDataRole) => {
     const beforePair = before.snapshotPair ?? sessionToSnapshotPair(before)
     const afterPair = after.snapshotPair ?? sessionToSnapshotPair(after)
@@ -406,6 +417,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       afterPrepared: { ...getSnapshotRoleReadiness(after) },
       beforeSizing: copyDatasetSizing(before.datasetSizing),
       afterSizing: copyDatasetSizing(after.datasetSizing),
+      beforeInitialMasterDataBaseline: copyMasterDataBaselines(before.initialMasterDataBaseline),
+      afterInitialMasterDataBaseline: copyMasterDataBaselines(after.initialMasterDataBaseline),
       beforeCustomSizing: role === 'custom' ? { ...(before.customDatasetSizing ?? {}) } : undefined,
       afterCustomSizing: role === 'custom' ? { ...(after.customDatasetSizing ?? {}) } : undefined
     }
@@ -425,6 +438,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       afterPrepared: { ...getSnapshotRoleReadiness(after) },
       beforeSizing: copyDatasetSizing(before.datasetSizing),
       afterSizing: copyDatasetSizing(after.datasetSizing),
+      beforeInitialMasterDataBaseline: copyMasterDataBaselines(before.initialMasterDataBaseline),
+      afterInitialMasterDataBaseline: copyMasterDataBaselines(after.initialMasterDataBaseline),
       beforePair: {
         reference: cloneCostSnapshot(beforePair.reference),
         current: cloneCostSnapshot(beforePair.current)
@@ -748,6 +763,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const copy: ProductSession = withSnapshotPair({
       ...source,
       id: newId,
+      initialMasterDataBaseline: undefined,
       product: { ...source.product, productCode: `${source.product.productCode}-COPY` },
       bom: source.bom.map(b => ({ ...b, id: `bom-${Date.now()}-${b.id}` })),
       routing: source.routing.map(r => ({ ...r, id: `rt-${Date.now()}-${r.id}` })),
@@ -775,6 +791,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const copy: ProductSession = withSnapshotPair({
       ...JSON.parse(JSON.stringify(source)),
       id: newId,
+      initialMasterDataBaseline: undefined,
       status: 'draft',
       versionLabel: `Draft (${source.product.productCode || 'Working Copy'})`,
       createdAt: now,
@@ -916,7 +933,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const resetMasterDataWorkingDataset = (role: MasterDataRole) => {
     const session = activeSession
     const now = new Date().toISOString()
-    const saved = getLastSavedMasterData(session, role)
+    const saved = getMasterDataResetBaseline(session, role)
     if (!saved) return
 
     const pair = session.snapshotPair ?? sessionToSnapshotPair(session)
@@ -982,7 +999,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     let nextCustomSizing = session.customDatasetSizing ?? nextCustom.sizing ?? {}
 
     ;(['reference', 'current', 'custom'] as const).forEach(role => {
-      const saved = getLastSavedMasterData(session, role)
+      const saved = getMasterDataResetBaseline(session, role)
       if (!saved) return
       if (role === 'custom') {
         nextCustom = cloneCostSnapshot(saved.snapshot)
@@ -1126,17 +1143,17 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     }, currentDataset)
     if (!isMasterDataSnapshotChangeValid(currentDataset, nextDataset)) return false
     if (role === 'custom') {
-      const updated = {
+      const updated = setMasterDataInitialResetBaseline({
         ...setMasterDataSnapshot(session, pair, role, nextDataset),
         customDatasetSizing: sizing,
         updatedAt: new Date().toISOString()
-      }
+      }, role)
       commitMasterDataWorkingSession(session, updated, role)
       return true
     }
 
     const nextPair = { ...pair, [role]: nextDataset }
-    const updated = applySnapshotPairToSession({
+    const updated = setMasterDataInitialResetBaseline(applySnapshotPairToSession({
       ...session,
       datasetSizing: {
         ...(session.datasetSizing ?? { reference: pair.reference.sizing ?? {}, current: pair.current.sizing ?? {} }),
@@ -1147,7 +1164,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         [role]: hasEnteredMasterData(nextDataset)
       },
       updatedAt: new Date().toISOString()
-    }, nextPair)
+    }, nextPair), role)
     commitMasterDataWorkingSession(session, markMasterDataChangedForSnapshotPair(updated, pair, nextPair), role)
     return true
   }
@@ -1533,12 +1550,12 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const now = new Date().toISOString()
     if (result.role === 'custom') {
       const imported = importSnapshotForCustom(result.snapshot)
-      const updated = {
+      const updated = setMasterDataInitialResetBaseline({
         ...source,
         customMasterData: normalizeMasterDataSnapshot(imported.snapshot),
         customDatasetSizing: imported.sizing,
         updatedAt: now
-      }
+      }, result.role)
       setProductSessions(prev => prev.map(session => session.id === source.id ? updated : session))
       recordMasterDataWorkingEdit(source, updated, 'custom')
       updateMasterDataUiState({ type: 'set-role', role: 'custom' })
@@ -1552,7 +1569,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       [result.role]: true
     }
 
-    const updated = applyMasterDataSnapshotPair(
+    const updated = setMasterDataInitialResetBaseline(applyMasterDataSnapshotPair(
       {
         ...source,
         datasetSizing: imported.datasetSizing,
@@ -1560,7 +1577,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         preparedSnapshotRoles
       },
       imported.snapshotPair
-    )
+    ), result.role)
     setProductSessions(prev => prev.map(session => session.id === source.id ? updated : session))
     recordMasterDataWorkingEdit(source, updated, result.role)
     updateMasterDataUiState({ type: 'set-role', role: result.role })
@@ -1570,8 +1587,9 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const loadDevelopmentMockData = (pair: SnapshotPair) => {
     if (!import.meta.env.DEV) return
     const source = activeSession
-    const updated = replaceDevelopmentMockWorkingState(source, pair)
-    if (!updated) return
+    const replaced = replaceDevelopmentMockWorkingState(source, pair)
+    if (!replaced) return
+    const updated = setAllMasterDataInitialResetBaselines(replaced)
     setSelectedComparisonScope(null)
     setProductSessions(previous => previous.map(session => session.id === source.id ? updated : session))
     recordMasterDataPairWorkingEdit(source, updated)
@@ -1580,6 +1598,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
   const resetToDefault = () => {
     patchActive({
+      initialMasterDataBaseline: undefined,
       product: { ...emptyProductMaster },
       rates: [],
       bom: [],
@@ -1598,6 +1617,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
   const clearAllData = () => {
     patchActive({
+      initialMasterDataBaseline: undefined,
       product: { ...emptyProductMaster },
       rates: [],
       bom: [],
