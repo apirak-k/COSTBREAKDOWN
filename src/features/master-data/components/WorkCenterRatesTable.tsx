@@ -8,6 +8,7 @@ import { SpreadsheetPasteCell, tableCellKey, useTableKeyboardNav } from '../hook
 import { RowChanges, useSpreadsheetEditing } from '../hooks/useSpreadsheetEditing'
 import { blankIdentityOrdinals, duplicateIdentityIds, editableIdentityPlaceholder, editableIdentityValue, hasInvalidNumber } from '../table-validation'
 import { useWarningNavigationFocus, type WarningNavigationTarget } from '../hooks/useWarningNavigationFocus'
+import { useQualityNavigationCursor } from '../hooks/useQualityNavigationCursor'
 import type { MasterDataBlockerItem, MasterDataWarningItem } from '../prepare-dataset'
 import { MasterDataTableHeader } from './MasterDataTableChrome'
 import { MasterDataBlockerMarker } from './MasterDataBlockerMarker'
@@ -20,6 +21,7 @@ interface WorkCenterRatesTableProps {
   routing: SnapshotRoutingStep[]
   isEditMode?: boolean
   historyScope: string
+  navigationScopeKey: string
   selectionOwnerScopeKey: string
   activeSelectionOwnerKey: string | null
   onCellInteraction: (field: string) => void
@@ -51,6 +53,7 @@ export const WorkCenterRatesTable: React.FC<WorkCenterRatesTableProps> = ({
   routing,
   isEditMode = false,
   historyScope,
+  navigationScopeKey,
   selectionOwnerScopeKey,
   activeSelectionOwnerKey,
   onCellInteraction,
@@ -72,8 +75,8 @@ export const WorkCenterRatesTable: React.FC<WorkCenterRatesTableProps> = ({
   onWarningNavigationHandled
 }) => {
   const tableRef = useRef<HTMLTableElement | null>(null)
-  const warningIndexRef = useRef(0)
-  const blockerIndexRef = useRef(0)
+  const nextWarningItem = useQualityNavigationCursor<MasterDataWarningItem>(navigationScopeKey)
+  const nextBlockerItem = useQualityNavigationCursor<MasterDataBlockerItem>(navigationScopeKey)
   const renameTargetsRef = useRef(new Map<string, string[]>())
   const query = searchQuery.trim().toLocaleLowerCase()
   const duplicateWcIds = useMemo(() => duplicateIdentityIds(rates, rate => rate.id, rate => rate.workCenterCode), [rates])
@@ -102,11 +105,6 @@ export const WorkCenterRatesTable: React.FC<WorkCenterRatesTableProps> = ({
 
   const selectWarningRow = useCallback((rowId: string) => setSelectedIds(new Set([rowId])), [setSelectedIds])
   useWarningNavigationFocus(tableRef, searchQuery, onSearchQueryChange, warningNavigationTarget, selectWarningRow, onWarningNavigationHandled)
-
-  useEffect(() => {
-    warningIndexRef.current = 0
-    blockerIndexRef.current = 0
-  }, [historyScope, warningItems, blockerItems])
 
   useEffect(() => {
     renameTargetsRef.current.clear()
@@ -202,16 +200,14 @@ export const WorkCenterRatesTable: React.FC<WorkCenterRatesTableProps> = ({
   }
 
   const handleNextBlocker = () => {
-    if (blockerItems.length === 0) return
-    const target = blockerItems[blockerIndexRef.current % blockerItems.length]
-    blockerIndexRef.current = (blockerIndexRef.current + 1) % blockerItems.length
+    const target = nextBlockerItem(blockerItems)
+    if (!target) return
     onNavigateBlocker(target)
   }
 
   const handleNextWarning = () => {
-    if (warningItems.length === 0) return
-    const target = warningItems[warningIndexRef.current % warningItems.length]
-    warningIndexRef.current = (warningIndexRef.current + 1) % warningItems.length
+    const target = nextWarningItem(warningItems)
+    if (!target) return
     onNavigateWarning(target)
   }
 

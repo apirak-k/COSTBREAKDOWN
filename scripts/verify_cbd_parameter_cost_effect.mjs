@@ -887,15 +887,16 @@ try {
     'CBD page content does not add a nested vertical scroll owner')
   const stickyShellClass = pageMarkup.match(/data-cbd-sticky-shell="true" class="([^"]+)"/)?.[1]
   assert.ok(stickyShellClass)
-  assert.match(stickyShellClass, /(?:^|\s)pb-2(?:\s|$)/,
-    'the existing spacing below the sticky CBD top area remains intact')
-  assert.match(stickyShellClass, /(?:^|\s)lg:bg-slate-100(?:\s|$)/,
-    'the sticky-area gap uses the opaque workspace background')
+  assert.doesNotMatch(stickyShellClass, /(?:^|\s)(?:pb-2|lg:bg-slate-100)(?:\s|$)/,
+    'the 8px gap is not part of the sticky CBD Summary')
   assert.match(stickyShellClass, /lg:sticky[^\"]*lg:top-0/,
     'Subheader and overview remain stuck to the top of Main while it scrolls')
   assert.ok(pageMarkup.indexOf('aria-label="Cost Breakdown subheader"') < pageMarkup.indexOf('id="cost-breakdown-overview-panels"')
     && pageMarkup.indexOf('id="cost-breakdown-overview-panels"') < pageMarkup.indexOf('aria-label="Candidate workspace"'),
   'the sticky shell contains the Subheader and summary above the normal-flow Candidate region')
+  const stickyGap = pageMarkup.match(/<div aria-hidden="true" data-cbd-sticky-gap="true" class="([^"]+)"\s*><\/div>/)?.[1]
+    ?? pageMarkup.match(/<div aria-hidden="true" data-cbd-sticky-gap="true" class="([^"]+)"\s*\/?>/)?.[1]
+  assert.equal(stickyGap, 'h-2 shrink-0', 'an 8px normal-flow sibling gap follows the sticky summary')
   assert.match(pageMarkup, /aria-label="Cost Element"[^>]*data-cbd-overview-panel="cost"/,
     'Cost Element fills the bounded overview height')
   assert.match(pageMarkup, /aria-label="Work Center"[^>]*data-cbd-overview-panel="work-center"/,

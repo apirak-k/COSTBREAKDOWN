@@ -345,9 +345,9 @@ export function SimulationStoryGraph({ story, unit }: SimulationStoryGraphProps)
 
   return (
     <figure aria-labelledby="simulation-story-title" className="min-w-0 border border-slate-300 bg-white px-2.5 py-2.5 xl:flex xl:min-h-0 xl:flex-col">
-      <div className="flex flex-col gap-1.5 border-b border-slate-200 pb-1.5 min-[720px]:flex-row min-[720px]:items-center min-[720px]:justify-between">
-        <h2 id="simulation-story-title" className="text-xs font-semibold text-slate-900">Simulation Cost Structure</h2>
-        <ul aria-label="Simulation graph legend" className="flex flex-wrap gap-x-2.5 gap-y-1 border-t border-slate-200 pt-1.5 text-[11px] min-[720px]:border-l min-[720px]:border-t-0 min-[720px]:pl-2.5 min-[720px]:pt-0">
+      <div className="flex min-w-0 flex-col gap-1.5 border-b border-slate-200 pb-1.5 min-[720px]:flex-row min-[720px]:items-center">
+        <h2 id="simulation-story-title" className="shrink-0 text-xs font-semibold text-slate-900">Simulation Cost Structure</h2>
+        <ul aria-label="Simulation graph legend" className="flex min-w-0 flex-wrap gap-x-2.5 gap-y-1 border-t border-slate-200 pt-1.5 text-[11px] min-[720px]:border-l min-[720px]:border-t-0 min-[720px]:pl-2.5 min-[720px]:pt-0">
           {LEGEND_ITEMS.map(item => {
             const isVisible = visibleLegend[item.key]
             return (

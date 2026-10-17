@@ -1593,7 +1593,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     setSelectedComparisonScope(null)
     setProductSessions(previous => previous.map(session => session.id === source.id ? updated : session))
     recordMasterDataPairWorkingEdit(source, updated)
-    setActiveTab('master')
   }
 
   const resetToDefault = () => {

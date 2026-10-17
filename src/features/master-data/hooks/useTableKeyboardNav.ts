@@ -522,6 +522,24 @@ export function useTableKeyboardNav({
       const currentField = cell.dataset.gridField
       if (currentField) claimCellInteraction(currentField)
 
+      if (event.key === 'ArrowLeft' || event.key === 'ArrowRight') {
+        const isSelectableTextControl = cell instanceof HTMLTextAreaElement
+          || (cell instanceof HTMLInputElement && ['email', 'password', 'search', 'tel', 'text', 'url'].includes(cell.type))
+        if (isSelectableTextControl) {
+          const input = cell as HTMLInputElement | HTMLTextAreaElement
+          const selectionStart = input.selectionStart
+          const selectionEnd = input.selectionEnd
+          const hasSelection = selectionStart !== null && selectionEnd !== null && selectionStart !== selectionEnd
+          const hasCaretRoom = selectionStart !== null && (event.key === 'ArrowLeft'
+            ? selectionStart > 0
+            : selectionStart < input.value.length)
+
+          // Let text controls collapse a selection and move the caret through
+          // their value. At the value's edge, keep the spreadsheet navigation.
+          if (hasSelection || hasCaretRoom) return
+        }
+      }
+
       const isCommand = event.ctrlKey || event.metaKey
       if (isEditModeRef.current && isCommand && event.key.toLowerCase() === 'z') {
         event.preventDefault()

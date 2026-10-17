@@ -35,6 +35,7 @@ export const MasterDataPage: React.FC<MasterDataPageProps> = ({
   onPrepareDatasetNavigationHandled
 }) => {
   const {
+    activeProductId,
     masterDataSnapshots,
     masterDataUiState,
     masterDataRole,
@@ -120,6 +121,7 @@ export const MasterDataPage: React.FC<MasterDataPageProps> = ({
 
   const renderTable = (table: TableSubTab) => {
     const selectionOwnerScopeKey = `${masterDataRole}:${table}`
+    const navigationScopeKey = `${activeProductId}:${masterDataRole}:${table}`
     const cellSelectionOwnerProps = {
       selectionOwnerScopeKey,
       activeSelectionOwnerKey: activeCellSelectionOwnerKey,
@@ -129,6 +131,7 @@ export const MasterDataPage: React.FC<MasterDataPageProps> = ({
     const tableWarnings = warningItemsByTable[table]
     const tableBlockers = blockerItemsByTable[table]
     const tableChromeProps = {
+      navigationScopeKey,
       warningCount: tableWarnings.length,
       warningItems: tableWarnings,
       blockerItems: tableBlockers,

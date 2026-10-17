@@ -558,12 +558,8 @@ try {
   assert.equal(wcDesktopHeight, costDesktopHeight, 'both summary boxes consume the same desktop height standard')
   assert.match(stickyShellClass, /lg:sticky[^\"]*lg:top-0/,
     'Subheader and Cost Element / Work Center overview stay sticky at the top of CBD Main while it scrolls')
-  assert.match(stickyShellClass, /(?:^|\s)pb-2(?:\s|$)/,
-    'the existing gap below the sticky top area remains in place')
-  assert.match(stickyShellClass, /(?:^|\s)lg:bg-slate-100(?:\s|$)/,
-    'the sticky gap uses the opaque surrounding workspace background')
-  assert.doesNotMatch(stickyShellClass, /lg:bg-white/,
-    'the sticky gap does not create a white strip against the workspace')
+  assert.doesNotMatch(stickyShellClass, /(?:^|\s)(?:pb-2|lg:bg-slate-100)(?:\s|$)/,
+    'the 8px gap and its background are not part of the sticky shell')
   const costGapLegendClass = pageSource.match(/<div role="group" aria-label="Cost element color legend" className="([^"]+)"/)?.[1]
   assert.ok(costGapLegendClass, 'Standard Cost Gap has its compact MAT/LB/BD legend')
   assert.match(costGapLegendClass, /(?:^|\s)border-l border-slate-300 pl-2(?:\s|$)/,
@@ -574,13 +570,13 @@ try {
   assert.ok(subheaderIndex >= stickyShellOpen
     && overviewIndex > subheaderIndex
     && candidateIndex > overviewIndex
-    && /\r?\n      <\/div>\r?\n      <\/div>\r?\n\r?\n      <div role="region" aria-label="Candidate workspace"/.test(pageSource.slice(overviewIndex, candidateIndex + 100)),
+    && /\r?\n      <\/div>\r?\n      <\/div>\r?\n\r?\n      <div aria-hidden="true" data-cbd-sticky-gap="true" className="h-2 shrink-0" \/>\r?\n\r?\n      <div role="region" aria-label="Candidate workspace"/.test(pageSource.slice(overviewIndex, candidateIndex + 100)),
   'only the Subheader and summary belong to the sticky shell; Candidate remains Main content')
+  assert.match(pageSource.slice(overviewIndex, candidateIndex), /<div aria-hidden="true" data-cbd-sticky-gap="true" className="h-2 shrink-0" \/>/,
+    'the 8px gap follows the complete sticky Summary as a normal-flow sibling before Candidate')
   assert.doesNotMatch(candidateRegionClass, /overflow-y-auto|overflow-y-scroll|overflow-auto|flex-1|min-h-0/,
     'Candidate Findings stays in normal flow and does not take a second vertical scroll owner')
   const appLayoutSource = readFileSync(new URL('../src/shared/layout/AppLayout.tsx', import.meta.url), 'utf8')
-  assert.match(appLayoutSource, /bg-slate-100\/70/,
-    'the sticky gap matches the surrounding application workspace background')
   assert.match(appLayoutSource, /className=\{isCostBreakdown\s*\?\s*'[^']*overflow-y-auto[^']*'\s*:/,
     'shared Main remains the CBD page-level vertical scroll owner')
   assert.match(pageSource, /aria-expanded=\{isOverviewExpanded\}[\s\S]*aria-controls="cost-breakdown-overview-panels"[\s\S]*aria-label=\{`\$\{isOverviewExpanded \? 'Collapse' : 'Expand'\} Cost Element and Work Center sections`\}/,
@@ -599,7 +595,7 @@ try {
   console.log('PASS: Cost row/slot structure and MAT/LB/BD plus STD Cost formulas')
   console.log('PASS: Cost Element uses stable neutral Selected slots without parentheses')
   console.log('PASS: Work Center is bounded with body-only scrolling and fixed aligned header/footer')
-  console.log('PASS: shared Main owns CBD vertical scrolling; Subheader/summary stay sticky; Candidate remains natural flow; summary calculations reconcile')
+  console.log('PASS: shared Main owns CBD vertical scrolling; Summary stays sticky with a normal-flow 8px gap; Candidate remains natural flow; summary calculations reconcile')
 } finally {
   await vite.close()
 }

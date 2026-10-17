@@ -164,6 +164,9 @@ try {
   assert.doesNotMatch(graphMarkup, /<title\b|\stitle=/, 'graph elements do not expose native hover tooltips')
   assert.match(graphMarkup, /<h2 id="simulation-story-title"[^>]*>Simulation Cost Structure<\/h2>[\s\S]*?<ul aria-label="Simulation graph legend"/,
     'the graph title and legend share the header area')
+  const graphHeaderClasses = graphSource.match(/<div className="flex min-w-0 flex-col gap-1\.5 border-b border-slate-200 pb-1\.5 ([^"]+)"/)?.[1] ?? ''
+  assert.doesNotMatch(graphHeaderClasses, /justify-between/,
+    'the graph title and legend stay grouped instead of pushing the legend to the far edge')
   assert.match(graphMarkup, /GAP 1 is Current minus Reference; GAP 2 is Simulation minus Current/)
   assert.match(graphMarkup, /Legend filters change this graph view only, not Result or source data/)
   assert.match(graphMarkup, /data-y-axis="true"/, 'the graph renders a visible Y-axis line')
@@ -224,7 +227,6 @@ try {
   assert.match(graphSource, /marker: 'ruler'/)
   assert.match(graphSource, /border-t-2 border-solid/)
   assert.match(graphSource, /border-t-2 border-dashed/)
-  const graphHeaderClasses = graphSource.match(/<div className="flex flex-col gap-1\.5 border-b border-slate-200 pb-1\.5 ([^"]+)"/)?.[1] ?? ''
   const legendClasses = graphSource.match(/<ul aria-label="Simulation graph legend" className="([^"]+)">/)?.[1] ?? ''
   const layoutBreakpoint = graphHeaderClasses.match(/(?:min-\[\d+px\]|sm|md|lg|xl):flex-row(?=\s|$)/)?.[0]?.replace(/:flex-row$/, '')
   const dividerBreakpoint = legendClasses.match(/(?:min-\[\d+px\]|sm|md|lg|xl):border-l(?=\s|$)/)?.[0]?.replace(/:border-l$/, '')

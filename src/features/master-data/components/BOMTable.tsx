@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useRef } from 'react'
+import React, { useCallback, useMemo, useRef } from 'react'
 import { GripVertical, Trash2 } from 'lucide-react'
 import { SnapshotBOMItem, formatNumber } from '../../../core'
 import { getMasterDataNumericInputDomain } from '../../../core/utils/master-data-validation'
@@ -8,6 +8,7 @@ import { SpreadsheetPasteCell, tableCellKey, useTableKeyboardNav } from '../hook
 import { RowChanges, useSpreadsheetEditing } from '../hooks/useSpreadsheetEditing'
 import { blankIdentityOrdinals, duplicateIdentityIds, editableIdentityPlaceholder, editableIdentityValue, hasInvalidNumber, parsePercentage } from '../table-validation'
 import { useWarningNavigationFocus, type WarningNavigationTarget } from '../hooks/useWarningNavigationFocus'
+import { useQualityNavigationCursor } from '../hooks/useQualityNavigationCursor'
 import type { MasterDataBlockerItem, MasterDataWarningItem } from '../prepare-dataset'
 import { MasterDataTableHeader } from './MasterDataTableChrome'
 import { MasterDataBlockerMarker } from './MasterDataBlockerMarker'
@@ -19,6 +20,7 @@ interface BOMTableProps {
   bom: SnapshotBOMItem[]
   isEditMode?: boolean
   historyScope: string
+  navigationScopeKey: string
   selectionOwnerScopeKey: string
   activeSelectionOwnerKey: string | null
   onCellInteraction: (field: string) => void
@@ -47,6 +49,7 @@ export const BOMTable: React.FC<BOMTableProps> = ({
   bom,
   isEditMode = false,
   historyScope,
+  navigationScopeKey,
   selectionOwnerScopeKey,
   activeSelectionOwnerKey,
   onCellInteraction,
@@ -69,8 +72,8 @@ export const BOMTable: React.FC<BOMTableProps> = ({
 }) => {
   const tableRef = useRef<HTMLTableElement | null>(null)
   const cellSelectionRowIds = useMemo(() => bom.map(item => item.id), [bom])
-  const warningIndexRef = useRef(0)
-  const blockerIndexRef = useRef(0)
+  const nextWarningItem = useQualityNavigationCursor<MasterDataWarningItem>(navigationScopeKey)
+  const nextBlockerItem = useQualityNavigationCursor<MasterDataBlockerItem>(navigationScopeKey)
   const query = searchQuery.trim().toLocaleLowerCase()
   const duplicateNameIds = useMemo(() => duplicateIdentityIds(bom, item => item.id, item => item.description), [bom])
   const placeholderNumbers = useMemo(() => blankIdentityOrdinals(bom, item => item.description), [bom])
@@ -97,11 +100,6 @@ export const BOMTable: React.FC<BOMTableProps> = ({
 
   const selectWarningRow = useCallback((rowId: string) => setSelectedIds(new Set([rowId])), [setSelectedIds])
   useWarningNavigationFocus(tableRef, searchQuery, onSearchQueryChange, warningNavigationTarget, selectWarningRow, onWarningNavigationHandled)
-
-  useEffect(() => {
-    warningIndexRef.current = 0
-    blockerIndexRef.current = 0
-  }, [historyScope, warningItems, blockerItems])
 
   const {
     applyCellUpdate,
@@ -182,16 +180,14 @@ export const BOMTable: React.FC<BOMTableProps> = ({
   }
 
   const handleNextBlocker = () => {
-    if (blockerItems.length === 0) return
-    const target = blockerItems[blockerIndexRef.current % blockerItems.length]
-    blockerIndexRef.current = (blockerIndexRef.current + 1) % blockerItems.length
+    const target = nextBlockerItem(blockerItems)
+    if (!target) return
     onNavigateBlocker(target)
   }
 
   const handleNextWarning = () => {
-    if (warningItems.length === 0) return
-    const target = warningItems[warningIndexRef.current % warningItems.length]
-    warningIndexRef.current = (warningIndexRef.current + 1) % warningItems.length
+    const target = nextWarningItem(warningItems)
+    if (!target) return
     onNavigateWarning(target)
   }
 

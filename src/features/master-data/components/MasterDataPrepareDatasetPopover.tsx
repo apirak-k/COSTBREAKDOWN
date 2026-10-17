@@ -12,6 +12,7 @@ import {
   type MasterDataBlockerGroup,
   type MasterDataBlockerItem,
   type MasterDataWarningGroup,
+  type MasterDataWarningTable,
   type MasterDataQualityItem
 } from '../prepare-dataset'
 
@@ -35,8 +36,17 @@ interface MasterDataPrepareDatasetPopoverProps {
 
 const roles: MasterDataRole[] = ['reference', 'current', 'custom']
 const roleLabels: Record<MasterDataRole, string> = { reference: 'Reference', current: 'Current', custom: 'Custom' }
+const roleAbbreviations: Record<MasterDataRole, string> = { reference: 'REF', current: 'CUR', custom: 'CUS' }
+const tableLabels: Record<MasterDataWarningTable, string> = { bom: 'Bill of Materials', wc: 'Work Centers', routing: 'Routing' }
+const tableAbbreviations: Record<MasterDataWarningTable, string> = { bom: 'BOM', wc: 'WC', routing: 'RTG' }
 const datasetSummaryColumns = 'grid-cols-[minmax(0,1fr)_5rem_3.5rem_3.5rem]'
 const useSafeLayoutEffect = typeof window === 'undefined' ? useEffect : useLayoutEffect
+
+export function formatMasterDataIssueLocation(item: MasterDataQualityItem): string {
+  const fullPrefix = `${roleLabels[item.role]} · ${tableLabels[item.table]}`
+  if (!item.label.startsWith(fullPrefix)) return item.label
+  return item.label.replace(fullPrefix, `${roleAbbreviations[item.role]} · ${tableAbbreviations[item.table]}`)
+}
 
 const saveStateDotClass = (state: MasterDataSaveState) =>
   `h-2 w-2 shrink-0 rounded-full ring-[1.5px] ring-inset ${state === 'Saved' ? 'bg-emerald-500 ring-emerald-700/70' : 'bg-slate-400 ring-slate-600/70'}`
@@ -222,9 +232,10 @@ export const MasterDataPrepareDatasetPopover: React.FC<MasterDataPrepareDatasetP
                           <button
                             type="button"
                             onClick={() => { onNavigateIssue(item); onClose() }}
+                            aria-label={item.label}
                             className="flex min-h-7 w-full px-1 py-1 text-left text-[11px] text-slate-700 hover:bg-slate-50 hover:text-slate-950 focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-700"
                           >
-                            <span className="min-w-0 flex-1">{item.label}</span>
+                            <span className="min-w-0 flex-1">{formatMasterDataIssueLocation(item)}</span>
                           </button>
                         </li>
                       ))}

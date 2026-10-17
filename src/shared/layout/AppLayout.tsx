@@ -23,6 +23,7 @@ import {
   dismissTransientInteractions,
   isSafeWorkspaceDismissTarget
 } from '../ui/transient-interactions'
+import { installSelectAllOnFirstFocus } from '../ui/select-all-on-first-focus'
 
 const masterDataRoles = ['reference', 'current', 'custom'] as const
 
@@ -156,6 +157,8 @@ export const AppLayout: React.FC<AppLayoutProps> = ({ children, onNavigatePrepar
     loadDevelopmentMockData,
     setMasterDataRole
   } = useAppStore()
+
+  useEffect(() => installSelectAllOnFirstFocus(document), [])
 
   useEffect(() => {
     const handleEscape = (event: KeyboardEvent) => {
