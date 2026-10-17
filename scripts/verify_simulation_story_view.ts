@@ -117,6 +117,8 @@ try {
   const graphMarkup = renderToStaticMarkup(React.createElement(SimulationStoryGraph, { story, unit: 'PC' }))
   assert.equal(JSON.stringify(story), storyBeforeRender, 'rendering the graph does not mutate ScenarioStory')
   const graphSource = readFileSync(resolve(process.cwd(), 'src/features/simulation/SimulationStoryGraph.tsx'), 'utf8')
+  const numericSvgAttribute = (tag: string, attribute: string) =>
+    Number(tag.match(new RegExp(`\\b${attribute}="([^"]+)"`))?.[1])
   const svgTextLabels = [...graphMarkup.matchAll(/<text\b[^>]*>([\s\S]*?)<\/text>/g)]
     .map(match => match[1].replace(/<title>[\s\S]*?<\/title>/g, '').replace(/<[^>]*>/g, '').replace(/&amp;/g, '&').trim())
   const gapTotalLabels = [...graphMarkup.matchAll(/<text\b[^>]*data-graph-total="(gap1|gap2)"[^>]*>([\s\S]*?)<\/text>/g)]
@@ -127,6 +129,17 @@ try {
     .map(match => [match[1], match[2].replace(/<title>[\s\S]*?<\/title>/g, '').replace(/<[^>]*>/g, '').trim()])
   assert.deepEqual(standardCostLabels, [['reference', '90.00'], ['current', '100.00'], ['simulated', '95.00']],
     'REF/CUR/SIM display Standard Cost at the visible Material + Labor + Burden boundary')
+  const standardCostLineTags = new Map([...graphMarkup.matchAll(/<line\b[^>]*data-graph-standard-cost="(reference|current|simulated)"[^>]*>/g)]
+    .map(match => [match[1], match[0]] as const))
+  const standardCostValueTags = new Map([...graphMarkup.matchAll(/<text\b[^>]*data-graph-standard-cost-value="(reference|current|simulated)"[^>]*>/g)]
+    .map(match => [match[1], match[0]] as const))
+  for (const state of ['reference', 'current', 'simulated']) {
+    const boundaryLine = standardCostLineTags.get(state)
+    const valueLabel = standardCostValueTags.get(state)
+    assert.ok(boundaryLine && valueLabel, `${state} includes its Standard Cost line and value label`)
+    assert.ok(numericSvgAttribute(valueLabel, 'x') - numericSvgAttribute(boundaryLine, 'x2') > 4,
+      `${state} Standard Cost text keeps a small gap beyond the old near-touching spacing`)
+  }
   assert.doesNotMatch(graphMarkup, /data-graph-total="(?:reference|current|simulated)"/,
     'full commercial-stack values are not duplicated above REF/CUR/SIM')
   assert.deepEqual(svgTextLabels.filter(label => ['REF', 'GAP 1', 'CUR', 'GAP 2', 'SIM'].includes(label)),
@@ -155,7 +168,12 @@ try {
   assert.match(graphMarkup, /Legend filters change this graph view only, not Result or source data/)
   assert.match(graphMarkup, /data-y-axis="true"/, 'the graph renders a visible Y-axis line')
   assert.match(graphMarkup, /data-y-axis-unit="true"[^>]*>THB\/PC<\/text>/, 'the dynamic UOM is attached to the Y axis')
-  assert.match(graphMarkup, /rotate\(-90 58 155\).*THB\/PC/, 'the unit label sits alongside the Y-axis')
+  const yAxisLineTag = graphMarkup.match(/<line\b[^>]*data-y-axis="true"[^>]*>/)?.[0] ?? ''
+  const yAxisUnitTag = graphMarkup.match(/<text\b[^>]*data-y-axis-unit="true"[^>]*>/)?.[0] ?? ''
+  assert.ok(yAxisLineTag && yAxisUnitTag)
+  assert.doesNotMatch(yAxisUnitTag, /transform=|rotate\(\s*-90/, 'the Y-axis unit label stays horizontal')
+  assert.ok(numericSvgAttribute(yAxisUnitTag, 'y') < numericSvgAttribute(yAxisLineTag, 'y1'),
+    'the horizontal UOM label sits above the Y-axis')
   for (const [state, value, tooltip] of [
     ['reference', '90.00', 'Reference Standard Cost · 90.00 THB/PC'],
     ['current', '100.00', 'Current Standard Cost · 100.00 THB/PC'],
@@ -169,7 +187,9 @@ try {
   assert.match(graphMarkup, /aria-label="Reference Material: 60\.00 THB\/PC"/)
   assert.match(graphMarkup, /aria-label="GAP 1 · Current − Reference · Material Gap: \+5\.00 THB\/PC"/)
   assert.match(graphMarkup, /fill="none" stroke="#334155" stroke-width="1"/, 'Standard Cost uses a neutral outline without another fill')
-  assert.match(graphMarkup, /role="slider"[^>]*aria-label="Simulation comparison ruler"[^>]*aria-orientation="vertical"/)
+  assert.match(graphMarkup, /role="slider"[^>]*aria-label="Simulation comparison ruler"[^>]*aria-orientation="vertical"[^>]*class="[^"]*cursor-ns-resize/,
+    'the ruler keeps its vertical resize cursor')
+  assert.doesNotMatch(graphMarkup, /cursor-help/, 'graph information targets do not show a help cursor')
   assert.match(graphMarkup, /aria-valuetext="[^\"]+ THB\/PC"/)
   assert.match(graphSource, /data-ruler-value="true" x=\{plot\.right \+ 7\}/, 'the ruler value sits at the line end without a label')
   assert.match(graphSource, /onKeyDown=\{handleRulerKeyDown\}/, 'the visual ruler remains keyboard operable')
@@ -193,13 +213,24 @@ try {
   assert.match(graphSource, /text-slate-500/, 'an OFF legend item remains readable while looking disabled')
   assert.match(graphSource, /isVisible \? 'border' : 'border-2'/,
     'OFF square indicators keep a clearly visible solid outline')
+  assert.match(graphSource, /backgroundColor: isVisible \? item\.color : 'transparent'/,
+    'OFF bar indicators stay hollow')
+  assert.match(graphSource, /borderColor: item\.color/,
+    'OFF bar indicators retain their own category color outline')
   assert.match(graphSource, /isVisible \? item\.color : '#64748b'/,
-    'OFF line indicators switch to a visible muted neutral color')
+    'OFF line indicators switch to neutral gray')
   assert.doesNotMatch(graphSource, /opacity-40|>OFF</, 'an OFF legend item remains visible without fading or an extra badge')
   assert.match(graphSource, /marker: 'sellingPrice'/)
   assert.match(graphSource, /marker: 'ruler'/)
   assert.match(graphSource, /border-t-2 border-solid/)
   assert.match(graphSource, /border-t-2 border-dashed/)
+  const graphHeaderClasses = graphSource.match(/<div className="flex flex-col gap-1\.5 border-b border-slate-200 pb-1\.5 ([^"]+)"/)?.[1] ?? ''
+  const legendClasses = graphSource.match(/<ul aria-label="Simulation graph legend" className="([^"]+)">/)?.[1] ?? ''
+  const layoutBreakpoint = graphHeaderClasses.match(/(?:min-\[\d+px\]|sm|md|lg|xl):flex-row(?=\s|$)/)?.[0]?.replace(/:flex-row$/, '')
+  const dividerBreakpoint = legendClasses.match(/(?:min-\[\d+px\]|sm|md|lg|xl):border-l(?=\s|$)/)?.[0]?.replace(/:border-l$/, '')
+  assert.ok(layoutBreakpoint && dividerBreakpoint)
+  assert.equal(dividerBreakpoint, layoutBreakpoint,
+    'the legend divider appears at the same responsive breakpoint as the header layout change')
   assert.doesNotMatch(legendMarkup, /aria-label="(?:MAT|LB|BD|OP[+−])"/)
   assert.doesNotMatch(graphMarkup, />SP\s+\d/, 'Selling Price labels do not use the SP prefix')
   assert.doesNotMatch(graphSource, /highlightedParts|highlighted\s*\?/, 'graph bars have no parameter-selection highlight')
@@ -232,6 +263,16 @@ try {
     financial(tooltipReference, 120, 8), financial(tooltipCurrent, 120, 10), financial(tooltipSim, 120, 10)
   )
   const tooltipMarkup = renderToStaticMarkup(React.createElement(SimulationStoryGraph, { story: tooltipStory, unit: 'KG' }))
+  const categoryTooltipTags = new Map([...tooltipMarkup.matchAll(/<text\b[^>]*>(REF|GAP 1|CUR|GAP 2|SIM)<\/text>/g)]
+    .map(match => [match[1], match[0]] as const))
+  for (const [label, tooltip] of [
+    ['REF', 'Reference Cost Structure'], ['GAP 1', 'Current − Reference'], ['CUR', 'Current Cost Structure'],
+    ['GAP 2', 'Simulation − Current'], ['SIM', 'Simulation Cost Structure']
+  ]) {
+    const categoryTag = categoryTooltipTags.get(label)
+    assert.ok(categoryTag?.includes('data-graph-tooltip="true"') && categoryTag.includes(`aria-label="${tooltip}"`),
+      `${label} maps to its own accessible graph tooltip`)
+  }
   for (const tooltip of [
     'Reference Material: 60.00 THB/KG', 'Reference Labor: 20.00 THB/KG', 'Reference Burden: 10.00 THB/KG',
     'Reference SG&amp;A: 9.60 THB/KG', 'Reference Operating Profit: 20.40 THB/KG',

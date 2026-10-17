@@ -889,8 +889,8 @@ try {
   assert.ok(stickyShellClass)
   assert.match(stickyShellClass, /(?:^|\s)pb-2(?:\s|$)/,
     'the existing spacing below the sticky CBD top area remains intact')
-  assert.match(stickyShellClass, /(?:^|\s)lg:bg-slate-100\/70(?:\s|$)/,
-    'the sticky-area gap blends into the surrounding workspace background')
+  assert.match(stickyShellClass, /(?:^|\s)lg:bg-slate-100(?:\s|$)/,
+    'the sticky-area gap uses the opaque workspace background')
   assert.match(stickyShellClass, /lg:sticky[^\"]*lg:top-0/,
     'Subheader and overview remain stuck to the top of Main while it scrolls')
   assert.ok(pageMarkup.indexOf('aria-label="Cost Breakdown subheader"') < pageMarkup.indexOf('id="cost-breakdown-overview-panels"')

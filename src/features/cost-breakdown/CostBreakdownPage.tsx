@@ -231,7 +231,7 @@ export const CostBreakdownPage: React.FC<CostBreakdownPageProps> = ({ manualOrde
 
   return (
     <div className="flex min-h-full min-w-0 flex-col overflow-x-clip">
-      <div data-cbd-sticky-shell="true" className="flex shrink-0 flex-col pb-2 lg:sticky lg:top-0 lg:z-30 lg:bg-slate-100/70">
+      <div data-cbd-sticky-shell="true" className="flex shrink-0 flex-col pb-2 lg:sticky lg:top-0 lg:z-30 lg:bg-slate-100">
       <header aria-label="Cost Breakdown subheader" className="shrink-0 overflow-x-auto border border-slate-300 bg-white">
         <div className="flex min-w-[1000px] flex-nowrap items-center gap-1.5 px-1.5 py-1" role="group" aria-label="Cost Breakdown controls">
           <div

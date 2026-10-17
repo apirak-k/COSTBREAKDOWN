@@ -61,7 +61,7 @@ The title must be exactly:
 Simulation Cost Structure
 ```
 
-In the graph header, keep the title on the left and place the legend after a subtle vertical divider when they fit on one row. On narrower headers, allow the legend to wrap and remove the divider when it no longer separates side-by-side content naturally.
+In the graph header, keep the title on the left. The title/legend layout and divider must switch at the same responsive breakpoint: use a subtle 1px vertical divider when they are side-by-side, and horizontal separation with no vertical divider when they are stacked. Preserve wrapping and prevent an intermediate state where side-by-side content still has a top border or the page overflows horizontally.
 
 ---
 
@@ -123,6 +123,7 @@ Important:
 - SG&A / Profit may continue visually above it
 - do not add an unnecessary heavy black divider merely to represent Standard Cost
 - do not make the group outline compete with the ruler
+- leave a small visible gap between the Standard Cost number and the outline; move only the number, not the bar or outline
 - Standard Cost text/value styling should follow the Cost Breakdown Standard Cost visual language
 
 ## 5.3 State-specific tooltip
@@ -249,7 +250,8 @@ Requirements:
 
 - ON vs OFF must be obvious at a glance
 - OFF text must remain readable
-- OFF square outlines and line samples must remain clearly visible in muted neutral colors
+- OFF bar-series squares (Material, Labor, Burden, SG&A, Profit +, and Profit −) are hollow with a transparent interior and retain that series' original border color
+- OFF line-series samples (Selling Price and Ruler) use a clearly visible neutral/muted gray line and marker
 - do not fade the entire item to near-invisibility
 - do not make OFF look permanently disabled/unusable
 
@@ -372,6 +374,8 @@ Do not hard-code one unit when another unit is actually resolved.
 ## 13.3 Axis label placement
 
 The unit label must visually belong to the Y-axis.
+
+Render `THB/<UOM>` horizontally above or at the top of the Y-axis. Do not rotate it vertically beside the axis. Keep it dynamically resolved for the product and visibly attached to the axis.
 
 Concept:
 
@@ -574,6 +578,8 @@ Do not write long explanatory paragraphs.
 
 Use a controlled tooltip for graph data that appears immediately on hover or keyboard focus and disappears immediately on leave/blur. Keep it stable while the pointer moves between adjacent graph segments. Remove native SVG `<title>` tooltips from data elements and do not show a tooltip over blank graph space. Preserve the graph name and description for assistive technology with ARIA or equivalent hidden accessible content.
 
+The visible category labels themselves use this same custom tooltip behavior, with the exact mappings below. Informational graph targets use the normal/default cursor; do not use `cursor-help` or a pointer cursor. The draggable ruler retains `ns-resize`.
+
 ## 17.1 State labels
 
 ```text
@@ -710,6 +716,7 @@ Y-axis auto-fits to the remaining visible values
 - [ ] Gap 2 formula remains Simulation − Current
 - [ ] Gap bars retain Material/Labor/Burden contribution colors
 - [ ] REF/CUR/SIM show Standard Cost at the MAT+LB+BD boundary
+- [ ] Standard Cost values have a small deliberate visual gap from their outlines without moving the bars or outlines
 - [ ] visible MAT/LB/BD region has a neutral outline without an added fill/segment
 - [ ] Reference Standard Cost tooltip is correct
 - [ ] Current Standard Cost tooltip is correct
@@ -725,10 +732,12 @@ Y-axis auto-fits to the remaining visible values
 - [ ] Legend labels are full names
 - [ ] ON vs OFF legend state is immediately distinguishable
 - [ ] OFF text remains readable
-- [ ] OFF square and line samples remain clearly visible
+- [ ] OFF bar-series squares are hollow and retain their original series-colored borders
+- [ ] OFF Selling Price and Ruler line samples are clearly visible in neutral/muted gray
 - [ ] Selling Price legend uses a solid line with a centered circle
 - [ ] Ruler legend uses a dashed line without a marker
 - [ ] Legend is in the graph header with a responsive title divider
+- [ ] Side-by-side title/legend has a vertical divider; stacked title/legend has horizontal separation and no vertical divider at the same breakpoint as the layout change
 - [ ] Profit + only controls positive Profit
 - [ ] Profit − only controls negative Profit
 - [ ] Actual Profit sign is preserved
@@ -738,6 +747,7 @@ Y-axis auto-fits to the remaining visible values
 - [ ] Y-axis line is visibly present
 - [ ] Y-axis UOM resolves dynamically as THB/<unit>
 - [ ] Y-axis unit is visually associated with the axis at multiple browser widths
+- [ ] Y-axis unit is horizontal above/at the top of the axis, never rotated vertically beside it
 - [ ] Graph auto-fits to currently visible values
 - [ ] Hide Selling Price causes range to refit when appropriate
 - [ ] Legend changes cause range to refit
@@ -754,6 +764,8 @@ Y-axis auto-fits to the remaining visible values
 - [ ] Ruler softly snaps to every visible stack boundary and remains free-moving between boundaries
 - [ ] Tooltip wording remains concise
 - [ ] Data tooltips appear immediately on hover/focus and disappear on leave/blur
+- [ ] The five category labels themselves map REF → Reference Cost Structure, GAP 1 → Current − Reference, CUR → Current Cost Structure, GAP 2 → Simulation − Current, and SIM → Simulation Cost Structure
+- [ ] Informational tooltip targets use the normal/default cursor; the ruler retains `ns-resize`
 - [ ] Blank SVG space shows no native Simulation Cost Structure tooltip
 - [ ] Graph remains responsive to container width
 - [ ] Selling Price circle, graph geometry, and text remain undistorted across tested widths
@@ -795,6 +807,8 @@ Material 4 + Burden 3 = visible Standard Cost 7
 9. Gap visual contributions remain Material/Labor/Burden based
 
 If an existing verifier expects the full economic stack / Selling-Price-equivalent total as the REF/CUR/SIM displayed Standard Cost, that expectation is stale and must be corrected rather than forcing the UI back to the wrong behavior.
+
+The focused verifier must also check that the Y-axis unit is horizontal and at the top of the axis, Standard Cost text has a deliberate non-pixel-fragile gap from its outline, all five category labels use the exact custom tooltip mappings, informational targets do not use `cursor-help`, bar OFF markers keep their own colored outlines while line OFF markers become neutral, and the title/legend divider breakpoint matches the header layout breakpoint.
 
 ---
 

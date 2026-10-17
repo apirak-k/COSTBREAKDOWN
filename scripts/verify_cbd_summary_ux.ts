@@ -560,8 +560,8 @@ try {
     'Subheader and Cost Element / Work Center overview stay sticky at the top of CBD Main while it scrolls')
   assert.match(stickyShellClass, /(?:^|\s)pb-2(?:\s|$)/,
     'the existing gap below the sticky top area remains in place')
-  assert.match(stickyShellClass, /(?:^|\s)lg:bg-slate-100\/70(?:\s|$)/,
-    'the sticky gap uses the surrounding workspace background')
+  assert.match(stickyShellClass, /(?:^|\s)lg:bg-slate-100(?:\s|$)/,
+    'the sticky gap uses the opaque surrounding workspace background')
   assert.doesNotMatch(stickyShellClass, /lg:bg-white/,
     'the sticky gap does not create a white strip against the workspace')
   const costGapLegendClass = pageSource.match(/<div role="group" aria-label="Cost element color legend" className="([^"]+)"/)?.[1]

@@ -1,34 +1,31 @@
-# Current Handoff — Simulation BOM / RTG follow-up — 2026-10-17
+# Current Handoff — Simulation Graph / CBD final visual cleanup — 2026-10-17
 
 - Repository: `/Users/bubu/COSTBREAKDOWN`, `apirak-k/COSTBREAKDOWN`.
-- Branch: `logic/simulation-finalized-implementation`. Starting local HEAD and fetched `origin/logic/simulation-finalized-implementation` HEAD: `348f445076c9554dd646ef36258a1231f488d867` for both. The final local commit SHA is in the completion report. **Not pushed.**
-- Pre-existing local change: `vite.config.ts` was modified before this round. It is unrelated, must remain untouched, and is excluded from the task commit.
-- Scope: finish Simulation Graph presentation requirements A1–A10 and Cost Breakdown visual consistency fixes B1–B3. No formulas, financial calculations, GAP semantics, Simulation semantics, selection/reordering behavior, or numeric precision policy are in scope.
+- Branch: `logic/simulation-finalized-implementation`. Starting local HEAD, fetched remote HEAD, and verified `origin/logic/simulation-finalized-implementation` all matched at `26560a41392b6b3d5c3023d56aeda8415b684144`.
+- New local commit SHA: `HEAD` (the exact object ID is included in the completion report and is available from `git rev-parse HEAD`). **NOT PUSHED.**
+- Pre-existing local change: `vite.config.ts` remains untouched and excluded from this task's commit.
+- Scope: six Simulation Graph visual/interaction fixes, one CBD sticky-gap background fix, plus requirements/verifier/docs synchronization. No formulas, business logic, accepted graph semantics, or numeric precision policy changed.
 
 ## Changes
 
-- Simulation Graph uses the lighter shared Material/Labor/Burden palette, outlines visible Standard Cost contributors as a group, and retains soft snapping to visible cost boundaries.
-- Legend marks match their graph items, OFF states remain visible, and the legend sits in the graph header with responsive wrapping. Y-axis UOM stays attached to the axis.
-- Data tooltips use immediate custom interaction; blank graph space has no native tooltip, while accessible graph naming remains.
-- Cost Breakdown adds a divider after Standard Cost Gap, gives the existing sticky-shell spacing the workspace background, and indents BOM/RTG child labels with the accepted Simulation hierarchy style without shifting numeric columns.
-- Relevant specs, palette references, and focused verification scripts are synchronized. The combined RTG extreme-value overlap remains deferred by request.
+- Simulation Graph: moved dynamic `THB/<UOM>` horizontally above the Y-axis; moved only Standard Cost values to leave a small gap after the outline; changed informational tooltip cursors to the default cursor while retaining the ruler's `ns-resize`; added custom tooltips to REF/GAP 1/CUR/GAP 2/SIM labels; kept bar-series OFF swatches hollow with their series-colored borders while line-series OFF samples turn neutral gray; aligned the title/legend divider and row layout at the same 720px breakpoint.
+- Cost Breakdown: kept the existing `pb-2` (8px) desktop sticky gap and changed its background to opaque workspace `bg-slate-100`, preserving sticky behavior and preventing the lower dark table header from showing through.
+- Updated `docs/161069/Simulation_Graph_Final_Requirements.md`, `docs/specs/SIMULATION.md`, `docs/specs/COST_BREAKDOWN.md`, and the focused Simulation/CBD verifier expectations for the final behavior.
 
 ## Verification
 
-- **PASS — build:** `npm run build` (TypeScript and Vite production build).
-- **PASS — Graph:** `node --experimental-strip-types scripts/verify_simulation_story_view.ts`; `node scripts/verify_simulation_regression.mjs`.
-- **PASS — Cost Breakdown:** `node --experimental-strip-types scripts/verify_cbd_summary_ux.ts`, `node scripts/verify_cbd_parameter_cost_effect.mjs`, `node --experimental-strip-types scripts/verify_cost_breakdown_view.ts`, `node --experimental-strip-types scripts/verify_cost_breakdown_sort.ts`, `node --experimental-strip-types scripts/verify_cbd_reorder_history.ts`, `node --experimental-strip-types scripts/verify_row_drag_selection.ts`, and `node scripts/verify_cost_breakdown_review_feedback.mjs`.
-- **PASS — diff:** `git diff --check`.
-- **PASS — Chrome responsive browser check:** 1440×900, 1280×900, 768×900, and 390×844. The SVG scale is uniform at each tested size; Selling Price circle width/height ratio measured 1.0000 (within 0.00002), page width did not overflow, and `THB/PC` remained attached to the Y axis. The graph header kept title/legend together and removed the divider when stacked.
-- **PASS — Graph interactions:** custom data tooltip appeared in 33–43 ms; moving to blank graph space cleared it. Standard Cost outline remained visible for REF/CUR/SIM and followed visible contributors after Material was filtered off. Selling Price OFF removed its markers and muted its line sample. Ruler moved near a visible Standard Cost boundary and snapped to it; a separate move to 117.00 remained free between boundaries. Keyboard Home/ArrowUp/End/PageDown produced `0` / `3` / `300` / `270` on the fixture scale.
-- **PASS — Cost Breakdown browser check at 1280×900 and 390×844:** Standard Cost Gap has a 1px divider, sticky shell retains its 8px gap with the workspace background, and there was no horizontal page overflow. Expanded child label began 18px to the right of its parent label while all measured numeric-column left edges remained unchanged.
-- Browser screenshots (synthetic Complete Mock): `/Users/bubu/.codex/visualizations/2026/10/17/01a1493d-d084-7b01-9cb1-385ce1297a44/simulation-bom-rtg/followup/`.
-- Build still reports existing ExcelJS browser-externalization and large-chunk warnings. The review-feedback verifier emits existing React SSR `useLayoutEffect` warnings but exits successfully.
+- **PASS — build:** `npm run build`.
+- **PASS — Simulation:** `node --experimental-strip-types scripts/verify_simulation_story_view.ts`; `node scripts/verify_simulation_regression.mjs`.
+- **PASS — Cost Breakdown:** `node scripts/verify_cbd_parameter_cost_effect.mjs`; `node --experimental-strip-types scripts/verify_cbd_summary_ux.ts`; `node --experimental-strip-types scripts/verify_cost_breakdown_view.ts`.
+- **PASS — browser, synthetic Complete Mock / headless Chrome:** graph at 1440×900, 1280×900, 768×900, 390×844; CBD at 1280×900 and 390×844. All requested checks 1–24 passed: horizontal dynamic axis label and Standard Cost spacing; default/ruler cursors; all five immediate category tooltips; bar and line OFF states; matching row/divider behavior at desktop/tablet and stacked mobile layout; retained opaque 8px CBD gap without header bleed; no horizontal overflow or browser runtime errors.
+- **PASS — `git diff --check`.**
+- **DEPENDENCY AUDIT:** `npm audit --audit-level=high` reports 5 High and 4 Moderate vulnerabilities in the unchanged dependency tree. `npm audit --omit=dev --audit-level=high` reports no High and 2 Moderate. No dependency or lockfile changes are part of this visual task.
+- Build reports existing ExcelJS browser-externalization and large-chunk warnings.
 
-## Deferred items and limits
+## Remaining limits
 
-- **DEFERRED:** combined Routing minima Manning=`0`, Capacity=`0.0001`, Yield=`0.01%` can produce long valid Parameter Cost Effect values that overlap. This round must not add truncation, scientific notation, or a new precision policy.
-- **NOT VERIFIED:** the user's physical MacBook Neo display scaling/zoom, touch behavior, screen-reader behavior, and browsers other than the tested Chrome environment.
+- **NOT VERIFIED:** physical MacBook Neo display scaling/zoom, physical touch behavior, screen-reader behavior, and browsers other than the tested Chrome environment.
+- **DEFERRED from the prior round:** combined Routing minima Manning=`0`, Capacity=`0.0001`, Yield=`0.01%` can produce long valid Parameter Cost Effect values that overlap; this task does not introduce truncation, scientific notation, or a new precision policy.
 - Keep historical checkpoints below for context; this current section supersedes their status for the active round.
 
 ---

@@ -282,7 +282,7 @@ export function SimulationStoryGraph({ story, unit }: SimulationStoryGraphProps)
     tabIndex: 0,
     role: 'img' as const,
     'aria-label': text,
-    className: 'cursor-help focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-700',
+    className: 'cursor-default focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-700',
     onPointerEnter: (event: PointerEvent<SVGElement>) => showTooltipAt(event.currentTarget, text, event.clientX, event.clientY),
     onPointerLeave: (event: PointerEvent<SVGElement>) => {
       if (!isGraphTooltipTarget(event.relatedTarget)) setActiveTooltip(null)
@@ -347,7 +347,7 @@ export function SimulationStoryGraph({ story, unit }: SimulationStoryGraphProps)
     <figure aria-labelledby="simulation-story-title" className="min-w-0 border border-slate-300 bg-white px-2.5 py-2.5 xl:flex xl:min-h-0 xl:flex-col">
       <div className="flex flex-col gap-1.5 border-b border-slate-200 pb-1.5 min-[720px]:flex-row min-[720px]:items-center min-[720px]:justify-between">
         <h2 id="simulation-story-title" className="text-xs font-semibold text-slate-900">Simulation Cost Structure</h2>
-        <ul aria-label="Simulation graph legend" className="flex flex-wrap gap-x-2.5 gap-y-1 border-t border-slate-200 pt-1.5 text-[11px] lg:border-l lg:border-t-0 lg:pl-2.5 lg:pt-0">
+        <ul aria-label="Simulation graph legend" className="flex flex-wrap gap-x-2.5 gap-y-1 border-t border-slate-200 pt-1.5 text-[11px] min-[720px]:border-l min-[720px]:border-t-0 min-[720px]:pl-2.5 min-[720px]:pt-0">
           {LEGEND_ITEMS.map(item => {
             const isVisible = visibleLegend[item.key]
             return (
@@ -363,7 +363,7 @@ export function SimulationStoryGraph({ story, unit }: SimulationStoryGraphProps)
                     <span
                       aria-hidden="true"
                       className={`inline-block h-2.5 w-2.5 shrink-0 ${isVisible ? 'border' : 'border-2'}`}
-                      style={{ backgroundColor: isVisible ? item.color : 'transparent', borderColor: isVisible ? item.color : '#64748b' }}
+                      style={{ backgroundColor: isVisible ? item.color : 'transparent', borderColor: item.color }}
                     />
                   ) : (
                     <span aria-hidden="true" className="relative inline-flex h-2.5 w-4 shrink-0 items-center justify-center">
@@ -412,7 +412,7 @@ export function SimulationStoryGraph({ story, unit }: SimulationStoryGraphProps)
             )
           })}
           <line data-y-axis="true" x1={plot.left} x2={plot.left} y1={plot.top} y2={plot.bottom} stroke="#64748b" strokeWidth="1.4" />
-          <text data-y-axis-unit="true" aria-label={`Y-axis units: THB/${unit}`} x="58" y={(plot.top + plot.bottom) / 2} transform={`rotate(-90 58 ${(plot.top + plot.bottom) / 2})`} textAnchor="middle" fill="#334155" fontSize="11px" fontWeight="700" fontFamily="ui-monospace, monospace">{`THB/${unit}`}</text>
+          <text data-y-axis-unit="true" aria-label={`Y-axis units: THB/${unit}`} x={plot.left} y={plot.top - 10} textAnchor="middle" fill="#334155" fontSize="11px" fontWeight="700" fontFamily="ui-monospace, monospace">{`THB/${unit}`}</text>
 
           {stateStacks.map(state => {
             return (
@@ -455,7 +455,7 @@ export function SimulationStoryGraph({ story, unit }: SimulationStoryGraphProps)
                       />
                       <line data-graph-standard-cost={state.key} x1={state.x - 27} x2={state.x + 27}
                         y1={boundaryY} y2={boundaryY} stroke={COST_ELEMENT_COLORS.standardCost} strokeWidth="1.2" />
-                      <text data-graph-standard-cost-value={state.key} x={state.x + 31} y={clamp(boundaryY + 3, plot.top + 10, plot.bottom - 1)}
+                      <text data-graph-standard-cost-value={state.key} x={state.x + 35} y={clamp(boundaryY + 3, plot.top + 10, plot.bottom - 1)}
                         textAnchor="start" fill={COST_ELEMENT_COLORS.standardCost} fontSize="9px" fontWeight="700" fontFamily="ui-monospace, monospace">
                         {formatValue(value)}
                       </text>
@@ -547,7 +547,7 @@ export function SimulationStoryGraph({ story, unit }: SimulationStoryGraphProps)
                   {signed(category.value)}
                 </text>
               )}
-              <text x={category.x} y="306" textAnchor="middle" fill="#0f172a" fontSize="11px" fontWeight="700" fontFamily="ui-monospace, monospace">
+              <text {...tooltipProps(category.description)} x={category.x} y="306" textAnchor="middle" fill="#0f172a" fontSize="11px" fontWeight="700" fontFamily="ui-monospace, monospace">
                 {category.label}
               </text>
             </g>
