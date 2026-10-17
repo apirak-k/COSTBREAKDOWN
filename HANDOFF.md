@@ -1,34 +1,30 @@
-# Current Handoff — Simulation BOM / RTG refinement — 2026-10-17
+# Current Handoff — Simulation BOM / RTG follow-up — 2026-10-17
 
 - Repository: `/Users/bubu/COSTBREAKDOWN`, `apirak-k/COSTBREAKDOWN`.
-- Branch: `logic/simulation-finalized-implementation`. Fetched starting local/remote HEAD: `a782d95cd5ee2825570049d7ef1b890637dbd3e1`.
-- Implementation: all five requested corrections implemented and verified at the tested browser sizes; one focused local commit accompanies this handoff. **Not pushed.**
-- Closure: **NOT CLOSED** pending reproduction at the user's original MacBook Neo browser viewport/zoom. The user identified the device but did not supply browser width/zoom. Do not turn tested viewport evidence into a claim about that exact setup.
+- Branch: `logic/simulation-finalized-implementation`. Fetched remote HEAD: `a782d95cd5ee2825570049d7ef1b890637dbd3e1`. Starting local HEAD: `e7bec147fed4c0fc6081f0d02105dc8db5233f38`. Final local follow-up commit SHA is included in the completion report. **Not pushed.**
+- Scope: the three requested refinements are implemented. Closure remains **NOT CLOSED** because a combined extreme Routing minimum state still overflows effect values, and the original MacBook Neo viewport/zoom remains unknown.
 
 ## Changes
 
-- Header owns its full panel width and a measured gutter cell; its fixed column geometry matches the scrollable body. Only the body scrolls vertically on desktop. Cost headings use nowrap without changing the existing numeric axes or global workspace width.
-- All six Simulation parameter editors use the existing minimum-stop behavior: Price/Usage/Loss/Manning stop at zero, Capacity at `0.0001`, Yield at `0.01%`. Blank/incomplete/invalid drafts retain the authoritative value; shared NumericInput implementation is unchanged.
-- Safe row clicks (name, Status, cost, whitespace/padding, chevron) toggle the same expansion state. Interactive checks stop at the row boundary; # cells, inputs, detail content, and drag selection remain isolated. Row Enter/Space remain supported.
-- Hierarchy guide and label move right; effect/Total cells retain their columns. Signed formatting and neutral Total label remain intact.
-- Synchronized `docs/specs/SIMULATION.md` and `docs/161069/Simulation_BOM_RTG_Final_Requirements.md` with these explicit user decisions. No Graph, formula, Result, Economic, lifecycle, Master Data, or CBD implementation changes.
+- Parameter Cost Effect and Total now use red for positive cost changes, green for negative cost changes, and neutral for zero. Number signs and precision are unchanged.
+- Valid minimum decrement remains unchanged and silent for calculable rows. Legitimate unavailable explanations remain visible for protected/unmatched or genuinely unavailable rows.
+- All six desktop and mobile Simulation parameter editors share a 6px left inset. Their right edges, numeric axes, and table column percentages remain in place; `NumericInput` itself is unchanged.
+- Graph, Result, Economic calculations, formulas, lifecycle behavior, and shared input logic were not edited in this follow-up.
 
-## Verification evidence
+## Verification
 
-- `npm run build` PASS (TypeScript project compile + production Vite build).
-- PASS: `node scripts/verify_numeric_input.mjs`, `node scripts/verify_simulation_regression.mjs`, and `node --experimental-strip-types scripts/verify_{simulation_corrections,simulation_story_view,simulation_result,simulation_economics,simulation_history,row_drag_selection}.ts` (each script executed separately).
-- `git diff --check` PASS. Final source diff reviewed for scope and data hygiene.
-- Isolated installed Google Chrome on macOS with synthetic Complete Mock: **46 browser checks PASS** across main (35), supplemental (7), and laptop geometry (4) scripts.
-- Tested 1440×900, 1366×900, 1366×768, 1280×800, 1204×753, 1024×900, and 390×844. Header/body column differences were 0px; actual desktop scrollbar gutter was 6px. At 1280, inputs were 79.58px wide and cost headings stayed on one line. No horizontal overflow; 390px cards remained usable. Body scrolling left headers fixed (BOM49px / RTG129px scroll at 1366×768).
-- Actual pointer/keyboard checks: all safe hit areas; input/#/drag exclusion; Enter/Space; stable selected-first numbering; header none/mixed/all; drag select/deselect; row A→B; safe outside dismiss; protected/unmatched rows; full calculation scope retained. All six keyboard/stepper minima passed. Invalid blank/`-`/`.` drafts and Capacity/Yield zero drafts retained positive row costs (25.20 / 1.68). Effect axes, hierarchy indentation, positive/negative/zero formatting, neutral Total label, Graph rendering, and no page exceptions passed.
-- Local evidence (outside Git): `/Users/bubu/.codex/visualizations/2026/10/17/01a1493d-d084-7b01-9cb1-385ce1297a44/simulation-bom-rtg/` contains scripts, JSON results, and desktop/mobile screenshots.
+- PASS: `npm run build`, `node scripts/verify_numeric_input.mjs`, `node scripts/verify_simulation_regression.mjs`, `node --experimental-strip-types scripts/verify_simulation_story_view.ts`, `node --experimental-strip-types scripts/verify_simulation_corrections.ts`, `node --experimental-strip-types scripts/verify_simulation_history.ts`, `node --experimental-strip-types scripts/verify_row_drag_selection.ts`, `node --experimental-strip-types scripts/verify_simulation_result.ts`, `node --experimental-strip-types scripts/verify_simulation_economics.ts`, and `git diff --check`.
+- PASS: browser regression script — 35 checks for row interactions, selection, drag, minimum stop, effect alignment, Graph smoke, mobile overflow, and runtime errors. Laptop geometry script — 4 checks at 1204×753 and 1280×800.
+- PASS: 20 focused Chrome checks at 1440, 1366, 1280, 1204, 1024, and 390px. All six input boxes have a 6px left inset, retain their right edges, remain consistent, and cause no horizontal scrolling. Positive/negative/zero colors and signs pass for BOM and Routing. Each of the six minima was tested individually: effect detail stayed 31px high without an unavailable/minimum warning, and protected rows retained their legitimate explanation.
+- Browser evidence (synthetic Complete Mock): `/Users/bubu/.codex/visualizations/2026/10/17/01a1493d-d084-7b01-9cb1-385ce1297a44/simulation-bom-rtg/followup/`.
 
-## Limits and next action
+## Known failures and limits
 
-- **NOT VERIFIED:** original MacBook Neo viewport/zoom/browser reproduction; Safari/Firefox; physical touch and screen-reader behavior; exhaustive Graph and Clone/Send/Reset browser interactions. Focused lifecycle, Result, Economic, and history regression suites passed; these implementations were not edited.
-- Build/browser checks used the pre-existing local `vite.config.ts` alias changes. That unrelated file was preserved (SHA-1 `9ea2d4bb29769c4e741a20e3dbbcdf2170bf3bca`) and excluded from this commit; a pristine checkout without those local aliases was not separately verified.
-- Existing audit findings: full `npm audit --audit-level=high` FAIL (5 High / 4 Moderate, existing development dependency chain); production `npm audit --omit=dev --audit-level=high` PASS (zero High/Critical, 2 Moderate). Dependencies were not changed. Existing ExcelJS browser externalization and large-chunk build warnings remain.
-- Finish the exact-device visual check before declaring BOM/RTG CLOSED. After BOM/RTG closes, the next intended Simulation task is **Graph final audit**; do not start it automatically.
+- **FAIL — combined extreme minima:** setting Routing Manning to `0`, Capacity to `0.0001`, and Yield to `0.01%` together produces very large opposing Effect values that overlap in the detail row. At Capacity minimum, the existing Result panel also overflows with large valid derived values. Formula, attribution, Result, and Economic changes were expressly out of scope and remain untouched.
+- **NOT VERIFIED:** physical MacBook Neo viewport/zoom, Safari/Firefox, physical touch, and screen-reader behavior.
+- Existing zero-boundary attribution work and its test/docs remain uncommitted in the worktree and are excluded from this focused follow-up commit. The unrelated pre-existing `vite.config.ts` change is also preserved and excluded.
+- Existing audit findings remain as recorded in the prior checkpoint: full audit has development dependency findings; production audit previously had zero High/Critical findings. Dependencies were not changed or re-audited.
+- Build retains existing ExcelJS browser-externalization and large-chunk warnings. Do not start the separate Graph audit automatically.
 
 ---
 

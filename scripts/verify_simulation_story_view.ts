@@ -21,10 +21,10 @@ try {
   const { simulationWorkingTargetKey, startSimulationFrom } = await vite.ssrLoadModule('/src/features/simulation/simulation-state.ts')
   const { calculateParameterSimulation, updateSimulationParameter } = await vite.ssrLoadModule('/src/features/simulation/simulation-engine.ts')
 
-  assert.deepEqual(parameterEffectPresentation(2.35), { text: '+2.35', className: 'text-emerald-700' },
-    'positive parameter effects show an explicit plus sign and green styling')
-  assert.deepEqual(parameterEffectPresentation(-1.2), { text: '-1.20', className: 'text-rose-700' },
-    'negative parameter effects show a minus sign and red styling')
+  assert.deepEqual(parameterEffectPresentation(2.35), { text: '+2.35', className: 'text-rose-700' },
+    'positive cost effects show an explicit plus sign and red styling')
+  assert.deepEqual(parameterEffectPresentation(-1.2), { text: '-1.20', className: 'text-emerald-700' },
+    'negative cost effects show a minus sign and green styling')
   assert.deepEqual(parameterEffectPresentation(0), { text: '0.00', className: 'text-slate-700' },
     'zero parameter effects are neutral and never receive a plus sign')
   assert.deepEqual(parameterEffectPresentation(-0.001), { text: '0.00', className: 'text-slate-700' },

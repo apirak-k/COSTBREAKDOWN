@@ -577,7 +577,7 @@ function SimulationParameterTable({
                       return (
                         <td key={parameter.parameter} className="py-1 pl-1 pr-1 text-right">
                           {!simulationRecord ? '—' : canEdit ? (
-                            <div className="min-w-0">
+                            <div className="min-w-0 pl-1.5">
                               <SimulationHistoryInputBoundary onBegin={onBeginEdit} onCommit={onCommitEdit}>
                                 <NumericInput
                                   value={value}
@@ -727,23 +727,25 @@ function SimulationParameterTable({
                     <label key={parameter.parameter} className="block min-w-0 text-[10px] font-medium text-slate-600">
                       <span>{parameter.label}</span>
                       {!simulationRecord ? <span className="mt-0.5 block font-mono text-slate-700">—</span> : canEdit ? (
-                        <SimulationHistoryInputBoundary onBegin={onBeginEdit} onCommit={onCommitEdit}>
-                          <NumericInput
-                            value={value}
-                            precision={parameter.precision}
-                            min={0}
-                            minExclusive={parameter.parameter === 'routing.capacity' || parameter.parameter === 'routing.yield'}
-                            max={parameter.parameter === 'routing.yield' || parameter.parameter === 'bom.loss' ? 100 : undefined}
-                            allowSubMinimumDraft={parameter.parameter === 'routing.capacity' || parameter.parameter === 'routing.yield'}
-                            stopAtMinimum
-                            minimumDisplayPrecision={parameter.parameter === 'routing.capacity' ? 4 : undefined}
-                            onValueChange={next => {
-                              if (next !== null) onUpdate(simulationRecord.id, parameter.parameter, next / parameter.scale)
-                            }}
-                            className="mt-0.5 h-8 w-full min-w-0 rounded-sm border border-transparent bg-transparent px-1.5 text-right font-mono text-xs tabular-nums text-slate-900 transition-colors hover:border-slate-200 hover:bg-slate-50 focus:!border-transparent focus:bg-white focus:!outline focus:!outline-2 focus:!outline-blue-700 focus:!outline-offset-[-2px]"
-                            aria-label={`${row.name} ${parameter.label} in SIM`}
-                          />
-                        </SimulationHistoryInputBoundary>
+                        <div className="mt-0.5 min-w-0 pl-1.5">
+                          <SimulationHistoryInputBoundary onBegin={onBeginEdit} onCommit={onCommitEdit}>
+                            <NumericInput
+                              value={value}
+                              precision={parameter.precision}
+                              min={0}
+                              minExclusive={parameter.parameter === 'routing.capacity' || parameter.parameter === 'routing.yield'}
+                              max={parameter.parameter === 'routing.yield' || parameter.parameter === 'bom.loss' ? 100 : undefined}
+                              allowSubMinimumDraft={parameter.parameter === 'routing.capacity' || parameter.parameter === 'routing.yield'}
+                              stopAtMinimum
+                              minimumDisplayPrecision={parameter.parameter === 'routing.capacity' ? 4 : undefined}
+                              onValueChange={next => {
+                                if (next !== null) onUpdate(simulationRecord.id, parameter.parameter, next / parameter.scale)
+                              }}
+                              className="h-8 w-full min-w-0 rounded-sm border border-transparent bg-transparent px-1.5 text-right font-mono text-xs tabular-nums text-slate-900 transition-colors hover:border-slate-200 hover:bg-slate-50 focus:!border-transparent focus:bg-white focus:!outline focus:!outline-2 focus:!outline-blue-700 focus:!outline-offset-[-2px]"
+                              aria-label={`${row.name} ${parameter.label} in SIM`}
+                            />
+                          </SimulationHistoryInputBoundary>
+                        </div>
                       ) : <span className="mt-0.5 block font-mono text-slate-700">{displayParameter(recordValue, parameter)}</span>}
                     </label>
                   )

@@ -199,7 +199,7 @@ Apply the same alignment language to `Conversion Cost`.
 
 ## 5.3 Consistency rule
 
-`Material Cost` and `Conversion Cost` must stay on one line in desktop table headers and visually behave as the same kind of right-side numeric column. Preserve usable input widths, numeric axes, and no horizontal scrollbar; use local sizing only if necessary.
+`Material Cost` and `Conversion Cost` must stay on one line in desktop table headers and visually behave as the same kind of right-side numeric column. All six editable parameter inputs use the same small left inset: shorten each from the left while keeping the right edge and numeric axis fixed. Preserve usable input widths and no horizontal scrollbar; do not change column percentages unless local sizing proves insufficient.
 
 Do not solve the header-label issue by disturbing already-correct numeric alignment.
 
@@ -267,7 +267,7 @@ Signed Parameter Cost Effect values must be easy to scan.
 ```
 
 - keep explicit `+`
-- use green semantic text color
+- use red semantic text color because a positive value increases cost
 
 ## 7.2 Negative
 
@@ -276,7 +276,7 @@ Signed Parameter Cost Effect values must be easy to scan.
 ```
 
 - keep explicit `-`
-- use red semantic text color
+- use green semantic text color because a negative value reduces cost
 
 ## 7.3 Zero
 
@@ -304,6 +304,8 @@ positive → Total +2.35
 negative → Total -1.20
 zero     → Total 0.00
 ```
+
+Reaching a valid minimum by decrement is silent: a normal calculable row must not show an unavailable or minimum warning. Keep legitimate explanations for protected, unmatched, or genuinely unavailable rows.
 
 ## 8.1 Critical zero rule
 
@@ -435,7 +437,7 @@ Preserve:
 
 Selection must never redefine calculation scope.
 
-Spinner, keyboard, and wheel decrement stop at zero for Price, Usage, Loss, and Manning, at `0.0001` for four-decimal Capacity, and at `0.01%` for two-decimal percentage Yield. Repeated decrement never clears a valid value or enters an unavailable calculation. Loss remains at most `100%`; Yield remains greater than zero and at most `100%`. Temporary typed blank, incomplete, or invalid drafts never replace the last authoritative valid value; leaving the editor restores it.
+Spinner, keyboard, and wheel decrement stop at zero for Price, Usage, Loss, and Manning, at `0.0001` for four-decimal Capacity, and at `0.01%` for two-decimal percentage Yield. Repeated decrement never clears a valid value or enters an unavailable calculation, and reaching the minimum adds no visible warning. Loss remains at most `100%`; Yield remains greater than zero and at most `100%`. Temporary typed blank, incomplete, or invalid drafts never replace the last authoritative valid value; leaving the editor restores it.
 
 ---
 
@@ -447,7 +449,7 @@ Spinner, keyboard, and wheel decrement stop at zero for Price, Usage, Loss, and 
 1   MAT-A          UNCHANGED    12.00      2.00       5.00%          25.20      ˅
     │
     └── Parameter Cost Effect   +1.20      -0.50      +0.10      Total +0.80
-                                 green      red        green          green
+                                 red        green      red            red
 ```
 
 Notes:
@@ -468,7 +470,7 @@ Notes:
 3   OP-21             CHANGED      26.00      1190.00     9.01          43.65      ˅
     │
     └── Parameter Cost Effect     +49.18      -57.28    +45.56      Total +37.46
-                                   green        red       green           green
+                                   red          green     red             red
 ```
 
 Notes:

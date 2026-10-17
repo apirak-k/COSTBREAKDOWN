@@ -66,7 +66,9 @@ UI controls and state/calculation boundaries both enforce the domains below. Rej
 
 Blank/null may remain unavailable where the data model allows it. A missing required input makes its result unavailable; it is not a structural zero. ADDED/REMOVED comparison sides may use zero only because one side is structurally absent.
 
-In Simulation, spinner, keyboard, and wheel decrement stop at the lowest valid value: zero for Price, Usage, Loss, and Manning; `0.0001` for Capacity (four-decimal input precision); and `0.01%` for Yield (two-decimal percentage precision). Repeated decrement never clears a valid field or makes its calculation unavailable. Blank, incomplete, or invalid typed drafts never replace the previous authoritative valid value; leaving the editor restores that value. This protection is local to Simulation and does not change other pages' numeric-input behavior.
+In Simulation, spinner, keyboard, and wheel decrement stop at the lowest valid value: zero for Price, Usage, Loss, and Manning; `0.0001` for Capacity (four-decimal input precision); and `0.01%` for Yield (two-decimal percentage precision). Repeated decrement never clears a valid field or makes its calculation unavailable, and reaching a valid minimum adds no warning or unavailable message to a calculable row. Blank, incomplete, or invalid typed drafts never replace the previous authoritative valid value; leaving the editor restores that value. This protection is local to Simulation and does not change other pages' numeric-input behavior.
+
+All six desktop parameter inputs use the same small left inset, keeping their right edges and numeric axes in place while giving Status a little more room.
 
 ### 2.3 Shared Standard Cost and result
 
@@ -108,7 +110,7 @@ Each BOM and Routing row can expand a compact **Parameter Cost Effect** detail. 
 - Routing attributes Conversion Cost change to Manning, Capacity, and Yield.
 - Routing uses Current Work Center rates on both sides; there is no Rate Effect.
 - Effects must reconcile to `SIM row cost − Current row cost` within floating-point tolerance.
-- Display signed effects in `THB/<resolved UOM>` under their matching parameter columns and one compact numeric Total under Material Cost / Conversion Cost. Positive values use a `+` sign and green; negative values use a minus sign and red; rounded zero is neutral `0.00`, never `+0.00`. The Total label stays neutral. Do not display effect percentages.
+- Display signed effects in `THB/<resolved UOM>` under their matching parameter columns and one compact numeric Total under Material Cost / Conversion Cost. Positive cost effects use a `+` sign and red; negative cost effects use a minus sign and green; rounded zero is neutral `0.00`, never `+0.00`. The Total label stays neutral. Do not display effect percentages.
 - Added/Removed rows, ambiguous identity, missing required values, invalid math, or unreconciled Work Center context have unavailable attribution (`—`) with a concise explanation.
 - REMOVED, ambiguous, and unmatched rows may expand to show why the effect is unavailable; they remain protected and cannot be edited or selected.
 - Every safe non-interactive part of a row toggles its details: Material/Process name, Status, calculated cost, whitespace, padding, and chevron area. The chevron indicates the same row state; it has no independent expansion state. The focusable row exposes its expanded state and detail relationship; Enter/Space toggle only when the row itself is focused. NumericInput, the entire `#` selection area, drag selection, nested controls, and expanded detail interactions do not toggle the row.
