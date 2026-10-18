@@ -10,7 +10,7 @@ export const MasterDataBlockerMarker: React.FC<MasterDataBlockerMarkerProps> = (
   <span
     aria-label={label}
     title={label}
-    className="pointer-events-none absolute right-1 top-1/2 z-10 -translate-y-1/2 text-[11px] font-bold leading-none text-rose-600"
+    className="pointer-events-none absolute right-1 top-1/2 z-10 -translate-y-1/2 font-sans text-[11px] font-bold leading-none text-rose-600"
   >
     *
   </span>

@@ -1375,7 +1375,7 @@ try {
     assert.match(tableSource, /\{\w+Missing && <MasterDataBlockerMarker/,
       `${tableLabel} Blocker star remains rendered independently from the highlight toggle`)
   }
-  assert.match(blockerMarkerSource, /aria-label=\{label\}[\s\S]*pointer-events-none absolute[\s\S]*text-rose-600[\s\S]*>\s*\*\s*</, 'blocker star remains a small accessible overlay outside field layout')
+  assert.match(blockerMarkerSource, /aria-label=\{label\}[\s\S]*pointer-events-none absolute[\s\S]*font-sans[\s\S]*text-\[11px\][\s\S]*font-bold[\s\S]*text-rose-600[\s\S]*>\s*\*\s*</, 'blocker star uses shared sans typography as a small bold accessible overlay outside field layout')
   assert.match(bomSource + wcSource + routingSource, /<MasterDataBlockerMarker/, 'BOM, Work Centers, and Routing render blocker stars through the shared overlay marker')
   assert.doesNotMatch(bomSource + wcSource + routingSource, /pr-(?:3|4|5)(?:\s|`)/, 'blocker markers do not reserve padding that shifts values or narrows their inputs')
   assert.match(fieldStylesSource, /masterDataNumericDisplaySlotClass = `relative flex h-8 w-full min-w-0 items-center justify-center rounded-sm border border-transparent[\s\S]*\$\{masterDataCellFocusClass\}`/, 'View numeric values use a full-width shared 32px field with the same Focus treatment as Edit')
