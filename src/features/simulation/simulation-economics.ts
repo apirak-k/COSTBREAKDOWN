@@ -46,22 +46,6 @@ export function createEconomicSimulationDraft(currentSnapshot?: CostSnapshot): E
   }
 }
 
-export function applyCurrentBusinessDefaults(
-  draft: EconomicSimulationDraft,
-  currentSnapshot: CostSnapshot
-): EconomicSimulationDraft {
-  const currentDefaults = createEconomicSimulationDraft(currentSnapshot)
-  return {
-    ...draft,
-    sellingPriceOverride: draft.sellingPriceOverride.trim() === ''
-      ? currentDefaults.sellingPriceOverride
-      : draft.sellingPriceOverride,
-    sgaPercentOverride: draft.sgaPercentOverride.trim() === ''
-      ? currentDefaults.sgaPercentOverride
-      : draft.sgaPercentOverride
-  }
-}
-
 export function isEconomicSimulationInputValid(field: EconomicSimulationField, raw: string): boolean {
   if (raw.trim() === '') return true
   const value = Number(raw)

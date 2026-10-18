@@ -18,7 +18,7 @@ import {
 } from './features/simulation/simulation-state'
 import { updateSimulationParameter } from './features/simulation/simulation-engine'
 import type { SimulationParameter } from './features/simulation/simulation-state'
-import { applyCurrentBusinessDefaults, type EconomicSimulationField } from './features/simulation/simulation-economics'
+import type { EconomicSimulationField } from './features/simulation/simulation-economics'
 import {
   applySimulationEditableSnapshot,
   captureSimulationEditableSnapshot,
@@ -73,9 +73,9 @@ const AppRouter: React.FC = () => {
   const simulationState = useMemo(
     () => activeTab === 'simulation' && !reconciledSimulationState.snapshot
       ? startSimulationFrom('current', masterDataSnapshots, undefined,
-        applyCurrentBusinessDefaults(reconciledSimulationState.economicInputs, masterDataSnapshots.current))
+        storedSimulationState?.economicInputs ? reconciledSimulationState.economicInputs : undefined)
       : reconciledSimulationState,
-    [activeTab, masterDataSnapshots, reconciledSimulationState]
+    [activeTab, masterDataSnapshots, reconciledSimulationState, storedSimulationState]
   )
   const activeSimulationHistory = simulationHistoriesByProduct[activeProductId]
   const matchingSimulationHistory = activeSimulationHistory?.basisFingerprint === simulationState.basisFingerprint

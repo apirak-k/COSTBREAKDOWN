@@ -23,6 +23,8 @@ The compact **Clone from ▾** menu has exactly three sources: Reference, Curren
 
 Every explicit clone establishes a new **Reset** baseline for editable BOM/RTG parameters. Reset restores those parameter values to the clone/start snapshot, clears Fixed Action Cost, Variable Action Cost / pc, and Batch Size, and restores Selling Price and SG&A % from Current. On Simulation initialization, Selling Price and SG&A % display their Current values and the three Simulation-only assumptions start blank. Reset preserves the live Current Work Center rates and Simulation-local selection, and never changes a source dataset. Existing Clone behavior for the Economic draft remains unchanged. Re-cloning replaces the parameter Reset baseline.
 
+For all five Economic/Business numeric inputs, blank is distinct from zero and remains visibly blank after the user clears it, including after state reconciliation or rerender. Their steppers can decrement from the minimum valid value to blank: `0` for Fixed Action Cost, Variable Action Cost / pc, Selling Price, and SG&A %, and `1` for Batch Size. Current Selling Price and SG&A are visible defaults only on initial Simulation setup and Reset; blank values may still use the existing Current fallback in calculations.
+
 Changing Reference or Custom alone does not reset SIM. If Current changes, the saved SIM is stale because both the comparison baseline and rate context changed. Reconcile it, then initialize from the new Current when Simulation is active. Preserve valid Economic draft inputs where possible.
 
 ### 1.3 Send to

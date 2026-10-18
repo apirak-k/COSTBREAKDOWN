@@ -128,14 +128,24 @@ assert.deepEqual(currentSim.workingSelection, [], 'Current clone starts with no 
 assert.deepEqual(currentSim.resetBaselineSnapshot, currentSim.snapshot, 'Current clone captures the initial SIM parameters as its reset baseline')
 assert.notStrictEqual(currentSim.resetBaselineSnapshot, currentSim.snapshot, 'the reset baseline is isolated from live SIM edits')
 assert.notStrictEqual(currentSim.resetBaselineSnapshot?.bom[0], currentSim.snapshot?.bom[0])
-const migratedBlankBusinessDefaults = reconcileSimulationState({
-  ...currentSim,
-  economicInputs: { ...currentSim.economicInputs, sellingPriceOverride: '', sgaPercentOverride: '' }
-}, initial)
-assert.equal(migratedBlankBusinessDefaults.economicInputs.sellingPriceOverride, String(initial.current.product.sellingPrice),
-  'an existing Simulation draft with blank business fields initializes them from Current')
-assert.equal(migratedBlankBusinessDefaults.economicInputs.sgaPercentOverride, String(initial.current.product.sgaPercent),
-  'an existing Simulation draft with blank SG&A initializes it from Current')
+const manuallyClearedInputs = (['fixedActionCost', 'variableActionCostPerPiece', 'batchSize', 'sellingPriceOverride', 'sgaPercentOverride'] as const)
+  .reduce((state, field) => setSimulationEconomicInput(state, field, ''), currentSim)
+const reconciledBlankInputs = reconcileSimulationState(manuallyClearedInputs, initial)
+assert.deepEqual(reconciledBlankInputs.economicInputs, {
+  fixedActionCost: '', variableActionCostPerPiece: '', batchSize: '', sellingPriceOverride: '', sgaPercentOverride: ''
+}, 'manually deleting any Economic/Business input keeps it blank through state reconciliation')
+const staleBlankInputs = reconcileSimulationState(reconciledBlankInputs, sources(10, 13))
+assert.deepEqual(staleBlankInputs.economicInputs, reconciledBlankInputs.economicInputs,
+  'reinitializing a stale Simulation preserves intentionally blank Economic/Business inputs')
+const restartedBlankInputs = startSimulationFrom('current', sources(10, 13), undefined, staleBlankInputs.economicInputs)
+assert.deepEqual(restartedBlankInputs.economicInputs, reconciledBlankInputs.economicInputs,
+  'starting a replacement SIM from an existing draft does not refill cleared inputs')
+const resetAfterBlankInputs = resetSimulationParameters(reconciledBlankInputs, initial.current)
+assert.deepEqual(resetAfterBlankInputs.economicInputs, {
+  fixedActionCost: '', variableActionCostPerPiece: '', batchSize: '',
+  sellingPriceOverride: String(initial.current.product.sellingPrice),
+  sgaPercentOverride: String(initial.current.product.sgaPercent)
+}, 'Reset clears the three Simulation-only inputs and restores Current Selling Price and SG&A')
 
 const currentCalculation = calculateParameterSimulation(initial.current, currentSim.snapshot!)
 assert.equal(currentCalculation.records.filter(row => row.kind === 'bom').length, 2)

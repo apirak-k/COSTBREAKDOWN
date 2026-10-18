@@ -1,7 +1,6 @@
 import type { CostSnapshot, MasterDataRole } from '../../core/types'
 import { calculateParameterSimulation } from './simulation-engine'
 import {
-  applyCurrentBusinessDefaults,
   createEconomicSimulationDraft,
   isEconomicSimulationInputValid,
   updateEconomicSimulationDraft,
@@ -146,21 +145,22 @@ export function reconcileSimulationState(
     actionCost?: unknown
     evaluationQuantity?: unknown
   }
-  const economicValue = (field: EconomicSimulationField, currentValue: unknown, legacyValue?: unknown) => {
+  const currentBusinessDefaults = createEconomicSimulationDraft(sources.current)
+  const economicValue = (field: EconomicSimulationField, currentValue: unknown, legacyValue?: unknown, missingValue = '') => {
     const value = typeof currentValue === 'string'
       ? currentValue
-      : typeof legacyValue === 'string' ? legacyValue : ''
-    if (!isEconomicSimulationInputValid(field, value)) return ''
+      : typeof legacyValue === 'string' ? legacyValue
+        : currentValue === undefined ? missingValue : ''
+    if (!isEconomicSimulationInputValid(field, value)) return missingValue
     return value.trim() === '' ? '' : value
   }
   const economicInputs: EconomicSimulationDraft = {
     fixedActionCost: economicValue('fixedActionCost', storedInputs?.fixedActionCost, storedInputs?.actionCost),
     variableActionCostPerPiece: economicValue('variableActionCostPerPiece', storedInputs?.variableActionCostPerPiece),
     batchSize: economicValue('batchSize', storedInputs?.batchSize, storedInputs?.evaluationQuantity),
-    sellingPriceOverride: economicValue('sellingPriceOverride', storedInputs?.sellingPriceOverride),
-    sgaPercentOverride: economicValue('sgaPercentOverride', storedInputs?.sgaPercentOverride)
+    sellingPriceOverride: economicValue('sellingPriceOverride', storedInputs?.sellingPriceOverride, undefined, currentBusinessDefaults.sellingPriceOverride),
+    sgaPercentOverride: economicValue('sgaPercentOverride', storedInputs?.sgaPercentOverride, undefined, currentBusinessDefaults.sgaPercentOverride)
   }
-  const businessInputs = applyCurrentBusinessDefaults(economicInputs, sources.current)
   const workingSelection = Array.isArray(persistedState.workingSelection)
     ? [...new Set(persistedState.workingSelection.filter((value): value is string => typeof value === 'string'))]
     : []
@@ -192,12 +192,12 @@ export function reconcileSimulationState(
     : structuredClone(snapshot)
   const validTargetKeys = selectableSimulationTargetKeys(sources.current, snapshot)
   const normalizedWorkingSelection = workingSelection.filter(key => validTargetKeys.has(key))
-  const inputsUnchanged = Object.keys(businessInputs).every(key =>
-    businessInputs[key as EconomicSimulationField] === storedInputs?.[key as EconomicSimulationField])
+  const inputsUnchanged = Object.keys(economicInputs).every(key =>
+    economicInputs[key as EconomicSimulationField] === storedInputs?.[key as EconomicSimulationField])
   return !hasLegacyFactors && !hasLegacyResetBaselineEconomicInputs && hasResetBaseline && hasWorkingSelection && inputsUnchanged && snapshot === state.snapshot && resetBaselineSnapshot === state.resetBaselineSnapshot
     && normalizedWorkingSelection.length === workingSelection.length
     ? state
-    : { ...stateWithoutLegacyFields, snapshot, resetBaselineSnapshot, economicInputs: businessInputs, workingSelection: normalizedWorkingSelection }
+    : { ...stateWithoutLegacyFields, snapshot, resetBaselineSnapshot, economicInputs, workingSelection: normalizedWorkingSelection }
 }
 
 export function resetSimulationParameters(state: SimulationWorkspaceState, currentSnapshot: CostSnapshot): SimulationWorkspaceState {

@@ -2,6 +2,7 @@ import assert from 'node:assert/strict'
 import React from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { createServer } from 'vite'
+import { stepNumericValue } from '../src/shared/ui/numeric-input-rules.ts'
 import type { CostSnapshot, SnapshotCost } from '../src/core/types'
 
 const vite = await createServer({
@@ -13,16 +14,19 @@ const vite = await createServer({
 
 let panelModule: any
 let economicsModule: any
+let numericInputModule: any
 try {
-  ;[panelModule, economicsModule] = await Promise.all([
+  ;[panelModule, economicsModule, numericInputModule] = await Promise.all([
     vite.ssrLoadModule('/src/features/simulation/EconomicSimulationPanel.tsx'),
-    vite.ssrLoadModule('/src/features/simulation/simulation-economics.ts')
+    vite.ssrLoadModule('/src/features/simulation/simulation-economics.ts'),
+    vite.ssrLoadModule('/src/shared/ui/NumericInput.tsx')
   ])
 } finally {
   await vite.close()
 }
 
 const { EconomicSimulationPanel } = panelModule
+const { NumericInput } = numericInputModule
 const { calculateEconomicSimulation, createEconomicSimulationDraft, updateEconomicSimulationDraft } = economicsModule
 const currentSnapshot = { product: { sellingPrice: 250, sgaPercent: 8, uom: 'PC' } } as CostSnapshot
 const simulationCost: SnapshotCost = {
@@ -158,5 +162,48 @@ for (const [label, value] of [
   assert.doesNotMatch(input, /placeholder="Current"/, `${label} does not use a Current placeholder`)
 }
 assert.doesNotMatch(initialMarkup, /placeholder="Current"/, 'business defaults are visible values rather than placeholder text')
+
+const panelTree = EconomicSimulationPanel({
+  result: calculateEconomicSimulation(currentSnapshot, simulationCost, null, initialDraft),
+  draft: initialDraft,
+  currentSnapshot,
+  unit: 'PC',
+  onUpdate() {},
+  onBeginEdit() {},
+  onCommitEdit() {}
+})
+function collectNumericInputs(node: any): any[] {
+  if (Array.isArray(node)) return node.flatMap(collectNumericInputs)
+  if (!React.isValidElement(node)) return []
+  const current = node.type === NumericInput ? [node.props] : []
+  return [...current, ...collectNumericInputs(node.props.children)]
+}
+const economicInputProps = new Map(collectNumericInputs(panelTree).map(props => [props['aria-label'], props]))
+const stepCases = [
+  ['Fixed Action Cost', 2, [2, 1, 0, null]],
+  ['Variable Action Cost / Unit', 2, [2, 1, 0, null]],
+  ['Batch Size', 3, [3, 2, 1, null]],
+  ['Selling Price', 2, [2, 1, 0, null]],
+  ['SG&A %', 2, [2, 1, 0, null]]
+] as const
+for (const [label, start, expected] of stepCases) {
+  const input = economicInputProps.get(label)
+  assert.ok(input, `${label} uses a Simulation numeric input`)
+  assert.equal(input.stopAtMinimum, undefined, `${label} does not stop at its minimum`)
+  assert.equal(input.min, label === 'Batch Size' ? 1 : 0, `${label} retains its valid minimum`)
+  assert.equal(Boolean(input.integer), label === 'Batch Size', `${label} retains its integer rule`)
+  const sequence: Array<number | null> = [start]
+  let value: number | null = start
+  while (value !== null && sequence.length < expected.length) {
+    value = stepNumericValue(value, -1, 1, {
+      min: input.min,
+      max: input.max,
+      integer: input.integer,
+      precision: input.precision
+    })
+    sequence.push(value)
+  }
+  assert.deepEqual(sequence, expected, `${label} decrements from its valid minimum to blank`)
+}
 
 console.log('Simulation Economic, Break-even, and Business verification passed')
