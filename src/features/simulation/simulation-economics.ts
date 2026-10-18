@@ -30,8 +30,36 @@ export interface EconomicSimulationResult {
   warnings: string[]
 }
 
-export function createEconomicSimulationDraft(): EconomicSimulationDraft {
-  return { fixedActionCost: '', variableActionCostPerPiece: '', batchSize: '', sellingPriceOverride: '', sgaPercentOverride: '' }
+export function createEconomicSimulationDraft(currentSnapshot?: CostSnapshot): EconomicSimulationDraft {
+  const sellingPrice = currentSnapshot?.product.sellingPrice
+  const sgaPercent = currentSnapshot?.product.sgaPercent
+  return {
+    fixedActionCost: '',
+    variableActionCostPerPiece: '',
+    batchSize: '',
+    sellingPriceOverride: sellingPrice != null && isMasterDataNumericValueValid('sellingPrice', sellingPrice)
+      ? String(sellingPrice)
+      : '',
+    sgaPercentOverride: sgaPercent != null && isMasterDataNumericValueValid('sgaPercent', sgaPercent)
+      ? String(sgaPercent)
+      : ''
+  }
+}
+
+export function applyCurrentBusinessDefaults(
+  draft: EconomicSimulationDraft,
+  currentSnapshot: CostSnapshot
+): EconomicSimulationDraft {
+  const currentDefaults = createEconomicSimulationDraft(currentSnapshot)
+  return {
+    ...draft,
+    sellingPriceOverride: draft.sellingPriceOverride.trim() === ''
+      ? currentDefaults.sellingPriceOverride
+      : draft.sellingPriceOverride,
+    sgaPercentOverride: draft.sgaPercentOverride.trim() === ''
+      ? currentDefaults.sgaPercentOverride
+      : draft.sgaPercentOverride
+  }
 }
 
 export function isEconomicSimulationInputValid(field: EconomicSimulationField, raw: string): boolean {

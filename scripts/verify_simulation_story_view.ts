@@ -668,18 +668,21 @@ try {
   const sources = { reference: referenceSnapshot, current: currentSnapshot, custom: customSnapshot }
   const state = startSimulationFrom('current', sources)
   const simulation = calculateParameterSimulation(currentSnapshot, state.snapshot!)
-  assert.equal(state.economicInputs.sellingPriceOverride, '')
-  assert.equal(state.economicInputs.sgaPercentOverride, '')
-  const currentFallbackResult = calculateEconomicSimulation(
+  assert.equal(state.economicInputs.fixedActionCost, '')
+  assert.equal(state.economicInputs.variableActionCostPerPiece, '')
+  assert.equal(state.economicInputs.batchSize, '')
+  assert.equal(state.economicInputs.sellingPriceOverride, String(currentSnapshot.product.sellingPrice))
+  assert.equal(state.economicInputs.sgaPercentOverride, String(currentSnapshot.product.sgaPercent))
+  const currentDefaultsResult = calculateEconomicSimulation(
     currentSnapshot,
     simulation.simulationCost,
     simulation.parameterSavingPerPiece,
     state.economicInputs
   )
-  assert.equal(currentFallbackResult.business.sellingPrice, currentSnapshot.product.sellingPrice,
-    'blank Selling Price override uses the Current Selling Price in the rendered Simulation state')
-  assert.equal(currentFallbackResult.business.sgaPercent, currentSnapshot.product.sgaPercent,
-    'blank SG&A override uses the Current SG&A in the rendered Simulation state')
+  assert.equal(currentDefaultsResult.business.sellingPrice, currentSnapshot.product.sellingPrice,
+    'the initial Selling Price input uses the actual Current Selling Price')
+  assert.equal(currentDefaultsResult.business.sgaPercent, currentSnapshot.product.sgaPercent,
+    'the initial SG&A % input uses the actual Current percentage')
   assert.equal(simulation.currentCost.total, simulation.simulationCost.total)
   assert.equal(simulation.parameterSavingPerPiece, 0, 'No-change Parameter Saving is zero')
   const pageMarkup = renderToStaticMarkup(React.createElement(SimulationPage, {
@@ -697,11 +700,18 @@ try {
   const pageText = pageMarkup.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ')
   const pageInputs = [...pageMarkup.matchAll(/<input\b[^>]*>/g)].map(([tag]) => tag)
   const sellingPriceInput = pageInputs.find(tag => tag.includes('aria-label="Selling Price"')) ?? ''
-  const sgaInput = pageInputs.find(tag => tag.includes('aria-label="SG&amp;A"')) ?? ''
-  for (const [label, input] of [['Selling Price', sellingPriceInput], ['SG&A', sgaInput]]) {
+  const sgaInput = pageInputs.find(tag => tag.includes('aria-label="SG&amp;A %"')) ?? ''
+  for (const [label, input, value] of [
+    ['Selling Price', sellingPriceInput, '120.00'], ['SG&A %', sgaInput, '10.00']
+  ]) {
     assert.ok(input, `${label} override input renders in the Simulation Business panel`)
-    assert.match(input, /placeholder="Current"/, `${label} shows the Current fallback as its placeholder`)
-    assert.match(input, /value=""/, `${label} override draft remains visually blank`)
+    assert.match(input, new RegExp(`value="${value}"`), `${label} visibly contains its Current value`)
+    assert.doesNotMatch(input, /placeholder="Current"/, `${label} does not use a Current placeholder`)
+  }
+  for (const label of ['Fixed Action Cost', 'Variable Action Cost / Unit', 'Batch Size']) {
+    const input = pageInputs.find(tag => tag.includes(`aria-label="${label}"`)) ?? ''
+    assert.ok(input, `${label} input renders in the Simulation panel`)
+    assert.match(input, /value=""/, `${label} remains blank by default`)
   }
   assert.match(pageMarkup, /Clone from/)
   assert.match(pageMarkup, /Send to/)

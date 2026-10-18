@@ -82,8 +82,11 @@ assert.strictEqual(changedCustomWithEconomics, withEconomics, 'Custom edits pres
 
 const { economicInputs: _removed, ...legacyState } = withEconomics
 const upgradedLegacyState = reconcileSimulationState(legacyState as typeof withEconomics, initial)
-assert.deepEqual(upgradedLegacyState.economicInputs, createEmptySimulationState().economicInputs,
-  'older Simulation state gains the new blank economic draft')
+assert.deepEqual(upgradedLegacyState.economicInputs, {
+  fixedActionCost: '', variableActionCostPerPiece: '', batchSize: '',
+  sellingPriceOverride: String(initial.current.product.sellingPrice),
+  sgaPercentOverride: String(initial.current.product.sgaPercent)
+}, 'older Simulation state gains blank assumptions and Current business defaults')
 
 const legacyEconomicState = {
   ...withEconomics,
@@ -104,7 +107,8 @@ const invalidLegacyEconomicState = {
   economicInputs: { ...legacyEconomicState.economicInputs, sgaPercentOverride: '101', batchSize: '0' }
 } as typeof legacyEconomicState
 const sanitizedLegacyState = reconcileSimulationState(invalidLegacyEconomicState, initial)
-assert.equal(sanitizedLegacyState.economicInputs.sgaPercentOverride, '', 'invalid legacy SG&A is not admitted into active state')
+assert.equal(sanitizedLegacyState.economicInputs.sgaPercentOverride, String(initial.current.product.sgaPercent),
+  'invalid legacy SG&A is replaced with the valid Current default')
 assert.equal(sanitizedLegacyState.economicInputs.batchSize, '', 'zero legacy Batch Size is discarded')
 
 const customSim = startSimulationFrom('custom', initial)
@@ -115,10 +119,23 @@ assert.equal(customSim.snapshot?.rates[0]?.laborRate, 20)
 const currentSim = startSimulationFrom('current', initial)
 assert.equal('resetBaselineEconomicInputs' in currentSim, false, 'a Current clone stores no Economic reset baseline')
 assert.equal(currentSim.snapshot?.bom[0]?.price, 12)
+assert.deepEqual(currentSim.economicInputs, {
+  fixedActionCost: '', variableActionCostPerPiece: '', batchSize: '',
+  sellingPriceOverride: String(initial.current.product.sellingPrice),
+  sgaPercentOverride: String(initial.current.product.sgaPercent)
+}, 'a new Simulation starts with Current Selling Price and SG&A and blank Simulation-only assumptions')
 assert.deepEqual(currentSim.workingSelection, [], 'Current clone starts with no selected working rows')
 assert.deepEqual(currentSim.resetBaselineSnapshot, currentSim.snapshot, 'Current clone captures the initial SIM parameters as its reset baseline')
 assert.notStrictEqual(currentSim.resetBaselineSnapshot, currentSim.snapshot, 'the reset baseline is isolated from live SIM edits')
 assert.notStrictEqual(currentSim.resetBaselineSnapshot?.bom[0], currentSim.snapshot?.bom[0])
+const migratedBlankBusinessDefaults = reconcileSimulationState({
+  ...currentSim,
+  economicInputs: { ...currentSim.economicInputs, sellingPriceOverride: '', sgaPercentOverride: '' }
+}, initial)
+assert.equal(migratedBlankBusinessDefaults.economicInputs.sellingPriceOverride, String(initial.current.product.sellingPrice),
+  'an existing Simulation draft with blank business fields initializes them from Current')
+assert.equal(migratedBlankBusinessDefaults.economicInputs.sgaPercentOverride, String(initial.current.product.sgaPercent),
+  'an existing Simulation draft with blank SG&A initializes it from Current')
 
 const currentCalculation = calculateParameterSimulation(initial.current, currentSim.snapshot!)
 assert.equal(currentCalculation.records.filter(row => row.kind === 'bom').length, 2)
@@ -208,17 +225,20 @@ const editedWithEconomicInputs = setSimulationEconomicInput(
   'batchSize',
   '25'
 )
-const resetCurrentSim = resetSimulationParameters(editedWithEconomicInputs)
+const resetCurrentSim = resetSimulationParameters(editedWithEconomicInputs, initial.current)
 assert.deepEqual(resetCurrentSim.snapshot, currentSim.resetBaselineSnapshot, 'Reset restores every live parameter to the clone-time baseline')
 assert.notStrictEqual(resetCurrentSim.snapshot, resetCurrentSim.resetBaselineSnapshot, 'reset returns a mutable SIM copy separate from the saved baseline')
-assert.deepEqual(resetCurrentSim.economicInputs, createEmptySimulationState().economicInputs,
-  'Reset clears all five Economic and Business drafts')
+assert.deepEqual(resetCurrentSim.economicInputs, {
+  fixedActionCost: '', variableActionCostPerPiece: '', batchSize: '',
+  sellingPriceOverride: String(initial.current.product.sellingPrice),
+  sgaPercentOverride: String(initial.current.product.sgaPercent)
+}, 'Reset clears the three Simulation-only assumptions and restores Current business values')
 assert.equal('resetBaselineEconomicInputs' in resetCurrentSim, false, 'Reset state has no Economic reset baseline field')
 assert.strictEqual(resetCurrentSim.resetBaselineSnapshot, editedWithEconomicInputs.resetBaselineSnapshot, 'Reset keeps the current clone baseline')
 assert.deepEqual(resetCurrentSim.workingSelection, editedWithEconomicInputs.workingSelection,
   'Reset restores BOM and Routing parameters and retains the local working selection')
 assert.equal(initial.current.bom[0].price, 12, 'reset never writes parameter values back to Current')
-assert.strictEqual(resetSimulationParameters(currentSim), currentSim, 'Reset is an identity operation when no parameters or Economic inputs changed')
+assert.strictEqual(resetSimulationParameters(currentSim, initial.current), currentSim, 'Reset is an identity operation when no parameters or Economic inputs changed')
 
 const cloneEconomicInputs = {
   fixedActionCost: '500',
@@ -254,18 +274,23 @@ for (const [field, value] of [
   resetContract = setSimulationEconomicInput(resetContract, field, value)
 }
 const resetContractSelection = [...resetContract.workingSelection]
-const resetContractState = resetSimulationParameters(resetContract)
+const resetContractState = resetSimulationParameters(resetContract, initial.current)
 assert.deepEqual(resetContractState.snapshot, resetContractState.resetBaselineSnapshot,
   'Reset restores every editable BOM and Routing parameter to the clone-time snapshot')
 assert.deepEqual(resetContractState.snapshot?.rates, initial.current.rates,
   'Reset retains the locked Current Work Center rates')
-assert.deepEqual(resetContractState.economicInputs, createEmptySimulationState().economicInputs,
-  'Reset clears all five Economic and Business drafts while the clone input draft remains independent')
+assert.deepEqual(resetContractState.economicInputs, {
+  fixedActionCost: '', variableActionCostPerPiece: '', batchSize: '',
+  sellingPriceOverride: String(initial.current.product.sellingPrice),
+  sgaPercentOverride: String(initial.current.product.sgaPercent)
+}, 'Reset clears Simulation-only assumptions and restores Current business values')
 assert.equal('resetBaselineEconomicInputs' in resetContractState, false, 'Reset state has no obsolete Economic baseline field')
 assert.deepEqual(resetContractState.workingSelection, resetContractSelection,
   'Reset preserves the local working selection')
 assert.equal(initial.current.rates[0]?.laborRate, 20, 'Reset never writes locked rates back to Current')
 assert.equal(initial.current.bom[0]?.price, 12, 'Reset never writes BOM values back to Current')
+assert.equal(initial.current.product.sellingPrice, 250, 'Reset never writes Selling Price back to Current')
+assert.equal(initial.current.product.sgaPercent, 0.08, 'Reset never writes SG&A % back to Current')
 const resetContractCalculation = calculateParameterSimulation(initial.current, resetContractState.snapshot!)
 const resetContractEconomics = calculateEconomicSimulation(
   initial.current,
@@ -274,11 +299,11 @@ const resetContractEconomics = calculateEconomicSimulation(
   resetContractState.economicInputs
 )
 assert.equal(resetContractEconomics.business.sellingPrice, initial.current.product.sellingPrice,
-  'blank Selling Price override resolves through the existing Current fallback after Reset')
+  'Reset restores the Current Selling Price in the active Business calculation')
 assert.equal(resetContractEconomics.business.sgaPercent, initial.current.product.sgaPercent,
-  'blank SG&A override resolves through the existing Current fallback after Reset')
-assert.strictEqual(resetSimulationParameters(resetContractState), resetContractState,
-  'a second Reset is an identity operation once the clone-time parameters and blank drafts are restored')
+  'Reset restores the Current SG&A percentage in the active Business calculation')
+assert.strictEqual(resetSimulationParameters(resetContractState, initial.current), resetContractState,
+  'a second Reset is an identity operation once parameters and Current business values are restored')
 
 const changedEconomicInputs = setSimulationEconomicInput(
   setSimulationEconomicInput(editedWithEconomicInputs, 'sellingPriceOverride', '280'),
@@ -296,9 +321,12 @@ const postRecloneEconomicEdit = setSimulationEconomicInput(
   'sgaPercentOverride',
   '12'
 )
-const resetReclone = resetSimulationParameters(postRecloneEconomicEdit)
-assert.deepEqual(resetReclone.economicInputs, createEmptySimulationState().economicInputs,
-  'Reset after re-cloning clears every Economic and Business draft instead of restoring a populated baseline')
+const resetReclone = resetSimulationParameters(postRecloneEconomicEdit, initial.current)
+assert.deepEqual(resetReclone.economicInputs, {
+  fixedActionCost: '', variableActionCostPerPiece: '', batchSize: '',
+  sellingPriceOverride: String(initial.current.product.sellingPrice),
+  sgaPercentOverride: String(initial.current.product.sgaPercent)
+}, 'Reset after re-cloning clears Simulation-only assumptions and restores Current business values')
 assert.equal('resetBaselineEconomicInputs' in resetReclone, false, 're-clone Reset keeps the obsolete field absent')
 assert.deepEqual(resetReclone.snapshot, reclonedAfterEdit.resetBaselineSnapshot,
   'Reset after re-cloning still restores the replacement BOM and Routing parameter baseline')
@@ -312,11 +340,14 @@ assert.deepEqual(migratedBaselineState.resetBaselineSnapshot, editedWithEconomic
   'a legacy workspace without a baseline adopts its existing SIM snapshot as the reset baseline')
 assert.notStrictEqual(migratedBaselineState.resetBaselineSnapshot, migratedBaselineState.snapshot,
   'migrated baseline is copied so later direct edits cannot mutate it')
-const resetMigratedBaseline = resetSimulationParameters(migratedBaselineState)
+const resetMigratedBaseline = resetSimulationParameters(migratedBaselineState, initial.current)
 assert.deepEqual(resetMigratedBaseline.snapshot, migratedBaselineState.snapshot,
   'Reset after legacy migration keeps parameters when the adopted baseline is already current')
-assert.deepEqual(resetMigratedBaseline.economicInputs, createEmptySimulationState().economicInputs,
-  'Reset after legacy migration also clears a nonblank migrated Economic baseline')
+assert.deepEqual(resetMigratedBaseline.economicInputs, {
+  fixedActionCost: '', variableActionCostPerPiece: '', batchSize: '',
+  sellingPriceOverride: String(initial.current.product.sellingPrice),
+  sgaPercentOverride: String(initial.current.product.sgaPercent)
+}, 'Reset after legacy migration clears assumptions and restores Current business values')
 
 const obsoleteEconomicBaselineState = {
   ...resetContract,
@@ -366,12 +397,18 @@ const invalidLegacyRole = reconcileSimulationState({
   sourceRole: 'trial' as unknown as MasterDataRole,
   selectedFactors: ['bom.price']
 }, initial)
-assert.deepEqual(invalidLegacyRole, createEmptySimulationState(),
+assert.equal(invalidLegacyRole.snapshot, null,
   'an incompatible legacy Trial/source state is sanitized instead of reinterpreted as a valid SIM')
+assert.deepEqual(invalidLegacyRole.economicInputs, currentSim.economicInputs,
+  'sanitizing a legacy role retains the Current business defaults')
 const incompleteStoredSimulation = reconcileSimulationState({ ...currentSim, snapshot: null }, initial)
-assert.deepEqual(incompleteStoredSimulation, createEmptySimulationState(), 'a legacy SIM missing its isolated snapshot is discarded')
+assert.equal(incompleteStoredSimulation.snapshot, null, 'a legacy SIM missing its isolated snapshot is discarded')
+assert.deepEqual(incompleteStoredSimulation.economicInputs, currentSim.economicInputs,
+  'discarding an incomplete SIM preserves valid Current business defaults')
 const noFingerprintSimulation = reconcileSimulationState({ ...currentSim, basisFingerprint: null }, initial)
-assert.deepEqual(noFingerprintSimulation, createEmptySimulationState(), 'a legacy SIM with no Current basis is discarded')
+assert.equal(noFingerprintSimulation.snapshot, null, 'a legacy SIM with no Current basis is discarded')
+assert.deepEqual(noFingerprintSimulation.economicInputs, currentSim.economicInputs,
+  'discarding a SIM without a Current basis preserves valid Current business defaults')
 
 const productStates = { p1: selectedBOMAndRouting, p2: startSimulationFrom('reference', initial) }
 assert.deepEqual(productStates.p2.workingSelection, [], 'each product has an independent local working selection')

@@ -130,13 +130,15 @@ try {
   mixed = setSimulationEconomicInput(mixed, 'sellingPriceOverride', '275')
   mixed = setSimulationEconomicInput(mixed, 'sgaPercentOverride', '12')
   const beforeReset = captureSimulationEditableSnapshot(sources.current, mixed)
-  const reset = resetSimulationParameters(mixed)
+  const reset = resetSimulationParameters(mixed, sources.current)
   const afterReset = captureSimulationEditableSnapshot(sources.current, reset)
   assert.deepEqual(afterReset.bom, baseValues.bom, 'Reset restores the complete BOM editable snapshot')
   assert.deepEqual(afterReset.routing, baseValues.routing, 'Reset restores the complete Routing editable snapshot')
   assert.deepEqual(afterReset.economicInputs, {
-    fixedActionCost: '', variableActionCostPerPiece: '', batchSize: '', sellingPriceOverride: '', sgaPercentOverride: ''
-  }, 'Reset clears every Economic and Business draft rather than restoring clone-time inputs')
+    fixedActionCost: '', variableActionCostPerPiece: '', batchSize: '',
+    sellingPriceOverride: String(sources.current.product.sellingPrice),
+    sgaPercentOverride: String(sources.current.product.sgaPercent)
+  }, 'Reset clears Simulation-only assumptions and restores Current business values')
   assert.equal('resetBaselineEconomicInputs' in reset, false, 'Reset state has no obsolete Economic baseline field')
   const resetHistory = recordSimulationHistory(createSimulationHistory(base.basisFingerprint), beforeReset, afterReset)
   assert.equal(resetHistory.undo.length, 1, 'the combined parameter and five-field draft Reset creates one history transaction')
@@ -147,10 +149,10 @@ try {
     'one Undo restores each of the five pre-Reset drafts')
   const redoReset = redoSimulationHistory(undoReset.history, undoReset.snapshot!)
   assert.ok(redoReset.snapshot && isSimulationEditableSnapshotEqual(redoReset.snapshot, afterReset),
-    'Redo reapplies all BOM/RTG baseline values and the five blank drafts')
+    'Redo reapplies BOM/RTG baseline values, blank assumptions, and Current business values')
   assert.deepEqual(redoReset.snapshot?.economicInputs, afterReset.economicInputs,
-    'Redo keeps every Economic and Business draft blank')
-  const noOpResetHistory = recordSimulationHistory(resetHistory, afterReset, captureSimulationEditableSnapshot(sources.current, resetSimulationParameters(reset)))
+    'Redo restores blank assumptions and Current business values')
+  const noOpResetHistory = recordSimulationHistory(resetHistory, afterReset, captureSimulationEditableSnapshot(sources.current, resetSimulationParameters(reset, sources.current)))
   assert.equal(noOpResetHistory.undo.length, resetHistory.undo.length, 'a no-op Reset creates no new entry')
   const clonedHistory = clearSimulationHistory(undoReset.history, 'new-clone-basis')
   assert.equal(clonedHistory.undo.length, 0, 'Clone starts a clean history')

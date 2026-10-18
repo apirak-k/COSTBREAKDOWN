@@ -18,7 +18,7 @@ import {
 } from './features/simulation/simulation-state'
 import { updateSimulationParameter } from './features/simulation/simulation-engine'
 import type { SimulationParameter } from './features/simulation/simulation-state'
-import type { EconomicSimulationField } from './features/simulation/simulation-economics'
+import { applyCurrentBusinessDefaults, type EconomicSimulationField } from './features/simulation/simulation-economics'
 import {
   applySimulationEditableSnapshot,
   captureSimulationEditableSnapshot,
@@ -72,7 +72,8 @@ const AppRouter: React.FC = () => {
   )
   const simulationState = useMemo(
     () => activeTab === 'simulation' && !reconciledSimulationState.snapshot
-      ? startSimulationFrom('current', masterDataSnapshots, undefined, reconciledSimulationState.economicInputs)
+      ? startSimulationFrom('current', masterDataSnapshots, undefined,
+        applyCurrentBusinessDefaults(reconciledSimulationState.economicInputs, masterDataSnapshots.current))
       : reconciledSimulationState,
     [activeTab, masterDataSnapshots, reconciledSimulationState]
   )
@@ -190,7 +191,7 @@ const AppRouter: React.FC = () => {
   const resetSimulation = () => {
     const committed = commitSimulationEdit()
     const current = committed?.state ?? simulationState
-    const next = resetSimulationParameters(current)
+    const next = resetSimulationParameters(current, masterDataSnapshots.current)
     if (next === current) return
     const before = captureSimulationEditableSnapshot(masterDataSnapshots.current, current)
     const after = captureSimulationEditableSnapshot(masterDataSnapshots.current, next)

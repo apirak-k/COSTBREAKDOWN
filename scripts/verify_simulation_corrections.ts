@@ -38,7 +38,7 @@ try {
     const retained = engine.updateSimulationParameter(state, snapshot, 'r1', 'routing.capacity', value)
     assert.strictEqual(retained, state, 'invalid drafts never become authoritative')
   }
-  state = workspace.resetSimulationParameters(state)
+  state = workspace.resetSimulationParameters(state, snapshot)
   assert.equal(status('routing', 'r1'), 'UNCHANGED')
   for (const [kind, id, parameter, value] of [
     ['bom', 'b1', 'bom.price', 8], ['bom', 'b1', 'bom.consumption', 3], ['bom', 'b1', 'bom.loss', 0.1],
@@ -46,7 +46,7 @@ try {
   ] as const) {
     state = engine.updateSimulationParameter(state, snapshot, id, parameter, value)
     assert.equal(status(kind, id), 'CHANGED', `${parameter} is a status-bearing editable parameter`)
-    state = workspace.resetSimulationParameters(state)
+    state = workspace.resetSimulationParameters(state, snapshot)
     assert.equal(status(kind, id), 'UNCHANGED')
   }
   for (const kind of ['bom', 'routing'] as const) {

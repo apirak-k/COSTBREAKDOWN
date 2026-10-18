@@ -215,15 +215,14 @@ export function EconomicSimulationPanel({ result, draft, currentSnapshot, unit, 
     unit: string
     precision: number
     integer?: boolean
-    placeholder?: string
     min?: number
     max?: number
   }> = [
     { field: 'fixedActionCost', label: 'Fixed Action Cost', unit: 'THB', precision: 2, min: 0 },
     { field: 'batchSize', label: 'Batch Size', unit: normalizedUnit, precision: 0, integer: true, min: 1 },
     { field: 'variableActionCostPerPiece', label: 'Variable Action Cost / Unit', unit: `THB/${normalizedUnit}`, precision: 2, min: 0 },
-    { field: 'sellingPriceOverride', label: 'Selling Price', unit: `THB/${normalizedUnit}`, precision: 2, placeholder: 'Current', min: 0 },
-    { field: 'sgaPercentOverride', label: 'SG&A', unit: '%', precision: 2, placeholder: 'Current', min: 0, max: 100 }
+    { field: 'sellingPriceOverride', label: 'Selling Price', unit: `THB/${normalizedUnit}`, precision: 2, min: 0 },
+    { field: 'sgaPercentOverride', label: 'SG&A %', unit: '', precision: 2, min: 0, max: 100 }
   ]
 
   const economicOutputs = [
@@ -261,7 +260,7 @@ export function EconomicSimulationPanel({ result, draft, currentSnapshot, unit, 
         <section className="min-w-0 px-2.5 py-1.5 xl:py-1 lg:border-r lg:border-slate-200" aria-labelledby="economic-simulation-title">
           <h2 id="economic-simulation-title" className="border-b border-slate-200 pb-1 text-xs font-semibold text-slate-900 xl:pb-0.5">Economic</h2>
           <div className="mt-1 grid min-w-0 grid-cols-3 gap-x-1.5">
-            {inputs.slice(0, 3).map(({ field, label, unit: fieldUnit, precision, integer, placeholder, min, max }) => (
+            {inputs.slice(0, 3).map(({ field, label, unit: fieldUnit, precision, integer, min, max }) => (
               <label key={field} className="flex min-w-0 flex-col gap-0.5 text-[9px] font-medium text-slate-700">
                 <span className="min-h-6 leading-3">{label}<span className="ml-1 font-normal text-slate-500">{fieldUnit}</span></span>
                 <span className="w-full min-w-0">
@@ -272,7 +271,6 @@ export function EconomicSimulationPanel({ result, draft, currentSnapshot, unit, 
                       integer={integer}
                       min={min}
                       max={max}
-                      placeholder={placeholder}
                       onValueChange={value => onUpdate(field, value === null ? '' : String(value))}
                       aria-label={label}
                       className="h-7 w-full border border-slate-300 bg-white px-1.5 text-right text-[11px] text-slate-950 focus:border-blue-700 focus:ring-1 focus:ring-blue-100 xl:h-6"
@@ -304,7 +302,7 @@ export function EconomicSimulationPanel({ result, draft, currentSnapshot, unit, 
         <section className="min-w-0 border-t border-slate-200 px-2.5 py-1.5 xl:py-1 lg:border-t-0" aria-labelledby="simulation-business-title">
           <h2 id="simulation-business-title" className="border-b border-slate-200 pb-1 text-xs font-semibold text-slate-900 xl:pb-0.5">Business</h2>
           <div className="mt-1 grid grid-cols-1 gap-1 sm:grid-cols-2 lg:grid-cols-1">
-            {inputs.slice(3).map(({ field, label, unit: fieldUnit, precision, placeholder, min, max }) => (
+            {inputs.slice(3).map(({ field, label, unit: fieldUnit, precision, min, max }) => (
               <label key={field} className="flex min-w-0 items-center justify-between gap-2 text-[9px] font-medium text-slate-700">
                 <span>{label}<span className="ml-1 font-normal text-slate-500">{fieldUnit}</span></span>
                 <span className="w-[5.25rem] shrink-0">
@@ -314,7 +312,6 @@ export function EconomicSimulationPanel({ result, draft, currentSnapshot, unit, 
                       precision={precision}
                       min={min}
                       max={max}
-                      placeholder={placeholder}
                       onValueChange={value => onUpdate(field, value === null ? '' : String(value))}
                       aria-label={label}
                       className="h-7 w-full border border-slate-300 bg-white px-1.5 text-right text-[11px] text-slate-950 focus:border-blue-700 focus:ring-1 focus:ring-blue-100"

@@ -32,7 +32,7 @@ const withInputs = (fields: Record<string, string>) => Object.entries(fields).re
   (draft, [field, value]) => updateEconomicSimulationDraft(draft, field as keyof typeof draft, value),
   createEconomicSimulationDraft()
 )
-const renderPanel = (result: ReturnType<typeof calculateEconomicSimulation>, draft = createEconomicSimulationDraft()) => renderToStaticMarkup(
+const renderPanel = (result: ReturnType<typeof calculateEconomicSimulation>, draft = createEconomicSimulationDraft(currentSnapshot)) => renderToStaticMarkup(
   React.createElement(EconomicSimulationPanel, {
     result,
     draft,
@@ -130,7 +130,7 @@ const panelMarkup = renderPanel(baseResult, worked)
 for (const text of [
   'Economic', 'Business', 'Fixed Action Cost', 'Batch Size', 'Variable Action Cost / Unit',
   'Parameter Saving / Unit', 'Required Saving / Unit', 'Economic Margin / Unit',
-  'Break-even Quantity', 'Break-even Graph', 'Selling Price', 'SG&amp;A', 'SIM Standard Cost',
+  'Break-even Quantity', 'Break-even Graph', 'Selling Price', 'SG&amp;A %', 'SIM Standard Cost',
   'SG&amp;A / Unit', 'Operating Profit / Unit', 'THB/PC', 'Quantity (PC)'
 ]) assert.ok(panelMarkup.includes(text), `finalized Economic/Business UI includes ${text}`)
 assert.match(panelMarkup, /role="slider"[^>]*aria-label="Batch Size"[^>]*aria-orientation="horizontal"[^>]*aria-valuemin="1"/,
@@ -141,12 +141,22 @@ assert.doesNotMatch(panelMarkup, /Calculation Details|Above Break-even|Below Bre
 const unavailableMarkup = renderPanel(noSaving, worked)
 assert.match(unavailableMarkup, /Not achievable/)
 assert.doesNotMatch(unavailableMarkup, /NaN|Infinity/)
-const fallbackMarkup = renderPanel(business)
-const fallbackSellingPriceInput = fallbackMarkup.match(/<input\b(?=[^>]*aria-label="Selling Price")[^>]*>/)?.[0] ?? ''
-const fallbackSgaInput = fallbackMarkup.match(/<input\b(?=[^>]*aria-label="SG&amp;A")[^>]*>/)?.[0] ?? ''
-assert.match(fallbackSellingPriceInput, /placeholder="Current"/, 'blank Selling Price override uses the Current placeholder')
-assert.match(fallbackSellingPriceInput, /value=""/, 'blank Selling Price override remains visually blank')
-assert.match(fallbackSgaInput, /placeholder="Current"/, 'blank SG&A override uses the Current placeholder')
-assert.match(fallbackSgaInput, /value=""/, 'blank SG&A override remains visually blank')
+const initialDraft = createEconomicSimulationDraft(currentSnapshot)
+assert.deepEqual(initialDraft, {
+  fixedActionCost: '', variableActionCostPerPiece: '', batchSize: '',
+  sellingPriceOverride: '250', sgaPercentOverride: '8'
+}, 'initial defaults use Current business values and leave Simulation-only assumptions blank')
+const initialMarkup = renderPanel(calculateEconomicSimulation(currentSnapshot, simulationCost, null, initialDraft), initialDraft)
+const renderedInput = (label: string) => initialMarkup.match(new RegExp(`<input\\b(?=[^>]*aria-label="${label}")[^>]*>`))?.[0] ?? ''
+for (const [label, value] of [
+  ['Fixed Action Cost', ''], ['Batch Size', ''], ['Variable Action Cost / Unit', ''],
+  ['Selling Price', '250.00'], ['SG&amp;A %', '8.00']
+]) {
+  const input = renderedInput(label)
+  assert.ok(input, `${label} input is rendered`)
+  assert.ok(input.includes(`value="${value}"`), `${label} displays its expected initial value`)
+  assert.doesNotMatch(input, /placeholder="Current"/, `${label} does not use a Current placeholder`)
+}
+assert.doesNotMatch(initialMarkup, /placeholder="Current"/, 'business defaults are visible values rather than placeholder text')
 
 console.log('Simulation Economic, Break-even, and Business verification passed')
