@@ -308,6 +308,7 @@ function isGraphTooltipTarget(target: EventTarget | null): boolean {
 
 export function SimulationStoryGraph({ story, unit }: SimulationStoryGraphProps) {
   const [visibleLegend, setVisibleLegend] = useState(DEFAULT_LEGEND_VISIBILITY)
+  const allLegendVisible = LEGEND_ITEMS.every(item => visibleLegend[item.key])
   const [manualRulerLevel, setManualRulerLevel] = useState<number | null>(null)
   const [activeTooltip, setActiveTooltip] = useState<ActiveGraphTooltip | null>(null)
   const stateValues = useMemo(() => STATE_LAYOUT.map(state => ({
@@ -465,7 +466,7 @@ export function SimulationStoryGraph({ story, unit }: SimulationStoryGraphProps)
     <figure aria-labelledby="simulation-story-title" className="min-w-0 border border-slate-300 bg-white px-2.5 py-2.5 xl:flex xl:min-h-0 xl:flex-col">
       <div className="flex min-w-0 flex-col gap-1.5 border-b border-slate-200 pb-1.5 min-[720px]:flex-row min-[720px]:items-center">
         <h2 id="simulation-story-title" className="shrink-0 text-xs font-semibold text-slate-900">Simulation Cost Structure</h2>
-        <ul aria-label="Simulation graph legend" className="flex min-w-0 flex-wrap gap-x-2.5 gap-y-1 border-t border-slate-200 pt-1.5 text-[11px] min-[720px]:border-l min-[720px]:border-t-0 min-[720px]:pl-2.5 min-[720px]:pt-0">
+        <ul aria-label="Simulation graph legend" className="flex min-w-0 flex-wrap gap-x-2.5 gap-y-1 border-t border-slate-200 pt-1.5 text-[11px] min-[720px]:flex-1 min-[720px]:border-l min-[720px]:border-t-0 min-[720px]:pl-2.5 min-[720px]:pt-0">
           {LEGEND_ITEMS.map(item => {
             const isVisible = visibleLegend[item.key]
             return (
@@ -501,6 +502,14 @@ export function SimulationStoryGraph({ story, unit }: SimulationStoryGraphProps)
             )
           })}
         </ul>
+        <button
+          type="button"
+          disabled={allLegendVisible}
+          onClick={() => setVisibleLegend(DEFAULT_LEGEND_VISIBILITY)}
+          className={`min-h-6 self-end rounded-sm px-0.5 text-[11px] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-blue-700 min-[720px]:self-auto ${allLegendVisible ? 'cursor-default text-slate-400' : 'cursor-pointer text-slate-700 hover:underline'}`}
+        >
+          Show all
+        </button>
       </div>
 
       <div

@@ -248,6 +248,18 @@ try {
   assert.doesNotMatch(graphMarkup, /<title\b|\stitle=/, 'graph elements do not expose native hover tooltips')
   assert.match(graphMarkup, /<h2 id="simulation-story-title"[^>]*>Simulation Cost Structure<\/h2>[\s\S]*?<ul aria-label="Simulation graph legend"/,
     'the graph title and legend share the header area')
+  assert.match(graphMarkup, /<ul aria-label="Simulation graph legend"[\s\S]*?<\/ul><button type="button" disabled=""[^>]*>Show all<\/button>/,
+    'Show all is a separate action after the eight Legend controls and is disabled initially')
+  assert.match(graphSource, /const allLegendVisible = LEGEND_ITEMS\.every\(item => visibleLegend\[item\.key\]\)/,
+    'Show all disabled state derives from all eight existing Legend visibility values')
+  assert.match(graphSource, /disabled=\{allLegendVisible\}/,
+    'Show all is disabled only while every Legend item is visible')
+  assert.match(graphSource, /onClick=\{\(\) => setVisibleLegend\(DEFAULT_LEGEND_VISIBILITY\)\}/,
+    'Show all restores the existing all-visible Legend state')
+  assert.match(graphSource, /min-h-6 self-end rounded-sm px-0\.5 text-\[11px\][^`]*focus-visible:outline[^`]*min-\[720px\]:self-auto/,
+    'Show all uses lightweight Legend typography and visible keyboard focus styling')
+  assert.match(graphSource, /'cursor-default text-slate-400' : 'cursor-pointer text-slate-700 hover:underline'/,
+    'Show all has a muted default-cursor disabled state and a hover-only underline when enabled')
   const graphHeaderClasses = graphSource.match(/<div className="flex min-w-0 flex-col gap-1\.5 border-b border-slate-200 pb-1\.5 ([^"]+)"/)?.[1] ?? ''
   assert.doesNotMatch(graphHeaderClasses, /justify-between/,
     'the graph title and legend stay grouped instead of pushing the legend to the far edge')

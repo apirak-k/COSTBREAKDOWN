@@ -1,9 +1,44 @@
-# Current Handoff — Simulation Visible Net side fallback — 2026-10-18
+# Current Handoff — Simulation graph Legend Show all — 2026-10-18
+
+- Repository: `/Users/bubu/COSTBREAKDOWN`, `apirak-k/COSTBREAKDOWN`.
+- Branch: `logic/simulation-finalized-implementation`.
+- Starting local HEAD and fetched remote HEAD: `1692c8b9b76b77e9e9b71c4e24c22f0db4a5b1a4`.
+- Pre-existing local-only change: `vite.config.ts`; preserved, unstaged, and excluded from this round.
+- Scope: implement only the Simulation graph Legend **Show all** action. Visible Net placement, Selling Price graph behavior, Economic/Business inputs, Reset, Result, formulas, and calculations were untouched.
+
+## Changes
+
+- Added a small, always-visible **Show all** action after Ruler, at the far right on desktop. It derives its disabled state from all eight existing Legend values and restores them through the existing visibility state.
+- Kept individual Legend toggles, graph calculations, and graph-only filtering unchanged. Added focused verifier assertions and documented the action in `docs/specs/SIMULATION.md`.
+
+## Verification
+
+- **PASS — Simulation graph:** `node --experimental-strip-types scripts/verify_simulation_story_view.ts --graph-only`.
+- **PASS — Simulation page contract:** `node --experimental-strip-types scripts/verify_simulation_story_view.ts`.
+- **PASS — Simulation regression:** `node scripts/verify_simulation_regression.mjs` (workspace, context, parameter engine, Master Data edit history, and Global Header suites).
+- **PASS — build:** `npm run build` (`tsc -b` and Vite production build). Existing `fs`/`crypto` browser externalization and >500 KB chunk warnings remain.
+- **PASS — isolated headless Chrome 155:** desktop 1440×1000 and narrow 390×844. Verified initial disabled state, one and multiple hidden Legend items, restoration of all eight items, disabled non-activation, individual toggle behavior, Visible Net changing with filters and restoring afterward, keyboard Tab/focus-visible/Enter behavior, far-right desktop placement, and no horizontal page overflow at either width.
+- **PASS — `git diff --check`**.
+
+## Limits
+
+- **[Unverified]** Physical-device rendering, screen-reader behavior, and browsers other than isolated Chrome.
+- **Existing dependency-audit finding:** `npm audit --audit-level=high` reports 5 high and 4 moderate transitive vulnerabilities. The suggested automatic fixes require breaking Tailwind/ExcelJS version changes, so dependencies were left unchanged in this graph-only round.
+
+## Delivery
+
+One focused commit is pushed to `origin/logic/simulation-finalized-implementation`; its exact SHA is in the completion report. The pre-existing `vite.config.ts` change is not included.
+
+---
+
+# Historical Handoff — Simulation Visible Net side fallback — 2026-10-18
+
+This records the immediately preceding Simulation graph placement round. The active Show all handoff above supersedes its current-task status.
 
 - Repository: `/Users/bubu/COSTBREAKDOWN`, `apirak-k/COSTBREAKDOWN`.
 - Branch: `logic/simulation-finalized-implementation`.
 - Starting local HEAD and fetched remote HEAD: `4f7ede7c8392106e919045a3b9555b7c96ee031c`.
-- Pre-existing local-only change: `vite.config.ts`; preserved and excluded from this round.
+- Pre-existing local-only change: `vite.config.ts`; preserved and excluded from that round.
 - Scope: Simulation graph Visible Net placement only. Reset, costing/business formulas, data, Clone/Send, Master Data, and Cost Breakdown were untouched.
 
 ## Changes
