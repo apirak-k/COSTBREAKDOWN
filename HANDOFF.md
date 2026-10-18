@@ -1,39 +1,33 @@
-# Current Handoff — Simulation layout correction prototype — 2026-10-18
+# Current Handoff — Simulation layout and display-copy polish — 2026-10-19
 
 - Repository: `/Users/bubu/COSTBREAKDOWN`, `apirak-k/COSTBREAKDOWN`.
 - Branch: `logic/simulation-finalized-implementation`.
-- Starting local HEAD and remote-tracking HEAD: `a5b9213612417e27b52eb007e4e1e1262b8be6d1`; no commit or push was made.
-- `vite.config.ts` was pre-existing, remains untouched, and is excluded from this work. Its current SHA-256 is `673d2cbb093b910a1640bac84b7e16425e4f08bd3d7be7f4e435848ab2eb6796`.
-- Scope: the existing uncommitted Simulation layout prototype and the requested desktop header/layout correction.
+- Starting local HEAD and remote-tracking HEAD: `723e72ec9c44bdf457eb29e45cf65a120328925f`.
+- `vite.config.ts` was already modified before this pass; it remains excluded and has the same SHA-256: `673d2cbb093b910a1640bac84b7e16425e4f08bd3d7be7f4e435848ab2eb6796`.
 
-## Current prototype
+## Changes
 
-- The desktop upper workspace keeps Main Graph on the left. The right block uses two independent vertical columns: Business Inputs, Economic Inputs, and Economic Outputs on the left; Result above Break-even Graph on the right.
-- Business inputs are stacked Selling Price then SG&A %. Economic inputs are stacked Variable Action Cost / Unit, Fixed Action Cost, then Batch Size. Business outcome values remain in Result.
-- BOM and RTG remain equal-width below the upper workspace. Their bodies keep internal scrolling, and narrow layouts keep the existing stacked page scroll.
-- At desktop `xl`, the Main Graph title, all eight full-label Legend controls, and Show all remain on one row in order. No item is removed or renamed.
-- Break-even Batch Size guide remains draggable and keyboard-adjustable. Its marker tooltip stays anchored to the marker; ordinary line tooltips remain stable and inside the graph host.
-- No formulas, calculations, validation, persistence, input history boundaries, Result data/actions, finalized graph placement behavior, or BOM/RTG editing behavior were changed in this correction pass.
-- Structural decisions are in `docs/specs/SIMULATION.md`. Reversible sizing weights are recorded only in P-013 of `docs/PROVISIONAL_IMPLEMENTATION_DECISIONS.md`; they are not finalized requirements.
+- Widened the Main Graph allocation to `1.5fr:1fr`; the right-side block now divides at `.7fr:1.3fr`. In isolated Chrome this measured Graph / middle / Result widths of `830 / 191 / 355px` at 1440px, and `734 / 169 / 313px` at 1280px. The middle Business/Economic column is about 14% of the workspace and Result about 26%.
+- Kept the Main Graph title, all eight legend controls, Ruler, and Show all on one row. Show all follows Ruler with a 4px gap. Shifted the plot's SVG marks 8 units left without changing their calculations or relative placement.
+- Combined Business Inputs, Economic Inputs, and Economic Outputs inside one bordered card with three clear internal section dividers. The existing `Selling Price` then `SG&A %` order and all Result fields/actions remain.
+- Changed only visible copy for the variable input to `Variable Action Cost`; its unit remains adjacent and its accessible name remains `Variable Action Cost / Unit`.
+- Changed the visible Economic Outputs label from `Break-even Quantity` to `Break-even`. At 1280px it stays on one line and the unchanged quantity value and UOM are legible as `2,326 PC`. The group retains the accessible name `Break-even Quantity`.
+- Removed visible popup tooltips from the Break-even graph while preserving accessible labels, Batch Size slider semantics, focus styling, pointer dragging, and keyboard adjustment. Main Graph tooltips remain active.
+- Updated the Simulation spec, provisional P-013 layout record, and focused verifiers. The calculation and history modules are unchanged.
 
 ## Verification
 
-- **PASS:** `node --experimental-strip-types scripts/verify_simulation_story_view.ts`.
-- **PASS:** `node --experimental-strip-types scripts/verify_simulation_economics.ts`.
-- **PASS:** `node --experimental-strip-types scripts/verify_simulation_result.ts`.
-- **PASS:** `node --experimental-strip-types scripts/verify_simulation_history.ts`.
-- **PASS:** `node --experimental-strip-types scripts/verify_simulation_corrections.ts`.
-- **PASS:** `node scripts/verify_simulation_regression.mjs`, including workspace, context, parameter engine, Master Data history, and Global Header checks.
-- **PASS:** `npm run build`; existing ExcelJS browser externalization and large-chunk warnings remain.
+- **PASS:** Simulation Story, Economic/Break-even, Result, History, Corrections, and Regression verifiers.
+- **PASS:** `npm run build`; TypeScript and Vite build succeeded. Existing ExcelJS browser externalization and large-chunk warnings remain.
 - **PASS:** `git diff --check`.
-- **PASS — isolated headless Chrome with populated Complete Mock:** 1440×857, 1280×768, and 390×844. At both desktop sizes the graph header remains a single row, full text is visible, and page width matches viewport width. At 1280, all Result rows fit; RTG body scrolling was exercised and exposed the last rows. The mobile page remains stacked and vertically scrollable without horizontal overflow.
-- **PASS — Break-even interaction:** ArrowRight and ArrowLeft changed and restored Batch Size; dragging moved it without a pointer-down jump; the updated value reached the input and marker tooltip. The marker tooltip stayed within the graph host, and moving along the same cost line left its tooltip position unchanged.
-- Screenshots: `/tmp/cbd-simulation-layout-1440x857.png`, `/tmp/cbd-simulation-layout-1280x768.png`, `/tmp/cbd-simulation-layout-390x844.png`, `/tmp/cbd-simulation-rtg-scroll-1280x768.png`, and `/tmp/cbd-simulation-break-even-interaction.png`.
+- **PASS — isolated headless Chrome:** 1440×857, 1280×768, and 390×844. At both desktop sizes the graph header is a single row; text is visible with no overlap or clipping, and the document has no horizontal overflow. The 1280 screenshot shows `Break-even` and `2,326 PC` clearly on one row. The mobile layout remains stacked and horizontally contained.
+- **PASS — interaction and tooltip checks:** Break-even graph has no popup on hover; Main Graph tooltip still appears. ArrowRight/ArrowLeft changed and restored Batch Size. Pointer-down on the marker did not change its value; dragging moved it. Focus styling remained visible.
+- For the positive Break-even visual case, the isolated Complete Mock browser session temporarily changed MAT-A Simulation Usage from 2.00 to 1.50. This was test data in the isolated browser profile only, not a repository or persisted application change.
+- Screenshots: `/tmp/cbd-simulation-polish-1440x857.png`, `/tmp/cbd-simulation-polish-1280x768.png`, and `/tmp/cbd-simulation-polish-390x844.png`.
 
 ## Review notes
 
-- At 1280px, the Break-even Quantity label wraps to two lines; all text remains visible. This is the remaining small visual detail for the user's review.
-- Physical MacBook Neo rendering, other browsers, and screen-reader behavior are **[Unverified]**. This prototype is still uncommitted and unpushed, and awaits the user's visual review before any further tuning.
+- Physical MacBook Neo rendering, other browsers, and screen-reader behavior are **[Unverified]**. Layout weights remain provisional and can be adjusted after visual review.
 
 ---
 

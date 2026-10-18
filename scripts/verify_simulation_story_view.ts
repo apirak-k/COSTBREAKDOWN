@@ -263,6 +263,8 @@ try {
   assert.match(graphMarkup, /<ul aria-label="Simulation graph legend"[\s\S]*?<\/ul><button type="button" disabled=""[^>]*>Show all<\/button>/,
     'Show all is a separate action after the eight Legend controls and is disabled initially')
   const legendMarkup = graphMarkup.match(/<ul aria-label="Simulation graph legend"[\s\S]*?<\/ul>/)?.[0] ?? ''
+  assert.match(legendMarkup, /xl:flex-none/,
+    'Show all follows the compact Legend group instead of being pushed to the far edge of the Graph card')
   const legendButtonTags = [...legendMarkup.matchAll(/<button\b[^>]*>/g)].map(([tag]) => tag)
   assert.equal(legendButtonTags.length, 8, 'all eight legend controls render as actual buttons')
   for (const [index, buttonTag] of legendButtonTags.entries()) {
@@ -298,6 +300,8 @@ try {
   const yAxisLineTag = graphMarkup.match(/<line\b[^>]*data-y-axis="true"[^>]*>/)?.[0] ?? ''
   const yAxisUnitTag = graphMarkup.match(/<text\b[^>]*data-y-axis-unit="true"[^>]*>/)?.[0] ?? ''
   assert.ok(yAxisLineTag && yAxisUnitTag)
+  assert.match(graphMarkup, /<g transform="translate\(-8 0\)">/,
+    'the plot is shifted slightly left without changing its internal label placement rules')
   assert.doesNotMatch(yAxisUnitTag, /transform=|rotate\(\s*-90/, 'the Y-axis unit label stays horizontal')
   assert.ok(numericSvgAttribute(yAxisUnitTag, 'y') < numericSvgAttribute(yAxisLineTag, 'y1'),
     'the horizontal UOM label sits above the Y-axis')
@@ -846,18 +850,23 @@ try {
     'the right column places the Break-even Graph below Result')
   assert.match(renderedResultPanel, /Selling Price[\s\S]*SG&amp;A[\s\S]*Operating Profit/,
     'Result retains all three Business outcomes')
-  assert.ok(pageMarkup.includes('xl:grid-cols-[minmax(0,1.45fr)_minmax(0,1fr)]'),
-    'the main graph has a wider desktop column than the right-side block')
-  assert.ok(pageMarkup.includes('xl:grid-cols-[minmax(0,.8fr)_minmax(0,1.2fr)]') &&
+  assert.ok(pageMarkup.includes('xl:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)]'),
+    'the main graph uses about 60% of the upper workspace width')
+  assert.ok(pageMarkup.includes('xl:grid-cols-[minmax(0,.7fr)_minmax(0,1.3fr)]') &&
     pageMarkup.includes('xl:grid-rows-[minmax(0,1.2fr)_minmax(0,.8fr)]') &&
     pageMarkup.includes('xl:grid-rows-[minmax(0,.95fr)_minmax(0,1.45fr)_minmax(0,1fr)]'),
   'the two right-side columns use independent fixed row subdivisions')
+  const inputCardTag = pageMarkup.match(/<div data-safe-workspace-interaction="true" data-simulation-layout-column="inputs"[^>]*>/)?.[0] ?? ''
+  assert.match(inputCardTag, /class="[^"]*border border-slate-300[^\"]*bg-white/,
+    'Business and Economic information has one shared outer card')
+  assert.match(inputCardTag, /class="[^"]*divide-y divide-slate-200/,
+    'the shared card keeps subtle dividers between its three sections')
   const businessInputsMarkup = pageMarkup.match(/<section[^>]*aria-labelledby="simulation-business-inputs-title"[\s\S]*?<\/section>/)?.[0] ?? ''
   const economicInputsMarkup = pageMarkup.match(/<section[^>]*aria-labelledby="simulation-economic-inputs-title"[\s\S]*?<\/section>/)?.[0] ?? ''
   assert.ok(businessInputsMarkup.includes('grid grid-cols-1') && economicInputsMarkup.includes('grid min-w-0 grid-cols-1'),
     'Business and Economic inputs use vertical single-column layouts')
   const businessInputLabels = ['Selling Price', 'SG&amp;A %'].map(label => businessInputsMarkup.indexOf(label))
-  const economicInputLabels = ['Variable Action Cost / Unit', 'Fixed Action Cost', 'Batch Size'].map(label => economicInputsMarkup.indexOf(label))
+  const economicInputLabels = ['Variable Action Cost', 'Fixed Action Cost', 'Batch Size'].map(label => economicInputsMarkup.indexOf(label))
   assert.ok(businessInputLabels.every((index, position) => index >= 0 && (position === 0 || index > businessInputLabels[position - 1])),
     'Business inputs remain in Selling Price then SG&A order')
   assert.ok(economicInputLabels.every((index, position) => index >= 0 && (position === 0 || index > economicInputLabels[position - 1])),

@@ -954,9 +954,9 @@ export const SimulationPage: React.FC<SimulationPageProps> = ({
 
   return (
     <div className="min-w-0 space-y-3 xl:flex xl:h-full xl:min-h-0 xl:flex-col xl:gap-2 xl:space-y-0 xl:overflow-hidden">
-      <div className="grid min-w-0 gap-2 xl:min-h-0 xl:flex-[1.25] xl:grid-cols-[minmax(0,1.45fr)_minmax(0,1fr)] xl:grid-rows-1">
+      <div className="grid min-w-0 gap-2 xl:min-h-0 xl:flex-[1.25] xl:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)] xl:grid-rows-1">
         <SimulationStoryGraph story={story} unit={unit} />
-        <div className="grid min-w-0 gap-2 xl:h-full xl:min-h-0 xl:grid-cols-[minmax(0,.8fr)_minmax(0,1.2fr)] xl:grid-rows-1">
+        <div className="grid min-w-0 gap-2 xl:h-full xl:min-h-0 xl:grid-cols-[minmax(0,.7fr)_minmax(0,1.3fr)] xl:grid-rows-1">
           <EconomicSimulationPanel
             result={economicResult}
             draft={state.economicInputs}

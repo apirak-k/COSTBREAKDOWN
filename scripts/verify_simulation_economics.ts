@@ -141,16 +141,29 @@ for (const batchSize of ['0', '-1', '1.5', 'Infinity', 'NaN']) {
 
 const panelMarkup = renderPanel(baseResult, worked)
 for (const text of [
-  'Business Inputs', 'Economic Inputs', 'Economic Outputs', 'Fixed Action Cost', 'Batch Size', 'Variable Action Cost / Unit',
+  'Business Inputs', 'Economic Inputs', 'Economic Outputs', 'Fixed Action Cost', 'Batch Size', 'Variable Action Cost', 'Variable Action Cost / Unit',
   'Parameter Saving / Unit', 'Required Saving / Unit', 'Economic Margin / Unit',
   'Break-even Quantity', 'Break-even Graph', 'Selling Price', 'SG&amp;A %',
   'THB/PC', 'Quantity (PC)'
 ]) assert.ok(panelMarkup.includes(text), `finalized Economic/Business UI includes ${text}`)
+const inputsCardTag = panelMarkup.match(/<div data-safe-workspace-interaction="true" data-simulation-layout-column="inputs"[^>]*>/)?.[0] ?? ''
+assert.match(inputsCardTag, /class="[^"]*border border-slate-300[^\"]*bg-white/,
+  'Business and Economic sections share one bordered outer card')
+assert.match(inputsCardTag, /class="[^"]*divide-y divide-slate-200/,
+  'Business and Economic sections share one outer card with subtle internal dividers')
+const inputsSectionTags = [...panelMarkup.matchAll(/<section\b[^>]*aria-labelledby="simulation-(?:business-inputs|economic-inputs|economic-outputs)-title"[^>]*>/g)].map(([tag]) => tag)
+assert.equal(inputsSectionTags.length, 3, 'the combined card retains its three named sections')
+assert.ok(inputsSectionTags.every(tag => !/class="[^"]*\bborder\b/.test(tag)),
+  'Business and Economic sections no longer have separate outer borders')
 const economicInputsPanel = panelMarkup.match(/<section[^>]*aria-labelledby="simulation-economic-inputs-title"[\s\S]*?<\/section>/)?.[0] ?? ''
-const economicInputIndexes = ['Variable Action Cost / Unit', 'Fixed Action Cost', 'Batch Size'].map(label => economicInputsPanel.indexOf(label))
+const economicInputIndexes = ['Variable Action Cost', 'Fixed Action Cost', 'Batch Size'].map(label => economicInputsPanel.indexOf(label))
 assert.ok(economicInputIndexes.every((index, position) => index >= 0 && (position === 0 || index > economicInputIndexes[position - 1])),
   'Economic inputs render vertically in Variable Action Cost, Fixed Action Cost, Batch Size order')
 assert.ok(economicInputsPanel.includes('grid min-w-0 grid-cols-1'), 'Economic inputs use a vertical single-column layout')
+assert.ok(economicInputsPanel.includes('>Variable Action Cost<span class="ml-1 font-normal text-slate-500">THB/PC</span>'),
+  'Variable Action Cost is shown without / Unit and keeps its THB/UOM beside the label')
+assert.match(economicInputsPanel, /aria-label="Variable Action Cost \/ Unit"/,
+  'the input keeps the full accessible meaning of Variable Action Cost per unit')
 const businessPanel = panelMarkup.match(/<section[^>]*aria-labelledby="simulation-business-inputs-title"[\s\S]*?<\/section>/)?.[0] ?? ''
 assert.ok(businessPanel, 'Business Inputs has its own panel')
 const businessInputIndexes = ['Selling Price', 'SG&amp;A %'].map(label => businessPanel.indexOf(label))
@@ -166,6 +179,16 @@ assert.match(panelMarkup, /<figure data-safe-workspace-interaction="true" aria-l
 assert.match(panelMarkup, /role="slider"[^>]*aria-label="Batch Size"[^>]*aria-orientation="horizontal"[^>]*aria-valuemin="1"/,
   'Batch marker is an accessible horizontal integer slider')
 assert.match(panelMarkup, /aria-valuenow="5000"/)
+assert.match(panelMarkup, /role="img" aria-label="Cumulative Parameter Saving:/,
+  'the Saving graph line keeps its accessible description without a popup')
+assert.match(panelMarkup, /role="img" aria-label="Total Action Cost:/,
+  'the Action Cost graph line keeps its accessible description without a popup')
+assert.match(panelMarkup, /role="img" aria-label="Break-even Quantity:/,
+  'the break-even point keeps its accessible description without a popup')
+assert.match(panelMarkup, /role="group" aria-label="Break-even Quantity"[^>]*>[\s\S]*?<span aria-hidden="true"[^>]*>Break-even<\/span>/,
+  'the short visible Break-even output retains its full accessible semantic label')
+assert.doesNotMatch(panelMarkup, /data-break-even-tooltip|activeTooltip|absolute z-20/,
+  'the Break-even graph renders no floating popup tooltip system')
 assert.doesNotMatch(panelMarkup, /Calculation Details|Above Break-even|Below Break-even|Fixed Cost \/ pc|OP \/ pc/)
 
 const unavailableMarkup = renderPanel(noSaving, worked)

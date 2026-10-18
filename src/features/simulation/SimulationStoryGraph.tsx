@@ -497,7 +497,7 @@ export function SimulationStoryGraph({ story, unit }: SimulationStoryGraphProps)
     <figure aria-labelledby="simulation-story-title" className="min-w-0 border border-slate-300 bg-white px-2.5 py-2.5 xl:flex xl:min-h-0 xl:flex-col">
       <div className="flex min-w-0 flex-col gap-1.5 border-b border-slate-200 pb-1.5 min-[720px]:flex-row min-[720px]:items-center xl:gap-1 xl:flex-nowrap">
         <h2 id="simulation-story-title" className="shrink-0 text-xs font-semibold text-slate-900 xl:whitespace-nowrap">Simulation Cost Structure</h2>
-        <ul aria-label="Simulation graph legend" className="flex min-w-0 flex-wrap gap-x-2.5 gap-y-1 border-t border-slate-200 pt-1.5 text-[11px] min-[720px]:flex-1 min-[720px]:border-l min-[720px]:border-t-0 min-[720px]:pl-2.5 min-[720px]:pt-0 xl:flex-nowrap xl:gap-x-1 xl:pl-1.5">
+        <ul aria-label="Simulation graph legend" className="flex min-w-0 flex-wrap gap-x-2.5 gap-y-1 border-t border-slate-200 pt-1.5 text-[11px] min-[720px]:flex-1 min-[720px]:border-l min-[720px]:border-t-0 min-[720px]:pl-2.5 min-[720px]:pt-0 xl:flex-none xl:flex-nowrap xl:gap-x-1 xl:pl-1.5">
           {LEGEND_ITEMS.map(item => {
             const isVisible = visibleLegend[item.key]
             return (
@@ -558,6 +558,7 @@ export function SimulationStoryGraph({ story, unit }: SimulationStoryGraphProps)
         >
           <desc id="simulation-story-svg-description">Reference, Current, and Simulation show visible Material, Labor, Burden, SG&amp;A, and sign-matched Profit. Standard Cost is visible Material plus Labor plus Burden. Visible Net is the signed total of visible state-stack segments and excludes Selling Price. GAP 1 is Current minus Reference; GAP 2 is Simulation minus Current. Legend filters change this graph view only, not Result or source data. Selling Price is separate, and the ruler is a comparison guide.</desc>
 
+          <g transform="translate(-8 0)">
           {axisTicks.map((value, index) => {
             const lineY = y(value)
             const isZero = Math.abs(value) < axisStep * 0.0001
@@ -818,6 +819,7 @@ export function SimulationStoryGraph({ story, unit }: SimulationStoryGraphProps)
               </text>
             </g>
           ))}
+          </g>
         </svg>
         {activeTooltip && (
           <div
