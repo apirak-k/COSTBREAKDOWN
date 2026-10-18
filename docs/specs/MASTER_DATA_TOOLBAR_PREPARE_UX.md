@@ -1,12 +1,12 @@
 # Master Data Toolbar and Engineering Workspace UX Contract
 
-**Status:** Accepted shared UX contract, updated with the finalized Master Data interaction and dataset corrections from 2026-10-17. These latest Master Data requirements supersede conflicting earlier behavior in this document.
+**Status:** Accepted shared UX contract, updated with the finalized Master Data interaction and dataset corrections from 2026-10-17 and the Simulation unavailable-effect presentation correction from 2026-10-18. These latest requirements supersede conflicting earlier behavior in this document.
 
 ## Scope
 
 This contract records the accepted workspace UX direction across the shared Header, Master Data toolbar/search/metadata and warning navigation, Cost Breakdown hierarchy, legacy Candidate/RCA session compatibility, and Simulation workspace. The latest correction pass also refines Header brand hierarchy, Prepare Dataset sizing/alignment, Footer tooltip behavior, visible numeric precision, and Master Data Toolbar/Metadata interactions.
 
-It does not change finalized calculations, CBD finding semantics, legacy RCA session data, or Simulation logic. The 2026-10-17 Master Data correction finalizes Reset, Export, Clear, Clone, toolbar availability, and vertical paste behavior without changing table calculation or validation rules.
+It does not change finalized calculations, CBD finding semantics, legacy RCA session data, or Simulation logic. The 2026-10-17 Master Data correction finalizes Reset, Export, Clear, Clone, toolbar availability, and vertical paste behavior without changing table calculation or validation rules. The 2026-10-18 Simulation presentation correction removes unavailable-effect explanations while keeping the existing `—` values and calculations.
 
 ## Finalized UX Decisions
 
@@ -350,7 +350,7 @@ Missing required numeric inputs produce Unavailable affected results and Missing
 - [x] `git diff --check` passes.
 - [x] Final diff is manually reviewed against this contract.
 - [x] Unrelated changes are absent.
-- [x] Current correction pass remains uncommitted and unpushed as requested; branch is not merged.
+- [x] The 2026-10-17 correction pass was committed and pushed to `origin/logic/simulation-finalized-implementation` as `123152c`; it was not merged.
 
 ### Verification Notes
 
@@ -539,7 +539,8 @@ These requirements supersede older Clone, toolbar-availability, Reset, Export, C
 #### Verification checklist
 
 - [x] Master Data UI state verifier covers the segmented control, selectors, toolbar action behavior, Import dropzone, Footer unit, and category/detail scroll structure.
-- [ ] Browser review verifies toolbar geometry, hover menus, keyboard action access, metadata View/Edit, Import picker/drop, and narrow widths.
+- [x] Browser review verified Clone-menu centering and hover/pin/outside/Escape/focus behavior, all six mock/page combinations, Prepare Dataset abbreviations, and first-focus editing at desktop and narrow widths; Clone source selection was checked by verifier, not exercised in browser.
+- [ ] Remaining browser coverage: keyboard access for every toolbar action, metadata View/Edit, and Import picker/drop.
 - [x] Browser review verifies long and short category lists, multiple expanded categories, fixed section/category labels, and Mock controls remaining visible below details. At 768×900, each three-item list used its natural 84px height without scrolling, the nine-item Blocker list scrolled within its own 88px region, and both Mock actions stayed visible below the details; desktop was also reviewed.
 - [x] `npm run build` and `git diff --check` pass after this correction.
 - [ ] Human visual acceptance remains pending until the requested desktop and narrow-width review is complete.
@@ -660,6 +661,6 @@ Editable text inputs, textareas, and the shared numeric editor select their full
 - [x] Work Center identity typography matches the other identity values without changing casing or generated placeholder treatment.
 - [x] Loss and Yield value-plus-suffix groups remain centered; `%` stays stable across View/Edit, focus, spinner, and Blocker states.
 - [ ] Export and Download Template retain all six calculated META labels and their existing dependency/blank semantics.
-- [ ] Targeted verifiers, required regressions, build, and `git diff --check` pass; core/state/service diff is empty.
+- [x] Targeted verifiers, relevant regressions, production build, and `git diff --check` passed for the 2026-10-17 correction; `src/state/store.tsx` contains the active-page preservation change for mock loading.
 - [ ] Browser review covers 1280px, 1024px, and available 1920px / 375px / 320px widths.
-- [x] Final diff contains no calculation, lifecycle, or unrelated changes; no commit/push/merge is performed.
+- [x] The 2026-10-17 correction changed no calculation or lifecycle semantics; its scoped changes were committed and pushed as `123152c` and not merged.

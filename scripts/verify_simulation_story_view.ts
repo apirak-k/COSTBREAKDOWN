@@ -511,9 +511,14 @@ try {
   assert.doesNotMatch(protectedMarkup, /100\.00%/, 'per-parameter attribution shares are not presented')
   assert.doesNotMatch(protectedMarkup, /type="checkbox"|aria-label="Select BOM row/, 'ambiguous rows are not selectable')
   assert.match(pageSource, /const canExpand = true/, 'protected rows can expand even without a status')
-  assert.match(pageSource, /Business identity cannot be matched safely/, 'expanded protected rows explain why effect is unavailable')
+  assert.doesNotMatch(pageSource, /effectUnavailableReason|Unavailable\s*·|Business identity cannot be matched safely|Business identity is missing or unmatched|The row exists only in SIM|The row exists only in Current|Required inputs or Work Center context are unavailable/,
+    'expanded BOM and Routing details do not render unavailable-reason prose')
   assert.match(pageSource, /\{expanded && \(/, 'Parameter Cost Effect appears only after expanding the row')
   assert.match(pageSource, /Parameter Cost Effect/, 'the expandable row contains the effect detail')
+  assert.match(pageSource, /detailParameters\.map\(parameter => <EffectCell key=\{parameter\.parameter\} amount=\{parameter\.amount\} \/>/,
+    'desktop effect cells keep rendering the existing dash presentation for unavailable values')
+  assert.match(pageSource, /parameterEffectPresentation\(analysis\.effects\.effects\?\.\[parameter\.effectKey\]\)/,
+    'mobile effect values keep using the same unavailable-value presentation')
   assert.match(pageSource, /const totalEffect = parameterEffectPresentation\(analysis\.effects\.totalEffect\)/,
     'the expanded Total uses the signed presentation helper')
   assert.match(pageSource, /aria-label=\{`Total \$\{totalEffect\.text\}`\}/,

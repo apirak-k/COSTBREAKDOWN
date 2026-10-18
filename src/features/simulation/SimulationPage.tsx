@@ -117,14 +117,6 @@ function rowIsSelectable(row: SimulationComparisonRow): boolean {
   return row.identityIssue === null && (row.status === 'CHANGED' || row.status === 'UNCHANGED' || row.status === 'ADDED')
 }
 
-function effectUnavailableReason(row: SimulationComparisonRow): string {
-  if (row.identityIssue === 'ambiguous') return 'Business identity cannot be matched safely.'
-  if (row.identityIssue === 'unmatched') return 'Business identity is missing or unmatched.'
-  if (row.status === 'ADDED') return 'The row exists only in SIM.'
-  if (row.status === 'REMOVED') return 'The row exists only in Current.'
-  return 'Required inputs or Work Center context are unavailable.'
-}
-
 function bomAttribution(
   row: SimulationComparisonRow,
   currentSnapshot: CostSnapshot,
@@ -614,9 +606,6 @@ function SimulationParameterTable({
                       <td aria-hidden="true" />
                       <th scope="row" colSpan={2} className="py-2 pl-3 pr-2 text-left text-[10px] font-semibold text-slate-700">
                         <span className="ml-2 inline-block whitespace-nowrap border-l-2 border-slate-300 pl-3">Parameter Cost Effect</span>
-                        {analysis.effects.effects === null && (
-                          <span className="ml-2 font-normal text-slate-500">Unavailable · {effectUnavailableReason(row)}</span>
-                        )}
                       </th>
                       {detailParameters.map(parameter => <EffectCell key={parameter.parameter} amount={parameter.amount} />)}
                       <td aria-label={`Total ${totalEffect.text}`} className="whitespace-nowrap py-1.5 pl-1 pr-6 text-right text-[10px] font-semibold">
@@ -754,9 +743,6 @@ function SimulationParameterTable({
               {expanded && (
                 <div id={detailId} data-safe-workspace-interaction="true" className="mt-2 border-t border-slate-200 pt-2">
                   <h4 className="mb-1 ml-11 border-l-2 border-slate-300 pl-2 text-[10px] font-semibold text-slate-700">Parameter Cost Effect</h4>
-                  {analysis.effects.effects === null && (
-                    <p className="mb-1 text-[10px] text-slate-500">Unavailable · {effectUnavailableReason(row)}</p>
-                  )}
                   <dl className="grid grid-cols-2 gap-x-3 gap-y-1 text-[9px]">
                     {parameters.map(parameter => {
                       const effect = parameterEffectPresentation(analysis.effects.effects?.[parameter.effectKey])

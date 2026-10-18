@@ -1,4 +1,41 @@
-# Current Handoff — Cost Breakdown / Simulation / Master Data follow-up — 2026-10-17
+# Current Handoff — Simulation Parameter Cost Effect cleanup — 2026-10-18
+
+- Repository: `/Users/bubu/COSTBREAKDOWN`, `apirak-k/COSTBREAKDOWN`.
+- Branch: `logic/simulation-finalized-implementation`.
+- Starting local HEAD and fetched remote HEAD: `123152cbbe7c27570a8cff6c83b7940dfadee073`.
+- Pre-existing local change: `vite.config.ts` remains untouched and excluded from this round.
+- Scope: remove explanatory unavailable-effect copy from Simulation BOM/RTG details and reconcile only the relevant Simulation and delivery documentation. Calculation logic, attribution checks, protected-row behavior, and other accepted UX remain unchanged.
+
+## Changes
+
+- Removed the `effectUnavailableReason` helper and its two desktop/mobile text renderings. The `Parameter Cost Effect` heading, expansion, effect/Total values, `—` formatter, and underlying availability checks remain.
+- Updated the Simulation spec so unavailable values use `—` without explanatory/helper prose.
+- Corrected stale 2026-10-17 delivery and checklist claims in `MASTER_DATA_TOOLBAR_PREPARE_UX.md`; retained only verification items that remain unverified and recorded the real `src/state/store.tsx` mock-load navigation change.
+- Marked the previous 2026-10-17 eight-item handoff as historical below.
+
+## Verification
+
+- **PASS — Simulation:** `node --experimental-strip-types scripts/verify_simulation_story_view.ts`; `node scripts/verify_simulation_regression.mjs`.
+- **PASS — Master Data:** `node scripts/verify_master_data_ui_state.mjs`; `node scripts/verify_master_data_mock_load.mjs`.
+- **PASS — build:** `npm run build` (`tsc -b` and Vite production build).
+- **PASS — docs/diff:** stale Git delivery claims checked; `git diff --check`.
+- **PASS — isolated headless Chrome 155 via CDP:** desktop 1440px and narrow 390px. Available BOM/RTG effects remained numeric; a temporary isolated Mock price edit rendered BOM Price/Total `-4.20`. Unavailable BOM/RTG effects rendered `—` under the retained heading with no diagnostic text. Enter expanded/collapsed a BOM row. No page-width overflow or runtime error was observed.
+
+## Remaining limits
+
+- **[Unverified]** Physical-device display scaling, screen-reader behavior, and browsers other than the isolated Chrome session.
+- The Chrome DevTools MCP was not configured in this session; browser checks used an isolated temporary Chrome profile against the local Vite server.
+- Existing build warnings remain: ExcelJS browser-externalized Node modules and a minified chunk over 500 KB.
+
+## Delivery
+
+This handoff and the focused changes are contained in one commit pushed to `origin/logic/simulation-finalized-implementation`; the exact commit is the branch HEAD recorded in the completion report.
+
+---
+
+# Historical Handoff — Cost Breakdown / Simulation / Master Data follow-up — 2026-10-17
+
+This records the completed 2026-10-17 follow-up. The active 2026-10-18 handoff above supersedes its delivery state.
 
 - Repository: `/Users/bubu/COSTBREAKDOWN`, `apirak-k/COSTBREAKDOWN`.
 - Branch: `logic/simulation-finalized-implementation`.
@@ -40,7 +77,7 @@ This records the state before the current follow-up above. Its opaque sticky-gap
 
 - Repository: `/Users/bubu/COSTBREAKDOWN`, `apirak-k/COSTBREAKDOWN`.
 - Branch: `logic/simulation-finalized-implementation`. Starting local HEAD, fetched remote HEAD, and verified `origin/logic/simulation-finalized-implementation` all matched at `26560a41392b6b3d5c3023d56aeda8415b684144`.
-- New local commit SHA: `HEAD` (the exact object ID is included in the completion report and is available from `git rev-parse HEAD`). **NOT PUSHED.**
+- Commit `26560a4` was created during this historical follow-up and is now an ancestor of `123152c`, which was pushed to `origin/logic/simulation-finalized-implementation`.
 - Pre-existing local change: `vite.config.ts` remains untouched and excluded from this task's commit.
 - Scope: six Simulation Graph visual/interaction fixes, one CBD sticky-gap background fix, plus requirements/verifier/docs synchronization. No formulas, business logic, accepted graph semantics, or numeric precision policy changed.
 
