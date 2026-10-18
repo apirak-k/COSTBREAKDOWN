@@ -1,34 +1,32 @@
-# Current Handoff — Simulation graph tooltip polish — 2026-10-18
+# Current Handoff — Simulation Result hierarchy polish — 2026-10-18
 
 - Repository: `/Users/bubu/COSTBREAKDOWN`, `apirak-k/COSTBREAKDOWN`.
 - Branch: `logic/simulation-finalized-implementation`.
-- Starting local HEAD and fetched remote HEAD: `2d366f9680f364c0b49483dfcbd733e4d867b2f2`.
-- Pre-existing local-only change: `vite.config.ts`; preserved exactly and excluded from this round.
-- Scope: Simulation Graph tooltip width/wrapping and bottom category tooltip mappings only.
+- Starting local HEAD and fetched remote HEAD: `a81cdfa875fee89ecd42d1f927fe2791af37068b`.
+- Pre-existing local-only change: `vite.config.ts`; inspected, preserved exactly, and excluded from this round.
+- Scope: the Simulation Result panel only.
 
-## Final tooltip behavior
+## Result presentation
 
-- Tooltips can use up to 360px or the graph host's available inner width, whichever is smaller. Short text stays on one line when it fits; longer text wraps safely. The tooltip is measured after render, kept inside the graph host, and moved above when it would cover a bottom category label.
-- Bottom Reference, Current, and Simulation category labels have no tooltip. GAP 1 retains `Current − Reference`; GAP 2 retains `Simulation − Current`. GAP total-value tooltips and actual graph data-mark tooltips remain.
-- Pointer hover remains immediate; no delay was added.
-- Graph calculations, formulas, labels/order, data-mark behavior, keyboard controls, and all 12 finalized Visible Net placement rules are unchanged. Result, Economic, Business, BOM, RTG, Master Data, Cost Breakdown, inputs, and shared shell were not edited.
+- Removed the `Current → SIM · THB/<UOM>` subtitle. Result heading and the existing Clone from, Send to, and Reset actions remain in place and order.
+- Conversion Cost now has a subtle top separator and medium weight. Standard Cost retains the stronger divider, weight, and text color.
+- Result table values, calculations, Change and percentage behavior, Business Outcome rows, and read-only behavior are unchanged.
+- Updated `docs/specs/SIMULATION.md` only to clarify that Result has no separate UOM subtitle while retaining the resolved product UOM basis.
+- Economic, Business, Graph, formulas, Master Data, Cost Breakdown, and `vite.config.ts` were not changed.
 
 ## Verification
 
-- **PASS — focused graph verifier:** `node --experimental-strip-types scripts/verify_simulation_story_view.ts --graph-only`, including the 12 finalized placement cases.
+- **PASS — Result verifier:** `node --experimental-strip-types scripts/verify_simulation_result.ts`; confirms subtitle absence, heading/actions, row emphasis, cost values, and Business Outcome values.
 - **PASS — Simulation story/page verifier:** `node --experimental-strip-types scripts/verify_simulation_story_view.ts`.
 - **PASS — Simulation regression:** `node scripts/verify_simulation_regression.mjs`.
-- **PASS — Economics:** `node --experimental-strip-types scripts/verify_simulation_economics.ts`.
-- **PASS — Result:** `node --experimental-strip-types scripts/verify_simulation_result.ts`.
 - **PASS — production build:** `npm run build`; existing ExcelJS browser-externalization and >500 KB chunk warnings remain.
-- **PASS — isolated headless Chrome 155 via CDP:** viewports 1440×1000 and 390×844; graph hosts 778px and 352px. The GAP 2 total tooltip `Simulation − Current total: 0.00 THB/PC` rendered on one line at desktop (226.7×26px), stayed within the graph, and did not cover a category label. At a constrained 198px graph host it wrapped to two lines (182×42px) and remained inside the graph. Reference/Current/Simulation category labels opened no tooltip; Reference and Simulation data marks retained their tooltips; no page horizontal overflow or browser runtime errors occurred.
+- **PASS — isolated headless Chrome 155:** viewports 1440×1000 and 390×844. Confirmed no Result subtitle, unchanged action labels/order, Conversion Cost weight 500 with a slate-200 top border, Standard Cost weight 600 with a slate-300 top border, no horizontal page overflow, and no console/runtime/network errors. Screenshots used an empty local dataset; the Result verifier covers calculated values with fixtures.
 - **PASS — `git diff --check`**.
-- **DEPENDENCY AUDIT FINDINGS:** `npm audit --audit-level=high` exits 1 with 5 high and 4 moderate transitive findings. The offered automatic remediation requires breaking Tailwind and ExcelJS changes; no dependency files were changed.
 
 ## Limits and delivery
 
 - **[Unverified]** Physical-device rendering, screen-reader behavior, and browsers other than the isolated Chrome session.
-- The tooltip cleanup and this handoff are delivered in one focused commit pushed to `origin/logic/simulation-finalized-implementation`; exact SHA is in the completion report. `vite.config.ts` remains excluded.
+- This Result polish and Handoff are delivered in one focused commit pushed to `origin/logic/simulation-finalized-implementation`; the exact SHA is in the completion report. `vite.config.ts` remains excluded.
 
 ---
 

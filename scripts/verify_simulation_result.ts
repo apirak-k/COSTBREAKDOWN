@@ -39,11 +39,14 @@ try {
     onToggleWorkingTarget() {}, onUpdateParameter() {}, onUpdateEconomicInput() {}
   }))
   const resultPanel = (markup: string) => markup.match(/<section[^>]*aria-labelledby="simulation-result-title"[\s\S]*?<\/section>/)?.[0] ?? ''
-  const row = (markup: string, label: string) => {
+  const rowElement = (markup: string, label: string) => {
     const panel = resultPanel(markup)
-    return [...panel.matchAll(/<tr[^>]*>([\s\S]*?)<\/tr>/g)].map(match => match[1]).find(content =>
-      content.includes(`scope="row"`) && content.replace(/&amp;/g, '&').includes(`>${label}</th>`)
+    return [...panel.matchAll(/<tr[^>]*>[\s\S]*?<\/tr>/g)].map(match => match[0]).find(content =>
+      content.includes('scope="row"') && content.replace(/&amp;/g, '&').includes(`>${label}</th>`)
     ) ?? ''
+  }
+  const row = (markup: string, label: string) => {
+    return rowElement(markup, label).replace(/^<tr[^>]*>|<\/tr>$/g, '')
   }
   const values = (rowMarkup: string) => [...rowMarkup.matchAll(/<td class="([^"]*)">([^<]*)<\/td>/g)]
     .map(match => ({ className: match[1], text: match[2] }))
@@ -55,11 +58,34 @@ try {
   const baselineMarkup = render(improved, current)
   const panel = resultPanel(baselineMarkup)
   assert.ok(panel, 'Result panel renders')
+  assert.match(panel, /<h2 id="simulation-result-title"[^>]*>Result<\/h2>/, 'Result heading remains')
+  assert.doesNotMatch(panel, /Current → SIM|THB\//, 'Result has no Current-to-SIM/UOM subtitle')
+  assert.deepEqual(
+    [...panel.matchAll(/<button\b([^>]*)>([\s\S]*?)<\/button>/g)].map(([, attributes, contents]) =>
+      attributes.match(/aria-label="([^"]+)"/)?.[1] ?? contents.replace(/<[^>]*>/g, '').trim()),
+    ['Clone from', 'Send to', 'Reset Simulation'],
+    'Clone from, Send to, and Reset remain in the existing order'
+  )
   assert.ok(panel.indexOf('Cost / Unit') < panel.indexOf('Standard Cost'))
   assert.ok(panel.indexOf('Standard Cost') < panel.indexOf('Business Outcome / Unit'))
   assert.ok(panel.indexOf('Business Outcome / Unit') < panel.indexOf('Selling Price'))
-  assert.match(panel, /Current → SIM · THB\/KG/, 'Result UOM follows the configured product UOM')
-  assert.doesNotMatch(panel, /THB\/pc/i, 'Result does not hardcode pc')
+  assert.ok(panel.indexOf('Selling Price') < panel.indexOf('SG&amp;A'))
+  assert.ok(panel.indexOf('SG&amp;A') < panel.indexOf('Operating Profit'))
+
+  const materialRow = rowElement(baselineMarkup, 'Material Cost')
+  const conversionRow = rowElement(baselineMarkup, 'Conversion Cost')
+  const standardRow = rowElement(baselineMarkup, 'Standard Cost')
+  assert.match(materialRow, /<tr class="text-slate-700">/, 'ordinary cost rows keep their existing weight')
+  assert.match(conversionRow, /<tr class="border-t border-slate-200 font-medium text-slate-800 !border-slate-200">/,
+    'Conversion Cost has a subtle top separator and medium emphasis')
+  assert.match(standardRow, /<tr class="border-t border-slate-300 font-semibold text-slate-950 !border-slate-300">/,
+    'Standard Cost remains stronger than the Conversion Cost subtotal')
+
+  assert.deepEqual(values(row(baselineMarkup, 'Material Cost')).map(cell => cell.text), ['78.00', '71.00', '-7.00', '-8.97%'])
+  for (const label of ['Labor Cost', 'Burden Cost', 'Conversion Cost']) {
+    assert.deepEqual(values(row(baselineMarkup, label)).map(cell => cell.text), ['0.00', '0.00', '0.00', '—'],
+      `${label} values and unavailable zero-baseline percentage remain unchanged`)
+  }
 
   const costRow = values(row(baselineMarkup, 'Standard Cost'))
   assert.deepEqual(costRow.map(cell => cell.text), ['78.00', '71.00', '-7.00', '-8.97%'])
@@ -117,7 +143,7 @@ try {
   assert.match(negativeProfitRow[3]?.className ?? '', /text-rose-700/, 'profit percentage color follows profit change direction')
   assert.doesNotMatch(resultPanel(negativeMarkup), /NaN|Infinity/)
 
-  console.log('Simulation Result cost, business outcome, semantics, UOM, and unavailable-value verification passed')
+  console.log('Simulation Result values, hierarchy, actions, and unavailable-value verification passed')
 } finally {
   await vite.close()
 }

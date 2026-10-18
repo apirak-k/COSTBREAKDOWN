@@ -774,14 +774,12 @@ function ResultPanel({
   simulationCost,
   currentFinancial,
   simulationFinancial,
-  unit,
   actions
 }: {
   currentCost: SnapshotCost
   simulationCost: SnapshotCost
   currentFinancial: ScenarioFinancialResult
   simulationFinancial: ScenarioFinancialResult
-  unit: string
   actions: React.ReactNode
 }) {
   const currentConversion = currentCost.labor === null || currentCost.burden === null ? null : safeAdd(currentCost.labor, currentCost.burden)
@@ -790,7 +788,7 @@ function ResultPanel({
     { label: 'Material Cost', current: currentCost.material, sim: simulationCost.material, semantic: 'cost' as const },
     { label: 'Labor Cost', current: currentCost.labor, sim: simulationCost.labor, semantic: 'cost' as const },
     { label: 'Burden Cost', current: currentCost.burden, sim: simulationCost.burden, semantic: 'cost' as const },
-    { label: 'Conversion Cost', current: currentConversion, sim: simulationConversion, semantic: 'cost' as const },
+    { label: 'Conversion Cost', current: currentConversion, sim: simulationConversion, semantic: 'cost' as const, subtotal: true },
     { label: 'Standard Cost', current: currentCost.total, sim: simulationCost.total, semantic: 'cost' as const, total: true }
   ]
   const businessRows = [
@@ -809,7 +807,13 @@ function ResultPanel({
   const costRows = formatRows(rows)
   const formattedBusinessRows = formatRows(businessRows)
   const renderRows = (items: typeof costRows | typeof formattedBusinessRows) => items.map(row => (
-    <tr key={row.label} className={'total' in row && row.total ? 'border-t border-slate-300 font-semibold text-slate-950' : 'text-slate-700'}>
+    <tr key={row.label} className={
+      'total' in row && row.total
+        ? 'border-t border-slate-300 font-semibold text-slate-950 !border-slate-300'
+        : 'subtotal' in row && row.subtotal
+          ? 'border-t border-slate-200 font-medium text-slate-800 !border-slate-200'
+          : 'text-slate-700'
+    }>
       <th scope="row" className="whitespace-nowrap py-0 text-left">{row.label}</th>
       <td className="whitespace-nowrap px-0.5 py-0 text-right font-mono tabular-nums">{displayMoney(row.current)}</td>
       <td className="whitespace-nowrap px-0.5 py-0 text-right font-mono tabular-nums">{displayMoney(row.sim)}</td>
@@ -828,9 +832,6 @@ function ResultPanel({
         <div className="flex min-w-0 flex-wrap items-center justify-between gap-1.5">
           <h2 id="simulation-result-title" className="text-xs font-semibold text-slate-900">Result</h2>
           <div className="flex items-center gap-1.5">{actions}</div>
-        </div>
-        <div className="mt-0.5 flex min-w-0 flex-wrap items-baseline justify-between gap-x-2">
-          <span className="text-[10px] text-slate-500">Current → SIM · THB/{unit}</span>
         </div>
       </div>
       <div className="mt-1 min-w-0">
@@ -957,7 +958,6 @@ export const SimulationPage: React.FC<SimulationPageProps> = ({
             simulationCost={result.simulationCost}
             currentFinancial={story.current}
             simulationFinancial={story.simulated}
-            unit={unit}
             actions={actionMenus}
           />
           <EconomicSimulationPanel

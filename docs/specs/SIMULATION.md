@@ -102,7 +102,7 @@ Change = SIM − Current
 % = (Change / Current) × 100
 ```
 
-Show `—` when either value is unavailable, or Current is unavailable or zero for the percentage. Never show Infinity, -Infinity, or NaN. Monetary values and percentages show exactly two decimals. The Result currency-per-unit context uses the resolved product UOM (falling back to `Unit` when the Reference and Current UOMs conflict). Result is read-only and derives its displayed values from the cost engine and shared business-metric helper; it owns no persisted state.
+Show `—` when either value is unavailable, or Current is unavailable or zero for the percentage. Never show Infinity, -Infinity, or NaN. Monetary values and percentages show exactly two decimals. Result values remain per-unit and use the resolved product UOM basis (falling back to `Unit` when the Reference and Current UOMs conflict); the panel does not display a separate UOM subtitle. Result is read-only and derives its displayed values from the cost engine and shared business-metric helper; it owns no persisted state.
 
 ## 3. Parameter Cost Effect
 

@@ -785,7 +785,11 @@ try {
   assert.doesNotMatch(pageMarkup, /0 selected|1 selected|2 selected/, 'separate table title/count bars are removed')
   assert.match(pageMarkup, /Selection is a local working aid and does not limit the full Simulation calculation/,
     'the UI explains that local row selection does not filter calculation')
-  assert.match(pageMarkup, /Current → SIM/)
+  const renderedResultPanel = pageMarkup.match(/<section[^>]*aria-labelledby="simulation-result-title"[\s\S]*?<\/section>/)?.[0] ?? ''
+  assert.match(renderedResultPanel, /<h2 id="simulation-result-title"[^>]*>Result<\/h2>/,
+    'the Result heading remains visible')
+  assert.doesNotMatch(renderedResultPanel, /Current → SIM|THB\//,
+    'the Result panel does not render the removed Current-to-SIM/UOM subtitle')
   assert.ok(pageText.includes('0.00%'), 'no-change Result percentage renders as 0.00%')
   assert.doesNotMatch(pageMarkup, /Calculation notes/, 'Calculation Notes are removed from the Economic UI')
   assert.doesNotMatch(pageMarkup, /<h1[^>]*>Simulation<\/h1>|Adjust SIM parameters and review the live/,
