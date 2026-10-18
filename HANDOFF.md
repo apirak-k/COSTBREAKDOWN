@@ -1,4 +1,43 @@
-# Current Handoff — Simulation Result subtotal and Business labels — 2026-10-18
+# Current Handoff — Simulation layout correction prototype — 2026-10-18
+
+- Repository: `/Users/bubu/COSTBREAKDOWN`, `apirak-k/COSTBREAKDOWN`.
+- Branch: `logic/simulation-finalized-implementation`.
+- Starting local HEAD and remote-tracking HEAD: `a5b9213612417e27b52eb007e4e1e1262b8be6d1`; no commit or push was made.
+- `vite.config.ts` was pre-existing, remains untouched, and is excluded from this work. Its current SHA-256 is `673d2cbb093b910a1640bac84b7e16425e4f08bd3d7be7f4e435848ab2eb6796`.
+- Scope: the existing uncommitted Simulation layout prototype and the requested desktop header/layout correction.
+
+## Current prototype
+
+- The desktop upper workspace keeps Main Graph on the left. The right block uses two independent vertical columns: Business Inputs, Economic Inputs, and Economic Outputs on the left; Result above Break-even Graph on the right.
+- Business inputs are stacked Selling Price then SG&A %. Economic inputs are stacked Variable Action Cost / Unit, Fixed Action Cost, then Batch Size. Business outcome values remain in Result.
+- BOM and RTG remain equal-width below the upper workspace. Their bodies keep internal scrolling, and narrow layouts keep the existing stacked page scroll.
+- At desktop `xl`, the Main Graph title, all eight full-label Legend controls, and Show all remain on one row in order. No item is removed or renamed.
+- Break-even Batch Size guide remains draggable and keyboard-adjustable. Its marker tooltip stays anchored to the marker; ordinary line tooltips remain stable and inside the graph host.
+- No formulas, calculations, validation, persistence, input history boundaries, Result data/actions, finalized graph placement behavior, or BOM/RTG editing behavior were changed in this correction pass.
+- Structural decisions are in `docs/specs/SIMULATION.md`. Reversible sizing weights are recorded only in P-013 of `docs/PROVISIONAL_IMPLEMENTATION_DECISIONS.md`; they are not finalized requirements.
+
+## Verification
+
+- **PASS:** `node --experimental-strip-types scripts/verify_simulation_story_view.ts`.
+- **PASS:** `node --experimental-strip-types scripts/verify_simulation_economics.ts`.
+- **PASS:** `node --experimental-strip-types scripts/verify_simulation_result.ts`.
+- **PASS:** `node --experimental-strip-types scripts/verify_simulation_history.ts`.
+- **PASS:** `node --experimental-strip-types scripts/verify_simulation_corrections.ts`.
+- **PASS:** `node scripts/verify_simulation_regression.mjs`, including workspace, context, parameter engine, Master Data history, and Global Header checks.
+- **PASS:** `npm run build`; existing ExcelJS browser externalization and large-chunk warnings remain.
+- **PASS:** `git diff --check`.
+- **PASS — isolated headless Chrome with populated Complete Mock:** 1440×857, 1280×768, and 390×844. At both desktop sizes the graph header remains a single row, full text is visible, and page width matches viewport width. At 1280, all Result rows fit; RTG body scrolling was exercised and exposed the last rows. The mobile page remains stacked and vertically scrollable without horizontal overflow.
+- **PASS — Break-even interaction:** ArrowRight and ArrowLeft changed and restored Batch Size; dragging moved it without a pointer-down jump; the updated value reached the input and marker tooltip. The marker tooltip stayed within the graph host, and moving along the same cost line left its tooltip position unchanged.
+- Screenshots: `/tmp/cbd-simulation-layout-1440x857.png`, `/tmp/cbd-simulation-layout-1280x768.png`, `/tmp/cbd-simulation-layout-390x844.png`, `/tmp/cbd-simulation-rtg-scroll-1280x768.png`, and `/tmp/cbd-simulation-break-even-interaction.png`.
+
+## Review notes
+
+- At 1280px, the Break-even Quantity label wraps to two lines; all text remains visible. This is the remaining small visual detail for the user's review.
+- Physical MacBook Neo rendering, other browsers, and screen-reader behavior are **[Unverified]**. This prototype is still uncommitted and unpushed, and awaits the user's visual review before any further tuning.
+
+---
+
+# Historical Handoff — Simulation Result subtotal and Business labels — 2026-10-18
 
 - Repository: `/Users/bubu/COSTBREAKDOWN`, `apirak-k/COSTBREAKDOWN`.
 - Branch: `logic/simulation-finalized-implementation`.

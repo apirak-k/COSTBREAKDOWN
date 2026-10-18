@@ -129,6 +129,16 @@ Do not promote an entry to a user decision based on implementation, test results
 - **Review trigger:** human visual review.
 - **Related contract:** [`CROSS_CUTTING.md`](specs/CROSS_CUTTING.md) and [`design.md`](../design.md).
 
+### P-013 — First fixed Simulation workspace layout prototype
+
+- **Status:** `PROVISIONAL — AI CHOICE`
+- **Choice:** at the existing `xl` desktop breakpoint, allocate the upper and lower workspace rows at flex weights `1.25:1` (upper:lower); split the upper row into Graph and right-side block at `1.45:1`; split the right-side block into Business/Economic and Result/Break-even columns at `0.8:1.2`; split the left column's Business Inputs, Economic Inputs, and Economic Outputs at `0.95:1.45:1`; split the right column's Result and Break-even areas at `1.2:0.8`. Keep BOM and RTG at `1:1`. Business inputs are stacked Selling Price then SG&A %; Economic inputs are stacked Variable Action Cost / Unit, Fixed Action Cost, then Batch Size. The chart fills its fixed Break-even area at desktop sizes. For the required one-row `xl` header documented in [`SIMULATION.md`](specs/SIMULATION.md#5-graph-story), use 4px header, legend, and marker-label gaps, 6px legend divider padding, and 1px horizontal control padding; retain the 24px control height and 11px label size.
+- **Why:** these are reversible allocations for the user's current layout correction prototype. They preserve a wider Graph, independently divided right-side columns, a narrower Business/Economic column, more room for Result/Break-even, a taller BOM/RTG work area, and the user's locked input order.
+- **Must preserve:** the approved column order and independence, current mobile stacking, all existing Simulation calculations, formulas, input state and validation, Result data/actions, Break-even graph behavior, main graph behavior, and BOM/RTG table behavior.
+- **Reversible:** all prototype weights and fixed panel sizing can be tuned after inspection of the rendered layout; they are not finalized UX requirements.
+- **Review trigger:** the next visual review of the populated Simulation page or a later explicit user layout decision.
+- **Related contract:** [`SIMULATION.md`](specs/SIMULATION.md#6-page-layout-and-navigation) and [`HANDOFF.md`](../HANDOFF.md).
+
 ## Product Decisions Are Complete (0 Pending Decisions)
 
 All product requirements and lifecycle boundaries are complete under the finalized authority chain:

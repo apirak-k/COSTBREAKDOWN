@@ -495,19 +495,19 @@ export function SimulationStoryGraph({ story, unit }: SimulationStoryGraphProps)
 
   return (
     <figure aria-labelledby="simulation-story-title" className="min-w-0 border border-slate-300 bg-white px-2.5 py-2.5 xl:flex xl:min-h-0 xl:flex-col">
-      <div className="flex min-w-0 flex-col gap-1.5 border-b border-slate-200 pb-1.5 min-[720px]:flex-row min-[720px]:items-center">
-        <h2 id="simulation-story-title" className="shrink-0 text-xs font-semibold text-slate-900">Simulation Cost Structure</h2>
-        <ul aria-label="Simulation graph legend" className="flex min-w-0 flex-wrap gap-x-2.5 gap-y-1 border-t border-slate-200 pt-1.5 text-[11px] min-[720px]:flex-1 min-[720px]:border-l min-[720px]:border-t-0 min-[720px]:pl-2.5 min-[720px]:pt-0">
+      <div className="flex min-w-0 flex-col gap-1.5 border-b border-slate-200 pb-1.5 min-[720px]:flex-row min-[720px]:items-center xl:gap-1 xl:flex-nowrap">
+        <h2 id="simulation-story-title" className="shrink-0 text-xs font-semibold text-slate-900 xl:whitespace-nowrap">Simulation Cost Structure</h2>
+        <ul aria-label="Simulation graph legend" className="flex min-w-0 flex-wrap gap-x-2.5 gap-y-1 border-t border-slate-200 pt-1.5 text-[11px] min-[720px]:flex-1 min-[720px]:border-l min-[720px]:border-t-0 min-[720px]:pl-2.5 min-[720px]:pt-0 xl:flex-nowrap xl:gap-x-1 xl:pl-1.5">
           {LEGEND_ITEMS.map(item => {
             const isVisible = visibleLegend[item.key]
             return (
-              <li key={item.key}>
+              <li key={item.key} className="xl:shrink-0">
                 <button
                   type="button"
                   aria-label={item.label}
                   aria-pressed={isVisible}
                   onClick={() => setVisibleLegend(current => ({ ...current, [item.key]: !current[item.key] }))}
-                  className={`inline-flex min-h-6 items-center gap-1.5 rounded-sm px-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-blue-700 ${isVisible ? 'text-slate-700' : 'text-slate-500'}`}
+                  className={`inline-flex min-h-6 items-center gap-1.5 rounded-sm px-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-blue-700 xl:gap-1 xl:px-px xl:whitespace-nowrap ${isVisible ? 'text-slate-700' : 'text-slate-500'}`}
                 >
                   {item.marker === 'square' ? (
                     <span
@@ -537,7 +537,7 @@ export function SimulationStoryGraph({ story, unit }: SimulationStoryGraphProps)
           type="button"
           disabled={allLegendVisible}
           onClick={() => setVisibleLegend(DEFAULT_LEGEND_VISIBILITY)}
-          className={`min-h-6 self-end rounded-sm px-0.5 text-[11px] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-blue-700 min-[720px]:self-auto ${allLegendVisible ? 'cursor-default text-slate-400' : 'cursor-pointer text-slate-700 hover:underline'}`}
+          className={`min-h-6 self-end rounded-sm px-0.5 text-[11px] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-blue-700 min-[720px]:self-auto xl:shrink-0 xl:px-px xl:whitespace-nowrap ${allLegendVisible ? 'cursor-default text-slate-400' : 'cursor-pointer text-slate-700 hover:underline'}`}
         >
           Show all
         </button>

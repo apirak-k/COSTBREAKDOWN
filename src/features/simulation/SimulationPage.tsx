@@ -21,7 +21,7 @@ import { applyRowDragSelection } from '../../shared/selection/row-drag-selection
 import { useTransientInteraction } from '../../shared/ui/transient-interactions'
 import { normalizeProductIdentityValue } from '../../core/utils/master-data-effective'
 import { parameterEffectPresentation } from './parameter-effect-presentation'
-import { EconomicSimulationPanel } from './EconomicSimulationPanel'
+import { EconomicBreakEvenGraphPanel, EconomicSimulationPanel } from './EconomicSimulationPanel'
 import { SimulationHistoryInputBoundary } from './SimulationHistoryInputBoundary'
 import { SimulationStoryGraph } from './SimulationStoryGraph'
 import { calculateEconomicSimulation, type EconomicSimulationField } from './simulation-economics'
@@ -831,7 +831,7 @@ function ResultPanel({
   })
 
   return (
-    <section data-safe-workspace-interaction="true" className="min-w-0 border border-slate-300 bg-white px-3 py-2 xl:px-2 xl:py-1" aria-labelledby="simulation-result-title">
+    <section data-safe-workspace-interaction="true" className="min-w-0 border border-slate-300 bg-white px-3 py-2 xl:min-h-0 xl:px-2 xl:py-1" aria-labelledby="simulation-result-title">
       <div className="border-b border-slate-200 pb-1.5">
         <div className="flex min-w-0 flex-wrap items-center justify-between gap-1.5">
           <h2 id="simulation-result-title" className="text-xs font-semibold text-slate-900">Result</h2>
@@ -954,16 +954,9 @@ export const SimulationPage: React.FC<SimulationPageProps> = ({
 
   return (
     <div className="min-w-0 space-y-3 xl:flex xl:h-full xl:min-h-0 xl:flex-col xl:gap-2 xl:space-y-0 xl:overflow-hidden">
-      <div className="grid min-w-0 gap-2 xl:min-h-0 xl:flex-[2.6] xl:grid-cols-[minmax(0,2fr)_minmax(0,1fr)] xl:grid-rows-1">
+      <div className="grid min-w-0 gap-2 xl:min-h-0 xl:flex-[1.25] xl:grid-cols-[minmax(0,1.45fr)_minmax(0,1fr)] xl:grid-rows-1">
         <SimulationStoryGraph story={story} unit={unit} />
-        <div className="grid content-start gap-2 xl:h-full xl:min-h-0 xl:grid-rows-[minmax(0,0.9fr)_minmax(0,1.1fr)]">
-          <ResultPanel
-            currentCost={result.currentCost}
-            simulationCost={result.simulationCost}
-            currentFinancial={story.current}
-            simulationFinancial={story.simulated}
-            actions={actionMenus}
-          />
+        <div className="grid min-w-0 gap-2 xl:h-full xl:min-h-0 xl:grid-cols-[minmax(0,.8fr)_minmax(0,1.2fr)] xl:grid-rows-1">
           <EconomicSimulationPanel
             result={economicResult}
             draft={state.economicInputs}
@@ -973,6 +966,22 @@ export const SimulationPage: React.FC<SimulationPageProps> = ({
             onBeginEdit={onBeginEdit}
             onCommitEdit={onCommitEdit}
           />
+          <div data-simulation-layout-column="result-and-break-even" className="grid min-w-0 gap-2 xl:min-h-0 xl:grid-rows-[minmax(0,1.2fr)_minmax(0,.8fr)]">
+            <ResultPanel
+              currentCost={result.currentCost}
+              simulationCost={result.simulationCost}
+              currentFinancial={story.current}
+              simulationFinancial={story.simulated}
+              actions={actionMenus}
+            />
+            <EconomicBreakEvenGraphPanel
+              result={economicResult}
+              unit={unit}
+              onBatchSizeChange={value => onUpdateEconomicInput('batchSize', value)}
+              onBeginEdit={onBeginEdit}
+              onCommitEdit={onCommitEdit}
+            />
+          </div>
         </div>
       </div>
 

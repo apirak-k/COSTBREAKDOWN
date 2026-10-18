@@ -25,7 +25,7 @@ try {
   await vite.close()
 }
 
-const { EconomicSimulationPanel } = panelModule
+const { EconomicBreakEvenGraphPanel, EconomicSimulationPanel } = panelModule
 const { NumericInput } = numericInputModule
 const { calculateEconomicSimulation, createEconomicSimulationDraft, updateEconomicSimulationDraft } = economicsModule
 const currentSnapshot = { product: { sellingPrice: 250, sgaPercent: 8, uom: 'PC' } } as CostSnapshot
@@ -36,15 +36,24 @@ const withInputs = (fields: Record<string, string>) => Object.entries(fields).re
   (draft, [field, value]) => updateEconomicSimulationDraft(draft, field as keyof typeof draft, value),
   createEconomicSimulationDraft()
 )
-const renderPanel = (result: ReturnType<typeof calculateEconomicSimulation>, draft = createEconomicSimulationDraft(currentSnapshot)) => renderToStaticMarkup(
-  React.createElement(EconomicSimulationPanel, {
+const renderPanel = (result: ReturnType<typeof calculateEconomicSimulation>, draft = createEconomicSimulationDraft(currentSnapshot)) => [
+  renderToStaticMarkup(React.createElement(EconomicSimulationPanel, {
     result,
     draft,
     currentSnapshot,
     unit: 'PC',
-    onUpdate() {}
-  })
-)
+    onUpdate() {},
+    onBeginEdit() {},
+    onCommitEdit() {}
+  })),
+  renderToStaticMarkup(React.createElement(EconomicBreakEvenGraphPanel, {
+    result,
+    unit: 'PC',
+    onBatchSizeChange() {},
+    onBeginEdit() {},
+    onCommitEdit() {}
+  }))
+].join('')
 
 const worked = withInputs({ fixedActionCost: '10000', batchSize: '5000', variableActionCostPerPiece: '2' })
 const baseResult = calculateEconomicSimulation(currentSnapshot, simulationCost, 6, worked)
@@ -132,19 +141,28 @@ for (const batchSize of ['0', '-1', '1.5', 'Infinity', 'NaN']) {
 
 const panelMarkup = renderPanel(baseResult, worked)
 for (const text of [
-  'Economic', 'Business', 'Fixed Action Cost', 'Batch Size', 'Variable Action Cost / Unit',
+  'Business Inputs', 'Economic Inputs', 'Economic Outputs', 'Fixed Action Cost', 'Batch Size', 'Variable Action Cost / Unit',
   'Parameter Saving / Unit', 'Required Saving / Unit', 'Economic Margin / Unit',
-  'Break-even Quantity', 'Break-even Graph', 'Selling Price', 'SG&amp;A %', 'SIM Standard Cost',
-  'SG&amp;A', 'Operating Profit', 'THB/PC', 'Quantity (PC)'
+  'Break-even Quantity', 'Break-even Graph', 'Selling Price', 'SG&amp;A %',
+  'THB/PC', 'Quantity (PC)'
 ]) assert.ok(panelMarkup.includes(text), `finalized Economic/Business UI includes ${text}`)
-const businessPanel = panelMarkup.match(/<section[^>]*aria-labelledby="simulation-business-title"[\s\S]*?<\/section>/)?.[0] ?? ''
-assert.ok(businessPanel.includes('>SG&amp;A</span>'), 'Business monetary output label is exactly SG&A')
-assert.ok(businessPanel.includes('>Operating Profit</span>'), 'Business output label is exactly Operating Profit')
-assert.doesNotMatch(businessPanel, />SG&amp;A \/ Unit<\/span>|>Operating Profit \/ Unit<\/span>/,
-  'Business output labels omit redundant per-unit wording')
-assert.ok(businessPanel.includes('>SIM Standard Cost</span>'), 'Business retains the SIM Standard Cost label')
+const economicInputsPanel = panelMarkup.match(/<section[^>]*aria-labelledby="simulation-economic-inputs-title"[\s\S]*?<\/section>/)?.[0] ?? ''
+const economicInputIndexes = ['Variable Action Cost / Unit', 'Fixed Action Cost', 'Batch Size'].map(label => economicInputsPanel.indexOf(label))
+assert.ok(economicInputIndexes.every((index, position) => index >= 0 && (position === 0 || index > economicInputIndexes[position - 1])),
+  'Economic inputs render vertically in Variable Action Cost, Fixed Action Cost, Batch Size order')
+assert.ok(economicInputsPanel.includes('grid min-w-0 grid-cols-1'), 'Economic inputs use a vertical single-column layout')
+const businessPanel = panelMarkup.match(/<section[^>]*aria-labelledby="simulation-business-inputs-title"[\s\S]*?<\/section>/)?.[0] ?? ''
+assert.ok(businessPanel, 'Business Inputs has its own panel')
+const businessInputIndexes = ['Selling Price', 'SG&amp;A %'].map(label => businessPanel.indexOf(label))
+assert.ok(businessInputIndexes.every((index, position) => index >= 0 && (position === 0 || index > businessInputIndexes[position - 1])),
+  'Business inputs render vertically in Selling Price, SG&A order')
+assert.ok(businessPanel.includes('grid grid-cols-1'), 'Business inputs use a vertical single-column layout')
+assert.doesNotMatch(businessPanel, /SIM Standard Cost|Operating Profit|<span>SG&amp;A<\/span>/,
+  'Business Inputs no longer repeats the outputs available in Result')
 assert.match(businessPanel, /aria-label="Selling Price"/, 'Business Selling Price input remains available')
 assert.match(businessPanel, /aria-label="SG&amp;A %"/, 'Business SG&A % input remains available')
+assert.match(panelMarkup, /<figure data-safe-workspace-interaction="true" aria-labelledby="break-even-graph-title"/,
+  'Break-even chart interactions remain protected from workspace outside-dismiss handling')
 assert.match(panelMarkup, /role="slider"[^>]*aria-label="Batch Size"[^>]*aria-orientation="horizontal"[^>]*aria-valuemin="1"/,
   'Batch marker is an accessible horizontal integer slider')
 assert.match(panelMarkup, /aria-valuenow="5000"/)
@@ -170,6 +188,12 @@ for (const [label, value] of [
   assert.doesNotMatch(input, /placeholder="Current"/, `${label} does not use a Current placeholder`)
 }
 assert.doesNotMatch(initialMarkup, /placeholder="Current"/, 'business defaults are visible values rather than placeholder text')
+const blankBusinessDraft = { ...initialDraft, sellingPriceOverride: '', sgaPercentOverride: '' }
+const blankBusinessMarkup = renderPanel(calculateEconomicSimulation(currentSnapshot, simulationCost, null, blankBusinessDraft), blankBusinessDraft)
+for (const [label, value] of [['Selling Price', '250.00'], ['SG&amp;A %', '8.00']]) {
+  const input = blankBusinessMarkup.match(new RegExp(`<input\\b(?=[^>]*aria-label="${label}")[^>]*>`))?.[0] ?? ''
+  assert.ok(input.includes(`value="${value}"`), `${label} blank semantics continue displaying the Current value`)
+}
 
 const panelTree = EconomicSimulationPanel({
   result: calculateEconomicSimulation(currentSnapshot, simulationCost, null, initialDraft),

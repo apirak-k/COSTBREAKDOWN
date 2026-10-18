@@ -288,6 +288,7 @@ try {
   assert.match(graphSource, /'cursor-default text-slate-400' : 'cursor-pointer text-slate-700 hover:underline'/,
     'Show all has a muted default-cursor disabled state and a hover-only underline when enabled')
   const graphHeaderClasses = graphSource.match(/<div className="flex min-w-0 flex-col gap-1\.5 border-b border-slate-200 pb-1\.5 ([^"]+)"/)?.[1] ?? ''
+  assert.match(graphHeaderClasses, /xl:flex-nowrap/, 'desktop graph title, legend, and Show all stay on one row')
   assert.doesNotMatch(graphHeaderClasses, /justify-between/,
     'the graph title and legend stay grouped instead of pushing the legend to the far edge')
   assert.match(graphMarkup, /GAP 1 is Current minus Reference; GAP 2 is Simulation minus Current/)
@@ -328,7 +329,8 @@ try {
     'tooltip width can use the graph host space up to a readable maximum')
   assert.match(graphSource, /className="[^"]*break-words[^"]*text-\[11px\]/,
     'long tooltip text wraps instead of overflowing its available width')
-  assert.doesNotMatch(graphSource, /whitespace-nowrap|white-space:\s*nowrap/,
+  const tooltipClass = graphSource.match(/className="([^"]*break-words[^"]*)"/)?.[1] ?? ''
+  assert.doesNotMatch(tooltipClass, /whitespace-nowrap|white-space:\s*nowrap/,
     'tooltips are not forced onto one line on narrow viewports')
   const tooltipPlacementHelper = graphSource.slice(graphSource.indexOf('export function positionGraphTooltip'), graphSource.indexOf('function formatValue'))
   assert.match(tooltipPlacementHelper, /anchorBounds\.left \+ anchorBounds\.right - tooltipBounds\.width/,
@@ -400,6 +402,8 @@ try {
   assert.match(graphSource, /border-t-2 border-solid/)
   assert.match(graphSource, /border-t-2 border-dashed/)
   const legendClasses = graphSource.match(/<ul aria-label="Simulation graph legend" className="([^"]+)">/)?.[1] ?? ''
+  assert.match(legendClasses, /xl:flex-nowrap[^\"]*xl:gap-x-1[^\"]*xl:pl-1\.5/, 'desktop legend stays on one line with compact, readable spacing')
+  assert.match(graphSource, /xl:shrink-0/, 'desktop legend controls keep their full labels without shrinking')
   const layoutBreakpoint = graphHeaderClasses.match(/(?:min-\[\d+px\]|sm|md|lg|xl):flex-row(?=\s|$)/)?.[0]?.replace(/:flex-row$/, '')
   const dividerBreakpoint = legendClasses.match(/(?:min-\[\d+px\]|sm|md|lg|xl):border-l(?=\s|$)/)?.[0]?.replace(/:border-l$/, '')
   assert.ok(layoutBreakpoint && dividerBreakpoint)
@@ -823,6 +827,43 @@ try {
   const renderedResultPanel = pageMarkup.match(/<section[^>]*aria-labelledby="simulation-result-title"[\s\S]*?<\/section>/)?.[0] ?? ''
   assert.match(renderedResultPanel, /<h2 id="simulation-result-title"[^>]*>Result<\/h2>/,
     'the Result heading remains visible')
+  const inputsColumnIndex = pageMarkup.indexOf('data-simulation-layout-column="inputs"')
+  const resultColumnIndex = pageMarkup.indexOf('data-simulation-layout-column="result-and-break-even"')
+  assert.ok(inputsColumnIndex >= 0 && resultColumnIndex > inputsColumnIndex,
+    'the upper-right workspace has two separate vertical columns')
+  const inputsColumnMarkup = pageMarkup.slice(inputsColumnIndex, resultColumnIndex)
+  const leftSectionHeadings = [
+    inputsColumnMarkup.indexOf('Business Inputs'),
+    inputsColumnMarkup.indexOf('Economic Inputs'),
+    inputsColumnMarkup.indexOf('Economic Outputs')
+  ]
+  assert.ok(leftSectionHeadings.every((index, position) => index >= 0 && (position === 0 || index > leftSectionHeadings[position - 1])),
+    'the left column stacks Business Inputs, Economic Inputs, and Economic Outputs in order')
+  assert.doesNotMatch(inputsColumnMarkup, />SIM Standard Cost<\/span>|>Operating Profit<\/span>|>SG&amp;A<\/span>/,
+    'Business outputs are removed from the input column')
+  const breakEvenGraphIndex = pageMarkup.indexOf('Break-even Graph', resultColumnIndex)
+  assert.ok(breakEvenGraphIndex > resultColumnIndex,
+    'the right column places the Break-even Graph below Result')
+  assert.match(renderedResultPanel, /Selling Price[\s\S]*SG&amp;A[\s\S]*Operating Profit/,
+    'Result retains all three Business outcomes')
+  assert.ok(pageMarkup.includes('xl:grid-cols-[minmax(0,1.45fr)_minmax(0,1fr)]'),
+    'the main graph has a wider desktop column than the right-side block')
+  assert.ok(pageMarkup.includes('xl:grid-cols-[minmax(0,.8fr)_minmax(0,1.2fr)]') &&
+    pageMarkup.includes('xl:grid-rows-[minmax(0,1.2fr)_minmax(0,.8fr)]') &&
+    pageMarkup.includes('xl:grid-rows-[minmax(0,.95fr)_minmax(0,1.45fr)_minmax(0,1fr)]'),
+  'the two right-side columns use independent fixed row subdivisions')
+  const businessInputsMarkup = pageMarkup.match(/<section[^>]*aria-labelledby="simulation-business-inputs-title"[\s\S]*?<\/section>/)?.[0] ?? ''
+  const economicInputsMarkup = pageMarkup.match(/<section[^>]*aria-labelledby="simulation-economic-inputs-title"[\s\S]*?<\/section>/)?.[0] ?? ''
+  assert.ok(businessInputsMarkup.includes('grid grid-cols-1') && economicInputsMarkup.includes('grid min-w-0 grid-cols-1'),
+    'Business and Economic inputs use vertical single-column layouts')
+  const businessInputLabels = ['Selling Price', 'SG&amp;A %'].map(label => businessInputsMarkup.indexOf(label))
+  const economicInputLabels = ['Variable Action Cost / Unit', 'Fixed Action Cost', 'Batch Size'].map(label => economicInputsMarkup.indexOf(label))
+  assert.ok(businessInputLabels.every((index, position) => index >= 0 && (position === 0 || index > businessInputLabels[position - 1])),
+    'Business inputs remain in Selling Price then SG&A order')
+  assert.ok(economicInputLabels.every((index, position) => index >= 0 && (position === 0 || index > economicInputLabels[position - 1])),
+    'Economic inputs remain in Variable Action Cost, Fixed Action Cost, Batch Size order')
+  assert.ok(pageMarkup.includes('xl:flex-[1.25]') && pageMarkup.includes('xl:flex-1'),
+    'the bottom BOM/RTG area receives the larger fixed workspace allocation')
   assert.doesNotMatch(renderedResultPanel, /Current → SIM|THB\//,
     'the Result panel does not render the removed Current-to-SIM/UOM subtitle')
   assert.ok(pageText.includes('0.00%'), 'no-change Result percentage renders as 0.00%')
