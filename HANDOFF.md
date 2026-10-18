@@ -1,4 +1,39 @@
-# Current Handoff — Simulation obsolete Economic reset baseline cleanup — 2026-10-18
+# Current Handoff — Simulation Visible Net endpoint placement — 2026-10-18
+
+- Repository: `/Users/bubu/COSTBREAKDOWN`, `apirak-k/COSTBREAKDOWN`.
+- Branch: `logic/simulation-finalized-implementation`.
+- Starting local HEAD and fetched remote HEAD: `3d82e3c2784b9db4de4b90694b7757dd057b58d7`.
+- Pre-existing local-only change: `vite.config.ts`; preserved and excluded from this round.
+- Scope: graph-only Visible Net placement. Simulation Reset, formulas, data, and unrelated pages were not changed.
+
+## Changes
+
+- Visible Net remains the signed sum from each Legend-filtered `state.stack.total`, shared with the rendered REF/CUR/SIM bar. Positive and zero totals default to a centered label 12 SVG units above their own stack endpoint; negative totals sit 16 units below it.
+- Placement checks the estimated SVG text bounds against Selling Price line segments and points and the plot edges. When the default placement crowds them, the label uses the existing Standard Cost number column (`x = state.x + 35`, start-aligned), with Y based on the Visible Net endpoint, 12-unit clearance from Standard Cost, and deterministic 12/24-unit nudges if needed to clear Selling Price geometry.
+- Visible Net stays hidden for GAP. It is suppressed when its displayed value matches Standard Cost. Standard Cost calculation, position, and formatting; Selling Price calculation, drawing order, and interaction; and all Simulation formulas remain unchanged.
+- Updated the focused graph verifier and the Visible Net placement rule in `docs/specs/SIMULATION.md`.
+
+## Verification
+
+- **PASS — Simulation graph:** `node --experimental-strip-types scripts/verify_simulation_story_view.ts --graph-only`.
+- **PASS — Simulation page contract:** `node --experimental-strip-types scripts/verify_simulation_story_view.ts`.
+- **PASS — Simulation regression:** `node scripts/verify_simulation_regression.mjs` (workspace, context, parameter engine, Master Data edit history, and Global Header suites).
+- **PASS — isolated headless Chrome 155:** desktop 1440×900 and narrow 390×844. Loaded Complete Mock and Simulation; confirmed REF/CUR/SIM Visible Net is above its stack endpoint; toggling Profit + changed the visible totals and restoring it returned them; neither width had horizontal overflow; no browser console errors.
+- **PASS — build:** `npm run build` (`tsc -b` and Vite production build). Existing ExcelJS browser-externalization and >500 KB chunk warnings remain.
+- **PASS — `git diff --check`**.
+
+## Limits
+
+- **[Unverified]** Physical-device rendering, touch behavior, screen-reader behavior, and browsers other than isolated Chrome.
+- Collision bounds use deterministic estimates for the graph's 9px monospace text; the checked Chrome rendering showed the placement clearly at both tested widths.
+
+## Delivery
+
+One focused commit is pushed to `origin/logic/simulation-finalized-implementation`; its exact SHA is in the completion report. The pre-existing `vite.config.ts` change is not included.
+
+---
+
+# Historical Handoff — Simulation obsolete Economic reset baseline cleanup — 2026-10-18
 
 - Repository: `/Users/bubu/COSTBREAKDOWN`, `apirak-k/COSTBREAKDOWN`.
 - Branch: `logic/simulation-finalized-implementation`.

@@ -15,7 +15,7 @@ const vite = await createServer({
 try {
   const { calculateScenarioBusinessMetrics } = await vite.ssrLoadModule('/src/core/calculations/scenario-business.ts')
   const { createScenarioFinancialResult, createScenarioStory } = await vite.ssrLoadModule('/src/core/calculations/scenario-story.ts')
-  const { SimulationStoryGraph, buildVisibleStack, buildVisibleStandardCost, compareVisibleNetToStandardCost, buildGraphScale } = await vite.ssrLoadModule('/src/features/simulation/SimulationStoryGraph.tsx')
+  const { SimulationStoryGraph, buildVisibleStack, buildVisibleStandardCost, buildGraphScale } = await vite.ssrLoadModule('/src/features/simulation/SimulationStoryGraph.tsx')
   const { SimulationPage } = await vite.ssrLoadModule('/src/features/simulation/SimulationPage.tsx')
   const { parameterEffectPresentation } = await vite.ssrLoadModule('/src/features/simulation/parameter-effect-presentation.ts')
   const { simulationWorkingTargetKey, startSimulationFrom } = await vite.ssrLoadModule('/src/features/simulation/simulation-state.ts')
@@ -85,12 +85,6 @@ try {
   const equalVisibleNet = buildVisibleStack(canonicalStory.current, graphParts, onlyVisibleCosts).total
   assert.equal(equalVisibleNet, buildVisibleStandardCost(canonicalStory.current, onlyVisibleCosts),
     'Visible Net equals the visible Standard Cost when SG&A and Profit are hidden')
-  assert.equal(compareVisibleNetToStandardCost(100, 10), 'above', 'Visible Net above Standard Cost uses the above placement')
-  assert.equal(compareVisibleNetToStandardCost(80, 90), 'below', 'Visible Net below Standard Cost uses the below placement')
-  assert.equal(compareVisibleNetToStandardCost(10 + 1e-10, 10), 'same', 'floating-point noise does not create a duplicate label')
-  assert.equal(compareVisibleNetToStandardCost(10.004, 10), 'same', 'values with the same displayed precision do not create duplicate labels')
-  assert.equal(compareVisibleNetToStandardCost(-18, 0), 'below', 'a negative Visible Net remains signed and compares below Standard Cost')
-  assert.equal(compareVisibleNetToStandardCost(null, 0), null, 'unavailable Visible Net does not render a placement')
   assert.equal(canonicalStory.simulated.standardCost, 10, 'the authoritative SIM/Result Standard Cost remains 10')
   assert.equal(JSON.stringify(canonicalStory), canonicalStoryBeforeFilter,
     'view filtering leaves the source ScenarioStory and Result values unchanged')
@@ -137,7 +131,21 @@ try {
   assert.equal(JSON.stringify(story), storyBeforeRender, 'rendering the graph does not mutate ScenarioStory')
   const graphSource = readFileSync(resolve(process.cwd(), 'src/features/simulation/SimulationStoryGraph.tsx'), 'utf8')
   const numericSvgAttribute = (tag: string, attribute: string) =>
-    Number(tag.match(new RegExp(`\\b${attribute}="([^"]+)"`))?.[1])
+    Number(tag.match(new RegExp(`(?:^|\\s)${attribute}="([^"]+)"`))?.[1])
+  const graphLabelTag = (markup: string, attribute: string, state: string) =>
+    markup.match(new RegExp(`<text\\b[^>]*${attribute}="${state}"[^>]*>`))?.[0] ?? ''
+  const graphLabelText = (markup: string, attribute: string, state: string) =>
+    markup.match(new RegExp(`<text\\b[^>]*${attribute}="${state}"[^>]*>([\\s\\S]*?)<\\/text>`))?.[1]
+      ?.replace(/<[^>]*>/g, '').replace(/&amp;/g, '&').trim() ?? ''
+  const estimatedTextBounds = (x: number, y: number, text: string, anchor: 'middle' | 'start') => {
+    const width = text.length * 5.4
+    const left = anchor === 'middle' ? x - width / 2 : x
+    return { left, right: left + width, top: y - 7, bottom: y + 2 }
+  }
+  const boundsOverlap = (first: { left: number; right: number; top: number; bottom: number },
+    second: { left: number; right: number; top: number; bottom: number }, clearance = 0) =>
+    first.left - clearance <= second.right && first.right + clearance >= second.left &&
+    first.top - clearance <= second.bottom && first.bottom + clearance >= second.top
   const svgTextLabels = [...graphMarkup.matchAll(/<text\b[^>]*>([\s\S]*?)<\/text>/g)]
     .map(match => match[1].replace(/<title>[\s\S]*?<\/title>/g, '').replace(/<[^>]*>/g, '').replace(/&amp;/g, '&').trim())
   const gapTotalLabels = [...graphMarkup.matchAll(/<text\b[^>]*data-graph-total="(gap1|gap2)"[^>]*>([\s\S]*?)<\/text>/g)]
@@ -158,20 +166,16 @@ try {
     .map(match => [match[1], match[0]] as const))
   const standardCostValueTags = new Map([...graphMarkup.matchAll(/<text\b[^>]*data-graph-standard-cost-value="(reference|current|simulated)"[^>]*>/g)]
     .map(match => [match[1], match[0]] as const))
-  for (const state of ['reference', 'current', 'simulated']) {
+  for (const [state, x] of [['reference', 180], ['current', 430], ['simulated', 680]] as const) {
     const boundaryLine = standardCostLineTags.get(state)
     const valueLabel = standardCostValueTags.get(state)
     assert.ok(boundaryLine && valueLabel, `${state} includes its Standard Cost line and value label`)
     assert.ok(numericSvgAttribute(valueLabel, 'x') - numericSvgAttribute(boundaryLine, 'x2') > 4,
       `${state} Standard Cost text keeps a small gap beyond the old near-touching spacing`)
-    const visibleNetValue = graphMarkup.match(new RegExp(`<text\\b[^>]*data-graph-visible-net-value="${state}"[^>]*>`))?.[0]
-    assert.ok(visibleNetValue, `${state} Visible Net is shown when it differs from Standard Cost`)
-    assert.equal(numericSvgAttribute(visibleNetValue, 'x'), numericSvgAttribute(valueLabel, 'x'),
-      `${state} Visible Net shares the Standard Cost number column`)
-    assert.match(visibleNetValue, /data-graph-visible-net-position="above"/,
-      `${state} Visible Net above Standard Cost is marked for above placement`)
-    assert.ok(numericSvgAttribute(visibleNetValue, 'y') < numericSvgAttribute(valueLabel, 'y'),
-      `${state} Visible Net above Standard Cost is positioned above its anchor value`)
+    assert.equal(numericSvgAttribute(valueLabel, 'x'), x + 35,
+      `${state} Standard Cost keeps its existing numeric column`)
+    assert.equal(numericSvgAttribute(valueLabel, 'y'), numericSvgAttribute(boundaryLine, 'y1') + 3,
+      `${state} Standard Cost keeps its existing position relative to its boundary`)
   }
   assert.doesNotMatch(graphMarkup, /data-graph-total="(?:reference|current|simulated)"/,
     'full commercial-stack values are not duplicated above REF/CUR/SIM')
@@ -348,6 +352,143 @@ try {
     'the existing Standard Cost labels remain when Visible Net equals them')
   assert.doesNotMatch(equalNetMarkup, /data-graph-visible-net-value=/,
     'effectively equal Visible Net does not render a duplicate number')
+  assert.deepEqual([...equalNetMarkup.matchAll(/<text\b[^>]*data-graph-standard-cost-value="([^"]+)"[^>]*>([^<]+)<\/text>/g)]
+    .map(([, state, value]) => [state, value]),
+  [['reference', '10.00'], ['current', '10.00'], ['simulated', '10.00']],
+  'suppressing an equal Visible Net leaves every Standard Cost value intact')
+
+  const nearEqualFinancial = { ...zeroProfitFinancial, sgaAmountPerPiece: 0.004, sellingPrice: 20 }
+  const nearEqualMarkup = renderToStaticMarkup(React.createElement(SimulationStoryGraph, {
+    story: createScenarioStory(nearEqualFinancial, nearEqualFinancial, nearEqualFinancial), unit: 'PC'
+  }))
+  assert.doesNotMatch(nearEqualMarkup, /data-graph-visible-net-value=/,
+    'Visible Net is suppressed when it rounds to the same displayed value as Standard Cost')
+  assert.deepEqual([...nearEqualMarkup.matchAll(/<text\b[^>]*data-graph-standard-cost-value="([^"]+)"[^>]*>([^<]+)<\/text>/g)]
+    .map(([, state, value]) => [state, value]),
+  [['reference', '10.00'], ['current', '10.00'], ['simulated', '10.00']],
+  'rounding-based duplicate suppression does not hide or alter Standard Cost')
+
+  for (const [state, x] of [['reference', 180], ['current', 430], ['simulated', 680]] as const) {
+    const visibleNet = graphLabelTag(graphMarkup, 'data-graph-visible-net-value', state)
+    const sellingPricePoint = graphMarkup.match(new RegExp(`<circle\\b[^>]*cx="${x}"[^>]*r="3\\.5"[^>]*>`))?.[0] ?? ''
+    assert.ok(visibleNet && sellingPricePoint, `${state} renders Visible Net and its Selling Price point`)
+    const endpointY = numericSvgAttribute(visibleNet, 'data-graph-visible-net-endpoint-y')
+    const labelY = numericSvgAttribute(visibleNet, 'y')
+    assert.equal(numericSvgAttribute(sellingPricePoint, 'cy'), endpointY,
+      `${state} Selling Price equals the Visible Net endpoint in the default story`)
+    assert.equal(numericSvgAttribute(visibleNet, 'x'), x,
+      `${state} Visible Net is centered over its own bar`)
+    assert.match(visibleNet, /text-anchor="middle"/)
+    assert.match(visibleNet, /data-graph-visible-net-position="above"/,
+      `${state} equal Net and Selling Price stays above when the rendered glyph box clears the point`)
+    assert.equal(labelY, endpointY - 12,
+      `${state} positive Visible Net uses the stack-total endpoint rather than the Standard Cost anchor`)
+    const candidateBox = estimatedTextBounds(x, labelY, '120.00', 'middle')
+    const pointY = numericSvgAttribute(sellingPricePoint, 'cy')
+    assert.ok(!boundsOverlap(candidateBox, { left: x - 4, right: x + 4, top: pointY - 4, bottom: pointY + 4 }, 2),
+      `${state} equal Net/Selling Price is not moved sideways when the actual point clears the above label`)
+  }
+
+  const endpointStory = createScenarioStory(
+    { ...financial(reference, 200, 10), operatingProfitPerPiece: 10 },
+    { ...financial(current, 200, 10), operatingProfitPerPiece: 10 },
+    { ...financial(sim, 200, 10), operatingProfitPerPiece: 10 }
+  )
+  const endpointMarkup = renderToStaticMarkup(React.createElement(SimulationStoryGraph, { story: endpointStory, unit: 'PC' }))
+  assert.deepEqual([...endpointMarkup.matchAll(/<text\b[^>]*data-graph-standard-cost-value="([^"]+)"[^>]*>([^<]+)<\/text>/g)]
+    .map(([, state, value]) => [state, value]),
+  [['reference', '90.00'], ['current', '100.00'], ['simulated', '95.00']],
+  'the endpoint-based Visible Net placement leaves the existing Standard Cost values unchanged')
+  for (const [state, x, expectedNet] of [['reference', 180, '120.00'], ['current', 430, '130.00'], ['simulated', 680, '125.00']] as const) {
+    const visibleNet = graphLabelTag(endpointMarkup, 'data-graph-visible-net-value', state)
+    const standardCost = graphLabelTag(endpointMarkup, 'data-graph-standard-cost-value', state)
+    const endpointY = numericSvgAttribute(visibleNet, 'data-graph-visible-net-endpoint-y')
+    const standardCostY = numericSvgAttribute(standardCost, 'y')
+    assert.equal(graphLabelText(endpointMarkup, 'data-graph-visible-net-value', state), expectedNet,
+      `${state} visible-stack filtering updates the displayed Visible Net value`)
+    assert.match(visibleNet, /data-graph-visible-net-position="above"/)
+    assert.equal(numericSvgAttribute(visibleNet, 'x'), x)
+    assert.match(visibleNet, /text-anchor="middle"/)
+    assert.equal(numericSvgAttribute(visibleNet, 'y'), endpointY - 12,
+      `${state} label y follows y(state.stack.total), not the Standard Cost value`)
+    assert.notEqual(numericSvgAttribute(visibleNet, 'y'), standardCostY - 8,
+      `${state} label is not positioned from the Standard Cost text baseline`)
+  }
+
+  const pointCollisionFinancial = { ...financial(reference, 110, 0), operatingProfitPerPiece: 10 }
+  const pointCollisionMarkup = renderToStaticMarkup(React.createElement(SimulationStoryGraph, {
+    story: createScenarioStory(pointCollisionFinancial, pointCollisionFinancial, pointCollisionFinancial), unit: 'PC'
+  }))
+  const pointCollisionLabel = graphLabelTag(pointCollisionMarkup, 'data-graph-visible-net-value', 'reference')
+  const pointCollisionEndpoint = numericSvgAttribute(pointCollisionLabel, 'data-graph-visible-net-endpoint-y')
+  const pointCollisionPoint = pointCollisionMarkup.match(/<circle\b[^>]*cx="180"[^>]*r="3\.5"[^>]*>/)?.[0] ?? ''
+  const pointCandidateBox = estimatedTextBounds(180, pointCollisionEndpoint - 12, '100.00', 'middle')
+  const pointY = numericSvgAttribute(pointCollisionPoint, 'cy')
+  assert.ok(boundsOverlap(pointCandidateBox, { left: 176, right: 184, top: pointY - 4, bottom: pointY + 4 }, 2),
+    'the Selling Price point actually crowds the default above-label geometry')
+  assert.match(pointCollisionLabel, /data-graph-visible-net-position="side"/,
+    'a crowded Selling Price point triggers the side fallback')
+
+  const lineReference = { ...financial(reference, 101, 0), operatingProfitPerPiece: 10 }
+  const lineCurrent = { ...financial(current, 1000, 0), operatingProfitPerPiece: 10 }
+  const lineSimulated = { ...financial(sim, 1000, 0), operatingProfitPerPiece: 10 }
+  const lineCollisionMarkup = renderToStaticMarkup(React.createElement(SimulationStoryGraph, {
+    story: createScenarioStory(lineReference, lineCurrent, lineSimulated), unit: 'PC'
+  }))
+  const lineCollisionLabel = graphLabelTag(lineCollisionMarkup, 'data-graph-visible-net-value', 'reference')
+  const lineCollisionEndpoint = numericSvgAttribute(lineCollisionLabel, 'data-graph-visible-net-endpoint-y')
+  const lineCandidateBox = estimatedTextBounds(180, lineCollisionEndpoint - 12, '100.00', 'middle')
+  const referenceSellingPricePoint = lineCollisionMarkup.match(/<circle\b[^>]*cx="180"[^>]*r="3\.5"[^>]*>/)?.[0] ?? ''
+  const referencePointY = numericSvgAttribute(referenceSellingPricePoint, 'cy')
+  assert.ok(!boundsOverlap(lineCandidateBox, {
+    left: 176, right: 184, top: referencePointY - 4, bottom: referencePointY + 4
+  }, 2), 'the starting Selling Price point itself clears the reference label')
+  const sellingPriceLine = lineCollisionMarkup.match(/<path\b(?=[^>]*stroke="#2563eb")[^>]*>/)?.[0] ?? ''
+  const linePath = sellingPriceLine.match(/d="M ([^ ]+) ([^ ]+) L ([^ ]+) ([^"]+)"/)
+  assert.ok(linePath, 'the reference-to-current Selling Price line is rendered')
+  const [, lineX1, lineY1, lineX2, lineY2] = linePath
+  const labelEdgeX = lineCandidateBox.right
+  const lineAtLabelEdge = Number(lineY1) +
+    ((labelEdgeX - Number(lineX1)) / (Number(lineX2) - Number(lineX1))) * (Number(lineY2) - Number(lineY1))
+  assert.ok(lineAtLabelEdge >= lineCandidateBox.top - 3 && lineAtLabelEdge <= lineCandidateBox.bottom + 3,
+    'the Selling Price segment crosses the default label text bounds')
+  assert.match(lineCollisionLabel, /data-graph-visible-net-position="side"/,
+    'a Selling Price line crossing the text bounds triggers the side fallback')
+
+  const boundaryFinancial = {
+    material: 4, labor: 3, burden: 3, standardCost: 10,
+    sgaAmountPerPiece: 0, operatingProfitPerPiece: 1e18, sellingPrice: null
+  }
+  const boundaryMarkup = renderToStaticMarkup(React.createElement(SimulationStoryGraph, {
+    story: createScenarioStory(boundaryFinancial, boundaryFinancial, boundaryFinancial), unit: 'PC'
+  }))
+  const boundaryLabel = graphLabelTag(boundaryMarkup, 'data-graph-visible-net-value', 'reference')
+  const boundaryLabelText = graphLabelText(boundaryMarkup, 'data-graph-visible-net-value', 'reference')
+  const boundaryEndpointY = numericSvgAttribute(boundaryLabel, 'data-graph-visible-net-endpoint-y')
+  const centeredBoundaryBox = estimatedTextBounds(180, boundaryEndpointY - 12, boundaryLabelText, 'middle')
+  assert.ok(centeredBoundaryBox.left < 122,
+    'the long centered Visible Net would crowd the plot left boundary')
+  assert.match(boundaryLabel, /data-graph-visible-net-position="side"/,
+    'a Visible Net label that crowds the plot boundary moves to the side')
+  assert.equal(numericSvgAttribute(boundaryLabel, 'x'), 215)
+  assert.match(boundaryLabel, /text-anchor="start"/)
+  const sideBoundaryBox = estimatedTextBounds(
+    numericSvgAttribute(boundaryLabel, 'x'), numericSvgAttribute(boundaryLabel, 'y'), boundaryLabelText, 'start'
+  )
+  assert.ok(sideBoundaryBox.left >= 122 && sideBoundaryBox.right <= 750,
+    'the side label text stays within the plot boundary')
+
+  for (const [markup, label, state] of [
+    [pointCollisionMarkup, pointCollisionLabel, 'reference'],
+    [lineCollisionMarkup, lineCollisionLabel, 'reference'],
+    [boundaryMarkup, boundaryLabel, 'reference']
+  ] as const) {
+    const standardCost = graphLabelTag(markup, 'data-graph-standard-cost-value', state)
+    assert.ok(Math.abs(numericSvgAttribute(label, 'y') - numericSvgAttribute(standardCost, 'y')) >= 12,
+      `${state} side Visible Net stays vertically clear of Standard Cost text`)
+    assert.ok(Math.abs(numericSvgAttribute(label, 'y') - numericSvgAttribute(label, 'data-graph-visible-net-endpoint-y')) <= 36,
+      `${state} side Visible Net y remains near its own stack-total endpoint`)
+  }
 
   const negativeOPStory = createScenarioStory(financial(reference, 120, 10), financial(current, 120, 10), financial(cost('loss', 90, 0, 0), 80, 10))
   assert.equal(negativeOPStory.simulated.operatingProfitPerPiece, -18, 'negative OP remains a valid story value')
@@ -357,9 +498,23 @@ try {
   const negativeOnlyLegend = { ...allLegendVisible, material: false, labor: false, burden: false, sga: false, opPositive: false }
   const negativeVisibleStack = buildVisibleStack(negativeOPStory.simulated, graphParts, negativeOnlyLegend)
   const negativeVisibleStandardCost = buildVisibleStandardCost(negativeOPStory.simulated, negativeOnlyLegend)
-  assert.equal(negativeVisibleStack.total, -18, 'negative Visible Net retains the signed sum of visible segments')
-  assert.equal(compareVisibleNetToStandardCost(negativeVisibleStack.total, negativeVisibleStandardCost), 'below',
-    'negative Visible Net is placed below the zero Standard Cost anchor')
+  assert.equal(negativeVisibleStack.total, -18, 'negative Visible Net remains signed after legend filtering')
+  assert.equal(negativeVisibleStandardCost, 0, 'hiding costs leaves a zero Standard Cost')
+  const negativeNetFinancial = {
+    material: 0, labor: 0, burden: 0, standardCost: 0,
+    sgaAmountPerPiece: 0, operatingProfitPerPiece: -18, sellingPrice: null
+  }
+  const negativeNetMarkup = renderToStaticMarkup(React.createElement(SimulationStoryGraph, {
+    story: createScenarioStory(negativeNetFinancial, negativeNetFinancial, negativeNetFinancial), unit: 'PC'
+  }))
+  const negativeNetLabel = graphLabelTag(negativeNetMarkup, 'data-graph-visible-net-value', 'simulated')
+  assert.equal(graphLabelText(negativeNetMarkup, 'data-graph-visible-net-value', 'simulated'), '-18.00',
+    'the rendered negative Visible Net keeps its signed value')
+  assert.match(negativeNetLabel, /data-graph-visible-net-position="below"/,
+    'a negative Visible Net is placed below its own stack endpoint')
+  assert.equal(numericSvgAttribute(negativeNetLabel, 'y'),
+    numericSvgAttribute(negativeNetLabel, 'data-graph-visible-net-endpoint-y') + 16,
+    'negative Visible Net placement remains endpoint-relative')
 
   if (process.argv.includes('--graph-only')) {
     console.log('Simulation cost structure graph verification passed')
