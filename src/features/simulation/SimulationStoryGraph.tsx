@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import type { FocusEvent, KeyboardEvent, PointerEvent } from 'react'
+import type { KeyboardEvent, PointerEvent } from 'react'
 import { formatNumber } from '../../core'
 import type { ScenarioFinancialResult, ScenarioStory } from '../../core/types'
 import { COST_ELEMENT_COLORS } from '../cost-breakdown/components/cost-element-colors'
@@ -63,9 +63,9 @@ const DEFAULT_LEGEND_VISIBILITY: Record<LegendKey, boolean> = {
 }
 
 const STATE_LAYOUT = [
-  { key: 'reference', label: 'REF', description: 'Reference', x: 180 },
-  { key: 'current', label: 'CUR', description: 'Current', x: 430 },
-  { key: 'simulated', label: 'SIM', description: 'Simulation', x: 680 }
+  { key: 'reference', label: 'Reference', description: 'Reference', x: 180 },
+  { key: 'current', label: 'Current', description: 'Current', x: 430 },
+  { key: 'simulated', label: 'Simulation', description: 'Simulation', x: 680 }
 ] as const
 
 interface SimulationStoryGraphProps {
@@ -89,8 +89,7 @@ export function visibleNetMatchesStandardCost(
   standardCost: number | null
 ): boolean {
   if (visibleNet === null || standardCost === null || !Number.isFinite(visibleNet) || !Number.isFinite(standardCost)) return false
-  const tolerance = 1e-9 * Math.max(1, Math.abs(visibleNet), Math.abs(standardCost))
-  return Math.abs(visibleNet - standardCost) <= tolerance || formatValue(visibleNet) === formatValue(standardCost)
+  return formatValue(visibleNet) === formatValue(standardCost)
 }
 
 function signed(value: number | null): string {
@@ -318,11 +317,11 @@ export function SimulationStoryGraph({ story, unit }: SimulationStoryGraphProps)
     stack: buildVisibleStack(gap.values, COST_PARTS, visibleLegend)
   })), [gapValues, visibleLegend])
   const categoryLabels = [
-    { key: 'reference', label: 'REF', description: 'Reference Cost Structure', x: 180, isGap: false as const },
+    { key: 'reference', label: 'Reference', description: 'Reference Cost Structure', x: 180, isGap: false as const },
     { key: 'gap1', label: 'GAP 1', description: gapStacks[0].description, x: 305, value: gapStacks[0].stack.total, isGap: true as const },
-    { key: 'current', label: 'CUR', description: 'Current Cost Structure', x: 430, isGap: false as const },
+    { key: 'current', label: 'Current', description: 'Current Cost Structure', x: 430, isGap: false as const },
     { key: 'gap2', label: 'GAP 2', description: gapStacks[1].description, x: 555, value: gapStacks[1].stack.total, isGap: true as const },
-    { key: 'simulated', label: 'SIM', description: 'Simulation Cost Structure', x: 680, isGap: false as const }
+    { key: 'simulated', label: 'Simulation', description: 'Simulation Cost Structure', x: 680, isGap: false as const }
   ]
   const rangeValues = useMemo(() => {
     return finiteRangeValues([
@@ -373,16 +372,11 @@ export function SimulationStoryGraph({ story, unit }: SimulationStoryGraphProps)
   }
   const tooltipProps = (text: string) => ({
     'data-graph-tooltip': 'true',
-    tabIndex: 0,
     role: 'img' as const,
     'aria-label': text,
-    className: 'cursor-default focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-700',
+    className: 'cursor-default',
     onPointerEnter: (event: PointerEvent<SVGElement>) => showTooltipAt(event.currentTarget, text, event.clientX, event.clientY),
     onPointerLeave: (event: PointerEvent<SVGElement>) => {
-      if (!isGraphTooltipTarget(event.relatedTarget)) setActiveTooltip(null)
-    },
-    onFocus: (event: FocusEvent<SVGElement>) => showTooltipAt(event.currentTarget, text),
-    onBlur: (event: FocusEvent<SVGElement>) => {
       if (!isGraphTooltipTarget(event.relatedTarget)) setActiveTooltip(null)
     }
   })
@@ -518,7 +512,7 @@ export function SimulationStoryGraph({ story, unit }: SimulationStoryGraphProps)
           className="simulation-story-chart mt-1 block h-[250px] w-full sm:h-auto xl:h-full"
           style={{ touchAction: 'pan-y' }}
         >
-          <desc id="simulation-story-svg-description">REF, CUR, and SIM show visible Material, Labor, Burden, SG&amp;A, and sign-matched Profit. Standard Cost is visible Material plus Labor plus Burden. Visible Net is the signed total of visible state-stack segments and excludes Selling Price. GAP 1 is Current minus Reference; GAP 2 is Simulation minus Current. Legend filters change this graph view only, not Result or source data. Selling Price is separate, and the ruler is a comparison guide.</desc>
+          <desc id="simulation-story-svg-description">Reference, Current, and Simulation show visible Material, Labor, Burden, SG&amp;A, and sign-matched Profit. Standard Cost is visible Material plus Labor plus Burden. Visible Net is the signed total of visible state-stack segments and excludes Selling Price. GAP 1 is Current minus Reference; GAP 2 is Simulation minus Current. Legend filters change this graph view only, not Result or source data. Selling Price is separate, and the ruler is a comparison guide.</desc>
 
           {axisTicks.map((value, index) => {
             const lineY = y(value)

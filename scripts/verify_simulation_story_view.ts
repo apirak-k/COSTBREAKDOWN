@@ -212,8 +212,11 @@ try {
   }
   assert.doesNotMatch(graphMarkup, /data-graph-total="(?:reference|current|simulated)"/,
     'full commercial-stack values are not duplicated above REF/CUR/SIM')
-  assert.deepEqual(svgTextLabels.filter(label => ['REF', 'GAP 1', 'CUR', 'GAP 2', 'SIM'].includes(label)),
-    ['REF', 'GAP 1', 'CUR', 'GAP 2', 'SIM'], 'the five category labels follow the fixed graph story')
+  assert.deepEqual(svgTextLabels.filter(label => ['Reference', 'GAP 1', 'Current', 'GAP 2', 'Simulation'].includes(label)),
+    ['Reference', 'GAP 1', 'Current', 'GAP 2', 'Simulation'],
+    'the five visible category labels follow the full graph story names')
+  assert.ok(!svgTextLabels.some(label => ['REF', 'CUR', 'SIM'].includes(label)),
+    'the graph does not show abbreviated category labels')
   assert.match(graphMarkup, /GAP 1 · Current − Reference · Material Gap: \+5\.00 THB\/PC/)
   assert.match(graphMarkup, /GAP 2 · Simulation − Current · Material Gap: -3\.00 THB\/PC/)
   assert.doesNotMatch(graphMarkup, /\bSC [+-]\d/, 'gap labels do not use the ambiguous SC +/- notation')
@@ -229,6 +232,8 @@ try {
     'the graph figure has an accessible name from its visible heading')
   assert.match(graphMarkup, /<svg aria-labelledby="simulation-story-title" aria-describedby="simulation-story-svg-description"/,
     'the SVG retains both its accessible name and description')
+  assert.match(graphMarkup, /<desc id="simulation-story-svg-description">Reference, Current, and Simulation show visible/,
+    'the SVG description retains the full scenario names for assistive technology')
   assert.match(graphMarkup, /preserveAspectRatio="xMidYMid meet"/,
     'the responsive graph preserves circular markers and undistorted text and lines')
   assert.doesNotMatch(graphMarkup, /<title\b|\stitle=/, 'graph elements do not expose native hover tooltips')
@@ -236,6 +241,21 @@ try {
     'the graph title and legend share the header area')
   assert.match(graphMarkup, /<ul aria-label="Simulation graph legend"[\s\S]*?<\/ul><button type="button" disabled=""[^>]*>Show all<\/button>/,
     'Show all is a separate action after the eight Legend controls and is disabled initially')
+  const legendMarkup = graphMarkup.match(/<ul aria-label="Simulation graph legend"[\s\S]*?<\/ul>/)?.[0] ?? ''
+  const legendButtonTags = [...legendMarkup.matchAll(/<button\b[^>]*>/g)].map(([tag]) => tag)
+  assert.equal(legendButtonTags.length, 8, 'all eight legend controls render as actual buttons')
+  for (const [index, buttonTag] of legendButtonTags.entries()) {
+    assert.match(buttonTag, /type="button"/, `legend button ${index + 1} has button semantics`)
+    assert.match(buttonTag, /aria-pressed="true"/, `legend button ${index + 1} starts enabled`)
+    assert.doesNotMatch(buttonTag, /\bdisabled=|\btabindex="-1"/, `legend button ${index + 1} remains keyboard reachable`)
+    assert.match(buttonTag, /focus-visible:outline/, `legend button ${index + 1} keeps a visible keyboard focus style`)
+  }
+  const showAllTag = graphMarkup.match(/<button\b[^>]*disabled=""[^>]*>Show all<\/button>/)?.[0] ?? ''
+  assert.match(showAllTag, /type="button"/, 'Show all retains native button semantics while initially disabled')
+  assert.match(graphSource, /disabled=\{allLegendVisible\}/,
+    'Show all becomes keyboard reachable once any Legend item is hidden')
+  assert.match(graphSource, /focus-visible:outline[^`]*min-\[720px\]:self-auto/,
+    'Show all keeps a visible keyboard focus style when enabled')
   assert.match(graphSource, /const allLegendVisible = LEGEND_ITEMS\.every\(item => visibleLegend\[item\.key\]\)/,
     'Show all disabled state derives from all eight existing Legend visibility values')
   assert.match(graphSource, /disabled=\{allLegendVisible\}/,
@@ -271,13 +291,33 @@ try {
   }
   assert.match(graphMarkup, /aria-label="Reference Material: 60\.00 THB\/PC"/)
   assert.match(graphMarkup, /aria-label="GAP 1 · Current − Reference · Material Gap: \+5\.00 THB\/PC"/)
+  const graphTooltipTags = [...graphMarkup.matchAll(/<[a-z][^>]*data-graph-tooltip="true"[^>]*>/gi)].map(([tag]) => tag)
+  assert.ok(graphTooltipTags.length > 0, 'informational graph marks retain pointer-tooltip targets')
+  assert.ok(graphTooltipTags.every(tag => !/\btabindex=/i.test(tag)),
+    'informational graph SVG marks are not extra Tab stops')
+  assert.ok(graphTooltipTags.every(tag => !/focus-visible:outline|focus:outline/i.test(tag)),
+    'informational graph SVG marks do not add a keyboard focus frame')
+  const graphTooltipPropsSource = graphSource.slice(graphSource.indexOf('const tooltipProps ='), graphSource.indexOf('const tooltipPointerProps ='))
+  assert.match(graphTooltipPropsSource, /onPointerEnter:/, 'informational marks still open tooltips on pointer entry')
+  assert.match(graphTooltipPropsSource, /onPointerLeave:/, 'informational marks still close tooltips on pointer exit')
+  assert.doesNotMatch(graphTooltipPropsSource, /tabIndex|onFocus|onBlur|focus-visible:outline|focus:outline/,
+    'pointer tooltip marks do not add keyboard focus handling or a focus frame')
   assert.match(graphMarkup, /fill="none" stroke="#334155" stroke-width="1"/, 'Standard Cost uses a neutral outline without another fill')
-  assert.match(graphMarkup, /role="slider"[^>]*aria-label="Simulation comparison ruler"[^>]*aria-orientation="vertical"[^>]*class="[^"]*cursor-ns-resize/,
+  const rulerControlTag = graphMarkup.match(/<g\b[^>]*role="slider"[^>]*>/)?.[0] ?? ''
+  assert.match(rulerControlTag, /tabindex="0"/, 'the ruler remains reachable as a keyboard slider')
+  assert.match(rulerControlTag, /aria-label="Simulation comparison ruler"[^>]*aria-orientation="vertical"[^>]*class="[^"]*cursor-ns-resize/,
     'the ruler keeps its vertical resize cursor')
   assert.doesNotMatch(graphMarkup, /cursor-help/, 'graph information targets do not show a help cursor')
   assert.match(graphMarkup, /aria-valuetext="[^\"]+ THB\/PC"/)
   assert.match(graphSource, /data-ruler-value="true" x=\{plot\.right \+ 7\}/, 'the ruler value sits at the line end without a label')
   assert.match(graphSource, /onKeyDown=\{handleRulerKeyDown\}/, 'the visual ruler remains keyboard operable')
+  const rulerKeyHandlerSource = graphSource.slice(graphSource.indexOf('const handleRulerKeyDown'), graphSource.indexOf('const pricePoints'))
+  assert.match(rulerKeyHandlerSource, /ArrowUp:\s*step/)
+  assert.match(rulerKeyHandlerSource, /ArrowDown:\s*-step/)
+  assert.match(rulerKeyHandlerSource, /PageUp:\s*step \* 10/)
+  assert.match(rulerKeyHandlerSource, /PageDown:\s*-step \* 10/)
+  assert.match(rulerKeyHandlerSource, /event\.key === 'Home'[\s\S]*setManualRulerLevel\(minimum\)/)
+  assert.match(rulerKeyHandlerSource, /event\.key === 'End'[\s\S]*setManualRulerLevel\(maximum\)/)
   assert.match(graphSource, /const threshold = span \* 0\.008/, 'ruler snapping keeps its small threshold')
   assert.ok(graphSource.includes('stroke={RULER_COLOR} strokeWidth="1.4"'), 'the ruler line keeps one dark visual state')
   assert.doesNotMatch(graphSource, /rulerFocused|setRulerFocused/, 'ruler focus does not change its color')
@@ -291,7 +331,6 @@ try {
   assert.match(graphMarkup, /Selling Price<\/span>/, 'Selling Price remains a separate graph legend item')
   assert.match(graphMarkup, /aria-pressed="true"/)
   assert.equal([...graphMarkup.matchAll(/aria-pressed="true"/g)].length, 8, 'all eight legend items are on by default')
-  const legendMarkup = graphMarkup.match(/<ul aria-label="Simulation graph legend"[\s\S]*?<\/ul>/)?.[0] ?? ''
   for (const label of ['Material', 'Labor', 'Burden', 'SG&amp;A', 'Profit +', 'Profit −', 'Selling Price', 'Ruler']) {
     assert.ok(legendMarkup.includes(`aria-label="${label}"`), `the visible Legend uses the full ${label} label`)
   }
@@ -373,11 +412,11 @@ try {
     financial(tooltipReference, 120, 8), financial(tooltipCurrent, 120, 10), financial(tooltipSim, 120, 10)
   )
   const tooltipMarkup = renderToStaticMarkup(React.createElement(SimulationStoryGraph, { story: tooltipStory, unit: 'KG' }))
-  const categoryTooltipTags = new Map([...tooltipMarkup.matchAll(/<text\b[^>]*>(REF|GAP 1|CUR|GAP 2|SIM)<\/text>/g)]
+  const categoryTooltipTags = new Map([...tooltipMarkup.matchAll(/<text\b[^>]*>(Reference|GAP 1|Current|GAP 2|Simulation)<\/text>/g)]
     .map(match => [match[1], match[0]] as const))
   for (const [label, tooltip] of [
-    ['REF', 'Reference Cost Structure'], ['GAP 1', 'Current − Reference'], ['CUR', 'Current Cost Structure'],
-    ['GAP 2', 'Simulation − Current'], ['SIM', 'Simulation Cost Structure']
+    ['Reference', 'Reference Cost Structure'], ['GAP 1', 'Current − Reference'], ['Current', 'Current Cost Structure'],
+    ['GAP 2', 'Simulation − Current'], ['Simulation', 'Simulation Cost Structure']
   ]) {
     const categoryTag = categoryTooltipTags.get(label)
     assert.ok(categoryTag?.includes('data-graph-tooltip="true"') && categoryTag.includes(`aria-label="${tooltip}"`),
@@ -432,6 +471,43 @@ try {
       story: createScenarioStory(referenceFinancial, currentFinancial, simulatedFinancial), unit: 'PC'
     })
   )
+  const financialWithVisibleNet = (id: string, standardCostValue: number, visibleNetValue: number) =>
+    financial(cost(id, standardCostValue, 0, 0), visibleNetValue, 0)
+
+  const sameDisplayFinancial = financialWithVisibleNet('same-display-precision', 86.431, 86.434)
+  const sameDisplayRawBeforeRender = JSON.stringify(sameDisplayFinancial)
+  const sameDisplayMarkup = markupFor(sameDisplayFinancial)
+  assert.equal(sameDisplayFinancial.standardCost, 86.431)
+  assert.equal(buildVisibleStack(sameDisplayFinancial, graphParts, allLegendVisible).total, 86.434,
+    'the first precision fixture retains the distinct raw Visible Net value')
+  assert.equal(graphLabelText(sameDisplayMarkup, 'data-graph-standard-cost-value', 'reference'), '86.43')
+  assert.doesNotMatch(sameDisplayMarkup, /data-graph-visible-net-value=/,
+    'raw 86.431 and 86.434 are both displayed as 86.43, so Visible Net is suppressed')
+  assert.equal(JSON.stringify(sameDisplayFinancial), sameDisplayRawBeforeRender,
+    'display duplicate suppression does not mutate raw source financial values')
+
+  const differentDisplayFinancial = financialWithVisibleNet('different-display-precision', 86.431, 86.435)
+  const differentDisplayRawBeforeRender = JSON.stringify(differentDisplayFinancial)
+  const differentDisplayMarkup = markupFor(differentDisplayFinancial)
+  assert.equal(buildVisibleStack(differentDisplayFinancial, graphParts, allLegendVisible).total, 86.435,
+    'the second precision fixture retains the raw 86.435 Visible Net')
+  assert.equal(graphLabelText(differentDisplayMarkup, 'data-graph-standard-cost-value', 'reference'), '86.43')
+  assert.equal(graphLabelText(differentDisplayMarkup, 'data-graph-visible-net-value', 'reference'), '86.44',
+    'raw 86.435 and 86.431 have different displayed precision, so both labels render')
+  assert.equal(JSON.stringify(differentDisplayFinancial), differentDisplayRawBeforeRender,
+    'displaying two precision-distinct values does not mutate raw source financial values')
+
+  const largeMagnitudeFinancial = financialWithVisibleNet('large-magnitude-precision', 1_000_000_000.01, 1_000_000_000.02)
+  const largeMagnitudeRawBeforeRender = JSON.stringify(largeMagnitudeFinancial)
+  const largeMagnitudeMarkup = markupFor(largeMagnitudeFinancial)
+  assert.equal(buildVisibleStack(largeMagnitudeFinancial, graphParts, allLegendVisible).total, 1_000_000_000.02,
+    'the large-magnitude fixture retains the raw two-cent-distinct Visible Net')
+  assert.equal(graphLabelText(largeMagnitudeMarkup, 'data-graph-standard-cost-value', 'reference'), '1,000,000,000.01')
+  assert.equal(graphLabelText(largeMagnitudeMarkup, 'data-graph-visible-net-value', 'reference'), '1,000,000,000.02',
+    'large values that differ at two decimals are not hidden by a magnitude-scaled tolerance')
+  assert.equal(JSON.stringify(largeMagnitudeFinancial), largeMagnitudeRawBeforeRender,
+    'large-magnitude display checks do not mutate raw source financial values')
+
   const positiveNetFinancial = {
     ...financial(cost('positive-net', 60, 20, 10), 0, 0),
     sellingPrice: 80,

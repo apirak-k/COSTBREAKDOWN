@@ -1,35 +1,35 @@
-# Current Handoff — Simulation story graph label placement — 2026-10-18
+# Current Handoff — Simulation graph card cleanup — 2026-10-18
 
 - Repository: `/Users/bubu/COSTBREAKDOWN`, `apirak-k/COSTBREAKDOWN`.
 - Branch: `logic/simulation-finalized-implementation`.
-- Starting local HEAD and fetched remote HEAD: `382bf44d15f6155a8220133e498cacbaa26eb6ae`.
-- Pre-existing local-only change: `vite.config.ts`; preserved, unstaged, and excluded from this round.
-- Scope: Simulation story graph Visible Net and Standard Cost numeric label placement, the focused graph verifier, and directly relevant Simulation documentation only.
+- Starting local HEAD and fetched remote HEAD: `110abcaf157ce95ca7b50282a4f514a53587f3bc`.
+- Pre-existing local-only change: `vite.config.ts`; preserved exactly, unstaged, and excluded from this round.
+- Scope: Simulation Graph card presentation labels, informational SVG focus behavior, displayed-precision duplicate suppression, focused graph verifier, and Graph Story documentation only.
 
-## Finalized placement
+## Finalized cleanup
 
-- Positive/zero Visible Net keeps the existing 12-unit above placement; negative Visible Net keeps the 16-unit below placement.
-- Selling Price triggers side fallback only when it is visible, numerically greater than Visible Net, and its connected point/line actually crowds the normal text bounds. SP > Net alone, SP <= Net, and hidden Selling Price do not trigger it.
-- Side Visible Net uses the Standard Cost numeric column and aligns its own level to the text top. Standard Cost aligns its own level to its text top. When both side labels overlap, their upper/lower edges split at the midpoint of their actual levels.
-- Legend-filtered values and label geometry recompute on toggle. GAP 1 / GAP 2 remain without Visible Net. Plot boundaries, candidate positions, arbitrary nudges, and connector lines do not affect placement.
-- Narrow-screen bounds follow the graph's existing 639px font-size breakpoint so collision and midpoint geometry reflect the displayed label size.
-- Cost formulas, economic/business behavior, Result, Reset, Clone/Send, Master Data, Cost Breakdown, and Legend Show all behavior were not changed.
+- Visible categories read `Reference | GAP 1 | Current | GAP 2 | Simulation`; internal scenario keys, graph order, and GAP calculations are unchanged. Selling Price line tooltips use the full state names.
+- Informational SVG marks retain pointer-hover tooltips and ARIA descriptions but are no longer Tab stops and do not have a focus frame. The graph keeps its accessible name and description. Legend buttons, Show all, and the Ruler remain keyboard controls; Ruler keeps Arrow Up/Down, Page Up/Down, Home, and End.
+- Visible Net and Standard Cost suppress a duplicate only when their formatted two-decimal graph values match. Different displayed values remain separate, including large values. Full-precision source values and calculations are unchanged.
+- All 12 finalized Visible Net placement rules and their collision gates, midpoint behavior, and Legend recomputation remain unchanged.
+- Result, Economic, Business, formulas, Reset, Clone/Send, Master Data, Cost Breakdown, and Legend Show all behavior were not changed.
 
 ## Verification
 
-- **PASS — focused graph verifier:** `node --experimental-strip-types scripts/verify_simulation_story_view.ts --graph-only` (all 12 placement cases plus forbidden-placement checks).
+- **PASS — focused graph verifier:** `node --experimental-strip-types scripts/verify_simulation_story_view.ts --graph-only` (category wording, display precision, focus/control checks, and all 12 placement cases).
 - **PASS — Simulation story/page verifier:** `node --experimental-strip-types scripts/verify_simulation_story_view.ts`.
 - **PASS — Simulation regression:** `node scripts/verify_simulation_regression.mjs` (workspace, context, parameter engine, Master Data edit history, and Global Header).
 - **PASS — economics:** `node --experimental-strip-types scripts/verify_simulation_economics.ts`.
 - **PASS — Result:** `node --experimental-strip-types scripts/verify_simulation_result.ts`.
 - **PASS — build:** `npm run build`. Existing ExcelJS `fs`/`crypto` browser-externalization and >500 KB chunk warnings remain.
-- **PASS — isolated headless Chrome via CDP:** 1440×1000 and 390×844. Verified point and line collision, far SP > Net, SP <= Net line gate, hidden Selling Price, negative Net, separated side labels, midpoint split at both widths, SG&A Legend toggle recomputing Visible Net from 100.00 to 95.00, no horizontal overflow, and no console errors.
+- **EXISTING DEPENDENCY FINDINGS —** `npm audit --audit-level=high` reports 5 high and 4 moderate transitive vulnerabilities. Suggested automatic fixes require breaking Tailwind/ExcelJS changes; dependency files are unchanged and this graph-only task did not alter them.
+- **PASS — isolated headless Chrome via CDP:** 1440×1000 and 390×844. Verified full category names, no informational SVG Tab stops, pointer hover tooltips, keyboard Tab/Enter/Space operation of Legend and Show all, keyboard Ruler operation (Arrow Up/Down, Page Up/Down, Home, End), focus rings on Legend/Show all, no horizontal overflow, and no console/runtime errors.
 - **PASS — `git diff --check`**.
 
 ## Limits and delivery
 
-- **[Unverified]** Physical-device rendering, screen-reader behavior, and browsers other than the isolated Chrome session. Chrome DevTools MCP was not configured; the browser check used a temporary isolated Chrome profile and direct CDP control.
-- One focused commit is pushed to `origin/logic/simulation-finalized-implementation`; the final SHA is reported with this task. `vite.config.ts` remains excluded.
+- **[Unverified]** Physical-device rendering, screen-reader behavior, and browsers other than the isolated Chrome session. Browser evidence is automated and does not substitute for human review.
+- One focused commit is pushed to `origin/logic/simulation-finalized-implementation`; its exact SHA is in the completion report. `vite.config.ts` remains excluded.
 
 ---
 
