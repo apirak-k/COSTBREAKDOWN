@@ -19,6 +19,7 @@ try {
   const { SimulationPage } = await vite.ssrLoadModule('/src/features/simulation/SimulationPage.tsx')
   const { parameterEffectPresentation } = await vite.ssrLoadModule('/src/features/simulation/parameter-effect-presentation.ts')
   const { simulationWorkingTargetKey, startSimulationFrom } = await vite.ssrLoadModule('/src/features/simulation/simulation-state.ts')
+  const { calculateEconomicSimulation } = await vite.ssrLoadModule('/src/features/simulation/simulation-economics.ts')
   const { calculateParameterSimulation, updateSimulationParameter } = await vite.ssrLoadModule('/src/features/simulation/simulation-engine.ts')
 
   assert.deepEqual(parameterEffectPresentation(2.35), { text: '+2.35', className: 'text-rose-700' },
@@ -382,6 +383,18 @@ try {
   const sources = { reference: referenceSnapshot, current: currentSnapshot, custom: customSnapshot }
   const state = startSimulationFrom('current', sources)
   const simulation = calculateParameterSimulation(currentSnapshot, state.snapshot!)
+  assert.equal(state.economicInputs.sellingPriceOverride, '')
+  assert.equal(state.economicInputs.sgaPercentOverride, '')
+  const currentFallbackResult = calculateEconomicSimulation(
+    currentSnapshot,
+    simulation.simulationCost,
+    simulation.parameterSavingPerPiece,
+    state.economicInputs
+  )
+  assert.equal(currentFallbackResult.business.sellingPrice, currentSnapshot.product.sellingPrice,
+    'blank Selling Price override uses the Current Selling Price in the rendered Simulation state')
+  assert.equal(currentFallbackResult.business.sgaPercent, currentSnapshot.product.sgaPercent,
+    'blank SG&A override uses the Current SG&A in the rendered Simulation state')
   assert.equal(simulation.currentCost.total, simulation.simulationCost.total)
   assert.equal(simulation.parameterSavingPerPiece, 0, 'No-change Parameter Saving is zero')
   const pageMarkup = renderToStaticMarkup(React.createElement(SimulationPage, {
@@ -391,14 +404,41 @@ try {
     currentSnapshot,
     onCloneSource() {},
     onSendTo() { return true },
-    onResetParameters() {},
+    onReset() {},
     onToggleWorkingTarget() {},
     onUpdateParameter() {},
     onUpdateEconomicInput() {}
   }))
   const pageText = pageMarkup.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ')
+  const pageInputs = [...pageMarkup.matchAll(/<input\b[^>]*>/g)].map(([tag]) => tag)
+  const sellingPriceInput = pageInputs.find(tag => tag.includes('aria-label="Selling Price"')) ?? ''
+  const sgaInput = pageInputs.find(tag => tag.includes('aria-label="SG&amp;A"')) ?? ''
+  for (const [label, input] of [['Selling Price', sellingPriceInput], ['SG&A', sgaInput]]) {
+    assert.ok(input, `${label} override input renders in the Simulation Business panel`)
+    assert.match(input, /placeholder="Current"/, `${label} shows the Current fallback as its placeholder`)
+    assert.match(input, /value=""/, `${label} override draft remains visually blank`)
+  }
   assert.match(pageMarkup, /Clone from/)
   assert.match(pageMarkup, /Send to/)
+  const sendToButtonIndex = pageMarkup.indexOf('>Send to<')
+  const resetButtonIndex = pageMarkup.indexOf('aria-label="Reset Simulation"')
+  assert.ok(sendToButtonIndex >= 0 && resetButtonIndex > sendToButtonIndex,
+    'Simulation exposes its Reset action immediately after Send To')
+  const actionGroupStart = pageMarkup.lastIndexOf('<div class="flex items-center gap-1.5">', sendToButtonIndex)
+  const actionGroupEnd = pageMarkup.indexOf('</div>', resetButtonIndex)
+  const actionMarkup = pageMarkup.slice(actionGroupStart, actionGroupEnd)
+  const actionLabels = [...actionMarkup.matchAll(/<button\b([^>]*)>([\s\S]*?)<\/button>/g)].map(([, attributes, contents]) =>
+    attributes.match(/aria-label="([^"]+)"/)?.[1] ?? contents.replace(/<[^>]*>/g, '').trim())
+  assert.deepEqual(actionLabels, ['Clone from', 'Send to', 'Reset Simulation'],
+    'Reset is the next Simulation action after Send To')
+  const navbarSource = readFileSync(resolve(process.cwd(), 'src/shared/layout/Navbar.tsx'), 'utf8')
+  assert.doesNotMatch(navbarSource, /simulationReset|Reset Simulation/,
+    'Reset is not rendered by the global Navbar on Master Data or Cost Breakdown')
+  const appSource = readFileSync(resolve(process.cwd(), 'src/App.tsx'), 'utf8')
+  assert.equal([...appSource.matchAll(/<SimulationPage\b/g)].length, 1,
+    'the app mounts one Simulation page instance')
+  assert.match(appSource, /activeTab === 'simulation'\s*&&\s*\(\s*<SimulationPage/,
+    'the Simulation page action, including Reset, only mounts for the Simulation tab')
   assert.match(pageMarkup, /Result/)
   assert.match(pageMarkup, /Economic/)
   assert.match(pageMarkup, /Bill of Materials/, 'the BOM table uses its full identity')
@@ -445,7 +485,7 @@ try {
     currentSnapshot,
     onCloneSource() {},
     onSendTo() { return true },
-    onResetParameters() {},
+    onReset() {},
     onToggleWorkingTarget() {},
     onUpdateParameter() {},
     onUpdateEconomicInput() {}
@@ -466,7 +506,7 @@ try {
       workingSelection: changed.workingSelection,
       referenceSnapshot,
       currentSnapshot,
-      onCloneSource() {}, onSendTo() { return true }, onResetParameters() {}, onToggleWorkingTarget() {}, onUpdateParameter() {}, onUpdateEconomicInput() {}
+      onCloneSource() {}, onSendTo() { return true }, onReset() {}, onToggleWorkingTarget() {}, onUpdateParameter() {}, onUpdateEconomicInput() {}
     }))
     const resultPanel = markup.match(/<section[^>]*aria-labelledby="simulation-result-title"[\s\S]*?<\/section>/)?.[0] ?? ''
     const standardCostRow = [...resultPanel.matchAll(/<tr[^>]*>([\s\S]*?)<\/tr>/g)]
@@ -550,7 +590,7 @@ try {
     workingSelection: protectedState.workingSelection,
     referenceSnapshot,
     currentSnapshot,
-    onCloneSource() {}, onSendTo() { return true }, onResetParameters() {}, onToggleWorkingTarget() {}, onUpdateParameter() {}, onUpdateEconomicInput() {}
+    onCloneSource() {}, onSendTo() { return true }, onReset() {}, onToggleWorkingTarget() {}, onUpdateParameter() {}, onUpdateEconomicInput() {}
   }))
   assert.match(protectedMarkup, /Ambiguous identity · protected/)
   assert.match(protectedMarkup, /aria-label="Bill of Materials: .* activate to expand Parameter Cost Effect"/,

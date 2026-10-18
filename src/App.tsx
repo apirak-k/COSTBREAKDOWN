@@ -268,7 +268,6 @@ const AppRouter: React.FC = () => {
         undo: () => runSimulationHistory('undo'),
         redo: () => runSimulationHistory('redo')
       }}
-      simulationReset={resetSimulation}
       cbdReorderUndoRedo={{
         canUndo: candidateReorderHistory.undo.length > 0,
         canRedo: candidateReorderHistory.redo.length > 0,
@@ -298,6 +297,7 @@ const AppRouter: React.FC = () => {
           currentSnapshot={masterDataSnapshots.current}
           onCloneSource={startFrom}
           onSendTo={(role: MasterDataRole, snapshot: CostSnapshot) => sendSimulationSnapshotToMasterData(role, snapshot)}
+          onReset={resetSimulation}
           onUpdateParameter={updateParameter}
           onToggleWorkingTarget={toggleWorkingTarget}
           onUpdateEconomicInput={updateEconomicInput}

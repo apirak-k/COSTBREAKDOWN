@@ -58,7 +58,7 @@ try {
   }
   const markup = renderToStaticMarkup(React.createElement(SimulationPage, {
     state, workingSelection: ['bom:b3'], currentSnapshot: snapshot, referenceSnapshot: snapshot,
-    onCloneSource() {}, onSendTo() { return true }, onUpdateParameter() {}, onToggleWorkingTarget() {}, onUpdateEconomicInput() {}, onBeginEdit() {}, onCommitEdit() {}
+    onCloneSource() {}, onSendTo() { return true }, onReset() {}, onUpdateParameter() {}, onToggleWorkingTarget() {}, onUpdateEconomicInput() {}, onBeginEdit() {}, onCommitEdit() {}
   }))
   assert.match(markup, /role="checkbox" aria-checked="mixed"/)
   assert.match(markup, /role="checkbox" aria-checked="false"/)

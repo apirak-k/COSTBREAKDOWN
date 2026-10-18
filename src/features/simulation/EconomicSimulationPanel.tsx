@@ -310,7 +310,7 @@ export function EconomicSimulationPanel({ result, draft, currentSnapshot, unit, 
                 <span className="w-[5.25rem] shrink-0">
                   <SimulationHistoryInputBoundary onBegin={onBeginEdit} onCommit={onCommitEdit}>
                     <NumericInput
-                      value={effectiveInputValue(field, draft, currentSnapshot)}
+                      value={draft[field].trim() === '' ? null : Number(draft[field])}
                       precision={precision}
                       min={min}
                       max={max}

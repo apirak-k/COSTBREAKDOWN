@@ -1,4 +1,47 @@
-# Current Handoff — Simulation Graph Visible Net — 2026-10-18
+# Current Handoff — Simulation Reset correction — 2026-10-18
+
+- Repository: `/Users/bubu/COSTBREAKDOWN`, `apirak-k/COSTBREAKDOWN`.
+- Branch: `logic/simulation-finalized-implementation`.
+- Starting local HEAD and fetched remote HEAD: `a34be2b10498c63616f837b39b87ecbdeb71474b`.
+- Pre-existing local-only change: `vite.config.ts`; original hash `6cb12f71f406f9b83ad0e54fabf194b284de455a`. It remains untouched and excluded.
+- Scope: finalized Simulation Reset behavior and Reset action placement only.
+
+## Changes
+
+- Reset restores editable BOM Price/Usage/Loss and Routing Manning/Capacity/Yield to the active Simulation parameter baseline, preserves live Current Work Center rates and the working selection, and clears all five Economic/Business draft inputs.
+- Blank Selling Price and SG&A override inputs render empty with the `Current` placeholder. Existing calculations continue to fall back to Current values. Initialization, Clone, Send, economic/business formulas, and parameter calculations remain unchanged.
+- Removed Reset from the Global Header. The Simulation Result action line now places Reset immediately to the right of Send To. Reset remains local to Simulation.
+- Reset remains one history transaction; Undo restores the complete pre-Reset state and Redo reapplies Reset. Updated focused Simulation specs and verifiers.
+- No Simulation graph, Visible Net, Selling Price graph styling, GAP, or unrelated UI code was changed.
+
+## Verification
+
+- **PASS — Simulation workspace/regression:** `node scripts/verify_simulation_regression.mjs`.
+- **PASS — Simulation history:** `node --experimental-strip-types scripts/verify_simulation_history.ts`.
+- **PASS — Simulation corrections:** `node --experimental-strip-types scripts/verify_simulation_corrections.ts`.
+- **PASS — Simulation story/page:** `node --experimental-strip-types scripts/verify_simulation_story_view.ts`.
+- **PASS — Simulation Result:** `node --experimental-strip-types scripts/verify_simulation_result.ts`.
+- **PASS — Simulation economics:** `node --experimental-strip-types scripts/verify_simulation_economics.ts`.
+- **PASS — build:** `npm run build` (`tsc -b` and Vite production build).
+- **PASS — isolated headless Chrome 155:** desktop 1440×900 and narrow 390×844. Verified all five Economic inputs stay blank after Reset, Selling Price/SG&A show `Current`, a BOM and Routing edit return to baseline, one Undo restores pre-Reset edits, Redo reapplies Reset, Reset is right of Send To, and neither viewport has horizontal overflow.
+- **PASS — `git diff --check`.**
+- **DEPENDENCY AUDIT:** `npm audit --audit-level=high` reports 5 High and 4 Moderate vulnerabilities in the existing dependency tree. No dependency manifests or lockfiles were changed in this Reset task.
+- Existing build warnings remain: ExcelJS browser-externalized Node modules and a minified chunk over 500 KB.
+
+## Limits
+
+- **[Unverified]** Physical-device display scaling, touch behavior, screen-reader behavior, and browsers other than the isolated Chrome session.
+- Dependency audit findings remain outside this Reset scope.
+
+## Delivery
+
+One focused commit is pushed to `origin/logic/simulation-finalized-implementation`; its exact SHA is in the completion report. The pre-existing `vite.config.ts` change is not included.
+
+---
+
+# Historical Handoff — Simulation Graph Visible Net — 2026-10-18
+
+This records the completed immediately preceding round. The Simulation Reset handoff above supersedes its current-task status.
 
 - Repository: `/Users/bubu/COSTBREAKDOWN`, `apirak-k/COSTBREAKDOWN`.
 - Branch: `logic/simulation-finalized-implementation`.

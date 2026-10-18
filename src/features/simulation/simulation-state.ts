@@ -209,12 +209,13 @@ export function reconcileSimulationState(
 export function resetSimulationParameters(state: SimulationWorkspaceState): SimulationWorkspaceState {
   if (!state.snapshot || !state.resetBaselineSnapshot) return state
   const parametersUnchanged = JSON.stringify(state.snapshot) === JSON.stringify(state.resetBaselineSnapshot)
-  const economicsUnchanged = JSON.stringify(state.economicInputs) === JSON.stringify(state.resetBaselineEconomicInputs)
+  const economicInputs = createEconomicSimulationDraft()
+  const economicsUnchanged = JSON.stringify(state.economicInputs) === JSON.stringify(economicInputs)
   if (parametersUnchanged && economicsUnchanged) return state
   const snapshot = structuredClone(state.resetBaselineSnapshot)
   // Parameter Reset must not roll the locked WC rates back from the live Current context.
   snapshot.rates = structuredClone(state.snapshot.rates)
-  return { ...state, snapshot, economicInputs: { ...state.resetBaselineEconomicInputs } }
+  return { ...state, snapshot, economicInputs }
 }
 
 export function setSimulationEconomicInput(

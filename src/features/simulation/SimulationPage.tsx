@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react'
-import { ChevronDown, ChevronRight } from 'lucide-react'
+import { ChevronDown, ChevronRight, RotateCcw } from 'lucide-react'
 import { compareSnapshots, formatNumber, safeAdd } from '../../core'
 import {
   calculateMultiplicativeCostAttribution,
@@ -36,6 +36,7 @@ interface SimulationPageProps {
   currentSnapshot: CostSnapshot
   onCloneSource: (role: MasterDataRole) => void
   onSendTo: (role: MasterDataRole, snapshot: CostSnapshot) => boolean
+  onReset: () => void
   onUpdateParameter: (recordId: string, parameter: SimulationParameter, value: number | null) => void
   onToggleWorkingTarget: (kind: 'bom' | 'routing', recordId: string) => void
   onUpdateEconomicInput: (field: EconomicSimulationField, value: string) => void
@@ -891,6 +892,7 @@ export const SimulationPage: React.FC<SimulationPageProps> = ({
   currentSnapshot,
   onCloneSource,
   onSendTo,
+  onReset,
   onUpdateParameter,
   onToggleWorkingTarget,
   onUpdateEconomicInput,
@@ -933,6 +935,15 @@ export const SimulationPage: React.FC<SimulationPageProps> = ({
         label="Send to"
         onSelect={role => { onSendTo(role, simulationSnapshot) }}
       />
+      <button
+        type="button"
+        onClick={onReset}
+        aria-label="Reset Simulation"
+        className="inline-flex min-h-7 items-center gap-1.5 border border-slate-400 bg-white px-2 text-[11px] font-medium text-slate-800 hover:bg-slate-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700"
+      >
+        <RotateCcw aria-hidden="true" className="h-3.5 w-3.5" />
+        Reset
+      </button>
     </>
   )
 

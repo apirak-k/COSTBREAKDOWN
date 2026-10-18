@@ -29,7 +29,11 @@ try {
   } = await vite.ssrLoadModule('/src/features/simulation/simulation-history.ts')
 
   const sources = createCompleteMasterDataMockPair()
-  const base = startSimulationFrom('current', sources, '2026-10-16T00:00:00.000Z')
+  const resetBaselineEconomicInputs = {
+    fixedActionCost: '100', variableActionCostPerPiece: '2', batchSize: '50',
+    sellingPriceOverride: '240', sgaPercentOverride: '8'
+  }
+  const base = startSimulationFrom('current', sources, '2026-10-16T00:00:00.000Z', resetBaselineEconomicInputs)
   assert.ok(base.snapshot?.bom.length && base.snapshot.routing.length, 'fixture has populated BOM and Routing rows')
   const firstBom = base.snapshot.bom[0]
   const firstRouting = base.snapshot.routing[0]
@@ -108,7 +112,7 @@ try {
     assert.ok(isSimulationEditableSnapshotEqual(orderedValues, captureSimulationEditableSnapshot(sources.current, timelineStates[index])))
   }
 
-  const mixed = setSimulationEconomicInput(
+  let mixed = setSimulationEconomicInput(
     updateSimulationParameter(
       updateSimulationParameter(base, sources.current, firstBom.id, 'bom.consumption', (firstBom.consumption ?? 0) + 0.2),
       sources.current,
@@ -119,15 +123,32 @@ try {
     'batchSize',
     '120'
   )
+  mixed = setSimulationEconomicInput(mixed, 'fixedActionCost', '350')
+  mixed = setSimulationEconomicInput(mixed, 'variableActionCostPerPiece', '3.5')
+  mixed = setSimulationEconomicInput(mixed, 'sellingPriceOverride', '275')
+  mixed = setSimulationEconomicInput(mixed, 'sgaPercentOverride', '12')
   const beforeReset = captureSimulationEditableSnapshot(sources.current, mixed)
   const reset = resetSimulationParameters(mixed)
   const afterReset = captureSimulationEditableSnapshot(sources.current, reset)
+  assert.deepEqual(afterReset.bom, baseValues.bom, 'Reset restores the complete BOM editable snapshot')
+  assert.deepEqual(afterReset.routing, baseValues.routing, 'Reset restores the complete Routing editable snapshot')
+  assert.deepEqual(afterReset.economicInputs, {
+    fixedActionCost: '', variableActionCostPerPiece: '', batchSize: '', sellingPriceOverride: '', sgaPercentOverride: ''
+  }, 'Reset clears every Economic and Business draft rather than restoring clone-time inputs')
+  assert.deepEqual(reset.resetBaselineEconomicInputs, resetBaselineEconomicInputs,
+    'Reset does not overwrite the saved clone-time Economic baseline')
   const resetHistory = recordSimulationHistory(createSimulationHistory(base.basisFingerprint), beforeReset, afterReset)
-  assert.equal(resetHistory.undo.length, 1, 'Reset is one transaction across parameters and Economic inputs')
+  assert.equal(resetHistory.undo.length, 1, 'the combined parameter and five-field draft Reset creates one history transaction')
   const undoReset = undoSimulationHistory(resetHistory, afterReset)
-  assert.ok(undoReset.snapshot && isSimulationEditableSnapshotEqual(undoReset.snapshot, beforeReset), 'one Undo restores all pre-Reset values')
+  assert.ok(undoReset.snapshot && isSimulationEditableSnapshotEqual(undoReset.snapshot, beforeReset),
+    'one Undo restores all pre-Reset BOM, Routing, and Economic edits')
+  assert.deepEqual(undoReset.snapshot?.economicInputs, beforeReset.economicInputs,
+    'one Undo restores each of the five pre-Reset drafts')
   const redoReset = redoSimulationHistory(undoReset.history, undoReset.snapshot!)
-  assert.ok(redoReset.snapshot && isSimulationEditableSnapshotEqual(redoReset.snapshot, afterReset), 'Redo reapplies the complete Reset')
+  assert.ok(redoReset.snapshot && isSimulationEditableSnapshotEqual(redoReset.snapshot, afterReset),
+    'Redo reapplies all BOM/RTG baseline values and the five blank drafts')
+  assert.deepEqual(redoReset.snapshot?.economicInputs, afterReset.economicInputs,
+    'Redo keeps every Economic and Business draft blank')
   const noOpResetHistory = recordSimulationHistory(resetHistory, afterReset, captureSimulationEditableSnapshot(sources.current, resetSimulationParameters(reset)))
   assert.equal(noOpResetHistory.undo.length, resetHistory.undo.length, 'a no-op Reset creates no new entry')
   const clonedHistory = clearSimulationHistory(undoReset.history, 'new-clone-basis')

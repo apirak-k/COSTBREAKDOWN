@@ -142,7 +142,11 @@ const unavailableMarkup = renderPanel(noSaving, worked)
 assert.match(unavailableMarkup, /Not achievable/)
 assert.doesNotMatch(unavailableMarkup, /NaN|Infinity/)
 const fallbackMarkup = renderPanel(business)
-assert.match(fallbackMarkup, /value="250\.00"/, 'blank Selling Price override displays Current')
-assert.match(fallbackMarkup, /value="8\.00"/, 'blank SG&A override displays Current')
+const fallbackSellingPriceInput = fallbackMarkup.match(/<input\b(?=[^>]*aria-label="Selling Price")[^>]*>/)?.[0] ?? ''
+const fallbackSgaInput = fallbackMarkup.match(/<input\b(?=[^>]*aria-label="SG&amp;A")[^>]*>/)?.[0] ?? ''
+assert.match(fallbackSellingPriceInput, /placeholder="Current"/, 'blank Selling Price override uses the Current placeholder')
+assert.match(fallbackSellingPriceInput, /value=""/, 'blank Selling Price override remains visually blank')
+assert.match(fallbackSgaInput, /placeholder="Current"/, 'blank SG&A override uses the Current placeholder')
+assert.match(fallbackSgaInput, /value=""/, 'blank SG&A override remains visually blank')
 
 console.log('Simulation Economic, Break-even, and Business verification passed')
