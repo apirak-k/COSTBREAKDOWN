@@ -15,7 +15,7 @@ const vite = await createServer({
 try {
   const { calculateScenarioBusinessMetrics } = await vite.ssrLoadModule('/src/core/calculations/scenario-business.ts')
   const { createScenarioFinancialResult, createScenarioStory } = await vite.ssrLoadModule('/src/core/calculations/scenario-story.ts')
-  const { SimulationStoryGraph, buildVisibleStack, buildVisibleStandardCost, buildGraphScale } = await vite.ssrLoadModule('/src/features/simulation/SimulationStoryGraph.tsx')
+  const { SimulationStoryGraph, buildVisibleStack, buildVisibleStandardCost, buildGraphScale, positionGraphTooltip } = await vite.ssrLoadModule('/src/features/simulation/SimulationStoryGraph.tsx')
   const { SimulationPage } = await vite.ssrLoadModule('/src/features/simulation/SimulationPage.tsx')
   const { parameterEffectPresentation } = await vite.ssrLoadModule('/src/features/simulation/parameter-effect-presentation.ts')
   const { simulationWorkingTargetKey, startSimulationFrom } = await vite.ssrLoadModule('/src/features/simulation/simulation-state.ts')
@@ -32,6 +32,27 @@ try {
     'values that round to zero remain neutral and do not show negative zero')
   assert.deepEqual(parameterEffectPresentation(null), { text: '—', className: 'text-slate-400' },
     'unavailable parameter effects remain unavailable rather than becoming zero')
+
+  assert.deepEqual(positionGraphTooltip(
+    { width: 400, height: 300 },
+    { left: 180, top: 120, right: 220, bottom: 140 },
+    { width: 100, height: 30 }
+  ), { x: 150, y: 82 }, 'tooltip centers above the hovered element with a consistent gap when space allows')
+  assert.deepEqual(positionGraphTooltip(
+    { width: 400, height: 300 },
+    { left: 180, top: 4, right: 220, bottom: 14 },
+    { width: 100, height: 30 }
+  ), { x: 150, y: 22 }, 'tooltip moves below the hovered element when there is insufficient room above')
+  assert.deepEqual(positionGraphTooltip(
+    { width: 300, height: 200 },
+    { left: 0, top: 100, right: 10, bottom: 120 },
+    { width: 100, height: 30 }
+  ), { x: 8, y: 62 }, 'tooltip clamps to the graph host left edge')
+  assert.deepEqual(positionGraphTooltip(
+    { width: 300, height: 200 },
+    { left: 290, top: 100, right: 300, bottom: 120 },
+    { width: 100, height: 30 }
+  ), { x: 192, y: 62 }, 'tooltip clamps to the graph host right edge')
 
   const cost = (snapshotId: string, material: number, labor: number, burden: number): SnapshotCost => ({
     snapshotId, material, labor, burden, total: material + labor + burden, status: 'complete', warnings: []
@@ -309,15 +330,29 @@ try {
     'long tooltip text wraps instead of overflowing its available width')
   assert.doesNotMatch(graphSource, /whitespace-nowrap|white-space:\s*nowrap/,
     'tooltips are not forced onto one line on narrow viewports')
+  const tooltipPlacementHelper = graphSource.slice(graphSource.indexOf('export function positionGraphTooltip'), graphSource.indexOf('function formatValue'))
+  assert.match(tooltipPlacementHelper, /anchorBounds\.left \+ anchorBounds\.right - tooltipBounds\.width/,
+    'tooltip horizontal position is centered on the hovered element')
+  assert.match(tooltipPlacementHelper, /aboveY >= inset \? aboveY : belowY/,
+    'tooltip prefers above the hovered element and falls below only when above does not fit')
+  assert.match(tooltipPlacementHelper, /hostBounds\.width - tooltipBounds\.width - inset/,
+    'tooltip horizontal position is clamped inside the graph host')
+  assert.match(tooltipPlacementHelper, /hostBounds\.height - tooltipBounds\.height - inset/,
+    'tooltip vertical position is clamped inside the graph host')
+  const showTooltipSource = graphSource.slice(graphSource.indexOf('const showTooltipAt ='), graphSource.indexOf('const tooltipProps ='))
+  assert.match(showTooltipSource, /target\.getBoundingClientRect\(\)/,
+    'tooltip anchoring uses the hovered SVG element rendered bounds')
+  assert.doesNotMatch(showTooltipSource, /clientX|clientY/,
+    'tooltip anchoring does not depend on pointer coordinates')
+  assert.match(showTooltipSource, /anchor:\s*\{[\s\S]*elementBounds\.left[\s\S]*elementBounds\.top[\s\S]*elementBounds\.right[\s\S]*elementBounds\.bottom/,
+    'the active tooltip retains the full hovered element bounds')
+  assert.doesNotMatch(showTooltipSource, /onPointerMove|event\.clientX|event\.clientY/,
+    'moving the pointer within one tooltip target does not move the tooltip')
   const tooltipPositionSource = graphSource.slice(graphSource.indexOf('useIsomorphicLayoutEffect(() =>'), graphSource.indexOf('const updateRulerFromPointer'))
-  assert.match(tooltipPositionSource, /hostBounds\.width - tooltipBounds\.width - 8/,
-    'tooltip placement uses its rendered width to stay inside the graph horizontally')
-  assert.match(tooltipPositionSource, /hostBounds\.height - tooltipBounds\.height - 8/,
-    'tooltip placement uses its rendered height to stay inside the graph vertically')
-  assert.match(tooltipPositionSource, /activeTooltip\.y \+ tooltipBounds\.height \+ 8 <= hostBounds\.height/,
-    'tooltip flips above a hovered mark when the lower edge has no room')
-  assert.match(tooltipPositionSource, /overlapsCategoryLabel[\s\S]*hasRoomBelow = !overlapsCategoryLabel/,
-    'tooltip avoids covering bottom category labels when it would otherwise overlap them')
+  assert.match(tooltipPositionSource, /positionGraphTooltip\(/,
+    'the measured tooltip and anchor bounds determine its rendered position')
+  assert.doesNotMatch(tooltipPositionSource, /overlapsCategoryLabel|text\[y="306"\]/,
+    'all graph tooltip targets use the same element-based placement rule without category-specific placement')
   assert.match(graphMarkup, /fill="none" stroke="#334155" stroke-width="1"/, 'Standard Cost uses a neutral outline without another fill')
   const rulerControlTag = graphMarkup.match(/<g\b[^>]*role="slider"[^>]*>/)?.[0] ?? ''
   assert.match(rulerControlTag, /tabindex="0"/, 'the ruler remains reachable as a keyboard slider')

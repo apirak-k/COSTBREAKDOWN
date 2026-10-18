@@ -77,9 +77,31 @@ interface SimulationStoryGraphProps {
 
 interface ActiveGraphTooltip {
   text: string
+  anchor: { left: number; top: number; right: number; bottom: number }
   x: number
   y: number
   maxWidth: number
+}
+
+export function positionGraphTooltip(
+  hostBounds: { width: number; height: number },
+  anchorBounds: { left: number; top: number; right: number; bottom: number },
+  tooltipBounds: { width: number; height: number }
+): { x: number; y: number } {
+  const inset = 8
+  const gap = 8
+  const x = Math.min(
+    Math.max((anchorBounds.left + anchorBounds.right - tooltipBounds.width) / 2, inset),
+    Math.max(inset, hostBounds.width - tooltipBounds.width - inset)
+  )
+  const aboveY = anchorBounds.top - tooltipBounds.height - gap
+  const belowY = anchorBounds.bottom + gap
+  const preferredY = aboveY >= inset ? aboveY : belowY
+  const y = Math.min(
+    Math.max(preferredY, inset),
+    Math.max(inset, hostBounds.height - tooltipBounds.height - inset)
+  )
+  return { x, y }
 }
 
 function formatValue(value: number | null): string {
@@ -357,19 +379,23 @@ export function SimulationStoryGraph({ story, unit }: SimulationStoryGraphProps)
 
   const rulerLevel = clamp(manualRulerLevel ?? story.current.standardCost ?? 0, minimum, maximum)
   const rulerY = y(rulerLevel)
-  const showTooltipAt = (target: SVGElement, text: string, clientX?: number, clientY?: number) => {
+  const showTooltipAt = (target: SVGElement, text: string) => {
     const host = target.ownerSVGElement?.parentElement
     if (!host) return
     const hostBounds = host.getBoundingClientRect()
     if (hostBounds.width === 0 || hostBounds.height === 0) return
     const elementBounds = target.getBoundingClientRect()
-    const pointerX = clientX ?? elementBounds.left + elementBounds.width / 2
-    const pointerY = clientY ?? elementBounds.top + elementBounds.height / 2
     const maxWidth = Math.max(0, Math.min(360, hostBounds.width - 16))
     setActiveTooltip({
       text,
-      x: clamp(pointerX - hostBounds.left + 10, 8, Math.max(8, hostBounds.width - 8)),
-      y: clamp(pointerY - hostBounds.top + 10, 8, Math.max(8, hostBounds.height - 8)),
+      anchor: {
+        left: elementBounds.left - hostBounds.left,
+        top: elementBounds.top - hostBounds.top,
+        right: elementBounds.right - hostBounds.left,
+        bottom: elementBounds.bottom - hostBounds.top
+      },
+      x: 8,
+      y: 8,
       maxWidth
     })
   }
@@ -378,14 +404,14 @@ export function SimulationStoryGraph({ story, unit }: SimulationStoryGraphProps)
     role: 'img' as const,
     'aria-label': text,
     className: 'cursor-default',
-    onPointerEnter: (event: PointerEvent<SVGElement>) => showTooltipAt(event.currentTarget, text, event.clientX, event.clientY),
+    onPointerEnter: (event: PointerEvent<SVGElement>) => showTooltipAt(event.currentTarget, text),
     onPointerLeave: (event: PointerEvent<SVGElement>) => {
       if (!isGraphTooltipTarget(event.relatedTarget)) setActiveTooltip(null)
     }
   })
   const tooltipPointerProps = (text: string) => ({
     'data-graph-tooltip': 'true',
-    onPointerEnter: (event: PointerEvent<SVGElement>) => showTooltipAt(event.currentTarget, text, event.clientX, event.clientY),
+    onPointerEnter: (event: PointerEvent<SVGElement>) => showTooltipAt(event.currentTarget, text),
     onPointerLeave: (event: PointerEvent<SVGElement>) => {
       if (!isGraphTooltipTarget(event.relatedTarget)) setActiveTooltip(null)
     }
@@ -409,15 +435,11 @@ export function SimulationStoryGraph({ story, unit }: SimulationStoryGraphProps)
     if (!activeTooltip || !tooltip || !host) return
     const hostBounds = host.getBoundingClientRect()
     const tooltipBounds = tooltip.getBoundingClientRect()
-    const x = clamp(activeTooltip.x, 8, Math.max(8, hostBounds.width - tooltipBounds.width - 8))
-    const overlapsCategoryLabel = Array.from(host.querySelectorAll<SVGGraphicsElement>('svg text[y="306"]')).some(label => {
-      const bounds = label.getBoundingClientRect()
-      return tooltipBounds.left < bounds.right && tooltipBounds.right > bounds.left &&
-        tooltipBounds.top < bounds.bottom && tooltipBounds.bottom > bounds.top
-    })
-    const hasRoomBelow = !overlapsCategoryLabel && activeTooltip.y + tooltipBounds.height + 8 <= hostBounds.height
-    const preferredY = hasRoomBelow ? activeTooltip.y : activeTooltip.y - tooltipBounds.height - 10
-    const y = clamp(preferredY, 8, Math.max(8, hostBounds.height - tooltipBounds.height - 8))
+    const { x, y } = positionGraphTooltip(
+      { width: hostBounds.width, height: hostBounds.height },
+      activeTooltip.anchor,
+      { width: tooltipBounds.width, height: tooltipBounds.height }
+    )
     if (x !== activeTooltip.x || y !== activeTooltip.y) {
       setActiveTooltip(current => current?.text === activeTooltip.text ? { ...current, x, y } : current)
     }

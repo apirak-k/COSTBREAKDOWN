@@ -1,9 +1,44 @@
-# Current Handoff — Simulation Result hierarchy polish — 2026-10-18
+# Current Handoff — Simulation graph tooltip positioning — 2026-10-18
+
+- Repository: `/Users/bubu/COSTBREAKDOWN`, `apirak-k/COSTBREAKDOWN`.
+- Branch: `logic/simulation-finalized-implementation`.
+- Starting local HEAD and fetched remote HEAD: `1ef8f35e90bb00ddc5ee82a733e76d0996c105b7`.
+- Pre-existing local-only change: `vite.config.ts`; inspected, preserved exactly, and excluded from this round.
+- Scope: Simulation Graph tooltip positioning only.
+
+## Tooltip placement
+
+- Anchored each tooltip to the rendered bounds of the hovered SVG element, centered horizontally with a consistent gap.
+- Tooltips prefer above the target and move below only when there is insufficient room above. Their rendered bounds are clamped inside the graph host on both axes.
+- Pointer movement within the same target no longer changes tooltip position. Removed the old category-label-specific placement exception.
+- Kept tooltip content, immediate show/hide behavior, wrapping, GAP category explanations, data-mark labels, and keyboard stop behavior unchanged. Bottom Reference, Current, and Simulation labels remain without tooltips.
+- Added focused geometry and source checks in the Simulation graph verifier and documented the placement contract in `docs/specs/SIMULATION.md`.
+- Graph calculations, Visible Net placement, all twelve existing Visible Net cases, Result/Economic/Business behavior, and `vite.config.ts` were not changed.
+
+## Verification
+
+- **PASS — Simulation graph verifier:** `node --experimental-strip-types scripts/verify_simulation_story_view.ts --graph-only`; includes above/below placement and left/right host-edge geometry.
+- **PASS — Simulation story/page verifier:** `node --experimental-strip-types scripts/verify_simulation_story_view.ts`.
+- **PASS — Simulation regression:** `node scripts/verify_simulation_regression.mjs`.
+- **PASS — Economics verifier:** `node --experimental-strip-types scripts/verify_simulation_economics.ts`.
+- **PASS — Result verifier:** `node --experimental-strip-types scripts/verify_simulation_result.ts`.
+- **PASS — production build:** `npm run build`; existing ExcelJS browser externalization and >500 KB chunk warnings remain.
+- **PASS — isolated headless Chrome:** 1440×1000 and 390×844. Hovering GAP 2 total produced a centered tooltip at desktop; it stayed fixed after moving within the same target. At narrow width it clamped inside the graph's right edge and remained fixed. Both screenshots showed the tooltip above the target with no horizontal page overflow.
+- **PASS — `git diff --check`**.
+
+## Limits and delivery
+
+- **[Unverified]** Physical-device rendering, screen-reader behavior, and browsers other than the isolated Chrome session.
+- One focused commit is pushed to `origin/logic/simulation-finalized-implementation`; the exact SHA is in the completion report. `vite.config.ts` remains excluded.
+
+---
+
+# Historical Handoff — Simulation Result hierarchy polish — 2026-10-18
 
 - Repository: `/Users/bubu/COSTBREAKDOWN`, `apirak-k/COSTBREAKDOWN`.
 - Branch: `logic/simulation-finalized-implementation`.
 - Starting local HEAD and fetched remote HEAD: `a81cdfa875fee89ecd42d1f927fe2791af37068b`.
-- Pre-existing local-only change: `vite.config.ts`; inspected, preserved exactly, and excluded from this round.
+- Pre-existing local-only change: `vite.config.ts`; inspected, preserved, and excluded from that round.
 - Scope: the Simulation Result panel only.
 
 ## Result presentation
@@ -11,22 +46,21 @@
 - Removed the `Current → SIM · THB/<UOM>` subtitle. Result heading and the existing Clone from, Send to, and Reset actions remain in place and order.
 - Conversion Cost now has a subtle top separator and medium weight. Standard Cost retains the stronger divider, weight, and text color.
 - Result table values, calculations, Change and percentage behavior, Business Outcome rows, and read-only behavior are unchanged.
-- Updated `docs/specs/SIMULATION.md` only to clarify that Result has no separate UOM subtitle while retaining the resolved product UOM basis.
-- Economic, Business, Graph, formulas, Master Data, Cost Breakdown, and `vite.config.ts` were not changed.
+- Updated `docs/specs/SIMULATION.md` to clarify that Result has no separate UOM subtitle while retaining the resolved product UOM basis.
 
 ## Verification
 
-- **PASS — Result verifier:** `node --experimental-strip-types scripts/verify_simulation_result.ts`; confirms subtitle absence, heading/actions, row emphasis, cost values, and Business Outcome values.
+- **PASS — Result verifier:** `node --experimental-strip-types scripts/verify_simulation_result.ts`.
 - **PASS — Simulation story/page verifier:** `node --experimental-strip-types scripts/verify_simulation_story_view.ts`.
 - **PASS — Simulation regression:** `node scripts/verify_simulation_regression.mjs`.
-- **PASS — production build:** `npm run build`; existing ExcelJS browser-externalization and >500 KB chunk warnings remain.
-- **PASS — isolated headless Chrome 155:** viewports 1440×1000 and 390×844. Confirmed no Result subtitle, unchanged action labels/order, Conversion Cost weight 500 with a slate-200 top border, Standard Cost weight 600 with a slate-300 top border, no horizontal page overflow, and no console/runtime/network errors. Screenshots used an empty local dataset; the Result verifier covers calculated values with fixtures.
+- **PASS — production build:** `npm run build`; existing ExcelJS browser-externalization and >500 KB chunk warnings remained.
+- **PASS — isolated headless Chrome:** 1440×1000 and 390×844; confirmed Result subtitle absence, action order, row emphasis, and no horizontal page overflow.
 - **PASS — `git diff --check`**.
 
-## Limits and delivery
+## Limits
 
 - **[Unverified]** Physical-device rendering, screen-reader behavior, and browsers other than the isolated Chrome session.
-- This Result polish and Handoff are delivered in one focused commit pushed to `origin/logic/simulation-finalized-implementation`; the exact SHA is in the completion report. `vite.config.ts` remains excluded.
+- Result polish was delivered in its focused commit; `vite.config.ts` was excluded.
 
 ---
 
