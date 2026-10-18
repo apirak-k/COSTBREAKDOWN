@@ -171,7 +171,8 @@ const VISIBLE_NET_FONT_SIZE = 9
 const VISIBLE_NET_TEXT_ASCENT = 7
 const VISIBLE_NET_TEXT_DESCENT = 2
 const VISIBLE_NET_LABEL_CLEARANCE = 2
-const VISIBLE_NET_SIDE_LABEL_GAP = 12
+const SELLING_PRICE_POINT_RADIUS = 4
+const SELLING_PRICE_LINE_HALF_WIDTH = 1
 
 function visibleNetTextBounds(value: number, x: number, baselineY: number, textAnchor: 'middle' | 'start'): TextBounds {
   const width = formatValue(value).length * VISIBLE_NET_FONT_SIZE * 0.6
@@ -217,38 +218,32 @@ function visibleNetTextCrowdsSellingPrice(
     segments.some(segment => lineCrowdsText(segment, bounds))
 }
 
-function visibleNetSideLabelY(
+function visibleNetClearOfSellingPriceY(
   visibleNet: number,
-  standardCost: number,
-  endpointY: number,
-  standardCostY: number,
   labelX: number,
-  plot: { top: number; bottom: number },
-  sellingPricePoints: GraphPoint[],
+  endpointRelativeY: number,
+  sellingPricePoint: GraphPoint,
   sellingPriceSegments: GraphSegment[]
 ): number {
-  const minimumY = plot.top + VISIBLE_NET_TEXT_ASCENT + VISIBLE_NET_LABEL_CLEARANCE
-  const maximumY = plot.bottom - VISIBLE_NET_TEXT_DESCENT - VISIBLE_NET_LABEL_CLEARANCE
-  const labelY = Math.min(maximumY, Math.max(minimumY, endpointY + 3))
-  const preferred = visibleNet > standardCost
-    ? standardCostY - VISIBLE_NET_SIDE_LABEL_GAP
-    : standardCostY + VISIBLE_NET_SIDE_LABEL_GAP
-  const alternate = visibleNet > standardCost
-    ? standardCostY + VISIBLE_NET_SIDE_LABEL_GAP
-    : standardCostY - VISIBLE_NET_SIDE_LABEL_GAP
-  const withinPlot = (candidate: number) => candidate >= minimumY && candidate <= maximumY
-  const spacedFromStandardCost = (candidate: number) => Math.abs(candidate - standardCostY) >= VISIBLE_NET_SIDE_LABEL_GAP
-  const base = Math.abs(labelY - standardCostY) >= VISIBLE_NET_SIDE_LABEL_GAP
-    ? labelY
-    : withinPlot(preferred) ? preferred : withinPlot(alternate) ? alternate : labelY
-  const direction = visibleNet > standardCost ? -1 : 1
-  const candidates = [base, base + direction * VISIBLE_NET_SIDE_LABEL_GAP, base - direction * VISIBLE_NET_SIDE_LABEL_GAP,
-    base + direction * VISIBLE_NET_SIDE_LABEL_GAP * 2, base - direction * VISIBLE_NET_SIDE_LABEL_GAP * 2]
-    .filter((candidate, index, all) => withinPlot(candidate) && spacedFromStandardCost(candidate) && all.indexOf(candidate) === index)
+  const textBounds = visibleNetTextBounds(visibleNet, labelX, endpointRelativeY, 'start')
+  const pointRight = sellingPricePoint.x + SELLING_PRICE_POINT_RADIUS
+  const pointLeft = sellingPricePoint.x - SELLING_PRICE_POINT_RADIUS
+  let visualBottom = textBounds.left - VISIBLE_NET_LABEL_CLEARANCE <= pointRight &&
+    textBounds.right + VISIBLE_NET_LABEL_CLEARANCE >= pointLeft
+    ? sellingPricePoint.y + SELLING_PRICE_POINT_RADIUS
+    : Number.NEGATIVE_INFINITY
 
-  return candidates.find(candidate => !visibleNetTextCrowdsSellingPrice(
-    visibleNetTextBounds(visibleNet, labelX, candidate, 'start'), sellingPricePoints, sellingPriceSegments
-  )) ?? candidates[0] ?? base
+  visualBottom = sellingPriceSegments.reduce((lowest, segment) => {
+    const left = Math.max(Math.min(segment.x1, segment.x2), textBounds.left - VISIBLE_NET_LABEL_CLEARANCE)
+    const right = Math.min(Math.max(segment.x1, segment.x2), textBounds.right + VISIBLE_NET_LABEL_CLEARANCE)
+    if (left > right) return lowest
+
+    const yAt = (x: number) => segment.y1 + ((x - segment.x1) / (segment.x2 - segment.x1)) * (segment.y2 - segment.y1)
+    return Math.max(lowest, Math.max(yAt(left), yAt(right)) + SELLING_PRICE_LINE_HALF_WIDTH)
+  }, visualBottom)
+
+  if (!Number.isFinite(visualBottom)) return endpointRelativeY
+  return Math.max(endpointRelativeY, visualBottom + VISIBLE_NET_LABEL_CLEARANCE + VISIBLE_NET_TEXT_ASCENT)
 }
 
 function isPartVisible(part: ChartPart, value: number, visible: Record<LegendKey, boolean>): boolean {
@@ -658,18 +653,36 @@ export function SimulationStoryGraph({ story, unit }: SimulationStoryGraphProps)
             const defaultNetPosition = visibleNet < 0 ? 'below' : 'above'
             const defaultNetY = visibleNetEndpointY + (defaultNetPosition === 'above' ? -12 : 16)
             const defaultNetBounds = visibleNetTextBounds(visibleNet, state.x, defaultNetY, 'middle')
+            const stateSellingPricePoint = pricePoints.find(point => point.x === state.x) ?? null
+            const stateSellingPriceSegments = priceLines.filter(line => line.x1 === state.x || line.x2 === state.x)
             const crowdsPlotBoundary = defaultNetBounds.left < plot.left + VISIBLE_NET_LABEL_CLEARANCE ||
               defaultNetBounds.right > plot.right - VISIBLE_NET_LABEL_CLEARANCE ||
               defaultNetBounds.top < plot.top + VISIBLE_NET_LABEL_CLEARANCE ||
               defaultNetBounds.bottom > plot.bottom - VISIBLE_NET_LABEL_CLEARANCE
-            const crowdsSellingPrice = visibleNetTextCrowdsSellingPrice(defaultNetBounds, pricePoints, priceLines)
+            const crowdsSellingPrice = stateSellingPricePoint !== null &&
+              visibleNetTextCrowdsSellingPrice(defaultNetBounds, [stateSellingPricePoint], stateSellingPriceSegments)
             const netPosition = crowdsPlotBoundary || crowdsSellingPrice ? 'side' : defaultNetPosition
-            const netX = netPosition === 'side' ? state.x + 35 : state.x
             const netTextAnchor = netPosition === 'side' ? 'start' : 'middle'
-            const visibleNetY = netPosition === 'side'
-              ? visibleNetSideLabelY(visibleNet, standardCost, visibleNetEndpointY, standardCostY,
-                netX, plot, pricePoints, priceLines)
-              : defaultNetY
+            const requestedNetX = netPosition === 'side' ? state.x + 35 : state.x
+            const defaultBoundsAtX = visibleNetTextBounds(visibleNet, requestedNetX, defaultNetY, netTextAnchor)
+            const clippedAtDefaultY = defaultBoundsAtX.top < plot.top || defaultBoundsAtX.bottom > plot.bottom
+            const verticalPosition = clippedAtDefaultY
+              ? defaultNetPosition === 'above' ? 'below' : 'above'
+              : defaultNetPosition
+            const endpointRelativeY = visibleNetEndpointY + (verticalPosition === 'above' ? -12 : 16)
+            const requestedNetBounds = visibleNetTextBounds(visibleNet, requestedNetX, endpointRelativeY, netTextAnchor)
+            const netX = clamp(requestedNetX, -requestedNetBounds.left + requestedNetX,
+              820 - (requestedNetBounds.right - requestedNetX))
+            const endpointBoundsAtX = visibleNetTextBounds(visibleNet, netX, endpointRelativeY, netTextAnchor)
+            const stillCrowdsSellingPrice = netPosition === 'side' && stateSellingPricePoint !== null &&
+              visibleNetTextCrowdsSellingPrice(endpointBoundsAtX, [stateSellingPricePoint], stateSellingPriceSegments)
+            const readableEndpointY = stillCrowdsSellingPrice && stateSellingPricePoint !== null
+              ? visibleNetClearOfSellingPriceY(visibleNet, netX, endpointRelativeY,
+                stateSellingPricePoint, stateSellingPriceSegments)
+              : endpointRelativeY
+            const visibleNetY = clamp(readableEndpointY, plot.top - (endpointBoundsAtX.top - endpointRelativeY),
+              plot.bottom - (endpointBoundsAtX.bottom - endpointRelativeY))
+            const visibleNetBoundsAtX = visibleNetTextBounds(visibleNet, netX, visibleNetY, netTextAnchor)
             const visibleNetTooltip = `${state.description} Visible Net · ${formatValue(visibleNet)} THB/${unit}`
             return (
               <g key={`${state.key}-cost-value-labels`} data-graph-state-labels={state.key}>
@@ -678,7 +691,12 @@ export function SimulationStoryGraph({ story, unit }: SimulationStoryGraphProps)
                   {...tooltipProps(visibleNetTooltip)}
                   data-graph-visible-net-value={state.key}
                   data-graph-visible-net-position={netPosition}
+                  data-graph-visible-net-vertical-position={visibleNetY < visibleNetEndpointY ? 'above' : 'below'}
                   data-graph-visible-net-endpoint-y={visibleNetEndpointY}
+                  data-graph-visible-net-default-y={defaultNetY}
+                  data-graph-visible-net-selling-price-y={stateSellingPricePoint?.y}
+                  data-graph-visible-net-text-top={visibleNetBoundsAtX.top}
+                  data-graph-visible-net-text-bottom={visibleNetBoundsAtX.bottom}
                   x={netX}
                   y={visibleNetY}
                   textAnchor={netTextAnchor}
