@@ -806,25 +806,29 @@ function ResultPanel({
   })
   const costRows = formatRows(rows)
   const formattedBusinessRows = formatRows(businessRows)
-  const renderRows = (items: typeof costRows | typeof formattedBusinessRows) => items.map(row => (
-    <tr key={row.label} className={
-      'total' in row && row.total
-        ? 'border-t border-slate-300 font-semibold text-slate-950 !border-slate-300'
-        : 'subtotal' in row && row.subtotal
-          ? 'border-t border-slate-200 font-medium text-slate-800 !border-slate-200'
-          : 'text-slate-700'
-    }>
-      <th scope="row" className="whitespace-nowrap py-0 text-left">{row.label}</th>
-      <td className="whitespace-nowrap px-0.5 py-0 text-right font-mono tabular-nums">{displayMoney(row.current)}</td>
-      <td className="whitespace-nowrap px-0.5 py-0 text-right font-mono tabular-nums">{displayMoney(row.sim)}</td>
-      <td className={`px-1 py-0 text-right font-mono tabular-nums ${resultChangeClass(row.change, row.semantic)}`}>
-        {displayResultDelta(row.change)}
-      </td>
-      <td className={`py-0 text-right font-mono tabular-nums ${resultChangeClass(row.percent === null ? null : row.change, row.semantic)}`}>
-        {row.percent === null ? '—' : `${displayResultDelta(row.percent)}%`}
-      </td>
-    </tr>
-  ))
+  const renderRows = (items: typeof costRows | typeof formattedBusinessRows) => items.map(row => {
+    const subtotal = 'subtotal' in row && row.subtotal
+    const padding = subtotal ? 'py-0.5' : 'py-0'
+    return (
+      <tr key={row.label} className={
+        'total' in row && row.total
+          ? 'border-t border-slate-300 font-semibold text-slate-950 !border-slate-300'
+          : subtotal
+            ? 'border-t border-slate-300 font-semibold text-slate-800 !border-slate-300'
+            : 'text-slate-700'
+      }>
+        <th scope="row" className={`whitespace-nowrap ${padding} text-left`}>{row.label}</th>
+        <td className={`whitespace-nowrap px-0.5 ${padding} text-right font-mono tabular-nums`}>{displayMoney(row.current)}</td>
+        <td className={`whitespace-nowrap px-0.5 ${padding} text-right font-mono tabular-nums`}>{displayMoney(row.sim)}</td>
+        <td className={`px-1 ${padding} text-right font-mono tabular-nums ${resultChangeClass(row.change, row.semantic)}`}>
+          {displayResultDelta(row.change)}
+        </td>
+        <td className={`${padding} text-right font-mono tabular-nums ${resultChangeClass(row.percent === null ? null : row.change, row.semantic)}`}>
+          {row.percent === null ? '—' : `${displayResultDelta(row.percent)}%`}
+        </td>
+      </tr>
+    )
+  })
 
   return (
     <section data-safe-workspace-interaction="true" className="min-w-0 border border-slate-300 bg-white px-3 py-2 xl:px-2 xl:py-1" aria-labelledby="simulation-result-title">

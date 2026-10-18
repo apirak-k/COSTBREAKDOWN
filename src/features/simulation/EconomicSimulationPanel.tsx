@@ -245,9 +245,9 @@ export function EconomicSimulationPanel({ result, draft, currentSnapshot, unit, 
   ]
   const businessOutputs = [
     { label: 'SIM Standard Cost', value: result.simulationStandardCost, className: 'text-slate-900' },
-    { label: 'SG&A / Unit', value: result.sgaPerPiece, className: 'text-slate-900' },
+    { label: 'SG&A', value: result.sgaPerPiece, className: 'text-slate-900' },
     {
-      label: 'Operating Profit / Unit', value: result.operatingProfitPerPiece,
+      label: 'Operating Profit', value: result.operatingProfitPerPiece,
       className: result.operatingProfitPerPiece === null ? 'text-slate-500'
         : result.operatingProfitPerPiece > 0 ? 'text-emerald-800'
           : result.operatingProfitPerPiece < 0 ? 'text-rose-800' : 'text-slate-600'

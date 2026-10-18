@@ -76,10 +76,30 @@ try {
   const conversionRow = rowElement(baselineMarkup, 'Conversion Cost')
   const standardRow = rowElement(baselineMarkup, 'Standard Cost')
   assert.match(materialRow, /<tr class="text-slate-700">/, 'ordinary cost rows keep their existing weight')
-  assert.match(conversionRow, /<tr class="border-t border-slate-200 font-medium text-slate-800 !border-slate-200">/,
-    'Conversion Cost has a subtle top separator and medium emphasis')
+  assert.match(conversionRow, /<tr class="border-t border-slate-300 font-semibold text-slate-800 !border-slate-300">/,
+    'Conversion Cost has a stronger top separator and semibold emphasis')
+  assert.match(conversionRow, /<th[^>]*class="whitespace-nowrap py-0\.5 text-left"/,
+    'Conversion Cost has more vertical space than an ordinary cost row')
+  assert.equal([...conversionRow.matchAll(/class="[^"]*py-0\.5[^"]*"/g)].length, 5,
+    'all Conversion Cost cells share the extra subtotal breathing room')
+  assert.match(panel, /<tbody class="divide-y divide-slate-100">/,
+    'ordinary Result rows retain their lighter dividers beneath the emphasized subtotal separator')
   assert.match(standardRow, /<tr class="border-t border-slate-300 font-semibold text-slate-950 !border-slate-300">/,
-    'Standard Cost remains stronger than the Conversion Cost subtotal')
+    'Standard Cost retains its final-total weight and darkest text hierarchy')
+  assert.doesNotMatch(panel, /\(Labor \+ Burden\)/, 'Conversion Cost adds no explanatory formula label')
+
+  const conversionSnapshot = makeSnapshot('conversion-current', 78)
+  conversionSnapshot.rates = conversionSnapshot.rates.map(rate => ({ ...rate, laborRate: 10, burdenRate: 5 }))
+  const conversionSources = { reference: conversionSnapshot, current: conversionSnapshot, custom: conversionSnapshot }
+  const conversionBaseline = startSimulationFrom('current', conversionSources)
+  const conversionEdited = updateSimulationParameter(conversionBaseline, conversionSnapshot, 'route-1', 'routing.capacity', 2)
+  const conversionMarkup = render(conversionEdited, conversionSnapshot)
+  for (const [side, label] of [['Current', 'current'], ['SIM', 'sim']] as const) {
+    const labor = Number(values(row(conversionMarkup, 'Labor Cost'))[side === 'Current' ? 0 : 1]?.text)
+    const burden = Number(values(row(conversionMarkup, 'Burden Cost'))[side === 'Current' ? 0 : 1]?.text)
+    const conversion = Number(values(row(conversionMarkup, 'Conversion Cost'))[side === 'Current' ? 0 : 1]?.text)
+    assert.equal(conversion, labor + burden, `${label} Conversion Cost equals Labor + Burden`)
+  }
 
   assert.deepEqual(values(row(baselineMarkup, 'Material Cost')).map(cell => cell.text), ['78.00', '71.00', '-7.00', '-8.97%'])
   for (const label of ['Labor Cost', 'Burden Cost', 'Conversion Cost']) {

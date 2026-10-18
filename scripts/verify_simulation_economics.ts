@@ -135,8 +135,16 @@ for (const text of [
   'Economic', 'Business', 'Fixed Action Cost', 'Batch Size', 'Variable Action Cost / Unit',
   'Parameter Saving / Unit', 'Required Saving / Unit', 'Economic Margin / Unit',
   'Break-even Quantity', 'Break-even Graph', 'Selling Price', 'SG&amp;A %', 'SIM Standard Cost',
-  'SG&amp;A / Unit', 'Operating Profit / Unit', 'THB/PC', 'Quantity (PC)'
+  'SG&amp;A', 'Operating Profit', 'THB/PC', 'Quantity (PC)'
 ]) assert.ok(panelMarkup.includes(text), `finalized Economic/Business UI includes ${text}`)
+const businessPanel = panelMarkup.match(/<section[^>]*aria-labelledby="simulation-business-title"[\s\S]*?<\/section>/)?.[0] ?? ''
+assert.ok(businessPanel.includes('>SG&amp;A</span>'), 'Business monetary output label is exactly SG&A')
+assert.ok(businessPanel.includes('>Operating Profit</span>'), 'Business output label is exactly Operating Profit')
+assert.doesNotMatch(businessPanel, />SG&amp;A \/ Unit<\/span>|>Operating Profit \/ Unit<\/span>/,
+  'Business output labels omit redundant per-unit wording')
+assert.ok(businessPanel.includes('>SIM Standard Cost</span>'), 'Business retains the SIM Standard Cost label')
+assert.match(businessPanel, /aria-label="Selling Price"/, 'Business Selling Price input remains available')
+assert.match(businessPanel, /aria-label="SG&amp;A %"/, 'Business SG&A % input remains available')
 assert.match(panelMarkup, /role="slider"[^>]*aria-label="Batch Size"[^>]*aria-orientation="horizontal"[^>]*aria-valuemin="1"/,
   'Batch marker is an accessible horizontal integer slider')
 assert.match(panelMarkup, /aria-valuenow="5000"/)

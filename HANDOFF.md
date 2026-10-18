@@ -1,35 +1,46 @@
-# Current Handoff — Simulation graph tooltip positioning — 2026-10-18
+# Current Handoff — Simulation Result subtotal and Business labels — 2026-10-18
 
 - Repository: `/Users/bubu/COSTBREAKDOWN`, `apirak-k/COSTBREAKDOWN`.
 - Branch: `logic/simulation-finalized-implementation`.
-- Starting local HEAD and fetched remote HEAD: `1ef8f35e90bb00ddc5ee82a733e76d0996c105b7`.
+- Starting local HEAD and fetched remote HEAD: `306d70ed71b20d68b50bb6cb0234eeefde1a10cc`.
 - Pre-existing local-only change: `vite.config.ts`; inspected, preserved exactly, and excluded from this round.
-- Scope: Simulation Graph tooltip positioning only.
+- Scope: Result hierarchy and Business output-label presentation only.
 
-## Tooltip placement
+## Changes
 
-- Anchored each tooltip to the rendered bounds of the hovered SVG element, centered horizontally with a consistent gap.
-- Tooltips prefer above the target and move below only when there is insufficient room above. Their rendered bounds are clamped inside the graph host on both axes.
-- Pointer movement within the same target no longer changes tooltip position. Removed the old category-label-specific placement exception.
-- Kept tooltip content, immediate show/hide behavior, wrapping, GAP category explanations, data-mark labels, and keyboard stop behavior unchanged. Bottom Reference, Current, and Simulation labels remain without tooltips.
-- Added focused geometry and source checks in the Simulation graph verifier and documented the placement contract in `docs/specs/SIMULATION.md`.
-- Graph calculations, Visible Net placement, all twelve existing Visible Net cases, Result/Economic/Business behavior, and `vite.config.ts` were not changed.
+- Conversion Cost still calculates Labor + Burden. Its top separator uses slate-300 against ordinary slate-100 dividers; all five cells receive 2px additional top/bottom padding, and the row is semibold with slate-800 text. Standard Cost retains semibold darkest slate-950 text as the final total. No explanatory formula text was added.
+- In the Business panel, output labels changed from `SG&A / Unit` to `SG&A` and `Operating Profit / Unit` to `Operating Profit`. Values continue to display `THB/<UOM>` separately.
+- SIM Standard Cost, Selling Price and SG&A % inputs, all Result actions, Result calculations, Business calculations, Economic behavior, and Graph behavior remain unchanged.
+- Updated `docs/specs/SIMULATION.md` to record the Result hierarchy and exact Business output labels.
 
 ## Verification
 
-- **PASS — Simulation graph verifier:** `node --experimental-strip-types scripts/verify_simulation_story_view.ts --graph-only`; includes above/below placement and left/right host-edge geometry.
+- **PASS — Result verifier:** `node --experimental-strip-types scripts/verify_simulation_result.ts`; checks non-zero Current/SIM Conversion Cost equals Labor + Burden, subtotal styling/padding, Standard Cost hierarchy, unchanged Result actions/calculations, and no Result subtitle.
+- **PASS — Economics verifier:** `node --experimental-strip-types scripts/verify_simulation_economics.ts`; checks exact Business output labels, retained SIM Standard Cost, Selling Price and SG&A % inputs, and existing calculations.
 - **PASS — Simulation story/page verifier:** `node --experimental-strip-types scripts/verify_simulation_story_view.ts`.
 - **PASS — Simulation regression:** `node scripts/verify_simulation_regression.mjs`.
-- **PASS — Economics verifier:** `node --experimental-strip-types scripts/verify_simulation_economics.ts`.
-- **PASS — Result verifier:** `node --experimental-strip-types scripts/verify_simulation_result.ts`.
 - **PASS — production build:** `npm run build`; existing ExcelJS browser externalization and >500 KB chunk warnings remain.
-- **PASS — isolated headless Chrome:** 1440×1000 and 390×844. Hovering GAP 2 total produced a centered tooltip at desktop; it stayed fixed after moving within the same target. At narrow width it clamped inside the graph's right edge and remained fixed. Both screenshots showed the tooltip above the target with no horizontal page overflow.
+- **PASS — isolated headless Chrome with populated Result fixture:** actual viewport sizes 1440×1000 and 390×844. Confirmed Conversion Cost row padding is 2px per side versus 0px on ordinary rows, semibold versus normal weight, slate-300 separator versus ordinary slate-100 divider, and Standard Cost darkest text. Confirmed Business labels and inputs, Result actions, subtitle absence, and no horizontal overflow. Scrolled the narrow view to inspect Business outputs.
 - **PASS — `git diff --check`**.
 
 ## Limits and delivery
 
 - **[Unverified]** Physical-device rendering, screen-reader behavior, and browsers other than the isolated Chrome session.
-- One focused commit is pushed to `origin/logic/simulation-finalized-implementation`; the exact SHA is in the completion report. `vite.config.ts` remains excluded.
+- The pre-commit remote check and delivery SHA are recorded in the completion report. `vite.config.ts` remains excluded.
+
+---
+
+# Historical Handoff — Simulation graph tooltip positioning — 2026-10-18
+
+- Repository: `/Users/bubu/COSTBREAKDOWN`, `apirak-k/COSTBREAKDOWN`.
+- Branch: `logic/simulation-finalized-implementation`.
+- Starting local and fetched remote HEAD: `1ef8f35e90bb00ddc5ee82a733e76d0996c105b7`.
+- Focused commit: `306d70ed71b20d68b50bb6cb0234eeefde1a10cc`.
+- Anchored tooltips to rendered SVG target bounds, centered horizontally, preferred above with below fallback, and clamped within the graph host. Pointer movement within one target no longer shifts the tooltip; category-specific placement was removed.
+- Preserved tooltip content, wrapping, show/hide timing, GAP/data-mark tooltip scope, Graph calculations, and all twelve Visible Net placement cases.
+- **PASS:** graph and page verifiers, Simulation regression, Economics and Result verifiers, production build, and `git diff --check`.
+- **PASS — isolated headless Chrome:** 1440×1000 and 390×844; checked centered desktop placement, narrow right-edge clamping, above-target placement, and stable position while moving within the target.
+- **[Unverified]** Physical-device rendering, screen-reader behavior, and other browsers.
 
 ---
 
