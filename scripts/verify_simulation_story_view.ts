@@ -300,8 +300,24 @@ try {
   const graphTooltipPropsSource = graphSource.slice(graphSource.indexOf('const tooltipProps ='), graphSource.indexOf('const tooltipPointerProps ='))
   assert.match(graphTooltipPropsSource, /onPointerEnter:/, 'informational marks still open tooltips on pointer entry')
   assert.match(graphTooltipPropsSource, /onPointerLeave:/, 'informational marks still close tooltips on pointer exit')
+  assert.doesNotMatch(graphTooltipPropsSource, /setTimeout|delay/i, 'pointer tooltips still appear immediately')
   assert.doesNotMatch(graphTooltipPropsSource, /tabIndex|onFocus|onBlur|focus-visible:outline|focus:outline/,
     'pointer tooltip marks do not add keyboard focus handling or a focus frame')
+  assert.match(graphSource, /Math\.min\(360, hostBounds\.width - 16\)/,
+    'tooltip width can use the graph host space up to a readable maximum')
+  assert.match(graphSource, /className="[^"]*break-words[^"]*text-\[11px\]/,
+    'long tooltip text wraps instead of overflowing its available width')
+  assert.doesNotMatch(graphSource, /whitespace-nowrap|white-space:\s*nowrap/,
+    'tooltips are not forced onto one line on narrow viewports')
+  const tooltipPositionSource = graphSource.slice(graphSource.indexOf('useIsomorphicLayoutEffect(() =>'), graphSource.indexOf('const updateRulerFromPointer'))
+  assert.match(tooltipPositionSource, /hostBounds\.width - tooltipBounds\.width - 8/,
+    'tooltip placement uses its rendered width to stay inside the graph horizontally')
+  assert.match(tooltipPositionSource, /hostBounds\.height - tooltipBounds\.height - 8/,
+    'tooltip placement uses its rendered height to stay inside the graph vertically')
+  assert.match(tooltipPositionSource, /activeTooltip\.y \+ tooltipBounds\.height \+ 8 <= hostBounds\.height/,
+    'tooltip flips above a hovered mark when the lower edge has no room')
+  assert.match(tooltipPositionSource, /overlapsCategoryLabel[\s\S]*hasRoomBelow = !overlapsCategoryLabel/,
+    'tooltip avoids covering bottom category labels when it would otherwise overlap them')
   assert.match(graphMarkup, /fill="none" stroke="#334155" stroke-width="1"/, 'Standard Cost uses a neutral outline without another fill')
   const rulerControlTag = graphMarkup.match(/<g\b[^>]*role="slider"[^>]*>/)?.[0] ?? ''
   assert.match(rulerControlTag, /tabindex="0"/, 'the ruler remains reachable as a keyboard slider')
@@ -414,14 +430,24 @@ try {
   const tooltipMarkup = renderToStaticMarkup(React.createElement(SimulationStoryGraph, { story: tooltipStory, unit: 'KG' }))
   const categoryTooltipTags = new Map([...tooltipMarkup.matchAll(/<text\b[^>]*>(Reference|GAP 1|Current|GAP 2|Simulation)<\/text>/g)]
     .map(match => [match[1], match[0]] as const))
+  for (const label of ['Reference', 'Current', 'Simulation']) {
+    const categoryTag = categoryTooltipTags.get(label) ?? ''
+    assert.doesNotMatch(categoryTag, /data-graph-tooltip="true"|aria-label=/,
+      `${label} bottom category label has no redundant tooltip`)
+  }
   for (const [label, tooltip] of [
-    ['Reference', 'Reference Cost Structure'], ['GAP 1', 'Current − Reference'], ['Current', 'Current Cost Structure'],
-    ['GAP 2', 'Simulation − Current'], ['Simulation', 'Simulation Cost Structure']
+    ['GAP 1', 'Current − Reference'], ['GAP 2', 'Simulation − Current']
   ]) {
     const categoryTag = categoryTooltipTags.get(label)
     assert.ok(categoryTag?.includes('data-graph-tooltip="true"') && categoryTag.includes(`aria-label="${tooltip}"`),
-      `${label} maps to its own accessible graph tooltip`)
+      `${label} bottom category label retains its explanatory tooltip`)
   }
+  const gap1TotalTooltipTag = tooltipMarkup.match(/<text\b[^>]*data-graph-total="gap1"[^>]*>/)?.[0] ?? ''
+  const gap2TotalTooltipTag = tooltipMarkup.match(/<text\b[^>]*data-graph-total="gap2"[^>]*>/)?.[0] ?? ''
+  assert.ok(gap1TotalTooltipTag.includes('aria-label="Current − Reference total: +12.00 THB/KG"'),
+    'GAP 1 total retains its useful value tooltip')
+  assert.ok(gap2TotalTooltipTag.includes('aria-label="Simulation − Current total: -8.00 THB/KG"'),
+    'GAP 2 total retains its useful value tooltip')
   for (const tooltip of [
     'Reference Visible Net · 120.00 THB/KG', 'Current Visible Net · 120.00 THB/KG', 'Simulation Visible Net · 120.00 THB/KG',
     'Reference Material: 60.00 THB/KG', 'Reference Labor: 20.00 THB/KG', 'Reference Burden: 10.00 THB/KG',

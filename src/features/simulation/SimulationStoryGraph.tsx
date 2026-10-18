@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import type { KeyboardEvent, PointerEvent } from 'react'
 import { formatNumber } from '../../core'
 import type { ScenarioFinancialResult, ScenarioStory } from '../../core/types'
@@ -61,6 +61,8 @@ const DEFAULT_LEGEND_VISIBILITY: Record<LegendKey, boolean> = {
   sellingPrice: true,
   ruler: true
 }
+
+const useIsomorphicLayoutEffect = typeof window === 'undefined' ? useEffect : useLayoutEffect
 
 const STATE_LAYOUT = [
   { key: 'reference', label: 'Reference', description: 'Reference', x: 180 },
@@ -295,6 +297,7 @@ export function SimulationStoryGraph({ story, unit }: SimulationStoryGraphProps)
   const allLegendVisible = LEGEND_ITEMS.every(item => visibleLegend[item.key])
   const [manualRulerLevel, setManualRulerLevel] = useState<number | null>(null)
   const [activeTooltip, setActiveTooltip] = useState<ActiveGraphTooltip | null>(null)
+  const tooltipRef = useRef<HTMLDivElement>(null)
   const labelMetrics = isNarrowGraphViewport ? NARROW_GRAPH_LABEL_METRICS : WIDE_GRAPH_LABEL_METRICS
   const stateValues = useMemo(() => STATE_LAYOUT.map(state => ({
     ...state,
@@ -317,11 +320,11 @@ export function SimulationStoryGraph({ story, unit }: SimulationStoryGraphProps)
     stack: buildVisibleStack(gap.values, COST_PARTS, visibleLegend)
   })), [gapValues, visibleLegend])
   const categoryLabels = [
-    { key: 'reference', label: 'Reference', description: 'Reference Cost Structure', x: 180, isGap: false as const },
+    { key: 'reference', label: 'Reference', x: 180, isGap: false as const },
     { key: 'gap1', label: 'GAP 1', description: gapStacks[0].description, x: 305, value: gapStacks[0].stack.total, isGap: true as const },
-    { key: 'current', label: 'Current', description: 'Current Cost Structure', x: 430, isGap: false as const },
+    { key: 'current', label: 'Current', x: 430, isGap: false as const },
     { key: 'gap2', label: 'GAP 2', description: gapStacks[1].description, x: 555, value: gapStacks[1].stack.total, isGap: true as const },
-    { key: 'simulated', label: 'Simulation', description: 'Simulation Cost Structure', x: 680, isGap: false as const }
+    { key: 'simulated', label: 'Simulation', x: 680, isGap: false as const }
   ]
   const rangeValues = useMemo(() => {
     return finiteRangeValues([
@@ -362,11 +365,11 @@ export function SimulationStoryGraph({ story, unit }: SimulationStoryGraphProps)
     const elementBounds = target.getBoundingClientRect()
     const pointerX = clientX ?? elementBounds.left + elementBounds.width / 2
     const pointerY = clientY ?? elementBounds.top + elementBounds.height / 2
-    const maxWidth = Math.max(0, Math.min(220, hostBounds.width - 16))
+    const maxWidth = Math.max(0, Math.min(360, hostBounds.width - 16))
     setActiveTooltip({
       text,
-      x: clamp(pointerX - hostBounds.left + 10, 8, Math.max(8, hostBounds.width - maxWidth - 8)),
-      y: clamp(pointerY - hostBounds.top + 10, 8, Math.max(8, hostBounds.height - 54)),
+      x: clamp(pointerX - hostBounds.left + 10, 8, Math.max(8, hostBounds.width - 8)),
+      y: clamp(pointerY - hostBounds.top + 10, 8, Math.max(8, hostBounds.height - 8)),
       maxWidth
     })
   }
@@ -400,6 +403,25 @@ export function SimulationStoryGraph({ story, unit }: SimulationStoryGraphProps)
     return () => mediaQuery.removeEventListener('change', updateLabelMetrics)
   }, [])
   useEffect(() => setActiveTooltip(null), [visibleLegend])
+  useIsomorphicLayoutEffect(() => {
+    const tooltip = tooltipRef.current
+    const host = tooltip?.parentElement
+    if (!activeTooltip || !tooltip || !host) return
+    const hostBounds = host.getBoundingClientRect()
+    const tooltipBounds = tooltip.getBoundingClientRect()
+    const x = clamp(activeTooltip.x, 8, Math.max(8, hostBounds.width - tooltipBounds.width - 8))
+    const overlapsCategoryLabel = Array.from(host.querySelectorAll<SVGGraphicsElement>('svg text[y="306"]')).some(label => {
+      const bounds = label.getBoundingClientRect()
+      return tooltipBounds.left < bounds.right && tooltipBounds.right > bounds.left &&
+        tooltipBounds.top < bounds.bottom && tooltipBounds.bottom > bounds.top
+    })
+    const hasRoomBelow = !overlapsCategoryLabel && activeTooltip.y + tooltipBounds.height + 8 <= hostBounds.height
+    const preferredY = hasRoomBelow ? activeTooltip.y : activeTooltip.y - tooltipBounds.height - 10
+    const y = clamp(preferredY, 8, Math.max(8, hostBounds.height - tooltipBounds.height - 8))
+    if (x !== activeTooltip.x || y !== activeTooltip.y) {
+      setActiveTooltip(current => current?.text === activeTooltip.text ? { ...current, x, y } : current)
+    }
+  }, [activeTooltip])
 
   const updateRulerFromPointer = (event: PointerEvent<SVGGElement>) => {
     const bounds = event.currentTarget.ownerSVGElement?.getBoundingClientRect()
@@ -769,7 +791,7 @@ export function SimulationStoryGraph({ story, unit }: SimulationStoryGraphProps)
                   {signed(category.value)}
                 </text>
               )}
-              <text {...tooltipProps(category.description)} x={category.x} y="306" textAnchor="middle" fill="#0f172a" fontSize="11px" fontWeight="700" fontFamily="ui-monospace, monospace">
+              <text {...(category.isGap ? tooltipProps(category.description) : {})} x={category.x} y="306" textAnchor="middle" fill="#0f172a" fontSize="11px" fontWeight="700" fontFamily="ui-monospace, monospace">
                 {category.label}
               </text>
             </g>
@@ -777,8 +799,9 @@ export function SimulationStoryGraph({ story, unit }: SimulationStoryGraphProps)
         </svg>
         {activeTooltip && (
           <div
+            ref={tooltipRef}
             aria-hidden="true"
-            className="pointer-events-none absolute z-20 rounded-sm border border-slate-700 bg-slate-900 px-2 py-1 text-[11px] leading-4 text-white shadow-sm"
+            className="pointer-events-none absolute z-20 break-words rounded-sm border border-slate-700 bg-slate-900 px-2 py-1 text-[11px] leading-4 text-white shadow-sm"
             style={{ left: activeTooltip.x, top: activeTooltip.y, maxWidth: activeTooltip.maxWidth }}
           >
             {activeTooltip.text}
