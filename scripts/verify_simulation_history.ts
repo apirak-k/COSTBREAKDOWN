@@ -29,11 +29,13 @@ try {
   } = await vite.ssrLoadModule('/src/features/simulation/simulation-history.ts')
 
   const sources = createCompleteMasterDataMockPair()
-  const resetBaselineEconomicInputs = {
+  const cloneEconomicInputs = {
     fixedActionCost: '100', variableActionCostPerPiece: '2', batchSize: '50',
     sellingPriceOverride: '240', sgaPercentOverride: '8'
   }
-  const base = startSimulationFrom('current', sources, '2026-10-16T00:00:00.000Z', resetBaselineEconomicInputs)
+  const base = startSimulationFrom('current', sources, '2026-10-16T00:00:00.000Z', cloneEconomicInputs)
+  assert.deepEqual(base.economicInputs, cloneEconomicInputs, 'Clone preserves the current Economic and Business draft')
+  assert.equal('resetBaselineEconomicInputs' in base, false, 'Clone stores no Economic reset baseline')
   assert.ok(base.snapshot?.bom.length && base.snapshot.routing.length, 'fixture has populated BOM and Routing rows')
   const firstBom = base.snapshot.bom[0]
   const firstRouting = base.snapshot.routing[0]
@@ -135,8 +137,7 @@ try {
   assert.deepEqual(afterReset.economicInputs, {
     fixedActionCost: '', variableActionCostPerPiece: '', batchSize: '', sellingPriceOverride: '', sgaPercentOverride: ''
   }, 'Reset clears every Economic and Business draft rather than restoring clone-time inputs')
-  assert.deepEqual(reset.resetBaselineEconomicInputs, resetBaselineEconomicInputs,
-    'Reset does not overwrite the saved clone-time Economic baseline')
+  assert.equal('resetBaselineEconomicInputs' in reset, false, 'Reset state has no obsolete Economic baseline field')
   const resetHistory = recordSimulationHistory(createSimulationHistory(base.basisFingerprint), beforeReset, afterReset)
   assert.equal(resetHistory.undo.length, 1, 'the combined parameter and five-field draft Reset creates one history transaction')
   const undoReset = undoSimulationHistory(resetHistory, afterReset)

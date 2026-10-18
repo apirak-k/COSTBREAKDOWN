@@ -1,4 +1,43 @@
-# Current Handoff — Simulation Reset correction — 2026-10-18
+# Current Handoff — Simulation obsolete Economic reset baseline cleanup — 2026-10-18
+
+- Repository: `/Users/bubu/COSTBREAKDOWN`, `apirak-k/COSTBREAKDOWN`.
+- Branch: `logic/simulation-finalized-implementation`.
+- Starting local HEAD and fetched remote HEAD: `e2a941dd6e619e965d6a3fd063c240d1302d9cb3`.
+- Pre-existing local-only change: `vite.config.ts`; preserved and excluded from this round.
+- Scope: remove the obsolete `resetBaselineEconomicInputs` field from active Simulation state and normalize legacy persisted state. No graph, formula, UI, Master Data, or Cost Breakdown work.
+
+## Changes
+
+- Removed the redundant Economic reset baseline from the active state model, empty state, Clone output, and normal reconciliation/equality path. Clone continues to preserve the current `economicInputs` draft.
+- Reconciliation recognizes the legacy persisted key, removes it without reading its value, preserves current Economic inputs and the BOM/Routing parameter reset baseline, and returns a stable state after the one-time normalization.
+- Reset continues to restore BOM/Routing parameters and locked Current Work Center rates, preserve working selection, and clear all five Economic/Business inputs. Undo and Redo behavior remains unchanged.
+- No current Simulation documentation described `resetBaselineEconomicInputs` as an active concept, so the Simulation spec was left unchanged.
+
+## Verification
+
+- **PASS — Simulation workspace/regression:** `node scripts/verify_simulation_regression.mjs`.
+- **PASS — Simulation history:** `node --experimental-strip-types scripts/verify_simulation_history.ts`.
+- **PASS — Simulation corrections:** `node --experimental-strip-types scripts/verify_simulation_corrections.ts`.
+- **PASS — Simulation story/page:** `node --experimental-strip-types scripts/verify_simulation_story_view.ts`.
+- **PASS — Simulation economics:** `node --experimental-strip-types scripts/verify_simulation_economics.ts`.
+- **PASS — Simulation Result:** `node --experimental-strip-types scripts/verify_simulation_result.ts`.
+- **PASS — build:** `npm run build` (`tsc -b` and Vite production build).
+- **PASS — `git diff --check`**.
+- Existing build warnings remain for browser-externalized ExcelJS Node modules and a minified chunk over 500 KB.
+
+## Limits
+
+- Browser verification was not run; this is an internal state normalization with focused reconciliation and regression coverage.
+
+## Delivery
+
+One focused commit is pushed to `origin/logic/simulation-finalized-implementation`; its exact SHA is in the completion report. The pre-existing `vite.config.ts` change is not included.
+
+---
+
+# Historical Handoff — Simulation Reset correction — 2026-10-18
+
+This records the completed immediately preceding Reset round. The obsolete baseline cleanup above supersedes its current-task status.
 
 - Repository: `/Users/bubu/COSTBREAKDOWN`, `apirak-k/COSTBREAKDOWN`.
 - Branch: `logic/simulation-finalized-implementation`.

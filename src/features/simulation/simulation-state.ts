@@ -21,7 +21,6 @@ export interface SimulationWorkspaceState {
   basisFingerprint: string | null
   snapshot: CostSnapshot | null
   resetBaselineSnapshot: CostSnapshot | null
-  resetBaselineEconomicInputs: EconomicSimulationDraft
   startedAt: string | null
   economicInputs: EconomicSimulationDraft
   workingSelection: string[]
@@ -35,7 +34,6 @@ export function createEmptySimulationState(): SimulationWorkspaceState {
     basisFingerprint: null,
     snapshot: null,
     resetBaselineSnapshot: null,
-    resetBaselineEconomicInputs: createEconomicSimulationDraft(),
     startedAt: null,
     economicInputs: createEconomicSimulationDraft(),
     workingSelection: []
@@ -61,7 +59,6 @@ export function startSimulationFrom(
     basisFingerprint: simulationBasisFingerprint(sourceRole, sources),
     snapshot,
     resetBaselineSnapshot: structuredClone(snapshot),
-    resetBaselineEconomicInputs: { ...economicInputs },
     startedAt: now,
     economicInputs: { ...economicInputs },
     workingSelection: []
@@ -133,10 +130,17 @@ export function reconcileSimulationState(
   const persistedState = state as SimulationWorkspaceState & { selectedFactors?: unknown; workingSelection?: unknown }
   const hasLegacyFactors = Object.prototype.hasOwnProperty.call(persistedState, 'selectedFactors')
   const hasResetBaseline = Object.prototype.hasOwnProperty.call(persistedState, 'resetBaselineSnapshot')
-  const hasResetBaselineEconomicInputs = Object.prototype.hasOwnProperty.call(persistedState, 'resetBaselineEconomicInputs')
+  const hasLegacyResetBaselineEconomicInputs = Object.prototype.hasOwnProperty.call(persistedState, 'resetBaselineEconomicInputs')
   const hasWorkingSelection = Array.isArray(persistedState.workingSelection)
-  const stateWithoutLegacyFactors = { ...persistedState }
-  delete stateWithoutLegacyFactors.selectedFactors
+  const stateWithoutLegacyFields = hasLegacyResetBaselineEconomicInputs
+    ? (() => {
+        const descriptors = Object.getOwnPropertyDescriptors(persistedState)
+        delete descriptors.resetBaselineEconomicInputs
+        delete descriptors.selectedFactors
+        return Object.defineProperties({}, descriptors) as typeof persistedState
+      })()
+    : { ...persistedState }
+  delete stateWithoutLegacyFields.selectedFactors
   const storedInputs = state.economicInputs as Partial<EconomicSimulationDraft> & {
     actionCost?: unknown
     evaluationQuantity?: unknown
@@ -155,14 +159,6 @@ export function reconcileSimulationState(
     sellingPriceOverride: economicValue('sellingPriceOverride', storedInputs?.sellingPriceOverride),
     sgaPercentOverride: economicValue('sgaPercentOverride', storedInputs?.sgaPercentOverride)
   }
-  const storedResetInputs = persistedState.resetBaselineEconomicInputs as Partial<EconomicSimulationDraft> | undefined
-  const resetBaselineEconomicInputs: EconomicSimulationDraft = {
-    fixedActionCost: economicValue('fixedActionCost', storedResetInputs?.fixedActionCost),
-    variableActionCostPerPiece: economicValue('variableActionCostPerPiece', storedResetInputs?.variableActionCostPerPiece),
-    batchSize: economicValue('batchSize', storedResetInputs?.batchSize),
-    sellingPriceOverride: economicValue('sellingPriceOverride', storedResetInputs?.sellingPriceOverride),
-    sgaPercentOverride: economicValue('sgaPercentOverride', storedResetInputs?.sgaPercentOverride)
-  }
   const workingSelection = Array.isArray(persistedState.workingSelection)
     ? [...new Set(persistedState.workingSelection.filter((value): value is string => typeof value === 'string'))]
     : []
@@ -170,7 +166,7 @@ export function reconcileSimulationState(
   if (!state.sourceRole && !state.snapshot && !state.basisFingerprint && !state.startedAt) {
     const inputsUnchanged = Object.keys(economicInputs).every(key =>
       economicInputs[key as EconomicSimulationField] === storedInputs?.[key as EconomicSimulationField])
-    return !hasLegacyFactors && hasResetBaseline && hasResetBaselineEconomicInputs && hasWorkingSelection && workingSelection.length === 0 && inputsUnchanged
+    return !hasLegacyFactors && !hasLegacyResetBaselineEconomicInputs && hasResetBaseline && hasWorkingSelection && workingSelection.length === 0 && inputsUnchanged
       ? state
       : { ...createEmptySimulationState(), economicInputs, workingSelection: [] }
   }
@@ -192,18 +188,14 @@ export function reconcileSimulationState(
         ? state.resetBaselineSnapshot
         : { ...state.resetBaselineSnapshot, rates: structuredClone(sources.current.rates) }
     : structuredClone(snapshot)
-  const normalizedResetBaselineEconomicInputs = hasResetBaselineEconomicInputs
-    ? resetBaselineEconomicInputs
-    : { ...economicInputs }
   const validTargetKeys = selectableSimulationTargetKeys(sources.current, snapshot)
   const normalizedWorkingSelection = workingSelection.filter(key => validTargetKeys.has(key))
   const inputsUnchanged = Object.keys(economicInputs).every(key =>
     economicInputs[key as EconomicSimulationField] === storedInputs?.[key as EconomicSimulationField])
-  const resetInputsUnchanged = JSON.stringify(normalizedResetBaselineEconomicInputs) === JSON.stringify(storedResetInputs)
-  return !hasLegacyFactors && hasResetBaseline && hasResetBaselineEconomicInputs && hasWorkingSelection && inputsUnchanged && resetInputsUnchanged && snapshot === state.snapshot && resetBaselineSnapshot === state.resetBaselineSnapshot
+  return !hasLegacyFactors && !hasLegacyResetBaselineEconomicInputs && hasResetBaseline && hasWorkingSelection && inputsUnchanged && snapshot === state.snapshot && resetBaselineSnapshot === state.resetBaselineSnapshot
     && normalizedWorkingSelection.length === workingSelection.length
     ? state
-    : { ...stateWithoutLegacyFactors, snapshot, resetBaselineSnapshot, resetBaselineEconomicInputs: normalizedResetBaselineEconomicInputs, economicInputs, workingSelection: normalizedWorkingSelection }
+    : { ...stateWithoutLegacyFields, snapshot, resetBaselineSnapshot, economicInputs, workingSelection: normalizedWorkingSelection }
 }
 
 export function resetSimulationParameters(state: SimulationWorkspaceState): SimulationWorkspaceState {
