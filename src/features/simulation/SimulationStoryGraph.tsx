@@ -30,7 +30,7 @@ const COST_PARTS: ChartPart[] = [
 
 const OPERATING_PROFIT_POSITIVE = '#4b9164'
 const OPERATING_PROFIT_NEGATIVE = '#cc7489'
-const SELLING_PRICE_COLOR = '#1d4ed8'
+const SELLING_PRICE_COLOR = '#2563eb'
 const RULER_COLOR = COST_ELEMENT_COLORS.standardCost
 const SGA_COLOR = '#b8c2ce'
 
@@ -82,6 +82,16 @@ interface ActiveGraphTooltip {
 
 function formatValue(value: number | null): string {
   return value === null || !Number.isFinite(value) ? '—' : formatNumber(value, 2)
+}
+
+export function compareVisibleNetToStandardCost(
+  visibleNet: number | null,
+  standardCost: number | null
+): 'above' | 'below' | 'same' | null {
+  if (visibleNet === null || standardCost === null || !Number.isFinite(visibleNet) || !Number.isFinite(standardCost)) return null
+  const tolerance = 1e-9 * Math.max(1, Math.abs(visibleNet), Math.abs(standardCost))
+  if (Math.abs(visibleNet - standardCost) <= tolerance || formatValue(visibleNet) === formatValue(standardCost)) return 'same'
+  return visibleNet > standardCost ? 'above' : 'below'
 }
 
 function signed(value: number | null): string {
@@ -292,6 +302,13 @@ export function SimulationStoryGraph({ story, unit }: SimulationStoryGraphProps)
       if (!isGraphTooltipTarget(event.relatedTarget)) setActiveTooltip(null)
     }
   })
+  const tooltipPointerProps = (text: string) => ({
+    'data-graph-tooltip': 'true',
+    onPointerEnter: (event: PointerEvent<SVGElement>) => showTooltipAt(event.currentTarget, text, event.clientX, event.clientY),
+    onPointerLeave: (event: PointerEvent<SVGElement>) => {
+      if (!isGraphTooltipTarget(event.relatedTarget)) setActiveTooltip(null)
+    }
+  })
   useEffect(() => {
     if (manualRulerLevel === null) return
     const clamped = clamp(manualRulerLevel, minimum, maximum)
@@ -398,7 +415,7 @@ export function SimulationStoryGraph({ story, unit }: SimulationStoryGraphProps)
           className="simulation-story-chart mt-1 block h-[250px] w-full sm:h-auto xl:h-full"
           style={{ touchAction: 'pan-y' }}
         >
-          <desc id="simulation-story-svg-description">REF, CUR, and SIM show visible Material, Labor, Burden, SG&amp;A, and sign-matched Profit. Standard Cost is visible Material plus Labor plus Burden. GAP 1 is Current minus Reference; GAP 2 is Simulation minus Current. Legend filters change this graph view only, not Result or source data. Selling Price is separate, and the ruler is a comparison guide.</desc>
+          <desc id="simulation-story-svg-description">REF, CUR, and SIM show visible Material, Labor, Burden, SG&amp;A, and sign-matched Profit. Standard Cost is visible Material plus Labor plus Burden. Visible Net is the signed total of visible state-stack segments and excludes Selling Price. GAP 1 is Current minus Reference; GAP 2 is Simulation minus Current. Legend filters change this graph view only, not Result or source data. Selling Price is separate, and the ruler is a comparison guide.</desc>
 
           {axisTicks.map((value, index) => {
             const lineY = y(value)
@@ -455,10 +472,6 @@ export function SimulationStoryGraph({ story, unit }: SimulationStoryGraphProps)
                       />
                       <line data-graph-standard-cost={state.key} x1={state.x - 27} x2={state.x + 27}
                         y1={boundaryY} y2={boundaryY} stroke={COST_ELEMENT_COLORS.standardCost} strokeWidth="1.2" />
-                      <text data-graph-standard-cost-value={state.key} x={state.x + 35} y={clamp(boundaryY + 3, plot.top + 10, plot.bottom - 1)}
-                        textAnchor="start" fill={COST_ELEMENT_COLORS.standardCost} fontSize="9px" fontWeight="700" fontFamily="ui-monospace, monospace">
-                        {formatValue(value)}
-                      </text>
                     </g>
                   )
                 })}
@@ -501,6 +514,50 @@ export function SimulationStoryGraph({ story, unit }: SimulationStoryGraphProps)
               <g {...tooltipProps(tooltip)} key={point.label} data-graph-series="sellingPrice">
                 <circle cx={point.x} cy={point.y} r="3.5" fill={SELLING_PRICE_COLOR} stroke="white" strokeWidth="1" pointerEvents="none" />
                 <circle cx={point.x} cy={point.y} r="8" fill="transparent" pointerEvents="all" />
+              </g>
+            )
+          })}
+
+          {stateStacks.map(state => {
+            const standardCost = standardCostValues.find(value => value.key === state.key)?.value ?? null
+            if (standardCost === null) return null
+            const standardCostY = clamp(y(standardCost) + 3, plot.top + 10, plot.bottom - 1)
+            const visibleNet = state.stack.total
+            const netPosition = compareVisibleNetToStandardCost(visibleNet, standardCost)
+            const standardCostTooltip = `${state.description} Standard Cost · ${formatValue(standardCost)} THB/${unit}`
+            const visibleNetTooltip = `${state.description} Visible Net · ${formatValue(visibleNet)} THB/${unit}`
+            return (
+              <g key={`${state.key}-cost-value-labels`} data-graph-state-labels={state.key}>
+                <text
+                  {...tooltipPointerProps(standardCostTooltip)}
+                  aria-hidden="true"
+                  data-graph-standard-cost-value={state.key}
+                  x={state.x + 35}
+                  y={standardCostY}
+                  textAnchor="start"
+                  fill={COST_ELEMENT_COLORS.standardCost}
+                  fontSize="9px"
+                  fontWeight="700"
+                  fontFamily="ui-monospace, monospace"
+                >
+                  {formatValue(standardCost)}
+                </text>
+                {netPosition !== null && netPosition !== 'same' && visibleNet !== null && (
+                  <text
+                    {...tooltipProps(visibleNetTooltip)}
+                    data-graph-visible-net-value={state.key}
+                    data-graph-visible-net-position={netPosition}
+                    x={state.x + 35}
+                    y={standardCostY + (netPosition === 'above' ? -11 : 11)}
+                    textAnchor="start"
+                    fill="#334155"
+                    fontSize="9px"
+                    fontWeight="700"
+                    fontFamily="ui-monospace, monospace"
+                  >
+                    {formatValue(visibleNet)}
+                  </text>
+                )}
               </g>
             )
           })}

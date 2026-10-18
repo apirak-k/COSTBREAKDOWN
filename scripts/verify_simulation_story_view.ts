@@ -15,7 +15,7 @@ const vite = await createServer({
 try {
   const { calculateScenarioBusinessMetrics } = await vite.ssrLoadModule('/src/core/calculations/scenario-business.ts')
   const { createScenarioFinancialResult, createScenarioStory } = await vite.ssrLoadModule('/src/core/calculations/scenario-story.ts')
-  const { SimulationStoryGraph, buildVisibleStack, buildVisibleStandardCost, buildGraphScale } = await vite.ssrLoadModule('/src/features/simulation/SimulationStoryGraph.tsx')
+  const { SimulationStoryGraph, buildVisibleStack, buildVisibleStandardCost, compareVisibleNetToStandardCost, buildGraphScale } = await vite.ssrLoadModule('/src/features/simulation/SimulationStoryGraph.tsx')
   const { SimulationPage } = await vite.ssrLoadModule('/src/features/simulation/SimulationPage.tsx')
   const { parameterEffectPresentation } = await vite.ssrLoadModule('/src/features/simulation/parameter-effect-presentation.ts')
   const { simulationWorkingTargetKey, startSimulationFrom } = await vite.ssrLoadModule('/src/features/simulation/simulation-state.ts')
@@ -72,6 +72,24 @@ try {
   assert.equal(canonicalStory.current.standardCost, 10, 'the source Standard Cost remains 10')
   assert.equal(buildVisibleStandardCost(canonicalStory.current, { ...allLegendVisible, labor: false }), 7,
     'the filtered graph Standard Cost is 7 when Labor is hidden')
+  assert.equal(buildVisibleStack(canonicalStory.current, graphParts, allLegendVisible).total, 100,
+    'Visible Net uses all currently visible cost, SG&A, and sign-matched Profit values')
+  assert.equal(buildVisibleStack(canonicalStory.current, graphParts, { ...allLegendVisible, burden: false }).total, 97,
+    'hiding Burden immediately excludes it from Visible Net')
+  assert.equal(buildVisibleStack(canonicalStory.current, graphParts, { ...allLegendVisible, sga: false }).total, 90,
+    'hiding SG&A immediately excludes it from Visible Net')
+  assert.equal(buildVisibleStack(canonicalStory.current, graphParts, { ...allLegendVisible, opPositive: false }).total, 20,
+    'hiding positive Profit immediately excludes it from Visible Net')
+  const onlyVisibleCosts = { ...allLegendVisible, sga: false, opPositive: false, opNegative: false }
+  const equalVisibleNet = buildVisibleStack(canonicalStory.current, graphParts, onlyVisibleCosts).total
+  assert.equal(equalVisibleNet, buildVisibleStandardCost(canonicalStory.current, onlyVisibleCosts),
+    'Visible Net equals the visible Standard Cost when SG&A and Profit are hidden')
+  assert.equal(compareVisibleNetToStandardCost(100, 10), 'above', 'Visible Net above Standard Cost uses the above placement')
+  assert.equal(compareVisibleNetToStandardCost(80, 90), 'below', 'Visible Net below Standard Cost uses the below placement')
+  assert.equal(compareVisibleNetToStandardCost(10 + 1e-10, 10), 'same', 'floating-point noise does not create a duplicate label')
+  assert.equal(compareVisibleNetToStandardCost(10.004, 10), 'same', 'values with the same displayed precision do not create duplicate labels')
+  assert.equal(compareVisibleNetToStandardCost(-18, 0), 'below', 'a negative Visible Net remains signed and compares below Standard Cost')
+  assert.equal(compareVisibleNetToStandardCost(null, 0), null, 'unavailable Visible Net does not render a placement')
   assert.equal(canonicalStory.simulated.standardCost, 10, 'the authoritative SIM/Result Standard Cost remains 10')
   assert.equal(JSON.stringify(canonicalStory), canonicalStoryBeforeFilter,
     'view filtering leaves the source ScenarioStory and Result values unchanged')
@@ -129,6 +147,12 @@ try {
     .map(match => [match[1], match[2].replace(/<title>[\s\S]*?<\/title>/g, '').replace(/<[^>]*>/g, '').trim()])
   assert.deepEqual(standardCostLabels, [['reference', '90.00'], ['current', '100.00'], ['simulated', '95.00']],
     'REF/CUR/SIM display Standard Cost at the visible Material + Labor + Burden boundary')
+  const visibleNetLabels = [...graphMarkup.matchAll(/<text\b[^>]*data-graph-visible-net-value="([^"]+)"[^>]*>([\s\S]*?)<\/text>/g)]
+    .map(match => [match[1], match[2].replace(/<title>[\s\S]*?<\/title>/g, '').replace(/<[^>]*>/g, '').trim()])
+  assert.deepEqual(visibleNetLabels, [['reference', '120.00'], ['current', '120.00'], ['simulated', '120.00']],
+    'REF/CUR/SIM show the signed total of all visible stack segments')
+  assert.doesNotMatch(graphMarkup, /data-graph-visible-net-value="(?:gap1|gap2)"/,
+    'Visible Net is not added to GAP 1 or GAP 2')
   const standardCostLineTags = new Map([...graphMarkup.matchAll(/<line\b[^>]*data-graph-standard-cost="(reference|current|simulated)"[^>]*>/g)]
     .map(match => [match[1], match[0]] as const))
   const standardCostValueTags = new Map([...graphMarkup.matchAll(/<text\b[^>]*data-graph-standard-cost-value="(reference|current|simulated)"[^>]*>/g)]
@@ -139,6 +163,14 @@ try {
     assert.ok(boundaryLine && valueLabel, `${state} includes its Standard Cost line and value label`)
     assert.ok(numericSvgAttribute(valueLabel, 'x') - numericSvgAttribute(boundaryLine, 'x2') > 4,
       `${state} Standard Cost text keeps a small gap beyond the old near-touching spacing`)
+    const visibleNetValue = graphMarkup.match(new RegExp(`<text\\b[^>]*data-graph-visible-net-value="${state}"[^>]*>`))?.[0]
+    assert.ok(visibleNetValue, `${state} Visible Net is shown when it differs from Standard Cost`)
+    assert.equal(numericSvgAttribute(visibleNetValue, 'x'), numericSvgAttribute(valueLabel, 'x'),
+      `${state} Visible Net shares the Standard Cost number column`)
+    assert.match(visibleNetValue, /data-graph-visible-net-position="above"/,
+      `${state} Visible Net above Standard Cost is marked for above placement`)
+    assert.ok(numericSvgAttribute(visibleNetValue, 'y') < numericSvgAttribute(valueLabel, 'y'),
+      `${state} Visible Net above Standard Cost is positioned above its anchor value`)
   }
   assert.doesNotMatch(graphMarkup, /data-graph-total="(?:reference|current|simulated)"/,
     'full commercial-stack values are not duplicated above REF/CUR/SIM')
@@ -251,12 +283,25 @@ try {
   assert.match(gap1TotalTag, /fill="#be123c"/, 'positive cost gap total is unfavorable red')
   assert.match(gap2TotalTag, /fill="#15803d"/, 'negative cost gap total is favorable green')
   assert.ok(graphMarkup.includes('fill="#4b9164"'), 'positive Profit uses its green sign color')
+  assert.ok(graphMarkup.includes('stroke="#2563eb"'), 'Selling Price line uses the lighter blue visual')
+  assert.ok(graphMarkup.includes('fill="#2563eb"'), 'Selling Price point keeps the same series color as its line')
+  const lastSellingPriceVisual = Math.max(graphMarkup.lastIndexOf('stroke="#2563eb"'), graphMarkup.lastIndexOf('fill="#2563eb"'))
+  const firstCostNumber = Math.min(graphMarkup.indexOf('data-graph-standard-cost-value="reference"'), graphMarkup.indexOf('data-graph-visible-net-value="reference"'))
+  assert.ok(firstCostNumber > lastSellingPriceVisual, 'Standard Cost and Visible Net labels render above Selling Price line and points')
+  assert.match(graphSource, /const visibleNet = state\.stack\.total/,
+    'Visible Net comes directly from the same visible stack that draws each state bar')
+  assert.match(graphSource, /data-graph-visible-net-position=\{netPosition\}/,
+    'Visible Net placement is exposed for focused regression verification')
+  assert.match(graphSource, /const SELLING_PRICE_COLOR = '#2563eb'/,
+    'Selling Price keeps its existing series behavior with only the lighter visual color changed')
   assert.doesNotMatch(graphMarkup, /GAP [12] (?:SG&A|OP|Selling Price) Gap:/,
     'gap bars only contain MAT, LB, and BD')
   assert.ok(graphMarkup.includes('SG&amp;A') && graphMarkup.includes('Operating Profit:'),
     'dataset bars and accessible data labels retain the separate economic values')
-  assert.doesNotMatch(graphMarkup, /<text\b[^>]*>120\.00<\/text>/,
-    'Selling Price is not duplicated as floating numbers above the state bars')
+  assert.equal([...graphMarkup.matchAll(/<text\b[^>]*data-graph-visible-net-value="[^"]+"[^>]*>120\.00<\/text>/g)].length, 3,
+    'the three 120.00 values are explicitly the REF/CUR/SIM Visible Net labels')
+  assert.doesNotMatch(graphMarkup, /data-graph-selling-price-value=|>SP\s+\d/,
+    'Selling Price remains a line and points without a separate numeric label')
 
   const tooltipReference = cost('tooltip-ref', 60, 20, 10)
   const tooltipCurrent = cost('tooltip-cur', 65, 22, 15)
@@ -276,6 +321,7 @@ try {
       `${label} maps to its own accessible graph tooltip`)
   }
   for (const tooltip of [
+    'Reference Visible Net · 120.00 THB/KG', 'Current Visible Net · 120.00 THB/KG', 'Simulation Visible Net · 120.00 THB/KG',
     'Reference Material: 60.00 THB/KG', 'Reference Labor: 20.00 THB/KG', 'Reference Burden: 10.00 THB/KG',
     'Reference SG&amp;A: 9.60 THB/KG', 'Reference Operating Profit: 20.40 THB/KG',
     'Current Material: 65.00 THB/KG', 'Current Labor: 22.00 THB/KG', 'Current Burden: 15.00 THB/KG',
@@ -294,11 +340,25 @@ try {
   assert.match(zeroGapTotalTag, /fill="#475569"/, 'zero gap totals remain neutral')
   assert.match(zeroGapTotalTag, /aria-label="Simulation − Current total: 0\.00 THB\/PC"/)
 
+  const zeroProfitFinancial = financial(cost('equal-visible-net', 4, 3, 3), 10, 0)
+  const equalNetStory = createScenarioStory(zeroProfitFinancial, zeroProfitFinancial, zeroProfitFinancial)
+  const equalNetMarkup = renderToStaticMarkup(React.createElement(SimulationStoryGraph, { story: equalNetStory, unit: 'PC' }))
+  assert.equal([...equalNetMarkup.matchAll(/data-graph-standard-cost-value="/g)].length, 3,
+    'the existing Standard Cost labels remain when Visible Net equals them')
+  assert.doesNotMatch(equalNetMarkup, /data-graph-visible-net-value=/,
+    'effectively equal Visible Net does not render a duplicate number')
+
   const negativeOPStory = createScenarioStory(financial(reference, 120, 10), financial(current, 120, 10), financial(cost('loss', 90, 0, 0), 80, 10))
   assert.equal(negativeOPStory.simulated.operatingProfitPerPiece, -18, 'negative OP remains a valid story value')
   const negativeOPMarkup = renderToStaticMarkup(React.createElement(SimulationStoryGraph, { story: negativeOPStory, unit: 'PC' }))
   assert.match(negativeOPMarkup, /Simulation Operating Profit: -18\.00 THB\/PC/)
   assert.ok(negativeOPMarkup.includes('fill="#cc7489"'), 'negative Profit uses its softer red sign color')
+  const negativeOnlyLegend = { ...allLegendVisible, material: false, labor: false, burden: false, sga: false, opPositive: false }
+  const negativeVisibleStack = buildVisibleStack(negativeOPStory.simulated, graphParts, negativeOnlyLegend)
+  const negativeVisibleStandardCost = buildVisibleStandardCost(negativeOPStory.simulated, negativeOnlyLegend)
+  assert.equal(negativeVisibleStack.total, -18, 'negative Visible Net retains the signed sum of visible segments')
+  assert.equal(compareVisibleNetToStandardCost(negativeVisibleStack.total, negativeVisibleStandardCost), 'below',
+    'negative Visible Net is placed below the zero Standard Cost anchor')
 
   if (process.argv.includes('--graph-only')) {
     console.log('Simulation cost structure graph verification passed')

@@ -1,4 +1,40 @@
-# Current Handoff — Simulation Parameter Cost Effect cleanup — 2026-10-18
+# Current Handoff — Simulation Graph Visible Net — 2026-10-18
+
+- Repository: `/Users/bubu/COSTBREAKDOWN`, `apirak-k/COSTBREAKDOWN`.
+- Branch: `logic/simulation-finalized-implementation`.
+- Starting local HEAD and fetched remote HEAD: `b583110c65dfe3370beda34ed347e7cd5d20c63d`.
+- Pre-existing local change: `vite.config.ts` remains untouched and excluded from this round.
+- Scope: show each REF/CUR/SIM state’s signed Visible Net from the current Legend-filtered stack, position it relative to the unchanged Standard Cost label, and slightly lighten Selling Price blue. No formula, source data, Result, or business calculation changes.
+
+## Changes
+
+- Visible Net reads `state.stack.total`, the same filtered stack used to draw each state bar. It excludes Selling Price and is not added to GAP labels.
+- Visible Net shares the Standard Cost number column, appears above/below its existing label as its value is higher/lower, and is omitted at the existing two-decimal display precision when equal. Standard Cost remains at its prior position and value.
+- Selling Price uses the slightly lighter `#2563eb`; its calculation, path, points, Legend toggle, tooltip, and interactions remain unchanged. The price line and points render behind both numeric labels.
+- Updated the focused Simulation verifier and `docs/specs/SIMULATION.md` to describe and cover this graph-only behavior.
+
+## Verification
+
+- **PASS — Simulation graph:** `node --experimental-strip-types scripts/verify_simulation_story_view.ts --graph-only`.
+- **PASS — Simulation page and regression:** `node --experimental-strip-types scripts/verify_simulation_story_view.ts`; `node scripts/verify_simulation_regression.mjs`.
+- **PASS — browser, isolated Chrome 155:** desktop 1440px and mobile 390px. All Legend filters were restored to ON; Visible Net followed filters, hid when equal to Standard Cost, and a negative Simulation Visible Net rendered below the zero Standard Cost anchor. At 390px the graph and page had no horizontal overflow.
+- **PASS — build:** `npm run build` (`tsc -b` and Vite production build).
+- **PASS — `git diff --check`**.
+
+## Limits
+
+- Browser checks used the isolated headless Chrome session and local Vite server, not a physical mobile device or screen reader.
+- Existing build warnings remain: ExcelJS browser-externalized Node modules and a minified chunk over 500 KB.
+
+## Delivery
+
+One focused commit is pushed to `origin/logic/simulation-finalized-implementation`; the exact SHA is recorded in the completion report. The pre-existing `vite.config.ts` change is not included.
+
+---
+
+# Historical Handoff — Simulation Parameter Cost Effect cleanup — 2026-10-18
+
+This records the completed previous round. The active 2026-10-18 Visible Net handoff above supersedes its delivery state.
 
 - Repository: `/Users/bubu/COSTBREAKDOWN`, `apirak-k/COSTBREAKDOWN`.
 - Branch: `logic/simulation-finalized-implementation`.
