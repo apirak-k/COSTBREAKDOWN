@@ -10,6 +10,7 @@ interface CostBreakdownPopoverProps {
   panelClassName: string
   showChevron?: boolean
   triggerClassName?: string
+  panelMinWidthMatchesTrigger?: boolean
   children: (close: () => void) => React.ReactNode
 }
 
@@ -19,7 +20,7 @@ export function dismissCostBreakdownPopovers(): void {
   activeCBDPopoverDismiss?.dismiss()
 }
 
-export const CostBreakdownPopover: React.FC<CostBreakdownPopoverProps> = ({ label, trigger, panelClassName, showChevron = true, triggerClassName: triggerClassNameOverride, children }) => {
+export const CostBreakdownPopover: React.FC<CostBreakdownPopoverProps> = ({ label, trigger, panelClassName, showChevron = true, triggerClassName: triggerClassNameOverride, panelMinWidthMatchesTrigger = false, children }) => {
   const boundaryRef = useRef<HTMLDivElement>(null)
   const triggerRef = useRef<HTMLButtonElement>(null)
   const panelRef = useRef<HTMLDivElement>(null)
@@ -94,6 +95,7 @@ export const CostBreakdownPopover: React.FC<CostBreakdownPopoverProps> = ({ labe
     const panelElement = panelRef.current
     if (!triggerElement || !panelElement) return
     const triggerBounds = triggerElement.getBoundingClientRect()
+    panelElement.style.minWidth = panelMinWidthMatchesTrigger ? `${triggerBounds.width}px` : ''
     const panelBounds = panelElement.getBoundingClientRect()
     const panelWidth = panelBounds.width
     const panelHeight = panelBounds.height || 160
@@ -105,7 +107,7 @@ export const CostBreakdownPopover: React.FC<CostBreakdownPopoverProps> = ({ labe
       ? Math.min(below, window.innerHeight - panelHeight - 8)
       : above
     setPosition({ left, top })
-  }, [])
+  }, [panelMinWidthMatchesTrigger])
 
   useEffect(() => {
     if (!open) return

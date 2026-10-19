@@ -31,16 +31,28 @@ assert.ok(cbdRolePanelClass, 'CBD role menu declares its compact width strategy'
 assert.match(cbdRolePanelClass, /w-max/, 'CBD role menu uses intrinsic width')
 assert.doesNotMatch(cbdRolePanelClass, /(?:^|\s)(?:w|min-w)-\d+(?:\s|$)/,
   'CBD role menu has no arbitrary blank width')
+assert.match(cbdRolePopover, /panelMinWidthMatchesTrigger/,
+  'the Before/After selector opts into the local trigger-width exception')
+assert.match(cbdPopover, /panelMinWidthMatchesTrigger\?: boolean/)
+assert.match(cbdPopover, /panelMinWidthMatchesTrigger = false/,
+  'all CBD popovers default to intrinsic sizing')
+const triggerMinimum = cbdPopover.match(/panelElement\.style\.minWidth = panelMinWidthMatchesTrigger \? [^\n]+/)
+assert.ok(triggerMinimum && /triggerBounds\.width/.test(triggerMinimum[0]) && /: ''/.test(triggerMinimum[0]),
+  'only the opt-in CBD menu gets a trigger-width minimum')
+assert.ok(cbdPopover.indexOf(triggerMinimum[0]) < cbdPopover.indexOf('const panelBounds = panelElement.getBoundingClientRect()'),
+  'CBD measures the optional width floor before positioning')
 assert.match(cbdPopover, /const panelWidth = panelBounds\.width/,
-  'CBD popover positioning uses measured intrinsic panel width')
-assert.doesNotMatch(cbdPopover, /\bminWidth\b|panelBounds\.width\s*\|\|\s*triggerBounds\.width|Math\.max\([^\n]*triggerBounds\.width/,
-  'CBD popovers have no inline minWidth or panel-width fallback that forces trigger width')
-assert.equal((cbdPopover.match(/triggerBounds\.width/g) ?? []).length, 1,
-  'CBD popover uses trigger width only for centering')
+  'CBD popover positioning uses the measured width after any local minimum')
+assert.doesNotMatch(cbdPopover, /panelBounds\.width\s*\|\|\s*triggerBounds\.width|Math\.max\([^\n]*triggerBounds\.width/,
+  'CBD popovers do not force trigger width through a panel-width fallback')
+assert.equal((cbdPopover.match(/triggerBounds\.width/g) ?? []).length, 2,
+  'CBD uses trigger width only for the local minimum and centering')
+assert.equal((cbdPage.match(/\bpanelMinWidthMatchesTrigger\b/g) ?? []).length, 1,
+  'only the shared Before/After selector opts into the trigger-width exception')
 const cbdPanelSource = snippet(cbdPopover, /<div\s+ref=\{panelRef\}[\s\S]*?className=\{`fixed[^`]*\}/, 'CBD popup panel source exists')
 assert.match(cbdPanelSource, /max-w-\[calc\(100vw-1rem\)\]/,
   'CBD menu surface is limited to viewport width')
-const cbdPositionSource = snippet(cbdPopover, /const positionPanel = useCallback\(\(\) => \{[\s\S]*?\n  \}, \[\]\)/, 'CBD popup positioning logic exists')
+const cbdPositionSource = snippet(cbdPopover, /const positionPanel = useCallback\(\(\) => \{[\s\S]*?\n  \}, \[[^\]]*\]\)/, 'CBD popup positioning logic exists')
 assert.match(cbdPositionSource, /centeredLeft = triggerBounds\.left \+ \(triggerBounds\.width - panelWidth\) \/ 2[\s\S]*Math\.max\(8, Math\.min\(centeredLeft, window\.innerWidth - panelWidth - 8\)\)/,
   'CBD menu centers on its trigger and clamps within both viewport edges')
 assert.match(cbdPositionSource, /const below = triggerBounds\.bottom \+ 4[\s\S]*const above = triggerBounds\.top - panelHeight - 4[\s\S]*const top = below \+ panelHeight <= window\.innerHeight - 8[\s\S]*Math\.min\(below, window\.innerHeight - panelHeight - 8\)[\s\S]*: above/,
@@ -59,6 +71,8 @@ const masterCloneMenu = snippet(masterHeader, /id="clone-source-menu"[\s\S]*?cla
 const masterCloneClass = masterCloneMenu.match(/className="([^"]+)"/)?.[1]
 assert.ok(masterCloneClass)
 assertIntrinsicPanel(masterCloneClass, 'Master Data Clone menu')
+assert.doesNotMatch(masterHeader, /\bminWidth\b|triggerBounds\.width|trigger\.width/,
+  'Master Data Clone has no inline trigger-width floor')
 const masterOffsetSource = snippet(masterHeader, /const useCenteredPopoverOffset = \([\s\S]*?\n\}/, 'Master Data popover viewport offset hook exists')
 assert.match(masterHeader, /cloneHorizontalOffset = useCenteredPopoverOffset\(cloneMenuOpen, cloneMenuRef\)/,
   'Master Data Clone menu tracks its viewport correction offset')
@@ -78,6 +92,10 @@ const simulationRoleMenu = snippet(simulationPage, /function RoleActionMenu\([\s
 const simulationMenuClass = simulationRoleMenu.match(/className="([^"]*w-max[^"]*)"/)?.[1]
 assert.ok(simulationMenuClass, 'Simulation role menu declares intrinsic width')
 assertIntrinsicPanel(simulationMenuClass, 'Simulation Clone/Send menu')
+assert.doesNotMatch(simulationRoleMenu, /\bminWidth\b|Math\.max\([^\n]*trigger\.width/,
+  'Simulation role menu has no trigger-width floor')
+assert.equal((simulationRoleMenu.match(/trigger\.width/g) ?? []).length, 1,
+  'Simulation uses trigger width only for centering')
 assert.match(simulationRoleMenu, /Math\.max\(8, Math\.min\(centeredLeft, window\.innerWidth - menu\.width - 8\)\)/,
   'Simulation menu centers on its trigger and clamps horizontally')
 assert.match(simulationRoleMenu, /top \+ menu\.height > window\.innerHeight - 8[\s\S]*Math\.max\(8, trigger\.top - menu\.height\)/,

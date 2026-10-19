@@ -658,23 +658,38 @@ try {
     'role alternatives have no selected or disabled state')
   assert.match(rolePopoverSource, /onSelect\(role\); close\(\)/,
     'selecting an alternative applies immediately and closes the role menu')
-  assert.match(rolePopoverSource, /triggerClassName="inline-flex h-8 w-\[96px\][^"]*bg-transparent[^"]*px-1\.5/,
-    'Before and After use one compact, equal 96px by 32px transparent trigger layout')
+  assert.match(rolePopoverSource, /triggerClassName="inline-flex h-8 w-\[96px\]/,
+    'Before and After use one compact, equal 96px by 32px trigger layout')
   const roleTriggerClass = rolePopoverSource.match(/triggerClassName="([^"]+)"/)?.[1] ?? ''
-  assert.doesNotMatch(roleTriggerClass, /(?:^|\s)border(?:-|\s)|\bbg-white\b/,
-    'role selectors have no persistent border or white idle box')
+  for (const className of ['rounded-sm', 'border', 'border-slate-300', 'bg-white', 'px-2', 'hover:bg-slate-100', 'focus-visible:outline']) {
+    assert.ok(roleTriggerClass.split(/\s+/).includes(className), 'Before and After use the required boxed selector styles')
+  }
+  assert.doesNotMatch(roleTriggerClass, /\bbg-transparent\b/,
+    'role selectors retain the white boxed idle surface')
   assert.match(rolePopoverSource, /label=\{side\}/,
     'role selectors use the exact Before/After side name for their accessible and tooltip label')
-  assert.match(rolePopoverSource, /panelClassName="[^"]*w-max[^"]*"/,
-    'role menu width follows intrinsic option content')
+  assert.match(rolePopoverSource, /panelClassName="w-max"/,
+    'role menu grows to fit intrinsic option content')
+  assert.match(rolePopoverSource, /panelMinWidthMatchesTrigger/,
+    'only Before and After opt into a trigger-width menu minimum')
   assert.doesNotMatch(rolePopoverSource, /panelClassName="[^"]*\b(?:w|min-w)-\d+\b/,
-    'role menu has no arbitrary fixed width or blank minimum width')
+    'role menu has no arbitrary fixed width or hard-coded minimum width')
+  assert.match(popoverSource, /panelMinWidthMatchesTrigger\?: boolean/)
+  assert.match(popoverSource, /panelMinWidthMatchesTrigger = false/,
+    'the shared CBD popover keeps intrinsic sizing by default')
+  const triggerMinimum = popoverSource.match(/panelElement\.style\.minWidth = panelMinWidthMatchesTrigger \? [^\n]+/)
+  assert.ok(triggerMinimum && /triggerBounds\.width/.test(triggerMinimum[0]) && /: ''/.test(triggerMinimum[0]),
+    'the opt-in menu minimum equals the actual trigger width and resets when not opted in')
+  assert.ok(popoverSource.indexOf(triggerMinimum[0]) < popoverSource.indexOf('const panelBounds = panelElement.getBoundingClientRect()'),
+    'CBD measures the menu after applying its optional trigger-width minimum')
   assert.match(popoverSource, /const panelWidth = panelBounds\.width/,
-    'CBD menus use measured intrinsic width when positioning')
-  assert.doesNotMatch(popoverSource, /\bminWidth\b|panelBounds\.width\s*\|\|\s*triggerBounds\.width|Math\.max\([^\n]*triggerBounds\.width/,
-    'CBD menus have no inline minimum-width or trigger-width fallback')
-  assert.equal((popoverSource.match(/triggerBounds\.width/g) ?? []).length, 1,
-    'trigger width is used only to center a menu, never as its minimum')
+    'CBD menus use the measured width after the optional minimum is applied')
+  assert.doesNotMatch(popoverSource, /panelBounds\.width\s*\|\|\s*triggerBounds\.width|Math\.max\([^\n]*triggerBounds\.width/,
+    'CBD menus have no panel-width fallback that forces trigger width')
+  assert.equal((popoverSource.match(/triggerBounds\.width/g) ?? []).length, 2,
+    'trigger width is used only for optional minimum sizing and centering')
+  assert.equal((pageSource.match(/\bpanelMinWidthMatchesTrigger\b/g) ?? []).length, 1,
+    'Before/After are the only CBD controls opting into a trigger-width menu minimum')
   const statusPopoverSource = pageSource.match(/label="Status"[\s\S]*?<\/CostBreakdownPopover>/)?.[0]
   assert.ok(statusPopoverSource, 'Status uses the shared overlay component')
   assert.match(statusPopoverSource, /\{\(\) => <ComparisonStatusOptions selected=\{comparisonView\} onChange=\{setComparisonView\} \/>\}/,

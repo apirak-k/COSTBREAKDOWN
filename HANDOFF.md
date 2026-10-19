@@ -1,4 +1,29 @@
-# Current Handoff — compact CBD selector polish — 2026-10-19
+# Current Handoff — final CBD selector affordance closure — 2026-10-19
+
+## Checkpoint and delivery
+
+- Repository: `/Users/bubu/COSTBREAKDOWN-ref-current-custom-flow-redesign` (`apirak-k/COSTBREAKDOWN`). Branch: `feat/ref-current-custom-flow-redesign`.
+- Starting local HEAD and fetched/verified remote branch HEAD: `073e0f1a678c9c7bbe8702359c9b402328fc13e8`.
+- This is the final focused Before/After selector polish before UI closure. The user authorized one commit and push to this branch, with no merge. No Simulation Phase 3/4 work is included.
+
+## Corrections
+
+- Restore a compact boxed Before/After value selector: equal 96×32px semantic buttons with thin border, white surface, subtle radius, visible role and ChevronDown, a clear hover state, visible keyboard focus, and exact `Before` / `After` Tooltip and accessible names.
+- Give only the Before/After role menus a minimum width equal to their trigger. Intrinsic option content can grow the panel when needed. Keep centering, viewport clamping, vertical placement, and existing interaction behavior.
+- Keep the global compact-overlay default intrinsic. CBD Status/Sort, Master Data Clone, Simulation role menus, and other compact overlays do not inherit this local value-selector exception.
+- Keep Overview wording and chevrons at `Collapse` / `Expand` and Down / Right, with the same button state and collapse scope.
+- Update active CBD and Cross-Cutting specs plus focused verifiers. No business logic, calculations, dataset semantics, or comparison semantics changed.
+
+## Verification and limits
+
+- `npm run build` passed. Existing Vite warnings remain for ExcelJS `fs` / `crypto` browser externalization and the 526 kB app chunk.
+- All requested CBD, comparison, reorder/history, sort, selected-comparison, reconciliation, Global Header, Master Data, navigation, compact-overlay, and Simulation regression verifiers passed; `git diff --check` passed. The reconciliation verifier was rerun directly and exited 0 after an earlier Vite SSR invocation reported a port warning.
+- No browser or manual visual pass was run. Rendered viewport fit, menu clamping, keyboard/focus behavior, and screen-reader behavior remain unverified.
+- One focused commit and push are authorized. Do not merge or start Simulation Phase 3/4.
+
+---
+
+# Previous Handoff — compact CBD selector polish — 2026-10-19
 
 ## Checkpoint and delivery
 

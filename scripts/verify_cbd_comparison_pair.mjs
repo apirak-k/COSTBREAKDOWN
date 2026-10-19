@@ -202,27 +202,41 @@ try {
     'the currently selected dataset name is visible inside each trigger')
   assert.match(popoverSource, /<Tooltip label=\{label\}>[\s\S]*aria-label=\{label\}/,
     'the shared popover forwards its exact label to both Tooltip and trigger accessible name')
-  assert.match(rolePopoverSource, /triggerClassName="inline-flex h-8 w-\[96px\][^"]*bg-transparent[^"]*px-1\.5/,
-    'both role triggers share a compact, stable 96px by 32px transparent layout with horizontal padding')
+  assert.match(rolePopoverSource, /triggerClassName="inline-flex h-8 w-\[96px\]/,
+    'both role triggers share a compact, stable 96px by 32px layout')
   const roleTriggerClass = rolePopoverSource.match(/triggerClassName="([^"]+)"/)?.[1] ?? ''
-  assert.doesNotMatch(roleTriggerClass, /(?:^|\s)border(?:-|\s)|\bbg-white\b/,
-    'role triggers have no persistent border or white idle box')
+  for (const className of ['rounded-sm', 'border', 'border-slate-300', 'bg-white', 'px-2', 'hover:bg-slate-100', 'focus-visible:outline']) {
+    assert.ok(roleTriggerClass.split(/\s+/).includes(className), 'role triggers include the required boxed selector styles')
+  }
+  assert.doesNotMatch(roleTriggerClass, /\bbg-transparent\b/, 'role triggers retain their white boxed surface')
   assert.doesNotMatch(rolePopoverSource, /aria-pressed|selectedRole === role|disabled=/,
     'role menus do not mark or disable any option')
   assert.match(rolePopoverSource, /onSelect\(role\); close\(\)/,
     'choosing any alternative applies it and closes the menu')
-  assert.match(rolePopoverSource, /panelClassName="[^"]*w-max[^"]*"/,
-    'role menu width follows intrinsic option content')
+  assert.match(rolePopoverSource, /panelClassName="w-max"/,
+    'role menu grows to fit intrinsic option content')
+  assert.match(rolePopoverSource, /panelMinWidthMatchesTrigger/,
+    'only Before and After opt into a trigger-width menu minimum')
   assert.doesNotMatch(rolePopoverSource, /panelClassName="[^"]*\b(?:w|min-w)-\d+\b/,
-    'role menu has no arbitrary fixed width or empty minimum width')
+    'role menu has no arbitrary fixed width or hard-coded minimum width')
   assert.match(popoverSource, /showChevron = true[\s\S]*\{showChevron && <ChevronDown aria-hidden="true"/,
     'role triggers keep a visible ChevronDown beside their selected dataset label')
+  assert.match(popoverSource, /panelMinWidthMatchesTrigger\?: boolean/)
+  assert.match(popoverSource, /panelMinWidthMatchesTrigger = false/,
+    'the shared CBD popover keeps intrinsic sizing by default')
+  const triggerMinimum = popoverSource.match(/panelElement\.style\.minWidth = panelMinWidthMatchesTrigger \? [^\n]+/)
+  assert.ok(triggerMinimum && /triggerBounds\.width/.test(triggerMinimum[0]) && /: ''/.test(triggerMinimum[0]),
+    'the opt-in menu minimum equals the actual trigger width and resets when not opted in')
+  assert.ok(popoverSource.indexOf(triggerMinimum[0]) < popoverSource.indexOf('const panelBounds = panelElement.getBoundingClientRect()'),
+    'CBD measures the menu after applying its optional trigger-width minimum')
   assert.match(popoverSource, /const panelWidth = panelBounds\.width/,
-    'CBD popovers position by their measured intrinsic panel width')
-  assert.doesNotMatch(popoverSource, /\bminWidth\b|panelBounds\.width\s*\|\|\s*triggerBounds\.width|Math\.max\([^\n]*triggerBounds\.width/,
-    'CBD popovers do not force trigger width through an inline minimum or panel-width fallback')
-  assert.equal((popoverSource.match(/triggerBounds\.width/g) ?? []).length, 1,
-    'trigger width is used only to center the panel, never as a menu minimum')
+    'CBD popovers position by the measured menu width after the optional minimum is applied')
+  assert.doesNotMatch(popoverSource, /panelBounds\.width\s*\|\|\s*triggerBounds\.width|Math\.max\([^\n]*triggerBounds\.width/,
+    'CBD popovers do not force trigger width through a panel-width fallback')
+  assert.equal((popoverSource.match(/triggerBounds\.width/g) ?? []).length, 2,
+    'trigger width is used only for optional minimum sizing and centering')
+  assert.equal((pageSource.match(/\bpanelMinWidthMatchesTrigger\b/g) ?? []).length, 1,
+    'Before/After are the only CBD controls opting into a trigger-width menu minimum')
   assert.match(popoverSource, /const centeredLeft = triggerBounds\.left \+ \(triggerBounds\.width - panelWidth\) \/ 2[\s\S]*const left = Math\.max\(8, Math\.min\(centeredLeft, window\.innerWidth - panelWidth - 8\)\)/,
     'role menu stays centered and clamped to the viewport')
   assert.match(popoverSource, /const below = triggerBounds\.bottom \+ 4[\s\S]*const above = triggerBounds\.top - panelHeight - 4[\s\S]*const top = below \+ panelHeight <= window\.innerHeight - 8[\s\S]*Math\.min\(below, window\.innerHeight - panelHeight - 8\)[\s\S]*: above/,
@@ -268,8 +282,8 @@ try {
     assert.equal(matches.length, 1, `${side} has exactly one button with that accessible name`)
     const [, attributes, content] = matches[0]
     assert.match(attributes, /h-8 w-\[96px\]/, `${side} uses the shared compact, stable trigger size`)
-    assert.match(attributes, /bg-transparent/, `${side} is bare at idle`)
-    assert.doesNotMatch(attributes, /(?:^|\s)border(?:-|\s)|\bbg-white\b/, `${side} has no idle border or white box`)
+    assert.match(attributes, /bg-white/, `${side} uses a white boxed idle surface`)
+    assert.match(attributes, /\bborder border-slate-300\b/, `${side} keeps the thin border and white field`)
     assert.equal(visibleText(content), visibleRole, `${side} visibly shows its selected dataset role`)
     assert.match(content, /lucide lucide-chevron-down/, `${side} visibly includes ChevronDown`)
   }
