@@ -119,7 +119,13 @@ function renderRouting(module, comparison, reference, current) {
 function renderItemized(module, comparison, reference, current, typeTab = 'bom') {
   return renderToStaticMarkup(React.createElement(module.ItemizedComparisonTable, {
     comparison,
-    pair: { reference, current },
+    pair: {
+      beforeRole: reference.comparisonRole,
+      afterRole: current.comparisonRole,
+      before: reference,
+      after: current,
+      fingerprint: JSON.stringify([reference.comparisonRole, current.comparisonRole, reference.id, current.id])
+    },
     typeTab,
     viewMode: ['UNCHANGED', 'CHANGED', 'ADDED', 'REMOVED'],
     selectedBOMKeys: new Set(),
@@ -253,11 +259,11 @@ try {
   const bomText = visibleText(bomMarkup)
   assert.doesNotMatch(bomText, /Data quality|Confidence|(?:^|\s)Ref:|(?:^|\s)Current:|\b(?:Verified|Estimated|Missing|Need Review)\b/,
     'expanded BOM record must omit quality and confidence badges')
-  assert.deepEqual(detailRow(bomMarkup, 'Reference → Current').slice(3, 7), [
+  assert.deepEqual(detailRow(bomMarkup, 'Before → After').slice(3, 7), [
     `${formatters.formatNumber(1, 4)} → ${formatters.formatNumber(2, 4)}`,
     `${formatters.formatNumber(10, 4)} → ${formatters.formatNumber(6, 4)}`,
     formatters.formatPercent(0.1, 2), ''
-  ], 'BOM Reference → Current context combines both snapshots and keeps unchanged factors to one value')
+  ], 'BOM Before → After context combines both snapshots and keeps unchanged factors to one value')
   assert.deepEqual(detailRow(bomMarkup, 'Parameter Cost Effect').slice(3, 7), [
     formatters.formatVariance(bomPositive.effects.usage, 4), formatters.formatVariance(bomPositive.effects.price, 4),
     formatters.formatVariance(bomPositive.effects.loss, 4), formatters.formatVariance(2.2, 4)
@@ -268,7 +274,7 @@ try {
     'BOM detail is one white group with a stronger Parameter Cost Effect row')
   assert.match(detailRowMarkup(bomMarkup, 'Parameter Cost Effect'), /font-bold/)
   assert.doesNotMatch(bomMarkup, /<th[^>]*>Reference<\/th>|<th[^>]*>Current<\/th>|<th[^>]*>Parameter Effect<\/th>|<th[^>]*>EFFECT<\/th>/,
-    'BOM uses exactly Reference → Current and Parameter Cost Effect detail labels')
+    'BOM uses exactly Before → After and Parameter Cost Effect detail labels')
   assert.doesNotMatch(bomMarkup, /\bUnit\b|% Parent|%Parent/)
   assert.doesNotMatch(bomMarkup, /Changed fields|<table\b|Root Cause|\bAction\b|Controllable/,
     'BOM detail is not an independent nested table and has no duplicated/RCA fields')
@@ -305,8 +311,8 @@ try {
   const addedBOMComparison = comparisonCore.compareSnapshots(addedBOMReference, addedBOMCurrent)
   const addedBOMMarkup = renderItemized(itemizedView, addedBOMComparison, addedBOMReference, addedBOMCurrent)
   assert.deepEqual(gridCellText(candidateMainRow(addedBOMMarkup, 'Bill of Material', 'Material', 'ADDED')).slice(3, 6), [
-    `CUR ${formatters.formatNumber(1.5, 4)}`, `CUR ${formatters.formatNumber(7, 4)}`, `CUR ${formatters.formatPercent(0.02, 2)}`
-  ], 'ADDED BOM parameters show actual Current-side values')
+    `After ${formatters.formatNumber(1.5, 4)}`, `After ${formatters.formatNumber(7, 4)}`, `After ${formatters.formatPercent(0.02, 2)}`
+  ], 'ADDED BOM parameters show actual After-side values')
 
   const removedBOMReference = costSnapshot('reference', {
     bom: [bom('removed-bom', { usage: 2.5, price: 9, loss: 0.08 })]
@@ -315,8 +321,8 @@ try {
   const removedBOMComparison = comparisonCore.compareSnapshots(removedBOMReference, removedBOMCurrent)
   const removedBOMMarkup = renderItemized(itemizedView, removedBOMComparison, removedBOMReference, removedBOMCurrent)
   assert.deepEqual(gridCellText(candidateMainRow(removedBOMMarkup, 'Bill of Material', 'Material', 'REMOVED')).slice(3, 6), [
-    `REF ${formatters.formatNumber(2.5, 4)}`, `REF ${formatters.formatNumber(9, 4)}`, `REF ${formatters.formatPercent(0.08, 2)}`
-  ], 'REMOVED BOM parameters show actual Reference-side values')
+    `Before ${formatters.formatNumber(2.5, 4)}`, `Before ${formatters.formatNumber(9, 4)}`, `Before ${formatters.formatPercent(0.08, 2)}`
+  ], 'REMOVED BOM parameters show actual Before-side values')
 
   const missingAddedBOMCurrent = costSnapshot('current', {
     bom: [bom('added-bom-missing', { usage: null, price: 7, loss: 0.02 })]
@@ -324,8 +330,8 @@ try {
   const missingAddedBOMComparison = comparisonCore.compareSnapshots(addedBOMReference, missingAddedBOMCurrent)
   const missingAddedBOMMarkup = renderItemized(itemizedView, missingAddedBOMComparison, addedBOMReference, missingAddedBOMCurrent)
   assert.deepEqual(gridCellText(candidateMainRow(missingAddedBOMMarkup, 'Bill of Material', 'Material', 'ADDED')).slice(3, 6), [
-    '—', `CUR ${formatters.formatNumber(7, 4)}`, `CUR ${formatters.formatPercent(0.02, 2)}`
-  ], 'a genuinely missing Current-side BOM parameter remains unavailable')
+    '—', `After ${formatters.formatNumber(7, 4)}`, `After ${formatters.formatPercent(0.02, 2)}`
+  ], 'a genuinely missing After-side BOM parameter remains unavailable')
 
   const routingRefSnapshot = costSnapshot('reference', {
     routing: [route('route-ref', 'WC-REF')],
@@ -344,11 +350,11 @@ try {
   const routingText = visibleText(routingMarkup)
   assert.doesNotMatch(routingText, /Data quality|Confidence|(?:^|\s)Ref:|(?:^|\s)Current:|\b(?:Verified|Estimated|Missing|Need Review)\b/,
     'expanded Routing record must omit quality and confidence badges')
-  assert.deepEqual(detailRow(routingMarkup, 'Reference → Current').slice(3, 9), [
+  assert.deepEqual(detailRow(routingMarkup, 'Before → After').slice(3, 9), [
     formatters.formatNumber(1, 4), formatters.formatNumber(10, 4), formatters.formatPercent(1, 2),
     `${formatters.formatNumber(10, 4)} → ${formatters.formatNumber(20, 4)}`,
     `${formatters.formatNumber(5, 4)} → ${formatters.formatNumber(7, 4)}`, ''
-  ], 'Routing Reference → Current context includes snapshot-owned Work Center rates without redundant conversion costs')
+  ], 'Routing Before → After context includes snapshot-owned Work Center rates without redundant conversion costs')
   const routingParameterEffectGap = sum(Object.values(rateChanged.effects.conversion))
   assert.deepEqual(detailRow(routingMarkup, 'Parameter Cost Effect').slice(3, 9), [
     formatters.formatVariance(rateChanged.effects.conversion.manning, 4),
@@ -412,9 +418,9 @@ try {
   const addedRoutingComparison = comparisonCore.compareSnapshots(addedRoutingReference, addedRoutingCurrent)
   const addedRoutingMarkup = renderItemized(itemizedView, addedRoutingComparison, addedRoutingReference, addedRoutingCurrent, 'rtg')
   assert.deepEqual(gridCellText(candidateMainRow(addedRoutingMarkup, 'Routing', 'Cutting', 'ADDED')).slice(3, 8), [
-    `CUR ${formatters.formatNumber(3, 4)}`, `CUR ${formatters.formatNumber(12, 4)}`, `CUR ${formatters.formatPercent(0.9, 2)}`,
-    `CUR ${formatters.formatNumber(15, 4)}`, `CUR ${formatters.formatNumber(6, 4)}`
-  ], 'ADDED Routing parameters and rates show actual Current-side values')
+    `After ${formatters.formatNumber(3, 4)}`, `After ${formatters.formatNumber(12, 4)}`, `After ${formatters.formatPercent(0.9, 2)}`,
+    `After ${formatters.formatNumber(15, 4)}`, `After ${formatters.formatNumber(6, 4)}`
+  ], 'ADDED Routing parameters and rates show actual After-side values')
 
   const removedRoutingReference = costSnapshot('reference', {
     routing: [route('removed-route', 'WC-1', { manning: 4, capacity: 20, yield: 0.95 })],
@@ -424,9 +430,9 @@ try {
   const removedRoutingComparison = comparisonCore.compareSnapshots(removedRoutingReference, removedRoutingCurrent)
   const removedRoutingMarkup = renderItemized(itemizedView, removedRoutingComparison, removedRoutingReference, removedRoutingCurrent, 'rtg')
   assert.deepEqual(gridCellText(candidateMainRow(removedRoutingMarkup, 'Routing', 'Cutting', 'REMOVED')).slice(3, 8), [
-    `REF ${formatters.formatNumber(4, 4)}`, `REF ${formatters.formatNumber(20, 4)}`, `REF ${formatters.formatPercent(0.95, 2)}`,
-    `REF ${formatters.formatNumber(40, 4)}`, `REF ${formatters.formatNumber(14, 4)}`
-  ], 'REMOVED Routing parameters and rates show actual Reference-side values')
+    `Before ${formatters.formatNumber(4, 4)}`, `Before ${formatters.formatNumber(20, 4)}`, `Before ${formatters.formatPercent(0.95, 2)}`,
+    `Before ${formatters.formatNumber(40, 4)}`, `Before ${formatters.formatNumber(14, 4)}`
+  ], 'REMOVED Routing parameters and rates show actual Before-side values')
 
   const missingAddedRoutingCurrent = costSnapshot('current', {
     routing: [route('added-route-missing', 'WC-1', { manning: 3, capacity: null, yield: 0.9 })],
@@ -435,8 +441,8 @@ try {
   const missingAddedRoutingComparison = comparisonCore.compareSnapshots(addedRoutingReference, missingAddedRoutingCurrent)
   const missingAddedRoutingMarkup = renderItemized(itemizedView, missingAddedRoutingComparison, addedRoutingReference, missingAddedRoutingCurrent, 'rtg')
   assert.deepEqual(gridCellText(candidateMainRow(missingAddedRoutingMarkup, 'Routing', 'Cutting', 'ADDED')).slice(3, 8), [
-    `CUR ${formatters.formatNumber(3, 4)}`, '—', `CUR ${formatters.formatPercent(0.9, 2)}`, '—', `CUR ${formatters.formatNumber(8, 4)}`
-  ], 'missing Current-side Routing parameter and rate values remain unavailable while valid values show')
+    `After ${formatters.formatNumber(3, 4)}`, '—', `After ${formatters.formatPercent(0.9, 2)}`, '—', `After ${formatters.formatNumber(8, 4)}`
+  ], 'missing After-side Routing parameter and rate values remain unavailable while valid values show')
 
   const ambiguousAddedRoutingCurrent = costSnapshot('current', {
     routing: [route('ambiguous-added-route', 'WC-1')],
@@ -519,19 +525,20 @@ try {
     warnings: [{ code: 'FIXTURE_WARNING', message: 'Fixture warning remains reviewable' }]
   }
   const warningMarkup = renderToStaticMarkup(React.createElement(snapshotView.SnapshotComparisonCard, {
-    comparison: warningComparison
+    comparison: warningComparison,
+    gapDirection: 'Current − Reference'
   }))
   assert.doesNotMatch(warningMarkup, /Data quality:/, 'page-level Data quality summary must be removed')
   assert.doesNotMatch(warningMarkup, /Review warnings|Fixture warning remains reviewable/, 'comparison warnings are not presented in the Cost Breakdown summary')
   assert.match(warningMarkup, /aria-label="Cost Element"/)
   assert.match(warningMarkup, /<caption class="sr-only">Cost Element/)
-  assert.match(warningMarkup, /<th scope="col"[^>]*>Cost Element<\/th>[\s\S]*>REF<\/th>[\s\S]*>CUR<\/th>[\s\S]*>GAP<\/span>[\s\S]*>Selected<\/span>[\s\S]*>%GAP<\/th>/)
+  assert.match(warningMarkup, /<th scope="col"[^>]*>Cost Element<\/th>[\s\S]*>Before<\/th>[\s\S]*>After<\/th>[\s\S]*>GAP<\/span>[\s\S]*>Selected<\/span>[\s\S]*>%GAP<\/th>/)
   assert.deepEqual([...warningMarkup.matchAll(/<tr\b/g)].length, 5, 'Cost has exactly a header, three element rows, and a footer')
   assert.match(warningMarkup, />Material<\/th>[\s\S]*>Labor<\/th>[\s\S]*>Burden<\/th>[\s\S]*>Standard Cost<\/th>/)
   assert.doesNotMatch(warningMarkup, /Standard Cost Overview|Material color legend|Selected REF|Selected CUR/,
     'Cost stays compact and has no duplicate legend or Selected dataset columns')
   assert.ok(warningMarkup.includes('100.00%'), 'MAT %GAP uses element Gap divided by Standard Cost Gap')
-  assert.ok(warningMarkup.includes('20.00%'), 'STD Cost %Total uses Standard Cost Gap divided by REF Standard Cost')
+  assert.ok(warningMarkup.includes('20.00%'), 'STD Cost %Total uses Standard Cost Gap divided by Before Standard Cost')
   assert.match(visibleText(warningMarkup), /20\.00% Total/, 'STD Cost footer identifies its percentage as %Total')
 
   const selectedCostComparison = {
@@ -542,7 +549,8 @@ try {
   const selectedCostMarkup = renderToStaticMarkup(React.createElement(snapshotView.SnapshotComparisonCard, {
     comparison: warningComparison,
     selectedComparison: selectedCostComparison,
-    selectedActive: true
+    selectedActive: true,
+    gapDirection: 'Current − Reference'
   }))
   assert.match(selectedCostMarkup, /GAP[\s\S]*>Selected<\/span>/, 'Selected Comparison is a plain secondary GAP header slot')
   assert.match(visibleText(selectedCostMarkup), /\+2\.20\s+\+0\.50/, 'Selected contribution is muted in the fixed secondary slot beside full Gap')
@@ -573,6 +581,7 @@ try {
   const wcComparison = routingComparisonForDisplay
   const wcMarkup = renderToStaticMarkup(React.createElement(wcView.WorkCenterProcessingTable, {
     comparison: wcComparison,
+    gapDirection: 'Current − Reference',
   }))
   assert.match(wcMarkup, /<section aria-label="Work Center"[^>]*data-cbd-overview-panel="work-center"/,
     'Work Center participates in the paired overview')
@@ -593,7 +602,7 @@ try {
   assert.ok(wcTable.indexOf('role="columnheader"') < wcBodyStart && wcFooterGroup >= wcBodyEnd,
     'the header and Total footer are outside the body scroller')
   assert.deepEqual([...wcMarkup.matchAll(/role="columnheader"[^>]*>([^<]*)<\/div>/g)].map(([, label]) => label),
-    ['Work Center', 'REF', 'CUR', 'GAP', '%GAP'])
+    ['Work Center', 'Before', 'After', 'GAP', '%GAP'])
   assert.equal([...wcMarkup.matchAll(/role="rowgroup"/g)].length, 3,
     'WC header, body, and footer remain separate aligned grid sections')
   assert.doesNotMatch(wcMarkup, /Selected|selected/i, 'WC has no Selected header, value, tooltip, or accessible text')
@@ -709,15 +718,24 @@ try {
   assert.ok(routingComparison.processingFindings.length > 0,
     'the full comparison fixture must have Work Center processing context')
   globalThis.__CBD_PARAMETER_TEST_STATE__ = {
-    snapshotComparison: {
-    ...routingComparisonForDisplay,
+    comparisonBefore: 'reference',
+    comparisonAfter: 'current',
+    comparisonPair: {
+      beforeRole: 'reference',
+      afterRole: 'current',
+      before: routingRefSnapshot,
+      after: routingCurSnapshot,
+      fingerprint: 'reference-current-fixture'
+    },
+    setComparisonBefore() {},
+    setComparisonAfter() {},
+    costBreakdownFullComparison: routingComparisonForDisplay,
+    costBreakdownSelectedComparison: {
+      ...routingComparisonForDisplay,
       elementGaps: { material: 0, labor: 0.15, burden: 0.1 },
       totalGap: 0.25,
       processingFindings: []
     },
-    fullSnapshotComparison: routingComparisonForDisplay,
-    snapshotPair: { reference: routingRefSnapshot, current: routingCurSnapshot },
-    analysisSnapshotPair: { reference: routingRefSnapshot, current: routingCurSnapshot },
     selectedComparisonSelection: { bomFindingKeys: [], routingFindingKeys: [JSON.stringify(['routing', 'route-ref', 'route-cur'])] },
     isSelectedComparisonActive: true,
     applySelectedComparison() {},
@@ -734,7 +752,8 @@ try {
       { key: 'burden', label: 'Burden', full: 2.32, selected: 1, color: COST_ELEMENT_COLORS.burden }
     ]
     const proportionalChart = renderToStaticMarkup(React.createElement(GapContributionChart, {
-      segments: chartSegments, fullTotal: 16.05, selectedTotal: 4, selectedActive: true
+      segments: chartSegments, fullTotal: 16.05, selectedTotal: 4, selectedActive: true,
+      directionLabel: 'Current − Reference'
     }))
     assert.match(proportionalChart, /data-gap-chart-mode="proportional"/)
     assert.doesNotMatch(proportionalChart, /<text\b/, 'MAT/LB/BD labels live in the Subheader legend, not inside the bar')
@@ -771,7 +790,8 @@ try {
     assert.ok(proportionalChart.includes(`Selected Material Gap ${formatters.formatVariance(4.2, 2)}`))
 
     const fullOnlyChart = renderToStaticMarkup(React.createElement(GapContributionChart, {
-      segments: chartSegments.map(segment => ({ ...segment, selected: null })), fullTotal: 16.05, selectedTotal: null, selectedActive: false
+      segments: chartSegments.map(segment => ({ ...segment, selected: null })), fullTotal: 16.05, selectedTotal: null, selectedActive: false,
+      directionLabel: 'Current − Reference'
     }))
     assert.match(fullOnlyChart, /Material Gap \+9\.31/)
     assert.doesNotMatch(fullOnlyChart, /Selected \(/, 'Full mode tooltip stays on one line')
@@ -781,12 +801,14 @@ try {
         { key: 'material', label: 'Material', full: 9, selected: 10, color: COST_ELEMENT_COLORS.material },
         { key: 'labor', label: 'Labor', full: -4, selected: -1.2, color: COST_ELEMENT_COLORS.labor },
         { key: 'burden', label: 'Burden', full: 2, selected: 0, color: COST_ELEMENT_COLORS.burden }
-      ], fullTotal: 7, selectedTotal: 10, selectedActive: true
+      ], fullTotal: 7, selectedTotal: 10, selectedActive: true,
+      directionLabel: 'Current − Reference'
     }))
     assert.match(signedOffsetChart, /data-gap-chart-mode="signed"/,
       'opposite-sign full component gaps preserve the signed chart')
     assert.ok(signedOffsetChart.includes([
       `Full Standard Cost Gap ${formatters.formatVariance(7, 4)}`,
+      'Gap = Current − Reference',
       `Full Material Gap ${formatters.formatVariance(9, 2)}`,
       `Full Labor Gap ${formatters.formatVariance(-4, 2)}`,
       `Full Burden Gap ${formatters.formatVariance(2, 2)}`
@@ -841,10 +863,14 @@ try {
       'CBD controls use compact Master Data toolbar spacing in one row')
     assert.doesNotMatch(subheader, /w-\[204px\]|w-\[142px\]/,
       'the Standard Cost Gap and legend use their content width instead of leaving a fixed dead-space gap')
-    assert.match(subheader, /data-gap-chart-wrapper="true" class="min-w-\[140px\] flex-1"/,
+    assert.match(subheader, /data-gap-chart-wrapper="true" class="min-w-\[96px\] flex-1"/,
       'the Gap Bar flexes into the space freed by the natural-width left-side information')
+    assert.match(subheader, /aria-label="Comparison datasets, Before Reference, After Current"/,
+      'the default pair is announced with generic Before/After sides')
+    assert.match(subheader, /w-\[108px\]/,
+      'both role selectors have the fixed width needed to keep the toolbar stable')
     const subheaderText = visibleText(subheader)
-    const orderedLabels = ['Standard Cost Gap', 'MAT', 'LB', 'BD', 'BOM', 'RTG', 'ALL', 'Status', '|Gap| High → Low']
+    const orderedLabels = ['Reference', 'Current', 'Standard Cost Gap', 'MAT', 'LB', 'BD', 'BOM', 'RTG', 'ALL', 'Status', '|Gap| High → Low']
     const labelPositions = orderedLabels.map(label => subheaderText.indexOf(label))
     assert.ok(labelPositions.every(position => position >= 0),
       `the subheader exposes every finalized control and chart label: ${JSON.stringify(orderedLabels)} in ${subheaderText}`)

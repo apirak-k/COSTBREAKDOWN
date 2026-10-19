@@ -20,7 +20,7 @@ export function ComparisonFieldDetails({ finding, fieldLabelOverrides, hiddenFie
       <ul className="mt-1 max-w-[280px] space-y-0.5 break-words">
         {changes.map(change => (
           <li key={change.field}>
-            <span className="font-medium">{change.label}:</span> {change.reference} → {change.current}
+            <span className="font-medium">{change.label}:</span> Before {change.reference} → After {change.current}
           </li>
         ))}
       </ul>

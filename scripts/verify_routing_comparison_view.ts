@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
+import { createServer } from 'vite'
 import type { ComparisonFinding } from '../src/core'
-import { getRoutingComparisonLabels } from '../src/features/cost-breakdown/components/RoutingDetailedTable'
 
 const finding = (overrides: Partial<ComparisonFinding>): ComparisonFinding => ({
   matchStatus: 'matched',
@@ -10,12 +10,18 @@ const finding = (overrides: Partial<ComparisonFinding>): ComparisonFinding => ({
   ...overrides
 })
 
-assert.deepEqual(getRoutingComparisonLabels(finding({})), ['UNCHANGED'])
-assert.deepEqual(getRoutingComparisonLabels(finding({
-  changeFlags: { reordered: true, movedWorkCenter: true, changedInputs: true }
-})), ['CHANGED'])
-assert.deepEqual(getRoutingComparisonLabels(finding({ matchStatus: 'added' })), ['ADDED'])
-assert.deepEqual(getRoutingComparisonLabels(finding({ matchStatus: 'removed' })), ['REMOVED'])
-assert.deepEqual(getRoutingComparisonLabels(finding({ matchStatus: 'ambiguous' })), [])
+const vite = await createServer({ server: { middlewareMode: true, hmr: false }, appType: 'custom', logLevel: 'error', optimizeDeps: { noDiscovery: true, entries: [] } })
+try {
+  const { getRoutingComparisonLabels } = await vite.ssrLoadModule('/src/features/cost-breakdown/components/RoutingDetailedTable.tsx')
+  assert.deepEqual(getRoutingComparisonLabels(finding({})), ['UNCHANGED'])
+  assert.deepEqual(getRoutingComparisonLabels(finding({
+    changeFlags: { reordered: true, movedWorkCenter: true, changedInputs: true }
+  })), ['CHANGED'])
+  assert.deepEqual(getRoutingComparisonLabels(finding({ matchStatus: 'added' })), ['ADDED'])
+  assert.deepEqual(getRoutingComparisonLabels(finding({ matchStatus: 'removed' })), ['REMOVED'])
+  assert.deepEqual(getRoutingComparisonLabels(finding({ matchStatus: 'ambiguous' })), [])
+} finally {
+  await vite.close()
+}
 
 console.log('Routing comparison view self-check: PASS')

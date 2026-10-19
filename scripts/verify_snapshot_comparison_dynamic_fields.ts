@@ -1,12 +1,15 @@
 import assert from 'node:assert/strict'
-import { compareSnapshots } from '../src/core/calculations/snapshot-comparison.ts'
-import { getCanonicalComparisonStatus } from '../src/core/calculations/comparison-status.ts'
+import { createServer } from 'vite'
 import type {
   CostSnapshot,
   SnapshotBOMItem,
   SnapshotRoutingStep,
   SnapshotWorkCenterRate
 } from '../src/core/types/snapshot.types.ts'
+
+const vite = await createServer({ server: { middlewareMode: true, hmr: false }, appType: 'custom', logLevel: 'error', optimizeDeps: { noDiscovery: true, entries: [] } })
+const { compareSnapshots } = await vite.ssrLoadModule('/src/core/calculations/snapshot-comparison.ts')
+const { getCanonicalComparisonStatus } = await vite.ssrLoadModule('/src/core/calculations/comparison-status.ts')
 
 const product = {
   productCode: 'P-001',
@@ -214,3 +217,4 @@ assert.equal(
 )
 
 console.log('Dynamic snapshot comparison verification passed.')
+await vite.close()

@@ -86,8 +86,8 @@ export const WorkCenterComparisonTable: React.FC<WorkCenterComparisonTableProps>
       <table className={`w-full ${contextOnly ? 'min-w-[660px]' : 'min-w-[1120px]'} text-left text-xs`}>
         <caption className="sr-only">
           {contextOnly
-            ? 'All Reference and Current Work Center rates retained as Selected Comparison calculation context; rate gaps are not shown.'
-            : 'Reference and current Work Center rate comparison'}
+            ? 'All Before and After Work Center rates retained as Selected Comparison calculation context; rate gaps are not shown.'
+            : 'Before and After Work Center rate comparison'}
         </caption>
         <thead>
           <tr className="bg-slate-800 text-xs font-semibold text-white">
@@ -96,11 +96,11 @@ export const WorkCenterComparisonTable: React.FC<WorkCenterComparisonTableProps>
             {!contextOnly && <th scope="col" className="p-2.5">Comparison</th>}
             {!contextOnly && <th scope="col" className="p-2.5">Confidence</th>}
             {!contextOnly && <th scope="col" className="p-2.5">Data Quality</th>}
-            <th scope="col" className="p-2.5 text-right">Labor Ref</th>
-            <th scope="col" className="p-2.5 text-right">Labor Current</th>
+            <th scope="col" className="p-2.5 text-right">Labor Before</th>
+            <th scope="col" className="p-2.5 text-right">Labor After</th>
             {!contextOnly && <th scope="col" className="p-2.5 text-right">Labor Δ</th>}
-            <th scope="col" className="p-2.5 text-right">Burden Ref</th>
-            <th scope="col" className="p-2.5 text-right">Burden Current</th>
+            <th scope="col" className="p-2.5 text-right">Burden Before</th>
+            <th scope="col" className="p-2.5 text-right">Burden After</th>
             {!contextOnly && <th scope="col" className="p-2.5 text-right">Burden Δ</th>}
           </tr>
         </thead>

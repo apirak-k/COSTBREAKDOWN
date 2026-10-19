@@ -147,8 +147,8 @@ assert.deepEqual(emptySelection.reference.rates, reference.rates)
 const store = readFileSync(resolve(process.cwd(), 'src/state/store.tsx'), 'utf8')
 assert.match(store, /useState<StoredSelectedComparison \| null>\(null\)/,
   'Selected Comparison starts as temporary in-memory scope with Full Comparison as default')
-assert.match(store, /selectedComparisonScope\?\.sourceFingerprint === snapshotSourceFingerprint/,
-  'a Ref/Cur Working source change makes Selected Comparison inactive')
+assert.match(store, /selectedComparisonScope\?\.pairFingerprint === comparisonPair\.fingerprint/,
+  'a selected role or its Working source change makes Selected Comparison inactive')
   assert.match(store, /tab === 'simulation'\) setSelectedComparisonScope\(null\)/,
     'opening Simulation ends active scope')
 assert.doesNotMatch(store, /saveToSession\([^\n]*selectedComparisonScope|STORAGE_KEYS\.[^\n]*SELECTED_COMPARISON/,

@@ -18,12 +18,12 @@ const comparison = {
 const vite = await createServer({ server: { middlewareMode: true }, appType: 'custom', logLevel: 'error' })
 try {
   const { SnapshotComparisonCard } = await vite.ssrLoadModule('/src/features/cost-breakdown/components/SnapshotComparisonCard.tsx')
-  const markup = renderToStaticMarkup(React.createElement(SnapshotComparisonCard, { comparison }))
+  const markup = renderToStaticMarkup(React.createElement(SnapshotComparisonCard, { comparison, gapDirection: 'Current − Reference' }))
   assert.doesNotMatch(markup, /Data quality:/, 'the page-level Data quality summary is absent')
   assert.doesNotMatch(markup, /Review warnings|Missing rate remains reviewable/, 'comparison warnings are not displayed in the summary')
   assert.doesNotMatch(markup, /Standard Cost reconciliation/, 'Standard Cost reconciliation UI is absent')
   assert.match(markup, /aria-label="Cost Element"/)
-  assert.match(markup, /<th scope="col"[^>]*>Cost Element<\/th>[\s\S]*>REF<\/th>[\s\S]*>CUR<\/th>[\s\S]*>GAP<\/span>[\s\S]*>Selected<\/span>[\s\S]*>%GAP<\/th>/)
+  assert.match(markup, /<th scope="col"[^>]*>Cost Element<\/th>[\s\S]*>Before<\/th>[\s\S]*>After<\/th>[\s\S]*>GAP<\/span>[\s\S]*>Selected<\/span>[\s\S]*>%GAP<\/th>/)
   assert.match(markup, />Material<\/th>[\s\S]*>Labor<\/th>[\s\S]*>Burden<\/th>[\s\S]*>Standard Cost<\/th>/)
   assert.equal([...markup.matchAll(/<tr\b/g)].length, 5, 'Cost has exactly a header, three component rows, and a footer')
   assert.match(markup, /50\.00%[\s\S]*25\.00%[\s\S]*25\.00%[\s\S]*15\.38%/,
@@ -32,6 +32,7 @@ try {
     'the compact table omits obsolete headings, selected dataset columns, and review UI')
   const selectedMarkup = renderToStaticMarkup(React.createElement(SnapshotComparisonCard, {
     comparison,
+    gapDirection: 'Current − Reference',
     selectedComparison: { ...comparison, elementGaps: { material: 0.5, labor: 0, burden: 0 }, totalGap: 0.5 },
     selectedActive: true
   }))

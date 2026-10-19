@@ -20,6 +20,7 @@ import {
 } from './components/comparison-view'
 import type { ComparisonSortMode, ComparisonViewMode } from './components/comparison-view'
 import { formatVariance, getVarianceClass } from '../../core'
+import type { MasterDataRole } from '../../core'
 import type { CandidateManualOrders, CandidateTableType } from './candidate-reorder-history'
 
 interface CostBreakdownPageProps {
@@ -35,6 +36,38 @@ interface GapSegment {
   selected: number | null
   color: string
 }
+
+const COMPARISON_ROLES: readonly MasterDataRole[] = ['reference', 'current', 'custom']
+const COMPARISON_ROLE_LABELS: Record<MasterDataRole, string> = {
+  reference: 'Reference',
+  current: 'Current',
+  custom: 'Custom'
+}
+
+interface ComparisonRolePopoverProps {
+  side: 'Before' | 'After'
+  selectedRole: MasterDataRole
+  onSelect: (role: MasterDataRole) => void
+}
+
+const ComparisonRolePopover: React.FC<ComparisonRolePopoverProps> = ({ side, selectedRole, onSelect }) => (
+  <CostBreakdownPopover
+    label={`${side} dataset, currently ${COMPARISON_ROLE_LABELS[selectedRole]}`}
+    trigger={<span>{COMPARISON_ROLE_LABELS[selectedRole]}</span>}
+    panelClassName="w-32"
+    triggerClassName="inline-flex h-8 w-[108px] shrink-0 items-center justify-between rounded-sm border border-slate-300 bg-white px-2 text-xs font-medium leading-none text-slate-700 transition-colors hover:bg-slate-100 hover:text-slate-950 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700"
+  >
+    {close => <div role="group" aria-label={`${side} dataset choices`} className="flex flex-col">
+      {COMPARISON_ROLES.map(role => <button
+        key={role}
+        type="button"
+        aria-pressed={selectedRole === role}
+        onClick={() => { onSelect(role); close() }}
+        className={`block w-full rounded-sm px-2 py-1.5 text-left text-xs text-slate-700 hover:bg-slate-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-700 ${selectedRole === role ? 'bg-slate-100 font-semibold' : ''}`}
+      >{COMPARISON_ROLE_LABELS[role]}</button>)}
+    </div>}
+  </CostBreakdownPopover>
+)
 
 function isAvailableGap(value: number | null | undefined): value is number {
   return value !== null && value !== undefined && Number.isFinite(value)
@@ -64,9 +97,10 @@ interface GapContributionChartProps {
   fullTotal: number | null
   selectedTotal: number | null
   selectedActive: boolean
+  directionLabel: string
 }
 
-export function GapContributionChart({ segments, fullTotal, selectedTotal, selectedActive }: GapContributionChartProps) {
+export function GapContributionChart({ segments, fullTotal, selectedTotal, selectedActive, directionLabel }: GapContributionChartProps) {
   const width = 1000
   const chartId = useId().replace(/:/g, '')
   const fullValues = segments.map(segment => segment.full)
@@ -100,6 +134,7 @@ export function GapContributionChart({ segments, fullTotal, selectedTotal, selec
   const selectedText = (value: number | null) => `Selected ${valueLabel(value)}`
   const accessibleLabel = [
     `Full Standard Cost Gap ${valueLabel(fullTotal)}`,
+    `Gap = ${directionLabel}`,
     ...segments.map(segment => `Full ${segment.label} Gap ${valueLabel(segment.full)}`),
     selectedActive ? `Selected Standard Cost Gap ${valueLabel(selectedTotal)}` : '',
     ...(selectedActive ? segments.map(segment => `Selected ${segment.label} Gap ${valueLabel(segment.selected)}`) : [])
@@ -169,9 +204,13 @@ export function GapContributionChart({ segments, fullTotal, selectedTotal, selec
 
 export const CostBreakdownPage: React.FC<CostBreakdownPageProps> = ({ manualOrders, onManualOrderChange, onResetManualOrderHistory }) => {
   const {
-    fullSnapshotComparison,
-    snapshotComparison,
-    snapshotPair,
+    comparisonBefore,
+    comparisonAfter,
+    comparisonPair,
+    setComparisonBefore,
+    setComparisonAfter,
+    costBreakdownFullComparison,
+    costBreakdownSelectedComparison,
     selectedComparisonSelection,
     isSelectedComparisonActive,
     applySelectedComparison,
@@ -183,19 +222,20 @@ export const CostBreakdownPage: React.FC<CostBreakdownPageProps> = ({ manualOrde
   const [sortResetToken, setSortResetToken] = useState(0)
   const [isOverviewExpanded, setIsOverviewExpanded] = useState(true)
   const toggleOverview = () => setIsOverviewExpanded(expanded => !expanded)
+  const gapDirection = `${COMPARISON_ROLE_LABELS[comparisonAfter]} − ${COMPARISON_ROLE_LABELS[comparisonBefore]}`
 
   const selectedBOMKeys = new Set(selectedComparisonSelection?.bomFindingKeys ?? [])
   const selectedRoutingKeys = new Set(selectedComparisonSelection?.routingFindingKeys ?? [])
   const selectedContribution = isSelectedComparisonActive && selectedComparisonSelection
-    ? getSelectedComparisonContribution(fullSnapshotComparison, snapshotComparison, selectedComparisonSelection)
+    ? getSelectedComparisonContribution(costBreakdownFullComparison, costBreakdownSelectedComparison, selectedComparisonSelection)
     : null
   const selectedDisplayComparison = selectedContribution
-    ? { ...snapshotComparison, ...selectedContribution }
-    : snapshotComparison
+    ? { ...costBreakdownSelectedComparison, ...selectedContribution }
+    : costBreakdownSelectedComparison
   const gapSegments: GapSegment[] = [
-    { key: 'material', label: 'Material', full: fullSnapshotComparison.elementGaps.material, selected: selectedContribution?.elementGaps.material ?? null, color: COST_ELEMENT_COLORS.material },
-    { key: 'labor', label: 'Labor', full: fullSnapshotComparison.elementGaps.labor, selected: selectedContribution?.elementGaps.labor ?? null, color: COST_ELEMENT_COLORS.labor },
-    { key: 'burden', label: 'Burden', full: fullSnapshotComparison.elementGaps.burden, selected: selectedContribution?.elementGaps.burden ?? null, color: COST_ELEMENT_COLORS.burden }
+    { key: 'material', label: 'Material', full: costBreakdownFullComparison.elementGaps.material, selected: selectedContribution?.elementGaps.material ?? null, color: COST_ELEMENT_COLORS.material },
+    { key: 'labor', label: 'Labor', full: costBreakdownFullComparison.elementGaps.labor, selected: selectedContribution?.elementGaps.labor ?? null, color: COST_ELEMENT_COLORS.labor },
+    { key: 'burden', label: 'Burden', full: costBreakdownFullComparison.elementGaps.burden, selected: selectedContribution?.elementGaps.burden ?? null, color: COST_ELEMENT_COLORS.burden }
   ]
 
   const toggleFinding = (type: 'bom' | 'routing', findingKey: string) => {
@@ -216,8 +256,8 @@ export const CostBreakdownPage: React.FC<CostBreakdownPageProps> = ({ manualOrde
 
   const statusControlLabel = getComparisonStatusControlLabel(comparisonView)
   const sortLabel = getComparisonSortLabel(sortMode)
-  const bomCount = fullSnapshotComparison.bomFindings.filter(finding => isVisibleInComparisonView(finding, comparisonView)).length
-  const routingCount = fullSnapshotComparison.routingFindings.filter(finding => isVisibleInComparisonView(finding, comparisonView)).length
+  const bomCount = costBreakdownFullComparison.bomFindings.filter(finding => isVisibleInComparisonView(finding, comparisonView)).length
+  const routingCount = costBreakdownFullComparison.routingFindings.filter(finding => isVisibleInComparisonView(finding, comparisonView)).length
   const typeCounts: Record<ItemizedTypeTab, number> = { bom: bomCount, rtg: routingCount, all: bomCount + routingCount }
 
   const setFindingSelection = (type: 'bom' | 'routing', nextKeys: ReadonlySet<string>) => {
@@ -234,14 +274,20 @@ export const CostBreakdownPage: React.FC<CostBreakdownPageProps> = ({ manualOrde
       <div data-cbd-sticky-shell="true" className="flex shrink-0 flex-col lg:sticky lg:top-0 lg:z-30">
       <header aria-label="Cost Breakdown subheader" className="shrink-0 overflow-x-auto border border-slate-300 bg-white">
         <div className="flex min-w-[1000px] flex-nowrap items-center gap-1.5 px-1.5 py-1" role="group" aria-label="Cost Breakdown controls">
+          <div role="group" aria-label={`Comparison datasets, Before ${COMPARISON_ROLE_LABELS[comparisonBefore]}, After ${COMPARISON_ROLE_LABELS[comparisonAfter]}`} className="inline-flex shrink-0 items-center gap-1.5">
+            <ComparisonRolePopover side="Before" selectedRole={comparisonBefore} onSelect={setComparisonBefore} />
+            <span aria-hidden="true" className="w-4 text-center text-sm font-semibold text-slate-500">→</span>
+            <ComparisonRolePopover side="After" selectedRole={comparisonAfter} onSelect={setComparisonAfter} />
+          </div>
+
           <div
-            aria-label={`Standard Cost Gap ${fullSnapshotComparison.totalGap === null ? 'unavailable' : formatVariance(fullSnapshotComparison.totalGap, 2)} THB/pc; Gap = CUR − REF`}
-            title="Full snapshot · THB/pc · Gap = CUR − REF"
-            className="flex shrink-0 items-baseline gap-1.5 whitespace-nowrap text-xs"
+            aria-label={`Standard Cost Gap ${costBreakdownFullComparison.totalGap === null ? 'unavailable' : formatVariance(costBreakdownFullComparison.totalGap, 2)} THB/pc; Gap = ${gapDirection}`}
+            title={`Full snapshot · THB/pc · Gap = ${gapDirection}`}
+            className="flex shrink-0 items-baseline gap-1.5 whitespace-nowrap border-l border-slate-300 pl-2 text-xs"
           >
             <span className="font-semibold text-slate-800">Standard Cost Gap</span>
-            <span className={`font-mono tabular-nums ${fullSnapshotComparison.totalGap === null ? 'text-slate-400' : getVarianceClass(fullSnapshotComparison.totalGap)}`}>
-              {fullSnapshotComparison.totalGap === null ? '—' : formatVariance(fullSnapshotComparison.totalGap, 2)}
+            <span className={`font-mono tabular-nums ${costBreakdownFullComparison.totalGap === null ? 'text-slate-400' : getVarianceClass(costBreakdownFullComparison.totalGap)}`}>
+              {costBreakdownFullComparison.totalGap === null ? '—' : formatVariance(costBreakdownFullComparison.totalGap, 2)}
             </span>
           </div>
 
@@ -256,16 +302,17 @@ export const CostBreakdownPage: React.FC<CostBreakdownPageProps> = ({ manualOrde
             </span>)}
           </div>
 
-          <div data-gap-chart-wrapper="true" className="min-w-[140px] flex-1">
+          <div data-gap-chart-wrapper="true" className="min-w-[96px] flex-1">
             <GapContributionChart
               segments={gapSegments}
-              fullTotal={fullSnapshotComparison.totalGap}
+              fullTotal={costBreakdownFullComparison.totalGap}
               selectedTotal={selectedContribution?.totalGap ?? null}
               selectedActive={isSelectedComparisonActive}
+              directionLabel={gapDirection}
             />
           </div>
 
-          <div className="inline-flex h-8 w-[264px] shrink-0 overflow-hidden rounded-sm border border-slate-300 bg-white" role="group" aria-label="Finding type filter">
+          <div className="inline-flex h-8 w-[240px] shrink-0 overflow-hidden rounded-sm border border-slate-300 bg-white" role="group" aria-label="Finding type filter">
             {(['bom', 'rtg', 'all'] as const).map((tab, index) => (
               <button
                 key={tab}
@@ -320,10 +367,10 @@ export const CostBreakdownPage: React.FC<CostBreakdownPageProps> = ({ manualOrde
 
       <div id="cost-breakdown-overview-panels" data-cbd-overview-pair="true" data-cbd-overview-columns="equal" className={isOverviewExpanded ? 'grid min-w-0 grid-cols-1 items-stretch gap-2 border-x border-b border-slate-300 bg-slate-50 p-2 lg:shrink-0 lg:grid-cols-2' : 'hidden'}>
         <div className="min-w-0">
-          <SnapshotComparisonCard comparison={fullSnapshotComparison} selectedComparison={selectedDisplayComparison} selectedActive={isSelectedComparisonActive} />
+          <SnapshotComparisonCard comparison={costBreakdownFullComparison} selectedComparison={selectedDisplayComparison} selectedActive={isSelectedComparisonActive} gapDirection={gapDirection} />
         </div>
         <div className="min-w-0">
-          <WorkCenterProcessingTable comparison={fullSnapshotComparison} />
+          <WorkCenterProcessingTable comparison={costBreakdownFullComparison} gapDirection={gapDirection} />
         </div>
       </div>
       </div>
@@ -332,8 +379,9 @@ export const CostBreakdownPage: React.FC<CostBreakdownPageProps> = ({ manualOrde
 
       <div role="region" aria-label="Candidate workspace" tabIndex={0} className="min-w-0 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-blue-700 max-lg:[contain:paint]">
         <ItemizedComparisonTable
-          comparison={fullSnapshotComparison}
-          pair={snapshotPair}
+          key={comparisonPair.fingerprint}
+          comparison={costBreakdownFullComparison}
+          pair={comparisonPair}
           typeTab={typeTab}
           viewMode={comparisonView}
           sortMode={sortMode}

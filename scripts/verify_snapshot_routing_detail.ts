@@ -1,5 +1,8 @@
 import assert from 'node:assert/strict'
-import { calculateSnapshotRoutingDetail } from '../src/core/calculations/snapshot-routing-detail.ts'
+import { createServer } from 'vite'
+
+const vite = await createServer({ server: { middlewareMode: true, hmr: false }, appType: 'custom', logLevel: 'error', optimizeDeps: { noDiscovery: true, entries: [] } })
+const { calculateSnapshotRoutingDetail } = await vite.ssrLoadModule('/src/core/calculations/snapshot-routing-detail.ts')
 
 const base = {
   id: 'route-1',
@@ -89,3 +92,4 @@ const validBoundary = calculateSnapshotRoutingDetail(
 assert.equal(validBoundary.currentTotal, 0, 'zero Manning/rates and maximum Yield are valid boundaries')
 
 console.log('Snapshot routing detail verification passed.')
+await vite.close()

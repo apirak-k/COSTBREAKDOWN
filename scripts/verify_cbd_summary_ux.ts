@@ -252,7 +252,8 @@ try {
     segments: fullSegments,
     fullTotal: 16.05,
     selectedTotal: null,
-    selectedActive: false
+    selectedActive: false,
+    directionLabel: 'Current − Reference'
   }))
   const fullSvg = fullChart.match(/<svg\b[\s\S]*?<\/svg>/)?.[0]
   assert.ok(fullSvg, 'expected the Full Gap bar SVG')
@@ -276,7 +277,8 @@ try {
     segments: selectedSegments,
     fullTotal: 16.05,
     selectedTotal: 3,
-    selectedActive: true
+    selectedActive: true,
+    directionLabel: 'Current − Reference'
   }))
   const selectedSvg = selectedChart.match(/<svg\b[\s\S]*?<\/svg>/)?.[0]
   assert.ok(selectedSvg, 'expected the Selected Gap bar SVG')
@@ -327,9 +329,9 @@ try {
   const fullComparison = comparisonCore.compareSnapshots(reference, current)
   assert.equal(fullComparison.referenceCost.material, 50.52)
   assert.equal(fullComparison.currentCost.material, 59.83)
-  assertClose(fullComparison.elementGaps.material, 9.31, 'Material gap must remain CUR minus REF')
-  assertClose(fullComparison.elementGaps.labor, 4.42, 'Labor gap must remain CUR minus REF')
-  assertClose(fullComparison.elementGaps.burden, 2.32, 'Burden gap must remain CUR minus REF')
+  assertClose(fullComparison.elementGaps.material, 9.31, 'Material gap must remain After minus Before')
+  assertClose(fullComparison.elementGaps.labor, 4.42, 'Labor gap must remain After minus Before')
+  assertClose(fullComparison.elementGaps.burden, 2.32, 'Burden gap must remain After minus Before')
   assertClose(fullComparison.totalGap, 16.05, 'Standard Cost gap must reconcile to MAT + LB + BD')
   assert.equal(fullComparison.reconciliation?.reconciled, true, 'fixture comparison must reconcile through the real calculation')
 
@@ -357,23 +359,25 @@ try {
   }
 
   const costFullMarkup = renderToStaticMarkup(React.createElement(snapshotView.SnapshotComparisonCard, {
-    comparison: fullComparison
+    comparison: fullComparison,
+    gapDirection: 'Current − Reference'
   }))
   const costSelectedMarkup = renderToStaticMarkup(React.createElement(snapshotView.SnapshotComparisonCard, {
     comparison: fullComparison,
     selectedComparison: selectedDisplayComparison,
-    selectedActive: true
+    selectedActive: true,
+    gapDirection: 'Current − Reference'
   }))
   const costFullTable = costFullMarkup.match(/<table\b[\s\S]*?<\/table>/)?.[0]
   const costSelectedTable = costSelectedMarkup.match(/<table\b[\s\S]*?<\/table>/)?.[0]
   assert.ok(costFullTable && costSelectedTable, 'expected Cost comparison tables in Full and Selected mode')
   const costFullHeaders = tableHeaderLabels(costFullTable)
   const costSelectedHeaders = tableHeaderLabels(costSelectedTable)
-  assert.deepEqual(costFullHeaders, ['Cost Element', 'REF', 'CUR', 'GAP Selected', '%GAP'])
-  assert.deepEqual(costSelectedHeaders, ['Cost Element', 'REF', 'CUR', 'GAP Selected', '%GAP'])
+  assert.deepEqual(costFullHeaders, ['Cost Element', 'Before', 'After', 'GAP Selected', '%GAP'])
+  assert.deepEqual(costSelectedHeaders, ['Cost Element', 'Before', 'After', 'GAP Selected', '%GAP'])
   assert.match(costFullMarkup, /<section aria-label="Cost Element"[\s\S]*?<caption class="sr-only">Cost Element/,
     'the summary table uses the Cost Element name for its accessible section and caption')
-  assert.deepEqual(costFullHeaders, ['Cost Element', 'REF', 'CUR', 'GAP Selected', '%GAP'],
+  assert.deepEqual(costFullHeaders, ['Cost Element', 'Before', 'After', 'GAP Selected', '%GAP'],
     'Cost keeps the finalized column order and Selected remains within GAP')
   assert.match(costFullTable, /<span data-gap-header-slot="full"[^>]*>GAP<\/span>/,
     'Cost GAP header must align to the Full Gap value slot')
@@ -451,7 +455,7 @@ try {
   const fullTotalRow = rowFor(costFullTable, 'Standard Cost')
   const selectedTotalRow = rowFor(costSelectedTable, 'Standard Cost')
   const fullTotalValues = tableCells(fullTotalRow)
-  assert.equal(fullTotalValues[3], formatters.formatPercent(guards.safeDivide(fullComparison.totalGap!, fullComparison.referenceCost.total!)!, 2) + ' Total', 'STD Cost %Total must be Gap divided by REF Standard Cost')
+  assert.equal(fullTotalValues[3], formatters.formatPercent(guards.safeDivide(fullComparison.totalGap!, fullComparison.referenceCost.total!)!, 2) + ' Total', 'STD Cost %Total must be Gap divided by Before Standard Cost')
   const expectedSelectedTotal = selectedContribution.elementGaps.material! + selectedContribution.elementGaps.labor! + selectedContribution.elementGaps.burden!
   assert.equal(gapSlot(selectedTotalRow, 'selected').text, formatters.formatVariance(expectedSelectedTotal, 2), 'STD Cost Selected Gap must equal Selected MAT + LB + BD')
   assert.match(selectedTotalRow, />Total<\/span>/, 'Cost footer percentage must visibly identify Total')
@@ -459,7 +463,8 @@ try {
   const wcMarkup = renderToStaticMarkup(React.createElement(wcView.WorkCenterProcessingTable, {
     comparison: fullComparison,
     selectedComparison: selectedDisplayComparison,
-    selectedActive: true
+    selectedActive: true,
+    gapDirection: 'Current − Reference'
   } as never))
   const costSummarySource = readFileSync(new URL('../src/features/cost-breakdown/components/SnapshotComparisonCard.tsx', import.meta.url), 'utf8')
   const wcSummarySource = readFileSync(new URL('../src/features/cost-breakdown/components/WorkCenterProcessingTable.tsx', import.meta.url), 'utf8')
@@ -469,7 +474,7 @@ try {
   assert.ok(wcTableStart >= 0, 'Work Center exposes one accessible table grid')
   const wcTable = extractElement(wcMarkup, wcTableStart, 'div')
   const wcRows = roleRows(wcTable)
-  assert.deepEqual(roleRowHeaders(wcRows[0]), ['Work Center', 'REF', 'CUR', 'GAP', '%GAP'])
+  assert.deepEqual(roleRowHeaders(wcRows[0]), ['Work Center', 'Before', 'After', 'GAP', '%GAP'])
   assert.equal((wcTable.match(/role="rowgroup"/g) ?? []).length, 3,
     'Work Center uses matching header, independently scrollable body, and fixed footer rowgroups')
   const wcScrollBodyStart = wcTable.indexOf('data-wc-scroll-body="true"')
@@ -516,7 +521,7 @@ try {
   const totalWcCurrent = guards.safeAdd(fullComparison.currentCost.labor!, fullComparison.currentCost.burden!)!
   const totalWcGap = guards.safeAdd(fullComparison.elementGaps.labor!, fullComparison.elementGaps.burden!)!
   assertClose(totalWcGap, fullComparison.totalGap! - fullComparison.elementGaps.material!, 'Total WC Gap must reconcile to Labor + Burden')
-  assertClose(totalWcCurrent - totalWcReference, totalWcGap, 'Total WC CUR minus REF must equal Labor Gap + Burden Gap')
+  assertClose(totalWcCurrent - totalWcReference, totalWcGap, 'Total WC After minus Before must equal Labor Gap + Burden Gap')
   assert.equal(wcFooterValues[0], formatters.formatNumber(totalWcReference, 2))
   assert.equal(wcFooterValues[1], formatters.formatNumber(totalWcCurrent, 2))
   assert.equal(wcFooterValues[2], formatters.formatVariance(totalWcGap, 2))

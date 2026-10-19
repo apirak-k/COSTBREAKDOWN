@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react'
-import type { ComparisonFinding, CostComparison, SnapshotPair } from '../../../core'
+import type { ComparisonFinding, CostBreakdownComparisonPair, CostComparison } from '../../../core'
 import {
   isVisibleInComparisonView,
   sortComparisonRows
@@ -17,7 +17,7 @@ export type ItemizedTypeTab = 'all' | 'bom' | 'rtg'
 
 interface ItemizedComparisonTableProps {
   comparison: CostComparison
-  pair: SnapshotPair
+  pair: CostBreakdownComparisonPair
   typeTab: ItemizedTypeTab
   viewMode: ComparisonViewMode
   sortMode: ComparisonSortMode
@@ -40,8 +40,8 @@ interface ItemizedRow {
   detail: BOMItemizedRow | RoutingItemizedRow
 }
 
-function toRows(comparison: CostComparison, pair: SnapshotPair): { bom: ItemizedRow[]; routing: ItemizedRow[] } {
-  const bom = buildBOMItemizedRows(pair.reference.bom, pair.current.bom, comparison.bomFindings).map(detail => ({
+function toRows(comparison: CostComparison, pair: CostBreakdownComparisonPair): { bom: ItemizedRow[]; routing: ItemizedRow[] } {
+  const bom = buildBOMItemizedRows(pair.before.bom, pair.after.bom, comparison.bomFindings).map(detail => ({
     key: detail.key,
     type: 'BOM' as const,
     finding: detail.finding,
@@ -50,11 +50,11 @@ function toRows(comparison: CostComparison, pair: SnapshotPair): { bom: Itemized
     detail
   }))
   const routing = buildRoutingItemizedRows(
-    pair.reference.routing,
-    pair.current.routing,
+    pair.before.routing,
+    pair.after.routing,
     comparison.routingFindings,
-    pair.reference.rates,
-    pair.current.rates
+    pair.before.rates,
+    pair.after.rates
   ).map(detail => ({
     key: detail.key,
     type: 'RTG' as const,

@@ -7,12 +7,13 @@ interface CostBreakdownPopoverProps {
   label: string
   trigger: React.ReactNode
   panelClassName: string
+  triggerClassName?: string
   children: (close: () => void) => React.ReactNode
 }
 
 let activeCBDPopoverDismiss: { owner: symbol; dismiss: () => void } | null = null
 
-export const CostBreakdownPopover: React.FC<CostBreakdownPopoverProps> = ({ label, trigger, panelClassName, children }) => {
+export const CostBreakdownPopover: React.FC<CostBreakdownPopoverProps> = ({ label, trigger, panelClassName, triggerClassName: triggerClassNameOverride, children }) => {
   const boundaryRef = useRef<HTMLDivElement>(null)
   const triggerRef = useRef<HTMLButtonElement>(null)
   const panelRef = useRef<HTMLDivElement>(null)
@@ -22,7 +23,7 @@ export const CostBreakdownPopover: React.FC<CostBreakdownPopoverProps> = ({ labe
   const [open, setOpen] = useState(false)
   const [position, setPosition] = useState<{ left: number; top: number } | null>(null)
   const popoverId = React.useId()
-  const triggerClassName = 'inline-flex h-8 shrink-0 items-center gap-1.5 rounded-sm border border-slate-300 bg-white px-2 text-xs font-medium leading-none text-slate-700 transition-colors hover:bg-slate-100 hover:text-slate-950 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700'
+  const defaultTriggerClassName = 'inline-flex h-8 shrink-0 items-center gap-1.5 rounded-sm border border-slate-300 bg-white px-2 text-xs font-medium leading-none text-slate-700 transition-colors hover:bg-slate-100 hover:text-slate-950 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700'
 
   const clearHoverTimer = useCallback(() => {
     if (hoverTimerRef.current !== null) clearTimeout(hoverTimerRef.current)
@@ -146,7 +147,7 @@ export const CostBreakdownPopover: React.FC<CostBreakdownPopoverProps> = ({ labe
               requestAnimationFrame(focusFirstOption)
             }
           }}
-          className={triggerClassName}
+          className={triggerClassNameOverride ?? defaultTriggerClassName}
         >
           {trigger}
           <ChevronDown aria-hidden="true" className="h-3.5 w-3.5 shrink-0 self-center text-slate-600" />

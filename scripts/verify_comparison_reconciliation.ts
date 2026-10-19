@@ -1,11 +1,10 @@
 import assert from 'node:assert/strict'
-import {
-  CostSnapshot,
-  SnapshotPair,
-  compareSnapshots,
-  getCanonicalComparisonStatus
-} from '../src/core'
-import { isVisibleInComparisonView } from '../src/features/cost-breakdown/components/comparison-view.ts'
+import { createServer } from 'vite'
+import type { CostSnapshot, SnapshotPair } from '../src/core'
+
+const vite = await createServer({ server: { middlewareMode: true, hmr: false }, appType: 'custom', logLevel: 'error', optimizeDeps: { noDiscovery: true, entries: [] } })
+const { compareSnapshots, getCanonicalComparisonStatus } = await vite.ssrLoadModule('/src/core/index.ts')
+const { isVisibleInComparisonView } = await vite.ssrLoadModule('/src/features/cost-breakdown/components/comparison-view.ts')
 
 console.log('--- Verifying Phase 2: Tasks 6, 7, 8, 9, 10 ---')
 
@@ -208,3 +207,4 @@ assert.equal(missingKeyComparison.reconciliation?.reconciled, false, 'Unattribut
 assert(missingKeyComparison.reconciliation?.issues.length, 'Unavailable row-to-branch checks must report an issue')
 
 console.log('All Phase 2 checks passed successfully!')
+await vite.close()

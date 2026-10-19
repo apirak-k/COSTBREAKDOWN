@@ -165,7 +165,7 @@ export function BOMRecordDetails({ row, detailId }: BOMRecordDetailsProps) {
   </tr>
 
   return <>
-    {renderDetailRow('Reference → Current', false, detailId)}
+    {renderDetailRow('Before → After', false, detailId)}
     {renderDetailRow('Parameter Cost Effect', true)}
   </>
 }

@@ -143,7 +143,7 @@ export const AppLayout: React.FC<AppLayoutProps> = ({ children, onNavigatePrepar
   const {
     activeTab,
     snapshotPair,
-    fullSnapshotComparison,
+    referenceCurrentComparison,
     masterDataHandoff,
     masterDataSnapshots,
     masterDataLastSavedSnapshots,
@@ -249,9 +249,9 @@ export const AppLayout: React.FC<AppLayoutProps> = ({ children, onNavigatePrepar
       <button type="button" onClick={() => { void handleLoadMockData('incomplete') }} className="min-h-7 w-full px-1.5 text-center font-medium text-slate-600 transition-colors hover:bg-slate-100 hover:text-slate-950 focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-700">Incomplete Mock</button>
     </div>
   ) : undefined
-  const referenceStandardCost = fullSnapshotComparison.referenceCost.total
-  const currentStandardCost = fullSnapshotComparison.currentCost.total
-  const totalGap = fullSnapshotComparison.totalGap
+  const referenceStandardCost = referenceCurrentComparison.referenceCost.total
+  const currentStandardCost = referenceCurrentComparison.currentCost.total
+  const totalGap = referenceCurrentComparison.totalGap
   const hasNetGap = totalGap !== null && Number.isFinite(totalGap)
   const formatCost = (value: number | null) => value === null || !Number.isFinite(value) ? '—' : formatNumber(value, 2)
   const formattedGap = hasNetGap ? `${totalGap > 0 ? '+' : ''}${formatNumber(totalGap, 2)}` : '—'

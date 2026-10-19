@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, useMemo, useReducer, useRef, ReactNode } from 'react'
+import React, { createContext, useContext, useState, useEffect, useReducer, useRef, ReactNode } from 'react'
 import {
   ProductMaster,
   WorkCenterRate,
@@ -26,6 +26,13 @@ import {
   evaluateMasterDataHandoff,
   getSnapshotRoleReadiness
 } from '../core'
+import {
+  createCostBreakdownComparisonPair,
+  DEFAULT_CBD_COMPARISON_AFTER,
+  DEFAULT_CBD_COMPARISON_BEFORE,
+  toSnapshotPair
+} from './cost-breakdown-comparison'
+import type { CostBreakdownComparisonPair } from '../core'
 import { createSelectedSnapshotPair, getCanonicalComparisonStatus, getComparisonFindingKey } from '../core'
 import type { MasterDataHandoffStatus } from '../core'
 import { hasEnteredMasterData, importSnapshotForCustom, importSnapshotForRole, markSizingPlaceholderEdited, resizeMasterDataSnapshotForSizing, synchronizeDatasetSizingToRows } from './dataset-sizing'
@@ -86,7 +93,7 @@ import {
 export const DEFAULT_UOMS = ['PC', 'SET', 'PANEL', 'GM', 'KG', 'SM', 'M', 'RL', 'L', 'BOX', 'TRAY']
 
 interface StoredSelectedComparison extends SelectedComparisonSelection {
-  sourceFingerprint: string
+  pairFingerprint: string
 }
 
 function normalizeSnapshotPair(pair: SnapshotPair): SnapshotPair {
@@ -258,9 +265,12 @@ interface AppContextType {
   routing: RoutingStep[]
   snapshotPair: SnapshotPair
   masterDataSnapshots: Record<MasterDataRole, CostSnapshot>
-  snapshotComparison: CostComparison
-  fullSnapshotComparison: CostComparison
-  analysisSnapshotPair: SnapshotPair
+  comparisonBefore: MasterDataRole
+  comparisonAfter: MasterDataRole
+  comparisonPair: CostBreakdownComparisonPair
+  referenceCurrentComparison: CostComparison
+  costBreakdownFullComparison: CostComparison
+  costBreakdownSelectedComparison: CostComparison
   selectedComparisonSelection: SelectedComparisonSelection | null
   isSelectedComparisonActive: boolean
   masterDataHandoff: MasterDataHandoffStatus
@@ -282,6 +292,8 @@ interface AppContextType {
 
   // Navigation
   setActiveTab: (tab: ActiveTab) => void
+  setComparisonBefore: (role: MasterDataRole) => void
+  setComparisonAfter: (role: MasterDataRole) => void
   toggleMasterDataPrepareDataset: () => void
   previewMasterDataPrepareDataset: () => void
   scheduleDismissMasterDataPrepareDatasetPreview: () => void
@@ -470,6 +482,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     loadFromSession(STORAGE_KEYS.UOM_LIST, DEFAULT_UOMS)
   )
 
+  const [comparisonBefore, setComparisonBefore] = useState<MasterDataRole>(DEFAULT_CBD_COMPARISON_BEFORE)
+  const [comparisonAfter, setComparisonAfter] = useState<MasterDataRole>(DEFAULT_CBD_COMPARISON_AFTER)
   const [selectedComparisonScope, setSelectedComparisonScope] = useState<StoredSelectedComparison | null>(null)
   const [masterDataPrepareDatasetOpen, setMasterDataPrepareDatasetOpen] = useState(false)
   const [masterDataPrepareDatasetPinned, setMasterDataPrepareDatasetPinnedState] = useState(false)
@@ -596,17 +610,24 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   }
 
   const snapshotPair = activeSession.snapshotPair ?? sessionToSnapshotPair(activeSession)
-  const fullSnapshotComparison = compareSnapshots(snapshotPair.reference, snapshotPair.current)
-  const snapshotSourceFingerprint = useMemo(() => JSON.stringify([snapshotPair.reference, snapshotPair.current]), [snapshotPair])
-  const activeSelectedComparisonScope = selectedComparisonScope?.sourceFingerprint === snapshotSourceFingerprint
+  const masterDataSnapshots: Record<MasterDataRole, CostSnapshot> = {
+    reference: getMasterDataSnapshot(activeSession, snapshotPair, 'reference'),
+    current: getMasterDataSnapshot(activeSession, snapshotPair, 'current'),
+    custom: getMasterDataSnapshot(activeSession, snapshotPair, 'custom')
+  }
+  const comparisonPair = createCostBreakdownComparisonPair(masterDataSnapshots, comparisonBefore, comparisonAfter)
+  const engineComparisonPair = toSnapshotPair(comparisonPair)
+  const referenceCurrentComparison = compareSnapshots(snapshotPair.reference, snapshotPair.current)
+  const costBreakdownFullComparison = compareSnapshots(engineComparisonPair.reference, engineComparisonPair.current)
+  const activeSelectedComparisonScope = selectedComparisonScope?.pairFingerprint === comparisonPair.fingerprint
     ? selectedComparisonScope
     : null
-  const analysisSnapshotPair = activeSelectedComparisonScope
-    ? createSelectedSnapshotPair(snapshotPair, fullSnapshotComparison, activeSelectedComparisonScope)
-    : snapshotPair
-  const snapshotComparison = activeSelectedComparisonScope
-    ? compareSnapshots(analysisSnapshotPair.reference, analysisSnapshotPair.current)
-    : fullSnapshotComparison
+  const selectedEnginePair = activeSelectedComparisonScope
+    ? createSelectedSnapshotPair(engineComparisonPair, costBreakdownFullComparison, activeSelectedComparisonScope)
+    : engineComparisonPair
+  const costBreakdownSelectedComparison = activeSelectedComparisonScope
+    ? compareSnapshots(selectedEnginePair.reference, selectedEnginePair.current)
+    : costBreakdownFullComparison
   const selectedComparisonSelection: SelectedComparisonSelection | null = activeSelectedComparisonScope
     ? {
         bomFindingKeys: activeSelectedComparisonScope.bomFindingKeys,
@@ -620,14 +641,14 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   }, [selectedComparisonScope, activeSelectedComparisonScope])
 
   const applySelectedComparison = (selection: SelectedComparisonSelection) => {
-    const selectableBOMKeys = new Set(fullSnapshotComparison.bomFindings
+    const selectableBOMKeys = new Set(costBreakdownFullComparison.bomFindings
       .filter(finding => getCanonicalComparisonStatus(finding) !== null)
       .map(finding => getComparisonFindingKey('bom', finding)))
-    const selectableRoutingKeys = new Set(fullSnapshotComparison.routingFindings
+    const selectableRoutingKeys = new Set(costBreakdownFullComparison.routingFindings
       .filter(finding => getCanonicalComparisonStatus(finding) !== null)
       .map(finding => getComparisonFindingKey('routing', finding)))
     const nextScope: StoredSelectedComparison = {
-      sourceFingerprint: snapshotSourceFingerprint,
+      pairFingerprint: comparisonPair.fingerprint,
       bomFindingKeys: [...new Set(selection.bomFindingKeys)].filter(key => selectableBOMKeys.has(key)),
       routingFindingKeys: [...new Set(selection.routingFindingKeys)].filter(key => selectableRoutingKeys.has(key))
     }
@@ -639,11 +660,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const masterDataHandoff = evaluateMasterDataHandoff(activeSession, snapshotPair)
   const masterDataRole = masterDataUiState.role
   const masterDataSnapshot = getMasterDataSnapshot(activeSession, snapshotPair, masterDataRole)
-  const masterDataSnapshots: Record<MasterDataRole, CostSnapshot> = {
-    reference: getMasterDataSnapshot(activeSession, snapshotPair, 'reference'),
-    current: getMasterDataSnapshot(activeSession, snapshotPair, 'current'),
-    custom: getMasterDataSnapshot(activeSession, snapshotPair, 'custom')
-  }
   const masterDataLastSavedSnapshot = getLastSavedMasterData(activeSession, masterDataRole)?.snapshot
   const masterDataLastSavedSnapshots: Partial<Record<MasterDataRole, CostSnapshot>> = {
     reference: getLastSavedMasterData(activeSession, 'reference')?.snapshot,
@@ -1667,9 +1683,12 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       routing,
       snapshotPair,
       masterDataSnapshots,
-      snapshotComparison,
-      fullSnapshotComparison,
-      analysisSnapshotPair,
+      comparisonBefore,
+      comparisonAfter,
+      comparisonPair,
+      referenceCurrentComparison,
+      costBreakdownFullComparison,
+      costBreakdownSelectedComparison,
       selectedComparisonSelection,
       isSelectedComparisonActive,
       masterDataHandoff,
@@ -1689,6 +1708,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       activeTab,
       uomList,
       setActiveTab,
+      setComparisonBefore,
+      setComparisonAfter,
       toggleMasterDataPrepareDataset,
       previewMasterDataPrepareDataset,
       scheduleDismissMasterDataPrepareDatasetPreview,

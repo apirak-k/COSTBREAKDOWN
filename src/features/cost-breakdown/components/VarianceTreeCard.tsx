@@ -58,7 +58,7 @@ export const VarianceTreeCard: React.FC<VarianceTreeCardProps> = ({ comparison, 
               : 'Element gaps use all records. Finding counts follow the status filter above.'}
           </p>
         </div>
-        <p className="font-mono text-[11px] text-slate-600">Gap = Current − Reference · THB/pc</p>
+        <p className="font-mono text-[11px] text-slate-600">Gap = After − Before · THB/pc</p>
       </header>
 
       <div className="p-3 sm:p-4">

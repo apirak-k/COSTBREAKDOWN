@@ -196,6 +196,15 @@ export interface SnapshotPair {
   current: CostSnapshot
 }
 
+/** Selected Cost Breakdown snapshots, kept explicit at the Before/After boundary. */
+export interface CostBreakdownComparisonPair {
+  beforeRole: MasterDataRole
+  afterRole: MasterDataRole
+  before: CostSnapshot
+  after: CostSnapshot
+  fingerprint: string
+}
+
 export interface SelectedComparisonSelection {
   bomFindingKeys: string[]
   routingFindingKeys: string[]

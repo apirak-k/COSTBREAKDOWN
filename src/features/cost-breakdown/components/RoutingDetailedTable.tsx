@@ -154,7 +154,7 @@ function formatReferenceCurrent(
 }
 
 /**
- * Emits the Reference → Current and combined additive LMDI attribution rows
+ * Emits the Before → After and combined additive LMDI attribution rows
  * directly into the Candidate table's shared column grid.
  */
 export function RoutingRecordDetails({ row, referenceRates, currentRates, detailId }: RoutingRecordDetailsProps) {
@@ -234,7 +234,7 @@ export function RoutingRecordDetails({ row, referenceRates, currentRates, detail
   </tr>
 
   return <>
-    {renderDetailRow('Reference → Current', false, detailId)}
+    {renderDetailRow('Before → After', false, detailId)}
     {renderDetailRow('Parameter Cost Effect', true)}
   </>
 }

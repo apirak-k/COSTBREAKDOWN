@@ -7,7 +7,7 @@ interface SourceGroupsCardProps {
   snapshotPair: SnapshotPair
 }
 
-const roleLabel = (role: SourceGroup['role']): string => role === 'reference' ? 'Reference' : 'Current'
+const roleLabel = (role: SourceGroup['role']): string => role === 'reference' ? 'Before' : 'After'
 
 export const SourceGroupsCard: React.FC<SourceGroupsCardProps> = ({ snapshotPair }) => {
   const groups = useMemo(() => buildSourceGroups(snapshotPair), [snapshotPair])

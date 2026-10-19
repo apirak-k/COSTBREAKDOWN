@@ -57,7 +57,7 @@ This document explicitly supersedes older behavior in the following areas:
 - **Master Data supports Reference, Current, and Custom:** `Custom` is a free dataset workspace with no hard-coded semantic meaning (not locked to Trial, Simulation, Proposal, or Future).
 - **Master Data owns structural changes:** Adding, removing, resizing, or altering dataset structure belongs in Master Data / Custom, not in Simulation.
 - **Clone action semantics:** The active dataset is the destination; the user selects the source dataset. No special promotion workflow.
-- **Cost Breakdown (CBD) remains Reference vs Current only:** Custom is not a direct CBD comparison state.
+- **Cost Breakdown (Phase 2 update — 2026-10-19 user decision):** CBD independently compares Before and After from the latest Reference, Current, and Custom Master Data Working datasets. All nine ordered pairs including self-comparison are supported; Reference → Current remains default. Gap = After − Before, ADDED means After-only, and REMOVED means Before-only. Selector state is CBD analysis state and does not edit or create datasets.
 - **Selected Comparison is analysis scope/view only:** It is neither a new dataset nor a persistent case.
 - **Candidate findings belong inside CBD:** Findings may still be called Candidates, but there is no standalone Candidate or RCA page in the current product flow.
 - **Legacy RCA/session compatibility:** Existing RCA case data may retain its historical domain rules; it is not an active visible product stage.
@@ -88,7 +88,7 @@ MASTER DATA
   (Reference / Current / Custom)
           │
           ▼
-COST BREAKDOWN (Reference vs Current)
+COST BREAKDOWN (Before → After; Reference / Current / Custom)
   ├─ Compare full data
   ├─ Filter and sort findings
   ├─ Inspect details
@@ -106,7 +106,7 @@ SIMULATION (separate What-If analysis)
 | Area | Question it answers | Core Responsibility |
 |---|---|---|
 | Master Data | “What data state do I have?” | Prepare Reference, Current, and Custom snapshots; own structural edits and Sizing; generic Clone. |
-| CBD | “What changed between Reference and Current, and which findings should I inspect?” | Compare Reference vs Current; show Standard Cost gaps by MAT/LB/BD/Conversion; filter, sort, inspect, select findings, and support Full and Selected Comparison views. There is no standalone Candidate or RCA page. |
+| CBD | “What changed between the selected Before and After datasets, and which findings should I inspect?” | Compare any ordered Reference / Current / Custom pair; show Standard Cost gaps by MAT/LB/BD/Conversion; filter, sort, inspect, select findings, and support Full and Selected Comparison views. There is no standalone Candidate or RCA page. |
 | Parameter Simulation | “If these parameters had these values, what would the cost become?” | Temporary role-local what-if analysis over Master Data Working; locked structure; generic effective Before/After calculation, with Current/SIM retained in the visible page during Phase 1. |
 | Economic Simulation | “How do implementation costs and commercial assumptions affect per-piece economics?” | Calculate Fixed Cost / pc, Required Saving / pc, Parameter Saving, Economic Margin, SG&A / pc, and OP / pc without altering Standard Cost. |
 
@@ -163,8 +163,8 @@ REMOVED
 Rules:
 - Record exists on both sides with equivalent values → `UNCHANGED`.
 - Record exists on both sides with differing values → `CHANGED`.
-- Record exists only on the right/new side → `ADDED`.
-- Record exists only on the left/old side → `REMOVED`.
+- Record exists only on the After side → `ADDED`.
+- Record exists only on the Before side → `REMOVED`.
 
 Do not create statuses such as `MODIFIED`, `REPLACE`, or `NEED REVIEW`.
 
@@ -180,14 +180,14 @@ Work Center is never a Candidate. The processing Candidate identity is always `P
 Always use:
 
 ```text
-Gap = Current - Reference
+Gap = After - Before
 ```
 
 (Or in Simulation: `Gap = SIM - Current` / `Saving = Current - SIM`).
 
 For absent sides:
-- `ADDED` → Reference contribution = 0 (record does not exist in Reference).
-- `REMOVED` → Current contribution = 0 (record does not exist in Current).
+- `ADDED` → Before contribution = 0 (record does not exist in Before).
+- `REMOVED` → After contribution = 0 (record does not exist in After).
 
 This absent-record zero is **not** the same as missing data.
 
@@ -322,29 +322,26 @@ Styling rules:
 
 ## 4.1 Purpose and Comparison Scope
 
-CBD answers: *“What changed between Reference and Current, and where does the Standard Cost gap come from?”*
+CBD answers: *“What changed between the selected Before and After datasets, and where does the Standard Cost gap come from?”*
 
-CBD compares strictly:
+CBD reads the latest Reference, Current, and Custom Master Data Working snapshots. Save is not a publish gate. The Before and After selectors are independent, accept the same role, and never change Master Data. The supported ordered pairs are Reference → Current (default), Current → Reference, Reference → Custom, Custom → Reference, Current → Custom, Custom → Current, Reference → Reference, Current → Current, and Custom → Custom.
 
-$$\text{Reference} \longleftrightarrow \text{Current}$$
-
-Custom is **never** a direct comparison state in CBD. To compare Custom, clone it into Reference or Current first.
+The selected Before snapshot is passed as the comparison engine's first argument; the selected After snapshot is passed as its second argument. This preserves the shared calculation engine while making its first/second mapping explicit at the CBD boundary. Every cost, Work Center rate, finding status, parameter delta, effect, and percentage follows Gap = After − Before. Each side uses its own Work Center rates. Self-comparison yields zero gaps where calculations are available, matched records are UNCHANGED, no synthetic ADDED/REMOVED records appear, and zero-denominator percentages stay unavailable.
 
 ## 4.2 Full Comparison vs Selected Comparison
 
-- **Full Comparison:** Evaluates all eligible BOM and Routing records.
-- **Selected Comparison:** Temporary analysis scope/view of selected BOM and Routing findings.
-  - Retains complete Work Center rates for calculation context.
-  - The secondary Selected Gap includes only selected items; the full comparison remains visible and primary.
+- **Full Comparison:** Evaluates all eligible BOM and Routing records for the selected ordered pair; the default pair is Reference → Current.
+- **Selected Comparison:** Temporary analysis scope/view of selected BOM and Routing findings from that same pair.
+  - Retains the complete pair's Work Center rates as calculation context.
+  - The secondary Selected Gap includes only selected findings; the full comparison remains visible and primary.
   - It is **not** a new dataset, **not** a persistent state, and **not** an RCA Case.
   - Does not mutate source datasets.
-  - Clearing scope or changing source datasets restores Full Comparison.
+  - Changing either selected role or its latest Working data invalidates selected membership. Fingerprints include both selected role identities and source values.
+  - A pair change clears comparison-bound manual Candidate order/history and expanded details. Type, Status, and Sort remain selected.
 
 ## 4.3 Finding and Selected Comparison Boundary
 
-Candidate is a name that may be used for a CBD finding. Finding analysis stays inside CBD: filter, sort/prioritize, inspect details, select one or many findings, and review Selected Comparison. There is no standalone Candidate or RCA page in the current product. Selected Comparison does not change Reference or Current datasets or redefine Simulation scope. Simulation remains a separate What-If analysis module.
-
----
+Candidate is a name that may be used for a CBD finding. Finding analysis stays inside CBD: filter, sort/prioritize, inspect details, select one or many findings, and review Selected Comparison. There is no standalone Candidate or RCA page in the current product. Selected Comparison does not mutate Reference, Current, or Custom and does not redefine Simulation scope. Simulation remains a separate What-If analysis module; Phase 2 does not include its later visible UI work.
 
 # 5. Legacy Candidate and RCA Domain / Session Compatibility
 
@@ -667,9 +664,9 @@ SG&A / pc = 8; OP / pc = 80 − 90 − 8 = −18 THB/pc (valid)
 - **Explicit Zero:** An explicit zero is valid where logically permitted (e.g. Loss = 0).
 
 ## 9.2 CBD Integrity
-- Different row counts between Reference and Current are normal.
+- Different row counts between the selected Before and After datasets are normal.
 - `ADDED` and `REMOVED` rows correctly calculate against an absent-side zero.
-- Selected Comparison must never mutate the underlying Reference or Current datasets.
+- Selected Comparison must never mutate any underlying dataset.
 
 ## 9.3 Legacy RCA Session Integrity
 - An RCA Case can hold 1 Candidate or many Candidates.
@@ -720,11 +717,14 @@ The following older rules are **explicitly superseded** and must not be reintrod
 - [ ] 4-sheet workbook format (`META`, `BOM`, `WORK_CENTER`, `ROUTING`) preserved with yellow editable cells.
 
 ### Cost Breakdown (CBD)
-- [ ] CBD compares Reference vs Current only. Custom is not compared directly.
+- [ ] CBD supports all nine ordered Reference / Current / Custom pairs, including self-comparison; default is Reference → Current.
 - [ ] Matching uses business identity (`Name`, `WC`, `Process`), never row index.
-- [ ] Exactly four statuses: `UNCHANGED`, `CHANGED`, `ADDED`, `REMOVED`.
-- [ ] $\text{Gap} = \text{Current} - \text{Reference}$.
-- [ ] Full Comparison and Selected Comparison supported.
+- [ ] Exactly four statuses: `UNCHANGED`, `CHANGED`, `ADDED`, `REMOVED`; ADDED is After-only and REMOVED is Before-only.
+- [ ] $\text{Gap} = \text{After} - \text{Before}$ for all CBD gaps, effects, and parameter deltas.
+- [ ] Each selected dataset uses its own Work Center rates; self-comparison safely yields zero gaps where calculable.
+- [ ] Full Comparison and pair-aware Selected Comparison supported; role or Working-data changes invalidate stale selection.
+- [ ] Pair changes clear manual reorder/history and expanded details while preserving type/status/sort.
+- [ ] CBD selectors use the existing one-row Subheader and shared popover; visible cost/finding semantics use Before / After or the actual direction.
 - [ ] CBD findings may be referred to as Candidates; filtering, sorting, detail inspection, row selection, and Selected Comparison remain inside CBD.
 - [ ] There is no standalone Candidate or RCA page in the current visible product flow.
 - [ ] Selected Comparison is temporary analysis scope only, not a dataset or persistent case.

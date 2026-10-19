@@ -1,6 +1,6 @@
 # Requirements Index
 
-**Updated:** 2026-10-13
+**Updated:** 2026-10-19
 
 ## Final Logic Authority
 
@@ -14,7 +14,7 @@ The active canonical specifications are:
 2. [`specs/CROSS_CUTTING.md`](specs/CROSS_CUTTING.md) — Shared formulas, business identities, comparison statuses, processing aggregation, and system boundaries.
 3. [`specs/MASTER_DATA.md`](specs/MASTER_DATA.md) — Reference, Current, and Custom datasets; Clone semantics; structural editing; Sizing; 4-sheet workbook format; spreadsheet editing.
    - [`specs/MASTER_DATA_TOOLBAR_PREPARE_UX.md`](specs/MASTER_DATA_TOOLBAR_PREPARE_UX.md) — Historical accepted shared Header and toolbar presentation source. Its Cost Breakdown and Candidate/RCA portions are superseded by the current `COST_BREAKDOWN.md` and `FINAL_LOGIC_SPEC.md`.
-4. [`specs/COST_BREAKDOWN.md`](specs/COST_BREAKDOWN.md) — Reference vs Current comparison, Full vs Selected Comparison scope, processing drill-down, and Gap reconciliation.
+4. [`specs/COST_BREAKDOWN.md`](specs/COST_BREAKDOWN.md) — Generic Before / After comparison across Reference, Current, and Custom; pair-aware Selected Comparison, processing drill-down, and Gap reconciliation.
 5. [`specs/CANDIDATE.md`](specs/CANDIDATE.md) — Legacy Candidate/RCA domain and session compatibility only; current finding UX is in [`specs/COST_BREAKDOWN.md`](specs/COST_BREAKDOWN.md). It does not define a visible standalone product stage.
 6. [`specs/SIMULATION.md`](specs/SIMULATION.md) — Reference / Current / Custom role-local Simulation overrides, effective datasets, generic comparison state, lifecycle, calculations, and phase status.
 
@@ -56,7 +56,7 @@ The latest finalized logic establishes:
 1. **Master Data Workspaces:** Three independent datasets (`Reference`, `Current`, `Custom`). `Custom` is a free workspace with no forced semantic meaning (not locked to Trial, Simulation, Proposal, or Future).
 2. **Master Data Owns Structural Changes:** Adding, deleting, resizing, or altering table structures belongs in Master Data / Custom. Simulation cannot alter dataset structure.
 3. **Generic Clone Semantics:** The active viewed dataset is the destination; the user selects the source. No separate promotion workflows. The Master Data UX contract defines the toolbar label and interaction.
-4. **Cost Breakdown Scope:** CBD compares strictly `Reference` vs `Current`. `Custom` is not compared directly in CBD.
+4. **Cost Breakdown Scope (Phase 2 update — 2026-10-19 user decision):** CBD independently selects Before and After from the latest Reference, Current, and Custom Master Data Working datasets. All nine ordered pairs, including self-comparison, are valid; the default remains Reference → Current. Gap is After − Before; ADDED is After-only and REMOVED is Before-only. CBD selection never mutates or creates datasets.
 5. **Selected Comparison:** A temporary analysis scope/view of selected BOM and Routing findings. It is neither a new dataset nor an RCA Case.
 6. **Legacy RCA session compatibility:** Existing RCA case data may represent one or multiple Candidates and retain Root Cause / Why? and Action at the case level. This is not a current visible product stage.
 7. **Legacy RCA completion semantics:** Historical sessions retain their Root Cause + Action completion meaning; the current product flow is Master Data → Cost Breakdown → Simulation, with no standalone RCA page.

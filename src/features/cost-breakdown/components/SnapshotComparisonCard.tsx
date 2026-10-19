@@ -25,6 +25,7 @@ import {
 
 interface SnapshotComparisonCardProps {
   comparison: CostComparison
+  gapDirection: string
   selectedComparison?: CostComparison | null
   selectedActive?: boolean
 }
@@ -43,12 +44,12 @@ type CostRow = {
 const formatCost = (value: number | null): string => value === null ? '—' : formatNumber(value, 2)
 const formatGap = (value: number | null): string => value === null ? '—' : formatVariance(value, 2)
 
-function renderGap(value: number | null, selectedValue: number | null, selectedActive: boolean, tooltipLabel: string): React.ReactNode {
-  const tooltipLines = [`${tooltipLabel} Gap ${formatGap(value)}`]
+function renderGap(value: number | null, selectedValue: number | null, selectedActive: boolean, tooltipLabel: string, gapDirection: string): React.ReactNode {
+  const tooltipLines = [`${tooltipLabel} Gap ${formatGap(value)}; Gap = ${gapDirection}`]
   if (selectedActive) tooltipLines.push(`Selected ${formatGap(selectedValue)}`)
   return (
     <Tooltip label={tooltipLines.join('\n')} wrapperClassName="flex w-full justify-end">
-      <span tabIndex={0} aria-label={`${tooltipLabel} Gap ${formatGap(value)}${selectedActive ? `; Selected ${formatGap(selectedValue)}` : ''}`} className="grid w-full grid-cols-[minmax(0,1fr)_9ch] items-baseline whitespace-nowrap font-mono tabular-nums">
+      <span tabIndex={0} aria-label={`${tooltipLabel} Gap ${formatGap(value)}; Gap = ${gapDirection}${selectedActive ? `; Selected ${formatGap(selectedValue)}` : ''}`} className="grid w-full grid-cols-[minmax(0,1fr)_9ch] items-baseline whitespace-nowrap font-mono tabular-nums">
         <span data-gap-slot="full" className={`text-right ${value === null ? 'text-slate-400' : getVarianceClass(value)}`}>{formatGap(value)}</span>
         <span data-gap-slot="selected" aria-hidden={!selectedActive} className={`w-[9ch] text-right text-[10px] font-normal text-slate-500 tabular-nums ${selectedActive ? '' : 'invisible'}`}>
           {selectedActive ? formatGap(selectedValue) : '0.00'}
@@ -60,6 +61,7 @@ function renderGap(value: number | null, selectedValue: number | null, selectedA
 
 export const SnapshotComparisonCard: React.FC<SnapshotComparisonCardProps> = ({
   comparison,
+  gapDirection,
   selectedComparison = null,
   selectedActive = false
 }) => {
@@ -115,12 +117,12 @@ export const SnapshotComparisonCard: React.FC<SnapshotComparisonCardProps> = ({
     <section aria-label="Cost Element" data-cbd-overview-panel="cost" className={CBD_SUMMARY_PANEL_CLASS}>
       <div>
         <table role="table" style={{ '--cbd-summary-columns': '20% 18% 18% 26% 18%' } as React.CSSProperties} className={CBD_SUMMARY_TABLE_CLASS}>
-          <caption className="sr-only">Cost Element for Reference, Current, Gap, and Gap percentage</caption>
+          <caption className="sr-only">Cost Element for Before, After, Gap, and Gap percentage. Gap = {gapDirection}.</caption>
           <thead data-cbd-summary-header="true" className={CBD_SUMMARY_HEADER_GROUP_CLASS}>
             <tr className={`${CBD_SUMMARY_ROW_CLASS} ${CBD_SUMMARY_HEADER_ROW_CLASS}`}>
               <th scope="col" style={CBD_SUMMARY_HEADER_CELL_STYLE} className={`${CBD_SUMMARY_HEADER_CELL_CLASS} ${CBD_SUMMARY_HEADER_LABEL_CLASS}`}>Cost Element</th>
-              <th scope="col" style={CBD_SUMMARY_HEADER_CELL_STYLE} className={`${CBD_SUMMARY_HEADER_CELL_CLASS} ${CBD_SUMMARY_HEADER_VALUE_CLASS}`}>REF</th>
-              <th scope="col" style={CBD_SUMMARY_HEADER_CELL_STYLE} className={`${CBD_SUMMARY_HEADER_CELL_CLASS} ${CBD_SUMMARY_HEADER_VALUE_CLASS}`}>CUR</th>
+              <th scope="col" style={CBD_SUMMARY_HEADER_CELL_STYLE} className={`${CBD_SUMMARY_HEADER_CELL_CLASS} ${CBD_SUMMARY_HEADER_VALUE_CLASS}`}>Before</th>
+              <th scope="col" style={CBD_SUMMARY_HEADER_CELL_STYLE} className={`${CBD_SUMMARY_HEADER_CELL_CLASS} ${CBD_SUMMARY_HEADER_VALUE_CLASS}`}>After</th>
               <th scope="col" style={CBD_SUMMARY_HEADER_CELL_STYLE} className={CBD_SUMMARY_HEADER_CELL_CLASS}><span className="grid w-full grid-cols-[minmax(0,1fr)_9ch] items-baseline font-mono text-[11px] leading-4 tabular-nums"><span data-gap-header-slot="full" className="text-right text-[11px] leading-4">GAP</span><span data-gap-header-slot="selected" aria-hidden={!selectedActive} className={`relative left-4 w-[9ch] whitespace-nowrap text-right text-[10px] leading-4 font-normal text-slate-300 ${selectedActive ? '' : 'invisible'}`}>Selected</span></span></th>
               <th scope="col" style={CBD_SUMMARY_HEADER_CELL_STYLE} className={`${CBD_SUMMARY_HEADER_CELL_CLASS} ${CBD_SUMMARY_HEADER_VALUE_CLASS} pr-4`}>%GAP</th>
             </tr>
@@ -130,7 +132,7 @@ export const SnapshotComparisonCard: React.FC<SnapshotComparisonCardProps> = ({
               <th scope="row" style={row.total ? { color: COST_ELEMENT_COLORS.standardCost } : undefined} className={CBD_SUMMARY_BODY_LABEL_CLASS}>{row.label}</th>
               <td className={`${CBD_SUMMARY_BODY_VALUE_CLASS} text-slate-600`}>{formatCost(row.reference)}</td>
               <td className={`${CBD_SUMMARY_BODY_VALUE_CLASS} text-slate-900`}>{formatCost(row.current)}</td>
-              <td className={CBD_SUMMARY_BODY_VALUE_CLASS}>{renderGap(row.gap, row.selectedGap, selectedActive, row.tooltipLabel)}</td>
+              <td className={CBD_SUMMARY_BODY_VALUE_CLASS}>{renderGap(row.gap, row.selectedGap, selectedActive, row.tooltipLabel, gapDirection)}</td>
               <td className={`${CBD_SUMMARY_BODY_VALUE_CLASS} pr-4 text-slate-600`}>{row.percentage === null ? '—' : formatPercent(row.percentage, 2)}</td>
             </tr>)}
           </tbody>
@@ -139,7 +141,7 @@ export const SnapshotComparisonCard: React.FC<SnapshotComparisonCardProps> = ({
               <th scope="row" style={{ color: COST_ELEMENT_COLORS.standardCost }} className={`${CBD_SUMMARY_FOOTER_LABEL_CLASS} text-slate-950`}>{row.label}</th>
               <td className={`${CBD_SUMMARY_FOOTER_VALUE_CLASS} text-slate-700`}>{formatCost(row.reference)}</td>
               <td className={`${CBD_SUMMARY_FOOTER_VALUE_CLASS} text-slate-950`}>{formatCost(row.current)}</td>
-              <td className={CBD_SUMMARY_FOOTER_VALUE_CLASS}>{renderGap(row.gap, row.selectedGap, selectedActive, row.tooltipLabel)}</td>
+              <td className={CBD_SUMMARY_FOOTER_VALUE_CLASS}>{renderGap(row.gap, row.selectedGap, selectedActive, row.tooltipLabel, gapDirection)}</td>
               <td className={`${CBD_SUMMARY_FOOTER_VALUE_CLASS} pr-4 whitespace-nowrap text-slate-700`}>{row.percentage === null ? <span aria-label="Total percentage unavailable">— <span className="text-[9px] text-slate-500">Total</span></span> : <span aria-label={`${formatPercent(row.percentage, 2)} Total`}>{formatPercent(row.percentage, 2)} <span className="text-[9px] font-semibold text-slate-500">Total</span></span>}</td>
             </tr>)}
           </tfoot>

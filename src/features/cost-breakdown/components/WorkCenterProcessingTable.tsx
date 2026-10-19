@@ -25,6 +25,7 @@ import {
 
 interface WorkCenterProcessingTableProps {
   comparison: CostComparison
+  gapDirection: string
 }
 
 interface WorkCenterRow {
@@ -41,9 +42,9 @@ function formatGap(value: number | null): string {
   return value === null ? '—' : formatVariance(value, 2)
 }
 
-function renderGap(value: number | null, label: string): React.ReactNode {
-  return <Tooltip label={`${label} Gap ${formatGap(value)}`} wrapperClassName="inline-flex justify-end">
-    <span tabIndex={0} aria-label={`${label} Gap ${formatGap(value)}`} className={`font-mono tabular-nums whitespace-nowrap ${value === null ? 'text-slate-400' : getVarianceClass(value)}`}>
+function renderGap(value: number | null, label: string, gapDirection: string): React.ReactNode {
+  return <Tooltip label={`${label} Gap ${formatGap(value)}; Gap = ${gapDirection}`} wrapperClassName="inline-flex justify-end">
+    <span tabIndex={0} aria-label={`${label} Gap ${formatGap(value)}; Gap = ${gapDirection}`} className={`font-mono tabular-nums whitespace-nowrap ${value === null ? 'text-slate-400' : getVarianceClass(value)}`}>
       {formatGap(value)}
     </span>
   </Tooltip>
@@ -57,7 +58,7 @@ const rowColumns = CBD_SUMMARY_ROW_CLASS
 // Align fixed rows to the body's real content width, without hiding cells under its scrollbar.
 const fixedRowStyle: React.CSSProperties = { width: 'calc(100% - var(--cbd-wc-scrollbar-width, 0px))' }
 
-export const WorkCenterProcessingTable: React.FC<WorkCenterProcessingTableProps> = ({ comparison }) => {
+export const WorkCenterProcessingTable: React.FC<WorkCenterProcessingTableProps> = ({ comparison, gapDirection }) => {
   const scrollBodyRef = React.useRef<HTMLDivElement>(null)
   React.useEffect(() => {
     const body = scrollBodyRef.current
@@ -97,12 +98,12 @@ export const WorkCenterProcessingTable: React.FC<WorkCenterProcessingTableProps>
 
   return (
     <section aria-label="Work Center" data-cbd-overview-panel="work-center" className={CBD_SUMMARY_PANEL_CLASS}>
-      <div role="table" aria-label="Work Center conversion cost for Reference, Current, Gap, and percentage of total Conversion Gap" aria-colcount={5} style={{ '--cbd-summary-columns': '24% 19% 19% 20% 18%' } as React.CSSProperties} className={CBD_SUMMARY_TABLE_CLASS}>
+      <div role="table" aria-label={`Work Center conversion cost for Before, After, Gap, and percentage of total Conversion Gap. Gap = ${gapDirection}.`} aria-colcount={5} style={{ '--cbd-summary-columns': '24% 19% 19% 20% 18%' } as React.CSSProperties} className={CBD_SUMMARY_TABLE_CLASS}>
         <div role="rowgroup" data-cbd-summary-header="true" className={CBD_SUMMARY_HEADER_GROUP_CLASS}>
           <div role="row" style={fixedRowStyle} className={`${rowColumns} ${CBD_SUMMARY_HEADER_ROW_CLASS}`}>
             <div role="columnheader" style={CBD_SUMMARY_HEADER_CELL_STYLE} className={`${CBD_SUMMARY_HEADER_CELL_CLASS} ${CBD_SUMMARY_HEADER_LABEL_CLASS}`}>Work Center</div>
-            <div role="columnheader" style={CBD_SUMMARY_HEADER_CELL_STYLE} className={`${CBD_SUMMARY_HEADER_CELL_CLASS} ${CBD_SUMMARY_HEADER_VALUE_CLASS}`}>REF</div>
-            <div role="columnheader" style={CBD_SUMMARY_HEADER_CELL_STYLE} className={`${CBD_SUMMARY_HEADER_CELL_CLASS} ${CBD_SUMMARY_HEADER_VALUE_CLASS}`}>CUR</div>
+            <div role="columnheader" style={CBD_SUMMARY_HEADER_CELL_STYLE} className={`${CBD_SUMMARY_HEADER_CELL_CLASS} ${CBD_SUMMARY_HEADER_VALUE_CLASS}`}>Before</div>
+            <div role="columnheader" style={CBD_SUMMARY_HEADER_CELL_STYLE} className={`${CBD_SUMMARY_HEADER_CELL_CLASS} ${CBD_SUMMARY_HEADER_VALUE_CLASS}`}>After</div>
             <div role="columnheader" style={CBD_SUMMARY_HEADER_CELL_STYLE} className={`${CBD_SUMMARY_HEADER_CELL_CLASS} ${CBD_SUMMARY_HEADER_VALUE_CLASS}`}>GAP</div>
             <div role="columnheader" style={CBD_SUMMARY_HEADER_CELL_STYLE} className={`${CBD_SUMMARY_HEADER_CELL_CLASS} ${CBD_SUMMARY_HEADER_VALUE_CLASS} pr-4`}>%GAP</div>
           </div>
@@ -114,7 +115,7 @@ export const WorkCenterProcessingTable: React.FC<WorkCenterProcessingTableProps>
               <div role="rowheader" className={`${CBD_SUMMARY_BODY_LABEL_CLASS} truncate`} title={label}>{label}</div>
               <div role="cell" className={`${CBD_SUMMARY_BODY_VALUE_CLASS} text-slate-600`}>{formatNullable(finding.costEffect.reference.total)}</div>
               <div role="cell" className={`${CBD_SUMMARY_BODY_VALUE_CLASS} text-slate-900`}>{formatNullable(finding.costEffect.current.total)}</div>
-              <div role="cell" className={CBD_SUMMARY_BODY_VALUE_CLASS}>{renderGap(gap, label)}</div>
+              <div role="cell" className={CBD_SUMMARY_BODY_VALUE_CLASS}>{renderGap(gap, label, gapDirection)}</div>
               <div role="cell" className={`${CBD_SUMMARY_BODY_VALUE_CLASS} pr-4 text-slate-600`}>{percentage === null ? '—' : formatPercent(percentage, 2)}</div>
             </div>
           })}
@@ -124,7 +125,7 @@ export const WorkCenterProcessingTable: React.FC<WorkCenterProcessingTableProps>
             <div role="rowheader" className={`${CBD_SUMMARY_FOOTER_LABEL_CLASS} text-slate-950`}>Total</div>
             <div role="cell" className={`${CBD_SUMMARY_FOOTER_VALUE_CLASS} text-slate-700`}>{formatNullable(totalReference)}</div>
             <div role="cell" className={`${CBD_SUMMARY_FOOTER_VALUE_CLASS} text-slate-950`}>{formatNullable(totalCurrent)}</div>
-            <div role="cell" className={CBD_SUMMARY_FOOTER_VALUE_CLASS}>{renderGap(totalGap, 'Total')}</div>
+            <div role="cell" className={CBD_SUMMARY_FOOTER_VALUE_CLASS}>{renderGap(totalGap, 'Total', gapDirection)}</div>
             <div role="cell" className={`${CBD_SUMMARY_FOOTER_VALUE_CLASS} pr-4 whitespace-nowrap text-slate-700`}>{totalPercentage === null ? <span aria-label="Total percentage unavailable">— <span className="text-[9px] text-slate-500">Total</span></span> : <span aria-label={`${formatPercent(totalPercentage, 2)} Total`}>{formatPercent(totalPercentage, 2)} <span className="text-[9px] font-semibold text-slate-500">Total</span></span>}</div>
           </div>
         </div>

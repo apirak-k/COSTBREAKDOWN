@@ -52,6 +52,7 @@ const AppRouter: React.FC = () => {
     activeProductId,
     setActiveTab,
     masterDataSnapshots,
+    comparisonPair,
     productSessions,
     sendSimulationSnapshotToMasterData
   } = useAppStore()
@@ -71,7 +72,7 @@ const AppRouter: React.FC = () => {
     before: ReturnType<typeof captureSimulationEditableSnapshot>
     latestState: SimulationWorkspaceState
   } | null>(null)
-  const lastCandidateHistoryContextRef = useRef({ activeProductId, activeTab })
+  const lastCandidateHistoryContextRef = useRef({ activeProductId, activeTab, comparisonFingerprint: comparisonPair.fingerprint })
   const storedSimulationState = simulationStatesByProduct[activeProductId]
   const reconciledSimulationState = useMemo(
     () => reconcileSimulationState(storedSimulationState, masterDataSnapshots),
@@ -115,11 +116,13 @@ const AppRouter: React.FC = () => {
 
   useEffect(() => {
     const previous = lastCandidateHistoryContextRef.current
-    if (previous.activeProductId !== activeProductId || (previous.activeTab === 'breakdown' && activeTab !== 'breakdown')) {
+    if (previous.activeProductId !== activeProductId
+      || previous.comparisonFingerprint !== comparisonPair.fingerprint
+      || (previous.activeTab === 'breakdown' && activeTab !== 'breakdown')) {
       setCandidateReorderHistory(resetCandidateReorderHistory())
     }
-    lastCandidateHistoryContextRef.current = { activeProductId, activeTab }
-  }, [activeProductId, activeTab])
+    lastCandidateHistoryContextRef.current = { activeProductId, activeTab, comparisonFingerprint: comparisonPair.fingerprint }
+  }, [activeProductId, activeTab, comparisonPair.fingerprint])
 
   useEffect(() => {
     if ((!storedSimulationState && activeTab !== 'simulation') || simulationState === storedSimulationState) return

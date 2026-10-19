@@ -24,7 +24,9 @@ verify('Opening Simulation ends the active Selected Comparison scope', () => {
 verify('Cost Breakdown directly applies Candidate selection and keeps the full comparison available', () => {
   assert.match(costBreakdownPage, /aria-label="Finding type filter"/)
   assert.match(costBreakdownPage, /<span className="font-semibold text-slate-800">Standard Cost Gap<\/span>/)
-  assert.match(costBreakdownPage, /comparison=\{fullSnapshotComparison\}/)
+  assert.match(costBreakdownPage, /comparison=\{costBreakdownFullComparison\}/)
+  assert.match(costBreakdownPage, /comparisonBefore,[\s\S]*comparisonAfter,[\s\S]*comparisonPair/)
+  assert.match(store, /selectedComparisonScope\?\.pairFingerprint === comparisonPair\.fingerprint/)
   assert.match(costBreakdownPage, /onToggleFinding=\{toggleFinding\}/)
   assert.match(costBreakdownPage, /applySelectedComparison\(nextSelection\)/)
   assert.match(costBreakdownPage, /clearSelectedComparison\(\)/)

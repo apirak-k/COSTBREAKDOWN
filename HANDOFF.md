@@ -1,4 +1,35 @@
-# Current Handoff — Phase 1 comparison-context audit fix — 2026-10-19
+# Current Handoff — Cost Breakdown generic Before / After comparison — 2026-10-19
+
+## Checkpoint and delivery
+
+- Repository: `/Users/bubu/COSTBREAKDOWN-ref-current-custom-flow-redesign` (`apirak-k/COSTBREAKDOWN`). Branch: `feat/ref-current-custom-flow-redesign`.
+- Previous fetched remote HEAD and approved Phase 1 baseline: `3ec2dc3325e287e50a08b644f66a02a45b10f47f`; the fetched branch and `git ls-remote` agreed before Phase 2 edits.
+- Phase 2 only. The user authorized one focused commit and push to this branch, with no merge. Commit message: `feat(cbd): support generic dataset comparison`. Exact delivery SHA and post-push remote equality are reported in the completion message.
+
+## Ownership and behavior
+
+- `src/state/store.tsx` owns one in-memory `comparisonBefore` / `comparisonAfter` pair, defaulting to Reference → Current. It derives all three source snapshots from the latest Master Data Working values; Custom comes from `getMasterDataSnapshot(..., 'custom')`. Selector changes do not write Master Data or persist a fourth dataset.
+- `src/state/cost-breakdown-comparison.ts` owns the CBD boundary type and explicit adapter: Before maps to the existing comparison engine's first (`reference`) argument; After maps to its second (`current`) argument. The calculation engine remains unchanged and therefore calculates After − Before with each snapshot's own Work Center rates.
+- All nine ordered role pairs are accepted, including same-role pairs. Available self-comparisons produce zero gaps and unchanged matched findings; zero full Gap percentages remain unavailable, with no non-finite display values.
+- Selected Comparison uses the selected pair's role/value fingerprint. A pair change deactivates and clears stale membership, resets manual Candidate order/history, and remounts the itemized table to discard expanded details. Type, Status, and Sort state remain outside that keyed table and are preserved across pair changes.
+- The existing one-row CBD Subheader now begins with equal 108px, 32px Before/After selectors using the shared CBD popover behavior (120ms hover preview, 150ms leave grace, pinning, outside/Escape dismissal, viewport positioning, and mutual exclusion). The arrow is passive. The Gap Bar remains flexible with a 96px minimum.
+- CBD overview, Candidate details, statuses, parameter deltas, present-side labels, Work Center processing, and accessibility copy use Before/After semantics. ADDED is After-only; REMOVED is Before-only. The global workspace Header/Footer retains its separate Reference/Current summary.
+- No Master Data source semantics or Simulation UI/behavior were changed. The mixed review verifier's Simulation story assertion now checks the existing Phase 1 Reference / Current / Simulation labels.
+
+## Files and verification
+
+- Source changes are limited to the CBD comparison boundary, pair-aware store context, pair-change lifecycle, and generic CBD presentation. `AppLayout` continues to show its global Reference/Current summary.
+- Active requirements in `docs/REQUIREMENTS_INDEX.md`, `docs/specs/COST_BREAKDOWN.md`, `docs/specs/CROSS_CUTTING.md`, and `docs/specs/FINAL_LOGIC_SPEC.md` now describe Phase 2; this handoff records the implementation and checks. Earlier Phase 1 handoffs remain below as history.
+- **PASS:** `npm run build` (TypeScript and Vite). Existing ExcelJS browser-externalization and large-chunk warnings remain.
+- **PASS:** `node scripts/verify_cbd_comparison_pair.mjs` (all nine pairs, direction, rate ownership, statuses, self-comparison, selected scope, selectors, labels, and pair-bound context).
+- **PASS:** CBD summary, parameter-cost-effect, Cost Breakdown view, sort, reorder-history, Candidate prioritization, Selected Comparison lifecycle/boundary, comparison reconciliation, Cost Element view, Work Center view, BOM/Routing comparison labels and detail verifiers, dynamic comparison fields, and mixed Cost Breakdown review-feedback verifier.
+- **PASS:** `node scripts/verify_simulation_regression.mjs` (Phase 1 dataset overrides, context routing, role rates, Master Data edit history, and Global Header).
+- **PASS:** `git diff --check`.
+- No browser interaction run was available in this session. Selector behavior was checked through the existing shared-popover contract and rendered/source-level verifiers. The mixed review-feedback SSR run emits existing React `useLayoutEffect` server-render warnings from Master Data tables.
+
+---
+
+# Previous Handoff — Phase 1 comparison-context audit fix — 2026-10-19
 
 ## Checkpoint and delivery
 
@@ -26,7 +57,7 @@
 
 ---
 
-# Current Handoff — Reference / Current / Custom Simulation foundation — 2026-10-19
+# Historical Handoff — Reference / Current / Custom Simulation foundation — 2026-10-19
 
 ## Checkpoint and delivery
 

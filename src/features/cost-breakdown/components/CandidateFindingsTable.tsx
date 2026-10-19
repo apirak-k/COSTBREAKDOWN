@@ -11,14 +11,13 @@ import {
   resolveSnapshotRoutingRate
 } from '../../../core'
 import type { MasterDataNumericField } from '../../../core'
-import type { ComparisonFinding, ComparisonStatus } from '../../../core'
+import type { ComparisonFinding, ComparisonStatus, CostBreakdownComparisonPair } from '../../../core'
 import { applyRowDragSelection } from '../../../shared/selection/row-drag-selection'
 import { Tooltip } from '../../../shared/ui/Tooltip'
 import type { BOMItemizedRow } from './BOMDetailedTable'
 import { BOMRecordDetails } from './BOMDetailedTable'
 import type { RoutingItemizedRow } from './RoutingDetailedTable'
 import { RoutingRecordDetails } from './RoutingDetailedTable'
-import type { SnapshotPair } from '../../../core'
 import { reorderCandidateRowKeys } from '../candidate-reorder-history'
 import type { CandidateTableType } from '../candidate-reorder-history'
 
@@ -38,7 +37,7 @@ interface CandidateFindingsTableProps {
   rows: CandidateTableRow[]
   selectedKeys: ReadonlySet<string>
   totalGap: number | null
-  pair: SnapshotPair
+  pair: CostBreakdownComparisonPair
   expandedRows: ReadonlySet<string>
   onToggleExpanded: (type: CandidateTableType, rowKey: string) => void
   onToggleFinding?: (type: CandidateTableType, key: string) => void
@@ -122,11 +121,11 @@ function formatParameterValue(field: MasterDataNumericField, value: number | nul
   return field === 'loss' || field === 'yield' ? formatPercent(available, 2) : formatNumber(available, 2)
 }
 
-function parameterDelta(field: MasterDataNumericField, reference: number | null | undefined, current: number | null | undefined): string {
-  const referenceValue = validParameter(field, reference)
-  const currentValue = validParameter(field, current)
-  if (referenceValue === null || currentValue === null) return '—'
-  const difference = currentValue - referenceValue
+function parameterDelta(field: MasterDataNumericField, before: number | null | undefined, after: number | null | undefined): string {
+  const beforeValue = validParameter(field, before)
+  const afterValue = validParameter(field, after)
+  if (beforeValue === null || afterValue === null) return '—'
+  const difference = afterValue - beforeValue
   if (!Number.isFinite(difference)) return '—'
   return field === 'loss' || field === 'yield' ? formatPercent(difference, 2) : formatVariance(difference, 2)
 }
@@ -134,14 +133,14 @@ function parameterDelta(field: MasterDataNumericField, reference: number | null 
 interface DisplayParameter {
   field: MasterDataNumericField
   value: string
-  side: 'CUR' | 'REF' | null
+  side: 'After' | 'Before' | null
 }
 
-function parameterValues(row: CandidateTableRow, status: ComparisonStatus | null, pair: SnapshotPair): DisplayParameter[] {
-  const display = (field: MasterDataNumericField, reference: number | null | undefined, current: number | null | undefined): DisplayParameter => {
-    if (status === 'ADDED') return { field, value: formatParameterValue(field, current), side: 'CUR' }
-    if (status === 'REMOVED') return { field, value: formatParameterValue(field, reference), side: 'REF' }
-    return { field, value: parameterDelta(field, reference, current), side: null }
+function parameterValues(row: CandidateTableRow, status: ComparisonStatus | null, pair: CostBreakdownComparisonPair): DisplayParameter[] {
+  const display = (field: MasterDataNumericField, before: number | null | undefined, after: number | null | undefined): DisplayParameter => {
+    if (status === 'ADDED') return { field, value: formatParameterValue(field, after), side: 'After' }
+    if (status === 'REMOVED') return { field, value: formatParameterValue(field, before), side: 'Before' }
+    return { field, value: parameterDelta(field, before, after), side: null }
   }
 
   if (row.type === 'BOM') {
@@ -153,8 +152,8 @@ function parameterValues(row: CandidateTableRow, status: ComparisonStatus | null
     ]
   }
   const detail = row.detail as RoutingItemizedRow
-  const referenceRate = resolveSnapshotRoutingRate(detail.reference, pair.reference.rates)
-  const currentRate = resolveSnapshotRoutingRate(detail.current, pair.current.rates)
+  const referenceRate = resolveSnapshotRoutingRate(detail.reference, pair.before.rates)
+  const currentRate = resolveSnapshotRoutingRate(detail.current, pair.after.rates)
   return [
     display('manning', detail.reference?.manning, detail.current?.manning),
     display('capacity', detail.reference?.capacity, detail.current?.capacity),
@@ -316,7 +315,7 @@ export const CandidateFindingsTable: React.FC<CandidateFindingsTableProps> = ({
   return <div className="overflow-x-auto border border-slate-200">
     <table className={`w-full ${isBOM ? 'min-w-[1040px]' : 'min-w-[1260px]'} table-fixed text-left text-[10px]`}>
       <colgroup>{columnWidths.map((width, index) => <col key={index} style={{ width }} />)}</colgroup>
-      <caption className="sr-only">{identityHeader} Candidate findings. Main parameter columns show deltas; CHANGED rows expand Reference → Current and Parameter Cost Effect details.</caption>
+      <caption className="sr-only">{identityHeader} Candidate findings. Main parameter columns show After minus Before; CHANGED rows expand Before → After and Parameter Cost Effect details.</caption>
       <thead>
         <tr className="bg-slate-800 font-semibold text-white">
           <th scope="col" className="px-1 py-2 text-center">
@@ -433,7 +432,7 @@ export const CandidateFindingsTable: React.FC<CandidateFindingsTableProps> = ({
               </tr>
               {isExpanded && (rowType === 'bom'
                 ? <BOMRecordDetails row={row.detail as BOMItemizedRow} detailId={detailId} />
-                : <RoutingRecordDetails row={row.detail as RoutingItemizedRow} referenceRates={pair.reference.rates} currentRates={pair.current.rates} detailId={detailId} />)}
+                : <RoutingRecordDetails row={row.detail as RoutingItemizedRow} referenceRates={pair.before.rates} currentRates={pair.after.rates} detailId={detailId} />)}
             </React.Fragment>
           })}
       </tbody>

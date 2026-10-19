@@ -49,9 +49,9 @@ try {
   }
   const graphCategoryLabels = [...selectedStoryMarkup.matchAll(/<text\b[^>]*>([\s\S]*?)<\/text>/g)]
     .map(match => visibleText(match[1]))
-    .filter(label => ['REF', 'GAP 1', 'CUR', 'GAP 2', 'SIM'].includes(label))
-  assert.deepEqual(graphCategoryLabels, ['REF', 'GAP 1', 'CUR', 'GAP 2', 'SIM'],
-    'the final story preserves REF → GAP 1 → CUR → GAP 2 → SIM')
+    .filter(label => ['Reference', 'GAP 1', 'Current', 'GAP 2', 'Simulation'].includes(label))
+  assert.deepEqual(graphCategoryLabels, ['Reference', 'GAP 1', 'Current', 'GAP 2', 'Simulation'],
+    'the Phase 1 story preserves Reference → GAP 1 → Current → GAP 2 → Simulation')
   assert.match(selectedStoryMarkup, /GAP 1 · Current − Reference · Material Gap: \+2\.00 THB\/PC/)
   assert.match(selectedStoryMarkup, /GAP 2 · Simulation − Current · Material Gap: \+48\.00 THB\/PC/)
   assert.match(selectedStoryMarkup, /data-graph-standard-cost-value="reference"[^>]*>15\.00/)
@@ -114,7 +114,7 @@ try {
     }]
   }))
   const workCenterText = visibleText(workCenterMarkup)
-  assert.ok(workCenterText.includes('Description: Old work center → —'))
+  assert.ok(workCenterText.includes('Description: Before Old work center → After —'))
   assert.match(workCenterMarkup, /<td class="p-2\.5 font-sans text-slate-700">—<\/td>/)
 
   const assertMasterDataTableIsQuiet = markup => {
@@ -171,9 +171,10 @@ try {
       processingFindings: [],
       workCenterFindings: [],
       reconciliation: { reconciled: true }
-    }
+    },
+    gapDirection: 'Current − Reference'
   }))
-  for (const label of ['Cost Element', 'REF', 'CUR', 'GAP', '%GAP', 'Material', 'Labor', 'Burden', 'Standard Cost']) {
+  for (const label of ['Cost Element', 'Before', 'After', 'GAP', '%GAP', 'Material', 'Labor', 'Burden', 'Standard Cost']) {
     assert.ok(summaryMarkup.includes(label), `the Cost Element summary still exposes ${label}`)
   }
 

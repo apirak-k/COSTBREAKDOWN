@@ -1,5 +1,8 @@
 import assert from 'node:assert/strict'
-import { calculateSnapshotBOMDetail } from '../src/core/calculations/snapshot-bom-detail.ts'
+import { createServer } from 'vite'
+
+const vite = await createServer({ server: { middlewareMode: true, hmr: false }, appType: 'custom', logLevel: 'error', optimizeDeps: { noDiscovery: true, entries: [] } })
+const { calculateSnapshotBOMDetail } = await vite.ssrLoadModule('/src/core/calculations/snapshot-bom-detail.ts')
 
 function assertClose(actual: number | null, expected: number): void {
   assert.ok(actual !== null)
@@ -62,3 +65,4 @@ const validBoundary = calculateSnapshotBOMDetail({
 assert.equal(validBoundary.currentCost, 0, 'zero Usage/Price and 100% Loss are valid domain boundaries')
 
 console.log('Snapshot BOM detail verification passed.')
+await vite.close()
