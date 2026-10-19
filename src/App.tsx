@@ -58,6 +58,7 @@ const AppRouter: React.FC = () => {
   } = useAppStore()
   const [prepareDatasetNavigationRequest, setPrepareDatasetNavigationRequest] = useState<(MasterDataQualityItem & WarningNavigationTarget) | undefined>()
   const [masterDataSearchQuery, setMasterDataSearchQuery] = useState('')
+  const [hasVisitedCostBreakdown, setHasVisitedCostBreakdown] = useState(activeTab === 'breakdown')
   const [simulationStatesByProduct, setSimulationStatesByProduct] = useState<Record<string, SimulationWorkspaceState>>(
     () => loadFromSession(STORAGE_KEYS.SIMULATION_STATES, {})
   )
@@ -72,7 +73,7 @@ const AppRouter: React.FC = () => {
     before: ReturnType<typeof captureSimulationEditableSnapshot>
     latestState: SimulationWorkspaceState
   } | null>(null)
-  const lastCandidateHistoryContextRef = useRef({ activeProductId, activeTab, comparisonFingerprint: comparisonPair.fingerprint })
+  const lastCandidateHistoryContextRef = useRef({ activeProductId, comparisonFingerprint: comparisonPair.fingerprint })
   const storedSimulationState = simulationStatesByProduct[activeProductId]
   const reconciledSimulationState = useMemo(
     () => reconcileSimulationState(storedSimulationState, masterDataSnapshots),
@@ -115,14 +116,17 @@ const AppRouter: React.FC = () => {
   }, [activeTab])
 
   useEffect(() => {
+    if (activeTab === 'breakdown') setHasVisitedCostBreakdown(true)
+  }, [activeTab])
+
+  useEffect(() => {
     const previous = lastCandidateHistoryContextRef.current
     if (previous.activeProductId !== activeProductId
-      || previous.comparisonFingerprint !== comparisonPair.fingerprint
-      || (previous.activeTab === 'breakdown' && activeTab !== 'breakdown')) {
+      || previous.comparisonFingerprint !== comparisonPair.fingerprint) {
       setCandidateReorderHistory(resetCandidateReorderHistory())
     }
-    lastCandidateHistoryContextRef.current = { activeProductId, activeTab, comparisonFingerprint: comparisonPair.fingerprint }
-  }, [activeProductId, activeTab, comparisonPair.fingerprint])
+    lastCandidateHistoryContextRef.current = { activeProductId, comparisonFingerprint: comparisonPair.fingerprint }
+  }, [activeProductId, comparisonPair.fingerprint])
 
   useEffect(() => {
     if ((!storedSimulationState && activeTab !== 'simulation') || simulationState === storedSimulationState) return
@@ -373,11 +377,15 @@ const AppRouter: React.FC = () => {
           onPrepareDatasetNavigationHandled={requestId => setPrepareDatasetNavigationRequest(current => current?.requestId === requestId ? undefined : current)}
         />
       )}
-      {activeTab === 'breakdown' && <CostBreakdownPage
-        manualOrders={candidateReorderHistory.manualOrders}
-        onManualOrderChange={setCandidateManualOrder}
-        onResetManualOrderHistory={resetCandidateManualOrderHistory}
-      />}
+      {(activeTab === 'breakdown' || hasVisitedCostBreakdown) && (
+        <div hidden={activeTab !== 'breakdown'}>
+          <CostBreakdownPage
+            manualOrders={candidateReorderHistory.manualOrders}
+            onManualOrderChange={setCandidateManualOrder}
+            onResetManualOrderHistory={resetCandidateManualOrderHistory}
+          />
+        </div>
+      )}
       {activeTab === 'simulation' && (
         <SimulationPage
           key={activeProductId}

@@ -511,7 +511,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   useEffect(() => saveToSession(STORAGE_KEYS.UOM_LIST, uomList), [uomList])
 
   const setActiveTab = (tab: ActiveTab) => {
-    if (tab === 'simulation') setSelectedComparisonScope(null)
     if (tab !== 'master') {
       clearMasterDataPrepareDatasetHoverTimer()
       setMasterDataPrepareDatasetPinned(false)

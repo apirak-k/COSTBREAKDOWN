@@ -1,4 +1,29 @@
-# Current Handoff — Cost Breakdown generic Before / After comparison — 2026-10-19
+# Current Handoff — Phase 2 Reference / Current / Custom audit closure — 2026-10-19
+
+## Checkpoint and delivery
+
+- Repository: `/Users/bubu/COSTBREAKDOWN-ref-current-custom-flow-redesign` (`apirak-k/COSTBREAKDOWN`). Branch: `feat/ref-current-custom-flow-redesign`.
+- Starting local HEAD and fetched remote HEAD: `f98470bc90690e03c2bdaeffa39b1f347ce54596`.
+- This is a focused audit-fix pass on Phase 2. The user authorized one commit and push to this branch, with no merge. No later UI refinement is included.
+
+## Fixes
+
+- Keep Cost Breakdown mounted after its first visit and hide it during navigation. Its pair, type/status filters, sort, Candidate selection and manual ordering/history, overview collapse, and expanded details remain in memory. Main navigation does not clear Selected Comparison or collapse expanded details. Pair/source/product changes still invalidate dependent analysis state and reset stale reorder/detail state. No page state is written to session storage.
+- Render a neutral gray empty track when all three available element gaps are exactly zero, with the same bar footprint and no colored segments. Nonzero signed components that net to zero keep their signed visualization; unavailable-value behavior is unchanged.
+- Clarify the `MasterDataRole` comment so Reference, Current, and Custom are documented as valid generic CBD roles; runtime semantics are unchanged.
+- Update the active Cost Breakdown and Cross-Cutting requirements for the new navigation lifecycle and zero-gap behavior.
+
+## Verification and limits
+
+- **PASS:** `npm run build` (TypeScript and Vite production build; existing ExcelJS browser-externalization and large-chunk warnings remain).
+- **PASS:** `git diff --check`.
+- **PASS:** `node scripts/verify_cbd_audit_fixes.mjs` (navigation/stale-context source contracts and rendered zero-gap, offsetting, and unavailable chart cases). Navigation persistence is source-contract checked; this repository has no DOM interaction harness.
+- **PASS:** CBD pair, summary UX, reorder history, Selected Comparison lifecycle/boundary, comparison reconciliation, BOM/Routing/Work Center comparison views and details, Routing Process identity, CBD parameter cost effect, and Simulation regression verifiers.
+- No browser interaction run was available. The Routing Process identity verifier was run through Vite SSR because direct Node 24 execution cannot resolve the repository's extensionless TypeScript directory import.
+
+---
+
+# Previous Handoff — Cost Breakdown generic Before / After comparison — 2026-10-19
 
 ## Checkpoint and delivery
 

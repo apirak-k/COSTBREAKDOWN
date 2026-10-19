@@ -60,7 +60,7 @@ Routing `Process` is the primary processing comparison record in Cost Breakdown'
 - For a matched `CHANGED` or `UNCHANGED` finding, select/exclude the Before and After pair together. `ADDED` and `REMOVED` findings are independently selectable.
 - Selected mode calculates the selected-scope Gap from selected findings. Keep the Full Gap and full comparison visible as the primary result; show Selected beside the Full Gap as secondary information.
 - The scope is analysis state, not a dataset edit. It is not included in Save, export, or version history and does not persist across application restart.
-- Selected Comparison exists only inside CBD. Leaving CBD or changing either selected role or its Working data clears the scope; Simulation is independent.
+- Selected Comparison exists only inside CBD and remains valid in memory while navigating between app pages. Navigation alone does not clear it. Changing either selected role or its Working data invalidates stale scope; Simulation does not consume the scope.
 - Cancellation, a change to either selected role, or a change to either selected Working source clears the selection and returns to Full Comparison immediately.
 
 ## Legacy Candidate and Multi-Candidate RCA Session Domain
@@ -158,13 +158,13 @@ The global Footer is a compact three-group workspace summary: Reference/Current 
 - **`Ready for comparison`:** Both Reference and Current contain sufficient valid data for Cost Breakdown.
 - **`Product Mismatch`:** The existing handoff comparison remains based on effective Product Name/UOM after trimming and case normalization (informational, non-blocking status, not a Warning or Blocker). For UI display, show `Product Mismatch` only when both sides have a complete Product Name and UOM; otherwise show neutral `Product Not Set` without changing the handoff boolean.
 - **`Missing data`:** One or both datasets have incomplete/missing required fields.
-- **`Active Selected Comparison`:** Cost Breakdown is scoped to selected records; the scope ends on leaving CBD or changing either selected role or its Working source data.
+- **`Active Selected Comparison`:** Cost Breakdown is scoped to selected records; the scope remains active while its selected pair and Working sources remain valid. Navigation alone does not end it. Changing either selected role or its Working source data invalidates stale scope.
 
 When a state has a useful review destination, provide a convenient link or action to that page. Status is informational and normally does not block navigation; disable only an operation that is logically impossible.
 
 Master Data dataset save state has two user-facing values: `Saved` when Working matches Last Saved, and `Draft` when it differs or has never been saved. Do not fabricate Product Name `Product` or UOM `PC`; blank metadata stays blank through display and export. Header Undo/Redo are contextual: Master Data uses its existing edit history, Cost Breakdown uses one chronological Candidate reorder history across BOM and Routing, and Simulation uses product-, role-, and basis-scoped ephemeral edit histories. CBD records only completed manual reorder actions; changing or reapplying Sort clears manual orders and CBD Undo/Redo. Search stays local to the Master Data toolbar and filters its current table view. See [`MASTER_DATA_TOOLBAR_PREPARE_UX.md`](MASTER_DATA_TOOLBAR_PREPARE_UX.md) for the current interface contract.
 
-Keep an active Selected Comparison recognizable only while it applies inside Cost Breakdown. It ends when leaving CBD or changing either selected role or its Working source data. Simulation does not retain Candidate origin context or apply a selected CBD scope.
+Keep an active Selected Comparison recognizable only while it applies inside Cost Breakdown. It remains valid in memory while navigating away and back, and ends when either selected role or its Working source data changes. Simulation does not retain Candidate origin context or apply a selected CBD scope.
 
 Simulation owns product-scoped, role-local parameter overrides over Master Data Working; there is no CBD Selected Comparison handoff or synchronization. The legacy Clone from control selects the active Simulation role in Phase 1 and does not copy structure or CBD selection, filters, or sorting. On desktop, Simulation uses the shared-shell workspace without page-level vertical scrolling; only BOM and RTG table bodies scroll internally. Narrow screens may use natural page scrolling and stacked panels.
 

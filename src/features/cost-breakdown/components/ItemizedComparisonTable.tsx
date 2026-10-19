@@ -123,6 +123,7 @@ export const ItemizedComparisonTable: React.FC<ItemizedComparisonTableProps> = (
 
     const handlePointerDown = (event: PointerEvent) => {
       if (event.target instanceof Node && candidateRegionRef.current?.contains(event.target)) return
+      if (event.target instanceof Element && event.target.closest('nav[aria-label="Main navigation"]')) return
       setExpandedRows(new Set())
     }
     const handleKeyDown = (event: KeyboardEvent) => {

@@ -149,8 +149,14 @@ assert.match(store, /useState<StoredSelectedComparison \| null>\(null\)/,
   'Selected Comparison starts as temporary in-memory scope with Full Comparison as default')
 assert.match(store, /selectedComparisonScope\?\.pairFingerprint === comparisonPair\.fingerprint/,
   'a selected role or its Working source change makes Selected Comparison inactive')
-  assert.match(store, /tab === 'simulation'\) setSelectedComparisonScope\(null\)/,
-    'opening Simulation ends active scope')
+const setActiveTabSource = store.match(/const setActiveTab = \(tab: ActiveTab\) => \{[\s\S]*?\n  \}/)?.[0]
+assert.ok(setActiveTabSource, 'the store exposes an explicit tab navigation action')
+assert.match(setActiveTabSource, /setActiveTabState\(tab\)/,
+  'tab navigation updates only the active tab state')
+assert.doesNotMatch(setActiveTabSource, /setSelectedComparisonScope\(null\)/,
+  'navigating away from Cost Breakdown does not clear Selected Comparison')
+assert.match(store, /if \(selectedComparisonScope && !activeSelectedComparisonScope\) setSelectedComparisonScope\(null\)/,
+  'a stale Selected Comparison is cleared after its pair fingerprint changes')
 assert.doesNotMatch(store, /saveToSession\([^\n]*selectedComparisonScope|STORAGE_KEYS\.[^\n]*SELECTED_COMPARISON/,
   'Selected Comparison is not stored or versioned')
 const storeFiles = [

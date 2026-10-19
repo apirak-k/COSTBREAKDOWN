@@ -17,8 +17,11 @@ function verify(name: string, assertion: () => void) {
 }
 
 const setActiveTabBody = store.match(/const setActiveTab = \(tab: ActiveTab\) => \{([\s\S]*?)\n  \}/)?.[1] ?? ''
-verify('Opening Simulation ends the active Selected Comparison scope', () => {
-  assert.match(setActiveTabBody, /tab\s*===\s*'simulation'[\s\S]*setSelectedComparisonScope\(null\)/)
+verify('Main navigation preserves Selected Comparison while stale pair context expires it', () => {
+  assert.match(setActiveTabBody, /setActiveTabState\(tab\)/)
+  assert.doesNotMatch(setActiveTabBody, /setSelectedComparisonScope\(null\)/)
+  assert.match(store, /selectedComparisonScope\?\.pairFingerprint === comparisonPair\.fingerprint/)
+  assert.match(store, /if \(selectedComparisonScope && !activeSelectedComparisonScope\) setSelectedComparisonScope\(null\)/)
 })
 
 verify('Cost Breakdown directly applies Candidate selection and keeps the full comparison available', () => {

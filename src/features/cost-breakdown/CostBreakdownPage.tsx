@@ -106,8 +106,9 @@ export function GapContributionChart({ segments, fullTotal, selectedTotal, selec
   const fullValues = segments.map(segment => segment.full)
   const fullAvailable = fullValues.every(isAvailableGap)
   const fullNumbers = fullValues.filter(isAvailableGap)
+  const empty = fullAvailable && fullValues.length === 3 && fullValues.every(value => value === 0)
   const proportional = fullAvailable && hasSingleSign(fullNumbers)
-  const mode = !fullAvailable ? 'unavailable' : proportional ? 'proportional' : 'signed'
+  const mode = empty ? 'empty' : !fullAvailable ? 'unavailable' : proportional ? 'proportional' : 'signed'
   const fullPath = fullAvailable ? getWaterfallSegments(fullNumbers) : []
   const chartPoints = [0, ...fullPath.flatMap(segment => [segment.start, segment.end])]
   const chartMin = Math.min(...chartPoints)
@@ -195,7 +196,9 @@ export function GapContributionChart({ segments, fullTotal, selectedTotal, selec
           </pattern>)}
         </defs>
         {mode === 'signed' && <line x1={zeroX} y1="2" x2={zeroX} y2="30" stroke="#0f172a" strokeDasharray="2 2" />}
-        {segments.map(renderSegment)}
+        {mode === 'empty'
+          ? <rect data-gap-empty-track="true" x="0" y="7" width={width} height="18" fill="#e2e8f0" />
+          : segments.map(renderSegment)}
         {mode === 'proportional' && proportionalSegments.slice(1).map(segment => <line key={`divider-${segment.key}`} x1={segment.x} y1="4" x2={segment.x} y2="28" stroke="white" strokeWidth="2" />)}
       </svg>
     </div>
