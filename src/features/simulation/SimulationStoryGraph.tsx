@@ -537,7 +537,7 @@ export function SimulationStoryGraph({ story, unit }: SimulationStoryGraphProps)
           type="button"
           disabled={allLegendVisible}
           onClick={() => setVisibleLegend(DEFAULT_LEGEND_VISIBILITY)}
-          className={`min-h-6 self-end rounded-sm px-0.5 text-[11px] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-blue-700 min-[720px]:self-auto xl:shrink-0 xl:px-px xl:whitespace-nowrap ${allLegendVisible ? 'cursor-default text-slate-400' : 'cursor-pointer text-slate-700 hover:underline'}`}
+          className={`min-h-6 self-end rounded-sm px-0.5 text-[11px] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-blue-700 min-[720px]:ml-2 min-[720px]:self-auto xl:shrink-0 xl:px-px xl:whitespace-nowrap ${allLegendVisible ? 'cursor-default text-slate-400' : 'cursor-pointer text-slate-700 hover:underline'}`}
         >
           Show all
         </button>
@@ -558,7 +558,7 @@ export function SimulationStoryGraph({ story, unit }: SimulationStoryGraphProps)
         >
           <desc id="simulation-story-svg-description">Reference, Current, and Simulation show visible Material, Labor, Burden, SG&amp;A, and sign-matched Profit. Standard Cost is visible Material plus Labor plus Burden. Visible Net is the signed total of visible state-stack segments and excludes Selling Price. GAP 1 is Current minus Reference; GAP 2 is Simulation minus Current. Legend filters change this graph view only, not Result or source data. Selling Price is separate, and the ruler is a comparison guide.</desc>
 
-          <g transform="translate(-8 0)">
+          <g transform="translate(-16 0)">
           {axisTicks.map((value, index) => {
             const lineY = y(value)
             const isZero = Math.abs(value) < axisStep * 0.0001

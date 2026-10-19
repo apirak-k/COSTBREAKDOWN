@@ -1,5 +1,5 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react'
-import { ChevronDown, ChevronRight, RotateCcw } from 'lucide-react'
+import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { ChevronDown, ChevronRight, Copy, RotateCcw, Send } from 'lucide-react'
 import { compareSnapshots, formatNumber, safeAdd } from '../../core'
 import {
   calculateMultiplicativeCostAttribution,
@@ -16,6 +16,7 @@ import type {
   ScenarioStory,
   SnapshotCost
 } from '../../core/types'
+import { Tooltip } from '../../shared/ui/Tooltip'
 import { NumericInput } from '../../shared/ui/NumericInput'
 import { applyRowDragSelection } from '../../shared/selection/row-drag-selection'
 import { useTransientInteraction } from '../../shared/ui/transient-interactions'
@@ -188,6 +189,10 @@ function routingAttribution(
   return { simCost, effects: attribution }
 }
 
+const resultActionButton = 'grid h-8 w-8 shrink-0 place-items-center rounded-sm bg-transparent text-slate-700 transition-colors hover:bg-slate-100 hover:text-slate-950 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700'
+const useSafeLayoutEffect = typeof window === 'undefined' ? useEffect : useLayoutEffect
+
+// Simulation keeps its own role choices and callbacks; mirror the Master Data hover/pin interaction.
 function RoleActionMenu({
   label,
   onSelect
@@ -196,19 +201,50 @@ function RoleActionMenu({
   onSelect: (role: MasterDataRole) => void
 }) {
   const [open, setOpen] = useState(false)
+  const [pinned, setPinned] = useState(false)
+  const [offset, setOffset] = useState({ x: 0, y: 0 })
+  const menuRef = useRef<HTMLDivElement>(null)
+  const hoverTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const rootRef = useRef<HTMLDivElement>(null)
   const triggerRef = useRef<HTMLButtonElement>(null)
   const menuItemRefs = useRef<Array<HTMLButtonElement | null>>([])
   const menuId = `simulation-${label.toLowerCase().replace(' ', '-')}-menu`
+  const clearHoverTimer = () => {
+    if (hoverTimerRef.current) clearTimeout(hoverTimerRef.current)
+    hoverTimerRef.current = null
+  }
   const close = (restoreFocus = false) => {
+    clearHoverTimer()
     setOpen(false)
+    setPinned(false)
     if (restoreFocus) triggerRef.current?.focus()
   }
 
   useTransientInteraction(open, reason => close(reason === 'escape'))
+  useEffect(() => () => clearHoverTimer(), [])
+  useSafeLayoutEffect(() => {
+    if (!open) return
+    const updatePosition = () => {
+      const trigger = triggerRef.current?.getBoundingClientRect()
+      const menu = menuRef.current?.getBoundingClientRect()
+      if (!trigger || !menu) return
+      const left = trigger.right - menu.width
+      const top = trigger.bottom
+      setOffset({
+        x: Math.max(8, Math.min(left, window.innerWidth - menu.width - 8)) - left,
+        y: top + menu.height > window.innerHeight - 8 ? Math.max(8, trigger.top - menu.height) - top : 0
+      })
+    }
+    updatePosition()
+    window.addEventListener('resize', updatePosition)
+    window.addEventListener('scroll', updatePosition, true)
+    return () => {
+      window.removeEventListener('resize', updatePosition)
+      window.removeEventListener('scroll', updatePosition, true)
+    }
+  }, [open])
   useEffect(() => {
     if (!open) return
-    menuItemRefs.current[0]?.focus()
     const onPointerDown = (event: PointerEvent) => {
       if (!rootRef.current?.contains(event.target as Node)) close()
     }
@@ -217,22 +253,57 @@ function RoleActionMenu({
   }, [open])
 
   return (
-    <div ref={rootRef} className="relative">
-      <button
-        ref={triggerRef}
-        type="button"
-        aria-haspopup="menu"
-        aria-expanded={open}
-        aria-controls={menuId}
-        onClick={() => setOpen(value => !value)}
-        className="inline-flex min-h-7 items-center gap-1.5 border border-slate-400 bg-white px-2 text-[11px] font-medium text-slate-800 hover:bg-slate-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700"
-      >
-        {label}<ChevronDown aria-hidden="true" className="h-3.5 w-3.5" />
-      </button>
+    <div
+      ref={rootRef}
+      className="relative shrink-0"
+      onMouseEnter={() => {
+        clearHoverTimer()
+        if (!pinned) hoverTimerRef.current = setTimeout(() => setOpen(true), 120)
+      }}
+      onMouseLeave={() => {
+        clearHoverTimer()
+        if (!pinned) hoverTimerRef.current = setTimeout(() => {
+          if (!rootRef.current?.contains(document.activeElement)) close()
+        }, 150)
+      }}
+      onBlurCapture={event => {
+        if (!event.currentTarget.contains(event.relatedTarget as Node | null)) close()
+      }}
+    >
+      <Tooltip label={label}>
+        <button
+          ref={triggerRef}
+          type="button"
+          aria-label={label}
+          aria-haspopup="menu"
+          aria-expanded={open}
+          aria-controls={menuId}
+          onClick={() => {
+            clearHoverTimer()
+            if (pinned) close()
+            else { setPinned(true); setOpen(true) }
+          }}
+          onKeyDown={event => {
+            if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+              event.preventDefault()
+              clearHoverTimer()
+              setPinned(true)
+              setOpen(true)
+              requestAnimationFrame(() => menuItemRefs.current[event.key === 'ArrowUp' ? ROLES.length - 1 : 0]?.focus())
+            }
+          }}
+          className={resultActionButton}
+        >
+          {label === 'Clone from' ? <Copy aria-hidden="true" className="h-4 w-4" /> : <Send aria-hidden="true" className="h-4 w-4" />}
+        </button>
+      </Tooltip>
       {open && (
         <div
+          ref={menuRef}
           id={menuId}
           role="menu"
+          onMouseEnter={clearHoverTimer}
+          style={{ transform: `translate(${offset.x}px, ${offset.y}px)` }}
           aria-label={label}
           onKeyDown={event => {
             if (event.key === 'Escape') {
@@ -255,7 +326,7 @@ function RoleActionMenu({
               menuItemRefs.current[nextIndex]?.focus()
             }
           }}
-          className="absolute right-0 top-full z-50 mt-1 min-w-36 border border-slate-300 bg-white p-1 shadow-lg"
+          className="absolute right-0 top-full z-50 min-w-36 max-w-[calc(100vw-1rem)] border border-slate-300 bg-white p-1 shadow-lg"
         >
           {ROLES.map(({ role, label: roleLabel }, index) => (
             <button
@@ -263,8 +334,8 @@ function RoleActionMenu({
               ref={element => { menuItemRefs.current[index] = element }}
               type="button"
               role="menuitem"
-              tabIndex={-1}
-              onClick={() => { onSelect(role); close() }}
+              tabIndex={0}
+              onClick={() => { onSelect(role); close(true) }}
               className="block min-h-8 w-full px-2 text-left text-xs text-slate-800 hover:bg-slate-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-700"
             >
               {roleLabel}
@@ -785,10 +856,10 @@ function ResultPanel({
   const currentConversion = currentCost.labor === null || currentCost.burden === null ? null : safeAdd(currentCost.labor, currentCost.burden)
   const simulationConversion = simulationCost.labor === null || simulationCost.burden === null ? null : safeAdd(simulationCost.labor, simulationCost.burden)
   const rows = [
-    { label: 'Material Cost', current: currentCost.material, sim: simulationCost.material, semantic: 'cost' as const },
-    { label: 'Labor Cost', current: currentCost.labor, sim: simulationCost.labor, semantic: 'cost' as const },
-    { label: 'Burden Cost', current: currentCost.burden, sim: simulationCost.burden, semantic: 'cost' as const },
-    { label: 'Conversion Cost', current: currentConversion, sim: simulationConversion, semantic: 'cost' as const, subtotal: true },
+    { label: 'Material', current: currentCost.material, sim: simulationCost.material, semantic: 'cost' as const },
+    { label: 'Labor', current: currentCost.labor, sim: simulationCost.labor, semantic: 'cost' as const },
+    { label: 'Burden', current: currentCost.burden, sim: simulationCost.burden, semantic: 'cost' as const },
+    { label: 'Conversion', current: currentConversion, sim: simulationConversion, semantic: 'cost' as const, subtotal: true },
     { label: 'Standard Cost', current: currentCost.total, sim: simulationCost.total, semantic: 'cost' as const, total: true }
   ]
   const businessRows = [
@@ -940,15 +1011,11 @@ export const SimulationPage: React.FC<SimulationPageProps> = ({
         label="Send to"
         onSelect={role => { onSendTo(role, simulationSnapshot) }}
       />
-      <button
-        type="button"
-        onClick={onReset}
-        aria-label="Reset Simulation"
-        className="inline-flex min-h-7 items-center gap-1.5 border border-slate-400 bg-white px-2 text-[11px] font-medium text-slate-800 hover:bg-slate-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700"
-      >
-        <RotateCcw aria-hidden="true" className="h-3.5 w-3.5" />
-        Reset
-      </button>
+      <Tooltip label="Reset">
+        <button type="button" onClick={onReset} aria-label="Reset Simulation" className={resultActionButton}>
+          <RotateCcw aria-hidden="true" className="h-4 w-4" />
+        </button>
+      </Tooltip>
     </>
   )
 

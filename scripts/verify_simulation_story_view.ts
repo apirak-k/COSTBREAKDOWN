@@ -275,6 +275,7 @@ try {
   }
   const showAllTag = graphMarkup.match(/<button\b[^>]*disabled=""[^>]*>Show all<\/button>/)?.[0] ?? ''
   assert.match(showAllTag, /type="button"/, 'Show all retains native button semantics while initially disabled')
+  assert.match(showAllTag, /min-\[720px\]:ml-2/, 'Show all has additional separation after the legend without being pushed to the edge')
   assert.match(graphSource, /disabled=\{allLegendVisible\}/,
     'Show all becomes keyboard reachable once any Legend item is hidden')
   assert.match(graphSource, /focus-visible:outline[^`]*min-\[720px\]:self-auto/,
@@ -300,7 +301,7 @@ try {
   const yAxisLineTag = graphMarkup.match(/<line\b[^>]*data-y-axis="true"[^>]*>/)?.[0] ?? ''
   const yAxisUnitTag = graphMarkup.match(/<text\b[^>]*data-y-axis-unit="true"[^>]*>/)?.[0] ?? ''
   assert.ok(yAxisLineTag && yAxisUnitTag)
-  assert.match(graphMarkup, /<g transform="translate\(-8 0\)">/,
+  assert.match(graphMarkup, /<g transform="translate\(-16 0\)">/,
     'the plot is shifted slightly left without changing its internal label placement rules')
   assert.doesNotMatch(yAxisUnitTag, /transform=|rotate\(\s*-90/, 'the Y-axis unit label stays horizontal')
   assert.ok(numericSvgAttribute(yAxisUnitTag, 'y') < numericSvgAttribute(yAxisLineTag, 'y1'),
@@ -800,7 +801,7 @@ try {
   }
   assert.match(pageMarkup, /Clone from/)
   assert.match(pageMarkup, /Send to/)
-  const sendToButtonIndex = pageMarkup.indexOf('>Send to<')
+  const sendToButtonIndex = pageMarkup.indexOf('aria-label="Send to"')
   const resetButtonIndex = pageMarkup.indexOf('aria-label="Reset Simulation"')
   assert.ok(sendToButtonIndex >= 0 && resetButtonIndex > sendToButtonIndex,
     'Simulation exposes its Reset action immediately after Send To')
@@ -837,15 +838,15 @@ try {
     'the upper-right workspace has two separate vertical columns')
   const inputsColumnMarkup = pageMarkup.slice(inputsColumnIndex, resultColumnIndex)
   const leftSectionHeadings = [
-    inputsColumnMarkup.indexOf('Business Inputs'),
-    inputsColumnMarkup.indexOf('Economic Inputs'),
-    inputsColumnMarkup.indexOf('Economic Outputs')
+    inputsColumnMarkup.indexOf('>Business</h2>'),
+    inputsColumnMarkup.indexOf('>Economic</h2>'),
+    inputsColumnMarkup.indexOf('>Outcome</h3>')
   ]
   assert.ok(leftSectionHeadings.every((index, position) => index >= 0 && (position === 0 || index > leftSectionHeadings[position - 1])),
-    'the left column stacks Business Inputs, Economic Inputs, and Economic Outputs in order')
+    'the shared card contains Business, Economic, then a subordinate Outcome in order')
   assert.doesNotMatch(inputsColumnMarkup, />SIM Standard Cost<\/span>|>Operating Profit<\/span>|>SG&amp;A<\/span>/,
     'Business outputs are removed from the input column')
-  const breakEvenGraphIndex = pageMarkup.indexOf('Break-even Graph', resultColumnIndex)
+  const breakEvenGraphIndex = pageMarkup.indexOf('Break-even ·', resultColumnIndex)
   assert.ok(breakEvenGraphIndex > resultColumnIndex,
     'the right column places the Break-even Graph below Result')
   assert.match(renderedResultPanel, /Selling Price[\s\S]*SG&amp;A[\s\S]*Operating Profit/,
@@ -854,13 +855,13 @@ try {
     'the main graph uses about 60% of the upper workspace width')
   assert.ok(pageMarkup.includes('xl:grid-cols-[minmax(0,.7fr)_minmax(0,1.3fr)]') &&
     pageMarkup.includes('xl:grid-rows-[minmax(0,1.2fr)_minmax(0,.8fr)]') &&
-    pageMarkup.includes('xl:grid-rows-[minmax(0,.95fr)_minmax(0,1.45fr)_minmax(0,1fr)]'),
+    pageMarkup.includes('xl:grid-rows-[minmax(0,.95fr)_minmax(0,2.45fr)]'),
   'the two right-side columns use independent fixed row subdivisions')
   const inputCardTag = pageMarkup.match(/<div data-safe-workspace-interaction="true" data-simulation-layout-column="inputs"[^>]*>/)?.[0] ?? ''
   assert.match(inputCardTag, /class="[^"]*border border-slate-300[^\"]*bg-white/,
     'Business and Economic information has one shared outer card')
   assert.match(inputCardTag, /class="[^"]*divide-y divide-slate-200/,
-    'the shared card keeps subtle dividers between its three sections')
+    'the shared card keeps a subtle divider between Business and Economic')
   const businessInputsMarkup = pageMarkup.match(/<section[^>]*aria-labelledby="simulation-business-inputs-title"[\s\S]*?<\/section>/)?.[0] ?? ''
   const economicInputsMarkup = pageMarkup.match(/<section[^>]*aria-labelledby="simulation-economic-inputs-title"[\s\S]*?<\/section>/)?.[0] ?? ''
   assert.ok(businessInputsMarkup.includes('grid grid-cols-1') && economicInputsMarkup.includes('grid min-w-0 grid-cols-1'),

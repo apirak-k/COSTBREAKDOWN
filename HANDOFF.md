@@ -1,4 +1,73 @@
-# Current Handoff — Simulation layout and display-copy polish — 2026-10-19
+# Current Handoff — Simulation Economic and Result presentation — 2026-10-19
+
+## Checkpoint and delivery
+
+- Repository: `/Users/bubu/COSTBREAKDOWN` (`apirak-k/COSTBREAKDOWN`). Branch: `logic/simulation-finalized-implementation`.
+- Starting local and fetched remote HEAD: `2ee2aa61c55a5bd94e22bd45cad95a6b34066410`, matching the supplied audit. Only `vite.config.ts` was dirty before work.
+- Finishing HEAD is the focused commit containing this checkpoint; resolve with `git log -1 --format=%H -- HANDOFF.md`. Its exact SHA and post-push remote equality are recorded in the delivery response. This avoids a self-referential commit hash inside its own contents.
+- The user authorized implementation, tests, documentation, one focused commit, and push to the same branch. No merge. Delivery uses `style(simulation): refine economic and result presentation`.
+- Protected `vite.config.ts` starting/ending SHA-256: `673d2cbb093b910a1640bac84b7e16425e4f08bd3d7be7f4e435848ab2eb6796`. Its bytes and diff remain unchanged; it is excluded from staging and delivery.
+
+## Scope and files
+
+- `src/features/simulation/EconomicSimulationPanel.tsx`: two main headings Business/Economic, inset subordinate Outcome, shared dynamic THB/UOM, three short numeric-only rows, whole Break-even result in graph heading, right-end QTY. Existing formula tooltips and accessible descriptions remain.
+- `src/features/simulation/SimulationPage.tsx`: Material/Labor/Burden/Conversion/Standard Cost labels; Copy/Send/RotateCcw 32px icon actions with shared Tooltip. Clone/Send use 120ms hover preview, 150ms leave delay, unified trigger/menu region, click pin/close, outside/Escape/blur dismissal, keyboard navigation and viewport-safe positioning. Existing role choices and callbacks remain.
+- `src/features/simulation/SimulationStoryGraph.tsx`: whole-plot translation -16 SVG units (previously -8); Show all adds an 8px margin to the existing 4px gap, giving 12px separation after Ruler. Header remains one row at desktop.
+- `scripts/verify_simulation_economics.ts`, `scripts/verify_simulation_result.ts`, `scripts/verify_simulation_story_view.ts`: updated intentional copy/structure assertions and retained calculation, geometry and accessibility coverage.
+- `docs/specs/SIMULATION.md`, `docs/PROVISIONAL_IMPLEMENTATION_DECISIONS.md`: latest user presentation decisions and reversible pixel details. `HANDOFF.md`: this checkpoint; earlier records remain historical.
+- Existing outer ratios remain 1.5:1 Graph/right, .7:1.3 middle/Result, 1.2:.8 Result/Break-even, 1.25:1 upper/lower, 1:1 BOM/RTG. Business/combined Economic use .95:2.45, preserving the former total allocation.
+
+## Acceptance evidence
+
+- [x] One outer card, exactly Business and Economic main headings. Selling Price/SG&A and all three Economic inputs retain their order and handlers.
+- [x] Outcome has a light inset divider and subordinate heading; shared dynamic THB/UOM at right; exactly Parameter Saving, Required Saving, Economic Margin. Values have no repeated units. Full per-unit accessible names, formula descriptions, unavailable display and colors remain.
+- [x] No Economic Break-even row; graph heading uses whole displayed quantity (`2,326 PC` fixture), Not achievable or unavailable truthfully. Fractional precise intersection retained and verified independently.
+- [x] QTY dynamic label at right axis end, no text collision/clipping; final SVG type 10px. Y-axis, ticks, ranges and geometry unchanged.
+- [x] Result labels simplified, Standard Cost retained, subtotal/final emphasis and all numeric columns preserved. BOM/RTG Material Cost/Conversion Cost headers unchanged.
+- [x] Three icon-only 32px accessible actions with tooltips. Clone/Send hover, pin/close, pointer transition, outside click, Escape, arrows/Home/End/Tab/Shift+Tab and focus checked. Reset directly resets Simulation with no all-dataset menu.
+- [x] Main Graph all eight legends, Show all enabled/disabled restoration, tooltip, desktop single-row header, whole-plot shift and readable axes checked.
+- [x] No Break-even popup for saving/action/intersection/batch marks; slider roles/values/focus/keyboard/drag and pointer-down stability checked.
+- [x] 1440×857, 1280×768 and 390×844: no document horizontal overflow. Mobile stacking, action reachability, menu bounds, Outcome and QTY checked.
+
+## Automated verification
+
+All final commands exited 0:
+
+| Exact command | Result |
+| --- | --- |
+| `node --experimental-strip-types scripts/verify_simulation_story_view.ts` | PASS: graph/page contracts, including all finalized label-placement cases |
+| `node --experimental-strip-types scripts/verify_simulation_economics.ts` | PASS: economics, precision/intersection, dynamic units, unavailable and heading states |
+| `node --experimental-strip-types scripts/verify_simulation_result.ts` | PASS: numbers, hierarchy, icons and actions |
+| `node --experimental-strip-types scripts/verify_simulation_history.ts` | PASS: editable history, Reset, cloning and product isolation |
+| `node --experimental-strip-types scripts/verify_simulation_corrections.ts` | PASS: validation, baseline/selection, Undo/Reset and dynamic UOM |
+| `node scripts/verify_simulation_regression.mjs` | PASS: workspace/context/engine, Master Data history, Global Header |
+| `npm run build` | PASS: TypeScript + Vite production build |
+| `git diff --check` | PASS |
+
+The first build failed because ChevronDown was removed from imports while table expansion still used it. Restored that import; the complete suite/build then passed. After the final QTY font-only adjustment, economics and production build passed again. Existing ExcelJS browser-externalization and >500kB chunk warnings remain. Local results do not establish CI success.
+
+## Browser and interaction verification
+
+- Isolated Chrome/CDP with synthetic Complete Mock and actual UI input. Existing development server/profile data outside this test session were not altered.
+- 1440×857 and 1280×768: full title + eight Legend controls + Show all share one row; no clipping/overlap. Graph width remains about830/734px; Result/Break-even width355/313px. Outcome rows, BE quantity and graph legend fit.
+- 390×844: natural stacking, no horizontal page overflow; 32px actions and role menus fit; Outcome and final QTY remain visible.
+- Clone/Send: delayed hover closed at early sample and open after delay; transition into menu retains it; click pins, second click closes, outside closes, Escape restores trigger; arrows/Home/End work. Three options exactly Reference/Current/Custom. Tab moves Clone→Send and Send→Reset; Shift+Tab returns to the corresponding trigger; no body-focus loss.
+- Reset: synthetic MAT-A usage1.50→2.00 and Fixed Action Cost10000→blank, no menu. Batch5000→5001→5000 via keyboard; pointer-down retains5000 and intentional drag reaches5601.
+- All four BE mark types have zero popup; accessible names/slider attributes remain. Main Graph tooltip appears; Legend toggle enables Show all; restoring returns all eight pressed and disables Show all.
+- UOM changed through UI to KG: Outcome THB/KG, QTY(KG), heading2,326KG; conflicting UOM uses Unit. Missing assumptions show Break-even · —. Automated cases also cover Not achievable and zero/fractional thresholds.
+- 1280 percentage text extends1.83px beyond its cell with visible overflow but remains7.17px inside the panel: no visual clipping or overlap. No layout change was needed.
+- Evidence: `/tmp/cbd-final-browser-evidence.json`, `/tmp/cbd-tab-evidence.json`; helpers `node /tmp/cbd-final-browser.mjs`, `node /tmp/cbd-supplement.mjs`, `node /tmp/cbd-extra.mjs`, `node /tmp/cbd-last.mjs`, `node /tmp/cbd-mobile.mjs`, `node /tmp/cbd-tab-check.mjs`, `node /tmp/cbd-final-qty.mjs` all exit0. Browser JSON retains the correction of a helper's mistaken four-role assumption to the actual three-role contract.
+- Final screenshots: `/tmp/cbd-final-1440x857.png`, `/tmp/cbd-final-1280x768.png`, `/tmp/cbd-final-390x844.png`, `/tmp/cbd-mobile-outcome-break-even.png`. Additional menu/tooltip images: `/tmp/cbd-mobile-menu.png`, `/tmp/cbd-main-tooltip.png`. Artifacts stay outside Git.
+
+## Preservation audit and limits
+
+- No formula, Current→SIM, Clone/Send/Reset data semantics, state/persistence/history, numeric precision, validation, BOM/RTG editing or dependency changes. Calculation/state modules and package files are unchanged. Main Graph internal label-placement and tooltip algorithms are unchanged; only whole-plot translation and action spacing changed.
+- Agents: frontend-engineer for Economic and Result presentation; tester for browser evidence. Skills actually read/used: Ponytail, frontend-ui-engineering, browser-testing-with-devtools (isolated CDP fallback), and git-workflow-and-versioning for delivery.
+- [Unverified] Physical MacBook Neo, other browsers, screen-reader runtime, exhaustive numeric extremes and new-commit CI. Browser Clone/Send data transfer was not invoked; callback preservation was inspected and existing history/regression checks passed.
+
+---
+
+# Historical Handoff — Simulation layout and display-copy polish — 2026-10-19
 
 - Repository: `/Users/bubu/COSTBREAKDOWN`, `apirak-k/COSTBREAKDOWN`.
 - Branch: `logic/simulation-finalized-implementation`.

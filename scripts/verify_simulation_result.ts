@@ -35,7 +35,7 @@ try {
     workingSelection: state.workingSelection,
     referenceSnapshot: currentSnapshot,
     currentSnapshot,
-    onCloneSource() {}, onSendTo() { return true }, onResetParameters() {},
+    onCloneSource() {}, onSendTo() { return true }, onReset() {},
     onToggleWorkingTarget() {}, onUpdateParameter() {}, onUpdateEconomicInput() {}
   }))
   const resultPanel = (markup: string) => markup.match(/<section[^>]*aria-labelledby="simulation-result-title"[\s\S]*?<\/section>/)?.[0] ?? ''
@@ -66,14 +66,23 @@ try {
     ['Clone from', 'Send to', 'Reset Simulation'],
     'Clone from, Send to, and Reset remain in the existing order'
   )
+  for (const match of panel.matchAll(/<button\b([^>]*)>([\s\S]*?)<\/button>/g)) {
+    assert.match(match[1], /h-8 w-8/, 'Result action targets remain 32px square')
+    assert.match(match[2], /<svg/, 'Result actions use icons')
+    assert.equal(match[2].replace(/<[^>]*>/g, '').trim(), '', 'Result actions have no visible text')
+  }
+  for (const label of ['Material', 'Labor', 'Burden', 'Conversion', 'Standard Cost']) {
+    assert.ok(rowElement(baselineMarkup, label), `${label} Result row renders`)
+  }
+  assert.doesNotMatch(panel, />Material Cost<|>Labor Cost<|>Burden Cost<|>Conversion Cost</)
   assert.ok(panel.indexOf('Cost / Unit') < panel.indexOf('Standard Cost'))
   assert.ok(panel.indexOf('Standard Cost') < panel.indexOf('Business Outcome / Unit'))
   assert.ok(panel.indexOf('Business Outcome / Unit') < panel.indexOf('Selling Price'))
   assert.ok(panel.indexOf('Selling Price') < panel.indexOf('SG&amp;A'))
   assert.ok(panel.indexOf('SG&amp;A') < panel.indexOf('Operating Profit'))
 
-  const materialRow = rowElement(baselineMarkup, 'Material Cost')
-  const conversionRow = rowElement(baselineMarkup, 'Conversion Cost')
+  const materialRow = rowElement(baselineMarkup, 'Material')
+  const conversionRow = rowElement(baselineMarkup, 'Conversion')
   const standardRow = rowElement(baselineMarkup, 'Standard Cost')
   assert.match(materialRow, /<tr class="text-slate-700">/, 'ordinary cost rows keep their existing weight')
   assert.match(conversionRow, /<tr class="border-t border-slate-300 font-semibold text-slate-800 !border-slate-300">/,
@@ -95,14 +104,14 @@ try {
   const conversionEdited = updateSimulationParameter(conversionBaseline, conversionSnapshot, 'route-1', 'routing.capacity', 2)
   const conversionMarkup = render(conversionEdited, conversionSnapshot)
   for (const [side, label] of [['Current', 'current'], ['SIM', 'sim']] as const) {
-    const labor = Number(values(row(conversionMarkup, 'Labor Cost'))[side === 'Current' ? 0 : 1]?.text)
-    const burden = Number(values(row(conversionMarkup, 'Burden Cost'))[side === 'Current' ? 0 : 1]?.text)
-    const conversion = Number(values(row(conversionMarkup, 'Conversion Cost'))[side === 'Current' ? 0 : 1]?.text)
+    const labor = Number(values(row(conversionMarkup, 'Labor'))[side === 'Current' ? 0 : 1]?.text)
+    const burden = Number(values(row(conversionMarkup, 'Burden'))[side === 'Current' ? 0 : 1]?.text)
+    const conversion = Number(values(row(conversionMarkup, 'Conversion'))[side === 'Current' ? 0 : 1]?.text)
     assert.equal(conversion, labor + burden, `${label} Conversion Cost equals Labor + Burden`)
   }
 
-  assert.deepEqual(values(row(baselineMarkup, 'Material Cost')).map(cell => cell.text), ['78.00', '71.00', '-7.00', '-8.97%'])
-  for (const label of ['Labor Cost', 'Burden Cost', 'Conversion Cost']) {
+  assert.deepEqual(values(row(baselineMarkup, 'Material')).map(cell => cell.text), ['78.00', '71.00', '-7.00', '-8.97%'])
+  for (const label of ['Labor', 'Burden', 'Conversion']) {
     assert.deepEqual(values(row(baselineMarkup, label)).map(cell => cell.text), ['0.00', '0.00', '0.00', '—'],
       `${label} values and unavailable zero-baseline percentage remain unchanged`)
   }

@@ -132,7 +132,7 @@ function BreakEvenGraph({
   return (
     <figure data-safe-workspace-interaction="true" aria-labelledby="break-even-graph-title" className="min-w-0 border border-slate-300 bg-white px-2.5 py-1.5 xl:flex xl:min-h-0 xl:flex-col">
       <figcaption id="break-even-graph-title" className="mb-0.5 flex min-w-0 shrink-0 items-center justify-between gap-1 text-[10px] font-semibold text-slate-700 xl:mb-0">
-        <span>Break-even Graph</span>
+        <span>Break-even · {result.breakEvenNotAchievable ? 'Not achievable' : formatQuantity(result.breakEvenQuantity, unit)}</span>
         <span role="group" aria-label="Break-even graph legend" className="flex shrink-0 items-center gap-1.5 text-[9px] font-normal text-slate-600">
           <span role="img" aria-label="Cumulative Parameter Saving" className="inline-flex items-center gap-1 whitespace-nowrap"><i aria-hidden="true" className="h-0.5 w-3 bg-blue-600" />Saving</span>
           <span role="img" aria-label="Total Action Cost" className="inline-flex items-center gap-1 whitespace-nowrap"><i aria-hidden="true" className="h-0.5 w-3 bg-orange-700" />Action Cost</span>
@@ -149,7 +149,6 @@ function BreakEvenGraph({
           preserveAspectRatio="none"
           className="block h-[112px] w-full xl:h-full xl:min-h-0 xl:flex-1"
         >
-          <title>Break-even graph</title>
           <desc id="break-even-graph-description">Cumulative Parameter Saving compared with Total Action Cost by production quantity. The vertical Batch Size marker is draggable and keyboard accessible.</desc>
         {[0, 1, 2, 3].map(index => {
           const ratio = index / 3
@@ -237,7 +236,7 @@ function BreakEvenGraph({
           const x = plot.left + ratio * (plot.right - plot.left)
           return <text key={ratio} x={x} y={plot.bottom + 12} textAnchor={ratio === 0 ? 'start' : ratio === 1 ? 'end' : 'middle'} fill="#64748b" fontSize="8" fontFamily="ui-monospace, monospace">{formatNumber(xMax * ratio, 0)}</text>
         })}
-        <text x={plot.left} y={height - 3} fill="#64748b" fontSize="8">Quantity ({unit})</text>
+        <text x={plot.right} y={height - 3} textAnchor="end" fill="#64748b" fontSize="10">QTY ({unit})</text>
         <text x={plot.left} y={plot.top - 3} fill="#64748b" fontSize="8">THB</text>
         </svg>
       </div>
@@ -286,26 +285,26 @@ export function EconomicSimulationPanel({ result, draft, currentSnapshot, unit, 
 
   const economicOutputs = [
     {
-      label: 'Parameter Saving / Unit', formula: 'Current Standard Cost − SIM Standard Cost', value: result.parameterSavingPerPiece,
+      label: 'Parameter Saving', ariaLabel: 'Parameter Saving / Unit', formula: 'Current Standard Cost − SIM Standard Cost', value: result.parameterSavingPerPiece,
       className: result.parameterSavingPerPiece === null ? 'text-slate-500'
         : result.parameterSavingPerPiece > 0 ? 'text-emerald-800'
           : result.parameterSavingPerPiece < 0 ? 'text-rose-800' : 'text-slate-600'
     },
     {
-      label: 'Required Saving / Unit', formula: '(Fixed Action Cost ÷ Batch Size) + Variable Action Cost / Unit', value: result.requiredSavingPerPiece,
+      label: 'Required Saving', ariaLabel: 'Required Saving / Unit', formula: '(Fixed Action Cost ÷ Batch Size) + Variable Action Cost / Unit', value: result.requiredSavingPerPiece,
       className: 'text-slate-900'
     },
     {
-      label: 'Economic Margin / Unit', formula: 'Parameter Saving / Unit − Required Saving / Unit', value: result.economicMarginPerPiece,
+      label: 'Economic Margin', ariaLabel: 'Economic Margin / Unit', formula: 'Parameter Saving / Unit − Required Saving / Unit', value: result.economicMarginPerPiece,
       className: result.economicMarginPerPiece === null ? 'text-slate-500'
         : result.economicMarginPerPiece > 0 ? 'text-emerald-800'
           : result.economicMarginPerPiece < 0 ? 'text-rose-800' : 'text-slate-600'
     }
   ]
   return (
-    <div data-safe-workspace-interaction="true" data-simulation-layout-column="inputs" aria-label="Economic and Business" className="grid min-w-0 divide-y divide-slate-200 border border-slate-300 bg-white xl:h-full xl:min-h-0 xl:grid-rows-[minmax(0,.95fr)_minmax(0,1.45fr)_minmax(0,1fr)]">
+    <div data-safe-workspace-interaction="true" data-simulation-layout-column="inputs" aria-label="Economic and Business" className="grid min-w-0 divide-y divide-slate-200 border border-slate-300 bg-white xl:h-full xl:min-h-0 xl:grid-rows-[minmax(0,.95fr)_minmax(0,2.45fr)]">
       <section className="min-w-0 px-2.5 py-1.5 xl:min-h-0" aria-labelledby="simulation-business-inputs-title">
-          <h2 id="simulation-business-inputs-title" className="text-xs font-semibold text-slate-900">Business Inputs</h2>
+          <h2 id="simulation-business-inputs-title" className="text-xs font-semibold text-slate-900">Business</h2>
           <div className="mt-1 grid grid-cols-1 gap-y-1 xl:mt-0.5">
             {inputs.slice(3).map(({ field, label, ariaLabel, unit: fieldUnit, precision, min, max }) => (
               <label key={field} className="flex min-w-0 flex-col gap-0.5 text-[9px] font-medium leading-3 text-slate-700">
@@ -329,7 +328,7 @@ export function EconomicSimulationPanel({ result, draft, currentSnapshot, unit, 
       </section>
 
       <section className="min-w-0 px-2.5 py-1.5 xl:min-h-0" aria-labelledby="simulation-economic-inputs-title">
-          <h2 id="simulation-economic-inputs-title" className="text-xs font-semibold text-slate-900">Economic Inputs</h2>
+          <h2 id="simulation-economic-inputs-title" className="text-xs font-semibold text-slate-900">Economic</h2>
           <div className="mt-1 grid min-w-0 grid-cols-1 gap-y-1 xl:mt-0.5">
             {inputs.slice(0, 3).map(({ field, label, ariaLabel, unit: fieldUnit, precision, integer, min, max }) => (
               <label key={field} className="flex min-w-0 flex-col gap-0.5 text-[9px] font-medium leading-3 text-slate-700">
@@ -351,22 +350,18 @@ export function EconomicSimulationPanel({ result, draft, currentSnapshot, unit, 
               </label>
             ))}
           </div>
-      </section>
-
-      <section className="min-w-0 px-2.5 py-1.5 xl:min-h-0" aria-labelledby="simulation-economic-outputs-title">
-          <h2 id="simulation-economic-outputs-title" className="text-xs font-semibold text-slate-900">Economic Outputs</h2>
-          <div className="mt-1 grid grid-cols-1 gap-x-3 gap-y-0 sm:grid-cols-2 xl:grid-cols-1">
-            {economicOutputs.map(({ label, formula, value, className }) => (
-              <div key={label} className="flex min-w-0 items-baseline justify-between gap-1 py-0.5 xl:py-0" title={formula}>
-                <span className="truncate text-[9px] text-slate-600">{label}</span>
-                <span className={`shrink-0 font-mono text-[10px] font-semibold tabular-nums ${className}`}>{formatValue(value)}<span className="ml-0.5 text-[8px] font-normal text-slate-500">THB/{normalizedUnit}</span></span>
-              </div>
-            ))}
-            <div role="group" aria-label="Break-even Quantity" className="flex min-w-0 items-baseline justify-between gap-1 py-0.5" title="Fixed Action Cost ÷ (Parameter Saving / Unit − Variable Action Cost / Unit)">
-              <span aria-hidden="true" className="min-w-0 text-[9px] text-slate-600">Break-even</span>
-              <span className={`shrink-0 font-mono text-[10px] font-semibold tabular-nums ${result.breakEvenNotAchievable ? 'text-slate-500' : 'text-slate-900'}`}>
-                {result.breakEvenNotAchievable ? 'Not achievable' : formatQuantity(result.breakEvenQuantity, normalizedUnit)}
-              </span>
+          <div role="group" aria-labelledby="simulation-economic-outcome-title" className="mt-2 border-t border-slate-200 pt-1">
+            <div className="flex min-w-0 items-baseline justify-between gap-1 text-[9px] text-slate-500">
+              <h3 id="simulation-economic-outcome-title" className="font-medium">Outcome</h3>
+              <span>THB/{normalizedUnit}</span>
+            </div>
+            <div className="mt-1 grid grid-cols-1 gap-y-0">
+              {economicOutputs.map(({ label, ariaLabel, formula, value, className }) => (
+                <div key={label} role="group" aria-label={ariaLabel} className="flex min-w-0 items-baseline justify-between gap-1 py-0.5 xl:py-0" title={formula}>
+                  <span className="truncate text-[9px] text-slate-600">{label}</span>
+                  <span className={`shrink-0 font-mono text-[10px] font-semibold tabular-nums ${className}`}>{formatValue(value)}</span>
+                </div>
+              ))}
             </div>
           </div>
       </section>
