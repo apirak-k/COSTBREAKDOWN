@@ -302,7 +302,7 @@ export function EconomicSimulationPanel({ result, draft, currentSnapshot, unit, 
     }
   ]
   return (
-    <div data-safe-workspace-interaction="true" data-simulation-layout-column="inputs" aria-label="Economic and Business" className="grid min-w-0 divide-y divide-slate-200 border border-slate-300 bg-white xl:h-full xl:min-h-0 xl:grid-rows-[minmax(0,.95fr)_minmax(0,2.45fr)]">
+    <div data-safe-workspace-interaction="true" data-simulation-layout-column="inputs" aria-label="Economic and Business" className="grid min-w-0 divide-y divide-slate-200 border border-slate-300 bg-white xl:h-full xl:min-h-0 xl:grid-rows-[minmax(min-content,.95fr)_minmax(0,2.45fr)]">
       <section className="min-w-0 px-2.5 py-1.5 xl:min-h-0" aria-labelledby="simulation-business-inputs-title">
           <h2 id="simulation-business-inputs-title" className="text-xs font-semibold text-slate-900">Business</h2>
           <div className="mt-1 grid grid-cols-1 gap-y-1 xl:mt-0.5">

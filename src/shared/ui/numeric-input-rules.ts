@@ -18,6 +18,10 @@ export interface NumericStepPlace {
   step: number
 }
 
+export function resolveNumericWheelStepDirection(deltaY: number): 1 | -1 {
+  return deltaY > 0 ? 1 : -1
+}
+
 function precisionOf(domain: NumericInputDomain): number {
   return domain.integer ? 0 : Math.max(0, Math.min(6, Math.trunc(domain.precision ?? 2)))
 }

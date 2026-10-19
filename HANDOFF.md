@@ -1,4 +1,34 @@
-# Current Handoff — Simulation Economic and Result presentation — 2026-10-19
+# Current Handoff — NumericInput, toolbar, and divider UX correction — 2026-10-19
+
+## Checkpoint and delivery
+
+- Repository: `/Users/bubu/COSTBREAKDOWN` (`apirak-k/COSTBREAKDOWN`). Branch: `logic/simulation-finalized-implementation`.
+- Starting local HEAD: `ed67bb2af93eaf201efbf750fe13acb856722c5b`. The GitHub branch ref was independently read at the same SHA; it had not moved beyond the supplied audit baseline. `git fetch origin` could not resolve `github.com` in this environment, so the GitHub connector was used to confirm the branch tip.
+- Only `vite.config.ts` was dirty before this pass. Its starting/ending SHA-256 is `673d2cbb093b910a1640bac84b7e16425e4f08bd3d7be7f4e435848ab2eb6796`; contents and diff are byte-for-byte unchanged and it is excluded from the commit.
+- The user authorized this focused implementation, relevant verifiers/build/browser checks, spec/HANDOFF updates, one commit, and push to this branch. No merge.
+- The focused commit SHA, push result, and verified remote equality are recorded in the delivery report; they are not embedded here because this checkpoint is part of that same commit.
+
+## Scope
+
+- `src/shared/ui/numeric-input-rules.ts`, `src/shared/ui/NumericInput.tsx`: focused wheel direction now maps positive/upward delta to increment and negative/downward delta to decrement. Keyboard, spinner, active-place stepping, bounds, validation, and unfocused scrolling paths are unchanged.
+- `src/features/master-data/components/MasterDataWorkspaceHeader.tsx`: Clone tooltip/accessibility name is `Clone from`; menu labels are centered role names with the existing destination exclusion; Warning tooltip/accessibility wording is `Show warnings` / `Hide warnings`. State and interactions are unchanged.
+- `src/features/simulation/SimulationPage.tsx`: the shared Clone/Send role menu is 96px minimum width with centered labels; role choices, callbacks, and interactions are unchanged.
+- `src/features/simulation/EconomicSimulationPanel.tsx`: the Business row has a min-content height floor within the existing `.95fr:2.45fr` allocation, keeping the main divider in whitespace after SG&A. Outcome remains inset.
+- Focused verifier expectations were updated in `scripts/verify_numeric_input.mjs`, `scripts/verify_master_data_ui_state.mjs`, `scripts/verify_simulation_story_view.ts`, and `scripts/verify_simulation_economics.ts`.
+- `docs/specs/MASTER_DATA_TOOLBAR_PREPARE_UX.md` and `docs/specs/SIMULATION.md` record the accepted presentation/interaction contract. `docs/PROVISIONAL_IMPLEMENTATION_DECISIONS.md` was not changed because its recorded ratios do not conflict with this adjustment.
+
+## Verification and limits
+
+- **PASS:** `node scripts/verify_numeric_input.mjs`, `node scripts/verify_master_data_ui_state.mjs`, `node --experimental-strip-types scripts/verify_simulation_story_view.ts`, `node --experimental-strip-types scripts/verify_simulation_economics.ts`, `node --experimental-strip-types scripts/verify_simulation_result.ts`, `node --experimental-strip-types scripts/verify_simulation_history.ts`, `node --experimental-strip-types scripts/verify_simulation_corrections.ts`, `node scripts/verify_simulation_regression.mjs`, and `npm run build`.
+- **PASS:** isolated Chrome/CDP browser verification, 72 checks at 1440×857, 1280×768, and 390×844. Menus, wording, sizing, keyboard/pointer dismissal, focus restoration, divider spacing, viewport overflow, NumericInput synthetic wheel direction, arrows/spinners, and unfocused container scrolling passed; no browser console errors.
+- Screenshots are outside Git: `/tmp/cbd-ux-pass-masterdata-1440x857.png`, `/tmp/cbd-ux-pass-masterdata-1280x768.png`, `/tmp/cbd-ux-pass-masterdata-390x844.png`, `/tmp/cbd-ux-pass-simulation-1440x857.png`, `/tmp/cbd-ux-pass-simulation-1280x768.png`, `/tmp/cbd-ux-pass-simulation-390x844.png`.
+- `npm audit --omit=dev --audit-level=high` exited 0 and reported two moderate transitive `uuid` findings through ExcelJS. No dependency files were changed.
+- **[Unverified]** Direct post-fix physical mouse and MacBook trackpad input, Windows hardware, other browsers, screen-reader runtime, and CI for the new commit. The browser check dispatched synthetic WheelEvents; it is not physical-device evidence. The user's pre-fix hardware report is preserved as the issue evidence.
+- No cost/business/economic/Break-even formulas, Clone/Send/Reset semantics, numeric precision, validation, lifecycle, or data behavior were changed.
+
+---
+
+# Historical Handoff — Simulation Economic and Result presentation — 2026-10-19
 
 ## Checkpoint and delivery
 

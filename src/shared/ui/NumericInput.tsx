@@ -6,6 +6,7 @@ import {
   isNumericDraftSyntax,
   numericCaretForPlace,
   parseNumericDraft,
+  resolveNumericWheelStepDirection,
   resolveNumericStepPlace,
   stepNumericValue,
   type NumericInputDomain,
@@ -237,7 +238,7 @@ export function NumericInput({
     const handleWheel = (event: globalThis.WheelEvent) => {
       if (document.activeElement !== input || event.deltaY === 0 || !canStepRef.current) return
       event.preventDefault()
-      applyStep(event.deltaY < 0 ? 1 : -1)
+      applyStep(resolveNumericWheelStepDirection(event.deltaY))
     }
 
     input.addEventListener('wheel', handleWheel, { passive: false })

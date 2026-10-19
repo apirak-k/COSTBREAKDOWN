@@ -427,7 +427,7 @@ export const MasterDataWorkspaceHeader: React.FC<MasterDataWorkspaceHeaderProps>
               if (!event.currentTarget.contains(event.relatedTarget as Node | null)) closeCloneMenu()
             }}
           >
-            <Tooltip label="Clone">
+            <Tooltip label="Clone from">
               <button
                 ref={cloneTriggerRef}
                 type="button"
@@ -435,7 +435,7 @@ export const MasterDataWorkspaceHeader: React.FC<MasterDataWorkspaceHeaderProps>
                 aria-expanded={cloneMenuOpen}
                 aria-haspopup="menu"
                 aria-controls="clone-source-menu"
-                aria-label="Clone"
+                aria-label="Clone from"
                 className={toolbarButton}
               >
                 <Copy className="h-4 w-4" aria-hidden="true" />
@@ -448,7 +448,7 @@ export const MasterDataWorkspaceHeader: React.FC<MasterDataWorkspaceHeaderProps>
                 role="menu"
                 aria-label="Clone source"
                 style={{ marginLeft: `${cloneHorizontalOffset}px` }}
-                className="absolute left-1/2 top-full z-50 mt-1 min-w-max -translate-x-1/2 border border-slate-300 bg-white p-1 shadow-lg"
+                className="absolute left-1/2 top-full z-50 mt-1 min-w-max -translate-x-1/2 border border-slate-300 bg-white p-1 text-center shadow-lg"
                 onMouseEnter={clearCloneHoverTimer}
               >
                 {roles.filter(sourceRole => sourceRole !== role).map(sourceRole => (
@@ -460,21 +460,21 @@ export const MasterDataWorkspaceHeader: React.FC<MasterDataWorkspaceHeaderProps>
                       onCloneFrom(sourceRole)
                       closeCloneMenu()
                     }}
-                    className="block min-h-8 w-full px-2 text-left text-xs text-slate-800 hover:bg-slate-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-700"
+                    className="block min-h-8 w-full px-2 text-center text-xs text-slate-800 hover:bg-slate-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-700"
                   >
-                    From {roleLabels[sourceRole]}
+                    {roleLabels[sourceRole]}
                   </button>
                 ))}
               </div>
             )}
           </div>
-          <Tooltip label={showWarningHighlights ? 'Hide warning highlights' : 'Show warning highlights'}>
+          <Tooltip label={showWarningHighlights ? 'Hide warnings' : 'Show warnings'}>
             <button
               type="button"
               aria-pressed={showWarningHighlights}
               onClick={() => onWarningHighlightsChange(!showWarningHighlights)}
               className={toolbarButton}
-              aria-label={showWarningHighlights ? 'Hide warning highlights' : 'Show warning highlights'}
+              aria-label={showWarningHighlights ? 'Hide warnings' : 'Show warnings'}
             >
               <span aria-hidden="true" className="relative grid h-[18px] w-[18px] place-items-center">
                 <span className="font-mono text-base font-bold leading-none">!</span>

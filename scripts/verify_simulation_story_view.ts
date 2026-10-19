@@ -855,7 +855,7 @@ try {
     'the main graph uses about 60% of the upper workspace width')
   assert.ok(pageMarkup.includes('xl:grid-cols-[minmax(0,.7fr)_minmax(0,1.3fr)]') &&
     pageMarkup.includes('xl:grid-rows-[minmax(0,1.2fr)_minmax(0,.8fr)]') &&
-    pageMarkup.includes('xl:grid-rows-[minmax(0,.95fr)_minmax(0,2.45fr)]'),
+    pageMarkup.includes('xl:grid-rows-[minmax(min-content,.95fr)_minmax(0,2.45fr)]'),
   'the two right-side columns use independent fixed row subdivisions')
   const inputCardTag = pageMarkup.match(/<div data-safe-workspace-interaction="true" data-simulation-layout-column="inputs"[^>]*>/)?.[0] ?? ''
   assert.match(inputCardTag, /class="[^"]*border border-slate-300[^\"]*bg-white/,
@@ -969,6 +969,9 @@ try {
   assert.ok(sendToMenuSource.length > 0, 'the Send to role menu is wired in the Simulation actions')
   assert.match(sendToMenuSource, /onSendTo\(role, simulationSnapshot\)/,
     'Send to passes the selected role and current SIM snapshot to its integration callback')
+  const roleActionMenuSource = pageSource.slice(pageSource.indexOf('function RoleActionMenu'), pageSource.indexOf('function ', pageSource.indexOf('function RoleActionMenu') + 1))
+  assert.match(roleActionMenuSource, /min-w-24 max-w-\[calc\(100vw-1rem\)\][\s\S]*min-h-8 w-full px-2 text-center/,
+    'Clone and Send share a compact, viewport-safe menu with centered, practical-size options')
   assert.doesNotMatch(pageSource, /transferMessage|transferError|SIM sent to|Send blocked by Master Data validation/,
     'Send keeps defensive validation without persistent Result feedback')
   const rowTemplateStart = pageSource.indexOf('const status = rowStatusText(row,')

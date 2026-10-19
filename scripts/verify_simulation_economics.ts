@@ -155,6 +155,8 @@ const inputsSectionTags = [...panelMarkup.matchAll(/<section\b[^>]*aria-labelled
 assert.equal(inputsSectionTags.length, 2, 'the combined card has only Business and Economic main sections')
 assert.ok(inputsSectionTags.every(tag => !/class="[^"]*\bborder\b/.test(tag)),
   'Business and Economic sections no longer have separate outer borders')
+assert.match(panelMarkup, /grid-rows-\[minmax\(min-content,\.95fr\)_minmax\(0,2\.45fr\)\]/,
+  'the Business section keeps enough height for the SG&A editor and breathing room before the main divider')
 const economicInputsPanel = panelMarkup.match(/<section[^>]*aria-labelledby="simulation-economic-inputs-title"[\s\S]*?<\/section>/)?.[0] ?? ''
 const economicInputIndexes = ['Variable Action Cost', 'Fixed Action Cost', 'Batch Size'].map(label => economicInputsPanel.indexOf(label))
 assert.ok(economicInputIndexes.every((index, position) => index >= 0 && (position === 0 || index > economicInputIndexes[position - 1])),

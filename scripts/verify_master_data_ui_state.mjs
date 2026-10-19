@@ -677,7 +677,7 @@ try {
   assert.match(bomSource, /dataTransfer\.setData\('application\/x-costbreakdown-row-ids'/, 'selected rows are carried as a group for reorder')
   assert.match(bomSource, /<th scope="col"[^>]*>Actions<\/th>[\s\S]*<Tooltip label=\{reorderTooltip\}>[\s\S]*aria-label=\{!isEditMode \? reorderTooltip/, 'Trash and Grip controls share the single rightmost Actions column and keep action-accurate labels')
   assert.match(routingSource, /not in WC table|knownWorkCenters/, 'Routing WC input keeps unknown values visible for typo correction')
-  assert.match(headerSource, /<Tooltip label="Clone">[\s\S]*aria-label="Clone"/, 'Clone is icon-only with an accessible label and custom tooltip')
+  assert.match(headerSource, /<Tooltip label="Clone from">[\s\S]*aria-label="Clone from"/, 'Clone is icon-only with the Clone from label and matching tooltip')
   const mockActionSource = footerSource.slice(footerSource.indexOf('const mockAction'), footerSource.indexOf('const referenceStandardCost'))
   assert.match(mockActionSource, /grid w-full grid-cols-2 divide-x[\s\S]*Complete Mock[\s\S]*Incomplete Mock/, 'development mock actions use equal two-column widths')
   assert.match(mockActionSource, /w-full px-1\.5 text-center[\s\S]*w-full px-1\.5 text-center/, 'both mock labels are centered in full-width buttons')
@@ -688,8 +688,8 @@ try {
   const cloneTriggerSource = cloneRegionSource.slice(cloneRegionSource.indexOf('ref={cloneTriggerRef}'), cloneRegionSource.indexOf('{cloneMenuOpen &&'))
   assert.match(cloneRegionSource, /ref=\{cloneContainerRef\}[\s\S]*className="relative shrink-0"[\s\S]*ref=\{cloneTriggerRef\}[\s\S]*className=\{toolbarButton\}/,
     'the menu positioning wrapper stays limited to the fixed-size Clone trigger region')
-  assert.match(cloneRegionSource, /className="absolute left-1\/2 top-full z-50 mt-1 min-w-max -translate-x-1\/2 border border-slate-300 bg-white p-1 shadow-lg"[\s\S]*className="block min-h-8 w-full px-2 text-left text-xs/,
-    'the Clone menu uses centered content-fit geometry and compact Reset/Clear-like rows')
+  assert.match(cloneRegionSource, /className="absolute left-1\/2 top-full z-50 mt-1 min-w-max -translate-x-1\/2 border border-slate-300 bg-white p-1 text-center shadow-lg"[\s\S]*className="block min-h-8 w-full px-2 text-center text-xs/,
+    'the Clone menu uses compact content-fit geometry and centered, practical-size rows')
   assert.doesNotMatch(cloneRegionSource, /min-w-36/,
     'the Clone menu does not reserve unnecessary fixed width')
   assert.match(cloneRegionSource, /onMouseEnter=\{\(\) => \{[\s\S]*if \(!cloneMenuPinned\) cloneHoverTimerRef\.current = setTimeout\(\(\) => setCloneMenuOpen\(true\), 120\)/,
@@ -698,8 +698,8 @@ try {
     'a hover-open Clone menu closes after leaving the full trigger-plus-menu region')
   assert.match(cloneRegionSource, /id="clone-source-menu"[\s\S]*role="menu"[\s\S]*onMouseEnter=\{clearCloneHoverTimer\}/,
     'the Clone menu is inside the shared hover region and entering it cancels the leave timer')
-  assert.match(cloneRegionSource, /roles\.filter\(sourceRole => sourceRole !== role\)[\s\S]*role="menuitem"[\s\S]*From \{roleLabels\[sourceRole\]\}/,
-    'Clone offers concise source choices and omits the viewed destination')
+  assert.match(cloneRegionSource, /roles\.filter\(sourceRole => sourceRole !== role\)[\s\S]*role="menuitem"[\s\S]*\{roleLabels\[sourceRole\]\}/,
+    'Clone shows role names only and omits the viewed destination')
   assert.match(cloneRegionSource, /onCloneFrom\(sourceRole\)[\s\S]*closeCloneMenu\(\)/,
     'choosing a Clone source invokes the existing action and closes the dropdown')
   assert.match(headerSource, /const toggleCloneMenu = \(\) => \{[\s\S]*if \(cloneMenuPinned\) \{[\s\S]*closeCloneMenu\(\)[\s\S]*return[\s\S]*setCloneMenuPinned\(true\)[\s\S]*setCloneMenuOpen\(true\)/,
@@ -712,7 +712,7 @@ try {
     'clicking outside the Clone trigger and popover closes the menu')
   assert.match(headerSource, /useTransientInteraction\(cloneMenuOpen, reason => closeCloneMenu\(reason === 'escape'\)\)/,
     'Escape closes Clone through shared topmost transient dismissal')
-  assert.match(cloneTriggerSource, /type="button"[\s\S]*onClick=\{toggleCloneMenu\}[\s\S]*aria-expanded=\{cloneMenuOpen\}[\s\S]*aria-haspopup="menu"[\s\S]*aria-controls="clone-source-menu"[\s\S]*aria-label="Clone"/,
+  assert.match(cloneTriggerSource, /type="button"[\s\S]*onClick=\{toggleCloneMenu\}[\s\S]*aria-expanded=\{cloneMenuOpen\}[\s\S]*aria-haspopup="menu"[\s\S]*aria-controls="clone-source-menu"[\s\S]*aria-label="Clone from"/,
     'the keyboard-operable Clone trigger retains its menu relationship and accessible state')
   assert.match(headerSource, /useEffect\(\(\) => \{\s*closeCloneMenu\(\)\s*\}, \[role\]\)/, 'changing active destination closes the Clone dropdown')
   assert.equal((headerSource.match(/window\.confirm\(/g) ?? []).length, 0, 'Reset and Clear have no browser confirmation')
@@ -1101,14 +1101,14 @@ try {
     'toolbar keeps its action and selector groups together on desktop')
   assert.match(headerSource, /role="switch"[\s\S]*aria-checked=\{isEditMode\}[\s\S]*aria-label=\{isEditMode \? 'Switch to View' : 'Switch to Edit'\}[\s\S]*<Eye className="h-4 w-4"[\s\S]*<Pencil className="h-4 w-4"/, 'one accessible View/Edit switch names its next action and keeps both state icons')
   assert.match(headerSource, /const datasetSaveStateDotClass = \(state: MasterDataSaveState, size = 'h-1\.5 w-1\.5'\)/, 'dataset save-state dots retain their existing size')
-  assert.match(headerSource, /aria-pressed=\{showWarningHighlights\}[\s\S]*Hide warning highlights[\s\S]*Show warning highlights[\s\S]*!<\/span>[\s\S]*rotate-\[-45deg\]/,
+  assert.match(headerSource, /aria-pressed=\{showWarningHighlights\}[\s\S]*Hide warnings[\s\S]*Show warnings[\s\S]*!<\/span>[\s\S]*rotate-\[-45deg\]/,
     'warning visibility uses an accessible toggle and a diagonal slash when hidden')
   assert.match(headerSource, /left-1\/2 top-1\/2 h-px w-\[17px\] -translate-x-1\/2 -translate-y-1\/2 rotate-\[-45deg\]/,
     'the hidden Warning slash is a centered one-pixel diagonal with no geometry change')
   assert.match(headerSource, /cloneMenuPinned[\s\S]*cloneHoverTimerRef/,
     'Clone records whether click pinned the menu so pointer leave affects hover-open menus only')
-  assert.match(headerSource, /roles\.filter\(sourceRole => sourceRole !== role\)[\s\S]*From \{roleLabels\[sourceRole\]\}/,
-    'Clone presents concise source options while excluding the destination')
+  assert.match(headerSource, /roles\.filter\(sourceRole => sourceRole !== role\)[\s\S]*\{roleLabels\[sourceRole\]\}/,
+    'Clone presents role-only source options while excluding the destination')
   assert.doesNotMatch(bomSource, /aria-label="Search BOM"|placeholder="Search BOM/, 'BOM no longer renders a per-table search box')
   assert.doesNotMatch(routingSource, /aria-label="Search Routing"|placeholder="Search Routing/, 'Routing no longer renders a per-table search box')
   assert.match(pageSource, /searchQuery=\{searchQuery\}[\s\S]*onSearchQueryChange=\{onSearchQueryChange\}/, 'the same Master Data query flows to the toolbar and existing tables')
@@ -1466,12 +1466,12 @@ try {
         assert.doesNotMatch(attributes, /opacity-40|cursor-not-allowed/,
           `${role} ${scenario.name} has no visually disabled toolbar buttons`)
       }
-      for (const action of ['Sizing', 'Import', 'Clone', 'Save', 'Reset', 'Clear', 'Export']) {
+      for (const action of ['Sizing', 'Import', 'Clone from', 'Save', 'Reset', 'Clear', 'Export']) {
         const attributes = buttonAttributes(toolbarMarkup, action)
         assert.doesNotMatch(attributes, /\sdisabled(?:=""|\s|>)/,
           `${role} ${scenario.name} keeps ${action} available`)
       }
-      assert.match(toolbarMarkup, /aria-label="(?:Hide|Show) warning highlights"/,
+      assert.match(toolbarMarkup, /aria-label="(?:Hide|Show) warnings"/,
         `${role} ${scenario.name} keeps the Review action available`)
       assert.match(toolbarMarkup, /aria-label="Switch to (?:Edit|View)"/,
         `${role} ${scenario.name} keeps the mode action available`)

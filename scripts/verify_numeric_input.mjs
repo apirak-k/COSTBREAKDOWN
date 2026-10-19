@@ -26,6 +26,7 @@ try {
     isNumericDraftSyntax,
     numericCaretForPlace,
     parseNumericDraft,
+    resolveNumericWheelStepDirection,
     resolveNumericStepPlace,
     stepNumericValue
   } = await vite.ssrLoadModule('/src/shared/ui/numeric-input-rules.ts')
@@ -79,6 +80,8 @@ try {
   assert.equal(stepNumericValue(12.34, -1, 1), 11.34)
   assert.equal(stepNumericValue(12.34, 1, 0.01), 12.35)
   assert.equal(stepNumericValue(12.34, -1, 0.01), 12.33)
+  assert.equal(resolveNumericWheelStepDirection(1), 1, 'upward wheel adjustment increments')
+  assert.equal(resolveNumericWheelStepDirection(-1), -1, 'downward wheel adjustment decrements')
   assert.equal(stepNumericValue(3, 1, 1, { integer: true }), 4)
   assert.equal(stepNumericValue(3, -1, 1, { integer: true }), 2)
   assert.equal(stepNumericValue(25, 1, 10, { integer: true }), 35, 'integer spinner steps preserve the active tens place')
@@ -184,7 +187,8 @@ try {
   assert.match(numericInputSource, /selectionStart[\s\S]*selectionEnd[\s\S]*hasSelection[\s\S]*resolveNumericStepPlace\(raw, hasSelection \? null : selectionStart, domain\)/, 'a non-collapsed selection falls back to the unit place')
   assert.match(numericInputSource, /numericCaretForPlace\(draft, exponent, Boolean\(integer\)\)[\s\S]*setSelectionRange\(caret, caret\)/, 'caret returns to the same place after a step changes digit count')
   assert.match(numericInputSource, /onClick=/, 'inset arrows remain clickable for a single step')
-  assert.match(numericInputSource, /applyStep\(event\.deltaY < 0 \? 1 : -1\)/, 'focused wheel uses the shared active-place step')
+  assert.match(numericInputSource, /if \(document\.activeElement !== input \|\| event\.deltaY === 0 \|\| !canStepRef\.current\) return[\s\S]*event\.preventDefault\(\)[\s\S]*applyStep\(resolveNumericWheelStepDirection\(event\.deltaY\)\)/,
+    'focused wheel uses the shared active-place direction and leaves unfocused scrolling alone')
   assert.match(numericInputSource, /applyStep\(event\.key === 'ArrowUp' \? 1 : -1\)/, 'ArrowUp/Down uses the shared active-place step')
   assert.match(numericInputSource, /className=\{`absolute[^`]*right-[^`]*`\}/, 'arrow controls are positioned inside the input wrapper')
   assert.match(numericInputSource, /onPointerDown=/, 'press-and-hold starts repeat stepping')
