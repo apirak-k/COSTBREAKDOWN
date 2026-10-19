@@ -32,6 +32,7 @@ const closeTo = (actual, expected, message) => assert.ok(
   message ?? `expected ${actual} to be within 1e-9 of ${expected}`
 )
 const clone = value => JSON.parse(JSON.stringify(value))
+const visibleText = markup => markup.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim()
 
 try {
   const [{ seedSnapshotPair }, core, pairState] = await Promise.all([
@@ -188,12 +189,24 @@ try {
   assert.match(storeSource, /createSelectedSnapshotPair\(engineComparisonPair, costBreakdownFullComparison/)
   assert.match(appSource, /previous\.comparisonFingerprint !== comparisonPair\.fingerprint[\s\S]*resetCandidateReorderHistory/)
   assert.match(pageSource, /key=\{comparisonPair\.fingerprint\}/, 'pair changes remount the candidate details state')
-  assert.match(pageSource, /h-8 w-\[108px\]/, 'both role selectors have a stable fixed 108px by 32px size')
   assert.match(pageSource, /min-w-\[96px\] flex-1/, 'the Gap Bar remains flexible and usable beside selectors')
   assert.match(pageSource, /COMPARISON_ROLES\.filter\(role => role !== selectedRole\)\.map/,
     'each selector menu shows the two alternatives to its own role')
   const rolePopoverSource = pageSource.match(/const ComparisonRolePopover:[\s\S]*?function isAvailableGap/)?.[0]
   assert.ok(rolePopoverSource, 'Before and After share one role selector component')
+  assert.match(pageSource, /reference: 'Reference',[\s\S]*current: 'Current',[\s\S]*custom: 'Custom'/,
+    'role selector content uses the full Reference, Current, and Custom names')
+  assert.match(pageSource, /side: 'Before' \| 'After'/, 'the shared role selector has only the Before and After semantic sides')
+  assert.match(rolePopoverSource, /label=\{side\}/, 'role selector tooltip and accessible label use the exact semantic side name')
+  assert.match(rolePopoverSource, /trigger=\{<span>\{COMPARISON_ROLE_LABELS\[selectedRole\]\}<\/span>\}/,
+    'the currently selected dataset name is visible inside each trigger')
+  assert.match(popoverSource, /<Tooltip label=\{label\}>[\s\S]*aria-label=\{label\}/,
+    'the shared popover forwards its exact label to both Tooltip and trigger accessible name')
+  assert.match(rolePopoverSource, /triggerClassName="inline-flex h-8 w-\[96px\][^"]*bg-transparent[^"]*px-1\.5/,
+    'both role triggers share a compact, stable 96px by 32px transparent layout with horizontal padding')
+  const roleTriggerClass = rolePopoverSource.match(/triggerClassName="([^"]+)"/)?.[1] ?? ''
+  assert.doesNotMatch(roleTriggerClass, /(?:^|\s)border(?:-|\s)|\bbg-white\b/,
+    'role triggers have no persistent border or white idle box')
   assert.doesNotMatch(rolePopoverSource, /aria-pressed|selectedRole === role|disabled=/,
     'role menus do not mark or disable any option')
   assert.match(rolePopoverSource, /onSelect\(role\); close\(\)/,
@@ -202,10 +215,18 @@ try {
     'role menu width follows intrinsic option content')
   assert.doesNotMatch(rolePopoverSource, /panelClassName="[^"]*\b(?:w|min-w)-\d+\b/,
     'role menu has no arbitrary fixed width or empty minimum width')
-  assert.match(popoverSource, /panelElement\.style\.minWidth\s*=\s*`\$\{triggerBounds\.width\}px`/,
-    'the intrinsic role menu is at least as wide as its trigger')
+  assert.match(popoverSource, /showChevron = true[\s\S]*\{showChevron && <ChevronDown aria-hidden="true"/,
+    'role triggers keep a visible ChevronDown beside their selected dataset label')
+  assert.match(popoverSource, /const panelWidth = panelBounds\.width/,
+    'CBD popovers position by their measured intrinsic panel width')
+  assert.doesNotMatch(popoverSource, /\bminWidth\b|panelBounds\.width\s*\|\|\s*triggerBounds\.width|Math\.max\([^\n]*triggerBounds\.width/,
+    'CBD popovers do not force trigger width through an inline minimum or panel-width fallback')
+  assert.equal((popoverSource.match(/triggerBounds\.width/g) ?? []).length, 1,
+    'trigger width is used only to center the panel, never as a menu minimum')
   assert.match(popoverSource, /const centeredLeft = triggerBounds\.left \+ \(triggerBounds\.width - panelWidth\) \/ 2[\s\S]*const left = Math\.max\(8, Math\.min\(centeredLeft, window\.innerWidth - panelWidth - 8\)\)/,
     'role menu stays centered and clamped to the viewport')
+  assert.match(popoverSource, /const below = triggerBounds\.bottom \+ 4[\s\S]*const above = triggerBounds\.top - panelHeight - 4[\s\S]*const top = below \+ panelHeight <= window\.innerHeight - 8[\s\S]*Math\.min\(below, window\.innerHeight - panelHeight - 8\)[\s\S]*: above/,
+    'role menu keeps its below/above placement and viewport-height correction')
   assert.match(candidateSource, /afterValue - beforeValue/, 'Candidate parameter deltas are After minus Before')
   assert.match(candidateSource, /side: 'After'/)
   assert.match(candidateSource, /side: 'Before'/)
@@ -233,15 +254,26 @@ try {
     onManualOrderChange() {},
     onResetManualOrderHistory() {}
   }))
-  assert.match(ui, /Before dataset, currently Current/)
-  assert.match(ui, /After dataset, currently Custom/)
   assert.match(ui, /Standard Cost Gap[^>]*Gap = Custom − Current/)
   assert.match(ui, /Cost Element for Before, After, Gap, and Gap percentage/)
   assert.match(ui, />Before<\/th>[\s\S]*>After<\/th>/)
   assert.match(ui, /Before → After/)
   assert.match(ui, /Gap = Custom − Current/)
   assert.doesNotMatch(ui, /Gap = CUR − REF|>REF<|>CUR<|Current minus Reference|Reference → Current/)
-  assert.equal([...ui.matchAll(/w-\[108px\]/g)].length, 2, 'Before and After selectors have equal measured CSS widths')
+  const roleTriggers = [...ui.matchAll(/<button\b([^>]*)>([\s\S]*?)<\/button>/g)]
+    .filter(([, attributes]) => /\baria-label="(?:Before|After)"/.test(attributes))
+  assert.equal(roleTriggers.length, 2, 'the rendered page exposes one semantic button for each role selector')
+  for (const [side, visibleRole] of [['Before', 'Current'], ['After', 'Custom']]) {
+    const matches = roleTriggers.filter(([, attributes]) => attributes.match(/\baria-label="([^"]+)"/)?.[1] === side)
+    assert.equal(matches.length, 1, `${side} has exactly one button with that accessible name`)
+    const [, attributes, content] = matches[0]
+    assert.match(attributes, /h-8 w-\[96px\]/, `${side} uses the shared compact, stable trigger size`)
+    assert.match(attributes, /bg-transparent/, `${side} is bare at idle`)
+    assert.doesNotMatch(attributes, /(?:^|\s)border(?:-|\s)|\bbg-white\b/, `${side} has no idle border or white box`)
+    assert.equal(visibleText(content), visibleRole, `${side} visibly shows its selected dataset role`)
+    assert.match(content, /lucide lucide-chevron-down/, `${side} visibly includes ChevronDown`)
+  }
+  assert.doesNotMatch(ui, /w-\[108px\]/, 'the superseded 108px role trigger width is absent')
 
   console.log('Cost Breakdown generic Before/After comparison verifier: PASS (9 ordered pairs, direction, statuses, rates, self-comparisons, selected scope, selectors, labels, and pair-bound context)')
 } finally {

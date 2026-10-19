@@ -658,14 +658,23 @@ try {
     'role alternatives have no selected or disabled state')
   assert.match(rolePopoverSource, /onSelect\(role\); close\(\)/,
     'selecting an alternative applies immediately and closes the role menu')
-  assert.match(rolePopoverSource, /h-8 w-\[108px\]/,
-    'Before and After triggers keep a fixed equal 108px by 32px size')
+  assert.match(rolePopoverSource, /triggerClassName="inline-flex h-8 w-\[96px\][^"]*bg-transparent[^"]*px-1\.5/,
+    'Before and After use one compact, equal 96px by 32px transparent trigger layout')
+  const roleTriggerClass = rolePopoverSource.match(/triggerClassName="([^"]+)"/)?.[1] ?? ''
+  assert.doesNotMatch(roleTriggerClass, /(?:^|\s)border(?:-|\s)|\bbg-white\b/,
+    'role selectors have no persistent border or white idle box')
+  assert.match(rolePopoverSource, /label=\{side\}/,
+    'role selectors use the exact Before/After side name for their accessible and tooltip label')
   assert.match(rolePopoverSource, /panelClassName="[^"]*w-max[^"]*"/,
     'role menu width follows intrinsic option content')
   assert.doesNotMatch(rolePopoverSource, /panelClassName="[^"]*\b(?:w|min-w)-\d+\b/,
     'role menu has no arbitrary fixed width or blank minimum width')
-  assert.match(popoverSource, /panelElement\.style\.minWidth\s*=\s*`\$\{triggerBounds\.width\}px`/,
-    'role menu remains at least as wide as its trigger')
+  assert.match(popoverSource, /const panelWidth = panelBounds\.width/,
+    'CBD menus use measured intrinsic width when positioning')
+  assert.doesNotMatch(popoverSource, /\bminWidth\b|panelBounds\.width\s*\|\|\s*triggerBounds\.width|Math\.max\([^\n]*triggerBounds\.width/,
+    'CBD menus have no inline minimum-width or trigger-width fallback')
+  assert.equal((popoverSource.match(/triggerBounds\.width/g) ?? []).length, 1,
+    'trigger width is used only to center a menu, never as its minimum')
   const statusPopoverSource = pageSource.match(/label="Status"[\s\S]*?<\/CostBreakdownPopover>/)?.[0]
   assert.ok(statusPopoverSource, 'Status uses the shared overlay component')
   assert.match(statusPopoverSource, /\{\(\) => <ComparisonStatusOptions selected=\{comparisonView\} onChange=\{setComparisonView\} \/>\}/,
@@ -682,9 +691,9 @@ try {
   const overviewControlSource = pageSource.match(/<button(?=[^>]*aria-controls="cost-breakdown-overview-panels")[^>]*>[\s\S]*?<\/button>/)?.[0]
   assert.ok(overviewControlSource, 'the overview has a dedicated disclosure control')
   assert.match(overviewControlSource, /aria-expanded=\{isOverviewExpanded\}/)
-  assert.match(overviewControlSource, /aria-label=\{isOverviewExpanded \? 'Collapse overview' : 'Expand overview'\}/)
+  assert.match(overviewControlSource, /aria-label=\{isOverviewExpanded \? 'Collapse' : 'Expand'\}/)
   assert.doesNotMatch(overviewControlSource, /\btitle=/, 'the disclosure does not duplicate its shared tooltip with a native title')
-  assert.match(pageSource, /<Tooltip label=\{isOverviewExpanded \? 'Collapse overview' : 'Expand overview'\}[\s\S]*aria-label=\{isOverviewExpanded \? 'Collapse overview' : 'Expand overview'\}[\s\S]*<\/Tooltip>/,
+  assert.match(pageSource, /<Tooltip label=\{isOverviewExpanded \? 'Collapse' : 'Expand'\}[\s\S]*aria-label=\{isOverviewExpanded \? 'Collapse' : 'Expand'\}[\s\S]*<\/Tooltip>/,
     'the disclosure shared Tooltip and accessible name match its expanded state')
   const overviewClassName = pageSource.match(/const iconActionButtonClass = '([^']+)'/)?.[1]
     ?? overviewControlSource.match(/className="([^"]+)"/)?.[1]
@@ -921,8 +930,10 @@ try {
       'the Gap Bar flexes into the space freed by the natural-width left-side information')
     assert.match(subheader, /aria-label="Comparison datasets, Before Reference, After Current"/,
       'the default pair is announced with generic Before/After sides')
-    assert.match(subheader, /w-\[108px\]/,
-      'both role selectors have the fixed width needed to keep the toolbar stable')
+    assert.equal([...subheader.matchAll(/h-8 w-\[96px\]/g)].length, 2,
+      'both role selectors use the shared compact width and stay equal in the toolbar')
+    assert.doesNotMatch(subheader, /w-\[108px\]/,
+      'the superseded 108px role trigger width is absent')
     const subheaderText = visibleText(subheader)
     const orderedLabels = ['Reference', 'Current', 'Standard Cost Gap', 'MAT', 'LB', 'BD', 'BOM', 'RTG', 'All']
     const labelPositions = orderedLabels.map(label => subheaderText.indexOf(label))
@@ -955,7 +966,7 @@ try {
       'Master Data reference selector uses the same neutral inactive-cell treatment')
     const collapseButton = subheader.match(/<button[^>]*aria-controls="cost-breakdown-overview-panels"[^>]*>[\s\S]*?<\/button>/)?.[0]
     assert.ok(collapseButton)
-    assert.match(collapseButton, /aria-label="Collapse overview"/)
+    assert.match(collapseButton, /aria-label="Collapse"/)
     assert.equal(visibleText(collapseButton), '', 'Collapse is icon-only')
     assert.match(collapseButton, /aria-expanded="true"/)
     assert.match(collapseButton, /data-cbd-overview-indicator="true"/,
@@ -1067,8 +1078,8 @@ try {
       'the Sort trigger label and tooltip do not disclose the active command')
     assert.match(pageSource, /label="Status"[\s\S]*showChevron=\{false\}[\s\S]*trigger=\{<Filter aria-hidden="true"/,
       'the Status trigger is icon-only and does not show the selected count')
-    assert.match(pageSource, /aria-label=\{isOverviewExpanded \? 'Collapse overview' : 'Expand overview'\}/,
-      'the overview disclosure uses concise expanded/collapsed accessible names')
+    assert.match(pageSource, /aria-label=\{isOverviewExpanded \? 'Collapse' : 'Expand'\}/,
+      'the overview disclosure uses the exact concise expanded/collapsed accessible names')
     assert.match(pageSource, /aria-controls="cost-breakdown-overview-panels"/,
       'the bare Chevron still controls only the overview panels')
     assert.match(pageSource, /isOverviewExpanded\s*\?[\s\S]*<ChevronDown data-cbd-overview-indicator[\s\S]*:\s*<ChevronRight data-cbd-overview-indicator/,

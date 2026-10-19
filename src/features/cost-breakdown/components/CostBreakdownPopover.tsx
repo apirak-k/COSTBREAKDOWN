@@ -94,9 +94,8 @@ export const CostBreakdownPopover: React.FC<CostBreakdownPopoverProps> = ({ labe
     const panelElement = panelRef.current
     if (!triggerElement || !panelElement) return
     const triggerBounds = triggerElement.getBoundingClientRect()
-    panelElement.style.minWidth = `${triggerBounds.width}px`
     const panelBounds = panelElement.getBoundingClientRect()
-    const panelWidth = panelBounds.width || triggerBounds.width
+    const panelWidth = panelBounds.width
     const panelHeight = panelBounds.height || 160
     const centeredLeft = triggerBounds.left + (triggerBounds.width - panelWidth) / 2
     const left = Math.max(8, Math.min(centeredLeft, window.innerWidth - panelWidth - 8))

@@ -584,12 +584,20 @@ try {
   const appLayoutSource = readFileSync(new URL('../src/shared/layout/AppLayout.tsx', import.meta.url), 'utf8')
   assert.match(appLayoutSource, /className=\{isCostBreakdown\s*\?\s*'[^']*overflow-y-auto[^']*'\s*:/,
     'shared Main remains the CBD page-level vertical scroll owner')
-  assert.match(pageSource, /<Tooltip label=\{isOverviewExpanded \? 'Collapse overview' : 'Expand overview'\}[^>]*>[\s\S]*?<button[\s\S]*?aria-expanded=\{isOverviewExpanded\}[\s\S]*?aria-controls="cost-breakdown-overview-panels"[\s\S]*?aria-label=\{isOverviewExpanded \? 'Collapse overview' : 'Expand overview'\}[\s\S]*?<\/button>\s*<\/Tooltip>/,
+  assert.match(pageSource, /<Tooltip label=\{isOverviewExpanded \? 'Collapse' : 'Expand'\}[^>]*>[\s\S]*?<button[\s\S]*?aria-expanded=\{isOverviewExpanded\}[\s\S]*?aria-controls="cost-breakdown-overview-panels"[\s\S]*?aria-label=\{isOverviewExpanded \? 'Collapse' : 'Expand'\}[\s\S]*?<\/button>\s*<\/Tooltip>/,
     'overview disclosure has a shared tooltip, accessible name, expanded state, and controlled panel reference')
-  const overviewDisclosure = pageSource.match(/<Tooltip label=\{isOverviewExpanded \? 'Collapse overview' : 'Expand overview'\}[\s\S]*?<\/Tooltip>/)?.[0]
+  const overviewDisclosure = pageSource.match(/<Tooltip label=\{isOverviewExpanded \? 'Collapse' : 'Expand'\}[\s\S]*?<\/Tooltip>/)?.[0]
   assert.ok(overviewDisclosure, 'overview disclosure is wrapped by the shared Tooltip')
   assert.doesNotMatch(overviewDisclosure, /\btitle=/,
     'overview disclosure does not duplicate its shared Tooltip with a native title')
+  assert.match(pageSource, /isOverviewExpanded\s*\?\s*<ChevronDown data-cbd-overview-indicator="true" aria-hidden="true"[\s\S]*:\s*<ChevronRight data-cbd-overview-indicator="true" aria-hidden="true"/,
+    'expanded Overview uses ChevronDown and collapsed Overview uses ChevronRight')
+  const overviewButtonClass = pageSource.match(/const iconActionButtonClass = '([^']+)'/)?.[1] ?? ''
+  assert.match(overviewButtonClass, /\bbg-transparent\b/, 'Overview disclosure is bare at idle')
+  assert.doesNotMatch(overviewButtonClass, /(?:^|\s)border(?:-|\s)|\bbg-white\b/,
+    'Overview disclosure has no persistent border or white box')
+  assert.match(overviewButtonClass, /focus-visible:outline/,
+    'Overview disclosure keeps a visible keyboard focus indicator')
   assert.match(pageSource, /data-cbd-overview-indicator="true"/,
     'overview disclosure retains a visible state indicator')
   assert.match(candidateRegionClass, /max-lg:\[contain:paint\]/,

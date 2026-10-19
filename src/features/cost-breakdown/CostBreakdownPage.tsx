@@ -52,10 +52,10 @@ interface ComparisonRolePopoverProps {
 
 const ComparisonRolePopover: React.FC<ComparisonRolePopoverProps> = ({ side, selectedRole, onSelect }) => (
   <CostBreakdownPopover
-    label={`${side} dataset, currently ${COMPARISON_ROLE_LABELS[selectedRole]}`}
+    label={side}
     trigger={<span>{COMPARISON_ROLE_LABELS[selectedRole]}</span>}
     panelClassName="w-max"
-    triggerClassName="inline-flex h-8 w-[108px] shrink-0 items-center justify-between rounded-sm border border-slate-300 bg-white px-2 text-xs font-medium leading-none text-slate-700 transition-colors hover:bg-slate-100 hover:text-slate-950 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700"
+    triggerClassName="inline-flex h-8 w-[96px] shrink-0 items-center justify-between gap-1.5 rounded-sm bg-transparent px-1.5 text-xs font-medium leading-none text-slate-700 transition-colors hover:bg-slate-100 hover:text-slate-950 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700"
   >
     {close => <div role="group" aria-label={`${side} dataset choices`} className="flex flex-col">
       {COMPARISON_ROLES.filter(role => role !== selectedRole).map(role => <button
@@ -360,12 +360,12 @@ export const CostBreakdownPage: React.FC<CostBreakdownPageProps> = ({ manualOrde
             </div>}
           </CostBreakdownPopover>
 
-          <Tooltip label={isOverviewExpanded ? 'Collapse overview' : 'Expand overview'} wrapperClassName="relative inline-flex shrink-0">
+          <Tooltip label={isOverviewExpanded ? 'Collapse' : 'Expand'} wrapperClassName="relative inline-flex shrink-0">
             <button
               type="button"
               aria-expanded={isOverviewExpanded}
               aria-controls="cost-breakdown-overview-panels"
-              aria-label={isOverviewExpanded ? 'Collapse overview' : 'Expand overview'}
+              aria-label={isOverviewExpanded ? 'Collapse' : 'Expand'}
               onClick={toggleOverview}
               className={iconActionButtonClass}
             >

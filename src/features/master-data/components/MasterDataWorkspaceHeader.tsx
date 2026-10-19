@@ -448,7 +448,7 @@ export const MasterDataWorkspaceHeader: React.FC<MasterDataWorkspaceHeaderProps>
                 role="menu"
                 aria-label="Clone source"
                 style={{ marginLeft: `${cloneHorizontalOffset}px` }}
-                className="absolute left-1/2 top-full z-50 mt-1 w-max min-w-8 max-w-[calc(100vw-1rem)] -translate-x-1/2 border border-slate-300 bg-white p-1 shadow-lg"
+                className="absolute left-1/2 top-full z-50 mt-1 w-max max-w-[calc(100vw-1rem)] -translate-x-1/2 border border-slate-300 bg-white p-1 shadow-lg"
                 onMouseEnter={clearCloneHoverTimer}
               >
                 {roles.filter(sourceRole => sourceRole !== role).map(sourceRole => (

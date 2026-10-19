@@ -1,4 +1,30 @@
-# Current Handoff — final cross-page UI refinement correction — 2026-10-19
+# Current Handoff — compact CBD selector polish — 2026-10-19
+
+## Checkpoint and delivery
+
+- Repository: `/Users/bubu/COSTBREAKDOWN-ref-current-custom-flow-redesign` (`apirak-k/COSTBREAKDOWN`). Branch: `feat/ref-current-custom-flow-redesign`.
+- Starting local HEAD and verified remote branch HEAD: `64ed5da9dd7d07dbd2f3dafaf5859594255fc576`.
+- This is one additional focused polish pass after the prior UI refinement. The user authorized one commit and push to this branch, with no merge. No Simulation Phase 3/4 work is included.
+
+## Corrections
+
+- Present Before and After as bare semantic buttons with equal stable compact sizing for `Reference`, chevron, spacing, and padding; retain hover, visible focus, and the selected role. Tooltip and accessible names are exactly `Before` and `After`.
+- Size CBD role menus to their intrinsic option content. A menu may be narrower than its trigger; remove the JavaScript trigger-width floor and fallback while keeping centering, viewport clamping, vertical placement, and keyboard/focus behavior.
+- Apply the compact overlay rule across CBD, Master Data, and Simulation: trigger width is not a universal menu minimum. Keep alignment only when a component has a specific layout reason. The Clone and Simulation role menus no longer carry an unnecessary 32px width floor.
+- Overview labels are `Collapse` and `Expand`; ChevronDown/Right directions, button state, and overview-only collapse scope remain unchanged.
+- Update the active CBD, Cross-Cutting, Master Data toolbar, and Simulation specs and focused source-contract verifiers. No business rules, calculations, or dataset/comparison semantics changed.
+
+## Verification and limits
+
+- **PASS:** `npm run build` (TypeScript and Vite; existing ExcelJS/fast-csv browser-externalization and large-chunk warnings remain).
+- **PASS:** `git diff --check`.
+- **PASS:** CBD comparison pair, audit fixes, summary UX, parameter cost effect, reorder history, sort, Selected Comparison boundary/lifecycle, comparison reconciliation, Master Data UI state, global compact overlays, page navigation persistence, Simulation regression, and Global Header contracts. The Global Header verifier used Vite SSR; the remaining checks passed sequentially with no Vite port warnings.
+- No browser interaction or visual viewport test was run, so the visual result across viewport sizes remains unverified.
+- One focused commit and push are authorized; no merge or Simulation Phase 3/4 work.
+
+---
+
+# Previous Handoff — final cross-page UI refinement correction — 2026-10-19
 
 ## Checkpoint and delivery
 
