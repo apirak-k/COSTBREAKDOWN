@@ -10,7 +10,8 @@ assert.match(app, /simulationStatesByProduct\[activeProductId\]/, 'Simulation st
 assert.match(app, /saveToSession\(STORAGE_KEYS\.SIMULATION_STATES, simulationStatesByProduct\)/,
   'role-keyed Simulation state remains session-persisted per product')
 assert.match(app, /activeTab === 'simulation'[\s\S]*?<SimulationPage/, 'Simulation remains reachable as its own module')
-assert.match(app, /masterDataSnapshots\.reference/, 'the Simulation story context can read Reference')
+assert.match(app, /const effectiveDatasets = useMemo\(\(\) => \(\{[\s\S]*reference: getEffectiveSimulationDataset\(masterDataSnapshots, simulationState, 'reference'\)[\s\S]*current: getEffectiveSimulationDataset\(masterDataSnapshots, simulationState, 'current'\)[\s\S]*custom: getEffectiveSimulationDataset\(masterDataSnapshots, simulationState, 'custom'\)/,
+  'the Simulation story context derives all three effective role datasets from their matching Working sources')
 assert.doesNotMatch(app, /rca-simulation|selectedCandidateKey|trialHandoffLetter|selectedScenarioLetter/,
   'Simulation routing does not depend on legacy RCA, Trial, or A/B state')
 

@@ -40,24 +40,25 @@ try {
   const finalStory = createScenarioStory(storyReference, storyCurrent, storySimulated)
   const selectedStoryMarkup = renderToStaticMarkup(React.createElement(SimulationStoryGraph, {
     story: finalStory,
-    unit: 'PC'
+    unit: 'PC',
+    activeRole: 'current',
+    onSelectActiveDataset() {}
   }))
   const selectedStoryText = visibleText(selectedStoryMarkup)
   const selectedStoryLegend = selectedStoryMarkup.match(/<ul aria-label="Simulation graph legend"[\s\S]*?<\/ul>/)?.[0] ?? ''
   for (const label of ['Material', 'Labor', 'Burden', 'SG&amp;A', 'Profit +', 'Profit −', 'Selling Price', 'Ruler']) {
     assert.ok(selectedStoryLegend.includes(`aria-label="${label}"`), `the final graph legend must expose ${label}`)
   }
-  const graphCategoryLabels = [...selectedStoryMarkup.matchAll(/<text\b[^>]*>([\s\S]*?)<\/text>/g)]
-    .map(match => visibleText(match[1]))
-    .filter(label => ['Reference', 'GAP 1', 'Current', 'GAP 2', 'Simulation'].includes(label))
-  assert.deepEqual(graphCategoryLabels, ['Reference', 'GAP 1', 'Current', 'GAP 2', 'Simulation'],
-    'the Phase 1 story preserves Reference → GAP 1 → Current → GAP 2 → Simulation')
+  const graphCategoryLabels = [...selectedStoryMarkup.matchAll(/<button\b[^>]*>(Reference|Current|Custom)<\/button>|<text\b[^>]*>(GAP [12])<\/text>/g)]
+    .map(match => match[1] ?? match[2])
+  assert.deepEqual(graphCategoryLabels, ['Reference', 'GAP 1', 'Current', 'GAP 2', 'Custom'],
+    'the finalized story preserves Reference → GAP 1 → Current → GAP 2 → Custom')
   assert.match(selectedStoryMarkup, /GAP 1 · Current − Reference · Material Gap: \+2\.00 THB\/PC/)
-  assert.match(selectedStoryMarkup, /GAP 2 · Simulation − Current · Material Gap: \+48\.00 THB\/PC/)
+  assert.match(selectedStoryMarkup, /GAP 2 · Custom − Current · Material Gap: \+48\.00 THB\/PC/)
   assert.match(selectedStoryMarkup, /data-graph-standard-cost-value="reference"[^>]*>15\.00/)
   assert.match(selectedStoryMarkup, /data-graph-standard-cost-value="current"[^>]*>16\.00/)
-  assert.match(selectedStoryMarkup, /data-graph-standard-cost-value="simulated"[^>]*>95\.00/)
-  assert.match(selectedStoryMarkup, /aria-label="Simulation Operating Profit: -5\.00 THB\/PC"/)
+  assert.match(selectedStoryMarkup, /data-graph-standard-cost-value="custom"[^>]*>95\.00/)
+  assert.match(selectedStoryMarkup, /aria-label="Custom Operating Profit: -5\.00 THB\/PC"/)
   assert.ok(selectedStoryText.includes('Simulation Cost Structure'))
   assert.doesNotMatch(selectedStoryMarkup, /Scenario A|Scenario B|Trial/)
   assert.doesNotMatch(selectedStoryMarkup, /Simulated − Reference|Reference − Simulated|Gross Profit|GP Margin|OP Margin/)

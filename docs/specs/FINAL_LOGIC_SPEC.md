@@ -62,17 +62,17 @@ This document explicitly supersedes older behavior in the following areas:
 - **Candidate findings belong inside CBD:** Findings may still be called Candidates, but there is no standalone Candidate or RCA page in the current product flow.
 - **Legacy RCA/session compatibility:** Existing RCA case data may retain its historical domain rules; it is not an active visible product stage.
 - **No new RCA Note system:** Existing Master Data Note/Remark behavior remains separate; do not create duplicate RCA Note/Candidate Note workflows.
-- **Simulation architecture (Phase 3 update, 2026-10-19 user decision):** There is no fourth persistent SIM dataset. Simulation stores role-keyed parameter overrides and Business/Economic drafts over latest Reference, Current, and Custom Working datasets. Effective snapshots are derived; each role uses its own rates. Parameter edits and parameter history target `activeDataset`; Result and Economic calculations use `comparisonBefore → comparisonAfter`, and the After role owns the Business/Economic draft and history. Parameter editor status and cost effects use the active role's own Working basis and rates. Rebase only the role whose Working basis changed. `activeDataset` is independent from both comparison roles; all nine ordered pairs are valid. Defaults are active Current and Reference → Current.
+- **Simulation architecture and UI (Phases 3–4, 2026-10-19 user decision):** There is no fourth persistent SIM dataset. Simulation stores role-keyed parameter overrides and Business/Economic drafts over latest Reference, Current, and Custom Working datasets. Effective snapshots are derived; each role uses its own rates. Parameter edits and parameter history target `activeDataset`; Result and Economic calculations use `comparisonBefore → comparisonAfter`, and the After role owns the Business/Economic draft and history. Parameter editor status and cost effects use the active role's own Working basis and rates. Rebase only the role whose Working basis changed. `activeDataset` is independent from both comparison roles; all nine ordered pairs are valid. Defaults are active Current and Reference → Current. The fixed graph is Reference | GAP 1 | Current | GAP 2 | Custom, its role labels select only `activeDataset`, and Result exposes independent Before/After selectors with dynamic role headers.
 - **Simulation structure is Master Data-owned:** Simulation cannot add, remove, or resize rows. It always uses the current structure of the selected role's Master Data Working dataset.
-- **Simulation comparisons:** The Result card and Economic calculations use any Before/After effective dataset pair. The visible Current/SIM labels and compatibility graph remain through Phase 3; generic comparison controls and the fixed graph story belong to Phase 4. Parameter editor rows, status, and cost effects stay scoped to `activeDataset` and its role-local rates.
+- **Simulation comparisons:** Result and Economic calculations use any effective Before/After pair; dynamic Result headers show the selected roles. The fixed graph is Reference | GAP 1 | Current | GAP 2 | Custom, with GAP 1 = Current − Reference and GAP 2 = Custom − Current. Graph role values use their own effective snapshots, rates, and role-local business drafts. Graph label selection changes `activeDataset` only; the independent pair remains unchanged.
 - **Direct parameter editing:** There is no Factors to Simulate selector. Eligible BOM and Routing parameters are edited directly; Work Center rates are locked and remain owned by each matching Master Data role.
-- **SIM-editable parameters are finalized:** BOM (Price, Usage/Consumption, Loss) and Routing (Manning, Capacity, Yield). Work Center Labor Rate and Burden Rate are NOT SIM-editable (change them in Master Data / Custom).
+- **Simulation-editable parameters are finalized:** BOM (Price, Usage/Consumption, Loss) and Routing (Manning, Capacity, Yield). Work Center Labor Rate and Burden Rate are not editable in Simulation (change them in Master Data / Custom).
 - **Scenario count is flexible:** Exactly Scenario A and Scenario B is not a mandatory business requirement.
 - **Economic Simulation uses implementation inputs:** Fixed Action Cost, Variable Action Cost / pc, positive integer Batch Size, Selling Price override, and SG&A % override. Required Saving / pc is Fixed Action Cost / Batch Size + Variable Action Cost / pc.
 - **Economics is separate from Standard Cost:** Economic inputs do NOT alter MAT, LB, BD, Conversion, or Standard Cost.
-- **Simulation Send/Reset (Phase 3 update):** The `Edit dataset` control selects `activeDataset` without cloning data or changing the comparison pair. Direct Send uses only that active role and maps it to the same Master Data Working role; there is no destination-role choice. Send All maps all three roles atomically. Send changes Working only, preserves Last Saved, and rebases only the matching Simulation role and history. Reset clears active-role parameter overrides; Reset All clears all three roles' parameter overrides while retaining economic drafts whose bases remain valid. Legacy single-SIM persistence migrates only when a safe unchanged-Current parameter-only migration can be proven; otherwise it is discarded.
+- **Simulation Send/Reset (Phases 3–4):** Graph labels select `activeDataset` without cloning data or changing the comparison pair. Direct Send uses only that active role and maps it to the same Master Data Working role; Send All maps all three roles atomically. Send changes Working only, preserves Last Saved, and rebases only the matching Simulation role and history. Reset clears active-role parameter overrides; Reset All clears all three roles' parameter overrides while retaining valid economic drafts whose bases remain valid. The primary action tooltips are exactly `Send` and `Reset`; the compact secondary actions are `Send all datasets` and `Reset all datasets`. Legacy single-SIM persistence migrates only when a safe unchanged-Current parameter-only migration can be proven; otherwise it is discarded.
 - **Simulation input domains are enforced at entry and calculation boundaries:** costs, prices, usage and manning are nonnegative; Loss and SG&A are 0–100%; Yield is greater than 0% and at most 100%; Capacity and Batch Size are positive; Batch Size is an integer. Missing required values stay unavailable.
-- **Simulation display contract:** Result Change is effective After − effective Before; the compatibility graph GAP 2 remains Simulation − Current, and Parameter Saving is effective Before − effective After. Visible Current/SIM labels and graph presentation remain compatible through Phase 3; the fixed graph story belongs to Phase 4. BOM/RTG tables and the page must not introduce horizontal scrolling.
+- **Simulation display contract:** Result Change is effective After − effective Before; Result % = (Change / effective Before) × 100 when Before is available and nonzero. Parameter Saving is effective Before − effective After. The fixed graph is Reference | GAP 1 | Current | GAP 2 | Custom, independent of Result pair and Business/Economic After context. BOM/RTG tables and the page must not introduce horizontal scrolling.
 - **Economic result is advisory:** A scenario below break-even remains visible and selectable. The system informs; the engineer decides.
 - **No special Trial lifecycle:** Custom may hold trial data if the user wants; to use it as Current, open Current, choose `Clone`, and select Custom.
 - **MatVAR, LBVAR, and BDVAR remain out of scope.**
@@ -107,7 +107,7 @@ SIMULATION (separate What-If analysis)
 |---|---|---|
 | Master Data | “What data state do I have?” | Prepare Reference, Current, and Custom snapshots; own structural edits and Sizing; generic Clone. |
 | CBD | “What changed between the selected Before and After datasets, and which findings should I inspect?” | Compare any ordered Reference / Current / Custom pair; show Standard Cost gaps by MAT/LB/BD/Conversion; filter, sort, inspect, select findings, and support Full and Selected Comparison views. There is no standalone Candidate or RCA page. |
-| Parameter Simulation | “If these parameters had these values, what would the cost become?” | Temporary role-local what-if analysis over Master Data Working; locked structure; generic effective Before/After calculation, with Current/SIM retained in the visible page through Phase 3. |
+| Parameter Simulation | “If these parameters had these values, what would the cost become?” | Temporary role-local what-if analysis over Master Data Working; locked structure; independent active dataset and generic effective Before/After comparison. |
 | Economic Simulation | “How do implementation costs and commercial assumptions affect per-piece economics?” | Calculate Fixed Cost / pc, Required Saving / pc, Parameter Saving, Economic Margin, SG&A / pc, and OP / pc without altering Standard Cost. |
 
 ---
@@ -183,7 +183,7 @@ Always use:
 Gap = After - Before
 ```
 
-(Or in Simulation: `Gap = SIM - Current` / `Saving = Current - SIM`).
+(Simulation parameter edits and Reset use `activeDataset`; its graph label does not change the independent Result pair.)
 
 For absent sides:
 - `ADDED` → Before contribution = 0 (record does not exist in Before).
@@ -341,7 +341,7 @@ The selected Before snapshot is passed as the comparison engine's first argument
 
 ## 4.3 Finding and Selected Comparison Boundary
 
-Candidate is a name that may be used for a CBD finding. Finding analysis stays inside CBD: filter, sort/prioritize, inspect details, select one or many findings, and review Selected Comparison. There is no standalone Candidate or RCA page in the current product. Selected Comparison does not mutate Reference, Current, or Custom and does not redefine Simulation scope. Simulation remains a separate What-If analysis module; Phase 2 does not include its later visible UI work.
+Candidate is a name that may be used for a CBD finding. Finding analysis stays inside CBD: filter, sort/prioritize, inspect details, select one or many findings, and review Selected Comparison. There is no standalone Candidate or RCA page in the current product. Selected Comparison does not mutate Reference, Current, or Custom and does not redefine Simulation scope. Simulation remains a separate What-If analysis module with graph selection for `activeDataset` and independent Before/After Result selectors.
 
 # 5. Legacy Candidate and RCA Domain / Session Compatibility
 
@@ -430,9 +430,9 @@ The persisted Simulation state is a product-scoped map of role-local parameter o
 
 When a role's Master Working snapshot changes, reconciliation resets only that role to its new basis. The other two roles' state remains. Parameter editing targets `activeDataset`; `comparisonBefore` and `comparisonAfter` independently select the Result/Economic analysis pair. The effective After role owns the Business/Economic draft and defaults. All nine ordered pairs are valid. Default state is active Current and Reference → Current.
 
-`Edit dataset` selects `activeDataset`; it is not a Simulation clone and does not alter either comparison role. Direct Send writes the effective active role only to the matching Master Data Working role. There is no arbitrary Send destination. Send All maps Reference, Current, and Custom to their same-role Working datasets atomically. Reset All clears only the three roles' parameter overrides. Send and Send All preserve Last Saved and use the existing Master Working history path; successful sends rebase only the sent role and invalidate only history tied to its old basis. Role-local economics remain intact when their own basis is unchanged.
+Graph Reference, Current, and Custom labels select `activeDataset`; this does not clone data or change either comparison role. Direct Send writes the effective active role only to its matching Master Data Working dataset. Send All maps all three roles to their same-role Working datasets atomically. Reset clears active-role parameter overrides, and Reset All clears all three roles' parameter overrides while preserving valid economic drafts. Send and Send All preserve Last Saved and use the existing Master Working history path; successful sends rebase the sent role and invalidate history tied to its old basis. Role-local economics remain intact while their own basis is unchanged.
 
-The Result values use the effective `comparisonBefore → comparisonAfter` pair while retaining the legacy Current/SIM labels. Parameter editor rows, status, and Parameter Cost Effect use `activeDataset` and its own Working snapshot and Work Center rates. The generic comparison selectors and fixed Reference | GAP1 | Current | GAP2 | Custom graph remain Phase 4 work.
+Result exposes independent boxed Before and After role selectors, supports all nine ordered pairs including self-pairs, and shows the selected role names in its value columns. The Result values use the effective `comparisonBefore → comparisonAfter` pair. Parameter editor rows, status, and Parameter Cost Effect use `activeDataset` and its own Working snapshot and Work Center rates. The fixed Reference | GAP 1 | Current | GAP 2 | Custom graph is independent of the Result pair and After-selected Business/Economic context.
 
 ### Structure Is Owned by Master Data
 Simulation has no structural copy or editing behavior. It always derives each role from that role's latest Working snapshot. To test a structural alternative, edit/clone it in Master Data (typically Custom), then select Custom as the active Simulation dataset.
@@ -442,7 +442,7 @@ The calculation API accepts any effective Before/After pair. The default prepare
 
 $$\text{Reference} \longrightarrow \text{Current}$$
 
-`activeDataset` is the parameter-editing context and does not change the comparison pair. The After role supplies the Business assumptions and effective Standard Cost. The existing labels and graph presentation remain compatible UI while calculations use the selected pair.
+`activeDataset` is the parameter-editing context and does not change the comparison pair. The After role supplies the Business assumptions and effective Standard Cost. Result headers use the selected role names; the fixed graph labels remain Reference, GAP 1, Current, GAP 2, and Custom regardless of the selected pair.
 
 ### Record Editability Matrix in SIM
 
@@ -463,12 +463,12 @@ Match records by canonical business identity (BOM material/name identity, Work C
 | `ADDED` | Yes | Yes | Exists in effective After only |
 | `REMOVED` | Yes | No | Exists in effective Before only |
 
-Ambiguous or unsafe matches remain protected and do not receive fabricated attribution. Every valid input change recalculates the full SIM dataset through the shared Standard Cost engine.
+Ambiguous or unsafe matches remain protected and do not receive fabricated attribution. Every valid input change recalculates the effective active-role dataset through the shared Standard Cost engine.
 
-### Finalized SIM-Editable Parameters
+### Finalized Simulation-Editable Parameters
 - **BOM:** `Price` (THB), `Usage / Consumption`, `Loss` (%)
 - **Routing:** `Manning`, `Capacity`, `Yield` (%)
-- **Work Center Rates:** `Labor Rate` and `Burden Rate` are rates owned by Master Data and are **NOT SIM-editable** (modify them in Master Data / Custom).
+- **Work Center Rates:** `Labor Rate` and `Burden Rate` are rates owned by Master Data and are not editable in Simulation (modify them in Master Data / Custom).
 - **Zero Structural Edits:** Simulation contains zero structural editing capabilities (cannot add/delete rows or change row counts). Master Data Sizing owns all structural changes.
 - **Selling Price and SG&A % Placement:** Selling Price and SG&A % are economic/commercial parameters and may be overridden in the Simulation Economic panel (see Section 7), NOT as BOM or Routing parameter inputs. They determine SG&A Amount and OP, and do not alter Standard Cost (MAT, LB, BD).
 
@@ -478,14 +478,14 @@ Ambiguous or unsafe matches remain protected and do not receive fabricated attri
 - Labor = Routing Factor × the snapshot's own Work Center Labor Rate; Burden = Routing Factor × its own Work Center Burden Rate
 - Conversion = Labor + Burden
 - Standard Cost = Material + Labor + Burden
-- Result Change = SIM − Current; Result % = (Change / Current) × 100, or unavailable when Current is zero/unavailable.
+- Result Change = effective After − effective Before; Result % = (Change / effective Before) × 100, or unavailable when Before is zero/unavailable.
 - Missing or invalid required values make the result unavailable. Zero is not substituted for missing inputs. Genuine ADDED/REMOVED comparison sides may use zero only for the absent side.
 
 ### Parameter Cost Effect
 BOM change is attributed to Price, Usage, and Loss; Routing Conversion change is attributed to Manning, Capacity, and Yield, using the Before and After snapshots' own Work Center rates. Effects must reconcile to After − Before within floating-point tolerance. Display absolute THB/pc parameter effects only. Show `100%` only beside an available, non-zero total; otherwise show `—`. Added/removed, ambiguous, missing, invalid, or unreconciled effects are unavailable.
 
 ### Story Graph
-The exact story is `REF → GAP 1 → CUR → GAP 2 → SIM`. GAP 1 = Current − Reference; GAP 2 = SIM − Current. Dataset bars show MAT, LB, BD, SG&A, and OP separately; Standard Cost is MAT + LB + BD only. Gap bars contain signed MAT/LB/BD differences only. Selling Price is a separate marker. Negative OP is valid. The draggable THB/pc ruler is visual-only and cannot change data or calculations.
+The exact graph story is `Reference → GAP 1 → Current → GAP 2 → Custom`. GAP 1 = Current − Reference; GAP 2 = Custom − Current. Graph states use each role’s effective snapshot, own Work Center rates, and role-local business draft, independently of the Result pair and After-selected economic panel. Dataset bars show MAT, LB, BD, SG&A, and OP separately; Standard Cost is MAT + LB + BD only. Gap bars contain signed MAT/LB/BD differences only. Selling Price is a separate marker. Negative OP is valid. The draggable THB/pc ruler is visual-only and cannot change data or calculations.
 
 ## 6.2 Economic Simulation
 
@@ -585,30 +585,34 @@ Root Cause: Line rebalancing split inspection into mechanical (QA1.1) and optica
 Action: Benchmark cycle time of optical inspection.
 ```
 
-### Example 4: Current → SIM Parameter Simulation
+### Example 4: Current → Custom Parameter Simulation
 ```text
-Current:
-  Standard Cost = 100.00 THB/pc
+Effective Reference Standard Cost = 110.00 THB/pc
+Effective Current Standard Cost = 100.00 THB/pc
+Effective Custom Standard Cost = 90.00 THB/pc
 
-Select `Edit dataset: Current`, then edit a valid parameter:
-  SIM Standard Cost = 90.00 THB/pc
-  GAP 2 / Result Change = SIM − Current = −10.00 THB/pc
-  Parameter Saving = Current − SIM = +10.00 THB/pc
+Graph:
+  GAP 1 = Current − Reference = −10.00 THB/pc
+  GAP 2 = Custom − Current = −10.00 THB/pc
+
+Set activeDataset = Current; the graph highlight and parameter editor follow Current.
+Set Result to Reference → Custom:
+  Result Change = Custom − Reference = −20.00 THB/pc
+  Parameter Saving = Reference − Custom = +20.00 THB/pc
 ```
 
-### Example 5: Custom Structural Difference in SIM
+### Example 5: Custom Structural Difference
 ```text
 Current Routing: [Cut, Form]
 Custom Routing:  [Cut, Form, Polish]
 
-Select `Edit dataset: Custom`:
-Current vs SIM comparison:
-- Cut: UNCHANGED (editable in SIM)
-- Form: UNCHANGED (editable in SIM)
-- Polish: ADDED (editable in SIM)
+Select Custom from the graph to make it active:
+Result comparison: Current → Custom
+- Cut and Form exist in the active Custom dataset and remain editable against Custom's Working basis.
+- Polish is visible as ADDED in the Current → Custom Result comparison.
 ```
 If Custom omitted `Form`:
-- `Form`: REMOVED (visible in comparison table, affects Gap, but disabled from editing in SIM).
+- If Custom omits Form, it remains visible as REMOVED in the Current → Custom comparison and is protected from editing when it is absent from the active role.
 
 ### Example 6: Economic-Only Evaluation
 ```text
@@ -624,8 +628,8 @@ Required Saving / pc = 10.00 + 1.00 = 11.00 THB/pc.
 ```text
 Parameter Simulation:
   Current Standard Cost = 10.00 THB/pc
-  SIM Standard Cost     = 8.50 THB/pc
-  Parameter Saving      = 1.50 THB/pc
+  Custom Standard Cost  = 8.50 THB/pc
+  If Result is Current → Custom, Parameter Saving = 1.50 THB/pc
 
 Economic Simulation:
   Fixed Action Cost = 1,000 THB
@@ -642,15 +646,15 @@ Combined Result:
 ### Example 8: Cost Effect and Commercial Outputs
 ```text
 BOM Current: Price 10 × Usage 2 × (1 + Loss 5%) = 21.00 THB/pc
-BOM SIM:     Price 12 × Usage 2 × (1 + Loss 5%) = 25.20 THB/pc
+BOM Custom:  Price 12 × Usage 2 × (1 + Loss 5%) = 25.20 THB/pc
 Price effect +4.20; Usage 0.00; Loss 0.00; Total +4.20 THB/pc
 
 Routing Current: Manning 1 / (Capacity 100 × Yield 100%) = 0.01
 Current rates: Labor 100, Burden 50 → Conversion 1.50 THB/pc
-Routing SIM: Manning 0.8 / (100 × 100%) = 0.008
+Routing Custom: Manning 0.8 / (100 × 100%) = 0.008
 → Conversion 1.20 THB/pc; change and attributed effects = −0.30 THB/pc
 
-Selling Price 80; SIM Standard Cost 90; SG&A 10%
+Selling Price 80; effective After Standard Cost 90; SG&A 10%
 SG&A / pc = 8; OP / pc = 80 − 90 − 8 = −18 THB/pc (valid)
 ```
 
@@ -675,7 +679,7 @@ SG&A / pc = 8; OP / pc = 80 − 90 − 8 = −18 THB/pc (valid)
 
 ## 9.4 Simulation Integrity
 - Structure comes from the active role's latest Master Data Working dataset; Simulation cannot add or delete rows.
-- Core Before/After comparisons handle ADDED (editable) and REMOVED (visible, disabled); the visible Current/SIM presentation remains through Phase 3, with generic comparison selectors and the fixed graph deferred to Phase 4.
+- Core Before/After comparisons handle ADDED (editable) and REMOVED (visible, disabled); current Result headers show the selected role names and the fixed graph remains Reference | GAP 1 | Current | GAP 2 | Custom.
 - Records match by business identity, never row position; unsafe/ambiguous identity is protected.
 - Reference, Current, and Custom have independent parameter overrides and own Work Center rates. A changed Master Working basis rebases only that role.
 - Parameter edits and Reset target `activeDataset`; Business/Economic drafts target `comparisonAfter`; Result and Economic calculations use the independent comparison pair. All nine ordered pairs are supported. Reset active and Reset All affect only parameter overrides.
@@ -741,14 +745,14 @@ The following older rules are **explicitly superseded** and must not be reintrod
 - [x] Editable parameters: BOM (Price, Usage, Loss), Routing (Manning, Cap, Yield).
 - [x] Work Center Labor and Burden rates are not editable in Simulation.
 - [x] Generic Before/After comparisons use existing identity protections and handle CHANGED, UNCHANGED, ADDED (editable), and REMOVED (visible, disabled).
-- [x] Current/SIM result labels remain as a compatibility presentation through Phase 3; generic comparison selectors and the fixed Reference | GAP1 | Current | GAP2 | Custom graph are Phase 4 work.
+- [x] Graph labels select only `activeDataset`; independent Before/After selectors preserve all nine Result pairs and dynamic role headers.
 - [x] BOM/RTG Parameter Cost Effect reconciles to its respective cost delta and shows absolute effects only.
 - [x] Economic formulas use Fixed Cost / pc = Fixed Action Cost / Batch Size and Required Saving = Fixed Cost / pc + Variable Action Cost / pc.
 - [x] SG&A / pc = After Selling Price × After SG&A % / 100; OP / pc = After Selling Price − effective After Standard Cost − SG&A / pc.
 - [x] Economic inputs do NOT alter MAT, LB, BD, Conversion, or Standard Cost.
 - [x] Economic results are advisory, not an approval gate.
 - [x] Input domains are validated in both UI and logic; invalid values never become zero and negative analytic outputs remain valid.
-- [x] Story graph is REF → GAP 1 → CUR → GAP 2 → SIM with signed engineering-only gaps and separate Selling Price / economic series.
+- [x] Story graph is Reference → GAP 1 → Current → GAP 2 → Custom, with signed engineering-only gap bars and separate Selling Price / economic series.
 - [x] BOM/RTG and page have no horizontal overflow; tables may scroll vertically or reflow responsively.
 - [x] Exactly A/B scenario count is not mandatory.
 

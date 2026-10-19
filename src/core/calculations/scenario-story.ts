@@ -39,13 +39,13 @@ function createGap(
 export function createScenarioStory(
   reference: ScenarioFinancialResult,
   current: ScenarioFinancialResult,
-  simulated: ScenarioFinancialResult
+  custom: ScenarioFinancialResult
 ): ScenarioStory {
   return {
     reference,
     current,
-    simulated,
+    custom,
     gap1: createGap(current, reference),
-    gap2: createGap(simulated, current)
+    gap2: createGap(custom, current)
   }
 }

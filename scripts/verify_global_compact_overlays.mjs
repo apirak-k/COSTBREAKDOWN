@@ -88,20 +88,36 @@ assert.doesNotMatch(masterBulkMenu, /(?:^|\s)(?:w|min-w)-\d+(?:\s|$)/,
 assert.match(masterHeader, /const toolbarButton = 'grid h-8 w-8/,
   'Master Data icon action trigger establishes the 32px trigger minimum')
 
-const simulationRoleMenu = snippet(simulationPage, /function RoleActionMenu\([\s\S]*?\nfunction EffectCell/, 'Simulation role action menu exists')
-const simulationMenuClass = simulationRoleMenu.match(/className="([^"]*w-max[^"]*)"/)?.[1]
-assert.ok(simulationMenuClass, 'Simulation role menu declares intrinsic width')
-assertIntrinsicPanel(simulationMenuClass, 'Simulation Clone/Send menu')
-assert.doesNotMatch(simulationRoleMenu, /\bminWidth\b|Math\.max\([^\n]*trigger\.width/,
-  'Simulation role menu has no trigger-width floor')
-assert.equal((simulationRoleMenu.match(/trigger\.width/g) ?? []).length, 1,
-  'Simulation uses trigger width only for centering')
-assert.match(simulationRoleMenu, /Math\.max\(8, Math\.min\(centeredLeft, window\.innerWidth - menu\.width - 8\)\)/,
-  'Simulation menu centers on its trigger and clamps horizontally')
-assert.match(simulationRoleMenu, /top \+ menu\.height > window\.innerHeight - 8[\s\S]*Math\.max\(8, trigger\.top - menu\.height\)/,
-  'Simulation menu flips above the trigger when it would exceed the viewport')
-assert.match(simulationRoleMenu, /left-1\/2 top-full[\s\S]*-translate-x-1\/2/,
-  'Simulation menu uses trigger-centered placement before viewport correction')
+const simulationRoleSelector = snippet(simulationPage, /function ComparisonRoleSelector\([\s\S]*?\nfunction SplitActionControl/, 'Simulation Before/After role selectors exist')
+const simulationRoleMenuClass = simulationRoleSelector.match(/className="([^"]*w-max[^"]*)"/)?.[1]
+assert.ok(simulationRoleMenuClass, 'Simulation role selector menu declares intrinsic width')
+assert.match(simulationRoleMenuClass, /max-w-\[calc\(100vw-1rem\)\]/,
+  'Simulation role selector menu is capped to the viewport')
+assert.match(simulationRoleMenuClass, /min-w-\[7\.25rem\]/,
+  'Simulation Before/After menus keep the agreed selector-width minimum')
+assert.doesNotMatch(simulationRoleMenuClass, /(?:^|\s)w-(?:\d+|\[\d+(?:px|rem)\])(?:\s|$)/,
+  'Simulation role selector menu has no arbitrary fixed width')
+assert.doesNotMatch(simulationRoleSelector, /\bminWidth\b|Math\.max\([^\n]*trigger\.width/,
+  'Simulation role selector has no JavaScript trigger-width floor')
+assert.equal((simulationRoleSelector.match(/trigger\.width/g) ?? []).length, 1,
+  'Simulation role selector uses trigger width only for centering')
+assert.match(simulationRoleSelector, /Math\.max\(8, Math\.min\(centeredLeft, window\.innerWidth - menu\.width - 8\)\)/,
+  'Simulation role selector menu centers on its trigger and clamps horizontally')
+assert.match(simulationRoleSelector, /top \+ menu\.height > window\.innerHeight - 8[\s\S]*Math\.max\(8, trigger\.top - menu\.height\)/,
+  'Simulation role selector menu flips above the trigger when it would exceed the viewport')
+assert.match(simulationRoleSelector, /left-1\/2 top-full[\s\S]*-translate-x-1\/2/,
+  'Simulation role selector menu uses trigger-centered placement before viewport correction')
+
+const simulationSplitAction = snippet(simulationPage, /function SplitActionControl\([\s\S]*?\nfunction EffectCell/, 'Simulation Send/Reset split actions exist')
+const simulationActionMenuClass = simulationSplitAction.match(/className="([^"]*w-max[^"]*)"/)?.[1]
+assert.ok(simulationActionMenuClass, 'Simulation action menu declares intrinsic width')
+assertIntrinsicPanel(simulationActionMenuClass, 'Simulation Send/Reset action menu')
+assert.equal((simulationSplitAction.match(/trigger\.width/g) ?? []).length, 1,
+  'Simulation action menu uses trigger width only for centering')
+assert.match(simulationSplitAction, /Math\.max\(8, Math\.min\(centeredLeft, window\.innerWidth - menu\.width - 8\)\)/,
+  'Simulation action menu centers on its trigger and clamps horizontally')
+assert.match(simulationSplitAction, /top \+ menu\.height > window\.innerHeight - 8[\s\S]*Math\.max\(8, trigger\.top - menu\.height\)/,
+  'Simulation action menu flips above the trigger when it would exceed the viewport')
 
 assert.match(tooltip, /max-w-\[calc\(100vw-1rem\)\]/,
   'shared tooltips cannot exceed the viewport width')

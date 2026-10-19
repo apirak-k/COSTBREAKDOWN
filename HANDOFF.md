@@ -1,4 +1,31 @@
-# Current Handoff — Phase 3 Simulation logic + actions — 2026-10-19
+# Current Handoff — Phase 4 Simulation graph + UI integration — 2026-10-19
+
+## Checkpoint and delivery
+
+- Repository: `/Users/bubu/COSTBREAKDOWN-ref-current-custom-flow-redesign` (`apirak-k/COSTBREAKDOWN`). Branch: `feat/ref-current-custom-flow-redesign`.
+- Approved Phase 4 baseline: `3c581198ba464f94e92db9bf951577c7d48ffbbe`, confirmed locally and at `origin` before edits.
+- The user authorized one focused commit and push to this branch. Do not merge or start Phase 5. The delivery SHA and fetched remote equality are reported in the task completion message.
+
+## Final UI and behavior
+
+- The fixed graph story is Reference | GAP 1 | Current | GAP 2 | Custom. GAP 1 is Current − Reference; GAP 2 is Custom − Current. Each role's graph state uses its effective role dataset, own Work Center rates, and role-local Business/Economic draft. Gap bars show only signed Material, Labor, and Burden differences.
+- Semantic Reference/Current/Custom graph buttons select only `activeDataset`, with a visible selected state and keyboard focus treatment. They do not change the independent Result pair. The separate `Edit dataset` control is removed.
+- Result has compact independent Before/After role selectors and dynamic Reference/Current/Custom columns for every ordered pair, including self-pairs. Change remains After − Before and percent retains the existing unavailable/zero-denominator behavior. Business/Economic ownership remains with `comparisonAfter`; BOM/RTG tables, parameter cost effects, Send, and Reset remain owned by `activeDataset`.
+- Send and Reset are icon-only primary actions with exact tooltips `Send` and `Reset`; their compact split menus expose `Send all datasets` and `Reset all datasets`. Send All retains the existing atomic same-role mapping and Last Saved boundary. Reset All clears parameter overrides across roles and keeps valid role-local economics; it is not a single cross-role Undo transaction under the existing role-scoped history model.
+- No Master Data, Cost Breakdown, CBD calculation, Standard Cost formula, or Phase 3 state primitive redesign is included.
+
+## Verification and limits
+
+- **PASS:** `npm run build` and `git diff --check`. Existing Vite warnings remain for ExcelJS/fast-csv browser externalization and the 531.75 kB app chunk.
+- **PASS:** `node scripts/verify_simulation_regression.mjs`. This includes focused Phase 4 graph/Result/economics coverage, Phase 3 state/history/actions, role-local overrides, Simulation context/workspace/engine/economics/history, Master Data edit history, and Global Header routing. Two nested Vite SSR suites report the existing WebSocket port-in-use warning; the runner exits 0.
+- **PASS:** CBD generic nine-pair comparison; Selected Comparison boundary and lifecycle; comparison reconciliation; Master Data UI state; page-navigation persistence; global compact-overlay contracts; Simulation graph rendering (`--graph-only`); scenario story; and CBD review-feedback graph.
+- The focused Phase 4 verifier exercises state/calculation fixtures and React SSR for all nine Result pairs, fixed gap values, role rates, active-state semantics, and role-local economics. Source-contract assertions specifically cover App callback wiring and action destinations. Overlay and navigation verifiers are source contracts.
+- No browser or manual interaction/visual verification was run. Keyboard interactions, viewport clamping, small-screen layout, and assistive-technology behavior remain unverified. The build and SSR suites do not verify rendered browser geometry.
+- Do not merge or begin Phase 5.
+
+---
+
+# Previous Handoff — Phase 3 Simulation logic + actions — 2026-10-19
 
 ## Checkpoint and delivery
 

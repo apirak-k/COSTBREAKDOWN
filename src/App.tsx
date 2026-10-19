@@ -11,11 +11,14 @@ import {
   createEmptySimulationState,
   getActiveSimulationDataset,
   prepareSimulationSend,
+  prepareSimulationSendAll,
   getEffectiveSimulationDataset,
   reconcileSimulationState,
+  resetAllSimulationParameters,
   resetSimulationParameters,
   retainSimulationStatesForProducts,
   setSimulationActiveDataset,
+  setSimulationComparison,
   setSimulationEconomicInput,
   toggleSimulationWorkingTarget,
   type SimulationSources,
@@ -54,7 +57,8 @@ const AppRouter: React.FC = () => {
     masterDataSnapshots,
     comparisonPair,
     productSessions,
-    sendSimulationSnapshotToMasterData
+    sendSimulationSnapshotToMasterData,
+    sendSimulationSnapshotsToMasterData
   } = useAppStore()
   const [prepareDatasetNavigationRequest, setPrepareDatasetNavigationRequest] = useState<(MasterDataQualityItem & WarningNavigationTarget) | undefined>()
   const [masterDataSearchQuery, setMasterDataSearchQuery] = useState('')
@@ -87,18 +91,17 @@ const AppRouter: React.FC = () => {
       : reconciledSimulationState,
     [activeTab, masterDataSnapshots, reconciledSimulationState, storedSimulationState]
   )
+  const effectiveDatasets = useMemo(() => ({
+    reference: getEffectiveSimulationDataset(masterDataSnapshots, simulationState, 'reference'),
+    current: getEffectiveSimulationDataset(masterDataSnapshots, simulationState, 'current'),
+    custom: getEffectiveSimulationDataset(masterDataSnapshots, simulationState, 'custom')
+  }), [masterDataSnapshots, simulationState])
   const activeSimulationDataset = useMemo(
     () => getActiveSimulationDataset(masterDataSnapshots, simulationState),
     [masterDataSnapshots, simulationState]
   )
-  const analysisBeforeDataset = useMemo(
-    () => getEffectiveSimulationDataset(masterDataSnapshots, simulationState, simulationState.comparisonBefore),
-    [masterDataSnapshots, simulationState]
-  )
-  const analysisAfterDataset = useMemo(
-    () => getEffectiveSimulationDataset(masterDataSnapshots, simulationState, simulationState.comparisonAfter),
-    [masterDataSnapshots, simulationState]
-  )
+  const analysisBeforeDataset = effectiveDatasets[simulationState.comparisonBefore]
+  const analysisAfterDataset = effectiveDatasets[simulationState.comparisonAfter]
   const simulationHistoryRole = simulationHistoryRolesByProduct[activeProductId] ?? simulationState.activeDataset
   const simulationHistoryDataset = getEffectiveSimulationDataset(masterDataSnapshots, simulationState, simulationHistoryRole)
   const selectedSimulationHistory = simulationHistoriesByProduct[activeProductId]?.[simulationHistoryRole]
@@ -238,6 +241,14 @@ const AppRouter: React.FC = () => {
     setSimulationStatesByProduct(previous => ({ ...previous, [activeProductId]: nextState }))
   }
 
+  const changeSimulationComparison = (before: MasterDataRole, after: MasterDataRole) => {
+    const committed = commitSimulationEdit()
+    const priorState = committed?.state
+      ?? reconcileSimulationState(simulationStatesByProduct[activeProductId], masterDataSnapshots)
+    const nextState = setSimulationComparison(priorState, before, after)
+    setSimulationStatesByProduct(previous => ({ ...previous, [activeProductId]: nextState }))
+  }
+
   const updateSimulationState = (role: MasterDataRole, update: (state: SimulationWorkspaceState) => SimulationWorkspaceState) => {
     const stored = simulationStatesByProduct[activeProductId]
     const current = stored ? reconcileSimulationState(stored, masterDataSnapshots) : simulationState
@@ -352,6 +363,41 @@ const AppRouter: React.FC = () => {
     return sendSimulationSnapshotToMasterData(activeDataset, payload.snapshot)
   }
 
+  const sendAllSimulationDatasets = () => {
+    const committed = commitSimulationEdit()
+    const current = reconcileSimulationState(committed?.state ?? simulationStatesByProduct[activeProductId] ?? simulationState, masterDataSnapshots)
+    const snapshots = prepareSimulationSendAll(current, masterDataSnapshots)
+    setSimulationStatesByProduct(previous => ({ ...previous, [activeProductId]: current }))
+    return sendSimulationSnapshotsToMasterData(snapshots)
+  }
+
+  const resetAllSimulationDatasets = () => {
+    const committed = commitSimulationEdit()
+    const current = reconcileSimulationState(committed?.state ?? simulationStatesByProduct[activeProductId] ?? simulationState, masterDataSnapshots)
+    const next = resetAllSimulationParameters(current, masterDataSnapshots)
+    if (next === current) return
+    const changedRoles = (['reference', 'current', 'custom'] as const).filter(role => next.datasets[role] !== current.datasets[role])
+    setSimulationStatesByProduct(previous => ({ ...previous, [activeProductId]: next }))
+    const histories = simulationHistoriesByProduct[activeProductId] ?? {}
+    setSimulationHistoriesByProduct(previous => {
+      const productHistories = { ...(previous[activeProductId] ?? {}) }
+      changedRoles.forEach(role => {
+        productHistories[role] = clearSimulationHistory(productHistories[role], next.datasets[role].basisFingerprint)
+      })
+      return { ...previous, [activeProductId]: productHistories }
+    })
+    const historyRole = simulationHistoryRolesByProduct[activeProductId] ?? current.activeDataset
+    if (changedRoles.includes(historyRole)) {
+      const fallbackHistoryRole = (['reference', 'current', 'custom'] as const).find(role => {
+        const history = histories[role]
+        return !changedRoles.includes(role)
+          && history?.basisFingerprint === next.datasets[role].basisFingerprint
+          && Boolean(history.undo.length || history.redo.length)
+      }) ?? current.activeDataset
+      setSimulationHistoryRolesByProduct(previous => ({ ...previous, [activeProductId]: fallbackHistoryRole }))
+    }
+  }
+
   const setCandidateManualOrder = (type: CandidateTableType, keys: string[]) => {
     setCandidateReorderHistory(history => recordCandidateReorder(history, type, keys))
   }
@@ -400,11 +446,13 @@ const AppRouter: React.FC = () => {
             workingSelection={activeSimulationDataset.workingSelection}
             analysisBeforeDataset={analysisBeforeDataset}
             analysisAfterDataset={analysisAfterDataset}
-            referenceSnapshot={masterDataSnapshots.reference}
-            currentSnapshot={masterDataSnapshots.current}
+            effectiveDatasets={effectiveDatasets}
             onSelectActiveDataset={selectActiveDataset}
+            onChangeComparison={changeSimulationComparison}
             onSend={sendSimulation}
+            onSendAll={sendAllSimulationDatasets}
             onReset={resetSimulation}
+            onResetAll={resetAllSimulationDatasets}
             onUpdateParameter={updateParameter}
             onToggleWorkingTarget={toggleWorkingTarget}
             onUpdateEconomicInput={updateEconomicInput}

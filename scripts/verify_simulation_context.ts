@@ -52,7 +52,8 @@ const app = readFileSync(resolve(process.cwd(), 'src/App.tsx'), 'utf8')
 const simulationPage = readFileSync(resolve(process.cwd(), 'src/features/simulation/SimulationPage.tsx'), 'utf8')
 assert.match(app, /simulationStatesByProduct\[activeProductId\]/, 'Simulation state is scoped by active product')
 assert.match(app, /activeTab === 'simulation'[\s\S]*?<SimulationPage/, 'Simulation is reachable as its own module')
-assert.match(app, /masterDataSnapshots\.reference/, 'Simulation context receives Reference Working data')
+assert.match(app, /const effectiveDatasets = useMemo\(\(\) => \(\{[\s\S]*reference: getEffectiveSimulationDataset\(masterDataSnapshots, simulationState, 'reference'\)[\s\S]*current: getEffectiveSimulationDataset\(masterDataSnapshots, simulationState, 'current'\)[\s\S]*custom: getEffectiveSimulationDataset\(masterDataSnapshots, simulationState, 'custom'\)/,
+  'Simulation graph context derives the effective Reference, Current, and Custom Working datasets')
 assert.match(app, /getActiveSimulationDataset\(masterDataSnapshots, simulationState\)/,
   'the active view is derived from the role-keyed Simulation state and latest Working sources')
 assert.match(app, /const role = simulationState\.activeDataset[\s\S]*?updateSimulationState\(role, state => updateSimulationParameter/,
@@ -65,8 +66,8 @@ assert.match(simulationPage, /onBatchSizeChange=\{value => onUpdateEconomicInput
   'Break-even graph Batch Size edits target comparisonAfter')
 assert.match(simulationPage, /calculateParameterSimulation\(analysisBeforeDataset\.snapshot, analysisAfterDataset\.snapshot\)/,
   'Result and Economic calculations use the effective comparison pair')
-assert.match(simulationPage, /currentCost=\{analysisResult\.beforeCost\}[\s\S]*?simulationCost=\{analysisResult\.afterCost\}/,
-  'the Result panel displays the selected Before/After costs')
+assert.match(simulationPage, /beforeRole=\{analysisBeforeDataset\.role\}[\s\S]*?afterRole=\{analysisAfterDataset\.role\}[\s\S]*?beforeCost=\{analysisResult\.beforeCost\}[\s\S]*?afterCost=\{analysisResult\.afterCost\}/,
+  'the Result panel displays the selected role names and effective Before/After costs')
 assert.match(simulationPage, /onBeginEdit=\{\(\) => onBeginEdit\(state\.role\)\}/,
   'parameter edit history explicitly targets the active role')
 assert.match(app, /simulationHistoryRolesByProduct\[activeProductId\] \?\? simulationState\.activeDataset/,
@@ -77,10 +78,18 @@ assert.match(app, /const role = current\.activeDataset[\s\S]*?resetSimulationPar
   'Reset scope remains activeDataset even when comparisonAfter differs')
 assert.match(app, /const activeDataset = current\.activeDataset[\s\S]*?prepareSimulationSend\(current, masterDataSnapshots\)[\s\S]*?sendSimulationSnapshotToMasterData\(activeDataset, payload\.snapshot\)/,
   'Send uses only the active Simulation role and sends to that same Master Data role')
-assert.match(simulationPage, /label="Edit dataset"[\s\S]*?onSelect=\{onSelectActiveDataset\}/,
-  'Edit dataset selects the active Simulation role without a clone action')
-assert.match(simulationPage, /onClick=\{\(\) => onSend\(\)\}[\s\S]*?aria-label="Send to active dataset"/,
-  'Simulation exposes a direct same-role Send action')
+assert.match(simulationPage, /<SimulationStoryGraph[\s\S]*?activeRole=\{state\.role\}[\s\S]*?onSelectActiveDataset=\{onSelectActiveDataset\}/,
+  'graph dataset labels select the active Simulation role')
+assert.doesNotMatch(simulationPage, /Edit dataset|<Pencil/,
+  'the final Simulation UI has no separate active-dataset selector')
+assert.match(simulationPage, /label="Send"[\s\S]*?onPrimary=\{onSend\}/,
+  'Simulation exposes the exact Send primary action for the active role')
+assert.match(simulationPage, /label="Reset"[\s\S]*?onPrimary=\{onReset\}/,
+  'Simulation exposes the Reset primary action for the active role')
+assert.match(simulationPage, /secondaryLabel="Send all datasets"[\s\S]*?onSecondary=\{onSendAll\}/,
+  'the Send secondary action is wired to the all-role handler')
+assert.match(simulationPage, /secondaryLabel="Reset all datasets"[\s\S]*?onSecondary=\{onResetAll\}/,
+  'the Reset secondary action is wired to the all-role handler')
 assert.doesNotMatch(simulationPage, /label="Send to"|onSendTo\(/,
   'Simulation does not offer an arbitrary Send destination')
 assert.doesNotMatch(app, /rca-simulation|selectedCandidateKey|trialHandoffLetter|selectedScenarioLetter/,

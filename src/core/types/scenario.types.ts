@@ -22,7 +22,7 @@ export interface ScenarioFinancialResult {
 export interface ScenarioStory {
   reference: ScenarioFinancialResult
   current: ScenarioFinancialResult
-  simulated: ScenarioFinancialResult
+  custom: ScenarioFinancialResult
   gap1: ScenarioFinancialResult
   gap2: ScenarioFinancialResult
 }

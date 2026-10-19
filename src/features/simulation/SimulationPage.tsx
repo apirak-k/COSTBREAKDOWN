@@ -1,6 +1,6 @@
 import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
-import { ChevronDown, ChevronRight, Pencil, RotateCcw, Send } from 'lucide-react'
-import { compareSnapshots, formatNumber, safeAdd } from '../../core'
+import { ChevronDown, ChevronRight, RotateCcw, Send } from 'lucide-react'
+import { formatNumber, safeAdd } from '../../core'
 import {
   calculateMultiplicativeCostAttribution,
   calculateScenarioBusinessMetrics,
@@ -35,11 +35,13 @@ interface SimulationPageProps {
   workingSelection: string[]
   analysisBeforeDataset: SimulationDatasetView
   analysisAfterDataset: SimulationDatasetView
-  referenceSnapshot: CostSnapshot
-  currentSnapshot: CostSnapshot
+  effectiveDatasets: Record<MasterDataRole, SimulationDatasetView>
   onSelectActiveDataset: (role: MasterDataRole) => void
+  onChangeComparison: (before: MasterDataRole, after: MasterDataRole) => void
   onSend: () => void
+  onSendAll: () => void
   onReset: () => void
+  onResetAll: () => void
   onUpdateParameter: (recordId: string, parameter: SimulationParameter, value: number | null) => void
   onToggleWorkingTarget: (kind: 'bom' | 'routing', recordId: string) => void
   onUpdateEconomicInput: (role: MasterDataRole, field: EconomicSimulationField, value: string) => void
@@ -194,36 +196,32 @@ function routingAttribution(
 const resultActionButton = 'grid h-8 w-8 shrink-0 place-items-center rounded-sm bg-transparent text-slate-700 transition-colors hover:bg-slate-100 hover:text-slate-950 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700'
 const useSafeLayoutEffect = typeof window === 'undefined' ? useEffect : useLayoutEffect
 
-// Simulation keeps its own role choices and callbacks; mirror the Master Data hover/pin interaction.
-function RoleActionMenu({
-  label,
-  onSelect
+function roleLabel(role: MasterDataRole): string {
+  return ROLES.find(option => option.role === role)?.label ?? 'Reference'
+}
+
+function ComparisonRoleSelector({
+  side,
+  role,
+  onChange
 }: {
-  label: 'Edit dataset'
-  onSelect: (role: MasterDataRole) => void
+  side: 'Before' | 'After'
+  role: MasterDataRole
+  onChange: (role: MasterDataRole) => void
 }) {
   const [open, setOpen] = useState(false)
-  const [pinned, setPinned] = useState(false)
   const [offset, setOffset] = useState({ x: 0, y: 0 })
   const menuRef = useRef<HTMLDivElement>(null)
-  const hoverTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const rootRef = useRef<HTMLDivElement>(null)
   const triggerRef = useRef<HTMLButtonElement>(null)
   const menuItemRefs = useRef<Array<HTMLButtonElement | null>>([])
-  const menuId = `simulation-${label.toLowerCase().replace(' ', '-')}-menu`
-  const clearHoverTimer = () => {
-    if (hoverTimerRef.current) clearTimeout(hoverTimerRef.current)
-    hoverTimerRef.current = null
-  }
+  const menuId = `simulation-${side.toLowerCase()}-dataset-menu`
   const close = (restoreFocus = false) => {
-    clearHoverTimer()
     setOpen(false)
-    setPinned(false)
     if (restoreFocus) triggerRef.current?.focus()
   }
 
   useTransientInteraction(open, reason => close(reason === 'escape'))
-  useEffect(() => () => clearHoverTimer(), [])
   useSafeLayoutEffect(() => {
     if (!open) return
     const updatePosition = () => {
@@ -258,55 +256,40 @@ function RoleActionMenu({
     <div
       ref={rootRef}
       className="relative shrink-0"
-      onMouseEnter={() => {
-        clearHoverTimer()
-        if (!pinned) hoverTimerRef.current = setTimeout(() => setOpen(true), 120)
-      }}
-      onMouseLeave={() => {
-        clearHoverTimer()
-        if (!pinned) hoverTimerRef.current = setTimeout(() => {
-          if (!rootRef.current?.contains(document.activeElement)) close()
-        }, 150)
-      }}
       onBlurCapture={event => {
         if (!event.currentTarget.contains(event.relatedTarget as Node | null)) close()
       }}
     >
-      <Tooltip label={label}>
-        <button
-          ref={triggerRef}
-          type="button"
-          aria-label={label}
-          aria-haspopup="menu"
-          aria-expanded={open}
-          aria-controls={menuId}
-          onClick={() => {
-            clearHoverTimer()
-            if (pinned) close()
-            else { setPinned(true); setOpen(true) }
-          }}
-          onKeyDown={event => {
-            if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
-              event.preventDefault()
-              clearHoverTimer()
-              setPinned(true)
-              setOpen(true)
-              requestAnimationFrame(() => menuItemRefs.current[event.key === 'ArrowUp' ? ROLES.length - 1 : 0]?.focus())
-            }
-          }}
-          className={resultActionButton}
-        >
-          <Pencil aria-hidden="true" className="h-4 w-4" />
-        </button>
-      </Tooltip>
+      <button
+        ref={triggerRef}
+        type="button"
+        aria-label={`${side} dataset, ${roleLabel(role)}`}
+        aria-haspopup="menu"
+        aria-expanded={open}
+        aria-controls={menuId}
+        onClick={() => setOpen(value => !value)}
+        onKeyDown={event => {
+          if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+            event.preventDefault()
+            setOpen(true)
+            requestAnimationFrame(() => menuItemRefs.current[event.key === 'ArrowUp' ? ROLES.length - 1 : 0]?.focus())
+          }
+        }}
+        className="inline-flex h-8 w-[7.25rem] items-center justify-between gap-1 rounded-sm border border-slate-300 bg-white px-2 text-left transition-colors hover:border-slate-400 hover:bg-slate-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700"
+      >
+        <span className="flex min-w-0 flex-col leading-tight">
+          <span className="text-[9px] text-slate-500">{side}</span>
+          <span className="truncate text-[11px] font-semibold text-slate-800">{roleLabel(role)}</span>
+        </span>
+        <ChevronDown aria-hidden="true" className="h-3 w-3 shrink-0 text-slate-500" />
+      </button>
       {open && (
         <div
           ref={menuRef}
           id={menuId}
           role="menu"
-          onMouseEnter={clearHoverTimer}
           style={{ marginLeft: `${offset.x}px`, marginTop: `${offset.y}px` }}
-          aria-label={label}
+          aria-label={`${side} dataset`}
           onKeyDown={event => {
             if (event.key === 'Escape') {
               event.preventDefault()
@@ -328,21 +311,145 @@ function RoleActionMenu({
               menuItemRefs.current[nextIndex]?.focus()
             }
           }}
-          className="absolute left-1/2 top-full z-50 w-max max-w-[calc(100vw-1rem)] -translate-x-1/2 border border-slate-300 bg-white p-1 shadow-lg"
+          className="absolute left-1/2 top-full z-50 w-max min-w-[7.25rem] max-w-[calc(100vw-1rem)] -translate-x-1/2 border border-slate-300 bg-white p-1 shadow-lg"
         >
-          {ROLES.map(({ role, label: roleLabel }, index) => (
+          {ROLES.map(({ role: optionRole, label: optionLabel }, index) => (
             <button
-              key={role}
+              key={optionRole}
               ref={element => { menuItemRefs.current[index] = element }}
               type="button"
-              role="menuitem"
+              role="menuitemradio"
+              aria-checked={optionRole === role}
               tabIndex={0}
-              onClick={() => { onSelect(role); close(true) }}
-              className="block min-h-8 w-full px-2 text-left text-xs text-slate-800 hover:bg-slate-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-700"
+              onClick={() => { onChange(optionRole); close(true) }}
+              className={`block min-h-8 w-full px-2 text-left text-xs hover:bg-slate-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-700 ${optionRole === role ? 'font-semibold text-blue-800' : 'text-slate-800'}`}
             >
-              {roleLabel}
+              {optionLabel}
             </button>
           ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
+function SplitActionControl({
+  label,
+  icon,
+  secondaryLabel,
+  onPrimary,
+  onSecondary
+}: {
+  label: 'Send' | 'Reset'
+  icon: React.ReactNode
+  secondaryLabel: 'Send all datasets' | 'Reset all datasets'
+  onPrimary: () => void
+  onSecondary: () => void
+}) {
+  const [open, setOpen] = useState(false)
+  const [offset, setOffset] = useState({ x: 0, y: 0 })
+  const rootRef = useRef<HTMLDivElement>(null)
+  const triggerRef = useRef<HTMLButtonElement>(null)
+  const menuRef = useRef<HTMLDivElement>(null)
+  const itemRef = useRef<HTMLButtonElement>(null)
+  const menuId = `simulation-${label.toLowerCase()}-actions`
+  const close = (restoreFocus = false) => {
+    setOpen(false)
+    if (restoreFocus) triggerRef.current?.focus()
+  }
+
+  useTransientInteraction(open, reason => close(reason === 'escape'))
+  useSafeLayoutEffect(() => {
+    if (!open) return
+    const updatePosition = () => {
+      const trigger = triggerRef.current?.getBoundingClientRect()
+      const menu = menuRef.current?.getBoundingClientRect()
+      if (!trigger || !menu) return
+      const centeredLeft = trigger.left + (trigger.width - menu.width) / 2
+      const top = trigger.bottom
+      setOffset({
+        x: Math.max(8, Math.min(centeredLeft, window.innerWidth - menu.width - 8)) - centeredLeft,
+        y: top + menu.height > window.innerHeight - 8 ? Math.max(8, trigger.top - menu.height) - top : 0
+      })
+    }
+    updatePosition()
+    window.addEventListener('resize', updatePosition)
+    window.addEventListener('scroll', updatePosition, true)
+    return () => {
+      window.removeEventListener('resize', updatePosition)
+      window.removeEventListener('scroll', updatePosition, true)
+    }
+  }, [open])
+  useEffect(() => {
+    if (!open) return
+    const onPointerDown = (event: PointerEvent) => {
+      if (!rootRef.current?.contains(event.target as Node)) close()
+    }
+    document.addEventListener('pointerdown', onPointerDown)
+    return () => document.removeEventListener('pointerdown', onPointerDown)
+  }, [open])
+
+  return (
+    <div
+      ref={rootRef}
+      className="relative inline-flex h-8 shrink-0 items-stretch rounded-sm border border-slate-300 bg-white"
+      onBlurCapture={event => {
+        if (!event.currentTarget.contains(event.relatedTarget as Node | null)) close()
+      }}
+    >
+      <Tooltip label={label}>
+        <button type="button" onClick={() => { close(); onPrimary() }} aria-label={label} className={`${resultActionButton} h-8 w-8`}>
+          {icon}
+        </button>
+      </Tooltip>
+      <button
+        ref={triggerRef}
+        type="button"
+        aria-label={`More ${label} actions`}
+        aria-haspopup="menu"
+        aria-expanded={open}
+        aria-controls={menuId}
+        onClick={() => setOpen(value => !value)}
+        onKeyDown={event => {
+          if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+            event.preventDefault()
+            setOpen(true)
+            requestAnimationFrame(() => itemRef.current?.focus())
+          }
+        }}
+        className="grid h-8 w-6 place-items-center rounded-r-sm text-slate-600 transition-colors hover:bg-slate-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700"
+      >
+        <ChevronDown aria-hidden="true" className="h-3 w-3" />
+      </button>
+      {open && (
+        <div
+          ref={menuRef}
+          id={menuId}
+          role="menu"
+          aria-label={`${label} actions`}
+          style={{ marginLeft: `${offset.x}px`, marginTop: `${offset.y}px` }}
+          className="absolute left-1/2 top-full z-50 w-max max-w-[calc(100vw-1rem)] -translate-x-1/2 border border-slate-300 bg-white p-1 shadow-lg"
+          onKeyDown={event => {
+            if (event.key === 'Escape') {
+              event.preventDefault()
+              close(true)
+            } else if (event.key === 'Tab') close()
+            else if (event.key === 'ArrowDown' || event.key === 'ArrowUp' || event.key === 'Home' || event.key === 'End') {
+              event.preventDefault()
+              itemRef.current?.focus()
+            }
+          }}
+        >
+          <button
+            ref={itemRef}
+            type="button"
+            role="menuitem"
+            tabIndex={0}
+            onClick={() => { onSecondary(); close(true) }}
+            className="block min-h-8 w-full whitespace-nowrap px-2 text-left text-xs text-slate-800 hover:bg-slate-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-700"
+          >
+            {secondaryLabel}
+          </button>
         </div>
       )}
     </div>
@@ -376,6 +483,7 @@ interface SimulationSelectionDrag {
 
 function SimulationParameterTable({
   kind,
+  activeRole,
   rows,
   simulationSnapshot,
   baselineSnapshot,
@@ -386,6 +494,7 @@ function SimulationParameterTable({
   onCommitEdit
 }: {
   kind: SimulationRecordKind
+  activeRole: MasterDataRole
   rows: SimulationComparisonRow[]
   simulationSnapshot: CostSnapshot
   baselineSnapshot: CostSnapshot
@@ -656,7 +765,7 @@ function SimulationParameterTable({
                                     if (next !== null) onUpdate(simulationRecord.id, parameter.parameter, next / parameter.scale)
                                   }}
                                   className="h-8 w-full min-w-0 rounded-sm border border-transparent bg-transparent px-1.5 text-right font-mono text-xs tabular-nums text-slate-900 transition-colors hover:border-slate-200 hover:bg-slate-50 focus:!border-transparent focus:bg-white focus:!outline focus:!outline-2 focus:!outline-blue-700 focus:!outline-offset-[-2px]"
-                                  aria-label={`${row.name} ${parameter.label} in SIM`}
+                                  aria-label={`${row.name} ${parameter.label} in ${roleLabel(activeRole)}`}
                                 />
                               </SimulationHistoryInputBoundary>
                             </div>
@@ -803,7 +912,7 @@ function SimulationParameterTable({
                                 if (next !== null) onUpdate(simulationRecord.id, parameter.parameter, next / parameter.scale)
                               }}
                               className="h-8 w-full min-w-0 rounded-sm border border-transparent bg-transparent px-1.5 text-right font-mono text-xs tabular-nums text-slate-900 transition-colors hover:border-slate-200 hover:bg-slate-50 focus:!border-transparent focus:bg-white focus:!outline focus:!outline-2 focus:!outline-blue-700 focus:!outline-offset-[-2px]"
-                              aria-label={`${row.name} ${parameter.label} in SIM`}
+                              aria-label={`${row.name} ${parameter.label} in ${roleLabel(activeRole)}`}
                             />
                           </SimulationHistoryInputBoundary>
                         </div>
@@ -841,39 +950,45 @@ function SimulationParameterTable({
 }
 
 function ResultPanel({
-  currentCost,
-  simulationCost,
-  currentFinancial,
-  simulationFinancial,
+  beforeRole,
+  afterRole,
+  beforeCost,
+  afterCost,
+  beforeFinancial,
+  afterFinancial,
+  onChangeComparison,
   actions
 }: {
-  currentCost: SnapshotCost
-  simulationCost: SnapshotCost
-  currentFinancial: ScenarioFinancialResult
-  simulationFinancial: ScenarioFinancialResult
+  beforeRole: MasterDataRole
+  afterRole: MasterDataRole
+  beforeCost: SnapshotCost
+  afterCost: SnapshotCost
+  beforeFinancial: ScenarioFinancialResult
+  afterFinancial: ScenarioFinancialResult
+  onChangeComparison: (before: MasterDataRole, after: MasterDataRole) => void
   actions: React.ReactNode
 }) {
-  const currentConversion = currentCost.labor === null || currentCost.burden === null ? null : safeAdd(currentCost.labor, currentCost.burden)
-  const simulationConversion = simulationCost.labor === null || simulationCost.burden === null ? null : safeAdd(simulationCost.labor, simulationCost.burden)
+  const beforeConversion = beforeCost.labor === null || beforeCost.burden === null ? null : safeAdd(beforeCost.labor, beforeCost.burden)
+  const afterConversion = afterCost.labor === null || afterCost.burden === null ? null : safeAdd(afterCost.labor, afterCost.burden)
   const rows = [
-    { label: 'Material', current: currentCost.material, sim: simulationCost.material, semantic: 'cost' as const },
-    { label: 'Labor', current: currentCost.labor, sim: simulationCost.labor, semantic: 'cost' as const },
-    { label: 'Burden', current: currentCost.burden, sim: simulationCost.burden, semantic: 'cost' as const },
-    { label: 'Conversion', current: currentConversion, sim: simulationConversion, semantic: 'cost' as const, subtotal: true },
-    { label: 'Standard Cost', current: currentCost.total, sim: simulationCost.total, semantic: 'cost' as const, total: true }
+    { label: 'Material', before: beforeCost.material, after: afterCost.material, semantic: 'cost' as const },
+    { label: 'Labor', before: beforeCost.labor, after: afterCost.labor, semantic: 'cost' as const },
+    { label: 'Burden', before: beforeCost.burden, after: afterCost.burden, semantic: 'cost' as const },
+    { label: 'Conversion', before: beforeConversion, after: afterConversion, semantic: 'cost' as const, subtotal: true },
+    { label: 'Standard Cost', before: beforeCost.total, after: afterCost.total, semantic: 'cost' as const, total: true }
   ]
   const businessRows = [
-    { label: 'Selling Price', current: currentFinancial.sellingPrice, sim: simulationFinancial.sellingPrice, semantic: 'neutral' as const },
-    { label: 'SG&A', current: currentFinancial.sgaAmountPerPiece, sim: simulationFinancial.sgaAmountPerPiece, semantic: 'neutral' as const },
-    { label: 'Operating Profit', current: currentFinancial.operatingProfitPerPiece, sim: simulationFinancial.operatingProfitPerPiece, semantic: 'profit' as const }
+    { label: 'Selling Price', before: beforeFinancial.sellingPrice, after: afterFinancial.sellingPrice, semantic: 'neutral' as const },
+    { label: 'SG&A', before: beforeFinancial.sgaAmountPerPiece, after: afterFinancial.sgaAmountPerPiece, semantic: 'neutral' as const },
+    { label: 'Operating Profit', before: beforeFinancial.operatingProfitPerPiece, after: afterFinancial.operatingProfitPerPiece, semantic: 'profit' as const }
   ]
   const formatRows = (items: typeof rows | typeof businessRows) => items.map(row => {
-    const current = row.current !== null && Number.isFinite(row.current) ? row.current : null
-    const sim = row.sim !== null && Number.isFinite(row.sim) ? row.sim : null
-    const change = current === null || sim === null ? null : safeAdd(sim, -current)
-    const rawPercent = change === null || current === null || current === 0 ? null : change / current * 100
+    const before = row.before !== null && Number.isFinite(row.before) ? row.before : null
+    const after = row.after !== null && Number.isFinite(row.after) ? row.after : null
+    const change = before === null || after === null ? null : safeAdd(after, -before)
+    const rawPercent = change === null || before === null || before === 0 ? null : change / before * 100
     const percent = rawPercent !== null && Number.isFinite(rawPercent) ? rawPercent : null
-    return { ...row, current, sim, change, percent }
+    return { ...row, before, after, change, percent }
   })
   const costRows = formatRows(rows)
   const formattedBusinessRows = formatRows(businessRows)
@@ -889,8 +1004,8 @@ function ResultPanel({
             : 'text-slate-700'
       }>
         <th scope="row" className={`whitespace-nowrap ${padding} text-left`}>{row.label}</th>
-        <td className={`whitespace-nowrap px-0.5 ${padding} text-right font-mono tabular-nums`}>{displayMoney(row.current)}</td>
-        <td className={`whitespace-nowrap px-0.5 ${padding} text-right font-mono tabular-nums`}>{displayMoney(row.sim)}</td>
+        <td className={`whitespace-nowrap px-0.5 ${padding} text-right font-mono tabular-nums`}>{displayMoney(row.before)}</td>
+        <td className={`whitespace-nowrap px-0.5 ${padding} text-right font-mono tabular-nums`}>{displayMoney(row.after)}</td>
         <td className={`px-1 ${padding} text-right font-mono tabular-nums ${resultChangeClass(row.change, row.semantic)}`}>
           {displayResultDelta(row.change)}
         </td>
@@ -909,20 +1024,25 @@ function ResultPanel({
           <div className="flex items-center gap-1.5">{actions}</div>
         </div>
       </div>
+      <div className="flex min-w-0 items-center gap-1.5 border-b border-slate-100 py-1.5" aria-label="Result comparison">
+        <ComparisonRoleSelector side="Before" role={beforeRole} onChange={role => onChangeComparison(role, afterRole)} />
+        <span aria-hidden="true" className="text-xs text-slate-400">→</span>
+        <ComparisonRoleSelector side="After" role={afterRole} onChange={role => onChangeComparison(beforeRole, role)} />
+      </div>
       <div className="mt-1 min-w-0">
-        <table className="w-full table-fixed text-[10px] leading-3 xl:leading-[11px]">
+        <table className="w-full table-fixed text-[9px] leading-3 xl:leading-[11px]">
           <colgroup>
-            <col className="w-[34%]" />
-            <col className="w-[15%]" />
-            <col className="w-[15%]" />
-            <col className="w-[22%]" />
-            <col className="w-[14%]" />
+            <col className="w-[25%]" />
+            <col className="w-[19%]" />
+            <col className="w-[19%]" />
+            <col className="w-[21%]" />
+            <col className="w-[16%]" />
           </colgroup>
-          <thead className="text-[9px] text-slate-500">
+          <thead className="text-[8px] text-slate-500">
             <tr>
               <th scope="col" className="whitespace-nowrap py-0.5 text-left font-medium"><span className="sr-only">Cost or business outcome</span></th>
-              <th scope="col" className="whitespace-nowrap px-0.5 py-0.5 text-right font-medium xl:py-0">Current</th>
-              <th scope="col" className="whitespace-nowrap px-0.5 py-0.5 text-right font-medium xl:py-0">SIM</th>
+              <th scope="col" className="whitespace-nowrap px-0.5 py-0.5 text-right font-medium xl:py-0">{roleLabel(beforeRole)}</th>
+              <th scope="col" className="whitespace-nowrap px-0.5 py-0.5 text-right font-medium xl:py-0">{roleLabel(afterRole)}</th>
               <th scope="col" className="whitespace-nowrap px-0.5 py-0.5 text-right font-medium xl:py-0">Change</th>
               <th scope="col" className="py-0.5 text-right font-medium xl:py-0">%</th>
             </tr>
@@ -939,25 +1059,17 @@ function ResultPanel({
   )
 }
 
-function createStory(
-  referenceSnapshot: CostSnapshot,
-  currentSnapshot: CostSnapshot,
-  comparison: ReturnType<typeof compareSnapshots>,
-  simulationCost: SnapshotCost,
-  economicResult: ReturnType<typeof calculateEconomicSimulation>
-): ScenarioStory {
-  const referenceBusiness = calculateScenarioBusinessMetrics({
-    sellingPrice: referenceSnapshot.product.sellingPrice ?? null,
-    sgaPercent: referenceSnapshot.product.sgaPercent ?? null
-  }, comparison.referenceCost.total)
-  const currentBusiness = calculateScenarioBusinessMetrics({
-    sellingPrice: currentSnapshot.product.sellingPrice ?? null,
-    sgaPercent: currentSnapshot.product.sgaPercent ?? null
-  }, comparison.currentCost.total)
+function createStory(effectiveDatasets: Record<MasterDataRole, SimulationDatasetView>): ScenarioStory {
+  const financialFor = (role: MasterDataRole): ScenarioFinancialResult => {
+    const dataset = effectiveDatasets[role]
+    const cost = calculateParameterSimulation(dataset.snapshot, dataset.snapshot).afterCost
+    const economics = calculateEconomicSimulation(dataset.snapshot, cost, null, dataset.economicInputs)
+    return createScenarioFinancialResult(cost, economics.business)
+  }
   return createScenarioStory(
-    createScenarioFinancialResult(comparison.referenceCost, referenceBusiness),
-    createScenarioFinancialResult(comparison.currentCost, currentBusiness),
-    createScenarioFinancialResult(simulationCost, economicResult.business)
+    financialFor('reference'),
+    financialFor('current'),
+    financialFor('custom')
   )
 }
 
@@ -966,11 +1078,13 @@ export const SimulationPage: React.FC<SimulationPageProps> = ({
   workingSelection,
   analysisBeforeDataset,
   analysisAfterDataset,
-  referenceSnapshot,
-  currentSnapshot,
+  effectiveDatasets,
   onSelectActiveDataset,
+  onChangeComparison,
   onSend,
+  onSendAll,
   onReset,
+  onResetAll,
   onUpdateParameter,
   onToggleWorkingTarget,
   onUpdateEconomicInput,
@@ -985,10 +1099,6 @@ export const SimulationPage: React.FC<SimulationPageProps> = ({
   const analysisResult = useMemo(
     () => calculateParameterSimulation(analysisBeforeDataset.snapshot, analysisAfterDataset.snapshot),
     [analysisAfterDataset.snapshot, analysisBeforeDataset.snapshot]
-  )
-  const referenceCurrent = useMemo(
-    () => compareSnapshots(referenceSnapshot, currentSnapshot),
-    [referenceSnapshot, currentSnapshot]
   )
   const economicResult = useMemo(
     () => calculateEconomicSimulation(
@@ -1010,42 +1120,37 @@ export const SimulationPage: React.FC<SimulationPageProps> = ({
     () => createScenarioFinancialResult(analysisResult.afterCost, economicResult.business),
     [analysisResult, economicResult]
   )
-  const story = useMemo(
-    () => result && economicResult
-      ? createStory(referenceSnapshot, currentSnapshot, referenceCurrent, analysisResult.afterCost, economicResult)
-      : null,
-    [analysisResult, currentSnapshot, economicResult, referenceCurrent, referenceSnapshot, result]
-  )
+  const story = useMemo(() => createStory(effectiveDatasets), [effectiveDatasets])
 
   if (!simulationSnapshot || !result || !economicResult || !story) {
-    return <div role="status" className="py-8 text-sm text-slate-600">Simulation is initializing from Current.</div>
+    return <div role="status" className="py-8 text-sm text-slate-600">Simulation is initializing.</div>
   }
 
   const unit = resolveSimulationCostUnit(analysisBeforeDataset.snapshot, analysisAfterDataset.snapshot)
 
   const actionMenus = (
     <>
-      <RoleActionMenu
-        label="Edit dataset"
-        onSelect={onSelectActiveDataset}
+      <SplitActionControl
+        label="Send"
+        icon={<Send aria-hidden="true" className="h-4 w-4" />}
+        secondaryLabel="Send all datasets"
+        onPrimary={onSend}
+        onSecondary={onSendAll}
       />
-      <Tooltip label="Send to active dataset">
-        <button type="button" onClick={() => onSend()} aria-label="Send to active dataset" className={resultActionButton}>
-          <Send aria-hidden="true" className="h-4 w-4" />
-        </button>
-      </Tooltip>
-      <Tooltip label="Reset">
-        <button type="button" onClick={onReset} aria-label="Reset Simulation" className={resultActionButton}>
-          <RotateCcw aria-hidden="true" className="h-4 w-4" />
-        </button>
-      </Tooltip>
+      <SplitActionControl
+        label="Reset"
+        icon={<RotateCcw aria-hidden="true" className="h-4 w-4" />}
+        secondaryLabel="Reset all datasets"
+        onPrimary={onReset}
+        onSecondary={onResetAll}
+      />
     </>
   )
 
   return (
     <div className="min-w-0 space-y-3 xl:flex xl:h-full xl:min-h-0 xl:flex-col xl:gap-2 xl:space-y-0 xl:overflow-hidden">
       <div className="grid min-w-0 gap-2 xl:min-h-0 xl:flex-[1.25] xl:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)] xl:grid-rows-1">
-        <SimulationStoryGraph story={story} unit={unit} />
+        <SimulationStoryGraph story={story} unit={unit} activeRole={state.role} onSelectActiveDataset={onSelectActiveDataset} />
         <div className="grid min-w-0 gap-2 xl:h-full xl:min-h-0 xl:grid-cols-[minmax(0,.7fr)_minmax(0,1.3fr)] xl:grid-rows-1">
           <EconomicSimulationPanel
             result={economicResult}
@@ -1058,10 +1163,13 @@ export const SimulationPage: React.FC<SimulationPageProps> = ({
           />
           <div data-simulation-layout-column="result-and-break-even" className="grid min-w-0 gap-2 xl:min-h-0 xl:grid-rows-[minmax(0,1.2fr)_minmax(0,.8fr)]">
             <ResultPanel
-              currentCost={analysisResult.beforeCost}
-              simulationCost={analysisResult.afterCost}
-              currentFinancial={comparisonBeforeFinancial}
-              simulationFinancial={comparisonAfterFinancial}
+              beforeRole={analysisBeforeDataset.role}
+              afterRole={analysisAfterDataset.role}
+              beforeCost={analysisResult.beforeCost}
+              afterCost={analysisResult.afterCost}
+              beforeFinancial={comparisonBeforeFinancial}
+              afterFinancial={comparisonAfterFinancial}
+              onChangeComparison={onChangeComparison}
               actions={actionMenus}
             />
             <EconomicBreakEvenGraphPanel
@@ -1078,6 +1186,7 @@ export const SimulationPage: React.FC<SimulationPageProps> = ({
       <div className="grid min-w-0 gap-2 xl:min-h-0 xl:flex-1 xl:grid-cols-2 xl:grid-rows-[minmax(0,1fr)]">
         <SimulationParameterTable
           kind="bom"
+          activeRole={state.role}
           rows={result.records}
           simulationSnapshot={simulationSnapshot}
           baselineSnapshot={state.baselineSnapshot}
@@ -1089,6 +1198,7 @@ export const SimulationPage: React.FC<SimulationPageProps> = ({
         />
         <SimulationParameterTable
           kind="routing"
+          activeRole={state.role}
           rows={result.records}
           simulationSnapshot={simulationSnapshot}
           baselineSnapshot={state.baselineSnapshot}

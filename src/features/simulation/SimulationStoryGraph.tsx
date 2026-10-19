@@ -1,7 +1,7 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import type { KeyboardEvent, PointerEvent } from 'react'
 import { formatNumber } from '../../core'
-import type { ScenarioFinancialResult, ScenarioStory } from '../../core/types'
+import type { MasterDataRole, ScenarioFinancialResult, ScenarioStory } from '../../core/types'
 import { COST_ELEMENT_COLORS } from '../cost-breakdown/components/cost-element-colors'
 
 type MetricKey = keyof ScenarioFinancialResult
@@ -67,12 +67,14 @@ const useIsomorphicLayoutEffect = typeof window === 'undefined' ? useEffect : us
 const STATE_LAYOUT = [
   { key: 'reference', label: 'Reference', description: 'Reference', x: 180 },
   { key: 'current', label: 'Current', description: 'Current', x: 430 },
-  { key: 'simulated', label: 'Simulation', description: 'Simulation', x: 680 }
+  { key: 'custom', label: 'Custom', description: 'Custom', x: 680 }
 ] as const
 
 interface SimulationStoryGraphProps {
   story: ScenarioStory
   unit: string
+  activeRole: MasterDataRole
+  onSelectActiveDataset: (role: MasterDataRole) => void
 }
 
 interface ActiveGraphTooltip {
@@ -312,7 +314,7 @@ function isGraphTooltipTarget(target: EventTarget | null): boolean {
   return target instanceof Element && target.closest('[data-graph-tooltip]') !== null
 }
 
-export function SimulationStoryGraph({ story, unit }: SimulationStoryGraphProps) {
+export function SimulationStoryGraph({ story, unit, activeRole, onSelectActiveDataset }: SimulationStoryGraphProps) {
   const [visibleLegend, setVisibleLegend] = useState(DEFAULT_LEGEND_VISIBILITY)
   const [isNarrowGraphViewport, setIsNarrowGraphViewport] = useState(() =>
     typeof window !== 'undefined' && window.matchMedia(GRAPH_LABEL_BREAKPOINT).matches)
@@ -327,7 +329,7 @@ export function SimulationStoryGraph({ story, unit }: SimulationStoryGraphProps)
   })), [story])
   const gapValues = useMemo(() => [
     { key: 'gap1', label: 'GAP 1', description: 'Current − Reference', x: 305, values: story.gap1 },
-    { key: 'gap2', label: 'GAP 2', description: 'Simulation − Current', x: 555, values: story.gap2 }
+    { key: 'gap2', label: 'GAP 2', description: 'Custom − Current', x: 555, values: story.gap2 }
   ], [story])
   const stateStacks = useMemo(() => stateValues.map(state => ({
     ...state,
@@ -342,11 +344,11 @@ export function SimulationStoryGraph({ story, unit }: SimulationStoryGraphProps)
     stack: buildVisibleStack(gap.values, COST_PARTS, visibleLegend)
   })), [gapValues, visibleLegend])
   const categoryLabels = [
-    { key: 'reference', label: 'Reference', x: 180, isGap: false as const },
+    { key: 'reference', label: 'Reference', role: 'reference' as const, x: 180, isGap: false as const },
     { key: 'gap1', label: 'GAP 1', description: gapStacks[0].description, x: 305, value: gapStacks[0].stack.total, isGap: true as const },
-    { key: 'current', label: 'Current', x: 430, isGap: false as const },
+    { key: 'current', label: 'Current', role: 'current' as const, x: 430, isGap: false as const },
     { key: 'gap2', label: 'GAP 2', description: gapStacks[1].description, x: 555, value: gapStacks[1].stack.total, isGap: true as const },
-    { key: 'simulated', label: 'Simulation', x: 680, isGap: false as const }
+    { key: 'custom', label: 'Custom', role: 'custom' as const, x: 680, isGap: false as const }
   ]
   const rangeValues = useMemo(() => {
     return finiteRangeValues([
@@ -556,7 +558,7 @@ export function SimulationStoryGraph({ story, unit }: SimulationStoryGraphProps)
           className="simulation-story-chart mt-1 block h-[250px] w-full sm:h-auto xl:h-full"
           style={{ touchAction: 'pan-y' }}
         >
-          <desc id="simulation-story-svg-description">Reference, Current, and Simulation show visible Material, Labor, Burden, SG&amp;A, and sign-matched Profit. Standard Cost is visible Material plus Labor plus Burden. Visible Net is the signed total of visible state-stack segments and excludes Selling Price. GAP 1 is Current minus Reference; GAP 2 is Simulation minus Current. Legend filters change this graph view only, not Result or source data. Selling Price is separate, and the ruler is a comparison guide.</desc>
+          <desc id="simulation-story-svg-description">Reference, Current, and Custom show visible Material, Labor, Burden, SG&amp;A, and sign-matched Profit. Standard Cost is visible Material plus Labor plus Burden. Visible Net is the signed total of visible state-stack segments and excludes Selling Price. GAP 1 is Current minus Reference; GAP 2 is Custom minus Current. Select a dataset label to choose the active parameter workspace. Legend filters change this graph view only, not Result or source data. Selling Price is separate, and the ruler is a comparison guide.</desc>
 
           <g transform="translate(-16 0)">
           {axisTicks.map((value, index) => {
@@ -814,9 +816,26 @@ export function SimulationStoryGraph({ story, unit }: SimulationStoryGraphProps)
                   {signed(category.value)}
                 </text>
               )}
-              <text {...(category.isGap ? tooltipProps(category.description) : {})} x={category.x} y="306" textAnchor="middle" fill="#0f172a" fontSize="11px" fontWeight="700" fontFamily="ui-monospace, monospace">
-                {category.label}
-              </text>
+              {category.isGap ? (
+                <text {...tooltipProps(category.description)} x={category.x} y="306" textAnchor="middle" fill="#0f172a" fontSize="11px" fontWeight="700" fontFamily="ui-monospace, monospace">
+                  {category.label}
+                </text>
+              ) : (
+                <foreignObject x={category.x - 53} y="291" width="106" height="28">
+                  <button
+                    type="button"
+                    aria-label={`Select ${category.label} as active dataset`}
+                    aria-pressed={activeRole === category.role}
+                    onClick={() => onSelectActiveDataset(category.role)}
+                    className={`h-7 w-full rounded-sm border px-1 text-[11px] font-semibold leading-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-blue-700 ${activeRole === category.role
+                      ? 'border-blue-700 bg-blue-50 text-blue-950 shadow-sm'
+                      : 'border-transparent bg-white/90 text-slate-700 hover:border-slate-300 hover:bg-slate-50'
+                    }`}
+                  >
+                    {category.label}
+                  </button>
+                </foreignObject>
+              )}
             </g>
           ))}
           </g>

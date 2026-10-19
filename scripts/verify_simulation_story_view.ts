@@ -106,7 +106,7 @@ try {
   const equalVisibleNet = buildVisibleStack(canonicalStory.current, graphParts, onlyVisibleCosts).total
   assert.equal(equalVisibleNet, buildVisibleStandardCost(canonicalStory.current, onlyVisibleCosts),
     'Visible Net equals the visible Standard Cost when SG&A and Profit are hidden')
-  assert.equal(canonicalStory.simulated.standardCost, 10, 'the authoritative SIM/Result Standard Cost remains 10')
+  assert.equal(canonicalStory.custom.standardCost, 10, 'the authoritative Custom graph Standard Cost remains 10')
   assert.equal(JSON.stringify(canonicalStory), canonicalStoryBeforeFilter,
     'view filtering leaves the source ScenarioStory and Result values unchanged')
   assert.deepEqual(allCostsStack.segments.map(({ part, before, after }) => [part.key, before, after]), [
@@ -208,19 +208,19 @@ try {
     'Gap bars retain their visible signed contribution totals')
   const standardCostLabels = [...graphMarkup.matchAll(/<text\b[^>]*data-graph-standard-cost-value="([^"]+)"[^>]*>([\s\S]*?)<\/text>/g)]
     .map(match => [match[1], match[2].replace(/<title>[\s\S]*?<\/title>/g, '').replace(/<[^>]*>/g, '').trim()])
-  assert.deepEqual(standardCostLabels, [['reference', '90.00'], ['current', '100.00'], ['simulated', '95.00']],
-    'REF/CUR/SIM display Standard Cost at the visible Material + Labor + Burden boundary')
+  assert.deepEqual(standardCostLabels, [['reference', '90.00'], ['current', '100.00'], ['custom', '95.00']],
+    'Reference/Current/Custom display Standard Cost at the visible Material + Labor + Burden boundary')
   const visibleNetLabels = [...graphMarkup.matchAll(/<text\b[^>]*data-graph-visible-net-value="([^"]+)"[^>]*>([\s\S]*?)<\/text>/g)]
     .map(match => [match[1], match[2].replace(/<title>[\s\S]*?<\/title>/g, '').replace(/<[^>]*>/g, '').trim()])
-  assert.deepEqual(visibleNetLabels, [['reference', '120.00'], ['current', '120.00'], ['simulated', '120.00']],
-    'REF/CUR/SIM show the signed total of all visible stack segments')
+  assert.deepEqual(visibleNetLabels, [['reference', '120.00'], ['current', '120.00'], ['custom', '120.00']],
+    'Reference/Current/Custom show the signed total of all visible stack segments')
   assert.doesNotMatch(graphMarkup, /data-graph-visible-net-value="(?:gap1|gap2)"/,
     'Visible Net is not added to GAP 1 or GAP 2')
-  const standardCostLineTags = new Map([...graphMarkup.matchAll(/<line\b[^>]*data-graph-standard-cost="(reference|current|simulated)"[^>]*>/g)]
+  const standardCostLineTags = new Map([...graphMarkup.matchAll(/<line\b[^>]*data-graph-standard-cost="(reference|current|custom)"[^>]*>/g)]
     .map(match => [match[1], match[0]] as const))
-  const standardCostValueTags = new Map([...graphMarkup.matchAll(/<text\b[^>]*data-graph-standard-cost-value="(reference|current|simulated)"[^>]*>/g)]
+  const standardCostValueTags = new Map([...graphMarkup.matchAll(/<text\b[^>]*data-graph-standard-cost-value="(reference|current|custom)"[^>]*>/g)]
     .map(match => [match[1], match[0]] as const))
-  for (const [state, x] of [['reference', 180], ['current', 430], ['simulated', 680]] as const) {
+  for (const [state, x] of [['reference', 180], ['current', 430], ['custom', 680]] as const) {
     const boundaryLine = standardCostLineTags.get(state)
     const valueLabel = standardCostValueTags.get(state)
     assert.ok(boundaryLine && valueLabel, `${state} includes its Standard Cost line and value label`)
@@ -231,15 +231,18 @@ try {
     assert.equal(numericSvgAttribute(valueLabel, 'y') - 8.25, numericSvgAttribute(boundaryLine, 'y1'),
       `${state} Standard Cost value level aligns with its text top edge`)
   }
-  assert.doesNotMatch(graphMarkup, /data-graph-total="(?:reference|current|simulated)"/,
-    'full commercial-stack values are not duplicated above REF/CUR/SIM')
-  assert.deepEqual(svgTextLabels.filter(label => ['Reference', 'GAP 1', 'Current', 'GAP 2', 'Simulation'].includes(label)),
-    ['Reference', 'GAP 1', 'Current', 'GAP 2', 'Simulation'],
-    'the five visible category labels follow the full graph story names')
+  assert.doesNotMatch(graphMarkup, /data-graph-total="(?:reference|current|custom)"/,
+    'full commercial-stack values are not duplicated above dataset states')
+  const datasetButtons = [...graphMarkup.matchAll(/<button\b[^>]*aria-label="Select (Reference|Current|Custom) as active dataset"[^>]*>(Reference|Current|Custom)<\/button>/g)]
+    .map(([, , label]) => label)
+  assert.deepEqual(datasetButtons, ['Reference', 'Current', 'Custom'],
+    'the graph exposes Reference, Current, and Custom as dataset controls')
+  assert.deepEqual(svgTextLabels.filter(label => ['GAP 1', 'GAP 2'].includes(label)), ['GAP 1', 'GAP 2'],
+    'the two fixed gap labels remain informational SVG text')
   assert.ok(!svgTextLabels.some(label => ['REF', 'CUR', 'SIM'].includes(label)),
     'the graph does not show abbreviated category labels')
   assert.match(graphMarkup, /GAP 1 · Current − Reference · Material Gap: \+5\.00 THB\/PC/)
-  assert.match(graphMarkup, /GAP 2 · Simulation − Current · Material Gap: -3\.00 THB\/PC/)
+  assert.match(graphMarkup, /GAP 2 · Custom − Current · Material Gap: -3\.00 THB\/PC/)
   assert.doesNotMatch(graphMarkup, /\bSC [+-]\d/, 'gap labels do not use the ambiguous SC +/- notation')
   const firstBarIndex = graphMarkup.indexOf('fill="#6f99c6"')
   const rulerLineIndex = graphMarkup.indexOf('stroke-dasharray="4 5"')
@@ -253,7 +256,7 @@ try {
     'the graph figure has an accessible name from its visible heading')
   assert.match(graphMarkup, /<svg aria-labelledby="simulation-story-title" aria-describedby="simulation-story-svg-description"/,
     'the SVG retains both its accessible name and description')
-  assert.match(graphMarkup, /<desc id="simulation-story-svg-description">Reference, Current, and Simulation show visible/,
+  assert.match(graphMarkup, /<desc id="simulation-story-svg-description">Reference, Current, and Custom show visible/,
     'the SVG description retains the full scenario names for assistive technology')
   assert.match(graphMarkup, /preserveAspectRatio="xMidYMid meet"/,
     'the responsive graph preserves circular markers and undistorted text and lines')
@@ -294,7 +297,7 @@ try {
   assert.match(graphHeaderClasses, /xl:flex-nowrap/, 'desktop graph title, legend, and Show all stay on one row')
   assert.doesNotMatch(graphHeaderClasses, /justify-between/,
     'the graph title and legend stay grouped instead of pushing the legend to the far edge')
-  assert.match(graphMarkup, /GAP 1 is Current minus Reference; GAP 2 is Simulation minus Current/)
+  assert.match(graphMarkup, /GAP 1 is Current minus Reference; GAP 2 is Custom minus Current/)
   assert.match(graphMarkup, /Legend filters change this graph view only, not Result or source data/)
   assert.match(graphMarkup, /data-y-axis="true"/, 'the graph renders a visible Y-axis line')
   assert.match(graphMarkup, /data-y-axis-unit="true"[^>]*>THB\/PC<\/text>/, 'the dynamic UOM is attached to the Y axis')
@@ -309,7 +312,7 @@ try {
   for (const [state, value, tooltip] of [
     ['reference', '90.00', 'Reference Standard Cost · 90.00 THB/PC'],
     ['current', '100.00', 'Current Standard Cost · 100.00 THB/PC'],
-    ['simulated', '95.00', 'Simulation Standard Cost · 95.00 THB/PC']
+    ['custom', '95.00', 'Custom Standard Cost · 95.00 THB/PC']
   ]) {
     assert.match(graphMarkup, new RegExp(`data-graph-standard-cost="${state}"`), `${state} Standard Cost boundary remains visible`)
     assert.ok(graphMarkup.includes(`aria-label="${tooltip}"`), `${state} Standard Cost tooltip uses its visible value and UOM`)
@@ -472,15 +475,10 @@ try {
     financial(tooltipReference, 120, 8), financial(tooltipCurrent, 120, 10), financial(tooltipSim, 120, 10)
   )
   const tooltipMarkup = renderToStaticMarkup(React.createElement(SimulationStoryGraph, { story: tooltipStory, unit: 'KG' }))
-  const categoryTooltipTags = new Map([...tooltipMarkup.matchAll(/<text\b[^>]*>(Reference|GAP 1|Current|GAP 2|Simulation)<\/text>/g)]
+  const categoryTooltipTags = new Map([...tooltipMarkup.matchAll(/<text\b[^>]*>(GAP 1|GAP 2)<\/text>/g)]
     .map(match => [match[1], match[0]] as const))
-  for (const label of ['Reference', 'Current', 'Simulation']) {
-    const categoryTag = categoryTooltipTags.get(label) ?? ''
-    assert.doesNotMatch(categoryTag, /data-graph-tooltip="true"|aria-label=/,
-      `${label} bottom category label has no redundant tooltip`)
-  }
   for (const [label, tooltip] of [
-    ['GAP 1', 'Current − Reference'], ['GAP 2', 'Simulation − Current']
+    ['GAP 1', 'Current − Reference'], ['GAP 2', 'Custom − Current']
   ]) {
     const categoryTag = categoryTooltipTags.get(label)
     assert.ok(categoryTag?.includes('data-graph-tooltip="true"') && categoryTag.includes(`aria-label="${tooltip}"`),
@@ -490,19 +488,19 @@ try {
   const gap2TotalTooltipTag = tooltipMarkup.match(/<text\b[^>]*data-graph-total="gap2"[^>]*>/)?.[0] ?? ''
   assert.ok(gap1TotalTooltipTag.includes('aria-label="Current − Reference total: +12.00 THB/KG"'),
     'GAP 1 total retains its useful value tooltip')
-  assert.ok(gap2TotalTooltipTag.includes('aria-label="Simulation − Current total: -8.00 THB/KG"'),
+  assert.ok(gap2TotalTooltipTag.includes('aria-label="Custom − Current total: -8.00 THB/KG"'),
     'GAP 2 total retains its useful value tooltip')
   for (const tooltip of [
-    'Reference Visible Net · 120.00 THB/KG', 'Current Visible Net · 120.00 THB/KG', 'Simulation Visible Net · 120.00 THB/KG',
+    'Reference Visible Net · 120.00 THB/KG', 'Current Visible Net · 120.00 THB/KG', 'Custom Visible Net · 120.00 THB/KG',
     'Reference Material: 60.00 THB/KG', 'Reference Labor: 20.00 THB/KG', 'Reference Burden: 10.00 THB/KG',
     'Reference SG&amp;A: 9.60 THB/KG', 'Reference Operating Profit: 20.40 THB/KG',
     'Current Material: 65.00 THB/KG', 'Current Labor: 22.00 THB/KG', 'Current Burden: 15.00 THB/KG',
     'Current SG&amp;A: 12.00 THB/KG', 'Current Operating Profit: 6.00 THB/KG',
-    'Simulation Material: 62.00 THB/KG', 'Simulation Labor: 19.00 THB/KG', 'Simulation Burden: 13.00 THB/KG',
-    'Simulation SG&amp;A: 12.00 THB/KG', 'Simulation Operating Profit: 14.00 THB/KG',
+    'Custom Material: 62.00 THB/KG', 'Custom Labor: 19.00 THB/KG', 'Custom Burden: 13.00 THB/KG',
+    'Custom SG&amp;A: 12.00 THB/KG', 'Custom Operating Profit: 14.00 THB/KG',
     'GAP 1 · Current − Reference · Material Gap: +5.00 THB/KG', 'GAP 1 · Current − Reference · Labor Gap: +2.00 THB/KG', 'GAP 1 · Current − Reference · Burden Gap: +5.00 THB/KG',
-    'GAP 2 · Simulation − Current · Material Gap: -3.00 THB/KG', 'GAP 2 · Simulation − Current · Labor Gap: -3.00 THB/KG', 'GAP 2 · Simulation − Current · Burden Gap: -2.00 THB/KG',
-    'Reference Selling Price: 120.00 THB/KG', 'Current Selling Price: 120.00 THB/KG', 'Simulation Selling Price: 120.00 THB/KG'
+    'GAP 2 · Custom − Current · Material Gap: -3.00 THB/KG', 'GAP 2 · Custom − Current · Labor Gap: -3.00 THB/KG', 'GAP 2 · Custom − Current · Burden Gap: -2.00 THB/KG',
+    'Reference Selling Price: 120.00 THB/KG', 'Current Selling Price: 120.00 THB/KG', 'Custom Selling Price: 120.00 THB/KG'
   ]) assert.ok(tooltipMarkup.includes(tooltip), `graph tooltip identifies its series and resolved unit: ${tooltip}`)
   assert.match(tooltipMarkup, />THB\/KG<\/text>/, 'the Y axis uses a different product UOM dynamically')
 
@@ -510,7 +508,7 @@ try {
   const zeroGapMarkup = renderToStaticMarkup(React.createElement(SimulationStoryGraph, { story: zeroGapStory, unit: 'PC' }))
   const zeroGapTotalTag = zeroGapMarkup.match(/<text\b[^>]*data-graph-total="gap2"[^>]*>/)?.[0] ?? ''
   assert.match(zeroGapTotalTag, /fill="#475569"/, 'zero gap totals remain neutral')
-  assert.match(zeroGapTotalTag, /aria-label="Simulation − Current total: 0\.00 THB\/PC"/)
+  assert.match(zeroGapTotalTag, /aria-label="Custom − Current total: 0\.00 THB\/PC"/)
 
   const zeroProfitFinancial = financial(cost('equal-visible-net', 4, 3, 3), 10, 0)
   const equalNetStory = createScenarioStory(zeroProfitFinancial, zeroProfitFinancial, zeroProfitFinancial)
@@ -521,7 +519,7 @@ try {
     'effectively equal Visible Net does not render a duplicate number')
   assert.deepEqual([...equalNetMarkup.matchAll(/<text\b[^>]*data-graph-standard-cost-value="([^"]+)"[^>]*>([^<]+)<\/text>/g)]
     .map(([, state, value]) => [state, value]),
-  [['reference', '10.00'], ['current', '10.00'], ['simulated', '10.00']],
+  [['reference', '10.00'], ['current', '10.00'], ['custom', '10.00']],
   'suppressing an equal Visible Net leaves every Standard Cost value intact')
 
   const nearEqualFinancial = { ...zeroProfitFinancial, sgaAmountPerPiece: 0.004, sellingPrice: 20 }
@@ -532,7 +530,7 @@ try {
     'Visible Net is suppressed when it rounds to the same displayed value as Standard Cost')
   assert.deepEqual([...nearEqualMarkup.matchAll(/<text\b[^>]*data-graph-standard-cost-value="([^"]+)"[^>]*>([^<]+)<\/text>/g)]
     .map(([, state, value]) => [state, value]),
-  [['reference', '10.00'], ['current', '10.00'], ['simulated', '10.00']],
+  [['reference', '10.00'], ['current', '10.00'], ['custom', '10.00']],
   'rounding-based duplicate suppression does not hide or alter Standard Cost')
 
   const markupFor = (referenceFinancial: ScenarioFinancialResult,
@@ -707,13 +705,13 @@ try {
     'case 12: GAP 1 and GAP 2 have no Visible Net labels')
 
   const negativeOPStory = createScenarioStory(financial(reference, 120, 10), financial(current, 120, 10), financial(cost('loss', 90, 0, 0), 80, 10))
-  assert.equal(negativeOPStory.simulated.operatingProfitPerPiece, -18, 'negative OP remains a valid story value')
+  assert.equal(negativeOPStory.custom.operatingProfitPerPiece, -18, 'negative OP remains a valid story value')
   const negativeOPMarkup = renderToStaticMarkup(React.createElement(SimulationStoryGraph, { story: negativeOPStory, unit: 'PC' }))
-  assert.match(negativeOPMarkup, /Simulation Operating Profit: -18\.00 THB\/PC/)
+  assert.match(negativeOPMarkup, /Custom Operating Profit: -18\.00 THB\/PC/)
   assert.ok(negativeOPMarkup.includes('fill="#cc7489"'), 'negative Profit uses its softer red sign color')
   const negativeOnlyLegend = { ...allLegendVisible, material: false, labor: false, burden: false, sga: false, opPositive: false }
-  const negativeVisibleStack = buildVisibleStack(negativeOPStory.simulated, graphParts, negativeOnlyLegend)
-  const negativeVisibleStandardCost = buildVisibleStandardCost(negativeOPStory.simulated, negativeOnlyLegend)
+  const negativeVisibleStack = buildVisibleStack(negativeOPStory.custom, graphParts, negativeOnlyLegend)
+  const negativeVisibleStandardCost = buildVisibleStandardCost(negativeOPStory.custom, negativeOnlyLegend)
   assert.equal(negativeVisibleStack.total, -18, 'negative Visible Net remains signed after legend filtering')
   assert.equal(negativeVisibleStandardCost, 0, 'hiding costs leaves a zero Standard Cost')
   const negativeNetFinancial = {
@@ -723,8 +721,8 @@ try {
   const negativeNetMarkup = renderToStaticMarkup(React.createElement(SimulationStoryGraph, {
     story: createScenarioStory(negativeNetFinancial, negativeNetFinancial, negativeNetFinancial), unit: 'PC'
   }))
-  const negativeNetLabel = graphLabelTag(negativeNetMarkup, 'data-graph-visible-net-value', 'simulated')
-  assert.equal(graphLabelText(negativeNetMarkup, 'data-graph-visible-net-value', 'simulated'), '-18.00',
+  const negativeNetLabel = graphLabelTag(negativeNetMarkup, 'data-graph-visible-net-value', 'custom')
+  assert.equal(graphLabelText(negativeNetMarkup, 'data-graph-visible-net-value', 'custom'), '-18.00',
     'the rendered negative Visible Net keeps its signed value')
   assert.match(negativeNetLabel, /data-graph-visible-net-position="below"/,
     'a negative Visible Net is placed below its own stack endpoint')
