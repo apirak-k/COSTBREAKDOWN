@@ -207,7 +207,7 @@ export function setSimulationEconomicInput(
   state: SimulationWorkspaceState,
   field: EconomicSimulationField,
   value: string,
-  role = state.activeDataset
+  role: MasterDataRole
 ): SimulationWorkspaceState {
   if (!isMasterDataRole(role)) return state
   const dataset = state.datasets[role]

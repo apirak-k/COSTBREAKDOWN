@@ -9,7 +9,7 @@ import type { EconomicSimulationDraft, EconomicSimulationResult, EconomicSimulat
 interface EconomicSimulationPanelProps {
   result: EconomicSimulationResult
   draft: EconomicSimulationDraft
-  currentSnapshot: CostSnapshot
+  afterSnapshot: CostSnapshot
   unit: string
   onUpdate: (field: EconomicSimulationField, value: string) => void
   onBeginEdit: () => void
@@ -27,15 +27,15 @@ function formatQuantity(value: number | null, unit: string): string {
 function effectiveInputValue(
   field: EconomicSimulationField,
   draft: EconomicSimulationDraft,
-  currentSnapshot: CostSnapshot
+  afterSnapshot: CostSnapshot
 ): number | null {
   if (draft[field].trim() !== '') return Number(draft[field])
   if (field === 'sellingPriceOverride') {
-    const value = currentSnapshot.product.sellingPrice
+    const value = afterSnapshot.product.sellingPrice
     return value !== null && value !== undefined && Number.isFinite(value) && value >= 0 ? value : null
   }
   if (field === 'sgaPercentOverride') {
-    const value = currentSnapshot.product.sgaPercent
+    const value = afterSnapshot.product.sgaPercent
     return value !== null && value !== undefined && Number.isFinite(value) && value >= 0 && value <= 100 ? value : null
   }
   return null
@@ -264,7 +264,7 @@ export function EconomicBreakEvenGraphPanel({
   )
 }
 
-export function EconomicSimulationPanel({ result, draft, currentSnapshot, unit, onUpdate, onBeginEdit, onCommitEdit }: EconomicSimulationPanelProps) {
+export function EconomicSimulationPanel({ result, draft, afterSnapshot, unit, onUpdate, onBeginEdit, onCommitEdit }: EconomicSimulationPanelProps) {
   const normalizedUnit = unit.trim() || 'Unit'
   const inputs: Array<{
     field: EconomicSimulationField
@@ -312,7 +312,7 @@ export function EconomicSimulationPanel({ result, draft, currentSnapshot, unit, 
                 <span className="w-full min-w-0">
                   <SimulationHistoryInputBoundary onBegin={onBeginEdit} onCommit={onCommitEdit}>
                     <NumericInput
-                      value={effectiveInputValue(field, draft, currentSnapshot)}
+                      value={effectiveInputValue(field, draft, afterSnapshot)}
                       precision={precision}
                       min={min}
                       max={max}
@@ -336,7 +336,7 @@ export function EconomicSimulationPanel({ result, draft, currentSnapshot, unit, 
                 <span className="w-full min-w-0">
                   <SimulationHistoryInputBoundary onBegin={onBeginEdit} onCommit={onCommitEdit}>
                     <NumericInput
-                      value={effectiveInputValue(field, draft, currentSnapshot)}
+                      value={effectiveInputValue(field, draft, afterSnapshot)}
                       precision={precision}
                       integer={integer}
                       min={min}

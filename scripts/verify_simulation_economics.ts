@@ -40,7 +40,7 @@ const renderPanel = (result: ReturnType<typeof calculateEconomicSimulation>, dra
   renderToStaticMarkup(React.createElement(EconomicSimulationPanel, {
     result,
     draft,
-    currentSnapshot,
+    afterSnapshot: currentSnapshot,
     unit: 'PC',
     onUpdate() {},
     onBeginEdit() {},
@@ -210,7 +210,7 @@ assert.ok(fractionalPoint, 'precise intersection remains accessible')
 const expectedPointX = 56 + (higherVariableCost.preciseBreakEvenQuantity / (higherVariableCost.preciseBreakEvenQuantity * 1.12)) * (540 - 56)
 assert.equal(Number(fractionalPoint[1]), expectedPointX, 'intersection geometry uses precise quantity rather than rounded threshold')
 const customUnitMarkup = renderToStaticMarkup(React.createElement(EconomicSimulationPanel, {
-  result: baseResult, draft: worked, currentSnapshot, unit: 'KG', onUpdate() {}, onBeginEdit() {}, onCommitEdit() {}
+  result: baseResult, draft: worked, afterSnapshot: currentSnapshot, unit: 'KG', onUpdate() {}, onBeginEdit() {}, onCommitEdit() {}
 }))
 assert.match(customUnitMarkup, /<span>THB\/KG<\/span>/, 'Outcome uses the resolved dynamic product UOM')
 for (const [unit, resolvedUnit] of [['KG', 'KG'], ['   ', 'Unit']]) {
@@ -259,7 +259,7 @@ for (const [label, value] of [['Selling Price', '250.00'], ['SG&amp;A %', '8.00'
 const panelTree = EconomicSimulationPanel({
   result: calculateEconomicSimulation(currentSnapshot, simulationCost, null, initialDraft),
   draft: initialDraft,
-  currentSnapshot,
+  afterSnapshot: currentSnapshot,
   unit: 'PC',
   onUpdate() {},
   onBeginEdit() {},

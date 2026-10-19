@@ -11,7 +11,7 @@ Master Data → Cost Breakdown → Simulation
 
 Simulation is an isolated what-if workspace. It does not add an approval, Trial, Candidate, or RCA stage.
 
-**Phase 1 architecture update (2026-10-19 user decision):** Master Data Reference, Current, and Custom Working datasets remain the only datasets and the source of truth. Simulation stores role-keyed parameter overrides over each latest Working dataset and derives an effective dataset when needed; it does not persist a fourth SIM snapshot or copy dataset structure. Each effective dataset retains its own rates. Master Working changes rebase only the changed role. `activeDataset` is independent of `comparisonBefore` and `comparisonAfter`; all nine ordered comparison pairs, including self-pairs, are valid. Defaults are active Current and Reference → Current. The existing visible Current/SIM result and graph remain for compatibility in this phase; generic comparison selectors, labels, and graph changes remain later-phase work.
+**Phase 1 architecture update (2026-10-19 user decision):** Master Data Reference, Current, and Custom Working datasets remain the only datasets and the source of truth. Simulation stores role-keyed parameter overrides and Business/Economic drafts over each latest Working dataset and derives effective datasets when needed; it does not persist a fourth SIM snapshot or copy dataset structure. Parameter edits target `activeDataset`. Result and Economic calculations use the effective `comparisonBefore → comparisonAfter` pair; the After role owns the Business/Economic draft and defaults. Each effective dataset retains its own rates. Master Working changes rebase only the changed role. `activeDataset` is independent of both comparison roles; all nine ordered pairs, including self-pairs, are valid. Defaults are active Current and Reference → Current. Existing Current/SIM labels and graph presentation remain for compatibility; visible comparison selectors, labels, and graph changes remain later-phase work.
 
 ## 1. Workspace lifecycle
 
@@ -25,7 +25,7 @@ There is no Simulation clone snapshot in the Phase 1 state model. The existing *
 
 **Reset** clears parameter overrides only for `activeDataset`, rebasing it to that role's latest Working values. **Reset All** clears all three roles independently. Neither operation writes Master Data. Role-local economic inputs and worklist selection are retained when their Master basis remains current. Reset All has no visible control yet.
 
-For all five Economic/Business numeric inputs, blank is distinct from zero and remains visibly blank after the user clears it, including after state reconciliation or rerender. Their steppers can decrement from the minimum valid value to blank: `0` for Fixed Action Cost, Variable Action Cost / pc, Selling Price, and SG&A %, and `1` for Batch Size. Selling Price and SG&A use the active role's values as visible defaults on initial setup and Reset; blank values continue to use the existing Current fallback in the visible Current/SIM economic calculation.
+For all five Economic/Business numeric inputs, blank is distinct from zero and remains visibly blank after the user clears it, including after state reconciliation or rerender. Their steppers can decrement from the minimum valid value to blank: `0` for Fixed Action Cost, Variable Action Cost / pc, Selling Price, and SG&A %, and `1` for Batch Size. Selling Price and SG&A use the `comparisonAfter` role's values as defaults; blank values fall back to that effective After dataset's Master Working values. Reset still follows `activeDataset` and preserves role-local economic inputs.
 
 If a Master Working dataset changes, only that role's override state is rebased to the new basis; overrides for unchanged roles remain. A schema-versioned persistence shape is reconciled defensively. A versionless old single-SIM state is migrated only when it can be proven to be a parameter-only edit over unchanged Current structure and rates; otherwise its snapshot is discarded. Unknown schema versions are discarded safely. Per-product state pruning remains in effect.
 
@@ -46,7 +46,7 @@ Simulation is temporary. It stores parameter overrides only; structure is always
 
 Match by canonical business identity, never row position: BOM material identity, Work Center identity, and Routing process identity. Missing, duplicate, ambiguous, or unsafe identity is protected; do not guess or fabricate an attribution.
 
-Normal editable rows display exactly `CHANGED` or `UNCHANGED`. Compare committed BOM Price/Usage/Loss or RTG Manning/Capacity/Yield with the latest Master Working baseline for `activeDataset`, using stable row IDs. All parameters equal means `UNCHANGED`; any difference means `CHANGED`. Invalid drafts do not change authoritative status. Undo back to baseline and Reset restore `UNCHANGED`. The visible Result keeps the compatibility Current → active effective dataset comparison until later UI phases expose the generic comparison pair.
+Normal editable rows display exactly `CHANGED` or `UNCHANGED`. Compare committed BOM Price/Usage/Loss or RTG Manning/Capacity/Yield with the latest Master Working baseline for `activeDataset`, using stable row IDs. All parameters equal means `UNCHANGED`; any difference means `CHANGED`. Invalid drafts do not change authoritative status. Undo back to baseline and Reset restore `UNCHANGED`. Parameter editor rows stay scoped to `activeDataset`; the Result card keeps its legacy Current/SIM labels while its values use `comparisonBefore → comparisonAfter`.
 
 Legacy structural, missing, ambiguous, or protected rows remain safely visible where needed. Missing SIM rows and unsafe identities cannot be edited/selected. They do not introduce ADDED/REMOVED as normal editable status labels. CHANGED uses CBD's compact bold amber treatment; UNCHANGED uses its compact bold slate treatment.
 
@@ -90,12 +90,12 @@ Standard Cost = Direct Material + Labor + Burden
 
 Missing or invalid required values make the corresponding result unavailable. Do not substitute zero. Negative analytical differences are valid.
 
-The Result panel remains a read-only `Current → active effective dataset` comparison (the existing visible `Current` and `SIM` labels remain during Phase 1) and contains two sections in this order:
+The Result panel remains read-only and contains two sections in this order. During Phase 1 its visible `Current` and `SIM` labels are retained for compatibility; its values come from `comparisonBefore → comparisonAfter`:
 
 1. **Cost / Unit** — `Cost | Current | SIM | Change | %`, with visible rows **Material, Labor, Burden, Conversion, and Standard Cost**. The shorter labels change presentation only; BOM/RTG column headers remain Material Cost and Conversion Cost.
 2. **Business Outcome / Unit** — Selling Price, monetary SG&A, and Operating Profit, using the same Current, SIM, Change, and % columns.
 
-The panel uses the authoritative Current and active effective dataset costs and business metrics. Selling Price and SG&A overrides use the effective Simulation values. Business Outcome does not enter GAP 1 / GAP 2 or Action Break-even. A lower cost is favorable (green) and a higher cost is unfavorable (red). Operating Profit uses the opposite direction: an increase is favorable (green), a decrease is unfavorable (red). Selling Price and SG&A comparisons use neutral change styling. Conversion Cost is presented as the subtotal of Labor Cost and Burden Cost with a stronger separator, slight vertical breathing room, and semibold text; Standard Cost remains the stronger final total within Cost / Unit. Business panel outputs are labeled **SG&A** and **Operating Profit**; their values display the unit separately.
+The panel uses the effective Before and After costs and business metrics. Before Business values use the effective Before dataset's Master values; After Selling Price and SG&A use the role-local `comparisonAfter` draft, with blank inputs falling back to that effective After dataset. Business Outcome does not enter GAP 1 / GAP 2 or Action Break-even. A lower cost is favorable (green) and a higher cost is unfavorable (red). Operating Profit uses the opposite direction: an increase is favorable (green), a decrease is unfavorable (red). Selling Price and SG&A comparisons use neutral change styling. Conversion Cost is presented as the subtotal of Labor Cost and Burden Cost with a stronger separator, slight vertical breathing room, and semibold text; Standard Cost remains the stronger final total within Cost / Unit. Business panel outputs are labeled **SG&A** and **Operating Profit**; their values display the unit separately.
 
 For every row:
 
@@ -123,7 +123,7 @@ Each BOM and Routing row can expand a compact **Parameter Cost Effect** detail. 
 
 ## 4. Economic and Business Analysis
 
-The shared card has exactly two main headings, **Business** and **Economic**, over the same SIM snapshot. Business contains Selling Price and SG&A %. Economic contains Variable Action Cost, Fixed Action Cost, and Batch Size, followed by a subordinate **Outcome** subsection. The main Business/Economic divider sits in whitespace after the SG&A editor with visible breathing room on both sides. An inset, subtle horizontal divider separates Outcome from its inputs; it is lighter than the main split and remains inside Economic. Outcome places **THB/<resolved UOM>** at the right of its heading, then shows exactly **Parameter Saving**, **Required Saving**, and **Economic Margin** with numeric-only values. Full per-unit accessible names, formula tooltips, unavailable states, and favorable/unfavorable colors remain; units are not repeated per row. Economic inputs do not change MAT, Labor, Burden, Conversion, or Standard Cost. Business assumptions do not enter the Action Break-even formula. Both are advisory and never an approval gate.
+The shared card has exactly two main headings, **Business** and **Economic**, over the selected comparison context. Business uses effective After and its Selling Price/SG&A draft. Economic uses the selected effective Before → After cost pair and the After role's action-cost inputs. Business contains Selling Price and SG&A %. Economic contains Variable Action Cost, Fixed Action Cost, and Batch Size, followed by a subordinate **Outcome** subsection. The main Business/Economic divider sits in whitespace after the SG&A editor with visible breathing room on both sides. An inset, subtle horizontal divider separates Outcome from its inputs; it is lighter than the main split and remains inside Economic. Outcome places **THB/<resolved UOM>** at the right of its heading, then shows exactly **Parameter Saving**, **Required Saving**, and **Economic Margin** with numeric-only values. Full per-unit accessible names, formula tooltips, unavailable states, and favorable/unfavorable colors remain; units are not repeated per row. Economic inputs do not change MAT, Labor, Burden, Conversion, or Standard Cost. Business assumptions do not enter the Action Break-even formula. Both are advisory and never an approval gate.
 
 Simulation uses the shared first-focus input behavior for parameter, Economic, and Business editors: each focus entry selects the full current value, including when reached by Tab. A subsequent click can reposition the caret; arrows, partial selection, typing, deletion, paste, numeric stepping, and validation retain their normal editor behavior.
 
@@ -138,7 +138,7 @@ Editable Action Economics inputs:
 Calculated, read-only outputs:
 
 ```text
-Parameter Saving / Unit = Current Standard Cost − SIM Standard Cost
+Parameter Saving / Unit = effective Before Standard Cost − effective After Standard Cost
 Required Saving / Unit = (Fixed Action Cost / Batch Size) + Variable Action Cost / Unit
 Economic Margin / Unit = Parameter Saving / Unit − Required Saving / Unit
 Break-even Quantity = Fixed Action Cost / (Parameter Saving / Unit − Variable Action Cost / Unit)
@@ -165,15 +165,15 @@ Break-even graph lines and the intersection retain accessible names, and the Bat
 
 Editable assumptions:
 
-1. Selling Price override, initialized and reset to the active role's Selling Price, finite and `>= 0`.
-2. SG&A % override, initialized and reset to the active role's SG&A %, `0–100%` inclusive.
+1. Selling Price override, initialized from the `comparisonAfter` role's Selling Price, finite and `>= 0`; blank falls back to effective After Selling Price.
+2. SG&A % override, initialized from the `comparisonAfter` role's SG&A %, `0–100%` inclusive; blank falls back to effective After SG&A %.
 
 Calculated, read-only outputs:
 
 ```text
-SIM Standard Cost = authoritative SIM cost-engine total
-SG&A / Unit = Effective Selling Price × Effective SG&A % / 100
-Operating Profit / Unit = Effective Selling Price − SIM Standard Cost − SG&A / Unit
+Effective After Standard Cost = comparison pair's After cost-engine total
+SG&A / Unit = Effective After Selling Price × Effective After SG&A % / 100
+Operating Profit / Unit = Effective After Selling Price − effective After Standard Cost − SG&A / Unit
 ```
 
 Changing Selling Price or SG&A changes Business outputs only; it does not alter Parameter Saving, Required Saving, Economic Margin, Break-even Quantity, or Break-even graph geometry. Negative Economic Margin and Operating Profit are valid. Positive/negative outputs use favorable/unfavorable semantics, while zero is neutral. Continuous monetary values display to two decimals; Batch Size and whole-quantity Break-even display as integers.
@@ -187,7 +187,7 @@ REF → GAP 1 → CUR → GAP 2 → SIM
 GAP 1 = Current − Reference
 GAP 2 = SIM − Current
 Result Change = SIM − Current
-Parameter Saving = Current − SIM
+Parameter Saving = effective Before − effective After
 ```
 
 The graph title is **Simulation Cost Structure**. The underlying story remains `REF → GAP 1 → CUR → GAP 2 → SIM`; its visible category labels are `Reference | GAP 1 | Current | GAP 2 | Simulation`. These names are presentation labels and do not change the scenario identities or graph order. Reference, Current, and Simulation show Material, Labor, Burden, SG&A, and sign-matched Profit. Their visible Standard Cost remains Material + Labor + Burden only; its value and subtle neutral/slate outline group follow the currently visible cost contributors. The outline has no fill and is not another cost segment. SG&A and Profit stay outside the Standard Cost group and do not enter its value.
@@ -255,7 +255,7 @@ Current Routing `[Cut, Form]`, Custom Routing `[Cut, Form, Polish]`, then select
 
 ## 8. Simulation Undo / Redo
 
-Simulation keeps a separate chronological history for each product and role. A role history records committed BOM Price/Usage/Loss, RTG Manning/Capacity/Yield, and that role's Economic inputs. Undo reverses actions in order; Redo reapplies them, and a new edit after Undo clears that role's Redo stack. Switching active roles changes the history in scope. Send to Master Data is excluded.
+Simulation keeps a separate chronological history for each product and role. Parameter edits are recorded under `activeDataset`; Business/Economic edits are recorded under `comparisonAfter`. Undo/Redo follows the role that owns the most recent history entry, so changing only `activeDataset` does not reinterpret an Economic entry. Undo reverses actions in order; Redo reapplies them, and a new edit after Undo clears that role's Redo stack. Send to Master Data is excluded.
 
 Each history is scoped to its role's Working basis. A basis change invalidates only that role's stale entries. Each entry stores authoritative editable values keyed by stable Simulation record IDs and the role's Economic draft; rates, derived results, selection, expansion, focus, scroll, graph legend/ruler state, and transient invalid drafts are excluded. Applying an entry preserves that role's Simulation-local selection and its own Work Center rate context, then recalculates all derived values.
 

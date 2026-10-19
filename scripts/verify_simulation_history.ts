@@ -15,6 +15,8 @@ try {
     createEmptySimulationState,
     getEffectiveSimulationDataset,
     resetSimulationParameters,
+    setSimulationActiveDataset,
+    setSimulationComparison,
     setSimulationEconomicInput,
     toggleSimulationWorkingTarget
   } = await vite.ssrLoadModule('/src/features/simulation/simulation-state.ts')
@@ -29,7 +31,8 @@ try {
     undoSimulationHistory
   } = await vite.ssrLoadModule('/src/features/simulation/simulation-history.ts')
 
-  const sources = createCompleteMasterDataMockPair()
+  const sourcePair = createCompleteMasterDataMockPair()
+  const sources = { ...sourcePair, custom: { ...sourcePair.current, id: 'synthetic-custom' } }
   const base = createEmptySimulationState(sources)
   const view = (state, role = 'current') => getEffectiveSimulationDataset(sources, state, role)
   assert.equal(base.schemaVersion, 2)
@@ -202,12 +205,49 @@ try {
   assert.equal(view(restoredReference, 'reference').snapshot.bom[0].price,
     sources.reference.bom[0].price, 'Reference override is cleared by its own history operation')
 
+  const splitContext = setSimulationComparison(
+    setSimulationActiveDataset(base, 'current'), 'reference', 'custom'
+  )
+  const splitCurrentEdit = updateSimulationParameter(splitContext, sources, firstBom.id,
+    'bom.price', (firstBom.price ?? 0) + 9, 'current')
+  const splitCustomEdit = setSimulationEconomicInput(splitCurrentEdit, 'sellingPriceOverride', '444', 'custom')
+  const activeMoved = setSimulationActiveDataset(splitCustomEdit, 'reference')
+  assert.equal(activeMoved.comparisonAfter, 'custom', 'activeDataset changes do not reinterpret the analysis context')
+  assert.equal(view(activeMoved, 'custom').economicInputs.sellingPriceOverride, '444',
+    'After Custom economic state remains intact when activeDataset changes')
+
+  const currentSplitBefore = captureSimulationEditableSnapshot(sources, splitContext, 'current')
+  const currentSplitAfter = captureSimulationEditableSnapshot(sources, splitCurrentEdit, 'current')
+  const customSplitBefore = captureSimulationEditableSnapshot(sources, splitCurrentEdit, 'custom')
+  const customSplitAfter = captureSimulationEditableSnapshot(sources, splitCustomEdit, 'custom')
+  const currentSplitHistory = recordSimulationHistory(
+    createSimulationHistory(view(base, 'current').basisFingerprint), currentSplitBefore, currentSplitAfter
+  )
+  const customSplitHistory = recordSimulationHistory(
+    createSimulationHistory(view(base, 'custom').basisFingerprint), customSplitBefore, customSplitAfter
+  )
+  const undoCustomEconomic = undoSimulationHistory(customSplitHistory, customSplitAfter)
+  assert.ok(undoCustomEconomic.snapshot, 'Undo targets the role that owns the After Economic edit')
+  const afterEconomicUndo = applySimulationEditableSnapshot(sources, splitCustomEdit, undoCustomEconomic.snapshot!, 'custom')
+  assert.ok(afterEconomicUndo)
+  assert.equal(view(afterEconomicUndo, 'current').snapshot.bom[0].price, view(splitCurrentEdit, 'current').snapshot.bom[0].price,
+    'undoing Custom Economics leaves Current parameter edits untouched')
+  const undoCurrentParameter = undoSimulationHistory(currentSplitHistory, currentSplitAfter)
+  assert.ok(undoCurrentParameter.snapshot, 'Current parameter edit retains its own history')
+  const afterParameterUndo = applySimulationEditableSnapshot(sources, afterEconomicUndo, undoCurrentParameter.snapshot!, 'current')
+  assert.ok(afterParameterUndo)
+  assert.equal(view(afterParameterUndo, 'current').snapshot.bom[0].price, view(base, 'current').snapshot.bom[0].price,
+    'Current parameter Undo restores the active editor role')
+  assert.equal(view(afterParameterUndo, 'custom').economicInputs.sellingPriceOverride,
+    view(base, 'custom').economicInputs.sellingPriceOverride,
+    'Current parameter Undo does not mutate Custom Economic history')
+
   const differentProductHistory = createSimulationHistory('another-product')
   assert.equal(differentProductHistory.undo.length, 0, 'a second product has an independent empty history')
   assert.equal(clearSimulationHistory(usageHistory, 'new-current-basis').undo.length, 0,
     'a changed Master dataset basis clears old role history')
 
-  console.log('PASS: Simulation history covers chronology, Reset, branching, stable IDs, product and role scope, rates, selection, validation, and recalculation.')
+  console.log('PASS: Simulation history covers chronology, Reset, branching, stable IDs, product and role scope, independent After economics, rates, selection, validation, and recalculation.')
 } finally {
   await vite.close()
 }

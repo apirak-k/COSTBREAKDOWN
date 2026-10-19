@@ -87,18 +87,18 @@ SIMULATION
    - The only datasets are Master Data Reference, Current, and Custom Working. Simulation persists no separate SIM dataset; it stores independent, validated parameter overrides per role and derives effective snapshots over each latest Working dataset.
    - Effective Reference uses Reference Work Center rates, Current uses Current rates, and Custom uses Custom rates. Rates are never Simulation-editable.
    - A Master Working change rebases only that role's overrides; unchanged roles keep their overrides.
-   - `activeDataset` is the role currently being edited. It is independent of `comparisonBefore` and `comparisonAfter`; all nine ordered pairs are supported, including self-comparisons. Defaults are active Current and Reference → Current.
+   - `activeDataset` owns parameter edits. Result/Economic calculations use `comparisonBefore → comparisonAfter`; `comparisonAfter` owns the Business/Economic draft and defaults. These contexts are independent; all nine ordered pairs are supported, including self-comparisons. Defaults are active Current and Reference → Current.
    - Reset clears the active role's overrides; Reset All clears all roles independently. Send maps each role to the same Master Working role; Send All prepares and applies all three atomically. Send changes Working only and preserves Last Saved.
    - **Structure is Master Data-owned:** Simulation derives the structure from the selected role's latest Working dataset. Structural alternatives are prepared in Master Data / Custom.
-   - Core comparison accepts any effective before/after snapshots and matches BOM, Work Center, and Routing by business identity, never row position. The visible Current/SIM presentation remains for compatibility until later UI phases.
+   - Result and Economic calculations use any effective Before/After pair and match BOM, Work Center, and Routing by business identity, never row position. Parameter editor rows remain scoped to `activeDataset`. Visible Current/SIM labels and graph presentation remain compatible until later UI phases.
    - There is **no Factors to Simulate selector**. Direct edits are BOM (`Price`, `Usage`, `Loss`) and Routing (`Manning`, `Capacity`, `Yield`). Missing/invalid required inputs remain unavailable.
    - Persistence uses an explicit schema version. Safe unchanged-Current legacy parameter state may migrate; structurally incompatible or stale single-SIM state is discarded. State remains product-scoped and deleted products are pruned.
 
 2. **Economic Simulation:**
-   - Inputs: Fixed Action Cost, Variable Action Cost / pc, positive integer Batch Size, Selling Price override, and SG&A % override. Blank commercial overrides use Current values.
+   - Inputs: Fixed Action Cost, Variable Action Cost / pc, positive integer Batch Size, Selling Price override, and SG&A % override. All Business/Economic inputs are stored under `comparisonAfter`; blank commercial overrides use effective After values.
    - Fixed Cost / pc = Fixed Action Cost / Batch Size.
    - Required Saving / pc = Fixed Cost / pc + Variable Action Cost / pc.
-   - Parameter Saving / pc = Before Standard Cost − After Standard Cost.
+   - Parameter Saving / pc = effective Before Standard Cost − effective After Standard Cost.
    - Economic Margin / pc = Parameter Saving / pc − Required Saving / pc.
    - SG&A / pc = Selling Price × (SG&A % / 100); OP / pc = Selling Price − effective After Standard Cost − SG&A / pc.
    - **Economics is separate from Standard Cost:** Economic inputs never alter MAT, LB, BD, Conversion, or Standard Cost. Negative Economic Margin and OP remain valid and visible.
@@ -114,7 +114,7 @@ Preserve finalized business formulas:
 
 $$\text{SG&A amount / pc} = \text{Selling Price} \times \frac{\text{SG\&A \%}}{100}$$
 
-$$\text{OP / pc} = \text{Selling Price} - \text{SIM Standard Cost} - \text{SG\&A amount / pc}$$
+$$\text{OP / pc} = \text{effective After Selling Price} - \text{effective After Standard Cost} - \text{SG\&A amount / pc}$$
 
 - OP can be positive, zero, or negative. Negative OP represents an operating loss and must remain visibly displayed.
 - Selling Price and SG&A % can be overridden in the Simulation Economic panel.

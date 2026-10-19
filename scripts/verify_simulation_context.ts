@@ -49,11 +49,34 @@ assert.deepEqual(Object.keys(retained), ['p1'], 'deleted products do not retain 
 assert.strictEqual(retained.p1, reconciled, 'a retained product keeps its independent role-keyed state')
 
 const app = readFileSync(resolve(process.cwd(), 'src/App.tsx'), 'utf8')
+const simulationPage = readFileSync(resolve(process.cwd(), 'src/features/simulation/SimulationPage.tsx'), 'utf8')
 assert.match(app, /simulationStatesByProduct\[activeProductId\]/, 'Simulation state is scoped by active product')
 assert.match(app, /activeTab === 'simulation'[\s\S]*?<SimulationPage/, 'Simulation is reachable as its own module')
 assert.match(app, /masterDataSnapshots\.reference/, 'Simulation context receives Reference Working data')
 assert.match(app, /getActiveSimulationDataset\(masterDataSnapshots, simulationState\)/,
   'the active view is derived from the role-keyed Simulation state and latest Working sources')
+assert.match(app, /const role = simulationState\.activeDataset[\s\S]*?updateSimulationState\(role, state => updateSimulationParameter/,
+  'parameter edits explicitly target activeDataset')
+assert.match(app, /onUpdateEconomicInput=\{updateEconomicInput\}[\s\S]*?onBeginEdit=\{beginSimulationEdit\}/,
+  'Simulation callbacks route economic updates and history boundaries through explicit roles')
+assert.match(simulationPage, /onUpdate=\{\(field, value\) => onUpdateEconomicInput\(analysisAfterDataset\.role, field, value\)\}/,
+  'Business/Economic inputs explicitly target the effective comparisonAfter dataset')
+assert.match(simulationPage, /onBatchSizeChange=\{value => onUpdateEconomicInput\(analysisAfterDataset\.role, 'batchSize', value\)\}/,
+  'Break-even graph Batch Size edits target comparisonAfter')
+assert.match(simulationPage, /calculateParameterSimulation\(analysisBeforeDataset\.snapshot, analysisAfterDataset\.snapshot\)/,
+  'Result and Economic calculations use the effective comparison pair')
+assert.match(simulationPage, /currentCost=\{analysisResult\.beforeCost\}[\s\S]*?simulationCost=\{analysisResult\.afterCost\}/,
+  'the Result panel displays the selected Before/After costs')
+assert.match(simulationPage, /onBeginEdit=\{\(\) => onBeginEdit\(state\.role\)\}/,
+  'parameter edit history explicitly targets the active role')
+assert.match(app, /simulationHistoryRolesByProduct\[activeProductId\] \?\? simulationState\.activeDataset/,
+  'Global Simulation Undo/Redo follows the last edited role, falling back to activeDataset')
+assert.match(app, /const currentRole = committed\?\.recorded[\s\S]*?simulationHistoryRolesByProduct\[activeProductId\]/,
+  'activeDataset changes do not reinterpret the role owning an existing history entry')
+assert.match(app, /const role = current\.activeDataset[\s\S]*?resetSimulationParameters\(current, sources\)/,
+  'Reset scope remains activeDataset even when comparisonAfter differs')
+assert.match(app, /const selected = setSimulationActiveDataset\(current, role\)[\s\S]*?prepareSimulationSend\(selected, masterDataSnapshots\)/,
+  'Send continues to prepare the selected active Simulation role')
 assert.doesNotMatch(app, /rca-simulation|selectedCandidateKey|trialHandoffLetter|selectedScenarioLetter/,
   'Simulation routing does not depend on legacy RCA, Trial, or A/B state')
 

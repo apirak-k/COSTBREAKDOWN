@@ -132,15 +132,15 @@ try {
     assert.match(neutral[3]?.className ?? '', /text-slate-700/, `${label} percentage is neutral`)
   }
 
-  const withPriceOverride = setSimulationEconomicInput(improved, 'sellingPriceOverride', '260')
-  const priceMarkup = render(setSimulationEconomicInput(withPriceOverride, 'sgaPercentOverride', '8'), current)
+  const withPriceOverride = setSimulationEconomicInput(improved, 'sellingPriceOverride', '260', 'current')
+  const priceMarkup = render(setSimulationEconomicInput(withPriceOverride, 'sgaPercentOverride', '8', 'current'), current)
   assert.deepEqual(values(row(priceMarkup, 'Selling Price')).map(cell => cell.text), ['250.00', '260.00', '+10.00', '+4.00%'])
   assert.deepEqual(values(row(priceMarkup, 'SG&A')).map(cell => cell.text), ['20.00', '20.80', '+0.80', '+4.00%'])
   assert.deepEqual(values(row(priceMarkup, 'Operating Profit')).map(cell => cell.text), ['152.00', '168.20', '+16.20', '+10.66%'])
   assert.deepEqual(values(row(priceMarkup, 'Standard Cost')).map(cell => cell.text), ['78.00', '71.00', '-7.00', '-8.97%'],
     'business overrides do not change Cost / Unit')
 
-  const withSgaOverride = setSimulationEconomicInput(withPriceOverride, 'sgaPercentOverride', '10')
+  const withSgaOverride = setSimulationEconomicInput(withPriceOverride, 'sgaPercentOverride', '10', 'current')
   const sgaMarkup = render(withSgaOverride, current)
   assert.deepEqual(values(row(sgaMarkup, 'SG&A')).map(cell => cell.text), ['20.00', '26.00', '+6.00', '+30.00%'])
   assert.deepEqual(values(row(sgaMarkup, 'Operating Profit')).map(cell => cell.text), ['152.00', '163.00', '+11.00', '+7.24%'])

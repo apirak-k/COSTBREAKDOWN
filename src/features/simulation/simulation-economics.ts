@@ -30,9 +30,9 @@ export interface EconomicSimulationResult {
   warnings: string[]
 }
 
-export function createEconomicSimulationDraft(currentSnapshot?: CostSnapshot): EconomicSimulationDraft {
-  const sellingPrice = currentSnapshot?.product.sellingPrice
-  const sgaPercent = currentSnapshot?.product.sgaPercent
+export function createEconomicSimulationDraft(sourceSnapshot?: CostSnapshot): EconomicSimulationDraft {
+  const sellingPrice = sourceSnapshot?.product.sellingPrice
+  const sgaPercent = sourceSnapshot?.product.sgaPercent
   return {
     fixedActionCost: '',
     variableActionCostPerPiece: '',
@@ -122,8 +122,8 @@ function finiteResult(value: number, label: string, warnings: string[]): number 
 }
 
 export function calculateEconomicSimulation(
-  currentSnapshot: CostSnapshot,
-  simulationCost: SnapshotCost | null,
+  afterSnapshot: CostSnapshot,
+  afterCost: SnapshotCost | null,
   parameterSavingPerPiece: number | null,
   draft: EconomicSimulationDraft
 ): EconomicSimulationResult {
@@ -171,19 +171,19 @@ export function calculateEconomicSimulation(
 
   const sellingPrice = parseOverride(
     draft.sellingPriceOverride,
-    currentSnapshot.product.sellingPrice,
+    afterSnapshot.product.sellingPrice,
     'sellingPriceOverride',
     'Selling Price',
     warnings
   )
   const sgaPercent = parseOverride(
     draft.sgaPercentOverride,
-    currentSnapshot.product.sgaPercent,
+    afterSnapshot.product.sgaPercent,
     'sgaPercentOverride',
     'SG&A %',
     warnings
   )
-  const rawStandardCost = simulationCost?.total ?? null
+  const rawStandardCost = afterCost?.total ?? null
   const simulationStandardCost = rawStandardCost === null || Number.isFinite(rawStandardCost)
     ? rawStandardCost
     : null

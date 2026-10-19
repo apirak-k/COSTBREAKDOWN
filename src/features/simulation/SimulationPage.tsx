@@ -33,6 +33,8 @@ import { simulationParameterStatus, simulationWorkingTargetKey, type SimulationD
 interface SimulationPageProps {
   state: SimulationDatasetView
   workingSelection: string[]
+  analysisBeforeDataset: SimulationDatasetView
+  analysisAfterDataset: SimulationDatasetView
   referenceSnapshot: CostSnapshot
   currentSnapshot: CostSnapshot
   onCloneSource: (role: MasterDataRole) => void
@@ -40,8 +42,8 @@ interface SimulationPageProps {
   onReset: () => void
   onUpdateParameter: (recordId: string, parameter: SimulationParameter, value: number | null) => void
   onToggleWorkingTarget: (kind: 'bom' | 'routing', recordId: string) => void
-  onUpdateEconomicInput: (field: EconomicSimulationField, value: string) => void
-  onBeginEdit: () => void
+  onUpdateEconomicInput: (role: MasterDataRole, field: EconomicSimulationField, value: string) => void
+  onBeginEdit: (role: MasterDataRole) => void
   onCommitEdit: () => void
 }
 
@@ -964,6 +966,8 @@ function createStory(
 export const SimulationPage: React.FC<SimulationPageProps> = ({
   state,
   workingSelection,
+  analysisBeforeDataset,
+  analysisAfterDataset,
   referenceSnapshot,
   currentSnapshot,
   onCloneSource,
@@ -980,26 +984,46 @@ export const SimulationPage: React.FC<SimulationPageProps> = ({
     () => simulationSnapshot ? calculateParameterSimulation(currentSnapshot, simulationSnapshot) : null,
     [currentSnapshot, simulationSnapshot]
   )
+  const analysisResult = useMemo(
+    () => calculateParameterSimulation(analysisBeforeDataset.snapshot, analysisAfterDataset.snapshot),
+    [analysisAfterDataset.snapshot, analysisBeforeDataset.snapshot]
+  )
   const referenceCurrent = useMemo(
     () => compareSnapshots(referenceSnapshot, currentSnapshot),
     [referenceSnapshot, currentSnapshot]
   )
   const economicResult = useMemo(
-    () => calculateEconomicSimulation(currentSnapshot, result?.afterCost ?? null, result?.parameterSavingPerPiece ?? null, state.economicInputs),
-    [currentSnapshot, result, state.economicInputs]
+    () => calculateEconomicSimulation(
+      analysisAfterDataset.snapshot,
+      analysisResult.afterCost,
+      analysisResult.parameterSavingPerPiece,
+      analysisAfterDataset.economicInputs
+    ),
+    [analysisAfterDataset, analysisResult]
+  )
+  const comparisonBeforeFinancial = useMemo(() => createScenarioFinancialResult(
+    analysisResult.beforeCost,
+    calculateScenarioBusinessMetrics({
+      sellingPrice: analysisBeforeDataset.snapshot.product.sellingPrice ?? null,
+      sgaPercent: analysisBeforeDataset.snapshot.product.sgaPercent ?? null
+    }, analysisResult.beforeCost.total)
+  ), [analysisBeforeDataset, analysisResult])
+  const comparisonAfterFinancial = useMemo(
+    () => createScenarioFinancialResult(analysisResult.afterCost, economicResult.business),
+    [analysisResult, economicResult]
   )
   const story = useMemo(
     () => result && economicResult
-      ? createStory(referenceSnapshot, currentSnapshot, referenceCurrent, result.afterCost, economicResult)
+      ? createStory(referenceSnapshot, currentSnapshot, referenceCurrent, analysisResult.afterCost, economicResult)
       : null,
-    [currentSnapshot, economicResult, referenceCurrent, referenceSnapshot, result]
+    [analysisResult, currentSnapshot, economicResult, referenceCurrent, referenceSnapshot, result]
   )
 
   if (!simulationSnapshot || !result || !economicResult || !story) {
     return <div role="status" className="py-8 text-sm text-slate-600">Simulation is initializing from Current.</div>
   }
 
-  const unit = resolveSimulationCostUnit(referenceSnapshot, currentSnapshot)
+  const unit = resolveSimulationCostUnit(analysisBeforeDataset.snapshot, analysisAfterDataset.snapshot)
 
   const actionMenus = (
     <>
@@ -1026,26 +1050,26 @@ export const SimulationPage: React.FC<SimulationPageProps> = ({
         <div className="grid min-w-0 gap-2 xl:h-full xl:min-h-0 xl:grid-cols-[minmax(0,.7fr)_minmax(0,1.3fr)] xl:grid-rows-1">
           <EconomicSimulationPanel
             result={economicResult}
-            draft={state.economicInputs}
-            currentSnapshot={currentSnapshot}
+            draft={analysisAfterDataset.economicInputs}
+            afterSnapshot={analysisAfterDataset.snapshot}
             unit={unit}
-            onUpdate={onUpdateEconomicInput}
-            onBeginEdit={onBeginEdit}
+            onUpdate={(field, value) => onUpdateEconomicInput(analysisAfterDataset.role, field, value)}
+            onBeginEdit={() => onBeginEdit(analysisAfterDataset.role)}
             onCommitEdit={onCommitEdit}
           />
           <div data-simulation-layout-column="result-and-break-even" className="grid min-w-0 gap-2 xl:min-h-0 xl:grid-rows-[minmax(0,1.2fr)_minmax(0,.8fr)]">
             <ResultPanel
-              currentCost={result.beforeCost}
-              simulationCost={result.afterCost}
-              currentFinancial={story.current}
-              simulationFinancial={story.simulated}
+              currentCost={analysisResult.beforeCost}
+              simulationCost={analysisResult.afterCost}
+              currentFinancial={comparisonBeforeFinancial}
+              simulationFinancial={comparisonAfterFinancial}
               actions={actionMenus}
             />
             <EconomicBreakEvenGraphPanel
               result={economicResult}
               unit={unit}
-              onBatchSizeChange={value => onUpdateEconomicInput('batchSize', value)}
-              onBeginEdit={onBeginEdit}
+              onBatchSizeChange={value => onUpdateEconomicInput(analysisAfterDataset.role, 'batchSize', value)}
+              onBeginEdit={() => onBeginEdit(analysisAfterDataset.role)}
               onCommitEdit={onCommitEdit}
             />
           </div>
@@ -1062,7 +1086,7 @@ export const SimulationPage: React.FC<SimulationPageProps> = ({
           workingSelection={workingSelection}
           onToggleWorkingTarget={onToggleWorkingTarget}
           onUpdate={onUpdateParameter}
-          onBeginEdit={onBeginEdit}
+          onBeginEdit={() => onBeginEdit(state.role)}
           onCommitEdit={onCommitEdit}
         />
         <SimulationParameterTable
@@ -1074,7 +1098,7 @@ export const SimulationPage: React.FC<SimulationPageProps> = ({
           workingSelection={workingSelection}
           onToggleWorkingTarget={onToggleWorkingTarget}
           onUpdate={onUpdateParameter}
-          onBeginEdit={onBeginEdit}
+          onBeginEdit={() => onBeginEdit(state.role)}
           onCommitEdit={onCommitEdit}
         />
       </div>

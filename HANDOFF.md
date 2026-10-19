@@ -1,3 +1,31 @@
+# Current Handoff — Phase 1 comparison-context audit fix — 2026-10-19
+
+## Checkpoint and delivery
+
+- Repository: `/Users/bubu/COSTBREAKDOWN-ref-current-custom-flow-redesign` (`apirak-k/COSTBREAKDOWN`). Branch: `feat/ref-current-custom-flow-redesign`.
+- Audit-fix base and previous fetched remote HEAD: `46eecf971dcfa80b926c88d2bd45b17d04a12238`.
+- The focused audit fix is delivered as a new commit on this branch and pushed; it was not amended or merged. The final commit SHA and remote equality are reported in the completion message.
+- Scope: fix the Phase 1 ownership split only. No Phase 2 selectors, visible graph redesign, Result layout redesign, Send/Reset menu redesign, or unrelated cleanup.
+
+## Ownership and behavior
+
+- `activeDataset` owns parameter edits, parameter editor rows, and Reset scope. Send still targets the selected active Simulation role and its matching Master Working role.
+- `comparisonBefore → comparisonAfter` owns Result and Economic calculations. The After role owns Selling Price, SG&A, action-cost, and batch-size drafts/defaults; blank commercial inputs fall back to the effective After dataset.
+- Parameter history is recorded under `activeDataset`; Business/Economic history is recorded under `comparisonAfter`. Global Undo/Redo follows the role of the last committed history entry and is not reinterpreted when only `activeDataset` changes. A Master basis change clears only that role's stale history and pending edit.
+- Existing Current/SIM labels and graph presentation remain compatible UI. The visible comparison selectors and graph redesign remain deferred.
+
+## Verification
+
+- **PASS:** `npm run build` (existing ExcelJS browser externalization and large-chunk warnings remain).
+- **PASS:** `node scripts/verify_simulation_regression.mjs`, including the dataset override verifier through Vite, focused context routing assertions, and role-rate regressions.
+- **PASS:** `node --experimental-strip-types scripts/verify_simulation_history.ts`.
+- **PASS:** `node --experimental-strip-types scripts/verify_simulation_economics.ts`.
+- **PASS:** `node scripts/verify_numeric_input.mjs`.
+- **PASS:** `git diff --check`.
+- No browser or mounted React App integration run was performed. The direct Node invocation of the dataset verifier is unsupported because its extensionless TypeScript imports require Vite; the verifier passes inside the regression suite.
+
+---
+
 # Current Handoff — Reference / Current / Custom Simulation foundation — 2026-10-19
 
 ## Checkpoint and delivery

@@ -11,9 +11,11 @@ import {
   resetSimulationParameters,
   retainSimulationStatesForProducts,
   setSimulationActiveDataset,
-  setSimulationComparison
+  setSimulationComparison,
+  setSimulationEconomicInput
 } from '../src/features/simulation/simulation-state.ts'
 import { calculateParameterSimulation, updateSimulationParameter } from '../src/features/simulation/simulation-engine.ts'
+import { calculateEconomicSimulation } from '../src/features/simulation/simulation-economics.ts'
 
 const roles: MasterDataRole[] = ['reference', 'current', 'custom']
 
@@ -105,6 +107,50 @@ assert.equal(getEffectiveSimulationDataset(sources, activeEdited, 'reference').s
 assert.equal(getEffectiveSimulationDataset(sources, activeEdited, 'custom').snapshot.bom[0].price, sources.custom.bom[0].price,
   'editing active Current leaves Custom unchanged')
 
+const currentActiveCustomAfter = setSimulationComparison(activeCurrent, 'reference', 'custom')
+const currentParameterEdit = updateSimulationParameter(
+  currentActiveCustomAfter, sources, sources.current.bom[0].id, 'bom.price', 78, 'current'
+)
+const currentEconomicBefore = getEffectiveSimulationDataset(sources, currentParameterEdit, 'current').economicInputs
+const customEconomicEdit = setSimulationEconomicInput(currentParameterEdit, 'sellingPriceOverride', '777', 'custom')
+const customEconomicState = setSimulationEconomicInput(customEconomicEdit, 'sgaPercentOverride', '17', 'custom')
+assert.equal(getEffectiveSimulationDataset(sources, customEconomicState, 'current').snapshot.bom[0].price, 78,
+  'active Current parameter edits remain in Current while After is Custom')
+assert.deepEqual(getEffectiveSimulationDataset(sources, customEconomicState, 'current').economicInputs, currentEconomicBefore,
+  'editing Custom Business inputs leaves Current economic state untouched')
+assert.equal(getEffectiveSimulationDataset(sources, customEconomicState, 'custom').economicInputs.sellingPriceOverride, '777',
+  'Business/Economic edits explicitly target comparisonAfter')
+assert.equal(getEffectiveSimulationDataset(sources, customEconomicState, 'custom').economicInputs.sgaPercentOverride, '17')
+
+const activeReference = setSimulationActiveDataset(customEconomicState, 'reference')
+assert.equal(activeReference.comparisonBefore, 'reference')
+assert.equal(activeReference.comparisonAfter, 'custom', 'changing activeDataset does not move the analysis pair')
+assert.deepEqual(getEffectiveSimulationDataset(sources, activeReference, activeReference.comparisonAfter).economicInputs,
+  getEffectiveSimulationDataset(sources, customEconomicState, 'custom').economicInputs,
+  'changing activeDataset preserves the After role and its Economic draft')
+
+const currentAfter = setSimulationComparison(activeReference, 'reference', 'current')
+assert.deepEqual(getEffectiveSimulationDataset(sources, currentAfter, 'current').economicInputs, currentEconomicBefore,
+  'changing comparisonAfter changes the Business/Economic owner to Current')
+assert.equal(getEffectiveSimulationDataset(sources, currentAfter, 'custom').economicInputs.sellingPriceOverride, '777',
+  'switching After away from Custom preserves its independent draft')
+const customAfterAgain = setSimulationComparison(currentAfter, 'reference', 'custom')
+const customAnalysis = calculateParameterSimulation(
+  getEffectiveSimulationDataset(sources, customAfterAgain, customAfterAgain.comparisonBefore).snapshot,
+  getEffectiveSimulationDataset(sources, customAfterAgain, customAfterAgain.comparisonAfter).snapshot
+)
+const customEconomics = calculateEconomicSimulation(
+  getEffectiveSimulationDataset(sources, customAfterAgain, customAfterAgain.comparisonAfter).snapshot,
+  customAnalysis.afterCost,
+  customAnalysis.parameterSavingPerPiece,
+  getEffectiveSimulationDataset(sources, customAfterAgain, customAfterAgain.comparisonAfter).economicInputs
+)
+assert.equal(customEconomics.business.sellingPrice, 777, 'Business calculations use After Selling Price')
+assert.equal(customEconomics.business.sgaPercent, 17, 'Business calculations use After SG&A')
+assert.equal(customEconomics.business.operatingProfitPerPiece,
+  777 - customAnalysis.afterCost.total! - 777 * 0.17,
+  'Business OP uses the After effective Standard Cost')
+
 for (const changedRole of roles) {
   const changedMaster = {
     ...sources[changedRole],
@@ -144,6 +190,11 @@ assert.equal(getEffectiveSimulationDataset(sources, resetActive, 'reference').sn
   'Reset leaves Reference overrides intact')
 assert.equal(getEffectiveSimulationDataset(sources, resetActive, 'custom').snapshot.bom[0].price, overridePrice.custom,
   'Reset leaves Custom overrides intact')
+const resetWithCustomAfter = resetSimulationParameters(setSimulationComparison(activeCurrentWithOverrides, 'reference', 'custom'), sources)
+assert.equal(getEffectiveSimulationDataset(sources, resetWithCustomAfter, 'current').snapshot.bom[0].price, sources.current.bom[0].price,
+  'Reset still follows active Current when comparisonAfter is Custom')
+assert.equal(getEffectiveSimulationDataset(sources, resetWithCustomAfter, 'custom').snapshot.bom[0].price, overridePrice.custom,
+  'After Custom does not change Reset scope')
 
 const resetAll = resetAllSimulationParameters(activeCurrentWithOverrides, sources)
 for (const role of roles) {
@@ -158,6 +209,9 @@ for (const activeRole of roles) {
   assert.equal(payload.snapshot.id, sources[activeRole].id)
   assert.equal(payload.snapshot.bom[0].price, overridePrice[activeRole])
 }
+const activeCurrentAfterCustom = setSimulationComparison(setSimulationActiveDataset(state, 'current'), 'reference', 'custom')
+assert.equal(prepareSimulationSend(activeCurrentAfterCustom, sources).role, 'current',
+  'Send still follows active Current when comparisonAfter is Custom')
 const sendAll = prepareSimulationSendAll(state, sources)
 assert.deepEqual(Object.keys(sendAll).sort(), [...roles].sort(), 'Send All prepares all three same-role destinations')
 for (const role of roles) {
