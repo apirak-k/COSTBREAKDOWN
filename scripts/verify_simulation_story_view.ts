@@ -970,8 +970,14 @@ try {
   assert.match(sendToMenuSource, /onSendTo\(role, simulationSnapshot\)/,
     'Send to passes the selected role and current SIM snapshot to its integration callback')
   const roleActionMenuSource = pageSource.slice(pageSource.indexOf('function RoleActionMenu'), pageSource.indexOf('function ', pageSource.indexOf('function RoleActionMenu') + 1))
-  assert.match(roleActionMenuSource, /min-w-24 max-w-\[calc\(100vw-1rem\)\][\s\S]*min-h-8 w-full px-2 text-center/,
-    'Clone and Send share a compact, viewport-safe menu with centered, practical-size options')
+  assert.match(roleActionMenuSource, /const centeredLeft = trigger\.left \+ \(trigger\.width - menu\.width\) \/ 2/,
+    'Clone and Send center the menu box under each trigger before viewport clamping')
+  assert.match(roleActionMenuSource, /Math\.max\(8, Math\.min\(centeredLeft, window\.innerWidth - menu\.width - 8\)\) - centeredLeft/,
+    'Clone and Send preserve viewport clamping around the centered menu box')
+  assert.match(roleActionMenuSource, /className="absolute left-1\/2 top-full z-50 w-24 max-w-\[calc\(100vw-1rem\)\] -translate-x-1\/2/,
+    'Clone and Send share a stable 96px width and centered trigger anchor')
+  assert.match(roleActionMenuSource, /className="block min-h-8 w-full px-2 text-left text-xs/,
+    'Clone and Send role labels are left aligned with consistent padding and practical row targets')
   assert.doesNotMatch(pageSource, /transferMessage|transferError|SIM sent to|Send blocked by Master Data validation/,
     'Send keeps defensive validation without persistent Result feedback')
   const rowTemplateStart = pageSource.indexOf('const status = rowStatusText(row,')

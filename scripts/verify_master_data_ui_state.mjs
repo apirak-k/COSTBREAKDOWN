@@ -688,10 +688,17 @@ try {
   const cloneTriggerSource = cloneRegionSource.slice(cloneRegionSource.indexOf('ref={cloneTriggerRef}'), cloneRegionSource.indexOf('{cloneMenuOpen &&'))
   assert.match(cloneRegionSource, /ref=\{cloneContainerRef\}[\s\S]*className="relative shrink-0"[\s\S]*ref=\{cloneTriggerRef\}[\s\S]*className=\{toolbarButton\}/,
     'the menu positioning wrapper stays limited to the fixed-size Clone trigger region')
-  assert.match(cloneRegionSource, /className="absolute left-1\/2 top-full z-50 mt-1 min-w-max -translate-x-1\/2 border border-slate-300 bg-white p-1 text-center shadow-lg"[\s\S]*className="block min-h-8 w-full px-2 text-center text-xs/,
-    'the Clone menu uses compact content-fit geometry and centered, practical-size rows')
-  assert.doesNotMatch(cloneRegionSource, /min-w-36/,
-    'the Clone menu does not reserve unnecessary fixed width')
+  const cloneMenuClass = cloneRegionSource.match(/id="clone-source-menu"[\s\S]*?className="([^"]+)"/)?.[1] ?? ''
+  assert.match(cloneMenuClass, /(?:^|\s)left-1\/2(?:\s|$)[\s\S]*(?:^|\s)-translate-x-1\/2(?:\s|$)/,
+    'the Clone menu uses the trigger center as its normal horizontal anchor')
+  assert.match(headerSource, /const cloneHorizontalOffset = useCenteredPopoverOffset\(cloneMenuOpen, cloneMenuRef\)/,
+    'the centered Clone menu keeps its existing viewport-clamping calculation')
+  assert.match(cloneMenuClass, /\bw-24\b/,
+    'the Clone menu has one stable compact width sized for Reference')
+  assert.doesNotMatch(cloneMenuClass, /\bmin-w-max\b/,
+    'the Clone menu width does not shrink with the filtered role list')
+  assert.match(cloneRegionSource, /className="block min-h-8 w-full px-2 text-left text-xs/,
+    'Clone role labels are left aligned with normal horizontal padding and practical row targets')
   assert.match(cloneRegionSource, /onMouseEnter=\{\(\) => \{[\s\S]*if \(!cloneMenuPinned\) cloneHoverTimerRef\.current = setTimeout\(\(\) => setCloneMenuOpen\(true\), 120\)/,
     'hovering the Clone trigger opens the menu after a delay only when it is not pinned')
   assert.match(cloneRegionSource, /onMouseLeave=\{\(\) => \{[\s\S]*if \(!cloneMenuPinned\) cloneHoverTimerRef\.current = setTimeout\([\s\S]*closeCloneMenu\(\)/,

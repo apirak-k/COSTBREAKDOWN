@@ -1,4 +1,31 @@
-# Current Handoff — NumericInput, toolbar, and divider UX correction — 2026-10-19
+# Current Handoff — Role menu alignment correction — 2026-10-19
+
+## Checkpoint and delivery
+
+- Repository: `/Users/bubu/COSTBREAKDOWN` (`apirak-k/COSTBREAKDOWN`). Branch: `logic/simulation-finalized-implementation`.
+- Starting local and fetched remote HEAD: `50dea66fcd50236f3626efde953f892e3c9fd6fc`. This matches the previous delivery; no newer commit was present.
+- Only `vite.config.ts` was dirty before this pass. Starting/ending SHA-256: `673d2cbb093b910a1640bac84b7e16425e4f08bd3d7be7f4e435848ab2eb6796`. Its diff is preserved and excluded from this commit.
+- The user authorized one focused implementation commit and push to this branch. No merge. The resulting commit SHA and post-push remote equality are recorded in the delivery report rather than embedded in this checkpoint.
+
+## Scope
+
+- Master Data Clone keeps its centered, viewport-clamped menu box and `Clone from` label. Menu width is stable across destinations, sized for `Reference`, and the role text is left aligned. Destination exclusion and existing interactions remain.
+- Simulation Clone and Send now center the menu box under the trigger before applying viewport clamping. Both use the same stable compact width and left-aligned role text as Master Data. Role choices, callbacks, semantics, and interactions remain.
+- Updated `scripts/verify_master_data_ui_state.mjs` and `scripts/verify_simulation_story_view.ts` for the box-position / item-alignment distinction.
+- Updated `docs/specs/MASTER_DATA_TOOLBAR_PREPARE_UX.md` and `docs/specs/SIMULATION.md`. Exact menu width remains a reversible implementation detail.
+- NumericInput and numeric verifiers were not changed. The user physically verified after the prior fix that mouse wheel and MacBook trackpad upward motion increments and downward motion decrements; this is user-reported evidence, not a test performed by the agent.
+
+## Verification and limits
+
+- Browser verification passed 72/72 checks in isolated Chrome at 1440×857, 1280×768, and 390×844. Master Data Clone stayed 96px wide across Reference, Current, and Custom destinations at all three viewports; Simulation Clone and Send also measured 96px. In normal, unclamped positions, each menu center matched its trigger center (0px delta). Items were left aligned with 8px horizontal padding and 32px row height. No horizontal page overflow or browser console errors were found.
+- Browser interaction checks passed for trigger-to-menu hover movement, hover-only dismissal, click pin/unpin, outside click, Escape and focus restoration, keyboard navigation (Arrow keys, Home, End), and Tab dismissal. At the required 390px viewport all three menu types remained within the viewport. A supplementary 275×844 stress viewport forced Simulation Send to clamp at an 8px right gutter (96px menu, trigger center 235px, menu center 219px); the document measured 320px scroll width at this below-requested width.
+- Automated verification passed: `node scripts/verify_master_data_ui_state.mjs`; `node --experimental-strip-types scripts/verify_simulation_story_view.ts`; `node --experimental-strip-types scripts/verify_simulation_result.ts`; `node --experimental-strip-types scripts/verify_simulation_history.ts`; `node --experimental-strip-types scripts/verify_simulation_corrections.ts`; `node scripts/verify_simulation_regression.mjs`; `npm run build`; and `git diff --check`.
+- The production build completed successfully with the existing ExcelJS externalization and large-chunk warnings.
+- [Unverified] Windows physical mouse, Safari, Firefox, screen-reader runtime, and CI for the new commit.
+
+---
+
+# Historical Handoff — NumericInput, toolbar, and divider UX correction — 2026-10-19
 
 ## Checkpoint and delivery
 

@@ -228,10 +228,10 @@ function RoleActionMenu({
       const trigger = triggerRef.current?.getBoundingClientRect()
       const menu = menuRef.current?.getBoundingClientRect()
       if (!trigger || !menu) return
-      const left = trigger.right - menu.width
+      const centeredLeft = trigger.left + (trigger.width - menu.width) / 2
       const top = trigger.bottom
       setOffset({
-        x: Math.max(8, Math.min(left, window.innerWidth - menu.width - 8)) - left,
+        x: Math.max(8, Math.min(centeredLeft, window.innerWidth - menu.width - 8)) - centeredLeft,
         y: top + menu.height > window.innerHeight - 8 ? Math.max(8, trigger.top - menu.height) - top : 0
       })
     }
@@ -303,7 +303,7 @@ function RoleActionMenu({
           id={menuId}
           role="menu"
           onMouseEnter={clearHoverTimer}
-          style={{ transform: `translate(${offset.x}px, ${offset.y}px)` }}
+          style={{ marginLeft: `${offset.x}px`, marginTop: `${offset.y}px` }}
           aria-label={label}
           onKeyDown={event => {
             if (event.key === 'Escape') {
@@ -326,7 +326,7 @@ function RoleActionMenu({
               menuItemRefs.current[nextIndex]?.focus()
             }
           }}
-          className="absolute right-0 top-full z-50 min-w-24 max-w-[calc(100vw-1rem)] border border-slate-300 bg-white p-1 shadow-lg"
+          className="absolute left-1/2 top-full z-50 w-24 max-w-[calc(100vw-1rem)] -translate-x-1/2 border border-slate-300 bg-white p-1 shadow-lg"
         >
           {ROLES.map(({ role, label: roleLabel }, index) => (
             <button
@@ -336,7 +336,7 @@ function RoleActionMenu({
               role="menuitem"
               tabIndex={0}
               onClick={() => { onSelect(role); close(true) }}
-              className="block min-h-8 w-full px-2 text-center text-xs text-slate-800 hover:bg-slate-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-700"
+              className="block min-h-8 w-full px-2 text-left text-xs text-slate-800 hover:bg-slate-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-700"
             >
               {roleLabel}
             </button>
