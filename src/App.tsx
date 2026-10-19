@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react'
-import type { CostSnapshot, MasterDataRole } from './core/types'
+import type { MasterDataRole } from './core/types'
 import { AppProvider, useAppStore } from './state'
 import { AppLayout } from './shared'
 import {
@@ -230,7 +230,7 @@ const AppRouter: React.FC = () => {
     }
   }
 
-  const startFrom = (role: MasterDataRole) => {
+  const selectActiveDataset = (role: MasterDataRole) => {
     const committed = commitSimulationEdit()
     const priorState = committed?.state
       ?? reconcileSimulationState(simulationStatesByProduct[activeProductId], masterDataSnapshots)
@@ -343,13 +343,13 @@ const AppRouter: React.FC = () => {
     ))
   }
 
-  const sendSimulationToRole = (role: MasterDataRole) => {
+  const sendSimulation = () => {
     const committed = commitSimulationEdit()
     const current = reconcileSimulationState(committed?.state ?? simulationStatesByProduct[activeProductId] ?? simulationState, masterDataSnapshots)
-    const selected = setSimulationActiveDataset(current, role)
-    const payload = prepareSimulationSend(selected, masterDataSnapshots)
-    setSimulationStatesByProduct(previous => ({ ...previous, [activeProductId]: selected }))
-    return sendSimulationSnapshotToMasterData(payload.role, payload.snapshot)
+    const activeDataset = current.activeDataset
+    const payload = prepareSimulationSend(current, masterDataSnapshots)
+    setSimulationStatesByProduct(previous => ({ ...previous, [activeProductId]: current }))
+    return sendSimulationSnapshotToMasterData(activeDataset, payload.snapshot)
   }
 
   const setCandidateManualOrder = (type: CandidateTableType, keys: string[]) => {
@@ -402,8 +402,8 @@ const AppRouter: React.FC = () => {
             analysisAfterDataset={analysisAfterDataset}
             referenceSnapshot={masterDataSnapshots.reference}
             currentSnapshot={masterDataSnapshots.current}
-            onCloneSource={startFrom}
-            onSendTo={(role: MasterDataRole, _snapshot: CostSnapshot) => sendSimulationToRole(role)}
+            onSelectActiveDataset={selectActiveDataset}
+            onSend={sendSimulation}
             onReset={resetSimulation}
             onUpdateParameter={updateParameter}
             onToggleWorkingTarget={toggleWorkingTarget}

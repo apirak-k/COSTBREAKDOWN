@@ -4,9 +4,9 @@
 
 ## Final Target State
 
-The current visible page flow is **Master Data → Cost Breakdown → Simulation**. Calculate datasets independently, then compare results strictly by business identity. Cost Breakdown uses any ordered Before/After pair selected from the latest Reference, Current, and Custom Working datasets, with Gap = After − Before. Simulation's core also supports any Before/After effective dataset pair, while the visible Current/SIM presentation remains during Phase 1. Never pair by row position or convert missing required inputs to zero.
+The current visible page flow is **Master Data → Cost Breakdown → Simulation**. Calculate datasets independently, then compare results strictly by business identity. Cost Breakdown uses any ordered Before/After pair selected from the latest Reference, Current, and Custom Working datasets, with Gap = After − Before. Simulation's core also supports any Before/After effective dataset pair; its legacy Current/SIM presentation remains through Phase 3 while the generic comparison controls and fixed graph belong to Phase 4. Never pair by row position or convert missing required inputs to zero.
 
-Routing operations use their Work Center's rates; Cost Breakdown may aggregate processing cost by Work Center for context, while each processing finding is a Process/Routing record. Full Comparison is the default. Selected Comparison is a temporary CBD-only analysis view that leaves source datasets intact; the full comparison remains primary and selected-scope contributions appear beside it as secondary information. It does not create a Candidate/RCA page or pass scope/context into Simulation. Legacy Candidate/RCA records may remain for saved-session compatibility only. Simulation is directly accessible and opens ready to work. Its Phase 1 state supports role-local effective datasets and generic Before/After comparisons with locked structure; the visible Current/SIM presentation remains for compatibility.
+Routing operations use their Work Center's rates; Cost Breakdown may aggregate processing cost by Work Center for context, while each processing finding is a Process/Routing record. Full Comparison is the default. Selected Comparison is a temporary CBD-only analysis view that leaves source datasets intact; the full comparison remains primary and selected-scope contributions appear beside it as secondary information. It does not create a Candidate/RCA page or pass scope/context into Simulation. Legacy Candidate/RCA records may remain for saved-session compatibility only. Simulation is directly accessible and opens ready to work. Its Phase 3 state/actions use role-local effective datasets, independent comparison roles, and locked structure; graph and comparison UI integration remain Phase 4 work.
 
 ## Shared Compact Overlays and Page Navigation
 
@@ -91,14 +91,15 @@ SIMULATION
 └─ Economic Simulation
 ```
 
-1. **Parameter Simulation (Phase 1 foundation, user decision 2026-10-19):**
+1. **Parameter Simulation (Phase 3 state/action contract, user decision 2026-10-19):**
    - The only datasets are Master Data Reference, Current, and Custom Working. Simulation persists no separate SIM dataset; it stores independent, validated parameter overrides per role and derives effective snapshots over each latest Working dataset.
    - Effective Reference uses Reference Work Center rates, Current uses Current rates, and Custom uses Custom rates. Rates are never Simulation-editable.
    - A Master Working change rebases only that role's overrides; unchanged roles keep their overrides.
    - `activeDataset` owns parameter edits. Result/Economic calculations use `comparisonBefore → comparisonAfter`; `comparisonAfter` owns the Business/Economic draft and defaults. These contexts are independent; all nine ordered pairs are supported, including self-comparisons. Defaults are active Current and Reference → Current.
    - Reset clears the active role's overrides; Reset All clears all roles independently. Send maps each role to the same Master Working role; Send All prepares and applies all three atomically. Send changes Working only and preserves Last Saved.
    - **Structure is Master Data-owned:** Simulation derives the structure from the selected role's latest Working dataset. Structural alternatives are prepared in Master Data / Custom.
-   - Result and Economic calculations use any effective Before/After pair and match BOM, Work Center, and Routing by business identity, never row position. Parameter editor rows remain scoped to `activeDataset`. Visible Current/SIM labels and graph presentation remain compatible until later UI phases.
+   - Result and Economic calculations use any effective Before/After pair and match BOM, Work Center, and Routing by business identity, never row position. Parameter editor rows, status, and cost effects use `activeDataset` and its own Working values and Work Center rates. Visible Current/SIM labels and the compatibility graph remain through Phase 3; generic comparison controls and the fixed graph story are Phase 4 work.
+   - The `Edit dataset` control selects `activeDataset`; it does not clone data or change the Result pair. Direct Send targets only that role's matching Master Working dataset. Reset affects that role's parameter overrides; Reset All clears all three roles. Send All applies all three same-role mappings atomically. These actions preserve valid economic drafts and Last Saved checkpoints.
    - There is **no Factors to Simulate selector**. Direct edits are BOM (`Price`, `Usage`, `Loss`) and Routing (`Manning`, `Capacity`, `Yield`). Missing/invalid required inputs remain unavailable.
    - Persistence uses an explicit schema version. Safe unchanged-Current legacy parameter state may migrate; structurally incompatible or stale single-SIM state is discarded. State remains product-scoped and deleted products are pruned.
 
@@ -174,7 +175,7 @@ Master Data dataset save state has two user-facing values: `Saved` when Working 
 
 Keep an active Selected Comparison recognizable only while it applies inside Cost Breakdown. It remains valid in memory while navigating away and back, and ends when either selected role or its Working source data changes. Simulation does not retain Candidate origin context or apply a selected CBD scope.
 
-Simulation owns product-scoped, role-local parameter overrides over Master Data Working; there is no CBD Selected Comparison handoff or synchronization. The legacy Clone from control selects the active Simulation role in Phase 1 and does not copy structure or CBD selection, filters, or sorting. On desktop, Simulation uses the shared-shell workspace without page-level vertical scrolling; only BOM and RTG table bodies scroll internally. Narrow screens may use natural page scrolling and stacked panels.
+Simulation owns product-scoped, role-local parameter overrides over Master Data Working; there is no CBD Selected Comparison handoff or synchronization. The `Edit dataset` control selects the active Simulation role and does not copy structure or CBD selection, filters, or sorting. Direct Send can update only the active role's matching Master Working dataset. On desktop, Simulation uses the shared-shell workspace without page-level vertical scrolling; only BOM and RTG table bodies scroll internally. Narrow screens may use natural page scrolling and stacked panels.
 
 ## Product Boundaries and Scope
 

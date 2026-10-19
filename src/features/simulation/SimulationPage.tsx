@@ -1,5 +1,5 @@
 import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
-import { ChevronDown, ChevronRight, Copy, RotateCcw, Send } from 'lucide-react'
+import { ChevronDown, ChevronRight, Pencil, RotateCcw, Send } from 'lucide-react'
 import { compareSnapshots, formatNumber, safeAdd } from '../../core'
 import {
   calculateMultiplicativeCostAttribution,
@@ -37,8 +37,8 @@ interface SimulationPageProps {
   analysisAfterDataset: SimulationDatasetView
   referenceSnapshot: CostSnapshot
   currentSnapshot: CostSnapshot
-  onCloneSource: (role: MasterDataRole) => void
-  onSendTo: (role: MasterDataRole, snapshot: CostSnapshot) => boolean
+  onSelectActiveDataset: (role: MasterDataRole) => void
+  onSend: () => void
   onReset: () => void
   onUpdateParameter: (recordId: string, parameter: SimulationParameter, value: number | null) => void
   onToggleWorkingTarget: (kind: 'bom' | 'routing', recordId: string) => void
@@ -123,7 +123,7 @@ function rowIsSelectable(row: SimulationComparisonRow): boolean {
 
 function bomAttribution(
   row: SimulationComparisonRow,
-  currentSnapshot: CostSnapshot,
+  baselineSnapshot: CostSnapshot,
   simulationSnapshot: CostSnapshot
 ): { simCost: number | null; effects: EffectValues } {
   const empty: EffectValues = { totalEffect: null, effects: null, shares: null }
@@ -131,16 +131,16 @@ function bomAttribution(
   if (!simRecord) return { simCost: null, effects: empty }
   const simCost = calculateSnapshotBOMDetail({ current: simRecord }).currentCost
   if (!rowIsMatched(row)) return { simCost, effects: empty }
-  const currentRecord = singleRecord(currentSnapshot.bom, row.beforeRecordId)
-  if (!currentRecord) return { simCost, effects: empty }
-  const pair = calculateSnapshotBOMDetail({ reference: currentRecord, current: simRecord })
-  const hasInputs = [currentRecord.price, simRecord.price, currentRecord.consumption, simRecord.consumption, currentRecord.loss, simRecord.loss]
+  const baselineRecord = singleRecord(baselineSnapshot.bom, row.beforeRecordId)
+  if (!baselineRecord) return { simCost, effects: empty }
+  const pair = calculateSnapshotBOMDetail({ reference: baselineRecord, current: simRecord })
+  const hasInputs = [baselineRecord.price, simRecord.price, baselineRecord.consumption, simRecord.consumption, baselineRecord.loss, simRecord.loss]
     .every(value => value !== null && Number.isFinite(value))
   if (!hasInputs) return { simCost, effects: empty }
   const attribution = calculateMultiplicativeCostAttribution(pair.referenceCost, pair.currentCost, [
-    { key: 'price', baseline: currentRecord.price!, target: simRecord.price! },
-    { key: 'usage', baseline: currentRecord.consumption!, target: simRecord.consumption! },
-    { key: 'loss', baseline: 1 + currentRecord.loss!, target: 1 + simRecord.loss! }
+    { key: 'price', baseline: baselineRecord.price!, target: simRecord.price! },
+    { key: 'usage', baseline: baselineRecord.consumption!, target: simRecord.consumption! },
+    { key: 'loss', baseline: 1 + baselineRecord.loss!, target: 1 + simRecord.loss! }
   ])
   return { simCost, effects: attribution }
 }
@@ -160,7 +160,7 @@ function resolveSimulationCostUnit(referenceSnapshot: CostSnapshot, currentSnaps
 
 function routingAttribution(
   row: SimulationComparisonRow,
-  currentSnapshot: CostSnapshot,
+  baselineSnapshot: CostSnapshot,
   simulationSnapshot: CostSnapshot
 ): { simCost: number | null; effects: EffectValues } {
   const empty: EffectValues = { totalEffect: null, effects: null, shares: null }
@@ -169,24 +169,24 @@ function routingAttribution(
   const simOnly = calculateSnapshotRoutingDetail({ current: simRecord }, simulationSnapshot.rates, simulationSnapshot.rates)
   const simCost = simOnly.currentTotal
   if (!rowIsMatched(row)) return { simCost, effects: empty }
-  const currentRecord = singleRecord(currentSnapshot.routing, row.beforeRecordId)
-  if (!currentRecord || normalizeKey(currentRecord.workCenterId) !== normalizeKey(simRecord.workCenterId)) {
+  const baselineRecord = singleRecord(baselineSnapshot.routing, row.beforeRecordId)
+  if (!baselineRecord || normalizeKey(baselineRecord.workCenterId) !== normalizeKey(simRecord.workCenterId)) {
     return { simCost, effects: empty }
   }
   const pair = calculateSnapshotRoutingDetail(
-    { reference: currentRecord, current: simRecord },
-    currentSnapshot.rates,
+    { reference: baselineRecord, current: simRecord },
+    baselineSnapshot.rates,
     simulationSnapshot.rates
   )
-  const hasInputs = [currentRecord.manning, simRecord.manning, currentRecord.capacity, simRecord.capacity, currentRecord.yield, simRecord.yield]
+  const hasInputs = [baselineRecord.manning, simRecord.manning, baselineRecord.capacity, simRecord.capacity, baselineRecord.yield, simRecord.yield]
     .every(value => value !== null && Number.isFinite(value))
-  if (!hasInputs || currentRecord.capacity! <= 0 || simRecord.capacity! <= 0 || currentRecord.yield! <= 0 || simRecord.yield! <= 0) {
+  if (!hasInputs || baselineRecord.capacity! <= 0 || simRecord.capacity! <= 0 || baselineRecord.yield! <= 0 || simRecord.yield! <= 0) {
     return { simCost, effects: empty }
   }
   const attribution = calculateMultiplicativeCostAttribution(pair.referenceTotal, pair.currentTotal, [
-    { key: 'manning', baseline: currentRecord.manning!, target: simRecord.manning! },
-    { key: 'capacity', baseline: 1 / currentRecord.capacity!, target: 1 / simRecord.capacity! },
-    { key: 'yield', baseline: 1 / currentRecord.yield!, target: 1 / simRecord.yield! }
+    { key: 'manning', baseline: baselineRecord.manning!, target: simRecord.manning! },
+    { key: 'capacity', baseline: 1 / baselineRecord.capacity!, target: 1 / simRecord.capacity! },
+    { key: 'yield', baseline: 1 / baselineRecord.yield!, target: 1 / simRecord.yield! }
   ])
   return { simCost, effects: attribution }
 }
@@ -199,7 +199,7 @@ function RoleActionMenu({
   label,
   onSelect
 }: {
-  label: 'Clone from' | 'Send to'
+  label: 'Edit dataset'
   onSelect: (role: MasterDataRole) => void
 }) {
   const [open, setOpen] = useState(false)
@@ -296,7 +296,7 @@ function RoleActionMenu({
           }}
           className={resultActionButton}
         >
-          {label === 'Clone from' ? <Copy aria-hidden="true" className="h-4 w-4" /> : <Send aria-hidden="true" className="h-4 w-4" />}
+          <Pencil aria-hidden="true" className="h-4 w-4" />
         </button>
       </Tooltip>
       {open && (
@@ -377,7 +377,6 @@ interface SimulationSelectionDrag {
 function SimulationParameterTable({
   kind,
   rows,
-  currentSnapshot,
   simulationSnapshot,
   baselineSnapshot,
   workingSelection,
@@ -388,9 +387,8 @@ function SimulationParameterTable({
 }: {
   kind: SimulationRecordKind
   rows: SimulationComparisonRow[]
-  currentSnapshot: CostSnapshot
   simulationSnapshot: CostSnapshot
-  baselineSnapshot: CostSnapshot | null
+  baselineSnapshot: CostSnapshot
   workingSelection: string[]
   onToggleWorkingTarget: (kind: 'bom' | 'routing', recordId: string) => void
   onUpdate: (recordId: string, parameter: SimulationParameter, value: number | null) => void
@@ -573,8 +571,8 @@ function SimulationParameterTable({
               const selected = isSelectedRow(row)
               const canExpand = true
               const analysis = isBOM
-                ? bomAttribution(row, currentSnapshot, simulationSnapshot)
-                : routingAttribution(row, currentSnapshot, simulationSnapshot)
+                ? bomAttribution(row, baselineSnapshot, simulationSnapshot)
+                : routingAttribution(row, baselineSnapshot, simulationSnapshot)
               const status = rowStatusText(row, canEdit && simulationRecord ? simulationParameterStatus(kind, simulationRecord.id, simulationSnapshot, baselineSnapshot) : null)
               const toggleExpanded = () => setExpandedRows(previous => {
                 const next = new Set(previous)
@@ -715,8 +713,8 @@ function SimulationParameterTable({
             return next
           })
           const analysis = isBOM
-            ? bomAttribution(row, currentSnapshot, simulationSnapshot)
-            : routingAttribution(row, currentSnapshot, simulationSnapshot)
+            ? bomAttribution(row, baselineSnapshot, simulationSnapshot)
+            : routingAttribution(row, baselineSnapshot, simulationSnapshot)
           const totalEffect = parameterEffectPresentation(analysis.effects.totalEffect)
           return (
             <article
@@ -970,8 +968,8 @@ export const SimulationPage: React.FC<SimulationPageProps> = ({
   analysisAfterDataset,
   referenceSnapshot,
   currentSnapshot,
-  onCloneSource,
-  onSendTo,
+  onSelectActiveDataset,
+  onSend,
   onReset,
   onUpdateParameter,
   onToggleWorkingTarget,
@@ -981,8 +979,8 @@ export const SimulationPage: React.FC<SimulationPageProps> = ({
 }) => {
   const simulationSnapshot = state.snapshot
   const result = useMemo(
-    () => simulationSnapshot ? calculateParameterSimulation(currentSnapshot, simulationSnapshot) : null,
-    [currentSnapshot, simulationSnapshot]
+    () => simulationSnapshot ? calculateParameterSimulation(state.baselineSnapshot, simulationSnapshot) : null,
+    [simulationSnapshot, state.baselineSnapshot]
   )
   const analysisResult = useMemo(
     () => calculateParameterSimulation(analysisBeforeDataset.snapshot, analysisAfterDataset.snapshot),
@@ -1028,13 +1026,14 @@ export const SimulationPage: React.FC<SimulationPageProps> = ({
   const actionMenus = (
     <>
       <RoleActionMenu
-        label="Clone from"
-        onSelect={onCloneSource}
+        label="Edit dataset"
+        onSelect={onSelectActiveDataset}
       />
-      <RoleActionMenu
-        label="Send to"
-        onSelect={role => { onSendTo(role, simulationSnapshot) }}
-      />
+      <Tooltip label="Send to active dataset">
+        <button type="button" onClick={() => onSend()} aria-label="Send to active dataset" className={resultActionButton}>
+          <Send aria-hidden="true" className="h-4 w-4" />
+        </button>
+      </Tooltip>
       <Tooltip label="Reset">
         <button type="button" onClick={onReset} aria-label="Reset Simulation" className={resultActionButton}>
           <RotateCcw aria-hidden="true" className="h-4 w-4" />
@@ -1080,7 +1079,6 @@ export const SimulationPage: React.FC<SimulationPageProps> = ({
         <SimulationParameterTable
           kind="bom"
           rows={result.records}
-          currentSnapshot={currentSnapshot}
           simulationSnapshot={simulationSnapshot}
           baselineSnapshot={state.baselineSnapshot}
           workingSelection={workingSelection}
@@ -1092,7 +1090,6 @@ export const SimulationPage: React.FC<SimulationPageProps> = ({
         <SimulationParameterTable
           kind="routing"
           rows={result.records}
-          currentSnapshot={currentSnapshot}
           simulationSnapshot={simulationSnapshot}
           baselineSnapshot={state.baselineSnapshot}
           workingSelection={workingSelection}

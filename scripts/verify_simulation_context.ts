@@ -75,8 +75,14 @@ assert.match(app, /const currentRole = committed\?\.recorded[\s\S]*?simulationHi
   'activeDataset changes do not reinterpret the role owning an existing history entry')
 assert.match(app, /const role = current\.activeDataset[\s\S]*?resetSimulationParameters\(current, sources\)/,
   'Reset scope remains activeDataset even when comparisonAfter differs')
-assert.match(app, /const selected = setSimulationActiveDataset\(current, role\)[\s\S]*?prepareSimulationSend\(selected, masterDataSnapshots\)/,
-  'Send continues to prepare the selected active Simulation role')
+assert.match(app, /const activeDataset = current\.activeDataset[\s\S]*?prepareSimulationSend\(current, masterDataSnapshots\)[\s\S]*?sendSimulationSnapshotToMasterData\(activeDataset, payload\.snapshot\)/,
+  'Send uses only the active Simulation role and sends to that same Master Data role')
+assert.match(simulationPage, /label="Edit dataset"[\s\S]*?onSelect=\{onSelectActiveDataset\}/,
+  'Edit dataset selects the active Simulation role without a clone action')
+assert.match(simulationPage, /onClick=\{\(\) => onSend\(\)\}[\s\S]*?aria-label="Send to active dataset"/,
+  'Simulation exposes a direct same-role Send action')
+assert.doesNotMatch(simulationPage, /label="Send to"|onSendTo\(/,
+  'Simulation does not offer an arbitrary Send destination')
 assert.doesNotMatch(app, /rca-simulation|selectedCandidateKey|trialHandoffLetter|selectedScenarioLetter/,
   'Simulation routing does not depend on legacy RCA, Trial, or A/B state')
 

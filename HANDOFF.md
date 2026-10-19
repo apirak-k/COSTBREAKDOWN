@@ -1,4 +1,31 @@
-# Current Handoff — final CBD selector affordance closure — 2026-10-19
+# Current Handoff — Phase 3 Simulation logic + actions — 2026-10-19
+
+## Checkpoint and delivery
+
+- Repository: `/Users/bubu/COSTBREAKDOWN-ref-current-custom-flow-redesign` (`apirak-k/COSTBREAKDOWN`). Branch: `feat/ref-current-custom-flow-redesign`.
+- Approved starting local and fetched remote HEAD: `bb9357124b141b06a55a130c6b59cb000a8731aa`.
+- This is the focused Phase 3 state/action pass. The user authorized one commit and push to this branch, with no merge. Phase 4 graph/comparison UI remains deferred.
+
+## Implementation
+
+- Kept exactly three persistent Simulation roles, with parameter edits, Reset, same-role Send, and parameter history owned by `activeDataset`; the independent Before/After pair continues to own Result and Economic calculations.
+- Replaced the misleading `Clone from` control with `Edit dataset`, a role selector that does not copy data. Replaced arbitrary `Send to` destinations with a direct Send to the active role's matching Master Data Working dataset.
+- Corrected Simulation parameter editor rows/status and BOM/Routing Parameter Cost Effect calculations to use the active role's own Working baseline and Work Center rates. The compatibility Current/SIM Result and graph presentation remains in Phase 3.
+- Added focused Phase 3 state/calculation/SSR contracts and included existing economics/history verifiers in the Simulation regression runner. Updated the active Simulation, Cross-Cutting, Final Logic, and Requirements Index contracts.
+- Store/state primitives retain Reset All and atomic Send All semantics; no additional UI controls were introduced for those actions. Master Working Send preserves Last Saved and reconciles only affected role state/history.
+
+## Verification and limits
+
+- **PASS:** `npm run build` and `git diff --check`. The build keeps the existing ExcelJS/fast-csv browser externalization and 526 kB app-chunk warnings.
+- **PASS:** `node scripts/verify_simulation_regression.mjs` (Phase 3 state/calculation/SSR contracts, role-local overrides, economics, history, workspace send boundary, Master Data edit history, and Global Header). It exits 0 with two nonfatal Vite WebSocket port-in-use warnings from nested SSR suites.
+- **PASS:** CBD generic nine-pair comparison, audit fixes, parameter cost effect, summary UX, Selected Comparison boundary/lifecycle, comparison reconciliation, Master Data UI state, global compact overlays, and page-navigation persistence verifiers. Compact-overlay and navigation checks are source contracts; the audit verifier also renders chart cases with SSR.
+- No browser or manual interaction testing was run. Menu interaction, keyboard behavior, and visual viewport fit remain unverified.
+- Delivery commit SHA and pushed remote SHA will be recorded after branch delivery.
+- Do not merge or start Phase 4.
+
+---
+
+# Previous Handoff — final CBD selector affordance closure — 2026-10-19
 
 ## Checkpoint and delivery
 
