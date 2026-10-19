@@ -93,8 +93,14 @@ const simulationRoleMenuClass = simulationRoleSelector.match(/className="([^"]*w
 assert.ok(simulationRoleMenuClass, 'Simulation role selector menu declares intrinsic width')
 assert.match(simulationRoleMenuClass, /max-w-\[calc\(100vw-1rem\)\]/,
   'Simulation role selector menu is capped to the viewport')
-assert.match(simulationRoleMenuClass, /min-w-\[112px\]/,
-  'Simulation Before/After menus share the stable width required to display Reference')
+assert.match(simulationRoleMenuClass, /\bw-max\b/,
+  'Simulation Before/After menus use intrinsic content width')
+assert.match(simulationRoleMenuClass, /\bp-1\b/,
+  'Simulation role menus keep the established compact panel padding')
+assert.doesNotMatch(simulationRoleMenuClass, /\bmin-w-/,
+  'Simulation Before/After menus do not inherit their trigger width as a minimum')
+assert.match(simulationRoleSelector, /block min-h-8 w-full px-2 text-left/,
+  'Simulation role options keep only their normal horizontal content padding')
 assert.doesNotMatch(simulationRoleMenuClass, /(?:^|\s)w-(?:\d+|\[\d+(?:px|rem)\])(?:\s|$)/,
   'Simulation role selector menu has no arbitrary fixed width')
 assert.match(simulationRoleSelector, /w-\[112px\].*h-8|h-8.*w-\[112px\]/,

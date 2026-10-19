@@ -203,6 +203,12 @@ const inputFor = (markup: string, label: string) => [...markup.matchAll(/<input\
   .map(match => match[0]).find(input => input.includes(`aria-label="${label}"`)) ?? ''
 
 const pairPage = renderPage(state, 'reference', 'custom')
+const graphPanelIndex = pairPage.indexOf('<figure aria-labelledby="simulation-story-title"')
+const resultColumnIndex = pairPage.indexOf('data-simulation-layout-column="result-and-break-even"')
+const breakEvenPanelIndex = pairPage.indexOf('id="break-even-graph-title"')
+const businessEconomicPanelIndex = pairPage.indexOf('data-simulation-layout-column="inputs"')
+assert.ok(graphPanelIndex >= 0 && graphPanelIndex < resultColumnIndex && resultColumnIndex < breakEvenPanelIndex && breakEvenPanelIndex < businessEconomicPanelIndex,
+  'desktop source order is Graph, Result plus Break-even, then far-right Business/Economic')
 const pairResult = resultPanel(pairPage)
 assert.ok(pairResult, 'Simulation Result panel renders')
 const resultHeader = pairResult.match(/<header data-simulation-result-header="true"[\s\S]*?<\/header>/)?.[0] ?? ''
@@ -344,8 +350,17 @@ assert.match(graphSource, /onClick=\{\(\) => onSelectActiveDataset\(category\.ro
   '[source contract] graph role controls select activeDataset')
 assert.match(pageSource, /onChange=\{role => onChangeComparison\(role, afterRole\)\}[\s\S]*?onChange=\{role => onChangeComparison\(beforeRole, role\)\}/,
   '[source contract] Before and After selectors update only their own comparison side')
-assert.match(pageSource, /xl:grid-cols-\[minmax\(0,\.62fr\)_minmax\(0,1\.38fr\)\]/,
-  '[source contract] the Business/Economic column is moderately narrower to give Result more width')
+const upperWorkspaceStart = pageSource.indexOf('xl:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)]')
+const upperWorkspaceEnd = pageSource.indexOf('<div className="grid min-w-0 gap-2 xl:min-h-0 xl:flex-1', upperWorkspaceStart)
+const upperWorkspaceSource = upperWorkspaceStart >= 0 && upperWorkspaceEnd > upperWorkspaceStart
+  ? pageSource.slice(upperWorkspaceStart, upperWorkspaceEnd)
+  : ''
+assert.ok(upperWorkspaceSource, '[source contract] desktop upper workspace source is present')
+assert.match(upperWorkspaceSource, /xl:grid-cols-\[minmax\(0,1\.38fr\)_minmax\(0,\.62fr\)\]/,
+  '[source contract] Result is wider than the far-right Business/Economic support panel')
+const resultColumnSource = upperWorkspaceSource.match(/<div data-simulation-layout-column="result-and-break-even"[\s\S]*?<\/div>\s*<EconomicSimulationPanel/)?.[0] ?? ''
+assert.match(resultColumnSource, /<ResultPanel[\s\S]*?<EconomicBreakEvenGraphPanel[\s\S]*?<\/div>\s*<EconomicSimulationPanel/,
+  '[source contract] Result sits above Break-even in the middle column before far-right Business/Economic')
 assert.match(pageSource, /label="Send"[\s\S]*?secondaryLabel="Send all datasets"[\s\S]*?onPrimary=\{onSend\}[\s\S]*?onSecondary=\{onSendAll\}/,
   '[source contract] Send main and secondary actions use the active-role and all-role callbacks')
 assert.match(pageSource, /label="Reset"[\s\S]*?secondaryLabel="Reset all datasets"[\s\S]*?onPrimary=\{onReset\}[\s\S]*?onSecondary=\{onResetAll\}/,
@@ -356,6 +371,10 @@ assert.ok(pageSource.includes('aria-label={`${side} dataset, ${roleLabel(role)}`
 const roleSelectorSource = pageSource.match(/function ComparisonRoleSelector\([\s\S]*?\nfunction CompactActionControl/)?.[0] ?? ''
 assert.match(roleSelectorSource, /const availableRoles = ROLES\.filter\(option => option\.role !== role\)/,
   '[source contract] each selector omits only its own currently selected role')
+assert.match(roleSelectorSource, /w-max max-w-\[calc\(100vw-1rem\)\]/,
+  '[source contract] role menus size intrinsically and keep a viewport maximum')
+assert.doesNotMatch(roleSelectorSource, /min-w-\[112px\]/,
+  '[source contract] role menu width is independent from the stable 112px trigger')
 assert.match(roleSelectorSource, /\{availableRoles\.map\([\s\S]*?role="menuitem"/,
   '[source contract] the dropdown contains the other two selectable roles without a selected duplicate')
 assert.match(roleSelectorSource, /availableRoles\.length - 1[\s\S]*?menuItemRefs\.current\[firstOrLastIndex\]/,

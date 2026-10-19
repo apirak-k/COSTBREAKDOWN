@@ -222,7 +222,8 @@ try {
     .map(match => [match[1], match[0]] as const))
   const standardCostValueTags = new Map([...graphMarkup.matchAll(/<text\b[^>]*data-graph-standard-cost-value="(reference|current|custom)"[^>]*>/g)]
     .map(match => [match[1], match[0]] as const))
-  for (const [state, x] of [['reference', 180], ['current', 430], ['custom', 680]] as const) {
+  const graphStateXs = [156, 406, 656] as const
+  for (const [state, x] of [['reference', graphStateXs[0]], ['current', graphStateXs[1]], ['custom', graphStateXs[2]]] as const) {
     const boundaryLine = standardCostLineTags.get(state)
     const valueLabel = standardCostValueTags.get(state)
     assert.ok(boundaryLine && valueLabel, `${state} includes its Standard Cost line and value label`)
@@ -314,8 +315,39 @@ try {
   const yAxisLineTag = graphMarkup.match(/<line\b[^>]*data-y-axis="true"[^>]*>/)?.[0] ?? ''
   const yAxisUnitTag = graphMarkup.match(/<text\b[^>]*data-y-axis-unit="true"[^>]*>/)?.[0] ?? ''
   assert.ok(yAxisLineTag && yAxisUnitTag)
+  assert.equal(numericSvgAttribute(yAxisLineTag, 'x1'), 96, 'the plot left edge shifts 24 SVG units from 120 to 96')
+  assert.equal(numericSvgAttribute(yAxisUnitTag, 'x'), 96, 'the THB/PC label stays centered over the shifted Y axis')
+  const firstGridlineTag = graphMarkup.match(/<line x1="96" x2="728" y1="[^"]+" y2="[^"]+" stroke=/)?.[0] ?? ''
+  assert.ok(firstGridlineTag, 'gridlines preserve the plot span after the shared left shift')
+  const rulerLineTag = graphMarkup.match(/<line\b[^>]*data-ruler-line="true"[^>]*>/)?.[0] ?? ''
+  assert.equal(numericSvgAttribute(rulerLineTag, 'x1'), 96, 'the ruler begins at the shifted plot edge')
+  assert.equal(numericSvgAttribute(rulerLineTag, 'x2'), 728, 'the ruler ends at the shifted plot edge')
+  const axisTickTags = [...graphMarkup.matchAll(/<text\b[^>]*data-axis-tick="[^"]+"[^>]*>[^<]*<\/text>/g)].map(([tag]) => tag)
+  assert.ok(axisTickTags.length > 0 && axisTickTags.every(tag => numericSvgAttribute(tag, 'x') === 86),
+    'Y-axis tick labels move with the plot and keep their ten-unit gap')
+  const lowestTickLeft = Math.min(...axisTickTags.map(tag => {
+    const text = tag.match(/>([^<]+)<\/text>/)?.[1] ?? ''
+    return numericSvgAttribute(tag, 'x') - text.length * 5.4 - 16
+  }))
+  const unitText = yAxisUnitTag.match(/>([^<]+)<\/text>/)?.[1] ?? ''
+  const unitTextLeft = numericSvgAttribute(yAxisUnitTag, 'x') - 16 - unitText.length * 6.6 / 2
+  assert.ok(lowestTickLeft > 0 && unitTextLeft > 0, 'Y-axis tick and THB/PC labels keep positive left-side clearance after the shift')
+  const gapTotalTags = [...graphMarkup.matchAll(/<text\b[^>]*data-graph-total="(gap1|gap2)"[^>]*>/g)]
+  assert.deepEqual(gapTotalTags.map(([tag, gap]) => [gap, numericSvgAttribute(tag, 'x')]), [['gap1', 281], ['gap2', 531]],
+    'GAP bars keep their totals on the shared shifted category centers')
+  const roleLabelTags = [...graphMarkup.matchAll(/<foreignObject x="(\d+)" y="291" width="106" height="28">/g)]
+  assert.deepEqual(roleLabelTags.map(([, x]) => Number(x)), [103, 353, 603],
+    'Reference, Current, and Custom category controls align with the shifted state centers')
+  assert.deepEqual(sellingPriceLineSegments(graphMarkup).map(({ x1, x2 }) => [x1, x2]), [[156, 406], [406, 656]],
+    'Selling Price segments follow the same shifted state centers')
+  assert.deepEqual(graphStateXs.map(x => sellingPricePoint(graphMarkup, x)?.x ?? null), graphStateXs,
+    'Selling Price points follow the same shifted state centers')
   assert.match(graphMarkup, /<g transform="translate\(-16 0\)">/,
     'the plot is shifted slightly left without changing its internal label placement rules')
+  assert.match(graphSource, /const GRAPH_X_SHIFT = -24[\s\S]*?plotLeft: 120 \+ GRAPH_X_SHIFT,[\s\S]*?plotRight: 752 \+ GRAPH_X_SHIFT,[\s\S]*?reference: 180 \+ GRAPH_X_SHIFT,[\s\S]*?gap1: 305 \+ GRAPH_X_SHIFT,[\s\S]*?current: 430 \+ GRAPH_X_SHIFT,[\s\S]*?gap2: 555 \+ GRAPH_X_SHIFT,[\s\S]*?custom: 680 \+ GRAPH_X_SHIFT/,
+    'plot, state, gap, and category anchors share one 24-unit left shift')
+  assert.match(graphSource, /x: state\.x,[\s\S]*?path: `M \$\{state\.x\} \$\{y\(first\)\} L \$\{nextState\.x\} \$\{y\(second\)\}`/,
+    'Selling Price paths and points derive their x coordinates from the shifted states')
   assert.doesNotMatch(yAxisUnitTag, /transform=|rotate\(\s*-90/, 'the Y-axis unit label stays horizontal')
   assert.ok(numericSvgAttribute(yAxisUnitTag, 'y') < numericSvgAttribute(yAxisLineTag, 'y1'),
     'the horizontal UOM label sits above the Y-axis')
@@ -597,7 +629,7 @@ try {
   const positiveNetEndpoint = numericSvgAttribute(positiveNetLabel, 'data-graph-visible-net-endpoint-y')
   assert.match(positiveNetLabel, /data-graph-visible-net-position="above"/,
     'case 1: positive Visible Net without a Selling Price collision stays above its bar')
-  assert.equal(numericSvgAttribute(positiveNetLabel, 'x'), 180)
+  assert.equal(numericSvgAttribute(positiveNetLabel, 'x'), graphStateXs[0])
   assert.equal(numericSvgAttribute(positiveNetLabel, 'y'), positiveNetEndpoint - 12)
 
   const farSellingPriceFinancial = { ...financial(cost('far-price', 60, 20, 10), 250, 0), operatingProfitPerPiece: 10 }
@@ -605,8 +637,8 @@ try {
   const farSellingPriceLabel = graphLabelTag(farSellingPriceMarkup, 'data-graph-visible-net-value', 'reference')
   const farSellingPriceDefaultY = numericSvgAttribute(farSellingPriceLabel, 'data-graph-visible-net-default-y')
   assert.ok(farSellingPriceFinancial.sellingPrice! > 100, 'case 2 fixture has Selling Price above Visible Net')
-  assert.ok(!statePriceGeometryCrowds(farSellingPriceMarkup, 180,
-    estimatedTextBounds(180, farSellingPriceDefaultY, '100.00', 'middle')))
+  assert.ok(!statePriceGeometryCrowds(farSellingPriceMarkup, graphStateXs[0],
+    estimatedTextBounds(graphStateXs[0], farSellingPriceDefaultY, '100.00', 'middle')))
   assert.match(farSellingPriceLabel, /data-graph-visible-net-position="above"/,
     'case 2: SP > Net without actual collision keeps normal above placement')
 
@@ -615,13 +647,13 @@ try {
   const pointCollisionLabel = graphLabelTag(pointCollisionMarkup, 'data-graph-visible-net-value', 'reference')
   const pointCollisionEndpoint = numericSvgAttribute(pointCollisionLabel, 'data-graph-visible-net-endpoint-y')
   const pointCollisionDefaultY = numericSvgAttribute(pointCollisionLabel, 'data-graph-visible-net-default-y')
-  const pointCollisionDefaultBox = estimatedTextBounds(180, pointCollisionDefaultY, '100.00', 'middle')
+  const pointCollisionDefaultBox = estimatedTextBounds(graphStateXs[0], pointCollisionDefaultY, '100.00', 'middle')
   assert.ok(pointCollisionFinancial.sellingPrice! > 100)
-  assert.ok(statePriceGeometryCrowds(pointCollisionMarkup, 180, pointCollisionDefaultBox),
+  assert.ok(statePriceGeometryCrowds(pointCollisionMarkup, graphStateXs[0], pointCollisionDefaultBox),
     'case 3: the visible Selling Price point actually intersects normal Visible Net text')
   assert.match(pointCollisionLabel, /data-graph-visible-net-position="side"/,
     'case 3: SP > Net plus actual point collision moves Visible Net right')
-  assert.equal(numericSvgAttribute(pointCollisionLabel, 'x'), 215,
+  assert.equal(numericSvgAttribute(pointCollisionLabel, 'x'), graphStateXs[0] + 35,
     'case 3: side Visible Net shares the Standard Cost numeric column')
   assert.match(pointCollisionLabel, /text-anchor="start"/)
   assert.equal(numericSvgAttribute(pointCollisionLabel, 'data-graph-visible-net-text-top'), pointCollisionEndpoint,
@@ -633,8 +665,8 @@ try {
   const belowGateLabel = graphLabelTag(belowGateMarkup, 'data-graph-visible-net-value', 'reference')
   const belowGateDefaultY = numericSvgAttribute(belowGateLabel, 'data-graph-visible-net-default-y')
   assert.ok(belowGateReference.sellingPrice! <= 100, 'case 4 fixture has SP <= Visible Net')
-  assert.ok(statePriceGeometryCrowds(belowGateMarkup, 180,
-    estimatedTextBounds(180, belowGateDefaultY, '100.00', 'middle')),
+  assert.ok(statePriceGeometryCrowds(belowGateMarkup, graphStateXs[0],
+    estimatedTextBounds(graphStateXs[0], belowGateDefaultY, '100.00', 'middle')),
     'case 4 fixture still has an actual connected-line collision')
   assert.match(belowGateLabel, /data-graph-visible-net-position="above"/,
     'case 4: SP <= Net disables Selling Price side fallback even when the line crowds the text')
@@ -689,8 +721,8 @@ try {
   const midpoint = (Math.min(midpointNetValue, midpointStandardValue) + Math.max(midpointNetValue, midpointStandardValue)) / 2
   const normalMidpointNetBox = estimatedTextBounds(215, midpointNetValue + 8.25, '100.00', 'start')
   const normalMidpointStandardBox = estimatedTextBounds(215, midpointStandardValue + 8.25, '99.00', 'start')
-  assert.ok(statePriceGeometryCrowds(midpointMarkup, 180,
-    estimatedTextBounds(180, numericSvgAttribute(midpointNet, 'data-graph-visible-net-default-y'), '100.00', 'middle')))
+  assert.ok(statePriceGeometryCrowds(midpointMarkup, graphStateXs[0],
+    estimatedTextBounds(graphStateXs[0], numericSvgAttribute(midpointNet, 'data-graph-visible-net-default-y'), '100.00', 'middle')))
   assert.ok(boundsOverlap(normalMidpointNetBox, normalMidpointStandardBox),
     'case 10 fixture has distinct side values whose text boxes would overlap')
   assert.equal(graphLabelText(midpointMarkup, 'data-graph-visible-net-value', 'reference'), '100.00')

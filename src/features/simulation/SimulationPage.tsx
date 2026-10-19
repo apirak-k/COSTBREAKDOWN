@@ -350,7 +350,7 @@ function ComparisonRoleSelector({
             }
           }}
           onMouseEnter={clearHoverTimer}
-          className="absolute left-1/2 top-full z-50 w-max min-w-[112px] max-w-[calc(100vw-1rem)] -translate-x-1/2 border border-slate-300 bg-white p-1 shadow-lg"
+          className="absolute left-1/2 top-full z-50 w-max max-w-[calc(100vw-1rem)] -translate-x-1/2 border border-slate-300 bg-white p-1 shadow-lg"
         >
           {availableRoles.map(({ role: optionRole, label: optionLabel }, index) => (
             <button
@@ -1213,16 +1213,7 @@ export const SimulationPage: React.FC<SimulationPageProps> = ({
     <div className="min-w-0 space-y-3 xl:flex xl:h-full xl:min-h-0 xl:flex-col xl:gap-2 xl:space-y-0 xl:overflow-hidden">
       <div className="grid min-w-0 gap-2 xl:min-h-0 xl:flex-[1.25] xl:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)] xl:grid-rows-1">
         <SimulationStoryGraph story={story} unit={unit} activeRole={state.role} onSelectActiveDataset={onSelectActiveDataset} />
-        <div className="grid min-w-0 gap-2 xl:h-full xl:min-h-0 xl:grid-cols-[minmax(0,.62fr)_minmax(0,1.38fr)] xl:grid-rows-1">
-          <EconomicSimulationPanel
-            result={economicResult}
-            draft={analysisAfterDataset.economicInputs}
-            afterSnapshot={analysisAfterDataset.snapshot}
-            unit={unit}
-            onUpdate={(field, value) => onUpdateEconomicInput(analysisAfterDataset.role, field, value)}
-            onBeginEdit={() => onBeginEdit(analysisAfterDataset.role)}
-            onCommitEdit={onCommitEdit}
-          />
+        <div className="grid min-w-0 gap-2 xl:h-full xl:min-h-0 xl:grid-cols-[minmax(0,1.38fr)_minmax(0,.62fr)] xl:grid-rows-1">
           <div data-simulation-layout-column="result-and-break-even" className="grid min-w-0 gap-2 xl:min-h-0 xl:grid-rows-[minmax(0,1.2fr)_minmax(0,.8fr)]">
             <ResultPanel
               beforeRole={analysisBeforeDataset.role}
@@ -1242,6 +1233,15 @@ export const SimulationPage: React.FC<SimulationPageProps> = ({
               onCommitEdit={onCommitEdit}
             />
           </div>
+          <EconomicSimulationPanel
+            result={economicResult}
+            draft={analysisAfterDataset.economicInputs}
+            afterSnapshot={analysisAfterDataset.snapshot}
+            unit={unit}
+            onUpdate={(field, value) => onUpdateEconomicInput(analysisAfterDataset.role, field, value)}
+            onBeginEdit={() => onBeginEdit(analysisAfterDataset.role)}
+            onCommitEdit={onCommitEdit}
+          />
         </div>
       </div>
 

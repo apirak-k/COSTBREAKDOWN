@@ -64,10 +64,21 @@ const DEFAULT_LEGEND_VISIBILITY: Record<LegendKey, boolean> = {
 
 const useIsomorphicLayoutEffect = typeof window === 'undefined' ? useEffect : useLayoutEffect
 
+const GRAPH_X_SHIFT = -24
+const GRAPH_X = {
+  plotLeft: 120 + GRAPH_X_SHIFT,
+  plotRight: 752 + GRAPH_X_SHIFT,
+  reference: 180 + GRAPH_X_SHIFT,
+  gap1: 305 + GRAPH_X_SHIFT,
+  current: 430 + GRAPH_X_SHIFT,
+  gap2: 555 + GRAPH_X_SHIFT,
+  custom: 680 + GRAPH_X_SHIFT
+} as const
+
 const STATE_LAYOUT = [
-  { key: 'reference', label: 'Reference', description: 'Reference', x: 180 },
-  { key: 'current', label: 'Current', description: 'Current', x: 430 },
-  { key: 'custom', label: 'Custom', description: 'Custom', x: 680 }
+  { key: 'reference', label: 'Reference', description: 'Reference', x: GRAPH_X.reference },
+  { key: 'current', label: 'Current', description: 'Current', x: GRAPH_X.current },
+  { key: 'custom', label: 'Custom', description: 'Custom', x: GRAPH_X.custom }
 ] as const
 
 interface SimulationStoryGraphProps {
@@ -328,8 +339,8 @@ export function SimulationStoryGraph({ story, unit, activeRole, onSelectActiveDa
     values: story[state.key]
   })), [story])
   const gapValues = useMemo(() => [
-    { key: 'gap1', label: 'GAP 1', description: 'Current − Reference', x: 305, values: story.gap1 },
-    { key: 'gap2', label: 'GAP 2', description: 'Custom − Current', x: 555, values: story.gap2 }
+    { key: 'gap1', label: 'GAP 1', description: 'Current − Reference', x: GRAPH_X.gap1, values: story.gap1 },
+    { key: 'gap2', label: 'GAP 2', description: 'Custom − Current', x: GRAPH_X.gap2, values: story.gap2 }
   ], [story])
   const stateStacks = useMemo(() => stateValues.map(state => ({
     ...state,
@@ -344,11 +355,11 @@ export function SimulationStoryGraph({ story, unit, activeRole, onSelectActiveDa
     stack: buildVisibleStack(gap.values, COST_PARTS, visibleLegend)
   })), [gapValues, visibleLegend])
   const categoryLabels = [
-    { key: 'reference', label: 'Reference', role: 'reference' as const, x: 180, isGap: false as const },
-    { key: 'gap1', label: 'GAP 1', description: gapStacks[0].description, x: 305, value: gapStacks[0].stack.total, isGap: true as const },
-    { key: 'current', label: 'Current', role: 'current' as const, x: 430, isGap: false as const },
-    { key: 'gap2', label: 'GAP 2', description: gapStacks[1].description, x: 555, value: gapStacks[1].stack.total, isGap: true as const },
-    { key: 'custom', label: 'Custom', role: 'custom' as const, x: 680, isGap: false as const }
+    { key: 'reference', label: 'Reference', role: 'reference' as const, x: GRAPH_X.reference, isGap: false as const },
+    { key: 'gap1', label: 'GAP 1', description: gapStacks[0].description, x: GRAPH_X.gap1, value: gapStacks[0].stack.total, isGap: true as const },
+    { key: 'current', label: 'Current', role: 'current' as const, x: GRAPH_X.current, isGap: false as const },
+    { key: 'gap2', label: 'GAP 2', description: gapStacks[1].description, x: GRAPH_X.gap2, value: gapStacks[1].stack.total, isGap: true as const },
+    { key: 'custom', label: 'Custom', role: 'custom' as const, x: GRAPH_X.custom, isGap: false as const }
   ]
   const rangeValues = useMemo(() => {
     return finiteRangeValues([
@@ -358,7 +369,7 @@ export function SimulationStoryGraph({ story, unit, activeRole, onSelectActiveDa
       ...(visibleLegend.sellingPrice ? stateValues.map(state => state.values.sellingPrice) : []),
     ])
   }, [gapStacks, standardCostValues, stateStacks, stateValues, visibleLegend])
-  const plot = { left: 120, right: 752, top: 38, bottom: 272 }
+  const plot = { left: GRAPH_X.plotLeft, right: GRAPH_X.plotRight, top: 38, bottom: 272 }
   const { minimum, maximum, step: axisStep } = buildGraphScale(rangeValues)
   const span = maximum - minimum
   const clamp = (value: number, low: number, high: number) => Math.min(high, Math.max(low, value))
@@ -568,7 +579,7 @@ export function SimulationStoryGraph({ story, unit, activeRole, onSelectActiveDa
               <g key={index}>
                 <line x1={plot.left} x2={plot.right} y1={lineY} y2={lineY} stroke={isZero ? '#94a3b8' : '#e2e8f0'} strokeWidth={isZero ? 1.2 : 1} />
                 <line x1={plot.left - 3} x2={plot.left + 3} y1={lineY} y2={lineY} stroke="#64748b" strokeWidth="1" />
-                <text data-axis-tick={index} x="110" y={lineY + 3} textAnchor="end" fill="#64748b" fontSize="9px" fontFamily="ui-monospace, monospace">{formatNumber(value, axisTickPrecision)}</text>
+                <text data-axis-tick={index} x={plot.left - 10} y={lineY + 3} textAnchor="end" fill="#64748b" fontSize="9px" fontFamily="ui-monospace, monospace">{formatNumber(value, axisTickPrecision)}</text>
               </g>
             )
           })}

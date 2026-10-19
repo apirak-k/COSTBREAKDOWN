@@ -1,29 +1,35 @@
-# Current Handoff — final focused Simulation UI follow-up — 2026-10-19
+# Current Handoff — Simulation analysis layout and compact role menus — 2026-10-19
 
 ## Checkpoint and delivery
 
 - Repository: `/Users/bubu/COSTBREAKDOWN-ref-current-custom-flow-redesign` (`apirak-k/COSTBREAKDOWN`). Branch: `feat/ref-current-custom-flow-redesign`.
-- Required starting baseline: `afe56d4984a6cedd2c423b55d33ec31a9da4b23a`; local and fetched remote matched before edits. This is a presentation/interaction follow-up after Phase 4, not a Phase 4 logic reopening.
+- Required starting baseline: `c835278511cd6172d8e98e070d5ca95d4df28144`; local and fetched remote matched before edits. This is a presentation/interaction follow-up after Phase 4, not a logic reopening.
 - One focused commit and push are authorized. Record the resulting commit and remote SHA in the completion message. Do not merge or start Phase 5.
 
-## Final UI corrections
+## UI changes
 
-- The graph active-role label keeps its semantic selected state and now uses a dark 2px underline. It has no selected box or background; role selection still changes only `activeDataset`.
-- The visible `Result` title is removed. The section retains its accessible name through a screen-reader-only heading and `aria-labelledby`.
-- The desktop Business/Economic-to-Result grid ratio is now `.62fr / 1.38fr`, with reduced Result horizontal padding. At `xl` and above, the comparison selectors and icon actions are structurally kept on one row; narrower layouts may wrap.
-- Before/After use matching 112×32px boxed selectors with full, untruncated `Reference`, `Current`, and `Custom` labels and exact `Before` / `After` tooltips. Each menu omits only its own current role, keyboard indexes the filtered list, and the opposite-side role stays selectable. All nine ordered pairs, including self-pairs, remain possible.
-- Send remains the immediate active-role action; its tooltip and accessible name are `Send to Master Data`. Its secondary action remains exactly `Send all datasets`. Reset remains `Reset`, with `Reset all datasets` unchanged.
-- Phase 4 state, calculations, economics ownership, graph story, and Send/Reset behavior were not changed. Updated `SIMULATION.md`, `CROSS_CUTTING.md`, `FINAL_LOGIC_SPEC.md`, and focused Phase 4/graph/overlay verifier contracts.
+- Desktop upper panels now read Main Graph | Result + Break-even | Business/Economic. The right block keeps a `1.38fr / .62fr` split: Result and Break-even share the wider middle column; Business/Economic is the narrow far-right support column. Break-even remains directly below Result.
+- A shared `GRAPH_X_SHIFT = -24` moves the plot coordinate from `plot.left = 120` to `96` and `plot.right = 752` to `728`. Reference/Current/Custom anchors move from 180/430/680 to 156/406/656; GAP 1/2 and category anchors move from 305/555 to 281/531. Gridlines, Selling Price, value labels, ruler, and role labels use those shared anchors. Tick labels remain ten SVG units left of the Y axis; the THB/UOM label stays centered above it. The existing SVG `translate(-16 0)` remains.
+- Before/After triggers remain equal 112×32px fields with full role names. Their popups now use `w-max` with normal panel/item padding and no trigger-width minimum. Centering, horizontal viewport clamping, vertical flipping, outside-click dismissal, Escape, keyboard navigation, and focus behavior remain in place.
+- Send/Reset overlays retain their viewport-safe positioning. Comparison semantics, calculations, `activeDataset`, economics ownership, action behavior, and the dark underline are unchanged.
+- Updated `SIMULATION.md`, `CROSS_CUTTING.md`, this handoff, and focused layout, graph, and compact-overlay verifier contracts. Final Logic wording remained accurate, so it was not changed.
 
 ## Verification and limits
 
 - **PASS:** `npm run build` (TypeScript and Vite); `git diff --check`.
-- **PASS:** `node scripts/verify_simulation_regression.mjs` (Phase 3 and 4, parameter overrides, economics, history, workspace, context, engine, Master Data edit history, and Global Header through Vite SSR).
-- **PASS:** graph-only Simulation SSR; CBD nine-pair comparison; comparison reconciliation; Selected Comparison boundary and lifecycle; Master Data UI state; page-navigation persistence; and global compact-overlay contracts.
-- Phase 4 SSR/source contracts cover the semantic graph state, all nine Result pairs, title/accessibility structure, selectors, menu filtering and keyboard indexes, and actions. Overlay and navigation assertions are source contracts, not browser interaction tests.
-- The legacy full-page `verify_simulation_story_view.ts` path remains stale because it calls the removed `startSimulationFrom` API. Its graph-only path passes; the current Phase 4 Result SSR path passes in the regression runner. Leave the unrelated full-page verifier for Phase 5 cleanup as requested.
-- No browser/manual visual test was run. Rendered desktop geometry, responsive fit, hover timing, keyboard focus/dismissal, and screen-reader behavior remain unverified. Build warnings remain for ExcelJS/fast-csv browser externalization and the 532.65 kB main bundle. Nested Vite SSR checks may print the existing WebSocket port-in-use warning while exiting successfully.
+- **PASS:** `node scripts/verify_simulation_regression.mjs` (Phase 3/4, context, history, economics, workspace, Master Data edit history, and Global Header).
+- **PASS:** graph-only Simulation SSR; CBD nine-pair comparison; comparison reconciliation; Selected Comparison boundary/lifecycle; Master Data UI state; navigation persistence; and compact-overlay source contracts.
+- Phase 4 SSR/source checks cover the desktop DOM order, Result/Business column ratio, all nine pairs, and unchanged toolbar semantics. Graph SSR checks the shifted plot/grid/ruler, state/gap/category centers, Selling Price coordinates, and axis-label clearance. Overlay checks verify intrinsic role-menu sizing and preserve viewport handling. These are source/SSR contracts, not browser layout tests.
+- The full-page `verify_simulation_story_view.ts` path remains stale because it calls removed `startSimulationFrom`; graph-only SSR passes. Leave that unrelated legacy path for Phase 5 cleanup.
+- No browser/manual visual test was run. Actual desktop proportions, rendered page overflow, and visual axis clearance remain unverified. Build warnings remain for ExcelJS/fast-csv browser externalization and the 532.83 kB main bundle. Nested Vite SSR checks may report the existing WebSocket port-in-use warning while exiting successfully.
 - No merge or Phase 5 work is included.
+
+---
+
+# Previous Handoff — final focused Simulation UI follow-up — 2026-10-19
+
+- Starting baseline: `afe56d4984a6cedd2c423b55d33ec31a9da4b23a`; delivered as commit `c835278511cd6172d8e98e070d5ca95d4df28144` on this branch.
+- That pass closed the Result toolbar, full-width selectors, selected-role filtering, Send tooltip, and dark graph underline. Phase 3/4 regressions passed; browser geometry remained unverified.
 
 ---
 
