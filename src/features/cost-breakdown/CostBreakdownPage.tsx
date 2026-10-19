@@ -1,14 +1,15 @@
-import React, { useId, useState } from 'react'
-import { ArrowUpDown, ChevronDown, ChevronUp, Filter } from 'lucide-react'
+import React, { useEffect, useId, useState } from 'react'
+import { ArrowUpDown, ChevronDown, ChevronRight, Filter } from 'lucide-react'
 import { useAppStore } from '../../state'
 
 import { ItemizedComparisonTable } from './components/ItemizedComparisonTable'
 import type { ItemizedTypeTab } from './components/ItemizedComparisonTable'
 import { SnapshotComparisonCard } from './components/SnapshotComparisonCard'
 import { WorkCenterProcessingTable } from './components/WorkCenterProcessingTable'
-import { CostBreakdownPopover } from './components/CostBreakdownPopover'
+import { CostBreakdownPopover, dismissCostBreakdownPopovers } from './components/CostBreakdownPopover'
 import { ComparisonStatusOptions } from './components/ComparisonStatusOptions'
 import { COST_ELEMENT_COLORS } from './components/cost-element-colors'
+import { Tooltip } from '../../shared/ui/Tooltip'
 import {
   ALL_COMPARISON_STATUSES,
   COMPARISON_SORT_OPTIONS,
@@ -41,6 +42,7 @@ const COMPARISON_ROLE_LABELS: Record<MasterDataRole, string> = {
   current: 'Current',
   custom: 'Custom'
 }
+const iconActionButtonClass = 'grid h-8 w-8 shrink-0 place-items-center rounded-sm bg-transparent text-slate-700 transition-colors hover:bg-slate-100 hover:text-slate-950 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700'
 
 interface ComparisonRolePopoverProps {
   side: 'Before' | 'After'
@@ -52,7 +54,7 @@ const ComparisonRolePopover: React.FC<ComparisonRolePopoverProps> = ({ side, sel
   <CostBreakdownPopover
     label={`${side} dataset, currently ${COMPARISON_ROLE_LABELS[selectedRole]}`}
     trigger={<span>{COMPARISON_ROLE_LABELS[selectedRole]}</span>}
-    panelClassName="w-32"
+    panelClassName="w-max"
     triggerClassName="inline-flex h-8 w-[108px] shrink-0 items-center justify-between rounded-sm border border-slate-300 bg-white px-2 text-xs font-medium leading-none text-slate-700 transition-colors hover:bg-slate-100 hover:text-slate-950 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700"
   >
     {close => <div role="group" aria-label={`${side} dataset choices`} className="flex flex-col">
@@ -60,7 +62,7 @@ const ComparisonRolePopover: React.FC<ComparisonRolePopoverProps> = ({ side, sel
         key={role}
         type="button"
         onClick={() => { onSelect(role); close() }}
-        className="block w-full rounded-sm px-2 py-1.5 text-left text-xs text-slate-700 hover:bg-slate-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-700"
+        className="block min-h-8 w-full rounded-sm px-2 text-left text-xs text-slate-800 hover:bg-slate-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-700"
       >{COMPARISON_ROLE_LABELS[role]}</button>)}
     </div>}
   </CostBreakdownPopover>
@@ -204,6 +206,7 @@ export function GapContributionChart({ segments, fullTotal, selectedTotal, selec
 
 export const CostBreakdownPage: React.FC<CostBreakdownPageProps> = ({ manualOrders, onManualOrderChange, onResetManualOrderHistory }) => {
   const {
+    activeTab,
     comparisonBefore,
     comparisonAfter,
     comparisonPair,
@@ -223,6 +226,10 @@ export const CostBreakdownPage: React.FC<CostBreakdownPageProps> = ({ manualOrde
   const [isOverviewExpanded, setIsOverviewExpanded] = useState(true)
   const toggleOverview = () => setIsOverviewExpanded(expanded => !expanded)
   const gapDirection = `${COMPARISON_ROLE_LABELS[comparisonAfter]} − ${COMPARISON_ROLE_LABELS[comparisonBefore]}`
+
+  useEffect(() => {
+    if (activeTab !== 'breakdown') dismissCostBreakdownPopovers()
+  }, [activeTab])
 
   const selectedBOMKeys = new Set(selectedComparisonSelection?.bomFindingKeys ?? [])
   const selectedRoutingKeys = new Set(selectedComparisonSelection?.routingFindingKeys ?? [])
@@ -310,17 +317,18 @@ export const CostBreakdownPage: React.FC<CostBreakdownPageProps> = ({ manualOrde
             />
           </div>
 
-          <div className="inline-flex h-8 w-[240px] shrink-0 overflow-hidden rounded-sm border border-slate-300 bg-white" role="group" aria-label="Finding type filter">
+          <div className="grid h-8 w-[240px] shrink-0 grid-cols-3 items-stretch border border-slate-300 bg-white" role="group" aria-label="Finding type filter">
             {(['bom', 'rtg', 'all'] as const).map((tab, index) => (
               <button
                 key={tab}
                 type="button"
                 aria-pressed={typeTab === tab}
                 onClick={() => setTypeTab(tab)}
-                className={`flex min-w-0 flex-1 basis-0 items-center justify-center gap-1 whitespace-nowrap px-1 text-xs font-semibold focus-visible:z-10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-blue-700 ${index > 0 ? 'border-l border-slate-300' : ''} ${typeTab === tab ? 'bg-slate-800 text-white' : 'text-slate-700 hover:bg-slate-100'}`}
+                className={`relative inline-flex h-full w-full min-w-0 items-center justify-center gap-1 px-0.5 text-[10px] font-medium transition-colors focus-visible:z-10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-blue-700 ${index < 2 ? 'border-r border-slate-200' : ''} ${typeTab === tab ? 'text-white' : 'text-slate-700 hover:bg-slate-100 hover:text-slate-950'}`}
               >
-                <span>{tab.toUpperCase()}</span>
-                <span className="w-[5ch] text-right font-mono tabular-nums">({typeCounts[tab]})</span>
+                {typeTab === tab && <span aria-hidden="true" className="pointer-events-none absolute inset-0.5 bg-slate-900" />}
+                <span className="relative z-10">{tab === 'all' ? 'All' : tab.toUpperCase()}</span>
+                <span className="relative z-10 w-[5ch] text-right font-mono tabular-nums">({typeCounts[tab]})</span>
               </button>
             ))}
           </div>
@@ -329,8 +337,8 @@ export const CostBreakdownPage: React.FC<CostBreakdownPageProps> = ({ manualOrde
             label="Status"
             showChevron={false}
             trigger={<Filter aria-hidden="true" className="h-4 w-4" />}
-            triggerClassName="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-sm border border-slate-300 bg-white p-0 text-slate-700 transition-colors hover:bg-slate-100 hover:text-slate-950 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700"
-            panelClassName="w-max min-w-32"
+            triggerClassName={iconActionButtonClass}
+            panelClassName="w-max"
           >
             {() => <ComparisonStatusOptions selected={comparisonView} onChange={setComparisonView} />}
           </CostBreakdownPopover>
@@ -339,32 +347,33 @@ export const CostBreakdownPage: React.FC<CostBreakdownPageProps> = ({ manualOrde
             label="Sort"
             showChevron={false}
             trigger={<ArrowUpDown aria-hidden="true" className="h-4 w-4" />}
-            triggerClassName="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-sm border border-slate-300 bg-white p-0 text-slate-700 transition-colors hover:bg-slate-100 hover:text-slate-950 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700"
-            panelClassName="w-max min-w-36"
+            triggerClassName={iconActionButtonClass}
+            panelClassName="w-max"
           >
             {close => <div role="group" aria-label="Sort findings" className="flex flex-col">
               {COMPARISON_SORT_OPTIONS.map(option => <button
                 key={option.value}
                 type="button"
                 onClick={() => { setSortMode(option.value); onResetManualOrderHistory(); setSortResetToken(token => token + 1); close() }}
-                className="block w-full rounded-sm px-2 py-1 text-left text-xs text-slate-700 hover:bg-slate-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-700"
+                className="block min-h-8 w-full rounded-sm px-2 text-left text-xs text-slate-800 hover:bg-slate-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-700"
               >{option.label}</button>)}
             </div>}
           </CostBreakdownPopover>
 
-          <button
-            type="button"
-            aria-expanded={isOverviewExpanded}
-            aria-controls="cost-breakdown-overview-panels"
-            aria-label={isOverviewExpanded ? 'Collapse overview' : 'Expand overview'}
-            title={isOverviewExpanded ? 'Collapse overview' : 'Expand overview'}
-            onClick={toggleOverview}
-            className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-sm text-slate-600 transition-colors hover:bg-slate-100 hover:text-slate-950 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700"
-          >
-            {isOverviewExpanded
-              ? <ChevronUp data-cbd-overview-indicator="true" aria-hidden="true" className="h-4 w-4" />
-              : <ChevronDown data-cbd-overview-indicator="true" aria-hidden="true" className="h-4 w-4" />}
-          </button>
+          <Tooltip label={isOverviewExpanded ? 'Collapse overview' : 'Expand overview'} wrapperClassName="relative inline-flex shrink-0">
+            <button
+              type="button"
+              aria-expanded={isOverviewExpanded}
+              aria-controls="cost-breakdown-overview-panels"
+              aria-label={isOverviewExpanded ? 'Collapse overview' : 'Expand overview'}
+              onClick={toggleOverview}
+              className={iconActionButtonClass}
+            >
+              {isOverviewExpanded
+                ? <ChevronDown data-cbd-overview-indicator="true" aria-hidden="true" className="h-4 w-4" />
+                : <ChevronRight data-cbd-overview-indicator="true" aria-hidden="true" className="h-4 w-4" />}
+            </button>
+          </Tooltip>
         </div>
       </header>
 

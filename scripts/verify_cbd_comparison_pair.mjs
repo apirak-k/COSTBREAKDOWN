@@ -188,7 +188,7 @@ try {
   assert.match(storeSource, /createSelectedSnapshotPair\(engineComparisonPair, costBreakdownFullComparison/)
   assert.match(appSource, /previous\.comparisonFingerprint !== comparisonPair\.fingerprint[\s\S]*resetCandidateReorderHistory/)
   assert.match(pageSource, /key=\{comparisonPair\.fingerprint\}/, 'pair changes remount the candidate details state')
-  assert.match(pageSource, /w-\[108px\]/, 'both role selectors have stable fixed width')
+  assert.match(pageSource, /h-8 w-\[108px\]/, 'both role selectors have a stable fixed 108px by 32px size')
   assert.match(pageSource, /min-w-\[96px\] flex-1/, 'the Gap Bar remains flexible and usable beside selectors')
   assert.match(pageSource, /COMPARISON_ROLES\.filter\(role => role !== selectedRole\)\.map/,
     'each selector menu shows the two alternatives to its own role')
@@ -198,6 +198,14 @@ try {
     'role menus do not mark or disable any option')
   assert.match(rolePopoverSource, /onSelect\(role\); close\(\)/,
     'choosing any alternative applies it and closes the menu')
+  assert.match(rolePopoverSource, /panelClassName="[^"]*w-max[^"]*"/,
+    'role menu width follows intrinsic option content')
+  assert.doesNotMatch(rolePopoverSource, /panelClassName="[^"]*\b(?:w|min-w)-\d+\b/,
+    'role menu has no arbitrary fixed width or empty minimum width')
+  assert.match(popoverSource, /panelElement\.style\.minWidth\s*=\s*`\$\{triggerBounds\.width\}px`/,
+    'the intrinsic role menu is at least as wide as its trigger')
+  assert.match(popoverSource, /const centeredLeft = triggerBounds\.left \+ \(triggerBounds\.width - panelWidth\) \/ 2[\s\S]*const left = Math\.max\(8, Math\.min\(centeredLeft, window\.innerWidth - panelWidth - 8\)\)/,
+    'role menu stays centered and clamped to the viewport')
   assert.match(candidateSource, /afterValue - beforeValue/, 'Candidate parameter deltas are After minus Before')
   assert.match(candidateSource, /side: 'After'/)
   assert.match(candidateSource, /side: 'Before'/)

@@ -1,4 +1,33 @@
-# Current Handoff — Phase 2 Reference / Current / Custom audit closure — 2026-10-19
+# Current Handoff — final cross-page UI refinement correction — 2026-10-19
+
+## Checkpoint and delivery
+
+- Repository: `/Users/bubu/COSTBREAKDOWN-ref-current-custom-flow-redesign` (`apirak-k/COSTBREAKDOWN`). Branch: `feat/ref-current-custom-flow-redesign`.
+- Starting local HEAD and verified remote branch HEAD: `0db4c7622ebb8baf38625eaa5939373a69f97fc1`.
+- This is the focused post-Phase-2 UI refinement correction. The user authorized one commit and push to this branch, with no merge. Do not start Simulation Phase 3/4.
+
+## Corrections
+
+- Keep Before/After selectors fixed at 108×32; each dropdown now sizes to its actual alternative labels, has a 32px trigger-width floor, and remains centered and viewport-clamped.
+- Apply the compact overlay rule across CBD, Master Data, Simulation, shared tooltips, and the small ConfirmModal; retain the structured Prepare Dataset panel and real form/modal widths.
+- Match CBD Status and Sort triggers to Master Data’s transparent 32×32 icon actions, use shared Tooltip and popover behavior, retain Status multi-select, and present Sort as the three requested commands in order.
+- Match the CBD BOM/RTG/All selector to the Master Data inset segmented selector; use `All` casing and live counts. Overview disclosure uses ChevronDown when expanded and ChevronRight when collapsed.
+- Keep visited Master Data, CBD, and Simulation pages mounted while hidden so valid local state survives all six navigation directions. Preserve existing context-dependent reconciliation/reset behavior and Header Undo/Redo routing. Close CBD’s transient portal on navigation and Master Data dialogs when hidden or product context changes.
+- Update active CBD, Cross-Cutting, Master Data toolbar, and Simulation specs plus focused source-contract verifiers. No calculation or dataset business rules changed.
+
+## Verification and limits
+
+- **PASS:** `npm run build` and `git diff --check`.
+- **PASS:** CBD comparison-pair, audit-fixes, summary UX, parameter-cost-effect, reorder-history, and sort verifiers.
+- **PASS:** Selected Comparison lifecycle and boundary verifiers; comparison reconciliation verifier (run through Vite SSR due extensionless TypeScript imports); Global Header verifier (run through Vite SSR); Master Data UI-state verifier; Simulation regression verifier.
+- **PASS:** `scripts/verify_global_compact_overlays.mjs` and `scripts/verify_page_navigation_persistence.mjs`. These are source contracts; they cover compact overlay sizing exceptions, all six navigation directions, persisted page state, and context invalidation wiring.
+- No browser interaction or visual viewport testing was run; the repository has no installed DOM/browser test harness. Navigation/menu behavior beyond existing logic verifiers is source-contract checked.
+- Build retains existing ExcelJS/fast-csv browser externalization and large-chunk warnings. Comparison reconciliation emitted a Vite WebSocket port-in-use warning but exited 0 and completed all assertions.
+- Before delivery, rerun `git diff --check`, commit the scoped UI correction once, push the branch, and verify `git ls-remote` equals local HEAD.
+
+---
+
+# Previous Handoff — Phase 2 Reference / Current / Custom audit closure — 2026-10-19
 
 ## Checkpoint and delivery
 

@@ -35,6 +35,7 @@ export const MasterDataPage: React.FC<MasterDataPageProps> = ({
   onPrepareDatasetNavigationHandled
 }) => {
   const {
+    activeTab,
     activeProductId,
     masterDataSnapshots,
     masterDataUiState,
@@ -76,6 +77,20 @@ export const MasterDataPage: React.FC<MasterDataPageProps> = ({
   const [showWarningHighlights, setShowWarningHighlights] = useState(true)
   const [warningNavigation, setWarningNavigation] = useState<(WarningNavigationTarget & MasterDataQualityItem) | undefined>()
   const [activeCellSelectionOwnerKey, setActiveCellSelectionOwnerKey] = useState<string | null>(null)
+
+  useEffect(() => {
+    if (activeTab === 'master') return
+    setImportModalOpen(false)
+    setSizingModalOpen(false)
+    setWarningNavigation(undefined)
+  }, [activeTab])
+
+  useEffect(() => {
+    setImportModalOpen(false)
+    setSizingModalOpen(false)
+    setWarningNavigation(undefined)
+    setActiveCellSelectionOwnerKey(null)
+  }, [activeProductId])
 
   const isEditMode = masterDataUiState.mode === 'edit'
   const isAllTablesVisible = masterDataUiState.tableView === 'all'
@@ -331,14 +346,14 @@ export const MasterDataPage: React.FC<MasterDataPageProps> = ({
       </div>
 
       <ExcelImportModal
-        isOpen={importModalOpen}
+        isOpen={activeTab === 'master' && importModalOpen}
         onClose={() => setImportModalOpen(false)}
         importRole={masterDataRole}
         hasWorkingData={hasEnteredMasterData(masterDataSnapshot)}
         onImport={importSnapshotFromExcel}
       />
       <DatasetSizingModal
-        isOpen={sizingModalOpen}
+        isOpen={activeTab === 'master' && sizingModalOpen}
         onClose={() => setSizingModalOpen(false)}
         role={masterDataRole}
         product={product}

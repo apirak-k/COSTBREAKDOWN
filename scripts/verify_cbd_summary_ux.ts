@@ -584,8 +584,12 @@ try {
   const appLayoutSource = readFileSync(new URL('../src/shared/layout/AppLayout.tsx', import.meta.url), 'utf8')
   assert.match(appLayoutSource, /className=\{isCostBreakdown\s*\?\s*'[^']*overflow-y-auto[^']*'\s*:/,
     'shared Main remains the CBD page-level vertical scroll owner')
-  assert.match(pageSource, /aria-expanded=\{isOverviewExpanded\}[\s\S]*aria-controls="cost-breakdown-overview-panels"[\s\S]*aria-label=\{isOverviewExpanded \? 'Collapse overview' : 'Expand overview'\}[\s\S]*title=\{isOverviewExpanded \? 'Collapse overview' : 'Expand overview'\}/,
-    'overview disclosure has an accessible name, expanded state, and controlled panel reference')
+  assert.match(pageSource, /<Tooltip label=\{isOverviewExpanded \? 'Collapse overview' : 'Expand overview'\}[^>]*>[\s\S]*?<button[\s\S]*?aria-expanded=\{isOverviewExpanded\}[\s\S]*?aria-controls="cost-breakdown-overview-panels"[\s\S]*?aria-label=\{isOverviewExpanded \? 'Collapse overview' : 'Expand overview'\}[\s\S]*?<\/button>\s*<\/Tooltip>/,
+    'overview disclosure has a shared tooltip, accessible name, expanded state, and controlled panel reference')
+  const overviewDisclosure = pageSource.match(/<Tooltip label=\{isOverviewExpanded \? 'Collapse overview' : 'Expand overview'\}[\s\S]*?<\/Tooltip>/)?.[0]
+  assert.ok(overviewDisclosure, 'overview disclosure is wrapped by the shared Tooltip')
+  assert.doesNotMatch(overviewDisclosure, /\btitle=/,
+    'overview disclosure does not duplicate its shared Tooltip with a native title')
   assert.match(pageSource, /data-cbd-overview-indicator="true"/,
     'overview disclosure retains a visible state indicator')
   assert.match(candidateRegionClass, /max-lg:\[contain:paint\]/,

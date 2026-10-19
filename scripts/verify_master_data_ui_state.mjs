@@ -693,10 +693,10 @@ try {
     'the Clone menu uses the trigger center as its normal horizontal anchor')
   assert.match(headerSource, /const cloneHorizontalOffset = useCenteredPopoverOffset\(cloneMenuOpen, cloneMenuRef\)/,
     'the centered Clone menu keeps its existing viewport-clamping calculation')
-  assert.match(cloneMenuClass, /\bw-24\b/,
-    'the Clone menu has one stable compact width sized for Reference')
-  assert.doesNotMatch(cloneMenuClass, /\bmin-w-max\b/,
-    'the Clone menu width does not shrink with the filtered role list')
+  assert.match(cloneMenuClass, /(?:^|\s)w-max min-w-8 max-w-\[calc\(100vw-1rem\)\](?:\s|$)/,
+    'the Clone menu sizes intrinsically, keeps the trigger minimum, and fits the viewport')
+  assert.doesNotMatch(cloneMenuClass, /(?:^|\s)w-\d+(?:\s|$)|(?:^|\s)min-w-(?!8\b)\d+(?:\s|$)/,
+    'the Clone menu has no arbitrary empty fixed width')
   assert.match(cloneRegionSource, /className="block min-h-8 w-full px-2 text-left text-xs/,
     'Clone role labels are left aligned with normal horizontal padding and practical row targets')
   assert.match(cloneRegionSource, /onMouseEnter=\{\(\) => \{[\s\S]*if \(!cloneMenuPinned\) cloneHoverTimerRef\.current = setTimeout\(\(\) => setCloneMenuOpen\(true\), 120\)/,

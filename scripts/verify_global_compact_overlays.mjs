@@ -1,0 +1,106 @@
+import assert from 'node:assert/strict'
+import { readFileSync } from 'node:fs'
+
+const read = path => readFileSync(new URL(path, import.meta.url), 'utf8')
+const cbdPage = read('../src/features/cost-breakdown/CostBreakdownPage.tsx')
+const cbdPopover = read('../src/features/cost-breakdown/components/CostBreakdownPopover.tsx')
+const masterHeader = read('../src/features/master-data/components/MasterDataWorkspaceHeader.tsx')
+const prepareDataset = read('../src/features/master-data/components/MasterDataPrepareDatasetPopover.tsx')
+const simulationPage = read('../src/features/simulation/SimulationPage.tsx')
+const tooltip = read('../src/shared/ui/Tooltip.tsx')
+const confirmModal = read('../src/shared/ui/ConfirmModal.tsx')
+
+function snippet(source, expression, message) {
+  const match = source.match(expression)
+  assert.ok(match, message)
+  return match[0]
+}
+
+function assertIntrinsicPanel(className, label, { triggerMin = false } = {}) {
+  assert.match(className, /\bw-max\b|\bmin-w-max\b/, `${label} uses intrinsic content sizing`)
+  assert.match(className, /max-w-\[calc\(100vw-1rem\)\]/, `${label} is capped to the viewport`)
+  assert.doesNotMatch(className, /(?:^|\s)w-(?:\d+|\[\d+(?:px|rem)\])(?:\s|$)/,
+    `${label} has no arbitrary fixed width`)
+  assert.doesNotMatch(className, /(?:^|\s)min-w-(?!8\b)(?:\d+|\[\d+(?:px|rem)\])(?:\s|$)/,
+    `${label} has no arbitrary empty minimum width`)
+  if (triggerMin) assert.match(className, /\bmin-w-8\b/, `${label} is at least its 32px trigger width`)
+}
+
+const cbdRolePopover = snippet(cbdPage, /const ComparisonRolePopover:[\s\S]*?function isAvailableGap/, 'CBD role popover component exists')
+const cbdRolePanelClass = cbdRolePopover.match(/panelClassName="([^"]+)"/)?.[1]
+assert.ok(cbdRolePanelClass, 'CBD role menu declares its compact width strategy')
+assert.match(cbdRolePanelClass, /w-max/, 'CBD role menu uses intrinsic width')
+assert.doesNotMatch(cbdRolePanelClass, /(?:^|\s)(?:w|min-w)-\d+(?:\s|$)/,
+  'CBD role menu has no arbitrary blank width')
+assert.match(cbdPopover, /panelElement\.style\.minWidth = `\$\{triggerBounds\.width\}px`/,
+  'CBD menu width never falls below its trigger')
+const cbdPanelSource = snippet(cbdPopover, /<div\s+ref=\{panelRef\}[\s\S]*?className=\{`fixed[^`]*\}/, 'CBD popup panel source exists')
+assert.match(cbdPanelSource, /max-w-\[calc\(100vw-1rem\)\]/,
+  'CBD menu surface is limited to viewport width')
+const cbdPositionSource = snippet(cbdPopover, /const positionPanel = useCallback\(\(\) => \{[\s\S]*?\n  \}, \[\]\)/, 'CBD popup positioning logic exists')
+assert.match(cbdPositionSource, /centeredLeft = triggerBounds\.left \+ \(triggerBounds\.width - panelWidth\) \/ 2[\s\S]*Math\.max\(8, Math\.min\(centeredLeft, window\.innerWidth - panelWidth - 8\)\)/,
+  'CBD menu centers on its trigger and clamps within both viewport edges')
+
+for (const label of ['Status', 'Sort']) {
+  const menu = snippet(cbdPage, new RegExp(`label="${label}"[\\s\\S]*?<\\/CostBreakdownPopover>`), `CBD ${label} menu exists`)
+  const className = menu.match(/panelClassName="([^"]+)"/)?.[1]
+  assert.ok(className, `CBD ${label} declares a menu width strategy`)
+  assert.match(className, /w-max/, `CBD ${label} menu uses intrinsic content sizing`)
+  assert.doesNotMatch(className, /(?:^|\s)(?:w|min-w)-\d+(?:\s|$)/,
+    `CBD ${label} has no arbitrary empty width`)
+}
+
+const masterCloneMenu = snippet(masterHeader, /id="clone-source-menu"[\s\S]*?className="([^"]+)"/, 'Master Data Clone menu exists')
+const masterCloneClass = masterCloneMenu.match(/className="([^"]+)"/)?.[1]
+assert.ok(masterCloneClass)
+assertIntrinsicPanel(masterCloneClass, 'Master Data Clone menu', { triggerMin: true })
+const masterOffsetSource = snippet(masterHeader, /const useCenteredPopoverOffset = \([\s\S]*?\n\}/, 'Master Data popover viewport offset hook exists')
+assert.match(masterHeader, /cloneHorizontalOffset = useCenteredPopoverOffset\(cloneMenuOpen, cloneMenuRef\)/,
+  'Master Data Clone menu tracks its viewport correction offset')
+assert.match(masterOffsetSource, /left < 8[\s\S]*right > window\.innerWidth - 8/,
+  'Master Data Clone menu clamps against both viewport edges')
+assert.match(masterCloneMenu, /left-1\/2[\s\S]*-translate-x-1\/2/,
+  'Master Data Clone menu is centered on its trigger before clamping')
+
+const masterBulkMenu = snippet(masterHeader, /className="absolute left-1\/2 top-full z-50 mt-1 min-w-max[^\"]*"/, 'Master Data all-dataset menu exists')
+assert.match(masterBulkMenu, /min-w-max/, 'Master Data all-dataset menu sizes to its command text')
+assert.doesNotMatch(masterBulkMenu, /(?:^|\s)(?:w|min-w)-\d+(?:\s|$)/,
+  'Master Data all-dataset menu has no arbitrary fixed width')
+assert.match(masterHeader, /const toolbarButton = 'grid h-8 w-8/,
+  'Master Data icon action trigger establishes the 32px trigger minimum')
+
+const simulationRoleMenu = snippet(simulationPage, /function RoleActionMenu\([\s\S]*?\nfunction EffectCell/, 'Simulation role action menu exists')
+const simulationMenuClass = simulationRoleMenu.match(/className="([^"]*w-max[^"]*)"/)?.[1]
+assert.ok(simulationMenuClass, 'Simulation role menu declares intrinsic width')
+assertIntrinsicPanel(simulationMenuClass, 'Simulation Clone/Send menu', { triggerMin: true })
+assert.match(simulationRoleMenu, /Math\.max\(8, Math\.min\(centeredLeft, window\.innerWidth - menu\.width - 8\)\)/,
+  'Simulation menu centers on its trigger and clamps horizontally')
+assert.match(simulationRoleMenu, /top \+ menu\.height > window\.innerHeight - 8[\s\S]*Math\.max\(8, trigger\.top - menu\.height\)/,
+  'Simulation menu flips above the trigger when it would exceed the viewport')
+assert.match(simulationRoleMenu, /left-1\/2 top-full[\s\S]*-translate-x-1\/2/,
+  'Simulation menu uses trigger-centered placement before viewport correction')
+
+assert.match(tooltip, /max-w-\[calc\(100vw-1rem\)\]/,
+  'shared tooltips cannot exceed the viewport width')
+assert.match(tooltip, /bounds\.left \+ \(bounds\.width - width\) \/ 2[\s\S]*window\.innerWidth - width - 8/,
+  'shared tooltip positions center above or below the trigger while clamping horizontally')
+
+const preparePanel = snippet(prepareDataset, /id="prepare-dataset-panel"[\s\S]*?className="([^\"]+)"/, 'Prepare Dataset structured warning panel exists')
+assert.match(preparePanel, /w-\[min\(19rem,calc\(100vw-2rem\)\)\]/,
+  'structured Prepare Dataset warning panel keeps its intentional bounded multi-column width')
+assert.match(prepareDataset, /datasetSummaryColumns|grid shrink-0 grid-cols-1 divide-y/,
+  'Prepare Dataset warning panel remains a structured multi-column status surface')
+
+if (/w-max max-w-\[min\(28rem,calc\(100vw-2rem\)\)\]/.test(confirmModal)) {
+  assert.match(confirmModal, /w-max max-w-\[min\(28rem,calc\(100vw-2rem\)\)\]/,
+    'the compact ConfirmModal fits content within a responsive maximum')
+  assert.match(confirmModal, /id="confirm-modal-title" className="break-words/,
+    'ConfirmModal title wraps instead of expanding its surface')
+  assert.match(confirmModal, /id="confirm-modal-message" className="mt-3 min-w-0 break-words/,
+    'ConfirmModal message wraps inside narrow viewports')
+  assert.match(confirmModal, /flex flex-wrap items-center justify-end gap-2\.5/,
+    'ConfirmModal actions wrap when available width is limited')
+}
+
+console.log('Global compact overlay source contracts: PASS (CBD, Master Data, Simulation, shared Tooltip, structured-panel exception, and responsive ConfirmModal)')
+console.log('Verification type: source contracts only; no browser interaction was run.')

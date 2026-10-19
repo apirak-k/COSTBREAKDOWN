@@ -58,7 +58,9 @@ const AppRouter: React.FC = () => {
   } = useAppStore()
   const [prepareDatasetNavigationRequest, setPrepareDatasetNavigationRequest] = useState<(MasterDataQualityItem & WarningNavigationTarget) | undefined>()
   const [masterDataSearchQuery, setMasterDataSearchQuery] = useState('')
+  const [hasVisitedMasterData, setHasVisitedMasterData] = useState(activeTab === 'master')
   const [hasVisitedCostBreakdown, setHasVisitedCostBreakdown] = useState(activeTab === 'breakdown')
+  const [hasVisitedSimulation, setHasVisitedSimulation] = useState(activeTab === 'simulation')
   const [simulationStatesByProduct, setSimulationStatesByProduct] = useState<Record<string, SimulationWorkspaceState>>(
     () => loadFromSession(STORAGE_KEYS.SIMULATION_STATES, {})
   )
@@ -116,7 +118,9 @@ const AppRouter: React.FC = () => {
   }, [activeTab])
 
   useEffect(() => {
+    if (activeTab === 'master') setHasVisitedMasterData(true)
     if (activeTab === 'breakdown') setHasVisitedCostBreakdown(true)
+    if (activeTab === 'simulation') setHasVisitedSimulation(true)
   }, [activeTab])
 
   useEffect(() => {
@@ -369,13 +373,15 @@ const AppRouter: React.FC = () => {
         redo: () => setCandidateReorderHistory(redoCandidateReorder)
       }}
     >
-      {activeTab === 'master' && (
-        <MasterDataPage
-          searchQuery={masterDataSearchQuery}
-          onSearchQueryChange={setMasterDataSearchQuery}
-          prepareDatasetNavigationRequest={prepareDatasetNavigationRequest}
-          onPrepareDatasetNavigationHandled={requestId => setPrepareDatasetNavigationRequest(current => current?.requestId === requestId ? undefined : current)}
-        />
+      {(activeTab === 'master' || hasVisitedMasterData) && (
+        <div hidden={activeTab !== 'master'} className="min-w-0">
+          <MasterDataPage
+            searchQuery={masterDataSearchQuery}
+            onSearchQueryChange={setMasterDataSearchQuery}
+            prepareDatasetNavigationRequest={prepareDatasetNavigationRequest}
+            onPrepareDatasetNavigationHandled={requestId => setPrepareDatasetNavigationRequest(current => current?.requestId === requestId ? undefined : current)}
+          />
+        </div>
       )}
       {(activeTab === 'breakdown' || hasVisitedCostBreakdown) && (
         <div hidden={activeTab !== 'breakdown'}>
@@ -386,24 +392,26 @@ const AppRouter: React.FC = () => {
           />
         </div>
       )}
-      {activeTab === 'simulation' && (
-        <SimulationPage
-          key={activeProductId}
-          state={activeSimulationDataset}
-          workingSelection={activeSimulationDataset.workingSelection}
-          analysisBeforeDataset={analysisBeforeDataset}
-          analysisAfterDataset={analysisAfterDataset}
-          referenceSnapshot={masterDataSnapshots.reference}
-          currentSnapshot={masterDataSnapshots.current}
-          onCloneSource={startFrom}
-          onSendTo={(role: MasterDataRole, _snapshot: CostSnapshot) => sendSimulationToRole(role)}
-          onReset={resetSimulation}
-          onUpdateParameter={updateParameter}
-          onToggleWorkingTarget={toggleWorkingTarget}
-          onUpdateEconomicInput={updateEconomicInput}
-          onBeginEdit={beginSimulationEdit}
-          onCommitEdit={commitSimulationEdit}
-        />
+      {(activeTab === 'simulation' || hasVisitedSimulation) && (
+        <div hidden={activeTab !== 'simulation'} className={activeTab === 'simulation' ? 'xl:flex xl:h-full xl:min-h-0 xl:min-w-0 xl:flex-col' : undefined}>
+          <SimulationPage
+            key={activeProductId}
+            state={activeSimulationDataset}
+            workingSelection={activeSimulationDataset.workingSelection}
+            analysisBeforeDataset={analysisBeforeDataset}
+            analysisAfterDataset={analysisAfterDataset}
+            referenceSnapshot={masterDataSnapshots.reference}
+            currentSnapshot={masterDataSnapshots.current}
+            onCloneSource={startFrom}
+            onSendTo={(role: MasterDataRole, _snapshot: CostSnapshot) => sendSimulationToRole(role)}
+            onReset={resetSimulation}
+            onUpdateParameter={updateParameter}
+            onToggleWorkingTarget={toggleWorkingTarget}
+            onUpdateEconomicInput={updateEconomicInput}
+            onBeginEdit={beginSimulationEdit}
+            onCommitEdit={commitSimulationEdit}
+          />
+        </div>
       )}
     </AppLayout>
   )

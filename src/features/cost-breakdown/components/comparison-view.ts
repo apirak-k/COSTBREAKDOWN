@@ -6,9 +6,9 @@ export type ComparisonViewMode = readonly ComparisonStatus[]
 export type ComparisonSortMode = 'gap-desc' | 'gap-asc' | 'absolute-gap-desc'
 
 export const COMPARISON_SORT_OPTIONS: ReadonlyArray<{ value: ComparisonSortMode; label: string }> = [
+  { value: 'absolute-gap-desc', label: '|Gap| High → Low' },
   { value: 'gap-desc', label: 'Gap High → Low' },
-  { value: 'gap-asc', label: 'Gap Low → High' },
-  { value: 'absolute-gap-desc', label: '|Gap| High → Low' }
+  { value: 'gap-asc', label: 'Gap Low → High' }
 ]
 
 export const DEFAULT_COMPARISON_SORT_MODE: ComparisonSortMode = 'absolute-gap-desc'

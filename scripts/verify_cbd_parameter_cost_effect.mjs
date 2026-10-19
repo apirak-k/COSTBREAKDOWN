@@ -636,6 +636,7 @@ try {
     'Escape collapses all Candidate Details')
 
   const pageSource = readFileSync(new URL('../src/features/cost-breakdown/CostBreakdownPage.tsx', import.meta.url), 'utf8')
+  const popoverSource = readFileSync(new URL('../src/features/cost-breakdown/components/CostBreakdownPopover.tsx', import.meta.url), 'utf8')
   const sortMenuSource = pageSource.match(/label="Sort"[\s\S]*?<\/CostBreakdownPopover>/)?.[0]
   assert.ok(sortMenuSource, 'Sort options use the shared overlay component')
   assert.match(sortMenuSource, /COMPARISON_SORT_OPTIONS\.map\(option => <button/,
@@ -657,10 +658,14 @@ try {
     'role alternatives have no selected or disabled state')
   assert.match(rolePopoverSource, /onSelect\(role\); close\(\)/,
     'selecting an alternative applies immediately and closes the role menu')
-  assert.match(rolePopoverSource, /w-\[108px\]/,
-    'Before and After triggers keep a fixed equal 108px width')
-  assert.match(rolePopoverSource, /panelClassName="w-32"/,
-    'role menu stays wider than the fixed selector trigger')
+  assert.match(rolePopoverSource, /h-8 w-\[108px\]/,
+    'Before and After triggers keep a fixed equal 108px by 32px size')
+  assert.match(rolePopoverSource, /panelClassName="[^"]*w-max[^"]*"/,
+    'role menu width follows intrinsic option content')
+  assert.doesNotMatch(rolePopoverSource, /panelClassName="[^"]*\b(?:w|min-w)-\d+\b/,
+    'role menu has no arbitrary fixed width or blank minimum width')
+  assert.match(popoverSource, /panelElement\.style\.minWidth\s*=\s*`\$\{triggerBounds\.width\}px`/,
+    'role menu remains at least as wide as its trigger')
   const statusPopoverSource = pageSource.match(/label="Status"[\s\S]*?<\/CostBreakdownPopover>/)?.[0]
   assert.ok(statusPopoverSource, 'Status uses the shared overlay component')
   assert.match(statusPopoverSource, /\{\(\) => <ComparisonStatusOptions selected=\{comparisonView\} onChange=\{setComparisonView\} \/>\}/,
@@ -678,8 +683,11 @@ try {
   assert.ok(overviewControlSource, 'the overview has a dedicated disclosure control')
   assert.match(overviewControlSource, /aria-expanded=\{isOverviewExpanded\}/)
   assert.match(overviewControlSource, /aria-label=\{isOverviewExpanded \? 'Collapse overview' : 'Expand overview'\}/)
-  assert.match(overviewControlSource, /title=\{isOverviewExpanded \? 'Collapse overview' : 'Expand overview'\}/)
-  const overviewClassName = overviewControlSource.match(/className="([^"]+)"/)?.[1]
+  assert.doesNotMatch(overviewControlSource, /\btitle=/, 'the disclosure does not duplicate its shared tooltip with a native title')
+  assert.match(pageSource, /<Tooltip label=\{isOverviewExpanded \? 'Collapse overview' : 'Expand overview'\}[\s\S]*aria-label=\{isOverviewExpanded \? 'Collapse overview' : 'Expand overview'\}[\s\S]*<\/Tooltip>/,
+    'the disclosure shared Tooltip and accessible name match its expanded state')
+  const overviewClassName = pageSource.match(/const iconActionButtonClass = '([^']+)'/)?.[1]
+    ?? overviewControlSource.match(/className="([^"]+)"/)?.[1]
   assert.ok(overviewClassName)
   assert.match(overviewClassName, /\bh-8\b.*\bw-8\b/, 'the bare Chevron retains a 32px hit target')
   assert.doesNotMatch(overviewClassName, /\bborder(?:-|\s)|\bbg-white\b/,
@@ -687,17 +695,19 @@ try {
   assert.match(overviewClassName, /hover:bg-slate-100/, 'the bare Chevron keeps a restrained hover cue')
   assert.match(overviewClassName, /focus-visible:outline/, 'the bare Chevron keeps visible keyboard focus')
 
-  const popoverSource = readFileSync(new URL('../src/features/cost-breakdown/components/CostBreakdownPopover.tsx', import.meta.url), 'utf8')
   assert.match(popoverSource, /document\.addEventListener\('pointerdown'/, 'temporary CBD popovers dismiss on outside pointerdown')
   assert.match(popoverSource, /useTransientInteraction\(open,[\s\S]*reason === 'escape'\) close\(\)/,
     'CBD popovers reuse shared transient Escape dismissal and restore trigger focus')
   assert.match(popoverSource, /activeCBDPopoverDismiss/, 'opening one temporary popover dismisses the previous popover')
+  assert.match(popoverSource, /const toggleOpen = \(\) => \{[\s\S]*if \(pinnedRef\.current\) dismissWithoutFocus\(\)[\s\S]*preview\(\)[\s\S]*pinnedRef\.current = true/,
+    'clicking a trigger opens and pins its menu, while a second click closes it')
   const dismissBody = popoverSource.match(/const dismissWithoutFocus = useCallback\(\(\) => \{([\s\S]*?)\}, \[[^\]]*\]\)/)?.[1]
   assert.ok(dismissBody)
   assert.match(dismissBody, /setOpen\(false\)/)
   assert.doesNotMatch(dismissBody, /setComparisonView|setSortMode|setSortResetToken|applySelectedComparison|clearSelectedComparison/,
     'outside/Escape dismissal closes the temporary overlay without changing its value or Selected Comparison')
   const { applyStatusDragSelection } = await vite.ssrLoadModule('/src/features/cost-breakdown/components/status-drag-selection.ts')
+  const { toggleComparisonStatus } = await vite.ssrLoadModule('/src/features/cost-breakdown/components/comparison-view.ts')
   const { ComparisonStatusOptions } = await vite.ssrLoadModule('/src/features/cost-breakdown/components/ComparisonStatusOptions.tsx')
   const allStatuses = ['CHANGED', 'ADDED', 'REMOVED', 'UNCHANGED']
   const selectThree = applyStatusDragSelection(['UNCHANGED'], ['CHANGED', 'ADDED', 'REMOVED'], true)
@@ -712,6 +722,8 @@ try {
     'revisiting a row does not select it again in deselect mode')
   assert.equal(applyStatusDragSelection(allStatuses, allStatuses, false).length, 1,
     'a drag crossing every status still preserves one selected status')
+  assert.deepEqual(toggleComparisonStatus(['UNCHANGED'], 'UNCHANGED'), ['UNCHANGED'],
+    'keyboard and single-checkbox toggles cannot remove the final selected status')
   for (const selected of [allStatuses, ['UNCHANGED']]) {
     const statusMarkup = renderToStaticMarkup(React.createElement(ComparisonStatusOptions, { selected, onChange() {} }))
     assert.equal([...statusMarkup.matchAll(/type="checkbox"/g)].length, 4, 'the compact Status menu has exactly four accessible checkboxes')
@@ -889,7 +901,7 @@ try {
     assert.match(pageText, /Standard Cost/)
     assert.match(pageText, /BOM \(0\)/)
     assert.match(pageText, /RTG \(1\)/)
-    assert.match(pageText, /ALL \(1\)/, 'ALL count is the sum of BOM and Routing findings')
+    assert.match(pageText, /All \(1\)/, 'All count is the sum of BOM and Routing findings')
     assert.match(pageMarkup, /aria-label="Work Center"/)
     assert.match(pageText, /WC-REF/)
     assert.match(pageText, /WC-CUR/)
@@ -912,13 +924,35 @@ try {
     assert.match(subheader, /w-\[108px\]/,
       'both role selectors have the fixed width needed to keep the toolbar stable')
     const subheaderText = visibleText(subheader)
-    const orderedLabels = ['Reference', 'Current', 'Standard Cost Gap', 'MAT', 'LB', 'BD', 'BOM', 'RTG', 'ALL']
+    const orderedLabels = ['Reference', 'Current', 'Standard Cost Gap', 'MAT', 'LB', 'BD', 'BOM', 'RTG', 'All']
     const labelPositions = orderedLabels.map(label => subheaderText.indexOf(label))
     assert.ok(labelPositions.every(position => position >= 0),
       `the subheader exposes every finalized control and chart label: ${JSON.stringify(orderedLabels)} in ${subheaderText}`)
     assert.deepEqual(labelPositions, [...labelPositions].sort((left, right) => left - right),
       'the single subheader row follows the finalized left-to-right order')
     assert.doesNotMatch(subheader, /<text\b/, 'the bar contains no MAT/LB/BD text labels')
+    const typeSelector = subheader.match(/<div[^>]*role="group" aria-label="Finding type filter"[^>]*>[\s\S]*?<\/div>/)?.[0]
+    assert.ok(typeSelector, 'the BOM/RTG/All segmented type selector is present')
+    assert.equal(visibleText(typeSelector), 'BOM (0) RTG (1) All (1)',
+      'type labels use All casing and each displayed count reflects its live finding total')
+    assert.match(typeSelector, /h-8[^\"]*grid-cols-3[^\"]*border border-slate-300 bg-white/,
+      'the type selector matches Master Data’s 32px bordered grid surface')
+    assert.equal([...typeSelector.matchAll(/<button\b/g)].length, 3, 'the type selector has three equal grid cells')
+    assert.match(typeSelector, /grid-cols-3|basis-0/, 'the three selector cells divide the available width equally')
+    assert.match(typeSelector, /border-r border-slate-200|border-l border-slate-300/, 'adjacent selector cells have separators')
+    assert.match(typeSelector, /absolute inset-0\.5 bg-slate-900/, 'the active type uses Master Data’s inset dark slab')
+    assert.match(typeSelector, /aria-pressed="true"/, 'the current type remains accessible as pressed')
+    assert.match(typeSelector, /text-slate-700 hover:bg-slate-100 hover:text-slate-950/,
+      'inactive type cells share Master Data’s neutral hover treatment')
+    const masterPageSource = readFileSync(new URL('../src/features/master-data/MasterDataPage.tsx', import.meta.url), 'utf8')
+    const masterTypeSelector = masterPageSource.match(/const tableSelector = \([\s\S]*?\n  \)/)?.[0]
+    assert.ok(masterTypeSelector, 'Master Data table selector source is available as the styling reference')
+    assert.match(masterTypeSelector, /grid h-8[^\n]*grid-cols-4[^\n]*border border-slate-300 bg-white/,
+      'Master Data reference selector has the same bordered 32px grid frame')
+    assert.match(masterTypeSelector, /absolute inset-0\.5 bg-slate-900/,
+      'Master Data reference selector uses the inset dark active slab')
+    assert.match(masterTypeSelector, /text-slate-700 hover:bg-slate-100 hover:text-slate-950/,
+      'Master Data reference selector uses the same neutral inactive-cell treatment')
     const collapseButton = subheader.match(/<button[^>]*aria-controls="cost-breakdown-overview-panels"[^>]*>[\s\S]*?<\/button>/)?.[0]
     assert.ok(collapseButton)
     assert.match(collapseButton, /aria-label="Collapse overview"/)
@@ -926,6 +960,7 @@ try {
     assert.match(collapseButton, /aria-expanded="true"/)
     assert.match(collapseButton, /data-cbd-overview-indicator="true"/,
       'the disclosure uses a dedicated visible direction indicator')
+    assert.match(collapseButton, /lucide lucide-chevron-down/, 'expanded overview renders ChevronDown')
     const collapseClass = collapseButton.match(/\bclass="([^"]*)"/)?.[1] ?? ''
     assert.doesNotMatch(collapseClass, /\bborder(?:-|\s)|\bbg-white\b/,
       'the bare disclosure has no persistent border or background')
@@ -987,14 +1022,22 @@ try {
     assert.match(pageMarkup, /data-gap-chart-mode="unavailable"/,
       'unavailable full component gaps remain unavailable instead of being treated as zero')
     assert.match(pageMarkup, /aria-label="Finding type filter"/)
-    assert.match(pageMarkup, /aria-label="Status" title="Status"/)
-    assert.match(pageMarkup, /aria-label="Sort" title="Sort"/)
+    const pageSource = readFileSync(new URL('../src/features/cost-breakdown/CostBreakdownPage.tsx', import.meta.url), 'utf8')
+    const popoverSource = readFileSync(new URL('../src/features/cost-breakdown/components/CostBreakdownPopover.tsx', import.meta.url), 'utf8')
+    assert.match(pageSource, /<CostBreakdownPopover\s+label="Status"/)
+    assert.match(pageSource, /<CostBreakdownPopover\s+label="Sort"/)
+    assert.match(pageMarkup, /aria-label="Status"/)
+    assert.match(pageMarkup, /aria-label="Sort"/)
     assert.doesNotMatch(pageMarkup, /<details\b/, 'Status and Sort are overlay popovers, not in-flow details')
-    const popoverTriggers = [...subheader.matchAll(/<button type="button" aria-label="(Status|Sort)" title="\1"([^>]*)>([\s\S]*?)<\/button>/g)]
+    const popoverTriggers = [...subheader.matchAll(/<button type="button" aria-label="(Status|Sort)"([^>]*)>([\s\S]*?)<\/button>/g)]
     assert.equal(popoverTriggers.length, 2, 'Status and Sort each expose exactly one trigger button')
     for (const [, label, attributes, content] of popoverTriggers) {
       assert.match(attributes, /aria-haspopup="dialog"/, 'each toolbar-style trigger opens its own options popup')
       assert.match(attributes, /class="[^"]*h-8 w-8/, `${label} has a 32px by 32px target`)
+      const triggerClass = attributes.match(/class="([^"]+)"/)?.[1] ?? ''
+      assert.match(triggerClass, /bg-transparent/, `${label} has a transparent idle background`)
+      assert.doesNotMatch(triggerClass, /(?:^|\s)border(?:-|\s)|bg-white/, `${label} has no persistent border or white box`)
+      assert.match(triggerClass, /focus-visible:outline/, `${label} has a visible keyboard focus style`)
       assert.match(content, label === 'Status' ? /lucide lucide-filter/ : /lucide lucide-arrow-up-down/,
         `${label} uses its required icon`)
       assert.doesNotMatch(content, /lucide-chevron-down|Status|Sort|Gap High|Gap Low/,
@@ -1008,11 +1051,18 @@ try {
       'Sort has no separate Reapply segment or split-control frame')
     assert.doesNotMatch(subheader, /▾/, 'dropdown affordances do not rely on a text triangle')
     assert.match(subheader, /aria-haspopup="dialog"/, 'Status and Sort remain overlay popovers')
-    const pageSource = readFileSync(new URL('../src/features/cost-breakdown/CostBreakdownPage.tsx', import.meta.url), 'utf8')
     assert.doesNotMatch(pageSource, /All statuses|At least one status must remain selected|toggleOverviewFromBlank|data-cbd-overview-click-area/,
       'Status contains only compact status choices and blank subheader space never toggles the overview')
-    assert.match(pageSource, /panelClassName="w-max min-w-32"/, 'Status popup sizes to its compact four-option content')
-    assert.match(pageSource, /panelClassName="w-max min-w-36"/, 'Sort popup sizes to its compact three-option content')
+    for (const label of ['Status', 'Sort']) {
+      const menu = pageSource.match(new RegExp(`label="${label}"[\\s\\S]*?<\\/CostBreakdownPopover>`))?.[0]
+      assert.ok(menu, `${label} uses a shared overlay`)
+      assert.match(menu, /panelClassName="[^"]*w-max[^"]*"/, `${label} panel uses intrinsic content sizing`)
+      assert.doesNotMatch(menu, /panelClassName="[^"]*\b(?:w|min-w)-\d+\b/, `${label} panel has no arbitrary blank fixed width`)
+    }
+    assert.match(popoverSource, /import \{ Tooltip \} from '[^']*Tooltip'/,
+      'Status and Sort use the shared Tooltip component')
+    assert.match(popoverSource, /<Tooltip label=\{label\}>[\s\S]*aria-label=\{label\}[\s\S]*<\/Tooltip>/,
+      'each toolbar trigger receives a concise matching tooltip and accessible name')
     assert.match(pageSource, /label="Sort"[\s\S]*showChevron=\{false\}[\s\S]*trigger=\{<ArrowUpDown aria-hidden="true"/,
       'the Sort trigger label and tooltip do not disclose the active command')
     assert.match(pageSource, /label="Status"[\s\S]*showChevron=\{false\}[\s\S]*trigger=\{<Filter aria-hidden="true"/,
@@ -1021,11 +1071,10 @@ try {
       'the overview disclosure uses concise expanded/collapsed accessible names')
     assert.match(pageSource, /aria-controls="cost-breakdown-overview-panels"/,
       'the bare Chevron still controls only the overview panels')
-    assert.match(pageSource, /ChevronUp data-cbd-overview-indicator[\s\S]*ChevronDown data-cbd-overview-indicator/,
-      'the overview uses ChevronUp when expanded and ChevronDown when collapsed')
+    assert.match(pageSource, /isOverviewExpanded\s*\?[\s\S]*<ChevronDown data-cbd-overview-indicator[\s\S]*:\s*<ChevronRight data-cbd-overview-indicator/,
+      'the expanded overview uses ChevronDown and the collapsed overview uses ChevronRight')
     assert.doesNotMatch(pageSource, /leadingAction=|buttonClassName=|aria-label=\{`Reapply sort:/,
       'Sort does not render the obsolete split Reapply button')
-    const popoverSource = readFileSync(new URL('../src/features/cost-breakdown/components/CostBreakdownPopover.tsx', import.meta.url), 'utf8')
     assert.match(popoverSource, /import \{ useTransientInteraction \} from '\.\.\/\.\.\/\.\.\/shared\/ui\/transient-interactions'/,
       'Status and Sort reuse the shared transient-interaction handling')
     assert.match(popoverSource, /aria-haspopup="dialog"/,

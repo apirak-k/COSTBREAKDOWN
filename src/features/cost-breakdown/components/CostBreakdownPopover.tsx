@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { ChevronDown } from 'lucide-react'
+import { Tooltip } from '../../../shared/ui/Tooltip'
 import { useTransientInteraction } from '../../../shared/ui/transient-interactions'
 
 interface CostBreakdownPopoverProps {
@@ -13,6 +14,10 @@ interface CostBreakdownPopoverProps {
 }
 
 let activeCBDPopoverDismiss: { owner: symbol; dismiss: () => void } | null = null
+
+export function dismissCostBreakdownPopovers(): void {
+  activeCBDPopoverDismiss?.dismiss()
+}
 
 export const CostBreakdownPopover: React.FC<CostBreakdownPopoverProps> = ({ label, trigger, panelClassName, showChevron = true, triggerClassName: triggerClassNameOverride, children }) => {
   const boundaryRef = useRef<HTMLDivElement>(null)
@@ -89,8 +94,9 @@ export const CostBreakdownPopover: React.FC<CostBreakdownPopoverProps> = ({ labe
     const panelElement = panelRef.current
     if (!triggerElement || !panelElement) return
     const triggerBounds = triggerElement.getBoundingClientRect()
+    panelElement.style.minWidth = `${triggerBounds.width}px`
     const panelBounds = panelElement.getBoundingClientRect()
-    const panelWidth = panelBounds.width || 224
+    const panelWidth = panelBounds.width || triggerBounds.width
     const panelHeight = panelBounds.height || 160
     const centeredLeft = triggerBounds.left + (triggerBounds.width - panelWidth) / 2
     const left = Math.max(8, Math.min(centeredLeft, window.innerWidth - panelWidth - 8))
@@ -130,30 +136,31 @@ export const CostBreakdownPopover: React.FC<CostBreakdownPopoverProps> = ({ labe
 
   return (
     <div ref={boundaryRef} className="inline-flex shrink-0" onPointerEnter={scheduleOpen} onPointerLeave={scheduleDismiss} onFocusCapture={clearHoverTimer} onBlurCapture={scheduleDismiss}>
-        <button
-          ref={triggerRef}
-          type="button"
-          aria-label={label}
-          title={label}
-          aria-expanded={open}
-          aria-controls={popoverId}
-          aria-haspopup="dialog"
-          onClick={toggleOpen}
-          onKeyDown={event => {
-            if (event.key === 'ArrowDown' || ((event.altKey && event.key === 'ArrowDown') || (event.shiftKey && event.key === 'F10'))) {
-              event.preventDefault()
-              preview()
-              requestAnimationFrame(focusFirstOption)
-            } else if (event.key === 'Tab' && !event.shiftKey && open) {
-              event.preventDefault()
-              requestAnimationFrame(focusFirstOption)
-            }
-          }}
-          className={triggerClassNameOverride ?? defaultTriggerClassName}
-        >
-          {trigger}
-          {showChevron && <ChevronDown aria-hidden="true" className="h-3.5 w-3.5 shrink-0 self-center text-slate-600" />}
-        </button>
+        <Tooltip label={label}>
+          <button
+            ref={triggerRef}
+            type="button"
+            aria-label={label}
+            aria-expanded={open}
+            aria-controls={popoverId}
+            aria-haspopup="dialog"
+            onClick={toggleOpen}
+            onKeyDown={event => {
+              if (event.key === 'ArrowDown' || ((event.altKey && event.key === 'ArrowDown') || (event.shiftKey && event.key === 'F10'))) {
+                event.preventDefault()
+                preview()
+                requestAnimationFrame(focusFirstOption)
+              } else if (event.key === 'Tab' && !event.shiftKey && open) {
+                event.preventDefault()
+                requestAnimationFrame(focusFirstOption)
+              }
+            }}
+            className={triggerClassNameOverride ?? defaultTriggerClassName}
+          >
+            {trigger}
+            {showChevron && <ChevronDown aria-hidden="true" className="h-3.5 w-3.5 shrink-0 self-center text-slate-600" />}
+          </button>
+        </Tooltip>
       {open && typeof document !== 'undefined' && createPortal(
         <div
           ref={panelRef}
@@ -181,7 +188,7 @@ export const CostBreakdownPopover: React.FC<CostBreakdownPopoverProps> = ({ labe
             }
           }}
           style={position ? { left: `${position.left}px`, top: `${position.top}px` } : { left: '-10000px', top: '0px' }}
-          className={`fixed z-[1000] max-h-[min(20rem,calc(100vh-1rem))] overflow-y-auto border border-slate-300 bg-white p-1 shadow-lg ${panelClassName}`}
+          className={`fixed z-[1000] max-h-[min(20rem,calc(100vh-1rem))] max-w-[calc(100vw-1rem)] overflow-y-auto border border-slate-300 bg-white p-1 shadow-lg ${panelClassName}`}
         >
           {children(close)}
         </div>,

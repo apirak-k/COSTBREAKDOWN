@@ -328,7 +328,7 @@ function RoleActionMenu({
               menuItemRefs.current[nextIndex]?.focus()
             }
           }}
-          className="absolute left-1/2 top-full z-50 w-24 max-w-[calc(100vw-1rem)] -translate-x-1/2 border border-slate-300 bg-white p-1 shadow-lg"
+          className="absolute left-1/2 top-full z-50 w-max min-w-8 max-w-[calc(100vw-1rem)] -translate-x-1/2 border border-slate-300 bg-white p-1 shadow-lg"
         >
           {ROLES.map(({ role, label: roleLabel }, index) => (
             <button

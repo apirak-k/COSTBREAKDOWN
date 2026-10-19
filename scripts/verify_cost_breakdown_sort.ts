@@ -4,7 +4,8 @@ import { createServer } from 'vite'
 const vite = await createServer({ server: { middlewareMode: true }, appType: 'custom', logLevel: 'error' })
 try {
   const { COMPARISON_SORT_OPTIONS, DEFAULT_COMPARISON_SORT_MODE, sortComparisonRows } = await vite.ssrLoadModule('/src/features/cost-breakdown/components/comparison-view.ts')
-  assert.deepEqual(COMPARISON_SORT_OPTIONS.map(option => option.label), ['Gap High → Low', 'Gap Low → High', '|Gap| High → Low'])
+  assert.deepEqual(COMPARISON_SORT_OPTIONS.map(option => option.label), ['|Gap| High → Low', 'Gap High → Low', 'Gap Low → High'],
+    'the Sort menu starts with absolute magnitude, followed by the two signed gap directions')
   assert.equal(DEFAULT_COMPARISON_SORT_MODE, 'absolute-gap-desc', 'absolute descending remains the default')
   const rows = [
     { key: 'negative-eight', gap: -8 },

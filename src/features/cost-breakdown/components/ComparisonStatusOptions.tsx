@@ -53,7 +53,7 @@ export const ComparisonStatusOptions: React.FC<ComparisonStatusOptionsProps> = (
     onLostPointerCapture={() => { gesture.current = null }}
   >
     {statusOptions.map((option, index) => <label key={option.value} data-cbd-status={option.value}
-      className="flex cursor-pointer items-center gap-2 rounded-sm px-2 py-1 text-xs text-slate-700 hover:bg-slate-50"
+      className="flex min-h-8 cursor-pointer items-center gap-2 rounded-sm px-2 text-xs text-slate-800 hover:bg-slate-100 focus-within:bg-slate-100"
       onPointerDown={event => {
         if (event.button !== 0 || !event.isPrimary) return
         event.preventDefault()
