@@ -44,6 +44,7 @@ assert.equal(formatProductIdentityForDisplay({ productName: '', uom: '' }), 'Not
 assert.equal(formatProductIdentityForDisplay({ productName: 'RGOM024', uom: null }), 'RGOM024 (UOM not set)')
 
 const navbar = readFileSync(resolve(process.cwd(), 'src/shared/layout/Navbar.tsx'), 'utf8')
+const app = readFileSync(resolve(process.cwd(), 'src/App.tsx'), 'utf8')
 assert.match(navbar, /COSTBREAKDOWN/)
 assert.match(navbar, /text-base font-bold tracking-tight text-slate-100/)
 assert.match(navbar, /aria-current=\{isActive \? 'page' : undefined\}/)
@@ -63,6 +64,18 @@ assert.match(navbar, /onClick=\{handleUndo\}[\s\S]*disabled=\{!canUndo\}/)
 assert.match(navbar, /onClick=\{handleRedo\}[\s\S]*disabled=\{!canRedo\}/)
 assert.match(navbar, /const handleUndo = \(\) => isMasterData\s*\? undoMasterDataEdit\(\)\s*: isCostBreakdown\s*\? cbdReorderUndoRedo\?\.undo\(\)\s*: isSimulation \? simulationUndoRedo\?\.undo\(\) : undefined/,
   'Header routes Undo to the independent active-page history')
+assert.match(navbar, /const handleRedo = \(\) => isMasterData\s*\? redoMasterDataEdit\(\)\s*: isCostBreakdown\s*\? cbdReorderUndoRedo\?\.redo\(\)\s*: isSimulation \? simulationUndoRedo\?\.redo\(\) : undefined/,
+  'Header routes Redo to the independent active-page history')
+assert.match(app, /simulationUndoRedo=\{\{[\s\S]*?canUndo: matchingSimulationHistory\?\.undo\.length[\s\S]*?canRedo: matchingSimulationHistory\?\.redo\.length[\s\S]*?undo: \(\) => runSimulationHistory\('undo'\)[\s\S]*?redo: \(\) => runSimulationHistory\('redo'\)/,
+  'Simulation Header controls use the currently valid role-scoped Simulation history')
+assert.match(app, /cbdReorderUndoRedo=\{\{[\s\S]*?canUndo: candidateReorderHistory\.undo\.length > 0[\s\S]*?canRedo: candidateReorderHistory\.redo\.length > 0[\s\S]*?undo: \(\) => setCandidateReorderHistory\(undoCandidateReorder\)[\s\S]*?redo: \(\) => setCandidateReorderHistory\(redoCandidateReorder\)/,
+  'Cost Breakdown Header controls use only the Candidate reorder history')
+assert.match(app, /const setCandidateManualOrder = \(type: CandidateTableType, keys: string\[\]\) => \{\s*setCandidateReorderHistory\(history => recordCandidateReorder\(history, type, keys\)\)\s*\}/,
+  'Candidate reorder history records manual-order changes')
+assert.match(app, /onManualOrderChange=\{setCandidateManualOrder\}/,
+  'only the Candidate manual-order callback records a Cost Breakdown reorder action')
+assert.match(navbar, /onClick=\{handleUndo\}[\s\S]*disabled=\{!canUndo\}/)
+assert.match(navbar, /onClick=\{handleRedo\}[\s\S]*disabled=\{!canRedo\}/)
 
 const headerZones = [
   navbar.indexOf('>COSTBREAKDOWN</span>'),

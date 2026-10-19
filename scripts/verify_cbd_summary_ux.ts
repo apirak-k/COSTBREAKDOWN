@@ -584,7 +584,7 @@ try {
   const appLayoutSource = readFileSync(new URL('../src/shared/layout/AppLayout.tsx', import.meta.url), 'utf8')
   assert.match(appLayoutSource, /className=\{isCostBreakdown\s*\?\s*'[^']*overflow-y-auto[^']*'\s*:/,
     'shared Main remains the CBD page-level vertical scroll owner')
-  assert.match(pageSource, /aria-expanded=\{isOverviewExpanded\}[\s\S]*aria-controls="cost-breakdown-overview-panels"[\s\S]*aria-label=\{`\$\{isOverviewExpanded \? 'Collapse' : 'Expand'\} Cost Element and Work Center sections`\}/,
+  assert.match(pageSource, /aria-expanded=\{isOverviewExpanded\}[\s\S]*aria-controls="cost-breakdown-overview-panels"[\s\S]*aria-label=\{isOverviewExpanded \? 'Collapse overview' : 'Expand overview'\}[\s\S]*title=\{isOverviewExpanded \? 'Collapse overview' : 'Expand overview'\}/,
     'overview disclosure has an accessible name, expanded state, and controlled panel reference')
   assert.match(pageSource, /data-cbd-overview-indicator="true"/,
     'overview disclosure retains a visible state indicator')

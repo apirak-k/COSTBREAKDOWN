@@ -109,7 +109,7 @@ const makeStore = (uiState = { role: 'current', mode: 'view', tableView: 'all' }
     activeProductId: 'fixture-product',
     snapshotPair: { reference: snapshots.reference, current: snapshots.current },
     snapshotComparison: { totalGap: -999 },
-    fullSnapshotComparison: {
+    referenceCurrentComparison: {
       referenceCost: { total: 120 },
       currentCost: { total: 125.5 },
       totalGap: 5.5
@@ -383,21 +383,21 @@ try {
   assert.doesNotMatch(notSetFooter, /Product \(Unit\)|— \(—\)/, 'Product display never fabricates fallback identity values')
 
   const negativeGapMarkup = await renderAppLayout({
-    fullSnapshotComparison: {
+    referenceCurrentComparison: {
       referenceCost: { total: 125.5 },
       currentCost: { total: 120 },
       totalGap: -5.5
     }
   })
   const zeroGapMarkup = await renderAppLayout({
-    fullSnapshotComparison: {
+    referenceCurrentComparison: {
       referenceCost: { total: 120 },
       currentCost: { total: 120 },
       totalGap: 0
     }
   })
   const unavailableCostMarkup = await renderAppLayout({
-    fullSnapshotComparison: {
+    referenceCurrentComparison: {
       referenceCost: { total: null },
       currentCost: { total: 120 },
       totalGap: null
@@ -1052,7 +1052,7 @@ try {
   assert.doesNotMatch(footerSource.slice(footerSource.indexOf('footer-product-status-tooltip'), footerSource.indexOf('footer-warning-tooltip')), /Chevron|ChevronRight|ChevronDown/, 'Footer Product tooltip has no chevron')
   assert.match(footerSource, /id="footer-warning-action"[\s\S]*onClick=\{\(\) => requestMasterDataPrepareDataset\('all-warnings'\)\}[\s\S]*aria-expanded=\{masterDataPrepareDatasetOpen\}[\s\S]*\{warningCount\}/, 'footer warning count toggles the shared Prepare Dataset panel')
   assert.match(footerSource, /aria-label=\{`Toggle Prepare Dataset showing \$\{warningCount\} warnings`\}/, 'footer warning count has an accessible toggle label')
-  assert.match(footerSource, /fullSnapshotComparison\.referenceCost\.total[\s\S]*fullSnapshotComparison\.currentCost\.total[\s\S]*fullSnapshotComparison\.totalGap/, 'footer uses full Reference/Current Standard Costs and their full net gap')
+  assert.match(footerSource, /referenceCurrentComparison\.referenceCost\.total[\s\S]*referenceCurrentComparison\.currentCost\.total[\s\S]*referenceCurrentComparison\.totalGap/, 'footer uses full Reference/Current Standard Costs and their full net gap')
   assert.doesNotMatch(footerSource, /snapshotComparison\.totalGap|isSelectedComparisonActive|SELECTED GAP/, 'footer never switches to a Selected Comparison gap')
   assert.match(footerSource, /REF STD[\s\S]*CUR STD[\s\S]*NET GAP/, 'footer labels both full Standard Costs and Net Gap')
   assert.match(footerSource, /value === null \|\| !Number\.isFinite\(value\) \? '—'/, 'unavailable Standard Cost remains a dash rather than fabricated zero')

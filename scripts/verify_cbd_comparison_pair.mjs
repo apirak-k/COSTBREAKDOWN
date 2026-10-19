@@ -190,7 +190,14 @@ try {
   assert.match(pageSource, /key=\{comparisonPair\.fingerprint\}/, 'pair changes remount the candidate details state')
   assert.match(pageSource, /w-\[108px\]/, 'both role selectors have stable fixed width')
   assert.match(pageSource, /min-w-\[96px\] flex-1/, 'the Gap Bar remains flexible and usable beside selectors')
-  assert.match(pageSource, /CostBreakdownPopover[\s\S]*COMPARISON_ROLES\.map/)
+  assert.match(pageSource, /COMPARISON_ROLES\.filter\(role => role !== selectedRole\)\.map/,
+    'each selector menu shows the two alternatives to its own role')
+  const rolePopoverSource = pageSource.match(/const ComparisonRolePopover:[\s\S]*?function isAvailableGap/)?.[0]
+  assert.ok(rolePopoverSource, 'Before and After share one role selector component')
+  assert.doesNotMatch(rolePopoverSource, /aria-pressed|selectedRole === role|disabled=/,
+    'role menus do not mark or disable any option')
+  assert.match(rolePopoverSource, /onSelect\(role\); close\(\)/,
+    'choosing any alternative applies it and closes the menu')
   assert.match(candidateSource, /afterValue - beforeValue/, 'Candidate parameter deltas are After minus Before')
   assert.match(candidateSource, /side: 'After'/)
   assert.match(candidateSource, /side: 'Before'/)

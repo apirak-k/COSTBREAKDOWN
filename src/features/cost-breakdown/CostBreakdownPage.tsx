@@ -1,4 +1,5 @@
 import React, { useId, useState } from 'react'
+import { ArrowUpDown, ChevronDown, ChevronUp, Filter } from 'lucide-react'
 import { useAppStore } from '../../state'
 
 import { ItemizedComparisonTable } from './components/ItemizedComparisonTable'
@@ -10,11 +11,8 @@ import { ComparisonStatusOptions } from './components/ComparisonStatusOptions'
 import { COST_ELEMENT_COLORS } from './components/cost-element-colors'
 import {
   ALL_COMPARISON_STATUSES,
-  areAllComparisonStatusesSelected,
   COMPARISON_SORT_OPTIONS,
   DEFAULT_COMPARISON_SORT_MODE,
-  getComparisonStatusControlLabel,
-  getComparisonSortLabel,
   getSelectedComparisonContribution,
   isVisibleInComparisonView
 } from './components/comparison-view'
@@ -58,12 +56,11 @@ const ComparisonRolePopover: React.FC<ComparisonRolePopoverProps> = ({ side, sel
     triggerClassName="inline-flex h-8 w-[108px] shrink-0 items-center justify-between rounded-sm border border-slate-300 bg-white px-2 text-xs font-medium leading-none text-slate-700 transition-colors hover:bg-slate-100 hover:text-slate-950 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700"
   >
     {close => <div role="group" aria-label={`${side} dataset choices`} className="flex flex-col">
-      {COMPARISON_ROLES.map(role => <button
+      {COMPARISON_ROLES.filter(role => role !== selectedRole).map(role => <button
         key={role}
         type="button"
-        aria-pressed={selectedRole === role}
         onClick={() => { onSelect(role); close() }}
-        className={`block w-full rounded-sm px-2 py-1.5 text-left text-xs text-slate-700 hover:bg-slate-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-700 ${selectedRole === role ? 'bg-slate-100 font-semibold' : ''}`}
+        className="block w-full rounded-sm px-2 py-1.5 text-left text-xs text-slate-700 hover:bg-slate-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-700"
       >{COMPARISON_ROLE_LABELS[role]}</button>)}
     </div>}
   </CostBreakdownPopover>
@@ -257,8 +254,6 @@ export const CostBreakdownPage: React.FC<CostBreakdownPageProps> = ({ manualOrde
     }
   }
 
-  const statusControlLabel = getComparisonStatusControlLabel(comparisonView)
-  const sortLabel = getComparisonSortLabel(sortMode)
   const bomCount = costBreakdownFullComparison.bomFindings.filter(finding => isVisibleInComparisonView(finding, comparisonView)).length
   const routingCount = costBreakdownFullComparison.routingFindings.filter(finding => isVisibleInComparisonView(finding, comparisonView)).length
   const typeCounts: Record<ItemizedTypeTab, number> = { bom: bomCount, rtg: routingCount, all: bomCount + routingCount }
@@ -331,25 +326,28 @@ export const CostBreakdownPage: React.FC<CostBreakdownPageProps> = ({ manualOrde
           </div>
 
           <CostBreakdownPopover
-            label={`Status filter, ${statusControlLabel}`}
-            trigger={<span className="inline-flex items-center whitespace-nowrap"><span>Status</span><span aria-hidden="true" className="ml-1 inline-block w-[5ch] text-left font-mono tabular-nums">({areAllComparisonStatusesSelected(comparisonView) ? 'All' : comparisonView.length})</span></span>}
+            label="Status"
+            showChevron={false}
+            trigger={<Filter aria-hidden="true" className="h-4 w-4" />}
+            triggerClassName="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-sm border border-slate-300 bg-white p-0 text-slate-700 transition-colors hover:bg-slate-100 hover:text-slate-950 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700"
             panelClassName="w-max min-w-32"
           >
             {() => <ComparisonStatusOptions selected={comparisonView} onChange={setComparisonView} />}
           </CostBreakdownPopover>
 
           <CostBreakdownPopover
-            label={`Sort findings; current mode ${sortLabel}`}
-            trigger={<span className="whitespace-nowrap">{sortLabel}</span>}
+            label="Sort"
+            showChevron={false}
+            trigger={<ArrowUpDown aria-hidden="true" className="h-4 w-4" />}
+            triggerClassName="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-sm border border-slate-300 bg-white p-0 text-slate-700 transition-colors hover:bg-slate-100 hover:text-slate-950 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700"
             panelClassName="w-max min-w-36"
           >
             {close => <div role="group" aria-label="Sort findings" className="flex flex-col">
               {COMPARISON_SORT_OPTIONS.map(option => <button
                 key={option.value}
                 type="button"
-                aria-pressed={sortMode === option.value}
                 onClick={() => { setSortMode(option.value); onResetManualOrderHistory(); setSortResetToken(token => token + 1); close() }}
-                className={`block w-full rounded-sm px-2 py-1 text-left text-xs text-slate-700 hover:bg-slate-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-700 ${sortMode === option.value ? 'bg-slate-100 font-semibold' : ''}`}
+                className="block w-full rounded-sm px-2 py-1 text-left text-xs text-slate-700 hover:bg-slate-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-700"
               >{option.label}</button>)}
             </div>}
           </CostBreakdownPopover>
@@ -358,12 +356,14 @@ export const CostBreakdownPage: React.FC<CostBreakdownPageProps> = ({ manualOrde
             type="button"
             aria-expanded={isOverviewExpanded}
             aria-controls="cost-breakdown-overview-panels"
-            aria-label={`${isOverviewExpanded ? 'Collapse' : 'Expand'} Cost Element and Work Center sections`}
-            title={`${isOverviewExpanded ? 'Collapse' : 'Expand'} Cost Element and Work Center sections`}
+            aria-label={isOverviewExpanded ? 'Collapse overview' : 'Expand overview'}
+            title={isOverviewExpanded ? 'Collapse overview' : 'Expand overview'}
             onClick={toggleOverview}
-            className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-sm border border-slate-300 bg-white p-0 text-slate-700 hover:bg-slate-100 hover:text-slate-950 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700"
+            className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-sm text-slate-600 transition-colors hover:bg-slate-100 hover:text-slate-950 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700"
           >
-            <span data-cbd-overview-indicator="true" aria-hidden="true" className={`block h-0 w-0 border-x-[5px] border-t-[7px] border-x-transparent border-t-slate-700 transition-transform ${isOverviewExpanded ? '' : '-rotate-90'}`} />
+            {isOverviewExpanded
+              ? <ChevronUp data-cbd-overview-indicator="true" aria-hidden="true" className="h-4 w-4" />
+              : <ChevronDown data-cbd-overview-indicator="true" aria-hidden="true" className="h-4 w-4" />}
           </button>
         </div>
       </header>

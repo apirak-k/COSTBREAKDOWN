@@ -7,13 +7,14 @@ interface CostBreakdownPopoverProps {
   label: string
   trigger: React.ReactNode
   panelClassName: string
+  showChevron?: boolean
   triggerClassName?: string
   children: (close: () => void) => React.ReactNode
 }
 
 let activeCBDPopoverDismiss: { owner: symbol; dismiss: () => void } | null = null
 
-export const CostBreakdownPopover: React.FC<CostBreakdownPopoverProps> = ({ label, trigger, panelClassName, triggerClassName: triggerClassNameOverride, children }) => {
+export const CostBreakdownPopover: React.FC<CostBreakdownPopoverProps> = ({ label, trigger, panelClassName, showChevron = true, triggerClassName: triggerClassNameOverride, children }) => {
   const boundaryRef = useRef<HTMLDivElement>(null)
   const triggerRef = useRef<HTMLButtonElement>(null)
   const panelRef = useRef<HTMLDivElement>(null)
@@ -133,6 +134,7 @@ export const CostBreakdownPopover: React.FC<CostBreakdownPopoverProps> = ({ labe
           ref={triggerRef}
           type="button"
           aria-label={label}
+          title={label}
           aria-expanded={open}
           aria-controls={popoverId}
           aria-haspopup="dialog"
@@ -150,7 +152,7 @@ export const CostBreakdownPopover: React.FC<CostBreakdownPopoverProps> = ({ labe
           className={triggerClassNameOverride ?? defaultTriggerClassName}
         >
           {trigger}
-          <ChevronDown aria-hidden="true" className="h-3.5 w-3.5 shrink-0 self-center text-slate-600" />
+          {showChevron && <ChevronDown aria-hidden="true" className="h-3.5 w-3.5 shrink-0 self-center text-slate-600" />}
         </button>
       {open && typeof document !== 'undefined' && createPortal(
         <div
