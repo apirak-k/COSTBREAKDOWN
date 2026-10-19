@@ -217,6 +217,7 @@ function ComparisonRoleSelector({
   const menuItemRefs = useRef<Array<HTMLButtonElement | null>>([])
   const pinnedRef = useRef(false)
   const hoverTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const availableRoles = ROLES.filter(option => option.role !== role)
   const menuId = `simulation-${side.toLowerCase()}-dataset-menu`
   const clearHoverTimer = () => {
     if (hoverTimerRef.current !== null) clearTimeout(hoverTimerRef.current)
@@ -310,12 +311,13 @@ function ComparisonRoleSelector({
             if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
               event.preventDefault()
               preview()
-              requestAnimationFrame(() => menuItemRefs.current[event.key === 'ArrowUp' ? ROLES.length - 1 : 0]?.focus())
+              const firstOrLastIndex = event.key === 'ArrowUp' ? availableRoles.length - 1 : 0
+              requestAnimationFrame(() => menuItemRefs.current[firstOrLastIndex]?.focus())
             }
           }}
-          className="inline-flex h-8 w-[96px] shrink-0 items-center justify-between gap-1.5 rounded-sm border border-slate-300 bg-white px-2 text-xs font-medium leading-none text-slate-700 transition-colors hover:bg-slate-100 hover:text-slate-950 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700"
+          className="inline-flex h-8 w-[112px] shrink-0 items-center justify-between gap-1.5 whitespace-nowrap rounded-sm border border-slate-300 bg-white px-2 text-xs font-medium leading-none text-slate-700 transition-colors hover:bg-slate-100 hover:text-slate-950 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700"
         >
-          <span className="truncate">{roleLabel(role)}</span>
+          <span className="whitespace-nowrap">{roleLabel(role)}</span>
           <ChevronDown aria-hidden="true" className="h-3.5 w-3.5 shrink-0 text-slate-600" />
         </button>
       </Tooltip>
@@ -338,25 +340,24 @@ function ComparisonRoleSelector({
             }
             const activeIndex = menuItemRefs.current.findIndex(item => item === document.activeElement)
             const nextIndex = event.key === 'ArrowDown'
-              ? (activeIndex + 1) % ROLES.length
+              ? (activeIndex + 1) % availableRoles.length
               : event.key === 'ArrowUp'
-                ? (activeIndex - 1 + ROLES.length) % ROLES.length
-                : event.key === 'Home' ? 0 : event.key === 'End' ? ROLES.length - 1 : null
+                ? (activeIndex - 1 + availableRoles.length) % availableRoles.length
+                : event.key === 'Home' ? 0 : event.key === 'End' ? availableRoles.length - 1 : null
             if (nextIndex !== null) {
               event.preventDefault()
               menuItemRefs.current[nextIndex]?.focus()
             }
           }}
           onMouseEnter={clearHoverTimer}
-          className="absolute left-1/2 top-full z-50 w-max min-w-[96px] max-w-[calc(100vw-1rem)] -translate-x-1/2 border border-slate-300 bg-white p-1 shadow-lg"
+          className="absolute left-1/2 top-full z-50 w-max min-w-[112px] max-w-[calc(100vw-1rem)] -translate-x-1/2 border border-slate-300 bg-white p-1 shadow-lg"
         >
-          {ROLES.map(({ role: optionRole, label: optionLabel }, index) => (
+          {availableRoles.map(({ role: optionRole, label: optionLabel }, index) => (
             <button
               key={optionRole}
               ref={element => { menuItemRefs.current[index] = element }}
               type="button"
-              role="menuitemradio"
-              aria-checked={optionRole === role}
+              role="menuitem"
               tabIndex={0}
               onClick={() => { onChange(optionRole); close(true) }}
               className={`block min-h-8 w-full px-2 text-left text-xs hover:bg-slate-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-700 ${optionRole === role ? 'font-semibold text-blue-800' : 'text-slate-800'}`}
@@ -392,6 +393,7 @@ function CompactActionControl({
   const hoverTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const menuId = `simulation-${label.toLowerCase()}-actions`
   const helpId = `simulation-${label.toLowerCase()}-all-help`
+  const tooltipLabel = label === 'Send' ? 'Send to Master Data' : label
   const clearHoverTimer = () => {
     if (hoverTimerRef.current !== null) clearTimeout(hoverTimerRef.current)
     hoverTimerRef.current = null
@@ -462,7 +464,7 @@ function CompactActionControl({
         if (!event.currentTarget.contains(event.relatedTarget as Node | null)) close()
       }}
     >
-      <Tooltip label={label}>
+      <Tooltip label={tooltipLabel}>
         <button
           ref={triggerRef}
           type="button"
@@ -473,7 +475,7 @@ function CompactActionControl({
               openMenu(true)
             }
           }}
-          aria-label={label}
+          aria-label={tooltipLabel}
           aria-expanded={open}
           aria-controls={menuId}
           aria-describedby={helpId}
@@ -1070,17 +1072,17 @@ function ResultPanel({
   })
 
   return (
-    <section data-safe-workspace-interaction="true" className="min-w-0 border border-slate-300 bg-white px-3 py-2 xl:min-h-0 xl:px-2 xl:py-1" aria-labelledby="simulation-result-title">
+    <section data-safe-workspace-interaction="true" className="min-w-0 border border-slate-300 bg-white px-3 py-2 xl:min-h-0 xl:px-1 xl:py-1" aria-labelledby="simulation-result-title">
+      <h2 id="simulation-result-title" className="sr-only">Result</h2>
       <header
         data-simulation-result-header="true"
-        className="flex min-w-0 flex-wrap items-center justify-between gap-x-2 gap-y-1.5 border-b border-slate-200 pb-1.5"
+        className="flex min-w-0 flex-wrap items-center justify-between gap-x-2 gap-y-1.5 border-b border-slate-200 pb-1.5 xl:flex-nowrap xl:gap-x-1"
       >
-        <div className="flex min-w-0 flex-wrap items-center gap-1">
-          <h2 id="simulation-result-title" className="shrink-0 text-xs font-semibold text-slate-900">Result</h2>
+        <div className="flex min-w-0 flex-wrap items-center gap-1 xl:flex-nowrap">
           <div
             role="group"
             aria-label={`Result comparison, Before ${roleLabel(beforeRole)}, After ${roleLabel(afterRole)}`}
-            className="flex shrink-0 items-center gap-1"
+            className="flex min-w-0 flex-wrap items-center gap-1 xl:flex-nowrap"
           >
             <ComparisonRoleSelector side="Before" role={beforeRole} onChange={role => onChangeComparison(role, afterRole)} />
             <span aria-hidden="true" className="w-3 text-center text-sm font-semibold text-slate-500">→</span>
@@ -1211,7 +1213,7 @@ export const SimulationPage: React.FC<SimulationPageProps> = ({
     <div className="min-w-0 space-y-3 xl:flex xl:h-full xl:min-h-0 xl:flex-col xl:gap-2 xl:space-y-0 xl:overflow-hidden">
       <div className="grid min-w-0 gap-2 xl:min-h-0 xl:flex-[1.25] xl:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)] xl:grid-rows-1">
         <SimulationStoryGraph story={story} unit={unit} activeRole={state.role} onSelectActiveDataset={onSelectActiveDataset} />
-        <div className="grid min-w-0 gap-2 xl:h-full xl:min-h-0 xl:grid-cols-[minmax(0,.7fr)_minmax(0,1.3fr)] xl:grid-rows-1">
+        <div className="grid min-w-0 gap-2 xl:h-full xl:min-h-0 xl:grid-cols-[minmax(0,.62fr)_minmax(0,1.38fr)] xl:grid-rows-1">
           <EconomicSimulationPanel
             result={economicResult}
             draft={analysisAfterDataset.economicInputs}

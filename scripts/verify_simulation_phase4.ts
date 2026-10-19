@@ -114,8 +114,10 @@ assert.ok(graphRoleButtons.every(([, attributes]) => attributes.includes('type="
   'graph dataset controls are buttons with visible keyboard focus styling')
 const activeGraphButton = graphRoleButtons.find(([, attributes]) => attributes.includes('aria-pressed="true"'))
 assert.ok(activeGraphButton, 'exactly one active graph role is selected')
-assert.ok(activeGraphButton[2].includes('after:bg-blue-700') && activeGraphButton[2].includes('after:h-0.5'),
-  'active graph role uses the blue 2px underline cue')
+assert.ok(activeGraphButton[2].includes('after:bg-slate-950') && activeGraphButton[2].includes('after:h-0.5'),
+  'active graph role uses the dark 2px underline cue')
+assert.doesNotMatch(activeGraphButton[2], /after:bg-blue-/,
+  'active graph underline is not blue')
 assert.doesNotMatch(activeGraphButton?.[1] ?? '', /border-blue|bg-blue|shadow/,
   'active graph role has no persistent selected box, fill, or shadow')
 assert.ok(graphRoleButtons.filter(([, attributes]) => !attributes.includes('aria-pressed="true"'))
@@ -204,8 +206,12 @@ const pairPage = renderPage(state, 'reference', 'custom')
 const pairResult = resultPanel(pairPage)
 assert.ok(pairResult, 'Simulation Result panel renders')
 const resultHeader = pairResult.match(/<header data-simulation-result-header="true"[\s\S]*?<\/header>/)?.[0] ?? ''
-assert.ok(resultHeader, 'Result title, comparison selectors, and actions share one header container')
-assert.match(resultHeader, /<h2[^>]*>Result<\/h2>/, 'Result title remains in the shared header')
+assert.ok(resultHeader, 'comparison selectors and actions share one header container')
+assert.doesNotMatch(resultHeader, /<h2[^>]*>Result<\/h2>/, 'Result title is absent from the visible toolbar')
+assert.match(pairResult, /aria-labelledby="simulation-result-title"/, 'Result section retains its accessible identity')
+assert.match(pairResult, /<h2 id="simulation-result-title" class="sr-only">Result<\/h2>/,
+  'Result retains a screen-reader-only heading')
+assert.match(resultHeader, /xl:flex-nowrap/, 'Result header is structurally one row at desktop widths')
 assert.match(resultHeader, /aria-label="Result comparison, Before Reference, After Custom"/,
   'Before/After selectors remain a grouped comparison in the shared header')
 assert.equal((pairResult.match(/Result comparison/g) ?? []).length, 1,
@@ -218,8 +224,8 @@ assert.deepEqual(
   'Result headers name the actual selected roles')
 assert.deepEqual(
   [...resultHeader.matchAll(/<button\b([^>]*)>/g)].map(([, attributes]) => attributes.match(/aria-label="([^"]+)"/)?.[1]).filter(Boolean).sort(),
-  ['After dataset, Custom', 'Before dataset, Reference', 'Reset', 'Send'],
-  'Result exposes independent Before/After selectors and the exact Send/Reset main actions'
+  ['After dataset, Custom', 'Before dataset, Reference', 'Reset', 'Send to Master Data'],
+  'Result exposes independent selectors and the final Send/Reset accessible names'
 )
 assert.equal((resultHeader.match(/aria-haspopup="menu"/g) ?? []).length, 2,
   'only the two role selectors expose dropdown triggers in the Result header')
@@ -231,12 +237,14 @@ const roleTriggers = [...resultHeader.matchAll(/<button\b([^>]*)>([\s\S]*?)<\/bu
   .filter(([, attributes]) => /aria-label="(?:Before|After) dataset, /.test(attributes))
 assert.equal(roleTriggers.length, 2, 'Result renders independent Before and After selectors')
 for (const [attributes, markup] of roleTriggers.map(([, attributes, markup]) => [attributes, markup])) {
-  assert.match(attributes, /h-8 w-\[96px\].*border-slate-300.*bg-white/,
-    'Before/After selector uses the approved 96×32 boxed field')
+  assert.match(attributes, /h-8 w-\[112px\].*border-slate-300.*bg-white/,
+    'Before/After selector uses an equal 112×32 boxed field that fits Reference')
   assert.match(attributes, /focus-visible:outline/, 'Before/After selector has visible keyboard focus')
+  assert.match(attributes, /whitespace-nowrap/, 'selector role text cannot wrap or truncate')
+  assert.doesNotMatch(markup, /truncate/, 'selector role text has no ellipsis styling')
   assert.doesNotMatch(markup, /Before|After/, 'selector trigger content is a single selected role label')
   assert.match(markup.replace(/<[^>]*>/g, '').trim(), /^(Reference|Current|Custom)$/,
-    'selector trigger shows only its selected role')
+    'selector trigger shows the full selected role name')
 }
 assert.deepEqual(resultValues(resultRow(pairResult, 'Standard Cost')).map(cell => cell.text),
   ['25.00', '80.00', '+55.00', '+220.00%'],
@@ -336,6 +344,8 @@ assert.match(graphSource, /onClick=\{\(\) => onSelectActiveDataset\(category\.ro
   '[source contract] graph role controls select activeDataset')
 assert.match(pageSource, /onChange=\{role => onChangeComparison\(role, afterRole\)\}[\s\S]*?onChange=\{role => onChangeComparison\(beforeRole, role\)\}/,
   '[source contract] Before and After selectors update only their own comparison side')
+assert.match(pageSource, /xl:grid-cols-\[minmax\(0,\.62fr\)_minmax\(0,1\.38fr\)\]/,
+  '[source contract] the Business/Economic column is moderately narrower to give Result more width')
 assert.match(pageSource, /label="Send"[\s\S]*?secondaryLabel="Send all datasets"[\s\S]*?onPrimary=\{onSend\}[\s\S]*?onSecondary=\{onSendAll\}/,
   '[source contract] Send main and secondary actions use the active-role and all-role callbacks')
 assert.match(pageSource, /label="Reset"[\s\S]*?secondaryLabel="Reset all datasets"[\s\S]*?onPrimary=\{onReset\}[\s\S]*?onSecondary=\{onResetAll\}/,
@@ -343,8 +353,20 @@ assert.match(pageSource, /label="Reset"[\s\S]*?secondaryLabel="Reset all dataset
 assert.ok(pageSource.includes('<Tooltip label={side}>'), '[source contract] selector tooltip text is exactly Before or After')
 assert.ok(pageSource.includes('aria-label={`${side} dataset, ${roleLabel(role)}`}'),
   '[source contract] selector accessible name includes its side and selected role')
-assert.match(pageSource, /function CompactActionControl[\s\S]*?<Tooltip label=\{label\}>[\s\S]*?aria-label=\{label\}/,
-  '[source contract] main action tooltip and accessible name use the exact Send or Reset label')
+const roleSelectorSource = pageSource.match(/function ComparisonRoleSelector\([\s\S]*?\nfunction CompactActionControl/)?.[0] ?? ''
+assert.match(roleSelectorSource, /const availableRoles = ROLES\.filter\(option => option\.role !== role\)/,
+  '[source contract] each selector omits only its own currently selected role')
+assert.match(roleSelectorSource, /\{availableRoles\.map\([\s\S]*?role="menuitem"/,
+  '[source contract] the dropdown contains the other two selectable roles without a selected duplicate')
+assert.match(roleSelectorSource, /availableRoles\.length - 1[\s\S]*?menuItemRefs\.current\[firstOrLastIndex\]/,
+  '[source contract] trigger ArrowUp enters at the last visible option and ArrowDown at the first')
+assert.match(roleSelectorSource, /\(activeIndex \+ 1\) % availableRoles\.length[\s\S]*?\(activeIndex - 1 \+ availableRoles\.length\) % availableRoles\.length[\s\S]*?event\.key === 'Home' \? 0 : event\.key === 'End' \? availableRoles\.length - 1/,
+  '[source contract] Arrow, Home, and End navigation use the filtered visible option list')
+assert.doesNotMatch(roleSelectorSource, /ROLES\.length/, 'filtered menu keyboard indexes do not use the original three-role length')
+assert.match(pageSource, /const tooltipLabel = label === 'Send' \? 'Send to Master Data' : label/,
+  '[source contract] only Send receives the final tooltip wording')
+assert.match(pageSource, /function CompactActionControl[\s\S]*?<Tooltip label=\{tooltipLabel\}>[\s\S]*?aria-label=\{tooltipLabel\}/,
+  '[source contract] Send tooltip and primary accessible name are Send to Master Data; Reset remains Reset')
 assert.match(pageSource, /function CompactActionControl[\s\S]*?onClick=\{\(\) => \{ close\(\); onPrimary\(\) \}\}/,
   '[source contract] Send/Reset primary click remains immediate')
 assert.match(pageSource, /function CompactActionControl[\s\S]*?hidden=\{!open\}[\s\S]*?\{secondaryLabel\}/,
@@ -353,8 +375,8 @@ assert.match(pageSource, /const financialFor = \(role: MasterDataRole\)[\s\S]*?e
   '[source contract] graph story calculates each effective role dataset independently')
 assert.match(pageSource, /calculateParameterSimulation\(state\.baselineSnapshot, simulationSnapshot\)[\s\S]*?baselineSnapshot=\{state\.baselineSnapshot\}/,
   '[source contract] BOM and RTG parameter rows/effects use the active role baseline')
-assert.match(pageSource, /ROLES\.map\(\(\{ role: optionRole, label: optionLabel \}[\s\S]*?onChange\(optionRole\)/,
-  '[source contract] both Result selectors offer each of the three Master Data roles')
+assert.match(roleSelectorSource, /const availableRoles = ROLES\.filter\(option => option\.role !== role\)[\s\S]*?availableRoles\.map\(\(\{ role: optionRole, label: optionLabel \}[\s\S]*?onChange\(optionRole\)/,
+  '[source contract] each selector offers both alternate roles while omitting only its own current role')
 assert.match(appSource, /const snapshots = prepareSimulationSendAll\(current, masterDataSnapshots\)[\s\S]*?return sendSimulationSnapshotsToMasterData\(snapshots\)/,
   '[source contract] Send all datasets uses the existing atomic store operation')
 assert.match(appSource, /const next = resetAllSimulationParameters\(current, masterDataSnapshots\)/,

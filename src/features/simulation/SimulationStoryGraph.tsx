@@ -829,7 +829,7 @@ export function SimulationStoryGraph({ story, unit, activeRole, onSelectActiveDa
                     onClick={() => onSelectActiveDataset(category.role)}
                     className={`inline-flex h-7 w-full items-center justify-center rounded-sm px-1 text-[11px] leading-none transition-colors hover:bg-slate-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-blue-700 ${activeRole === category.role ? 'font-semibold text-slate-950' : 'font-medium text-slate-700'}`}
                   >
-                    <span className={`relative inline-block px-1 pb-1 after:absolute after:inset-x-0 after:bottom-0 after:h-0.5 ${activeRole === category.role ? 'after:bg-blue-700' : 'after:bg-transparent'}`}>
+                    <span className={`relative inline-block px-1 pb-1 after:absolute after:inset-x-0 after:bottom-0 after:h-0.5 ${activeRole === category.role ? 'after:bg-slate-950' : 'after:bg-transparent'}`}>
                       {category.label}
                     </span>
                   </button>

@@ -93,12 +93,16 @@ const simulationRoleMenuClass = simulationRoleSelector.match(/className="([^"]*w
 assert.ok(simulationRoleMenuClass, 'Simulation role selector menu declares intrinsic width')
 assert.match(simulationRoleMenuClass, /max-w-\[calc\(100vw-1rem\)\]/,
   'Simulation role selector menu is capped to the viewport')
-assert.match(simulationRoleMenuClass, /min-w-\[96px\]/,
-  'Simulation Before/After menus share the approved 96px selector-width minimum')
+assert.match(simulationRoleMenuClass, /min-w-\[112px\]/,
+  'Simulation Before/After menus share the stable width required to display Reference')
 assert.doesNotMatch(simulationRoleMenuClass, /(?:^|\s)w-(?:\d+|\[\d+(?:px|rem)\])(?:\s|$)/,
   'Simulation role selector menu has no arbitrary fixed width')
-assert.match(simulationRoleSelector, /w-\[96px\].*h-8|h-8.*w-\[96px\]/,
-  'Simulation role selector triggers match the approved 96×32 size')
+assert.match(simulationRoleSelector, /w-\[112px\].*h-8|h-8.*w-\[112px\]/,
+  'Simulation role selector triggers use an equal stable width and remain 32px high')
+assert.match(simulationRoleSelector, /whitespace-nowrap/,
+  'Simulation role selector labels remain on one line')
+assert.doesNotMatch(simulationRoleSelector, /className="truncate"/,
+  'Simulation role selector labels cannot display with ellipses')
 assert.match(simulationRoleSelector, /<Tooltip label=\{side\}>/,
   'Simulation role selector tooltips expose only Before or After')
 assert.doesNotMatch(simulationRoleSelector, /flex min-w-0 flex-col|text-\[9px\].*side/,
@@ -132,7 +136,7 @@ assert.match(simulationActionControl, /onClick=\{\(\) => \{ close\(\); onPrimary
   'Simulation action main click stays immediate and keyboard users can open the secondary action')
 assert.match(simulationActionControl, /setTimeout\(\(\) => setOpen\(true\), 120\)[\s\S]*\}, 150\)/,
   'Simulation action menu follows the approved delayed hover/leave behavior')
-assert.match(simulationActionControl, /aria-label=\{label\}[\s\S]*aria-describedby=\{helpId\}[\s\S]*className=\{resultActionButton\}/,
+assert.match(simulationActionControl, /aria-label=\{tooltipLabel\}[\s\S]*aria-describedby=\{helpId\}[\s\S]*className=\{resultActionButton\}/,
   'Simulation action trigger is icon-only, named, described, and keyboard-focusable')
 assert.doesNotMatch(simulationActionControl, /More .* actions|<ChevronDown/,
   'Simulation action control has no permanent split-button chevron')

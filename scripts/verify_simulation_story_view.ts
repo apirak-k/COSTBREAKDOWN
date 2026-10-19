@@ -241,8 +241,10 @@ try {
     'the graph exposes Reference, Current, and Custom as dataset controls')
   const activeDatasetButton = datasetButtons.find(button => button.attributes.includes('aria-pressed="true"'))
   assert.ok(activeDatasetButton, 'the selected graph dataset remains exposed with aria-pressed')
-  assert.match(graphMarkup, /after:h-0\.5[^"]*after:bg-blue-700/,
-    'the selected graph dataset uses the lightweight blue underline')
+  assert.match(graphMarkup, /after:h-0\.5[^"]*after:bg-slate-950/,
+    'the selected graph dataset uses the lightweight dark underline')
+  assert.doesNotMatch(graphMarkup, /after:bg-blue-700/,
+    'the selected graph dataset has no blue underline')
   assert.doesNotMatch(activeDatasetButton.attributes, /border-blue|bg-blue|shadow/,
     'the selected graph dataset has no persistent box or fill')
   assert.deepEqual(svgTextLabels.filter(label => ['GAP 1', 'GAP 2'].includes(label)), ['GAP 1', 'GAP 2'],
