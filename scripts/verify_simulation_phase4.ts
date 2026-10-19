@@ -100,10 +100,10 @@ const graphMarkup = renderToStaticMarkup(React.createElement(SimulationStoryGrap
 const graphSvg = graphMarkup.match(/<svg\b[\s\S]*?<\/svg>/)?.[0] ?? ''
 assert.ok(graphSvg, 'Simulation graph renders an SVG story')
 
-const graphRoleButtons = [...graphSvg.matchAll(/<button\b([^>]*)>([^<]+)<\/button>/g)]
+const graphRoleButtons = [...graphSvg.matchAll(/<button\b([^>]*)>([\s\S]*?)<\/button>/g)]
   .filter(([, attributes]) => attributes.includes('Select ') && attributes.includes('as active dataset'))
 assert.deepEqual(graphRoleButtons.map(([, attributes, label]) => ({
-  label,
+  label: label.replace(/<[^>]*>/g, '').trim(),
   selected: attributes.includes('aria-pressed="true"')
 })), [
   { label: 'Reference', selected: false },
@@ -112,13 +112,22 @@ assert.deepEqual(graphRoleButtons.map(([, attributes, label]) => ({
 ], 'graph role labels are semantic active-dataset controls with only activeDataset selected')
 assert.ok(graphRoleButtons.every(([, attributes]) => attributes.includes('type="button"') && attributes.includes('focus-visible:outline')),
   'graph dataset controls are buttons with visible keyboard focus styling')
+const activeGraphButton = graphRoleButtons.find(([, attributes]) => attributes.includes('aria-pressed="true"'))
+assert.ok(activeGraphButton, 'exactly one active graph role is selected')
+assert.ok(activeGraphButton[2].includes('after:bg-blue-700') && activeGraphButton[2].includes('after:h-0.5'),
+  'active graph role uses the blue 2px underline cue')
+assert.doesNotMatch(activeGraphButton?.[1] ?? '', /border-blue|bg-blue|shadow/,
+  'active graph role has no persistent selected box, fill, or shadow')
+assert.ok(graphRoleButtons.filter(([, attributes]) => !attributes.includes('aria-pressed="true"'))
+  .every(([, attributes, content]) => attributes.includes('hover:bg-slate-50') && content.includes('after:bg-transparent')),
+  'inactive graph roles remain readable and interactive without an underline')
 
 const graphOrder = [
-  '>Reference</button>',
+  'aria-label="Select Reference as active dataset"',
   '>GAP 1</text>',
-  '>Current</button>',
+  'aria-label="Select Current as active dataset"',
   '>GAP 2</text>',
-  '>Custom</button>'
+  'aria-label="Select Custom as active dataset"'
 ].map(label => graphSvg.indexOf(label))
 assert.ok(graphOrder.every(index => index >= 0), 'graph renders all three fixed role labels and both gap labels')
 assert.deepEqual(graphOrder, [...graphOrder].sort((left, right) => left - right),
@@ -194,6 +203,13 @@ const inputFor = (markup: string, label: string) => [...markup.matchAll(/<input\
 const pairPage = renderPage(state, 'reference', 'custom')
 const pairResult = resultPanel(pairPage)
 assert.ok(pairResult, 'Simulation Result panel renders')
+const resultHeader = pairResult.match(/<header data-simulation-result-header="true"[\s\S]*?<\/header>/)?.[0] ?? ''
+assert.ok(resultHeader, 'Result title, comparison selectors, and actions share one header container')
+assert.match(resultHeader, /<h2[^>]*>Result<\/h2>/, 'Result title remains in the shared header')
+assert.match(resultHeader, /aria-label="Result comparison, Before Reference, After Custom"/,
+  'Before/After selectors remain a grouped comparison in the shared header')
+assert.equal((pairResult.match(/Result comparison/g) ?? []).length, 1,
+  'Result has no separate comparison row below its header')
 assert.doesNotMatch(pairPage, /Edit dataset|Send to active dataset|Send to Current|Send to Custom/,
   'final Simulation UI has no separate Edit dataset or arbitrary Send destination')
 assert.deepEqual(
@@ -201,12 +217,27 @@ assert.deepEqual(
   ['Cost or business outcome', 'Reference', 'Custom', 'Change', '%'],
   'Result headers name the actual selected roles')
 assert.deepEqual(
-  [...pairResult.matchAll(/<button\b([^>]*)>/g)].map(([, attributes]) => attributes.match(/aria-label="([^"]+)"/)?.[1]).filter(Boolean).sort(),
-  ['After dataset, Custom', 'Before dataset, Reference', 'More Reset actions', 'More Send actions', 'Reset', 'Send'],
+  [...resultHeader.matchAll(/<button\b([^>]*)>/g)].map(([, attributes]) => attributes.match(/aria-label="([^"]+)"/)?.[1]).filter(Boolean).sort(),
+  ['After dataset, Custom', 'Before dataset, Reference', 'Reset', 'Send'],
   'Result exposes independent Before/After selectors and the exact Send/Reset main actions'
 )
-assert.match(pairResult, /aria-haspopup="menu" aria-expanded="false"/,
-  'Result selectors and secondary action controls expose closed menu state')
+assert.equal((resultHeader.match(/aria-haspopup="menu"/g) ?? []).length, 2,
+  'only the two role selectors expose dropdown triggers in the Result header')
+assert.doesNotMatch(resultHeader, /More (?:Send|Reset) actions/,
+  'Send and Reset have no permanent split-button trigger')
+assert.match(resultHeader, /Send all datasets/)
+assert.match(resultHeader, /Reset all datasets/)
+const roleTriggers = [...resultHeader.matchAll(/<button\b([^>]*)>([\s\S]*?)<\/button>/g)]
+  .filter(([, attributes]) => /aria-label="(?:Before|After) dataset, /.test(attributes))
+assert.equal(roleTriggers.length, 2, 'Result renders independent Before and After selectors')
+for (const [attributes, markup] of roleTriggers.map(([, attributes, markup]) => [attributes, markup])) {
+  assert.match(attributes, /h-8 w-\[96px\].*border-slate-300.*bg-white/,
+    'Before/After selector uses the approved 96×32 boxed field')
+  assert.match(attributes, /focus-visible:outline/, 'Before/After selector has visible keyboard focus')
+  assert.doesNotMatch(markup, /Before|After/, 'selector trigger content is a single selected role label')
+  assert.match(markup.replace(/<[^>]*>/g, '').trim(), /^(Reference|Current|Custom)$/,
+    'selector trigger shows only its selected role')
+}
 assert.deepEqual(resultValues(resultRow(pairResult, 'Standard Cost')).map(cell => cell.text),
   ['25.00', '80.00', '+55.00', '+220.00%'],
   'Result uses effective Reference and Custom role costs with After minus Before direction')
@@ -309,8 +340,15 @@ assert.match(pageSource, /label="Send"[\s\S]*?secondaryLabel="Send all datasets"
   '[source contract] Send main and secondary actions use the active-role and all-role callbacks')
 assert.match(pageSource, /label="Reset"[\s\S]*?secondaryLabel="Reset all datasets"[\s\S]*?onPrimary=\{onReset\}[\s\S]*?onSecondary=\{onResetAll\}/,
   '[source contract] Reset main and secondary actions use active-role and all-role callbacks')
-assert.match(pageSource, /function SplitActionControl[\s\S]*?<Tooltip label=\{label\}>[\s\S]*?aria-label=\{label\}/,
+assert.ok(pageSource.includes('<Tooltip label={side}>'), '[source contract] selector tooltip text is exactly Before or After')
+assert.ok(pageSource.includes('aria-label={`${side} dataset, ${roleLabel(role)}`}'),
+  '[source contract] selector accessible name includes its side and selected role')
+assert.match(pageSource, /function CompactActionControl[\s\S]*?<Tooltip label=\{label\}>[\s\S]*?aria-label=\{label\}/,
   '[source contract] main action tooltip and accessible name use the exact Send or Reset label')
+assert.match(pageSource, /function CompactActionControl[\s\S]*?onClick=\{\(\) => \{ close\(\); onPrimary\(\) \}\}/,
+  '[source contract] Send/Reset primary click remains immediate')
+assert.match(pageSource, /function CompactActionControl[\s\S]*?hidden=\{!open\}[\s\S]*?\{secondaryLabel\}/,
+  '[source contract] all-dataset actions remain in the same compact secondary-action control')
 assert.match(pageSource, /const financialFor = \(role: MasterDataRole\)[\s\S]*?effectiveDatasets\[role\][\s\S]*?calculateParameterSimulation\(dataset\.snapshot, dataset\.snapshot\)/,
   '[source contract] graph story calculates each effective role dataset independently')
 assert.match(pageSource, /calculateParameterSimulation\(state\.baselineSnapshot, simulationSnapshot\)[\s\S]*?baselineSnapshot=\{state\.baselineSnapshot\}/,

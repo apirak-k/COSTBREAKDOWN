@@ -148,7 +148,9 @@ try {
   assert.equal(wrongNegativeSign.total, 10, 'negative Profit is absent when only Profit plus is enabled')
 
   const storyBeforeRender = JSON.stringify(story)
-  const graphMarkup = renderToStaticMarkup(React.createElement(SimulationStoryGraph, { story, unit: 'PC' }))
+  const graphMarkup = renderToStaticMarkup(React.createElement(SimulationStoryGraph, {
+    story, unit: 'PC', activeRole: 'current', onSelectActiveDataset() {}
+  }))
   assert.equal(JSON.stringify(story), storyBeforeRender, 'rendering the graph does not mutate ScenarioStory')
   const graphSource = readFileSync(resolve(process.cwd(), 'src/features/simulation/SimulationStoryGraph.tsx'), 'utf8')
   const numericSvgAttribute = (tag: string, attribute: string) =>
@@ -233,10 +235,16 @@ try {
   }
   assert.doesNotMatch(graphMarkup, /data-graph-total="(?:reference|current|custom)"/,
     'full commercial-stack values are not duplicated above dataset states')
-  const datasetButtons = [...graphMarkup.matchAll(/<button\b[^>]*aria-label="Select (Reference|Current|Custom) as active dataset"[^>]*>(Reference|Current|Custom)<\/button>/g)]
-    .map(([, , label]) => label)
-  assert.deepEqual(datasetButtons, ['Reference', 'Current', 'Custom'],
+  const datasetButtons = [...graphMarkup.matchAll(/<button\b([^>]*aria-label="Select (Reference|Current|Custom) as active dataset"[^>]*)>([\s\S]*?)<\/button>/g)]
+    .map(([, attributes, label, content]) => ({ attributes, label: content.replace(/<[^>]*>/g, '').trim() || label }))
+  assert.deepEqual(datasetButtons.map(button => button.label), ['Reference', 'Current', 'Custom'],
     'the graph exposes Reference, Current, and Custom as dataset controls')
+  const activeDatasetButton = datasetButtons.find(button => button.attributes.includes('aria-pressed="true"'))
+  assert.ok(activeDatasetButton, 'the selected graph dataset remains exposed with aria-pressed')
+  assert.match(graphMarkup, /after:h-0\.5[^"]*after:bg-blue-700/,
+    'the selected graph dataset uses the lightweight blue underline')
+  assert.doesNotMatch(activeDatasetButton.attributes, /border-blue|bg-blue|shadow/,
+    'the selected graph dataset has no persistent box or fill')
   assert.deepEqual(svgTextLabels.filter(label => ['GAP 1', 'GAP 2'].includes(label)), ['GAP 1', 'GAP 2'],
     'the two fixed gap labels remain informational SVG text')
   assert.ok(!svgTextLabels.some(label => ['REF', 'CUR', 'SIM'].includes(label)),
@@ -391,7 +399,8 @@ try {
   assert.doesNotMatch(graphMarkup, /fill-opacity=|fillOpacity=/, 'all graph bar fills remain solid')
   assert.match(graphMarkup, /Selling Price<\/span>/, 'Selling Price remains a separate graph legend item')
   assert.match(graphMarkup, /aria-pressed="true"/)
-  assert.equal([...graphMarkup.matchAll(/aria-pressed="true"/g)].length, 8, 'all eight legend items are on by default')
+  const pressedLegendMarkup = graphMarkup.match(/<ul aria-label="Simulation graph legend"[\s\S]*?<\/ul>/)?.[0] ?? ''
+  assert.equal([...pressedLegendMarkup.matchAll(/aria-pressed="true"/g)].length, 8, 'all eight legend items are on by default')
   for (const label of ['Material', 'Labor', 'Burden', 'SG&amp;A', 'Profit +', 'Profit −', 'Selling Price', 'Ruler']) {
     assert.ok(legendMarkup.includes(`aria-label="${label}"`), `the visible Legend uses the full ${label} label`)
   }

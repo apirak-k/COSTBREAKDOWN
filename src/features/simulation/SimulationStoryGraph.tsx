@@ -827,12 +827,11 @@ export function SimulationStoryGraph({ story, unit, activeRole, onSelectActiveDa
                     aria-label={`Select ${category.label} as active dataset`}
                     aria-pressed={activeRole === category.role}
                     onClick={() => onSelectActiveDataset(category.role)}
-                    className={`h-7 w-full rounded-sm border px-1 text-[11px] font-semibold leading-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-blue-700 ${activeRole === category.role
-                      ? 'border-blue-700 bg-blue-50 text-blue-950 shadow-sm'
-                      : 'border-transparent bg-white/90 text-slate-700 hover:border-slate-300 hover:bg-slate-50'
-                    }`}
+                    className={`inline-flex h-7 w-full items-center justify-center rounded-sm px-1 text-[11px] leading-none transition-colors hover:bg-slate-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-blue-700 ${activeRole === category.role ? 'font-semibold text-slate-950' : 'font-medium text-slate-700'}`}
                   >
-                    {category.label}
+                    <span className={`relative inline-block px-1 pb-1 after:absolute after:inset-x-0 after:bottom-0 after:h-0.5 ${activeRole === category.role ? 'after:bg-blue-700' : 'after:bg-transparent'}`}>
+                      {category.label}
+                    </span>
                   </button>
                 </foreignObject>
               )}

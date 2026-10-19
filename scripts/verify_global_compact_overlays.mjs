@@ -88,19 +88,29 @@ assert.doesNotMatch(masterBulkMenu, /(?:^|\s)(?:w|min-w)-\d+(?:\s|$)/,
 assert.match(masterHeader, /const toolbarButton = 'grid h-8 w-8/,
   'Master Data icon action trigger establishes the 32px trigger minimum')
 
-const simulationRoleSelector = snippet(simulationPage, /function ComparisonRoleSelector\([\s\S]*?\nfunction SplitActionControl/, 'Simulation Before/After role selectors exist')
+const simulationRoleSelector = snippet(simulationPage, /function ComparisonRoleSelector\([\s\S]*?\nfunction CompactActionControl/, 'Simulation Before/After role selectors exist')
 const simulationRoleMenuClass = simulationRoleSelector.match(/className="([^"]*w-max[^"]*)"/)?.[1]
 assert.ok(simulationRoleMenuClass, 'Simulation role selector menu declares intrinsic width')
 assert.match(simulationRoleMenuClass, /max-w-\[calc\(100vw-1rem\)\]/,
   'Simulation role selector menu is capped to the viewport')
-assert.match(simulationRoleMenuClass, /min-w-\[7\.25rem\]/,
-  'Simulation Before/After menus keep the agreed selector-width minimum')
+assert.match(simulationRoleMenuClass, /min-w-\[96px\]/,
+  'Simulation Before/After menus share the approved 96px selector-width minimum')
 assert.doesNotMatch(simulationRoleMenuClass, /(?:^|\s)w-(?:\d+|\[\d+(?:px|rem)\])(?:\s|$)/,
   'Simulation role selector menu has no arbitrary fixed width')
+assert.match(simulationRoleSelector, /w-\[96px\].*h-8|h-8.*w-\[96px\]/,
+  'Simulation role selector triggers match the approved 96×32 size')
+assert.match(simulationRoleSelector, /<Tooltip label=\{side\}>/,
+  'Simulation role selector tooltips expose only Before or After')
+assert.doesNotMatch(simulationRoleSelector, /flex min-w-0 flex-col|text-\[9px\].*side/,
+  'Simulation role selector triggers do not show a two-line side label')
 assert.doesNotMatch(simulationRoleSelector, /\bminWidth\b|Math\.max\([^\n]*trigger\.width/,
   'Simulation role selector has no JavaScript trigger-width floor')
 assert.equal((simulationRoleSelector.match(/trigger\.width/g) ?? []).length, 1,
   'Simulation role selector uses trigger width only for centering')
+assert.match(simulationRoleSelector, /setTimeout\(preview, 120\)[\s\S]*setTimeout\(\(\) => \{[\s\S]*\}, 150\)/,
+  'Simulation role selector keeps the approved hover-open delay and leave grace')
+assert.match(simulationRoleSelector, /if \(pinnedRef\.current\) close\(\)[\s\S]*pinnedRef\.current = true/,
+  'Simulation role selector click pins and unpins the open popover')
 assert.match(simulationRoleSelector, /Math\.max\(8, Math\.min\(centeredLeft, window\.innerWidth - menu\.width - 8\)\)/,
   'Simulation role selector menu centers on its trigger and clamps horizontally')
 assert.match(simulationRoleSelector, /top \+ menu\.height > window\.innerHeight - 8[\s\S]*Math\.max\(8, trigger\.top - menu\.height\)/,
@@ -108,16 +118,26 @@ assert.match(simulationRoleSelector, /top \+ menu\.height > window\.innerHeight 
 assert.match(simulationRoleSelector, /left-1\/2 top-full[\s\S]*-translate-x-1\/2/,
   'Simulation role selector menu uses trigger-centered placement before viewport correction')
 
-const simulationSplitAction = snippet(simulationPage, /function SplitActionControl\([\s\S]*?\nfunction EffectCell/, 'Simulation Send/Reset split actions exist')
-const simulationActionMenuClass = simulationSplitAction.match(/className="([^"]*w-max[^"]*)"/)?.[1]
+const simulationActionControl = snippet(simulationPage, /function CompactActionControl\([\s\S]*?\nfunction EffectCell/, 'Simulation compact Send/Reset actions exist')
+const simulationActionMenuClass = simulationActionControl.match(/className="([^"]*min-w-max[^"]*)"/)?.[1]
 assert.ok(simulationActionMenuClass, 'Simulation action menu declares intrinsic width')
 assertIntrinsicPanel(simulationActionMenuClass, 'Simulation Send/Reset action menu')
-assert.equal((simulationSplitAction.match(/trigger\.width/g) ?? []).length, 1,
+assert.equal((simulationActionControl.match(/trigger\.width/g) ?? []).length, 1,
   'Simulation action menu uses trigger width only for centering')
-assert.match(simulationSplitAction, /Math\.max\(8, Math\.min\(centeredLeft, window\.innerWidth - menu\.width - 8\)\)/,
+assert.match(simulationActionControl, /Math\.max\(8, Math\.min\(centeredLeft, window\.innerWidth - menu\.width - 8\)\)/,
   'Simulation action menu centers on its trigger and clamps horizontally')
-assert.match(simulationSplitAction, /top \+ menu\.height > window\.innerHeight - 8[\s\S]*Math\.max\(8, trigger\.top - menu\.height\)/,
+assert.match(simulationActionControl, /const below = trigger\.bottom \+ 4[\s\S]*const above = trigger\.top - menu\.height - 4[\s\S]*const top = below \+ menu\.height <= window\.innerHeight - 8[\s\S]*Math\.min\(below, window\.innerHeight - menu\.height - 8\)[\s\S]*: above/,
   'Simulation action menu flips above the trigger when it would exceed the viewport')
+assert.match(simulationActionControl, /onClick=\{\(\) => \{ close\(\); onPrimary\(\) \}\}[\s\S]*onKeyDown=\{event => \{[\s\S]*Alt\+ArrowDown/,
+  'Simulation action main click stays immediate and keyboard users can open the secondary action')
+assert.match(simulationActionControl, /setTimeout\(\(\) => setOpen\(true\), 120\)[\s\S]*\}, 150\)/,
+  'Simulation action menu follows the approved delayed hover/leave behavior')
+assert.match(simulationActionControl, /aria-label=\{label\}[\s\S]*aria-describedby=\{helpId\}[\s\S]*className=\{resultActionButton\}/,
+  'Simulation action trigger is icon-only, named, described, and keyboard-focusable')
+assert.doesNotMatch(simulationActionControl, /More .* actions|<ChevronDown/,
+  'Simulation action control has no permanent split-button chevron')
+assert.match(simulationActionControl, /hidden=\{!open\}[\s\S]*\{secondaryLabel\}/,
+  'Simulation all-dataset action stays in the compact secondary menu')
 
 assert.match(tooltip, /max-w-\[calc\(100vw-1rem\)\]/,
   'shared tooltips cannot exceed the viewport width')

@@ -215,13 +215,47 @@ function ComparisonRoleSelector({
   const rootRef = useRef<HTMLDivElement>(null)
   const triggerRef = useRef<HTMLButtonElement>(null)
   const menuItemRefs = useRef<Array<HTMLButtonElement | null>>([])
+  const pinnedRef = useRef(false)
+  const hoverTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const menuId = `simulation-${side.toLowerCase()}-dataset-menu`
+  const clearHoverTimer = () => {
+    if (hoverTimerRef.current !== null) clearTimeout(hoverTimerRef.current)
+    hoverTimerRef.current = null
+  }
   const close = (restoreFocus = false) => {
+    clearHoverTimer()
+    pinnedRef.current = false
     setOpen(false)
     if (restoreFocus) triggerRef.current?.focus()
   }
+  const preview = () => {
+    clearHoverTimer()
+    setOpen(true)
+  }
+  const scheduleOpen = () => {
+    clearHoverTimer()
+    if (open || pinnedRef.current) return
+    hoverTimerRef.current = setTimeout(preview, 120)
+  }
+  const scheduleDismiss = () => {
+    clearHoverTimer()
+    hoverTimerRef.current = setTimeout(() => {
+      if (pinnedRef.current) return
+      if (rootRef.current?.contains(document.activeElement) || rootRef.current?.matches(':hover')) return
+      close()
+    }, 150)
+  }
+  const toggleOpen = () => {
+    clearHoverTimer()
+    if (pinnedRef.current) close()
+    else {
+      preview()
+      pinnedRef.current = true
+    }
+  }
 
   useTransientInteraction(open, reason => close(reason === 'escape'))
+  useEffect(() => () => clearHoverTimer(), [])
   useSafeLayoutEffect(() => {
     if (!open) return
     const updatePosition = () => {
@@ -256,33 +290,35 @@ function ComparisonRoleSelector({
     <div
       ref={rootRef}
       className="relative shrink-0"
+      onMouseEnter={scheduleOpen}
+      onMouseLeave={scheduleDismiss}
+      onFocusCapture={clearHoverTimer}
       onBlurCapture={event => {
-        if (!event.currentTarget.contains(event.relatedTarget as Node | null)) close()
+        if (!event.currentTarget.contains(event.relatedTarget as Node | null)) scheduleDismiss()
       }}
     >
-      <button
-        ref={triggerRef}
-        type="button"
-        aria-label={`${side} dataset, ${roleLabel(role)}`}
-        aria-haspopup="menu"
-        aria-expanded={open}
-        aria-controls={menuId}
-        onClick={() => setOpen(value => !value)}
-        onKeyDown={event => {
-          if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
-            event.preventDefault()
-            setOpen(true)
-            requestAnimationFrame(() => menuItemRefs.current[event.key === 'ArrowUp' ? ROLES.length - 1 : 0]?.focus())
-          }
-        }}
-        className="inline-flex h-8 w-[7.25rem] items-center justify-between gap-1 rounded-sm border border-slate-300 bg-white px-2 text-left transition-colors hover:border-slate-400 hover:bg-slate-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700"
-      >
-        <span className="flex min-w-0 flex-col leading-tight">
-          <span className="text-[9px] text-slate-500">{side}</span>
-          <span className="truncate text-[11px] font-semibold text-slate-800">{roleLabel(role)}</span>
-        </span>
-        <ChevronDown aria-hidden="true" className="h-3 w-3 shrink-0 text-slate-500" />
-      </button>
+      <Tooltip label={side}>
+        <button
+          ref={triggerRef}
+          type="button"
+          aria-label={`${side} dataset, ${roleLabel(role)}`}
+          aria-haspopup="menu"
+          aria-expanded={open}
+          aria-controls={menuId}
+          onClick={toggleOpen}
+          onKeyDown={event => {
+            if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+              event.preventDefault()
+              preview()
+              requestAnimationFrame(() => menuItemRefs.current[event.key === 'ArrowUp' ? ROLES.length - 1 : 0]?.focus())
+            }
+          }}
+          className="inline-flex h-8 w-[96px] shrink-0 items-center justify-between gap-1.5 rounded-sm border border-slate-300 bg-white px-2 text-xs font-medium leading-none text-slate-700 transition-colors hover:bg-slate-100 hover:text-slate-950 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700"
+        >
+          <span className="truncate">{roleLabel(role)}</span>
+          <ChevronDown aria-hidden="true" className="h-3.5 w-3.5 shrink-0 text-slate-600" />
+        </button>
+      </Tooltip>
       {open && (
         <div
           ref={menuRef}
@@ -311,7 +347,8 @@ function ComparisonRoleSelector({
               menuItemRefs.current[nextIndex]?.focus()
             }
           }}
-          className="absolute left-1/2 top-full z-50 w-max min-w-[7.25rem] max-w-[calc(100vw-1rem)] -translate-x-1/2 border border-slate-300 bg-white p-1 shadow-lg"
+          onMouseEnter={clearHoverTimer}
+          className="absolute left-1/2 top-full z-50 w-max min-w-[96px] max-w-[calc(100vw-1rem)] -translate-x-1/2 border border-slate-300 bg-white p-1 shadow-lg"
         >
           {ROLES.map(({ role: optionRole, label: optionLabel }, index) => (
             <button
@@ -333,7 +370,7 @@ function ComparisonRoleSelector({
   )
 }
 
-function SplitActionControl({
+function CompactActionControl({
   label,
   icon,
   secondaryLabel,
@@ -352,13 +389,26 @@ function SplitActionControl({
   const triggerRef = useRef<HTMLButtonElement>(null)
   const menuRef = useRef<HTMLDivElement>(null)
   const itemRef = useRef<HTMLButtonElement>(null)
+  const hoverTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const menuId = `simulation-${label.toLowerCase()}-actions`
+  const helpId = `simulation-${label.toLowerCase()}-all-help`
+  const clearHoverTimer = () => {
+    if (hoverTimerRef.current !== null) clearTimeout(hoverTimerRef.current)
+    hoverTimerRef.current = null
+  }
+  const openMenu = (focusAllAction = false) => {
+    clearHoverTimer()
+    setOpen(true)
+    if (focusAllAction) requestAnimationFrame(() => itemRef.current?.focus())
+  }
   const close = (restoreFocus = false) => {
+    clearHoverTimer()
     setOpen(false)
     if (restoreFocus) triggerRef.current?.focus()
   }
 
   useTransientInteraction(open, reason => close(reason === 'escape'))
+  useEffect(() => () => clearHoverTimer(), [])
   useSafeLayoutEffect(() => {
     if (!open) return
     const updatePosition = () => {
@@ -366,10 +416,14 @@ function SplitActionControl({
       const menu = menuRef.current?.getBoundingClientRect()
       if (!trigger || !menu) return
       const centeredLeft = trigger.left + (trigger.width - menu.width) / 2
-      const top = trigger.bottom
+      const below = trigger.bottom + 4
+      const above = trigger.top - menu.height - 4
+      const top = below + menu.height <= window.innerHeight - 8 || above < 8
+        ? Math.min(below, window.innerHeight - menu.height - 8)
+        : above
       setOffset({
         x: Math.max(8, Math.min(centeredLeft, window.innerWidth - menu.width - 8)) - centeredLeft,
-        y: top + menu.height > window.innerHeight - 8 ? Math.max(8, trigger.top - menu.height) - top : 0
+        y: top - trigger.bottom
       })
     }
     updatePosition()
@@ -392,66 +446,65 @@ function SplitActionControl({
   return (
     <div
       ref={rootRef}
-      className="relative inline-flex h-8 shrink-0 items-stretch rounded-sm border border-slate-300 bg-white"
+      className="relative shrink-0"
+      onMouseEnter={() => {
+        clearHoverTimer()
+        hoverTimerRef.current = setTimeout(() => setOpen(true), 120)
+      }}
+      onMouseLeave={() => {
+        clearHoverTimer()
+        hoverTimerRef.current = setTimeout(() => {
+          if (!rootRef.current?.contains(document.activeElement)) setOpen(false)
+        }, 150)
+      }}
+      onFocusCapture={clearHoverTimer}
       onBlurCapture={event => {
         if (!event.currentTarget.contains(event.relatedTarget as Node | null)) close()
       }}
     >
       <Tooltip label={label}>
-        <button type="button" onClick={() => { close(); onPrimary() }} aria-label={label} className={`${resultActionButton} h-8 w-8`}>
+        <button
+          ref={triggerRef}
+          type="button"
+          onClick={() => { close(); onPrimary() }}
+          onKeyDown={event => {
+            if ((event.altKey && event.key === 'ArrowDown') || (event.shiftKey && event.key === 'F10')) {
+              event.preventDefault()
+              openMenu(true)
+            }
+          }}
+          aria-label={label}
+          aria-expanded={open}
+          aria-controls={menuId}
+          aria-describedby={helpId}
+          aria-keyshortcuts="Alt+ArrowDown"
+          className={resultActionButton}
+        >
           {icon}
         </button>
       </Tooltip>
-      <button
-        ref={triggerRef}
-        type="button"
-        aria-label={`More ${label} actions`}
-        aria-haspopup="menu"
-        aria-expanded={open}
-        aria-controls={menuId}
-        onClick={() => setOpen(value => !value)}
-        onKeyDown={event => {
-          if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
-            event.preventDefault()
-            setOpen(true)
-            requestAnimationFrame(() => itemRef.current?.focus())
-          }
-        }}
-        className="grid h-8 w-6 place-items-center rounded-r-sm text-slate-600 transition-colors hover:bg-slate-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700"
+      <span id={helpId} className="sr-only">
+        Acts on the active dataset. Hover or press Alt plus Down Arrow or Shift plus F10 to access {secondaryLabel}.
+      </span>
+      <div
+        ref={menuRef}
+        id={menuId}
+        role="group"
+        aria-label={`${label} all-dataset action`}
+        hidden={!open}
+        style={{ marginLeft: `${offset.x}px`, marginTop: `${offset.y}px` }}
+        onMouseEnter={clearHoverTimer}
+        className="absolute left-1/2 top-full z-50 min-w-max max-w-[calc(100vw-1rem)] -translate-x-1/2 border border-slate-300 bg-white p-1 shadow-lg"
       >
-        <ChevronDown aria-hidden="true" className="h-3 w-3" />
-      </button>
-      {open && (
-        <div
-          ref={menuRef}
-          id={menuId}
-          role="menu"
-          aria-label={`${label} actions`}
-          style={{ marginLeft: `${offset.x}px`, marginTop: `${offset.y}px` }}
-          className="absolute left-1/2 top-full z-50 w-max max-w-[calc(100vw-1rem)] -translate-x-1/2 border border-slate-300 bg-white p-1 shadow-lg"
-          onKeyDown={event => {
-            if (event.key === 'Escape') {
-              event.preventDefault()
-              close(true)
-            } else if (event.key === 'Tab') close()
-            else if (event.key === 'ArrowDown' || event.key === 'ArrowUp' || event.key === 'Home' || event.key === 'End') {
-              event.preventDefault()
-              itemRef.current?.focus()
-            }
-          }}
+        <button
+          ref={itemRef}
+          type="button"
+          onClick={() => { close(); onSecondary() }}
+          className="block min-h-8 w-full whitespace-nowrap px-2 text-left text-xs text-slate-800 hover:bg-slate-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-700"
         >
-          <button
-            ref={itemRef}
-            type="button"
-            role="menuitem"
-            tabIndex={0}
-            onClick={() => { onSecondary(); close(true) }}
-            className="block min-h-8 w-full whitespace-nowrap px-2 text-left text-xs text-slate-800 hover:bg-slate-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-700"
-          >
-            {secondaryLabel}
-          </button>
-        </div>
-      )}
+          {secondaryLabel}
+        </button>
+      </div>
     </div>
   )
 }
@@ -1018,17 +1071,24 @@ function ResultPanel({
 
   return (
     <section data-safe-workspace-interaction="true" className="min-w-0 border border-slate-300 bg-white px-3 py-2 xl:min-h-0 xl:px-2 xl:py-1" aria-labelledby="simulation-result-title">
-      <div className="border-b border-slate-200 pb-1.5">
-        <div className="flex min-w-0 flex-wrap items-center justify-between gap-1.5">
-          <h2 id="simulation-result-title" className="text-xs font-semibold text-slate-900">Result</h2>
-          <div className="flex items-center gap-1.5">{actions}</div>
+      <header
+        data-simulation-result-header="true"
+        className="flex min-w-0 flex-wrap items-center justify-between gap-x-2 gap-y-1.5 border-b border-slate-200 pb-1.5"
+      >
+        <div className="flex min-w-0 flex-wrap items-center gap-1">
+          <h2 id="simulation-result-title" className="shrink-0 text-xs font-semibold text-slate-900">Result</h2>
+          <div
+            role="group"
+            aria-label={`Result comparison, Before ${roleLabel(beforeRole)}, After ${roleLabel(afterRole)}`}
+            className="flex shrink-0 items-center gap-1"
+          >
+            <ComparisonRoleSelector side="Before" role={beforeRole} onChange={role => onChangeComparison(role, afterRole)} />
+            <span aria-hidden="true" className="w-3 text-center text-sm font-semibold text-slate-500">→</span>
+            <ComparisonRoleSelector side="After" role={afterRole} onChange={role => onChangeComparison(beforeRole, role)} />
+          </div>
         </div>
-      </div>
-      <div className="flex min-w-0 items-center gap-1.5 border-b border-slate-100 py-1.5" aria-label="Result comparison">
-        <ComparisonRoleSelector side="Before" role={beforeRole} onChange={role => onChangeComparison(role, afterRole)} />
-        <span aria-hidden="true" className="text-xs text-slate-400">→</span>
-        <ComparisonRoleSelector side="After" role={afterRole} onChange={role => onChangeComparison(beforeRole, role)} />
-      </div>
+        <div className="ml-auto flex shrink-0 items-center gap-1.5">{actions}</div>
+      </header>
       <div className="mt-1 min-w-0">
         <table className="w-full table-fixed text-[9px] leading-3 xl:leading-[11px]">
           <colgroup>
@@ -1130,14 +1190,14 @@ export const SimulationPage: React.FC<SimulationPageProps> = ({
 
   const actionMenus = (
     <>
-      <SplitActionControl
+      <CompactActionControl
         label="Send"
         icon={<Send aria-hidden="true" className="h-4 w-4" />}
         secondaryLabel="Send all datasets"
         onPrimary={onSend}
         onSecondary={onSendAll}
       />
-      <SplitActionControl
+      <CompactActionControl
         label="Reset"
         icon={<RotateCcw aria-hidden="true" className="h-4 w-4" />}
         secondaryLabel="Reset all datasets"

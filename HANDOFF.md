@@ -1,4 +1,32 @@
-# Current Handoff — Phase 4 Simulation graph + UI integration — 2026-10-19
+# Current Handoff — Post-Phase-4 Simulation UI consistency polish — 2026-10-19
+
+## Checkpoint and delivery
+
+- Repository: `/Users/bubu/COSTBREAKDOWN-ref-current-custom-flow-redesign` (`apirak-k/COSTBREAKDOWN`). Branch: `feat/ref-current-custom-flow-redesign`.
+- Required starting baseline: `b691d98da35e2e88ee0f94947f681b21bf9766f2`; local and fetched remote matched before edits. This is a presentation/interaction polish after Phase 4, not a Phase 4 logic reopening.
+- One focused commit and push are authorized. Record the resulting commit and remote SHA in the completion message. Do not merge or start Phase 5.
+
+## UI correction
+
+- Result, Before/After selectors, and Send/Reset now share one wrapping header; the separate comparison row is removed. The desktop order is title + comparison left, actions right.
+- Before/After use the approved boxed 96×32px CBD selector style, show only the selected role, and display exact `Before` / `After` tooltips. All nine ordered pairs and existing selection/dismissal behavior remain intact.
+- Send/Reset are icon-only 32×32px immediate `activeDataset` actions. Their compact secondary actions are exactly `Send all datasets` and `Reset all datasets`, exposed through delayed hover or keyboard access with centered, viewport-corrected menus.
+- Graph active-role labels keep their semantic selected state and use dark semibold text plus a blue 2px underline. Persistent selection fill/border was removed; role selection still changes only `activeDataset`.
+- Phase 4 state, calculations, economics ownership, graph story, and Send/Reset callbacks were not changed. Updated `SIMULATION.md`, `CROSS_CUTTING.md`, this handoff, and the focused Phase 4/graph/overlay verifiers.
+
+## Verification and limits
+
+- **PASS:** `npm run build`; `git diff --check`.
+- **PASS:** `node scripts/verify_simulation_regression.mjs` (Phase 3 and Phase 4, context, history, economics, workspace, Master Data edit history, and Global Header through Vite SSR).
+- **PASS:** `node --experimental-strip-types scripts/verify_simulation_story_view.ts --graph-only`; `node scripts/verify_cbd_comparison_pair.mjs`; Selected Comparison boundary/lifecycle; comparison reconciliation; Master Data UI state; page-navigation persistence; and global compact-overlay contracts.
+- The Phase 4 and compact-overlay SSR/source contracts cover header membership, all nine pairs, selector sizing/labels, action callbacks/labels, selected graph underline, and overlay placement rules. Overlay/navigation assertions are source contracts, not browser interaction tests.
+- The legacy full-page `verify_simulation_story_view.ts` path is stale: it calls the removed `startSimulationFrom` API. Its graph-only path passes; current page-level Phase 4 SSR coverage passes in the regression runner.
+- No browser/manual visual test was run. Responsive geometry, hover timing, keyboard focus/dismissal, and screen-reader behavior remain visually/runtime unverified. Build warnings remain for ExcelJS/fast-csv browser externalization and a 532.51 kB main bundle; nested Vite SSR runs may report the existing WebSocket port-in-use warning while exiting successfully.
+- Stop after this polish. Do not merge or begin Phase 5.
+
+---
+
+# Previous Handoff — Phase 4 Simulation graph + UI integration — 2026-10-19
 
 ## Checkpoint and delivery
 
