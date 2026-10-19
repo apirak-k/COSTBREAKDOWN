@@ -8,12 +8,17 @@ import {
   SimulationPage
 } from './features'
 import {
+  createEmptySimulationState,
+  getActiveSimulationDataset,
+  prepareSimulationSend,
+  getEffectiveSimulationDataset,
   reconcileSimulationState,
   resetSimulationParameters,
   retainSimulationStatesForProducts,
+  setSimulationActiveDataset,
   setSimulationEconomicInput,
-  startSimulationFrom,
   toggleSimulationWorkingTarget,
+  type SimulationSources,
   type SimulationWorkspaceState
 } from './features/simulation/simulation-state'
 import { updateSimulationParameter } from './features/simulation/simulation-engine'
@@ -55,12 +60,13 @@ const AppRouter: React.FC = () => {
   const [simulationStatesByProduct, setSimulationStatesByProduct] = useState<Record<string, SimulationWorkspaceState>>(
     () => loadFromSession(STORAGE_KEYS.SIMULATION_STATES, {})
   )
-  const [simulationHistoriesByProduct, setSimulationHistoriesByProduct] = useState<Record<string, SimulationHistory>>({})
+  const [simulationHistoriesByProduct, setSimulationHistoriesByProduct] = useState<Record<string, Partial<Record<MasterDataRole, SimulationHistory>>>>({})
   const [candidateReorderHistory, setCandidateReorderHistory] = useState(createCandidateReorderHistory)
   const pendingSimulationEditRef = useRef<{
     productId: string
     basisFingerprint: string | null
-    currentSnapshot: CostSnapshot
+    sources: SimulationSources
+    role: MasterDataRole
     before: ReturnType<typeof captureSimulationEditableSnapshot>
     latestState: SimulationWorkspaceState
   } | null>(null)
@@ -71,14 +77,17 @@ const AppRouter: React.FC = () => {
     [masterDataSnapshots, storedSimulationState]
   )
   const simulationState = useMemo(
-    () => activeTab === 'simulation' && !reconciledSimulationState.snapshot
-      ? startSimulationFrom('current', masterDataSnapshots, undefined,
-        storedSimulationState?.economicInputs ? reconciledSimulationState.economicInputs : undefined)
+    () => activeTab === 'simulation' && !storedSimulationState
+      ? createEmptySimulationState(masterDataSnapshots)
       : reconciledSimulationState,
     [activeTab, masterDataSnapshots, reconciledSimulationState, storedSimulationState]
   )
-  const activeSimulationHistory = simulationHistoriesByProduct[activeProductId]
-  const matchingSimulationHistory = activeSimulationHistory?.basisFingerprint === simulationState.basisFingerprint
+  const activeSimulationDataset = useMemo(
+    () => getActiveSimulationDataset(masterDataSnapshots, simulationState),
+    [masterDataSnapshots, simulationState]
+  )
+  const activeSimulationHistory = simulationHistoriesByProduct[activeProductId]?.[simulationState.activeDataset]
+  const matchingSimulationHistory = activeSimulationHistory?.basisFingerprint === activeSimulationDataset.basisFingerprint
     ? activeSimulationHistory
     : undefined
   const navigateToPrepareDatasetIssue = (item: MasterDataQualityItem) => {
@@ -115,15 +124,22 @@ const AppRouter: React.FC = () => {
   }, [productSessions])
 
   useEffect(() => {
-    const history = simulationHistoriesByProduct[activeProductId]
-    if (history && history.basisFingerprint !== simulationState.basisFingerprint) {
-      setSimulationHistoriesByProduct(previous => ({
-        ...previous,
-        [activeProductId]: clearSimulationHistory(previous[activeProductId], simulationState.basisFingerprint)
-      }))
+    const histories = simulationHistoriesByProduct[activeProductId]
+    const staleRoles = (['reference', 'current', 'custom'] as const).filter(role => {
+      const history = histories?.[role]
+      return history && history.basisFingerprint !== simulationState.datasets[role].basisFingerprint
+    })
+    if (staleRoles.length) {
+      setSimulationHistoriesByProduct(previous => {
+        const productHistory = { ...(previous[activeProductId] ?? {}) }
+        staleRoles.forEach(role => {
+          productHistory[role] = clearSimulationHistory(productHistory[role], simulationState.datasets[role].basisFingerprint)
+        })
+        return { ...previous, [activeProductId]: productHistory }
+      })
       if (pendingSimulationEditRef.current?.productId === activeProductId) pendingSimulationEditRef.current = null
     }
-  }, [activeProductId, simulationHistoriesByProduct, simulationState.basisFingerprint])
+  }, [activeProductId, simulationHistoriesByProduct, simulationState.datasets])
 
   useEffect(() => {
     saveToSession(STORAGE_KEYS.SIMULATION_STATES, simulationStatesByProduct)
@@ -133,20 +149,24 @@ const AppRouter: React.FC = () => {
     const pending = pendingSimulationEditRef.current
     if (!pending) return null
     pendingSimulationEditRef.current = null
-    const after = captureSimulationEditableSnapshot(pending.currentSnapshot, pending.latestState)
-    const history = simulationHistoriesByProduct[pending.productId]
+    const after = captureSimulationEditableSnapshot(pending.sources, pending.latestState, pending.role)
+    const history = simulationHistoriesByProduct[pending.productId]?.[pending.role]
     const baseHistory = history?.basisFingerprint === pending.basisFingerprint
       ? history
       : createSimulationHistory(pending.basisFingerprint)
     const nextHistory = recordSimulationHistory(baseHistory, pending.before, after)
     setSimulationHistoriesByProduct(previous => {
-      const previousHistory = previous[pending.productId]
+      const productHistory = previous[pending.productId] ?? {}
+      const previousHistory = productHistory[pending.role]
       const currentHistory = previousHistory?.basisFingerprint === pending.basisFingerprint
         ? previousHistory
         : createSimulationHistory(pending.basisFingerprint)
-      return { ...previous, [pending.productId]: recordSimulationHistory(currentHistory, pending.before, after) }
+      return { ...previous, [pending.productId]: {
+        ...productHistory,
+        [pending.role]: recordSimulationHistory(currentHistory, pending.before, after)
+      } }
     })
-    return { history: nextHistory, state: pending.latestState, currentSnapshot: pending.currentSnapshot, basisFingerprint: pending.basisFingerprint }
+    return { history: nextHistory, state: pending.latestState, sources: pending.sources, role: pending.role, basisFingerprint: pending.basisFingerprint }
   }
 
   useEffect(() => {
@@ -154,28 +174,25 @@ const AppRouter: React.FC = () => {
   }, [activeProductId])
 
   const beginSimulationEdit = () => {
-    if (!simulationState.snapshot) return
+    const role = simulationState.activeDataset
     const pending = pendingSimulationEditRef.current
-    if (pending?.productId === activeProductId && pending.basisFingerprint === simulationState.basisFingerprint) return
+    if (pending?.productId === activeProductId && pending.role === role && pending.basisFingerprint === activeSimulationDataset.basisFingerprint) return
     pendingSimulationEditRef.current = {
       productId: activeProductId,
-      basisFingerprint: simulationState.basisFingerprint,
-      currentSnapshot: masterDataSnapshots.current,
-      before: captureSimulationEditableSnapshot(masterDataSnapshots.current, simulationState),
+      basisFingerprint: activeSimulationDataset.basisFingerprint,
+      sources: masterDataSnapshots,
+      role,
+      before: captureSimulationEditableSnapshot(masterDataSnapshots, simulationState, role),
       latestState: simulationState
     }
   }
 
   const startFrom = (role: MasterDataRole) => {
     const committed = commitSimulationEdit()
-    const priorState = reconcileSimulationState(simulationStatesByProduct[activeProductId], masterDataSnapshots)
-    const economicInputs = committed?.state.economicInputs ?? priorState.economicInputs
-    const nextState = startSimulationFrom(role, masterDataSnapshots, undefined, economicInputs)
+    const priorState = committed?.state
+      ?? reconcileSimulationState(simulationStatesByProduct[activeProductId], masterDataSnapshots)
+    const nextState = setSimulationActiveDataset(priorState, role)
     setSimulationStatesByProduct(previous => ({ ...previous, [activeProductId]: nextState }))
-    setSimulationHistoriesByProduct(previous => ({
-      ...previous,
-      [activeProductId]: clearSimulationHistory(previous[activeProductId], nextState.basisFingerprint)
-    }))
   }
 
   const updateSimulationState = (update: (state: SimulationWorkspaceState) => SimulationWorkspaceState) => {
@@ -184,75 +201,100 @@ const AppRouter: React.FC = () => {
     const next = update(current)
     if (next === current && stored === current) return
     const pending = pendingSimulationEditRef.current
-    if (pending?.productId === activeProductId && pending.basisFingerprint === current.basisFingerprint) pending.latestState = next
+    if (pending?.productId === activeProductId
+      && pending.role === current.activeDataset
+      && pending.basisFingerprint === activeSimulationDataset.basisFingerprint) pending.latestState = next
     setSimulationStatesByProduct(previous => ({ ...previous, [activeProductId]: next }))
   }
 
   const resetSimulation = () => {
     const committed = commitSimulationEdit()
     const current = committed?.state ?? simulationState
-    const next = resetSimulationParameters(current, masterDataSnapshots.current)
+    const role = current.activeDataset
+    const sources = committed?.sources ?? masterDataSnapshots
+    const next = resetSimulationParameters(current, sources)
     if (next === current) return
-    const before = captureSimulationEditableSnapshot(masterDataSnapshots.current, current)
-    const after = captureSimulationEditableSnapshot(masterDataSnapshots.current, next)
-    const currentHistory = committed?.history ?? matchingSimulationHistory ?? createSimulationHistory(current.basisFingerprint)
+    const before = captureSimulationEditableSnapshot(sources, current, role)
+    const after = captureSimulationEditableSnapshot(sources, next, role)
+    const fingerprint = getEffectiveSimulationDataset(sources, current, role).basisFingerprint
+    const currentHistory = committed?.history ?? matchingSimulationHistory ?? createSimulationHistory(fingerprint)
     const nextHistory = recordSimulationHistory(currentHistory, before, after)
     setSimulationStatesByProduct(previous => ({ ...previous, [activeProductId]: next }))
-    setSimulationHistoriesByProduct(previous => ({ ...previous, [activeProductId]: nextHistory }))
+    setSimulationHistoriesByProduct(previous => ({
+      ...previous,
+      [activeProductId]: { ...(previous[activeProductId] ?? {}), [role]: nextHistory }
+    }))
   }
 
   const runSimulationHistory = (direction: 'undo' | 'redo') => {
     const committed = commitSimulationEdit()
+    const currentRole = committed?.role ?? simulationState.activeDataset
     const history = committed?.history ?? matchingSimulationHistory
     const currentState = committed?.state ?? simulationState
-    const currentSnapshot = committed?.currentSnapshot ?? masterDataSnapshots.current
-    if (!history || history.basisFingerprint !== currentState.basisFingerprint || !currentState.snapshot) return
-    const currentValues = captureSimulationEditableSnapshot(currentSnapshot, currentState)
+    const sources = committed?.sources ?? masterDataSnapshots
+    const currentDataset = getEffectiveSimulationDataset(sources, currentState, currentRole)
+    if (!history || history.basisFingerprint !== currentDataset.basisFingerprint) return
+    const currentValues = captureSimulationEditableSnapshot(sources, currentState, currentRole)
     const operation = direction === 'undo'
       ? undoSimulationHistory(history, currentValues)
       : redoSimulationHistory(history, currentValues)
     if (!operation.snapshot) {
       setSimulationHistoriesByProduct(previous => ({
         ...previous,
-        [activeProductId]: clearSimulationHistory(previous[activeProductId], currentState.basisFingerprint)
+        [activeProductId]: {
+          ...(previous[activeProductId] ?? {}),
+          [currentRole]: clearSimulationHistory(previous[activeProductId]?.[currentRole], currentDataset.basisFingerprint)
+        }
       }))
       return
     }
-    const nextState = applySimulationEditableSnapshot(currentSnapshot, currentState, operation.snapshot)
+    const nextState = applySimulationEditableSnapshot(sources, currentState, operation.snapshot, currentRole)
     if (!nextState) {
       setSimulationHistoriesByProduct(previous => ({
         ...previous,
-        [activeProductId]: clearSimulationHistory(previous[activeProductId], currentState.basisFingerprint)
+        [activeProductId]: {
+          ...(previous[activeProductId] ?? {}),
+          [currentRole]: clearSimulationHistory(previous[activeProductId]?.[currentRole], currentDataset.basisFingerprint)
+        }
       }))
       return
     }
     pendingSimulationEditRef.current = null
     setSimulationStatesByProduct(previous => ({ ...previous, [activeProductId]: nextState }))
-    setSimulationHistoriesByProduct(previous => ({ ...previous, [activeProductId]: operation.history }))
+    setSimulationHistoriesByProduct(previous => ({
+      ...previous,
+      [activeProductId]: { ...(previous[activeProductId] ?? {}), [currentRole]: operation.history }
+    }))
   }
 
   const updateEconomicInput = (field: EconomicSimulationField, value: string) => {
-    updateSimulationState(state => setSimulationEconomicInput(state, field, value))
+    updateSimulationState(state => setSimulationEconomicInput(state, field, value, state.activeDataset))
   }
 
   const updateParameter = (recordId: string, parameter: SimulationParameter, value: number | null) => {
     updateSimulationState(state => updateSimulationParameter(
       state,
-      masterDataSnapshots.current,
+      masterDataSnapshots,
       recordId,
       parameter,
-      value
+      value,
+      state.activeDataset
     ))
   }
 
   const toggleWorkingTarget = (kind: 'bom' | 'routing', recordId: string) => {
-    setSimulationStatesByProduct(previous => {
-      const current = previous[activeProductId]
-        ? reconcileSimulationState(previous[activeProductId], masterDataSnapshots)
-        : simulationState
-      const next = toggleSimulationWorkingTarget(current, masterDataSnapshots.current, kind, recordId)
-      return next === current ? previous : { ...previous, [activeProductId]: next }
-    })
+    updateSimulationState(state => toggleSimulationWorkingTarget(
+      state, masterDataSnapshots, kind, recordId, state.activeDataset
+    ))
+  }
+
+  const sendSimulationToRole = (role: MasterDataRole) => {
+    const committed = commitSimulationEdit()
+    const current = reconcileSimulationState(committed?.state ?? simulationStatesByProduct[activeProductId] ?? simulationState, masterDataSnapshots)
+    const selected = setSimulationActiveDataset(current, role)
+    const payload = prepareSimulationSend(selected, masterDataSnapshots)
+    setSimulationStatesByProduct(previous => ({ ...previous, [activeProductId]: selected }))
+    return sendSimulationSnapshotToMasterData(payload.role, payload.snapshot)
   }
 
   const setCandidateManualOrder = (type: CandidateTableType, keys: string[]) => {
@@ -292,12 +334,12 @@ const AppRouter: React.FC = () => {
       {activeTab === 'simulation' && (
         <SimulationPage
           key={activeProductId}
-          state={simulationState}
-          workingSelection={simulationState.workingSelection}
+          state={activeSimulationDataset}
+          workingSelection={activeSimulationDataset.workingSelection}
           referenceSnapshot={masterDataSnapshots.reference}
           currentSnapshot={masterDataSnapshots.current}
           onCloneSource={startFrom}
-          onSendTo={(role: MasterDataRole, snapshot: CostSnapshot) => sendSimulationSnapshotToMasterData(role, snapshot)}
+          onSendTo={(role: MasterDataRole, _snapshot: CostSnapshot) => sendSimulationToRole(role)}
           onReset={resetSimulation}
           onUpdateParameter={updateParameter}
           onToggleWorkingTarget={toggleWorkingTarget}

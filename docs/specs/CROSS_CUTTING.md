@@ -4,9 +4,9 @@
 
 ## Final Target State
 
-The current visible page flow is **Master Data → Cost Breakdown → Simulation**. Calculate datasets independently, then compare results strictly by business identity. Use $\text{Gap} = \text{Current} - \text{Reference}$ in CBD and $\text{Parameter Saving} = \text{Current} - \text{SIM}$ in Simulation; never pair by row position or convert missing required inputs to zero.
+The current visible page flow is **Master Data → Cost Breakdown → Simulation**. Calculate datasets independently, then compare results strictly by business identity. Use $\text{Gap} = \text{Current} - \text{Reference}$ in CBD; Simulation's core supports any Before/After effective dataset pair, while the visible Current/SIM presentation remains during Phase 1. Never pair by row position or convert missing required inputs to zero.
 
-Routing operations use their Work Center's rates; Cost Breakdown may aggregate processing cost by Work Center for context, while each processing finding is a Process/Routing record. Full Comparison is the default. Selected Comparison is a temporary CBD-only analysis view that leaves source datasets intact; the full comparison remains primary and selected-scope contributions appear beside it as secondary information. It does not create a Candidate/RCA page or pass scope/context into Simulation. Legacy Candidate/RCA records may remain for saved-session compatibility only. Simulation is directly accessible, opens ready to work, and always analyzes Current → SIM with locked structure.
+Routing operations use their Work Center's rates; Cost Breakdown may aggregate processing cost by Work Center for context, while each processing finding is a Process/Routing record. Full Comparison is the default. Selected Comparison is a temporary CBD-only analysis view that leaves source datasets intact; the full comparison remains primary and selected-scope contributions appear beside it as secondary information. It does not create a Candidate/RCA page or pass scope/context into Simulation. Legacy Candidate/RCA records may remain for saved-session compatibility only. Simulation is directly accessible and opens ready to work. Its Phase 1 state supports role-local effective datasets and generic Before/After comparisons with locked structure; the visible Current/SIM presentation remains for compatibility.
 
 ## Source Authority
 
@@ -60,7 +60,7 @@ Routing `Process` is the primary processing comparison record in Cost Breakdown'
 - For a matched `CHANGED` or `UNCHANGED` finding, select/exclude the Reference and Current pair together. `ADDED` and `REMOVED` findings are independently selectable.
 - Selected mode calculates the selected-scope Gap from selected findings. Keep the Full Gap and full comparison visible as the primary result; show Selected beside the Full Gap as secondary information.
 - The scope is analysis state, not a dataset edit. It is not included in Save, export, or version history and does not persist across application restart.
-- Selected Comparison exists only inside CBD. Leaving CBD or changing Reference/Current data clears the scope; Simulation is independent and always compares Current → SIM.
+- Selected Comparison exists only inside CBD. Leaving CBD or changing Reference/Current data clears the scope; Simulation is independent.
 - Cancellation, or an actual change to Reference or Current source data, clears the selection and returns to Full Comparison immediately.
 
 ## Legacy Candidate and Multi-Candidate RCA Session Domain
@@ -74,7 +74,7 @@ The following domain rules describe compatible historical RCA session data only.
 - No new RCA Note system is created.
 - **Legacy RCA sessions** retain their historical Root Cause + Action completion semantics. They do not define a current visible workflow or gate Simulation.
 
-## Simulation Architecture: Current → SIM and Separate Economics
+## Simulation Architecture: Role-Local Overrides and Separate Economics
 
 Simulation is the third current visible page. It opens with a usable workspace and keeps engineering cost and economic evaluation separate:
 ```text
@@ -83,23 +83,24 @@ SIMULATION
 └─ Economic Simulation
 ```
 
-1. **Parameter Simulation:**
-   - A missing or stale SIM initializes automatically from the latest Current. There is no Start SIM landing screen.
-   - `Clone from` explicitly copies Reference, Current, or Custom structure/parameters into SIM. SIM Work Center rates always come from Current; analysis always remains Current → SIM.
-   - A Current change invalidates/reconciles SIM. Reference-only and Custom-only changes preserve it unless explicitly cloned.
-   - `Send to` copies the whole SIM snapshot, Current-rate context, and reconciled sizing into only the selected Reference/Current/Custom Working dataset; Last Saved is not silently replaced.
-   - **Structure is locked:** No add/delete/resize/reorder that changes the dataset definition. Structural changes belong in Master Data / Custom before Clone.
-   - Match BOM, Work Center, and Routing by business identity, never row position. `CHANGED`, `UNCHANGED`, and `ADDED` records with a SIM row are editable; `REMOVED` is visible and protected. Ambiguous identity is protected.
-   - There is **no Factors to Simulate selector**. Direct edits are BOM (`Price`, `Usage`, `Loss`) and Routing (`Manning`, `Capacity`, `Yield`). Work Center rates are not editable and remain from Current.
-   - Valid edits recalculate the full SIM through the shared Standard Cost engine. Missing/invalid required inputs remain unavailable.
+1. **Parameter Simulation (Phase 1 foundation, user decision 2026-10-19):**
+   - The only datasets are Master Data Reference, Current, and Custom Working. Simulation persists no separate SIM dataset; it stores independent, validated parameter overrides per role and derives effective snapshots over each latest Working dataset.
+   - Effective Reference uses Reference Work Center rates, Current uses Current rates, and Custom uses Custom rates. Rates are never Simulation-editable.
+   - A Master Working change rebases only that role's overrides; unchanged roles keep their overrides.
+   - `activeDataset` is the role currently being edited. It is independent of `comparisonBefore` and `comparisonAfter`; all nine ordered pairs are supported, including self-comparisons. Defaults are active Current and Reference → Current.
+   - Reset clears the active role's overrides; Reset All clears all roles independently. Send maps each role to the same Master Working role; Send All prepares and applies all three atomically. Send changes Working only and preserves Last Saved.
+   - **Structure is Master Data-owned:** Simulation derives the structure from the selected role's latest Working dataset. Structural alternatives are prepared in Master Data / Custom.
+   - Core comparison accepts any effective before/after snapshots and matches BOM, Work Center, and Routing by business identity, never row position. The visible Current/SIM presentation remains for compatibility until later UI phases.
+   - There is **no Factors to Simulate selector**. Direct edits are BOM (`Price`, `Usage`, `Loss`) and Routing (`Manning`, `Capacity`, `Yield`). Missing/invalid required inputs remain unavailable.
+   - Persistence uses an explicit schema version. Safe unchanged-Current legacy parameter state may migrate; structurally incompatible or stale single-SIM state is discarded. State remains product-scoped and deleted products are pruned.
 
 2. **Economic Simulation:**
    - Inputs: Fixed Action Cost, Variable Action Cost / pc, positive integer Batch Size, Selling Price override, and SG&A % override. Blank commercial overrides use Current values.
    - Fixed Cost / pc = Fixed Action Cost / Batch Size.
    - Required Saving / pc = Fixed Cost / pc + Variable Action Cost / pc.
-   - Parameter Saving / pc = Current Standard Cost − SIM Standard Cost.
+   - Parameter Saving / pc = Before Standard Cost − After Standard Cost.
    - Economic Margin / pc = Parameter Saving / pc − Required Saving / pc.
-   - SG&A / pc = Selling Price × (SG&A % / 100); OP / pc = Selling Price − SIM Standard Cost − SG&A / pc.
+   - SG&A / pc = Selling Price × (SG&A % / 100); OP / pc = Selling Price − effective After Standard Cost − SG&A / pc.
    - **Economics is separate from Standard Cost:** Economic inputs never alter MAT, LB, BD, Conversion, or Standard Cost. Negative Economic Margin and OP remain valid and visible.
 
 3. **Combined Evaluation:**
@@ -161,11 +162,11 @@ The global Footer is a compact three-group workspace summary: Reference/Current 
 
 When a state has a useful review destination, provide a convenient link or action to that page. Status is informational and normally does not block navigation; disable only an operation that is logically impossible.
 
-Master Data dataset save state has two user-facing values: `Saved` when Working matches Last Saved, and `Draft` when it differs or has never been saved. Do not fabricate Product Name `Product` or UOM `PC`; blank metadata stays blank through display and export. Header Undo/Redo are contextual: Master Data uses its existing edit history, Cost Breakdown uses one chronological Candidate reorder history across BOM and Routing, and Simulation keeps both controls disabled. CBD records only completed manual reorder actions; changing or reapplying Sort clears manual orders and CBD Undo/Redo. Search stays local to the Master Data toolbar and filters its current table view. See [`MASTER_DATA_TOOLBAR_PREPARE_UX.md`](MASTER_DATA_TOOLBAR_PREPARE_UX.md) for the current interface contract.
+Master Data dataset save state has two user-facing values: `Saved` when Working matches Last Saved, and `Draft` when it differs or has never been saved. Do not fabricate Product Name `Product` or UOM `PC`; blank metadata stays blank through display and export. Header Undo/Redo are contextual: Master Data uses its existing edit history, Cost Breakdown uses one chronological Candidate reorder history across BOM and Routing, and Simulation uses product-, role-, and basis-scoped ephemeral edit histories. CBD records only completed manual reorder actions; changing or reapplying Sort clears manual orders and CBD Undo/Redo. Search stays local to the Master Data toolbar and filters its current table view. See [`MASTER_DATA_TOOLBAR_PREPARE_UX.md`](MASTER_DATA_TOOLBAR_PREPARE_UX.md) for the current interface contract.
 
 Keep an active Selected Comparison recognizable only while it applies inside Cost Breakdown. It ends when leaving CBD or changing its Reference/Current source data. Simulation does not retain Candidate origin context or apply a selected CBD scope.
 
-Simulation owns its own local parameter edits; there is no CBD Selected → SIM handoff or synchronization. Clone from Current remains an explicit Simulation source action and does not copy CBD selection, filters, or sorting. On desktop, Simulation uses the shared-shell workspace without page-level vertical scrolling; only BOM and RTG table bodies scroll internally. Narrow screens may use natural page scrolling and stacked panels.
+Simulation owns product-scoped, role-local parameter overrides over Master Data Working; there is no CBD Selected Comparison handoff or synchronization. The legacy Clone from control selects the active Simulation role in Phase 1 and does not copy structure or CBD selection, filters, or sorting. On desktop, Simulation uses the shared-shell workspace without page-level vertical scrolling; only BOM and RTG table bodies scroll internally. Narrow screens may use natural page scrolling and stacked panels.
 
 ## Product Boundaries and Scope
 

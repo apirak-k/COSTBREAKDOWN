@@ -28,10 +28,10 @@ import { SimulationStoryGraph } from './SimulationStoryGraph'
 import { calculateEconomicSimulation, type EconomicSimulationField } from './simulation-economics'
 import type { SimulationComparisonRow, SimulationRecordKind } from './simulation-engine'
 import { calculateParameterSimulation } from './simulation-engine'
-import { simulationParameterStatus, simulationWorkingTargetKey, type SimulationParameter, type SimulationWorkspaceState } from './simulation-state'
+import { simulationParameterStatus, simulationWorkingTargetKey, type SimulationDatasetView, type SimulationParameter } from './simulation-state'
 
 interface SimulationPageProps {
-  state: SimulationWorkspaceState
+  state: SimulationDatasetView
   workingSelection: string[]
   referenceSnapshot: CostSnapshot
   currentSnapshot: CostSnapshot
@@ -125,11 +125,11 @@ function bomAttribution(
   simulationSnapshot: CostSnapshot
 ): { simCost: number | null; effects: EffectValues } {
   const empty: EffectValues = { totalEffect: null, effects: null, shares: null }
-  const simRecord = singleRecord(simulationSnapshot.bom, row.simulationRecordId)
+  const simRecord = singleRecord(simulationSnapshot.bom, row.afterRecordId)
   if (!simRecord) return { simCost: null, effects: empty }
   const simCost = calculateSnapshotBOMDetail({ current: simRecord }).currentCost
   if (!rowIsMatched(row)) return { simCost, effects: empty }
-  const currentRecord = singleRecord(currentSnapshot.bom, row.currentRecordId)
+  const currentRecord = singleRecord(currentSnapshot.bom, row.beforeRecordId)
   if (!currentRecord) return { simCost, effects: empty }
   const pair = calculateSnapshotBOMDetail({ reference: currentRecord, current: simRecord })
   const hasInputs = [currentRecord.price, simRecord.price, currentRecord.consumption, simRecord.consumption, currentRecord.loss, simRecord.loss]
@@ -162,19 +162,19 @@ function routingAttribution(
   simulationSnapshot: CostSnapshot
 ): { simCost: number | null; effects: EffectValues } {
   const empty: EffectValues = { totalEffect: null, effects: null, shares: null }
-  const simRecord = singleRecord(simulationSnapshot.routing, row.simulationRecordId)
+  const simRecord = singleRecord(simulationSnapshot.routing, row.afterRecordId)
   if (!simRecord) return { simCost: null, effects: empty }
-  const simOnly = calculateSnapshotRoutingDetail({ current: simRecord }, currentSnapshot.rates, currentSnapshot.rates)
+  const simOnly = calculateSnapshotRoutingDetail({ current: simRecord }, simulationSnapshot.rates, simulationSnapshot.rates)
   const simCost = simOnly.currentTotal
   if (!rowIsMatched(row)) return { simCost, effects: empty }
-  const currentRecord = singleRecord(currentSnapshot.routing, row.currentRecordId)
+  const currentRecord = singleRecord(currentSnapshot.routing, row.beforeRecordId)
   if (!currentRecord || normalizeKey(currentRecord.workCenterId) !== normalizeKey(simRecord.workCenterId)) {
     return { simCost, effects: empty }
   }
   const pair = calculateSnapshotRoutingDetail(
     { reference: currentRecord, current: simRecord },
     currentSnapshot.rates,
-    currentSnapshot.rates
+    simulationSnapshot.rates
   )
   const hasInputs = [currentRecord.manning, simRecord.manning, currentRecord.capacity, simRecord.capacity, currentRecord.yield, simRecord.yield]
     .every(value => value !== null && Number.isFinite(value))
@@ -425,9 +425,9 @@ function SimulationParameterTable({
   const records: Array<{ id: string }> = isBOM ? simulationSnapshot.bom : simulationSnapshot.routing
   const tableRows = rows.filter(row => row.kind === kind).map((row, sourceIndex) => ({ row, sourceIndex }))
   const selectedKeys = new Set(workingSelection)
-  const getRowKey = (row: SimulationComparisonRow, sourceIndex: number) => `${row.currentRecordId ?? 'missing'}:${row.simulationRecordId ?? 'missing'}:${sourceIndex}`
+  const getRowKey = (row: SimulationComparisonRow, sourceIndex: number) => `${row.beforeRecordId ?? 'missing'}:${row.afterRecordId ?? 'missing'}:${sourceIndex}`
   const isSelectedRow = (row: SimulationComparisonRow) => Boolean(
-    row.simulationRecordId && rowIsSelectable(row) && selectedKeys.has(simulationWorkingTargetKey(kind, row.simulationRecordId))
+    row.afterRecordId && rowIsSelectable(row) && selectedKeys.has(simulationWorkingTargetKey(kind, row.afterRecordId))
   )
   const selectedFirstRows = [...tableRows].sort((left, right) => Number(isSelectedRow(right.row)) - Number(isSelectedRow(left.row)) || left.sourceIndex - right.sourceIndex)
   const dragRowIndexes = new Map((dragRowOrder ?? []).map((key, index) => [key, index]))
@@ -436,7 +436,7 @@ function SimulationParameterTable({
       - (dragRowIndexes.get(getRowKey(right.row, right.sourceIndex)) ?? Number.MAX_SAFE_INTEGER) || left.sourceIndex - right.sourceIndex)
     : selectedFirstRows
   const selectableTargets = tableRows.flatMap(({ row }) => {
-    const record = singleRecord(records, row.simulationRecordId)
+    const record = singleRecord(records, row.afterRecordId)
     return record && rowIsSelectable(row)
       ? [{ key: simulationWorkingTargetKey(kind, record.id), recordId: record.id }]
       : []
@@ -457,8 +457,8 @@ function SimulationParameterTable({
     const anchorKey = simulationWorkingTargetKey(kind, recordId)
     const targetsByKey = new Map(selectableTargets.map(target => [target.key, target]))
     const targets = visibleRows.flatMap(({ row }) => {
-      if (!row.simulationRecordId || !rowIsSelectable(row)) return []
-      const record = singleRecord(records, row.simulationRecordId)
+      if (!row.afterRecordId || !rowIsSelectable(row)) return []
+      const record = singleRecord(records, row.afterRecordId)
       const target = record ? targetsByKey.get(simulationWorkingTargetKey(kind, record.id)) : undefined
       return target ? [target] : []
     })
@@ -566,7 +566,7 @@ function SimulationParameterTable({
               const key = getRowKey(row, sourceIndex)
               const detailId = `${kind}-effect-${encodeURIComponent(key)}`
               const expanded = expandedRows.has(key)
-              const simulationRecord = singleRecord(records, row.simulationRecordId)
+              const simulationRecord = singleRecord(records, row.afterRecordId)
               const canEdit = Boolean(simulationRecord && rowIsSelectable(row))
               const selected = isSelectedRow(row)
               const canExpand = true
@@ -700,7 +700,7 @@ function SimulationParameterTable({
         {visibleRows.map(({ row, sourceIndex }) => {
           const key = getRowKey(row, sourceIndex)
           const expanded = expandedRows.has(key)
-          const simulationRecord = singleRecord(records, row.simulationRecordId)
+          const simulationRecord = singleRecord(records, row.afterRecordId)
           const canEdit = Boolean(simulationRecord && rowIsSelectable(row))
           const status = rowStatusText(row, canEdit && simulationRecord ? simulationParameterStatus(kind, simulationRecord.id, simulationSnapshot, baselineSnapshot) : null)
           const selected = isSelectedRow(row)
@@ -985,12 +985,12 @@ export const SimulationPage: React.FC<SimulationPageProps> = ({
     [referenceSnapshot, currentSnapshot]
   )
   const economicResult = useMemo(
-    () => calculateEconomicSimulation(currentSnapshot, result?.simulationCost ?? null, result?.parameterSavingPerPiece ?? null, state.economicInputs),
+    () => calculateEconomicSimulation(currentSnapshot, result?.afterCost ?? null, result?.parameterSavingPerPiece ?? null, state.economicInputs),
     [currentSnapshot, result, state.economicInputs]
   )
   const story = useMemo(
     () => result && economicResult
-      ? createStory(referenceSnapshot, currentSnapshot, referenceCurrent, result.simulationCost, economicResult)
+      ? createStory(referenceSnapshot, currentSnapshot, referenceCurrent, result.afterCost, economicResult)
       : null,
     [currentSnapshot, economicResult, referenceCurrent, referenceSnapshot, result]
   )
@@ -1035,8 +1035,8 @@ export const SimulationPage: React.FC<SimulationPageProps> = ({
           />
           <div data-simulation-layout-column="result-and-break-even" className="grid min-w-0 gap-2 xl:min-h-0 xl:grid-rows-[minmax(0,1.2fr)_minmax(0,.8fr)]">
             <ResultPanel
-              currentCost={result.currentCost}
-              simulationCost={result.simulationCost}
+              currentCost={result.beforeCost}
+              simulationCost={result.afterCost}
               currentFinancial={story.current}
               simulationFinancial={story.simulated}
               actions={actionMenus}
@@ -1058,7 +1058,7 @@ export const SimulationPage: React.FC<SimulationPageProps> = ({
           rows={result.records}
           currentSnapshot={currentSnapshot}
           simulationSnapshot={simulationSnapshot}
-          baselineSnapshot={state.resetBaselineSnapshot}
+          baselineSnapshot={state.baselineSnapshot}
           workingSelection={workingSelection}
           onToggleWorkingTarget={onToggleWorkingTarget}
           onUpdate={onUpdateParameter}
@@ -1070,7 +1070,7 @@ export const SimulationPage: React.FC<SimulationPageProps> = ({
           rows={result.records}
           currentSnapshot={currentSnapshot}
           simulationSnapshot={simulationSnapshot}
-          baselineSnapshot={state.resetBaselineSnapshot}
+          baselineSnapshot={state.baselineSnapshot}
           workingSelection={workingSelection}
           onToggleWorkingTarget={onToggleWorkingTarget}
           onUpdate={onUpdateParameter}

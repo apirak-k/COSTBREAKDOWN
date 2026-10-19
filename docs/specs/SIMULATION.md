@@ -1,6 +1,6 @@
 # Simulation Specification
 
-**Status:** FINALIZED — USER DECISION
+**Status:** FINALIZED — USER DECISION; Phase 1 foundation implemented, visible comparison redesign pending
 **Scope:** Simulation lifecycle, parameter and economic calculations, Master Data transfer, matching, validation, graph, and page layout.
 
 The visible product flow is:
@@ -11,44 +11,46 @@ Master Data → Cost Breakdown → Simulation
 
 Simulation is an isolated what-if workspace. It does not add an approval, Trial, Candidate, or RCA stage.
 
+**Phase 1 architecture update (2026-10-19 user decision):** Master Data Reference, Current, and Custom Working datasets remain the only datasets and the source of truth. Simulation stores role-keyed parameter overrides over each latest Working dataset and derives an effective dataset when needed; it does not persist a fourth SIM snapshot or copy dataset structure. Each effective dataset retains its own rates. Master Working changes rebase only the changed role. `activeDataset` is independent of `comparisonBefore` and `comparisonAfter`; all nine ordered comparison pairs, including self-pairs, are valid. Defaults are active Current and Reference → Current. The existing visible Current/SIM result and graph remain for compatibility in this phase; generic comparison selectors, labels, and graph changes remain later-phase work.
+
 ## 1. Workspace lifecycle
 
 ### 1.1 Automatic initialization
 
-When Simulation opens without a valid workspace, initialize SIM from the current Current Working dataset and show the working interface immediately. There is no “Start SIM From” landing screen. State belongs to the active product; switching products cannot reuse another product’s SIM, and deleted products are pruned.
+When Simulation opens without a valid workspace, initialize the empty override workspace from the latest Reference, Current, and Custom Working snapshots, defaulting `activeDataset` to Current and comparison to Reference → Current. Show the existing working interface immediately. State belongs to the active product; switching products cannot reuse another product’s Simulation state, and deleted products are pruned.
 
 ### 1.2 Clone from
 
-The compact **Clone from ▾** menu has exactly three sources: Reference, Current, and Custom. Selecting one copies that dataset’s metadata, BOM, Routing, and structure into the isolated SIM snapshot. SIM Work Center rates are then replaced with Current Work Center rates. The selected source is starting content and provenance only: every analysis remains Current → SIM.
+There is no Simulation clone snapshot in the Phase 1 state model. The existing **Clone from ▾** control remains visually unchanged as a compatibility control and selects the active role whose parameters are being edited; it does not copy metadata, structure, rows, or rates. Structural changes are made in Master Data and become available to Simulation from that role's latest Working snapshot. Reference, Current, and Custom effective datasets each use their own Work Center rates.
 
-Every explicit clone establishes a new **Reset** baseline for editable BOM/RTG parameters. Reset restores those parameter values to the clone/start snapshot, clears Fixed Action Cost, Variable Action Cost / pc, and Batch Size, and restores Selling Price and SG&A % from Current. On Simulation initialization, Selling Price and SG&A % display their Current values and the three Simulation-only assumptions start blank. Reset preserves the live Current Work Center rates and Simulation-local selection, and never changes a source dataset. Existing Clone behavior for the Economic draft remains unchanged. Re-cloning replaces the parameter Reset baseline.
+**Reset** clears parameter overrides only for `activeDataset`, rebasing it to that role's latest Working values. **Reset All** clears all three roles independently. Neither operation writes Master Data. Role-local economic inputs and worklist selection are retained when their Master basis remains current. Reset All has no visible control yet.
 
-For all five Economic/Business numeric inputs, blank is distinct from zero and remains visibly blank after the user clears it, including after state reconciliation or rerender. Their steppers can decrement from the minimum valid value to blank: `0` for Fixed Action Cost, Variable Action Cost / pc, Selling Price, and SG&A %, and `1` for Batch Size. Current Selling Price and SG&A are visible defaults only on initial Simulation setup and Reset; blank values may still use the existing Current fallback in calculations.
+For all five Economic/Business numeric inputs, blank is distinct from zero and remains visibly blank after the user clears it, including after state reconciliation or rerender. Their steppers can decrement from the minimum valid value to blank: `0` for Fixed Action Cost, Variable Action Cost / pc, Selling Price, and SG&A %, and `1` for Batch Size. Selling Price and SG&A use the active role's values as visible defaults on initial setup and Reset; blank values continue to use the existing Current fallback in the visible Current/SIM economic calculation.
 
-Changing Reference or Custom alone does not reset SIM. If Current changes, the saved SIM is stale because both the comparison baseline and rate context changed. Reconcile it, then initialize from the new Current when Simulation is active. Preserve valid Economic draft inputs where possible.
+If a Master Working dataset changes, only that role's override state is rebased to the new basis; overrides for unchanged roles remain. A schema-versioned persistence shape is reconciled defensively. A versionless old single-SIM state is migrated only when it can be proven to be a parameter-only edit over unchanged Current structure and rates; otherwise its snapshot is discarded. Unknown schema versions are discarded safely. Per-product state pruning remains in effect.
 
 ### 1.3 Send to
 
-The compact **Send to ▾** menu has exactly three targets: Reference, Current, and Custom. Sending copies the complete SIM snapshot, including its Current-rate context and structure, into that target’s Working dataset. Reconcile sizing counts from the copied rate, BOM, and Routing rows. Record the change through the existing Master Data Working/history lifecycle; do not overwrite Last Saved.
+Send always maps a Simulation role back to the same Master Data Working role: Reference → Reference, Current → Current, Custom → Custom. Send All applies all three mappings atomically. The existing **Send to ▾** control remains visually unchanged in Phase 1 and selects the role to make active before sending that role's effective snapshot. Send updates Working through the existing Master Data history lifecycle and reconciles sizing; it does not update Last Saved or the Master Data Reset baseline. After Send, the matching Simulation overrides naturally clear against the newly updated Working basis.
 
-- Sending to Reference or Custom leaves Current and the existing SIM baseline intact.
-- Sending to Current changes the baseline; reconcile and recreate SIM from the new Current while preserving valid Economic inputs where possible.
-- Valid sources and pre-commit Simulation input validation keep authoritative SIM sendable. Defensive data-layer integrity validation remains an internal invariant safeguard for corrupt/legacy state, not a normal user-facing blocked Send workflow.
+- Sending one role leaves the other two Working datasets and Simulation overrides untouched.
+- Send All validates and prepares all three role snapshots before applying any of them.
+- Defensive data-layer integrity validation remains an internal safeguard for corrupt or legacy state.
 - Do not create a fourth dataset or a promotion/approval lifecycle.
 
 ## 2. Parameter Simulation
 
-SIM is temporary. Its structure is locked: no add, delete, resize, split, merge, rate editing, or structural reorder. Prepare structural alternatives in Master Data / Custom, then choose **Clone from Custom**.
+Simulation is temporary. It stores parameter overrides only; structure is always taken from the latest Master Data Working dataset. No add, delete, resize, split, merge, rate editing, or structural reorder is available in Simulation. Prepare structural alternatives in Master Data / Custom, then switch the active Simulation role to Custom.
 
 ### 2.1 Matching and status
 
 Match by canonical business identity, never row position: BOM material identity, Work Center identity, and Routing process identity. Missing, duplicate, ambiguous, or unsafe identity is protected; do not guess or fabricate an attribution.
 
-Normal editable rows display exactly `CHANGED` or `UNCHANGED`. Compare committed BOM Price/Usage/Loss or RTG Manning/Capacity/Yield with the latest valid start/clone/reset baseline, using stable Simulation record IDs. All parameters equal means `UNCHANGED`; any difference means `CHANGED`. Invalid drafts do not change authoritative status. Undo back to baseline and Reset restore `UNCHANGED`. Clone from Reference/Custom may differ from Current while still starting `UNCHANGED`. This display status does not change Current → SIM calculation or structural matching.
+Normal editable rows display exactly `CHANGED` or `UNCHANGED`. Compare committed BOM Price/Usage/Loss or RTG Manning/Capacity/Yield with the latest Master Working baseline for `activeDataset`, using stable row IDs. All parameters equal means `UNCHANGED`; any difference means `CHANGED`. Invalid drafts do not change authoritative status. Undo back to baseline and Reset restore `UNCHANGED`. The visible Result keeps the compatibility Current → active effective dataset comparison until later UI phases expose the generic comparison pair.
 
 Legacy structural, missing, ambiguous, or protected rows remain safely visible where needed. Missing SIM rows and unsafe identities cannot be edited/selected. They do not introduce ADDED/REMOVED as normal editable status labels. CHANGED uses CBD's compact bold amber treatment; UNCHANGED uses its compact bold slate treatment.
 
-There is no **Factors to Simulate** workflow. The `#` column is Simulation's local row selector: its header is a checkbox-role select-all/deselect-all control with false/mixed/true state. None or some selected selects all eligible rows; all selected clears them. Each eligible row's existing displayed number is its square selection button; repeat activation deselects the same stable record after selected-first movement. There is no separate Select column. Selected rows rise to the top in stable source order for viewing; the SIM snapshot order and full-snapshot calculation scope never change. Protected, unmatched, ambiguous, and REMOVED comparison rows cannot be selected. Reset restores the parameter baseline, clears the three Simulation-only assumptions, restores Selling Price and SG&A % from Current, and preserves the worklist. CBD Selected Comparison, filters, and sorting are not transferred to SIM, and Simulation does not mutate CBD selection.
+There is no **Factors to Simulate** workflow. The `#` column is Simulation's local row selector: its header is a checkbox-role select-all/deselect-all control with false/mixed/true state. None or some selected selects all eligible rows; all selected clears them. Each eligible row's existing displayed number is its square selection button; repeat activation deselects the same stable record after selected-first movement. There is no separate Select column. Selected rows rise to the top in stable source order for viewing; the effective snapshot order and full-snapshot calculation scope never change. Protected, unmatched, ambiguous, and REMOVED comparison rows cannot be selected. Reset clears only the active role's parameter overrides and preserves economics and worklist; Reset All clears overrides for all three roles. CBD Selected Comparison, filters, and sorting are not transferred to Simulation, and Simulation does not mutate CBD selection.
 
 The desktop Simulation BOM table columns are `# | Bill of Materials | Status | Price | Usage | Loss | Material Cost | Expand`; RTG columns are `# | Routing Process | Status | Manning | Capacity | Yield | Conversion Cost | Expand`. These column headers are the table identity; there are no separate BOM/RTG title or selected-count strips. Status shows committed editable-parameter differences from the Simulation baseline. Preserve the existing displayed row numbering after selected-first presentation; do not renumber or introduce a new numbering scheme. Header and numbered controls share the same centered horizontal axis. Selection is a local working/focus aid: it never filters a calculation and is not required before editing. Narrow cards keep row number, identity, explicitly labeled Status, all three parameters, calculated cost, and the same effect toggle.
 
@@ -64,7 +66,7 @@ UI controls and state/calculation boundaries both enforce the domains below. Rej
 | Routing Manning | finite, `>= 0` |
 | Routing Capacity | finite, `> 0` |
 | Routing Yield | greater than `0%` and at most `100%`; stored as `0–1` with zero excluded |
-| Work Center Labor/Burden Rate | read-only in SIM; always from Current |
+| Work Center Labor/Burden Rate | read-only in Simulation; from the matching role's Master Working dataset |
 
 Blank/null may remain unavailable where the data model allows it. A missing required input makes its result unavailable; it is not a structural zero. ADDED/REMOVED comparison sides may use zero only because one side is structurally absent.
 
@@ -88,12 +90,12 @@ Standard Cost = Direct Material + Labor + Burden
 
 Missing or invalid required values make the corresponding result unavailable. Do not substitute zero. Negative analytical differences are valid.
 
-The Result panel remains a read-only `Current → SIM` comparison and contains two sections in this order:
+The Result panel remains a read-only `Current → active effective dataset` comparison (the existing visible `Current` and `SIM` labels remain during Phase 1) and contains two sections in this order:
 
 1. **Cost / Unit** — `Cost | Current | SIM | Change | %`, with visible rows **Material, Labor, Burden, Conversion, and Standard Cost**. The shorter labels change presentation only; BOM/RTG column headers remain Material Cost and Conversion Cost.
 2. **Business Outcome / Unit** — Selling Price, monetary SG&A, and Operating Profit, using the same Current, SIM, Change, and % columns.
 
-The panel uses the authoritative Current and SIM cost calculations and business metrics. Selling Price and SG&A overrides use the effective Simulation values, initialized and reset from Current. Business Outcome does not enter GAP 1 / GAP 2 or Action Break-even. A lower cost is favorable (green) and a higher cost is unfavorable (red). Operating Profit uses the opposite direction: an increase is favorable (green), a decrease is unfavorable (red). Selling Price and SG&A comparisons use neutral change styling. Conversion Cost is presented as the subtotal of Labor Cost and Burden Cost with a stronger separator, slight vertical breathing room, and semibold text; Standard Cost remains the stronger final total within Cost / Unit. Business panel outputs are labeled **SG&A** and **Operating Profit**; their values display the unit separately.
+The panel uses the authoritative Current and active effective dataset costs and business metrics. Selling Price and SG&A overrides use the effective Simulation values. Business Outcome does not enter GAP 1 / GAP 2 or Action Break-even. A lower cost is favorable (green) and a higher cost is unfavorable (red). Operating Profit uses the opposite direction: an increase is favorable (green), a decrease is unfavorable (red). Selling Price and SG&A comparisons use neutral change styling. Conversion Cost is presented as the subtotal of Labor Cost and Burden Cost with a stronger separator, slight vertical breathing room, and semibold text; Standard Cost remains the stronger final total within Cost / Unit. Business panel outputs are labeled **SG&A** and **Operating Profit**; their values display the unit separately.
 
 For every row:
 
@@ -110,7 +112,7 @@ Each BOM and Routing row can expand a compact **Parameter Cost Effect** detail. 
 
 - BOM attributes Material Cost change to Price, Usage, and Loss.
 - Routing attributes Conversion Cost change to Manning, Capacity, and Yield.
-- Routing uses Current Work Center rates on both sides; there is no Rate Effect.
+- Routing uses the before-side and after-side snapshots' own Work Center rates; rates remain read-only and there is no Rate Effect.
 - Effects must reconcile to `SIM row cost − Current row cost` within floating-point tolerance.
 - Display signed effects in `THB/<resolved UOM>` under their matching parameter columns and one compact numeric Total under Material Cost / Conversion Cost. Positive cost effects use a `+` sign and red; negative cost effects use a minus sign and green; rounded zero is neutral `0.00`, never `+0.00`. The Total label stays neutral. Do not display effect percentages.
 - When a valid parameter change takes a row cost to or from zero, split interaction effects symmetrically across parameter-change orders so the individual effects remain calculable and reconcile to Total.
@@ -163,8 +165,8 @@ Break-even graph lines and the intersection retain accessible names, and the Bat
 
 Editable assumptions:
 
-1. Selling Price override, initialized and reset to Current Selling Price, finite and `>= 0`.
-2. SG&A % override, initialized and reset to Current SG&A %, `0–100%` inclusive.
+1. Selling Price override, initialized and reset to the active role's Selling Price, finite and `>= 0`.
+2. SG&A % override, initialized and reset to the active role's SG&A %, `0–100%` inclusive.
 
 Calculated, read-only outputs:
 
@@ -249,14 +251,14 @@ Reject Loss `-1%` or `101%`; Yield `0%` or `101%`; SG&A `-5%` or `101%`; negativ
 
 ### Custom structure
 
-Current Routing `[Cut, Form]`, Custom Routing `[Cut, Form, Polish]`, then Clone from Custom: Cut/Form match by identity; Polish exists only in SIM and is editable. All cloned editable values start with visible status UNCHANGED against that clone baseline; Current Work Center rates still apply. If Custom omits Form, Form remains visible and protected as a structurally absent comparison row, without a normal editable ADDED/REMOVED status label.
+Current Routing `[Cut, Form]`, Custom Routing `[Cut, Form, Polish]`, then select Custom as `activeDataset`: its latest Working structure is used directly; Cut/Form match by identity and Polish is editable as a Custom-only row. All untouched editable values start with visible status UNCHANGED against the Custom baseline; Custom Work Center rates apply to that effective dataset. If Custom omits Form, Form remains visible and protected as a structurally absent comparison row, without a normal editable ADDED/REMOVED status label.
 
 ## 8. Simulation Undo / Redo
 
-Simulation uses one chronological history for committed BOM Price/Usage/Loss, RTG Manning/Capacity/Yield, Economic inputs, Business overrides, and Reset. Undo reverses actions in order; Redo reapplies them, and a new edit after Undo clears Redo. Clone starts a new baseline and clears both stacks. Send to Master Data is excluded.
+Simulation keeps a separate chronological history for each product and role. A role history records committed BOM Price/Usage/Loss, RTG Manning/Capacity/Yield, and that role's Economic inputs. Undo reverses actions in order; Redo reapplies them, and a new edit after Undo clears that role's Redo stack. Switching active roles changes the history in scope. Send to Master Data is excluded.
 
-History is scoped to the active product and Current basis. A Current-basis change invalidates stale entries. Each entry stores only authoritative editable values keyed by stable Simulation record IDs and the Economic draft; rates, derived results, selection, expansion, focus, scroll, graph legend/ruler state, and transient invalid drafts are excluded. Applying an entry preserves Simulation-local selection and the live Current Work Center rate context, then recalculates all derived values.
+Each history is scoped to its role's Working basis. A basis change invalidates only that role's stale entries. Each entry stores authoritative editable values keyed by stable Simulation record IDs and the role's Economic draft; rates, derived results, selection, expansion, focus, scroll, graph legend/ruler state, and transient invalid drafts are excluded. Applying an entry preserves that role's Simulation-local selection and its own Work Center rate context, then recalculates all derived values.
 
-Typing is grouped into one committed edit per focused control. Spinner repeats and Batch Size graph dragging each form one action for the complete pointer gesture. Rejected or no-op values add no history entry. Reset is one action across all editable parameters and Economic/Business inputs: parameters return to the clone/start baseline, Fixed Action Cost / Variable Action Cost / Batch Size become blank, and Selling Price / SG&A % return to their Current values. Undo restores the full pre-Reset values and Redo reapplies the Reset; view state is preserved.
+Typing is grouped into one committed edit per focused control. Spinner repeats and Batch Size graph dragging each form one action for the complete pointer gesture. Rejected or no-op values add no history entry. Reset is one action for the active role's parameter overrides; its Economic inputs and view state are preserved. Undo restores the pre-Reset parameter values and Redo reapplies the reset. Undo/Redo cannot cross-contaminate Reference, Current, and Custom.
 
 Simulation history is ephemeral for the current app session and remains separate from Master Data dataset-edit history and CBD Candidate reorder history.

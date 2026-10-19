@@ -96,7 +96,7 @@ $$\text{Candidate(s)} + \text{Root Cause / Why?} + \text{Action}$$
 Older saved sessions or task records may describe an RCA-to-Simulation handoff. That workflow is retired and does not define current navigation or Simulation behavior:
 - There is no visible RCA page, active RCA handoff, Candidate context strip, or Factors to Simulate selector.
 - Current visible flow is Master Data → Cost Breakdown → Simulation.
-- Simulation initializes from Current when needed; Clone from Reference/Current/Custom is an explicit starting-snapshot choice, and analysis always remains Current → SIM.
+- Simulation opens with active Current and Reference → Current comparison defaults. Clone from selects the active role without copying a snapshot; its visible Current/SIM result remains for Phase 1 while core calculations support any effective Before/After pair.
 - Legacy RCA domain/session records may remain only where migration requires them.
 
 ## Traceability

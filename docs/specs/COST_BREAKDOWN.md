@@ -94,7 +94,7 @@ Keep unchanged records available in the normal comparison data and for status fi
 
 ## Candidate and Simulation Boundary
 
-Finding analysis remains inside CBD; there is no standalone Candidate, Ranking, or RCA page in the current visible product. Legacy RCA domain/session compatibility is documented separately and is not an active CBD workflow. Simulation is directly accessible; `Clone from` may copy Reference, Current, or Custom into SIM, while the analytical comparison always remains Current → SIM.
+Finding analysis remains inside CBD; there is no standalone Candidate, Ranking, or RCA page in the current visible product. Legacy RCA domain/session compatibility is documented separately and is not an active CBD workflow. Simulation is directly accessible and uses role-local parameter overrides over latest Master Data Working. Its core accepts any effective Before/After pair; the existing visible Current/SIM presentation remains during Phase 1. CBD continues to compare Reference vs Current only.
 
 ## Warnings and Presentation Boundaries
 

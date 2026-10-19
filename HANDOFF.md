@@ -1,3 +1,34 @@
+# Current Handoff — Reference / Current / Custom Simulation foundation — 2026-10-19
+
+## Checkpoint and delivery
+
+- Repository: `/Users/bubu/COSTBREAKDOWN-ref-current-custom-flow-redesign` (`apirak-k/COSTBREAKDOWN`).
+- Feature branch: `feat/ref-current-custom-flow-redesign`; base branch: `logic/simulation-finalized-implementation`; base commit: `94a1d90135033797375463f5f0073079848e39ac`.
+- Work is isolated in a feature worktree. The original checkout's pre-existing `vite.config.ts` edit remains untouched; its SHA-256 is `673d2cbb093b910a1640bac84b7e16425e4f08bd3d7be7f4e435848ab2eb6796`.
+- Scope is Phase 1 foundation only. No visible Simulation redesign, Cost Breakdown behavior change, merge, or Phase 2 work is included. The feature branch is intended for one focused commit and push; delivery SHA and remote equality are reported with the completion message.
+
+## Scope
+
+- Replaced the persisted single SIM snapshot with schema-v2, product-scoped Reference / Current / Custom parameter overrides over the corresponding latest Master Data Working snapshots. Effective datasets are derived and retain their own Work Center rates. A Working basis change resets only that role's overrides.
+- Added independent `activeDataset`, `comparisonBefore`, and `comparisonAfter` state, defaulting to active Current and Reference → Current; all nine ordered pairs are accepted by the generic calculation API.
+- Added active-role and Reset All state operations, same-role and atomic Send All payload preparation, defensive legacy migration, product pruning, and per-product/per-role ephemeral history.
+- Updated the Master Data store boundary so Simulation sends to matching Working roles only, validates all requested roles before mutation, and keeps Last Saved and the Master Data Reset baseline untouched.
+- Kept the visible Simulation page in its existing Current/SIM presentation. Existing Clone from selects the active role without copying structure; existing Send to selects and sends the matching role. Broader comparison selectors, labels, and graph changes remain later UI work.
+- Updated `docs/REQUIREMENTS_INDEX.md` and the Simulation, final logic, cross-cutting, Candidate, Master Data, and Cost Breakdown specs to record the Phase 1 decision while preserving the deferred UI scope.
+- Reworked the Simulation workspace, context, engine, history, scenario, and numeric verifiers; added `scripts/verify_simulation_dataset_overrides.ts` and included it in regression coverage.
+
+## Verification and limits
+
+- **PASS:** `npm run build` (TypeScript project build and Vite production build). Existing ExcelJS browser externalization and large-chunk warnings remain.
+- **PASS:** `node scripts/verify_simulation_regression.mjs` (seven suites: role-local state, store Send boundary source assertions, role reconciliation/product retention, generic calculations, Master Data edit history, and Global Header contract).
+- **PASS:** `node scripts/verify_simulation_history.ts`.
+- **PASS:** `node scripts/verify_numeric_input.mjs`.
+- **PASS:** `git diff --check`.
+- Store Send assertions inspect source structure; they do not mount the React provider for a runtime integration test. No browser flow or visible UI redesign was performed because the visible UI is intentionally deferred.
+- No Phase 2 implementation has started. Final commit and push evidence belongs in the completion report.
+
+---
+
 # Current Handoff — Role menu alignment correction — 2026-10-19
 
 ## Checkpoint and delivery

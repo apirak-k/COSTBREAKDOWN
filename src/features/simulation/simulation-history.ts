@@ -1,7 +1,9 @@
-import type { CostSnapshot } from '../../core/types'
+import type { MasterDataRole } from '../../core/types'
 import { calculateParameterSimulation, updateSimulationParameter } from './simulation-engine'
 import {
+  getEffectiveSimulationDataset,
   setSimulationEconomicInput,
+  type SimulationSources,
   type SimulationParameter,
   type SimulationWorkspaceState
 } from './simulation-state'
@@ -67,30 +69,32 @@ function equalRecord<T extends object>(left: Record<string, T>, right: Record<st
 }
 
 export function captureSimulationEditableSnapshot(
-  currentSnapshot: CostSnapshot,
-  state: SimulationWorkspaceState
+  sources: SimulationSources,
+  state: SimulationWorkspaceState,
+  role: MasterDataRole = state.activeDataset
 ): SimulationEditableSnapshot {
   const bom: SimulationEditableSnapshot['bom'] = {}
   const routing: SimulationEditableSnapshot['routing'] = {}
-  if (state.snapshot) {
-    const records = calculateParameterSimulation(currentSnapshot, state.snapshot).records
+  const dataset = getEffectiveSimulationDataset(sources, state, role)
+  {
+    const records = calculateParameterSimulation(dataset.baselineSnapshot, dataset.snapshot).records
     for (const row of records) {
-      const id = row.simulationRecordId
+      const id = row.afterRecordId
       if (!id || row.identityIssue !== null || !['UNCHANGED', 'CHANGED', 'ADDED'].includes(row.status ?? '')) continue
       if (row.kind === 'bom') {
-        const matches = state.snapshot.bom.filter(item => item.id === id)
+        const matches = dataset.snapshot.bom.filter(item => item.id === id)
         if (matches.length !== 1 || Object.prototype.hasOwnProperty.call(bom, id)) continue
         const { price, consumption, loss } = matches[0]
         bom[id] = { price, consumption, loss }
       } else {
-        const matches = state.snapshot.routing.filter(item => item.id === id)
+        const matches = dataset.snapshot.routing.filter(item => item.id === id)
         if (matches.length !== 1 || Object.prototype.hasOwnProperty.call(routing, id)) continue
         const { manning, capacity, yield: stepYield } = matches[0]
         routing[id] = { manning, capacity, yield: stepYield }
       }
     }
   }
-  return { bom, routing, economicInputs: { ...state.economicInputs } }
+  return { bom, routing, economicInputs: { ...dataset.economicInputs } }
 }
 
 export function isSimulationEditableSnapshotEqual(
@@ -154,28 +158,28 @@ export function redoSimulationHistory(
 }
 
 export function applySimulationEditableSnapshot(
-  currentSnapshot: CostSnapshot,
+  sources: SimulationSources,
   state: SimulationWorkspaceState,
-  target: SimulationEditableSnapshot
+  target: SimulationEditableSnapshot,
+  role: MasterDataRole = state.activeDataset
 ): SimulationWorkspaceState | null {
-  if (!state.snapshot) return null
-  const current = captureSimulationEditableSnapshot(currentSnapshot, state)
+  const current = captureSimulationEditableSnapshot(sources, state, role)
   if (!sameKeys(current.bom, target.bom) || !sameKeys(current.routing, target.routing)) return null
 
   let next = state
   for (const [id, values] of Object.entries(target.bom)) {
     for (const { field, parameter } of BOM_FIELDS) {
-      next = updateSimulationParameter(next, currentSnapshot, id, parameter, values[field])
+      next = updateSimulationParameter(next, sources, id, parameter, values[field], role)
     }
   }
   for (const [id, values] of Object.entries(target.routing)) {
     for (const { field, parameter } of ROUTING_FIELDS) {
-      next = updateSimulationParameter(next, currentSnapshot, id, parameter, values[field])
+      next = updateSimulationParameter(next, sources, id, parameter, values[field], role)
     }
   }
-  for (const field of ECONOMIC_FIELDS) next = setSimulationEconomicInput(next, field, target.economicInputs[field])
+  for (const field of ECONOMIC_FIELDS) next = setSimulationEconomicInput(next, field, target.economicInputs[field], role)
 
-  return isSimulationEditableSnapshotEqual(captureSimulationEditableSnapshot(currentSnapshot, next), target)
+  return isSimulationEditableSnapshotEqual(captureSimulationEditableSnapshot(sources, next, role), target)
     ? next
     : null
 }

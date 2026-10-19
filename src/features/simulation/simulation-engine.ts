@@ -10,6 +10,8 @@ import type {
   SnapshotRoutingStep
 } from '../../core/types'
 import {
+  getEffectiveSimulationDataset,
+  type SimulationSources,
   type SimulationParameter,
   type SimulationWorkspaceState
 } from './simulation-state'
@@ -21,8 +23,8 @@ export type SimulationIdentityIssue = Extract<MatchStatus, 'ambiguous' | 'unmatc
 export interface SimulationComparisonRow {
   kind: SimulationRecordKind
   name: string
-  currentRecordId?: string
-  simulationRecordId?: string
+  beforeRecordId?: string
+  afterRecordId?: string
   status: SimulationRecordStatus | null
   identityIssue: SimulationIdentityIssue | null
 }
@@ -30,8 +32,8 @@ export interface SimulationComparisonRow {
 export interface ParameterSimulationResult {
   comparison: CostComparison
   records: SimulationComparisonRow[]
-  currentCost: SnapshotCost
-  simulationCost: SnapshotCost
+  beforeCost: SnapshotCost
+  afterCost: SnapshotCost
   parameterSavingPerPiece: number | null
 }
 
@@ -66,8 +68,8 @@ function comparisonRows<T extends SnapshotBOMItem | SnapshotRoutingStep>(
     return {
       kind,
       name: recordName(kind, simulationRow, currentRow),
-      currentRecordId: finding.referenceId,
-      simulationRecordId: finding.currentId,
+      beforeRecordId: finding.referenceId,
+      afterRecordId: finding.currentId,
       status: simulationStatus(finding),
       identityIssue
     }
@@ -75,24 +77,24 @@ function comparisonRows<T extends SnapshotBOMItem | SnapshotRoutingStep>(
 }
 
 export function calculateParameterSimulation(
-  currentSnapshot: CostSnapshot,
-  simulationSnapshot: CostSnapshot
+  beforeSnapshot: CostSnapshot,
+  afterSnapshot: CostSnapshot
 ): ParameterSimulationResult {
-  const comparison = compareSnapshots(currentSnapshot, simulationSnapshot)
-  const currentCost = comparison.referenceCost
-  const simulationCost = comparison.currentCost
-  const parameterSavingPerPiece = currentCost.total !== null && simulationCost.total !== null
-    ? safeAdd(currentCost.total, -simulationCost.total)
+  const comparison = compareSnapshots(beforeSnapshot, afterSnapshot)
+  const beforeCost = comparison.referenceCost
+  const afterCost = comparison.currentCost
+  const parameterSavingPerPiece = beforeCost.total !== null && afterCost.total !== null
+    ? safeAdd(beforeCost.total, -afterCost.total)
     : null
 
   return {
     comparison,
     records: [
-      ...comparisonRows('bom', comparison.bomFindings, currentSnapshot.bom, simulationSnapshot.bom),
-      ...comparisonRows('routing', comparison.routingFindings, currentSnapshot.routing, simulationSnapshot.routing)
+      ...comparisonRows('bom', comparison.bomFindings, beforeSnapshot.bom, afterSnapshot.bom),
+      ...comparisonRows('routing', comparison.routingFindings, beforeSnapshot.routing, afterSnapshot.routing)
     ],
-    currentCost,
-    simulationCost,
+    beforeCost,
+    afterCost,
     parameterSavingPerPiece
   }
 }
@@ -115,7 +117,9 @@ const PARAMETER_INPUT_FORMAT: Record<SimulationParameter, { displayScale: number
   'routing.yield': { displayScale: 100, precision: 2 }
 }
 
-function isSimulationParameterInputValid(parameter: SimulationParameter, field: MasterDataNumericField, value: number | null): boolean {
+export function isSimulationParameterInputValid(parameter: SimulationParameter, value: number | null): boolean {
+  const field = PARAMETER_FIELDS[parameter]?.field
+  if (!field) return false
   if (value === null) return true
   if (!isMasterDataNumericValueValid(field, value)) return false
   const { displayScale, precision } = PARAMETER_INPUT_FORMAT[parameter]
@@ -125,42 +129,47 @@ function isSimulationParameterInputValid(parameter: SimulationParameter, field: 
 
 export function updateSimulationParameter(
   state: SimulationWorkspaceState,
-  currentSnapshot: CostSnapshot,
+  sources: SimulationSources,
   simulationRecordId: string,
   parameter: SimulationParameter,
-  value: number | null
+  value: number | null,
+  role = state.activeDataset
 ): SimulationWorkspaceState {
   const configuration = PARAMETER_FIELDS[parameter]
-  if (!configuration || !state.snapshot
-    || !isSimulationParameterInputValid(parameter, configuration.field, value)) return state
+  if (!configuration || !isSimulationParameterInputValid(parameter, value)) return state
 
-  const row = calculateParameterSimulation(currentSnapshot, state.snapshot).records
-    .find(record => record.kind === configuration.kind && record.simulationRecordId === simulationRecordId)
+  const dataset = getEffectiveSimulationDataset(sources, state, role)
+  const records = configuration.kind === 'bom' ? dataset.snapshot.bom : dataset.snapshot.routing
+  const baselineRecords = configuration.kind === 'bom' ? dataset.baselineSnapshot.bom : dataset.baselineSnapshot.routing
+  const matches = records.filter(record => record.id === simulationRecordId)
+  const baselineMatches = baselineRecords.filter(record => record.id === simulationRecordId)
+  if (matches.length !== 1 || baselineMatches.length !== 1) return state
+
+  const row = calculateParameterSimulation(dataset.baselineSnapshot, dataset.snapshot).records
+    .find(record => record.kind === configuration.kind && record.afterRecordId === simulationRecordId)
   if (!row || !row.status || row.status === 'REMOVED' || row.identityIssue) return state
 
-  if (configuration.kind === 'bom') {
-    const matches = state.snapshot.bom.filter(item => item.id === simulationRecordId).length
-    if (matches !== 1) return state
-    return {
-      ...state,
-      snapshot: {
-        ...state.snapshot,
-        bom: state.snapshot.bom.map(item => item.id === simulationRecordId
-          ? { ...item, [configuration.field]: value }
-          : item)
-      }
-    }
-  }
+  const currentValue = (matches[0] as unknown as Record<string, unknown>)[configuration.field]
+  const baselineValue = (baselineMatches[0] as unknown as Record<string, unknown>)[configuration.field]
+  if (Object.is(currentValue, value)) return state
 
-  const matches = state.snapshot.routing.filter(step => step.id === simulationRecordId).length
-  if (matches !== 1) return state
+  const parameterValues = { ...(dataset.parameterOverrides[parameter] ?? {}) }
+  if (Object.is(baselineValue, value)) delete parameterValues[simulationRecordId]
+  else parameterValues[simulationRecordId] = value
+  const parameterOverrides = { ...dataset.parameterOverrides }
+  if (Object.keys(parameterValues).length) parameterOverrides[parameter] = parameterValues
+  else delete parameterOverrides[parameter]
+
   return {
     ...state,
-    snapshot: {
-      ...state.snapshot,
-      routing: state.snapshot.routing.map(step => step.id === simulationRecordId
-        ? { ...step, [configuration.field]: value }
-        : step)
+    datasets: {
+      ...state.datasets,
+      [role]: {
+        basisFingerprint: dataset.basisFingerprint,
+        parameterOverrides,
+        economicInputs: dataset.economicInputs,
+        workingSelection: dataset.workingSelection
+      }
     }
   }
 }

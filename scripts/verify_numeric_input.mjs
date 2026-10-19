@@ -163,18 +163,20 @@ try {
   assert.deepEqual(getMasterDataSnapshotValidationErrors(importedPreciseSnapshot), [], 'import validation preserves valid source precision rather than rounding data')
 
   const { updateSimulationParameter } = await vite.ssrLoadModule('/src/features/simulation/simulation-engine.ts')
-  const { createEmptySimulationState } = await vite.ssrLoadModule('/src/features/simulation/simulation-state.ts')
-  const simulationState = {
-    ...createEmptySimulationState(),
-    sourceRole: 'current',
-    snapshot: structuredClone(importedPreciseSnapshot)
+  const { createEmptySimulationState, getEffectiveSimulationDataset } = await vite.ssrLoadModule('/src/features/simulation/simulation-state.ts')
+  const simulationSources = {
+    reference: importedPreciseSnapshot,
+    current: importedPreciseSnapshot,
+    custom: importedPreciseSnapshot
   }
-  assert.equal(updateSimulationParameter(simulationState, importedPreciseSnapshot, 'b1', 'bom.price', -1), simulationState, 'Simulation rejects an invalid negative edit without coercing it')
-  assert.equal(updateSimulationParameter(simulationState, importedPreciseSnapshot, 'b1', 'bom.loss', 0.0123456), simulationState, 'Simulation rejects pasted precision outside the shared input contract')
-  assert.equal(updateSimulationParameter(simulationState, importedPreciseSnapshot, 'b1', 'bom.loss', 1.01), simulationState, 'Simulation rejects Loss above 100%')
-  assert.equal(updateSimulationParameter(simulationState, importedPreciseSnapshot, 'b1', 'bom.consumption', -0.1), simulationState, 'Simulation rejects negative Usage')
-  const validSimulationEdit = updateSimulationParameter(simulationState, importedPreciseSnapshot, 'b1', 'bom.price', 12.34)
-  assert.equal(validSimulationEdit.snapshot.bom[0].price, 12.34, 'a valid two-place Simulation value is applied as entered')
+  const simulationState = createEmptySimulationState(simulationSources)
+  assert.equal(updateSimulationParameter(simulationState, simulationSources, 'b1', 'bom.price', -1), simulationState, 'Simulation rejects an invalid negative edit without coercing it')
+  assert.equal(updateSimulationParameter(simulationState, simulationSources, 'b1', 'bom.loss', 0.0123456), simulationState, 'Simulation rejects pasted precision outside the shared input contract')
+  assert.equal(updateSimulationParameter(simulationState, simulationSources, 'b1', 'bom.loss', 1.01), simulationState, 'Simulation rejects Loss above 100%')
+  assert.equal(updateSimulationParameter(simulationState, simulationSources, 'b1', 'bom.consumption', -0.1), simulationState, 'Simulation rejects negative Usage')
+  const validSimulationEdit = updateSimulationParameter(simulationState, simulationSources, 'b1', 'bom.price', 12.34)
+  assert.equal(getEffectiveSimulationDataset(simulationSources, validSimulationEdit, 'current').snapshot.bom[0].price, 12.34,
+    'a valid two-place Current Simulation override is applied as entered')
 
   const decimalMarkup = renderToStaticMarkup(React.createElement(NumericInput, { value: 12.5, onValueChange() {}, 'aria-label': 'Price' }))
   const integerMarkup = renderToStaticMarkup(React.createElement(NumericInput, { value: 3, integer: true, onValueChange() {}, 'aria-label': 'Rows' }))

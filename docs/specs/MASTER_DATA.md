@@ -50,7 +50,7 @@ All structural changes to datasets belong strictly in Master Data:
 - Changing table row counts (Sizing),
 - Reordering rows.
 
-Simulation does not support structural edits. If the user wants to test a structural change, they prepare it in Master Data (typically in `Custom`), and then start Simulation from that dataset.
+Simulation does not support structural edits. It derives each role's structure from that role's latest Master Data Working dataset. If the user wants to test a structural change, they prepare it in Master Data (typically in `Custom`); Simulation consumes the updated Custom Working structure directly when Custom is active. Save remains a checkpoint and is not a downstream publish gate.
 
 ## Generic Clone Semantics
 
