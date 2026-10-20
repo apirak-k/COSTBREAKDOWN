@@ -6,7 +6,7 @@
 
 ### Page UI State Lifecycle
 
-Within the running app session, CBD retains its comparison pair, type/status filters, sort, Candidate selection and ordering/history, overview disclosure, expanded details, and scroll position while the user visits other pages. A browser refresh returns CBD to its normal defaults: Reference → Current, All findings and statuses, the default sort, expanded overview, no Selected Comparison scope, and the top of the page. This changes only page view context and does not reset or modify Master Data.
+Within the running app session, CBD retains its comparison pair, type/status filters, sort, Candidate selection and ordering/history, overview disclosure, expanded details, and scroll position while the user visits other pages. A browser refresh preserves Cost Breakdown as the active top-level page, when selected, but returns its temporary view state to normal defaults: Reference → Current, All findings and statuses, the default sort, expanded overview, no Selected Comparison scope, and the top of the page. This changes only page view context and does not reset or modify Master Data.
 
 Cost Breakdown compares the selected Before and After snapshots using approved business identities and the four applicable statuses. Gap is always After minus Before. BOM material and Routing Process records are the Candidates/findings; Work Center totals remain full-snapshot calculation context. The visible upper structure is Subheader, Cost Element, and Work Center, followed by the existing findings tables. The page remains named Cost Breakdown. Collapse hides only Cost Element and Work Center.
 

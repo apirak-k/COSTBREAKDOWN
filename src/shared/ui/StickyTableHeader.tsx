@@ -30,7 +30,7 @@ export const StickyTableHeader: React.FC<StickyTableHeaderProps> = ({
   children
 }) => {
   return (
-    <div data-sticky-table-header="true" className={`sticky z-20 w-full ${topClassName} ${backgroundClassName}`} style={top ? { top } : undefined}>
+    <div data-sticky-table-header="true" className={`sticky z-30 w-full ${topClassName} ${backgroundClassName}`} style={top ? { top } : undefined}>
       <div ref={headerViewportRef} data-sticky-table-header-viewport="true" className="overflow-hidden">
         <table aria-label={ariaLabel} className={tableClassName}>{children}</table>
       </div>

@@ -1,28 +1,29 @@
-# Current Handoff — focused Simulation and table-header UI correction — 2026-10-20
+# Current Handoff — focused COSTBREAKDOWN correction pass — 2026-10-20
 
 ## Checkpoint and delivery
 
 - Repository: `/Users/bubu/COSTBREAKDOWN-ref-current-custom-flow-redesign` (`apirak-k/COSTBREAKDOWN`). Branch: `feat/ref-current-custom-flow-redesign`.
-- Verified starting local and remote baseline: `b9ddd0ff2e6f0f4c2665ffef3d1be722a5881fe0`.
-- One focused commit and push to this branch are authorized. Do not merge or start Phase 5.
+- Verified starting local and remote baseline: `8a8d703285add3f999f5d4280fd77e60630affbe`.
+- One focused correction commit is delivered on this branch. Do not merge or start Phase 5.
 
 ## Implemented in this pass
 
-- Changed the Simulation graph title to `Cost Structure` and replaced footer triangles with 16px Lucide chevrons. The desktop Next chevron follows the final Details column track; one-row navigation and native continuous scrolling remain in place.
-- Added section-bounded sticky column headers to Master Data BOM / Work Centers / Routing and CBD BOM / Routing. Table title rows remain in normal flow. Header horizontal position follows each body's horizontal scroll.
-- Master Data header offset is measured from its sticky workspace controls. CBD desktop header offset is measured from its sticky controls / overview shell plus the existing 8px gap; the controls shell retains its existing responsive sticky behavior.
-- Updated only the directly affected Master Data, CBD, Simulation specifications and focused source regression checks.
+- Raised the shared sticky table-header wrapper to `z-30`, above Master Data sticky row-index cells at `z-20`. Opaque `#` header backgrounds, table styling, offsets, section handoff, and horizontal-scroll sync remain intact.
+- CBD sticky table-header offset now equals the measured sticky shell height, with no added 8px. The separate `h-2` normal-flow spacer remains.
+- Grouped the Simulation footer chevrons side by side. Next remains centered in the final Details track (column 8), Previous sits directly to its left, and both keep 16px Lucide icons, one-row movement, hover/focus affordances, and subdued disabled styling.
+- Stored only the validated top-level active page in a dedicated session-storage key. Missing or invalid values fall back to Master Data; page-specific temporary state still returns to fresh defaults, while existing Master Data and Simulation business data persistence is unchanged.
+- Updated only directly affected specifications and focused regression verifiers.
 
 ## Verification and limits
 
 - **PASS:** `npm run build`.
-- **PASS:** `node scripts/verify_simulation_regression.mjs`, including row-selection, Simulation state reset/persistence assertions, navigation state contracts, Phase 3/4, results, economics, history, CBD, Master Data history, and Global Header.
-- **PASS:** `node scripts/verify_master_data_ui_state.mjs` and `node scripts/verify_page_navigation_persistence.mjs`.
-- **PASS:** `node scripts/verify_cbd_comparison_pair.mjs`, `node scripts/verify_cbd_audit_fixes.mjs`, and `node scripts/verify_ui_correction_pass.mjs`.
+- **PASS:** `node scripts/verify_simulation_regression.mjs`, including active-page whitelist/fallback, refresh defaults, business-state persistence, Phase 3/4, Simulation, CBD, Master Data, and navigation regressions.
+- **PASS:** `node scripts/verify_master_data_ui_state.mjs`, `node scripts/verify_page_navigation_persistence.mjs`, and `node scripts/verify_legacy_active_tab_migration.ts`.
+- **PASS:** `node scripts/verify_ui_correction_pass.mjs`, `node scripts/verify_cbd_comparison_pair.mjs`, and `node scripts/verify_cbd_audit_fixes.mjs`.
 - **PASS:** `git diff --check`.
 - Vite SSR regression suites print `WebSocket server error: Port 24678 is already in use` and exit 0. The build retains ExcelJS browser externalization warnings and the 544 kB main-bundle warning.
-- **[Unverified] browser/visual behavior not independently verified.** No Chrome / Chromium executable, Playwright package, or browser DevTools tool is available. Source checks do not confirm rendered sticky handoff or footer alignment.
-- One focused UI correction pass only. No merge or Phase 5 work is included.
+- **[Unverified] browser/visual behavior not independently verified.** No browser executable, Playwright package, or browser DevTools tool is available. Source checks do not confirm rendered stacking, sticky handoff, refresh behavior, or footer alignment.
+- One focused correction pass only. No merge or Phase 5 work is included.
 
 ---
 

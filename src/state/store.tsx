@@ -36,6 +36,7 @@ import type { CostBreakdownComparisonPair } from '../core'
 import { createSelectedSnapshotPair, getCanonicalComparisonStatus, getComparisonFindingKey } from '../core'
 import type { MasterDataHandoffStatus } from '../core'
 import { hasEnteredMasterData, importSnapshotForCustom, importSnapshotForRole, markSizingPlaceholderEdited, resizeMasterDataSnapshotForSizing, synchronizeDatasetSizingToRows } from './dataset-sizing'
+import { normalizeActiveTab } from './active-tab'
 import type { ActiveTab } from './active-tab'
 import { clearMasterDataDatasetState } from './clear-master-data-dataset'
 import { moveSnapshotRows } from './master-data-row-order'
@@ -474,7 +475,9 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     loadFromSession(STORAGE_KEYS.ACTIVE_ID, 'ps-empty-default')
   )
 
-  const [activeTab, setActiveTabState] = useState<ActiveTab>('master')
+  const [activeTab, setActiveTabState] = useState<ActiveTab>(() =>
+    normalizeActiveTab(loadFromSession<unknown>(STORAGE_KEYS.ACTIVE_TAB, 'master'))
+  )
 
   const [uomList, setUomList] = useState<string[]>(() =>
     loadFromSession(STORAGE_KEYS.UOM_LIST, DEFAULT_UOMS)
@@ -506,6 +509,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   // Sync to sessionStorage
   useEffect(() => saveToSession(STORAGE_KEYS.SESSIONS, productSessions), [productSessions])
   useEffect(() => saveToSession(STORAGE_KEYS.ACTIVE_ID, activeProductId), [activeProductId])
+  useEffect(() => saveToSession(STORAGE_KEYS.ACTIVE_TAB, activeTab), [activeTab])
   useEffect(() => saveToSession(STORAGE_KEYS.UOM_LIST, uomList), [uomList])
 
   const setActiveTab = (tab: ActiveTab) => {

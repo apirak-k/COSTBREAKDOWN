@@ -204,7 +204,7 @@ export const CostBreakdownPage: React.FC<CostBreakdownPageProps> = ({ manualOrde
     const page = pageRef.current
     const shell = stickyShellRef.current
     if (!page || !shell) return
-    const updateStickyOffset = () => page.style.setProperty('--cbd-table-header-top', `${shell.getBoundingClientRect().height + 8}px`)
+    const updateStickyOffset = () => page.style.setProperty('--cbd-table-header-top', `${shell.getBoundingClientRect().height}px`)
     updateStickyOffset()
     const observer = new ResizeObserver(updateStickyOffset)
     observer.observe(shell)

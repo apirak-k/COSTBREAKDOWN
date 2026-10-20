@@ -10,6 +10,7 @@ const simulationPage = read('../src/features/simulation/SimulationPage.tsx')
 const simulationState = read('../src/features/simulation/simulation-state.ts')
 const store = read('../src/state/store.tsx')
 const storage = read('../src/services/storage/session-storage.ts')
+const activeTab = read('../src/state/active-tab.ts')
 
 const pageContracts = {
   master: {
@@ -108,10 +109,18 @@ assert.match(app, /pageScrollPositions = useRef<Record<ActiveTab, number>>\(\{ m
 assert.match(app, /main\.scrollTop = pageScrollPositions\.current\[activeTab\]/,
   'navigation restores the destination page scroll position')
 assert.doesNotMatch(app, /scrollTo\(\{\s*top:\s*0/, 'page changes do not reset the shared scroll container')
-assert.match(store, /useState<ActiveTab>\('master'\)/, 'fresh application initialization opens Master Data')
-assert.doesNotMatch(store, /STORAGE_KEYS\.ACTIVE_TAB|saveToSession\([^\n]*ACTIVE_TAB/,
-  'the active page is not restored from or written to browser storage')
-assert.doesNotMatch(storage, /ACTIVE_TAB\s*:/, 'browser storage has no active-page view-state key')
+assert.match(activeTab, /export type ActiveTab\s*=\s*'master'\s*\|\s*'breakdown'\s*\|\s*'simulation'/,
+  'the active-page storage whitelist contains only the three supported destinations')
+const activePageInitialization = store.match(/const \[activeTab,\s*setActiveTabState\] = useState<ActiveTab>\([\s\S]*?\n\s*\)/)?.[0]
+assert.ok(activePageInitialization
+  && /normalizeActiveTab\(/.test(activePageInitialization)
+  && /loadFromSession<unknown>\(STORAGE_KEYS\.ACTIVE_TAB,\s*'master'\)/.test(activePageInitialization),
+  'the initial route restores a validated active page and falls back to Master Data when storage is missing')
+assert.match(store, /saveToSession\(STORAGE_KEYS\.ACTIVE_TAB, activeTab\)/,
+  'navigation persists the validated active page')
+assert.match(storage, /ACTIVE_TAB:\s*['"]costbreakdown_active_tab['"]/, 'session storage has a dedicated active-page key')
+assert.match(store, /useState<MasterDataRole>\(DEFAULT_CBD_COMPARISON_BEFORE\)[\s\S]*useState<MasterDataRole>\(DEFAULT_CBD_COMPARISON_AFTER\)/,
+  'temporary comparison selectors still initialize to in-memory defaults on a fresh app load')
 assert.match(app, /omitSimulationViewStateMap\(loadFromSession\(STORAGE_KEYS\.SIMULATION_STATES, \{\}\)\)/,
   'old persisted Simulation view context is stripped before a refreshed app initializes')
 assert.match(app, /saveToSession\(STORAGE_KEYS\.SIMULATION_STATES, omitSimulationViewStateMap\(simulationStatesByProduct\)\)/,
@@ -133,8 +142,8 @@ assert.match(parameterTableSource, /const bodyRef = useRef<HTMLDivElement>\(null
   'each Simulation table instance owns its body scroll element and expanded-row state')
 assert.match(store, /const \[productSessions, setProductSessions\] = useState<ProductSession\[]>\(\(\) => \{\s*const loaded = loadFromSession<ProductSession\[]>\(STORAGE_KEYS\.SESSIONS/,
   'Master Data working datasets continue loading from their existing business-data storage')
-assert.match(store, /useState<MasterDataRole>\(DEFAULT_CBD_COMPARISON_BEFORE\)[\s\S]*useState<MasterDataRole>\(DEFAULT_CBD_COMPARISON_AFTER\)/,
-  'CBD comparison selectors initialize from their normal in-memory defaults after refresh')
+assert.match(store, /saveToSession\(STORAGE_KEYS\.SESSIONS, productSessions\)/,
+  'Master Data business datasets continue saving through their existing session-storage contract')
 
-console.log('Page navigation and refresh-state contracts: PASS (six route directions, in-memory page views, refresh defaults, and business-state persistence)')
+console.log('Page navigation and refresh-state contracts: PASS (six route directions, validated active-page persistence, transient view defaults, and business-state persistence)')
 console.log('Verification type: source contracts only; no browser navigation was run.')
