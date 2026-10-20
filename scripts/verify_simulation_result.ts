@@ -2,7 +2,7 @@ import assert from 'node:assert/strict'
 import React from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { createServer } from 'vite'
-import type { CostSnapshot } from '../src/core/types'
+import type { CostSnapshot, MasterDataRole } from '../src/core/types'
 
 const vite = await createServer({
   server: { middlewareMode: true, hmr: false },
@@ -13,9 +13,15 @@ const vite = await createServer({
 
 try {
   const { SimulationPage } = await vite.ssrLoadModule('/src/features/simulation/SimulationPage.tsx')
-  const { startSimulationFrom, setSimulationEconomicInput } = await vite.ssrLoadModule('/src/features/simulation/simulation-state.ts')
+  const {
+    createEmptySimulationState,
+    getEffectiveSimulationDataset,
+    setSimulationComparison,
+    setSimulationEconomicInput
+  } = await vite.ssrLoadModule('/src/features/simulation/simulation-state.ts')
   const { updateSimulationParameter } = await vite.ssrLoadModule('/src/features/simulation/simulation-engine.ts')
 
+  const roles: MasterDataRole[] = ['reference', 'current', 'custom']
   const makeSnapshot = (id: string, materialPrice: number | null, sellingPrice: number | null = 250): CostSnapshot => ({
     id,
     product: {
@@ -30,149 +36,129 @@ try {
     }],
     routing: [{ id: 'route-1', processName: 'Fixture route', workCenterId: 'WC-1', manning: 1, capacity: 1, yield: 1, confidence: {} }]
   })
-  const render = (state: any, currentSnapshot: CostSnapshot) => renderToStaticMarkup(React.createElement(SimulationPage, {
-    state,
-    workingSelection: state.workingSelection,
-    referenceSnapshot: currentSnapshot,
-    currentSnapshot,
-    onCloneSource() {}, onSendTo() { return true }, onReset() {},
-    onToggleWorkingTarget() {}, onUpdateParameter() {}, onUpdateEconomicInput() {}
-  }))
-  const resultPanel = (markup: string) => markup.match(/<section[^>]*aria-labelledby="simulation-result-title"[\s\S]*?<\/section>/)?.[0] ?? ''
+  const reference = makeSnapshot('reference', 78)
+  const current = makeSnapshot('current', 78)
+  const custom = makeSnapshot('custom', 78)
+  const sources = { reference, current, custom }
+  const empty = createEmptySimulationState(sources)
+  let state = updateSimulationParameter(empty, sources, 'material-1', 'bom.price', 71, 'custom')
+  state = setSimulationEconomicInput(state, 'sellingPriceOverride', '260', 'custom')
+  state = setSimulationEconomicInput(state, 'sgaPercentOverride', '8', 'custom')
+
+  const render = (workspace: typeof state, before: MasterDataRole, after: MasterDataRole) => {
+    const effectiveDatasets = Object.fromEntries(roles.map(role => [
+      role, getEffectiveSimulationDataset(sources, workspace, role)
+    ])) as Record<MasterDataRole, ReturnType<typeof getEffectiveSimulationDataset>>
+    const active = effectiveDatasets[workspace.activeDataset]
+    return renderToStaticMarkup(React.createElement(SimulationPage, {
+      state: active,
+      workingSelection: active.workingSelection,
+      analysisBeforeDataset: effectiveDatasets[before],
+      analysisAfterDataset: effectiveDatasets[after],
+      effectiveDatasets,
+      onSelectActiveDataset() {}, onChangeComparison() {}, onSend() {}, onSendAll() {},
+      onReset() {}, onResetAll() {}, onUpdateParameter() {}, onToggleWorkingTarget() {},
+      onUpdateEconomicInput() {}, onBeginEdit() {}, onCommitEdit() {}
+    }))
+  }
+  const resultPanel = (markup: string) =>
+    markup.match(/<section[^>]*aria-labelledby="simulation-result-title"[\s\S]*?<\/section>/)?.[0] ?? ''
   const rowElement = (markup: string, label: string) => {
     const panel = resultPanel(markup)
-    return [...panel.matchAll(/<tr[^>]*>[\s\S]*?<\/tr>/g)].map(match => match[0]).find(content =>
-      content.includes('scope="row"') && content.replace(/&amp;/g, '&').includes(`>${label}</th>`)
+    return [...panel.matchAll(/<tr[^>]*>[\s\S]*?<\/tr>/g)].map(([row]) => row).find(row =>
+      row.includes('scope="row"') && row.replace(/&amp;/g, '&').includes(`>${label}</th>`)
     ) ?? ''
   }
-  const row = (markup: string, label: string) => {
-    return rowElement(markup, label).replace(/^<tr[^>]*>|<\/tr>$/g, '')
-  }
-  const values = (rowMarkup: string) => [...rowMarkup.matchAll(/<td class="([^"]*)">([^<]*)<\/td>/g)]
-    .map(match => ({ className: match[1], text: match[2] }))
+  const rowValues = (markup: string, label: string) => [...rowElement(markup, label).matchAll(/<td class="([^"]*)">([\s\S]*?)<\/td>/g)]
+    .map(([, className, content]) => ({ className, text: content.replace(/<[^>]*>/g, '').trim() }))
+  const headers = (panel: string) => [...panel.matchAll(/<th scope="col"[^>]*>([\s\S]*?)<\/th>/g)]
+    .map(([, content]) => content.replace(/<span class="sr-only">[\s\S]*?<\/span>/g, '').replace(/<[^>]*>/g, '').trim())
 
-  const current = makeSnapshot('current', 78)
-  const sources = { reference: current, current, custom: current }
-  const baseline = startSimulationFrom('current', sources)
-  const improved = updateSimulationParameter(baseline, current, 'material-1', 'bom.price', 71)
-  const baselineMarkup = render(improved, current)
-  const panel = resultPanel(baselineMarkup)
+  const initial = render(state, 'reference', 'custom')
+  const panel = resultPanel(initial)
   assert.ok(panel, 'Result panel renders')
-  assert.match(panel, /<h2 id="simulation-result-title"[^>]*>Result<\/h2>/, 'Result heading remains')
-  assert.doesNotMatch(panel, /Current → SIM|THB\//, 'Result has no Current-to-SIM/UOM subtitle')
-  assert.deepEqual(
-    [...panel.matchAll(/<button\b([^>]*)>([\s\S]*?)<\/button>/g)].map(([, attributes, contents]) =>
-      attributes.match(/aria-label="([^"]+)"/)?.[1] ?? contents.replace(/<[^>]*>/g, '').trim()),
-    ['Clone from', 'Send to', 'Reset Simulation'],
-    'Clone from, Send to, and Reset remain in the existing order'
-  )
-  for (const match of panel.matchAll(/<button\b([^>]*)>([\s\S]*?)<\/button>/g)) {
-    assert.match(match[1], /h-8 w-8/, 'Result action targets remain 32px square')
-    assert.match(match[2], /<svg/, 'Result actions use icons')
-    assert.equal(match[2].replace(/<[^>]*>/g, '').trim(), '', 'Result actions have no visible text')
-  }
-  for (const label of ['Material', 'Labor', 'Burden', 'Conversion', 'Standard Cost']) {
-    assert.ok(rowElement(baselineMarkup, label), `${label} Result row renders`)
-  }
-  assert.doesNotMatch(panel, />Material Cost<|>Labor Cost<|>Burden Cost<|>Conversion Cost</)
-  assert.ok(panel.indexOf('Cost / Unit') < panel.indexOf('Standard Cost'))
-  assert.ok(panel.indexOf('Standard Cost') < panel.indexOf('Business Outcome / Unit'))
-  assert.ok(panel.indexOf('Business Outcome / Unit') < panel.indexOf('Selling Price'))
-  assert.ok(panel.indexOf('Selling Price') < panel.indexOf('SG&amp;A'))
-  assert.ok(panel.indexOf('SG&amp;A') < panel.indexOf('Operating Profit'))
+  assert.match(panel, /<h2 id="simulation-result-title" class="sr-only">Result<\/h2>/,
+    'Result keeps its accessible title without restoring a visible heading')
+  assert.deepEqual(headers(panel), ['Cost / Unit', 'Before', 'After', 'Change', '%'],
+    'Cost / Unit and comparison columns share one compact visible header row')
+  assert.match(panel, /aria-label="Before dataset, Reference"/, 'Before accessible name includes its selected role')
+  assert.match(panel, /aria-label="After dataset, Custom"/, 'After accessible name includes its selected role')
+  assert.doesNotMatch(headers(panel).join(' '), /Reference|Current|Custom/,
+    'selected role names are not repeated as visible table headers')
+  assert.match(panel, /Business Outcome \/ Unit/, 'Business Outcome / Unit remains the divider before business rows')
+  assert.deepEqual(rowValues(initial, 'Material').map(cell => cell.text), ['78.00', '71.00', '-7.00', '-8.97%'])
+  assert.deepEqual(rowValues(initial, 'Standard Cost').map(cell => cell.text), ['78.00', '71.00', '-7.00', '-8.97%'])
+  assert.deepEqual(rowValues(initial, 'Selling Price').map(cell => cell.text), ['250.00', '260.00', '+10.00', '+4.00%'])
+  assert.deepEqual(rowValues(initial, 'SG&A').map(cell => cell.text), ['20.00', '20.80', '+0.80', '+4.00%'])
+  assert.deepEqual(rowValues(initial, 'Operating Profit').map(cell => cell.text), ['152.00', '168.20', '+16.20', '+10.66%'])
+  assert.match(rowValues(initial, 'Standard Cost')[2]?.className ?? '', /text-emerald-700/, 'a lower cost is favorable')
+  assert.match(rowValues(initial, 'Operating Profit')[2]?.className ?? '', /text-emerald-700/, 'higher operating profit is favorable')
 
-  const materialRow = rowElement(baselineMarkup, 'Material')
-  const conversionRow = rowElement(baselineMarkup, 'Conversion')
-  const standardRow = rowElement(baselineMarkup, 'Standard Cost')
-  assert.match(materialRow, /<tr class="text-slate-700">/, 'ordinary cost rows keep their existing weight')
-  assert.match(conversionRow, /<tr class="border-t border-slate-300 font-semibold text-slate-800 !border-slate-300">/,
-    'Conversion Cost has a stronger top separator and semibold emphasis')
-  assert.match(conversionRow, /<th[^>]*class="whitespace-nowrap py-0\.5 text-left"/,
-    'Conversion Cost has more vertical space than an ordinary cost row')
-  assert.equal([...conversionRow.matchAll(/class="[^"]*py-0\.5[^"]*"/g)].length, 5,
-    'all Conversion Cost cells share the extra subtotal breathing room')
-  assert.match(panel, /<tbody class="divide-y divide-slate-100">/,
-    'ordinary Result rows retain their lighter dividers beneath the emphasized subtotal separator')
-  assert.match(standardRow, /<tr class="border-t border-slate-300 font-semibold text-slate-950 !border-slate-300">/,
-    'Standard Cost retains its final-total weight and darkest text hierarchy')
-  assert.doesNotMatch(panel, /\(Labor \+ Burden\)/, 'Conversion Cost adds no explanatory formula label')
-
-  const conversionSnapshot = makeSnapshot('conversion-current', 78)
-  conversionSnapshot.rates = conversionSnapshot.rates.map(rate => ({ ...rate, laborRate: 10, burdenRate: 5 }))
-  const conversionSources = { reference: conversionSnapshot, current: conversionSnapshot, custom: conversionSnapshot }
-  const conversionBaseline = startSimulationFrom('current', conversionSources)
-  const conversionEdited = updateSimulationParameter(conversionBaseline, conversionSnapshot, 'route-1', 'routing.capacity', 2)
-  const conversionMarkup = render(conversionEdited, conversionSnapshot)
-  for (const [side, label] of [['Current', 'current'], ['SIM', 'sim']] as const) {
-    const labor = Number(values(row(conversionMarkup, 'Labor'))[side === 'Current' ? 0 : 1]?.text)
-    const burden = Number(values(row(conversionMarkup, 'Burden'))[side === 'Current' ? 0 : 1]?.text)
-    const conversion = Number(values(row(conversionMarkup, 'Conversion'))[side === 'Current' ? 0 : 1]?.text)
-    assert.equal(conversion, labor + burden, `${label} Conversion Cost equals Labor + Burden`)
+  const expectedCost: Record<MasterDataRole, number> = { reference: 78, current: 78, custom: 71 }
+  const label: Record<MasterDataRole, string> = { reference: 'Reference', current: 'Current', custom: 'Custom' }
+  const money = (value: number) => value.toFixed(2)
+  const signed = (value: number) => `${value > 0 ? '+' : ''}${money(value)}`
+  for (const before of roles) {
+    for (const after of roles) {
+      const selected = setSimulationComparison(state, before, after)
+      const markup = render(selected, before, after)
+      const selectedPanel = resultPanel(markup)
+      assert.deepEqual(headers(selectedPanel), ['Cost / Unit', 'Before', 'After', 'Change', '%'],
+        `${label[before]} → ${label[after]} keeps compact visible headers`)
+      assert.match(selectedPanel, new RegExp(`aria-label="Before dataset, ${label[before]}"`))
+      assert.match(selectedPanel, new RegExp(`aria-label="After dataset, ${label[after]}"`))
+      const delta = expectedCost[after] - expectedCost[before]
+      const percent = expectedCost[before] === 0 ? '—' : `${signed(delta / expectedCost[before] * 100)}%`
+      assert.deepEqual(rowValues(markup, 'Standard Cost').map(cell => cell.text), [
+        money(expectedCost[before]), money(expectedCost[after]), signed(delta), percent
+      ], `${label[before]} → ${label[after]} computes Change as After − Before`)
+      assert.equal(selected.activeDataset, 'custom', 'changing the Result pair does not change activeDataset')
+    }
   }
 
-  assert.deepEqual(values(row(baselineMarkup, 'Material')).map(cell => cell.text), ['78.00', '71.00', '-7.00', '-8.97%'])
-  for (const label of ['Labor', 'Burden', 'Conversion']) {
-    assert.deepEqual(values(row(baselineMarkup, label)).map(cell => cell.text), ['0.00', '0.00', '0.00', '—'],
-      `${label} values and unavailable zero-baseline percentage remain unchanged`)
-  }
-
-  const costRow = values(row(baselineMarkup, 'Standard Cost'))
-  assert.deepEqual(costRow.map(cell => cell.text), ['78.00', '71.00', '-7.00', '-8.97%'])
-  assert.match(costRow[2]?.className ?? '', /text-emerald-700/, 'lower cost is favorable')
-  assert.match(costRow[3]?.className ?? '', /text-emerald-700/, 'lower cost percent is favorable')
-  assert.deepEqual(values(row(baselineMarkup, 'Selling Price')).map(cell => cell.text), ['250.00', '250.00', '0.00', '0.00%'])
-  assert.deepEqual(values(row(baselineMarkup, 'SG&A')).map(cell => cell.text), ['20.00', '20.00', '0.00', '0.00%'])
-  const profitRow = values(row(baselineMarkup, 'Operating Profit'))
-  assert.deepEqual(profitRow.map(cell => cell.text), ['152.00', '159.00', '+7.00', '+4.61%'])
-  assert.match(profitRow[2]?.className ?? '', /text-emerald-700/, 'higher operating profit is favorable')
-  assert.match(profitRow[3]?.className ?? '', /text-emerald-700/)
-  for (const label of ['Selling Price', 'SG&A']) {
-    const neutral = values(row(baselineMarkup, label))
-    assert.match(neutral[2]?.className ?? '', /text-slate-700/, `${label} change is neutral`)
-    assert.match(neutral[3]?.className ?? '', /text-slate-700/, `${label} percentage is neutral`)
-  }
-
-  const withPriceOverride = setSimulationEconomicInput(improved, 'sellingPriceOverride', '260', 'current')
-  const priceMarkup = render(setSimulationEconomicInput(withPriceOverride, 'sgaPercentOverride', '8', 'current'), current)
-  assert.deepEqual(values(row(priceMarkup, 'Selling Price')).map(cell => cell.text), ['250.00', '260.00', '+10.00', '+4.00%'])
-  assert.deepEqual(values(row(priceMarkup, 'SG&A')).map(cell => cell.text), ['20.00', '20.80', '+0.80', '+4.00%'])
-  assert.deepEqual(values(row(priceMarkup, 'Operating Profit')).map(cell => cell.text), ['152.00', '168.20', '+16.20', '+10.66%'])
-  assert.deepEqual(values(row(priceMarkup, 'Standard Cost')).map(cell => cell.text), ['78.00', '71.00', '-7.00', '-8.97%'],
-    'business overrides do not change Cost / Unit')
-
-  const withSgaOverride = setSimulationEconomicInput(withPriceOverride, 'sgaPercentOverride', '10', 'current')
-  const sgaMarkup = render(withSgaOverride, current)
-  assert.deepEqual(values(row(sgaMarkup, 'SG&A')).map(cell => cell.text), ['20.00', '26.00', '+6.00', '+30.00%'])
-  assert.deepEqual(values(row(sgaMarkup, 'Operating Profit')).map(cell => cell.text), ['152.00', '163.00', '+11.00', '+7.24%'])
-
-  const zeroCurrent = makeSnapshot('zero-current', 0, 0)
-  const zeroState = startSimulationFrom('current', { reference: zeroCurrent, current: zeroCurrent, custom: zeroCurrent })
-  const zeroSimulation = updateSimulationParameter(zeroState, zeroCurrent, 'material-1', 'bom.price', 2)
-  const zeroMarkup = render(zeroSimulation, zeroCurrent)
-  const zeroCostRow = values(row(zeroMarkup, 'Standard Cost'))
-  assert.deepEqual(zeroCostRow.map(cell => cell.text), ['0.00', '2.00', '+2.00', '—'])
-  assert.match(zeroCostRow[3]?.className ?? '', /text-slate-400/, 'an unavailable zero-denominator percentage is gray')
-  assert.deepEqual(values(row(zeroMarkup, 'Selling Price')).map(cell => cell.text), ['0.00', '0.00', '0.00', '—'])
-  assert.deepEqual(values(row(zeroMarkup, 'Operating Profit')).map(cell => cell.text), ['0.00', '-2.00', '-2.00', '—'])
+  const zero = makeSnapshot('zero', 0, 0)
+  const zeroSources = { reference: zero, current: zero, custom: zero }
+  const zeroState = createEmptySimulationState(zeroSources)
+  const zeroChanged = updateSimulationParameter(zeroState, zeroSources, 'material-1', 'bom.price', 2, 'custom')
+  const zeroMarkup = (() => {
+    const effectiveDatasets = Object.fromEntries(roles.map(role => [
+      role, getEffectiveSimulationDataset(zeroSources, zeroChanged, role)
+    ])) as Record<MasterDataRole, ReturnType<typeof getEffectiveSimulationDataset>>
+    const active = effectiveDatasets[zeroChanged.activeDataset]
+    return renderToStaticMarkup(React.createElement(SimulationPage, {
+      state: active, workingSelection: active.workingSelection,
+      analysisBeforeDataset: effectiveDatasets.reference, analysisAfterDataset: effectiveDatasets.custom,
+      effectiveDatasets,
+      onSelectActiveDataset() {}, onChangeComparison() {}, onSend() {}, onSendAll() {},
+      onReset() {}, onResetAll() {}, onUpdateParameter() {}, onToggleWorkingTarget() {},
+      onUpdateEconomicInput() {}, onBeginEdit() {}, onCommitEdit() {}
+    }))
+  })()
+  assert.deepEqual(rowValues(zeroMarkup, 'Standard Cost').map(cell => cell.text), ['0.00', '2.00', '+2.00', '—'],
+    'a zero Before value keeps its percentage unavailable')
+  assert.match(rowValues(zeroMarkup, 'Standard Cost')[3]?.className ?? '', /text-slate-400/)
+  assert.doesNotMatch(resultPanel(zeroMarkup), /NaN|Infinity/)
 
   const missingPrice = makeSnapshot('missing-price', 78, null)
-  const missingState = startSimulationFrom('current', { reference: missingPrice, current: missingPrice, custom: missingPrice })
-  const missingMarkup = render(missingState, missingPrice)
-  assert.deepEqual(values(row(missingMarkup, 'Selling Price')).map(cell => cell.text), ['—', '—', '—', '—'])
-  assert.deepEqual(values(row(missingMarkup, 'SG&A')).map(cell => cell.text), ['—', '—', '—', '—'])
-  assert.deepEqual(values(row(missingMarkup, 'Operating Profit')).map(cell => cell.text), ['—', '—', '—', '—'])
+  const missingSources = { reference: missingPrice, current: missingPrice, custom: missingPrice }
+  const missingState = createEmptySimulationState(missingSources)
+  const missingDatasets = Object.fromEntries(roles.map(role => [
+    role, getEffectiveSimulationDataset(missingSources, missingState, role)
+  ])) as Record<MasterDataRole, ReturnType<typeof getEffectiveSimulationDataset>>
+  const missingActive = missingDatasets[missingState.activeDataset]
+  const missingMarkup = renderToStaticMarkup(React.createElement(SimulationPage, {
+    state: missingActive, workingSelection: missingActive.workingSelection,
+    analysisBeforeDataset: missingDatasets.current, analysisAfterDataset: missingDatasets.custom,
+    effectiveDatasets: missingDatasets,
+    onSelectActiveDataset() {}, onChangeComparison() {}, onSend() {}, onSendAll() {},
+    onReset() {}, onResetAll() {}, onUpdateParameter() {}, onToggleWorkingTarget() {},
+    onUpdateEconomicInput() {}, onBeginEdit() {}, onCommitEdit() {}
+  }))
+  assert.deepEqual(rowValues(missingMarkup, 'Selling Price').map(cell => cell.text), ['—', '—', '—', '—'])
+  assert.deepEqual(rowValues(missingMarkup, 'SG&A').map(cell => cell.text), ['—', '—', '—', '—'])
+  assert.deepEqual(rowValues(missingMarkup, 'Operating Profit').map(cell => cell.text), ['—', '—', '—', '—'])
 
-  const negativeCurrent = makeSnapshot('negative-current', 300)
-  const negativeState = startSimulationFrom('current', { reference: negativeCurrent, current: negativeCurrent, custom: negativeCurrent })
-  const lowerProfit = updateSimulationParameter(negativeState, negativeCurrent, 'material-1', 'bom.price', 310)
-  const negativeMarkup = render(lowerProfit, negativeCurrent)
-  const negativeProfitRow = values(row(negativeMarkup, 'Operating Profit'))
-  assert.deepEqual(negativeProfitRow.map(cell => cell.text), ['-70.00', '-80.00', '-10.00', '+14.29%'])
-  assert.match(negativeProfitRow[2]?.className ?? '', /text-rose-700/, 'a lower negative profit remains unfavorable')
-  assert.match(negativeProfitRow[3]?.className ?? '', /text-rose-700/, 'profit percentage color follows profit change direction')
-  assert.doesNotMatch(resultPanel(negativeMarkup), /NaN|Infinity/)
-
-  console.log('Simulation Result values, hierarchy, actions, and unavailable-value verification passed')
+  console.log('Simulation Result values, compact headers, all nine pairs, and unavailable-value verification passed')
 } finally {
   await vite.close()
 }

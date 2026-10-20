@@ -637,6 +637,7 @@ try {
 
   const pageSource = readFileSync(new URL('../src/features/cost-breakdown/CostBreakdownPage.tsx', import.meta.url), 'utf8')
   const popoverSource = readFileSync(new URL('../src/features/cost-breakdown/components/CostBreakdownPopover.tsx', import.meta.url), 'utf8')
+  const sharedSelectorSource = readFileSync(new URL('../src/shared/ui/ComparisonRoleSelector.tsx', import.meta.url), 'utf8')
   const sortMenuSource = pageSource.match(/label="Sort"[\s\S]*?<\/CostBreakdownPopover>/)?.[0]
   assert.ok(sortMenuSource, 'Sort options use the shared overlay component')
   assert.match(sortMenuSource, /COMPARISON_SORT_OPTIONS\.map\(option => <button/,
@@ -650,46 +651,38 @@ try {
   assert.doesNotMatch(sortMenuSource, /<h[1-6]\b|<footer\b/,
     'Sort contains only its compact choices without a title or footer')
 
-  const rolePopoverSource = pageSource.match(/const ComparisonRolePopover:[\s\S]*?function isAvailableGap/)?.[0]
-  assert.ok(rolePopoverSource, 'Before and After use one independent selector menu')
-  assert.match(rolePopoverSource, /COMPARISON_ROLES\.filter\(role => role !== selectedRole\)\.map/,
+  assert.match(pageSource, /from '\.\.\/\.\.\/shared\/ui\/ComparisonRoleSelector'/,
+    'CBD consumes the shared comparison selector')
+  assert.match(sharedSelectorSource, /COMPARISON_ROLES\.filter\(option => option !== role\)/,
     'each role menu filters only its own selected value')
-  assert.doesNotMatch(rolePopoverSource, /aria-pressed|selectedRole === role|disabled=/,
+  assert.doesNotMatch(sharedSelectorSource, /aria-pressed|optionRole === role|disabled=/,
     'role alternatives have no selected or disabled state')
-  assert.match(rolePopoverSource, /onSelect\(role\); close\(\)/,
+  assert.match(sharedSelectorSource, /onChange\(optionRole\); close\(true\)/,
     'selecting an alternative applies immediately and closes the role menu')
-  assert.match(rolePopoverSource, /triggerClassName="inline-flex h-8 w-\[96px\]/,
+  assert.match(sharedSelectorSource, /h-8 w-\[96px\]/,
     'Before and After use one compact, equal 96px by 32px trigger layout')
-  const roleTriggerClass = rolePopoverSource.match(/triggerClassName="([^"]+)"/)?.[1] ?? ''
+  const roleTriggerClass = sharedSelectorSource.match(/className="([^"]*w-\[96px\][^"]*)"/)?.[1] ?? ''
   for (const className of ['rounded-sm', 'border', 'border-slate-300', 'bg-white', 'px-2', 'hover:bg-slate-100', 'focus-visible:outline']) {
     assert.ok(roleTriggerClass.split(/\s+/).includes(className), 'Before and After use the required boxed selector styles')
   }
   assert.doesNotMatch(roleTriggerClass, /\bbg-transparent\b/,
     'role selectors retain the white boxed idle surface')
-  assert.match(rolePopoverSource, /label=\{side\}/,
-    'role selectors use the exact Before/After side name for their accessible and tooltip label')
-  assert.match(rolePopoverSource, /panelClassName="w-max"/,
+  assert.match(sharedSelectorSource, /aria-label=\{`\$\{side\} dataset, \$\{COMPARISON_ROLE_LABELS\[role\]\}`\}/,
+    'accessible names include Before/After plus the selected role')
+  assert.match(sharedSelectorSource, /<Tooltip label=\{side\}>/,
+    'visible tooltips retain the exact Before/After side name')
+  assert.match(sharedSelectorSource, /w-max max-w-\[calc\(100vw-1rem\)\]/,
     'role menu grows to fit intrinsic option content')
-  assert.match(rolePopoverSource, /panelMinWidthMatchesTrigger/,
-    'only Before and After opt into a trigger-width menu minimum')
-  assert.doesNotMatch(rolePopoverSource, /panelClassName="[^"]*\b(?:w|min-w)-\d+\b/,
-    'role menu has no arbitrary fixed width or hard-coded minimum width')
-  assert.match(popoverSource, /panelMinWidthMatchesTrigger\?: boolean/)
-  assert.match(popoverSource, /panelMinWidthMatchesTrigger = false/,
-    'the shared CBD popover keeps intrinsic sizing by default')
-  const triggerMinimum = popoverSource.match(/panelElement\.style\.minWidth = panelMinWidthMatchesTrigger \? [^\n]+/)
-  assert.ok(triggerMinimum && /triggerBounds\.width/.test(triggerMinimum[0]) && /: ''/.test(triggerMinimum[0]),
-    'the opt-in menu minimum equals the actual trigger width and resets when not opted in')
-  assert.ok(popoverSource.indexOf(triggerMinimum[0]) < popoverSource.indexOf('const panelBounds = panelElement.getBoundingClientRect()'),
-    'CBD measures the menu after applying its optional trigger-width minimum')
+  assert.match(sharedSelectorSource, /panel\.style\.minWidth = `\$\{triggerBounds\.width\}px`/,
+    'popup minimum equals trigger width and content can grow it')
   assert.match(popoverSource, /const panelWidth = panelBounds\.width/,
-    'CBD menus use the measured width after the optional minimum is applied')
+    'generic CBD menus use their measured intrinsic width')
   assert.doesNotMatch(popoverSource, /panelBounds\.width\s*\|\|\s*triggerBounds\.width|Math\.max\([^\n]*triggerBounds\.width/,
     'CBD menus have no panel-width fallback that forces trigger width')
-  assert.equal((popoverSource.match(/triggerBounds\.width/g) ?? []).length, 2,
-    'trigger width is used only for optional minimum sizing and centering')
-  assert.equal((pageSource.match(/\bpanelMinWidthMatchesTrigger\b/g) ?? []).length, 1,
-    'Before/After are the only CBD controls opting into a trigger-width menu minimum')
+  assert.equal((popoverSource.match(/triggerBounds\.width/g) ?? []).length, 1,
+    'generic CBD trigger width is used only for centering')
+  assert.doesNotMatch(popoverSource, /panelMinWidthMatchesTrigger|panelElement\.style\.minWidth/,
+    'Status and Sort preserve content-sized menus')
   const statusPopoverSource = pageSource.match(/label="Status"[\s\S]*?<\/CostBreakdownPopover>/)?.[0]
   assert.ok(statusPopoverSource, 'Status uses the shared overlay component')
   assert.match(statusPopoverSource, /\{\(\) => <ComparisonStatusOptions selected=\{comparisonView\} onChange=\{setComparisonView\} \/>\}/,
@@ -722,7 +715,8 @@ try {
   assert.match(popoverSource, /document\.addEventListener\('pointerdown'/, 'temporary CBD popovers dismiss on outside pointerdown')
   assert.match(popoverSource, /useTransientInteraction\(open,[\s\S]*reason === 'escape'\) close\(\)/,
     'CBD popovers reuse shared transient Escape dismissal and restore trigger focus')
-  assert.match(popoverSource, /activeCBDPopoverDismiss/, 'opening one temporary popover dismisses the previous popover')
+  assert.match(popoverSource, /openExclusivePopover\(owner\.current, dismissWithoutFocus\)/,
+    'opening one temporary popover dismisses the previous popover through the shared overlay manager')
   assert.match(popoverSource, /const toggleOpen = \(\) => \{[\s\S]*if \(pinnedRef\.current\) dismissWithoutFocus\(\)[\s\S]*preview\(\)[\s\S]*pinnedRef\.current = true/,
     'clicking a trigger opens and pins its menu, while a second click closes it')
   const dismissBody = popoverSource.match(/const dismissWithoutFocus = useCallback\(\(\) => \{([\s\S]*?)\}, \[[^\]]*\]\)/)?.[1]
@@ -1101,8 +1095,12 @@ try {
       'the expanded overview uses ChevronDown and the collapsed overview uses ChevronRight')
     assert.doesNotMatch(pageSource, /leadingAction=|buttonClassName=|aria-label=\{`Reapply sort:/,
       'Sort does not render the obsolete split Reapply button')
-    assert.match(popoverSource, /import \{ useTransientInteraction \} from '\.\.\/\.\.\/\.\.\/shared\/ui\/transient-interactions'/,
-      'Status and Sort reuse the shared transient-interaction handling')
+    assert.match(popoverSource, /import \{ closeExclusivePopover, dismissExclusivePopover, openExclusivePopover, useTransientInteraction \} from '\.\.\/\.\.\/\.\.\/shared\/ui\/transient-interactions'/,
+      'Status and Sort share the transient dismissal and exclusive-popover manager')
+    assert.match(popoverSource, /openExclusivePopover\(owner\.current, dismissWithoutFocus\)[\s\S]*?closeExclusivePopover\(owner\.current\)/,
+      'Status and Sort remain mutually exclusive with the shared Before/After selectors')
+    assert.match(popoverSource, /export function dismissCostBreakdownPopovers\(\): void \{\s*dismissExclusivePopover\(\)/,
+      'page navigation can dismiss the active CBD or comparison popover')
     assert.match(popoverSource, /aria-haspopup="dialog"/,
       'Status and Sort expose their options as dialogs from one toolbar trigger')
     assert.match(popoverSource, /setTimeout\(preview, 120\)/, 'toolbar hover preview keeps Master Data timing')

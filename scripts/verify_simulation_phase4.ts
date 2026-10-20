@@ -74,7 +74,10 @@ const close = (actual: number | null | undefined, expected: number, message: str
   assert.ok(actual !== null && actual !== undefined && Math.abs(actual - expected) < 1e-9,
     `${message}: expected ${expected}, received ${String(actual)}`)
 
-let state = setSimulationActiveDataset(createEmptySimulationState(sources), 'current')
+const freshState = createEmptySimulationState(sources)
+assert.deepEqual([freshState.activeDataset, freshState.comparisonBefore, freshState.comparisonAfter], ['custom', 'current', 'custom'],
+  'fresh Simulation uses Custom and Current → Custom')
+let state = setSimulationActiveDataset(freshState, 'current')
 state = setSimulationEconomicInput(state, 'sellingPriceOverride', '777', 'custom')
 state = setSimulationEconomicInput(state, 'sellingPriceOverride', '555', 'current')
 state = updateSimulationParameter(state, sources, 'bom-custom', 'bom.price', 35, 'custom')
@@ -198,7 +201,7 @@ const resultValues = (row: string) => [...row.matchAll(/<td class="([^"]*)">([^<
   .map(match => ({ className: match[1], text: match[2] }))
 const resultHeaders = (panel: string) =>
   [...panel.matchAll(/<th scope="col"[^>]*>([\s\S]*?)<\/th>/g)]
-    .map(([, text]) => text.replace(/<[^>]*>/g, '').trim()).filter(Boolean)
+    .map(([, text]) => text.replace(/<span class="sr-only">[\s\S]*?<\/span>/g, '').replace(/<[^>]*>/g, '').trim()).filter(Boolean)
 const inputFor = (markup: string, label: string) => [...markup.matchAll(/<input\b[^>]*>/g)]
   .map(match => match[0]).find(input => input.includes(`aria-label="${label}"`)) ?? ''
 
@@ -226,8 +229,8 @@ assert.doesNotMatch(pairPage, /Edit dataset|Send to active dataset|Send to Curre
   'final Simulation UI has no separate Edit dataset or arbitrary Send destination')
 assert.deepEqual(
   resultHeaders(pairResult),
-  ['Cost or business outcome', 'Reference', 'Custom', 'Change', '%'],
-  'Result headers name the actual selected roles')
+  ['Cost / Unit', 'Before', 'After', 'Change', '%'],
+  'Result uses one compact Cost / Unit | Before | After | Change | % header row')
 assert.deepEqual(
   [...resultHeader.matchAll(/<button\b([^>]*)>/g)].map(([, attributes]) => attributes.match(/aria-label="([^"]+)"/)?.[1]).filter(Boolean).sort(),
   ['After dataset, Custom', 'Before dataset, Reference', 'Reset', 'Send to Master Data'],
@@ -238,13 +241,14 @@ assert.equal((resultHeader.match(/aria-haspopup="menu"/g) ?? []).length, 2,
 assert.doesNotMatch(resultHeader, /More (?:Send|Reset) actions/,
   'Send and Reset have no permanent split-button trigger')
 assert.match(resultHeader, /Send all datasets/)
-assert.match(resultHeader, /Reset all datasets/)
+assert.match(resultHeader, /Reset all/)
+assert.doesNotMatch(resultHeader, /Reset all datasets/)
 const roleTriggers = [...resultHeader.matchAll(/<button\b([^>]*)>([\s\S]*?)<\/button>/g)]
   .filter(([, attributes]) => /aria-label="(?:Before|After) dataset, /.test(attributes))
 assert.equal(roleTriggers.length, 2, 'Result renders independent Before and After selectors')
 for (const [attributes, markup] of roleTriggers.map(([, attributes, markup]) => [attributes, markup])) {
-  assert.match(attributes, /h-8 w-\[112px\].*border-slate-300.*bg-white/,
-    'Before/After selector uses an equal 112×32 boxed field that fits Reference')
+  assert.match(attributes, /h-8 w-\[96px\].*border-slate-300.*bg-white/,
+    'Before/After selector uses an equal 96×32 boxed field')
   assert.match(attributes, /focus-visible:outline/, 'Before/After selector has visible keyboard focus')
   assert.match(attributes, /whitespace-nowrap/, 'selector role text cannot wrap or truncate')
   assert.doesNotMatch(markup, /truncate/, 'selector role text has no ellipsis styling')
@@ -298,8 +302,8 @@ for (const before of roles) {
     assert.equal(selectedPair.activeDataset, 'current', `selecting ${before} → ${after} leaves activeDataset unchanged`)
     const markup = renderPage(selectedPair, before, after)
     const panel = resultPanel(markup)
-    assert.deepEqual(resultHeaders(panel), ['Cost or business outcome', roleName[before], roleName[after], 'Change', '%'],
-      `Result UI labels the ${before} → ${after} pair with its actual role names`)
+    assert.deepEqual(resultHeaders(panel), ['Cost / Unit', 'Before', 'After', 'Change', '%'],
+      `Result keeps compact visible column labels for ${before} → ${after}`)
     assert.match(panel, new RegExp(`aria-label="Before dataset, ${roleName[before]}"`),
       `Before selector can display ${before}`)
     assert.match(panel, new RegExp(`aria-label="After dataset, ${roleName[after]}"`),
@@ -335,7 +339,7 @@ for (const activeRole of roles) {
     new RegExp(`value="${activeRole === 'reference' ? '10' : activeRole === 'current' ? '20' : '35'}\\.00"`),
     `active ${activeRole} owns the parameter table values`)
   assert.deepEqual(resultHeaders(resultPanel(markup)),
-    ['Cost or business outcome', 'Reference', 'Custom', 'Change', '%'],
+    ['Cost / Unit', 'Before', 'After', 'Change', '%'],
     `choosing active ${activeRole} leaves the Result pair unchanged`)
   assert.deepEqual(graphSummary(markup), graphSummary(pairPage),
     `choosing active ${activeRole} does not change the fixed graph story`)
@@ -345,13 +349,15 @@ for (const activeRole of roles) {
 
 const pageSource = readFileSync(resolve(process.cwd(), 'src/features/simulation/SimulationPage.tsx'), 'utf8')
 const graphSource = readFileSync(resolve(process.cwd(), 'src/features/simulation/SimulationStoryGraph.tsx'), 'utf8')
+const sharedSelectorSource = readFileSync(resolve(process.cwd(), 'src/shared/ui/ComparisonRoleSelector.tsx'), 'utf8')
+const cbdPageSource = readFileSync(resolve(process.cwd(), 'src/features/cost-breakdown/CostBreakdownPage.tsx'), 'utf8')
 const appSource = readFileSync(resolve(process.cwd(), 'src/App.tsx'), 'utf8')
 assert.match(graphSource, /onClick=\{\(\) => onSelectActiveDataset\(category\.role\)\}/,
   '[source contract] graph role controls select activeDataset')
 assert.match(pageSource, /onChange=\{role => onChangeComparison\(role, afterRole\)\}[\s\S]*?onChange=\{role => onChangeComparison\(beforeRole, role\)\}/,
   '[source contract] Before and After selectors update only their own comparison side')
 const upperWorkspaceStart = pageSource.indexOf('xl:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)]')
-const upperWorkspaceEnd = pageSource.indexOf('<div className="grid min-w-0 gap-2 xl:min-h-0 xl:flex-1', upperWorkspaceStart)
+const upperWorkspaceEnd = pageSource.indexOf('<div className="grid min-w-0 gap-2 xl:flex-none xl:grid-cols-2', upperWorkspaceStart)
 const upperWorkspaceSource = upperWorkspaceStart >= 0 && upperWorkspaceEnd > upperWorkspaceStart
   ? pageSource.slice(upperWorkspaceStart, upperWorkspaceEnd)
   : ''
@@ -363,25 +369,30 @@ assert.match(resultColumnSource, /<ResultPanel[\s\S]*?<EconomicBreakEvenGraphPan
   '[source contract] Result sits above Break-even in the middle column before far-right Business/Economic')
 assert.match(pageSource, /label="Send"[\s\S]*?secondaryLabel="Send all datasets"[\s\S]*?onPrimary=\{onSend\}[\s\S]*?onSecondary=\{onSendAll\}/,
   '[source contract] Send main and secondary actions use the active-role and all-role callbacks')
-assert.match(pageSource, /label="Reset"[\s\S]*?secondaryLabel="Reset all datasets"[\s\S]*?onPrimary=\{onReset\}[\s\S]*?onSecondary=\{onResetAll\}/,
+assert.match(pageSource, /label="Reset"[\s\S]*?secondaryLabel="Reset all"[\s\S]*?onPrimary=\{onReset\}[\s\S]*?onSecondary=\{onResetAll\}/,
   '[source contract] Reset main and secondary actions use active-role and all-role callbacks')
-assert.ok(pageSource.includes('<Tooltip label={side}>'), '[source contract] selector tooltip text is exactly Before or After')
-assert.ok(pageSource.includes('aria-label={`${side} dataset, ${roleLabel(role)}`}'),
+assert.match(pageSource, /from '\.\.\/\.\.\/shared\/ui\/ComparisonRoleSelector'/)
+assert.match(cbdPageSource, /from '\.\.\/\.\.\/shared\/ui\/ComparisonRoleSelector'/,
+  '[source contract] CBD and Simulation import the same shared selector')
+assert.ok(sharedSelectorSource.includes('<Tooltip label={side}>'), '[source contract] selector tooltip text is exactly Before or After')
+assert.ok(sharedSelectorSource.includes('aria-label={`${side} dataset, ${COMPARISON_ROLE_LABELS[role]}`}'),
   '[source contract] selector accessible name includes its side and selected role')
-const roleSelectorSource = pageSource.match(/function ComparisonRoleSelector\([\s\S]*?\nfunction CompactActionControl/)?.[0] ?? ''
-assert.match(roleSelectorSource, /const availableRoles = ROLES\.filter\(option => option\.role !== role\)/,
+assert.doesNotMatch(pageSource, /function ComparisonRoleSelector\(/, '[source contract] Simulation has no duplicate selector implementation')
+assert.match(sharedSelectorSource, /COMPARISON_ROLES\.filter\(option => option !== role\)/,
   '[source contract] each selector omits only its own currently selected role')
-assert.match(roleSelectorSource, /w-max max-w-\[calc\(100vw-1rem\)\]/,
+assert.match(sharedSelectorSource, /w-max max-w-\[calc\(100vw-1rem\)\]/,
   '[source contract] role menus size intrinsically and keep a viewport maximum')
-assert.doesNotMatch(roleSelectorSource, /min-w-\[112px\]/,
-  '[source contract] role menu width is independent from the stable 112px trigger')
-assert.match(roleSelectorSource, /\{availableRoles\.map\([\s\S]*?role="menuitem"/,
+assert.match(sharedSelectorSource, /h-8 w-\[96px\]/,
+  '[source contract] all roles use a stable 96×32 trigger')
+assert.match(sharedSelectorSource, /panel\.style\.minWidth = `\$\{triggerBounds\.width\}px`/,
+  '[source contract] popup minimum equals the trigger width while w-max permits content growth')
+assert.match(sharedSelectorSource, /\{availableRoles\.map\([\s\S]*?role="menuitem"/,
   '[source contract] the dropdown contains the other two selectable roles without a selected duplicate')
-assert.match(roleSelectorSource, /availableRoles\.length - 1[\s\S]*?menuItemRefs\.current\[firstOrLastIndex\]/,
+assert.match(sharedSelectorSource, /focusOption\(event\.key === 'ArrowUp' \? availableRoles\.length - 1 : 0\)/,
   '[source contract] trigger ArrowUp enters at the last visible option and ArrowDown at the first')
-assert.match(roleSelectorSource, /\(activeIndex \+ 1\) % availableRoles\.length[\s\S]*?\(activeIndex - 1 \+ availableRoles\.length\) % availableRoles\.length[\s\S]*?event\.key === 'Home' \? 0 : event\.key === 'End' \? availableRoles\.length - 1/,
+assert.match(sharedSelectorSource, /\(activeIndex \+ 1\) % availableRoles\.length[\s\S]*?\(activeIndex - 1 \+ availableRoles\.length\) % availableRoles\.length[\s\S]*?event\.key === 'Home' \? 0 : event\.key === 'End' \? availableRoles\.length - 1/,
   '[source contract] Arrow, Home, and End navigation use the filtered visible option list')
-assert.doesNotMatch(roleSelectorSource, /ROLES\.length/, 'filtered menu keyboard indexes do not use the original three-role length')
+assert.doesNotMatch(sharedSelectorSource, /COMPARISON_ROLES\.length/, 'filtered keyboard indexes do not use the unfiltered role count')
 assert.match(pageSource, /const tooltipLabel = label === 'Send' \? 'Send to Master Data' : label/,
   '[source contract] only Send receives the final tooltip wording')
 assert.match(pageSource, /function CompactActionControl[\s\S]*?<Tooltip label=\{tooltipLabel\}>[\s\S]*?aria-label=\{tooltipLabel\}/,
@@ -394,12 +405,18 @@ assert.match(pageSource, /const financialFor = \(role: MasterDataRole\)[\s\S]*?e
   '[source contract] graph story calculates each effective role dataset independently')
 assert.match(pageSource, /calculateParameterSimulation\(state\.baselineSnapshot, simulationSnapshot\)[\s\S]*?baselineSnapshot=\{state\.baselineSnapshot\}/,
   '[source contract] BOM and RTG parameter rows/effects use the active role baseline')
-assert.match(roleSelectorSource, /const availableRoles = ROLES\.filter\(option => option\.role !== role\)[\s\S]*?availableRoles\.map\(\(\{ role: optionRole, label: optionLabel \}[\s\S]*?onChange\(optionRole\)/,
-  '[source contract] each selector offers both alternate roles while omitting only its own current role')
+assert.match(pageSource, /data-simulation-table-body="true"[^>]*xl:h-40[^>]*xl:overflow-y-auto/,
+  '[source contract] desktop BOM/Routing bodies have a four-row-height internal scroll viewport')
+assert.match(pageSource, /\{visibleRows\.map\(\(\{ row, sourceIndex \}\)/,
+  '[source contract] all simulation rows continue rendering inside the scroll viewport')
+assert.doesNotMatch(pageSource, /visibleRows\.slice\(0,\s*4\)|rows\.slice\(0,\s*4\)/,
+  '[source contract] four-row viewport does not delete rows from rendering')
+assert.doesNotMatch(pageSource, /rows\.filter\(row => row\.kind === kind\s*&&\s*row\.status/,
+  '[source contract] the viewport does not filter rows to CHANGED-only')
 assert.match(appSource, /const snapshots = prepareSimulationSendAll\(current, masterDataSnapshots\)[\s\S]*?return sendSimulationSnapshotsToMasterData\(snapshots\)/,
   '[source contract] Send all datasets uses the existing atomic store operation')
 assert.match(appSource, /const next = resetAllSimulationParameters\(current, masterDataSnapshots\)/,
-  '[source contract] Reset all datasets uses the existing role-local reset primitive')
+  '[source contract] Reset all uses the existing role-local reset primitive')
 assert.match(appSource, /const role = current\.activeDataset[\s\S]*?resetSimulationParameters\(current, sources\)/,
   '[source contract] Reset main action remains scoped to activeDataset')
 assert.match(appSource, /const activeDataset = current\.activeDataset[\s\S]*?prepareSimulationSend\(current, masterDataSnapshots\)[\s\S]*?sendSimulationSnapshotToMasterData\(activeDataset, payload\.snapshot\)/,

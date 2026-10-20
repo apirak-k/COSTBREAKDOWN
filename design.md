@@ -132,7 +132,7 @@ human visual review.
 ### Simulation storytelling graph
 
 The left-side stacked bar and separate Selling Price line are confirmed visual
-direction. The finalized five-step story is REF → GAP 1 → CUR → GAP 2 → SIM.
+direction. The finalized five-step story is Reference → GAP 1 → Current → GAP 2 → Custom.
 Reuse the shared Cost Breakdown colors: MAT `#6F99C6`, LB `#E5B46A`, and BD `#9A82C6`.
 Gap bars show signed engineering cost
 components; SG&A and OP remain separate on snapshot bars. Total labels above
@@ -145,22 +145,29 @@ monthly trend.
 
 ### Simulation story order
 
-Use the finalized flow: REF → GAP 1 → CUR → GAP 2 → SIM. Simulation is a single
-working snapshot cloned from Reference, Current, or Custom and always compared
-against Current. Keep supporting detail available on demand, show Selling
-Price, SG&A, and OP when inputs permit, and preserve negative OP as a loss.
-Avoid repeating finding details already available inside Cost Breakdown. Do
-not add invented financial values or historical periods.
+Use the finalized graph story Reference → GAP 1 → Current → GAP 2 → Custom.
+Simulation keeps role-local parameter overrides over the three latest Master
+Working datasets and uses each role's own rates. Active role selection is
+independent from the Result pair, whose fresh default is Current → Custom.
+Keep supporting detail available on demand, show Selling Price, SG&A, and OP
+when inputs permit, and preserve negative OP as a loss. Avoid repeating finding
+details already available inside Cost Breakdown. Do not add invented financial
+values or historical periods.
 
 Simulation is a fixed desktop workspace with Graph, Result, and Economic above
-equal-width BOM and RTG panels; only the BOM and RTG table bodies scroll
-vertically. Narrow layouts stack and use natural page scrolling. The `#`
-column's row number is the local selection control, and selected rows appear
-first through view ordering only; calculation always uses the full SIM
-snapshot. Each Clone establishes the Reset baseline for both editable SIM
-parameters and Economic inputs. Result Change and percent use red for cost
-increases, green for decreases, neutral for zero, and gray when unavailable.
-The Economic panel keeps formula tooltips and has no visible Calculation Notes.
+equal-width BOM and RTG panels. Their desktop table bodies show about four
+normal rows and scroll additional rows internally; all rows remain present.
+The upper workspace uses the freed height. Narrow layouts keep natural card
+flow and page scrolling. The `#` column's row number is the local selection
+control, and selected rows appear first through view ordering only; calculation
+always uses the full effective role snapshot. Main Reset restores the active
+role's parameters and Master-backed Selling Price/SG&A, clears Fixed/Variable/
+Batch inputs, and remains one role-local Undo action. Result uses a shared
+96×32 Before/After selector and one compact `Cost / Unit | Before | After |
+Change | %` header row. The graph uses one expanded X coordinate system with
+no duplicate translate. Result Change and percent use red for cost increases,
+green for decreases, neutral for zero, and gray when unavailable. The Economic
+panel keeps formula tooltips and has no visible Calculation Notes.
 
 ## 2. Color Palette & Semantic Tokens
 
@@ -338,8 +345,9 @@ scroll area, as required by
 
 ### Simulation and Cost Breakdown findings presentation
 
-- **Simulation result overview:** keep the live graph, Current → SIM Result,
-  Economic outputs, and direct parameter editing in Simulation. Do not add a
+- **Simulation result overview:** keep the live graph, the independent
+  Current → Custom default Result comparison, Economic outputs, and direct
+  parameter editing in Simulation. Do not add a
   separate Dashboard workflow or repeat findings already available inside
   Cost Breakdown. Preserve the confirmed chart direction, show finalized
   metrics when inputs permit, and omit metrics classified as OUT OF SCOPE.

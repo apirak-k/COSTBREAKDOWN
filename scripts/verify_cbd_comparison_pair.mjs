@@ -182,6 +182,7 @@ try {
   const appSource = readFileSync('src/App.tsx', 'utf8')
   const candidateSource = readFileSync('src/features/cost-breakdown/components/CandidateFindingsTable.tsx', 'utf8')
   const popoverSource = readFileSync('src/features/cost-breakdown/components/CostBreakdownPopover.tsx', 'utf8')
+  const sharedSelectorSource = readFileSync('src/shared/ui/ComparisonRoleSelector.tsx', 'utf8')
   assert.match(storeSource, /useState<MasterDataRole>\(DEFAULT_CBD_COMPARISON_BEFORE\)/)
   assert.match(storeSource, /useState<MasterDataRole>\(DEFAULT_CBD_COMPARISON_AFTER\)/)
   assert.match(storeSource, /getMasterDataSnapshot\(activeSession, snapshotPair, 'custom'\)/, 'Custom source is latest Master Data Working')
@@ -190,53 +191,43 @@ try {
   assert.match(appSource, /previous\.comparisonFingerprint !== comparisonPair\.fingerprint[\s\S]*resetCandidateReorderHistory/)
   assert.match(pageSource, /key=\{comparisonPair\.fingerprint\}/, 'pair changes remount the candidate details state')
   assert.match(pageSource, /min-w-\[96px\] flex-1/, 'the Gap Bar remains flexible and usable beside selectors')
-  assert.match(pageSource, /COMPARISON_ROLES\.filter\(role => role !== selectedRole\)\.map/,
+  assert.match(pageSource, /from '\.\.\/\.\.\/shared\/ui\/ComparisonRoleSelector'/,
+    'CBD imports the shared Before/After selector')
+  assert.match(sharedSelectorSource, /COMPARISON_ROLES\.filter\(option => option !== role\)/,
     'each selector menu shows the two alternatives to its own role')
-  const rolePopoverSource = pageSource.match(/const ComparisonRolePopover:[\s\S]*?function isAvailableGap/)?.[0]
-  assert.ok(rolePopoverSource, 'Before and After share one role selector component')
-  assert.match(pageSource, /reference: 'Reference',[\s\S]*current: 'Current',[\s\S]*custom: 'Custom'/,
-    'role selector content uses the full Reference, Current, and Custom names')
-  assert.match(pageSource, /side: 'Before' \| 'After'/, 'the shared role selector has only the Before and After semantic sides')
-  assert.match(rolePopoverSource, /label=\{side\}/, 'role selector tooltip and accessible label use the exact semantic side name')
-  assert.match(rolePopoverSource, /trigger=\{<span>\{COMPARISON_ROLE_LABELS\[selectedRole\]\}<\/span>\}/,
-    'the currently selected dataset name is visible inside each trigger')
+  assert.match(sharedSelectorSource, /reference: 'Reference',[\s\S]*current: 'Current',[\s\S]*custom: 'Custom'/,
+    'shared role selector content uses the full Reference, Current, and Custom names')
+  assert.match(sharedSelectorSource, /aria-label=\{`\$\{side\} dataset, \$\{COMPARISON_ROLE_LABELS\[role\]\}`\}/,
+    'the selector accessible name includes its semantic side and selected role')
+  assert.match(sharedSelectorSource, /<Tooltip label=\{side\}>/,
+    'the visible tooltip remains the exact Before or After side name')
   assert.match(popoverSource, /<Tooltip label=\{label\}>[\s\S]*aria-label=\{label\}/,
     'the shared popover forwards its exact label to both Tooltip and trigger accessible name')
-  assert.match(rolePopoverSource, /triggerClassName="inline-flex h-8 w-\[96px\]/,
+  assert.match(sharedSelectorSource, /h-8 w-\[96px\]/,
     'both role triggers share a compact, stable 96px by 32px layout')
-  const roleTriggerClass = rolePopoverSource.match(/triggerClassName="([^"]+)"/)?.[1] ?? ''
+  const roleTriggerClass = sharedSelectorSource.match(/className="([^"]*w-\[96px\][^"]*)"/)?.[1] ?? ''
   for (const className of ['rounded-sm', 'border', 'border-slate-300', 'bg-white', 'px-2', 'hover:bg-slate-100', 'focus-visible:outline']) {
     assert.ok(roleTriggerClass.split(/\s+/).includes(className), 'role triggers include the required boxed selector styles')
   }
   assert.doesNotMatch(roleTriggerClass, /\bbg-transparent\b/, 'role triggers retain their white boxed surface')
-  assert.doesNotMatch(rolePopoverSource, /aria-pressed|selectedRole === role|disabled=/,
+  assert.doesNotMatch(sharedSelectorSource, /aria-pressed|optionRole === role|disabled=/,
     'role menus do not mark or disable any option')
-  assert.match(rolePopoverSource, /onSelect\(role\); close\(\)/,
+  assert.match(sharedSelectorSource, /onChange\(optionRole\); close\(true\)/,
     'choosing any alternative applies it and closes the menu')
-  assert.match(rolePopoverSource, /panelClassName="w-max"/,
+  assert.match(sharedSelectorSource, /w-max max-w-\[calc\(100vw-1rem\)\]/,
     'role menu grows to fit intrinsic option content')
-  assert.match(rolePopoverSource, /panelMinWidthMatchesTrigger/,
-    'only Before and After opt into a trigger-width menu minimum')
-  assert.doesNotMatch(rolePopoverSource, /panelClassName="[^"]*\b(?:w|min-w)-\d+\b/,
-    'role menu has no arbitrary fixed width or hard-coded minimum width')
+  assert.match(sharedSelectorSource, /panel\.style\.minWidth = `\$\{triggerBounds\.width\}px`/,
+    'popup minimum equals the actual trigger width and may grow for intrinsic content')
   assert.match(popoverSource, /showChevron = true[\s\S]*\{showChevron && <ChevronDown aria-hidden="true"/,
     'role triggers keep a visible ChevronDown beside their selected dataset label')
-  assert.match(popoverSource, /panelMinWidthMatchesTrigger\?: boolean/)
-  assert.match(popoverSource, /panelMinWidthMatchesTrigger = false/,
-    'the shared CBD popover keeps intrinsic sizing by default')
-  const triggerMinimum = popoverSource.match(/panelElement\.style\.minWidth = panelMinWidthMatchesTrigger \? [^\n]+/)
-  assert.ok(triggerMinimum && /triggerBounds\.width/.test(triggerMinimum[0]) && /: ''/.test(triggerMinimum[0]),
-    'the opt-in menu minimum equals the actual trigger width and resets when not opted in')
-  assert.ok(popoverSource.indexOf(triggerMinimum[0]) < popoverSource.indexOf('const panelBounds = panelElement.getBoundingClientRect()'),
-    'CBD measures the menu after applying its optional trigger-width minimum')
   assert.match(popoverSource, /const panelWidth = panelBounds\.width/,
-    'CBD popovers position by the measured menu width after the optional minimum is applied')
+    'generic CBD popovers position by their measured content width')
   assert.doesNotMatch(popoverSource, /panelBounds\.width\s*\|\|\s*triggerBounds\.width|Math\.max\([^\n]*triggerBounds\.width/,
     'CBD popovers do not force trigger width through a panel-width fallback')
-  assert.equal((popoverSource.match(/triggerBounds\.width/g) ?? []).length, 2,
-    'trigger width is used only for optional minimum sizing and centering')
-  assert.equal((pageSource.match(/\bpanelMinWidthMatchesTrigger\b/g) ?? []).length, 1,
-    'Before/After are the only CBD controls opting into a trigger-width menu minimum')
+  assert.equal((popoverSource.match(/triggerBounds\.width/g) ?? []).length, 1,
+    'generic CBD popovers use trigger width only for centering')
+  assert.doesNotMatch(popoverSource, /panelMinWidthMatchesTrigger|panelElement\.style\.minWidth/,
+    'Status/Sort retain content-sized behavior without the selector minimum')
   assert.match(popoverSource, /const centeredLeft = triggerBounds\.left \+ \(triggerBounds\.width - panelWidth\) \/ 2[\s\S]*const left = Math\.max\(8, Math\.min\(centeredLeft, window\.innerWidth - panelWidth - 8\)\)/,
     'role menu stays centered and clamped to the viewport')
   assert.match(popoverSource, /const below = triggerBounds\.bottom \+ 4[\s\S]*const above = triggerBounds\.top - panelHeight - 4[\s\S]*const top = below \+ panelHeight <= window\.innerHeight - 8[\s\S]*Math\.min\(below, window\.innerHeight - panelHeight - 8\)[\s\S]*: above/,
@@ -246,7 +237,7 @@ try {
   assert.match(candidateSource, /side: 'Before'/)
   assert.match(popoverSource, /setTimeout\(preview, 120\)/)
   assert.match(popoverSource, /\}, 150\)/)
-  assert.match(popoverSource, /activeCBDPopoverDismiss\?\.dismiss\(\)/, 'CBD popovers are mutually exclusive')
+  assert.match(popoverSource, /openExclusivePopover\(owner\.current, dismissWithoutFocus\)/, 'CBD popovers are mutually exclusive')
 
   const appModule = await vite.ssrLoadModule('/src/features/cost-breakdown/CostBreakdownPage.tsx')
   const uiPair = createCostBreakdownComparisonPair(masterDataSnapshots, 'current', 'custom')
@@ -275,10 +266,10 @@ try {
   assert.match(ui, /Gap = Custom − Current/)
   assert.doesNotMatch(ui, /Gap = CUR − REF|>REF<|>CUR<|Current minus Reference|Reference → Current/)
   const roleTriggers = [...ui.matchAll(/<button\b([^>]*)>([\s\S]*?)<\/button>/g)]
-    .filter(([, attributes]) => /\baria-label="(?:Before|After)"/.test(attributes))
+    .filter(([, attributes]) => /\baria-label="(?:Before|After) dataset, /.test(attributes))
   assert.equal(roleTriggers.length, 2, 'the rendered page exposes one semantic button for each role selector')
   for (const [side, visibleRole] of [['Before', 'Current'], ['After', 'Custom']]) {
-    const matches = roleTriggers.filter(([, attributes]) => attributes.match(/\baria-label="([^"]+)"/)?.[1] === side)
+    const matches = roleTriggers.filter(([, attributes]) => attributes.match(/\baria-label="([^"]+)"/)?.[1].startsWith(`${side} dataset, `))
     assert.equal(matches.length, 1, `${side} has exactly one button with that accessible name`)
     const [, attributes, content] = matches[0]
     assert.match(attributes, /h-8 w-\[96px\]/, `${side} uses the shared compact, stable trigger size`)
@@ -287,7 +278,7 @@ try {
     assert.equal(visibleText(content), visibleRole, `${side} visibly shows its selected dataset role`)
     assert.match(content, /lucide lucide-chevron-down/, `${side} visibly includes ChevronDown`)
   }
-  assert.doesNotMatch(ui, /w-\[108px\]/, 'the superseded 108px role trigger width is absent')
+  assert.doesNotMatch(ui, /w-\[(?:108|112)px\]/, 'superseded role trigger widths are absent')
 
   console.log('Cost Breakdown generic Before/After comparison verifier: PASS (9 ordered pairs, direction, statuses, rates, self-comparisons, selected scope, selectors, labels, and pair-bound context)')
 } finally {

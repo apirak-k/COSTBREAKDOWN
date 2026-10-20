@@ -12,7 +12,8 @@ import {
   retainSimulationStatesForProducts,
   setSimulationActiveDataset,
   setSimulationComparison,
-  setSimulationEconomicInput
+  setSimulationEconomicInput,
+  toggleSimulationWorkingTarget
 } from '../src/features/simulation/simulation-state.ts'
 import { calculateParameterSimulation, updateSimulationParameter } from '../src/features/simulation/simulation-engine.ts'
 import { calculateEconomicSimulation } from '../src/features/simulation/simulation-economics.ts'
@@ -87,6 +88,8 @@ function withOverrides(sourceData = sources) {
 }
 
 let state = withOverrides()
+assert.deepEqual([state.activeDataset, state.comparisonBefore, state.comparisonAfter], ['custom', 'current', 'custom'],
+  'fresh Simulation uses the canonical Custom / Current → Custom context')
 for (const role of roles) {
   const effective = getEffectiveSimulationDataset(sources, state, role)
   assert.equal(effective.snapshot.bom[0].price, overridePrice[role], `${role} keeps its own parameter override`)
@@ -196,11 +199,57 @@ assert.equal(getEffectiveSimulationDataset(sources, resetWithCustomAfter, 'curre
 assert.equal(getEffectiveSimulationDataset(sources, resetWithCustomAfter, 'custom').snapshot.bom[0].price, overridePrice.custom,
   'After Custom does not change Reset scope')
 
-const resetAll = resetAllSimulationParameters(activeCurrentWithOverrides, sources)
+const resetAllInput = setSimulationComparison(setSimulationActiveDataset(activeCurrentWithOverrides, 'reference'), 'custom', 'reference')
+const resetAll = resetAllSimulationParameters(resetAllInput, sources)
 for (const role of roles) {
   assert.deepEqual(getEffectiveSimulationDataset(sources, resetAll, role).snapshot, sources[role],
     `Reset All clears ${role} overrides to its latest Master Working dataset`)
+  assert.deepEqual(getEffectiveSimulationDataset(sources, resetAll, role).economicInputs,
+    getEffectiveSimulationDataset(sources, createEmptySimulationState(sources), role).economicInputs,
+    `Reset All resets ${role} economics to its own Master-backed defaults`)
 }
+assert.deepEqual([resetAll.activeDataset, resetAll.comparisonBefore, resetAll.comparisonAfter], ['custom', 'current', 'custom'],
+  'Reset All restores the canonical active and comparison context')
+
+const resetExampleSources = {
+  ...sources,
+  custom: {
+    ...sources.custom,
+    product: { ...sources.custom.product, sellingPrice: 120, sgaPercent: 8 },
+    bom: [{ ...sources.custom.bom[0], price: 50, consumption: 2, loss: 0.03 }]
+  }
+}
+let resetExample = createEmptySimulationState(resetExampleSources)
+resetExample = setSimulationActiveDataset(resetExample, 'custom')
+resetExample = setSimulationComparison(resetExample, 'reference', 'current')
+resetExample = updateSimulationParameter(resetExample, resetExampleSources, 'bom-custom', 'bom.price', 45, 'custom')
+resetExample = updateSimulationParameter(resetExample, resetExampleSources, 'bom-custom', 'bom.consumption', 1.8, 'custom')
+resetExample = updateSimulationParameter(resetExample, resetExampleSources, 'bom-custom', 'bom.loss', 0.02, 'custom')
+resetExample = setSimulationEconomicInput(resetExample, 'fixedActionCost', '10000', 'custom')
+resetExample = setSimulationEconomicInput(resetExample, 'variableActionCostPerPiece', '2.50', 'custom')
+resetExample = setSimulationEconomicInput(resetExample, 'batchSize', '500', 'custom')
+resetExample = setSimulationEconomicInput(resetExample, 'sellingPriceOverride', '135', 'custom')
+resetExample = setSimulationEconomicInput(resetExample, 'sgaPercentOverride', '10', 'custom')
+resetExample = toggleSimulationWorkingTarget(resetExample, resetExampleSources, 'bom', 'bom-custom', 'custom')
+const untouchedReference = getEffectiveSimulationDataset(resetExampleSources, resetExample, 'reference')
+const untouchedCurrent = getEffectiveSimulationDataset(resetExampleSources, resetExample, 'current')
+const masterCustomBeforeReset = JSON.stringify(resetExampleSources.custom)
+const resetExampleAfter = resetSimulationParameters(resetExample, resetExampleSources)
+const customAfterReset = getEffectiveSimulationDataset(resetExampleSources, resetExampleAfter, 'custom')
+assert.deepEqual([customAfterReset.snapshot.bom[0].price, customAfterReset.snapshot.bom[0].consumption, customAfterReset.snapshot.bom[0].loss], [50, 2, 0.03],
+  'Main Reset restores Custom BOM Price, Usage, and Loss from Master Working')
+assert.deepEqual(customAfterReset.economicInputs, getEffectiveSimulationDataset(resetExampleSources, createEmptySimulationState(resetExampleSources), 'custom').economicInputs,
+  'Main Reset clears Fixed/Variable/Batch and restores Master Selling Price/SG&A')
+assert.deepEqual([customAfterReset.economicInputs.fixedActionCost, customAfterReset.economicInputs.variableActionCostPerPiece, customAfterReset.economicInputs.batchSize], ['', '', ''])
+assert.deepEqual([resetExampleAfter.activeDataset, resetExampleAfter.comparisonBefore, resetExampleAfter.comparisonAfter], ['custom', 'reference', 'current'],
+  'Main Reset keeps active role and comparison pair unchanged')
+assert.deepEqual(getEffectiveSimulationDataset(resetExampleSources, resetExampleAfter, 'reference'), untouchedReference,
+  'Main Reset leaves Reference unchanged')
+assert.deepEqual(getEffectiveSimulationDataset(resetExampleSources, resetExampleAfter, 'current'), untouchedCurrent,
+  'Main Reset leaves Current unchanged')
+assert.deepEqual(customAfterReset.workingSelection, ['bom:bom-custom'],
+  'Main Reset preserves workingSelection')
+assert.equal(JSON.stringify(resetExampleSources.custom), masterCustomBeforeReset, 'Main Reset does not mutate Master Working')
 
 for (const activeRole of roles) {
   const roleState = setSimulationActiveDataset(state, activeRole)

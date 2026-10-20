@@ -10,6 +10,7 @@ import { CostBreakdownPopover, dismissCostBreakdownPopovers } from './components
 import { ComparisonStatusOptions } from './components/ComparisonStatusOptions'
 import { COST_ELEMENT_COLORS } from './components/cost-element-colors'
 import { Tooltip } from '../../shared/ui/Tooltip'
+import { COMPARISON_ROLE_LABELS, ComparisonRoleSelector } from '../../shared/ui/ComparisonRoleSelector'
 import {
   ALL_COMPARISON_STATUSES,
   COMPARISON_SORT_OPTIONS,
@@ -19,7 +20,6 @@ import {
 } from './components/comparison-view'
 import type { ComparisonSortMode, ComparisonViewMode } from './components/comparison-view'
 import { formatVariance, getVarianceClass } from '../../core'
-import type { MasterDataRole } from '../../core'
 import type { CandidateManualOrders, CandidateTableType } from './candidate-reorder-history'
 
 interface CostBreakdownPageProps {
@@ -36,38 +36,7 @@ interface GapSegment {
   color: string
 }
 
-const COMPARISON_ROLES: readonly MasterDataRole[] = ['reference', 'current', 'custom']
-const COMPARISON_ROLE_LABELS: Record<MasterDataRole, string> = {
-  reference: 'Reference',
-  current: 'Current',
-  custom: 'Custom'
-}
 const iconActionButtonClass = 'grid h-8 w-8 shrink-0 place-items-center rounded-sm bg-transparent text-slate-700 transition-colors hover:bg-slate-100 hover:text-slate-950 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700'
-
-interface ComparisonRolePopoverProps {
-  side: 'Before' | 'After'
-  selectedRole: MasterDataRole
-  onSelect: (role: MasterDataRole) => void
-}
-
-const ComparisonRolePopover: React.FC<ComparisonRolePopoverProps> = ({ side, selectedRole, onSelect }) => (
-  <CostBreakdownPopover
-    label={side}
-    trigger={<span>{COMPARISON_ROLE_LABELS[selectedRole]}</span>}
-    panelClassName="w-max"
-    panelMinWidthMatchesTrigger
-    triggerClassName="inline-flex h-8 w-[96px] shrink-0 items-center justify-between gap-1.5 rounded-sm border border-slate-300 bg-white px-2 text-xs font-medium leading-none text-slate-700 transition-colors hover:bg-slate-100 hover:text-slate-950 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700"
-  >
-    {close => <div role="group" aria-label={`${side} dataset choices`} className="flex flex-col">
-      {COMPARISON_ROLES.filter(role => role !== selectedRole).map(role => <button
-        key={role}
-        type="button"
-        onClick={() => { onSelect(role); close() }}
-        className="block min-h-8 w-full rounded-sm px-2 text-left text-xs text-slate-800 hover:bg-slate-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-700"
-      >{COMPARISON_ROLE_LABELS[role]}</button>)}
-    </div>}
-  </CostBreakdownPopover>
-)
 
 function isAvailableGap(value: number | null | undefined): value is number {
   return value !== null && value !== undefined && Number.isFinite(value)
@@ -281,9 +250,9 @@ export const CostBreakdownPage: React.FC<CostBreakdownPageProps> = ({ manualOrde
       <header aria-label="Cost Breakdown subheader" className="shrink-0 overflow-x-auto border border-slate-300 bg-white">
         <div className="flex min-w-[1000px] flex-nowrap items-center gap-1.5 px-1.5 py-1" role="group" aria-label="Cost Breakdown controls">
           <div role="group" aria-label={`Comparison datasets, Before ${COMPARISON_ROLE_LABELS[comparisonBefore]}, After ${COMPARISON_ROLE_LABELS[comparisonAfter]}`} className="inline-flex shrink-0 items-center gap-1.5">
-            <ComparisonRolePopover side="Before" selectedRole={comparisonBefore} onSelect={setComparisonBefore} />
+            <ComparisonRoleSelector side="Before" role={comparisonBefore} onChange={setComparisonBefore} />
             <span aria-hidden="true" className="w-4 text-center text-sm font-semibold text-slate-500">→</span>
-            <ComparisonRolePopover side="After" selectedRole={comparisonAfter} onSelect={setComparisonAfter} />
+            <ComparisonRoleSelector side="After" role={comparisonAfter} onChange={setComparisonAfter} />
           </div>
 
           <div

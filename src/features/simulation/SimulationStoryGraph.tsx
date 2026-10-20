@@ -64,15 +64,14 @@ const DEFAULT_LEGEND_VISIBILITY: Record<LegendKey, boolean> = {
 
 const useIsomorphicLayoutEffect = typeof window === 'undefined' ? useEffect : useLayoutEffect
 
-const GRAPH_X_SHIFT = -24
 const GRAPH_X = {
-  plotLeft: 120 + GRAPH_X_SHIFT,
-  plotRight: 752 + GRAPH_X_SHIFT,
-  reference: 180 + GRAPH_X_SHIFT,
-  gap1: 305 + GRAPH_X_SHIFT,
-  current: 430 + GRAPH_X_SHIFT,
-  gap2: 555 + GRAPH_X_SHIFT,
-  custom: 680 + GRAPH_X_SHIFT
+  plotLeft: 88,
+  plotRight: 780,
+  reference: 155,
+  gap1: 294,
+  current: 433,
+  gap2: 572,
+  custom: 710
 } as const
 
 const STATE_LAYOUT = [
@@ -571,7 +570,6 @@ export function SimulationStoryGraph({ story, unit, activeRole, onSelectActiveDa
         >
           <desc id="simulation-story-svg-description">Reference, Current, and Custom show visible Material, Labor, Burden, SG&amp;A, and sign-matched Profit. Standard Cost is visible Material plus Labor plus Burden. Visible Net is the signed total of visible state-stack segments and excludes Selling Price. GAP 1 is Current minus Reference; GAP 2 is Custom minus Current. Select a dataset label to choose the active parameter workspace. Legend filters change this graph view only, not Result or source data. Selling Price is separate, and the ruler is a comparison guide.</desc>
 
-          <g transform="translate(-16 0)">
           {axisTicks.map((value, index) => {
             const lineY = y(value)
             const isZero = Math.abs(value) < axisStep * 0.0001
@@ -788,7 +786,7 @@ export function SimulationStoryGraph({ story, unit, activeRole, onSelectActiveDa
           {visibleLegend.ruler && (
             <>
               <line data-ruler-line="true" x1={plot.left} x2={plot.right} y1={rulerY} y2={rulerY} stroke={RULER_COLOR} strokeWidth="1.4" strokeDasharray="4 5" pointerEvents="none" />
-              <text data-ruler-value="true" x={plot.right + 7} y={clamp(rulerY - 3, plot.top + 10, plot.bottom - 1)} textAnchor="start" fill={RULER_COLOR} fontSize="9px" fontWeight="600" fontFamily="ui-monospace, monospace" pointerEvents="none">{formatValue(rulerLevel)}</text>
+              <text data-ruler-value="true" x={plot.right - 7} y={clamp(rulerY - 3, plot.top + 10, plot.bottom - 1)} textAnchor="end" fill={RULER_COLOR} fontSize="9px" fontWeight="600" fontFamily="ui-monospace, monospace" pointerEvents="none">{formatValue(rulerLevel)}</text>
               <g
                 role="slider"
                 tabIndex={0}
@@ -848,7 +846,6 @@ export function SimulationStoryGraph({ story, unit, activeRole, onSelectActiveDa
               )}
             </g>
           ))}
-          </g>
         </svg>
         {activeTooltip && (
           <div

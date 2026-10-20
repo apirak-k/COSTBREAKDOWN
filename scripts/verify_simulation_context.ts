@@ -29,6 +29,8 @@ const sources = {
 const state = updateSimulationParameter(
   createEmptySimulationState(sources), sources, sources.custom.bom[0].id, 'bom.price', 75, 'custom'
 )
+assert.deepEqual([state.activeDataset, state.comparisonBefore, state.comparisonAfter], ['custom', 'current', 'custom'],
+  'fresh Simulation initializes to Custom and Current → Custom')
 assert.equal(state.schemaVersion, 2)
 assert.equal(getEffectiveSimulationDataset(sources, state, 'custom').snapshot.bom[0].price, 75)
 assert.deepEqual(getEffectiveSimulationDataset(sources, state, 'custom').snapshot.rates, sources.custom.rates,
@@ -36,6 +38,8 @@ assert.deepEqual(getEffectiveSimulationDataset(sources, state, 'custom').snapsho
 
 const changedCurrentSources = { ...sources, current: { ...sources.current, sourceRef: 'changed-current' } }
 const reconciled = reconcileSimulationState(state, changedCurrentSources)
+assert.deepEqual([reconciled.activeDataset, reconciled.comparisonBefore, reconciled.comparisonAfter], ['custom', 'current', 'custom'],
+  'basis reconciliation preserves a valid saved comparison context')
 assert.equal(getEffectiveSimulationDataset(changedCurrentSources, reconciled, 'current').snapshot.bom[0].price, 20,
   'a changed Current Master basis resets only Current overrides')
 assert.equal(getEffectiveSimulationDataset(changedCurrentSources, reconciled, 'custom').snapshot.bom[0].price, 75,
@@ -47,6 +51,9 @@ const products = { p1: reconciled, p2: createEmptySimulationState(changedCurrent
 const retained = retainSimulationStatesForProducts(products, new Set(['p1']))
 assert.deepEqual(Object.keys(retained), ['p1'], 'deleted products do not retain Simulation state')
 assert.strictEqual(retained.p1, reconciled, 'a retained product keeps its independent role-keyed state')
+const invalidContext = reconcileSimulationState({ ...state, activeDataset: 'simulation', comparisonBefore: 'bad', comparisonAfter: null } as never, sources)
+assert.deepEqual([invalidContext.activeDataset, invalidContext.comparisonBefore, invalidContext.comparisonAfter], ['custom', 'current', 'custom'],
+  'invalid/fresh reconciliation fallbacks use the canonical default context')
 
 const app = readFileSync(resolve(process.cwd(), 'src/App.tsx'), 'utf8')
 const simulationPage = readFileSync(resolve(process.cwd(), 'src/features/simulation/SimulationPage.tsx'), 'utf8')
@@ -66,6 +73,8 @@ assert.match(simulationPage, /onBatchSizeChange=\{value => onUpdateEconomicInput
   'Break-even graph Batch Size edits target comparisonAfter')
 assert.match(simulationPage, /calculateParameterSimulation\(analysisBeforeDataset\.snapshot, analysisAfterDataset\.snapshot\)/,
   'Result and Economic calculations use the effective comparison pair')
+assert.match(simulationPage, /<ComparisonRoleSelector side="Before"[\s\S]*?<ComparisonRoleSelector side="After"/,
+  'Result uses the shared Before and After selectors')
 assert.match(simulationPage, /beforeRole=\{analysisBeforeDataset\.role\}[\s\S]*?afterRole=\{analysisAfterDataset\.role\}[\s\S]*?beforeCost=\{analysisResult\.beforeCost\}[\s\S]*?afterCost=\{analysisResult\.afterCost\}/,
   'the Result panel displays the selected role names and effective Before/After costs')
 assert.match(simulationPage, /onBeginEdit=\{\(\) => onBeginEdit\(state\.role\)\}/,
@@ -88,8 +97,8 @@ assert.match(simulationPage, /label="Reset"[\s\S]*?onPrimary=\{onReset\}/,
   'Simulation exposes the Reset primary action for the active role')
 assert.match(simulationPage, /secondaryLabel="Send all datasets"[\s\S]*?onSecondary=\{onSendAll\}/,
   'the Send secondary action is wired to the all-role handler')
-assert.match(simulationPage, /secondaryLabel="Reset all datasets"[\s\S]*?onSecondary=\{onResetAll\}/,
-  'the Reset secondary action is wired to the all-role handler')
+assert.match(simulationPage, /secondaryLabel="Reset all"[\s\S]*?onSecondary=\{onResetAll\}/,
+  'the Reset secondary action uses the exact Reset all label and all-role handler')
 assert.doesNotMatch(simulationPage, /label="Send to"|onSendTo\(/,
   'Simulation does not offer an arbitrary Send destination')
 assert.doesNotMatch(app, /rca-simulation|selectedCandidateKey|trialHandoffLetter|selectedScenarioLetter/,

@@ -7,6 +7,7 @@ const cbdPopover = read('../src/features/cost-breakdown/components/CostBreakdown
 const masterHeader = read('../src/features/master-data/components/MasterDataWorkspaceHeader.tsx')
 const prepareDataset = read('../src/features/master-data/components/MasterDataPrepareDatasetPopover.tsx')
 const simulationPage = read('../src/features/simulation/SimulationPage.tsx')
+const sharedRoleSelector = read('../src/shared/ui/ComparisonRoleSelector.tsx')
 const tooltip = read('../src/shared/ui/Tooltip.tsx')
 const confirmModal = read('../src/shared/ui/ConfirmModal.tsx')
 
@@ -25,30 +26,38 @@ function assertIntrinsicPanel(className, label) {
     `${label} has no numeric, arbitrary, or trigger-width minimum floor`)
 }
 
-const cbdRolePopover = snippet(cbdPage, /const ComparisonRolePopover:[\s\S]*?function isAvailableGap/, 'CBD role popover component exists')
-const cbdRolePanelClass = cbdRolePopover.match(/panelClassName="([^"]+)"/)?.[1]
-assert.ok(cbdRolePanelClass, 'CBD role menu declares its compact width strategy')
-assert.match(cbdRolePanelClass, /w-max/, 'CBD role menu uses intrinsic width')
-assert.doesNotMatch(cbdRolePanelClass, /(?:^|\s)(?:w|min-w)-\d+(?:\s|$)/,
-  'CBD role menu has no arbitrary blank width')
-assert.match(cbdRolePopover, /panelMinWidthMatchesTrigger/,
-  'the Before/After selector opts into the local trigger-width exception')
-assert.match(cbdPopover, /panelMinWidthMatchesTrigger\?: boolean/)
-assert.match(cbdPopover, /panelMinWidthMatchesTrigger = false/,
-  'all CBD popovers default to intrinsic sizing')
-const triggerMinimum = cbdPopover.match(/panelElement\.style\.minWidth = panelMinWidthMatchesTrigger \? [^\n]+/)
-assert.ok(triggerMinimum && /triggerBounds\.width/.test(triggerMinimum[0]) && /: ''/.test(triggerMinimum[0]),
-  'only the opt-in CBD menu gets a trigger-width minimum')
-assert.ok(cbdPopover.indexOf(triggerMinimum[0]) < cbdPopover.indexOf('const panelBounds = panelElement.getBoundingClientRect()'),
-  'CBD measures the optional width floor before positioning')
-assert.match(cbdPopover, /const panelWidth = panelBounds\.width/,
-  'CBD popover positioning uses the measured width after any local minimum')
-assert.doesNotMatch(cbdPopover, /panelBounds\.width\s*\|\|\s*triggerBounds\.width|Math\.max\([^\n]*triggerBounds\.width/,
-  'CBD popovers do not force trigger width through a panel-width fallback')
-assert.equal((cbdPopover.match(/triggerBounds\.width/g) ?? []).length, 2,
-  'CBD uses trigger width only for the local minimum and centering')
-assert.equal((cbdPage.match(/\bpanelMinWidthMatchesTrigger\b/g) ?? []).length, 1,
-  'only the shared Before/After selector opts into the trigger-width exception')
+assert.match(cbdPage, /from '\.\.\/\.\.\/shared\/ui\/ComparisonRoleSelector'/,
+  'CBD imports the canonical shared comparison selector')
+assert.match(simulationPage, /from '\.\.\/\.\.\/shared\/ui\/ComparisonRoleSelector'/,
+  'Simulation imports the same canonical shared comparison selector')
+assert.doesNotMatch(cbdPage, /ComparisonRolePopover|COMPARISON_ROLES\.filter/,
+  'CBD no longer keeps a duplicate Before/After interaction implementation')
+assert.doesNotMatch(simulationPage, /function ComparisonRoleSelector\(/,
+  'Simulation no longer keeps a duplicate Before/After interaction implementation')
+const sharedTrigger = sharedRoleSelector.match(/className="([^"]*w-\[96px\][^"]*)"/)?.[1] ?? ''
+assert.match(sharedTrigger, /h-8/, 'shared selectors use a fixed 96×32 trigger for every role')
+assert.match(sharedTrigger, /whitespace-nowrap/, 'shared trigger labels remain on one line')
+assert.doesNotMatch(sharedTrigger, /truncate/, 'shared trigger labels never show ellipses')
+const sharedPanelClass = sharedRoleSelector.match(/className="([^"]*w-max[^"]*)"/)?.[1] ?? ''
+assertIntrinsicPanel(sharedPanelClass, 'Shared Before/After role menu')
+assert.match(sharedRoleSelector, /panel\.style\.minWidth = `\$\{triggerBounds\.width\}px`/,
+  'shared popup minimum equals the 96px trigger and may grow intrinsically for longer content')
+assert.match(sharedRoleSelector, /COMPARISON_ROLES\.filter\(option => option !== role\)/,
+  'each shared selector excludes only its own selected role')
+assert.match(sharedRoleSelector, /aria-label=\{`\$\{side\} dataset, \$\{COMPARISON_ROLE_LABELS\[role\]\}`\}/,
+  'shared selector names include Before/After and the selected role')
+assert.match(sharedRoleSelector, /setTimeout\(preview, 120\)[\s\S]*setTimeout\(\(\) => \{[\s\S]*\}, 150\)/,
+  'shared selector keeps the 120ms open and 150ms leave behavior')
+assert.match(sharedRoleSelector, /ArrowDown[\s\S]*availableRoles\.length[\s\S]*event\.key === 'Home'[\s\S]*event\.key === 'End'/,
+  'keyboard entry and navigation use only filtered visible roles')
+assert.match(sharedRoleSelector, /window\.innerWidth - panelBounds\.width - 8/,
+  'shared selector clamps its menu within horizontal viewport edges')
+assert.match(sharedRoleSelector, /above = triggerBounds\.top - panelBounds\.height - 4[\s\S]*: above/,
+  'shared selector flips above when there is insufficient room below')
+assert.match(cbdPopover, /openExclusivePopover\(owner\.current, dismissWithoutFocus\)/,
+  'CBD Status/Sort popovers share mutual exclusion with the extracted role selector')
+assert.doesNotMatch(cbdPopover, /panelMinWidthMatchesTrigger|panelElement\.style\.minWidth/,
+  'generic CBD Status/Sort intrinsic sizing remains unchanged')
 const cbdPanelSource = snippet(cbdPopover, /<div\s+ref=\{panelRef\}[\s\S]*?className=\{`fixed[^`]*\}/, 'CBD popup panel source exists')
 assert.match(cbdPanelSource, /max-w-\[calc\(100vw-1rem\)\]/,
   'CBD menu surface is limited to viewport width')
@@ -87,46 +96,6 @@ assert.doesNotMatch(masterBulkMenu, /(?:^|\s)(?:w|min-w)-\d+(?:\s|$)/,
   'Master Data all-dataset menu has no arbitrary fixed width')
 assert.match(masterHeader, /const toolbarButton = 'grid h-8 w-8/,
   'Master Data icon action trigger establishes the 32px trigger minimum')
-
-const simulationRoleSelector = snippet(simulationPage, /function ComparisonRoleSelector\([\s\S]*?\nfunction CompactActionControl/, 'Simulation Before/After role selectors exist')
-const simulationRoleMenuClass = simulationRoleSelector.match(/className="([^"]*w-max[^"]*)"/)?.[1]
-assert.ok(simulationRoleMenuClass, 'Simulation role selector menu declares intrinsic width')
-assert.match(simulationRoleMenuClass, /max-w-\[calc\(100vw-1rem\)\]/,
-  'Simulation role selector menu is capped to the viewport')
-assert.match(simulationRoleMenuClass, /\bw-max\b/,
-  'Simulation Before/After menus use intrinsic content width')
-assert.match(simulationRoleMenuClass, /\bp-1\b/,
-  'Simulation role menus keep the established compact panel padding')
-assert.doesNotMatch(simulationRoleMenuClass, /\bmin-w-/,
-  'Simulation Before/After menus do not inherit their trigger width as a minimum')
-assert.match(simulationRoleSelector, /block min-h-8 w-full px-2 text-left/,
-  'Simulation role options keep only their normal horizontal content padding')
-assert.doesNotMatch(simulationRoleMenuClass, /(?:^|\s)w-(?:\d+|\[\d+(?:px|rem)\])(?:\s|$)/,
-  'Simulation role selector menu has no arbitrary fixed width')
-assert.match(simulationRoleSelector, /w-\[112px\].*h-8|h-8.*w-\[112px\]/,
-  'Simulation role selector triggers use an equal stable width and remain 32px high')
-assert.match(simulationRoleSelector, /whitespace-nowrap/,
-  'Simulation role selector labels remain on one line')
-assert.doesNotMatch(simulationRoleSelector, /className="truncate"/,
-  'Simulation role selector labels cannot display with ellipses')
-assert.match(simulationRoleSelector, /<Tooltip label=\{side\}>/,
-  'Simulation role selector tooltips expose only Before or After')
-assert.doesNotMatch(simulationRoleSelector, /flex min-w-0 flex-col|text-\[9px\].*side/,
-  'Simulation role selector triggers do not show a two-line side label')
-assert.doesNotMatch(simulationRoleSelector, /\bminWidth\b|Math\.max\([^\n]*trigger\.width/,
-  'Simulation role selector has no JavaScript trigger-width floor')
-assert.equal((simulationRoleSelector.match(/trigger\.width/g) ?? []).length, 1,
-  'Simulation role selector uses trigger width only for centering')
-assert.match(simulationRoleSelector, /setTimeout\(preview, 120\)[\s\S]*setTimeout\(\(\) => \{[\s\S]*\}, 150\)/,
-  'Simulation role selector keeps the approved hover-open delay and leave grace')
-assert.match(simulationRoleSelector, /if \(pinnedRef\.current\) close\(\)[\s\S]*pinnedRef\.current = true/,
-  'Simulation role selector click pins and unpins the open popover')
-assert.match(simulationRoleSelector, /Math\.max\(8, Math\.min\(centeredLeft, window\.innerWidth - menu\.width - 8\)\)/,
-  'Simulation role selector menu centers on its trigger and clamps horizontally')
-assert.match(simulationRoleSelector, /top \+ menu\.height > window\.innerHeight - 8[\s\S]*Math\.max\(8, trigger\.top - menu\.height\)/,
-  'Simulation role selector menu flips above the trigger when it would exceed the viewport')
-assert.match(simulationRoleSelector, /left-1\/2 top-full[\s\S]*-translate-x-1\/2/,
-  'Simulation role selector menu uses trigger-centered placement before viewport correction')
 
 const simulationActionControl = snippet(simulationPage, /function CompactActionControl\([\s\S]*?\nfunction EffectCell/, 'Simulation compact Send/Reset actions exist')
 const simulationActionMenuClass = simulationActionControl.match(/className="([^"]*min-w-max[^"]*)"/)?.[1]

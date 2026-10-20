@@ -96,6 +96,11 @@ const view = (state: ReturnType<typeof createEmptySimulationState>, role: Master
   getEffectiveSimulationDataset(sources, state, role)
 
 let state = createEmptySimulationState(sources)
+assert.deepEqual(
+  [state.activeDataset, state.comparisonBefore, state.comparisonAfter],
+  ['custom', 'current', 'custom'],
+  'fresh Simulation opens on Custom with Current → Custom comparison'
+)
 assert.deepEqual(Object.keys(state.datasets).sort(), [...roles].sort(), 'persistent Simulation state has only the three Master Data roles')
 for (const role of roles) {
   state = setSimulationActiveDataset(state, role)
@@ -219,8 +224,15 @@ assert.equal(customEconomics.business.sgaPercent, 17, 'SG&A evaluation reads the
 close(customEconomics.business.operatingProfitPerPiece, 777 - 64.5 - 777 * 0.17,
   'Economic evaluation uses effective After cost and Selling Price')
 
+state = setSimulationEconomicInput(state, 'fixedActionCost', '10000', 'current')
+state = setSimulationEconomicInput(state, 'variableActionCostPerPiece', '2.50', 'current')
+state = setSimulationEconomicInput(state, 'batchSize', '500', 'current')
+state = setSimulationEconomicInput(state, 'sellingPriceOverride', '135', 'current')
+state = setSimulationEconomicInput(state, 'sgaPercentOverride', '10', 'current')
 const beforeReset = [state.comparisonBefore, state.comparisonAfter]
+const currentDefaultDraft = view(createEmptySimulationState(sources), 'current').economicInputs
 const resetActive = resetSimulationParameters(state, sources)
+assert.equal(resetActive.activeDataset, 'current', 'active Reset leaves activeDataset unchanged')
 assert.deepEqual([resetActive.comparisonBefore, resetActive.comparisonAfter], beforeReset,
   'active Reset does not move the comparison pair')
 assert.equal(view(resetActive, 'current').snapshot.routing[0].capacity, sources.current.routing[0].capacity,
@@ -229,17 +241,22 @@ assert.equal(view(resetActive, 'reference').snapshot.bom[0].price, 11,
   'Reset preserves the unrelated Reference override')
 assert.equal(view(resetActive, 'custom').snapshot.bom[0].consumption, 2,
   'Reset preserves the unrelated Custom override')
+assert.deepEqual(view(resetActive, 'current').economicInputs, currentDefaultDraft,
+  'Reset clears Current fixed/variable/batch inputs and restores its Master-backed Selling Price and SG&A')
+assert.equal(view(resetActive, 'current').economicInputs.fixedActionCost, '')
+assert.equal(view(resetActive, 'current').economicInputs.variableActionCostPerPiece, '')
+assert.equal(view(resetActive, 'current').economicInputs.batchSize, '')
 assert.deepEqual(view(resetActive, 'custom').economicInputs, view(state, 'custom').economicInputs,
-  'Reset preserves the valid After-role economic draft')
+  'Reset leaves the other roles\' economic drafts untouched')
 
 const resetAll = resetAllSimulationParameters(state, sources)
 for (const role of roles) {
   assert.deepEqual(view(resetAll, role).snapshot, sources[role], `Reset All clears only ${role} parameter overrides`)
-  assert.deepEqual(view(resetAll, role).economicInputs, view(state, role).economicInputs,
-    `Reset All preserves the valid ${role} economic draft`)
+  assert.deepEqual(view(resetAll, role).economicInputs, view(createEmptySimulationState(sources), role).economicInputs,
+    `Reset All restores ${role} Master-backed economics and clears Simulation-only inputs`)
 }
-assert.deepEqual([resetAll.comparisonBefore, resetAll.comparisonAfter], beforeReset,
-  'Reset All leaves the Result comparison pair unchanged')
+assert.deepEqual([resetAll.activeDataset, resetAll.comparisonBefore, resetAll.comparisonAfter], ['custom', 'current', 'custom'],
+  'Reset All restores the canonical Custom / Current → Custom context')
 
 const changedCurrent = {
   ...sources,

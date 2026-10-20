@@ -17,6 +17,7 @@ import type {
   SnapshotCost
 } from '../../core/types'
 import { Tooltip } from '../../shared/ui/Tooltip'
+import { COMPARISON_ROLE_LABELS, ComparisonRoleSelector } from '../../shared/ui/ComparisonRoleSelector'
 import { NumericInput } from '../../shared/ui/NumericInput'
 import { applyRowDragSelection } from '../../shared/selection/row-drag-selection'
 import { useTransientInteraction } from '../../shared/ui/transient-interactions'
@@ -48,12 +49,6 @@ interface SimulationPageProps {
   onBeginEdit: (role: MasterDataRole) => void
   onCommitEdit: () => void
 }
-
-const ROLES: Array<{ role: MasterDataRole; label: string }> = [
-  { role: 'reference', label: 'Reference' },
-  { role: 'current', label: 'Current' },
-  { role: 'custom', label: 'Custom' }
-]
 
 const BOM_PARAMETERS = [
   { parameter: 'bom.price', field: 'price', label: 'Price', precision: 2, scale: 1, effectKey: 'price' },
@@ -197,178 +192,7 @@ const resultActionButton = 'grid h-8 w-8 shrink-0 place-items-center rounded-sm 
 const useSafeLayoutEffect = typeof window === 'undefined' ? useEffect : useLayoutEffect
 
 function roleLabel(role: MasterDataRole): string {
-  return ROLES.find(option => option.role === role)?.label ?? 'Reference'
-}
-
-function ComparisonRoleSelector({
-  side,
-  role,
-  onChange
-}: {
-  side: 'Before' | 'After'
-  role: MasterDataRole
-  onChange: (role: MasterDataRole) => void
-}) {
-  const [open, setOpen] = useState(false)
-  const [offset, setOffset] = useState({ x: 0, y: 0 })
-  const menuRef = useRef<HTMLDivElement>(null)
-  const rootRef = useRef<HTMLDivElement>(null)
-  const triggerRef = useRef<HTMLButtonElement>(null)
-  const menuItemRefs = useRef<Array<HTMLButtonElement | null>>([])
-  const pinnedRef = useRef(false)
-  const hoverTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
-  const availableRoles = ROLES.filter(option => option.role !== role)
-  const menuId = `simulation-${side.toLowerCase()}-dataset-menu`
-  const clearHoverTimer = () => {
-    if (hoverTimerRef.current !== null) clearTimeout(hoverTimerRef.current)
-    hoverTimerRef.current = null
-  }
-  const close = (restoreFocus = false) => {
-    clearHoverTimer()
-    pinnedRef.current = false
-    setOpen(false)
-    if (restoreFocus) triggerRef.current?.focus()
-  }
-  const preview = () => {
-    clearHoverTimer()
-    setOpen(true)
-  }
-  const scheduleOpen = () => {
-    clearHoverTimer()
-    if (open || pinnedRef.current) return
-    hoverTimerRef.current = setTimeout(preview, 120)
-  }
-  const scheduleDismiss = () => {
-    clearHoverTimer()
-    hoverTimerRef.current = setTimeout(() => {
-      if (pinnedRef.current) return
-      if (rootRef.current?.contains(document.activeElement) || rootRef.current?.matches(':hover')) return
-      close()
-    }, 150)
-  }
-  const toggleOpen = () => {
-    clearHoverTimer()
-    if (pinnedRef.current) close()
-    else {
-      preview()
-      pinnedRef.current = true
-    }
-  }
-
-  useTransientInteraction(open, reason => close(reason === 'escape'))
-  useEffect(() => () => clearHoverTimer(), [])
-  useSafeLayoutEffect(() => {
-    if (!open) return
-    const updatePosition = () => {
-      const trigger = triggerRef.current?.getBoundingClientRect()
-      const menu = menuRef.current?.getBoundingClientRect()
-      if (!trigger || !menu) return
-      const centeredLeft = trigger.left + (trigger.width - menu.width) / 2
-      const top = trigger.bottom
-      setOffset({
-        x: Math.max(8, Math.min(centeredLeft, window.innerWidth - menu.width - 8)) - centeredLeft,
-        y: top + menu.height > window.innerHeight - 8 ? Math.max(8, trigger.top - menu.height) - top : 0
-      })
-    }
-    updatePosition()
-    window.addEventListener('resize', updatePosition)
-    window.addEventListener('scroll', updatePosition, true)
-    return () => {
-      window.removeEventListener('resize', updatePosition)
-      window.removeEventListener('scroll', updatePosition, true)
-    }
-  }, [open])
-  useEffect(() => {
-    if (!open) return
-    const onPointerDown = (event: PointerEvent) => {
-      if (!rootRef.current?.contains(event.target as Node)) close()
-    }
-    document.addEventListener('pointerdown', onPointerDown)
-    return () => document.removeEventListener('pointerdown', onPointerDown)
-  }, [open])
-
-  return (
-    <div
-      ref={rootRef}
-      className="relative shrink-0"
-      onMouseEnter={scheduleOpen}
-      onMouseLeave={scheduleDismiss}
-      onFocusCapture={clearHoverTimer}
-      onBlurCapture={event => {
-        if (!event.currentTarget.contains(event.relatedTarget as Node | null)) scheduleDismiss()
-      }}
-    >
-      <Tooltip label={side}>
-        <button
-          ref={triggerRef}
-          type="button"
-          aria-label={`${side} dataset, ${roleLabel(role)}`}
-          aria-haspopup="menu"
-          aria-expanded={open}
-          aria-controls={menuId}
-          onClick={toggleOpen}
-          onKeyDown={event => {
-            if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
-              event.preventDefault()
-              preview()
-              const firstOrLastIndex = event.key === 'ArrowUp' ? availableRoles.length - 1 : 0
-              requestAnimationFrame(() => menuItemRefs.current[firstOrLastIndex]?.focus())
-            }
-          }}
-          className="inline-flex h-8 w-[112px] shrink-0 items-center justify-between gap-1.5 whitespace-nowrap rounded-sm border border-slate-300 bg-white px-2 text-xs font-medium leading-none text-slate-700 transition-colors hover:bg-slate-100 hover:text-slate-950 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700"
-        >
-          <span className="whitespace-nowrap">{roleLabel(role)}</span>
-          <ChevronDown aria-hidden="true" className="h-3.5 w-3.5 shrink-0 text-slate-600" />
-        </button>
-      </Tooltip>
-      {open && (
-        <div
-          ref={menuRef}
-          id={menuId}
-          role="menu"
-          style={{ marginLeft: `${offset.x}px`, marginTop: `${offset.y}px` }}
-          aria-label={`${side} dataset`}
-          onKeyDown={event => {
-            if (event.key === 'Escape') {
-              event.preventDefault()
-              close(true)
-              return
-            }
-            if (event.key === 'Tab') {
-              close()
-              return
-            }
-            const activeIndex = menuItemRefs.current.findIndex(item => item === document.activeElement)
-            const nextIndex = event.key === 'ArrowDown'
-              ? (activeIndex + 1) % availableRoles.length
-              : event.key === 'ArrowUp'
-                ? (activeIndex - 1 + availableRoles.length) % availableRoles.length
-                : event.key === 'Home' ? 0 : event.key === 'End' ? availableRoles.length - 1 : null
-            if (nextIndex !== null) {
-              event.preventDefault()
-              menuItemRefs.current[nextIndex]?.focus()
-            }
-          }}
-          onMouseEnter={clearHoverTimer}
-          className="absolute left-1/2 top-full z-50 w-max max-w-[calc(100vw-1rem)] -translate-x-1/2 border border-slate-300 bg-white p-1 shadow-lg"
-        >
-          {availableRoles.map(({ role: optionRole, label: optionLabel }, index) => (
-            <button
-              key={optionRole}
-              ref={element => { menuItemRefs.current[index] = element }}
-              type="button"
-              role="menuitem"
-              tabIndex={0}
-              onClick={() => { onChange(optionRole); close(true) }}
-              className={`block min-h-8 w-full px-2 text-left text-xs hover:bg-slate-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-700 ${optionRole === role ? 'font-semibold text-blue-800' : 'text-slate-800'}`}
-            >
-              {optionLabel}
-            </button>
-          ))}
-        </div>
-      )}
-    </div>
-  )
+  return COMPARISON_ROLE_LABELS[role]
 }
 
 function CompactActionControl({
@@ -380,7 +204,7 @@ function CompactActionControl({
 }: {
   label: 'Send' | 'Reset'
   icon: React.ReactNode
-  secondaryLabel: 'Send all datasets' | 'Reset all datasets'
+  secondaryLabel: 'Send all datasets' | 'Reset all'
   onPrimary: () => void
   onSecondary: () => void
 }) {
@@ -683,7 +507,7 @@ function SimulationParameterTable({
   }, [])
 
   return (
-    <section data-simulation-table={kind} className="min-w-0 border border-slate-300 bg-white xl:flex xl:min-h-0 xl:flex-col xl:overflow-hidden" aria-label={tableIdentity}>
+    <section data-simulation-table={kind} className="min-w-0 border border-slate-300 bg-white xl:flex xl:flex-col xl:overflow-hidden xl:self-start" aria-label={tableIdentity}>
       <div className="hidden md:flex xl:shrink-0">
         <table role="presentation" className="w-full min-w-0 flex-1 table-fixed border-separate border-spacing-0 text-[11px]">
           {renderColumnGroup()}
@@ -710,7 +534,7 @@ function SimulationParameterTable({
         </table>
         <div aria-hidden="true" className="shrink-0 bg-slate-900 shadow-[inset_0_-1px_0_#334155]" style={{ width: scrollbarWidth }} />
       </div>
-      <div ref={bodyRef} className="overflow-x-hidden md:overflow-y-visible xl:min-h-0 xl:flex-1 xl:overflow-y-auto xl:[scrollbar-gutter:stable]">
+      <div ref={bodyRef} data-simulation-table-body="true" className="overflow-x-hidden md:overflow-y-visible xl:h-40 xl:flex-none xl:overflow-y-auto xl:[scrollbar-gutter:stable]">
         <table className="hidden w-full table-fixed border-separate border-spacing-0 text-[11px] md:table">
           <caption className="sr-only">{tableIdentity} Simulation parameters. Selection is a local working aid and does not limit the full Simulation calculation.</caption>
           {renderColumnGroup()}
@@ -1102,15 +926,14 @@ function ResultPanel({
           </colgroup>
           <thead className="text-[8px] text-slate-500">
             <tr>
-              <th scope="col" className="whitespace-nowrap py-0.5 text-left font-medium"><span className="sr-only">Cost or business outcome</span></th>
-              <th scope="col" className="whitespace-nowrap px-0.5 py-0.5 text-right font-medium xl:py-0">{roleLabel(beforeRole)}</th>
-              <th scope="col" className="whitespace-nowrap px-0.5 py-0.5 text-right font-medium xl:py-0">{roleLabel(afterRole)}</th>
+              <th scope="col" className="whitespace-nowrap py-0.5 text-left font-medium">Cost / Unit</th>
+              <th scope="col" className="whitespace-nowrap px-0.5 py-0.5 text-right font-medium xl:py-0">Before<span className="sr-only"> {roleLabel(beforeRole)}</span></th>
+              <th scope="col" className="whitespace-nowrap px-0.5 py-0.5 text-right font-medium xl:py-0">After<span className="sr-only"> {roleLabel(afterRole)}</span></th>
               <th scope="col" className="whitespace-nowrap px-0.5 py-0.5 text-right font-medium xl:py-0">Change</th>
               <th scope="col" className="py-0.5 text-right font-medium xl:py-0">%</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100">
-            <tr><th scope="rowgroup" colSpan={5} className="border-b border-slate-200 py-0.5 text-left text-[9px] font-semibold text-slate-700">Cost / Unit</th></tr>
             {renderRows(costRows)}
             <tr><th scope="rowgroup" colSpan={5} className="border-b border-t border-slate-200 py-0.5 text-left text-[9px] font-semibold text-slate-700">Business Outcome / Unit</th></tr>
             {renderRows(formattedBusinessRows)}
@@ -1202,7 +1025,7 @@ export const SimulationPage: React.FC<SimulationPageProps> = ({
       <CompactActionControl
         label="Reset"
         icon={<RotateCcw aria-hidden="true" className="h-4 w-4" />}
-        secondaryLabel="Reset all datasets"
+        secondaryLabel="Reset all"
         onPrimary={onReset}
         onSecondary={onResetAll}
       />
@@ -1245,7 +1068,7 @@ export const SimulationPage: React.FC<SimulationPageProps> = ({
         </div>
       </div>
 
-      <div className="grid min-w-0 gap-2 xl:min-h-0 xl:flex-1 xl:grid-cols-2 xl:grid-rows-[minmax(0,1fr)]">
+      <div className="grid min-w-0 gap-2 xl:flex-none xl:grid-cols-2 xl:grid-rows-[auto] xl:items-start">
         <SimulationParameterTable
           kind="bom"
           activeRole={state.role}

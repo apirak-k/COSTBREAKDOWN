@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { ChevronDown } from 'lucide-react'
 import { Tooltip } from '../../../shared/ui/Tooltip'
-import { useTransientInteraction } from '../../../shared/ui/transient-interactions'
+import { closeExclusivePopover, dismissExclusivePopover, openExclusivePopover, useTransientInteraction } from '../../../shared/ui/transient-interactions'
 
 interface CostBreakdownPopoverProps {
   label: string
@@ -10,17 +10,14 @@ interface CostBreakdownPopoverProps {
   panelClassName: string
   showChevron?: boolean
   triggerClassName?: string
-  panelMinWidthMatchesTrigger?: boolean
   children: (close: () => void) => React.ReactNode
 }
 
-let activeCBDPopoverDismiss: { owner: symbol; dismiss: () => void } | null = null
-
 export function dismissCostBreakdownPopovers(): void {
-  activeCBDPopoverDismiss?.dismiss()
+  dismissExclusivePopover()
 }
 
-export const CostBreakdownPopover: React.FC<CostBreakdownPopoverProps> = ({ label, trigger, panelClassName, showChevron = true, triggerClassName: triggerClassNameOverride, panelMinWidthMatchesTrigger = false, children }) => {
+export const CostBreakdownPopover: React.FC<CostBreakdownPopoverProps> = ({ label, trigger, panelClassName, showChevron = true, triggerClassName: triggerClassNameOverride, children }) => {
   const boundaryRef = useRef<HTMLDivElement>(null)
   const triggerRef = useRef<HTMLButtonElement>(null)
   const panelRef = useRef<HTMLDivElement>(null)
@@ -41,7 +38,7 @@ export const CostBreakdownPopover: React.FC<CostBreakdownPopoverProps> = ({ labe
     clearHoverTimer()
     pinnedRef.current = false
     setOpen(false)
-    if (activeCBDPopoverDismiss?.owner === owner.current) activeCBDPopoverDismiss = null
+    closeExclusivePopover(owner.current)
   }, [clearHoverTimer])
 
   const close = useCallback(() => {
@@ -52,8 +49,7 @@ export const CostBreakdownPopover: React.FC<CostBreakdownPopoverProps> = ({ labe
   const preview = useCallback(() => {
     clearHoverTimer()
     if (open) return
-    activeCBDPopoverDismiss?.dismiss()
-    activeCBDPopoverDismiss = { owner: owner.current, dismiss: dismissWithoutFocus }
+    openExclusivePopover(owner.current, dismissWithoutFocus)
     setOpen(true)
   }, [clearHoverTimer, dismissWithoutFocus, open])
 
@@ -95,7 +91,6 @@ export const CostBreakdownPopover: React.FC<CostBreakdownPopoverProps> = ({ labe
     const panelElement = panelRef.current
     if (!triggerElement || !panelElement) return
     const triggerBounds = triggerElement.getBoundingClientRect()
-    panelElement.style.minWidth = panelMinWidthMatchesTrigger ? `${triggerBounds.width}px` : ''
     const panelBounds = panelElement.getBoundingClientRect()
     const panelWidth = panelBounds.width
     const panelHeight = panelBounds.height || 160
@@ -107,7 +102,7 @@ export const CostBreakdownPopover: React.FC<CostBreakdownPopoverProps> = ({ labe
       ? Math.min(below, window.innerHeight - panelHeight - 8)
       : above
     setPosition({ left, top })
-  }, [panelMinWidthMatchesTrigger])
+  }, [])
 
   useEffect(() => {
     if (!open) return
@@ -130,7 +125,7 @@ export const CostBreakdownPopover: React.FC<CostBreakdownPopoverProps> = ({ labe
 
   useEffect(() => () => {
     clearHoverTimer()
-    if (activeCBDPopoverDismiss?.owner === owner.current) activeCBDPopoverDismiss = null
+    closeExclusivePopover(owner.current)
   }, [clearHoverTimer])
 
   const focusFirstOption = () => panelRef.current?.querySelector<HTMLElement>('button, input')?.focus()

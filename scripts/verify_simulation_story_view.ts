@@ -18,9 +18,6 @@ try {
   const { SimulationStoryGraph, buildVisibleStack, buildVisibleStandardCost, buildGraphScale, positionGraphTooltip } = await vite.ssrLoadModule('/src/features/simulation/SimulationStoryGraph.tsx')
   const { SimulationPage } = await vite.ssrLoadModule('/src/features/simulation/SimulationPage.tsx')
   const { parameterEffectPresentation } = await vite.ssrLoadModule('/src/features/simulation/parameter-effect-presentation.ts')
-  const { simulationWorkingTargetKey, startSimulationFrom } = await vite.ssrLoadModule('/src/features/simulation/simulation-state.ts')
-  const { calculateEconomicSimulation } = await vite.ssrLoadModule('/src/features/simulation/simulation-economics.ts')
-  const { calculateParameterSimulation, updateSimulationParameter } = await vite.ssrLoadModule('/src/features/simulation/simulation-engine.ts')
 
   assert.deepEqual(parameterEffectPresentation(2.35), { text: '+2.35', className: 'text-rose-700' },
     'positive cost effects show an explicit plus sign and red styling')
@@ -65,7 +62,7 @@ try {
   const sim = cost('sim', 62, 20, 13)
   const story = createScenarioStory(financial(reference, 120, 8), financial(current, 120, 10), financial(sim, 120, 10))
   assert.equal(story.gap1.standardCost, 10, 'GAP 1 is Current - Reference')
-  assert.equal(story.gap2.standardCost, -5, 'GAP 2 is SIM - Current and may be negative')
+  assert.equal(story.gap2.standardCost, -5, 'GAP 2 is Custom - Current and may be negative')
 
   const graphParts = [
     { key: 'material', legendKey: 'material', tooltipLabel: 'Material', color: '#6f99c6' },
@@ -222,7 +219,7 @@ try {
     .map(match => [match[1], match[0]] as const))
   const standardCostValueTags = new Map([...graphMarkup.matchAll(/<text\b[^>]*data-graph-standard-cost-value="(reference|current|custom)"[^>]*>/g)]
     .map(match => [match[1], match[0]] as const))
-  const graphStateXs = [156, 406, 656] as const
+  const graphStateXs = [155, 433, 710] as const
   for (const [state, x] of [['reference', graphStateXs[0]], ['current', graphStateXs[1]], ['custom', graphStateXs[2]]] as const) {
     const boundaryLine = standardCostLineTags.get(state)
     const valueLabel = standardCostValueTags.get(state)
@@ -315,37 +312,45 @@ try {
   const yAxisLineTag = graphMarkup.match(/<line\b[^>]*data-y-axis="true"[^>]*>/)?.[0] ?? ''
   const yAxisUnitTag = graphMarkup.match(/<text\b[^>]*data-y-axis-unit="true"[^>]*>/)?.[0] ?? ''
   assert.ok(yAxisLineTag && yAxisUnitTag)
-  assert.equal(numericSvgAttribute(yAxisLineTag, 'x1'), 96, 'the plot left edge shifts 24 SVG units from 120 to 96')
-  assert.equal(numericSvgAttribute(yAxisUnitTag, 'x'), 96, 'the THB/PC label stays centered over the shifted Y axis')
-  const firstGridlineTag = graphMarkup.match(/<line x1="96" x2="728" y1="[^"]+" y2="[^"]+" stroke=/)?.[0] ?? ''
-  assert.ok(firstGridlineTag, 'gridlines preserve the plot span after the shared left shift')
+  assert.equal(numericSvgAttribute(yAxisLineTag, 'x1'), 88, 'the plot uses the reclaimed left edge')
+  assert.equal(numericSvgAttribute(yAxisUnitTag, 'x'), 88, 'the THB/PC label stays centered over the Y axis')
+  const firstGridlineTag = graphMarkup.match(/<line x1="88" x2="780" y1="[^"]+" y2="[^"]+" stroke=/)?.[0] ?? ''
+  assert.ok(firstGridlineTag, 'gridlines span the widened plot')
   const rulerLineTag = graphMarkup.match(/<line\b[^>]*data-ruler-line="true"[^>]*>/)?.[0] ?? ''
-  assert.equal(numericSvgAttribute(rulerLineTag, 'x1'), 96, 'the ruler begins at the shifted plot edge')
-  assert.equal(numericSvgAttribute(rulerLineTag, 'x2'), 728, 'the ruler ends at the shifted plot edge')
+  assert.equal(numericSvgAttribute(rulerLineTag, 'x1'), 88, 'the ruler begins at the plot edge')
+  assert.equal(numericSvgAttribute(rulerLineTag, 'x2'), 780, 'the ruler ends at the plot edge')
+  assert.equal(numericSvgAttribute(rulerLineTag, 'x2') - numericSvgAttribute(rulerLineTag, 'x1'), 692,
+    'the plot width grows beyond the audited 632-unit baseline')
   const axisTickTags = [...graphMarkup.matchAll(/<text\b[^>]*data-axis-tick="[^"]+"[^>]*>[^<]*<\/text>/g)].map(([tag]) => tag)
-  assert.ok(axisTickTags.length > 0 && axisTickTags.every(tag => numericSvgAttribute(tag, 'x') === 86),
-    'Y-axis tick labels move with the plot and keep their ten-unit gap')
+  assert.ok(axisTickTags.length > 0 && axisTickTags.every(tag => numericSvgAttribute(tag, 'x') === 78),
+    'Y-axis tick labels stay ten units left of the widened plot')
   const lowestTickLeft = Math.min(...axisTickTags.map(tag => {
     const text = tag.match(/>([^<]+)<\/text>/)?.[1] ?? ''
     return numericSvgAttribute(tag, 'x') - text.length * 5.4 - 16
   }))
   const unitText = yAxisUnitTag.match(/>([^<]+)<\/text>/)?.[1] ?? ''
   const unitTextLeft = numericSvgAttribute(yAxisUnitTag, 'x') - 16 - unitText.length * 6.6 / 2
-  assert.ok(lowestTickLeft > 0 && unitTextLeft > 0, 'Y-axis tick and THB/PC labels keep positive left-side clearance after the shift')
+  assert.ok(lowestTickLeft > 0 && unitTextLeft > 0, 'Y-axis tick and THB/PC labels stay inside the SVG left edge')
   const gapTotalTags = [...graphMarkup.matchAll(/<text\b[^>]*data-graph-total="(gap1|gap2)"[^>]*>/g)]
-  assert.deepEqual(gapTotalTags.map(([tag, gap]) => [gap, numericSvgAttribute(tag, 'x')]), [['gap1', 281], ['gap2', 531]],
-    'GAP bars keep their totals on the shared shifted category centers')
+  assert.deepEqual(gapTotalTags.map(([tag, gap]) => [gap, numericSvgAttribute(tag, 'x')]), [['gap1', 294], ['gap2', 572]],
+    'GAP bars use the canonical category centers')
   const roleLabelTags = [...graphMarkup.matchAll(/<foreignObject x="(\d+)" y="291" width="106" height="28">/g)]
-  assert.deepEqual(roleLabelTags.map(([, x]) => Number(x)), [103, 353, 603],
-    'Reference, Current, and Custom category controls align with the shifted state centers')
-  assert.deepEqual(sellingPriceLineSegments(graphMarkup).map(({ x1, x2 }) => [x1, x2]), [[156, 406], [406, 656]],
-    'Selling Price segments follow the same shifted state centers')
+  assert.deepEqual(roleLabelTags.map(([, x]) => Number(x)), [102, 380, 657],
+    'Reference, Current, and Custom controls align with the canonical state centers')
+  assert.deepEqual(sellingPriceLineSegments(graphMarkup).map(({ x1, x2 }) => [x1, x2]), [[155, 433], [433, 710]],
+    'Selling Price segments follow the same canonical state centers')
   assert.deepEqual(graphStateXs.map(x => sellingPricePoint(graphMarkup, x)?.x ?? null), graphStateXs,
-    'Selling Price points follow the same shifted state centers')
-  assert.match(graphMarkup, /<g transform="translate\(-16 0\)">/,
-    'the plot is shifted slightly left without changing its internal label placement rules')
-  assert.match(graphSource, /const GRAPH_X_SHIFT = -24[\s\S]*?plotLeft: 120 \+ GRAPH_X_SHIFT,[\s\S]*?plotRight: 752 \+ GRAPH_X_SHIFT,[\s\S]*?reference: 180 \+ GRAPH_X_SHIFT,[\s\S]*?gap1: 305 \+ GRAPH_X_SHIFT,[\s\S]*?current: 430 \+ GRAPH_X_SHIFT,[\s\S]*?gap2: 555 \+ GRAPH_X_SHIFT,[\s\S]*?custom: 680 \+ GRAPH_X_SHIFT/,
-    'plot, state, gap, and category anchors share one 24-unit left shift')
+    'Selling Price points follow the same canonical state centers')
+  assert.doesNotMatch(graphMarkup, /translate\(-16 0\)|translate\(-24 0\)/,
+    'the graph has no outer SVG translation')
+  assert.doesNotMatch(graphSource, /GRAPH_X_SHIFT|translate\(-16 0\)|translate\(-24 0\)/,
+    'the graph has no duplicate global X shift')
+  assert.match(graphSource, /const GRAPH_X = \{[\s\S]*?plotLeft: 88,[\s\S]*?plotRight: 780,[\s\S]*?reference: 155,[\s\S]*?gap1: 294,[\s\S]*?current: 433,[\s\S]*?gap2: 572,[\s\S]*?custom: 710/,
+    'plot and all category centers use one canonical X geometry')
+  assert.ok([155, 294, 433, 572, 710].every(x => x >= 88 && x <= 780),
+    'all five category centers stay inside the widened plot bounds')
+  assert.ok(numericSvgAttribute(standardCostValueTags.get('custom') ?? '', 'x') + 5 * 5.4 < 820,
+    'the Custom Standard Cost label stays inside the SVG viewBox')
   assert.match(graphSource, /x: state\.x,[\s\S]*?path: `M \$\{state\.x\} \$\{y\(first\)\} L \$\{nextState\.x\} \$\{y\(second\)\}`/,
     'Selling Price paths and points derive their x coordinates from the shifted states')
   assert.doesNotMatch(yAxisUnitTag, /transform=|rotate\(\s*-90/, 'the Y-axis unit label stays horizontal')
@@ -412,7 +417,8 @@ try {
     'the ruler keeps its vertical resize cursor')
   assert.doesNotMatch(graphMarkup, /cursor-help/, 'graph information targets do not show a help cursor')
   assert.match(graphMarkup, /aria-valuetext="[^\"]+ THB\/PC"/)
-  assert.match(graphSource, /data-ruler-value="true" x=\{plot\.right \+ 7\}/, 'the ruler value sits at the line end without a label')
+  assert.match(graphSource, /data-ruler-value="true" x=\{plot\.right - 7\}[\s\S]*?textAnchor="end"/,
+    'the ruler value stays inside the widened plot end')
   assert.match(graphSource, /onKeyDown=\{handleRulerKeyDown\}/, 'the visual ruler remains keyboard operable')
   const rulerKeyHandlerSource = graphSource.slice(graphSource.indexOf('const handleRulerKeyDown'), graphSource.indexOf('const pricePoints'))
   assert.match(rulerKeyHandlerSource, /ArrowUp:\s*step/)
@@ -507,7 +513,7 @@ try {
   assert.ok(graphMarkup.includes('SG&amp;A') && graphMarkup.includes('Operating Profit:'),
     'dataset bars and accessible data labels retain the separate economic values')
   assert.equal([...graphMarkup.matchAll(/<text\b[^>]*data-graph-visible-net-value="[^"]+"[^>]*>120\.00<\/text>/g)].length, 3,
-    'the three 120.00 values are explicitly the REF/CUR/SIM Visible Net labels')
+    'the three 120.00 values are explicitly the Reference/Current/Custom Visible Net labels')
   assert.doesNotMatch(graphMarkup, /data-graph-selling-price-value=|>SP\s+\d/,
     'Selling Price remains a line and points without a separate numeric label')
 
@@ -776,345 +782,133 @@ try {
   if (process.argv.includes('--graph-only')) {
     console.log('Simulation cost structure graph verification passed')
   } else {
-  const makeSnapshot = (id: string, price: number, referencePrice: number): CostSnapshot => ({
-    id,
-    product: { productCode: 'P-1', productDescription: 'Fixture', uom: 'PC', customer: '', effectiveDate: '', sellingPrice: 120, sgaPercent: 10 },
-    effectiveDate: '', sourceRef: id, status: 'draft',
-    rates: [{ id: `${id}-rate`, workCenterCode: 'WC-1', description: 'Long Work Center Description', laborRate: 10, burdenRate: 5, effectiveDate: '', confidence: {} }],
-    bom: [
-      { id: `${id}-bom`, itemCode: 'MAT-1', description: 'A deliberately long stainless steel material description for wrapping', consumption: 2, unit: 'PC', price, loss: 0.05, confidence: {} },
-      { id: `${id}-bom-extra`, itemCode: 'MAT-2', description: 'Second material', consumption: 1, unit: 'PC', price: referencePrice, loss: 0, confidence: {} }
-    ],
-    routing: [
-      { id: `${id}-route`, processName: 'Assembly process with a long name', workCenterId: 'WC-1', manning: 1, capacity: 10, yield: 1, confidence: {} }
-    ]
-  })
-  const referenceSnapshot = makeSnapshot('reference', 10, 3)
-  const currentSnapshot = makeSnapshot('current', 12, 3)
-  const customSnapshot = makeSnapshot('custom', 12, 3)
-  const sources = { reference: referenceSnapshot, current: currentSnapshot, custom: customSnapshot }
-  const state = startSimulationFrom('current', sources)
-  const simulation = calculateParameterSimulation(currentSnapshot, state.snapshot!)
-  assert.equal(state.economicInputs.fixedActionCost, '')
-  assert.equal(state.economicInputs.variableActionCostPerPiece, '')
-  assert.equal(state.economicInputs.batchSize, '')
-  assert.equal(state.economicInputs.sellingPriceOverride, String(currentSnapshot.product.sellingPrice))
-  assert.equal(state.economicInputs.sgaPercentOverride, String(currentSnapshot.product.sgaPercent))
-  const currentDefaultsResult = calculateEconomicSimulation(
-    currentSnapshot,
-    simulation.simulationCost,
-    simulation.parameterSavingPerPiece,
-    state.economicInputs
-  )
-  assert.equal(currentDefaultsResult.business.sellingPrice, currentSnapshot.product.sellingPrice,
-    'the initial Selling Price input uses the actual Current Selling Price')
-  assert.equal(currentDefaultsResult.business.sgaPercent, currentSnapshot.product.sgaPercent,
-    'the initial SG&A % input uses the actual Current percentage')
-  assert.equal(simulation.currentCost.total, simulation.simulationCost.total)
-  assert.equal(simulation.parameterSavingPerPiece, 0, 'No-change Parameter Saving is zero')
-  const pageMarkup = renderToStaticMarkup(React.createElement(SimulationPage, {
-    state,
-    workingSelection: state.workingSelection,
-    referenceSnapshot,
-    currentSnapshot,
-    onCloneSource() {},
-    onSendTo() { return true },
-    onReset() {},
-    onToggleWorkingTarget() {},
-    onUpdateParameter() {},
-    onUpdateEconomicInput() {}
-  }))
-  const pageText = pageMarkup.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ')
-  const pageInputs = [...pageMarkup.matchAll(/<input\b[^>]*>/g)].map(([tag]) => tag)
-  const sellingPriceInput = pageInputs.find(tag => tag.includes('aria-label="Selling Price"')) ?? ''
-  const sgaInput = pageInputs.find(tag => tag.includes('aria-label="SG&amp;A %"')) ?? ''
-  for (const [label, input, value] of [
-    ['Selling Price', sellingPriceInput, '120.00'], ['SG&A %', sgaInput, '10.00']
-  ]) {
-    assert.ok(input, `${label} override input renders in the Simulation Business panel`)
-    assert.match(input, new RegExp(`value="${value}"`), `${label} visibly contains its Current value`)
-    assert.doesNotMatch(input, /placeholder="Current"/, `${label} does not use a Current placeholder`)
-  }
-  for (const label of ['Fixed Action Cost', 'Variable Action Cost / Unit', 'Batch Size']) {
-    const input = pageInputs.find(tag => tag.includes(`aria-label="${label}"`)) ?? ''
-    assert.ok(input, `${label} input renders in the Simulation panel`)
-    assert.match(input, /value=""/, `${label} remains blank by default`)
-  }
-  assert.match(pageMarkup, /Clone from/)
-  assert.match(pageMarkup, /Send to/)
-  const sendToButtonIndex = pageMarkup.indexOf('aria-label="Send to"')
-  const resetButtonIndex = pageMarkup.indexOf('aria-label="Reset Simulation"')
-  assert.ok(sendToButtonIndex >= 0 && resetButtonIndex > sendToButtonIndex,
-    'Simulation exposes its Reset action immediately after Send To')
-  const actionGroupStart = pageMarkup.lastIndexOf('<div class="flex items-center gap-1.5">', sendToButtonIndex)
-  const actionGroupEnd = pageMarkup.indexOf('</div>', resetButtonIndex)
-  const actionMarkup = pageMarkup.slice(actionGroupStart, actionGroupEnd)
-  const actionLabels = [...actionMarkup.matchAll(/<button\b([^>]*)>([\s\S]*?)<\/button>/g)].map(([, attributes, contents]) =>
-    attributes.match(/aria-label="([^"]+)"/)?.[1] ?? contents.replace(/<[^>]*>/g, '').trim())
-  assert.deepEqual(actionLabels, ['Clone from', 'Send to', 'Reset Simulation'],
-    'Reset is the next Simulation action after Send To')
-  const navbarSource = readFileSync(resolve(process.cwd(), 'src/shared/layout/Navbar.tsx'), 'utf8')
-  assert.doesNotMatch(navbarSource, /simulationReset|Reset Simulation/,
-    'Reset is not rendered by the global Navbar on Master Data or Cost Breakdown')
-  const appSource = readFileSync(resolve(process.cwd(), 'src/App.tsx'), 'utf8')
-  assert.equal([...appSource.matchAll(/<SimulationPage\b/g)].length, 1,
-    'the app mounts one Simulation page instance')
-  assert.match(appSource, /activeTab === 'simulation'\s*&&\s*\(\s*<SimulationPage/,
-    'the Simulation page action, including Reset, only mounts for the Simulation tab')
-  assert.match(pageMarkup, /Result/)
-  assert.match(pageMarkup, /Economic/)
-  assert.match(pageMarkup, /Bill of Materials/, 'the BOM table uses its full identity')
-  assert.match(pageMarkup, /Routing Process/, 'the RTG table uses its full identity')
-  assert.equal([...pageMarkup.matchAll(/<th scope="col"[^>]*>Status<\/th>/g)].length, 4,
-    'BOM and RTG expose visible and screen-reader table headers while keeping a separate visual header')
-  assert.doesNotMatch(pageMarkup, /0 selected|1 selected|2 selected/, 'separate table title/count bars are removed')
-  assert.match(pageMarkup, /Selection is a local working aid and does not limit the full Simulation calculation/,
-    'the UI explains that local row selection does not filter calculation')
-  const renderedResultPanel = pageMarkup.match(/<section[^>]*aria-labelledby="simulation-result-title"[\s\S]*?<\/section>/)?.[0] ?? ''
-  assert.match(renderedResultPanel, /<h2 id="simulation-result-title"[^>]*>Result<\/h2>/,
-    'the Result heading remains visible')
-  const inputsColumnIndex = pageMarkup.indexOf('data-simulation-layout-column="inputs"')
-  const resultColumnIndex = pageMarkup.indexOf('data-simulation-layout-column="result-and-break-even"')
-  assert.ok(inputsColumnIndex >= 0 && resultColumnIndex > inputsColumnIndex,
-    'the upper-right workspace has two separate vertical columns')
-  const inputsColumnMarkup = pageMarkup.slice(inputsColumnIndex, resultColumnIndex)
-  const leftSectionHeadings = [
-    inputsColumnMarkup.indexOf('>Business</h2>'),
-    inputsColumnMarkup.indexOf('>Economic</h2>'),
-    inputsColumnMarkup.indexOf('>Outcome</h3>')
-  ]
-  assert.ok(leftSectionHeadings.every((index, position) => index >= 0 && (position === 0 || index > leftSectionHeadings[position - 1])),
-    'the shared card contains Business, Economic, then a subordinate Outcome in order')
-  assert.doesNotMatch(inputsColumnMarkup, />SIM Standard Cost<\/span>|>Operating Profit<\/span>|>SG&amp;A<\/span>/,
-    'Business outputs are removed from the input column')
-  const breakEvenGraphIndex = pageMarkup.indexOf('Break-even ·', resultColumnIndex)
-  assert.ok(breakEvenGraphIndex > resultColumnIndex,
-    'the right column places the Break-even Graph below Result')
-  assert.match(renderedResultPanel, /Selling Price[\s\S]*SG&amp;A[\s\S]*Operating Profit/,
-    'Result retains all three Business outcomes')
-  assert.ok(pageMarkup.includes('xl:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)]'),
-    'the main graph uses about 60% of the upper workspace width')
-  assert.ok(pageMarkup.includes('xl:grid-cols-[minmax(0,.7fr)_minmax(0,1.3fr)]') &&
-    pageMarkup.includes('xl:grid-rows-[minmax(0,1.2fr)_minmax(0,.8fr)]') &&
-    pageMarkup.includes('xl:grid-rows-[minmax(min-content,.95fr)_minmax(0,2.45fr)]'),
-  'the two right-side columns use independent fixed row subdivisions')
-  const inputCardTag = pageMarkup.match(/<div data-safe-workspace-interaction="true" data-simulation-layout-column="inputs"[^>]*>/)?.[0] ?? ''
-  assert.match(inputCardTag, /class="[^"]*border border-slate-300[^\"]*bg-white/,
-    'Business and Economic information has one shared outer card')
-  assert.match(inputCardTag, /class="[^"]*divide-y divide-slate-200/,
-    'the shared card keeps a subtle divider between Business and Economic')
-  const businessInputsMarkup = pageMarkup.match(/<section[^>]*aria-labelledby="simulation-business-inputs-title"[\s\S]*?<\/section>/)?.[0] ?? ''
-  const economicInputsMarkup = pageMarkup.match(/<section[^>]*aria-labelledby="simulation-economic-inputs-title"[\s\S]*?<\/section>/)?.[0] ?? ''
-  assert.ok(businessInputsMarkup.includes('grid grid-cols-1') && economicInputsMarkup.includes('grid min-w-0 grid-cols-1'),
-    'Business and Economic inputs use vertical single-column layouts')
-  const businessInputLabels = ['Selling Price', 'SG&amp;A %'].map(label => businessInputsMarkup.indexOf(label))
-  const economicInputLabels = ['Variable Action Cost', 'Fixed Action Cost', 'Batch Size'].map(label => economicInputsMarkup.indexOf(label))
-  assert.ok(businessInputLabels.every((index, position) => index >= 0 && (position === 0 || index > businessInputLabels[position - 1])),
-    'Business inputs remain in Selling Price then SG&A order')
-  assert.ok(economicInputLabels.every((index, position) => index >= 0 && (position === 0 || index > economicInputLabels[position - 1])),
-    'Economic inputs remain in Variable Action Cost, Fixed Action Cost, Batch Size order')
-  assert.ok(pageMarkup.includes('xl:flex-[1.25]') && pageMarkup.includes('xl:flex-1'),
-    'the bottom BOM/RTG area receives the larger fixed workspace allocation')
-  assert.doesNotMatch(renderedResultPanel, /Current → SIM|THB\//,
-    'the Result panel does not render the removed Current-to-SIM/UOM subtitle')
-  assert.ok(pageText.includes('0.00%'), 'no-change Result percentage renders as 0.00%')
-  assert.doesNotMatch(pageMarkup, /Calculation notes/, 'Calculation Notes are removed from the Economic UI')
-  assert.doesNotMatch(pageMarkup, /<h1[^>]*>Simulation<\/h1>|Adjust SIM parameters and review the live/,
-    'the large Simulation PageHeading is removed')
-  assert.doesNotMatch(pageMarkup, /Factors to Simulate|Select .* factor/,
-    'direct editing does not show a Factors selector')
-  assert.doesNotMatch(pageMarkup, /min-w-\[(?:390|650|730)px\]|overflow-x-auto/,
-    'Result, BOM, and RTG do not force a horizontal scroll area')
-  assert.match(pageMarkup, /table-fixed/, 'the parameter table fits its panel with fixed layout')
-  assert.equal([...pageMarkup.matchAll(/<div class="hidden md:flex xl:shrink-0">/g)].length, 2,
-    'BOM and RTG render a separate non-scrolling visual header')
-  assert.equal([...pageMarkup.matchAll(/aria-hidden="true" class="shrink-0 bg-slate-900 shadow-\[inset_0_-1px_0_#334155\]" style="width:0"/g)].length, 2,
-    'each header has its own measured gutter cell outside the table column geometry')
-  assert.equal([...pageMarkup.matchAll(/inline-block whitespace-nowrap">(?:Material Cost|Conversion Cost)<\/span>/g)].length, 2,
-    'both desktop cost headers remain on one line')
-  assert.equal([...pageMarkup.matchAll(/<div class="overflow-x-hidden md:overflow-y-visible xl:min-h-0 xl:flex-1 xl:overflow-y-auto xl:\[scrollbar-gutter:stable\]">/g)].length, 2,
-    'only the BOM and RTG table body wrappers own vertical scrolling')
-  assert.equal([...pageMarkup.matchAll(/<table role="presentation"/g)].length, 2,
-    'the visual header table does not duplicate table semantics')
-  assert.equal([...pageMarkup.matchAll(/<col style="width:14\.5%"\/>/g)].length, 12,
-    'the separate BOM and RTG header and body tables share the same parameter column geometry')
-  assert.equal([...pageMarkup.matchAll(/relative left-4 inline-block/g)].length, 2,
-    'only the Material Cost and Conversion Cost header labels shift toward their existing value axes')
-  assert.match(pageMarkup, /<td class="whitespace-nowrap px-1 py-2 leading-3 font-sans text-\[10px\] font-bold text-slate-500">UNCHANGED<\/td>/,
-    'desktop status is a separate cell rather than secondary text under row identity')
-  assert.match(pageMarkup, /aria-label="A deliberately long stainless steel material description for wrapping Price in SIM"/,
-    'editable fields remain labelled for long material names')
-  const materialNameIndex = pageMarkup.indexOf('A deliberately long stainless steel material description for wrapping')
-  assert.ok(materialNameIndex >= 0, 'the test row is present in the rendered table')
-  const selectedPageMarkup = renderToStaticMarkup(React.createElement(SimulationPage, {
-    state,
-    workingSelection: [simulationWorkingTargetKey('bom', currentSnapshot.bom[1].id)],
-    referenceSnapshot,
-    currentSnapshot,
-    onCloneSource() {},
-    onSendTo() { return true },
-    onReset() {},
-    onToggleWorkingTarget() {},
-    onUpdateParameter() {},
-    onUpdateEconomicInput() {}
-  }))
-  assert.match(selectedPageMarkup, /aria-label="Deselect BOM row 2: Second material"[^>]*aria-pressed="true"/,
-    'the row number itself becomes the blue selected control')
-  assert.doesNotMatch(selectedPageMarkup, /1 selected/, 'selection does not reintroduce a selected-count strip')
-  assert.doesNotMatch(selectedPageMarkup, /type="checkbox"|>Select<\/th>/,
-    'Simulation has no separate Select column or checkbox')
-  assert.ok(selectedPageMarkup.indexOf('Second material') < selectedPageMarkup.indexOf('A deliberately long stainless steel material description'),
-    'selected rows are presented before unselected rows without changing the underlying snapshot')
-  assert.deepEqual(state.snapshot!.bom.map(row => row.id), currentSnapshot.bom.map(row => row.id),
-    'selected-first presentation does not mutate source snapshot order')
-  const renderStandardCostChangeCells = (price: number) => {
-    const changed = updateSimulationParameter(state, currentSnapshot, currentSnapshot.bom[0].id, 'bom.price', price)
-    const markup = renderToStaticMarkup(React.createElement(SimulationPage, {
-      state: changed,
-      workingSelection: changed.workingSelection,
-      referenceSnapshot,
-      currentSnapshot,
-      onCloneSource() {}, onSendTo() { return true }, onReset() {}, onToggleWorkingTarget() {}, onUpdateParameter() {}, onUpdateEconomicInput() {}
-    }))
-    const resultPanel = markup.match(/<section[^>]*aria-labelledby="simulation-result-title"[\s\S]*?<\/section>/)?.[0] ?? ''
-    const standardCostRow = [...resultPanel.matchAll(/<tr[^>]*>([\s\S]*?)<\/tr>/g)]
-      .find(match => match[1].includes('Standard Cost'))?.[1] ?? ''
-    return [...standardCostRow.matchAll(/<td class="([^"]*)">([\s\S]*?)<\/td>/g)]
-      .map(match => ({ className: match[1], text: match[2].replace(/<[^>]*>/g, '').trim() }))
-  }
-  const increasedCostCells = renderStandardCostChangeCells(13)
-  assert.equal(increasedCostCells[2]?.text, '+2.10')
-  assert.match(increasedCostCells[2]?.className ?? '', /text-rose-700/)
-  assert.equal(increasedCostCells[3]?.text, '+7.07%')
-  assert.match(increasedCostCells[3]?.className ?? '', /text-rose-700/)
-  const decreasedCostCells = renderStandardCostChangeCells(11)
-  assert.equal(decreasedCostCells[2]?.text, '-2.10')
-  assert.match(decreasedCostCells[2]?.className ?? '', /text-emerald-700/)
-  assert.equal(decreasedCostCells[3]?.text, '-7.07%')
-  assert.match(decreasedCostCells[3]?.className ?? '', /text-emerald-700/)
-  const materialRowStart = pageMarkup.lastIndexOf('<tr', materialNameIndex)
-  assert.ok(materialRowStart >= 0, 'the test material belongs to a rendered table row')
-  const materialRowStartTag = pageMarkup.slice(materialRowStart, pageMarkup.indexOf('>', materialRowStart))
-  assert.match(materialRowStartTag, /tabindex="0"/, 'the whole parameter row is keyboard reachable')
-  assert.match(materialRowStartTag, /aria-expanded="false"/, 'the row exposes its collapsed state')
-  assert.match(materialRowStartTag, /aria-label=/, 'the whole parameter row has an accessible name')
-  const pageSource = readFileSync(resolve(process.cwd(), 'src/features/simulation/SimulationPage.tsx'), 'utf8')
-  const rolesStart = pageSource.indexOf('const ROLES: Array')
-  const rolesEnd = pageSource.indexOf('const BOM_PARAMETERS', rolesStart)
-  const roleSource = pageSource.slice(rolesStart, rolesEnd)
-  for (const [role, label] of [['reference', 'Reference'], ['current', 'Current'], ['custom', 'Custom']]) {
-    assert.ok(roleSource.includes(`role: '${role}', label: '${label}'`),
-      `Send to offers the ${label} Master Data role`)
-  }
-  const sendToMenuSource = pageSource.match(/<RoleActionMenu\s+label="Send to"[\s\S]*?\/>/)?.[0] ?? ''
-  assert.ok(sendToMenuSource.length > 0, 'the Send to role menu is wired in the Simulation actions')
-  assert.match(sendToMenuSource, /onSendTo\(role, simulationSnapshot\)/,
-    'Send to passes the selected role and current SIM snapshot to its integration callback')
-  const roleActionMenuSource = pageSource.slice(pageSource.indexOf('function RoleActionMenu'), pageSource.indexOf('function ', pageSource.indexOf('function RoleActionMenu') + 1))
-  assert.match(roleActionMenuSource, /const centeredLeft = trigger\.left \+ \(trigger\.width - menu\.width\) \/ 2/,
-    'Clone and Send center the menu box under each trigger before viewport clamping')
-  assert.match(roleActionMenuSource, /Math\.max\(8, Math\.min\(centeredLeft, window\.innerWidth - menu\.width - 8\)\) - centeredLeft/,
-    'Clone and Send preserve viewport clamping around the centered menu box')
-  assert.match(roleActionMenuSource, /className="absolute left-1\/2 top-full z-50 w-24 max-w-\[calc\(100vw-1rem\)\] -translate-x-1\/2/,
-    'Clone and Send share a stable 96px width and centered trigger anchor')
-  assert.match(roleActionMenuSource, /className="block min-h-8 w-full px-2 text-left text-xs/,
-    'Clone and Send role labels are left aligned with consistent padding and practical row targets')
-  assert.doesNotMatch(pageSource, /transferMessage|transferError|SIM sent to|Send blocked by Master Data validation/,
-    'Send keeps defensive validation without persistent Result feedback')
-  const rowTemplateStart = pageSource.indexOf('const status = rowStatusText(row,')
-  assert.ok(rowTemplateStart >= 0, 'the Simulation parameter row template remains identifiable')
-  const rowOpeningStart = pageSource.indexOf('<tr', rowTemplateStart)
-  assert.ok(rowOpeningStart >= 0, 'the parameter row uses a table row element')
-  const rowHandlerSource = pageSource.slice(rowOpeningStart, pageSource.indexOf('</tr>', rowOpeningStart))
-  assert.match(rowHandlerSource, /onClick=\{/, 'clicking anywhere on the parameter row invokes its row action')
-  assert.match(rowHandlerSource, /onKeyDown=\{/, 'the row action has a keyboard handler')
-  assert.match(rowHandlerSource, /event\.key\s*!==\s*['"]Enter['"]/, 'Enter is accepted by the row activation guard')
-  assert.match(rowHandlerSource, /event\.key\s*!==\s*['"] ['"]/, 'Space is accepted by the row activation guard')
-  assert.match(rowHandlerSource, /isInteractiveTarget\(event\.target, event\.currentTarget\)/,
-    'editing inputs and nested controls keep their own click behavior')
-  assert.match(pageSource, /\[data-safe-workspace-interaction="true"\]/,
-    'clicking inside an expanded detail does not bubble into its parent row toggle')
-  assert.match(rowHandlerSource, /aria-expanded=\{canExpand \? expanded : undefined\}/,
-    'the row exposes its expanded state to assistive technology')
-  assert.match(rowHandlerSource, /onClick=\{event => \{[\s\S]*?toggleExpanded\(\)/,
-    'safe row clicks toggle the expanded detail')
-  assert.match(rowHandlerSource, /event\.key !== 'Enter' && event\.key !== ' '/,
-    'the row itself responds to both Enter and Space')
-  assert.match(rowHandlerSource, /<span aria-hidden="true" className="inline-grid h-7 w-7 place-items-center text-slate-600">/,
-    'the Chevron remains a decorative indicator rather than a duplicate button')
-  const mobileRowsStart = pageSource.indexOf('visibleRows.map(({ row, sourceIndex }) => {', pageSource.indexOf('visibleRows.map(({ row, sourceIndex }) => {') + 1)
-  assert.ok(mobileRowsStart >= 0, 'a separate mobile card row template remains available')
-  const mobileArticleStart = pageSource.indexOf('<article', mobileRowsStart)
-  const mobileRowHandlerSource = pageSource.slice(mobileArticleStart, pageSource.indexOf('</article>', mobileArticleStart))
-  assert.match(mobileRowHandlerSource, /tabIndex=\{canExpand \? 0 : undefined\}/, 'mobile rows are keyboard reachable too')
-  assert.match(mobileRowHandlerSource, /onClick=\{/, 'the full mobile card toggles its detail')
-  assert.match(mobileRowHandlerSource, /onKeyDown=\{/, 'mobile rows use the same keyboard activation')
-  assert.match(mobileRowHandlerSource, /event\.key\s*!==\s*['"]Enter['"]|event\.key\s*!==\s*['"] ['"]/,
-    'mobile cards respond to Enter or Space')
-  assert.doesNotMatch(pageMarkup, /RCA Case context|Start SIM From|Action Cost\s*\/\s*Evaluation Quantity|Evaluation Quantity/,
-    'visible Simulation has no active RCA strip or old economic model')
+    const {
+      createEmptySimulationState,
+      getEffectiveSimulationDataset,
+      setSimulationActiveDataset,
+      setSimulationComparison
+    } = await vite.ssrLoadModule('/src/features/simulation/simulation-state.ts')
+    const makeSnapshot = (id: string, price: number, referencePrice: number): CostSnapshot => ({
+      id,
+      product: { productCode: 'P-1', productDescription: 'Fixture', uom: 'PC', customer: '', effectiveDate: '', sellingPrice: 120, sgaPercent: 10 },
+      effectiveDate: '', sourceRef: id, status: 'draft',
+      rates: [{ id: `${id}-rate`, workCenterCode: 'WC-1', description: 'Long Work Center Description', laborRate: 10, burdenRate: 5, effectiveDate: '', confidence: {} }],
+      bom: [
+        { id: `${id}-bom`, itemCode: 'MAT-1', description: 'A deliberately long stainless steel material description for wrapping', consumption: 2, unit: 'PC', price, loss: 0.05, confidence: {} },
+        { id: `${id}-bom-extra`, itemCode: 'MAT-2', description: 'Second material', consumption: 1, unit: 'PC', price: referencePrice, loss: 0, confidence: {} }
+      ],
+      routing: [
+        { id: `${id}-route`, processName: 'Assembly process with a long name', workCenterId: 'WC-1', manning: 1, capacity: 10, yield: 1, confidence: {} }
+      ]
+    })
+    const referenceSnapshot = makeSnapshot('reference', 10, 3)
+    const currentSnapshot = makeSnapshot('current', 12, 3)
+    const customSnapshot = makeSnapshot('custom', 12, 3)
+    const roles = ['reference', 'current', 'custom'] as const
+    const sources = { reference: referenceSnapshot, current: currentSnapshot, custom: customSnapshot }
+    const fresh = createEmptySimulationState(sources)
+    assert.deepEqual([fresh.activeDataset, fresh.comparisonBefore, fresh.comparisonAfter], ['custom', 'current', 'custom'],
+      'fresh Simulation opens with Custom active and Current → Custom in Result')
+    const effectiveDatasetsFor = (workspace: typeof fresh) => Object.fromEntries(
+      roles.map(role => [role, getEffectiveSimulationDataset(sources, workspace, role)])
+    )
+    const renderPage = (workspace: typeof fresh) => {
+      const effectiveDatasets = effectiveDatasetsFor(workspace)
+      const active = effectiveDatasets[workspace.activeDataset]
+      return renderToStaticMarkup(React.createElement(SimulationPage, {
+        state: active,
+        workingSelection: active.workingSelection,
+        analysisBeforeDataset: effectiveDatasets[workspace.comparisonBefore],
+        analysisAfterDataset: effectiveDatasets[workspace.comparisonAfter],
+        effectiveDatasets,
+        onSelectActiveDataset() {}, onChangeComparison() {}, onSend() {}, onSendAll() {},
+        onReset() {}, onResetAll() {}, onUpdateParameter() {}, onToggleWorkingTarget() {},
+        onUpdateEconomicInput() {}, onBeginEdit() {}, onCommitEdit() {}
+      }))
+    }
+    const resultPanel = (markup: string) =>
+      markup.match(/<section[^>]*aria-labelledby="simulation-result-title"[\s\S]*?<\/section>/)?.[0] ?? ''
+    const visibleHeaders = (panel: string) => [...panel.matchAll(/<th scope="col"[^>]*>([\s\S]*?)<\/th>/g)]
+      .map(([, content]) => content.replace(/<span class="sr-only">[\s\S]*?<\/span>/g, '').replace(/<[^>]*>/g, '').trim())
+    const graphValues = (markup: string) => {
+      const graph = markup.match(/<svg\b[\s\S]*?<\/svg>/)?.[0] ?? ''
+      return [
+        ...roles.map(role => graph.match(new RegExp(`data-graph-standard-cost-value="${role}"[^>]*>([^<]+)<\\/text>`))?.[1] ?? ''),
+        ...(['gap1', 'gap2'] as const).map(gap => graph.match(new RegExp(`data-graph-total="${gap}"[^>]*>([^<]+)<\\/text>`))?.[1] ?? '')
+      ]
+    }
 
-  const duplicateSnapshot = {
-    ...customSnapshot,
-    bom: [
-      { ...customSnapshot.bom[0], id: 'ambiguous-1' },
-      { ...customSnapshot.bom[0], id: 'ambiguous-2' }
-    ]
-  }
-  const protectedState = startSimulationFrom('custom', { ...sources, custom: duplicateSnapshot })
-  const protectedMarkup = renderToStaticMarkup(React.createElement(SimulationPage, {
-    state: protectedState,
-    workingSelection: protectedState.workingSelection,
-    referenceSnapshot,
-    currentSnapshot,
-    onCloneSource() {}, onSendTo() { return true }, onReset() {}, onToggleWorkingTarget() {}, onUpdateParameter() {}, onUpdateEconomicInput() {}
-  }))
-  assert.match(protectedMarkup, /Ambiguous identity · protected/)
-  assert.match(protectedMarkup, /aria-label="Bill of Materials: .* activate to expand Parameter Cost Effect"/,
-    'the ambiguous row exposes its full-row expansion name')
-  const protectedRowStart = protectedMarkup.indexOf('<tr data-safe-workspace-interaction="true" aria-selected="false"')
-  const protectedRowTag = protectedMarkup.slice(protectedRowStart, protectedMarkup.indexOf('>', protectedRowStart))
-  assert.match(protectedRowTag, /aria-label="Bill of Materials: .* activate to expand Parameter Cost Effect"/,
-    'the protected row itself exposes its expansion action')
-  assert.match(protectedRowTag, /tabindex="0"/, 'the protected row is keyboard reachable')
-  assert.match(protectedRowTag, /aria-expanded="false"/, 'the protected row exposes its collapsed state')
-  assert.doesNotMatch(protectedMarkup, /<button[^>]*aria-label="Expand Parameter Cost Effect for/,
-    'the Chevron does not create a second independent expand button')
-  assert.match(pageSource, /<td aria-hidden="true" \/>[\s\S]*?<th scope="row" colSpan=\{2\}/,
-    'the empty number cell precedes the identity-aligned label while effects remain under parameters')
-  assert.match(protectedMarkup, /aria-expanded="false"/)
-  assert.doesNotMatch(protectedMarkup, /<h4[^>]*>Parameter Cost Effect<\/h4>/,
-    'the Parameter Cost Effect detail remains collapsed until requested')
-  assert.doesNotMatch(protectedMarkup, /100\.00%/, 'per-parameter attribution shares are not presented')
-  assert.doesNotMatch(protectedMarkup, /type="checkbox"|aria-label="Select BOM row/, 'ambiguous rows are not selectable')
-  assert.match(pageSource, /const canExpand = true/, 'protected rows can expand even without a status')
-  assert.doesNotMatch(pageSource, /effectUnavailableReason|Unavailable\s*·|Business identity cannot be matched safely|Business identity is missing or unmatched|The row exists only in SIM|The row exists only in Current|Required inputs or Work Center context are unavailable/,
-    'expanded BOM and Routing details do not render unavailable-reason prose')
-  assert.match(pageSource, /\{expanded && \(/, 'Parameter Cost Effect appears only after expanding the row')
-  assert.match(pageSource, /Parameter Cost Effect/, 'the expandable row contains the effect detail')
-  assert.match(pageSource, /detailParameters\.map\(parameter => <EffectCell key=\{parameter\.parameter\} amount=\{parameter\.amount\} \/>/,
-    'desktop effect cells keep rendering the existing dash presentation for unavailable values')
-  assert.match(pageSource, /parameterEffectPresentation\(analysis\.effects\.effects\?\.\[parameter\.effectKey\]\)/,
-    'mobile effect values keep using the same unavailable-value presentation')
-  assert.match(pageSource, /const totalEffect = parameterEffectPresentation\(analysis\.effects\.totalEffect\)/,
-    'the expanded Total uses the signed presentation helper')
-  assert.match(pageSource, /aria-label=\{`Total \$\{totalEffect\.text\}`\}/,
-    'the expanded Total accessible name includes its signed value')
-  assert.match(pageSource, /useTransientInteraction\(expandedRows\.size > 0, \(\) => setExpandedRows\(new Set\(\)\)\)/,
-    'expanded details register with the shared transient workspace-dismiss system')
-  assert.match(pageSource, /<tr id=\{detailId\} data-safe-workspace-interaction="true"/,
-    'the expanded detail itself is protected from workspace dismissal')
-  assert.match(pageSource, /<th scope="row" colSpan=\{2\}[^>]*>\s*<span className="ml-2 inline-block whitespace-nowrap border-l-2 border-slate-300 pl-3">Parameter Cost Effect/,
-    'the hierarchy guide and label are indented within their cell while effect cells remain separate')
-  assert.match(pageSource, /className="whitespace-nowrap py-1\.5 pl-1 pr-8 text-right font-mono tabular-nums"/,
-    'parameter effect numeric cells keep their existing column alignment')
-  assert.match(pageSource, /<td className="py-2 pl-1 pr-6 text-right font-mono text-xs tabular-nums text-slate-900">\{displayMoney\(analysis\.simCost\)\}<\/td>/,
-    'the Material Cost and Conversion Cost values keep their existing numeric axis')
-  assert.match(pageSource, /className="whitespace-nowrap py-1\.5 pl-1 pr-6 text-right text-\[10px\] font-semibold"/,
-    'the expanded Total keeps the same numeric padding as its cost value')
-  assert.doesNotMatch(pageSource, /analysis\.effects\.shares\?\./, 'per-factor share percentages are removed from the presentation')
+    const initialMarkup = renderPage(fresh)
+    const initialResult = resultPanel(initialMarkup)
+    assert.ok(initialResult, 'the current Simulation Result panel renders')
+    assert.match(initialResult, /<h2 id="simulation-result-title" class="sr-only">Result<\/h2>/,
+      'Result retains its screen-reader-only title')
+    assert.deepEqual(visibleHeaders(initialResult), ['Cost / Unit', 'Before', 'After', 'Change', '%'],
+      'Cost / Unit, Before, After, Change, and % share one compact visible header row')
+    assert.match(initialResult, /aria-label="Before dataset, Current"/, 'Before keeps the selected role in its accessible name')
+    assert.match(initialResult, /aria-label="After dataset, Custom"/, 'After keeps the selected role in its accessible name')
+    assert.match(initialResult, /Business Outcome \/ Unit/, 'Business Outcome / Unit remains a compact section divider')
+    assert.match(initialMarkup, /aria-label="Select Custom as active dataset"[^>]*aria-pressed="true"/,
+      'the fresh page marks Custom as the active graph role')
+    assert.match(initialMarkup, /Send to Master Data/, 'the main Send accessible name is preserved')
+    assert.match(initialMarkup, /Reset all/)
+    assert.doesNotMatch(initialMarkup, /Reset all datasets/)
+    assert.equal((initialMarkup.match(/data-simulation-table-body="true"/g) ?? []).length, 2,
+      'BOM and Routing keep independent table body viewports')
+    assert.deepEqual(graphValues(initialMarkup), ['25.50', '29.70', '29.70', '+4.20', '0.00'],
+      'the embedded graph keeps Reference, Current, Custom and both fixed gaps')
+    const pageSource = readFileSync(resolve(process.cwd(), 'src/features/simulation/SimulationPage.tsx'), 'utf8')
+    assert.ok((pageSource.match(/visibleRows\.map\(\(\{ row, sourceIndex \}\)/g) ?? []).length >= 2,
+      'desktop rows and responsive cards both map every visible candidate')
+    assert.match(pageSource, /<div className="md:hidden">[\s\S]*?<article[\s\S]*?tabIndex=\{canExpand \? 0 : undefined\}/,
+      'narrow layouts retain keyboard-reachable candidate cards')
+    const desktopRowStart = pageSource.indexOf("const status = rowStatusText(row, canEdit && simulationRecord ? simulationParameterStatus(kind, simulationRecord.id, simulationSnapshot, baselineSnapshot) : null)")
+    const desktopRowOpen = pageSource.indexOf('<tr', desktopRowStart)
+    const desktopRowSource = pageSource.slice(desktopRowOpen, pageSource.indexOf('</tr>', desktopRowOpen))
+    assert.match(desktopRowSource, /tabIndex=\{canExpand \? 0 : undefined\}/)
+    assert.match(desktopRowSource, /event\.key !== 'Enter' && event\.key !== ' '/,
+      'desktop candidate rows support Enter and Space expansion')
+    const mobileSourceStart = pageSource.indexOf('<div className="md:hidden">')
+    const mobileArticleStart = pageSource.indexOf('<article', mobileSourceStart)
+    const mobileArticleEnd = pageSource.indexOf('</article>', mobileArticleStart)
+    const mobileArticleSource = pageSource.slice(mobileArticleStart, mobileArticleEnd)
+    assert.match(mobileArticleSource, /event\.key !== 'Enter' && event\.key !== ' '/,
+      'mobile candidate cards support Enter and Space expansion')
+    const bomTable = initialMarkup.match(/<section data-simulation-table="bom"[\s\S]*?<\/section>/)?.[0] ?? ''
+    const initialBomRow = bomTable.match(/<tr data-safe-workspace-interaction="true"[\s\S]*?<\/tr>/)?.[0] ?? ''
+    assert.match(initialBomRow, /aria-expanded="false"/, 'desktop candidate rows expose their collapsed state')
+    assert.match(initialBomRow, /tabindex="0"/, 'desktop candidate rows are keyboard reachable')
+    assert.match(initialBomRow, /aria-label="Bill of Materials: .* activate to expand Parameter Cost Effect"/,
+      'desktop candidate rows expose their Parameter Cost Effect action')
+    assert.match(bomTable, /A deliberately long stainless steel material description for wrapping Price in Custom/,
+      'parameter inputs remain owned by active Custom')
+    assert.match(pageSource, /isInteractiveTarget\(event\.target, event\.currentTarget\)/,
+      'editing inputs and nested controls keep their own behavior instead of toggling the row')
+    assert.match(pageSource, /\{expanded && \([\s\S]*?Parameter Cost Effect[\s\S]*?detailParameters\.map\(parameter => <EffectCell/,
+      'Parameter Cost Effect details remain available on demand')
+    assert.match(pageSource, /aria-label=\{`Total \$\{totalEffect\.text\}`\}/,
+      'the expanded total keeps its signed value in the accessible name')
+    assert.doesNotMatch(pageSource, /analysis\.effects\.shares\?\./,
+      'parameter details do not add percentage-share labels')
 
-  console.log('Simulation story graph and page contract verification passed')
+    const changedPair = setSimulationComparison(fresh, 'custom', 'reference')
+    const changedPairMarkup = renderPage(changedPair)
+    assert.deepEqual(graphValues(changedPairMarkup), graphValues(initialMarkup),
+      'changing Result comparison leaves the fixed graph story unchanged')
+    assert.match(changedPairMarkup, /aria-label="Before dataset, Custom"/)
+    assert.match(changedPairMarkup, /aria-label="After dataset, Reference"/)
+    assert.equal(changedPair.activeDataset, 'custom', 'changing Result roles does not move activeDataset')
+
+    const changedActive = setSimulationActiveDataset(changedPair, 'current')
+    const changedActiveMarkup = renderPage(changedActive)
+    assert.deepEqual([changedActive.comparisonBefore, changedActive.comparisonAfter], ['custom', 'reference'],
+      'changing activeDataset leaves the Result comparison pair unchanged')
+    assert.match(changedActiveMarkup, /aria-label="Select Current as active dataset"[^>]*aria-pressed="true"/,
+      'the graph updates the selected active role')
+    assert.deepEqual(graphValues(changedActiveMarkup), graphValues(initialMarkup),
+      'selecting another active role does not rewrite the fixed graph values')
+
+    console.log('Simulation Story graph and current page contract verification passed')
   }
 } finally {
   await vite.close()

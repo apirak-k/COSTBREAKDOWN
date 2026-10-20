@@ -11,6 +11,21 @@ interface TransientInteraction {
 
 const transientInteractions: TransientInteraction[] = []
 
+let activeExclusivePopover: { owner: symbol; dismiss: () => void } | null = null
+
+export function openExclusivePopover(owner: symbol, dismiss: () => void): void {
+  if (activeExclusivePopover?.owner !== owner) activeExclusivePopover?.dismiss()
+  activeExclusivePopover = { owner, dismiss }
+}
+
+export function closeExclusivePopover(owner: symbol): void {
+  if (activeExclusivePopover?.owner === owner) activeExclusivePopover = null
+}
+
+export function dismissExclusivePopover(): void {
+  activeExclusivePopover?.dismiss()
+}
+
 export function registerTransientInteraction(dismiss: TransientDismissHandler): () => void {
   const interaction = { id: Symbol('transient-interaction'), dismiss }
   transientInteractions.push(interaction)

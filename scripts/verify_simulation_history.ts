@@ -36,8 +36,8 @@ try {
   const base = createEmptySimulationState(sources)
   const view = (state, role = 'current') => getEffectiveSimulationDataset(sources, state, role)
   assert.equal(base.schemaVersion, 2)
-  assert.equal(base.activeDataset, 'current')
-  assert.deepEqual(view(base).economicInputs, {
+  assert.deepEqual([base.activeDataset, base.comparisonBefore, base.comparisonAfter], ['custom', 'current', 'custom'])
+  assert.deepEqual(view(base, 'current').economicInputs, {
     fixedActionCost: '', variableActionCostPerPiece: '', batchSize: '',
     sellingPriceOverride: String(sources.current.product.sellingPrice),
     sgaPercentOverride: String(sources.current.product.sgaPercent)
@@ -133,19 +133,20 @@ try {
   mixed = setSimulationEconomicInput(mixed, 'variableActionCostPerPiece', '3.5', 'current')
   mixed = setSimulationEconomicInput(mixed, 'sellingPriceOverride', '275', 'current')
   mixed = setSimulationEconomicInput(mixed, 'sgaPercentOverride', '12', 'current')
+  mixed = setSimulationActiveDataset(mixed, 'current')
   const beforeReset = captureSimulationEditableSnapshot(sources, mixed, 'current')
   const reset = resetSimulationParameters(mixed, sources)
   const afterReset = captureSimulationEditableSnapshot(sources, reset, 'current')
   assert.deepEqual(afterReset.bom, baseValues.bom, 'Reset restores the complete Current BOM editable snapshot')
   assert.deepEqual(afterReset.routing, baseValues.routing, 'Reset restores the complete Current Routing editable snapshot')
-  assert.deepEqual(afterReset.economicInputs, beforeReset.economicInputs,
-    'parameter Reset preserves the active dataset economic assumptions')
+  assert.deepEqual(afterReset.economicInputs, baseValues.economicInputs,
+    'Reset clears Simulation-only economics and restores Selling Price/SG&A from Current Working')
   assert.deepEqual(view(reset).parameterOverrides, {}, 'Reset clears only the active role parameter overrides')
   const resetHistory = recordSimulationHistory(createSimulationHistory(currentBasis), beforeReset, afterReset)
   assert.equal(resetHistory.undo.length, 1, 'Reset of parameter overrides creates one history transaction')
   const undoReset = undoSimulationHistory(resetHistory, afterReset)
   assert.ok(undoReset.snapshot && isSimulationEditableSnapshotEqual(undoReset.snapshot, beforeReset),
-    'one Undo restores all pre-Reset BOM, Routing, and Economic edits')
+    'one role-local Undo restores all pre-Reset BOM, Routing, and Economic edits')
   const redoReset = redoSimulationHistory(undoReset.history, undoReset.snapshot!)
   assert.ok(redoReset.snapshot && isSimulationEditableSnapshotEqual(redoReset.snapshot, afterReset), 'Redo reapplies Reset')
   const noOpResetHistory = recordSimulationHistory(resetHistory, afterReset,

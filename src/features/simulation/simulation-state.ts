@@ -33,6 +33,12 @@ export interface SimulationWorkspaceState {
   datasets: Record<MasterDataRole, SimulationDatasetState>
 }
 
+export const DEFAULT_SIMULATION_CONTEXT = {
+  activeDataset: 'custom',
+  comparisonBefore: 'current',
+  comparisonAfter: 'custom'
+} as const satisfies Pick<SimulationWorkspaceState, 'activeDataset' | 'comparisonBefore' | 'comparisonAfter'>
+
 export interface SimulationDatasetView extends SimulationDatasetState {
   role: MasterDataRole
   snapshot: CostSnapshot
@@ -60,9 +66,7 @@ function isMasterDataRole(value: unknown): value is MasterDataRole {
 export function createEmptySimulationState(sources: SimulationSources): SimulationWorkspaceState {
   return {
     schemaVersion: 2,
-    activeDataset: 'current',
-    comparisonBefore: 'reference',
-    comparisonAfter: 'current',
+    ...DEFAULT_SIMULATION_CONTEXT,
     datasets: {
       reference: createEmptyDataset('reference', sources),
       current: createEmptyDataset('current', sources),
@@ -232,9 +236,12 @@ export function resetAllSimulationParameters(
     role,
     resetDataset(state.datasets[role], role, sources)
   ])) as Record<MasterDataRole, SimulationDatasetState>
-  return MASTER_DATA_ROLES.every(role => datasets[role] === state.datasets[role])
+  const contextIsDefault = state.activeDataset === DEFAULT_SIMULATION_CONTEXT.activeDataset
+    && state.comparisonBefore === DEFAULT_SIMULATION_CONTEXT.comparisonBefore
+    && state.comparisonAfter === DEFAULT_SIMULATION_CONTEXT.comparisonAfter
+  return contextIsDefault && MASTER_DATA_ROLES.every(role => datasets[role] === state.datasets[role])
     ? state
-    : { ...state, datasets }
+    : { ...state, ...DEFAULT_SIMULATION_CONTEXT, datasets }
 }
 
 function resetSimulationDataset(
@@ -254,7 +261,7 @@ function resetDataset(
   const fresh = createEmptyDataset(role, sources)
   const sameBasis = dataset?.basisFingerprint === fresh.basisFingerprint
   const next = sameBasis
-    ? { ...fresh, economicInputs: dataset.economicInputs, workingSelection: dataset.workingSelection }
+    ? { ...fresh, workingSelection: dataset.workingSelection }
     : fresh
   return dataset && JSON.stringify(dataset) === JSON.stringify(next) ? dataset : next
 }
@@ -287,9 +294,9 @@ export function reconcileSimulationState(
   ])) as Record<MasterDataRole, SimulationDatasetState>
   const reconciled: SimulationWorkspaceState = {
     schemaVersion: 2,
-    activeDataset: isMasterDataRole(state.activeDataset) ? state.activeDataset : 'current',
-    comparisonBefore: isMasterDataRole(state.comparisonBefore) ? state.comparisonBefore : 'reference',
-    comparisonAfter: isMasterDataRole(state.comparisonAfter) ? state.comparisonAfter : 'current',
+    activeDataset: isMasterDataRole(state.activeDataset) ? state.activeDataset : DEFAULT_SIMULATION_CONTEXT.activeDataset,
+    comparisonBefore: isMasterDataRole(state.comparisonBefore) ? state.comparisonBefore : DEFAULT_SIMULATION_CONTEXT.comparisonBefore,
+    comparisonAfter: isMasterDataRole(state.comparisonAfter) ? state.comparisonAfter : DEFAULT_SIMULATION_CONTEXT.comparisonAfter,
     datasets
   }
   return JSON.stringify(reconciled) === JSON.stringify(state) ? state as unknown as SimulationWorkspaceState : reconciled
