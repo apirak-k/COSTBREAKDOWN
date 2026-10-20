@@ -144,6 +144,7 @@ const tableMarkup = renderToStaticMarkup(React.createElement(SimulationPage, {
   onResetAll() {},
   onUpdateParameter() {},
   onToggleWorkingTarget() {},
+  onSetWorkingSelection() {},
   onUpdateEconomicInput() {},
   onBeginEdit() {},
   onCommitEdit() {}

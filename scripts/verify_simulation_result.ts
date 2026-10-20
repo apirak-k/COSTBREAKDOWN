@@ -57,7 +57,7 @@ try {
       analysisAfterDataset: effectiveDatasets[after],
       effectiveDatasets,
       onSelectActiveDataset() {}, onChangeComparison() {}, onSend() {}, onSendAll() {},
-      onReset() {}, onResetAll() {}, onUpdateParameter() {}, onToggleWorkingTarget() {},
+      onReset() {}, onResetAll() {}, onUpdateParameter() {}, onToggleWorkingTarget() {}, onSetWorkingSelection() {},
       onUpdateEconomicInput() {}, onBeginEdit() {}, onCommitEdit() {}
     }))
   }
@@ -130,7 +130,7 @@ try {
       analysisBeforeDataset: effectiveDatasets.reference, analysisAfterDataset: effectiveDatasets.custom,
       effectiveDatasets,
       onSelectActiveDataset() {}, onChangeComparison() {}, onSend() {}, onSendAll() {},
-      onReset() {}, onResetAll() {}, onUpdateParameter() {}, onToggleWorkingTarget() {},
+      onReset() {}, onResetAll() {}, onUpdateParameter() {}, onToggleWorkingTarget() {}, onSetWorkingSelection() {},
       onUpdateEconomicInput() {}, onBeginEdit() {}, onCommitEdit() {}
     }))
   })()
@@ -151,7 +151,7 @@ try {
     analysisBeforeDataset: missingDatasets.current, analysisAfterDataset: missingDatasets.custom,
     effectiveDatasets: missingDatasets,
     onSelectActiveDataset() {}, onChangeComparison() {}, onSend() {}, onSendAll() {},
-    onReset() {}, onResetAll() {}, onUpdateParameter() {}, onToggleWorkingTarget() {},
+    onReset() {}, onResetAll() {}, onUpdateParameter() {}, onToggleWorkingTarget() {}, onSetWorkingSelection() {},
     onUpdateEconomicInput() {}, onBeginEdit() {}, onCommitEdit() {}
   }))
   assert.deepEqual(rowValues(missingMarkup, 'Selling Price').map(cell => cell.text), ['—', '—', '—', '—'])

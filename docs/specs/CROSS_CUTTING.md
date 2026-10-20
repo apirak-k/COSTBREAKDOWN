@@ -16,6 +16,13 @@ Routing operations use their Work Center's rates; Cost Breakdown may aggregate p
 - A page visit or active-tab change alone does not clear state. If its product, comparison pair, Working source, or role-basis fingerprint changes, reconcile only the state dependent on that context. Existing context invalidation rules take precedence over retaining stale state. Transient menus close on normal dismissal; a modal owned by a page must not remain visible after its page is hidden.
 - The shared Header remains in the same location. Undo/Redo route to Master Data edit history, Cost Breakdown Candidate reorder history only, and Simulation history; unavailable actions stay visible and disabled. CBD filter, sort, selection, and disclosure changes do not add history entries, and Sort continues to clear Candidate manual-order history.
 
+## Canonical `#` Row Selection
+
+- Every table `#` header represents **none**, **mixed**, or **all** selected rows in its current logical selection scope and exposes `aria-checked=false`, `mixed`, or `true` respectively. Clicking none or mixed selects every eligible row in scope; clicking all clears every eligible row in scope. A bulk action computes and applies the resulting selection in one state update, preserving selected keys outside that scope.
+- A true table filter/search may define the logical scope when that is the table's established behavior. Scrolling never narrows the scope. Master Data scopes its header to filtered rows and preserves selected rows hidden by Search; Candidate scopes it to the current filtered/actionable findings and preserves hidden selections; Simulation scopes it to every eligible BOM or Routing row, including rows below its internal scroll viewport.
+- Dark-header Candidate and Simulation controls use a neutral none state, a selected-looking mixed state with a faded inset ring, and a stronger all state with a bright white border/ring. Master Data uses the same hierarchy with a light-gold header and gold control palette. These palette variants do not change selection behavior.
+- Simulation's selected-first row order is presentation only. It preserves source order within selected and unselected groups, does not mutate the effective snapshot or calculation scope, and is not required for editing.
+
 ## Source Authority
 
 Follow [REQUIREMENTS_INDEX.md](../REQUIREMENTS_INDEX.md). A newer summary cannot erase a prior finalized decision by omission. Existing code and workbook files are implementation evidence only. The 80-topic crosswalk records sources and implementation/verification status; it does not define requirements.

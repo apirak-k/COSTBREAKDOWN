@@ -160,7 +160,10 @@ normal rows and scroll additional rows internally; all rows remain present.
 The upper workspace uses the freed height. Narrow layouts keep natural card
 flow and page scrolling. The `#` column's row number is the local selection
 control, and selected rows appear first through view ordering only; calculation
-always uses the full effective role snapshot. Main Reset restores the active
+always uses the full effective role snapshot. At desktop width, allocate the
+upper panels about 53% to Graph, 28% to Result/Break-even, and 19% to
+Business/Economic; split the middle column about 58/42 between Result and
+Break-even. Main Reset restores the active
 role's parameters and Master-backed Selling Price/SG&A, clears Fixed/Variable/
 Batch inputs, and remains one role-local Undo action. Result uses a shared
 96×32 Before/After selector and one compact `Cost / Unit | Before | After |
@@ -334,6 +337,10 @@ scroll area, as required by
 - Use a subtly tinted table header and white rows. A hover/selection state may
   use a light slate fill, but it must remain distinct from invalid and
   comparison-status cues.
+- Master Data uses a light-gold table header and matching gold none/mixed/all
+  `#` state hierarchy. Candidate and Simulation use the dark-header hierarchy;
+  all three share the canonical interaction in
+  [`CROSS_CUTTING.md`](docs/specs/CROSS_CUTTING.md#canonical-row-selection).
 - Align names and descriptions left; align quantities, rates, costs, and gaps
   right using tabular numerals. Show units without implying any conversion.
 - Keep comparison statuses as readable text; color may reinforce them but

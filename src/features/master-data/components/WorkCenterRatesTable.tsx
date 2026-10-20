@@ -3,6 +3,7 @@ import { GripVertical, Trash2 } from 'lucide-react'
 import { SnapshotWorkCenterRate, SnapshotRoutingStep, formatNumber } from '../../../core'
 import { getMasterDataNumericInputDomain } from '../../../core/utils/master-data-validation'
 import { useDragSelect } from '../hooks/useDragSelect'
+import { getRowSelectionState } from '../../../shared/selection/row-drag-selection'
 import { useIdentityEditorDrafts } from '../hooks/useIdentityEditorDrafts'
 import { SpreadsheetPasteCell, tableCellKey, useTableKeyboardNav } from '../hooks/useTableKeyboardNav'
 import { RowChanges, useSpreadsheetEditing } from '../hooks/useSpreadsheetEditing'
@@ -13,6 +14,7 @@ import type { MasterDataBlockerItem, MasterDataWarningItem } from '../prepare-da
 import { MasterDataTableHeader } from './MasterDataTableChrome'
 import { MasterDataBlockerMarker } from './MasterDataBlockerMarker'
 import { Tooltip } from '../../../shared/ui/Tooltip'
+import { RowSelectionButton } from '../../../shared/ui/RowSelectionButton'
 import { NumericInput } from '../../../shared/ui/NumericInput'
 import { masterDataActionsColumnClass, masterDataDisplaySlotClass, masterDataIdentityColumnClass, masterDataIndexColumnClass, masterDataIssueDisplayClass, masterDataIssueEditorClass, masterDataIssuePlaceholderClass, masterDataNoteColumnClass, masterDataNumericDisplaySlotClass, masterDataNumericEditorClass, masterDataSpreadsheetSelectionClass, masterDataTableClass, masterDataTextEditorClass } from './master-data-field-styles'
 
@@ -211,7 +213,7 @@ export const WorkCenterRatesTable: React.FC<WorkCenterRatesTableProps> = ({
     onNavigateWarning(target)
   }
 
-  const allVisibleSelected = filteredRates.length > 0 && filteredRates.every(rate => selectedIds.has(rate.id))
+  const selectionState = getRowSelectionState(selectedIds, filteredRates.map(rate => rate.id))
 
   const handleDragStart = (event: React.DragEvent<HTMLButtonElement>, id: string) => {
     event.dataTransfer.setData('text/plain', id)
@@ -248,11 +250,11 @@ export const WorkCenterRatesTable: React.FC<WorkCenterRatesTableProps> = ({
             <col className={masterDataIndexColumnClass} /><col className={masterDataIdentityColumnClass} /><col />
             <col /><col className={masterDataNoteColumnClass} /><col className={masterDataActionsColumnClass} />
           </colgroup>
-          <thead className="sticky top-0 z-30 border-y-2 border-slate-400 bg-slate-100 text-[11px] font-semibold uppercase tracking-wide text-slate-800">
+          <thead className="sticky top-0 z-30 border-y-2 border-amber-300 bg-amber-50 text-[11px] font-semibold uppercase tracking-wide text-amber-950">
             <tr>
-              <th scope="col" className={`sticky left-0 z-40 ${masterDataIndexColumnClass} bg-slate-100 p-0 text-center`}>
-                <Tooltip label={allVisibleSelected ? 'Clear visible selection' : 'Select all visible rows'} wrapperClassName="relative flex h-9 w-full items-center justify-center">
-                  <button type="button" onClick={() => toggleAll(!allVisibleSelected)} disabled={filteredRates.length === 0} aria-pressed={allVisibleSelected} aria-label={allVisibleSelected ? 'Clear visible selection for Work Centers rows' : 'Select all visible Work Centers rows'} className={`grid h-7 w-7 place-items-center rounded-sm text-[11px] focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-700 ${allVisibleSelected ? 'border border-slate-800 bg-slate-700 text-white' : 'text-slate-700 hover:bg-slate-200'} disabled:cursor-default disabled:text-slate-400 disabled:hover:bg-transparent`}>#</button>
+              <th scope="col" className={`sticky left-0 z-40 ${masterDataIndexColumnClass} bg-amber-50 p-0 text-center`}>
+                <Tooltip label={selectionState === 'all' ? 'Clear visible selection' : 'Select all visible rows'} wrapperClassName="relative flex h-9 w-full items-center justify-center">
+                  <RowSelectionButton variant="gold" state={selectionState} onClick={() => toggleAll(selectionState !== 'all')} disabled={filteredRates.length === 0} label={selectionState === 'all' ? 'Clear visible selection for Work Centers rows' : 'Select all visible Work Centers rows'} />
                 </Tooltip>
               </th>
               <th scope="col" className="px-2 py-2 text-left">Work Center</th>

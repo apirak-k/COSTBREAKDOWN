@@ -12,8 +12,9 @@ import {
 } from '../../../core'
 import type { MasterDataNumericField } from '../../../core'
 import type { ComparisonFinding, ComparisonStatus, CostBreakdownComparisonPair } from '../../../core'
-import { applyRowDragSelection } from '../../../shared/selection/row-drag-selection'
+import { applyRowDragSelection, applyRowSelectionScope, getRowSelectionState } from '../../../shared/selection/row-drag-selection'
 import { Tooltip } from '../../../shared/ui/Tooltip'
+import { RowSelectionButton } from '../../../shared/ui/RowSelectionButton'
 import type { BOMItemizedRow } from './BOMDetailedTable'
 import { BOMRecordDetails } from './BOMDetailedTable'
 import type { RoutingItemizedRow } from './RoutingDetailedTable'
@@ -41,7 +42,7 @@ interface CandidateFindingsTableProps {
   expandedRows: ReadonlySet<string>
   onToggleExpanded: (type: CandidateTableType, rowKey: string) => void
   onToggleFinding?: (type: CandidateTableType, key: string) => void
-  onSetFindingSelection?: (type: CandidateTableType, nextKeys: ReadonlySet<string>) => void
+  onSetFindingSelection: (type: CandidateTableType, nextKeys: ReadonlySet<string>) => void
   onManualOrderChange: (keys: string[]) => void
 }
 
@@ -192,8 +193,7 @@ export const CandidateFindingsTable: React.FC<CandidateFindingsTableProps> = ({
   const eligibleRows = rows.filter(row => getCanonicalComparisonStatus(row.finding) !== null && findingKey(type, row.finding) !== null)
   const visibleKeys = eligibleRows.map(row => findingKey(type, row.finding) as string)
   const selectedVisibleCount = visibleKeys.filter(key => selectedKeys.has(key)).length
-  const allVisibleSelected = visibleKeys.length > 0 && selectedVisibleCount === visibleKeys.length
-  const someVisibleSelected = selectedVisibleCount > 0 && !allVisibleSelected
+  const selectionState = getRowSelectionState(selectedKeys, visibleKeys)
 
   useEffect(() => {
     const handleMouseUp = () => {
@@ -208,22 +208,13 @@ export const CandidateFindingsTable: React.FC<CandidateFindingsTableProps> = ({
   }, [])
 
   const applySelection = (nextKeys: ReadonlySet<string>) => {
-    if (onSetFindingSelection) {
-      onSetFindingSelection(type, nextKeys)
-      return
-    }
-    const current = selectedKeys
-    const changed = new Set([...current, ...nextKeys])
-    changed.forEach(key => {
-      if (current.has(key) !== nextKeys.has(key)) onToggleFinding?.(type, key)
-    })
+    onSetFindingSelection(type, nextKeys)
   }
 
   const toggleOne = (key: string) => onToggleFinding?.(type, key)
 
   const handleHeaderSelection = () => {
-    const nextSelected = !allVisibleSelected
-    applySelection(applyRowDragSelection(selectedKeys, visibleKeys, nextSelected))
+    applySelection(applyRowSelectionScope(selectedKeys, visibleKeys, selectionState !== 'all'))
   }
 
   const startSelectionDrag = (key: string, event: React.MouseEvent<HTMLButtonElement>) => {
@@ -319,16 +310,13 @@ export const CandidateFindingsTable: React.FC<CandidateFindingsTableProps> = ({
       <thead>
         <tr className="bg-slate-800 font-semibold text-white">
           <th scope="col" className="px-1 py-2 text-center">
-            <button
+            <RowSelectionButton
               ref={headerSelectionRef}
-              type="button"
-              role="checkbox"
-              aria-checked={someVisibleSelected ? 'mixed' : allVisibleSelected}
-              aria-label={allVisibleSelected ? `Deselect all visible ${identityHeader} findings` : `Select all visible ${identityHeader} findings`}
+              state={selectionState}
+              label={selectionState === 'all' ? `Deselect all visible ${identityHeader} findings` : `Select all visible ${identityHeader} findings`}
               disabled={visibleKeys.length === 0}
               onClick={handleHeaderSelection}
-              className={`inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-sm p-0 text-[11px] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-white disabled:cursor-default disabled:opacity-40 ${allVisibleSelected ? 'bg-slate-600 text-white' : someVisibleSelected ? 'bg-slate-700 text-white ring-1 ring-inset ring-slate-500' : 'bg-transparent text-white hover:bg-slate-700'}`}
-            >#</button>
+            />
           </th>
           <th scope="col" className="overflow-hidden px-2.5 py-2">{identityHeader}</th>
           <th scope="col" className="whitespace-nowrap px-1 py-2 text-left">Status</th>

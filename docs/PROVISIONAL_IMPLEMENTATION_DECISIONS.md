@@ -143,12 +143,21 @@ Do not promote an entry to a user decision based on implementation, test results
 
 All product requirements and lifecycle boundaries are complete under the finalized authority chain:
 - **Master Data:** Reference, Current, and Custom datasets; Clone semantics; structural changes owned by Master Data / Custom; exact Sizing row counts, truncation, blank row semantics, and Excel round-trip behavior.
-- **CBD:** Compares Reference vs Current only; Full and Selected Comparison scopes; Process/Routing as processing Candidate; Work Center as calculation context.
+- **CBD:** Before and After independently select Reference, Current, or Custom; all nine ordered pairs including self-pairs are valid; the default remains Reference → Current; Gap = After − Before. Process/Routing remains the processing Candidate; Work Center remains calculation context.
 - **Candidate & RCA:** Legacy saved-case compatibility only. Candidate/finding inspection and selection remain inside CBD; no standalone Candidate/Ranking/RCA page or active RCA-to-Simulation workflow. Compatible historical RCA records may retain one/multiple Candidate associations and Case-level Root Cause / Why? and Action semantics.
 - **Simulation — current finalized decisions:** use the current Reference / Current / Custom role-local architecture, defaults, reset behavior, shared comparison selector, fixed graph story, and Result layout in [`SIMULATION.md`](specs/SIMULATION.md) and [`FINAL_LOGIC_SPEC.md`](specs/FINAL_LOGIC_SPEC.md). The older Current/SIM behavior recorded in earlier implementation history is superseded.
 - **Simulation — implementation choices still reversible:** exact responsive breakpoint, compact spacing, ruler snap tolerance, and minor menu/feedback placement may be adjusted after visual review as long as the explicit behavior above remains intact.
 - **Business Outputs:** Selling Price overrides, SG&A%, SG&A amount, and OP formulas. Negative OP represents operating loss and remains visible.
 - **Out of Scope:** MatVAR/LBVAR/BDVAR, additional business metrics (COGS, GP, GP Margin, OP Margin, Sales, historical time-series), and full Trial execution/validation/approval/promotion workflows are classified as **OUT OF SCOPE**.
+
+### P-014 — Final Simulation upper-workspace proportions
+
+- **Status:** `PROVISIONAL — AI CHOICE`
+- **Choice:** use three direct desktop columns in the ratio `2.82:1.48:1` (about 53.2% Graph, 27.9% Result/Break-even, and 18.9% Business/Economic). Split the middle column vertically at `1.4:1` (about 58.3% Result and 41.7% Break-even). This replaces P-013's first 60% Graph prototype allocation.
+- **Why:** the graph remains the primary analytical visual, while Result and Break-even retain a readable shared column and Business/Economic gains practical input width.
+- **Must preserve:** fixed graph meaning and geometry, current calculations, compact Result hierarchy, usable Business/Economic controls, mobile stacking, and the existing internally scrolling BOM/RTG tables.
+- **Reversible:** the direct grid fractions and split can be tuned after a representative desktop visual review without changing any data or behavior.
+- **Review trigger:** a rendered desktop size shows cramped controls, unreadable Result/Break-even content, or unused workspace that materially weakens the hierarchy.
 
 ## Human Review Checkpoint
 

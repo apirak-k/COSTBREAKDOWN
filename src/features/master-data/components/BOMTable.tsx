@@ -3,6 +3,7 @@ import { GripVertical, Trash2 } from 'lucide-react'
 import { SnapshotBOMItem, formatNumber } from '../../../core'
 import { getMasterDataNumericInputDomain } from '../../../core/utils/master-data-validation'
 import { useDragSelect } from '../hooks/useDragSelect'
+import { getRowSelectionState } from '../../../shared/selection/row-drag-selection'
 import { useIdentityEditorDrafts } from '../hooks/useIdentityEditorDrafts'
 import { SpreadsheetPasteCell, tableCellKey, useTableKeyboardNav } from '../hooks/useTableKeyboardNav'
 import { RowChanges, useSpreadsheetEditing } from '../hooks/useSpreadsheetEditing'
@@ -13,6 +14,7 @@ import type { MasterDataBlockerItem, MasterDataWarningItem } from '../prepare-da
 import { MasterDataTableHeader } from './MasterDataTableChrome'
 import { MasterDataBlockerMarker } from './MasterDataBlockerMarker'
 import { Tooltip } from '../../../shared/ui/Tooltip'
+import { RowSelectionButton } from '../../../shared/ui/RowSelectionButton'
 import { NumericInput } from '../../../shared/ui/NumericInput'
 import { masterDataActionsColumnClass, masterDataCellFocusClass, masterDataDisplaySlotClass, masterDataIdentityColumnClass, masterDataIndexColumnClass, masterDataIssueDisplayClass, masterDataIssueEditorClass, masterDataIssuePlaceholderClass, masterDataNoteColumnClass, masterDataNumericDisplaySlotClass, masterDataNumericEditorClass, masterDataPercentageShellClass, masterDataSpreadsheetSelectionClass, masterDataTableClass, masterDataTextEditorClass, masterDataUnitColumnClass } from './master-data-field-styles'
 
@@ -191,7 +193,7 @@ export const BOMTable: React.FC<BOMTableProps> = ({
     onNavigateWarning(target)
   }
 
-  const allVisibleSelected = filteredBOM.length > 0 && filteredBOM.every(item => selectedIds.has(item.id))
+  const selectionState = getRowSelectionState(selectedIds, filteredBOM.map(item => item.id))
 
   const handleDragStart = (event: React.DragEvent<HTMLButtonElement>, id: string) => {
     event.dataTransfer.setData('text/plain', id)
@@ -228,11 +230,11 @@ export const BOMTable: React.FC<BOMTableProps> = ({
             <col className={masterDataIndexColumnClass} /><col className={masterDataIdentityColumnClass} /><col /><col className={masterDataUnitColumnClass} />
             <col /><col /><col className={masterDataNoteColumnClass} /><col className={masterDataActionsColumnClass} />
           </colgroup>
-          <thead className="sticky top-0 z-30 border-y-2 border-slate-400 bg-slate-100 text-[11px] font-semibold uppercase tracking-wide text-slate-800">
+          <thead className="sticky top-0 z-30 border-y-2 border-amber-300 bg-amber-50 text-[11px] font-semibold uppercase tracking-wide text-amber-950">
             <tr>
-              <th scope="col" className={`sticky left-0 z-40 ${masterDataIndexColumnClass} bg-slate-100 p-0 text-center`}>
-                <Tooltip label={allVisibleSelected ? 'Clear visible selection' : 'Select all visible rows'} wrapperClassName="relative flex h-9 w-full items-center justify-center">
-                  <button type="button" onClick={() => toggleAll(!allVisibleSelected)} disabled={filteredBOM.length === 0} aria-pressed={allVisibleSelected} aria-label={allVisibleSelected ? 'Clear visible selection for BOM rows' : 'Select all visible BOM rows'} className={`grid h-7 w-7 place-items-center rounded-sm text-[11px] focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-700 ${allVisibleSelected ? 'border border-slate-800 bg-slate-700 text-white' : 'text-slate-700 hover:bg-slate-200'} disabled:cursor-default disabled:text-slate-400 disabled:hover:bg-transparent`}>#</button>
+              <th scope="col" className={`sticky left-0 z-40 ${masterDataIndexColumnClass} bg-amber-50 p-0 text-center`}>
+                <Tooltip label={selectionState === 'all' ? 'Clear visible selection' : 'Select all visible rows'} wrapperClassName="relative flex h-9 w-full items-center justify-center">
+                  <RowSelectionButton variant="gold" state={selectionState} onClick={() => toggleAll(selectionState !== 'all')} disabled={filteredBOM.length === 0} label={selectionState === 'all' ? 'Clear visible selection for BOM rows' : 'Select all visible BOM rows'} />
                 </Tooltip>
               </th>
               <th scope="col" className="px-2 py-2 text-left">Material</th>

@@ -20,6 +20,7 @@ import {
   setSimulationActiveDataset,
   setSimulationComparison,
   setSimulationEconomicInput,
+  setSimulationWorkingSelection,
   toggleSimulationWorkingTarget,
   type SimulationSources,
   type SimulationWorkspaceState
@@ -354,6 +355,13 @@ const AppRouter: React.FC = () => {
     ))
   }
 
+  const setWorkingSelection = (selection: readonly string[]) => {
+    const role = simulationState.activeDataset
+    updateSimulationState(role, state => setSimulationWorkingSelection(
+      state, masterDataSnapshots, selection, role
+    ))
+  }
+
   const sendSimulation = () => {
     const committed = commitSimulationEdit()
     const current = reconcileSimulationState(committed?.state ?? simulationStatesByProduct[activeProductId] ?? simulationState, masterDataSnapshots)
@@ -455,6 +463,7 @@ const AppRouter: React.FC = () => {
             onResetAll={resetAllSimulationDatasets}
             onUpdateParameter={updateParameter}
             onToggleWorkingTarget={toggleWorkingTarget}
+            onSetWorkingSelection={setWorkingSelection}
             onUpdateEconomicInput={updateEconomicInput}
             onBeginEdit={beginSimulationEdit}
             onCommitEdit={commitSimulationEdit}

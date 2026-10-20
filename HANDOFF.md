@@ -1,4 +1,30 @@
-# Current Handoff — Reference / Current / Custom Simulation final polish — 2026-10-20
+# Current Handoff — Final row-selection and Simulation proportions — 2026-10-20
+
+## Checkpoint and delivery
+
+- Repository: `/Users/bubu/COSTBREAKDOWN-ref-current-custom-flow-redesign` (`apirak-k/COSTBREAKDOWN`). Branch: `feat/ref-current-custom-flow-redesign`.
+- Verified starting local and fetched remote baseline: `29b47f5b50d7b91636a0e1a7e1b8da7e828e2be6`.
+- One focused commit and push to this branch are authorized. Do not merge or start Phase 5.
+
+## Implemented
+
+- Audited all current `#` selection controls: Master Data BOM, Work Centers, and Routing; Cost Breakdown Candidate BOM and Routing findings; Simulation BOM and Routing parameter tables.
+- Added shared none/mixed/all scope helpers and a shared accessible header control. Master Data uses a light-gold header/control variant; Candidate and Simulation use the dark-header variant. All headers select on none/mixed and clear on all, preserving selections outside the logical table scope.
+- Simulation bulk and range selection now replace the complete selection in one state operation. The logical scope includes every eligible row below the desktop internal viewport. Selected-first remains stable display ordering and does not change effective snapshot order or full-dataset calculations.
+- Rebalanced the desktop Simulation upper workspace to direct Graph / Result+Break-even / Business-Economic columns at 2.82:1.48:1 (~53.2% / 27.9% / 18.9%). Result / Break-even split is 1.4:1 (~58.3% / 41.7%).
+- Updated the current CBD implementation summary, requirements date, shared row-selection specification, affected page specs/design notes, and this handoff; historical records remain intact.
+
+## Verification and limits
+
+- **PASS:** `npm run build` and `git diff --check`.
+- **PASS:** shared row-selection helper/SSR verifier, ten-row Simulation atomic-select/clear and snapshot/cost invariants, Simulation regression suite, Result and Story verifiers, CBD nine-pair/audit/parameter-effect/summary/reorder verifiers, Master Data UI/history verifiers, page-navigation persistence, and Global Header.
+- Vite SSR checks emit `WebSocket server error: Port 24678 is already in use` while completing successfully. The build retains existing ExcelJS/fast-csv browser externalization notices and a main bundle >500 kB warning.
+- **NOT VISUALLY VERIFIED:** no browser automation package or Chrome/Chromium executable is available; SSR and source checks do not establish rendered visual geometry.
+- This handoff records the focused correction only. No merge or Phase 5 work is included.
+
+---
+
+# Previous Handoff — Reference / Current / Custom Simulation final polish — 2026-10-20
 
 ## Checkpoint and delivery
 

@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, useCallback } from 'react'
-import { applyRowDragSelection } from '../../../shared/selection/row-drag-selection'
+import { applyRowDragSelection, applyRowSelectionScope } from '../../../shared/selection/row-drag-selection'
 
 interface UseDragSelectOptions<T> {
   items: T[]
@@ -12,7 +12,7 @@ export function updateVisibleRowSelection(
   visibleIds: readonly string[],
   selected: boolean
 ): Set<string> {
-  return applyRowDragSelection(current, visibleIds, selected)
+  return applyRowSelectionScope(current, visibleIds, selected)
 }
 
 export function toggleRowSelection(current: ReadonlySet<string>, id: string): Set<string> {

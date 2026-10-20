@@ -822,7 +822,7 @@ try {
         analysisAfterDataset: effectiveDatasets[workspace.comparisonAfter],
         effectiveDatasets,
         onSelectActiveDataset() {}, onChangeComparison() {}, onSend() {}, onSendAll() {},
-        onReset() {}, onResetAll() {}, onUpdateParameter() {}, onToggleWorkingTarget() {},
+        onReset() {}, onResetAll() {}, onUpdateParameter() {}, onToggleWorkingTarget() {}, onSetWorkingSelection() {},
         onUpdateEconomicInput() {}, onBeginEdit() {}, onCommitEdit() {}
       }))
     }

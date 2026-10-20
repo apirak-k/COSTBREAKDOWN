@@ -13,8 +13,8 @@ try {
     id: 'current', product: { productCode: 'P', productDescription: 'Correction fixture', uom: 'SET', customer: '', effectiveDate: '', sellingPrice: 250, sgaPercent: 8 },
     effectiveDate: '', sourceRef: 'fixture', status: 'draft',
     rates: [{ id: 'wc', workCenterCode: 'WC', description: '', laborRate: 100, burdenRate: 50, effectiveDate: '', confidence: {} }],
-    bom: [1, 2, 3].map(n => ({ id: `b${n}`, itemCode: `MAT-${n}`, description: `MAT-${n}`, consumption: 2, unit: 'SET', price: 10, loss: 0.05, confidence: {} })),
-    routing: [1, 2, 3].map(n => ({ id: `r${n}`, processName: `OP-${n}`, workCenterId: 'WC', manning: 1, capacity: 100, yield: 1, confidence: {} }))
+    bom: Array.from({ length: 10 }, (_, index) => index + 1).map(n => ({ id: `b${n}`, itemCode: `MAT-${n}`, description: `MAT-${n}`, consumption: 2, unit: 'SET', price: 10, loss: 0.05, confidence: {} })),
+    routing: Array.from({ length: 10 }, (_, index) => index + 1).map(n => ({ id: `r${n}`, processName: `OP-${n}`, workCenterId: 'WC', manning: 1, capacity: 100, yield: 1, confidence: {} }))
   }
   const sources = { current: snapshot, reference: structuredClone(snapshot), custom: structuredClone(snapshot) }
   sources.custom.bom[0].price = 7
@@ -51,14 +51,26 @@ try {
     state = workspace.resetSimulationParameters(state, sources)
     assert.equal(status(kind, id), 'UNCHANGED')
   }
-  for (const kind of ['bom', 'routing'] as const) {
-    const records = kind === 'bom' ? dataset().snapshot.bom : dataset().snapshot.routing
-    const ids = records.map((record: { id: string }) => record.id)
-    for (const id of ids) state = workspace.toggleSimulationWorkingTarget(state, sources, kind, id)
-    assert.ok(ids.every((id: string) => dataset().workingSelection.includes(`${kind}:${id}`)))
-    for (const id of ids) state = workspace.toggleSimulationWorkingTarget(state, sources, kind, id)
-    assert.equal(dataset().workingSelection.length, 0)
-  }
+  const bomIds = dataset().snapshot.bom.map((record: { id: string }) => record.id)
+  const routingIds = dataset().snapshot.routing.map((record: { id: string }) => record.id)
+  const originalSnapshotOrder = dataset().snapshot.bom.map((record: { id: string }) => record.id)
+  const originalCalculatedCost = engine.calculateParameterSimulation(dataset().baselineSnapshot, dataset().snapshot).afterCost
+  state = workspace.setSimulationWorkingSelection(state, sources, [
+    ...bomIds.map((id: string) => `bom:${id}`),
+    ...routingIds.map((id: string) => `routing:${id}`)
+  ])
+  assert.equal(dataset().workingSelection.length, 20, 'one bulk state transition selects all 10 eligible BOM and 10 eligible Routing rows')
+  assert.ok(bomIds.every((id: string) => dataset().workingSelection.includes(`bom:${id}`)))
+  assert.ok(routingIds.every((id: string) => dataset().workingSelection.includes(`routing:${id}`)))
+  assert.deepEqual(dataset().snapshot.bom.map((record: { id: string }) => record.id), originalSnapshotOrder,
+    'selected-first presentation does not mutate effective dataset order')
+  assert.deepEqual(engine.calculateParameterSimulation(dataset().baselineSnapshot, dataset().snapshot).afterCost, originalCalculatedCost,
+    'working selection does not change the full calculation result')
+  state = workspace.setSimulationWorkingSelection(state, sources, dataset().workingSelection.filter((key: string) => !key.startsWith('bom:')))
+  assert.equal(dataset().workingSelection.length, 10, 'clearing the BOM scope preserves selected Routing rows')
+  assert.ok(dataset().workingSelection.every((key: string) => key.startsWith('routing:')))
+  state = workspace.setSimulationWorkingSelection(state, sources, [])
+  assert.equal(dataset().workingSelection.length, 0, 'bulk deselection clears the remaining applicable selection in one transition')
   state = workspace.toggleSimulationWorkingTarget(state, sources, 'bom', 'b3')
   const effectiveDatasets = Object.fromEntries(['reference', 'current', 'custom'].map(role => [
     role, workspace.getEffectiveSimulationDataset(sources, state, role)
@@ -71,7 +83,7 @@ try {
     analysisAfterDataset: effectiveDatasets.custom,
     effectiveDatasets,
     onSelectActiveDataset() {}, onChangeComparison() {}, onSend() {}, onSendAll() {},
-    onReset() {}, onResetAll() {}, onUpdateParameter() {}, onToggleWorkingTarget() {},
+    onReset() {}, onResetAll() {}, onUpdateParameter() {}, onToggleWorkingTarget() {}, onSetWorkingSelection() {},
     onUpdateEconomicInput() {}, onBeginEdit() {}, onCommitEdit() {}
   }))
   assert.match(markup, /role="checkbox" aria-checked="mixed"/)
@@ -84,7 +96,7 @@ try {
   assert.match(markup, /aria-label="Simulation comparison ruler"[^>]*class="[^"]*touch-none/)
   assert.match(markup, /Cost \/ Unit[\s\S]*Before[\s\S]*After[\s\S]*Change/)
   assert.doesNotMatch(markup, /Current → SIM|Reset all datasets|SIM cloned|SIM sent|SIM reset|Send blocked|Added in SIM|Removed from SIM/)
-  console.log('PASS: Simulation role-local status, stable selection, invalid edit rejection, Undo/Reset, dynamic UOM, and current page contract')
+  console.log('PASS: Simulation role-local status, atomic ten-row selection, stable selected-first view, invalid edit rejection, Undo/Reset, dynamic UOM, and current page contract')
 } finally {
   await vite.close()
 }

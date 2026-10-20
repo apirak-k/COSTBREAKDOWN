@@ -28,7 +28,7 @@ interface ItemizedComparisonTableProps {
   onManualOrderChange: (type: CandidateTableType, keys: string[]) => void
   onResetManualOrderHistory: () => void
   onToggleFinding?: (type: 'bom' | 'routing', key: string) => void
-  onSetFindingSelection?: (type: CandidateTableType, nextKeys: ReadonlySet<string>) => void
+  onSetFindingSelection: (type: CandidateTableType, nextKeys: ReadonlySet<string>) => void
 }
 
 interface ItemizedRow {

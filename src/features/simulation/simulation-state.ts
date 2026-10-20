@@ -195,6 +195,21 @@ export function toggleSimulationWorkingTarget(
   return { ...state, datasets: { ...state.datasets, [role]: { ...toDatasetState(dataset), workingSelection } } }
 }
 
+export function setSimulationWorkingSelection(
+  state: SimulationWorkspaceState,
+  sources: SimulationSources,
+  selection: readonly string[],
+  role = state.activeDataset
+): SimulationWorkspaceState {
+  if (!isMasterDataRole(role)) return state
+  const dataset = getEffectiveSimulationDataset(sources, state, role)
+  const eligibleKeys = selectableSimulationTargetKeys(dataset.baselineSnapshot, dataset.snapshot)
+  const workingSelection = [...new Set(selection.filter(key => eligibleKeys.has(key)))]
+  if (workingSelection.length === dataset.workingSelection.length
+    && workingSelection.every((value, index) => value === dataset.workingSelection[index])) return state
+  return { ...state, datasets: { ...state.datasets, [role]: { ...toDatasetState(dataset), workingSelection } } }
+}
+
 function selectableSimulationTargetKeys(baseline: CostSnapshot, snapshot: CostSnapshot): Set<string> {
   const rows = calculateParameterSimulation(baseline, snapshot).records
   return new Set(rows.flatMap(row => {

@@ -186,6 +186,7 @@ const renderPage = (
     onResetAll() {},
     onUpdateParameter() {},
     onToggleWorkingTarget() {},
+    onSetWorkingSelection() {},
     onUpdateEconomicInput() {},
     onBeginEdit() {},
     onCommitEdit() {}
@@ -356,17 +357,22 @@ assert.match(graphSource, /onClick=\{\(\) => onSelectActiveDataset\(category\.ro
   '[source contract] graph role controls select activeDataset')
 assert.match(pageSource, /onChange=\{role => onChangeComparison\(role, afterRole\)\}[\s\S]*?onChange=\{role => onChangeComparison\(beforeRole, role\)\}/,
   '[source contract] Before and After selectors update only their own comparison side')
-const upperWorkspaceStart = pageSource.indexOf('xl:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)]')
+const upperWorkspaceStart = pageSource.indexOf('xl:grid-cols-[minmax(0,2.82fr)_minmax(0,1.48fr)_minmax(0,1fr)]')
 const upperWorkspaceEnd = pageSource.indexOf('<div className="grid min-w-0 gap-2 xl:flex-none xl:grid-cols-2', upperWorkspaceStart)
 const upperWorkspaceSource = upperWorkspaceStart >= 0 && upperWorkspaceEnd > upperWorkspaceStart
   ? pageSource.slice(upperWorkspaceStart, upperWorkspaceEnd)
   : ''
 assert.ok(upperWorkspaceSource, '[source contract] desktop upper workspace source is present')
-assert.match(upperWorkspaceSource, /xl:grid-cols-\[minmax\(0,1\.38fr\)_minmax\(0,\.62fr\)\]/,
-  '[source contract] Result is wider than the far-right Business/Economic support panel')
-const resultColumnSource = upperWorkspaceSource.match(/<div data-simulation-layout-column="result-and-break-even"[\s\S]*?<\/div>\s*<EconomicSimulationPanel/)?.[0] ?? ''
+assert.match(upperWorkspaceSource, /xl:grid-cols-\[minmax\(0,2\.82fr\)_minmax\(0,1\.48fr\)_minmax\(0,1fr\)\]/,
+  '[source contract] direct desktop columns allocate about 53% Graph, 28% Result/Break-even, and 19% Business/Economic')
+assert.ok(2.82 / 5.3 >= 0.52 && 2.82 / 5.3 <= 0.55)
+assert.ok(1.48 / 5.3 >= 0.27 && 1.48 / 5.3 <= 0.30)
+assert.ok(1 / 5.3 >= 0.18 && 1 / 5.3 <= 0.20)
+const resultColumnSource = upperWorkspaceSource.match(/<div data-simulation-layout-column="result-and-break-even"[\s\S]*?<EconomicSimulationPanel/)?.[0] ?? ''
 assert.match(resultColumnSource, /<ResultPanel[\s\S]*?<EconomicBreakEvenGraphPanel[\s\S]*?<\/div>\s*<EconomicSimulationPanel/,
   '[source contract] Result sits above Break-even in the middle column before far-right Business/Economic')
+assert.match(resultColumnSource, /xl:grid-rows-\[minmax\(0,1\.4fr\)_minmax\(0,1fr\)\]/,
+  '[source contract] Result takes about 58% of the middle column height and Break-even 42%')
 assert.match(pageSource, /label="Send"[\s\S]*?secondaryLabel="Send all datasets"[\s\S]*?onPrimary=\{onSend\}[\s\S]*?onSecondary=\{onSendAll\}/,
   '[source contract] Send main and secondary actions use the active-role and all-role callbacks')
 assert.match(pageSource, /label="Reset"[\s\S]*?secondaryLabel="Reset all"[\s\S]*?onPrimary=\{onReset\}[\s\S]*?onSecondary=\{onResetAll\}/,

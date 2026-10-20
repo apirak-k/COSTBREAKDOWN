@@ -4,8 +4,17 @@ import { createServer } from 'vite'
 const vite = await createServer({ server: { middlewareMode: true, hmr: false }, appType: 'custom', logLevel: 'error', optimizeDeps: { noDiscovery: true, entries: [] } })
 try {
   for (const suite of [
+    'verify_row_selection',
+    'verify_row_drag_selection',
+    'verify_simulation_corrections',
     'verify_simulation_phase4',
     'verify_simulation_phase3',
+    'verify_simulation_result',
+    'verify_simulation_story_view',
+    'verify_cbd_summary_ux',
+    'verify_cbd_reorder_history',
+    'verify_cost_breakdown_sort',
+    'verify_cost_breakdown_view',
     'verify_simulation_dataset_overrides',
     'verify_simulation_economics',
     'verify_simulation_history',

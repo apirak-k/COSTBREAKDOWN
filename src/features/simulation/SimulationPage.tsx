@@ -19,8 +19,9 @@ import type {
 import { Tooltip } from '../../shared/ui/Tooltip'
 import { COMPARISON_ROLE_LABELS, ComparisonRoleSelector } from '../../shared/ui/ComparisonRoleSelector'
 import { NumericInput } from '../../shared/ui/NumericInput'
-import { applyRowDragSelection } from '../../shared/selection/row-drag-selection'
+import { applyRowDragSelection, applyRowSelectionScope, getRowSelectionState } from '../../shared/selection/row-drag-selection'
 import { useTransientInteraction } from '../../shared/ui/transient-interactions'
+import { RowSelectionButton } from '../../shared/ui/RowSelectionButton'
 import { normalizeProductIdentityValue } from '../../core/utils/master-data-effective'
 import { parameterEffectPresentation } from './parameter-effect-presentation'
 import { EconomicBreakEvenGraphPanel, EconomicSimulationPanel } from './EconomicSimulationPanel'
@@ -45,6 +46,7 @@ interface SimulationPageProps {
   onResetAll: () => void
   onUpdateParameter: (recordId: string, parameter: SimulationParameter, value: number | null) => void
   onToggleWorkingTarget: (kind: 'bom' | 'routing', recordId: string) => void
+  onSetWorkingSelection: (selection: readonly string[]) => void
   onUpdateEconomicInput: (role: MasterDataRole, field: EconomicSimulationField, value: string) => void
   onBeginEdit: (role: MasterDataRole) => void
   onCommitEdit: () => void
@@ -368,6 +370,7 @@ function SimulationParameterTable({
   baselineSnapshot,
   workingSelection,
   onToggleWorkingTarget,
+  onSetWorkingSelection,
   onUpdate,
   onBeginEdit,
   onCommitEdit
@@ -379,6 +382,7 @@ function SimulationParameterTable({
   baselineSnapshot: CostSnapshot
   workingSelection: string[]
   onToggleWorkingTarget: (kind: 'bom' | 'routing', recordId: string) => void
+  onSetWorkingSelection: (selection: readonly string[]) => void
   onUpdate: (recordId: string, parameter: SimulationParameter, value: number | null) => void
   onBeginEdit: () => void
   onCommitEdit: () => void
@@ -429,16 +433,11 @@ function SimulationParameterTable({
       ? [{ key: simulationWorkingTargetKey(kind, record.id), recordId: record.id }]
       : []
   })
-  const selectableRecordIds = selectableTargets.map(target => target.recordId)
-  const allVisibleSelected = selectableRecordIds.length > 0 && selectableRecordIds.every(id => selectedKeys.has(simulationWorkingTargetKey(kind, id)))
-  const someVisibleSelected = !allVisibleSelected && selectableRecordIds.some(id => selectedKeys.has(simulationWorkingTargetKey(kind, id)))
-  const toggleAllVisible = () => {
-    const select = !allVisibleSelected
-    for (const id of selectableRecordIds) {
-      const isSelected = selectedKeys.has(simulationWorkingTargetKey(kind, id))
-      if (isSelected !== select) onToggleWorkingTarget(kind, id)
-    }
-  }
+  const selectionScope = selectableTargets.map(target => target.key)
+  const selectionState = getRowSelectionState(selectedKeys, selectionScope)
+  const setAllSelection = () => onSetWorkingSelection(
+    [...applyRowSelectionScope(selectedKeys, selectionScope, selectionState !== 'all')]
+  )
 
   const startSelectionDrag = (recordId: string, event: React.MouseEvent<HTMLButtonElement>) => {
     if (event.button !== 0) return
@@ -480,11 +479,7 @@ function SimulationParameterTable({
       traversedTargets.map(target => target.key),
       drag.selected
     )
-    for (const target of drag.targets) {
-      if (selectedKeys.has(target.key) !== desiredSelection.has(target.key)) {
-        onToggleWorkingTarget(kind, target.recordId)
-      }
-    }
+    onSetWorkingSelection([...desiredSelection])
   }
 
   useEffect(() => {
@@ -514,15 +509,12 @@ function SimulationParameterTable({
           <thead className="text-[10px] font-semibold text-white [&_th]:bg-slate-900 [&_th]:shadow-[inset_0_-1px_0_#334155]">
             <tr>
               <th scope="col" className="p-0 text-center">
-                <button
-                  type="button"
-                  role="checkbox"
-                  aria-checked={someVisibleSelected ? 'mixed' : allVisibleSelected}
-                  aria-label={allVisibleSelected ? `Clear visible ${tableIdentity} selection` : `Select all visible eligible ${tableIdentity} rows`}
-                  disabled={selectableRecordIds.length === 0}
-                  onClick={toggleAllVisible}
-                  className={`mx-auto grid h-7 w-7 place-items-center rounded-sm text-[11px] focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-300 ${allVisibleSelected ? 'border border-slate-300 bg-slate-700 text-white' : someVisibleSelected ? 'bg-slate-700 text-white ring-1 ring-inset ring-slate-500' : 'text-white hover:bg-slate-700'} disabled:cursor-default disabled:text-slate-400 disabled:hover:bg-transparent`}
-                >#</button>
+                <RowSelectionButton
+                  state={selectionState}
+                  label={selectionState === 'all' ? `Clear eligible ${tableIdentity} selection` : `Select all eligible ${tableIdentity} rows`}
+                  disabled={selectionScope.length === 0}
+                  onClick={setAllSelection}
+                />
               </th>
               <th scope="col" className="px-2 py-2 text-left">{tableIdentity}</th>
               <th scope="col" className="px-1 py-2 text-left">Status</th>
@@ -972,6 +964,7 @@ export const SimulationPage: React.FC<SimulationPageProps> = ({
   onResetAll,
   onUpdateParameter,
   onToggleWorkingTarget,
+  onSetWorkingSelection,
   onUpdateEconomicInput,
   onBeginEdit,
   onCommitEdit
@@ -1034,38 +1027,36 @@ export const SimulationPage: React.FC<SimulationPageProps> = ({
 
   return (
     <div className="min-w-0 space-y-3 xl:flex xl:h-full xl:min-h-0 xl:flex-col xl:gap-2 xl:space-y-0 xl:overflow-hidden">
-      <div className="grid min-w-0 gap-2 xl:min-h-0 xl:flex-[1.25] xl:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)] xl:grid-rows-1">
+      <div className="grid min-w-0 gap-2 xl:min-h-0 xl:flex-[1.25] xl:grid-cols-[minmax(0,2.82fr)_minmax(0,1.48fr)_minmax(0,1fr)] xl:grid-rows-1">
         <SimulationStoryGraph story={story} unit={unit} activeRole={state.role} onSelectActiveDataset={onSelectActiveDataset} />
-        <div className="grid min-w-0 gap-2 xl:h-full xl:min-h-0 xl:grid-cols-[minmax(0,1.38fr)_minmax(0,.62fr)] xl:grid-rows-1">
-          <div data-simulation-layout-column="result-and-break-even" className="grid min-w-0 gap-2 xl:min-h-0 xl:grid-rows-[minmax(0,1.2fr)_minmax(0,.8fr)]">
-            <ResultPanel
-              beforeRole={analysisBeforeDataset.role}
-              afterRole={analysisAfterDataset.role}
-              beforeCost={analysisResult.beforeCost}
-              afterCost={analysisResult.afterCost}
-              beforeFinancial={comparisonBeforeFinancial}
-              afterFinancial={comparisonAfterFinancial}
-              onChangeComparison={onChangeComparison}
-              actions={actionMenus}
-            />
-            <EconomicBreakEvenGraphPanel
-              result={economicResult}
-              unit={unit}
-              onBatchSizeChange={value => onUpdateEconomicInput(analysisAfterDataset.role, 'batchSize', value)}
-              onBeginEdit={() => onBeginEdit(analysisAfterDataset.role)}
-              onCommitEdit={onCommitEdit}
-            />
-          </div>
-          <EconomicSimulationPanel
+        <div data-simulation-layout-column="result-and-break-even" className="grid min-w-0 gap-2 xl:min-h-0 xl:grid-rows-[minmax(0,1.4fr)_minmax(0,1fr)]">
+          <ResultPanel
+            beforeRole={analysisBeforeDataset.role}
+            afterRole={analysisAfterDataset.role}
+            beforeCost={analysisResult.beforeCost}
+            afterCost={analysisResult.afterCost}
+            beforeFinancial={comparisonBeforeFinancial}
+            afterFinancial={comparisonAfterFinancial}
+            onChangeComparison={onChangeComparison}
+            actions={actionMenus}
+          />
+          <EconomicBreakEvenGraphPanel
             result={economicResult}
-            draft={analysisAfterDataset.economicInputs}
-            afterSnapshot={analysisAfterDataset.snapshot}
             unit={unit}
-            onUpdate={(field, value) => onUpdateEconomicInput(analysisAfterDataset.role, field, value)}
+            onBatchSizeChange={value => onUpdateEconomicInput(analysisAfterDataset.role, 'batchSize', value)}
             onBeginEdit={() => onBeginEdit(analysisAfterDataset.role)}
             onCommitEdit={onCommitEdit}
           />
         </div>
+        <EconomicSimulationPanel
+          result={economicResult}
+          draft={analysisAfterDataset.economicInputs}
+          afterSnapshot={analysisAfterDataset.snapshot}
+          unit={unit}
+          onUpdate={(field, value) => onUpdateEconomicInput(analysisAfterDataset.role, field, value)}
+          onBeginEdit={() => onBeginEdit(analysisAfterDataset.role)}
+          onCommitEdit={onCommitEdit}
+        />
       </div>
 
       <div className="grid min-w-0 gap-2 xl:flex-none xl:grid-cols-2 xl:grid-rows-[auto] xl:items-start">
@@ -1077,6 +1068,7 @@ export const SimulationPage: React.FC<SimulationPageProps> = ({
           baselineSnapshot={state.baselineSnapshot}
           workingSelection={workingSelection}
           onToggleWorkingTarget={onToggleWorkingTarget}
+          onSetWorkingSelection={onSetWorkingSelection}
           onUpdate={onUpdateParameter}
           onBeginEdit={() => onBeginEdit(state.role)}
           onCommitEdit={onCommitEdit}
@@ -1089,6 +1081,7 @@ export const SimulationPage: React.FC<SimulationPageProps> = ({
           baselineSnapshot={state.baselineSnapshot}
           workingSelection={workingSelection}
           onToggleWorkingTarget={onToggleWorkingTarget}
+          onSetWorkingSelection={onSetWorkingSelection}
           onUpdate={onUpdateParameter}
           onBeginEdit={() => onBeginEdit(state.role)}
           onCommitEdit={onCommitEdit}
