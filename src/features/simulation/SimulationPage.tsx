@@ -992,9 +992,9 @@ function SimulationParameterTable({
                     setSearchQuery('')
                     searchInputRef.current?.focus()
                   }}
-                  className="absolute right-0.5 top-1/2 grid h-5 w-5 -translate-y-1/2 cursor-pointer place-items-center rounded-sm text-slate-500 hover:bg-slate-200 hover:text-slate-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-blue-700"
+                  className="absolute right-[3px] top-1/2 grid h-[18px] w-[18px] -translate-y-1/2 cursor-pointer place-items-center rounded-sm text-slate-500 hover:bg-slate-200 hover:text-slate-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-blue-700"
                 >
-                  <X aria-hidden="true" className="h-3 w-3" />
+                  <X aria-hidden="true" className="h-[9px] w-[9px]" />
                 </button>
               )}
             </div>

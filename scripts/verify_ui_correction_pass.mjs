@@ -96,8 +96,10 @@ assert.match(simulationSearch.input, /placeholder=\{searchField\}/, 'Simulation 
 assert.match(simulationSearchField, /className="relative h-6 w-40 min-w-0 shrink-0 sm:w-48"/,
   'Simulation Search stays compact and preserves the previous combined control footprint')
 const simulationClearClasses = simulationSearch.clearButton.match(/className="([^"]+)"/)?.[1]
-assert.match(simulationClearClasses, /\babsolute right-0\.5 top-1\/2 grid h-5 w-5 -translate-y-1\/2\b/,
-  'Simulation clear hover surface is smaller than the field, vertically centered, and inset from the right border')
+assert.match(simulationClearClasses, /\babsolute right-\[3px\] top-1\/2 grid h-\[18px\] w-\[18px\] -translate-y-1\/2\b/,
+  'Simulation clear hover surface is 18px, vertically centered, and inset 3px from the right border')
+assert.match(simulationSearch.clearButton, /<X\b[^>]*className="h-\[9px\] w-\[9px\]"/,
+  'Simulation clear icon scales down to 9px')
 const previousButtonStart = footer.indexOf('aria-label={`Previous ${navigationLabel} row`}')
 const nextButtonStart = footer.indexOf('aria-label={`Next ${navigationLabel} row`}')
 assert.ok(previousButtonStart >= 0 && nextButtonStart > previousButtonStart, 'previous and next controls render in order')
