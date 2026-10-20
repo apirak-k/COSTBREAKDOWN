@@ -59,6 +59,32 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value)
 }
 
+export function omitSimulationViewState(value: unknown): unknown {
+  if (!isRecord(value)) return value
+  const state = { ...value }
+  delete state.activeDataset
+  delete state.comparisonBefore
+  delete state.comparisonAfter
+  delete state.workingSelection
+  if (isRecord(value.datasets)) {
+    state.datasets = Object.fromEntries(Object.entries(value.datasets).map(([role, dataset]) => {
+      if (!isRecord(dataset)) return [role, dataset]
+      const persistedDataset = { ...dataset }
+      delete persistedDataset.workingSelection
+      return [role, persistedDataset]
+    }))
+  }
+  return state
+}
+
+export function omitSimulationViewStateMap(value: unknown): Record<string, unknown> {
+  if (!isRecord(value)) return {}
+  return Object.fromEntries(Object.entries(value).map(([productId, state]) => [
+    productId,
+    omitSimulationViewState(state)
+  ]))
+}
+
 function isMasterDataRole(value: unknown): value is MasterDataRole {
   return typeof value === 'string' && MASTER_DATA_ROLES.includes(value as MasterDataRole)
 }

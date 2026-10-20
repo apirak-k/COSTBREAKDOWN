@@ -36,7 +36,7 @@ import type { CostBreakdownComparisonPair } from '../core'
 import { createSelectedSnapshotPair, getCanonicalComparisonStatus, getComparisonFindingKey } from '../core'
 import type { MasterDataHandoffStatus } from '../core'
 import { hasEnteredMasterData, importSnapshotForCustom, importSnapshotForRole, markSizingPlaceholderEdited, resizeMasterDataSnapshotForSizing, synchronizeDatasetSizingToRows } from './dataset-sizing'
-import { normalizeActiveTab, type ActiveTab } from './active-tab'
+import type { ActiveTab } from './active-tab'
 import { clearMasterDataDatasetState } from './clear-master-data-dataset'
 import { moveSnapshotRows } from './master-data-row-order'
 import { migrateLegacyCandidateRcaRecords } from './rca-cases'
@@ -474,9 +474,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     loadFromSession(STORAGE_KEYS.ACTIVE_ID, 'ps-empty-default')
   )
 
-  const [activeTab, setActiveTabState] = useState<ActiveTab>(() =>
-    normalizeActiveTab(loadFromSession<unknown>(STORAGE_KEYS.ACTIVE_TAB, 'master'))
-  )
+  const [activeTab, setActiveTabState] = useState<ActiveTab>('master')
 
   const [uomList, setUomList] = useState<string[]>(() =>
     loadFromSession(STORAGE_KEYS.UOM_LIST, DEFAULT_UOMS)
@@ -517,7 +515,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       setMasterDataPrepareDatasetOpen(false)
     }
     setActiveTabState(tab)
-    saveToSession(STORAGE_KEYS.ACTIVE_TAB, tab)
   }
 
   const toggleMasterDataPrepareDataset = () => {

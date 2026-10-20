@@ -5,8 +5,14 @@ import type { CostSnapshot, MasterDataRole } from '../src/core/types'
 import {
   createEmptySimulationState,
   getEffectiveSimulationDataset,
+  omitSimulationViewState,
+  omitSimulationViewStateMap,
   reconcileSimulationState,
-  retainSimulationStatesForProducts
+  retainSimulationStatesForProducts,
+  setSimulationActiveDataset,
+  setSimulationComparison,
+  setSimulationEconomicInput,
+  setSimulationWorkingSelection
 } from '../src/features/simulation/simulation-state.ts'
 import { updateSimulationParameter } from '../src/features/simulation/simulation-engine.ts'
 
@@ -35,6 +41,35 @@ assert.equal(state.schemaVersion, 2)
 assert.equal(getEffectiveSimulationDataset(sources, state, 'custom').snapshot.bom[0].price, 75)
 assert.deepEqual(getEffectiveSimulationDataset(sources, state, 'custom').snapshot.rates, sources.custom.rates,
   'Custom Simulation keeps Custom Work Center rates')
+
+const inSessionState = setSimulationWorkingSelection(
+  setSimulationEconomicInput(
+    setSimulationComparison(setSimulationActiveDataset(state, 'reference'), 'reference', 'current'),
+    'fixedActionCost', '125', 'custom'
+  ),
+  sources,
+  ['bom:bom-custom'],
+  'custom'
+)
+assert.deepEqual(inSessionState.datasets.custom.workingSelection, ['bom:bom-custom'],
+  'row selection remains available in the running application session')
+const storedState = omitSimulationViewState(inSessionState) as Record<string, unknown>
+const storedDatasets = storedState.datasets as Record<string, Record<string, unknown>>
+assert.equal(Object.hasOwn(storedState, 'activeDataset'), false, 'active role is not persisted as view state')
+assert.equal(Object.hasOwn(storedState, 'comparisonBefore'), false, 'comparison Before is not persisted as view state')
+assert.equal(Object.hasOwn(storedState, 'comparisonAfter'), false, 'comparison After is not persisted as view state')
+assert.equal(Object.hasOwn(storedDatasets.custom, 'workingSelection'), false, 'temporary row selection is not persisted')
+const afterRefresh = reconcileSimulationState(storedState, sources)
+assert.deepEqual([afterRefresh.activeDataset, afterRefresh.comparisonBefore, afterRefresh.comparisonAfter], ['custom', 'current', 'custom'],
+  'full app initialization restores Simulation view defaults')
+assert.deepEqual(afterRefresh.datasets.custom.workingSelection, [], 'full app initialization clears temporary row selection')
+assert.equal(getEffectiveSimulationDataset(sources, afterRefresh, 'custom').snapshot.bom[0].price, 75,
+  'browser refresh retains role-local parameter overrides')
+assert.equal(afterRefresh.datasets.custom.economicInputs.fixedActionCost, '125',
+  'browser refresh retains economic working inputs')
+const storedStateMap = omitSimulationViewStateMap({ product: inSessionState })
+assert.equal(Object.hasOwn(storedStateMap.product as Record<string, unknown>, 'activeDataset'), false,
+  'the per-product storage projection also omits Simulation view context')
 
 const changedCurrentSources = { ...sources, current: { ...sources.current, sourceRef: 'changed-current' } }
 const reconciled = reconcileSimulationState(state, changedCurrentSources)

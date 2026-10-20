@@ -98,7 +98,7 @@ assert.equal(resolveHeaderProductContext({ productName: '', uom: '' }), 'Product
 assert.equal(formatProductIdentityForDisplay({ productName: '', uom: '' }), 'Not set')
 assert.equal(formatProductIdentityForDisplay({ productName: '', uom: 'PC' }), 'Product name not set (PC)')
 assert.equal(formatProductIdentityForDisplay({ productName: 'Part A', uom: '' }), 'Part A (UOM not set)')
-const makeStore = (uiState = { role: 'current', mode: 'view', tableView: 'all' }, storeOverrides = {}) => {
+const makeStore = (uiState = { role: 'current', mode: 'edit', tableView: 'all' }, storeOverrides = {}) => {
   const snapshot = fixtureSnapshot(uiState.role)
   const snapshots = {
     reference: fixtureSnapshot('reference'),
@@ -412,17 +412,17 @@ try {
   )
   assert.deepEqual(INITIAL_MASTER_DATA_UI_STATE, {
     role: 'current',
-    mode: 'view',
+    mode: 'edit',
     tableView: 'all'
-  }, 'a new application session starts with Current, View, and All Tables')
+  }, 'a fresh application load starts with Current, Edit Data, and All Tables')
 
   const defaultMarkup = await renderMasterDataPage(INITIAL_MASTER_DATA_UI_STATE)
   assert.equal(pressedButton(defaultMarkup, 'Current'), true, 'a fresh application session starts on Current')
-  assert.match(defaultMarkup, /role="switch" aria-checked="false" aria-label="Switch to Edit"/, 'a fresh application session exposes View as the active toggle state and Edit as the next action')
+  assert.match(defaultMarkup, /role="switch" aria-checked="true" aria-label="Switch to View"/, 'a fresh application session starts in Edit Data mode')
   assert.equal(pressedButton(defaultMarkup, 'All'), true, 'Master Data first opens with All selected')
   const toolbarControlOrder = [
     'aria-label="Master Data workspace"',
-    'aria-label="Switch to Edit"',
+    'aria-label="Switch to View"',
     'aria-label="Master Data actions"',
     'role="search" class="relative ml-auto h-8 w-48 min-w-48 max-w-48 shrink-0"',
     'aria-label="Master Data table section"'
@@ -435,7 +435,7 @@ try {
   assert.doesNotMatch(toolbarActionSource, /border-l|border-r/, 'Master Data toolbar actions have no vertical separators')
   const viewToggle = defaultMarkup.match(/<button\b([^>]*role="switch"[^>]*)>([\s\S]*?)<\/button>/)
   assert.ok(viewToggle, 'View/Edit is one keyboard-operable segmented toggle containing both icons')
-  assert.match(viewToggle[1], /role="switch" aria-checked="false" aria-label="Switch to Edit"/, 'active View state exposes the next action through its accessible label and checked state')
+  assert.match(viewToggle[1], /role="switch" aria-checked="true" aria-label="Switch to View"/, 'active Edit state exposes the next action through its accessible label and checked state')
   assert.match(viewToggle[1], /aria-describedby="[^"]+"/, 'the View/Edit switch is associated with its shared tooltip')
   assert.match(viewToggle[2], /lucide-eye h-4 w-4[\s\S]*lucide-pencil h-4 w-4/, 'both state icons stay visible within the one toggle')
   assert.doesNotMatch(viewToggle[2], />\s*(?:View|Edit)\s*</, 'View/Edit remains icon-only')
@@ -512,9 +512,9 @@ try {
   assert.deepEqual(sessionStorageWrites, [], 'Master Data UI transitions never persist their state into browser session storage')
   assert.deepEqual(INITIAL_MASTER_DATA_UI_STATE, {
     role: 'current',
-    mode: 'view',
+    mode: 'edit',
     tableView: 'all'
-  }, 'editing UI state does not mutate the fresh-session defaults')
+  }, 'in-session UI changes do not mutate the fresh-load defaults')
 
   const returnedPageMarkup = await renderMasterDataPage(appSessionState)
   assert.equal(pressedButton(returnedPageMarkup, 'Reference'), true, 'a remounted page reflects the retained dataset side')
@@ -525,7 +525,7 @@ try {
 
   const freshAppSessionMarkup = await renderMasterDataPage(INITIAL_MASTER_DATA_UI_STATE)
   assert.equal(pressedButton(freshAppSessionMarkup, 'Current'), true, 'a fresh app session does not inherit Reference selection')
-  assert.match(freshAppSessionMarkup, /role="switch" aria-checked="false" aria-label="Switch to Edit"/, 'a fresh app session does not inherit Edit mode')
+  assert.match(freshAppSessionMarkup, /role="switch" aria-checked="true" aria-label="Switch to View"/, 'a fresh app session starts in Edit Data mode')
   assert.equal(pressedButton(freshAppSessionMarkup, 'All'), true, 'a fresh app session returns to All')
 
   const { makeEmptySession } = await vite.ssrLoadModule('/src/state/store.tsx')
@@ -1241,7 +1241,9 @@ try {
   assert.match(validationSource, /domain\.minExclusive \? value <= domain\.min : value < domain\.min[\s\S]*domain\.max !== undefined && value > domain\.max/, 'ingress validation applies each canonical minimum and optional maximum')
   assert.match(footerSource, /Complete Mock[\s\S]*Incomplete Mock/, 'the shared Prepare Dataset panel exposes direct Complete Mock and Incomplete Mock actions')
   assert.doesNotMatch(pageSource, /Load Mock Data|window\.confirm\(`(?:Complete|Incomplete) Mock/, 'mock fixtures load without a generic action label or confirmation')
-  assert.match(appSource, /getElementById\('main-content'\)\?\.scrollTo\(\{ top: 0, behavior: 'auto' \}\)[\s\S]*\[activeTab\]/, 'changing pages resets the shared content viewport to its heading')
+  assert.match(appSource, /pageScrollPositions = useRef<Record<ActiveTab, number>>\(\{ master: 0, breakdown: 0, simulation: 0 \}\)[\s\S]*main\.scrollTop = pageScrollPositions\.current\[activeTab\][\s\S]*\}, \[activeTab\]/,
+    'each page restores its in-memory main scroll position after navigation')
+  assert.doesNotMatch(appSource, /scrollTo\(\{\s*top:\s*0/, 'page navigation does not reset the shared scroll position')
   assert.doesNotMatch(pageSource, /Load complete review mock|Load data-quality mock|Return to working session|window\.confirm/, 'mock loading is immediate and has no session-return UI or confirmation')
   const tableSelectorSource = pageSource.slice(pageSource.indexOf('const tableSections'), pageSource.indexOf('return (\n    <div className="w-full space-y-2">'))
   assert.match(tableSelectorSource, /grid h-8 w-72 shrink-0 grid-cols-4 items-stretch/, 'table selector keeps four equal columns at a stable 32px height')
@@ -1516,10 +1518,10 @@ try {
 
   await vite.ssrLoadModule('/scripts/verify_master_data_rename_and_empty_edit.ts')
 
-  console.log('✓ Fresh Master Data view selects Current, View, and All Tables')
+  console.log('✓ Fresh Master Data view selects Current, Edit Data, and All Tables')
   console.log('✓ All Tables renders BOM, Work Centers, and Routing in the required order')
   console.log('✓ Re-rendering Master Data with the same application-memory state retains Reference, Edit, and Routing')
-  console.log('✓ A fresh application state returns to Current, View, and All Tables')
+  console.log('✓ A fresh application state returns to Current, Edit Data, and All Tables')
   console.log('✓ Master Data UI state is absent from the business session object')
   console.log('✓ Warning labels show the current row number while navigation retains stable rowId')
   console.log('✓ Spreadsheet navigation, paste/copy, selection, reorder, and session-storage behavior are wired to the finalized interaction rules')

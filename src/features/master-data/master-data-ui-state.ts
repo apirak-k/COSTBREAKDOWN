@@ -15,7 +15,7 @@ export type MasterDataUiAction =
 
 export const INITIAL_MASTER_DATA_UI_STATE: MasterDataUiState = {
   role: 'current',
-  mode: 'view',
+  mode: 'edit',
   tableView: 'all'
 }
 

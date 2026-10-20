@@ -4,8 +4,12 @@ import { readFileSync } from 'node:fs'
 const read = path => readFileSync(new URL(path, import.meta.url), 'utf8')
 const app = read('../src/App.tsx')
 const masterPage = read('../src/features/master-data/MasterDataPage.tsx')
+const masterUiState = read('../src/features/master-data/master-data-ui-state.ts')
 const cbdPage = read('../src/features/cost-breakdown/CostBreakdownPage.tsx')
 const simulationPage = read('../src/features/simulation/SimulationPage.tsx')
+const simulationState = read('../src/features/simulation/simulation-state.ts')
+const store = read('../src/state/store.tsx')
+const storage = read('../src/services/storage/session-storage.ts')
 
 const pageContracts = {
   master: {
@@ -74,6 +78,8 @@ for (const [name, source, states] of [
 
 assert.match(masterPage, /masterDataUiState\.tableView|masterDataUiState\.mode/,
   'Master Data selection and edit mode remain held by the persistent store')
+assert.match(masterUiState, /INITIAL_MASTER_DATA_UI_STATE:[\s\S]*role: 'current',[\s\S]*mode: 'edit',[\s\S]*tableView: 'all'/,
+  'fresh app initialization defaults Master Data to Edit Data, Current, and All Tables')
 const masterNavigationEffect = masterPage.match(/useEffect\(\(\) => \{\s*if \(activeTab === 'master'\) return[\s\S]*?\}, \[activeTab\]\)/)?.[0]
 assert.ok(masterNavigationEffect, 'Master Data navigation cleanup is limited to its transient overlays')
 assert.match(masterNavigationEffect, /setImportModalOpen\(false\)[\s\S]*setSizingModalOpen\(false\)/,
@@ -97,5 +103,38 @@ assert.match(app, /<SimulationPage\s+key=\{activeProductId\}/,
 assert.match(app, /previous\.activeProductId !== activeProductId[\s\S]*previous\.comparisonFingerprint !== comparisonPair\.fingerprint[\s\S]*resetCandidateReorderHistory/,
   'Cost Breakdown reorder history is invalidated when product or comparison context changes')
 
-console.log('Page navigation persistence source contracts: PASS (all six route directions, visited page mounts, local state, and context invalidation)')
+assert.match(app, /pageScrollPositions = useRef<Record<ActiveTab, number>>\(\{ master: 0, breakdown: 0, simulation: 0 \}\)/,
+  'page scroll positions live only in an in-memory, page-keyed map')
+assert.match(app, /main\.scrollTop = pageScrollPositions\.current\[activeTab\]/,
+  'navigation restores the destination page scroll position')
+assert.doesNotMatch(app, /scrollTo\(\{\s*top:\s*0/, 'page changes do not reset the shared scroll container')
+assert.match(store, /useState<ActiveTab>\('master'\)/, 'fresh application initialization opens Master Data')
+assert.doesNotMatch(store, /STORAGE_KEYS\.ACTIVE_TAB|saveToSession\([^\n]*ACTIVE_TAB/,
+  'the active page is not restored from or written to browser storage')
+assert.doesNotMatch(storage, /ACTIVE_TAB\s*:/, 'browser storage has no active-page view-state key')
+assert.match(app, /omitSimulationViewStateMap\(loadFromSession\(STORAGE_KEYS\.SIMULATION_STATES, \{\}\)\)/,
+  'old persisted Simulation view context is stripped before a refreshed app initializes')
+assert.match(app, /saveToSession\(STORAGE_KEYS\.SIMULATION_STATES, omitSimulationViewStateMap\(simulationStatesByProduct\)\)/,
+  'Simulation session persistence writes business data without role, comparison, or selection view state')
+assert.match(simulationState, /delete state\.activeDataset[\s\S]*delete state\.comparisonBefore[\s\S]*delete state\.comparisonAfter[\s\S]*delete state\.workingSelection/,
+  'Simulation storage projection omits active role, pair, and row selection')
+assert.match(simulationState, /delete persistedDataset\.workingSelection/,
+  'per-role worklist selections are excluded from durable Simulation state')
+const simulationTableMounts = [...simulationPage.matchAll(/<SimulationParameterTable\s+kind="(bom|routing)"/g)].map(([, kind]) => kind)
+assert.deepEqual(simulationTableMounts, ['bom', 'routing'],
+  'Simulation keeps separate mounted BOM and Routing table instances')
+const parameterTableSource = simulationPage.slice(
+  simulationPage.indexOf('function SimulationParameterTable('),
+  simulationPage.indexOf('const SimulationPage:')
+)
+assert.match(parameterTableSource, /const \[searchQuery, setSearchQuery\] = useState\(''\)/,
+  'each Simulation table instance owns an in-memory search query')
+assert.match(parameterTableSource, /const bodyRef = useRef<HTMLDivElement>\(null\)[\s\S]*const \[expandedRows, setExpandedRows\] = useState<Set<string>>\(\(\) => new Set\(\)\)/,
+  'each Simulation table instance owns its body scroll element and expanded-row state')
+assert.match(store, /const \[productSessions, setProductSessions\] = useState<ProductSession\[]>\(\(\) => \{\s*const loaded = loadFromSession<ProductSession\[]>\(STORAGE_KEYS\.SESSIONS/,
+  'Master Data working datasets continue loading from their existing business-data storage')
+assert.match(store, /useState<MasterDataRole>\(DEFAULT_CBD_COMPARISON_BEFORE\)[\s\S]*useState<MasterDataRole>\(DEFAULT_CBD_COMPARISON_AFTER\)/,
+  'CBD comparison selectors initialize from their normal in-memory defaults after refresh')
+
+console.log('Page navigation and refresh-state contracts: PASS (six route directions, in-memory page views, refresh defaults, and business-state persistence)')
 console.log('Verification type: source contracts only; no browser navigation was run.')

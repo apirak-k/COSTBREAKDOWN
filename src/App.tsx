@@ -1,6 +1,7 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react'
+import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import type { MasterDataRole } from './core/types'
 import { AppProvider, useAppStore } from './state'
+import type { ActiveTab } from './state/active-tab'
 import { AppLayout } from './shared'
 import {
   MasterDataPage,
@@ -22,6 +23,7 @@ import {
   setSimulationEconomicInput,
   setSimulationWorkingSelection,
   toggleSimulationWorkingTarget,
+  omitSimulationViewStateMap,
   type SimulationSources,
   type SimulationWorkspaceState
 } from './features/simulation/simulation-state'
@@ -63,11 +65,13 @@ const AppRouter: React.FC = () => {
   } = useAppStore()
   const [prepareDatasetNavigationRequest, setPrepareDatasetNavigationRequest] = useState<(MasterDataQualityItem & WarningNavigationTarget) | undefined>()
   const [masterDataSearchQuery, setMasterDataSearchQuery] = useState('')
+  const pageScrollPositions = useRef<Record<ActiveTab, number>>({ master: 0, breakdown: 0, simulation: 0 })
+  const scrollPositionTab = useRef(activeTab)
   const [hasVisitedMasterData, setHasVisitedMasterData] = useState(activeTab === 'master')
   const [hasVisitedCostBreakdown, setHasVisitedCostBreakdown] = useState(activeTab === 'breakdown')
   const [hasVisitedSimulation, setHasVisitedSimulation] = useState(activeTab === 'simulation')
   const [simulationStatesByProduct, setSimulationStatesByProduct] = useState<Record<string, SimulationWorkspaceState>>(
-    () => loadFromSession(STORAGE_KEYS.SIMULATION_STATES, {})
+    () => omitSimulationViewStateMap(loadFromSession(STORAGE_KEYS.SIMULATION_STATES, {})) as Record<string, SimulationWorkspaceState>
   )
   const [simulationHistoriesByProduct, setSimulationHistoriesByProduct] = useState<Record<string, Partial<Record<MasterDataRole, SimulationHistory>>>>({})
   const [simulationHistoryRolesByProduct, setSimulationHistoryRolesByProduct] = useState<Record<string, MasterDataRole>>({})
@@ -118,7 +122,22 @@ const AppRouter: React.FC = () => {
   }
 
   useEffect(() => {
-    document.getElementById('main-content')?.scrollTo({ top: 0, behavior: 'auto' })
+    const main = document.getElementById('main-content')
+    if (!main) return
+    const rememberScrollPosition = () => {
+      pageScrollPositions.current[scrollPositionTab.current] = main.scrollTop
+    }
+    main.addEventListener('scroll', rememberScrollPosition, { passive: true })
+    rememberScrollPosition()
+    return () => main.removeEventListener('scroll', rememberScrollPosition)
+  }, [])
+
+  useLayoutEffect(() => {
+    if (scrollPositionTab.current === activeTab) return
+    const main = document.getElementById('main-content')
+    if (!main) return
+    main.scrollTop = pageScrollPositions.current[activeTab]
+    scrollPositionTab.current = activeTab
   }, [activeTab])
 
   useEffect(() => {
@@ -180,7 +199,7 @@ const AppRouter: React.FC = () => {
   }, [activeProductId, simulationHistoriesByProduct, simulationHistoryRolesByProduct, simulationState.datasets])
 
   useEffect(() => {
-    saveToSession(STORAGE_KEYS.SIMULATION_STATES, simulationStatesByProduct)
+    saveToSession(STORAGE_KEYS.SIMULATION_STATES, omitSimulationViewStateMap(simulationStatesByProduct))
   }, [simulationStatesByProduct])
 
   const commitSimulationEdit = () => {

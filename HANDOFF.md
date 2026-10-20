@@ -1,29 +1,30 @@
-# Current Handoff — Simulation scroll/footer and historical header correction — 2026-10-20
+# Current Handoff — in-memory page state and browser refresh defaults — 2026-10-20
 
 ## Checkpoint and delivery
 
 - Repository: `/Users/bubu/COSTBREAKDOWN-ref-current-custom-flow-redesign` (`apirak-k/COSTBREAKDOWN`). Branch: `feat/ref-current-custom-flow-redesign`.
-- Verified starting local and remote baseline: `34aab1bd9e86c93e3a2b805c731e3087975d647e`.
+- Verified starting local and remote baseline: `35ccd13ff0549f12a39a8dcc3bb288b0818c51d6`.
 - One focused commit and push to this branch are authorized. Do not merge or start Phase 5.
 
 ## Implemented in this pass
 
-- Restored Master Data BOM, Work Centers, and Routing headers to the historical `border-slate-400 bg-slate-100 text-slate-800` appearance. Restored the original NONE (`text-slate-700 hover:bg-slate-200`) and ALL (`border-slate-800 bg-slate-700 text-white`) `#` control states; only MIXED uses an intermediate slate. Checkbox semantics, 28×28 size, and bulk-selection behavior remain.
-- Replaced page slicing in Simulation BOM/Routing with complete filtered/ordered row rendering and native desktop vertical scrolling in the existing approximately four-row bodies. Each table keeps its own Search, scroll, and visible-range state. Search is always present, resets its own scroll position, and defines selection across every eligible filtered match. The compact gray footer reports the row window measured from actual viewport geometry and uses solid triangles to move one row; expanded detail height is included. Narrow card flow remains natural.
-- Kept the existing upper grid allocation as an implementation choice; docs no longer call its exact fractions user-selected. The Graph/Result-Break-even/Business-Economic hierarchy and the existing vertical split remain.
-- Added a subtle divider before Economic Outcome's Break-even Qty row. It continues to use the existing result, carries its resolved UOM, and preserves the existing unavailable/unreachable states and subdued graph heading.
-- Updated current Simulation, Master Data, Cross-Cutting, design, implementation-choice, table requirements, system diagram, Handoff, and focused verifier contracts. The 2026-10-20 pagination statement is explicitly superseded.
+- Visited pages remain mounted and hidden while another page is active, preserving component-owned UI state in the running app session. The shared Main scroll position is cached separately for Master Data, CBD, and Simulation in memory and restored on page navigation.
+- Fresh app initialization opens Master Data on Current / Edit Data / All Tables. The active page is no longer restored from or written to session storage; every full refresh opens Master Data at the top.
+- CBD comparison, filters, sort, selection, disclosures, and ordering history stay in memory during page navigation and return to their existing defaults after refresh.
+- Simulation role/pair and row selection are stripped from both loaded legacy state and new session-storage writes. Parameter overrides, Business/Economic drafts, role fingerprints, and product scoping remain persisted through the existing Simulation data lifecycle. Search, expanded rows, and table scroll remain component/DOM state, so they reset on refresh.
+- Existing Master Data Working / Last Saved product sessions continue using their current storage lifecycle. Refresh does not invoke Reset, Reset All, Clear, or Clear All.
+- Updated the current Cross-Cutting, Master Data, CBD, Simulation, and Final Logic specifications, plus navigation, Master Data, and Simulation regression coverage.
 
 ## Verification and limits
 
-- **PASS:** `npm run build` (TypeScript and Vite production build).
-- **PASS:** `node scripts/verify_simulation_regression.mjs` (row selection/drag, Simulation Phase 3/4, Result, Story, economics, history, role overrides, CBD, Master Data history, and Global Header; includes viewport geometry for top/middle/bottom, 0/3/4 rows, and expanded rows).
-- **PASS:** `node scripts/verify_master_data_ui_state.mjs` (including exact historical header/control styling).
-- **PASS:** `node scripts/verify_cbd_comparison_pair.mjs`, `node --experimental-strip-types scripts/verify_snapshot_comparison_view.ts`, and `node --experimental-strip-types scripts/verify_comparison_reconciliation.ts`.
+- **PASS:** `npm run build`.
+- **PASS:** `node scripts/verify_simulation_regression.mjs`, including row-selection, Simulation state reset/persistence assertions, navigation state contracts, Phase 3/4, results, economics, history, CBD, Master Data history, and Global Header.
+- **PASS:** `node scripts/verify_master_data_ui_state.mjs` and `node scripts/verify_page_navigation_persistence.mjs`.
+- **PASS:** `node scripts/verify_cbd_comparison_pair.mjs`, `node --experimental-strip-types scripts/verify_snapshot_comparison_view.ts`, `node --experimental-strip-types scripts/verify_comparison_reconciliation.ts`, and `node scripts/verify_cbd_audit_fixes.mjs`.
 - **PASS:** `git diff --check`.
-- Nested Vite SSR suites emit the existing `WebSocket server error: Port 24678 is already in use` warning and still exit 0. The build retains ExcelJS/fast-csv browser externalization warnings and a 538.32 kB main-bundle warning.
-- **[Unverified] NOT VISUALLY VERIFIED:** no browser automation package or Chrome/Chromium executable is available. Source/SSR checks do not establish rendered scrollbar visibility, mouse/trackpad behavior, exact responsive geometry, overflow, or focus behavior. No visual acceptance is claimed.
-- One focused correction only. No merge or Phase 5 work is included.
+- Vite SSR suites print the existing `WebSocket server error: Port 24678 is already in use` warning and exit 0. The build retains ExcelJS browser externalization warnings and the main-bundle size warning.
+- **[Unverified] NOT BROWSER-VERIFIED:** no Chrome/Chromium executable, Playwright package, or browser DevTools tool is available. Regression and source contracts do not establish real browser route/scroll behavior. No browser acceptance is claimed.
+- One focused state-persistence change only. No merge or Phase 5 work is included.
 
 ---
 

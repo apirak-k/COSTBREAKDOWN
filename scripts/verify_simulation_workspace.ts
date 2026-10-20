@@ -7,8 +7,8 @@ const app = readFileSync(resolve(process.cwd(), 'src/App.tsx'), 'utf8')
 const store = readFileSync(resolve(process.cwd(), 'src/state/store.tsx'), 'utf8')
 
 assert.match(app, /simulationStatesByProduct\[activeProductId\]/, 'Simulation state remains scoped by product')
-assert.match(app, /saveToSession\(STORAGE_KEYS\.SIMULATION_STATES, simulationStatesByProduct\)/,
-  'role-keyed Simulation state remains session-persisted per product')
+assert.match(app, /saveToSession\(STORAGE_KEYS\.SIMULATION_STATES, omitSimulationViewStateMap\(simulationStatesByProduct\)\)/,
+  'role-keyed Simulation business state remains session-persisted per product without view state')
 assert.match(app, /activeTab === 'simulation'[\s\S]*?<SimulationPage/, 'Simulation remains reachable as its own module')
 assert.match(app, /const effectiveDatasets = useMemo\(\(\) => \(\{[\s\S]*reference: getEffectiveSimulationDataset\(masterDataSnapshots, simulationState, 'reference'\)[\s\S]*current: getEffectiveSimulationDataset\(masterDataSnapshots, simulationState, 'current'\)[\s\S]*custom: getEffectiveSimulationDataset\(masterDataSnapshots, simulationState, 'custom'\)/,
   'the Simulation story context derives all three effective role datasets from their matching Working sources')

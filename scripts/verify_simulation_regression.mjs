@@ -1,5 +1,7 @@
 import { createServer } from 'vite'
 
+await import('./verify_page_navigation_persistence.mjs')
+
 // Legacy suites import extensionless TypeScript modules through the application's Vite resolver.
 const vite = await createServer({ server: { middlewareMode: true, hmr: false }, appType: 'custom', logLevel: 'error', optimizeDeps: { noDiscovery: true, entries: [] } })
 try {
@@ -20,6 +22,7 @@ try {
     'verify_simulation_history',
     'verify_simulation_workspace',
     'verify_simulation_context',
+    'verify_legacy_active_tab_migration',
     'verify_parameter_simulation_engine',
     'verify_scenario_cost_overrides',
     'verify_master_data_edit_history',
