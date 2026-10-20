@@ -2,6 +2,10 @@ import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 
 const source = path => readFileSync(new URL(`../${path}`, import.meta.url), 'utf8')
+const stackingLevel = className => {
+  const match = className.match(/(?:^|\s)(?:lg:)?z-(?:\[(\d+)\]|(\d+))(?=\s|$)/)
+  return match ? Number(match[1] ?? match[2]) : null
+}
 
 const simulationPage = source('src/features/simulation/SimulationPage.tsx')
 const simulationGraph = source('src/features/simulation/SimulationStoryGraph.tsx')
@@ -15,22 +19,37 @@ const nextButtonStart = footer.indexOf('aria-label={`Next ${navigationLabel} row
 assert.ok(previousButtonStart >= 0 && nextButtonStart > previousButtonStart, 'previous and next controls render in order')
 const previousButton = footer.slice(footer.lastIndexOf('<button', previousButtonStart), footer.indexOf('</button>', previousButtonStart) + '</button>'.length)
 const nextButton = footer.slice(footer.lastIndexOf('<button', nextButtonStart), footer.indexOf('</button>', nextButtonStart) + '</button>'.length)
+const rangeCounterClass = footer.match(/<span aria-live="polite" className="([^"]+)"/)?.[1]
+assert.ok(rangeCounterClass, 'Simulation row range counter is present')
+assert.match(rangeCounterClass, /md:col-start-7/)
+assert.match(rangeCounterClass, /md:mr-6/, 'the range counter leaves a compact gap before the Previous chevron')
+assert.match(rangeCounterClass, /md:justify-self-end/)
+assert.doesNotMatch(rangeCounterClass, /md:col-span-/)
 const previousButtonEnd = footer.indexOf('</button>', previousButtonStart) + '</button>'.length
 assert.equal(footer.slice(previousButtonEnd, footer.lastIndexOf('<button', nextButtonStart)).trim(), '', 'Simulation chevron controls are adjacent siblings')
 const arrowGroupStart = footer.lastIndexOf('<div', previousButtonStart)
 const arrowGroupEnd = footer.indexOf('</div>', nextButtonStart) + '</div>'.length
 const arrowGroup = footer.slice(arrowGroupStart, arrowGroupEnd)
 assert.match(arrowGroup, /md:col-start-8/, 'the next chevron group remains in table column 8')
+const rangeColumn = Number(rangeCounterClass.match(/md:col-start-(\d+)/)?.[1])
+const chevronColumn = Number(arrowGroup.match(/md:col-start-(\d+)/)?.[1])
+assert.equal(rangeColumn + 1, chevronColumn, 'the range counter sits immediately beside the compact column-8 navigation cluster')
 assert.equal([...arrowGroup.matchAll(/<button\b[\s\S]*?<\/button>/g)].length, 2, 'the arrow group contains only the two row-navigation controls')
 assert.match(previousButton, /onClick=\{\(\) => moveOneRow\(-1\)\}/)
 assert.match(nextButton, /onClick=\{\(\) => moveOneRow\(1\)\}/)
 assert.match(previousButton, /disabled=\{visibleRange\.atTop\}/)
 assert.match(nextButton, /disabled=\{visibleRange\.atBottom\}/)
 for (const [name, button] of [['previous', previousButton], ['next', nextButton]]) {
-  assert.match(button, /hover:bg-slate-100/, `${name} enabled row control uses the neutral hover affordance`)
+  const footerBackground = footer.match(/\bbg-slate-\d{3}\b/)?.[0]
+  const enabledHoverBackground = button.match(/\bhover:(bg-slate-\d{3})\b/)?.[1]
+  assert.equal(footerBackground, 'bg-slate-100', 'Simulation navigation sits on the established slate-100 footer')
+  assert.equal(enabledHoverBackground, 'bg-slate-200', `${name} enabled row control has a visibly distinct hover fill`)
+  assert.notEqual(enabledHoverBackground, footerBackground, `${name} enabled hover fill differs from its footer background`)
+  assert.match(button, /hover:text-slate-950/, `${name} enabled hover strengthens the arrow color`)
   assert.match(button, /focus-visible:/, `${name} row control has a keyboard focus affordance`)
   assert.match(button, /disabled:text-slate-300/, `${name} row control remains subdued when disabled`)
   assert.match(button, /disabled:hover:bg-transparent/, `${name} disabled row control has no enabled-looking hover state`)
+  assert.match(button, /disabled:hover:text-slate-300/, `${name} disabled row control keeps muted text on hover`)
 }
 assert.match(previousButton, /md:absolute md:right-full md:top-0/, 'desktop Previous sits directly to the left of Next')
 assert.match(nextButton, /md:absolute md:left-0 md:top-0/, 'desktop Next starts at the column-8 center axis wrapper')
@@ -66,6 +85,8 @@ assert.match(masterPage, /header\.getBoundingClientRect\(\)\.height/)
 assert.match(masterPage, /new ResizeObserver\(updateStickyOffset\)/)
 assert.match(masterHeader, /workspaceHeaderRef=|ref=\{workspaceHeaderRef\}/)
 assert.match(masterHeader, /className="sticky top-0 z-40/)
+const masterWorkspaceHeaderClass = masterHeader.match(/className="(sticky top-0 z-40[^"]*)"/)?.[1]
+assert.ok(masterWorkspaceHeaderClass, 'Master Data workspace header retains its z-40 sticky layer')
 assert.doesNotMatch(masterChrome, /sticky/)
 assert.match(stickyHeaderHelper, /data-sticky-table-header="true" className=\{`sticky [^`]*w-full/)
 assert.match(stickyHeaderHelper, /data-sticky-table-header-viewport="true" className="overflow-hidden"/)
@@ -73,6 +94,8 @@ const stickyHeaderWrapper = stickyHeaderHelper.match(/data-sticky-table-header="
 const stickyHeaderZ = stickyHeaderWrapper?.match(/(?:^|\s)z-(?:\[(\d+)\]|(\d+))(?=\s|$)/)
 assert.ok(stickyHeaderZ, 'the shared sticky header wrapper has a stacking level')
 const stickyHeaderZIndex = Number(stickyHeaderZ[1] ?? stickyHeaderZ[2])
+assert.ok(stackingLevel(masterWorkspaceHeaderClass) > stickyHeaderZIndex,
+  'Master Data workspace header remains above its sticky table headers')
 
 for (const [file, title, labels] of [
   ['BOMTable.tsx', 'Bill of Materials rows', ['Material', 'Usage', 'Unit', 'Price', 'Loss']],
@@ -109,6 +132,11 @@ assert.match(cbdOffsetUpdate, /shell\.getBoundingClientRect\(\)\.height/)
 assert.doesNotMatch(cbdOffsetUpdate, /height\s*[+*/-]|(?:\+\s*8)|(?:8\s*\+)/, 'sticky offset is the measured shell height alone')
 assert.match(cbdPage, /new ResizeObserver\(updateStickyOffset\)/)
 assert.match(cbdPage, /data-cbd-sticky-shell="true"[^>]*lg:sticky lg:top-0/)
+const cbdShellClass = cbdPage.match(/data-cbd-sticky-shell="true"[^>]*className="([^"]+)"/)?.[1]
+assert.ok(cbdShellClass, 'Cost Breakdown sticky shell exposes its stacking utility')
+const cbdShellZIndex = stackingLevel(cbdShellClass)
+assert.ok(cbdShellZIndex !== null && cbdShellZIndex > stickyHeaderZIndex,
+  'Cost Breakdown shell stacks strictly above the Candidate sticky header')
 const cbdGap = cbdPage.match(/<div[^>]*data-cbd-sticky-gap="true"[^>]*>/)?.[0]
 assert.ok(cbdGap, 'the normal-flow gap after the sticky shell remains present')
 assert.match(cbdGap, /aria-hidden="true"/)
@@ -116,6 +144,13 @@ assert.match(cbdGap, /className="[^"]*h-2[^\"]*shrink-0[^"]*"/)
 assert.doesNotMatch(cbdGap, /(?:^|\s)(?:sticky|absolute|fixed)(?:\s|$)/, 'the gap stays in normal flow')
 assert.match(cbdPage, /data-cbd-sticky-shell="true"[\s\S]*?<\/div>\s*<div[^>]*data-cbd-sticky-gap="true"[\s\S]*?aria-label="Candidate workspace"/, 'the sticky shell and normal-flow gap retain their existing DOM handoff order')
 assert.match(cbdTables, /<StickyTableHeader[\s\S]*?topClassName="top-0 lg:top-\[var\(--cbd-table-header-top\)\]"/)
+const candidateStickyHeader = cbdTables.match(/<StickyTableHeader\b[\s\S]*?<\/StickyTableHeader>/)?.[0]
+assert.ok(candidateStickyHeader, 'Candidate findings use the shared sticky header wrapper')
+const candidateBody = cbdTables.match(/<tbody\b[\s\S]*?<\/tbody>/)?.[0]
+assert.ok(candidateBody, 'Candidate findings body rows remain present below the sticky header')
+assert.doesNotMatch(candidateBody, /(?:^|\s)(?:sticky|z-(?:\[\d+\]|\d+))(?:\s|$)/,
+  'Candidate body rows do not create a stacking layer above their sticky header')
+assert.ok(stickyHeaderZIndex > 0, 'Candidate sticky header stacks above its unstacked body rows')
 assert.match(cbdTables, /<div className="overflow-x-auto" onScroll=\{syncHeaderScroll\}>/)
 assert.match(cbdTables, /<div className="border border-slate-200">\s*<StickyTableHeader/)
 assert.doesNotMatch(cbdTables, /<div className="overflow-x-auto border border-slate-200">/)

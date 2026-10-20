@@ -1,29 +1,28 @@
-# Current Handoff — focused COSTBREAKDOWN correction pass — 2026-10-20
+# Current Handoff — final pre-Phase-5 UI correction — 2026-10-20
 
 ## Checkpoint and delivery
 
 - Repository: `/Users/bubu/COSTBREAKDOWN-ref-current-custom-flow-redesign` (`apirak-k/COSTBREAKDOWN`). Branch: `feat/ref-current-custom-flow-redesign`.
-- Verified starting local and remote baseline: `8a8d703285add3f999f5d4280fd77e60630affbe`.
-- One focused correction commit is delivered on this branch. Do not merge or start Phase 5.
+- Verified starting local and remote baseline: `726dad66be8f3b0b538278add392669c63917a57`.
+- One focused commit is delivered and pushed to this branch. Do not merge or start Phase 5.
 
 ## Implemented in this pass
 
-- Raised the shared sticky table-header wrapper to `z-30`, above Master Data sticky row-index cells at `z-20`. Opaque `#` header backgrounds, table styling, offsets, section handoff, and horizontal-scroll sync remain intact.
-- CBD sticky table-header offset now equals the measured sticky shell height, with no added 8px. The separate `h-2` normal-flow spacer remains.
-- Grouped the Simulation footer chevrons side by side. Next remains centered in the final Details track (column 8), Previous sits directly to its left, and both keep 16px Lucide icons, one-row movement, hover/focus affordances, and subdued disabled styling.
-- Stored only the validated top-level active page in a dedicated session-storage key. Missing or invalid values fall back to Master Data; page-specific temporary state still returns to fresh defaults, while existing Master Data and Simulation business data persistence is unchanged.
-- Updated only directly affected specifications and focused regression verifiers.
+- Raised the CBD sticky controls and overview shell to `lg:z-40`, above its Candidate sticky column header at `z-30` and unstacked body rows. The shared header helper remains `z-30`; Master Data workspace header remains `z-40`, table headers `z-30`, and row-index cells `z-20`.
+- Preserved the measured CBD shell-height offset with no added 8px, the separate `h-2` normal-flow spacer, and bounded BOM-to-Routing sticky handoff.
+- Moved the Simulation visible range to column 7 with a 24px right reservation, placing it beside the adjacent Previous/Next pair in column 8. Next remains centered on the Details column axis; icons remain 16px and move one row through native scrolling.
+- Enabled Simulation chevron hover now uses `hover:bg-slate-200 hover:text-slate-950`; disabled buttons retain muted text, transparent hover, and the default cursor.
+- Updated only the focused UI correction verifier for the new hierarchy, range cluster, and hover treatment.
 
 ## Verification and limits
 
 - **PASS:** `npm run build`.
-- **PASS:** `node scripts/verify_simulation_regression.mjs`, including active-page whitelist/fallback, refresh defaults, business-state persistence, Phase 3/4, Simulation, CBD, Master Data, and navigation regressions.
-- **PASS:** `node scripts/verify_master_data_ui_state.mjs`, `node scripts/verify_page_navigation_persistence.mjs`, and `node scripts/verify_legacy_active_tab_migration.ts`.
-- **PASS:** `node scripts/verify_ui_correction_pass.mjs`, `node scripts/verify_cbd_comparison_pair.mjs`, and `node scripts/verify_cbd_audit_fixes.mjs`.
+- **PASS:** `node scripts/verify_simulation_regression.mjs`, `node scripts/verify_master_data_ui_state.mjs`, `node scripts/verify_page_navigation_persistence.mjs`, `node scripts/verify_ui_correction_pass.mjs`, `node scripts/verify_cbd_comparison_pair.mjs`, and `node scripts/verify_cbd_audit_fixes.mjs`.
 - **PASS:** `git diff --check`.
-- Vite SSR regression suites print `WebSocket server error: Port 24678 is already in use` and exit 0. The build retains ExcelJS browser externalization warnings and the 544 kB main-bundle warning.
-- **[Unverified] browser/visual behavior not independently verified.** No browser executable, Playwright package, or browser DevTools tool is available. Source checks do not confirm rendered stacking, sticky handoff, refresh behavior, or footer alignment.
-- One focused correction pass only. No merge or Phase 5 work is included.
+- Vite SSR regression suites print `WebSocket server error: Port 24678 is already in use` and exit 0. The build retains ExcelJS browser externalization warnings and a 544.63 kB main-bundle warning.
+- `npm audit --audit-level=high` reports 9 dependency advisories (5 high, 4 moderate), including `braces` via Tailwind's current dependency tree and `uuid` via ExcelJS. npm recommends a breaking Tailwind upgrade or ExcelJS downgrade; no dependency changes were made in this UI-only pass.
+- [Unverified] browser/visual behavior not independently verified. No browser executable, Playwright package, or browser DevTools tool is available; source checks do not establish rendered stacking, footer spacing, or hover appearance.
+- This correction pass closes its requested UI scope. The repo-wide dependency security gate remains open; Phase 5 is unstarted and no merge is included.
 
 ---
 

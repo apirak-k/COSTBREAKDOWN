@@ -997,7 +997,7 @@ function SimulationParameterTable({
               </button>
             )}
           </div>
-          <span aria-live="polite" className="shrink-0 whitespace-nowrap font-mono tabular-nums text-slate-600 md:col-start-5 md:col-span-2 md:justify-self-end">
+          <span aria-live="polite" className="shrink-0 whitespace-nowrap font-mono tabular-nums text-slate-600 md:col-start-7 md:mr-6 md:justify-self-end">
             {visibleRange.total === 0 ? '0 of 0' : visibleRange.start === 0 ? `0 of ${visibleRange.total}` : `${visibleRange.start}–${visibleRange.end} of ${visibleRange.total}`}
           </span>
           <div className="relative flex h-6 w-12 shrink-0 items-center md:col-start-8 md:w-6 md:justify-self-center">
@@ -1006,7 +1006,7 @@ function SimulationParameterTable({
               aria-label={`Previous ${navigationLabel} row`}
               disabled={visibleRange.atTop}
               onClick={() => moveOneRow(-1)}
-              className="grid h-6 w-6 place-items-center rounded-sm text-slate-700 hover:bg-slate-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-700 disabled:cursor-default disabled:text-slate-300 disabled:hover:bg-transparent md:absolute md:right-full md:top-0"
+              className="grid h-6 w-6 place-items-center rounded-sm text-slate-700 hover:bg-slate-200 hover:text-slate-950 focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-700 disabled:cursor-default disabled:text-slate-300 disabled:hover:bg-transparent disabled:hover:text-slate-300 md:absolute md:right-full md:top-0"
             >
               <ChevronLeft aria-hidden="true" className="h-4 w-4" />
             </button>
@@ -1015,7 +1015,7 @@ function SimulationParameterTable({
               aria-label={`Next ${navigationLabel} row`}
               disabled={visibleRange.atBottom}
               onClick={() => moveOneRow(1)}
-              className="grid h-6 w-6 place-items-center rounded-sm text-slate-700 hover:bg-slate-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-700 disabled:cursor-default disabled:text-slate-300 disabled:hover:bg-transparent md:absolute md:left-0 md:top-0"
+              className="grid h-6 w-6 place-items-center rounded-sm text-slate-700 hover:bg-slate-200 hover:text-slate-950 focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-700 disabled:cursor-default disabled:text-slate-300 disabled:hover:bg-transparent disabled:hover:text-slate-300 md:absolute md:left-0 md:top-0"
             >
               <ChevronRight aria-hidden="true" className="h-4 w-4" />
             </button>
