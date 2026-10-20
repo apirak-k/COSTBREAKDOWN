@@ -377,9 +377,9 @@ for (const before of roles) {
 for (const activeRole of roles) {
   const activeState = setSimulationActiveDataset(state, activeRole)
   assert.equal(activeState.activeDataset, activeRole, `graph selection can set activeDataset to ${activeRole}`)
-  assert.deepEqual([activeState.comparisonBefore, activeState.comparisonAfter], ['reference', 'custom'],
-    `selecting ${activeRole} does not move Result comparison`)
-  const markup = renderPage(activeState, 'reference', 'custom')
+  assert.deepEqual([activeState.comparisonBefore, activeState.comparisonAfter], ['reference', activeRole],
+    `selecting ${activeRole} preserves Before and synchronizes Result After`)
+  const markup = renderPage(activeState, activeState.comparisonBefore, activeState.comparisonAfter)
   const table = markup.match(/<section data-simulation-table="bom"[\s\S]*?<\/section>/)?.[0] ?? ''
   assert.match(markup, new RegExp(`aria-label="Select ${roleName[activeRole]} as active dataset"[^>]*aria-pressed="true"`),
     `${activeRole} graph label has the active visual state`)
@@ -388,11 +388,16 @@ for (const activeRole of roles) {
     `active ${activeRole} owns the parameter table values`)
   assert.deepEqual(resultHeaders(resultPanel(markup)),
     ['Cost / Unit', 'Before', 'After', 'Change', '%'],
-    `choosing active ${activeRole} leaves the Result pair unchanged`)
+    `choosing active ${activeRole} retains the Result comparison layout`)
+  assert.match(resultPanel(markup), /aria-label="Before dataset, Reference"/,
+    `choosing active ${activeRole} preserves Result Before`)
+  assert.match(resultPanel(markup), new RegExp(`aria-label="After dataset, ${roleName[activeRole]}"`),
+    `choosing active ${activeRole} synchronizes Result After`)
   assert.deepEqual(graphSummary(markup), graphSummary(pairPage),
     `choosing active ${activeRole} does not change the fixed graph story`)
-  assert.match(inputFor(markup, 'Selling Price'), /value="777\.00"/,
-    `choosing active ${activeRole} leaves Custom's After-role economics unchanged`)
+  const expectedSellingPrice = activeRole === 'reference' ? '110' : activeRole === 'current' ? '555' : '777'
+  assert.match(inputFor(markup, 'Selling Price'), new RegExp(`value="${expectedSellingPrice}\\.00"`),
+    `choosing active ${activeRole} selects that role's After-role economics`)
 }
 
 const pageSource = readFileSync(resolve(process.cwd(), 'src/features/simulation/SimulationPage.tsx'), 'utf8')
@@ -502,4 +507,4 @@ assert.match(appSource, /const role = current\.activeDataset[\s\S]*?resetSimulat
 assert.match(appSource, /const activeDataset = current\.activeDataset[\s\S]*?prepareSimulationSend\(current, masterDataSnapshots\)[\s\S]*?sendSimulationSnapshotToMasterData\(activeDataset, payload\.snapshot\)/,
   '[source contract] Send main action maps activeDataset to its same-role Master Working target')
 
-console.log('PASS: Phase 4 fixed graph, role-local rates, independent selectors, all nine Result pairs, and After-role economics')
+console.log('PASS: Phase 4 fixed graph, role-local rates, Active-to-After sync, all nine Result pairs, and After-role economics')

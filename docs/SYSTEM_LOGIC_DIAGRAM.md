@@ -57,7 +57,7 @@ flowchart TD
     effective --> engine
     engine --> effects["Parameter Cost Effect<br/>active role row cost − its Master Working baseline<br/>role-matched Work Center rates"]
 
-    workspace --> pair["Independent comparisonBefore → comparisonAfter"]
+    workspace --> pair["User-selected comparisonBefore → comparisonAfter pair<br/>Active Dataset selection synchronizes After; manual pair selection leaves Active Dataset unchanged"]
     effective --> result["Result<br/>Change = After − Before<br/>Parameter Saving = Before SC − After SC"]
     pair --> result
     workspace --> econ["After-role Business / Economic draft<br/>Fixed · Variable · Batch · Selling Price · SG&A"]
@@ -72,7 +72,7 @@ flowchart TD
 
 - A fresh Simulation workspace starts with active Custom and Current → Custom in Result. Reconciliation preserves valid saved roles and pairs; a changed Master Working basis rebases only that role's overrides.
 - There is no fourth SIM snapshot or Clone operation. Effective Reference, Current, and Custom datasets keep their latest Master Working structure and their own Work Center rates; Simulation stores role-local parameter overrides and Business/Economic drafts.
-- The graph labels set `activeDataset`, which owns parameter editing, Main Reset, same-role Send, and parameter history. The independent `comparisonBefore → comparisonAfter` pair owns Result; its After role owns the Business/Economic draft and history.
+- The graph labels set `activeDataset`, which owns parameter editing, Main Reset, same-role Send, and parameter history. Selecting a graph label also sets Result `comparisonAfter` to that role while preserving `comparisonBefore`; manual Result selector changes do not change `activeDataset`. The Result pair owns Result calculations, and its After role owns the Business/Economic draft and history.
 - Simulation structure is locked. Structural changes are made in Master Data, then the appropriate role is selected in Simulation.
 - Main Reset returns the active role's parameter overrides and commercial drafts to that role's Master Working defaults, clears Fixed / Variable / Batch, and preserves the active role, comparison pair, other roles, Master Data, and valid same-basis selection. It is one undoable role-local operation. Reset All applies that reset to all roles and restores active Custom and Current → Custom; it is not one cross-role Undo transaction.
 - `Send` writes the effective active role to its matching Master Working dataset. Send All applies all three same-role mappings atomically. Both preserve Last Saved; a sent role rebases while unrelated roles retain their overrides and history.
@@ -89,7 +89,7 @@ flowchart TD
 ## Graph meaning
 
 - Dataset bars show MAT, LB, BD, SG&A, and OP as separate series. Standard Cost means MAT + LB + BD.
-- The fixed story is Reference → GAP 1 → Current → GAP 2 → Custom; it is independent of the Result pair.
+- The fixed story is Reference → GAP 1 → Current → GAP 2 → Custom; its values remain role-based regardless of the selected Result pair.
 - GAP 1 and GAP 2 contain signed MAT/LB/BD components only: Current − Reference and Custom − Current. Positive is above zero; negative is below zero.
 - Selling Price is a separate line/marker. SG&A and OP are not part of Standard Cost or gap bars. Negative OP is shown below zero.
 - The draggable THB/pc ruler is a visual aid only; its start-aligned value sits in a bounded gutter immediately to the right of the plot, and it cannot modify datasets, inputs, or calculations.

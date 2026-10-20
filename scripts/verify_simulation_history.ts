@@ -213,9 +213,10 @@ try {
     'bom.price', (firstBom.price ?? 0) + 9, 'current')
   const splitCustomEdit = setSimulationEconomicInput(splitCurrentEdit, 'sellingPriceOverride', '444', 'custom')
   const activeMoved = setSimulationActiveDataset(splitCustomEdit, 'reference')
-  assert.equal(activeMoved.comparisonAfter, 'custom', 'activeDataset changes do not reinterpret the analysis context')
+  assert.deepEqual([activeMoved.comparisonBefore, activeMoved.comparisonAfter], ['reference', 'reference'],
+    'activeDataset preserves Result Before and synchronizes Result After')
   assert.equal(view(activeMoved, 'custom').economicInputs.sellingPriceOverride, '444',
-    'After Custom economic state remains intact when activeDataset changes')
+    'the Custom economic draft remains intact after Active moves Result After to Reference')
 
   const currentSplitBefore = captureSimulationEditableSnapshot(sources, splitContext, 'current')
   const currentSplitAfter = captureSimulationEditableSnapshot(sources, splitCurrentEdit, 'current')

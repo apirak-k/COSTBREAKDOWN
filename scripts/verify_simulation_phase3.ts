@@ -175,14 +175,17 @@ close(result.afterCost.labor, 3, 'Custom calculation uses Custom labor rates')
 close(result.beforeCost.total, 12.5, 'effective Reference total')
 close(result.afterCost.total, 64.5, 'effective Custom total')
 close(result.afterCost.total! - result.beforeCost.total!, 52, 'Result gap direction is After minus Before')
-const beforeChangingActive = result
 const activeMoved = setSimulationActiveDataset(state, 'reference')
-assert.deepEqual([activeMoved.comparisonBefore, activeMoved.comparisonAfter], ['reference', 'custom'])
-assert.deepEqual(
-  calculateParameterSimulation(view(activeMoved, 'reference').snapshot, view(activeMoved, 'custom').snapshot),
-  beforeChangingActive,
-  'changing activeDataset leaves Result calculations unchanged'
+assert.deepEqual([activeMoved.comparisonBefore, activeMoved.comparisonAfter], ['reference', 'reference'],
+  'changing activeDataset preserves Result Before and synchronizes Result After')
+const activeMovedResult = calculateParameterSimulation(
+  view(activeMoved, activeMoved.comparisonBefore).snapshot,
+  view(activeMoved, activeMoved.comparisonAfter).snapshot
 )
+assert.deepEqual(activeMovedResult.beforeCost, result.beforeCost,
+  'changing activeDataset preserves the effective Result Before values')
+assert.deepEqual(activeMovedResult.afterCost, result.beforeCost,
+  'selecting Reference makes Result After use the effective Reference values')
 for (const before of roles) {
   for (const after of roles) {
     const compared = setSimulationComparison(activeMoved, before, after)

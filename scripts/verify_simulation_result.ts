@@ -16,6 +16,8 @@ try {
   const {
     createEmptySimulationState,
     getEffectiveSimulationDataset,
+    resetAllSimulationParameters,
+    setSimulationActiveDataset,
     setSimulationComparison,
     setSimulationEconomicInput
   } = await vite.ssrLoadModule('/src/features/simulation/simulation-state.ts')
@@ -41,9 +43,47 @@ try {
   const custom = makeSnapshot('custom', 78)
   const sources = { reference, current, custom }
   const empty = createEmptySimulationState(sources)
+  assert.deepEqual(
+    [empty.activeDataset, empty.comparisonBefore, empty.comparisonAfter],
+    ['custom', 'current', 'custom'],
+    'Simulation starts on Custom with Current → Custom Result comparison'
+  )
+
+  for (const before of roles) {
+    for (const active of roles) {
+      const selectedBefore = setSimulationComparison(empty, before, 'current')
+      const selectedActive = setSimulationActiveDataset(selectedBefore, active)
+      assert.equal(selectedActive.activeDataset, active, `${active} becomes the active dataset`)
+      assert.equal(selectedActive.comparisonBefore, before, `changing Active preserves Before=${before}`)
+      assert.equal(selectedActive.comparisonAfter, active, `changing Active synchronizes After=${active}`)
+    }
+  }
+  assert.deepEqual(
+    [setSimulationComparison(empty, 'current', 'reference').activeDataset,
+      setSimulationComparison(empty, 'reference', 'custom').activeDataset],
+    ['custom', 'custom'],
+    'manually changing either Result selector leaves Active unchanged'
+  )
+  const manualPair = setSimulationComparison(empty, 'reference', 'current')
+  const activeReselected = setSimulationActiveDataset(manualPair, 'custom')
+  assert.deepEqual(
+    [activeReselected.activeDataset, activeReselected.comparisonBefore, activeReselected.comparisonAfter],
+    ['custom', 'reference', 'custom'],
+    'selecting the already-active dataset again preserves Before and resynchronizes After'
+  )
+
   let state = updateSimulationParameter(empty, sources, 'material-1', 'bom.price', 71, 'custom')
   state = setSimulationEconomicInput(state, 'sellingPriceOverride', '260', 'custom')
   state = setSimulationEconomicInput(state, 'sgaPercentOverride', '8', 'custom')
+  const resetAll = resetAllSimulationParameters(
+    setSimulationComparison(setSimulationActiveDataset(state, 'reference'), 'custom', 'reference'),
+    sources
+  )
+  assert.deepEqual(
+    [resetAll.activeDataset, resetAll.comparisonBefore, resetAll.comparisonAfter],
+    ['custom', 'current', 'custom'],
+    'Reset All restores Active Custom and Current → Custom from a non-default state'
+  )
 
   const render = (workspace: typeof state, before: MasterDataRole, after: MasterDataRole) => {
     const effectiveDatasets = Object.fromEntries(roles.map(role => [

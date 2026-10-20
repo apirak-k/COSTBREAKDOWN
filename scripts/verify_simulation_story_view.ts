@@ -1026,10 +1026,14 @@ try {
 
     const changedActive = setSimulationActiveDataset(changedPair, 'current')
     const changedActiveMarkup = renderPage(changedActive)
-    assert.deepEqual([changedActive.comparisonBefore, changedActive.comparisonAfter], ['custom', 'reference'],
-      'changing activeDataset leaves the Result comparison pair unchanged')
+    assert.deepEqual([changedActive.comparisonBefore, changedActive.comparisonAfter], ['custom', 'current'],
+      'changing activeDataset preserves Result Before and synchronizes Result After')
     assert.match(changedActiveMarkup, /aria-label="Select Current as active dataset"[^>]*aria-pressed="true"/,
       'the graph updates the selected active role')
+    assert.match(changedActiveMarkup, /aria-label="Before dataset, Custom"/,
+      'the graph selection preserves the manually selected Result Before')
+    assert.match(changedActiveMarkup, /aria-label="After dataset, Current"/,
+      'the graph selection synchronizes Result After to the active role')
     assert.deepEqual(graphValues(changedActiveMarkup), graphValues(initialMarkup),
       'selecting another active role does not rewrite the fixed graph values')
 

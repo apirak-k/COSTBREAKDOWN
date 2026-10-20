@@ -127,10 +127,12 @@ assert.equal(getEffectiveSimulationDataset(sources, customEconomicState, 'custom
 
 const activeReference = setSimulationActiveDataset(customEconomicState, 'reference')
 assert.equal(activeReference.comparisonBefore, 'reference')
-assert.equal(activeReference.comparisonAfter, 'custom', 'changing activeDataset does not move the analysis pair')
-assert.deepEqual(getEffectiveSimulationDataset(sources, activeReference, activeReference.comparisonAfter).economicInputs,
-  getEffectiveSimulationDataset(sources, customEconomicState, 'custom').economicInputs,
-  'changing activeDataset preserves the After role and its Economic draft')
+assert.equal(activeReference.comparisonAfter, 'reference', 'changing activeDataset synchronizes Result After while preserving Before')
+assert.deepEqual(getEffectiveSimulationDataset(sources, activeReference, 'reference').economicInputs,
+  getEffectiveSimulationDataset(sources, customEconomicState, 'reference').economicInputs,
+  'changing activeDataset selects the Reference Economic draft for Result After')
+assert.equal(getEffectiveSimulationDataset(sources, activeReference, 'custom').economicInputs.sellingPriceOverride, '777',
+  'moving Result After away from Custom preserves its stored Economic draft')
 
 const currentAfter = setSimulationComparison(activeReference, 'reference', 'current')
 assert.deepEqual(getEffectiveSimulationDataset(sources, currentAfter, 'current').economicInputs, currentEconomicBefore,

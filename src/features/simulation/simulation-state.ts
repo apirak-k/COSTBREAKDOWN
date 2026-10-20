@@ -145,7 +145,9 @@ export function setSimulationActiveDataset(
   state: SimulationWorkspaceState,
   role: MasterDataRole
 ): SimulationWorkspaceState {
-  return isMasterDataRole(role) && state.activeDataset !== role ? { ...state, activeDataset: role } : state
+  return isMasterDataRole(role) && (state.activeDataset !== role || state.comparisonAfter !== role)
+    ? { ...state, activeDataset: role, comparisonAfter: role }
+    : state
 }
 
 export function setSimulationComparison(
