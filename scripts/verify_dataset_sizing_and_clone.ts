@@ -250,27 +250,27 @@ async function runVerifications() {
   metaSheet.addRow([])
   metaSheet.addRow(['PRODUCT NAME', 'Test Membrane Panel'])
   metaSheet.addRow(['UOM', 'PCS'])
-  metaSheet.addRow(['SELLING PRICE', 245])
-  metaSheet.addRow(['SG&A %', 8])
+  metaSheet.addRow(['SELLING PRICE', 245.123456789])
+  metaSheet.addRow(['SG&A %', 8.123456789])
   metaSheet.addRow(['DATASET REMARK', 'Sizing and Clone round-trip fixture'])
 
   const wcSheet = testWb.addWorksheet('WORK_CENTER')
   wcSheet.addRow(['WORK CENTER'])
   wcSheet.addRow([])
   wcSheet.addRow(['WC', 'Labor', 'Burden', 'Note'])
-  wcSheet.addRow(['WC-PRINT', 120.5, 95.0, 'Rate note'])
+  wcSheet.addRow(['WC-PRINT', 120.123456789, 95.987654321, 'Rate note'])
 
   const bomSheet = testWb.addWorksheet('BOM')
   bomSheet.addRow(['BOM'])
   bomSheet.addRow([])
   bomSheet.addRow(['Name', 'Usage', 'Unit', 'Price', 'Loss', 'Note'])
-  bomSheet.addRow(['Polyester Film', 0.08, 'M2', 50.0, 0.03, 'Film note'])
+  bomSheet.addRow(['Polyester Film', 0.000000123, 'M2', 50.123456789, 0.0123456789, 'Film note'])
 
   const rtgSheet = testWb.addWorksheet('ROUTING')
   rtgSheet.addRow(['ROUTING'])
   rtgSheet.addRow([])
   rtgSheet.addRow(['Process', 'WC', 'Manning', 'Cap', 'Yield', 'Note'])
-  rtgSheet.addRow(['Circuit Printing', 'WC-PRINT', 1, 400, 0.95, 'Routing note'])
+  rtgSheet.addRow(['Circuit Printing', 'WC-PRINT', 1.23456789, 0.0000001, 0.99123456789, 'Routing note'])
 
   const buffer = await testWb.xlsx.writeBuffer()
   const testFile = new File([buffer], 'TestImportTemplate.xlsx', { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' })
@@ -290,6 +290,11 @@ async function runVerifications() {
     throw new Error('Imported data does not match populated workbook data')
   }
   console.log('✓ Import populated workbook into Reference succeeded')
+  assert.equal(importResult.snapshot.product.sellingPrice, 245.123456789, 'Excel import retains precise Selling Price')
+  assert.equal(importResult.snapshot.product.sgaPercent, 8.123456789, 'Excel import retains precise SG&A')
+  assert.equal(importResult.snapshot.bom[0].consumption, 0.000000123, 'Excel import retains tiny positive Usage')
+  assert.equal(importResult.snapshot.bom[0].price, 50.123456789, 'Excel import retains precise Price')
+  assert.equal(importResult.snapshot.bom[0].loss, 0.0123456789, 'Excel import retains precise Loss fraction')
 
   // Export Reference and Import into Current (Round-Trip)
   const exportedBlob = await exportSnapshotToExcel(importResult.snapshot)
@@ -334,6 +339,8 @@ async function runVerifications() {
     compareDatasetValues(importResult.snapshot),
     'Round-trip export -> import must preserve approved dataset fields and row counts'
   )
+  assert.equal(roundTripResult.snapshot.routing[0].capacity, 0.0000001,
+    'Excel export writes the underlying tiny positive Capacity value despite presentation number formatting')
   console.log('✓ Export -> Import round-trip preserved all Product, Rates, BOM, and Routing data')
 
   console.log('--- ALL MASTER DATA DATASET SIZING & CLONE VERIFICATIONS PASSED SUCCESSFULLY! ---')

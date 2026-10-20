@@ -199,6 +199,32 @@ async function runTests() {
   assert.deepEqual(routingRows[2], ['Process', 'WC', 'Manning', 'Cap', 'Yield', 'Note'])
   console.log('✓ Export workbook uses the current four-sheet Master Data schema and omits unsupported custom/lifecycle fields')
 
+  const preciseExportSnapshot = structuredClone(testSnapshot)
+  preciseExportSnapshot.product.sellingPrice = 12.3456789
+  preciseExportSnapshot.product.sgaPercent = 8.123456789
+  preciseExportSnapshot.rates[0].laborRate = 100.123456789
+  preciseExportSnapshot.rates[0].burdenRate = 50.987654321
+  preciseExportSnapshot.bom[0].consumption = 1.23456789
+  preciseExportSnapshot.bom[0].price = 99.123456789
+  preciseExportSnapshot.bom[0].loss = 0.01234567
+  preciseExportSnapshot.routing[0].manning = 1.23456789
+  preciseExportSnapshot.routing[0].capacity = 0.0000001
+  preciseExportSnapshot.routing[0].yield = 0.99123456789
+  const preciseExportBlob = await exportSnapshotToExcel(preciseExportSnapshot)
+  const preciseExportImport = parseSnapshotWorkbookData(await preciseExportBlob.arrayBuffer(), 'reference')
+  assert.equal(preciseExportImport.success, true, 'high-precision exported workbook remains importable')
+  assert.equal(preciseExportImport.snapshot?.product.sellingPrice, 12.3456789)
+  assert.equal(preciseExportImport.snapshot?.product.sgaPercent, 8.123456789)
+  assert.equal(preciseExportImport.snapshot?.rates[0].laborRate, 100.123456789)
+  assert.equal(preciseExportImport.snapshot?.rates[0].burdenRate, 50.987654321)
+  assert.equal(preciseExportImport.snapshot?.bom[0].consumption, 1.23456789)
+  assert.equal(preciseExportImport.snapshot?.bom[0].price, 99.123456789)
+  assert.equal(preciseExportImport.snapshot?.bom[0].loss, 0.01234567)
+  assert.equal(preciseExportImport.snapshot?.routing[0].manning, 1.23456789)
+  assert.equal(preciseExportImport.snapshot?.routing[0].capacity, 0.0000001)
+  assert.equal(preciseExportImport.snapshot?.routing[0].yield, 0.99123456789)
+  console.log('✓ Excel export/import round-trip preserves high-precision underlying numeric values')
+
   // Product Name mismatch stays visible as a non-blocking handoff warning.
   const currentSnapshot: CostSnapshot = {
     ...testSnapshot,

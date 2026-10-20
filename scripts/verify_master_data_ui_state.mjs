@@ -1127,7 +1127,7 @@ try {
   const metadataNumericDomains = validationSource.slice(validationSource.indexOf('sellingPrice:'), validationSource.indexOf('consumption:'))
   assert.match(metadataNumericDomains, /sellingPrice:\s*\{ min: 0 \}/, 'Selling Price rejects negatives while allowing zero')
   assert.match(metadataNumericDomains, /sgaPercent:\s*\{ min: 0, max: 100 \}/, 'SG&A uses the canonical 0% to 100% domain')
-  assert.match(numericInputSource, /precision = 2/, 'metadata numeric editors use the shared two-decimal input precision by default')
+  assert.doesNotMatch(numericInputSource, /precision\s*=\s*2/, 'metadata editing has no default decimal-place acceptance limit')
   assert.match(headerSource, /xl:grid-cols-\[minmax\(8rem,2fr\)_repeat\(3,minmax\(8rem,1fr\)\)_minmax\(8rem,2fr\)\]/,
     'metadata gives UOM, Selling Price, and SG&A equal tracks while keeping Product and Remark wider')
   assert.match(headerSource, /Product Name :<\/dt>[\s\S]*UOM :<\/dt>[\s\S]*Selling Price \(THB\) :<\/dt>[\s\S]*SG&amp;A :<\/dt>[\s\S]*Remark :<\/dt>/,

@@ -74,6 +74,28 @@ assertClose(priceAttribution.totalEffect, 4.2, 'Total BOM effect')
 assert.ok(Math.abs(Object.values(priceAttribution.effects ?? {}).reduce((sum, value) => sum + value, 0) - 4.2) < 1e-9,
   'BOM price attribution reconciles to SIM Material Cost - Current Material Cost')
 
+const precisePrice = 12.3456789
+const precisePriceState = updateSimulationParameter(state, current, 'current-steel', 'bom.price', precisePrice)
+assert.equal(precisePriceState.snapshot?.bom[0]?.price, precisePrice, 'Simulation stores the full entered Price')
+const precisePriceResult = calculateParameterSimulation(current, precisePriceState.snapshot!)
+assert.equal(precisePriceResult.simulationCost.material, precisePrice * 2 * 1.05,
+  'Simulation calculation uses the stored Price rather than its two-decimal display')
+assert.notEqual(precisePriceResult.simulationCost.material, 12.35 * 2 * 1.05)
+const preciseUsage = updateSimulationParameter(state, current, 'current-steel', 'bom.consumption', 1.23456789)
+assert.equal(preciseUsage.snapshot?.bom[0]?.consumption, 1.23456789, 'Simulation Usage accepts more than four decimal places')
+const preciseLoss = updateSimulationParameter(state, current, 'current-steel', 'bom.loss', 0.01234567)
+assert.equal(preciseLoss.snapshot?.bom[0]?.loss, 0.01234567, 'Simulation Loss stores a high-precision canonical fraction')
+const tinyCapacity = updateSimulationParameter(state, current, 'current-cut', 'routing.capacity', 0.0000001)
+assert.equal(tinyCapacity.snapshot?.routing[0]?.capacity, 0.0000001, 'Simulation Capacity accepts a tiny positive value')
+const smallestCapacity = updateSimulationParameter(state, current, 'current-cut', 'routing.capacity', Number.MIN_VALUE)
+assert.equal(smallestCapacity.snapshot?.routing[0]?.capacity, Number.MIN_VALUE,
+  'Simulation Capacity accepts the smallest positive value representable by the number model')
+const preciseYield = updateSimulationParameter(state, current, 'current-cut', 'routing.yield', 0.99123456789)
+assert.equal(preciseYield.snapshot?.routing[0]?.yield, 0.99123456789, 'Simulation Yield accepts high precision within its domain')
+const smallestYield = updateSimulationParameter(state, current, 'current-cut', 'routing.yield', Number.MIN_VALUE)
+assert.equal(smallestYield.snapshot?.routing[0]?.yield, Number.MIN_VALUE,
+  'Simulation Yield accepts the smallest positive value representable by the number model')
+
 const zeroMaterialAttribution = calculateMultiplicativeCostAttribution(25.2, 0, [
   { key: 'price', baseline: 12, target: 12 },
   { key: 'usage', baseline: 2, target: 0 },

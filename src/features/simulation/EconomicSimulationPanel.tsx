@@ -271,16 +271,15 @@ export function EconomicSimulationPanel({ result, draft, currentSnapshot, unit, 
     label: string
     ariaLabel?: string
     unit: string
-    precision: number
     integer?: boolean
     min?: number
     max?: number
   }> = [
-    { field: 'variableActionCostPerPiece', label: 'Variable Action Cost', ariaLabel: 'Variable Action Cost / Unit', unit: `THB/${normalizedUnit}`, precision: 2, min: 0 },
-    { field: 'fixedActionCost', label: 'Fixed Action Cost', unit: 'THB', precision: 2, min: 0 },
-    { field: 'batchSize', label: 'Batch Size', unit: normalizedUnit, precision: 0, integer: true, min: 1 },
-    { field: 'sellingPriceOverride', label: 'Selling Price', unit: `THB/${normalizedUnit}`, precision: 2, min: 0 },
-    { field: 'sgaPercentOverride', label: 'SG&A %', unit: '', precision: 2, min: 0, max: 100 }
+    { field: 'variableActionCostPerPiece', label: 'Variable Action Cost', ariaLabel: 'Variable Action Cost / Unit', unit: `THB/${normalizedUnit}`, min: 0 },
+    { field: 'fixedActionCost', label: 'Fixed Action Cost', unit: 'THB', min: 0 },
+    { field: 'batchSize', label: 'Batch Size', unit: normalizedUnit, integer: true, min: 1 },
+    { field: 'sellingPriceOverride', label: 'Selling Price', unit: `THB/${normalizedUnit}`, min: 0 },
+    { field: 'sgaPercentOverride', label: 'SG&A %', unit: '', min: 0, max: 100 }
   ]
 
   const economicOutputs = [
@@ -306,14 +305,13 @@ export function EconomicSimulationPanel({ result, draft, currentSnapshot, unit, 
       <section className="min-w-0 px-2.5 py-1.5 xl:min-h-0" aria-labelledby="simulation-business-inputs-title">
           <h2 id="simulation-business-inputs-title" className="text-xs font-semibold text-slate-900">Business</h2>
           <div className="mt-1 grid grid-cols-1 gap-y-1 xl:mt-0.5">
-            {inputs.slice(3).map(({ field, label, ariaLabel, unit: fieldUnit, precision, min, max }) => (
+            {inputs.slice(3).map(({ field, label, ariaLabel, unit: fieldUnit, min, max }) => (
               <label key={field} className="flex min-w-0 flex-col gap-0.5 text-[9px] font-medium leading-3 text-slate-700">
                 <span>{label}<span className="ml-1 font-normal text-slate-500">{fieldUnit}</span></span>
                 <span className="w-full min-w-0">
                   <SimulationHistoryInputBoundary onBegin={onBeginEdit} onCommit={onCommitEdit}>
                     <NumericInput
                       value={effectiveInputValue(field, draft, currentSnapshot)}
-                      precision={precision}
                       min={min}
                       max={max}
                       onValueChange={value => onUpdate(field, value === null ? '' : String(value))}
@@ -330,14 +328,13 @@ export function EconomicSimulationPanel({ result, draft, currentSnapshot, unit, 
       <section className="min-w-0 px-2.5 py-1.5 xl:min-h-0" aria-labelledby="simulation-economic-inputs-title">
           <h2 id="simulation-economic-inputs-title" className="text-xs font-semibold text-slate-900">Economic</h2>
           <div className="mt-1 grid min-w-0 grid-cols-1 gap-y-1 xl:mt-0.5">
-            {inputs.slice(0, 3).map(({ field, label, ariaLabel, unit: fieldUnit, precision, integer, min, max }) => (
+            {inputs.slice(0, 3).map(({ field, label, ariaLabel, unit: fieldUnit, integer, min, max }) => (
               <label key={field} className="flex min-w-0 flex-col gap-0.5 text-[9px] font-medium leading-3 text-slate-700">
                 <span>{label}<span className="ml-1 font-normal text-slate-500">{fieldUnit}</span></span>
                 <span className="w-full min-w-0">
                   <SimulationHistoryInputBoundary onBegin={onBeginEdit} onCommit={onCommitEdit}>
                     <NumericInput
                       value={effectiveInputValue(field, draft, currentSnapshot)}
-                      precision={precision}
                       integer={integer}
                       min={min}
                       max={max}

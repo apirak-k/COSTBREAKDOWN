@@ -65,6 +65,29 @@ assert.equal(baseResult.preciseBreakEvenQuantity, 2500)
 assert.equal(baseResult.breakEvenQuantity, 2500)
 assert.equal(baseResult.breakEvenNotAchievable, false)
 
+const preciseEconomicDraft = withInputs({
+  fixedActionCost: '10000.123456789',
+  variableActionCostPerPiece: '100.123456789',
+  batchSize: '3',
+  sellingPriceOverride: '100.123456789',
+  sgaPercentOverride: '8.123456789'
+})
+assert.equal(preciseEconomicDraft.variableActionCostPerPiece, '100.123456789', 'Economic monetary inputs retain high precision')
+assert.equal(preciseEconomicDraft.sellingPriceOverride, '100.123456789', 'Selling Price accepts high precision')
+assert.equal(preciseEconomicDraft.sgaPercentOverride, '8.123456789', 'SG&A accepts high precision within its domain')
+const preciseEconomicResult = calculateEconomicSimulation(currentSnapshot, simulationCost, 6.123456789, preciseEconomicDraft)
+assert.equal(preciseEconomicResult.fixedActionCost, 10000.123456789)
+assert.equal(preciseEconomicResult.variableActionCostPerPiece, 100.123456789)
+assert.equal(preciseEconomicResult.fixedCostPerPiece, 10000.123456789 / 3, 'Economic calculation uses the entered action cost')
+assert.equal(preciseEconomicResult.requiredSavingPerPiece, 10000.123456789 / 3 + 100.123456789)
+assert.notEqual(preciseEconomicResult.requiredSavingPerPiece, 10000 / 3 + 100)
+const tinyEconomicDraft = updateEconomicSimulationDraft(createEconomicSimulationDraft(), 'fixedActionCost', String(Number('0.000000123')))
+assert.equal(tinyEconomicDraft.fixedActionCost, '1.23e-7', 'small Economic values remain valid after number-to-string conversion')
+const tinyEconomicResult = calculateEconomicSimulation(currentSnapshot, simulationCost, 6, {
+  ...tinyEconomicDraft, batchSize: '1'
+})
+assert.equal(tinyEconomicResult.fixedActionCost, 0.000000123, 'small Economic input remains the underlying calculation value')
+
 const smallerBatch = calculateEconomicSimulation(currentSnapshot, simulationCost, 6, { ...worked, batchSize: '2000' })
 assert.equal(smallerBatch.requiredSavingPerPiece, 7)
 assert.equal(smallerBatch.economicMarginPerPiece, -1)
@@ -291,8 +314,7 @@ for (const [label, start, expected] of stepCases) {
     value = stepNumericValue(value, -1, 1, {
       min: input.min,
       max: input.max,
-      integer: input.integer,
-      precision: input.precision
+      integer: input.integer
     })
     sequence.push(value)
   }

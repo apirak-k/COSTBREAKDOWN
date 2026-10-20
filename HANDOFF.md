@@ -1,3 +1,55 @@
+# Current Handoff — Decimal precision Phase 1 — 2026-10-20
+
+## Checkpoint and delivery
+
+- Repository: `/Users/bubu/COSTBREAKDOWN` (`apirak-k/COSTBREAKDOWN`). Branch: `logic/simulation-finalized-implementation`.
+- Before editing, fetched and confirmed the actual branch tip. Local HEAD and fetched `origin/logic/simulation-finalized-implementation` both matched baseline `94a1d90135033797375463f5f0073079848e39ac`.
+- `vite.config.ts` was already modified before this pass. Its SHA-256 remains `673d2cbb093b910a1640bac84b7e16425e4f08bd3d7be7f4e435848ab2eb6796`; it was not edited as part of this work.
+- This implementation is local and uncommitted. No push or merge was performed.
+
+## Runtime reproduction and confirmation
+
+- The user's physical failure was reproducible because the running dev server was serving a different worktree: PID `96264` runs Vite from `/Users/bubu/COSTBREAKDOWN-ref-current-custom-flow-redesign`, branch `feat/ref-current-custom-flow-redesign`, HEAD `0b4e0ac7a27d0173bbe0fc14a10c26dbd99eb851`. The Phase 1 implementation in `/Users/bubu/COSTBREAKDOWN` was not the source being served.
+- Before correcting the served checkout, isolated Chrome against `http://localhost:5173/` reproduced `12.3456789` truncating to `12.34` in Master Data Selling Price, Simulation Price, Business Selling Price, and Economic Variable Action Cost / Unit.
+- Phase 1 changes are present in this logic checkout and have now also been applied to the actual served checkout. The browser verifier is checked in at `scripts/verify_numeric_input_browser.mjs` and can either launch this checkout's Vite server or target the running server with `COSTBREAKDOWN_BROWSER_BASE_URL`.
+- **PASS — live dev server:** `COSTBREAKDOWN_BROWSER_BASE_URL=http://localhost:5173/ node scripts/verify_numeric_input_browser.mjs` in isolated Chrome at 1440×1800. All four inputs retained focused `12.3456789`; on blur each displayed `12.35` under the unchanged two-decimal display formatting.
+- **PASS — Phase 1 checkout server:** `node scripts/verify_numeric_input_browser.mjs` in isolated Chrome. The same four UI paths accepted the complete value and displayed `12.35` after blur.
+
+## Scope and changes
+
+- Removed decimal-place acceptance limits from shared numeric draft parsing, Master Data validation, Simulation parameter edits, and Economic / Business decimal inputs. Domain bounds and semantic integer requirements remain enforced; Batch Size remains a positive integer.
+- Numeric stepping remains caret-place based. Decimal stepping now uses decimal-safe base-10 addition, avoiding binary floating-point artifacts while preserving digits beyond the active place. Positive-only Capacity and Yield have no precision-derived minimum; stepping below their valid range retains the existing stop-at-boundary behavior where configured.
+- Removed obsolete precision props and Simulation input-format configuration. Display formatting remains presentation-only and unchanged; stored and calculated values retain the entered numeric value.
+- Updated focused verifiers for high-precision typing, paste/import, domain boundaries, stepping, and calculation precision. Updated current precision rules in `docs/specs/CROSS_CUTTING.md`, `docs/specs/MASTER_DATA.md`, `docs/specs/MASTER_DATA_TOOLBAR_PREPARE_UX.md`, and `docs/specs/SIMULATION.md`.
+- No formulas, economic/business logic semantics, persistence/history behavior, spreadsheet export behavior, or Phase 2 presentation work were changed.
+
+## Verification
+
+- **PASS:** `node scripts/verify_numeric_input.mjs`
+- **PASS:** `node_modules/.bin/jiti scripts/verify_numeric_integrity.ts`
+- **PASS:** `node_modules/.bin/jiti scripts/verify_parameter_simulation_engine.ts`
+- **PASS:** `node --experimental-strip-types scripts/verify_simulation_economics.ts`
+- **PASS:** `node_modules/.bin/jiti scripts/verify_master_data_spreadsheet_batch.ts`
+- **PASS:** `node_modules/.bin/jiti scripts/verify_snapshot_import.ts`
+- **PASS:** `node_modules/.bin/jiti scripts/verify_import_mismatch_export.ts`; high-precision numeric values survive Excel export/import round-trip.
+- **PASS:** `node_modules/.bin/jiti scripts/verify_dataset_sizing_and_clone.ts`
+- **PASS:** `node_modules/.bin/jiti scripts/verify_master_data_toolbar_prepare_ux.ts`
+- **PASS:** `node scripts/verify_master_data_ui_state.mjs`
+- **PASS:** `node scripts/verify_simulation_regression.mjs`
+- **PASS:** `node --experimental-strip-types scripts/verify_simulation_history.ts`, `scripts/verify_simulation_corrections.ts`, `scripts/verify_simulation_story_view.ts`, and `scripts/verify_simulation_result.ts`
+- **PASS:** `npm run build`; existing ExcelJS browser-externalization and large-chunk warnings remain.
+- **PASS:** `git diff --check` (also run as the final audit).
+
+The focused cases include Price `12.3456789`, Usage `1.23456789`, Loss `1.234567%` with fraction storage, Capacity `0.0000001` and `Number.MIN_VALUE`, Yield `99.123456789%` and `Number.MIN_VALUE`, Economic monetary input `100.123456789`, and calculations using the unrounded stored value. Import and export/import round-trip verifiers preserve high precision. Negative Price, nonpositive Capacity/Yield, Yield above 100%, and decimal Batch Size remain invalid.
+
+## Remaining work and limits
+
+- Phase 2 remains: Header `Value`, spinner relocation/removal, adaptive precision/scientific display, Cost Breakdown expanded-row presentation, REF/CUR label changes, and column/layout changes for decimal UX.
+- **[Unverified]** Typing on physical user hardware after the runtime correction, other browsers, accessibility runtime, and CI. Actual application typing/state retention was verified in isolated Chrome against both the live dev server and the Phase 1 checkout.
+- Ready for user review; no delivery commit or remote update was made.
+
+---
+
 # Current Handoff — Role menu alignment correction — 2026-10-19
 
 ## Checkpoint and delivery

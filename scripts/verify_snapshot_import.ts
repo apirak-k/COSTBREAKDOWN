@@ -25,13 +25,13 @@ function tableSheet(title: string, headers: string[], ...rows: (string | number 
 }
 
 const workbook = XLSX.utils.book_new()
-XLSX.utils.book_append_sheet(workbook, metaSheet('Test Product', 'PC', 123.5, 8, 'Imported dataset'), 'META')
+XLSX.utils.book_append_sheet(workbook, metaSheet('Test Product', 'PC', 123.456789123, 8.123456789, 'Imported dataset'), 'META')
 XLSX.utils.book_append_sheet(workbook, tableSheet('WORK_CENTER', ['WC', 'Labor', 'Burden', 'Note'],
-  ['WC-1', 100, 50, 'Cutting'], ['WC-2', 90, null, 'Assembly']), 'WORK_CENTER')
+  ['WC-1', 100.123456789, 50.987654321, 'Cutting'], ['WC-2', 90, null, 'Assembly']), 'WORK_CENTER')
 XLSX.utils.book_append_sheet(workbook, tableSheet('BOM', ['Name', 'Usage', 'Unit', 'Price', 'Loss', 'Note'],
-  ['Material 1', 2, 'PC', 10, 0.1, ''], ['Material 2', 2, 'PC', null, null, '']), 'BOM')
+  ['Material 1', 1.23456789, 'PC', 12.3456789, 0.01234567, ''], ['Material 2', 2, 'PC', null, null, '']), 'BOM')
 XLSX.utils.book_append_sheet(workbook, tableSheet('ROUTING', ['Process', 'WC', 'Manning', 'Cap', 'Yield', 'Note'],
-  ['Cut', 'WC-1', 1, 100, 0.9, ''], ['Print', 'WC-2', 1, 80, 0.95, '']), 'ROUTING')
+  ['Cut', 'WC-1', 1.23456789, 100.123456789, 0.9123456789, ''], ['Print', 'WC-2', 1, 80, 0.95, '']), 'ROUTING')
 
 const result = parseSnapshotWorkbookData(XLSX.write(workbook, { type: 'array', bookType: 'xlsx' }), 'current')
 
@@ -41,20 +41,28 @@ assert.equal(result.format, 'canonical')
 assert.equal(result.snapshot?.comparisonRole, 'current')
 assert.equal(result.snapshot?.product.productName, 'Test Product')
 assert.equal(result.snapshot?.product.uom, 'PC')
-assert.equal(result.snapshot?.product.sellingPrice, 123.5)
-assert.equal(result.snapshot?.product.sgaPercent, 8)
+assert.equal(result.snapshot?.product.sellingPrice, 123.456789123)
+assert.equal(result.snapshot?.product.sgaPercent, 8.123456789)
 assert.equal(result.snapshot?.remark, 'Imported dataset')
 assert.equal(result.snapshot?.rates.length, 2)
+assert.equal(result.snapshot?.rates[0].laborRate, 100.123456789)
+assert.equal(result.snapshot?.rates[0].burdenRate, 50.987654321)
 assert.equal(result.snapshot?.rates[1].burdenRate, null)
 assert.equal(result.snapshot?.rates[1].confidence.burdenRate.status, 'missing')
 assert.equal(result.snapshot?.rates[1].confidence.burdenRate.quality, 'missing')
 assert.equal(result.snapshot?.rates[1].confidence.laborRate.status, 'estimated')
 assert.equal(result.snapshot?.bom[1].price, null)
+assert.equal(result.snapshot?.bom[0].consumption, 1.23456789)
+assert.equal(result.snapshot?.bom[0].price, 12.3456789)
+assert.equal(result.snapshot?.bom[0].loss, 0.01234567)
 assert.equal(result.snapshot?.bom[1].confidence.price.status, 'missing')
 assert.equal(result.snapshot?.routing[0].workCenterId, 'WC-1')
 assert.equal(result.snapshot?.routing[0].processName, 'Cut')
 assert.equal(result.snapshot?.routing[1].id, 'Print')
 assert.equal(result.snapshot?.routing[1].operationCode, undefined)
+assert.equal(result.snapshot?.routing[0].manning, 1.23456789)
+assert.equal(result.snapshot?.routing[0].capacity, 100.123456789)
+assert.equal(result.snapshot?.routing[0].yield, 0.9123456789)
 assert.ok(result.warnings.some(warning => warning.includes('Missing Burden at row 5')))
 
 const customResult = parseSnapshotWorkbookData(workbookBytes, 'custom')

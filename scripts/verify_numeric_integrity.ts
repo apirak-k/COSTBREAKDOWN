@@ -103,6 +103,22 @@ assert.equal(zeroPrice.material, 0, 'an explicitly entered zero Price remains a 
 assert.equal(zeroPrice.total, 0)
 assert.equal(zeroPrice.status, 'complete')
 
+const preciseInputs = {
+  price: 12.3456789,
+  usage: 1.23456789,
+  loss: 0.01234567
+}
+const preciseMaterialCost = calculateSnapshotCost(snapshot({
+  id: 'high-precision-inputs',
+  bom: [{ ...bom('precise-mat', preciseInputs.price, preciseInputs.usage), loss: preciseInputs.loss }],
+  routing: [],
+  rates: []
+})).material
+const exactInputCost = preciseInputs.price * preciseInputs.usage * (1 + preciseInputs.loss)
+const displayRoundedInputCost = 12.35 * 1.23 * (1 + 0.0123)
+assert.equal(preciseMaterialCost, exactInputCost, 'Standard Cost uses the full stored Price, Usage, and Loss values')
+assert.notEqual(preciseMaterialCost, displayRoundedInputCost, 'calculation does not substitute two-decimal display values')
+
 for (const [id, item] of [
   ['negative-usage', { ...bom('negative-usage', 10, -1) }],
   ['negative-price', { ...bom('negative-price', -10, 1) }],
