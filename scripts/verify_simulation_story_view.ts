@@ -15,7 +15,8 @@ const vite = await createServer({
 try {
   const { calculateScenarioBusinessMetrics } = await vite.ssrLoadModule('/src/core/calculations/scenario-business.ts')
   const { createScenarioFinancialResult, createScenarioStory } = await vite.ssrLoadModule('/src/core/calculations/scenario-story.ts')
-  const { SimulationStoryGraph, buildVisibleStack, buildVisibleStandardCost, buildGraphScale, positionGraphTooltip } = await vite.ssrLoadModule('/src/features/simulation/SimulationStoryGraph.tsx')
+  const { SimulationStoryGraph, buildVisibleStack, buildVisibleStandardCost, buildGraphScale, positionGraphTooltip,
+    positionGapTotalLabel, WIDE_GRAPH_LABEL_METRICS, NARROW_GRAPH_LABEL_METRICS } = await vite.ssrLoadModule('/src/features/simulation/SimulationStoryGraph.tsx')
   const { SimulationPage } = await vite.ssrLoadModule('/src/features/simulation/SimulationPage.tsx')
   const { parameterEffectPresentation } = await vite.ssrLoadModule('/src/features/simulation/parameter-effect-presentation.ts')
 
@@ -50,6 +51,38 @@ try {
     { left: 290, top: 100, right: 300, bottom: 120 },
     { width: 100, height: 30 }
   ), { x: 192, y: 62 }, 'tooltip clamps to the graph host right edge')
+  const labelY = (value: number) => 100 - value * 4
+  const mixedStack = { positive: 10, negative: -5 }
+  for (const [name, metrics] of [
+    ['wide', WIDE_GRAPH_LABEL_METRICS],
+    ['narrow', NARROW_GRAPH_LABEL_METRICS]
+  ] as const) {
+    const abovePositive = positionGapTotalLabel(2, mixedStack, labelY, { top: 0, bottom: 200 }, metrics)
+    assert.equal(abovePositive.direction, 'above', `${name} positive GAP total sits above the positive stack`)
+    assert.equal(abovePositive.edgeY - (abovePositive.baselineY + metrics.descent), 4,
+      `${name} positive GAP total keeps four SVG units above its stack edge`)
+
+    const belowNegative = positionGapTotalLabel(-2, mixedStack, labelY, { top: 0, bottom: 200 }, metrics)
+    assert.equal(belowNegative.direction, 'below', `${name} negative GAP total sits below the negative stack`)
+    assert.equal(belowNegative.baselineY - metrics.ascent - belowNegative.edgeY, 4,
+      `${name} negative GAP total keeps four SVG units below its stack edge`)
+
+    const zeroMixed = positionGapTotalLabel(0, mixedStack, labelY, { top: 0, bottom: 200 }, metrics)
+    assert.equal(zeroMixed.direction, 'above', `${name} mixed zero GAP total sits above the positive stack`)
+    assert.equal(zeroMixed.edgeY - (zeroMixed.baselineY + metrics.descent), 4,
+      `${name} mixed zero GAP total keeps four SVG units above its stack edge`)
+
+    const zeroEmpty = positionGapTotalLabel(0, { positive: 0, negative: 0 }, labelY, { top: 0, bottom: 200 }, metrics)
+    assert.equal(zeroEmpty.direction, 'above', `${name} empty zero GAP total sits above the zero baseline`)
+    assert.equal(zeroEmpty.edgeY - (zeroEmpty.baselineY + metrics.descent), 4,
+      `${name} empty zero GAP total has sensible clearance from the zero baseline`)
+  }
+  const topClampedLabel = positionGapTotalLabel(
+    1, { positive: 100, negative: 0 }, value => value === 100 ? 5 : 100,
+    { top: 0, bottom: 200 }, WIDE_GRAPH_LABEL_METRICS
+  )
+  assert.equal(topClampedLabel.baselineY - WIDE_GRAPH_LABEL_METRICS.ascent, 0,
+    'GAP total text clamps inside the plot when its preferred position crosses the top edge')
 
   const cost = (snapshotId: string, material: number, labor: number, burden: number): SnapshotCost => ({
     snapshotId, material, labor, burden, total: material + labor + burden, status: 'complete', warnings: []
@@ -166,6 +199,39 @@ try {
     second: { left: number; right: number; top: number; bottom: number }, clearance = 0) =>
     first.left - clearance <= second.right && first.right + clearance >= second.left &&
     first.top - clearance <= second.bottom && first.bottom + clearance >= second.top
+  const graphGapRectangles = (markup: string, gap: string) => {
+    const gapGroup = markup.match(new RegExp(`<g\\b[^>]*data-graph-gap="${gap}"[^>]*>([\\s\\S]*?)<\\/g>`))?.[1] ?? ''
+    return [...gapGroup.matchAll(/<rect\b[^>]*data-graph-part="([^"]+)"[^>]*>/g)].map(([tag, part]) => ({
+      part,
+      x: numericSvgAttribute(tag, 'x'),
+      y: numericSvgAttribute(tag, 'y'),
+      width: numericSvgAttribute(tag, 'width'),
+      height: numericSvgAttribute(tag, 'height')
+    }))
+  }
+  const assertGapTotalOutsideStack = (markup: string, gap: 'gap1' | 'gap2', direction: 'above' | 'below') => {
+    const rectangles = graphGapRectangles(markup, gap)
+    assert.ok(rectangles.length > 0, `${gap} mixed-sign fixture renders its component bars`)
+    const label = graphLabelTag(markup, 'data-graph-total', gap)
+    const bounds = estimatedTextBounds(
+      numericSvgAttribute(label, 'x'),
+      numericSvgAttribute(label, 'y'),
+      graphLabelText(markup, 'data-graph-total', gap),
+      'middle'
+    )
+    const outerEdge = direction === 'above'
+      ? Math.min(...rectangles.map(rectangle => rectangle.y))
+      : Math.max(...rectangles.map(rectangle => rectangle.y + rectangle.height))
+    const clearance = direction === 'above' ? outerEdge - bounds.bottom : bounds.top - outerEdge
+    assert.ok(clearance >= 4, `${gap} total text has at least 4 SVG units of clearance ${direction} its outer stack edge`)
+    assert.ok(rectangles.every(rectangle => !boundsOverlap(bounds, {
+      left: rectangle.x,
+      right: rectangle.x + rectangle.width,
+      top: rectangle.y,
+      bottom: rectangle.y + rectangle.height
+    })), `${gap} total text does not intersect any rendered component rectangle`)
+    return clearance
+  }
   const sellingPriceLineSegments = (markup: string) => [...markup.matchAll(/<path\b(?=[^>]*stroke="#2563eb")[^>]*>/g)]
     .flatMap(([tag]) => {
       const coordinates = tag.match(/d="M ([^ ]+) ([^ ]+) L ([^ ]+) ([^"]+)"/)
@@ -205,6 +271,57 @@ try {
     .map(match => [match[1], match[2].replace(/<title>[\s\S]*?<\/title>/g, '').replace(/<[^>]*>/g, '').trim()])
   assert.deepEqual(gapTotalLabels, [['gap1', '+10.00'], ['gap2', '-5.00']],
     'Gap bars retain their visible signed contribution totals')
+
+  const graphFinancial = (material: number, labor: number, burden: number): ScenarioFinancialResult => ({
+    material,
+    labor,
+    burden,
+    standardCost: material + labor + burden,
+    sgaAmountPerPiece: 0,
+    operatingProfitPerPiece: 0,
+    sellingPrice: null
+  })
+  const renderMixedSignGap = (material: number, labor: number, burden: number) => {
+    const referenceFinancial = graphFinancial(2, 2, 0)
+    const currentFinancial = graphFinancial(material, labor, burden)
+    return renderToStaticMarkup(React.createElement(SimulationStoryGraph, {
+      story: createScenarioStory(referenceFinancial, currentFinancial, currentFinancial),
+      unit: 'PC',
+      activeRole: 'current',
+      onSelectActiveDataset() {}
+    }))
+  }
+  const mixedNegativeGapMarkup = renderMixedSignGap(2.3, 1.23, 0)
+  assert.equal(graphLabelText(mixedNegativeGapMarkup, 'data-graph-total', 'gap1'), '-0.47',
+    'mixed-sign negative GAP total remains the net of +0.30 Material and -0.77 Labor')
+  assertGapTotalOutsideStack(mixedNegativeGapMarkup, 'gap1', 'below')
+
+  const mixedPositiveGapMarkup = renderMixedSignGap(3.3, 1.17, 0)
+  assert.equal(graphLabelText(mixedPositiveGapMarkup, 'data-graph-total', 'gap1'), '+0.47',
+    'mixed-sign positive GAP total remains the net of +1.30 Material and -0.83 Labor')
+  assertGapTotalOutsideStack(mixedPositiveGapMarkup, 'gap1', 'above')
+
+  const mixedZeroGapMarkup = renderMixedSignGap(3, 1, 0)
+  assert.equal(graphLabelText(mixedZeroGapMarkup, 'data-graph-total', 'gap1'), '0.00',
+    'a mixed-sign zero GAP remains displayed as 0.00')
+  assertGapTotalOutsideStack(mixedZeroGapMarkup, 'gap1', 'above')
+
+  const noSegmentZeroGapMarkup = renderMixedSignGap(2, 2, 0)
+  const noSegmentZeroGapLabel = graphLabelTag(noSegmentZeroGapMarkup, 'data-graph-total', 'gap1')
+  const noSegmentZeroGapRectangles = graphGapRectangles(noSegmentZeroGapMarkup, 'gap1')
+  const noSegmentZeroGapBounds = estimatedTextBounds(
+    numericSvgAttribute(noSegmentZeroGapLabel, 'x'),
+    numericSvgAttribute(noSegmentZeroGapLabel, 'y'),
+    graphLabelText(noSegmentZeroGapMarkup, 'data-graph-total', 'gap1'),
+    'middle'
+  )
+  const zeroGridlineY = Number(noSegmentZeroGapMarkup.match(/<line x1="88" x2="780" y1="([^"]+)" y2="[^"]+" stroke="#94a3b8" stroke-width="1\.2"/)
+    ?.[1])
+  assert.deepEqual(noSegmentZeroGapRectangles, [], 'a zero GAP with no non-zero components renders no bar rectangles')
+  assert.equal(graphLabelText(noSegmentZeroGapMarkup, 'data-graph-total', 'gap1'), '0.00')
+  assert.ok(zeroGridlineY - noSegmentZeroGapBounds.bottom >= 4 && zeroGridlineY - noSegmentZeroGapBounds.bottom <= 12,
+    'a zero GAP with no visible segments keeps its label a small, clear distance above the zero baseline')
+
   const standardCostLabels = [...graphMarkup.matchAll(/<text\b[^>]*data-graph-standard-cost-value="([^"]+)"[^>]*>([\s\S]*?)<\/text>/g)]
     .map(match => [match[1], match[2].replace(/<title>[\s\S]*?<\/title>/g, '').replace(/<[^>]*>/g, '').trim()])
   assert.deepEqual(standardCostLabels, [['reference', '90.00'], ['current', '100.00'], ['custom', '95.00']],

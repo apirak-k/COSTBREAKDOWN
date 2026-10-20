@@ -188,6 +188,37 @@ interface VisibleStack {
   total: number | null
 }
 
+export function positionGapTotalLabel(
+  total: number | null,
+  stack: Pick<VisibleStack, 'positive' | 'negative'>,
+  y: (value: number) => number,
+  plot: { top: number; bottom: number },
+  metrics: GraphLabelMetrics
+): { direction: 'above' | 'below'; edgeY: number; baselineY: number } {
+  const hasPositiveStack = stack.positive > 0
+  const hasNegativeStack = stack.negative < 0
+  const direction = total !== null && total > 0
+    ? 'above'
+    : total !== null && total < 0
+      ? 'below'
+      : hasPositiveStack || !hasNegativeStack
+        ? 'above'
+        : 'below'
+  const edgeValue = direction === 'above'
+    ? hasPositiveStack ? stack.positive : 0
+    : hasNegativeStack ? stack.negative : 0
+  const edgeY = y(edgeValue)
+  const desiredBaselineY = direction === 'above'
+    ? edgeY - metrics.descent - GAP_TOTAL_LABEL_CLEARANCE
+    : edgeY + metrics.ascent + GAP_TOTAL_LABEL_CLEARANCE
+  const baselineY = Math.min(
+    plot.bottom - metrics.descent,
+    Math.max(plot.top + metrics.ascent, desiredBaselineY)
+  )
+
+  return { direction, edgeY, baselineY }
+}
+
 interface GraphPoint {
   x: number
   y: number
@@ -207,16 +238,17 @@ interface TextBounds {
   bottom: number
 }
 
-interface GraphLabelMetrics {
+export interface GraphLabelMetrics {
   fontSize: number
   ascent: number
   descent: number
 }
 
 const GRAPH_LABEL_BREAKPOINT = '(max-width: 639px)'
-const WIDE_GRAPH_LABEL_METRICS: GraphLabelMetrics = { fontSize: 9, ascent: 8.25, descent: 2.35 }
-const NARROW_GRAPH_LABEL_METRICS: GraphLabelMetrics = { fontSize: 16, ascent: 14.4, descent: 4.8 }
+export const WIDE_GRAPH_LABEL_METRICS: GraphLabelMetrics = { fontSize: 9, ascent: 8.25, descent: 2.35 }
+export const NARROW_GRAPH_LABEL_METRICS: GraphLabelMetrics = { fontSize: 16, ascent: 14.4, descent: 4.8 }
 const VISIBLE_NET_LABEL_CLEARANCE = 2
+const GAP_TOTAL_LABEL_CLEARANCE = 4
 const SELLING_PRICE_POINT_RADIUS = 4
 
 function visibleNetTextBounds(
@@ -360,9 +392,9 @@ export function SimulationStoryGraph({ story, unit, activeRole, onSelectActiveDa
   })), [gapValues, visibleLegend])
   const categoryLabels = [
     { key: 'reference', label: 'Reference', role: 'reference' as const, x: GRAPH_X.reference, isGap: false as const },
-    { key: 'gap1', label: 'GAP 1', description: gapStacks[0].description, x: GRAPH_X.gap1, value: gapStacks[0].stack.total, isGap: true as const },
+    { key: 'gap1', label: 'GAP 1', description: gapStacks[0].description, x: GRAPH_X.gap1, value: gapStacks[0].stack.total, stack: gapStacks[0].stack, isGap: true as const },
     { key: 'current', label: 'Current', role: 'current' as const, x: GRAPH_X.current, isGap: false as const },
-    { key: 'gap2', label: 'GAP 2', description: gapStacks[1].description, x: GRAPH_X.gap2, value: gapStacks[1].stack.total, isGap: true as const },
+    { key: 'gap2', label: 'GAP 2', description: gapStacks[1].description, x: GRAPH_X.gap2, value: gapStacks[1].stack.total, stack: gapStacks[1].stack, isGap: true as const },
     { key: 'custom', label: 'Custom', role: 'custom' as const, x: GRAPH_X.custom, isGap: false as const }
   ]
   const rangeValues = useMemo(() => {
@@ -825,10 +857,15 @@ export function SimulationStoryGraph({ story, unit, activeRole, onSelectActiveDa
             </>
           )}
 
-          {categoryLabels.map(category => (
+          {categoryLabels.map(category => {
+            const totalPlacement = category.isGap
+              ? positionGapTotalLabel(category.value, category.stack, y, plot, labelMetrics)
+              : null
+
+            return (
             <g key={`${category.key}-labels`}>
-              {category.isGap && (
-                <text {...tooltipProps(`${category.description} total: ${signed(category.value ?? null)} THB/${unit}`)} data-graph-total={category.key} x={category.x} y={clamp(y(category.value ?? 0) + (category.value !== null && category.value < 0 ? 8 : -8), plot.top + 10, plot.bottom - 1)} textAnchor="middle" fill={gapTotalColor(category.value)} fontSize="9px" fontWeight="700" fontFamily="ui-monospace, monospace">
+              {category.isGap && totalPlacement && (
+                <text {...tooltipProps(`${category.description} total: ${signed(category.value ?? null)} THB/${unit}`)} data-graph-total={category.key} data-graph-total-position={totalPlacement.direction} x={category.x} y={totalPlacement.baselineY} textAnchor="middle" fill={gapTotalColor(category.value)} fontSize="9px" fontWeight="700" fontFamily="ui-monospace, monospace">
                   {signed(category.value)}
                 </text>
               )}
@@ -852,7 +889,8 @@ export function SimulationStoryGraph({ story, unit, activeRole, onSelectActiveDa
                 </foreignObject>
               )}
             </g>
-          ))}
+            )
+          })}
         </svg>
         {activeTooltip && (
           <div
