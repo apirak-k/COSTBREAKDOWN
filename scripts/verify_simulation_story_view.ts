@@ -866,8 +866,8 @@ try {
     assert.deepEqual(graphValues(initialMarkup), ['25.50', '29.70', '29.70', '+4.20', '0.00'],
       'the embedded graph keeps Reference, Current, Custom and both fixed gaps')
     const pageSource = readFileSync(resolve(process.cwd(), 'src/features/simulation/SimulationPage.tsx'), 'utf8')
-    assert.ok((pageSource.match(/visibleRows\.map\(\(\{ row, sourceIndex \}\)/g) ?? []).length >= 2,
-      'desktop rows and responsive cards both map every visible candidate')
+    assert.ok((pageSource.match(/orderedRows\.map\(\(\{ row, sourceIndex \}, orderedIndex\)/g) ?? []).length >= 2,
+      'desktop rows and responsive cards both map the full ordered candidate set')
     assert.match(pageSource, /<div className="md:hidden">[\s\S]*?<article[\s\S]*?tabIndex=\{canExpand \? 0 : undefined\}/,
       'narrow layouts retain keyboard-reachable candidate cards')
     const desktopRowStart = pageSource.indexOf("const status = rowStatusText(row, canEdit && simulationRecord ? simulationParameterStatus(kind, simulationRecord.id, simulationSnapshot, baselineSnapshot) : null)")
@@ -883,7 +883,7 @@ try {
     assert.match(mobileArticleSource, /event\.key !== 'Enter' && event\.key !== ' '/,
       'mobile candidate cards support Enter and Space expansion')
     const bomTable = initialMarkup.match(/<section data-simulation-table="bom"[\s\S]*?<\/section>/)?.[0] ?? ''
-    const initialBomRow = bomTable.match(/<tr data-safe-workspace-interaction="true"[\s\S]*?<\/tr>/)?.[0] ?? ''
+    const initialBomRow = bomTable.match(/<tr[^>]*data-safe-workspace-interaction="true"[\s\S]*?<\/tr>/)?.[0] ?? ''
     assert.match(initialBomRow, /aria-expanded="false"/, 'desktop candidate rows expose their collapsed state')
     assert.match(initialBomRow, /tabindex="0"/, 'desktop candidate rows are keyboard reachable')
     assert.match(initialBomRow, /aria-label="Bill of Materials: .* activate to expand Parameter Cost Effect"/,
@@ -916,7 +916,7 @@ try {
     assert.deepEqual(graphValues(changedActiveMarkup), graphValues(initialMarkup),
       'selecting another active role does not rewrite the fixed graph values')
 
-    console.log('Simulation Story graph and current page contract verification passed')
+    console.log('Simulation Story graph and continuous-scroll viewport contract verification passed')
   }
 } finally {
   await vite.close()

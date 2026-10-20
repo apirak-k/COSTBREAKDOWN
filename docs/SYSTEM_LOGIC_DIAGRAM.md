@@ -93,7 +93,7 @@ flowchart TD
 - GAP 1 and GAP 2 contain signed MAT/LB/BD components only: Current − Reference and Custom − Current. Positive is above zero; negative is below zero.
 - Selling Price is a separate line/marker. SG&A and OP are not part of Standard Cost or gap bars. Negative OP is shown below zero.
 - The draggable THB/pc ruler is a visual aid only; its start-aligned value sits in a bounded gutter immediately to the right of the plot, and it cannot modify datasets, inputs, or calculations.
-- Desktop BOM and RTG tables each show at most four rows per page with independent Material/Process search, range text, and previous/next controls. Header selection covers all eligible matches across pages and preserves rows hidden by Search. Narrow layouts retain natural card flow and page scrolling. Tables and the full page do not horizontally scroll.
+- Desktop BOM and RTG tables render all filtered rows in continuous vertical scroll bodies about four normal rows high. Each has independent always-visible Material/Process Search, an actual viewport range, and one-row previous/next controls; header selection covers every eligible search match and preserves rows hidden by Search. Narrow layouts retain natural card flow and page scrolling. Tables and the full page do not horizontally scroll.
 
 ## Legacy session compatibility (not visible product flow)
 

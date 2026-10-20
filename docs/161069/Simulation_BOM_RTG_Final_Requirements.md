@@ -1,7 +1,7 @@
 # Simulation BOM / RTG — Final UX Requirements
 
 **Status:** Requirement CLOSED / Finalized  
-**Prior implementation status (2026-10-17):** Five corrections implemented; 46 browser checks passed at tested sizes. Original MacBook Neo viewport/zoom remained unverified. The 2026-10-20 table-search/pagination follow-up is recorded below; its final verification is in HANDOFF.md.
+**Prior implementation status (2026-10-17):** Five corrections implemented; 46 browser checks passed at tested sizes. Original MacBook Neo viewport/zoom remained unverified. The initially implemented 2026-10-20 table-search/pagination follow-up was corrected after visual review; the current contract is recorded in section 16 and its final verification in HANDOFF.md.
 **Scope:** Simulation page — BOM and RTG tables only
 
 ---
@@ -541,11 +541,11 @@ BOM / RTG may be considered **CLOSED** only when:
 
 ---
 
-# 16. Follow-up — Table-local Search and Pagination (2026-10-20)
+# 16. Correction — Continuous Scroll and Viewport Navigation (2026-10-20)
 
-Each BOM and RTG table owns an independent compact footer. Its Search control matches Material names for BOM and Process names for RTG, without changing the other table. Each page shows at most four rows and reports the current `start–end of total` range, with previous/next controls disabled at their boundaries. Editing or clearing Search returns only that table to its first page. Empty matches report `0 of 0` and show a no-matches state.
+Each BOM and Routing table owns an independent, always-visible compact footer. Search matches BOM Material/name or Routing Process/name and does not change the other table. Desktop bodies retain native vertical scrolling and render the complete filtered/ordered result set, with about four normal-height rows visible. The footer reports the rows actually intersecting that table's scroll viewport, moves one row per triangle activation, and disables navigation at the actual scroll boundaries. Search edits and clearing reset only that table's scroll position. Empty matches report `0 of 0`.
 
-The active search result set defines that table's logical `#` selection scope. None/mixed selects every eligible match across all result pages, all clears those matches, and selections outside the search remain selected. Page navigation never narrows selection scope. Protected/unmatched/ambiguous rows remain ineligible, source row numbering stays stable, and full effective snapshots remain the calculation scope. The footer remains available in narrow card layouts; there is no Master Data footer on Simulation.
+The active Search result set defines that table's logical `#` selection scope. None/mixed selects every eligible match in the full filtered dataset, all clears those matches, and selections outside Search remain selected. Scrolling never narrows selection scope. Protected/unmatched/ambiguous rows remain ineligible, source row numbering stays stable, and full effective snapshots remain the calculation scope. Narrow layouts retain the existing natural card flow and page scrolling with table-local Search and navigation; there is no Master Data footer on Simulation.
 
-This follow-up supersedes the earlier scroll-only table presentation: the underlying table data remains complete, but the body renders the current page instead of all rows at once.
+This correction supersedes the earlier pagination version: all matching rows remain rendered and the footer range follows actual viewport visibility.
 

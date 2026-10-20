@@ -1,5 +1,5 @@
-import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
-import { ChevronDown, ChevronLeft, ChevronRight, RotateCcw, Search, Send, X } from 'lucide-react'
+import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { ChevronDown, ChevronRight, RotateCcw, Search, Send, X } from 'lucide-react'
 import { formatNumber, safeAdd } from '../../core'
 import {
   calculateMultiplicativeCostAttribution,
@@ -148,25 +148,65 @@ function normalizeKey(value: string | undefined): string {
   return value?.trim().toLowerCase() ?? ''
 }
 
-const SIMULATION_TABLE_PAGE_SIZE = 4
-
 export function filterSimulationTableRows<T extends { row: { name: string } }>(rows: readonly T[], query: string): T[] {
   const search = normalizeKey(query)
   return search ? rows.filter(({ row }) => normalizeKey(row.name).includes(search)) : [...rows]
 }
 
-export function getSimulationTablePage<T>(rows: readonly T[], requestedPageIndex: number) {
-  const total = rows.length
-  const lastPageIndex = Math.max(0, Math.ceil(total / SIMULATION_TABLE_PAGE_SIZE) - 1)
-  const pageIndex = Math.min(Math.max(Number.isFinite(requestedPageIndex) ? Math.trunc(requestedPageIndex) : 0, 0), lastPageIndex)
-  const startIndex = pageIndex * SIMULATION_TABLE_PAGE_SIZE
+export function getSimulationTableViewportState(
+  rows: readonly { top: number; bottom: number }[],
+  viewportTop: number,
+  viewportBottom: number,
+  scrollPosition?: { top: number; max: number }
+) {
+  let firstVisible = -1
+  let lastVisible = -1
+  rows.forEach((row, index) => {
+    if (row.bottom > viewportTop && row.top < viewportBottom) {
+      if (firstVisible < 0) firstVisible = index
+      lastVisible = index
+    }
+  })
   return {
-    rows: rows.slice(startIndex, startIndex + SIMULATION_TABLE_PAGE_SIZE),
-    pageIndex,
-    total,
-    start: total === 0 ? 0 : startIndex + 1,
-    end: Math.min(startIndex + SIMULATION_TABLE_PAGE_SIZE, total)
+    start: firstVisible < 0 ? 0 : firstVisible + 1,
+    end: lastVisible < 0 ? 0 : lastVisible + 1,
+    total: rows.length,
+    atTop: scrollPosition ? scrollPosition.top <= 1 : rows.length === 0 || rows[0].top >= viewportTop,
+    atBottom: scrollPosition
+      ? scrollPosition.top >= scrollPosition.max - 1
+      : rows.length === 0 || rows[rows.length - 1].bottom <= viewportBottom
   }
+}
+
+function simulationRowBounds(section: HTMLElement): Array<{ top: number; bottom: number }> {
+  const rows = Array.from(section.querySelectorAll<HTMLElement>('[data-simulation-row-index]'))
+    .filter(row => row.getClientRects().length > 0)
+  return rows.map((row, index) => {
+    const rect = row.getBoundingClientRect()
+    const nextRow = rows[index + 1]
+    if (nextRow) return { top: rect.top, bottom: nextRow.getBoundingClientRect().top }
+    let bottom = rect.bottom
+    let sibling = row.nextElementSibling
+    while (sibling && !sibling.hasAttribute('data-simulation-row-index')) {
+      if (sibling.getClientRects().length > 0) bottom = sibling.getBoundingClientRect().bottom
+      sibling = sibling.nextElementSibling
+    }
+    return { top: rect.top, bottom }
+  })
+}
+
+function simulationTableScrollHost(body: HTMLDivElement, section: HTMLElement): HTMLElement | Window {
+  if (body.scrollHeight > body.clientHeight + 1 && ['auto', 'scroll'].includes(getComputedStyle(body).overflowY)) return body
+  let ancestor = section.parentElement
+  while (ancestor && ancestor !== document.documentElement) {
+    if (['auto', 'scroll'].includes(getComputedStyle(ancestor).overflowY) && ancestor.scrollHeight > ancestor.clientHeight + 1) return ancestor
+    ancestor = ancestor.parentElement
+  }
+  return window
+}
+
+function isWindowScrollHost(host: HTMLElement | Window): host is Window {
+  return host === window
 }
 
 function resolveSimulationCostUnit(referenceSnapshot: CostSnapshot, currentSnapshot: CostSnapshot): string {
@@ -410,6 +450,7 @@ function SimulationParameterTable({
 }) {
   const isBOM = kind === 'bom'
   const shortTitle = isBOM ? 'BOM' : 'RTG'
+  const navigationLabel = isBOM ? 'BOM' : 'Routing'
   const tableIdentity = isBOM ? 'Bill of Materials' : 'Routing Process'
   const parameters = isBOM ? BOM_PARAMETERS : RTG_PARAMETERS
   const renderColumnGroup = () => (
@@ -419,23 +460,15 @@ function SimulationParameterTable({
       ))}
     </colgroup>
   )
+  const sectionRef = useRef<HTMLElement>(null)
   const bodyRef = useRef<HTMLDivElement>(null)
   const [scrollbarWidth, setScrollbarWidth] = useState(0)
-  useEffect(() => {
-    const body = bodyRef.current
-    if (!body) return
-    const updateGutter = () => setScrollbarWidth(body.offsetWidth - body.clientWidth)
-    updateGutter()
-    const observer = new ResizeObserver(updateGutter)
-    observer.observe(body)
-    return () => observer.disconnect()
-  }, [])
+  const [viewportState, setViewportState] = useState({ start: 0, end: 0, total: 0, atTop: true, atBottom: true })
   const [expandedRows, setExpandedRows] = useState<Set<string>>(() => new Set())
   useTransientInteraction(expandedRows.size > 0, () => setExpandedRows(new Set()))
   const [dragRowOrder, setDragRowOrder] = useState<string[] | null>(null)
-  const [searchOpen, setSearchOpen] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
-  const [pageIndex, setPageIndex] = useState(0)
+  const previousSearchQueryRef = useRef(searchQuery)
   const searchInputRef = useRef<HTMLInputElement>(null)
   const selectionDragRef = useRef<SimulationSelectionDrag | null>(null)
   const suppressSelectionClickRef = useRef(false)
@@ -454,8 +487,9 @@ function SimulationParameterTable({
     ? [...filteredRows].sort((left, right) => (dragRowIndexes.get(getRowKey(left.row, left.sourceIndex)) ?? Number.MAX_SAFE_INTEGER)
       - (dragRowIndexes.get(getRowKey(right.row, right.sourceIndex)) ?? Number.MAX_SAFE_INTEGER) || left.sourceIndex - right.sourceIndex)
     : selectedFirstRows
-  const page = getSimulationTablePage(orderedRows, pageIndex)
-  const visibleRows = page.rows
+  const visibleRange = viewportState.total === orderedRows.length
+    ? viewportState
+    : { start: orderedRows.length > 0 ? 1 : 0, end: Math.min(4, orderedRows.length), total: orderedRows.length, atTop: true, atBottom: orderedRows.length <= 4 }
   const selectableTargets = filteredRows.flatMap(({ row }) => {
     const record = singleRecord(records, row.afterRecordId)
     return record && rowIsSelectable(row)
@@ -467,12 +501,97 @@ function SimulationParameterTable({
   const setAllSelection = () => onSetWorkingSelection(
     [...applyRowSelectionScope(selectedKeys, selectionScope, selectionState !== 'all')]
   )
+  const updateViewportState = useCallback(() => {
+    const section = sectionRef.current
+    const body = bodyRef.current
+    if (!section || !body) return
+    const rowBounds = simulationRowBounds(section)
+    const scrollHost = simulationTableScrollHost(body, section)
+    const viewport = isWindowScrollHost(scrollHost)
+      ? { top: 0, bottom: window.innerHeight }
+      : scrollHost.getBoundingClientRect()
+    const scrollPosition = scrollHost === body
+      ? { top: body.scrollTop, max: Math.max(0, body.scrollHeight - body.clientHeight) }
+      : undefined
+    const next = getSimulationTableViewportState(rowBounds, viewport.top, viewport.bottom, scrollPosition)
+    setViewportState(previous => previous.start === next.start
+      && previous.end === next.end
+      && previous.total === next.total
+      && previous.atTop === next.atTop
+      && previous.atBottom === next.atBottom
+      ? previous
+      : next)
+  }, [])
+  useEffect(() => {
+    const section = sectionRef.current
+    const body = bodyRef.current
+    if (!section || !body) return
+    const updateLayout = () => {
+      setScrollbarWidth(body.offsetWidth - body.clientWidth)
+      updateViewportState()
+    }
+    updateLayout()
+    const observer = new ResizeObserver(updateLayout)
+    observer.observe(body)
+    observer.observe(section)
+    const tableBody = section.querySelector('tbody')
+    if (tableBody) observer.observe(tableBody)
+    window.addEventListener('scroll', updateViewportState, true)
+    window.addEventListener('resize', updateLayout)
+    return () => {
+      observer.disconnect()
+      window.removeEventListener('scroll', updateViewportState, true)
+      window.removeEventListener('resize', updateLayout)
+    }
+  }, [updateViewportState])
+  useSafeLayoutEffect(() => {
+    updateViewportState()
+  }, [rows, workingSelection, expandedRows, dragRowOrder, updateViewportState])
+  useSafeLayoutEffect(() => {
+    if (previousSearchQueryRef.current === searchQuery) {
+      updateViewportState()
+      return
+    }
+    previousSearchQueryRef.current = searchQuery
+    const section = sectionRef.current
+    const body = bodyRef.current
+    if (!section || !body) return
+    const scrollHost = simulationTableScrollHost(body, section)
+    if (scrollHost === body) {
+      body.scrollTop = 0
+    } else {
+      const viewportTop = isWindowScrollHost(scrollHost) ? 0 : scrollHost.getBoundingClientRect().top
+      const sectionTop = section.getBoundingClientRect().top
+      if (isWindowScrollHost(scrollHost)) window.scrollBy({ top: sectionTop - viewportTop, behavior: 'auto' })
+      else scrollHost.scrollBy({ top: sectionTop - viewportTop, behavior: 'auto' })
+    }
+    updateViewportState()
+  }, [searchQuery, updateViewportState])
+
+  const moveOneRow = (direction: -1 | 1) => {
+    const section = sectionRef.current
+    const body = bodyRef.current
+    if (!section || !body) return
+    const rowBounds = simulationRowBounds(section)
+    if (rowBounds.length === 0) return
+    const index = visibleRange.start === 0
+      ? direction === 1 ? 0 : rowBounds.length - 1
+      : direction === 1 ? visibleRange.start - 1 : visibleRange.start - 2
+    if (index < 0 || index >= rowBounds.length) return
+    const current = rowBounds[index]
+    const distance = rowBounds[index + 1]
+      ? rowBounds[index + 1].top - current.top
+      : current.bottom - current.top
+    const scrollHost = simulationTableScrollHost(body, section)
+    if (isWindowScrollHost(scrollHost)) window.scrollBy({ top: direction * distance, behavior: 'auto' })
+    else scrollHost.scrollBy({ top: direction * distance, behavior: 'auto' })
+  }
 
   const startSelectionDrag = (recordId: string, event: React.MouseEvent<HTMLButtonElement>) => {
     if (event.button !== 0) return
     const anchorKey = simulationWorkingTargetKey(kind, recordId)
     const targetsByKey = new Map(selectableTargets.map(target => [target.key, target]))
-    const targets = visibleRows.flatMap(({ row }) => {
+    const targets = orderedRows.flatMap(({ row }) => {
       if (!row.afterRecordId || !rowIsSelectable(row)) return []
       const record = singleRecord(records, row.afterRecordId)
       const target = record ? targetsByKey.get(simulationWorkingTargetKey(kind, record.id)) : undefined
@@ -531,7 +650,7 @@ function SimulationParameterTable({
   }, [])
 
   return (
-    <section data-simulation-table={kind} className="min-w-0 border border-slate-300 bg-white xl:flex xl:flex-col xl:overflow-hidden xl:self-start" aria-label={tableIdentity}>
+    <section ref={sectionRef} data-simulation-table={kind} className="min-w-0 border border-slate-300 bg-white xl:flex xl:flex-col xl:overflow-hidden xl:self-start" aria-label={tableIdentity}>
       <div className="hidden md:flex xl:shrink-0">
         <table role="presentation" className="w-full min-w-0 flex-1 table-fixed border-separate border-spacing-0 text-[11px]">
           {renderColumnGroup()}
@@ -570,8 +689,8 @@ function SimulationParameterTable({
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-200 bg-white">
-            {visibleRows.length === 0 && <tr><td colSpan={8} className="px-3 py-6 text-center text-xs text-slate-500">{normalizeKey(searchQuery) ? `No ${searchField} matches.` : `No ${tableIdentity} rows.`}</td></tr>}
-            {visibleRows.map(({ row, sourceIndex }) => {
+            {orderedRows.length === 0 && <tr><td colSpan={8} className="px-3 py-6 text-center text-xs text-slate-500">{normalizeKey(searchQuery) ? `No ${searchField} matches.` : `No ${tableIdentity} rows.`}</td></tr>}
+            {orderedRows.map(({ row, sourceIndex }, orderedIndex) => {
               const key = getRowKey(row, sourceIndex)
               const detailId = `${kind}-effect-${encodeURIComponent(key)}`
               const expanded = expandedRows.has(key)
@@ -598,6 +717,7 @@ function SimulationParameterTable({
               return (
                 <React.Fragment key={key}>
                   <tr
+                    data-simulation-row-index={orderedIndex}
                     data-safe-workspace-interaction="true"
                     aria-selected={selected}
                     aria-expanded={canExpand ? expanded : undefined}
@@ -705,8 +825,8 @@ function SimulationParameterTable({
         </table>
       </div>
       <div className="md:hidden">
-        {visibleRows.length === 0 && <p className="px-3 py-6 text-center text-xs text-slate-500">{normalizeKey(searchQuery) ? `No ${searchField} matches.` : `No ${tableIdentity} rows.`}</p>}
-        {visibleRows.map(({ row, sourceIndex }) => {
+        {orderedRows.length === 0 && <p className="px-3 py-6 text-center text-xs text-slate-500">{normalizeKey(searchQuery) ? `No ${searchField} matches.` : `No ${tableIdentity} rows.`}</p>}
+        {orderedRows.map(({ row, sourceIndex }, orderedIndex) => {
           const key = getRowKey(row, sourceIndex)
           const expanded = expandedRows.has(key)
           const simulationRecord = singleRecord(records, row.afterRecordId)
@@ -728,6 +848,7 @@ function SimulationParameterTable({
           return (
             <article
               key={key}
+              data-simulation-row-index={orderedIndex}
               data-safe-workspace-interaction="true"
               aria-expanded={canExpand ? expanded : undefined}
               aria-controls={canExpand && expanded ? detailId : undefined}
@@ -845,74 +966,53 @@ function SimulationParameterTable({
           )
         })}
       </div>
-      <footer data-simulation-table-footer={kind} className="flex min-w-0 items-center justify-between gap-1 border-t border-slate-200 px-1.5 py-1 text-[10px] text-slate-600 xl:shrink-0">
-        <div className="flex min-w-0 items-center gap-1">
-          <button
-            type="button"
+      <footer data-simulation-table-footer={kind} className="flex min-w-0 items-center justify-between gap-2 border-t border-slate-300 bg-slate-100 px-2 py-1 text-[10px] text-slate-600 xl:shrink-0">
+        <div className="flex min-w-0 flex-1 items-center gap-1">
+          <Search aria-hidden="true" className="h-3.5 w-3.5 shrink-0 text-slate-500" />
+          <input
+            ref={searchInputRef}
+            type="search"
+            value={searchQuery}
+            onChange={event => setSearchQuery(event.target.value)}
             aria-label={`Search ${shortTitle} by ${searchField}`}
-            aria-expanded={searchOpen}
-            onClick={() => {
-              if (!searchOpen) setSearchOpen(true)
-              else if (normalizeKey(searchQuery)) searchInputRef.current?.focus()
-              else setSearchOpen(false)
-            }}
-            className="grid h-6 w-6 shrink-0 place-items-center rounded-sm text-slate-600 hover:bg-slate-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-700"
-          >
-            <Search aria-hidden="true" className="h-3.5 w-3.5" />
-          </button>
-          {searchOpen && (
-            <div className="flex min-w-0 items-center gap-0.5">
-              <input
-                ref={searchInputRef}
-                autoFocus
-                type="search"
-                value={searchQuery}
-                onChange={event => {
-                  setSearchQuery(event.target.value)
-                  setPageIndex(0)
-                }}
-                aria-label={`Search ${searchField}`}
-                placeholder={searchField}
-                className="h-6 w-[5.5rem] min-w-0 rounded-sm border border-slate-300 bg-white px-1.5 text-[10px] text-slate-800 placeholder:text-slate-400 focus:border-blue-700 focus:outline-none focus:ring-1 focus:ring-blue-100 sm:w-28"
-              />
-              {searchQuery && (
-                <button
-                  type="button"
-                  aria-label={`Clear ${searchField} search`}
-                  onClick={() => {
-                    setSearchQuery('')
-                    setPageIndex(0)
-                    searchInputRef.current?.focus()
-                  }}
-                  className="grid h-6 w-6 shrink-0 place-items-center rounded-sm text-slate-500 hover:bg-slate-100 hover:text-slate-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-700"
-                >
-                  <X aria-hidden="true" className="h-3 w-3" />
-                </button>
-              )}
-            </div>
+            placeholder={searchField}
+            className="h-6 w-28 min-w-0 rounded-sm border border-slate-300 bg-white px-1.5 text-[10px] text-slate-800 placeholder:text-slate-400 focus:border-blue-700 focus:outline-none focus:ring-1 focus:ring-blue-100 sm:w-36"
+          />
+          {searchQuery && (
+            <button
+              type="button"
+              aria-label={`Clear ${searchField} search`}
+              onClick={() => {
+                setSearchQuery('')
+                searchInputRef.current?.focus()
+              }}
+              className="grid h-6 w-6 shrink-0 place-items-center rounded-sm text-slate-500 hover:bg-slate-200 hover:text-slate-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-700"
+            >
+              <X aria-hidden="true" className="h-3 w-3" />
+            </button>
           )}
         </div>
         <span aria-live="polite" className="shrink-0 whitespace-nowrap font-mono tabular-nums text-slate-600">
-          {page.total === 0 ? '0 of 0' : `${page.start}–${page.end} of ${page.total}`}
+          {visibleRange.total === 0 ? '0 of 0' : visibleRange.start === 0 ? `0 of ${visibleRange.total}` : `${visibleRange.start}–${visibleRange.end} of ${visibleRange.total}`}
         </span>
         <div className="flex shrink-0 items-center gap-0.5">
           <button
             type="button"
-            aria-label={`Previous ${shortTitle} rows`}
-            disabled={page.pageIndex === 0}
-            onClick={() => setPageIndex(Math.max(0, page.pageIndex - 1))}
+            aria-label={`Previous ${navigationLabel} row`}
+            disabled={visibleRange.atTop}
+            onClick={() => moveOneRow(-1)}
             className="grid h-6 w-6 place-items-center rounded-sm text-slate-700 hover:bg-slate-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-700 disabled:cursor-default disabled:text-slate-300 disabled:hover:bg-transparent"
           >
-            <ChevronLeft aria-hidden="true" className="h-3.5 w-3.5" />
+            <span aria-hidden="true" className="text-[9px] leading-none">◀</span>
           </button>
           <button
             type="button"
-            aria-label={`Next ${shortTitle} rows`}
-            disabled={page.start === 0 || page.end >= page.total}
-            onClick={() => setPageIndex(page.pageIndex + 1)}
+            aria-label={`Next ${navigationLabel} row`}
+            disabled={visibleRange.atBottom}
+            onClick={() => moveOneRow(1)}
             className="grid h-6 w-6 place-items-center rounded-sm text-slate-700 hover:bg-slate-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-700 disabled:cursor-default disabled:text-slate-300 disabled:hover:bg-transparent"
           >
-            <ChevronRight aria-hidden="true" className="h-3.5 w-3.5" />
+            <span aria-hidden="true" className="text-[9px] leading-none">▶</span>
           </button>
         </div>
       </footer>

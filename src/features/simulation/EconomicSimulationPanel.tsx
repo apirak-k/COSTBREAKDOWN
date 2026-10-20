@@ -375,7 +375,7 @@ export function EconomicSimulationPanel({ result, draft, afterSnapshot, unit, on
             </div>
             <div className="mt-1 grid grid-cols-1 gap-y-0">
               {economicOutputs.map(({ label, ariaLabel, formula, value, displayValue, className }) => (
-                <div key={label} role="group" aria-label={ariaLabel} className="flex min-w-0 items-baseline justify-between gap-1 py-0.5 xl:py-0" title={formula}>
+                <div key={label} role="group" aria-label={ariaLabel} className={`flex min-w-0 items-baseline justify-between gap-1 py-0.5 xl:py-0 ${label === 'Break-even Qty' ? 'mt-1 border-t border-slate-200 pt-1' : ''}`} title={formula}>
                   <span className="truncate text-[9px] text-slate-600">{label}</span>
                   <span className={`shrink-0 font-mono text-[10px] font-semibold tabular-nums ${className}`}>{displayValue ?? formatValue(value)}</span>
                 </div>

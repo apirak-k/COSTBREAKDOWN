@@ -36,12 +36,14 @@ try {
   const darkMixedMarkup = renderToStaticMarkup(React.createElement(RowSelectionButton, { state: 'mixed', label: 'Select rows', onClick() {} }))
   const lightMarkup = renderToStaticMarkup(React.createElement(RowSelectionButton, { state: 'all', label: 'Clear rows', variant: 'light', onClick() {} }))
   const lightMixedMarkup = renderToStaticMarkup(React.createElement(RowSelectionButton, { state: 'mixed', label: 'Select rows', variant: 'light', onClick() {} }))
+  const lightNoneMarkup = renderToStaticMarkup(React.createElement(RowSelectionButton, { state: 'none', label: 'Select rows', variant: 'light', onClick() {} }))
   const darkNoneMarkup = renderToStaticMarkup(React.createElement(RowSelectionButton, { state: 'none', label: 'Select rows', onClick() {} }))
   assert.match(darkMarkup, /border-white[^\"]*ring-white/, 'dark all uses a bright white border and ring')
   assert.match(darkMixedMarkup, /border-slate-500\/70[^\"]*ring-slate-500\/70/, 'dark mixed uses a faded ring')
   assert.match(darkNoneMarkup, /border-transparent/, 'dark none has no selected border or ring')
-  assert.match(lightMarkup, /border-slate-600[^\"]*ring-slate-600/, 'light all has a stronger slate border and ring')
-  assert.match(lightMixedMarkup, /border-slate-400[^\"]*ring-slate-300/, 'light mixed uses a softer slate border and ring')
+  assert.match(lightMarkup, /border-slate-800[^\"]*bg-slate-700[^\"]*text-white/, 'light all restores the historical dark-slate fill and border')
+  assert.match(lightMixedMarkup, /border-slate-400[^\"]*bg-slate-300[^\"]*ring-slate-400/, 'light mixed alone uses an intermediate slate state')
+  assert.match(lightNoneMarkup, /text-slate-700[^\"]*hover:bg-slate-200/, 'light none restores the historical hover contrast')
 
   const source = (path: string) => readFileSync(new URL(path, import.meta.url), 'utf8')
   for (const path of [
@@ -66,7 +68,7 @@ try {
   assert.match(candidateSource, /applyRowSelectionScope\(selectedKeys, visibleKeys, selectionState !== 'all'\)/)
   const simulationSource = source('../src/features/simulation/SimulationPage.tsx')
   assert.match(simulationSource, /const filteredRows = filterSimulationTableRows\(tableRows, searchQuery\)[\s\S]*?const selectableTargets = filteredRows\.flatMap/,
-    'Simulation selection scope comes from all eligible search matches across pages, not only the current page')
+    'Simulation selection scope comes from all eligible search matches, not only the current viewport')
   assert.match(simulationSource, /onSetWorkingSelection\(\s*\[\.\.\.applyRowSelectionScope/)
   assert.doesNotMatch(simulationSource, /for \(const id of selectableRecordIds\)[\s\S]{0,180}onToggleWorkingTarget/,
     'Simulation header bulk selection never loops over individual row toggles')

@@ -18,10 +18,10 @@ export const RowSelectionButton = forwardRef<HTMLButtonElement, RowSelectionButt
 }, ref) {
   const stateClass = variant === 'light'
     ? state === 'all'
-      ? 'border border-slate-600 bg-slate-600 text-white ring-1 ring-inset ring-slate-600'
+      ? 'border border-slate-800 bg-slate-700 text-white'
       : state === 'mixed'
-        ? 'border border-slate-400 bg-slate-200 text-slate-900 ring-1 ring-inset ring-slate-300'
-        : 'border border-transparent bg-transparent text-slate-700 hover:bg-slate-200'
+        ? 'border border-slate-400 bg-slate-300 text-slate-900 ring-1 ring-inset ring-slate-400'
+        : 'text-slate-700 hover:bg-slate-200'
     : state === 'all'
       ? 'border border-white bg-slate-600 text-white ring-1 ring-inset ring-white'
       : state === 'mixed'

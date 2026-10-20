@@ -162,22 +162,37 @@ assert.match(graphSvg, /aria-label="Current Selling Price: 555\.00 THB\/PC"/,
 assert.match(graphSvg, /aria-label="Custom Selling Price: 777\.00 THB\/PC"/,
   'the Custom graph state uses the Custom role-local Business draft')
 
-const { SimulationPage, filterSimulationTableRows, getSimulationTablePage } = await import('../src/features/simulation/SimulationPage.tsx')
-const pageFixture = Array.from({ length: 9 }, (_, index) => ({ row: { name: `Material ${index + 1}` }, index }))
+const { SimulationPage, filterSimulationTableRows, getSimulationTableViewportState } = await import('../src/features/simulation/SimulationPage.tsx')
+const pageFixture = Array.from({ length: 10 }, (_, index) => ({ row: { name: `Material ${index + 1}` }, index }))
 assert.deepEqual(filterSimulationTableRows(pageFixture, '  mAtErIaL 3 '), [pageFixture[2]],
   'Simulation table search trims and matches names case-insensitively')
 assert.deepEqual(filterSimulationTableRows(pageFixture, ''), pageFixture,
   'an empty Simulation table search preserves source order')
-const secondTablePage = getSimulationTablePage(pageFixture, 1)
-assert.deepEqual(secondTablePage.rows.map(({ index }) => index), [4, 5, 6, 7],
-  'Simulation table pages expose four rows in stable order')
-assert.deepEqual([secondTablePage.start, secondTablePage.end, secondTablePage.total], [5, 8, 9],
-  'Simulation table range text reflects the current page and total matches')
-const lastTablePage = getSimulationTablePage(pageFixture, 99)
-assert.deepEqual(lastTablePage.rows.map(({ index }) => index), [8],
-  'Simulation table navigation clamps to the last partial page')
-assert.deepEqual(getSimulationTablePage([], 3), { rows: [], pageIndex: 0, total: 0, start: 0, end: 0 },
-  'empty Simulation table pages report a safe zero range')
+const tenRowBounds = Array.from({ length: 10 }, (_, index) => ({ top: index * 40, bottom: (index + 1) * 40 }))
+assert.deepEqual(getSimulationTableViewportState(tenRowBounds, 0, 160, { top: 0, max: 240 }),
+  { start: 1, end: 4, total: 10, atTop: true, atBottom: false },
+  'the visible range starts at the actual top of a four-row scroll viewport')
+const scrolledRowBounds = tenRowBounds.map(row => ({ top: row.top - 40, bottom: row.bottom - 40 }))
+assert.deepEqual(getSimulationTableViewportState(scrolledRowBounds, 0, 160, { top: 40, max: 240 }),
+  { start: 2, end: 5, total: 10, atTop: false, atBottom: false },
+  'one-row scrolling updates the actual viewport range by one row')
+const bottomRowBounds = tenRowBounds.map(row => ({ top: row.top - 240, bottom: row.bottom - 240 }))
+assert.deepEqual(getSimulationTableViewportState(bottomRowBounds, 0, 160, { top: 240, max: 240 }),
+  { start: 7, end: 10, total: 10, atTop: false, atBottom: true },
+  'the visible range reaches the last rows and recognizes the scroll bottom')
+assert.deepEqual(getSimulationTableViewportState(tenRowBounds.slice(0, 3), 0, 160, { top: 0, max: 0 }),
+  { start: 1, end: 3, total: 3, atTop: true, atBottom: true },
+  'fewer than four rows fit completely and disable both navigation controls')
+assert.deepEqual(getSimulationTableViewportState(tenRowBounds.slice(0, 4), 0, 160, { top: 0, max: 0 }),
+  { start: 1, end: 4, total: 4, atTop: true, atBottom: true },
+  'exactly four rows fit without requiring scroll')
+assert.deepEqual(getSimulationTableViewportState([], 0, 160),
+  { start: 0, end: 0, total: 0, atTop: true, atBottom: true },
+  'empty Simulation searches show a safe zero range')
+const expandedRowBounds = [{ top: -40, bottom: 0 }, { top: 0, bottom: 100 }, { top: 100, bottom: 140 }, { top: 140, bottom: 180 }]
+assert.deepEqual(getSimulationTableViewportState(expandedRowBounds, 0, 160, { top: 40, max: 40 }),
+  { start: 2, end: 4, total: 4, atTop: false, atBottom: true },
+  'expanded row height is included in the viewport window and bottom boundary')
 const renderPage = (
   workspace: typeof state,
   beforeRole: MasterDataRole,
@@ -286,20 +301,20 @@ const activeBomTable = pairPage.match(/<section data-simulation-table="bom"[\s\S
 assert.ok(activeBomTable, 'the active role BOM table renders')
 const activeRoutingTable = pairPage.match(/<section data-simulation-table="routing"[\s\S]*?<\/section>/)?.[0] ?? ''
 assert.ok(activeRoutingTable, 'the active role Routing table renders')
-for (const [table, footerKind, searchName, shortName] of [
-  [activeBomTable, 'bom', 'Search BOM by Material', 'BOM'],
-  [activeRoutingTable, 'routing', 'Search RTG by Process', 'RTG']
+for (const [table, footerKind, searchName, shortName, navigationLabel] of [
+  [activeBomTable, 'bom', 'Search BOM by Material', 'BOM', 'BOM'],
+  [activeRoutingTable, 'routing', 'Search RTG by Process', 'RTG', 'Routing']
 ] as const) {
   const footer = table.match(/<footer data-simulation-table-footer="[^"]+"[\s\S]*?<\/footer>/)?.[0] ?? ''
   assert.ok(footer, `${shortName} has its own compact table footer`)
   assert.match(footer, new RegExp(`data-simulation-table-footer="${footerKind}"`), `${shortName} footer is independently identified`)
   assert.match(footer, new RegExp(`aria-label="${searchName}"`), `${shortName} footer exposes its own search control`)
-  assert.match(footer, /1–1 of 1/, `${shortName} footer shows the current page range`)
+  assert.match(footer, /1–1 of 1/, `${shortName} footer shows its current visible range`)
   const footerButtons = [...footer.matchAll(/<button\b([^>]*)>/g)].map(([, attributes]) => attributes)
-  assert.ok(footerButtons.some(attributes => attributes.includes(`aria-label="Previous ${shortName} rows"`) && /\bdisabled(?:="")?/.test(attributes)),
-    `${shortName} previous control is disabled on its first page`)
-  assert.ok(footerButtons.some(attributes => attributes.includes(`aria-label="Next ${shortName} rows"`) && /\bdisabled(?:="")?/.test(attributes)),
-    `${shortName} next control is disabled on its last page`)
+  assert.ok(footerButtons.some(attributes => attributes.includes(`aria-label="Previous ${navigationLabel} row"`) && /\bdisabled(?:="")?/.test(attributes)),
+    `${shortName} previous control is disabled at the actual top`)
+  assert.ok(footerButtons.some(attributes => attributes.includes(`aria-label="Next ${navigationLabel} row"`) && /\bdisabled(?:="")?/.test(attributes)),
+    `${shortName} next control is disabled at the actual bottom`)
 }
 assert.match(inputFor(activeBomTable, 'Shared material Price in Current'), /value="20\.00"/,
   'parameter editing remains scoped to active Current while Result uses Reference and Custom')
@@ -382,6 +397,7 @@ for (const activeRole of roles) {
 
 const pageSource = readFileSync(resolve(process.cwd(), 'src/features/simulation/SimulationPage.tsx'), 'utf8')
 const parameterTableSource = pageSource.slice(pageSource.indexOf('function SimulationParameterTable('), pageSource.indexOf('function ResultPanel('))
+const simulationFooterSource = parameterTableSource.match(/<footer data-simulation-table-footer=\{kind\}[\s\S]*?<\/footer>/)?.[0] ?? ''
 const graphSource = readFileSync(resolve(process.cwd(), 'src/features/simulation/SimulationStoryGraph.tsx'), 'utf8')
 const sharedSelectorSource = readFileSync(resolve(process.cwd(), 'src/shared/ui/ComparisonRoleSelector.tsx'), 'utf8')
 const cbdPageSource = readFileSync(resolve(process.cwd(), 'src/features/cost-breakdown/CostBreakdownPage.tsx'), 'utf8')
@@ -390,17 +406,14 @@ assert.match(graphSource, /onClick=\{\(\) => onSelectActiveDataset\(category\.ro
   '[source contract] graph role controls select activeDataset')
 assert.match(pageSource, /onChange=\{role => onChangeComparison\(role, afterRole\)\}[\s\S]*?onChange=\{role => onChangeComparison\(beforeRole, role\)\}/,
   '[source contract] Before and After selectors update only their own comparison side')
-const upperWorkspaceStart = pageSource.indexOf('xl:grid-cols-[minmax(0,2.82fr)_minmax(0,1.63fr)_minmax(max-content,.85fr)]')
+const upperWorkspaceStart = pageSource.indexOf('<div className="grid min-w-0 gap-2 xl:min-h-0 xl:flex-[1.25]')
 const upperWorkspaceEnd = pageSource.indexOf('<div className="grid min-w-0 gap-2 xl:flex-none xl:grid-cols-2', upperWorkspaceStart)
 const upperWorkspaceSource = upperWorkspaceStart >= 0 && upperWorkspaceEnd > upperWorkspaceStart
   ? pageSource.slice(upperWorkspaceStart, upperWorkspaceEnd)
   : ''
 assert.ok(upperWorkspaceSource, '[source contract] desktop upper workspace source is present')
-assert.match(upperWorkspaceSource, /xl:grid-cols-\[minmax\(0,2\.82fr\)_minmax\(0,1\.63fr\)_minmax\(max-content,\.85fr\)\]/,
-  '[source contract] direct desktop columns allocate about 53% Graph, 31% Result/Break-even, and a content-sized supporting Business/Economic column')
-assert.ok(2.82 / 5.3 >= 0.52 && 2.82 / 5.3 <= 0.55)
-assert.ok(1.63 / 5.3 >= 0.30 && 1.63 / 5.3 <= 0.32)
-assert.ok(.85 / 5.3 >= 0.15 && .85 / 5.3 <= 0.17)
+assert.match(upperWorkspaceSource, /xl:grid-cols-\[minmax\(0,[\d.]+fr\)_minmax\(0,[\d.]+fr\)_minmax\(max-content,[\d.]+fr\)\]/,
+  '[source contract] the desktop places the flexible Graph, Result/Break-even, and content-sized Business/Economic columns in order without fixing product ratios')
 const resultColumnSource = upperWorkspaceSource.match(/<div data-simulation-layout-column="result-and-break-even"[\s\S]*?<EconomicSimulationPanel/)?.[0] ?? ''
 assert.match(resultColumnSource, /<ResultPanel[\s\S]*?<EconomicBreakEvenGraphPanel[\s\S]*?<\/div>\s*<EconomicSimulationPanel/,
   '[source contract] Result sits above Break-even in the middle column before far-right Business/Economic')
@@ -446,16 +459,38 @@ assert.match(pageSource, /calculateParameterSimulation\(state\.baselineSnapshot,
   '[source contract] BOM and RTG parameter rows/effects use the active role baseline')
 assert.match(parameterTableSource, /const filteredRows = filterSimulationTableRows\(tableRows, searchQuery\)/,
   '[source contract] each independent BOM/RTG search filters its own rows')
-assert.match(parameterTableSource, /const page = getSimulationTablePage\(orderedRows, pageIndex\)[\s\S]*?const visibleRows = page\.rows/,
-  '[source contract] each table renders only the current four-row page')
+assert.match(parameterTableSource, /const orderedRows = dragRowOrder[\s\S]*?const visibleRange = viewportState\.total === orderedRows\.length/,
+  '[source contract] selected-first and filtered ordering remains independent from the scroll viewport range')
+assert.doesNotMatch(parameterTableSource, /\.slice\([^\n]*(?:PAGE_SIZE|pageIndex)/,
+  '[source contract] Simulation does not slice rows into pagination pages')
 assert.match(parameterTableSource, /const selectableTargets = filteredRows\.flatMap/,
-  '[source contract] header selection covers every eligible match across all search-result pages')
-assert.match(parameterTableSource, /setPageIndex\(0\)[\s\S]*?aria-label=\{`Search \$\{searchField\}`\}[\s\S]*?aria-label=\{`Clear \$\{searchField\} search`\}/,
-  '[source contract] search edits and clear actions return the table to its first page')
+  '[source contract] header selection covers every eligible filtered match outside the viewport too')
+assert.match(parameterTableSource, /onChange=\{event => setSearchQuery\(event\.target\.value\)\}/,
+  '[source contract] editing Search updates only its own table query')
+assert.match(simulationFooterSource, /aria-label=\{`Search \$\{shortTitle\} by \$\{searchField\}`\}[\s\S]*?aria-label=\{`Clear \$\{searchField\} search`\}/,
+  '[source contract] each always-visible footer has its own named Search and clear affordance')
+assert.match(parameterTableSource, /visibleRange\.total === 0 \? '0 of 0'/,
+  '[source contract] an empty Search result has an explicit zero range')
+assert.match(parameterTableSource, /previousSearchQueryRef\.current = searchQuery[\s\S]*?simulationTableScrollHost\(body, section\)[\s\S]*?body\.scrollTop = 0/,
+  '[source contract] changing or clearing Search resets only that table scroll host')
 assert.match(parameterTableSource, /data-simulation-table-body="true"[^>]*xl:h-40[^>]*xl:overflow-y-auto/,
-  '[source contract] desktop BOM/Routing table bodies retain the compact four-row viewport')
-assert.match(parameterTableSource, /\{visibleRows\.map\(\(\{ row, sourceIndex \}\)/,
-  '[source contract] the current page preserves stable source row numbers')
+  '[source contract] desktop BOM/Routing bodies retain a native vertical scroll viewport about four rows tall')
+assert.equal((parameterTableSource.match(/\{orderedRows\.map\(\(\{ row, sourceIndex \}, orderedIndex\) =>/g) ?? []).length, 2,
+  '[source contract] desktop rows and mobile cards render every ordered filtered row')
+assert.match(parameterTableSource, /data-simulation-row-index=\{orderedIndex\}[\s\S]*?\{sourceIndex \+ 1\}/,
+  '[source contract] viewport measurement uses ordered DOM rows while displayed row numbers remain stable')
+assert.match(parameterTableSource, /getBoundingClientRect\(\)[\s\S]*?getSimulationTableViewportState\(rowBounds, viewport\.top, viewport\.bottom/,
+  '[source contract] visible ranges derive from real row and viewport geometry')
+assert.match(parameterTableSource, /aria-label=\{`Previous \$\{navigationLabel\} row`\}[\s\S]*?disabled=\{visibleRange\.atTop\}[\s\S]*?moveOneRow\(-1\)[\s\S]*?◀/,
+  '[source contract] the previous solid triangle moves one row and disables at the actual top')
+assert.match(parameterTableSource, /aria-label=\{`Next \$\{navigationLabel\} row`\}[\s\S]*?disabled=\{visibleRange\.atBottom\}[\s\S]*?moveOneRow\(1\)[\s\S]*?▶/,
+  '[source contract] the next solid triangle moves one row and disables at the actual bottom')
+assert.match(parameterTableSource, /rowBounds\[index \+ 1\]\.top - current\.top[\s\S]*?current\.bottom - current\.top/,
+  '[source contract] navigation step size follows one measured row group, including expanded detail height')
+assert.doesNotMatch(simulationFooterSource, /ChevronLeft|ChevronRight/,
+  '[source contract] footer navigation does not reuse expand/collapse chevrons')
+assert.match(parameterTableSource, /border-t border-slate-300 bg-slate-100/,
+  '[source contract] the compact footer has a gray surface and subtle divider distinct from white rows')
 assert.doesNotMatch(pageSource, /rows\.filter\(row => row\.kind === kind\s*&&\s*row\.status/,
   '[source contract] the viewport does not filter rows to CHANGED-only')
 assert.match(appSource, /const snapshots = prepareSimulationSendAll\(current, masterDataSnapshots\)[\s\S]*?return sendSimulationSnapshotsToMasterData\(snapshots\)/,

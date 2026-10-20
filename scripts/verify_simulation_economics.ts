@@ -203,6 +203,9 @@ for (const [label, value] of [['Parameter Saving', '6.00'], ['Required Saving', 
 }
 assert.match(outcome, /aria-label="Break-even Quantity"[^>]*title="[^"]+"[\s\S]*?>Break-even Qty<\/span>[\s\S]*?>2,500 PC<\/span>/,
   'Outcome shows the same whole quantity as the graph heading with the product UOM')
+const breakEvenOutcome = outcome.match(/<div role="group" aria-label="Break-even Quantity"[\s\S]*?<\/div>/)?.[0] ?? ''
+assert.match(breakEvenOutcome, /mt-1 border-t border-slate-200 pt-1/,
+  'Break-even Qty is separated from the monetary per-unit outputs by a subtle divider')
 const baseGraphHeader = panelMarkup.match(/<figcaption id="break-even-graph-title"[\s\S]*?<\/figcaption>/)?.[0] ?? ''
 assert.match(baseGraphHeader, /<span>Break-even<\/span>[\s\S]*?<span class="text-\[9px\] font-normal text-slate-500">\(2,500 PC\)<\/span>/,
   'graph heading keeps Break-even primary and renders subdued parenthetical quantity context')

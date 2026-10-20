@@ -250,9 +250,9 @@ export const WorkCenterRatesTable: React.FC<WorkCenterRatesTableProps> = ({
             <col className={masterDataIndexColumnClass} /><col className={masterDataIdentityColumnClass} /><col />
             <col /><col className={masterDataNoteColumnClass} /><col className={masterDataActionsColumnClass} />
           </colgroup>
-          <thead className="sticky top-0 z-30 border-y-2 border-slate-300 bg-slate-200 text-[11px] font-semibold uppercase tracking-wide text-slate-900">
+          <thead className="sticky top-0 z-30 border-y-2 border-slate-400 bg-slate-100 text-[11px] font-semibold uppercase tracking-wide text-slate-800">
             <tr>
-              <th scope="col" className={`sticky left-0 z-40 ${masterDataIndexColumnClass} bg-slate-200 p-0 text-center`}>
+              <th scope="col" className={`sticky left-0 z-40 ${masterDataIndexColumnClass} bg-slate-100 p-0 text-center`}>
                 <Tooltip label={selectionState === 'all' ? 'Clear visible selection' : 'Select all visible rows'} wrapperClassName="relative flex h-9 w-full items-center justify-center">
                   <RowSelectionButton variant="light" state={selectionState} onClick={() => toggleAll(selectionState !== 'all')} disabled={filteredRates.length === 0} label={selectionState === 'all' ? 'Clear visible selection for Work Centers rows' : 'Select all visible Work Centers rows'} />
                 </Tooltip>

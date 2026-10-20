@@ -1,28 +1,29 @@
-# Current Handoff — Final Simulation UI correction — 2026-10-20
+# Current Handoff — Simulation scroll/footer and historical header correction — 2026-10-20
 
 ## Checkpoint and delivery
 
 - Repository: `/Users/bubu/COSTBREAKDOWN-ref-current-custom-flow-redesign` (`apirak-k/COSTBREAKDOWN`). Branch: `feat/ref-current-custom-flow-redesign`.
-- Verified starting local and remote baseline: `5ea715dc1e795e46c4db1879db6b2d997b088746`.
+- Verified starting local and remote baseline: `34aab1bd9e86c93e3a2b805c731e3087975d647e`.
 - One focused commit and push to this branch are authorized. Do not merge or start Phase 5.
 
-## Implemented
+## Implemented in this pass
 
-- Restored gray/slate headers and matching light-slate none/mixed/all controls in Master Data BOM, Work Centers, and Routing. Shared selection semantics and geometry remain unchanged.
-- Added independent compact BOM and RTG footers with Material/Process search, four-row pages, live range, clear, and previous/next controls. Header selection covers all eligible search matches across pages and preserves selections hidden by Search. Full snapshot calculation and source row numbering remain unchanged.
-- Rebalanced the upper Simulation grid to `2.82:1.63:.85` (nominally 53.2% Graph, 30.8% Result/Break-even, 16.0% Business/Economic); the supporting track keeps a max-content minimum so labels have room. Result/Break-even retains the 1.4:1 vertical split.
-- Added **Break-even Qty** to Economic Outcome using the existing `breakEvenQuantity`. It shows the UOM, **Not achieved**, or `—`; the graph heading keeps **Break-even** primary with subdued parenthetical quantity/state.
-- Anchored the ruler value at the start of a bounded gutter immediately right of `plotRight`; the graph line endpoint and plot geometry remain unchanged. Show all remains grouped just after the legend; no rendered measurement established safe room for a larger gap or farther placement.
-- Updated current Simulation, Master Data, cross-cutting, graph/table requirements, system logic, design notes, implementation decisions, and focused verifier contracts. Historical handoffs remain as records.
+- Restored Master Data BOM, Work Centers, and Routing headers to the historical `border-slate-400 bg-slate-100 text-slate-800` appearance. Restored the original NONE (`text-slate-700 hover:bg-slate-200`) and ALL (`border-slate-800 bg-slate-700 text-white`) `#` control states; only MIXED uses an intermediate slate. Checkbox semantics, 28×28 size, and bulk-selection behavior remain.
+- Replaced page slicing in Simulation BOM/Routing with complete filtered/ordered row rendering and native desktop vertical scrolling in the existing approximately four-row bodies. Each table keeps its own Search, scroll, and visible-range state. Search is always present, resets its own scroll position, and defines selection across every eligible filtered match. The compact gray footer reports the row window measured from actual viewport geometry and uses solid triangles to move one row; expanded detail height is included. Narrow card flow remains natural.
+- Kept the existing upper grid allocation as an implementation choice; docs no longer call its exact fractions user-selected. The Graph/Result-Break-even/Business-Economic hierarchy and the existing vertical split remain.
+- Added a subtle divider before Economic Outcome's Break-even Qty row. It continues to use the existing result, carries its resolved UOM, and preserves the existing unavailable/unreachable states and subdued graph heading.
+- Updated current Simulation, Master Data, Cross-Cutting, design, implementation-choice, table requirements, system diagram, Handoff, and focused verifier contracts. The 2026-10-20 pagination statement is explicitly superseded.
 
 ## Verification and limits
 
 - **PASS:** `npm run build` (TypeScript and Vite production build).
-- **PASS:** `node scripts/verify_simulation_regression.mjs`, including row-selection, Phase 3/4 Simulation, Result, Story, economics, CBD, history, Master Data history, and Global Header checks.
-- **PASS:** `node scripts/verify_master_data_ui_state.mjs` and `git diff --check`.
-- Vite SSR suites print `WebSocket server error: Port 24678 is already in use` but complete successfully. The build retains existing ExcelJS/fast-csv browser externalization notices and the main bundle warning at 536.37 kB.
-- **NOT VISUALLY VERIFIED:** no browser automation package or Chrome/Chromium executable is available in this environment. SSR/source checks do not establish responsive layout, clipping, actual row heights, or focus/keyboard behavior in a browser. Safe additional Show all spacing also remains unmeasured.
-- This is one focused correction only. No merge or Phase 5 work is included.
+- **PASS:** `node scripts/verify_simulation_regression.mjs` (row selection/drag, Simulation Phase 3/4, Result, Story, economics, history, role overrides, CBD, Master Data history, and Global Header; includes viewport geometry for top/middle/bottom, 0/3/4 rows, and expanded rows).
+- **PASS:** `node scripts/verify_master_data_ui_state.mjs` (including exact historical header/control styling).
+- **PASS:** `node scripts/verify_cbd_comparison_pair.mjs`, `node --experimental-strip-types scripts/verify_snapshot_comparison_view.ts`, and `node --experimental-strip-types scripts/verify_comparison_reconciliation.ts`.
+- **PASS:** `git diff --check`.
+- Nested Vite SSR suites emit the existing `WebSocket server error: Port 24678 is already in use` warning and still exit 0. The build retains ExcelJS/fast-csv browser externalization warnings and a 538.32 kB main-bundle warning.
+- **[Unverified] NOT VISUALLY VERIFIED:** no browser automation package or Chrome/Chromium executable is available. Source/SSR checks do not establish rendered scrollbar visibility, mouse/trackpad behavior, exact responsive geometry, overflow, or focus behavior. No visual acceptance is claimed.
+- One focused correction only. No merge or Phase 5 work is included.
 
 ---
 

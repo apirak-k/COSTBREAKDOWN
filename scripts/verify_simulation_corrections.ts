@@ -96,7 +96,7 @@ try {
   assert.match(markup, /aria-label="Simulation comparison ruler"[^>]*class="[^"]*touch-none/)
   assert.match(markup, /Cost \/ Unit[\s\S]*Before[\s\S]*After[\s\S]*Change/)
   assert.doesNotMatch(markup, /Current → SIM|Reset all datasets|SIM cloned|SIM sent|SIM reset|Send blocked|Added in SIM|Removed from SIM/)
-  console.log('PASS: Simulation role-local status, atomic ten-row selection, stable selected-first view, invalid edit rejection, Undo/Reset, dynamic UOM, and current page contract')
+  console.log('PASS: Simulation role-local status, atomic ten-row selection, stable selected-first view, invalid edit rejection, Undo/Reset, dynamic UOM, and continuous-scroll viewport contract')
 } finally {
   await vite.close()
 }
