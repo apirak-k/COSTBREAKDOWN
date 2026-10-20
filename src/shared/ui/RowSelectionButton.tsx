@@ -6,7 +6,7 @@ interface RowSelectionButtonProps {
   label: string
   onClick: () => void
   disabled?: boolean
-  variant?: 'dark' | 'gold'
+  variant?: 'dark' | 'light'
 }
 
 export const RowSelectionButton = forwardRef<HTMLButtonElement, RowSelectionButtonProps>(function RowSelectionButton({
@@ -16,12 +16,12 @@ export const RowSelectionButton = forwardRef<HTMLButtonElement, RowSelectionButt
   disabled = false,
   variant = 'dark'
 }, ref) {
-  const stateClass = variant === 'gold'
+  const stateClass = variant === 'light'
     ? state === 'all'
-      ? 'border border-amber-800 bg-amber-700 text-white ring-1 ring-inset ring-amber-800'
+      ? 'border border-slate-600 bg-slate-600 text-white ring-1 ring-inset ring-slate-600'
       : state === 'mixed'
-        ? 'border border-amber-400/70 bg-amber-100 text-amber-950 ring-1 ring-inset ring-amber-300/70'
-        : 'border border-transparent bg-transparent text-amber-950 hover:bg-amber-100'
+        ? 'border border-slate-400 bg-slate-200 text-slate-900 ring-1 ring-inset ring-slate-300'
+        : 'border border-transparent bg-transparent text-slate-700 hover:bg-slate-200'
     : state === 'all'
       ? 'border border-white bg-slate-600 text-white ring-1 ring-inset ring-white'
       : state === 'mixed'
@@ -37,7 +37,7 @@ export const RowSelectionButton = forwardRef<HTMLButtonElement, RowSelectionButt
       aria-label={label}
       onClick={onClick}
       disabled={disabled}
-      className={`mx-auto grid h-7 w-7 shrink-0 place-items-center rounded-sm p-0 text-[11px] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] ${variant === 'gold' ? 'focus-visible:outline-amber-800' : 'focus-visible:outline-white'} ${stateClass} disabled:cursor-default disabled:opacity-40`}
+      className={`mx-auto grid h-7 w-7 shrink-0 place-items-center rounded-sm p-0 text-[11px] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] ${variant === 'light' ? 'focus-visible:outline-blue-700' : 'focus-visible:outline-white'} ${stateClass} disabled:cursor-default disabled:opacity-40`}
     >#</button>
   )
 })

@@ -552,7 +552,7 @@ Do not create a full-plot transparent interaction layer.
 
 ## 16.4 Ruler value on the right
 
-The ruler must show its current numeric value on the right side.
+The ruler must show its current numeric value immediately to the right of `plotRight`, in a dedicated inset gutter. Start-align the value at the gutter's left edge and bound its rendered text width within the right side of the SVG viewBox so it remains visible without clipping. Keep the dashed line endpoint at the graph plot edge; the numeric label occupies the separate gutter.
 
 Example:
 

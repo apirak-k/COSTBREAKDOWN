@@ -143,7 +143,7 @@ const panelMarkup = renderPanel(baseResult, worked)
 for (const text of [
   '>Business</h2>', '>Economic</h2>', '>Outcome</h3>', 'Fixed Action Cost', 'Batch Size', 'Variable Action Cost', 'Variable Action Cost / Unit',
   'Parameter Saving / Unit', 'Required Saving / Unit', 'Economic Margin / Unit',
-  'Break-even Quantity', 'Break-even · 2,500 PC', 'Selling Price', 'SG&amp;A %',
+  'Break-even Quantity', '(2,500 PC)', 'Break-even Qty', 'Selling Price', 'SG&amp;A %',
   'THB/PC', 'QTY (PC)'
 ]) assert.ok(panelMarkup.includes(text), `finalized Economic/Business UI includes ${text}`)
 const inputsCardTag = panelMarkup.match(/<div data-safe-workspace-interaction="true" data-simulation-layout-column="inputs"[^>]*>/)?.[0] ?? ''
@@ -187,24 +187,29 @@ assert.match(panelMarkup, /role="img" aria-label="Total Action Cost:/,
   'the Action Cost graph line keeps its accessible description without a popup')
 assert.match(panelMarkup, /role="img" aria-label="Break-even Quantity:/,
   'the break-even point keeps its accessible description without a popup')
-assert.doesNotMatch(economicInputsPanel, /Break-even|Economic Outputs/,
-  'Economic Outcome does not duplicate the Break-even graph result')
+assert.match(economicInputsPanel, /aria-label="Break-even Quantity"[^>]*title="Fixed Action Cost ÷ \(Parameter Saving \/ Unit − Variable Action Cost \/ Unit\)"/,
+  'Economic Outcome exposes the shared calculated Break-even Quantity with its formula context')
 assert.doesNotMatch(panelMarkup, />Business Inputs<|>Economic Inputs<|>Economic Outputs<|>Quantity \(/,
   'obsolete visible headings and axis naming are absent')
 const outcome = economicInputsPanel.slice(economicInputsPanel.indexOf('<div role="group" aria-labelledby="simulation-economic-outcome-title"'))
 assert.match(outcome, /class="[^"]*border-t border-slate-200/,
   'Outcome has a subtle divider inside the padded Economic section')
 assert.equal((outcome.match(/THB\/PC/g) ?? []).length, 1, 'Outcome shows its shared unit exactly once')
-assert.equal((outcome.match(/role="group" aria-label=/g) ?? []).length, 3, 'Outcome has exactly three numeric rows')
+assert.equal((outcome.match(/role="group" aria-label=/g) ?? []).length, 4, 'Outcome has three economic rows and the compact Break-even quantity row')
 for (const [label, value] of [['Parameter Saving', '6.00'], ['Required Saving', '4.00'], ['Economic Margin', '2.00']]) {
   assert.match(outcome, new RegExp(`aria-label="${label} / Unit"[^>]*title="[^"]+">`), `${label} preserves its accessible name and formula tooltip`)
   assert.ok(outcome.includes(`>${label}</span>`), `${label} uses the short visible label`)
   assert.match(outcome, new RegExp(`>${value.replace('.', '\\.')}</span>`), `${label} value has no repeated unit`)
 }
+assert.match(outcome, /aria-label="Break-even Quantity"[^>]*title="[^"]+"[\s\S]*?>Break-even Qty<\/span>[\s\S]*?>2,500 PC<\/span>/,
+  'Outcome shows the same whole quantity as the graph heading with the product UOM')
+const baseGraphHeader = panelMarkup.match(/<figcaption id="break-even-graph-title"[\s\S]*?<\/figcaption>/)?.[0] ?? ''
+assert.match(baseGraphHeader, /<span>Break-even<\/span>[\s\S]*?<span class="text-\[9px\] font-normal text-slate-500">\(2,500 PC\)<\/span>/,
+  'graph heading keeps Break-even primary and renders subdued parenthetical quantity context')
 assert.match(panelMarkup, /<text x="540" y="149" text-anchor="end"[^>]*>QTY \(PC\)<\/text>/,
   'QTY is anchored at the right axis end below the tick row')
 const fractionalMarkup = renderPanel(higherVariableCost, worked)
-assert.ok(fractionalMarkup.includes('Break-even · 6,667 PC'), 'heading uses the whole displayed threshold')
+assert.ok(fractionalMarkup.includes('(6,667 PC)'), 'heading uses the whole displayed threshold')
 const fractionalPoint = fractionalMarkup.match(/aria-label="Break-even Quantity:[^"]*" cx="([^"]+)"/)
 assert.ok(fractionalPoint, 'precise intersection remains accessible')
 const expectedPointX = 56 + (higherVariableCost.preciseBreakEvenQuantity / (higherVariableCost.preciseBreakEvenQuantity * 1.12)) * (540 - 56)
@@ -213,11 +218,13 @@ const customUnitMarkup = renderToStaticMarkup(React.createElement(EconomicSimula
   result: baseResult, draft: worked, afterSnapshot: currentSnapshot, unit: 'KG', onUpdate() {}, onBeginEdit() {}, onCommitEdit() {}
 }))
 assert.match(customUnitMarkup, /<span>THB\/KG<\/span>/, 'Outcome uses the resolved dynamic product UOM')
+assert.match(customUnitMarkup, /aria-label="Break-even Quantity"[^>]*>[\s\S]*?>2,500 KG<\/span>/,
+  'Economic Outcome quantity uses the resolved dynamic product UOM')
 for (const [unit, resolvedUnit] of [['KG', 'KG'], ['   ', 'Unit']]) {
   const graph = renderToStaticMarkup(React.createElement(EconomicBreakEvenGraphPanel, {
     result: baseResult, unit, onBatchSizeChange() {}, onBeginEdit() {}, onCommitEdit() {}
   }))
-  assert.ok(graph.includes(`Break-even · 2,500 ${resolvedUnit}`), 'graph heading uses the resolved UOM or Unit fallback')
+  assert.ok(graph.includes(`(2,500 ${resolvedUnit})`), 'graph heading uses the resolved UOM or Unit fallback')
   assert.ok(graph.includes(`>QTY (${resolvedUnit})</text>`), 'QTY uses the resolved UOM or Unit fallback')
 }
 
@@ -228,10 +235,15 @@ assert.doesNotMatch(panelMarkup, /data-break-even-tooltip|activeTooltip|absolute
 assert.doesNotMatch(panelMarkup, /Calculation Details|Above Break-even|Below Break-even|Fixed Cost \/ pc|OP \/ pc/)
 
 const unavailableMarkup = renderPanel(noSaving, worked)
-assert.match(unavailableMarkup, /Break-even · Not achievable/)
+assert.match(unavailableMarkup, /<span>Break-even<\/span>[\s\S]*?<span class="text-\[9px\] font-normal text-slate-500">\(Not achieved\)<\/span>/)
+assert.match(unavailableMarkup, /aria-label="Break-even Quantity"[^>]*>[\s\S]*?>Not achieved<\/span>/,
+  'Economic Outcome and graph heading both report a non-achievable quantity')
 assert.doesNotMatch(unavailableMarkup, /NaN|Infinity/)
-assert.ok(renderPanel(missingSaving, worked).includes('Break-even · —'), 'missing quantity stays unavailable')
-assert.ok(renderPanel(zeroActionCost, worked).includes('Break-even · 0 PC'), 'zero quantity remains a valid displayed result')
+const unavailableSavingMarkup = renderPanel(missingSaving, worked)
+assert.ok(unavailableSavingMarkup.includes('(—)'), 'missing quantity stays unavailable in the graph heading')
+assert.match(unavailableSavingMarkup, /aria-label="Break-even Quantity"[^>]*>[\s\S]*?>—<\/span>/,
+  'missing quantity stays unavailable in Outcome')
+assert.ok(renderPanel(zeroActionCost, worked).includes('(0 PC)'), 'zero quantity remains a valid displayed result')
 const initialDraft = createEconomicSimulationDraft(currentSnapshot)
 assert.deepEqual(initialDraft, {
   fixedActionCost: '', variableActionCostPerPiece: '', batchSize: '',

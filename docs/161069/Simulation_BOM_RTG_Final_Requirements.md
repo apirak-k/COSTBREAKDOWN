@@ -1,7 +1,7 @@
 # Simulation BOM / RTG — Final UX Requirements
 
 **Status:** Requirement CLOSED / Finalized  
-**Implementation status:** Five corrections implemented; 46 browser checks PASS at tested sizes (2026-10-17). NOT CLOSED pending original MacBook Neo viewport/zoom verification; see HANDOFF.md
+**Prior implementation status (2026-10-17):** Five corrections implemented; 46 browser checks passed at tested sizes. Original MacBook Neo viewport/zoom remained unverified. The 2026-10-20 table-search/pagination follow-up is recorded below; its final verification is in HANDOFF.md.
 **Scope:** Simulation page — BOM and RTG tables only
 
 ---
@@ -538,4 +538,14 @@ BOM / RTG may be considered **CLOSED** only when:
 6. outside-dismiss is conflict-free,
 7. relevant focused verification/build checks pass,
 8. any item that cannot be physically verified is explicitly reported as `NOT VERIFIED` rather than assumed to pass.
+
+---
+
+# 16. Follow-up — Table-local Search and Pagination (2026-10-20)
+
+Each BOM and RTG table owns an independent compact footer. Its Search control matches Material names for BOM and Process names for RTG, without changing the other table. Each page shows at most four rows and reports the current `start–end of total` range, with previous/next controls disabled at their boundaries. Editing or clearing Search returns only that table to its first page. Empty matches report `0 of 0` and show a no-matches state.
+
+The active search result set defines that table's logical `#` selection scope. None/mixed selects every eligible match across all result pages, all clears those matches, and selections outside the search remain selected. Page navigation never narrows selection scope. Protected/unmatched/ambiguous rows remain ineligible, source row numbering stays stable, and full effective snapshots remain the calculation scope. The footer remains available in narrow card layouts; there is no Master Data footer on Simulation.
+
+This follow-up supersedes the earlier scroll-only table presentation: the underlying table data remains complete, but the body renders the current page instead of all rows at once.
 

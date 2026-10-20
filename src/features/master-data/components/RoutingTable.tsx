@@ -234,11 +234,11 @@ export const RoutingTable: React.FC<RoutingTableProps> = ({
             <col className={masterDataIndexColumnClass} /><col className={masterDataIdentityColumnClass} /><col className={masterDataIdentityColumnClass} />
             <col /><col /><col /><col className={masterDataNoteColumnClass} /><col className={masterDataActionsColumnClass} />
           </colgroup>
-          <thead className="sticky top-0 z-30 border-y-2 border-amber-300 bg-amber-50 text-[11px] font-semibold uppercase tracking-wide text-amber-950">
+          <thead className="sticky top-0 z-30 border-y-2 border-slate-300 bg-slate-200 text-[11px] font-semibold uppercase tracking-wide text-slate-900">
             <tr>
-              <th scope="col" className={`sticky left-0 z-40 ${masterDataIndexColumnClass} bg-amber-50 p-0 text-center`}>
+              <th scope="col" className={`sticky left-0 z-40 ${masterDataIndexColumnClass} bg-slate-200 p-0 text-center`}>
                 <Tooltip label={selectionState === 'all' ? 'Clear visible selection' : 'Select all visible rows'} wrapperClassName="relative flex h-9 w-full items-center justify-center">
-                  <RowSelectionButton variant="gold" state={selectionState} onClick={() => toggleAll(selectionState !== 'all')} disabled={filteredRouting.length === 0} label={selectionState === 'all' ? 'Clear visible selection for Routing rows' : 'Select all visible Routing rows'} />
+                  <RowSelectionButton variant="light" state={selectionState} onClick={() => toggleAll(selectionState !== 'all')} disabled={filteredRouting.length === 0} label={selectionState === 'all' ? 'Clear visible selection for Routing rows' : 'Select all visible Routing rows'} />
                 </Tooltip>
               </th>
               <th scope="col" className="px-2 py-2 text-left">Process</th>

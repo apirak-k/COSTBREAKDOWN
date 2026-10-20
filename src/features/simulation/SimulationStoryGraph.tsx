@@ -73,6 +73,11 @@ const GRAPH_X = {
   gap2: 572,
   custom: 710
 } as const
+const GRAPH_VIEWBOX_WIDTH = 820
+const RULER_LABEL_GUTTER = {
+  left: GRAPH_X.plotRight + 6,
+  right: GRAPH_VIEWBOX_WIDTH - 2
+} as const
 
 const STATE_LAYOUT = [
   { key: 'reference', label: 'Reference', description: 'Reference', x: GRAPH_X.reference },
@@ -391,6 +396,8 @@ export function SimulationStoryGraph({ story, unit, activeRole, onSelectActiveDa
 
   const rulerLevel = clamp(manualRulerLevel ?? story.current.standardCost ?? 0, minimum, maximum)
   const rulerY = y(rulerLevel)
+  const rulerValue = formatValue(rulerLevel)
+  const rulerValueWidth = Math.min(rulerValue.length * 5.4, RULER_LABEL_GUTTER.right - RULER_LABEL_GUTTER.left)
   const showTooltipAt = (target: SVGElement, text: string) => {
     const host = target.ownerSVGElement?.parentElement
     if (!host) return
@@ -563,7 +570,7 @@ export function SimulationStoryGraph({ story, unit, activeRole, onSelectActiveDa
         <svg
           aria-labelledby="simulation-story-title"
           aria-describedby="simulation-story-svg-description"
-          viewBox="0 0 820 332"
+          viewBox={`0 0 ${GRAPH_VIEWBOX_WIDTH} 332`}
           preserveAspectRatio="xMidYMid meet"
           className="simulation-story-chart mt-1 block h-[250px] w-full sm:h-auto xl:h-full"
           style={{ touchAction: 'pan-y' }}
@@ -786,7 +793,7 @@ export function SimulationStoryGraph({ story, unit, activeRole, onSelectActiveDa
           {visibleLegend.ruler && (
             <>
               <line data-ruler-line="true" x1={plot.left} x2={plot.right} y1={rulerY} y2={rulerY} stroke={RULER_COLOR} strokeWidth="1.4" strokeDasharray="4 5" pointerEvents="none" />
-              <text data-ruler-value="true" x={plot.right - 7} y={clamp(rulerY - 3, plot.top + 10, plot.bottom - 1)} textAnchor="end" fill={RULER_COLOR} fontSize="9px" fontWeight="600" fontFamily="ui-monospace, monospace" pointerEvents="none">{formatValue(rulerLevel)}</text>
+              <text data-ruler-value="true" x={RULER_LABEL_GUTTER.left} y={clamp(rulerY - 3, plot.top + 10, plot.bottom - 1)} textAnchor="start" textLength={rulerValueWidth} lengthAdjust="spacingAndGlyphs" fill={RULER_COLOR} fontSize="9px" fontWeight="600" fontFamily="ui-monospace, monospace" pointerEvents="none">{rulerValue}</text>
               <g
                 role="slider"
                 tabIndex={0}

@@ -28,20 +28,20 @@ try {
 
   for (const [state, aria] of [['none', 'false'], ['mixed', 'mixed'], ['all', 'true']] as const) {
     const darkMarkup = renderToStaticMarkup(React.createElement(RowSelectionButton, { state, label: 'Select rows', onClick() {} }))
-    const goldMarkup = renderToStaticMarkup(React.createElement(RowSelectionButton, { state, label: 'Select rows', variant: 'gold', onClick() {} }))
+    const lightMarkup = renderToStaticMarkup(React.createElement(RowSelectionButton, { state, label: 'Select rows', variant: 'light', onClick() {} }))
     assert.match(darkMarkup, new RegExp(`aria-checked="${aria}"`), `${state} dark control has canonical ARIA state`)
-    assert.match(goldMarkup, new RegExp(`aria-checked="${aria}"`), `${state} gold control has canonical ARIA state`)
+    assert.match(lightMarkup, new RegExp(`aria-checked="${aria}"`), `${state} light control has canonical ARIA state`)
   }
   const darkMarkup = renderToStaticMarkup(React.createElement(RowSelectionButton, { state: 'all', label: 'Clear rows', onClick() {} }))
   const darkMixedMarkup = renderToStaticMarkup(React.createElement(RowSelectionButton, { state: 'mixed', label: 'Select rows', onClick() {} }))
-  const goldMarkup = renderToStaticMarkup(React.createElement(RowSelectionButton, { state: 'all', label: 'Clear rows', variant: 'gold', onClick() {} }))
-  const goldMixedMarkup = renderToStaticMarkup(React.createElement(RowSelectionButton, { state: 'mixed', label: 'Select rows', variant: 'gold', onClick() {} }))
+  const lightMarkup = renderToStaticMarkup(React.createElement(RowSelectionButton, { state: 'all', label: 'Clear rows', variant: 'light', onClick() {} }))
+  const lightMixedMarkup = renderToStaticMarkup(React.createElement(RowSelectionButton, { state: 'mixed', label: 'Select rows', variant: 'light', onClick() {} }))
   const darkNoneMarkup = renderToStaticMarkup(React.createElement(RowSelectionButton, { state: 'none', label: 'Select rows', onClick() {} }))
   assert.match(darkMarkup, /border-white[^\"]*ring-white/, 'dark all uses a bright white border and ring')
   assert.match(darkMixedMarkup, /border-slate-500\/70[^\"]*ring-slate-500\/70/, 'dark mixed uses a faded ring')
   assert.match(darkNoneMarkup, /border-transparent/, 'dark none has no selected border or ring')
-  assert.match(goldMarkup, /border-amber-800[^\"]*ring-amber-800/, 'gold all has a stronger amber border and ring')
-  assert.match(goldMixedMarkup, /border-amber-400\/70[^\"]*ring-amber-300\/70/, 'gold mixed uses a softer border and ring')
+  assert.match(lightMarkup, /border-slate-600[^\"]*ring-slate-600/, 'light all has a stronger slate border and ring')
+  assert.match(lightMixedMarkup, /border-slate-400[^\"]*ring-slate-300/, 'light mixed uses a softer slate border and ring')
 
   const source = (path: string) => readFileSync(new URL(path, import.meta.url), 'utf8')
   for (const path of [
@@ -65,8 +65,8 @@ try {
   assert.match(candidateSource, /eligibleRows\.map\(row => findingKey/)
   assert.match(candidateSource, /applyRowSelectionScope\(selectedKeys, visibleKeys, selectionState !== 'all'\)/)
   const simulationSource = source('../src/features/simulation/SimulationPage.tsx')
-  assert.match(simulationSource, /const selectionScope = selectableTargets\.map\(target => target\.key\)/,
-    'Simulation selection scope comes from every eligible logical table row, not its scroll viewport')
+  assert.match(simulationSource, /const filteredRows = filterSimulationTableRows\(tableRows, searchQuery\)[\s\S]*?const selectableTargets = filteredRows\.flatMap/,
+    'Simulation selection scope comes from all eligible search matches across pages, not only the current page')
   assert.match(simulationSource, /onSetWorkingSelection\(\s*\[\.\.\.applyRowSelectionScope/)
   assert.doesNotMatch(simulationSource, /for \(const id of selectableRecordIds\)[\s\S]{0,180}onToggleWorkingTarget/,
     'Simulation header bulk selection never loops over individual row toggles')

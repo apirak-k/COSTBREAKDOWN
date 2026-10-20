@@ -61,7 +61,7 @@ flowchart TD
     effective --> result["Result<br/>Change = After − Before<br/>Parameter Saving = Before SC − After SC"]
     pair --> result
     workspace --> econ["After-role Business / Economic draft<br/>Fixed · Variable · Batch · Selling Price · SG&A"]
-    pair --> econCalc["Economic outputs<br/>Required Saving = Fixed / Batch + Variable<br/>Economic Margin = Parameter Saving − Required Saving<br/>SG&A / pc = Selling Price × SG&A rate<br/>OP / pc = Selling Price − After SC − SG&A / pc"]
+    pair --> econCalc["Economic outputs<br/>Required Saving = Fixed / Batch + Variable<br/>Economic Margin = Parameter Saving − Required Saving<br/>Outcome Break-even Qty and graph context share the same calculated whole quantity<br/>SG&A / pc = Selling Price × SG&A rate<br/>OP / pc = Selling Price − After SC − SG&A / pc"]
     effective --> econCalc
     econ --> econCalc
 
@@ -92,8 +92,8 @@ flowchart TD
 - The fixed story is Reference → GAP 1 → Current → GAP 2 → Custom; it is independent of the Result pair.
 - GAP 1 and GAP 2 contain signed MAT/LB/BD components only: Current − Reference and Custom − Current. Positive is above zero; negative is below zero.
 - Selling Price is a separate line/marker. SG&A and OP are not part of Standard Cost or gap bars. Negative OP is shown below zero.
-- The draggable THB/pc ruler is a visual aid only; it cannot modify datasets, inputs, or calculations.
-- Desktop BOM and RTG bodies show about four normal rows and scroll additional rows internally; all rows remain available. Narrow layouts retain natural card flow and page scrolling. Tables and the full page do not horizontally scroll.
+- The draggable THB/pc ruler is a visual aid only; its start-aligned value sits in a bounded gutter immediately to the right of the plot, and it cannot modify datasets, inputs, or calculations.
+- Desktop BOM and RTG tables each show at most four rows per page with independent Material/Process search, range text, and previous/next controls. Header selection covers all eligible matches across pages and preserves rows hidden by Search. Narrow layouts retain natural card flow and page scrolling. Tables and the full page do not horizontally scroll.
 
 ## Legacy session compatibility (not visible product flow)
 

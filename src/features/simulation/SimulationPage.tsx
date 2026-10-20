@@ -1,5 +1,5 @@
 import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
-import { ChevronDown, ChevronRight, RotateCcw, Send } from 'lucide-react'
+import { ChevronDown, ChevronLeft, ChevronRight, RotateCcw, Search, Send, X } from 'lucide-react'
 import { formatNumber, safeAdd } from '../../core'
 import {
   calculateMultiplicativeCostAttribution,
@@ -146,6 +146,27 @@ function bomAttribution(
 
 function normalizeKey(value: string | undefined): string {
   return value?.trim().toLowerCase() ?? ''
+}
+
+const SIMULATION_TABLE_PAGE_SIZE = 4
+
+export function filterSimulationTableRows<T extends { row: { name: string } }>(rows: readonly T[], query: string): T[] {
+  const search = normalizeKey(query)
+  return search ? rows.filter(({ row }) => normalizeKey(row.name).includes(search)) : [...rows]
+}
+
+export function getSimulationTablePage<T>(rows: readonly T[], requestedPageIndex: number) {
+  const total = rows.length
+  const lastPageIndex = Math.max(0, Math.ceil(total / SIMULATION_TABLE_PAGE_SIZE) - 1)
+  const pageIndex = Math.min(Math.max(Number.isFinite(requestedPageIndex) ? Math.trunc(requestedPageIndex) : 0, 0), lastPageIndex)
+  const startIndex = pageIndex * SIMULATION_TABLE_PAGE_SIZE
+  return {
+    rows: rows.slice(startIndex, startIndex + SIMULATION_TABLE_PAGE_SIZE),
+    pageIndex,
+    total,
+    start: total === 0 ? 0 : startIndex + 1,
+    end: Math.min(startIndex + SIMULATION_TABLE_PAGE_SIZE, total)
+  }
 }
 
 function resolveSimulationCostUnit(referenceSnapshot: CostSnapshot, currentSnapshot: CostSnapshot): string {
@@ -412,22 +433,30 @@ function SimulationParameterTable({
   const [expandedRows, setExpandedRows] = useState<Set<string>>(() => new Set())
   useTransientInteraction(expandedRows.size > 0, () => setExpandedRows(new Set()))
   const [dragRowOrder, setDragRowOrder] = useState<string[] | null>(null)
+  const [searchOpen, setSearchOpen] = useState(false)
+  const [searchQuery, setSearchQuery] = useState('')
+  const [pageIndex, setPageIndex] = useState(0)
+  const searchInputRef = useRef<HTMLInputElement>(null)
   const selectionDragRef = useRef<SimulationSelectionDrag | null>(null)
   const suppressSelectionClickRef = useRef(false)
   const records: Array<{ id: string }> = isBOM ? simulationSnapshot.bom : simulationSnapshot.routing
   const tableRows = rows.filter(row => row.kind === kind).map((row, sourceIndex) => ({ row, sourceIndex }))
+  const filteredRows = filterSimulationTableRows(tableRows, searchQuery)
+  const searchField = isBOM ? 'Material' : 'Process'
   const selectedKeys = new Set(workingSelection)
   const getRowKey = (row: SimulationComparisonRow, sourceIndex: number) => `${row.beforeRecordId ?? 'missing'}:${row.afterRecordId ?? 'missing'}:${sourceIndex}`
   const isSelectedRow = (row: SimulationComparisonRow) => Boolean(
     row.afterRecordId && rowIsSelectable(row) && selectedKeys.has(simulationWorkingTargetKey(kind, row.afterRecordId))
   )
-  const selectedFirstRows = [...tableRows].sort((left, right) => Number(isSelectedRow(right.row)) - Number(isSelectedRow(left.row)) || left.sourceIndex - right.sourceIndex)
+  const selectedFirstRows = [...filteredRows].sort((left, right) => Number(isSelectedRow(right.row)) - Number(isSelectedRow(left.row)) || left.sourceIndex - right.sourceIndex)
   const dragRowIndexes = new Map((dragRowOrder ?? []).map((key, index) => [key, index]))
-  const visibleRows = dragRowOrder
-    ? [...tableRows].sort((left, right) => (dragRowIndexes.get(getRowKey(left.row, left.sourceIndex)) ?? Number.MAX_SAFE_INTEGER)
+  const orderedRows = dragRowOrder
+    ? [...filteredRows].sort((left, right) => (dragRowIndexes.get(getRowKey(left.row, left.sourceIndex)) ?? Number.MAX_SAFE_INTEGER)
       - (dragRowIndexes.get(getRowKey(right.row, right.sourceIndex)) ?? Number.MAX_SAFE_INTEGER) || left.sourceIndex - right.sourceIndex)
     : selectedFirstRows
-  const selectableTargets = tableRows.flatMap(({ row }) => {
+  const page = getSimulationTablePage(orderedRows, pageIndex)
+  const visibleRows = page.rows
+  const selectableTargets = filteredRows.flatMap(({ row }) => {
     const record = singleRecord(records, row.afterRecordId)
     return record && rowIsSelectable(row)
       ? [{ key: simulationWorkingTargetKey(kind, record.id), recordId: record.id }]
@@ -455,7 +484,7 @@ function SimulationParameterTable({
     selectionDragRef.current = {
       anchorKey,
       targets,
-      rowKeys: visibleRows.map(({ row, sourceIndex }) => getRowKey(row, sourceIndex)),
+      rowKeys: orderedRows.map(({ row, sourceIndex }) => getRowKey(row, sourceIndex)),
       initialSelection: new Set(workingSelection),
       selected: !selectedKeys.has(anchorKey),
       moved: false
@@ -541,7 +570,7 @@ function SimulationParameterTable({
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-200 bg-white">
-            {visibleRows.length === 0 && <tr><td colSpan={8} className="px-3 py-6 text-center text-xs text-slate-500">No {tableIdentity} rows.</td></tr>}
+            {visibleRows.length === 0 && <tr><td colSpan={8} className="px-3 py-6 text-center text-xs text-slate-500">{normalizeKey(searchQuery) ? `No ${searchField} matches.` : `No ${tableIdentity} rows.`}</td></tr>}
             {visibleRows.map(({ row, sourceIndex }) => {
               const key = getRowKey(row, sourceIndex)
               const detailId = `${kind}-effect-${encodeURIComponent(key)}`
@@ -676,7 +705,7 @@ function SimulationParameterTable({
         </table>
       </div>
       <div className="md:hidden">
-        {visibleRows.length === 0 && <p className="px-3 py-6 text-center text-xs text-slate-500">No {tableIdentity} rows.</p>}
+        {visibleRows.length === 0 && <p className="px-3 py-6 text-center text-xs text-slate-500">{normalizeKey(searchQuery) ? `No ${searchField} matches.` : `No ${tableIdentity} rows.`}</p>}
         {visibleRows.map(({ row, sourceIndex }) => {
           const key = getRowKey(row, sourceIndex)
           const expanded = expandedRows.has(key)
@@ -816,6 +845,77 @@ function SimulationParameterTable({
           )
         })}
       </div>
+      <footer data-simulation-table-footer={kind} className="flex min-w-0 items-center justify-between gap-1 border-t border-slate-200 px-1.5 py-1 text-[10px] text-slate-600 xl:shrink-0">
+        <div className="flex min-w-0 items-center gap-1">
+          <button
+            type="button"
+            aria-label={`Search ${shortTitle} by ${searchField}`}
+            aria-expanded={searchOpen}
+            onClick={() => {
+              if (!searchOpen) setSearchOpen(true)
+              else if (normalizeKey(searchQuery)) searchInputRef.current?.focus()
+              else setSearchOpen(false)
+            }}
+            className="grid h-6 w-6 shrink-0 place-items-center rounded-sm text-slate-600 hover:bg-slate-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-700"
+          >
+            <Search aria-hidden="true" className="h-3.5 w-3.5" />
+          </button>
+          {searchOpen && (
+            <div className="flex min-w-0 items-center gap-0.5">
+              <input
+                ref={searchInputRef}
+                autoFocus
+                type="search"
+                value={searchQuery}
+                onChange={event => {
+                  setSearchQuery(event.target.value)
+                  setPageIndex(0)
+                }}
+                aria-label={`Search ${searchField}`}
+                placeholder={searchField}
+                className="h-6 w-[5.5rem] min-w-0 rounded-sm border border-slate-300 bg-white px-1.5 text-[10px] text-slate-800 placeholder:text-slate-400 focus:border-blue-700 focus:outline-none focus:ring-1 focus:ring-blue-100 sm:w-28"
+              />
+              {searchQuery && (
+                <button
+                  type="button"
+                  aria-label={`Clear ${searchField} search`}
+                  onClick={() => {
+                    setSearchQuery('')
+                    setPageIndex(0)
+                    searchInputRef.current?.focus()
+                  }}
+                  className="grid h-6 w-6 shrink-0 place-items-center rounded-sm text-slate-500 hover:bg-slate-100 hover:text-slate-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-700"
+                >
+                  <X aria-hidden="true" className="h-3 w-3" />
+                </button>
+              )}
+            </div>
+          )}
+        </div>
+        <span aria-live="polite" className="shrink-0 whitespace-nowrap font-mono tabular-nums text-slate-600">
+          {page.total === 0 ? '0 of 0' : `${page.start}–${page.end} of ${page.total}`}
+        </span>
+        <div className="flex shrink-0 items-center gap-0.5">
+          <button
+            type="button"
+            aria-label={`Previous ${shortTitle} rows`}
+            disabled={page.pageIndex === 0}
+            onClick={() => setPageIndex(Math.max(0, page.pageIndex - 1))}
+            className="grid h-6 w-6 place-items-center rounded-sm text-slate-700 hover:bg-slate-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-700 disabled:cursor-default disabled:text-slate-300 disabled:hover:bg-transparent"
+          >
+            <ChevronLeft aria-hidden="true" className="h-3.5 w-3.5" />
+          </button>
+          <button
+            type="button"
+            aria-label={`Next ${shortTitle} rows`}
+            disabled={page.start === 0 || page.end >= page.total}
+            onClick={() => setPageIndex(page.pageIndex + 1)}
+            className="grid h-6 w-6 place-items-center rounded-sm text-slate-700 hover:bg-slate-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-700 disabled:cursor-default disabled:text-slate-300 disabled:hover:bg-transparent"
+          >
+            <ChevronRight aria-hidden="true" className="h-3.5 w-3.5" />
+          </button>
+        </div>
+      </footer>
     </section>
   )
 }
@@ -1027,7 +1127,7 @@ export const SimulationPage: React.FC<SimulationPageProps> = ({
 
   return (
     <div className="min-w-0 space-y-3 xl:flex xl:h-full xl:min-h-0 xl:flex-col xl:gap-2 xl:space-y-0 xl:overflow-hidden">
-      <div className="grid min-w-0 gap-2 xl:min-h-0 xl:flex-[1.25] xl:grid-cols-[minmax(0,2.82fr)_minmax(0,1.48fr)_minmax(0,1fr)] xl:grid-rows-1">
+      <div className="grid min-w-0 gap-2 xl:min-h-0 xl:flex-[1.25] xl:grid-cols-[minmax(0,2.82fr)_minmax(0,1.63fr)_minmax(max-content,.85fr)] xl:grid-rows-1">
         <SimulationStoryGraph story={story} unit={unit} activeRole={state.role} onSelectActiveDataset={onSelectActiveDataset} />
         <div data-simulation-layout-column="result-and-break-even" className="grid min-w-0 gap-2 xl:min-h-0 xl:grid-rows-[minmax(0,1.4fr)_minmax(0,1fr)]">
           <ResultPanel

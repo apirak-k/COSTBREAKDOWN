@@ -347,6 +347,7 @@ try {
     'the graph has no duplicate global X shift')
   assert.match(graphSource, /const GRAPH_X = \{[\s\S]*?plotLeft: 88,[\s\S]*?plotRight: 780,[\s\S]*?reference: 155,[\s\S]*?gap1: 294,[\s\S]*?current: 433,[\s\S]*?gap2: 572,[\s\S]*?custom: 710/,
     'plot and all category centers use one canonical X geometry')
+  assert.match(graphMarkup, /viewBox="0 0 820 332"/, 'the fixed graph viewBox keeps its existing dimensions')
   assert.ok([155, 294, 433, 572, 710].every(x => x >= 88 && x <= 780),
     'all five category centers stay inside the widened plot bounds')
   assert.ok(numericSvgAttribute(standardCostValueTags.get('custom') ?? '', 'x') + 5 * 5.4 < 820,
@@ -417,8 +418,15 @@ try {
     'the ruler keeps its vertical resize cursor')
   assert.doesNotMatch(graphMarkup, /cursor-help/, 'graph information targets do not show a help cursor')
   assert.match(graphMarkup, /aria-valuetext="[^\"]+ THB\/PC"/)
-  assert.match(graphSource, /data-ruler-value="true" x=\{plot\.right - 7\}[\s\S]*?textAnchor="end"/,
-    'the ruler value stays inside the widened plot end')
+  const rulerValueTag = graphMarkup.match(/<text\b[^>]*data-ruler-value="true"[^>]*>/)?.[0] ?? ''
+  const rulerValueX = numericSvgAttribute(rulerValueTag, 'x')
+  assert.match(rulerValueTag, /text-anchor="start"/, 'the ruler value starts immediately right of the plot')
+  assert.ok(rulerValueX > 780 && rulerValueX + numericSvgAttribute(rulerValueTag, 'textLength') <= 818,
+    'the ruler value stays within the dedicated right gutter inside the SVG viewBox')
+  assert.match(graphSource, /const RULER_LABEL_GUTTER = \{\s*left: GRAPH_X\.plotRight \+ 6,\s*right: GRAPH_VIEWBOX_WIDTH - 2\s*\}/,
+    'the ruler label has a dedicated inset gutter outside the plot')
+  assert.match(graphSource, /const rulerValueWidth = Math\.min\(rulerValue\.length \* 5\.4, RULER_LABEL_GUTTER\.right - RULER_LABEL_GUTTER\.left\)/,
+    'long ruler values are fitted to the right gutter without changing graph geometry')
   assert.match(graphSource, /onKeyDown=\{handleRulerKeyDown\}/, 'the visual ruler remains keyboard operable')
   const rulerKeyHandlerSource = graphSource.slice(graphSource.indexOf('const handleRulerKeyDown'), graphSource.indexOf('const pricePoints'))
   assert.match(rulerKeyHandlerSource, /ArrowUp:\s*step/)

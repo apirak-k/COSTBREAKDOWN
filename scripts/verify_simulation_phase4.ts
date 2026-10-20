@@ -162,7 +162,22 @@ assert.match(graphSvg, /aria-label="Current Selling Price: 555\.00 THB\/PC"/,
 assert.match(graphSvg, /aria-label="Custom Selling Price: 777\.00 THB\/PC"/,
   'the Custom graph state uses the Custom role-local Business draft')
 
-const { SimulationPage } = await import('../src/features/simulation/SimulationPage.tsx')
+const { SimulationPage, filterSimulationTableRows, getSimulationTablePage } = await import('../src/features/simulation/SimulationPage.tsx')
+const pageFixture = Array.from({ length: 9 }, (_, index) => ({ row: { name: `Material ${index + 1}` }, index }))
+assert.deepEqual(filterSimulationTableRows(pageFixture, '  mAtErIaL 3 '), [pageFixture[2]],
+  'Simulation table search trims and matches names case-insensitively')
+assert.deepEqual(filterSimulationTableRows(pageFixture, ''), pageFixture,
+  'an empty Simulation table search preserves source order')
+const secondTablePage = getSimulationTablePage(pageFixture, 1)
+assert.deepEqual(secondTablePage.rows.map(({ index }) => index), [4, 5, 6, 7],
+  'Simulation table pages expose four rows in stable order')
+assert.deepEqual([secondTablePage.start, secondTablePage.end, secondTablePage.total], [5, 8, 9],
+  'Simulation table range text reflects the current page and total matches')
+const lastTablePage = getSimulationTablePage(pageFixture, 99)
+assert.deepEqual(lastTablePage.rows.map(({ index }) => index), [8],
+  'Simulation table navigation clamps to the last partial page')
+assert.deepEqual(getSimulationTablePage([], 3), { rows: [], pageIndex: 0, total: 0, start: 0, end: 0 },
+  'empty Simulation table pages report a safe zero range')
 const renderPage = (
   workspace: typeof state,
   beforeRole: MasterDataRole,
@@ -269,6 +284,23 @@ assert.match(pairPage, /aria-label="Select Current as active dataset"[^>]*aria-p
   'active Current remains visually selected while Result is Reference to Custom')
 const activeBomTable = pairPage.match(/<section data-simulation-table="bom"[\s\S]*?<\/section>/)?.[0] ?? ''
 assert.ok(activeBomTable, 'the active role BOM table renders')
+const activeRoutingTable = pairPage.match(/<section data-simulation-table="routing"[\s\S]*?<\/section>/)?.[0] ?? ''
+assert.ok(activeRoutingTable, 'the active role Routing table renders')
+for (const [table, footerKind, searchName, shortName] of [
+  [activeBomTable, 'bom', 'Search BOM by Material', 'BOM'],
+  [activeRoutingTable, 'routing', 'Search RTG by Process', 'RTG']
+] as const) {
+  const footer = table.match(/<footer data-simulation-table-footer="[^"]+"[\s\S]*?<\/footer>/)?.[0] ?? ''
+  assert.ok(footer, `${shortName} has its own compact table footer`)
+  assert.match(footer, new RegExp(`data-simulation-table-footer="${footerKind}"`), `${shortName} footer is independently identified`)
+  assert.match(footer, new RegExp(`aria-label="${searchName}"`), `${shortName} footer exposes its own search control`)
+  assert.match(footer, /1–1 of 1/, `${shortName} footer shows the current page range`)
+  const footerButtons = [...footer.matchAll(/<button\b([^>]*)>/g)].map(([, attributes]) => attributes)
+  assert.ok(footerButtons.some(attributes => attributes.includes(`aria-label="Previous ${shortName} rows"`) && /\bdisabled(?:="")?/.test(attributes)),
+    `${shortName} previous control is disabled on its first page`)
+  assert.ok(footerButtons.some(attributes => attributes.includes(`aria-label="Next ${shortName} rows"`) && /\bdisabled(?:="")?/.test(attributes)),
+    `${shortName} next control is disabled on its last page`)
+}
 assert.match(inputFor(activeBomTable, 'Shared material Price in Current'), /value="20\.00"/,
   'parameter editing remains scoped to active Current while Result uses Reference and Custom')
 assert.match(activeBomTable, /UNCHANGED/, 'active Current row status uses the active role baseline')
@@ -349,6 +381,7 @@ for (const activeRole of roles) {
 }
 
 const pageSource = readFileSync(resolve(process.cwd(), 'src/features/simulation/SimulationPage.tsx'), 'utf8')
+const parameterTableSource = pageSource.slice(pageSource.indexOf('function SimulationParameterTable('), pageSource.indexOf('function ResultPanel('))
 const graphSource = readFileSync(resolve(process.cwd(), 'src/features/simulation/SimulationStoryGraph.tsx'), 'utf8')
 const sharedSelectorSource = readFileSync(resolve(process.cwd(), 'src/shared/ui/ComparisonRoleSelector.tsx'), 'utf8')
 const cbdPageSource = readFileSync(resolve(process.cwd(), 'src/features/cost-breakdown/CostBreakdownPage.tsx'), 'utf8')
@@ -357,17 +390,17 @@ assert.match(graphSource, /onClick=\{\(\) => onSelectActiveDataset\(category\.ro
   '[source contract] graph role controls select activeDataset')
 assert.match(pageSource, /onChange=\{role => onChangeComparison\(role, afterRole\)\}[\s\S]*?onChange=\{role => onChangeComparison\(beforeRole, role\)\}/,
   '[source contract] Before and After selectors update only their own comparison side')
-const upperWorkspaceStart = pageSource.indexOf('xl:grid-cols-[minmax(0,2.82fr)_minmax(0,1.48fr)_minmax(0,1fr)]')
+const upperWorkspaceStart = pageSource.indexOf('xl:grid-cols-[minmax(0,2.82fr)_minmax(0,1.63fr)_minmax(max-content,.85fr)]')
 const upperWorkspaceEnd = pageSource.indexOf('<div className="grid min-w-0 gap-2 xl:flex-none xl:grid-cols-2', upperWorkspaceStart)
 const upperWorkspaceSource = upperWorkspaceStart >= 0 && upperWorkspaceEnd > upperWorkspaceStart
   ? pageSource.slice(upperWorkspaceStart, upperWorkspaceEnd)
   : ''
 assert.ok(upperWorkspaceSource, '[source contract] desktop upper workspace source is present')
-assert.match(upperWorkspaceSource, /xl:grid-cols-\[minmax\(0,2\.82fr\)_minmax\(0,1\.48fr\)_minmax\(0,1fr\)\]/,
-  '[source contract] direct desktop columns allocate about 53% Graph, 28% Result/Break-even, and 19% Business/Economic')
+assert.match(upperWorkspaceSource, /xl:grid-cols-\[minmax\(0,2\.82fr\)_minmax\(0,1\.63fr\)_minmax\(max-content,\.85fr\)\]/,
+  '[source contract] direct desktop columns allocate about 53% Graph, 31% Result/Break-even, and a content-sized supporting Business/Economic column')
 assert.ok(2.82 / 5.3 >= 0.52 && 2.82 / 5.3 <= 0.55)
-assert.ok(1.48 / 5.3 >= 0.27 && 1.48 / 5.3 <= 0.30)
-assert.ok(1 / 5.3 >= 0.18 && 1 / 5.3 <= 0.20)
+assert.ok(1.63 / 5.3 >= 0.30 && 1.63 / 5.3 <= 0.32)
+assert.ok(.85 / 5.3 >= 0.15 && .85 / 5.3 <= 0.17)
 const resultColumnSource = upperWorkspaceSource.match(/<div data-simulation-layout-column="result-and-break-even"[\s\S]*?<EconomicSimulationPanel/)?.[0] ?? ''
 assert.match(resultColumnSource, /<ResultPanel[\s\S]*?<EconomicBreakEvenGraphPanel[\s\S]*?<\/div>\s*<EconomicSimulationPanel/,
   '[source contract] Result sits above Break-even in the middle column before far-right Business/Economic')
@@ -411,12 +444,18 @@ assert.match(pageSource, /const financialFor = \(role: MasterDataRole\)[\s\S]*?e
   '[source contract] graph story calculates each effective role dataset independently')
 assert.match(pageSource, /calculateParameterSimulation\(state\.baselineSnapshot, simulationSnapshot\)[\s\S]*?baselineSnapshot=\{state\.baselineSnapshot\}/,
   '[source contract] BOM and RTG parameter rows/effects use the active role baseline')
-assert.match(pageSource, /data-simulation-table-body="true"[^>]*xl:h-40[^>]*xl:overflow-y-auto/,
-  '[source contract] desktop BOM/Routing bodies have a four-row-height internal scroll viewport')
-assert.match(pageSource, /\{visibleRows\.map\(\(\{ row, sourceIndex \}\)/,
-  '[source contract] all simulation rows continue rendering inside the scroll viewport')
-assert.doesNotMatch(pageSource, /visibleRows\.slice\(0,\s*4\)|rows\.slice\(0,\s*4\)/,
-  '[source contract] four-row viewport does not delete rows from rendering')
+assert.match(parameterTableSource, /const filteredRows = filterSimulationTableRows\(tableRows, searchQuery\)/,
+  '[source contract] each independent BOM/RTG search filters its own rows')
+assert.match(parameterTableSource, /const page = getSimulationTablePage\(orderedRows, pageIndex\)[\s\S]*?const visibleRows = page\.rows/,
+  '[source contract] each table renders only the current four-row page')
+assert.match(parameterTableSource, /const selectableTargets = filteredRows\.flatMap/,
+  '[source contract] header selection covers every eligible match across all search-result pages')
+assert.match(parameterTableSource, /setPageIndex\(0\)[\s\S]*?aria-label=\{`Search \$\{searchField\}`\}[\s\S]*?aria-label=\{`Clear \$\{searchField\} search`\}/,
+  '[source contract] search edits and clear actions return the table to its first page')
+assert.match(parameterTableSource, /data-simulation-table-body="true"[^>]*xl:h-40[^>]*xl:overflow-y-auto/,
+  '[source contract] desktop BOM/Routing table bodies retain the compact four-row viewport')
+assert.match(parameterTableSource, /\{visibleRows\.map\(\(\{ row, sourceIndex \}\)/,
+  '[source contract] the current page preserves stable source row numbers')
 assert.doesNotMatch(pageSource, /rows\.filter\(row => row\.kind === kind\s*&&\s*row\.status/,
   '[source contract] the viewport does not filter rows to CHANGED-only')
 assert.match(appSource, /const snapshots = prepareSimulationSendAll\(current, masterDataSnapshots\)[\s\S]*?return sendSimulationSnapshotsToMasterData\(snapshots\)/,

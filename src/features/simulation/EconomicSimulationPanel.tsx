@@ -132,7 +132,10 @@ function BreakEvenGraph({
   return (
     <figure data-safe-workspace-interaction="true" aria-labelledby="break-even-graph-title" className="min-w-0 border border-slate-300 bg-white px-2.5 py-1.5 xl:flex xl:min-h-0 xl:flex-col">
       <figcaption id="break-even-graph-title" className="mb-0.5 flex min-w-0 shrink-0 items-center justify-between gap-1 text-[10px] font-semibold text-slate-700 xl:mb-0">
-        <span>Break-even · {result.breakEvenNotAchievable ? 'Not achievable' : formatQuantity(result.breakEvenQuantity, unit)}</span>
+        <span className="flex min-w-0 items-baseline gap-1 whitespace-nowrap">
+          <span>Break-even</span>
+          <span className="text-[9px] font-normal text-slate-500">({result.breakEvenNotAchievable ? 'Not achieved' : formatQuantity(result.breakEvenQuantity, unit)})</span>
+        </span>
         <span role="group" aria-label="Break-even graph legend" className="flex shrink-0 items-center gap-1.5 text-[9px] font-normal text-slate-600">
           <span role="img" aria-label="Cumulative Parameter Saving" className="inline-flex items-center gap-1 whitespace-nowrap"><i aria-hidden="true" className="h-0.5 w-3 bg-blue-600" />Saving</span>
           <span role="img" aria-label="Total Action Cost" className="inline-flex items-center gap-1 whitespace-nowrap"><i aria-hidden="true" className="h-0.5 w-3 bg-orange-700" />Action Cost</span>
@@ -283,7 +286,14 @@ export function EconomicSimulationPanel({ result, draft, afterSnapshot, unit, on
     { field: 'sgaPercentOverride', label: 'SG&A %', unit: '', precision: 2, min: 0, max: 100 }
   ]
 
-  const economicOutputs = [
+  const economicOutputs: Array<{
+    label: string
+    ariaLabel: string
+    formula: string
+    value: number | null
+    displayValue?: string
+    className: string
+  }> = [
     {
       label: 'Parameter Saving', ariaLabel: 'Parameter Saving / Unit', formula: 'Current Standard Cost − SIM Standard Cost', value: result.parameterSavingPerPiece,
       className: result.parameterSavingPerPiece === null ? 'text-slate-500'
@@ -301,6 +311,14 @@ export function EconomicSimulationPanel({ result, draft, afterSnapshot, unit, on
           : result.economicMarginPerPiece < 0 ? 'text-rose-800' : 'text-slate-600'
     }
   ]
+  economicOutputs.push({
+    label: 'Break-even Qty',
+    ariaLabel: 'Break-even Quantity',
+    formula: 'Fixed Action Cost ÷ (Parameter Saving / Unit − Variable Action Cost / Unit)',
+    value: null,
+    displayValue: result.breakEvenNotAchievable ? 'Not achieved' : formatQuantity(result.breakEvenQuantity, normalizedUnit),
+    className: 'text-slate-600'
+  })
   return (
     <div data-safe-workspace-interaction="true" data-simulation-layout-column="inputs" aria-label="Economic and Business" className="grid min-w-0 divide-y divide-slate-200 border border-slate-300 bg-white xl:h-full xl:min-h-0 xl:grid-rows-[minmax(min-content,.95fr)_minmax(0,2.45fr)]">
       <section className="min-w-0 px-2.5 py-1.5 xl:min-h-0" aria-labelledby="simulation-business-inputs-title">
@@ -356,10 +374,10 @@ export function EconomicSimulationPanel({ result, draft, afterSnapshot, unit, on
               <span>THB/{normalizedUnit}</span>
             </div>
             <div className="mt-1 grid grid-cols-1 gap-y-0">
-              {economicOutputs.map(({ label, ariaLabel, formula, value, className }) => (
+              {economicOutputs.map(({ label, ariaLabel, formula, value, displayValue, className }) => (
                 <div key={label} role="group" aria-label={ariaLabel} className="flex min-w-0 items-baseline justify-between gap-1 py-0.5 xl:py-0" title={formula}>
                   <span className="truncate text-[9px] text-slate-600">{label}</span>
-                  <span className={`shrink-0 font-mono text-[10px] font-semibold tabular-nums ${className}`}>{formatValue(value)}</span>
+                  <span className={`shrink-0 font-mono text-[10px] font-semibold tabular-nums ${className}`}>{displayValue ?? formatValue(value)}</span>
                 </div>
               ))}
             </div>
