@@ -53,15 +53,15 @@ interface SimulationPageProps {
 }
 
 const BOM_PARAMETERS = [
-  { parameter: 'bom.price', field: 'price', label: 'Price', precision: 2, scale: 1, effectKey: 'price' },
-  { parameter: 'bom.consumption', field: 'consumption', label: 'Usage', precision: 4, scale: 1, effectKey: 'usage' },
-  { parameter: 'bom.loss', field: 'loss', label: 'Loss', precision: 2, scale: 100, effectKey: 'loss' }
+  { parameter: 'bom.price', field: 'price', label: 'Price', scale: 1, effectKey: 'price' },
+  { parameter: 'bom.consumption', field: 'consumption', label: 'Usage', scale: 1, effectKey: 'usage' },
+  { parameter: 'bom.loss', field: 'loss', label: 'Loss', scale: 100, effectKey: 'loss' }
 ] as const
 
 const RTG_PARAMETERS = [
-  { parameter: 'routing.manning', field: 'manning', label: 'Manning', precision: 2, scale: 1, effectKey: 'manning' },
-  { parameter: 'routing.capacity', field: 'capacity', label: 'Capacity', precision: 4, scale: 1, effectKey: 'capacity' },
-  { parameter: 'routing.yield', field: 'yield', label: 'Yield', precision: 2, scale: 100, effectKey: 'yield' }
+  { parameter: 'routing.manning', field: 'manning', label: 'Manning', scale: 1, effectKey: 'manning' },
+  { parameter: 'routing.capacity', field: 'capacity', label: 'Capacity', scale: 1, effectKey: 'capacity' },
+  { parameter: 'routing.yield', field: 'yield', label: 'Yield', scale: 100, effectKey: 'yield' }
 ] as const
 
 type EffectValues = ReturnType<typeof calculateMultiplicativeCostAttribution>
@@ -775,7 +775,6 @@ function SimulationParameterTable({
                               <SimulationHistoryInputBoundary onBegin={onBeginEdit} onCommit={onCommitEdit}>
                                 <NumericInput
                                   value={value}
-                                  precision={parameter.precision}
                                   min={0}
                                   minExclusive={parameter.parameter === 'routing.capacity' || parameter.parameter === 'routing.yield'}
                                   max={parameter.parameter === 'routing.yield' || parameter.parameter === 'bom.loss' ? 100 : undefined}
@@ -923,7 +922,6 @@ function SimulationParameterTable({
                           <SimulationHistoryInputBoundary onBegin={onBeginEdit} onCommit={onCommitEdit}>
                             <NumericInput
                               value={value}
-                              precision={parameter.precision}
                               min={0}
                               minExclusive={parameter.parameter === 'routing.capacity' || parameter.parameter === 'routing.yield'}
                               max={parameter.parameter === 'routing.yield' || parameter.parameter === 'bom.loss' ? 100 : undefined}

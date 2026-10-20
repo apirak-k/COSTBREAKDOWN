@@ -1,4 +1,29 @@
-# Current Handoff — Phase 5 Final Closure — 2026-10-20
+# Current Handoff — Phase 1 decimal input runtime correction — 2026-10-20
+
+## Runtime checkpoint
+
+- The existing Vite dev server is PID `96264`, listening on `[::1]:5173`. Its executable path resolves to `/Users/bubu/COSTBREAKDOWN-ref-current-custom-flow-redesign/node_modules/.bin/vite`.
+- The server is serving `/Users/bubu/COSTBREAKDOWN-ref-current-custom-flow-redesign`, branch `feat/ref-current-custom-flow-redesign`, HEAD `0b4e0ac7a27d0173bbe0fc14a10c26dbd99eb851`. All changes below are uncommitted in that served checkout; no commit, push, or merge was made.
+- The separate Phase 1 checkout `/Users/bubu/COSTBREAKDOWN` is on `logic/simulation-finalized-implementation` at `94a1d90135033797375463f5f0073079848e39ac`; it was not the checkout serving port 5173.
+
+## Root cause and correction
+
+- Before this correction, real-browser typing on the served checkout truncated Master Data Selling Price, Simulation Price, Business Selling Price, and Economic Variable Action Cost from `12.3456789` to `12.34`.
+- The served source still had multiple independent acceptance gates: `NumericInput` defaulted to precision 2 and its shared draft regex capped digits; Master Data validation enforced scaled hundredths; Simulation parameter validation enforced per-field precision counts; Economic validation used a one-to-two-decimal regex.
+- Removed decimal-count acceptance limits at those shared and caller validation boundaries while retaining finite-number and business-domain checks. Capacity/Yield remain strictly positive with no precision-derived minimum. Integer fields such as Batch Size remain whole numbers. Display formatting and formulas remain unchanged.
+- Added a real-browser verifier that can run its own isolated Vite server or target the existing server with `COSTBREAKDOWN_BROWSER_BASE_URL`.
+
+## Verification
+
+- **PASS:** `COSTBREAKDOWN_BROWSER_BASE_URL=http://localhost:5173/ node scripts/verify_numeric_input_browser.mjs` in isolated Chrome at 1440×1800. Master Data, Simulation, Business, and Economic each accepted the complete focused value `12.3456789`; after blur each displayed `12.35`.
+- **BEFORE reproduction:** the same four live UI inputs truncated the typed value to `12.34`.
+- **PASS:** `node scripts/verify_numeric_input.mjs`, `node scripts/verify_master_data_ui_state.mjs`, `node_modules/.bin/jiti scripts/verify_master_data_toolbar_prepare_ux.ts`, `node_modules/.bin/jiti scripts/verify_master_data_spreadsheet_batch.ts`, `node_modules/.bin/jiti scripts/verify_parameter_simulation_engine.ts`, `node_modules/.bin/jiti scripts/verify_snapshot_import.ts`, `node_modules/.bin/jiti scripts/verify_import_mismatch_export.ts`, and `node scripts/verify_simulation_regression.mjs`.
+- **PASS:** `npm run build` and `git diff --check`. Build retains existing ExcelJS browser externalization and >500 kB chunk advisories. The Simulation regression runner prints existing Vite WebSocket port-24678-in-use warnings but exits 0.
+- The browser check exercised the actual UI on the server's current worktree. It verifies typing/state retention through blur and normal display formatting; it is not a narrow-screen, accessibility, or manual visual review.
+
+---
+
+# Previous Handoff — Phase 5 Final Closure — 2026-10-20
 
 ## Checkpoint and delivery
 

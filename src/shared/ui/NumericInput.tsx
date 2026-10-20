@@ -30,7 +30,6 @@ export function NumericInput({
   onValueChange,
   className,
   integer,
-  precision = 2,
   min,
   max,
   minExclusive,
@@ -45,7 +44,7 @@ export function NumericInput({
   style,
   ...inputProps
 }: NumericInputProps) {
-  const domain: NumericInputDomain = { integer, precision, min, max, minExclusive }
+  const domain: NumericInputDomain = { integer, min, max, minExclusive }
   const inputRef = useRef<HTMLInputElement>(null)
   const wrapperRef = useRef<HTMLDivElement>(null)
   const currentValueRef = useRef(value)
@@ -145,7 +144,7 @@ export function NumericInput({
 
     previousValueRef.current = value
     previousFormattedValueRef.current = formattedValue
-  }, [draft, focused, value, integer, precision, min, max, minExclusive, minimumDisplayPrecision])
+  }, [draft, focused, value, integer, min, max, minExclusive, minimumDisplayPrecision])
 
   useIsomorphicLayoutEffect(() => {
     const exponent = restorePlaceRef.current
@@ -243,7 +242,7 @@ export function NumericInput({
 
     input.addEventListener('wheel', handleWheel, { passive: false })
     return () => input.removeEventListener('wheel', handleWheel)
-  }, [focused, draft, integer, precision, min, max, minExclusive])
+  }, [focused, draft, integer, min, max, minExclusive])
 
   return (
     <div ref={wrapperRef} className="relative w-full min-w-0">

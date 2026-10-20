@@ -19,8 +19,8 @@ const testSnapshot: CostSnapshot = {
     productCode: '',
     productDescription: 'Round-Trip Product',
     uom: 'PC',
-    sellingPrice: 125,
-    sgaPercent: 8,
+    sellingPrice: 100.123456789,
+    sgaPercent: 8.123456789,
     note: 'Legacy product note is intentionally excluded',
     customer: '',
     effectiveDate: '',
@@ -31,8 +31,8 @@ const testSnapshot: CostSnapshot = {
       id: 'wc-1',
       workCenterCode: 'WC-CUT',
       description: 'Cutting Station',
-      laborRate: 120,
-      burdenRate: 80,
+      laborRate: 120.123456789,
+      burdenRate: 80.987654321,
       effectiveDate: '2026-09-24',
       note: 'Work Center annotation',
       confidence: {},
@@ -57,10 +57,10 @@ const testSnapshot: CostSnapshot = {
       id: 'bom-1',
       itemCode: 'MAT-01',
       description: 'Aluminum Extrusion',
-      consumption: 1.25,
+      consumption: 1.23456789,
       unit: 'KG',
-      price: 45.5,
-      loss: 0.03,
+      price: 45.678912345,
+      loss: 0.030123456789,
       note: 'BOM annotation',
       confidence: {},
       additionalFields: { Supplier: 'Factory A', 'Material Group': 'Film' }
@@ -89,9 +89,9 @@ const testSnapshot: CostSnapshot = {
       processCode: 'PRC-01',
       processName: 'Saw Cutting',
       workCenterId: 'WC-CUT',
-      manning: 1,
-      capacity: 500,
-      yield: 0.99,
+      manning: 1.123456789,
+      capacity: 500.123456789,
+      yield: 0.99123456789,
       note: 'Routing annotation',
       confidence: {},
       additionalFields: { 'Operator Note': 'Keep guard fitted' }
@@ -132,12 +132,13 @@ async function runTests() {
   const parsed = importResult.snapshot!
   assert.equal(parsed.product.productName, 'Round-Trip Product')
   assert.equal(parsed.product.uom, 'PC')
-  assert.equal(parsed.product.sellingPrice, 125)
-  assert.equal(parsed.product.sgaPercent, 8)
+  assert.equal(parsed.product.sellingPrice, 100.123456789)
+  assert.equal(parsed.product.sgaPercent, 8.123456789)
   assert.equal(parsed.product.note, '')
   assert.equal(parsed.rates.length, 2, 'Export and Import retain the blank Sizing Work Center row')
   assert.equal(parsed.rates[0].workCenterCode, 'WC-CUT')
-  assert.equal(parsed.rates[0].laborRate, 120)
+  assert.equal(parsed.rates[0].laborRate, 120.123456789)
+  assert.equal(parsed.rates[0].burdenRate, 80.987654321)
   assert.equal(parsed.rates[0].note, 'Work Center annotation')
   assert.equal(parsed.rates[0].additionalFields?.['Supplier Group'], undefined)
   assert.equal(parsed.rates[1].workCenterCode, 'Work Center 1', 'generated Work Center identity is exported as an effective value')
@@ -145,8 +146,9 @@ async function runTests() {
   assert.equal(parsed.rates[1].id, 'rate-5', 'export/import retains a stable internal row identifier for the effective name row')
   assert.equal(parsed.bom.length, 2, 'Export and Import retain the blank Sizing BOM row')
   assert.equal(parsed.bom[0].description, 'Aluminum Extrusion')
-  assert.equal(parsed.bom[0].consumption, 1.25)
-  assert.equal(parsed.bom[0].price, 45.5)
+  assert.equal(parsed.bom[0].consumption, 1.23456789)
+  assert.equal(parsed.bom[0].price, 45.678912345)
+  assert.equal(parsed.bom[0].loss, 0.030123456789)
   assert.equal(parsed.bom[0].note, 'BOM annotation')
   assert.equal(parsed.bom[0].additionalFields?.Supplier, undefined)
   assert.equal(parsed.bom[0].additionalFields?.['Material Group'], undefined)
@@ -158,7 +160,9 @@ async function runTests() {
   assert.equal(parsed.routing[0].processName, 'Saw Cutting')
   assert.equal(parsed.routing[0].operationCode, undefined)
   assert.equal(parsed.routing[0].processCode, undefined)
-  assert.equal(parsed.routing[0].capacity, 500)
+  assert.equal(parsed.routing[0].manning, 1.123456789)
+  assert.equal(parsed.routing[0].capacity, 500.123456789)
+  assert.equal(parsed.routing[0].yield, 0.99123456789)
   assert.equal(parsed.routing[0].note, 'Routing annotation')
   assert.equal(parsed.warnings?.some(warning => warning.includes('Operation Code')), false)
   assert.equal(parsed.routing[0].additionalFields?.['Operator Note'], undefined)
@@ -180,8 +184,8 @@ async function runTests() {
   assert.deepEqual(metaRows.slice(2, 7), [
     ['PRODUCT NAME', 'Round-Trip Product'],
     ['UOM', 'PC'],
-    ['SELLING PRICE', 125],
-    ['SG&A %', 8],
+    ['SELLING PRICE', 100.123456789],
+    ['SG&A %', 8.123456789],
     ['DATASET REMARK', 'Dataset annotation']
   ])
   const workCenterRows = XLSX.utils.sheet_to_json(exportedWorkbook.Sheets.WORK_CENTER, { header: 1, defval: null }) as unknown[][]

@@ -68,6 +68,28 @@ const priceResult = calculateParameterSimulation(current, changedCurrentSnapshot
 assert.equal(priceResult.beforeCost.material, 21)
 assertClose(priceResult.afterCost.material, 25.2, 'After Material Cost')
 assertClose(priceResult.parameterSavingPerPiece, -4.2, 'Parameter Saving uses Before - After')
+
+const precisePriceEdit = updateSimulationParameter(state, sources, 'current-steel', 'bom.price', 12.3456789, 'current')
+const precisePriceSnapshot = getEffectiveSimulationDataset(sources, precisePriceEdit, 'current').snapshot
+assert.equal(precisePriceSnapshot.bom[0]?.price, 12.3456789, 'Simulation stores the complete typed Price value')
+assertClose(calculateParameterSimulation(current, precisePriceSnapshot).afterCost.material, 25.92592569,
+  'Simulation calculation uses high-precision Price instead of its two-decimal display')
+const preciseUsageEdit = updateSimulationParameter(state, sources, 'current-steel', 'bom.consumption', 1.23456789, 'current')
+const preciseUsageSnapshot = getEffectiveSimulationDataset(sources, preciseUsageEdit, 'current').snapshot
+assert.equal(preciseUsageSnapshot.bom[0]?.consumption, 1.23456789, 'Simulation stores the complete typed Usage value')
+assertClose(calculateParameterSimulation(current, preciseUsageSnapshot).afterCost.material, 12.962962845,
+  'Simulation calculation uses high-precision Usage instead of its two-decimal display')
+const tinyCapacityEdit = updateSimulationParameter(state, sources, 'current-cut', 'routing.capacity', 0.0000001, 'current')
+const tinyCapacitySnapshot = getEffectiveSimulationDataset(sources, tinyCapacityEdit, 'current').snapshot
+assert.equal(tinyCapacitySnapshot.routing[0]?.capacity, 0.0000001, 'Capacity accepts and stores any positive representable value')
+assert.equal(calculateParameterSimulation(current, tinyCapacitySnapshot).afterCost.labor, 1_000_000_000.1,
+  'Capacity calculation uses the actual positive value')
+const preciseYieldEdit = updateSimulationParameter(state, sources, 'current-cut', 'routing.yield', 0.99123456789, 'current')
+const preciseYieldSnapshot = getEffectiveSimulationDataset(sources, preciseYieldEdit, 'current').snapshot
+assert.equal(preciseYieldSnapshot.routing[0]?.yield, 0.99123456789, 'Yield accepts high precision while retaining its stored fractional domain')
+assertClose(calculateParameterSimulation(current, preciseYieldSnapshot).afterCost.labor, 100 / (100 * 0.99123456789) + 0.1,
+  'Yield calculation uses the stored high-precision fraction')
+
 const priceAttribution = calculateMultiplicativeCostAttribution(21, 25.2, [
   { key: 'price', baseline: 10, target: 12 },
   { key: 'usage', baseline: 2, target: 2 },

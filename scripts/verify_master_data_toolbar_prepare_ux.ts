@@ -211,11 +211,11 @@ const validationBase = snapshot('validation-base')
 validationBase.rates = [{ id: 'wc-valid', workCenterCode: 'WC-1', description: '', laborRate: 1, burdenRate: 1, effectiveDate: '', confidence: {} }]
 validationBase.bom = [{ id: 'bom-valid', itemCode: '', description: 'Material', consumption: 1, unit: 'PC', price: 1, loss: 0, confidence: {} }]
 validationBase.routing = [{ id: 'routing-valid', processName: 'Cut', workCenterId: 'WC-1', manning: 1, capacity: 1, yield: 1, confidence: {} }]
-const metadataNumericDomain = { min: 0, precision: 2 }
+const metadataNumericDomain = { min: 0 }
 for (const field of ['Selling Price', 'SG&A'] as const) {
   assert.equal(parseNumericDraft('0', metadataNumericDomain).kind, 'valid', `${field} accepts zero`)
-  assert.equal(parseNumericDraft('0.01', metadataNumericDomain).kind, 'valid', `${field} accepts the editor's 0.01 precision boundary`)
-  assert.equal(parseNumericDraft('0.001', metadataNumericDomain).kind, 'invalid', `${field} rejects precision beyond the editor's two decimals`)
+  assert.equal(parseNumericDraft('0.01', metadataNumericDomain).kind, 'valid', `${field} accepts decimal input`)
+  assert.equal(parseNumericDraft('0.001', metadataNumericDomain).kind, 'valid', `${field} accepts precision beyond its former two-decimal limit`)
   assert.notEqual(parseNumericDraft('-0.01', metadataNumericDomain).kind, 'valid', `${field} rejects negative input`)
   assert.equal(parseNumericDraft('NaN', metadataNumericDomain).kind, 'invalid', `${field} rejects NaN input`)
   assert.equal(parseNumericDraft('Infinity', metadataNumericDomain).kind, 'invalid', `${field} rejects Infinity input`)
@@ -241,8 +241,8 @@ assert.equal(isMasterDataSnapshotChangeValid(nullableMetadataBefore, nullableMet
 const scalarNumericFields = ['sellingPrice', 'sgaPercent', 'consumption', 'price', 'laborRate', 'burdenRate', 'manning'] as const
 for (const field of scalarNumericFields) {
   assert.equal(isMasterDataNumericInputValid(field, 0), true, `${field} accepts an explicitly entered zero`)
-  assert.equal(isMasterDataNumericInputValid(field, 0.01), true, `${field} accepts its two-decimal display boundary`)
-  assert.equal(isMasterDataNumericInputValid(field, 0.001), false, `${field} rejects precision that cannot be represented by its editor`)
+  assert.equal(isMasterDataNumericInputValid(field, 0.01), true, `${field} accepts decimal values`)
+  assert.equal(isMasterDataNumericInputValid(field, 0.001), true, `${field} accepts higher precision within its domain`)
   assert.equal(isMasterDataNumericInputValid(field, -0.01), false, `${field} rejects negative values`)
   assert.equal(isMasterDataNumericInputValid(field, Number.NaN), false, `${field} rejects NaN`)
   assert.equal(isMasterDataNumericInputValid(field, Number.POSITIVE_INFINITY), false, `${field} rejects Infinity`)
@@ -250,17 +250,19 @@ for (const field of scalarNumericFields) {
 }
 assert.equal(isMasterDataNumericInputValid('sgaPercent', 100), true, 'SG&A accepts 100%')
 assert.equal(isMasterDataNumericInputValid('sgaPercent', 100.01), false, 'SG&A rejects values above 100%')
-assert.equal(isMasterDataNumericInputValid('capacity', 0.01), true, 'Capacity accepts a positive two-decimal boundary')
+assert.equal(isMasterDataNumericInputValid('capacity', 0.01), true, 'Capacity accepts a positive value')
 assert.equal(isMasterDataNumericInputValid('capacity', 0), false, 'Capacity rejects zero')
-assert.equal(isMasterDataNumericInputValid('capacity', 0.001), false, 'Capacity rejects unsupported decimal precision')
+assert.equal(isMasterDataNumericInputValid('capacity', 0.001), true, 'Capacity accepts high precision above zero')
+assert.equal(isMasterDataNumericInputValid('capacity', Number.MIN_VALUE), true, 'Capacity accepts the smallest representable positive value')
 assert.equal(isMasterDataNumericInputValid('loss', 0), true, 'Loss accepts zero')
-assert.equal(isMasterDataNumericInputValid('loss', 0.0001), true, 'Loss accepts the 0.01 percentage-point input step')
-assert.equal(isMasterDataNumericInputValid('loss', 0.00001), false, 'Loss rejects values finer than its displayed percentage step')
-assert.equal(isMasterDataNumericInputValid('yield', 0.0001), true, 'Yield accepts the smallest positive 0.01 percentage-point step')
+assert.equal(isMasterDataNumericInputValid('loss', 0.0001), true, 'Loss accepts its in-domain percentage fraction')
+assert.equal(isMasterDataNumericInputValid('loss', 0.00001), true, 'Loss accepts values finer than its displayed percentage precision')
+assert.equal(isMasterDataNumericInputValid('yield', 0.0001), true, 'Yield accepts small positive values within its domain')
+assert.equal(isMasterDataNumericInputValid('yield', Number.MIN_VALUE), true, 'Yield accepts the smallest representable positive value')
 assert.equal(isMasterDataNumericInputValid('yield', 1), true, 'Yield accepts the inclusive 100% boundary')
 assert.equal(isMasterDataNumericInputValid('yield', 0), false, 'Yield rejects zero')
 assert.equal(isMasterDataNumericInputValid('yield', 1.0001), false, 'Yield rejects values above 100%')
-assert.equal(isMasterDataNumericInputValid('yield', 0.00001), false, 'Yield rejects values finer than its displayed percentage step')
+assert.equal(isMasterDataNumericInputValid('yield', 0.00001), true, 'Yield accepts values finer than its displayed percentage precision')
 
 assert.equal(hasInvalidNumber('loss', 1.2), true, 'local Loss state follows the stored-value maximum')
 assert.equal(hasInvalidNumber('yield', 1.2), true, 'local Yield state follows the stored-value maximum')
@@ -319,8 +321,8 @@ const invalidNumericChange = structuredClone(validationBase)
 invalidNumericChange.bom[0].consumption = -1
 assert.equal(isMasterDataSnapshotChangeValid(validationBase, invalidNumericChange), false,
   'normal Working updates reject newly introduced negative numbers')
-assert.deepEqual(filterInvalidMasterDataNumericChanges({ consumption: Number.NaN, price: 0.001, note: 'keep this edit' }), { note: 'keep this edit' },
-  'a mixed multi-cell paste drops non-finite and unsupported-precision numeric fields while retaining the valid text edit')
+assert.deepEqual(filterInvalidMasterDataNumericChanges({ consumption: Number.NaN, price: 0.001, note: 'keep this edit' }), { price: 0.001, note: 'keep this edit' },
+  'a mixed multi-cell paste drops non-finite numeric fields while retaining valid high-precision numbers and text edits')
 const invalidCapacityChange = structuredClone(validationBase)
 invalidCapacityChange.routing[0].capacity = 0
 assert.equal(isMasterDataSnapshotChangeValid(validationBase, invalidCapacityChange), false,

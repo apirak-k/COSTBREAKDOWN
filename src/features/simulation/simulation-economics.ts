@@ -52,7 +52,7 @@ export function isEconomicSimulationInputValid(field: EconomicSimulationField, r
   if (!Number.isFinite(value)) return false
   const normalized = raw.trim()
   const isInteger = field === 'batchSize'
-  if (!(isInteger ? /^\d+$/.test(normalized) : /^\d+(?:\.\d{1,2})?$/.test(normalized))) return false
+  if (!(isInteger ? /^\d+$/.test(normalized) : /^\d+(?:\.\d*)?(?:[eE][+-]?\d+)?$/.test(normalized))) return false
   if (field === 'batchSize') return value > 0 && Number.isInteger(value)
   if (field === 'sgaPercentOverride') return isMasterDataNumericValueValid('sgaPercent', value)
   if (field === 'sellingPriceOverride') return isMasterDataNumericValueValid('sellingPrice', value)
@@ -85,7 +85,7 @@ function parseInput(
       ? `${label} must be a positive whole number.`
       : field === 'sgaPercentOverride'
         ? `${label} must be between 0% and 100%.`
-        : `${label} must be zero or greater and use at most two decimal places.`)
+        : `${label} must be zero or greater.`)
     return null
   }
   return value
@@ -107,7 +107,7 @@ function parseOverride(
   if (!isEconomicSimulationInputValid(field, raw)) {
     warnings.push(field === 'sgaPercentOverride'
       ? `${label} override must be between 0% and 100%.`
-      : `${label} override must be zero or greater and use at most two decimal places.`)
+      : `${label} override must be zero or greater.`)
     return null
   }
   return value

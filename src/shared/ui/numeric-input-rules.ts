@@ -1,6 +1,5 @@
 export interface NumericInputDomain {
   integer?: boolean
-  precision?: number
   min?: number
   max?: number
   minExclusive?: boolean
@@ -22,16 +21,11 @@ export function resolveNumericWheelStepDirection(deltaY: number): 1 | -1 {
   return deltaY > 0 ? 1 : -1
 }
 
-function precisionOf(domain: NumericInputDomain): number {
-  return domain.integer ? 0 : Math.max(0, Math.min(6, Math.trunc(domain.precision ?? 2)))
-}
-
 export function isNumericDraftSyntax(raw: string, domain: NumericInputDomain = {}): boolean {
-  const precision = precisionOf(domain)
   const allowNegative = domain.min === undefined || domain.min < 0
   const sign = allowNegative ? '-?' : ''
   if (domain.integer) return new RegExp(`^${sign}\\d*$`).test(raw)
-  return new RegExp(`^${sign}(?:\\d+)?(?:\\.\\d{0,${precision}})?$`).test(raw)
+  return new RegExp(`^${sign}(?:\\d+)?(?:\\.\\d*)?$`).test(raw)
 }
 
 export function isNumericValueAllowed(value: number, domain: NumericInputDomain = {}): boolean {
@@ -69,9 +63,8 @@ export function parseNumericDraft(
 
 function firstAllowedAtOrAboveMin(domain: NumericInputDomain): number | undefined {
   if (domain.min === undefined) return undefined
-  if (!domain.minExclusive) return domain.integer ? Math.ceil(domain.min) : domain.min
-  if (domain.integer) return Math.floor(domain.min) + 1
-  return Number((domain.min + (10 ** -precisionOf(domain))).toFixed(precisionOf(domain)))
+  if (domain.minExclusive) return domain.integer ? Math.floor(domain.min) + 1 : undefined
+  return domain.integer ? Math.ceil(domain.min) : domain.min
 }
 
 function firstAllowedAtOrBelowMax(domain: NumericInputDomain): number | undefined {
@@ -79,9 +72,26 @@ function firstAllowedAtOrBelowMax(domain: NumericInputDomain): number | undefine
   return domain.integer ? Math.floor(domain.max) : domain.max
 }
 
+function decimalParts(value: number): { coefficient: bigint; exponent: number } {
+  const [significand, exponentText] = value.toString().toLowerCase().split('e')
+  const [whole, fraction = ''] = significand.split('.')
+  return {
+    coefficient: BigInt(`${whole}${fraction}`),
+    exponent: Number(exponentText ?? 0) - fraction.length
+  }
+}
+
+function addDecimals(left: number, right: number): number {
+  const leftParts = decimalParts(left)
+  const rightParts = decimalParts(right)
+  const exponent = Math.min(leftParts.exponent, rightParts.exponent)
+  const leftCoefficient = leftParts.coefficient * 10n ** BigInt(leftParts.exponent - exponent)
+  const rightCoefficient = rightParts.coefficient * 10n ** BigInt(rightParts.exponent - exponent)
+  return Number(`${leftCoefficient + rightCoefficient}e${exponent}`)
+}
+
 function preciseStep(value: number, delta: number, integer: boolean): number {
-  const result = value + delta
-  return integer ? Math.round(result) : Number(result.toPrecision(12))
+  return integer ? Math.round(value + delta) : addDecimals(value, delta)
 }
 
 export function resolveNumericStepPlace(
@@ -151,6 +161,9 @@ export function stepNumericValue(
   const candidate = preciseStep(current, direction * increment, Boolean(domain.integer))
   if (isNumericValueAllowed(candidate, domain)) return candidate
 
+  if (direction < 0 && lower === undefined && domain.minExclusive && domain.min !== undefined && candidate <= domain.min) {
+    return options.stopAtMinimum ? current : null
+  }
   if (direction < 0 && lower !== undefined && current <= lower + 1e-10) return options.stopAtMinimum ? current : null
   if (direction < 0 && lower !== undefined && candidate < lower) return options.stopAtMinimum ? lower : null
   if (candidate > (upper ?? Number.POSITIVE_INFINITY) && upper !== undefined) return upper
@@ -164,7 +177,7 @@ export function formatNumericInputValue(
 ): string {
   if (value === null || value === undefined || !Number.isFinite(value)) return ''
   if (domain.integer) return String(Math.round(value))
-  // `precision` limits the editable draft; display continuous values consistently.
+  // Display precision is independent of the value accepted by the editor.
   if (minimumDisplayPrecision !== undefined && value !== 0 && Number(value.toFixed(2)) === 0) {
     return value.toFixed(Math.max(2, Math.min(6, Math.trunc(minimumDisplayPrecision))))
   }

@@ -108,23 +108,9 @@ const PARAMETER_FIELDS: Record<SimulationParameter, { kind: SimulationRecordKind
   'routing.yield': { kind: 'routing', field: 'yield' }
 }
 
-const PARAMETER_INPUT_FORMAT: Record<SimulationParameter, { displayScale: number; precision: number }> = {
-  'bom.price': { displayScale: 1, precision: 2 },
-  'bom.consumption': { displayScale: 1, precision: 4 },
-  'bom.loss': { displayScale: 100, precision: 2 },
-  'routing.manning': { displayScale: 1, precision: 2 },
-  'routing.capacity': { displayScale: 1, precision: 4 },
-  'routing.yield': { displayScale: 100, precision: 2 }
-}
-
 export function isSimulationParameterInputValid(parameter: SimulationParameter, value: number | null): boolean {
   const field = PARAMETER_FIELDS[parameter]?.field
-  if (!field) return false
-  if (value === null) return true
-  if (!isMasterDataNumericValueValid(field, value)) return false
-  const { displayScale, precision } = PARAMETER_INPUT_FORMAT[parameter]
-  const scaledValue = value * displayScale * 10 ** precision
-  return Math.abs(scaledValue - Math.round(scaledValue)) < 1e-7
+  return field !== undefined && isMasterDataNumericValueValid(field, value)
 }
 
 export function updateSimulationParameter(

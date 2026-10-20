@@ -51,22 +51,28 @@ try {
   assert.equal(formatNumber(3, 0), '3', 'semantic integers retain zero decimal places')
   assert.equal(formatNumericInputValue(12), '12.00')
   assert.equal(formatNumericInputValue(12.5), '12.50')
-  assert.equal(formatNumericInputValue(12.3456, { precision: 4 }), '12.35', 'display remains two decimal places with a higher-precision input domain')
-  assert.equal(formatNumericInputValue(0.123456, { precision: 4 }), '0.12', 'higher internal precision is not shown as extra display decimals')
-  assert.equal(formatNumericInputValue(0.0001, { precision: 4 }, 4), '0.0001', 'Simulation Capacity minimum stays visibly positive')
-  assert.equal(formatNumericInputValue(0.25, { precision: 4 }, 4), '0.25', 'minimum display precision does not pad ordinary values')
-  assert.equal(formatNumericInputValue(0.0001, { precision: 4 }), '0.00', 'other NumericInput users keep the existing display rule')
+  assert.equal(formatNumericInputValue(12.3456), '12.35', 'display remains two decimal places regardless of stored precision')
+  assert.equal(formatNumericInputValue(0.123456), '0.12', 'higher internal precision is not shown as extra display decimals')
+  assert.equal(formatNumericInputValue(0.0001, {}, 4), '0.0001', 'Simulation Capacity minimum stays visibly positive')
+  assert.equal(formatNumericInputValue(0.25, {}, 4), '0.25', 'minimum display precision does not pad ordinary values')
+  assert.equal(formatNumericInputValue(0.0001), '0.00', 'other NumericInput users keep the existing display rule')
   assert.equal(formatNumericInputValue(3, { integer: true }), '3')
 
   assert.equal(isNumericDraftSyntax('12.34'), true)
-  assert.equal(isNumericDraftSyntax('12.345'), false, 'decimal input stops at two UI places')
-  assert.equal(isNumericDraftSyntax('12.3456', { precision: 4 }), true, 'a higher-precision field still accepts its configured input precision')
+  assert.equal(isNumericDraftSyntax('12.345'), true, 'decimal input is not limited by display precision')
+  assert.equal(isNumericDraftSyntax('12.3456789'), true, 'high-precision decimal input is accepted')
+  assert.equal(isNumericDraftSyntax('0.000000123'), true, 'small high-precision decimal input is accepted')
+  assert.equal(isNumericDraftSyntax('99.123456789'), true, 'long decimal input is accepted')
+  assert.equal(isNumericDraftSyntax('12.3456789', { integer: true }), false, 'semantic integer input remains whole')
   assert.equal(isNumericDraftSyntax('12abc'), false)
   assert.equal(isNumericDraftSyntax('-1', { min: 0 }), false)
   assert.deepEqual(parseNumericDraft(''), { kind: 'blank' })
   assert.deepEqual(parseNumericDraft('12.5'), { kind: 'valid', value: 12.5 })
-  assert.deepEqual(parseNumericDraft('12.3456', { precision: 4 }), { kind: 'valid', value: 12.3456 }, 'accepted input keeps its exact model value')
-  assert.equal(parseNumericDraft('12.345').kind, 'invalid')
+  assert.deepEqual(parseNumericDraft('12.3456789'), { kind: 'valid', value: 12.3456789 }, 'accepted input keeps its exact model value')
+  assert.deepEqual(parseNumericDraft('0.000000123'), { kind: 'valid', value: 0.000000123 }, 'small decimal input keeps its actual value')
+  const smallestPositiveDraft = `0.${'0'.repeat(323)}5`
+  assert.deepEqual(parseNumericDraft(smallestPositiveDraft, { min: 0, minExclusive: true }), { kind: 'valid', value: Number.MIN_VALUE },
+    'smallest positive representable decimal remains valid')
 
   const positiveDecimal = { min: 0, minExclusive: true }
   assert.equal(parseNumericDraft('0', positiveDecimal, true).kind, 'transient')
@@ -90,23 +96,23 @@ try {
   assert.equal(stepNumericValue(1, -1, 1, { integer: true, min: 1, max: 200 }), null)
   assert.equal(stepNumericValue(0.25, -1, 1, positiveDecimal), null, 'decrementing across a positive-only lower boundary clears instead of coercing to 0.01')
   assert.equal(stepNumericValue(0.01, -1, 0.01, positiveDecimal), null)
-  assert.equal(stepNumericValue(0.0001, -1, 0.0001, { ...positiveDecimal, precision: 4 }, { stopAtMinimum: true }), 0.0001,
-    'Simulation spinner stays at Capacity’s smallest representable positive value')
-  assert.equal(stepNumericValue(0.0002, -1, 1, { ...positiveDecimal, precision: 4 }, { stopAtMinimum: true }), 0.0001,
-    'Simulation spinner clamps a large decrement at the smallest valid positive Capacity')
-  assert.equal(stepNumericValue(0.01, -1, 1, { ...positiveDecimal, precision: 2 }, { stopAtMinimum: true }), 0.01,
-    'Simulation Yield spinner stays at its smallest valid displayed percentage')
-  assert.equal(stepNumericValue(null, -1, 0.01, { ...positiveDecimal, precision: 2 }, { stopAtMinimum: true }), null,
+  assert.equal(stepNumericValue(0.0001, -1, 0.0001, positiveDecimal, { stopAtMinimum: true }), 0.0001,
+    'Simulation spinner preserves an arbitrarily small positive value at the zero boundary')
+  assert.equal(stepNumericValue(Number.MIN_VALUE, -1, 1, positiveDecimal, { stopAtMinimum: true }), Number.MIN_VALUE,
+    'Simulation spinner preserves the smallest representable positive value')
+  assert.equal(stepNumericValue(0.01, -1, 1, positiveDecimal, { stopAtMinimum: true }), 0.01,
+    'Simulation spinner stops before a decrement would cross zero')
+  assert.equal(stepNumericValue(null, -1, 0.01, positiveDecimal, { stopAtMinimum: true }), null,
     'an unavailable positive-only value remains unavailable when decreasing')
   assert.equal(stepNumericValue(100, 1, 0.01, { min: 0, max: 100 }), 100)
 
   for (const [parameter, domain, minimum] of [
-    ['Price', { min: 0, precision: 2 }, 0],
-    ['Usage', { min: 0, precision: 4 }, 0],
-    ['Loss', { min: 0, max: 100, precision: 2 }, 0],
-    ['Manning', { min: 0, precision: 2 }, 0],
-    ['Capacity', { min: 0, minExclusive: true, precision: 4 }, 0.0001],
-    ['Yield', { min: 0, minExclusive: true, max: 100, precision: 2 }, 0.01]
+    ['Price', { min: 0 }, 0],
+    ['Usage', { min: 0 }, 0],
+    ['Loss', { min: 0, max: 100 }, 0],
+    ['Manning', { min: 0 }, 0],
+    ['Capacity', positiveDecimal, 0.01],
+    ['Yield', { ...positiveDecimal, max: 100 }, 0.01]
   ]) {
     let value = minimum + 0.02
     for (let count = 0; count < 10; count += 1) {
@@ -139,17 +145,18 @@ try {
 
   assert.equal(isMasterDataNumericValueValid('loss', 0.123456), true, 'canonical values may keep precision beyond display precision')
   assert.equal(isMasterDataNumericInputValid('loss', 0.1234), true, 'two decimal percentage input maps to four internal decimal places')
-  assert.equal(isMasterDataNumericInputValid('loss', 0.12345), false)
+  assert.equal(isMasterDataNumericInputValid('loss', 0.12345), true, 'Loss input validation does not impose a decimal-count limit')
   assert.equal(isMasterDataNumericInputValid('consumption', 0), true, 'zero remains valid where the domain permits it')
   assert.equal(isMasterDataNumericInputValid('capacity', 0), false)
   assert.equal(isMasterDataNumericInputValid('capacity', 0.25), true)
   assert.equal(isMasterDataNumericInputValid('capacity', -1), false)
   assert.equal(isMasterDataNumericInputValid('yield', 1), true)
   assert.equal(isMasterDataNumericInputValid('yield', 1.0001), false)
-  assert.equal(isMasterDataNumericInputValid('price', 2.345), false, 'new direct edits stay within two UI decimals')
+  assert.equal(isMasterDataNumericInputValid('price', 12.3456789), true, 'Price accepts high precision within its domain')
+  assert.equal(isMasterDataNumericInputValid('price', -2), false, 'negative Price remains outside its domain')
 
-  const acceptedChanges = filterInvalidMasterDataNumericChanges({ price: -2, consumption: 0, loss: 0.1234, note: 'kept' })
-  assert.deepEqual(acceptedChanges, { consumption: 0, loss: 0.1234, note: 'kept' }, 'Poka-Yoke drops only invalid numeric edits without replacing them')
+  const acceptedChanges = filterInvalidMasterDataNumericChanges({ price: -2, consumption: 1.23456789, loss: 0.01234567, note: 'kept' })
+  assert.deepEqual(acceptedChanges, { consumption: 1.23456789, loss: 0.01234567, note: 'kept' }, 'paste drops out-of-domain edits while retaining valid high-precision values')
   const importedPreciseSnapshot = {
     id: 'numeric-input-verifier',
     effectiveDate: '2026-10-11',
@@ -171,20 +178,26 @@ try {
   }
   const simulationState = createEmptySimulationState(simulationSources)
   assert.equal(updateSimulationParameter(simulationState, simulationSources, 'b1', 'bom.price', -1), simulationState, 'Simulation rejects an invalid negative edit without coercing it')
-  assert.equal(updateSimulationParameter(simulationState, simulationSources, 'b1', 'bom.loss', 0.0123456), simulationState, 'Simulation rejects pasted precision outside the shared input contract')
   assert.equal(updateSimulationParameter(simulationState, simulationSources, 'b1', 'bom.loss', 1.01), simulationState, 'Simulation rejects Loss above 100%')
   assert.equal(updateSimulationParameter(simulationState, simulationSources, 'b1', 'bom.consumption', -0.1), simulationState, 'Simulation rejects negative Usage')
   const currentSimulationState = setSimulationActiveDataset(simulationState, 'current')
   const validSimulationEdit = updateSimulationParameter(currentSimulationState, simulationSources, 'b1', 'bom.price', 12.34)
   assert.equal(getEffectiveSimulationDataset(simulationSources, validSimulationEdit, 'current').snapshot.bom[0].price, 12.34,
     'a valid two-place Current Simulation override is applied as entered')
+  const preciseSimulationEdit = updateSimulationParameter(currentSimulationState, simulationSources, 'b1', 'bom.price', 12.3456789)
+  assert.equal(getEffectiveSimulationDataset(simulationSources, preciseSimulationEdit, 'current').snapshot.bom[0].price, 12.3456789,
+    'Current Simulation stores the full high-precision Price value')
+  const preciseUsageEdit = updateSimulationParameter(currentSimulationState, simulationSources, 'b1', 'bom.consumption', 1.23456789)
+  assert.equal(getEffectiveSimulationDataset(simulationSources, preciseUsageEdit, 'current').snapshot.bom[0].consumption, 1.23456789,
+    'Current Simulation stores high-precision Usage')
 
   const decimalMarkup = renderToStaticMarkup(React.createElement(NumericInput, { value: 12.5, onValueChange() {}, 'aria-label': 'Price' }))
   const integerMarkup = renderToStaticMarkup(React.createElement(NumericInput, { value: 3, integer: true, onValueChange() {}, 'aria-label': 'Rows' }))
-  const preciseMarkup = renderToStaticMarkup(React.createElement(NumericInput, { value: 12.3456, precision: 4, onValueChange() {}, 'aria-label': 'Precise field' }))
+  const preciseMarkup = renderToStaticMarkup(React.createElement(NumericInput, { value: 12.3456789, onValueChange() {}, 'aria-label': 'Precise field' }))
   assert.match(decimalMarkup, /type="text"[^>]*inputMode="decimal"[^>]*role="spinbutton"[^>]*value="12\.50"/)
   assert.match(integerMarkup, /type="text"[^>]*inputMode="numeric"[^>]*role="spinbutton"[^>]*value="3"/)
   assert.match(preciseMarkup, /value="12\.35"/, 'a precise model value renders with two display decimals')
+  assert.doesNotMatch(numericInputSource, /precision\s*=\s*2/, 'shared numeric editor has no decimal-place acceptance default')
   assert.doesNotMatch(decimalMarkup + integerMarkup, /Increase Price|Decrease Price|Increase Rows|Decrease Rows/, 'focus-only spinners are not shown in the idle editor')
   assert.match(numericInputSource, /parsedPaste\.kind === 'transient'/, 'paste rejects incomplete/zero-prefix drafts instead of bypassing Poka-Yoke')
   assert.match(numericInputSource, /selectionStart[\s\S]*selectionEnd[\s\S]*hasSelection[\s\S]*resolveNumericStepPlace\(raw, hasSelection \? null : selectionStart, domain\)/, 'a non-collapsed selection falls back to the unit place')

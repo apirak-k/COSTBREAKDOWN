@@ -58,12 +58,7 @@ export function isMasterDataNumericValueValid(field: MasterDataNumericField, val
 }
 
 export function isMasterDataNumericInputValid(field: MasterDataNumericField, value: unknown): boolean {
-  if (isInvalidNumeric(field, value)) return false
-  if (value === null || value === undefined) return true
-  if (typeof value !== 'number') return false
-  const displayMultiplier = field === 'loss' || field === 'yield' ? 100 : 1
-  const scaledHundredths = value * displayMultiplier * 100
-  return Math.abs(scaledHundredths - Math.round(scaledHundredths)) < 1e-7
+  return !isInvalidNumeric(field, value)
 }
 
 /** Input constraints use the same canonical domain, converting fractional percent fields for their UI. */

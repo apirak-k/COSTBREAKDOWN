@@ -28,6 +28,10 @@ try {
 const { EconomicBreakEvenGraphPanel, EconomicSimulationPanel } = panelModule
 const { NumericInput } = numericInputModule
 const { calculateEconomicSimulation, createEconomicSimulationDraft, updateEconomicSimulationDraft } = economicsModule
+const assertClose = (actual: number | null, expected: number, label: string) => {
+  assert.ok(actual !== null && Math.abs(actual - expected) < 1e-12,
+    `${label}: expected ${expected}, received ${String(actual)}`)
+}
 const currentSnapshot = { product: { sellingPrice: 250, sgaPercent: 8, uom: 'PC' } } as CostSnapshot
 const simulationCost: SnapshotCost = {
   snapshotId: 'sim', material: 94, labor: 0, burden: 0, total: 94, status: 'complete', warnings: []
@@ -64,6 +68,25 @@ assert.equal(baseResult.economicMarginPerPiece, 2)
 assert.equal(baseResult.preciseBreakEvenQuantity, 2500)
 assert.equal(baseResult.breakEvenQuantity, 2500)
 assert.equal(baseResult.breakEvenNotAchievable, false)
+
+const preciseEconomicDraft = withInputs({
+  fixedActionCost: '100.123456789',
+  batchSize: '10',
+  variableActionCostPerPiece: '2.345678901',
+  sellingPriceOverride: '100.123456789',
+  sgaPercentOverride: '8.123456789'
+})
+assert.equal(preciseEconomicDraft.fixedActionCost, '100.123456789', 'Economic draft retains the complete monetary input')
+assert.equal(preciseEconomicDraft.variableActionCostPerPiece, '2.345678901', 'Variable Cost accepts high precision')
+assert.equal(preciseEconomicDraft.sellingPriceOverride, '100.123456789', 'Business Selling Price accepts high precision')
+assert.equal(preciseEconomicDraft.sgaPercentOverride, '8.123456789', 'Business SG&A accepts high precision within its domain')
+const preciseEconomicResult = calculateEconomicSimulation(currentSnapshot, simulationCost, 6.123456789, preciseEconomicDraft)
+assertClose(preciseEconomicResult.fixedCostPerPiece, 10.0123456789, 'fixed cost per piece uses full-precision Fixed Action Cost')
+assertClose(preciseEconomicResult.requiredSavingPerPiece, 12.3580245799,
+  'Required Saving uses the complete Fixed and Variable Cost inputs')
+assert.equal(preciseEconomicResult.parameterSavingPerPiece, 6.123456789, 'Parameter Saving is not rounded to display precision')
+assert.equal(preciseEconomicResult.business.sellingPrice, 100.123456789, 'Business calculation uses full-precision Selling Price')
+assert.equal(preciseEconomicResult.business.sgaPercent, 8.123456789, 'Business calculation uses full-precision SG&A percent')
 
 const smallerBatch = calculateEconomicSimulation(currentSnapshot, simulationCost, 6, { ...worked, batchSize: '2000' })
 assert.equal(smallerBatch.requiredSavingPerPiece, 7)
