@@ -464,7 +464,7 @@ try {
     'Search stays at the same fixed width and toolbar position across all table placeholders')
   const searchPositions = searchViewMarkups.map(markup => markup.indexOf('role="search" class="relative ml-auto h-8 w-48 min-w-48 max-w-48 shrink-0"'))
   assert.equal(new Set(searchPositions).size, 1, 'table view changes do not move the Search control')
-  assert.match(headerSource, /placeholder=\{searchPlaceholder\}[\s\S]*className="h-8 w-full min-w-0/, 'placeholder changes cannot size the fixed Search input')
+  assert.match(headerSource, /placeholder=\{searchPlaceholder\}[\s\S]*className="(?:search-clear-control )?h-8 w-full min-w-0/, 'placeholder changes cannot size the fixed Search input')
   assert.match(defaultMarkup, /id="master-data-table-panel" role="region" aria-label="All dataset tables"/, 'All Tables exposes one semantic region containing all dataset tables')
   const tableSections = [
     ['master-data-table-bom', 'Bill of Materials'],

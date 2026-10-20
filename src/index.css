@@ -77,6 +77,12 @@ table thead th {
   font-variant-numeric: tabular-nums;
 }
 
+.search-clear-control::-webkit-search-cancel-button {
+  -webkit-appearance: none;
+  appearance: none;
+  display: none;
+}
+
 /* Refined custom scrollbar */
 ::-webkit-scrollbar {
   width: 6px;

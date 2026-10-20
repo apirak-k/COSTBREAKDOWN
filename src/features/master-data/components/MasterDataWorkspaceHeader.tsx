@@ -9,7 +9,8 @@ import {
   Search,
   Table2,
   Trash2,
-  Upload
+  Upload,
+  X
 } from 'lucide-react'
 import { formatNumber } from '../../../core'
 import type { MasterDataRole, CostSnapshot, ProductMaster } from '../../../core'
@@ -255,6 +256,7 @@ export const MasterDataWorkspaceHeader: React.FC<MasterDataWorkspaceHeaderProps>
   const cloneTriggerRef = useRef<HTMLButtonElement>(null)
   const cloneMenuRef = useRef<HTMLDivElement>(null)
   const cloneHoverTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const searchInputRef = useRef<HTMLInputElement>(null)
   const cloneHorizontalOffset = useCenteredPopoverOffset(cloneMenuOpen, cloneMenuRef)
 
   const roleLabel = roleLabels[role]
@@ -521,13 +523,27 @@ export const MasterDataWorkspaceHeader: React.FC<MasterDataWorkspaceHeaderProps>
         <div role="search" className="relative ml-auto h-8 w-48 min-w-48 max-w-48 shrink-0">
           <Search aria-hidden="true" className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" />
           <input
+            ref={searchInputRef}
             type="search"
             aria-label="Search Master Data"
             value={searchQuery}
             onChange={event => onSearchQueryChange(event.target.value)}
             placeholder={searchPlaceholder}
-            className="h-8 w-full min-w-0 border border-slate-300 bg-white pl-8 pr-2 text-xs text-slate-900 placeholder:text-slate-500 focus:border-blue-700 focus:outline-none focus:ring-1 focus:ring-blue-700"
+            className="search-clear-control h-8 w-full min-w-0 border border-slate-300 bg-white pl-8 pr-8 text-xs text-slate-900 placeholder:text-slate-500 focus:border-blue-700 focus:outline-none focus:ring-1 focus:ring-blue-700"
           />
+          {searchQuery.length > 0 && (
+            <button
+              type="button"
+              aria-label="Clear Master Data search"
+              onClick={() => {
+                onSearchQueryChange('')
+                searchInputRef.current?.focus()
+              }}
+              className="absolute right-1 top-1/2 grid h-6 w-6 -translate-y-1/2 cursor-pointer place-items-center rounded-sm text-slate-500 hover:bg-slate-200 hover:text-slate-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-blue-700"
+            >
+              <X aria-hidden="true" className="h-3 w-3" />
+            </button>
+          )}
         </div>
 
         {tableSelector}

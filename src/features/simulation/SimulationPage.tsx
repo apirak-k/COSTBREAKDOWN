@@ -973,29 +973,31 @@ function SimulationParameterTable({
           style={{ width: `calc(100% - ${scrollbarWidth}px)`, gridTemplateColumns: columnWidths.join(' ') }}
         >
           <div className="flex min-w-0 flex-1 items-center gap-1 md:col-span-4 md:pl-2">
-            <Search aria-hidden="true" className="h-3.5 w-3.5 shrink-0 text-slate-500" />
-            <input
-              ref={searchInputRef}
-              type="search"
-              value={searchQuery}
-              onChange={event => setSearchQuery(event.target.value)}
-              aria-label={`Search ${shortTitle} by ${searchField}`}
-              placeholder={searchField}
-              className="h-6 w-28 min-w-0 rounded-sm border border-slate-300 bg-white px-1.5 text-[10px] text-slate-800 placeholder:text-slate-400 focus:border-blue-700 focus:outline-none focus:ring-1 focus:ring-blue-100 sm:w-36"
-            />
-            {searchQuery && (
-              <button
-                type="button"
-                aria-label={`Clear ${searchField} search`}
-                onClick={() => {
-                  setSearchQuery('')
-                  searchInputRef.current?.focus()
-                }}
-                className="grid h-6 w-6 shrink-0 place-items-center rounded-sm text-slate-500 hover:bg-slate-200 hover:text-slate-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-700"
-              >
-                <X aria-hidden="true" className="h-3 w-3" />
-              </button>
-            )}
+            <div className="relative h-6 w-40 min-w-0 shrink-0 sm:w-48">
+              <Search aria-hidden="true" className="pointer-events-none absolute left-2 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-500" />
+              <input
+                ref={searchInputRef}
+                type="search"
+                value={searchQuery}
+                onChange={event => setSearchQuery(event.target.value)}
+                aria-label={`Search ${shortTitle} by ${searchField}`}
+                placeholder={searchField}
+                className="search-clear-control h-6 w-full min-w-0 rounded-sm border border-slate-300 bg-white pl-7 pr-7 text-[10px] text-slate-800 placeholder:text-slate-400 focus:border-blue-700 focus:outline-none focus:ring-1 focus:ring-blue-100"
+              />
+              {searchQuery.length > 0 && (
+                <button
+                  type="button"
+                  aria-label={`Clear ${searchField} search`}
+                  onClick={() => {
+                    setSearchQuery('')
+                    searchInputRef.current?.focus()
+                  }}
+                  className="absolute right-0 top-0 grid h-6 w-6 cursor-pointer place-items-center rounded-sm text-slate-500 hover:bg-slate-200 hover:text-slate-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-blue-700"
+                >
+                  <X aria-hidden="true" className="h-3 w-3" />
+                </button>
+              )}
+            </div>
           </div>
           <span aria-live="polite" className="shrink-0 whitespace-nowrap font-mono tabular-nums text-slate-600 md:col-start-7 md:mr-6 md:justify-self-end">
             {visibleRange.total === 0 ? '0 of 0' : visibleRange.start === 0 ? `0 of ${visibleRange.total}` : `${visibleRange.start}–${visibleRange.end} of ${visibleRange.total}`}
