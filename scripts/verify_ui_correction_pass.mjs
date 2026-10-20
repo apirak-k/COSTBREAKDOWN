@@ -95,6 +95,9 @@ const simulationSearch = assertSearchField(
 assert.match(simulationSearch.input, /placeholder=\{searchField\}/, 'Simulation keeps its field-specific placeholder')
 assert.match(simulationSearchField, /className="relative h-6 w-40 min-w-0 shrink-0 sm:w-48"/,
   'Simulation Search stays compact and preserves the previous combined control footprint')
+const simulationClearClasses = simulationSearch.clearButton.match(/className="([^"]+)"/)?.[1]
+assert.match(simulationClearClasses, /\babsolute right-0\.5 top-1\/2 grid h-5 w-5 -translate-y-1\/2\b/,
+  'Simulation clear hover surface is smaller than the field, vertically centered, and inset from the right border')
 const previousButtonStart = footer.indexOf('aria-label={`Previous ${navigationLabel} row`}')
 const nextButtonStart = footer.indexOf('aria-label={`Next ${navigationLabel} row`}')
 assert.ok(previousButtonStart >= 0 && nextButtonStart > previousButtonStart, 'previous and next controls render in order')
@@ -169,6 +172,9 @@ const masterSearch = assertSearchField(
   'onSearchQueryChange'
 )
 assert.match(masterSearch.input, /placeholder=\{searchPlaceholder\}/, 'Master Data keeps its table-specific placeholder')
+const masterClearClasses = masterSearch.clearButton.match(/className="([^"]+)"/)?.[1]
+assert.match(masterClearClasses, /\babsolute right-1 top-1\/2 grid h-6 w-6 -translate-y-1\/2\b/,
+  'Master Data clear-control geometry remains unchanged')
 const appSource = source('src/App.tsx')
 assert.match(appSource, /const \[masterDataSearchQuery, setMasterDataSearchQuery\] = useState\(''\)/,
   'Master Data keeps its existing shared query state')
