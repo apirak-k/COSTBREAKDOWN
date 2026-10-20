@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
-import { ChevronDown, ChevronRight, RotateCcw, Search, Send, X } from 'lucide-react'
+import { ChevronDown, ChevronLeft, ChevronRight, RotateCcw, Search, Send, X } from 'lucide-react'
 import { formatNumber, safeAdd } from '../../core'
 import {
   calculateMultiplicativeCostAttribution,
@@ -453,9 +453,10 @@ function SimulationParameterTable({
   const navigationLabel = isBOM ? 'BOM' : 'Routing'
   const tableIdentity = isBOM ? 'Bill of Materials' : 'Routing Process'
   const parameters = isBOM ? BOM_PARAMETERS : RTG_PARAMETERS
+  const columnWidths = ['6%', '18%', '10%', '14.5%', '14.5%', '14.5%', '17%', '5.5%']
   const renderColumnGroup = () => (
     <colgroup>
-      {['6%', '18%', '10%', '14.5%', '14.5%', '14.5%', '17%', '5.5%'].map((width, index) => (
+      {columnWidths.map((width, index) => (
         <col key={index} style={{ width }} />
       ))}
     </colgroup>
@@ -966,54 +967,59 @@ function SimulationParameterTable({
           )
         })}
       </div>
-      <footer data-simulation-table-footer={kind} className="flex min-w-0 items-center justify-between gap-2 border-t border-slate-300 bg-slate-100 px-2 py-1 text-[10px] text-slate-600 xl:shrink-0">
-        <div className="flex min-w-0 flex-1 items-center gap-1">
-          <Search aria-hidden="true" className="h-3.5 w-3.5 shrink-0 text-slate-500" />
-          <input
-            ref={searchInputRef}
-            type="search"
-            value={searchQuery}
-            onChange={event => setSearchQuery(event.target.value)}
-            aria-label={`Search ${shortTitle} by ${searchField}`}
-            placeholder={searchField}
-            className="h-6 w-28 min-w-0 rounded-sm border border-slate-300 bg-white px-1.5 text-[10px] text-slate-800 placeholder:text-slate-400 focus:border-blue-700 focus:outline-none focus:ring-1 focus:ring-blue-100 sm:w-36"
-          />
-          {searchQuery && (
+      <footer data-simulation-table-footer={kind} className="min-w-0 border-t border-slate-300 bg-slate-100 px-2 py-1 text-[10px] text-slate-600 xl:shrink-0 md:px-0">
+        <div
+          className="flex min-w-0 items-center justify-between gap-2 md:grid md:gap-0"
+          style={{ width: `calc(100% - ${scrollbarWidth}px)`, gridTemplateColumns: columnWidths.join(' ') }}
+        >
+          <div className="flex min-w-0 flex-1 items-center gap-1 md:col-span-4 md:pl-2">
+            <Search aria-hidden="true" className="h-3.5 w-3.5 shrink-0 text-slate-500" />
+            <input
+              ref={searchInputRef}
+              type="search"
+              value={searchQuery}
+              onChange={event => setSearchQuery(event.target.value)}
+              aria-label={`Search ${shortTitle} by ${searchField}`}
+              placeholder={searchField}
+              className="h-6 w-28 min-w-0 rounded-sm border border-slate-300 bg-white px-1.5 text-[10px] text-slate-800 placeholder:text-slate-400 focus:border-blue-700 focus:outline-none focus:ring-1 focus:ring-blue-100 sm:w-36"
+            />
+            {searchQuery && (
+              <button
+                type="button"
+                aria-label={`Clear ${searchField} search`}
+                onClick={() => {
+                  setSearchQuery('')
+                  searchInputRef.current?.focus()
+                }}
+                className="grid h-6 w-6 shrink-0 place-items-center rounded-sm text-slate-500 hover:bg-slate-200 hover:text-slate-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-700"
+              >
+                <X aria-hidden="true" className="h-3 w-3" />
+              </button>
+            )}
+          </div>
+          <span aria-live="polite" className="shrink-0 whitespace-nowrap font-mono tabular-nums text-slate-600 md:col-start-5 md:col-span-2 md:justify-self-end">
+            {visibleRange.total === 0 ? '0 of 0' : visibleRange.start === 0 ? `0 of ${visibleRange.total}` : `${visibleRange.start}–${visibleRange.end} of ${visibleRange.total}`}
+          </span>
+          <div className="flex shrink-0 items-center gap-0.5 md:contents">
             <button
               type="button"
-              aria-label={`Clear ${searchField} search`}
-              onClick={() => {
-                setSearchQuery('')
-                searchInputRef.current?.focus()
-              }}
-              className="grid h-6 w-6 shrink-0 place-items-center rounded-sm text-slate-500 hover:bg-slate-200 hover:text-slate-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-700"
+              aria-label={`Previous ${navigationLabel} row`}
+              disabled={visibleRange.atTop}
+              onClick={() => moveOneRow(-1)}
+              className="grid h-6 w-6 place-items-center rounded-sm text-slate-700 hover:bg-slate-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-700 disabled:cursor-default disabled:text-slate-300 disabled:hover:bg-transparent md:col-start-7 md:justify-self-center"
             >
-              <X aria-hidden="true" className="h-3 w-3" />
+              <ChevronLeft aria-hidden="true" className="h-4 w-4" />
             </button>
-          )}
-        </div>
-        <span aria-live="polite" className="shrink-0 whitespace-nowrap font-mono tabular-nums text-slate-600">
-          {visibleRange.total === 0 ? '0 of 0' : visibleRange.start === 0 ? `0 of ${visibleRange.total}` : `${visibleRange.start}–${visibleRange.end} of ${visibleRange.total}`}
-        </span>
-        <div className="flex shrink-0 items-center gap-0.5">
-          <button
-            type="button"
-            aria-label={`Previous ${navigationLabel} row`}
-            disabled={visibleRange.atTop}
-            onClick={() => moveOneRow(-1)}
-            className="grid h-6 w-6 place-items-center rounded-sm text-slate-700 hover:bg-slate-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-700 disabled:cursor-default disabled:text-slate-300 disabled:hover:bg-transparent"
-          >
-            <span aria-hidden="true" className="text-[9px] leading-none">◀</span>
-          </button>
-          <button
-            type="button"
-            aria-label={`Next ${navigationLabel} row`}
-            disabled={visibleRange.atBottom}
-            onClick={() => moveOneRow(1)}
-            className="grid h-6 w-6 place-items-center rounded-sm text-slate-700 hover:bg-slate-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-700 disabled:cursor-default disabled:text-slate-300 disabled:hover:bg-transparent"
-          >
-            <span aria-hidden="true" className="text-[9px] leading-none">▶</span>
-          </button>
+            <button
+              type="button"
+              aria-label={`Next ${navigationLabel} row`}
+              disabled={visibleRange.atBottom}
+              onClick={() => moveOneRow(1)}
+              className="grid h-6 w-6 place-items-center rounded-sm text-slate-700 hover:bg-slate-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-700 disabled:cursor-default disabled:text-slate-300 disabled:hover:bg-transparent md:col-start-8 md:justify-self-center"
+            >
+              <ChevronRight aria-hidden="true" className="h-4 w-4" />
+            </button>
+          </div>
         </div>
       </footer>
     </section>

@@ -481,14 +481,14 @@ assert.match(parameterTableSource, /data-simulation-row-index=\{orderedIndex\}[\
   '[source contract] viewport measurement uses ordered DOM rows while displayed row numbers remain stable')
 assert.match(parameterTableSource, /getBoundingClientRect\(\)[\s\S]*?getSimulationTableViewportState\(rowBounds, viewport\.top, viewport\.bottom/,
   '[source contract] visible ranges derive from real row and viewport geometry')
-assert.match(parameterTableSource, /aria-label=\{`Previous \$\{navigationLabel\} row`\}[\s\S]*?disabled=\{visibleRange\.atTop\}[\s\S]*?moveOneRow\(-1\)[\s\S]*?◀/,
-  '[source contract] the previous solid triangle moves one row and disables at the actual top')
-assert.match(parameterTableSource, /aria-label=\{`Next \$\{navigationLabel\} row`\}[\s\S]*?disabled=\{visibleRange\.atBottom\}[\s\S]*?moveOneRow\(1\)[\s\S]*?▶/,
-  '[source contract] the next solid triangle moves one row and disables at the actual bottom')
+assert.match(parameterTableSource, /aria-label=\{`Previous \$\{navigationLabel\} row`\}[\s\S]*?disabled=\{visibleRange\.atTop\}[\s\S]*?moveOneRow\(-1\)[\s\S]*?<ChevronLeft aria-hidden="true" className="h-4 w-4" \/>/,
+  '[source contract] the previous chevron moves one row and disables at the actual top')
+assert.match(parameterTableSource, /aria-label=\{`Next \$\{navigationLabel\} row`\}[\s\S]*?disabled=\{visibleRange\.atBottom\}[\s\S]*?moveOneRow\(1\)[\s\S]*?<ChevronRight aria-hidden="true" className="h-4 w-4" \/>/,
+  '[source contract] the next chevron moves one row and disables at the actual bottom')
 assert.match(parameterTableSource, /rowBounds\[index \+ 1\]\.top - current\.top[\s\S]*?current\.bottom - current\.top/,
   '[source contract] navigation step size follows one measured row group, including expanded detail height')
-assert.doesNotMatch(simulationFooterSource, /ChevronLeft|ChevronRight/,
-  '[source contract] footer navigation does not reuse expand/collapse chevrons')
+assert.match(simulationFooterSource, /<ChevronLeft aria-hidden="true" className="h-4 w-4" \/>[\s\S]*?<ChevronRight aria-hidden="true" className="h-4 w-4" \/>/,
+  '[source contract] footer chevrons match the 16px row expansion icon size')
 assert.match(parameterTableSource, /border-t border-slate-300 bg-slate-100/,
   '[source contract] the compact footer has a gray surface and subtle divider distinct from white rows')
 assert.doesNotMatch(pageSource, /rows\.filter\(row => row\.kind === kind\s*&&\s*row\.status/,

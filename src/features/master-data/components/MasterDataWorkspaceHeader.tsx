@@ -23,6 +23,7 @@ import { downloadBlob } from '../../../services/excel/export'
 import { useTransientInteraction } from '../../../shared/ui/transient-interactions'
 
 interface MasterDataWorkspaceHeaderProps {
+  workspaceHeaderRef: React.Ref<HTMLElement>
   product: ProductMaster
   snapshot: CostSnapshot
   saveStates: Record<MasterDataRole, MasterDataSaveState>
@@ -222,6 +223,7 @@ const CurrentAndAllAction: React.FC<CurrentAndAllActionProps> = ({
 }
 
 export const MasterDataWorkspaceHeader: React.FC<MasterDataWorkspaceHeaderProps> = ({
+  workspaceHeaderRef,
   product,
   snapshot,
   saveStates,
@@ -352,7 +354,7 @@ export const MasterDataWorkspaceHeader: React.FC<MasterDataWorkspaceHeaderProps>
   }
 
   return (
-    <section className="sticky top-0 z-40 overflow-visible border border-slate-300 bg-white" aria-label="Working dataset controls">
+    <section ref={workspaceHeaderRef} className="sticky top-0 z-40 overflow-visible border border-slate-300 bg-white" aria-label="Working dataset controls">
       <div role="toolbar" aria-label="Dataset and table actions" className="flex flex-wrap items-center gap-1.5 border-b border-slate-300 bg-white px-1.5 py-1 xl:flex-nowrap">
         <div className="grid h-8 w-60 shrink-0 grid-cols-3 border border-slate-300 bg-white" role="group" aria-label="Master Data workspace">
           {roles.map(datasetRole => {

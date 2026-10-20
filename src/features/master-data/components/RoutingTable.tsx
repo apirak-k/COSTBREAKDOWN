@@ -16,6 +16,7 @@ import { MasterDataBlockerMarker } from './MasterDataBlockerMarker'
 import { Tooltip } from '../../../shared/ui/Tooltip'
 import { RowSelectionButton } from '../../../shared/ui/RowSelectionButton'
 import { NumericInput } from '../../../shared/ui/NumericInput'
+import { StickyTableHeader, useSynchronizedTableHeader } from '../../../shared/ui/StickyTableHeader'
 import { masterDataActionsColumnClass, masterDataDisplaySlotClass, masterDataIdentityColumnClass, masterDataIndexColumnClass, masterDataIssueDisplayClass, masterDataIssueEditorClass, masterDataIssuePlaceholderClass, masterDataNoteColumnClass, masterDataNumericDisplaySlotClass, masterDataNumericEditorClass, masterDataPercentageShellClass, masterDataSpreadsheetSelectionClass, masterDataTableClass, masterDataTextEditorClass } from './master-data-field-styles'
 
 interface RoutingTableProps {
@@ -74,6 +75,7 @@ export const RoutingTable: React.FC<RoutingTableProps> = ({
   onWarningNavigationHandled
 }) => {
   const tableRef = useRef<HTMLTableElement | null>(null)
+  const { headerViewportRef, syncHeaderScroll } = useSynchronizedTableHeader()
   const nextWarningItem = useQualityNavigationCursor<MasterDataWarningItem>(navigationScopeKey)
   const nextBlockerItem = useQualityNavigationCursor<MasterDataBlockerItem>(navigationScopeKey)
   const query = searchQuery.trim().toLocaleLowerCase()
@@ -225,30 +227,47 @@ export const RoutingTable: React.FC<RoutingTableProps> = ({
   }
 
   return (
-    <section aria-label="Routing rows" className="overflow-hidden border border-slate-300 bg-white select-none">
+    <section aria-label="Routing rows" className="border border-slate-300 bg-white select-none">
       <MasterDataTableHeader title="Routing" rowCount={routing.length} selectedCount={selectedIds.size} warningCount={warningCount} blockerCount={blockerItems.length} isEditMode={isEditMode} onNextWarning={handleNextWarning} onNextBlocker={handleNextBlocker} onAddRow={onAddRoutingStep} />
 
-      <div className="overflow-x-auto">
+      <StickyTableHeader
+        ariaLabel="Routing column header controls"
+        tableClassName={masterDataTableClass}
+        headerViewportRef={headerViewportRef}
+        top="var(--master-data-table-header-top, 0px)"
+        backgroundClassName="bg-slate-100"
+      >
+        <colgroup>
+          <col className={masterDataIndexColumnClass} /><col className={masterDataIdentityColumnClass} /><col className={masterDataIdentityColumnClass} />
+          <col /><col /><col /><col className={masterDataNoteColumnClass} /><col className={masterDataActionsColumnClass} />
+        </colgroup>
+        <thead className="border-y-2 border-slate-400 bg-slate-100 text-[11px] font-semibold uppercase tracking-wide text-slate-800">
+          <tr>
+            <th scope="col" className={`sticky left-0 z-40 ${masterDataIndexColumnClass} bg-slate-100 p-0 text-center`}>
+              <Tooltip label={selectionState === 'all' ? 'Clear visible selection' : 'Select all visible rows'} wrapperClassName="relative flex h-9 w-full items-center justify-center">
+                <RowSelectionButton variant="light" state={selectionState} onClick={() => toggleAll(selectionState !== 'all')} disabled={filteredRouting.length === 0} label={selectionState === 'all' ? 'Clear visible selection for Routing rows' : 'Select all visible Routing rows'} />
+              </Tooltip>
+            </th>
+            <th scope="col" className="px-2 py-2 text-left">Process</th>
+            <th scope="col" className="px-2 py-2 text-left">Work Center</th>
+            <th scope="col" className="px-2 py-2 text-center">Manning</th>
+            <th scope="col" className="px-2 py-2 text-center">Capacity</th>
+            <th scope="col" className="px-2 py-2 text-center">Yield</th>
+            <th scope="col" className="px-2 py-2 text-left">Note</th>
+            <th scope="col" className={`${masterDataActionsColumnClass} px-1 py-2 text-center`}>Actions</th>
+          </tr>
+        </thead>
+      </StickyTableHeader>
+
+      <div className="overflow-x-auto" onScroll={syncHeaderScroll}>
         <table ref={tableRef} className={masterDataTableClass}>
+          <caption className="sr-only">Routing rows</caption>
           <colgroup>
             <col className={masterDataIndexColumnClass} /><col className={masterDataIdentityColumnClass} /><col className={masterDataIdentityColumnClass} />
             <col /><col /><col /><col className={masterDataNoteColumnClass} /><col className={masterDataActionsColumnClass} />
           </colgroup>
-          <thead className="sticky top-0 z-30 border-y-2 border-slate-400 bg-slate-100 text-[11px] font-semibold uppercase tracking-wide text-slate-800">
-            <tr>
-              <th scope="col" className={`sticky left-0 z-40 ${masterDataIndexColumnClass} bg-slate-100 p-0 text-center`}>
-                <Tooltip label={selectionState === 'all' ? 'Clear visible selection' : 'Select all visible rows'} wrapperClassName="relative flex h-9 w-full items-center justify-center">
-                  <RowSelectionButton variant="light" state={selectionState} onClick={() => toggleAll(selectionState !== 'all')} disabled={filteredRouting.length === 0} label={selectionState === 'all' ? 'Clear visible selection for Routing rows' : 'Select all visible Routing rows'} />
-                </Tooltip>
-              </th>
-              <th scope="col" className="px-2 py-2 text-left">Process</th>
-              <th scope="col" className="px-2 py-2 text-left">Work Center</th>
-              <th scope="col" className="px-2 py-2 text-center">Manning</th>
-              <th scope="col" className="px-2 py-2 text-center">Capacity</th>
-              <th scope="col" className="px-2 py-2 text-center">Yield</th>
-              <th scope="col" className="px-2 py-2 text-left">Note</th>
-              <th scope="col" className={`${masterDataActionsColumnClass} px-1 py-2 text-center`}>Actions</th>
-            </tr>
+          <thead className="sr-only">
+            <tr><th scope="col">Select</th><th scope="col">Process</th><th scope="col">Work Center</th><th scope="col">Manning</th><th scope="col">Capacity</th><th scope="col">Yield</th><th scope="col">Note</th><th scope="col">Actions</th></tr>
           </thead>
           <tbody className="divide-y divide-slate-200 text-xs">
             {filteredRouting.map(step => {

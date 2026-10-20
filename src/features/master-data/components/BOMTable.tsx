@@ -16,6 +16,7 @@ import { MasterDataBlockerMarker } from './MasterDataBlockerMarker'
 import { Tooltip } from '../../../shared/ui/Tooltip'
 import { RowSelectionButton } from '../../../shared/ui/RowSelectionButton'
 import { NumericInput } from '../../../shared/ui/NumericInput'
+import { StickyTableHeader, useSynchronizedTableHeader } from '../../../shared/ui/StickyTableHeader'
 import { masterDataActionsColumnClass, masterDataCellFocusClass, masterDataDisplaySlotClass, masterDataIdentityColumnClass, masterDataIndexColumnClass, masterDataIssueDisplayClass, masterDataIssueEditorClass, masterDataIssuePlaceholderClass, masterDataNoteColumnClass, masterDataNumericDisplaySlotClass, masterDataNumericEditorClass, masterDataPercentageShellClass, masterDataSpreadsheetSelectionClass, masterDataTableClass, masterDataTextEditorClass, masterDataUnitColumnClass } from './master-data-field-styles'
 
 interface BOMTableProps {
@@ -73,6 +74,7 @@ export const BOMTable: React.FC<BOMTableProps> = ({
   onWarningNavigationHandled
 }) => {
   const tableRef = useRef<HTMLTableElement | null>(null)
+  const { headerViewportRef, syncHeaderScroll } = useSynchronizedTableHeader()
   const cellSelectionRowIds = useMemo(() => bom.map(item => item.id), [bom])
   const nextWarningItem = useQualityNavigationCursor<MasterDataWarningItem>(navigationScopeKey)
   const nextBlockerItem = useQualityNavigationCursor<MasterDataBlockerItem>(navigationScopeKey)
@@ -221,30 +223,47 @@ export const BOMTable: React.FC<BOMTableProps> = ({
   }
 
   return (
-    <section aria-label="Bill of Materials rows" className="overflow-hidden border border-slate-300 bg-white select-none">
+    <section aria-label="Bill of Materials rows" className="border border-slate-300 bg-white select-none">
       <MasterDataTableHeader title="Bill of Materials" rowCount={bom.length} selectedCount={selectedIds.size} warningCount={warningCount} blockerCount={blockerItems.length} isEditMode={isEditMode} onNextWarning={handleNextWarning} onNextBlocker={handleNextBlocker} onAddRow={onAddBOMItem} />
 
-      <div className="overflow-x-auto">
+      <StickyTableHeader
+        ariaLabel="Bill of Materials column header controls"
+        tableClassName={masterDataTableClass}
+        headerViewportRef={headerViewportRef}
+        top="var(--master-data-table-header-top, 0px)"
+        backgroundClassName="bg-slate-100"
+      >
+        <colgroup>
+          <col className={masterDataIndexColumnClass} /><col className={masterDataIdentityColumnClass} /><col /><col className={masterDataUnitColumnClass} />
+          <col /><col /><col className={masterDataNoteColumnClass} /><col className={masterDataActionsColumnClass} />
+        </colgroup>
+        <thead className="border-y-2 border-slate-400 bg-slate-100 text-[11px] font-semibold uppercase tracking-wide text-slate-800">
+          <tr>
+            <th scope="col" className={`sticky left-0 z-40 ${masterDataIndexColumnClass} bg-slate-100 p-0 text-center`}>
+              <Tooltip label={selectionState === 'all' ? 'Clear visible selection' : 'Select all visible rows'} wrapperClassName="relative flex h-9 w-full items-center justify-center">
+                <RowSelectionButton variant="light" state={selectionState} onClick={() => toggleAll(selectionState !== 'all')} disabled={filteredBOM.length === 0} label={selectionState === 'all' ? 'Clear visible selection for BOM rows' : 'Select all visible BOM rows'} />
+              </Tooltip>
+            </th>
+            <th scope="col" className="px-2 py-2 text-left">Material</th>
+            <th scope="col" className="px-2 py-2 text-center">Usage</th>
+            <th scope="col" className="px-2 py-2 text-center">Unit</th>
+            <th scope="col" className="px-2 py-2 text-center">Price</th>
+            <th scope="col" className="px-2 py-2 text-center">Loss</th>
+            <th scope="col" className="px-2 py-2 text-left">Note</th>
+            <th scope="col" className={`${masterDataActionsColumnClass} px-1 py-2 text-center`}>Actions</th>
+          </tr>
+        </thead>
+      </StickyTableHeader>
+
+      <div className="overflow-x-auto" onScroll={syncHeaderScroll}>
         <table ref={tableRef} className={masterDataTableClass}>
+          <caption className="sr-only">Bill of Materials rows</caption>
           <colgroup>
             <col className={masterDataIndexColumnClass} /><col className={masterDataIdentityColumnClass} /><col /><col className={masterDataUnitColumnClass} />
             <col /><col /><col className={masterDataNoteColumnClass} /><col className={masterDataActionsColumnClass} />
           </colgroup>
-          <thead className="sticky top-0 z-30 border-y-2 border-slate-400 bg-slate-100 text-[11px] font-semibold uppercase tracking-wide text-slate-800">
-            <tr>
-              <th scope="col" className={`sticky left-0 z-40 ${masterDataIndexColumnClass} bg-slate-100 p-0 text-center`}>
-                <Tooltip label={selectionState === 'all' ? 'Clear visible selection' : 'Select all visible rows'} wrapperClassName="relative flex h-9 w-full items-center justify-center">
-                  <RowSelectionButton variant="light" state={selectionState} onClick={() => toggleAll(selectionState !== 'all')} disabled={filteredBOM.length === 0} label={selectionState === 'all' ? 'Clear visible selection for BOM rows' : 'Select all visible BOM rows'} />
-                </Tooltip>
-              </th>
-              <th scope="col" className="px-2 py-2 text-left">Material</th>
-              <th scope="col" className="px-2 py-2 text-center">Usage</th>
-              <th scope="col" className="px-2 py-2 text-center">Unit</th>
-              <th scope="col" className="px-2 py-2 text-center">Price</th>
-              <th scope="col" className="px-2 py-2 text-center">Loss</th>
-              <th scope="col" className="px-2 py-2 text-left">Note</th>
-              <th scope="col" className={`${masterDataActionsColumnClass} px-1 py-2 text-center`}>Actions</th>
-            </tr>
+          <thead className="sr-only">
+            <tr><th scope="col">Select</th><th scope="col">Material</th><th scope="col">Usage</th><th scope="col">Unit</th><th scope="col">Price</th><th scope="col">Loss</th><th scope="col">Note</th><th scope="col">Actions</th></tr>
           </thead>
           <tbody className="divide-y divide-slate-200 text-xs">
             {filteredBOM.map(item => {

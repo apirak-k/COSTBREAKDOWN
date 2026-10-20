@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react'
+import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { useAppStore } from '../../state'
 import type { MasterDataRole } from '../../core'
 import { getDatasetSaveState } from '../../core/utils/master-data-effective'
@@ -27,6 +27,7 @@ interface MasterDataPageProps {
 }
 
 const roles: MasterDataRole[] = ['reference', 'current', 'custom']
+const useSafeLayoutEffect = typeof window === 'undefined' ? useEffect : useLayoutEffect
 
 export const MasterDataPage: React.FC<MasterDataPageProps> = ({
   searchQuery = '',
@@ -34,6 +35,8 @@ export const MasterDataPage: React.FC<MasterDataPageProps> = ({
   prepareDatasetNavigationRequest,
   onPrepareDatasetNavigationHandled
 }) => {
+  const pageRef = useRef<HTMLDivElement>(null)
+  const workspaceHeaderRef = useRef<HTMLElement>(null)
   const {
     activeTab,
     activeProductId,
@@ -77,6 +80,20 @@ export const MasterDataPage: React.FC<MasterDataPageProps> = ({
   const [showWarningHighlights, setShowWarningHighlights] = useState(true)
   const [warningNavigation, setWarningNavigation] = useState<(WarningNavigationTarget & MasterDataQualityItem) | undefined>()
   const [activeCellSelectionOwnerKey, setActiveCellSelectionOwnerKey] = useState<string | null>(null)
+
+  useSafeLayoutEffect(() => {
+    const page = pageRef.current
+    const header = workspaceHeaderRef.current
+    if (!page || !header) return
+    const updateStickyOffset = () => page.style.setProperty('--master-data-table-header-top', `${header.getBoundingClientRect().height}px`)
+    updateStickyOffset()
+    const observer = new ResizeObserver(updateStickyOffset)
+    observer.observe(header)
+    return () => {
+      observer.disconnect()
+      page.style.removeProperty('--master-data-table-header-top')
+    }
+  }, [])
 
   useEffect(() => {
     if (activeTab === 'master') return
@@ -287,8 +304,9 @@ export const MasterDataPage: React.FC<MasterDataPageProps> = ({
   )
 
   return (
-    <div className="w-full space-y-2">
+    <div ref={pageRef} className="w-full space-y-2">
       <MasterDataWorkspaceHeader
+        workspaceHeaderRef={workspaceHeaderRef}
         product={product}
         snapshot={masterDataSnapshot}
         saveStates={saveStates}

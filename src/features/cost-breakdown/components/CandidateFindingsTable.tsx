@@ -13,6 +13,7 @@ import {
 import type { MasterDataNumericField } from '../../../core'
 import type { ComparisonFinding, ComparisonStatus, CostBreakdownComparisonPair } from '../../../core'
 import { applyRowDragSelection, applyRowSelectionScope, getRowSelectionState } from '../../../shared/selection/row-drag-selection'
+import { StickyTableHeader, useSynchronizedTableHeader } from '../../../shared/ui/StickyTableHeader'
 import { Tooltip } from '../../../shared/ui/Tooltip'
 import { RowSelectionButton } from '../../../shared/ui/RowSelectionButton'
 import type { BOMItemizedRow } from './BOMDetailedTable'
@@ -177,6 +178,7 @@ export const CandidateFindingsTable: React.FC<CandidateFindingsTableProps> = ({
   onManualOrderChange
 }) => {
   const headerSelectionRef = useRef<HTMLButtonElement>(null)
+  const { headerViewportRef, syncHeaderScroll } = useSynchronizedTableHeader()
   const selectionDragRef = useRef({ active: false, anchorKey: null as string | null, target: false, moved: false })
   const selectionAnchorRef = useRef<string | null>(null)
   const suppressNextSelectionClickRef = useRef(false)
@@ -303,10 +305,17 @@ export const CandidateFindingsTable: React.FC<CandidateFindingsTableProps> = ({
 
   const emptyMessage = isBOM ? 'No Bill of Material findings match this filter.' : 'No Routing findings match this filter.'
 
-  return <div className="overflow-x-auto border border-slate-200">
-    <table className={`w-full ${isBOM ? 'min-w-[1040px]' : 'min-w-[1260px]'} table-fixed text-left text-[10px]`}>
+  const tableClassName = `w-full ${isBOM ? 'min-w-[1040px]' : 'min-w-[1260px]'} table-fixed text-left text-[10px]`
+
+  return <div className="border border-slate-200">
+    <StickyTableHeader
+      ariaLabel={`${identityHeader} candidate findings column headers`}
+      tableClassName={tableClassName}
+      headerViewportRef={headerViewportRef}
+      topClassName="top-0 lg:top-[var(--cbd-table-header-top)]"
+      backgroundClassName="bg-slate-800"
+    >
       <colgroup>{columnWidths.map((width, index) => <col key={index} style={{ width }} />)}</colgroup>
-      <caption className="sr-only">{identityHeader} Candidate findings. Main parameter columns show After minus Before; CHANGED rows expand Before → After and Parameter Cost Effect details.</caption>
       <thead>
         <tr className="bg-slate-800 font-semibold text-white">
           <th scope="col" className="px-1 py-2 text-center">
@@ -325,6 +334,18 @@ export const CandidateFindingsTable: React.FC<CandidateFindingsTableProps> = ({
           <th scope="col" className="whitespace-nowrap px-1 py-2 text-right">%GAP</th>
           <th scope="col" className="px-1 py-2 text-center"><span className="sr-only">Reorder</span></th>
           <th scope="col" className="px-1 py-2 text-center"><span className="sr-only">Details</span></th>
+        </tr>
+      </thead>
+    </StickyTableHeader>
+    <div className="overflow-x-auto" onScroll={syncHeaderScroll}>
+    <table className={tableClassName}>
+      <caption className="sr-only">{identityHeader} Candidate findings. Main parameter columns show After minus Before; CHANGED rows expand Before → After and Parameter Cost Effect details.</caption>
+      <colgroup>{columnWidths.map((width, index) => <col key={index} style={{ width }} />)}</colgroup>
+      <thead className="sr-only">
+        <tr>
+          <th scope="col">Select</th><th scope="col">{identityHeader}</th><th scope="col">Status</th>
+          {parameterHeaders.map(header => <th key={header} scope="col">{header}</th>)}
+          <th scope="col">Gap</th><th scope="col">%GAP</th><th scope="col">Reorder</th><th scope="col">Details</th>
         </tr>
       </thead>
       <tbody className="divide-y divide-slate-100 font-mono tabular-nums">
@@ -425,5 +446,6 @@ export const CandidateFindingsTable: React.FC<CandidateFindingsTableProps> = ({
           })}
       </tbody>
     </table>
+    </div>
   </div>
 }

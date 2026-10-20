@@ -1,4 +1,4 @@
-import React, { useEffect, useId, useState } from 'react'
+import React, { useEffect, useId, useLayoutEffect, useRef, useState } from 'react'
 import { ArrowUpDown, ChevronDown, ChevronRight, Filter } from 'lucide-react'
 import { useAppStore } from '../../state'
 
@@ -37,6 +37,7 @@ interface GapSegment {
 }
 
 const iconActionButtonClass = 'grid h-8 w-8 shrink-0 place-items-center rounded-sm bg-transparent text-slate-700 transition-colors hover:bg-slate-100 hover:text-slate-950 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700'
+const useSafeLayoutEffect = typeof window === 'undefined' ? useEffect : useLayoutEffect
 
 function isAvailableGap(value: number | null | undefined): value is number {
   return value !== null && value !== undefined && Number.isFinite(value)
@@ -175,6 +176,8 @@ export function GapContributionChart({ segments, fullTotal, selectedTotal, selec
 }
 
 export const CostBreakdownPage: React.FC<CostBreakdownPageProps> = ({ manualOrders, onManualOrderChange, onResetManualOrderHistory }) => {
+  const pageRef = useRef<HTMLDivElement>(null)
+  const stickyShellRef = useRef<HTMLDivElement>(null)
   const {
     activeTab,
     comparisonBefore,
@@ -196,6 +199,20 @@ export const CostBreakdownPage: React.FC<CostBreakdownPageProps> = ({ manualOrde
   const [isOverviewExpanded, setIsOverviewExpanded] = useState(true)
   const toggleOverview = () => setIsOverviewExpanded(expanded => !expanded)
   const gapDirection = `${COMPARISON_ROLE_LABELS[comparisonAfter]} − ${COMPARISON_ROLE_LABELS[comparisonBefore]}`
+
+  useSafeLayoutEffect(() => {
+    const page = pageRef.current
+    const shell = stickyShellRef.current
+    if (!page || !shell) return
+    const updateStickyOffset = () => page.style.setProperty('--cbd-table-header-top', `${shell.getBoundingClientRect().height + 8}px`)
+    updateStickyOffset()
+    const observer = new ResizeObserver(updateStickyOffset)
+    observer.observe(shell)
+    return () => {
+      observer.disconnect()
+      page.style.removeProperty('--cbd-table-header-top')
+    }
+  }, [])
 
   useEffect(() => {
     if (activeTab !== 'breakdown') dismissCostBreakdownPopovers()
@@ -245,8 +262,8 @@ export const CostBreakdownPage: React.FC<CostBreakdownPageProps> = ({ manualOrde
   }
 
   return (
-    <div className="flex min-h-full min-w-0 flex-col overflow-x-clip">
-      <div data-cbd-sticky-shell="true" className="flex shrink-0 flex-col lg:sticky lg:top-0 lg:z-30">
+    <div ref={pageRef} style={{ '--cbd-table-header-top': '0px' } as React.CSSProperties} className="flex min-h-full min-w-0 flex-col overflow-x-clip">
+      <div ref={stickyShellRef} data-cbd-sticky-shell="true" className="flex shrink-0 flex-col lg:sticky lg:top-0 lg:z-30">
       <header aria-label="Cost Breakdown subheader" className="shrink-0 overflow-x-auto border border-slate-300 bg-white">
         <div className="flex min-w-[1000px] flex-nowrap items-center gap-1.5 px-1.5 py-1" role="group" aria-label="Cost Breakdown controls">
           <div role="group" aria-label={`Comparison datasets, Before ${COMPARISON_ROLE_LABELS[comparisonBefore]}, After ${COMPARISON_ROLE_LABELS[comparisonAfter]}`} className="inline-flex shrink-0 items-center gap-1.5">

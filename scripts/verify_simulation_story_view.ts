@@ -259,7 +259,7 @@ try {
     assert.ok(graphMarkup.includes(`fill="${color}"`), `${part} uses the exact CBD palette color in the graph bars`)
     assert.ok(graphMarkup.includes(`background-color:${color}`), `${part} uses the exact CBD palette color in the legend`)
   }
-  assert.match(graphMarkup, /Simulation Cost Structure/)
+  assert.match(graphMarkup, /Cost Structure/)
   assert.match(graphMarkup, /<figure aria-labelledby="simulation-story-title"/,
     'the graph figure has an accessible name from its visible heading')
   assert.match(graphMarkup, /<svg aria-labelledby="simulation-story-title" aria-describedby="simulation-story-svg-description"/,
@@ -269,7 +269,7 @@ try {
   assert.match(graphMarkup, /preserveAspectRatio="xMidYMid meet"/,
     'the responsive graph preserves circular markers and undistorted text and lines')
   assert.doesNotMatch(graphMarkup, /<title\b|\stitle=/, 'graph elements do not expose native hover tooltips')
-  assert.match(graphMarkup, /<h2 id="simulation-story-title"[^>]*>Simulation Cost Structure<\/h2>[\s\S]*?<ul aria-label="Simulation graph legend"/,
+  assert.match(graphMarkup, /<h2 id="simulation-story-title"[^>]*>Cost Structure<\/h2>[\s\S]*?<ul aria-label="Simulation graph legend"/,
     'the graph title and legend share the header area')
   assert.match(graphMarkup, /<ul aria-label="Simulation graph legend"[\s\S]*?<\/ul><button type="button" disabled=""[^>]*>Show all<\/button>/,
     'Show all is a separate action after the eight Legend controls and is disabled initially')

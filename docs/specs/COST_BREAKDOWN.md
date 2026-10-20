@@ -28,6 +28,8 @@ The findings table schemas are `# | Bill of Material | Status | Δ Usage | Δ Pr
 
 The expanded BOM/RTG details do not repeat Candidate identity, Status, selection, reorder controls, RCA content, per-record Data quality, role-specific quality badges, Confidence labels, or Confidence badges. Missing or invalid calculation inputs remain unavailable and are never fabricated.
 
+For BOM and Routing findings, only the actual column-header row stays sticky. On desktop it sits below the measured sticky controls and overview shell plus the existing 8px gap. Each findings table bounds its own header, so All hands off from BOM to Routing at the section boundary; BOM-only and Routing-only keep the same behavior. The header follows its table body's horizontal scroll without creating page-level horizontal scrolling.
+
 ## Comparison Scope: Before / After Across Three Working Datasets
 
 Cost Breakdown answers: *“What changed between the selected Before and After datasets, and where does the Standard Cost gap come from?”*

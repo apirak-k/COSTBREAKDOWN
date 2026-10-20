@@ -59,7 +59,7 @@ try {
   assert.match(selectedStoryMarkup, /data-graph-standard-cost-value="current"[^>]*>16\.00/)
   assert.match(selectedStoryMarkup, /data-graph-standard-cost-value="custom"[^>]*>95\.00/)
   assert.match(selectedStoryMarkup, /aria-label="Custom Operating Profit: -5\.00 THB\/PC"/)
-  assert.ok(selectedStoryText.includes('Simulation Cost Structure'))
+  assert.ok(selectedStoryText.includes('Cost Structure'))
   assert.doesNotMatch(selectedStoryMarkup, /Scenario A|Scenario B|Trial/)
   assert.doesNotMatch(selectedStoryMarkup, /Simulated − Reference|Reference − Simulated|Gross Profit|GP Margin|OP Margin/)
   const blankWorkCenterWorkbook = XLSX.utils.book_new()

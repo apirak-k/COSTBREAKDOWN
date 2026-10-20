@@ -1,30 +1,28 @@
-# Current Handoff — in-memory page state and browser refresh defaults — 2026-10-20
+# Current Handoff — focused Simulation and table-header UI correction — 2026-10-20
 
 ## Checkpoint and delivery
 
 - Repository: `/Users/bubu/COSTBREAKDOWN-ref-current-custom-flow-redesign` (`apirak-k/COSTBREAKDOWN`). Branch: `feat/ref-current-custom-flow-redesign`.
-- Verified starting local and remote baseline: `35ccd13ff0549f12a39a8dcc3bb288b0818c51d6`.
+- Verified starting local and remote baseline: `b9ddd0ff2e6f0f4c2665ffef3d1be722a5881fe0`.
 - One focused commit and push to this branch are authorized. Do not merge or start Phase 5.
 
 ## Implemented in this pass
 
-- Visited pages remain mounted and hidden while another page is active, preserving component-owned UI state in the running app session. The shared Main scroll position is cached separately for Master Data, CBD, and Simulation in memory and restored on page navigation.
-- Fresh app initialization opens Master Data on Current / Edit Data / All Tables. The active page is no longer restored from or written to session storage; every full refresh opens Master Data at the top.
-- CBD comparison, filters, sort, selection, disclosures, and ordering history stay in memory during page navigation and return to their existing defaults after refresh.
-- Simulation role/pair and row selection are stripped from both loaded legacy state and new session-storage writes. Parameter overrides, Business/Economic drafts, role fingerprints, and product scoping remain persisted through the existing Simulation data lifecycle. Search, expanded rows, and table scroll remain component/DOM state, so they reset on refresh.
-- Existing Master Data Working / Last Saved product sessions continue using their current storage lifecycle. Refresh does not invoke Reset, Reset All, Clear, or Clear All.
-- Updated the current Cross-Cutting, Master Data, CBD, Simulation, and Final Logic specifications, plus navigation, Master Data, and Simulation regression coverage.
+- Changed the Simulation graph title to `Cost Structure` and replaced footer triangles with 16px Lucide chevrons. The desktop Next chevron follows the final Details column track; one-row navigation and native continuous scrolling remain in place.
+- Added section-bounded sticky column headers to Master Data BOM / Work Centers / Routing and CBD BOM / Routing. Table title rows remain in normal flow. Header horizontal position follows each body's horizontal scroll.
+- Master Data header offset is measured from its sticky workspace controls. CBD desktop header offset is measured from its sticky controls / overview shell plus the existing 8px gap; the controls shell retains its existing responsive sticky behavior.
+- Updated only the directly affected Master Data, CBD, Simulation specifications and focused source regression checks.
 
 ## Verification and limits
 
 - **PASS:** `npm run build`.
 - **PASS:** `node scripts/verify_simulation_regression.mjs`, including row-selection, Simulation state reset/persistence assertions, navigation state contracts, Phase 3/4, results, economics, history, CBD, Master Data history, and Global Header.
 - **PASS:** `node scripts/verify_master_data_ui_state.mjs` and `node scripts/verify_page_navigation_persistence.mjs`.
-- **PASS:** `node scripts/verify_cbd_comparison_pair.mjs`, `node --experimental-strip-types scripts/verify_snapshot_comparison_view.ts`, `node --experimental-strip-types scripts/verify_comparison_reconciliation.ts`, and `node scripts/verify_cbd_audit_fixes.mjs`.
+- **PASS:** `node scripts/verify_cbd_comparison_pair.mjs`, `node scripts/verify_cbd_audit_fixes.mjs`, and `node scripts/verify_ui_correction_pass.mjs`.
 - **PASS:** `git diff --check`.
-- Vite SSR suites print the existing `WebSocket server error: Port 24678 is already in use` warning and exit 0. The build retains ExcelJS browser externalization warnings and the main-bundle size warning.
-- **[Unverified] NOT BROWSER-VERIFIED:** no Chrome/Chromium executable, Playwright package, or browser DevTools tool is available. Regression and source contracts do not establish real browser route/scroll behavior. No browser acceptance is claimed.
-- One focused state-persistence change only. No merge or Phase 5 work is included.
+- Vite SSR regression suites print `WebSocket server error: Port 24678 is already in use` and exit 0. The build retains ExcelJS browser externalization warnings and the 544 kB main-bundle warning.
+- **[Unverified] browser/visual behavior not independently verified.** No Chrome / Chromium executable, Playwright package, or browser DevTools tool is available. Source checks do not confirm rendered sticky handoff or footer alignment.
+- One focused UI correction pass only. No merge or Phase 5 work is included.
 
 ---
 

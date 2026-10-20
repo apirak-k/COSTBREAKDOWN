@@ -530,11 +530,10 @@ try {
 
   const pageSource = readFileSync(new URL('../src/features/cost-breakdown/CostBreakdownPage.tsx', import.meta.url), 'utf8')
   const candidateTableSource = readFileSync(new URL('../src/features/cost-breakdown/components/CandidateFindingsTable.tsx', import.meta.url), 'utf8')
-  const pageRootClass = pageSource.match(/return \(\s*<div className="([^"]+)"/s)?.[1]
-  const stickyShellOpen = pageSource.indexOf('<div data-cbd-sticky-shell="true"')
-  const stickyShellClass = stickyShellOpen >= 0
-    ? pageSource.slice(stickyShellOpen).match(/^<div[^>]*className="([^"]+)"/)?.[1]
-    : undefined
+  const pageRootClass = pageSource.match(/return \(\s*<div ref=\{pageRef\}[^>]*className="([^"]+)"/s)?.[1]
+  const stickyShellIndex = pageSource.indexOf('data-cbd-sticky-shell="true"')
+  const stickyShellTag = pageSource.match(/<div\b[^>]*data-cbd-sticky-shell="true"[^>]*>/)?.[0]
+  const stickyShellClass = stickyShellTag?.match(/className="([^"]+)"/)?.[1]
   const overviewClass = pageSource.match(/<div id="cost-breakdown-overview-panels"[^>]*className=\{isOverviewExpanded \? '([^']+)'/)?.[1]
   const candidateRegionClass = pageSource.match(/<div role="region" aria-label="Candidate workspace" tabIndex=\{0\} className="([^"]+)"/)?.[1]
   assert.ok(pageRootClass && stickyShellClass && overviewClass && candidateRegionClass,
@@ -572,7 +571,7 @@ try {
   const subheaderIndex = pageSource.indexOf('Cost Breakdown subheader')
   const overviewIndex = pageSource.indexOf('<div id="cost-breakdown-overview-panels"')
   const candidateIndex = pageSource.indexOf('aria-label="Candidate workspace"')
-  assert.ok(subheaderIndex >= stickyShellOpen
+  assert.ok(subheaderIndex >= stickyShellIndex
     && overviewIndex > subheaderIndex
     && candidateIndex > overviewIndex
     && /\r?\n      <\/div>\r?\n      <\/div>\r?\n\r?\n      <div aria-hidden="true" data-cbd-sticky-gap="true" className="h-2 shrink-0" \/>\r?\n\r?\n      <div role="region" aria-label="Candidate workspace"/.test(pageSource.slice(overviewIndex, candidateIndex + 100)),
@@ -604,7 +603,7 @@ try {
     'narrow Candidate table overflow stays local rather than widening the document or Main')
   assert.doesNotMatch(appLayoutSource, /isCostBreakdown[\s\S]*?overflow-y-auto[^']*lg:overflow-y-hidden/,
     'CBD Main remains a vertical scroll owner at desktop widths')
-  assert.match(candidateTableSource, /<div className="overflow-x-auto border border-slate-200">[\s\S]*<table className=\{`w-full \$\{isBOM \? 'min-w-\[1040px\]' : 'min-w-\[1260px\]'\} table-fixed/,
+  assert.match(candidateTableSource, /return <div className="border border-slate-200">[\s\S]*<StickyTableHeader[\s\S]*<div className="overflow-x-auto" onScroll=\{syncHeaderScroll\}>[\s\S]*<table className=\{tableClassName\}/,
     'narrow Candidate tables keep their own local horizontal fallback and enough width to avoid column collisions')
 
   console.log('PASS: CBD summary UX verifier (Gap Bar, Cost, Work Center)')
