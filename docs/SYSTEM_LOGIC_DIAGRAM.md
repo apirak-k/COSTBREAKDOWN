@@ -10,7 +10,7 @@ MASTER DATA
         │
         ▼
 COST BREAKDOWN
-(Reference vs Current; Full or Selected Comparison)
+(Default Reference → Current; all nine ordered pairs, including self-pairs; Full or Selected Comparison)
         │
         ▼
 SIMULATION
@@ -36,7 +36,7 @@ All dataset calculations use the shared Standard Cost engine. Missing or invalid
 
 ```mermaid
 flowchart TD
-    master["MASTER DATA<br/>Reference · Current · Custom<br/>Working / Last Saved"] --> cbd["COST BREAKDOWN<br/>Reference vs Current<br/>Full / Selected Comparison"]
+    master["MASTER DATA<br/>Reference · Current · Custom<br/>Working / Last Saved"] --> cbd["COST BREAKDOWN<br/>Default Reference → Current<br/>All nine pairs · Full / Selected Comparison"]
     cbd --> sim["SIMULATION<br/>Fresh default: active Custom · Result Current → Custom"]
 
     master --> working["Latest Working datasets<br/>Reference · Current · Custom"]

@@ -163,7 +163,7 @@ try {
   assert.deepEqual(getMasterDataSnapshotValidationErrors(importedPreciseSnapshot), [], 'import validation preserves valid source precision rather than rounding data')
 
   const { updateSimulationParameter } = await vite.ssrLoadModule('/src/features/simulation/simulation-engine.ts')
-  const { createEmptySimulationState, getEffectiveSimulationDataset } = await vite.ssrLoadModule('/src/features/simulation/simulation-state.ts')
+  const { createEmptySimulationState, getEffectiveSimulationDataset, setSimulationActiveDataset } = await vite.ssrLoadModule('/src/features/simulation/simulation-state.ts')
   const simulationSources = {
     reference: importedPreciseSnapshot,
     current: importedPreciseSnapshot,
@@ -174,7 +174,8 @@ try {
   assert.equal(updateSimulationParameter(simulationState, simulationSources, 'b1', 'bom.loss', 0.0123456), simulationState, 'Simulation rejects pasted precision outside the shared input contract')
   assert.equal(updateSimulationParameter(simulationState, simulationSources, 'b1', 'bom.loss', 1.01), simulationState, 'Simulation rejects Loss above 100%')
   assert.equal(updateSimulationParameter(simulationState, simulationSources, 'b1', 'bom.consumption', -0.1), simulationState, 'Simulation rejects negative Usage')
-  const validSimulationEdit = updateSimulationParameter(simulationState, simulationSources, 'b1', 'bom.price', 12.34)
+  const currentSimulationState = setSimulationActiveDataset(simulationState, 'current')
+  const validSimulationEdit = updateSimulationParameter(currentSimulationState, simulationSources, 'b1', 'bom.price', 12.34)
   assert.equal(getEffectiveSimulationDataset(simulationSources, validSimulationEdit, 'current').snapshot.bom[0].price, 12.34,
     'a valid two-place Current Simulation override is applied as entered')
 

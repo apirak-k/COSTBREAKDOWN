@@ -49,7 +49,7 @@ try {
   for (const label of ['Material', 'Labor', 'Burden', 'SG&amp;A', 'Profit +', 'Profit −', 'Selling Price', 'Ruler']) {
     assert.ok(selectedStoryLegend.includes(`aria-label="${label}"`), `the final graph legend must expose ${label}`)
   }
-  const graphCategoryLabels = [...selectedStoryMarkup.matchAll(/<button\b[^>]*>(Reference|Current|Custom)<\/button>|<text\b[^>]*>(GAP [12])<\/text>/g)]
+  const graphCategoryLabels = [...selectedStoryMarkup.matchAll(/aria-label="Select (Reference|Current|Custom) as active dataset"|<text\b[^>]*>\s*(GAP [12])\s*<\/text>/g)]
     .map(match => match[1] ?? match[2])
   assert.deepEqual(graphCategoryLabels, ['Reference', 'GAP 1', 'Current', 'GAP 2', 'Custom'],
     'the finalized story preserves Reference → GAP 1 → Current → GAP 2 → Custom')

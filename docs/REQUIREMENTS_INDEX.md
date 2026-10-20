@@ -20,6 +20,7 @@ The active canonical specifications are:
 
 Supporting architecture and design documents:
 - [`SYSTEM_LOGIC_DIAGRAM.md`](SYSTEM_LOGIC_DIAGRAM.md) — Visual workflow diagrams (Mermaid and text).
+- [Repository architecture map](../.archify/architecture-costbreakdown-20261020-160711/costbreakdown-architecture.html) — Source-cited module and browser data-flow map rendered from approved baseline `07a2c86a15d8716beacc20e9761a8073feadf914`.
 - [`PROVISIONAL_IMPLEMENTATION_DECISIONS.md`](PROVISIONAL_IMPLEMENTATION_DECISIONS.md) — Reversible AI implementation and presentation details.
 - [`design.md`](../design.md) — Visual design tokens, typography, layout density, and styling system.
 

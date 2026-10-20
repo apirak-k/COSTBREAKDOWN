@@ -453,12 +453,22 @@ try {
   assert.deepEqual(gridCellText(candidateMainRow(ambiguousAddedRoutingMarkup, 'Routing', 'Cutting', 'ADDED')).slice(6, 8), ['—', '—'],
     'ambiguous snapshot-side Work Center rates remain unavailable in Routing main columns')
 
-  const bomTablesInAll = [...renderItemized(itemizedView, {
+  const tablesInAll = [...renderItemized(itemizedView, {
     ...bomComparisonForDisplay,
     routingFindings: routingComparison.routingFindings
-  }, bomRefSnapshot, bomCurSnapshot, 'all').matchAll(/<table\b[\s\S]*?<\/table>/g)]
-  assert.equal(bomTablesInAll.length, 2, 'ALL renders exactly the BOM table followed by the Routing table')
-  const allTableMarkup = bomTablesInAll.map(match => match[0])
+  }, bomRefSnapshot, bomCurSnapshot, 'all').matchAll(/<table\b[\s\S]*?<\/table>/g)].map(match => match[0])
+  const allTableMarkup = tablesInAll.filter(table => /<caption\b/.test(table))
+  assert.equal(tablesInAll.length, 4, 'ALL renders a sticky header and data table for BOM, then Routing')
+  const renderedTableTypes = tablesInAll.map(table => {
+    if (/aria-label="Bill of Material candidate findings column headers"/.test(table)) return 'BOM header'
+    if (/aria-label="Routing candidate findings column headers"/.test(table)) return 'Routing header'
+    if (/<caption\b[^>]*>Bill of Material Candidate findings/.test(table)) return 'BOM data'
+    if (/<caption\b[^>]*>Routing Candidate findings/.test(table)) return 'Routing data'
+    return 'unknown table'
+  })
+  assert.deepEqual(renderedTableTypes, ['BOM header', 'BOM data', 'Routing header', 'Routing data'],
+    'the sticky header/body pairs stay aligned and BOM remains before Routing')
+  assert.equal(allTableMarkup.length, 2, 'ALL renders one data table for each finding type')
   assert.ok(allTableMarkup[0].includes('Bill of Material') && allTableMarkup[1].includes('Routing'),
     'ALL keeps BOM first and Routing immediately below without merging their rows')
   const allColumnWidths = allTableMarkup.map(table => table.match(/<colgroup>([\s\S]*?)<\/colgroup>/)?.[1])
@@ -766,8 +776,10 @@ try {
   const routingParameterWidth = routingGrid.slice(3, -4).reduce((sum, width) => sum + width, 0)
   assert.ok(Math.abs(bomParameterWidth - routingParameterWidth) < 1e-8,
     'BOM and Routing parameter groups occupy the same total width')
-  assert.match(candidateSource, /<div className="overflow-x-auto border border-slate-200">[\s\S]*<table className=\{`w-full \$\{isBOM \? 'min-w-\[1040px\]' : 'min-w-\[1260px\]'\} table-fixed/,
-    'BOM and Routing tables keep a local responsive fallback with enough minimum width to avoid narrow-column collisions')
+  assert.match(candidateSource, /const tableClassName = `w-full \$\{isBOM \? 'min-w-\[1040px\]' : 'min-w-\[1260px\]'\} table-fixed/,
+    'BOM and Routing use type-specific minimum widths to avoid narrow-column collisions')
+  assert.match(candidateSource, /<StickyTableHeader[\s\S]*?<\/StickyTableHeader>[\s\S]*?<div className="overflow-x-auto" onScroll=\{syncHeaderScroll\}>[\s\S]*?<table className=\{tableClassName\}>/,
+    'BOM and Routing body scrolling stays local and synchronized with the sticky header')
   assert.match(candidateSource, /const canExpand = status === 'CHANGED'\s+const isExpanded = canExpand && expandedRows\.has/,
     'even stale expansion state cannot show Details for a non-CHANGED finding')
   assert.match(candidateSource, /h-8 w-8 shrink-0 items-center justify-center rounded-sm p-0 font-mono[^']*tabular-nums/,

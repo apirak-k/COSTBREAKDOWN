@@ -2,6 +2,8 @@
 
 **Status:** Accepted shared UX contract, updated with the finalized Master Data interaction and dataset corrections from 2026-10-17, the Simulation unavailable-effect presentation correction from 2026-10-18, and the shared input / toolbar, compact-overlay, cross-page state, and CBD selector polish corrections from 2026-10-19. These latest requirements supersede conflicting earlier behavior in this document.
 
+**Current acceptance note (2026-10-20):** The user visually accepted the final UI mini-round at baseline `07a2c86a15d8716beacc20e9761a8073feadf914`. Older pending-acceptance statements below describe their original checkpoints and do not represent open current UI decisions; Phase 5 regression and browser-verification status is recorded in [`HANDOFF.md`](../../HANDOFF.md).
+
 ## Scope
 
 This contract records the accepted workspace UX direction across the shared Header, Master Data toolbar/search/metadata and warning navigation, Cost Breakdown hierarchy, legacy Candidate/RCA session compatibility, and Simulation workspace. The latest correction pass also refines shared numeric scroll direction, Master Data Clone/Warning wording and role-menu alignment, Header brand hierarchy, Prepare Dataset sizing/alignment, Footer tooltip behavior, visible numeric precision, and Master Data Toolbar/Metadata interactions.

@@ -1,6 +1,5 @@
 import assert from 'node:assert/strict'
 import {
-  buildPrioritizationCandidates,
   calculateSnapshotCost,
   calculateSnapshotRoutingDetail,
   compareSnapshots,
@@ -9,7 +8,11 @@ import {
   SnapshotRoutingStep,
   SnapshotWorkCenterRate
 } from '../src/core'
-import { SIMULATION_PARAMETERS, startSimulationFrom } from '../src/features/simulation/simulation-state.ts'
+import {
+  createEmptySimulationState,
+  getEffectiveSimulationDataset,
+  SIMULATION_PARAMETERS
+} from '../src/features/simulation/simulation-state.ts'
 
 const product = {
   productCode: 'TEST-001',
@@ -81,13 +84,7 @@ assert.equal(missingRateDetail.totalGap, null, 'unavailable Process detail must 
 
 const missingRateComparison = compareSnapshots(reference, current)
 assert.equal(missingRateComparison.routingFindings[0]?.costEffect?.gap.total, null)
-const missingRateProcessCandidate = buildPrioritizationCandidates(
-  missingRateComparison,
-  reference,
-  current
-).find(candidate => candidate.sourceType === 'process')
-assert.ok(missingRateProcessCandidate, 'changed Process remains identifiable despite unavailable cost')
-assert.equal(missingRateProcessCandidate.costGap, null, 'Candidate pipeline must preserve unavailable Gap')
+assert.equal(missingRateComparison.routingFindings[0]?.matchStatus, 'matched')
 
 const configuredReference = snapshot({ id: 'configured-reference', rates: [rate()] })
 const configuredCurrent = snapshot({
@@ -103,25 +100,30 @@ assert.equal(configuredCurrentCost.labor, 0.2)
 assert.equal(configuredCurrentCost.burden, 0.4)
 
 const configuredComparison = compareSnapshots(configuredReference, configuredCurrent)
-const configuredProcessCandidate = buildPrioritizationCandidates(
-  configuredComparison,
-  configuredReference,
-  configuredCurrent
-).find(candidate => candidate.sourceType === 'process')
+const configuredProcessFinding = configuredComparison.routingFindings.find(finding => finding.matchStatus === 'matched')
+assert.ok(configuredProcessFinding)
 assert.ok(
-  Math.abs((configuredProcessCandidate?.costGap ?? Number.NaN) - 0.3) < 1e-12,
-  'Process Candidate Gap uses canonical side-specific snapshot rates'
+  Math.abs((configuredProcessFinding.costEffect?.gap.total ?? Number.NaN) - 0.3) < 1e-12,
+  'Process finding Gap uses canonical side-specific snapshot rates'
 )
 
-const simState = startSimulationFrom('current', {
+const simulationSources = {
   reference,
   current,
-  custom: current
-})
+  custom: configuredCurrent
+}
+const simState = createEmptySimulationState(simulationSources)
 assert.deepEqual(SIMULATION_PARAMETERS, [
   'bom.price', 'bom.consumption', 'bom.loss',
   'routing.manning', 'routing.capacity', 'routing.yield'
 ], 'Simulation exposes only the finalized BOM and Routing parameters')
-assert.equal(simState.snapshot?.rates.length, 0, 'starting SIM does not fabricate Work Center rate records')
+assert.equal(simState.activeDataset, 'custom')
+assert.equal(simState.comparisonBefore, 'current')
+assert.equal(simState.comparisonAfter, 'custom')
+assert.equal(
+  getEffectiveSimulationDataset(simulationSources, simState, 'current').snapshot.rates.length,
+  0,
+  'Simulation derives its role from Master Working without fabricating Work Center rates'
+)
 
 console.log('Canonical missing Work Center verification passed; unavailable costs remain explicit')

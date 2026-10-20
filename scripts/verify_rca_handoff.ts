@@ -1,18 +1,6 @@
 import assert from 'node:assert/strict'
 import { existsSync, readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
-import { createRcaCaseRecord, isRcaCaseComplete } from '../src/state/rca-cases.ts'
-
-const oneCandidateCase = createRcaCaseRecord('case-one', ['bom:MAT-1'], {
-  rootCause: '', action: ''
-})
-assert.equal(isRcaCaseComplete(oneCandidateCase), false, 'legacy RCA case completion still uses case-level fields')
-
-const candidateKeys = ['bom:MAT-1', 'process:QA-1']
-const completedCase = createRcaCaseRecord('case-many', candidateKeys, {
-  rootCause: 'Shared process change', action: 'Balance the revised sequence'
-})
-assert.equal(isRcaCaseComplete(completedCase), true)
 
 const app = readFileSync(resolve(process.cwd(), 'src/App.tsx'), 'utf8')
 const features = readFileSync(resolve(process.cwd(), 'src/features/index.ts'), 'utf8')

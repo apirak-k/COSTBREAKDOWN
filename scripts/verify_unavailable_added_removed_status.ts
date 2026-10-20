@@ -1,7 +1,6 @@
 import assert from 'node:assert/strict'
 import {
   CostSnapshot,
-  buildMaterialCandidates,
   compareSnapshots,
   getCanonicalComparisonStatus
 } from '../src/core'
@@ -36,11 +35,7 @@ assert.equal(getCanonicalComparisonStatus(added), 'ADDED', 'an incomplete one-si
 assert.equal(getCanonicalComparisonStatus(removed), 'REMOVED', 'an incomplete one-sided reference record keeps REMOVED status')
 assert.equal(added.costEffect?.current.material, null, 'unavailable current cost remains null')
 assert.equal(removed.costEffect?.reference.material, null, 'unavailable reference cost remains null')
-const candidates = buildMaterialCandidates(comparison, reference, current)
-assert.deepEqual(candidates.map(candidate => candidate.status).sort(), ['ADDED', 'REMOVED'])
-assert.equal(candidates.find(candidate => candidate.status === 'ADDED')?.costGap, null)
-assert.equal(candidates.find(candidate => candidate.status === 'REMOVED')?.costGap, null)
-console.log('Unavailable Added/Removed status verification passed')
+console.log('Unavailable Added/Removed comparison status verification passed')
 
 const incompleteReference: CostSnapshot = {
   ...reference,
@@ -64,10 +59,6 @@ const incompleteChanged = incompleteComparison.bomFindings[0]
 assert.equal(incompleteChanged.confidence, 'missing')
 assert.equal(incompleteChanged.costEffect?.gap.material, null)
 assert.equal(getCanonicalComparisonStatus(incompleteChanged), 'CHANGED', 'a changed record keeps CHANGED status when its cost Gap is unavailable')
-const incompleteCandidate = buildMaterialCandidates(incompleteComparison, incompleteReference, incompleteCurrent)
-assert.equal(incompleteCandidate.length, 1, 'an unavailable Gap does not remove a structurally CHANGED Candidate')
-assert.equal(incompleteCandidate[0].status, 'CHANGED')
-assert.equal(incompleteCandidate[0].costGap, null)
 const unchangedMissing = compareSnapshots(incompleteCurrent, { ...incompleteCurrent, id: 'incomplete-current-copy' }).bomFindings[0]
 assert.equal(unchangedMissing.confidence, 'missing')
 assert.equal(getCanonicalComparisonStatus(unchangedMissing), 'UNCHANGED', 'missing cost alone does not create a Candidate status')

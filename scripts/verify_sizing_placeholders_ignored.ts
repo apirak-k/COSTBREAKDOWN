@@ -1,7 +1,6 @@
 import assert from 'node:assert/strict'
 import {
   CostSnapshot,
-  buildProcessingCandidates,
   calculateSnapshotCost,
   compareSnapshots,
   getCanonicalComparisonStatus
@@ -80,8 +79,6 @@ for (const [findings, id] of [
   assert.equal(getCanonicalComparisonStatus(finding), null, 'MISSING rows are not selectable as complete comparisons')
 }
 assert.ok(comparison.warnings.some(warning => warning.code === 'MISSING_BUSINESS_KEY'))
-assert.deepEqual(buildProcessingCandidates(comparison, base, current), [], 'MISSING Routing rows cannot create candidates')
-
 const incompleteNamed: CostSnapshot = {
   ...base,
   id: 'incomplete-named',

@@ -712,26 +712,26 @@ The following older rules are **explicitly superseded** and must not be reintrod
 # 11. System-Level Acceptance Checklist
 
 ### Master Data
-- [ ] Reference, Current, and Custom exist and share the same canonical schema.
-- [ ] Custom has no hard-coded semantic meaning.
-- [ ] Structural editing (add/remove/sizing) belongs in Master Data / Custom.
-- [ ] Clone semantics: active dataset is destination, user chooses source.
-- [ ] User can clone Current → Custom, Reference → Custom, Custom → Current.
-- [ ] Sizing and Excel template generation preserved.
-- [ ] 4-sheet workbook format (`META`, `BOM`, `WORK_CENTER`, `ROUTING`) preserved with yellow editable cells.
+- [x] Reference, Current, and Custom exist and share the same canonical schema.
+- [x] Custom has no hard-coded semantic meaning.
+- [x] Structural editing (add/remove/sizing) belongs in Master Data / Custom.
+- [x] Clone semantics: active dataset is destination, user chooses source.
+- [x] User can clone Current → Custom, Reference → Custom, Custom → Current.
+- [x] Sizing and Excel template generation preserved.
+- [x] 4-sheet workbook format (`META`, `BOM`, `WORK_CENTER`, `ROUTING`) preserved with yellow editable cells.
 
 ### Cost Breakdown (CBD)
-- [ ] CBD supports all nine ordered Reference / Current / Custom pairs, including self-comparison; default is Reference → Current.
-- [ ] Matching uses business identity (`Name`, `WC`, `Process`), never row index.
-- [ ] Exactly four statuses: `UNCHANGED`, `CHANGED`, `ADDED`, `REMOVED`; ADDED is After-only and REMOVED is Before-only.
-- [ ] $\text{Gap} = \text{After} - \text{Before}$ for all CBD gaps, effects, and parameter deltas.
-- [ ] Each selected dataset uses its own Work Center rates; self-comparison safely yields zero gaps where calculable.
-- [ ] Full Comparison and pair-aware Selected Comparison supported; role or Working-data changes invalidate stale selection.
-- [ ] Pair changes clear manual reorder/history and expanded details while preserving type/status/sort.
-- [ ] CBD selectors use the existing one-row Subheader and shared popover; visible cost/finding semantics use Before / After or the actual direction.
-- [ ] CBD findings may be referred to as Candidates; filtering, sorting, detail inspection, row selection, and Selected Comparison remain inside CBD.
-- [ ] There is no standalone Candidate or RCA page in the current visible product flow.
-- [ ] Selected Comparison is temporary analysis scope only, not a dataset or persistent case.
+- [x] CBD supports all nine ordered Reference / Current / Custom pairs, including self-comparison; default is Reference → Current.
+- [x] Matching uses business identity (`Name`, `WC`, `Process`), never row index.
+- [x] Exactly four statuses: `UNCHANGED`, `CHANGED`, `ADDED`, `REMOVED`; ADDED is After-only and REMOVED is Before-only.
+- [x] $\text{Gap} = \text{After} - \text{Before}$ for all CBD gaps, effects, and parameter deltas.
+- [x] Each selected dataset uses its own Work Center rates; self-comparison safely yields zero gaps where calculable.
+- [x] Full Comparison and pair-aware Selected Comparison supported; role or Working-data changes invalidate stale selection.
+- [x] Pair changes clear manual reorder/history and expanded details while preserving type/status/sort.
+- [x] CBD selectors use the existing one-row Subheader and shared popover; visible cost/finding semantics use Before / After or the actual direction.
+- [x] CBD findings may be referred to as Candidates; filtering, sorting, detail inspection, row selection, and Selected Comparison remain inside CBD.
+- [x] There is no standalone Candidate or RCA page in the current visible product flow.
+- [x] Selected Comparison is temporary analysis scope only, not a dataset or persistent case.
 
 ### Simulation (Parameter & Economic)
 - [x] Simulation includes Parameter Simulation and Economic Simulation.
@@ -757,41 +757,22 @@ The following older rules are **explicitly superseded** and must not be reintrod
 - [x] Exactly A/B scenario count is not mandatory.
 
 ### Shared & Integrity
-- [ ] One shared calculation engine for all features.
-- [ ] Missing inputs make outputs unavailable (never substituted with zero).
-- [ ] Reversible implementation details documented in provisional ledger.
+- [x] One shared calculation engine for all features.
+- [x] Missing inputs make outputs unavailable (never substituted with zero).
+- [x] Reversible implementation details documented in provisional ledger.
 
 ---
 
-# 12. Implementation Progress Checklist Template
+# 12. Implementation and Closure Status
 
-This tracks execution progress across future implementation phases.
-
-Allowed statuses: `TODO`, `IN PROGRESS`, `IMPLEMENTED`, `VERIFIED`, `BLOCKED — BUSINESS QUESTION`.
-
-### Phase 0 — Baseline
-- [ ] Confirm active branch.
-- [ ] Record baseline commit SHA.
-- [ ] Confirm expected worktree state.
-- [ ] Read repository agent instructions.
-- [ ] Read requirements authority and canonical specs.
-- [ ] Record baseline build/test status.
-
-### Phase 1 — Documentation Alignment
-- [x] Migrate `FINAL_LOGIC_SPEC.md` to latest finalized logic.
-- [x] Update `REQUIREMENTS_INDEX.md`.
-- [x] Update `MASTER_DATA.md` (Ref / Cur / Custom, Clone).
-- [x] Update `COST_BREAKDOWN.md` (Ref vs Cur, Selected scope).
-- [x] Update `CANDIDATE.md` (Candidate + Multi-Candidate RCA).
-- [x] Rename/rewrite `RCA_SIMULATION.md` → `SIMULATION.md` (Parameter + Economic).
-- [x] Update `CROSS_CUTTING.md`.
-- [x] Update `SYSTEM_LOGIC_DIAGRAM.md`.
-- [x] Reconcile provisional decisions and design references.
-- [x] Update `HANDOFF.md`.
-- [x] Verify cross-document consistency.
-
-### Phase 2+ — Implementation
-(To be executed during code audit and implementation phase).
+| Phase | Scope | Status |
+| --- | --- | --- |
+| 0 | Confirm branch, approved baseline, repository instructions, and clean starting worktree | Complete — `feat/ref-current-custom-flow-redesign` at `07a2c86a15d8716beacc20e9761a8073feadf914` |
+| 1 | Align canonical documentation with Reference / Current / Custom | Complete — active specs and index aligned |
+| 2 | Master Data and CBD implementation | Complete — lifecycle, comparisons, identity, selection, and persistence regressions pass |
+| 3 | Simulation role state, overrides, history, reset/send, and economics | Complete — phase/state/economics regressions pass |
+| 4 | Simulation graph, Result, and accepted UI integration | Complete — graph/story/result and focused UI regressions pass; accepted UI geometry remains frozen |
+| 5 | Final implementation audit, stale-flow cleanup, cross-page/doc closure, and regression | Complete — see the current `HANDOFF.md`; dependency advisories and Windows Excel COM recalculation remain recorded limitations |
 
 ---
 

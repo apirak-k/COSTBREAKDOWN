@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 1,
+  "receiptId": "0b0d8616-a9b8-4cfe-b14e-df8cfaf8952c",
+  "status": "current",
+  "command": "deliver",
+  "type": "architecture",
+  "input": "/Users/bubu/COSTBREAKDOWN-ref-current-custom-flow-redesign/.archify/architecture-costbreakdown-20261020-160711/costbreakdown-architecture.json",
+  "output": "/Users/bubu/COSTBREAKDOWN-ref-current-custom-flow-redesign/.archify/architecture-costbreakdown-20261020-160711/costbreakdown-architecture.html",
+  "specification": {
+    "sha256": "403728ae94ed998856c08da20423290732a399c9eabbac1594e68b3345c20064",
+    "bytes": 5804
+  },
+  "artifact": {
+    "sha256": "164251dd3b372e9f77a9aaf5e0d8ec00d77fcedacb3ba8ac5bd857bd7316a577",
+    "bytes": 826256
+  }
+}

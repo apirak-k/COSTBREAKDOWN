@@ -1,4 +1,33 @@
-# Current Handoff — final pre-Phase-5 UI correction — 2026-10-20
+# Current Handoff — Phase 5 Final Closure — 2026-10-20
+
+## Checkpoint and delivery
+
+- Repository: `/Users/bubu/COSTBREAKDOWN-ref-current-custom-flow-redesign` (`apirak-k/COSTBREAKDOWN`). Branch: `feat/ref-current-custom-flow-redesign`.
+- Approved starting baseline: `07a2c86a15d8716beacc20e9761a8073feadf914`; the checkout and fetched branch matched this clean baseline before Phase 5 edits.
+- Phase 5 closes the Reference / Current / Custom redesign through Phases 1–4 and the user-accepted UI corrections. No product behavior or accepted UI geometry changed.
+
+## Audit and cleanup
+
+- Removed unreferenced legacy candidate-prioritization/material/processing builders, the retired RCA utility and its exports, and retired RCA write helpers. Kept the legacy session migration still used by persistence.
+- Removed the unused legacy RCA storage key and deleted verifiers that only asserted retired Candidate/RCA pages, fourth-snapshot simulation behavior, or obsolete candidate builders.
+- Updated active verifiers to the current Master Data clone action, role-local missing-rate flow, CBD comparison statuses, migration-only RCA compatibility, and sticky-header/body table structure.
+- Cross-page audit found no conflicting active behavior in Master Data, CBD, or Simulation. Role ownership, all nine CBD/Result pairs, Selected Comparison boundaries, graph gaps, role-local Simulation overrides/economics, reset/send semantics, and search/page-state boundaries remain consistent with the finalized specs.
+- Updated `FINAL_LOGIC_SPEC.md`, `HANDOFF.md`, `SIMULATION.md`, `CROSS_CUTTING.md`, the Master Data toolbar spec, `SYSTEM_LOGIC_DIAGRAM.md`, and the Requirements Index to close current-state wording and link the final architecture artifact.
+- Final Archify artifact: [costbreakdown-architecture.html](.archify/architecture-costbreakdown-20261020-160711/costbreakdown-architecture.html). Its finalize and Chrome visual-check receipts are in the same directory.
+
+## Verification and known limits
+
+- **PASS:** `npm run build`; the build retains ExcelJS/fast-csv browser externalization warnings and a main bundle over Vite's 500 kB advisory threshold.
+- **PASS:** Phase 5 regression sweep, including Simulation, Master Data lifecycle/UI, navigation persistence, CBD pair/audit/cost-effect/reorder/summary/sort/view, Selected Comparison, graph/story/result/economics/history, row selection, global header, compact overlays, and numeric input. Current verifier contracts pass; the Simulation SSR runner prints the existing WebSocket port-in-use warning and exits 0, and the mixed CBD review-feedback SSR test prints React `useLayoutEffect` server-render warnings.
+- **PASS:** `git diff --check`.
+- **OPEN RISK:** `npm audit --audit-level=high` reports 9 dependency advisories (5 high, 4 moderate), including `braces` in the Tailwind dependency tree and `uuid` through ExcelJS. Available automated fixes require breaking dependency changes; dependencies and lockfiles were left unchanged.
+- **ENVIRONMENT LIMIT:** workbook structural checks pass, but the optional external Excel recalculation step could not run because Windows PowerShell/Excel COM is unavailable in this macOS environment.
+- **Browser/manual:** the accepted application UI was not re-exercised in an app browser during Phase 5. The generated architecture artifact passed Archify's Chrome browser and visual checks; this is not application interaction evidence.
+- **Readiness:** ready for final independent code audit, with the dependency advisories and Excel COM limitation above recorded for review. No merge or PR is included.
+
+---
+
+# Previous Handoff — final pre-Phase-5 UI correction — 2026-10-20
 
 ## Checkpoint and delivery
 

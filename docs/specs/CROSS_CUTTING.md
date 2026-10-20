@@ -20,8 +20,8 @@ Routing operations use their Work Center's rates; Cost Breakdown may aggregate p
 ## Canonical `#` Row Selection
 
 - Every table `#` header represents **none**, **mixed**, or **all** selected rows in its current logical selection scope and exposes `aria-checked=false`, `mixed`, or `true` respectively. Clicking none or mixed selects every eligible row in scope; clicking all clears every eligible row in scope. A bulk action computes and applies the resulting selection in one state update, preserving selected keys outside that scope.
-- A true table filter/search may define the logical scope when that is the table's established behavior. Scrolling and one-row navigation never narrow the scope. Master Data scopes its header to filtered rows and preserves selected rows hidden by Search; Candidate scopes it to the current filtered/actionable findings and preserves hidden selections; Simulation scopes it to every eligible BOM or Routing match in that table's local Material/Process search and preserves selected rows hidden by Search.
-- Dark-header Candidate and Simulation controls use a neutral none state, a selected-looking mixed state with a faded inset ring, and a stronger all state with a bright white border/ring. Master Data restores its historical table header (`border-slate-400 bg-slate-100 text-slate-800`), none control (`text-slate-700 hover:bg-slate-200`), and all control (`border-slate-800 bg-slate-700 text-white`); only mixed uses an adapted intermediate slate state. These palette variants do not change selection behavior.
+- A true table filter/search may define the logical scope when that is the table's established behavior. Scrolling and one-row navigation never narrow the scope. Master Data scopes its header to filtered rows and preserves selected rows hidden by Search; the CBD findings table scopes it to current filtered/actionable findings and preserves hidden selections; Simulation scopes it to every eligible BOM or Routing match in that table's local Material/Process search and preserves selected rows hidden by Search.
+- Dark-header CBD findings-table and Simulation controls use a neutral none state, a selected-looking mixed state with a faded inset ring, and a stronger all state with a bright white border/ring. Master Data restores its historical table header (`border-slate-400 bg-slate-100 text-slate-800`), none control (`text-slate-700 hover:bg-slate-200`), and all control (`border-slate-800 bg-slate-700 text-white`); only mixed uses an adapted intermediate slate state. These palette variants do not change selection behavior.
 - Simulation's selected-first row order is presentation only. It preserves source order within selected and unselected groups, does not mutate the effective snapshot or calculation scope, and is not required for editing.
 
 ## Source Authority
@@ -204,7 +204,7 @@ Historical dashboard periods, time-series data sources, Reference/Current-to-per
 
 ## Human Review Checkpoint
 
-Final visual acceptance after applying the provisional visual contract has not been recorded. This is a verification/review checkpoint, not an unresolved product rule; reversible layout, styling, status wording, and disabled/error presentation choices may be implemented before review.
+The user visually accepted the final UI mini-round at baseline `07a2c86a15d8716beacc20e9761a8073feadf914` on 2026-10-20. That acceptance closes the visual product checkpoint; it does not replace the separate regression and browser verification evidence recorded in the current [`HANDOFF.md`](../../HANDOFF.md).
 
 ## Traceability
 

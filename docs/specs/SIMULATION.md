@@ -213,6 +213,8 @@ Ordinary graph space allows natural vertical page scrolling on touch layouts. On
 
 ## 6. Page layout and navigation
 
+Each Simulation Search field is 24px high. When its query is non-empty, its custom clear control stays inside the field with an 18×18px hover/click surface, vertically centered with a 3px right inset, and a 9×9px X icon. Keep the neutral slate idle/hover colors, pointer cursor, visible keyboard focus, conditional rendering, clear-then-refocus action, and native browser cancel suppression. Master Data Search retains its separate 32px field geometry.
+
 - Remove the large Simulation PageHeading/title block; begin with working content.
 - Desktop Simulation is a fixed workspace inside the shared application shell: the page does not vertically scroll, and only the BOM and RTG table bodies scroll vertically. At narrow responsive sizes, panels stack and natural page scrolling is allowed so all controls remain reachable.
 - Desktop upper workspace: the main Graph remains on the left and wider than the right-side block. The right-side block has two independent vertical columns: its wider left column stacks Result above Break-even Graph, and its narrower far-right column contains the Business/Economic card with Business, Economic, and its inset Outcome group. Divide each column independently; their horizontal boundaries do not need to align. Stack Business inputs vertically in Selling Price, then SG&A % order; it contains inputs only, while Business Outcome rows remain in Result. Stack Economic inputs vertically in Variable Action Cost, Fixed Action Cost, then Batch Size order. The Variable Action Cost label has its `THB/<UOM>` unit beside it.
