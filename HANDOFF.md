@@ -1,4 +1,22 @@
-# Current Handoff — Phase 1 decimal input runtime correction — 2026-10-20
+# Current Handoff — Phase 1 closure — 2026-10-20
+
+## Current checkpoint
+
+- Repository: `https://github.com/apirak-k/COSTBREAKDOWN`. Source-of-truth branch: `feat/ref-current-custom-flow-redesign`. Worktree: `/Users/bubu/COSTBREAKDOWN-ref-current-custom-flow-redesign`.
+- At the start of this closeout, local HEAD and fetched `origin/feat/ref-current-custom-flow-redesign` both resolved to `55c7be2eb956da7e6102b0b58ace3bca2ee7640c`.
+- The existing Vite dev server is PID `96264`, listening on `[::1]:5173`, and its working directory is this same worktree. The served app therefore matches the verified branch and HEAD.
+- The Phase 1 runtime correction was committed and pushed on `feat/ref-current-custom-flow-redesign` as `3fe5c7bf8945f1bce5b49b686837aaa841d90d3c`, and is present in the fetched origin branch history. The branch has advanced through `4b1a9fe` to `55c7be2`; retain those later commits and do not reset to the Phase 1 commit.
+- The separate `logic/simulation-finalized-implementation` checkout is historical/reference material. No merge, cherry-pick, or port from that branch is required or intended.
+- Current-source audit confirms Phase 1 remains intact: numeric inputs accept unrestricted fractional digits within finite JavaScript-number representation; shared and caller validation retain finite-number and canonical field-domain checks; integer fields remain whole numbers; accepted values flow into stored/calculated state without precision-based rounding; regular decimal formatting remains presentation-only; Capacity and Yield have no precision-derived minimum; formulas and business-domain rules are unchanged.
+- This closeout changes documentation only. It introduces no Phase 2 decimal-formatting behavior and changes no product code. The SG&A statement in the Master Data spec now agrees with the canonical 0–100% inclusive domain.
+- Verification for this closeout: source and active-spec audit, final diff inspection, and `git diff --check`. No broad regression suite was run because the changes are documentation-only; the prior real-browser Phase 1 verification remains recorded in the historical checkpoint below.
+- This documentation-only closeout is committed as a direct child of the verified starting HEAD.
+
+---
+
+# Historical Handoff — Phase 1 decimal input runtime correction — 2026-10-20
+
+This checkpoint records the state at served HEAD `0b4e0ac7a27d0173bbe0fc14a10c26dbd99eb851`. Its runtime and uncommitted-change statements are historical; the current checkpoint above supersedes them.
 
 ## Runtime checkpoint
 
