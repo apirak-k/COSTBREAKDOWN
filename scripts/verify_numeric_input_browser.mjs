@@ -213,7 +213,7 @@ try {
   const headerText = () => evaluate(`document.querySelector('header input[aria-label="Selected value"]')?.value ?? document.querySelector('[data-selected-value-output]')?.textContent.trim()`)
   const headerSteppers = () => evaluate('document.querySelectorAll("header [data-numeric-stepper]").length')
   const key = async (name, code = name) => {
-    const virtualKey = { Enter: 13, ' ': 32, ArrowUp: 38, ArrowDown: 40, Backspace: 8 }[name]
+    const virtualKey = { Enter: 13, ' ': 32, ArrowUp: 38, ArrowDown: 40, Backspace: 8, Tab: 9 }[name]
     const text = name === 'Enter' ? '\r' : name === ' ' ? ' ' : undefined
     const physicalKey = { key: name, code, windowsVirtualKeyCode: virtualKey, nativeVirtualKeyCode: virtualKey }
     await send('Input.dispatchKeyEvent', { type: 'keyDown', ...physicalKey, text, unmodifiedText: text })
@@ -242,20 +242,30 @@ try {
   assert.equal(await headerSteppers(), 0, 'no selection exposes no spinner')
   await screenshot('header-default-1440')
 
-  const numberStyle = aria => evaluate(`(()=>{const element=${byAria(aria)};const style=getComputedStyle(element);const rect=element.getBoundingClientRect();return {cursor:style.cursor,background:style.backgroundColor,boxShadow:style.boxShadow,border:style.borderWidth,outline:style.outlineStyle,padding:style.padding,margin:style.margin,width:rect.width,height:rect.height,x:rect.x,y:rect.y}})()`)
+  const numberStyle = aria => evaluate(`(()=>{const element=${byAria(aria)};const style=getComputedStyle(element);const rect=element.getBoundingClientRect();return {cursor:style.cursor,background:style.backgroundColor,boxShadow:style.boxShadow,focusVisible:element.matches(':focus-visible'),border:style.borderWidth,outline:style.outlineStyle,padding:style.padding,margin:style.margin,width:rect.width,height:rect.height,x:rect.x,y:rect.y}})()`)
   const movePointer = async point => send('Input.dispatchMouseEvent', { type: 'mouseMoved', ...point })
   const outsideNumberPoint = await evaluate('({x:innerWidth-2,y:innerHeight-2})')
   const numberPoint = async aria => evaluate(`(()=>{const rect=${byAria(aria)}.getBoundingClientRect();return {x:rect.x+rect.width/2,y:rect.y+rect.height/2}})()`)
   const idleNumber = await numberStyle('Select precise result')
   assert.equal(idleNumber.cursor, 'pointer')
+  for (let tabCount = 0; tabCount < 80 && !(await evaluate(`${byAria('Select precise result')} === document.activeElement`)); tabCount++) await key('Tab')
+  const keyboardFocusedNumber = await numberStyle('Select precise result')
+  assert.equal(keyboardFocusedNumber.focusVisible, true, 'keyboard navigation exposes the accessible focus indicator')
+  assert.notEqual(keyboardFocusedNumber.boxShadow, idleNumber.boxShadow, 'keyboard focus retains a visible ring')
+  assert.equal(await evaluate(`${byAria('Select precise result')}.getAttribute('aria-pressed')`), 'false', 'keyboard focus alone does not pin the value')
+  await key('Tab')
+  assert.equal(await evaluate('document.activeElement.getAttribute("aria-label")'), 'Select tiny result', 'Tab moves focus without activating a SelectedNumber')
   const hoverPoint = await numberPoint('Select precise result')
   await movePointer(hoverPoint)
   await delay(100)
   assert.equal(await headerText(), '12.3456789123', 'idle read-only hover previews the full Header value')
   const hoveredNumber = await numberStyle('Select precise result')
   assert.notEqual(hoveredNumber.boxShadow, idleNumber.boxShadow, 'number hover supplies a thin blue affordance')
+  assert.equal(hoveredNumber.background, idleNumber.background, 'unpinned hover background remains identical to idle')
+  assert.equal(keyboardFocusedNumber.background, idleNumber.background, 'keyboard focus does not use the pinned fill')
   assert.equal(await evaluate(`${byAria('Select precise result')}.getAttribute('aria-pressed')`), 'false', 'hover preview does not pin the value')
   for (const geometry of ['width', 'height', 'x', 'y', 'padding', 'margin']) assert.equal(hoveredNumber[geometry], idleNumber[geometry], `number hover preserves ${geometry}`)
+  await screenshot('selected-number-hover-1440')
   await movePointer(outsideNumberPoint)
   await delay(100)
   assert.equal(await headerText(), '—', 'mouse leave clears an unpinned preview')
@@ -267,6 +277,7 @@ try {
   await delay(100)
   const selectedNumber = await numberStyle('Select precise result')
   assert.notEqual(selectedNumber.background, idleNumber.background, 'selected background persists after pointer leaves')
+  assert.notEqual(selectedNumber.boxShadow, hoveredNumber.boxShadow, 'pinned treatment is visually stronger than hover')
   assert.equal(await headerText(), '12.3456789123', 'pinned value persists after pointer leaves')
   for (const geometry of ['width', 'height', 'x', 'y', 'padding', 'margin']) assert.equal(selectedNumber[geometry], idleNumber[geometry], `number selection preserves ${geometry}`)
   assert.equal(selectedNumber.border, '0px')
@@ -493,7 +504,23 @@ try {
     geometryResults.push({ width, headerHeight: editable.header.height, valueWidth: editable.value.width, stableUtilities: true })
   }
   assert.deepEqual(browserErrors, [], 'actual app and shared fixture produce no browser exceptions, errors, or warnings')
-  results.sharedFoundation = { formattingAndSelection: 'PASS', editingAndStepping: 'PASS', clipboardPaste: 'PASS', sourceLifecycle: 'PASS', geometry: geometryResults, screenshots: artifacts }
+  results.sharedFoundation = {
+    formattingAndSelection: 'PASS',
+    selectedNumberVisual: {
+      idleBackground: idleNumber.background,
+      hoverBackground: hoveredNumber.background,
+      hoverFrameChanged: hoveredNumber.boxShadow !== idleNumber.boxShadow,
+      keyboardFocusBackground: keyboardFocusedNumber.background,
+      keyboardFocusFrameChanged: keyboardFocusedNumber.boxShadow !== idleNumber.boxShadow,
+      pinnedBackground: selectedNumber.background,
+      pinnedFrameChangedFromHover: selectedNumber.boxShadow !== hoveredNumber.boxShadow
+    },
+    editingAndStepping: 'PASS',
+    clipboardPaste: 'PASS',
+    sourceLifecycle: 'PASS',
+    geometry: geometryResults,
+    screenshots: artifacts
+  }
   console.log(JSON.stringify({ result: 'PASS', browser: 'isolated Chrome', viewport: '1440x1800', value: '12.3456789', results }, null, 2))
 } finally {
   client?.close()

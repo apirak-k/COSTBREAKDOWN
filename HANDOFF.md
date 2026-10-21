@@ -3,45 +3,61 @@
 ## Verified checkpoint
 
 - Repository: `https://github.com/apirak-k/COSTBREAKDOWN.git` (`apirak-k/COSTBREAKDOWN`). Worktree: `/Users/bubu/COSTBREAKDOWN-ref-current-custom-flow-redesign`. Branch: `feat/selected-value-ux`.
-- Closeout starting local HEAD and freshly fetched `origin/feat/selected-value-ux`: `3ec9bbebebb01db65b3d8096082680a5e7b18aec`; they matched and the worktree was clean before edits. Dev server PID `96264` on port 5173 has this worktree as its working directory.
-- Round 1 shared foundation is **CLOSED** by commit `76df692fce196d436a55f2e73be2bae5589e58ca` (`feat: close selected value shared foundation`), a direct child of the verified start `3ec9bbe`. Round 2 — Master Data is **OPEN**. Rounds 3–5 are **NOT STARTED**. Follow [`docs/PHASE_2_SELECTED_VALUE_DECIMAL_UX_PLAN.md`](docs/PHASE_2_SELECTED_VALUE_DECIMAL_UX_PLAN.md) for the exact five-round order and gate.
-- Historical sequence: `3b3880f79891293662aeb5e622d11941bcf3ea64` initial foundation; `66f8b83f21a4b6590fe974b7935ae97569ac7cef` premature Round 2 start; `3ec9bbebebb01db65b3d8096082680a5e7b18aec` Header correction. The Header correction is preserved and is not a separate roadmap round.
+- Final acceptance correction starting local HEAD and freshly fetched `origin/feat/selected-value-ux`: `4b841c4a8198d996bee1a0a785c7518756a7620b`; they matched and the worktree was clean before edits. Vite PID `96264` on port 5173 was verified by process cwd as this worktree. After the correction is committed and pushed, the branch HEAD is the final Round 1 acceptance correction; its exact SHA is in the delivery report.
+- Round 1 shared foundation is **CLOSED** by the final acceptance correction commit (`fix: finalize selected number hover contract`, this branch-tip commit). `76df692fce196d436a55f2e73be2bae5589e58ca` remains the first closure implementation, but browser/runtime acceptance was not complete until this correction. Round 2 — Master Data is **OPEN**. Rounds 3–5 are **NOT STARTED**. Follow [`docs/PHASE_2_SELECTED_VALUE_DECIMAL_UX_PLAN.md`](docs/PHASE_2_SELECTED_VALUE_DECIMAL_UX_PLAN.md) for the exact five-round order and gate.
+- Historical sequence: `3b3880f79891293662aeb5e622d11941bcf3ea64` initial foundation; `66f8b83f21a4b6590fe974b7935ae97569ac7cef` premature Round 2 start; `3ec9bbebebb01db65b3d8096082680a5e7b18aec` Header correction; `76df692fce196d436a55f2e73be2bae5589e58ca` first closure implementation; `4b841c4a8198d996bee1a0a785c7518756a7620b` documentation receipt. The Header correction is preserved and is not a separate roadmap round.
 
 ## Round 1 result
 
 - Shared state now separates focus-owned active source, transient read-only hover preview, and pinned read-only value. Header priority is focus → preview → pin → `Value —`. Read-only values with an existing focus interaction can publish to Header without a `SelectedNumber` wrapper or spinner. `SelectedNumber` is reserved for read-only inspection values with no existing focus interaction.
+- `SelectedNumber` now keeps the idle background during unpinned pointer hover and keyboard focus. Hover uses only a thin blue ring; keyboard focus retains a clear ring; neither uses the pinned fill or changes `aria-pressed`. Pin uses the stronger dark-blue ring with the existing subtle blue fill. All states retain identical geometry.
 - Source/Header transfer keeps the same source identity and writer. Leaving both clears only the focus-owned value; a preview cannot displace focused editing; leaving a preview returns to a pinned value. Source unmount, identity change, and page scope continue to reject stale writes.
 - Existing full finite-value handling, adaptive body display, Header styling/geometry, keyboard/caret/wheel/stepper behavior, source domains, conversions, and business formulas were preserved. No Round 2 View-cell recovery or Cost Breakdown / Simulation page integration was implemented.
 
 ## Verification performed
 
+- **Before correction — real Chrome reproduction:** the live shared fixture computed idle background `rgba(0, 0, 0, 0)`, pointer-hover background `rgba(239, 246, 255, 0.6)`, and keyboard-focus background `rgb(239, 246, 255)`. The newly added browser assertion failed on the hover fill, confirming the runtime defect.
+- **After correction — real Chrome:** the existing isolated-CDP browser verifier reports idle, hover, and keyboard-focus backgrounds all `rgba(0, 0, 0, 0)`; both hover and keyboard focus change the ring, pointer hover leaves `aria-pressed=false`, pin retains `rgb(239, 246, 255)`, and pinned ring differs from hover. Hover geometry remains unchanged. Full Header preview/pin/focus priority, source lifecycle, Enter/Space activation, and responsive Header checks pass.
 - **PASS:** `node scripts/verify_numeric_input.mjs` — numeric input/parser and display contracts.
 - **PASS:** `COSTBREAKDOWN_BROWSER_BASE_URL=http://localhost:5173/ node scripts/verify_numeric_input_browser.mjs` in isolated Chrome against the running worktree — Master Data, Simulation, Business, and Economic each accepted `12.3456789` while focused and displayed `12.35` after blur; shared focus/preview/pin, keyboard, stale-source, exact-value, and responsive Header checks passed at 1440/1024/768/390/320px.
-- **PASS:** `node scripts/verify_master_data_selected_value.mjs` — 125 checks, 0 failures. The verifier waits for the initial Header and moves the pointer away before keyboard navigation so hover preview does not mask the keyboard-pinned value. This existing integration suite does not close Round 2; its Master Data View values still use the wrong shared interaction category.
+- **PASS:** `node scripts/verify_master_data_selected_value.mjs` — 125 checks, 0 failures. One cold standalone run timed out at initial Header readiness while Vite optimized dependencies and reloaded; the subsequent direct rerun and a run against the verified live server both passed. The verifier moves the pointer away before keyboard navigation so hover preview does not mask the keyboard-pinned value. This suite does not close Round 2; its Master Data View values still use the wrong shared interaction category.
 - **PASS:** `node scripts/verify_master_data_ui_state.mjs`, `node scripts/verify_global_compact_overlays.mjs`, `node scripts/verify_page_navigation_persistence.mjs`, and `node_modules/.bin/jiti scripts/verify_numeric_integrity.ts`.
 - **PASS:** `node scripts/verify_simulation_regression.mjs` — Simulation, CBD, Master Data history, shared Header, page navigation, and existing business-state contracts. Existing nested Vite SSR runners report port `24678` already in use but exit 0 and all suites pass.
 - **PASS:** `npx tsc --noEmit --pretty false` and `npm run build`. Build retains the existing ExcelJS/fast-csv browser externalization warnings and the 555.01 kB main-chunk advisory.
 - **PASS:** `node --check scripts/verify_numeric_input_browser.mjs`, `node --check scripts/verify_master_data_selected_value.mjs`, and final `git diff --check`.
 
-## Files changed in this closeout
+## Final Round 1 acceptance correction
+
+- Only `src/shared/ui/selected-value.tsx` changed in the shared runtime: removed the unpinned hover and keyboard-focus background utilities while keeping their distinct blue rings and the existing pinned fill.
+- Updated `scripts/verify_numeric_input_browser.mjs` to assert idle/hover/focus background equality, ring changes, unpinned ARIA state, pin contrast, and unchanged geometry; it saves a dedicated hover screenshot.
+- Updated the SelectedNumber contract in `docs/specs/CROSS_CUTTING.md`, the Round 1 close condition/history in `docs/PHASE_2_SELECTED_VALUE_DECIMAL_UX_PLAN.md`, and this handoff. The duplicate horizontal separator below this current section was removed.
+- No Round 2 Master Data recovery was performed. Master Data View values still use `SelectedNumber` as a known Round 2 issue. No Cost Breakdown / Simulation integration, formulas, numeric domains, calculations, lifecycle/history semantics, or display-format behavior changed.
+
+## Files changed in first shared-foundation closeout
 
 - Shared implementation: `src/shared/ui/selected-value.tsx`, `src/shared/layout/HeaderValue.tsx`, `src/features/master-data/components/MasterDataNumericValue.tsx`.
 - Browser fixture and verification: `scripts/fixtures/selected-value-browser.tsx`, `scripts/verify_numeric_input_browser.mjs`, `scripts/verify_master_data_selected_value.mjs`.
 - Canonical/operational documentation: `docs/specs/CROSS_CUTTING.md`, `docs/specs/MASTER_DATA.md`, `docs/specs/MASTER_DATA_TOOLBAR_PREPARE_UX.md`, `docs/REQUIREMENTS_INDEX.md`, `docs/PHASE_2_SELECTED_VALUE_DECIMAL_UX_PLAN.md`, and this `HANDOFF.md`.
 
+## Files changed in final acceptance correction
+
+- `src/shared/ui/selected-value.tsx` — final acceptance correction in the current branch-tip commit (`fix: finalize selected number hover contract`)
+- `scripts/verify_numeric_input_browser.mjs`
+- `docs/specs/CROSS_CUTTING.md`
+- `docs/PHASE_2_SELECTED_VALUE_DECIMAL_UX_PLAN.md`
+- `HANDOFF.md`
+
 ## Round 2 open issue and next action
 
 - The early Round 2 implementation wraps Master Data View-mode numeric grid cells in `SelectedNumber`; their existing grid focus/navigation should instead own a read-only Header value without a second hover/pin frame. This is the known recovery target; do not treat the early integration as accepted.
 - Start **Round 2 — Master Data recovery** only after Round 1 is committed and pushed. Compare actual pre-integration history around `3b3880f` and `66f8b83` and restore only affected behavior. Do not reset the branch, revert all of the early integration, or undo the `3ec9bbe` Header correction. Do not start Round 3 before Round 2 passes its own verify/audit/accept/close gate.
-- This closeout changes the shared model, its browser fixture/verifiers, and operational/canonical Selected Value documentation only. No formulas, validation domains, dataset lifecycle, comparison semantics, or history semantics changed.
+- This final correction changes the shared visual state and its browser verifier plus operational/canonical Selected Value documentation only. No formulas, validation domains, dataset lifecycle, comparison semantics, history semantics, or display formatting changed.
 
 ## Limits and risks
 
 - `[Unverified]` Firefox/Safari, touch hardware, and assistive-technology screen-reader behavior; browser evidence is isolated Chrome via the repository's CDP verifier.
 - **OPEN DEPENDENCY RISK:** `npm audit --audit-level=high` previously reported 10 advisories (6 high, 4 moderate, 0 critical). No dependency or lockfile changes are in this closeout; the audit was not rerun.
 - No merge, rebase, force-push, or new branch is part of this closeout.
-
----
 
 ---
 

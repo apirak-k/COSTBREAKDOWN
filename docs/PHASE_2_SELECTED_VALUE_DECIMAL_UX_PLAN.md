@@ -1,6 +1,6 @@
 # Phase 2 — Selected Value / Decimal UX Execution Plan
 
-**Status:** Round 1 is verified and closed by the current closeout; Round 2 is open; Rounds 3–5 have not started.
+**Status:** Round 1 is verified and closed after the final hover/focus visual correction; Round 2 is open; Rounds 3–5 have not started.
 **Execution branch:** `feat/selected-value-ux`
 **Repository:** `https://github.com/apirak-k/COSTBREAKDOWN`
 
@@ -26,7 +26,7 @@ Do not overlap implementation rounds or add numbered sub-phases. A failing accep
 
 | Round | Scope | Status | Close condition |
 |---|---|---|---|
-| Round 1 — Shared Foundation | Shared numeric source lifecycle, Header Value, SelectedNumber inspection primitive, exact model-value handling, and shared browser/runtime verification. | **CLOSED** | Shared focus/preview/pin model, source lifecycle, stale-writer guards, existing formatting/stepping/domain contracts, browser behavior, typecheck, build, and regression audit pass. Closure commit SHA is recorded in the current Handoff. |
+| Round 1 — Shared Foundation | Shared numeric source lifecycle, Header Value, SelectedNumber inspection primitive, exact model-value handling, and shared browser/runtime verification. | **CLOSED** | Shared focus/preview/pin model, source lifecycle, stale-writer guards, existing formatting/stepping/domain contracts, and runtime checks pass. Unpinned pointer hover has a frame/ring with no added fill and unchanged geometry; keyboard focus has a clear ring without the pinned fill; pin remains stronger. Final correction commit is recorded in the current Handoff. |
 | Round 2 — Master Data | Integrate the shared model into Master Data without changing its data, formulas, validation domains, dataset lifecycle, history, or spreadsheet semantics. Recover the known View-mode focus regression before accepting the early integration. | **OPEN — next** | Existing-focus read-only cells publish a read-only Header value without SelectedNumber hover/pin treatment; editable sources retain matching Header transfer; grid navigation, ranges, clipboard, layout, and existing field behavior pass the page audit and browser checks. |
 | Round 3 — Cost Breakdown | Integrate eligible Cost Breakdown values and interactions with the shared Header/source model, retaining the finalized Candidate, detail, tooltip, row, ordering, and comparison behavior. | **NOT STARTED** | All scoped CBD interactions and responsive behavior pass page-specific verification; no calculation or comparison semantics change. |
 | Round 4 — Simulation | Integrate eligible Simulation Result, Economic, and Break-even numeric interactions while keeping the existing role/basis ownership, editable domains, economics, histories, reset/send behavior, and graph interaction contracts. | **NOT STARTED** | Page-specific and cross-state checks pass; graphs retain their existing geometry and do not gain numeric selection behavior. |
@@ -49,9 +49,11 @@ Record chronology accurately; do not reinterpret the commits as separate roadmap
 - `3b3880f79891293662aeb5e622d11941bcf3ea64` — initial shared foundation, `feat: add selected value and decimal UX foundation`.
 - `66f8b83f21a4b6590fe974b7935ae97569ac7cef` — Master Data integration was started before Round 1 had passed its close gate. This is the start of the still-open Round 2 work, not an accepted/closed round.
 - `3ec9bbebebb01db65b3d8096082680a5e7b18aec` — Header interaction/styling correction. It is preserved as a correction within this Phase 2 work, not a separate round.
-- `76df692fce196d436a55f2e73be2bae5589e58ca` — Round 1 closure, `feat: close selected value shared foundation`, a direct child of `3ec9bbebebb01db65b3d8096082680a5e7b18aec`.
+- `76df692fce196d436a55f2e73be2bae5589e58ca` — first Round 1 closure implementation, `feat: close selected value shared foundation`, a direct child of `3ec9bbebebb01db65b3d8096082680a5e7b18aec`.
+- `4b841c4a8198d996bee1a0a785c7518756a7620b` — documentation receipt for that closure attempt; final visual acceptance was still open.
+- `fix: finalize selected number hover contract` — final Round 1 acceptance correction and current branch-tip commit; its full SHA is in the delivery report.
 
-At the start of this closeout, local and freshly fetched `origin/feat/selected-value-ux` both pointed to `3ec9bbebebb01db65b3d8096082680a5e7b18aec`. The current dev server’s working directory was verified as the same worktree. Preserve later valid branch history; do not reset the branch to an earlier checkpoint.
+This final acceptance correction started from a clean worktree where local and freshly fetched `origin/feat/selected-value-ux` both pointed to `4b841c4a8198d996bee1a0a785c7518756a7620b`. Dev server PID `96264` on port 5173 was confirmed to use this same worktree. The final correction commit is recorded in the current Handoff. Preserve all earlier branch history; do not reset to an earlier checkpoint.
 
 ## Round 2 recovery tasks and history rule
 

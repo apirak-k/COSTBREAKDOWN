@@ -222,7 +222,7 @@ export function SelectedNumber({ value, integer, percentage, selectionId, childr
       aria-label={props['aria-label'] ?? `Select value ${formatFullNumericValue(value)}${percentage ? '%' : ''}`}
       aria-pressed={isPinned}
       data-selected-number="true"
-      className={`inline cursor-pointer appearance-none rounded-none text-inherit ${isPinned ? 'bg-blue-50 ring-1 ring-inset ring-blue-700' : 'bg-transparent hover:bg-blue-50/60 hover:ring-1 hover:ring-inset hover:ring-blue-500/70 focus-visible:bg-blue-50 focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-blue-700'} ${className ?? ''}`.trim()}
+      className={`inline cursor-pointer appearance-none rounded-none text-inherit ${isPinned ? 'bg-blue-50 ring-1 ring-inset ring-blue-700' : 'bg-transparent hover:ring-1 hover:ring-inset hover:ring-blue-500/70 focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-blue-700'} ${className ?? ''}`.trim()}
       style={{ ...style, border: 0, outline: 'none', padding: 0, margin: 0 }}
       onPointerEnter={event => {
         preview()
