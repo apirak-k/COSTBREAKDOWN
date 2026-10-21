@@ -23,8 +23,8 @@ interface MasterDataNumericInputProps extends NumericInputProps {
 }
 
 export function MasterDataNumericInput({ selectionId, percentage = false, ...props }: MasterDataNumericInputProps) {
-  const { clearSelection } = useSelectedValue()
-  const { select } = useSelectedValueSource({
+  const { clearFocus } = useSelectedValue()
+  const { focus } = useSelectedValueSource({
     value: props.value,
     editable: true,
     domain: {
@@ -44,7 +44,7 @@ export function MasterDataNumericInput({ selectionId, percentage = false, ...pro
       {...props}
       data-selected-value-source={selectionId}
       onFocus={event => {
-        select()
+        focus()
         props.onFocus?.(event)
       }}
       onBlur={event => {
@@ -53,7 +53,7 @@ export function MasterDataNumericInput({ selectionId, percentage = false, ...pro
           ? event.relatedTarget.closest('[data-header-value]')
           : null
         const headerSourceId = header?.querySelector('[data-selected-value-source]')?.getAttribute('data-selected-value-source')
-        if (headerSourceId !== selectionId) clearSelection(selectionId)
+        if (headerSourceId !== selectionId) clearFocus(selectionId)
       }}
     />
   )

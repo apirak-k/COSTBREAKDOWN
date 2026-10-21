@@ -182,6 +182,7 @@ try {
   await send('Runtime.enable')
   await send('Emulation.setDeviceMetricsOverride', { width: 1440, height: 1800, deviceScaleFactor: 1, mobile: false })
   await waitFor(async () => (await evaluate('document.title')).includes('COSTBREAKDOWN'), 'application')
+  await waitFor(() => existsVisible('header [data-header-value] [data-selected-value-output]'), 'idle Header Value')
   verify(
     await textContent('header [data-header-value] [data-selected-value-output]') === '—'
       && await inputValue('header [data-header-value] input[aria-label="Selected value"]') === null
@@ -639,6 +640,8 @@ try {
   const firstPriceRowId = await evaluate(`(${visibleExpression(firstViewPriceButton)})?.getAttribute('data-grid-row-id')`)
   const secondPriceRowId = await evaluate(`(${visibleExpression(secondViewPriceButton)})?.getAttribute('data-grid-row-id')`)
   await clickSelector(firstViewPriceButton)
+  await send('Input.dispatchMouseEvent', { type: 'mouseMoved', x: 1438, y: 1798 })
+  await delay(120)
   await pressKey('Enter')
   const afterEnterFocusRow = await evaluate(`document.activeElement?.getAttribute('data-grid-row-id')`)
   verify(afterEnterFocusRow === secondPriceRowId, 'View-mode Enter from a read-only numeric cell advances to the next row', { firstRow: firstPriceRowId, focusedRow: afterEnterFocusRow, nextRow: secondPriceRowId })

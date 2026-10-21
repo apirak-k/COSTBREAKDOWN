@@ -22,9 +22,23 @@ export type SelectedValueSource = SelectedValueBase & (
 
 export type SelectedValue = SelectedValueSource & { id: string }
 
+type ScopedValue = { value: SelectedValue; scopeKey?: string } | null
+interface SelectedValueState {
+  focused: ScopedValue
+  previewed: ScopedValue
+  pinned: ScopedValue
+}
+
 interface SelectedValueContextValue {
   selection: SelectedValue | null
-  selectValue: (value: SelectedValue) => void
+  focusedSelection: SelectedValue | null
+  previewSelection: SelectedValue | null
+  pinnedSelection: SelectedValue | null
+  activateFocus: (value: SelectedValue) => void
+  clearFocus: (id?: string) => void
+  previewValue: (value: SelectedValue) => void
+  clearPreview: (id?: string) => void
+  pinValue: (value: SelectedValue) => void
   clearSelection: (id?: string) => void
   syncSelection: (value: SelectedValue) => void
   scopeKey?: string
@@ -35,25 +49,83 @@ const useBrowserLayoutEffect = typeof window === 'undefined' ? useEffect : useLa
 const isSelectable = (source: SelectedValue) => Number.isFinite(source.value) || (source.editable && source.value == null)
 
 export function SelectedValueProvider({ children, scopeKey }: { children: ReactNode; scopeKey?: string }) {
-  const [selected, setSelected] = useState<{ value: SelectedValue; scopeKey?: string } | null>(null)
-  const selection = selected?.scopeKey === scopeKey ? selected?.value ?? null : null
-  const selectValue = useCallback((value: SelectedValue) => {
-    setSelected(isSelectable(value) ? { value, scopeKey } : null)
+  const [state, setState] = useState<SelectedValueState>({ focused: null, previewed: null, pinned: null })
+  const inScope = (slot: ScopedValue) => slot && slot.scopeKey === scopeKey ? slot.value : null
+  const focusedSelection = inScope(state.focused)
+  const previewSelection = inScope(state.previewed)
+  const pinnedSelection = inScope(state.pinned)
+  const selection = focusedSelection ?? previewSelection ?? pinnedSelection
+
+  const activateFocus = useCallback((value: SelectedValue) => {
+    setState(current => ({
+      ...current,
+      focused: isSelectable(value) ? { value, scopeKey } : null
+    }))
+  }, [scopeKey])
+  const clearFocus = useCallback((id?: string) => {
+    setState(current => ({
+      ...current,
+      focused: current.focused && current.focused.scopeKey === scopeKey && (id === undefined || current.focused.value.id === id) ? null : current.focused
+    }))
+  }, [scopeKey])
+  const previewValue = useCallback((value: SelectedValue) => {
+    if (value.editable || !isSelectable(value)) return
+    setState(current => ({ ...current, previewed: { value, scopeKey } }))
+  }, [scopeKey])
+  const clearPreview = useCallback((id?: string) => {
+    setState(current => ({
+      ...current,
+      previewed: current.previewed && current.previewed.scopeKey === scopeKey && (id === undefined || current.previewed.value.id === id) ? null : current.previewed
+    }))
+  }, [scopeKey])
+  const pinValue = useCallback((value: SelectedValue) => {
+    if (value.editable || !isSelectable(value)) return
+    setState(current => ({ ...current, pinned: { value, scopeKey } }))
   }, [scopeKey])
   const clearSelection = useCallback((id?: string) => {
-    setSelected(current => current && current.scopeKey === scopeKey && (id === undefined || current.value.id === id) ? null : current)
+    const clearCurrentSource = (slot: ScopedValue): ScopedValue =>
+      slot && slot.scopeKey === scopeKey && (id === undefined || slot.value.id === id) ? null : slot
+    setState(current => ({
+      focused: clearCurrentSource(current.focused),
+      previewed: clearCurrentSource(current.previewed),
+      pinned: clearCurrentSource(current.pinned)
+    }))
   }, [scopeKey])
   const syncSelection = useCallback((value: SelectedValue) => {
-    setSelected(current => current && current.scopeKey === scopeKey && current.value.id === value.id
-      ? isSelectable(value) ? { value, scopeKey } : null
-      : current)
+    const syncSource = (slot: ScopedValue): ScopedValue => {
+      if (!slot || slot.scopeKey !== scopeKey || slot.value.id !== value.id) return slot
+      return isSelectable(value) ? { value, scopeKey } : null
+    }
+    setState(current => ({
+      focused: syncSource(current.focused),
+      previewed: syncSource(current.previewed),
+      pinned: syncSource(current.pinned)
+    }))
   }, [scopeKey])
 
   useEffect(() => {
-    setSelected(current => current?.scopeKey === scopeKey ? current : null)
+    const clearObsoleteScope = (slot: ScopedValue): ScopedValue => slot?.scopeKey === scopeKey ? slot : null
+    setState(current => ({
+      focused: clearObsoleteScope(current.focused),
+      previewed: clearObsoleteScope(current.previewed),
+      pinned: clearObsoleteScope(current.pinned)
+    }))
   }, [scopeKey])
 
-  const context = useMemo(() => ({ selection, selectValue, clearSelection, syncSelection, scopeKey }), [selection, selectValue, clearSelection, syncSelection, scopeKey])
+  const context = useMemo(() => ({
+    selection,
+    focusedSelection,
+    previewSelection,
+    pinnedSelection,
+    activateFocus,
+    clearFocus,
+    previewValue,
+    clearPreview,
+    pinValue,
+    clearSelection,
+    syncSelection,
+    scopeKey
+  }), [selection, focusedSelection, previewSelection, pinnedSelection, activateFocus, clearFocus, previewValue, clearPreview, pinValue, clearSelection, syncSelection, scopeKey])
   return <SelectedValueContext.Provider value={context}>{children}</SelectedValueContext.Provider>
 }
 
@@ -67,7 +139,20 @@ export function useSelectedValue() {
 export function useSelectedValueSource(source: SelectedValueSource, sourceId?: string) {
   const generatedId = useId()
   const id = sourceId ?? generatedId
-  const { selection, selectValue, clearSelection, syncSelection, scopeKey } = useSelectedValue()
+  const {
+    selection,
+    focusedSelection,
+    previewSelection,
+    pinnedSelection,
+    activateFocus,
+    clearFocus,
+    previewValue,
+    clearPreview,
+    pinValue,
+    clearSelection,
+    syncSelection,
+    scopeKey
+  } = useSelectedValue()
   const current = useRef({ source, id, scopeKey, selectedId: selection?.id, mounted: true })
   current.current.source = source
   current.current.id = id
@@ -82,7 +167,11 @@ export function useSelectedValueSource(source: SelectedValueSource, sourceId?: s
     const latest = current.current.source
     return latest.editable ? { ...latest, id, onValueChange: write } : { ...latest, id }
   }, [id, write])
-  const select = useCallback(() => selectValue(snapshot()), [selectValue, snapshot])
+  const focus = useCallback(() => activateFocus(snapshot()), [activateFocus, snapshot])
+  const blur = useCallback(() => clearFocus(id), [clearFocus, id])
+  const preview = useCallback(() => previewValue(snapshot()), [previewValue, snapshot])
+  const unpreview = useCallback(() => clearPreview(id), [clearPreview, id])
+  const pin = useCallback(() => pinValue(snapshot()), [pinValue, snapshot])
   const { integer, min, max, minExclusive } = source.domain ?? {}
   const allowSubMinimumDraft = source.editable ? source.allowSubMinimumDraft : undefined
   const stopAtMinimum = source.editable ? source.stopAtMinimum : undefined
@@ -99,7 +188,17 @@ export function useSelectedValueSource(source: SelectedValueSource, sourceId?: s
     }
   }, [id, scopeKey, clearSelection])
 
-  return { isSelected: selection?.id === id, select }
+  return {
+    isSelected: selection?.id === id,
+    isFocused: focusedSelection?.id === id,
+    isPreviewed: previewSelection?.id === id,
+    isPinned: pinnedSelection?.id === id,
+    focus,
+    blur,
+    preview,
+    clearPreview: unpreview,
+    pin
+  }
 }
 
 export interface SelectedNumberProps extends Omit<ButtonHTMLAttributes<HTMLButtonElement>, 'value' | 'onClick' | 'type' | 'children'> {
@@ -112,7 +211,7 @@ export interface SelectedNumberProps extends Omit<ButtonHTMLAttributes<HTMLButto
 }
 
 export function SelectedNumber({ value, integer, percentage, selectionId, children, className, style, stopKeyboardPropagation = true, onKeyDown, onKeyUp, ...props }: SelectedNumberProps) {
-  const { isSelected, select } = useSelectedValueSource({ value, editable: false, domain: { integer }, percentage }, selectionId)
+  const { isPinned, preview, clearPreview, pin } = useSelectedValueSource({ value, editable: false, domain: { integer }, percentage }, selectionId)
   const content = children ?? formatBusinessNumber(value, { integer, percent: percentage })
   if (value == null || !Number.isFinite(value)) return <span className={className} style={style}>{content}</span>
 
@@ -121,13 +220,21 @@ export function SelectedNumber({ value, integer, percentage, selectionId, childr
       {...props}
       type="button"
       aria-label={props['aria-label'] ?? `Select value ${formatFullNumericValue(value)}${percentage ? '%' : ''}`}
-      aria-pressed={isSelected}
+      aria-pressed={isPinned}
       data-selected-number="true"
-      className={`inline cursor-pointer appearance-none rounded-none text-inherit ${isSelected ? 'bg-blue-100 hover:bg-blue-100' : 'bg-transparent hover:bg-blue-50'} focus-visible:bg-blue-100 ${className ?? ''}`.trim()}
+      className={`inline cursor-pointer appearance-none rounded-none text-inherit ${isPinned ? 'bg-blue-50 ring-1 ring-inset ring-blue-700' : 'bg-transparent hover:bg-blue-50/60 hover:ring-1 hover:ring-inset hover:ring-blue-500/70 focus-visible:bg-blue-50 focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-blue-700'} ${className ?? ''}`.trim()}
       style={{ ...style, border: 0, outline: 'none', padding: 0, margin: 0 }}
+      onPointerEnter={event => {
+        preview()
+        props.onPointerEnter?.(event)
+      }}
+      onPointerLeave={event => {
+        clearPreview()
+        props.onPointerLeave?.(event)
+      }}
       onClick={event => {
         event.stopPropagation()
-        select()
+        pin()
       }}
       onKeyDown={event => {
         if (stopKeyboardPropagation && (event.key === 'Enter' || event.key === ' ')) event.stopPropagation()

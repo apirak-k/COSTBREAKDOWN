@@ -76,7 +76,7 @@ The latest finalized logic establishes:
 
 ## Selected Value / Decimal UX — 2026-10-21
 
-`FINALIZED — USER DECISION`: the Selected Value / Decimal UX presentation contract is in [`CROSS_CUTTING.md`](specs/CROSS_CUTTING.md#numeric-display-and-editing). Round 1 delivered the shared temporary selection model, compact Header Value, opt-in read-only/editable source primitives, adaptive formatter, and removal of inline visible body spinners. Round 2 integrates the foundation throughout Master Data and finalizes right-aligned numeric table axes and the UOM / Selling Price / SG&A metadata subgroup at 20 / 45 / 35. Cost Breakdown and Simulation page-specific integrations remain later rounds. Dataset, comparison, lifecycle, domain validation, calculation, and graph-selection boundaries remain unchanged.
+`FINALIZED — USER DECISION`: the Selected Value / Decimal UX contract, including focus-owned source, transient preview, and pinned read-only value lifecycles, is in [`CROSS_CUTTING.md`](specs/CROSS_CUTTING.md#numeric-display-and-editing). Round 1 closes the shared foundation. Round 2 Master Data is OPEN because its early implementation still applies the pinned/preview `SelectedNumber` behavior to read-only table cells that already have grid focus. Rounds 3–5 have not started. The operational five-round order, gates, history, recovery tasks, and current checkpoint are recorded in [`PHASE_2_SELECTED_VALUE_DECIMAL_UX_PLAN.md`](PHASE_2_SELECTED_VALUE_DECIMAL_UX_PLAN.md); that plan and [`HANDOFF.md`](../HANDOFF.md) do not override this or other canonical product requirements. Numeric domains, formulas, dataset/comparison lifecycle, and history semantics remain unchanged.
 
 ## Reading Order
 

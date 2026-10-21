@@ -3,7 +3,7 @@ import { formatFullNumericValue } from '../ui/numeric-display'
 import { useSelectedValue } from '../ui/selected-value'
 
 export function HeaderValue({ inDialog = false }: { inDialog?: boolean }) {
-  const { selection, clearSelection } = useSelectedValue()
+  const { selection, clearFocus } = useSelectedValue()
   const fullValue = formatFullNumericValue(selection?.value)
   const rootWidth = inDialog ? 'w-[min(14rem,calc(100vw-6.25rem))]' : 'w-[clamp(5rem,16vw,12rem)]'
   const labelColor = inDialog ? 'text-slate-600' : 'text-slate-300'
@@ -33,7 +33,7 @@ export function HeaderValue({ inDialog = false }: { inDialog?: boolean }) {
               const sourceId = event.relatedTarget instanceof Element
                 ? event.relatedTarget.getAttribute('data-selected-value-source')
                 : null
-              if (sourceId !== selection.id) clearSelection(selection.id)
+              if (sourceId !== selection.id) clearFocus(selection.id)
             }}
             className={`select-text border px-1 text-right ${inputColors}`}
           />

@@ -1,35 +1,47 @@
-# Current Handoff — Selected Value / Decimal UX Round 1 — 2026-10-21
+# Current Handoff — Phase 2 Selected Value / Decimal UX — 2026-10-21
 
-## Checkpoint and scope
+## Verified checkpoint
 
-- Repository: `apirak-k/COSTBREAKDOWN`. Verified starting local/fetched origin branch `feat/ref-current-custom-flow-redesign` at `ffba1f9957b13864743a0df5da0feec5913bb439`; worktree was clean. Created `feat/selected-value-ux` directly from that fetched branch.
-- Worktree: `/Users/bubu/COSTBREAKDOWN-ref-current-custom-flow-redesign`. Existing Vite PID `96264` on `[::1]:5173` uses this same working directory; the worktree now holds the new feature branch. Historical `logic/simulation-finalized-implementation` was not used.
-- Round 1 is the shared foundation: one temporary selected-value provider/source hook, opt-in read-only SelectedNumber, permanent compact Header Value, canonical adaptive number formatter, and no visible spinner in ordinary NumericInput. Header edits reuse NumericInput domain/caret/keyboard/wheel/press-repeat behavior at full model precision. Selection updates from source changes and clears on source unmount/page change; guarded source writers cannot write through a stale selection.
-- NumericInput now uses the canonical adaptive formatter; the obsolete Capacity-only minimum-display-precision prop and its two Simulation callsites were removed. No formulas, domains, role/comparison state, histories, or dataset lifecycle were changed.
-- Existing page-specific selection and read-only formatting migrations, Master Data metadata proportions, CBD tooltips/details/row behavior, and Simulation Result/Economic/Break-even selection remain later rounds. Graphs do not receive selected-value behavior. The browser fixture is test-only; no demo/test UI is added to production routes.
-- Canonical presentation decisions and staged migration status are in `docs/specs/CROSS_CUTTING.md`; Handoff remains an operational record.
+- Repository: `https://github.com/apirak-k/COSTBREAKDOWN.git` (`apirak-k/COSTBREAKDOWN`). Worktree: `/Users/bubu/COSTBREAKDOWN-ref-current-custom-flow-redesign`. Branch: `feat/selected-value-ux`.
+- Closeout starting local HEAD and freshly fetched `origin/feat/selected-value-ux`: `3ec9bbebebb01db65b3d8096082680a5e7b18aec`; they matched and the worktree was clean before edits. Dev server PID `96264` on port 5173 has this worktree as its working directory.
+- Round 1 shared foundation is **CLOSED** by this closeout. Its closure commit SHA is recorded below after creation. Round 2 — Master Data is **OPEN**. Rounds 3–5 are **NOT STARTED**. Follow [`docs/PHASE_2_SELECTED_VALUE_DECIMAL_UX_PLAN.md`](docs/PHASE_2_SELECTED_VALUE_DECIMAL_UX_PLAN.md) for the exact five-round order and gate.
+- Historical sequence: `3b3880f79891293662aeb5e622d11941bcf3ea64` initial foundation; `66f8b83f21a4b6590fe974b7935ae97569ac7cef` premature Round 2 start; `3ec9bbebebb01db65b3d8096082680a5e7b18aec` Header correction. The Header correction is preserved and is not a separate roadmap round.
 
-## Verification
+## Round 1 result
 
-- **PASS:** `node scripts/verify_numeric_input.mjs` — adaptive/negative/percentage/integer formatting, finite-number full-text round trips, unrestricted decimal syntax, domains, caret stepping, ordinary no-spinner markup, and exact/full Header editor markup.
+- Shared state now separates focus-owned active source, transient read-only hover preview, and pinned read-only value. Header priority is focus → preview → pin → `Value —`. Read-only values with an existing focus interaction can publish to Header without a `SelectedNumber` wrapper or spinner. `SelectedNumber` is reserved for read-only inspection values with no existing focus interaction.
+- Source/Header transfer keeps the same source identity and writer. Leaving both clears only the focus-owned value; a preview cannot displace focused editing; leaving a preview returns to a pinned value. Source unmount, identity change, and page scope continue to reject stale writes.
+- Existing full finite-value handling, adaptive body display, Header styling/geometry, keyboard/caret/wheel/stepper behavior, source domains, conversions, and business formulas were preserved. No Round 2 View-cell recovery or Cost Breakdown / Simulation page integration was implemented.
+
+## Verification performed
+
+- **PASS:** `node scripts/verify_numeric_input.mjs` — numeric input/parser and display contracts.
+- **PASS:** `COSTBREAKDOWN_BROWSER_BASE_URL=http://localhost:5173/ node scripts/verify_numeric_input_browser.mjs` in isolated Chrome against the running worktree — Master Data, Simulation, Business, and Economic each accepted `12.3456789` while focused and displayed `12.35` after blur; shared focus/preview/pin, keyboard, stale-source, exact-value, and responsive Header checks passed at 1440/1024/768/390/320px.
+- **PASS:** `node scripts/verify_master_data_selected_value.mjs` — 125 checks, 0 failures. The verifier waits for the initial Header and moves the pointer away before keyboard navigation so hover preview does not mask the keyboard-pinned value. This existing integration suite does not close Round 2; its Master Data View values still use the wrong shared interaction category.
 - **PASS:** `node scripts/verify_master_data_ui_state.mjs`, `node scripts/verify_global_compact_overlays.mjs`, `node scripts/verify_page_navigation_persistence.mjs`, and `node_modules/.bin/jiti scripts/verify_numeric_integrity.ts`.
-- **PASS:** `node scripts/verify_simulation_regression.mjs` — Simulation role/basis state, all nine Result pairs, economics, history, reset/send, Master Data edit history, CBD selection/reorder/sort/summary, and Global Header contracts. Existing nested SSR Vite runners print the port-24678-in-use warning and exit 0.
-- **PASS:** `COSTBREAKDOWN_BROWSER_BASE_URL=http://localhost:5173/ node scripts/verify_numeric_input_browser.mjs` — real isolated Chrome typing in Master Data, Simulation, Business, and Economic inputs retains `12.3456789`; after blur each displays `12.35`. The test-only fixture then exercises the real shared AppLayout/Header, selection hooks/primitives, and NumericInput: default/exact read-only/editable Header; native clipboard paste; focus-only wheel; arrows/caret stepping; Header press/hold spinner; integer/percentage/positive domains; scientific display/focus; source updates, latest callbacks, and stale-writer rejection after replacement/read-only/identity/unmount/navigation changes.
-- **PASS:** browser bounds and screenshot review at 1440, 1024, 768, 390, and 320px. Long read-only/editable values leave Undo/Redo/Info positions and dimensions unchanged. No page overflow, selected-number geometry shift, or captured browser errors/warnings. An initial 320px Product-text overlap was fixed by clipping that existing context within its allocated region; final text-containment assertions and screenshots confirm it no longer paints over Value.
-- **PASS:** final `npm run build` and `git diff --check`. Build retains ExcelJS/fast-csv browser-externalization advisories and the 547.84 kB main-chunk advisory.
+- **PASS:** `node scripts/verify_simulation_regression.mjs` — Simulation, CBD, Master Data history, shared Header, page navigation, and existing business-state contracts. Existing nested Vite SSR runners report port `24678` already in use but exit 0 and all suites pass.
+- **PASS:** `npx tsc --noEmit --pretty false` and `npm run build`. Build retains the existing ExcelJS/fast-csv browser externalization warnings and the 555.01 kB main-chunk advisory.
+- **PASS:** `node --check scripts/verify_numeric_input_browser.mjs`, `node --check scripts/verify_master_data_selected_value.mjs`, and final `git diff --check`.
 
-## Files changed
+## Files changed in this closeout
 
-- Shared production: `src/shared/ui/numeric-display.ts`, `src/shared/ui/selected-value.tsx`, `src/shared/ui/numeric-input-rules.ts`, `src/shared/ui/NumericInput.tsx`, `src/shared/layout/HeaderValue.tsx`, `src/shared/layout/Navbar.tsx`, `src/shared/layout/AppLayout.tsx`.
-- Compile/presentation adjustment only: the two obsolete Capacity display props in `src/features/simulation/SimulationPage.tsx`.
-- Verification: `scripts/verify_numeric_input.mjs`, `scripts/verify_numeric_input_browser.mjs`, `scripts/verify_master_data_ui_state.mjs`, `scripts/fixtures/selected-value-browser.html`, `scripts/fixtures/selected-value-browser.tsx`.
-- Documentation: this Handoff, `design.md`, `docs/REQUIREMENTS_INDEX.md`, and `docs/specs/CROSS_CUTTING.md`, `MASTER_DATA.md`, `MASTER_DATA_TOOLBAR_PREPARE_UX.md`, `SIMULATION.md`. The older toolbar receipts retain chronology under an explicit supersession note.
+- Shared implementation: `src/shared/ui/selected-value.tsx`, `src/shared/layout/HeaderValue.tsx`, `src/features/master-data/components/MasterDataNumericValue.tsx`.
+- Browser fixture and verification: `scripts/fixtures/selected-value-browser.tsx`, `scripts/verify_numeric_input_browser.mjs`, `scripts/verify_master_data_selected_value.mjs`.
+- Canonical/operational documentation: `docs/specs/CROSS_CUTTING.md`, `docs/specs/MASTER_DATA.md`, `docs/specs/MASTER_DATA_TOOLBAR_PREPARE_UX.md`, `docs/REQUIREMENTS_INDEX.md`, `docs/PHASE_2_SELECTED_VALUE_DECIMAL_UX_PLAN.md`, and this `HANDOFF.md`.
 
-## Limits and next boundary
+## Round 2 open issue and next action
 
-- Round 1 shared behavior is implemented and verified. Page-specific Round 2+ selection/formatting migrations remain intentionally unimplemented; the fixture demonstrates opt-in sources without putting test UI into production routes.
-- `[Unverified]` Firefox/Safari, touch hardware, and assistive-technology screen-reader interaction; browser proof here is isolated Chrome plus automated input/geometry checks and screenshot inspection.
-- **OPEN DEPENDENCY RISK:** `npm audit --audit-level=high` exits 1: the unchanged dependency tree currently reports 10 advisories (6 high, 4 moderate, 0 critical), including Vite and the Tailwind dependency tree. Dependency security is not cleared; no dependency or lockfile change was made in this scoped UX round.
+- The early Round 2 implementation wraps Master Data View-mode numeric grid cells in `SelectedNumber`; their existing grid focus/navigation should instead own a read-only Header value without a second hover/pin frame. This is the known recovery target; do not treat the early integration as accepted.
+- Start **Round 2 — Master Data recovery** only after Round 1 is committed and pushed. Compare actual pre-integration history around `3b3880f` and `66f8b83` and restore only affected behavior. Do not reset the branch, revert all of the early integration, or undo the `3ec9bbe` Header correction. Do not start Round 3 before Round 2 passes its own verify/audit/accept/close gate.
+- This closeout changes the shared model, its browser fixture/verifiers, and operational/canonical Selected Value documentation only. No formulas, validation domains, dataset lifecycle, comparison semantics, or history semantics changed.
+
+## Limits and risks
+
+- `[Unverified]` Firefox/Safari, touch hardware, and assistive-technology screen-reader behavior; browser evidence is isolated Chrome via the repository's CDP verifier.
+- **OPEN DEPENDENCY RISK:** `npm audit --audit-level=high` previously reported 10 advisories (6 high, 4 moderate, 0 critical). No dependency or lockfile changes are in this closeout; the audit was not rerun.
+- No merge, rebase, force-push, or new branch is part of this closeout.
+
+---
 
 ---
 
