@@ -10,6 +10,7 @@ import {
   isMasterDataNumericValueValid
 } from '../../../core'
 import type { ComparisonFinding, ComparisonStatus, SnapshotBOMItem } from '../../../core'
+import { SelectedNumber } from '../../../shared/ui/selected-value'
 
 export interface BOMItemizedRow {
   key: string
@@ -23,29 +24,16 @@ export interface BOMItemizedRow {
 
 interface BOMRecordDetailsProps {
   row: BOMItemizedRow
+  beforeRoleLabel?: string
+  afterRoleLabel?: string
+  selectionIdPrefix?: string
   detailId?: string
 }
-
-const formatNullable = (value: number | null | undefined, format: (value: number) => string) =>
-  value === null || value === undefined ? '—' : format(value)
 
 function validFactorValue(field: 'consumption' | 'price' | 'loss', value: number | null | undefined): number | null {
   return value !== null && value !== undefined && Number.isFinite(value) && isMasterDataNumericValueValid(field, value)
     ? value
     : null
-}
-
-function formatReferenceCurrent(
-  field: 'consumption' | 'price' | 'loss',
-  reference: number | null | undefined,
-  current: number | null | undefined,
-  format: (value: number) => string
-): string {
-  const referenceValue = validFactorValue(field, reference)
-  const currentValue = validFactorValue(field, current)
-  if (referenceValue === null || currentValue === null) return '—'
-  if (referenceValue === currentValue) return format(referenceValue)
-  return `${format(referenceValue)} → ${format(currentValue)}`
 }
 
 export function getBOMComparisonLabel(finding: ComparisonFinding): ComparisonStatus | null {
@@ -106,7 +94,13 @@ export function buildBOMItemizedRows(
  * Emits detail lines into the Candidate table's existing tbody. Keeping these
  * as rows (instead of a nested table) preserves the parent's shared column grid.
  */
-export function BOMRecordDetails({ row, detailId }: BOMRecordDetailsProps) {
+export function BOMRecordDetails({
+  row,
+  beforeRoleLabel = 'Reference',
+  afterRoleLabel = 'Current',
+  selectionIdPrefix = `cbd:detail:${row.key}`,
+  detailId
+}: BOMRecordDetailsProps) {
   const { reference, current, finding } = row
   const status = getCanonicalComparisonStatus(finding)
   const isMatchedChange = finding?.matchStatus === 'matched' && status === 'CHANGED'
@@ -141,7 +135,28 @@ export function BOMRecordDetails({ row, detailId }: BOMRecordDetailsProps) {
     }
   ]
 
-  const renderDetailRow = (label: string, effectRow: boolean, id?: string) => <tr
+  const renderNumericValue = (
+    value: number | null | undefined,
+    label: string,
+    side: 'before' | 'after' | 'effect',
+    field: string,
+    format: (value: number) => string,
+    percentage = false
+  ) => {
+    if (value === null || value === undefined || !Number.isFinite(value)) return '—'
+    const visible = format(value)
+    return <SelectedNumber
+      value={percentage ? value * 100 : value}
+      percentage={percentage}
+      selectionId={`${selectionIdPrefix}:${side}:${field}`}
+      aria-label={`${label} ${field} ${visible}`}
+      className="block w-full text-right"
+    >{visible}</SelectedNumber>
+  }
+
+  const renderDetailRow = (label: string, side: 'before' | 'after' | 'effect', id?: string) => {
+    const effectRow = side === 'effect'
+    return <tr
     key={label}
     id={id}
     className={effectRow
@@ -153,19 +168,28 @@ export function BOMRecordDetails({ row, detailId }: BOMRecordDetailsProps) {
     <td aria-hidden="true" className="px-2 py-1.5" />
     {parameterValues.map(item => <td key={item.field} className="whitespace-nowrap px-1 py-1.5 text-right">
       {effectRow
-        ? formatNullable(item.effect ?? null, value => formatVariance(value, 2))
-        : formatReferenceCurrent(item.field, item.reference, item.current, item.format)}
+        ? renderNumericValue(item.effect, label, side, item.field, value => formatVariance(value, 2))
+        : renderNumericValue(
+            validFactorValue(item.field, side === 'before' ? item.reference : item.current),
+            label,
+            side,
+            item.field,
+            item.format,
+            item.field === 'loss'
+          )}
     </td>)}
     <td className={`whitespace-nowrap px-1 py-1.5 text-right ${effectRow ? 'font-mono tabular-nums' : ''}`}>
-      {effectRow ? formatNullable(row.gap, value => formatVariance(value, 2)) : ''}
+      {effectRow ? renderNumericValue(row.gap, label, side, 'gap', value => formatVariance(value, 2)) : ''}
     </td>
     <td aria-hidden="true" className="px-2 py-1.5" />
     <td aria-hidden="true" className="px-1 py-1.5" />
     <td aria-hidden="true" className="px-1 py-1.5" />
-  </tr>
+    </tr>
+  }
 
   return <>
-    {renderDetailRow('Before → After', false, detailId)}
-    {renderDetailRow('Parameter Cost Effect', true)}
+    {renderDetailRow(beforeRoleLabel, 'before', detailId)}
+    {renderDetailRow(afterRoleLabel, 'after')}
+    {renderDetailRow('Parameter Cost Effect', 'effect')}
   </>
 }

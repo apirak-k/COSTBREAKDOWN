@@ -11,6 +11,7 @@ import {
   isMasterDataNumericValueValid
 } from '../../../core'
 import type { ComparisonFinding, ComparisonStatus, SnapshotRoutingStep, SnapshotWorkCenterRate } from '../../../core'
+import { SelectedNumber } from '../../../shared/ui/selected-value'
 
 export interface RoutingItemizedRow {
   key: string
@@ -32,11 +33,11 @@ interface RoutingRecordDetailsProps {
   row: RoutingItemizedRow
   referenceRates: SnapshotWorkCenterRate[]
   currentRates: SnapshotWorkCenterRate[]
+  beforeRoleLabel?: string
+  afterRoleLabel?: string
+  selectionIdPrefix?: string
   detailId?: string
 }
-
-const formatNullable = (value: number | null | undefined, format: (value: number) => string) =>
-  value === null || value === undefined ? '—' : format(value)
 
 export function getRoutingComparisonLabels(finding: ComparisonFinding): ComparisonStatus[] {
   return getComparisonStatusLabels(finding)
@@ -140,24 +141,19 @@ function validFactorValue(
     : null
 }
 
-function formatReferenceCurrent(
-  field: 'manning' | 'capacity' | 'yield' | 'laborRate' | 'burdenRate',
-  reference: number | null | undefined,
-  current: number | null | undefined,
-  format: (value: number) => string
-): string {
-  const referenceValue = validFactorValue(field, reference)
-  const currentValue = validFactorValue(field, current)
-  if (referenceValue === null || currentValue === null) return '—'
-  if (referenceValue === currentValue) return format(referenceValue)
-  return `${format(referenceValue)} → ${format(currentValue)}`
-}
-
 /**
- * Emits the Before → After and combined additive LMDI attribution rows
+ * Emits the role-specific parameter and combined additive LMDI attribution rows
  * directly into the Candidate table's shared column grid.
  */
-export function RoutingRecordDetails({ row, referenceRates, currentRates, detailId }: RoutingRecordDetailsProps) {
+export function RoutingRecordDetails({
+  row,
+  referenceRates,
+  currentRates,
+  beforeRoleLabel = 'Reference',
+  afterRoleLabel = 'Current',
+  selectionIdPrefix = `cbd:detail:${row.key}`,
+  detailId
+}: RoutingRecordDetailsProps) {
   const { reference, current, finding } = row
   const referenceRate = resolveSnapshotRoutingRate(reference, referenceRates)
   const currentRate = resolveSnapshotRoutingRate(current, currentRates)
@@ -210,7 +206,28 @@ export function RoutingRecordDetails({ row, referenceRates, currentRates, detail
     }
   ]
 
-  const renderDetailRow = (label: string, effectRow: boolean, id?: string) => <tr
+  const renderNumericValue = (
+    value: number | null | undefined,
+    label: string,
+    side: 'before' | 'after' | 'effect',
+    field: string,
+    format: (value: number) => string,
+    percentage = false
+  ) => {
+    if (value === null || value === undefined || !Number.isFinite(value)) return '—'
+    const visible = format(value)
+    return <SelectedNumber
+      value={percentage ? value * 100 : value}
+      percentage={percentage}
+      selectionId={`${selectionIdPrefix}:${side}:${field}`}
+      aria-label={`${label} ${field} ${visible}`}
+      className="block w-full text-right"
+    >{visible}</SelectedNumber>
+  }
+
+  const renderDetailRow = (label: string, side: 'before' | 'after' | 'effect', id?: string) => {
+    const effectRow = side === 'effect'
+    return <tr
     key={label}
     id={id}
     className={effectRow
@@ -222,19 +239,28 @@ export function RoutingRecordDetails({ row, referenceRates, currentRates, detail
     <td aria-hidden="true" className="px-2 py-1.5" />
     {parameterValues.map(item => <td key={item.field} className="whitespace-nowrap px-1 py-1.5 text-right">
       {effectRow
-        ? formatNullable(item.effect ?? null, item.effectFormat)
-        : formatReferenceCurrent(item.field, item.reference, item.current, item.format)}
+        ? renderNumericValue(item.effect, label, side, item.field, item.effectFormat)
+        : renderNumericValue(
+            validFactorValue(item.field, side === 'before' ? item.reference : item.current),
+            label,
+            side,
+            item.field,
+            item.format,
+            item.field === 'yield'
+          )}
     </td>)}
     <td className={`whitespace-nowrap px-1 py-1.5 text-right ${effectRow ? 'font-mono tabular-nums' : ''}`}>
-      {effectRow ? formatNullable(row.conversionGap, value => formatVariance(value, 2)) : ''}
+      {effectRow ? renderNumericValue(row.conversionGap, label, side, 'gap', value => formatVariance(value, 2)) : ''}
     </td>
     <td aria-hidden="true" className="px-2 py-1.5" />
     <td aria-hidden="true" className="px-1 py-1.5" />
     <td aria-hidden="true" className="px-1 py-1.5" />
-  </tr>
+    </tr>
+  }
 
   return <>
-    {renderDetailRow('Before → After', false, detailId)}
-    {renderDetailRow('Parameter Cost Effect', true)}
+    {renderDetailRow(beforeRoleLabel, 'before', detailId)}
+    {renderDetailRow(afterRoleLabel, 'after')}
+    {renderDetailRow('Parameter Cost Effect', 'effect')}
   </>
 }

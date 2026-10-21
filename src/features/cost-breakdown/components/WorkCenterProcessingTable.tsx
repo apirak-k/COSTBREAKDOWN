@@ -1,7 +1,7 @@
 import React from 'react'
 import { formatNumber, formatPercent, formatVariance, getVarianceClass, safeAdd, safeDivide } from '../../../core'
 import type { CostComparison, WorkCenterProcessingFinding } from '../../../core'
-import { Tooltip } from '../../../shared/ui/Tooltip'
+import { SelectedNumber } from '../../../shared/ui/selected-value'
 import {
   CBD_SUMMARY_PANEL_CLASS,
   CBD_SUMMARY_TABLE_CLASS,
@@ -26,6 +26,7 @@ import {
 interface WorkCenterProcessingTableProps {
   comparison: CostComparison
   gapDirection: string
+  pairFingerprint?: string
 }
 
 interface WorkCenterRow {
@@ -42,12 +43,35 @@ function formatGap(value: number | null): string {
   return value === null ? '—' : formatVariance(value, 2)
 }
 
-function renderGap(value: number | null, label: string, gapDirection: string): React.ReactNode {
-  return <Tooltip label={`${label} Gap ${formatGap(value)}; Gap = ${gapDirection}`} wrapperClassName="inline-flex justify-end">
-    <span tabIndex={0} aria-label={`${label} Gap ${formatGap(value)}; Gap = ${gapDirection}`} className={`font-mono tabular-nums whitespace-nowrap ${value === null ? 'text-slate-400' : getVarianceClass(value)}`}>
-      {formatGap(value)}
-    </span>
-  </Tooltip>
+function renderGap(value: number | null, label: string, gapDirection: string, pairFingerprint: string, sourceId: string): React.ReactNode {
+  const accessibleLabel = `${label} Gap ${formatGap(value)}; Gap = ${gapDirection}`
+  const className = `block w-full text-right font-mono tabular-nums whitespace-nowrap ${value === null || !Number.isFinite(value) ? 'text-slate-400' : getVarianceClass(value)}`
+  if (value === null || !Number.isFinite(value)) {
+    return <span tabIndex={0} aria-label={accessibleLabel} className={className}>{formatGap(value)}</span>
+  }
+  return <SelectedNumber
+    value={value}
+    selectionId={`cbd:${pairFingerprint}:work-center:${sourceId}:gap`}
+    aria-label={accessibleLabel}
+    className={className}
+  >{formatGap(value)}</SelectedNumber>
+}
+
+function renderValue(value: number | null, label: string, selectionId: string, className: string): React.ReactNode {
+  const ariaLabel = `${label} ${formatNullable(value)}`
+  if (value === null || !Number.isFinite(value)) {
+    return <span tabIndex={0} aria-label={ariaLabel} className={`block w-full text-right ${className}`}>{formatNullable(value)}</span>
+  }
+  return <SelectedNumber value={value} selectionId={selectionId} aria-label={ariaLabel} className={`block w-full text-right ${className}`}>{formatNullable(value)}</SelectedNumber>
+}
+
+function renderPercentage(value: number | null, label: string, selectionId: string, className: string): React.ReactNode {
+  const display = value === null || !Number.isFinite(value) ? '—' : formatPercent(value, 2)
+  const ariaLabel = `${label} ${display}`
+  if (value === null || !Number.isFinite(value)) {
+    return <span aria-label={ariaLabel} className={`block w-full text-right ${className}`}>{display}</span>
+  }
+  return <SelectedNumber value={value * 100} percentage selectionId={selectionId} aria-label={ariaLabel} className={`block w-full text-right ${className}`}>{display}</SelectedNumber>
 }
 
 function conversionTotal(labor: number | null, burden: number | null): number | null {
@@ -58,7 +82,7 @@ const rowColumns = CBD_SUMMARY_ROW_CLASS
 // Align fixed rows to the body's real content width, without hiding cells under its scrollbar.
 const fixedRowStyle: React.CSSProperties = { width: 'calc(100% - var(--cbd-wc-scrollbar-width, 0px))' }
 
-export const WorkCenterProcessingTable: React.FC<WorkCenterProcessingTableProps> = ({ comparison, gapDirection }) => {
+export const WorkCenterProcessingTable: React.FC<WorkCenterProcessingTableProps> = ({ comparison, gapDirection, pairFingerprint = 'unscoped' }) => {
   const scrollBodyRef = React.useRef<HTMLDivElement>(null)
   React.useEffect(() => {
     const body = scrollBodyRef.current
@@ -113,20 +137,20 @@ export const WorkCenterProcessingTable: React.FC<WorkCenterProcessingTableProps>
             const label = finding.workCenterCode
             return <div role="row" key={finding.sourceId} className={`${rowColumns} ${CBD_SUMMARY_BODY_ROW_CLASS}`}>
               <div role="rowheader" className={`${CBD_SUMMARY_BODY_LABEL_CLASS} truncate`} title={label}>{label}</div>
-              <div role="cell" className={`${CBD_SUMMARY_BODY_VALUE_CLASS} text-slate-600`}>{formatNullable(finding.costEffect.reference.total)}</div>
-              <div role="cell" className={`${CBD_SUMMARY_BODY_VALUE_CLASS} text-slate-900`}>{formatNullable(finding.costEffect.current.total)}</div>
-              <div role="cell" className={CBD_SUMMARY_BODY_VALUE_CLASS}>{renderGap(gap, label, gapDirection)}</div>
-              <div role="cell" className={`${CBD_SUMMARY_BODY_VALUE_CLASS} pr-4 text-slate-600`}>{percentage === null ? '—' : formatPercent(percentage, 2)}</div>
+              <div role="cell" className={`${CBD_SUMMARY_BODY_VALUE_CLASS} text-slate-600`}>{renderValue(finding.costEffect.reference.total, `${label} Before`, `cbd:${pairFingerprint}:work-center:${finding.sourceId}:before`, 'text-slate-600')}</div>
+              <div role="cell" className={`${CBD_SUMMARY_BODY_VALUE_CLASS} text-slate-900`}>{renderValue(finding.costEffect.current.total, `${label} After`, `cbd:${pairFingerprint}:work-center:${finding.sourceId}:after`, 'text-slate-900')}</div>
+              <div role="cell" className={CBD_SUMMARY_BODY_VALUE_CLASS}>{renderGap(gap, label, gapDirection, pairFingerprint, finding.sourceId)}</div>
+              <div role="cell" className={`${CBD_SUMMARY_BODY_VALUE_CLASS} pr-4 text-slate-600`}>{renderPercentage(percentage, `${label} percent Gap`, `cbd:${pairFingerprint}:work-center:${finding.sourceId}:percent-gap`, 'text-slate-600')}</div>
             </div>
           })}
         </div>
         <div role="rowgroup" data-cbd-summary-footer="true" className={CBD_SUMMARY_FOOTER_GROUP_CLASS}>
           <div role="row" style={fixedRowStyle} className={`${rowColumns} ${CBD_SUMMARY_FOOTER_ROW_CLASS}`}>
             <div role="rowheader" className={`${CBD_SUMMARY_FOOTER_LABEL_CLASS} text-slate-950`}>Total</div>
-            <div role="cell" className={`${CBD_SUMMARY_FOOTER_VALUE_CLASS} text-slate-700`}>{formatNullable(totalReference)}</div>
-            <div role="cell" className={`${CBD_SUMMARY_FOOTER_VALUE_CLASS} text-slate-950`}>{formatNullable(totalCurrent)}</div>
-            <div role="cell" className={CBD_SUMMARY_FOOTER_VALUE_CLASS}>{renderGap(totalGap, 'Total', gapDirection)}</div>
-            <div role="cell" className={`${CBD_SUMMARY_FOOTER_VALUE_CLASS} pr-4 whitespace-nowrap text-slate-700`}>{totalPercentage === null ? <span aria-label="Total percentage unavailable">— <span className="text-[9px] text-slate-500">Total</span></span> : <span aria-label={`${formatPercent(totalPercentage, 2)} Total`}>{formatPercent(totalPercentage, 2)} <span className="text-[9px] font-semibold text-slate-500">Total</span></span>}</div>
+            <div role="cell" className={`${CBD_SUMMARY_FOOTER_VALUE_CLASS} text-slate-700`}>{renderValue(totalReference, 'Work Center Total Before', `cbd:${pairFingerprint}:work-center:total:before`, 'text-slate-700')}</div>
+            <div role="cell" className={`${CBD_SUMMARY_FOOTER_VALUE_CLASS} text-slate-950`}>{renderValue(totalCurrent, 'Work Center Total After', `cbd:${pairFingerprint}:work-center:total:after`, 'text-slate-950')}</div>
+            <div role="cell" className={CBD_SUMMARY_FOOTER_VALUE_CLASS}>{renderGap(totalGap, 'Total', gapDirection, pairFingerprint, 'total')}</div>
+            <div role="cell" className={`${CBD_SUMMARY_FOOTER_VALUE_CLASS} pr-4 whitespace-nowrap text-slate-700`}>{totalPercentage === null ? <span aria-label="Total percentage unavailable">— <span className="text-[9px] text-slate-500">Total</span></span> : <span aria-label={`${formatPercent(totalPercentage, 2)} Total`}><SelectedNumber value={totalPercentage * 100} percentage selectionId={`cbd:${pairFingerprint}:work-center:total:percent-gap`} aria-label={`Work Center Total percent Gap ${formatPercent(totalPercentage, 2)}`} className="inline text-right text-slate-700">{formatPercent(totalPercentage, 2)}</SelectedNumber> <span className="text-[9px] font-semibold text-slate-500">Total</span></span>}</div>
           </div>
         </div>
       </div>

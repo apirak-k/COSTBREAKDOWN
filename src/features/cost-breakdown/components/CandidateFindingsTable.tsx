@@ -16,6 +16,8 @@ import { applyRowDragSelection, applyRowSelectionScope, getRowSelectionState } f
 import { StickyTableHeader, useSynchronizedTableHeader } from '../../../shared/ui/StickyTableHeader'
 import { Tooltip } from '../../../shared/ui/Tooltip'
 import { RowSelectionButton } from '../../../shared/ui/RowSelectionButton'
+import { SelectedNumber } from '../../../shared/ui/selected-value'
+import { COMPARISON_ROLE_LABELS } from '../../../shared/ui/ComparisonRoleSelector'
 import type { BOMItemizedRow } from './BOMDetailedTable'
 import { BOMRecordDetails } from './BOMDetailedTable'
 import type { RoutingItemizedRow } from './RoutingDetailedTable'
@@ -111,10 +113,10 @@ function validParameter(field: MasterDataNumericField, value: number | null | un
     : null
 }
 
-function candidatePercent(gap: number | null, totalGap: number | null): string {
-  return gap === null || totalGap === null || !Number.isFinite(gap) || !Number.isFinite(totalGap) || totalGap === 0
-    ? '—'
-    : formatPercent(gap / totalGap, 2)
+function candidatePercentRatio(gap: number | null, totalGap: number | null): number | null {
+  if (gap === null || totalGap === null || !Number.isFinite(gap) || !Number.isFinite(totalGap) || totalGap === 0) return null
+  const ratio = gap / totalGap
+  return Number.isFinite(ratio) ? ratio : null
 }
 
 function formatParameterValue(field: MasterDataNumericField, value: number | null | undefined): string {
@@ -123,26 +125,36 @@ function formatParameterValue(field: MasterDataNumericField, value: number | nul
   return field === 'loss' || field === 'yield' ? formatPercent(available, 2) : formatNumber(available, 2)
 }
 
-function parameterDelta(field: MasterDataNumericField, before: number | null | undefined, after: number | null | undefined): string {
-  const beforeValue = validParameter(field, before)
-  const afterValue = validParameter(field, after)
-  if (beforeValue === null || afterValue === null) return '—'
-  const difference = afterValue - beforeValue
-  if (!Number.isFinite(difference)) return '—'
-  return field === 'loss' || field === 'yield' ? formatPercent(difference, 2) : formatVariance(difference, 2)
-}
-
 interface DisplayParameter {
   field: MasterDataNumericField
-  value: string
-  side: 'After' | 'Before' | null
+  value: number | null
+  display: string
+  percentage: boolean
 }
 
 function parameterValues(row: CandidateTableRow, status: ComparisonStatus | null, pair: CostBreakdownComparisonPair): DisplayParameter[] {
   const display = (field: MasterDataNumericField, before: number | null | undefined, after: number | null | undefined): DisplayParameter => {
-    if (status === 'ADDED') return { field, value: formatParameterValue(field, after), side: 'After' }
-    if (status === 'REMOVED') return { field, value: formatParameterValue(field, before), side: 'Before' }
-    return { field, value: parameterDelta(field, before, after), side: null }
+    const beforeValue = validParameter(field, before)
+    const afterValue = validParameter(field, after)
+    const percentage = field === 'loss' || field === 'yield'
+    let rawValue: number | null = null
+    let visible = '—'
+
+    if (status === 'ADDED') {
+      rawValue = afterValue
+      if (rawValue !== null) visible = formatParameterValue(field, rawValue)
+    } else if (status === 'REMOVED') {
+      rawValue = beforeValue
+      if (rawValue !== null) visible = formatParameterValue(field, rawValue)
+    } else if ((status === 'CHANGED' || status === 'UNCHANGED') && beforeValue !== null && afterValue !== null) {
+      const difference = afterValue - beforeValue
+      if (Number.isFinite(difference)) {
+        rawValue = difference
+        visible = percentage ? formatPercent(difference, 2) : formatVariance(difference, 2)
+      }
+    }
+
+    return { field, value: rawValue === null ? null : percentage ? rawValue * 100 : rawValue, display: visible, percentage }
   }
 
   if (row.type === 'BOM') {
@@ -339,7 +351,7 @@ export const CandidateFindingsTable: React.FC<CandidateFindingsTableProps> = ({
     </StickyTableHeader>
     <div className="overflow-x-auto" onScroll={syncHeaderScroll}>
     <table className={tableClassName}>
-      <caption className="sr-only">{identityHeader} Candidate findings. Main parameter columns show After minus Before; CHANGED rows expand Before → After and Parameter Cost Effect details.</caption>
+      <caption className="sr-only">{identityHeader} Candidate findings. CHANGED parameter columns show After minus Before; ADDED and REMOVED rows show the present-side value. CHANGED rows expand {COMPARISON_ROLE_LABELS[pair.beforeRole]}, {COMPARISON_ROLE_LABELS[pair.afterRole]}, and Parameter Cost Effect details.</caption>
       <colgroup>{columnWidths.map((width, index) => <col key={index} style={{ width }} />)}</colgroup>
       <thead className="sr-only">
         <tr>
@@ -359,7 +371,10 @@ export const CandidateFindingsTable: React.FC<CandidateFindingsTableProps> = ({
             const isExpanded = canExpand && expandedRows.has(candidateDetailKey(type, row.key))
             const detailId = 'candidate-detail-' + encodeURIComponent(row.key)
             const parameters = parameterValues(row, status, pair)
-            const renderParameter = (parameter: DisplayParameter) => <>{parameter.side && parameter.value !== '—' && <span className="mr-1 font-sans text-[9px] font-medium text-slate-500">{parameter.side}</span>}{parameter.value}</>
+            const selectionIdPrefix = `cbd:${pair.fingerprint}:candidate:${type}:${encodeURIComponent(row.key)}`
+            const gapLabel = `${identityHeader} ${row.label} Gap ${row.gap === null ? 'unavailable' : formatVariance(row.gap, 2)} THB/pc`
+            const percentRatio = candidatePercentRatio(row.gap, totalGap)
+            const percentDisplay = percentRatio === null ? '—' : formatPercent(percentRatio, 2)
             const rowType = type
             return <React.Fragment key={row.key}>
               <tr
@@ -415,9 +430,26 @@ export const CandidateFindingsTable: React.FC<CandidateFindingsTableProps> = ({
                   <span className="block truncate whitespace-nowrap" title={row.label}>{row.label}</span>
                 </th>
                 <td className={`whitespace-nowrap px-1 py-2 text-left font-sans text-[10px] font-bold ${statusTextClass(status)}`}>{status ?? '—'}</td>
-                {parameters.map(parameter => <td key={parameter.field} className="whitespace-nowrap px-1 py-2 text-right">{renderParameter(parameter)}</td>)}
-                <td className={`whitespace-nowrap px-1 py-2 text-right ${gapTextClass(row.gap)}`}>{row.gap === null ? '—' : formatVariance(row.gap, 2)}</td>
-                <td className="whitespace-nowrap px-1 py-2 text-right text-slate-700">{candidatePercent(row.gap, totalGap)}</td>
+                {parameters.map((parameter, parameterIndex) => <td key={parameter.field} onClick={event => event.stopPropagation()} className="whitespace-nowrap px-1 py-2 text-right"><SelectedNumber
+                  value={parameter.value}
+                  percentage={parameter.percentage}
+                  selectionId={`${selectionIdPrefix}:parameter:${parameter.field}`}
+                  aria-label={`${identityHeader} ${row.label} ${parameterHeaders[parameterIndex]} ${parameter.display}`}
+                  className="block w-full text-right"
+                >{parameter.display}</SelectedNumber></td>)}
+                <td aria-label={gapLabel} onClick={event => event.stopPropagation()} className={`whitespace-nowrap px-1 py-2 text-right ${gapTextClass(row.gap)}`}><SelectedNumber
+                  value={row.gap}
+                  selectionId={`${selectionIdPrefix}:gap`}
+                  aria-label={gapLabel}
+                  className={`block w-full text-right ${gapTextClass(row.gap)}`}
+                >{row.gap === null ? '—' : formatVariance(row.gap, 2)}</SelectedNumber></td>
+                <td aria-label={`${identityHeader} ${row.label} percent Gap ${percentDisplay}`} onClick={event => event.stopPropagation()} className="whitespace-nowrap px-1 py-2 text-right text-slate-700"><SelectedNumber
+                  value={percentRatio === null ? null : percentRatio * 100}
+                  percentage
+                  selectionId={`${selectionIdPrefix}:percent-gap`}
+                  aria-label={`${identityHeader} ${row.label} percent Gap ${percentDisplay}`}
+                  className="block w-full text-right text-slate-700"
+                >{percentDisplay}</SelectedNumber></td>
                 <td className="px-1 py-2 text-center" onClick={event => event.stopPropagation()}>
                   <Tooltip label={selected && selectedVisibleCount > 1 ? `Drag selected ${isBOM ? 'BOM' : 'Routing'} findings to reorder` : 'Drag to reorder'}>
                     <button
@@ -435,13 +467,38 @@ export const CandidateFindingsTable: React.FC<CandidateFindingsTableProps> = ({
                     ><GripVertical aria-hidden="true" className="h-4 w-4" /></button>
                   </Tooltip>
                 </td>
-                <td className="px-1 py-2 text-center">
-                  {canExpand && <span aria-hidden="true" className="pointer-events-none inline-flex h-7 w-7 items-center justify-center text-slate-500">{isExpanded ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5" />}</span>}
+                <td className="px-1 py-2 text-center" onClick={event => event.stopPropagation()}>
+                  {canExpand && <button
+                    type="button"
+                    aria-expanded={isExpanded}
+                    aria-controls={isExpanded ? detailId : undefined}
+                    aria-label={`${isExpanded ? 'Collapse' : 'Expand'} ${identityHeader} detail for ${row.label}`}
+                    title={`${isExpanded ? 'Collapse' : 'Expand'} details`}
+                    onClick={event => {
+                      event.stopPropagation()
+                      onToggleExpanded(type, row.key)
+                    }}
+                    className="inline-flex h-7 w-7 items-center justify-center rounded-sm text-slate-500 hover:bg-slate-200 hover:text-slate-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-700"
+                  >{isExpanded ? <ChevronDown aria-hidden="true" className="h-3.5 w-3.5" /> : <ChevronRight aria-hidden="true" className="h-3.5 w-3.5" />}</button>}
                 </td>
               </tr>
               {isExpanded && (rowType === 'bom'
-                ? <BOMRecordDetails row={row.detail as BOMItemizedRow} detailId={detailId} />
-                : <RoutingRecordDetails row={row.detail as RoutingItemizedRow} referenceRates={pair.before.rates} currentRates={pair.after.rates} detailId={detailId} />)}
+                ? <BOMRecordDetails
+                    row={row.detail as BOMItemizedRow}
+                    beforeRoleLabel={COMPARISON_ROLE_LABELS[pair.beforeRole]}
+                    afterRoleLabel={COMPARISON_ROLE_LABELS[pair.afterRole]}
+                    selectionIdPrefix={selectionIdPrefix}
+                    detailId={detailId}
+                  />
+                : <RoutingRecordDetails
+                    row={row.detail as RoutingItemizedRow}
+                    referenceRates={pair.before.rates}
+                    currentRates={pair.after.rates}
+                    beforeRoleLabel={COMPARISON_ROLE_LABELS[pair.beforeRole]}
+                    afterRoleLabel={COMPARISON_ROLE_LABELS[pair.afterRole]}
+                    selectionIdPrefix={selectionIdPrefix}
+                    detailId={detailId}
+                  />)}
             </React.Fragment>
           })}
       </tbody>

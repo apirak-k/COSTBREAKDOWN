@@ -21,7 +21,8 @@ try {
     { formatComparisonFieldDiffs },
     { parseSnapshotWorkbookData },
     { SimulationStoryGraph },
-    { createScenarioStory }
+    { createScenarioStory },
+    { SelectedValueProvider }
   ] = await Promise.all([
     vite.ssrLoadModule('/src/features/cost-breakdown/components/WorkCenterComparisonTable.tsx'),
     vite.ssrLoadModule('/src/features/cost-breakdown/components/SnapshotComparisonCard.tsx'),
@@ -31,14 +32,18 @@ try {
     vite.ssrLoadModule('/src/features/cost-breakdown/components/comparison-field-details.ts'),
     vite.ssrLoadModule('/src/services/excel/snapshot-parser.ts'),
     vite.ssrLoadModule('/src/features/simulation/SimulationStoryGraph.tsx'),
-    vite.ssrLoadModule('/src/core/calculations/scenario-story.ts')
+    vite.ssrLoadModule('/src/core/calculations/scenario-story.ts'),
+    vite.ssrLoadModule('/src/shared/ui/selected-value.tsx')
   ])
+  const renderWithSelectedValueProvider = element => renderToStaticMarkup(
+    React.createElement(SelectedValueProvider, { scopeKey: 'review-feedback-verifier' }, element)
+  )
 
   const storyReference = { material: 10, labor: 2, burden: 3, standardCost: 15, sgaAmountPerPiece: 2, operatingProfitPerPiece: 8, sellingPrice: 25 }
   const storyCurrent = { material: 12, labor: 1, burden: 3, standardCost: 16, sgaAmountPerPiece: 2.5, operatingProfitPerPiece: 6.5, sellingPrice: 25 }
   const storySimulated = { material: 60, labor: 20, burden: 15, standardCost: 95, sgaAmountPerPiece: 10, operatingProfitPerPiece: -5, sellingPrice: 100 }
   const finalStory = createScenarioStory(storyReference, storyCurrent, storySimulated)
-  const selectedStoryMarkup = renderToStaticMarkup(React.createElement(SimulationStoryGraph, {
+  const selectedStoryMarkup = renderWithSelectedValueProvider(React.createElement(SimulationStoryGraph, {
     story: finalStory,
     unit: 'PC',
     activeRole: 'current',
@@ -104,7 +109,7 @@ try {
     laborRate: 10, burdenRate: 5, effectiveDate: '', confidence: {}
   }
   const currentRate = { ...referenceRate, id: 'rate-current', description: null }
-  const workCenterMarkup = renderToStaticMarkup(React.createElement(WorkCenterComparisonTable, {
+  const workCenterMarkup = renderWithSelectedValueProvider(React.createElement(WorkCenterComparisonTable, {
     referenceRates: [referenceRate],
     currentRates: [currentRate],
     findings: [{
@@ -144,24 +149,24 @@ try {
     onAddRate() {}, onUpdateRates() {}, onDeleteRates() {},
     onAddRoutingStep() {}, onUpdateRoutingSteps() {}, onDeleteRoutingSteps() {}
   }
-  const bomTableMarkup = renderToStaticMarkup(React.createElement(BOMTable, {
+  const bomTableMarkup = renderWithSelectedValueProvider(React.createElement(BOMTable, {
     bom: [{ id: 'bom-invalid', description: '', consumption: null, unit: '', price: null, loss: null, note: '' }],
     isEditMode: true, historyScope: 'review-feedback', ...masterDataCallbacks
   }))
   assertMasterDataTableIsQuiet(bomTableMarkup)
-  const workCenterTableMarkup = renderToStaticMarkup(React.createElement(WorkCenterRatesTable, {
+  const workCenterTableMarkup = renderWithSelectedValueProvider(React.createElement(WorkCenterRatesTable, {
     rates: [{ id: 'wc-invalid', workCenterCode: '', laborRate: null, burdenRate: null, note: '' }],
     isEditMode: true, historyScope: 'review-feedback', ...masterDataCallbacks
   }))
   assertMasterDataTableIsQuiet(workCenterTableMarkup)
-  const routingTableMarkup = renderToStaticMarkup(React.createElement(RoutingTable, {
+  const routingTableMarkup = renderWithSelectedValueProvider(React.createElement(RoutingTable, {
     routing: [{ id: 'routing-invalid', processName: '', workCenterId: 'UNKNOWN', manning: null, capacity: null, yield: null, note: '' }],
     rates: [], isEditMode: true, historyScope: 'review-feedback', ...masterDataCallbacks
   }))
   assertMasterDataTableIsQuiet(routingTableMarkup)
 
   const emptyCost = { material: 0, labor: 0, burden: 0, total: 0, status: 'complete' }
-  const summaryMarkup = renderToStaticMarkup(React.createElement(SnapshotComparisonCard, {
+  const summaryMarkup = renderWithSelectedValueProvider(React.createElement(SnapshotComparisonCard, {
     comparison: {
       referenceCost: emptyCost,
       currentCost: emptyCost,

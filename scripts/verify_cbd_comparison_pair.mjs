@@ -35,11 +35,15 @@ const clone = value => JSON.parse(JSON.stringify(value))
 const visibleText = markup => markup.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim()
 
 try {
-  const [{ seedSnapshotPair }, core, pairState] = await Promise.all([
+  const [{ seedSnapshotPair }, core, pairState, { SelectedValueProvider }] = await Promise.all([
     vite.ssrLoadModule('/src/state/seed-data.ts'),
     vite.ssrLoadModule('/src/core/index.ts'),
-    vite.ssrLoadModule('/src/state/cost-breakdown-comparison.ts')
+    vite.ssrLoadModule('/src/state/cost-breakdown-comparison.ts'),
+    vite.ssrLoadModule('/src/shared/ui/selected-value.tsx')
   ])
+  const renderWithSelectedValueProvider = element => renderToStaticMarkup(
+    React.createElement(SelectedValueProvider, { scopeKey: 'cbd-comparison-pair-verifier' }, element)
+  )
   const {
     compareSnapshots,
     createSelectedSnapshotPair,
@@ -140,7 +144,7 @@ try {
 
   const { SnapshotComparisonCard } = await vite.ssrLoadModule('/src/features/cost-breakdown/components/SnapshotComparisonCard.tsx')
   const referenceSelfComparison = compareRoles('reference', 'reference').comparison
-  const referenceSelfMarkup = renderToStaticMarkup(React.createElement(SnapshotComparisonCard, {
+  const referenceSelfMarkup = renderWithSelectedValueProvider(React.createElement(SnapshotComparisonCard, {
     comparison: referenceSelfComparison,
     gapDirection: 'Reference − Reference'
   }))
@@ -233,8 +237,16 @@ try {
   assert.match(popoverSource, /const below = triggerBounds\.bottom \+ 4[\s\S]*const above = triggerBounds\.top - panelHeight - 4[\s\S]*const top = below \+ panelHeight <= window\.innerHeight - 8[\s\S]*Math\.min\(below, window\.innerHeight - panelHeight - 8\)[\s\S]*: above/,
     'role menu keeps its below/above placement and viewport-height correction')
   assert.match(candidateSource, /afterValue - beforeValue/, 'Candidate parameter deltas are After minus Before')
-  assert.match(candidateSource, /side: 'After'/)
-  assert.match(candidateSource, /side: 'Before'/)
+  assert.match(candidateSource, /if \(status === 'ADDED'\) \{[\s\S]*?rawValue = afterValue/,
+    'ADDED main-row parameters inspect only the present After value')
+  assert.match(candidateSource, /\} else if \(status === 'REMOVED'\) \{[\s\S]*?rawValue = beforeValue/,
+    'REMOVED main-row parameters inspect only the present Before value')
+  assert.doesNotMatch(candidateSource, /side: 'After'|side: 'Before'/,
+    'main-row numeric values carry no visible role prefix')
+  assert.match(candidateSource, /beforeRoleLabel=\{COMPARISON_ROLE_LABELS\[pair\.beforeRole\]\}/,
+    'expanded details receive the selected Before role name')
+  assert.match(candidateSource, /afterRoleLabel=\{COMPARISON_ROLE_LABELS\[pair\.afterRole\]\}/,
+    'expanded details receive the selected After role name')
   assert.match(popoverSource, /setTimeout\(preview, 120\)/)
   assert.match(popoverSource, /\}, 150\)/)
   assert.match(popoverSource, /openExclusivePopover\(owner\.current, dismissWithoutFocus\)/, 'CBD popovers are mutually exclusive')
@@ -254,7 +266,7 @@ try {
     applySelectedComparison() {},
     clearSelectedComparison() {}
   }
-  const ui = renderToStaticMarkup(React.createElement(appModule.CostBreakdownPage, {
+  const ui = renderWithSelectedValueProvider(React.createElement(appModule.CostBreakdownPage, {
     manualOrders: { bom: null, routing: null },
     onManualOrderChange() {},
     onResetManualOrderHistory() {}
@@ -262,7 +274,8 @@ try {
   assert.match(ui, /Standard Cost Gap[^>]*Gap = Custom − Current/)
   assert.match(ui, /Cost Element for Before, After, Gap, and Gap percentage/)
   assert.match(ui, />Before<\/th>[\s\S]*>After<\/th>/)
-  assert.match(ui, /Before → After/)
+  assert.doesNotMatch(ui, /Before → After/)
+  assert.match(ui, /CHANGED rows expand Current, Custom, and Parameter Cost Effect details/)
   assert.match(ui, /Gap = Custom − Current/)
   assert.doesNotMatch(ui, /Gap = CUR − REF|>REF<|>CUR<|Current minus Reference|Reference → Current/)
   const roleTriggers = [...ui.matchAll(/<button\b([^>]*)>([\s\S]*?)<\/button>/g)]

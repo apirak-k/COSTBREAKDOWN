@@ -10,6 +10,7 @@ import { CostBreakdownPopover, dismissCostBreakdownPopovers } from './components
 import { ComparisonStatusOptions } from './components/ComparisonStatusOptions'
 import { COST_ELEMENT_COLORS } from './components/cost-element-colors'
 import { Tooltip } from '../../shared/ui/Tooltip'
+import { SelectedNumber } from '../../shared/ui/selected-value'
 import { COMPARISON_ROLE_LABELS, ComparisonRoleSelector } from '../../shared/ui/ComparisonRoleSelector'
 import {
   ALL_COMPARISON_STATUSES,
@@ -204,12 +205,20 @@ export const CostBreakdownPage: React.FC<CostBreakdownPageProps> = ({ manualOrde
     const page = pageRef.current
     const shell = stickyShellRef.current
     if (!page || !shell) return
-    const updateStickyOffset = () => page.style.setProperty('--cbd-table-header-top', `${shell.getBoundingClientRect().height}px`)
+    const main = page.closest<HTMLElement>('#main-content')
+    const updateStickyOffset = () => {
+      const shellBottom = shell.getBoundingClientRect().bottom
+      const mainTop = main?.getBoundingClientRect().top ?? 0
+      page.style.setProperty('--cbd-table-header-top', `${shellBottom - mainTop}px`)
+    }
     updateStickyOffset()
     const observer = new ResizeObserver(updateStickyOffset)
     observer.observe(shell)
+    if (main) observer.observe(main)
+    window.addEventListener('resize', updateStickyOffset)
     return () => {
       observer.disconnect()
+      window.removeEventListener('resize', updateStickyOffset)
       page.style.removeProperty('--cbd-table-header-top')
     }
   }, [])
@@ -278,9 +287,12 @@ export const CostBreakdownPage: React.FC<CostBreakdownPageProps> = ({ manualOrde
             className="flex shrink-0 items-baseline gap-1.5 whitespace-nowrap border-l border-slate-300 pl-2 text-xs"
           >
             <span className="font-semibold text-slate-800">Standard Cost Gap</span>
-            <span className={`font-mono tabular-nums ${costBreakdownFullComparison.totalGap === null ? 'text-slate-400' : getVarianceClass(costBreakdownFullComparison.totalGap)}`}>
-              {costBreakdownFullComparison.totalGap === null ? '—' : formatVariance(costBreakdownFullComparison.totalGap, 2)}
-            </span>
+            <SelectedNumber
+              value={costBreakdownFullComparison.totalGap}
+              selectionId={`cbd:${comparisonPair.fingerprint}:subheader:standard-cost-gap`}
+              aria-label={`Standard Cost Gap ${costBreakdownFullComparison.totalGap === null ? 'unavailable' : formatVariance(costBreakdownFullComparison.totalGap, 2)} THB/pc; Gap = ${gapDirection}`}
+              className={`font-mono tabular-nums ${costBreakdownFullComparison.totalGap === null ? 'text-slate-400' : getVarianceClass(costBreakdownFullComparison.totalGap)}`}
+            >{costBreakdownFullComparison.totalGap === null ? '—' : formatVariance(costBreakdownFullComparison.totalGap, 2)}</SelectedNumber>
           </div>
 
           <div role="group" aria-label="Cost element color legend" className="flex shrink-0 items-center gap-2 whitespace-nowrap border-l border-slate-300 pl-2 text-[10px] font-medium text-slate-600">
@@ -366,10 +378,10 @@ export const CostBreakdownPage: React.FC<CostBreakdownPageProps> = ({ manualOrde
 
       <div id="cost-breakdown-overview-panels" data-cbd-overview-pair="true" data-cbd-overview-columns="equal" className={isOverviewExpanded ? 'grid min-w-0 grid-cols-1 items-stretch gap-2 border-x border-b border-slate-300 bg-slate-50 p-2 lg:shrink-0 lg:grid-cols-2' : 'hidden'}>
         <div className="min-w-0">
-          <SnapshotComparisonCard comparison={costBreakdownFullComparison} selectedComparison={selectedDisplayComparison} selectedActive={isSelectedComparisonActive} gapDirection={gapDirection} />
+          <SnapshotComparisonCard comparison={costBreakdownFullComparison} selectedComparison={selectedDisplayComparison} selectedActive={isSelectedComparisonActive} gapDirection={gapDirection} pairFingerprint={comparisonPair.fingerprint} />
         </div>
         <div className="min-w-0">
-          <WorkCenterProcessingTable comparison={costBreakdownFullComparison} gapDirection={gapDirection} />
+          <WorkCenterProcessingTable comparison={costBreakdownFullComparison} gapDirection={gapDirection} pairFingerprint={comparisonPair.fingerprint} />
         </div>
       </div>
       </div>

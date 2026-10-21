@@ -175,9 +175,16 @@ function rowFor(markup: string, label: string): string {
 }
 
 function gapSlot(row: string, kind: 'full' | 'selected') {
-  const match = row.match(new RegExp('<span data-gap-slot="' + kind + '"(?: aria-hidden="(true|false)")? class="([^"]*)">([\\s\\S]*?)<\\/span>'))
+  const match = row.match(new RegExp('<(span|button)\\b(?=[^>]*\\bdata-gap-slot="' + kind + '")([^>]*)>([\\s\\S]*?)<\\/\\1>'))
   assert.ok(match, 'expected ' + kind + ' gap slot')
-  return { ariaHidden: match[1] ?? null, className: match[2], text: visibleText(match[3]) }
+  const attributes = match[2]
+  return {
+    tag: match[1],
+    ariaHidden: attributes.match(/\baria-hidden="(true|false)"/)?.[1] ?? null,
+    ariaLabel: attributes.match(/\baria-label="([^"]+)"/)?.[1] ?? null,
+    className: attributes.match(/\bclass="([^"]*)"/)?.[1] ?? '',
+    text: visibleText(match[3])
+  }
 }
 
 function tableHeaderLabels(markup: string): string[] {
@@ -227,7 +234,7 @@ function assertSharedSummaryStyleContract(
 }
 
 try {
-  const [page, snapshotView, wcView, comparisonCore, selectedCore, comparisonView, formatters, guards, palette, summaryStyles] = await Promise.all([
+  const [page, snapshotView, wcView, comparisonCore, selectedCore, comparisonView, formatters, guards, palette, summaryStyles, selectedValueCore] = await Promise.all([
     vite.ssrLoadModule('/src/features/cost-breakdown/CostBreakdownPage.tsx'),
     vite.ssrLoadModule('/src/features/cost-breakdown/components/SnapshotComparisonCard.tsx'),
     vite.ssrLoadModule('/src/features/cost-breakdown/components/WorkCenterProcessingTable.tsx'),
@@ -237,8 +244,13 @@ try {
     vite.ssrLoadModule('/src/core/utils/formatters.ts'),
     vite.ssrLoadModule('/src/core/utils/guards.ts'),
     vite.ssrLoadModule('/src/features/cost-breakdown/components/cost-element-colors.ts'),
-    vite.ssrLoadModule('/src/features/cost-breakdown/components/summary-table-styles.ts')
+    vite.ssrLoadModule('/src/features/cost-breakdown/components/summary-table-styles.ts'),
+    vite.ssrLoadModule('/src/shared/ui/selected-value.tsx')
   ])
+
+  const renderWithSelectedValueProvider = (element: React.ReactNode): string => renderToStaticMarkup(
+    React.createElement(selectedValueCore.SelectedValueProvider, { scopeKey: 'cbd-summary-verifier' }, element)
+  )
 
   assert.deepEqual(palette.COST_ELEMENT_COLORS, {
     material: '#6f99c6', labor: '#e5b46a', burden: '#9a82c6', standardCost: '#334155'
@@ -248,7 +260,7 @@ try {
     { key: 'labor', label: 'Labor', full: 4.42, selected: null, color: palette.COST_ELEMENT_COLORS.labor },
     { key: 'burden', label: 'Burden', full: 2.32, selected: null, color: palette.COST_ELEMENT_COLORS.burden }
   ]
-  const fullChart = renderToStaticMarkup(React.createElement(page.GapContributionChart, {
+  const fullChart = renderWithSelectedValueProvider(React.createElement(page.GapContributionChart, {
     segments: fullSegments,
     fullTotal: 16.05,
     selectedTotal: null,
@@ -273,7 +285,7 @@ try {
     { key: 'labor', label: 'Labor', full: 4.42, selected: -1.20, color: palette.COST_ELEMENT_COLORS.labor },
     { key: 'burden', label: 'Burden', full: 2.32, selected: 0, color: palette.COST_ELEMENT_COLORS.burden }
   ]
-  const selectedChart = renderToStaticMarkup(React.createElement(page.GapContributionChart, {
+  const selectedChart = renderWithSelectedValueProvider(React.createElement(page.GapContributionChart, {
     segments: selectedSegments,
     fullTotal: 16.05,
     selectedTotal: 3,
@@ -358,11 +370,11 @@ try {
     totalGap: selectedContribution.totalGap
   }
 
-  const costFullMarkup = renderToStaticMarkup(React.createElement(snapshotView.SnapshotComparisonCard, {
+  const costFullMarkup = renderWithSelectedValueProvider(React.createElement(snapshotView.SnapshotComparisonCard, {
     comparison: fullComparison,
     gapDirection: 'Current − Reference'
   }))
-  const costSelectedMarkup = renderToStaticMarkup(React.createElement(snapshotView.SnapshotComparisonCard, {
+  const costSelectedMarkup = renderWithSelectedValueProvider(React.createElement(snapshotView.SnapshotComparisonCard, {
     comparison: fullComparison,
     selectedComparison: selectedDisplayComparison,
     selectedActive: true,
@@ -424,14 +436,13 @@ try {
     const selectedSlot = gapSlot(selectedRow, 'selected')
     assert.equal(fullSlot.ariaHidden, 'true', 'Full mode Selected slot must be visually hidden for ' + label)
     assert.equal(fullSlot.text, '0.00', 'stable Full-mode Selected slot reserves the plain zero display')
-    assert.equal(selectedSlot.ariaHidden, 'false', 'Selected mode slot must be exposed for ' + label)
-    assert.equal(
-      selectedSlot.className.split(/\s+/).filter(Boolean).filter(token => token !== 'invisible').sort().join(' '),
-      fullSlot.className.split(/\s+/).filter(Boolean).filter(token => token !== 'invisible').sort().join(' '),
-      'Selected slot layout classes must remain stable for ' + label
-    )
-    assert.match(selectedSlot.className, /w-\[9ch\].*text-right.*text-\[10px\].*font-normal.*text-slate-500.*tabular-nums/,
-      'Selected uses a stable, right-aligned, secondary neutral slot for ' + label)
+    assert.equal(selectedSlot.tag, 'button', 'Selected mode value is an eligible shared SelectedNumber source for ' + label)
+    assert.equal(selectedSlot.ariaHidden, null, 'Selected mode source is exposed by default for ' + label)
+    assert.match(selectedSlot.ariaLabel ?? '', new RegExp(label + ' Selected Gap'), 'Selected mode retains its semantic accessible name for ' + label)
+    for (const token of ['w-full', 'text-right', 'text-[10px]', 'font-normal', 'text-slate-500', 'tabular-nums']) {
+      assert.ok(selectedSlot.className.split(/\s+/).includes(token),
+        'SelectedNumber fills the reserved right-aligned secondary slot with ' + token + ' for ' + label)
+    }
     assert.doesNotMatch(selectedSlot.className, /relative|left-2/,
       'Selected numeric values keep their existing position for ' + label)
     assert.doesNotMatch(selectedSlot.className, /text-(rose|red|green|emerald)-|font-(bold|semibold)/,
@@ -460,7 +471,7 @@ try {
   assert.equal(gapSlot(selectedTotalRow, 'selected').text, formatters.formatVariance(expectedSelectedTotal, 2), 'STD Cost Selected Gap must equal Selected MAT + LB + BD')
   assert.match(selectedTotalRow, />Total<\/span>/, 'Cost footer percentage must visibly identify Total')
 
-  const wcMarkup = renderToStaticMarkup(React.createElement(wcView.WorkCenterProcessingTable, {
+  const wcMarkup = renderWithSelectedValueProvider(React.createElement(wcView.WorkCenterProcessingTable, {
     comparison: fullComparison,
     selectedComparison: selectedDisplayComparison,
     selectedActive: true,
@@ -469,7 +480,10 @@ try {
   const costSummarySource = readFileSync(new URL('../src/features/cost-breakdown/components/SnapshotComparisonCard.tsx', import.meta.url), 'utf8')
   const wcSummarySource = readFileSync(new URL('../src/features/cost-breakdown/components/WorkCenterProcessingTable.tsx', import.meta.url), 'utf8')
   assertSharedSummaryStyleContract(summaryStyles, costSummarySource, wcSummarySource, costFullMarkup, wcMarkup)
-  assert.doesNotMatch(wcMarkup, /Selected/i, 'Work Center output must not expose Selected text in visible text, titles, or aria attributes')
+  assert.doesNotMatch(visibleText(wcMarkup), /\bSelected\b/i, 'Work Center shows no Selected summary column or label')
+  const workCenterAccessibleLabels = [...wcMarkup.matchAll(/aria-label="([^"]+)"/g)].map(([, label]) => label)
+  assert.ok(workCenterAccessibleLabels.every(label => !/\bSelected\b/i.test(label)),
+    'Work Center numeric source names do not invent a Selected comparison')
   const wcTableStart = wcMarkup.indexOf('<div role="table"')
   assert.ok(wcTableStart >= 0, 'Work Center exposes one accessible table grid')
   const wcTable = extractElement(wcMarkup, wcTableStart, 'div')
