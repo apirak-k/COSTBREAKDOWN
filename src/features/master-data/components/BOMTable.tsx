@@ -1,6 +1,6 @@
 import React, { useCallback, useMemo, useRef } from 'react'
 import { GripVertical, Trash2 } from 'lucide-react'
-import { SnapshotBOMItem, formatNumber } from '../../../core'
+import type { SnapshotBOMItem } from '../../../core'
 import { getMasterDataNumericInputDomain } from '../../../core/utils/master-data-validation'
 import { useDragSelect } from '../hooks/useDragSelect'
 import { getRowSelectionState } from '../../../shared/selection/row-drag-selection'
@@ -15,7 +15,7 @@ import { MasterDataTableHeader } from './MasterDataTableChrome'
 import { MasterDataBlockerMarker } from './MasterDataBlockerMarker'
 import { Tooltip } from '../../../shared/ui/Tooltip'
 import { RowSelectionButton } from '../../../shared/ui/RowSelectionButton'
-import { NumericInput } from '../../../shared/ui/NumericInput'
+import { MasterDataNumericInput, MasterDataSelectedNumber, masterDataSelectedValueId } from './MasterDataNumericValue'
 import { StickyTableHeader, useSynchronizedTableHeader } from '../../../shared/ui/StickyTableHeader'
 import { masterDataActionsColumnClass, masterDataCellFocusClass, masterDataDisplaySlotClass, masterDataIdentityColumnClass, masterDataIndexColumnClass, masterDataIssueDisplayClass, masterDataIssueEditorClass, masterDataIssuePlaceholderClass, masterDataNoteColumnClass, masterDataNumericDisplaySlotClass, masterDataNumericEditorClass, masterDataPercentageShellClass, masterDataSpreadsheetSelectionClass, masterDataTableClass, masterDataTextEditorClass, masterDataUnitColumnClass } from './master-data-field-styles'
 
@@ -23,6 +23,7 @@ interface BOMTableProps {
   bom: SnapshotBOMItem[]
   isEditMode?: boolean
   historyScope: string
+  selectionDatasetId?: string
   navigationScopeKey: string
   selectionOwnerScopeKey: string
   activeSelectionOwnerKey: string | null
@@ -46,12 +47,11 @@ interface BOMTableProps {
 }
 
 const parseNumber = (value: string): number | null => value.trim() === '' ? null : Number(value)
-const displayNumber = (value: number | null, digits = 2): string => value === null ? '—' : formatNumber(value, digits)
-
 export const BOMTable: React.FC<BOMTableProps> = ({
   bom,
   isEditMode = false,
   historyScope,
+  selectionDatasetId = '',
   navigationScopeKey,
   selectionOwnerScopeKey,
   activeSelectionOwnerKey,
@@ -74,6 +74,7 @@ export const BOMTable: React.FC<BOMTableProps> = ({
   onWarningNavigationHandled
 }) => {
   const tableRef = useRef<HTMLTableElement | null>(null)
+  const valueSourceId = (recordId: string, field: string) => masterDataSelectedValueId(historyScope, selectionDatasetId, 'bom', recordId, field)
   const { headerViewportRef, syncHeaderScroll } = useSynchronizedTableHeader()
   const cellSelectionRowIds = useMemo(() => bom.map(item => item.id), [bom])
   const nextWarningItem = useQualityNavigationCursor<MasterDataWarningItem>(navigationScopeKey)
@@ -245,10 +246,10 @@ export const BOMTable: React.FC<BOMTableProps> = ({
               </Tooltip>
             </th>
             <th scope="col" className="px-2 py-2 text-left">Material</th>
-            <th scope="col" className="px-2 py-2 text-center">Usage</th>
+            <th scope="col" className="py-2 pr-8 pl-2 text-right">Usage</th>
             <th scope="col" className="px-2 py-2 text-center">Unit</th>
-            <th scope="col" className="px-2 py-2 text-center">Price</th>
-            <th scope="col" className="px-2 py-2 text-center">Loss</th>
+            <th scope="col" className="py-2 pr-8 pl-2 text-right">Price</th>
+            <th scope="col" className="py-2 pr-12 pl-2 text-right">Loss</th>
             <th scope="col" className="px-2 py-2 text-left">Note</th>
             <th scope="col" className={`${masterDataActionsColumnClass} px-1 py-2 text-center`}>Actions</th>
           </tr>
@@ -334,12 +335,13 @@ export const BOMTable: React.FC<BOMTableProps> = ({
                       )}
                     </div>
                   </td>
-                  <td className="relative px-2 py-0.5 text-center font-mono tabular-nums">
+                  <td className="relative px-2 py-0.5 text-right font-mono tabular-nums">
                     {isEditMode ? (
-                      <div className="relative mx-auto w-full max-w-20">
-                        <NumericInput
+                      <div className="relative w-full min-w-0">
+                        <MasterDataNumericInput
                           value={item.consumption}
                           onValueChange={value => applyCellUpdate(item.id, { consumption: value })}
+                          selectionId={valueSourceId(item.id, 'consumption')}
                           {...getMasterDataNumericInputDomain('consumption')}
                           reserveMarker
                           data-grid-cell="true"
@@ -351,7 +353,19 @@ export const BOMTable: React.FC<BOMTableProps> = ({
                         />
                         {consumptionMissing && <MasterDataBlockerMarker />}
                       </div>
-                    ) : <span data-grid-cell="true" data-grid-row-id={item.id} data-grid-field="consumption" tabIndex={viewCellTabIndex(item.id, 'consumption')} aria-label={`Usage for ${item.description || `BOM row ${rowNumber}`}`} className={`${masterDataNumericDisplaySlotClass} mx-auto w-full max-w-20 ${showWarningHighlights && (consumptionMissing || consumptionInvalid) ? masterDataIssueDisplayClass : ''} ${selectedCellKeys.has(tableCellKey(item.id, 'consumption')) ? masterDataSpreadsheetSelectionClass : ''}`}>{displayNumber(item.consumption)}{consumptionMissing && <MasterDataBlockerMarker />}</span>}
+                    ) : <MasterDataSelectedNumber
+                      value={item.consumption}
+                      selectionId={valueSourceId(item.id, 'consumption')}
+                      data-grid-cell="true"
+                      data-grid-row-id={item.id}
+                      data-grid-field="consumption"
+                      tabIndex={viewCellTabIndex(item.id, 'consumption')}
+                      aria-label={`Usage for ${item.description || `BOM row ${rowNumber}`}`}
+                      aria-invalid={consumptionMissing || consumptionInvalid}
+                      reserveMarker
+                      missingMarker={consumptionMissing}
+                      className={`${masterDataNumericDisplaySlotClass} ${showWarningHighlights && (consumptionMissing || consumptionInvalid) ? masterDataIssueDisplayClass : ''} ${selectedCellKeys.has(tableCellKey(item.id, 'consumption')) ? masterDataSpreadsheetSelectionClass : ''}`}
+                    />}
                   </td>
                   <td className="px-2 py-0.5 text-center font-mono">
                     {isEditMode ? (
@@ -374,12 +388,13 @@ export const BOMTable: React.FC<BOMTableProps> = ({
                       className={`mx-auto inline-flex h-8 w-full max-w-20 items-center justify-center rounded-sm border border-transparent px-1 text-center text-xs ${masterDataCellFocusClass} ${showWarningHighlights && !item.unit.trim() ? masterDataIssueDisplayClass : ''} ${selectedCellKeys.has(tableCellKey(item.id, 'unit')) ? masterDataSpreadsheetSelectionClass : ''}`}
                     >{item.unit || <span className="text-amber-700">—</span>}</span>}
                   </td>
-                  <td className="relative px-2 py-0.5 text-center font-mono tabular-nums">
+                  <td className="relative px-2 py-0.5 text-right font-mono tabular-nums">
                     {isEditMode ? (
-                      <div className="relative mx-auto w-full max-w-24">
-                        <NumericInput
+                      <div className="relative w-full min-w-0">
+                        <MasterDataNumericInput
                           value={item.price}
                           onValueChange={value => applyCellUpdate(item.id, { price: value })}
+                          selectionId={valueSourceId(item.id, 'price')}
                           {...getMasterDataNumericInputDomain('price')}
                           reserveMarker
                           data-grid-cell="true"
@@ -391,16 +406,30 @@ export const BOMTable: React.FC<BOMTableProps> = ({
                         />
                         {priceMissing && <MasterDataBlockerMarker />}
                       </div>
-                    ) : <span data-grid-cell="true" data-grid-row-id={item.id} data-grid-field="price" tabIndex={viewCellTabIndex(item.id, 'price')} aria-label={`Price for ${item.description || `BOM row ${rowNumber}`}`} className={`${masterDataNumericDisplaySlotClass} mx-auto w-full max-w-24 ${showWarningHighlights && (priceMissing || priceInvalid) ? masterDataIssueDisplayClass : ''} ${selectedCellKeys.has(tableCellKey(item.id, 'price')) ? masterDataSpreadsheetSelectionClass : ''}`}>{displayNumber(item.price, 2)}{priceMissing && <MasterDataBlockerMarker />}</span>}
+                    ) : <MasterDataSelectedNumber
+                      value={item.price}
+                      selectionId={valueSourceId(item.id, 'price')}
+                      data-grid-cell="true"
+                      data-grid-row-id={item.id}
+                      data-grid-field="price"
+                      tabIndex={viewCellTabIndex(item.id, 'price')}
+                      aria-label={`Price for ${item.description || `BOM row ${rowNumber}`}`}
+                      aria-invalid={priceMissing || priceInvalid}
+                      reserveMarker
+                      missingMarker={priceMissing}
+                      className={`${masterDataNumericDisplaySlotClass} ${showWarningHighlights && (priceMissing || priceInvalid) ? masterDataIssueDisplayClass : ''} ${selectedCellKeys.has(tableCellKey(item.id, 'price')) ? masterDataSpreadsheetSelectionClass : ''}`}
+                    />}
                   </td>
-                  <td className="relative px-2 py-0.5 text-center font-mono tabular-nums">
+                  <td className="relative px-2 py-0.5 text-right font-mono tabular-nums">
                     {isEditMode ? (
                       <div className={masterDataPercentageShellClass}>
                         <div className="relative flex h-8 min-w-0 flex-1 items-center">
-                          <NumericInput
+                          <MasterDataNumericInput
                             value={item.loss === null ? null : item.loss * 100}
                             onValueChange={value => applyCellUpdate(item.id, { loss: value === null ? null : value / 100 })}
-                          {...getMasterDataNumericInputDomain('loss', true)}
+                            selectionId={valueSourceId(item.id, 'loss')}
+                            percentage
+                            {...getMasterDataNumericInputDomain('loss', true)}
                             reserveMarker
                             data-grid-cell="true"
                             data-grid-row-id={item.id}
@@ -415,10 +444,20 @@ export const BOMTable: React.FC<BOMTableProps> = ({
                       </div>
                     ) : (
                       <div className={masterDataPercentageShellClass}>
-                        <span data-grid-cell="true" data-grid-row-id={item.id} data-grid-field="loss" tabIndex={viewCellTabIndex(item.id, 'loss')} aria-label={`Loss percentage for ${item.description || `BOM row ${rowNumber}`}`} className={`${masterDataNumericDisplaySlotClass} flex-1 ${showWarningHighlights && (lossMissing || lossInvalid) ? masterDataIssueDisplayClass : ''} ${selectedCellKeys.has(tableCellKey(item.id, 'loss')) ? masterDataSpreadsheetSelectionClass : ''}`}>
-                          {item.loss === null ? '—' : formatNumber(item.loss * 100, 2)}
-                          {lossMissing && <MasterDataBlockerMarker />}
-                        </span>
+                        <MasterDataSelectedNumber
+                          value={item.loss === null ? null : item.loss * 100}
+                          selectionId={valueSourceId(item.id, 'loss')}
+                          percentage
+                          data-grid-cell="true"
+                          data-grid-row-id={item.id}
+                          data-grid-field="loss"
+                          tabIndex={viewCellTabIndex(item.id, 'loss')}
+                          aria-label={`Loss percentage for ${item.description || `BOM row ${rowNumber}`}`}
+                          aria-invalid={lossMissing || lossInvalid}
+                          reserveMarker
+                          missingMarker={lossMissing}
+                          className={`${masterDataNumericDisplaySlotClass} w-0 flex-1 ${showWarningHighlights && (lossMissing || lossInvalid) ? masterDataIssueDisplayClass : ''} ${selectedCellKeys.has(tableCellKey(item.id, 'loss')) ? masterDataSpreadsheetSelectionClass : ''}`}
+                        />
                         <span className="w-3 shrink-0 text-center text-[11px] text-slate-400">%</span>
                       </div>
                     )}

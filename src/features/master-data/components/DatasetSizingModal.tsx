@@ -1,14 +1,15 @@
 import React, { useState, useEffect } from 'react'
 import { X, Check, Download } from 'lucide-react'
-import { NumericInput } from '../../../shared/ui/NumericInput'
 import { MasterDataRole, CostSnapshot, DatasetSizing, ProductMaster } from '../../../core'
 import { DATASET_SIZING_LIMITS } from '../../../core/utils/sizing'
 import { getMasterDataNumericInputDomain, isMasterDataNumericInputValid } from '../../../core/utils/master-data-validation'
 import { hasDatasetMetadataChanged, hasDatasetSizingChanged, parseDatasetSizingCounts } from '../dataset-sizing-form'
 import { getPopulatedRowsRemovedBySizing } from '../../../state/dataset-sizing'
 import { downloadBlob } from '../../../services/excel/export'
+import { HeaderValue } from '../../../shared/layout/HeaderValue'
 import { useDialogFocus } from '../use-dialog-focus'
 import { masterDataTextEditorClass } from './master-data-field-styles'
+import { MasterDataNumericInput, masterDataSelectedValueId } from './MasterDataNumericValue'
 
 const metadataNumericEditorClass = `${masterDataTextEditorClass} font-mono tabular-nums text-right`
 const metadataInlineLabelClass = 'shrink-0 whitespace-nowrap text-left text-[11px] font-medium text-slate-700'
@@ -23,6 +24,7 @@ interface DatasetSizingModalProps {
   isOpen: boolean
   onClose: () => void
   role: MasterDataRole
+  selectionDatasetId?: string
   product: ProductMaster
   snapshot: CostSnapshot
   onUpdateProduct: (product: ProductMaster) => void
@@ -35,6 +37,7 @@ export const DatasetSizingModal: React.FC<DatasetSizingModalProps> = ({
   isOpen,
   onClose,
   role,
+  selectionDatasetId = '',
   product,
   snapshot,
   onUpdateProduct,
@@ -69,6 +72,7 @@ export const DatasetSizingModal: React.FC<DatasetSizingModalProps> = ({
   if (!isOpen) return null
 
   const roleLabel = role === 'reference' ? 'Reference' : role === 'current' ? 'Current' : 'Custom'
+  const sizingValueSourceId = (section: string, recordId: string, field: string) => masterDataSelectedValueId(role, selectionDatasetId, section, recordId, field)
 
   const buildSizingDraft = () => {
     const nextSizing = parseDatasetSizingCounts({ wcCount, bomCount, routingCount })
@@ -152,17 +156,19 @@ export const DatasetSizingModal: React.FC<DatasetSizingModalProps> = ({
     value: string,
     setValue: (value: string) => void,
     max: number,
+    tableKey: string,
     showDivider = false
   ) => {
     return (
       <div className={`relative flex min-w-0 items-center gap-1.5 text-xs text-slate-800 ${showDivider ? sizingGroupDividerClass : ''}`}>
         <label htmlFor={id} className="shrink-0 whitespace-nowrap text-[11px] font-medium text-slate-700">{label} :</label>
         <div className="min-w-0 flex-1">
-          <NumericInput
+          <MasterDataNumericInput
             id={id}
             aria-label={label}
             value={value === '' ? null : Number(value)}
             onValueChange={next => { setValue(next === null ? '' : String(next)); setSizingError('') }}
+            selectionId={sizingValueSourceId('sizing-rows', tableKey, 'count')}
             integer
             min={1}
             max={max}
@@ -185,22 +191,25 @@ export const DatasetSizingModal: React.FC<DatasetSizingModalProps> = ({
       aria-labelledby="sizing-modal-title"
     >
       <div className="my-auto max-h-[calc(100dvh-2rem)] w-full max-w-[48rem] overflow-y-auto border border-slate-300 bg-white text-slate-900 shadow-xl">
-        <div className="flex items-center justify-between gap-3 border-b border-slate-200 px-3 py-2">
+        <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2 border-b border-slate-200 px-3 py-2">
           <h3 id="sizing-modal-title" className="text-sm font-semibold">Sizing · {roleLabel}</h3>
-          <button
-            type="button"
-            onClick={onClose}
-            className="grid h-8 w-8 place-items-center text-slate-600 hover:bg-slate-100 hover:text-slate-950 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-700"
-            aria-label="Close dialog"
-          >
-            <X className="h-4 w-4" aria-hidden="true" />
-          </button>
+          <div className="ml-auto flex min-w-0 items-center gap-1">
+            <HeaderValue inDialog />
+            <button
+              type="button"
+              onClick={onClose}
+              className="grid h-8 w-8 shrink-0 place-items-center text-slate-600 hover:bg-slate-100 hover:text-slate-950 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-700"
+              aria-label="Close dialog"
+            >
+              <X className="h-4 w-4" aria-hidden="true" />
+            </button>
+          </div>
         </div>
 
         <div className="space-y-4 px-3 py-3">
           <section aria-label="Dataset metadata" className="space-y-2">
             <h4 className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">METADATA</h4>
-            <div className="grid min-w-0 grid-cols-1 gap-x-3 gap-y-2 md:grid-cols-3">
+            <div className="grid min-w-0 grid-cols-1 gap-x-3 gap-y-2 md:grid-cols-[minmax(0,20fr)_minmax(0,45fr)_minmax(0,35fr)]">
               <div className="flex min-w-0 items-center gap-1.5 md:col-span-3">
                 <label htmlFor="dataset-sizing-product-name" className="shrink-0 whitespace-nowrap text-[11px] font-medium text-slate-700">Product Name :</label>
                 <div className="min-w-0 flex-1">
@@ -229,11 +238,12 @@ export const DatasetSizingModal: React.FC<DatasetSizingModalProps> = ({
               <div className={`flex min-w-0 items-center gap-1.5 ${sizingGroupDividerClass}`}>
                 <label htmlFor="dataset-sizing-selling-price" className={metadataInlineLabelClass}>Selling Price (THB) :</label>
                 <div className="grid min-w-0 flex-1 grid-cols-[minmax(0,1fr)_1rem] items-center gap-1">
-                  <NumericInput
+                  <MasterDataNumericInput
                     id="dataset-sizing-selling-price"
                     aria-label="Selling Price (THB)"
                     value={sellingPrice === '' ? null : Number(sellingPrice)}
                     onValueChange={value => { setSellingPrice(value === null ? '' : String(value)); setSizingError('') }}
+                    selectionId={sizingValueSourceId('sizing-metadata', 'product', 'sellingPrice')}
                     {...getMasterDataNumericInputDomain('sellingPrice')}
                     className={`${metadataNumericEditorClass} [&+span]:right-1`}
                   />
@@ -243,11 +253,13 @@ export const DatasetSizingModal: React.FC<DatasetSizingModalProps> = ({
               <div className="flex min-w-0 items-center gap-1.5">
                 <label htmlFor="dataset-sizing-sga-percent" className={metadataInlineLabelClass}>SG&amp;A :</label>
                 <div className="grid min-w-0 flex-1 grid-cols-[minmax(0,1fr)_1rem] items-center gap-1">
-                  <NumericInput
+                  <MasterDataNumericInput
                     id="dataset-sizing-sga-percent"
                     aria-label="SG&A"
                     value={sgaPercent === '' ? null : Number(sgaPercent)}
                     onValueChange={value => { setSgaPercent(value === null ? '' : String(value)); setSizingError('') }}
+                    selectionId={sizingValueSourceId('sizing-metadata', 'product', 'sgaPercent')}
+                    percentage
                     {...getMasterDataNumericInputDomain('sgaPercent')}
                     className={`${metadataNumericEditorClass} [&+span]:right-1`}
                   />
@@ -272,9 +284,9 @@ export const DatasetSizingModal: React.FC<DatasetSizingModalProps> = ({
           <section aria-label="Dataset rows" className="space-y-2">
             <h4 className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">TABLE ROWS</h4>
             <div className="grid min-w-0 grid-cols-1 gap-x-3 gap-y-2 md:grid-cols-3">
-              {renderRowCount('Bill of Materials', 'dataset-sizing-bom-rows', bomCount, setBomCount, DATASET_SIZING_LIMITS.bomCount, true)}
-              {renderRowCount('Work Centers', 'dataset-sizing-work-center-rows', wcCount, setWcCount, DATASET_SIZING_LIMITS.wcCount, true)}
-              {renderRowCount('Routing', 'dataset-sizing-routing-rows', routingCount, setRoutingCount, DATASET_SIZING_LIMITS.routingCount)}
+              {renderRowCount('Bill of Materials', 'dataset-sizing-bom-rows', bomCount, setBomCount, DATASET_SIZING_LIMITS.bomCount, 'bom', true)}
+              {renderRowCount('Work Centers', 'dataset-sizing-work-center-rows', wcCount, setWcCount, DATASET_SIZING_LIMITS.wcCount, 'work-centers', true)}
+              {renderRowCount('Routing', 'dataset-sizing-routing-rows', routingCount, setRoutingCount, DATASET_SIZING_LIMITS.routingCount, 'routing')}
             </div>
           </section>
           {sizingError && <p className="text-sm font-medium text-rose-700" role="alert">{sizingError}</p>}

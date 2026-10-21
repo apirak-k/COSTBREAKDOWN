@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef } from 'react'
 import { GripVertical, Trash2 } from 'lucide-react'
-import { SnapshotWorkCenterRate, SnapshotRoutingStep, formatNumber } from '../../../core'
+import { SnapshotWorkCenterRate, SnapshotRoutingStep } from '../../../core'
 import { getMasterDataNumericInputDomain } from '../../../core/utils/master-data-validation'
 import { useDragSelect } from '../hooks/useDragSelect'
 import { getRowSelectionState } from '../../../shared/selection/row-drag-selection'
@@ -15,7 +15,7 @@ import { MasterDataTableHeader } from './MasterDataTableChrome'
 import { MasterDataBlockerMarker } from './MasterDataBlockerMarker'
 import { Tooltip } from '../../../shared/ui/Tooltip'
 import { RowSelectionButton } from '../../../shared/ui/RowSelectionButton'
-import { NumericInput } from '../../../shared/ui/NumericInput'
+import { MasterDataNumericInput, MasterDataSelectedNumber, masterDataSelectedValueId } from './MasterDataNumericValue'
 import { StickyTableHeader, useSynchronizedTableHeader } from '../../../shared/ui/StickyTableHeader'
 import { masterDataActionsColumnClass, masterDataDisplaySlotClass, masterDataIdentityColumnClass, masterDataIndexColumnClass, masterDataIssueDisplayClass, masterDataIssueEditorClass, masterDataIssuePlaceholderClass, masterDataNoteColumnClass, masterDataNumericDisplaySlotClass, masterDataNumericEditorClass, masterDataSpreadsheetSelectionClass, masterDataTableClass, masterDataTextEditorClass } from './master-data-field-styles'
 
@@ -24,6 +24,7 @@ interface WorkCenterRatesTableProps {
   routing: SnapshotRoutingStep[]
   isEditMode?: boolean
   historyScope: string
+  selectionDatasetId?: string
   navigationScopeKey: string
   selectionOwnerScopeKey: string
   activeSelectionOwnerKey: string | null
@@ -56,6 +57,7 @@ export const WorkCenterRatesTable: React.FC<WorkCenterRatesTableProps> = ({
   routing,
   isEditMode = false,
   historyScope,
+  selectionDatasetId = '',
   navigationScopeKey,
   selectionOwnerScopeKey,
   activeSelectionOwnerKey,
@@ -78,6 +80,7 @@ export const WorkCenterRatesTable: React.FC<WorkCenterRatesTableProps> = ({
   onWarningNavigationHandled
 }) => {
   const tableRef = useRef<HTMLTableElement | null>(null)
+  const valueSourceId = (recordId: string, field: string) => masterDataSelectedValueId(historyScope, selectionDatasetId, 'work-centers', recordId, field)
   const { headerViewportRef, syncHeaderScroll } = useSynchronizedTableHeader()
   const nextWarningItem = useQualityNavigationCursor<MasterDataWarningItem>(navigationScopeKey)
   const nextBlockerItem = useQualityNavigationCursor<MasterDataBlockerItem>(navigationScopeKey)
@@ -265,8 +268,8 @@ export const WorkCenterRatesTable: React.FC<WorkCenterRatesTableProps> = ({
               </Tooltip>
             </th>
             <th scope="col" className="px-2 py-2 text-left">Work Center</th>
-            <th scope="col" className="px-2 py-2 text-center">Labor Rate</th>
-            <th scope="col" className="px-2 py-2 text-center">Burden Rate</th>
+            <th scope="col" className="py-2 pr-8 pl-2 text-right">Labor Rate</th>
+            <th scope="col" className="py-2 pr-8 pl-2 text-right">Burden Rate</th>
             <th scope="col" className="px-2 py-2 text-left">Note</th>
             <th scope="col" className={`${masterDataActionsColumnClass} px-1 py-2 text-center`}>Actions</th>
           </tr>
@@ -363,12 +366,13 @@ export const WorkCenterRatesTable: React.FC<WorkCenterRatesTableProps> = ({
                       </div>
                     )}
                   </td>
-                  <td className="relative px-2 py-0.5 text-center font-mono tabular-nums">
+                  <td className="relative px-2 py-0.5 text-right font-mono tabular-nums">
                     {isEditMode ? (
-                      <div className="relative mx-auto w-full max-w-24">
-                        <NumericInput
+                      <div className="relative w-full min-w-0">
+                        <MasterDataNumericInput
                           value={rate.laborRate}
                           onValueChange={value => applyCellUpdate(rate.id, { laborRate: value })}
+                          selectionId={valueSourceId(rate.id, 'laborRate')}
                           {...getMasterDataNumericInputDomain('laborRate')}
                           reserveMarker
                           data-grid-cell="true"
@@ -380,14 +384,27 @@ export const WorkCenterRatesTable: React.FC<WorkCenterRatesTableProps> = ({
                         />
                         {laborMissing && <MasterDataBlockerMarker />}
                       </div>
-                    ) : <span data-grid-cell="true" data-grid-row-id={rate.id} data-grid-field="laborRate" tabIndex={viewCellTabIndex(rate.id, 'laborRate')} aria-label={`Labor Rate for ${rate.workCenterCode || `Work Center row ${rowNumber}`}`} className={`${masterDataNumericDisplaySlotClass} mx-auto w-full max-w-24 ${showWarningHighlights && (laborMissing || laborInvalid) ? masterDataIssueDisplayClass : ''} ${selectedCellKeys.has(tableCellKey(rate.id, 'laborRate')) ? masterDataSpreadsheetSelectionClass : ''}`}>{rate.laborRate === null ? '—' : formatNumber(rate.laborRate, 2)}{laborMissing && <MasterDataBlockerMarker />}</span>}
+                    ) : <MasterDataSelectedNumber
+                      value={rate.laborRate}
+                      selectionId={valueSourceId(rate.id, 'laborRate')}
+                      data-grid-cell="true"
+                      data-grid-row-id={rate.id}
+                      data-grid-field="laborRate"
+                      tabIndex={viewCellTabIndex(rate.id, 'laborRate')}
+                      aria-label={`Labor Rate for ${rate.workCenterCode || `Work Center row ${rowNumber}`}`}
+                      aria-invalid={laborMissing || laborInvalid}
+                      reserveMarker
+                      missingMarker={laborMissing}
+                      className={`${masterDataNumericDisplaySlotClass} ${showWarningHighlights && (laborMissing || laborInvalid) ? masterDataIssueDisplayClass : ''} ${selectedCellKeys.has(tableCellKey(rate.id, 'laborRate')) ? masterDataSpreadsheetSelectionClass : ''}`}
+                    />}
                   </td>
-                  <td className="relative px-2 py-0.5 text-center font-mono tabular-nums">
+                  <td className="relative px-2 py-0.5 text-right font-mono tabular-nums">
                     {isEditMode ? (
-                      <div className="relative mx-auto w-full max-w-24">
-                        <NumericInput
+                      <div className="relative w-full min-w-0">
+                        <MasterDataNumericInput
                           value={rate.burdenRate}
                           onValueChange={value => applyCellUpdate(rate.id, { burdenRate: value })}
+                          selectionId={valueSourceId(rate.id, 'burdenRate')}
                           {...getMasterDataNumericInputDomain('burdenRate')}
                           reserveMarker
                           data-grid-cell="true"
@@ -399,7 +416,19 @@ export const WorkCenterRatesTable: React.FC<WorkCenterRatesTableProps> = ({
                         />
                         {burdenMissing && <MasterDataBlockerMarker />}
                       </div>
-                    ) : <span data-grid-cell="true" data-grid-row-id={rate.id} data-grid-field="burdenRate" tabIndex={viewCellTabIndex(rate.id, 'burdenRate')} aria-label={`Burden Rate for ${rate.workCenterCode || `Work Center row ${rowNumber}`}`} className={`${masterDataNumericDisplaySlotClass} mx-auto w-full max-w-24 ${showWarningHighlights && (burdenMissing || burdenInvalid) ? masterDataIssueDisplayClass : ''} ${selectedCellKeys.has(tableCellKey(rate.id, 'burdenRate')) ? masterDataSpreadsheetSelectionClass : ''}`}>{rate.burdenRate === null ? '—' : formatNumber(rate.burdenRate, 2)}{burdenMissing && <MasterDataBlockerMarker />}</span>}
+                    ) : <MasterDataSelectedNumber
+                      value={rate.burdenRate}
+                      selectionId={valueSourceId(rate.id, 'burdenRate')}
+                      data-grid-cell="true"
+                      data-grid-row-id={rate.id}
+                      data-grid-field="burdenRate"
+                      tabIndex={viewCellTabIndex(rate.id, 'burdenRate')}
+                      aria-label={`Burden Rate for ${rate.workCenterCode || `Work Center row ${rowNumber}`}`}
+                      aria-invalid={burdenMissing || burdenInvalid}
+                      reserveMarker
+                      missingMarker={burdenMissing}
+                      className={`${masterDataNumericDisplaySlotClass} ${showWarningHighlights && (burdenMissing || burdenInvalid) ? masterDataIssueDisplayClass : ''} ${selectedCellKeys.has(tableCellKey(rate.id, 'burdenRate')) ? masterDataSpreadsheetSelectionClass : ''}`}
+                    />}
                   </td>
                   <td className="px-2 py-0.5 font-sans text-slate-600">
                     {isEditMode ? (

@@ -12,12 +12,11 @@ import {
   Upload,
   X
 } from 'lucide-react'
-import { formatNumber } from '../../../core'
 import type { MasterDataRole, CostSnapshot, ProductMaster } from '../../../core'
 import type { MasterDataSaveState } from '../../../core/utils/master-data-effective'
 import { getMasterDataNumericInputDomain } from '../../../core/utils/master-data-validation'
 import { Tooltip } from '../../../shared/ui/Tooltip'
-import { NumericInput } from '../../../shared/ui/NumericInput'
+import { MasterDataNumericInput, MasterDataSelectedNumber, masterDataSelectedValueId } from './MasterDataNumericValue'
 import { masterDataIssueDisplayClass, masterDataIssueEditorClass, masterDataTextEditorClass } from './master-data-field-styles'
 import { hasInvalidNumber } from '../table-validation'
 import { downloadBlob } from '../../../services/excel/export'
@@ -29,6 +28,7 @@ interface MasterDataWorkspaceHeaderProps {
   snapshot: CostSnapshot
   saveStates: Record<MasterDataRole, MasterDataSaveState>
   role: MasterDataRole
+  selectionDatasetId?: string
   onRoleChange: (role: MasterDataRole) => void
   onSaveWorkingDataset: () => void
   onSaveAllWorkingDatasets: () => void
@@ -229,6 +229,7 @@ export const MasterDataWorkspaceHeader: React.FC<MasterDataWorkspaceHeaderProps>
   snapshot,
   saveStates,
   role,
+  selectionDatasetId = '',
   onRoleChange,
   onSaveWorkingDataset,
   onSaveAllWorkingDatasets,
@@ -269,6 +270,7 @@ export const MasterDataWorkspaceHeader: React.FC<MasterDataWorkspaceHeaderProps>
       : tableView === 'routing'
         ? 'Search Routing'
         : 'Search BOM'
+  const metadataValueSourceId = (field: string) => masterDataSelectedValueId(role, selectionDatasetId, 'metadata', 'product', field)
 
   const clearCloneHoverTimer = () => {
     if (cloneHoverTimerRef.current) clearTimeout(cloneHoverTimerRef.current)
@@ -551,7 +553,7 @@ export const MasterDataWorkspaceHeader: React.FC<MasterDataWorkspaceHeaderProps>
       </div>
 
       <div className="px-2 py-1.5">
-        <dl className="grid min-w-0 grid-cols-1 gap-x-3 gap-y-1 sm:grid-cols-2 xl:grid-cols-[minmax(8rem,2fr)_repeat(3,minmax(8rem,1fr))_minmax(8rem,2fr)]">
+        <dl className="grid min-w-0 grid-cols-1 gap-x-3 gap-y-1 sm:grid-cols-2 xl:grid-cols-[minmax(8rem,2fr)_minmax(0,0.6fr)_minmax(0,1.35fr)_minmax(0,1.05fr)_minmax(8rem,2fr)]">
           <div className={`flex min-w-0 items-center gap-1.5 ${metadataGroupDividerClass}`}>
             <dt className="shrink-0 whitespace-nowrap font-sans text-[11px] font-medium tracking-wide text-slate-600">Product Name :</dt>
             <dd className="min-w-0 flex-1">
@@ -594,18 +596,25 @@ export const MasterDataWorkspaceHeader: React.FC<MasterDataWorkspaceHeaderProps>
             <dt className="shrink-0 whitespace-nowrap font-sans text-[11px] font-medium tracking-wide text-slate-600">Selling Price (THB) :</dt>
             <dd className="min-w-0 flex-1">
               {isEditMode ? (
-                <NumericInput
+                <MasterDataNumericInput
                   value={product.sellingPrice}
                   onValueChange={sellingPrice => onUpdateProduct({ ...product, sellingPrice })}
+                  selectionId={metadataValueSourceId('sellingPrice')}
                   {...getMasterDataNumericInputDomain('sellingPrice')}
                   aria-label="Selling Price (THB)"
                   aria-invalid={sellingPriceInvalid}
                   className={`${fieldInput} font-mono tabular-nums text-right ${showWarningHighlights && sellingPriceInvalid ? masterDataIssueEditorClass : ''}`}
                 />
               ) : (
-                <span aria-invalid={sellingPriceInvalid} className={`flex h-8 w-full min-w-0 items-center justify-end truncate rounded-sm border border-transparent px-2 text-right font-mono text-xs tabular-nums text-slate-950 ${showWarningHighlights && sellingPriceInvalid ? masterDataIssueDisplayClass : ''}`}>
-                  {product.sellingPrice == null ? '' : formatNumber(product.sellingPrice)}
-                </span>
+                <MasterDataSelectedNumber
+                  value={product.sellingPrice}
+                  selectionId={metadataValueSourceId('sellingPrice')}
+                  aria-label="Selling Price (THB)"
+                  aria-invalid={sellingPriceInvalid}
+                  contentClassName="px-2"
+                  unavailableContent=""
+                  className={`flex h-8 w-full min-w-0 items-center justify-end truncate rounded-sm border border-transparent text-right font-mono text-xs tabular-nums text-slate-950 ${showWarningHighlights && sellingPriceInvalid ? masterDataIssueDisplayClass : ''}`}
+                />
               )}
             </dd>
           </div>
@@ -614,18 +623,27 @@ export const MasterDataWorkspaceHeader: React.FC<MasterDataWorkspaceHeaderProps>
             <dt className="shrink-0 whitespace-nowrap font-sans text-[11px] font-medium tracking-wide text-slate-600">SG&amp;A :</dt>
             <dd className="grid min-w-0 flex-1 grid-cols-[minmax(0,1fr)_auto] items-center gap-1">
               {isEditMode ? (
-                <NumericInput
+                <MasterDataNumericInput
                   value={product.sgaPercent}
                   onValueChange={sgaPercent => onUpdateProduct({ ...product, sgaPercent })}
+                  selectionId={metadataValueSourceId('sgaPercent')}
+                  percentage
                   {...getMasterDataNumericInputDomain('sgaPercent')}
                   aria-label="SG&A"
                   aria-invalid={sgaPercentInvalid}
                   className={`${fieldInput} font-mono tabular-nums text-right ${showWarningHighlights && sgaPercentInvalid ? masterDataIssueEditorClass : ''}`}
                 />
               ) : (
-                <span aria-invalid={sgaPercentInvalid} className={`flex h-8 w-full min-w-0 items-center justify-end truncate rounded-sm border border-transparent px-2 text-right font-mono text-xs tabular-nums text-slate-950 ${showWarningHighlights && sgaPercentInvalid ? masterDataIssueDisplayClass : ''}`}>
-                  {product.sgaPercent == null ? '' : formatNumber(product.sgaPercent)}
-                </span>
+                <MasterDataSelectedNumber
+                  value={product.sgaPercent}
+                  selectionId={metadataValueSourceId('sgaPercent')}
+                  percentage
+                  aria-label="SG&A"
+                  aria-invalid={sgaPercentInvalid}
+                  contentClassName="px-2"
+                  unavailableContent=""
+                  className={`flex h-8 w-full min-w-0 items-center justify-end truncate rounded-sm border border-transparent text-right font-mono text-xs tabular-nums text-slate-950 ${showWarningHighlights && sgaPercentInvalid ? masterDataIssueDisplayClass : ''}`}
+                />
               )}
               <span aria-hidden="true" className="text-xs text-slate-600">%</span>
             </dd>

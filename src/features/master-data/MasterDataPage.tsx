@@ -177,6 +177,7 @@ export const MasterDataPage: React.FC<MasterDataPageProps> = ({
           routing={masterDataSnapshot.routing}
           isEditMode={isEditMode}
           historyScope={masterDataRole}
+          selectionDatasetId={activeProductId}
           {...cellSelectionOwnerProps}
           searchQuery={searchQuery}
           onSearchQueryChange={onSearchQueryChange}
@@ -207,6 +208,7 @@ export const MasterDataPage: React.FC<MasterDataPageProps> = ({
           bom={masterDataSnapshot.bom}
           isEditMode={isEditMode}
           historyScope={masterDataRole}
+          selectionDatasetId={activeProductId}
           {...cellSelectionOwnerProps}
           searchQuery={searchQuery}
           onSearchQueryChange={onSearchQueryChange}
@@ -238,6 +240,7 @@ export const MasterDataPage: React.FC<MasterDataPageProps> = ({
         rates={masterDataSnapshot.rates}
         isEditMode={isEditMode}
         historyScope={masterDataRole}
+        selectionDatasetId={activeProductId}
         {...cellSelectionOwnerProps}
         searchQuery={searchQuery}
         onSearchQueryChange={onSearchQueryChange}
@@ -311,6 +314,7 @@ export const MasterDataPage: React.FC<MasterDataPageProps> = ({
         snapshot={masterDataSnapshot}
         saveStates={saveStates}
         role={masterDataRole}
+        selectionDatasetId={activeProductId}
         onRoleChange={setMasterDataRole}
         onSaveWorkingDataset={() => saveMasterDataWorkingDataset(masterDataRole)}
         onSaveAllWorkingDatasets={saveAllMasterDataWorkingDatasets}
@@ -374,6 +378,7 @@ export const MasterDataPage: React.FC<MasterDataPageProps> = ({
         isOpen={activeTab === 'master' && sizingModalOpen}
         onClose={() => setSizingModalOpen(false)}
         role={masterDataRole}
+        selectionDatasetId={activeProductId}
         product={product}
         snapshot={masterDataSnapshot}
         onUpdateProduct={updateMasterDataProduct}

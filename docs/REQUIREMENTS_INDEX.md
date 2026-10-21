@@ -76,7 +76,7 @@ The latest finalized logic establishes:
 
 ## Selected Value / Decimal UX — 2026-10-21
 
-`FINALIZED — USER DECISION`: the Selected Value / Decimal UX presentation contract is in [`CROSS_CUTTING.md`](specs/CROSS_CUTTING.md#numeric-display-and-editing). It supersedes only conflicting fixed-two-decimal/body-spinner presentation. Round 1 delivers the shared temporary selection model, compact Header Value, opt-in read-only/editable source primitives, adaptive formatter, and removal of inline visible spinners. Exhaustive Master Data, CBD, and Simulation integrations remain later rounds. Dataset, comparison, lifecycle, domain validation, calculation, and graph-selection boundaries remain unchanged.
+`FINALIZED — USER DECISION`: the Selected Value / Decimal UX presentation contract is in [`CROSS_CUTTING.md`](specs/CROSS_CUTTING.md#numeric-display-and-editing). Round 1 delivered the shared temporary selection model, compact Header Value, opt-in read-only/editable source primitives, adaptive formatter, and removal of inline visible body spinners. Round 2 integrates the foundation throughout Master Data and finalizes right-aligned numeric table axes and the UOM / Selling Price / SG&A metadata subgroup at 20 / 45 / 35. Cost Breakdown and Simulation page-specific integrations remain later rounds. Dataset, comparison, lifecycle, domain validation, calculation, and graph-selection boundaries remain unchanged.
 
 ## Reading Order
 

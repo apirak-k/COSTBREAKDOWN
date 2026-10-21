@@ -107,10 +107,11 @@ export interface SelectedNumberProps extends Omit<ButtonHTMLAttributes<HTMLButto
   integer?: boolean
   percentage?: boolean
   selectionId?: string
+  stopKeyboardPropagation?: boolean
   children?: ReactNode
 }
 
-export function SelectedNumber({ value, integer, percentage, selectionId, children, className, style, onKeyDown, onKeyUp, ...props }: SelectedNumberProps) {
+export function SelectedNumber({ value, integer, percentage, selectionId, children, className, style, stopKeyboardPropagation = true, onKeyDown, onKeyUp, ...props }: SelectedNumberProps) {
   const { isSelected, select } = useSelectedValueSource({ value, editable: false, domain: { integer }, percentage }, selectionId)
   const content = children ?? formatBusinessNumber(value, { integer, percent: percentage })
   if (value == null || !Number.isFinite(value)) return <span className={className} style={style}>{content}</span>
@@ -129,7 +130,7 @@ export function SelectedNumber({ value, integer, percentage, selectionId, childr
         select()
       }}
       onKeyDown={event => {
-        if (event.key === 'Enter' || event.key === ' ') event.stopPropagation()
+        if (stopKeyboardPropagation && (event.key === 'Enter' || event.key === ' ')) event.stopPropagation()
         onKeyDown?.(event)
       }}
       onKeyUp={event => {

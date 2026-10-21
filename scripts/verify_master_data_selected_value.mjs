@@ -1,0 +1,687 @@
+import assert from 'node:assert/strict'
+import { spawn, execFileSync } from 'node:child_process'
+import { existsSync } from 'node:fs'
+import { mkdtemp, rm, writeFile } from 'node:fs/promises'
+import { tmpdir } from 'node:os'
+import { join, resolve } from 'node:path'
+import net from 'node:net'
+
+if (typeof WebSocket !== 'function') throw new Error('This verifier requires Node.js with built-in WebSocket support.')
+
+function findChrome() {
+  const candidates = [process.env.CHROME_BIN, process.env.CHROME_PATH].filter(Boolean)
+  if (process.platform === 'darwin') candidates.push('/Applications/Google Chrome.app/Contents/MacOS/Google Chrome')
+  if (process.platform === 'win32') candidates.push('C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe')
+  for (const candidate of candidates) if (existsSync(candidate)) return candidate
+  for (const name of ['google-chrome', 'chromium', 'chromium-browser']) {
+    try { return execFileSync('which', [name], { encoding: 'utf8' }).trim() } catch {}
+  }
+  throw new Error('Chrome was not found. Set CHROME_BIN to a Chrome executable.')
+}
+
+async function unusedPort() {
+  const server = net.createServer()
+  await new Promise((resolveListen, reject) => {
+    server.once('error', reject)
+    server.listen(0, '127.0.0.1', resolveListen)
+  })
+  const { port } = server.address()
+  await new Promise(resolveClose => server.close(resolveClose))
+  return port
+}
+
+const delay = ms => new Promise(resolveDelay => setTimeout(resolveDelay, ms))
+const repository = process.cwd()
+const configuredBaseUrl = process.env.COSTBREAKDOWN_BROWSER_BASE_URL
+const vitePort = configuredBaseUrl ? null : await unusedPort()
+const debugPort = await unusedPort()
+const profile = await mkdtemp(join(tmpdir(), 'costbreakdown-master-selected-value-'))
+const evidenceDir = await mkdtemp(join(tmpdir(), 'costbreakdown-master-selected-evidence-'))
+const vite = configuredBaseUrl ? null : spawn(process.execPath, [
+  resolve(repository, 'node_modules/vite/bin/vite.js'), '--host', '127.0.0.1', '--port', String(vitePort), '--strictPort'
+], { cwd: repository, stdio: ['ignore', 'pipe', 'pipe'] })
+const viteOutput = []
+for (const stream of [vite?.stdout, vite?.stderr]) stream?.on('data', chunk => viteOutput.push(String(chunk)))
+const chromeArgs = [
+  '--headless=new', '--no-first-run', '--no-default-browser-check', '--disable-background-networking',
+  `--remote-debugging-port=${debugPort}`, `--user-data-dir=${profile}`, '--window-size=1440,1800', 'about:blank'
+]
+if (process.platform === 'linux') chromeArgs.unshift('--no-sandbox')
+const chrome = spawn(findChrome(), chromeArgs, { stdio: ['ignore', 'ignore', 'pipe'] })
+let client
+const browserErrors = []
+
+function stopChild(child) {
+  return new Promise(resolveStop => {
+    if (!child || child.exitCode !== null || child.signalCode !== null) return resolveStop()
+    const timer = setTimeout(() => { child.kill('SIGKILL'); resolveStop() }, 2500)
+    child.once('exit', () => { clearTimeout(timer); resolveStop() })
+    child.kill('SIGTERM')
+  })
+}
+
+async function waitFor(check, label, timeoutMs = 15000) {
+  const deadline = Date.now() + timeoutMs
+  while (Date.now() < deadline) {
+    if (await check()) return
+    if ((vite && vite.exitCode !== null) || chrome.exitCode !== null) break
+    await delay(100)
+  }
+  throw new Error(`${label} did not become ready. Vite output:\n${viteOutput.join('').slice(-3000)}`)
+}
+
+try {
+  const baseUrl = configuredBaseUrl ?? `http://127.0.0.1:${vitePort}/`
+  await waitFor(async () => {
+    try { return (await fetch(baseUrl)).ok } catch { return false }
+  }, 'Vite')
+  const debugUrl = `http://127.0.0.1:${debugPort}`
+  await waitFor(async () => {
+    try { return (await fetch(`${debugUrl}/json/version`)).ok } catch { return false }
+  }, 'Chrome DevTools')
+  const targetResponse = await fetch(`${debugUrl}/json/new?${baseUrl}`, { method: 'PUT' })
+  if (!targetResponse.ok) throw new Error(`Chrome could not open the application root: ${targetResponse.status}`)
+  const target = await targetResponse.json()
+  client = new WebSocket(target.webSocketDebuggerUrl)
+  await new Promise((resolveOpen, rejectOpen) => {
+    client.addEventListener('open', resolveOpen, { once: true })
+    client.addEventListener('error', rejectOpen, { once: true })
+  })
+
+  let commandId = 0
+  const pending = new Map()
+  client.addEventListener('message', event => {
+    const message = JSON.parse(String(event.data))
+    if (message.method === 'Runtime.exceptionThrown') browserErrors.push(message.params.exceptionDetails.text)
+    if (message.method === 'Runtime.consoleAPICalled' && ['error', 'warning'].includes(message.params.type)) {
+      browserErrors.push(message.params.args.map(argument => argument.value ?? argument.description).join(' '))
+    }
+    if (message.id && pending.has(message.id)) {
+      pending.get(message.id)(message)
+      pending.delete(message.id)
+    }
+  })
+  const send = (method, params = {}) => new Promise((resolveCommand, rejectCommand) => {
+    const id = ++commandId
+    const timer = setTimeout(() => {
+      pending.delete(id)
+      rejectCommand(new Error(`Chrome DevTools command timed out: ${method}`))
+    }, 10000)
+    pending.set(id, message => {
+      clearTimeout(timer)
+      if (message.error) rejectCommand(new Error(message.error.message))
+      else resolveCommand(message)
+    })
+    client.send(JSON.stringify({ id, method, params }))
+  })
+  const evaluate = async expression => {
+    const response = await send('Runtime.evaluate', { expression, returnByValue: true, awaitPromise: true })
+    if (response.result.exceptionDetails) throw new Error(response.result.exceptionDetails.text)
+    return response.result.result.value
+  }
+  const visibleExpression = selector => `(()=>[...document.querySelectorAll(${JSON.stringify(selector)})].find(element => {
+    const rect = element.getBoundingClientRect()
+    return element.getClientRects().length > 0 && rect.width > 0 && rect.height > 0
+  }))()`
+  const existsVisible = selector => evaluate(`Boolean(${visibleExpression(selector)})`)
+  const clickSelector = async selector => {
+    const point = await evaluate(`(()=>{const element=${visibleExpression(selector)};if(!element)return null;const rect=element.getBoundingClientRect();return {x:rect.x+rect.width/2,y:rect.y+rect.height/2,w:rect.width,h:rect.height}})()`)
+    if (!point || point.w <= 0 || point.h <= 0) throw new Error(`Visible browser target not found: ${selector}`)
+    await send('Input.dispatchMouseEvent', { type: 'mousePressed', x: point.x, y: point.y, button: 'left', clickCount: 1 })
+    await send('Input.dispatchMouseEvent', { type: 'mouseReleased', x: point.x, y: point.y, button: 'left', clickCount: 1 })
+    await delay(120)
+  }
+  const clickTextButton = async label => {
+    const point = await evaluate(`(()=>{const element=[...document.querySelectorAll('button')].find(item => item.getClientRects().length && item.innerText.trim() === ${JSON.stringify(label)});if(!element)return null;const rect=element.getBoundingClientRect();return {x:rect.x+rect.width/2,y:rect.y+rect.height/2}})()`)
+    if (!point) throw new Error(`Button not found by visible text: ${label}`)
+    await send('Input.dispatchMouseEvent', { type: 'mousePressed', x: point.x, y: point.y, button: 'left', clickCount: 1 })
+    await send('Input.dispatchMouseEvent', { type: 'mouseReleased', x: point.x, y: point.y, button: 'left', clickCount: 1 })
+    await delay(180)
+  }
+  const inputValue = selector => evaluate(`(${visibleExpression(selector)})?.value ?? null`)
+  const textContent = selector => evaluate(`(${visibleExpression(selector)})?.textContent?.trim() ?? null`)
+  const replaceInput = async (selector, text, modifiers = 4) => {
+    await clickSelector(selector)
+    await send('Input.dispatchKeyEvent', { type: 'keyDown', key: 'a', code: 'KeyA', modifiers, windowsVirtualKeyCode: 65, nativeVirtualKeyCode: 65 })
+    await send('Input.dispatchKeyEvent', { type: 'keyUp', key: 'a', code: 'KeyA', modifiers, windowsVirtualKeyCode: 65, nativeVirtualKeyCode: 65 })
+    await send('Input.insertText', { text })
+    await delay(150)
+    return inputValue(selector)
+  }
+  const typeHeaderValue = async text => {
+    const selector = 'header [data-header-value] input[aria-label="Selected value"]'
+    const value = await replaceInput(selector, text)
+    return value
+  }
+  const pressKey = async (key, { shift = false } = {}) => {
+    const modifiers = shift ? 8 : 0
+    const code = key === ' ' ? 'Space' : key
+    const virtualKey = key === 'Enter' ? 13 : key === ' ' ? 32 : undefined
+    const text = key === 'Enter' ? '\r' : key === ' ' ? ' ' : undefined
+    await send('Input.dispatchKeyEvent', { type: 'keyDown', key, code, modifiers, windowsVirtualKeyCode: virtualKey, nativeVirtualKeyCode: virtualKey, text, unmodifiedText: text })
+    await send('Input.dispatchKeyEvent', { type: 'keyUp', key, code, modifiers, windowsVirtualKeyCode: virtualKey, nativeVirtualKeyCode: virtualKey })
+    await delay(120)
+  }
+  const setViewport = async (width, height = 1600) => {
+    await send('Emulation.setDeviceMetricsOverride', { width, height, deviceScaleFactor: 1, mobile: false })
+    await delay(300)
+  }
+  const saveScreenshot = async name => {
+    const captured = await send('Page.captureScreenshot', { format: 'png', captureBeyondViewport: false })
+    await writeFile(join(evidenceDir, `${name}.png`), Buffer.from(captured.result.data, 'base64'))
+  }
+  const geometry = async expression => evaluate(expression)
+  const checks = []
+  const verify = (condition, message, detail) => {
+    checks.push({ passed: Boolean(condition), message, ...(detail === undefined ? {} : { detail }) })
+    const status = condition ? 'PASS' : 'FAIL'
+    process.stdout.write(`${status} ${message}${detail === undefined ? '' : ` — ${JSON.stringify(detail)}`}\n`)
+  }
+
+  await send('Page.enable')
+  await send('Runtime.enable')
+  await send('Emulation.setDeviceMetricsOverride', { width: 1440, height: 1800, deviceScaleFactor: 1, mobile: false })
+  await waitFor(async () => (await evaluate('document.title')).includes('COSTBREAKDOWN'), 'application')
+  await waitFor(async () => existsVisible('button') && await evaluate(`[...document.querySelectorAll('button')].some(button => button.getClientRects().length && button.innerText.trim() === 'Master Data')`), 'Master Data navigation')
+  await clickTextButton('Master Data')
+  await waitFor(() => existsVisible('section[aria-label="Working dataset controls"]'), 'Master Data workspace')
+  const isReadOnly = await evaluate(`document.querySelector('section[aria-label="Working dataset controls"] button[role="switch"]')?.getAttribute('aria-checked') === 'false'`)
+  if (isReadOnly) await clickSelector('section[aria-label="Working dataset controls"] button[role="switch"]')
+  await waitFor(() => evaluate(`document.querySelector('section[aria-label="Working dataset controls"] button[role="switch"]')?.getAttribute('aria-checked') === 'true'`), 'Master Data Edit mode')
+  await clickSelector('[role="group"][aria-label="Master Data table section"] button:last-child')
+  await delay(250)
+
+  const roleButton = role => `section[aria-label="Working dataset controls"] [role="group"][aria-label="Master Data workspace"] button[aria-label^=${JSON.stringify(`${role} —`)}]`
+  const chooseRole = async role => {
+    await clickSelector(roleButton(role))
+    await waitFor(() => evaluate(`(${visibleExpression(roleButton(role))})?.getAttribute('aria-pressed') === 'true'`), `${role} dataset`)
+    await delay(300)
+  }
+  const openSizing = async () => {
+    await clickSelector('section[aria-label="Working dataset controls"] button[aria-label="Sizing"]')
+    await waitFor(() => existsVisible('[role="dialog"][aria-labelledby="sizing-modal-title"]'), 'Dataset Sizing dialog')
+  }
+  const dialogInput = label => `[role="dialog"] input[aria-label=${JSON.stringify(label)}]`
+  const setCounts = async ({ fractionalProbe = false, headerCountSelection = false } = {}) => {
+    const bom = dialogInput('Bill of Materials')
+    const wc = dialogInput('Work Centers')
+    const routing = dialogInput('Routing')
+    if (fractionalProbe) {
+      const typed = await replaceInput(bom, '1.5')
+      verify(typed === '', 'integer Dataset Sizing editor rejects a fractional count draft', { inputValue: typed })
+    }
+    for (const selector of [bom, wc, routing]) {
+      await replaceInput(selector, '1')
+      assert.equal(await inputValue(selector), '1', `Dataset Sizing count accepts integer 1 (${selector})`)
+    }
+    if (headerCountSelection) {
+      await clickSelector(bom)
+      const headerSelector = '[role="dialog"] [data-header-value] input[aria-label="Selected value"]'
+      const selectedValue = await inputValue(headerSelector)
+      assert.equal(selectedValue, '1', 'Header Value reflects the selected integer sizing draft')
+      verify(await evaluate('![...document.querySelectorAll("[role=dialog] [data-header-value]")].some(value => value.textContent.includes("%"))'), 'integer sizing source has no percentage suffix')
+      const fractionalHeaderDraft = await replaceInput(headerSelector, '1.5')
+      verify(!fractionalHeaderDraft?.includes('.'), 'integer sizing Header editor rejects a fractional count draft', { inputValue: fractionalHeaderDraft })
+      await clickSelector(bom)
+      verify(await inputValue(bom) === '1', 'rejected Header fraction does not change the row-count source', { sourceValue: await inputValue(bom) })
+      const acceptedHeaderDraft = await replaceInput(headerSelector, '2')
+      await clickSelector(bom)
+      assert.equal(await inputValue(bom), '2', 'Header accepts a whole integer sizing count and writes through to its source')
+      assert.equal(await inputValue(headerSelector), '2', 'Header displays the accepted integer sizing source')
+      verify(acceptedHeaderDraft === '2', 'Header integer editor retains the accepted whole count', { inputValue: acceptedHeaderDraft })
+    }
+  }
+  const readSubgroupGeometry = async kind => {
+    const root = kind === 'dialog'
+      ? '[role="dialog"] section[aria-label="Dataset metadata"] > div.grid'
+      : 'section[aria-label="Working dataset controls"] dl'
+    return geometry(`(()=>{
+      const root=document.querySelector(${JSON.stringify(root)}); if(!root)return null
+      const wanted=['UOM','Selling Price (THB)','SG&A']
+      const entries=wanted.map(label=>{
+        const children=[...root.children]
+        const item=children.find(child=>{
+          const labelNode=child.querySelector(${JSON.stringify(kind === 'dialog' ? 'label' : 'dt')})
+          return (labelNode?.textContent||'').replace(/\\s*:\\s*$/,'').trim()===label
+        })
+        if(!item)return {label,width:0}
+        const rect=item.getBoundingClientRect()
+        const labelNode=item.querySelector(${JSON.stringify(kind === 'dialog' ? 'label' : 'dt')})
+        const editor=item.querySelector('input, [data-selected-number]')
+        const labelRect=labelNode?.getBoundingClientRect()
+        const editorRect=editor?.getBoundingClientRect()
+        return {label,width:rect.width,left:rect.left,right:rect.right,labelRight:labelRect?.right??null,editorLeft:editorRect?.left??null,editorWidth:editorRect?.width??null}
+      })
+      const total=entries.reduce((sum,item)=>sum+item.width,0)
+      return {entries,total,ratios:entries.map(item=>total?item.width/total:0)}
+    })()`)
+  }
+  const verifyResponsiveUsability = async (kind, width) => {
+    await setViewport(width, 1500)
+    const root = kind === 'dialog'
+      ? '[role="dialog"] section[aria-label="Dataset metadata"] > div.grid'
+      : 'section[aria-label="Working dataset controls"] dl'
+    const result = await geometry(`(()=>{
+      const root=document.querySelector(${JSON.stringify(root)});if(!root)return null
+      const wanted=['UOM','Selling Price (THB)','SG&A']
+      const children=[...root.children]
+      return {docWidth:document.documentElement.scrollWidth,viewport:window.innerWidth,fields:wanted.map(label=>{
+        const item=children.find(child=>(child.querySelector(${JSON.stringify(kind === 'dialog' ? 'label' : 'dt')})?.textContent||'').replace(/\\s*:\\s*$/,'').trim()===label)
+        const editor=item?.querySelector('input,[data-selected-number]')
+        const labelNode=item?.querySelector(${JSON.stringify(kind === 'dialog' ? 'label' : 'dt')})
+        const a=item?.getBoundingClientRect(),b=editor?.getBoundingClientRect(),c=labelNode?.getBoundingClientRect()
+        return {label,width:a?.width??0,inputWidth:b?.width??0,labelRight:c?.right??0,inputLeft:b?.left??0}
+      })}
+    })()`)
+    const usable = result && result.docWidth <= result.viewport + 1 && result.fields.every(field => field.width > 0 && field.inputWidth >= 32 && field.inputLeft >= field.labelRight - 2)
+    verify(usable, `${kind} metadata remains usable at ${width}px`, result)
+  }
+  const checkSizingHeaderAccess = async ({ role, productName, uom, sellingPrice, sgaPercent }) => {
+    const dialogSelector = '[role="dialog"][aria-labelledby="sizing-modal-title"]'
+    const headerSelector = `${dialogSelector} [data-header-value] input[aria-label="Selected value"]`
+    await clickSelector(dialogInput('SG&A'))
+    const keyboardCount = await evaluate(`(()=>{const d=document.querySelector(${JSON.stringify(dialogSelector)});return d?[...d.querySelectorAll('a[href],button:not([disabled]),input:not([disabled]):not([type="hidden"]),select:not([disabled]),textarea:not([disabled]),[tabindex]:not([tabindex="-1"])')].filter(e=>e.getClientRects().length).length:0})()`)
+    const keyboardTrace = []
+    for (let index = 0; index <= keyboardCount; index += 1) {
+      await pressKey('Tab')
+      keyboardTrace.push(await evaluate(`(()=>({label:document.activeElement?.getAttribute('aria-label')??null,tag:document.activeElement?.tagName??null,inDialog:!!document.querySelector(${JSON.stringify(dialogSelector)})?.contains(document.activeElement),isHeader:document.activeElement===document.querySelector(${JSON.stringify(headerSelector)})}))()`))
+    }
+    const keyboardAccessible = keyboardTrace.some(item => item.isHeader)
+    verify(keyboardAccessible, `${role} Dataset Sizing Header Value is keyboard reachable while dialog is open`, {
+      focusableCount: keyboardCount,
+      trace: keyboardTrace
+    })
+
+    await clickSelector(dialogInput('SG&A'))
+    const beforeMouseClick = await geometry(`(()=>{const h=document.querySelector(${JSON.stringify(headerSelector)}),d=document.querySelector(${JSON.stringify(dialogSelector)});if(!h||!d)return null;const r=h.getBoundingClientRect(),x=r.x+r.width/2,y=r.y+r.height/2,top=document.elementFromPoint(x,y);return {headerRect:{x:r.x,y:r.y,width:r.width,height:r.height},headerVisible:!!h.getClientRects().length,headerText:h.value,topElement:{tag:top?.tagName??null,role:top?.getAttribute('role')??null,label:top?.getAttribute('aria-label')??null},topIsHeader:top===h||h.contains(top),topWithinDialog:d.contains(top)}})()`)
+    await saveScreenshot(`${role.toLowerCase()}-sizing-header-access`)
+    await clickSelector(headerSelector)
+    const afterMouseClick = await geometry(`(()=>({dialogOpen:!!document.querySelector(${JSON.stringify(dialogSelector)}),headerEditorPresent:!!document.querySelector(${JSON.stringify(headerSelector)}),headerFocused:document.activeElement===document.querySelector(${JSON.stringify(headerSelector)}),headerValue:document.querySelector(${JSON.stringify(headerSelector)})?.value??null,focusLabel:document.activeElement?.getAttribute('aria-label')??null}))()`)
+    const mouseAccessible = Boolean(afterMouseClick?.dialogOpen && afterMouseClick?.headerFocused)
+    verify(mouseAccessible, `${role} Dataset Sizing Header Value is mouse accessible while dialog is open`, {
+      beforeClick: beforeMouseClick,
+      afterClick: afterMouseClick
+    })
+
+    if (!afterMouseClick?.dialogOpen) {
+      await openSizing()
+      await replaceInput('[role="dialog"] #dataset-sizing-product-name', productName)
+      await replaceInput('[role="dialog"] #dataset-sizing-uom', uom)
+      await replaceInput(dialogInput('Selling Price (THB)'), sellingPrice)
+      await replaceInput(dialogInput('SG&A'), sgaPercent)
+      await clickSelector(dialogInput('SG&A'))
+      assert.equal(await inputValue(headerSelector), sgaPercent, `${role} Dataset Sizing Header Value restores full SG&A value after the access probe`)
+    } else if (mouseAccessible) {
+      for (const [label, nextValue, expectedEditor, expectedSuffix] of [
+        ['Selling Price (THB)', '123.456789123', '123.46', false],
+        ['SG&A', '13.5792468', '13.58', true]
+      ]) {
+        await clickSelector(dialogInput(label))
+        await replaceInput(headerSelector, nextValue)
+        const headerDraft = await inputValue(headerSelector)
+        await clickSelector(dialogInput(label))
+        const sourceEditorDisplay = await inputValue(dialogInput(label))
+        const sourceHeaderValue = await inputValue(headerSelector)
+        verify(headerDraft === nextValue && sourceHeaderValue === nextValue && sourceEditorDisplay === expectedEditor, `${role} Dataset Sizing Header edit writes through to its local ${label} source draft`, {
+          headerDraft,
+          sourceHeaderValue,
+          sourceEditorDisplay,
+          expectedEditor,
+          expected: nextValue
+        })
+        verify(await evaluate(`document.querySelector(${JSON.stringify(`${dialogSelector} [data-header-value]`)})?.textContent.includes("%")`) === expectedSuffix, `${role} Dataset Sizing Header ${label} retains the correct percentage units`, {
+          expectedSuffix,
+          headerText: await textContent(`${dialogSelector} [data-header-value]`)
+        })
+      }
+    }
+  }
+
+  await chooseRole('Custom')
+  await openSizing()
+  const dialogRatios = await readSubgroupGeometry('dialog')
+  verify(Boolean(dialogRatios && dialogRatios.entries.every(item => item.width > 0)), 'Dataset Sizing subgroup exposes UOM, Selling Price, SG&A outer fields', dialogRatios)
+  setViewport(1440, 1800)
+  await setCounts({ fractionalProbe: true, headerCountSelection: true })
+  await clickTextButton('Apply Sizing')
+  await waitFor(() => evaluate(`!document.querySelector('[role="dialog"][aria-labelledby="sizing-modal-title"]')`), 'Custom sizing count apply')
+  await delay(250)
+  verify(await evaluate('document.querySelectorAll("section[aria-label=\\"Bill of Materials rows\\"] tbody tr").length === 2'), 'count-only Header change applies the accepted BOM integer independently of metadata')
+
+  await openSizing()
+  const customMetadataRatio = await readSubgroupGeometry('dialog')
+  verify(Boolean(customMetadataRatio && customMetadataRatio.ratios.every((ratio, index) => Math.abs(ratio - [0.2, 0.45, 0.35][index]) <= 0.04)), 'Custom Dataset Sizing subgroup outer widths follow 20/45/35', customMetadataRatio)
+  await replaceInput('[role="dialog"] #dataset-sizing-product-name', 'Round Two Custom')
+  await replaceInput('[role="dialog"] #dataset-sizing-uom', 'pc')
+  await replaceInput(dialogInput('Selling Price (THB)'), '111.123456789')
+  await clickSelector(dialogInput('Selling Price (THB)'))
+  assert.equal(await inputValue('[role="dialog"] [data-header-value] input[aria-label="Selected value"]'), '111.123456789', 'Header Value exposes the full Selling Price metadata draft')
+  await replaceInput(dialogInput('SG&A'), '12.3456789')
+  await clickSelector(dialogInput('SG&A'))
+  assert.equal(await inputValue('[role="dialog"] [data-header-value] input[aria-label="Selected value"]'), '12.3456789', 'Header Value exposes the full SG&A percentage draft')
+  verify(await evaluate('document.querySelector("[role=dialog] [data-header-value]")?.textContent.includes("%")'), 'Header Value retains the percentage suffix for SG&A sizing drafts')
+  await checkSizingHeaderAccess({ role: 'Custom', productName: 'Round Two Custom', uom: 'pc', sellingPrice: '111.123456789', sgaPercent: '12.3456789' })
+  const customDialogRatio = await readSubgroupGeometry('dialog')
+  verify(Boolean(customDialogRatio && customDialogRatio.ratios.every((ratio, index) => Math.abs(ratio - [0.2, 0.45, 0.35][index]) <= 0.04)), 'Dataset Sizing subgroup outer widths follow 20/45/35', customDialogRatio)
+  await saveScreenshot('custom-sizing-desktop')
+  for (const width of [768, 390, 320]) await verifyResponsiveUsability('dialog', width)
+  setViewport(1440, 1800)
+  await clickTextButton('Apply Sizing')
+  await waitFor(() => evaluate(`!document.querySelector('[role="dialog"][aria-labelledby="sizing-modal-title"]')`), 'Custom sizing apply')
+  await delay(250)
+  await clickSelector('section[aria-label="Working dataset controls"] input[aria-label="Selling Price (THB)"]')
+  verify(await inputValue('header [data-header-value] input[aria-label="Selected value"]') === '123.456789123'
+    && await inputValue('section[aria-label="Working dataset controls"] input[aria-label="Selling Price (THB)"]') === '123.46', 'applied Custom Selling Price keeps exact Header source value and compact main editor display', {
+    actualHeader: await inputValue('header [data-header-value] input[aria-label="Selected value"]'),
+    editorDisplay: await inputValue('section[aria-label="Working dataset controls"] input[aria-label="Selling Price (THB)"]'),
+    expected: '123.456789123'
+  })
+  await clickSelector('section[aria-label="Working dataset controls"] input[aria-label="SG&A"]')
+  verify(await inputValue('header [data-header-value] input[aria-label="Selected value"]') === '13.5792468'
+    && await inputValue('section[aria-label="Working dataset controls"] input[aria-label="SG&A"]') === '13.58', 'applied Custom SG&A keeps exact Header percentage source and compact main editor display', {
+    actualHeader: await inputValue('header [data-header-value] input[aria-label="Selected value"]'),
+    editorDisplay: await inputValue('section[aria-label="Working dataset controls"] input[aria-label="SG&A"]'),
+    expected: '13.5792468',
+    suffix: await evaluate('document.querySelector("header [data-header-value]")?.textContent.includes("%")')
+  })
+
+  const mainRatio = await readSubgroupGeometry('main')
+  verify(Boolean(mainRatio && mainRatio.ratios.every((ratio, index) => Math.abs(ratio - [0.2, 0.45, 0.35][index]) <= 0.04)), 'main Master Data metadata subgroup outer widths follow 20/45/35', mainRatio)
+  await saveScreenshot('master-data-desktop')
+  for (const width of [1024, 768, 390, 320]) await verifyResponsiveUsability('main', width)
+  setViewport(1440, 1800)
+
+  await chooseRole('Current')
+  await openSizing()
+  const currentDialogRatio = await readSubgroupGeometry('dialog')
+  verify(Boolean(currentDialogRatio && currentDialogRatio.ratios.every((ratio, index) => Math.abs(ratio - [0.2, 0.45, 0.35][index]) <= 0.04)), 'Current Dataset Sizing subgroup outer widths follow 20/45/35', currentDialogRatio)
+  await setCounts()
+  await replaceInput(dialogInput('Bill of Materials'), '2')
+  await clickTextButton('Apply Sizing')
+  await waitFor(() => evaluate(`!document.querySelector('[role="dialog"][aria-labelledby="sizing-modal-title"]')`), 'Current sizing count apply')
+  await delay(250)
+
+  await openSizing()
+  const currentMetadataRatio = await readSubgroupGeometry('dialog')
+  verify(Boolean(currentMetadataRatio && currentMetadataRatio.ratios.every((ratio, index) => Math.abs(ratio - [0.2, 0.45, 0.35][index]) <= 0.04)), 'Current Dataset Sizing metadata subgroup outer widths follow 20/45/35', currentMetadataRatio)
+  await replaceInput('[role="dialog"] #dataset-sizing-product-name', 'Round Two Current')
+  await replaceInput('[role="dialog"] #dataset-sizing-uom', 'kg')
+  await replaceInput(dialogInput('Selling Price (THB)'), '22.222222222')
+  await replaceInput(dialogInput('SG&A'), '8.7654321')
+  await clickSelector(dialogInput('Selling Price (THB)'))
+  const currentDialogSellingHeader = await inputValue('[role="dialog"] [data-header-value] input[aria-label="Selected value"]')
+  verify(currentDialogSellingHeader === '22.222222222', 'Current Dataset Sizing Selling Price selection publishes its full draft', {
+    actual: currentDialogSellingHeader,
+    expected: '22.222222222',
+    editorDisplay: await inputValue(dialogInput('Selling Price (THB)'))
+  })
+  await clickSelector(dialogInput('SG&A'))
+  const currentDialogSgaHeader = await inputValue('[role="dialog"] [data-header-value] input[aria-label="Selected value"]')
+  verify(currentDialogSgaHeader === '8.7654321', 'Current Dataset Sizing SG&A selection publishes its full draft', {
+    actual: currentDialogSgaHeader,
+    expected: '8.7654321',
+    headerText: await textContent('[role="dialog"] [data-header-value]')
+  })
+  await clickTextButton('Apply Sizing')
+  await waitFor(() => evaluate(`!document.querySelector('[role="dialog"][aria-labelledby="sizing-modal-title"]')`), 'Current sizing apply')
+  await delay(250)
+
+  const mainSellingPriceSelector = 'section[aria-label="Working dataset controls"] input[aria-label="Selling Price (THB)"]'
+  const mainSgaSelector = 'section[aria-label="Working dataset controls"] input[aria-label="SG&A"]'
+  await clickSelector(mainSellingPriceSelector)
+  const currentMainSellingHeader = await inputValue('header [data-header-value] input[aria-label="Selected value"]')
+  verify(currentMainSellingHeader === '22.222222222', 'applied Current Selling Price metadata keeps full Header source value', {
+    actual: currentMainSellingHeader,
+    expected: '22.222222222',
+    editorDisplay: await inputValue(mainSellingPriceSelector)
+  })
+  await clickSelector(mainSgaSelector)
+  const currentMainSgaHeader = await inputValue('header [data-header-value] input[aria-label="Selected value"]')
+  verify(currentMainSgaHeader === '8.7654321', 'applied Current SG&A metadata keeps full Header source value', {
+    actual: currentMainSgaHeader,
+    expected: '8.7654321',
+    editorDisplay: await inputValue(mainSgaSelector),
+    suffix: await evaluate('document.querySelector("header [data-header-value]")?.textContent.includes("%")')
+  })
+
+  const visibleRole = async () => evaluate(`document.querySelector('[role="group"][aria-label="Master Data workspace"] button[aria-pressed="true"]')?.getAttribute('aria-label')`)
+  assert.match(await visibleRole(), /^Current —/, 'Current dataset is active after sizing')
+  const mainInput = field => `section[aria-label="Bill of Materials rows"] input[data-grid-field=${JSON.stringify(field)}]`
+  const inputInSection = (section, field) => `section[aria-label=${JSON.stringify(section)}] input[data-grid-field=${JSON.stringify(field)}]`
+  const enterField = async (selector, value) => {
+    const actual = await replaceInput(selector, value, 4)
+    assert.equal(actual, value, `Master Data editor accepts full numeric draft ${value}`)
+    await delay(180)
+    assert.equal(await evaluate(`document.activeElement === ${visibleExpression(selector)}`), true, `browser focus remains on the Master Data editor after input: ${selector}`)
+  }
+  await enterField(mainInput('price'), '123.456789123')
+  await enterField('section[aria-label="Bill of Materials rows"] tbody tr:nth-child(2) input[data-grid-field="price"]', '321.987654321')
+  await enterField(mainInput('consumption'), '3.1415926535')
+  await enterField(mainInput('loss'), '1.23456789')
+  await enterField(inputInSection('Work Centers rows', 'laborRate'), '234.567891')
+  await enterField(inputInSection('Work Centers rows', 'burdenRate'), '8.125')
+  await enterField(inputInSection('Routing rows', 'manning'), '2.3456789')
+  await enterField(inputInSection('Routing rows', 'capacity'), '45.678901')
+  await enterField(inputInSection('Routing rows', 'yield'), '88.7654321')
+  await clickSelector('section[aria-label="Working dataset controls"] input[aria-label="Selling Price (THB)"]')
+  const sellingPriceHeaderValue = await inputValue('header [data-header-value] input[aria-label="Selected value"]')
+  verify(sellingPriceHeaderValue === '22.222222222', 'main Selling Price metadata publishes its full value to Header Value', {
+    actual: sellingPriceHeaderValue,
+    source: await inputValue('section[aria-label="Working dataset controls"] input[aria-label="Selling Price (THB)"]'),
+    headerText: await textContent('header [data-header-value]'),
+    focusedLabel: await evaluate('document.activeElement?.getAttribute("aria-label")')
+  })
+  await clickSelector('section[aria-label="Working dataset controls"] input[aria-label="SG&A"]')
+  const sgaHeaderValue = await inputValue('header [data-header-value] input[aria-label="Selected value"]')
+  verify(sgaHeaderValue === '8.7654321', 'main SG&A metadata publishes its full percentage to Header Value', {
+    actual: sgaHeaderValue,
+    source: await inputValue('section[aria-label="Working dataset controls"] input[aria-label="SG&A"]'),
+    headerText: await textContent('header [data-header-value]'),
+    focusedLabel: await evaluate('document.activeElement?.getAttribute("aria-label")')
+  })
+  verify(await evaluate('document.querySelector("header [data-header-value]")?.textContent.includes("%")'), 'main SG&A metadata publishes percentage units and suffix', {
+    headerText: await textContent('header [data-header-value]')
+  })
+
+  const tableNumericFields = [
+    { section: 'Bill of Materials', header: 'Bill of Materials', field: 'consumption', column: 'Usage', value: '3.1415926535', label: 'BOM Usage' },
+    { section: 'Bill of Materials', header: 'Bill of Materials', field: 'price', column: 'Price', value: '123.456789123', label: 'BOM Price' },
+    { section: 'Bill of Materials', header: 'Bill of Materials', field: 'loss', column: 'Loss', value: '1.23456789', label: 'BOM Loss', percentage: true },
+    { section: 'Work Centers', header: 'Work Centers', field: 'laborRate', column: 'Labor Rate', value: '234.567891', label: 'Work Center Labor Rate' },
+    { section: 'Work Centers', header: 'Work Centers', field: 'burdenRate', column: 'Burden Rate', value: '8.125', label: 'Work Center Burden Rate' },
+    { section: 'Routing', header: 'Routing', field: 'manning', column: 'Manning', value: '2.3456789', label: 'Routing Manning' },
+    { section: 'Routing', header: 'Routing', field: 'capacity', column: 'Capacity', value: '45.678901', label: 'Routing Capacity' },
+    { section: 'Routing', header: 'Routing', field: 'yield', column: 'Yield', value: '88.7654321', label: 'Routing Yield', percentage: true }
+  ]
+  const editorAxes = {}
+  const editorAxis = async spec => geometry(`(()=>{
+    const h=[...document.querySelectorAll(${JSON.stringify(`[aria-label="${spec.header} column header controls"] th`)})].find(e=>e.textContent.trim()===${JSON.stringify(spec.column)})
+    const i=document.querySelector(${JSON.stringify(`section[aria-label="${spec.section} rows"] tbody tr:first-child input[data-grid-field="${spec.field}"]`)});if(!h||!i)return null
+    const hr=document.createRange();hr.selectNodeContents(h);const ht=h.getBoundingClientRect(),hv=hr.getBoundingClientRect(),ir=i.getBoundingClientRect(),td=i.closest('td')?.getBoundingClientRect(),cs=getComputedStyle(i)
+    return {headerInset:ht.right-hv.right,headerTextAlign:getComputedStyle(h).textAlign,editorInset:td.right-(ir.right-parseFloat(cs.paddingRight)),editorTextAlign:cs.textAlign,inputPaddingRight:cs.paddingRight,stepperCount:i.closest('td')?.querySelectorAll('[data-numeric-stepper]').length??0,rect:{x:ir.x,width:ir.width,right:ir.right}}
+  })()`)
+  const displayAxis = async spec => geometry(`(()=>{
+    const e=document.querySelector(${JSON.stringify(`section[aria-label="${spec.section} rows"] tbody tr:first-child [data-grid-field="${spec.field}"]`)});if(!e)return null
+    const td=e.closest('td')?.getBoundingClientRect(),r=e.getBoundingClientRect(),cs=getComputedStyle(e)
+    const span=e.querySelector('span'),spanRect=span?.getBoundingClientRect(),spanStyle=span?getComputedStyle(span):null
+    const textRange=document.createRange();if(span)textRange.selectNodeContents(span);else textRange.selectNodeContents(e)
+    const text=textRange.getBoundingClientRect()
+    const children=[...e.querySelectorAll('span')].map(child=>{const sr=child.getBoundingClientRect(),ss=getComputedStyle(child),childTextRange=document.createRange();childTextRange.selectNodeContents(child);const str=childTextRange.getBoundingClientRect();return {className:child.className,display:ss.display,width:sr.width,paddingRight:ss.paddingRight,textAlign:ss.textAlign,rectRight:sr.right,textRight:str.right}})
+    return {displayInset:td.right-text.right,displayTextAlign:spanStyle?.textAlign??cs.textAlign,display:cs.display,width:r.width,paddingRight:cs.paddingRight,buttonRect:{x:r.x,right:r.right,width:r.width},valueSpan:{className:span?.className??null,display:spanStyle?.display??null,width:spanRect?.width??0,paddingRight:spanStyle?.paddingRight??null,textAlign:spanStyle?.textAlign??null,rectRight:spanRect?.right??null},readOnlyTextRect:{x:text.x,right:text.right,width:text.width},cellRight:td.right,children}
+  })()`)
+  for (const spec of tableNumericFields) {
+    const selector = `section[aria-label=${JSON.stringify(`${spec.section} rows`)}] tbody tr:first-child input[data-grid-field=${JSON.stringify(spec.field)}]`
+    const beforeFocus = await editorAxis(spec)
+    await clickSelector(selector)
+    const actual = await inputValue('header [data-header-value] input[aria-label="Selected value"]')
+    verify(actual === spec.value, `${spec.label} selection publishes its full value to Header Value`, { actual, expected: spec.value })
+    if (spec.percentage) verify(await evaluate('document.querySelector("header [data-header-value]")?.textContent.includes("%")'), `${spec.label} publishes percentage units and suffix`)
+    const afterFocus = await editorAxis(spec)
+    editorAxes[spec.field] = afterFocus
+    verify(Boolean(beforeFocus && afterFocus && JSON.stringify(beforeFocus) === JSON.stringify(afterFocus)), `${spec.label} numeric text axis does not shift on focus`, { before: beforeFocus, after: afterFocus })
+    verify(Boolean(afterFocus && afterFocus.headerTextAlign === 'right' && afterFocus.editorTextAlign === 'right'), `${spec.label} header and focused editor use right alignment`, afterFocus)
+    verify(Boolean(afterFocus && afterFocus.stepperCount === 0 && Number.parseFloat(afterFocus.inputPaddingRight) <= 24), `${spec.label} body editor has no visible spinner or spinner-only gutter`, afterFocus)
+  }
+
+  const currentRowSelectedBefore = await evaluate(`document.querySelector('section[aria-label="Bill of Materials rows"] tr[data-master-data-row-id]')?.getAttribute('aria-selected')`)
+  verify(currentRowSelectedBefore === 'false', 'editing spreadsheet numeric cells does not select the row')
+  verify(await evaluate('document.querySelectorAll("main [data-numeric-stepper]").length') === 0, 'body numeric editors expose no visible stepper controls')
+
+  const focusPriceRect = await geometry(`(()=>{const i=document.querySelector('section[aria-label="Bill of Materials rows"] input[data-grid-field="price"]');const r=i.getBoundingClientRect(),s=getComputedStyle(i);return {x:r.x,width:r.width,right:r.right,paddingRight:s.paddingRight,textAlign:s.textAlign}})()`)
+  await clickSelector(mainInput('price'))
+  await waitFor(() => existsVisible('header [data-header-value] input[aria-label="Selected value"]'), 'editable Selected Value Header')
+  assert.equal(await inputValue('header [data-header-value] input[aria-label="Selected value"]'), '123.456789123', 'Header shows complete selected BOM Price value')
+  const initialPriceAxis = await geometry(`(()=>{const h=[...document.querySelectorAll('[aria-label="Bill of Materials column header controls"] th')].find(e=>e.textContent.trim()==='Price');const i=document.querySelector('section[aria-label="Bill of Materials rows"] tbody tr:first-child input[data-grid-field="price"]');if(!h||!i)return null;const hr=document.createRange();hr.selectNodeContents(h);const hv=hr.getBoundingClientRect();const ir=i.getBoundingClientRect(),tr=i.closest('td')?.getBoundingClientRect(),ht=h.getBoundingClientRect();const cs=getComputedStyle(i);return {headerTextRight:hv.right,headerInset:ht.right-hv.right,headerTextAlign:getComputedStyle(h).textAlign,inputAxisRight:ir.right-parseFloat(cs.paddingRight),inputInset:tr.right-(ir.right-parseFloat(cs.paddingRight)),inputRectRight:ir.right,inputPaddingRight:cs.paddingRight,inputTextAlign:cs.textAlign,inputRect:{x:ir.x,width:ir.width,right:ir.right}}})()`)
+  const focusPriceRectAfter = await geometry(`(()=>{const i=document.querySelector('section[aria-label="Bill of Materials rows"] input[data-grid-field="price"]');const r=i.getBoundingClientRect(),s=getComputedStyle(i);return {x:r.x,width:r.width,right:r.right,paddingRight:s.paddingRight,textAlign:s.textAlign}})()`)
+  verify(JSON.stringify(focusPriceRect) === JSON.stringify(focusPriceRectAfter), 'BOM Price text axis does not shift on focus', { before: focusPriceRect, after: focusPriceRectAfter })
+  verify(Boolean(initialPriceAxis && initialPriceAxis.headerTextAlign === 'right' && initialPriceAxis.inputTextAlign === 'right'), 'BOM Price header and input use right text alignment', initialPriceAxis)
+  verify(Boolean(initialPriceAxis && Number.parseFloat(initialPriceAxis.inputPaddingRight) <= 24), 'body numeric input has no spinner-only right padding beyond its Blocker marker slot', initialPriceAxis)
+  const headerEditAxis = await geometry(`(()=>{const group=document.querySelector('header [data-header-value]'),box=group?.querySelector('div.min-w-0.flex-1'),input=group?.querySelector('input[aria-label="Selected value"]');if(!group||!box||!input)return null;const br=box.getBoundingClientRect(),ir=input.getBoundingClientRect(),cs=getComputedStyle(input);return {rightInset:br.right-(ir.right-parseFloat(cs.paddingRight)),paddingRight:cs.paddingRight,textAlign:cs.textAlign,boxWidth:br.width}})()`)
+
+  const originalPrice = await inputValue('header [data-header-value] input[aria-label="Selected value"]')
+  await typeHeaderValue('42.123456789')
+  assert.equal(await inputValue('header [data-header-value] input[aria-label="Selected value"]'), '42.123456789', 'Header edit retains the complete JavaScript-number value')
+  await clickSelector(mainInput('price'))
+  assert.equal(await inputValue('header [data-header-value] input[aria-label="Selected value"]'), '42.123456789', 'Header edit writes through to the same BOM Price source')
+  await clickSelector('header button[aria-label="Undo"]')
+  await waitFor(async () => await inputValue('header [data-header-value] input[aria-label="Selected value"]') === originalPrice, 'Master Data Undo updates the selected Header source')
+  await clickSelector('header button[aria-label="Redo"]')
+  await waitFor(async () => await inputValue('header [data-header-value] input[aria-label="Selected value"]') === '42.123456789', 'Master Data Redo updates the selected Header source')
+  verify(await evaluate('document.querySelectorAll("header [data-header-value] [data-numeric-stepper]").length') === 1, 'editable Header Value owns the only visible Selected Value spinner')
+
+  await clickSelector(inputInSection('Bill of Materials rows', 'loss'))
+  const lossHeaderBefore = await inputValue('header [data-header-value] input[aria-label="Selected value"]')
+  verify(lossHeaderBefore === '1.23456789', 'BOM Loss Header source uses displayed percentage units', { value: lossHeaderBefore })
+  verify(await evaluate('document.querySelector("header [data-header-value]")?.textContent.includes("%")'), 'percentage source displays its suffix in Header Value')
+  await typeHeaderValue('5.67891234')
+  assert.equal(await inputValue('header [data-header-value] input[aria-label="Selected value"]'), '5.67891234', 'Header retains exact percentage editor units')
+  await clickSelector(inputInSection('Bill of Materials rows', 'loss'))
+  const convertedLossHeader = await inputValue('header [data-header-value] input[aria-label="Selected value"]')
+  verify(convertedLossHeader === '5.67891234', 'Header percentage edit converts back to the same source units on cell reselection', {
+    actual: convertedLossHeader,
+    expected: '5.67891234',
+    suffix: await evaluate('document.querySelector("header [data-header-value]")?.textContent.includes("%")')
+  })
+
+  await clickSelector('section[aria-label="Working dataset controls"] button[role="switch"]')
+  await waitFor(() => evaluate(`document.querySelector('section[aria-label="Working dataset controls"] button[role="switch"]')?.getAttribute('aria-checked') === 'false'`), 'Master Data View mode')
+  await waitFor(() => existsVisible('section[aria-label="Bill of Materials rows"] button[data-grid-field="price"][data-selected-number="true"]'), 'read-only BOM Price source')
+  for (const spec of tableNumericFields) {
+    const display = await displayAxis(spec)
+    const editor = editorAxes[spec.field]
+    verify(Boolean(display && editor && Math.abs(editor.editorInset - display.displayInset) <= 2), `${spec.label} editor and read-only value use the same right edge including marker/suffix space`, { editorInset: editor?.editorInset, displayInset: display?.displayInset, delta: display && editor ? display.displayInset - editor.editorInset : null, readOnly: display })
+    verify(Boolean(display && editor && Math.abs(editor.headerInset - display.displayInset) <= 2), `${spec.label} header and read-only value use the same right edge`, { headerInset: editor?.headerInset, displayInset: display?.displayInset, delta: display && editor ? display.displayInset - editor.headerInset : null, readOnly: display })
+  }
+  const readOnlyPriceButton = 'section[aria-label="Bill of Materials rows"] tbody tr:first-child button[data-grid-field="price"][data-selected-number="true"]'
+  const viewPriceButtons = 'section[aria-label="Bill of Materials rows"] tbody tr button[data-grid-field="price"][data-selected-number="true"]'
+  const firstViewPriceButton = 'section[aria-label="Bill of Materials rows"] tbody tr:first-child button[data-grid-field="price"][data-selected-number="true"]'
+  const secondViewPriceButton = 'section[aria-label="Bill of Materials rows"] tbody tr:nth-child(2) button[data-grid-field="price"][data-selected-number="true"]'
+  const firstPriceRowId = await evaluate(`(${visibleExpression(firstViewPriceButton)})?.getAttribute('data-grid-row-id')`)
+  const secondPriceRowId = await evaluate(`(${visibleExpression(secondViewPriceButton)})?.getAttribute('data-grid-row-id')`)
+  await clickSelector(firstViewPriceButton)
+  await pressKey('Enter')
+  const afterEnterFocusRow = await evaluate(`document.activeElement?.getAttribute('data-grid-row-id')`)
+  verify(afterEnterFocusRow === secondPriceRowId, 'View-mode Enter from a read-only numeric cell advances to the next row', { firstRow: firstPriceRowId, focusedRow: afterEnterFocusRow, nextRow: secondPriceRowId })
+  await pressKey('Enter', { shift: true })
+  const afterShiftEnterFocusRow = await evaluate(`document.activeElement?.getAttribute('data-grid-row-id')`)
+  verify(afterShiftEnterFocusRow === firstPriceRowId, 'View-mode Shift+Enter from a read-only numeric cell moves to the previous row', { focusedRow: afterShiftEnterFocusRow, previousRow: firstPriceRowId })
+  await pressKey(' ')
+  const afterSpaceSelection = await evaluate(`({pressed:${visibleExpression(firstViewPriceButton)}?.getAttribute('aria-pressed'),header:document.querySelector('header [data-header-value] [data-selected-value-output]')?.textContent.trim()})`)
+  verify(afterSpaceSelection?.pressed === 'true' && afterSpaceSelection.header === '42.123456789', 'Space activates a read-only SelectedNumber and selects its value')
+  await pressKey('Enter')
+  const afterFirstEnterFocus = await evaluate(`({row:document.activeElement?.getAttribute('data-grid-row-id'),header:document.querySelector('header [data-header-value] [data-selected-value-output]')?.textContent.trim()})`)
+  verify(afterFirstEnterFocus?.row === secondPriceRowId && afterFirstEnterFocus.header === '42.123456789', 'View-mode Enter advances through grid navigation without blocking the first cell source')
+  await pressKey('Enter')
+  const enterSelectedSecond = await evaluate(`({row:document.activeElement?.getAttribute('data-grid-row-id'),header:document.querySelector('header [data-header-value] [data-selected-value-output]')?.textContent.trim()})`)
+  verify(enterSelectedSecond?.row === secondPriceRowId && enterSelectedSecond.header === '321.987654321', 'Enter at the last numeric row activates/selects its read-only SelectedNumber', enterSelectedSecond)
+  const displayBeforeClick = await geometry(`(()=>{const e=${visibleExpression(readOnlyPriceButton)};if(!e)return null;const r=e.getBoundingClientRect(),s=getComputedStyle(e),tr=e.closest('td')?.getBoundingClientRect(),span=e.querySelector('span'),ss=span?getComputedStyle(span):null,sr=span?.getBoundingClientRect();const range=document.createRange();if(span)range.selectNodeContents(span);else range.selectNodeContents(e);const text=range.getBoundingClientRect();return {right:text.right,inset:tr.right-text.right,rectRight:r.right,display:s.display,width:r.width,paddingRight:s.paddingRight,textAlign:ss?.textAlign??s.textAlign,valueSpan:{width:sr?.width??0,paddingRight:ss?.paddingRight??null,rectRight:sr?.right??null},label:e.getAttribute('aria-label')}})()`)
+  await clickSelector(readOnlyPriceButton)
+  await waitFor(() => existsVisible('header [data-header-value] [data-selected-value-output]'), 'read-only Selected Value Header')
+  assert.equal(await textContent('header [data-header-value] [data-selected-value-output]'), '42.123456789', 'read-only Header Value shows the full selected value')
+  verify(await evaluate('document.querySelectorAll("header [data-header-value] [data-numeric-stepper]").length') === 0, 'read-only Header Value has no spinner')
+  const headerOutputStyle = await geometry(`(()=>{const e=document.querySelector('header [data-header-value] [data-selected-value-output]');const r=e.getBoundingClientRect(),s=getComputedStyle(e),range=document.createRange();range.selectNodeContents(e);return {right:range.getBoundingClientRect().right,rectRight:r.right,textAlign:s.textAlign,paddingRight:s.paddingRight}})()`)
+  const rowStillUnselected = await evaluate(`document.querySelector('section[aria-label="Bill of Materials rows"] tr[data-master-data-row-id]')?.getAttribute('aria-selected')`)
+  verify(rowStillUnselected === 'false', 'read-only spreadsheet value selection does not select its row')
+  verify(Boolean(displayBeforeClick && displayBeforeClick.textAlign === 'right'), 'read-only BOM Price value uses right text alignment', displayBeforeClick)
+  process.stdout.write(`INFO Header Value output geometry (diagnostic only, not a Round 2 table-axis gate): ${JSON.stringify(headerOutputStyle)}\n`)
+  verify(Boolean(initialPriceAxis && displayBeforeClick && Math.abs(initialPriceAxis.inputInset - displayBeforeClick.inset) <= 2), 'BOM Price editor and read-only value share the same right edge including marker space', { inputInset: initialPriceAxis?.inputInset, readOnlyInset: displayBeforeClick?.inset, delta: initialPriceAxis && displayBeforeClick ? displayBeforeClick.inset - initialPriceAxis.inputInset : null })
+  verify(Boolean(initialPriceAxis && Math.abs(initialPriceAxis.headerInset - initialPriceAxis.inputInset) <= 2), 'BOM Price header and body editor share the same right edge', { headerInset: initialPriceAxis?.headerInset, inputInset: initialPriceAxis?.inputInset, delta: initialPriceAxis ? initialPriceAxis.inputInset - initialPriceAxis.headerInset : null })
+  const headerAxisOffsets = await geometry(`(()=>{const group=document.querySelector('header [data-header-value]');const box=group?.querySelector('div.min-w-0.flex-1');const output=group?.querySelector('[data-selected-value-output]');if(!group||!box||!output)return null;const br=box.getBoundingClientRect(),range=document.createRange();range.selectNodeContents(output);const text=range.getBoundingClientRect();return {rightInset:br.right-text.right,textAlign:getComputedStyle(output).textAlign,boxWidth:br.width,textRight:text.right}})()`)
+  process.stdout.write(`INFO Header Value edit/output axis comparison (diagnostic only, not a Round 2 table-axis gate): ${JSON.stringify({ headerAxisOffsets, headerEditAxis })}\n`)
+
+  await clickSelector('section[aria-label="Working dataset controls"] button[role="switch"]')
+  await waitFor(() => evaluate(`document.querySelector('section[aria-label="Working dataset controls"] button[role="switch"]')?.getAttribute('aria-checked') === 'true'`), 'Master Data Edit mode restored')
+  const firstPriceInput = 'section[aria-label="Bill of Materials rows"] tbody tr:first-child input[data-grid-field="price"]'
+  const secondPriceInput = 'section[aria-label="Bill of Materials rows"] tbody tr:nth-child(2) input[data-grid-field="price"]'
+  await clickSelector(firstPriceInput)
+  const editFirstRow = await evaluate(`document.activeElement?.getAttribute('data-grid-row-id')`)
+  await pressKey('Enter')
+  const editEnterRow = await evaluate(`document.activeElement?.getAttribute('data-grid-row-id')`)
+  verify(editEnterRow === secondPriceRowId, 'Edit-mode Enter from a numeric cell advances to the next row', { from: editFirstRow, focused: editEnterRow, expected: secondPriceRowId })
+  await pressKey('Enter', { shift: true })
+  const editShiftEnterRow = await evaluate(`document.activeElement?.getAttribute('data-grid-row-id')`)
+  verify(editShiftEnterRow === firstPriceRowId, 'Edit-mode Shift+Enter from a numeric cell moves to the previous row', { focused: editShiftEnterRow, expected: firstPriceRowId })
+  await chooseRole('Custom')
+  await waitFor(() => evaluate(`!document.querySelector('header [data-header-value] input[aria-label="Selected value"]') && document.querySelector('header [data-header-value] [data-selected-value-output]')?.textContent.trim() === '—'`), 'dataset switch clears stale editable selection')
+  verify(await evaluate('document.querySelectorAll("header [data-header-value] [data-numeric-stepper]").length') === 0, 'dataset switch removes the stale Header spinner')
+  const customPrice = inputInSection('Bill of Materials rows', 'price')
+  await clickSelector(customPrice)
+  await typeHeaderValue('13.5792468')
+  assert.equal(await inputValue('header [data-header-value] input[aria-label="Selected value"]'), '13.5792468', 'Custom dataset header edit updates its selected source')
+  await chooseRole('Current')
+  await waitFor(() => evaluate(`!document.querySelector('header [data-header-value] input[aria-label="Selected value"]')`), 'switching away removes Header editor for old source')
+  const currentPriceView = inputInSection('Bill of Materials rows', 'price')
+  await clickSelector(currentPriceView)
+  await delay(500)
+  const currentValueAfterCustomEdit = await inputValue('header [data-header-value] input[aria-label="Selected value"]')
+  const currentSourceDiagnostic = await geometry(`(()=>({
+    activeRole:document.querySelector('[role="group"][aria-label="Master Data workspace"] button[aria-pressed="true"]')?.getAttribute('aria-label'),
+    mode:document.querySelector('section[aria-label="Working dataset controls"] button[role="switch"]')?.getAttribute('aria-checked'),
+    selectedHeader:document.querySelector('header [data-header-value]')?.textContent.trim(),
+    headerEditor:document.querySelector('header [data-header-value] input[aria-label="Selected value"]')?.value??null,
+    sourceEditor:document.querySelector('section[aria-label="Bill of Materials rows"] tbody tr:first-child input[data-grid-field="price"]')?.value??null,
+    focusedElement:document.activeElement?.outerHTML?.slice(0,500)??null
+  }))()`)
+  verify(currentValueAfterCustomEdit === '42.123456789', 'Current source is unchanged after Custom source edit', {
+    actual: currentValueAfterCustomEdit,
+    expected: '42.123456789',
+    ...currentSourceDiagnostic
+  })
+  verify(currentValueAfterCustomEdit === '42.123456789', 'dataset source switching prevents stale Custom writes to Current', {
+    actual: currentValueAfterCustomEdit,
+    expected: '42.123456789',
+    source: await inputValue(currentPriceView)
+  })
+
+  await chooseRole('Custom')
+  await clickSelector('section[aria-label="Working dataset controls"] button[role="switch"]')
+  await waitFor(() => evaluate(`document.querySelector('section[aria-label="Working dataset controls"] button[role="switch"]')?.getAttribute('aria-checked') === 'false'`), 'Custom read-only view')
+  await clickSelector('header button[aria-label="Undo"]')
+  await clickSelector('header button[aria-label="Redo"]')
+  await chooseRole('Current')
+  const currentPriceReadOnly = 'section[aria-label="Bill of Materials rows"] tbody tr:first-child button[data-grid-field="price"][data-selected-number="true"]'
+  await clickSelector(currentPriceReadOnly)
+  assert.equal(await textContent('header [data-header-value] [data-selected-value-output]'), '42.123456789', 'Custom history actions do not mutate Current source')
+  const consoleMessages = [...browserErrors]
+  verify(consoleMessages.length === 0, 'browser has no uncaught errors or console warnings', consoleMessages)
+
+  await saveScreenshot('master-data-final-desktop')
+  await setViewport(390, 1100)
+  await saveScreenshot('master-data-final-narrow')
+  const failed = checks.filter(result => !result.passed)
+  process.stdout.write(`\nEvidence directory: ${evidenceDir}\n`)
+  process.stdout.write(`Browser: ${baseUrl} in isolated headless Chrome, viewport 1440x1800 then responsive widths 1024/768/390/320\n`)
+  process.stdout.write(`Checks: ${checks.length - failed.length} passed, ${failed.length} failed\n`)
+  if (failed.length) {
+    process.stderr.write(`Failures:\n${failed.map(result => `- ${result.message}${result.detail === undefined ? '' : `: ${JSON.stringify(result.detail)}`}`).join('\n')}\n`)
+    process.exitCode = 1
+  } else process.stdout.write('Master Data Selected Value browser verification PASS\n')
+} catch (error) {
+  process.stderr.write(`Browser verification error: ${error instanceof Error ? error.stack : String(error)}\n`)
+  throw error
+} finally {
+  client?.close()
+  await Promise.all([stopChild(chrome), stopChild(vite)])
+  await delay(150)
+  await rm(profile, { recursive: true, force: true, maxRetries: 8, retryDelay: 200 })
+}

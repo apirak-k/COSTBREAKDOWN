@@ -187,7 +187,12 @@ const buttonAttributes = (markup, label) => {
 const renderMasterDataPage = async (uiState, storeOverrides = {}) => {
   globalThis.__MASTER_DATA_UI_TEST_STORE__ = makeStore(uiState, storeOverrides)
   const { MasterDataPage } = await vite.ssrLoadModule('/src/features/master-data/MasterDataPage.tsx')
-  return renderToStaticMarkup(React.createElement(MasterDataPage))
+  const { SelectedValueProvider } = await vite.ssrLoadModule('/src/shared/ui/selected-value.tsx')
+  return renderToStaticMarkup(React.createElement(
+    SelectedValueProvider,
+    { scopeKey: 'master' },
+    React.createElement(MasterDataPage)
+  ))
 }
 
 const renderAppLayout = async storeOverrides => {
@@ -744,7 +749,7 @@ try {
     'Save, Reset, and Clear never disable their current or all-dataset action')
   assert.match(numericInputSource, /reserveMarker \? 'right-5' : 'right-1'/, 'opt-in Header spinner arrows sit inset and preserve the reserved marker zone')
   assert.match(numericInputSource, /showStepper = false/, 'ordinary Master Data editors do not opt into visible spinner controls')
-  assert.match(numericInputSource, /reserveMarker \? \{ paddingRight: showStepper \? '2\.5rem' : '1\.5rem' \} : showStepper \? \{ paddingRight: '1\.75rem' \} : \{\}/, 'ordinary inputs reserve only a Blocker marker gutter; spinner space is opt-in for Header Value')
+  assert.match(numericInputSource, /reserveMarker \? \{ paddingRight: showStepper \? '2\.5rem' : '1\.5rem' \} : showStepper \? \{ paddingRight: '1\.75rem' \} : \{\}/, 'only Blocker markers and visible Header steppers allocate right padding; ordinary inputs have no spinner-only gutter')
   assert.match(numericInputSource, /previousValueRef[\s\S]*previousFormattedValueRef[\s\S]*valueChanged && \(\s*draft === previousFormattedValueRef\.current/, 'focused numeric editors sync external Cut/Paste/Undo changes when no newer draft is being typed')
   assert.match(numericInputSource, /event\.shiftKey && event\.currentTarget\.dataset\.gridCell === 'true'[\s\S]*onKeyDown\?\.\(event\)/, 'Shift+ArrowUp/Down in spreadsheet numeric cells reaches vertical range selection without stepping the value')
   assert.match(headerSource, /label="Save"[\s\S]*onCurrent=\{onSaveWorkingDataset\}[\s\S]*onAll=\{onSaveAllWorkingDatasets\}[\s\S]*label="Reset"[\s\S]*onCurrent=\{onResetWorkingDataset\}[\s\S]*onAll=\{onResetAllWorkingDatasets\}[\s\S]*label="Clear"[\s\S]*onCurrent=\{onClearDataset\}[\s\S]*onAll=\{onClearAllDatasets\}/, 'Save, Reset, and Clear expose current and all-dataset actions in the agreed order')
@@ -1002,30 +1007,30 @@ try {
   assert.match(wcSource, /Work Center[\s\S]*Labor Rate[\s\S]*Burden Rate[\s\S]*Note/, 'Work Centers uses full professional labels')
   assert.match(routingSource, /Process[\s\S]*Work Center[\s\S]*Manning[\s\S]*Capacity[\s\S]*Yield[\s\S]*Note/, 'Routing uses full professional labels')
   for (const [tableSource, tableLabel, fields] of [
-    [bomSource, 'BOM', ['Usage', 'Unit', 'Price', 'Loss']],
+    [bomSource, 'BOM', ['Usage', 'Price', 'Loss']],
     [wcSource, 'Work Centers', ['Labor Rate', 'Burden Rate']],
     [routingSource, 'Routing', ['Manning', 'Capacity', 'Yield']],
   ]) {
     for (const field of fields) {
-      assert.match(tableSource, new RegExp(`<th scope="col" className="px-2 py-2 text-center">${field}<\\/th>`), `${tableLabel} ${field} heading is centered`)
+      assert.match(tableSource, new RegExp(`<th scope="col" className="[^"]*text-right">${field}<\\/th>`), `${tableLabel} ${field} heading is right aligned`)
     }
-    assert.match(tableSource, /font-mono tabular-nums[^\n]*text-center|text-center font-mono tabular-nums/, `${tableLabel} structured values use centered cells`)
-    assert.match(tableSource, /numericClass[\s\S]*text-center/, `${tableLabel} numeric edit controls center their values`)
+    assert.match(tableSource, /relative px-2 py-0\.5 text-right font-mono tabular-nums/, `${tableLabel} numeric body cells share a right-aligned column axis`)
+    assert.match(tableSource, /numericClass[\s\S]*masterDataNumericEditorClass/, `${tableLabel} numeric edit controls use the shared right-aligned editor style`)
   }
+  assert.match(bomSource, /<th scope="col" className="px-2 py-2 text-center">Unit<\/th>/, 'BOM Unit remains centered as text data rather than numeric data')
   assert.match(bomSource, /<th scope="col" className="px-2 py-2 text-left">Material<\/th>/, 'BOM Material identity header is left aligned')
   assert.match(wcSource, /<th scope="col" className="px-2 py-2 text-left">Work Center<\/th>/, 'Work Center identity header is left aligned')
   assert.match(routingSource, /<th scope="col" className="px-2 py-2 text-left">Process<\/th>[\s\S]*<th scope="col" className="px-2 py-2 text-left">Work Center<\/th>/, 'Routing Process and Work Center identity headers are left aligned')
   assert.ok([
     '<col className={masterDataUnitColumnClass}',
-    'w-full max-w-20',
-    'w-full max-w-24',
+    '<td className="relative px-2 py-0.5 text-right font-mono tabular-nums">',
     'masterDataPercentageShellClass',
-  ].every(token => bomSource.includes(token)), 'BOM numeric fields stay centered while Unit uses its widened shared track and Loss owns a stable percentage shell')
-  assert.match(wcSource, /max-w-24/, 'Work Center rate controls stay compact within their columns')
-  assert.match(routingSource, /max-w-20[\s\S]*max-w-24[\s\S]*masterDataPercentageShellClass/, 'Routing numeric fields stay compact while Yield owns a stable percentage shell')
-  assert.match(bomSource, /relative mx-auto w-full max-w-20[\s\S]*MasterDataBlockerMarker/, 'BOM blocker marker overlays the actual compact field without taking layout width')
-  assert.match(wcSource, /relative mx-auto w-full max-w-24[\s\S]*MasterDataBlockerMarker/, 'Work Center blocker markers overlay compact fields without taking layout width')
-  assert.match(routingSource, /relative mx-auto w-full max-w-20[\s\S]*MasterDataBlockerMarker/, 'Routing blocker markers overlay compact fields without taking layout width')
+  ].every(token => bomSource.includes(token)), 'BOM numeric fields use right-aligned shared tracks while Unit stays centered and Loss owns a stable percentage shell')
+  assert.match(wcSource, /className="relative w-full min-w-0"[\s\S]*data-grid-field="laborRate"[\s\S]*className="relative w-full min-w-0"[\s\S]*data-grid-field="burdenRate"/, 'Work Center rate controls fill their right-aligned numeric tracks')
+  assert.match(routingSource, /className="relative w-full min-w-0"[\s\S]*data-grid-field="manning"[\s\S]*className="relative w-full min-w-0"[\s\S]*data-grid-field="capacity"[\s\S]*masterDataPercentageShellClass/, 'Routing numeric fields fill their right-aligned tracks while Yield owns a stable percentage shell')
+  assert.match(bomSource, /relative w-full min-w-0[\s\S]*MasterDataBlockerMarker/, 'BOM blocker marker overlays the full-width numeric value field without taking layout width')
+  assert.match(wcSource, /relative w-full min-w-0[\s\S]*MasterDataBlockerMarker/, 'Work Center blocker markers overlay full-width numeric fields without taking layout width')
+  assert.match(routingSource, /relative w-full min-w-0[\s\S]*MasterDataBlockerMarker/, 'Routing blocker markers overlay full-width numeric fields without taking layout width')
   assert.match(pageSource, /setMasterDataRole\(item\.role\)[\s\S]*tableView: item\.table/, 'warning navigation selects the affected dataset and table')
   assert.match(pageSource, /updateMasterDataUiState\(\{ type: 'set-mode', mode: 'edit' \}\)[\s\S]*tableView: item\.table/, 'warning navigation switches to Edit and the affected table')
   assert.match(pageSource, /handleWarningNavigationHandled[\s\S]*current\?\.requestId === requestId \? undefined : current/, 'warning navigation consumes the completed request')
@@ -1132,8 +1137,8 @@ try {
   assert.match(metadataNumericDomains, /sellingPrice:\s*\{ min: 0 \}/, 'Selling Price rejects negatives while allowing zero')
   assert.match(metadataNumericDomains, /sgaPercent:\s*\{ min: 0, max: 100 \}/, 'SG&A uses the canonical 0% to 100% domain')
   assert.doesNotMatch(numericInputSource, /precision\s*=\s*2/, 'metadata numeric editors have no default decimal-place acceptance limit')
-  assert.match(headerSource, /xl:grid-cols-\[minmax\(8rem,2fr\)_repeat\(3,minmax\(8rem,1fr\)\)_minmax\(8rem,2fr\)\]/,
-    'metadata gives UOM, Selling Price, and SG&A equal tracks while keeping Product and Remark wider')
+  assert.match(headerSource, /xl:grid-cols-\[minmax\(8rem,2fr\)_minmax\(0,0\.6fr\)_minmax\(0,1\.35fr\)_minmax\(0,1\.05fr\)_minmax\(8rem,2fr\)\]/,
+    'main metadata allocates UOM, Selling Price, and SG&A outer tracks at 20/45/35 while keeping Product and Remark wider')
   assert.match(headerSource, /Product Name :<\/dt>[\s\S]*UOM :<\/dt>[\s\S]*Selling Price \(THB\) :<\/dt>[\s\S]*SG&amp;A :<\/dt>[\s\S]*Remark :<\/dt>/,
     'metadata labels stay inline with their values in the stable View/Edit slots')
   assert.match(headerSource, /grid min-w-0 flex-1 grid-cols-\[minmax\(0,1fr\)_auto\] items-center gap-1[\s\S]*<span aria-hidden="true" className="text-xs text-slate-600">%<\/span>/,
@@ -1173,30 +1178,30 @@ try {
   assert.match(sizingModalSource, /max-w-\[48rem\][\s\S]*aria-label="Dataset metadata"[\s\S]*>METADATA<\/[hH]4>[\s\S]*aria-label="Dataset rows"[\s\S]*>TABLE ROWS<\/[hH]4>/,
     'Sizing presents quiet METADATA and TABLE ROWS section headings in a compact centered dialog wide enough for inline fields')
   assert.doesNotMatch(sizingModalSource, />\s*(Dataset|Row counts)\s*</, 'Sizing has no redundant visible Dataset or Row counts heading')
-  assert.match(sizingModalSource, /value=\{productName\}[\s\S]*value=\{uom\}[\s\S]*<NumericInput[\s\S]*value=\{sellingPrice === '' \? null : Number\(sellingPrice\)\}[\s\S]*<NumericInput[\s\S]*value=\{sgaPercent === '' \? null : Number\(sgaPercent\)\}[\s\S]*value=\{remark\}/,
-    'Sizing retains local metadata drafts and uses the shared numeric editor for Selling Price and SG&A')
+  assert.match(sizingModalSource, /value=\{productName\}[\s\S]*value=\{uom\}[\s\S]*<MasterDataNumericInput[\s\S]*value=\{sellingPrice === '' \? null : Number\(sellingPrice\)\}[\s\S]*<MasterDataNumericInput[\s\S]*value=\{sgaPercent === '' \? null : Number\(sgaPercent\)\}[\s\S]*value=\{remark\}/,
+    'Sizing retains local metadata drafts and uses the shared Selected Value numeric editor for Selling Price and SG&A')
   assert.match(sizingModalSource, /buildSizingDraft\(\)[\s\S]*getPopulatedRowsRemovedBySizing\(snapshot, nextSizing\)[\s\S]*onSaveSizing\(nextSizing\)[\s\S]*onClose\(\)/,
     'Sizing still validates its draft, protects populated truncation, and applies only on Apply')
   assert.match(sizingModalSource, /const templateSnapshot = \{ \.\.\.snapshot, product: nextProduct, remark, sizing: nextSizing \}/,
     'Download Template uses the uncommitted dialog draft')
   assert.match(sizingModalSource, /error instanceof RangeError \? error\.message : 'Template could not be generated\. Please try again\.'/,
     'unexpected ExcelJS or Vite failures use concise dialog copy instead of exposing module URLs')
-  assert.match(sizingModalSource, /<NumericInput[\s\S]*value=\{value === '' \? null : Number\(value\)\}[\s\S]*onValueChange=\{next => \{ setValue\(next === null \? '' : String\(next\)\)[\s\S]*integer[\s\S]*min=\{1\}[\s\S]*max=\{max\}/,
+  assert.match(sizingModalSource, /<MasterDataNumericInput[\s\S]*value=\{value === '' \? null : Number\(value\)\}[\s\S]*onValueChange=\{next => \{ setValue\(next === null \? '' : String\(next\)\)[\s\S]*integer[\s\S]*min=\{1\}[\s\S]*max=\{max\}/,
     'Sizing row counts use the shared integer editor with their existing bounds')
   assert.ok(sizingModalSource.includes('className="grid min-w-0 grid-cols-1 gap-x-3 gap-y-2 md:grid-cols-3"')
     && sizingModalSource.includes("renderRowCount('Bill of Materials'")
     && sizingModalSource.includes("renderRowCount('Work Centers'")
     && sizingModalSource.includes("renderRowCount('Routing'"),
   'row count controls use aligned three-column boundaries in BOM, Work Centers, Routing order')
-  assert.match(sizingModalSource, /const renderRowCount[\s\S]*<div className="min-w-0 flex-1">[\s\S]*<NumericInput[\s\S]*text-right/,
+  assert.match(sizingModalSource, /const renderRowCount[\s\S]*<div className="min-w-0 flex-1">[\s\S]*<MasterDataNumericInput[\s\S]*text-right/,
     'Sizing row-count editors fill their usable column width and keep values right aligned')
-  assert.match(sizingModalSource, /const renderRowCount[\s\S]*<NumericInput[\s\S]*id=\{id\}[\s\S]*aria-label=\{label\}/, 'Sizing spinner actions use the actual row-count field name instead of the Unset placeholder')
+  assert.match(sizingModalSource, /const renderRowCount[\s\S]*<MasterDataNumericInput[\s\S]*id=\{id\}[\s\S]*aria-label=\{label\}/, 'Sizing spinner actions use the actual row-count field name instead of the Unset placeholder')
   assert.match(sizingModalSource, /DATASET_SIZING_LIMITS\.bomCount[\s\S]*DATASET_SIZING_LIMITS\.wcCount[\s\S]*DATASET_SIZING_LIMITS\.routingCount/,
     'BOM, Work Centers, and Routing controls use their existing maximum limits')
-  assert.match(sizingModalSource, /aria-label="Dataset metadata"[\s\S]*md:grid-cols-3[\s\S]*md:col-span-3[\s\S]*Product Name :[\s\S]*UOM :[\s\S]*Selling Price \(THB\) :[\s\S]*SG&amp;A :[\s\S]*md:col-span-3[\s\S]*Dataset Remark :/, 'Sizing metadata uses full-width inline Product/Remark rows and three aligned upper columns')
+  assert.match(sizingModalSource, /aria-label="Dataset metadata"[\s\S]*md:grid-cols-\[minmax\(0,20fr\)_minmax\(0,45fr\)_minmax\(0,35fr\)\][\s\S]*md:col-span-3[\s\S]*Product Name :[\s\S]*UOM :[\s\S]*Selling Price \(THB\) :[\s\S]*SG&amp;A :[\s\S]*md:col-span-3[\s\S]*Dataset Remark :/, 'Sizing metadata uses 20/45/35 upper tracks plus full-width Product/Remark rows')
   assert.match(sizingModalSource, /aria-label="Dataset rows"[\s\S]*<h4 className="text-\[10px\] font-semibold uppercase tracking-wide text-slate-500">TABLE ROWS<\/h4>[\s\S]*grid min-w-0 grid-cols-1 gap-x-3 gap-y-2 md:grid-cols-3/, 'Sizing row counts reuse the aligned three-column grid below the quiet TABLE ROWS heading')
   assert.doesNotMatch(sizingModalSource, /border-t border-slate-200 pt-2/, 'Sizing separates Metadata and Table Rows with whitespace instead of a divider')
-  assert.match(sizingModalSource, /const renderRowCount[\s\S]*<label[^>]*shrink-0 whitespace-nowrap[\s\S]*<NumericInput[\s\S]*text-right/, 'Sizing row labels are inline and row-count values remain right aligned')
+  assert.match(sizingModalSource, /const renderRowCount[\s\S]*<label[^>]*shrink-0 whitespace-nowrap[\s\S]*<MasterDataNumericInput[\s\S]*text-right/, 'Sizing row labels are inline and row-count values remain right aligned')
   assert.ok([
     'Selling Price (THB) :',
     'SG&amp;A :',
@@ -1205,17 +1210,18 @@ try {
     '<span aria-hidden="true" className="w-4 text-center text-xs text-slate-600">%</span>',
   ].every(token => sizingModalSource.includes(token)), 'Selling Price and SG&A share the metadata numeric editor and fixed outside suffix gutter')
   assert.match(sizingModalSource, /UOM :[\s\S]*grid-cols-\[minmax\(0,1fr\)_1rem\][\s\S]*Selling Price \(THB\) :[\s\S]*grid-cols-\[minmax\(0,1fr\)_1rem\][\s\S]*SG&amp;A :[\s\S]*grid-cols-\[minmax\(0,1fr\)_1rem\]/, 'upper metadata editors reserve equal suffix gutters')
-  assert.equal((sizingModalSource.match(/className=\{metadataInlineLabelClass\}/g) ?? []).length, 3, 'UOM, Selling Price, and SG&A use natural-width labels in their equal outer columns')
+  assert.equal((sizingModalSource.match(/className=\{metadataInlineLabelClass\}/g) ?? []).length, 3, 'UOM, Selling Price, and SG&A use natural-width labels in their weighted outer columns')
   assert.match(sizingModalSource, /metadataInlineLabelClass = 'shrink-0 whitespace-nowrap text-left/, 'Sizing upper labels use natural width without a fixed label track')
   assert.doesNotMatch(sizingModalSource, /metadataInlineLabelClass = '[^']*(?:w-\d+|min-w-\d+)/, 'Sizing upper labels do not reserve a fixed width')
   assert.equal((sizingModalSource.match(/className="grid min-w-0 flex-1 grid-cols-\[minmax\(0,1fr\)_1rem\] items-center gap-1"/g) ?? []).length, 3,
-    'each UOM, Selling Price, and SG&A editor fills the remaining width of its equal outer column')
+    'each UOM, Selling Price, and SG&A editor fills the remaining width of its weighted outer column')
   assert.match(sizingModalSource, /const sizingGroupDividerClass = [\s\S]*after:w-px after:bg-slate-200[\s\S]*md:after:block/, 'Sizing group dividers are subtle, local, and hidden while fields stack')
   const sizingMetadataSection = sizingModalSource.slice(sizingModalSource.indexOf('aria-label="Dataset metadata"'), sizingModalSource.indexOf('aria-label="Dataset rows"'))
   assert.equal((sizingMetadataSection.match(/\$\{sizingGroupDividerClass\}/g) ?? []).length, 2, 'upper Sizing dividers separate only the first two metadata groups')
   assert.ok(sizingModalSource.includes("showDivider ? sizingGroupDividerClass : ''"), 'row-count divider styling is conditional so the final group stays open')
-  assert.match(sizingModalSource, /renderRowCount\('Bill of Materials'[\s\S]*DATASET_SIZING_LIMITS\.bomCount, true\)[\s\S]*renderRowCount\('Work Centers'[\s\S]*DATASET_SIZING_LIMITS\.wcCount, true\)[\s\S]*renderRowCount\('Routing'[\s\S]*DATASET_SIZING_LIMITS\.routingCount\)/, 'row count groups align with the same three columns and do not add a trailing divider')
-  assert.equal((sizingModalSource.match(/md:grid-cols-3/g) ?? []).length, 2, 'upper metadata and lower row-count grids share the same responsive three-column geometry')
+  assert.match(sizingModalSource, /renderRowCount\('Bill of Materials'[\s\S]*DATASET_SIZING_LIMITS\.bomCount, 'bom', true\)[\s\S]*renderRowCount\('Work Centers'[\s\S]*DATASET_SIZING_LIMITS\.wcCount, 'work-centers', true\)[\s\S]*renderRowCount\('Routing'[\s\S]*DATASET_SIZING_LIMITS\.routingCount, 'routing'\)/, 'row count groups align with the same three columns and do not add a trailing divider')
+  assert.equal((sizingModalSource.match(/md:grid-cols-\[minmax\(0,20fr\)_minmax\(0,45fr\)_minmax\(0,35fr\)\]/g) ?? []).length, 1, 'Sizing metadata subgroup declares one responsive 20/45/35 track group')
+  assert.equal((sizingModalSource.match(/md:grid-cols-3/g) ?? []).length, 1, 'Sizing row counts keep their separate three-column responsive layout')
   assert.match(sizingModalSource, /Product Name :[\s\S]*className=\{masterDataTextEditorClass\}[\s\S]*Dataset Remark :[\s\S]*className=\{masterDataTextEditorClass\}/, 'Sizing text editors use the shared focus family on inline full-width rows')
   assert.match(sizingModalSource, /<Download className="h-3\.5 w-3\.5" aria-hidden="true" \/>[\s\S]*Download Template/, 'Download Template uses a down-arrow action icon')
   assert.match(sizingModalSource, /border-t border-slate-200 px-3 py-2 sm:flex-row sm:items-center sm:justify-between[\s\S]*Download Template[\s\S]*Apply Sizing/, 'Download Template stays at the lower left, secondary to Apply')
@@ -1278,13 +1284,13 @@ try {
   assert.match(headerSource, /wrapperClassName="relative grid h-8 w-16 shrink-0"[\s\S]*className="relative grid h-8 w-16 grid-cols-2/, 'View/Edit keeps exact 64px by 32px geometry as one toggle target')
   assert.match(headerSource, /className="grid h-8 w-60 shrink-0 grid-cols-3 border border-slate-300 bg-white" role="group" aria-label="Master Data workspace"[\s\S]*className=\{'relative flex h-full w-full min-w-0 items-center justify-center/, 'Reference, Current, and Custom occupy three equal-width dataset segments')
   assert.match(headerSource, /selected && <span aria-hidden="true" className="pointer-events-none absolute inset-0\.5 bg-slate-900"/, 'the selected dataset slab remains inset without changing selector geometry')
-  assert.match(headerSource, /grid min-w-0 grid-cols-1 gap-x-3 gap-y-1 sm:grid-cols-2 xl:grid-cols-\[minmax\(8rem,2fr\)_repeat\(3,minmax\(8rem,1fr\)\)_minmax\(8rem,2fr\)\]/, 'metadata wraps below desktop when inputs would become too narrow, then uses wide Product/Remark slots and three equal middle slots')
+  assert.match(headerSource, /grid min-w-0 grid-cols-1 gap-x-3 gap-y-1 sm:grid-cols-2 xl:grid-cols-\[minmax\(8rem,2fr\)_minmax\(0,0\.6fr\)_minmax\(0,1\.35fr\)_minmax\(0,1\.05fr\)_minmax\(8rem,2fr\)\]/, 'metadata stacks below desktop and uses wide Product/Remark slots with 20/45/35 middle tracks')
   assert.equal((headerSource.match(/flex min-w-0 items-center gap-1\.5/g) ?? []).length, 5, 'all five metadata label/value pairs share one inline row geometry')
   assert.match(headerSource, /metadataGroupDividerClass = "relative after:absolute after:-right-1\.5 after:top-1 after:bottom-1 after:hidden after:w-px after:bg-slate-200 after:content-\[''\] xl:after:block"/, 'metadata dividers are subtle and appear only in the desktop single-row layout')
   assert.equal((headerSource.match(/\$\{metadataGroupDividerClass\}/g) ?? []).length, 4, 'metadata dividers separate groups without trailing the final field')
   assert.equal((headerSource.match(/<dt className="shrink-0 whitespace-nowrap[^\"]*">[^<]+ :<\/dt>/g) ?? []).length, 5, 'each inline metadata label retains its colon and does not wrap')
   assert.match(headerSource, /SG&amp;A :[\s\S]*aria-label="SG&A"[\s\S]*<span aria-hidden="true" className="text-xs text-slate-600">%<\/span>/, 'SG&A label is concise and percent remains outside its numeric shell in the same metadata slot')
-  assert.match(headerSource, /Selling Price \(THB\) :[\s\S]*formatNumber\(product\.sellingPrice\)\}/, 'Selling Price uses label-supplied THB without a duplicate value suffix')
+  assert.match(headerSource, /Selling Price \(THB\) :[\s\S]*<MasterDataSelectedNumber[\s\S]*value=\{product\.sellingPrice\}[\s\S]*selectionId=\{metadataValueSourceId\('sellingPrice'\)\}[\s\S]*aria-label="Selling Price \(THB\)"/, 'Selling Price read-only value uses its Selected Value source and label-supplied THB without a duplicate value suffix')
   assert.match(fieldStylesSource, /const masterDataFocusClass = 'focus:!border-transparent focus:!outline focus:!outline-2 focus:!outline-blue-700 focus:!outline-offset-\[-2px\]'/, 'editable controls replace their field border with a strong blue focus outline inside stable field bounds')
   assert.match(fieldStylesSource, /masterDataTextEditorClass = `h-8 w-full min-w-0 rounded-sm border border-transparent bg-transparent[\s\S]*hover:border-slate-200 hover:bg-slate-50[\s\S]*\$\{masterDataFocusClass\}`/, 'text fields reserve border geometry for subtle hover and shared strong focus')
   assert.match(fieldStylesSource, /masterDataNumericEditorClass = `h-8 w-full min-w-0 rounded-sm border border-transparent bg-transparent[\s\S]*\$\{masterDataFocusClass\}`/, 'numeric fields share the same focus family without changing their dimensions')
@@ -1342,20 +1348,21 @@ try {
   assert.match(fieldStylesSource, /masterDataIssuePlaceholderClass = 'placeholder:text-slate-500'/, 'generated placeholders on amber issues use a readable stronger neutral slate')
   assert.doesNotMatch(allTablesSource, /showWarningHighlights[\s\S]{0,80}border-rose-[0-9]+/, 'Blockers never use a red field border')
   assert.doesNotMatch(allTablesSource, /<td className=\{`[^`]*bg-amber-50/, 'issue fill remains field-level, never a whole-cell fill')
-  assert.match(fieldStylesSource, /masterDataPercentageShellClass = 'mx-auto flex h-8 w-28 min-w-0 items-center gap-1'/, 'percentage field groups retain one stable owner width')
+  assert.match(fieldStylesSource, /masterDataPercentageShellClass = 'ml-auto flex h-8 w-full min-w-0 items-center gap-1'/, 'percentage field groups fill the right-aligned numeric track and reserve the suffix gap')
   assert.doesNotMatch(fieldStylesSource, /masterDataPercentage(?:InputShell|IssueShell|Editor|DisplayValue)Class|focus-within/, 'percentage fields do not define a separate focus, issue, or display-state family')
   const viewPercentageMarkup = (source, field) => {
-    const fieldIndex = source.indexOf(`data-grid-field="${field}" tabIndex=`)
+    const firstFieldIndex = source.indexOf(`data-grid-field="${field}"`)
+    const fieldIndex = source.indexOf('<MasterDataSelectedNumber', firstFieldIndex)
     const groupIndex = source.lastIndexOf('className={masterDataPercentageShellClass}', fieldIndex)
     return source.slice(groupIndex, groupIndex + 1400)
   }
   const lossViewMarkup = viewPercentageMarkup(bomSource, 'loss')
   const yieldViewMarkup = viewPercentageMarkup(routingSource, 'yield')
   for (const [field, markup] of [['Loss', lossViewMarkup], ['Yield', yieldViewMarkup]]) {
-    assert.match(markup, /className=\{masterDataPercentageShellClass\}>\s*<span data-grid-cell="true"/, `${field} View keeps the percentage group as layout owner and focuses one value field`)
-    assert.match(markup, /className=\{`\$\{masterDataNumericDisplaySlotClass\} flex-1[\s\S]*masterDataSpreadsheetSelectionClass/, `${field} View uses the shared full-width numeric field for focus, issue, and selection`)
-    assert.match(markup, /—/, `${field} unavailable value uses the shared centered value area`)
-    assert.match(markup, /<\/span>\s*<span className="w-3 shrink-0 text-center text-\[11px\] text-slate-400">%<\/span>/, `${field} View keeps the percent suffix outside the value field perimeter`)
+    assert.match(markup, /className=\{masterDataPercentageShellClass\}>\s*<MasterDataSelectedNumber[\s\S]*?data-grid-cell="true"/, `${field} View keeps the percentage group as layout owner and focuses one value field`)
+    assert.match(markup, /className=\{`\$\{masterDataNumericDisplaySlotClass\} w-0 flex-1[\s\S]*masterDataSpreadsheetSelectionClass/, `${field} View uses the shared full-width numeric field for focus, issue, and selection`)
+    assert.match(markup, /value=\{[^\n]*=== null \? null :[^\n]*\}[\s\S]*missingMarker=\{(?:loss|yield)Missing\}/, `${field} unavailable value flows through the shared right-aligned SelectedNumber area`)
+    assert.match(markup, /\/>\s*<span className="w-3 shrink-0 text-center text-\[11px\] text-slate-400">%<\/span>/, `${field} View keeps the percent suffix outside the value field perimeter`)
   }
   assert.ok(bomSource.includes('className={masterDataPercentageShellClass}')
     && bomSource.includes('className="relative flex h-8 min-w-0 flex-1 items-center"')
@@ -1369,7 +1376,7 @@ try {
     && routingSource.includes('MasterDataBlockerMarker')
     && routingSource.includes('<span className="w-3 shrink-0 text-center text-[11px] text-slate-400">%</span>'), 'Routing Yield places value/blocker inside the input shell and percent outside it')
   assert.match(routingSource, /ChevronDown className="pointer-events-none absolute right-6[\s\S]*MasterDataBlockerMarker/, 'Routing Work Center keeps dropdown chevron and blocker marker in separate zones')
-  assert.match(fieldStylesSource, /masterDataNumericEditorClass[\s\S]*masterDataNumericDisplaySlotClass/, 'View and Edit numeric values share a centered fixed-height field slot')
+  assert.match(fieldStylesSource, /masterDataNumericEditorClass = `[^`]*text-right[\s\S]*masterDataNumericDisplaySlotClass = `[^`]*justify-end[^`]*text-right/, 'View and Edit numeric values share a right-aligned fixed-height field slot')
   assert.match(tableValidationSource, /editableIdentityValue\(value: string, isGeneratedBusinessIdentity\?: boolean\): string \{\s*return isGeneratedBusinessIdentity \? '' : value\s*\}/, 'generated identity editors display an actual empty value while retaining the effective identity')
   assert.match(bomSource + wcSource + routingSource, /editableIdentityValue\([\s\S]*editableIdentityPlaceholder\(/, 'BOM, Work Center, and Process identity editors do not put generated labels in their values')
   assert.match(identityDraftSource, /preferIdentityEditorDraft\([\s\S]*getStoredValue\(row\)/, 'the focused identity text draft remains visible when snapshot normalization auto-renames a duplicate')
@@ -1395,7 +1402,7 @@ try {
   assert.match(blockerMarkerSource, /aria-label=\{label\}[\s\S]*pointer-events-none absolute[\s\S]*font-sans[\s\S]*text-\[11px\][\s\S]*font-bold[\s\S]*text-rose-600[\s\S]*>\s*\*\s*</, 'blocker star uses shared sans typography as a small bold accessible overlay outside field layout')
   assert.match(bomSource + wcSource + routingSource, /<MasterDataBlockerMarker/, 'BOM, Work Centers, and Routing render blocker stars through the shared overlay marker')
   assert.doesNotMatch(bomSource + wcSource + routingSource, /pr-(?:3|4|5)(?:\s|`)/, 'blocker markers do not reserve padding that shifts values or narrows their inputs')
-  assert.match(fieldStylesSource, /masterDataNumericDisplaySlotClass = `relative flex h-8 w-full min-w-0 items-center justify-center rounded-sm border border-transparent[\s\S]*\$\{masterDataCellFocusClass\}`/, 'View numeric values use a full-width shared 32px field with the same Focus treatment as Edit')
+  assert.match(fieldStylesSource, /masterDataNumericDisplaySlotClass = `relative flex h-8 w-full min-w-0 items-center justify-end rounded-sm border border-transparent text-right[\s\S]*\$\{masterDataCellFocusClass\}`/, 'View numeric values use a full-width shared 32px right-aligned field with the same Focus treatment as Edit')
   assert.match(blockerMarkerSource, /className="pointer-events-none absolute right-1 top-1\/2[\s\S]*-translate-y-1\/2/, 'all Blocker stars use a shared right and vertical-center anchor')
   assert.match(routingSource, /showWarningHighlights && workCenterInvalid \? 'text-amber-900' : ''[\s\S]*showWarningHighlights && workCenterInvalid \? masterDataIssueDisplayClass : ''/,
     'Routing missing or unresolved Work Center hides both amber text and fill when highlights are off')

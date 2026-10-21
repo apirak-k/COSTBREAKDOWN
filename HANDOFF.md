@@ -1202,6 +1202,18 @@ This summary describes the finalized logic baseline represented by the historica
 - `3abb6f8` — Close frozen final logic audit findings; add regression evidence and remove disconnected competing state/engines
 - `15379d9` — Fresh Parameter SIM reset on RCA handoff and legacy active-tab migration
 
+## Round 2 Selected Value / Decimal UX — 2026-10-21
+
+- **Repository/worktree:** `apirak-k/COSTBREAKDOWN`, `/Users/bubu/COSTBREAKDOWN-ref-current-custom-flow-redesign`.
+- **Branch and starting point:** `feat/selected-value-ux`, starting local and fetched remote HEAD `3b3880f79891293662aeb5e622d11941bcf3ea64`.
+- Round 2 is limited to Master Data. Numeric source identities distinguish Reference, Current, Custom, section/table, record or draft, and field. Editable and read-only values use the Selected Value behavior; compact body formatting remains separate from the exact selected Header Value. The sizing dialog exposes the same selected value control inside its focus scope, and Master Data grid keyboard navigation remains available.
+- Product/spec notes and isolated browser verifiers were updated. No formulas, dataset lifecycle/history, Cost Breakdown, or Simulation Round 3+ implementation was changed.
+- **Verification:** `npx tsc --noEmit --pretty false`; `npm run build`; `git diff --check`; `node scripts/verify_master_data_ui_state.mjs`; `node scripts/verify_master_data_selected_value.mjs` (110 passed, 0 failed in isolated headless Chrome); `node scripts/verify_numeric_input.mjs`; the dataset sizing, edit history, spreadsheet batch, quality navigation, row order, clear dataset, sizing no-op, rename/empty edit, snapshot import, direct dataset editing, custom dataset, clone readiness, handoff, preservation, mock-load, and toolbar-preparation verifiers all passed. `node --check scripts/verify_master_data_selected_value.mjs` passed. The live app browser regression also typed `12.3456789` in Master Data, Simulation, Business, and Economic numeric inputs and accepted the full value before compact blur display.
+- Browser coverage used Chromium at desktop and responsive viewport widths. Reference-specific numeric sources and save/reload persistence were not exercised; the focused Selected Value flow used Custom and Current in-memory workspaces.
+- **Known follow-up risk:** applying changed row counts and changed metadata together in Dataset Sizing previously caused metadata to disappear from the main header, consistent with existing session callbacks replacing the same session from stale render state. Round 2 intentionally leaves dataset lifecycle/store behavior untouched. The browser verification applied count changes and metadata changes separately; combined Apply remains unverified and the observed behavior should be fixed in a separate lifecycle task.
+- The build succeeds with existing ExcelJS browser externalization warnings (`fs`, `crypto`, and `@fast-csv`) and the existing large-chunk warning. `npm audit --audit-level=high` exits 1 for existing dependencies (6 High and 4 Moderate findings); no dependency changes were made because remediation would require breaking or force upgrades.
+- The intended delivery is one Round 2 commit on this existing branch, pushed normally to `origin/feat/selected-value-ux`; no merge or force-push is authorized or planned.
+
 ## Current Work Focus
 
 The CBD overview UX refinement is the active bounded pass on `codex/cbd-candidate-integration`, starting at `97fe2e36edc4fbea6aea7d2f8b315da50b6b5138`. The latest delivery report and Git HEAD on that branch are authoritative for its commit and push status. Address any external-audit findings as a separate bounded pass.
