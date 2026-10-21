@@ -29,6 +29,12 @@ interface SelectedValueState {
   pinned: ScopedValue
 }
 
+interface PendingPreview {
+  timer: ReturnType<typeof setTimeout> | null
+  value: SelectedValue
+  scopeKey?: string
+}
+
 interface SelectedValueContextValue {
   selection: SelectedValue | null
   focusedSelection: SelectedValue | null
@@ -47,12 +53,23 @@ interface SelectedValueContextValue {
 const SelectedValueContext = createContext<SelectedValueContextValue | null>(null)
 const useBrowserLayoutEffect = typeof window === 'undefined' ? useEffect : useLayoutEffect
 const isSelectable = (source: SelectedValue) => Number.isFinite(source.value) || (source.editable && source.value == null)
+const HOVER_PREVIEW_DWELL_MS = 350
 const asReadOnlyPreview = (source: SelectedValue): SelectedValue => source.editable
   ? { id: source.id, value: source.value, editable: false, domain: source.domain, percentage: source.percentage }
   : source
 
 export function SelectedValueProvider({ children, scopeKey }: { children: ReactNode; scopeKey?: string }) {
   const [state, setState] = useState<SelectedValueState>({ focused: null, previewed: null, pinned: null })
+  const pendingPreviewRef = useRef<PendingPreview | null>(null)
+  const latestScopeKeyRef = useRef(scopeKey)
+  latestScopeKeyRef.current = scopeKey
+  const cancelPendingPreview = useCallback((id?: string, targetScopeKey?: string) => {
+    const pending = pendingPreviewRef.current
+    if (!pending || (id !== undefined && pending.value.id !== id)
+      || (targetScopeKey !== undefined && pending.scopeKey !== targetScopeKey)) return
+    if (pending.timer !== null) clearTimeout(pending.timer)
+    pendingPreviewRef.current = null
+  }, [])
   const inScope = (slot: ScopedValue) => slot && slot.scopeKey === scopeKey ? slot.value : null
   const focusedSelection = inScope(state.focused)
   const previewSelection = inScope(state.previewed)
@@ -63,6 +80,7 @@ export function SelectedValueProvider({ children, scopeKey }: { children: ReactN
     : previewSelection ?? focusedSelection ?? pinnedSelection
 
   const activateFocus = useCallback((value: SelectedValue) => {
+    cancelPendingPreview()
     setState(current => {
       const focused = isSelectable(value) ? { value, scopeKey } : null
       const currentPreview = current.previewed
@@ -71,7 +89,7 @@ export function SelectedValueProvider({ children, scopeKey }: { children: ReactN
         : currentPreview
       return { ...current, focused, previewed }
     })
-  }, [scopeKey])
+  }, [scopeKey, cancelPendingPreview])
   const clearFocus = useCallback((id?: string) => {
     setState(current => ({
       ...current,
@@ -79,26 +97,38 @@ export function SelectedValueProvider({ children, scopeKey }: { children: ReactN
     }))
   }, [scopeKey])
   const previewValue = useCallback((value: SelectedValue) => {
+    cancelPendingPreview()
     if (!isSelectable(value)) return
-    setState(current => {
-      const currentFocus = current.focused
-      if (currentFocus !== null && currentFocus.scopeKey === scopeKey && currentFocus.value.id === value.id) {
-        return current
-      }
-      return { ...current, previewed: { value: asReadOnlyPreview(value), scopeKey } }
-    })
-  }, [scopeKey])
+
+    const pending: PendingPreview = { timer: null, value, scopeKey }
+    pending.timer = setTimeout(() => {
+      if (pendingPreviewRef.current !== pending) return
+      pendingPreviewRef.current = null
+      if (latestScopeKeyRef.current !== pending.scopeKey) return
+      setState(current => {
+        const currentFocus = current.focused
+        if (currentFocus !== null && currentFocus.scopeKey === pending.scopeKey && currentFocus.value.id === pending.value.id) {
+          return current
+        }
+        return { ...current, previewed: { value: asReadOnlyPreview(pending.value), scopeKey: pending.scopeKey } }
+      })
+    }, HOVER_PREVIEW_DWELL_MS)
+    pendingPreviewRef.current = pending
+  }, [cancelPendingPreview, scopeKey])
   const clearPreview = useCallback((id?: string) => {
+    cancelPendingPreview(id, scopeKey)
     setState(current => ({
       ...current,
       previewed: current.previewed && current.previewed.scopeKey === scopeKey && (id === undefined || current.previewed.value.id === id) ? null : current.previewed
     }))
-  }, [scopeKey])
+  }, [cancelPendingPreview, scopeKey])
   const pinValue = useCallback((value: SelectedValue) => {
+    cancelPendingPreview()
     if (value.editable || !isSelectable(value)) return
     setState(current => ({ ...current, pinned: { value, scopeKey } }))
-  }, [scopeKey])
+  }, [cancelPendingPreview, scopeKey])
   const clearSelection = useCallback((id?: string) => {
+    cancelPendingPreview(id, scopeKey)
     const clearCurrentSource = (slot: ScopedValue): ScopedValue =>
       slot && slot.scopeKey === scopeKey && (id === undefined || slot.value.id === id) ? null : slot
     setState(current => ({
@@ -106,8 +136,13 @@ export function SelectedValueProvider({ children, scopeKey }: { children: ReactN
       previewed: clearCurrentSource(current.previewed),
       pinned: clearCurrentSource(current.pinned)
     }))
-  }, [scopeKey])
+  }, [cancelPendingPreview, scopeKey])
   const syncSelection = useCallback((value: SelectedValue) => {
+    const pending = pendingPreviewRef.current
+    if (pending && pending.scopeKey === scopeKey && pending.value.id === value.id) {
+      if (isSelectable(value)) pending.value = value
+      else cancelPendingPreview(value.id, scopeKey)
+    }
     const syncSource = (slot: ScopedValue, readOnly = false): ScopedValue => {
       if (!slot || slot.scopeKey !== scopeKey || slot.value.id !== value.id) return slot
       return isSelectable(value)
@@ -119,16 +154,19 @@ export function SelectedValueProvider({ children, scopeKey }: { children: ReactN
       previewed: syncSource(current.previewed, true),
       pinned: syncSource(current.pinned)
     }))
-  }, [scopeKey])
+  }, [cancelPendingPreview, scopeKey])
 
-  useEffect(() => {
+  useBrowserLayoutEffect(() => {
+    cancelPendingPreview()
     const clearObsoleteScope = (slot: ScopedValue): ScopedValue => slot?.scopeKey === scopeKey ? slot : null
     setState(current => ({
       focused: clearObsoleteScope(current.focused),
       previewed: clearObsoleteScope(current.previewed),
       pinned: clearObsoleteScope(current.pinned)
     }))
-  }, [scopeKey])
+  }, [cancelPendingPreview, scopeKey])
+
+  useEffect(() => () => cancelPendingPreview(), [cancelPendingPreview])
 
   const context = useMemo(() => ({
     selection,

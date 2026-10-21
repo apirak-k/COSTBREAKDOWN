@@ -304,12 +304,20 @@ export function NumericInput({
         className={`${defaultInputClassName} ${className ?? ''}`.trim()}
         style={{
           ...style,
-          ...(reserveMarker ? { paddingRight: showStepper ? '2.5rem' : '1.5rem' } : showStepper ? { paddingRight: '1.75rem' } : {})
+          ...(displayMode === 'header'
+            ? { paddingRight: '2.25rem' }
+            : reserveMarker
+              ? { paddingRight: showStepper ? '2.5rem' : '1.5rem' }
+              : showStepper ? { paddingRight: '1.75rem' } : {})
         }}
         data-numeric-editor="true"
       />
       {showStepper && !inputProps.disabled && !inputProps.readOnly && (
-        <span data-numeric-stepper="true" className={`absolute inset-y-0 ${reserveMarker ? 'right-5' : 'right-1'} flex w-3 flex-col justify-center`}>
+        <span
+          data-numeric-stepper="true"
+          data-header-spinner-slot={displayMode === 'header' ? 'true' : undefined}
+          className={`absolute inset-y-0 ${reserveMarker ? 'right-5' : 'right-1'} flex w-3 flex-col justify-center ${displayMode === 'header' ? 'invisible opacity-0 transition-opacity group-hover/header-input:visible group-hover/header-input:opacity-100 group-focus-within/header-input:visible group-focus-within/header-input:opacity-100' : ''}`}
+        >
           <button
             type="button"
             tabIndex={-1}

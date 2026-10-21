@@ -135,7 +135,7 @@ try {
     const point = await evaluate(`(()=>{const element=${visibleExpression(selector)};if(!element)return null;const rect=element.getBoundingClientRect();return {x:rect.x+rect.width/2,y:rect.y+rect.height/2}})()`)
     if (!point) throw new Error(`Visible browser target not found: ${selector}`)
     await send('Input.dispatchMouseEvent', { type: 'mouseMoved', x: point.x, y: point.y })
-    await delay(250)
+    await delay(400)
     return point
   }
   const clickTextButton = async label => {
@@ -498,6 +498,7 @@ try {
       && sourceToHeaderFocus.sourceId !== null
       && sourceToHeaderFocus.sourceId === sourceToHeaderFocus.headerSourceId,
     'moving focus from source to Header editor keeps the same editable value active', sourceToHeaderFocus)
+  await delay(200)
   const globalEditableStyle = await geometry(`(()=>{
     const root=document.querySelector('header [data-header-value]'),input=root?.querySelector('input[aria-label="Selected value"]'),stepper=root?.querySelector('[data-numeric-stepper] button')
     if(!root||!input||!stepper)return null
@@ -507,11 +508,11 @@ try {
   verify(Boolean(globalEditableStyle
       && globalEditableStyle.background === 'rgba(0, 0, 0, 0)'
       && globalEditableStyle.color === 'rgb(241, 245, 249)'
-      && ['rgb(100, 116, 139)', 'rgb(148, 163, 184)'].includes(globalEditableStyle.borderColor)
+      && globalEditableStyle.borderColor === 'rgb(96, 165, 250)'
       && globalEditableStyle.borderWidth === '1px'
       && globalEditableStyle.borderStyle === 'solid'
       && globalEditableStyle.stepperColor === 'rgb(226, 232, 240)'),
-    'global editable Header uses a dark integrated input, light text/arrows, and a subtle border', globalEditableStyle)
+    'focused global Header editor uses a dark integrated input, light text/arrows, and a clear focus border', globalEditableStyle)
   await saveScreenshot('header-editable-focused')
   await clickSelector(masterDataNavigation)
   const headerBlurState = await evaluate(`({
@@ -664,6 +665,15 @@ try {
   await clickSelector(masterDataNavigation)
   await waitFor(() => textContent('header [data-header-value] [data-selected-value-output]').then(value => value === '—'), 'Edit mode has no anchored source before testing a Master Data hover preview')
   const lossEditInput = inputInSection('Bill of Materials rows', 'loss')
+  const quickLossPoint = await evaluate(`(()=>{const element=${visibleExpression(lossEditInput)};const rect=element.getBoundingClientRect();return {x:rect.x+rect.width/2,y:rect.y+rect.height/2}})()`)
+  await send('Input.dispatchMouseEvent', { type: 'mouseMoved', ...quickLossPoint })
+  await delay(100)
+  verify(await textContent('header [data-header-value] [data-selected-value-output]') === '—',
+    'a quick pass over a Master Data editable value does not activate Header Preview')
+  await send('Input.dispatchMouseEvent', { type: 'mouseMoved', x: 1438, y: 1798 })
+  await delay(400)
+  verify(await textContent('header [data-header-value] [data-selected-value-output]') === '—',
+    'a cancelled Master Data dwell cannot Preview after its old deadline')
   await hoverSelector(lossEditInput)
   const lossEditPreview = await evaluate(`(()=>{const e=${visibleExpression(lossEditInput)};return {active:document.activeElement===e,header:document.querySelector('header [data-header-value] [data-selected-value-output]')?.textContent.trim()??null,suffix:document.querySelector('header [data-header-value]')?.textContent.includes('%')??false,editor:!!document.querySelector('header [data-header-value] input[aria-label="Selected value"]'),spinner:document.querySelectorAll('header [data-header-value] [data-numeric-stepper]').length}})()`)
   verify(Boolean(lossEditPreview && !lossEditPreview.active
@@ -717,6 +727,15 @@ try {
       && focusedViewPrice.outline === 'rgb(29, 78, 216)'
       && focusedViewPrice.outlineWidth === '2px'),
     'native grid focus publishes the capped read-only Header value with one blue focus perimeter and no spinner', focusedViewPrice)
+  const secondViewPricePoint = await evaluate(`(()=>{const element=${visibleExpression(secondViewPriceCell)};const rect=element.getBoundingClientRect();return {x:rect.x+rect.width/2,y:rect.y+rect.height/2}})()`)
+  await send('Input.dispatchMouseEvent', { type: 'mouseMoved', ...secondViewPricePoint })
+  await delay(100)
+  verify(await textContent('header [data-header-value] [data-selected-value-output]') === '42.12345679',
+    'a quick pass over native View B keeps focused native View A displayed')
+  await send('Input.dispatchMouseEvent', { type: 'mouseMoved', x: 1438, y: 1798 })
+  await delay(400)
+  verify(await textContent('header [data-header-value] [data-selected-value-output]') === '42.12345679',
+    'leaving a cancelled native View B dwell preserves native View A')
   await hoverSelector(secondViewPriceCell)
   const focusedViewHover = await geometry(`(()=>{const a=${visibleExpression(firstViewPriceCell)},b=${visibleExpression(secondViewPriceCell)};return {activeA:document.activeElement===a,header:document.querySelector('header [data-header-value] [data-selected-value-output]')?.textContent.trim()??null,spinner:document.querySelectorAll('header [data-header-value] [data-numeric-stepper]').length,selectedNumberA:!!a?.closest('[data-selected-number="true"]'),selectedNumberB:!!b?.closest('[data-selected-number="true"]'),pressedA:a?.getAttribute('aria-pressed')??null,pressedB:b?.getAttribute('aria-pressed')??null}})()`)
   verify(Boolean(focusedViewHover?.activeA
@@ -807,15 +826,16 @@ try {
     const root=document.querySelector('header [data-header-value]'),output=root?.querySelector('[data-selected-value-output]')
     if(!root||!output)return null
     const style=getComputedStyle(output)
-    return {background:style.backgroundColor,color:style.color,borderWidth:style.borderTopWidth,borderStyle:style.borderTopStyle,overflowX:style.overflowX,whiteSpace:style.whiteSpace}
+    return {background:style.backgroundColor,color:style.color,borderColor:style.borderTopColor,borderWidth:style.borderTopWidth,borderStyle:style.borderTopStyle,overflowX:style.overflowX,whiteSpace:style.whiteSpace}
   })()`)
   verify(Boolean(readOnlyHeaderStyle
       && readOnlyHeaderStyle.background === 'rgba(0, 0, 0, 0)'
       && readOnlyHeaderStyle.color === 'rgb(241, 245, 249)'
-      && readOnlyHeaderStyle.borderWidth === '0px'
+      && readOnlyHeaderStyle.borderWidth === '1px'
+      && readOnlyHeaderStyle.borderColor === 'rgba(0, 0, 0, 0)'
       && readOnlyHeaderStyle.overflowX === 'auto'
       && readOnlyHeaderStyle.whiteSpace === 'nowrap'),
-    'read-only Header is plain light text with no box and safe internal overflow', readOnlyHeaderStyle)
+    'read-only Header is plain light text with only a transparent geometry-preserving boundary and safe internal overflow', readOnlyHeaderStyle)
   await saveScreenshot('header-readonly-selected')
   await clickSelector(masterDataNavigation)
   verify(await textContent('header [data-header-value] [data-selected-value-output]') === '—',
