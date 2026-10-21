@@ -131,6 +131,13 @@ try {
     await send('Input.dispatchMouseEvent', { type: 'mouseReleased', x: point.x, y: point.y, button: 'left', clickCount: 1 })
     await delay(120)
   }
+  const hoverSelector = async selector => {
+    const point = await evaluate(`(()=>{const element=${visibleExpression(selector)};if(!element)return null;const rect=element.getBoundingClientRect();return {x:rect.x+rect.width/2,y:rect.y+rect.height/2}})()`)
+    if (!point) throw new Error(`Visible browser target not found: ${selector}`)
+    await send('Input.dispatchMouseEvent', { type: 'mouseMoved', x: point.x, y: point.y })
+    await delay(250)
+    return point
+  }
   const clickTextButton = async label => {
     const point = await evaluate(`(()=>{const element=[...document.querySelectorAll('button')].find(item => item.getClientRects().length && item.innerText.trim() === ${JSON.stringify(label)});if(!element)return null;const rect=element.getBoundingClientRect();return {x:rect.x+rect.width/2,y:rect.y+rect.height/2}})()`)
     if (!point) throw new Error(`Button not found by visible text: ${label}`)
@@ -610,6 +617,30 @@ try {
   await waitFor(async () => await inputValue('header [data-header-value] input[aria-label="Selected value"]') === '42.123456789', 'Master Data Redo updates the selected Header source')
   verify(await evaluate('document.querySelectorAll("header [data-header-value] [data-numeric-stepper]").length') === 1, 'editable Header Value owns the only visible Selected Value spinner')
 
+  await clickSelector(mainInput('price'))
+  await pressKey('ArrowDown', { shift: true })
+  const editPriceRange = await evaluate(`(()=>({
+    activeRow: document.activeElement?.getAttribute('data-grid-row-id') ?? null,
+    cells: [...document.querySelectorAll('section[aria-label="Bill of Materials rows"] tbody input[data-grid-field="price"]')].map(cell => ({
+      row: cell.getAttribute('data-grid-row-id'),
+      selected: cell.classList.contains('outline-blue-500'),
+      value: cell.value
+    }))
+  }))()`)
+  verify(Boolean(editPriceRange?.cells.length >= 2
+      && editPriceRange.cells[0].selected
+      && editPriceRange.cells[1].selected
+      && editPriceRange.activeRow === editPriceRange.cells[1].row),
+    'Master Data Edit grid keeps native keyboard focus and contiguous range selection across numeric cells', editPriceRange)
+  const copiedPriceRange = await evaluate(`(()=>{
+    let result=null
+    window.addEventListener('copy',event=>{result={text:event.clipboardData?.getData('text/plain')??null,defaultPrevented:event.defaultPrevented}}, {once:true})
+    const commandSucceeded=document.execCommand('copy')
+    return {...(result??{}),commandSucceeded}
+  })()`)
+  verify(copiedPriceRange?.text === '42.12\n321.99' && copiedPriceRange.defaultPrevented && copiedPriceRange.commandSucceeded,
+    'copy from the focused Master Data numeric range reaches the existing grid clipboard handler', copiedPriceRange)
+
   await clickSelector(inputInSection('Bill of Materials rows', 'loss'))
   const lossHeaderBefore = await inputValue('header [data-header-value] input[aria-label="Selected value"]')
   verify(lossHeaderBefore === '1.23456789', 'BOM Loss Header source uses displayed percentage units', { value: lossHeaderBefore })
@@ -626,41 +657,103 @@ try {
 
   await clickSelector('section[aria-label="Working dataset controls"] button[role="switch"]')
   await waitFor(() => evaluate(`document.querySelector('section[aria-label="Working dataset controls"] button[role="switch"]')?.getAttribute('aria-checked') === 'false'`), 'Master Data View mode')
-  await waitFor(() => existsVisible('section[aria-label="Bill of Materials rows"] button[data-grid-field="price"][data-selected-number="true"]'), 'read-only BOM Price source')
+  await waitFor(() => existsVisible('section[aria-label="Bill of Materials rows"] [data-grid-cell="true"][data-grid-field="price"]'), 'native read-only BOM Price grid cell')
   for (const spec of tableNumericFields) {
     const display = await displayAxis(spec)
     const editor = editorAxes[spec.field]
     verify(Boolean(display && editor && Math.abs(editor.editorInset - display.displayInset) <= 2), `${spec.label} editor and read-only value use the same right edge including marker/suffix space`, { editorInset: editor?.editorInset, displayInset: display?.displayInset, delta: display && editor ? display.displayInset - editor.editorInset : null, readOnly: display })
     verify(Boolean(display && editor && Math.abs(editor.headerInset - display.displayInset) <= 2), `${spec.label} header and read-only value use the same right edge`, { headerInset: editor?.headerInset, displayInset: display?.displayInset, delta: display && editor ? display.displayInset - editor.headerInset : null, readOnly: display })
   }
-  const readOnlyPriceButton = 'section[aria-label="Bill of Materials rows"] tbody tr:first-child button[data-grid-field="price"][data-selected-number="true"]'
-  const viewPriceButtons = 'section[aria-label="Bill of Materials rows"] tbody tr button[data-grid-field="price"][data-selected-number="true"]'
-  const firstViewPriceButton = 'section[aria-label="Bill of Materials rows"] tbody tr:first-child button[data-grid-field="price"][data-selected-number="true"]'
-  const secondViewPriceButton = 'section[aria-label="Bill of Materials rows"] tbody tr:nth-child(2) button[data-grid-field="price"][data-selected-number="true"]'
-  const firstPriceRowId = await evaluate(`(${visibleExpression(firstViewPriceButton)})?.getAttribute('data-grid-row-id')`)
-  const secondPriceRowId = await evaluate(`(${visibleExpression(secondViewPriceButton)})?.getAttribute('data-grid-row-id')`)
-  await clickSelector(firstViewPriceButton)
+  const firstViewPriceCell = 'section[aria-label="Bill of Materials rows"] tbody tr:first-child [data-grid-cell="true"][data-grid-field="price"]'
+  const secondViewPriceCell = 'section[aria-label="Bill of Materials rows"] tbody tr:nth-child(2) [data-grid-cell="true"][data-grid-field="price"]'
+  const firstPriceRowId = await evaluate(`(${visibleExpression(firstViewPriceCell)})?.getAttribute('data-grid-row-id')`)
+  const secondPriceRowId = await evaluate(`(${visibleExpression(secondViewPriceCell)})?.getAttribute('data-grid-row-id')`)
+  await clickSelector(masterDataNavigation)
+  await waitFor(() => textContent('header [data-header-value] [data-selected-value-output]').then(value => value === '—'), 'View mode starts without a focused Header source')
+  const idleViewPrice = await geometry(`(()=>{const e=${visibleExpression(firstViewPriceCell)};if(!e)return null;const r=e.getBoundingClientRect();return {rect:{x:r.x,y:r.y,width:r.width,height:r.height},selectedNumber:!!e.closest('[data-selected-number="true"]'),pressed:e.getAttribute('aria-pressed'),header:document.querySelector('header [data-header-value] [data-selected-value-output]')?.textContent.trim()??null}})()`)
+  const hoverPoint = await hoverSelector(firstViewPriceCell)
+  const hoveredViewPrice = await geometry(`(()=>{const e=${visibleExpression(firstViewPriceCell)};if(!e)return null;const r=e.getBoundingClientRect(),s=getComputedStyle(e);return {rect:{x:r.x,y:r.y,width:r.width,height:r.height},selectedNumber:!!e.closest('[data-selected-number="true"]'),pressed:e.getAttribute('aria-pressed'),header:document.querySelector('header [data-header-value] [data-selected-value-output]')?.textContent.trim()??null,border:s.borderTopColor,background:s.backgroundColor,outline:s.outlineStyle,outlineWidth:s.outlineWidth}})()`)
+  verify(Boolean(idleViewPrice && hoveredViewPrice
+      && !idleViewPrice.selectedNumber && !hoveredViewPrice.selectedNumber
+      && idleViewPrice.pressed === null && hoveredViewPrice.pressed === null
+      && idleViewPrice.header === '—' && hoveredViewPrice.header === '—'
+      && JSON.stringify(idleViewPrice.rect) === JSON.stringify(hoveredViewPrice.rect)
+      && hoveredViewPrice.border === 'rgb(226, 232, 240)'
+      && hoveredViewPrice.background === 'rgb(248, 250, 252)'
+      && hoveredViewPrice.outline === 'none'),
+    'View numeric hover stays neutral gray, changes neither Header nor geometry, and has no SelectedNumber state', { idle: idleViewPrice, hover: hoveredViewPrice, pointer: hoverPoint })
+  await clickSelector(firstViewPriceCell)
+  const focusedViewPrice = await geometry(`(()=>{const e=${visibleExpression(firstViewPriceCell)},s=getComputedStyle(${visibleExpression(firstViewPriceCell)});return {active:document.activeElement===e,header:document.querySelector('header [data-header-value] [data-selected-value-output]')?.textContent.trim()??null,spinner:document.querySelectorAll('header [data-header-value] [data-numeric-stepper]').length,selectedNumber:!!e?.closest('[data-selected-number="true"]'),pressed:e?.getAttribute('aria-pressed')??null,outline:s.outlineColor,outlineWidth:s.outlineWidth,outlineStyle:s.outlineStyle}})()`)
+  verify(Boolean(focusedViewPrice?.active
+      && focusedViewPrice.header === '42.123456789'
+      && focusedViewPrice.spinner === 0
+      && !focusedViewPrice.selectedNumber
+      && focusedViewPrice.pressed === null
+      && focusedViewPrice.outline === 'rgb(29, 78, 216)'
+      && focusedViewPrice.outlineWidth === '2px'),
+    'native grid focus publishes the full read-only Header value with one blue focus perimeter and no spinner', focusedViewPrice)
   await send('Input.dispatchMouseEvent', { type: 'mouseMoved', x: 1438, y: 1798 })
   await delay(120)
+  verify(await evaluate(`document.activeElement===${visibleExpression(firstViewPriceCell)}`)
+      && await textContent('header [data-header-value] [data-selected-value-output]') === '42.123456789',
+    'pointer leave keeps native grid focus and the focus-owned Header value')
   await pressKey('Enter')
   const afterEnterFocusRow = await evaluate(`document.activeElement?.getAttribute('data-grid-row-id')`)
   verify(afterEnterFocusRow === secondPriceRowId, 'View-mode Enter from a read-only numeric cell advances to the next row', { firstRow: firstPriceRowId, focusedRow: afterEnterFocusRow, nextRow: secondPriceRowId })
+  verify(await textContent('header [data-header-value] [data-selected-value-output]') === '321.987654321', 'View Enter moves the Header source to the newly focused row')
   await pressKey('Enter', { shift: true })
   const afterShiftEnterFocusRow = await evaluate(`document.activeElement?.getAttribute('data-grid-row-id')`)
   verify(afterShiftEnterFocusRow === firstPriceRowId, 'View-mode Shift+Enter from a read-only numeric cell moves to the previous row', { focusedRow: afterShiftEnterFocusRow, previousRow: firstPriceRowId })
-  await pressKey(' ')
-  const afterSpaceSelection = await evaluate(`({pressed:${visibleExpression(firstViewPriceButton)}?.getAttribute('aria-pressed'),header:document.querySelector('header [data-header-value] [data-selected-value-output]')?.textContent.trim()})`)
-  verify(afterSpaceSelection?.pressed === 'true' && afterSpaceSelection.header === '42.123456789', 'Space activates a read-only SelectedNumber and selects its value')
-  await pressKey('Enter')
-  const afterFirstEnterFocus = await evaluate(`({row:document.activeElement?.getAttribute('data-grid-row-id'),header:document.querySelector('header [data-header-value] [data-selected-value-output]')?.textContent.trim()})`)
-  verify(afterFirstEnterFocus?.row === secondPriceRowId && afterFirstEnterFocus.header === '42.123456789', 'View-mode Enter advances through grid navigation without blocking the first cell source')
-  await pressKey('Enter')
-  const enterSelectedSecond = await evaluate(`({row:document.activeElement?.getAttribute('data-grid-row-id'),header:document.querySelector('header [data-header-value] [data-selected-value-output]')?.textContent.trim()})`)
-  verify(enterSelectedSecond?.row === secondPriceRowId && enterSelectedSecond.header === '321.987654321', 'Enter at the last numeric row activates/selects its read-only SelectedNumber', enterSelectedSecond)
-  const displayBeforeClick = await geometry(`(()=>{const e=${visibleExpression(readOnlyPriceButton)};if(!e)return null;const r=e.getBoundingClientRect(),s=getComputedStyle(e),tr=e.closest('td')?.getBoundingClientRect(),span=e.querySelector('span'),ss=span?getComputedStyle(span):null,sr=span?.getBoundingClientRect();const range=document.createRange();if(span)range.selectNodeContents(span);else range.selectNodeContents(e);const text=range.getBoundingClientRect();return {right:text.right,inset:tr.right-text.right,rectRight:r.right,display:s.display,width:r.width,paddingRight:s.paddingRight,textAlign:ss?.textAlign??s.textAlign,valueSpan:{width:sr?.width??0,paddingRight:ss?.paddingRight??null,rectRight:sr?.right??null},label:e.getAttribute('aria-label')}})()`)
-  await clickSelector(readOnlyPriceButton)
-  await waitFor(() => existsVisible('header [data-header-value] [data-selected-value-output]'), 'read-only Selected Value Header')
-  assert.equal(await textContent('header [data-header-value] [data-selected-value-output]'), '42.123456789', 'read-only Header Value shows the full selected value')
+  const enterReadOnlyHeader = await textContent('header [data-header-value] [data-selected-value-output]')
+  verify(enterReadOnlyHeader === '42.123456789', 'View Shift+Enter moves the Header source back to the first row', { header: enterReadOnlyHeader })
+  const missingViewCell = 'section[aria-label="Bill of Materials rows"] tbody tr:nth-child(2) [data-grid-cell="true"][data-grid-field="consumption"]'
+  await clickSelector(missingViewCell)
+  const missingViewState = await geometry(`(()=>{const e=${visibleExpression(missingViewCell)},td=e?.closest('td'),header=[...document.querySelectorAll('[aria-label="Bill of Materials column header controls"] th')].find(item=>item.textContent.trim()==='Usage');if(!e||!td||!header)return null;const valueRange=document.createRange(),textNode=[...e.childNodes].find(node=>node.nodeType===Node.TEXT_NODE&&node.textContent.trim());if(textNode)valueRange.selectNode(textNode);else valueRange.selectNodeContents(e);const text=valueRange.getBoundingClientRect(),r=e.getBoundingClientRect(),marker=e.querySelector('[aria-label="Missing required value"]'),markerRect=marker?.getBoundingClientRect(),headerRange=document.createRange();headerRange.selectNodeContents(header);const headerText=headerRange.getBoundingClientRect(),headerRect=header.getBoundingClientRect();return {active:document.activeElement===e,header:document.querySelector('header [data-header-value] [data-selected-value-output]')?.textContent.trim()??null,invalid:e.getAttribute('aria-invalid'),markerCount:e.querySelectorAll('[aria-label="Missing required value"]').length,markerClearance:markerRect?markerRect.left-text.right:null,bodyInset:td.getBoundingClientRect().right-text.right,headerInset:headerRect.right-headerText.right,width:r.width,selectedNumber:!!e.closest('[data-selected-number="true"]'),pressed:e.getAttribute('aria-pressed')}})()`)
+  verify(Boolean(missingViewState?.active
+      && missingViewState.header === '—'
+      && missingViewState.invalid === 'true'
+      && missingViewState.markerCount === 1
+      && missingViewState.markerClearance >= 8
+      && Math.abs(missingViewState.bodyInset - missingViewState.headerInset) <= 2
+      && missingViewState.width === 80
+      && !missingViewState.selectedNumber
+      && missingViewState.pressed === null),
+    'unavailable blocker cell remains native grid focus, leaves Header empty, and keeps its star outside the stable numeric axis', missingViewState)
+  const missingPercentCell = 'section[aria-label="Bill of Materials rows"] tbody tr:nth-child(2) [data-grid-cell="true"][data-grid-field="loss"]'
+  await clickSelector(missingPercentCell)
+  const missingPercentState = await geometry(`(()=>{
+    const cell=${visibleExpression(missingPercentCell)},td=cell?.closest('td'),shell=cell?.parentElement
+    const header=[...document.querySelectorAll('[aria-label="Bill of Materials column header controls"] th')].find(item=>item.textContent.trim()==='Loss')
+    if(!cell||!td||!shell||!header)return null
+    const range=document.createRange(),textNode=[...cell.childNodes].find(node=>node.nodeType===Node.TEXT_NODE&&node.textContent.trim())
+    if(textNode)range.selectNode(textNode);else range.selectNodeContents(cell)
+    const text=range.getBoundingClientRect(),cellRect=cell.getBoundingClientRect(),marker=cell.querySelector('[aria-label="Missing required value"]')
+    const markerRect=marker?.getBoundingClientRect(),suffix=shell.querySelector(':scope > span.w-3'),suffixRect=suffix?.getBoundingClientRect(),shellRect=shell.getBoundingClientRect()
+    const headerRange=document.createRange();headerRange.selectNodeContents(header)
+    const headerText=headerRange.getBoundingClientRect(),headerRect=header.getBoundingClientRect()
+    return {active:document.activeElement===cell,headerValue:document.querySelector('header [data-header-value] [data-selected-value-output]')?.textContent.trim()??null,invalid:cell.getAttribute('aria-invalid'),markerCount:cell.querySelectorAll('[aria-label="Missing required value"]').length,markerClearance:markerRect?markerRect.left-text.right:null,cellWidth:cellRect.width,shellWidth:shellRect.width,suffixText:suffix?.textContent.trim()??null,suffixGap:suffixRect?suffixRect.left-cellRect.right:null,bodyInset:td.getBoundingClientRect().right-text.right,headerInset:headerRect.right-headerText.right}
+  })()`)
+  verify(Boolean(missingPercentState?.active
+      && missingPercentState.headerValue === '—'
+      && missingPercentState.invalid === 'true'
+      && missingPercentState.markerCount === 1
+      && missingPercentState.markerClearance >= 8
+      && missingPercentState.cellWidth === 96
+      && missingPercentState.shellWidth === 112
+      && missingPercentState.suffixText === '%'
+      && missingPercentState.suffixGap === 4
+      && Math.abs(missingPercentState.bodyInset - missingPercentState.headerInset) <= 2),
+    'missing percentage blocker keeps the marker and suffix separate without shifting its numeric axis', missingPercentState)
+  const lossViewCell = 'section[aria-label="Bill of Materials rows"] tbody tr:first-child [data-grid-cell="true"][data-grid-field="loss"]'
+  await clickSelector(lossViewCell)
+  const percentageViewState = await evaluate(`(()=>({active:document.activeElement===${visibleExpression(lossViewCell)},header:document.querySelector('header [data-header-value] [data-selected-value-output]')?.textContent.trim()??null,suffix:document.querySelector('header [data-header-value]')?.textContent.includes('%')??false,spinner:document.querySelectorAll('header [data-header-value] [data-numeric-stepper]').length}))()`)
+  verify(Boolean(percentageViewState?.active
+      && percentageViewState.header === '5.67891234'
+      && percentageViewState.suffix
+      && percentageViewState.spinner === 0),
+    'focused read-only percentage value publishes its full displayed units and suffix without a spinner', percentageViewState)
+  await clickSelector(firstViewPriceCell)
+  const displayBeforeClick = await geometry(`(()=>{const e=${visibleExpression(firstViewPriceCell)};if(!e)return null;const r=e.getBoundingClientRect(),s=getComputedStyle(e),tr=e.closest('td')?.getBoundingClientRect(),range=document.createRange();range.selectNodeContents(e);const text=range.getBoundingClientRect();return {right:text.right,inset:tr.right-text.right,rectRight:r.right,display:s.display,width:r.width,paddingRight:s.paddingRight,textAlign:s.textAlign,outline:s.outlineColor,outlineWidth:s.outlineWidth,label:e.getAttribute('aria-label')}})()`)
   verify(await evaluate('document.querySelectorAll("header [data-header-value] [data-numeric-stepper]").length') === 0, 'read-only Header Value has no spinner')
   const readOnlyHeaderStyle = await geometry(`(()=>{
     const root=document.querySelector('header [data-header-value]'),output=root?.querySelector('[data-selected-value-output]')
@@ -677,8 +770,16 @@ try {
     'read-only Header is plain light text with no box and safe internal overflow', readOnlyHeaderStyle)
   await saveScreenshot('header-readonly-selected')
   await clickSelector(masterDataNavigation)
-  verify(await textContent('header [data-header-value] [data-selected-value-output]') === '42.123456789',
-    'read-only Header selection remains visible after focus moves outside')
+  verify(await textContent('header [data-header-value] [data-selected-value-output]') === '—',
+    'read-only focus-owned Header value clears when focus leaves the grid')
+  const responsiveTableSpecs = tableNumericFields.map(spec => ({
+    section: spec.section,
+    header: spec.header,
+    field: spec.field,
+    column: spec.column,
+    percentage: Boolean(spec.percentage),
+    maxWidth: ['consumption', 'manning'].includes(spec.field) ? 80 : 96
+  }))
   for (const width of [1440, 1024, 768, 390, 320]) {
     await setViewport(width, 1500)
     const layout = await geometry(`(()=>{
@@ -697,8 +798,77 @@ try {
         && layout.overflowX === 'auto'
         && layout.whiteSpace === 'nowrap'),
       `Header value and utility controls remain bounded and ordered at ${width}px`, layout)
+    const tableGeometry = await geometry(`(()=>{
+      const specs=${JSON.stringify(responsiveTableSpecs)}
+      const measurements=specs.map(spec=>{
+        const cell=document.querySelector('section[aria-label="'+spec.section+' rows"] tbody tr:first-child [data-grid-cell="true"][data-grid-field="'+spec.field+'"]')
+        const heading=[...document.querySelectorAll('[aria-label="'+spec.header+' column header controls"] th')].find(item=>item.textContent.trim()===spec.column)
+        if(!cell||!heading)return {...spec,missing:true}
+        const range=document.createRange(),valueNode=[...cell.childNodes].find(node=>node.nodeType===Node.TEXT_NODE&&node.textContent.trim())
+        if(valueNode)range.selectNode(valueNode);else range.selectNodeContents(cell)
+        const text=range.getBoundingClientRect(),field=cell.getBoundingClientRect(),bodyCell=cell.closest('td').getBoundingClientRect()
+        const headerRange=document.createRange();headerRange.selectNodeContents(heading)
+        const headerText=headerRange.getBoundingClientRect(),headerRect=heading.getBoundingClientRect()
+        const style=getComputedStyle(cell),shell=spec.percentage?cell.parentElement:null,suffix=shell?.querySelector(':scope > span.w-3'),suffixRect=suffix?.getBoundingClientRect(),shellRect=shell?.getBoundingClientRect()
+        const marker=cell.querySelector('[aria-label="Missing required value"]'),markerRect=marker?.getBoundingClientRect()
+        const section=cell.closest('section'),scroller=section?.querySelector('.overflow-x-auto')
+        return {
+          ...spec,
+          width:field.width,
+          height:field.height,
+          bodyAxisInset:bodyCell.right-text.right,
+          headerAxisInset:headerRect.right-headerText.right,
+          axisDelta:bodyCell.right-text.right-(headerRect.right-headerText.right),
+          paddingRight:style.paddingRight,
+          focused:document.activeElement===cell,
+          selectedNumber:!!cell.closest('[data-selected-number="true"]'),
+          pressed:cell.getAttribute('aria-pressed'),
+          shellWidth:shellRect?.width??null,
+          suffixGap:suffixRect? suffixRect.left-field.right:null,
+          markerClearance:markerRect?markerRect.left-text.right:null,
+          scroller:{clientWidth:scroller?.clientWidth??0,scrollWidth:scroller?.scrollWidth??0},
+          documentWidth:document.documentElement.scrollWidth
+        }
+      })
+      return {measurements,documentWidth:document.documentElement.scrollWidth,viewportWidth:innerWidth}
+    })()`)
+    const badTableGeometry = tableGeometry?.measurements?.filter(item => item.missing
+      || item.width > item.maxWidth + 0.5
+      || item.height !== 32
+      || Math.abs(item.axisDelta) > 2
+      || item.selectedNumber
+      || item.pressed !== null
+      || item.documentWidth > width + 1
+      || item.scroller.scrollWidth < item.scroller.clientWidth
+      || (item.percentage && (Math.abs(item.shellWidth - 112) > 0.5 || item.suffixGap < 3.5 || item.suffixGap > 4.5))
+      || (item.markerClearance !== null && item.markerClearance < 8)) ?? []
+    verify(Boolean(tableGeometry && badTableGeometry.length === 0
+        && tableGeometry.documentWidth <= width + 1
+        && (width > 1024 || tableGeometry.measurements.every(item => item.scroller.scrollWidth > item.scroller.clientWidth))),
+      `BOM, Work Centers, and Routing keep compact aligned numeric axes at ${width}px`, tableGeometry)
+    if (width === 1440 || width === 1024 || width === 768 || width === 390 || width === 320) await saveScreenshot(`master-data-view-${width}`)
   }
   await setViewport(1440, 1800)
+  await clickSelector(firstViewPriceCell)
+  verify(await textContent('header [data-header-value] [data-selected-value-output]') === '42.123456789',
+    'All view focuses the selected Master Data numeric grid source before search')
+  const masterDataSearch = 'input[aria-label="Search Master Data"]'
+  await replaceInput(masterDataSearch, 'Material 2')
+  await waitFor(() => evaluate('document.querySelectorAll("section[aria-label=\\"Bill of Materials rows\\"] tbody tr[data-master-data-row-id]").length === 1'),
+    'All view search filters the Master Data rows')
+  const searchedGridState = await evaluate(`(()=>({
+    rows:[...document.querySelectorAll('section[aria-label="Bill of Materials rows"] tbody tr[data-master-data-row-id]')].map(row=>row.querySelector('[data-grid-field="description"]')?.textContent.trim()),
+    header:document.querySelector('header [data-header-value] [data-selected-value-output]')?.textContent.trim()??null
+  }))()`)
+  verify(searchedGridState?.rows.length === 1 && searchedGridState.rows[0] === 'Material 2' && searchedGridState.header === '—',
+    'All view search removes the hidden focused source and does not leave a stale Header value', searchedGridState)
+  const searchedPriceCell = 'section[aria-label="Bill of Materials rows"] tbody tr:first-child [data-grid-cell="true"][data-grid-field="price"]'
+  await clickSelector(searchedPriceCell)
+  verify(await textContent('header [data-header-value] [data-selected-value-output]') === '321.987654321',
+    'a filtered native numeric grid cell still owns focus and publishes its full Header value')
+  await replaceInput(masterDataSearch, '')
+  await waitFor(() => evaluate('document.querySelectorAll("section[aria-label=\\"Bill of Materials rows\\"] tbody tr[data-master-data-row-id]").length === 2'),
+    'clearing All view search restores the original Master Data rows')
   const headerOutputStyle = await geometry(`(()=>{const e=document.querySelector('header [data-header-value] [data-selected-value-output]');const r=e.getBoundingClientRect(),s=getComputedStyle(e),range=document.createRange();range.selectNodeContents(e);return {right:range.getBoundingClientRect().right,rectRight:r.right,textAlign:s.textAlign,paddingRight:s.paddingRight}})()`)
   const rowStillUnselected = await evaluate(`document.querySelector('section[aria-label="Bill of Materials rows"] tr[data-master-data-row-id]')?.getAttribute('aria-selected')`)
   verify(rowStillUnselected === 'false', 'read-only spreadsheet value selection does not select its row')
@@ -759,7 +929,7 @@ try {
   await clickSelector('header button[aria-label="Undo"]')
   await clickSelector('header button[aria-label="Redo"]')
   await chooseRole('Current')
-  const currentPriceReadOnly = 'section[aria-label="Bill of Materials rows"] tbody tr:first-child button[data-grid-field="price"][data-selected-number="true"]'
+  const currentPriceReadOnly = 'section[aria-label="Bill of Materials rows"] tbody tr:first-child [data-grid-cell="true"][data-grid-field="price"]'
   await clickSelector(currentPriceReadOnly)
   assert.equal(await textContent('header [data-header-value] [data-selected-value-output]'), '42.123456789', 'Custom history actions do not mutate Current source')
   await clickTextButton('Cost Breakdown')

@@ -15,7 +15,7 @@ import { MasterDataTableHeader } from './MasterDataTableChrome'
 import { MasterDataBlockerMarker } from './MasterDataBlockerMarker'
 import { Tooltip } from '../../../shared/ui/Tooltip'
 import { RowSelectionButton } from '../../../shared/ui/RowSelectionButton'
-import { MasterDataNumericInput, MasterDataSelectedNumber, masterDataSelectedValueId } from './MasterDataNumericValue'
+import { MasterDataFocusedNumber, MasterDataNumericInput, masterDataSelectedValueId } from './MasterDataNumericValue'
 import { StickyTableHeader, useSynchronizedTableHeader } from '../../../shared/ui/StickyTableHeader'
 import { masterDataActionsColumnClass, masterDataDisplaySlotClass, masterDataIdentityColumnClass, masterDataIndexColumnClass, masterDataIssueDisplayClass, masterDataIssueEditorClass, masterDataIssuePlaceholderClass, masterDataNoteColumnClass, masterDataNumericDisplaySlotClass, masterDataNumericEditorClass, masterDataPercentageShellClass, masterDataSpreadsheetSelectionClass, masterDataTableClass, masterDataTextEditorClass } from './master-data-field-styles'
 
@@ -373,7 +373,7 @@ export const RoutingTable: React.FC<RoutingTableProps> = ({
                   </td>
                   <td className="relative px-2 py-0.5 text-right font-mono tabular-nums">
                     {isEditMode ? (
-                      <div className="relative w-full min-w-0">
+                      <div className="relative ml-auto w-full max-w-20">
                         <MasterDataNumericInput
                           value={step.manning}
                           onValueChange={value => applyCellUpdate(step.id, { manning: value })}
@@ -389,7 +389,7 @@ export const RoutingTable: React.FC<RoutingTableProps> = ({
                         />
                         {manningMissing && <MasterDataBlockerMarker />}
                       </div>
-                    ) : <MasterDataSelectedNumber
+                    ) : <MasterDataFocusedNumber
                       value={step.manning}
                       selectionId={valueSourceId(step.id, 'manning')}
                       data-grid-cell="true"
@@ -400,12 +400,12 @@ export const RoutingTable: React.FC<RoutingTableProps> = ({
                       aria-invalid={manningMissing || manningInvalid}
                       reserveMarker
                       missingMarker={manningMissing}
-                      className={`${masterDataNumericDisplaySlotClass} ${showWarningHighlights && (manningMissing || manningInvalid) ? masterDataIssueDisplayClass : ''} ${selectedCellKeys.has(tableCellKey(step.id, 'manning')) ? masterDataSpreadsheetSelectionClass : ''}`}
+                      className={`${masterDataNumericDisplaySlotClass} ml-auto max-w-20 ${showWarningHighlights && (manningMissing || manningInvalid) ? masterDataIssueDisplayClass : ''} ${selectedCellKeys.has(tableCellKey(step.id, 'manning')) ? masterDataSpreadsheetSelectionClass : ''}`}
                     />}
                   </td>
                   <td className="relative px-2 py-0.5 text-right font-mono tabular-nums">
                     {isEditMode ? (
-                      <div className="relative w-full min-w-0">
+                      <div className="relative ml-auto w-full max-w-24">
                         <MasterDataNumericInput
                           value={step.capacity}
                           onValueChange={value => applyCellUpdate(step.id, { capacity: value })}
@@ -422,7 +422,7 @@ export const RoutingTable: React.FC<RoutingTableProps> = ({
                         />
                         {capacityMissing && <MasterDataBlockerMarker />}
                       </div>
-                    ) : <MasterDataSelectedNumber
+                    ) : <MasterDataFocusedNumber
                       value={step.capacity}
                       selectionId={valueSourceId(step.id, 'capacity')}
                       data-grid-cell="true"
@@ -433,7 +433,7 @@ export const RoutingTable: React.FC<RoutingTableProps> = ({
                       aria-invalid={capacityMissing || capacityInvalid}
                       reserveMarker
                       missingMarker={capacityMissing}
-                      className={`${masterDataNumericDisplaySlotClass} ${showWarningHighlights && (capacityMissing || capacityInvalid) ? masterDataIssueDisplayClass : ''} ${selectedCellKeys.has(tableCellKey(step.id, 'capacity')) ? masterDataSpreadsheetSelectionClass : ''}`}
+                      className={`${masterDataNumericDisplaySlotClass} ml-auto max-w-24 ${showWarningHighlights && (capacityMissing || capacityInvalid) ? masterDataIssueDisplayClass : ''} ${selectedCellKeys.has(tableCellKey(step.id, 'capacity')) ? masterDataSpreadsheetSelectionClass : ''}`}
                     />}
                   </td>
                   <td className="relative px-2 py-0.5 text-right font-mono tabular-nums">
@@ -461,7 +461,7 @@ export const RoutingTable: React.FC<RoutingTableProps> = ({
                       </div>
                     ) : (
                       <div className={masterDataPercentageShellClass}>
-                        <MasterDataSelectedNumber
+                        <MasterDataFocusedNumber
                           value={step.yield === null ? null : step.yield * 100}
                           selectionId={valueSourceId(step.id, 'yield')}
                           percentage

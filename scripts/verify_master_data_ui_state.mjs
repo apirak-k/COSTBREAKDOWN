@@ -551,6 +551,7 @@ try {
   const bomSource = readFileSync(resolve(process.cwd(), 'src/features/master-data/components/BOMTable.tsx'), 'utf8')
   const wcSource = readFileSync(resolve(process.cwd(), 'src/features/master-data/components/WorkCenterRatesTable.tsx'), 'utf8')
   const routingSource = readFileSync(resolve(process.cwd(), 'src/features/master-data/components/RoutingTable.tsx'), 'utf8')
+  const numericValueSource = readFileSync(resolve(process.cwd(), 'src/features/master-data/components/MasterDataNumericValue.tsx'), 'utf8')
   const tableChromeSource = readFileSync(resolve(process.cwd(), 'src/features/master-data/components/MasterDataTableChrome.tsx'), 'utf8')
   const tooltipSource = readFileSync(resolve(process.cwd(), 'src/shared/ui/Tooltip.tsx'), 'utf8')
   const fieldStylesSource = readFileSync(resolve(process.cwd(), 'src/features/master-data/components/master-data-field-styles.ts'), 'utf8')
@@ -1026,11 +1027,11 @@ try {
     '<td className="relative px-2 py-0.5 text-right font-mono tabular-nums">',
     'masterDataPercentageShellClass',
   ].every(token => bomSource.includes(token)), 'BOM numeric fields use right-aligned shared tracks while Unit stays centered and Loss owns a stable percentage shell')
-  assert.match(wcSource, /className="relative w-full min-w-0"[\s\S]*data-grid-field="laborRate"[\s\S]*className="relative w-full min-w-0"[\s\S]*data-grid-field="burdenRate"/, 'Work Center rate controls fill their right-aligned numeric tracks')
-  assert.match(routingSource, /className="relative w-full min-w-0"[\s\S]*data-grid-field="manning"[\s\S]*className="relative w-full min-w-0"[\s\S]*data-grid-field="capacity"[\s\S]*masterDataPercentageShellClass/, 'Routing numeric fields fill their right-aligned tracks while Yield owns a stable percentage shell')
-  assert.match(bomSource, /relative w-full min-w-0[\s\S]*MasterDataBlockerMarker/, 'BOM blocker marker overlays the full-width numeric value field without taking layout width')
-  assert.match(wcSource, /relative w-full min-w-0[\s\S]*MasterDataBlockerMarker/, 'Work Center blocker markers overlay full-width numeric fields without taking layout width')
-  assert.match(routingSource, /relative w-full min-w-0[\s\S]*MasterDataBlockerMarker/, 'Routing blocker markers overlay full-width numeric fields without taking layout width')
+  assert.match(wcSource, /className="relative ml-auto w-full max-w-24"[\s\S]*data-grid-field="laborRate"[\s\S]*className="relative ml-auto w-full max-w-24"[\s\S]*data-grid-field="burdenRate"/, 'Work Center rate controls restore compact right-aligned 24-unit tracks')
+  assert.match(routingSource, /className="relative ml-auto w-full max-w-20"[\s\S]*data-grid-field="manning"[\s\S]*className="relative ml-auto w-full max-w-24"[\s\S]*data-grid-field="capacity"[\s\S]*masterDataPercentageShellClass/, 'Routing controls restore compact right-aligned Manning and Capacity tracks with a compact Yield shell')
+  assert.match(bomSource, /relative ml-auto w-full max-w-20[\s\S]*MasterDataBlockerMarker/, 'BOM blocker marker overlays the restored compact numeric value field without taking layout width')
+  assert.match(wcSource, /relative ml-auto w-full max-w-24[\s\S]*MasterDataBlockerMarker/, 'Work Center blocker markers overlay restored compact numeric fields without taking layout width')
+  assert.match(routingSource, /relative ml-auto w-full max-w-20[\s\S]*MasterDataBlockerMarker/, 'Routing blocker markers overlay restored compact numeric fields without taking layout width')
   assert.match(pageSource, /setMasterDataRole\(item\.role\)[\s\S]*tableView: item\.table/, 'warning navigation selects the affected dataset and table')
   assert.match(pageSource, /updateMasterDataUiState\(\{ type: 'set-mode', mode: 'edit' \}\)[\s\S]*tableView: item\.table/, 'warning navigation switches to Edit and the affected table')
   assert.match(pageSource, /handleWarningNavigationHandled[\s\S]*current\?\.requestId === requestId \? undefined : current/, 'warning navigation consumes the completed request')
@@ -1297,6 +1298,9 @@ try {
   assert.match(tableChromeSource, /<header className="flex min-h-10 flex-wrap items-center justify-between[\s\S]*<h3[^>]*>\{title\}<\/h3>[\s\S]*<div className="flex min-w-0 flex-wrap items-center justify-end/, 'table header title stays left while its status/action group stays right')
   assert.match(tableChromeSource, /w-36 shrink-0 whitespace-nowrap text-right font-mono text-\[10px\] tabular-nums/, 'row and selection totals occupy a fixed tabular status slot')
   const allTablesSource = bomSource + wcSource + routingSource
+  assert.doesNotMatch(allTablesSource, /MasterDataSelectedNumber|data-selected-number/, 'numeric View grid cells do not mount a second SelectedNumber interaction layer')
+  assert.match(numericValueSource, /export function MasterDataFocusedNumber[\s\S]*editable: false[\s\S]*data-grid-cell=\{gridCell\}[\s\S]*onFocus=\{focus\}[\s\S]*clearFocus\(selectionId\)/,
+    'the native read-only grid cell publishes focus and clears only its own Header source on blur')
   assert.match(fieldStylesSource, /masterDataIndexColumnClass = 'w-12'/, '# columns share the fixed 3rem width token')
   assert.match(fieldStylesSource, /masterDataActionsColumnClass = 'w-20'/, 'Actions columns share the fixed 5rem width token')
   const getColumnGroup = source => source.match(/<colgroup>([\s\S]*?)<\/colgroup>/)?.[1] ?? ''
@@ -1348,20 +1352,20 @@ try {
   assert.match(fieldStylesSource, /masterDataIssuePlaceholderClass = 'placeholder:text-slate-500'/, 'generated placeholders on amber issues use a readable stronger neutral slate')
   assert.doesNotMatch(allTablesSource, /showWarningHighlights[\s\S]{0,80}border-rose-[0-9]+/, 'Blockers never use a red field border')
   assert.doesNotMatch(allTablesSource, /<td className=\{`[^`]*bg-amber-50/, 'issue fill remains field-level, never a whole-cell fill')
-  assert.match(fieldStylesSource, /masterDataPercentageShellClass = 'ml-auto flex h-8 w-full min-w-0 items-center gap-1'/, 'percentage field groups fill the right-aligned numeric track and reserve the suffix gap')
+  assert.match(fieldStylesSource, /masterDataPercentageShellClass = 'ml-auto flex h-8 w-28 min-w-0 items-center gap-1'/, 'percentage field groups restore the compact right-aligned 28-unit shell and reserve the suffix gap')
   assert.doesNotMatch(fieldStylesSource, /masterDataPercentage(?:InputShell|IssueShell|Editor|DisplayValue)Class|focus-within/, 'percentage fields do not define a separate focus, issue, or display-state family')
   const viewPercentageMarkup = (source, field) => {
     const firstFieldIndex = source.indexOf(`data-grid-field="${field}"`)
-    const fieldIndex = source.indexOf('<MasterDataSelectedNumber', firstFieldIndex)
+    const fieldIndex = source.indexOf('<MasterDataFocusedNumber', firstFieldIndex)
     const groupIndex = source.lastIndexOf('className={masterDataPercentageShellClass}', fieldIndex)
     return source.slice(groupIndex, groupIndex + 1400)
   }
   const lossViewMarkup = viewPercentageMarkup(bomSource, 'loss')
   const yieldViewMarkup = viewPercentageMarkup(routingSource, 'yield')
   for (const [field, markup] of [['Loss', lossViewMarkup], ['Yield', yieldViewMarkup]]) {
-    assert.match(markup, /className=\{masterDataPercentageShellClass\}>\s*<MasterDataSelectedNumber[\s\S]*?data-grid-cell="true"/, `${field} View keeps the percentage group as layout owner and focuses one value field`)
-    assert.match(markup, /className=\{`\$\{masterDataNumericDisplaySlotClass\} w-0 flex-1[\s\S]*masterDataSpreadsheetSelectionClass/, `${field} View uses the shared full-width numeric field for focus, issue, and selection`)
-    assert.match(markup, /value=\{[^\n]*=== null \? null :[^\n]*\}[\s\S]*missingMarker=\{(?:loss|yield)Missing\}/, `${field} unavailable value flows through the shared right-aligned SelectedNumber area`)
+    assert.match(markup, /className=\{masterDataPercentageShellClass\}>\s*<MasterDataFocusedNumber[\s\S]*?data-grid-cell="true"/, `${field} View keeps the historical percentage layout with one native focus target`)
+    assert.match(markup, /className=\{`\$\{masterDataNumericDisplaySlotClass\} w-0 flex-1[\s\S]*masterDataSpreadsheetSelectionClass/, `${field} View uses the shared right-aligned numeric field for focus, issue, and range selection`)
+    assert.match(markup, /value=\{[^\n]*=== null \? null :[^\n]*\}[\s\S]*missingMarker=\{(?:loss|yield)Missing\}/, `${field} unavailable value flows through the shared read-only focus source`)
     assert.match(markup, /\/>\s*<span className="w-3 shrink-0 text-center text-\[11px\] text-slate-400">%<\/span>/, `${field} View keeps the percent suffix outside the value field perimeter`)
   }
   assert.ok(bomSource.includes('className={masterDataPercentageShellClass}')
@@ -1402,7 +1406,7 @@ try {
   assert.match(blockerMarkerSource, /aria-label=\{label\}[\s\S]*pointer-events-none absolute[\s\S]*font-sans[\s\S]*text-\[11px\][\s\S]*font-bold[\s\S]*text-rose-600[\s\S]*>\s*\*\s*</, 'blocker star uses shared sans typography as a small bold accessible overlay outside field layout')
   assert.match(bomSource + wcSource + routingSource, /<MasterDataBlockerMarker/, 'BOM, Work Centers, and Routing render blocker stars through the shared overlay marker')
   assert.doesNotMatch(bomSource + wcSource + routingSource, /pr-(?:3|4|5)(?:\s|`)/, 'blocker markers do not reserve padding that shifts values or narrows their inputs')
-  assert.match(fieldStylesSource, /masterDataNumericDisplaySlotClass = `relative flex h-8 w-full min-w-0 items-center justify-end rounded-sm border border-transparent text-right[\s\S]*\$\{masterDataCellFocusClass\}`/, 'View numeric values use a full-width shared 32px right-aligned field with the same Focus treatment as Edit')
+  assert.match(fieldStylesSource, /masterDataNumericDisplaySlotClass = `relative flex h-8 w-full min-w-0 items-center justify-end rounded-sm border border-transparent text-right[\s\S]*hover:border-slate-200 hover:bg-slate-50[\s\S]*\$\{masterDataCellFocusClass\}`/, 'View numeric fields keep a stable right-aligned focus target with neutral Edit-like hover')
   assert.match(blockerMarkerSource, /className="pointer-events-none absolute right-1 top-1\/2[\s\S]*-translate-y-1\/2/, 'all Blocker stars use a shared right and vertical-center anchor')
   assert.match(routingSource, /showWarningHighlights && workCenterInvalid \? 'text-amber-900' : ''[\s\S]*showWarningHighlights && workCenterInvalid \? masterDataIssueDisplayClass : ''/,
     'Routing missing or unresolved Work Center hides both amber text and fill when highlights are off')

@@ -131,3 +131,64 @@ export function MasterDataSelectedNumber({
     </SelectedNumber>
   )
 }
+
+interface MasterDataFocusedNumberProps {
+  value: number | null | undefined
+  selectionId: string
+  percentage?: boolean
+  integer?: boolean
+  className?: string
+  tabIndex?: number
+  'aria-label'?: string
+  'aria-invalid'?: boolean | 'true' | 'false'
+  'data-grid-cell'?: string
+  'data-grid-row-id'?: string
+  'data-grid-field'?: string
+  reserveMarker?: boolean
+  missingMarker?: boolean
+}
+
+/** Keep the existing grid cell as the sole focus target while publishing its read-only value. */
+export function MasterDataFocusedNumber({
+  value,
+  selectionId,
+  percentage = false,
+  integer = false,
+  className,
+  tabIndex,
+  'aria-label': ariaLabel,
+  'aria-invalid': ariaInvalid,
+  'data-grid-cell': gridCell,
+  'data-grid-row-id': gridRowId,
+  'data-grid-field': gridField,
+  reserveMarker = false,
+  missingMarker = false
+}: MasterDataFocusedNumberProps) {
+  const { clearFocus } = useSelectedValue()
+  const { focus } = useSelectedValueSource({ value, editable: false, domain: { integer }, percentage }, selectionId)
+  const displayValue = value != null && Number.isFinite(value) ? formatBusinessNumber(value, { integer }) : '—'
+
+  return (
+    <span
+      tabIndex={tabIndex}
+      aria-label={ariaLabel}
+      aria-invalid={ariaInvalid}
+      data-grid-cell={gridCell}
+      data-grid-row-id={gridRowId}
+      data-grid-field={gridField}
+      data-selected-value-source={selectionId}
+      onFocus={focus}
+      onBlur={event => {
+        const header = event.relatedTarget instanceof Element
+          ? event.relatedTarget.closest('[data-header-value]')
+          : null
+        const headerSourceId = header?.querySelector('[data-selected-value-source]')?.getAttribute('data-selected-value-source')
+        if (headerSourceId !== selectionId) clearFocus(selectionId)
+      }}
+      className={`${reserveMarker ? 'pr-6 ' : ''}${className ?? ''}`.trim()}
+    >
+      {displayValue}
+      {missingMarker && <MasterDataBlockerMarker />}
+    </span>
+  )
+}

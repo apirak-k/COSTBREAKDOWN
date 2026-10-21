@@ -27,8 +27,8 @@ export const masterDataUnitColumnClass = 'w-24'
 
 export const masterDataTableClass = 'w-full min-w-[77rem] table-fixed border-collapse text-left text-xs'
 
-export const masterDataPercentageShellClass = 'ml-auto flex h-8 w-full min-w-0 items-center gap-1'
+export const masterDataPercentageShellClass = 'ml-auto flex h-8 w-28 min-w-0 items-center gap-1'
 
 export const masterDataDisplaySlotClass = `flex h-8 w-full min-w-0 items-center rounded-sm border border-transparent px-2 text-xs text-slate-900 ${masterDataCellFocusClass}`
 
-export const masterDataNumericDisplaySlotClass = `relative flex h-8 w-full min-w-0 items-center justify-end rounded-sm border border-transparent text-right font-mono text-xs tabular-nums text-slate-900 ${masterDataCellFocusClass}`
+export const masterDataNumericDisplaySlotClass = `relative flex h-8 w-full min-w-0 items-center justify-end rounded-sm border border-transparent text-right font-mono text-xs tabular-nums text-slate-900 transition-colors hover:border-slate-200 hover:bg-slate-50 ${masterDataCellFocusClass}`

@@ -15,7 +15,7 @@ import { MasterDataTableHeader } from './MasterDataTableChrome'
 import { MasterDataBlockerMarker } from './MasterDataBlockerMarker'
 import { Tooltip } from '../../../shared/ui/Tooltip'
 import { RowSelectionButton } from '../../../shared/ui/RowSelectionButton'
-import { MasterDataNumericInput, MasterDataSelectedNumber, masterDataSelectedValueId } from './MasterDataNumericValue'
+import { MasterDataFocusedNumber, MasterDataNumericInput, masterDataSelectedValueId } from './MasterDataNumericValue'
 import { StickyTableHeader, useSynchronizedTableHeader } from '../../../shared/ui/StickyTableHeader'
 import { masterDataActionsColumnClass, masterDataCellFocusClass, masterDataDisplaySlotClass, masterDataIdentityColumnClass, masterDataIndexColumnClass, masterDataIssueDisplayClass, masterDataIssueEditorClass, masterDataIssuePlaceholderClass, masterDataNoteColumnClass, masterDataNumericDisplaySlotClass, masterDataNumericEditorClass, masterDataPercentageShellClass, masterDataSpreadsheetSelectionClass, masterDataTableClass, masterDataTextEditorClass, masterDataUnitColumnClass } from './master-data-field-styles'
 
@@ -337,7 +337,7 @@ export const BOMTable: React.FC<BOMTableProps> = ({
                   </td>
                   <td className="relative px-2 py-0.5 text-right font-mono tabular-nums">
                     {isEditMode ? (
-                      <div className="relative w-full min-w-0">
+                      <div className="relative ml-auto w-full max-w-20">
                         <MasterDataNumericInput
                           value={item.consumption}
                           onValueChange={value => applyCellUpdate(item.id, { consumption: value })}
@@ -353,7 +353,7 @@ export const BOMTable: React.FC<BOMTableProps> = ({
                         />
                         {consumptionMissing && <MasterDataBlockerMarker />}
                       </div>
-                    ) : <MasterDataSelectedNumber
+                    ) : <MasterDataFocusedNumber
                       value={item.consumption}
                       selectionId={valueSourceId(item.id, 'consumption')}
                       data-grid-cell="true"
@@ -364,7 +364,7 @@ export const BOMTable: React.FC<BOMTableProps> = ({
                       aria-invalid={consumptionMissing || consumptionInvalid}
                       reserveMarker
                       missingMarker={consumptionMissing}
-                      className={`${masterDataNumericDisplaySlotClass} ${showWarningHighlights && (consumptionMissing || consumptionInvalid) ? masterDataIssueDisplayClass : ''} ${selectedCellKeys.has(tableCellKey(item.id, 'consumption')) ? masterDataSpreadsheetSelectionClass : ''}`}
+                      className={`${masterDataNumericDisplaySlotClass} ml-auto max-w-20 ${showWarningHighlights && (consumptionMissing || consumptionInvalid) ? masterDataIssueDisplayClass : ''} ${selectedCellKeys.has(tableCellKey(item.id, 'consumption')) ? masterDataSpreadsheetSelectionClass : ''}`}
                     />}
                   </td>
                   <td className="px-2 py-0.5 text-center font-mono">
@@ -390,7 +390,7 @@ export const BOMTable: React.FC<BOMTableProps> = ({
                   </td>
                   <td className="relative px-2 py-0.5 text-right font-mono tabular-nums">
                     {isEditMode ? (
-                      <div className="relative w-full min-w-0">
+                      <div className="relative ml-auto w-full max-w-24">
                         <MasterDataNumericInput
                           value={item.price}
                           onValueChange={value => applyCellUpdate(item.id, { price: value })}
@@ -406,7 +406,7 @@ export const BOMTable: React.FC<BOMTableProps> = ({
                         />
                         {priceMissing && <MasterDataBlockerMarker />}
                       </div>
-                    ) : <MasterDataSelectedNumber
+                    ) : <MasterDataFocusedNumber
                       value={item.price}
                       selectionId={valueSourceId(item.id, 'price')}
                       data-grid-cell="true"
@@ -417,7 +417,7 @@ export const BOMTable: React.FC<BOMTableProps> = ({
                       aria-invalid={priceMissing || priceInvalid}
                       reserveMarker
                       missingMarker={priceMissing}
-                      className={`${masterDataNumericDisplaySlotClass} ${showWarningHighlights && (priceMissing || priceInvalid) ? masterDataIssueDisplayClass : ''} ${selectedCellKeys.has(tableCellKey(item.id, 'price')) ? masterDataSpreadsheetSelectionClass : ''}`}
+                      className={`${masterDataNumericDisplaySlotClass} ml-auto max-w-24 ${showWarningHighlights && (priceMissing || priceInvalid) ? masterDataIssueDisplayClass : ''} ${selectedCellKeys.has(tableCellKey(item.id, 'price')) ? masterDataSpreadsheetSelectionClass : ''}`}
                     />}
                   </td>
                   <td className="relative px-2 py-0.5 text-right font-mono tabular-nums">
@@ -444,7 +444,7 @@ export const BOMTable: React.FC<BOMTableProps> = ({
                       </div>
                     ) : (
                       <div className={masterDataPercentageShellClass}>
-                        <MasterDataSelectedNumber
+                        <MasterDataFocusedNumber
                           value={item.loss === null ? null : item.loss * 100}
                           selectionId={valueSourceId(item.id, 'loss')}
                           percentage
