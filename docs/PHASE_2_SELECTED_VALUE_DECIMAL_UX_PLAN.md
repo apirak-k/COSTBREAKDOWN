@@ -77,6 +77,7 @@ Round 2 record:
 - Historical recovery source: `3b3880f79891293662aeb5e622d11941bcf3ea64`.
 - Header correction preserved: `3ec9bbebebb01db65b3d8096082680a5e7b18aec`.
 - Round 2 closure implementation SHA: `b89c283522e37a9d9e59535a81e3e0a3c8016053` (`fix: close master data selected value round`), a direct child of the starting SHA above. The adjacent documentation receipt records this exact SHA; no Round 1 history was rewritten.
+- Post-close finalized correction started from local and freshly fetched remote SHA `4df905927ee9237a5e7a9e335e1bee9f8ce73825`; both matched and the worktree was clean before edits. Its implementation is `1c7f18092c5989f05a7eef371beef95bee083f44` (`fix: finalize master data hover preview and header precision`), a direct child of that base. This correction accepts only the subsequently finalized hover-priority and Header-presentation requirements; it preserves the valid `b89c283` work.
 
 **History restore rule:** use `git show` / `git diff` around `3b3880f` and `66f8b83` to identify the exact Master Data behavior introduced by the premature integration. Restore only the affected behavior from its actual pre-integration history when that is the correct source of truth, then reapply compatible finalized requirements. Do not reset the branch to `3b3880f`, revert all of `66f8b83`, discard later valid work, or revert `3ec9bbe`. No new branch, merge, rebase, or force-push is part of this plan.
 
