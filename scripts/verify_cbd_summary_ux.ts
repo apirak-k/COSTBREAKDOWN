@@ -439,10 +439,12 @@ try {
     assert.equal(selectedSlot.tag, 'button', 'Selected mode value is an eligible shared SelectedNumber source for ' + label)
     assert.equal(selectedSlot.ariaHidden, null, 'Selected mode source is exposed by default for ' + label)
     assert.match(selectedSlot.ariaLabel ?? '', new RegExp(label + ' Selected Gap'), 'Selected mode retains its semantic accessible name for ' + label)
-    for (const token of ['w-full', 'text-right', 'text-[10px]', 'font-normal', 'text-slate-500', 'tabular-nums']) {
+    for (const token of ['justify-self-end', 'text-right', 'text-[10px]', 'font-normal', 'text-slate-500', 'tabular-nums']) {
       assert.ok(selectedSlot.className.split(/\s+/).includes(token),
-        'SelectedNumber fills the reserved right-aligned secondary slot with ' + token + ' for ' + label)
+        'SelectedNumber hugs its rendered value and stays right-aligned in the reserved secondary slot with ' + token + ' for ' + label)
     }
+    assert.doesNotMatch(selectedSlot.className, /\b(block|w-full)\b/,
+      'SelectedNumber does not stretch across the reserved secondary slot for ' + label)
     assert.doesNotMatch(selectedSlot.className, /relative|left-2/,
       'Selected numeric values keep their existing position for ' + label)
     assert.doesNotMatch(selectedSlot.className, /text-(rose|red|green|emerald)-|font-(bold|semibold)/,

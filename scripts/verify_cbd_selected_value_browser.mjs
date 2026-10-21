@@ -119,7 +119,12 @@ try {
   const evaluate = async expression => {
     try {
       const response = await send('Runtime.evaluate', { expression, returnByValue: true, awaitPromise: true })
-      if (response.result.exceptionDetails) throw new Error(response.result.exceptionDetails.text)
+      if (response.result.exceptionDetails) {
+        const details = response.result.exceptionDetails
+        const description = details.exception?.description ?? details.text
+        const snippet = expression.replace(/\s+/g, ' ').slice(0, 600)
+        throw new Error(`Runtime.evaluate failed: ${description}; expression=${snippet}`)
+      }
       return response.result.result.value
     } catch (error) {
       if (!String(error.message).includes('Chrome DevTools command timed out: Runtime.evaluate')) throw error
@@ -175,9 +180,9 @@ try {
     await delay(200)
   }
   const pressKey = async (key, modifiers = 0) => {
-    const code = key === 'Enter' ? 'Enter' : key === 'Tab' ? 'Tab' : key === 'a' ? 'KeyA' : key
-    const vk = key === 'Enter' ? 13 : key === 'Tab' ? 9 : key === 'a' ? 65 : undefined
-    await send('Input.dispatchKeyEvent', { type: 'keyDown', key, code, modifiers, windowsVirtualKeyCode: vk, nativeVirtualKeyCode: vk, text: key === 'Enter' ? '\r' : undefined })
+    const code = key === 'Enter' ? 'Enter' : key === 'Tab' ? 'Tab' : key === 'a' ? 'KeyA' : key === ' ' ? 'Space' : key
+    const vk = key === 'Enter' ? 13 : key === 'Tab' ? 9 : key === 'a' ? 65 : key === ' ' ? 32 : undefined
+    await send('Input.dispatchKeyEvent', { type: 'keyDown', key, code, modifiers, windowsVirtualKeyCode: vk, nativeVirtualKeyCode: vk, text: key === 'Enter' ? '\r' : key === ' ' ? ' ' : undefined })
     await send('Input.dispatchKeyEvent', { type: 'keyUp', key, code, modifiers, windowsVirtualKeyCode: vk, nativeVirtualKeyCode: vk })
     await delay(180)
   }
@@ -191,6 +196,21 @@ try {
   const text = selector => evaluate(`(${visibleExpression(selector)})?.textContent?.trim()??null`)
   const rawNumericValue = selector => evaluate(`(()=>{const b=${visibleExpression(selector)};if(!b)return null;const k=Object.keys(b).find(key=>key.startsWith('__reactFiber$'));let fiber=k?b[k]:null;while(fiber){if(fiber.memoizedProps&&Object.prototype.hasOwnProperty.call(fiber.memoizedProps,'value'))return fiber.memoizedProps.value;fiber=fiber.return}return null})()`)
   const measureRect = selector => evaluate(`(()=>{const e=${visibleExpression(selector)};if(!e)return null;const r=e.getBoundingClientRect();return {x:r.x,y:r.y,width:r.width,height:r.height}})()`)
+  const selectedNumberVisual = selector => evaluate(`(()=>{
+    const button=${visibleExpression(selector)};if(!button)return null;
+    const content=button.firstElementChild??button;const range=document.createRange();range.selectNodeContents(content);const textRect=range.getBoundingClientRect();
+    const box=e=>{const r=e.getBoundingClientRect();return {x:r.x,y:r.y,width:r.width,height:r.height}};
+    const buttonStyle=getComputedStyle(button);const contentStyle=getComputedStyle(content);
+    return {text:button.innerText.trim(),button:box(button),content:box(content),textBounds:{x:textRect.x,y:textRect.y,width:textRect.width,height:textRect.height},contentBackground:contentStyle.backgroundColor,buttonBackground:buttonStyle.backgroundColor,boxShadow:buttonStyle.boxShadow,outline:buttonStyle.outline,outlineStyle:buttonStyle.outlineStyle,outlineWidth:buttonStyle.outlineWidth,focusVisible:button.matches(':focus-visible')};
+  })()`)
+  const contentHugsNumber = visual => Boolean(visual
+    && visual.textBounds.width > 0
+    && visual.button.width <= visual.textBounds.width + 2
+    && visual.content.width <= visual.textBounds.width + 2)
+  const hasPointerBlueRing = visual => Boolean(visual
+    && (visual.focusVisible
+      || /(?:29,\s*78,\s*216|59,\s*130,\s*246|37,\s*99,\s*235)/.test(visual.boxShadow)
+      || (visual.outlineStyle !== 'none' && Number.parseFloat(visual.outlineWidth) > 0)))
   const parseHeaderNumeric = value => Number(String(value).replaceAll(',', '').replaceAll('−', '-').replace(/[^0-9.+-]/g, ''))
   const setViewport = async (width, height = 1800) => {
     await send('Emulation.setDeviceMetricsOverride', { width, height, deviceScaleFactor: 1, mobile: false })
@@ -237,6 +257,127 @@ try {
   await click('section[aria-label="Working dataset controls"] button[role="switch"]')
   await waitFor(() => evaluate('document.querySelector("section[aria-label=\\"Working dataset controls\\"] button[role=\\"switch\\"]")?.getAttribute("aria-checked") === "false"'), 'Custom View mode')
   verify(true, 'real Master Data UI seeded Reference and Current, cloned Current into Custom, and edited a valid Custom BOM price', { customPrice: customPriceBefore })
+
+  // Master Data metadata uses no-focus SelectedNumber callers for Selling Price
+  // and SG&A. Exercise those active callers before leaving the workspace.
+  const selectedHeaderValue = () => evaluate('document.querySelector("header [data-header-value] [data-selected-value-output]")?.textContent.trim()??null')
+  const metadataSwitch = 'section[aria-label="Working dataset controls"] button[role="switch"]'
+  const sellingInput = 'input[aria-label="Selling Price (THB)"]'
+  const sgaInput = 'input[aria-label="SG&A"]'
+  const sellingNumber = 'button[data-selected-number="true"][aria-label^="Selling Price (THB):"]'
+  const sgaNumber = 'button[data-selected-number="true"][aria-label^="SG&A:"]'
+  await click(metadataSwitch)
+  await waitFor(() => evaluate('document.querySelector("section[aria-label=\\"Working dataset controls\\"] button[role=\\"switch\\"]")?.getAttribute("aria-checked") === "true"'), 'Master Data metadata Edit mode for short value fixtures')
+  const shortSelling = await replaceInput(sellingInput, '12.34')
+  const shortSga = await replaceInput(sgaInput, '7.2')
+  if (shortSelling !== '12.34' || shortSga !== '7.2') throw new Error(`Master Data metadata editors did not retain the short fixture values: ${JSON.stringify({ shortSelling, shortSga })}`)
+  await click(metadataSwitch)
+  await waitFor(() => evaluate('document.querySelector("section[aria-label=\\"Working dataset controls\\"] button[role=\\"switch\\"]")?.getAttribute("aria-checked") === "false"'), 'Master Data metadata View mode')
+  await waitFor(() => existsVisible(sellingNumber) && existsVisible(sgaNumber), 'Master Data Selling Price and SG&A SelectedNumber callers')
+  await waitFor(() => selectedHeaderValue().then(value => value === '—'), 'Master Data metadata sources start with an empty Selected Value Header')
+
+  const metadataHeaderBefore = await selectedHeaderValue()
+  const shortSellingRaw = await rawNumericValue(sellingNumber)
+  const shortSellingVisual = await selectedNumberVisual(sellingNumber)
+  verify(Number.isFinite(shortSellingRaw) && Math.abs(shortSellingRaw - 12.34) < 1e-8
+    && contentHugsNumber(shortSellingVisual)
+    && shortSellingVisual.contentBackground === 'rgba(0, 0, 0, 0)',
+    'Master Data Selling Price short value renders as a content-hugging number with a transparent idle background', { raw: shortSellingRaw, visual: shortSellingVisual })
+  await hover(sellingNumber, 180)
+  const shortSellingFastHeader = await selectedHeaderValue()
+  const shortSellingHoverVisual = await selectedNumberVisual(sellingNumber)
+  verify(shortSellingFastHeader === metadataHeaderBefore && contentHugsNumber(shortSellingHoverVisual)
+    && shortSellingHoverVisual.contentBackground !== 'rgba(0, 0, 0, 0)'
+    && !hasPointerBlueRing(shortSellingHoverVisual),
+    'Master Data Selling Price hover under 350 ms changes only its content background, keeps it text-sized, and shows no pointer blue ring', { before: metadataHeaderBefore, after: shortSellingFastHeader, visual: shortSellingHoverVisual })
+  await moveAway()
+  await hover(sellingNumber, 430)
+  const shortSellingPreview = await selectedHeaderValue()
+  const shortSellingPreviewVisual = await selectedNumberVisual(sellingNumber)
+  verify(Math.abs(parseHeaderNumeric(shortSellingPreview) - shortSellingRaw) < 1e-7
+    && contentHugsNumber(shortSellingPreviewVisual)
+    && !hasPointerBlueRing(shortSellingPreviewVisual),
+    'Master Data Selling Price dwell over 350 ms previews its raw value while the rendered background hugs its number', { raw: shortSellingRaw, preview: shortSellingPreview, visual: shortSellingPreviewVisual })
+  await moveAway()
+  verify(await selectedHeaderValue() === metadataHeaderBefore, 'leaving Master Data Selling Price preview restores the earlier Header state', { before: metadataHeaderBefore, after: await selectedHeaderValue() })
+  await click(sellingNumber)
+  const shortSellingPin = await selectedHeaderValue()
+  const shortSellingPinnedVisual = await selectedNumberVisual(sellingNumber)
+  verify(Math.abs(parseHeaderNumeric(shortSellingPin) - shortSellingRaw) < 1e-7
+    && await evaluate(`(${visibleExpression(sellingNumber)})?.getAttribute('aria-pressed')==='true'`)
+    && contentHugsNumber(shortSellingPinnedVisual)
+    && !hasPointerBlueRing(shortSellingPinnedVisual),
+    'clicking Master Data Selling Price pins it with a content-sized background and no pointer blue ring', { raw: shortSellingRaw, pin: shortSellingPin, visual: shortSellingPinnedVisual })
+  await click('button[aria-label="Sizing"]')
+  await waitFor(() => existsVisible('[role="dialog"]'), 'Master Data Sizing dialog opened by its actual control')
+  verify(await selectedHeaderValue() === shortSellingPin, 'clicking the real Master Data Sizing control preserves the metadata pin', { pin: shortSellingPin, after: await selectedHeaderValue() })
+  await pressKey('Escape')
+  await waitFor(() => evaluate('!document.querySelector("[role=\\"dialog\\"]")'), 'Master Data Sizing dialog closed by Escape')
+
+  const sgaRaw = await rawNumericValue(sgaNumber)
+  const sgaVisual = await selectedNumberVisual(sgaNumber)
+  verify(Number.isFinite(sgaRaw) && Math.abs(sgaRaw - 7.2) < 1e-8 && contentHugsNumber(sgaVisual),
+    'Master Data SG&A metadata is an active content-hugging SelectedNumber source', { raw: sgaRaw, visual: sgaVisual })
+  await hover(sgaNumber, 180)
+  const sgaFastHeader = await selectedHeaderValue()
+  verify(sgaFastHeader === shortSellingPin, 'Master Data SG&A hover under 350 ms leaves the Selling Price pin active', { pin: shortSellingPin, after: sgaFastHeader })
+  await moveAway()
+  await hover(sgaNumber, 430)
+  const sgaPreview = await selectedHeaderValue()
+  const sgaPreviewVisual = await selectedNumberVisual(sgaNumber)
+  verify(Math.abs(parseHeaderNumeric(sgaPreview) - sgaRaw) < 1e-7 && contentHugsNumber(sgaPreviewVisual)
+    && !hasPointerBlueRing(sgaPreviewVisual),
+    'Master Data SG&A dwell over 350 ms previews its raw value with no pointer blue ring', { raw: sgaRaw, preview: sgaPreview, visual: sgaPreviewVisual })
+  await moveAway()
+  verify(await selectedHeaderValue() === shortSellingPin, 'leaving Master Data SG&A preview restores the Selling Price pin', { pin: shortSellingPin, after: await selectedHeaderValue() })
+  await click(sgaNumber)
+  const sgaPin = await selectedHeaderValue()
+  verify(Math.abs(parseHeaderNumeric(sgaPin) - sgaRaw) < 1e-7
+    && await evaluate(`(${visibleExpression(sgaNumber)})?.getAttribute('aria-pressed')==='true'`),
+    'clicking Master Data SG&A moves the pin from Selling Price to SG&A', { sellingPricePin: shortSellingPin, sgaPin })
+  await click(sgaNumber)
+  verify(await selectedHeaderValue() === '—'
+    && await evaluate(`(${visibleExpression(sgaNumber)})?.getAttribute('aria-pressed')==='false'`),
+    'clicking the same Master Data SG&A value again unpins it', { after: await selectedHeaderValue() })
+  await click(sellingNumber)
+  verify(await selectedHeaderValue() !== '—', 'Master Data Selling Price can be pinned again after SG&A unpins')
+  await click(sellingNumber)
+  verify(await selectedHeaderValue() === '—', 'clicking the same Master Data Selling Price value again unpins it', { after: await selectedHeaderValue() })
+
+  await click(metadataSwitch)
+  await waitFor(() => evaluate('document.querySelector("section[aria-label=\\"Working dataset controls\\"] button[role=\\"switch\\"]")?.getAttribute("aria-checked") === "true"'), 'Master Data metadata Edit mode for long value fixture')
+  const longSelling = await replaceInput(sellingInput, '123456789.123456')
+  if (longSelling !== '123456789.123456') throw new Error(`Master Data Selling Price editor did not retain the long value: ${longSelling}`)
+  await click(metadataSwitch)
+  await waitFor(() => evaluate('document.querySelector("section[aria-label=\\"Working dataset controls\\"] button[role=\\"switch\\"]")?.getAttribute("aria-checked") === "false"'), 'Master Data metadata View mode with long value')
+  await waitFor(() => selectedHeaderValue().then(value => value === '—'), 'long Master Data metadata view begins without a stale editor focus')
+  await waitFor(() => existsVisible(sellingNumber), 'long Master Data Selling Price SelectedNumber source')
+  const longSellingRaw = await rawNumericValue(sellingNumber)
+  const longSellingVisual = await selectedNumberVisual(sellingNumber)
+  verify(Number.isFinite(longSellingRaw) && Math.abs(longSellingRaw - 123456789.123456) < 1e-6
+    && longSellingVisual.text === '123456789.12'
+    && contentHugsNumber(longSellingVisual)
+    && longSellingVisual.button.width > shortSellingVisual.button.width,
+    'Master Data Selling Price long value remains content-sized and grows only with its rendered number', { raw: longSellingRaw, shortWidth: shortSellingVisual.button.width, visual: longSellingVisual })
+  await hover(sellingNumber, 430)
+  const longSellingPreview = await selectedHeaderValue()
+  const longSellingHoverVisual = await selectedNumberVisual(sellingNumber)
+  verify(Math.abs(parseHeaderNumeric(longSellingPreview) - longSellingRaw) < 1e-7
+    && contentHugsNumber(longSellingHoverVisual)
+    && !hasPointerBlueRing(longSellingHoverVisual),
+    'long Master Data Selling Price hover preview keeps its number-sized background and has no pointer blue ring', { raw: longSellingRaw, preview: longSellingPreview, visual: longSellingHoverVisual })
+  await moveAway()
+  await click(sellingNumber)
+  const longSellingPin = await selectedHeaderValue()
+  const longSellingPinnedVisual = await selectedNumberVisual(sellingNumber)
+  verify(Math.abs(parseHeaderNumeric(longSellingPin) - longSellingRaw) < 1e-7
+    && contentHugsNumber(longSellingPinnedVisual)
+    && !hasPointerBlueRing(longSellingPinnedVisual),
+    'long Master Data Selling Price click pins the raw value without a pointer blue ring', { raw: longSellingRaw, pin: longSellingPin, visual: longSellingPinnedVisual })
+  await click(sellingNumber)
+  verify(await selectedHeaderValue() === '—', 'long Master Data Selling Price can be unpinned by clicking it again')
+  // Source inventory (`rg -n "SelectedNumber|data-selected-number" src/features/simulation`)
+  // found no active Simulation callers, so the browser fixture does not invent one.
 
   await clickButtonText('Cost Breakdown')
   await waitFor(() => existsVisible('header[aria-label="Cost Breakdown subheader"]'), 'Cost Breakdown comparison UI')
@@ -313,16 +454,24 @@ try {
   if (!(await existsVisible(subheaderNumber))) throw new Error('Cost Breakdown Standard Cost Gap is not a selectable numeric value for this fixture')
   const subheaderBefore = await headerValue()
   const subheaderRectIdle = await measureRect(subheaderNumber)
+  const subheaderVisualIdle = await selectedNumberVisual(subheaderNumber)
+  verify(contentHugsNumber(subheaderVisualIdle) && subheaderVisualIdle.contentBackground === 'rgba(0, 0, 0, 0)',
+    'Cost Breakdown Standard Cost Gap idle background hugs its rendered number', subheaderVisualIdle)
   await hover(subheaderNumber, 180)
   const fastHeader = await headerValue()
   const subheaderRectFast = await measureRect(subheaderNumber)
-  verify(fastHeader === subheaderBefore, 'subheader hover under 350 ms does not preview a value', { before: subheaderBefore, after: fastHeader })
+  const subheaderVisualFast = await selectedNumberVisual(subheaderNumber)
+  verify(fastHeader === subheaderBefore && contentHugsNumber(subheaderVisualFast)
+    && subheaderVisualFast.contentBackground !== 'rgba(0, 0, 0, 0)' && !hasPointerBlueRing(subheaderVisualFast),
+    'subheader hover under 350 ms does not preview a value, keeps its background text-sized, and shows no pointer blue ring', { before: subheaderBefore, after: fastHeader, visual: subheaderVisualFast })
   await moveAway()
   await hover(subheaderNumber, 430)
   const subheaderPreview = await headerValue()
   const subheaderRectPreview = await measureRect(subheaderNumber)
+  const subheaderVisualPreview = await selectedNumberVisual(subheaderNumber)
   const chartAfterSubheaderPreview = await chartSnapshot()
-  verify(subheaderPreview !== '—' && subheaderPreview !== subheaderBefore, 'subheader dwell over 350 ms previews the raw Standard Cost Gap', { value: subheaderPreview })
+  verify(subheaderPreview !== '—' && subheaderPreview !== subheaderBefore && contentHugsNumber(subheaderVisualPreview)
+    && !hasPointerBlueRing(subheaderVisualPreview), 'subheader dwell over 350 ms previews the raw Standard Cost Gap with no pointer blue ring', { value: subheaderPreview, visual: subheaderVisualPreview })
   const rawSubheader = await rawNumericValue(subheaderNumber)
   const subheaderSourceEvidence = await evaluate(`(()=>{const b=${visibleExpression(subheaderNumber)};return b?{display:b.innerText.trim(),aria:b.getAttribute('aria-label'),pressed:b.getAttribute('aria-pressed')}:null})()`)
   verify(Number.isFinite(rawSubheader) && Math.abs(rawSubheader - Number(subheaderPreview.replaceAll(',', ''))) < 1e-7,
@@ -332,9 +481,12 @@ try {
   await click(subheaderNumber)
   const pinnedSubheader = await headerValue()
   const subheaderRectPinned = await measureRect(subheaderNumber)
+  const subheaderVisualPinned = await selectedNumberVisual(subheaderNumber)
   const chartAfterSubheaderPin = await chartSnapshot()
   verify(pinnedSubheader !== '—' && await evaluate(`(${visibleExpression(subheaderNumber)})?.getAttribute('aria-pressed')==='true'`),
     'click pins the subheader SelectedNumber value', { value: pinnedSubheader })
+  verify(contentHugsNumber(subheaderVisualPinned) && !hasPointerBlueRing(subheaderVisualPinned),
+    'subheader pin background hugs its number and does not show a pointer blue ring', subheaderVisualPinned)
   verify([subheaderRectFast, subheaderRectPreview, subheaderRectPinned].every(rect => rect && rect.width === subheaderRectIdle?.width && rect.height === subheaderRectIdle?.height),
     'subheader hover and pin ring do not change source layout height or width', { idle: subheaderRectIdle, fast: subheaderRectFast, preview: subheaderRectPreview, pinned: subheaderRectPinned })
   verify(JSON.stringify(chartAfterSubheaderPreview)===JSON.stringify(chartAtRest)&&JSON.stringify(chartAfterSubheaderPin)===JSON.stringify(chartAtRest),
@@ -369,24 +521,34 @@ try {
   async function exerciseSummarySource(panel, category, selector) {
     if (!(await existsVisible(selector))) throw new Error(`${panel} has no visible SelectedNumber source for ${category}`)
     const rectIdle = await measureRect(selector)
+    const visualIdle = await selectedNumberVisual(selector)
     const source = await evaluate(`(()=>{const e=${visibleExpression(selector)};return e?{label:e.getAttribute('aria-label'),text:e.innerText.trim(),title:e.getAttribute('title')}:null})()`)
     const previousPin = await headerValue()
     await hover(selector, 430)
     const preview = await headerValue()
     const rectPreview = await measureRect(selector)
+    const visualPreview = await selectedNumberVisual(selector)
     const raw = await rawNumericValue(selector)
     verify(Number.isFinite(raw) && Math.abs(parseHeaderNumeric(preview) - raw) < 1e-7,
       `${panel} ${category} source previews its raw numeric value in Header`, { source, raw, preview })
+    verify(contentHugsNumber(visualIdle) && contentHugsNumber(visualPreview) && !hasPointerBlueRing(visualPreview),
+      `${panel} ${category} normal and hover backgrounds hug the rendered number without a pointer blue ring`, { idle: visualIdle, preview: visualPreview })
     await moveAway()
     verify(await headerValue() === previousPin, `${panel} ${category} hover leaves the prior pin intact`, { previousPin, restored: await headerValue() })
     await click(selector)
     const pinned = await headerValue()
     const rectPinned = await measureRect(selector)
+    const visualPinned = await selectedNumberVisual(selector)
     const pressed = await evaluate(`(${visibleExpression(selector)})?.getAttribute('aria-pressed')==='true'`)
     verify(pressed && Number.isFinite(raw) && Math.abs(parseHeaderNumeric(pinned) - raw) < 1e-7,
       `${panel} ${category} source can be pinned from the real UI`, { source, raw, pinned, pressed })
+    verify(contentHugsNumber(visualPinned) && !hasPointerBlueRing(visualPinned),
+      `${panel} ${category} pin background hugs the number and does not show a pointer blue ring`, visualPinned)
     verify([rectPreview, rectPinned].every(rect=>rect&&rect.width===rectIdle?.width&&rect.height===rectIdle?.height),
       `${panel} ${category} hover and pin rings do not change source dimensions`, { idle: rectIdle, preview: rectPreview, pinned: rectPinned })
+    await click(selector)
+    verify(await headerValue() === '—' && await evaluate(`(${visibleExpression(selector)})?.getAttribute('aria-pressed')==='false'`),
+      `${panel} ${category} source unpins when the same value is clicked again`, { after: await headerValue() })
   }
   const costPanel = 'section[aria-label="Cost Element"]'
   const wcPanel = 'section[aria-label="Work Center"]'
@@ -424,8 +586,30 @@ try {
   const firstRow = `tr[data-candidate-reorder-row=${JSON.stringify(firstChanged.rowId)}]`
   const candidateNumber = `${firstRow} button[data-selected-number="true"]`
   const candidateSelectorButton = `${firstRow} td:first-child button[aria-pressed]`
-  const chevron = `${firstRow} td:last-child button[aria-label^="Expand"]`
+  const detailsCell = `${firstRow} td:last-child`
   const candidateInitial = await evaluate(`(()=>{const r=${visibleExpression(firstRow)};return r?{selected:r.getAttribute('aria-selected'),expanded:r.getAttribute('aria-expanded'),number:r.querySelector('[data-selected-number="true"]')?.getAttribute('aria-label')??null}:null})()`)
+  const rowAffordance = await evaluate(`(()=>{const row=${visibleExpression(firstRow)};const cell=row?.querySelector('td:last-child');return row&&cell?{rowTabIndex:row.getAttribute('tabindex'),rowLabel:row.getAttribute('aria-label'),cellButtons:cell.querySelectorAll('button').length,cellFocusable:cell.querySelectorAll('a,input,select,textarea,[role="button"],[tabindex]:not([tabindex="-1"])').length,cellHasTitle:cell.hasAttribute('title'),cellTitles:[...cell.querySelectorAll('[title]')].map(e=>e.getAttribute('title')),cellAriaHidden:cell.querySelector('span[aria-hidden="true"]')!==null,cellSvgCount:cell.querySelectorAll('svg').length}:null})()`)
+  verify(rowAffordance?.rowTabIndex === '0' && rowAffordance.cellButtons === 0 && rowAffordance.cellFocusable === 0
+    && !rowAffordance.cellHasTitle && rowAffordance.cellTitles.length === 0 && rowAffordance.cellSvgCount > 0 && rowAffordance.cellAriaHidden,
+    'CHANGED Candidate chevron is visual only with no button, focus target, title, or independent accessibility entry', rowAffordance)
+  const rowNameSelector = `${firstRow} th[scope="row"]`
+  await click(rowNameSelector)
+  const clickedRowExpanded = await evaluate(`(${visibleExpression(firstRow)})?.getAttribute('aria-expanded')??null`)
+  verify(clickedRowExpanded === 'true', 'clicking the CHANGED Candidate row expands its details', { expanded: clickedRowExpanded })
+  await click(rowNameSelector)
+  verify(await evaluate(`(${visibleExpression(firstRow)})?.getAttribute('aria-expanded')==='false'`), 'clicking the CHANGED Candidate row again collapses its details')
+  const rowFocused = await evaluate(`(()=>{const row=${visibleExpression(firstRow)};row?.focus();return row===document.activeElement})()`)
+  verify(rowFocused, 'CHANGED Candidate row itself is keyboard focusable for detail expansion')
+  await pressKey('Enter')
+  const enterExpanded = await evaluate(`(${visibleExpression(firstRow)})?.getAttribute('aria-expanded')??null`)
+  await pressKey('Enter')
+  const enterCollapsed = await evaluate(`(${visibleExpression(firstRow)})?.getAttribute('aria-expanded')??null`)
+  verify(enterExpanded === 'true' && enterCollapsed === 'false', 'Enter expands and collapses the focused CHANGED Candidate row', { expanded: enterExpanded, collapsed: enterCollapsed })
+  await pressKey(' ')
+  const spaceExpanded = await evaluate(`(${visibleExpression(firstRow)})?.getAttribute('aria-expanded')??null`)
+  await pressKey(' ')
+  const spaceCollapsed = await evaluate(`(${visibleExpression(firstRow)})?.getAttribute('aria-expanded')??null`)
+  verify(spaceExpanded === 'true' && spaceCollapsed === 'false', 'Space expands and collapses the focused CHANGED Candidate row', { expanded: spaceExpanded, collapsed: spaceCollapsed })
   await click(candidateSelectorButton)
   const hashOnly = await evaluate(`(()=>{const r=${visibleExpression(firstRow)};return r?{selected:r.getAttribute('aria-selected'),expanded:r.getAttribute('aria-expanded')}:null})()`)
   verify(hashOnly?.selected === 'true' && hashOnly.expanded === 'false' && await headerValue() === '—',
@@ -450,27 +634,69 @@ try {
     'row numbers, filter counts, and unavailable em dashes stay outside SelectedNumber sources', controlExclusions)
   if (await existsVisible(candidateNumber)) {
     const candidateRectIdle = await measureRect(candidateNumber)
+    const candidateVisualIdle = await selectedNumberVisual(candidateNumber)
     await click(candidateNumber)
     const candidateRectPinned = await measureRect(candidateNumber)
+    const candidateVisualPinned = await selectedNumberVisual(candidateNumber)
     const candidateAfterValue = await evaluate(`(()=>{const r=${visibleExpression(firstRow)};return r?{selected:r.getAttribute('aria-selected'),expanded:r.getAttribute('aria-expanded'),pinned:r.querySelector('[data-selected-number="true"]')?.getAttribute('aria-pressed')}:null})()`)
     verify(candidateAfterValue?.selected === candidateInitial.selected && candidateAfterValue?.expanded === 'false' && candidateAfterValue?.pinned === 'true',
       'clicking a Candidate numeric value pins it without selecting or expanding its row', { before: candidateInitial, after: candidateAfterValue })
-    const candidatePinA = await headerValue()
+    verify(contentHugsNumber(candidateVisualIdle) && contentHugsNumber(candidateVisualPinned) && !hasPointerBlueRing(candidateVisualPinned),
+      'Candidate number background hugs its rendered text in normal and pinned states without a pointer blue ring', { idle: candidateVisualIdle, pinned: candidateVisualPinned })
+    const firstCandidatePin = await headerValue()
     verify(candidateRectIdle?.width === candidateRectPinned?.width && candidateRectIdle?.height === candidateRectPinned?.height,
       'Candidate selected ring does not change source layout height or width', { idle: candidateRectIdle, pinned: candidateRectPinned })
+    await click(candidateNumber)
+    const candidateUnpinnedHeader = await headerValue()
+    const candidateUnpinnedPressed = await evaluate(`(${visibleExpression(candidateNumber)})?.getAttribute('aria-pressed')??null`)
+    verify(candidateUnpinnedHeader === '—' && candidateUnpinnedPressed === 'false',
+      'clicking the same Candidate value again unpins it', { header: candidateUnpinnedHeader, pressed: candidateUnpinnedPressed })
+    await click(candidateNumber)
+    const candidatePinA = await headerValue()
+    verify(candidatePinA === firstCandidatePin && await evaluate(`(${visibleExpression(candidateNumber)})?.getAttribute('aria-pressed')==='true'`),
+      'Candidate value A can be pinned again after same-value unpin', { pin: candidatePinA })
     const candidateB = await evaluate(`(()=>{const rows=[...document.querySelectorAll('tr[data-candidate-reorder-row][aria-expanded="false"]')];const row=rows.find(e=>e.getAttribute('data-candidate-reorder-row')!==${JSON.stringify(firstChanged.rowId)});const button=row?.querySelector('[data-selected-number="true"]');if(!row||!button)return null;const r=button.getBoundingClientRect();return {id:row.getAttribute('data-candidate-reorder-row'),label:button.getAttribute('aria-label'),x:r.left+r.width/2,y:r.top+r.height/2,width:r.width,height:r.height}})()`)
     if (candidateB) {
       await mouse('mouseMoved', candidateB.x, candidateB.y); await delay(430)
       const hoverB = await headerValue()
+      const visualBHover = await selectedNumberVisual(`tr[data-candidate-reorder-row=${JSON.stringify(candidateB.id)}] button[data-selected-number="true"]`)
       verify(hoverB !== candidatePinA, 'Candidate value B preview temporarily replaces pinned Candidate value A', { valueA: candidatePinA, valueB: hoverB, candidateB: candidateB.label })
+      verify(contentHugsNumber(visualBHover) && !hasPointerBlueRing(visualBHover),
+        'Candidate value B hover background hugs its rendered text and has no pointer blue ring', visualBHover)
       await moveAway()
       verify(await headerValue() === candidatePinA, 'leaving Candidate value B restores pinned Candidate value A', { restored: await headerValue(), valueA: candidatePinA })
     const candidateRectB = await evaluate(`(()=>{const r=[...document.querySelectorAll('tr[data-candidate-reorder-row]')].find(row=>row.getAttribute('data-candidate-reorder-row')===${JSON.stringify(candidateB.id)});const e=r?.querySelector('[data-selected-number="true"]');if(!e)return null;const b=e.getBoundingClientRect();return {width:b.width,height:b.height}})()`)
       verify(candidateRectB?.width === candidateB.width && candidateRectB?.height === candidateB.height,
         'Candidate value B hover ring does not change its layout dimensions', { before: { width: candidateB.width, height: candidateB.height }, after: candidateRectB })
+      const candidateBSelector = `tr[data-candidate-reorder-row=${JSON.stringify(candidateB.id)}] button[data-selected-number="true"]`
+      await click(candidateBSelector)
+      const candidatePinB = await headerValue()
+      verify(candidatePinB !== candidatePinA
+        && await evaluate(`(${visibleExpression(candidateBSelector)})?.getAttribute('aria-pressed')==='true'`)
+        && await evaluate(`(${visibleExpression(candidateNumber)})?.getAttribute('aria-pressed')==='false'`),
+        'clicking Candidate value B moves the pin from Candidate value A', { pinA: candidatePinA, pinB: candidatePinB })
+      await click(candidateBSelector)
+      verify(await headerValue() === '—', 'clicking Candidate value B again unpins the moved pin', { after: await headerValue() })
+      await click(candidateNumber)
+      verify(await headerValue() === candidatePinA, 'Candidate value A is repinned for control and click-away checks', { pin: await headerValue() })
     } else {
       verify(false, 'Reference → Current exposes a second CHANGED Candidate source for B preview')
     }
+    await clickButtonContains('div[aria-label="Finding type filter"] button', 'All')
+    verify(await headerValue() === candidatePinA, 'clicking the real Candidate filter control preserves the active numeric pin', { pin: candidatePinA, after: await headerValue() })
+    const blankPoint = await evaluate(`(()=>{
+      const root=document.querySelector('main#main-content')??document.body;const r=root.getBoundingClientRect();
+      const forbidden='a,button,input,select,textarea,[role="button"],[role="menuitem"],[role="dialog"],[role="slider"],[role="tooltip"],[role="spinbutton"],[role="switch"],[role="tab"],[aria-expanded],[aria-haspopup],[data-selected-number],[data-grid-cell="true"],[data-candidate-reorder-row],[role="group"][aria-label="Finding type filter"],[role="group"][aria-label="Filter by comparison status"]';
+      const xs=[r.left+2,r.left+Math.min(12,r.width/100),r.right-3,r.left+r.width*.98,r.left+r.width*.5];const ys=[r.top+4,r.top+24,r.top+r.height*.9,r.bottom-4,r.top+r.height*.5];
+      for(const y of ys)for(const x of xs){if(x<0||x>=innerWidth||y<0||y>=innerHeight)continue;const target=document.elementFromPoint(x,y);if(target&&root.contains(target)&&!target.closest(forbidden)&&!target.closest('table,section[aria-label="Cost Element"],section[aria-label="Work Center"]'))return {x,y,target:{tag:target.tagName,role:target.getAttribute('role'),label:target.getAttribute('aria-label'),text:target.textContent.trim().slice(0,60)}}}
+      return null;
+    })()`)
+    if (!blankPoint) throw new Error('No visible blank page area was available for the click-away acceptance check')
+    await mouse('mouseMoved', blankPoint.x, blankPoint.y); await mouse('mousePressed', blankPoint.x, blankPoint.y); await mouse('mouseReleased', blankPoint.x, blankPoint.y); await delay(180)
+    verify(await headerValue() === '—' && await evaluate(`(${visibleExpression(candidateNumber)})?.getAttribute('aria-pressed')==='false'`),
+      'clicking a real blank page area clears the Candidate pin', { blankPoint, after: await headerValue() })
+    await click(candidateNumber)
+    verify(await headerValue() === candidatePinA, 'Candidate pin can be restored after blank-area click-away', { pin: await headerValue() })
     await click(candidateSelectorButton)
     const selectedAfterHash = await evaluate(`(()=>{const r=${visibleExpression(firstRow)};return r?{selected:r.getAttribute('aria-selected'),expanded:r.getAttribute('aria-expanded')}:null})()`)
     verify(selectedAfterHash?.selected === 'true' && selectedAfterHash?.expanded === 'false', '# selector still selects a Candidate independently of the numeric pin', selectedAfterHash)
@@ -524,13 +750,13 @@ try {
       'clicking a CHANGED Candidate identity cell expands details without changing the active Header value', { expanded: identityClickState, pinned: await headerValue() })
     await click(rowNameSelector)
     verify(await evaluate(`(${visibleExpression(firstRow)})?.getAttribute('aria-expanded')==='false'`), 'CHANGED Candidate identity cell can collapse its details')
-    await click(chevron)
+    await click(detailsCell)
     const expanded = await evaluate(`(()=>{const r=${visibleExpression(firstRow)};if(!r)return null;const rows=[];let next=r.nextElementSibling;while(next&&!next.hasAttribute('data-candidate-reorder-row')){const label=next.querySelector('th[scope="row"]')?.innerText.trim();if(label)rows.push(label);next=next.nextElementSibling}return {expanded:r.getAttribute('aria-expanded'),ariaControls:r.getAttribute('aria-controls'),detailHeaders:rows}})()`)
     const detailOrder = expanded?.detailHeaders
     verify(expanded?.expanded === 'true' && detailOrder?.join('|') === 'Reference|Current|Parameter Cost Effect',
-      'independent real CHANGED chevron opens three ordered Reference, Current, and Parameter Cost Effect detail rows', expanded)
-    await click(chevron.replace('button[aria-label^="Expand"]', 'button[aria-label^="Collapse"]'))
-    verify(await evaluate(`(${visibleExpression(firstRow)})?.getAttribute('aria-expanded')==='false'`), 'the independent chevron closes its Candidate details')
+      'visual chevron cell click bubbles to the CHANGED Candidate row and opens three ordered Reference, Current, and Parameter Cost Effect detail rows', expanded)
+    await click(detailsCell)
+    verify(await evaluate(`(${visibleExpression(firstRow)})?.getAttribute('aria-expanded')==='false'`), 'visual chevron cell click bubbles to the row and closes its Candidate details')
   } else {
     verify(false, 'CHANGED Candidate row has a selectable numeric source')
   }
@@ -548,7 +774,7 @@ try {
   const multiOpenIds = await evaluate(`(()=>{const bom=[...document.querySelectorAll('table')].find(t=>t.querySelector('caption')?.textContent.includes('Bill of Material Candidate findings'));const rtg=[...document.querySelectorAll('table')].find(t=>t.querySelector('caption')?.textContent.includes('Routing Candidate findings'));return {bom:[...bom.querySelectorAll('tbody tr[data-candidate-reorder-row][aria-expanded="false"]')].slice(0,2).map(r=>r.getAttribute('data-candidate-reorder-row')),routing:rtg?[...rtg.querySelectorAll('tbody tr[data-candidate-reorder-row][aria-expanded="false"]')].slice(0,1).map(r=>r.getAttribute('data-candidate-reorder-row')):[]}})()`)
   if (multiOpenIds.bom.length < 2 || multiOpenIds.routing.length < 1) throw new Error(`Fixture lacks changed BOM/Routing rows for independent expansion: ${JSON.stringify(multiOpenIds)}`)
   for (const [type, id] of [['Bill of Material', multiOpenIds.bom[0]], ['Bill of Material', multiOpenIds.bom[1]], ['Routing', multiOpenIds.routing[0]]]) {
-    await click(`tr[data-candidate-reorder-row=${JSON.stringify(id)}] td:last-child button[aria-label^="Expand"]`)
+    await click(`tr[data-candidate-reorder-row=${JSON.stringify(id)}] td:last-child`)
   }
   const multiOpenState = await evaluate(`(()=>[...document.querySelectorAll('tr[data-candidate-reorder-row][aria-expanded="true"]')].map(r=>({id:r.getAttribute('data-candidate-reorder-row'),label:r.getAttribute('aria-label')})))()`)
   verify(multiOpenState.length >= 3, 'multiple BOM and Routing details can remain open together', multiOpenState)
@@ -571,6 +797,7 @@ try {
       total:buttons.length,surfaces,
       excluded:{chart:document.querySelectorAll('[data-gap-chart-wrapper] [data-selected-number], [data-gap-chart-wrapper] button').length,
         rowNumber:document.querySelectorAll('tr[data-candidate-reorder-row] td:first-child [data-selected-number]').length,
+        reorder:document.querySelectorAll('tr[data-candidate-reorder-row] td button[draggable="true"][data-selected-number],tr[data-candidate-reorder-row] td button[draggable="true"] [data-selected-number]').length,
         status:document.querySelectorAll('tr[data-candidate-reorder-row] td:nth-child(3) [data-selected-number]').length,
         filter:document.querySelectorAll('[aria-label="Finding type filter"] [data-selected-number]').length,
         labels:[...document.querySelectorAll('th[scope="row"],[role="rowheader"]')].filter(element=>element.querySelector('[data-selected-number]')).length,
@@ -591,13 +818,13 @@ try {
     && numericSurfaceInventory.surfaces['Routing detail: Reference'] > 0
     && numericSurfaceInventory.surfaces['Routing detail: Current'] > 0
     && numericSurfaceInventory.surfaces['Routing detail: Parameter Cost Effect'] > 0
-    && Object.values(numericSurfaceInventory.excluded).slice(0, 7).every(count => count === 0),
-    'numeric source inventory covers every real surface and excludes chart, row number, status, filter controls, labels, and unavailable dashes', numericSurfaceInventory)
+    && Object.values(numericSurfaceInventory.excluded).slice(0, 8).every(count => count === 0),
+    'numeric source inventory covers every real surface and excludes chart, # row selector, status, filter controls, reorder handle, labels, and unavailable dashes', numericSurfaceInventory)
   await click('div[role="group"][aria-label="Cost element color legend"]')
   const afterOutsideClick = await evaluate('document.querySelectorAll("tr[data-candidate-reorder-row][aria-expanded=\\"true\\"]").length')
   verify(afterOutsideClick === 0, 'outside click closes all open Candidate details', { afterOutsideClick })
   for (const [type, id] of [['Bill of Material', multiOpenIds.bom[0]], ['Bill of Material', multiOpenIds.bom[1]], ['Routing', multiOpenIds.routing[0]]]) {
-    await click(`tr[data-candidate-reorder-row=${JSON.stringify(id)}] td:last-child button[aria-label^="Expand"]`)
+    await click(`tr[data-candidate-reorder-row=${JSON.stringify(id)}] td:last-child`)
   }
   const reopenedBeforeEscape = await evaluate('document.querySelectorAll("tr[data-candidate-reorder-row][aria-expanded=\\"true\\"]").length')
   verify(reopenedBeforeEscape >= 3, 'multiple BOM and Routing details can be reopened before Escape verification', { reopenedBeforeEscape })
@@ -605,11 +832,11 @@ try {
   const afterEscape = await evaluate('document.querySelectorAll("tr[data-candidate-reorder-row][aria-expanded=\\"true\\"]").length')
   verify(afterEscape === 0, 'Escape closes all open Candidate details', { afterEscape })
   for (const [type, id] of [['Bill of Material', multiOpenIds.bom[0]], ['Bill of Material', multiOpenIds.bom[1]], ['Routing', multiOpenIds.routing[0]]]) {
-    await click(`tr[data-candidate-reorder-row=${JSON.stringify(id)}] td:last-child button[aria-label^="Expand"]`)
+    await click(`tr[data-candidate-reorder-row=${JSON.stringify(id)}] td:last-child`)
   }
   const reopenedForCloseOne = await evaluate('document.querySelectorAll("tr[data-candidate-reorder-row][aria-expanded=\\"true\\"]").length')
   verify(reopenedForCloseOne >= 3, 'multiple BOM and Routing details can be reopened before independent close verification', { reopenedForCloseOne })
-  const closeOne = `tr[data-candidate-reorder-row=${JSON.stringify(multiOpenIds.bom[0])}] td:last-child button[aria-label^="Collapse"]`
+  const closeOne = `tr[data-candidate-reorder-row=${JSON.stringify(multiOpenIds.bom[0])}] td:last-child`
   await click(closeOne)
   const afterCloseOne = await evaluate(`(()=>{const row=id=>[...document.querySelectorAll('tr[data-candidate-reorder-row]')].find(e=>e.getAttribute('data-candidate-reorder-row')===id);return {open:document.querySelectorAll('tr[data-candidate-reorder-row][aria-expanded="true"]').length,first:row(${JSON.stringify(multiOpenIds.bom[0])})?.getAttribute('aria-expanded'),second:row(${JSON.stringify(multiOpenIds.bom[1])})?.getAttribute('aria-expanded'),routing:row(${JSON.stringify(multiOpenIds.routing[0])})?.getAttribute('aria-expanded')}})()`)
   verify(afterCloseOne.first === 'false' && afterCloseOne.second === 'true' && afterCloseOne.routing === 'true', 'closing one detail leaves the other BOM and Routing details open', afterCloseOne)
@@ -705,6 +932,7 @@ try {
       const cost=document.querySelector('section[aria-label="Cost Element"] table');
       const costHeader=cost?.querySelector('thead tr:first-child');const costRow=cost?.querySelector('tbody tr');const costFooter=cost?.querySelector('tfoot tr');
       const costHeaders=axisCells(costHeader),costCells=axisCells(costRow),costFooterCells=axisCells(costFooter);
+      const candidateNumberGeometry=['Bill of Material','Routing'].flatMap(type=>{const table=[...document.querySelectorAll('table')].find(item=>item.querySelector('caption')?.textContent.includes(type+' Candidate findings'));return [...(table?.querySelectorAll('button[data-selected-number="true"]')??[])].map(button=>{const cell=button.closest('td');const content=button.firstElementChild??button;const range=document.createRange();range.selectNodeContents(content);const text=range.getBoundingClientRect();const b=button.getBoundingClientRect();const c=cell?.getBoundingClientRect();return {type,text:button.innerText.trim(),buttonWidth:b.width,textWidth:text.width,insideCell:Boolean(c&&text.left>=c.left-2&&text.right<=c.right+2),hugsText:text.width>0&&b.width<=text.width+2}})});
       const wcTable=document.querySelector('section[aria-label="Work Center"] [role="table"]');
       const wcHeader=wcTable?.querySelector('[data-cbd-summary-header] [role="row"]');const wcBody=wcTable?.querySelector('[data-cbd-summary-body] [role="row"]');const wcFooter=wcTable?.querySelector('[data-cbd-summary-footer] [role="row"]');
       const wcHeaderCells=axisCells(wcHeader),wcBodyCells=axisCells(wcBody),wcFooterCells=axisCells(wcFooter);
@@ -715,7 +943,7 @@ try {
       const wcStyle=wc?getComputedStyle(wc):null;const mainStyle=mainContent?getComputedStyle(mainContent):null;const candidateStyle=candidateArea?getComputedStyle(candidateArea):null;
       const wcRect=wc?.getBoundingClientRect();
       const verticalScrollers=[...document.querySelectorAll('main#main-content *')].filter(e=>{const s=getComputedStyle(e);return (s.overflowY==='auto'||s.overflowY==='scroll')&&e.scrollHeight>e.clientHeight+2&&e!==wc}).map(e=>({tag:e.tagName,role:e.getAttribute('role'),label:e.getAttribute('aria-label'),className:String(e.className).slice(0,90),client:e.clientHeight,scroll:e.scrollHeight}));
-      return {width:innerWidth,documentWidth:document.documentElement.scrollWidth,overview:{columns:getComputedStyle(overview).gridTemplateColumns.split(' ').length,template:getComputedStyle(overview).gridTemplateColumns},candidates,cost:{header:costHeaders,cells:costCells,footer:costFooterCells,selectedGapButtons:cost?.querySelectorAll('[data-gap-slot="selected"][data-selected-number="true"]').length??0},workCenter:{header:wcHeaderCells,body:wcBodyCells,footer:wcFooterCells,client:wc?.clientHeight??null,scroll:wc?.scrollHeight??null,overflowY:wcStyle?.overflowY??null,rect:wcRect?{left:wcRect.left,top:wcRect.top,width:wcRect.width,height:wcRect.height}:null},summaryScrollers,main:{overflowY:mainStyle?.overflowY??null,client:mainContent?.clientHeight??null,scroll:mainContent?.scrollHeight??null,scrollTop:mainContent?.scrollTop??null},candidateArea:{overflowY:candidateStyle?.overflowY??null,client:candidateArea?.clientHeight??null,scroll:candidateArea?.scrollHeight??null},verticalScrollers};
+      return {width:innerWidth,documentWidth:document.documentElement.scrollWidth,overview:{columns:getComputedStyle(overview).gridTemplateColumns.split(' ').length,template:getComputedStyle(overview).gridTemplateColumns},candidates,candidateNumberGeometry,cost:{header:costHeaders,cells:costCells,footer:costFooterCells,selectedGapButtons:cost?.querySelectorAll('[data-gap-slot="selected"][data-selected-number="true"]').length??0},workCenter:{header:wcHeaderCells,body:wcBodyCells,footer:wcFooterCells,client:wc?.clientHeight??null,scroll:wc?.scrollHeight??null,overflowY:wcStyle?.overflowY??null,rect:wcRect?{left:wcRect.left,top:wcRect.top,width:wcRect.width,height:wcRect.height}:null},summaryScrollers,main:{overflowY:mainStyle?.overflowY??null,client:mainContent?.clientHeight??null,scroll:mainContent?.scrollHeight??null,scrollTop:mainContent?.scrollTop??null},candidateArea:{overflowY:candidateStyle?.overflowY??null,client:candidateArea?.clientHeight??null,scroll:candidateArea?.scrollHeight??null},verticalScrollers};
     })()`)
     const alignCells=(cells,headers)=>cells.map(cell=>({start:cell.start,span:cell.span,delta:Math.abs(cell.width-headers.slice(cell.start,cell.start+cell.span).reduce((sum,header)=>sum+header.width,0))}))
     const candidateDeltas = layout?.candidates?.map(table => ({type:table.type,main:alignCells(table.mainCells,table.headCells),details:table.details.map(row=>({label:row.label,axes:alignCells(row.cells,table.headCells),numericAxes:row.cells.filter(cell=>cell.numericLabel).map(cell=>({label:cell.numericLabel,start:cell.start,span:cell.span,headerLabels:table.headCells.slice(cell.start,cell.start+cell.span).map(header=>header.text)}))}))})) ?? []
@@ -723,14 +951,15 @@ try {
     const candidatesAligned=candidateDeltas.length===2&&candidateDeltas.every(table=>table.main.length===(table.type==='Routing'?12:10)&&table.main.every(cell=>cell.delta<=1.5)&&table.details.length===3&&table.details.every(row=>row.axes.length===table.main.length&&row.axes.every(cell=>cell.delta<=1.5)&&row.numericAxes.length>=(table.type==='Routing'?5:3)+(row.label==='Parameter Cost Effect'?1:0)&&row.numericAxes.every(cell=>cell.start>=3&&cell.start<table.main.length-3&&cell.headerLabels.length===cell.span)))
     const stickyAndScrollOwnership=layout?.candidates?.length===2&&layout.candidates.every(table=>table.stickyPosition==='sticky'&&table.headerViewportOverflow==='hidden'&&table.bodyOverflowX==='auto')
     const summaryColumnsExpected=width>=1024?2:1
+    const candidateNumbersAligned=layout?.candidateNumberGeometry?.length>0&&layout.candidateNumberGeometry.every(number=>number.hugsText&&number.insideCell)
     const summaryOverflowExpected=width<=520?layout?.summaryScrollers?.every(panel=>panel.scroll>panel.client&&panel.overflowX==='auto'):true
     const verticalOwnership=layout?.main.overflowY==='auto'&&layout.candidateArea.overflowY==='visible'&&layout.candidateArea.scroll<=layout.candidateArea.client+2&&layout.workCenter.overflowY==='auto'&&layout.verticalScrollers.length===0
     verify(Boolean(layout) && layout.documentWidth <= width + 1 && candidatesAligned && stickyAndScrollOwnership
       && summaryDeltas.cost.length===5&&summaryDeltas.cost.every(delta=>delta<=1.5)&&summaryDeltas.costFooter.length===5&&summaryDeltas.costFooter.every(delta=>delta<=1.5)
       && summaryDeltas.wcHeaderBody.length===5&&summaryDeltas.wcHeaderBody.every(delta=>delta<=1.5)&&summaryDeltas.wcHeaderFooter.length===5&&summaryDeltas.wcHeaderFooter.every(delta=>delta<=1.5)
-      && layout.overview.columns===summaryColumnsExpected&&layout.cost.selectedGapButtons>0&&verticalOwnership&&summaryOverflowExpected
+      && layout.overview.columns===summaryColumnsExpected&&layout.cost.selectedGapButtons>0&&verticalOwnership&&summaryOverflowExpected&&candidateNumbersAligned
       && layout.candidates.every(table=>width>768||table.bodyScrollWidth>table.bodyWidth),
-      `BOM and Routing header/main/Before/After/effect axes, selected Cost Element and Work Center axes, responsive grid, and scroll ownership align without page overflow at ${width}px`, { layout, candidateDeltas, summaryDeltas })
+      `BOM and Routing header/main/Before/After/effect axes, SelectedNumber text, selected Cost Element and Work Center axes, responsive grid, and scroll ownership align without page overflow at ${width}px`, { layout, candidateDeltas, summaryDeltas, candidateNumbersAligned })
     await screenshot(`cbd-selected-value-${width}`)
   }
 
@@ -826,17 +1055,20 @@ try {
     const roleChangedRow = { ...selectedChangedRow, renderedRows: renderedCandidates.length, renderedStatuses: renderedCandidates.map(row => row.status) }
     verify(roleChangedRow.status === 'CHANGED' && roleChangedRow.id !== null && roleChangedRow.renderedRows > 0,
       `${before} → ${after} renders a CHANGED Candidate row for the role detail check`, roleChangedRow)
-    const selector = `tr[data-candidate-reorder-row=${JSON.stringify(roleChangedRow.id)}] td:last-child button[aria-label^="Expand"]`
-    const roleClickBefore = await evaluate(`(()=>{const selector=${JSON.stringify(selector)};const matches=[...document.querySelectorAll(selector)];const button=matches[0];const row=button?.closest('tr[data-candidate-reorder-row]');const rect=button?.getBoundingClientRect();const hit=rect?document.elementFromPoint(rect.left+rect.width/2,rect.top+rect.height/2):null;const main=document.querySelector('main#main-content');return {matchCount:matches.length,rowStatus:row?.querySelector('td:nth-child(3)')?.innerText.trim()??null,rowExpanded:row?.getAttribute('aria-expanded')??null,buttonLabel:button?.getAttribute('aria-label')??null,rect:rect?{left:rect.left,top:rect.top,right:rect.right,bottom:rect.bottom,width:rect.width,height:rect.height}:null,viewport:{width:innerWidth,height:innerHeight},hit:{tag:hit?.tagName??null,ariaLabel:hit?.getAttribute('aria-label')??null,text:hit?.textContent?.trim().slice(0,80)??null,insideButton:Boolean(button&&hit&&(hit===button||button.contains(hit)))},mainScrollTop:main?.scrollTop??null}})()`)
-    verify(roleClickBefore.matchCount === 1 && roleClickBefore.rowStatus === 'CHANGED' && roleClickBefore.rowExpanded === 'false' && roleClickBefore.hit.insideButton,
-      `${before} → ${after} chevron has a unique visible hit target on the collapsed CHANGED row`, roleClickBefore)
+    const selector = `tr[data-candidate-reorder-row=${JSON.stringify(roleChangedRow.id)}] td:last-child`
+    const roleClickBefore = await evaluate(`(()=>{const selector=${JSON.stringify(selector)};const cells=[...document.querySelectorAll(selector)];const cell=cells[0];const row=cell?.closest('tr[data-candidate-reorder-row]');const rect=cell?.getBoundingClientRect();const hit=rect?document.elementFromPoint(rect.left+rect.width/2,rect.top+rect.height/2):null;const main=document.querySelector('main#main-content');return {matchCount:cells.length,rowStatus:row?.querySelector('td:nth-child(3)')?.innerText.trim()??null,rowExpanded:row?.getAttribute('aria-expanded')??null,rowTabIndex:row?.getAttribute('tabindex')??null,cellButtons:cell?.querySelectorAll('button').length??null,cellFocusables:cell?.querySelectorAll('a,input,select,textarea,[role="button"],[tabindex]:not([tabindex="-1"])').length??null,cellHasTitle:cell?.hasAttribute('title')??null,cellTitles:cell?[...cell.querySelectorAll('[title]')].map(e=>e.getAttribute('title')):null,cellAriaHidden:cell?.querySelector('span[aria-hidden="true"]')!==null,cellSvgCount:cell?.querySelectorAll('svg').length??null,rect:rect?{left:rect.left,top:rect.top,right:rect.right,bottom:rect.bottom,width:rect.width,height:rect.height}:null,viewport:{width:innerWidth,height:innerHeight},hit:{tag:hit?.tagName??null,ariaLabel:hit?.getAttribute('aria-label')??null,text:hit?.textContent?.trim().slice(0,80)??null,insideCell:Boolean(cell&&hit&&(hit===cell||cell.contains(hit))),insideButton:Boolean(hit?.closest('button'))},mainScrollTop:main?.scrollTop??null}})()`)
+    verify(roleClickBefore.matchCount === 1 && roleClickBefore.rowStatus === 'CHANGED' && roleClickBefore.rowExpanded === 'false'
+      && roleClickBefore.rowTabIndex === '0' && roleClickBefore.cellButtons === 0 && roleClickBefore.cellFocusables === 0
+      && !roleClickBefore.cellHasTitle && roleClickBefore.cellTitles.length === 0 && roleClickBefore.cellAriaHidden && roleClickBefore.cellSvgCount > 0
+      && roleClickBefore.hit.insideCell && !roleClickBefore.hit.insideButton,
+      `${before} → ${after} visual chevron cell is not an independent button/focus target/title and belongs to the focused row`, roleClickBefore)
     await evaluate(`(()=>{window.__cbdRoleMatrixClickEvents=[];document.addEventListener('click',event=>{const row=event.target.closest('tr[data-candidate-reorder-row]');if(row?.getAttribute('data-candidate-reorder-row')===${JSON.stringify(roleChangedRow.id)})window.__cbdRoleMatrixClickEvents.push({target:event.target.tagName,targetLabel:event.target.getAttribute('aria-label'),button:Boolean(event.target.closest('button')),defaultPrevented:event.defaultPrevented})},true)})()`)
     await click(selector)
     const roleClickAfter = await evaluate(`(()=>{const row=[...document.querySelectorAll('tr[data-candidate-reorder-row]')].find(item=>item.getAttribute('data-candidate-reorder-row')===${JSON.stringify(roleChangedRow.id)});return {rowStatus:row?.querySelector('td:nth-child(3)')?.innerText.trim()??null,rowExpanded:row?.getAttribute('aria-expanded')??null,clickEvents:window.__cbdRoleMatrixClickEvents??[],details:row?.nextElementSibling?.querySelector('th[scope="row"]')?.innerText.trim()??null}})()`)
     verify(roleClickAfter.clickEvents.length > 0,
       `${before} → ${after} physical CDP input delivers a click to the CHANGED row control`, { before: roleClickBefore, after: roleClickAfter })
     verify(roleClickAfter.rowExpanded === 'true',
-      `${before} → ${after} chevron click expands its CHANGED Candidate row`, { before: roleClickBefore, after: roleClickAfter })
+      `${before} → ${after} visual chevron cell click expands its CHANGED Candidate row`, { before: roleClickBefore, after: roleClickAfter })
     const detail = await evaluate(`(()=>{const row=[...document.querySelectorAll('tr[data-candidate-reorder-row]')].find(e=>e.getAttribute('data-candidate-reorder-row')===${JSON.stringify(roleChangedRow.id)});if(!row)return null;const headers=[];let next=row.nextElementSibling;while(next&&!next.hasAttribute('data-candidate-reorder-row')){const label=next.querySelector('th[scope="row"]')?.innerText.trim();if(label)headers.push(label);next=next.nextElementSibling}return {headers,mainExpanded:row.getAttribute('aria-expanded')}})()`)
     const expected = [before, after, 'Parameter Cost Effect']
     verify(detail?.mainExpanded === 'true' && detail.headers.slice(-3).join('|') === expected.join('|'),
@@ -854,6 +1086,7 @@ try {
   verify(finalConsole.length === 0, 'browser has no uncaught runtime exceptions, console errors, or warnings', finalConsole)
   process.stdout.write(`\nEvidence directory: ${evidenceDir}\n`)
   process.stdout.write(`Browser: ${baseUrl} in isolated Chrome; exercised Reference → Current, Current → Custom, Custom → Reference at 1440/1024/768/390/320px.\n`)
+  process.stdout.write('Active no-focus callers covered: Master Data Selling Price and SG&A; source inventory found no SelectedNumber callers in Simulation.\n')
   process.stdout.write(`Checks: ${checks.filter(check => check.passed).length}/${checks.length} passed.\n`)
 } catch (error) {
   process.stderr.write(`\nEvidence directory: ${evidenceDir}\n`)

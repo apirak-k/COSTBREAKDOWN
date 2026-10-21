@@ -150,7 +150,7 @@ export function BOMRecordDetails({
       percentage={percentage}
       selectionId={`${selectionIdPrefix}:${side}:${field}`}
       aria-label={`${label} ${field} ${visible}`}
-      className="block w-full text-right"
+      className="text-right"
     >{visible}</SelectedNumber>
   }
 

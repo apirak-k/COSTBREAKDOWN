@@ -242,7 +242,7 @@ try {
   assert.equal(await headerSteppers(), 0, 'no selection exposes no spinner')
   await screenshot('header-default-1440')
 
-  const numberStyle = aria => evaluate(`(()=>{const element=${byAria(aria)};const style=getComputedStyle(element);const rect=element.getBoundingClientRect();return {cursor:style.cursor,background:style.backgroundColor,boxShadow:style.boxShadow,focusVisible:element.matches(':focus-visible'),border:style.borderWidth,outline:style.outlineStyle,padding:style.padding,margin:style.margin,width:rect.width,height:rect.height,x:rect.x,y:rect.y}})()`)
+  const numberStyle = aria => evaluate(`(()=>{const element=${byAria(aria)};const treatment=element.firstElementChild??element;const style=getComputedStyle(element);const treatmentStyle=getComputedStyle(treatment);const rect=element.getBoundingClientRect();const treatmentRect=treatment.getBoundingClientRect();return {cursor:style.cursor,background:treatmentStyle.backgroundColor,boxShadow:style.boxShadow,focusVisible:element.matches(':focus-visible'),border:style.borderWidth,outline:style.outlineStyle,padding:style.padding,margin:style.margin,width:rect.width,height:rect.height,x:rect.x,y:rect.y,treatmentWidth:treatmentRect.width,treatmentHeight:treatmentRect.height}})()`)
   const movePointer = async point => send('Input.dispatchMouseEvent', { type: 'mouseMoved', ...point })
   const outsideNumberPoint = await evaluate('({x:innerWidth-2,y:innerHeight-2})')
   const numberPoint = async aria => evaluate(`(()=>{const rect=${byAria(aria)}.getBoundingClientRect();return {x:rect.x+rect.width/2,y:rect.y+rect.height/2}})()`)
@@ -338,8 +338,9 @@ try {
   await delay(400)
   assert.equal(await headerText(), '12.34567891', 'idle read-only hover previews up to eight decimals in Header')
   const hoveredNumber = await numberStyle('Select precise result')
-  assert.notEqual(hoveredNumber.boxShadow, idleNumber.boxShadow, 'number hover supplies a thin blue affordance')
-  assert.equal(hoveredNumber.background, idleNumber.background, 'unpinned hover background remains identical to idle')
+  assert.equal(hoveredNumber.boxShadow, idleNumber.boxShadow, 'pointer hover adds no outline or ring')
+  assert.notEqual(hoveredNumber.background, idleNumber.background, 'unpinned hover applies a light selection background to the rendered value')
+  assert.equal(hoveredNumber.treatmentWidth, idleNumber.treatmentWidth, 'hover background hugs the rendered number without changing its width')
   assert.equal(keyboardFocusedNumber.background, idleNumber.background, 'keyboard focus does not use the pinned fill')
   assert.equal(await evaluate(`${byAria('Select precise result')}.getAttribute('aria-pressed')`), 'false', 'hover preview does not pin the value')
   for (const geometry of ['width', 'height', 'x', 'y', 'padding', 'margin']) assert.equal(hoveredNumber[geometry], idleNumber[geometry], `number hover preserves ${geometry}`)
@@ -355,7 +356,8 @@ try {
   await delay(100)
   const selectedNumber = await numberStyle('Select precise result')
   assert.notEqual(selectedNumber.background, idleNumber.background, 'selected background persists after pointer leaves')
-  assert.notEqual(selectedNumber.boxShadow, hoveredNumber.boxShadow, 'pinned treatment is visually stronger than hover')
+  assert.notEqual(selectedNumber.background, hoveredNumber.background, 'pinned background is visually stronger than hover')
+  assert.equal(selectedNumber.boxShadow, hoveredNumber.boxShadow, 'pinned treatment does not add an outline or ring')
   assert.equal(await headerText(), '12.34567891', 'pinned value persists after pointer leaves')
   for (const geometry of ['width', 'height', 'x', 'y', 'padding', 'margin']) assert.equal(selectedNumber[geometry], idleNumber[geometry], `number selection preserves ${geometry}`)
   assert.equal(selectedNumber.border, '0px')
@@ -835,11 +837,12 @@ try {
     selectedNumberVisual: {
       idleBackground: idleNumber.background,
       hoverBackground: hoveredNumber.background,
-      hoverFrameChanged: hoveredNumber.boxShadow !== idleNumber.boxShadow,
+      hoverHasPointerFrame: hoveredNumber.boxShadow !== idleNumber.boxShadow,
       keyboardFocusBackground: keyboardFocusedNumber.background,
       keyboardFocusFrameChanged: keyboardFocusedNumber.boxShadow !== idleNumber.boxShadow,
       pinnedBackground: selectedNumber.background,
-      pinnedFrameChangedFromHover: selectedNumber.boxShadow !== hoveredNumber.boxShadow
+      pinBackgroundStrongerThanHover: selectedNumber.background !== hoveredNumber.background,
+      contentHuggingWidth: hoveredNumber.treatmentWidth
     },
     editingAndStepping: 'PASS',
     clipboardPaste: 'PASS',

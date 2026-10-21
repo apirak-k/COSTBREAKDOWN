@@ -45,15 +45,16 @@ function formatGap(value: number | null): string {
 
 function renderGap(value: number | null, label: string, gapDirection: string, pairFingerprint: string, sourceId: string): React.ReactNode {
   const accessibleLabel = `${label} Gap ${formatGap(value)}; Gap = ${gapDirection}`
-  const className = `block w-full text-right font-mono tabular-nums whitespace-nowrap ${value === null || !Number.isFinite(value) ? 'text-slate-400' : getVarianceClass(value)}`
+  const className = `font-mono tabular-nums whitespace-nowrap ${value === null || !Number.isFinite(value) ? 'text-slate-400' : getVarianceClass(value)}`
+  const alignedClassName = `block w-full text-right ${className}`
   if (value === null || !Number.isFinite(value)) {
-    return <span tabIndex={0} aria-label={accessibleLabel} className={className}>{formatGap(value)}</span>
+    return <span tabIndex={0} aria-label={accessibleLabel} className={alignedClassName}>{formatGap(value)}</span>
   }
   return <SelectedNumber
     value={value}
     selectionId={`cbd:${pairFingerprint}:work-center:${sourceId}:gap`}
     aria-label={accessibleLabel}
-    className={className}
+    className={`text-right ${className}`}
   >{formatGap(value)}</SelectedNumber>
 }
 
@@ -62,7 +63,7 @@ function renderValue(value: number | null, label: string, selectionId: string, c
   if (value === null || !Number.isFinite(value)) {
     return <span tabIndex={0} aria-label={ariaLabel} className={`block w-full text-right ${className}`}>{formatNullable(value)}</span>
   }
-  return <SelectedNumber value={value} selectionId={selectionId} aria-label={ariaLabel} className={`block w-full text-right ${className}`}>{formatNullable(value)}</SelectedNumber>
+  return <SelectedNumber value={value} selectionId={selectionId} aria-label={ariaLabel} className={`text-right ${className}`}>{formatNullable(value)}</SelectedNumber>
 }
 
 function renderPercentage(value: number | null, label: string, selectionId: string, className: string): React.ReactNode {
@@ -71,7 +72,7 @@ function renderPercentage(value: number | null, label: string, selectionId: stri
   if (value === null || !Number.isFinite(value)) {
     return <span aria-label={ariaLabel} className={`block w-full text-right ${className}`}>{display}</span>
   }
-  return <SelectedNumber value={value * 100} percentage selectionId={selectionId} aria-label={ariaLabel} className={`block w-full text-right ${className}`}>{display}</SelectedNumber>
+  return <SelectedNumber value={value * 100} percentage selectionId={selectionId} aria-label={ariaLabel} className={`text-right ${className}`}>{display}</SelectedNumber>
 }
 
 function conversionTotal(labor: number | null, burden: number | null): number | null {

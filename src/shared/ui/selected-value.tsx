@@ -2,6 +2,7 @@ import { createContext, useCallback, useContext, useEffect, useId, useLayoutEffe
 import type { ButtonHTMLAttributes, ReactNode } from 'react'
 import type { NumericInputDomain } from './numeric-input-rules'
 import { formatBusinessNumber, formatFullNumericValue } from './numeric-display'
+import { isSafeWorkspaceDismissTarget } from './transient-interactions'
 
 interface SelectedValueBase {
   value: number | null | undefined
@@ -54,6 +55,29 @@ const SelectedValueContext = createContext<SelectedValueContextValue | null>(nul
 const useBrowserLayoutEffect = typeof window === 'undefined' ? useEffect : useLayoutEffect
 const isSelectable = (source: SelectedValue) => Number.isFinite(source.value) || (source.editable && source.value == null)
 const HOVER_PREVIEW_DWELL_MS = 350
+const ADDITIONAL_PIN_PRESERVING_TARGET = [
+  '[aria-expanded]',
+  '[aria-haspopup]',
+  '[data-cbd-popover]',
+  '[data-cbd-status]',
+  '[data-comparison-role-menu]',
+  '[draggable="true"]',
+  '[id="prepare-dataset-panel"]',
+  '[role="checkbox"]',
+  '[role="combobox"]',
+  '[role="listbox"]',
+  '[role="menu"]',
+  '[role="menuitemcheckbox"]',
+  '[role="menuitemradio"]',
+  '[role="option"]',
+  '[role="radio"]',
+  '[role="spinbutton"]',
+  '[role="switch"]',
+  '[role="tab"]',
+  '[role="group"][aria-label="Finding type filter"]',
+  '[role="group"][aria-label="Filter by comparison status"]',
+  '[tabindex]:not([tabindex="-1"])'
+].join(',')
 const asReadOnlyPreview = (source: SelectedValue): SelectedValue => source.editable
   ? { id: source.id, value: source.value, editable: false, domain: source.domain, percentage: source.percentage }
   : source
@@ -78,6 +102,24 @@ export function SelectedValueProvider({ children, scopeKey }: { children: ReactN
   const selection = sameSourcePreview
     ? focusedSelection
     : previewSelection ?? focusedSelection ?? pinnedSelection
+
+  useEffect(() => {
+    if (!pinnedSelection) return
+
+    const clearPinOnBackgroundPointerDown = (event: PointerEvent) => {
+      if (event.button !== 0 || !(event.target instanceof Element)) return
+      const targetIsInteractive = !isSafeWorkspaceDismissTarget(event.target)
+        || event.target.closest(ADDITIONAL_PIN_PRESERVING_TARGET) !== null
+      if (targetIsInteractive) return
+      setState(current => ({
+        ...current,
+        pinned: current.pinned?.scopeKey === scopeKey ? null : current.pinned
+      }))
+    }
+
+    document.addEventListener('pointerdown', clearPinOnBackgroundPointerDown, true)
+    return () => document.removeEventListener('pointerdown', clearPinOnBackgroundPointerDown, true)
+  }, [pinnedSelection, scopeKey])
 
   const activateFocus = useCallback((value: SelectedValue) => {
     cancelPendingPreview()
@@ -125,7 +167,15 @@ export function SelectedValueProvider({ children, scopeKey }: { children: ReactN
   const pinValue = useCallback((value: SelectedValue) => {
     cancelPendingPreview()
     if (value.editable || !isSelectable(value)) return
-    setState(current => ({ ...current, pinned: { value, scopeKey } }))
+    setState(current => {
+      const currentPin = current.pinned
+      return {
+        ...current,
+        pinned: currentPin !== null && currentPin.scopeKey === scopeKey && currentPin.value.id === value.id
+          ? null
+          : { value, scopeKey }
+      }
+    })
   }, [cancelPendingPreview, scopeKey])
   const clearSelection = useCallback((id?: string) => {
     cancelPendingPreview(id, scopeKey)
@@ -278,7 +328,7 @@ export function SelectedNumber({ value, integer, percentage, selectionId, childr
       aria-label={props['aria-label'] ?? `Select value ${formatFullNumericValue(value)}${percentage ? '%' : ''}`}
       aria-pressed={isPinned}
       data-selected-number="true"
-      className={`inline cursor-pointer appearance-none rounded-none text-inherit ${isPinned ? 'bg-blue-50 ring-1 ring-inset ring-blue-700' : 'bg-transparent hover:ring-1 hover:ring-inset hover:ring-blue-500/70 focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-blue-700'} ${className ?? ''}`.trim()}
+      className={`group inline cursor-pointer appearance-none rounded-none text-inherit focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-blue-700 ${className ?? ''}`.trim()}
       style={{ ...style, border: 0, outline: 'none', padding: 0, margin: 0 }}
       onPointerEnter={event => {
         preview()
@@ -301,7 +351,7 @@ export function SelectedNumber({ value, integer, percentage, selectionId, childr
         onKeyUp?.(event)
       }}
     >
-      {content}
+      <span className={`rounded-sm ${isPinned ? 'bg-blue-100' : 'bg-transparent group-hover:bg-slate-100'}`}>{content}</span>
     </button>
   )
 }

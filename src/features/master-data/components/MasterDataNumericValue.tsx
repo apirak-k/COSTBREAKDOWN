@@ -104,7 +104,7 @@ export function MasterDataSelectedNumber({
 }: MasterDataSelectedNumberProps) {
   const displayValue = value != null && Number.isFinite(value) ? formatBusinessNumber(value, { integer }) : unavailableContent ?? '—'
   const hasFiniteValue = value != null && Number.isFinite(value)
-  const content = (
+  const nonSelectableContent = (
     <>
       <span className={`block w-full min-w-0 text-right ${reserveMarker ? 'pr-6' : ''} ${contentClassName ?? ''}`}>{displayValue}</span>
       {missingMarker && <MasterDataBlockerMarker />}
@@ -122,21 +122,24 @@ export function MasterDataSelectedNumber({
   }
 
   if (value == null || !Number.isFinite(value)) {
-    return <span {...gridProps} className={className}>{content}</span>
+    return <span {...gridProps} className={className}>{nonSelectableContent}</span>
   }
 
   return (
-    <SelectedNumber
-      value={value}
-      integer={integer}
-      percentage={percentage}
-      selectionId={selectionId}
-      className={className}
-      stopKeyboardPropagation={gridCell !== 'true'}
-      {...gridProps}
-    >
-      {content}
-    </SelectedNumber>
+    <span className={`${className ?? ''} ${contentClassName ?? ''} ${reserveMarker ? 'pr-6' : ''}`.trim()}>
+      <SelectedNumber
+        value={value}
+        integer={integer}
+        percentage={percentage}
+        selectionId={selectionId}
+        className="whitespace-nowrap"
+        stopKeyboardPropagation={gridCell !== 'true'}
+        {...gridProps}
+      >
+        {displayValue}
+      </SelectedNumber>
+      {missingMarker && <MasterDataBlockerMarker />}
+    </span>
   )
 }
 

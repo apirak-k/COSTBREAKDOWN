@@ -435,20 +435,20 @@ export const CandidateFindingsTable: React.FC<CandidateFindingsTableProps> = ({
                   percentage={parameter.percentage}
                   selectionId={`${selectionIdPrefix}:parameter:${parameter.field}`}
                   aria-label={`${identityHeader} ${row.label} ${parameterHeaders[parameterIndex]} ${parameter.display}`}
-                  className="block w-full text-right"
+                  className="text-right"
                 >{parameter.display}</SelectedNumber></td>)}
                 <td aria-label={gapLabel} onClick={event => event.stopPropagation()} className={`whitespace-nowrap px-1 py-2 text-right ${gapTextClass(row.gap)}`}><SelectedNumber
                   value={row.gap}
                   selectionId={`${selectionIdPrefix}:gap`}
                   aria-label={gapLabel}
-                  className={`block w-full text-right ${gapTextClass(row.gap)}`}
+                  className={`text-right ${gapTextClass(row.gap)}`}
                 >{row.gap === null ? '—' : formatVariance(row.gap, 2)}</SelectedNumber></td>
                 <td aria-label={`${identityHeader} ${row.label} percent Gap ${percentDisplay}`} onClick={event => event.stopPropagation()} className="whitespace-nowrap px-1 py-2 text-right text-slate-700"><SelectedNumber
                   value={percentRatio === null ? null : percentRatio * 100}
                   percentage
                   selectionId={`${selectionIdPrefix}:percent-gap`}
                   aria-label={`${identityHeader} ${row.label} percent Gap ${percentDisplay}`}
-                  className="block w-full text-right text-slate-700"
+                  className="text-right text-slate-700"
                 >{percentDisplay}</SelectedNumber></td>
                 <td className="px-1 py-2 text-center" onClick={event => event.stopPropagation()}>
                   <Tooltip label={selected && selectedVisibleCount > 1 ? `Drag selected ${isBOM ? 'BOM' : 'Routing'} findings to reorder` : 'Drag to reorder'}>
@@ -467,19 +467,8 @@ export const CandidateFindingsTable: React.FC<CandidateFindingsTableProps> = ({
                     ><GripVertical aria-hidden="true" className="h-4 w-4" /></button>
                   </Tooltip>
                 </td>
-                <td className="px-1 py-2 text-center" onClick={event => event.stopPropagation()}>
-                  {canExpand && <button
-                    type="button"
-                    aria-expanded={isExpanded}
-                    aria-controls={isExpanded ? detailId : undefined}
-                    aria-label={`${isExpanded ? 'Collapse' : 'Expand'} ${identityHeader} detail for ${row.label}`}
-                    title={`${isExpanded ? 'Collapse' : 'Expand'} details`}
-                    onClick={event => {
-                      event.stopPropagation()
-                      onToggleExpanded(type, row.key)
-                    }}
-                    className="inline-flex h-7 w-7 items-center justify-center rounded-sm text-slate-500 hover:bg-slate-200 hover:text-slate-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-700"
-                  >{isExpanded ? <ChevronDown aria-hidden="true" className="h-3.5 w-3.5" /> : <ChevronRight aria-hidden="true" className="h-3.5 w-3.5" />}</button>}
+                <td className="px-1 py-2 text-center">
+                  {canExpand && <span aria-hidden="true" className="inline-flex text-slate-500">{isExpanded ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5" />}</span>}
                 </td>
               </tr>
               {isExpanded && (rowType === 'bom'
