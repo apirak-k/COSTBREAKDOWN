@@ -1,6 +1,22 @@
 # Current Handoff — Phase 2 Selected Value / Decimal UX — 2026-10-21
 
-## Verified checkpoint
+## Round 2 — Master Data closure
+
+- **Status:** Round 1 CLOSED; Round 2 — Master Data CLOSED after verify/audit/accept; Round 3 — Cost Breakdown NOT STARTED / NEXT; Rounds 4–5 NOT STARTED.
+- Repository: `https://github.com/apirak-k/COSTBREAKDOWN.git`; worktree `/Users/bubu/COSTBREAKDOWN-ref-current-custom-flow-redesign`; branch `feat/selected-value-ux`.
+- Round 2 starting local and freshly fetched remote HEAD: `010c3d3fb6c3b2251bc7b0d783401df20937b1a6`; worktree was clean before edits. Vite PID `96264` on port 5173 has this worktree as its cwd.
+- Round 1 final SHA: `010c3d3fb6c3b2251bc7b0d783401df20937b1a6`. Historic Master Data recovery source: `3b3880f79891293662aeb5e622d11941bcf3ea64`. Header correction `3ec9bbebebb01db65b3d8096082680a5e7b18aec` is preserved.
+- **Root cause:** Master Data View numeric cells had been changed from their existing native grid-focus elements to `SelectedNumber` buttons. That added hover preview/pin and a second focus treatment over the spreadsheet grid. The same early change expanded several editors/displays to their full table columns.
+- **Recovery:** BOM, Work Center, and Routing View numeric cells again render their historical native grid focus element and publish read-only values through the shared provider on native focus. Hover is neutral gray and does not update Header. Compact geometry from the historical source is restored: BOM Usage 80px, BOM Price 96px, Work Center Labor/Burden 96px, Routing Manning 80px, Routing Capacity 96px, and Loss/Yield shells 112px. Right alignment was intentionally retained instead of historical centering; Header axis deltas are 1px. The `%` slot is 12px with 4px gap; the missing-value blocker marker remains independently reserved.
+- Metadata Selling Price and SG&A retain `SelectedNumber` in View because they have no existing grid-focus interaction. Editable inputs, Dataset Sizing, source identity/writer/domain/conversion/history behavior, adaptive body display, the 20/45/35 metadata ratio, formulas/domains, lifecycle, and spreadsheet semantics remain unchanged.
+- **Browser evidence:** isolated headless Chrome against the Vite server verified native focus, neutral hover without Header preview, full read-only Header value/no spinner, pointer leave, Enter / Shift+Enter source movement, missing numeric and percentage blockers, suffix separation, an Edit contiguous range and the browser copy event's line-separated values, All view search and filtered-source invalidation, and responsive geometry at 1440/1024/768/390/320px. Result: **140 passed, 0 failed**. Body/header numeric axes differed by 1px; narrow tables scroll locally and document width equals the viewport. Clipboard data was inspected in the browser event; system clipboard readback was not separately tested.
+- A separate isolated Chrome numeric-input run typed `12.3456789` in Master Data, Simulation, Business, and Economic. All four retained the full value while focused and displayed `12.35` after blur.
+- **PASS:** `node scripts/verify_master_data_ui_state.mjs`; `node scripts/verify_numeric_input.mjs`; `COSTBREAKDOWN_BROWSER_BASE_URL=http://localhost:5173/ node scripts/verify_numeric_input_browser.mjs`; `node scripts/verify_global_compact_overlays.mjs`; `node scripts/verify_page_navigation_persistence.mjs`; `node_modules/.bin/jiti scripts/verify_numeric_integrity.ts`; `node scripts/verify_simulation_regression.mjs`; Master Data spreadsheet batch, Dataset Sizing/Clone, toolbar/Prepare, quality navigation, edit history, sizing no-op/preservation, row order, Clear, Custom isolation, Clone readiness, rename/empty-edit verifiers; `npx tsc --noEmit --pretty false`; `npm run build`; and `git diff --check`.
+- Simulation regression printed existing nested Vite SSR “port 24678 already in use” warnings but exited 0 and all suites passed. Production build passes with existing ExcelJS/fast-csv browser externalization warnings and the main-chunk-size advisory.
+- `npm audit --audit-level=high` exits 1 for the existing dependency tree: 10 advisories (6 high, 4 moderate, 0 critical). No dependencies or lockfiles were changed.
+- Round 2 closure implementation commit: `b89c283522e37a9d9e59535a81e3e0a3c8016053` (`fix: close master data selected value round`), a direct child of `010c3d3fb6c3b2251bc7b0d783401df20937b1a6`. This current documentation receipt records that exact SHA. No Round 3/4 implementation, merge, rebase, or force-push is part of this closeout.
+
+## Previous checkpoint — Round 1 acceptance (historical)
 
 - Repository: `https://github.com/apirak-k/COSTBREAKDOWN.git` (`apirak-k/COSTBREAKDOWN`). Worktree: `/Users/bubu/COSTBREAKDOWN-ref-current-custom-flow-redesign`. Branch: `feat/selected-value-ux`.
 - Final acceptance correction starting local HEAD and freshly fetched `origin/feat/selected-value-ux`: `4b841c4a8198d996bee1a0a785c7518756a7620b`; they matched and the worktree was clean before edits. Vite PID `96264` on port 5173 was verified by process cwd as this worktree. After the correction is committed and pushed, the branch HEAD is the final Round 1 acceptance correction; its exact SHA is in the delivery report.
@@ -47,7 +63,7 @@
 - `docs/PHASE_2_SELECTED_VALUE_DECIMAL_UX_PLAN.md`
 - `HANDOFF.md`
 
-## Round 2 open issue and next action
+## Round 2 open issue before recovery (historical)
 
 - The early Round 2 implementation wraps Master Data View-mode numeric grid cells in `SelectedNumber`; their existing grid focus/navigation should instead own a read-only Header value without a second hover/pin frame. This is the known recovery target; do not treat the early integration as accepted.
 - Start **Round 2 — Master Data recovery** only after Round 1 is committed and pushed. Compare actual pre-integration history around `3b3880f` and `66f8b83` and restore only affected behavior. Do not reset the branch, revert all of the early integration, or undo the `3ec9bbe` Header correction. Do not start Round 3 before Round 2 passes its own verify/audit/accept/close gate.
