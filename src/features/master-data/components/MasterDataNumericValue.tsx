@@ -24,7 +24,7 @@ interface MasterDataNumericInputProps extends NumericInputProps {
 
 export function MasterDataNumericInput({ selectionId, percentage = false, ...props }: MasterDataNumericInputProps) {
   const { clearFocus } = useSelectedValue()
-  const { focus } = useSelectedValueSource({
+  const { focus, preview, clearPreview } = useSelectedValueSource({
     value: props.value,
     editable: true,
     domain: {
@@ -43,6 +43,14 @@ export function MasterDataNumericInput({ selectionId, percentage = false, ...pro
     <NumericInput
       {...props}
       data-selected-value-source={selectionId}
+      onPointerEnter={event => {
+        preview()
+        props.onPointerEnter?.(event)
+      }}
+      onPointerLeave={event => {
+        clearPreview()
+        props.onPointerLeave?.(event)
+      }}
       onFocus={event => {
         focus()
         props.onFocus?.(event)
@@ -165,7 +173,7 @@ export function MasterDataFocusedNumber({
   missingMarker = false
 }: MasterDataFocusedNumberProps) {
   const { clearFocus } = useSelectedValue()
-  const { focus } = useSelectedValueSource({ value, editable: false, domain: { integer }, percentage }, selectionId)
+  const { focus, preview, clearPreview } = useSelectedValueSource({ value, editable: false, domain: { integer }, percentage }, selectionId)
   const displayValue = value != null && Number.isFinite(value) ? formatBusinessNumber(value, { integer }) : '—'
 
   return (
@@ -177,6 +185,8 @@ export function MasterDataFocusedNumber({
       data-grid-row-id={gridRowId}
       data-grid-field={gridField}
       data-selected-value-source={selectionId}
+      onPointerEnter={preview}
+      onPointerLeave={clearPreview}
       onFocus={focus}
       onBlur={event => {
         const header = event.relatedTarget instanceof Element

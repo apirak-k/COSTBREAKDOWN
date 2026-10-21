@@ -37,7 +37,7 @@ try {
     isMasterDataNumericValueValid
   } = await vite.ssrLoadModule('/src/core/utils/master-data-validation.ts')
   const { NumericInput } = await vite.ssrLoadModule('/src/shared/ui/NumericInput.tsx')
-  const { formatBusinessNumber, formatFullNumericValue } = await vite.ssrLoadModule('/src/shared/ui/numeric-display.ts')
+  const { formatBusinessNumber, formatFullNumericValue, formatHeaderNumericValue } = await vite.ssrLoadModule('/src/shared/ui/numeric-display.ts')
   const numericInputSource = readFileSync(resolve(process.cwd(), 'src/shared/ui/NumericInput.tsx'), 'utf8')
 
   assert.equal(formatNumber(12), '12.00')
@@ -62,6 +62,7 @@ try {
   for (const value of [null, undefined, NaN, Infinity, -Infinity]) {
     assert.equal(formatBusinessNumber(value), '—', 'missing or non-finite values stay unavailable')
     assert.equal(formatFullNumericValue(value), '', 'missing or non-finite values never become Header numbers')
+    assert.equal(formatHeaderNumericValue(value), '', 'missing or non-finite values never become Header presentations')
     assert.equal(formatNumericInputValue(value), '', 'unavailable numeric editors stay blank rather than becoming zero')
   }
   const adaptiveExamples = [
@@ -77,6 +78,33 @@ try {
   assert.equal(formatBusinessNumber(0.004567, { percent: true }), '0.0046%')
   assert.equal(formatBusinessNumber(-0.00003, { percent: true }), '-3.00e-5%')
   assert.equal(formatBusinessNumber(0, { percent: true }), '0.00%')
+  const bodyPrecisionRegressions = [
+    [12.345678, '12.35'],
+    [0.004567, '0.0046'],
+    [0.00003, '3.00e-5'],
+    [1e-7, '1.00e-7'],
+    [20.000000000000004, '20.00']
+  ]
+  for (const [value, expected] of bodyPrecisionRegressions) {
+    assert.equal(formatBusinessNumber(value), expected, `body compact precision regression for ${value}`)
+    assert.equal(formatNumericInputValue(value), expected, 'numeric body editor preserves its two → four → scientific display policy')
+  }
+  const headerPrecisionRegressions = [
+    [20.000000000000004, '20'],
+    [20.369999999999997, '20.37'],
+    [20.50000000000001, '20.5'],
+    [20.123456789, '20.12345679'],
+    [27.3456789, '27.3456789'],
+    [0.00003, '0.00003'],
+    [1e-9, '1.00e-9'],
+    [Number.MIN_VALUE, '4.94e-324'],
+    [27, '27'],
+    [-123.12345678, '-123.12345678']
+  ]
+  for (const [value, expected] of headerPrecisionRegressions) {
+    assert.equal(formatHeaderNumericValue(value), expected, `Header precision regression for ${value}`)
+  }
+  assert.equal(formatHeaderNumericValue(0.20000000000000004 * 100), '20', 'Header removes actual percentage display-unit conversion noise')
   assert.equal(formatBusinessNumber(3, { integer: true }), '3', 'semantic counts remain whole')
   assert.equal(formatBusinessNumber(0, { integer: true }), '0')
   assert.equal(formatBusinessNumber(1000, { integer: true }), '1000')
@@ -228,9 +256,9 @@ try {
   assert.doesNotMatch(numericInputSource, /precision\s*=\s*2/, 'shared numeric editor has no decimal-place acceptance default')
   assert.doesNotMatch(decimalMarkup + integerMarkup, /data-numeric-stepper|Increase Price|Decrease Price|Increase Rows|Decrease Rows/, 'ordinary numeric editors have no inline visible spinner')
   const headerMarkup = renderToStaticMarkup(React.createElement(NumericInput, {
-    value: 12.3456789, onValueChange() {}, showStepper: true, displayMode: 'full', 'aria-label': 'Selected value'
+    value: 12.3456789123, onValueChange() {}, showStepper: true, displayMode: 'header', 'aria-label': 'Selected value'
   }))
-  assert.match(headerMarkup, /value="12\.3456789"/, 'full Header mode never uses body display rounding')
+  assert.match(headerMarkup, /value="12\.34567891"/, 'editable Header presentation is capped at eight decimals')
   assert.match(headerMarkup, /Increase Selected value/, 'editable Header mode exposes its spinner')
   assert.match(headerMarkup, /Decrease Selected value/, 'editable Header mode exposes both stepping directions')
   assert.match(numericInputSource, /parsedPaste\.kind === 'transient'/, 'paste rejects incomplete/zero-prefix drafts instead of bypassing Poka-Yoke')

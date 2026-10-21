@@ -1,11 +1,14 @@
+import { useRef } from 'react'
 import { NumericInput } from '../ui/NumericInput'
-import { formatFullNumericValue } from '../ui/numeric-display'
+import { formatHeaderNumericValue } from '../ui/numeric-display'
 import { useSelectedValue } from '../ui/selected-value'
 
 export function HeaderValue({ inDialog = false }: { inDialog?: boolean }) {
-  const { selection, clearFocus } = useSelectedValue()
-  const fullValue = formatFullNumericValue(selection?.value)
-  const rootWidth = inDialog ? 'w-[min(14rem,calc(100vw-6.25rem))]' : 'w-[clamp(5rem,16vw,12rem)]'
+  const { selection, focusedSelection, previewSelection, clearFocus } = useSelectedValue()
+  const latestSources = useRef({ focusedId: focusedSelection?.id, previewId: previewSelection?.id })
+  latestSources.current = { focusedId: focusedSelection?.id, previewId: previewSelection?.id }
+  const headerValue = formatHeaderNumericValue(selection?.value)
+  const rootWidth = inDialog ? 'w-[min(14rem,calc(100vw-6.25rem))]' : 'w-[clamp(5rem,17vw,12rem)]'
   const labelColor = inDialog ? 'text-slate-600' : 'text-slate-300'
   const outputColor = inDialog ? 'text-slate-900' : 'text-slate-100'
   const inputColors = inDialog
@@ -25,7 +28,7 @@ export function HeaderValue({ inDialog = false }: { inDialog?: boolean }) {
             {...selection.domain}
             allowSubMinimumDraft={selection.allowSubMinimumDraft}
             stopAtMinimum={selection.stopAtMinimum}
-            displayMode="full"
+            displayMode="header"
             showStepper
             stepperButtonClassName={inDialog ? undefined : '!text-slate-200 hover:!text-white'}
             data-selected-value-source={selection.id}
@@ -33,13 +36,17 @@ export function HeaderValue({ inDialog = false }: { inDialog?: boolean }) {
               const sourceId = event.relatedTarget instanceof Element
                 ? event.relatedTarget.getAttribute('data-selected-value-source')
                 : null
-              if (sourceId !== selection.id) clearFocus(selection.id)
+              const sources = latestSources.current
+              const replacedByPreview = sources.focusedId === selection.id
+                && sources.previewId !== undefined
+                && sources.previewId !== selection.id
+              if (!replacedByPreview && sourceId !== selection.id) clearFocus(selection.id)
             }}
             className={`select-text border px-1 text-right ${inputColors}`}
           />
         ) : (
-          <span data-selected-value-output="true" tabIndex={selection ? 0 : undefined} title={fullValue || undefined} className={`block h-8 select-text overflow-x-auto overflow-y-hidden whitespace-nowrap font-mono leading-8 tabular-nums ${outputColor}`}>
-            {fullValue || '—'}
+          <span data-selected-value-output="true" tabIndex={selection ? 0 : undefined} title={headerValue || undefined} className={`block h-8 select-text overflow-x-auto overflow-y-hidden whitespace-nowrap font-mono leading-8 tabular-nums ${outputColor}`}>
+            {headerValue || '—'}
           </span>
         )}
       </div>

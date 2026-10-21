@@ -47,6 +47,9 @@ interface SelectedValueContextValue {
 const SelectedValueContext = createContext<SelectedValueContextValue | null>(null)
 const useBrowserLayoutEffect = typeof window === 'undefined' ? useEffect : useLayoutEffect
 const isSelectable = (source: SelectedValue) => Number.isFinite(source.value) || (source.editable && source.value == null)
+const asReadOnlyPreview = (source: SelectedValue): SelectedValue => source.editable
+  ? { id: source.id, value: source.value, editable: false, domain: source.domain, percentage: source.percentage }
+  : source
 
 export function SelectedValueProvider({ children, scopeKey }: { children: ReactNode; scopeKey?: string }) {
   const [state, setState] = useState<SelectedValueState>({ focused: null, previewed: null, pinned: null })
@@ -54,13 +57,20 @@ export function SelectedValueProvider({ children, scopeKey }: { children: ReactN
   const focusedSelection = inScope(state.focused)
   const previewSelection = inScope(state.previewed)
   const pinnedSelection = inScope(state.pinned)
-  const selection = focusedSelection ?? previewSelection ?? pinnedSelection
+  const sameSourcePreview = previewSelection !== null && previewSelection.id === focusedSelection?.id
+  const selection = sameSourcePreview
+    ? focusedSelection
+    : previewSelection ?? focusedSelection ?? pinnedSelection
 
   const activateFocus = useCallback((value: SelectedValue) => {
-    setState(current => ({
-      ...current,
-      focused: isSelectable(value) ? { value, scopeKey } : null
-    }))
+    setState(current => {
+      const focused = isSelectable(value) ? { value, scopeKey } : null
+      const currentPreview = current.previewed
+      const previewed = currentPreview !== null && currentPreview.scopeKey === scopeKey && currentPreview.value.id === value.id
+        ? null
+        : currentPreview
+      return { ...current, focused, previewed }
+    })
   }, [scopeKey])
   const clearFocus = useCallback((id?: string) => {
     setState(current => ({
@@ -69,8 +79,14 @@ export function SelectedValueProvider({ children, scopeKey }: { children: ReactN
     }))
   }, [scopeKey])
   const previewValue = useCallback((value: SelectedValue) => {
-    if (value.editable || !isSelectable(value)) return
-    setState(current => ({ ...current, previewed: { value, scopeKey } }))
+    if (!isSelectable(value)) return
+    setState(current => {
+      const currentFocus = current.focused
+      if (currentFocus !== null && currentFocus.scopeKey === scopeKey && currentFocus.value.id === value.id) {
+        return current
+      }
+      return { ...current, previewed: { value: asReadOnlyPreview(value), scopeKey } }
+    })
   }, [scopeKey])
   const clearPreview = useCallback((id?: string) => {
     setState(current => ({
@@ -92,13 +108,15 @@ export function SelectedValueProvider({ children, scopeKey }: { children: ReactN
     }))
   }, [scopeKey])
   const syncSelection = useCallback((value: SelectedValue) => {
-    const syncSource = (slot: ScopedValue): ScopedValue => {
+    const syncSource = (slot: ScopedValue, readOnly = false): ScopedValue => {
       if (!slot || slot.scopeKey !== scopeKey || slot.value.id !== value.id) return slot
-      return isSelectable(value) ? { value, scopeKey } : null
+      return isSelectable(value)
+        ? { value: readOnly ? asReadOnlyPreview(value) : value, scopeKey }
+        : null
     }
     setState(current => ({
       focused: syncSource(current.focused),
-      previewed: syncSource(current.previewed),
+      previewed: syncSource(current.previewed, true),
       pinned: syncSource(current.pinned)
     }))
   }, [scopeKey])
@@ -153,15 +171,15 @@ export function useSelectedValueSource(source: SelectedValueSource, sourceId?: s
     syncSelection,
     scopeKey
   } = useSelectedValue()
-  const current = useRef({ source, id, scopeKey, selectedId: selection?.id, mounted: true })
+  const current = useRef({ source, id, scopeKey, focusedId: focusedSelection?.id, mounted: true })
   current.current.source = source
   current.current.id = id
   current.current.scopeKey = scopeKey
-  current.current.selectedId = selection?.id
+  current.current.focusedId = focusedSelection?.id
 
   const write = useCallback((value: number | null) => {
     const latest = current.current
-    if (latest.mounted && latest.id === id && latest.selectedId === id && latest.scopeKey === scopeKey && latest.source.editable) latest.source.onValueChange(value)
+    if (latest.mounted && latest.id === id && latest.focusedId === id && latest.scopeKey === scopeKey && latest.source.editable) latest.source.onValueChange(value)
   }, [id, scopeKey])
   const snapshot = useCallback((): SelectedValue => {
     const latest = current.current.source

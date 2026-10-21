@@ -324,9 +324,9 @@ try {
       await clickSelector(dialogInput('SG&A'))
       assert.equal(await inputValue(headerSelector), sgaPercent, `${role} Dataset Sizing Header Value restores full SG&A value after the access probe`)
     } else if (mouseAccessible) {
-      for (const [label, nextValue, expectedEditor, expectedSuffix] of [
-        ['Selling Price (THB)', '123.456789123', '123.46', false],
-        ['SG&A', '13.5792468', '13.58', true]
+      for (const [label, nextValue, expectedHeader, expectedEditor, expectedSuffix] of [
+        ['Selling Price (THB)', '123.456789123', '123.45678912', '123.46', false],
+        ['SG&A', '13.5792468', '13.5792468', '13.58', true]
       ]) {
         await clickSelector(dialogInput(label))
         await replaceInput(headerSelector, nextValue)
@@ -334,10 +334,11 @@ try {
         await clickSelector(dialogInput(label))
         const sourceEditorDisplay = await inputValue(dialogInput(label))
         const sourceHeaderValue = await inputValue(headerSelector)
-        verify(headerDraft === nextValue && sourceHeaderValue === nextValue && sourceEditorDisplay === expectedEditor, `${role} Dataset Sizing Header edit writes through to its local ${label} source draft`, {
+        verify(headerDraft === nextValue && sourceHeaderValue === expectedHeader && sourceEditorDisplay === expectedEditor, `${role} Dataset Sizing Header edit writes through to its local ${label} source draft while applying Header presentation precision`, {
           headerDraft,
           sourceHeaderValue,
           sourceEditorDisplay,
+          expectedHeader,
           expectedEditor,
           expected: nextValue
         })
@@ -367,7 +368,7 @@ try {
   await replaceInput('[role="dialog"] #dataset-sizing-uom', 'pc')
   await replaceInput(dialogInput('Selling Price (THB)'), '111.123456789')
   await clickSelector(dialogInput('Selling Price (THB)'))
-  assert.equal(await inputValue('[role="dialog"] [data-header-value] input[aria-label="Selected value"]'), '111.123456789', 'Header Value exposes the full Selling Price metadata draft')
+  assert.equal(await inputValue('[role="dialog"] [data-header-value] input[aria-label="Selected value"]'), '111.12345679', 'Header Value caps Selling Price metadata presentation at eight decimals')
   await replaceInput(dialogInput('SG&A'), '12.3456789')
   await clickSelector(dialogInput('SG&A'))
   assert.equal(await inputValue('[role="dialog"] [data-header-value] input[aria-label="Selected value"]'), '12.3456789', 'Header Value exposes the full SG&A percentage draft')
@@ -382,11 +383,11 @@ try {
   await waitFor(() => evaluate(`!document.querySelector('[role="dialog"][aria-labelledby="sizing-modal-title"]')`), 'Custom sizing apply')
   await delay(250)
   await clickSelector('section[aria-label="Working dataset controls"] input[aria-label="Selling Price (THB)"]')
-  verify(await inputValue('header [data-header-value] input[aria-label="Selected value"]') === '123.456789123'
-    && await inputValue('section[aria-label="Working dataset controls"] input[aria-label="Selling Price (THB)"]') === '123.46', 'applied Custom Selling Price keeps exact Header source value and compact main editor display', {
+  verify(await inputValue('header [data-header-value] input[aria-label="Selected value"]') === '123.45678912'
+    && await inputValue('section[aria-label="Working dataset controls"] input[aria-label="Selling Price (THB)"]') === '123.46', 'applied Custom Selling Price keeps its source value while Header caps presentation and main editor stays compact', {
     actualHeader: await inputValue('header [data-header-value] input[aria-label="Selected value"]'),
     editorDisplay: await inputValue('section[aria-label="Working dataset controls"] input[aria-label="Selling Price (THB)"]'),
-    expected: '123.456789123'
+    expected: '123.45678912'
   })
   await clickSelector('section[aria-label="Working dataset controls"] input[aria-label="SG&A"]')
   verify(await inputValue('header [data-header-value] input[aria-label="Selected value"]') === '13.5792468'
@@ -422,9 +423,9 @@ try {
   await replaceInput(dialogInput('SG&A'), '8.7654321')
   await clickSelector(dialogInput('Selling Price (THB)'))
   const currentDialogSellingHeader = await inputValue('[role="dialog"] [data-header-value] input[aria-label="Selected value"]')
-  verify(currentDialogSellingHeader === '22.222222222', 'Current Dataset Sizing Selling Price selection publishes its full draft', {
+  verify(currentDialogSellingHeader === '22.22222222', 'Current Dataset Sizing Selling Price selection caps Header presentation', {
     actual: currentDialogSellingHeader,
-    expected: '22.222222222',
+    expected: '22.22222222',
     editorDisplay: await inputValue(dialogInput('Selling Price (THB)'))
   })
   await clickSelector(dialogInput('SG&A'))
@@ -442,9 +443,9 @@ try {
   const mainSgaSelector = 'section[aria-label="Working dataset controls"] input[aria-label="SG&A"]'
   await clickSelector(mainSellingPriceSelector)
   const currentMainSellingHeader = await inputValue('header [data-header-value] input[aria-label="Selected value"]')
-  verify(currentMainSellingHeader === '22.222222222', 'applied Current Selling Price metadata keeps full Header source value', {
+  verify(currentMainSellingHeader === '22.22222222', 'applied Current Selling Price metadata caps Header presentation', {
     actual: currentMainSellingHeader,
-    expected: '22.222222222',
+    expected: '22.22222222',
     editorDisplay: await inputValue(mainSellingPriceSelector)
   })
   await clickSelector(mainSgaSelector)
@@ -479,7 +480,7 @@ try {
   const globalHeaderInput = 'header [data-header-value] input[aria-label="Selected value"]'
   const masterDataNavigation = 'header nav button[aria-current="page"]'
   await clickSelector(mainInput('price'))
-  verify(await inputValue(globalHeaderInput) === '123.456789123', 'focused Master Data source activates its full Header value', {
+  verify(await inputValue(globalHeaderInput) === '123.45678912', 'focused Master Data source activates its eight-decimal Header presentation', {
     source: await inputValue(mainInput('price')),
     header: await inputValue(globalHeaderInput)
   })
@@ -492,7 +493,7 @@ try {
     headerSourceId: document.querySelector('header [data-header-value] input[aria-label="Selected value"]')?.getAttribute('data-selected-value-source') ?? null
   })`)
   verify(sourceToHeaderFocus?.active === 'Selected value'
-      && sourceToHeaderFocus.input === '123.456789123'
+      && sourceToHeaderFocus.input === '123.45678912'
       && sourceToHeaderFocus.spinner === 1
       && sourceToHeaderFocus.sourceId !== null
       && sourceToHeaderFocus.sourceId === sourceToHeaderFocus.headerSourceId,
@@ -531,7 +532,7 @@ try {
 
   await clickSelector('section[aria-label="Working dataset controls"] input[aria-label="Selling Price (THB)"]')
   const sellingPriceHeaderValue = await inputValue('header [data-header-value] input[aria-label="Selected value"]')
-  verify(sellingPriceHeaderValue === '22.222222222', 'main Selling Price metadata publishes its full value to Header Value', {
+  verify(sellingPriceHeaderValue === '22.22222222', 'main Selling Price metadata caps Header presentation at eight decimals', {
     actual: sellingPriceHeaderValue,
     source: await inputValue('section[aria-label="Working dataset controls"] input[aria-label="Selling Price (THB)"]'),
     headerText: await textContent('header [data-header-value]'),
@@ -550,14 +551,14 @@ try {
   })
 
   const tableNumericFields = [
-    { section: 'Bill of Materials', header: 'Bill of Materials', field: 'consumption', column: 'Usage', value: '3.1415926535', label: 'BOM Usage' },
-    { section: 'Bill of Materials', header: 'Bill of Materials', field: 'price', column: 'Price', value: '123.456789123', label: 'BOM Price' },
-    { section: 'Bill of Materials', header: 'Bill of Materials', field: 'loss', column: 'Loss', value: '1.23456789', label: 'BOM Loss', percentage: true },
-    { section: 'Work Centers', header: 'Work Centers', field: 'laborRate', column: 'Labor Rate', value: '234.567891', label: 'Work Center Labor Rate' },
-    { section: 'Work Centers', header: 'Work Centers', field: 'burdenRate', column: 'Burden Rate', value: '8.125', label: 'Work Center Burden Rate' },
-    { section: 'Routing', header: 'Routing', field: 'manning', column: 'Manning', value: '2.3456789', label: 'Routing Manning' },
-    { section: 'Routing', header: 'Routing', field: 'capacity', column: 'Capacity', value: '45.678901', label: 'Routing Capacity' },
-    { section: 'Routing', header: 'Routing', field: 'yield', column: 'Yield', value: '88.7654321', label: 'Routing Yield', percentage: true }
+    { section: 'Bill of Materials', header: 'Bill of Materials', field: 'consumption', column: 'Usage', value: '3.1415926535', headerValue: '3.14159265', label: 'BOM Usage' },
+    { section: 'Bill of Materials', header: 'Bill of Materials', field: 'price', column: 'Price', value: '123.456789123', headerValue: '123.45678912', label: 'BOM Price' },
+    { section: 'Bill of Materials', header: 'Bill of Materials', field: 'loss', column: 'Loss', value: '1.23456789', headerValue: '1.23456789', label: 'BOM Loss', percentage: true },
+    { section: 'Work Centers', header: 'Work Centers', field: 'laborRate', column: 'Labor Rate', value: '234.567891', headerValue: '234.567891', label: 'Work Center Labor Rate' },
+    { section: 'Work Centers', header: 'Work Centers', field: 'burdenRate', column: 'Burden Rate', value: '8.125', headerValue: '8.125', label: 'Work Center Burden Rate' },
+    { section: 'Routing', header: 'Routing', field: 'manning', column: 'Manning', value: '2.3456789', headerValue: '2.3456789', label: 'Routing Manning' },
+    { section: 'Routing', header: 'Routing', field: 'capacity', column: 'Capacity', value: '45.678901', headerValue: '45.678901', label: 'Routing Capacity' },
+    { section: 'Routing', header: 'Routing', field: 'yield', column: 'Yield', value: '88.7654321', headerValue: '88.7654321', label: 'Routing Yield', percentage: true }
   ]
   const editorAxes = {}
   const editorAxis = async spec => geometry(`(()=>{
@@ -580,7 +581,7 @@ try {
     const beforeFocus = await editorAxis(spec)
     await clickSelector(selector)
     const actual = await inputValue('header [data-header-value] input[aria-label="Selected value"]')
-    verify(actual === spec.value, `${spec.label} selection publishes its full value to Header Value`, { actual, expected: spec.value })
+    verify(actual === spec.headerValue, `${spec.label} selection publishes its capped Header presentation`, { actual, expected: spec.headerValue, sourceDraft: spec.value })
     if (spec.percentage) verify(await evaluate('document.querySelector("header [data-header-value]")?.textContent.includes("%")'), `${spec.label} publishes percentage units and suffix`)
     const afterFocus = await editorAxis(spec)
     editorAxes[spec.field] = afterFocus
@@ -596,7 +597,7 @@ try {
   const focusPriceRect = await geometry(`(()=>{const i=document.querySelector('section[aria-label="Bill of Materials rows"] input[data-grid-field="price"]');const r=i.getBoundingClientRect(),s=getComputedStyle(i);return {x:r.x,width:r.width,right:r.right,paddingRight:s.paddingRight,textAlign:s.textAlign}})()`)
   await clickSelector(mainInput('price'))
   await waitFor(() => existsVisible('header [data-header-value] input[aria-label="Selected value"]'), 'editable Selected Value Header')
-  assert.equal(await inputValue('header [data-header-value] input[aria-label="Selected value"]'), '123.456789123', 'Header shows complete selected BOM Price value')
+  assert.equal(await inputValue('header [data-header-value] input[aria-label="Selected value"]'), '123.45678912', 'Header shows the capped selected BOM Price presentation')
   const initialPriceAxis = await geometry(`(()=>{const h=[...document.querySelectorAll('[aria-label="Bill of Materials column header controls"] th')].find(e=>e.textContent.trim()==='Price');const i=document.querySelector('section[aria-label="Bill of Materials rows"] tbody tr:first-child input[data-grid-field="price"]');if(!h||!i)return null;const hr=document.createRange();hr.selectNodeContents(h);const hv=hr.getBoundingClientRect();const ir=i.getBoundingClientRect(),tr=i.closest('td')?.getBoundingClientRect(),ht=h.getBoundingClientRect();const cs=getComputedStyle(i);return {headerTextRight:hv.right,headerInset:ht.right-hv.right,headerTextAlign:getComputedStyle(h).textAlign,inputAxisRight:ir.right-parseFloat(cs.paddingRight),inputInset:tr.right-(ir.right-parseFloat(cs.paddingRight)),inputRectRight:ir.right,inputPaddingRight:cs.paddingRight,inputTextAlign:cs.textAlign,inputRect:{x:ir.x,width:ir.width,right:ir.right}}})()`)
   const focusPriceRectAfter = await geometry(`(()=>{const i=document.querySelector('section[aria-label="Bill of Materials rows"] input[data-grid-field="price"]');const r=i.getBoundingClientRect(),s=getComputedStyle(i);return {x:r.x,width:r.width,right:r.right,paddingRight:s.paddingRight,textAlign:s.textAlign}})()`)
   verify(JSON.stringify(focusPriceRect) === JSON.stringify(focusPriceRectAfter), 'BOM Price text axis does not shift on focus', { before: focusPriceRect, after: focusPriceRectAfter })
@@ -608,13 +609,13 @@ try {
   await typeHeaderValue('42.123456789')
   assert.equal(await inputValue('header [data-header-value] input[aria-label="Selected value"]'), '42.123456789', 'Header edit retains the complete JavaScript-number value')
   await clickSelector(mainInput('price'))
-  assert.equal(await inputValue('header [data-header-value] input[aria-label="Selected value"]'), '42.123456789', 'Header edit writes through to the same BOM Price source')
+  assert.equal(await inputValue('header [data-header-value] input[aria-label="Selected value"]'), '42.12345679', 'reselecting the edited source shows its capped Header presentation')
   await clickSelector('header button[aria-label="Undo"]')
   await clickSelector(mainInput('price'))
   await waitFor(async () => await inputValue('header [data-header-value] input[aria-label="Selected value"]') === originalPrice, 'Master Data Undo updates the selected Header source')
   await clickSelector('header button[aria-label="Redo"]')
   await clickSelector(mainInput('price'))
-  await waitFor(async () => await inputValue('header [data-header-value] input[aria-label="Selected value"]') === '42.123456789', 'Master Data Redo updates the selected Header source')
+  await waitFor(async () => await inputValue('header [data-header-value] input[aria-label="Selected value"]') === '42.12345679', 'Master Data Redo updates the selected Header source presentation')
   verify(await evaluate('document.querySelectorAll("header [data-header-value] [data-numeric-stepper]").length') === 1, 'editable Header Value owns the only visible Selected Value spinner')
 
   await clickSelector(mainInput('price'))
@@ -654,6 +655,26 @@ try {
     expected: '5.67891234',
     suffix: await evaluate('document.querySelector("header [data-header-value]")?.textContent.includes("%")')
   })
+  await typeHeaderValue('20.000000000000004')
+  assert.equal(await inputValue('header [data-header-value] input[aria-label="Selected value"]'), '20.000000000000004', 'BOM Loss accepts percentage display units with floating-point conversion noise')
+  await clickSelector(inputInSection('Bill of Materials rows', 'loss'))
+  assert.equal(await inputValue('header [data-header-value] input[aria-label="Selected value"]'), '20', 'reselecting BOM Loss uses the stored fraction converted back to clean percentage display units')
+  verify(await evaluate('document.querySelector("header [data-header-value]")?.textContent.includes("%")'), 'BOM Loss keeps its percent unit after fraction storage and display conversion')
+
+  await clickSelector(masterDataNavigation)
+  await waitFor(() => textContent('header [data-header-value] [data-selected-value-output]').then(value => value === '—'), 'Edit mode has no anchored source before testing a Master Data hover preview')
+  const lossEditInput = inputInSection('Bill of Materials rows', 'loss')
+  await hoverSelector(lossEditInput)
+  const lossEditPreview = await evaluate(`(()=>{const e=${visibleExpression(lossEditInput)};return {active:document.activeElement===e,header:document.querySelector('header [data-header-value] [data-selected-value-output]')?.textContent.trim()??null,suffix:document.querySelector('header [data-header-value]')?.textContent.includes('%')??false,editor:!!document.querySelector('header [data-header-value] input[aria-label="Selected value"]'),spinner:document.querySelectorAll('header [data-header-value] [data-numeric-stepper]').length}})()`)
+  verify(Boolean(lossEditPreview && !lossEditPreview.active
+      && lossEditPreview.header === '20'
+      && lossEditPreview.suffix
+      && !lossEditPreview.editor
+      && lossEditPreview.spinner === 0),
+    'unfocused Master Data Edit Loss hover previews formatted 20 percent without focusing or exposing a writer', lossEditPreview)
+  await send('Input.dispatchMouseEvent', { type: 'mouseMoved', x: 1438, y: 1798 })
+  await delay(120)
+  verify(await textContent('header [data-header-value] [data-selected-value-output]') === '—', 'pointer leave clears the unanchored Master Data Edit Loss preview')
 
   await clickSelector('section[aria-label="Working dataset controls"] button[role="switch"]')
   await waitFor(() => evaluate(`document.querySelector('section[aria-label="Working dataset controls"] button[role="switch"]')?.getAttribute('aria-checked') === 'false'`), 'Master Data View mode')
@@ -676,36 +697,48 @@ try {
   verify(Boolean(idleViewPrice && hoveredViewPrice
       && !idleViewPrice.selectedNumber && !hoveredViewPrice.selectedNumber
       && idleViewPrice.pressed === null && hoveredViewPrice.pressed === null
-      && idleViewPrice.header === '—' && hoveredViewPrice.header === '—'
+      && idleViewPrice.header === '—' && hoveredViewPrice.header === '42.12345679'
       && JSON.stringify(idleViewPrice.rect) === JSON.stringify(hoveredViewPrice.rect)
       && hoveredViewPrice.border === 'rgb(226, 232, 240)'
       && hoveredViewPrice.background === 'rgb(248, 250, 252)'
       && hoveredViewPrice.outline === 'none'),
-    'View numeric hover stays neutral gray, changes neither Header nor geometry, and has no SelectedNumber state', { idle: idleViewPrice, hover: hoveredViewPrice, pointer: hoverPoint })
+    'unanchored View hover previews the formatted value while preserving native gray geometry and no SelectedNumber state', { idle: idleViewPrice, hover: hoveredViewPrice, pointer: hoverPoint })
+  await send('Input.dispatchMouseEvent', { type: 'mouseMoved', x: 1438, y: 1798 })
+  await delay(120)
+  verify(await textContent('header [data-header-value] [data-selected-value-output]') === '—',
+    'pointer leave clears an unanchored native View preview')
   await clickSelector(firstViewPriceCell)
   const focusedViewPrice = await geometry(`(()=>{const e=${visibleExpression(firstViewPriceCell)},s=getComputedStyle(${visibleExpression(firstViewPriceCell)});return {active:document.activeElement===e,header:document.querySelector('header [data-header-value] [data-selected-value-output]')?.textContent.trim()??null,spinner:document.querySelectorAll('header [data-header-value] [data-numeric-stepper]').length,selectedNumber:!!e?.closest('[data-selected-number="true"]'),pressed:e?.getAttribute('aria-pressed')??null,outline:s.outlineColor,outlineWidth:s.outlineWidth,outlineStyle:s.outlineStyle}})()`)
   verify(Boolean(focusedViewPrice?.active
-      && focusedViewPrice.header === '42.123456789'
+      && focusedViewPrice.header === '42.12345679'
       && focusedViewPrice.spinner === 0
       && !focusedViewPrice.selectedNumber
       && focusedViewPrice.pressed === null
       && focusedViewPrice.outline === 'rgb(29, 78, 216)'
       && focusedViewPrice.outlineWidth === '2px'),
-    'native grid focus publishes the full read-only Header value with one blue focus perimeter and no spinner', focusedViewPrice)
+    'native grid focus publishes the capped read-only Header value with one blue focus perimeter and no spinner', focusedViewPrice)
+  await hoverSelector(secondViewPriceCell)
+  const focusedViewHover = await geometry(`(()=>{const a=${visibleExpression(firstViewPriceCell)},b=${visibleExpression(secondViewPriceCell)};return {activeA:document.activeElement===a,header:document.querySelector('header [data-header-value] [data-selected-value-output]')?.textContent.trim()??null,spinner:document.querySelectorAll('header [data-header-value] [data-numeric-stepper]').length,selectedNumberA:!!a?.closest('[data-selected-number="true"]'),selectedNumberB:!!b?.closest('[data-selected-number="true"]'),pressedA:a?.getAttribute('aria-pressed')??null,pressedB:b?.getAttribute('aria-pressed')??null}})()`)
+  verify(Boolean(focusedViewHover?.activeA
+      && focusedViewHover.header === '321.98765432'
+      && focusedViewHover.spinner === 0
+      && !focusedViewHover.selectedNumberA && !focusedViewHover.selectedNumberB
+      && focusedViewHover.pressedA === null && focusedViewHover.pressedB === null),
+    'hovering native View B previews B read-only while A retains native focus', focusedViewHover)
   await send('Input.dispatchMouseEvent', { type: 'mouseMoved', x: 1438, y: 1798 })
   await delay(120)
   verify(await evaluate(`document.activeElement===${visibleExpression(firstViewPriceCell)}`)
-      && await textContent('header [data-header-value] [data-selected-value-output]') === '42.123456789',
-    'pointer leave keeps native grid focus and the focus-owned Header value')
+      && await textContent('header [data-header-value] [data-selected-value-output]') === '42.12345679',
+    'pointer leave restores A while keeping native grid focus')
   await pressKey('Enter')
   const afterEnterFocusRow = await evaluate(`document.activeElement?.getAttribute('data-grid-row-id')`)
   verify(afterEnterFocusRow === secondPriceRowId, 'View-mode Enter from a read-only numeric cell advances to the next row', { firstRow: firstPriceRowId, focusedRow: afterEnterFocusRow, nextRow: secondPriceRowId })
-  verify(await textContent('header [data-header-value] [data-selected-value-output]') === '321.987654321', 'View Enter moves the Header source to the newly focused row')
+  verify(await textContent('header [data-header-value] [data-selected-value-output]') === '321.98765432', 'View Enter moves the Header source to the newly focused row')
   await pressKey('Enter', { shift: true })
   const afterShiftEnterFocusRow = await evaluate(`document.activeElement?.getAttribute('data-grid-row-id')`)
   verify(afterShiftEnterFocusRow === firstPriceRowId, 'View-mode Shift+Enter from a read-only numeric cell moves to the previous row', { focusedRow: afterShiftEnterFocusRow, previousRow: firstPriceRowId })
   const enterReadOnlyHeader = await textContent('header [data-header-value] [data-selected-value-output]')
-  verify(enterReadOnlyHeader === '42.123456789', 'View Shift+Enter moves the Header source back to the first row', { header: enterReadOnlyHeader })
+  verify(enterReadOnlyHeader === '42.12345679', 'View Shift+Enter moves the Header source back to the first row', { header: enterReadOnlyHeader })
   const missingViewCell = 'section[aria-label="Bill of Materials rows"] tbody tr:nth-child(2) [data-grid-cell="true"][data-grid-field="consumption"]'
   await clickSelector(missingViewCell)
   const missingViewState = await geometry(`(()=>{const e=${visibleExpression(missingViewCell)},td=e?.closest('td'),header=[...document.querySelectorAll('[aria-label="Bill of Materials column header controls"] th')].find(item=>item.textContent.trim()==='Usage');if(!e||!td||!header)return null;const valueRange=document.createRange(),textNode=[...e.childNodes].find(node=>node.nodeType===Node.TEXT_NODE&&node.textContent.trim());if(textNode)valueRange.selectNode(textNode);else valueRange.selectNodeContents(e);const text=valueRange.getBoundingClientRect(),r=e.getBoundingClientRect(),marker=e.querySelector('[aria-label="Missing required value"]'),markerRect=marker?.getBoundingClientRect(),headerRange=document.createRange();headerRange.selectNodeContents(header);const headerText=headerRange.getBoundingClientRect(),headerRect=header.getBoundingClientRect();return {active:document.activeElement===e,header:document.querySelector('header [data-header-value] [data-selected-value-output]')?.textContent.trim()??null,invalid:e.getAttribute('aria-invalid'),markerCount:e.querySelectorAll('[aria-label="Missing required value"]').length,markerClearance:markerRect?markerRect.left-text.right:null,bodyInset:td.getBoundingClientRect().right-text.right,headerInset:headerRect.right-headerText.right,width:r.width,selectedNumber:!!e.closest('[data-selected-number="true"]'),pressed:e.getAttribute('aria-pressed')}})()`)
@@ -744,14 +777,29 @@ try {
       && missingPercentState.suffixGap === 4
       && Math.abs(missingPercentState.bodyInset - missingPercentState.headerInset) <= 2),
     'missing percentage blocker keeps the marker and suffix separate without shifting its numeric axis', missingPercentState)
+  await clickSelector(masterDataNavigation)
+  await waitFor(() => textContent('header [data-header-value] [data-selected-value-output]').then(value => value === '—'), 'read-only percentage preview starts without a focused Header source')
   const lossViewCell = 'section[aria-label="Bill of Materials rows"] tbody tr:first-child [data-grid-cell="true"][data-grid-field="loss"]'
+  await hoverSelector(lossViewCell)
+  const percentagePreviewState = await evaluate(`(()=>({active:document.activeElement===${visibleExpression(lossViewCell)},header:document.querySelector('header [data-header-value] [data-selected-value-output]')?.textContent.trim()??null,suffix:document.querySelector('header [data-header-value]')?.textContent.includes('%')??false,spinner:document.querySelectorAll('header [data-header-value] [data-numeric-stepper]').length,selectedNumber:!!${visibleExpression(lossViewCell)}?.closest('[data-selected-number="true"]'),pressed:${visibleExpression(lossViewCell)}?.getAttribute('aria-pressed')??null}))()`)
+  verify(Boolean(percentagePreviewState
+      && !percentagePreviewState.active
+      && percentagePreviewState.header === '20'
+      && percentagePreviewState.suffix
+      && percentagePreviewState.spinner === 0
+      && !percentagePreviewState.selectedNumber
+      && percentagePreviewState.pressed === null),
+    'unfocused native View Loss hover previews the converted 20 percent as a read-only Header value', percentagePreviewState)
+  await send('Input.dispatchMouseEvent', { type: 'mouseMoved', x: 1438, y: 1798 })
+  await delay(120)
+  verify(await textContent('header [data-header-value] [data-selected-value-output]') === '—', 'pointer leave clears unanchored native View Loss percentage preview')
   await clickSelector(lossViewCell)
   const percentageViewState = await evaluate(`(()=>({active:document.activeElement===${visibleExpression(lossViewCell)},header:document.querySelector('header [data-header-value] [data-selected-value-output]')?.textContent.trim()??null,suffix:document.querySelector('header [data-header-value]')?.textContent.includes('%')??false,spinner:document.querySelectorAll('header [data-header-value] [data-numeric-stepper]').length}))()`)
   verify(Boolean(percentageViewState?.active
-      && percentageViewState.header === '5.67891234'
+      && percentageViewState.header === '20'
       && percentageViewState.suffix
       && percentageViewState.spinner === 0),
-    'focused read-only percentage value publishes its full displayed units and suffix without a spinner', percentageViewState)
+    'focused read-only percentage value keeps the capped display units and suffix without a spinner', percentageViewState)
   await clickSelector(firstViewPriceCell)
   const displayBeforeClick = await geometry(`(()=>{const e=${visibleExpression(firstViewPriceCell)};if(!e)return null;const r=e.getBoundingClientRect(),s=getComputedStyle(e),tr=e.closest('td')?.getBoundingClientRect(),range=document.createRange();range.selectNodeContents(e);const text=range.getBoundingClientRect();return {right:text.right,inset:tr.right-text.right,rectRight:r.right,display:s.display,width:r.width,paddingRight:s.paddingRight,textAlign:s.textAlign,outline:s.outlineColor,outlineWidth:s.outlineWidth,label:e.getAttribute('aria-label')}})()`)
   verify(await evaluate('document.querySelectorAll("header [data-header-value] [data-numeric-stepper]").length') === 0, 'read-only Header Value has no spinner')
@@ -850,7 +898,7 @@ try {
   }
   await setViewport(1440, 1800)
   await clickSelector(firstViewPriceCell)
-  verify(await textContent('header [data-header-value] [data-selected-value-output]') === '42.123456789',
+  verify(await textContent('header [data-header-value] [data-selected-value-output]') === '42.12345679',
     'All view focuses the selected Master Data numeric grid source before search')
   const masterDataSearch = 'input[aria-label="Search Master Data"]'
   await replaceInput(masterDataSearch, 'Material 2')
@@ -864,8 +912,8 @@ try {
     'All view search removes the hidden focused source and does not leave a stale Header value', searchedGridState)
   const searchedPriceCell = 'section[aria-label="Bill of Materials rows"] tbody tr:first-child [data-grid-cell="true"][data-grid-field="price"]'
   await clickSelector(searchedPriceCell)
-  verify(await textContent('header [data-header-value] [data-selected-value-output]') === '321.987654321',
-    'a filtered native numeric grid cell still owns focus and publishes its full Header value')
+  verify(await textContent('header [data-header-value] [data-selected-value-output]') === '321.98765432',
+    'a filtered native numeric grid cell still owns focus and publishes its capped Header presentation')
   await replaceInput(masterDataSearch, '')
   await waitFor(() => evaluate('document.querySelectorAll("section[aria-label=\\"Bill of Materials rows\\"] tbody tr[data-master-data-row-id]").length === 2'),
     'clearing All view search restores the original Master Data rows')
@@ -912,14 +960,14 @@ try {
     sourceEditor:document.querySelector('section[aria-label="Bill of Materials rows"] tbody tr:first-child input[data-grid-field="price"]')?.value??null,
     focusedElement:document.activeElement?.outerHTML?.slice(0,500)??null
   }))()`)
-  verify(currentValueAfterCustomEdit === '42.123456789', 'Current source is unchanged after Custom source edit', {
+  verify(currentValueAfterCustomEdit === '42.12345679', 'Current source is unchanged after Custom source edit', {
     actual: currentValueAfterCustomEdit,
-    expected: '42.123456789',
+    expected: '42.12345679',
     ...currentSourceDiagnostic
   })
-  verify(currentValueAfterCustomEdit === '42.123456789', 'dataset source switching prevents stale Custom writes to Current', {
+  verify(currentValueAfterCustomEdit === '42.12345679', 'dataset source switching prevents stale Custom writes to Current', {
     actual: currentValueAfterCustomEdit,
-    expected: '42.123456789',
+    expected: '42.12345679',
     source: await inputValue(currentPriceView)
   })
 
@@ -931,7 +979,7 @@ try {
   await chooseRole('Current')
   const currentPriceReadOnly = 'section[aria-label="Bill of Materials rows"] tbody tr:first-child [data-grid-cell="true"][data-grid-field="price"]'
   await clickSelector(currentPriceReadOnly)
-  assert.equal(await textContent('header [data-header-value] [data-selected-value-output]'), '42.123456789', 'Custom history actions do not mutate Current source')
+  assert.equal(await textContent('header [data-header-value] [data-selected-value-output]'), '42.12345679', 'Custom history actions do not mutate Current source')
   await clickTextButton('Cost Breakdown')
   await waitFor(() => textContent('header [data-header-value] [data-selected-value-output]').then(value => value === '—'), 'page change clears the read-only Header selection')
   verify(await inputValue('header [data-header-value] input[aria-label="Selected value"]') === null

@@ -1,7 +1,7 @@
 import { ChevronDown, ChevronUp } from 'lucide-react'
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import type { FocusEvent, InputHTMLAttributes, KeyboardEvent, PointerEvent as ReactPointerEvent } from 'react'
-import { formatFullNumericValue } from './numeric-display'
+import { formatFullNumericValue, formatHeaderNumericValue } from './numeric-display'
 import {
   formatNumericInputValue,
   isNumericDraftSyntax,
@@ -21,7 +21,7 @@ export interface NumericInputProps extends Omit<InputHTMLAttributes<HTMLInputEle
   stopAtMinimum?: boolean
   showStepper?: boolean
   stepperButtonClassName?: string
-  displayMode?: 'compact' | 'full'
+  displayMode?: 'compact' | 'full' | 'header'
   reserveMarker?: boolean
 }
 
@@ -52,7 +52,9 @@ export function NumericInput({
   const domain: NumericInputDomain = { integer, min, max, minExclusive }
   const formatValue = (next: number | null | undefined) => displayMode === 'full'
     ? formatFullNumericValue(next)
-    : formatNumericInputValue(next, domain)
+    : displayMode === 'header'
+      ? formatHeaderNumericValue(next)
+      : formatNumericInputValue(next, domain)
   const inputRef = useRef<HTMLInputElement>(null)
   const wrapperRef = useRef<HTMLDivElement>(null)
   const currentValueRef = useRef(value)

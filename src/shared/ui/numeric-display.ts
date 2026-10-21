@@ -19,6 +19,21 @@ export function formatBusinessNumber(
   return `${text}${percent ? '%' : ''}`
 }
 
+/** Header-only precision: round the presentation to eight decimals without changing the source value. */
+export function formatHeaderNumericValue(value: number | null | undefined): string {
+  if (value == null || !Number.isFinite(value)) return ''
+
+  // Keep very large magnitudes in Number's scientific form, matching the existing full-value convention.
+  if (Math.abs(value) >= 1e21) return String(value)
+
+  const rounded = value.toFixed(8)
+  if (value !== 0 && Number(rounded) === 0) return value.toExponential(2)
+  const trimmed = rounded.includes('.')
+    ? rounded.replace(/0+$/, '').replace(/\.$/, '')
+    : rounded
+  return trimmed === '-0' ? '0' : trimmed
+}
+
 /** Expand Number's own representation so a text editor can retain decimal caret stepping. */
 export function formatFullNumericValue(value: number | null | undefined): string {
   if (value == null || !Number.isFinite(value)) return ''
