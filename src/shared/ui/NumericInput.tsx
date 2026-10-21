@@ -20,6 +20,7 @@ export interface NumericInputProps extends Omit<InputHTMLAttributes<HTMLInputEle
   allowSubMinimumDraft?: boolean
   stopAtMinimum?: boolean
   showStepper?: boolean
+  stepperButtonClassName?: string
   displayMode?: 'compact' | 'full'
   reserveMarker?: boolean
 }
@@ -38,6 +39,7 @@ export function NumericInput({
   allowSubMinimumDraft = false,
   stopAtMinimum = false,
   showStepper = false,
+  stepperButtonClassName = '',
   displayMode = 'compact',
   reserveMarker = false,
   onFocus,
@@ -318,7 +320,7 @@ export function NumericInput({
               if (event.detail > 0 && Date.now() - lastPointerUpRef.current < 800) return
               applyStep(1)
             }}
-            className="grid h-3 flex-none touch-none place-items-center text-slate-500 hover:text-slate-950 focus-visible:z-10 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-blue-700"
+            className={`grid h-3 flex-none touch-none place-items-center text-slate-500 hover:text-slate-950 focus-visible:z-10 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-blue-700 ${stepperButtonClassName}`.trim()}
           >
             <ChevronUp className="h-3 w-3" aria-hidden="true" />
           </button>
@@ -334,7 +336,7 @@ export function NumericInput({
               if (event.detail > 0 && Date.now() - lastPointerUpRef.current < 800) return
               applyStep(-1)
             }}
-            className="grid h-3 flex-none touch-none place-items-center text-slate-500 hover:text-slate-950 focus-visible:z-10 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-blue-700"
+            className={`grid h-3 flex-none touch-none place-items-center text-slate-500 hover:text-slate-950 focus-visible:z-10 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-blue-700 ${stepperButtonClassName}`.trim()}
           >
             <ChevronDown className="h-3 w-3" aria-hidden="true" />
           </button>

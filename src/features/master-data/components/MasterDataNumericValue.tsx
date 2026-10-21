@@ -1,7 +1,7 @@
 import React from 'react'
 import type { NumericInputProps } from '../../../shared/ui/NumericInput'
 import { NumericInput } from '../../../shared/ui/NumericInput'
-import { SelectedNumber, useSelectedValueSource } from '../../../shared/ui/selected-value'
+import { SelectedNumber, useSelectedValue, useSelectedValueSource } from '../../../shared/ui/selected-value'
 import { formatBusinessNumber } from '../../../shared/ui/numeric-display'
 import { MasterDataBlockerMarker } from './MasterDataBlockerMarker'
 
@@ -23,6 +23,7 @@ interface MasterDataNumericInputProps extends NumericInputProps {
 }
 
 export function MasterDataNumericInput({ selectionId, percentage = false, ...props }: MasterDataNumericInputProps) {
+  const { clearSelection } = useSelectedValue()
   const { select } = useSelectedValueSource({
     value: props.value,
     editable: true,
@@ -41,9 +42,18 @@ export function MasterDataNumericInput({ selectionId, percentage = false, ...pro
   return (
     <NumericInput
       {...props}
+      data-selected-value-source={selectionId}
       onFocus={event => {
         select()
         props.onFocus?.(event)
+      }}
+      onBlur={event => {
+        props.onBlur?.(event)
+        const header = event.relatedTarget instanceof Element
+          ? event.relatedTarget.closest('[data-header-value]')
+          : null
+        const headerSourceId = header?.querySelector('[data-selected-value-source]')?.getAttribute('data-selected-value-source')
+        if (headerSourceId !== selectionId) clearSelection(selectionId)
       }}
     />
   )

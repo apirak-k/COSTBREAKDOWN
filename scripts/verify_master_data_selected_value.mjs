@@ -182,6 +182,12 @@ try {
   await send('Runtime.enable')
   await send('Emulation.setDeviceMetricsOverride', { width: 1440, height: 1800, deviceScaleFactor: 1, mobile: false })
   await waitFor(async () => (await evaluate('document.title')).includes('COSTBREAKDOWN'), 'application')
+  verify(
+    await textContent('header [data-header-value] [data-selected-value-output]') === '—'
+      && await inputValue('header [data-header-value] input[aria-label="Selected value"]') === null
+      && await evaluate('document.querySelectorAll("header [data-header-value] [data-numeric-stepper]").length === 0'),
+    'Header Value starts empty when no numeric value is active'
+  )
   await waitFor(async () => existsVisible('button') && await evaluate(`[...document.querySelectorAll('button')].some(button => button.getClientRects().length && button.innerText.trim() === 'Master Data')`), 'Master Data navigation')
   await clickTextButton('Master Data')
   await waitFor(() => existsVisible('section[aria-label="Working dataset controls"]'), 'Master Data workspace')
@@ -280,17 +286,15 @@ try {
     const dialogSelector = '[role="dialog"][aria-labelledby="sizing-modal-title"]'
     const headerSelector = `${dialogSelector} [data-header-value] input[aria-label="Selected value"]`
     await clickSelector(dialogInput('SG&A'))
-    const keyboardCount = await evaluate(`(()=>{const d=document.querySelector(${JSON.stringify(dialogSelector)});return d?[...d.querySelectorAll('a[href],button:not([disabled]),input:not([disabled]):not([type="hidden"]),select:not([disabled]),textarea:not([disabled]),[tabindex]:not([tabindex="-1"])')].filter(e=>e.getClientRects().length).length:0})()`)
-    const keyboardTrace = []
-    for (let index = 0; index <= keyboardCount; index += 1) {
-      await pressKey('Tab')
-      keyboardTrace.push(await evaluate(`(()=>({label:document.activeElement?.getAttribute('aria-label')??null,tag:document.activeElement?.tagName??null,inDialog:!!document.querySelector(${JSON.stringify(dialogSelector)})?.contains(document.activeElement),isHeader:document.activeElement===document.querySelector(${JSON.stringify(headerSelector)})}))()`))
-    }
-    const keyboardAccessible = keyboardTrace.some(item => item.isHeader)
-    verify(keyboardAccessible, `${role} Dataset Sizing Header Value is keyboard reachable while dialog is open`, {
-      focusableCount: keyboardCount,
-      trace: keyboardTrace
-    })
+    await pressKey('Tab')
+    const afterTabLeavesSource = await evaluate(`(()=>({
+      activeLabel:document.activeElement?.getAttribute('aria-label')??null,
+      headerInput:!!document.querySelector(${JSON.stringify(headerSelector)}),
+      output:document.querySelector(${JSON.stringify(`${dialogSelector} [data-selected-value-output]`)})?.textContent.trim()??null,
+      spinner:document.querySelectorAll(${JSON.stringify(`${dialogSelector} [data-numeric-stepper]`)}).length
+    }))()`)
+    verify(!afterTabLeavesSource?.headerInput && afterTabLeavesSource.output === '—' && afterTabLeavesSource.spinner === 0,
+      `${role} Dataset Sizing clears Header after Tab moves focus outside its selected source`, afterTabLeavesSource)
 
     await clickSelector(dialogInput('SG&A'))
     const beforeMouseClick = await geometry(`(()=>{const h=document.querySelector(${JSON.stringify(headerSelector)}),d=document.querySelector(${JSON.stringify(dialogSelector)});if(!h||!d)return null;const r=h.getBoundingClientRect(),x=r.x+r.width/2,y=r.y+r.height/2,top=document.elementFromPoint(x,y);return {headerRect:{x:r.x,y:r.y,width:r.width,height:r.height},headerVisible:!!h.getClientRects().length,headerText:h.value,topElement:{tag:top?.tagName??null,role:top?.getAttribute('role')??null,label:top?.getAttribute('aria-label')??null},topIsHeader:top===h||h.contains(top),topWithinDialog:d.contains(top)}})()`)
@@ -463,6 +467,60 @@ try {
   await enterField(inputInSection('Routing rows', 'manning'), '2.3456789')
   await enterField(inputInSection('Routing rows', 'capacity'), '45.678901')
   await enterField(inputInSection('Routing rows', 'yield'), '88.7654321')
+
+  const globalHeaderInput = 'header [data-header-value] input[aria-label="Selected value"]'
+  const masterDataNavigation = 'header nav button[aria-current="page"]'
+  await clickSelector(mainInput('price'))
+  verify(await inputValue(globalHeaderInput) === '123.456789123', 'focused Master Data source activates its full Header value', {
+    source: await inputValue(mainInput('price')),
+    header: await inputValue(globalHeaderInput)
+  })
+  await clickSelector(globalHeaderInput)
+  const sourceToHeaderFocus = await evaluate(`({
+    active: document.activeElement?.getAttribute('aria-label'),
+    input: document.querySelector('header [data-header-value] input[aria-label="Selected value"]')?.value ?? null,
+    spinner: document.querySelectorAll('header [data-header-value] [data-numeric-stepper]').length,
+    sourceId: document.querySelector('section[aria-label="Bill of Materials rows"] input[data-grid-field="price"]')?.getAttribute('data-selected-value-source') ?? null,
+    headerSourceId: document.querySelector('header [data-header-value] input[aria-label="Selected value"]')?.getAttribute('data-selected-value-source') ?? null
+  })`)
+  verify(sourceToHeaderFocus?.active === 'Selected value'
+      && sourceToHeaderFocus.input === '123.456789123'
+      && sourceToHeaderFocus.spinner === 1
+      && sourceToHeaderFocus.sourceId !== null
+      && sourceToHeaderFocus.sourceId === sourceToHeaderFocus.headerSourceId,
+    'moving focus from source to Header editor keeps the same editable value active', sourceToHeaderFocus)
+  const globalEditableStyle = await geometry(`(()=>{
+    const root=document.querySelector('header [data-header-value]'),input=root?.querySelector('input[aria-label="Selected value"]'),stepper=root?.querySelector('[data-numeric-stepper] button')
+    if(!root||!input||!stepper)return null
+    const inputStyle=getComputedStyle(input),stepperStyle=getComputedStyle(stepper),headerStyle=getComputedStyle(input.closest('header'))
+    return {background:inputStyle.backgroundColor,color:inputStyle.color,borderColor:inputStyle.borderTopColor,borderWidth:inputStyle.borderTopWidth,borderStyle:inputStyle.borderTopStyle,headerBackground:headerStyle.backgroundColor,stepperColor:stepperStyle.color}
+  })()`)
+  verify(Boolean(globalEditableStyle
+      && globalEditableStyle.background === 'rgba(0, 0, 0, 0)'
+      && globalEditableStyle.color === 'rgb(241, 245, 249)'
+      && ['rgb(100, 116, 139)', 'rgb(148, 163, 184)'].includes(globalEditableStyle.borderColor)
+      && globalEditableStyle.borderWidth === '1px'
+      && globalEditableStyle.borderStyle === 'solid'
+      && globalEditableStyle.stepperColor === 'rgb(226, 232, 240)'),
+    'global editable Header uses a dark integrated input, light text/arrows, and a subtle border', globalEditableStyle)
+  await saveScreenshot('header-editable-focused')
+  await clickSelector(masterDataNavigation)
+  const headerBlurState = await evaluate(`({
+    input: !!document.querySelector('header [data-header-value] input[aria-label="Selected value"]'),
+    output: document.querySelector('header [data-header-value] [data-selected-value-output]')?.textContent.trim() ?? null,
+    spinner: document.querySelectorAll('header [data-header-value] [data-numeric-stepper]').length
+  })`)
+  verify(!headerBlurState?.input && headerBlurState.output === '—' && headerBlurState.spinner === 0,
+    'leaving both source and Header editor clears the editable selection', headerBlurState)
+  await clickSelector(mainInput('price'))
+  await clickSelector(masterDataNavigation)
+  const sourceBlurState = await evaluate(`({
+    input: !!document.querySelector('header [data-header-value] input[aria-label="Selected value"]'),
+    output: document.querySelector('header [data-header-value] [data-selected-value-output]')?.textContent.trim() ?? null
+  })`)
+  verify(!sourceBlurState?.input && sourceBlurState.output === '—',
+    'leaving the source directly clears the editable selection', sourceBlurState)
+
   await clickSelector('section[aria-label="Working dataset controls"] input[aria-label="Selling Price (THB)"]')
   const sellingPriceHeaderValue = await inputValue('header [data-header-value] input[aria-label="Selected value"]')
   verify(sellingPriceHeaderValue === '22.222222222', 'main Selling Price metadata publishes its full value to Header Value', {
@@ -544,8 +602,10 @@ try {
   await clickSelector(mainInput('price'))
   assert.equal(await inputValue('header [data-header-value] input[aria-label="Selected value"]'), '42.123456789', 'Header edit writes through to the same BOM Price source')
   await clickSelector('header button[aria-label="Undo"]')
+  await clickSelector(mainInput('price'))
   await waitFor(async () => await inputValue('header [data-header-value] input[aria-label="Selected value"]') === originalPrice, 'Master Data Undo updates the selected Header source')
   await clickSelector('header button[aria-label="Redo"]')
+  await clickSelector(mainInput('price'))
   await waitFor(async () => await inputValue('header [data-header-value] input[aria-label="Selected value"]') === '42.123456789', 'Master Data Redo updates the selected Header source')
   verify(await evaluate('document.querySelectorAll("header [data-header-value] [data-numeric-stepper]").length') === 1, 'editable Header Value owns the only visible Selected Value spinner')
 
@@ -599,6 +659,43 @@ try {
   await waitFor(() => existsVisible('header [data-header-value] [data-selected-value-output]'), 'read-only Selected Value Header')
   assert.equal(await textContent('header [data-header-value] [data-selected-value-output]'), '42.123456789', 'read-only Header Value shows the full selected value')
   verify(await evaluate('document.querySelectorAll("header [data-header-value] [data-numeric-stepper]").length') === 0, 'read-only Header Value has no spinner')
+  const readOnlyHeaderStyle = await geometry(`(()=>{
+    const root=document.querySelector('header [data-header-value]'),output=root?.querySelector('[data-selected-value-output]')
+    if(!root||!output)return null
+    const style=getComputedStyle(output)
+    return {background:style.backgroundColor,color:style.color,borderWidth:style.borderTopWidth,borderStyle:style.borderTopStyle,overflowX:style.overflowX,whiteSpace:style.whiteSpace}
+  })()`)
+  verify(Boolean(readOnlyHeaderStyle
+      && readOnlyHeaderStyle.background === 'rgba(0, 0, 0, 0)'
+      && readOnlyHeaderStyle.color === 'rgb(241, 245, 249)'
+      && readOnlyHeaderStyle.borderWidth === '0px'
+      && readOnlyHeaderStyle.overflowX === 'auto'
+      && readOnlyHeaderStyle.whiteSpace === 'nowrap'),
+    'read-only Header is plain light text with no box and safe internal overflow', readOnlyHeaderStyle)
+  await saveScreenshot('header-readonly-selected')
+  await clickSelector(masterDataNavigation)
+  verify(await textContent('header [data-header-value] [data-selected-value-output]') === '42.123456789',
+    'read-only Header selection remains visible after focus moves outside')
+  for (const width of [1440, 1024, 768, 390, 320]) {
+    await setViewport(width, 1500)
+    const layout = await geometry(`(()=>{
+      const bounds=selector=>{const element=document.querySelector(selector);if(!element)return null;const rect=element.getBoundingClientRect();return {left:rect.left,right:rect.right,top:rect.top,bottom:rect.bottom,width:rect.width,height:rect.height}}
+      const value=bounds('header [data-header-value]'),undo=bounds('header button[aria-label="Undo"]'),redo=bounds('header button[aria-label="Redo"]'),info=bounds('header button[aria-label="Prepare Dataset"]')
+      const output=document.querySelector('header [data-header-value] [data-selected-value-output]'),style=output?getComputedStyle(output):null
+      return {value,undo,redo,info,viewportWidth:innerWidth,documentWidth:document.documentElement.scrollWidth,overflowX:style?.overflowX,whiteSpace:style?.whiteSpace}
+    })()`)
+    verify(Boolean(layout?.value && layout?.undo && layout?.redo && layout?.info
+        && layout.value.width <= 192.5
+        && layout.value.right <= layout.undo.left
+        && layout.undo.right <= layout.redo.left
+        && layout.redo.right <= layout.info.left
+        && layout.info.right <= width + 0.5
+        && layout.documentWidth <= width
+        && layout.overflowX === 'auto'
+        && layout.whiteSpace === 'nowrap'),
+      `Header value and utility controls remain bounded and ordered at ${width}px`, layout)
+  }
+  await setViewport(1440, 1800)
   const headerOutputStyle = await geometry(`(()=>{const e=document.querySelector('header [data-header-value] [data-selected-value-output]');const r=e.getBoundingClientRect(),s=getComputedStyle(e),range=document.createRange();range.selectNodeContents(e);return {right:range.getBoundingClientRect().right,rectRight:r.right,textAlign:s.textAlign,paddingRight:s.paddingRight}})()`)
   const rowStillUnselected = await evaluate(`document.querySelector('section[aria-label="Bill of Materials rows"] tr[data-master-data-row-id]')?.getAttribute('aria-selected')`)
   verify(rowStillUnselected === 'false', 'read-only spreadsheet value selection does not select its row')
@@ -662,6 +759,15 @@ try {
   const currentPriceReadOnly = 'section[aria-label="Bill of Materials rows"] tbody tr:first-child button[data-grid-field="price"][data-selected-number="true"]'
   await clickSelector(currentPriceReadOnly)
   assert.equal(await textContent('header [data-header-value] [data-selected-value-output]'), '42.123456789', 'Custom history actions do not mutate Current source')
+  await clickTextButton('Cost Breakdown')
+  await waitFor(() => textContent('header [data-header-value] [data-selected-value-output]').then(value => value === '—'), 'page change clears the read-only Header selection')
+  verify(await inputValue('header [data-header-value] input[aria-label="Selected value"]') === null
+      && await textContent('header [data-header-value] [data-selected-value-output]') === '—',
+    'page change clears the read-only Header selection without leaving stale value')
+  await clickTextButton('Master Data')
+  await waitFor(() => existsVisible('section[aria-label="Working dataset controls"]'), 'return to Master Data after Header page-scope check')
+  verify(await textContent('header [data-header-value] [data-selected-value-output]') === '—',
+    'returning to Master Data starts with no stale Header selection')
   const consoleMessages = [...browserErrors]
   verify(consoleMessages.length === 0, 'browser has no uncaught errors or console warnings', consoleMessages)
 

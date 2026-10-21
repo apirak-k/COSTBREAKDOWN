@@ -3,14 +3,14 @@ import { formatFullNumericValue } from '../ui/numeric-display'
 import { useSelectedValue } from '../ui/selected-value'
 
 export function HeaderValue({ inDialog = false }: { inDialog?: boolean }) {
-  const { selection } = useSelectedValue()
+  const { selection, clearSelection } = useSelectedValue()
   const fullValue = formatFullNumericValue(selection?.value)
   const rootWidth = inDialog ? 'w-[min(14rem,calc(100vw-6.25rem))]' : 'w-[clamp(5rem,16vw,12rem)]'
   const labelColor = inDialog ? 'text-slate-600' : 'text-slate-300'
   const outputColor = inDialog ? 'text-slate-900' : 'text-slate-100'
   const inputColors = inDialog
     ? 'border-slate-300 bg-white text-slate-900 focus-visible:border-blue-500'
-    : 'border-slate-500 bg-slate-50 text-slate-900 focus-visible:border-blue-400'
+    : 'border-slate-500 bg-transparent text-slate-100 hover:border-slate-400 focus-visible:border-slate-400'
 
   return (
     <div data-header-value="true" role="group" aria-label="Selected numeric value" className={`mr-1 flex h-8 ${rootWidth} min-w-0 shrink-0 items-center gap-1 whitespace-nowrap text-xs`}>
@@ -27,6 +27,14 @@ export function HeaderValue({ inDialog = false }: { inDialog?: boolean }) {
             stopAtMinimum={selection.stopAtMinimum}
             displayMode="full"
             showStepper
+            stepperButtonClassName={inDialog ? undefined : '!text-slate-200 hover:!text-white'}
+            data-selected-value-source={selection.id}
+            onBlur={event => {
+              const sourceId = event.relatedTarget instanceof Element
+                ? event.relatedTarget.getAttribute('data-selected-value-source')
+                : null
+              if (sourceId !== selection.id) clearSelection(selection.id)
+            }}
             className={`select-text border px-1 text-right ${inputColors}`}
           />
         ) : (
