@@ -1,4 +1,39 @@
-# Current Handoff — Phase 1 closure — 2026-10-20
+# Current Handoff — Selected Value / Decimal UX Round 1 — 2026-10-21
+
+## Checkpoint and scope
+
+- Repository: `apirak-k/COSTBREAKDOWN`. Verified starting local/fetched origin branch `feat/ref-current-custom-flow-redesign` at `ffba1f9957b13864743a0df5da0feec5913bb439`; worktree was clean. Created `feat/selected-value-ux` directly from that fetched branch.
+- Worktree: `/Users/bubu/COSTBREAKDOWN-ref-current-custom-flow-redesign`. Existing Vite PID `96264` on `[::1]:5173` uses this same working directory; the worktree now holds the new feature branch. Historical `logic/simulation-finalized-implementation` was not used.
+- Round 1 is the shared foundation: one temporary selected-value provider/source hook, opt-in read-only SelectedNumber, permanent compact Header Value, canonical adaptive number formatter, and no visible spinner in ordinary NumericInput. Header edits reuse NumericInput domain/caret/keyboard/wheel/press-repeat behavior at full model precision. Selection updates from source changes and clears on source unmount/page change; guarded source writers cannot write through a stale selection.
+- NumericInput now uses the canonical adaptive formatter; the obsolete Capacity-only minimum-display-precision prop and its two Simulation callsites were removed. No formulas, domains, role/comparison state, histories, or dataset lifecycle were changed.
+- Existing page-specific selection and read-only formatting migrations, Master Data metadata proportions, CBD tooltips/details/row behavior, and Simulation Result/Economic/Break-even selection remain later rounds. Graphs do not receive selected-value behavior. The browser fixture is test-only; no demo/test UI is added to production routes.
+- Canonical presentation decisions and staged migration status are in `docs/specs/CROSS_CUTTING.md`; Handoff remains an operational record.
+
+## Verification
+
+- **PASS:** `node scripts/verify_numeric_input.mjs` — adaptive/negative/percentage/integer formatting, finite-number full-text round trips, unrestricted decimal syntax, domains, caret stepping, ordinary no-spinner markup, and exact/full Header editor markup.
+- **PASS:** `node scripts/verify_master_data_ui_state.mjs`, `node scripts/verify_global_compact_overlays.mjs`, `node scripts/verify_page_navigation_persistence.mjs`, and `node_modules/.bin/jiti scripts/verify_numeric_integrity.ts`.
+- **PASS:** `node scripts/verify_simulation_regression.mjs` — Simulation role/basis state, all nine Result pairs, economics, history, reset/send, Master Data edit history, CBD selection/reorder/sort/summary, and Global Header contracts. Existing nested SSR Vite runners print the port-24678-in-use warning and exit 0.
+- **PASS:** `COSTBREAKDOWN_BROWSER_BASE_URL=http://localhost:5173/ node scripts/verify_numeric_input_browser.mjs` — real isolated Chrome typing in Master Data, Simulation, Business, and Economic inputs retains `12.3456789`; after blur each displays `12.35`. The test-only fixture then exercises the real shared AppLayout/Header, selection hooks/primitives, and NumericInput: default/exact read-only/editable Header; native clipboard paste; focus-only wheel; arrows/caret stepping; Header press/hold spinner; integer/percentage/positive domains; scientific display/focus; source updates, latest callbacks, and stale-writer rejection after replacement/read-only/identity/unmount/navigation changes.
+- **PASS:** browser bounds and screenshot review at 1440, 1024, 768, 390, and 320px. Long read-only/editable values leave Undo/Redo/Info positions and dimensions unchanged. No page overflow, selected-number geometry shift, or captured browser errors/warnings. An initial 320px Product-text overlap was fixed by clipping that existing context within its allocated region; final text-containment assertions and screenshots confirm it no longer paints over Value.
+- **PASS:** final `npm run build` and `git diff --check`. Build retains ExcelJS/fast-csv browser-externalization advisories and the 547.84 kB main-chunk advisory.
+
+## Files changed
+
+- Shared production: `src/shared/ui/numeric-display.ts`, `src/shared/ui/selected-value.tsx`, `src/shared/ui/numeric-input-rules.ts`, `src/shared/ui/NumericInput.tsx`, `src/shared/layout/HeaderValue.tsx`, `src/shared/layout/Navbar.tsx`, `src/shared/layout/AppLayout.tsx`.
+- Compile/presentation adjustment only: the two obsolete Capacity display props in `src/features/simulation/SimulationPage.tsx`.
+- Verification: `scripts/verify_numeric_input.mjs`, `scripts/verify_numeric_input_browser.mjs`, `scripts/verify_master_data_ui_state.mjs`, `scripts/fixtures/selected-value-browser.html`, `scripts/fixtures/selected-value-browser.tsx`.
+- Documentation: this Handoff, `design.md`, `docs/REQUIREMENTS_INDEX.md`, and `docs/specs/CROSS_CUTTING.md`, `MASTER_DATA.md`, `MASTER_DATA_TOOLBAR_PREPARE_UX.md`, `SIMULATION.md`. The older toolbar receipts retain chronology under an explicit supersession note.
+
+## Limits and next boundary
+
+- Round 1 shared behavior is implemented and verified. Page-specific Round 2+ selection/formatting migrations remain intentionally unimplemented; the fixture demonstrates opt-in sources without putting test UI into production routes.
+- `[Unverified]` Firefox/Safari, touch hardware, and assistive-technology screen-reader interaction; browser proof here is isolated Chrome plus automated input/geometry checks and screenshot inspection.
+- **OPEN DEPENDENCY RISK:** `npm audit --audit-level=high` exits 1: the unchanged dependency tree currently reports 10 advisories (6 high, 4 moderate, 0 critical), including Vite and the Tailwind dependency tree. Dependency security is not cleared; no dependency or lockfile change was made in this scoped UX round.
+
+---
+
+# Historical Handoff — Phase 1 closure — 2026-10-20
 
 ## Current checkpoint
 

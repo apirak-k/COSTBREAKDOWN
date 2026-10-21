@@ -1,6 +1,7 @@
 import { ChevronDown, ChevronUp } from 'lucide-react'
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import type { FocusEvent, InputHTMLAttributes, KeyboardEvent, PointerEvent as ReactPointerEvent } from 'react'
+import { formatFullNumericValue } from './numeric-display'
 import {
   formatNumericInputValue,
   isNumericDraftSyntax,
@@ -18,7 +19,8 @@ export interface NumericInputProps extends Omit<InputHTMLAttributes<HTMLInputEle
   onValueChange: (value: number | null) => void
   allowSubMinimumDraft?: boolean
   stopAtMinimum?: boolean
-  minimumDisplayPrecision?: number
+  showStepper?: boolean
+  displayMode?: 'compact' | 'full'
   reserveMarker?: boolean
 }
 
@@ -35,7 +37,8 @@ export function NumericInput({
   minExclusive,
   allowSubMinimumDraft = false,
   stopAtMinimum = false,
-  minimumDisplayPrecision,
+  showStepper = false,
+  displayMode = 'compact',
   reserveMarker = false,
   onFocus,
   onBlur,
@@ -45,12 +48,16 @@ export function NumericInput({
   ...inputProps
 }: NumericInputProps) {
   const domain: NumericInputDomain = { integer, min, max, minExclusive }
+  const formatValue = (next: number | null | undefined) => displayMode === 'full'
+    ? formatFullNumericValue(next)
+    : formatNumericInputValue(next, domain)
   const inputRef = useRef<HTMLInputElement>(null)
   const wrapperRef = useRef<HTMLDivElement>(null)
   const currentValueRef = useRef(value)
   const onValueChangeRef = useRef(onValueChange)
+  const lastEmittedValueRef = useRef(value)
   const previousValueRef = useRef(value)
-  const previousFormattedValueRef = useRef(formatNumericInputValue(value, domain, minimumDisplayPrecision))
+  const previousFormattedValueRef = useRef(formatValue(value))
   const preservedPlaceRef = useRef<{ raw: string; caret: number; place: NumericStepPlace } | null>(null)
   const restorePlaceRef = useRef<number | null>(null)
   const repeatPointerIdRef = useRef<number | null>(null)
@@ -59,11 +66,15 @@ export function NumericInput({
   const lastPointerUpRef = useRef(0)
   const canStepRef = useRef(!inputProps.disabled && !inputProps.readOnly)
   const [focused, setFocused] = useState(false)
-  const [draft, setDraft] = useState(() => formatNumericInputValue(value, domain, minimumDisplayPrecision))
+  const [draft, setDraft] = useState(() => formatValue(value))
 
   currentValueRef.current = value
   onValueChangeRef.current = onValueChange
   canStepRef.current = !inputProps.disabled && !inputProps.readOnly
+  const emitValue = (next: number | null) => {
+    lastEmittedValueRef.current = next
+    onValueChangeRef.current(next)
+  }
 
   const stopArrowRepeat = useCallback((pointerId?: number) => {
     if (pointerId !== undefined && repeatPointerIdRef.current !== pointerId) return
@@ -97,6 +108,7 @@ export function NumericInput({
   }
 
   useEffect(() => {
+    if (!showStepper) return
     const handlePointerUp = (event: globalThis.PointerEvent) => {
       lastPointerUpRef.current = Date.now()
       stopArrowRepeat(event.pointerId)
@@ -125,26 +137,29 @@ export function NumericInput({
       document.removeEventListener('visibilitychange', handleVisibilityChange)
       stopArrowRepeat()
     }
-  }, [])
+  }, [showStepper])
 
   useEffect(() => {
     if (!canStepRef.current) stopArrowRepeat()
   }, [inputProps.disabled, inputProps.readOnly])
 
   useEffect(() => {
-    const formattedValue = formatNumericInputValue(value, domain, minimumDisplayPrecision)
+    const formattedValue = formatValue(value)
     const valueChanged = !Object.is(previousValueRef.current, value)
 
     // Clipboard edits update the parent value without going through this input's
     // onChange handler. Keep the focused editor in sync when it still shows the
     // previous committed value, while preserving an in-progress numeric draft.
-    if (!focused || (valueChanged && draft === previousFormattedValueRef.current)) {
+    if (!focused || (valueChanged && (
+      draft === previousFormattedValueRef.current
+      || (displayMode === 'full' && !Object.is(value, lastEmittedValueRef.current))
+    ))) {
       setDraft(formattedValue)
     }
 
     previousValueRef.current = value
     previousFormattedValueRef.current = formattedValue
-  }, [draft, focused, value, integer, min, max, minExclusive, minimumDisplayPrecision])
+  }, [draft, focused, value, integer, min, max, minExclusive, displayMode])
 
   useIsomorphicLayoutEffect(() => {
     const exponent = restorePlaceRef.current
@@ -171,17 +186,17 @@ export function NumericInput({
     if (next === null) {
       preservedPlaceRef.current = null
       restorePlaceRef.current = null
-      onValueChangeRef.current(null)
+      emitValue(null)
       setDraft('')
     } else {
-      const nextDraft = formatNumericInputValue(next, domain, minimumDisplayPrecision)
+      const nextDraft = formatValue(next)
       if (nextDraft === raw) {
         preservedPlaceRef.current = { raw, caret: selectionStart, place: activePlace }
         restorePlaceRef.current = null
       } else {
         restorePlaceRef.current = activePlace.exponent
       }
-      onValueChangeRef.current(next)
+      emitValue(next)
       setDraft(nextDraft)
     }
     inputRef.current?.focus()
@@ -193,16 +208,16 @@ export function NumericInput({
     if (parsed.kind === 'invalid' || parsed.kind === 'out-of-domain') return
     preservedPlaceRef.current = null
     setDraft(raw)
-    if (parsed.kind === 'blank') onValueChangeRef.current(null)
-    else if (parsed.kind === 'valid') onValueChangeRef.current(parsed.value)
+    if (parsed.kind === 'blank') emitValue(null)
+    else if (parsed.kind === 'valid') emitValue(parsed.value)
   }
 
   const handleBlur = (event: FocusEvent<HTMLInputElement>) => {
     stopArrowRepeat()
     setFocused(false)
     const parsed = parseNumericDraft(draft, domain, allowSubMinimumDraft)
-    if (parsed.kind === 'blank') onValueChangeRef.current(null)
-    setDraft(formatNumericInputValue(currentValueRef.current, domain, minimumDisplayPrecision))
+    if (parsed.kind === 'blank') emitValue(null)
+    setDraft(formatValue(currentValueRef.current))
     onBlur?.(event)
   }
 
@@ -258,6 +273,8 @@ export function NumericInput({
         value={draft}
         onFocus={event => {
           preservedPlaceRef.current = null
+          // Scientific body display must become an editable decimal draft, without changing the value.
+          if (/[eE]/.test(event.currentTarget.value)) setDraft(formatFullNumericValue(currentValueRef.current))
           setFocused(true)
           onFocus?.(event)
         }}
@@ -281,10 +298,13 @@ export function NumericInput({
         }}
         onChange={event => handleChange(event.currentTarget.value)}
         className={`${defaultInputClassName} ${className ?? ''}`.trim()}
-        style={{ ...style, paddingRight: reserveMarker ? '2.5rem' : '1.75rem' }}
+        style={{
+          ...style,
+          ...(reserveMarker ? { paddingRight: showStepper ? '2.5rem' : '1.5rem' } : showStepper ? { paddingRight: '1.75rem' } : {})
+        }}
         data-numeric-editor="true"
       />
-      {focused && !inputProps.disabled && !inputProps.readOnly && (
+      {showStepper && !inputProps.disabled && !inputProps.readOnly && (
         <span data-numeric-stepper="true" className={`absolute inset-y-0 ${reserveMarker ? 'right-5' : 'right-1'} flex w-3 flex-col justify-center`}>
           <button
             type="button"

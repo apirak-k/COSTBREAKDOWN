@@ -105,7 +105,7 @@ Change = effective After − effective Before
 % = (Change / effective Before) × 100
 ```
 
-Show `—` when either value is unavailable, or effective Before is unavailable or zero for the percentage. Never show Infinity, -Infinity, or NaN. Monetary values and percentages show exactly two decimals. Result values remain per-unit and use the resolved product UOM basis (falling back to `Unit` when the Reference and Current UOMs conflict); the panel does not display a separate UOM subtitle. Result is read-only and derives its displayed values from the cost engine and shared business-metric helper; it owns no persisted state.
+Show `—` when either value is unavailable, or effective Before is unavailable or zero for the percentage. Never show Infinity, -Infinity, or NaN. Monetary values and percentages follow the adaptive display target in `CROSS_CUTTING.md`; Result callsite integration remains a later round. Result values remain per-unit and use the resolved product UOM basis (falling back to `Unit` when the Reference and Current UOMs conflict); the panel does not display a separate UOM subtitle. Result is read-only and derives its displayed values from the cost engine and shared business-metric helper; it owns no persisted state.
 
 ## 3. Parameter Cost Effect
 
@@ -177,7 +177,7 @@ SG&A / Unit = Effective After Selling Price × Effective After SG&A % / 100
 Operating Profit / Unit = Effective After Selling Price − effective After Standard Cost − SG&A / Unit
 ```
 
-Changing Selling Price or SG&A changes Business outputs only; it does not alter Parameter Saving, Required Saving, Economic Margin, Break-even Quantity, or Break-even graph geometry. Negative Economic Margin and Operating Profit are valid. Positive/negative outputs use favorable/unfavorable semantics, while zero is neutral. Continuous monetary values display to two decimals; Batch Size and whole-quantity Break-even display as integers.
+Changing Selling Price or SG&A changes Business outputs only; it does not alter Parameter Saving, Required Saving, Economic Margin, Break-even Quantity, or Break-even graph geometry. Negative Economic Margin and Operating Profit are valid. Positive/negative outputs use favorable/unfavorable semantics, while zero is neutral. Continuous monetary values follow the adaptive display target in `CROSS_CUTTING.md` (page-specific read-only integration remains a later round); Batch Size and whole-quantity Break-even display as integers.
 
 ## 5. Graph story
 

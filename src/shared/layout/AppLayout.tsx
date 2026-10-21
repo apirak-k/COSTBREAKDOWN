@@ -24,6 +24,7 @@ import {
   isSafeWorkspaceDismissTarget
 } from '../ui/transient-interactions'
 import { installSelectAllOnFirstFocus } from '../ui/select-all-on-first-focus'
+import { SelectedValueProvider } from '../ui/selected-value'
 
 const masterDataRoles = ['reference', 'current', 'custom'] as const
 
@@ -283,6 +284,7 @@ export const AppLayout: React.FC<AppLayoutProps> = ({ children, onNavigatePrepar
       : 'bg-slate-400'
 
   return (
+    <SelectedValueProvider scopeKey={activeTab}>
     <div className="flex h-dvh min-h-0 w-full flex-col overflow-hidden bg-slate-100/70 font-sans text-[13px] text-slate-900 antialiased">
       <a
         href="#main-content"
@@ -423,5 +425,6 @@ export const AppLayout: React.FC<AppLayoutProps> = ({ children, onNavigatePrepar
         </div>
       </footer>
     </div>
+    </SelectedValueProvider>
   )
 }

@@ -3,6 +3,7 @@ import { Info, Redo2, Undo2 } from 'lucide-react'
 import { useAppStore } from '../../state'
 import { resolveHeaderProductContext } from './header-product-context'
 import { Tooltip } from '../ui/Tooltip'
+import { HeaderValue } from './HeaderValue'
 
 const navItems = [
   { id: 'master', label: 'Master Data' },
@@ -90,12 +91,12 @@ export const Navbar: React.FC<NavbarProps> = ({ cbdReorderUndoRedo, simulationUn
         <div className="grid min-h-12 grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 gap-y-1.5 py-2 lg:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] lg:py-0">
           <div className="flex min-w-0 items-center gap-2.5">
             <div className="flex min-w-0 items-baseline gap-x-2.5 font-sans">
-              <span className="shrink-0 text-base font-bold tracking-tight text-slate-100">COSTBREAKDOWN</span>
+              <span className="min-w-0 truncate text-base font-bold tracking-tight text-slate-100">COSTBREAKDOWN</span>
               <span
                 role="group"
                 aria-label={`Product context: PRODUCT: ${productContext}`}
                 title={`PRODUCT: ${productContext}`}
-                className="inline-flex min-w-0 flex-1 items-baseline gap-1 text-[11px] font-normal text-slate-300"
+                className="inline-flex min-w-0 flex-1 items-baseline gap-1 overflow-hidden text-[11px] font-normal text-slate-300"
               >
                 <span className="shrink-0 text-[10px] font-medium tracking-wide text-slate-400">PRODUCT:</span>
                 {currentProductName ? (
@@ -131,6 +132,7 @@ export const Navbar: React.FC<NavbarProps> = ({ cbdReorderUndoRedo, simulationUn
           </nav>
 
           <div role="group" aria-label="Workspace utilities" className="flex min-w-0 items-center justify-end gap-0.5 lg:col-start-3 lg:row-start-1">
+            <HeaderValue />
             <Tooltip label="Undo">
               <button
                 type="button"

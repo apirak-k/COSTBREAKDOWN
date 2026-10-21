@@ -742,9 +742,10 @@ try {
   assert.doesNotMatch(toolbarButtonStyle, /disabled:/, 'toolbar action icons never fade or disable through state styles')
   assert.doesNotMatch(currentAndAllActionSource, /currentDisabled|allDisabled|\bdisabled\s*=/,
     'Save, Reset, and Clear never disable their current or all-dataset action')
-  assert.match(numericInputSource, /reserveMarker \? 'right-5' : 'right-1'/, 'focused spinner arrows sit slightly inset and just before a reserved Blocker marker zone')
-  assert.match(numericInputSource, /paddingRight: reserveMarker \? '2\.5rem' : '1\.75rem'/, 'spinner positioning reserves text space for the inset arrows and Blocker marker')
-  assert.match(numericInputSource, /previousValueRef[\s\S]*previousFormattedValueRef[\s\S]*valueChanged && draft === previousFormattedValueRef\.current/, 'focused numeric editors sync external Cut/Paste/Undo changes when no newer draft is being typed')
+  assert.match(numericInputSource, /reserveMarker \? 'right-5' : 'right-1'/, 'opt-in Header spinner arrows sit inset and preserve the reserved marker zone')
+  assert.match(numericInputSource, /showStepper = false/, 'ordinary Master Data editors do not opt into visible spinner controls')
+  assert.match(numericInputSource, /reserveMarker \? \{ paddingRight: showStepper \? '2\.5rem' : '1\.5rem' \} : showStepper \? \{ paddingRight: '1\.75rem' \} : \{\}/, 'ordinary inputs reserve only a Blocker marker gutter; spinner space is opt-in for Header Value')
+  assert.match(numericInputSource, /previousValueRef[\s\S]*previousFormattedValueRef[\s\S]*valueChanged && \(\s*draft === previousFormattedValueRef\.current/, 'focused numeric editors sync external Cut/Paste/Undo changes when no newer draft is being typed')
   assert.match(numericInputSource, /event\.shiftKey && event\.currentTarget\.dataset\.gridCell === 'true'[\s\S]*onKeyDown\?\.\(event\)/, 'Shift+ArrowUp/Down in spreadsheet numeric cells reaches vertical range selection without stepping the value')
   assert.match(headerSource, /label="Save"[\s\S]*onCurrent=\{onSaveWorkingDataset\}[\s\S]*onAll=\{onSaveAllWorkingDatasets\}[\s\S]*label="Reset"[\s\S]*onCurrent=\{onResetWorkingDataset\}[\s\S]*onAll=\{onResetAllWorkingDatasets\}[\s\S]*label="Clear"[\s\S]*onCurrent=\{onClearDataset\}[\s\S]*onAll=\{onClearAllDatasets\}/, 'Save, Reset, and Clear expose current and all-dataset actions in the agreed order')
   assert.doesNotMatch(currentAndAllActionSource, /Chevron|Save Current|Reset Current|Clear Current/, 'action triggers have no visible chevrons or redundant current-dataset menu entries')

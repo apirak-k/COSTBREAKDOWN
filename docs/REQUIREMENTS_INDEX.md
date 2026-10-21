@@ -74,6 +74,10 @@ The latest finalized logic establishes:
 18. **Business Formulas:** SG&A / pc = Selling Price × (SG&A % / 100); OP / pc = Selling Price − effective After Standard Cost − SG&A / pc. Negative OP is valid. MatVAR, LBVAR, and BDVAR remain out of scope.
 19. **Trial Lifecycle Boundary:** No dedicated Trial execution, validation, approval, or promotion lifecycle. Custom can store trial data; to copy it into Current, choose `Clone` on Current and select Custom.
 
+## Selected Value / Decimal UX — 2026-10-21
+
+`FINALIZED — USER DECISION`: the Selected Value / Decimal UX presentation contract is in [`CROSS_CUTTING.md`](specs/CROSS_CUTTING.md#numeric-display-and-editing). It supersedes only conflicting fixed-two-decimal/body-spinner presentation. Round 1 delivers the shared temporary selection model, compact Header Value, opt-in read-only/editable source primitives, adaptive formatter, and removal of inline visible spinners. Exhaustive Master Data, CBD, and Simulation integrations remain later rounds. Dataset, comparison, lifecycle, domain validation, calculation, and graph-selection boundaries remain unchanged.
+
 ## Reading Order
 
 1. Read this index for authority, migration rules, and canonical spec mapping.

@@ -37,6 +37,7 @@ try {
     isMasterDataNumericValueValid
   } = await vite.ssrLoadModule('/src/core/utils/master-data-validation.ts')
   const { NumericInput } = await vite.ssrLoadModule('/src/shared/ui/NumericInput.tsx')
+  const { formatBusinessNumber, formatFullNumericValue } = await vite.ssrLoadModule('/src/shared/ui/numeric-display.ts')
   const numericInputSource = readFileSync(resolve(process.cwd(), 'src/shared/ui/NumericInput.tsx'), 'utf8')
 
   assert.equal(formatNumber(12), '12.00')
@@ -53,10 +54,37 @@ try {
   assert.equal(formatNumericInputValue(12.5), '12.50')
   assert.equal(formatNumericInputValue(12.3456), '12.35', 'display remains two decimal places regardless of stored precision')
   assert.equal(formatNumericInputValue(0.123456), '0.12', 'higher internal precision is not shown as extra display decimals')
-  assert.equal(formatNumericInputValue(0.0001, {}, 4), '0.0001', 'Simulation Capacity minimum stays visibly positive')
-  assert.equal(formatNumericInputValue(0.25, {}, 4), '0.25', 'minimum display precision does not pad ordinary values')
-  assert.equal(formatNumericInputValue(0.0001), '0.00', 'other NumericInput users keep the existing display rule')
+  assert.equal(formatNumericInputValue(0.0001), '0.0001', 'small domain-valid Capacity values stay visibly positive')
+  assert.equal(formatNumericInputValue(0.25), '0.25', 'adaptive precision does not pad ordinary values')
+  assert.equal(formatNumericInputValue(0.0001), '0.0001', 'all shared editors use adaptive display without a field-specific precision exception')
   assert.equal(formatNumericInputValue(3, { integer: true }), '3')
+
+  for (const value of [null, undefined, NaN, Infinity, -Infinity]) {
+    assert.equal(formatBusinessNumber(value), '—', 'missing or non-finite values stay unavailable')
+    assert.equal(formatFullNumericValue(value), '', 'missing or non-finite values never become Header numbers')
+    assert.equal(formatNumericInputValue(value), '', 'unavailable numeric editors stay blank rather than becoming zero')
+  }
+  const adaptiveExamples = [
+    [12.345678, '12.35'], [0.03456, '0.03'], [0.004567, '0.0046'],
+    [0.000123, '0.0001'], [0.00003, '3.00e-5'], [0.000001, '1.00e-6'],
+    [0, '0.00'], [-0, '0.00'], [-0.004567, '-0.0046'],
+    [-0.00003, '-3.00e-5'], [Number.MIN_VALUE, '4.94e-324']
+  ]
+  for (const [value, expected] of adaptiveExamples) {
+    assert.equal(formatBusinessNumber(value), expected, `adaptive presentation of ${value}`)
+    assert.equal(formatNumericInputValue(value), expected, 'NumericInput shares the canonical adaptive formatter')
+  }
+  assert.equal(formatBusinessNumber(0.004567, { percent: true }), '0.0046%')
+  assert.equal(formatBusinessNumber(-0.00003, { percent: true }), '-3.00e-5%')
+  assert.equal(formatBusinessNumber(0, { percent: true }), '0.00%')
+  assert.equal(formatBusinessNumber(3, { integer: true }), '3', 'semantic counts remain whole')
+  assert.equal(formatBusinessNumber(0, { integer: true }), '0')
+  assert.equal(formatBusinessNumber(1000, { integer: true }), '1000')
+  assert.equal(formatBusinessNumber(1e21), '1000000000000000000000.00', 'large ordinary decimal presentation retains two fractional places')
+  assert.equal(formatBusinessNumber(Number.MAX_VALUE), `${formatFullNumericValue(Number.MAX_VALUE)}.00`, 'large finite values do not silently change the default decimal policy')
+  for (const value of [12.3456789123, 0.00456789123, 1e-7, -1e-7, 1e21, Number.MIN_VALUE, Number.MAX_VALUE]) {
+    assert.equal(Number(formatFullNumericValue(value)), value, 'full-value text round trips to exactly the current numeric model')
+  }
 
   assert.equal(isNumericDraftSyntax('12.34'), true)
   assert.equal(isNumericDraftSyntax('12.345'), true, 'decimal input is not limited by display precision')
@@ -198,7 +226,13 @@ try {
   assert.match(integerMarkup, /type="text"[^>]*inputMode="numeric"[^>]*role="spinbutton"[^>]*value="3"/)
   assert.match(preciseMarkup, /value="12\.35"/, 'a precise model value renders with two display decimals')
   assert.doesNotMatch(numericInputSource, /precision\s*=\s*2/, 'shared numeric editor has no decimal-place acceptance default')
-  assert.doesNotMatch(decimalMarkup + integerMarkup, /Increase Price|Decrease Price|Increase Rows|Decrease Rows/, 'focus-only spinners are not shown in the idle editor')
+  assert.doesNotMatch(decimalMarkup + integerMarkup, /data-numeric-stepper|Increase Price|Decrease Price|Increase Rows|Decrease Rows/, 'ordinary numeric editors have no inline visible spinner')
+  const headerMarkup = renderToStaticMarkup(React.createElement(NumericInput, {
+    value: 12.3456789, onValueChange() {}, showStepper: true, displayMode: 'full', 'aria-label': 'Selected value'
+  }))
+  assert.match(headerMarkup, /value="12\.3456789"/, 'full Header mode never uses body display rounding')
+  assert.match(headerMarkup, /Increase Selected value/, 'editable Header mode exposes its spinner')
+  assert.match(headerMarkup, /Decrease Selected value/, 'editable Header mode exposes both stepping directions')
   assert.match(numericInputSource, /parsedPaste\.kind === 'transient'/, 'paste rejects incomplete/zero-prefix drafts instead of bypassing Poka-Yoke')
   assert.match(numericInputSource, /selectionStart[\s\S]*selectionEnd[\s\S]*hasSelection[\s\S]*resolveNumericStepPlace\(raw, hasSelection \? null : selectionStart, domain\)/, 'a non-collapsed selection falls back to the unit place')
   assert.match(numericInputSource, /numericCaretForPlace\(draft, exponent, Boolean\(integer\)\)[\s\S]*setSelectionRange\(caret, caret\)/, 'caret returns to the same place after a step changes digit count')

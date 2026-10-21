@@ -780,7 +780,6 @@ function SimulationParameterTable({
                                   max={parameter.parameter === 'routing.yield' || parameter.parameter === 'bom.loss' ? 100 : undefined}
                                   allowSubMinimumDraft={parameter.parameter === 'routing.capacity' || parameter.parameter === 'routing.yield'}
                                   stopAtMinimum
-                                  minimumDisplayPrecision={parameter.parameter === 'routing.capacity' ? 4 : undefined}
                                   onValueChange={next => {
                                     if (next !== null) onUpdate(simulationRecord.id, parameter.parameter, next / parameter.scale)
                                   }}
@@ -927,7 +926,6 @@ function SimulationParameterTable({
                               max={parameter.parameter === 'routing.yield' || parameter.parameter === 'bom.loss' ? 100 : undefined}
                               allowSubMinimumDraft={parameter.parameter === 'routing.capacity' || parameter.parameter === 'routing.yield'}
                               stopAtMinimum
-                              minimumDisplayPrecision={parameter.parameter === 'routing.capacity' ? 4 : undefined}
                               onValueChange={next => {
                                 if (next !== null) onUpdate(simulationRecord.id, parameter.parameter, next / parameter.scale)
                               }}

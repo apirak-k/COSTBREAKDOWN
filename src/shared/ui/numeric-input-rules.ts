@@ -1,3 +1,5 @@
+import { formatBusinessNumber } from './numeric-display'
+
 export interface NumericInputDomain {
   integer?: boolean
   min?: number
@@ -172,14 +174,9 @@ export function stepNumericValue(
 
 export function formatNumericInputValue(
   value: number | null | undefined,
-  domain: NumericInputDomain = {},
-  minimumDisplayPrecision?: number
+  domain: NumericInputDomain = {}
 ): string {
   if (value === null || value === undefined || !Number.isFinite(value)) return ''
-  if (domain.integer) return String(Math.round(value))
   // Display precision is independent of the value accepted by the editor.
-  if (minimumDisplayPrecision !== undefined && value !== 0 && Number(value.toFixed(2)) === 0) {
-    return value.toFixed(Math.max(2, Math.min(6, Math.trunc(minimumDisplayPrecision))))
-  }
-  return value.toFixed(2)
+  return formatBusinessNumber(value, { integer: domain.integer })
 }
