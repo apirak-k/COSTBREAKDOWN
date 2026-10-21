@@ -49,7 +49,7 @@ Record chronology accurately; do not reinterpret the commits as separate roadmap
 - `3b3880f79891293662aeb5e622d11941bcf3ea64` — initial shared foundation, `feat: add selected value and decimal UX foundation`.
 - `66f8b83f21a4b6590fe974b7935ae97569ac7cef` — Master Data integration was started before Round 1 had passed its close gate. This is the start of the still-open Round 2 work, not an accepted/closed round.
 - `3ec9bbebebb01db65b3d8096082680a5e7b18aec` — Header interaction/styling correction. It is preserved as a correction within this Phase 2 work, not a separate round.
-- Round 1 closeout commit SHA: recorded in the current [`HANDOFF.md`](../HANDOFF.md) after commit creation.
+- `76df692fce196d436a55f2e73be2bae5589e58ca` — Round 1 closure, `feat: close selected value shared foundation`, a direct child of `3ec9bbebebb01db65b3d8096082680a5e7b18aec`.
 
 At the start of this closeout, local and freshly fetched `origin/feat/selected-value-ux` both pointed to `3ec9bbebebb01db65b3d8096082680a5e7b18aec`. The current dev server’s working directory was verified as the same worktree. Preserve later valid branch history; do not reset the branch to an earlier checkpoint.
 

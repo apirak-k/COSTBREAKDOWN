@@ -4,7 +4,7 @@
 
 - Repository: `https://github.com/apirak-k/COSTBREAKDOWN.git` (`apirak-k/COSTBREAKDOWN`). Worktree: `/Users/bubu/COSTBREAKDOWN-ref-current-custom-flow-redesign`. Branch: `feat/selected-value-ux`.
 - Closeout starting local HEAD and freshly fetched `origin/feat/selected-value-ux`: `3ec9bbebebb01db65b3d8096082680a5e7b18aec`; they matched and the worktree was clean before edits. Dev server PID `96264` on port 5173 has this worktree as its working directory.
-- Round 1 shared foundation is **CLOSED** by this closeout. Its closure commit SHA is recorded below after creation. Round 2 — Master Data is **OPEN**. Rounds 3–5 are **NOT STARTED**. Follow [`docs/PHASE_2_SELECTED_VALUE_DECIMAL_UX_PLAN.md`](docs/PHASE_2_SELECTED_VALUE_DECIMAL_UX_PLAN.md) for the exact five-round order and gate.
+- Round 1 shared foundation is **CLOSED** by commit `76df692fce196d436a55f2e73be2bae5589e58ca` (`feat: close selected value shared foundation`), a direct child of the verified start `3ec9bbe`. Round 2 — Master Data is **OPEN**. Rounds 3–5 are **NOT STARTED**. Follow [`docs/PHASE_2_SELECTED_VALUE_DECIMAL_UX_PLAN.md`](docs/PHASE_2_SELECTED_VALUE_DECIMAL_UX_PLAN.md) for the exact five-round order and gate.
 - Historical sequence: `3b3880f79891293662aeb5e622d11941bcf3ea64` initial foundation; `66f8b83f21a4b6590fe974b7935ae97569ac7cef` premature Round 2 start; `3ec9bbebebb01db65b3d8096082680a5e7b18aec` Header correction. The Header correction is preserved and is not a separate roadmap round.
 
 ## Round 1 result
