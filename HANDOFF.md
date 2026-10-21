@@ -1,6 +1,23 @@
-## Final Round 2 UX polish and closure
+## Final Round 3 post-implementation UX polish and closure — 2026-10-22
 
-- **Current status:** Round 1 CLOSED; Round 2 — Master Data CLOSED after final polish and its acceptance gate; Round 3 — Cost Breakdown NOT STARTED / NEXT; Rounds 4–5 NOT STARTED.
+- **Status:** Round 1 CLOSED; Round 2 — Master Data CLOSED; Round 3 — Cost Breakdown CLOSED; Round 4 — Simulation NOT STARTED / NEXT; Round 5 NOT STARTED.
+- Repository: `https://github.com/apirak-k/COSTBREAKDOWN.git`; active worktree `/Users/bubu/COSTBREAKDOWN-ref-current-custom-flow-redesign`; branch `feat/selected-value-ux`.
+- **Starting checkpoint:** local and freshly fetched `origin/feat/selected-value-ux` both pointed to `fe0bb59280bbc739d21218672846a1c68ba536d2`; the worktree was clean and no divergence was present.
+- **Scope:** only the three finalized polish items were changed: Candidate chevron becomes decorative, active no-focus `SelectedNumber` visuals hug the rendered number, and Pin can be discarded by same-value activation or a safe blank/background click. The accepted Round 3 implementation at `fe0bb592...`, Rounds 1–2 history, formulas, domains, calculations, comparison semantics, and data/history behavior remain intact.
+- **SelectedNumber result:** immediate pointer hover applies a light background to a content-sized inner wrapper; Header Preview keeps the 350ms dwell. Pin uses a stronger content-sized fill without a pointer ring or geometry movement. Keyboard focus retains its visible ring. Same-value activation toggles Pin off; blank/background click clears it; a different value moves Pin. Buttons, inputs, selectors, filters, popovers/menus, Candidate `#`, Sizing, and drag/reorder controls retain their behavior and preserve Pin.
+- **Candidate result:** a CHANGED row remains the only expansion owner and retains `aria-expanded`, click, Enter, and Space behavior. The decorative `aria-hidden` chevron has no independent button, focus target, tooltip/title, hover surface, or accessibility entry. Numeric values, `#`, and drag/reorder remain excluded from row expansion; ADDED / REMOVED rows remain non-expandable.
+- **Actual Chrome:** `node scripts/verify_cbd_selected_value_browser.mjs` passed **257 / 257** in isolated Chrome at 1440 / 1024 / 768 / 390 / 320px. This exercised Master Data Selling Price and SG&A plus active Cost Breakdown summary, Candidate, and detail sources; Preview timing/restoration; Pin/move/unpin/click-away; preserved control actions; Candidate keyboard/pointer/chevron behavior; #/numeric/reorder exclusions; actual drag/drop; short and long content; negative and percentage values; alignment; local horizontal scrolling; no page overflow; and main/detail axes. No browser exceptions, console errors, or warnings were recorded. `node scripts/verify_master_data_selected_value.mjs` also passed **151 / 151** at those viewports. `node scripts/verify_numeric_input_browser.mjs` verified actual `12.3456789` entry in Master Data, Simulation, Business, and Economic inputs.
+- **Regression/build PASS:** `node scripts/verify_numeric_input.mjs`; `scripts/verify_selected_comparison_boundary.ts`, `scripts/verify_selected_comparison_lifecycle.ts`, and `scripts/verify_numeric_integrity.ts` loaded through Vite SSR; `scripts/verify_cbd_summary_ux.ts` within `node scripts/verify_simulation_regression.mjs`; `npm run build` (`tsc -b && vite build`); `node --check scripts/verify_cbd_selected_value_browser.mjs`; `node --check scripts/verify_numeric_input_browser.mjs`; and `git diff --check` passed. Simulation regression emits Vite SSR WebSocket port `24678` in-use warnings but exits 0. Production build emits existing `fs` / `crypto` externalization notices and the 564.64 kB main-chunk advisory but exits 0. No dependency or lockfile changes were made. `npm audit` was not used as a gate.
+- **Active no-focus caller audit:** Master Data Selling Price / SG&A and Cost Breakdown summaries, Candidate main values, and expanded BOM / Routing details. Simulation has no active `SelectedNumber` callers; its numeric input regression still passed.
+- **Unverified:** Firefox, Safari, physical touch hardware, and screen-reader behavior.
+- **Implementation commit:** `a770d7ee12d0022a195ee8458f02b35cb476de41` (`fix: polish selected value and cost breakdown interactions`), a direct child of the starting SHA.
+- **Implementation files:** `src/shared/ui/selected-value.tsx`, `src/features/master-data/components/MasterDataNumericValue.tsx`, `src/features/cost-breakdown/components/BOMDetailedTable.tsx`, `src/features/cost-breakdown/components/CandidateFindingsTable.tsx`, `src/features/cost-breakdown/components/RoutingDetailedTable.tsx`, `src/features/cost-breakdown/components/SnapshotComparisonCard.tsx`, `src/features/cost-breakdown/components/WorkCenterProcessingTable.tsx`, `scripts/verify_cbd_selected_value_browser.mjs`, `scripts/verify_cbd_summary_ux.ts`, and `scripts/verify_numeric_input_browser.mjs`.
+- **Closure documentation files:** `docs/specs/CROSS_CUTTING.md`, `docs/specs/COST_BREAKDOWN.md`, `docs/specs/MASTER_DATA.md`, `docs/specs/MASTER_DATA_TOOLBAR_PREPARE_UX.md`, `docs/REQUIREMENTS_INDEX.md`, `docs/PHASE_2_SELECTED_VALUE_DECIMAL_UX_PLAN.md`, and this handoff.
+- No Round 4 or Round 5 implementation, dependency change, merge, rebase, or force-push was performed.
+
+## Previous Round 2 UX polish and closure — 2026-10-21
+
+- **Status at that checkpoint:** Round 1 CLOSED; Round 2 — Master Data CLOSED after final polish and its acceptance gate; Round 3 — Cost Breakdown NOT STARTED / NEXT; Rounds 4–5 NOT STARTED.
 - Repository: `https://github.com/apirak-k/COSTBREAKDOWN.git`; active worktree `/Users/bubu/COSTBREAKDOWN-ref-current-custom-flow-redesign`; branch `feat/selected-value-ux`.
 - **Starting checkpoint:** local and freshly fetched `origin/feat/selected-value-ux` both pointed to `ae304f6f7a0d289e2e1ba77e49d3dc5e149efd1c`; no unexpected divergence was present. The worktree was clean before this task's implementation edits.
 - **Chronology:** the previous Round 2 correction already passed its requested acceptance gate. This task applies only the later-finalized 350ms Hover Preview dwell and stable Header geometry / calm editable affordance. The prior correction and its history remain valid.
@@ -19,7 +36,7 @@
 
 ---
 
-# Current Handoff — Phase 2 Selected Value / Decimal UX — 2026-10-21
+# Previous Handoff — Phase 2 Selected Value / Decimal UX — 2026-10-21
 
 ## Prior accepted Round 2 correction — before final UX polish
 

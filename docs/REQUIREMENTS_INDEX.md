@@ -1,6 +1,6 @@
 # Requirements Index
 
-**Updated:** 2026-10-20
+**Updated:** 2026-10-22
 
 ## Final Logic Authority
 
@@ -76,7 +76,7 @@ The latest finalized logic establishes:
 
 ## Selected Value / Decimal UX — 2026-10-21
 
-`FINALIZED — USER DECISION`: the Selected Value / Decimal UX contract, including hover-preview-first priority, focus-owned writer, transient preview, and pinned read-only value lifecycles, is in [`CROSS_CUTTING.md`](specs/CROSS_CUTTING.md#numeric-display-and-editing). Final Master Data Round 2 polish adds a 350ms source-hover dwell with prompt cancellation, fixed Header numeric / `%` / spinner regions, and calm editable idle affordance revealed by direct Header interaction; the previous correction had already passed acceptance. Round 1 and Round 2 — Master Data are CLOSED. Round 3 — Cost Breakdown remains NOT STARTED / NEXT; Rounds 4–5 have not started. The operational five-round order, gates, history, completed recovery, and current checkpoint are recorded in [`PHASE_2_SELECTED_VALUE_DECIMAL_UX_PLAN.md`](PHASE_2_SELECTED_VALUE_DECIMAL_UX_PLAN.md); that plan and [`HANDOFF.md`](../HANDOFF.md) do not override this or other canonical product requirements. Numeric domains, formulas, dataset/comparison lifecycle, and history semantics remain unchanged.
+`FINALIZED — USER DECISION`: the Selected Value / Decimal UX contract, including hover-preview-first priority, focus-owned writer, transient preview, and pinned read-only value lifecycles, is in [`CROSS_CUTTING.md`](specs/CROSS_CUTTING.md#numeric-display-and-editing). Master Data Round 2 retains its finalized 350ms Header preview dwell, prompt cancellation, stable Header numeric / `%` / spinner regions, and calm editable affordance. The final post-implementation Round 3 polish now applies an immediate content-hugging hover fill and a stronger content-hugging Pin fill to every active no-focus `SelectedNumber`; Header Preview still begins after the shared 350ms dwell. The same pin toggles off, and a genuinely blank/background click discards Pin while intentional controls preserve it. Round 1, Round 2 — Master Data, and Round 3 — Cost Breakdown are CLOSED. Round 4 — Simulation is NOT STARTED / NEXT; Round 5 is NOT STARTED. The operational five-round order, gates, history, and current checkpoint are recorded in [`PHASE_2_SELECTED_VALUE_DECIMAL_UX_PLAN.md`](PHASE_2_SELECTED_VALUE_DECIMAL_UX_PLAN.md); that plan and [`HANDOFF.md`](../HANDOFF.md) do not override this or other canonical product requirements. Numeric domains, formulas, dataset/comparison lifecycle, and history semantics remain unchanged.
 
 ## Reading Order
 
