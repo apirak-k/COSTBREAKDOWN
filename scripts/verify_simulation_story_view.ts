@@ -315,7 +315,7 @@ try {
     graphLabelText(noSegmentZeroGapMarkup, 'data-graph-total', 'gap1'),
     'middle'
   )
-  const zeroGridlineY = Number(noSegmentZeroGapMarkup.match(/<line x1="88" x2="780" y1="([^"]+)" y2="[^"]+" stroke="#94a3b8" stroke-width="1\.2"/)
+  const zeroGridlineY = Number(noSegmentZeroGapMarkup.match(/<line x1="74" x2="784" y1="([^"]+)" y2="[^"]+" stroke="#94a3b8" stroke-width="1\.2"/)
     ?.[1])
   assert.deepEqual(noSegmentZeroGapRectangles, [], 'a zero GAP with no non-zero components renders no bar rectangles')
   assert.equal(graphLabelText(noSegmentZeroGapMarkup, 'data-graph-total', 'gap1'), '0.00')
@@ -336,7 +336,7 @@ try {
     .map(match => [match[1], match[0]] as const))
   const standardCostValueTags = new Map([...graphMarkup.matchAll(/<text\b[^>]*data-graph-standard-cost-value="(reference|current|custom)"[^>]*>/g)]
     .map(match => [match[1], match[0]] as const))
-  const graphStateXs = [155, 433, 710] as const
+  const graphStateXs = [149, 429, 709] as const
   for (const [state, x] of [['reference', graphStateXs[0]], ['current', graphStateXs[1]], ['custom', graphStateXs[2]]] as const) {
     const boundaryLine = standardCostLineTags.get(state)
     const valueLabel = standardCostValueTags.get(state)
@@ -392,7 +392,7 @@ try {
     'Show all is a separate action after the eight Legend controls and is disabled initially')
   const legendMarkup = graphMarkup.match(/<ul aria-label="Simulation graph legend"[\s\S]*?<\/ul>/)?.[0] ?? ''
   assert.match(legendMarkup, /xl:flex-none/,
-    'Show all follows the compact Legend group instead of being pushed to the far edge of the Graph card')
+    'the Legend remains its own compact group at desktop widths')
   const legendButtonTags = [...legendMarkup.matchAll(/<button\b[^>]*>/g)].map(([tag]) => tag)
   assert.equal(legendButtonTags.length, 8, 'all eight legend controls render as actual buttons')
   for (const [index, buttonTag] of legendButtonTags.entries()) {
@@ -403,7 +403,7 @@ try {
   }
   const showAllTag = graphMarkup.match(/<button\b[^>]*disabled=""[^>]*>Show all<\/button>/)?.[0] ?? ''
   assert.match(showAllTag, /type="button"/, 'Show all retains native button semantics while initially disabled')
-  assert.match(showAllTag, /min-\[720px\]:ml-2/, 'Show all has additional separation after the legend without being pushed to the edge')
+  assert.match(showAllTag, /min-\[720px\]:ml-auto/, 'Show all is pushed to the far edge of the graph card header')
   assert.match(graphSource, /disabled=\{allLegendVisible\}/,
     'Show all becomes keyboard reachable once any Legend item is hidden')
   assert.match(graphSource, /focus-visible:outline[^`]*min-\[720px\]:self-auto/,
@@ -429,18 +429,20 @@ try {
   const yAxisLineTag = graphMarkup.match(/<line\b[^>]*data-y-axis="true"[^>]*>/)?.[0] ?? ''
   const yAxisUnitTag = graphMarkup.match(/<text\b[^>]*data-y-axis-unit="true"[^>]*>/)?.[0] ?? ''
   assert.ok(yAxisLineTag && yAxisUnitTag)
-  assert.equal(numericSvgAttribute(yAxisLineTag, 'x1'), 88, 'the plot uses the reclaimed left edge')
-  assert.equal(numericSvgAttribute(yAxisUnitTag, 'x'), 88, 'the THB/PC label stays centered over the Y axis')
-  const firstGridlineTag = graphMarkup.match(/<line x1="88" x2="780" y1="[^"]+" y2="[^"]+" stroke=/)?.[0] ?? ''
-  assert.ok(firstGridlineTag, 'gridlines span the widened plot')
+  assert.equal(numericSvgAttribute(yAxisLineTag, 'x1'), 74, 'the plot uses the reduced left gutter')
+  assert.equal(numericSvgAttribute(yAxisLineTag, 'y1'), 32, 'the plot reduces its top margin')
+  assert.equal(numericSvgAttribute(yAxisLineTag, 'y2'), 280, 'the plot uses more of its available height')
+  assert.equal(numericSvgAttribute(yAxisUnitTag, 'x'), 74, 'the THB/PC label stays centered over the Y axis')
+  const firstGridlineTag = graphMarkup.match(/<line x1="74" x2="784" y1="[^"]+" y2="[^\"]+" stroke=/)?.[0] ?? ''
+  assert.ok(firstGridlineTag, 'gridlines span the fitted plot')
   const rulerLineTag = graphMarkup.match(/<line\b[^>]*data-ruler-line="true"[^>]*>/)?.[0] ?? ''
-  assert.equal(numericSvgAttribute(rulerLineTag, 'x1'), 88, 'the ruler begins at the plot edge')
-  assert.equal(numericSvgAttribute(rulerLineTag, 'x2'), 780, 'the ruler ends at the plot edge')
-  assert.equal(numericSvgAttribute(rulerLineTag, 'x2') - numericSvgAttribute(rulerLineTag, 'x1'), 692,
-    'the plot width grows beyond the audited 632-unit baseline')
+  assert.equal(numericSvgAttribute(rulerLineTag, 'x1'), 74, 'the ruler begins at the plot edge')
+  assert.equal(numericSvgAttribute(rulerLineTag, 'x2'), 784, 'the ruler ends at the plot edge')
+  assert.equal(numericSvgAttribute(rulerLineTag, 'x2') - numericSvgAttribute(rulerLineTag, 'x1'), 710,
+    'the fitted plot width grows beyond the audited 632-unit baseline')
   const axisTickTags = [...graphMarkup.matchAll(/<text\b[^>]*data-axis-tick="[^"]+"[^>]*>[^<]*<\/text>/g)].map(([tag]) => tag)
-  assert.ok(axisTickTags.length > 0 && axisTickTags.every(tag => numericSvgAttribute(tag, 'x') === 78),
-    'Y-axis tick labels stay ten units left of the widened plot')
+  assert.ok(axisTickTags.length > 0 && axisTickTags.every(tag => numericSvgAttribute(tag, 'x') === 64),
+    'Y-axis tick labels stay ten units left of the plot')
   const lowestTickLeft = Math.min(...axisTickTags.map(tag => {
     const text = tag.match(/>([^<]+)<\/text>/)?.[1] ?? ''
     return numericSvgAttribute(tag, 'x') - text.length * 5.4 - 16
@@ -449,12 +451,12 @@ try {
   const unitTextLeft = numericSvgAttribute(yAxisUnitTag, 'x') - 16 - unitText.length * 6.6 / 2
   assert.ok(lowestTickLeft > 0 && unitTextLeft > 0, 'Y-axis tick and THB/PC labels stay inside the SVG left edge')
   const gapTotalTags = [...graphMarkup.matchAll(/<text\b[^>]*data-graph-total="(gap1|gap2)"[^>]*>/g)]
-  assert.deepEqual(gapTotalTags.map(([tag, gap]) => [gap, numericSvgAttribute(tag, 'x')]), [['gap1', 294], ['gap2', 572]],
+  assert.deepEqual(gapTotalTags.map(([tag, gap]) => [gap, numericSvgAttribute(tag, 'x')]), [['gap1', 289], ['gap2', 569]],
     'GAP bars use the canonical category centers')
   const roleLabelTags = [...graphMarkup.matchAll(/<foreignObject x="(\d+)" y="291" width="106" height="28">/g)]
-  assert.deepEqual(roleLabelTags.map(([, x]) => Number(x)), [102, 380, 657],
+  assert.deepEqual(roleLabelTags.map(([, x]) => Number(x)), [96, 376, 656],
     'Reference, Current, and Custom controls align with the canonical state centers')
-  assert.deepEqual(sellingPriceLineSegments(graphMarkup).map(({ x1, x2 }) => [x1, x2]), [[155, 433], [433, 710]],
+  assert.deepEqual(sellingPriceLineSegments(graphMarkup).map(({ x1, x2 }) => [x1, x2]), [[149, 429], [429, 709]],
     'Selling Price segments follow the same canonical state centers')
   assert.deepEqual(graphStateXs.map(x => sellingPricePoint(graphMarkup, x)?.x ?? null), graphStateXs,
     'Selling Price points follow the same canonical state centers')
@@ -462,15 +464,17 @@ try {
     'the graph has no outer SVG translation')
   assert.doesNotMatch(graphSource, /GRAPH_X_SHIFT|translate\(-16 0\)|translate\(-24 0\)/,
     'the graph has no duplicate global X shift')
-  assert.match(graphSource, /const GRAPH_X = \{[\s\S]*?plotLeft: 88,[\s\S]*?plotRight: 780,[\s\S]*?reference: 155,[\s\S]*?gap1: 294,[\s\S]*?current: 433,[\s\S]*?gap2: 572,[\s\S]*?custom: 710/,
+  assert.match(graphSource, /const GRAPH_X = \{[\s\S]*?plotLeft: 74,[\s\S]*?plotRight: 784,[\s\S]*?reference: 149,[\s\S]*?gap1: 289,[\s\S]*?current: 429,[\s\S]*?gap2: 569,[\s\S]*?custom: 709/,
     'plot and all category centers use one canonical X geometry')
+  assert.match(graphSource, /const plot = \{ left: GRAPH_X\.plotLeft, right: GRAPH_X\.plotRight, top: 32, bottom: 280 \}/,
+    'the fitted vertical plot bounds use one canonical geometry')
   assert.match(graphMarkup, /viewBox="0 0 820 332"/, 'the fixed graph viewBox keeps its existing dimensions')
-  assert.ok([155, 294, 433, 572, 710].every(x => x >= 88 && x <= 780),
-    'all five category centers stay inside the widened plot bounds')
+  assert.ok([149, 289, 429, 569, 709].every(x => x >= 74 && x <= 784),
+    'all five category centers stay inside the fitted plot bounds')
   assert.ok(numericSvgAttribute(standardCostValueTags.get('custom') ?? '', 'x') + 5 * 5.4 < 820,
     'the Custom Standard Cost label stays inside the SVG viewBox')
   assert.match(graphSource, /x: state\.x,[\s\S]*?path: `M \$\{state\.x\} \$\{y\(first\)\} L \$\{nextState\.x\} \$\{y\(second\)\}`/,
-    'Selling Price paths and points derive their x coordinates from the shifted states')
+    'Selling Price paths and points derive their x coordinates from the canonical state centers')
   assert.doesNotMatch(yAxisUnitTag, /transform=|rotate\(\s*-90/, 'the Y-axis unit label stays horizontal')
   assert.ok(numericSvgAttribute(yAxisUnitTag, 'y') < numericSvgAttribute(yAxisLineTag, 'y1'),
     'the horizontal UOM label sits above the Y-axis')
@@ -538,7 +542,7 @@ try {
   const rulerValueTag = graphMarkup.match(/<text\b[^>]*data-ruler-value="true"[^>]*>/)?.[0] ?? ''
   const rulerValueX = numericSvgAttribute(rulerValueTag, 'x')
   assert.match(rulerValueTag, /text-anchor="start"/, 'the ruler value starts immediately right of the plot')
-  assert.ok(rulerValueX > 780 && rulerValueX + numericSvgAttribute(rulerValueTag, 'textLength') <= 818,
+  assert.ok(rulerValueX > 784 && rulerValueX + numericSvgAttribute(rulerValueTag, 'textLength') <= 818,
     'the ruler value stays within the dedicated right gutter inside the SVG viewBox')
   assert.match(graphSource, /const RULER_LABEL_GUTTER = \{\s*left: GRAPH_X\.plotRight \+ 6,\s*right: GRAPH_VIEWBOX_WIDTH - 2\s*\}/,
     'the ruler label has a dedicated inset gutter outside the plot')

@@ -65,13 +65,13 @@ const DEFAULT_LEGEND_VISIBILITY: Record<LegendKey, boolean> = {
 const useIsomorphicLayoutEffect = typeof window === 'undefined' ? useEffect : useLayoutEffect
 
 const GRAPH_X = {
-  plotLeft: 88,
-  plotRight: 780,
-  reference: 155,
-  gap1: 294,
-  current: 433,
-  gap2: 572,
-  custom: 710
+  plotLeft: 74,
+  plotRight: 784,
+  reference: 149,
+  gap1: 289,
+  current: 429,
+  gap2: 569,
+  custom: 709
 } as const
 const GRAPH_VIEWBOX_WIDTH = 820
 const RULER_LABEL_GUTTER = {
@@ -405,7 +405,7 @@ export function SimulationStoryGraph({ story, unit, activeRole, onSelectActiveDa
       ...(visibleLegend.sellingPrice ? stateValues.map(state => state.values.sellingPrice) : []),
     ])
   }, [gapStacks, standardCostValues, stateStacks, stateValues, visibleLegend])
-  const plot = { left: GRAPH_X.plotLeft, right: GRAPH_X.plotRight, top: 38, bottom: 272 }
+  const plot = { left: GRAPH_X.plotLeft, right: GRAPH_X.plotRight, top: 32, bottom: 280 }
   const { minimum, maximum, step: axisStep } = buildGraphScale(rangeValues)
   const span = maximum - minimum
   const clamp = (value: number, low: number, high: number) => Math.min(high, Math.max(low, value))
@@ -588,7 +588,7 @@ export function SimulationStoryGraph({ story, unit, activeRole, onSelectActiveDa
           type="button"
           disabled={allLegendVisible}
           onClick={() => setVisibleLegend(DEFAULT_LEGEND_VISIBILITY)}
-          className={`min-h-6 self-end rounded-sm px-0.5 text-[11px] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-blue-700 min-[720px]:ml-2 min-[720px]:self-auto xl:shrink-0 xl:px-px xl:whitespace-nowrap ${allLegendVisible ? 'cursor-default text-slate-400' : 'cursor-pointer text-slate-700 hover:underline'}`}
+          className={`min-h-6 self-end rounded-sm px-0.5 text-[11px] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-blue-700 min-[720px]:ml-auto min-[720px]:self-auto xl:shrink-0 xl:px-px xl:whitespace-nowrap ${allLegendVisible ? 'cursor-default text-slate-400' : 'cursor-pointer text-slate-700 hover:underline'}`}
         >
           Show all
         </button>

@@ -403,7 +403,7 @@ function EffectCell({ amount }: {
 }) {
   const effect = parameterEffectPresentation(amount)
   return (
-    <td className="whitespace-nowrap py-1.5 pl-1 pr-8 text-right font-mono tabular-nums">
+    <td className="whitespace-nowrap py-1.5 pl-1 pr-2 text-right font-mono tabular-nums">
       <span className={effect.className}>{effect.text}</span>
     </td>
   )
@@ -667,8 +667,8 @@ function SimulationParameterTable({
               </th>
               <th scope="col" className="px-2 py-2 text-left">{tableIdentity}</th>
               <th scope="col" className="px-1 py-2 text-left">Status</th>
-              {parameters.map(parameter => <th key={parameter.parameter} scope="col" className="py-2 pl-1 pr-8 text-right">{parameter.label}</th>)}
-              <th scope="col" className="py-2 pl-1 pr-6 text-right"><span className="relative left-4 inline-block whitespace-nowrap">{isBOM ? 'Material Cost' : 'Conversion Cost'}</span></th>
+              {parameters.map(parameter => <th key={parameter.parameter} scope="col" className="py-2 pl-1 pr-2 text-right">{parameter.label}</th>)}
+              <th scope="col" className="whitespace-nowrap py-2 pl-1 pr-2 text-right">{isBOM ? 'Material Cost' : 'Conversion Cost'}</th>
               <th scope="col" className="px-0.5 py-2"><span className="sr-only">Expand Parameter Cost Effect</span></th>
             </tr>
           </thead>
@@ -769,7 +769,7 @@ function SimulationParameterTable({
                         : null
                       const value = recordValue === null ? null : recordValue * parameter.scale
                       return (
-                        <td key={parameter.parameter} className="py-1 pl-1 pr-1 text-right">
+                        <td key={parameter.parameter} className="py-1 pl-1 pr-2 text-right">
                           {!simulationRecord ? '—' : canEdit ? (
                             <div className="min-w-0 pl-1.5">
                               <SimulationHistoryInputBoundary onBegin={onBeginEdit} onCommit={onCommitEdit}>
@@ -783,7 +783,7 @@ function SimulationParameterTable({
                                   onValueChange={next => {
                                     if (next !== null) onUpdate(simulationRecord.id, parameter.parameter, next / parameter.scale)
                                   }}
-                                  className="h-8 w-full min-w-0 rounded-sm border border-transparent bg-transparent px-1.5 text-right font-mono text-xs tabular-nums text-slate-900 transition-colors hover:border-slate-200 hover:bg-slate-50 focus:!border-transparent focus:bg-white focus:!outline focus:!outline-2 focus:!outline-blue-700 focus:!outline-offset-[-2px]"
+                                  className="h-8 w-full min-w-0 rounded-sm border border-transparent bg-transparent pl-1.5 pr-0 text-right font-mono text-xs tabular-nums text-slate-900 transition-colors hover:border-slate-200 hover:bg-slate-50 focus:!border-transparent focus:bg-white focus:!outline focus:!outline-2 focus:!outline-blue-700 focus:!outline-offset-[-2px]"
                                   aria-label={`${row.name} ${parameter.label} in ${roleLabel(activeRole)}`}
                                 />
                               </SimulationHistoryInputBoundary>
@@ -792,7 +792,7 @@ function SimulationParameterTable({
                         </td>
                       )
                     })}
-                    <td className="py-2 pl-1 pr-6 text-right font-mono text-xs tabular-nums text-slate-900">{displayMoney(analysis.simCost)}</td>
+                    <td className="py-2 pl-1 pr-2 text-right font-mono text-xs tabular-nums text-slate-900">{displayMoney(analysis.simCost)}</td>
                     <td className="px-0.5 py-1 text-center">
                       {canExpand && (
                         <span aria-hidden="true" className="inline-grid h-7 w-7 place-items-center text-slate-600">
@@ -808,7 +808,7 @@ function SimulationParameterTable({
                         <span className="ml-2 inline-block whitespace-nowrap border-l-2 border-slate-300 pl-3">Parameter Cost Effect</span>
                       </th>
                       {detailParameters.map(parameter => <EffectCell key={parameter.parameter} amount={parameter.amount} />)}
-                      <td aria-label={`Total ${totalEffect.text}`} className="whitespace-nowrap py-1.5 pl-1 pr-6 text-right text-[10px] font-semibold">
+                      <td aria-label={`Total ${totalEffect.text}`} className="whitespace-nowrap py-1.5 pl-1 pr-2 text-right text-[10px] font-semibold">
                         <span className="grid grid-cols-[1fr_auto] items-center gap-1">
                           <span className="text-right text-slate-700">Total{' '}</span>
                           <span className={`min-w-[5ch] text-right font-mono tabular-nums ${totalEffect.className}`}>{totalEffect.text}</span>
@@ -1069,7 +1069,7 @@ function ResultPanel({
   const formattedBusinessRows = formatRows(businessRows)
   const renderRows = (items: typeof costRows | typeof formattedBusinessRows) => items.map(row => {
     const subtotal = 'subtotal' in row && row.subtotal
-    const padding = subtotal ? 'py-0.5' : 'py-0'
+    const padding = subtotal ? 'py-0.5' : 'py-px'
     return (
       <tr key={row.label} className={
         'total' in row && row.total

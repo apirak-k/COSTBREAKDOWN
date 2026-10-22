@@ -232,13 +232,15 @@ assert.match(breakEvenOutcome, /mt-1 border-t border-slate-200 pt-1/,
 const baseGraphHeader = panelMarkup.match(/<figcaption id="break-even-graph-title"[\s\S]*?<\/figcaption>/)?.[0] ?? ''
 assert.match(baseGraphHeader, /<span>Break-even<\/span>[\s\S]*?<span class="text-\[9px\] font-normal text-slate-500">\(2,500 PC\)<\/span>/,
   'graph heading keeps Break-even primary and renders subdued parenthetical quantity context')
-assert.match(panelMarkup, /<text x="540" y="149" text-anchor="end"[^>]*>QTY \(PC\)<\/text>/,
+assert.match(panelMarkup, /<text x="544" y="149" text-anchor="end"[^>]*>QTY \(PC\)<\/text>/,
   'QTY is anchored at the right axis end below the tick row')
+assert.match(panelMarkup, /<line x1="52" x2="544" y1="12" y2="12" stroke="#e2e8f0"/,
+  'Break-even plot uses the expanded internal plot bounds')
 const fractionalMarkup = renderPanel(higherVariableCost, worked)
 assert.ok(fractionalMarkup.includes('(6,667 PC)'), 'heading uses the whole displayed threshold')
 const fractionalPoint = fractionalMarkup.match(/aria-label="Break-even Quantity:[^"]*" cx="([^"]+)"/)
 assert.ok(fractionalPoint, 'precise intersection remains accessible')
-const expectedPointX = 56 + (higherVariableCost.preciseBreakEvenQuantity / (higherVariableCost.preciseBreakEvenQuantity * 1.12)) * (540 - 56)
+const expectedPointX = 52 + (higherVariableCost.preciseBreakEvenQuantity / (higherVariableCost.preciseBreakEvenQuantity * 1.12)) * (544 - 52)
 assert.equal(Number(fractionalPoint[1]), expectedPointX, 'intersection geometry uses precise quantity rather than rounded threshold')
 const customUnitMarkup = renderToStaticMarkup(React.createElement(EconomicSimulationPanel, {
   result: baseResult, draft: worked, afterSnapshot: currentSnapshot, unit: 'KG', onUpdate() {}, onBeginEdit() {}, onCommitEdit() {}

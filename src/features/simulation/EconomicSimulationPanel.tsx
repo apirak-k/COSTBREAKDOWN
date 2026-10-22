@@ -55,7 +55,7 @@ function BreakEvenGraph({
   const dragStartRef = useRef<{ pointerId: number; pointerX: number; batchSize: number; xMax: number } | null>(null)
   const width = 560
   const height = 152
-  const plot = { left: 56, right: 540, top: 13, bottom: 112 }
+  const plot = { left: 52, right: 544, top: 12, bottom: 117 }
   const batchSize = result.batchSize
   const referenceQuantity = result.preciseBreakEvenQuantity ?? 0
   const baseMax = Math.max(1, batchSize ?? 0, referenceQuantity)
