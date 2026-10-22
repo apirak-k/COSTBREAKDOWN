@@ -194,7 +194,7 @@ export function NumericInput({
       emitValue(null)
       setDraft('')
     } else {
-      const nextDraft = formatValue(next)
+      const nextDraft = formatFullNumericValue(next)
       if (nextDraft === raw) {
         preservedPlaceRef.current = { raw, caret: selectionStart, place: activePlace }
         restorePlaceRef.current = null

@@ -163,8 +163,18 @@ try {
     assert.equal(committedDisplay, '12.35', `${source} keeps the accepted value after blur while display remains two decimals`)
     await clickInput(source)
     assert.equal(await inputValue(source), '12.3456789', `${source} refocus restores authoritative precision in the real caller`)
+    await evaluate('document.activeElement.setSelectionRange(4, 4)')
+    await send('Input.dispatchKeyEvent', { type: 'keyDown', key: 'ArrowUp', code: 'ArrowUp', windowsVirtualKeyCode: 38 })
+    await send('Input.dispatchKeyEvent', { type: 'keyUp', key: 'ArrowUp', code: 'ArrowUp', windowsVirtualKeyCode: 38 })
+    await delay(100)
+    assert.equal(await inputValue(source), '12.3556789', `${source} keeps the full focused draft after a hundredths step`)
     await clickInput(next)
-    return { typed, blurred: committedDisplay }
+    assert.equal(await inputValue(source), '12.36', `${source} only formats the stepped value after blur`)
+    await clickInput(source)
+    assert.equal(await inputValue(source), '12.3556789', `${source} refocus confirms the caller retained the authoritative stepped value`)
+    await typeInto(source, '12.3456789')
+    await clickInput(next)
+    return { typed, blurred: committedDisplay, preciseStepAndRefocus: '12.3556789' }
   }
 
   await send('Page.enable')
@@ -276,6 +286,45 @@ try {
   assert.equal(await headerText(), '12.34567891', 'Header blur restores its existing presentation')
   await clickInput('Selected value')
   assert.equal(await inputValue('Selected value'), '12.34567891235', 'Header refocus restores its updated full value')
+  await buttonByText('Reset decimal')
+  await buttonByText('Blur focused source')
+
+  for (const entry of ['keyboard', 'spinner', 'wheel']) {
+    const header = entry === 'spinner'
+    const aria = header ? 'Selected value' : 'Foundation decimal'
+    const initial = header ? '12.3456789123' : '12.3456789'
+    const stepped = header ? '12.3556789123' : '12.3556789'
+    await insertValue('Foundation decimal', initial)
+    await clickInput(aria)
+    await caret(4)
+    if (entry === 'keyboard') {
+      await key('ArrowUp')
+      assert.equal(await model('decimal'), stepped, 'precise ArrowUp updates the authoritative value')
+      assert.equal(await inputValue(aria), stepped, 'precise ArrowUp retains all focused draft digits')
+      await key('ArrowDown')
+      assert.equal(await model('decimal'), initial, 'precise ArrowDown restores the authoritative value')
+      assert.equal(await inputValue(aria), initial, 'precise ArrowDown retains all focused draft digits')
+      await key('ArrowUp')
+    } else if (header) {
+      await clickButton(byAria('Increase Selected value'))
+    } else {
+      await wheelOver(aria)
+    }
+    assert.equal(await model('decimal'), stepped, `${entry} preserves the authoritative stepped precision`)
+    assert.equal(await inputValue(aria), stepped, `${entry} keeps the full visible focused draft`)
+    assert.equal(await evaluate('document.activeElement?.getAttribute("aria-label")'), aria, `${entry} retains editor focus`)
+    assert.equal(await evaluate('document.activeElement.selectionStart'), 4, `${entry} preserves the hundredths caret place`)
+    await caret(stepped.length)
+    await send('Input.insertText', { text: '5' })
+    await delay(100)
+    assert.equal(await model('decimal'), `${stepped}5`, `${entry} manual continuation loses no hidden digits`)
+    assert.equal(await inputValue(aria), `${stepped}5`, `${entry} manual continuation retains the full draft`)
+    await clickInput(header ? 'Foundation decimal' : 'Foundation integer')
+    assert.equal(await inputValue(aria), header ? '12.35567891' : '12.36', `${entry} blur restores existing presentation`)
+    assert.equal(await model('decimal'), `${stepped}5`, `${entry} blur preserves the authoritative value`)
+    await clickInput(aria)
+    assert.equal(await inputValue(aria), `${stepped}5`, `${entry} refocus restores full edited precision`)
+  }
   await buttonByText('Reset decimal')
   await buttonByText('Blur focused source')
 
@@ -887,6 +936,7 @@ try {
       contentHuggingWidth: hoveredNumber.treatmentWidth
     },
     editingAndStepping: 'PASS',
+    preciseKeyboardSpinnerWheelDrafts: 'PASS',
     clipboardPaste: 'PASS',
     sourceLifecycle: 'PASS',
     geometry: geometryResults,
