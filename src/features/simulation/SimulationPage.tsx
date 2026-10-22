@@ -90,6 +90,22 @@ function displayParameter(value: number | null, parameter: typeof BOM_PARAMETERS
   return `${formatNumber(displayValue, 2)}${parameter.scale === 100 ? '%' : ''}`
 }
 
+function updateSimulationInputFrame(target: HTMLDivElement): void {
+  const input = target.querySelector<HTMLInputElement>('input[data-numeric-editor]')
+  const frame = target.querySelector<HTMLElement>('[data-simulation-input-frame="true"]')
+  if (!input || !frame) return
+
+  const canvas = document.createElement('canvas')
+  const context = canvas.getContext('2d')
+  if (!context) return
+
+  const inputStyle = getComputedStyle(input)
+  context.font = `${inputStyle.fontStyle} ${inputStyle.fontWeight} ${inputStyle.fontSize} ${inputStyle.fontFamily}`
+  const rightInset = Number.parseFloat(inputStyle.borderRightWidth) + Number.parseFloat(inputStyle.paddingRight)
+  frame.style.setProperty('--simulation-input-text-width', `${context.measureText(input.value).width}px`)
+  frame.style.setProperty('--simulation-input-text-inset', `${rightInset}px`)
+}
+
 function isInteractiveTarget(target: EventTarget | null, row: Element): boolean {
   if (!(target instanceof Element)) return false
   const control = target.closest('input, button, select, textarea, label, summary, a[href], [role="button"], [role="menuitem"], [contenteditable="true"], [data-safe-workspace-interaction="true"]')
@@ -771,7 +787,12 @@ function SimulationParameterTable({
                       return (
                         <td key={parameter.parameter} className="py-1 pl-1 pr-2 text-right">
                           {!simulationRecord ? '—' : canEdit ? (
-                            <div className="relative group -mr-1 min-w-0 pl-1.5 pr-1">
+                            <div
+                              className="relative group -mr-1 min-w-0 pl-1.5 pr-1"
+                              onMouseEnter={event => updateSimulationInputFrame(event.currentTarget)}
+                              onFocusCapture={event => updateSimulationInputFrame(event.currentTarget)}
+                              onInputCapture={event => updateSimulationInputFrame(event.currentTarget)}
+                            >
                               <SimulationHistoryInputBoundary onBegin={onBeginEdit} onCommit={onCommitEdit}>
                                 <>
                                   <NumericInput
@@ -784,13 +805,15 @@ function SimulationParameterTable({
                                     onValueChange={next => {
                                       if (next !== null) onUpdate(simulationRecord.id, parameter.parameter, next / parameter.scale)
                                     }}
-                                    className="h-8 w-full min-w-0 rounded-sm border border-transparent bg-transparent pl-1.5 pr-0 text-right font-mono text-xs tabular-nums text-slate-900 transition-colors hover:bg-slate-50 focus:!border-transparent focus:bg-white focus:!outline focus:!outline-2 focus:!outline-blue-700 focus:!outline-offset-[-2px]"
+                                    className="relative z-10 h-8 w-full min-w-0 rounded-sm border border-transparent bg-transparent pl-1.5 pr-0 text-right font-mono text-xs tabular-nums text-slate-900 transition-colors"
+                                    style={{ outline: 'none' }}
                                     aria-label={`${row.name} ${parameter.label} in ${roleLabel(activeRole)}`}
                                   />
                                   <span
                                     aria-hidden="true"
                                     data-simulation-input-frame="true"
-                                    className="pointer-events-none absolute inset-y-0 left-2.5 right-0 rounded-sm border border-transparent transition-colors group-hover:border-slate-200 group-focus-within:!border-transparent"
+                                    className="pointer-events-none absolute inset-y-0 left-1.5 right-1 z-0 rounded-sm border border-transparent transition-colors group-hover:border-slate-200 group-hover:bg-slate-50 group-focus-within:!border-blue-700 group-focus-within:!bg-white"
+                                    style={{ transform: 'translateX(max(0px, calc(50% - var(--simulation-input-text-width, 100%) / 2 - var(--simulation-input-text-inset, 0px))))' }}
                                   />
                                 </>
                               </SimulationHistoryInputBoundary>

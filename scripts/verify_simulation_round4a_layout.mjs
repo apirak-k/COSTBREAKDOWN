@@ -386,6 +386,69 @@ try {
     390: { inputWidth: 155, fields: { bom: { Price: 179, Usage: 352, Loss: 179 }, routing: { Manning: 179, Capacity: 352, Yield: 179 } } },
     320: { inputWidth: 120, fields: { bom: { Price: 144, Usage: 282, Loss: 144 }, routing: { Manning: 144, Capacity: 282, Yield: 144 } } }
   }
+  const frameValueFixtures = [
+    { kind: 'bom', label: 'Price', ariaLabel: 'MAT-A Price in Current', value: '4.00' },
+    { kind: 'bom', label: 'Usage', ariaLabel: 'MAT-A Usage in Current', value: '8.00' },
+    { kind: 'bom', label: 'Loss', ariaLabel: 'MAT-A Loss in Current', value: '15.00' },
+    { kind: 'routing', label: 'Manning', ariaLabel: 'OP-10 Manning in Current', value: '4.00' },
+    { kind: 'routing', label: 'Capacity', ariaLabel: 'OP-10 Capacity in Current', value: '8.00' },
+    { kind: 'routing', label: 'Yield', ariaLabel: 'OP-10 Yield in Current', value: '15.00' }
+  ]
+  const frameOriginalValues = []
+  const frameValueResults = []
+  for (const fixture of frameValueFixtures) {
+    const original = await evaluate(`(()=>[...document.querySelectorAll('input[data-numeric-editor]')].find(e=>e.getClientRects().length&&e.getAttribute('aria-label')===${JSON.stringify(fixture.ariaLabel)})?.value??null)()`)
+    frameOriginalValues.push({ fixture, original })
+    const actual = await typeIntoInput(fixture.ariaLabel, fixture.value)
+    frameValueResults.push({ field: fixture.ariaLabel, expected: fixture.value, actual })
+  }
+  check('Simulation parameter editors accept representative 4.00, 8.00, and 15.00 values in Chrome',
+    frameValueResults.every(result => result.actual === result.expected), frameValueResults)
+
+  const readInputFrame = async (kind, label) => evaluate(`(()=>{
+    const section=document.querySelector('section[data-simulation-table="${kind}"]')
+    const input=[...(section?.querySelectorAll('input[data-numeric-editor]')??[])].find(e=>e.getClientRects().length&&e.getAttribute('aria-label')?.endsWith(${JSON.stringify(`${label} in Current`)}))
+    if(!input)return null
+    const r=input.getBoundingClientRect(),s=getComputedStyle(input),cell=input.closest('td'),frame=cell?.querySelector('[data-simulation-input-frame="true"]'),f=frame?.getBoundingClientRect(),fs=frame?getComputedStyle(frame):null,ctx=document.createElement('canvas').getContext('2d')
+    ctx.font=s.fontStyle+' '+s.fontWeight+' '+s.fontSize+' '+s.fontFamily
+    const textWidth=ctx.measureText(input.value).width,rightInset=(parseFloat(s.borderRightWidth)||0)+(parseFloat(s.paddingRight)||0),header=section.querySelector('table[role="presentation"] thead tr')?.children[cell?.cellIndex??-1],range=document.createRange()
+    if(header)range.selectNodeContents(header)
+    const headerBoxes=header?[...range.getClientRects()]:[]
+    return{kind:${JSON.stringify(kind)},label:${JSON.stringify(label)},value:input.value,focused:document.activeElement===input,mobile:Boolean(input.closest('article')),input:{left:r.left,right:r.right,top:r.top,bottom:r.bottom,width:r.width,height:r.height,textRight:r.right-rightInset,paddingRight:s.paddingRight,rightInset,background:s.backgroundColor,outlineStyle:s.outlineStyle},headerRight:headerBoxes.length?Math.max(...headerBoxes.map(box=>box.right)):null,textWidth,expectedShift:Math.max(0,(r.width-textWidth)/2-rightInset),frame:f?{left:f.left,right:f.right,top:f.top,bottom:f.bottom,width:f.width,height:f.height,offsetLeft:f.left-r.left,offsetRight:f.right-r.right,border:fs.borderLeftColor,background:fs.backgroundColor}:null,cardFrameCount:input.closest('article')?.querySelectorAll('[data-simulation-input-frame="true"]').length??0}
+  })()`)
+
+  const sameFrameRect = (left, right) => Boolean(left && right && ['left', 'right', 'top', 'bottom', 'width', 'height'].every(edge => Math.abs(left[edge] - right[edge]) <= 0.25))
+  for (const width of [1440, 1024, 768]) {
+    const label = ({ 1440: 'Price', 1024: 'Usage', 768: 'Loss' })[width]
+    const fixture = frameValueFixtures.find(item => item.kind === 'bom' && item.label === label)
+    await setViewport(width)
+    const point = await evaluate(`(()=>{const input=[...document.querySelectorAll('input[data-numeric-editor]')].find(e=>e.getClientRects().length&&e.getAttribute('aria-label')===${JSON.stringify(fixture.ariaLabel)});if(!input)return null;input.scrollIntoView({block:'center',inline:'nearest'});const r=input.getBoundingClientRect();return{x:r.left+r.width/2,y:r.top+r.height/2}})()`)
+    await send('Input.dispatchMouseEvent', { type: 'mouseMoved', x: point.x, y: point.y })
+    await delay(180)
+    const hover = await readInputFrame('bom', label)
+    check(`${width}px Chrome evidence is using the intended ${fixture.value} draft`, hover?.value === fixture.value, hover)
+    await screenshot(`simulation-input-frame-${width}-${label.toLowerCase()}-hover`)
+    await clickAt(point)
+    await delay(180)
+    const focused = await readInputFrame('bom', label)
+    check(`${width}px ${fixture.value} Focus uses the exact same frame rectangle as Hover`,
+      Boolean(focused?.focused && sameFrameRect(hover?.frame, focused?.frame) && focused.frame?.border === 'rgb(29, 78, 216)' && focused.frame?.background === 'rgb(255, 255, 255)' && focused.input?.outlineStyle === 'none'),
+      { hover: hover?.frame, focused: focused?.frame, input: focused?.input })
+    await screenshot(`simulation-input-frame-${width}-${label.toLowerCase()}-focus`)
+    await evaluate(`(()=>{const input=[...document.querySelectorAll('input[data-numeric-editor]')].find(e=>e.getAttribute('aria-label')===${JSON.stringify(fixture.ariaLabel)});input?.blur()})()`)
+    await delay(180)
+  }
+
+  await setViewport(1440)
+  for (const { fixture, original } of frameOriginalValues) {
+    if (original !== null) await typeIntoInput(fixture.ariaLabel, original)
+  }
+  await evaluate('document.activeElement?.blur()')
+  await delay(180)
+  const restoredFrameValues = await evaluate(`(${JSON.stringify(frameOriginalValues.map(({ fixture, original }) => ({ ariaLabel: fixture.ariaLabel, original }))) }).map(({ariaLabel,original})=>({ariaLabel,original,actual:[...document.querySelectorAll('input[data-numeric-editor]')].find(e=>e.getClientRects().length&&e.getAttribute('aria-label')===ariaLabel)?.value??null}))`)
+  check('Temporary visual fixtures are restored before existing Simulation regression checks',
+    restoredFrameValues.every(result => result.original !== null && result.actual === result.original), restoredFrameValues)
+
   const responsive = []
   for (const width of [1440, 1024, 768, 390, 320]) {
     await setViewport(width)
@@ -397,34 +460,63 @@ try {
       if (!point) { frameMetrics.push({ kind, label, missing: true }); continue }
       await send('Input.dispatchMouseEvent', { type: 'mouseMoved', x: point.x, y: point.y })
       await delay(180)
-      frameMetrics.push(await evaluate(`(()=>{const section=document.querySelector('section[data-simulation-table="${kind}"]');const input=[...(section?.querySelectorAll('input[data-numeric-editor]')??[])].find(e=>e.getClientRects().length&&e.getAttribute('aria-label')?.endsWith(${JSON.stringify(`${label} in Current`)}));if(!input)return null;const r=input.getBoundingClientRect(),s=getComputedStyle(input),cell=input.closest('td'),frame=cell?.querySelector('[data-simulation-input-frame="true"]'),f=frame?.getBoundingClientRect(),fs=frame?getComputedStyle(frame):null,header=section.querySelector('table[role="presentation"] thead tr')?.children[cell?.cellIndex??-1],range=document.createRange();if(header)range.selectNodeContents(header);const headerBoxes=header?[...range.getClientRects()]:[];return{kind:${JSON.stringify(kind)},label:${JSON.stringify(label)},value:input.value,mobile:Boolean(input.closest('article')),input:{left:r.left,right:r.right,top:r.top,bottom:r.bottom,width:r.width,height:r.height,textRight:r.right-(parseFloat(s.borderRightWidth)||0)-(parseFloat(s.paddingRight)||0),paddingRight:s.paddingRight,borderLeft:s.borderLeftColor,borderRight:s.borderRightColor,background:s.backgroundColor,outlineStyle:s.outlineStyle,outlineWidth:s.outlineWidth},headerRight:headerBoxes.length?Math.max(...headerBoxes.map(box=>box.right)):null,frame:f?{left:f.left,right:f.right,top:f.top,bottom:f.bottom,width:f.width,height:f.height,borderLeft:fs.borderLeftColor,borderRight:fs.borderRightColor}:null,cardFrameCount:input.closest('article')?.querySelectorAll('[data-simulation-input-frame="true"]').length??0}})()`))
-    }
-    for (const metric of frameMetrics) {
-      const baseline = inputGeometryBaseline[width]?.fields[metric.kind]?.[metric.label]
-      check(`${width}px ${metric.kind.toUpperCase()} ${metric.label} keeps its existing numeric X-axis and 32px input size`,
-        Boolean(metric && !metric.missing && baseline !== undefined && Math.abs(metric.input.textRight - baseline) <= 0.25 && Math.abs(metric.input.width - inputGeometryBaseline[width].inputWidth) <= 0.25 && Math.abs(metric.input.height - 32) <= 0.25 && (width < 768 || Math.abs(metric.headerRight - metric.input.textRight) <= 2)),
-        metric)
-      if (!metric || metric.missing || !metric.input) continue
-      if (width >= 768) {
-        check(`${width}px ${metric.kind.toUpperCase()} ${metric.label} uses the shifted visible hover frame without changing the input box`,
-          Boolean(metric.frame && Math.abs(metric.frame.left - metric.input.left - 4) <= 0.25 && Math.abs(metric.frame.right - metric.input.right - 4) <= 0.25 && Math.abs(metric.frame.width - metric.input.width) <= 0.25 && Math.abs(metric.frame.height - metric.input.height) <= 0.25 && metric.frame.borderLeft === 'rgb(226, 232, 240)' && metric.frame.borderRight === 'rgb(226, 232, 240)' && metric.input.borderLeft === 'rgba(0, 0, 0, 0)' && metric.input.borderRight === 'rgba(0, 0, 0, 0)' && metric.input.background === 'rgb(248, 250, 252)'),
-          metric)
-      } else {
-        check(`${width}px ${metric.kind.toUpperCase()} ${metric.label} keeps the existing mobile editor with no desktop frame overlay`,
-          Boolean(metric.mobile && metric.cardFrameCount === 0 && metric.input.paddingRight === '6px'), metric)
+      const hover = await readInputFrame(kind, label)
+      const baseline = inputGeometryBaseline[width]?.fields[kind]?.[label]
+      check(`${width}px ${kind.toUpperCase()} ${label} keeps its existing numeric X-axis and 32px input size`,
+        Boolean(hover && baseline !== undefined && Math.abs(hover.input.textRight - baseline) <= 0.25 && Math.abs(hover.input.width - inputGeometryBaseline[width].inputWidth) <= 0.25 && Math.abs(hover.input.height - 32) <= 0.25 && (width < 768 || Math.abs(hover.headerRight - hover.input.textRight) <= 2)), hover)
+      if (width < 768) {
+        check(`${width}px ${kind.toUpperCase()} ${label} keeps the existing mobile editor with no desktop frame overlay`,
+          Boolean(hover?.mobile && hover.cardFrameCount === 0 && hover.input.paddingRight === '6px' && hover.frame === null), hover)
+        frameMetrics.push(hover)
+        continue
       }
+
+      const hoverGeometry = Boolean(hover?.frame
+        && Math.abs(hover.frame.offsetLeft - hover.expectedShift) <= 0.5
+        && Math.abs(hover.frame.offsetRight - hover.expectedShift) <= 0.5
+        && Math.abs(hover.frame.width - hover.input.width) <= 0.25
+        && Math.abs(hover.frame.height - hover.input.height) <= 0.25
+        && Math.abs(hover.frame.top - hover.input.top) <= 0.25
+        && Math.abs(hover.frame.bottom - hover.input.bottom) <= 0.25
+        && hover.frame.border === 'rgb(226, 232, 240)'
+        && hover.frame.background === 'rgb(248, 250, 252)'
+        && hover.input.background === 'rgba(0, 0, 0, 0)')
+      check(`${width}px ${kind.toUpperCase()} ${label} hover frame follows measured text balance without resizing`, hoverGeometry, hover)
+
+      await clickAt(point)
+      await delay(180)
+      const focused = await readInputFrame(kind, label)
+
+      await send('Input.dispatchMouseEvent', { type: 'mouseMoved', x: 2, y: 2 })
+      await delay(180)
+      const focusOnly = await readInputFrame(kind, label)
+      await send('Input.dispatchMouseEvent', { type: 'mouseMoved', x: point.x, y: point.y })
+      await delay(180)
+      const focusAndHover = await readInputFrame(kind, label)
+      await evaluate(`(()=>{const input=[...document.querySelectorAll('input[data-numeric-editor]')].find(e=>e.getAttribute('aria-label')?.endsWith(${JSON.stringify(`${label} in Current`)}));input?.blur()})()`)
+      await delay(180)
+      const hoverAgain = await readInputFrame(kind, label)
+      const focusGeometry = Boolean(focused?.focused
+        && focused?.frame?.border === 'rgb(29, 78, 216)'
+        && focused?.frame?.background === 'rgb(255, 255, 255)'
+        && focused?.input?.outlineStyle === 'none'
+        && focusOnly?.frame?.border === 'rgb(29, 78, 216)'
+        && focusOnly?.focused
+        && sameFrameRect(hover?.frame, focused?.frame)
+        && sameFrameRect(hover?.frame, focusOnly?.frame)
+        && sameFrameRect(hover?.frame, focusAndHover?.frame)
+        && sameFrameRect(hover?.frame, hoverAgain?.frame)
+        && focusAndHover?.frame?.border === 'rgb(29, 78, 216)'
+        && hoverAgain?.frame?.border === 'rgb(226, 232, 240)')
+      check(`${width}px ${kind.toUpperCase()} ${label} keeps one identical frame through Hover → Focus → Hover`, focusGeometry,
+        { hover: hover?.frame, focused: focused?.frame, focusOnly: focusOnly?.frame, focusAndHover: focusAndHover?.frame, hoverAgain: hoverAgain?.frame, focusInput: focused?.input })
+      frameMetrics.push({ kind, label, ...hover, focus: focused?.frame })
     }
     if (width >= 768) {
-      const frameOffsets = frameMetrics.map(metric => metric.frame ? metric.frame.left - metric.input.left : null)
-      check(`${width}px all six editable desktop fields use the same 4px frame placement`,
-        frameOffsets.length === 6 && frameOffsets.every(offset => Math.abs(offset - 4) <= 0.25), frameOffsets)
-    }
-    if (width === 1440) {
-      const focusMetrics = await evaluate(`(()=>{const section=document.querySelector('section[data-simulation-table="bom"]'),input=[...(section?.querySelectorAll('input[data-numeric-editor]')??[])].find(e=>e.getClientRects().length&&e.getAttribute('aria-label')?.endsWith('Price in Current'));if(!input)return null;input.focus();const frame=input.closest('td')?.querySelector('[data-simulation-input-frame="true"]'),inputStyle=getComputedStyle(input),frameStyle=frame?getComputedStyle(frame):null;return{focused:document.activeElement===input,inputValue:input.value,inputOutline:{style:inputStyle.outlineStyle,width:inputStyle.outlineWidth,color:inputStyle.outlineColor},inputBackground:inputStyle.backgroundColor,frameBorder:frameStyle?.borderLeftColor??null}})()`)
-      check('1440px desktop focus keeps the blue input focus ring and hides the hover frame border',
-        Boolean(focusMetrics?.focused && focusMetrics.inputOutline.style === 'solid' && focusMetrics.inputOutline.color === 'rgb(29, 78, 216)' && focusMetrics.frameBorder === 'rgba(0, 0, 0, 0)'), focusMetrics)
-      await evaluate('document.activeElement?.blur()')
-      await delay(80)
+      const balancedFields = frameMetrics.filter(metric => metric?.frame)
+      check(`${width}px all six editable desktop fields use the same measured text-centering rule`,
+        balancedFields.length === 6 && balancedFields.every(metric => Math.abs(metric.frame.offsetLeft - metric.expectedShift) <= 0.5 && Math.abs(metric.frame.offsetRight - metric.expectedShift) <= 0.5),
+        balancedFields.map(metric => ({ field: `${metric.kind} ${metric.label}`, text: metric.value, width: metric.input.width, measuredText: metric.textWidth, offset: metric.frame.offsetLeft, expected: metric.expectedShift })))
     }
     await evaluate('(()=>{window.scrollTo({top:0,left:0,behavior:"instant"});for(const element of document.querySelectorAll("*"))if(element.scrollTop)element.scrollTop=0})()')
     await delay(120)
