@@ -1,6 +1,6 @@
 # Phase 2 — Selected Value / Decimal UX Execution Plan
 
-**Status:** Round 1 is CLOSED; Round 2 — Master Data is CLOSED after final UX polish that followed the already-accepted previous correction; Round 3 — Cost Breakdown is CLOSED after final post-implementation UX polish; Round 4 — Simulation is NOT STARTED / NEXT; Round 5 is NOT STARTED.
+**Status:** Round 1 is CLOSED; Round 2 — Master Data is CLOSED after final UX polish that followed the already-accepted previous correction; Round 3 — Cost Breakdown is CLOSED after the targeted correction and re-verification below; Round 4 — Simulation is NOT STARTED / NEXT; Round 5 is NOT STARTED.
 **Execution branch:** `feat/selected-value-ux`
 **Repository:** `https://github.com/apirak-k/COSTBREAKDOWN`
 
@@ -28,7 +28,7 @@ Do not overlap implementation rounds or add numbered sub-phases. A failing accep
 |---|---|---|---|
 | Round 1 — Shared Foundation | Shared numeric source lifecycle, Header Value, SelectedNumber inspection primitive, exact model-value handling, and shared browser/runtime verification. | **CLOSED** | Shared focus/preview/pin model, source lifecycle, stale-writer guards, existing formatting/stepping/domain contracts, and runtime checks pass. Unpinned pointer hover has a frame/ring with no added fill and unchanged geometry; keyboard focus has a clear ring without the pinned fill; pin remains stronger. Final correction commit is recorded in the current Handoff. |
 | Round 2 — Master Data | Integrate the shared model into Master Data without changing its data, formulas, validation domains, dataset lifecycle, history, or spreadsheet semantics. Preserve the accepted native View-mode focus recovery and apply the later finalized hover/Header precision contract and final geometry polish. | **CLOSED** | Native grid focus owns View numeric values; source Preview uses a cancellable 350ms dwell; Focus/Pin remains anchored; only focused editable sources own Header writers; Header displays at most 8 decimals and keeps stable numeric / `%` / spinner regions and direct-interaction affordance; actual Chrome, regression, source audit, build, and diff checks pass. |
-| Round 3 — Cost Breakdown | Integrate eligible Cost Breakdown values and interactions with the shared Header/source model, retaining the finalized Candidate, detail, tooltip, row, ordering, and comparison behavior. | **CLOSED** | The final Candidate chevron, no-focus SelectedNumber hover/Pin, and Pin discard behavior pass actual Chrome, responsive, regression, build, source audit, and diff checks; no calculation or comparison semantics change. Implementation: `a770d7ee12d0022a195ee8458f02b35cb476de41`. |
+| Round 3 — Cost Breakdown | Integrate eligible Cost Breakdown values and interactions with the shared Header/source model, retaining the finalized Candidate, detail, tooltip, row, ordering, and comparison behavior. | **CLOSED** | Shared no-focus `SelectedNumber` is transparent at rest, `#E9EEF4` on direct hover, and `blue-100` when pinned; Candidate row hover is independent. CHANGED-row cell whitespace expands/collapses while actual numeric, `#`, and reorder controls keep their own action. Targeted Chrome, Round 2 / Round 3 browser gates, build, source audit, and diff checks pass; no calculation or comparison semantics change. Implementation: `9536da7edec07d29e808bec8af8c45a16e8be621`. |
 | Round 4 — Simulation | Integrate eligible Simulation Result, Economic, and Break-even numeric interactions while keeping the existing role/basis ownership, editable domains, economics, histories, reset/send behavior, and graph interaction contracts. | **NOT STARTED / NEXT** | Page-specific and cross-state checks pass; graphs retain their existing geometry and do not gain numeric selection behavior. |
 | Round 5 — Final Cross-page Regression | Run the final shared + Master Data + Cost Breakdown + Simulation regression and verify that state does not leak across pages/scopes. | **NOT STARTED** | Rounds 1–4 have each passed their gate; full cross-page regression, browser checks, build, and diff review pass. |
 
@@ -93,7 +93,9 @@ The prior Master Data Round 2 correction already passed its requested acceptance
 - **Regression/build:** shared numeric input, numeric integrity, Master Data UI-state, spreadsheet batch, Dataset Sizing/Clone, toolbar/Prepare, quality navigation, edit history, sizing no-op/preservation, row order, Clear, Custom, clone readiness, rename/empty-edit, Handoff, compact overlay, navigation persistence, Simulation regression, TypeScript, production build, browser-script syntax, and `git diff --check` passed. Simulation regression exits 0 with the existing nested Vite SSR WebSocket port `24678` in-use warning. Build passes with the existing ExcelJS / fast-csv browser externalization warnings and the main chunk advisory at 558.62 kB (>500 kB).
 - **[Unverified]** Firefox, Safari, touch hardware, and screen-reader behavior were not tested. The app harness does not expose the raw stored BOM Loss fraction for direct browser inspection; its unchanged edit/reselect/read path remains covered only through existing application behavior.
 
-## Final post-implementation UX polish and Round 3 close — 2026-10-22
+## Previous Round 3 closure checkpoint — 2026-10-22
+
+The closure below records the state before a later user-requested targeted correction pass. Its results and commit remain historical; the current Round 3 state is recorded in the following section.
 
 - **Status:** Round 1 CLOSED; Round 2 — Master Data CLOSED; Round 3 — Cost Breakdown CLOSED; Round 4 — Simulation NOT STARTED / NEXT; Round 5 NOT STARTED.
 - **Starting checkpoint:** local `feat/selected-value-ux` and freshly fetched `origin/feat/selected-value-ux` both matched `fe0bb59280bbc739d21218672846a1c68ba536d2`. No divergence or unrelated worktree changes were present in the target checkout `/Users/bubu/COSTBREAKDOWN-ref-current-custom-flow-redesign`.
@@ -106,6 +108,14 @@ The prior Master Data Round 2 correction already passed its requested acceptance
 - **[Unverified]** Firefox, Safari, physical touch hardware, and screen-reader behavior were not tested.
 - **Implementation files:** `src/shared/ui/selected-value.tsx`, `src/features/master-data/components/MasterDataNumericValue.tsx`, `src/features/cost-breakdown/components/BOMDetailedTable.tsx`, `src/features/cost-breakdown/components/CandidateFindingsTable.tsx`, `src/features/cost-breakdown/components/RoutingDetailedTable.tsx`, `src/features/cost-breakdown/components/SnapshotComparisonCard.tsx`, `src/features/cost-breakdown/components/WorkCenterProcessingTable.tsx`, `scripts/verify_cbd_selected_value_browser.mjs`, `scripts/verify_cbd_summary_ux.ts`, and `scripts/verify_numeric_input_browser.mjs`.
 - **Closure documentation files:** `docs/specs/CROSS_CUTTING.md`, `docs/specs/COST_BREAKDOWN.md`, `docs/specs/MASTER_DATA.md`, `docs/specs/MASTER_DATA_TOOLBAR_PREPARE_UX.md`, `docs/REQUIREMENTS_INDEX.md`, this plan, and `HANDOFF.md`.
+
+## Round 3 targeted correction and reclosure — 2026-10-22
+
+- **Status:** Round 1 CLOSED; Round 2 — Master Data CLOSED; Round 3 — Cost Breakdown CLOSED; Round 4 — Simulation NOT STARTED / NEXT; Round 5 NOT STARTED.
+- **Starting checkpoint:** freshly fetched `origin/feat/selected-value-ux` and local `HEAD` both matched `5a2ec42d456bc3c9ebece35ba162ea89b5c902de`; the target worktree was clean before this correction.
+- **Implementation:** `9536da7edec07d29e808bec8af8c45a16e8be621` (`fix: correct selected value interaction boundaries`), a direct child of the starting checkpoint.
+- **Verification:** isolated Chrome Round 3 verifier **271/271** at 1440 / 1024 / 768 / 390 / 320px, including the ADDED / REMOVED / UNCHANGED non-expandable checks; Round 2 Master Data verifier **151/151** at the same viewport set; numeric-input and numeric-integrity checks; page-navigation persistence and Simulation regression suites; `npm run build`, browser-script syntax check, and `git diff --check` pass. Simulation regression printed existing Vite SSR WebSocket port-in-use notices but exited successfully. The full evidence is in the current `HANDOFF.md` section.
+- Only the requested Candidate click boundaries and shared SelectedNumber hover scope/color changed. No formulas, business logic, numeric domains, stored/calculation precision, Round 4 implementation, merge, rebase, or force-push are included.
 
 ## Boundaries
 
