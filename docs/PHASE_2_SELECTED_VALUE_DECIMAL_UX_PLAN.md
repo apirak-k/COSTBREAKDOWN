@@ -1,6 +1,6 @@
 # Phase 2 — Selected Value / Decimal UX Execution Plan
 
-**Status:** Round 1 is CLOSED; Round 2 — Master Data is CLOSED after final UX polish that followed the already-accepted previous correction; Round 3 — Cost Breakdown is CLOSED after the targeted correction and re-verification below; the original five-item Round 4A — Simulation UI Polish is CLOSED; the latest pre-Round-4B Simulation input / cross-system expandable-row correction is IMPLEMENTED / AWAITING EXTERNAL USER AUDIT; Global authoritative-full-value-on-edit is NOT STARTED; Round 4B — Simulation Selected Value / Decimal UX is NOT STARTED / BLOCKED UNTIL FRAME ACCEPTANCE; Global direct-edit blue-value indicator is NOT STARTED; Round 5 is NOT STARTED.
+**Status:** Round 1 is CLOSED; Round 2 — Master Data is CLOSED after final UX polish that followed the already-accepted previous correction; Round 3 — Cost Breakdown is CLOSED after the targeted correction and re-verification below; the original five-item Round 4A — Simulation UI Polish is CLOSED; the latest pre-Round-4B Simulation input / cross-system expandable-row correction is IMPLEMENTED / AWAITING EXTERNAL USER AUDIT; Global authoritative-full-value-on-edit is IMPLEMENTED / EXTERNALLY ACCEPTED; Round 4B — Simulation Selected Value / Decimal UX is NOT STARTED / BLOCKED UNTIL FRAME ACCEPTANCE; Global direct-edit blue-value indicator is NOT STARTED; Round 5 is NOT STARTED.
 **Execution branch:** `feat/selected-value-ux`
 **Repository:** `https://github.com/apirak-k/COSTBREAKDOWN`
 
@@ -36,8 +36,8 @@ Do not overlap implementation rounds or add numbered sub-phases. A failing accep
 
 These are workflow steps inside the existing five-round Phase 2 plan, not new numbered rounds. Follow this order **after the current pre-Round-4B correction is externally accepted**. Future items marked NOT STARTED have not been implemented in the correction.
 
-1. Implement the GLOBAL authoritative-full-value-on-edit correction.
-2. Audit and accept that global numeric correction.
+1. GLOBAL authoritative-full-value-on-edit correction — implemented in the separate prior correction.
+2. Audit and accept that global numeric correction — externally accepted.
 3. Implement Round 4B — Simulation Selected Value / Decimal UX.
 4. Audit / accept and close Round 4.
 5. Implement the GLOBAL direct-edit blue-value indicator.
@@ -45,7 +45,7 @@ These are workflow steps inside the existing five-round Phase 2 plan, not new nu
 7. Run Round 5 — Final Cross-page Regression.
 8. After Phase 2: Excel validation → real-world usage test → portable distribution.
 
-Current statuses: pre-Round-4B correction **IMPLEMENTED / AWAITING EXTERNAL USER AUDIT**; Global authoritative-full-value-on-edit **NOT STARTED**; Round 4B **NOT STARTED / BLOCKED UNTIL FRAME ACCEPTANCE**; Global direct-edit blue-value indicator **NOT STARTED**; Round 5 **NOT STARTED**.
+Current statuses: pre-Round-4B correction **IMPLEMENTED / AWAITING EXTERNAL USER AUDIT**; Global authoritative-full-value-on-edit **IMPLEMENTED / EXTERNALLY ACCEPTED**; Round 4B **NOT STARTED / BLOCKED UNTIL FRAME ACCEPTANCE**; Global direct-edit blue-value indicator **NOT STARTED**; Round 5 **NOT STARTED**.
 
 ## Current pre-Round-4B correction checkpoint — 2026-10-22
 
