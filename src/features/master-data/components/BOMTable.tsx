@@ -75,6 +75,8 @@ export const BOMTable: React.FC<BOMTableProps> = ({
 }) => {
   const tableRef = useRef<HTMLTableElement | null>(null)
   const [draggingIds, setDraggingIds] = useState<ReadonlySet<string>>(() => new Set())
+  const reorderDragRef = useRef<{ movingIds: string[] } | null>(null)
+  const [dropTarget, setDropTarget] = useState<{ id: string; position: 'before' | 'after' } | null>(null)
   const valueSourceId = (recordId: string, field: string) => masterDataSelectedValueId(historyScope, selectionDatasetId, 'bom', recordId, field)
   const { headerViewportRef, syncHeaderScroll } = useSynchronizedTableHeader()
   const cellSelectionRowIds = useMemo(() => bom.map(item => item.id), [bom])
@@ -201,18 +203,50 @@ export const BOMTable: React.FC<BOMTableProps> = ({
 
   const handleDragStart = (event: React.DragEvent<HTMLButtonElement>, id: string) => {
     const movingIds = selectedIds.has(id) ? [...selectedIds] : [id]
+    reorderDragRef.current = { movingIds }
     setDraggingIds(new Set(movingIds))
+    setDropTarget(null)
     event.dataTransfer.setData('text/plain', id)
     event.dataTransfer.setData('application/x-costbreakdown-row-ids', JSON.stringify(movingIds))
     event.dataTransfer.effectAllowed = 'move'
   }
 
-  const handleDragEnd = () => setDraggingIds(new Set())
+  const finishReorder = () => {
+    reorderDragRef.current = null
+    setDraggingIds(new Set())
+    setDropTarget(null)
+  }
+
+  const getDropPosition = (event: React.DragEvent<HTMLTableRowElement>): 'before' | 'after' => {
+    const bounds = event.currentTarget.getBoundingClientRect()
+    return event.clientY >= bounds.top + bounds.height / 2 ? 'after' : 'before'
+  }
+
+  const previewRowDrop = (event: React.DragEvent<HTMLTableRowElement>, targetId: string) => {
+    const drag = reorderDragRef.current
+    if (!drag) return
+    if (drag.movingIds.includes(targetId)) {
+      setDropTarget(null)
+      return
+    }
+    event.dataTransfer.dropEffect = 'move'
+    const position = getDropPosition(event)
+    setDropTarget(current => current?.id === targetId && current.position === position ? current : { id: targetId, position })
+  }
+
+  const handleRowDragLeave = (event: React.DragEvent<HTMLTableRowElement>, targetId: string) => {
+    const relatedTarget = event.relatedTarget
+    if (relatedTarget instanceof Node && event.currentTarget.contains(relatedTarget)) return
+    setDropTarget(current => current?.id === targetId ? null : current)
+  }
 
   const handleRowDrop = (event: React.DragEvent<HTMLTableRowElement>, targetId: string) => {
     event.preventDefault()
     const movingId = event.dataTransfer.getData('text/plain')
-    if (!movingId || movingId === targetId) return
+    if (!movingId || movingId === targetId) {
+      finishReorder()
+      return
+    }
     let movingIds = [movingId]
     try {
       const parsedIds: unknown = JSON.parse(event.dataTransfer.getData('application/x-costbreakdown-row-ids'))
@@ -223,9 +257,12 @@ export const BOMTable: React.FC<BOMTableProps> = ({
     } catch {
       // Keep the existing single-row drag behavior when group data is unavailable.
     }
-    if (movingIds.includes(targetId)) return
-    const bounds = event.currentTarget.getBoundingClientRect()
-    onReorderRows(movingId, targetId, event.clientY >= bounds.top + bounds.height / 2 ? 'after' : 'before', movingIds)
+    if (movingIds.includes(targetId)) {
+      finishReorder()
+      return
+    }
+    onReorderRows(movingId, targetId, getDropPosition(event), movingIds)
+    finishReorder()
   }
 
   return (
@@ -297,8 +334,17 @@ export const BOMTable: React.FC<BOMTableProps> = ({
                   aria-selected={isSelected}
                   tabIndex={-1}
                   onMouseEnter={() => onMouseEnterRow(item.id)}
-                  onDragOver={event => { if (isEditMode) event.preventDefault() }}
+                  onDragOver={event => {
+                    if (isEditMode) {
+                      event.preventDefault()
+                      previewRowDrop(event, item.id)
+                    }
+                  }}
+                  onDragLeave={event => handleRowDragLeave(event, item.id)}
                   onDrop={event => { if (isEditMode) handleRowDrop(event, item.id) }}
+                  style={dropTarget?.id === item.id ? {
+                    boxShadow: dropTarget.position === 'before' ? 'inset 0 2px 0 0 #3b82f6' : 'inset 0 -2px 0 0 #3b82f6'
+                  } : undefined}
                   className={`group h-10 transition-colors ${isSelected ? 'bg-blue-100/60 hover:bg-blue-100/80' : 'bg-white hover:bg-slate-50'}`}
                 >
                   <th scope="row" className={`sticky left-0 z-20 ${masterDataIndexColumnClass} bg-transparent px-1.5 py-0.5 text-center font-mono font-normal text-slate-600`}>
@@ -499,7 +545,7 @@ export const BOMTable: React.FC<BOMTableProps> = ({
                           disabled={!isEditMode}
                           draggable={isEditMode}
                           onDragStart={event => handleDragStart(event, item.id)}
-                          onDragEnd={handleDragEnd}
+                          onDragEnd={finishReorder}
                           aria-label={!isEditMode ? reorderTooltip : reorderSelectedGroup ? 'Drag selected BOM rows to reorder' : `Drag BOM row ${rowNumber} to reorder`}
                           className={`inline-flex h-8 w-7 items-center justify-center ${draggingIds.has(item.id) ? 'cursor-grabbing text-slate-700' : 'cursor-grab text-slate-400'} hover:bg-slate-200 hover:text-slate-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-700 active:cursor-grabbing disabled:cursor-default disabled:opacity-30 disabled:hover:bg-transparent disabled:hover:text-slate-400`}
                         >
