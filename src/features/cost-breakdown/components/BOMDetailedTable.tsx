@@ -156,10 +156,16 @@ export function BOMRecordDetails({
 
   const renderDetailRow = (label: string, side: 'before' | 'after' | 'effect', id?: string) => {
     const effectRow = side === 'effect'
-    const separatorClass = effectRow ? 'border-t border-b border-slate-200' : 'border-t border-slate-200'
+    const separatorClass = effectRow ? 'border-b border-slate-200' : ''
     return <tr
     key={label}
     id={id}
+    style={side === 'before' ? undefined : {
+      backgroundImage: 'linear-gradient(#e2e8f0, #e2e8f0)',
+      backgroundSize: 'calc(100% - 12px) 1px',
+      backgroundPosition: 'center top',
+      backgroundRepeat: 'no-repeat'
+    }}
     className={effectRow
       ? 'bg-white font-bold text-slate-950'
       : 'bg-white font-normal text-slate-600'}

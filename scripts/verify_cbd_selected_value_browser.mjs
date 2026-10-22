@@ -457,7 +457,7 @@ try {
     const main=[...(table?.querySelectorAll('tbody tr[data-candidate-reorder-row]')??[])].find(row=>row.getAttribute('data-candidate-reorder-row')===${JSON.stringify(id)})
     const detailRows=[];let next=main?.nextElementSibling
     while(next&&!next.hasAttribute('data-candidate-reorder-row')){if(next.querySelector('th[scope="row"]'))detailRows.push(next);next=next.nextElementSibling}
-    const rowStyle=row=>row?{background:getComputedStyle(row).backgroundColor,borderBottom:getComputedStyle(row).borderBottomWidth,cells:[...row.children].map(cell=>{const style=getComputedStyle(cell);return{top:style.borderTopWidth,bottom:style.borderBottomWidth}})}:null
+    const rowStyle=row=>{if(!row)return null;const style=getComputedStyle(row),rect=row.getBoundingClientRect();return{background:style.backgroundColor,borderTop:style.borderTopWidth,borderBottom:style.borderBottomWidth,width:rect.width,backgroundImage:style.backgroundImage,backgroundSize:style.backgroundSize,backgroundPosition:style.backgroundPosition,backgroundRepeat:style.backgroundRepeat,cells:[...row.children].map(cell=>{const style=getComputedStyle(cell);return{top:style.borderTopWidth,bottom:style.borderBottomWidth}})}}
     const point=element=>{const rect=element?.getBoundingClientRect();return rect?{x:rect.left+rect.width/2,y:rect.top+rect.height/2}:null}
     return main?{expanded:main.getAttribute('aria-expanded'),selected:main.getAttribute('aria-selected'),main:rowStyle(main),mainPoint:point(main.querySelector('th[scope="row"]')),details:detailRows.map(row=>({...rowStyle(row),label:row.querySelector('th[scope="row"]')?.innerText.trim()??null,point:point(row.querySelector('th[scope="row"]'))}))}:null
   })()`)
@@ -470,7 +470,18 @@ try {
     const mainHover = await readCandidateGroupVisual(type, id)
     if (detailPoint) { await mouse('mouseMoved', detailPoint.x, detailPoint.y); await delay(180) }
     const detailHover = await readCandidateGroupVisual(type, id)
-    const internal = group?.details?.length === 3 && group.details.every(row => row.cells[0]?.top === '0px' && row.cells.slice(1).every(cell => cell.top === '1px'))
+    const firstDetailHasNoInset = group?.details?.[0]?.cells?.every(cell => cell.top === '0px')
+      && group.details[0].backgroundImage === 'none'
+    const insetRows = group?.details?.slice(1) ?? []
+    const insetGeometry = insetRows.length === 2 && insetRows.every(row =>
+      row.cells.every(cell => cell.top === '0px')
+      && row.backgroundImage !== 'none'
+      && row.backgroundSize === 'calc(100% - 12px) 1px'
+      && ['50% 0%', 'center top'].includes(row.backgroundPosition)
+      && row.backgroundRepeat === 'no-repeat'
+      && row.width > 12)
+    const insetGutters = insetRows.map(row => ({ left: (row.width - (row.width - 12)) / 2, right: (row.width - (row.width - 12)) / 2 }))
+    const inset = firstDetailHasNoInset && insetGeometry && insetGutters.every(gutter => Math.abs(gutter.left - gutter.right) <= 0.25 && gutter.left >= 4 && gutter.left <= 8)
     const fullEnd = group?.details?.at(-1)?.cells?.every(cell => cell.bottom === '1px')
     const mainSelectionStyle = group?.selected === 'true'
       ? group.main.background !== 'rgb(255, 255, 255)'
@@ -478,14 +489,14 @@ try {
     const mainHoverWorks = group?.selected === 'true'
       ? mainHover?.main?.background !== group.main.background && mainHover?.main?.background !== 'rgb(255, 255, 255)'
       : mainHover?.main?.background === 'rgb(248, 250, 252)'
-    verify(Boolean(group?.expanded === 'true' && mainSelectionStyle && group.main.borderBottom === '0px'
+    verify(Boolean(group?.expanded === 'true' && mainSelectionStyle && group.main.borderBottom === '1px'
       && group.details.every(row => row.background === 'rgb(255, 255, 255)')
-      && internal && fullEnd
+      && inset && fullEnd
       && mainHoverWorks && mainHover?.selected === group.selected
       && detailHover?.main?.background === group.main.background && detailHover?.selected === group.selected
       && detailHover?.details?.every(row => row.background === 'rgb(255, 255, 255)')),
-      `${type} expanded Candidate keeps white no-hover detail rows, inset internal separators, a full-width group end, and main-row hover`,
-      { group, mainHover: mainHover?.main?.background, detailHover: { main: detailHover?.main?.background, details: detailHover?.details?.map(row => row.background) }, internal, fullEnd })
+      `${type} expanded Candidate renders FULL main/detail boundaries, symmetric small detail insets, white no-hover details, and main-row hover`,
+      { group, mainHover: mainHover?.main?.background, detailHover: { main: detailHover?.main?.background, details: detailHover?.details?.map(row => row.background) }, firstDetailHasNoInset, insetGeometry, insetGutters, inset, fullEnd })
   }
   const changedRowSelector = 'tr[data-candidate-reorder-row][aria-expanded="false"]'
   const accessibilityTree = async () => {

@@ -101,9 +101,13 @@ function updateSimulationInputFrame(target: HTMLDivElement): void {
 
   const inputStyle = getComputedStyle(input)
   context.font = `${inputStyle.fontStyle} ${inputStyle.fontWeight} ${inputStyle.fontSize} ${inputStyle.fontFamily}`
-  const rightInset = Number.parseFloat(inputStyle.borderRightWidth) + Number.parseFloat(inputStyle.paddingRight)
-  frame.style.setProperty('--simulation-input-text-width', `${context.measureText(input.value).width}px`)
-  frame.style.setProperty('--simulation-input-text-inset', `${rightInset}px`)
+  const frameShift = Number.parseFloat(inputStyle.getPropertyValue('--simulation-input-frame-shift')) || 0
+  const borderRight = Number.parseFloat(inputStyle.borderRightWidth) || 0
+  const paddingRight = Number.parseFloat(inputStyle.paddingRight) || 0
+  const rightInset = borderRight + Math.max(0, paddingRight - frameShift)
+  const textWidth = context.measureText(input.value).width
+  const nextShift = Math.max(0, (input.getBoundingClientRect().width - textWidth) / 2 - rightInset)
+  target.style.setProperty('--simulation-input-frame-shift', `${nextShift}px`)
 }
 
 function isInteractiveTarget(target: EventTarget | null, row: Element): boolean {
@@ -419,7 +423,7 @@ function EffectCell({ amount }: {
 }) {
   const effect = parameterEffectPresentation(amount)
   return (
-    <td className="border-t border-b border-slate-200 whitespace-nowrap py-1.5 pl-1 pr-2 text-right font-mono tabular-nums">
+    <td className="border-b border-slate-200 whitespace-nowrap py-1.5 pl-1 pr-2 text-right font-mono tabular-nums">
       <span className={effect.className}>{effect.text}</span>
     </td>
   )
@@ -750,7 +754,7 @@ function SimulationParameterTable({
                 amount: analysis.effects.effects?.[parameter.effectKey] ?? null
               }))
               const totalEffect = parameterEffectPresentation(analysis.effects.totalEffect)
-              const groupEndClass = expanded ? '' : 'border-b border-slate-200'
+              const groupEndClass = 'border-b border-slate-200'
 
               return (
                 <React.Fragment key={key}>
@@ -829,7 +833,12 @@ function SimulationParameterTable({
                                       if (next !== null) onUpdate(simulationRecord.id, parameter.parameter, next / parameter.scale)
                                     }}
                                     className="relative z-10 h-8 w-full min-w-0 rounded-sm border border-transparent bg-transparent pl-1.5 pr-0 text-right font-mono text-xs tabular-nums text-slate-900 transition-colors"
-                                    style={{ outline: 'none' }}
+                                    style={{
+                                      outline: 'none',
+                                      left: 'var(--simulation-input-frame-shift, 0px)',
+                                      paddingRight: 'var(--simulation-input-frame-shift, 0px)',
+                                      clipPath: 'inset(0.5px)'
+                                    }}
                                     aria-label={`${row.name} ${parameter.label} in ${roleLabel(activeRole)}`}
                                   />
                                   <span
@@ -838,7 +847,7 @@ function SimulationParameterTable({
                                     data-simulation-input-frame-key={inputFrameKey}
                                     data-simulation-input-frame-hovered={hoveredInputFrame === inputFrameKey ? 'true' : 'false'}
                                     className={`pointer-events-none absolute inset-y-0 left-1.5 right-1 z-0 rounded-sm border transition-colors ${hoveredInputFrame === inputFrameKey ? 'border-slate-200 bg-slate-50' : 'border-transparent bg-transparent'} group-focus-within:!border-transparent group-focus-within:!bg-white group-focus-within:!outline group-focus-within:!outline-2 group-focus-within:!outline-blue-700 group-focus-within:!outline-offset-[-2px]`}
-                                    style={{ transform: 'translateX(max(0px, calc(50% - var(--simulation-input-text-width, 100%) / 2 - var(--simulation-input-text-inset, 0px))))' }}
+                                    style={{ transform: 'translateX(var(--simulation-input-frame-shift, 0px))' }}
                                   />
                                 </>
                               </SimulationHistoryInputBoundary>
@@ -859,17 +868,17 @@ function SimulationParameterTable({
                   {expanded && (
                     <tr id={detailId} data-safe-workspace-interaction="true" className="bg-white">
                       <td aria-hidden="true" className="border-b border-slate-200" />
-                      <th scope="row" colSpan={2} className="border-t border-b border-slate-200 py-2 pl-3 pr-2 text-left text-[10px] font-semibold text-slate-700">
+                      <th scope="row" colSpan={2} className="border-b border-slate-200 py-2 pl-3 pr-2 text-left text-[10px] font-semibold text-slate-700">
                         <span className="ml-2 inline-block whitespace-nowrap border-l-2 border-slate-300 pl-3">Parameter Cost Effect</span>
                       </th>
                       {detailParameters.map(parameter => <EffectCell key={parameter.parameter} amount={parameter.amount} />)}
-                      <td aria-label={`Total ${totalEffect.text}`} className="border-t border-b border-slate-200 whitespace-nowrap py-1.5 pl-1 pr-2 text-right text-[10px] font-semibold">
+                      <td aria-label={`Total ${totalEffect.text}`} className="border-b border-slate-200 whitespace-nowrap py-1.5 pl-1 pr-2 text-right text-[10px] font-semibold">
                         <span className="grid grid-cols-[1fr_auto] items-center gap-1">
                           <span className="text-right text-slate-700">Total{' '}</span>
                           <span className={`min-w-[5ch] text-right font-mono tabular-nums ${totalEffect.className}`}>{totalEffect.text}</span>
                         </span>
                       </td>
-                      <td className="border-t border-b border-slate-200 px-0.5 py-1" aria-hidden="true" />
+                      <td className="border-b border-slate-200 px-0.5 py-1" aria-hidden="true" />
                     </tr>
                   )}
                 </React.Fragment>

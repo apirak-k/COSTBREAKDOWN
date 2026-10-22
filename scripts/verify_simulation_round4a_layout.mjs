@@ -242,7 +242,7 @@ try {
       const section=document.querySelector('section[data-simulation-table="${kind}"]')
       const main=section?.querySelector('tbody tr[data-simulation-row-index]')
       const detail=main?.nextElementSibling?.matches('tr[id^="${kind}-effect-"]')?main.nextElementSibling:null
-      const styles=row=>row?{background:getComputedStyle(row).backgroundColor,cells:[...row.children].map(cell=>{const style=getComputedStyle(cell);return{top:style.borderTopWidth,bottom:style.borderBottomWidth}})}:null
+      const styles=row=>{if(!row)return null;const style=getComputedStyle(row);return{background:style.backgroundColor,borderTop:style.borderTopWidth,borderBottom:style.borderBottomWidth,backgroundImage:style.backgroundImage,cells:[...row.children].map(cell=>{const style=getComputedStyle(cell);return{top:style.borderTopWidth,bottom:style.borderBottomWidth}})}}
       const mainLabel=main?.querySelector('th[scope="row"]'),detailLabel=detail?.querySelector('th[scope="row"]')
       const point=element=>{const r=element?.getBoundingClientRect();return r?{x:r.left+r.width/2,y:r.top+r.height/2}:null}
       return{expanded:main?.getAttribute('aria-expanded'),selected:main?.getAttribute('aria-selected'),main:styles(main),detail:styles(detail),mainPoint:point(mainLabel),detailPoint:point(detailLabel)}
@@ -254,16 +254,17 @@ try {
     const mainHover = await evaluate(`(()=>{const r=document.querySelector('${sectionSelector} tbody tr[data-simulation-row-index]');return r?getComputedStyle(r).backgroundColor:null})()`)
     if (detailPoint) { await send('Input.dispatchMouseEvent', { type: 'mouseMoved', x: detailPoint.x, y: detailPoint.y }); await delay(180) }
     const detailHover = await evaluate(`(()=>{const r=document.querySelector('${sectionSelector} tbody tr[data-simulation-row-index]')?.nextElementSibling;return r?getComputedStyle(r).backgroundColor:null})()`)
-    const inset = group?.detail?.cells?.[0]?.top === '0px'
-      && group?.detail?.cells?.slice(1).every(cell=>cell.top==='1px')
+    const noInset = group?.detail?.cells?.every(cell=>cell.top==='0px')
+      && group?.detail?.backgroundImage === 'none'
     const fullEnd = group?.detail?.cells?.length===7
       && group.detail.cells.every(cell=>cell.bottom==='1px')
-    check(`${kind.toUpperCase()} expanded group keeps a white detail row, inset internal separator, full-width group end, and main-row-only hover`,
+    const fullStart = group?.main?.cells?.every(cell=>cell.bottom==='1px')
+    check(`${kind.toUpperCase()} expanded group keeps FULL boundaries above and below a white no-inset detail row, with main-row-only hover`,
       Boolean(group?.expanded==='true' && group.selected==='false'
-        && group.main?.background==='rgb(255, 255, 255)' && group.main.cells.every(cell=>cell.bottom==='0px')
-        && group.detail?.background==='rgb(255, 255, 255)' && inset && fullEnd
+        && group.main?.background==='rgb(255, 255, 255)' && fullStart
+        && group.detail?.background==='rgb(255, 255, 255)' && noInset && fullEnd
         && mainHover==='rgb(248, 250, 252)' && detailHover==='rgb(255, 255, 255)'),
-      { ...group, mainHover, detailHover, inset, fullEnd })
+      { ...group, mainHover, detailHover, fullStart, noInset, fullEnd })
   }
   await send('Input.dispatchMouseEvent', { type: 'mouseMoved', x: 2, y: 2 })
   await delay(80)
@@ -459,10 +460,10 @@ try {
     if(!input)return null
     const r=input.getBoundingClientRect(),s=getComputedStyle(input),cell=input.closest('td'),frame=cell?.querySelector('[data-simulation-input-frame="true"]'),f=frame?.getBoundingClientRect(),fs=frame?getComputedStyle(frame):null,ctx=document.createElement('canvas').getContext('2d')
     ctx.font=s.fontStyle+' '+s.fontWeight+' '+s.fontSize+' '+s.fontFamily
-    const textWidth=ctx.measureText(input.value).width,rightInset=(parseFloat(s.borderRightWidth)||0)+(parseFloat(s.paddingRight)||0),header=section.querySelector('table[role="presentation"] thead tr')?.children[cell?.cellIndex??-1],range=document.createRange()
+    const textWidth=ctx.measureText(input.value).width,frameShift=parseFloat(s.getPropertyValue('--simulation-input-frame-shift'))||0,borderRight=parseFloat(s.borderRightWidth)||0,paddingRight=parseFloat(s.paddingRight)||0,rightInset=borderRight+paddingRight,baseRightInset=borderRight+Math.max(0,paddingRight-frameShift),header=section.querySelector('table[role="presentation"] thead tr')?.children[cell?.cellIndex??-1],range=document.createRange()
     if(header)range.selectNodeContents(header)
     const headerBoxes=header?[...range.getClientRects()]:[]
-    return{kind:${JSON.stringify(kind)},label:${JSON.stringify(label)},value:input.value,focused:document.activeElement===input,mobile:Boolean(input.closest('article')),input:{left:r.left,right:r.right,top:r.top,bottom:r.bottom,width:r.width,height:r.height,textRight:r.right-rightInset,paddingRight:s.paddingRight,rightInset,background:s.backgroundColor,outlineStyle:s.outlineStyle},headerRight:headerBoxes.length?Math.max(...headerBoxes.map(box=>box.right)):null,textWidth,expectedShift:Math.max(0,(r.width-textWidth)/2-rightInset),frame:f?{left:f.left,right:f.right,top:f.top,bottom:f.bottom,width:f.width,height:f.height,offsetLeft:f.left-r.left,offsetRight:f.right-r.right,border:fs.borderLeftColor,background:fs.backgroundColor,hovered:frame.getAttribute('data-simulation-input-frame-hovered')==='true',outlineStyle:fs.outlineStyle,outlineWidth:fs.outlineWidth,outlineColor:fs.outlineColor,outlineOffset:fs.outlineOffset,borderRadius:fs.borderTopLeftRadius}:null,cardFrameCount:input.closest('article')?.querySelectorAll('[data-simulation-input-frame="true"]').length??0}
+    return{kind:${JSON.stringify(kind)},label:${JSON.stringify(label)},value:input.value,focused:document.activeElement===input,mobile:Boolean(input.closest('article')),input:{left:r.left,right:r.right,top:r.top,bottom:r.bottom,width:r.width,height:r.height,textRight:r.right-rightInset,paddingRight:s.paddingRight,rightInset,frameShift,baseRightInset,background:s.backgroundColor,outlineStyle:s.outlineStyle},headerRight:headerBoxes.length?Math.max(...headerBoxes.map(box=>box.right)):null,textWidth,expectedShift:Math.max(0,(r.width-textWidth)/2-baseRightInset),frame:f?{left:f.left,right:f.right,top:f.top,bottom:f.bottom,width:f.width,height:f.height,centerX:(f.left+f.right)/2,offsetLeft:f.left-r.left,offsetRight:f.right-r.right,border:fs.borderLeftColor,background:fs.backgroundColor,hovered:frame.getAttribute('data-simulation-input-frame-hovered')==='true',outlineStyle:fs.outlineStyle,outlineWidth:fs.outlineWidth,outlineColor:fs.outlineColor,outlineOffset:fs.outlineOffset,borderRadius:fs.borderTopLeftRadius}:null,cardFrameCount:input.closest('article')?.querySelectorAll('[data-simulation-input-frame="true"]').length??0}
   })()`)
 
   const sameFrameRect = (left, right) => Boolean(left && right && ['left', 'right', 'top', 'bottom', 'width', 'height'].every(edge => Math.abs(left[edge] - right[edge]) <= 0.25))
@@ -546,8 +547,8 @@ try {
       }
 
       const hoverGeometry = Boolean(hover?.frame
-        && Math.abs(hover.frame.offsetLeft - hover.expectedShift) <= 0.5
-        && Math.abs(hover.frame.offsetRight - hover.expectedShift) <= 0.5
+        && Math.abs(hover.frame.offsetLeft) <= 0.25
+        && Math.abs(hover.frame.offsetRight) <= 0.25
         && Math.abs(hover.frame.width - hover.input.width) <= 0.25
         && Math.abs(hover.frame.height - hover.input.height) <= 0.25
         && Math.abs(hover.frame.top - hover.input.top) <= 0.25
@@ -556,7 +557,7 @@ try {
         && hover.frame.background === 'rgb(248, 250, 252)'
         && hover.frame.hovered === true
         && hover.input.background === 'rgba(0, 0, 0, 0)')
-      check(`${width}px ${kind.toUpperCase()} ${label} hover frame follows measured text balance without resizing`, hoverGeometry, hover)
+      check(`${width}px ${kind.toUpperCase()} ${label} native input occupies the visible frame without resizing`, hoverGeometry, hover)
 
       if (framePoint) await clickAt(framePoint)
       await delay(180)
@@ -606,21 +607,38 @@ try {
         ]
         const hitResults = []
         for (const probe of points) {
+          const blurState = await evaluate(`(()=>{const input=[...document.querySelectorAll('input[data-numeric-editor]')].find(e=>e.getClientRects().length&&e.getAttribute('aria-label')?.endsWith(${JSON.stringify(`${label} in Current`)}));input?.blur();return{targetFound:Boolean(input),targetStillFocused:document.activeElement===input,activeLabel:document.activeElement?.getAttribute?.('aria-label')??null}})()`)
           await send('Input.dispatchMouseEvent', { type: 'mouseMoved', x: probe.x, y: (bounds.top + bounds.bottom) / 2 })
           await delay(80)
-          const actual = await readInputFrame(kind, label)
-          hitResults.push({ point: probe.name, expected: probe.expected, actual: actual?.frame?.hovered === true })
+          const hoverState = await readInputFrame(kind, label)
+          await clickAt({ x: probe.x, y: (bounds.top + bounds.bottom) / 2 })
+          const clickState = await readInputFrame(kind, label)
+          hitResults.push({
+            point: probe.name,
+            expectedHover: probe.expected,
+            actualHover: hoverState?.frame?.hovered === true,
+            expectedInputFocus: probe.expected,
+            actualInputFocus: clickState?.focused === true,
+            blurReady: blurState?.targetFound === true && blurState.targetStillFocused === false,
+            valueUnchanged: clickState?.value === hoverState?.value
+          })
+          if (width === 1440 && kind === 'bom' && label === 'Price' && probe.name === 'inside left') {
+            await screenshot('simulation-input-frame-1440-price-inside-left-click')
+          }
+          await evaluate(`(()=>{const input=[...document.querySelectorAll('input[data-numeric-editor]')].find(e=>e.getClientRects().length&&e.getAttribute('aria-label')?.endsWith(${JSON.stringify(`${label} in Current`)}));input?.blur()})()`)
         }
-        check(`${width}px ${kind.toUpperCase()} ${label} pointer-hover region matches the visible frame edges`,
-          hitResults.every(result => result.actual === result.expected), hitResults)
+        check(`${width}px ${kind.toUpperCase()} ${label} hover, focus/edit, and outside-click rejection follow the five rendered frame probes`,
+          hitResults.every(result => result.actualHover === result.expectedHover
+            && result.actualInputFocus === result.expectedInputFocus
+            && result.blurReady && result.valueUnchanged), hitResults)
       }
       frameMetrics.push({ kind, label, ...hover, focus: focused?.frame })
     }
     if (width >= 768) {
       const balancedFields = frameMetrics.filter(metric => metric?.frame)
       check(`${width}px all six editable desktop fields use the same measured text-centering rule`,
-        balancedFields.length === 6 && balancedFields.every(metric => Math.abs(metric.frame.offsetLeft - metric.expectedShift) <= 0.5 && Math.abs(metric.frame.offsetRight - metric.expectedShift) <= 0.5),
-        balancedFields.map(metric => ({ field: `${metric.kind} ${metric.label}`, text: metric.value, width: metric.input.width, measuredText: metric.textWidth, offset: metric.frame.offsetLeft, expected: metric.expectedShift })))
+        balancedFields.length === 6 && balancedFields.every(metric => Math.abs(metric.frame.offsetLeft) <= 0.25 && Math.abs(metric.frame.offsetRight) <= 0.25 && Math.abs(metric.frame.centerX - (metric.input.textRight - metric.textWidth / 2)) <= 0.5),
+        balancedFields.map(metric => ({ field: `${metric.kind} ${metric.label}`, text: metric.value, width: metric.input.width, measuredText: metric.textWidth, frameMatchesInput: { left: metric.frame.offsetLeft, right: metric.frame.offsetRight }, textCenterDelta: metric.frame.centerX - (metric.input.textRight - metric.textWidth / 2) })))
     }
     await evaluate('(()=>{window.scrollTo({top:0,left:0,behavior:"instant"});for(const element of document.querySelectorAll("*"))if(element.scrollTop)element.scrollTop=0})()')
     await delay(120)
