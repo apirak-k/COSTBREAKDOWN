@@ -1,7 +1,7 @@
 import { ChevronDown, ChevronUp } from 'lucide-react'
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import type { FocusEvent, InputHTMLAttributes, KeyboardEvent, PointerEvent as ReactPointerEvent } from 'react'
-import { formatFullNumericValue, formatHeaderNumericValue } from './numeric-display'
+import { businessNumberPresentation, formatFullNumericValue, formatHeaderNumericValue } from './numeric-display'
 import {
   formatNumericInputValue,
   isNumericDraftSyntax,
@@ -22,6 +22,8 @@ export interface NumericInputProps extends Omit<InputHTMLAttributes<HTMLInputEle
   showStepper?: boolean
   stepperButtonClassName?: string
   displayMode?: 'compact' | 'full' | 'header'
+  integerDigits?: number
+  percentSuffix?: boolean
   reserveMarker?: boolean
 }
 
@@ -41,6 +43,8 @@ export function NumericInput({
   showStepper = false,
   stepperButtonClassName = '',
   displayMode = 'compact',
+  integerDigits = 8,
+  percentSuffix = false,
   reserveMarker = false,
   onFocus,
   onBlur,
@@ -54,7 +58,7 @@ export function NumericInput({
     ? formatFullNumericValue(next)
     : displayMode === 'header'
       ? formatHeaderNumericValue(next)
-      : formatNumericInputValue(next, domain)
+      : formatNumericInputValue(next, { ...domain, integerDigits })
   const inputRef = useRef<HTMLInputElement>(null)
   const wrapperRef = useRef<HTMLDivElement>(null)
   const currentValueRef = useRef(value)
@@ -164,7 +168,7 @@ export function NumericInput({
 
     previousValueRef.current = value
     previousFormattedValueRef.current = formattedValue
-  }, [draft, focused, value, integer, min, max, minExclusive, displayMode, inputProps.readOnly])
+  }, [draft, focused, value, integer, min, max, minExclusive, displayMode, integerDigits, inputProps.readOnly])
 
   useIsomorphicLayoutEffect(() => {
     const exponent = restorePlaceRef.current
@@ -246,6 +250,11 @@ export function NumericInput({
     onKeyDown?.(event)
   }
 
+  const presentation = businessNumberPresentation(value, { integer, integerDigits })
+  const presentationPadding = presentation.notation === 'ordinary' && presentation.fractionDigits === 2 ? '2ch' : '0ch'
+  const rightPadding = displayMode === 'header' ? '2.25rem' : reserveMarker
+    ? showStepper ? '2.5rem' : '1.5rem'
+    : showStepper ? '1.75rem' : style?.paddingRight ?? '0.375rem'
   const label = inputProps['aria-label'] ?? inputProps.name ?? inputProps.placeholder ?? 'value'
   const parsedValue = parseNumericDraft(draft, domain, allowSubMinimumDraft)
   const valueIsNumeric = parsedValue.kind === 'valid'
@@ -305,14 +314,17 @@ export function NumericInput({
         className={`${defaultInputClassName} ${className ?? ''}`.trim()}
         style={{
           ...style,
-          ...(displayMode === 'header'
-            ? { paddingRight: '2.25rem' }
-            : reserveMarker
-              ? { paddingRight: showStepper ? '2.5rem' : '1.5rem' }
-              : showStepper ? { paddingRight: '1.75rem' } : {})
+          paddingRight: displayMode === 'compact'
+            ? `calc(${typeof rightPadding === 'number' ? `${rightPadding}px` : rightPadding} + ${focused && !inputProps.readOnly ? '0ch' : presentationPadding} + ${percentSuffix ? '1.25ch' : '0ch'})`
+            : displayMode === 'header' || reserveMarker || showStepper ? rightPadding : style?.paddingRight
         }}
         data-numeric-editor="true"
+        data-numeric-presentation={presentation.notation}
+        data-numeric-fraction-digits={presentation.fractionDigits}
       />
+      {percentSuffix && <span data-numeric-suffix="true" aria-hidden="true"
+        className="pointer-events-none absolute inset-y-0 flex items-center font-mono text-xs tabular-nums"
+        style={{ right: rightPadding, width: '1ch' }}>%</span>}
       {showStepper && !inputProps.disabled && !inputProps.readOnly && (
         <span
           data-numeric-stepper="true"

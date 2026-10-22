@@ -1,7 +1,8 @@
 import { createContext, useCallback, useContext, useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import type { ButtonHTMLAttributes, ReactNode } from 'react'
 import type { NumericInputDomain } from './numeric-input-rules'
-import { formatBusinessNumber, formatFullNumericValue } from './numeric-display'
+import { formatFullNumericValue } from './numeric-display'
+import { BusinessNumber } from './BusinessNumber'
 import { isSafeWorkspaceDismissTarget } from './transient-interactions'
 
 interface SelectedValueBase {
@@ -318,7 +319,7 @@ export interface SelectedNumberProps extends Omit<ButtonHTMLAttributes<HTMLButto
 
 export function SelectedNumber({ value, integer, percentage, selectionId, children, className, style, stopKeyboardPropagation = true, onKeyDown, onKeyUp, ...props }: SelectedNumberProps) {
   const { isPinned, preview, clearPreview, pin } = useSelectedValueSource({ value, editable: false, domain: { integer }, percentage }, selectionId)
-  const content = children ?? formatBusinessNumber(value, { integer, percent: percentage })
+  const content = children ?? <BusinessNumber value={value} integer={integer} percent={percentage} />
   if (value == null || !Number.isFinite(value)) return <span className={className} style={style}>{content}</span>
 
   return (

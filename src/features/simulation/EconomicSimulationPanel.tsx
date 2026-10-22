@@ -2,6 +2,8 @@ import { useRef, useState } from 'react'
 import type { KeyboardEvent, PointerEvent } from 'react'
 import { formatNumber } from '../../core'
 import type { CostSnapshot } from '../../core/types'
+import { BusinessNumber } from '../../shared/ui/BusinessNumber'
+import { formatBusinessNumber } from '../../shared/ui/numeric-display'
 import { NumericInput } from '../../shared/ui/NumericInput'
 import { SimulationHistoryInputBoundary } from './SimulationHistoryInputBoundary'
 import type { EconomicSimulationDraft, EconomicSimulationResult, EconomicSimulationField } from './simulation-economics'
@@ -315,7 +317,7 @@ export function EconomicSimulationPanel({ result, draft, afterSnapshot, unit, on
     ariaLabel: 'Break-even Quantity',
     formula: 'Fixed Action Cost ÷ (Parameter Saving / Unit − Variable Action Cost / Unit)',
     value: null,
-    displayValue: result.breakEvenNotAchievable ? 'Not achieved' : formatQuantity(result.breakEvenQuantity, normalizedUnit),
+    displayValue: result.breakEvenNotAchievable ? 'Not achieved' : result.breakEvenQuantity === null || !Number.isSafeInteger(result.breakEvenQuantity) ? '—' : `${formatBusinessNumber(result.breakEvenQuantity, { integer: true })} ${normalizedUnit}`,
     className: 'text-slate-600'
   })
   return (
@@ -332,6 +334,7 @@ export function EconomicSimulationPanel({ result, draft, afterSnapshot, unit, on
                       value={effectiveInputValue(field, draft, afterSnapshot)}
                       min={min}
                       max={max}
+                      percentSuffix={field === 'sgaPercentOverride'}
                       onValueChange={value => onUpdate(field, value === null ? '' : String(value))}
                       aria-label={ariaLabel ?? label}
                       className="h-7 w-full border border-slate-300 bg-white px-1.5 text-right text-[11px] text-slate-950 focus:border-blue-700 focus:ring-1 focus:ring-blue-100 xl:h-6"
@@ -374,7 +377,7 @@ export function EconomicSimulationPanel({ result, draft, afterSnapshot, unit, on
               {economicOutputs.map(({ label, ariaLabel, formula, value, displayValue, className }) => (
                 <div key={label} role="group" aria-label={ariaLabel} className={`flex min-w-0 items-baseline justify-between gap-1 py-0.5 xl:py-0 ${label === 'Break-even Qty' ? 'mt-1 border-t border-slate-200 pt-1' : ''}`} title={formula}>
                   <span className="truncate text-[9px] text-slate-600">{label}</span>
-                  <span className={`shrink-0 font-mono text-[10px] font-semibold tabular-nums ${className}`}>{displayValue ?? formatValue(value)}</span>
+                  <span className={`shrink-0 font-mono text-[10px] font-semibold tabular-nums ${className}`}>{displayValue ?? <BusinessNumber value={value} />}</span>
                 </div>
               ))}
             </div>

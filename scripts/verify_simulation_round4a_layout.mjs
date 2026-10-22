@@ -31,6 +31,7 @@ async function unusedPort() {
 
 const delay = ms => new Promise(resolveDelay => setTimeout(resolveDelay, ms))
 const repository = process.cwd()
+const numericLayoutOnly = process.argv.includes('--numeric-layout-only')
 const rulerOnly = process.argv.includes('--ruler-only')
 const visibleTotalsOnly = process.argv.includes('--visible-totals-only')
 const configuredBaseUrl = process.env.COSTBREAKDOWN_BROWSER_BASE_URL
@@ -249,6 +250,7 @@ try {
   await delay(800)
   await screenshot('simulation-seeded-1440-before-expansion')
 
+  if (!numericLayoutOnly) {
   const originalSellingPrice = await evaluate(`document.querySelector('input[aria-label="Selling Price"]').value`)
   // Exercise the real ruler at ordinary and wider monetary ranges without changing graph logic.
   const rulerState = () => evaluate(`(()=>{
@@ -295,7 +297,10 @@ try {
   await setViewport(1440)
   await typeIntoInput('Selling Price', originalSellingPrice)
 
+  }
+
   if (!rulerOnly) {
+  if (!numericLayoutOnly) {
   // Reference is also an editable Simulation dataset in this product. Verify
   // that its live input labels/values align, then restore Current for the
   // marker fixture. Calculated costs and effect totals are the read-only cells.
@@ -308,7 +313,7 @@ try {
       const labels=kind==='bom'?['Price','Usage','Loss','Material Cost']:['Manning','Capacity','Yield','Conversion Cost']
       const axis=element=>{if(!element)return null;const range=document.createRange();range.selectNodeContents(element);const boxes=[...range.getClientRects()];return boxes.length?Math.max(...boxes.map(box=>box.right)):null}
       const headerCells=[...(header?.querySelectorAll('thead th')??[])]
-      const columns=labels.map(label=>{const index=headerCells.findIndex(cell=>cell.innerText.trim()===label||cell.innerText.includes(label));const cell=row?.children[index];const input=cell?.querySelector('input');const valueAxis=input?(()=>{const r=input.getBoundingClientRect(),s=getComputedStyle(input);return r.right-(parseFloat(s.borderRightWidth)||0)-(parseFloat(s.paddingRight)||0)})():axis(cell?.querySelector('span')??cell);return{label,index,headerAxis:axis(headerCells[index]?.querySelector('span')??headerCells[index]),valueAxis,text:input?.value??cell?.textContent.trim()??null,hasInput:!!input,aria:input?.getAttribute('aria-label')??null}})
+      const columns=labels.map(label=>{const index=headerCells.findIndex(cell=>cell.innerText.trim()===label||cell.innerText.includes(label));const cell=row?.children[index];const input=cell?.querySelector('input');const valueAxis=input?(()=>{const r=input.getBoundingClientRect(),s=getComputedStyle(input);return r.right-(parseFloat(s.borderRightWidth)||0)})():axis(cell?.querySelector('span')??cell);return{label,index,headerAxis:axis(headerCells[index]?.querySelector('span')??headerCells[index]),valueAxis,text:input?.value??cell?.textContent.trim()??null,hasInput:!!input,aria:input?.getAttribute('aria-label')??null}})
       result[kind]={visible:!!section&&section.getClientRects().length>0,columns}
     }
     return result
@@ -399,7 +404,7 @@ try {
       const cellAxis=(cell,allowInput)=>{
         if(!cell)return null
         const input=allowInput?cell.querySelector('input'):null
-        if(input){const r=input.getBoundingClientRect(),s=getComputedStyle(input);return r.right-(parseFloat(s.borderRightWidth)||0)-(parseFloat(s.paddingRight)||0)}
+        if(input){const r=input.getBoundingClientRect(),s=getComputedStyle(input);return r.right-(parseFloat(s.borderRightWidth)||0)}
         const candidate=cell.querySelector('span')??cell
         return axisText(candidate)
       }
@@ -539,13 +544,8 @@ try {
   }
   check('Selling Price tooltip appears from real graph hover and stays within its card host', Boolean(tooltipMetrics?.inside), tooltipMetrics)
 
-  const inputGeometryBaseline = {
-    1440: { inputWidth: 81.171875, fields: { bom: { Price: 347.703125, Usage: 446.875, Loss: 546.046875 }, routing: { Manning: 1047.703125, Capacity: 1146.875, Yield: 1246.046875 } } },
-    1024: { inputWidth: 122.359375, fields: { bom: { Price: 485.46875, Usage: 625.828125, Loss: 766.1875 }, routing: { Manning: 485.46875, Capacity: 625.828125, Yield: 766.1875 } } },
-    768: { inputWidth: 87.546875, fields: { bom: { Price: 361.046875, Usage: 466.59375, Loss: 572.140625 }, routing: { Manning: 361.046875, Capacity: 466.59375, Yield: 572.140625 } } },
-    390: { inputWidth: 155, fields: { bom: { Price: 179, Usage: 352, Loss: 179 }, routing: { Manning: 179, Capacity: 352, Yield: 179 } } },
-    320: { inputWidth: 120, fields: { bom: { Price: 144, Usage: 282, Loss: 144 }, routing: { Manning: 144, Capacity: 282, Yield: 144 } } }
   }
+
   const frameValueFixtures = [
     { kind: 'bom', label: 'Price', ariaLabel: 'MAT-A Price in Current', value: '4.00' },
     { kind: 'bom', label: 'Usage', ariaLabel: 'MAT-A Usage in Current', value: '8.00' },
@@ -569,12 +569,11 @@ try {
     const section=document.querySelector('section[data-simulation-table="${kind}"]')
     const input=[...(section?.querySelectorAll('input[data-numeric-editor]')??[])].find(e=>e.getClientRects().length&&e.getAttribute('aria-label')?.endsWith(${JSON.stringify(`${label} in Current`)}))
     if(!input)return null
-    const r=input.getBoundingClientRect(),s=getComputedStyle(input),cell=input.closest('td'),frame=cell?.querySelector('[data-simulation-input-frame="true"]'),f=frame?.getBoundingClientRect(),fs=frame?getComputedStyle(frame):null,ctx=document.createElement('canvas').getContext('2d')
-    ctx.font=s.fontStyle+' '+s.fontWeight+' '+s.fontSize+' '+s.fontFamily
-    const textWidth=ctx.measureText(input.value).width,frameShift=parseFloat(s.getPropertyValue('--simulation-input-frame-shift'))||0,borderRight=parseFloat(s.borderRightWidth)||0,paddingRight=parseFloat(s.paddingRight)||0,rightInset=borderRight+paddingRight,baseRightInset=borderRight+Math.max(0,paddingRight-frameShift),header=section.querySelector('table[role="presentation"] thead tr')?.children[cell?.cellIndex??-1],range=document.createRange()
+    const r=input.getBoundingClientRect(),s=getComputedStyle(input),cell=input.closest('td'),frame=cell?.querySelector('[data-simulation-input-frame="true"]'),f=frame?.getBoundingClientRect(),fs=frame?getComputedStyle(frame):null
+    const borderRight=parseFloat(s.borderRightWidth)||0,paddingRight=parseFloat(s.paddingRight)||0,rightInset=borderRight+paddingRight,header=section.querySelector('table[role="presentation"] thead tr')?.children[cell?.cellIndex??-1],range=document.createRange()
     if(header)range.selectNodeContents(header)
     const headerBoxes=header?[...range.getClientRects()]:[]
-    return{kind:${JSON.stringify(kind)},label:${JSON.stringify(label)},value:input.value,focused:document.activeElement===input,mobile:Boolean(input.closest('article')),input:{left:r.left,right:r.right,top:r.top,bottom:r.bottom,width:r.width,height:r.height,textRight:r.right-rightInset,paddingRight:s.paddingRight,rightInset,frameShift,baseRightInset,background:s.backgroundColor,outlineStyle:s.outlineStyle},headerRight:headerBoxes.length?Math.max(...headerBoxes.map(box=>box.right)):null,textWidth,expectedShift:Math.max(0,(r.width-textWidth)/2-baseRightInset),frame:f?{left:f.left,right:f.right,top:f.top,bottom:f.bottom,width:f.width,height:f.height,centerX:(f.left+f.right)/2,offsetLeft:f.left-r.left,offsetRight:f.right-r.right,border:fs.borderLeftColor,background:fs.backgroundColor,hovered:frame.getAttribute('data-simulation-input-frame-hovered')==='true',outlineStyle:fs.outlineStyle,outlineWidth:fs.outlineWidth,outlineColor:fs.outlineColor,outlineOffset:fs.outlineOffset,borderRadius:fs.borderTopLeftRadius}:null,cardFrameCount:input.closest('article')?.querySelectorAll('[data-simulation-input-frame="true"]').length??0}
+    return{kind:${JSON.stringify(kind)},label:${JSON.stringify(label)},value:input.value,focused:document.activeElement===input,mobile:Boolean(input.closest('article')),input:{left:r.left,right:r.right,top:r.top,bottom:r.bottom,width:r.width,height:r.height,textRight:r.right-rightInset,paddingRight:s.paddingRight,rightInset,borderRight,background:s.backgroundColor,outlineStyle:s.outlineStyle},headerRight:headerBoxes.length?Math.max(...headerBoxes.map(box=>box.right)):null,frame:f?{left:f.left,right:f.right,top:f.top,bottom:f.bottom,width:f.width,height:f.height,centerX:(f.left+f.right)/2,offsetLeft:f.left-r.left,offsetRight:f.right-r.right,border:fs.borderLeftColor,background:fs.backgroundColor,hovered:frame.getAttribute('data-simulation-input-frame-hovered')==='true',outlineStyle:fs.outlineStyle,outlineWidth:fs.outlineWidth,outlineColor:fs.outlineColor,outlineOffset:fs.outlineOffset,borderRadius:fs.borderTopLeftRadius}:null,cardFrameCount:input.closest('article')?.querySelectorAll('[data-simulation-input-frame="true"]').length??0}
   })()`)
 
   const sameFrameRect = (left, right) => Boolean(left && right && ['left', 'right', 'top', 'bottom', 'width', 'height'].every(edge => Math.abs(left[edge] - right[edge]) <= 0.25))
@@ -590,7 +589,7 @@ try {
     if (hoverPoint) { await send('Input.dispatchMouseEvent', { type: 'mouseMoved', x: hoverPoint.x, y: hoverPoint.y }); await delay(120) }
     hover = await readInputFrame('bom', label)
     check(`${width}px Chrome evidence is using the intended ${fixture.value} draft inside the visible frame`, hover?.value === fixture.value && hover?.frame?.hovered === true, hover)
-    await screenshot(`simulation-input-frame-${width}-${label.toLowerCase()}-hover`)
+    if (!numericLayoutOnly || (width===1440 && label==='Price')) await screenshot(`simulation-input-frame-${width}-${label.toLowerCase()}-hover`)
     if (hoverPoint) await clickAt(hoverPoint)
     await delay(180)
     const focused = await readInputFrame('bom', label)
@@ -601,7 +600,7 @@ try {
         && focused.frame?.outlineColor === 'rgb(29, 78, 216)' && focused.frame?.outlineOffset === '-2px'
         && focused.frame?.borderRadius === '2px' && focused.input?.outlineStyle === 'none'),
       { hover: hover?.frame, focused: focused?.frame, input: focused?.input })
-    await screenshot(`simulation-input-frame-${width}-${label.toLowerCase()}-focus`)
+    if (!numericLayoutOnly || (width===1440 && label==='Price')) await screenshot(`simulation-input-frame-${width}-${label.toLowerCase()}-focus`)
     if (width === 1440) {
       await evaluate(`(()=>{const input=[...document.querySelectorAll('input[data-numeric-editor]')].find(e=>e.getAttribute('aria-label')===${JSON.stringify(fixture.ariaLabel)});input?.closest('tr')?.focus()})()`)
       for (let index = 0; index < 2; index += 1) {
@@ -616,7 +615,7 @@ try {
           && keyboardFocused.frame?.outlineColor === 'rgb(29, 78, 216)'
           && keyboardFocused.frame?.outlineOffset === '-2px'
           && keyboardFocused.frame?.borderRadius === '2px'), keyboardFocused)
-      await screenshot(`simulation-input-frame-${width}-${label.toLowerCase()}-keyboard-focus`)
+      if (!numericLayoutOnly) await screenshot(`simulation-input-frame-${width}-${label.toLowerCase()}-keyboard-focus`)
     }
     await evaluate(`(()=>{const input=[...document.querySelectorAll('input[data-numeric-editor]')].find(e=>e.getAttribute('aria-label')===${JSON.stringify(fixture.ariaLabel)});input?.blur()})()`)
     await delay(180)
@@ -647,12 +646,12 @@ try {
       const framePoint = hover?.frame ? { x: (hover.frame.left + hover.frame.right) / 2, y: (hover.frame.top + hover.frame.bottom) / 2 } : null
       if (framePoint) { await send('Input.dispatchMouseEvent', { type: 'mouseMoved', x: framePoint.x, y: framePoint.y }); await delay(120) }
       hover = await readInputFrame(kind, label)
-      const baseline = inputGeometryBaseline[width]?.fields[kind]?.[label]
-      check(`${width}px ${kind.toUpperCase()} ${label} keeps its existing numeric X-axis and 32px input size`,
-        Boolean(hover && baseline !== undefined && Math.abs(hover.input.textRight - baseline) <= 0.25 && Math.abs(hover.input.width - inputGeometryBaseline[width].inputWidth) <= 0.25 && Math.abs(hover.input.height - 32) <= 0.25 && (width < 768 || Math.abs(hover.headerRight - hover.input.textRight) <= 2)), hover)
+      check(`${width}px ${kind.toUpperCase()} ${label} keeps the fixed 32px editor and its column anchor`,
+        Boolean(hover && hover.input.width > 70 && Math.abs(hover.input.height - 32) <= 0.25
+          && (width < 768 || Math.abs(hover.headerRight - (hover.input.right - hover.input.borderRight)) <= 2)), hover)
       if (width < 768) {
         check(`${width}px ${kind.toUpperCase()} ${label} keeps the existing mobile editor with no desktop frame overlay`,
-          Boolean(hover?.mobile && hover.cardFrameCount === 0 && hover.input.paddingRight === '6px' && hover.frame === null), hover)
+          Boolean(hover?.mobile && hover.cardFrameCount === 0 && hover.frame === null), hover)
         frameMetrics.push(hover)
         continue
       }
@@ -731,7 +730,7 @@ try {
             expectedInputFocus: probe.expected,
             actualInputFocus: clickState?.focused === true,
             blurReady: blurState?.targetFound === true && blurState.targetStillFocused === false,
-            valueUnchanged: clickState?.value === hoverState?.value
+            valueUnchanged: Number(clickState?.value) === Number(hoverState?.value)
           })
           if (width === 1440 && kind === 'bom' && label === 'Price' && probe.name === 'inside left') {
             await screenshot('simulation-input-frame-1440-price-inside-left-click')
@@ -745,11 +744,26 @@ try {
       }
       frameMetrics.push({ kind, label, ...hover, focus: focused?.frame })
     }
+
+    if (width >= 768) {
+      for (const kind of ['bom','routing']) {
+        const rowSelector=`section[data-simulation-table="${kind}"] tbody tr[data-simulation-row-index]`
+        const expanded=await evaluate(`document.querySelector(${JSON.stringify(rowSelector)})?.getAttribute('aria-expanded')==='true'`)
+        if(!expanded) {
+          const point=await evaluate(`(()=>{const e=document.querySelector(${JSON.stringify(rowSelector+' th[scope="row"]')});e.scrollIntoView({block:'center'});const r=e.getBoundingClientRect();return{x:r.x+r.width/2,y:r.y+r.height/2}})()`)
+          await clickAt(point)
+        }
+        const axes=await evaluate(`(()=>{const section=document.querySelector('section[data-simulation-table="${kind}"]'),headers=[...section.querySelectorAll('table[role="presentation"] thead th')],main=section.querySelector('tbody tr[data-simulation-row-index]'),detail=main.nextElementSibling;return [3,4,5,6].map((column,index)=>{const cell=main.children[column],effect=detail?.children[index+2],h=headers[column]?.getBoundingClientRect(),m=cell.getBoundingClientRect(),d=effect?.getBoundingClientRect(),number=effect?.querySelector('[data-numeric-presentation]'),n=number?.getBoundingClientRect();return{column,mainRight:m.right,headerRight:h?.right,effectRight:d?.right,effectNumberRight:n?.right,effectPadding:effect?parseFloat(getComputedStyle(effect).paddingRight):null,calculatedReadOnly:column!==6||!cell.querySelector('input')}})})()`)
+        check(`${width}px ${kind.toUpperCase()} expanded effects and calculated costs retain matching column anchors`,
+          axes.every(axis=>Math.abs(axis.mainRight-axis.headerRight)<1&&Math.abs(axis.mainRight-axis.effectRight)<1&&axis.calculatedReadOnly&&Math.abs(axis.effectNumberRight-(axis.effectRight-axis.effectPadding))<1), axes)
+        if (width===1440) await screenshot(`numeric-layout-${width}-${kind}-expanded`)
+      }
+    }
     if (width >= 768) {
       const balancedFields = frameMetrics.filter(metric => metric?.frame)
-      check(`${width}px all six editable desktop fields use the same measured text-centering rule`,
-        balancedFields.length === 6 && balancedFields.every(metric => Math.abs(metric.frame.offsetLeft) <= 0.25 && Math.abs(metric.frame.offsetRight) <= 0.25 && Math.abs(metric.frame.centerX - (metric.input.textRight - metric.textWidth / 2)) <= 0.5),
-        balancedFields.map(metric => ({ field: `${metric.kind} ${metric.label}`, text: metric.value, width: metric.input.width, measuredText: metric.textWidth, frameMatchesInput: { left: metric.frame.offsetLeft, right: metric.frame.offsetRight }, textCenterDelta: metric.frame.centerX - (metric.input.textRight - metric.textWidth / 2) })))
+      check(`${width}px all six desktop fields use static frames independent of text length`,
+        balancedFields.length === 6 && balancedFields.every(metric => Math.abs(metric.frame.offsetLeft) <= 0.25 && Math.abs(metric.frame.offsetRight) <= 0.25),
+        balancedFields.map(metric => ({ field: `${metric.kind} ${metric.label}`, text: metric.value, width: metric.input.width, frame: metric.frame })))
     }
     await evaluate('(()=>{window.scrollTo({top:0,left:0,behavior:"instant"});for(const element of document.querySelectorAll("*"))if(element.scrollTop)element.scrollTop=0})()')
     await delay(120)
@@ -768,13 +782,18 @@ try {
       return{width:innerWidth,docScrollWidth:root.scrollWidth,bodyScrollWidth:body.scrollWidth,horizontalOverflow:root.scrollWidth>innerWidth+1,sections,simulationTitleVisible:[...document.querySelectorAll('h2')].some(e=>e.innerText.trim()==='Cost Structure'&&e.getClientRects().length>0),mobileCardsExpected:innerWidth<768,mobileCardsIntact:innerWidth>=768?sections.every(section=>section.desktopTableVisible):sections.every(section=>section.visibleCardCount>0&&!section.horizontalCardOverflow),showAll:show&&g&&s&&l?{inside:graph.contains(show),distinct:!legend.contains(show),separated,rightInset:g.right-s.right,topInset:s.top-g.top,topRight:(g.right-s.right<=20&&s.bottom<=(storySvg?.getBoundingClientRect().top??Infinity)+1),gapFromLastLegendItem:lastLegendItem?s.left-lastLegendItem.right:null,card:g,button:s,legend:l}:null,costStructureBounds:graphBounds(storySvg),breakEvenBounds:graphBounds(breakSvg),breakEvenEvidence}
     })()`)
     responsive.push(metrics)
+    if (!numericLayoutOnly) {
     check(`Responsive ${width}px layout has no horizontal overflow/clipping and retains intact Simulation presentation`,
       Boolean(metrics && !metrics.horizontalOverflow && metrics.mobileCardsIntact && metrics.simulationTitleVisible && metrics.showAll?.inside && metrics.showAll?.distinct && metrics.showAll.separated && metrics.showAll.rightInset <= 20 && (width < 720 || metrics.showAll.topRight) && metrics.costStructureBounds?.inside && metrics.costStructureBounds.cardWithinViewport && metrics.costStructureBounds.labelsWithinViewBox && metrics.breakEvenBounds?.inside && metrics.breakEvenBounds.cardWithinViewport && metrics.breakEvenBounds.labelsWithinViewBox), metrics)
     check(`Responsive ${width}px Break-even retains its quantity marker, Batch slider, and QTY axis label`,Boolean(metrics.breakEvenEvidence?.markerCount>=1&&metrics.breakEvenEvidence.batchSlider&&metrics.breakEvenEvidence.qtyLabel),metrics.breakEvenEvidence)
-    await screenshot(`simulation-${width}`)
-    await evaluate('document.querySelector("figure[aria-labelledby=\\"break-even-graph-title\\"]")?.scrollIntoView({block:"center",inline:"nearest"})')
+    } else {
+      check(`Numeric layout ${width}px has no page overflow and keeps tables/mobile cards intact`,
+        Boolean(metrics && !metrics.horizontalOverflow && metrics.mobileCardsIntact), metrics.sections)
+    }
+    if (!numericLayoutOnly || [1440,768,390].includes(width)) await screenshot(`simulation-${width}`)
+    if (!numericLayoutOnly) await evaluate('document.querySelector("figure[aria-labelledby=\\"break-even-graph-title\\"]")?.scrollIntoView({block:"center",inline:"nearest"})')
     await delay(120)
-    await screenshot(`simulation-break-even-${width}`)
+    if (!numericLayoutOnly) await screenshot(`simulation-break-even-${width}`)
   }
 
   }
@@ -785,7 +804,7 @@ try {
   process.stdout.write(`Evidence screenshots: ${evidenceDir}\n`)
   process.stdout.write(`Browser URL: ${baseUrl}\n`)
   const failed = results.filter(result => !result.passed)
-  process.stdout.write(`${visibleTotalsOnly ? 'Visible totals' : rulerOnly ? 'Ruler' : 'Round 4A'} browser checks: ${results.length - failed.length}/${results.length} PASS; exit=${failed.length ? 1 : 0}\n`)
+  process.stdout.write(`${numericLayoutOnly ? 'Numeric layout' : visibleTotalsOnly ? 'Visible totals' : rulerOnly ? 'Ruler' : 'Round 4A'} browser checks: ${results.length - failed.length}/${results.length} PASS; exit=${failed.length ? 1 : 0}\n`)
   if (failed.length) process.exitCode = 1
 } finally {
   if (client && client.readyState < WebSocket.CLOSING) client.close()

@@ -3,6 +3,7 @@ import type { NumericInputProps } from '../../../shared/ui/NumericInput'
 import { NumericInput } from '../../../shared/ui/NumericInput'
 import { SelectedNumber, useSelectedValue, useSelectedValueSource } from '../../../shared/ui/selected-value'
 import { formatBusinessNumber } from '../../../shared/ui/numeric-display'
+import { BusinessNumber } from '../../../shared/ui/BusinessNumber'
 import { MasterDataBlockerMarker } from './MasterDataBlockerMarker'
 
 export function masterDataSelectedValueId(
@@ -72,6 +73,7 @@ interface MasterDataSelectedNumberProps {
   selectionId: string
   percentage?: boolean
   integer?: boolean
+  integerDigits?: number
   className?: string
   tabIndex?: number
   'aria-label'?: string
@@ -90,6 +92,7 @@ export function MasterDataSelectedNumber({
   selectionId,
   percentage = false,
   integer = false,
+  integerDigits = 8,
   className,
   tabIndex,
   'aria-label': ariaLabel,
@@ -102,18 +105,18 @@ export function MasterDataSelectedNumber({
   contentClassName,
   unavailableContent
 }: MasterDataSelectedNumberProps) {
-  const displayValue = value != null && Number.isFinite(value) ? formatBusinessNumber(value, { integer }) : unavailableContent ?? '—'
+  const displayValue = value != null && Number.isFinite(value) ? formatBusinessNumber(value, { integer, integerDigits }) : unavailableContent ?? '—'
   const hasFiniteValue = value != null && Number.isFinite(value)
   const nonSelectableContent = (
     <>
-      <span className={`block w-full min-w-0 text-right ${reserveMarker ? 'pr-6' : ''} ${contentClassName ?? ''}`}>{displayValue}</span>
+      <span className={`block w-full min-w-0 text-right ${reserveMarker ? 'pr-6' : ''} ${contentClassName ?? ''}`}>{hasFiniteValue ? <BusinessNumber value={value} integer={integer} integerDigits={integerDigits} /> : displayValue}</span>
       {missingMarker && <MasterDataBlockerMarker />}
     </>
   )
   const gridProps = {
     tabIndex,
     'aria-label': hasFiniteValue && ariaLabel
-      ? `${ariaLabel}: ${formatBusinessNumber(value, { integer })}${percentage ? '%' : ''}`
+      ? `${ariaLabel}: ${formatBusinessNumber(value, { integer, integerDigits })}${percentage ? '%' : ''}`
       : ariaLabel,
     'aria-invalid': ariaInvalid,
     'data-grid-cell': gridCell,
@@ -136,7 +139,7 @@ export function MasterDataSelectedNumber({
         stopKeyboardPropagation={gridCell !== 'true'}
         {...gridProps}
       >
-        {displayValue}
+        <BusinessNumber value={value} integer={integer} integerDigits={integerDigits} />
       </SelectedNumber>
       {missingMarker && <MasterDataBlockerMarker />}
     </span>
@@ -148,6 +151,7 @@ interface MasterDataFocusedNumberProps {
   selectionId: string
   percentage?: boolean
   integer?: boolean
+  integerDigits?: number
   className?: string
   tabIndex?: number
   'aria-label'?: string
@@ -165,6 +169,7 @@ export function MasterDataFocusedNumber({
   selectionId,
   percentage = false,
   integer = false,
+  integerDigits = 8,
   className,
   tabIndex,
   'aria-label': ariaLabel,
@@ -177,7 +182,6 @@ export function MasterDataFocusedNumber({
 }: MasterDataFocusedNumberProps) {
   const { clearFocus } = useSelectedValue()
   const { focus, preview, clearPreview } = useSelectedValueSource({ value, editable: false, domain: { integer }, percentage }, selectionId)
-  const displayValue = value != null && Number.isFinite(value) ? formatBusinessNumber(value, { integer }) : '—'
 
   return (
     <span
@@ -200,7 +204,7 @@ export function MasterDataFocusedNumber({
       }}
       className={`${reserveMarker ? 'pr-6 ' : ''}${className ?? ''}`.trim()}
     >
-      {displayValue}
+      <BusinessNumber value={value} integer={integer} integerDigits={integerDigits} />
       {missingMarker && <MasterDataBlockerMarker />}
     </span>
   )

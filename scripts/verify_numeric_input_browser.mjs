@@ -128,7 +128,7 @@ try {
   })()`
   const inputValue = aria => evaluate(`(()=>{const element=${visibleInputExpression(aria)};return element?.value ?? null})()`)
   const clickInput = async aria => {
-    const point = await evaluate(`(()=>{const element=${visibleInputExpression(aria)};if(!element)return null;const rect=element.getBoundingClientRect();return {x:rect.x+rect.width/2,y:rect.y+rect.height/2}})()`)
+    const point = await evaluate(`(()=>{const element=${visibleInputExpression(aria)};if(!element)return null;element.scrollIntoView({block:'center',inline:'nearest'});const rect=element.getBoundingClientRect();return {x:rect.x+rect.width/2,y:rect.y+rect.height/2}})()`)
     if (!point) throw new Error(`Visible input not found: ${aria}`)
     await send('Input.dispatchMouseEvent', { type: 'mousePressed', x: point.x, y: point.y, button: 'left', clickCount: 1 })
     await send('Input.dispatchMouseEvent', { type: 'mouseReleased', x: point.x, y: point.y, button: 'left', clickCount: 1 })
@@ -147,7 +147,7 @@ try {
     return inputValue(aria)
   }
   const clickButton = async expression => {
-    const point = await evaluate(`(()=>{const button=${expression};if(!button)return null;const rect=button.getBoundingClientRect();return {x:rect.x+rect.width/2,y:rect.y+rect.height/2,w:rect.width,h:rect.height}})()`)
+    const point = await evaluate(`(()=>{const button=${expression};if(!button)return null;button.scrollIntoView({block:'nearest',inline:'nearest'});const rect=button.getBoundingClientRect();return {x:rect.x+rect.width/2,y:rect.y+rect.height/2,w:rect.width,h:rect.height}})()`)
     if (!point || point.w === 0 || point.h === 0) throw new Error('Visible test button not found.')
     await send('Input.dispatchMouseEvent', { type: 'mousePressed', x: point.x, y: point.y, button: 'left', clickCount: 1 })
     await send('Input.dispatchMouseEvent', { type: 'mouseReleased', x: point.x, y: point.y, button: 'left', clickCount: 1 })
@@ -183,6 +183,11 @@ try {
   await waitFor(async () => (await evaluate('document.title')).includes('COSTBREAKDOWN'), 'application')
   await waitFor(async () => Boolean(await evaluate("[...document.querySelectorAll('button')].some(button => button.innerText.trim() === 'Master Data')")), 'application navigation')
 
+  const artifacts = await mkdtemp(join(tmpdir(), 'costbreakdown-selected-value-evidence-'))
+  const screenshot = async name => {
+    const captured = await send('Page.captureScreenshot', { format: 'png', captureBeyondViewport: false })
+    await writeFile(join(artifacts, `${name}.png`), Buffer.from(captured.result.data, 'base64'))
+  }
   const results = {}
   await clickButton(`([...document.querySelectorAll('button')].find(button => button.innerText.trim() === 'Master Data'))`)
   const masterDataIsReadOnly = await evaluate(`document.querySelector('button[role="switch"]')?.getAttribute('aria-checked') === 'false'`)
@@ -198,6 +203,54 @@ try {
   await waitFor(async () => Boolean(await evaluate(`!!document.querySelector('[role="group"][aria-label="Development mock datasets"]')`)), 'development dataset controls')
   await clickButton(`([...document.querySelectorAll('button')].find(button => button.innerText.trim() === 'Complete Mock'))`)
   await waitFor(async () => Boolean(await evaluate(`[...document.querySelectorAll('[aria-label^="Current dataset:"]')].some(element => /[1-9] BOM items/.test(element.getAttribute('aria-label') || ''))`)), 'complete Current fixture')
+
+  // Actual Master Data callers: one static numeric set in Edit and View.
+  const fitResults = []
+  const blurNumeric = () => evaluate('document.activeElement?.blur()')
+  const inputMetrics = aria => evaluate(`(()=>{const e=${visibleInputExpression(aria)};const r=e.getBoundingClientRect(),s=getComputedStyle(e),c=document.createElement('canvas').getContext('2d');c.font=[s.fontStyle,s.fontWeight,s.fontSize,s.fontFamily].join(' ');const right=r.right-parseFloat(s.borderRightWidth)-parseFloat(s.paddingRight),point=e.value.indexOf('.');return {text:e.value,x:r.x,width:r.width,height:r.height,right:r.right,paddingRight:s.paddingRight,decimal:point<0?null:right-c.measureText(e.value.slice(point)).width,tokenRight:right,fits:c.measureText(e.value).width<=r.width-parseFloat(s.paddingLeft)-parseFloat(s.paddingRight)-2,suffix:!!e.parentElement.querySelector('[data-numeric-suffix]')}})()`)
+  const masterLabels = await evaluate(`['consumption','price','manning','capacity','laborRate','burdenRate'].map(field=>[...document.querySelectorAll('input[data-grid-field]')].find(e=>e.dataset.gridField===field&&e.getClientRects().length)?.getAttribute('aria-label')).filter(Boolean)`)
+  assert.equal(masterLabels.length, 6, 'all six non-percentage Master Data field sets are present')
+  for (const aria of masterLabels) {
+    const original = await inputValue(aria)
+    await typeInto(aria, '123456789.12'); await blurNumeric()
+    const large = await inputMetrics(aria)
+    assert.equal(large.text, '123456789.12', `${aria} intentionally supports nine ordinary integer digits`)
+    assert.ok(large.fits, `${aria} nine-digit presentation fits its static slot`)
+    await typeInto(aria, '0.0045'); await blurNumeric()
+    const small = await inputMetrics(aria)
+    assert.ok(Math.abs(large.decimal-small.decimal)<0.6, `${aria} 2dp/4dp decimal anchors agree`)
+    assert.equal(small.width, large.width, `${aria} value length does not resize the slot`)
+    await typeInto(aria, original); await blurNumeric()
+    fitResults.push({area:'Master Data',aria,large,small})
+  }
+  const masterAria = masterLabels[0]
+  const masterOriginal = await inputValue(masterAria)
+  for (const [value,display] of [['12.3456789','12.35'],['0.0045','0.0045'],['0.000000001','1.00E-9'],['1234567890','1.23E+9']]) {
+    await typeInto(masterAria,value); await blurNumeric()
+    const edit = await inputMetrics(masterAria)
+    assert.equal(edit.text, display)
+    const source = await evaluate(`(${visibleInputExpression(masterAria)}).getAttribute('data-selected-value-source')`)
+    await clickButton(`document.querySelector('button[role="switch"]')`)
+    const view = await evaluate(`(()=>{const source=[...document.querySelectorAll('[data-selected-value-source]')].find(e=>e.getAttribute('data-selected-value-source')===${JSON.stringify(source)}&&e.getClientRects().length),token=source?.querySelector('[data-numeric-token]'),r=source?.getBoundingClientRect(),range=document.createRange();if(token?.firstChild)range.selectNodeContents(token.firstChild);const b=range.getBoundingClientRect();return{text:token?.textContent,width:r?.width,tokenRight:b.right,source:!!source}})()`)
+    assert.equal(view.text,display, 'Master Data View and Edit share the canonical presentation')
+    if (['12.35','0.0045','1.00E-9'].includes(display)) await screenshot(`numeric-fit-master-view-${display.replace(/[^a-z0-9]/gi,'_')}`)
+    assert.ok(Math.abs(view.tokenRight-edit.tokenRight)<=1, 'Master Data View/Edit share the exact presentation anchor')
+    assert.ok(Math.abs(view.width-edit.width)<=1, `Master Data View/Edit use the same fixed shell (${view.width}/${edit.width})`)
+    await clickButton(`document.querySelector('button[role="switch"]')`)
+    await clickInput(masterAria)
+    assert.equal(await inputValue(masterAria),value, 'switching View/Edit does not rewrite authoritative digits')
+    fitResults.push({area:'Master Data Edit/View',value,edit,view})
+  }
+  await typeInto(masterAria,masterOriginal); await blurNumeric()
+  for (const width of [1440,1024,768,390,320]) {
+    await send('Emulation.setDeviceMetricsOverride',{width,height:1800,deviceScaleFactor:1,mobile:false})
+    await delay(100)
+    for (const aria of masterLabels) assert.equal((await inputMetrics(aria)).width,136,`${aria} static width remains consistent at ${width}px`)
+    assert.ok(await evaluate('document.documentElement.scrollWidth<=innerWidth+1'), `Master Data ${width}px has no page overflow`)
+    if ([1440,390].includes(width)) await screenshot(`numeric-fit-master-${width}`)
+  }
+  await send('Emulation.setDeviceMetricsOverride',{width:1440,height:1800,deviceScaleFactor:1,mobile:false})
+
   await clickButton(`([...document.querySelectorAll('button')].find(button => button.innerText.trim() === 'Simulation'))`)
   const currentDatasetButton = await evaluate(`(()=>[...document.querySelectorAll('button')].find(button => button.innerText.trim() === 'Current' && button.hasAttribute('aria-pressed') && button.getClientRects().length))()?.getAttribute('aria-label')`)
   if (currentDatasetButton) {
@@ -217,6 +270,76 @@ try {
   const economicDraft = await typeInto('Variable Action Cost / Unit', '12.3456789')
   assert.equal(economicDraft, '12.3456789', 'Economic accepts the complete monetary draft')
   results.economic = await blurInto('Variable Action Cost / Unit', 'Fixed Action Cost')
+
+
+  const numericFitLabels = [simulationInput,'Selling Price','Variable Action Cost / Unit','Fixed Action Cost']
+  for (const aria of numericFitLabels) {
+    const original = await inputValue(aria)
+    let ordinary
+    let staticFrame
+    for (const [value,display] of [['12.30','12.30'],['123456.78','123456.78'],['0.0045','0.0045'],['0.000000001','1.00E-9'],['12345678.9',aria===simulationInput?'1.23E+7':'12345678.90'],['99999999.999','1.00E+8']]) {
+      await typeInto(aria,value); await blurNumeric()
+      const metric = await inputMetrics(aria)
+      assert.equal(metric.text,display, `${aria} display-fit ${value}`)
+      assert.ok(metric.fits, `${aria} complete presentation fits its slot`)
+      if (aria===simulationInput && ['0.0045','1.00E-9'].includes(display)) await screenshot(`numeric-fit-fixed-simulation-${display.replace(/[^a-z0-9]/gi,'_')}`)
+      if(value==='12.30') ordinary=metric
+      if(value==='0.0045') assert.ok(Math.abs(ordinary.decimal-metric.decimal)<0.6,`${aria} 2dp/4dp share decimal anchor`)
+      if(display.includes('E')) assert.ok(metric.tokenRight>ordinary.tokenRight+10,`${aria} scientific token aligns to the whole-token right edge, independently of the ordinary decimal anchor`)
+      assert.equal(metric.width,ordinary.width,`${aria} static slot does not follow value length`)
+      if(aria===simulationInput) {
+        const frame = await evaluate(`(()=>{const e=${visibleInputExpression(aria)},f=e.closest('td').querySelector('[data-simulation-input-frame]'),r=f.getBoundingClientRect();return {x:r.x,width:r.width}})()`)
+        staticFrame ??= frame
+        assert.deepEqual(frame,staticFrame, 'Simulation overlay is fixed across ordinary/tiny/scientific values')
+        await clickInput(aria)
+        assert.equal(await inputValue(aria),value === '12.30' ? '12.3' : value, 'Simulation Focus restores authoritative full value')
+        const focused = await inputMetrics(aria)
+        assert.equal(focused.x,metric.x);assert.equal(focused.width,metric.width)
+        await blurNumeric()
+      }
+      fitResults.push({area:'Simulation/Business/Economic',aria,value,...metric})
+    }
+    await typeInto(aria,original);await blurNumeric()
+  }
+
+  const batchOriginal=await inputValue('Batch Size')
+  await typeInto('Batch Size','123456789');await blurNumeric()
+  assert.equal(await inputValue('Batch Size'),'1.23E+8','semantic integer quantity uses scientific fallback without adding .00')
+  await clickInput('Batch Size')
+  assert.equal(await inputValue('Batch Size'),'123456789','integer edit hydrates full authoritative quantity')
+  await evaluate('document.activeElement.select()');await send('Input.insertText',{text:'3.5'})
+  assert.equal(await inputValue('Batch Size'),'123456789','real Batch Size still rejects fractional drafts')
+  await typeInto('Batch Size',batchOriginal);await blurNumeric()
+  const sgaAria=await evaluate(`([...document.querySelectorAll('input')].find(e=>e.getClientRects().length&&/SG&A/.test(e.getAttribute('aria-label')||'')))?.getAttribute('aria-label')`)
+  assert.ok(sgaAria,'real Business SG&A editor is available')
+  const sgaOriginal=await inputValue(sgaAria)
+  await typeInto(sgaAria,'100');await blurNumeric()
+  assert.equal(await inputValue(sgaAria),'100.00')
+  assert.ok((await inputMetrics(sgaAria)).suffix,'SG&A uses its own fixed suffix slot')
+  await clickInput(sgaAria);await evaluate('document.activeElement.select()');await send('Input.insertText',{text:'101'})
+  assert.equal(await inputValue(sgaAria),'100','SG&A maximum remains 100 percent')
+  await typeInto(sgaAria,sgaOriginal);await blurNumeric()
+  const percentAria=await evaluate(`([...document.querySelectorAll('input')].find(e=>e.getClientRects().length&&/Loss in Current$/.test(e.getAttribute('aria-label')||'')))?.getAttribute('aria-label')`)
+  if(percentAria) {
+    for(const value of ['12.30','0.0045','0.000000001']) {
+      await typeInto(percentAria,value);await blurNumeric()
+      assert.ok((await inputMetrics(percentAria)).suffix,'percentage editor has a separate fixed suffix slot')
+    }
+  }
+  for(const width of [1440,1024,768,390,320]) {
+    await send('Emulation.setDeviceMetricsOverride',{width,height:1800,deviceScaleFactor:1,mobile:false})
+    await delay(100)
+    for(const aria of ['Selling Price','Variable Action Cost / Unit']) {
+      await typeInto(aria,'12345678.9');await blurNumeric()
+      assert.ok((await inputMetrics(aria)).fits,`${aria} fits baseline eight digits at ${width}px`)
+    }
+    const resultFit=await evaluate(`(()=>[...document.querySelectorAll('[aria-labelledby="simulation-result-title"] td [data-numeric-presentation]')].map(e=>{const cell=e.closest('td'),c=cell.getBoundingClientRect(),r=document.createRange();r.selectNodeContents(e);const b=r.getBoundingClientRect();return{text:e.textContent,cellWidth:c.width,textWidth:b.width,fits:b.left>=c.left-0.5&&b.right<=c.right+0.5}}))()`)
+    assert.ok(resultFit.length>0&&resultFit.every(item=>item.fits), `Result read-only tokens stay in their own cells at ${width}px: ${JSON.stringify(resultFit.filter(item=>!item.fits))}`)
+    assert.ok(await evaluate('document.documentElement.scrollWidth<=innerWidth+1'),`Simulation/Business/Economic ${width}px has no page overflow`)
+    if ([1440,390].includes(width)) await screenshot(`numeric-fit-simulation-economic-${width}`)
+  }
+  await send('Emulation.setDeviceMetricsOverride',{width:1440,height:1800,deviceScaleFactor:1,mobile:false})
+  results.numericDisplayFit=fitResults
 
   await send('Page.navigate', { url: new URL('/scripts/fixtures/selected-value-browser.html', baseUrl).href })
   await waitFor(async () => Boolean(await evaluate('!!document.querySelector(\'[aria-label="Selected value foundation fixture"]\')')), 'shared foundation fixture')
@@ -244,11 +367,6 @@ try {
     const point = await evaluate(`(()=>{const rect=${visibleInputExpression(aria)}.getBoundingClientRect();return {x:rect.x+rect.width/2,y:rect.y+rect.height/2}})()`)
     await send('Input.dispatchMouseEvent', { type: 'mouseWheel', ...point, deltaX: 0, deltaY: 100 })
     await delay(160)
-  }
-  const artifacts = await mkdtemp(join(tmpdir(), 'costbreakdown-selected-value-evidence-'))
-  const screenshot = async name => {
-    const captured = await send('Page.captureScreenshot', { format: 'png', captureBeyondViewport: false })
-    await writeFile(join(artifacts, `${name}.png`), Buffer.from(captured.result.data, 'base64'))
   }
   await insertValue('Foundation decimal', '12.3456789')
   assert.equal(await model('decimal'), '12.3456789', 'regression starts from the authoritative precise value')
@@ -763,7 +881,7 @@ try {
   assert.equal(await model('percentage'), '12.3456789', 'Header retains the percentage source domain')
   await insertValue('Foundation positive', '0.00003')
   await buttonByText('Clear selected value')
-  assert.equal(await inputValue('Foundation positive'), '3.00e-5', 'tiny nonzero values never look like zero')
+  assert.equal(await inputValue('Foundation positive'), '3.00E-5', 'tiny nonzero values never look like zero')
   await clickInput('Foundation positive')
   assert.equal(await inputValue('Foundation positive'), '0.00003', 'scientific compact display expands to a safe full editable draft')
   assert.equal(await headerText(), '0.00003')
@@ -946,6 +1064,9 @@ try {
 } finally {
   client?.close()
   await stopChild(chrome)
+  chrome.stderr.destroy()
   await stopChild(vite)
+  vite?.stdout.destroy()
+  vite?.stderr.destroy()
   await rm(profile, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 })
 }

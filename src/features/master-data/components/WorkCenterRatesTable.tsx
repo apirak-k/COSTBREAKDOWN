@@ -419,11 +419,12 @@ export const WorkCenterRatesTable: React.FC<WorkCenterRatesTableProps> = ({
                   </td>
                   <td className="relative px-2 py-0.5 text-right font-mono tabular-nums">
                     {isEditMode ? (
-                      <div className="relative ml-auto w-full max-w-24">
+                      <div className="relative ml-auto w-full max-w-[8.5rem]">
                         <MasterDataNumericInput
                           value={rate.laborRate}
                           onValueChange={value => applyCellUpdate(rate.id, { laborRate: value })}
                           selectionId={valueSourceId(rate.id, 'laborRate')}
+                          integerDigits={9}
                           {...getMasterDataNumericInputDomain('laborRate')}
                           reserveMarker
                           data-grid-cell="true"
@@ -438,6 +439,7 @@ export const WorkCenterRatesTable: React.FC<WorkCenterRatesTableProps> = ({
                     ) : <MasterDataFocusedNumber
                       value={rate.laborRate}
                       selectionId={valueSourceId(rate.id, 'laborRate')}
+                      integerDigits={9}
                       data-grid-cell="true"
                       data-grid-row-id={rate.id}
                       data-grid-field="laborRate"
@@ -446,16 +448,17 @@ export const WorkCenterRatesTable: React.FC<WorkCenterRatesTableProps> = ({
                       aria-invalid={laborMissing || laborInvalid}
                       reserveMarker
                       missingMarker={laborMissing}
-                      className={`${masterDataNumericDisplaySlotClass} ml-auto max-w-24 ${showWarningHighlights && (laborMissing || laborInvalid) ? masterDataIssueDisplayClass : ''} ${selectedCellKeys.has(tableCellKey(rate.id, 'laborRate')) ? masterDataSpreadsheetSelectionClass : ''}`}
+                      className={`${masterDataNumericDisplaySlotClass} ml-auto max-w-[8.5rem] ${showWarningHighlights && (laborMissing || laborInvalid) ? masterDataIssueDisplayClass : ''} ${selectedCellKeys.has(tableCellKey(rate.id, 'laborRate')) ? masterDataSpreadsheetSelectionClass : ''}`}
                     />}
                   </td>
                   <td className="relative px-2 py-0.5 text-right font-mono tabular-nums">
                     {isEditMode ? (
-                      <div className="relative ml-auto w-full max-w-24">
+                      <div className="relative ml-auto w-full max-w-[8.5rem]">
                         <MasterDataNumericInput
                           value={rate.burdenRate}
                           onValueChange={value => applyCellUpdate(rate.id, { burdenRate: value })}
                           selectionId={valueSourceId(rate.id, 'burdenRate')}
+                          integerDigits={9}
                           {...getMasterDataNumericInputDomain('burdenRate')}
                           reserveMarker
                           data-grid-cell="true"
@@ -470,6 +473,7 @@ export const WorkCenterRatesTable: React.FC<WorkCenterRatesTableProps> = ({
                     ) : <MasterDataFocusedNumber
                       value={rate.burdenRate}
                       selectionId={valueSourceId(rate.id, 'burdenRate')}
+                      integerDigits={9}
                       data-grid-cell="true"
                       data-grid-row-id={rate.id}
                       data-grid-field="burdenRate"
@@ -478,7 +482,7 @@ export const WorkCenterRatesTable: React.FC<WorkCenterRatesTableProps> = ({
                       aria-invalid={burdenMissing || burdenInvalid}
                       reserveMarker
                       missingMarker={burdenMissing}
-                      className={`${masterDataNumericDisplaySlotClass} ml-auto max-w-24 ${showWarningHighlights && (burdenMissing || burdenInvalid) ? masterDataIssueDisplayClass : ''} ${selectedCellKeys.has(tableCellKey(rate.id, 'burdenRate')) ? masterDataSpreadsheetSelectionClass : ''}`}
+                      className={`${masterDataNumericDisplaySlotClass} ml-auto max-w-[8.5rem] ${showWarningHighlights && (burdenMissing || burdenInvalid) ? masterDataIssueDisplayClass : ''} ${selectedCellKeys.has(tableCellKey(rate.id, 'burdenRate')) ? masterDataSpreadsheetSelectionClass : ''}`}
                     />}
                   </td>
                   <td className="px-2 py-0.5 font-sans text-slate-600">

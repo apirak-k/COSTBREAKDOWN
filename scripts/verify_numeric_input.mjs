@@ -39,6 +39,14 @@ try {
   const { NumericInput } = await vite.ssrLoadModule('/src/shared/ui/NumericInput.tsx')
   const { formatBusinessNumber, formatFullNumericValue, formatHeaderNumericValue } = await vite.ssrLoadModule('/src/shared/ui/numeric-display.ts')
   const numericInputSource = readFileSync(resolve(process.cwd(), 'src/shared/ui/NumericInput.tsx'), 'utf8')
+  const { BusinessNumber } = await vite.ssrLoadModule('/src/shared/ui/BusinessNumber.tsx')
+  const presentationMarkup = value => renderToStaticMarkup(React.createElement(BusinessNumber, { value }))
+  assert.match(presentationMarkup(12.3), /padding-inline-end:2ch/, 'ordinary 2dp reserves the two unused decimal positions')
+  assert.doesNotMatch(presentationMarkup(0.0045), /padding-inline-end/, 'ordinary 4dp uses the complete decimal region')
+  assert.match(presentationMarkup(1e-9), /data-numeric-presentation="scientific"/, 'scientific token has its own alignment class')
+  assert.doesNotMatch(presentationMarkup(1e-9), /padding-inline-end/, 'scientific whole token uses the right edge')
+  const simulationSource = readFileSync(resolve(process.cwd(), 'src/features/simulation/SimulationPage.tsx'), 'utf8')
+  assert.doesNotMatch(simulationSource, /updateSimulationInputFrame|--simulation-input-frame-shift|measureText/, 'Simulation frames never derive their position from formatted content')
 
   assert.equal(formatNumber(12), '12.00')
   assert.equal(formatNumber(12.5), '12.50')
@@ -67,22 +75,22 @@ try {
   }
   const adaptiveExamples = [
     [12.345678, '12.35'], [0.03456, '0.03'], [0.004567, '0.0046'],
-    [0.000123, '0.0001'], [0.00003, '3.00e-5'], [0.000001, '1.00e-6'],
+    [0.000123, '0.0001'], [0.00003, '3.00E-5'], [0.000001, '1.00E-6'],
     [0, '0.00'], [-0, '0.00'], [-0.004567, '-0.0046'],
-    [-0.00003, '-3.00e-5'], [Number.MIN_VALUE, '4.94e-324']
+    [-0.00003, '-3.00E-5'], [Number.MIN_VALUE, '4.94E-324']
   ]
   for (const [value, expected] of adaptiveExamples) {
     assert.equal(formatBusinessNumber(value), expected, `adaptive presentation of ${value}`)
     assert.equal(formatNumericInputValue(value), expected, 'NumericInput shares the canonical adaptive formatter')
   }
   assert.equal(formatBusinessNumber(0.004567, { percent: true }), '0.0046%')
-  assert.equal(formatBusinessNumber(-0.00003, { percent: true }), '-3.00e-5%')
+  assert.equal(formatBusinessNumber(-0.00003, { percent: true }), '-3.00E-5%')
   assert.equal(formatBusinessNumber(0, { percent: true }), '0.00%')
   const bodyPrecisionRegressions = [
     [12.345678, '12.35'],
     [0.004567, '0.0046'],
-    [0.00003, '3.00e-5'],
-    [1e-7, '1.00e-7'],
+    [0.00003, '3.00E-5'],
+    [1E-7, '1.00E-7'],
     [20.000000000000004, '20.00']
   ]
   for (const [value, expected] of bodyPrecisionRegressions) {
@@ -108,11 +116,21 @@ try {
   assert.equal(formatBusinessNumber(3, { integer: true }), '3', 'semantic counts remain whole')
   assert.equal(formatBusinessNumber(0, { integer: true }), '0')
   assert.equal(formatBusinessNumber(1000, { integer: true }), '1000')
-  assert.equal(formatBusinessNumber(1e21), '1000000000000000000000.00', 'large ordinary decimal presentation retains two fractional places')
-  assert.equal(formatBusinessNumber(Number.MAX_VALUE), `${formatFullNumericValue(Number.MAX_VALUE)}.00`, 'large finite values do not silently change the default decimal policy')
+  assert.equal(formatBusinessNumber(1e21), '1.00E+21', 'large compact values use scientific presentation')
+  assert.equal(formatBusinessNumber(Number.MAX_VALUE), '1.80E+308', 'extreme finite values stay compact')
   for (const value of [12.3456789123, 0.00456789123, 1e-7, -1e-7, 1e21, Number.MIN_VALUE, Number.MAX_VALUE]) {
     assert.equal(Number(formatFullNumericValue(value)), value, 'full-value text round trips to exactly the current numeric model')
   }
+
+  for (const [value, expected] of [[12, '12.00'], [12.3, '12.30'], [-0, '0.00'], [0.00004, '4.00E-5'], [-0.00004, '-4.00E-5'], [12345678.9, '12345678.90'], [-12345678.9, '-12345678.90'], [123456789.12, '1.23E+8'], [99999999.999, '1.00E+8'], [999999999, '1.00E+9']]) {
+    assert.equal(formatBusinessNumber(value), expected)
+  }
+  assert.equal(formatBusinessNumber(12345678, { integer: true }), '12345678')
+  assert.equal(formatBusinessNumber(123456789, { integer: true }), '1.23E+8')
+  assert.equal(formatBusinessNumber(99999999.999, { integerDigits: 9 }), '100000000.00', 'explicit static capacity applies after rounding')
+  assert.equal(formatBusinessNumber(1000000, { integerDigits: 6 }), '1.00E+6', 'a narrower fixed set can use scientific sooner')
+  assert.equal(formatBusinessNumber(100, { percent: true }), '100.00%')
+  assert.equal(formatBusinessNumber(0.00004, { percent: true }), '4.00E-5%')
 
   assert.equal(isNumericDraftSyntax('12.34'), true)
   assert.equal(isNumericDraftSyntax('12.345'), true, 'decimal input is not limited by display precision')

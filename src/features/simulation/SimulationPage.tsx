@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { ChevronDown, ChevronLeft, ChevronRight, RotateCcw, Search, Send, X } from 'lucide-react'
-import { formatNumber, safeAdd } from '../../core'
+import { safeAdd } from '../../core'
 import {
   calculateMultiplicativeCostAttribution,
   calculateScenarioBusinessMetrics,
@@ -18,6 +18,8 @@ import type {
 } from '../../core/types'
 import { Tooltip } from '../../shared/ui/Tooltip'
 import { COMPARISON_ROLE_LABELS, ComparisonRoleSelector } from '../../shared/ui/ComparisonRoleSelector'
+import { BusinessNumber } from '../../shared/ui/BusinessNumber'
+import { formatBusinessNumber } from '../../shared/ui/numeric-display'
 import { NumericInput } from '../../shared/ui/NumericInput'
 import { applyRowDragSelection, applyRowSelectionScope, getRowSelectionState } from '../../shared/selection/row-drag-selection'
 import { useTransientInteraction } from '../../shared/ui/transient-interactions'
@@ -66,13 +68,12 @@ const RTG_PARAMETERS = [
 
 type EffectValues = ReturnType<typeof calculateMultiplicativeCostAttribution>
 
-function displayMoney(value: number | null): string {
-  return value === null || !Number.isFinite(value) ? '—' : formatNumber(value, 2)
+function displayMoney(value: number | null) {
+  return <BusinessNumber value={value} />
 }
 
-function displayResultDelta(value: number | null): string {
-  if (value === null || !Number.isFinite(value)) return '—'
-  return `${value > 0 ? '+' : ''}${formatNumber(value, 2)}`
+function displayResultDelta(value: number | null, percent = false) {
+  return <BusinessNumber value={value} signPositive percent={percent} integerDigits={percent ? 4 : 8} />
 }
 
 type ResultSemantic = 'cost' | 'neutral' | 'profit'
@@ -84,30 +85,8 @@ function resultChangeClass(value: number | null, semantic: ResultSemantic): stri
   return favorable ? 'text-emerald-700' : 'text-rose-700'
 }
 
-function displayParameter(value: number | null, parameter: typeof BOM_PARAMETERS[number] | typeof RTG_PARAMETERS[number]): string {
-  if (value === null || !Number.isFinite(value)) return '—'
-  const displayValue = value * parameter.scale
-  return `${formatNumber(displayValue, 2)}${parameter.scale === 100 ? '%' : ''}`
-}
-
-function updateSimulationInputFrame(target: HTMLDivElement): void {
-  const input = target.querySelector<HTMLInputElement>('input[data-numeric-editor]')
-  const frame = target.querySelector<HTMLElement>('[data-simulation-input-frame="true"]')
-  if (!input || !frame) return
-
-  const canvas = document.createElement('canvas')
-  const context = canvas.getContext('2d')
-  if (!context) return
-
-  const inputStyle = getComputedStyle(input)
-  context.font = `${inputStyle.fontStyle} ${inputStyle.fontWeight} ${inputStyle.fontSize} ${inputStyle.fontFamily}`
-  const frameShift = Number.parseFloat(inputStyle.getPropertyValue('--simulation-input-frame-shift')) || 0
-  const borderRight = Number.parseFloat(inputStyle.borderRightWidth) || 0
-  const paddingRight = Number.parseFloat(inputStyle.paddingRight) || 0
-  const rightInset = borderRight + Math.max(0, paddingRight - frameShift)
-  const textWidth = context.measureText(input.value).width
-  const nextShift = Math.max(0, (input.getBoundingClientRect().width - textWidth) / 2 - rightInset)
-  target.style.setProperty('--simulation-input-frame-shift', `${nextShift}px`)
+function displayParameter(value: number | null, parameter: typeof BOM_PARAMETERS[number] | typeof RTG_PARAMETERS[number], integerDigits = 6) {
+  return <BusinessNumber value={value === null ? null : value * parameter.scale} integerDigits={integerDigits} percent={parameter.scale === 100} />
 }
 
 function isInteractiveTarget(target: EventTarget | null, row: Element): boolean {
@@ -424,7 +403,7 @@ function EffectCell({ amount }: {
   const effect = parameterEffectPresentation(amount)
   return (
     <td className="border-b border-slate-200 whitespace-nowrap py-1.5 pl-1 pr-2 text-right font-mono tabular-nums">
-      <span className={effect.className}>{effect.text}</span>
+      <span className={effect.className}><BusinessNumber value={amount} signPositive integerDigits={6} /></span>
     </td>
   )
 }
@@ -473,7 +452,7 @@ function SimulationParameterTable({
   const navigationLabel = isBOM ? 'BOM' : 'Routing'
   const tableIdentity = isBOM ? 'Bill of Materials' : 'Routing Process'
   const parameters = isBOM ? BOM_PARAMETERS : RTG_PARAMETERS
-  const columnWidths = ['6%', '18%', '10%', '14.5%', '14.5%', '14.5%', '17%', '5.5%']
+  const columnWidths = ['6%', '16%', '9%', '15.5%', '15.5%', '15.5%', '17%', '5.5%']
   const renderColumnGroup = () => (
     <colgroup>
       {columnWidths.map((width, index) => (
@@ -580,8 +559,6 @@ function SimulationParameterTable({
     }
   }, [updateViewportState])
   useSafeLayoutEffect(() => {
-    sectionRef.current?.querySelectorAll<HTMLDivElement>('[data-simulation-input-wrapper="true"]')
-      .forEach(updateSimulationInputFrame)
     updateViewportState()
   }, [rows, workingSelection, expandedRows, dragRowOrder, updateViewportState])
   useSafeLayoutEffect(() => {
@@ -816,14 +793,13 @@ function SimulationParameterTable({
                             <div
                               data-simulation-input-wrapper="true"
                               className="relative group -mr-1 min-w-0 pl-1.5 pr-1"
-                              onMouseEnter={event => updateSimulationInputFrame(event.currentTarget)}
-                              onFocusCapture={event => updateSimulationInputFrame(event.currentTarget)}
-                              onInputCapture={event => updateSimulationInputFrame(event.currentTarget)}
                             >
                               <SimulationHistoryInputBoundary onBegin={onBeginEdit} onCommit={onCommitEdit}>
                                 <>
                                   <NumericInput
                                     value={value}
+                                    integerDigits={6}
+                                    percentSuffix={parameter.scale === 100}
                                     min={0}
                                     minExclusive={parameter.parameter === 'routing.capacity' || parameter.parameter === 'routing.yield'}
                                     max={parameter.parameter === 'routing.yield' || parameter.parameter === 'bom.loss' ? 100 : undefined}
@@ -835,8 +811,7 @@ function SimulationParameterTable({
                                     className="relative z-10 h-8 w-full min-w-0 rounded-sm border border-transparent bg-transparent pl-1.5 pr-0 text-right font-mono text-xs tabular-nums text-slate-900 transition-colors"
                                     style={{
                                       outline: 'none',
-                                      left: 'var(--simulation-input-frame-shift, 0px)',
-                                      paddingRight: 'var(--simulation-input-frame-shift, 0px)',
+                                      paddingRight: 0,
                                       clipPath: 'inset(0.5px)'
                                     }}
                                     aria-label={`${row.name} ${parameter.label} in ${roleLabel(activeRole)}`}
@@ -847,7 +822,6 @@ function SimulationParameterTable({
                                     data-simulation-input-frame-key={inputFrameKey}
                                     data-simulation-input-frame-hovered={hoveredInputFrame === inputFrameKey ? 'true' : 'false'}
                                     className={`pointer-events-none absolute inset-y-0 left-1.5 right-1 z-0 rounded-sm border transition-colors ${hoveredInputFrame === inputFrameKey ? 'border-slate-200 bg-slate-50' : 'border-transparent bg-transparent'} group-focus-within:!border-transparent group-focus-within:!bg-white group-focus-within:!outline group-focus-within:!outline-2 group-focus-within:!outline-blue-700 group-focus-within:!outline-offset-[-2px]`}
-                                    style={{ transform: 'translateX(var(--simulation-input-frame-shift, 0px))' }}
                                   />
                                 </>
                               </SimulationHistoryInputBoundary>
@@ -872,10 +846,10 @@ function SimulationParameterTable({
                         <span className="ml-2 inline-block whitespace-nowrap border-l-2 border-slate-300 pl-3">Parameter Cost Effect</span>
                       </th>
                       {detailParameters.map(parameter => <EffectCell key={parameter.parameter} amount={parameter.amount} />)}
-                      <td aria-label={`Total ${totalEffect.text}`} className="border-b border-slate-200 whitespace-nowrap py-1.5 pl-1 pr-2 text-right text-[10px] font-semibold">
+                      <td aria-label={`Total ${formatBusinessNumber(analysis.effects.totalEffect, { signPositive: true, integerDigits: 6 })}`} className="border-b border-slate-200 whitespace-nowrap py-1.5 pl-1 pr-2 text-right text-[10px] font-semibold">
                         <span className="grid grid-cols-[1fr_auto] items-center gap-1">
                           <span className="text-right text-slate-700">Total{' '}</span>
-                          <span className={`min-w-[5ch] text-right font-mono tabular-nums ${totalEffect.className}`}>{totalEffect.text}</span>
+                          <span className={`min-w-[5ch] text-right font-mono tabular-nums ${totalEffect.className}`}><BusinessNumber value={analysis.effects.totalEffect} signPositive integerDigits={6} /></span>
                         </span>
                       </td>
                       <td className="border-b border-slate-200 px-0.5 py-1" aria-hidden="true" />
@@ -985,6 +959,7 @@ function SimulationParameterTable({
                           <SimulationHistoryInputBoundary onBegin={onBeginEdit} onCommit={onCommitEdit}>
                             <NumericInput
                               value={value}
+                              percentSuffix={parameter.scale === 100}
                               min={0}
                               minExclusive={parameter.parameter === 'routing.capacity' || parameter.parameter === 'routing.yield'}
                               max={parameter.parameter === 'routing.yield' || parameter.parameter === 'bom.loss' ? 100 : undefined}
@@ -998,7 +973,7 @@ function SimulationParameterTable({
                             />
                           </SimulationHistoryInputBoundary>
                         </div>
-                      ) : <span className="mt-0.5 block font-mono text-slate-700">{displayParameter(recordValue, parameter)}</span>}
+                      ) : <span className="mt-0.5 block font-mono text-slate-700">{displayParameter(recordValue, parameter, 8)}</span>}
                     </label>
                   )
                 })}
@@ -1012,13 +987,13 @@ function SimulationParameterTable({
                       return (
                         <div key={parameter.parameter} className="flex min-w-0 items-baseline justify-between gap-2">
                           <dt className="text-slate-600">{parameter.label} effect</dt>
-                          <dd className={`shrink-0 font-mono tabular-nums ${effect.className}`}>{effect.text}</dd>
+                          <dd className={`shrink-0 font-mono tabular-nums ${effect.className}`}><BusinessNumber value={analysis.effects.effects?.[parameter.effectKey]} signPositive /></dd>
                         </div>
                       )
                     })}
                     <div className="flex min-w-0 items-baseline justify-between gap-2 border-t border-slate-200 pt-1 font-semibold">
                       <dt className="text-slate-700">Total</dt>
-                      <dd className={`shrink-0 font-mono tabular-nums ${totalEffect.className}`}>{totalEffect.text}</dd>
+                      <dd className={`shrink-0 font-mono tabular-nums ${totalEffect.className}`}><BusinessNumber value={analysis.effects.totalEffect} signPositive /></dd>
                     </div>
                   </dl>
                 </div>
@@ -1149,7 +1124,7 @@ function ResultPanel({
           {displayResultDelta(row.change)}
         </td>
         <td className={`${padding} text-right font-mono tabular-nums ${resultChangeClass(row.percent === null ? null : row.change, row.semantic)}`}>
-          {row.percent === null ? '—' : `${displayResultDelta(row.percent)}%`}
+          {row.percent === null ? '—' : displayResultDelta(row.percent, true)}
         </td>
       </tr>
     )
@@ -1175,8 +1150,8 @@ function ResultPanel({
         </div>
         <div className="ml-auto flex shrink-0 items-center gap-1.5">{actions}</div>
       </header>
-      <div className="mt-1 min-w-0">
-        <table className="w-full table-fixed text-[9px] leading-3 xl:leading-[11px]">
+      <div className="mt-1 min-w-0 overflow-x-auto">
+        <table className="w-full min-w-[25.5rem] table-fixed text-[9px] leading-3 xl:leading-[11px]">
           <colgroup>
             <col className="w-[25%]" />
             <col className="w-[19%]" />

@@ -388,11 +388,12 @@ export const BOMTable: React.FC<BOMTableProps> = ({
                   </td>
                   <td className="relative px-2 py-0.5 text-right font-mono tabular-nums">
                     {isEditMode ? (
-                      <div className="relative ml-auto w-full max-w-20">
+                      <div className="relative ml-auto w-full max-w-[8.5rem]">
                         <MasterDataNumericInput
                           value={item.consumption}
                           onValueChange={value => applyCellUpdate(item.id, { consumption: value })}
                           selectionId={valueSourceId(item.id, 'consumption')}
+                          integerDigits={9}
                           {...getMasterDataNumericInputDomain('consumption')}
                           reserveMarker
                           data-grid-cell="true"
@@ -407,6 +408,7 @@ export const BOMTable: React.FC<BOMTableProps> = ({
                     ) : <MasterDataFocusedNumber
                       value={item.consumption}
                       selectionId={valueSourceId(item.id, 'consumption')}
+                      integerDigits={9}
                       data-grid-cell="true"
                       data-grid-row-id={item.id}
                       data-grid-field="consumption"
@@ -415,7 +417,7 @@ export const BOMTable: React.FC<BOMTableProps> = ({
                       aria-invalid={consumptionMissing || consumptionInvalid}
                       reserveMarker
                       missingMarker={consumptionMissing}
-                      className={`${masterDataNumericDisplaySlotClass} ml-auto max-w-20 ${showWarningHighlights && (consumptionMissing || consumptionInvalid) ? masterDataIssueDisplayClass : ''} ${selectedCellKeys.has(tableCellKey(item.id, 'consumption')) ? masterDataSpreadsheetSelectionClass : ''}`}
+                      className={`${masterDataNumericDisplaySlotClass} ml-auto max-w-[8.5rem] ${showWarningHighlights && (consumptionMissing || consumptionInvalid) ? masterDataIssueDisplayClass : ''} ${selectedCellKeys.has(tableCellKey(item.id, 'consumption')) ? masterDataSpreadsheetSelectionClass : ''}`}
                     />}
                   </td>
                   <td className="px-2 py-0.5 text-center font-mono">
@@ -441,11 +443,12 @@ export const BOMTable: React.FC<BOMTableProps> = ({
                   </td>
                   <td className="relative px-2 py-0.5 text-right font-mono tabular-nums">
                     {isEditMode ? (
-                      <div className="relative ml-auto w-full max-w-24">
+                      <div className="relative ml-auto w-full max-w-[8.5rem]">
                         <MasterDataNumericInput
                           value={item.price}
                           onValueChange={value => applyCellUpdate(item.id, { price: value })}
                           selectionId={valueSourceId(item.id, 'price')}
+                          integerDigits={9}
                           {...getMasterDataNumericInputDomain('price')}
                           reserveMarker
                           data-grid-cell="true"
@@ -460,6 +463,7 @@ export const BOMTable: React.FC<BOMTableProps> = ({
                     ) : <MasterDataFocusedNumber
                       value={item.price}
                       selectionId={valueSourceId(item.id, 'price')}
+                      integerDigits={9}
                       data-grid-cell="true"
                       data-grid-row-id={item.id}
                       data-grid-field="price"
@@ -468,7 +472,7 @@ export const BOMTable: React.FC<BOMTableProps> = ({
                       aria-invalid={priceMissing || priceInvalid}
                       reserveMarker
                       missingMarker={priceMissing}
-                      className={`${masterDataNumericDisplaySlotClass} ml-auto max-w-24 ${showWarningHighlights && (priceMissing || priceInvalid) ? masterDataIssueDisplayClass : ''} ${selectedCellKeys.has(tableCellKey(item.id, 'price')) ? masterDataSpreadsheetSelectionClass : ''}`}
+                      className={`${masterDataNumericDisplaySlotClass} ml-auto max-w-[8.5rem] ${showWarningHighlights && (priceMissing || priceInvalid) ? masterDataIssueDisplayClass : ''} ${selectedCellKeys.has(tableCellKey(item.id, 'price')) ? masterDataSpreadsheetSelectionClass : ''}`}
                     />}
                   </td>
                   <td className="relative px-2 py-0.5 text-right font-mono tabular-nums">

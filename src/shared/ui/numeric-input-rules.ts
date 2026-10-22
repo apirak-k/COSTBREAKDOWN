@@ -1,4 +1,4 @@
-import { formatBusinessNumber } from './numeric-display'
+import { formatBusinessNumber, type NumericDisplayOptions } from './numeric-display'
 
 export interface NumericInputDomain {
   integer?: boolean
@@ -174,9 +174,9 @@ export function stepNumericValue(
 
 export function formatNumericInputValue(
   value: number | null | undefined,
-  domain: NumericInputDomain = {}
+  domain: NumericInputDomain & Pick<NumericDisplayOptions, 'integerDigits'> = {}
 ): string {
   if (value === null || value === undefined || !Number.isFinite(value)) return ''
   // Display precision is independent of the value accepted by the editor.
-  return formatBusinessNumber(value, { integer: domain.integer })
+  return formatBusinessNumber(value, { integer: domain.integer, integerDigits: domain.integerDigits })
 }

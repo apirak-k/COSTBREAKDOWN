@@ -1,22 +1,34 @@
 export interface NumericDisplayOptions {
   integer?: boolean
+  /** Stable capacity of the numeric set, excluding the sign. */
+  integerDigits?: number
+  signPositive?: boolean
   /** The value is already in percentage units; storage conversion belongs to the caller. */
   percent?: boolean
 }
 
-/** Presentation only: never feed this result back into stored/calculated values. */
-export function formatBusinessNumber(
+export function businessNumberPresentation(
   value: number | null | undefined,
-  { integer = false, percent = false }: NumericDisplayOptions = {}
-): string {
-  if (value == null || !Number.isFinite(value)) return '—'
+  { integer = false, percent = false, integerDigits = 8, signPositive = false }: NumericDisplayOptions = {}
+): { text: string; notation: 'ordinary' | 'scientific' | 'unavailable'; fractionDigits: number } {
+  if (value == null || !Number.isFinite(value)) return { text: '—', notation: 'unavailable', fractionDigits: 0 }
+  let fractionDigits = integer ? 0 : 2
   let text = integer ? String(Math.round(value)) : value.toFixed(2)
-  if (!integer && Math.abs(value) >= 1e21) text = `${formatFullNumericValue(value)}.00`
   if (!integer && value !== 0 && Number(text) === 0) {
+    fractionDigits = 4
     text = value.toFixed(4)
-    if (Number(text) === 0) text = value.toExponential(2)
   }
-  return `${text}${percent ? '%' : ''}`
+  const scientific = /[eE]/.test(text)
+    || text.replace(/^-/, '').split('.')[0].length > integerDigits
+    || (!integer && value !== 0 && Number(text) === 0)
+  if (scientific) text = value.toExponential(2).toUpperCase()
+  else if (Number(text) === 0) text = integer ? '0' : (0).toFixed(fractionDigits)
+  return { text: `${signPositive && value > 0 ? '+' : ''}${text}${percent ? '%' : ''}`, notation: scientific ? 'scientific' : 'ordinary', fractionDigits: scientific ? 0 : fractionDigits }
+}
+
+/** Presentation only: never feed this result back into stored/calculated values. */
+export function formatBusinessNumber(value: number | null | undefined, options: NumericDisplayOptions = {}): string {
+  return businessNumberPresentation(value, options).text
 }
 
 /** Header-only precision: round the presentation to eight decimals without changing the source value. */

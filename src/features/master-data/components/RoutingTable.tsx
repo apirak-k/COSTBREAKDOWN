@@ -424,11 +424,12 @@ export const RoutingTable: React.FC<RoutingTableProps> = ({
                   </td>
                   <td className="relative px-2 py-0.5 text-right font-mono tabular-nums">
                     {isEditMode ? (
-                      <div className="relative ml-auto w-full max-w-20">
+                      <div className="relative ml-auto w-full max-w-[8.5rem]">
                         <MasterDataNumericInput
                           value={step.manning}
                           onValueChange={value => applyCellUpdate(step.id, { manning: value })}
                           selectionId={valueSourceId(step.id, 'manning')}
+                          integerDigits={9}
                           {...getMasterDataNumericInputDomain('manning')}
                           reserveMarker
                           data-grid-cell="true"
@@ -443,6 +444,7 @@ export const RoutingTable: React.FC<RoutingTableProps> = ({
                     ) : <MasterDataFocusedNumber
                       value={step.manning}
                       selectionId={valueSourceId(step.id, 'manning')}
+                      integerDigits={9}
                       data-grid-cell="true"
                       data-grid-row-id={step.id}
                       data-grid-field="manning"
@@ -451,16 +453,17 @@ export const RoutingTable: React.FC<RoutingTableProps> = ({
                       aria-invalid={manningMissing || manningInvalid}
                       reserveMarker
                       missingMarker={manningMissing}
-                      className={`${masterDataNumericDisplaySlotClass} ml-auto max-w-20 ${showWarningHighlights && (manningMissing || manningInvalid) ? masterDataIssueDisplayClass : ''} ${selectedCellKeys.has(tableCellKey(step.id, 'manning')) ? masterDataSpreadsheetSelectionClass : ''}`}
+                      className={`${masterDataNumericDisplaySlotClass} ml-auto max-w-[8.5rem] ${showWarningHighlights && (manningMissing || manningInvalid) ? masterDataIssueDisplayClass : ''} ${selectedCellKeys.has(tableCellKey(step.id, 'manning')) ? masterDataSpreadsheetSelectionClass : ''}`}
                     />}
                   </td>
                   <td className="relative px-2 py-0.5 text-right font-mono tabular-nums">
                     {isEditMode ? (
-                      <div className="relative ml-auto w-full max-w-24">
+                      <div className="relative ml-auto w-full max-w-[8.5rem]">
                         <MasterDataNumericInput
                           value={step.capacity}
                           onValueChange={value => applyCellUpdate(step.id, { capacity: value })}
                           selectionId={valueSourceId(step.id, 'capacity')}
+                          integerDigits={9}
                           {...getMasterDataNumericInputDomain('capacity')}
                           allowSubMinimumDraft
                           reserveMarker
@@ -476,6 +479,7 @@ export const RoutingTable: React.FC<RoutingTableProps> = ({
                     ) : <MasterDataFocusedNumber
                       value={step.capacity}
                       selectionId={valueSourceId(step.id, 'capacity')}
+                      integerDigits={9}
                       data-grid-cell="true"
                       data-grid-row-id={step.id}
                       data-grid-field="capacity"
@@ -484,7 +488,7 @@ export const RoutingTable: React.FC<RoutingTableProps> = ({
                       aria-invalid={capacityMissing || capacityInvalid}
                       reserveMarker
                       missingMarker={capacityMissing}
-                      className={`${masterDataNumericDisplaySlotClass} ml-auto max-w-24 ${showWarningHighlights && (capacityMissing || capacityInvalid) ? masterDataIssueDisplayClass : ''} ${selectedCellKeys.has(tableCellKey(step.id, 'capacity')) ? masterDataSpreadsheetSelectionClass : ''}`}
+                      className={`${masterDataNumericDisplaySlotClass} ml-auto max-w-[8.5rem] ${showWarningHighlights && (capacityMissing || capacityInvalid) ? masterDataIssueDisplayClass : ''} ${selectedCellKeys.has(tableCellKey(step.id, 'capacity')) ? masterDataSpreadsheetSelectionClass : ''}`}
                     />}
                   </td>
                   <td className="relative px-2 py-0.5 text-right font-mono tabular-nums">
