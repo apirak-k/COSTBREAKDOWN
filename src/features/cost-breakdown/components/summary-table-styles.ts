@@ -1,8 +1,8 @@
 import type { CSSProperties } from 'react'
 
 // Both summaries use the same grid sizing; native table layout must not redistribute row heights.
-export const CBD_SUMMARY_PANEL_CLASS = 'min-w-0 overflow-x-auto border border-slate-300 bg-white lg:h-44 lg:overflow-hidden'
-export const CBD_SUMMARY_TABLE_CLASS = 'grid min-w-[520px] grid-rows-[28px_114px_32px] text-left text-xs leading-4 lg:min-w-0'
+export const CBD_SUMMARY_PANEL_CLASS = 'min-w-0 overflow-x-auto border border-slate-300 bg-white lg:min-h-44 lg:overflow-y-hidden'
+export const CBD_SUMMARY_TABLE_CLASS = 'grid min-w-[624px] grid-rows-[28px_114px_32px] text-left text-xs leading-4'
 export const CBD_SUMMARY_ROW_CLASS = 'grid grid-cols-[var(--cbd-summary-columns)] items-center'
 export const CBD_SUMMARY_HEADER_GROUP_CLASS = 'overflow-hidden border-b border-slate-700 bg-slate-800'
 export const CBD_SUMMARY_HEADER_ROW_CLASS = 'h-full bg-slate-800 font-semibold text-white'

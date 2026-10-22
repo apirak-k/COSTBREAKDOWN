@@ -1,3 +1,4 @@
+import { numericColumnGeometry, numericCenterlineFailures } from './numeric-browser-geometry.mjs'
 import assert from 'node:assert/strict'
 import { spawn, execFileSync } from 'node:child_process'
 import { existsSync } from 'node:fs'
@@ -364,16 +365,16 @@ try {
 
   await click(metadataSwitch)
   await waitFor(() => evaluate('document.querySelector("section[aria-label=\\"Working dataset controls\\"] button[role=\\"switch\\"]")?.getAttribute("aria-checked") === "true"'), 'Master Data metadata Edit mode for long value fixture')
-  const longSelling = await replaceInput(sellingInput, '123456789.123456')
-  if (longSelling !== '123456789.123456') throw new Error(`Master Data Selling Price editor did not retain the long value: ${longSelling}`)
+  const longSelling = await replaceInput(sellingInput, '12345678.123456')
+  if (longSelling !== '12345678.123456') throw new Error(`Master Data Selling Price editor did not retain the long value: ${longSelling}`)
   await click(metadataSwitch)
   await waitFor(() => evaluate('document.querySelector("section[aria-label=\\"Working dataset controls\\"] button[role=\\"switch\\"]")?.getAttribute("aria-checked") === "false"'), 'Master Data metadata View mode with long value')
   await waitFor(() => selectedHeaderValue().then(value => value === '—'), 'long Master Data metadata view begins without a stale editor focus')
   await waitFor(() => existsVisible(sellingNumber), 'long Master Data Selling Price SelectedNumber source')
   const longSellingRaw = await rawNumericValue(sellingNumber)
   const longSellingVisual = await selectedNumberVisual(sellingNumber)
-  verify(Number.isFinite(longSellingRaw) && Math.abs(longSellingRaw - 123456789.123456) < 1e-6
-    && longSellingVisual.text === '123456789.12'
+  verify(Number.isFinite(longSellingRaw) && Math.abs(longSellingRaw - 12345678.123456) < 1e-6
+    && longSellingVisual.text === '12345678.12'
     && contentHugsNumber(longSellingVisual)
     && longSellingVisual.button.width > shortSellingVisual.button.width,
     'Master Data Selling Price long value remains content-sized and grows only with its rendered number', { raw: longSellingRaw, shortWidth: shortSellingVisual.button.width, visual: longSellingVisual })
@@ -1132,6 +1133,10 @@ try {
       && layout.overview.columns===summaryColumnsExpected&&layout.cost.selectedGapButtons>0&&verticalOwnership&&summaryOverflowExpected&&candidateNumbersAligned
       && layout.candidates.every(table=>width>768||table.bodyScrollWidth>table.bodyWidth),
       `BOM and Routing header/main/Before/After/effect axes, SelectedNumber text, selected Cost Element and Work Center axes, responsive grid, and scroll ownership align without page overflow at ${width}px`, { layout, candidateDeltas, summaryDeltas, candidateNumbersAligned })
+    const centerlines = await evaluate(`(${numericColumnGeometry.toString()})()`)
+    const centerlineFailures = numericCenterlineFailures(centerlines.filter(metric => metric.hasTable || metric.header !== null))
+    verify(centerlines.length >= 20 && centerlineFailures.length === 0,
+      `Cost Breakdown rendered numeric Header/frame/decimal centerlines agree at ${width}px`, { centerlines, failures: centerlineFailures })
     await screenshot(`cbd-selected-value-${width}`)
   }
 

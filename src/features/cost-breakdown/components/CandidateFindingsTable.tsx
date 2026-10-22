@@ -17,6 +17,7 @@ import { StickyTableHeader, useSynchronizedTableHeader } from '../../../shared/u
 import { Tooltip } from '../../../shared/ui/Tooltip'
 import { RowSelectionButton } from '../../../shared/ui/RowSelectionButton'
 import { SelectedNumber } from '../../../shared/ui/selected-value'
+import { NumericColumnHeader } from '../../../shared/ui/NumericColumnHeader'
 import { COMPARISON_ROLE_LABELS } from '../../../shared/ui/ComparisonRoleSelector'
 import type { BOMItemizedRow } from './BOMDetailedTable'
 import { BOMRecordDetails } from './BOMDetailedTable'
@@ -317,7 +318,7 @@ export const CandidateFindingsTable: React.FC<CandidateFindingsTableProps> = ({
 
   const emptyMessage = isBOM ? 'No Bill of Material findings match this filter.' : 'No Routing findings match this filter.'
 
-  const tableClassName = `w-full ${isBOM ? 'min-w-[1040px]' : 'min-w-[1260px]'} table-fixed text-left text-[10px]`
+  const tableClassName = `w-full ${isBOM ? 'min-w-[1240px]' : 'min-w-[1260px]'} table-fixed text-left text-[10px]`
 
   return <div className="border border-slate-200">
     <StickyTableHeader
@@ -341,9 +342,9 @@ export const CandidateFindingsTable: React.FC<CandidateFindingsTableProps> = ({
           </th>
           <th scope="col" className="overflow-hidden px-2.5 py-2">{identityHeader}</th>
           <th scope="col" className="whitespace-nowrap px-1 py-2 text-left">Status</th>
-          {parameterHeaders.map(header => <th key={header} scope="col" className="whitespace-nowrap px-1 py-2 text-right">{header}</th>)}
-          <th scope="col" className="whitespace-nowrap px-1 py-2 text-right">Gap</th>
-          <th scope="col" className="whitespace-nowrap px-1 py-2 text-right">%GAP</th>
+          {parameterHeaders.map(header => <th key={header} scope="col" className="whitespace-nowrap px-1 py-2"><span className={header.includes('Loss') || header.includes('Yield') ? 'grid grid-cols-[minmax(0,1fr)_0.6rem] gap-1' : 'block'}><NumericColumnHeader>{header}</NumericColumnHeader>{(header.includes('Loss') || header.includes('Yield')) && <span aria-hidden="true" />}</span></th>)}
+          <th scope="col" className="whitespace-nowrap px-1 py-2"><NumericColumnHeader>Gap</NumericColumnHeader></th>
+          <th scope="col" className="whitespace-nowrap px-1 py-2"><span className="grid grid-cols-[minmax(0,1fr)_0.6rem] gap-1"><NumericColumnHeader>%GAP</NumericColumnHeader><span aria-hidden="true" /></span></th>
           <th scope="col" className="px-1 py-2 text-center"><span className="sr-only">Reorder</span></th>
           <th scope="col" className="px-1 py-2 text-center"><span className="sr-only">Details</span></th>
         </tr>
@@ -430,20 +431,20 @@ export const CandidateFindingsTable: React.FC<CandidateFindingsTableProps> = ({
                   <span className="block truncate whitespace-nowrap" title={row.label}>{row.label}</span>
                 </th>
                 <td className={`whitespace-nowrap px-1 py-2 text-left font-sans text-[10px] font-bold ${statusTextClass(status)}`}>{status ?? '—'}</td>
-                {parameters.map((parameter, parameterIndex) => <td key={parameter.field} className="whitespace-nowrap px-1 py-2 text-right"><SelectedNumber
+                {parameters.map((parameter, parameterIndex) => <td key={parameter.field} className="whitespace-nowrap px-1 py-2 text-right"><SelectedNumber numericColumn signPositive={status === 'CHANGED'}
                   value={parameter.value}
                   percentage={parameter.percentage}
                   selectionId={`${selectionIdPrefix}:parameter:${parameter.field}`}
                   aria-label={`${identityHeader} ${row.label} ${parameterHeaders[parameterIndex]} ${parameter.display}`}
                   className="text-right"
                 >{parameter.display}</SelectedNumber></td>)}
-                <td aria-label={gapLabel} className={`whitespace-nowrap px-1 py-2 text-right ${gapTextClass(row.gap)}`}><SelectedNumber
+                <td aria-label={gapLabel} className={`whitespace-nowrap px-1 py-2 text-right ${gapTextClass(row.gap)}`}><SelectedNumber numericColumn signPositive
                   value={row.gap}
                   selectionId={`${selectionIdPrefix}:gap`}
                   aria-label={gapLabel}
                   className={`text-right ${gapTextClass(row.gap)}`}
                 >{row.gap === null ? '—' : formatVariance(row.gap, 2)}</SelectedNumber></td>
-                <td aria-label={`${identityHeader} ${row.label} percent Gap ${percentDisplay}`} className="whitespace-nowrap px-1 py-2 text-right text-slate-700"><SelectedNumber
+                <td aria-label={`${identityHeader} ${row.label} percent Gap ${percentDisplay}`} className="whitespace-nowrap px-1 py-2 text-right text-slate-700"><SelectedNumber numericColumn signPositive
                   value={percentRatio === null ? null : percentRatio * 100}
                   percentage
                   selectionId={`${selectionIdPrefix}:percent-gap`}

@@ -2,6 +2,7 @@ import React from 'react'
 import { formatNumber, formatPercent, formatVariance, getVarianceClass, safeAdd, safeDivide } from '../../../core'
 import type { CostComparison } from '../../../core'
 import { SelectedNumber } from '../../../shared/ui/selected-value'
+import { NumericColumnHeader } from '../../../shared/ui/NumericColumnHeader'
 import { COST_ELEMENT_COLORS } from './cost-element-colors'
 import {
   CBD_SUMMARY_PANEL_CLASS,
@@ -58,10 +59,10 @@ function renderGap(
   const valueClassName = `block w-full text-right ${value === null ? 'text-slate-400' : getVarianceClass(value)}`
   const selectedValueClassName = `justify-self-end text-right ${value === null ? 'text-slate-400' : getVarianceClass(value)}`
   return (
-    <div aria-label={`${accessibleLabel}${selectedActive ? `; ${selectedDescription}` : ''}`} className="grid w-full grid-cols-[minmax(0,1fr)_9ch] items-baseline whitespace-nowrap font-mono tabular-nums">
+    <div aria-label={`${accessibleLabel}${selectedActive ? `; ${selectedDescription}` : ''}`} className="grid w-full grid-cols-[minmax(0,1fr)_65px] items-baseline whitespace-nowrap font-mono tabular-nums">
       {value === null
         ? <span data-gap-slot="full" tabIndex={0} aria-label={accessibleLabel} className={valueClassName}>{formatGap(value)}</span>
-        : <SelectedNumber
+        : <SelectedNumber numericColumn signPositive
             data-gap-slot="full"
             value={value}
             selectionId={`cbd:${pairFingerprint}:cost-element:${label.toLowerCase()}:full-gap`}
@@ -71,15 +72,15 @@ function renderGap(
           >{formatGap(value)}</SelectedNumber>}
       {selectedActive
         ? selectedValue === null
-          ? <span data-gap-slot="selected" tabIndex={0} aria-label={selectedAccessibleLabel} className="w-[9ch] text-right text-[10px] font-normal text-slate-500 tabular-nums">{formatGap(selectedValue)}</span>
-          : <SelectedNumber
+          ? <span data-gap-slot="selected" tabIndex={0} aria-label={selectedAccessibleLabel} className="w-[65px] text-right text-[10px] font-normal text-slate-500 tabular-nums">{formatGap(selectedValue)}</span>
+          : <SelectedNumber numericColumn signPositive
               data-gap-slot="selected"
               value={selectedValue}
               selectionId={`cbd:${pairFingerprint}:cost-element:${label.toLowerCase()}:selected-gap`}
               aria-label={selectedAccessibleLabel}
               className="justify-self-end text-right text-[10px] font-normal text-slate-500 tabular-nums"
             >{formatGap(selectedValue)}</SelectedNumber>
-        : <span data-gap-slot="selected" aria-hidden="true" className="w-[9ch] text-right text-[10px] font-normal text-slate-500 tabular-nums invisible">0.00</span>}
+        : <span data-gap-slot="selected" aria-hidden="true" className="w-[65px] text-right text-[10px] font-normal text-slate-500 tabular-nums invisible">0.00</span>}
     </div>
   )
 }
@@ -147,28 +148,28 @@ export const SnapshotComparisonCard: React.FC<SnapshotComparisonCardProps> = ({
           <thead data-cbd-summary-header="true" className={CBD_SUMMARY_HEADER_GROUP_CLASS}>
             <tr className={`${CBD_SUMMARY_ROW_CLASS} ${CBD_SUMMARY_HEADER_ROW_CLASS}`}>
               <th scope="col" style={CBD_SUMMARY_HEADER_CELL_STYLE} className={`${CBD_SUMMARY_HEADER_CELL_CLASS} ${CBD_SUMMARY_HEADER_LABEL_CLASS}`}>Cost Element</th>
-              <th scope="col" style={CBD_SUMMARY_HEADER_CELL_STYLE} className={`${CBD_SUMMARY_HEADER_CELL_CLASS} ${CBD_SUMMARY_HEADER_VALUE_CLASS}`}>Before</th>
-              <th scope="col" style={CBD_SUMMARY_HEADER_CELL_STYLE} className={`${CBD_SUMMARY_HEADER_CELL_CLASS} ${CBD_SUMMARY_HEADER_VALUE_CLASS}`}>After</th>
-              <th scope="col" style={CBD_SUMMARY_HEADER_CELL_STYLE} className={CBD_SUMMARY_HEADER_CELL_CLASS}><span className="grid w-full grid-cols-[minmax(0,1fr)_9ch] items-baseline font-mono text-[11px] leading-4 tabular-nums"><span data-gap-header-slot="full" className="text-right text-[11px] leading-4">GAP</span><span data-gap-header-slot="selected" aria-hidden={!selectedActive} className={`relative left-4 w-[9ch] whitespace-nowrap text-right text-[10px] leading-4 font-normal text-slate-300 ${selectedActive ? '' : 'invisible'}`}>Selected</span></span></th>
-              <th scope="col" style={CBD_SUMMARY_HEADER_CELL_STYLE} className={`${CBD_SUMMARY_HEADER_CELL_CLASS} ${CBD_SUMMARY_HEADER_VALUE_CLASS} pr-4`}>%GAP</th>
+              <th scope="col" style={CBD_SUMMARY_HEADER_CELL_STYLE} className={`${CBD_SUMMARY_HEADER_CELL_CLASS} ${CBD_SUMMARY_HEADER_VALUE_CLASS}`}><NumericColumnHeader>Before</NumericColumnHeader></th>
+              <th scope="col" style={CBD_SUMMARY_HEADER_CELL_STYLE} className={`${CBD_SUMMARY_HEADER_CELL_CLASS} ${CBD_SUMMARY_HEADER_VALUE_CLASS}`}><NumericColumnHeader>After</NumericColumnHeader></th>
+              <th scope="col" style={CBD_SUMMARY_HEADER_CELL_STYLE} className={CBD_SUMMARY_HEADER_CELL_CLASS}><span className="grid w-full grid-cols-[minmax(0,1fr)_65px] items-baseline font-mono text-[11px] leading-4 tabular-nums"><NumericColumnHeader data-gap-header-slot="full" className="text-[11px] leading-4">GAP</NumericColumnHeader><NumericColumnHeader data-gap-header-slot="selected" aria-hidden={!selectedActive} className={`block w-[65px] whitespace-nowrap text-center text-[10px] leading-4 font-normal text-slate-300 ${selectedActive ? '' : 'invisible'}`}>Selected</NumericColumnHeader></span></th>
+              <th scope="col" style={CBD_SUMMARY_HEADER_CELL_STYLE} className={`${CBD_SUMMARY_HEADER_CELL_CLASS} ${CBD_SUMMARY_HEADER_VALUE_CLASS}`}><span className="grid grid-cols-[minmax(0,1fr)_0.6rem] gap-1"><NumericColumnHeader>%GAP</NumericColumnHeader><span aria-hidden="true" /></span></th>
             </tr>
           </thead>
           <tbody data-cbd-summary-body="true" className={CBD_SUMMARY_BODY_GROUP_CLASS}>
             {rows.slice(0, 3).map(row => <tr key={row.label} className={`${CBD_SUMMARY_ROW_CLASS} ${CBD_SUMMARY_BODY_ROW_CLASS}`}>
               <th scope="row" style={row.total ? { color: COST_ELEMENT_COLORS.standardCost } : undefined} className={CBD_SUMMARY_BODY_LABEL_CLASS}>{row.label}</th>
-              <td className={`${CBD_SUMMARY_BODY_VALUE_CLASS} text-slate-600`}><SelectedNumber value={row.reference} selectionId={`cbd:${pairFingerprint}:cost-element:${row.label.toLowerCase()}:before`} aria-label={`${row.label} Before ${formatCost(row.reference)}`} className="text-right">{formatCost(row.reference)}</SelectedNumber></td>
-              <td className={`${CBD_SUMMARY_BODY_VALUE_CLASS} text-slate-900`}><SelectedNumber value={row.current} selectionId={`cbd:${pairFingerprint}:cost-element:${row.label.toLowerCase()}:after`} aria-label={`${row.label} After ${formatCost(row.current)}`} className="text-right">{formatCost(row.current)}</SelectedNumber></td>
+              <td className={`${CBD_SUMMARY_BODY_VALUE_CLASS} text-slate-600`}><SelectedNumber numericColumn value={row.reference} selectionId={`cbd:${pairFingerprint}:cost-element:${row.label.toLowerCase()}:before`} aria-label={`${row.label} Before ${formatCost(row.reference)}`} className="text-right">{formatCost(row.reference)}</SelectedNumber></td>
+              <td className={`${CBD_SUMMARY_BODY_VALUE_CLASS} text-slate-900`}><SelectedNumber numericColumn value={row.current} selectionId={`cbd:${pairFingerprint}:cost-element:${row.label.toLowerCase()}:after`} aria-label={`${row.label} After ${formatCost(row.current)}`} className="text-right">{formatCost(row.current)}</SelectedNumber></td>
               <td className={CBD_SUMMARY_BODY_VALUE_CLASS}>{renderGap(row.gap, row.selectedGap, selectedActive, row.label, gapDirection, pairFingerprint)}</td>
-              <td className={`${CBD_SUMMARY_BODY_VALUE_CLASS} pr-4 text-slate-600`}>{row.percentage === null ? '—' : <SelectedNumber value={row.percentage * 100} percentage selectionId={`cbd:${pairFingerprint}:cost-element:${row.label.toLowerCase()}:percent-gap`} aria-label={`${row.label} percent Gap ${formatPercent(row.percentage, 2)}`} className="text-right">{formatPercent(row.percentage, 2)}</SelectedNumber>}</td>
+              <td className={`${CBD_SUMMARY_BODY_VALUE_CLASS} text-slate-600`}>{row.percentage === null ? '—' : <SelectedNumber numericColumn value={row.percentage * 100} percentage selectionId={`cbd:${pairFingerprint}:cost-element:${row.label.toLowerCase()}:percent-gap`} aria-label={`${row.label} percent Gap ${formatPercent(row.percentage, 2)}`} className="text-right">{formatPercent(row.percentage, 2)}</SelectedNumber>}</td>
             </tr>)}
           </tbody>
           <tfoot data-cbd-summary-footer="true" className={CBD_SUMMARY_FOOTER_GROUP_CLASS}>
             {rows.slice(3).map(row => <tr key={row.label} className={`${CBD_SUMMARY_ROW_CLASS} ${CBD_SUMMARY_FOOTER_ROW_CLASS}`}>
               <th scope="row" style={{ color: COST_ELEMENT_COLORS.standardCost }} className={`${CBD_SUMMARY_FOOTER_LABEL_CLASS} text-slate-950`}>{row.label}</th>
-              <td className={`${CBD_SUMMARY_FOOTER_VALUE_CLASS} text-slate-700`}><SelectedNumber value={row.reference} selectionId={`cbd:${pairFingerprint}:cost-element:${row.label.toLowerCase()}:before`} aria-label={`${row.label} Before ${formatCost(row.reference)}`} className="text-right">{formatCost(row.reference)}</SelectedNumber></td>
-              <td className={`${CBD_SUMMARY_FOOTER_VALUE_CLASS} text-slate-950`}><SelectedNumber value={row.current} selectionId={`cbd:${pairFingerprint}:cost-element:${row.label.toLowerCase()}:after`} aria-label={`${row.label} After ${formatCost(row.current)}`} className="text-right">{formatCost(row.current)}</SelectedNumber></td>
+              <td className={`${CBD_SUMMARY_FOOTER_VALUE_CLASS} text-slate-700`}><SelectedNumber numericColumn value={row.reference} selectionId={`cbd:${pairFingerprint}:cost-element:${row.label.toLowerCase()}:before`} aria-label={`${row.label} Before ${formatCost(row.reference)}`} className="text-right">{formatCost(row.reference)}</SelectedNumber></td>
+              <td className={`${CBD_SUMMARY_FOOTER_VALUE_CLASS} text-slate-950`}><SelectedNumber numericColumn value={row.current} selectionId={`cbd:${pairFingerprint}:cost-element:${row.label.toLowerCase()}:after`} aria-label={`${row.label} After ${formatCost(row.current)}`} className="text-right">{formatCost(row.current)}</SelectedNumber></td>
               <td className={CBD_SUMMARY_FOOTER_VALUE_CLASS}>{renderGap(row.gap, row.selectedGap, selectedActive, row.label, gapDirection, pairFingerprint)}</td>
-              <td className={`${CBD_SUMMARY_FOOTER_VALUE_CLASS} pr-4 whitespace-nowrap text-slate-700`}>{row.percentage === null ? <span aria-label="Total percentage unavailable">— <span className="text-[9px] text-slate-500">Total</span></span> : <span aria-label={`${formatPercent(row.percentage, 2)} Total`}><SelectedNumber value={row.percentage * 100} percentage selectionId={`cbd:${pairFingerprint}:cost-element:${row.label.toLowerCase()}:percent-gap`} aria-label={`${row.label} percent Gap ${formatPercent(row.percentage, 2)}`} className="inline text-right">{formatPercent(row.percentage, 2)}</SelectedNumber> <span className="text-[9px] font-semibold text-slate-500">Total</span></span>}</td>
+              <td className={`${CBD_SUMMARY_FOOTER_VALUE_CLASS} whitespace-nowrap text-slate-700`}>{row.percentage === null ? <span aria-label="Total percentage unavailable">— <span className="text-[9px] text-slate-500">Total</span></span> : <span className="relative block" aria-label={`${formatPercent(row.percentage, 2)} Total`}><SelectedNumber numericColumn value={row.percentage * 100} percentage selectionId={`cbd:${pairFingerprint}:cost-element:${row.label.toLowerCase()}:percent-gap`} aria-label={`${row.label} percent Gap ${formatPercent(row.percentage, 2)}`} className="inline text-right">{formatPercent(row.percentage, 2)}</SelectedNumber> <span className="absolute right-0 top-full text-[8px] leading-none font-semibold text-slate-500">Total</span></span>}</td>
             </tr>)}
           </tfoot>
         </table>

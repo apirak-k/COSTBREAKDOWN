@@ -21,6 +21,7 @@ import { COMPARISON_ROLE_LABELS, ComparisonRoleSelector } from '../../shared/ui/
 import { BusinessNumber } from '../../shared/ui/BusinessNumber'
 import { formatBusinessNumber } from '../../shared/ui/numeric-display'
 import { NumericInput } from '../../shared/ui/NumericInput'
+import { NumericColumnHeader } from '../../shared/ui/NumericColumnHeader'
 import { applyRowDragSelection, applyRowSelectionScope, getRowSelectionState } from '../../shared/selection/row-drag-selection'
 import { useTransientInteraction } from '../../shared/ui/transient-interactions'
 import { RowSelectionButton } from '../../shared/ui/RowSelectionButton'
@@ -68,12 +69,12 @@ const RTG_PARAMETERS = [
 
 type EffectValues = ReturnType<typeof calculateMultiplicativeCostAttribution>
 
-function displayMoney(value: number | null) {
-  return <BusinessNumber value={value} />
+function displayMoney(value: number | null, numericColumn = false) {
+  return <BusinessNumber value={value} numericColumn={numericColumn} />
 }
 
 function displayResultDelta(value: number | null, percent = false) {
-  return <BusinessNumber value={value} signPositive percent={percent} integerDigits={percent ? 4 : 8} />
+  return <BusinessNumber value={value} signPositive percent={percent} numericColumn />
 }
 
 type ResultSemantic = 'cost' | 'neutral' | 'profit'
@@ -83,10 +84,6 @@ function resultChangeClass(value: number | null, semantic: ResultSemantic): stri
   if (value === 0 || semantic === 'neutral') return 'text-slate-700'
   const favorable = semantic === 'cost' ? value < 0 : value > 0
   return favorable ? 'text-emerald-700' : 'text-rose-700'
-}
-
-function displayParameter(value: number | null, parameter: typeof BOM_PARAMETERS[number] | typeof RTG_PARAMETERS[number], integerDigits = 3) {
-  return <BusinessNumber value={value === null ? null : value * parameter.scale} integerDigits={integerDigits} percent={parameter.scale === 100} />
 }
 
 function isInteractiveTarget(target: EventTarget | null, row: Element): boolean {
@@ -397,15 +394,26 @@ function CompactActionControl({
   )
 }
 
+function ParameterNumberSlot({ children, percentage = false, showSuffix = false, className = '', ...props }: React.HTMLAttributes<HTMLDivElement> & {
+  children: React.ReactNode
+  percentage?: boolean
+  showSuffix?: boolean
+}) {
+  return <div {...props} className={`flex min-w-0 items-center gap-1 pl-[3px] ${percentage ? 'pr-0' : 'pr-[3px]'} ${className}`}>
+    <div className="min-w-0 flex-1">{children}</div>
+    {percentage && <span data-numeric-suffix={showSuffix ? 'true' : undefined} aria-hidden="true" className={`w-[1ch] shrink-0 font-mono text-xs text-slate-500 ${showSuffix ? '' : 'invisible'}`}>%</span>}
+  </div>
+}
+
 function EffectCell({ amount, percentage = false }: {
   amount: number | null | undefined
   percentage?: boolean
 }) {
   const effect = parameterEffectPresentation(amount)
   return (
-    <td className="border-b border-slate-200 whitespace-nowrap py-1.5 text-right font-mono tabular-nums" style={{ paddingInline: percentage ? 6 : 5 }}>
-      {/* Match the parameter group inset plus the editor padding and border. */}
-      <span className={`block px-1.5 text-xs ${effect.className}`} style={{ paddingRight: percentage ? 'calc(12px + 1ch)' : '20px' }}><BusinessNumber value={amount} signPositive integerDigits={3} className="text-[10px]" /></span>
+    <td className="border-b border-slate-200 whitespace-nowrap py-1.5 text-right font-mono tabular-nums" style={{ paddingLeft: percentage ? 6 : 5, paddingRight: percentage ? 2 : 5 }}>
+      {/* Match the parameter frame region and reserve the same suffix slot. */}
+      <ParameterNumberSlot percentage={percentage}><BusinessNumber value={amount} signPositive numericColumn className={`text-[10px] ${effect.className}`} /></ParameterNumberSlot>
     </td>
   )
 }
@@ -682,8 +690,8 @@ function SimulationParameterTable({
               </th>
               <th scope="col" className="px-2 py-2 text-left">{tableIdentity}</th>
               <th scope="col" className="px-1 py-2 text-left">Status</th>
-              {parameters.map(parameter => <th key={parameter.parameter} scope="col" className="py-2 pl-1.5 text-right" style={{ paddingRight: parameter.scale === 100 ? 'calc(18px + 1ch)' : '25px' }}>{parameter.label}</th>)}
-              <th scope="col" className="whitespace-nowrap py-2 pl-1 pr-2 text-right">{isBOM ? 'Material Cost' : 'Conversion Cost'}</th>
+              {parameters.map(parameter => <th key={parameter.parameter} scope="col" className="py-2" style={{ paddingLeft: parameter.scale === 100 ? 6 : 5, paddingRight: parameter.scale === 100 ? 2 : 5 }}><ParameterNumberSlot percentage={parameter.scale === 100}><NumericColumnHeader>{parameter.label}</NumericColumnHeader></ParameterNumberSlot></th>)}
+              <th scope="col" className="whitespace-nowrap py-2 pl-1 pr-2"><NumericColumnHeader>{isBOM ? 'Material Cost' : 'Conversion Cost'}</NumericColumnHeader></th>
               <th scope="col" className="px-0.5 py-2"><span className="sr-only">Expand Parameter Cost Effect</span></th>
             </tr>
           </thead>
@@ -790,18 +798,20 @@ function SimulationParameterTable({
                         : null
                       const value = recordValue === null ? null : recordValue * parameter.scale
                       return (
-                        <td key={parameter.parameter} className={`py-1 text-right ${groupEndClass}`} style={{ paddingInline: parameter.scale === 100 ? 6 : 5 }}>
+                        <td key={parameter.parameter} className={`py-1 text-right ${groupEndClass}`} style={{ paddingLeft: parameter.scale === 100 ? 6 : 5, paddingRight: parameter.scale === 100 ? 2 : 5 }}>
                           {!simulationRecord ? '—' : canEdit ? (
-                            <div
+                            <ParameterNumberSlot
                               data-simulation-input-wrapper="true"
-                              className="relative group flex min-w-0 items-center gap-1 px-[3px]"
+                              className="relative group"
+                              percentage={parameter.scale === 100}
+                              showSuffix
                             >
                               <div className="relative min-w-0 flex-1">
                                 <SimulationHistoryInputBoundary onBegin={onBeginEdit} onCommit={onCommitEdit}>
                                   <>
                                     <NumericInput
                                       value={value}
-                                      integerDigits={3}
+                                      numericColumn
                                       min={0}
                                       minExclusive={parameter.parameter === 'routing.capacity' || parameter.parameter === 'routing.yield'}
                                       max={parameter.parameter === 'routing.yield' || parameter.parameter === 'bom.loss' ? 100 : undefined}
@@ -813,7 +823,6 @@ function SimulationParameterTable({
                                       className="relative z-10 h-8 w-full min-w-0 rounded-sm border border-transparent bg-transparent pl-1.5 pr-0 text-right font-mono text-xs tabular-nums text-slate-900 transition-colors"
                                       style={{
                                         outline: 'none',
-                                        paddingRight: parameter.scale === 100 ? '0.25rem' : '1rem',
                                         clipPath: 'inset(0.5px)'
                                       }}
                                       aria-label={`${row.name} ${parameter.label} in ${roleLabel(activeRole)}`}
@@ -828,18 +837,16 @@ function SimulationParameterTable({
                                   </>
                                 </SimulationHistoryInputBoundary>
                               </div>
-                              {parameter.scale === 100 && <span data-numeric-suffix="true" aria-hidden="true" className="w-[1ch] shrink-0 font-mono text-xs text-slate-500">%</span>}
-                            </div>
+                            </ParameterNumberSlot>
                           ) : (
-                            <div className="flex min-w-0 items-center gap-1 px-[3px]">
-                              <span className="min-w-0 flex-1 font-mono text-xs" style={{ paddingRight: parameter.scale === 100 ? 5 : 17 }}><BusinessNumber value={value} integerDigits={3} /></span>
-                              {parameter.scale === 100 && <span data-numeric-suffix="true" aria-hidden="true" className="w-[1ch] shrink-0 font-mono text-xs text-slate-500">%</span>}
-                            </div>
+                            <ParameterNumberSlot percentage={parameter.scale === 100} showSuffix>
+                              <BusinessNumber value={value} numericColumn numericColumnSigned={false} className="text-xs" />
+                            </ParameterNumberSlot>
                           )}
                         </td>
                       )
                     })}
-                    <td className={`py-2 pl-1 pr-2 text-right font-mono text-xs tabular-nums text-slate-900 ${groupEndClass}`}>{displayMoney(analysis.simCost)}</td>
+                    <td className={`py-2 pl-1 pr-2 text-right font-mono text-xs tabular-nums text-slate-900 ${groupEndClass}`}>{displayMoney(analysis.simCost, true)}</td>
                     <td className={`px-0.5 py-1 text-center ${groupEndClass}`}>
                       {canExpand && (
                         <span aria-hidden="true" className="inline-grid h-7 w-7 place-items-center text-slate-600">
@@ -855,11 +862,8 @@ function SimulationParameterTable({
                         <span className="ml-2 inline-block whitespace-nowrap border-l-2 border-slate-300 pl-3">Parameter Cost Effect</span>
                       </th>
                       {detailParameters.map(parameter => <EffectCell key={parameter.parameter} amount={parameter.amount} percentage={parameter.scale === 100} />)}
-                      <td aria-label={`Total ${formatBusinessNumber(analysis.effects.totalEffect, { signPositive: true, integerDigits: 6 })}`} className="border-b border-slate-200 whitespace-nowrap py-1.5 pl-1 pr-2 text-right text-[10px] font-semibold">
-                        <span className="grid grid-cols-[1fr_auto] items-center gap-1">
-                          <span className="text-right text-slate-700">Total{' '}</span>
-                          <span className={`min-w-[5ch] text-right font-mono tabular-nums ${totalEffect.className}`}><BusinessNumber value={analysis.effects.totalEffect} signPositive integerDigits={6} /></span>
-                        </span>
+                      <td aria-label={`Total ${formatBusinessNumber(analysis.effects.totalEffect, { signPositive: true, integerDigits: Infinity })}`} className="border-b border-slate-200 whitespace-nowrap py-1.5 pl-1 pr-2 text-right text-[10px] font-semibold">
+                        <BusinessNumber value={analysis.effects.totalEffect} signPositive numericColumn prefix="Total " className={totalEffect.className} />
                       </td>
                       <td className="border-b border-slate-200 px-0.5 py-1" aria-hidden="true" />
                     </tr>
@@ -950,8 +954,8 @@ function SimulationParameterTable({
                   <dd className={`break-words ${statusTextClass(status)}`}>{status}</dd>
                 </div>
                 <div className="min-w-0 text-right">
-                  <dt className="text-slate-500">{isBOM ? 'Material Cost' : 'Conversion Cost'}</dt>
-                  <dd className="font-mono tabular-nums text-slate-900">{displayMoney(analysis.simCost)}</dd>
+                  <dt className="text-slate-500"><NumericColumnHeader>{isBOM ? 'Material Cost' : 'Conversion Cost'}</NumericColumnHeader></dt>
+                  <dd className="font-mono tabular-nums text-slate-900">{displayMoney(analysis.simCost, true)}</dd>
                 </div>
               </dl>
               <div className="mt-2 grid grid-cols-2 gap-x-3 gap-y-2">
@@ -962,12 +966,13 @@ function SimulationParameterTable({
                   const value = recordValue === null ? null : recordValue * parameter.scale
                   return (
                     <label key={parameter.parameter} className="block min-w-0 text-[10px] font-medium text-slate-600">
-                      <span>{parameter.label}</span>
+                      <span className="block pl-1.5"><span className={parameter.scale === 100 ? 'grid grid-cols-[minmax(0,1fr)_0.6rem] gap-1' : 'block'}><NumericColumnHeader>{parameter.label}</NumericColumnHeader>{parameter.scale === 100 && <span aria-hidden="true" />}</span></span>
                       {!simulationRecord ? <span className="mt-0.5 block font-mono text-slate-700">—</span> : canEdit ? (
                         <div className="mt-0.5 min-w-0 pl-1.5">
                           <SimulationHistoryInputBoundary onBegin={onBeginEdit} onCommit={onCommitEdit}>
                             <NumericInput
                               value={value}
+                              numericColumn
                               percentSuffix={parameter.scale === 100}
                               min={0}
                               minExclusive={parameter.parameter === 'routing.capacity' || parameter.parameter === 'routing.yield'}
@@ -982,7 +987,7 @@ function SimulationParameterTable({
                             />
                           </SimulationHistoryInputBoundary>
                         </div>
-                      ) : <span className="mt-0.5 block font-mono text-slate-700">{displayParameter(recordValue, parameter, 8)}</span>}
+                      ) : <span className="mt-0.5 block pl-1.5 font-mono text-xs text-slate-700"><BusinessNumber value={value} numericColumn numericColumnSigned={false} percent={parameter.scale === 100} /></span>}
                     </label>
                   )
                 })}
@@ -1127,8 +1132,8 @@ function ResultPanel({
             : 'text-slate-700'
       }>
         <th scope="row" className={`whitespace-nowrap ${padding} text-left`}>{row.label}</th>
-        <td className={`whitespace-nowrap px-0.5 ${padding} text-right font-mono tabular-nums`}>{displayMoney(row.before)}</td>
-        <td className={`whitespace-nowrap px-0.5 ${padding} text-right font-mono tabular-nums`}>{displayMoney(row.after)}</td>
+        <td className={`whitespace-nowrap px-0.5 ${padding} text-right font-mono tabular-nums`}>{displayMoney(row.before, true)}</td>
+        <td className={`whitespace-nowrap px-0.5 ${padding} text-right font-mono tabular-nums`}>{displayMoney(row.after, true)}</td>
         <td className={`px-1 ${padding} text-right font-mono tabular-nums ${resultChangeClass(row.change, row.semantic)}`}>
           {displayResultDelta(row.change)}
         </td>
@@ -1160,7 +1165,7 @@ function ResultPanel({
         <div className="ml-auto flex shrink-0 items-center gap-1.5">{actions}</div>
       </header>
       <div className="mt-1 min-w-0 overflow-x-auto">
-        <table className="w-full min-w-[25.5rem] table-fixed text-[9px] leading-3 xl:leading-[11px]">
+        <table className="w-full min-w-[29rem] table-fixed text-[9px] leading-3 xl:leading-[11px]">
           <colgroup>
             <col className="w-[25%]" />
             <col className="w-[19%]" />
@@ -1171,10 +1176,10 @@ function ResultPanel({
           <thead className="text-[8px] text-slate-500">
             <tr>
               <th scope="col" className="whitespace-nowrap py-0.5 text-left font-medium">Cost / Unit</th>
-              <th scope="col" className="whitespace-nowrap px-0.5 py-0.5 text-right font-medium xl:py-0">Before<span className="sr-only"> {roleLabel(beforeRole)}</span></th>
-              <th scope="col" className="whitespace-nowrap px-0.5 py-0.5 text-right font-medium xl:py-0">After<span className="sr-only"> {roleLabel(afterRole)}</span></th>
-              <th scope="col" className="whitespace-nowrap px-0.5 py-0.5 text-right font-medium xl:py-0">Change</th>
-              <th scope="col" className="py-0.5 text-right font-medium xl:py-0">%</th>
+              <th scope="col" className="whitespace-nowrap px-0.5 py-0.5 font-medium xl:py-0"><NumericColumnHeader>Before</NumericColumnHeader><span className="sr-only"> {roleLabel(beforeRole)}</span></th>
+              <th scope="col" className="whitespace-nowrap px-0.5 py-0.5 font-medium xl:py-0"><NumericColumnHeader>After</NumericColumnHeader><span className="sr-only"> {roleLabel(afterRole)}</span></th>
+              <th scope="col" className="whitespace-nowrap px-1 py-0.5 font-medium xl:py-0"><NumericColumnHeader>Change</NumericColumnHeader></th>
+              <th scope="col" className="py-0.5 font-medium xl:py-0"><span className="grid grid-cols-[minmax(0,1fr)_0.6rem] gap-1"><NumericColumnHeader>%</NumericColumnHeader><span aria-hidden="true" /></span></th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100">

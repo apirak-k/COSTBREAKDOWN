@@ -1,3 +1,4 @@
+import { numericColumnGeometry, numericCenterlineFailures } from './numeric-browser-geometry.mjs'
 import assert from 'node:assert/strict'
 import { spawn, execFileSync } from 'node:child_process'
 import { existsSync } from 'node:fs'
@@ -325,8 +326,8 @@ try {
       assert.equal(await inputValue(headerSelector), sgaPercent, `${role} Dataset Sizing Header Value restores full SG&A value after the access probe`)
     } else if (mouseAccessible) {
       for (const [label, nextValue, expectedHeader, expectedEditor, expectedSuffix] of [
-        ['Selling Price (THB)', '123.456789123', '123.45678912', '123.46', false],
-        ['SG&A', '13.5792468', '13.5792468', '13.58', true]
+        ['Selling Price (THB)', '123.456789123', '123.45678912', '123.456789123', false],
+        ['SG&A', '13.5792468', '13.5792468', '13.5792468', true]
       ]) {
         await clickSelector(dialogInput(label))
         await replaceInput(headerSelector, nextValue)
@@ -384,14 +385,14 @@ try {
   await delay(250)
   await clickSelector('section[aria-label="Working dataset controls"] input[aria-label="Selling Price (THB)"]')
   verify(await inputValue('header [data-header-value] input[aria-label="Selected value"]') === '123.45678912'
-    && await inputValue('section[aria-label="Working dataset controls"] input[aria-label="Selling Price (THB)"]') === '123.46', 'applied Custom Selling Price keeps its source value while Header caps presentation and main editor stays compact', {
+    && await inputValue('section[aria-label="Working dataset controls"] input[aria-label="Selling Price (THB)"]') === '123.456789123', 'applied Custom Selling Price keeps its full focused source value while the unfocused Header caps presentation', {
     actualHeader: await inputValue('header [data-header-value] input[aria-label="Selected value"]'),
     editorDisplay: await inputValue('section[aria-label="Working dataset controls"] input[aria-label="Selling Price (THB)"]'),
     expected: '123.45678912'
   })
   await clickSelector('section[aria-label="Working dataset controls"] input[aria-label="SG&A"]')
   verify(await inputValue('header [data-header-value] input[aria-label="Selected value"]') === '13.5792468'
-    && await inputValue('section[aria-label="Working dataset controls"] input[aria-label="SG&A"]') === '13.58', 'applied Custom SG&A keeps exact Header percentage source and compact main editor display', {
+    && await inputValue('section[aria-label="Working dataset controls"] input[aria-label="SG&A"]') === '13.5792468', 'applied Custom SG&A keeps exact Header percentage source and full authoritative focused editor', {
     actualHeader: await inputValue('header [data-header-value] input[aria-label="Selected value"]'),
     editorDisplay: await inputValue('section[aria-label="Working dataset controls"] input[aria-label="SG&A"]'),
     expected: '13.5792468',
@@ -493,7 +494,7 @@ try {
     headerSourceId: document.querySelector('header [data-header-value] input[aria-label="Selected value"]')?.getAttribute('data-selected-value-source') ?? null
   })`)
   verify(sourceToHeaderFocus?.active === 'Selected value'
-      && sourceToHeaderFocus.input === '123.45678912'
+      && sourceToHeaderFocus.input === '123.456789123'
       && sourceToHeaderFocus.spinner === 1
       && sourceToHeaderFocus.sourceId !== null
       && sourceToHeaderFocus.sourceId === sourceToHeaderFocus.headerSourceId,
@@ -563,10 +564,11 @@ try {
   ]
   const editorAxes = {}
   const editorAxis = async spec => geometry(`(()=>{
-    const h=[...document.querySelectorAll(${JSON.stringify(`[aria-label="${spec.header} column header controls"] th`)})].find(e=>e.textContent.trim()===${JSON.stringify(spec.column)})
-    const i=document.querySelector(${JSON.stringify(`section[aria-label="${spec.section} rows"] tbody tr:first-child input[data-grid-field="${spec.field}"]`)});if(!h||!i)return null
-    const hr=document.createRange();hr.selectNodeContents(h);const ht=h.getBoundingClientRect(),hv=hr.getBoundingClientRect(),ir=i.getBoundingClientRect(),td=i.closest('td')?.getBoundingClientRect(),cs=getComputedStyle(i)
-    return {headerInset:ht.right-hv.right,headerTextAlign:getComputedStyle(h).textAlign,editorInset:td.right-(ir.right-parseFloat(cs.paddingRight)),editorTextAlign:cs.textAlign,inputPaddingRight:cs.paddingRight,stepperCount:i.closest('td')?.querySelectorAll('[data-numeric-stepper]').length??0,rect:{x:ir.x,width:ir.width,right:ir.right}}
+    const input=document.querySelector(${JSON.stringify(`section[aria-label="${spec.section} rows"] tbody tr:first-child input[data-grid-field="${spec.field}"]`)})
+    if(!input)return null
+    const measurement=(${numericColumnGeometry.toString()})(input.parentElement)[0]
+    const rect=input.getBoundingClientRect()
+    return {...measurement,inputPaddingRight:getComputedStyle(input).paddingRight,stepperCount:input.closest('td')?.querySelectorAll('[data-numeric-stepper]').length??0,rect:{x:rect.x,width:rect.width,right:rect.right}}
   })()`)
   const displayAxis = async spec => geometry(`(()=>{
     const e=document.querySelector(${JSON.stringify(`section[aria-label="${spec.section} rows"] tbody tr:first-child [data-grid-field="${spec.field}"]`)});if(!e)return null
@@ -586,8 +588,8 @@ try {
     if (spec.percentage) verify(await evaluate('document.querySelector("header [data-header-value]")?.textContent.includes("%")'), `${spec.label} publishes percentage units and suffix`)
     const afterFocus = await editorAxis(spec)
     editorAxes[spec.field] = afterFocus
-    verify(Boolean(beforeFocus && afterFocus && JSON.stringify(beforeFocus) === JSON.stringify(afterFocus)), `${spec.label} numeric text axis does not shift on focus`, { before: beforeFocus, after: afterFocus })
-    verify(Boolean(afterFocus && afterFocus.headerTextAlign === 'right' && afterFocus.editorTextAlign === 'right'), `${spec.label} header and focused editor use right alignment`, afterFocus)
+    verify(Boolean(beforeFocus && afterFocus && JSON.stringify(beforeFocus.rect) === JSON.stringify(afterFocus.rect) && Math.abs(beforeFocus.center-afterFocus.center)<=0.6 && Math.abs(beforeFocus.headerCenter-afterFocus.headerCenter)<=0.6), `${spec.label} numeric text axis does not shift on focus`, { before: beforeFocus, after: afterFocus })
+    verify(Boolean(afterFocus && Math.abs(afterFocus.headerCenter-afterFocus.center)<=1 && (!afterFocus.tokenFits || afterFocus.scientific || Math.abs(afterFocus.decimal-afterFocus.center)<=0.6)), `${spec.label} actual Header text and fitting focused decimal share the fixed region center`, afterFocus)
     verify(Boolean(afterFocus && afterFocus.stepperCount === 0 && Number.parseFloat(afterFocus.inputPaddingRight) <= 24), `${spec.label} body editor has no visible spinner or spinner-only gutter`, afterFocus)
   }
 
@@ -602,7 +604,7 @@ try {
   const initialPriceAxis = await geometry(`(()=>{const h=[...document.querySelectorAll('[aria-label="Bill of Materials column header controls"] th')].find(e=>e.textContent.trim()==='Price');const i=document.querySelector('section[aria-label="Bill of Materials rows"] tbody tr:first-child input[data-grid-field="price"]');if(!h||!i)return null;const hr=document.createRange();hr.selectNodeContents(h);const hv=hr.getBoundingClientRect();const ir=i.getBoundingClientRect(),tr=i.closest('td')?.getBoundingClientRect(),ht=h.getBoundingClientRect();const cs=getComputedStyle(i);return {headerTextRight:hv.right,headerInset:ht.right-hv.right,headerTextAlign:getComputedStyle(h).textAlign,inputAxisRight:ir.right-parseFloat(cs.paddingRight),inputInset:tr.right-(ir.right-parseFloat(cs.paddingRight)),inputRectRight:ir.right,inputPaddingRight:cs.paddingRight,inputTextAlign:cs.textAlign,inputRect:{x:ir.x,width:ir.width,right:ir.right}}})()`)
   const focusPriceRectAfter = await geometry(`(()=>{const i=document.querySelector('section[aria-label="Bill of Materials rows"] input[data-grid-field="price"]');const r=i.getBoundingClientRect(),s=getComputedStyle(i);return {x:r.x,width:r.width,right:r.right,paddingRight:s.paddingRight,textAlign:s.textAlign}})()`)
   verify(JSON.stringify(focusPriceRect) === JSON.stringify(focusPriceRectAfter), 'BOM Price text axis does not shift on focus', { before: focusPriceRect, after: focusPriceRectAfter })
-  verify(Boolean(initialPriceAxis && initialPriceAxis.headerTextAlign === 'right' && initialPriceAxis.inputTextAlign === 'right'), 'BOM Price header and input use right text alignment', initialPriceAxis)
+  verify(Boolean(editorAxes.price && Math.abs(editorAxes.price.headerCenter-editorAxes.price.center)<=1), 'BOM Price actual Header center owns the input centerline', editorAxes.price)
   verify(Boolean(initialPriceAxis && Number.parseFloat(initialPriceAxis.inputPaddingRight) <= 24), 'body numeric input has no spinner-only right padding beyond its Blocker marker slot', initialPriceAxis)
   const headerEditAxis = await geometry(`(()=>{const group=document.querySelector('header [data-header-value]'),box=group?.querySelector('div.min-w-0.flex-1'),input=group?.querySelector('input[aria-label="Selected value"]');if(!group||!box||!input)return null;const br=box.getBoundingClientRect(),ir=input.getBoundingClientRect(),cs=getComputedStyle(input);return {rightInset:br.right-(ir.right-parseFloat(cs.paddingRight)),paddingRight:cs.paddingRight,textAlign:cs.textAlign,boxWidth:br.width}})()`)
 
@@ -640,8 +642,8 @@ try {
     const commandSucceeded=document.execCommand('copy')
     return {...(result??{}),commandSucceeded}
   })()`)
-  verify(copiedPriceRange?.text === '42.12\n321.99' && copiedPriceRange.defaultPrevented && copiedPriceRange.commandSucceeded,
-    'copy from the focused Master Data numeric range reaches the existing grid clipboard handler', copiedPriceRange)
+  verify(copiedPriceRange?.text === '42.12\n321.987654321' && copiedPriceRange.defaultPrevented && copiedPriceRange.commandSucceeded,
+    'grid range copy preserves the accepted full authoritative draft of its focused input and compact presentation of the blurred input', copiedPriceRange)
 
   await clickSelector(inputInSection('Bill of Materials rows', 'loss'))
   const lossHeaderBefore = await inputValue('header [data-header-value] input[aria-label="Selected value"]')
@@ -692,8 +694,8 @@ try {
   for (const spec of tableNumericFields) {
     const display = await displayAxis(spec)
     const editor = editorAxes[spec.field]
-    verify(Boolean(display && editor && Math.abs(editor.editorInset - display.displayInset) <= 2), `${spec.label} editor and read-only value use the same right edge including marker/suffix space`, { editorInset: editor?.editorInset, displayInset: display?.displayInset, delta: display && editor ? display.displayInset - editor.editorInset : null, readOnly: display })
-    verify(Boolean(display && editor && Math.abs(editor.headerInset - display.displayInset) <= 2), `${spec.label} header and read-only value use the same right edge`, { headerInset: editor?.headerInset, displayInset: display?.displayInset, delta: display && editor ? display.displayInset - editor.headerInset : null, readOnly: display })
+    const displayCenterline = await evaluate(`(()=>{const cell=document.querySelector(${JSON.stringify(`section[aria-label="${spec.section} rows"] tbody tr:first-child [data-grid-field="${spec.field}"]`)});return cell?(${numericColumnGeometry.toString()})(cell.parentElement)[0]:null})()`)
+    verify(Boolean(displayCenterline && Math.abs(displayCenterline.headerCenter-displayCenterline.center)<=1 && Math.abs(displayCenterline.center-editor?.center)<=0.6), `${spec.label} Edit/View share their actual rendered Header and numeric centerline`, { editor, display: displayCenterline })
   }
   const firstViewPriceCell = 'section[aria-label="Bill of Materials rows"] tbody tr:first-child [data-grid-cell="true"][data-grid-field="price"]'
   const secondViewPriceCell = 'section[aria-label="Bill of Materials rows"] tbody tr:nth-child(2) [data-grid-cell="true"][data-grid-field="price"]'
@@ -760,14 +762,13 @@ try {
   verify(enterReadOnlyHeader === '42.12345679', 'View Shift+Enter moves the Header source back to the first row', { header: enterReadOnlyHeader })
   const missingViewCell = 'section[aria-label="Bill of Materials rows"] tbody tr:nth-child(2) [data-grid-cell="true"][data-grid-field="consumption"]'
   await clickSelector(missingViewCell)
-  const missingViewState = await geometry(`(()=>{const e=${visibleExpression(missingViewCell)},td=e?.closest('td'),header=[...document.querySelectorAll('[aria-label="Bill of Materials column header controls"] th')].find(item=>item.textContent.trim()==='Usage');if(!e||!td||!header)return null;const valueRange=document.createRange(),textNode=[...e.childNodes].find(node=>node.nodeType===Node.TEXT_NODE&&node.textContent.trim());if(textNode)valueRange.selectNode(textNode);else valueRange.selectNodeContents(e);const text=valueRange.getBoundingClientRect(),r=e.getBoundingClientRect(),marker=e.querySelector('[aria-label="Missing required value"]'),markerRect=marker?.getBoundingClientRect(),headerRange=document.createRange();headerRange.selectNodeContents(header);const headerText=headerRange.getBoundingClientRect(),headerRect=header.getBoundingClientRect();return {active:document.activeElement===e,header:document.querySelector('header [data-header-value] [data-selected-value-output]')?.textContent.trim()??null,invalid:e.getAttribute('aria-invalid'),markerCount:e.querySelectorAll('[aria-label="Missing required value"]').length,markerClearance:markerRect?markerRect.left-text.right:null,bodyInset:td.getBoundingClientRect().right-text.right,headerInset:headerRect.right-headerText.right,width:r.width,selectedNumber:!!e.closest('[data-selected-number="true"]'),pressed:e.getAttribute('aria-pressed')}})()`)
+  const missingViewState = await geometry(`(()=>{const e=${visibleExpression(missingViewCell)},td=e?.closest('td'),header=[...document.querySelectorAll('[aria-label="Bill of Materials column header controls"] th')].find(item=>item.textContent.trim()==='Usage');if(!e||!td||!header)return null;const valueRange=document.createRange(),textNode=[...e.childNodes].find(node=>node.nodeType===Node.TEXT_NODE&&node.textContent.trim());if(textNode)valueRange.selectNode(textNode);else valueRange.selectNodeContents(e.querySelector('[data-numeric-token]')??e);const text=valueRange.getBoundingClientRect(),r=e.getBoundingClientRect(),marker=e.querySelector('[aria-label="Missing required value"]'),markerRect=marker?.getBoundingClientRect(),headerRange=document.createRange();headerRange.selectNodeContents(header);const headerText=headerRange.getBoundingClientRect(),headerRect=header.getBoundingClientRect();return {active:document.activeElement===e,header:document.querySelector('header [data-header-value] [data-selected-value-output]')?.textContent.trim()??null,invalid:e.getAttribute('aria-invalid'),markerCount:e.querySelectorAll('[aria-label="Missing required value"]').length,markerClearance:markerRect?markerRect.left-text.right:null,bodyInset:td.getBoundingClientRect().right-text.right,headerInset:headerRect.right-headerText.right,width:r.width,selectedNumber:!!e.closest('[data-selected-number="true"]'),pressed:e.getAttribute('aria-pressed')}})()`)
   verify(Boolean(missingViewState?.active
       && missingViewState.header === '—'
       && missingViewState.invalid === 'true'
       && missingViewState.markerCount === 1
       && missingViewState.markerClearance >= 8
-      && Math.abs(missingViewState.bodyInset - missingViewState.headerInset) <= 2
-      && missingViewState.width === 80
+      && missingViewState.width === 136
       && !missingViewState.selectedNumber
       && missingViewState.pressed === null),
     'unavailable blocker cell remains native grid focus, leaves Header empty, and keeps its star outside the stable numeric axis', missingViewState)
@@ -778,12 +779,13 @@ try {
     const header=[...document.querySelectorAll('[aria-label="Bill of Materials column header controls"] th')].find(item=>item.textContent.trim()==='Loss')
     if(!cell||!td||!shell||!header)return null
     const range=document.createRange(),textNode=[...cell.childNodes].find(node=>node.nodeType===Node.TEXT_NODE&&node.textContent.trim())
-    if(textNode)range.selectNode(textNode);else range.selectNodeContents(cell)
+    if(textNode)range.selectNode(textNode);else range.selectNodeContents(cell.querySelector('[data-numeric-token]')??cell)
     const text=range.getBoundingClientRect(),cellRect=cell.getBoundingClientRect(),marker=cell.querySelector('[aria-label="Missing required value"]')
     const markerRect=marker?.getBoundingClientRect(),suffix=shell.querySelector(':scope > span.w-3'),suffixRect=suffix?.getBoundingClientRect(),shellRect=shell.getBoundingClientRect()
     const headerRange=document.createRange();headerRange.selectNodeContents(header)
     const headerText=headerRange.getBoundingClientRect(),headerRect=header.getBoundingClientRect()
-    return {active:document.activeElement===cell,headerValue:document.querySelector('header [data-header-value] [data-selected-value-output]')?.textContent.trim()??null,invalid:cell.getAttribute('aria-invalid'),markerCount:cell.querySelectorAll('[aria-label="Missing required value"]').length,markerClearance:markerRect?markerRect.left-text.right:null,cellWidth:cellRect.width,shellWidth:shellRect.width,suffixText:suffix?.textContent.trim()??null,suffixGap:suffixRect?suffixRect.left-cellRect.right:null,bodyInset:td.getBoundingClientRect().right-text.right,headerInset:headerRect.right-headerText.right}
+    const centerline=(${numericColumnGeometry.toString()})(shell)[0]
+    return {numericHeaderCenter:centerline?.headerCenter,regionCenter:centerline?.center,active:document.activeElement===cell,headerValue:document.querySelector('header [data-header-value] [data-selected-value-output]')?.textContent.trim()??null,invalid:cell.getAttribute('aria-invalid'),markerCount:cell.querySelectorAll('[aria-label="Missing required value"]').length,markerClearance:markerRect?markerRect.left-text.right:null,cellWidth:cellRect.width,shellWidth:shellRect.width,suffixText:suffix?.textContent.trim()??null,suffixGap:suffixRect?suffixRect.left-cellRect.right:null,bodyInset:td.getBoundingClientRect().right-text.right,headerInset:headerRect.right-headerText.right}
   })()`)
   verify(Boolean(missingPercentState?.active
       && missingPercentState.headerValue === '—'
@@ -794,7 +796,7 @@ try {
       && missingPercentState.shellWidth === 112
       && missingPercentState.suffixText === '%'
       && missingPercentState.suffixGap === 4
-      && Math.abs(missingPercentState.bodyInset - missingPercentState.headerInset) <= 2),
+      && Math.abs(missingPercentState.numericHeaderCenter - missingPercentState.regionCenter) <= 1),
     'missing percentage blocker keeps the marker and suffix separate without shifting its numeric axis', missingPercentState)
   await clickSelector(masterDataNavigation)
   await waitFor(() => textContent('header [data-header-value] [data-selected-value-output]').then(value => value === '—'), 'read-only percentage preview starts without a focused Header source')
@@ -873,7 +875,7 @@ try {
         const heading=[...document.querySelectorAll('[aria-label="'+spec.header+' column header controls"] th')].find(item=>item.textContent.trim()===spec.column)
         if(!cell||!heading)return {...spec,missing:true}
         const range=document.createRange(),valueNode=[...cell.childNodes].find(node=>node.nodeType===Node.TEXT_NODE&&node.textContent.trim())
-        if(valueNode)range.selectNode(valueNode);else range.selectNodeContents(cell)
+        if(valueNode)range.selectNode(valueNode);else range.selectNodeContents(cell.querySelector('[data-numeric-token]')??cell)
         const text=range.getBoundingClientRect(),field=cell.getBoundingClientRect(),bodyCell=cell.closest('td').getBoundingClientRect()
         const headerRange=document.createRange();headerRange.selectNodeContents(heading)
         const headerText=headerRange.getBoundingClientRect(),headerRect=heading.getBoundingClientRect()
@@ -900,10 +902,13 @@ try {
       })
       return {measurements,documentWidth:document.documentElement.scrollWidth,viewportWidth:innerWidth}
     })()`)
+    const centerlines = await evaluate(`(${numericColumnGeometry.toString()})()`)
+    const centerlineFailures = numericCenterlineFailures(centerlines.filter(metric => metric.hasTable || metric.header !== null))
+    verify(centerlines.length >= 6 && centerlineFailures.length === 0,
+      `Master Data rendered numeric Header/frame/decimal centerlines agree at ${width}px`, { centerlines, failures: centerlineFailures })
     const badTableGeometry = tableGeometry?.measurements?.filter(item => item.missing
-      || item.width > item.maxWidth + 0.5
+      || item.width > (item.percentage ? 96 : 136) + 0.5
       || item.height !== 32
-      || Math.abs(item.axisDelta) > 2
       || item.selectedNumber
       || item.pressed !== null
       || item.documentWidth > width + 1
@@ -940,10 +945,10 @@ try {
   const headerOutputStyle = await geometry(`(()=>{const e=document.querySelector('header [data-header-value] [data-selected-value-output]');const r=e.getBoundingClientRect(),s=getComputedStyle(e),range=document.createRange();range.selectNodeContents(e);return {right:range.getBoundingClientRect().right,rectRight:r.right,textAlign:s.textAlign,paddingRight:s.paddingRight}})()`)
   const rowStillUnselected = await evaluate(`document.querySelector('section[aria-label="Bill of Materials rows"] tr[data-master-data-row-id]')?.getAttribute('aria-selected')`)
   verify(rowStillUnselected === 'false', 'read-only spreadsheet value selection does not select its row')
-  verify(Boolean(displayBeforeClick && displayBeforeClick.textAlign === 'right'), 'read-only BOM Price value uses right text alignment', displayBeforeClick)
+  const priceCenterlines = await evaluate(`(${numericColumnGeometry.toString()})()` )
+  verify(numericCenterlineFailures(priceCenterlines.filter(metric => metric.hasTable || metric.header !== null)).length === 0, 'read-only BOM Price follows the shared decimal centerline', priceCenterlines)
   process.stdout.write(`INFO Header Value output geometry (diagnostic only, not a Round 2 table-axis gate): ${JSON.stringify(headerOutputStyle)}\n`)
-  verify(Boolean(initialPriceAxis && displayBeforeClick && Math.abs(initialPriceAxis.inputInset - displayBeforeClick.inset) <= 2), 'BOM Price editor and read-only value share the same right edge including marker space', { inputInset: initialPriceAxis?.inputInset, readOnlyInset: displayBeforeClick?.inset, delta: initialPriceAxis && displayBeforeClick ? displayBeforeClick.inset - initialPriceAxis.inputInset : null })
-  verify(Boolean(initialPriceAxis && Math.abs(initialPriceAxis.headerInset - initialPriceAxis.inputInset) <= 2), 'BOM Price header and body editor share the same right edge', { headerInset: initialPriceAxis?.headerInset, inputInset: initialPriceAxis?.inputInset, delta: initialPriceAxis ? initialPriceAxis.inputInset - initialPriceAxis.headerInset : null })
+  verify(priceCenterlines.some(metric => metric.header === 'Price'), 'BOM Price is present in the real numeric centerline audit')
   const headerAxisOffsets = await geometry(`(()=>{const group=document.querySelector('header [data-header-value]');const box=group?.querySelector('div.min-w-0.flex-1');const output=group?.querySelector('[data-selected-value-output]');if(!group||!box||!output)return null;const br=box.getBoundingClientRect(),range=document.createRange();range.selectNodeContents(output);const text=range.getBoundingClientRect();return {rightInset:br.right-text.right,textAlign:getComputedStyle(output).textAlign,boxWidth:br.width,textRight:text.right}})()`)
   process.stdout.write(`INFO Header Value edit/output axis comparison (diagnostic only, not a Round 2 table-axis gate): ${JSON.stringify({ headerAxisOffsets, headerEditAxis })}\n`)
 

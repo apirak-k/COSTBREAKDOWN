@@ -15,7 +15,7 @@ import { MasterDataTableHeader } from './MasterDataTableChrome'
 import { MasterDataBlockerMarker } from './MasterDataBlockerMarker'
 import { Tooltip } from '../../../shared/ui/Tooltip'
 import { RowSelectionButton } from '../../../shared/ui/RowSelectionButton'
-import { MasterDataFocusedNumber, MasterDataNumericInput, masterDataSelectedValueId } from './MasterDataNumericValue'
+import { MasterDataFocusedNumber, MasterDataNumericInput, MasterDataNumericColumnHeader, masterDataSelectedValueId } from './MasterDataNumericValue'
 import { StickyTableHeader, useSynchronizedTableHeader } from '../../../shared/ui/StickyTableHeader'
 import { masterDataActionsColumnClass, masterDataCellFocusClass, masterDataDisplaySlotClass, masterDataIdentityColumnClass, masterDataIndexColumnClass, masterDataIssueDisplayClass, masterDataIssueEditorClass, masterDataIssuePlaceholderClass, masterDataNoteColumnClass, masterDataNumericDisplaySlotClass, masterDataNumericEditorClass, masterDataPercentageShellClass, masterDataSpreadsheetSelectionClass, masterDataTableClass, masterDataTextEditorClass, masterDataUnitColumnClass } from './master-data-field-styles'
 
@@ -288,10 +288,10 @@ export const BOMTable: React.FC<BOMTableProps> = ({
               </Tooltip>
             </th>
             <th scope="col" className="px-2 py-2 text-left">Material</th>
-            <th scope="col" className="py-2 pr-8 pl-2 text-right">Usage</th>
+            <th scope="col" className="px-2 py-2"><MasterDataNumericColumnHeader>Usage</MasterDataNumericColumnHeader></th>
             <th scope="col" className="px-2 py-2 text-center">Unit</th>
-            <th scope="col" className="py-2 pr-8 pl-2 text-right">Price</th>
-            <th scope="col" className="py-2 pr-12 pl-2 text-right">Loss</th>
+            <th scope="col" className="px-2 py-2"><MasterDataNumericColumnHeader>Price</MasterDataNumericColumnHeader></th>
+            <th scope="col" className="px-2 py-2"><MasterDataNumericColumnHeader percentage>Loss</MasterDataNumericColumnHeader></th>
             <th scope="col" className="px-2 py-2 text-left">Note</th>
             <th scope="col" className={`${masterDataActionsColumnClass} px-1 py-2 text-center`}>Actions</th>
           </tr>
@@ -393,7 +393,6 @@ export const BOMTable: React.FC<BOMTableProps> = ({
                           value={item.consumption}
                           onValueChange={value => applyCellUpdate(item.id, { consumption: value })}
                           selectionId={valueSourceId(item.id, 'consumption')}
-                          integerDigits={9}
                           {...getMasterDataNumericInputDomain('consumption')}
                           reserveMarker
                           data-grid-cell="true"
@@ -408,7 +407,6 @@ export const BOMTable: React.FC<BOMTableProps> = ({
                     ) : <MasterDataFocusedNumber
                       value={item.consumption}
                       selectionId={valueSourceId(item.id, 'consumption')}
-                      integerDigits={9}
                       data-grid-cell="true"
                       data-grid-row-id={item.id}
                       data-grid-field="consumption"
@@ -448,7 +446,6 @@ export const BOMTable: React.FC<BOMTableProps> = ({
                           value={item.price}
                           onValueChange={value => applyCellUpdate(item.id, { price: value })}
                           selectionId={valueSourceId(item.id, 'price')}
-                          integerDigits={9}
                           {...getMasterDataNumericInputDomain('price')}
                           reserveMarker
                           data-grid-cell="true"
@@ -463,7 +460,6 @@ export const BOMTable: React.FC<BOMTableProps> = ({
                     ) : <MasterDataFocusedNumber
                       value={item.price}
                       selectionId={valueSourceId(item.id, 'price')}
-                      integerDigits={9}
                       data-grid-cell="true"
                       data-grid-row-id={item.id}
                       data-grid-field="price"

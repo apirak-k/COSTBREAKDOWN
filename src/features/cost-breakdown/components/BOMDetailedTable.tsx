@@ -145,7 +145,7 @@ export function BOMRecordDetails({
   ) => {
     if (value === null || value === undefined || !Number.isFinite(value)) return '—'
     const visible = format(value)
-    return <SelectedNumber
+    return <SelectedNumber numericColumn signPositive={side === 'effect'}
       value={percentage ? value * 100 : value}
       percentage={percentage}
       selectionId={`${selectionIdPrefix}:${side}:${field}`}
@@ -175,7 +175,7 @@ export function BOMRecordDetails({
     <td aria-hidden="true" className={`px-2 py-1.5 ${separatorClass}`} />
     {parameterValues.map(item => <td key={item.field} className={`${separatorClass} whitespace-nowrap px-1 py-1.5 text-right`}>
       {effectRow
-        ? renderNumericValue(item.effect, label, side, item.field, value => formatVariance(value, 2))
+        ? <span className={item.field === 'loss' ? 'grid grid-cols-[minmax(0,1fr)_0.6rem] gap-1' : 'block'}>{renderNumericValue(item.effect, label, side, item.field, value => formatVariance(value, 2))}{item.field === 'loss' && <span aria-hidden="true" />}</span>
         : renderNumericValue(
             validFactorValue(item.field, side === 'before' ? item.reference : item.current),
             label,

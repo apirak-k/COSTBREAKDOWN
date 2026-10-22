@@ -15,7 +15,7 @@ import { MasterDataTableHeader } from './MasterDataTableChrome'
 import { MasterDataBlockerMarker } from './MasterDataBlockerMarker'
 import { Tooltip } from '../../../shared/ui/Tooltip'
 import { RowSelectionButton } from '../../../shared/ui/RowSelectionButton'
-import { MasterDataFocusedNumber, MasterDataNumericInput, masterDataSelectedValueId } from './MasterDataNumericValue'
+import { MasterDataFocusedNumber, MasterDataNumericInput, MasterDataNumericColumnHeader, masterDataSelectedValueId } from './MasterDataNumericValue'
 import { StickyTableHeader, useSynchronizedTableHeader } from '../../../shared/ui/StickyTableHeader'
 import { masterDataActionsColumnClass, masterDataDisplaySlotClass, masterDataIdentityColumnClass, masterDataIndexColumnClass, masterDataIssueDisplayClass, masterDataIssueEditorClass, masterDataIssuePlaceholderClass, masterDataNoteColumnClass, masterDataNumericDisplaySlotClass, masterDataNumericEditorClass, masterDataSpreadsheetSelectionClass, masterDataTableClass, masterDataTextEditorClass } from './master-data-field-styles'
 
@@ -310,8 +310,8 @@ export const WorkCenterRatesTable: React.FC<WorkCenterRatesTableProps> = ({
               </Tooltip>
             </th>
             <th scope="col" className="px-2 py-2 text-left">Work Center</th>
-            <th scope="col" className="py-2 pr-8 pl-2 text-right">Labor Rate</th>
-            <th scope="col" className="py-2 pr-8 pl-2 text-right">Burden Rate</th>
+            <th scope="col" className="px-2 py-2"><MasterDataNumericColumnHeader>Labor Rate</MasterDataNumericColumnHeader></th>
+            <th scope="col" className="px-2 py-2"><MasterDataNumericColumnHeader>Burden Rate</MasterDataNumericColumnHeader></th>
             <th scope="col" className="px-2 py-2 text-left">Note</th>
             <th scope="col" className={`${masterDataActionsColumnClass} px-1 py-2 text-center`}>Actions</th>
           </tr>
@@ -424,7 +424,6 @@ export const WorkCenterRatesTable: React.FC<WorkCenterRatesTableProps> = ({
                           value={rate.laborRate}
                           onValueChange={value => applyCellUpdate(rate.id, { laborRate: value })}
                           selectionId={valueSourceId(rate.id, 'laborRate')}
-                          integerDigits={9}
                           {...getMasterDataNumericInputDomain('laborRate')}
                           reserveMarker
                           data-grid-cell="true"
@@ -439,7 +438,6 @@ export const WorkCenterRatesTable: React.FC<WorkCenterRatesTableProps> = ({
                     ) : <MasterDataFocusedNumber
                       value={rate.laborRate}
                       selectionId={valueSourceId(rate.id, 'laborRate')}
-                      integerDigits={9}
                       data-grid-cell="true"
                       data-grid-row-id={rate.id}
                       data-grid-field="laborRate"
@@ -458,7 +456,6 @@ export const WorkCenterRatesTable: React.FC<WorkCenterRatesTableProps> = ({
                           value={rate.burdenRate}
                           onValueChange={value => applyCellUpdate(rate.id, { burdenRate: value })}
                           selectionId={valueSourceId(rate.id, 'burdenRate')}
-                          integerDigits={9}
                           {...getMasterDataNumericInputDomain('burdenRate')}
                           reserveMarker
                           data-grid-cell="true"
@@ -473,7 +470,6 @@ export const WorkCenterRatesTable: React.FC<WorkCenterRatesTableProps> = ({
                     ) : <MasterDataFocusedNumber
                       value={rate.burdenRate}
                       selectionId={valueSourceId(rate.id, 'burdenRate')}
-                      integerDigits={9}
                       data-grid-cell="true"
                       data-grid-row-id={rate.id}
                       data-grid-field="burdenRate"

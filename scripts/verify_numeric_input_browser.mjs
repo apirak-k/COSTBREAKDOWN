@@ -1,3 +1,4 @@
+import { numericColumnGeometry, numericCenterlineFailures } from './numeric-browser-geometry.mjs'
 import assertBase from 'node:assert/strict'
 let assertionCount = 0
 const assert = new Proxy(assertBase, {
@@ -218,26 +219,65 @@ try {
 
   // Actual Master Data callers: one static numeric set in Edit and View.
   const fitResults = []
-  const blurNumeric = () => evaluate('document.activeElement?.blur()')
+  const auditNumericColumns = async (area, requireHeader = true) => {
+    await blurNumeric()
+    const metrics = await evaluate(`(${numericColumnGeometry.toString()})()`)
+    const applicable = requireHeader ? metrics.filter(metric => metric.hasTable || metric.header !== null) : metrics
+    assert.ok(applicable.length >= 6, area + ' exposes the applicable numeric-column inventory')
+    const failures = numericCenterlineFailures(applicable, { requireHeader })
+    assert.deepEqual(failures, [], area + ' actual Header/frame/decimal centers and compact fits agree')
+    fitResults.push({ area, inventory: applicable })
+  }
+
+  // Observe the painted compact state after React has processed native Blur.
+  const blurNumeric = () => evaluate('new Promise(resolve=>{document.activeElement?.blur();requestAnimationFrame(()=>requestAnimationFrame(resolve))})')
   // Measure the rendered input text using its actual font, alignment, padding,
   // and native scroll offset. Canvas is test instrumentation only, never layout.
   const inputMetrics = aria => evaluate(`(()=>{
     const e=${visibleInputExpression(aria)},r=e.getBoundingClientRect(),s=getComputedStyle(e)
     const canvas=document.createElement('canvas').getContext('2d')
     canvas.font=[s.fontStyle,s.fontWeight,s.fontSize,s.fontFamily].join(' ')
-    const textWidth=canvas.measureText(e.value).width
+    const mirror=document.createElement('span')
+    mirror.textContent=e.value
+    Object.assign(mirror.style,{position:'fixed',left:'-10000px',top:'0',whiteSpace:'pre',fontFamily:s.fontFamily,fontSize:s.fontSize,fontWeight:s.fontWeight,fontStyle:s.fontStyle,letterSpacing:s.letterSpacing,fontVariantNumeric:s.fontVariantNumeric,fontFeatureSettings:s.fontFeatureSettings})
+    document.body.append(mirror)
+    const textWidth=mirror.getBoundingClientRect().width
+    let pointOffset=null
+    if(e.value.includes('.')){const range=document.createRange(),point=e.value.indexOf('.');range.setStart(mirror.firstChild,point);range.setEnd(mirror.firstChild,point+1);pointOffset=range.getBoundingClientRect().left-mirror.getBoundingClientRect().left}
+    mirror.remove()
     const left=r.left+parseFloat(s.borderLeftWidth)+parseFloat(s.paddingLeft)
     const right=r.right-parseFloat(s.borderRightWidth)-parseFloat(s.paddingRight)
-    const start=(s.textAlign==='left'||s.textAlign==='start'?left:right-textWidth)-e.scrollLeft
+    const start=(s.textAlign==='left'||s.textAlign==='start'?left:s.textAlign==='center'?(left+right-textWidth)/2:right-textWidth)-e.scrollLeft
     const point=e.value.indexOf('.')
-    let suffix=e.parentElement.querySelector('[data-numeric-suffix]')
-    for(let ancestor=e.parentElement,depth=0;!suffix&&ancestor&&depth<4;ancestor=ancestor.parentElement,depth++) {
+    const cell=e.closest('td'),table=cell?.closest('table')
+    const columnIndex=cell?[...cell.parentElement.children].slice(0,cell.cellIndex).reduce((sum,c)=>sum+c.colSpan,0):-1
+    let header=null
+    for(let owner=table;owner&&!header;owner=owner.parentElement){
+      const row=[...owner.querySelectorAll('thead:not(.sr-only) tr')].find(row=>row.getClientRects().length&&row.children.length>columnIndex)
+      if(row)header=row.children[columnIndex]
+    }
+    const textBoxes=[]
+    if(header){
+      const walker=document.createTreeWalker(header,NodeFilter.SHOW_TEXT)
+      while(walker.nextNode()){
+        const node=walker.currentNode
+        if(!node.textContent.trim()||node.parentElement.closest('svg,[aria-hidden="true"]'))continue
+        const range=document.createRange();range.selectNodeContents(node)
+        textBoxes.push(...range.getClientRects())
+      }
+    }
+    const headerCenter=textBoxes.length?(Math.min(...textBoxes.map(b=>b.left))+Math.max(...textBoxes.map(b=>b.right)))/2:null
+
+    const simulationGroup=e.closest('[data-simulation-input-wrapper]')
+    let suffix=(simulationGroup??e.parentElement).querySelector('[data-numeric-suffix]')
+    for(let ancestor=e.parentElement;!suffix&&ancestor;ancestor=ancestor.parentElement) {
       suffix=[...ancestor.children].find(child=>child.tagName==='SPAN'&&child.textContent.trim()==='%')
+      if(ancestor.matches('td,label,section,main'))break
     }
     const group=suffix?.parentElement??e.parentElement,suffixRect=suffix?.getBoundingClientRect()
     return {
-      text:e.value,x:r.x,width:r.width,height:r.height,right:r.right,paddingRight:s.paddingRight,
-      decimal:point<0?null:start+canvas.measureText(e.value.slice(0,point)).width,
+      focused:document.activeElement===e,fit:e.dataset.numericFit,font:s.fontFamily,scrollWidth:e.scrollWidth,clientWidth:e.clientWidth,reserveEnd:Number(e.dataset.numericReserveEnd||0),headerCenter,regionCenter:(r.left+r.right)/2,text:e.value,x:r.x,width:r.width,height:r.height,right:r.right,paddingRight:s.paddingRight,
+      decimal:point<0?null:start+pointOffset,
       tokenRight:start+textWidth,
       visibleTokenRight:Math.min(start+textWidth,r.right-parseFloat(s.borderRightWidth)),
       fits:textWidth<=right-left+0.5,suffix:!!suffix,suffixLeft:suffixRect?.left,
@@ -257,8 +297,8 @@ try {
     await screenshot(evidenceName + '-focus')
     const expected = value.includes('.') ? value.padEnd(value.indexOf('.') + 3, '0') : value + '.00'
     assert.equal(focused.text, expected, aria + ' focused committed decimal minimum 2dp preserves precision')
-    assert.ok(focused.fits, aria + ' focus-anchor fixture fits normally')
-    if (!blurred.text.includes('E')) {
+    if (!focused.fits) assert.ok(focused.scrollWidth > focused.clientWidth, aria + ' long authoritative Focus draft scrolls within the native input')
+    if (!blurred.text.includes('E') && focused.fits) {
       assert.ok(Math.abs(blurred.decimal - focused.decimal) <= 0.6, aria + ' Focus/Blur decimal X remains stable')
       const previousAxis = ordinaryAxes.get(aria)
       if (previousAxis !== undefined) assert.ok(Math.abs(previousAxis - blurred.decimal) <= 0.6, aria + ' integer growth shares the column decimal axis')
@@ -304,22 +344,47 @@ try {
   }
   const masterLabels = await evaluate(`['consumption','price','manning','capacity','laborRate','burdenRate'].map(field=>[...document.querySelectorAll('input[data-grid-field]')].find(e=>e.dataset.gridField===field&&e.getClientRects().length)?.getAttribute('aria-label')).filter(Boolean)`)
   assert.equal(masterLabels.length, 6, 'all six non-percentage Master Data field sets are present')
-  for (const aria of masterLabels) {
-    const original = await inputValue(aria)
-    await typeInto(aria, '123456789.12'); await blurNumeric()
-    const large = await inputMetrics(aria)
-    assert.equal(large.text, '123456789.12', `${aria} intentionally supports nine ordinary integer digits`)
-    assert.ok(large.fits, `${aria} nine-digit presentation fits its static slot`)
-    await typeInto(aria, '0.0045'); await blurNumeric()
-    const small = await inputMetrics(aria)
-    assert.ok(Math.abs(large.decimal-small.decimal)<0.6, `${aria} 2dp/4dp decimal anchors agree`)
-    assert.equal(small.width, large.width, `${aria} value length does not resize the slot`)
-    await typeInto(aria, original); await blurNumeric()
-    fitResults.push({area:'Master Data',aria,large,small})
+  for(const aria of masterLabels){
+    const geometry=await inputMetrics(aria)
+    assert.ok(Math.abs(geometry.headerCenter-geometry.regionCenter)<=1,`${aria} rendered Header text center equals fixed numeric region center: ${JSON.stringify(geometry)}`)
+    if(!geometry.text.includes('E'))assert.ok(Math.abs(geometry.decimal-geometry.regionCenter)<=0.6,`${aria} actual decimal X equals fixed numeric region center: ${JSON.stringify(geometry)}`)
   }
+
+  const assertFitBasedPresentation = async aria => {
+    const original = await inputValue(aria)
+    let frame
+    let fittingOrdinary = 0
+    let scientificFallback = 0
+    for (const value of ['1', '35', '100', '1000', '10000', '100000', '1000000', '10000000', '100000000', '1000000000', '0.0045']) {
+      await typeInto(aria, value)
+      await blurNumeric()
+      const metric = await inputMetrics(aria)
+      const expected = await evaluate(`(()=>{
+        const e=${visibleInputExpression(aria)},s=getComputedStyle(e),c=document.createElement('canvas').getContext('2d')
+        c.font=[s.fontStyle,s.fontWeight,s.fontSize,s.fontFamily].join(' ')
+        const value=Number(${JSON.stringify(value)}),ordinary=value!==0&&Number(value.toFixed(2))===0?value.toFixed(4):value.toFixed(2)
+        const whole=ordinary.split('.')[0],reserve=Number(e.dataset.numericReserveEnd||0),half=e.getBoundingClientRect().width/2-Number(e.dataset.numericFitInset||0)
+        const fits=c.measureText(whole).width<=half&&c.measureText('.0000').width<=half-reserve
+        return {fits,text:fits?ordinary:value.toExponential(2).toUpperCase()}
+      })()`)
+      assert.equal(metric.text, expected.text, `${aria} ordinary-first fallback follows actual rendered half-region fit for ${value}: ${JSON.stringify({ metric, expected })}`)
+      assert.ok(metric.fits, `${aria} complete compact token fits the fixed numeric region`)
+      if (expected.fits) {
+        fittingOrdinary += 1
+        assert.ok(Math.abs(metric.decimal - metric.regionCenter) <= 0.6, `${aria} fitting ordinary decimal uses the frame center`)
+      } else scientificFallback += 1
+      frame ??= [metric.x, metric.width, metric.height]
+      assert.deepEqual([metric.x, metric.width, metric.height], frame, `${aria} fit decisions never move outer geometry`)
+      fitResults.push({ area: 'Measured ordinary capacity', aria, value, expected, metric })
+    }
+    assert.ok(fittingOrdinary > 0 && scientificFallback > 0, `${aria} exercises both real fitting ordinary capacity and non-fitting scientific fallback`)
+    await typeInto(aria, original)
+    await blurNumeric()
+  }
+  for (const aria of masterLabels) await assertFitBasedPresentation(aria)
   const masterAria = masterLabels.find(label=>/Labor/i.test(label))??masterLabels[4]
   const masterOriginal = await inputValue(masterAria)
-  for(const value of ['95','110','110.5','1110','12.345678']) await assertFocusAnchor(masterAria,value)
+  for(const value of ['1','35','100','1000','0.0045','110','110.5','12.345678']) await assertFocusAnchor(masterAria,value)
   for (const [value,display] of [['12.3456789','12.35'],['0.0045','0.0045'],['0.000000001','1.00E-9'],['1234567890','1.23E+9']]) {
     await typeInto(masterAria,value); await blurNumeric()
     const edit = await inputMetrics(masterAria)
@@ -341,6 +406,7 @@ try {
     await send('Emulation.setDeviceMetricsOverride',{width,height:1800,deviceScaleFactor:1,mobile:false})
     await delay(100)
     for (const aria of masterLabels) assert.equal((await inputMetrics(aria)).width,136,`${aria} static width remains consistent at ${width}px`)
+    await auditNumericColumns(`Master Data Edit ${width}px`)
     assert.ok(await evaluate('document.documentElement.scrollWidth<=innerWidth+1'), `Master Data ${width}px has no page overflow`)
     if ([1440,390].includes(width)) await screenshot(`numeric-fit-master-${width}`)
   }
@@ -370,13 +436,14 @@ try {
   results.economic = await blurInto('Variable Action Cost / Unit', 'Fixed Action Cost')
 
 
-  for(const value of ['95','110','110.5','1110','12.345678']) await assertFocusAnchor(simulationInput,value)
+  for(const value of ['1','35','100','1000','0.0045','110','110.5','12.345678']) await assertFocusAnchor(simulationInput,value)
   const numericFitLabels = [simulationInput,'Selling Price','Variable Action Cost / Unit','Fixed Action Cost']
+  await assertFitBasedPresentation(simulationInput)
   for (const aria of numericFitLabels) {
     const original = await inputValue(aria)
     let ordinary
     let staticFrame
-    for (const [value,display] of [['12.30','12.30'],['999.99','999.99'],['9999.99',aria===simulationInput?'1.00E+4':'9999.99'],['123456.78',aria===simulationInput?'1.23E+5':'123456.78'],['0.0045','0.0045'],['0.000000001','1.00E-9'],['12345678.9',aria===simulationInput?'1.23E+7':'12345678.90'],['99999999.999','1.00E+8']]) {
+    for (const [value,display] of [['12.30','12.30'],['0.0045','0.0045'],['0.000000001','1.00E-9']]) {
       await typeInto(aria,value); await blurNumeric()
       const metric = await inputMetrics(aria)
       assert.equal(metric.text,display, `${aria} display-fit ${value}`)
@@ -384,7 +451,7 @@ try {
       if (aria===simulationInput && ['0.0045','1.00E-9'].includes(display)) await screenshot(`numeric-fit-fixed-simulation-${display.replace(/[^a-z0-9]/gi,'_')}`)
       if(value==='12.30') ordinary=metric
       if(value==='0.0045') assert.ok(Math.abs(ordinary.decimal-metric.decimal)<0.6,`${aria} 2dp/4dp share decimal anchor`)
-      if(display.includes('E')) assert.ok(metric.tokenRight>ordinary.tokenRight+10,`${aria} scientific token aligns to the whole-token right edge, independently of the ordinary decimal anchor`)
+      if(display.includes('E')) assert.ok(metric.fits,`${aria} scientific fallback token fits independently of the ordinary decimal anchor`)
       assert.equal(metric.width,ordinary.width,`${aria} static slot does not follow value length`)
       if(aria===simulationInput) {
         const frame = await evaluate(`(()=>{const e=${visibleInputExpression(aria)},f=e.closest('td').querySelector('[data-simulation-input-frame]'),r=f.getBoundingClientRect();return {x:r.x,width:r.width}})()`)
@@ -436,7 +503,28 @@ try {
     if ([1440,390].includes(width)) await screenshot(`numeric-fit-simulation-economic-${width}`)
   }
   await send('Emulation.setDeviceMetricsOverride',{width:1440,height:1800,deviceScaleFactor:1,mobile:false})
+  await auditNumericColumns('Simulation numeric sets')
   results.numericDisplayFit=fitResults
+
+  await send('Page.navigate', { url: new URL('/scripts/fixtures/numeric-column-browser.html', baseUrl).href })
+  await waitFor(async () => Boolean(await evaluate(`!!document.querySelector('[aria-label="Measured numeric column fixture"]')`)), 'measured numeric column fixture')
+  await delay(200)
+  const extremeColumns = await evaluate(`(${numericColumnGeometry.toString()})()`)
+  assert.equal(extremeColumns.length, 66, 'all three fixed widths render actual editable/read-only ordinary and extreme scientific values')
+  assert.deepEqual(numericCenterlineFailures(extremeColumns), [], 'actual signed scientific tokens and ordinary decimals fit all supported minimum fixed regions')
+  assert.ok(extremeColumns.some(metric => metric.text === '-1.00E+300'), 'negative three-digit scientific exponent renders in the actual shared components')
+  assert.ok(extremeColumns.some(metric => metric.text === '4.94E-324'), 'smallest finite authoritative number renders its supported scientific token')
+  assert.ok(extremeColumns.some(metric => metric.text === '1.80E+308'), 'largest finite authoritative number renders its supported scientific token')
+  await screenshot('numeric-centerline-scientific-extremes')
+  const longLabel = 'Measured -1e+300 at 77'
+  const longBefore = await inputMetrics(longLabel)
+  await clickInput(longLabel)
+  const longFocused = await inputMetrics(longLabel)
+  assert.equal(Number(longFocused.text), -1e300, 'long native edit exposes the complete authoritative scientific source as decimal digits')
+  assert.ok(longFocused.scrollWidth > longFocused.clientWidth, 'long focused draft uses native internal horizontal overflow')
+  assert.deepEqual([longFocused.x,longFocused.width,longFocused.height], [longBefore.x,longBefore.width,longBefore.height], 'extreme authoritative edit preserves the fixed native outer frame')
+  await blurNumeric()
+  results.scientificFloor = extremeColumns
 
   await send('Page.navigate', { url: new URL('/scripts/fixtures/selected-value-browser.html', baseUrl).href })
   await waitFor(async () => Boolean(await evaluate('!!document.querySelector(\'[aria-label="Selected value foundation fixture"]\')')), 'shared foundation fixture')

@@ -1,3 +1,54 @@
+# Current numeric centerline correction — 2026-10-23
+
+- **Status: IMPLEMENTED / AWAITING EXTERNAL USER AUDIT.** This remains inside the open pre-Round-4B gate. Round 4B is NOT STARTED / BLOCKED; global direct-edit blue indication and Round 5 are NOT STARTED. No new round/sub-phase was created.
+- **Starting remote:** fetched `origin/feat/selected-value-ux` and clean local HEAD both matched `0e733d95d3878e330b377820efee1045eeb2c869`. Reused the existing feature checkout; no branch change, merge, rebase, or force-push.
+- **Root cause and authority:** independent right-aligned headers, compensating padding, provisional digit capacities, and body decimal anchors did not express one shared visual rule. A new browser probe reproduced Master Usage Header center 474.40625 vs frame center 447.65625 (26.75px error), and decimal 454.521459 vs center (6.865px error). The latest user direction supersedes those provisional implementation details.
+- **Shared implementation:** `NumericColumnHeader`, measured column presentation, and opt-in NumericInput/BusinessNumber regions make actual header text center = fixed numeric region/frame center = ordinary decimal anchor. Actual computed-font measurements, including signs and actual fractional glyphs, select ordinary-first or scientific fallback; 2dp reserves four fractional positions. Scientific whole-token mode never changes the region. ResizeObserver measures existing fixed geometry; text measurement never resizes/repositions frames/columns. Font loading invalidates cached widths. Native inputs retain full authoritative hydration/minimum-two-decimal committed drafts, natural manual typing, caret stepping, and internal overflow scrolling.
+- **Cross-system coverage:** active Master Data BOM/Work Center/Routing numeric columns; Cost Breakdown Cost Element and Work Center overviews, Full/Selected Gap subregions, Candidate BOM/Routing, and expanded details; Simulation six parameters, read-only/effect/calculated columns, Result, and mobile parameter regions. Text/identity columns, inline metadata labels, global Header Value, graph/Ruler/toolbar tokens, and unmounted legacy comparison components retain their distinct existing contracts. SelectedNumber wraps only positioned tokens, preserving content-sized hit/hover/pin surfaces and Candidate whitespace behavior.
+- **Minimal static exceptions proven necessary:** retained Simulation tracks `6 | 17.4 | 10.6 | 14.5 | 14.5 | 14.5 | 17 | 5.5` and existing left gutters. A 70px percentage region could not reserve the measured 36.12px four-fraction width on its right half, so 7px was recovered from right-side spacing (77px frame, existing 4px suffix gap). Result's measured ~50px percentage region could not fit scientific/four-fraction requirements: its already locally scrollable table minimum is 464px instead of 408px. Cost Breakdown audit found ~41px Full Gap/~55px percentage regions overflowing scientific tokens at 1024px: shared overview minimum is 624px with local horizontal scroll, Full/Selected secondary slot is a common 65px in header/body, and BOM findings minimum is 1240px instead of 1040px (Routing remains 1260px). Column proportions remain unchanged. Overview footer Total annotation remains visible without taking horizontal space from the numeric axis. Master Data retains 136px shells, 112px percentage groups, and 1296px table minimum; the actual existing marker footprint reserves 8px rather than the rejected excess 24px.
+- **Completed checks:** shared numeric verifier **307/307**; Master Data Selected Value browser **147/147**; Cost Breakdown Selected Value browser **285/285**; TypeScript and production build passed, with existing ExcelJS/fast-csv externalization and >500kB bundle advisories. Final `node scripts/verify_numeric_input_browser.mjs` passed **1688/1688** (exit 0), including 66 actual editable/read-only shared-component ordinary/extreme scientific cases. Final `node scripts/verify_simulation_round4a_layout.mjs --numeric-layout-only` passed **132/132** (exit 0), including all five viewport inventories and existing frame/hit/Status/row checks. Source checks include unequal integer/fraction glyph widths, actual fit independent of integerDigits, tiny values, negative zero, and scientific floor.
+- **Verifier corrections:** replaced rejected digit/right-edge assertions with actual Range header centers, native input/mirrored fractional glyph positions, fixed region centers, and independent actual-font fit. Existing pointer/status/gutter/selection/history-facing checks remain. Old Master verifier expectations for compact focused drafts, Header focused precision, and copied focused drafts were stale against already accepted authoritative editing; expectations now assert that existing full-value behavior, without changing clipboard code. An old CBD long-metadata fixture expected nine ordinary digits despite the unchanged accepted eight-digit non-column formatter; it now uses an eight-digit ordinary value while retaining exact precision/content-growth/pin checks. Suffix instrumentation follows owning groups rather than an arbitrary ancestor depth; Blur measurements observe painted state, not an intermediate React update.
+- **Evidence inspected:** `/var/folders/4p/ks_ctbg136sd7q36d00xgnfm0000gn/T/costbreakdown-master-selected-evidence-AB8SYl/master-data-final-desktop.png` and `/var/folders/4p/ks_ctbg136sd7q36d00xgnfm0000gn/T/costbreakdown-cbd-selected-evidence-FtAEj8/cbd-selected-value-1440.png`. Final numeric evidence: `/var/folders/4p/ks_ctbg136sd7q36d00xgnfm0000gn/T/costbreakdown-selected-value-evidence-35o4LO`; final Simulation evidence: `/var/folders/4p/ks_ctbg136sd7q36d00xgnfm0000gn/T/costbreakdown-simulation-round4a-evidence-ynSZd8`. Root inspected focused Labor 110, focused Price 110, the 77/96/136px extreme token fixture, focused Manning beside UNCHANGED, and focused Loss with its separate suffix. The new shared-component browser fixture supplements real-caller coverage with signed extreme finite scientific values at 77/96/136px.
+- **Preserved scope:** formulas, model/stored/calculation precision, numeric domains, percentage conversion, comparison, spreadsheet handlers, dataset lifecycle, history/Undo/Redo, Reset/Send, row selection/expansion/reorder, Candidate compatibility, and graph/Ruler/Visible Net/Selling Price graph behavior are unchanged. No dependencies changed or unrelated broad suites/Excel checks ran.
+- **Exact validation commands:** `node scripts/verify_numeric_input.mjs`; `node scripts/verify_numeric_input_browser.mjs`; `node scripts/verify_master_data_selected_value.mjs`; `node scripts/verify_cbd_selected_value_browser.mjs`; `node scripts/verify_simulation_round4a_layout.mjs --numeric-layout-only`; `node_modules/.bin/tsc -p tsconfig.json --noEmit --pretty false`; `npm run build`; `node --check` on all six changed/new `.mjs` files; `git diff --check`.
+- **[Unverified]:** Safari, Firefox, Windows, physical touch devices, and screen readers. External user visual audit remains required before closure. Historical entries below remain unchanged.
+
+### Scoped file inventory (31)
+
+```text
+HANDOFF.md
+docs/PHASE_2_SELECTED_VALUE_DECIMAL_UX_PLAN.md
+docs/REQUIREMENTS_INDEX.md
+docs/specs/COST_BREAKDOWN.md
+docs/specs/CROSS_CUTTING.md
+docs/specs/MASTER_DATA.md
+docs/specs/SIMULATION.md
+scripts/fixtures/numeric-column-browser.html
+scripts/fixtures/numeric-column-browser.tsx
+scripts/numeric-browser-geometry.mjs
+scripts/verify_cbd_selected_value_browser.mjs
+scripts/verify_master_data_selected_value.mjs
+scripts/verify_numeric_input.mjs
+scripts/verify_numeric_input_browser.mjs
+scripts/verify_simulation_round4a_layout.mjs
+src/features/cost-breakdown/components/BOMDetailedTable.tsx
+src/features/cost-breakdown/components/CandidateFindingsTable.tsx
+src/features/cost-breakdown/components/RoutingDetailedTable.tsx
+src/features/cost-breakdown/components/SnapshotComparisonCard.tsx
+src/features/cost-breakdown/components/WorkCenterProcessingTable.tsx
+src/features/cost-breakdown/components/summary-table-styles.ts
+src/features/master-data/components/BOMTable.tsx
+src/features/master-data/components/MasterDataNumericValue.tsx
+src/features/master-data/components/RoutingTable.tsx
+src/features/master-data/components/WorkCenterRatesTable.tsx
+src/features/simulation/SimulationPage.tsx
+src/shared/ui/BusinessNumber.tsx
+src/shared/ui/NumericColumnHeader.tsx
+src/shared/ui/NumericInput.tsx
+src/shared/ui/numeric-column-layout.ts
+src/shared/ui/selected-value.tsx
+```
+
 # Numeric Display-Fit narrow correction — 2026-10-22
 
 - **Status: IMPLEMENTED / AWAITING EXTERNAL USER AUDIT.** This correction is not externally accepted or closed. Round 4B and the direct-edit blue-value indicator remain NOT STARTED.

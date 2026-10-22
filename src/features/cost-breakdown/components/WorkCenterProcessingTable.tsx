@@ -2,6 +2,7 @@ import React from 'react'
 import { formatNumber, formatPercent, formatVariance, getVarianceClass, safeAdd, safeDivide } from '../../../core'
 import type { CostComparison, WorkCenterProcessingFinding } from '../../../core'
 import { SelectedNumber } from '../../../shared/ui/selected-value'
+import { NumericColumnHeader } from '../../../shared/ui/NumericColumnHeader'
 import {
   CBD_SUMMARY_PANEL_CLASS,
   CBD_SUMMARY_TABLE_CLASS,
@@ -50,7 +51,7 @@ function renderGap(value: number | null, label: string, gapDirection: string, pa
   if (value === null || !Number.isFinite(value)) {
     return <span tabIndex={0} aria-label={accessibleLabel} className={alignedClassName}>{formatGap(value)}</span>
   }
-  return <SelectedNumber
+  return <SelectedNumber numericColumn signPositive
     value={value}
     selectionId={`cbd:${pairFingerprint}:work-center:${sourceId}:gap`}
     aria-label={accessibleLabel}
@@ -63,7 +64,7 @@ function renderValue(value: number | null, label: string, selectionId: string, c
   if (value === null || !Number.isFinite(value)) {
     return <span tabIndex={0} aria-label={ariaLabel} className={`block w-full text-right ${className}`}>{formatNullable(value)}</span>
   }
-  return <SelectedNumber value={value} selectionId={selectionId} aria-label={ariaLabel} className={`text-right ${className}`}>{formatNullable(value)}</SelectedNumber>
+  return <SelectedNumber numericColumn value={value} selectionId={selectionId} aria-label={ariaLabel} className={`text-right ${className}`}>{formatNullable(value)}</SelectedNumber>
 }
 
 function renderPercentage(value: number | null, label: string, selectionId: string, className: string): React.ReactNode {
@@ -72,7 +73,7 @@ function renderPercentage(value: number | null, label: string, selectionId: stri
   if (value === null || !Number.isFinite(value)) {
     return <span aria-label={ariaLabel} className={`block w-full text-right ${className}`}>{display}</span>
   }
-  return <SelectedNumber value={value * 100} percentage selectionId={selectionId} aria-label={ariaLabel} className={`text-right ${className}`}>{display}</SelectedNumber>
+  return <SelectedNumber numericColumn value={value * 100} percentage selectionId={selectionId} aria-label={ariaLabel} className={`text-right ${className}`}>{display}</SelectedNumber>
 }
 
 function conversionTotal(labor: number | null, burden: number | null): number | null {
@@ -127,10 +128,10 @@ export const WorkCenterProcessingTable: React.FC<WorkCenterProcessingTableProps>
         <div role="rowgroup" data-cbd-summary-header="true" className={CBD_SUMMARY_HEADER_GROUP_CLASS}>
           <div role="row" style={fixedRowStyle} className={`${rowColumns} ${CBD_SUMMARY_HEADER_ROW_CLASS}`}>
             <div role="columnheader" style={CBD_SUMMARY_HEADER_CELL_STYLE} className={`${CBD_SUMMARY_HEADER_CELL_CLASS} ${CBD_SUMMARY_HEADER_LABEL_CLASS}`}>Work Center</div>
-            <div role="columnheader" style={CBD_SUMMARY_HEADER_CELL_STYLE} className={`${CBD_SUMMARY_HEADER_CELL_CLASS} ${CBD_SUMMARY_HEADER_VALUE_CLASS}`}>Before</div>
-            <div role="columnheader" style={CBD_SUMMARY_HEADER_CELL_STYLE} className={`${CBD_SUMMARY_HEADER_CELL_CLASS} ${CBD_SUMMARY_HEADER_VALUE_CLASS}`}>After</div>
-            <div role="columnheader" style={CBD_SUMMARY_HEADER_CELL_STYLE} className={`${CBD_SUMMARY_HEADER_CELL_CLASS} ${CBD_SUMMARY_HEADER_VALUE_CLASS}`}>GAP</div>
-            <div role="columnheader" style={CBD_SUMMARY_HEADER_CELL_STYLE} className={`${CBD_SUMMARY_HEADER_CELL_CLASS} ${CBD_SUMMARY_HEADER_VALUE_CLASS} pr-4`}>%GAP</div>
+            <div role="columnheader" style={CBD_SUMMARY_HEADER_CELL_STYLE} className={`${CBD_SUMMARY_HEADER_CELL_CLASS} ${CBD_SUMMARY_HEADER_VALUE_CLASS}`}><NumericColumnHeader>Before</NumericColumnHeader></div>
+            <div role="columnheader" style={CBD_SUMMARY_HEADER_CELL_STYLE} className={`${CBD_SUMMARY_HEADER_CELL_CLASS} ${CBD_SUMMARY_HEADER_VALUE_CLASS}`}><NumericColumnHeader>After</NumericColumnHeader></div>
+            <div role="columnheader" style={CBD_SUMMARY_HEADER_CELL_STYLE} className={`${CBD_SUMMARY_HEADER_CELL_CLASS} ${CBD_SUMMARY_HEADER_VALUE_CLASS}`}><NumericColumnHeader>GAP</NumericColumnHeader></div>
+            <div role="columnheader" style={CBD_SUMMARY_HEADER_CELL_STYLE} className={`${CBD_SUMMARY_HEADER_CELL_CLASS} ${CBD_SUMMARY_HEADER_VALUE_CLASS}`}><span className="grid grid-cols-[minmax(0,1fr)_0.6rem] gap-1"><NumericColumnHeader>%GAP</NumericColumnHeader><span aria-hidden="true" /></span></div>
           </div>
         </div>
         <div ref={scrollBodyRef} role="rowgroup" data-wc-scroll-body="true" data-cbd-summary-body="true" className={`${CBD_SUMMARY_BODY_GROUP_CLASS} ${CBD_WC_BODY_SCROLL_REGION}`}>
@@ -141,7 +142,7 @@ export const WorkCenterProcessingTable: React.FC<WorkCenterProcessingTableProps>
               <div role="cell" className={`${CBD_SUMMARY_BODY_VALUE_CLASS} text-slate-600`}>{renderValue(finding.costEffect.reference.total, `${label} Before`, `cbd:${pairFingerprint}:work-center:${finding.sourceId}:before`, 'text-slate-600')}</div>
               <div role="cell" className={`${CBD_SUMMARY_BODY_VALUE_CLASS} text-slate-900`}>{renderValue(finding.costEffect.current.total, `${label} After`, `cbd:${pairFingerprint}:work-center:${finding.sourceId}:after`, 'text-slate-900')}</div>
               <div role="cell" className={CBD_SUMMARY_BODY_VALUE_CLASS}>{renderGap(gap, label, gapDirection, pairFingerprint, finding.sourceId)}</div>
-              <div role="cell" className={`${CBD_SUMMARY_BODY_VALUE_CLASS} pr-4 text-slate-600`}>{renderPercentage(percentage, `${label} percent Gap`, `cbd:${pairFingerprint}:work-center:${finding.sourceId}:percent-gap`, 'text-slate-600')}</div>
+              <div role="cell" className={`${CBD_SUMMARY_BODY_VALUE_CLASS} text-slate-600`}>{renderPercentage(percentage, `${label} percent Gap`, `cbd:${pairFingerprint}:work-center:${finding.sourceId}:percent-gap`, 'text-slate-600')}</div>
             </div>
           })}
         </div>
@@ -151,7 +152,7 @@ export const WorkCenterProcessingTable: React.FC<WorkCenterProcessingTableProps>
             <div role="cell" className={`${CBD_SUMMARY_FOOTER_VALUE_CLASS} text-slate-700`}>{renderValue(totalReference, 'Work Center Total Before', `cbd:${pairFingerprint}:work-center:total:before`, 'text-slate-700')}</div>
             <div role="cell" className={`${CBD_SUMMARY_FOOTER_VALUE_CLASS} text-slate-950`}>{renderValue(totalCurrent, 'Work Center Total After', `cbd:${pairFingerprint}:work-center:total:after`, 'text-slate-950')}</div>
             <div role="cell" className={CBD_SUMMARY_FOOTER_VALUE_CLASS}>{renderGap(totalGap, 'Total', gapDirection, pairFingerprint, 'total')}</div>
-            <div role="cell" className={`${CBD_SUMMARY_FOOTER_VALUE_CLASS} pr-4 whitespace-nowrap text-slate-700`}>{totalPercentage === null ? <span aria-label="Total percentage unavailable">— <span className="text-[9px] text-slate-500">Total</span></span> : <span aria-label={`${formatPercent(totalPercentage, 2)} Total`}><SelectedNumber value={totalPercentage * 100} percentage selectionId={`cbd:${pairFingerprint}:work-center:total:percent-gap`} aria-label={`Work Center Total percent Gap ${formatPercent(totalPercentage, 2)}`} className="inline text-right text-slate-700">{formatPercent(totalPercentage, 2)}</SelectedNumber> <span className="text-[9px] font-semibold text-slate-500">Total</span></span>}</div>
+            <div role="cell" className={`${CBD_SUMMARY_FOOTER_VALUE_CLASS} whitespace-nowrap text-slate-700`}>{totalPercentage === null ? <span aria-label="Total percentage unavailable">— <span className="text-[8px] text-slate-500">Total</span></span> : <span className="relative block" aria-label={`${formatPercent(totalPercentage, 2)} Total`}><SelectedNumber numericColumn value={totalPercentage * 100} percentage selectionId={`cbd:${pairFingerprint}:work-center:total:percent-gap`} aria-label={`Work Center Total percent Gap ${formatPercent(totalPercentage, 2)}`} className="inline text-right text-slate-700">{formatPercent(totalPercentage, 2)}</SelectedNumber> <span className="absolute right-0 top-full text-[8px] leading-none font-semibold text-slate-500">Total</span></span>}</div>
           </div>
         </div>
       </div>

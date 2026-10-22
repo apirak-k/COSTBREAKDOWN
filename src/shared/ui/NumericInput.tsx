@@ -2,6 +2,7 @@ import { ChevronDown, ChevronUp } from 'lucide-react'
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import type { FocusEvent, InputHTMLAttributes, KeyboardEvent, PointerEvent as ReactPointerEvent } from 'react'
 import { businessNumberPresentation, formatFocusedNumericValue, formatFullNumericValue, formatHeaderNumericValue } from './numeric-display'
+import { measureNumericText, numericDecimalPrefixWidth, numericColumnPresentation, numericScientificFitFloor, useNumericColumnMetrics } from './numeric-column-layout'
 import {
   formatNumericInputValue,
   isNumericDraftSyntax,
@@ -25,6 +26,7 @@ export interface NumericInputProps extends Omit<InputHTMLAttributes<HTMLInputEle
   integerDigits?: number
   percentSuffix?: boolean
   reserveMarker?: boolean
+  numericColumn?: boolean
 }
 
 const defaultInputClassName = 'h-8 w-full min-w-0 font-mono text-xs tabular-nums focus:outline-none'
@@ -46,6 +48,7 @@ export function NumericInput({
   integerDigits = 8,
   percentSuffix = false,
   reserveMarker = false,
+  numericColumn = false,
   onFocus,
   onBlur,
   onKeyDown,
@@ -54,12 +57,16 @@ export function NumericInput({
   ...inputProps
 }: NumericInputProps) {
   const domain: NumericInputDomain = { integer, min, max, minExclusive }
+  const inputRef = useRef<HTMLInputElement>(null)
+  const columnMetrics = useNumericColumnMetrics(inputRef, numericColumn && displayMode === 'compact')
+  const columnReserveEnd = reserveMarker ? (showStepper ? 28 : 8) : showStepper ? 28 : 0
+  const measure = (text: string) => measureNumericText(text, columnMetrics.font, columnMetrics.letterSpacing)
+  const columnPresentation = (next: number | null | undefined) => numericColumnPresentation(next, { integer }, columnMetrics.width, measure, columnReserveEnd)
   const formatValue = (next: number | null | undefined) => displayMode === 'full'
     ? formatFullNumericValue(next)
     : displayMode === 'header'
       ? formatHeaderNumericValue(next)
-      : formatNumericInputValue(next, { ...domain, integerDigits })
-  const inputRef = useRef<HTMLInputElement>(null)
+      : numericColumn ? (next == null || !Number.isFinite(next) ? '' : columnPresentation(next).text) : formatNumericInputValue(next, { ...domain, integerDigits })
   const wrapperRef = useRef<HTMLDivElement>(null)
   const currentValueRef = useRef(value)
   const onValueChangeRef = useRef(onValueChange)
@@ -168,7 +175,7 @@ export function NumericInput({
 
     previousValueRef.current = value
     previousFormattedValueRef.current = formattedValue
-  }, [draft, focused, value, integer, min, max, minExclusive, displayMode, integerDigits, inputProps.readOnly])
+  }, [draft, focused, value, integer, min, max, minExclusive, displayMode, integerDigits, inputProps.readOnly, numericColumn, columnMetrics.width, columnMetrics.font, columnMetrics.letterSpacing, columnMetrics.fontRevision])
 
   useIsomorphicLayoutEffect(() => {
     const exponent = restorePlaceRef.current
@@ -250,9 +257,11 @@ export function NumericInput({
     onKeyDown?.(event)
   }
 
-  const presentation = businessNumberPresentation(value, { integer, integerDigits })
+  const presentation = numericColumn ? columnPresentation(value) : businessNumberPresentation(value, { integer, integerDigits })
   const ordinaryDecimal = displayMode === 'compact' && !integer && !/[eE]/.test(draft) && draft !== ''
   const wholeGlyphs = draft.split('.')[0].length
+  const columnOrdinary = numericColumn && draft !== '' && !/[eE]/.test(draft)
+  const columnWholeWidth = numericDecimalPrefixWidth(draft, measure)
   const presentationPadding = presentation.notation === 'ordinary' && presentation.fractionDigits === 2 ? '2ch' : '0ch'
   const rightPadding = displayMode === 'header' ? '2.25rem' : reserveMarker
     ? showStepper ? '2.5rem' : '1.5rem'
@@ -323,8 +332,19 @@ export function NumericInput({
             : style?.paddingLeft,
           paddingRight: ordinaryDecimal ? 0 : displayMode === 'compact'
             ? `calc(${typeof rightPadding === 'number' ? `${rightPadding}px` : rightPadding} + ${focused && !inputProps.readOnly ? '0ch' : presentationPadding})`
-            : displayMode === 'header' || reserveMarker || showStepper ? rightPadding : style?.paddingRight
+            : displayMode === 'header' || reserveMarker || showStepper ? rightPadding : style?.paddingRight,
+          ...(numericColumn && displayMode === 'compact' ? {
+            textAlign: columnOrdinary ? 'left' : 'center',
+            paddingLeft: columnOrdinary ? Math.max(0, columnMetrics.width / 2 - columnMetrics.borderLeft - columnWholeWidth) : columnReserveEnd || 1,
+            paddingRight: columnOrdinary ? columnReserveEnd : columnReserveEnd || 1
+          } : {})
         }}
+        data-numeric-column={numericColumn ? 'true' : undefined}
+        data-numeric-region={numericColumn ? 'true' : undefined}
+        data-numeric-fit-inset={numericColumn ? 2 : undefined}
+        data-numeric-reserve-end={numericColumn ? columnReserveEnd : undefined}
+        data-numeric-fit={numericColumn ? presentation.notation : undefined}
+        data-numeric-fit-floor={numericColumn ? (columnMetrics.width - columnMetrics.borderLeft - columnMetrics.borderRight + 0.5 >= numericScientificFitFloor(measure, min === undefined || min < 0) + 2 * columnReserveEnd ? 'adequate' : 'insufficient') : undefined}
         data-numeric-editor="true"
         data-numeric-presentation={presentation.notation}
         data-numeric-fraction-digits={presentation.fractionDigits}

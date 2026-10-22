@@ -4,6 +4,7 @@ import { NumericInput } from '../../../shared/ui/NumericInput'
 import { SelectedNumber, useSelectedValue, useSelectedValueSource } from '../../../shared/ui/selected-value'
 import { formatBusinessNumber } from '../../../shared/ui/numeric-display'
 import { BusinessNumber } from '../../../shared/ui/BusinessNumber'
+import { NumericColumnHeader } from '../../../shared/ui/NumericColumnHeader'
 import { MasterDataBlockerMarker } from './MasterDataBlockerMarker'
 
 export function masterDataSelectedValueId(
@@ -21,6 +22,7 @@ export function masterDataSelectedValueId(
 interface MasterDataNumericInputProps extends NumericInputProps {
   selectionId: string
   percentage?: boolean
+  'data-grid-cell'?: string
 }
 
 export function MasterDataNumericInput({ selectionId, percentage = false, ...props }: MasterDataNumericInputProps) {
@@ -43,6 +45,7 @@ export function MasterDataNumericInput({ selectionId, percentage = false, ...pro
   return (
     <NumericInput
       {...props}
+      numericColumn={props['data-grid-cell'] === 'true'}
       data-selected-value-source={selectionId}
       onPointerEnter={event => {
         preview()
@@ -151,7 +154,6 @@ interface MasterDataFocusedNumberProps {
   selectionId: string
   percentage?: boolean
   integer?: boolean
-  integerDigits?: number
   className?: string
   tabIndex?: number
   'aria-label'?: string
@@ -169,7 +171,6 @@ export function MasterDataFocusedNumber({
   selectionId,
   percentage = false,
   integer = false,
-  integerDigits = 8,
   className,
   tabIndex,
   'aria-label': ariaLabel,
@@ -202,10 +203,19 @@ export function MasterDataFocusedNumber({
         const headerSourceId = header?.querySelector('[data-selected-value-source]')?.getAttribute('data-selected-value-source')
         if (headerSourceId !== selectionId) clearFocus(selectionId)
       }}
-      className={`${reserveMarker ? 'pr-6 ' : ''}${className ?? ''}`.trim()}
+      className={`${className ?? ''} !px-0`.trim()}
     >
-      <BusinessNumber value={value} integer={integer} integerDigits={integerDigits} />
+      <BusinessNumber value={value} integer={integer} numericColumn numericColumnSigned={false} numericColumnReserveEnd={reserveMarker ? 8 : 0} />
       {missingMarker && <MasterDataBlockerMarker />}
     </span>
   )
+}
+
+/** Mirror the body shell so suffixes and markers cannot move the column label. */
+export function MasterDataNumericColumnHeader({ children, percentage = false }: { children: React.ReactNode; percentage?: boolean }) {
+  if (percentage) return <span className="ml-auto flex w-28 min-w-0 items-center gap-1">
+    <NumericColumnHeader className="min-w-0 flex-1">{children}</NumericColumnHeader>
+    <span aria-hidden="true" className="w-3 shrink-0" />
+  </span>
+  return <NumericColumnHeader className="ml-auto w-full max-w-[8.5rem]">{children}</NumericColumnHeader>
 }

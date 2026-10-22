@@ -314,15 +314,19 @@ export interface SelectedNumberProps extends Omit<ButtonHTMLAttributes<HTMLButto
   percentage?: boolean
   selectionId?: string
   stopKeyboardPropagation?: boolean
+  numericColumn?: boolean
+  signPositive?: boolean
   children?: ReactNode
 }
 
-export function SelectedNumber({ value, integer, percentage, selectionId, children, className, style, stopKeyboardPropagation = true, onKeyDown, onKeyUp, ...props }: SelectedNumberProps) {
+export function SelectedNumber({ value, integer, percentage, selectionId, children, className, style, numericColumn = false, signPositive, stopKeyboardPropagation = true, onKeyDown, onKeyUp, ...props }: SelectedNumberProps) {
   const { isPinned, preview, clearPreview, pin } = useSelectedValueSource({ value, editable: false, domain: { integer }, percentage }, selectionId)
   const content = children ?? <BusinessNumber value={value} integer={integer} percent={percentage} />
-  if (value == null || !Number.isFinite(value)) return <span className={className} style={style}>{content}</span>
+  if (value == null || !Number.isFinite(value)) return numericColumn
+    ? <BusinessNumber numericColumn value={value} integer={integer} percent={percentage} className={className} />
+    : <span className={className} style={style}>{content}</span>
 
-  return (
+  const renderButton = (token: ReactNode) => (
     <button
       {...props}
       type="button"
@@ -352,7 +356,10 @@ export function SelectedNumber({ value, integer, percentage, selectionId, childr
         onKeyUp?.(event)
       }}
     >
-      <span className={`rounded-sm ${isPinned ? 'bg-blue-100' : 'bg-transparent hover:bg-[#E9EEF4]'}`}>{content}</span>
+      <span className={`rounded-sm ${isPinned ? 'bg-blue-100' : 'bg-transparent hover:bg-[#E9EEF4]'}`}>{token}</span>
     </button>
   )
+  return numericColumn
+    ? <BusinessNumber numericColumn className={className} value={value} integer={integer} percent={percentage} signPositive={signPositive} renderToken={renderButton} />
+    : renderButton(content)
 }

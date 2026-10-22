@@ -1,3 +1,4 @@
+import { numericColumnGeometry, numericCenterlineFailures } from './numeric-browser-geometry.mjs'
 import { spawn, execFileSync } from 'node:child_process'
 import { existsSync } from 'node:fs'
 import { mkdtemp, rm, writeFile } from 'node:fs/promises'
@@ -554,10 +555,15 @@ try {
     { kind: 'routing', label: 'Capacity', ariaLabel: 'OP-10 Capacity in Current', value: '8.00' },
     { kind: 'routing', label: 'Yield', ariaLabel: 'OP-10 Yield in Current', value: '15.00' }
   ]
+  const authoritativeDraft = async ariaLabel => {
+    await evaluate(`(()=>{const e=[...document.querySelectorAll('input[data-numeric-editor]')].find(e=>e.getClientRects().length&&e.getAttribute('aria-label')===${JSON.stringify(ariaLabel)});e?.focus()})()`)
+    await delay(100)
+    return evaluate(`(()=>[...document.querySelectorAll('input[data-numeric-editor]')].find(e=>e.getClientRects().length&&e.getAttribute('aria-label')===${JSON.stringify(ariaLabel)})?.value??null)()`)
+  }
   const frameOriginalValues = []
   const frameValueResults = []
   for (const fixture of frameValueFixtures) {
-    const original = await evaluate(`(()=>[...document.querySelectorAll('input[data-numeric-editor]')].find(e=>e.getClientRects().length&&e.getAttribute('aria-label')===${JSON.stringify(fixture.ariaLabel)})?.value??null)()`)
+    const original = await authoritativeDraft(fixture.ariaLabel)
     frameOriginalValues.push({ fixture, original })
     const actual = await typeIntoInput(fixture.ariaLabel, fixture.value)
     frameValueResults.push({ field: fixture.ariaLabel, expected: fixture.value, actual })
@@ -627,7 +633,11 @@ try {
   }
   await evaluate('document.activeElement?.blur()')
   await delay(180)
-  const restoredFrameValues = await evaluate(`(${JSON.stringify(frameOriginalValues.map(({ fixture, original }) => ({ ariaLabel: fixture.ariaLabel, original }))) }).map(({ariaLabel,original})=>({ariaLabel,original,actual:[...document.querySelectorAll('input[data-numeric-editor]')].find(e=>e.getClientRects().length&&e.getAttribute('aria-label')===ariaLabel)?.value??null}))`)
+  const restoredFrameValues = []
+  for (const { fixture, original } of frameOriginalValues) {
+    restoredFrameValues.push({ original, actual: await authoritativeDraft(fixture.ariaLabel) })
+  }
+  await evaluate('document.activeElement?.blur()')
   check('Temporary visual fixtures are restored before existing Simulation regression checks',
     restoredFrameValues.every(result => result.original !== null && result.actual === result.original), restoredFrameValues)
 
@@ -754,9 +764,9 @@ try {
           const point=await evaluate(`(()=>{const e=document.querySelector(${JSON.stringify(rowSelector+' th[scope="row"]')});e.scrollIntoView({block:'center'});const r=e.getBoundingClientRect();return{x:r.x+r.width/2,y:r.y+r.height/2}})()`)
           await clickAt(point)
         }
-        const axes=await evaluate(`(()=>{const section=document.querySelector('section[data-simulation-table="${kind}"]'),headers=[...section.querySelectorAll('table[role="presentation"] thead th')],main=section.querySelector('tbody tr[data-simulation-row-index]'),detail=main.nextElementSibling;return [3,4,5,6].map((column,index)=>{const cell=main.children[column],effect=detail?.children[index+2],h=headers[column]?.getBoundingClientRect(),m=cell.getBoundingClientRect(),d=effect?.getBoundingClientRect(),number=effect?.querySelector('[data-numeric-presentation]'),n=number?.getBoundingClientRect();return{column,mainRight:m.right,headerRight:h?.right,effectRight:d?.right,effectNumberRight:n?.right,effectPadding:effect?parseFloat(getComputedStyle(effect).paddingRight):null,parameterBoundary:cell.querySelector('input')?.getBoundingClientRect().right-(column===5?5:17),calculatedReadOnly:column!==6||!cell.querySelector('input')}})})()`)
+        const axes=await evaluate(`(()=>{const section=document.querySelector('section[data-simulation-table="${kind}"]'),headers=[...section.querySelectorAll('table[role="presentation"] thead th')],main=section.querySelector('tbody tr[data-simulation-row-index]'),detail=main.nextElementSibling;return [3,4,5,6].map((column,index)=>{const cell=main.children[column],effect=detail?.children[index+2],h=headers[column]?.getBoundingClientRect(),m=cell.getBoundingClientRect(),d=effect?.getBoundingClientRect(),number=effect?.querySelector('[data-numeric-region]'),n=number?.getBoundingClientRect(),mainRegion=cell.querySelector('[data-numeric-region]')?.getBoundingClientRect();return{column,mainRight:m.right,headerRight:h?.right,effectRight:d?.right,effectNumberRight:n?.right,effectCenter:n?(n.left+n.right)/2:null,mainCenter:mainRegion?(mainRegion.left+mainRegion.right)/2:null,effectPadding:effect?parseFloat(getComputedStyle(effect).paddingRight):null,parameterBoundary:cell.querySelector('input')?.getBoundingClientRect().right-(column===5?5:17),calculatedReadOnly:column!==6||!cell.querySelector('input')}})})()`)
         check(`${width}px ${kind.toUpperCase()} expanded effects and calculated costs retain matching column anchors`,
-          axes.every(axis=>Math.abs(axis.mainRight-axis.headerRight)<1&&Math.abs(axis.mainRight-axis.effectRight)<1&&axis.calculatedReadOnly&&Math.abs(axis.effectNumberRight-(axis.column===6?axis.effectRight-axis.effectPadding:axis.parameterBoundary))<1), axes)
+          axes.every(axis=>Math.abs(axis.mainRight-axis.headerRight)<1&&Math.abs(axis.mainRight-axis.effectRight)<1&&axis.calculatedReadOnly&&Math.abs(axis.effectCenter-axis.mainCenter)<1), axes)
         if (width===1440) await screenshot(`numeric-layout-${width}-${kind}-expanded`)
       }
     }
@@ -802,6 +812,10 @@ try {
       const breakEvenEvidence=breakSvg?{markerCount:breakSvg.querySelectorAll('circle[aria-label^="Break-even Quantity:"]').length,batchSlider:!!breakSvg.querySelector('[role="slider"][aria-label="Batch Size"]'),qtyLabel:[...breakSvg.querySelectorAll('text')].some(e=>e.textContent.includes('QTY'))}:null
       return{width:innerWidth,docScrollWidth:root.scrollWidth,bodyScrollWidth:body.scrollWidth,horizontalOverflow:root.scrollWidth>innerWidth+1,sections,simulationTitleVisible:[...document.querySelectorAll('h2')].some(e=>e.innerText.trim()==='Cost Structure'&&e.getClientRects().length>0),mobileCardsExpected:innerWidth<768,mobileCardsIntact:innerWidth>=768?sections.every(section=>section.desktopTableVisible):sections.every(section=>section.visibleCardCount>0&&!section.horizontalCardOverflow),showAll:show&&g&&s&&l?{inside:graph.contains(show),distinct:!legend.contains(show),separated,rightInset:g.right-s.right,topInset:s.top-g.top,topRight:(g.right-s.right<=20&&s.bottom<=(storySvg?.getBoundingClientRect().top??Infinity)+1),gapFromLastLegendItem:lastLegendItem?s.left-lastLegendItem.right:null,card:g,button:s,legend:l}:null,costStructureBounds:graphBounds(storySvg),breakEvenBounds:graphBounds(breakSvg),breakEvenEvidence}
     })()`)
+    const centerlines = await evaluate(`(${numericColumnGeometry.toString()})()`)
+    const centerlineFailures = numericCenterlineFailures(centerlines.filter(metric => metric.hasTable || metric.header !== null))
+    check(`Simulation rendered numeric Header/frame/decimal centerlines agree at ${width}px`,
+      centerlines.length >= 6 && centerlineFailures.length === 0, { centerlines, failures: centerlineFailures })
     responsive.push(metrics)
     if (!numericLayoutOnly) {
     check(`Responsive ${width}px layout has no horizontal overflow/clipping and retains intact Simulation presentation`,
