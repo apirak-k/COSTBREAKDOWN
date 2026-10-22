@@ -31,6 +31,7 @@ async function unusedPort() {
 
 const delay = ms => new Promise(resolveDelay => setTimeout(resolveDelay, ms))
 const repository = process.cwd()
+const rulerOnly = process.argv.includes('--ruler-only')
 const configuredBaseUrl = process.env.COSTBREAKDOWN_BROWSER_BASE_URL
 const vitePort = configuredBaseUrl ? null : await unusedPort()
 const debugPort = await unusedPort()
@@ -185,6 +186,53 @@ try {
   await delay(800)
   await screenshot('simulation-seeded-1440-before-expansion')
 
+  const originalSellingPrice = await evaluate(`document.querySelector('input[aria-label="Selling Price"]').value`)
+  // Exercise the real ruler at ordinary and wider monetary ranges without changing graph logic.
+  const rulerState = () => evaluate(`(()=>{
+    const svg=document.querySelector('svg[aria-labelledby="simulation-story-title"]'),text=svg.querySelector('[data-ruler-value]'),line=svg.querySelector('[data-ruler-line]'),slider=svg.querySelector('[role="slider"][aria-label="Simulation comparison ruler"]')
+    const box=text.getBBox(),vb=svg.viewBox.baseVal,axis=svg.querySelector('[data-y-axis]')
+    const anchors=[...svg.querySelectorAll('foreignObject')].map(e=>Number(e.getAttribute('x'))+Number(e.getAttribute('width'))/2)
+    const gaps=[...svg.querySelectorAll('text')].filter(e=>/^GAP [12]$/.test(e.textContent.trim())).map(e=>Number(e.getAttribute('x')))
+    const overlaps=[...svg.querySelectorAll('[data-graph-visible-net-value],[data-graph-standard-cost-value],[data-axis-tick],[data-y-axis-unit]')].filter(e=>{const b=e.getBBox();return box.x<b.x+b.width&&box.x+box.width>b.x&&box.y<b.y+b.height&&box.y+box.height>b.y}).map(e=>e.textContent)
+    return {value:Number(slider.getAttribute('aria-valuenow')),min:Number(slider.getAttribute('aria-valuemin')),max:Number(slider.getAttribute('aria-valuemax')),label:text.textContent,textLength:text.getAttribute('textLength'),lengthAdjust:text.getAttribute('lengthAdjust'),fontSize:getComputedStyle(text).fontSize,anchor:text.getAttribute('text-anchor'),x:box.x,right:box.x+box.width,width:box.width,viewWidth:vb.width,plotLeft:Number(axis.getAttribute('x1')),plotRight:Number(line.getAttribute('x2')),labelX:Number(text.getAttribute('x')),anchors:[...anchors,...gaps].sort((a,b)=>a-b),overlaps,overflow:document.documentElement.scrollWidth>innerWidth+1}
+  })()`)
+  const rulerKey = async key => {
+    await evaluate(`document.querySelector('[role="slider"][aria-label="Simulation comparison ruler"]').focus()`)
+    await send('Input.dispatchKeyEvent', {type:'keyDown',key})
+    await send('Input.dispatchKeyEvent', {type:'keyUp',key})
+    await delay(80)
+  }
+  for (const width of [1440, 1024, 768, 390, 320]) {
+    await setViewport(width)
+    for (const sellingPrice of ['300', '12345.67']) {
+      await typeIntoInput('Selling Price', sellingPrice)
+      await evaluate(`document.querySelector('figure[aria-labelledby="simulation-story-title"]').scrollIntoView({block:"center"})`)
+      await rulerKey('End')
+      const high = await rulerState()
+      check(`${width}px Ruler ${high.label} uses natural glyphs in a real dedicated gutter`, high.textLength === null && high.lengthAdjust === null && high.fontSize === (width < 640 ? '16px' : '9px') && high.anchor === 'start' && high.labelX === high.plotRight + 6 && high.right <= high.viewWidth - 2 && high.overlaps.length === 0 && !high.overflow, high)
+      check(`${width}px plot rebalances margins without compressing category spacing`, high.plotLeft === 74-19 && high.plotRight === 784-19 && high.plotRight-high.plotLeft === 710 && high.anchors.length === 5 && high.anchors.slice(1).every((x,i)=>x-high.anchors[i]===140), {left:high.plotLeft,right:high.plotRight,anchors:high.anchors})
+      await screenshot(`simulation-ruler-${width}-${sellingPrice}`)
+      await rulerKey('Home')
+      const low = await rulerState()
+      await rulerKey('ArrowUp')
+      const arrow = await rulerState()
+      await rulerKey('PageUp')
+      const page = await rulerState()
+      check(`${width}px Ruler Home/End/Arrow/Page controls retain their range`, high.value === high.max && low.value === low.min && arrow.value > low.value && page.value > arrow.value && page.value <= high.max, {min:low.value,max:high.value,arrow:arrow.value,page:page.value})
+      const points = await evaluate(`(()=>{const svg=document.querySelector('svg[aria-labelledby="simulation-story-title"]'),line=svg.querySelector('[data-ruler-line]'),axis=svg.querySelector('[data-y-axis]');const point=y=>{const p=svg.createSVGPoint();p.x=(Number(line.getAttribute('x1'))+Number(line.getAttribute('x2')))/2;p.y=y;const r=p.matrixTransform(svg.getScreenCTM());return{x:r.x,y:r.y}};return{start:point(Number(line.getAttribute('y1'))),end:point((Number(axis.getAttribute('y1'))+Number(axis.getAttribute('y2')))/2)}})()`)
+      await send('Input.dispatchMouseEvent', {type:'mousePressed',...points.start,button:'left',clickCount:1})
+      await send('Input.dispatchMouseEvent', {type:'mouseMoved',...points.end,button:'left',buttons:1})
+      await send('Input.dispatchMouseEvent', {type:'mouseReleased',...points.end,button:'left',clickCount:1})
+      await delay(100)
+      const dragged = await rulerState()
+      check(`${width}px Ruler still drags vertically within its unchanged range`, dragged.value !== page.value && dragged.value >= dragged.min && dragged.value <= dragged.max && dragged.right <= dragged.viewWidth-2, {before:page.value,after:dragged.value,label:dragged.label})
+    }
+  }
+
+  await setViewport(1440)
+  await typeIntoInput('Selling Price', originalSellingPrice)
+
+  if (!rulerOnly) {
   // Reference is also an editable Simulation dataset in this product. Verify
   // that its live input labels/values align, then restore Current for the
   // marker fixture. Calculated costs and effect totals are the read-only cells.
@@ -412,7 +460,7 @@ try {
   })()`)
   const storyBaseline = { widthRatio: 0.844, heightRatio: 0.705, leftInsetRatio: 0.107, topInsetRatio: 0.114 }
   check('Cost Structure plot improves on baseline bounds while preserving label/ruler gutters',
-    Boolean(storyMetrics && storyMetrics.plot.widthRatio >= storyBaseline.widthRatio + 0.01 && storyMetrics.plot.heightRatio >= storyBaseline.heightRatio + 0.02 && storyMetrics.plot.leftInsetRatio <= storyBaseline.leftInsetRatio - 0.005 && storyMetrics.plot.topInsetRatio <= storyBaseline.topInsetRatio - 0.005 && storyMetrics.plot.rightInsetRatio <= 0.05), { baseline: storyBaseline, current: storyMetrics })
+    Boolean(storyMetrics && storyMetrics.plot.widthRatio >= storyBaseline.widthRatio + 0.01 && storyMetrics.plot.heightRatio >= storyBaseline.heightRatio + 0.02 && storyMetrics.plot.leftInsetRatio <= storyBaseline.leftInsetRatio - 0.005 && storyMetrics.plot.topInsetRatio <= storyBaseline.topInsetRatio - 0.005 && Math.abs(storyMetrics.plot.leftInsetRatio - storyMetrics.plot.rightInsetRatio) < 0.001), { baseline: storyBaseline, current: storyMetrics })
   check('Cost Structure retains Y-axis/categories/ruler/Selling Price and all relevant labels inside graph bounds',
     Boolean(storyMetrics && storyMetrics.tickCount >= 4 && storyMetrics.yAxisUnit && storyMetrics.categories.length === 3 && storyMetrics.gapLabels.length === 2 && storyMetrics.ruler.line && storyMetrics.ruler.value && storyMetrics.sellingPricePointCount >= 2 && storyMetrics.clipped.length === 0),
     storyMetrics && { tickCount: storyMetrics.tickCount, yAxisUnit: storyMetrics.yAxisUnit, categories: storyMetrics.categories, gapLabels: storyMetrics.gapLabels, ruler: storyMetrics.ruler, sellingPricePointCount: storyMetrics.sellingPricePointCount, clipped: storyMetrics.clipped })
@@ -666,11 +714,13 @@ try {
     await screenshot(`simulation-break-even-${width}`)
   }
 
+  }
+
   check('Browser page produced no console errors or uncaught exceptions', browserErrors.length === 0, browserErrorDetails)
   process.stdout.write(`Evidence screenshots: ${evidenceDir}\n`)
   process.stdout.write(`Browser URL: ${baseUrl}\n`)
   const failed = results.filter(result => !result.passed)
-  process.stdout.write(`Round 4A browser checks: ${results.length - failed.length}/${results.length} PASS; exit=${failed.length ? 1 : 0}\n`)
+  process.stdout.write(`${rulerOnly ? 'Ruler' : 'Round 4A'} browser checks: ${results.length - failed.length}/${results.length} PASS; exit=${failed.length ? 1 : 0}\n`)
   if (failed.length) process.exitCode = 1
 } finally {
   if (client && client.readyState < WebSocket.CLOSING) client.close()

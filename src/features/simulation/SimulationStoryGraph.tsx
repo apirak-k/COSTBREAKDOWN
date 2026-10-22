@@ -64,19 +64,19 @@ const DEFAULT_LEGEND_VISIBILITY: Record<LegendKey, boolean> = {
 
 const useIsomorphicLayoutEffect = typeof window === 'undefined' ? useEffect : useLayoutEffect
 
+// Balance the original 74/36-unit margins: shift left by (74 - 36) / 2, preserving plot and category spacing.
 const GRAPH_X = {
-  plotLeft: 74,
-  plotRight: 784,
-  reference: 149,
-  gap1: 289,
-  current: 429,
-  gap2: 569,
-  custom: 709
+  plotLeft: 55,
+  plotRight: 765,
+  reference: 130,
+  gap1: 270,
+  current: 410,
+  gap2: 550,
+  custom: 690
 } as const
 const GRAPH_VIEWBOX_WIDTH = 820
 const RULER_LABEL_GUTTER = {
-  left: GRAPH_X.plotRight + 6,
-  right: GRAPH_VIEWBOX_WIDTH - 2
+  left: GRAPH_X.plotRight + 6
 } as const
 
 const STATE_LAYOUT = [
@@ -369,6 +369,8 @@ export function SimulationStoryGraph({ story, unit, activeRole, onSelectActiveDa
   const [manualRulerLevel, setManualRulerLevel] = useState<number | null>(null)
   const [activeTooltip, setActiveTooltip] = useState<ActiveGraphTooltip | null>(null)
   const tooltipRef = useRef<HTMLDivElement>(null)
+  const rulerLabelRef = useRef<SVGTextElement>(null)
+  const [rulerViewBoxWidth, setRulerViewBoxWidth] = useState(GRAPH_VIEWBOX_WIDTH)
   const labelMetrics = isNarrowGraphViewport ? NARROW_GRAPH_LABEL_METRICS : WIDE_GRAPH_LABEL_METRICS
   const stateValues = useMemo(() => STATE_LAYOUT.map(state => ({
     ...state,
@@ -429,7 +431,14 @@ export function SimulationStoryGraph({ story, unit, activeRole, onSelectActiveDa
   const rulerLevel = clamp(manualRulerLevel ?? story.current.standardCost ?? 0, minimum, maximum)
   const rulerY = y(rulerLevel)
   const rulerValue = formatValue(rulerLevel)
-  const rulerValueWidth = Math.min(rulerValue.length * 5.4, RULER_LABEL_GUTTER.right - RULER_LABEL_GUTTER.left)
+  useIsomorphicLayoutEffect(() => {
+    const text = rulerLabelRef.current
+    if (!text) return
+    // Reserve natural monospace width for the ruler's full range, including the existing mobile font.
+    const characters = Math.max(rulerValue.length, formatValue(minimum).length, formatValue(maximum).length)
+    const width = Math.ceil(text.getComputedTextLength() / rulerValue.length * characters)
+    setRulerViewBoxWidth(Math.max(GRAPH_VIEWBOX_WIDTH, RULER_LABEL_GUTTER.left + width + 2))
+  }, [rulerValue, minimum, maximum, isNarrowGraphViewport, visibleLegend.ruler])
   const showTooltipAt = (target: SVGElement, text: string) => {
     const host = target.ownerSVGElement?.parentElement
     if (!host) return
@@ -602,7 +611,7 @@ export function SimulationStoryGraph({ story, unit, activeRole, onSelectActiveDa
         <svg
           aria-labelledby="simulation-story-title"
           aria-describedby="simulation-story-svg-description"
-          viewBox={`0 0 ${GRAPH_VIEWBOX_WIDTH} 332`}
+          viewBox={`0 0 ${rulerViewBoxWidth} 332`}
           preserveAspectRatio="xMidYMid meet"
           className="simulation-story-chart mt-1 block h-[250px] w-full sm:h-auto xl:h-full"
           style={{ touchAction: 'pan-y' }}
@@ -825,7 +834,7 @@ export function SimulationStoryGraph({ story, unit, activeRole, onSelectActiveDa
           {visibleLegend.ruler && (
             <>
               <line data-ruler-line="true" x1={plot.left} x2={plot.right} y1={rulerY} y2={rulerY} stroke={RULER_COLOR} strokeWidth="1.4" strokeDasharray="4 5" pointerEvents="none" />
-              <text data-ruler-value="true" x={RULER_LABEL_GUTTER.left} y={clamp(rulerY - 3, plot.top + 10, plot.bottom - 1)} textAnchor="start" textLength={rulerValueWidth} lengthAdjust="spacingAndGlyphs" fill={RULER_COLOR} fontSize="9px" fontWeight="600" fontFamily="ui-monospace, monospace" pointerEvents="none">{rulerValue}</text>
+              <text ref={rulerLabelRef} data-ruler-value="true" x={RULER_LABEL_GUTTER.left} y={clamp(rulerY - 3, plot.top + 10, plot.bottom - 1)} textAnchor="start" fill={RULER_COLOR} fontSize="9px" fontWeight="600" fontFamily="ui-monospace, monospace" pointerEvents="none">{rulerValue}</text>
               <g
                 role="slider"
                 tabIndex={0}
