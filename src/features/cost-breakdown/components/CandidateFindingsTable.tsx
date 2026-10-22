@@ -463,7 +463,7 @@ export const CandidateFindingsTable: React.FC<CandidateFindingsTableProps> = ({
                       onClick={event => {
                         event.stopPropagation()
                       }}
-                      className={`inline-flex h-8 w-7 shrink-0 cursor-grab select-none items-center justify-center rounded-sm ${selected ? 'text-slate-700' : 'text-slate-400'} hover:bg-slate-200 hover:text-slate-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-700 active:cursor-grabbing group-hover:text-slate-600 group-focus-within:text-slate-700 ${draggingKeys.has(row.key) ? 'cursor-grabbing' : ''}`}
+                      className={`inline-flex h-8 w-7 shrink-0 select-none items-center justify-center rounded-sm ${draggingKeys.has(row.key) ? 'cursor-grabbing text-slate-700' : 'cursor-grab text-slate-400'} hover:bg-slate-200 hover:text-slate-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-700 active:cursor-grabbing`}
                     ><GripVertical aria-hidden="true" className="h-4 w-4" /></button>
                   </Tooltip>
                 </td>

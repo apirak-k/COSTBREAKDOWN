@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useRef } from 'react'
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { GripVertical, Trash2 } from 'lucide-react'
 import { SnapshotWorkCenterRate, SnapshotRoutingStep } from '../../../core'
 import { getMasterDataNumericInputDomain } from '../../../core/utils/master-data-validation'
@@ -80,6 +80,7 @@ export const WorkCenterRatesTable: React.FC<WorkCenterRatesTableProps> = ({
   onWarningNavigationHandled
 }) => {
   const tableRef = useRef<HTMLTableElement | null>(null)
+  const [draggingIds, setDraggingIds] = useState<ReadonlySet<string>>(() => new Set())
   const valueSourceId = (recordId: string, field: string) => masterDataSelectedValueId(historyScope, selectionDatasetId, 'work-centers', recordId, field)
   const { headerViewportRef, syncHeaderScroll } = useSynchronizedTableHeader()
   const nextWarningItem = useQualityNavigationCursor<MasterDataWarningItem>(navigationScopeKey)
@@ -221,10 +222,14 @@ export const WorkCenterRatesTable: React.FC<WorkCenterRatesTableProps> = ({
   const selectionState = getRowSelectionState(selectedIds, filteredRates.map(rate => rate.id))
 
   const handleDragStart = (event: React.DragEvent<HTMLButtonElement>, id: string) => {
+    const movingIds = selectedIds.has(id) ? [...selectedIds] : [id]
+    setDraggingIds(new Set(movingIds))
     event.dataTransfer.setData('text/plain', id)
-    event.dataTransfer.setData('application/x-costbreakdown-row-ids', JSON.stringify(selectedIds.has(id) ? [...selectedIds] : [id]))
+    event.dataTransfer.setData('application/x-costbreakdown-row-ids', JSON.stringify(movingIds))
     event.dataTransfer.effectAllowed = 'move'
   }
+
+  const handleDragEnd = () => setDraggingIds(new Set())
 
   const handleRowDrop = (event: React.DragEvent<HTMLTableRowElement>, targetId: string) => {
     event.preventDefault()
@@ -466,8 +471,9 @@ export const WorkCenterRatesTable: React.FC<WorkCenterRatesTableProps> = ({
                           disabled={!isEditMode}
                           draggable={isEditMode}
                           onDragStart={event => handleDragStart(event, rate.id)}
+                          onDragEnd={handleDragEnd}
                           aria-label={!isEditMode ? reorderTooltip : reorderSelectedGroup ? 'Drag selected Work Centers rows to reorder' : `Drag Work Centers row ${rowNumber} to reorder`}
-                          className={`inline-flex h-8 w-7 cursor-grab items-center justify-center ${isSelected ? 'text-slate-700' : 'text-slate-400'} hover:bg-slate-200 hover:text-slate-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-700 active:cursor-grabbing disabled:cursor-default disabled:opacity-30 disabled:hover:bg-transparent disabled:hover:text-slate-400 group-hover:text-slate-600 group-focus-within:text-slate-700`}
+                          className={`inline-flex h-8 w-7 items-center justify-center ${draggingIds.has(rate.id) ? 'cursor-grabbing text-slate-700' : 'cursor-grab text-slate-400'} hover:bg-slate-200 hover:text-slate-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-700 active:cursor-grabbing disabled:cursor-default disabled:opacity-30 disabled:hover:bg-transparent disabled:hover:text-slate-400`}
                         >
                           <GripVertical className="h-4 w-4" aria-hidden="true" />
                         </button>

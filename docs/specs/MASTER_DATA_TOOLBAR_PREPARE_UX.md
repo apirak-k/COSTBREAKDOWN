@@ -437,7 +437,7 @@ These records describe earlier visual reviews. Fresh browser review of the produ
 - [x] `#` header toggles only visible/filtered rows and preserves hidden selected rows.
 - [x] `#` Select All has a subtle visible pressed state with the same geometry in both states.
 - [x] Trash on a selected row deletes the selected group in one history action; unselected-row Trash deletes only that row.
-- [x] One Actions column contains Trash and GripVertical; selected Grip is stronger, while hover/focus/drag retain clear states.
+- [x] One Actions column contains Trash and GripVertical; idle grips stay light, direct grip hover and active drag darken the grip, and row selection/hover/focus-within do not.
 - [x] Each table has local cyclic Warning and Blocker counters in the header; zero counts remain visible and inert.
 - [x] Each table is a distinct bordered card in All view, with a compact gap and shared width.
 - [x] Table-local Warning and Blocker counters in All stay in All while navigating within their own table.
