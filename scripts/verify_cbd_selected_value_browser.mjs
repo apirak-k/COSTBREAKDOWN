@@ -452,6 +452,41 @@ try {
     expanded:row.getAttribute('aria-expanded'), selected:row.getAttribute('aria-selected'), label:row.getAttribute('aria-label'),
     text:[...row.querySelectorAll('td,th')].map(cell=>cell.innerText.trim())
   })))()`)
+  const readCandidateGroupVisual = (type, id) => evaluate(`(()=>{
+    const table=[...document.querySelectorAll('table')].find(item=>item.querySelector('caption')?.textContent.includes(${JSON.stringify(`${type} Candidate findings`)}))
+    const main=[...(table?.querySelectorAll('tbody tr[data-candidate-reorder-row]')??[])].find(row=>row.getAttribute('data-candidate-reorder-row')===${JSON.stringify(id)})
+    const detailRows=[];let next=main?.nextElementSibling
+    while(next&&!next.hasAttribute('data-candidate-reorder-row')){if(next.querySelector('th[scope="row"]'))detailRows.push(next);next=next.nextElementSibling}
+    const rowStyle=row=>row?{background:getComputedStyle(row).backgroundColor,borderBottom:getComputedStyle(row).borderBottomWidth,cells:[...row.children].map(cell=>{const style=getComputedStyle(cell);return{top:style.borderTopWidth,bottom:style.borderBottomWidth}})}:null
+    const point=element=>{const rect=element?.getBoundingClientRect();return rect?{x:rect.left+rect.width/2,y:rect.top+rect.height/2}:null}
+    return main?{expanded:main.getAttribute('aria-expanded'),selected:main.getAttribute('aria-selected'),main:rowStyle(main),mainPoint:point(main.querySelector('th[scope="row"]')),details:detailRows.map(row=>({...rowStyle(row),label:row.querySelector('th[scope="row"]')?.innerText.trim()??null,point:point(row.querySelector('th[scope="row"]'))}))}:null
+  })()`)
+  const verifyExpandedCandidateGroupVisual = async (type, id) => {
+    await moveAway()
+    const group = await readCandidateGroupVisual(type, id)
+    const mainPoint = group?.mainPoint
+    const detailPoint = group?.details?.[0]?.point
+    if (mainPoint) { await mouse('mouseMoved', mainPoint.x, mainPoint.y); await delay(180) }
+    const mainHover = await readCandidateGroupVisual(type, id)
+    if (detailPoint) { await mouse('mouseMoved', detailPoint.x, detailPoint.y); await delay(180) }
+    const detailHover = await readCandidateGroupVisual(type, id)
+    const internal = group?.details?.length === 3 && group.details.every(row => row.cells[0]?.top === '0px' && row.cells.slice(1).every(cell => cell.top === '1px'))
+    const fullEnd = group?.details?.at(-1)?.cells?.every(cell => cell.bottom === '1px')
+    const mainSelectionStyle = group?.selected === 'true'
+      ? group.main.background !== 'rgb(255, 255, 255)'
+      : group?.selected === 'false' && group.main.background === 'rgb(255, 255, 255)'
+    const mainHoverWorks = group?.selected === 'true'
+      ? mainHover?.main?.background !== group.main.background && mainHover?.main?.background !== 'rgb(255, 255, 255)'
+      : mainHover?.main?.background === 'rgb(248, 250, 252)'
+    verify(Boolean(group?.expanded === 'true' && mainSelectionStyle && group.main.borderBottom === '0px'
+      && group.details.every(row => row.background === 'rgb(255, 255, 255)')
+      && internal && fullEnd
+      && mainHoverWorks && mainHover?.selected === group.selected
+      && detailHover?.main?.background === group.main.background && detailHover?.selected === group.selected
+      && detailHover?.details?.every(row => row.background === 'rgb(255, 255, 255)')),
+      `${type} expanded Candidate keeps white no-hover detail rows, inset internal separators, a full-width group end, and main-row hover`,
+      { group, mainHover: mainHover?.main?.background, detailHover: { main: detailHover?.main?.background, details: detailHover?.details?.map(row => row.background) }, internal, fullEnd })
+  }
   const changedRowSelector = 'tr[data-candidate-reorder-row][aria-expanded="false"]'
   const accessibilityTree = async () => {
     const result = await send('Accessibility.getFullAXTree')
@@ -605,6 +640,25 @@ try {
   const candidateNumber = `${firstRow} button[data-selected-number="true"]`
   const candidateSelectorButton = `${firstRow} td:first-child button[aria-pressed]`
   const detailsCell = `${firstRow} td:last-child`
+  await moveAway()
+  await screenshot('cbd-candidates-collapsed')
+  const collapsedGroupIds = await evaluate(`(()=>Object.fromEntries(['Bill of Material','Routing'].map(type=>{
+    const table=[...document.querySelectorAll('table')].find(item=>item.querySelector('caption')?.textContent.includes(type+' Candidate findings'))
+    const row=[...(table?.querySelectorAll('tbody tr[data-candidate-reorder-row][aria-expanded="false"]')??[])].find(item=>item.querySelector('td:nth-child(3)')?.innerText.trim()==='CHANGED'&&item.getAttribute('aria-selected')==='false')
+    return [type,row?.getAttribute('data-candidate-reorder-row')??null]
+  })))()`)
+  verify(Boolean(collapsedGroupIds['Bill of Material'] && collapsedGroupIds.Routing), 'collapsed Candidate fixture has unselected CHANGED BOM and Routing records', collapsedGroupIds)
+  for (const type of ['Bill of Material','Routing']) {
+    const collapsed = await readCandidateGroupVisual(type, collapsedGroupIds[type])
+    const point = collapsed?.mainPoint
+    if (point) { await mouse('mouseMoved', point.x, point.y); await delay(180) }
+    const hovered = await readCandidateGroupVisual(type, collapsedGroupIds[type])
+    verify(Boolean(collapsed?.expanded==='false' && collapsed.selected==='false'
+      && collapsed.main?.background==='rgb(255, 255, 255)' && collapsed.main.borderBottom==='1px'
+      && hovered?.main?.background==='rgb(248, 250, 252)'),
+      `collapsed ${type} Candidate has a full-width group boundary and main-row-only neutral hover`, { collapsed, hovered: hovered?.main })
+    await moveAway()
+  }
   const candidateInitial = await evaluate(`(()=>{const r=${visibleExpression(firstRow)};return r?{selected:r.getAttribute('aria-selected'),expanded:r.getAttribute('aria-expanded'),number:r.querySelector('[data-selected-number="true"]')?.getAttribute('aria-label')??null}:null})()`)
   const rowAffordance = await evaluate(`(()=>{const row=${visibleExpression(firstRow)};const cell=row?.querySelector('td:last-child');return row&&cell?{rowTabIndex:row.getAttribute('tabindex'),rowLabel:row.getAttribute('aria-label'),cellButtons:cell.querySelectorAll('button').length,cellFocusable:cell.querySelectorAll('a,input,select,textarea,[role="button"],[tabindex]:not([tabindex="-1"])').length,cellHasTitle:cell.hasAttribute('title'),cellTitles:[...cell.querySelectorAll('[title]')].map(e=>e.getAttribute('title')),cellAriaHidden:cell.querySelector('span[aria-hidden="true"]')!==null,cellSvgCount:cell.querySelectorAll('svg').length}:null})()`)
   verify(rowAffordance?.rowTabIndex === '0' && rowAffordance.cellButtons === 0 && rowAffordance.cellFocusable === 0
@@ -826,6 +880,8 @@ try {
     const detailOrder = expanded?.detailHeaders
     verify(expanded?.expanded === 'true' && detailOrder?.join('|') === 'Reference|Current|Parameter Cost Effect',
       'visual chevron cell click bubbles to the CHANGED Candidate row and opens three ordered Reference, Current, and Parameter Cost Effect detail rows', expanded)
+    await screenshot('cbd-candidate-bom-expanded')
+    await verifyExpandedCandidateGroupVisual('Bill of Material', firstChanged.rowId)
     await click(detailsCell)
     verify(await evaluate(`(${visibleExpression(firstRow)})?.getAttribute('aria-expanded')==='false'`), 'visual chevron cell click bubbles to the row and closes its Candidate details')
   } else {
@@ -849,6 +905,9 @@ try {
   }
   const multiOpenState = await evaluate(`(()=>[...document.querySelectorAll('tr[data-candidate-reorder-row][aria-expanded="true"]')].map(r=>({id:r.getAttribute('data-candidate-reorder-row'),label:r.getAttribute('aria-label')})))()`)
   verify(multiOpenState.length >= 3, 'multiple BOM and Routing details can remain open together', multiOpenState)
+  await screenshot('cbd-candidate-bom-routing-expanded')
+  await verifyExpandedCandidateGroupVisual('Bill of Material', multiOpenIds.bom[0])
+  await verifyExpandedCandidateGroupVisual('Routing', multiOpenIds.routing[0])
   for (const [tableType, id] of [['Bill of Material', multiOpenIds.bom[0]], ['Routing', multiOpenIds.routing[0]]]) {
     for (const role of ['Reference', 'Current', 'Parameter Cost Effect']) await exerciseDetailSource(tableType, id, role)
   }

@@ -419,7 +419,7 @@ function EffectCell({ amount }: {
 }) {
   const effect = parameterEffectPresentation(amount)
   return (
-    <td className="whitespace-nowrap py-1.5 pl-1 pr-2 text-right font-mono tabular-nums">
+    <td className="border-t border-b border-slate-200 whitespace-nowrap py-1.5 pl-1 pr-2 text-right font-mono tabular-nums">
       <span className={effect.className}>{effect.text}</span>
     </td>
   )
@@ -479,6 +479,7 @@ function SimulationParameterTable({
   )
   const sectionRef = useRef<HTMLElement>(null)
   const bodyRef = useRef<HTMLDivElement>(null)
+  const [hoveredInputFrame, setHoveredInputFrame] = useState<string | null>(null)
   const [scrollbarWidth, setScrollbarWidth] = useState(0)
   const [viewportState, setViewportState] = useState({ start: 0, end: 0, total: 0, atTop: true, atBottom: true })
   const [expandedRows, setExpandedRows] = useState<Set<string>>(() => new Set())
@@ -515,6 +516,19 @@ function SimulationParameterTable({
   })
   const selectionScope = selectableTargets.map(target => target.key)
   const selectionState = getRowSelectionState(selectedKeys, selectionScope)
+  const updateHoveredInputFrame = (clientX: number, clientY: number) => {
+    const frames = sectionRef.current?.querySelectorAll<HTMLElement>('[data-simulation-input-frame="true"]') ?? []
+    let next: string | null = null
+    for (const frame of frames) {
+      if (!frame.getClientRects().length) continue
+      const bounds = frame.getBoundingClientRect()
+      if (clientX >= bounds.left && clientX <= bounds.right && clientY >= bounds.top && clientY <= bounds.bottom) {
+        next = frame.dataset.simulationInputFrameKey ?? null
+        break
+      }
+    }
+    setHoveredInputFrame(previous => previous === next ? previous : next)
+  }
   const setAllSelection = () => onSetWorkingSelection(
     [...applyRowSelectionScope(selectedKeys, selectionScope, selectionState !== 'all')]
   )
@@ -562,6 +576,8 @@ function SimulationParameterTable({
     }
   }, [updateViewportState])
   useSafeLayoutEffect(() => {
+    sectionRef.current?.querySelectorAll<HTMLDivElement>('[data-simulation-input-wrapper="true"]')
+      .forEach(updateSimulationInputFrame)
     updateViewportState()
   }, [rows, workingSelection, expandedRows, dragRowOrder, updateViewportState])
   useSafeLayoutEffect(() => {
@@ -692,7 +708,11 @@ function SimulationParameterTable({
         <div aria-hidden="true" className="shrink-0 bg-slate-900 shadow-[inset_0_-1px_0_#334155]" style={{ width: scrollbarWidth }} />
       </div>
       <div ref={bodyRef} data-simulation-table-body="true" className="overflow-x-hidden md:overflow-y-visible xl:h-40 xl:flex-none xl:overflow-y-auto xl:[scrollbar-gutter:stable]">
-        <table className="hidden w-full table-fixed border-separate border-spacing-0 text-[11px] md:table">
+        <table
+          className="hidden w-full table-fixed border-separate border-spacing-0 text-[11px] md:table"
+          onPointerMove={event => updateHoveredInputFrame(event.clientX, event.clientY)}
+          onPointerLeave={() => setHoveredInputFrame(null)}
+        >
           <caption className="sr-only">{tableIdentity} Simulation parameters. Selection is a local working aid and does not limit the full Simulation calculation.</caption>
           {renderColumnGroup()}
           <thead className="sr-only">
@@ -705,7 +725,7 @@ function SimulationParameterTable({
               <th scope="col">Expand Parameter Cost Effect</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-slate-200 bg-white">
+          <tbody className="bg-white">
             {orderedRows.length === 0 && <tr><td colSpan={8} className="px-3 py-6 text-center text-xs text-slate-500">{normalizeKey(searchQuery) ? `No ${searchField} matches.` : `No ${tableIdentity} rows.`}</td></tr>}
             {orderedRows.map(({ row, sourceIndex }, orderedIndex) => {
               const key = getRowKey(row, sourceIndex)
@@ -730,6 +750,7 @@ function SimulationParameterTable({
                 amount: analysis.effects.effects?.[parameter.effectKey] ?? null
               }))
               const totalEffect = parameterEffectPresentation(analysis.effects.totalEffect)
+              const groupEndClass = expanded ? '' : 'border-b border-slate-200'
 
               return (
                 <React.Fragment key={key}>
@@ -752,7 +773,7 @@ function SimulationParameterTable({
                     }}
                     className={`transition-colors ${selected ? 'bg-blue-100/60 hover:bg-blue-100/80' : 'bg-white hover:bg-slate-50'} focus-visible:outline focus-visible:outline-2 focus-visible:outline-inset focus-visible:outline-blue-700 ${canExpand ? 'cursor-pointer' : ''}`}
                   >
-                    <td data-safe-workspace-interaction="true" className="p-0 text-center font-normal">
+                    <td data-safe-workspace-interaction="true" className={`p-0 text-center font-normal ${groupEndClass}`}>
                       {canEdit && simulationRecord ? (
                         <button
                           type="button"
@@ -777,17 +798,19 @@ function SimulationParameterTable({
                         >{sourceIndex + 1}</button>
                       ) : <span className="font-mono text-[10px] tabular-nums text-slate-500">{sourceIndex + 1}</span>}
                     </td>
-                    <th scope="row" className="break-words px-2 py-2 text-left font-medium text-slate-900">{row.name}</th>
-                    <td className={`${row.identityIssue ? 'break-words' : 'whitespace-nowrap'} px-1 py-2 leading-3 ${statusTextClass(status)}`}>{status}</td>
+                    <th scope="row" className={`break-words px-2 py-2 text-left font-medium text-slate-900 ${groupEndClass}`}>{row.name}</th>
+                    <td className={`${row.identityIssue ? 'break-words' : 'whitespace-nowrap'} px-1 py-2 leading-3 ${statusTextClass(status)} ${groupEndClass}`}>{status}</td>
                     {parameters.map(parameter => {
+                      const inputFrameKey = `${kind}:${key}:${parameter.parameter}`
                       const recordValue = simulationRecord
                         ? (simulationRecord as unknown as Record<string, number | null>)[parameter.field] ?? null
                         : null
                       const value = recordValue === null ? null : recordValue * parameter.scale
                       return (
-                        <td key={parameter.parameter} className="py-1 pl-1 pr-2 text-right">
+                        <td key={parameter.parameter} className={`py-1 pl-1 pr-2 text-right ${groupEndClass}`}>
                           {!simulationRecord ? '—' : canEdit ? (
                             <div
+                              data-simulation-input-wrapper="true"
                               className="relative group -mr-1 min-w-0 pl-1.5 pr-1"
                               onMouseEnter={event => updateSimulationInputFrame(event.currentTarget)}
                               onFocusCapture={event => updateSimulationInputFrame(event.currentTarget)}
@@ -812,7 +835,9 @@ function SimulationParameterTable({
                                   <span
                                     aria-hidden="true"
                                     data-simulation-input-frame="true"
-                                    className="pointer-events-none absolute inset-y-0 left-1.5 right-1 z-0 rounded-sm border border-transparent transition-colors group-hover:border-slate-200 group-hover:bg-slate-50 group-focus-within:!border-blue-700 group-focus-within:!bg-white"
+                                    data-simulation-input-frame-key={inputFrameKey}
+                                    data-simulation-input-frame-hovered={hoveredInputFrame === inputFrameKey ? 'true' : 'false'}
+                                    className={`pointer-events-none absolute inset-y-0 left-1.5 right-1 z-0 rounded-sm border transition-colors ${hoveredInputFrame === inputFrameKey ? 'border-slate-200 bg-slate-50' : 'border-transparent bg-transparent'} group-focus-within:!border-transparent group-focus-within:!bg-white group-focus-within:!outline group-focus-within:!outline-2 group-focus-within:!outline-blue-700 group-focus-within:!outline-offset-[-2px]`}
                                     style={{ transform: 'translateX(max(0px, calc(50% - var(--simulation-input-text-width, 100%) / 2 - var(--simulation-input-text-inset, 0px))))' }}
                                   />
                                 </>
@@ -822,8 +847,8 @@ function SimulationParameterTable({
                         </td>
                       )
                     })}
-                    <td className="py-2 pl-1 pr-2 text-right font-mono text-xs tabular-nums text-slate-900">{displayMoney(analysis.simCost)}</td>
-                    <td className="px-0.5 py-1 text-center">
+                    <td className={`py-2 pl-1 pr-2 text-right font-mono text-xs tabular-nums text-slate-900 ${groupEndClass}`}>{displayMoney(analysis.simCost)}</td>
+                    <td className={`px-0.5 py-1 text-center ${groupEndClass}`}>
                       {canExpand && (
                         <span aria-hidden="true" className="inline-grid h-7 w-7 place-items-center text-slate-600">
                           {expanded ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
@@ -832,19 +857,19 @@ function SimulationParameterTable({
                     </td>
                   </tr>
                   {expanded && (
-                    <tr id={detailId} data-safe-workspace-interaction="true" className="bg-slate-50/80">
-                      <td aria-hidden="true" />
-                      <th scope="row" colSpan={2} className="py-2 pl-3 pr-2 text-left text-[10px] font-semibold text-slate-700">
+                    <tr id={detailId} data-safe-workspace-interaction="true" className="bg-white">
+                      <td aria-hidden="true" className="border-b border-slate-200" />
+                      <th scope="row" colSpan={2} className="border-t border-b border-slate-200 py-2 pl-3 pr-2 text-left text-[10px] font-semibold text-slate-700">
                         <span className="ml-2 inline-block whitespace-nowrap border-l-2 border-slate-300 pl-3">Parameter Cost Effect</span>
                       </th>
                       {detailParameters.map(parameter => <EffectCell key={parameter.parameter} amount={parameter.amount} />)}
-                      <td aria-label={`Total ${totalEffect.text}`} className="whitespace-nowrap py-1.5 pl-1 pr-2 text-right text-[10px] font-semibold">
+                      <td aria-label={`Total ${totalEffect.text}`} className="border-t border-b border-slate-200 whitespace-nowrap py-1.5 pl-1 pr-2 text-right text-[10px] font-semibold">
                         <span className="grid grid-cols-[1fr_auto] items-center gap-1">
                           <span className="text-right text-slate-700">Total{' '}</span>
                           <span className={`min-w-[5ch] text-right font-mono tabular-nums ${totalEffect.className}`}>{totalEffect.text}</span>
                         </span>
                       </td>
-                      <td className="px-0.5 py-1" aria-hidden="true" />
+                      <td className="border-t border-b border-slate-200 px-0.5 py-1" aria-hidden="true" />
                     </tr>
                   )}
                 </React.Fragment>

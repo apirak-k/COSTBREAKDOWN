@@ -156,17 +156,18 @@ export function BOMRecordDetails({
 
   const renderDetailRow = (label: string, side: 'before' | 'after' | 'effect', id?: string) => {
     const effectRow = side === 'effect'
+    const separatorClass = effectRow ? 'border-t border-b border-slate-200' : 'border-t border-slate-200'
     return <tr
     key={label}
     id={id}
     className={effectRow
-      ? 'border-b border-slate-200 bg-white font-bold text-slate-950'
-      : 'border-t border-slate-200 bg-white font-normal text-slate-600'}
+      ? 'bg-white font-bold text-slate-950'
+      : 'bg-white font-normal text-slate-600'}
   >
-    <td aria-hidden="true" className="px-1 py-1.5" />
-    <th scope="row" className={`truncate px-2.5 py-1.5 text-left font-sans ${effectRow ? 'font-bold' : 'font-normal'}`}><span className="ml-2 inline-block whitespace-nowrap border-l-2 border-slate-300 pl-3">{label}</span></th>
-    <td aria-hidden="true" className="px-2 py-1.5" />
-    {parameterValues.map(item => <td key={item.field} className="whitespace-nowrap px-1 py-1.5 text-right">
+    <td aria-hidden="true" className={`px-1 py-1.5 ${effectRow ? 'border-b border-slate-200' : ''}`} />
+    <th scope="row" className={`truncate px-2.5 py-1.5 text-left font-sans ${separatorClass} ${effectRow ? 'font-bold' : 'font-normal'}`}><span className="ml-2 inline-block whitespace-nowrap border-l-2 border-slate-300 pl-3">{label}</span></th>
+    <td aria-hidden="true" className={`px-2 py-1.5 ${separatorClass}`} />
+    {parameterValues.map(item => <td key={item.field} className={`${separatorClass} whitespace-nowrap px-1 py-1.5 text-right`}>
       {effectRow
         ? renderNumericValue(item.effect, label, side, item.field, value => formatVariance(value, 2))
         : renderNumericValue(
@@ -178,12 +179,12 @@ export function BOMRecordDetails({
             item.field === 'loss'
           )}
     </td>)}
-    <td className={`whitespace-nowrap px-1 py-1.5 text-right ${effectRow ? 'font-mono tabular-nums' : ''}`}>
+    <td className={`${separatorClass} whitespace-nowrap px-1 py-1.5 text-right ${effectRow ? 'font-mono tabular-nums' : ''}`}>
       {effectRow ? renderNumericValue(row.gap, label, side, 'gap', value => formatVariance(value, 2)) : ''}
     </td>
-    <td aria-hidden="true" className="px-2 py-1.5" />
-    <td aria-hidden="true" className="px-1 py-1.5" />
-    <td aria-hidden="true" className="px-1 py-1.5" />
+    <td aria-hidden="true" className={`px-2 py-1.5 ${separatorClass}`} />
+    <td aria-hidden="true" className={`px-1 py-1.5 ${separatorClass}`} />
+    <td aria-hidden="true" className={`px-1 py-1.5 ${separatorClass}`} />
     </tr>
   }
 

@@ -51,6 +51,7 @@ const chromeOutput = []
 chrome.stderr.on('data', chunk => chromeOutput.push(String(chunk)))
 let client
 const browserErrors = []
+const browserErrorDetails = []
 const results = []
 
 function record(passed, name, details) {
@@ -99,9 +100,13 @@ try {
   const pending = new Map()
   client.addEventListener('message', event => {
     const message = JSON.parse(String(event.data))
-    if (message.method === 'Runtime.exceptionThrown') browserErrors.push(message.params.exceptionDetails.text)
+    if (message.method === 'Runtime.exceptionThrown') {
+      browserErrors.push(message.params.exceptionDetails.text)
+      browserErrorDetails.push({ type: 'exception', details: message.params.exceptionDetails })
+    }
     if (message.method === 'Runtime.consoleAPICalled' && message.params.type === 'error') {
       browserErrors.push(message.params.args.map(argument => argument.value ?? argument.description).join(' '))
+      browserErrorDetails.push({ type: 'console.error', args: message.params.args, stackTrace: message.params.stackTrace })
     }
     if (message.id && pending.has(message.id)) {
       pending.get(message.id)(message)
@@ -206,6 +211,17 @@ try {
   await waitFor(() => evaluate(`Boolean(document.querySelector('section[data-simulation-table="bom"] tbody tr[data-simulation-row-index] input')?.getClientRects().length)`), 'editable Current Simulation cells')
   await delay(250)
 
+  await screenshot('simulation-expandable-rows-collapsed')
+  const collapsedGroups = await evaluate(`(()=>Object.fromEntries(['bom','routing'].map(kind=>{
+    const row=document.querySelector('section[data-simulation-table="'+kind+'"] tbody tr[data-simulation-row-index]')
+    return [kind,{expanded:row?.getAttribute('aria-expanded'),background:row?getComputedStyle(row).backgroundColor:null,bottomBorders:[...(row?.children??[])].map(cell=>getComputedStyle(cell).borderBottomWidth)}]
+  })))()`)
+  check('collapsed BOM and Routing main rows are white and end with a full-width group boundary',
+    ['bom','routing'].every(kind=>collapsedGroups[kind]?.expanded==='false'
+      && collapsedGroups[kind].background==='rgb(255, 255, 255)'
+      && collapsedGroups[kind].bottomBorders.length===8
+      && collapsedGroups[kind].bottomBorders.every(width=>width==='1px')), collapsedGroups)
+
   // Expand one real desktop BOM row and one Routing row with physical browser clicks.
   for (const kind of ['bom', 'routing']) {
     const rowSelector = `section[data-simulation-table="${kind}"] table:not([role="presentation"]) tbody tr[data-simulation-row-index]`
@@ -217,8 +233,40 @@ try {
       await delay(200)
       const expanded = await evaluate(`(()=>{const row=document.querySelector(${JSON.stringify(rowSelector)});return row?.getAttribute('aria-expanded')==='true'})()`)
       check(`${kind.toUpperCase()} Parameter Cost Effect expands in browser`, expanded)
+      await screenshot(`simulation-expandable-${kind}-expanded`)
     }
   }
+
+  for (const kind of ['bom', 'routing']) {
+    const group = await evaluate(`(()=>{
+      const section=document.querySelector('section[data-simulation-table="${kind}"]')
+      const main=section?.querySelector('tbody tr[data-simulation-row-index]')
+      const detail=main?.nextElementSibling?.matches('tr[id^="${kind}-effect-"]')?main.nextElementSibling:null
+      const styles=row=>row?{background:getComputedStyle(row).backgroundColor,cells:[...row.children].map(cell=>{const style=getComputedStyle(cell);return{top:style.borderTopWidth,bottom:style.borderBottomWidth}})}:null
+      const mainLabel=main?.querySelector('th[scope="row"]'),detailLabel=detail?.querySelector('th[scope="row"]')
+      const point=element=>{const r=element?.getBoundingClientRect();return r?{x:r.left+r.width/2,y:r.top+r.height/2}:null}
+      return{expanded:main?.getAttribute('aria-expanded'),selected:main?.getAttribute('aria-selected'),main:styles(main),detail:styles(detail),mainPoint:point(mainLabel),detailPoint:point(detailLabel)}
+    })()`)
+    const sectionSelector = `section[data-simulation-table="${kind}"]`
+    const mainPoint = group?.mainPoint
+    const detailPoint = group?.detailPoint
+    if (mainPoint) { await send('Input.dispatchMouseEvent', { type: 'mouseMoved', x: mainPoint.x, y: mainPoint.y }); await delay(180) }
+    const mainHover = await evaluate(`(()=>{const r=document.querySelector('${sectionSelector} tbody tr[data-simulation-row-index]');return r?getComputedStyle(r).backgroundColor:null})()`)
+    if (detailPoint) { await send('Input.dispatchMouseEvent', { type: 'mouseMoved', x: detailPoint.x, y: detailPoint.y }); await delay(180) }
+    const detailHover = await evaluate(`(()=>{const r=document.querySelector('${sectionSelector} tbody tr[data-simulation-row-index]')?.nextElementSibling;return r?getComputedStyle(r).backgroundColor:null})()`)
+    const inset = group?.detail?.cells?.[0]?.top === '0px'
+      && group?.detail?.cells?.slice(1).every(cell=>cell.top==='1px')
+    const fullEnd = group?.detail?.cells?.length===7
+      && group.detail.cells.every(cell=>cell.bottom==='1px')
+    check(`${kind.toUpperCase()} expanded group keeps a white detail row, inset internal separator, full-width group end, and main-row-only hover`,
+      Boolean(group?.expanded==='true' && group.selected==='false'
+        && group.main?.background==='rgb(255, 255, 255)' && group.main.cells.every(cell=>cell.bottom==='0px')
+        && group.detail?.background==='rgb(255, 255, 255)' && inset && fullEnd
+        && mainHover==='rgb(248, 250, 252)' && detailHover==='rgb(255, 255, 255)'),
+      { ...group, mainHover, detailHover, inset, fullEnd })
+  }
+  await send('Input.dispatchMouseEvent', { type: 'mouseMoved', x: 2, y: 2 })
+  await delay(80)
 
   const desktopTableMetrics = await evaluate(`(()=>{
     const visible=e=>e&&e.getClientRects().length>0&&getComputedStyle(e).display!=='none'
@@ -414,7 +462,7 @@ try {
     const textWidth=ctx.measureText(input.value).width,rightInset=(parseFloat(s.borderRightWidth)||0)+(parseFloat(s.paddingRight)||0),header=section.querySelector('table[role="presentation"] thead tr')?.children[cell?.cellIndex??-1],range=document.createRange()
     if(header)range.selectNodeContents(header)
     const headerBoxes=header?[...range.getClientRects()]:[]
-    return{kind:${JSON.stringify(kind)},label:${JSON.stringify(label)},value:input.value,focused:document.activeElement===input,mobile:Boolean(input.closest('article')),input:{left:r.left,right:r.right,top:r.top,bottom:r.bottom,width:r.width,height:r.height,textRight:r.right-rightInset,paddingRight:s.paddingRight,rightInset,background:s.backgroundColor,outlineStyle:s.outlineStyle},headerRight:headerBoxes.length?Math.max(...headerBoxes.map(box=>box.right)):null,textWidth,expectedShift:Math.max(0,(r.width-textWidth)/2-rightInset),frame:f?{left:f.left,right:f.right,top:f.top,bottom:f.bottom,width:f.width,height:f.height,offsetLeft:f.left-r.left,offsetRight:f.right-r.right,border:fs.borderLeftColor,background:fs.backgroundColor}:null,cardFrameCount:input.closest('article')?.querySelectorAll('[data-simulation-input-frame="true"]').length??0}
+    return{kind:${JSON.stringify(kind)},label:${JSON.stringify(label)},value:input.value,focused:document.activeElement===input,mobile:Boolean(input.closest('article')),input:{left:r.left,right:r.right,top:r.top,bottom:r.bottom,width:r.width,height:r.height,textRight:r.right-rightInset,paddingRight:s.paddingRight,rightInset,background:s.backgroundColor,outlineStyle:s.outlineStyle},headerRight:headerBoxes.length?Math.max(...headerBoxes.map(box=>box.right)):null,textWidth,expectedShift:Math.max(0,(r.width-textWidth)/2-rightInset),frame:f?{left:f.left,right:f.right,top:f.top,bottom:f.bottom,width:f.width,height:f.height,offsetLeft:f.left-r.left,offsetRight:f.right-r.right,border:fs.borderLeftColor,background:fs.backgroundColor,hovered:frame.getAttribute('data-simulation-input-frame-hovered')==='true',outlineStyle:fs.outlineStyle,outlineWidth:fs.outlineWidth,outlineColor:fs.outlineColor,outlineOffset:fs.outlineOffset,borderRadius:fs.borderTopLeftRadius}:null,cardFrameCount:input.closest('article')?.querySelectorAll('[data-simulation-input-frame="true"]').length??0}
   })()`)
 
   const sameFrameRect = (left, right) => Boolean(left && right && ['left', 'right', 'top', 'bottom', 'width', 'height'].every(edge => Math.abs(left[edge] - right[edge]) <= 0.25))
@@ -425,16 +473,39 @@ try {
     const point = await evaluate(`(()=>{const input=[...document.querySelectorAll('input[data-numeric-editor]')].find(e=>e.getClientRects().length&&e.getAttribute('aria-label')===${JSON.stringify(fixture.ariaLabel)});if(!input)return null;input.scrollIntoView({block:'center',inline:'nearest'});const r=input.getBoundingClientRect();return{x:r.left+r.width/2,y:r.top+r.height/2}})()`)
     await send('Input.dispatchMouseEvent', { type: 'mouseMoved', x: point.x, y: point.y })
     await delay(180)
-    const hover = await readInputFrame('bom', label)
-    check(`${width}px Chrome evidence is using the intended ${fixture.value} draft`, hover?.value === fixture.value, hover)
+    let hover = await readInputFrame('bom', label)
+    const hoverPoint = hover?.frame ? { x: (hover.frame.left + hover.frame.right) / 2, y: (hover.frame.top + hover.frame.bottom) / 2 } : null
+    if (hoverPoint) { await send('Input.dispatchMouseEvent', { type: 'mouseMoved', x: hoverPoint.x, y: hoverPoint.y }); await delay(120) }
+    hover = await readInputFrame('bom', label)
+    check(`${width}px Chrome evidence is using the intended ${fixture.value} draft inside the visible frame`, hover?.value === fixture.value && hover?.frame?.hovered === true, hover)
     await screenshot(`simulation-input-frame-${width}-${label.toLowerCase()}-hover`)
-    await clickAt(point)
+    if (hoverPoint) await clickAt(hoverPoint)
     await delay(180)
     const focused = await readInputFrame('bom', label)
     check(`${width}px ${fixture.value} Focus uses the exact same frame rectangle as Hover`,
-      Boolean(focused?.focused && sameFrameRect(hover?.frame, focused?.frame) && focused.frame?.border === 'rgb(29, 78, 216)' && focused.frame?.background === 'rgb(255, 255, 255)' && focused.input?.outlineStyle === 'none'),
+      Boolean(focused?.focused && sameFrameRect(hover?.frame, focused?.frame)
+        && focused.frame?.background === 'rgb(255, 255, 255)'
+        && focused.frame?.outlineStyle === 'solid' && focused.frame?.outlineWidth === '2px'
+        && focused.frame?.outlineColor === 'rgb(29, 78, 216)' && focused.frame?.outlineOffset === '-2px'
+        && focused.frame?.borderRadius === '2px' && focused.input?.outlineStyle === 'none'),
       { hover: hover?.frame, focused: focused?.frame, input: focused?.input })
     await screenshot(`simulation-input-frame-${width}-${label.toLowerCase()}-focus`)
+    if (width === 1440) {
+      await evaluate(`(()=>{const input=[...document.querySelectorAll('input[data-numeric-editor]')].find(e=>e.getAttribute('aria-label')===${JSON.stringify(fixture.ariaLabel)});input?.closest('tr')?.focus()})()`)
+      for (let index = 0; index < 2; index += 1) {
+        await send('Input.dispatchKeyEvent', { type: 'keyDown', key: 'Tab', code: 'Tab' })
+        await send('Input.dispatchKeyEvent', { type: 'keyUp', key: 'Tab', code: 'Tab' })
+      }
+      await delay(120)
+      const keyboardFocused = await readInputFrame('bom', label)
+      check('1440px keyboard Tab focus keeps the established blue 2px inset outline',
+        Boolean(keyboardFocused?.focused && keyboardFocused.frame?.outlineStyle === 'solid'
+          && keyboardFocused.frame?.outlineWidth === '2px'
+          && keyboardFocused.frame?.outlineColor === 'rgb(29, 78, 216)'
+          && keyboardFocused.frame?.outlineOffset === '-2px'
+          && keyboardFocused.frame?.borderRadius === '2px'), keyboardFocused)
+      await screenshot(`simulation-input-frame-${width}-${label.toLowerCase()}-keyboard-focus`)
+    }
     await evaluate(`(()=>{const input=[...document.querySelectorAll('input[data-numeric-editor]')].find(e=>e.getAttribute('aria-label')===${JSON.stringify(fixture.ariaLabel)});input?.blur()})()`)
     await delay(180)
   }
@@ -460,7 +531,10 @@ try {
       if (!point) { frameMetrics.push({ kind, label, missing: true }); continue }
       await send('Input.dispatchMouseEvent', { type: 'mouseMoved', x: point.x, y: point.y })
       await delay(180)
-      const hover = await readInputFrame(kind, label)
+      let hover = await readInputFrame(kind, label)
+      const framePoint = hover?.frame ? { x: (hover.frame.left + hover.frame.right) / 2, y: (hover.frame.top + hover.frame.bottom) / 2 } : null
+      if (framePoint) { await send('Input.dispatchMouseEvent', { type: 'mouseMoved', x: framePoint.x, y: framePoint.y }); await delay(120) }
+      hover = await readInputFrame(kind, label)
       const baseline = inputGeometryBaseline[width]?.fields[kind]?.[label]
       check(`${width}px ${kind.toUpperCase()} ${label} keeps its existing numeric X-axis and 32px input size`,
         Boolean(hover && baseline !== undefined && Math.abs(hover.input.textRight - baseline) <= 0.25 && Math.abs(hover.input.width - inputGeometryBaseline[width].inputWidth) <= 0.25 && Math.abs(hover.input.height - 32) <= 0.25 && (width < 768 || Math.abs(hover.headerRight - hover.input.textRight) <= 2)), hover)
@@ -480,36 +554,66 @@ try {
         && Math.abs(hover.frame.bottom - hover.input.bottom) <= 0.25
         && hover.frame.border === 'rgb(226, 232, 240)'
         && hover.frame.background === 'rgb(248, 250, 252)'
+        && hover.frame.hovered === true
         && hover.input.background === 'rgba(0, 0, 0, 0)')
       check(`${width}px ${kind.toUpperCase()} ${label} hover frame follows measured text balance without resizing`, hoverGeometry, hover)
 
-      await clickAt(point)
+      if (framePoint) await clickAt(framePoint)
       await delay(180)
       const focused = await readInputFrame(kind, label)
 
       await send('Input.dispatchMouseEvent', { type: 'mouseMoved', x: 2, y: 2 })
       await delay(180)
       const focusOnly = await readInputFrame(kind, label)
-      await send('Input.dispatchMouseEvent', { type: 'mouseMoved', x: point.x, y: point.y })
+      if (framePoint) await send('Input.dispatchMouseEvent', { type: 'mouseMoved', x: framePoint.x, y: framePoint.y })
       await delay(180)
       const focusAndHover = await readInputFrame(kind, label)
       await evaluate(`(()=>{const input=[...document.querySelectorAll('input[data-numeric-editor]')].find(e=>e.getAttribute('aria-label')?.endsWith(${JSON.stringify(`${label} in Current`)}));input?.blur()})()`)
       await delay(180)
       const hoverAgain = await readInputFrame(kind, label)
       const focusGeometry = Boolean(focused?.focused
-        && focused?.frame?.border === 'rgb(29, 78, 216)'
+        && focused?.frame?.outlineStyle === 'solid'
+        && focused?.frame?.outlineWidth === '2px'
+        && focused?.frame?.outlineColor === 'rgb(29, 78, 216)'
+        && focused?.frame?.outlineOffset === '-2px'
+        && focused?.frame?.borderRadius === '2px'
         && focused?.frame?.background === 'rgb(255, 255, 255)'
         && focused?.input?.outlineStyle === 'none'
-        && focusOnly?.frame?.border === 'rgb(29, 78, 216)'
+        && focusOnly?.frame?.outlineStyle === 'solid'
+        && focusOnly?.frame?.outlineWidth === '2px'
+        && focusOnly?.frame?.outlineColor === 'rgb(29, 78, 216)'
+        && focusOnly?.frame?.outlineOffset === '-2px'
         && focusOnly?.focused
         && sameFrameRect(hover?.frame, focused?.frame)
         && sameFrameRect(hover?.frame, focusOnly?.frame)
         && sameFrameRect(hover?.frame, focusAndHover?.frame)
         && sameFrameRect(hover?.frame, hoverAgain?.frame)
-        && focusAndHover?.frame?.border === 'rgb(29, 78, 216)'
-        && hoverAgain?.frame?.border === 'rgb(226, 232, 240)')
+        && focusAndHover?.frame?.outlineWidth === '2px'
+        && focusAndHover?.frame?.outlineColor === 'rgb(29, 78, 216)'
+        && hoverAgain?.frame?.border === 'rgb(226, 232, 240)'
+        && hoverAgain?.frame?.hovered === true)
       check(`${width}px ${kind.toUpperCase()} ${label} keeps one identical frame through Hover → Focus → Hover`, focusGeometry,
         { hover: hover?.frame, focused: focused?.frame, focusOnly: focusOnly?.frame, focusAndHover: focusAndHover?.frame, hoverAgain: hoverAgain?.frame, focusInput: focused?.input })
+
+      if (hoverAgain?.frame) {
+        const bounds = hoverAgain.frame
+        const points = [
+          { name: 'inside left', x: bounds.left + 1, expected: true },
+          { name: 'inside center', x: (bounds.left + bounds.right) / 2, expected: true },
+          { name: 'inside right', x: bounds.right - 1, expected: true },
+          { name: 'outside left', x: bounds.left - 1, expected: false },
+          { name: 'outside right', x: bounds.right + 1, expected: false }
+        ]
+        const hitResults = []
+        for (const probe of points) {
+          await send('Input.dispatchMouseEvent', { type: 'mouseMoved', x: probe.x, y: (bounds.top + bounds.bottom) / 2 })
+          await delay(80)
+          const actual = await readInputFrame(kind, label)
+          hitResults.push({ point: probe.name, expected: probe.expected, actual: actual?.frame?.hovered === true })
+        }
+        check(`${width}px ${kind.toUpperCase()} ${label} pointer-hover region matches the visible frame edges`,
+          hitResults.every(result => result.actual === result.expected), hitResults)
+      }
       frameMetrics.push({ kind, label, ...hover, focus: focused?.frame })
     }
     if (width >= 768) {
@@ -544,7 +648,7 @@ try {
     await screenshot(`simulation-break-even-${width}`)
   }
 
-  check('Browser page produced no console errors or uncaught exceptions', browserErrors.length === 0, browserErrors)
+  check('Browser page produced no console errors or uncaught exceptions', browserErrors.length === 0, browserErrorDetails)
   process.stdout.write(`Evidence screenshots: ${evidenceDir}\n`)
   process.stdout.write(`Browser URL: ${baseUrl}\n`)
   const failed = results.filter(result => !result.passed)

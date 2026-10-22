@@ -360,7 +360,7 @@ export const CandidateFindingsTable: React.FC<CandidateFindingsTableProps> = ({
           <th scope="col">Gap</th><th scope="col">%GAP</th><th scope="col">Reorder</th><th scope="col">Details</th>
         </tr>
       </thead>
-      <tbody className="divide-y divide-slate-100 font-mono tabular-nums">
+      <tbody className="font-mono tabular-nums">
         {rows.length === 0
           ? <tr><td colSpan={isBOM ? 10 : 12} className="px-3 py-8 text-center font-sans italic text-slate-500">{emptyMessage}</td></tr>
           : rows.map((row, index) => {
@@ -400,7 +400,7 @@ export const CandidateFindingsTable: React.FC<CandidateFindingsTableProps> = ({
                 }}
                 onDragOver={event => previewDrop(event, row.key)}
                 onDrop={event => dropOnRow(event, row.key)}
-                className={`group ${selected ? 'bg-blue-100/60 hover:bg-blue-100/80' : 'bg-white hover:bg-slate-50'} ${canExpand ? 'cursor-pointer' : 'cursor-default'} ${dropTarget?.key === row.key ? dropTarget.after ? 'border-b-2 border-blue-500' : 'border-t-2 border-blue-500' : ''} focus-visible:outline focus-visible:outline-2 focus-visible:outline-inset focus-visible:outline-blue-700`}
+                className={`group ${selected ? 'bg-blue-100/60 hover:bg-blue-100/80' : 'bg-white hover:bg-slate-50'} ${canExpand ? 'cursor-pointer' : 'cursor-default'} ${dropTarget?.key === row.key ? dropTarget.after ? 'border-b-2 border-blue-500' : 'border-t-2 border-blue-500' : ''} ${!isExpanded ? 'border-b border-slate-200' : ''} focus-visible:outline focus-visible:outline-2 focus-visible:outline-inset focus-visible:outline-blue-700`}
               >
                 <td className="px-1 py-2 text-center">
                   <button
