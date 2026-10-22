@@ -32,6 +32,7 @@ async function unusedPort() {
 const delay = ms => new Promise(resolveDelay => setTimeout(resolveDelay, ms))
 const repository = process.cwd()
 const rulerOnly = process.argv.includes('--ruler-only')
+const visibleTotalsOnly = process.argv.includes('--visible-totals-only')
 const configuredBaseUrl = process.env.COSTBREAKDOWN_BROWSER_BASE_URL
 const vitePort = configuredBaseUrl ? null : await unusedPort()
 const debugPort = await unusedPort()
@@ -165,6 +166,68 @@ try {
   await send('Page.enable')
   await send('Runtime.enable')
   await send('Emulation.setDeviceMetricsOverride', { width: 1440, height: 900, deviceScaleFactor: 1, mobile: false })
+  if (visibleTotalsOnly) {
+    await send('Page.navigate', { url: new URL('/scripts/fixtures/simulation-visible-totals.html', baseUrl).href })
+    await waitVisible('[data-graph-visible-total-value]', 'visible stack totals fixture')
+    const visibleState = () => evaluate(`(()=>{
+      const svg=document.querySelector('svg[aria-labelledby="simulation-story-title"]'),vb=svg.viewBox.baseVal
+      const overlap=(a,b)=>a.x<b.x+b.width&&a.x+a.width>b.x&&a.y<b.y+b.height&&a.y+a.height>b.y
+      const labels=[...svg.querySelectorAll('[data-graph-visible-total-value]')].map(e=>{
+        const b=e.getBBox(),state=e.getAttribute('data-graph-visible-total-value'),sc=svg.querySelector('[data-graph-standard-cost-value="'+state+'"]')
+        const bars=[...svg.querySelectorAll('[data-graph-state="'+state+'"] rect[data-graph-part]')]
+        return {state,side:e.getAttribute('data-graph-visible-total-side'),text:e.textContent,tooltip:e.getAttribute('aria-label'),position:e.getAttribute('data-graph-visible-total-position'),fill:e.getAttribute('fill'),inside:b.x>=0&&b.y>=0&&b.x+b.width<=vb.width+0.5&&b.y+b.height<=vb.height+0.5,outside:!bars.some(bar=>overlap(b,bar.getBBox())),obscuresStandardCost:sc?overlap(b,sc.getBBox()):false,obscuresRuler:overlap(b,svg.querySelector('[data-ruler-value]').getBBox())}
+      })
+      return {labels,standardCosts:[...svg.querySelectorAll('[data-graph-standard-cost-value]')].map(e=>e.textContent),oldNet:!!svg.querySelector('[data-graph-visible-net-value]')||svg.querySelector('desc').textContent.includes('Visible Net'),overflow:document.documentElement.scrollWidth>innerWidth+1}
+    })()`)
+    const inspectVisible = async name => {
+      const state = await visibleState()
+      check(name+' labels are neutral, outside their stacks, unclipped, and clear of Standard Cost', !state.oldNet && !state.overflow && state.labels.every(label=>label.fill==='#334155'&&label.inside&&label.outside&&!label.obscuresStandardCost&&!label.obscuresRuler), state)
+      return state
+    }
+    for (const width of [1440, 1024, 768, 390, 320]) {
+      await setViewport(width)
+      await clickButtonText('Positive only')
+      let state = await inspectVisible(`${width}px positive only`)
+      check(`${width}px +300 renders even when equal to Standard Cost; no zero negative label`, state.labels.length===3&&state.labels.every(label=>label.side==='positive'&&label.text==='+300.00')&&state.standardCosts.every(value=>value==='300.00'), state.labels)
+      await screenshot(`visible-totals-${width}-positive`)
+      await clickButtonText('Mixed sign')
+      state = await inspectVisible(`${width}px mixed sign`)
+      check(`${width}px mixed stack displays +300 and -50 independently`, state.labels.length===6&&state.labels.filter(label=>label.side==='positive').every(label=>label.text==='+300.00')&&state.labels.filter(label=>label.side==='negative').every(label=>label.text==='-50.00'), state.labels)
+      await screenshot(`visible-totals-${width}-mixed`)
+      if (width===1440) {
+        for (const [side, expected] of [['positive','Current Visible + · +300.00 THB/KG'],['negative','Current Visible − · -50.00 THB/KG']]) {
+          const point=await evaluate(`(()=>{const e=document.querySelector('[data-graph-visible-total-value="current"][data-graph-visible-total-side="${side}"]');e.scrollIntoView({block:'center'});const b=e.getBoundingClientRect();return{x:b.x+b.width/2,y:b.y+b.height/2}})()`)
+          await send('Input.dispatchMouseEvent',{type:'mouseMoved',...point})
+          await delay(100)
+          const tooltip=await evaluate(`document.querySelector('[data-graph-tooltip-host] > div[aria-hidden="true"]')?.textContent`)
+          check(`${side} label exposes a real pointer tooltip with dynamic UOM`, tooltip===expected, {tooltip,expected})
+        }
+      }
+      await clickSelector('button[aria-label="Profit −"]')
+      state = await inspectVisible(`${width}px hidden negative Profit`)
+      check(`${width}px hiding Profit − removes its stack total and keeps +300`,state.labels.length===3&&state.labels.every(label=>label.text==='+300.00'),state.labels)
+      await clickSelector('button[aria-label="Profit −"]')
+      await clickSelector('button[aria-label="Labor"]')
+      state = await inspectVisible(`${width}px positive filter / Selling Price collision`)
+      check(`${width}px filtering Labor recomputes +240 and genuine Selling Price crowding activates the existing side fallback`,state.labels.filter(label=>label.side==='positive').every(label=>label.text==='+240.00'&&label.position==='side')&&state.labels.filter(label=>label.side==='negative').every(label=>label.text==='-50.00'&&label.position==='below'),state.labels)
+      if (width===320) {
+        const points=await evaluate(`(()=>{const svg=document.querySelector('svg[aria-labelledby="simulation-story-title"]'),slider=svg.querySelector('[role="slider"]'),line=svg.querySelector('[data-ruler-line]'),axis=svg.querySelector('[data-y-axis]');const min=Number(slider.getAttribute('aria-valuemin')),max=Number(slider.getAttribute('aria-valuemax'));const point=y=>{const p=svg.createSVGPoint();p.x=(Number(line.getAttribute('x1'))+Number(line.getAttribute('x2')))/2;p.y=y;const r=p.matrixTransform(svg.getScreenCTM());return{x:r.x,y:r.y}};return{start:point(Number(line.getAttribute('y1'))),end:point(Number(axis.getAttribute('y1'))+(max-240)/(max-min)*(Number(axis.getAttribute('y2'))-Number(axis.getAttribute('y1'))))}})()`)
+        await send('Input.dispatchMouseEvent',{type:'mousePressed',...points.start,button:'left',clickCount:1})
+        await send('Input.dispatchMouseEvent',{type:'mouseMoved',...points.end,button:'left',buttons:1})
+        await send('Input.dispatchMouseEvent',{type:'mouseReleased',...points.end,button:'left',clickCount:1})
+        await delay(100)
+        await inspectVisible('320px Ruler dragged to the visible positive boundary')
+      }
+      await screenshot(`visible-totals-${width}-collision`)
+      await clickSelector('button[aria-label="Selling Price"]')
+      state = await inspectVisible(`${width}px hidden Selling Price`)
+      check(`${width}px hidden Selling Price restores normal positive placement without changing negative totals`,state.labels.filter(label=>label.side==='positive').every(label=>label.position==='above')&&state.labels.filter(label=>label.side==='negative').every(label=>label.text==='-50.00'),state.labels)
+      await clickButtonText('Separated')
+      await clickSelector('button[aria-label="Profit +"]')
+      state = await inspectVisible(`${width}px separated Selling Price`)
+      check(`${width}px higher but separated Selling Price does not trigger side fallback`,state.labels.length===3&&state.labels.every(label=>label.text==='+300.00'&&label.position==='above'),state.labels)
+    }
+  } else {
   await waitFor(() => evaluate('document.title'), 'application page')
   await waitVisible('button', 'application navigation')
   check('Browser is running the COSTBREAKDOWN application', /COSTBREAKDOWN/i.test(await evaluate('document.title')), { title: await evaluate('document.title'), url: await evaluate('location.href') })
@@ -193,7 +256,7 @@ try {
     const box=text.getBBox(),vb=svg.viewBox.baseVal,axis=svg.querySelector('[data-y-axis]')
     const anchors=[...svg.querySelectorAll('foreignObject')].map(e=>Number(e.getAttribute('x'))+Number(e.getAttribute('width'))/2)
     const gaps=[...svg.querySelectorAll('text')].filter(e=>/^GAP [12]$/.test(e.textContent.trim())).map(e=>Number(e.getAttribute('x')))
-    const overlaps=[...svg.querySelectorAll('[data-graph-visible-net-value],[data-graph-standard-cost-value],[data-axis-tick],[data-y-axis-unit]')].filter(e=>{const b=e.getBBox();return box.x<b.x+b.width&&box.x+box.width>b.x&&box.y<b.y+b.height&&box.y+box.height>b.y}).map(e=>e.textContent)
+    const overlaps=[...svg.querySelectorAll('[data-graph-visible-total-value],[data-graph-standard-cost-value],[data-axis-tick],[data-y-axis-unit]')].filter(e=>{const b=e.getBBox();return box.x<b.x+b.width&&box.x+box.width>b.x&&box.y<b.y+b.height&&box.y+box.height>b.y}).map(e=>e.textContent)
     return {value:Number(slider.getAttribute('aria-valuenow')),min:Number(slider.getAttribute('aria-valuemin')),max:Number(slider.getAttribute('aria-valuemax')),label:text.textContent,textLength:text.getAttribute('textLength'),lengthAdjust:text.getAttribute('lengthAdjust'),fontSize:getComputedStyle(text).fontSize,anchor:text.getAttribute('text-anchor'),x:box.x,right:box.x+box.width,width:box.width,viewWidth:vb.width,plotLeft:Number(axis.getAttribute('x1')),plotRight:Number(line.getAttribute('x2')),labelX:Number(text.getAttribute('x')),anchors:[...anchors,...gaps].sort((a,b)=>a-b),overlaps,overflow:document.documentElement.scrollWidth>innerWidth+1}
   })()`)
   const rulerKey = async key => {
@@ -452,7 +515,7 @@ try {
     const textBounds=element=>{const b=element.getBBox();return{x:b.x,y:b.y,width:b.width,height:b.height,right:b.right,bottom:b.bottom}}
     const categories=[...svg.querySelectorAll('foreignObject button[aria-label^="Select "]')].map(e=>({label:e.getAttribute('aria-label'),box:(()=>{const r=e.getBoundingClientRect();const s=svg.getBoundingClientRect();return{x:(r.left-s.left)/s.width*vb[2],y:(r.top-s.top)/s.height*vb[3],right:(r.right-s.left)/s.width*vb[2],bottom:(r.bottom-s.top)/s.height*vb[3]}})()}))
     const gapLabels=[...svg.querySelectorAll('text')].filter(e=>/^GAP [12]$/.test(e.textContent.trim())).map(e=>({label:e.textContent.trim(),box:textBounds(e)}))
-    const relevant=[...svg.querySelectorAll('[data-y-axis-unit],[data-axis-tick],[data-ruler-value],[data-graph-visible-net-value],[data-graph-standard-cost-value],[data-graph-series="sellingPrice"]')].map(e=>({label:e.getAttribute('aria-label')??e.textContent.trim(),box:textBounds(e)}))
+    const relevant=[...svg.querySelectorAll('[data-y-axis-unit],[data-axis-tick],[data-ruler-value],[data-graph-visible-total-value],[data-graph-standard-cost-value],[data-graph-series="sellingPrice"]')].map(e=>({label:e.getAttribute('aria-label')??e.textContent.trim(),box:textBounds(e)}))
     const box=svg.getBoundingClientRect(),card=figure.getBoundingClientRect(),plotLeft=Number(axis?.getAttribute('x1')),plotRight=Number(ruler?.getAttribute('x2')),plotTop=Number(axis?.getAttribute('y1')),plotBottom=Number(axis?.getAttribute('y2'))
     const clipped=[...relevant,...gapLabels.map(label=>({label:label.label,box:label.box})),...categories.map(category=>({label:category.label,box:category.box}))]
       .filter(item=>item.box.x < -1 || item.box.y < -1 || item.box.right > vb[2]+1 || item.box.bottom > vb[3]+1)
@@ -716,15 +779,21 @@ try {
 
   }
 
+  }
+
   check('Browser page produced no console errors or uncaught exceptions', browserErrors.length === 0, browserErrorDetails)
   process.stdout.write(`Evidence screenshots: ${evidenceDir}\n`)
   process.stdout.write(`Browser URL: ${baseUrl}\n`)
   const failed = results.filter(result => !result.passed)
-  process.stdout.write(`${rulerOnly ? 'Ruler' : 'Round 4A'} browser checks: ${results.length - failed.length}/${results.length} PASS; exit=${failed.length ? 1 : 0}\n`)
+  process.stdout.write(`${visibleTotalsOnly ? 'Visible totals' : rulerOnly ? 'Ruler' : 'Round 4A'} browser checks: ${results.length - failed.length}/${results.length} PASS; exit=${failed.length ? 1 : 0}\n`)
   if (failed.length) process.exitCode = 1
 } finally {
   if (client && client.readyState < WebSocket.CLOSING) client.close()
   await stopChild(chrome)
+  // Chrome's crash reporter can retain stderr after Chrome exits.
+  chrome.stderr.destroy()
   await stopChild(vite)
+  vite?.stdout.destroy()
+  vite?.stderr.destroy()
   await rm(profile, { recursive: true, force: true })
 }

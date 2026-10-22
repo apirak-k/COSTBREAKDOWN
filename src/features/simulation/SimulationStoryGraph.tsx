@@ -125,14 +125,6 @@ function formatValue(value: number | null): string {
   return value === null || !Number.isFinite(value) ? '—' : formatNumber(value, 2)
 }
 
-export function visibleNetMatchesStandardCost(
-  visibleNet: number | null,
-  standardCost: number | null
-): boolean {
-  if (visibleNet === null || standardCost === null || !Number.isFinite(visibleNet) || !Number.isFinite(standardCost)) return false
-  return formatValue(visibleNet) === formatValue(standardCost)
-}
-
 function signed(value: number | null): string {
   if (value === null || !Number.isFinite(value)) return '—'
   return `${value > 0 ? '+' : ''}${formatNumber(value, 2)}`
@@ -247,18 +239,18 @@ export interface GraphLabelMetrics {
 const GRAPH_LABEL_BREAKPOINT = '(max-width: 639px)'
 export const WIDE_GRAPH_LABEL_METRICS: GraphLabelMetrics = { fontSize: 9, ascent: 8.25, descent: 2.35 }
 export const NARROW_GRAPH_LABEL_METRICS: GraphLabelMetrics = { fontSize: 16, ascent: 14.4, descent: 4.8 }
-const VISIBLE_NET_LABEL_CLEARANCE = 2
+const VISIBLE_TOTAL_LABEL_CLEARANCE = 2
 const GAP_TOTAL_LABEL_CLEARANCE = 4
 const SELLING_PRICE_POINT_RADIUS = 4
 
-function visibleNetTextBounds(
-  value: number,
+function visibleTotalTextBounds(
+  text: string,
   x: number,
   baselineY: number,
   textAnchor: 'middle' | 'start',
   metrics: GraphLabelMetrics
 ): TextBounds {
-  const width = formatValue(value).length * metrics.fontSize * 0.6
+  const width = text.length * metrics.fontSize * 0.6
   const left = textAnchor === 'middle' ? x - width / 2 : x
   return {
     left,
@@ -274,8 +266,8 @@ function boundsOverlap(first: TextBounds, second: TextBounds, clearance = 0): bo
 }
 
 function lineCrowdsText(segment: GraphSegment, bounds: TextBounds): boolean {
-  const left = Math.max(Math.min(segment.x1, segment.x2), bounds.left - VISIBLE_NET_LABEL_CLEARANCE)
-  const right = Math.min(Math.max(segment.x1, segment.x2), bounds.right + VISIBLE_NET_LABEL_CLEARANCE)
+  const left = Math.max(Math.min(segment.x1, segment.x2), bounds.left - VISIBLE_TOTAL_LABEL_CLEARANCE)
+  const right = Math.min(Math.max(segment.x1, segment.x2), bounds.right + VISIBLE_TOTAL_LABEL_CLEARANCE)
   if (left > right) return false
 
   const yAt = (x: number) => segment.y1 + ((x - segment.x1) / (segment.x2 - segment.x1)) * (segment.y2 - segment.y1)
@@ -283,10 +275,10 @@ function lineCrowdsText(segment: GraphSegment, bounds: TextBounds): boolean {
   const secondY = yAt(right)
   const lineTop = Math.min(firstY, secondY)
   const lineBottom = Math.max(firstY, secondY)
-  return lineTop <= bounds.bottom + VISIBLE_NET_LABEL_CLEARANCE && lineBottom >= bounds.top - VISIBLE_NET_LABEL_CLEARANCE
+  return lineTop <= bounds.bottom + VISIBLE_TOTAL_LABEL_CLEARANCE && lineBottom >= bounds.top - VISIBLE_TOTAL_LABEL_CLEARANCE
 }
 
-function visibleNetTextCrowdsSellingPrice(
+function visiblePositiveTextCrowdsSellingPrice(
   bounds: TextBounds,
   points: GraphPoint[],
   segments: GraphSegment[]
@@ -297,7 +289,7 @@ function visibleNetTextCrowdsSellingPrice(
     top: point.y - SELLING_PRICE_POINT_RADIUS,
     bottom: point.y + SELLING_PRICE_POINT_RADIUS
   }))
-  return pointBounds.some(point => boundsOverlap(bounds, point, VISIBLE_NET_LABEL_CLEARANCE)) ||
+  return pointBounds.some(point => boundsOverlap(bounds, point, VISIBLE_TOTAL_LABEL_CLEARANCE)) ||
     segments.some(segment => lineCrowdsText(segment, bounds))
 }
 
@@ -616,7 +608,7 @@ export function SimulationStoryGraph({ story, unit, activeRole, onSelectActiveDa
           className="simulation-story-chart mt-1 block h-[250px] w-full sm:h-auto xl:h-full"
           style={{ touchAction: 'pan-y' }}
         >
-          <desc id="simulation-story-svg-description">Reference, Current, and Custom show visible Material, Labor, Burden, SG&amp;A, and sign-matched Profit. Standard Cost is visible Material plus Labor plus Burden. Visible Net is the signed total of visible state-stack segments and excludes Selling Price. GAP 1 is Current minus Reference; GAP 2 is Custom minus Current. Select a dataset label to choose the active parameter workspace. Legend filters change this graph view only, not Result or source data. Selling Price is separate, and the ruler is a comparison guide.</desc>
+          <desc id="simulation-story-svg-description">Reference, Current, and Custom show visible Material, Labor, Burden, SG&amp;A, and sign-matched Profit. Standard Cost is visible Material plus Labor plus Burden. Visible + and Visible − independently summarize the positive and negative visible stack boundaries, excluding Selling Price. GAP 1 is Current minus Reference; GAP 2 is Custom minus Current. Select a dataset label to choose the active parameter workspace. Legend filters change this graph view only, not Result or source data. Selling Price is separate, and the ruler is a comparison guide.</desc>
 
           {axisTicks.map((value, index) => {
             const lineY = y(value)
@@ -721,116 +713,81 @@ export function SimulationStoryGraph({ story, unit, activeRole, onSelectActiveDa
 
           {stateStacks.map(state => {
             const standardCost = standardCostValues.find(value => value.key === state.key)?.value ?? null
-            if (standardCost === null) return null
-            const standardCostValueLevelY = y(standardCost)
-            let standardCostY = standardCostValueLevelY + labelMetrics.ascent
-            const visibleNet = state.stack.total
-            const standardCostTooltip = `${state.description} Standard Cost · ${formatValue(standardCost)} THB/${unit}`
-            if (visibleNet === null || visibleNetMatchesStandardCost(visibleNet, standardCost)) {
-              return (
-                <g key={`${state.key}-cost-value-labels`} data-graph-state-labels={state.key}>
-                  <text
-                    {...tooltipPointerProps(standardCostTooltip)}
-                    aria-hidden="true"
-                    data-graph-standard-cost-value={state.key}
-                    data-graph-standard-cost-value-level-y={standardCostValueLevelY}
-                    data-graph-standard-cost-text-top={standardCostValueLevelY}
-                    x={state.x + 35}
-                    y={standardCostY}
-                    textAnchor="start"
-                    fill={COST_ELEMENT_COLORS.standardCost}
-                    fontSize="9px"
-                    fontWeight="700"
-                    fontFamily="ui-monospace, monospace"
-                  >
-                    {formatValue(standardCost)}
-                  </text>
-                </g>
-              )
-            }
-
-            const visibleNetEndpointY = y(visibleNet)
-            const defaultNetPosition = visibleNet < 0 ? 'below' : 'above'
-            const defaultNetY = visibleNetEndpointY + (defaultNetPosition === 'above' ? -12 : 16)
-            const defaultNetBounds = visibleNetTextBounds(visibleNet, state.x, defaultNetY, 'middle', labelMetrics)
-            const stateSellingPricePoint = pricePoints.find(point => point.x === state.x) ?? null
-            const stateSellingPriceSegments = priceLines.filter(line => line.x1 === state.x || line.x2 === state.x)
-            const sellingPriceIsAboveNet = visibleLegend.sellingPrice &&
-              state.values.sellingPrice !== null && Number.isFinite(state.values.sellingPrice) &&
-              state.values.sellingPrice > visibleNet
-            const crowdsSellingPrice = sellingPriceIsAboveNet && stateSellingPricePoint !== null &&
-              visibleNetTextCrowdsSellingPrice(defaultNetBounds, [stateSellingPricePoint], stateSellingPriceSegments)
-            const netPosition = crowdsSellingPrice ? 'side' : defaultNetPosition
-            const netTextAnchor = netPosition === 'side' ? 'start' : 'middle'
-            const netX = netPosition === 'side' ? state.x + 35 : state.x
-            let visibleNetY = netPosition === 'side'
-              ? visibleNetEndpointY + labelMetrics.ascent
-              : defaultNetY
-            let standardCostTextBounds = visibleNetTextBounds(standardCost, state.x + 35, standardCostY, 'start', labelMetrics)
-            let visibleNetBounds = visibleNetTextBounds(visibleNet, netX, visibleNetY, netTextAnchor, labelMetrics)
-
-            if (netPosition === 'side' && boundsOverlap(visibleNetBounds, standardCostTextBounds)) {
-              const upperLevel = Math.min(visibleNetEndpointY, standardCostValueLevelY)
-              const lowerLevel = Math.max(visibleNetEndpointY, standardCostValueLevelY)
-              const midpoint = (upperLevel + lowerLevel) / 2
-              if (visibleNetEndpointY < standardCostValueLevelY) {
-                visibleNetY = midpoint - labelMetrics.descent
-                standardCostY = midpoint + labelMetrics.ascent
-              } else {
-                standardCostY = midpoint - labelMetrics.descent
-                visibleNetY = midpoint + labelMetrics.ascent
-              }
-              visibleNetBounds = visibleNetTextBounds(visibleNet, netX, visibleNetY, netTextAnchor, labelMetrics)
-              standardCostTextBounds = visibleNetTextBounds(standardCost, state.x + 35, standardCostY, 'start', labelMetrics)
-            }
-
-            const standardCostLabel = (
-              <text
-                {...tooltipPointerProps(standardCostTooltip)}
-                aria-hidden="true"
-                data-graph-standard-cost-value={state.key}
-                data-graph-standard-cost-value-level-y={standardCostValueLevelY}
-                data-graph-standard-cost-text-top={standardCostTextBounds.top}
-                data-graph-standard-cost-text-bottom={standardCostTextBounds.bottom}
-                x={state.x + 35}
-                y={standardCostY}
-                textAnchor="start"
-                fill={COST_ELEMENT_COLORS.standardCost}
-                fontSize="9px"
-                fontWeight="700"
-                fontFamily="ui-monospace, monospace"
-              >
-                {formatValue(standardCost)}
-              </text>
-            )
-            const visibleNetTooltip = `${state.description} Visible Net · ${formatValue(visibleNet)} THB/${unit}`
+            const standardCostY = standardCost === null ? null : y(standardCost) + labelMetrics.ascent
+            const standardCostBounds = standardCostY === null || standardCost === null ? null
+              : visibleTotalTextBounds(formatValue(standardCost), state.x + 35, standardCostY, 'start', labelMetrics)
+            const positiveVisibleTotal = state.stack.positive
+            const negativeVisibleTotal = state.stack.negative
             return (
               <g key={`${state.key}-cost-value-labels`} data-graph-state-labels={state.key}>
-                {standardCostLabel}
-                <text
-                  {...tooltipProps(visibleNetTooltip)}
-                  data-graph-visible-net-value={state.key}
-                  data-graph-visible-net-position={netPosition}
-                  data-graph-visible-net-vertical-position={visibleNetY < visibleNetEndpointY ? 'above' : 'below'}
-                  data-graph-visible-net-endpoint-y={visibleNetEndpointY}
-                  data-graph-visible-net-value-level-y={visibleNetEndpointY}
-                  data-graph-visible-net-default-y={defaultNetY}
-                  data-graph-visible-net-text-top={visibleNetBounds.top}
-                  data-graph-visible-net-text-bottom={visibleNetBounds.bottom}
-                  x={netX}
-                  y={visibleNetY}
-                  textAnchor={netTextAnchor}
-                  fill="#334155"
+                {standardCost !== null && standardCostY !== null && standardCostBounds && <text
+                  {...tooltipPointerProps(`${state.description} Standard Cost · ${formatValue(standardCost)} THB/${unit}`)}
+                  aria-hidden="true"
+                  data-graph-standard-cost-value={state.key}
+                  data-graph-standard-cost-value-level-y={y(standardCost)}
+                  data-graph-standard-cost-text-top={standardCostBounds.top}
+                  data-graph-standard-cost-text-bottom={standardCostBounds.bottom}
+                  x={state.x + 35}
+                  y={standardCostY}
+                  textAnchor="start"
+                  fill={COST_ELEMENT_COLORS.standardCost}
                   fontSize="9px"
                   fontWeight="700"
                   fontFamily="ui-monospace, monospace"
-                >
-                  {formatValue(visibleNet)}
-                </text>
+                >{formatValue(standardCost)}</text>}
+                {[positiveVisibleTotal, negativeVisibleTotal].filter(value => value !== 0).map(value => {
+                  const positive = value > 0
+                  const side = positive ? 'positive' : 'negative'
+                  const endpointY = y(value)
+                  const defaultY = endpointY + (positive ? -12 : labelMetrics.ascent + 4)
+                  const defaultBounds = visibleTotalTextBounds(signed(value), state.x, defaultY, 'middle', labelMetrics)
+                  const pricePoint = pricePoints.find(point => point.x === state.x)
+                  const priceSegments = priceLines.filter(line => line.x1 === state.x || line.x2 === state.x)
+                  const crowdsSellingPrice = positive && visibleLegend.sellingPrice &&
+                    state.values.sellingPrice !== null && state.values.sellingPrice > value && pricePoint &&
+                    visiblePositiveTextCrowdsSellingPrice(defaultBounds, [pricePoint], priceSegments)
+                  const position = crowdsSellingPrice ? 'side' : positive ? 'above' : 'below'
+                  const anchor = position === 'side' ? 'start' : 'middle'
+                  const x = position === 'side' ? state.x + 35 : state.x
+                  let baselineY = position === 'side' ? endpointY + labelMetrics.ascent : defaultY
+                  let bounds = visibleTotalTextBounds(signed(value), x, baselineY, anchor, labelMetrics)
+                  // Keep Standard Cost at its own level; move a crowded visible total outward, never into its stack.
+                  if (standardCostBounds && boundsOverlap(bounds, standardCostBounds)) {
+                    baselineY = positive
+                      ? Math.min(endpointY - labelMetrics.descent - 4, standardCostBounds.top - labelMetrics.descent - 4)
+                      : Math.max(defaultY, standardCostBounds.bottom + labelMetrics.ascent + 4)
+                    bounds = visibleTotalTextBounds(signed(value), x, baselineY, anchor, labelMetrics)
+                  }
+                  if (positive && visibleLegend.ruler) {
+                    const rulerBounds = visibleTotalTextBounds(rulerValue, RULER_LABEL_GUTTER.left,
+                      clamp(rulerY - 3, plot.top + 10, plot.bottom - 1), 'start', labelMetrics)
+                    if (boundsOverlap(bounds, rulerBounds)) {
+                      baselineY = Math.min(baselineY, rulerBounds.top - labelMetrics.descent - 4)
+                      bounds = visibleTotalTextBounds(signed(value), x, baselineY, anchor, labelMetrics)
+                    }
+                  }
+                  return <text
+                    {...tooltipProps(`${state.description} Visible ${positive ? '+' : '−'} · ${signed(value)} THB/${unit}`)}
+                    key={side}
+                    data-graph-visible-total-value={state.key}
+                    data-graph-visible-total-side={side}
+                    data-graph-visible-total-position={position}
+                    data-graph-visible-total-endpoint-y={endpointY}
+                    data-graph-visible-total-default-y={defaultY}
+                    data-graph-visible-total-text-top={bounds.top}
+                    data-graph-visible-total-text-bottom={bounds.bottom}
+                    x={x}
+                    y={baselineY}
+                    textAnchor={anchor}
+                    fill="#334155"
+                    fontSize="9px"
+                    fontWeight="700"
+                    fontFamily="ui-monospace, monospace"
+                  >{signed(value)}</text>
+                })}
               </g>
             )
           })}
-
           {visibleLegend.ruler && (
             <>
               <line data-ruler-line="true" x1={plot.left} x2={plot.right} y1={rulerY} y2={rulerY} stroke={RULER_COLOR} strokeWidth="1.4" strokeDasharray="4 5" pointerEvents="none" />
