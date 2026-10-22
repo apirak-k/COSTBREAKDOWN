@@ -1,4 +1,16 @@
-import assert from 'node:assert/strict'
+import assertBase from 'node:assert/strict'
+let assertionCount = 0
+const assert = new Proxy(assertBase, {
+  get(target, key) {
+    const member = target[key]
+    if (typeof member !== 'function') return member
+    return (...args) => {
+      const result = member(...args)
+      assertionCount += 1
+      return result
+    }
+  }
+})
 import { readFileSync, readdirSync } from 'node:fs'
 import { resolve } from 'node:path'
 import React from 'react'
@@ -37,7 +49,13 @@ try {
     isMasterDataNumericValueValid
   } = await vite.ssrLoadModule('/src/core/utils/master-data-validation.ts')
   const { NumericInput } = await vite.ssrLoadModule('/src/shared/ui/NumericInput.tsx')
-  const { formatBusinessNumber, formatFullNumericValue, formatHeaderNumericValue } = await vite.ssrLoadModule('/src/shared/ui/numeric-display.ts')
+  const { formatBusinessNumber, formatFullNumericValue, formatFocusedNumericValue, formatHeaderNumericValue } = await vite.ssrLoadModule('/src/shared/ui/numeric-display.ts')
+  for(const [value,expected] of [[110,'110.00'],[110.5,'110.50'],[110.123456,'110.123456'],[0.0045,'0.0045'],[0.00003,'0.00003'],[-0,'0.00']]) {
+    assert.equal(formatFocusedNumericValue(value),expected,'focused committed decimals retain authoritative digits and minimum 2dp')
+    assert.equal(Number(formatFocusedNumericValue(value)),value===0?0:value,'focused text round trips exactly')
+  }
+  assert.equal(formatFocusedNumericValue(110,true),'110','semantic integer focus stays integer')
+  for(const value of [Number.MIN_VALUE,Number.MAX_VALUE,1e21]) assert.equal(Number(formatFocusedNumericValue(value)),value,'extreme focused representation round trips')
   const numericInputSource = readFileSync(resolve(process.cwd(), 'src/shared/ui/NumericInput.tsx'), 'utf8')
   const { BusinessNumber } = await vite.ssrLoadModule('/src/shared/ui/BusinessNumber.tsx')
   const presentationMarkup = value => renderToStaticMarkup(React.createElement(BusinessNumber, { value }))
@@ -300,7 +318,7 @@ try {
   assert.doesNotMatch(appSources, /<input\b[^>]*\btype\s*=\s*['"]number['"]/s, 'editable application numbers use the shared editor rather than native number inputs')
   assert.doesNotMatch(appSources, /type="number"/, 'no source component opts back into browser-native number controls')
 
-  console.log('Numeric input verification passed')
+  console.log(`Numeric input verification passed: ${assertionCount}/${assertionCount} assertions`)
 } finally {
   await vite.close()
 }

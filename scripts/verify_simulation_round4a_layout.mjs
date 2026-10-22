@@ -572,8 +572,8 @@ try {
     const r=input.getBoundingClientRect(),s=getComputedStyle(input),cell=input.closest('td'),frame=cell?.querySelector('[data-simulation-input-frame="true"]'),f=frame?.getBoundingClientRect(),fs=frame?getComputedStyle(frame):null
     const borderRight=parseFloat(s.borderRightWidth)||0,paddingRight=parseFloat(s.paddingRight)||0,rightInset=borderRight+paddingRight,header=section.querySelector('table[role="presentation"] thead tr')?.children[cell?.cellIndex??-1],range=document.createRange()
     if(header)range.selectNodeContents(header)
-    const headerBoxes=header?[...range.getClientRects()]:[]
-    return{kind:${JSON.stringify(kind)},label:${JSON.stringify(label)},value:input.value,focused:document.activeElement===input,mobile:Boolean(input.closest('article')),input:{left:r.left,right:r.right,top:r.top,bottom:r.bottom,width:r.width,height:r.height,textRight:r.right-rightInset,paddingRight:s.paddingRight,rightInset,borderRight,background:s.backgroundColor,outlineStyle:s.outlineStyle},headerRight:headerBoxes.length?Math.max(...headerBoxes.map(box=>box.right)):null,frame:f?{left:f.left,right:f.right,top:f.top,bottom:f.bottom,width:f.width,height:f.height,centerX:(f.left+f.right)/2,offsetLeft:f.left-r.left,offsetRight:f.right-r.right,border:fs.borderLeftColor,background:fs.backgroundColor,hovered:frame.getAttribute('data-simulation-input-frame-hovered')==='true',outlineStyle:fs.outlineStyle,outlineWidth:fs.outlineWidth,outlineColor:fs.outlineColor,outlineOffset:fs.outlineOffset,borderRadius:fs.borderTopLeftRadius}:null,cardFrameCount:input.closest('article')?.querySelectorAll('[data-simulation-input-frame="true"]').length??0}
+    const headerBoxes=header?[...range.getClientRects()]:[],cellRect=cell?.getBoundingClientRect(),headerRect=header?.getBoundingClientRect()
+    return{column:cellRect?{left:cellRect.left,right:cellRect.right,width:cellRect.width,headerLeft:headerRect?.left,headerRight:headerRect?.right}:null,kind:${JSON.stringify(kind)},label:${JSON.stringify(label)},value:input.value,focused:document.activeElement===input,mobile:Boolean(input.closest('article')),input:{left:r.left,right:r.right,top:r.top,bottom:r.bottom,width:r.width,height:r.height,textRight:r.right-rightInset,paddingRight:s.paddingRight,rightInset,borderRight,background:s.backgroundColor,outlineStyle:s.outlineStyle},headerRight:headerBoxes.length?Math.max(...headerBoxes.map(box=>box.right)):null,frame:f?{left:f.left,right:f.right,top:f.top,bottom:f.bottom,width:f.width,height:f.height,centerX:(f.left+f.right)/2,offsetLeft:f.left-r.left,offsetRight:f.right-r.right,border:fs.borderLeftColor,background:fs.backgroundColor,hovered:frame.getAttribute('data-simulation-input-frame-hovered')==='true',outlineStyle:fs.outlineStyle,outlineWidth:fs.outlineWidth,outlineColor:fs.outlineColor,outlineOffset:fs.outlineOffset,borderRadius:fs.borderTopLeftRadius}:null,cardFrameCount:input.closest('article')?.querySelectorAll('[data-simulation-input-frame="true"]').length??0}
   })()`)
 
   const sameFrameRect = (left, right) => Boolean(left && right && ['left', 'right', 'top', 'bottom', 'width', 'height'].every(edge => Math.abs(left[edge] - right[edge]) <= 0.25))
@@ -647,8 +647,8 @@ try {
       if (framePoint) { await send('Input.dispatchMouseEvent', { type: 'mouseMoved', x: framePoint.x, y: framePoint.y }); await delay(120) }
       hover = await readInputFrame(kind, label)
       check(`${width}px ${kind.toUpperCase()} ${label} keeps the fixed 32px editor and its column anchor`,
-        Boolean(hover && hover.input.width > 70 && Math.abs(hover.input.height - 32) <= 0.25
-          && (width < 768 || Math.abs(hover.headerRight - (hover.input.right - hover.input.borderRight)) <= 2)), hover)
+        Boolean(hover && hover.input.width > 50 && Math.abs(hover.input.height - 32) <= 0.25
+          && (width < 768 || (hover.input.left-hover.column.left>=5.5 && hover.column.right-hover.input.right>=5.5 && Math.abs(hover.column.left-hover.column.headerLeft)<1 && Math.abs(hover.column.right-hover.column.headerRight)<1))), hover)
       if (width < 768) {
         check(`${width}px ${kind.toUpperCase()} ${label} keeps the existing mobile editor with no desktop frame overlay`,
           Boolean(hover?.mobile && hover.cardFrameCount === 0 && hover.frame === null), hover)
@@ -672,6 +672,7 @@ try {
       if (framePoint) await clickAt(framePoint)
       await delay(180)
       const focused = await readInputFrame(kind, label)
+      if (width === 1440 && ['Manning', 'Loss'].includes(label)) await screenshot(`numeric-layout-${kind}-${label.toLowerCase()}-focus-1440`)
 
       await send('Input.dispatchMouseEvent', { type: 'mouseMoved', x: 2, y: 2 })
       await delay(180)
@@ -753,10 +754,30 @@ try {
           const point=await evaluate(`(()=>{const e=document.querySelector(${JSON.stringify(rowSelector+' th[scope="row"]')});e.scrollIntoView({block:'center'});const r=e.getBoundingClientRect();return{x:r.x+r.width/2,y:r.y+r.height/2}})()`)
           await clickAt(point)
         }
-        const axes=await evaluate(`(()=>{const section=document.querySelector('section[data-simulation-table="${kind}"]'),headers=[...section.querySelectorAll('table[role="presentation"] thead th')],main=section.querySelector('tbody tr[data-simulation-row-index]'),detail=main.nextElementSibling;return [3,4,5,6].map((column,index)=>{const cell=main.children[column],effect=detail?.children[index+2],h=headers[column]?.getBoundingClientRect(),m=cell.getBoundingClientRect(),d=effect?.getBoundingClientRect(),number=effect?.querySelector('[data-numeric-presentation]'),n=number?.getBoundingClientRect();return{column,mainRight:m.right,headerRight:h?.right,effectRight:d?.right,effectNumberRight:n?.right,effectPadding:effect?parseFloat(getComputedStyle(effect).paddingRight):null,calculatedReadOnly:column!==6||!cell.querySelector('input')}})})()`)
+        const axes=await evaluate(`(()=>{const section=document.querySelector('section[data-simulation-table="${kind}"]'),headers=[...section.querySelectorAll('table[role="presentation"] thead th')],main=section.querySelector('tbody tr[data-simulation-row-index]'),detail=main.nextElementSibling;return [3,4,5,6].map((column,index)=>{const cell=main.children[column],effect=detail?.children[index+2],h=headers[column]?.getBoundingClientRect(),m=cell.getBoundingClientRect(),d=effect?.getBoundingClientRect(),number=effect?.querySelector('[data-numeric-presentation]'),n=number?.getBoundingClientRect();return{column,mainRight:m.right,headerRight:h?.right,effectRight:d?.right,effectNumberRight:n?.right,effectPadding:effect?parseFloat(getComputedStyle(effect).paddingRight):null,parameterBoundary:cell.querySelector('input')?.getBoundingClientRect().right-(column===5?5:17),calculatedReadOnly:column!==6||!cell.querySelector('input')}})})()`)
         check(`${width}px ${kind.toUpperCase()} expanded effects and calculated costs retain matching column anchors`,
-          axes.every(axis=>Math.abs(axis.mainRight-axis.headerRight)<1&&Math.abs(axis.mainRight-axis.effectRight)<1&&axis.calculatedReadOnly&&Math.abs(axis.effectNumberRight-(axis.effectRight-axis.effectPadding))<1), axes)
+          axes.every(axis=>Math.abs(axis.mainRight-axis.headerRight)<1&&Math.abs(axis.mainRight-axis.effectRight)<1&&axis.calculatedReadOnly&&Math.abs(axis.effectNumberRight-(axis.column===6?axis.effectRight-axis.effectPadding:axis.parameterBoundary))<1), axes)
         if (width===1440) await screenshot(`numeric-layout-${width}-${kind}-expanded`)
+      }
+    }
+    if (width >= 768) {
+      for(const kind of ['bom','routing']) {
+        // Keep both statuses in the real fixture while checking their visible
+        // text gutters, then restore the authoritative value immediately.
+        const changedFixture = width === 1440 ? await evaluate(`(()=>{
+          const e=document.querySelector('section[data-simulation-table="${kind}"] tbody tr[data-simulation-row-index] input')
+          return e?{aria:e.getAttribute('aria-label'),original:e.value}:null
+        })()`) : null
+        if (changedFixture) {
+          await typeIntoInput(changedFixture.aria, String(Number(changedFixture.original) + 1))
+          await evaluate('document.activeElement?.blur()')
+        }
+        const gutters=await evaluate(`(()=>{const section=document.querySelector('section[data-simulation-table="${kind}"]');return [...section.querySelectorAll('tbody tr[data-simulation-row-index]')].map(row=>{const status=row.children[2],input=row.children[3]?.querySelector('input'),frame=row.children[3]?.querySelector('[data-simulation-input-frame]');if(!status||!input||!frame)return null;const range=document.createRange();range.selectNodeContents(status);const text=range.getBoundingClientRect(),f=frame.getBoundingClientRect(),columns=[3,4,5].map(index=>{const cell=row.children[index],input=cell.querySelector('input'),r=input?.getBoundingClientRect(),c=cell.getBoundingClientRect();return {left:r?r.left-c.left:null,right:r?c.right-r.right:null,width:r?.width}});return {status:status.textContent.trim(),gutter:f.left-text.right,containerGutter:f.left-status.getBoundingClientRect().right,columns}}).filter(Boolean)})()`)
+        check(`${width}px ${kind.toUpperCase()} real Status text has a comfortable numeric-frame gutter`,gutters.some(row=>row.status==='UNCHANGED')&&(!changedFixture||gutters.some(row=>row.status==='CHANGED'))&&gutters.every(row=>row.gutter>=8&&row.containerGutter>=5.5&&row.columns.every(column=>column.left>=5.5&&column.right>=5.5)),gutters)
+        if (changedFixture) {
+          await typeIntoInput(changedFixture.aria, changedFixture.original)
+          await evaluate('document.activeElement?.blur()')
+        }
       }
     }
     if (width >= 768) {

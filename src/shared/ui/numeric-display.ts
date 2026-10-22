@@ -60,3 +60,11 @@ export function formatFullNumericValue(value: number | null | undefined): string
   if (point >= digits.length) return `${sign}${digits}${'0'.repeat(point - digits.length)}`
   return `${sign}${digits.slice(0, point)}.${digits.slice(point)}`
 }
+
+/** Hydrate a committed editor without rounding away authoritative precision. */
+export function formatFocusedNumericValue(value: number | null | undefined, integer = false): string {
+  const full = formatFullNumericValue(value)
+  if (!full || integer) return full
+  const [whole, fraction = ''] = full.split('.')
+  return `${whole}.${fraction.padEnd(2, '0')}`
+}

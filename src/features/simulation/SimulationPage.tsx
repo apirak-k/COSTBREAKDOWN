@@ -85,7 +85,7 @@ function resultChangeClass(value: number | null, semantic: ResultSemantic): stri
   return favorable ? 'text-emerald-700' : 'text-rose-700'
 }
 
-function displayParameter(value: number | null, parameter: typeof BOM_PARAMETERS[number] | typeof RTG_PARAMETERS[number], integerDigits = 6) {
+function displayParameter(value: number | null, parameter: typeof BOM_PARAMETERS[number] | typeof RTG_PARAMETERS[number], integerDigits = 3) {
   return <BusinessNumber value={value === null ? null : value * parameter.scale} integerDigits={integerDigits} percent={parameter.scale === 100} />
 }
 
@@ -397,13 +397,15 @@ function CompactActionControl({
   )
 }
 
-function EffectCell({ amount }: {
+function EffectCell({ amount, percentage = false }: {
   amount: number | null | undefined
+  percentage?: boolean
 }) {
   const effect = parameterEffectPresentation(amount)
   return (
-    <td className="border-b border-slate-200 whitespace-nowrap py-1.5 pl-1 pr-2 text-right font-mono tabular-nums">
-      <span className={effect.className}><BusinessNumber value={amount} signPositive integerDigits={6} /></span>
+    <td className="border-b border-slate-200 whitespace-nowrap py-1.5 text-right font-mono tabular-nums" style={{ paddingInline: percentage ? 6 : 5 }}>
+      {/* Match the parameter group inset plus the editor padding and border. */}
+      <span className={`block px-1.5 text-xs ${effect.className}`} style={{ paddingRight: percentage ? 'calc(12px + 1ch)' : '20px' }}><BusinessNumber value={amount} signPositive integerDigits={3} className="text-[10px]" /></span>
     </td>
   )
 }
@@ -452,7 +454,7 @@ function SimulationParameterTable({
   const navigationLabel = isBOM ? 'BOM' : 'Routing'
   const tableIdentity = isBOM ? 'Bill of Materials' : 'Routing Process'
   const parameters = isBOM ? BOM_PARAMETERS : RTG_PARAMETERS
-  const columnWidths = ['6%', '16%', '9%', '15.5%', '15.5%', '15.5%', '17%', '5.5%']
+  const columnWidths = ['6%', '17.4%', '10.6%', '14.5%', '14.5%', '14.5%', '17%', '5.5%']
   const renderColumnGroup = () => (
     <colgroup>
       {columnWidths.map((width, index) => (
@@ -680,7 +682,7 @@ function SimulationParameterTable({
               </th>
               <th scope="col" className="px-2 py-2 text-left">{tableIdentity}</th>
               <th scope="col" className="px-1 py-2 text-left">Status</th>
-              {parameters.map(parameter => <th key={parameter.parameter} scope="col" className="py-2 pl-1 pr-2 text-right">{parameter.label}</th>)}
+              {parameters.map(parameter => <th key={parameter.parameter} scope="col" className="py-2 pl-1.5 text-right" style={{ paddingRight: parameter.scale === 100 ? 'calc(18px + 1ch)' : '25px' }}>{parameter.label}</th>)}
               <th scope="col" className="whitespace-nowrap py-2 pl-1 pr-2 text-right">{isBOM ? 'Material Cost' : 'Conversion Cost'}</th>
               <th scope="col" className="px-0.5 py-2"><span className="sr-only">Expand Parameter Cost Effect</span></th>
             </tr>
@@ -788,45 +790,52 @@ function SimulationParameterTable({
                         : null
                       const value = recordValue === null ? null : recordValue * parameter.scale
                       return (
-                        <td key={parameter.parameter} className={`py-1 pl-1 pr-2 text-right ${groupEndClass}`}>
+                        <td key={parameter.parameter} className={`py-1 text-right ${groupEndClass}`} style={{ paddingInline: parameter.scale === 100 ? 6 : 5 }}>
                           {!simulationRecord ? '—' : canEdit ? (
                             <div
                               data-simulation-input-wrapper="true"
-                              className="relative group -mr-1 min-w-0 pl-1.5 pr-1"
+                              className="relative group flex min-w-0 items-center gap-1 px-[3px]"
                             >
-                              <SimulationHistoryInputBoundary onBegin={onBeginEdit} onCommit={onCommitEdit}>
-                                <>
-                                  <NumericInput
-                                    value={value}
-                                    integerDigits={6}
-                                    percentSuffix={parameter.scale === 100}
-                                    min={0}
-                                    minExclusive={parameter.parameter === 'routing.capacity' || parameter.parameter === 'routing.yield'}
-                                    max={parameter.parameter === 'routing.yield' || parameter.parameter === 'bom.loss' ? 100 : undefined}
-                                    allowSubMinimumDraft={parameter.parameter === 'routing.capacity' || parameter.parameter === 'routing.yield'}
-                                    stopAtMinimum
-                                    onValueChange={next => {
-                                      if (next !== null) onUpdate(simulationRecord.id, parameter.parameter, next / parameter.scale)
-                                    }}
-                                    className="relative z-10 h-8 w-full min-w-0 rounded-sm border border-transparent bg-transparent pl-1.5 pr-0 text-right font-mono text-xs tabular-nums text-slate-900 transition-colors"
-                                    style={{
-                                      outline: 'none',
-                                      paddingRight: 0,
-                                      clipPath: 'inset(0.5px)'
-                                    }}
-                                    aria-label={`${row.name} ${parameter.label} in ${roleLabel(activeRole)}`}
-                                  />
-                                  <span
-                                    aria-hidden="true"
-                                    data-simulation-input-frame="true"
-                                    data-simulation-input-frame-key={inputFrameKey}
-                                    data-simulation-input-frame-hovered={hoveredInputFrame === inputFrameKey ? 'true' : 'false'}
-                                    className={`pointer-events-none absolute inset-y-0 left-1.5 right-1 z-0 rounded-sm border transition-colors ${hoveredInputFrame === inputFrameKey ? 'border-slate-200 bg-slate-50' : 'border-transparent bg-transparent'} group-focus-within:!border-transparent group-focus-within:!bg-white group-focus-within:!outline group-focus-within:!outline-2 group-focus-within:!outline-blue-700 group-focus-within:!outline-offset-[-2px]`}
-                                  />
-                                </>
-                              </SimulationHistoryInputBoundary>
+                              <div className="relative min-w-0 flex-1">
+                                <SimulationHistoryInputBoundary onBegin={onBeginEdit} onCommit={onCommitEdit}>
+                                  <>
+                                    <NumericInput
+                                      value={value}
+                                      integerDigits={3}
+                                      min={0}
+                                      minExclusive={parameter.parameter === 'routing.capacity' || parameter.parameter === 'routing.yield'}
+                                      max={parameter.parameter === 'routing.yield' || parameter.parameter === 'bom.loss' ? 100 : undefined}
+                                      allowSubMinimumDraft={parameter.parameter === 'routing.capacity' || parameter.parameter === 'routing.yield'}
+                                      stopAtMinimum
+                                      onValueChange={next => {
+                                        if (next !== null) onUpdate(simulationRecord.id, parameter.parameter, next / parameter.scale)
+                                      }}
+                                      className="relative z-10 h-8 w-full min-w-0 rounded-sm border border-transparent bg-transparent pl-1.5 pr-0 text-right font-mono text-xs tabular-nums text-slate-900 transition-colors"
+                                      style={{
+                                        outline: 'none',
+                                        paddingRight: parameter.scale === 100 ? '0.25rem' : '1rem',
+                                        clipPath: 'inset(0.5px)'
+                                      }}
+                                      aria-label={`${row.name} ${parameter.label} in ${roleLabel(activeRole)}`}
+                                    />
+                                    <span
+                                      aria-hidden="true"
+                                      data-simulation-input-frame="true"
+                                      data-simulation-input-frame-key={inputFrameKey}
+                                      data-simulation-input-frame-hovered={hoveredInputFrame === inputFrameKey ? 'true' : 'false'}
+                                      className={`pointer-events-none absolute inset-y-0 inset-x-0 z-0 rounded-sm border transition-colors ${hoveredInputFrame === inputFrameKey ? 'border-slate-200 bg-slate-50' : 'border-transparent bg-transparent'} group-focus-within:!border-transparent group-focus-within:!bg-white group-focus-within:!outline group-focus-within:!outline-2 group-focus-within:!outline-blue-700 group-focus-within:!outline-offset-[-2px]`}
+                                    />
+                                  </>
+                                </SimulationHistoryInputBoundary>
+                              </div>
+                              {parameter.scale === 100 && <span data-numeric-suffix="true" aria-hidden="true" className="w-[1ch] shrink-0 font-mono text-xs text-slate-500">%</span>}
                             </div>
-                          ) : displayParameter(recordValue, parameter)}
+                          ) : (
+                            <div className="flex min-w-0 items-center gap-1 px-[3px]">
+                              <span className="min-w-0 flex-1 font-mono text-xs" style={{ paddingRight: parameter.scale === 100 ? 5 : 17 }}><BusinessNumber value={value} integerDigits={3} /></span>
+                              {parameter.scale === 100 && <span data-numeric-suffix="true" aria-hidden="true" className="w-[1ch] shrink-0 font-mono text-xs text-slate-500">%</span>}
+                            </div>
+                          )}
                         </td>
                       )
                     })}
@@ -845,7 +854,7 @@ function SimulationParameterTable({
                       <th scope="row" colSpan={2} className="border-b border-slate-200 py-2 pl-3 pr-2 text-left text-[10px] font-semibold text-slate-700">
                         <span className="ml-2 inline-block whitespace-nowrap border-l-2 border-slate-300 pl-3">Parameter Cost Effect</span>
                       </th>
-                      {detailParameters.map(parameter => <EffectCell key={parameter.parameter} amount={parameter.amount} />)}
+                      {detailParameters.map(parameter => <EffectCell key={parameter.parameter} amount={parameter.amount} percentage={parameter.scale === 100} />)}
                       <td aria-label={`Total ${formatBusinessNumber(analysis.effects.totalEffect, { signPositive: true, integerDigits: 6 })}`} className="border-b border-slate-200 whitespace-nowrap py-1.5 pl-1 pr-2 text-right text-[10px] font-semibold">
                         <span className="grid grid-cols-[1fr_auto] items-center gap-1">
                           <span className="text-right text-slate-700">Total{' '}</span>

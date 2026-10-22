@@ -1,4 +1,16 @@
-import assert from 'node:assert/strict'
+import assertBase from 'node:assert/strict'
+let assertionCount = 0
+const assert = new Proxy(assertBase, {
+  get(target, key) {
+    const member = target[key]
+    if (typeof member !== 'function') return member
+    return (...args) => {
+      const result = member(...args)
+      assertionCount += 1
+      return result
+    }
+  }
+})
 import { spawn, execFileSync } from 'node:child_process'
 import { existsSync } from 'node:fs'
 import { mkdtemp, rm, writeFile } from 'node:fs/promises'
@@ -207,7 +219,89 @@ try {
   // Actual Master Data callers: one static numeric set in Edit and View.
   const fitResults = []
   const blurNumeric = () => evaluate('document.activeElement?.blur()')
-  const inputMetrics = aria => evaluate(`(()=>{const e=${visibleInputExpression(aria)};const r=e.getBoundingClientRect(),s=getComputedStyle(e),c=document.createElement('canvas').getContext('2d');c.font=[s.fontStyle,s.fontWeight,s.fontSize,s.fontFamily].join(' ');const right=r.right-parseFloat(s.borderRightWidth)-parseFloat(s.paddingRight),point=e.value.indexOf('.');return {text:e.value,x:r.x,width:r.width,height:r.height,right:r.right,paddingRight:s.paddingRight,decimal:point<0?null:right-c.measureText(e.value.slice(point)).width,tokenRight:right,fits:c.measureText(e.value).width<=r.width-parseFloat(s.paddingLeft)-parseFloat(s.paddingRight)-2,suffix:!!e.parentElement.querySelector('[data-numeric-suffix]')}})()`)
+  // Measure the rendered input text using its actual font, alignment, padding,
+  // and native scroll offset. Canvas is test instrumentation only, never layout.
+  const inputMetrics = aria => evaluate(`(()=>{
+    const e=${visibleInputExpression(aria)},r=e.getBoundingClientRect(),s=getComputedStyle(e)
+    const canvas=document.createElement('canvas').getContext('2d')
+    canvas.font=[s.fontStyle,s.fontWeight,s.fontSize,s.fontFamily].join(' ')
+    const textWidth=canvas.measureText(e.value).width
+    const left=r.left+parseFloat(s.borderLeftWidth)+parseFloat(s.paddingLeft)
+    const right=r.right-parseFloat(s.borderRightWidth)-parseFloat(s.paddingRight)
+    const start=(s.textAlign==='left'||s.textAlign==='start'?left:right-textWidth)-e.scrollLeft
+    const point=e.value.indexOf('.')
+    let suffix=e.parentElement.querySelector('[data-numeric-suffix]')
+    for(let ancestor=e.parentElement,depth=0;!suffix&&ancestor&&depth<4;ancestor=ancestor.parentElement,depth++) {
+      suffix=[...ancestor.children].find(child=>child.tagName==='SPAN'&&child.textContent.trim()==='%')
+    }
+    const group=suffix?.parentElement??e.parentElement,suffixRect=suffix?.getBoundingClientRect()
+    return {
+      text:e.value,x:r.x,width:r.width,height:r.height,right:r.right,paddingRight:s.paddingRight,
+      decimal:point<0?null:start+canvas.measureText(e.value.slice(0,point)).width,
+      tokenRight:start+textWidth,
+      visibleTokenRight:Math.min(start+textWidth,r.right-parseFloat(s.borderRightWidth)),
+      fits:textWidth<=right-left+0.5,suffix:!!suffix,suffixLeft:suffixRect?.left,
+      suffixRight:suffixRect?.right,groupRight:group.getBoundingClientRect().right
+    }
+  })()`)
+
+  const ordinaryAxes = new Map()
+  const assertFocusAnchor = async (aria, value) => {
+    await typeInto(aria, value)
+    await blurNumeric()
+    const blurred = await inputMetrics(aria)
+    const evidenceName = `anchor-${aria.replace(/[^a-z0-9]/gi, '_')}-${value}`
+    await screenshot(evidenceName + '-blur')
+    await clickInput(aria)
+    const focused = await inputMetrics(aria)
+    await screenshot(evidenceName + '-focus')
+    const expected = value.includes('.') ? value.padEnd(value.indexOf('.') + 3, '0') : value + '.00'
+    assert.equal(focused.text, expected, aria + ' focused committed decimal minimum 2dp preserves precision')
+    assert.ok(focused.fits, aria + ' focus-anchor fixture fits normally')
+    if (!blurred.text.includes('E')) {
+      assert.ok(Math.abs(blurred.decimal - focused.decimal) <= 0.6, aria + ' Focus/Blur decimal X remains stable')
+      const previousAxis = ordinaryAxes.get(aria)
+      if (previousAxis !== undefined) assert.ok(Math.abs(previousAxis - blurred.decimal) <= 0.6, aria + ' integer growth shares the column decimal axis')
+      ordinaryAxes.set(aria, blurred.decimal)
+    }
+    assert.deepEqual([focused.x, focused.width, focused.height], [blurred.x, blurred.width, blurred.height], aria + ' Focus keeps outer rectangle fixed')
+    if (value === '110') {
+      await evaluate('document.activeElement.select()')
+      let expectedDraft = ''
+      for (const character of ['1', '1', '0']) {
+        await send('Input.insertText', { text: character })
+        await delay(40)
+        expectedDraft += character
+        assert.equal(await inputValue(aria), expectedDraft, aria + ' active manual typing is not padded')
+      }
+    }
+    await blurNumeric()
+    fitResults.push({ area: 'Focus/Blur anchor', aria, value, blurred, focused })
+  }
+
+  const assertPercentageSpacing = async aria => {
+    const original = await inputValue(aria)
+    let suffixX
+    for (const value of ['100', '5', '2', '1', '0.0045', '0.000000001']) {
+      await typeInto(aria, value)
+      await blurNumeric()
+      const blurred = await inputMetrics(aria)
+      await clickInput(aria)
+      const focused = await inputMetrics(aria)
+      for (const metric of [blurred, focused]) {
+        assert.ok(metric.suffix, aria + ' percentage has dedicated suffix')
+        assert.ok(metric.suffixLeft - metric.visibleTokenRight >= 3, aria + ' visible text has breathing room before percent')
+        assert.ok(metric.suffixLeft - metric.right >= 3, aria + ' focus frame stays clear of percent')
+        assert.ok(metric.suffixRight <= metric.groupRight + 0.5, aria + ' suffix remains inside owning group')
+        suffixX ??= metric.suffixLeft
+        assert.ok(Math.abs(metric.suffixLeft - suffixX) < 0.6, aria + ' precision and focus never move percent')
+      }
+      if (value === '5') await screenshot(`percentage-${aria.replace(/[^a-z0-9]/gi, '_')}-focus`)
+      fitResults.push({ area: 'Percentage spacing', aria, value, blurred, focused })
+    }
+    await typeInto(aria, original)
+    await blurNumeric()
+  }
   const masterLabels = await evaluate(`['consumption','price','manning','capacity','laborRate','burdenRate'].map(field=>[...document.querySelectorAll('input[data-grid-field]')].find(e=>e.dataset.gridField===field&&e.getClientRects().length)?.getAttribute('aria-label')).filter(Boolean)`)
   assert.equal(masterLabels.length, 6, 'all six non-percentage Master Data field sets are present')
   for (const aria of masterLabels) {
@@ -223,8 +317,9 @@ try {
     await typeInto(aria, original); await blurNumeric()
     fitResults.push({area:'Master Data',aria,large,small})
   }
-  const masterAria = masterLabels[0]
+  const masterAria = masterLabels.find(label=>/Labor/i.test(label))??masterLabels[4]
   const masterOriginal = await inputValue(masterAria)
+  for(const value of ['95','110','110.5','1110','12.345678']) await assertFocusAnchor(masterAria,value)
   for (const [value,display] of [['12.3456789','12.35'],['0.0045','0.0045'],['0.000000001','1.00E-9'],['1234567890','1.23E+9']]) {
     await typeInto(masterAria,value); await blurNumeric()
     const edit = await inputMetrics(masterAria)
@@ -234,11 +329,11 @@ try {
     const view = await evaluate(`(()=>{const source=[...document.querySelectorAll('[data-selected-value-source]')].find(e=>e.getAttribute('data-selected-value-source')===${JSON.stringify(source)}&&e.getClientRects().length),token=source?.querySelector('[data-numeric-token]'),r=source?.getBoundingClientRect(),range=document.createRange();if(token?.firstChild)range.selectNodeContents(token.firstChild);const b=range.getBoundingClientRect();return{text:token?.textContent,width:r?.width,tokenRight:b.right,source:!!source}})()`)
     assert.equal(view.text,display, 'Master Data View and Edit share the canonical presentation')
     if (['12.35','0.0045','1.00E-9'].includes(display)) await screenshot(`numeric-fit-master-view-${display.replace(/[^a-z0-9]/gi,'_')}`)
-    assert.ok(Math.abs(view.tokenRight-edit.tokenRight)<=1, 'Master Data View/Edit share the exact presentation anchor')
+    assert.ok(Math.abs(view.tokenRight-edit.tokenRight)<=1, `Master Data View/Edit share the exact presentation anchor ${JSON.stringify({value,edit,view})}`)
     assert.ok(Math.abs(view.width-edit.width)<=1, `Master Data View/Edit use the same fixed shell (${view.width}/${edit.width})`)
     await clickButton(`document.querySelector('button[role="switch"]')`)
     await clickInput(masterAria)
-    assert.equal(await inputValue(masterAria),value, 'switching View/Edit does not rewrite authoritative digits')
+    assert.equal(await inputValue(masterAria),value.includes('.')?value:value+'.00', 'switching View/Edit preserves authoritative digits with minimum 2dp')
     fitResults.push({area:'Master Data Edit/View',value,edit,view})
   }
   await typeInto(masterAria,masterOriginal); await blurNumeric()
@@ -250,6 +345,9 @@ try {
     if ([1440,390].includes(width)) await screenshot(`numeric-fit-master-${width}`)
   }
   await send('Emulation.setDeviceMetricsOverride',{width:1440,height:1800,deviceScaleFactor:1,mobile:false})
+  const masterPercentAria = await evaluate(`([...document.querySelectorAll('input[data-grid-field="loss"]')].find(e=>e.getClientRects().length))?.getAttribute('aria-label')`)
+  assert.ok(masterPercentAria, 'real Master Data percentage editor is present')
+  await assertPercentageSpacing(masterPercentAria)
 
   await clickButton(`([...document.querySelectorAll('button')].find(button => button.innerText.trim() === 'Simulation'))`)
   const currentDatasetButton = await evaluate(`(()=>[...document.querySelectorAll('button')].find(button => button.innerText.trim() === 'Current' && button.hasAttribute('aria-pressed') && button.getClientRects().length))()?.getAttribute('aria-label')`)
@@ -272,12 +370,13 @@ try {
   results.economic = await blurInto('Variable Action Cost / Unit', 'Fixed Action Cost')
 
 
+  for(const value of ['95','110','110.5','1110','12.345678']) await assertFocusAnchor(simulationInput,value)
   const numericFitLabels = [simulationInput,'Selling Price','Variable Action Cost / Unit','Fixed Action Cost']
   for (const aria of numericFitLabels) {
     const original = await inputValue(aria)
     let ordinary
     let staticFrame
-    for (const [value,display] of [['12.30','12.30'],['123456.78','123456.78'],['0.0045','0.0045'],['0.000000001','1.00E-9'],['12345678.9',aria===simulationInput?'1.23E+7':'12345678.90'],['99999999.999','1.00E+8']]) {
+    for (const [value,display] of [['12.30','12.30'],['999.99','999.99'],['9999.99',aria===simulationInput?'1.00E+4':'9999.99'],['123456.78',aria===simulationInput?'1.23E+5':'123456.78'],['0.0045','0.0045'],['0.000000001','1.00E-9'],['12345678.9',aria===simulationInput?'1.23E+7':'12345678.90'],['99999999.999','1.00E+8']]) {
       await typeInto(aria,value); await blurNumeric()
       const metric = await inputMetrics(aria)
       assert.equal(metric.text,display, `${aria} display-fit ${value}`)
@@ -292,7 +391,7 @@ try {
         staticFrame ??= frame
         assert.deepEqual(frame,staticFrame, 'Simulation overlay is fixed across ordinary/tiny/scientific values')
         await clickInput(aria)
-        assert.equal(await inputValue(aria),value === '12.30' ? '12.3' : value, 'Simulation Focus restores authoritative full value')
+        assert.equal(await inputValue(aria),value.includes('.')?value.padEnd(value.indexOf('.')+3,'0'):value+'.00', 'Simulation Focus restores authoritative full value')
         const focused = await inputMetrics(aria)
         assert.equal(focused.x,metric.x);assert.equal(focused.width,metric.width)
         await blurNumeric()
@@ -317,15 +416,13 @@ try {
   assert.equal(await inputValue(sgaAria),'100.00')
   assert.ok((await inputMetrics(sgaAria)).suffix,'SG&A uses its own fixed suffix slot')
   await clickInput(sgaAria);await evaluate('document.activeElement.select()');await send('Input.insertText',{text:'101'})
-  assert.equal(await inputValue(sgaAria),'100','SG&A maximum remains 100 percent')
+  assert.equal(await inputValue(sgaAria),'100.00','SG&A maximum remains 100 percent')
   await typeInto(sgaAria,sgaOriginal);await blurNumeric()
   const percentAria=await evaluate(`([...document.querySelectorAll('input')].find(e=>e.getClientRects().length&&/Loss in Current$/.test(e.getAttribute('aria-label')||'')))?.getAttribute('aria-label')`)
-  if(percentAria) {
-    for(const value of ['12.30','0.0045','0.000000001']) {
-      await typeInto(percentAria,value);await blurNumeric()
-      assert.ok((await inputMetrics(percentAria)).suffix,'percentage editor has a separate fixed suffix slot')
-    }
-  }
+  const yieldAria = await evaluate(`([...document.querySelectorAll('input')].find(e=>e.getClientRects().length&&/Yield in Current$/.test(e.getAttribute('aria-label')||'')))?.getAttribute('aria-label')`)
+  assert.ok(percentAria && yieldAria, 'real Loss and Yield percentage editors are present')
+  for (const aria of [sgaAria, percentAria, yieldAria]) await assertPercentageSpacing(aria)
+
   for(const width of [1440,1024,768,390,320]) {
     await send('Emulation.setDeviceMetricsOverride',{width,height:1800,deviceScaleFactor:1,mobile:false})
     await delay(100)
@@ -1061,6 +1158,7 @@ try {
     screenshots: artifacts
   }
   console.log(JSON.stringify({ result: 'PASS', browser: 'isolated Chrome', viewport: '1440x1800', value: '12.3456789', results }, null, 2))
+  console.log(`Numeric browser assertions: ${assertionCount}/${assertionCount} PASS`)
 } finally {
   client?.close()
   await stopChild(chrome)

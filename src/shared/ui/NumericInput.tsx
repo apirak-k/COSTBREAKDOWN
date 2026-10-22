@@ -1,7 +1,7 @@
 import { ChevronDown, ChevronUp } from 'lucide-react'
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import type { FocusEvent, InputHTMLAttributes, KeyboardEvent, PointerEvent as ReactPointerEvent } from 'react'
-import { businessNumberPresentation, formatFullNumericValue, formatHeaderNumericValue } from './numeric-display'
+import { businessNumberPresentation, formatFocusedNumericValue, formatFullNumericValue, formatHeaderNumericValue } from './numeric-display'
 import {
   formatNumericInputValue,
   isNumericDraftSyntax,
@@ -160,10 +160,10 @@ export function NumericInput({
     // previous committed value, while preserving an in-progress numeric draft.
     if (!focused || (valueChanged && (
       draft === previousFormattedValueRef.current
-      || draft === formatFullNumericValue(previousValueRef.current)
+      || draft === formatFocusedNumericValue(previousValueRef.current, integer)
       || (displayMode === 'full' && !Object.is(value, lastEmittedValueRef.current))
     ))) {
-      setDraft(focused && !inputProps.readOnly ? formatFullNumericValue(value) : formattedValue)
+      setDraft(focused && !inputProps.readOnly ? formatFocusedNumericValue(value, integer) : formattedValue)
     }
 
     previousValueRef.current = value
@@ -198,7 +198,7 @@ export function NumericInput({
       emitValue(null)
       setDraft('')
     } else {
-      const nextDraft = formatFullNumericValue(next)
+      const nextDraft = formatFocusedNumericValue(next, integer)
       if (nextDraft === raw) {
         preservedPlaceRef.current = { raw, caret: selectionStart, place: activePlace }
         restorePlaceRef.current = null
@@ -251,6 +251,8 @@ export function NumericInput({
   }
 
   const presentation = businessNumberPresentation(value, { integer, integerDigits })
+  const ordinaryDecimal = displayMode === 'compact' && !integer && !/[eE]/.test(draft) && draft !== ''
+  const wholeGlyphs = draft.split('.')[0].length
   const presentationPadding = presentation.notation === 'ordinary' && presentation.fractionDigits === 2 ? '2ch' : '0ch'
   const rightPadding = displayMode === 'header' ? '2.25rem' : reserveMarker
     ? showStepper ? '2.5rem' : '1.5rem'
@@ -274,7 +276,7 @@ export function NumericInput({
   }, [focused, draft, integer, min, max, minExclusive])
 
   return (
-    <div ref={wrapperRef} className="relative w-full min-w-0">
+    <div ref={wrapperRef} className={`relative w-full min-w-0 ${percentSuffix ? 'grid grid-cols-[minmax(0,1fr)_0.6rem] items-center gap-1' : ''}`}>
       <input
         {...inputProps}
         ref={inputRef}
@@ -288,7 +290,7 @@ export function NumericInput({
         onFocus={event => {
           preservedPlaceRef.current = null
           // Editing starts from the authoritative value, never its formatted presentation.
-          if (!inputProps.readOnly || /[eE]/.test(event.currentTarget.value)) setDraft(formatFullNumericValue(currentValueRef.current))
+          if (!inputProps.readOnly || /[eE]/.test(event.currentTarget.value)) setDraft(formatFocusedNumericValue(currentValueRef.current, integer))
           setFocused(true)
           onFocus?.(event)
         }}
@@ -314,8 +316,13 @@ export function NumericInput({
         className={`${defaultInputClassName} ${className ?? ''}`.trim()}
         style={{
           ...style,
-          paddingRight: displayMode === 'compact'
-            ? `calc(${typeof rightPadding === 'number' ? `${rightPadding}px` : rightPadding} + ${focused && !inputProps.readOnly ? '0ch' : presentationPadding} + ${percentSuffix ? '1.25ch' : '0ch'})`
+          // Keep the decimal axis fixed; additional focused precision grows rightward.
+          textAlign: ordinaryDecimal ? 'left' : style?.textAlign,
+          paddingLeft: ordinaryDecimal
+            ? `max(0.375rem, calc(100% - 2px - ${typeof rightPadding === 'number' ? `${rightPadding}px` : rightPadding} - ${wholeGlyphs + 5}ch))`
+            : style?.paddingLeft,
+          paddingRight: ordinaryDecimal ? 0 : displayMode === 'compact'
+            ? `calc(${typeof rightPadding === 'number' ? `${rightPadding}px` : rightPadding} + ${focused && !inputProps.readOnly ? '0ch' : presentationPadding})`
             : displayMode === 'header' || reserveMarker || showStepper ? rightPadding : style?.paddingRight
         }}
         data-numeric-editor="true"
@@ -323,10 +330,10 @@ export function NumericInput({
         data-numeric-fraction-digits={presentation.fractionDigits}
       />
       {percentSuffix && <span data-numeric-suffix="true" aria-hidden="true"
-        className="pointer-events-none absolute inset-y-0 flex items-center font-mono text-xs tabular-nums"
-        style={{ right: rightPadding, width: '1ch' }}>%</span>}
+        className="pointer-events-none flex items-center justify-center font-mono text-xs tabular-nums">%</span>}
       {showStepper && !inputProps.disabled && !inputProps.readOnly && (
         <span
+          style={percentSuffix ? { right: reserveMarker ? 'calc(1rem + 1.25rem)' : 'calc(1rem + 0.25rem)' } : undefined}
           data-numeric-stepper="true"
           data-header-spinner-slot={displayMode === 'header' ? 'true' : undefined}
           className={`absolute inset-y-0 ${reserveMarker ? 'right-5' : 'right-1'} flex w-3 flex-col justify-center ${displayMode === 'header' ? 'invisible opacity-0 transition-opacity group-hover/header-input:visible group-hover/header-input:opacity-100 group-focus-within/header-input:visible group-focus-within/header-input:opacity-100' : ''}`}
