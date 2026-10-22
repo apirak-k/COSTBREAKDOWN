@@ -379,11 +379,55 @@ try {
   }
   check('Selling Price tooltip appears from real graph hover and stays within its card host', Boolean(tooltipMetrics?.inside), tooltipMetrics)
 
+  const inputGeometryBaseline = {
+    1440: { inputWidth: 81.171875, fields: { bom: { Price: 347.703125, Usage: 446.875, Loss: 546.046875 }, routing: { Manning: 1047.703125, Capacity: 1146.875, Yield: 1246.046875 } } },
+    1024: { inputWidth: 122.359375, fields: { bom: { Price: 485.46875, Usage: 625.828125, Loss: 766.1875 }, routing: { Manning: 485.46875, Capacity: 625.828125, Yield: 766.1875 } } },
+    768: { inputWidth: 87.546875, fields: { bom: { Price: 361.046875, Usage: 466.59375, Loss: 572.140625 }, routing: { Manning: 361.046875, Capacity: 466.59375, Yield: 572.140625 } } },
+    390: { inputWidth: 155, fields: { bom: { Price: 179, Usage: 352, Loss: 179 }, routing: { Manning: 179, Capacity: 352, Yield: 179 } } },
+    320: { inputWidth: 120, fields: { bom: { Price: 144, Usage: 282, Loss: 144 }, routing: { Manning: 144, Capacity: 282, Yield: 144 } } }
+  }
   const responsive = []
   for (const width of [1440, 1024, 768, 390, 320]) {
     await setViewport(width)
     await evaluate('(()=>{window.scrollTo({top:0,left:0,behavior:"instant"});for(const element of document.querySelectorAll("*"))if(element.scrollTop)element.scrollTop=0})()')
     await delay(160)
+    const frameMetrics = []
+    for (const [kind, label] of [['bom', 'Price'], ['bom', 'Usage'], ['bom', 'Loss'], ['routing', 'Manning'], ['routing', 'Capacity'], ['routing', 'Yield']]) {
+      const point = await evaluate(`(()=>{const section=document.querySelector('section[data-simulation-table="${kind}"]');const input=[...(section?.querySelectorAll('input[data-numeric-editor]')??[])].find(e=>e.getClientRects().length&&e.getAttribute('aria-label')?.endsWith(${JSON.stringify(`${label} in Current`)}));if(!input)return null;input.scrollIntoView({block:'center',inline:'nearest'});const r=input.getBoundingClientRect();return{x:r.left+r.width/2,y:r.top+r.height/2}})()`)
+      if (!point) { frameMetrics.push({ kind, label, missing: true }); continue }
+      await send('Input.dispatchMouseEvent', { type: 'mouseMoved', x: point.x, y: point.y })
+      await delay(180)
+      frameMetrics.push(await evaluate(`(()=>{const section=document.querySelector('section[data-simulation-table="${kind}"]');const input=[...(section?.querySelectorAll('input[data-numeric-editor]')??[])].find(e=>e.getClientRects().length&&e.getAttribute('aria-label')?.endsWith(${JSON.stringify(`${label} in Current`)}));if(!input)return null;const r=input.getBoundingClientRect(),s=getComputedStyle(input),cell=input.closest('td'),frame=cell?.querySelector('[data-simulation-input-frame="true"]'),f=frame?.getBoundingClientRect(),fs=frame?getComputedStyle(frame):null,header=section.querySelector('table[role="presentation"] thead tr')?.children[cell?.cellIndex??-1],range=document.createRange();if(header)range.selectNodeContents(header);const headerBoxes=header?[...range.getClientRects()]:[];return{kind:${JSON.stringify(kind)},label:${JSON.stringify(label)},value:input.value,mobile:Boolean(input.closest('article')),input:{left:r.left,right:r.right,top:r.top,bottom:r.bottom,width:r.width,height:r.height,textRight:r.right-(parseFloat(s.borderRightWidth)||0)-(parseFloat(s.paddingRight)||0),paddingRight:s.paddingRight,borderLeft:s.borderLeftColor,borderRight:s.borderRightColor,background:s.backgroundColor,outlineStyle:s.outlineStyle,outlineWidth:s.outlineWidth},headerRight:headerBoxes.length?Math.max(...headerBoxes.map(box=>box.right)):null,frame:f?{left:f.left,right:f.right,top:f.top,bottom:f.bottom,width:f.width,height:f.height,borderLeft:fs.borderLeftColor,borderRight:fs.borderRightColor}:null,cardFrameCount:input.closest('article')?.querySelectorAll('[data-simulation-input-frame="true"]').length??0}})()`))
+    }
+    for (const metric of frameMetrics) {
+      const baseline = inputGeometryBaseline[width]?.fields[metric.kind]?.[metric.label]
+      check(`${width}px ${metric.kind.toUpperCase()} ${metric.label} keeps its existing numeric X-axis and 32px input size`,
+        Boolean(metric && !metric.missing && baseline !== undefined && Math.abs(metric.input.textRight - baseline) <= 0.25 && Math.abs(metric.input.width - inputGeometryBaseline[width].inputWidth) <= 0.25 && Math.abs(metric.input.height - 32) <= 0.25 && (width < 768 || Math.abs(metric.headerRight - metric.input.textRight) <= 2)),
+        metric)
+      if (!metric || metric.missing || !metric.input) continue
+      if (width >= 768) {
+        check(`${width}px ${metric.kind.toUpperCase()} ${metric.label} uses the shifted visible hover frame without changing the input box`,
+          Boolean(metric.frame && Math.abs(metric.frame.left - metric.input.left - 4) <= 0.25 && Math.abs(metric.frame.right - metric.input.right - 4) <= 0.25 && Math.abs(metric.frame.width - metric.input.width) <= 0.25 && Math.abs(metric.frame.height - metric.input.height) <= 0.25 && metric.frame.borderLeft === 'rgb(226, 232, 240)' && metric.frame.borderRight === 'rgb(226, 232, 240)' && metric.input.borderLeft === 'rgba(0, 0, 0, 0)' && metric.input.borderRight === 'rgba(0, 0, 0, 0)' && metric.input.background === 'rgb(248, 250, 252)'),
+          metric)
+      } else {
+        check(`${width}px ${metric.kind.toUpperCase()} ${metric.label} keeps the existing mobile editor with no desktop frame overlay`,
+          Boolean(metric.mobile && metric.cardFrameCount === 0 && metric.input.paddingRight === '6px'), metric)
+      }
+    }
+    if (width >= 768) {
+      const frameOffsets = frameMetrics.map(metric => metric.frame ? metric.frame.left - metric.input.left : null)
+      check(`${width}px all six editable desktop fields use the same 4px frame placement`,
+        frameOffsets.length === 6 && frameOffsets.every(offset => Math.abs(offset - 4) <= 0.25), frameOffsets)
+    }
+    if (width === 1440) {
+      const focusMetrics = await evaluate(`(()=>{const section=document.querySelector('section[data-simulation-table="bom"]'),input=[...(section?.querySelectorAll('input[data-numeric-editor]')??[])].find(e=>e.getClientRects().length&&e.getAttribute('aria-label')?.endsWith('Price in Current'));if(!input)return null;input.focus();const frame=input.closest('td')?.querySelector('[data-simulation-input-frame="true"]'),inputStyle=getComputedStyle(input),frameStyle=frame?getComputedStyle(frame):null;return{focused:document.activeElement===input,inputValue:input.value,inputOutline:{style:inputStyle.outlineStyle,width:inputStyle.outlineWidth,color:inputStyle.outlineColor},inputBackground:inputStyle.backgroundColor,frameBorder:frameStyle?.borderLeftColor??null}})()`)
+      check('1440px desktop focus keeps the blue input focus ring and hides the hover frame border',
+        Boolean(focusMetrics?.focused && focusMetrics.inputOutline.style === 'solid' && focusMetrics.inputOutline.color === 'rgb(29, 78, 216)' && focusMetrics.frameBorder === 'rgba(0, 0, 0, 0)'), focusMetrics)
+      await evaluate('document.activeElement?.blur()')
+      await delay(80)
+    }
+    await evaluate('(()=>{window.scrollTo({top:0,left:0,behavior:"instant"});for(const element of document.querySelectorAll("*"))if(element.scrollTop)element.scrollTop=0})()')
+    await delay(120)
     const metrics = await evaluate(`(()=>{
       const root=document.documentElement,body=document.body
       const sections=['bom','routing'].map(kind=>{const section=document.querySelector('section[data-simulation-table="'+kind+'"]');const cards=[...(section?.querySelectorAll('div[class~="md:hidden"] article')??[])].filter(e=>getComputedStyle(e).display!=='none'&&e.getClientRects().length);const desktop=section?.querySelector('div[class~="md:flex"]');return{kind,visible:!!section&&section.getClientRects().length>0,visibleCardCount:cards.length,desktopTableVisible:!!desktop&&getComputedStyle(desktop).display!=='none',horizontalCardOverflow:cards.some(card=>card.scrollWidth>card.clientWidth+1)}})

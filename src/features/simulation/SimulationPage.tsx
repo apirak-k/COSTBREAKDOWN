@@ -771,21 +771,28 @@ function SimulationParameterTable({
                       return (
                         <td key={parameter.parameter} className="py-1 pl-1 pr-2 text-right">
                           {!simulationRecord ? '—' : canEdit ? (
-                            <div className="min-w-0 pl-1.5">
+                            <div className="relative group -mr-1 min-w-0 pl-1.5 pr-1">
                               <SimulationHistoryInputBoundary onBegin={onBeginEdit} onCommit={onCommitEdit}>
-                                <NumericInput
-                                  value={value}
-                                  min={0}
-                                  minExclusive={parameter.parameter === 'routing.capacity' || parameter.parameter === 'routing.yield'}
-                                  max={parameter.parameter === 'routing.yield' || parameter.parameter === 'bom.loss' ? 100 : undefined}
-                                  allowSubMinimumDraft={parameter.parameter === 'routing.capacity' || parameter.parameter === 'routing.yield'}
-                                  stopAtMinimum
-                                  onValueChange={next => {
-                                    if (next !== null) onUpdate(simulationRecord.id, parameter.parameter, next / parameter.scale)
-                                  }}
-                                  className="h-8 w-full min-w-0 rounded-sm border border-transparent bg-transparent pl-1.5 pr-0 text-right font-mono text-xs tabular-nums text-slate-900 transition-colors hover:border-slate-200 hover:bg-slate-50 focus:!border-transparent focus:bg-white focus:!outline focus:!outline-2 focus:!outline-blue-700 focus:!outline-offset-[-2px]"
-                                  aria-label={`${row.name} ${parameter.label} in ${roleLabel(activeRole)}`}
-                                />
+                                <>
+                                  <NumericInput
+                                    value={value}
+                                    min={0}
+                                    minExclusive={parameter.parameter === 'routing.capacity' || parameter.parameter === 'routing.yield'}
+                                    max={parameter.parameter === 'routing.yield' || parameter.parameter === 'bom.loss' ? 100 : undefined}
+                                    allowSubMinimumDraft={parameter.parameter === 'routing.capacity' || parameter.parameter === 'routing.yield'}
+                                    stopAtMinimum
+                                    onValueChange={next => {
+                                      if (next !== null) onUpdate(simulationRecord.id, parameter.parameter, next / parameter.scale)
+                                    }}
+                                    className="h-8 w-full min-w-0 rounded-sm border border-transparent bg-transparent pl-1.5 pr-0 text-right font-mono text-xs tabular-nums text-slate-900 transition-colors hover:bg-slate-50 focus:!border-transparent focus:bg-white focus:!outline focus:!outline-2 focus:!outline-blue-700 focus:!outline-offset-[-2px]"
+                                    aria-label={`${row.name} ${parameter.label} in ${roleLabel(activeRole)}`}
+                                  />
+                                  <span
+                                    aria-hidden="true"
+                                    data-simulation-input-frame="true"
+                                    className="pointer-events-none absolute inset-y-0 left-2.5 right-0 rounded-sm border border-transparent transition-colors group-hover:border-slate-200 group-focus-within:!border-transparent"
+                                  />
+                                </>
                               </SimulationHistoryInputBoundary>
                             </div>
                           ) : displayParameter(recordValue, parameter)}
