@@ -156,14 +156,15 @@ export function NumericInput({
     // previous committed value, while preserving an in-progress numeric draft.
     if (!focused || (valueChanged && (
       draft === previousFormattedValueRef.current
+      || draft === formatFullNumericValue(previousValueRef.current)
       || (displayMode === 'full' && !Object.is(value, lastEmittedValueRef.current))
     ))) {
-      setDraft(formattedValue)
+      setDraft(focused && !inputProps.readOnly ? formatFullNumericValue(value) : formattedValue)
     }
 
     previousValueRef.current = value
     previousFormattedValueRef.current = formattedValue
-  }, [draft, focused, value, integer, min, max, minExclusive, displayMode])
+  }, [draft, focused, value, integer, min, max, minExclusive, displayMode, inputProps.readOnly])
 
   useIsomorphicLayoutEffect(() => {
     const exponent = restorePlaceRef.current
@@ -277,8 +278,8 @@ export function NumericInput({
         value={draft}
         onFocus={event => {
           preservedPlaceRef.current = null
-          // Scientific body display must become an editable decimal draft, without changing the value.
-          if (/[eE]/.test(event.currentTarget.value)) setDraft(formatFullNumericValue(currentValueRef.current))
+          // Editing starts from the authoritative value, never its formatted presentation.
+          if (!inputProps.readOnly || /[eE]/.test(event.currentTarget.value)) setDraft(formatFullNumericValue(currentValueRef.current))
           setFocused(true)
           onFocus?.(event)
         }}
