@@ -1,6 +1,6 @@
 # Phase 2 — Selected Value / Decimal UX Execution Plan
 
-**Status:** Round 1 is CLOSED; Round 2 — Master Data is CLOSED after final UX polish that followed the already-accepted previous correction; Round 3 — Cost Breakdown is CLOSED after the targeted correction and re-verification below; the original five-item Round 4A — Simulation UI Polish is CLOSED; its later targeted input-frame correction is IMPLEMENTED / AWAITING EXTERNAL USER AUDIT; Round 4B — Simulation Selected Value / Decimal UX is NOT STARTED / BLOCKED UNTIL FRAME ACCEPTANCE; Round 5 is NOT STARTED.
+**Status:** Round 1 is CLOSED; Round 2 — Master Data is CLOSED after final UX polish that followed the already-accepted previous correction; Round 3 — Cost Breakdown is CLOSED after the targeted correction and re-verification below; the original five-item Round 4A — Simulation UI Polish is CLOSED; the latest pre-Round-4B Simulation input / cross-system expandable-row correction is IMPLEMENTED / AWAITING EXTERNAL USER AUDIT; Global authoritative-full-value-on-edit is NOT STARTED; Round 4B — Simulation Selected Value / Decimal UX is NOT STARTED / BLOCKED UNTIL FRAME ACCEPTANCE; Global direct-edit blue-value indicator is NOT STARTED; Round 5 is NOT STARTED.
 **Execution branch:** `feat/selected-value-ux`
 **Repository:** `https://github.com/apirak-k/COSTBREAKDOWN`
 
@@ -29,24 +29,27 @@ Do not overlap implementation rounds or add numbered sub-phases. A failing accep
 | Round 1 — Shared Foundation | Shared numeric source lifecycle, Header Value, SelectedNumber inspection primitive, exact model-value handling, and shared browser/runtime verification. | **CLOSED** | Shared focus/preview/pin model, source lifecycle, stale-writer guards, existing formatting/stepping/domain contracts, and runtime checks pass. Unpinned pointer hover has a frame/ring with no added fill and unchanged geometry; keyboard focus has a clear ring without the pinned fill; pin remains stronger. Final correction commit is recorded in the current Handoff. |
 | Round 2 — Master Data | Integrate the shared model into Master Data without changing its data, formulas, validation domains, dataset lifecycle, history, or spreadsheet semantics. Preserve the accepted native View-mode focus recovery and apply the later finalized hover/Header precision contract and final geometry polish. | **CLOSED** | Native grid focus owns View numeric values; source Preview uses a cancellable 350ms dwell; Focus/Pin remains anchored; only focused editable sources own Header writers; Header displays at most 8 decimals and keeps stable numeric / `%` / spinner regions and direct-interaction affordance; actual Chrome, regression, source audit, build, and diff checks pass. |
 | Round 3 — Cost Breakdown | Integrate eligible Cost Breakdown values and interactions with the shared Header/source model, retaining the finalized Candidate, detail, tooltip, row, ordering, and comparison behavior. | **CLOSED** | Shared no-focus `SelectedNumber` is transparent at rest, `#E9EEF4` on direct hover, and `blue-100` when pinned; Candidate row hover is independent. CHANGED-row cell whitespace expands/collapses while actual numeric, `#`, and reorder controls keep their own action. Targeted Chrome, Round 2 / Round 3 browser gates, build, source audit, and diff checks pass; no calculation or comparison semantics change. Implementation: `9536da7edec07d29e808bec8af8c45a16e8be621`. |
-| Round 4 — Simulation | 4A: the original five desktop UI polish items are closed. The later targeted editable numeric input-frame correction is a correction inside the Round 4 gate, not a new round. 4B: integrate eligible Simulation Result, Economic, and Break-even numeric interactions while retaining role/basis ownership, editable domains, economics, histories, reset/send behavior, and graph interaction contracts. | **Original five 4A items CLOSED; frame correction IMPLEMENTED / AWAITING EXTERNAL USER AUDIT; 4B NOT STARTED / BLOCKED UNTIL FRAME ACCEPTANCE** | The frame correction's latest isolated Chrome run passed 138/138 at 1440 / 1024 / 768 / 390 / 320px; representative Hover/Focus screenshots at 1440 / 1024 / 768 were inspected. Simulation regression, build, syntax, and diff checks passed. The external acceptance gate remains open. After acceptance, follow the next-work order below before starting 4B. For 4B, page-specific and cross-state checks must pass without adding numeric-selection behavior to graphs. |
+| Round 4 — Simulation | 4A: the original five desktop UI polish items are closed. The latest targeted editable-input and cross-system expandable-row correction remains inside the Round 4 gate, not a new round. 4B: integrate eligible Simulation Result, Economic, and Break-even numeric interactions while retaining role/basis ownership, editable domains, economics, histories, reset/send behavior, and graph interaction contracts. | **Original five 4A items CLOSED; pre-4B correction IMPLEMENTED / AWAITING EXTERNAL USER AUDIT; 4B NOT STARTED / BLOCKED UNTIL FRAME ACCEPTANCE** | The latest isolated Chrome Simulation verifier passed 160/160 at 1440 / 1024 / 768 / 390 / 320px, including six fields, historical Focus styling, exact pointer hit-area probes, and row separators. CBD passed 277/277 and Master Data passed 151/151; screenshots were visually inspected. Simulation regression, production build, syntax, and diff checks passed. The external acceptance gate remains open. See the current [HANDOFF](../HANDOFF.md#pre-round-4b-simulation-input--expandable-row-correction--2026-10-22) for exact evidence and known limits. After acceptance, follow the next-work order below before starting 4B. For 4B, page-specific and cross-state checks must pass without adding numeric-selection behavior to graphs. |
 | Round 5 — Final Cross-page Regression | Run the final shared + Master Data + Cost Breakdown + Simulation regression and verify that state does not leak across pages/scopes. | **NOT STARTED** | Rounds 1–3, all of Round 4 (4A and 4B), and both preceding global numeric UX items have passed their audit/acceptance gates; full cross-page regression, browser checks, build, and diff review pass. |
 
 ## Agreed next-work order
 
-These are workflow steps inside the existing five-round Phase 2 plan, not new numbered rounds. Future items marked NOT STARTED have not been implemented in the frame correction.
+These are workflow steps inside the existing five-round Phase 2 plan, not new numbered rounds. Follow this order **after the current pre-Round-4B correction is externally accepted**. Future items marked NOT STARTED have not been implemented in the correction.
 
-1. Finish external audit and accept the Simulation input-frame correction.
-2. Implement the GLOBAL authoritative-full-value-on-edit correction.
-3. Audit and accept that global numeric correction.
-4. Implement Round 4B — Simulation Selected Value / Decimal UX.
-5. Audit / accept and close Round 4.
-6. Implement the GLOBAL direct-edit blue-value indicator.
-7. Audit and accept that global UX item.
-8. Run Round 5 — Final Cross-page Regression.
-9. After Phase 2: Excel validation → real-world usage test → portable distribution.
+1. Implement the GLOBAL authoritative-full-value-on-edit correction.
+2. Audit and accept that global numeric correction.
+3. Implement Round 4B — Simulation Selected Value / Decimal UX.
+4. Audit / accept and close Round 4.
+5. Implement the GLOBAL direct-edit blue-value indicator.
+6. Audit and accept that global UX item.
+7. Run Round 5 — Final Cross-page Regression.
+8. After Phase 2: Excel validation → real-world usage test → portable distribution.
 
-Current statuses: targeted frame correction **IMPLEMENTED / AWAITING EXTERNAL USER AUDIT**; Global authoritative-full-value-on-edit **NOT STARTED**; Round 4B **NOT STARTED / BLOCKED UNTIL FRAME ACCEPTANCE**; Global direct-edit blue-value indicator **NOT STARTED**; Round 5 **NOT STARTED**.
+Current statuses: pre-Round-4B correction **IMPLEMENTED / AWAITING EXTERNAL USER AUDIT**; Global authoritative-full-value-on-edit **NOT STARTED**; Round 4B **NOT STARTED / BLOCKED UNTIL FRAME ACCEPTANCE**; Global direct-edit blue-value indicator **NOT STARTED**; Round 5 **NOT STARTED**.
+
+## Current pre-Round-4B correction checkpoint — 2026-10-22
+
+Starting local and freshly fetched remote SHA: `4ab6e58d0a90d97e341366afa87bf30a4890a320`. Implementation commit: `17fb1886005c0053ce101ebcb618311422f2e77c`. It restores the historical 2px inset blue Simulation Focus treatment, aligns pointer hit testing to the visible frame bounds, and applies the agreed group/inset separator format to CBD and Simulation expanded rows. Actual Chrome results: Simulation **160/160**, CBD **277/277**, Master Data **151/151**; Simulation regression and production build passed. Screenshot evidence and the transient first-run note are in the current HANDOFF. This correction remains **IMPLEMENTED / AWAITING EXTERNAL USER AUDIT**; it is not accepted or closed.
 
 ## Round 1 shared interaction contract
 
@@ -142,4 +145,4 @@ The closure below records the state before a later user-requested targeted corre
 
 ## Next action
 
-**Next:** complete the external audit and acceptance of the targeted Simulation input-frame correction, then follow the agreed next-work order above. Round 4B is NOT STARTED and blocked until frame acceptance; Round 5 is NOT STARTED. The original five Round 4A UI polish items and Round 3 are CLOSED. Do not begin Round 5 until its preceding work and acceptance gates are complete.
+**Next:** complete the external audit and acceptance of the pre-Round-4B correction, then follow the agreed next-work order above. Round 4B is NOT STARTED and blocked until frame acceptance; Round 5 is NOT STARTED. The original five Round 4A UI polish items and Round 3 are CLOSED. Do not begin Round 5 until its preceding work and acceptance gates are complete.

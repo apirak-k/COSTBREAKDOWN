@@ -100,6 +100,10 @@ Keep unchanged records available in the normal comparison data and for status fi
 - Candidate `%GAP` is the actual Candidate Cost Gap divided by the full Standard Cost Gap. A zero or unavailable denominator displays unavailable (`—`). Signed contributions, including negative values and values above 100%, remain visible. The CBD UI does not display `% Parent`.
 - LMDI attribution requires every required input on both sides to be positive and finite. Missing, zero, or non-finite required inputs make that record's Parameter Cost Effect unavailable; do not coerce them to zero. This attribution availability rule does not replace the underlying cost calculation or validation rules.
 
+### Expandable Candidate row visual contract — pre-Round-4B correction
+
+Candidate BOM and Routing main rows retain their existing white resting surface, light-neutral hover, selected styling, expansion ownership, and controls. Expanded Before / After / Parameter Cost Effect rows retain their existing white backgrounds, indentation, vertical guide, labels, and layout. The separator boundary represents the whole Candidate record: collapsed main rows end with a full-width rule; separators between expanded detail rows are inset; only the final detail row has a full-width group-ending rule. Do not use a full-width divider between every physical `<tr>`. This does not change CHANGED-only expansion, row keyboard/click behavior, selection, SelectedNumber, drag/reorder, statuses, or detail calculations. The implementation is **AWAITING EXTERNAL USER AUDIT**; the shared visual contract is in [CROSS_CUTTING.md](CROSS_CUTTING.md#expandable-table-row-visual-contract).
+
 ## Full State and Selected Candidates
 
 - Full state is the default comparison covering the complete selected Before and After snapshots; the default pair is Reference → Current.
