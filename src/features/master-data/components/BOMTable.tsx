@@ -343,7 +343,7 @@ export const BOMTable: React.FC<BOMTableProps> = ({
                   onDragLeave={event => handleRowDragLeave(event, item.id)}
                   onDrop={event => { if (isEditMode) handleRowDrop(event, item.id) }}
                   style={dropTarget?.id === item.id ? {
-                    boxShadow: dropTarget.position === 'before' ? 'inset 0 2px 0 0 #3b82f6' : 'inset 0 -2px 0 0 #3b82f6'
+                    boxShadow: dropTarget.position === 'before' ? 'inset 0 2px 0 0 #e2e8f0' : 'inset 0 -2px 0 0 #e2e8f0'
                   } : undefined}
                   className={`group h-10 transition-colors ${isSelected ? 'bg-blue-100/60 hover:bg-blue-100/80' : 'bg-white hover:bg-slate-50'}`}
                 >

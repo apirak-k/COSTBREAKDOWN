@@ -361,7 +361,7 @@ export const WorkCenterRatesTable: React.FC<WorkCenterRatesTableProps> = ({
                   onDragLeave={event => handleRowDragLeave(event, rate.id)}
                   onDrop={event => { if (isEditMode) handleRowDrop(event, rate.id) }}
                   style={dropTarget?.id === rate.id ? {
-                    boxShadow: dropTarget.position === 'before' ? 'inset 0 2px 0 0 #3b82f6' : 'inset 0 -2px 0 0 #3b82f6'
+                    boxShadow: dropTarget.position === 'before' ? 'inset 0 2px 0 0 #e2e8f0' : 'inset 0 -2px 0 0 #e2e8f0'
                   } : undefined}
                   className={`group h-10 transition-colors ${isSelected ? 'bg-blue-100/60 hover:bg-blue-100/80' : 'bg-white hover:bg-slate-50'}`}
                 >

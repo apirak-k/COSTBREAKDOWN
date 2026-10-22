@@ -350,7 +350,7 @@ export const RoutingTable: React.FC<RoutingTableProps> = ({
                   onDragLeave={event => handleRowDragLeave(event, step.id)}
                   onDrop={event => { if (isEditMode) handleRowDrop(event, step.id) }}
                   style={dropTarget?.id === step.id ? {
-                    boxShadow: dropTarget.position === 'before' ? 'inset 0 2px 0 0 #3b82f6' : 'inset 0 -2px 0 0 #3b82f6'
+                    boxShadow: dropTarget.position === 'before' ? 'inset 0 2px 0 0 #e2e8f0' : 'inset 0 -2px 0 0 #e2e8f0'
                   } : undefined}
                   className={`group h-10 transition-colors ${isSelected ? 'bg-blue-100/60 hover:bg-blue-100/80' : 'bg-white hover:bg-slate-50'}`}
                 >
