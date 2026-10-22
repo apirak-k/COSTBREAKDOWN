@@ -203,6 +203,23 @@ try {
     const buttonStyle=getComputedStyle(button);const contentStyle=getComputedStyle(content);
     return {text:button.innerText.trim(),button:box(button),content:box(content),textBounds:{x:textRect.x,y:textRect.y,width:textRect.width,height:textRect.height},contentBackground:contentStyle.backgroundColor,buttonBackground:buttonStyle.backgroundColor,boxShadow:buttonStyle.boxShadow,outline:buttonStyle.outline,outlineStyle:buttonStyle.outlineStyle,outlineWidth:buttonStyle.outlineWidth,focusVisible:button.matches(':focus-visible')};
   })()`)
+  const cellWhitespacePoint = selector => evaluate(`(()=>{
+    const source=${visibleExpression(selector)};const cell=source?.matches('td')?source:source?.closest('td');if(!cell)return null;
+    const rect=cell.getBoundingClientRect();const blocked='button,a,input,select,textarea,[role="button"],[role="menuitem"],svg';
+    const ys=[rect.top+rect.height/2,rect.top+2,rect.bottom-2];
+    for(const y of ys)for(let x=Math.ceil(rect.left+1);x<rect.right-1;x+=1){
+      const target=document.elementFromPoint(x,y);
+      if(target&&target.closest('td')===cell&&!target.closest(blocked))return {x,y,cell:{left:rect.left,right:rect.right,top:rect.top,bottom:rect.bottom},target:{tag:target.tagName,text:target.textContent.trim().slice(0,32)}};
+    }
+    return null;
+  })()`)
+  const clickPoint = async point => {
+    if (!point) throw new Error('No visible whitespace point was available inside the requested cell')
+    await mouse('mouseMoved', point.x, point.y)
+    await mouse('mousePressed', point.x, point.y)
+    await mouse('mouseReleased', point.x, point.y)
+    await delay(160)
+  }
   const contentHugsNumber = visual => Boolean(visual
     && visual.textBounds.width > 0
     && visual.button.width <= visual.textBounds.width + 2
@@ -287,9 +304,9 @@ try {
   const shortSellingFastHeader = await selectedHeaderValue()
   const shortSellingHoverVisual = await selectedNumberVisual(sellingNumber)
   verify(shortSellingFastHeader === metadataHeaderBefore && contentHugsNumber(shortSellingHoverVisual)
-    && shortSellingHoverVisual.contentBackground !== 'rgba(0, 0, 0, 0)'
+    && shortSellingHoverVisual.contentBackground === 'rgb(233, 238, 244)'
     && !hasPointerBlueRing(shortSellingHoverVisual),
-    'Master Data Selling Price hover under 350 ms changes only its content background, keeps it text-sized, and shows no pointer blue ring', { before: metadataHeaderBefore, after: shortSellingFastHeader, visual: shortSellingHoverVisual })
+    'Master Data Selling Price direct hover uses shared #E9EEF4 without changing Header before 350 ms or showing a pointer blue ring', { before: metadataHeaderBefore, after: shortSellingFastHeader, visual: shortSellingHoverVisual })
   await moveAway()
   await hover(sellingNumber, 430)
   const shortSellingPreview = await selectedHeaderValue()
@@ -306,6 +323,7 @@ try {
   verify(Math.abs(parseHeaderNumeric(shortSellingPin) - shortSellingRaw) < 1e-7
     && await evaluate(`(${visibleExpression(sellingNumber)})?.getAttribute('aria-pressed')==='true'`)
     && contentHugsNumber(shortSellingPinnedVisual)
+    && shortSellingPinnedVisual.contentBackground === 'rgb(219, 234, 254)'
     && !hasPointerBlueRing(shortSellingPinnedVisual),
     'clicking Master Data Selling Price pins it with a content-sized background and no pointer blue ring', { raw: shortSellingRaw, pin: shortSellingPin, visual: shortSellingPinnedVisual })
   await click('button[aria-label="Sizing"]')
@@ -462,8 +480,8 @@ try {
   const subheaderRectFast = await measureRect(subheaderNumber)
   const subheaderVisualFast = await selectedNumberVisual(subheaderNumber)
   verify(fastHeader === subheaderBefore && contentHugsNumber(subheaderVisualFast)
-    && subheaderVisualFast.contentBackground !== 'rgba(0, 0, 0, 0)' && !hasPointerBlueRing(subheaderVisualFast),
-    'subheader hover under 350 ms does not preview a value, keeps its background text-sized, and shows no pointer blue ring', { before: subheaderBefore, after: fastHeader, visual: subheaderVisualFast })
+    && subheaderVisualFast.contentBackground === 'rgb(233, 238, 244)' && !hasPointerBlueRing(subheaderVisualFast),
+    'Cost Breakdown subheader direct hover uses shared #E9EEF4 without previewing before 350 ms or showing a pointer blue ring', { before: subheaderBefore, after: fastHeader, visual: subheaderVisualFast })
   await moveAway()
   await hover(subheaderNumber, 430)
   const subheaderPreview = await headerValue()
@@ -485,7 +503,7 @@ try {
   const chartAfterSubheaderPin = await chartSnapshot()
   verify(pinnedSubheader !== '—' && await evaluate(`(${visibleExpression(subheaderNumber)})?.getAttribute('aria-pressed')==='true'`),
     'click pins the subheader SelectedNumber value', { value: pinnedSubheader })
-  verify(contentHugsNumber(subheaderVisualPinned) && !hasPointerBlueRing(subheaderVisualPinned),
+  verify(contentHugsNumber(subheaderVisualPinned) && subheaderVisualPinned.contentBackground === 'rgb(219, 234, 254)' && !hasPointerBlueRing(subheaderVisualPinned),
     'subheader pin background hugs its number and does not show a pointer blue ring', subheaderVisualPinned)
   verify([subheaderRectFast, subheaderRectPreview, subheaderRectPinned].every(rect => rect && rect.width === subheaderRectIdle?.width && rect.height === subheaderRectIdle?.height),
     'subheader hover and pin ring do not change source layout height or width', { idle: subheaderRectIdle, fast: subheaderRectFast, preview: subheaderRectPreview, pinned: subheaderRectPinned })
@@ -610,24 +628,29 @@ try {
   await pressKey(' ')
   const spaceCollapsed = await evaluate(`(${visibleExpression(firstRow)})?.getAttribute('aria-expanded')??null`)
   verify(spaceExpanded === 'true' && spaceCollapsed === 'false', 'Space expands and collapses the focused CHANGED Candidate row', { expanded: spaceExpanded, collapsed: spaceCollapsed })
+  await evaluate(`(${visibleExpression(firstRow)})?.focus()`)
+  await pressKey('Tab')
+  await pressKey('Tab')
+  const candidateKeyboardVisual = await selectedNumberVisual(candidateNumber)
+  verify(await evaluate(`document.activeElement===${visibleExpression(candidateNumber)}`)
+    && candidateKeyboardVisual?.focusVisible && candidateKeyboardVisual.boxShadow !== 'none',
+    'Tab focus keeps the Candidate SelectedNumber keyboard focus ring visible', candidateKeyboardVisual)
+  await evaluate('document.activeElement?.blur()')
   await click(candidateSelectorButton)
   const hashOnly = await evaluate(`(()=>{const r=${visibleExpression(firstRow)};return r?{selected:r.getAttribute('aria-selected'),expanded:r.getAttribute('aria-expanded')}:null})()`)
   verify(hashOnly?.selected === 'true' && hashOnly.expanded === 'false' && await headerValue() === '—',
     '# row selector selects independently and does not publish a numeric Header value', { row: hashOnly, header: await headerValue() })
   await click(candidateSelectorButton)
   verify(await evaluate(`(${visibleExpression(firstRow)})?.getAttribute('aria-selected')==='false'`), '# row selector can clear its own selection without activating a Header value')
-  const nonChanged = await evaluate(`(()=>{const row=[...document.querySelectorAll('tr[data-candidate-reorder-row]')].find(e=>['ADDED','REMOVED','UNCHANGED'].includes(e.querySelector('td:nth-child(3)')?.innerText.trim()));return row?{id:row.getAttribute('data-candidate-reorder-row'),status:row.querySelector('td:nth-child(3)')?.innerText.trim()}:null})()`)
-  if (nonChanged) {
-    const statusSelector = `tr[data-candidate-reorder-row=${JSON.stringify(nonChanged.id)}] td:nth-child(3)`
-    await click(statusSelector)
-    const statusAfter = await evaluate(`(()=>{const r=[...document.querySelectorAll('tr[data-candidate-reorder-row]')].find(row=>row.getAttribute('data-candidate-reorder-row')===${JSON.stringify(nonChanged.id)});return r?{status:r.querySelector('td:nth-child(3)')?.innerText.trim(),expanded:r.getAttribute('aria-expanded')}:null})()`)
-    verify(statusAfter?.status === nonChanged.status && statusAfter.expanded === null && await headerValue() === '—',
-      'clicking an ordinary Candidate status label neither expands it nor changes Header', { before: nonChanged, after: statusAfter, header: await headerValue() })
+  const nonChangedRows = await evaluate(`(()=>['ADDED','REMOVED','UNCHANGED'].map(status=>{const row=[...document.querySelectorAll('tr[data-candidate-reorder-row]')].find(item=>item.querySelector('td:nth-child(3)')?.innerText.trim()===status);return row?{id:row.getAttribute('data-candidate-reorder-row'),status}:null}).filter(Boolean))()`)
+  verify(nonChangedRows.map(row => row.status).join('|') === 'ADDED|REMOVED|UNCHANGED',
+    'fixture exposes ADDED, REMOVED, and UNCHANGED Candidate rows for the CHANGED-only expansion check', nonChangedRows)
+  for (const nonChanged of nonChangedRows) {
     const candidateLabelSelector = `tr[data-candidate-reorder-row=${JSON.stringify(nonChanged.id)}] th[scope="row"]`
     await click(candidateLabelSelector)
-    verify(await headerValue() === '—', 'clicking a Candidate text label does not create a Selected Value source', { status: nonChanged.status, header: await headerValue() })
-  } else {
-    verify(false, 'fixture has an ordinary non-CHANGED Candidate row for safe-click verification')
+    const rowAfterLabel = await evaluate(`(()=>{const r=${visibleExpression(`tr[data-candidate-reorder-row=${JSON.stringify(nonChanged.id)}]`)};return r?{status:r.querySelector('td:nth-child(3)')?.innerText.trim(),expanded:r.getAttribute('aria-expanded')}:null})()`)
+    verify(rowAfterLabel?.status === nonChanged.status && rowAfterLabel.expanded === null && await headerValue() === '—',
+      `clicking a ${nonChanged.status} Candidate row label does not expand the row or change Header`, { before: nonChanged, after: rowAfterLabel, header: await headerValue() })
   }
   const controlExclusions = await evaluate(`(()=>({hashHasSelectedNumber:!!document.querySelector('tr[data-candidate-reorder-row] td:first-child button[data-selected-number]'),filterHasSelectedNumber:!!document.querySelector('[aria-label="Finding type filter"] [data-selected-number]'),dashButtons:[...document.querySelectorAll('button[data-selected-number="true"]')].filter(e=>e.innerText.trim()==='—').length,dashSpans:[...document.querySelectorAll('span')].filter(e=>e.innerText.trim()==='—'&&e.closest('[data-selected-number="true"]')).length,filterCount:[...document.querySelectorAll('[aria-label="Finding type filter"] button')].map(e=>e.innerText.trim())}))()`)
   verify(!controlExclusions.hashHasSelectedNumber && !controlExclusions.filterHasSelectedNumber && controlExclusions.dashButtons === 0 && controlExclusions.dashSpans === 0,
@@ -641,20 +664,68 @@ try {
     const candidateAfterValue = await evaluate(`(()=>{const r=${visibleExpression(firstRow)};return r?{selected:r.getAttribute('aria-selected'),expanded:r.getAttribute('aria-expanded'),pinned:r.querySelector('[data-selected-number="true"]')?.getAttribute('aria-pressed')}:null})()`)
     verify(candidateAfterValue?.selected === candidateInitial.selected && candidateAfterValue?.expanded === 'false' && candidateAfterValue?.pinned === 'true',
       'clicking a Candidate numeric value pins it without selecting or expanding its row', { before: candidateInitial, after: candidateAfterValue })
-    verify(contentHugsNumber(candidateVisualIdle) && contentHugsNumber(candidateVisualPinned) && !hasPointerBlueRing(candidateVisualPinned),
+    verify(contentHugsNumber(candidateVisualIdle) && contentHugsNumber(candidateVisualPinned)
+      && candidateVisualPinned.contentBackground === 'rgb(219, 234, 254)' && !hasPointerBlueRing(candidateVisualPinned),
       'Candidate number background hugs its rendered text in normal and pinned states without a pointer blue ring', { idle: candidateVisualIdle, pinned: candidateVisualPinned })
     const firstCandidatePin = await headerValue()
     verify(candidateRectIdle?.width === candidateRectPinned?.width && candidateRectIdle?.height === candidateRectPinned?.height,
       'Candidate selected ring does not change source layout height or width', { idle: candidateRectIdle, pinned: candidateRectPinned })
     await click(candidateNumber)
     const candidateUnpinnedHeader = await headerValue()
-    const candidateUnpinnedPressed = await evaluate(`(${visibleExpression(candidateNumber)})?.getAttribute('aria-pressed')??null`)
-    verify(candidateUnpinnedHeader === '—' && candidateUnpinnedPressed === 'false',
-      'clicking the same Candidate value again unpins it', { header: candidateUnpinnedHeader, pressed: candidateUnpinnedPressed })
+    const candidateUnpinnedState = await evaluate(`(()=>{const r=${visibleExpression(firstRow)};return r?{selected:r.getAttribute('aria-selected'),expanded:r.getAttribute('aria-expanded'),pressed:r.querySelector('[data-selected-number="true"]')?.getAttribute('aria-pressed')}:null})()`)
+    verify(candidateUnpinnedHeader === '—' && candidateUnpinnedState?.pressed === 'false'
+      && candidateUnpinnedState?.selected === candidateInitial.selected && candidateUnpinnedState?.expanded === 'false',
+      'clicking the same Candidate value unpins only and neither expands nor selects the row', { header: candidateUnpinnedHeader, row: candidateUnpinnedState })
+    await moveAway()
+    const rowWhitespaceForHover = await cellWhitespacePoint(candidateNumber)
+    if (!rowWhitespaceForHover) throw new Error('Candidate numeric cell has no visible whitespace for independent row-hover verification')
+    await mouse('mouseMoved', rowWhitespaceForHover.x, rowWhitespaceForHover.y)
+    await delay(100)
+    const rowWhitespaceHover = await evaluate(`(()=>{const r=${visibleExpression(firstRow)};const values=[...r.querySelectorAll('[data-selected-number="true"]')];return {rowHovered:r.matches(':hover'),rowBackground:getComputedStyle(r).backgroundColor,numberBackgrounds:values.map(value=>getComputedStyle(value.firstElementChild).backgroundColor)}})()`)
+    verify(rowWhitespaceHover?.rowHovered && rowWhitespaceHover.rowBackground === 'rgb(248, 250, 252)'
+      && rowWhitespaceHover.numberBackgrounds.length > 0
+      && rowWhitespaceHover.numberBackgrounds.every(background => background === 'rgba(0, 0, 0, 0)'),
+      'hovering Candidate row whitespace keeps every SelectedNumber transparent', rowWhitespaceHover)
+    const candidateNumberPoint = await center(candidateNumber)
+    await mouse('mouseMoved', candidateNumberPoint.x, candidateNumberPoint.y)
+    await delay(100)
+    const directCandidateHover = await selectedNumberVisual(candidateNumber)
+    const directCandidateHoverState = await evaluate(`(()=>{const r=${visibleExpression(firstRow)};const direct=${visibleExpression(candidateNumber)};const values=[...r.querySelectorAll('[data-selected-number="true"]')];return {rowHovered:r.matches(':hover'),rowBackground:getComputedStyle(r).backgroundColor,numberBackgrounds:values.map(value=>({direct:value===direct,background:getComputedStyle(value.firstElementChild).backgroundColor}))}})()`)
+    verify(directCandidateHoverState?.rowHovered && directCandidateHoverState.rowBackground === 'rgb(248, 250, 252)'
+      && directCandidateHover?.contentBackground === 'rgb(233, 238, 244)'
+      && directCandidateHoverState.numberBackgrounds.filter(value => !value.direct).every(value => value.background === 'rgba(0, 0, 0, 0)'),
+      'direct Candidate number hover alone uses shared #E9EEF4 while row hover remains active', { visual: directCandidateHover, state: directCandidateHoverState })
+    await mouse('mouseMoved', rowWhitespaceForHover.x, rowWhitespaceForHover.y)
+    await delay(100)
+    const numberLeaveState = await evaluate(`(()=>{const r=${visibleExpression(firstRow)};const values=[...r.querySelectorAll('[data-selected-number="true"]')];return {rowHovered:r.matches(':hover'),rowBackground:getComputedStyle(r).backgroundColor,numberBackgrounds:values.map(value=>getComputedStyle(value.firstElementChild).backgroundColor)}})()`)
+    verify(numberLeaveState?.rowHovered && numberLeaveState.rowBackground === 'rgb(248, 250, 252)'
+      && numberLeaveState.numberBackgrounds.every(background => background === 'rgba(0, 0, 0, 0)'),
+      'leaving Candidate number for row whitespace clears Number Hover but keeps Row Hover', numberLeaveState)
+    await moveAway()
     await click(candidateNumber)
     const candidatePinA = await headerValue()
     verify(candidatePinA === firstCandidatePin && await evaluate(`(${visibleExpression(candidateNumber)})?.getAttribute('aria-pressed')==='true'`),
       'Candidate value A can be pinned again after same-value unpin', { pin: candidatePinA })
+    const toggleThroughWhitespace = async (selector, label) => {
+      const openPoint = await cellWhitespacePoint(selector)
+      if (!openPoint) throw new Error(`No visible whitespace around the ${label} control`)
+      await clickPoint(openPoint)
+      const opened = await evaluate(`(()=>{const r=${visibleExpression(firstRow)};return r?{expanded:r.getAttribute('aria-expanded'),selected:r.getAttribute('aria-selected'),pinned:r.querySelector('[data-selected-number="true"]')?.getAttribute('aria-pressed')}:null})()`)
+      verify(opened?.expanded === 'true' && opened.selected === candidateInitial.selected && opened.pinned === 'true'
+        && await headerValue() === candidatePinA,
+        `CHANGED Candidate ${label} cell whitespace expands and preserves the active Pin`, { opened, pin: await headerValue() })
+      const closePoint = await cellWhitespacePoint(selector)
+      if (!closePoint) throw new Error(`No visible whitespace around the ${label} control after expansion`)
+      await clickPoint(closePoint)
+      const closed = await evaluate(`(()=>{const r=${visibleExpression(firstRow)};return r?{expanded:r.getAttribute('aria-expanded'),selected:r.getAttribute('aria-selected'),pinned:r.querySelector('[data-selected-number="true"]')?.getAttribute('aria-pressed')}:null})()`)
+      verify(closed?.expanded === 'false' && closed.selected === candidateInitial.selected && closed.pinned === 'true'
+        && await headerValue() === candidatePinA,
+        `CHANGED Candidate ${label} cell whitespace collapses and preserves the active Pin`, { closed, pin: await headerValue() })
+    }
+    await toggleThroughWhitespace(`${firstRow} td:last-child`, 'ordinary row')
+    await toggleThroughWhitespace(candidateNumber, 'numeric')
+    await toggleThroughWhitespace(candidateSelectorButton, '# selector')
+    await toggleThroughWhitespace(`${firstRow} button[draggable="true"]`, 'reorder')
     const candidateB = await evaluate(`(()=>{const rows=[...document.querySelectorAll('tr[data-candidate-reorder-row][aria-expanded="false"]')];const row=rows.find(e=>e.getAttribute('data-candidate-reorder-row')!==${JSON.stringify(firstChanged.rowId)});const button=row?.querySelector('[data-selected-number="true"]');if(!row||!button)return null;const r=button.getBoundingClientRect();return {id:row.getAttribute('data-candidate-reorder-row'),label:button.getAttribute('aria-label'),x:r.left+r.width/2,y:r.top+r.height/2,width:r.width,height:r.height}})()`)
     if (candidateB) {
       await mouse('mouseMoved', candidateB.x, candidateB.y); await delay(430)
@@ -841,25 +912,25 @@ try {
   const afterCloseOne = await evaluate(`(()=>{const row=id=>[...document.querySelectorAll('tr[data-candidate-reorder-row]')].find(e=>e.getAttribute('data-candidate-reorder-row')===id);return {open:document.querySelectorAll('tr[data-candidate-reorder-row][aria-expanded="true"]').length,first:row(${JSON.stringify(multiOpenIds.bom[0])})?.getAttribute('aria-expanded'),second:row(${JSON.stringify(multiOpenIds.bom[1])})?.getAttribute('aria-expanded'),routing:row(${JSON.stringify(multiOpenIds.routing[0])})?.getAttribute('aria-expanded')}})()`)
   verify(afterCloseOne.first === 'false' && afterCloseOne.second === 'true' && afterCloseOne.routing === 'true', 'closing one detail leaves the other BOM and Routing details open', afterCloseOne)
 
-  const addedRow = await evaluate(`(()=>{const row=[...document.querySelectorAll('tr[data-candidate-reorder-row]')].find(e=>e.querySelector('td:nth-child(3)')?.innerText.trim()==='ADDED');if(!row)return null;const r=row.getBoundingClientRect();return {id:row.getAttribute('data-candidate-reorder-row'),x:r.left+r.width/2,y:r.top+r.height/2}})()`)
-  if (addedRow) {
-    await mouse('mouseMoved', addedRow.x, addedRow.y); await mouse('mousePressed', addedRow.x, addedRow.y); await mouse('mouseReleased', addedRow.x, addedRow.y); await delay(180)
-    const addedAfterClick = await evaluate(`(()=>{const r=[...document.querySelectorAll('tr[data-candidate-reorder-row]')].find(row=>row.getAttribute('data-candidate-reorder-row')===${JSON.stringify(addedRow.id)});const next=r?.nextElementSibling;return r?{expanded:r.getAttribute('aria-expanded'),details:!!(next&&!next.hasAttribute('data-candidate-reorder-row')&&next.querySelector('th[scope="row"]'))}:null})()`)
-    verify(addedAfterClick?.expanded === null && !addedAfterClick.details, 'ordinary ADDED Candidate row click safely does not expand details', addedAfterClick)
-  } else verify(false, 'fixture exposes an ADDED Candidate row for safe ordinary-row click')
-
   await evaluate(`(()=>{window.__cbdDragEvents=[];for(const type of ['dragstart','dragenter','dragover','drop','dragend']){for(const capture of [true,false])document.addEventListener(type,event=>window.__cbdDragEvents.push({type,phase:capture?'capture':'bubble',target:event.target?.tagName,draggable:event.target?.draggable,id:event.target?.closest?.('[data-candidate-reorder-row]')?.getAttribute('data-candidate-reorder-row')??null,x:event.clientX,y:event.clientY,defaultPrevented:event.defaultPrevented,text:event.dataTransfer?.getData('text/plain')??null}),capture)}})()`)
+  const reorderPinTarget = await evaluate(`(()=>{const row=[...document.querySelectorAll('tr[data-candidate-reorder-row][aria-expanded="false"]')].find(item=>item.querySelector('td:nth-child(3)')?.innerText.trim()==='CHANGED');const button=row?.querySelector('button[data-selected-number="true"]');if(!row||!button)return null;const r=button.getBoundingClientRect();return {id:row.getAttribute('data-candidate-reorder-row'),x:r.left+r.width/2,y:r.top+r.height/2}})()`)
+  if (!reorderPinTarget) throw new Error('No CHANGED Candidate SelectedNumber was available to pin during the reorder preservation check')
+  const reorderPinSelector = `tr[data-candidate-reorder-row=${JSON.stringify(reorderPinTarget.id)}] button[data-selected-number="true"]`
+  await click(reorderPinSelector)
+  const reorderPinHeader = await headerValue()
+  verify(reorderPinHeader !== '—' && await evaluate(`(${visibleExpression(reorderPinSelector)})?.getAttribute('aria-pressed')==='true'`),
+    'Candidate numeric Pin is active before actual reorder input', { id: reorderPinTarget.id, header: reorderPinHeader })
   const reorderSetup = await evaluate(`(()=>{
     const table=[...document.querySelectorAll('table')].find(t=>t.querySelector('caption')?.textContent.includes('Bill of Material Candidate findings'));
     const rows=[...table.querySelectorAll('tbody tr[data-candidate-reorder-row]')];
     const at=p=>{const e=document.elementFromPoint(p.x,p.y);return e?{tag:e.tagName,draggable:e.draggable,id:e.closest('[data-candidate-reorder-row]')?.getAttribute('data-candidate-reorder-row')??null,handle:e.closest('button[draggable="true"]')!==null}:null};
-    const candidates=rows.filter(row=>row.getAttribute('aria-selected')==='false').map(row=>{const handle=row.querySelector('button[draggable="true"]');const r=handle?.getBoundingClientRect();const point=r?{x:r.left+r.width/2,y:r.top+r.height/2}:null;const hit=point?at(point):null;return {row,handle,rect:r,point,hit}}).filter(entry=>entry.rect&&entry.rect.width>0&&entry.rect.height>0&&entry.point.x>=0&&entry.point.x<=innerWidth&&entry.point.y>=0&&entry.point.y<=innerHeight&&entry.hit?.handle&&entry.hit.id===entry.row.getAttribute('data-candidate-reorder-row'));
+    const candidates=rows.filter(row=>row.querySelector('td:nth-child(3)')?.innerText.trim()==='CHANGED'&&row.getAttribute('aria-expanded')==='false'&&row.getAttribute('aria-selected')==='false').map(row=>{const handle=row.querySelector('button[draggable="true"]');const r=handle?.getBoundingClientRect();const point=r?{x:r.left+r.width/2,y:r.top+r.height/2}:null;const hit=point?at(point):null;return {row,handle,rect:r,point,hit}}).filter(entry=>entry.rect&&entry.rect.width>0&&entry.rect.height>0&&entry.point.x>=0&&entry.point.x<=innerWidth&&entry.point.y>=0&&entry.point.y<=innerHeight&&entry.hit?.handle&&entry.hit.id===entry.row.getAttribute('data-candidate-reorder-row'));
     const sourceEntry=candidates[0];if(!sourceEntry)return null;
     const sourceIndex=rows.indexOf(sourceEntry.row);
     const targetEntry=rows.filter(row=>row!==sourceEntry.row&&row.getAttribute('aria-selected')==='false').map(row=>{const r=row.getBoundingClientRect();const identity=row.querySelector('th[scope="row"]');const identityRect=identity?.getBoundingClientRect();const insertAfter=rows.indexOf(row)>sourceIndex;const point={x:identityRect.left+identityRect.width/2,y:insertAfter?r.bottom-2:r.top+2};return {row,rect:r,identity,identityRect,point,insertAfter,hit:at(point)}}).find(entry=>entry.identityRect?.width>0&&entry.rect.width>0&&entry.rect.height>0&&entry.point.x>=0&&entry.point.x<=innerWidth&&entry.point.y>=0&&entry.point.y<=innerHeight&&entry.hit?.id===entry.row.getAttribute('data-candidate-reorder-row'));
     if(!targetEntry)return null;
     const main=document.querySelector('main#main-content');
-    const rowSummary=row=>({id:row.getAttribute('data-candidate-reorder-row'),label:row.querySelector('th[scope="row"]')?.innerText.trim()??null,status:row.querySelector('td:nth-child(3)')?.innerText.trim()??null});
+    const rowSummary=row=>({id:row.getAttribute('data-candidate-reorder-row'),label:row.querySelector('th[scope="row"]')?.innerText.trim()??null,status:row.querySelector('td:nth-child(3)')?.innerText.trim()??null,expanded:row.getAttribute('aria-expanded')});
     return {before:rows.map(row=>row.getAttribute('data-candidate-reorder-row')),source:sourceEntry.row.getAttribute('data-candidate-reorder-row'),target:targetEntry.row.getAttribute('data-candidate-reorder-row'),sourceRow:rowSummary(sourceEntry.row),targetRow:rowSummary(targetEntry.row),handle:{...sourceEntry.point,rect:{x:sourceEntry.rect.x,y:sourceEntry.rect.y,width:sourceEntry.rect.width,height:sourceEntry.rect.height},hit:sourceEntry.hit},targetPoint:{...targetEntry.point,afterTarget:targetEntry.insertAfter,targetCell:'identity',rect:{x:targetEntry.rect.x,y:targetEntry.rect.y,width:targetEntry.rect.width,height:targetEntry.rect.height},identityRect:{x:targetEntry.identityRect.x,y:targetEntry.identityRect.y,width:targetEntry.identityRect.width,height:targetEntry.identityRect.height},hit:targetEntry.hit},viewport:{width:innerWidth,height:innerHeight},mainScrollTop:main.scrollTop,header:document.querySelector('header [data-header-value] [data-selected-value-output]')?.textContent.trim()??null};
   })()`)
   if (!reorderSetup) {
@@ -901,14 +972,17 @@ try {
     await dragMouse('mouseReleased', reorderSetup.targetPoint.x, reorderSetup.targetPoint.y, 0)
     await moveAway()
     await delay(450)
-    let reordered = await evaluate(`(()=>{const table=[...document.querySelectorAll('table')].find(t=>t.querySelector('caption')?.textContent.includes('Bill of Material Candidate findings'));const rows=[...table.querySelectorAll('tbody tr[data-candidate-reorder-row]')];const source=rows.find(row=>row.getAttribute('data-candidate-reorder-row')===${JSON.stringify(reorderSetup.source)});return {after:rows.map(row=>row.getAttribute('data-candidate-reorder-row')),header:document.querySelector('header [data-header-value] [data-selected-value-output]')?.textContent.trim()??null,sourceSelected:source?.getAttribute('aria-selected')}})()`)
+    let reordered = await evaluate(`(()=>{const table=[...document.querySelectorAll('table')].find(t=>t.querySelector('caption')?.textContent.includes('Bill of Material Candidate findings'));const rows=[...table.querySelectorAll('tbody tr[data-candidate-reorder-row]')];const source=rows.find(row=>row.getAttribute('data-candidate-reorder-row')===${JSON.stringify(reorderSetup.source)});return {after:rows.map(row=>row.getAttribute('data-candidate-reorder-row')),header:document.querySelector('header [data-header-value] [data-selected-value-output]')?.textContent.trim()??null,sourceSelected:source?.getAttribute('aria-selected'),sourceExpanded:source?.getAttribute('aria-expanded')}})()`)
     const finalDragEvents = await evaluate('window.__cbdDragEvents')
     const sawReactDragStart = finalDragEvents.some(event => event.type === 'dragstart' && event.id === reorderSetup.source)
     const sawReactTargetDragOver = finalDragEvents.some(event => event.type === 'dragover' && event.id === reorderSetup.target && event.defaultPrevented)
     const sawReactTargetDrop = finalDragEvents.some(event => event.type === 'drop' && event.id === reorderSetup.target && event.defaultPrevented)
-    verify(reordered.after.some((id, index) => id !== reorderSetup.before[index]) && reordered.header === reorderSetup.header && reordered.sourceSelected === 'false'
+    verify(reordered.after.some((id, index) => id !== reorderSetup.before[index]) && reorderSetup.header === reorderPinHeader
+      && reordered.header === reorderPinHeader && reordered.sourceSelected === 'false'
+      && reorderSetup.sourceRow.status === 'CHANGED' && reorderSetup.sourceRow.expanded === 'false'
+      && reordered.sourceExpanded === 'false'
       && sawReactDragStart && sawReactTargetDragOver && sawReactTargetDrop,
-      'actual Candidate drag-and-drop triggers React dragstart, target dragover and drop, reorders a row, and preserves Header and selection state', { mechanism: dragMechanism, reactEvents:{sawReactDragStart,sawReactTargetDragOver,sawReactTargetDrop}, before: reorderSetup.before, source: reorderSetup.source, sourceRow: reorderSetup.sourceRow, target: reorderSetup.target, targetRow: reorderSetup.targetRow, setup:{handle:reorderSetup.handle,targetPoint:reorderSetup.targetPoint,viewport:reorderSetup.viewport,mainScrollTop:reorderSetup.mainScrollTop},nativeDragEvents,finalDragEvents,after:reordered })
+      'actual Candidate drag-and-drop triggers React dragstart, target dragover and drop, reorders a row, and preserves active Pin and selection state', { pin: reorderPinHeader, mechanism: dragMechanism, reactEvents:{sawReactDragStart,sawReactTargetDragOver,sawReactTargetDrop}, before: reorderSetup.before, source: reorderSetup.source, sourceRow: reorderSetup.sourceRow, target: reorderSetup.target, targetRow: reorderSetup.targetRow, setup:{handle:reorderSetup.handle,targetPoint:reorderSetup.targetPoint,viewport:reorderSetup.viewport,mainScrollTop:reorderSetup.mainScrollTop},nativeDragEvents,finalDragEvents,after:reordered })
   }
 
   // Snapshot all responsive viewport states after restoring the main row.

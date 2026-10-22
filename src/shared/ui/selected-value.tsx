@@ -328,7 +328,7 @@ export function SelectedNumber({ value, integer, percentage, selectionId, childr
       aria-label={props['aria-label'] ?? `Select value ${formatFullNumericValue(value)}${percentage ? '%' : ''}`}
       aria-pressed={isPinned}
       data-selected-number="true"
-      className={`group inline cursor-pointer appearance-none rounded-none text-inherit focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-blue-700 ${className ?? ''}`.trim()}
+      className={`inline cursor-pointer appearance-none rounded-none text-inherit focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-blue-700 ${className ?? ''}`.trim()}
       style={{ ...style, border: 0, outline: 'none', padding: 0, margin: 0 }}
       onPointerEnter={event => {
         preview()
@@ -351,7 +351,7 @@ export function SelectedNumber({ value, integer, percentage, selectionId, childr
         onKeyUp?.(event)
       }}
     >
-      <span className={`rounded-sm ${isPinned ? 'bg-blue-100' : 'bg-transparent group-hover:bg-slate-100'}`}>{content}</span>
+      <span className={`rounded-sm ${isPinned ? 'bg-blue-100' : 'bg-transparent hover:bg-[#E9EEF4]'}`}>{content}</span>
     </button>
   )
 }

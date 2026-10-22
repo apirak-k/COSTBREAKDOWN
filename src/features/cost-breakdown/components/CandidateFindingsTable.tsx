@@ -402,7 +402,7 @@ export const CandidateFindingsTable: React.FC<CandidateFindingsTableProps> = ({
                 onDrop={event => dropOnRow(event, row.key)}
                 className={`group ${selected ? 'bg-blue-100/60 hover:bg-blue-100/80' : 'bg-white hover:bg-slate-50'} ${canExpand ? 'cursor-pointer' : 'cursor-default'} ${dropTarget?.key === row.key ? dropTarget.after ? 'border-b-2 border-blue-500' : 'border-t-2 border-blue-500' : ''} focus-visible:outline focus-visible:outline-2 focus-visible:outline-inset focus-visible:outline-blue-700`}
               >
-                <td className="px-1 py-2 text-center" onClick={event => event.stopPropagation()}>
+                <td className="px-1 py-2 text-center">
                   <button
                     type="button"
                     disabled={!key || status === null}
@@ -430,27 +430,27 @@ export const CandidateFindingsTable: React.FC<CandidateFindingsTableProps> = ({
                   <span className="block truncate whitespace-nowrap" title={row.label}>{row.label}</span>
                 </th>
                 <td className={`whitespace-nowrap px-1 py-2 text-left font-sans text-[10px] font-bold ${statusTextClass(status)}`}>{status ?? '—'}</td>
-                {parameters.map((parameter, parameterIndex) => <td key={parameter.field} onClick={event => event.stopPropagation()} className="whitespace-nowrap px-1 py-2 text-right"><SelectedNumber
+                {parameters.map((parameter, parameterIndex) => <td key={parameter.field} className="whitespace-nowrap px-1 py-2 text-right"><SelectedNumber
                   value={parameter.value}
                   percentage={parameter.percentage}
                   selectionId={`${selectionIdPrefix}:parameter:${parameter.field}`}
                   aria-label={`${identityHeader} ${row.label} ${parameterHeaders[parameterIndex]} ${parameter.display}`}
                   className="text-right"
                 >{parameter.display}</SelectedNumber></td>)}
-                <td aria-label={gapLabel} onClick={event => event.stopPropagation()} className={`whitespace-nowrap px-1 py-2 text-right ${gapTextClass(row.gap)}`}><SelectedNumber
+                <td aria-label={gapLabel} className={`whitespace-nowrap px-1 py-2 text-right ${gapTextClass(row.gap)}`}><SelectedNumber
                   value={row.gap}
                   selectionId={`${selectionIdPrefix}:gap`}
                   aria-label={gapLabel}
                   className={`text-right ${gapTextClass(row.gap)}`}
                 >{row.gap === null ? '—' : formatVariance(row.gap, 2)}</SelectedNumber></td>
-                <td aria-label={`${identityHeader} ${row.label} percent Gap ${percentDisplay}`} onClick={event => event.stopPropagation()} className="whitespace-nowrap px-1 py-2 text-right text-slate-700"><SelectedNumber
+                <td aria-label={`${identityHeader} ${row.label} percent Gap ${percentDisplay}`} className="whitespace-nowrap px-1 py-2 text-right text-slate-700"><SelectedNumber
                   value={percentRatio === null ? null : percentRatio * 100}
                   percentage
                   selectionId={`${selectionIdPrefix}:percent-gap`}
                   aria-label={`${identityHeader} ${row.label} percent Gap ${percentDisplay}`}
                   className="text-right text-slate-700"
                 >{percentDisplay}</SelectedNumber></td>
-                <td className="px-1 py-2 text-center" onClick={event => event.stopPropagation()}>
+                <td className="px-1 py-2 text-center">
                   <Tooltip label={selected && selectedVisibleCount > 1 ? `Drag selected ${isBOM ? 'BOM' : 'Routing'} findings to reorder` : 'Drag to reorder'}>
                     <button
                       type="button"
