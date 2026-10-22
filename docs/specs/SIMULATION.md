@@ -73,7 +73,7 @@ Blank/null may remain unavailable where the data model allows it. A missing requ
 
 Decimal Price, Usage, Loss, Manning, Capacity, and Yield inputs accept any number of fractional digits representable as a finite value; input precision does not define a business minimum. Capacity remains strictly greater than zero and Yield remains greater than zero through 100%. Spinner, keyboard, and wheel decrement honor the active digit place and stop at the current valid value when the next step would cross its domain boundary. Repeated decrement never clears a valid field or makes its calculation unavailable. Blank, incomplete, or invalid typed drafts never replace the previous authoritative valid value; leaving the editor restores that value.
 
-All six desktop parameter inputs use the same small left inset, keeping their right edges and numeric axes in place while giving Status a little more room.
+All six desktop parameter inputs use the same small left inset, keeping their right edges and numeric axes in place while giving Status a little more room. Their hover frame is a separate overlay shifted 4px right within the table cell's existing right padding; input size, text position, focus ring, and mobile-card editors remain unchanged.
 
 ### 2.3 Shared Standard Cost and result
 
