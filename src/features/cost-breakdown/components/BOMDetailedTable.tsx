@@ -162,7 +162,7 @@ export function BOMRecordDetails({
     id={id}
     style={side === 'before' ? undefined : {
       backgroundImage: 'linear-gradient(#e2e8f0, #e2e8f0)',
-      backgroundSize: 'calc(100% - 12px) 1px',
+      backgroundSize: '92% 1px',
       backgroundPosition: 'center top',
       backgroundRepeat: 'no-repeat'
     }}

@@ -287,12 +287,14 @@ export const CostBreakdownPage: React.FC<CostBreakdownPageProps> = ({ manualOrde
             className="flex shrink-0 items-baseline gap-1.5 whitespace-nowrap border-l border-slate-300 pl-2 text-xs"
           >
             <span className="font-semibold text-slate-800">Standard Cost Gap</span>
-            <SelectedNumber
-              value={costBreakdownFullComparison.totalGap}
-              selectionId={`cbd:${comparisonPair.fingerprint}:subheader:standard-cost-gap`}
-              aria-label={`Standard Cost Gap ${costBreakdownFullComparison.totalGap === null ? 'unavailable' : formatVariance(costBreakdownFullComparison.totalGap, 2)} THB/pc; Gap = ${gapDirection}`}
-              className={`font-mono tabular-nums ${costBreakdownFullComparison.totalGap === null ? 'text-slate-400' : getVarianceClass(costBreakdownFullComparison.totalGap)}`}
-            >{costBreakdownFullComparison.totalGap === null ? '—' : formatVariance(costBreakdownFullComparison.totalGap, 2)}</SelectedNumber>
+            <span className={costBreakdownFullComparison.totalGap === null ? 'text-slate-400' : getVarianceClass(costBreakdownFullComparison.totalGap)}>
+              <SelectedNumber
+                value={costBreakdownFullComparison.totalGap}
+                selectionId={`cbd:${comparisonPair.fingerprint}:subheader:standard-cost-gap`}
+                aria-label={`Standard Cost Gap ${costBreakdownFullComparison.totalGap === null ? 'unavailable' : formatVariance(costBreakdownFullComparison.totalGap, 2)} THB/pc; Gap = ${gapDirection}`}
+                className="font-mono tabular-nums"
+              >{costBreakdownFullComparison.totalGap === null ? '—' : formatVariance(costBreakdownFullComparison.totalGap, 2)}</SelectedNumber>
+            </span>
           </div>
 
           <div role="group" aria-label="Cost element color legend" className="flex shrink-0 items-center gap-2 whitespace-nowrap border-l border-slate-300 pl-2 text-[10px] font-medium text-slate-600">

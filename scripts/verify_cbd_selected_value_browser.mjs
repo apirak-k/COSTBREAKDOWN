@@ -476,12 +476,14 @@ try {
     const insetGeometry = insetRows.length === 2 && insetRows.every(row =>
       row.cells.every(cell => cell.top === '0px')
       && row.backgroundImage !== 'none'
-      && row.backgroundSize === 'calc(100% - 12px) 1px'
+      && row.backgroundSize === '92% 1px'
       && ['50% 0%', 'center top'].includes(row.backgroundPosition)
       && row.backgroundRepeat === 'no-repeat'
-      && row.width > 12)
-    const insetGutters = insetRows.map(row => ({ left: (row.width - (row.width - 12)) / 2, right: (row.width - (row.width - 12)) / 2 }))
-    const inset = firstDetailHasNoInset && insetGeometry && insetGutters.every(gutter => Math.abs(gutter.left - gutter.right) <= 0.25 && gutter.left >= 4 && gutter.left <= 8)
+      && row.width > 0)
+    const insetGutters = insetRows.map(row => ({ left: row.width * 0.04, right: row.width * 0.04, historicalLeft: row.width * 0.04 }))
+    const inset = firstDetailHasNoInset && insetGeometry && insetGutters.every(gutter =>
+      Math.abs(gutter.left - gutter.right) <= 0.25
+      && Math.abs(gutter.left - gutter.historicalLeft) <= 0.25)
     const fullEnd = group?.details?.at(-1)?.cells?.every(cell => cell.bottom === '1px')
     const mainSelectionStyle = group?.selected === 'true'
       ? group.main.background !== 'rgb(255, 255, 255)'
@@ -495,7 +497,7 @@ try {
       && mainHoverWorks && mainHover?.selected === group.selected
       && detailHover?.main?.background === group.main.background && detailHover?.selected === group.selected
       && detailHover?.details?.every(row => row.background === 'rgb(255, 255, 255)')),
-      `${type} expanded Candidate renders FULL main/detail boundaries, symmetric small detail insets, white no-hover details, and main-row hover`,
+      `${type} expanded Candidate renders FULL main/detail boundaries, symmetric historical-size detail insets, white no-hover details, and main-row hover`,
       { group, mainHover: mainHover?.main?.background, detailHover: { main: detailHover?.main?.background, details: detailHover?.details?.map(row => row.background) }, firstDetailHasNoInset, insetGeometry, insetGutters, inset, fullEnd })
   }
   const changedRowSelector = 'tr[data-candidate-reorder-row][aria-expanded="false"]'
@@ -516,6 +518,32 @@ try {
   verify(initialHeader === '—', 'Selected Value Header starts empty on Cost Breakdown', { value: initialHeader })
   const subheaderNumber = 'header[aria-label="Cost Breakdown subheader"] [data-selected-number="true"]'
   if (!(await existsVisible(subheaderNumber))) throw new Error('Cost Breakdown Standard Cost Gap is not a selectable numeric value for this fixture')
+  let colorPair = ['Reference', 'Current']
+  let colorPairGap = await rawNumericValue(subheaderNumber)
+  if (Math.abs(colorPairGap) < 0.00005) {
+    colorPair = ['Current', 'Custom']
+    await setPair(...colorPair)
+    colorPairGap = await rawNumericValue(subheaderNumber)
+  }
+  if (!Number.isFinite(colorPairGap) || Math.abs(colorPairGap) < 0.00005) throw new Error(`The CBD fixture has no non-neutral Standard Cost Gap for a sign-color browser check: ${colorPairGap}`)
+  const readSubheaderForeground = () => evaluate(`(()=>{const button=${visibleExpression(subheaderNumber)};return button?getComputedStyle(button).color:null})()`)
+  const positivePair = colorPairGap > 0 ? colorPair : [...colorPair].reverse()
+  await setPair(...positivePair)
+  const positiveGap = await rawNumericValue(subheaderNumber)
+  const positiveForeground = await readSubheaderForeground()
+  verify(positiveGap > 0.00005 && positiveForeground === 'rgb(225, 29, 72)',
+    'positive Standard Cost Gap keeps the historical rose/red foreground on its SelectedNumber', { gap: positiveGap, foreground: positiveForeground })
+  await setPair(...[...positivePair].reverse())
+  const negativeGap = await rawNumericValue(subheaderNumber)
+  const negativeForeground = await readSubheaderForeground()
+  verify(negativeGap < -0.00005 && negativeForeground === 'rgb(5, 150, 105)',
+    'negative Standard Cost Gap keeps the historical emerald/green foreground on its SelectedNumber', { gap: negativeGap, foreground: negativeForeground })
+  await setPair('Reference', 'Reference')
+  const neutralGap = await rawNumericValue(subheaderNumber)
+  const neutralForeground = await readSubheaderForeground()
+  verify(Math.abs(neutralGap) < 0.00005 && neutralForeground === 'rgb(148, 163, 184)',
+    'zero Standard Cost Gap keeps the historical neutral foreground on its SelectedNumber', { gap: neutralGap, foreground: neutralForeground })
+  await setPair('Reference', 'Current')
   const subheaderBefore = await headerValue()
   const subheaderRectIdle = await measureRect(subheaderNumber)
   const subheaderVisualIdle = await selectedNumberVisual(subheaderNumber)
