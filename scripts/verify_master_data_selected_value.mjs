@@ -1077,8 +1077,22 @@ try {
     if(previousFocus instanceof HTMLElement&&previousFocus.isConnected&&previousFocus!==document.activeElement)previousFocus.focus({preventScroll:true})
     return {metadata,tables}
   })()`)
+  // History restore may rehydrate the same numeric model value with harmless
+  // trailing fractional zero padding. Compare that formatting textually so
+  // any changed significant digit still fails the complete snapshot check.
   const firstSnapshotDifference = (expected, actual, path = '$') => {
     if (Object.is(expected, actual)) return null
+    if (typeof expected === 'string' && typeof actual === 'string') {
+      const canonicalDecimal = value => {
+        const match = value.match(/^(-?)(\d+)\.(\d+)$/)
+        if (!match) return null
+        const integer = match[2].replace(/^0+(?=\d)/, '')
+        const fraction = match[3].replace(/0+$/, '')
+        return `${match[1]}${integer}${fraction ? `.${fraction}` : ''}`
+      }
+      const expectedDecimal = canonicalDecimal(expected)
+      if (expectedDecimal !== null && expectedDecimal === canonicalDecimal(actual)) return null
+    }
     if (Array.isArray(expected) && Array.isArray(actual)) {
       if (expected.length !== actual.length) return { path: `${path}.length`, expected: expected.length, actual: actual.length }
       for (let index = 0; index < expected.length; index += 1) {
@@ -1142,7 +1156,7 @@ try {
     { metadataCount: afterClearSnapshot.metadata.length, tables: afterClearSnapshot.tables.map(table => ({ label: table.label, rowCount: table.rows.length })) }
   )
 
-  const historyFocus = () => evaluate(`(()=>{const element=document.activeElement;return {tag:element?.tagName??null,type:element?.getAttribute('type')??null,label:element?.getAttribute('aria-label')??null,field:element?.getAttribute('data-grid-field')??null,rowId:element?.getAttribute('data-grid-row-id')??null,isGridCell:element?.getAttribute('data-grid-cell')??null}})()`)
+  const historyFocus = () => evaluate(`(()=>{const element=document.activeElement;return {tag:element?.tagName??null,type:element?.getAttribute('type')??null,label:element?.getAttribute('aria-label')??null,field:element?.getAttribute('data-grid-field')??null,rowId:element?.getAttribute('data-grid-row-id')??null,isGridCell:element?.getAttribute('data-grid-cell')??null,inWorkingToolbar:!!element?.closest('[aria-label="Working dataset controls"]')}})()`)
   const historyButtonState = label => evaluate(`(()=>{const button=document.querySelector(${JSON.stringify(`header button[aria-label="${label}"]`)});return button?{disabled:button.disabled,ariaDisabled:button.getAttribute('aria-disabled')}:null})()`)
   await clickSelector('header button[aria-label="Undo"]')
   await delay(350)
@@ -1166,31 +1180,91 @@ try {
       focus: await historyFocus()
     })
 
-  await clickSelector('section[aria-label="Bill of Materials rows"] tbody tr:first-child input[data-grid-field="price"]')
-  await evaluate(`(()=>{window.__clearHistoryKeyEvents=[];document.addEventListener('keydown',event=>window.__clearHistoryKeyEvents.push({key:event.key,code:event.code,ctrl:event.ctrlKey,meta:event.metaKey,target:event.target?.getAttribute('data-grid-field')??null,defaultPrevented:event.defaultPrevented}),false)})()`)
+  await clickSelector('header button[aria-label="Undo"]')
+  await delay(350)
+  const beforeKeyboardClearSnapshot = await captureWorkingDataset()
+  verify(firstSnapshotDifference(beforeClearSnapshot, beforeKeyboardClearSnapshot) === null,
+    'toolbar Undo restores the complete dataset before the immediate keyboard Clear regression', {
+      difference: firstSnapshotDifference(beforeClearSnapshot, beforeKeyboardClearSnapshot),
+      focus: await historyFocus()
+    })
+  await clickSelector('section[aria-label="Working dataset controls"] button[aria-label="Clear"]')
+  await waitFor(async () => {
+    const snapshot = await captureWorkingDataset()
+    return snapshot.metadata.every(([, value]) => value === '')
+      && snapshot.tables.every(table => table.rows.every(row => row.fields.every(([, value]) => value === '')))
+  }, 'second Current dataset Clear for immediate keyboard history')
+  const immediateAfterClearSnapshot = await captureWorkingDataset()
+  const focusBeforeKeyboardUndo = await historyFocus()
+  verify(firstSnapshotDifference(afterClearSnapshot, immediateAfterClearSnapshot) === null
+      && focusBeforeKeyboardUndo.isGridCell !== 'true'
+      && focusBeforeKeyboardUndo.inWorkingToolbar,
+    'Clear retains toolbar focus and leaves every table cell unfocused before the immediate keyboard shortcut', {
+      difference: firstSnapshotDifference(afterClearSnapshot, immediateAfterClearSnapshot),
+      activeElement: focusBeforeKeyboardUndo
+    })
+  await evaluate(`(()=>{window.__clearHistoryKeyEvents=[];document.addEventListener('keydown',event=>{if(event.ctrlKey||event.metaKey)window.__clearHistoryKeyEvents.push({key:event.key,code:event.code,ctrl:event.ctrlKey,meta:event.metaKey,shift:event.shiftKey,targetTag:event.target?.tagName??null,targetLabel:event.target?.getAttribute('aria-label')??null,targetGridCell:!!event.target?.closest?.('[data-grid-cell="true"]'),activeGridCell:!!document.activeElement?.closest('[data-grid-cell="true"]'),defaultPrevented:event.defaultPrevented})},true)})()`)
   await pressKey('z', { ctrl: true })
   await delay(350)
   const keyboardUndoSnapshot = await captureWorkingDataset()
   const keyboardUndoDiagnostic = {
-    difference: firstSnapshotDifference(beforeClearSnapshot, keyboardUndoSnapshot),
-    expectedMetadata: beforeClearSnapshot.metadata,
+    difference: firstSnapshotDifference(beforeKeyboardClearSnapshot, keyboardUndoSnapshot),
+    expectedMetadata: beforeKeyboardClearSnapshot.metadata,
     actualMetadata: keyboardUndoSnapshot.metadata,
     actualTableFields: keyboardUndoSnapshot.tables.map(table => ({ label: table.label, rows: table.rows.map(row => ({ id: row.id, fields: row.fields })) })),
     keyEvents: await evaluate('window.__clearHistoryKeyEvents'),
     focus: await historyFocus(),
     toolbarUndo: await historyButtonState('Undo')
   }
-  verify(keyboardUndoDiagnostic.difference === null,
-    'Ctrl+Z restores the complete Current dataset immediately before Clear', keyboardUndoDiagnostic)
+  verify(keyboardUndoDiagnostic.difference === null
+      && keyboardUndoDiagnostic.keyEvents[0]?.ctrl === true
+      && keyboardUndoDiagnostic.keyEvents[0]?.key === 'z'
+      && keyboardUndoDiagnostic.keyEvents[0]?.targetTag === 'BUTTON'
+      && !keyboardUndoDiagnostic.keyEvents[0]?.targetGridCell
+      && !keyboardUndoDiagnostic.keyEvents[0]?.activeGridCell,
+    'immediate Ctrl+Z from the still-focused Clear toolbar control restores the complete pre-Clear dataset without grid focus', keyboardUndoDiagnostic)
+  const beforeCtrlRedoSnapshot = await captureWorkingDataset()
+  const ctrlUndoPrecondition = firstSnapshotDifference(beforeKeyboardClearSnapshot, beforeCtrlRedoSnapshot) === null
+  verify(ctrlUndoPrecondition,
+    'Ctrl+Z has restored the complete pre-Clear snapshot before testing Ctrl+Y',
+    { difference: firstSnapshotDifference(beforeKeyboardClearSnapshot, beforeCtrlRedoSnapshot), focus: await historyFocus() })
   await pressKey('y', { ctrl: true })
   await delay(350)
   const keyboardRedoSnapshot = await captureWorkingDataset()
-  verify(firstSnapshotDifference(afterClearSnapshot, keyboardRedoSnapshot) === null,
-    'Ctrl+Y reapplies Current Clear', {
+  const ctrlRedoEvent = (await evaluate('window.__clearHistoryKeyEvents'))[1]
+  verify(ctrlUndoPrecondition && firstSnapshotDifference(afterClearSnapshot, keyboardRedoSnapshot) === null
+      && ctrlRedoEvent?.key === 'y' && ctrlRedoEvent?.ctrl === true
+      && ctrlRedoEvent?.targetTag === 'BUTTON' && !ctrlRedoEvent?.targetGridCell && !ctrlRedoEvent?.activeGridCell,
+    'immediate Ctrl+Y from the toolbar reapplies the complete Current Clear', {
       difference: firstSnapshotDifference(afterClearSnapshot, keyboardRedoSnapshot),
       keyEvents: await evaluate('window.__clearHistoryKeyEvents'),
       focus: await historyFocus(),
       toolbarRedo: await historyButtonState('Redo')
+    })
+
+  await pressKey('z', { meta: true })
+  await delay(350)
+  const macKeyboardUndoSnapshot = await captureWorkingDataset()
+  const macUndoPrecondition = firstSnapshotDifference(beforeKeyboardClearSnapshot, macKeyboardUndoSnapshot) === null
+  const macUndoEvent = (await evaluate('window.__clearHistoryKeyEvents'))[2]
+  verify(macUndoPrecondition && macUndoEvent?.key === 'z' && macUndoEvent?.meta === true
+      && macUndoEvent?.targetTag === 'BUTTON' && !macUndoEvent?.targetGridCell && !macUndoEvent?.activeGridCell,
+    'immediate Cmd+Z from the toolbar restores the complete pre-Clear dataset', {
+      difference: firstSnapshotDifference(beforeKeyboardClearSnapshot, macKeyboardUndoSnapshot),
+      keyEvents: await evaluate('window.__clearHistoryKeyEvents'),
+      focus: await historyFocus()
+    })
+  await pressKey('z', { meta: true, shift: true })
+  await delay(350)
+  const macKeyboardRedoSnapshot = await captureWorkingDataset()
+  const macRedoEvent = (await evaluate('window.__clearHistoryKeyEvents'))[3]
+  verify(macUndoPrecondition && firstSnapshotDifference(afterClearSnapshot, macKeyboardRedoSnapshot) === null
+      && macRedoEvent?.key === 'z' && macRedoEvent?.meta === true && macRedoEvent?.shift === true
+      && macRedoEvent?.targetTag === 'BUTTON' && !macRedoEvent?.targetGridCell && !macRedoEvent?.activeGridCell,
+    'immediate Cmd+Shift+Z from the toolbar reapplies the complete Current Clear', {
+      difference: firstSnapshotDifference(afterClearSnapshot, macKeyboardRedoSnapshot),
+      keyEvents: await evaluate('window.__clearHistoryKeyEvents'),
+      focus: await historyFocus()
     })
 
   await chooseRole('Reference')

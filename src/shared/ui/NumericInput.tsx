@@ -72,6 +72,8 @@ export function NumericInput({
   const currentValueRef = useRef(value)
   const onValueChangeRef = useRef(onValueChange)
   const lastEmittedValueRef = useRef(value)
+  const authoritativeDraftRef = useRef(formatFocusedNumericValue(value, integer))
+  const authoritativeDraftValueRef = useRef(value)
   const previousValueRef = useRef(value)
   const previousFormattedValueRef = useRef(formatValue(value))
   const preservedPlaceRef = useRef<{ raw: string; caret: number; place: NumericStepPlace } | null>(null)
@@ -88,8 +90,10 @@ export function NumericInput({
   currentValueRef.current = value
   onValueChangeRef.current = onValueChange
   canStepRef.current = !inputProps.disabled && !inputProps.readOnly
-  const emitValue = (next: number | null) => {
+  const emitValue = (next: number | null, authoritativeDraft = formatFocusedNumericValue(next, integer)) => {
     lastEmittedValueRef.current = next
+    authoritativeDraftRef.current = authoritativeDraft
+    authoritativeDraftValueRef.current = next
     onValueChangeRef.current(next)
   }
 
@@ -164,6 +168,14 @@ export function NumericInput({
     const formattedValue = formatValue(value)
     const valueChanged = !Object.is(previousValueRef.current, value)
 
+    // The numeric prop remains the calculation representation. Keep the last
+    // accepted edit string authoritative across our own numeric emissions, and
+    // rehydrate it only when an external source actually changes the value.
+    if (valueChanged && !Object.is(value, lastEmittedValueRef.current)) {
+      authoritativeDraftRef.current = formatFocusedNumericValue(value, integer)
+      authoritativeDraftValueRef.current = value
+    }
+
     // Clipboard edits update the parent value without going through this input's
     // onChange handler. Keep the focused editor in sync when it still shows the
     // previous committed value, while preserving an in-progress numeric draft.
@@ -204,7 +216,7 @@ export function NumericInput({
     if (next === null) {
       preservedPlaceRef.current = null
       restorePlaceRef.current = null
-      emitValue(null)
+      emitValue(null, '')
       setDraft('')
     } else {
       const nextDraft = formatFocusedNumericValue(next, integer)
@@ -214,7 +226,7 @@ export function NumericInput({
       } else {
         restorePlaceRef.current = activePlace.exponent
       }
-      emitValue(next)
+      emitValue(next, nextDraft)
       setDraft(nextDraft)
     }
     inputRef.current?.focus()
@@ -226,15 +238,15 @@ export function NumericInput({
     if (parsed.kind === 'invalid' || parsed.kind === 'out-of-domain') return
     preservedPlaceRef.current = null
     setDraft(raw)
-    if (parsed.kind === 'blank') emitValue(null)
-    else if (parsed.kind === 'valid') emitValue(parsed.value)
+    if (parsed.kind === 'blank') emitValue(null, raw)
+    else if (parsed.kind === 'valid') emitValue(parsed.value, raw)
   }
 
   const handleBlur = (event: FocusEvent<HTMLInputElement>) => {
     stopArrowRepeat()
     setFocused(false)
     const parsed = parseNumericDraft(draft, domain, allowSubMinimumDraft)
-    if (parsed.kind === 'blank') emitValue(null)
+    if (parsed.kind === 'blank') emitValue(null, '')
     setDraft(formatValue(currentValueRef.current))
     onBlur?.(event)
   }
@@ -308,7 +320,14 @@ export function NumericInput({
           resetScrollOnFocusRef.current = true
           preservedPlaceRef.current = null
           // Editing starts from the authoritative value, never its formatted presentation.
-          if (!inputProps.readOnly || /[eE]/.test(event.currentTarget.value)) setDraft(formatFocusedNumericValue(currentValueRef.current, integer))
+          if (!inputProps.readOnly || /[eE]/.test(event.currentTarget.value)) {
+            const authoritativeDraft = Object.is(authoritativeDraftValueRef.current, currentValueRef.current)
+              ? authoritativeDraftRef.current
+              : formatFocusedNumericValue(currentValueRef.current, integer)
+            authoritativeDraftRef.current = authoritativeDraft
+            authoritativeDraftValueRef.current = currentValueRef.current
+            setDraft(authoritativeDraft)
+          }
           setFocused(true)
           onFocus?.(event)
         }}

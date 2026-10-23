@@ -267,6 +267,24 @@ export const MasterDataPage: React.FC<MasterDataPageProps> = ({
     )
   }
 
+  const handleWorkspaceHistoryShortcut = (event: React.KeyboardEvent<HTMLDivElement>) => {
+    if (event.defaultPrevented || !isEditMode || !(event.ctrlKey || event.metaKey)) return
+    const target = event.target
+    if (!(target instanceof HTMLElement)
+      || !target.closest('[aria-label="Working dataset controls"]')
+      || !target.closest('button')) return
+
+    const key = event.key.toLowerCase()
+    if (key === 'z') {
+      event.preventDefault()
+      if (event.shiftKey) redoMasterDataEdit()
+      else undoMasterDataEdit()
+    } else if (key === 'y' && !event.shiftKey) {
+      event.preventDefault()
+      redoMasterDataEdit()
+    }
+  }
+
   const tableSections = [
     { key: 'bom' as const, id: 'master-data-table-bom', label: 'Bill of Materials', navLabel: 'BOM' },
     { key: 'wc' as const, id: 'master-data-table-wc', label: 'Work Centers', navLabel: 'WC' },
@@ -307,7 +325,7 @@ export const MasterDataPage: React.FC<MasterDataPageProps> = ({
   )
 
   return (
-    <div ref={pageRef} className="w-full space-y-2">
+    <div ref={pageRef} onKeyDown={handleWorkspaceHistoryShortcut} className="w-full space-y-2">
       <MasterDataWorkspaceHeader
         workspaceHeaderRef={workspaceHeaderRef}
         product={product}

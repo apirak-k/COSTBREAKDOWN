@@ -309,7 +309,7 @@ try {
       const state=await outcomeState()
       const actual=Number(state.op?.replaceAll(',','').trim())
       check(`Outcome Operating Profit uses canonical dynamic signed economics at Selling Price ${sellingPrice}`,Number.isFinite(actual)&&Math.abs(actual-state.expected)<0.03&&(sellingPrice==='0'?actual<0&&state.color.includes('rose'):actual>0&&state.color.includes('emerald')),state)
-      check('Outcome hierarchy retains full Operating Profit label between Margin and Break-even with shared UOM',state.labels.join('|')==='Parameter Saving|Required Saving|Economic Margin|Operating Profit|Break-even Qty'&&state.unit.includes('THB/'),state)
+      check('Outcome hierarchy retains full Operating Profit label between Margin and Break-even Quantity with shared UOM',state.labels.join('|')==='Parameter Saving|Required Saving|Economic Margin|Operating Profit|Break-even Quantity'&&state.unit.includes('THB/'),state)
     }
     for (const width of [1440,1024,768,390,320]) {
       await setViewport(width)

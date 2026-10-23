@@ -298,8 +298,7 @@ try {
     await clickInput(aria)
     const focused = await inputMetrics(aria)
     await screenshot(evidenceName + '-focus')
-    const expected = value.includes('.') ? value.padEnd(value.indexOf('.') + 3, '0') : value + '.00'
-    assert.equal(focused.text, expected, aria + ' focused committed decimal minimum 2dp preserves precision')
+    assert.equal(focused.text, value, aria + ' refocus restores the exact accepted editable string')
     if (!focused.fits) assert.ok(focused.scrollWidth > focused.clientWidth, aria + ' long authoritative Focus draft scrolls within the native input')
     if (!blurred.text.includes('E')) {
       assert.ok(Math.abs(blurred.decimal - blurred.regionCenter) <= 0.6, aria + ' compact blurred decimal retains its frame center')
@@ -413,7 +412,8 @@ try {
     assert.ok(Math.abs(view.width-edit.width)<=1, `Master Data View/Edit use the same fixed shell (${view.width}/${edit.width})`)
     await clickButton(`document.querySelector('button[role="switch"]')`)
     await clickInput(masterAria)
-    assert.equal(await inputValue(masterAria),value.includes('.')?value:value+'.00', 'switching View/Edit preserves authoritative digits with minimum 2dp')
+    const remountedValue = value.includes('.') ? value.padEnd(value.indexOf('.') + 3, '0') : value + '.00'
+    assert.equal(await inputValue(masterAria),remountedValue, 'switching View/Edit remounts the editor from the authoritative model value with its existing focused format')
     fitResults.push({area:'Master Data Edit/View',value,edit,view})
   }
   await typeInto(masterAria,masterOriginal); await blurNumeric()
@@ -473,7 +473,7 @@ try {
         staticFrame ??= frame
         assert.deepEqual(frame,staticFrame, 'Simulation overlay is fixed across ordinary/tiny/scientific values')
         await clickInput(aria)
-        assert.equal(await inputValue(aria),value.includes('.')?value.padEnd(value.indexOf('.')+3,'0'):value+'.00', 'Simulation Focus restores authoritative full value')
+        assert.equal(await inputValue(aria),value, 'Simulation blur/refocus restores the exact accepted editable string')
         const focused = await inputMetrics(aria)
         assert.equal(focused.x,metric.x);assert.equal(focused.width,metric.width)
         await blurNumeric()
@@ -517,9 +517,9 @@ try {
   assert.equal(await inputValue('Selling Price'), '1.00E+300',
     'blur compacts the high-magnitude value without retaining the long draft as presentation')
   await clickInput('Selling Price')
-  const fullHighMagnitudeAuthoritativeValue = `1${'0'.repeat(300)}.00`
+  const fullHighMagnitudeAuthoritativeValue = `${longHighMagnitudeDecimal}7`
   assert.equal(await inputValue('Selling Price'), fullHighMagnitudeAuthoritativeValue,
-    'refocus restores the complete 1e300 authoritative value after its compact presentation')
+    'refocus restores every accepted digit of the 1e300 long-decimal authoritative value')
   await send('Input.dispatchKeyEvent', { type: 'keyDown', key: 'End', code: 'End', windowsVirtualKeyCode: 35, nativeVirtualKeyCode: 35 })
   await send('Input.dispatchKeyEvent', { type: 'keyUp', key: 'End', code: 'End', windowsVirtualKeyCode: 35, nativeVirtualKeyCode: 35 })
   assert.equal(await evaluate('document.activeElement.selectionStart'), fullHighMagnitudeAuthoritativeValue.length,
@@ -535,6 +535,32 @@ try {
   assert.equal(await inputValue('Selling Price'), sellingPriceBeforeLongDraft,
     'refocusing Selling Price restores its full authoritative value after the long draft')
   await blurNumeric()
+  const exactAcceptedDecimal = '123456789012345.123456789'
+  await typeInto('Selling Price', exactAcceptedDecimal)
+  assert.equal(await inputValue('Selling Price'), exactAcceptedDecimal,
+    'Selling Price accepts the exact large decimal string while editing')
+  const exactAcceptedMetrics = await inputMetrics('Selling Price')
+  assert.ok(exactAcceptedMetrics.scrollWidth > exactAcceptedMetrics.clientWidth,
+    'the exact accepted large decimal uses native horizontal scrolling inside the input frame')
+  await blurNumeric()
+  const compactExactAcceptedDecimal = await inputValue('Selling Price')
+  assert.notEqual(compactExactAcceptedDecimal, exactAcceptedDecimal,
+    'large decimal blur presentation may be compact without changing the accepted edit value')
+  await clickInput('Selling Price')
+  assert.equal(await inputValue('Selling Price'), exactAcceptedDecimal,
+    'refocus restores the exact accepted decimal string without Number-based reconstruction')
+  await send('Input.dispatchKeyEvent', { type: 'keyDown', key: 'End', code: 'End', windowsVirtualKeyCode: 35, nativeVirtualKeyCode: 35 })
+  await send('Input.dispatchKeyEvent', { type: 'keyUp', key: 'End', code: 'End', windowsVirtualKeyCode: 35, nativeVirtualKeyCode: 35 })
+  assert.equal(await evaluate('document.activeElement.selectionStart'), exactAcceptedDecimal.length,
+    'End reaches the final digit of the exact refocused decimal')
+  assert.ok((await inputMetrics('Selling Price')).scrollLeft > 0,
+    'refocused exact decimal scrolls horizontally to its final digits')
+  await typeInto('Selling Price', sellingPriceBeforeLongDraft)
+  await blurNumeric()
+  await clickInput('Selling Price')
+  assert.equal(await inputValue('Selling Price'), sellingPriceBeforeLongDraft,
+    'Selling Price restores its starting value after exact-decimal verification')
+  await blurNumeric()
   const sgaAria=await evaluate(`([...document.querySelectorAll('input')].find(e=>e.getClientRects().length&&/SG&A/.test(e.getAttribute('aria-label')||'')))?.getAttribute('aria-label')`)
   assert.ok(sgaAria,'real Business SG&A editor is available')
   const sgaOriginal=await inputValue(sgaAria)
@@ -545,7 +571,7 @@ try {
   assert.equal(sgaMetrics.suffix, false, 'SG&A has no duplicate % suffix')
   assert.equal(sgaMetrics.width, sellingPriceMetrics.width, 'SG&A matches frame width of sibling economic inputs')
   await clickInput(sgaAria);await evaluate('document.activeElement.select()');await send('Input.insertText',{text:'101'})
-  assert.equal(await inputValue(sgaAria),'100.00','SG&A maximum remains 100 percent')
+  assert.equal(await inputValue(sgaAria),'100','SG&A maximum remains 100 percent without changing the accepted editable string')
   await typeInto(sgaAria,sgaOriginal);await blurNumeric()
   const percentAria=await evaluate(`([...document.querySelectorAll('input')].find(e=>e.getClientRects().length&&/Loss in Current$/.test(e.getAttribute('aria-label')||'')))?.getAttribute('aria-label')`)
   const yieldAria = await evaluate(`([...document.querySelectorAll('input')].find(e=>e.getClientRects().length&&/Yield in Current$/.test(e.getAttribute('aria-label')||'')))?.getAttribute('aria-label')`)

@@ -1,4 +1,21 @@
-# New Follow-up Corrective Implementation — 2026-10-24
+# Final Narrow Corrective Pass After External Audit — 2026-10-24
+
+- **Branch / worktree:** `feat/selected-value-ux` / `E:\COSTBREAKDOWN\.worktrees\SIMULATION-FINALIZED`
+- **Starting local and remote HEAD:** `1010cc236bbb291deb36cff6dd3d824348908d2d`.
+- **Scope:** the three remaining external-audit findings only. Previously passed corrective findings were preserved. No merge and no Round 4B work.
+- **Corrections:**
+  1. Master Data's page-level key route now handles Ctrl/Cmd+Z, Ctrl+Y, and Cmd+Shift+Z while focus remains on a button in Working dataset controls. It does not move focus to the grid; the grid-scoped route and toolbar Undo/Redo remain intact. Clear's mutation and structure semantics are unchanged.
+  2. `NumericInput` retains the exact accepted editable string separately from the numeric value sent to existing calculations. Blur formats only the visible draft; refocus restores the retained string. Typing remains unsnapped, and the browser uses native horizontal scrolling for long values. No calculation type or formula changed.
+  3. Simulation Outcome's visible `Break-even Quantity` copy now matches the active Simulation specification; calculation, graph, and result values are unchanged.
+- **Verification:**
+  - `node scripts/verify_master_data_selected_value.mjs`: **161 passed / 0 failed**. The verifier records the focused Clear toolbar button and asserts it is not a grid cell before Ctrl+Z; it checks full pre-Clear restoration, full redo, and the macOS Cmd+Z / Cmd+Shift+Z path. Snapshot matching ignores only trailing fractional zero padding and compares all significant digits as text. Toolbar Undo/Redo and dataset structure checks pass.
+  - `node scripts/verify_numeric_input_browser.mjs`: **2365/2365 PASS**, including exact `123456789012345.123456789` blur/refocus, `12.3456789`, the 1e300 long-decimal case, and native horizontal scrolling.
+  - `node scripts/verify_numeric_input.mjs`: **334/334 PASS**.
+  - `npx tsx scripts/verify_simulation_economics.ts`: **PASS**, including visible Outcome copy.
+  - `npm run build`: **PASS**, 2,060 modules. Existing ExcelJS/fast-csv browser externalization and large-chunk warnings remain.
+- **External audit:** remains the final gate. Do not start Round 4B or merge.
+
+# Previous Seven-Finding Follow-up Corrective Implementation — 2026-10-24
 
 - **Branch / worktree:** `feat/selected-value-ux` / `E:\COSTBREAKDOWN\.worktrees\SIMULATION-FINALIZED`
 - **Starting local and remote HEAD:** `f75eea95d320244f336f3b6a3d8b0a8a835e1082`, verified with `git rev-parse` and `git ls-remote` before implementation.

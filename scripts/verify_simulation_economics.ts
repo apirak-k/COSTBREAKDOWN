@@ -166,7 +166,7 @@ const panelMarkup = renderPanel(baseResult, worked)
 for (const text of [
   '>Business</h2>', '>Economic</h2>', '>Outcome</h3>', 'Fixed Action Cost', 'Batch Size', 'Variable Action Cost', 'Variable Action Cost / Unit',
   'Parameter Saving / Unit', 'Required Saving / Unit', 'Economic Margin / Unit',
-  'Break-even Quantity', '(2,500 PC)', 'Break-even Qty', 'Selling Price', 'SG&amp;A %',
+  'Break-even Quantity', '(2,500 PC)', 'Selling Price', 'SG&amp;A %',
   'THB/PC', 'QTY (PC)'
 ]) assert.ok(panelMarkup.includes(text), `finalized Economic/Business UI includes ${text}`)
 const inputsCardTag = panelMarkup.match(/<div data-safe-workspace-interaction="true" data-simulation-layout-column="inputs"[^>]*>/)?.[0] ?? ''
@@ -224,7 +224,7 @@ for (const [label, value] of [['Parameter Saving', '6.00'], ['Required Saving', 
   assert.ok(outcome.includes(`>${label}</span>`), `${label} uses the short visible label`)
   assert.match(outcome, new RegExp(`>${value.replace('.', '\\.')}</span>`), `${label} value has no repeated unit`)
 }
-assert.match(outcome, /aria-label="Break-even Quantity"[^>]*title="[^"]+"[\s\S]*?>Break-even Qty<\/span>[\s\S]*?>2500 PC<\/span>/,
+assert.match(outcome, /aria-label="Break-even Quantity"[^>]*title="[^"]+"[\s\S]*?>Break-even Quantity<\/span>[\s\S]*?>2500 PC<\/span>/,
   'Outcome shows the same whole quantity as the graph heading with the product UOM')
 for (const result of [business, overrideBusiness, negativeProfit, unavailableBusiness]) {
   const markup = renderPanel(result, worked)
@@ -235,7 +235,7 @@ for (const result of [business, overrideBusiness, negativeProfit, unavailableBus
 }
 const breakEvenOutcome = outcome.match(/<div role="group" aria-label="Break-even Quantity"[\s\S]*?<\/div>/)?.[0] ?? ''
 assert.match(breakEvenOutcome, /mt-1 border-t border-slate-200 pt-1/,
-  'Break-even Qty is separated from the monetary per-unit outputs by a subtle divider')
+  'Break-even Quantity is separated from the monetary per-unit outputs by a subtle divider')
 const baseGraphHeader = panelMarkup.match(/<figcaption id="break-even-graph-title"[\s\S]*?<\/figcaption>/)?.[0] ?? ''
 assert.match(baseGraphHeader, /<span>Break-even<\/span>[\s\S]*?<span class="text-\[9px\] font-normal text-slate-500">\(2,500 PC\)<\/span>/,
   'graph heading keeps Break-even primary and renders subdued parenthetical quantity context')
